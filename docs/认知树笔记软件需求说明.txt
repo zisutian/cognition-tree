@@ -457,29 +457,64 @@ Markdown 只是导出格式。
 
 12.1 桌面端
 
-推荐：
+第一阶段采用：
 
-    Tauri
+    Tauri 2
+    Vite
+    React
     TypeScript
+    Rust
     SQLite
-    ProseMirror 或 TipTap
+    CodeMirror 6
 
 备选：
 
     Electron
     TypeScript
     SQLite
+    ProseMirror
+    TipTap
     Lexical
+
+说明：
+
+    第一阶段优先实现本地桌面端。
+    Tauri 2 负责桌面壳和系统能力。
+    React 负责应用界面。
+    CodeMirror 6 负责 .ctn 原文编辑、缩进、快捷键、语法装饰和作用域提示。
+    Rust 负责 Tauri commands、本地文件和 SQLite 访问。
+    SQLite 负责笔记、块、链接和语法配置存储。
+    FTS5 搜索索引作为后续增强，不作为第一阶段必须依赖。
 
 12.2 编辑器核心
 
 不建议从零实现 contenteditable。
 
-建议基于 ProseMirror、TipTap 或 Lexical 构建结构化块编辑器。
+第一阶段基于 CodeMirror 6 构建语义文本编辑器。
+
+原因：
+
+    本软件的核心输入是 .ctn 原始文本。
+    缩进、行首符号、行内符号和语法配置是主要语义来源。
+    CodeMirror 6 更适合处理文本、缩进、装饰、折叠、快捷键和结构视图联动。
+    ProseMirror、TipTap 或 Lexical 可作为后续结构化块编辑器候选，但不作为第一阶段主依赖。
+
+第一阶段编辑器至少应提供：
+
+    原文视图
+    块类型识别
+    缩进层级显示
+    条件作用域提示
+    结构视图或大纲视图
+    与解析器输出联动的语法装饰
 
 12.3 解析器
 
 解析器应独立于 UI。
+
+第一阶段解析器使用 TypeScript 实现，直接服务 CodeMirror 6 装饰、结构视图和 Vitest 测试。
+
+后续如果需要 CLI、批量迁移或后台索引一致性，可考虑增加 Rust 版本解析器，或将解析器核心迁移到 Rust。
 
 解析流程：
 

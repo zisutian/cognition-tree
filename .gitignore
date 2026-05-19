@@ -22,9 +22,12 @@ src-tauri/target/
 .env.*
 !.env.example
 
+# Codex / local agent runtime
+.agents/
+.codex/
+
 # Editor / OS noise
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-
