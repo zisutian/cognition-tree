@@ -1,0 +1,159 @@
+环境准备
+
+版本：0.1
+日期：2026-05-20
+
+
+1. 推荐开发方式
+
+主开发环境：
+
+    Linux
+
+验证和打包环境：
+
+    Windows
+
+原因：
+
+    Linux 更适合日常开发、脚本、测试、Git、Rust、Node、SQLite。
+    Windows 必须保留，用于验证 Tauri WebView2、中文输入法、路径行为、窗口行为和 Windows 安装包。
+
+
+2. 推荐目录
+
+Linux：
+
+    ~/dev/cognition-tree
+
+Windows：
+
+    C:\Users\thefu\Documents\cognition-tree
+
+避免把主项目长期放在中文路径、空格路径或同步盘特殊目录下。
+
+
+3. Git 规则
+
+仓库使用 LF 作为统一换行。
+
+.gitattributes 已固定：
+
+    * text=auto eol=lf
+
+Windows 批处理和 PowerShell 文件保留 CRLF：
+
+    *.bat
+    *.cmd
+    *.ps1
+
+
+4. Linux 环境准备
+
+需要安装：
+
+    Git
+    Node.js LTS
+    pnpm
+    Rust stable
+    SQLite 开发库和命令行工具
+
+验证命令：
+
+    git --version
+    node -v
+    pnpm -v
+    rustc -V
+    cargo -V
+    sqlite3 --version
+
+
+5. Windows 环境准备
+
+需要安装：
+
+    Git
+    Node.js LTS
+    pnpm
+    Rust stable-msvc
+    Visual Studio 2022 C++ Build Tools
+    Microsoft Edge WebView2 Runtime
+
+当前已确认：
+
+    Git 可用
+    Visual Studio 2022 C++ 工具已安装
+    WebView2 Runtime 已安装
+
+当前仍需处理：
+
+    安装独立 Node.js LTS，不使用 Codex 内置 node.exe
+    安装 Rust / rustup / cargo
+    启用 pnpm
+
+验证命令：
+
+    git --version
+    node -v
+    npm -v
+    corepack enable
+    corepack prepare pnpm@latest --activate
+    pnpm -v
+    rustup default stable-msvc
+    rustc -V
+    cargo -V
+    rustup show
+
+
+6. 双机工作流
+
+Linux：
+
+    日常开发
+    写解析器
+    写前端
+    写测试
+    提交 Git
+    推送 GitHub
+
+Windows：
+
+    拉取 GitHub 最新代码
+    安装依赖
+    运行 Tauri 开发模式
+    构建 Windows 版本
+    检查中文输入、路径、窗口和安装包
+
+
+7. 第一阶段技术栈
+
+    Tauri 2
+    React 或 Svelte
+    Vite
+    TypeScript
+    Rust
+    CodeMirror 6
+    自研解析器
+    .ctn 纯文本源文件
+    SQLite + FTS5 + JSON1 索引
+    Vitest
+    Playwright
+
+
+8. 依赖许可证原则
+
+项目自身使用：
+
+    GPL-3.0-or-later
+
+依赖优先选择：
+
+    MIT
+    Apache-2.0
+    BSD-2-Clause
+    BSD-3-Clause
+    ISC
+    Public Domain
+
+避免核心功能依赖闭源 SDK、专有同步服务和必须联网的托管平台。
+

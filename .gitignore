@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+coverage/
+playwright-report/
+test-results/
+
+# Rust / Tauri
+target/
+src-tauri/target/
+
+# Local databases and indexes
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
