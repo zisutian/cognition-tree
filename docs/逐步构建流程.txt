@@ -1,0 +1,187 @@
+逐步构建流程
+
+版本：0.1
+日期：2026-05-21
+
+
+1. 当前状态
+
+已完成：
+
+    初始化 Tauri 2 + Vite + React + TypeScript 桌面应用骨架。
+    配置 pnpm、TypeScript、Vite、Rust/Tauri 基础构建。
+    新增最小认知树工作台界面。
+    新增 TypeScript CTN 解析器模块。
+    解析器已输出根块树、扁平块列表和诊断信息。
+    新增 Vitest 单元测试。
+    调整界面信息密度，使编辑区和结构区更适合工作台使用。
+    GitHub SSH 推送已配置并验证。
+
+当前界面：
+
+    左侧笔记列表为占位 UI。
+    中间是 textarea 原文编辑区。
+    右侧是结构树和诊断统计。
+    尚未接入 CodeMirror 6。
+    尚未接入 SQLite。
+
+
+2. 日常开发命令
+
+安装依赖：
+
+    pnpm install
+
+前端开发服务器：
+
+    pnpm dev
+
+桌面端开发模式：
+
+    pnpm tauri dev
+
+单元测试：
+
+    pnpm test
+
+类型检查：
+
+    pnpm check
+
+前端生产构建：
+
+    pnpm build
+
+Rust / Tauri 后端检查：
+
+    cd src-tauri
+    cargo check
+
+
+3. 提交前检查
+
+提交前至少运行：
+
+    pnpm test
+    pnpm check
+    pnpm build
+    cd src-tauri
+    cargo check
+
+再检查空白问题：
+
+    git diff --check
+
+
+4. 近期 TODO
+
+4.1 解析器模型
+
+目标：
+
+    让解析器输出稳定、可测试、可供 UI / CodeMirror / SQLite 共用的数据结构。
+
+已完成：
+
+    parseCtnDocument(source)
+    roots
+    blocks
+    diagnostics
+    rawText 保留
+    默认行首符号识别
+    缩进诊断
+    未知符号诊断
+
+下一步：
+
+    增加 syntaxProfile 类型。
+    将默认符号规则从硬编码迁移为默认 profile。
+    增加行内符号解析占位结构。
+    增加块 ID 稳定策略，避免只依赖行号。
+    增加更多错误类型，例如空父级、非法子块、符号冲突。
+
+
+4.2 CodeMirror 6 接入
+
+目标：
+
+    用 CodeMirror 6 替换 textarea，支持原文编辑、缩进、装饰和结构联动。
+
+步骤：
+
+    安装 CodeMirror 6 相关包。
+    建立 Editor 组件。
+    将当前 documentText 状态迁入 CodeMirror。
+    将 parseCtnDocument 输出用于行级装饰。
+    高亮行首符号和块类型。
+    显示诊断提示。
+    保持右侧结构树实时联动。
+
+
+4.3 本地数据
+
+目标：
+
+    将笔记和块保存到本地 SQLite。
+
+步骤：
+
+    设计 SQLite schema。
+    建立 Rust Tauri commands。
+    实现创建/读取/更新笔记。
+    将 rawText 和解析结果分开存储。
+    记录 syntaxProfileId 和 syntaxVersion。
+    增加基础迁移机制。
+
+
+4.4 编辑体验
+
+目标：
+
+    让 `.ctn` 编辑接近真实笔记软件。
+
+步骤：
+
+    Tab 增加缩进。
+    Shift+Tab 减少缩进。
+    Enter 创建同级块。
+    Backspace 合并块。
+    支持折叠子块。
+    支持点击结构树定位原文。
+    支持条件作用域视觉提示。
+
+
+4.5 搜索与导出
+
+目标：
+
+    完成第一阶段最小可用闭环。
+
+步骤：
+
+    搜索标题和正文。
+    按块类型过滤。
+    导出纯文本。
+    导出 JSON。
+    后续再接 Markdown / HTML。
+
+
+5. 暂缓事项
+
+    FTS5 全文索引
+    双向链接
+    Obsidian 导入
+    Markdown / HTML 完整导出
+    插件系统
+    图谱视图
+    同步能力
+    AI 辅助整理
+
+
+6. 文档分工
+
+    docs/核心要求.txt：短版产品目标、核心原则、第一阶段要求。
+    docs/环境准备.txt：开发环境、系统依赖、安装记录和恢复命令。
+    docs/逐步构建流程.txt：当前状态、命令、TODO 和构建顺序。
+    docs/认知树笔记软件需求说明.txt：完整需求草案。
+    docs/开源许可策略.txt：许可证与依赖策略。
