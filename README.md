@@ -9,7 +9,7 @@
 已完成桌面端最小工作台：
 
     左侧笔记列表占位
-    中间 textarea 原文编辑区
+    中间 CodeMirror 6 原文编辑区
     右侧结构树和诊断统计
 
 已完成 TypeScript CTN 解析器：
@@ -19,7 +19,7 @@
     blocks
     diagnostics
 
-解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 与 SQLite 尚未接入。
+解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，SQLite 尚未接入。
 
 ## 技术栈
 
@@ -27,6 +27,7 @@
     Vite
     React
     TypeScript
+    CodeMirror 6
     Rust
     TypeScript CTN 解析器
     Vitest
@@ -34,7 +35,6 @@
 
 后续接入：
 
-    CodeMirror 6
     SQLite + JSON1
 
 ## 文档索引

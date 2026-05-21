@@ -1,13 +1,21 @@
 import { useMemo, useState } from "react";
+import { CtnEditor } from "./CtnEditor";
 import { parseCtnDocument, type OutlineNode } from "./ctn/parseOutline";
 import "./App.css";
 
 const initialDocument = `认知树
-  : 可配置语法的认知树笔记
-  [?] 如何保持原文不丢失
-    [条件] 缩进决定作用域
-    [证据] 每一行都保留 rawText
-  [理解] 下一步是接入 CodeMirror 6`;
+  : 本地优先的可配置语法认知树笔记
+  [理解] 当前编辑器已经接入 CodeMirror 6
+    [证据] 行号、活动行、Tab 缩进和基础高亮可用
+    [证据] 右侧结构树会随原文实时更新
+  [?] 下一步如何靠近真实笔记体验
+    [条件] 先补齐悬浮诊断提示和结构树定位
+    [条件] 再接入 SQLite 保存笔记和块
+  [组分] 第一阶段闭环
+    [例子] 原文编辑
+    [例子] 结构预览
+    [例子] 本地保存
+    [例子] 纯文本和 JSON 导出`;
 
 function OutlineTree({
   nodes,
@@ -90,13 +98,7 @@ function App() {
           </div>
         </header>
 
-        <textarea
-          className="source-editor"
-          spellCheck={false}
-          value={documentText}
-          onChange={(event) => setDocumentText(event.currentTarget.value)}
-          aria-label="CTN 原文"
-        />
+        <CtnEditor value={documentText} onChange={setDocumentText} />
 
         {parsedDocument.diagnostics.length > 0 ? (
           <section className="diagnostics-panel" aria-label="诊断">
