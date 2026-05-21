@@ -16,11 +16,12 @@
     新增 Vitest 单元测试。
     调整界面信息密度，使编辑区和结构区更适合工作台使用。
     接入 CodeMirror 6 基础编辑器组件，替换 textarea。
+    搭建 VS Code 风格左侧工作区入口。
     GitHub SSH 推送已配置并验证。
 
 当前界面：
 
-    左侧笔记列表为占位 UI。
+    左侧为 Activity Bar + Side Panel，已预留笔记、搜索、结构、语法、数据、设置入口。
     中间是 CodeMirror 6 原文编辑区。
     右侧是结构树和诊断统计。
     尚未接入 SQLite。

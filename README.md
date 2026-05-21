@@ -8,7 +8,7 @@
 
 已完成桌面端最小工作台：
 
-    左侧笔记列表占位
+    左侧 Activity Bar + Side Panel 工作区入口
     中间 CodeMirror 6 原文编辑区
     右侧结构树和诊断统计
 

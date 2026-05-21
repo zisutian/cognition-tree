@@ -20,21 +20,18 @@
 
 body {
   margin: 0;
-  min-width: 1080px;
+  min-width: 1180px;
   min-height: 100vh;
 }
 
 button {
   font: inherit;
-}
-
-button {
   border: 0;
 }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 220px minmax(480px, 1fr) 420px;
+  grid-template-columns: 300px minmax(480px, 1fr) 420px;
   grid-template-areas: "sidebar editor outline";
   min-height: 100vh;
   background:
@@ -42,52 +39,138 @@ button {
     #f3f5f0;
 }
 
-.sidebar {
+.workspace-sidebar {
   grid-area: sidebar;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 18px 12px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  min-width: 0;
   color: #f8fbf5;
   background: #194d48;
 }
 
-.brand {
+.activity-bar {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
+  min-width: 0;
+  padding: 10px 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  background: #123b37;
 }
 
-.brand-mark {
+.activity-brand {
   display: flex;
-  justify-content: center;
   align-items: center;
-  width: 36px;
-  height: 36px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
   border-radius: 7px;
   color: #20302d;
   background: #d7eb8f;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
 }
 
-.brand h1,
-.brand p,
 .panel-header h2,
-.panel-header p {
+.panel-header p,
+.side-panel-header h1,
+.side-panel-header p,
+.side-section-title {
   margin: 0;
 }
 
-.brand h1 {
-  font-size: 17px;
+.activity-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-group-bottom {
+  margin-top: auto;
+}
+
+.activity-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  color: #bfd3cb;
+  background: transparent;
+  cursor: pointer;
+}
+
+.activity-button:hover,
+.activity-button.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.activity-button.active::before {
+  position: absolute;
+  left: -6px;
+  width: 3px;
+  height: 24px;
+  border-radius: 0 3px 3px 0;
+  background: #d7eb8f;
+  content: "";
+}
+
+.activity-button:focus-visible,
+.note-item:focus-visible,
+.side-entry:focus-visible {
+  outline: 2px solid #d7eb8f;
+  outline-offset: 2px;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 12px;
+  padding: 14px 12px;
+  overflow: hidden;
+  background: #194d48;
+}
+
+.side-panel-header {
+  min-height: 42px;
+}
+
+.side-panel-header h1 {
+  color: #f8fbf5;
+  font-size: 18px;
   line-height: 1.1;
 }
 
-.brand p {
-  margin-top: 2px;
+.side-panel .eyebrow {
+  color: #d7eb8f;
+}
+
+.side-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.side-section-title {
   color: #c8d7d2;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .note-list {
@@ -119,6 +202,84 @@ button {
 .note-item.active,
 .note-item:hover {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.side-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.side-metric {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.side-metric span {
+  display: block;
+  color: #bdd0c8;
+  font-size: 11px;
+}
+
+.side-metric strong {
+  display: block;
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.side-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.side-entry {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  overflow: hidden;
+  color: #eaf1ed;
+  background: rgba(255, 255, 255, 0.06);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.side-entry:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.side-entry:disabled {
+  color: #a8beb6;
+  cursor: default;
+}
+
+.side-placeholder {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.side-placeholder span,
+.side-muted {
+  margin: 0;
+  color: #bdd0c8;
+  font-size: 11px;
+}
+
+.side-placeholder strong {
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.15;
 }
 
 .editor-panel,
@@ -421,10 +582,20 @@ button {
   }
 
   .app-shell {
-    grid-template-columns: 200px minmax(360px, 1fr);
+    grid-template-columns: 280px minmax(360px, 1fr);
     grid-template-areas:
       "sidebar editor"
       "sidebar outline";
+  }
+
+  .workspace-sidebar {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .activity-button,
+  .activity-brand {
+    width: 36px;
+    height: 36px;
   }
 
   .outline-panel {
