@@ -36,12 +36,12 @@ describe("parseCtnDocument", () => {
     });
   });
 
-  it("keeps shorthand demo markers compatible with the current UI", () => {
+  it("parses shorthand demo markers used by the current UI", () => {
     const outline = parseOutline(`# Root
-  = Definition
-  ? Question
-    - Condition
-  + Action`);
+    = Definition
+    ? Question
+        - Condition
+    + Action`);
 
     expect(outline).toHaveLength(1);
     expect(outline[0]).toMatchObject({
@@ -65,21 +65,21 @@ describe("parseCtnDocument", () => {
   });
 
   it("preserves raw text and ignores blank lines", () => {
-    const document = parseCtnDocument(`  plain text
+    const document = parseCtnDocument(`    plain text
 
-  : Definition`);
+    : Definition`);
 
     expect(document.roots).toHaveLength(2);
     expect(document.roots[0]).toMatchObject({
       label: "概念",
       marker: null,
-      rawText: "  plain text",
+      rawText: "    plain text",
       text: "plain text",
     });
     expect(document.roots[1]).toMatchObject({
       label: "定义",
       lineNumber: 3,
-      rawText: "  : Definition",
+      rawText: "    : Definition",
     });
   });
 
@@ -87,7 +87,7 @@ describe("parseCtnDocument", () => {
     const document = parseCtnDocument(`Root
    [未知] Something
 Sibling
-    : Missing parent`);
+        : Missing parent`);
 
     expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "indent-not-multiple",

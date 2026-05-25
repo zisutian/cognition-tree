@@ -24,7 +24,7 @@ describe("note workspace", () => {
     const workspace = createInitialWorkspace();
     const note = createNoteRecord(
       "note-new",
-      "新笔记\n  : 本地保存",
+      "新笔记\n    : 本地保存",
       "2026-05-25T00:00:00.000Z",
     );
     const tree = appendNoteToWorkspaceTree(workspace.tree, note.id);

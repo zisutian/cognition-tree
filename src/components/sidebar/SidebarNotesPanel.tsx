@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import type {
   FolderId,
@@ -36,6 +37,9 @@ export function SidebarNotesPanel({
   onSelectFolder,
   onSelectNote,
 }: SidebarNotesPanelProps) {
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<FolderId>>(
+    () => new Set(),
+  );
   const notesById = new Map(notes.map((note) => [note.id, note]));
   const requestRepositoryPath = () => {
     const nextPath = window.prompt("仓库文件夹路径", repositoryPath);
@@ -44,37 +48,25 @@ export function SidebarNotesPanel({
       onChangeRepositoryPath(nextPath);
     }
   };
+  const toggleFolder = (folderId: FolderId) => {
+    setCollapsedFolderIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+
+      return next;
+    });
+  };
 
   return (
     <div className="side-panel-body">
       <section className="side-section">
         <div className="side-section-header">
-          <p className="side-section-title">笔记</p>
-          <button
-            className="side-action-button"
-            onClick={onCreateNote}
-            type="button"
-          >
-            <Plus aria-hidden="true" size={13} strokeWidth={2} />
-            新建
-          </button>
-        </div>
-        <nav className="note-tree" aria-label="笔记仓库">
-          <SidebarNoteTree
-            activeFolderId={activeFolderId}
-            activeNoteId={activeNoteId}
-            nodes={noteTree}
-            notesById={notesById}
-            onDeleteNote={onDeleteNote}
-            onSelectFolder={onSelectFolder}
-            onSelectNote={onSelectNote}
-          />
-        </nav>
-      </section>
-
-      <section className="side-section">
-        <div className="side-section-header">
-          <p className="side-section-title">存储</p>
+          <p className="side-section-title">仓库</p>
           <div className="side-action-group">
             <button
               className="side-action-button"
@@ -93,11 +85,37 @@ export function SidebarNotesPanel({
             </button>
           </div>
         </div>
-        <div className="side-placeholder">
-          <span>{storageLabel}</span>
-          <strong>自动保存</strong>
-          <code className="side-path">{repositoryPath || "加载中"}</code>
+        <div className="repository-strip">
+          <span>{storageLabel} · 自动保存</span>
+          <code>{repositoryPath || "加载中"}</code>
         </div>
+      </section>
+
+      <section className="side-section notes-section">
+        <div className="side-section-header">
+          <p className="side-section-title">笔记</p>
+          <button
+            className="side-action-button"
+            onClick={onCreateNote}
+            type="button"
+          >
+            <Plus aria-hidden="true" size={13} strokeWidth={2} />
+            新建
+          </button>
+        </div>
+        <nav className="note-tree" aria-label="笔记仓库">
+          <SidebarNoteTree
+            activeFolderId={activeFolderId}
+            activeNoteId={activeNoteId}
+            collapsedFolderIds={collapsedFolderIds}
+            nodes={noteTree}
+            notesById={notesById}
+            onDeleteNote={onDeleteNote}
+            onSelectFolder={onSelectFolder}
+            onSelectNote={onSelectNote}
+            onToggleFolder={toggleFolder}
+          />
+        </nav>
       </section>
     </div>
   );

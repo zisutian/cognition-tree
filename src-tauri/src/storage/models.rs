@@ -79,7 +79,7 @@ pub(crate) fn default_syntax_profiles() -> Vec<CtnSyntaxProfile> {
         id: DEFAULT_SYNTAX_PROFILE_ID.to_string(),
         name: "默认 CTN 语法".to_string(),
         version: 1,
-        space_indent_unit: 2,
+        space_indent_unit: 4,
         marker_rules: vec![
             marker_rule("[理解]", "personal-understanding", "理解"),
             marker_rule("[条件]", "condition", "条件"),

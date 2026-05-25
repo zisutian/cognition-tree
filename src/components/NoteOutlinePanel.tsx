@@ -20,6 +20,9 @@ export function NoteOutlinePanel({
   totalBlocks: number;
 }) {
   const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);
+  const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const changeOutlineZoom = (delta: number) => {
     setOutlineZoom((current) =>
       Math.min(
@@ -30,8 +33,21 @@ export function NoteOutlinePanel({
   };
   const outlineZoomPercent = Math.round(outlineZoom * 100);
   const outlineBodyStyle = {
-    "--outline-font-size": `${(13 * outlineZoom).toFixed(1)}px`,
+    "--outline-font-size": `${(12.5 * outlineZoom).toFixed(1)}px`,
   } as CSSProperties;
+  const toggleNode = (nodeId: string) => {
+    setCollapsedNodeIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+
+      return next;
+    });
+  };
 
   return (
     <aside className="outline-panel" aria-label="结构预览">
@@ -83,7 +99,12 @@ export function NoteOutlinePanel({
 
       <div className="outline-body" style={outlineBodyStyle}>
         {nodes.length > 0 ? (
-          <NoteOutlineTree nodes={nodes} onSelectLine={onSelectLine} />
+          <NoteOutlineTree
+            collapsedNodeIds={collapsedNodeIds}
+            nodes={nodes}
+            onSelectLine={onSelectLine}
+            onToggleNode={toggleNode}
+          />
         ) : (
           <p className="empty-outline">没有可解析的结构</p>
         )}

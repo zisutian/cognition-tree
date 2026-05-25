@@ -31,7 +31,7 @@ fn create_workspace() -> NoteWorkspace {
         notes: vec![NoteRecord {
             id: "note-test".to_string(),
             title: "测试笔记".to_string(),
-            source: "测试笔记\n  : 文件保存".to_string(),
+            source: "测试笔记\n    : 文件保存".to_string(),
             syntax_profile_id: "ctn-default".to_string(),
             syntax_version: 1,
             created_at: "2026-05-25T00:00:00.000Z".to_string(),
@@ -65,7 +65,7 @@ fn saves_notes_as_ctn_files_and_loads_manifest() {
         .expect("workspace should load")
         .expect("workspace should exist");
 
-    assert_eq!(saved_source, "测试笔记\n  : 文件保存");
+    assert_eq!(saved_source, "测试笔记\n    : 文件保存");
     assert_eq!(loaded_workspace.notes.len(), 1);
     assert_eq!(loaded_workspace.notes[0].source, workspace.notes[0].source);
     assert_eq!(loaded_workspace.tree.len(), 1);

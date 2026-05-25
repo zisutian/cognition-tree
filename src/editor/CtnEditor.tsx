@@ -29,7 +29,11 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import { parseCtnDocument, type CtnSyntaxProfile } from "../ctn/parseOutline";
+import {
+  parseCtnDocument,
+  type CtnBlock,
+  type CtnSyntaxProfile,
+} from "../ctn/parseOutline";
 
 type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;
@@ -47,6 +51,36 @@ function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
   return `${syntaxProfile.id}@${syntaxProfile.version}`;
 }
 
+function isRootConceptBlock(block: CtnBlock) {
+  return block.level === 0 && block.type === "concept";
+}
+
+function getBlockTextClass(block: CtnBlock) {
+  if (isRootConceptBlock(block)) {
+    return "ctn-block-text ctn-block-text-root-concept";
+  }
+
+  return null;
+}
+
+function getBlockTextStart(lineText: string, block: CtnBlock) {
+  let textStart = block.indentText.length;
+
+  if (block.marker) {
+    const markerStart = lineText.indexOf(block.marker);
+
+    if (markerStart >= 0) {
+      textStart = markerStart + block.marker.length;
+    }
+  }
+
+  while (textStart < lineText.length && /\s/.test(lineText[textStart])) {
+    textStart += 1;
+  }
+
+  return textStart;
+}
+
 function buildCtnDecorations(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
@@ -59,6 +93,10 @@ function buildCtnDecorations(
   for (const block of parsedDocument.blocks) {
     const line = view.state.doc.line(block.lineNumber);
     const lineClasses = ["ctn-line", `ctn-line-${block.type}`];
+
+    if (isRootConceptBlock(block)) {
+      lineClasses.push("ctn-line-root-concept");
+    }
 
     if (block.diagnostics.length > 0) {
       lineClasses.push("ctn-line-diagnostic");
@@ -75,6 +113,21 @@ function buildCtnDecorations(
           : { class: lineClasses.join(" ") },
       }).range(line.from),
     );
+
+    const blockTextClass = getBlockTextClass(block);
+
+    if (blockTextClass) {
+      const textStart = getBlockTextStart(line.text, block);
+      if (textStart < line.text.length) {
+        decorations.push(
+          Decoration.mark({
+            attributes: {
+              class: blockTextClass,
+            },
+          }).range(line.from + textStart, line.to),
+        );
+      }
+    }
 
     if (block.marker) {
       const markerStart = line.text.indexOf(block.marker);
@@ -190,7 +243,7 @@ function createEditorExtensions(
     bracketMatching(),
     rectangularSelection(),
     highlightActiveLine(),
-    indentUnit.of("  "),
+    indentUnit.of("    "),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
     createCtnDecorationPlugin(syntaxProfileRef),
     createCtnDiagnosticTooltip(syntaxProfileRef),

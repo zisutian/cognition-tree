@@ -74,7 +74,7 @@ export const defaultCtnSyntaxProfile = {
   id: "ctn-default",
   name: "默认 CTN 语法",
   version: 1,
-  spaceIndentUnit: 2,
+  spaceIndentUnit: 4,
   markerRules: [
     { marker: "[理解]", type: "personal-understanding", label: "理解" },
     { marker: "[条件]", type: "condition", label: "条件" },

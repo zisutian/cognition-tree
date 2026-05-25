@@ -1,4 +1,10 @@
-import { FileText, Folder, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Folder,
+  Trash2,
+} from "lucide-react";
 import type {
   FolderId,
   NoteId,
@@ -9,56 +15,100 @@ import type {
 type SidebarNoteTreeProps = {
   activeFolderId: FolderId;
   activeNoteId: NoteId | null;
+  collapsedFolderIds: Set<FolderId>;
   nodes: NoteTreeNode[];
   notesById: Map<NoteId, NoteRecord>;
   onDeleteNote: (noteId: NoteId) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
+  onToggleFolder: (folderId: FolderId) => void;
 };
 
 export function SidebarNoteTree({
   activeFolderId,
   activeNoteId,
+  collapsedFolderIds,
   nodes,
   notesById,
   onDeleteNote,
   onSelectFolder,
   onSelectNote,
+  onToggleFolder,
 }: SidebarNoteTreeProps) {
   return (
     <>
       {nodes.map((node) => {
         if (node.kind === "folder") {
+          const isCollapsed = collapsedFolderIds.has(node.id);
+          const hasChildren = node.children.length > 0;
+
           return (
             <div className="note-folder" key={node.id}>
-              <button
+              <div
                 className={
                   node.id === activeFolderId
-                    ? "note-folder-label active"
-                    : "note-folder-label"
+                    ? "note-folder-row active"
+                    : "note-folder-row"
                 }
-                onClick={() => onSelectFolder(node.id)}
-                type="button"
               >
-                <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
-                <span>{node.title}</span>
-                <small>{node.children.length}</small>
-              </button>
-              <div className="note-folder-children">
-                {node.children.length > 0 ? (
-                  <SidebarNoteTree
-                    activeFolderId={activeFolderId}
-                    activeNoteId={activeNoteId}
-                    nodes={node.children}
-                    notesById={notesById}
-                    onDeleteNote={onDeleteNote}
-                    onSelectFolder={onSelectFolder}
-                    onSelectNote={onSelectNote}
-                  />
-                ) : (
-                  <p className="side-muted">空</p>
-                )}
+                <button
+                  aria-label={
+                    isCollapsed ? `展开 ${node.title}` : `折叠 ${node.title}`
+                  }
+                  className="note-folder-toggle"
+                  disabled={!hasChildren}
+                  onClick={() => onToggleFolder(node.id)}
+                  title={isCollapsed ? "展开文件夹" : "折叠文件夹"}
+                  type="button"
+                >
+                  {hasChildren ? (
+                    isCollapsed ? (
+                      <ChevronRight
+                        aria-hidden="true"
+                        size={13}
+                        strokeWidth={2}
+                      />
+                    ) : (
+                      <ChevronDown
+                        aria-hidden="true"
+                        size={13}
+                        strokeWidth={2}
+                      />
+                    )
+                  ) : (
+                    <span aria-hidden="true" />
+                  )}
+                </button>
+                <button
+                  className="note-folder-label"
+                  onClick={() => onSelectFolder(node.id)}
+                  title={node.title}
+                  type="button"
+                >
+                  <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
+                  <span>{node.title}</span>
+                  <small>{node.children.length}</small>
+                </button>
               </div>
+              {!isCollapsed ? (
+                <div className="note-folder-children">
+                  {hasChildren ? (
+                    <SidebarNoteTree
+                      activeFolderId={activeFolderId}
+                      activeNoteId={activeNoteId}
+                      collapsedFolderIds={collapsedFolderIds}
+                      nodes={node.children}
+                      notesById={notesById}
+                      onDeleteNote={onDeleteNote}
+                      onSelectFolder={onSelectFolder}
+                      onSelectNote={onSelectNote}
+                      onToggleFolder={onToggleFolder}
+                    />
+                  ) : (
+                    <p className="side-muted">空</p>
+                  )}
+                </div>
+              ) : null}
             </div>
           );
         }
@@ -82,11 +132,11 @@ export function SidebarNoteTree({
                 note.id === activeNoteId ? "note-item active" : "note-item"
               }
               onClick={() => onSelectNote(note.id)}
+              title={note.title}
               type="button"
             >
               <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
               <span>{note.title}</span>
-              <small>{note.source.split("\n").length} 行</small>
             </button>
             <button
               aria-label={`删除 ${note.title}`}
