@@ -29,10 +29,11 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import { parseCtnDocument } from "../ctn/parseOutline";
+import { parseCtnDocument, type CtnSyntaxProfile } from "../ctn/parseOutline";
 
 type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;
+  syntaxProfile: CtnSyntaxProfile;
   value: string;
   onChange: (value: string) => void;
 };
@@ -42,9 +43,18 @@ export type CtnEditorFocusTarget = {
   requestId: number;
 };
 
-function buildCtnDecorations(view: EditorView): DecorationSet {
+function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
+  return `${syntaxProfile.id}@${syntaxProfile.version}`;
+}
+
+function buildCtnDecorations(
+  view: EditorView,
+  syntaxProfile: CtnSyntaxProfile,
+): DecorationSet {
   const decorations = [];
-  const parsedDocument = parseCtnDocument(view.state.doc.toString());
+  const parsedDocument = parseCtnDocument(view.state.doc.toString(), {
+    syntaxProfile,
+  });
 
   for (const block of parsedDocument.blocks) {
     const line = view.state.doc.line(block.lineNumber);
@@ -87,59 +97,86 @@ function buildCtnDecorations(view: EditorView): DecorationSet {
   return Decoration.set(decorations, true);
 }
 
-const ctnDecorationPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
+function createCtnDecorationPlugin(syntaxProfileRef: {
+  current: CtnSyntaxProfile;
+}) {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      profileKey: string;
 
-    constructor(view: EditorView) {
-      this.decorations = buildCtnDecorations(view);
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = buildCtnDecorations(update.view);
-      }
-    }
-  },
-  {
-    decorations: (plugin) => plugin.decorations,
-  },
-);
-
-const ctnDiagnosticTooltip = hoverTooltip((view, pos) => {
-  const line = view.state.doc.lineAt(pos);
-  const parsedDocument = parseCtnDocument(view.state.doc.toString());
-  const diagnostics = parsedDocument.diagnostics.filter(
-    (diagnostic) => diagnostic.lineNumber === line.number,
-  );
-
-  if (diagnostics.length === 0) {
-    return null;
-  }
-
-  return {
-    above: true,
-    end: line.to,
-    pos: line.from,
-    create() {
-      const dom = document.createElement("div");
-      dom.className = "ctn-diagnostic-tooltip";
-
-      for (const diagnostic of diagnostics) {
-        const item = document.createElement("div");
-        item.className = "ctn-diagnostic-tooltip-item";
-        item.textContent = `L${diagnostic.lineNumber}: ${diagnostic.message}`;
-        dom.appendChild(item);
+      constructor(view: EditorView) {
+        this.profileKey = syntaxProfileKey(syntaxProfileRef.current);
+        this.decorations = buildCtnDecorations(view, syntaxProfileRef.current);
       }
 
-      return { dom };
+      update(update: ViewUpdate) {
+        const nextProfileKey = syntaxProfileKey(syntaxProfileRef.current);
+
+        if (
+          update.docChanged ||
+          update.viewportChanged ||
+          nextProfileKey !== this.profileKey
+        ) {
+          this.profileKey = nextProfileKey;
+          this.decorations = buildCtnDecorations(
+            update.view,
+            syntaxProfileRef.current,
+          );
+        }
+      }
     },
-  };
-});
+    {
+      decorations: (plugin) => plugin.decorations,
+    },
+  );
+}
 
-function createEditorExtensions(onChangeRef: {
-  current: (value: string) => void;
-}): Extension[] {
+function createCtnDiagnosticTooltip(syntaxProfileRef: {
+  current: CtnSyntaxProfile;
+}) {
+  return hoverTooltip((view, pos) => {
+    const line = view.state.doc.lineAt(pos);
+    const parsedDocument = parseCtnDocument(view.state.doc.toString(), {
+      syntaxProfile: syntaxProfileRef.current,
+    });
+    const diagnostics = parsedDocument.diagnostics.filter(
+      (diagnostic) => diagnostic.lineNumber === line.number,
+    );
+
+    if (diagnostics.length === 0) {
+      return null;
+    }
+
+    return {
+      above: true,
+      end: line.to,
+      pos: line.from,
+      create() {
+        const dom = document.createElement("div");
+        dom.className = "ctn-diagnostic-tooltip";
+
+        for (const diagnostic of diagnostics) {
+          const item = document.createElement("div");
+          item.className = "ctn-diagnostic-tooltip-item";
+          item.textContent = `L${diagnostic.lineNumber}: ${diagnostic.message}`;
+          dom.appendChild(item);
+        }
+
+        return { dom };
+      },
+    };
+  });
+}
+
+function createEditorExtensions(
+  onChangeRef: {
+    current: (value: string) => void;
+  },
+  syntaxProfileRef: {
+    current: CtnSyntaxProfile;
+  },
+): Extension[] {
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -155,8 +192,8 @@ function createEditorExtensions(onChangeRef: {
     highlightActiveLine(),
     indentUnit.of("  "),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
-    ctnDecorationPlugin,
-    ctnDiagnosticTooltip,
+    createCtnDecorationPlugin(syntaxProfileRef),
+    createCtnDiagnosticTooltip(syntaxProfileRef),
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({
       "aria-label": "CTN 原文",
@@ -170,15 +207,26 @@ function createEditorExtensions(onChangeRef: {
   ];
 }
 
-export function CtnEditor({ focusTarget, value, onChange }: CtnEditorProps) {
+export function CtnEditor({
+  focusTarget,
+  syntaxProfile,
+  value,
+  onChange,
+}: CtnEditorProps) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
   const onChangeRef = useRef(onChange);
+  const syntaxProfileRef = useRef(syntaxProfile);
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    syntaxProfileRef.current = syntaxProfile;
+    editorViewRef.current?.dispatch({});
+  }, [syntaxProfile]);
 
   useEffect(() => {
     if (!editorHostRef.current || editorViewRef.current) {
@@ -189,7 +237,7 @@ export function CtnEditor({ focusTarget, value, onChange }: CtnEditorProps) {
       parent: editorHostRef.current,
       state: EditorState.create({
         doc: initialValueRef.current,
-        extensions: createEditorExtensions(onChangeRef),
+        extensions: createEditorExtensions(onChangeRef, syntaxProfileRef),
       }),
     });
 

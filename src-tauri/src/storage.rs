@@ -8,6 +8,7 @@ use tauri::State;
 
 const WORKSPACE_FILE_NAME: &str = "workspace.json";
 const NOTES_DIR_NAME: &str = "notes";
+const DEFAULT_SYNTAX_PROFILE_ID: &str = "ctn-default";
 
 type StorageResult<T> = Result<T, Box<dyn std::error::Error>>;
 
@@ -24,12 +25,35 @@ pub struct NoteRecord {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "kind")]
+#[serde(rename_all = "camelCase")]
+pub struct CtnMarkerRule {
+    marker: String,
+    #[serde(rename = "type")]
+    block_type: String,
+    label: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CtnSyntaxProfile {
+    id: String,
+    name: String,
+    version: i64,
+    space_indent_unit: i64,
+    marker_rules: Vec<CtnMarkerRule>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
 pub enum NoteTreeNode {
     #[serde(rename = "folder")]
     Folder {
         id: String,
         title: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        default_syntax_profile_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        default_syntax_version: Option<i64>,
         children: Vec<NoteTreeNode>,
     },
     #[serde(rename = "note")]
@@ -45,9 +69,19 @@ pub enum NoteTreeNode {
 pub struct NoteWorkspace {
     id: String,
     name: String,
-    active_note_id: String,
+    active_note_id: Option<String>,
+    #[serde(default = "default_syntax_profile_id")]
+    default_syntax_profile_id: String,
+    #[serde(default = "default_syntax_profiles")]
+    syntax_profiles: Vec<CtnSyntaxProfile>,
     notes: Vec<NoteRecord>,
     tree: Vec<NoteTreeNode>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryInfo {
+    path: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -55,7 +89,11 @@ pub struct NoteWorkspace {
 struct WorkspaceManifest {
     id: String,
     name: String,
-    active_note_id: String,
+    active_note_id: Option<String>,
+    #[serde(default = "default_syntax_profile_id")]
+    default_syntax_profile_id: String,
+    #[serde(default = "default_syntax_profiles")]
+    syntax_profiles: Vec<CtnSyntaxProfile>,
     notes: Vec<NoteManifestEntry>,
     tree: Vec<NoteTreeNode>,
 }
@@ -70,6 +108,44 @@ struct NoteManifestEntry {
     syntax_version: i64,
     created_at: String,
     updated_at: String,
+}
+
+fn default_syntax_profile_id() -> String {
+    DEFAULT_SYNTAX_PROFILE_ID.to_string()
+}
+
+fn default_syntax_profiles() -> Vec<CtnSyntaxProfile> {
+    vec![CtnSyntaxProfile {
+        id: DEFAULT_SYNTAX_PROFILE_ID.to_string(),
+        name: "默认 CTN 语法".to_string(),
+        version: 1,
+        space_indent_unit: 2,
+        marker_rules: vec![
+            marker_rule("[理解]", "personal-understanding", "理解"),
+            marker_rule("[条件]", "condition", "条件"),
+            marker_rule("[证据]", "evidence", "证据"),
+            marker_rule("[反例]", "counterexample", "反例"),
+            marker_rule("[组分]", "component", "组分"),
+            marker_rule("[分类]", "category", "分类"),
+            marker_rule("[例子]", "example", "例子"),
+            marker_rule("[注]", "note", "注释"),
+            marker_rule("[?]", "question", "疑问"),
+            marker_rule(":", "definition", "定义"),
+            marker_rule("#", "concept", "主题"),
+            marker_rule("=", "definition", "定义"),
+            marker_rule("?", "question", "疑问"),
+            marker_rule("-", "condition", "条件"),
+            marker_rule("+", "action", "行动"),
+        ],
+    }]
+}
+
+fn marker_rule(marker: &str, block_type: &str, label: &str) -> CtnMarkerRule {
+    CtnMarkerRule {
+        marker: marker.to_string(),
+        block_type: block_type.to_string(),
+        label: label.to_string(),
+    }
 }
 
 pub struct NoteFileStore {
@@ -88,6 +164,56 @@ impl NoteFileStore {
 
     pub fn load_workspace(&self) -> StorageResult<Option<NoteWorkspace>> {
         let root_dir = self.lock_root_dir()?;
+
+        Self::load_workspace_from(&root_dir)
+    }
+
+    pub fn save_workspace(&self, workspace: &NoteWorkspace) -> StorageResult<()> {
+        let root_dir = self.lock_root_dir()?;
+
+        Self::save_workspace_to(&root_dir, workspace)
+    }
+
+    pub fn clear_workspace(&self) -> StorageResult<()> {
+        let root_dir = self.lock_root_dir()?;
+        let manifest_path = root_dir.join(WORKSPACE_FILE_NAME);
+        let notes_dir = root_dir.join(NOTES_DIR_NAME);
+
+        if manifest_path.exists() {
+            fs::remove_file(manifest_path)?;
+        }
+
+        if notes_dir.exists() {
+            fs::remove_dir_all(&notes_dir)?;
+        }
+
+        fs::create_dir_all(notes_dir)?;
+
+        Ok(())
+    }
+
+    pub fn repository_path(&self) -> StorageResult<String> {
+        let root_dir = self.lock_root_dir()?;
+
+        Ok(root_dir.to_string_lossy().into_owned())
+    }
+
+    pub fn set_repository_path(
+        &self,
+        repository_path: impl AsRef<Path>,
+    ) -> StorageResult<Option<NoteWorkspace>> {
+        let repository_path = repository_path.as_ref().to_path_buf();
+        fs::create_dir_all(repository_path.join(NOTES_DIR_NAME))?;
+
+        {
+            let mut root_dir = self.lock_root_dir()?;
+            *root_dir = repository_path;
+        }
+
+        self.load_workspace()
+    }
+
+    fn load_workspace_from(root_dir: &Path) -> StorageResult<Option<NoteWorkspace>> {
         let manifest_path = root_dir.join(WORKSPACE_FILE_NAME);
 
         if !manifest_path.exists() {
@@ -119,13 +245,14 @@ impl NoteFileStore {
             id: manifest.id,
             name: manifest.name,
             active_note_id: manifest.active_note_id,
+            default_syntax_profile_id: manifest.default_syntax_profile_id,
+            syntax_profiles: manifest.syntax_profiles,
             notes,
             tree: manifest.tree,
         }))
     }
 
-    pub fn save_workspace(&self, workspace: &NoteWorkspace) -> StorageResult<()> {
-        let root_dir = self.lock_root_dir()?;
+    fn save_workspace_to(root_dir: &Path, workspace: &NoteWorkspace) -> StorageResult<()> {
         let notes_dir = root_dir.join(NOTES_DIR_NAME);
 
         fs::create_dir_all(&notes_dir)?;
@@ -134,6 +261,8 @@ impl NoteFileStore {
             id: workspace.id.clone(),
             name: workspace.name.clone(),
             active_note_id: workspace.active_note_id.clone(),
+            default_syntax_profile_id: workspace.default_syntax_profile_id.clone(),
+            syntax_profiles: workspace.syntax_profiles.clone(),
             notes: workspace
                 .notes
                 .iter()
@@ -162,24 +291,6 @@ impl NoteFileStore {
             root_dir.join(WORKSPACE_FILE_NAME),
             serde_json::to_string_pretty(&manifest)?,
         )?;
-
-        Ok(())
-    }
-
-    pub fn clear_workspace(&self) -> StorageResult<()> {
-        let root_dir = self.lock_root_dir()?;
-        let manifest_path = root_dir.join(WORKSPACE_FILE_NAME);
-        let notes_dir = root_dir.join(NOTES_DIR_NAME);
-
-        if manifest_path.exists() {
-            fs::remove_file(manifest_path)?;
-        }
-
-        if notes_dir.exists() {
-            fs::remove_dir_all(&notes_dir)?;
-        }
-
-        fs::create_dir_all(notes_dir)?;
 
         Ok(())
     }
@@ -217,6 +328,26 @@ pub fn clear_note_workspace(file_store: State<'_, NoteFileStore>) -> Result<(), 
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+pub fn get_note_repository_info(
+    file_store: State<'_, NoteFileStore>,
+) -> Result<RepositoryInfo, String> {
+    file_store
+        .repository_path()
+        .map(|path| RepositoryInfo { path })
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn set_note_repository_path(
+    file_store: State<'_, NoteFileStore>,
+    path: String,
+) -> Result<Option<NoteWorkspace>, String> {
+    file_store
+        .set_repository_path(path)
+        .map_err(|error| error.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,7 +366,9 @@ mod tests {
         NoteWorkspace {
             id: "local-workspace".to_string(),
             name: "本地笔记库".to_string(),
-            active_note_id: "note-test".to_string(),
+            active_note_id: Some("note-test".to_string()),
+            default_syntax_profile_id: default_syntax_profile_id(),
+            syntax_profiles: default_syntax_profiles(),
             notes: vec![NoteRecord {
                 id: "note-test".to_string(),
                 title: "测试笔记".to_string(),
@@ -248,6 +381,8 @@ mod tests {
             tree: vec![NoteTreeNode::Folder {
                 id: "folder-inbox".to_string(),
                 title: "未整理".to_string(),
+                default_syntax_profile_id: Some(default_syntax_profile_id()),
+                default_syntax_version: Some(1),
                 children: vec![NoteTreeNode::Note {
                     id: "tree-note-test".to_string(),
                     note_id: "note-test".to_string(),
@@ -279,5 +414,32 @@ mod tests {
         assert_eq!(loaded_workspace.tree.len(), 1);
 
         fs::remove_dir_all(root_dir).expect("test dir should be removed");
+    }
+
+    #[test]
+    fn switches_repository_folder() {
+        let first_root_dir = create_test_dir();
+        let second_root_dir = create_test_dir();
+        let store = NoteFileStore::new(&first_root_dir).expect("file store should open");
+        let workspace = create_workspace();
+
+        store
+            .save_workspace(&workspace)
+            .expect("workspace should save");
+        let switched_workspace = store
+            .set_repository_path(&second_root_dir)
+            .expect("repository path should switch");
+
+        assert!(switched_workspace.is_none());
+        assert_eq!(
+            store
+                .repository_path()
+                .expect("repository path should exist"),
+            second_root_dir.to_string_lossy()
+        );
+        assert!(second_root_dir.join(NOTES_DIR_NAME).exists());
+
+        fs::remove_dir_all(first_root_dir).expect("first test dir should be removed");
+        fs::remove_dir_all(second_root_dir).expect("second test dir should be removed");
     }
 }

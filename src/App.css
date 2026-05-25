@@ -121,6 +121,7 @@ button {
 
 .activity-button:focus-visible,
 .note-item:focus-visible,
+.primary-action-button:focus-visible,
 .side-action-button:focus-visible,
 .side-entry:focus-visible,
 .outline-node:focus-visible {
@@ -351,6 +352,16 @@ button {
   line-height: 1.15;
 }
 
+.side-path {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #dbe8e2;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
 .editor-panel,
 .outline-panel {
   display: flex;
@@ -487,6 +498,36 @@ button {
 .source-editor:focus-within {
   border-color: #397c72;
   box-shadow: 0 0 0 3px rgba(57, 124, 114, 0.16);
+}
+
+.empty-editor {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  min-height: 500px;
+  border: 1px solid #cdd6cc;
+  border-radius: 8px;
+  background: #fffef8;
+}
+
+.empty-editor h3 {
+  margin: 0;
+  color: #25302d;
+  font-size: 16px;
+}
+
+.primary-action-button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  color: #20302d;
+  background: #d7eb8f;
+  cursor: pointer;
+}
+
+.primary-action-button:hover {
+  background: #e3f3a7;
 }
 
 .source-editor .cm-editor {

@@ -71,22 +71,33 @@ function NotesPanel({
   lineCount,
   notes,
   noteTree,
+  repositoryPath,
   storageLabel,
   totalBlocks,
+  onChangeRepositoryPath,
   onCreateNote,
   onSelectNote,
 }: {
-  activeNoteId: NoteId;
+  activeNoteId: NoteId | null;
   diagnosticsCount: number;
   lineCount: number;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
+  repositoryPath: string;
   storageLabel: string;
   totalBlocks: number;
+  onChangeRepositoryPath: (path: string) => void;
   onCreateNote: () => void;
   onSelectNote: (noteId: NoteId) => void;
 }) {
   const notesById = new Map(notes.map((note) => [note.id, note]));
+  const requestRepositoryPath = () => {
+    const nextPath = window.prompt("仓库文件夹路径", repositoryPath);
+
+    if (nextPath) {
+      onChangeRepositoryPath(nextPath);
+    }
+  };
 
   return (
     <div className="side-panel-body">
@@ -131,10 +142,20 @@ function NotesPanel({
       </section>
 
       <section className="side-section">
-        <p className="side-section-title">存储</p>
+        <div className="side-section-header">
+          <p className="side-section-title">存储</p>
+          <button
+            className="side-action-button"
+            onClick={requestRepositoryPath}
+            type="button"
+          >
+            更改
+          </button>
+        </div>
         <div className="side-placeholder">
           <span>{storageLabel}</span>
           <strong>自动保存</strong>
+          <code className="side-path">{repositoryPath || "加载中"}</code>
         </div>
       </section>
     </div>
@@ -147,7 +168,7 @@ function NoteTree({
   notesById,
   onSelectNote,
 }: {
-  activeNoteId: NoteId;
+  activeNoteId: NoteId | null;
   nodes: NoteTreeNode[];
   notesById: Map<NoteId, NoteRecord>;
   onSelectNote: (noteId: NoteId) => void;
@@ -264,21 +285,25 @@ function ActivityPanel({
   notes,
   noteTree,
   outline,
+  repositoryPath,
   storageLabel,
   totalBlocks,
+  onChangeRepositoryPath,
   onCreateNote,
   onSelectLine,
   onSelectNote,
 }: {
   activeActivity: ActivityKey;
-  activeNoteId: NoteId;
+  activeNoteId: NoteId | null;
   diagnosticsCount: number;
   lineCount: number;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
   outline: OutlineNode[];
+  repositoryPath: string;
   storageLabel: string;
   totalBlocks: number;
+  onChangeRepositoryPath: (path: string) => void;
   onCreateNote: () => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
@@ -291,8 +316,10 @@ function ActivityPanel({
         lineCount={lineCount}
         notes={notes}
         noteTree={noteTree}
+        repositoryPath={repositoryPath}
         storageLabel={storageLabel}
         totalBlocks={totalBlocks}
+        onChangeRepositoryPath={onChangeRepositoryPath}
         onCreateNote={onCreateNote}
         onSelectNote={onSelectNote}
       />
@@ -337,23 +364,27 @@ export function WorkspaceSidebar({
   notes,
   noteTree,
   outline,
+  repositoryPath,
   storageLabel,
   totalBlocks,
   onActivityChange,
+  onChangeRepositoryPath,
   onCreateNote,
   onSelectLine,
   onSelectNote,
 }: {
   activeActivity: ActivityKey;
-  activeNoteId: NoteId;
+  activeNoteId: NoteId | null;
   diagnosticsCount: number;
   lineCount: number;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
   outline: OutlineNode[];
+  repositoryPath: string;
   storageLabel: string;
   totalBlocks: number;
   onActivityChange: (activity: ActivityKey) => void;
+  onChangeRepositoryPath: (path: string) => void;
   onCreateNote: () => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
@@ -426,8 +457,10 @@ export function WorkspaceSidebar({
           notes={notes}
           noteTree={noteTree}
           outline={outline}
+          repositoryPath={repositoryPath}
           storageLabel={storageLabel}
           totalBlocks={totalBlocks}
+          onChangeRepositoryPath={onChangeRepositoryPath}
           onCreateNote={onCreateNote}
           onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}

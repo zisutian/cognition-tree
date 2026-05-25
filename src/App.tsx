@@ -5,7 +5,11 @@ import {
   type ActivityKey,
   WorkspaceSidebar,
 } from "./components/WorkspaceSidebar";
-import { parseCtnDocument } from "./ctn/parseOutline";
+import { defaultCtnSyntaxProfile, parseCtnDocument } from "./ctn/parseOutline";
+import {
+  resolveNoteSyntaxProfile,
+  resolveWorkspaceSyntaxProfile,
+} from "./domain/notes";
 import { useNoteWorkspace } from "./hooks/useNoteWorkspace";
 import "./App.css";
 
@@ -20,18 +24,30 @@ function App() {
     useState<EditorFocusRequest | null>(null);
   const {
     activeNote,
+    changeRepositoryPath,
     createNote,
+    repositoryPath,
     selectNote,
     storageLabel,
     updateActiveNoteSource,
     workspace,
   } = useNoteWorkspace();
-  const documentText = activeNote.source;
-  const parsedDocument = useMemo(
-    () => parseCtnDocument(documentText),
-    [documentText],
+  const documentText = activeNote?.source ?? "";
+  const activeSyntaxProfile = useMemo(
+    () =>
+      activeNote
+        ? resolveNoteSyntaxProfile(workspace, activeNote)
+        : (resolveWorkspaceSyntaxProfile(workspace) ?? defaultCtnSyntaxProfile),
+    [activeNote, workspace],
   );
-  const lineCount = documentText.split("\n").length;
+  const parsedDocument = useMemo(
+    () =>
+      parseCtnDocument(documentText, {
+        syntaxProfile: activeSyntaxProfile,
+      }),
+    [activeSyntaxProfile, documentText],
+  );
+  const lineCount = activeNote ? documentText.split("\n").length : 0;
   const focusEditorLine = (lineNumber: number) => {
     setEditorFocusRequest((current) => ({
       lineNumber,
@@ -43,15 +59,17 @@ function App() {
     <main className="app-shell">
       <WorkspaceSidebar
         activeActivity={activeActivity}
-        activeNoteId={activeNote.id}
+        activeNoteId={activeNote?.id ?? null}
         diagnosticsCount={parsedDocument.diagnostics.length}
         lineCount={lineCount}
         notes={workspace.notes}
         noteTree={workspace.tree}
         outline={parsedDocument.roots}
+        repositoryPath={repositoryPath}
         storageLabel={storageLabel}
         totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivity}
+        onChangeRepositoryPath={changeRepositoryPath}
         onCreateNote={createNote}
         onSelectLine={focusEditorLine}
         onSelectNote={selectNote}
@@ -60,8 +78,11 @@ function App() {
       <EditorPanel
         documentText={documentText}
         focusTarget={editorFocusRequest}
+        hasActiveNote={Boolean(activeNote)}
         parsedDocument={parsedDocument}
-        title={activeNote.title}
+        syntaxProfile={activeSyntaxProfile}
+        title={activeNote?.title ?? "本地笔记库"}
+        onCreateNote={createNote}
         onDocumentTextChange={updateActiveNoteSource}
       />
 

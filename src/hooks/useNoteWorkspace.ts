@@ -4,17 +4,21 @@ import {
   createInitialWorkspace,
   createNoteRecord,
   inferNoteTitle,
+  resolveFolderSyntaxProfile,
   type NoteId,
   type NoteRecord,
   type NoteWorkspace,
 } from "../domain/notes";
 import { createTauriNoteRepository } from "../storage/tauriNoteRepository";
 
-function createDraftNote() {
+const inboxFolderId = "folder-inbox";
+
+function createDraftNote(workspace: NoteWorkspace) {
   const timestamp = new Date().toISOString();
   const id = `note-${Date.now()}`;
+  const syntaxProfile = resolveFolderSyntaxProfile(workspace, inboxFolderId);
 
-  return createNoteRecord(id, `新笔记\n  : `, timestamp);
+  return createNoteRecord(id, "", timestamp, syntaxProfile);
 }
 
 export function useNoteWorkspace() {
@@ -23,15 +27,20 @@ export function useNoteWorkspace() {
     return createInitialWorkspace();
   });
   const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
+  const [repositoryPath, setRepositoryPath] = useState("");
 
   useEffect(() => {
     let isActive = true;
 
-    void repository.loadWorkspace().then((storedWorkspace) => {
+    void Promise.all([
+      repository.loadWorkspace(),
+      repository.getRepositoryInfo(),
+    ]).then(([storedWorkspace, repositoryInfo]) => {
       if (!isActive) {
         return;
       }
 
+      setRepositoryPath(repositoryInfo.path);
       setWorkspace(storedWorkspace ?? createInitialWorkspace());
       setIsWorkspaceLoaded(true);
     });
@@ -50,8 +59,7 @@ export function useNoteWorkspace() {
   }, [isWorkspaceLoaded, repository, workspace]);
 
   const activeNote =
-    workspace.notes.find((note) => note.id === workspace.activeNoteId) ??
-    workspace.notes[0];
+    workspace.notes.find((note) => note.id === workspace.activeNoteId) ?? null;
 
   const selectNote = (noteId: NoteId) => {
     setWorkspace((current) => ({
@@ -61,18 +69,41 @@ export function useNoteWorkspace() {
   };
 
   const createNote = () => {
-    const note = createDraftNote();
+    setWorkspace((current) => {
+      const note = createDraftNote(current);
 
-    setWorkspace((current) => ({
-      ...current,
-      activeNoteId: note.id,
-      notes: [...current.notes, note],
-      tree: appendNoteToWorkspaceTree(current.tree, note.id),
-    }));
+      return {
+        ...current,
+        activeNoteId: note.id,
+        notes: [...current.notes, note],
+        tree: appendNoteToWorkspaceTree(current.tree, note.id),
+      };
+    });
+  };
+
+  const changeRepositoryPath = async (path: string) => {
+    const nextPath = path.trim();
+
+    if (!nextPath || nextPath === repositoryPath) {
+      return;
+    }
+
+    setIsWorkspaceLoaded(false);
+
+    const storedWorkspace = await repository.setRepositoryPath(nextPath);
+    const repositoryInfo = await repository.getRepositoryInfo();
+
+    setRepositoryPath(repositoryInfo.path);
+    setWorkspace(storedWorkspace ?? createInitialWorkspace());
+    setIsWorkspaceLoaded(true);
   };
 
   const updateActiveNoteSource = (source: string) => {
     setWorkspace((current) => {
+      if (!current.activeNoteId) {
+        return current;
+      }
+
       const timestamp = new Date().toISOString();
 
       return {
@@ -95,7 +126,9 @@ export function useNoteWorkspace() {
 
   return {
     activeNote,
+    changeRepositoryPath,
     createNote,
+    repositoryPath,
     selectNote,
     storageLabel: repository.label,
     updateActiveNoteSource,

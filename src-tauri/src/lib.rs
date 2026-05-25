@@ -20,6 +20,8 @@ pub fn run() {
             storage::load_note_workspace,
             storage::save_note_workspace,
             storage::clear_note_workspace,
+            storage::get_note_repository_info,
+            storage::set_note_repository_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
