@@ -17,7 +17,6 @@
     调整界面信息密度，使编辑区和结构区更适合工作台使用。
     接入 CodeMirror 6 基础编辑器组件，替换 textarea。
     搭建 VS Code 风格左侧工作区入口。
-    左侧语法面板可切换默认 / 自定义实验 profile。
     GitHub SSH 推送已配置并验证。
 
 当前界面：
@@ -95,7 +94,6 @@ Rust / Tauri 后端检查：
     未知符号诊断
     增加 syntaxProfile 类型。
     将默认符号规则从硬编码迁移为默认 profile。
-    UI 可选择当前 syntaxProfile 验证解析结果。
 
 下一步：
 
