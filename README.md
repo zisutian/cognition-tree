@@ -23,6 +23,8 @@
 
 解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可按目录树组织；Tauri 桌面运行时保存为本地文件。
 
+新仓库默认从空笔记库开始，仅保留“未整理”目录。点击“新建笔记”后才会创建第一篇 `.ctn`。
+
 当前默认文件仓库目录：
 
     ~/.local/share/dev.zisutian.cognition-tree/repositories/local-workspace/
@@ -31,6 +33,8 @@
 
     workspace.json
     notes/*.ctn
+
+左侧“存储”区会显示当前仓库文件夹，可通过“更改”切换到另一个仓库文件夹。
 
 ## 技术栈
 
@@ -59,6 +63,7 @@
 ## 开发命令
 
     pnpm install
+    pnpm start
     pnpm tauri dev
     pnpm test
     pnpm check
@@ -67,6 +72,8 @@
 前端开发服务器仅用于界面调试，不提供笔记文件保存：
 
     pnpm dev
+
+`pnpm start` 会调用 `scripts/start.sh`，从项目根目录启动桌面端开发模式。
 
 Rust / Tauri 后端检查：
 
