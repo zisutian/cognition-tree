@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  appendNoteToWorkspaceTree,
   createInitialWorkspace,
   createNoteRecord,
   defaultFolderId,
-  findFirstFolderId,
-  findFolderIdContainingNote,
-  findFolderNode,
   inferNoteTitle,
-  removeNoteFromWorkspaceTree,
   resolveWorkspaceSyntaxProfile,
   type FolderId,
   type NoteId,
   type NoteRecord,
   type NoteWorkspace,
 } from "../domain/notes";
+import {
+  appendNoteToWorkspaceTree,
+  findFirstFolderId,
+  findFolderIdContainingNote,
+  findFolderNode,
+  removeNoteFromWorkspaceTree,
+} from "../domain/noteTree";
 import { createTauriNoteRepository } from "../storage/tauriNoteRepository";
 
 function createDraftNote(workspace: NoteWorkspace) {

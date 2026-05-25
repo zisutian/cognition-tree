@@ -13,6 +13,7 @@
     右侧结构树和诊断统计
     Tauri 文件笔记仓库适配层
     笔记内容和仓库目录树的前端领域模型
+    独立 tests/ 单元测试目录
 
 已完成 TypeScript CTN 解析器：
 
@@ -22,6 +23,8 @@
     diagnostics
 
 解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可按目录树组织；Tauri 桌面运行时保存为本地文件。
+
+前端领域层中，笔记记录模型和仓库目录树操作已拆分：笔记模型负责内容、标题和语法归属，目录树操作负责文件夹查找、笔记挂载和移除。
 
 新仓库默认从空笔记库开始，仅保留“未整理”目录。点击“新建笔记”后才会创建第一篇 `.ctn`。
 
@@ -61,6 +64,32 @@
     docs/逐步构建流程.txt
     docs/认知树笔记软件需求说明.txt
     docs/开源许可策略.txt
+
+## 代码结构
+
+    src/ctn/
+        CTN 语法解析核心，只负责 source text、syntax profile、blocks、roots 和 diagnostics。
+
+    src/domain/
+        前端领域模型。notes.ts 负责笔记、workspace 和语法归属；noteTree.ts 负责仓库目录树操作。
+
+    src/editor/
+        CodeMirror 6 集成层。CtnEditor.tsx 是 React 容器，扩展、语义装饰和诊断提示分别拆分维护。
+
+    src/components/
+        React 展示组件和工作台布局。组件表达用户交互，不直接承担持久化和领域树算法。
+
+    src/hooks/
+        前端状态编排层，连接领域模型、存储适配器和 UI。
+
+    src/storage/
+        前端存储端口和 Tauri 适配器。
+
+    tests/
+        前端单元测试目录，按 src 模块边界组织。
+
+    src-tauri/
+        Tauri / Rust 桌面后端，负责本地文件仓库、commands、权限和应用打包资源。
 
 ## 开发命令
 

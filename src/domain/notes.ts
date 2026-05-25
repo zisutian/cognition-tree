@@ -65,94 +65,6 @@ export function createNoteRecord(
   };
 }
 
-export function appendNoteToWorkspaceTree(
-  tree: NoteTreeNode[],
-  noteId: NoteId,
-  folderId: FolderId = defaultFolderId,
-): NoteTreeNode[] {
-  return tree.map((node) => {
-    if (node.kind !== "folder") {
-      return node;
-    }
-
-    if (node.id !== folderId) {
-      return {
-        ...node,
-        children: appendNoteToWorkspaceTree(node.children, noteId, folderId),
-      };
-    }
-
-    return {
-      ...node,
-      children: [
-        ...node.children,
-        {
-          id: `tree-${noteId}`,
-          kind: "note",
-          noteId,
-        },
-      ],
-    };
-  });
-}
-
-export function findFolderIdContainingNote(
-  tree: NoteTreeNode[],
-  noteId: NoteId,
-): FolderId | null {
-  for (const node of tree) {
-    if (node.kind !== "folder") {
-      continue;
-    }
-
-    if (
-      node.children.some(
-        (child) => child.kind === "note" && child.noteId === noteId,
-      )
-    ) {
-      return node.id;
-    }
-
-    const childFolderId = findFolderIdContainingNote(node.children, noteId);
-
-    if (childFolderId) {
-      return childFolderId;
-    }
-  }
-
-  return null;
-}
-
-export function findFirstFolderId(tree: NoteTreeNode[]): FolderId | null {
-  for (const node of tree) {
-    if (node.kind !== "folder") {
-      continue;
-    }
-
-    return node.id;
-  }
-
-  return null;
-}
-
-export function removeNoteFromWorkspaceTree(
-  tree: NoteTreeNode[],
-  noteId: NoteId,
-): NoteTreeNode[] {
-  return tree.flatMap((node): NoteTreeNode[] => {
-    if (node.kind === "note") {
-      return node.noteId === noteId ? [] : [node];
-    }
-
-    return [
-      {
-        ...node,
-        children: removeNoteFromWorkspaceTree(node.children, noteId),
-      },
-    ];
-  });
-}
-
 export function resolveNoteSyntaxProfile(
   workspace: NoteWorkspace,
   note: NoteRecord,
@@ -176,27 +88,6 @@ export function resolveWorkspaceSyntaxProfile(
       (profile) => profile.id === workspace.defaultSyntaxProfileId,
     ) ?? defaultCtnSyntaxProfile
   );
-}
-
-export function findFolderNode(
-  tree: NoteTreeNode[],
-  folderId: FolderId,
-): Extract<NoteTreeNode, { kind: "folder" }> | null {
-  for (const node of tree) {
-    if (node.kind === "folder") {
-      if (node.id === folderId) {
-        return node;
-      }
-
-      const childFolder = findFolderNode(node.children, folderId);
-
-      if (childFolder) {
-        return childFolder;
-      }
-    }
-  }
-
-  return null;
 }
 
 export function createInitialWorkspace() {

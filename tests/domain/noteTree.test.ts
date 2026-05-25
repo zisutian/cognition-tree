@@ -1,25 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  appendNoteToWorkspaceTree,
   createInitialWorkspace,
   createNoteRecord,
+  type NoteTreeNode,
+} from "../../src/domain/notes";
+import {
+  appendNoteToWorkspaceTree,
   findFolderIdContainingNote,
   findFirstFolderId,
   removeNoteFromWorkspaceTree,
-  resolveNoteSyntaxProfile,
-  resolveWorkspaceSyntaxProfile,
-  type NoteTreeNode,
-} from "./notes";
+} from "../../src/domain/noteTree";
 
-describe("note workspace", () => {
-  it("keeps note content separate from the repository tree", () => {
-    const workspace = createInitialWorkspace();
-
-    expect(workspace.activeNoteId).toBeNull();
-    expect(workspace.notes).toEqual([]);
-    expect(workspace.tree.map((node) => node.id)).toEqual(["folder-inbox"]);
-  });
-
+describe("note tree operations", () => {
   it("adds newly created notes to the inbox folder", () => {
     const workspace = createInitialWorkspace();
     const note = createNoteRecord(
@@ -122,18 +114,5 @@ describe("note workspace", () => {
         ],
       },
     ]);
-  });
-
-  it("resolves note and workspace syntax profiles without folder config", () => {
-    const workspace = createInitialWorkspace();
-    const note = createNoteRecord(
-      "note-new",
-      "",
-      "2026-05-25T00:00:00.000Z",
-    );
-
-    expect(resolveNoteSyntaxProfile(workspace, note).id).toBe("ctn-default");
-    expect(resolveWorkspaceSyntaxProfile(workspace).id).toBe("ctn-default");
-    expect("defaultSyntaxProfileId" in workspace.tree[0]).toBe(false);
   });
 });

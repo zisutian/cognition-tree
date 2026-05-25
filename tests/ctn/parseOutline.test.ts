@@ -3,7 +3,7 @@ import {
   defaultCtnSyntaxProfile,
   parseCtnDocument,
   parseOutline,
-} from "./parseOutline";
+} from "../../src/ctn/parseOutline";
 
 describe("parseCtnDocument", () => {
   it("builds a semantic block tree from the default CTN markers", () => {

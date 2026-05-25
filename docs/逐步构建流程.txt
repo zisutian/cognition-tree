@@ -18,8 +18,11 @@
     接入 CodeMirror 6 基础编辑器组件，替换 textarea。
     搭建 VS Code 风格左侧工作区入口。
     拆分 App、编辑器、侧栏、结构树、领域模型和笔记仓库模块。
+    拆分 CodeMirror 扩展、CTN 装饰和诊断悬浮提示。
     新增 Tauri 文件笔记仓库适配层。
     建立笔记内容和仓库目录树分离的前端模型。
+    将仓库目录树操作拆出为独立领域模块。
+    将前端单元测试迁移到顶层 tests/ 目录，并纳入 TypeScript 检查。
     GitHub SSH 推送已配置并验证。
 
 当前界面：
@@ -125,6 +128,7 @@ Rust / Tauri 后端检查：
     增加悬浮诊断提示。
     支持点击结构树定位原文。
     支持结构树缩放。
+    编辑器组件已拆分为 React 容器、扩展构建、语义装饰和诊断提示。
 
 下一步：
 
@@ -141,6 +145,7 @@ Rust / Tauri 后端检查：
 已完成：
 
     建立前端 NoteWorkspace / NoteRecord / NoteTreeNode 模型。
+    拆分 noteTree 领域操作，目录树变更不再混入笔记记录模型。
     建立 NoteRepository 接口。
     接入 Tauri 文件仓库，使用 workspace.json 保存仓库树和元信息，使用 notes/*.ctn 保存原文。
     支持目录树展示、选择笔记、新建笔记和编辑自动保存。
