@@ -22,6 +22,7 @@ import {
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
+  hoverTooltip,
   type ViewUpdate,
   ViewPlugin,
   keymap,
@@ -31,8 +32,14 @@ import {
 import { parseCtnDocument } from "./ctn/parseOutline";
 
 type CtnEditorProps = {
+  focusTarget: CtnEditorFocusTarget | null;
   value: string;
   onChange: (value: string) => void;
+};
+
+export type CtnEditorFocusTarget = {
+  lineNumber: number;
+  requestId: number;
 };
 
 function buildCtnDecorations(view: EditorView): DecorationSet {
@@ -47,9 +54,15 @@ function buildCtnDecorations(view: EditorView): DecorationSet {
       lineClasses.push("ctn-line-diagnostic");
     }
 
+    const diagnosticTitle = block.diagnostics
+      .map((diagnostic) => diagnostic.message)
+      .join("\n");
+
     decorations.push(
       Decoration.line({
-        attributes: { class: lineClasses.join(" ") },
+        attributes: diagnosticTitle
+          ? { class: lineClasses.join(" "), title: diagnosticTitle }
+          : { class: lineClasses.join(" ") },
       }).range(line.from),
     );
 
@@ -93,6 +106,37 @@ const ctnDecorationPlugin = ViewPlugin.fromClass(
   },
 );
 
+const ctnDiagnosticTooltip = hoverTooltip((view, pos) => {
+  const line = view.state.doc.lineAt(pos);
+  const parsedDocument = parseCtnDocument(view.state.doc.toString());
+  const diagnostics = parsedDocument.diagnostics.filter(
+    (diagnostic) => diagnostic.lineNumber === line.number,
+  );
+
+  if (diagnostics.length === 0) {
+    return null;
+  }
+
+  return {
+    above: true,
+    end: line.to,
+    pos: line.from,
+    create() {
+      const dom = document.createElement("div");
+      dom.className = "ctn-diagnostic-tooltip";
+
+      for (const diagnostic of diagnostics) {
+        const item = document.createElement("div");
+        item.className = "ctn-diagnostic-tooltip-item";
+        item.textContent = `L${diagnostic.lineNumber}: ${diagnostic.message}`;
+        dom.appendChild(item);
+      }
+
+      return { dom };
+    },
+  };
+});
+
 function createEditorExtensions(onChangeRef: {
   current: (value: string) => void;
 }): Extension[] {
@@ -112,6 +156,7 @@ function createEditorExtensions(onChangeRef: {
     indentUnit.of("  "),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
     ctnDecorationPlugin,
+    ctnDiagnosticTooltip,
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({
       "aria-label": "CTN 原文",
@@ -125,7 +170,7 @@ function createEditorExtensions(onChangeRef: {
   ];
 }
 
-export function CtnEditor({ value, onChange }: CtnEditorProps) {
+export function CtnEditor({ focusTarget, value, onChange }: CtnEditorProps) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
@@ -171,6 +216,26 @@ export function CtnEditor({ value, onChange }: CtnEditorProps) {
       },
     });
   }, [value]);
+
+  useEffect(() => {
+    const view = editorViewRef.current;
+
+    if (!view || !focusTarget) {
+      return;
+    }
+
+    const clampedLineNumber = Math.max(
+      1,
+      Math.min(focusTarget.lineNumber, view.state.doc.lines),
+    );
+    const line = view.state.doc.line(clampedLineNumber);
+
+    view.dispatch({
+      selection: { anchor: line.from },
+      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+    });
+    view.focus();
+  }, [focusTarget]);
 
   return <div className="source-editor" ref={editorHostRef} />;
 }

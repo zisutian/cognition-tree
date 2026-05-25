@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import {
   Braces,
   Database,
   FileText,
   ListTree,
+  Minus,
+  Plus,
+  RotateCcw,
   Search,
   Settings,
   type LucideIcon,
@@ -18,7 +21,9 @@ const initialDocument = `认知树
     [证据] 行号、活动行、Tab 缩进和基础高亮可用
     [证据] 右侧结构树会随原文实时更新
   [?] 下一步如何靠近真实笔记体验
-    [条件] 先补齐悬浮诊断提示和结构树定位
+    [证据] 结构树节点可以定位到原文行
+    [证据] 诊断行支持悬浮提示
+    [证据] 结构树可以按阅读需要缩放
     [条件] 再接入 SQLite 保存笔记和块
   [组分] 第一阶段闭环
     [例子] 原文编辑
@@ -43,33 +48,53 @@ const activityItems: ActivityItem[] = [
   { id: "settings", label: "设置", icon: Settings },
 ];
 
+type EditorFocusRequest = {
+  lineNumber: number;
+  requestId: number;
+};
+
+const outlineZoomMin = 0.85;
+const outlineZoomMax = 1.3;
+const outlineZoomStep = 0.1;
+const outlineZoomDefault = 1;
+
 function OutlineTree({
   nodes,
+  onSelectLine,
   depth = 0,
 }: {
   nodes: OutlineNode[];
+  onSelectLine: (lineNumber: number) => void;
   depth?: number;
 }) {
   return (
     <ul className="outline-list" data-depth={depth}>
       {nodes.map((node) => (
         <li key={node.id}>
-          <div
+          <button
             className={
               node.diagnostics.length > 0
                 ? "outline-node has-diagnostics"
                 : "outline-node"
             }
+            onClick={() => onSelectLine(node.lineNumber)}
+            type="button"
           >
             <span className="node-marker">{node.marker ?? "·"}</span>
             <div className="node-main">
               <span className="node-kind">{node.label}</span>
               <span className="node-text">{node.text}</span>
             </div>
-            <span className="node-line">L{node.lineNumber}</span>
-          </div>
+            <span className="node-meta">
+              <span>层 {node.level + 1}</span>
+            </span>
+          </button>
           {node.children.length > 0 ? (
-            <OutlineTree nodes={node.children} depth={depth + 1} />
+            <OutlineTree
+              nodes={node.children}
+              onSelectLine={onSelectLine}
+              depth={depth + 1}
+            />
           ) : null}
         </li>
       ))}
@@ -153,10 +178,12 @@ function OutlinePanelSummary({
   outline,
   totalBlocks,
   diagnosticsCount,
+  onSelectLine,
 }: {
   outline: OutlineNode[];
   totalBlocks: number;
   diagnosticsCount: number;
+  onSelectLine: (lineNumber: number) => void;
 }) {
   return (
     <div className="side-panel-body">
@@ -183,7 +210,12 @@ function OutlinePanelSummary({
         <div className="side-entry-list">
           {outline.length > 0 ? (
             outline.slice(0, 6).map((node) => (
-              <button className="side-entry" key={node.id} type="button">
+              <button
+                className="side-entry"
+                key={node.id}
+                onClick={() => onSelectLine(node.lineNumber)}
+                type="button"
+              >
                 {node.text}
               </button>
             ))
@@ -202,12 +234,14 @@ function ActivityPanel({
   totalBlocks,
   diagnosticsCount,
   outline,
+  onSelectLine,
 }: {
   activeActivity: ActivityKey;
   lineCount: number;
   totalBlocks: number;
   diagnosticsCount: number;
   outline: OutlineNode[];
+  onSelectLine: (lineNumber: number) => void;
 }) {
   if (activeActivity === "notes") {
     return (
@@ -224,6 +258,7 @@ function ActivityPanel({
       <OutlinePanelSummary
         diagnosticsCount={diagnosticsCount}
         outline={outline}
+        onSelectLine={onSelectLine}
         totalBlocks={totalBlocks}
       />
     );
@@ -250,6 +285,9 @@ function ActivityPanel({
 
 function App() {
   const [activeActivity, setActiveActivity] = useState<ActivityKey>("notes");
+  const [editorFocusRequest, setEditorFocusRequest] =
+    useState<EditorFocusRequest | null>(null);
+  const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);
   const [documentText, setDocumentText] = useState(initialDocument);
   const parsedDocument = useMemo(
     () => parseCtnDocument(documentText),
@@ -260,6 +298,24 @@ function App() {
   const lineCount = documentText.split("\n").length;
   const activeActivityItem =
     activityItems.find((item) => item.id === activeActivity) ?? activityItems[0];
+  const focusEditorLine = (lineNumber: number) => {
+    setEditorFocusRequest((current) => ({
+      lineNumber,
+      requestId: (current?.requestId ?? 0) + 1,
+    }));
+  };
+  const changeOutlineZoom = (delta: number) => {
+    setOutlineZoom((current) =>
+      Math.min(
+        outlineZoomMax,
+        Math.max(outlineZoomMin, Number((current + delta).toFixed(2))),
+      ),
+    );
+  };
+  const outlineZoomPercent = Math.round(outlineZoom * 100);
+  const outlineBodyStyle = {
+    "--outline-font-size": `${(13 * outlineZoom).toFixed(1)}px`,
+  } as CSSProperties;
 
   return (
     <main className="app-shell">
@@ -323,6 +379,7 @@ function App() {
             activeActivity={activeActivity}
             diagnosticsCount={parsedDocument.diagnostics.length}
             lineCount={lineCount}
+            onSelectLine={focusEditorLine}
             outline={outline}
             totalBlocks={totalBlocks}
           />
@@ -343,7 +400,11 @@ function App() {
           </div>
         </header>
 
-        <CtnEditor value={documentText} onChange={setDocumentText} />
+        <CtnEditor
+          focusTarget={editorFocusRequest}
+          value={documentText}
+          onChange={setDocumentText}
+        />
 
         {parsedDocument.diagnostics.length > 0 ? (
           <section className="diagnostics-panel" aria-label="诊断">
@@ -368,15 +429,50 @@ function App() {
             <p className="eyebrow">Outline</p>
             <h2>结构</h2>
           </div>
-          <div className="stats compact-stats">
-            <span>{totalBlocks} 块</span>
-            <span>{parsedDocument.diagnostics.length} 诊断</span>
+          <div className="outline-header-actions">
+            <div className="outline-zoom-controls" aria-label="结构树缩放">
+              <button
+                aria-label="缩小结构树"
+                className="outline-icon-button"
+                disabled={outlineZoom <= outlineZoomMin}
+                onClick={() => changeOutlineZoom(-outlineZoomStep)}
+                title="缩小结构树"
+                type="button"
+              >
+                <Minus aria-hidden="true" size={14} strokeWidth={2} />
+              </button>
+              <span className="outline-zoom-value">{outlineZoomPercent}%</span>
+              <button
+                aria-label="放大结构树"
+                className="outline-icon-button"
+                disabled={outlineZoom >= outlineZoomMax}
+                onClick={() => changeOutlineZoom(outlineZoomStep)}
+                title="放大结构树"
+                type="button"
+              >
+                <Plus aria-hidden="true" size={14} strokeWidth={2} />
+              </button>
+              <button
+                aria-label="重置结构树缩放"
+                className="outline-icon-button"
+                disabled={outlineZoom === outlineZoomDefault}
+                onClick={() => setOutlineZoom(outlineZoomDefault)}
+                title="重置结构树缩放"
+                type="button"
+              >
+                <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
+              </button>
+            </div>
+            <div className="stats compact-stats">
+              <span>{totalBlocks} 块</span>
+              <span>{parsedDocument.diagnostics.length} 诊断</span>
+            </div>
           </div>
         </header>
 
-        <div className="outline-body">
+        <div className="outline-body" style={outlineBodyStyle}>
           {outline.length > 0 ? (
-            <OutlineTree nodes={outline} />
+            <OutlineTree nodes={outline} onSelectLine={focusEditorLine} />
           ) : (
             <p className="empty-outline">没有可解析的结构</p>
           )}
