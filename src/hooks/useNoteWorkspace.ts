@@ -8,7 +8,7 @@ import {
   type NoteRecord,
   type NoteWorkspace,
 } from "../domain/notes";
-import { createLocalStorageNoteRepository } from "../storage/noteRepository";
+import { createTauriNoteRepository } from "../storage/tauriNoteRepository";
 
 function createDraftNote() {
   const timestamp = new Date().toISOString();
@@ -18,14 +18,36 @@ function createDraftNote() {
 }
 
 export function useNoteWorkspace() {
-  const repository = useMemo(() => createLocalStorageNoteRepository(), []);
+  const repository = useMemo(() => createTauriNoteRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
-    return repository.loadWorkspace() ?? createInitialWorkspace();
+    return createInitialWorkspace();
   });
+  const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
 
   useEffect(() => {
-    repository.saveWorkspace(workspace);
-  }, [repository, workspace]);
+    let isActive = true;
+
+    void repository.loadWorkspace().then((storedWorkspace) => {
+      if (!isActive) {
+        return;
+      }
+
+      setWorkspace(storedWorkspace ?? createInitialWorkspace());
+      setIsWorkspaceLoaded(true);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [repository]);
+
+  useEffect(() => {
+    if (!isWorkspaceLoaded) {
+      return;
+    }
+
+    void repository.saveWorkspace(workspace);
+  }, [isWorkspaceLoaded, repository, workspace]);
 
   const activeNote =
     workspace.notes.find((note) => note.id === workspace.activeNoteId) ??
@@ -75,6 +97,7 @@ export function useNoteWorkspace() {
     activeNote,
     createNote,
     selectNote,
+    storageLabel: repository.label,
     updateActiveNoteSource,
     workspace,
   };

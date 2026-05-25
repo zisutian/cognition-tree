@@ -71,6 +71,7 @@ function NotesPanel({
   lineCount,
   notes,
   noteTree,
+  storageLabel,
   totalBlocks,
   onCreateNote,
   onSelectNote,
@@ -80,6 +81,7 @@ function NotesPanel({
   lineCount: number;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
+  storageLabel: string;
   totalBlocks: number;
   onCreateNote: () => void;
   onSelectNote: (noteId: NoteId) => void;
@@ -131,7 +133,7 @@ function NotesPanel({
       <section className="side-section">
         <p className="side-section-title">存储</p>
         <div className="side-placeholder">
-          <span>localStorage</span>
+          <span>{storageLabel}</span>
           <strong>自动保存</strong>
         </div>
       </section>
@@ -262,6 +264,7 @@ function ActivityPanel({
   notes,
   noteTree,
   outline,
+  storageLabel,
   totalBlocks,
   onCreateNote,
   onSelectLine,
@@ -274,6 +277,7 @@ function ActivityPanel({
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
   outline: OutlineNode[];
+  storageLabel: string;
   totalBlocks: number;
   onCreateNote: () => void;
   onSelectLine: (lineNumber: number) => void;
@@ -287,6 +291,7 @@ function ActivityPanel({
         lineCount={lineCount}
         notes={notes}
         noteTree={noteTree}
+        storageLabel={storageLabel}
         totalBlocks={totalBlocks}
         onCreateNote={onCreateNote}
         onSelectNote={onSelectNote}
@@ -309,7 +314,7 @@ function ActivityPanel({
     {
       search: ["标题", "正文", "块类型"],
       syntax: ["默认符号", "行内符号", "版本"],
-      data: ["SQLite", "导入", "导出"],
+      data: ["文件库", "索引", "导入导出"],
       settings: ["外观", "快捷键", "许可证"],
     };
 
@@ -332,6 +337,7 @@ export function WorkspaceSidebar({
   notes,
   noteTree,
   outline,
+  storageLabel,
   totalBlocks,
   onActivityChange,
   onCreateNote,
@@ -345,6 +351,7 @@ export function WorkspaceSidebar({
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
   outline: OutlineNode[];
+  storageLabel: string;
   totalBlocks: number;
   onActivityChange: (activity: ActivityKey) => void;
   onCreateNote: () => void;
@@ -419,6 +426,7 @@ export function WorkspaceSidebar({
           notes={notes}
           noteTree={noteTree}
           outline={outline}
+          storageLabel={storageLabel}
           totalBlocks={totalBlocks}
           onCreateNote={onCreateNote}
           onSelectLine={onSelectLine}

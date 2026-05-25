@@ -22,6 +22,7 @@ function App() {
     activeNote,
     createNote,
     selectNote,
+    storageLabel,
     updateActiveNoteSource,
     workspace,
   } = useNoteWorkspace();
@@ -48,6 +49,7 @@ function App() {
         notes={workspace.notes}
         noteTree={workspace.tree}
         outline={parsedDocument.roots}
+        storageLabel={storageLabel}
         totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivity}
         onCreateNote={createNote}
