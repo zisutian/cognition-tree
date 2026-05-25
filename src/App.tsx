@@ -12,7 +12,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { CtnEditor } from "./CtnEditor";
-import { parseCtnDocument, type OutlineNode } from "./ctn/parseOutline";
+import {
+  defaultCtnSyntaxProfile,
+  parseCtnDocument,
+  type CtnSyntaxProfile,
+  type OutlineNode,
+} from "./ctn/parseOutline";
 import "./App.css";
 
 const initialDocument = `认知树
@@ -53,10 +58,32 @@ type EditorFocusRequest = {
   requestId: number;
 };
 
+type SyntaxProfileKey = "default" | "custom";
+
 const outlineZoomMin = 0.85;
 const outlineZoomMax = 1.3;
 const outlineZoomStep = 0.1;
 const outlineZoomDefault = 1;
+
+function buildCustomSyntaxProfile(
+  marker: string,
+  spaceIndentUnit: number,
+): CtnSyntaxProfile {
+  const normalizedMarker = marker.trim() || "!";
+
+  return {
+    ...defaultCtnSyntaxProfile,
+    id: "ctn-custom-preview",
+    name: "自定义实验语法",
+    spaceIndentUnit,
+    markerRules: [
+      { marker: normalizedMarker, type: "action", label: "行动" },
+      ...defaultCtnSyntaxProfile.markerRules.filter(
+        (rule) => rule.marker !== normalizedMarker,
+      ),
+    ],
+  };
+}
 
 function OutlineTree({
   nodes,
@@ -228,20 +255,137 @@ function OutlinePanelSummary({
   );
 }
 
+function SyntaxPanel({
+  activeSyntaxProfile,
+  customActionMarker,
+  customSpaceIndentUnit,
+  syntaxProfile,
+  onCustomActionMarkerChange,
+  onCustomSpaceIndentUnitChange,
+  onSyntaxProfileChange,
+}: {
+  activeSyntaxProfile: SyntaxProfileKey;
+  customActionMarker: string;
+  customSpaceIndentUnit: number;
+  syntaxProfile: CtnSyntaxProfile;
+  onCustomActionMarkerChange: (marker: string) => void;
+  onCustomSpaceIndentUnitChange: (unit: number) => void;
+  onSyntaxProfileChange: (profile: SyntaxProfileKey) => void;
+}) {
+  return (
+    <div className="side-panel-body">
+      <section className="side-section">
+        <p className="side-section-title">方案</p>
+        <div className="syntax-profile-switcher">
+          <button
+            className={
+              activeSyntaxProfile === "default"
+                ? "syntax-profile-option active"
+                : "syntax-profile-option"
+            }
+            onClick={() => onSyntaxProfileChange("default")}
+            type="button"
+          >
+            默认
+          </button>
+          <button
+            className={
+              activeSyntaxProfile === "custom"
+                ? "syntax-profile-option active"
+                : "syntax-profile-option"
+            }
+            onClick={() => onSyntaxProfileChange("custom")}
+            type="button"
+          >
+            自定义
+          </button>
+        </div>
+      </section>
+
+      <section className="side-section">
+        <p className="side-section-title">当前</p>
+        <div className="side-placeholder">
+          <span>{syntaxProfile.id}</span>
+          <strong>{syntaxProfile.name}</strong>
+        </div>
+      </section>
+
+      <section className="side-section">
+        <p className="side-section-title">自定义规则</p>
+        <label className="syntax-field">
+          <span>行动符号</span>
+          <input
+            disabled={activeSyntaxProfile !== "custom"}
+            maxLength={8}
+            onChange={(event) =>
+              onCustomActionMarkerChange(event.currentTarget.value)
+            }
+            spellCheck={false}
+            value={customActionMarker}
+          />
+        </label>
+        <div className="syntax-stepper" aria-label="空格缩进单位">
+          {[2, 4].map((unit) => (
+            <button
+              className={
+                customSpaceIndentUnit === unit
+                  ? "syntax-stepper-button active"
+                  : "syntax-stepper-button"
+              }
+              disabled={activeSyntaxProfile !== "custom"}
+              key={unit}
+              onClick={() => onCustomSpaceIndentUnitChange(unit)}
+              type="button"
+            >
+              {unit} 空格
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="side-section">
+        <p className="side-section-title">规则预览</p>
+        <div className="syntax-rule-list">
+          {syntaxProfile.markerRules.slice(0, 8).map((rule) => (
+            <div className="syntax-rule" key={`${rule.marker}-${rule.type}`}>
+              <code>{rule.marker}</code>
+              <span>{rule.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ActivityPanel({
   activeActivity,
+  activeSyntaxProfile,
+  customActionMarker,
+  customSpaceIndentUnit,
   lineCount,
   totalBlocks,
   diagnosticsCount,
   outline,
   onSelectLine,
+  onCustomActionMarkerChange,
+  onCustomSpaceIndentUnitChange,
+  onSyntaxProfileChange,
+  syntaxProfile,
 }: {
   activeActivity: ActivityKey;
+  activeSyntaxProfile: SyntaxProfileKey;
+  customActionMarker: string;
+  customSpaceIndentUnit: number;
   lineCount: number;
   totalBlocks: number;
   diagnosticsCount: number;
   outline: OutlineNode[];
   onSelectLine: (lineNumber: number) => void;
+  onCustomActionMarkerChange: (marker: string) => void;
+  onCustomSpaceIndentUnitChange: (unit: number) => void;
+  onSyntaxProfileChange: (profile: SyntaxProfileKey) => void;
+  syntaxProfile: CtnSyntaxProfile;
 }) {
   if (activeActivity === "notes") {
     return (
@@ -264,13 +408,28 @@ function ActivityPanel({
     );
   }
 
-  const placeholders: Record<Exclude<ActivityKey, "notes" | "outline">, string[]> =
-    {
-      search: ["标题", "正文", "块类型"],
-      syntax: ["默认符号", "行内符号", "版本"],
-      data: ["SQLite", "导入", "导出"],
-      settings: ["外观", "快捷键", "许可证"],
-    };
+  if (activeActivity === "syntax") {
+    return (
+      <SyntaxPanel
+        activeSyntaxProfile={activeSyntaxProfile}
+        customActionMarker={customActionMarker}
+        customSpaceIndentUnit={customSpaceIndentUnit}
+        syntaxProfile={syntaxProfile}
+        onCustomActionMarkerChange={onCustomActionMarkerChange}
+        onCustomSpaceIndentUnitChange={onCustomSpaceIndentUnitChange}
+        onSyntaxProfileChange={onSyntaxProfileChange}
+      />
+    );
+  }
+
+  const placeholders: Record<
+    Exclude<ActivityKey, "notes" | "outline" | "syntax">,
+    string[]
+  > = {
+    search: ["标题", "正文", "块类型"],
+    data: ["SQLite", "导入", "导出"],
+    settings: ["外观", "快捷键", "许可证"],
+  };
 
   return (
     <PlaceholderPanel
@@ -285,13 +444,25 @@ function ActivityPanel({
 
 function App() {
   const [activeActivity, setActiveActivity] = useState<ActivityKey>("notes");
+  const [activeSyntaxProfile, setActiveSyntaxProfile] =
+    useState<SyntaxProfileKey>("default");
+  const [customActionMarker, setCustomActionMarker] = useState("!");
+  const [customSpaceIndentUnit, setCustomSpaceIndentUnit] = useState(2);
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
   const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);
   const [documentText, setDocumentText] = useState(initialDocument);
+  const customSyntaxProfile = useMemo(
+    () => buildCustomSyntaxProfile(customActionMarker, customSpaceIndentUnit),
+    [customActionMarker, customSpaceIndentUnit],
+  );
+  const syntaxProfile =
+    activeSyntaxProfile === "default"
+      ? defaultCtnSyntaxProfile
+      : customSyntaxProfile;
   const parsedDocument = useMemo(
-    () => parseCtnDocument(documentText),
-    [documentText],
+    () => parseCtnDocument(documentText, { syntaxProfile }),
+    [documentText, syntaxProfile],
   );
   const outline = parsedDocument.roots;
   const totalBlocks = parsedDocument.blocks.length;
@@ -377,10 +548,17 @@ function App() {
           </header>
           <ActivityPanel
             activeActivity={activeActivity}
+            activeSyntaxProfile={activeSyntaxProfile}
+            customActionMarker={customActionMarker}
+            customSpaceIndentUnit={customSpaceIndentUnit}
             diagnosticsCount={parsedDocument.diagnostics.length}
             lineCount={lineCount}
             onSelectLine={focusEditorLine}
+            onCustomActionMarkerChange={setCustomActionMarker}
+            onCustomSpaceIndentUnitChange={setCustomSpaceIndentUnit}
+            onSyntaxProfileChange={setActiveSyntaxProfile}
             outline={outline}
+            syntaxProfile={syntaxProfile}
             totalBlocks={totalBlocks}
           />
         </section>
@@ -402,6 +580,7 @@ function App() {
 
         <CtnEditor
           focusTarget={editorFocusRequest}
+          syntaxProfile={syntaxProfile}
           value={documentText}
           onChange={setDocumentText}
         />
