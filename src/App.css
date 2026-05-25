@@ -134,11 +134,11 @@ button {
 }
 
 .activity-button:focus-visible,
-.note-delete-button:focus-visible,
 .note-folder-toggle:focus-visible,
 .note-folder-label:focus-visible,
 .note-item:focus-visible,
 .primary-action-button:focus-visible,
+.sidebar-context-menu button:focus-visible,
 .side-action-button:focus-visible,
 .side-entry:focus-visible,
 .outline-node-content:focus-visible,
@@ -232,6 +232,12 @@ button {
   background: #e3f3a7;
 }
 
+.side-action-button:disabled {
+  color: #6f7d78;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: default;
+}
+
 .repository-strip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -259,7 +265,7 @@ button {
   white-space: nowrap;
 }
 
-.note-tree,
+.note-tree-content,
 .note-folder-children {
   display: flex;
   flex-direction: column;
@@ -269,8 +275,33 @@ button {
 .note-tree {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding-right: 2px;
+}
+
+.sidebar-scroll-area {
+  --sidebar-scrollbar-compensation: 24px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-scroll-area-viewport {
+  width: calc(100% + var(--sidebar-scrollbar-compensation));
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.sidebar-scroll-area-viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.sidebar-scroll-area-content {
+  width: calc(100% - var(--sidebar-scrollbar-compensation));
+  min-width: 0;
 }
 
 .note-folder {
@@ -365,7 +396,7 @@ button {
   gap: 6px;
   width: 100%;
   min-height: 26px;
-  padding: 3px 28px 3px 5px;
+  padding: 3px 5px;
   border-radius: 5px;
   color: #eaf1ed;
   background: transparent;
@@ -392,33 +423,38 @@ button {
   box-shadow: inset 2px 0 0 #d7eb8f;
 }
 
-.note-delete-button {
-  position: absolute;
-  top: 50%;
-  right: 2px;
-  display: inline-flex;
+.sidebar-context-menu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  background: #123b37;
+  box-shadow: 0 14px 36px rgba(9, 28, 26, 0.3);
+}
+
+.sidebar-context-menu button {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
+  min-height: 28px;
+  padding: 4px 8px;
   border-radius: 5px;
-  color: #bdd0c8;
+  color: #eaf1ed;
   background: transparent;
+  font-size: 12px;
+  text-align: left;
   cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%);
 }
 
-.note-item-row:focus-within .note-delete-button,
-.note-item-row:hover .note-delete-button {
-  opacity: 1;
-  pointer-events: auto;
+.sidebar-context-menu button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
 }
 
-.note-delete-button:hover {
-  color: #f8fbf5;
-  background: rgba(255, 255, 255, 0.14);
+.sidebar-context-menu button:disabled {
+  color: #718a82;
+  cursor: default;
 }
 
 .side-metrics {

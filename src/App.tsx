@@ -26,10 +26,14 @@ function App() {
   const {
     activeNote,
     changeRepositoryPath,
+    createFolder,
     createNote,
+    deleteFolder,
     deleteNote,
+    moveNote,
     reloadWorkspace,
     repositoryPath,
+    renameFolder,
     selectFolder,
     selectNote,
     selectedFolderId,
@@ -74,9 +78,13 @@ function App() {
         totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivityId}
         onChangeRepositoryPath={changeRepositoryPath}
+        onCreateFolder={createFolder}
         onCreateNote={createNote}
+        onDeleteFolder={deleteFolder}
         onDeleteNote={deleteNote}
+        onMoveNote={moveNote}
         onReloadWorkspace={reloadWorkspace}
+        onRenameFolder={renameFolder}
         onSelectFolder={selectFolder}
         onSelectLine={focusEditorLine}
         onSelectNote={selectNote}

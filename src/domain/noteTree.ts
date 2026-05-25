@@ -16,6 +16,41 @@ export function createNoteTreeNode(noteId: NoteId): NoteTreeNoteNode {
   };
 }
 
+export function createFolderTreeNode(
+  folderId: FolderId,
+  title: string,
+): FolderTreeNode {
+  return {
+    id: folderId,
+    kind: "folder",
+    title,
+    children: [],
+  };
+}
+
+export function orderNoteTreeNodesFoldersFirst(
+  tree: NoteTreeNode[],
+): NoteTreeNode[] {
+  return [...tree]
+    .sort((leftNode, rightNode) => {
+      if (leftNode.kind === rightNode.kind) {
+        return 0;
+      }
+
+      return leftNode.kind === "folder" ? -1 : 1;
+    })
+    .map((node) => {
+      if (node.kind !== "folder") {
+        return node;
+      }
+
+      return {
+        ...node,
+        children: orderNoteTreeNodesFoldersFirst(node.children),
+      };
+    });
+}
+
 export function appendNoteToWorkspaceTree(
   tree: NoteTreeNode[],
   noteId: NoteId,
@@ -35,7 +70,56 @@ export function appendNoteToWorkspaceTree(
 
     return {
       ...node,
-      children: [...node.children, createNoteTreeNode(noteId)],
+      children: orderNoteTreeNodesFoldersFirst([
+        ...node.children,
+        createNoteTreeNode(noteId),
+      ]),
+    };
+  });
+}
+
+export function appendFolderToWorkspaceTree(
+  tree: NoteTreeNode[],
+  folder: FolderTreeNode,
+  parentFolderId: FolderId = defaultFolderId,
+): NoteTreeNode[] {
+  return tree.map((node) => {
+    if (node.kind !== "folder") {
+      return node;
+    }
+
+    if (node.id !== parentFolderId) {
+      return {
+        ...node,
+        children: appendFolderToWorkspaceTree(
+          node.children,
+          folder,
+          parentFolderId,
+        ),
+      };
+    }
+
+    return {
+      ...node,
+      children: orderNoteTreeNodesFoldersFirst([...node.children, folder]),
+    };
+  });
+}
+
+export function renameFolderInWorkspaceTree(
+  tree: NoteTreeNode[],
+  folderId: FolderId,
+  title: string,
+): NoteTreeNode[] {
+  return tree.map((node) => {
+    if (node.kind !== "folder") {
+      return node;
+    }
+
+    return {
+      ...node,
+      title: node.id === folderId ? title : node.title,
+      children: renameFolderInWorkspaceTree(node.children, folderId, title),
     };
   });
 }
@@ -65,6 +149,16 @@ export function findFolderIdContainingNote(
   }
 
   return null;
+}
+
+export function countFolders(tree: NoteTreeNode[]): number {
+  return tree.reduce((count, node) => {
+    if (node.kind !== "folder") {
+      return count;
+    }
+
+    return count + 1 + countFolders(node.children);
+  }, 0);
 }
 
 export function findFirstFolderId(tree: NoteTreeNode[]): FolderId | null {
@@ -102,6 +196,29 @@ export function findFolderNode(
   return null;
 }
 
+export function collectNoteIdsInFolder(
+  tree: NoteTreeNode[],
+  folderId: FolderId,
+): NoteId[] {
+  const folder = findFolderNode(tree, folderId);
+
+  if (!folder) {
+    return [];
+  }
+
+  return collectNoteIds(folder.children);
+}
+
+function collectNoteIds(tree: NoteTreeNode[]): NoteId[] {
+  return tree.flatMap((node): NoteId[] => {
+    if (node.kind === "note") {
+      return [node.noteId];
+    }
+
+    return collectNoteIds(node.children);
+  });
+}
+
 export function removeNoteFromWorkspaceTree(
   tree: NoteTreeNode[],
   noteId: NoteId,
@@ -118,4 +235,46 @@ export function removeNoteFromWorkspaceTree(
       },
     ];
   });
+}
+
+export function removeFolderFromWorkspaceTree(
+  tree: NoteTreeNode[],
+  folderId: FolderId,
+): NoteTreeNode[] {
+  return tree.flatMap((node): NoteTreeNode[] => {
+    if (node.kind !== "folder") {
+      return [node];
+    }
+
+    if (node.id === folderId) {
+      return [];
+    }
+
+    return [
+      {
+        ...node,
+        children: removeFolderFromWorkspaceTree(node.children, folderId),
+      },
+    ];
+  });
+}
+
+export function moveNoteInWorkspaceTree(
+  tree: NoteTreeNode[],
+  noteId: NoteId,
+  targetFolderId: FolderId,
+): NoteTreeNode[] {
+  if (!findFolderNode(tree, targetFolderId)) {
+    return tree;
+  }
+
+  if (findFolderIdContainingNote(tree, noteId) === targetFolderId) {
+    return tree;
+  }
+
+  return appendNoteToWorkspaceTree(
+    removeNoteFromWorkspaceTree(tree, noteId),
+    noteId,
+    targetFolderId,
+  );
 }

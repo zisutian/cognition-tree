@@ -27,9 +27,13 @@ type WorkspaceSidebarProps = {
   totalBlocks: number;
   onActivityChange: (activityId: SidebarActivityId) => void;
   onChangeRepositoryPath: (path: string) => void;
+  onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
+  onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
+  onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   onReloadWorkspace: () => void;
+  onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
@@ -48,9 +52,13 @@ export function WorkspaceSidebar({
   totalBlocks,
   onActivityChange,
   onChangeRepositoryPath,
+  onCreateFolder,
   onCreateNote,
+  onDeleteFolder,
   onDeleteNote,
+  onMoveNote,
   onReloadWorkspace,
+  onRenameFolder,
   onSelectFolder,
   onSelectLine,
   onSelectNote,
@@ -83,9 +91,13 @@ export function WorkspaceSidebar({
           storageLabel={storageLabel}
           totalBlocks={totalBlocks}
           onChangeRepositoryPath={onChangeRepositoryPath}
+          onCreateFolder={onCreateFolder}
           onCreateNote={onCreateNote}
+          onDeleteFolder={onDeleteFolder}
           onDeleteNote={onDeleteNote}
+          onMoveNote={onMoveNote}
           onReloadWorkspace={onReloadWorkspace}
+          onRenameFolder={onRenameFolder}
           onSelectFolder={onSelectFolder}
           onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}

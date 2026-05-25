@@ -102,7 +102,7 @@ export function createInitialWorkspace() {
       {
         id: defaultFolderId,
         kind: "folder",
-        title: "未整理",
+        title: "仓库根目录",
         children: [],
       },
     ],

@@ -39,7 +39,7 @@ fn create_workspace() -> NoteWorkspace {
         }],
         tree: vec![NoteTreeNode::Folder {
             id: "folder-inbox".to_string(),
-            title: "未整理".to_string(),
+            title: "仓库根目录".to_string(),
             children: vec![NoteTreeNode::Note {
                 id: "tree-note-test".to_string(),
                 note_id: "note-test".to_string(),
@@ -120,7 +120,7 @@ fn prunes_notes_missing_from_disk_when_loading() {
         loaded_workspace.tree,
         vec![NoteTreeNode::Folder {
             id: "folder-inbox".to_string(),
-            title: "未整理".to_string(),
+            title: "仓库根目录".to_string(),
             children: vec![],
         }]
     );
@@ -142,7 +142,7 @@ fn removes_stale_note_files_when_saving() {
     workspace.notes.clear();
     workspace.tree = vec![NoteTreeNode::Folder {
         id: "folder-inbox".to_string(),
-        title: "未整理".to_string(),
+        title: "仓库根目录".to_string(),
         children: vec![],
     }];
 

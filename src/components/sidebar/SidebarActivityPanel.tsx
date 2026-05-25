@@ -26,9 +26,13 @@ type SidebarActivityPanelProps = {
   storageLabel: string;
   totalBlocks: number;
   onChangeRepositoryPath: (path: string) => void;
+  onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
+  onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
+  onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   onReloadWorkspace: () => void;
+  onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
@@ -46,9 +50,13 @@ export function SidebarActivityPanel({
   storageLabel,
   totalBlocks,
   onChangeRepositoryPath,
+  onCreateFolder,
   onCreateNote,
+  onDeleteFolder,
   onDeleteNote,
+  onMoveNote,
   onReloadWorkspace,
+  onRenameFolder,
   onSelectFolder,
   onSelectLine,
   onSelectNote,
@@ -63,9 +71,13 @@ export function SidebarActivityPanel({
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
         onChangeRepositoryPath={onChangeRepositoryPath}
+        onCreateFolder={onCreateFolder}
         onCreateNote={onCreateNote}
+        onDeleteFolder={onDeleteFolder}
         onDeleteNote={onDeleteNote}
+        onMoveNote={onMoveNote}
         onReloadWorkspace={onReloadWorkspace}
+        onRenameFolder={onRenameFolder}
         onSelectFolder={onSelectFolder}
         onSelectNote={onSelectNote}
       />

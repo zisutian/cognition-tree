@@ -12,10 +12,17 @@ import {
 } from "../domain/notes";
 import {
   appendNoteToWorkspaceTree,
+  appendFolderToWorkspaceTree,
+  collectNoteIdsInFolder,
+  countFolders,
+  createFolderTreeNode,
   findFirstFolderId,
   findFolderIdContainingNote,
   findFolderNode,
+  moveNoteInWorkspaceTree,
+  removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
+  renameFolderInWorkspaceTree,
 } from "../domain/noteTree";
 import { createTauriNoteRepository } from "../storage/tauriNoteRepository";
 
@@ -25,6 +32,10 @@ function createDraftNote(workspace: NoteWorkspace) {
   const syntaxProfile = resolveWorkspaceSyntaxProfile(workspace);
 
   return createNoteRecord(id, "", timestamp, syntaxProfile);
+}
+
+function createLocalFolderId() {
+  return `folder-${globalThis.crypto.randomUUID()}`;
 }
 
 function resolveExistingFolderId(
@@ -114,6 +125,50 @@ export function useNoteWorkspace() {
     });
   };
 
+  const createFolder = (parentFolderId: FolderId, title: string) => {
+    const nextTitle = title.trim();
+
+    if (!nextTitle) {
+      return;
+    }
+
+    const folderId = createLocalFolderId();
+
+    setWorkspace((current) => {
+      const targetFolderId = resolveExistingFolderId(current, parentFolderId);
+
+      return {
+        ...current,
+        tree: appendFolderToWorkspaceTree(
+          current.tree,
+          createFolderTreeNode(folderId, nextTitle),
+          targetFolderId,
+        ),
+      };
+    });
+    setSelectedFolderId(folderId);
+  };
+
+  const renameFolder = (folderId: FolderId, title: string) => {
+    const nextTitle = title.trim();
+
+    if (!nextTitle) {
+      return;
+    }
+
+    setWorkspace((current) => {
+      if (!findFolderNode(current.tree, folderId)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        tree: renameFolderInWorkspaceTree(current.tree, folderId, nextTitle),
+      };
+    });
+    setSelectedFolderId(folderId);
+  };
+
   const reloadWorkspace = async () => {
     setIsWorkspaceLoaded(false);
 
@@ -146,6 +201,60 @@ export function useNoteWorkspace() {
         tree: removeNoteFromWorkspaceTree(current.tree, noteId),
       };
     });
+  };
+
+  const deleteFolder = (folderId: FolderId) => {
+    if (folderId === defaultFolderId) {
+      return;
+    }
+
+    setWorkspace((current) => {
+      if (
+        countFolders(current.tree) <= 1 ||
+        !findFolderNode(current.tree, folderId)
+      ) {
+        return current;
+      }
+
+      const removedNoteIds = new Set(
+        collectNoteIdsInFolder(current.tree, folderId),
+      );
+      const notes = current.notes.filter((note) => !removedNoteIds.has(note.id));
+
+      return {
+        ...current,
+        activeNoteId:
+          current.activeNoteId && removedNoteIds.has(current.activeNoteId)
+            ? (notes[0]?.id ?? null)
+            : current.activeNoteId,
+        notes,
+        tree: removeFolderFromWorkspaceTree(current.tree, folderId),
+      };
+    });
+    setSelectedFolderId(defaultFolderId);
+  };
+
+  const moveNote = (noteId: NoteId, targetFolderId: FolderId) => {
+    setWorkspace((current) => {
+      if (!current.notes.some((note) => note.id === noteId)) {
+        return current;
+      }
+
+      const nextTargetFolderId = resolveExistingFolderId(
+        current,
+        targetFolderId,
+      );
+
+      return {
+        ...current,
+        tree: moveNoteInWorkspaceTree(
+          current.tree,
+          noteId,
+          nextTargetFolderId,
+        ),
+      };
+    });
+    setSelectedFolderId(targetFolderId);
   };
 
   const changeRepositoryPath = async (path: string) => {
@@ -197,10 +306,14 @@ export function useNoteWorkspace() {
   return {
     activeNote,
     changeRepositoryPath,
+    createFolder,
     createNote,
+    deleteFolder,
     deleteNote,
+    moveNote,
     reloadWorkspace,
     repositoryPath,
+    renameFolder,
     selectFolder,
     selectNote,
     selectedFolderId,

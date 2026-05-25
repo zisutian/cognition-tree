@@ -3,14 +3,20 @@ import {
   ChevronRight,
   FileText,
   Folder,
-  Trash2,
 } from "lucide-react";
-import type {
-  FolderId,
-  NoteId,
-  NoteRecord,
-  NoteTreeNode,
+import {
+  defaultFolderId,
+  type FolderId,
+  type NoteId,
+  type NoteRecord,
+  type NoteTreeNode,
 } from "../../domain/notes";
+import { orderNoteTreeNodesFoldersFirst } from "../../domain/noteTree";
+
+export type TreeContextMenuPosition = {
+  x: number;
+  y: number;
+};
 
 type SidebarNoteTreeProps = {
   activeFolderId: FolderId;
@@ -18,11 +24,24 @@ type SidebarNoteTreeProps = {
   collapsedFolderIds: Set<FolderId>;
   nodes: NoteTreeNode[];
   notesById: Map<NoteId, NoteRecord>;
-  onDeleteNote: (noteId: NoteId) => void;
+  onOpenFolderMenu: (
+    folderId: FolderId,
+    title: string,
+    position: TreeContextMenuPosition,
+  ) => void;
+  onOpenNoteMenu: (
+    noteId: NoteId,
+    title: string,
+    position: TreeContextMenuPosition,
+  ) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
   onToggleFolder: (folderId: FolderId) => void;
 };
+
+function getFolderDisplayTitle(folderId: FolderId, title: string) {
+  return folderId === defaultFolderId ? "仓库根目录" : title;
+}
 
 export function SidebarNoteTree({
   activeFolderId,
@@ -30,17 +49,32 @@ export function SidebarNoteTree({
   collapsedFolderIds,
   nodes,
   notesById,
-  onDeleteNote,
+  onOpenFolderMenu,
+  onOpenNoteMenu,
   onSelectFolder,
   onSelectNote,
   onToggleFolder,
 }: SidebarNoteTreeProps) {
+  const orderedNodes = orderNoteTreeNodesFoldersFirst(nodes);
+
   return (
     <>
-      {nodes.map((node) => {
+      {orderedNodes.map((node) => {
         if (node.kind === "folder") {
           const isCollapsed = collapsedFolderIds.has(node.id);
           const hasChildren = node.children.length > 0;
+          const title = getFolderDisplayTitle(node.id, node.title);
+          const openFolderMenu = (
+            event: React.MouseEvent<HTMLDivElement>,
+          ) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelectFolder(node.id);
+            onOpenFolderMenu(node.id, title, {
+              x: event.clientX,
+              y: event.clientY,
+            });
+          };
 
           return (
             <div className="note-folder" key={node.id}>
@@ -50,10 +84,11 @@ export function SidebarNoteTree({
                     ? "note-folder-row active"
                     : "note-folder-row"
                 }
+                onContextMenu={openFolderMenu}
               >
                 <button
                   aria-label={
-                    isCollapsed ? `展开 ${node.title}` : `折叠 ${node.title}`
+                    isCollapsed ? `展开 ${title}` : `折叠 ${title}`
                   }
                   className="note-folder-toggle"
                   disabled={!hasChildren}
@@ -82,11 +117,11 @@ export function SidebarNoteTree({
                 <button
                   className="note-folder-label"
                   onClick={() => onSelectFolder(node.id)}
-                  title={node.title}
+                  title={title}
                   type="button"
                 >
                   <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
-                  <span>{node.title}</span>
+                  <span>{title}</span>
                   <small>{node.children.length}</small>
                 </button>
               </div>
@@ -99,7 +134,8 @@ export function SidebarNoteTree({
                       collapsedFolderIds={collapsedFolderIds}
                       nodes={node.children}
                       notesById={notesById}
-                      onDeleteNote={onDeleteNote}
+                      onOpenFolderMenu={onOpenFolderMenu}
+                      onOpenNoteMenu={onOpenNoteMenu}
                       onSelectFolder={onSelectFolder}
                       onSelectNote={onSelectNote}
                       onToggleFolder={onToggleFolder}
@@ -119,14 +155,21 @@ export function SidebarNoteTree({
           return null;
         }
 
-        const deleteNote = () => {
-          if (window.confirm(`删除笔记「${note.title}」？`)) {
-            onDeleteNote(note.id);
-          }
+        const openNoteMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpenNoteMenu(note.id, note.title, {
+            x: event.clientX,
+            y: event.clientY,
+          });
         };
 
         return (
-          <div className="note-item-row" key={node.id}>
+          <div
+            className="note-item-row"
+            key={node.id}
+            onContextMenu={openNoteMenu}
+          >
             <button
               className={
                 note.id === activeNoteId ? "note-item active" : "note-item"
@@ -137,15 +180,6 @@ export function SidebarNoteTree({
             >
               <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
               <span>{note.title}</span>
-            </button>
-            <button
-              aria-label={`删除 ${note.title}`}
-              className="note-delete-button"
-              onClick={deleteNote}
-              title="删除笔记"
-              type="button"
-            >
-              <Trash2 aria-hidden="true" size={13} strokeWidth={1.9} />
             </button>
           </div>
         );
