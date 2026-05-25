@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument, parseOutline } from "./parseOutline";
+import {
+  defaultCtnSyntaxProfile,
+  parseCtnDocument,
+  parseOutline,
+} from "./parseOutline";
 
 describe("parseCtnDocument", () => {
   it("builds a semantic block tree from the default CTN markers", () => {
@@ -102,6 +106,34 @@ Sibling
       label: "疑问",
       level: 1,
       text: "Tab child",
+    });
+  });
+
+  it("accepts custom syntax profiles", () => {
+    const document = parseCtnDocument(
+      `Root
+    ! Custom action`,
+      {
+        syntaxProfile: {
+          ...defaultCtnSyntaxProfile,
+          id: "custom-profile",
+          name: "Custom profile",
+          spaceIndentUnit: 4,
+          markerRules: [
+            ...defaultCtnSyntaxProfile.markerRules,
+            { marker: "!", type: "action", label: "行动" },
+          ],
+        },
+      },
+    );
+
+    expect(document.diagnostics).toHaveLength(0);
+    expect(document.roots[0].children[0]).toMatchObject({
+      label: "行动",
+      level: 1,
+      marker: "!",
+      text: "Custom action",
+      type: "action",
     });
   });
 });

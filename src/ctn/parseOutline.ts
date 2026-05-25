@@ -52,33 +52,53 @@ export type CtnDocument = {
 
 export type OutlineNode = CtnBlock;
 
-type MarkerRule = {
+export type CtnMarkerRule = {
   marker: string;
   type: CtnBlockType;
   label: string;
 };
 
-const markerRules = ([
-  { marker: "[理解]", type: "personal-understanding", label: "理解" },
-  { marker: "[条件]", type: "condition", label: "条件" },
-  { marker: "[证据]", type: "evidence", label: "证据" },
-  { marker: "[反例]", type: "counterexample", label: "反例" },
-  { marker: "[组分]", type: "component", label: "组分" },
-  { marker: "[分类]", type: "category", label: "分类" },
-  { marker: "[例子]", type: "example", label: "例子" },
-  { marker: "[注]", type: "note", label: "注释" },
-  { marker: "[?]", type: "question", label: "疑问" },
-  { marker: ":", type: "definition", label: "定义" },
-  { marker: "#", type: "concept", label: "主题" },
-  { marker: "=", type: "definition", label: "定义" },
-  { marker: "?", type: "question", label: "疑问" },
-  { marker: "-", type: "condition", label: "条件" },
-  { marker: "+", type: "action", label: "行动" },
-] satisfies MarkerRule[]).sort(
-  (left, right) => right.marker.length - left.marker.length,
-);
+export type CtnSyntaxProfile = {
+  id: string;
+  name: string;
+  version: number;
+  spaceIndentUnit: number;
+  markerRules: CtnMarkerRule[];
+};
 
-const spaceIndentUnit = 2;
+export type ParseCtnDocumentOptions = {
+  syntaxProfile?: CtnSyntaxProfile;
+};
+
+export const defaultCtnSyntaxProfile = {
+  id: "ctn-default",
+  name: "默认 CTN 语法",
+  version: 1,
+  spaceIndentUnit: 2,
+  markerRules: [
+    { marker: "[理解]", type: "personal-understanding", label: "理解" },
+    { marker: "[条件]", type: "condition", label: "条件" },
+    { marker: "[证据]", type: "evidence", label: "证据" },
+    { marker: "[反例]", type: "counterexample", label: "反例" },
+    { marker: "[组分]", type: "component", label: "组分" },
+    { marker: "[分类]", type: "category", label: "分类" },
+    { marker: "[例子]", type: "example", label: "例子" },
+    { marker: "[注]", type: "note", label: "注释" },
+    { marker: "[?]", type: "question", label: "疑问" },
+    { marker: ":", type: "definition", label: "定义" },
+    { marker: "#", type: "concept", label: "主题" },
+    { marker: "=", type: "definition", label: "定义" },
+    { marker: "?", type: "question", label: "疑问" },
+    { marker: "-", type: "condition", label: "条件" },
+    { marker: "+", type: "action", label: "行动" },
+  ],
+} satisfies CtnSyntaxProfile;
+
+function sortMarkerRules(markerRules: CtnMarkerRule[]): CtnMarkerRule[] {
+  return [...markerRules].sort(
+    (left, right) => right.marker.length - left.marker.length,
+  );
+}
 
 function createDiagnostic(
   code: CtnDiagnosticCode,
@@ -97,7 +117,11 @@ function createDiagnostic(
   };
 }
 
-function analyzeIndent(indentText: string, lineNumber: number) {
+function analyzeIndent(
+  indentText: string,
+  lineNumber: number,
+  spaceIndentUnit: number,
+) {
   const diagnostics: CtnDiagnostic[] = [];
   const tabCount = [...indentText].filter((char) => char === "\t").length;
   const spaceCount = [...indentText].filter((char) => char === " ").length;
@@ -132,7 +156,12 @@ function analyzeIndent(indentText: string, lineNumber: number) {
   };
 }
 
-function parseMarker(trimmed: string, lineNumber: number, indentWidth: number) {
+function parseMarker(
+  trimmed: string,
+  lineNumber: number,
+  indentWidth: number,
+  markerRules: CtnMarkerRule[],
+) {
   const matchedRule = markerRules.find((rule) => trimmed.startsWith(rule.marker));
 
   if (matchedRule) {
@@ -177,11 +206,16 @@ function parseMarker(trimmed: string, lineNumber: number, indentWidth: number) {
   };
 }
 
-export function parseCtnDocument(source: string): CtnDocument {
+export function parseCtnDocument(
+  source: string,
+  options: ParseCtnDocumentOptions = {},
+): CtnDocument {
   const roots: CtnBlock[] = [];
   const blocks: CtnBlock[] = [];
   const diagnostics: CtnDiagnostic[] = [];
   const stack: Array<{ level: number; node: CtnBlock }> = [];
+  const syntaxProfile = options.syntaxProfile ?? defaultCtnSyntaxProfile;
+  const markerRules = sortMarkerRules(syntaxProfile.markerRules);
 
   source.split("\n").forEach((line, index) => {
     const lineNumber = index + 1;
@@ -192,8 +226,17 @@ export function parseCtnDocument(source: string): CtnDocument {
     }
 
     const indentText = line.match(/^\s*/)?.[0] ?? "";
-    const indent = analyzeIndent(indentText, lineNumber);
-    const parsedMarker = parseMarker(trimmed, lineNumber, indentText.length);
+    const indent = analyzeIndent(
+      indentText,
+      lineNumber,
+      syntaxProfile.spaceIndentUnit,
+    );
+    const parsedMarker = parseMarker(
+      trimmed,
+      lineNumber,
+      indentText.length,
+      markerRules,
+    );
     const nodeDiagnostics = [...indent.diagnostics, ...parsedMarker.diagnostics];
     const node: CtnBlock = {
       id: `block-${lineNumber}`,
@@ -252,6 +295,9 @@ export function parseCtnDocument(source: string): CtnDocument {
   return { roots, blocks, diagnostics };
 }
 
-export function parseOutline(source: string): OutlineNode[] {
-  return parseCtnDocument(source).roots;
+export function parseOutline(
+  source: string,
+  options: ParseCtnDocumentOptions = {},
+): OutlineNode[] {
+  return parseCtnDocument(source, options).roots;
 }
