@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { EditorPanel } from "./components/EditorPanel";
-import { OutlinePanel } from "./components/OutlinePanel";
+import { NoteEditorPanel } from "./components/NoteEditorPanel";
+import { NoteOutlinePanel } from "./components/NoteOutlinePanel";
 import {
-  type ActivityKey,
+  type SidebarActivityId,
   WorkspaceSidebar,
 } from "./components/WorkspaceSidebar";
 import { defaultCtnSyntaxProfile, parseCtnDocument } from "./ctn/parseOutline";
@@ -19,7 +19,8 @@ type EditorFocusRequest = {
 };
 
 function App() {
-  const [activeActivity, setActiveActivity] = useState<ActivityKey>("notes");
+  const [activeActivityId, setActiveActivityId] =
+    useState<SidebarActivityId>("notes");
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
   const {
@@ -49,7 +50,6 @@ function App() {
       }),
     [activeSyntaxProfile, documentText],
   );
-  const lineCount = activeNote ? documentText.split("\n").length : 0;
   const focusEditorLine = (lineNumber: number) => {
     setEditorFocusRequest((current) => ({
       lineNumber,
@@ -60,17 +60,16 @@ function App() {
   return (
     <main className="app-shell">
       <WorkspaceSidebar
-        activeActivity={activeActivity}
+        activeActivityId={activeActivityId}
         activeNoteId={activeNote?.id ?? null}
         diagnosticsCount={parsedDocument.diagnostics.length}
-        lineCount={lineCount}
         notes={workspace.notes}
         noteTree={workspace.tree}
         outline={parsedDocument.roots}
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
         totalBlocks={parsedDocument.blocks.length}
-        onActivityChange={setActiveActivity}
+        onActivityChange={setActiveActivityId}
         onChangeRepositoryPath={changeRepositoryPath}
         onCreateNote={createNote}
         onDeleteNote={deleteNote}
@@ -79,7 +78,7 @@ function App() {
         onSelectNote={selectNote}
       />
 
-      <EditorPanel
+      <NoteEditorPanel
         documentText={documentText}
         focusTarget={editorFocusRequest}
         hasActiveNote={Boolean(activeNote)}
@@ -90,7 +89,7 @@ function App() {
         onDocumentTextChange={updateActiveNoteSource}
       />
 
-      <OutlinePanel
+      <NoteOutlinePanel
         diagnosticsCount={parsedDocument.diagnostics.length}
         nodes={parsedDocument.roots}
         totalBlocks={parsedDocument.blocks.length}

@@ -1,6 +1,6 @@
 import type { OutlineNode } from "../ctn/parseOutline";
 
-export function OutlineTree({
+export function NoteOutlineTree({
   nodes,
   onSelectLine,
   depth = 0,
@@ -32,7 +32,7 @@ export function OutlineTree({
             </span>
           </button>
           {node.children.length > 0 ? (
-            <OutlineTree
+            <NoteOutlineTree
               nodes={node.children}
               onSelectLine={onSelectLine}
               depth={depth + 1}

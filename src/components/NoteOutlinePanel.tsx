@@ -1,14 +1,14 @@
 import { type CSSProperties, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import type { OutlineNode } from "../ctn/parseOutline";
-import { OutlineTree } from "./OutlineTree";
+import { NoteOutlineTree } from "./NoteOutlineTree";
 
 const outlineZoomMin = 0.85;
 const outlineZoomMax = 1.3;
 const outlineZoomStep = 0.1;
 const outlineZoomDefault = 1;
 
-export function OutlinePanel({
+export function NoteOutlinePanel({
   diagnosticsCount,
   nodes,
   onSelectLine,
@@ -83,7 +83,7 @@ export function OutlinePanel({
 
       <div className="outline-body" style={outlineBodyStyle}>
         {nodes.length > 0 ? (
-          <OutlineTree nodes={nodes} onSelectLine={onSelectLine} />
+          <NoteOutlineTree nodes={nodes} onSelectLine={onSelectLine} />
         ) : (
           <p className="empty-outline">没有可解析的结构</p>
         )}

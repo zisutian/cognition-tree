@@ -1,7 +1,7 @@
 import { CtnEditor, type CtnEditorFocusTarget } from "../editor/CtnEditor";
 import type { CtnDocument, CtnSyntaxProfile } from "../ctn/parseOutline";
 
-export function EditorPanel({
+export function NoteEditorPanel({
   documentText,
   focusTarget,
   hasActiveNote,
