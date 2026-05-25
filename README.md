@@ -11,7 +11,7 @@
     左侧 Activity Bar + Side Panel 工作区入口
     中间 CodeMirror 6 原文编辑区
     右侧结构树和诊断统计
-    localStorage 笔记仓库适配层
+    Tauri 文件笔记仓库适配层
     笔记内容和仓库目录树的前端领域模型
 
 已完成 TypeScript CTN 解析器：
@@ -21,7 +21,16 @@
     blocks
     diagnostics
 
-解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可先按目录树组织并自动保存到 localStorage；SQLite 尚未接入。
+解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可按目录树组织；Tauri 桌面运行时保存为本地文件。
+
+当前默认文件仓库目录：
+
+    ~/.local/share/dev.zisutian.cognition-tree/repositories/local-workspace/
+
+仓库目录内：
+
+    workspace.json
+    notes/*.ctn
 
 ## 技术栈
 
@@ -37,7 +46,7 @@
 
 后续接入：
 
-    SQLite + JSON1
+    SQLite + JSON1 索引缓存
 
 ## 文档索引
 
@@ -50,14 +59,14 @@
 ## 开发命令
 
     pnpm install
-    pnpm dev
+    pnpm tauri dev
     pnpm test
     pnpm check
     pnpm build
 
-桌面端开发模式：
+前端开发服务器仅用于界面调试，不提供笔记文件保存：
 
-    pnpm tauri dev
+    pnpm dev
 
 Rust / Tauri 后端检查：
 

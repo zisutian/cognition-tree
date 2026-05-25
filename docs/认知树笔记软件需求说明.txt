@@ -302,9 +302,13 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 8.1 存储方式
 
-建议第一版使用 SQLite。
+建议第一版优先使用本地文件库。
 
-8.2 主要表
+    workspace.json 保存仓库树、当前笔记、语法配置引用和笔记元信息。
+    notes/*.ctn 保存每篇笔记的原文内容。
+    SQLite / FTS5 后续作为搜索、块关系和链接查询的索引缓存。
+
+8.2 后续索引缓存表
 
 notes:
 
@@ -464,7 +468,7 @@ Markdown 只是导出格式。
     React
     TypeScript
     Rust
-    SQLite
+    本地文件库
     CodeMirror 6
 
 备选：
@@ -482,9 +486,9 @@ Markdown 只是导出格式。
     Tauri 2 负责桌面壳和系统能力。
     React 负责应用界面。
     CodeMirror 6 负责 .ctn 原文编辑、缩进、快捷键、语法装饰和作用域提示。
-    Rust 负责 Tauri commands、本地文件和 SQLite 访问。
-    SQLite 负责笔记、块、链接和语法配置存储。
-    FTS5 搜索索引作为后续增强，不作为第一阶段必须依赖。
+    Rust 负责 Tauri commands、本地文件读写和系统能力。
+    本地文件库负责笔记原文、仓库树和语法配置元信息。
+    SQLite / FTS5 搜索索引作为后续增强，不作为第一阶段必须依赖。
 
 12.2 编辑器核心
 
@@ -538,7 +542,7 @@ Markdown 只是导出格式。
     Tab / Shift+Tab 调整层级
     支持定义、疑问、组分、自我理解、注释、条件
     支持语法配置文件
-    支持保存到 SQLite
+    支持保存到本地文件库
     支持纯文本导出
     支持 JSON 导出
     支持搜索标题和正文

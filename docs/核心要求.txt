@@ -133,7 +133,8 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 存储与导出：
 
-    保存到 SQLite
+    原文笔记保存为本地 .ctn 文件
+    使用 JSON 保存仓库树和语法元信息
     支持纯文本导出
     支持 JSON 导出
     支持搜索标题和正文
@@ -161,7 +162,8 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     CodeMirror 6
     TypeScript 自研解析器
     Rust
-    SQLite + JSON1
+    本地文件库
+    SQLite + JSON1 / FTS5 索引缓存
     Vitest
     Playwright
     pnpm
@@ -170,9 +172,9 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
     CodeMirror 6 负责 .ctn 原文编辑、缩进、快捷键、语法装饰和结构视图联动。
     TypeScript 解析器服务前端装饰、结构视图和单元测试。
-    Rust 负责 Tauri commands、本地文件、SQLite 和系统能力。
-    SQLite 负责笔记、块、链接和语法配置存储。
-    FTS5 作为后续增强，不作为第一阶段必须依赖。
+    Rust 负责 Tauri commands、本地文件读写和系统能力。
+    文件库负责笔记原文、仓库树和语法配置元信息。
+    SQLite / FTS5 作为后续索引缓存，不作为第一阶段必须依赖。
 
 
 8. 成功标准

@@ -18,7 +18,7 @@
     接入 CodeMirror 6 基础编辑器组件，替换 textarea。
     搭建 VS Code 风格左侧工作区入口。
     拆分 App、编辑器、侧栏、结构树、领域模型和笔记仓库模块。
-    新增 localStorage 笔记仓库适配层。
+    新增 Tauri 文件笔记仓库适配层。
     建立笔记内容和仓库目录树分离的前端模型。
     GitHub SSH 推送已配置并验证。
 
@@ -27,8 +27,8 @@
     左侧为 Activity Bar + Side Panel，笔记入口已支持目录树、选择和新建本地笔记。
     中间是 CodeMirror 6 原文编辑区。
     右侧是结构树和诊断统计。
-    当前笔记会自动保存到 localStorage。
-    尚未接入 SQLite。
+    Tauri 桌面运行时会自动保存到本地文件库。
+    SQLite 暂缓为后续索引缓存层。
 
 
 2. 日常开发命令
@@ -37,13 +37,13 @@
 
     pnpm install
 
-前端开发服务器：
-
-    pnpm dev
-
 桌面端开发模式：
 
     pnpm tauri dev
+
+前端开发服务器仅用于界面调试，不提供笔记文件保存：
+
+    pnpm dev
 
 单元测试：
 
@@ -84,7 +84,7 @@ Rust / Tauri 后端检查：
 
 目标：
 
-    让解析器输出稳定、可测试、可供 UI / CodeMirror / SQLite 共用的数据结构。
+    让解析器输出稳定、可测试、可供 UI / CodeMirror / 文件库和索引缓存共用的数据结构。
 
 已完成：
 
@@ -134,23 +134,27 @@ Rust / Tauri 后端检查：
 
 目标：
 
-    将笔记和块保存到本地 SQLite。
+    将原文笔记保存为本地文件，后续再为搜索和关系查询建立索引缓存。
 
 已完成：
 
     建立前端 NoteWorkspace / NoteRecord / NoteTreeNode 模型。
     建立 NoteRepository 接口。
-    接入 localStorage 适配层，作为 SQLite 前的可运行本地仓库。
+    接入 Tauri 文件仓库，使用 workspace.json 保存仓库树和元信息，使用 notes/*.ctn 保存原文。
     支持目录树展示、选择笔记、新建笔记和编辑自动保存。
+
+当前默认仓库目录：
+
+    ~/.local/share/dev.zisutian.cognition-tree/repositories/local-workspace/
 
 步骤：
 
-    设计 SQLite schema。
+    增加文件仓库导入导出入口。
     建立 Rust Tauri commands。
-    实现创建/读取/更新笔记。
+    实现创建/读取/更新笔记文件。
     将 rawText 和解析结果分开存储。
     记录 syntaxProfileId 和 syntaxVersion。
-    增加基础迁移机制。
+    后续再设计 SQLite / FTS5 索引缓存。
 
 
 4.4 编辑体验
