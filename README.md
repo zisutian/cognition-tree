@@ -11,6 +11,8 @@
     左侧 Activity Bar + Side Panel 工作区入口
     中间 CodeMirror 6 原文编辑区
     右侧结构树和诊断统计
+    localStorage 笔记仓库适配层
+    笔记内容和仓库目录树的前端领域模型
 
 已完成 TypeScript CTN 解析器：
 
@@ -19,7 +21,7 @@
     blocks
     diagnostics
 
-解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，SQLite 尚未接入。
+解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可先按目录树组织并自动保存到 localStorage；SQLite 尚未接入。
 
 ## 技术栈
 

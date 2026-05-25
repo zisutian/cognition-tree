@@ -29,7 +29,7 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import { parseCtnDocument } from "./ctn/parseOutline";
+import { parseCtnDocument } from "../ctn/parseOutline";
 
 type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;

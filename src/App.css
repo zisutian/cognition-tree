@@ -121,6 +121,7 @@ button {
 
 .activity-button:focus-visible,
 .note-item:focus-visible,
+.side-action-button:focus-visible,
 .side-entry:focus-visible,
 .outline-node:focus-visible {
   outline: 2px solid #d7eb8f;
@@ -166,6 +167,13 @@ button {
   gap: 7px;
 }
 
+.side-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .side-section-title {
   color: #c8d7d2;
   font-size: 11px;
@@ -174,15 +182,68 @@ button {
   text-transform: uppercase;
 }
 
-.note-list {
+.side-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  color: #20302d;
+  background: #d7eb8f;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.side-action-button:hover {
+  background: #e3f3a7;
+}
+
+.note-tree,
+.note-folder-children {
   display: flex;
   flex-direction: column;
+  gap: 5px;
+}
+
+.note-folder {
+  display: grid;
+  gap: 5px;
+}
+
+.note-folder-label {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
   gap: 6px;
+  min-height: 24px;
+  color: #c8d7d2;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.note-folder-label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-folder-label small {
+  color: #9fb7ae;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.note-folder-children {
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .note-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -193,6 +254,13 @@ button {
   background: transparent;
   text-align: left;
   cursor: pointer;
+}
+
+.note-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note-item small {

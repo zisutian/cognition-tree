@@ -17,13 +17,17 @@
     调整界面信息密度，使编辑区和结构区更适合工作台使用。
     接入 CodeMirror 6 基础编辑器组件，替换 textarea。
     搭建 VS Code 风格左侧工作区入口。
+    拆分 App、编辑器、侧栏、结构树、领域模型和笔记仓库模块。
+    新增 localStorage 笔记仓库适配层。
+    建立笔记内容和仓库目录树分离的前端模型。
     GitHub SSH 推送已配置并验证。
 
 当前界面：
 
-    左侧为 Activity Bar + Side Panel，已预留笔记、搜索、结构、语法、数据、设置入口。
+    左侧为 Activity Bar + Side Panel，笔记入口已支持目录树、选择和新建本地笔记。
     中间是 CodeMirror 6 原文编辑区。
     右侧是结构树和诊断统计。
+    当前笔记会自动保存到 localStorage。
     尚未接入 SQLite。
 
 
@@ -131,6 +135,13 @@ Rust / Tauri 后端检查：
 目标：
 
     将笔记和块保存到本地 SQLite。
+
+已完成：
+
+    建立前端 NoteWorkspace / NoteRecord / NoteTreeNode 模型。
+    建立 NoteRepository 接口。
+    接入 localStorage 适配层，作为 SQLite 前的可运行本地仓库。
+    支持目录树展示、选择笔记、新建笔记和编辑自动保存。
 
 步骤：
 
