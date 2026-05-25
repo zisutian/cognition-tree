@@ -26,6 +26,8 @@ function App() {
     activeNote,
     changeRepositoryPath,
     createNote,
+    deleteNote,
+    reloadWorkspace,
     repositoryPath,
     selectNote,
     storageLabel,
@@ -71,6 +73,8 @@ function App() {
         onActivityChange={setActiveActivity}
         onChangeRepositoryPath={changeRepositoryPath}
         onCreateNote={createNote}
+        onDeleteNote={deleteNote}
+        onReloadWorkspace={reloadWorkspace}
         onSelectLine={focusEditorLine}
         onSelectNote={selectNote}
       />

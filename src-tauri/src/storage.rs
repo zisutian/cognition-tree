@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    fs,
+    collections::HashSet,
+    fs, io,
     path::{Path, PathBuf},
     sync::{Mutex, MutexGuard},
 };
@@ -43,7 +44,7 @@ pub struct CtnSyntaxProfile {
     marker_rules: Vec<CtnMarkerRule>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum NoteTreeNode {
     #[serde(rename = "folder")]
@@ -148,6 +149,56 @@ fn marker_rule(marker: &str, block_type: &str, label: &str) -> CtnMarkerRule {
     }
 }
 
+fn prune_missing_note_nodes(
+    tree: Vec<NoteTreeNode>,
+    note_ids: &HashSet<String>,
+) -> Vec<NoteTreeNode> {
+    tree.into_iter()
+        .filter_map(|node| match node {
+            NoteTreeNode::Folder {
+                id,
+                title,
+                default_syntax_profile_id,
+                default_syntax_version,
+                children,
+            } => Some(NoteTreeNode::Folder {
+                id,
+                title,
+                default_syntax_profile_id,
+                default_syntax_version,
+                children: prune_missing_note_nodes(children, note_ids),
+            }),
+            NoteTreeNode::Note { id, note_id } => note_ids
+                .contains(&note_id)
+                .then_some(NoteTreeNode::Note { id, note_id }),
+        })
+        .collect()
+}
+
+fn remove_stale_note_files(
+    notes_dir: &Path,
+    expected_note_files: &HashSet<String>,
+) -> StorageResult<()> {
+    for entry in fs::read_dir(notes_dir)? {
+        let path = entry?.path();
+        let is_ctn_file = path.extension().and_then(|extension| extension.to_str()) == Some("ctn");
+
+        if !is_ctn_file {
+            continue;
+        }
+
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+
+        if !expected_note_files.contains(file_name) {
+            fs::remove_file(path)?;
+        }
+    }
+
+    Ok(())
+}
+
 pub struct NoteFileStore {
     root_dir: Mutex<PathBuf>,
 }
@@ -222,33 +273,51 @@ impl NoteFileStore {
 
         let manifest =
             serde_json::from_str::<WorkspaceManifest>(&fs::read_to_string(manifest_path)?)?;
+        let WorkspaceManifest {
+            id,
+            name,
+            active_note_id,
+            default_syntax_profile_id,
+            syntax_profiles,
+            notes: note_entries,
+            tree,
+        } = manifest;
         let notes_dir = root_dir.join(NOTES_DIR_NAME);
-        let notes = manifest
-            .notes
-            .into_iter()
-            .map(|note| {
-                let source = fs::read_to_string(notes_dir.join(&note.file_name))?;
+        let mut notes = Vec::new();
 
-                Ok(NoteRecord {
-                    id: note.id,
-                    title: note.title,
-                    source,
-                    syntax_profile_id: note.syntax_profile_id,
-                    syntax_version: note.syntax_version,
-                    created_at: note.created_at,
-                    updated_at: note.updated_at,
-                })
-            })
-            .collect::<StorageResult<Vec<_>>>()?;
+        for note in note_entries {
+            let source = match fs::read_to_string(notes_dir.join(&note.file_name)) {
+                Ok(source) => source,
+                Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(Box::new(error)),
+            };
+
+            notes.push(NoteRecord {
+                id: note.id,
+                title: note.title,
+                source,
+                syntax_profile_id: note.syntax_profile_id,
+                syntax_version: note.syntax_version,
+                created_at: note.created_at,
+                updated_at: note.updated_at,
+            });
+        }
+
+        let note_ids = notes
+            .iter()
+            .map(|note| note.id.clone())
+            .collect::<HashSet<_>>();
+        let active_note_id = active_note_id.filter(|note_id| note_ids.contains(note_id));
+        let tree = prune_missing_note_nodes(tree, &note_ids);
 
         Ok(Some(NoteWorkspace {
-            id: manifest.id,
-            name: manifest.name,
-            active_note_id: manifest.active_note_id,
-            default_syntax_profile_id: manifest.default_syntax_profile_id,
-            syntax_profiles: manifest.syntax_profiles,
+            id,
+            name,
+            active_note_id,
+            default_syntax_profile_id,
+            syntax_profiles,
             notes,
-            tree: manifest.tree,
+            tree,
         }))
     }
 
@@ -257,6 +326,7 @@ impl NoteFileStore {
 
         fs::create_dir_all(&notes_dir)?;
 
+        let mut expected_note_files = HashSet::new();
         let manifest = WorkspaceManifest {
             id: workspace.id.clone(),
             name: workspace.name.clone(),
@@ -284,8 +354,13 @@ impl NoteFileStore {
         };
 
         for note in &workspace.notes {
-            fs::write(notes_dir.join(format!("{}.ctn", note.id)), &note.source)?;
+            let file_name = format!("{}.ctn", note.id);
+
+            expected_note_files.insert(file_name.clone());
+            fs::write(notes_dir.join(file_name), &note.source)?;
         }
+
+        remove_stale_note_files(&notes_dir, &expected_note_files)?;
 
         fs::write(
             root_dir.join(WORKSPACE_FILE_NAME),
@@ -412,6 +487,92 @@ mod tests {
         assert_eq!(loaded_workspace.notes.len(), 1);
         assert_eq!(loaded_workspace.notes[0].source, workspace.notes[0].source);
         assert_eq!(loaded_workspace.tree.len(), 1);
+
+        fs::remove_dir_all(root_dir).expect("test dir should be removed");
+    }
+
+    #[test]
+    fn loads_empty_newly_created_notes() {
+        let root_dir = create_test_dir();
+        let store = NoteFileStore::new(&root_dir).expect("file store should open");
+        let mut workspace = create_workspace();
+
+        workspace.notes[0].title = "未命名笔记".to_string();
+        workspace.notes[0].source = String::new();
+        store
+            .save_workspace(&workspace)
+            .expect("empty note should save");
+
+        let loaded_workspace = store
+            .load_workspace()
+            .expect("empty note should load")
+            .expect("workspace should exist");
+
+        assert_eq!(loaded_workspace.active_note_id, workspace.active_note_id);
+        assert_eq!(loaded_workspace.notes.len(), 1);
+        assert_eq!(loaded_workspace.notes[0].source, "");
+
+        fs::remove_dir_all(root_dir).expect("test dir should be removed");
+    }
+
+    #[test]
+    fn prunes_notes_missing_from_disk_when_loading() {
+        let root_dir = create_test_dir();
+        let store = NoteFileStore::new(&root_dir).expect("file store should open");
+        let workspace = create_workspace();
+
+        store
+            .save_workspace(&workspace)
+            .expect("workspace should save");
+        fs::remove_file(root_dir.join(NOTES_DIR_NAME).join("note-test.ctn"))
+            .expect("note file should be removed");
+
+        let loaded_workspace = store
+            .load_workspace()
+            .expect("workspace should load after external deletion")
+            .expect("workspace should exist");
+
+        assert!(loaded_workspace.active_note_id.is_none());
+        assert!(loaded_workspace.notes.is_empty());
+        assert_eq!(
+            loaded_workspace.tree,
+            vec![NoteTreeNode::Folder {
+                id: "folder-inbox".to_string(),
+                title: "未整理".to_string(),
+                default_syntax_profile_id: Some(default_syntax_profile_id()),
+                default_syntax_version: Some(1),
+                children: vec![],
+            }]
+        );
+
+        fs::remove_dir_all(root_dir).expect("test dir should be removed");
+    }
+
+    #[test]
+    fn removes_stale_note_files_when_saving() {
+        let root_dir = create_test_dir();
+        let store = NoteFileStore::new(&root_dir).expect("file store should open");
+        let mut workspace = create_workspace();
+
+        store
+            .save_workspace(&workspace)
+            .expect("workspace should save");
+
+        workspace.active_note_id = None;
+        workspace.notes.clear();
+        workspace.tree = vec![NoteTreeNode::Folder {
+            id: "folder-inbox".to_string(),
+            title: "未整理".to_string(),
+            default_syntax_profile_id: Some(default_syntax_profile_id()),
+            default_syntax_version: Some(1),
+            children: vec![],
+        }];
+
+        store
+            .save_workspace(&workspace)
+            .expect("empty workspace should save");
+
+        assert!(!root_dir.join(NOTES_DIR_NAME).join("note-test.ctn").exists());
 
         fs::remove_dir_all(root_dir).expect("test dir should be removed");
     }

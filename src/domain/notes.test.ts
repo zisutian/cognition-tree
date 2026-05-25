@@ -3,6 +3,7 @@ import {
   appendNoteToWorkspaceTree,
   createInitialWorkspace,
   createNoteRecord,
+  removeNoteFromWorkspaceTree,
   resolveFolderSyntaxProfile,
   resolveNoteSyntaxProfile,
 } from "./notes";
@@ -39,6 +40,31 @@ describe("note workspace", () => {
         },
       ],
     });
+  });
+
+  it("removes notes from nested repository tree nodes", () => {
+    const workspace = createInitialWorkspace();
+    const tree = appendNoteToWorkspaceTree(
+      appendNoteToWorkspaceTree(workspace.tree, "note-first"),
+      "note-second",
+    );
+
+    expect(removeNoteFromWorkspaceTree(tree, "note-first")).toEqual([
+      {
+        defaultSyntaxProfileId: "ctn-default",
+        defaultSyntaxVersion: 1,
+        id: "folder-inbox",
+        kind: "folder",
+        title: "未整理",
+        children: [
+          {
+            id: "tree-note-second",
+            kind: "note",
+            noteId: "note-second",
+          },
+        ],
+      },
+    ]);
   });
 
   it("resolves note and folder syntax profiles from the workspace", () => {

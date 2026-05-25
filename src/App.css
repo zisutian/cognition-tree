@@ -120,6 +120,7 @@ button {
 }
 
 .activity-button:focus-visible,
+.note-delete-button:focus-visible,
 .note-item:focus-visible,
 .primary-action-button:focus-visible,
 .side-action-button:focus-visible,
@@ -173,6 +174,12 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.side-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .side-section-title {
@@ -242,6 +249,13 @@ button {
   border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.note-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px;
+  align-items: center;
+  gap: 4px;
+}
+
 .note-item {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) auto;
@@ -270,8 +284,26 @@ button {
 }
 
 .note-item.active,
+.note-item-row:hover .note-item,
 .note-item:hover {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.note-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: #bdd0c8;
+  background: transparent;
+  cursor: pointer;
+}
+
+.note-delete-button:hover {
+  color: #f8fbf5;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .side-metrics {

@@ -87,6 +87,24 @@ export function appendNoteToWorkspaceTree(
   });
 }
 
+export function removeNoteFromWorkspaceTree(
+  tree: NoteTreeNode[],
+  noteId: NoteId,
+): NoteTreeNode[] {
+  return tree.flatMap((node): NoteTreeNode[] => {
+    if (node.kind === "note") {
+      return node.noteId === noteId ? [] : [node];
+    }
+
+    return [
+      {
+        ...node,
+        children: removeNoteFromWorkspaceTree(node.children, noteId),
+      },
+    ];
+  });
+}
+
 export function resolveNoteSyntaxProfile(
   workspace: NoteWorkspace,
   note: NoteRecord,

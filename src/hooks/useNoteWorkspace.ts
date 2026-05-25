@@ -4,6 +4,7 @@ import {
   createInitialWorkspace,
   createNoteRecord,
   inferNoteTitle,
+  removeNoteFromWorkspaceTree,
   resolveFolderSyntaxProfile,
   type NoteId,
   type NoteRecord,
@@ -81,6 +82,35 @@ export function useNoteWorkspace() {
     });
   };
 
+  const reloadWorkspace = async () => {
+    setIsWorkspaceLoaded(false);
+
+    const [storedWorkspace, repositoryInfo] = await Promise.all([
+      repository.loadWorkspace(),
+      repository.getRepositoryInfo(),
+    ]);
+
+    setRepositoryPath(repositoryInfo.path);
+    setWorkspace(storedWorkspace ?? createInitialWorkspace());
+    setIsWorkspaceLoaded(true);
+  };
+
+  const deleteNote = (noteId: NoteId) => {
+    setWorkspace((current) => {
+      const notes = current.notes.filter((note) => note.id !== noteId);
+
+      return {
+        ...current,
+        activeNoteId:
+          current.activeNoteId === noteId
+            ? (notes[0]?.id ?? null)
+            : current.activeNoteId,
+        notes,
+        tree: removeNoteFromWorkspaceTree(current.tree, noteId),
+      };
+    });
+  };
+
   const changeRepositoryPath = async (path: string) => {
     const nextPath = path.trim();
 
@@ -128,6 +158,8 @@ export function useNoteWorkspace() {
     activeNote,
     changeRepositoryPath,
     createNote,
+    deleteNote,
+    reloadWorkspace,
     repositoryPath,
     selectNote,
     storageLabel: repository.label,

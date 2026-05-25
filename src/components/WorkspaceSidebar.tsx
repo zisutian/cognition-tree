@@ -5,8 +5,10 @@ import {
   Folder,
   ListTree,
   Plus,
+  RefreshCw,
   Search,
   Settings,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import type { OutlineNode } from "../ctn/parseOutline";
@@ -76,6 +78,8 @@ function NotesPanel({
   totalBlocks,
   onChangeRepositoryPath,
   onCreateNote,
+  onDeleteNote,
+  onReloadWorkspace,
   onSelectNote,
 }: {
   activeNoteId: NoteId | null;
@@ -88,6 +92,8 @@ function NotesPanel({
   totalBlocks: number;
   onChangeRepositoryPath: (path: string) => void;
   onCreateNote: () => void;
+  onDeleteNote: (noteId: NoteId) => void;
+  onReloadWorkspace: () => void;
   onSelectNote: (noteId: NoteId) => void;
 }) {
   const notesById = new Map(notes.map((note) => [note.id, note]));
@@ -118,6 +124,7 @@ function NotesPanel({
             activeNoteId={activeNoteId}
             nodes={noteTree}
             notesById={notesById}
+            onDeleteNote={onDeleteNote}
             onSelectNote={onSelectNote}
           />
         </nav>
@@ -144,13 +151,23 @@ function NotesPanel({
       <section className="side-section">
         <div className="side-section-header">
           <p className="side-section-title">存储</p>
-          <button
-            className="side-action-button"
-            onClick={requestRepositoryPath}
-            type="button"
-          >
-            更改
-          </button>
+          <div className="side-action-group">
+            <button
+              className="side-action-button"
+              onClick={onReloadWorkspace}
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" size={13} strokeWidth={2} />
+              刷新
+            </button>
+            <button
+              className="side-action-button"
+              onClick={requestRepositoryPath}
+              type="button"
+            >
+              更改
+            </button>
+          </div>
         </div>
         <div className="side-placeholder">
           <span>{storageLabel}</span>
@@ -166,11 +183,13 @@ function NoteTree({
   activeNoteId,
   nodes,
   notesById,
+  onDeleteNote,
   onSelectNote,
 }: {
   activeNoteId: NoteId | null;
   nodes: NoteTreeNode[];
   notesById: Map<NoteId, NoteRecord>;
+  onDeleteNote: (noteId: NoteId) => void;
   onSelectNote: (noteId: NoteId) => void;
 }) {
   return (
@@ -190,6 +209,7 @@ function NoteTree({
                     activeNoteId={activeNoteId}
                     nodes={node.children}
                     notesById={notesById}
+                    onDeleteNote={onDeleteNote}
                     onSelectNote={onSelectNote}
                   />
                 ) : (
@@ -206,17 +226,35 @@ function NoteTree({
           return null;
         }
 
+        const deleteNote = () => {
+          if (window.confirm(`删除笔记「${note.title}」？`)) {
+            onDeleteNote(note.id);
+          }
+        };
+
         return (
-          <button
-            className={note.id === activeNoteId ? "note-item active" : "note-item"}
-            key={node.id}
-            onClick={() => onSelectNote(note.id)}
-            type="button"
-          >
-            <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
-            <span>{note.title}</span>
-            <small>{note.source.split("\n").length} 行</small>
-          </button>
+          <div className="note-item-row" key={node.id}>
+            <button
+              className={
+                note.id === activeNoteId ? "note-item active" : "note-item"
+              }
+              onClick={() => onSelectNote(note.id)}
+              type="button"
+            >
+              <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
+              <span>{note.title}</span>
+              <small>{note.source.split("\n").length} 行</small>
+            </button>
+            <button
+              aria-label={`删除 ${note.title}`}
+              className="note-delete-button"
+              onClick={deleteNote}
+              title="删除笔记"
+              type="button"
+            >
+              <Trash2 aria-hidden="true" size={13} strokeWidth={1.9} />
+            </button>
+          </div>
         );
       })}
     </>
@@ -290,6 +328,8 @@ function ActivityPanel({
   totalBlocks,
   onChangeRepositoryPath,
   onCreateNote,
+  onDeleteNote,
+  onReloadWorkspace,
   onSelectLine,
   onSelectNote,
 }: {
@@ -305,6 +345,8 @@ function ActivityPanel({
   totalBlocks: number;
   onChangeRepositoryPath: (path: string) => void;
   onCreateNote: () => void;
+  onDeleteNote: (noteId: NoteId) => void;
+  onReloadWorkspace: () => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
 }) {
@@ -321,6 +363,8 @@ function ActivityPanel({
         totalBlocks={totalBlocks}
         onChangeRepositoryPath={onChangeRepositoryPath}
         onCreateNote={onCreateNote}
+        onDeleteNote={onDeleteNote}
+        onReloadWorkspace={onReloadWorkspace}
         onSelectNote={onSelectNote}
       />
     );
@@ -370,6 +414,8 @@ export function WorkspaceSidebar({
   onActivityChange,
   onChangeRepositoryPath,
   onCreateNote,
+  onDeleteNote,
+  onReloadWorkspace,
   onSelectLine,
   onSelectNote,
 }: {
@@ -386,6 +432,8 @@ export function WorkspaceSidebar({
   onActivityChange: (activity: ActivityKey) => void;
   onChangeRepositoryPath: (path: string) => void;
   onCreateNote: () => void;
+  onDeleteNote: (noteId: NoteId) => void;
+  onReloadWorkspace: () => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
 }) {
@@ -462,6 +510,8 @@ export function WorkspaceSidebar({
           totalBlocks={totalBlocks}
           onChangeRepositoryPath={onChangeRepositoryPath}
           onCreateNote={onCreateNote}
+          onDeleteNote={onDeleteNote}
+          onReloadWorkspace={onReloadWorkspace}
           onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}
         />
