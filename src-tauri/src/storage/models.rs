@@ -40,10 +40,6 @@ pub enum NoteTreeNode {
     Folder {
         id: String,
         title: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        default_syntax_profile_id: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        default_syntax_version: Option<i64>,
         children: Vec<NoteTreeNode>,
     },
     #[serde(rename = "note")]

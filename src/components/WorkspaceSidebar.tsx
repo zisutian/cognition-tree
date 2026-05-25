@@ -1,5 +1,10 @@
 import type { OutlineNode } from "../ctn/parseOutline";
-import type { NoteId, NoteRecord, NoteTreeNode } from "../domain/notes";
+import type {
+  FolderId,
+  NoteId,
+  NoteRecord,
+  NoteTreeNode,
+} from "../domain/notes";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";
 import {
@@ -11,6 +16,7 @@ export type { SidebarActivityId } from "./sidebar/sidebarConfig";
 
 type WorkspaceSidebarProps = {
   activeActivityId: SidebarActivityId;
+  activeFolderId: FolderId;
   activeNoteId: NoteId | null;
   diagnosticsCount: number;
   notes: NoteRecord[];
@@ -24,12 +30,14 @@ type WorkspaceSidebarProps = {
   onCreateNote: () => void;
   onDeleteNote: (noteId: NoteId) => void;
   onReloadWorkspace: () => void;
+  onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
 };
 
 export function WorkspaceSidebar({
   activeActivityId,
+  activeFolderId,
   activeNoteId,
   diagnosticsCount,
   notes,
@@ -43,6 +51,7 @@ export function WorkspaceSidebar({
   onCreateNote,
   onDeleteNote,
   onReloadWorkspace,
+  onSelectFolder,
   onSelectLine,
   onSelectNote,
 }: WorkspaceSidebarProps) {
@@ -64,6 +73,7 @@ export function WorkspaceSidebar({
         </header>
         <SidebarActivityPanel
           activeActivityId={activeActivityId}
+          activeFolderId={activeFolderId}
           activeNoteId={activeNoteId}
           diagnosticsCount={diagnosticsCount}
           notes={notes}
@@ -76,6 +86,7 @@ export function WorkspaceSidebar({
           onCreateNote={onCreateNote}
           onDeleteNote={onDeleteNote}
           onReloadWorkspace={onReloadWorkspace}
+          onSelectFolder={onSelectFolder}
           onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}
         />

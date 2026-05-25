@@ -121,6 +121,7 @@ button {
 
 .activity-button:focus-visible,
 .note-delete-button:focus-visible,
+.note-folder-label:focus-visible,
 .note-item:focus-visible,
 .primary-action-button:focus-visible,
 .side-action-button:focus-visible,
@@ -224,10 +225,16 @@ button {
   grid-template-columns: 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
+  width: 100%;
   min-height: 24px;
+  padding: 4px 6px;
+  border-radius: 7px;
   color: #c8d7d2;
+  background: transparent;
   font-size: 11px;
   font-weight: 700;
+  text-align: left;
+  cursor: pointer;
 }
 
 .note-folder-label span {
@@ -242,6 +249,12 @@ button {
   font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.note-folder-label.active,
+.note-folder-label:hover {
+  color: #f8fbf5;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .note-folder-children {

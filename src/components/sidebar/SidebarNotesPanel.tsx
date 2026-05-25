@@ -1,8 +1,14 @@
 import { Plus, RefreshCw } from "lucide-react";
-import type { NoteId, NoteRecord, NoteTreeNode } from "../../domain/notes";
+import type {
+  FolderId,
+  NoteId,
+  NoteRecord,
+  NoteTreeNode,
+} from "../../domain/notes";
 import { SidebarNoteTree } from "./SidebarNoteTree";
 
 type SidebarNotesPanelProps = {
+  activeFolderId: FolderId;
   activeNoteId: NoteId | null;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
@@ -12,10 +18,12 @@ type SidebarNotesPanelProps = {
   onCreateNote: () => void;
   onDeleteNote: (noteId: NoteId) => void;
   onReloadWorkspace: () => void;
+  onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
 };
 
 export function SidebarNotesPanel({
+  activeFolderId,
   activeNoteId,
   notes,
   noteTree,
@@ -25,6 +33,7 @@ export function SidebarNotesPanel({
   onCreateNote,
   onDeleteNote,
   onReloadWorkspace,
+  onSelectFolder,
   onSelectNote,
 }: SidebarNotesPanelProps) {
   const notesById = new Map(notes.map((note) => [note.id, note]));
@@ -52,10 +61,12 @@ export function SidebarNotesPanel({
         </div>
         <nav className="note-tree" aria-label="笔记仓库">
           <SidebarNoteTree
+            activeFolderId={activeFolderId}
             activeNoteId={activeNoteId}
             nodes={noteTree}
             notesById={notesById}
             onDeleteNote={onDeleteNote}
+            onSelectFolder={onSelectFolder}
             onSelectNote={onSelectNote}
           />
         </nav>

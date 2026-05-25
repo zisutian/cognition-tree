@@ -30,7 +30,9 @@ function App() {
     deleteNote,
     reloadWorkspace,
     repositoryPath,
+    selectFolder,
     selectNote,
+    selectedFolderId,
     storageLabel,
     updateActiveNoteSource,
     workspace,
@@ -61,6 +63,7 @@ function App() {
     <main className="app-shell">
       <WorkspaceSidebar
         activeActivityId={activeActivityId}
+        activeFolderId={selectedFolderId}
         activeNoteId={activeNote?.id ?? null}
         diagnosticsCount={parsedDocument.diagnostics.length}
         notes={workspace.notes}
@@ -74,6 +77,7 @@ function App() {
         onCreateNote={createNote}
         onDeleteNote={deleteNote}
         onReloadWorkspace={reloadWorkspace}
+        onSelectFolder={selectFolder}
         onSelectLine={focusEditorLine}
         onSelectNote={selectNote}
       />

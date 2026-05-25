@@ -25,6 +25,8 @@
 
 新仓库默认从空笔记库开始，仅保留“未整理”目录。点击“新建笔记”后才会创建第一篇 `.ctn`。
 
+仓库接近 Obsidian vault：它是一个长期知识域和本地文件夹边界，而不是单篇笔记的位置。文件夹只负责组织、浏览、移动和新建落点，不绑定语法配置。仓库可以保存多套 CTN 语法，笔记记录实际使用的语法 ID 和版本。
+
 当前默认文件仓库目录：
 
     ~/.local/share/dev.zisutian.cognition-tree/repositories/local-workspace/

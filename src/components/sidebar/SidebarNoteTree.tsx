@@ -1,19 +1,28 @@
 import { FileText, Folder, Trash2 } from "lucide-react";
-import type { NoteId, NoteRecord, NoteTreeNode } from "../../domain/notes";
+import type {
+  FolderId,
+  NoteId,
+  NoteRecord,
+  NoteTreeNode,
+} from "../../domain/notes";
 
 type SidebarNoteTreeProps = {
+  activeFolderId: FolderId;
   activeNoteId: NoteId | null;
   nodes: NoteTreeNode[];
   notesById: Map<NoteId, NoteRecord>;
   onDeleteNote: (noteId: NoteId) => void;
+  onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
 };
 
 export function SidebarNoteTree({
+  activeFolderId,
   activeNoteId,
   nodes,
   notesById,
   onDeleteNote,
+  onSelectFolder,
   onSelectNote,
 }: SidebarNoteTreeProps) {
   return (
@@ -22,18 +31,28 @@ export function SidebarNoteTree({
         if (node.kind === "folder") {
           return (
             <div className="note-folder" key={node.id}>
-              <div className="note-folder-label">
+              <button
+                className={
+                  node.id === activeFolderId
+                    ? "note-folder-label active"
+                    : "note-folder-label"
+                }
+                onClick={() => onSelectFolder(node.id)}
+                type="button"
+              >
                 <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
                 <span>{node.title}</span>
                 <small>{node.children.length}</small>
-              </div>
+              </button>
               <div className="note-folder-children">
                 {node.children.length > 0 ? (
                   <SidebarNoteTree
+                    activeFolderId={activeFolderId}
                     activeNoteId={activeNoteId}
                     nodes={node.children}
                     notesById={notesById}
                     onDeleteNote={onDeleteNote}
+                    onSelectFolder={onSelectFolder}
                     onSelectNote={onSelectNote}
                   />
                 ) : (

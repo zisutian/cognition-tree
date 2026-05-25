@@ -50,14 +50,10 @@ fn prune_missing_note_nodes(
             NoteTreeNode::Folder {
                 id,
                 title,
-                default_syntax_profile_id,
-                default_syntax_version,
                 children,
             } => Some(NoteTreeNode::Folder {
                 id,
                 title,
-                default_syntax_profile_id,
-                default_syntax_version,
                 children: prune_missing_note_nodes(children, note_ids),
             }),
             NoteTreeNode::Note { id, note_id } => note_ids

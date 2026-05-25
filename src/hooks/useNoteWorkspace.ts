@@ -3,23 +3,37 @@ import {
   appendNoteToWorkspaceTree,
   createInitialWorkspace,
   createNoteRecord,
+  defaultFolderId,
+  findFirstFolderId,
+  findFolderIdContainingNote,
+  findFolderNode,
   inferNoteTitle,
   removeNoteFromWorkspaceTree,
-  resolveFolderSyntaxProfile,
+  resolveWorkspaceSyntaxProfile,
+  type FolderId,
   type NoteId,
   type NoteRecord,
   type NoteWorkspace,
 } from "../domain/notes";
 import { createTauriNoteRepository } from "../storage/tauriNoteRepository";
 
-const inboxFolderId = "folder-inbox";
-
 function createDraftNote(workspace: NoteWorkspace) {
   const timestamp = new Date().toISOString();
   const id = `note-${Date.now()}`;
-  const syntaxProfile = resolveFolderSyntaxProfile(workspace, inboxFolderId);
+  const syntaxProfile = resolveWorkspaceSyntaxProfile(workspace);
 
   return createNoteRecord(id, "", timestamp, syntaxProfile);
+}
+
+function resolveExistingFolderId(
+  workspace: NoteWorkspace,
+  preferredFolderId: FolderId,
+) {
+  return (
+    findFolderNode(workspace.tree, preferredFolderId)?.id ??
+    findFirstFolderId(workspace.tree) ??
+    defaultFolderId
+  );
 }
 
 export function useNoteWorkspace() {
@@ -29,6 +43,8 @@ export function useNoteWorkspace() {
   });
   const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
   const [repositoryPath, setRepositoryPath] = useState("");
+  const [selectedFolderId, setSelectedFolderId] =
+    useState<FolderId>(defaultFolderId);
 
   useEffect(() => {
     let isActive = true;
@@ -42,7 +58,10 @@ export function useNoteWorkspace() {
       }
 
       setRepositoryPath(repositoryInfo.path);
-      setWorkspace(storedWorkspace ?? createInitialWorkspace());
+      const nextWorkspace = storedWorkspace ?? createInitialWorkspace();
+
+      setWorkspace(nextWorkspace);
+      setSelectedFolderId(resolveExistingFolderId(nextWorkspace, defaultFolderId));
       setIsWorkspaceLoaded(true);
     });
 
@@ -63,21 +82,32 @@ export function useNoteWorkspace() {
     workspace.notes.find((note) => note.id === workspace.activeNoteId) ?? null;
 
   const selectNote = (noteId: NoteId) => {
+    const folderId = findFolderIdContainingNote(workspace.tree, noteId);
+
+    if (folderId) {
+      setSelectedFolderId(folderId);
+    }
+
     setWorkspace((current) => ({
       ...current,
       activeNoteId: noteId,
     }));
   };
 
+  const selectFolder = (folderId: FolderId) => {
+    setSelectedFolderId(resolveExistingFolderId(workspace, folderId));
+  };
+
   const createNote = () => {
     setWorkspace((current) => {
+      const targetFolderId = resolveExistingFolderId(current, selectedFolderId);
       const note = createDraftNote(current);
 
       return {
         ...current,
         activeNoteId: note.id,
         notes: [...current.notes, note],
-        tree: appendNoteToWorkspaceTree(current.tree, note.id),
+        tree: appendNoteToWorkspaceTree(current.tree, note.id, targetFolderId),
       };
     });
   };
@@ -91,7 +121,12 @@ export function useNoteWorkspace() {
     ]);
 
     setRepositoryPath(repositoryInfo.path);
-    setWorkspace(storedWorkspace ?? createInitialWorkspace());
+    const nextWorkspace = storedWorkspace ?? createInitialWorkspace();
+
+    setWorkspace(nextWorkspace);
+    setSelectedFolderId((currentFolderId) =>
+      resolveExistingFolderId(nextWorkspace, currentFolderId),
+    );
     setIsWorkspaceLoaded(true);
   };
 
@@ -124,7 +159,10 @@ export function useNoteWorkspace() {
     const repositoryInfo = await repository.getRepositoryInfo();
 
     setRepositoryPath(repositoryInfo.path);
-    setWorkspace(storedWorkspace ?? createInitialWorkspace());
+    const nextWorkspace = storedWorkspace ?? createInitialWorkspace();
+
+    setWorkspace(nextWorkspace);
+    setSelectedFolderId(resolveExistingFolderId(nextWorkspace, defaultFolderId));
     setIsWorkspaceLoaded(true);
   };
 
@@ -161,7 +199,9 @@ export function useNoteWorkspace() {
     deleteNote,
     reloadWorkspace,
     repositoryPath,
+    selectFolder,
     selectNote,
+    selectedFolderId,
     storageLabel: repository.label,
     updateActiveNoteSource,
     workspace,

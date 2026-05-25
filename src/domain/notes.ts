@@ -4,6 +4,9 @@ import {
 } from "../ctn/parseOutline";
 
 export type NoteId = string;
+export type FolderId = string;
+
+export const defaultFolderId: FolderId = "folder-inbox";
 
 export type NoteRecord = {
   id: NoteId;
@@ -20,8 +23,6 @@ export type NoteTreeNode =
       id: string;
       kind: "folder";
       title: string;
-      defaultSyntaxProfileId?: string;
-      defaultSyntaxVersion?: number;
       children: NoteTreeNode[];
     }
   | {
@@ -67,10 +68,18 @@ export function createNoteRecord(
 export function appendNoteToWorkspaceTree(
   tree: NoteTreeNode[],
   noteId: NoteId,
+  folderId: FolderId = defaultFolderId,
 ): NoteTreeNode[] {
   return tree.map((node) => {
-    if (node.kind !== "folder" || node.id !== "folder-inbox") {
+    if (node.kind !== "folder") {
       return node;
+    }
+
+    if (node.id !== folderId) {
+      return {
+        ...node,
+        children: appendNoteToWorkspaceTree(node.children, noteId, folderId),
+      };
     }
 
     return {
@@ -85,6 +94,45 @@ export function appendNoteToWorkspaceTree(
       ],
     };
   });
+}
+
+export function findFolderIdContainingNote(
+  tree: NoteTreeNode[],
+  noteId: NoteId,
+): FolderId | null {
+  for (const node of tree) {
+    if (node.kind !== "folder") {
+      continue;
+    }
+
+    if (
+      node.children.some(
+        (child) => child.kind === "note" && child.noteId === noteId,
+      )
+    ) {
+      return node.id;
+    }
+
+    const childFolderId = findFolderIdContainingNote(node.children, noteId);
+
+    if (childFolderId) {
+      return childFolderId;
+    }
+  }
+
+  return null;
+}
+
+export function findFirstFolderId(tree: NoteTreeNode[]): FolderId | null {
+  for (const node of tree) {
+    if (node.kind !== "folder") {
+      continue;
+    }
+
+    return node.id;
+  }
+
+  return null;
 }
 
 export function removeNoteFromWorkspaceTree(
@@ -130,28 +178,9 @@ export function resolveWorkspaceSyntaxProfile(
   );
 }
 
-export function resolveFolderSyntaxProfile(
-  workspace: NoteWorkspace,
-  folderId: string,
-): CtnSyntaxProfile {
-  const folder = findFolderNode(workspace.tree, folderId);
-
-  return (
-    workspace.syntaxProfiles.find(
-      (profile) =>
-        profile.id === folder?.defaultSyntaxProfileId &&
-        profile.version === folder.defaultSyntaxVersion,
-    ) ??
-    workspace.syntaxProfiles.find(
-      (profile) => profile.id === folder?.defaultSyntaxProfileId,
-    ) ??
-    resolveWorkspaceSyntaxProfile(workspace)
-  );
-}
-
-function findFolderNode(
+export function findFolderNode(
   tree: NoteTreeNode[],
-  folderId: string,
+  folderId: FolderId,
 ): Extract<NoteTreeNode, { kind: "folder" }> | null {
   for (const node of tree) {
     if (node.kind === "folder") {
@@ -180,11 +209,9 @@ export function createInitialWorkspace() {
     notes: [],
     tree: [
       {
-        id: "folder-inbox",
+        id: defaultFolderId,
         kind: "folder",
         title: "未整理",
-        defaultSyntaxProfileId: defaultCtnSyntaxProfile.id,
-        defaultSyntaxVersion: defaultCtnSyntaxProfile.version,
         children: [],
       },
     ],

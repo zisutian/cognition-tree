@@ -40,8 +40,6 @@ fn create_workspace() -> NoteWorkspace {
         tree: vec![NoteTreeNode::Folder {
             id: "folder-inbox".to_string(),
             title: "未整理".to_string(),
-            default_syntax_profile_id: Some(default_syntax_profile_id()),
-            default_syntax_version: Some(1),
             children: vec![NoteTreeNode::Note {
                 id: "tree-note-test".to_string(),
                 note_id: "note-test".to_string(),
@@ -123,8 +121,6 @@ fn prunes_notes_missing_from_disk_when_loading() {
         vec![NoteTreeNode::Folder {
             id: "folder-inbox".to_string(),
             title: "未整理".to_string(),
-            default_syntax_profile_id: Some(default_syntax_profile_id()),
-            default_syntax_version: Some(1),
             children: vec![],
         }]
     );
@@ -147,8 +143,6 @@ fn removes_stale_note_files_when_saving() {
     workspace.tree = vec![NoteTreeNode::Folder {
         id: "folder-inbox".to_string(),
         title: "未整理".to_string(),
-        default_syntax_profile_id: Some(default_syntax_profile_id()),
-        default_syntax_version: Some(1),
         children: vec![],
     }];
 

@@ -3,9 +3,12 @@ import {
   appendNoteToWorkspaceTree,
   createInitialWorkspace,
   createNoteRecord,
+  findFolderIdContainingNote,
+  findFirstFolderId,
   removeNoteFromWorkspaceTree,
-  resolveFolderSyntaxProfile,
   resolveNoteSyntaxProfile,
+  resolveWorkspaceSyntaxProfile,
+  type NoteTreeNode,
 } from "./notes";
 
 describe("note workspace", () => {
@@ -27,8 +30,6 @@ describe("note workspace", () => {
     const tree = appendNoteToWorkspaceTree(workspace.tree, note.id);
 
     expect(tree[tree.length - 1]).toEqual({
-      defaultSyntaxProfileId: "ctn-default",
-      defaultSyntaxVersion: 1,
       id: "folder-inbox",
       kind: "folder",
       title: "未整理",
@@ -42,6 +43,64 @@ describe("note workspace", () => {
     });
   });
 
+  it("adds newly created notes to a selected folder", () => {
+    const tree: NoteTreeNode[] = [
+      {
+        id: "folder-inbox",
+        kind: "folder",
+        title: "未整理",
+        children: [],
+      },
+      {
+        id: "folder-research",
+        kind: "folder",
+        title: "研究",
+        children: [
+          {
+            id: "folder-research-child",
+            kind: "folder",
+            title: "子目录",
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    expect(
+      appendNoteToWorkspaceTree(tree, "note-new", "folder-research-child"),
+    ).toEqual([
+      tree[0],
+      {
+        id: "folder-research",
+        kind: "folder",
+        title: "研究",
+        children: [
+          {
+            id: "folder-research-child",
+            kind: "folder",
+            title: "子目录",
+            children: [
+              {
+                id: "tree-note-new",
+                kind: "note",
+                noteId: "note-new",
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("finds folders for note creation and note selection", () => {
+    const workspace = createInitialWorkspace();
+    const tree = appendNoteToWorkspaceTree(workspace.tree, "note-new");
+
+    expect(findFirstFolderId(tree)).toBe("folder-inbox");
+    expect(findFolderIdContainingNote(tree, "note-new")).toBe("folder-inbox");
+    expect(findFolderIdContainingNote(tree, "missing-note")).toBeNull();
+  });
+
   it("removes notes from nested repository tree nodes", () => {
     const workspace = createInitialWorkspace();
     const tree = appendNoteToWorkspaceTree(
@@ -51,8 +110,6 @@ describe("note workspace", () => {
 
     expect(removeNoteFromWorkspaceTree(tree, "note-first")).toEqual([
       {
-        defaultSyntaxProfileId: "ctn-default",
-        defaultSyntaxVersion: 1,
         id: "folder-inbox",
         kind: "folder",
         title: "未整理",
@@ -67,7 +124,7 @@ describe("note workspace", () => {
     ]);
   });
 
-  it("resolves note and folder syntax profiles from the workspace", () => {
+  it("resolves note and workspace syntax profiles without folder config", () => {
     const workspace = createInitialWorkspace();
     const note = createNoteRecord(
       "note-new",
@@ -76,8 +133,7 @@ describe("note workspace", () => {
     );
 
     expect(resolveNoteSyntaxProfile(workspace, note).id).toBe("ctn-default");
-    expect(resolveFolderSyntaxProfile(workspace, "folder-inbox").id).toBe(
-      "ctn-default",
-    );
+    expect(resolveWorkspaceSyntaxProfile(workspace).id).toBe("ctn-default");
+    expect("defaultSyntaxProfileId" in workspace.tree[0]).toBe(false);
   });
 });
