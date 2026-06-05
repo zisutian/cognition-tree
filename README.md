@@ -2,11 +2,11 @@
 
 本地优先的可配置语法认知树笔记软件。
 
-认知树不是 Markdown 编辑器，也不是传统富文本笔记。它的目标是用可配置的 `.ctn` 语法记录概念、定义、条件、疑问、组分、自我理解、证据、例子和它们之间的关系。
+认知树不是 Markdown 编辑器，也不是传统富文本笔记。它的目标是用可配置的 `.ctn` 语法记录概念、定义、组分、自我理解、代码片段、语法规则和它们之间的关系。
 
 ## 当前状态
 
-已完成桌面端最小工作台：
+已完成前端最小工作台：
 
     左侧 Activity Bar + Side Panel 工作区入口
     中间 CodeMirror 6 原文编辑区
@@ -22,40 +22,42 @@
     blocks
     diagnostics
 
-解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可按目录树组织；Tauri 桌面运行时保存为本地文件。
+解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可按目录树组织；当前主线将切换为浏览器前端访问 Docker 后端，由 Docker volume 保存笔记文件。
 
 前端领域层中，笔记记录模型和仓库目录树操作已拆分：笔记模型负责内容、标题和语法归属，目录树操作负责文件夹查找、笔记挂载、文件夹变更和笔记移动。
 
 新仓库默认从空笔记库开始，仅保留“仓库根目录”。点击“新建笔记”后才会创建第一篇 `.ctn`。目录树支持通过右键菜单新建文件夹、重命名文件夹、删除文件夹和移动笔记；删除文件夹会一并移除其中笔记。
 
-仓库接近 Obsidian vault：它是一个长期知识域和本地文件夹边界，而不是单篇笔记的位置。文件夹只负责组织、浏览、移动和新建落点，不绑定语法配置。仓库可以保存多套 CTN 语法，笔记记录实际使用的语法 ID 和版本。
+仓库接近 Obsidian vault：它是一个长期知识域和本地文件夹边界，而不是单篇笔记的位置。文件夹只负责组织、浏览、移动和新建落点，不绑定语法配置。仓库可以保存多套 CTN 语法资源，笔记记录实际使用的语法 ID 和版本；后续会支持通过普通可见笔记中的语法块导入有效语法，并在跨笔记块迁移时随迁必要的语法引用。
 
-当前默认文件仓库目录：
+当前 Tauri 文件仓库目录：
 
     ~/.local/share/dev.zisutian.cognition-tree/repositories/local-workspace/
 
-仓库目录内：
+目标 Docker 数据卷内仍沿用文件仓库结构：
 
     workspace.json
     notes/*.ctn
 
-左侧“存储”区会显示当前仓库文件夹，可通过“更改”切换到另一个仓库文件夹。
+左侧“存储”区当前显示仓库路径；后续 Web/Docker 模式会显示后端服务和数据卷位置。
 
 ## 技术栈
 
-    Tauri 2
     Vite
     React
     TypeScript
     CodeMirror 6
-    Rust
     TypeScript CTN 解析器
     Vitest
     pnpm
+    Docker
 
 后续接入：
 
+    HTTP NoteRepository
+    Docker 后端服务
     SQLite + JSON1 索引缓存
+    Tauri 桌面适配层暂缓保留
 
 ## 文档索引
 
@@ -83,30 +85,32 @@
         前端状态编排层，连接领域模型、存储适配器和 UI。
 
     src/storage/
-        前端存储端口和 Tauri 适配器。
+        前端存储端口。当前已有 Tauri 适配器，后续主线新增 HTTP 适配器。
 
     tests/
         前端单元测试目录，按 src 模块边界组织。
 
     src-tauri/
-        Tauri / Rust 桌面后端，负责本地文件仓库、commands、权限和应用打包资源。
+        Tauri / Rust 桌面后端，当前暂缓保留，不作为 Web/Docker 主线继续扩展。
 
 ## 开发命令
 
     pnpm install
-    pnpm start
-    pnpm tauri dev
+    pnpm dev
     pnpm test
     pnpm check
     pnpm build
 
-前端开发服务器仅用于界面调试，不提供笔记文件保存：
+当前前端开发服务器用于浏览器界面调试。后续接入 HTTP NoteRepository 后，浏览器界面会访问 Docker 后端保存笔记：
 
     pnpm dev
 
-`pnpm start` 会调用 `scripts/start.sh`，从项目根目录启动桌面端开发模式。
+Tauri 桌面命令暂缓保留：
 
-Rust / Tauri 后端检查：
+    pnpm start
+    pnpm tauri dev
+
+Rust / Tauri 后端检查暂缓保留：
 
     cd src-tauri
     cargo check

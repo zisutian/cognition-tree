@@ -6,18 +6,20 @@
 
 1. 推荐开发方式
 
+主运行形态：
+
+    Docker 后端 + 浏览器前端
+
 主开发环境：
 
     Linux
 
-验证和打包环境：
-
-    Windows
-
 原因：
 
-    Linux 更适合日常开发、脚本、测试、Git、Rust、Node、SQLite。
-    Windows 必须保留，用于验证 Tauri WebView2、中文输入法、路径行为、窗口行为和 Windows 安装包。
+    Docker 后端保存笔记数据，浏览器作为跨平台界面。
+    Windows 和 Linux 访问同一个 Docker 服务即可看到同一份 workspace。
+    Linux 仍适合日常开发、脚本、测试、Git、Node 和 Docker。
+    Tauri 桌面 GUI、Windows 安装包、Linux WebKitGTK 依赖当前暂缓保留。
 
 
 2. 推荐目录
@@ -48,7 +50,42 @@ Windows 批处理和 PowerShell 文件保留 CRLF：
     *.ps1
 
 
-4. Linux 环境准备
+4. Web / Docker 环境准备
+
+需要安装：
+
+    Git
+    Node.js LTS
+    pnpm
+    Docker
+    Docker Compose
+
+Node.js / pnpm：
+
+    安装 Node.js LTS
+    corepack enable
+    corepack prepare pnpm@latest --activate
+
+验证命令：
+
+    git --version
+    node -v
+    npm -v
+    pnpm -v
+    docker --version
+    docker compose version
+
+目标运行方式：
+
+    Docker 后端提供 HTTP API。
+    浏览器访问前端页面。
+    Docker volume 持久化 workspace.json 和 notes/*.ctn。
+    Windows 和 Linux 通过浏览器访问同一个后端服务，实现双端互通。
+
+当前暂未新增 Dockerfile、compose 文件和 HTTP NoteRepository。下一步代码主线会补齐。
+
+
+5. Linux 原生环境记录
 
 需要安装：
 
@@ -57,7 +94,7 @@ Windows 批处理和 PowerShell 文件保留 CRLF：
     pnpm
     Rust stable
     SQLite 开发库和命令行工具
-    Tauri 2 Linux 系统依赖
+    Tauri 2 Linux 系统依赖（暂缓）
 
 Ubuntu / Debian 系统依赖：
 
@@ -112,7 +149,8 @@ Rust：
 
 当前 Linux 状态：
 
-    第一阶段开发所需 Linux 依赖已补齐。
+    旧 Tauri 桌面开发所需 Linux 依赖已补齐。
+    Web / Docker 主线不再要求继续扩展 Linux 原生 GUI 依赖。
 
 后续恢复用命令：
 
@@ -150,13 +188,17 @@ Rust：
     build-essential、curl、wget、file 是通用基础工具，通常不建议为了本项目单独删除。
 
 
-5. Windows 环境准备
+6. Windows 环境准备
 
 需要安装：
 
     Git
     Node.js LTS
     pnpm
+    Docker Desktop
+
+Tauri 桌面模式暂缓时，以下依赖不作为当前主线要求：
+
     Rust stable-msvc
     Visual Studio 2022 C++ Build Tools
     Microsoft Edge WebView2 Runtime
@@ -171,8 +213,8 @@ Rust：
 当前仍需处理：
 
     安装独立 Node.js LTS，不使用 Codex 内置 node.exe
-    安装 Rust / rustup / cargo
     启用 pnpm
+    安装并验证 Docker Desktop
 
 验证命令：
 
@@ -182,20 +224,19 @@ Rust：
     corepack enable
     corepack prepare pnpm@latest --activate
     pnpm -v
-    rustup default stable-msvc
-    rustc -V
-    cargo -V
-    rustup show
-    sqlite3 --version
+    docker --version
+    docker compose version
 
 
-6. 第一阶段环境与技术栈对应关系
+7. 第一阶段环境与技术栈对应关系
 
-    Tauri 2 需要 Rust、系统 WebView 依赖和平台构建工具。
-    Vite、React、TypeScript、CodeMirror 6、Vitest 和 Playwright 需要 Node.js LTS 与 pnpm。
-    Rust 后端和 Tauri commands 需要 rustup、cargo 和对应平台 toolchain。
+    浏览器前端需要 Node.js LTS 与 pnpm。
+    Vite、React、TypeScript、CodeMirror 6、Vitest 和 Playwright 运行在前端工具链上。
+    Docker 后端负责统一运行 API 服务和持久化文件库。
+    Docker volume 保存 workspace.json 和 notes/*.ctn。
     SQLite + JSON1 需要 SQLite 运行库；开发和调试建议安装 sqlite3 命令行工具。
     Playwright 首次运行可能需要安装浏览器测试运行时。
+    Tauri 2 需要 Rust、系统 WebView 依赖和平台构建工具，但当前暂缓。
     当前第一阶段不做移动端，因此暂不需要 Android Studio、Android SDK、Xcode 或 iOS 配置。
 
 参考：
@@ -203,7 +244,7 @@ Rust：
     Tauri 2 前置要求：https://v2.tauri.app/start/prerequisites/
 
 
-7. 双机工作流
+8. 双机工作流
 
 Linux：
 
@@ -211,6 +252,7 @@ Linux：
     写解析器
     写前端
     写测试
+    运行 Docker 后端
     提交 Git
     推送 GitHub
 
@@ -218,28 +260,35 @@ Windows：
 
     拉取 GitHub 最新代码
     安装依赖
+    通过浏览器访问同一个 Docker 服务
+    检查浏览器界面、编辑器输入和数据互通
+
+Tauri 桌面恢复时再处理：
+
     运行 Tauri 开发模式
     构建 Windows 版本
     检查中文输入、路径、窗口和安装包
 
 
-8. 第一阶段技术栈
+9. 第一阶段技术栈
 
-    Tauri 2
     React
     Vite
     TypeScript
-    Rust
     CodeMirror 6
     TypeScript 自研解析器
+    HTTP NoteRepository
+    Docker 后端
+    Docker volume 文件库
     .ctn 纯文本源文件
     SQLite + JSON1
     后续接入 FTS5 搜索索引
     Vitest
     Playwright
+    Tauri 2 暂缓保留
 
 
-9. 依赖许可证原则
+10. 依赖许可证原则
 
 项目自身使用：
 
