@@ -16,6 +16,7 @@ src-tauri/target/
 *.db
 *.sqlite
 *.sqlite3
+.cognition-tree/
 
 # Environment files
 .env
