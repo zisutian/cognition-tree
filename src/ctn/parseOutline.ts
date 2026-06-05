@@ -1,16 +1,10 @@
 export type CtnBlockType =
   | "concept"
   | "definition"
-  | "question"
   | "component"
-  | "category"
-  | "example"
-  | "condition"
-  | "evidence"
-  | "counterexample"
-  | "note"
   | "personal-understanding"
-  | "action"
+  | "code"
+  | "syntax-rule"
   | "text";
 
 export type CtnDiagnosticSeverity = "warning" | "error";
@@ -76,23 +70,15 @@ export const defaultCtnSyntaxProfile = {
   version: 1,
   spaceIndentUnit: 4,
   markerRules: [
-    { marker: "[理解]", type: "personal-understanding", label: "理解" },
-    { marker: "[条件]", type: "condition", label: "条件" },
-    { marker: "[证据]", type: "evidence", label: "证据" },
-    { marker: "[反例]", type: "counterexample", label: "反例" },
-    { marker: "[组分]", type: "component", label: "组分" },
-    { marker: "[分类]", type: "category", label: "分类" },
-    { marker: "[例子]", type: "example", label: "例子" },
-    { marker: "[注]", type: "note", label: "注释" },
-    { marker: "[?]", type: "question", label: "疑问" },
+    { marker: "[语法]", type: "syntax-rule", label: "语法" },
+    { marker: "```", type: "code", label: "代码块" },
     { marker: ":", type: "definition", label: "定义" },
-    { marker: "#", type: "concept", label: "主题" },
-    { marker: "=", type: "definition", label: "定义" },
-    { marker: "?", type: "question", label: "疑问" },
-    { marker: "-", type: "condition", label: "条件" },
-    { marker: "+", type: "action", label: "行动" },
+    { marker: ">", type: "personal-understanding", label: "理解" },
+    { marker: "-", type: "component", label: "组分" },
   ],
 } satisfies CtnSyntaxProfile;
+
+const invalidLineStartMarkers = ["#", "=", "?", "+"];
 
 function sortMarkerRules(markerRules: CtnMarkerRule[]): CtnMarkerRule[] {
   return [...markerRules].sort(
@@ -195,6 +181,28 @@ function parseMarker(
         type: "text" as CtnBlockType,
       };
     }
+  }
+
+  const invalidLineStartMarker = invalidLineStartMarkers.find((marker) =>
+    trimmed.startsWith(marker),
+  );
+
+  if (invalidLineStartMarker) {
+    return {
+      diagnostics: [
+        createDiagnostic(
+          "unknown-marker",
+          "warning",
+          lineNumber,
+          indentWidth + 1,
+          `未知行首符号 ${invalidLineStartMarker}。`,
+        ),
+      ],
+      label: "未知符号",
+      marker: invalidLineStartMarker,
+      text: trimmed.slice(invalidLineStartMarker.length).trim(),
+      type: "text" as CtnBlockType,
+    };
   }
 
   return {

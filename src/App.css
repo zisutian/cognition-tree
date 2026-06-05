@@ -764,7 +764,7 @@ button {
   box-shadow: inset 2px 0 0 #397c72;
 }
 
-.source-editor .ctn-line-condition {
+.source-editor .ctn-line-component {
   box-shadow: inset 2px 0 0 #d7b65d;
 }
 
@@ -791,23 +791,18 @@ button {
 }
 
 .source-editor .ctn-marker-definition,
-.source-editor .ctn-marker-question,
-.source-editor .ctn-marker-personal-understanding {
+.source-editor .ctn-marker-personal-understanding,
+.source-editor .ctn-marker-syntax-rule {
   color: #113d37;
   background: #dcefc2;
 }
 
-.source-editor .ctn-marker-condition,
-.source-editor .ctn-marker-evidence,
-.source-editor .ctn-marker-counterexample {
+.source-editor .ctn-marker-code {
   color: #60341f;
   background: #f2dcc4;
 }
 
-.source-editor .ctn-marker-note,
-.source-editor .ctn-marker-component,
-.source-editor .ctn-marker-category,
-.source-editor .ctn-marker-example {
+.source-editor .ctn-marker-component {
   color: #33404f;
   background: #dce6f3;
 }

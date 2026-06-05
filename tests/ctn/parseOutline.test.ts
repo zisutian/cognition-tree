@@ -2,18 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   defaultCtnSyntaxProfile,
   parseCtnDocument,
-  parseOutline,
 } from "../../src/ctn/parseOutline";
 
 describe("parseCtnDocument", () => {
   it("builds a semantic block tree from the default CTN markers", () => {
     const document = parseCtnDocument(`Root
-\t: Definition
-\t[?] Question
-\t\t[条件] Condition`);
+    : Definition
+    > Understanding
+        - Component
+    [语法] Rule
+    \`\`\` ts`);
 
     expect(document.roots).toHaveLength(1);
-    expect(document.blocks).toHaveLength(4);
+    expect(document.blocks).toHaveLength(6);
     expect(document.diagnostics).toHaveLength(0);
     expect(document.roots[0]).toMatchObject({
       label: "概念",
@@ -25,43 +26,58 @@ describe("parseCtnDocument", () => {
     });
     expect(document.roots[0].children.map((node) => node.type)).toEqual([
       "definition",
-      "question",
+      "personal-understanding",
+      "syntax-rule",
+      "code",
     ]);
     expect(document.roots[0].children[1].children[0]).toMatchObject({
-      label: "条件",
+      label: "组分",
       level: 2,
       lineNumber: 4,
-      marker: "[条件]",
-      text: "Condition",
+      marker: "-",
+      text: "Component",
+      type: "component",
+    });
+    expect(document.roots[0].children[2]).toMatchObject({
+      label: "语法",
+      lineNumber: 5,
+      marker: "[语法]",
+      text: "Rule",
+      type: "syntax-rule",
+    });
+    expect(document.roots[0].children[3]).toMatchObject({
+      label: "代码块",
+      lineNumber: 6,
+      marker: "```",
+      text: "ts",
+      type: "code",
     });
   });
 
-  it("parses shorthand demo markers used by the current UI", () => {
-    const outline = parseOutline(`# Root
+  it("reports invalid line-start symbols instead of parsing aliases", () => {
+    const document = parseCtnDocument(`# Root
     = Definition
     ? Question
-        - Condition
     + Action`);
 
-    expect(outline).toHaveLength(1);
-    expect(outline[0]).toMatchObject({
-      label: "主题",
+    expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "unknown-marker",
+      "unknown-marker",
+      "unknown-marker",
+      "unknown-marker",
+    ]);
+    expect(document.roots[0]).toMatchObject({
+      label: "未知符号",
       level: 0,
       marker: "#",
       text: "Root",
-      type: "concept",
+      type: "text",
     });
-    expect(outline[0].children.map((node) => node.label)).toEqual([
-      "定义",
-      "疑问",
-      "行动",
+    expect(document.roots[0].children.map((node) => node.marker)).toEqual([
+      "=",
+      "?",
+      "+",
     ]);
-    expect(outline[0].children[1].children[0]).toMatchObject({
-      label: "条件",
-      level: 2,
-      lineNumber: 4,
-      text: "Condition",
-    });
   });
 
   it("preserves raw text and ignores blank lines", () => {
@@ -100,19 +116,20 @@ Sibling
 
   it("treats tabs as one indentation level", () => {
     const document = parseCtnDocument(`Root
-\t[?] Tab child`);
+\t> Tab child`);
 
     expect(document.roots[0].children[0]).toMatchObject({
-      label: "疑问",
+      label: "理解",
       level: 1,
       text: "Tab child",
+      type: "personal-understanding",
     });
   });
 
   it("accepts custom syntax profiles", () => {
     const document = parseCtnDocument(
       `Root
-    ! Custom action`,
+    ! Custom item`,
       {
         syntaxProfile: {
           ...defaultCtnSyntaxProfile,
@@ -121,7 +138,7 @@ Sibling
           spaceIndentUnit: 4,
           markerRules: [
             ...defaultCtnSyntaxProfile.markerRules,
-            { marker: "!", type: "action", label: "行动" },
+            { marker: "!", type: "component", label: "重点" },
           ],
         },
       },
@@ -129,11 +146,11 @@ Sibling
 
     expect(document.diagnostics).toHaveLength(0);
     expect(document.roots[0].children[0]).toMatchObject({
-      label: "行动",
+      label: "重点",
       level: 1,
       marker: "!",
-      text: "Custom action",
-      type: "action",
+      text: "Custom item",
+      type: "component",
     });
   });
 });
