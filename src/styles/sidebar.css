@@ -1,0 +1,470 @@
+.workspace-sidebar {
+  grid-area: sidebar;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  color: #f8fbf5;
+  background: #194d48;
+}
+
+.activity-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  background: #123b37;
+}
+
+.activity-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  color: #20302d;
+  background: #d7eb8f;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.activity-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.activity-group-bottom {
+  margin-top: auto;
+}
+
+.activity-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 7px;
+  color: #bfd3cb;
+  background: transparent;
+  cursor: pointer;
+}
+
+.activity-button:hover,
+.activity-button.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.activity-button.active::before {
+  position: absolute;
+  left: -6px;
+  width: 3px;
+  height: 24px;
+  border-radius: 0 3px 3px 0;
+  background: #d7eb8f;
+  content: "";
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 10px;
+  padding: 12px 10px;
+  overflow: hidden;
+  background: #194d48;
+}
+
+.side-panel-header {
+  min-height: 42px;
+}
+
+.side-panel-header h1 {
+  color: #f8fbf5;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.side-panel .eyebrow {
+  color: #d7eb8f;
+}
+
+.side-panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+  padding-right: 2px;
+}
+
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.notes-section {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.side-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.side-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.side-section-title {
+  color: #c8d7d2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.side-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #20302d;
+  background: #d7eb8f;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.side-action-button:hover {
+  background: #e3f3a7;
+}
+
+.side-action-button:disabled {
+  color: #6f7d78;
+  background: rgba(255, 255, 255, 0.18);
+  cursor: default;
+}
+
+.repository-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  color: #dbe8e2;
+  font-size: 11px;
+}
+
+.repository-strip span {
+  color: #d7eb8f;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.repository-strip code {
+  min-width: 0;
+  overflow: hidden;
+  color: #bdd0c8;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-tree-content,
+.note-folder-children {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.note-tree {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar-scroll-area {
+  --sidebar-scrollbar-compensation: 24px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-scroll-area-viewport {
+  width: calc(100% + var(--sidebar-scrollbar-compensation));
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.sidebar-scroll-area-viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.sidebar-scroll-area-content {
+  width: calc(100% - var(--sidebar-scrollbar-compensation));
+  min-width: 0;
+}
+
+.note-folder {
+  display: grid;
+  gap: 1px;
+}
+
+.note-folder-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  border-radius: 5px;
+  background: transparent;
+}
+
+.note-folder-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 24px;
+  border-radius: 5px;
+  color: #9fb7ae;
+  background: transparent;
+  cursor: pointer;
+}
+
+.note-folder-toggle:disabled {
+  color: transparent;
+  cursor: default;
+}
+
+.note-folder-label {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 24px;
+  padding: 3px 5px 3px 3px;
+  border-radius: 5px;
+  color: #c8d7d2;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-folder-label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-folder-label small {
+  color: #9fb7ae;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.note-folder-row.active,
+.note-folder-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 2px 0 0 #d7eb8f;
+}
+
+.note-folder-row.active .note-folder-label,
+.note-folder-row.active .note-folder-toggle,
+.note-folder-row:hover .note-folder-label,
+.note-folder-row:hover .note-folder-toggle {
+  color: #f8fbf5;
+}
+
+.note-folder-children {
+  padding-left: 13px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.note-item-row {
+  position: relative;
+  min-height: 26px;
+}
+
+.note-item {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  color: #eaf1ed;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-item.active,
+.note-item-row:hover .note-item,
+.note-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.note-item.active {
+  box-shadow: inset 2px 0 0 #d7eb8f;
+}
+
+.sidebar-context-menu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  background: #123b37;
+  box-shadow: 0 14px 36px rgba(9, 28, 26, 0.3);
+}
+
+.sidebar-context-menu button {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: #eaf1ed;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-context-menu button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-context-menu button:disabled {
+  color: #718a82;
+  cursor: default;
+}
+
+.side-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.side-metric {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.side-metric span {
+  display: block;
+  color: #bdd0c8;
+  font-size: 11px;
+}
+
+.side-metric strong {
+  display: block;
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.side-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.side-entry {
+  min-height: 30px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  overflow: hidden;
+  color: #eaf1ed;
+  background: rgba(255, 255, 255, 0.06);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.side-entry:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.side-entry:disabled {
+  color: #a8beb6;
+  cursor: default;
+}
+
+.side-placeholder {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.side-placeholder span,
+.side-muted {
+  margin: 0;
+  color: #bdd0c8;
+  font-size: 11px;
+}
+
+.side-placeholder strong {
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.side-path {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #dbe8e2;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.35;
+}

@@ -1,0 +1,228 @@
+.source-editor {
+  width: 100%;
+  flex: 1;
+  min-height: 500px;
+  border: 1px solid #cdd6cc;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fffef8;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.source-editor:focus-within {
+  border-color: #397c72;
+  box-shadow: 0 0 0 3px rgba(57, 124, 114, 0.16);
+}
+
+.empty-editor {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  min-height: 500px;
+  border: 1px solid #cdd6cc;
+  border-radius: 8px;
+  background: #fffef8;
+}
+
+.empty-editor h3 {
+  margin: 0;
+  color: #25302d;
+  font-size: 16px;
+}
+
+.source-editor .cm-editor {
+  height: 100%;
+  min-height: inherit;
+  color: #15201d;
+  background: transparent;
+  font-family: var(--font-content);
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.source-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.source-editor .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.source-editor .cm-content {
+  min-height: 500px;
+  padding: 12px 14px;
+}
+
+.source-editor .cm-line {
+  padding: 0 2px 0 4px;
+}
+
+.source-editor .cm-gutters {
+  border-right: 1px solid #d9ded7;
+  color: #718078;
+  background: #f2f4ec;
+  font-family: var(--font-mono);
+}
+
+.source-editor .cm-lineNumbers .cm-gutterElement {
+  min-width: 30px;
+  padding: 0 8px 0 6px;
+}
+
+.source-editor .cm-activeLine {
+  background: #eef4e7;
+}
+
+.source-editor .cm-activeLineGutter {
+  background: #e4ebdc;
+}
+
+.source-editor .ctn-line-root-concept {
+  box-shadow: inset 2px 0 0 #397c72;
+}
+
+.source-editor .ctn-line-component {
+  box-shadow: inset 2px 0 0 #d7b65d;
+}
+
+.source-editor .ctn-code-block-mark {
+  padding: 0 4px;
+  background: #fbf0e1;
+  box-shadow: inset 2px 0 0 #b87942;
+  font-family: var(--font-mono);
+}
+
+.source-editor .ctn-code-block-start {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.source-editor .ctn-code-block-end {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.source-editor .ctn-line-diagnostic {
+  background: #fff4e9;
+}
+
+.source-editor .ctn-marker {
+  padding: 0 2px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.source-editor .ctn-block-text {
+  border-radius: 4px;
+}
+
+.source-editor .ctn-block-text-root-concept {
+  padding: 0 3px;
+  color: #0e4b43;
+  background: #dcefc2;
+  font-weight: 700;
+}
+
+.source-editor .ctn-marker-definition,
+.source-editor .ctn-marker-personal-understanding,
+.source-editor .ctn-marker-syntax-rule {
+  color: #113d37;
+  background: #dcefc2;
+}
+
+.source-editor .ctn-marker-code {
+  color: #60341f;
+  background: #f2dcc4;
+}
+
+.source-editor .ctn-marker-component {
+  color: #33404f;
+  background: #dce6f3;
+}
+
+.source-editor .ctn-inline {
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+.source-editor .ctn-inline-inline-code {
+  color: #4b3224;
+  background: #f2dcc4;
+  font-family: var(--font-mono);
+}
+
+.source-editor .ctn-inline-local-reference {
+  color: #0e4b43;
+  background: #e1f2eb;
+  box-shadow: inset 0 0 0 1px #73aa91;
+  font-weight: 650;
+}
+
+.source-editor .ctn-inline-global-reference {
+  color: #273f68;
+  background: #e5edfb;
+  box-shadow: inset 0 0 0 1px #8da7d0;
+  font-weight: 650;
+}
+
+.source-editor .ctn-inline-parallel-separator {
+  color: #7a4d1d;
+  background: #f6e5ca;
+  font-weight: 700;
+}
+
+.ctn-diagnostic-tooltip {
+  display: grid;
+  gap: 4px;
+  max-width: 360px;
+  padding: 7px 9px;
+  border: 1px solid #e2b48d;
+  border-radius: 7px;
+  color: #4a322b;
+  background: #fff7f1;
+  box-shadow: 0 8px 24px rgba(72, 45, 32, 0.14);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ctn-diagnostic-tooltip-item {
+  min-width: 0;
+}
+
+.diagnostics-panel {
+  padding: 9px 11px;
+  border: 1px solid #e2c6b7;
+  border-radius: 8px;
+  background: #fff7f1;
+}
+
+.diagnostics-panel h3 {
+  margin: 0 0 6px;
+  color: #7d3f28;
+  font-size: 12px;
+}
+
+.diagnostics-panel ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diagnostics-panel li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 6px;
+  color: #4a322b;
+  font-size: 12px;
+}
+
+.diagnostic-location {
+  color: #8a4f39;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}

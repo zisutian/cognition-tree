@@ -42,6 +42,8 @@
     HTTP 存储闭环已提交。
     默认语法代码已切换到新版规则。
     解析器已具备 fenced code block、inlineSpans 和 endLineNumber。
+    CTN 解析器已按职责拆分。
+    前端样式已按区域拆分。
 
 当前限制：
 

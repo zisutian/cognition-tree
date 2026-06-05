@@ -11,7 +11,7 @@ import {
   resolveWorkspaceSyntaxProfile,
 } from "./domain/notes";
 import { useNoteWorkspace } from "./hooks/useNoteWorkspace";
-import "./App.css";
+import "./styles/index.css";
 
 type EditorFocusRequest = {
   lineNumber: number;
