@@ -45,6 +45,10 @@ function getBlockTextStart(lineText: string, block: CtnBlock) {
   return textStart;
 }
 
+function getLineTextStart(lineText: string) {
+  return lineText.match(/^\s*/)?.[0].length ?? 0;
+}
+
 function buildCtnDecorations(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
@@ -55,6 +59,41 @@ function buildCtnDecorations(
   });
 
   for (const block of parsedDocument.blocks) {
+    if (block.type === "code" && block.endLineNumber > block.lineNumber) {
+      for (
+        let lineNumber = block.lineNumber;
+        lineNumber <= block.endLineNumber;
+        lineNumber += 1
+      ) {
+        const codeLine = view.state.doc.line(lineNumber);
+        const codeMarkClasses = ["ctn-code-block-mark"];
+        const codeTextStart = getLineTextStart(codeLine.text);
+        const codeMarkStart = codeLine.from + codeTextStart;
+        const codeMarkEnd =
+          codeTextStart < codeLine.text.length
+            ? codeLine.to
+            : codeLine.from + codeLine.text.length;
+
+        if (lineNumber === block.lineNumber) {
+          codeMarkClasses.push("ctn-code-block-start");
+        }
+
+        if (lineNumber === block.endLineNumber) {
+          codeMarkClasses.push("ctn-code-block-end");
+        }
+
+        if (codeMarkStart < codeMarkEnd) {
+          decorations.push(
+            Decoration.mark({
+              attributes: {
+                class: codeMarkClasses.join(" "),
+              },
+            }).range(codeMarkStart, codeMarkEnd),
+          );
+        }
+      }
+    }
+
     const line = view.state.doc.line(block.lineNumber);
     const lineClasses = ["ctn-line", `ctn-line-${block.type}`];
 
@@ -106,6 +145,21 @@ function buildCtnDecorations(
             line.from + markerStart,
             line.from + markerStart + block.marker.length,
           ),
+        );
+      }
+    }
+
+    for (const span of block.inlineSpans) {
+      const spanStart = line.from + span.startColumn - 1;
+      const spanEnd = line.from + span.endColumn - 1;
+
+      if (spanStart >= line.from && spanEnd <= line.to && spanStart < spanEnd) {
+        decorations.push(
+          Decoration.mark({
+            attributes: {
+              class: `ctn-inline ctn-inline-${span.type}`,
+            },
+          }).range(spanStart, spanEnd),
         );
       }
     }

@@ -17,6 +17,7 @@ describe("parseCtnDocument", () => {
     expect(document.blocks).toHaveLength(6);
     expect(document.diagnostics).toHaveLength(0);
     expect(document.roots[0]).toMatchObject({
+      endLineNumber: 6,
       label: "概念",
       level: 0,
       lineNumber: 1,
@@ -46,11 +47,107 @@ describe("parseCtnDocument", () => {
       type: "syntax-rule",
     });
     expect(document.roots[0].children[3]).toMatchObject({
+      endLineNumber: 6,
       label: "代码块",
       lineNumber: 6,
       marker: "```",
       text: "ts",
       type: "code",
+    });
+  });
+
+  it("computes subtree ranges across roots, children, last blocks, and blank lines", () => {
+    const document = parseCtnDocument(`Root
+    : Definition
+
+    - Component
+Sibling
+    > Understanding`);
+
+    expect(
+      document.blocks.map((block) => ({
+        endLineNumber: block.endLineNumber,
+        lineNumber: block.lineNumber,
+        text: block.text,
+      })),
+    ).toEqual([
+      { endLineNumber: 4, lineNumber: 1, text: "Root" },
+      { endLineNumber: 3, lineNumber: 2, text: "Definition" },
+      { endLineNumber: 4, lineNumber: 4, text: "Component" },
+      { endLineNumber: 6, lineNumber: 5, text: "Sibling" },
+      { endLineNumber: 6, lineNumber: 6, text: "Understanding" },
+    ]);
+  });
+
+  it("parses inline structural spans outside code blocks", () => {
+    const document = parseCtnDocument(
+      "Root `code` <local> [[global]] A \\ B\n    : `literal <ignored>` <term> [[Topic]] A \\ B\n    - <当前笔记> \\ [[全局概念]]",
+    );
+    const root = document.roots[0];
+    const definition = root.children[0];
+    const component = root.children[1];
+
+    expect(root.inlineSpans).toEqual([
+      expect.objectContaining({
+        endColumn: 12,
+        startColumn: 6,
+        text: "code",
+        type: "inline-code",
+      }),
+      expect.objectContaining({
+        text: "local",
+        type: "local-reference",
+      }),
+      expect.objectContaining({
+        text: "global",
+        type: "global-reference",
+      }),
+      expect.objectContaining({
+        startColumn: 34,
+        text: "\\",
+        type: "parallel-separator",
+      }),
+    ]);
+    expect(definition.inlineSpans.map((span) => [span.type, span.text])).toEqual([
+      ["inline-code", "literal <ignored>"],
+      ["local-reference", "term"],
+      ["global-reference", "Topic"],
+      ["parallel-separator", "\\"],
+    ]);
+    expect(component.inlineSpans.map((span) => [span.type, span.text])).toEqual([
+      ["local-reference", "当前笔记"],
+      ["parallel-separator", "\\"],
+      ["global-reference", "全局概念"],
+    ]);
+  });
+
+  it("treats fenced code block contents as raw block range", () => {
+    const document = parseCtnDocument(`Root
+    \`\`\`ts
+    : Not a definition
+        - Not a component
+    \`\`\`
+    : After`);
+
+    expect(document.diagnostics).toHaveLength(0);
+    expect(document.blocks.map((block) => block.text)).toEqual([
+      "Root",
+      "ts",
+      "After",
+    ]);
+    expect(document.roots[0].children[0]).toMatchObject({
+      children: [],
+      endLineNumber: 5,
+      inlineSpans: [],
+      lineNumber: 2,
+      marker: "```",
+      type: "code",
+    });
+    expect(document.roots[0].children[1]).toMatchObject({
+      endLineNumber: 6,
+      lineNumber: 6,
+      text: "After",
+      type: "definition",
     });
   });
 

@@ -41,10 +41,10 @@
     server/ Node HTTP API 和文件仓库读写逻辑。
     HTTP 存储闭环已提交。
     默认语法代码已切换到新版规则。
+    解析器已具备 fenced code block、inlineSpans 和 endLineNumber。
 
 当前限制：
 
-    解析器尚未实现 fenced code block 内部范围规则、inlineSpans 和 endLineNumber。
     跨笔记块迁移尚未实现。
     Dockerfile、compose 和 volume 持久化验证尚未引入。
 
@@ -76,20 +76,7 @@
 
 3. 近期实施顺序
 
-3.1 解析器结构能力
-
-目标：
-
-    为块迁移和结构视图提供可靠范围信息。
-
-步骤：
-
-    增加 fenced code block 解析。
-    增加行内结构 inlineSpans。
-    增加块子树结束行信息 endLineNumber。
-    保证代码块内部不解析 marker 和行内结构。
-
-3.2 跨笔记块迁移底座
+3.1 跨笔记块迁移底座
 
 目标：
 
@@ -103,7 +90,7 @@
     实现跨笔记移动整棵块子树。
     实现缺失语法块引用随迁提示。
 
-3.3 块迁移 UI
+3.2 块迁移 UI
 
 目标：
 
@@ -115,7 +102,7 @@
     先做点击式“从左移到右”。
     再在同一套移动 API 上接入拖拽交互。
 
-3.4 Docker 打包与部署验证
+3.3 Docker 打包与部署验证
 
 目标：
 

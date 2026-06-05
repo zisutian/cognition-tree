@@ -7,6 +7,21 @@ export type CtnBlockType =
   | "syntax-rule"
   | "text";
 
+export type CtnInlineSpanType =
+  | "inline-code"
+  | "local-reference"
+  | "global-reference"
+  | "parallel-separator";
+
+export type CtnInlineSpan = {
+  id: string;
+  type: CtnInlineSpanType;
+  lineNumber: number;
+  startColumn: number;
+  endColumn: number;
+  text: string;
+};
+
 export type CtnDiagnosticSeverity = "warning" | "error";
 
 export type CtnDiagnosticCode =
@@ -27,6 +42,7 @@ export type CtnDiagnostic = {
 export type CtnBlock = {
   id: string;
   lineNumber: number;
+  endLineNumber: number;
   level: number;
   indentText: string;
   marker: string | null;
@@ -34,6 +50,7 @@ export type CtnBlock = {
   label: string;
   text: string;
   rawText: string;
+  inlineSpans: CtnInlineSpan[];
   diagnostics: CtnDiagnostic[];
   children: CtnBlock[];
 };
@@ -103,6 +120,113 @@ function createDiagnostic(
   };
 }
 
+function createInlineSpan(
+  type: CtnInlineSpanType,
+  lineNumber: number,
+  textStartColumn: number,
+  startOffset: number,
+  endOffset: number,
+  text: string,
+): CtnInlineSpan {
+  const startColumn = textStartColumn + startOffset;
+
+  return {
+    id: `${lineNumber}-${startColumn}-${type}`,
+    type,
+    lineNumber,
+    startColumn,
+    endColumn: textStartColumn + endOffset,
+    text,
+  };
+}
+
+function parseInlineSpans(
+  text: string,
+  lineNumber: number,
+  textStartColumn: number,
+): CtnInlineSpan[] {
+  const spans: CtnInlineSpan[] = [];
+  let index = 0;
+
+  while (index < text.length) {
+    if (text[index] === "`") {
+      const closeIndex = text.indexOf("`", index + 1);
+
+      if (closeIndex >= 0) {
+        spans.push(
+          createInlineSpan(
+            "inline-code",
+            lineNumber,
+            textStartColumn,
+            index,
+            closeIndex + 1,
+            text.slice(index + 1, closeIndex),
+          ),
+        );
+        index = closeIndex + 1;
+        continue;
+      }
+    }
+
+    if (text.startsWith("[[", index)) {
+      const closeIndex = text.indexOf("]]", index + 2);
+
+      if (closeIndex >= 0) {
+        spans.push(
+          createInlineSpan(
+            "global-reference",
+            lineNumber,
+            textStartColumn,
+            index,
+            closeIndex + 2,
+            text.slice(index + 2, closeIndex),
+          ),
+        );
+        index = closeIndex + 2;
+        continue;
+      }
+    }
+
+    if (text[index] === "<") {
+      const closeIndex = text.indexOf(">", index + 1);
+
+      if (closeIndex >= 0) {
+        spans.push(
+          createInlineSpan(
+            "local-reference",
+            lineNumber,
+            textStartColumn,
+            index,
+            closeIndex + 1,
+            text.slice(index + 1, closeIndex),
+          ),
+        );
+        index = closeIndex + 1;
+        continue;
+      }
+    }
+
+    if (text[index] === "\\") {
+      spans.push(
+        createInlineSpan(
+          "parallel-separator",
+          lineNumber,
+          textStartColumn,
+          index,
+          index + 1,
+          "\\",
+        ),
+      );
+      index += 1;
+      continue;
+    }
+
+    index += 1;
+  }
+
+  return spans;
+}
+
 function analyzeIndent(
   indentText: string,
   lineNumber: number,
@@ -151,11 +275,16 @@ function parseMarker(
   const matchedRule = markerRules.find((rule) => trimmed.startsWith(rule.marker));
 
   if (matchedRule) {
+    const textAfterMarker = trimmed.slice(matchedRule.marker.length);
+    const textLeadingWhitespace = textAfterMarker.match(/^\s*/)?.[0].length ?? 0;
+
     return {
       diagnostics: [] as CtnDiagnostic[],
       label: matchedRule.label,
       marker: matchedRule.marker,
-      text: trimmed.slice(matchedRule.marker.length).trim(),
+      text: textAfterMarker.trim(),
+      textStartColumn:
+        indentWidth + matchedRule.marker.length + textLeadingWhitespace + 1,
       type: matchedRule.type,
     };
   }
@@ -165,6 +294,9 @@ function parseMarker(
 
     if (markerEnd > 0) {
       const marker = trimmed.slice(0, markerEnd + 1);
+      const textAfterMarker = trimmed.slice(marker.length);
+      const textLeadingWhitespace = textAfterMarker.match(/^\s*/)?.[0].length ?? 0;
+
       return {
         diagnostics: [
           createDiagnostic(
@@ -177,7 +309,8 @@ function parseMarker(
         ],
         label: "未知符号",
         marker,
-        text: trimmed.slice(marker.length).trim(),
+        text: textAfterMarker.trim(),
+        textStartColumn: indentWidth + marker.length + textLeadingWhitespace + 1,
         type: "text" as CtnBlockType,
       };
     }
@@ -188,6 +321,9 @@ function parseMarker(
   );
 
   if (invalidLineStartMarker) {
+    const textAfterMarker = trimmed.slice(invalidLineStartMarker.length);
+    const textLeadingWhitespace = textAfterMarker.match(/^\s*/)?.[0].length ?? 0;
+
     return {
       diagnostics: [
         createDiagnostic(
@@ -200,7 +336,9 @@ function parseMarker(
       ],
       label: "未知符号",
       marker: invalidLineStartMarker,
-      text: trimmed.slice(invalidLineStartMarker.length).trim(),
+      text: textAfterMarker.trim(),
+      textStartColumn:
+        indentWidth + invalidLineStartMarker.length + textLeadingWhitespace + 1,
       type: "text" as CtnBlockType,
     };
   }
@@ -210,27 +348,69 @@ function parseMarker(
     label: "概念",
     marker: null,
     text: trimmed,
+    textStartColumn: indentWidth + 1,
     type: "concept" as CtnBlockType,
   };
+}
+
+function findClosingCodeFenceLineNumber(
+  lines: string[],
+  startIndex: number,
+): number {
+  for (let index = startIndex; index < lines.length; index += 1) {
+    if (lines[index].trim().startsWith("```")) {
+      return index + 1;
+    }
+  }
+
+  return lines.length;
+}
+
+function assignBlockEndLineNumbers(
+  blocks: CtnBlock[],
+  totalLineCount: number,
+) {
+  blocks.forEach((block, blockIndex) => {
+    let subtreeEndLineNumber = totalLineCount;
+
+    for (
+      let nextBlockIndex = blockIndex + 1;
+      nextBlockIndex < blocks.length;
+      nextBlockIndex += 1
+    ) {
+      const nextBlock = blocks[nextBlockIndex];
+
+      if (nextBlock.level <= block.level) {
+        subtreeEndLineNumber = nextBlock.lineNumber - 1;
+        break;
+      }
+    }
+
+    block.endLineNumber = Math.max(block.endLineNumber, subtreeEndLineNumber);
+  });
 }
 
 export function parseCtnDocument(
   source: string,
   options: ParseCtnDocumentOptions = {},
 ): CtnDocument {
+  const lines = source.split("\n");
   const roots: CtnBlock[] = [];
   const blocks: CtnBlock[] = [];
   const diagnostics: CtnDiagnostic[] = [];
   const stack: Array<{ level: number; node: CtnBlock }> = [];
   const syntaxProfile = options.syntaxProfile ?? defaultCtnSyntaxProfile;
   const markerRules = sortMarkerRules(syntaxProfile.markerRules);
+  let index = 0;
 
-  source.split("\n").forEach((line, index) => {
+  while (index < lines.length) {
+    const line = lines[index];
     const lineNumber = index + 1;
     const trimmed = line.trim();
 
     if (!trimmed) {
-      return;
+      index += 1;
+      continue;
     }
 
     const indentText = line.match(/^\s*/)?.[0] ?? "";
@@ -249,6 +429,10 @@ export function parseCtnDocument(
     const node: CtnBlock = {
       id: `block-${lineNumber}`,
       lineNumber,
+      endLineNumber:
+        parsedMarker.type === "code"
+          ? findClosingCodeFenceLineNumber(lines, index + 1)
+          : lineNumber,
       level: indent.level,
       indentText,
       marker: parsedMarker.marker,
@@ -256,6 +440,14 @@ export function parseCtnDocument(
       label: parsedMarker.label,
       text: parsedMarker.text,
       rawText: line,
+      inlineSpans:
+        parsedMarker.type === "code"
+          ? []
+          : parseInlineSpans(
+              parsedMarker.text,
+              lineNumber,
+              parsedMarker.textStartColumn,
+            ),
       diagnostics: nodeDiagnostics,
       children: [],
     };
@@ -298,7 +490,11 @@ export function parseCtnDocument(
     blocks.push(node);
     diagnostics.push(...node.diagnostics);
     stack.push({ level: node.level, node });
-  });
+
+    index = node.type === "code" ? node.endLineNumber : index + 1;
+  }
+
+  assignBlockEndLineNumbers(blocks, lines.length);
 
   return { roots, blocks, diagnostics };
 }
