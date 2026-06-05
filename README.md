@@ -23,6 +23,7 @@
 
     workspace.json
     notes/*.ctn
+    syntax/*.toml
 
 ## 运行环境
 
@@ -35,7 +36,7 @@
 数据保存位置：
 
     笔记数据保存在本机文件仓库目录。
-    后端读写 workspace.json 和 notes/*.ctn。
+    后端读写 workspace.json、notes/*.ctn 和 syntax/*.toml。
     浏览器只作为界面入口，不作为长期数据存放位置。
 
 当前限制：
