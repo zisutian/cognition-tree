@@ -6,89 +6,66 @@
 
 ## 当前状态
 
-已完成前端最小工作台：
+项目处于早期开发阶段，当前路线是浏览器前端 + Docker 后端。
 
-    左侧 Activity Bar + Side Panel 工作区入口
-    中间 CodeMirror 6 原文编辑区
-    右侧结构树和诊断统计
-    笔记内容和仓库目录树的前端领域模型
-    NoteRepository 前端存储端口
-    Web 后端最小 HTTP API
-    独立 tests/ 单元测试目录
+已具备的基础能力：
 
-已完成 TypeScript CTN 解析器：
+    React / Vite 前端工作台
+    CodeMirror 6 原文编辑区
+    TypeScript CTN 解析器
+    笔记和目录树领域模型
+    NoteRepository 存储端口
+    Node HTTP 后端最小服务
+    Vitest 单元测试
 
-    parseCtnDocument(source)
-    roots
-    blocks
-    diagnostics
-
-解析器当前支持缩进层级、行首符号识别、块树构建和基础诊断。CodeMirror 6 已完成基础接入，笔记可按目录树组织；当前主线是浏览器前端访问 Docker 后端，由 Docker volume 保存笔记文件。
-
-前端领域层中，笔记记录模型和仓库目录树操作已拆分：笔记模型负责内容、标题和语法归属，目录树操作负责文件夹查找、笔记挂载、文件夹变更和笔记移动。
-
-新仓库默认从空笔记库开始，仅保留“仓库根目录”。点击“新建笔记”后才会创建第一篇 `.ctn`。目录树支持通过右键菜单新建文件夹、重命名文件夹、删除文件夹和移动笔记；删除文件夹会一并移除其中笔记。
-
-仓库接近 Obsidian vault：它是一个长期知识域和本地文件夹边界，而不是单篇笔记的位置。文件夹只负责组织、浏览、移动和新建落点，不绑定语法配置。仓库可以保存多套 CTN 语法资源，笔记记录实际使用的语法 ID 和版本；后续会支持通过普通可见笔记中的语法块导入有效语法，并在跨笔记块迁移时随迁必要的语法引用。
-
-目标 Docker 数据卷内仍沿用文件仓库结构：
+目标文件仓库结构：
 
     workspace.json
     notes/*.ctn
 
-左侧“存储”区后续会显示后端服务和数据卷位置。当前 HTTP 前端适配器接入前，浏览器开发模式暂用 localStorage 保存工作区。
+## 运行环境
 
-## 技术栈
+运行软件需要：
 
-    Vite
-    React
-    TypeScript
-    CodeMirror 6
-    TypeScript CTN 解析器
-    Vitest
+    浏览器
+    Docker
+    Docker Compose
+
+数据保存位置：
+
+    笔记数据保存在 Docker volume。
+    后端读写 workspace.json 和 notes/*.ctn。
+    浏览器只作为界面入口，不作为长期数据存放位置。
+
+当前限制：
+
+    第一版不处理多用户账号、公网部署、桌面安装包和移动端应用。
+
+## 开发环境
+
+参与开发需要：
+
+    Git
+    Node.js LTS
     pnpm
     Docker
+    Docker Compose
 
-后续接入：
+可选：
 
-    HTTP NoteRepository
-    SQLite + JSON1 索引缓存
+    sqlite3
+    libsqlite3-dev
 
-桌面路线不属于当前分支；如需恢复，应从 main 或 git 历史派生。
+SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性依赖。Playwright 首次运行浏览器测试时，可能需要额外安装浏览器测试运行时。
 
-## 文档索引
+基础验证命令：
 
-    docs/核心要求.txt
-    docs/环境准备.txt
-    docs/逐步构建流程.txt
-    docs/认知树笔记软件需求说明.txt
-    docs/开源许可策略.txt
-
-## 代码结构
-
-    src/ctn/
-        CTN 语法解析核心，只负责 source text、syntax profile、blocks、roots 和 diagnostics。
-
-    src/domain/
-        前端领域模型。notes.ts 负责笔记、workspace 和语法归属；noteTree.ts 负责仓库目录树操作。
-
-    src/editor/
-        CodeMirror 6 集成层。CtnEditor.tsx 是 React 容器，扩展、语义装饰和诊断提示分别拆分维护。
-
-    src/components/
-        React 展示组件和工作台布局。组件表达用户交互，不直接承担持久化和领域树算法。
-
-    src/hooks/
-        前端状态编排层，连接领域模型、存储适配器和 UI。
-
-    src/storage/
-        前端存储端口。当前保留 NoteRepository 抽象，浏览器开发模式暂用 localStorage 适配器，后续主线新增 HTTP 适配器。
-
-    tests/
-        前端单元测试目录，按 src 模块边界组织。
-
-    server/
-        Web 后端最小 HTTP API 和文件仓库读写逻辑。
+    git --version
+    node -v
+    npm -v
+    pnpm -v
+    docker --version
+    docker compose version
 
 ## 开发命令
 
@@ -99,14 +76,70 @@
     pnpm check
     pnpm build
 
-当前前端开发服务器用于浏览器界面调试。后续接入 HTTP NoteRepository 后，浏览器界面会访问 Docker 后端保存笔记：
+后端脚本语法检查：
 
-    pnpm dev
+    node --check server/index.mjs
+    node --check server/noteApiServer.mjs
+    node --check server/noteFileStore.mjs
 
-当前后端服务可本地运行：
+## 代码结构
 
-    pnpm server
+    src/ctn/
+        CTN 语法解析核心。
 
-## 许可证
+    src/domain/
+        笔记、workspace、语法归属和目录树领域模型。
+
+    src/editor/
+        CodeMirror 6 集成层。
+
+    src/components/
+        React 展示组件和工作台布局。
+
+    src/hooks/
+        前端状态编排层。
+
+    src/storage/
+        前端存储端口和存储适配器。
+
+    server/
+        Web 后端 HTTP API 和文件仓库读写逻辑。
+
+    tests/
+        单元测试。
+
+## 许可证与依赖策略
+
+本项目采用 GPL-3.0-or-later。
+
+SPDX 标识：
 
     GPL-3.0-or-later
+
+新增源代码文件建议添加 SPDX 头部：
+
+    // SPDX-License-Identifier: GPL-3.0-or-later
+
+依赖优先选择源码公开、许可证清晰、可本地构建、可审计的开源技术。
+
+优先级：
+
+    MIT
+    Apache-2.0
+    BSD-2-Clause
+    BSD-3-Clause
+    ISC
+    Public Domain
+
+默认避免：
+
+    闭源 SDK
+    必须联网才能使用的核心服务
+    无法审计源码的二进制插件
+    专有同步服务
+    商业托管功能作为核心依赖
+    许可证不清晰的代码片段
+
+引入依赖时应记录包名、版本、许可证、源码地址、是否为运行时依赖、是否可替换。发布版本时应生成第三方许可证清单。
+
+本节是项目工程策略，不构成法律意见。
