@@ -8,8 +8,8 @@
 
 已完成：
 
-    初始化 Tauri 2 + Vite + React + TypeScript 桌面应用骨架。
-    配置 pnpm、TypeScript、Vite、Rust/Tauri 基础构建。
+    初始化早期桌面应用骨架。
+    配置 pnpm、TypeScript、Vite 和 React 基础构建。
     新增最小认知树工作台界面。
     新增 TypeScript CTN 解析器模块。
     解析器已输出根块树、扁平块列表和诊断信息。
@@ -19,7 +19,7 @@
     搭建 VS Code 风格左侧工作区入口。
     拆分 App、编辑器、侧栏、结构树、领域模型和笔记仓库模块。
     拆分 CodeMirror 扩展、CTN 装饰和诊断悬浮提示。
-    新增 Tauri 文件笔记仓库适配层。
+    建立 NoteRepository 前端存储端口。
     建立笔记内容和仓库目录树分离的前端模型。
     将仓库目录树操作拆出为独立领域模块。
     支持新建文件夹、重命名文件夹、删除文件夹和移动当前笔记。
@@ -31,7 +31,7 @@
     左侧为 Activity Bar + Side Panel，笔记入口已支持目录树、选择、新建本地笔记、文件夹操作和笔记移动。
     中间是 CodeMirror 6 原文编辑区。
     右侧是结构树和诊断统计。
-    Tauri 桌面运行时已能自动保存到本地文件库，但当前主线切换为浏览器前端访问 Docker 后端。
+    当前主线是浏览器前端访问 Docker 后端。
     新仓库默认从空笔记库开始，仅保留“仓库根目录”。
     SQLite 暂缓为后续索引缓存层。
 
@@ -48,12 +48,7 @@
 
 Docker 后端服务：
 
-    后续新增 Docker 启动命令。
-
-Tauri 桌面模式暂缓保留：
-
-    pnpm start
-    pnpm tauri dev
+    pnpm server
 
 当前在 HTTP NoteRepository 接入前，前端开发服务器仅用于界面调试，不提供笔记文件保存。
 
@@ -69,11 +64,6 @@ Tauri 桌面模式暂缓保留：
 
     pnpm build
 
-Rust / Tauri 后端检查暂缓保留：
-
-    cd src-tauri
-    cargo check
-
 
 3. 提交前检查
 
@@ -83,10 +73,11 @@ Rust / Tauri 后端检查暂缓保留：
     pnpm check
     pnpm build
 
-Web/Docker 后端接入前，Tauri 检查暂缓：
+后端脚本语法检查：
 
-    cd src-tauri
-    cargo check
+    node --check server/index.mjs
+    node --check server/noteApiServer.mjs
+    node --check server/noteFileStore.mjs
 
 再检查空白问题：
 
@@ -159,7 +150,7 @@ Web/Docker 后端接入前，Tauri 检查暂缓：
     建立前端 NoteWorkspace / NoteRecord / NoteTreeNode 模型。
     拆分 noteTree 领域操作，目录树变更不再混入笔记记录模型。
     建立 NoteRepository 接口。
-    接入 Tauri 文件仓库，使用 workspace.json 保存仓库树和元信息，使用 notes/*.ctn 保存原文。
+    接入早期本地文件仓库，使用 workspace.json 保存仓库树和元信息，使用 notes/*.ctn 保存原文。
     支持目录树展示、选择笔记、新建笔记和编辑自动保存。
     支持通过右键菜单新建文件夹、重命名文件夹、删除文件夹和移动笔记。
     支持查看和更改当前仓库文件夹。
@@ -174,14 +165,10 @@ Web/Docker 后端接入前，Tauri 检查暂缓：
     笔记记录实际使用的 syntaxProfileId 和 syntaxVersion，并可以通过 syntaxImports 引用仓库内普通可见笔记中的语法块。
     跨笔记块移动是当前主线，块操作底座优先于仓库级语法切换入口。
     NoteRepository 是前端存储端口。
-    TauriNoteRepository 暂缓保留。
+    桌面运行实现已从当前分支剔除，仅保留 NoteRepository 端口抽象。
     HttpNoteRepository 是当前主线实现。
     Docker 后端通过 HTTP API 提供 workspace 读取、保存、清空和仓库信息能力。
     Docker volume 保存 workspace.json 和 notes/*.ctn。
-
-当前 Tauri 默认仓库目录：
-
-    ~/.local/share/dev.zisutian.cognition-tree/repositories/local-workspace/
 
 步骤：
 
@@ -207,7 +194,7 @@ Web/Docker 后端接入前，Tauri 检查暂缓：
 
 顺序调整：
 
-    Tauri 桌面路线暂缓保留，不删除。
+    桌面路线已从当前分支剔除；必要时从 main 或 git 历史恢复。
     仓库级语法切换入口后移，但不取消。
     当前先保证块迁移的数据底座可靠，再补语法管理入口。
 
@@ -250,7 +237,7 @@ Web/Docker 后端接入前，Tauri 检查暂缓：
     双向链接
     Obsidian 导入
     Markdown / HTML 完整导出
-    Tauri 桌面扩展和安装包
+    桌面扩展和安装包
     插件系统
     图谱视图
     同步能力

@@ -18,8 +18,8 @@
 
     Docker 后端保存笔记数据，浏览器作为跨平台界面。
     Windows 和 Linux 访问同一个 Docker 服务即可看到同一份 workspace。
-    Linux 仍适合日常开发、脚本、测试、Git、Node 和 Docker。
-    Tauri 桌面 GUI、Windows 安装包、Linux WebKitGTK 依赖当前暂缓保留。
+    Linux 适合日常开发、脚本、测试、Git、Node 和 Docker。
+    桌面路线不在当前分支维护；需要时从 main 或 git 历史恢复。
 
 
 2. 推荐目录
@@ -82,35 +82,45 @@ Node.js / pnpm：
     Docker volume 持久化 workspace.json 和 notes/*.ctn。
     Windows 和 Linux 通过浏览器访问同一个后端服务，实现双端互通。
 
-当前暂未新增 Dockerfile、compose 文件和 HTTP NoteRepository。下一步代码主线会补齐。
+当前代码状态：
+
+    已有 Node HTTP 后端最小服务。
+    已有文件仓库读写逻辑。
+    已有服务端测试。
+    Dockerfile、compose 文件、HTTP 前端存储适配器后续补齐。
 
 
-5. Linux 原生环境记录
+5. Linux 本机开发环境
 
 需要安装：
 
     Git
     Node.js LTS
     pnpm
-    Rust stable
-    SQLite 开发库和命令行工具
-    Tauri 2 Linux 系统依赖（暂缓）
+    Docker Engine 或 Docker Desktop
+    Docker Compose
 
-Ubuntu / Debian 系统依赖：
+可选安装：
+
+    sqlite3
+    libsqlite3-dev
+
+说明：
+
+    SQLite 当前是后续索引缓存方向，不是第一阶段启动前端和后端的硬性依赖。
+    Playwright 首次运行浏览器测试时，可能需要安装浏览器测试运行时。
+
+Ubuntu / Debian 常用命令：
 
     sudo apt update
-    sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev sqlite3 libsqlite3-dev
-
-Node.js / pnpm：
-
-    安装 Node.js LTS
+    sudo apt install git curl build-essential sqlite3 libsqlite3-dev
     corepack enable
     corepack prepare pnpm@latest --activate
 
-Rust：
+Docker 安装建议：
 
-    安装 rustup
-    rustup default stable
+    优先使用 Docker 官方文档安装 Docker Engine 或 Docker Desktop。
+    安装后确认当前用户可以运行 docker 命令。
 
 验证命令：
 
@@ -118,74 +128,9 @@ Rust：
     node -v
     npm -v
     pnpm -v
-    rustc -V
-    cargo -V
-    rustup show
+    docker --version
+    docker compose version
     sqlite3 --version
-
-当前 Linux 检查结果（2026-05-20）：
-
-    系统：Ubuntu 24.04.4 LTS
-    Git：已安装，2.43.0
-    Node.js：已安装，v22.18.0，LTS Jod
-    npm：已安装，10.9.3
-    corepack：已安装，0.33.0
-    pnpm：已启用，11.1.3
-    Rust：已安装，stable-x86_64-unknown-linux-gnu
-    rustc：已安装，1.88.0
-    cargo：已安装，1.88.0
-    SQLite 开发库：已安装，libsqlite3-dev 3.45.1-1ubuntu2.5
-    sqlite3 命令行工具：已安装，3.45.1-1ubuntu2.5
-    WebKitGTK 4.1 开发库：已安装，libwebkit2gtk-4.1-dev 2.52.3-0ubuntu0.24.04.1
-    build-essential：已安装
-    curl：已安装，8.5.0
-    wget：已安装，1.21.4
-    file：已安装，5.45
-    pkg-config：已安装，1.8.1-2build1
-    libssl-dev：已安装，3.0.13-0ubuntu3.9
-    libxdo-dev：已安装，1:3.20160805.1-5build1
-    libayatana-appindicator3-dev：已安装，0.5.93-1build3
-    librsvg2-dev：已安装，2.58.0+dfsg-1build1
-
-当前 Linux 状态：
-
-    旧 Tauri 桌面开发所需 Linux 依赖已补齐。
-    Web / Docker 主线不再要求继续扩展 Linux 原生 GUI 依赖。
-
-后续恢复用命令：
-
-    sudo apt update
-    sudo apt install pkg-config libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev sqlite3 libsqlite3-dev
-    corepack enable
-    corepack prepare pnpm@latest --activate
-    pnpm --version
-
-本机安装记录（2026-05-20）：
-
-    本次为第一阶段 Linux 开发环境确认安装的 apt 包：
-
-        pkg-config
-        libwebkit2gtk-4.1-dev
-        build-essential
-        curl
-        wget
-        file
-        libxdo-dev
-        libssl-dev
-        libayatana-appindicator3-dev
-        librsvg2-dev
-        sqlite3
-        libsqlite3-dev
-
-    这些包属于系统级开发依赖，可能被其他 Rust、Tauri、GTK、SQLite 或原生构建项目共用。
-    后续清理前先确认没有其他项目依赖它们。
-
-    如需清理本项目补装的 Tauri / SQLite 开发依赖，可先使用：
-
-        sudo apt remove pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev sqlite3 libsqlite3-dev
-        sudo apt autoremove
-
-    build-essential、curl、wget、file 是通用基础工具，通常不建议为了本项目单独删除。
 
 
 6. Windows 环境准备
@@ -197,24 +142,11 @@ Rust：
     pnpm
     Docker Desktop
 
-Tauri 桌面模式暂缓时，以下依赖不作为当前主线要求：
+当前仍需重点确认：
 
-    Rust stable-msvc
-    Visual Studio 2022 C++ Build Tools
-    Microsoft Edge WebView2 Runtime
-    SQLite 命令行工具，或随应用开发依赖安装 SQLite 开发库
-
-当前已确认：
-
-    Git 可用
-    Visual Studio 2022 C++ 工具已安装
-    WebView2 Runtime 已安装
-
-当前仍需处理：
-
-    安装独立 Node.js LTS，不使用 Codex 内置 node.exe
-    启用 pnpm
-    安装并验证 Docker Desktop
+    安装独立 Node.js LTS，不使用 Codex 内置 node.exe。
+    启用 pnpm。
+    安装并验证 Docker Desktop。
 
 验证命令：
 
@@ -228,29 +160,66 @@ Tauri 桌面模式暂缓时，以下依赖不作为当前主线要求：
     docker compose version
 
 
-7. 第一阶段环境与技术栈对应关系
+7. 本地开发命令
 
-    浏览器前端需要 Node.js LTS 与 pnpm。
-    Vite、React、TypeScript、CodeMirror 6、Vitest 和 Playwright 运行在前端工具链上。
-    Docker 后端负责统一运行 API 服务和持久化文件库。
-    Docker volume 保存 workspace.json 和 notes/*.ctn。
-    SQLite + JSON1 需要 SQLite 运行库；开发和调试建议安装 sqlite3 命令行工具。
-    Playwright 首次运行可能需要安装浏览器测试运行时。
-    Tauri 2 需要 Rust、系统 WebView 依赖和平台构建工具，但当前暂缓。
-    当前第一阶段不做移动端，因此暂不需要 Android Studio、Android SDK、Xcode 或 iOS 配置。
+安装依赖：
 
-参考：
+    pnpm install
 
-    Tauri 2 前置要求：https://v2.tauri.app/start/prerequisites/
+浏览器前端开发：
+
+    pnpm dev
+
+Node 后端服务：
+
+    pnpm server
+
+测试：
+
+    pnpm test
+
+类型检查：
+
+    pnpm check
+
+生产构建：
+
+    pnpm build
+
+后端脚本语法检查：
+
+    node --check server/index.mjs
+    node --check server/noteApiServer.mjs
+    node --check server/noteFileStore.mjs
 
 
-8. 双机工作流
+8. Docker 运行定位
+
+Docker 在当前路线中不是单纯验证环境，而是主运行后端。
+
+第一版目标：
+
+    后端服务容器化。
+    workspace.json 和 notes/*.ctn 放入 Docker volume。
+    浏览器前端通过 HTTP API 访问后端。
+    Windows 和 Linux 可访问同一个服务和同一份数据。
+
+第一版不承诺：
+
+    多用户账号和权限。
+    公网部署安全模型。
+    桌面安装包。
+    移动端应用。
+
+
+9. 双机工作流
 
 Linux：
 
     日常开发
     写解析器
     写前端
+    写后端
     写测试
     运行 Docker 后端
     提交 Git
@@ -260,17 +229,11 @@ Windows：
 
     拉取 GitHub 最新代码
     安装依赖
-    通过浏览器访问同一个 Docker 服务
-    检查浏览器界面、编辑器输入和数据互通
-
-Tauri 桌面恢复时再处理：
-
-    运行 Tauri 开发模式
-    构建 Windows 版本
-    检查中文输入、路径、窗口和安装包
+    运行或访问同一个 Docker 服务
+    通过浏览器检查界面、编辑器输入和数据互通
 
 
-9. 第一阶段技术栈
+10. 第一阶段技术栈
 
     React
     Vite
@@ -278,6 +241,7 @@ Tauri 桌面恢复时再处理：
     CodeMirror 6
     TypeScript 自研解析器
     HTTP NoteRepository
+    Node HTTP 后端
     Docker 后端
     Docker volume 文件库
     .ctn 纯文本源文件
@@ -285,10 +249,10 @@ Tauri 桌面恢复时再处理：
     后续接入 FTS5 搜索索引
     Vitest
     Playwright
-    Tauri 2 暂缓保留
+    pnpm
 
 
-10. 依赖许可证原则
+11. 依赖许可证原则
 
 项目自身使用：
 

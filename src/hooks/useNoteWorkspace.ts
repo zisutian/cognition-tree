@@ -24,7 +24,7 @@ import {
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
 } from "../domain/noteTree";
-import { createTauriNoteRepository } from "../storage/tauriNoteRepository";
+import { createBrowserNoteRepository } from "../storage/browserNoteRepository";
 
 function createDraftNote(workspace: NoteWorkspace) {
   const timestamp = new Date().toISOString();
@@ -50,7 +50,7 @@ function resolveExistingFolderId(
 }
 
 export function useNoteWorkspace() {
-  const repository = useMemo(() => createTauriNoteRepository(), []);
+  const repository = useMemo(() => createBrowserNoteRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
     return createInitialWorkspace();
   });
