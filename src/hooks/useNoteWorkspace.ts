@@ -24,7 +24,7 @@ import {
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
 } from "../domain/noteTree";
-import { createBrowserNoteRepository } from "../storage/browserNoteRepository";
+import { createRuntimeNoteRepository } from "../storage/runtimeNoteRepository";
 
 function createDraftNote(workspace: NoteWorkspace) {
   const timestamp = new Date().toISOString();
@@ -50,7 +50,7 @@ function resolveExistingFolderId(
 }
 
 export function useNoteWorkspace() {
-  const repository = useMemo(() => createBrowserNoteRepository(), []);
+  const repository = useMemo(() => createRuntimeNoteRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
     return createInitialWorkspace();
   });
@@ -260,7 +260,11 @@ export function useNoteWorkspace() {
   const changeRepositoryPath = async (path: string) => {
     const nextPath = path.trim();
 
-    if (!nextPath || nextPath === repositoryPath) {
+    if (
+      !nextPath ||
+      nextPath === repositoryPath ||
+      !repository.setRepositoryPath
+    ) {
       return;
     }
 
@@ -306,6 +310,7 @@ export function useNoteWorkspace() {
   return {
     activeNote,
     changeRepositoryPath,
+    canChangeRepositoryPath: Boolean(repository.canChangeRepositoryPath),
     createFolder,
     createNote,
     deleteFolder,

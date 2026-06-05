@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import { createInitialWorkspace } from "../../src/domain/notes";
+import { createHttpNoteRepository } from "../../src/storage/httpNoteRepository";
+
+type FetchCall = {
+  body?: BodyInit | null;
+  method: string;
+  url: string;
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    headers: { "Content-Type": "application/json" },
+    status,
+  });
+}
+
+describe("createHttpNoteRepository", () => {
+  it("loads repository info and workspace through HTTP", async () => {
+    const workspace = createInitialWorkspace();
+    const calls: FetchCall[] = [];
+    const fetchMock: typeof fetch = async (input, init) => {
+      calls.push({
+        body: init?.body,
+        method: init?.method ?? "GET",
+        url: String(input),
+      });
+
+      if (String(input).endsWith("/api/repository")) {
+        return jsonResponse({ path: "/data/repository" });
+      }
+
+      if (String(input).endsWith("/api/workspace")) {
+        return jsonResponse(workspace);
+      }
+
+      return jsonResponse({ error: "not found" }, 404);
+    };
+    const repository = createHttpNoteRepository({
+      baseUrl: "http://api.test/base/",
+      fetch: fetchMock,
+    });
+
+    await expect(repository.getRepositoryInfo()).resolves.toEqual({
+      path: "/data/repository",
+    });
+    await expect(repository.loadWorkspace()).resolves.toEqual(workspace);
+    expect(repository.label).toBe("HTTP 后端");
+    expect(repository.canChangeRepositoryPath).toBe(false);
+    expect(calls.map((call) => call.url)).toEqual([
+      "http://api.test/base/api/repository",
+      "http://api.test/base/api/workspace",
+    ]);
+  });
+
+  it("saves and clears workspaces through HTTP", async () => {
+    const workspace = createInitialWorkspace();
+    const calls: FetchCall[] = [];
+    const fetchMock: typeof fetch = async (input, init) => {
+      calls.push({
+        body: init?.body,
+        method: init?.method ?? "GET",
+        url: String(input),
+      });
+
+      return new Response(null, { status: 204 });
+    };
+    const repository = createHttpNoteRepository({
+      baseUrl: "http://api.test",
+      fetch: fetchMock,
+    });
+
+    await repository.saveWorkspace(workspace);
+    await repository.clearWorkspace();
+
+    expect(calls).toEqual([
+      {
+        body: JSON.stringify(workspace),
+        method: "PUT",
+        url: "http://api.test/api/workspace",
+      },
+      {
+        body: undefined,
+        method: "DELETE",
+        url: "http://api.test/api/workspace",
+      },
+    ]);
+  });
+
+  it("reports server errors", async () => {
+    const fetchMock: typeof fetch = async () => {
+      return jsonResponse({ error: "backend failed" }, 500);
+    };
+    const repository = createHttpNoteRepository({ fetch: fetchMock });
+
+    await expect(repository.loadWorkspace()).rejects.toThrow("backend failed");
+  });
+});

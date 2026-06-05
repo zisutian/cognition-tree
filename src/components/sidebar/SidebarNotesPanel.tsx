@@ -54,6 +54,7 @@ type SidebarNotesPanelProps = {
   noteTree: NoteTreeNode[];
   repositoryPath: string;
   storageLabel: string;
+  canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
@@ -73,6 +74,7 @@ export function SidebarNotesPanel({
   noteTree,
   repositoryPath,
   storageLabel,
+  canChangeRepositoryPath,
   onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
@@ -119,6 +121,10 @@ export function SidebarNotesPanel({
   }, [contextMenu]);
 
   const requestRepositoryPath = () => {
+    if (!canChangeRepositoryPath) {
+      return;
+    }
+
     const nextPath = window.prompt("仓库文件夹路径", repositoryPath);
 
     if (nextPath) {
@@ -227,13 +233,15 @@ export function SidebarNotesPanel({
               <RefreshCw aria-hidden="true" size={13} strokeWidth={2} />
               刷新
             </button>
-            <button
-              className="side-action-button"
-              onClick={requestRepositoryPath}
-              type="button"
-            >
-              更改
-            </button>
+            {canChangeRepositoryPath ? (
+              <button
+                className="side-action-button"
+                onClick={requestRepositoryPath}
+                type="button"
+              >
+                更改
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="repository-strip">

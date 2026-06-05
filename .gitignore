@@ -8,10 +8,6 @@ coverage/
 playwright-report/
 test-results/
 
-# Rust / Tauri
-target/
-src-tauri/target/
-
 # Local databases and indexes
 *.db
 *.sqlite

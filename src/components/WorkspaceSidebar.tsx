@@ -25,6 +25,7 @@ type WorkspaceSidebarProps = {
   repositoryPath: string;
   storageLabel: string;
   totalBlocks: number;
+  canChangeRepositoryPath: boolean;
   onActivityChange: (activityId: SidebarActivityId) => void;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
@@ -50,6 +51,7 @@ export function WorkspaceSidebar({
   repositoryPath,
   storageLabel,
   totalBlocks,
+  canChangeRepositoryPath,
   onActivityChange,
   onChangeRepositoryPath,
   onCreateFolder,
@@ -90,6 +92,7 @@ export function WorkspaceSidebar({
           repositoryPath={repositoryPath}
           storageLabel={storageLabel}
           totalBlocks={totalBlocks}
+          canChangeRepositoryPath={canChangeRepositoryPath}
           onChangeRepositoryPath={onChangeRepositoryPath}
           onCreateFolder={onCreateFolder}
           onCreateNote={onCreateNote}

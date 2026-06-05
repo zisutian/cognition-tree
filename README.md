@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-项目处于早期开发阶段，当前路线是浏览器前端 + Docker 后端。
+项目处于早期开发阶段，当前路线是浏览器前端 + 本机 HTTP 后端。
 
 已具备的基础能力：
 
@@ -15,6 +15,7 @@
     TypeScript CTN 解析器
     笔记和目录树领域模型
     NoteRepository 存储端口
+    HTTP NoteRepository 存储适配器
     Node HTTP 后端最小服务
     Vitest 单元测试
 
@@ -28,12 +29,12 @@
 运行软件需要：
 
     浏览器
-    Docker
-    Docker Compose
+    Node.js LTS
+    pnpm
 
 数据保存位置：
 
-    笔记数据保存在 Docker volume。
+    笔记数据保存在本机文件仓库目录。
     后端读写 workspace.json 和 notes/*.ctn。
     浏览器只作为界面入口，不作为长期数据存放位置。
 
@@ -48,15 +49,14 @@
     Git
     Node.js LTS
     pnpm
-    Docker
-    Docker Compose
 
 可选：
 
     sqlite3
     libsqlite3-dev
+    Docker
 
-SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性依赖。Playwright 首次运行浏览器测试时，可能需要额外安装浏览器测试运行时。
+SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性依赖。Docker 后续用于独立容器化阶段，不是当前开发闭环的硬性依赖。Playwright 首次运行浏览器测试时，可能需要额外安装浏览器测试运行时。
 
 基础验证命令：
 
@@ -64,14 +64,12 @@ SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性�
     node -v
     npm -v
     pnpm -v
-    docker --version
-    docker compose version
 
 ## 开发命令
 
     pnpm install
-    pnpm dev
     pnpm server
+    pnpm dev
     pnpm test
     pnpm check
     pnpm build
@@ -81,6 +79,22 @@ SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性�
     node --check server/index.mjs
     node --check server/noteApiServer.mjs
     node --check server/noteFileStore.mjs
+
+前端默认访问：
+
+    http://127.0.0.1:5173
+
+后端默认地址：
+
+    http://127.0.0.1:3001
+
+如需切换后端地址：
+
+    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001 pnpm dev
+
+如需临时使用浏览器本地存储：
+
+    VITE_CTN_STORAGE_MODE=browser pnpm dev
 
 ## 代码结构
 

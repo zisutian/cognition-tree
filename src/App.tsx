@@ -25,6 +25,7 @@ function App() {
     useState<EditorFocusRequest | null>(null);
   const {
     activeNote,
+    canChangeRepositoryPath,
     changeRepositoryPath,
     createFolder,
     createNote,
@@ -77,6 +78,7 @@ function App() {
         storageLabel={storageLabel}
         totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivityId}
+        canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={changeRepositoryPath}
         onCreateFolder={createFolder}
         onCreateNote={createNote}

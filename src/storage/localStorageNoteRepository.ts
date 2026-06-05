@@ -17,9 +17,10 @@ function loadStoredWorkspace() {
   return storedWorkspace ? (JSON.parse(storedWorkspace) as NoteWorkspace) : null;
 }
 
-export function createBrowserNoteRepository(): NoteRepository {
+export function createLocalStorageNoteRepository(): NoteRepository {
   return {
-    label: "浏览器库",
+    label: "浏览器本地存储",
+    canChangeRepositoryPath: true,
     async loadWorkspace() {
       return loadStoredWorkspace();
     },

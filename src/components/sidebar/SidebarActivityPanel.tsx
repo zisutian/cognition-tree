@@ -25,6 +25,7 @@ type SidebarActivityPanelProps = {
   repositoryPath: string;
   storageLabel: string;
   totalBlocks: number;
+  canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
@@ -49,6 +50,7 @@ export function SidebarActivityPanel({
   repositoryPath,
   storageLabel,
   totalBlocks,
+  canChangeRepositoryPath,
   onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
@@ -70,6 +72,7 @@ export function SidebarActivityPanel({
         noteTree={noteTree}
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
+        canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={onChangeRepositoryPath}
         onCreateFolder={onCreateFolder}
         onCreateNote={onCreateNote}

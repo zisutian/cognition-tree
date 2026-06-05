@@ -19,11 +19,13 @@
 
 最近主线：
 
-    Web/Docker 路线已确立。
+    Web/HTTP 路线已确立。
     桌面运行实现已从当前分支剔除。
     NoteRepository 仍是前端存储端口。
+    HTTP NoteRepository 已接入前端。
     Node HTTP 后端最小服务已建立。
-    前端暂用浏览器 localStorage 适配器保持界面可运行。
+    浏览器 localStorage 适配器保留为显式开发模式。
+    Docker 容器化作为后续独立步骤专门引入。
 
 已完成：
 
@@ -35,14 +37,15 @@
     文件夹新建、重命名、删除和笔记移动。
     TypeScript CTN 解析器基础能力。
     顶层 tests/ 单元测试目录。
+    HTTP NoteRepository 前端适配器。
     server/ Node HTTP API 和文件仓库读写逻辑。
 
 当前限制：
 
-    HTTP NoteRepository 尚未接入前端。
-    Dockerfile 和 compose 文件尚未建立。
+    HTTP 存储闭环待审核和提交。
     默认语法代码仍需切换到新版规则。
     跨笔记块迁移尚未实现。
+    Dockerfile、compose 和 volume 持久化验证尚未引入。
 
 
 2. 日常命令
@@ -72,21 +75,18 @@
 
 3. 近期实施顺序
 
-3.1 Web / Docker 存储闭环
+3.1 HTTP 存储闭环提交
 
 目标：
 
-    浏览器前端通过 HTTP API 读写 Docker 后端文件库。
+    浏览器前端通过本机 Node HTTP 后端读写文件仓库，并在审核通过后形成独立提交。
 
 步骤：
 
-    新增 HttpNoteRepository。
-    让 useNoteWorkspace 使用 HTTP 存储适配器。
-    保留浏览器 localStorage 适配器作为开发兜底或测试辅助。
-    增加 Dockerfile。
-    增加 compose 文件。
-    明确 Docker volume 数据目录。
-    验证刷新后数据保留。
+    保留 HttpNoteRepository 作为当前主线存储实现。
+    保留 localStorage 适配器作为显式开发模式。
+    验证新建笔记、编辑内容、刷新后数据保留。
+    审核通过后再提交。
 
 3.2 默认语法代码实现
 
@@ -140,6 +140,19 @@
     增加双笔记结构面板。
     先做点击式“从左移到右”。
     再在同一套移动 API 上接入拖拽交互。
+
+3.6 Docker 打包与部署验证
+
+目标：
+
+    将已经稳定的 HTTP 后端容器化，并验证 Docker volume 持久化。
+
+步骤：
+
+    增加 Dockerfile。
+    增加 compose 文件。
+    明确 volume 数据目录。
+    验证容器重启后数据保留。
 
 
 4. 暂缓事项

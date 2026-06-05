@@ -107,7 +107,7 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 仓库是一个长期存在的知识域，接近 Obsidian vault 的概念。
 
-一个仓库对应 Docker 后端管理的一组持久化文件，当前保存于 Docker volume 内，包含：
+一个仓库对应 HTTP 后端管理的一组持久化文件，当前保存于本机文件仓库目录，包含：
 
     笔记原文文件
     仓库目录树
@@ -402,12 +402,12 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 8.1 存储方式
 
-建议第一版优先使用 Docker 后端文件库。
+建议第一版优先使用本机 HTTP 后端文件库。
 
-    Docker volume 持久化仓库数据。
     workspace.json 保存仓库树、当前笔记、仓库语法资源、仓库当前语法引用和笔记元信息。
     notes/*.ctn 保存每篇笔记的原文内容。
     HTTP API 提供 workspace 读取、保存、清空和仓库信息查询能力。
+    Docker volume 持久化作为后续容器化阶段引入。
     SQLite / FTS5 后续作为搜索、块关系和链接查询的索引缓存。
 
 仓库树只表达文件夹和笔记的组织关系，不保存语法配置。
@@ -601,7 +601,7 @@ Markdown 只是导出格式。
 
 12. 技术路线建议
 
-12.1 Web / Docker 服务模式
+12.1 Web / HTTP 服务模式
 
 第一阶段采用：
 
@@ -611,8 +611,8 @@ Markdown 只是导出格式。
     CodeMirror 6
     TypeScript CTN 解析器
     HTTP NoteRepository
-    Docker 后端
-    Docker volume 文件库
+    Node HTTP 后端
+    本机文件仓库
 
 备选：
 
@@ -626,14 +626,15 @@ Markdown 只是导出格式。
 
 说明：
 
-    第一阶段优先实现浏览器前端访问 Docker 后端。
+    第一阶段优先实现浏览器前端访问本机 Node HTTP 后端。
     React 负责应用界面，浏览器是当前主运行环境。
     Vite 负责前端开发服务器和前端构建。
     CodeMirror 6 负责 .ctn 原文编辑、缩进、快捷键、语法装饰和作用域提示。
     NoteRepository 是前端存储端口。
     HTTP NoteRepository 是当前主线存储实现。
-    Docker 后端负责笔记原文、仓库树、仓库级语法资源和笔记语法引用。
-    Docker volume 保存 workspace.json 和 notes/*.ctn。
+    Node HTTP 后端负责笔记原文、仓库树、仓库级语法资源和笔记语法引用。
+    本机文件仓库保存 workspace.json 和 notes/*.ctn。
+    Docker 后端和 Docker volume 持久化作为后续独立阶段引入。
     SQLite / FTS5 搜索索引作为后续增强，不作为第一阶段必须依赖。
 
 12.2 编辑器核心
@@ -688,7 +689,7 @@ Markdown 只是导出格式。
     Tab / Shift+Tab 调整层级
     支持定义、组分、自我理解、代码块和语法规则块
     支持语法配置文件
-    支持保存到 Docker 后端文件库
+    支持保存到 HTTP 后端文件库
     支持纯文本导出
     支持 JSON 导出
     支持搜索标题和正文
