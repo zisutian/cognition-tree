@@ -18,13 +18,6 @@ type BlockMigrationWorkspacePanelProps = {
   workspace: NoteWorkspace;
 };
 
-function blockOptionLabel(block: CtnBlock) {
-  const prefix = "  ".repeat(block.level);
-  const text = block.text || block.label;
-
-  return `L${block.lineNumber} ${prefix}${block.label}: ${text}`;
-}
-
 function parseTargetPosition(value: string): MoveWorkspaceBlockRequest["targetPosition"] {
   if (value === "end") {
     return { kind: "end" };
@@ -34,6 +27,118 @@ function parseTargetPosition(value: string): MoveWorkspaceBlockRequest["targetPo
     kind: "after-block",
     lineNumber: Number(value.slice("after:".length)),
   };
+}
+
+function getBlockTitle(block: CtnBlock) {
+  return block.text || block.label;
+}
+
+function getBlockLineLabel(block: CtnBlock) {
+  return block.lineNumber === block.endLineNumber
+    ? `L${block.lineNumber}`
+    : `L${block.lineNumber}-${block.endLineNumber}`;
+}
+
+function flattenBlockSubtree(block: CtnBlock): CtnBlock[] {
+  return [block, ...block.children.flatMap(flattenBlockSubtree)];
+}
+
+function MigrationSourceTree({
+  nodes,
+  onSelectLine,
+  selectedLineNumber,
+}: {
+  nodes: CtnBlock[];
+  onSelectLine: (lineNumber: string) => void;
+  selectedLineNumber: string;
+}) {
+  return (
+    <ul className="migration-tree">
+      {nodes.map((node) => {
+        const isSelected = selectedLineNumber === String(node.lineNumber);
+        const hasChildren = node.children.length > 0;
+
+        return (
+          <li key={node.id}>
+            <button
+              className={
+                isSelected
+                  ? "migration-tree-node is-selected"
+                  : "migration-tree-node"
+              }
+              onClick={() => onSelectLine(String(node.lineNumber))}
+              title={`${node.label}: ${getBlockTitle(node)}`}
+              type="button"
+            >
+              <span className="migration-node-kind">{node.label}</span>
+              <span className="migration-node-text">{getBlockTitle(node)}</span>
+              <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
+            </button>
+            {hasChildren ? (
+              <MigrationSourceTree
+                nodes={node.children}
+                onSelectLine={onSelectLine}
+                selectedLineNumber={selectedLineNumber}
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function MigrationTargetTree({
+  nodes,
+  onSelectAfterBlock,
+  selectedPositionValue,
+}: {
+  nodes: CtnBlock[];
+  onSelectAfterBlock: (lineNumber: number) => void;
+  selectedPositionValue: string;
+}) {
+  return (
+    <ul className="migration-tree">
+      {nodes.map((node) => {
+        const positionValue = `after:${node.lineNumber}`;
+        const isSelected = selectedPositionValue === positionValue;
+        const hasChildren = node.children.length > 0;
+
+        return (
+          <li key={node.id}>
+            <div
+              className={
+                isSelected
+                  ? "migration-tree-node target-node is-selected"
+                  : "migration-tree-node target-node"
+              }
+            >
+              <div className="migration-node-main">
+                <span className="migration-node-kind">{node.label}</span>
+                <span className="migration-node-text">{getBlockTitle(node)}</span>
+                <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
+              </div>
+              <button
+                className="migration-node-action"
+                onClick={() => onSelectAfterBlock(node.lineNumber)}
+                title={`插入到 ${getBlockTitle(node)} 之后`}
+                type="button"
+              >
+                之后
+              </button>
+            </div>
+            {hasChildren ? (
+              <MigrationTargetTree
+                nodes={node.children}
+                onSelectAfterBlock={onSelectAfterBlock}
+                selectedPositionValue={selectedPositionValue}
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export function BlockMigrationWorkspacePanel({
@@ -66,9 +171,20 @@ export function BlockMigrationWorkspacePanel({
     sourceParsed?.status === "parsed" ? sourceParsed.document.blocks : [];
   const targetBlocks =
     targetParsed?.status === "parsed" ? targetParsed.document.blocks : [];
+  const sourceRoots =
+    sourceParsed?.status === "parsed" ? sourceParsed.document.roots : [];
+  const targetRoots =
+    targetParsed?.status === "parsed" ? targetParsed.document.roots : [];
   const sourceBlock =
     sourceBlocks.find((block) => String(block.lineNumber) === sourceBlockLineNumber) ??
     null;
+  const sourceSubtreeBlocks = sourceBlock ? flattenBlockSubtree(sourceBlock) : [];
+  const selectedTargetBlock =
+    targetPositionValue === "end"
+      ? null
+      : targetBlocks.find(
+          (block) => targetPositionValue === `after:${block.lineNumber}`,
+        ) ?? null;
   const sourceBlockLineNumberValue = sourceBlock
     ? Number(sourceBlockLineNumber)
     : null;
@@ -162,6 +278,14 @@ export function BlockMigrationWorkspacePanel({
       status: result.status === "moved" ? "success" : "failed",
     });
   };
+  const selectSourceLine = (lineNumber: string) => {
+    setSourceBlockLineNumber(lineNumber);
+    onResultStatusChange(null);
+  };
+  const selectTargetPosition = (positionValue: string) => {
+    setTargetPositionValue(positionValue);
+    onResultStatusChange(null);
+  };
 
   return (
     <section className="workspace-main-panel migration-workspace-panel" aria-label="块迁移">
@@ -198,22 +322,37 @@ export function BlockMigrationWorkspacePanel({
               </option>
             ))}
           </select>
-          <select
-            className="workspace-select block-select"
-            disabled={sourceBlocks.length === 0}
-            size={Math.min(Math.max(sourceBlocks.length, 4), 12)}
-            value={sourceBlockLineNumber}
-            onChange={(event) => {
-              setSourceBlockLineNumber(event.target.value);
-              onResultStatusChange(null);
-            }}
-          >
-            {sourceBlocks.map((block) => (
-              <option key={block.id} value={block.lineNumber}>
-                {blockOptionLabel(block)}
-              </option>
-            ))}
-          </select>
+          <div className="migration-tree-panel">
+            {sourceRoots.length > 0 ? (
+              <MigrationSourceTree
+                nodes={sourceRoots}
+                onSelectLine={selectSourceLine}
+                selectedLineNumber={sourceBlockLineNumber}
+              />
+            ) : (
+              <p className="migration-empty-state">源笔记没有可移动块。</p>
+            )}
+          </div>
+          <section className="migration-selection-card">
+            <p className="workspace-detail-title">将移动的子树</p>
+            {sourceBlock ? (
+              <>
+                <p>
+                  {getBlockLineLabel(sourceBlock)} · {sourceSubtreeBlocks.length} 块
+                </p>
+                <ul className="migration-subtree-list">
+                  {sourceSubtreeBlocks.map((block) => (
+                    <li key={block.id} style={{ paddingLeft: `${block.level * 12}px` }}>
+                      <span>{block.label}</span>
+                      <span>{getBlockTitle(block)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>尚未选择源块。</p>
+            )}
+          </section>
         </section>
 
         <section className="migration-workspace-column">
@@ -234,22 +373,43 @@ export function BlockMigrationWorkspacePanel({
                 </option>
               ))}
           </select>
-          <select
-            className="workspace-select block-select"
-            size={Math.min(Math.max(targetBlocks.length + 1, 4), 12)}
-            value={targetPositionValue}
-            onChange={(event) => {
-              setTargetPositionValue(event.target.value);
-              onResultStatusChange(null);
-            }}
-          >
-            <option value="end">文末，作为根块</option>
-            {targetBlocks.map((block) => (
-              <option key={block.id} value={`after:${block.lineNumber}`}>
-                {blockOptionLabel(block)} 之后
-              </option>
-            ))}
-          </select>
+          <div className="migration-tree-panel">
+            <button
+              className={
+                targetPositionValue === "end"
+                  ? "migration-position-card is-selected"
+                  : "migration-position-card"
+              }
+              onClick={() => selectTargetPosition("end")}
+              type="button"
+            >
+              文末，作为根块
+            </button>
+            {targetRoots.length > 0 ? (
+              <MigrationTargetTree
+                nodes={targetRoots}
+                onSelectAfterBlock={(lineNumber) =>
+                  selectTargetPosition(`after:${lineNumber}`)
+                }
+                selectedPositionValue={targetPositionValue}
+              />
+            ) : (
+              <p className="migration-empty-state">目标笔记没有结构，当前只能插入文末。</p>
+            )}
+          </div>
+          <section className="migration-selection-card">
+            <p className="workspace-detail-title">目标插入位置</p>
+            {targetPositionValue === "end" ? (
+              <p>插入到目标笔记文末，作为根块。</p>
+            ) : selectedTargetBlock ? (
+              <p>
+                插入到 {getBlockLineLabel(selectedTargetBlock)} ·{" "}
+                {getBlockTitle(selectedTargetBlock)} 的整棵子树之后。
+              </p>
+            ) : (
+              <p>目标插入位置不存在。</p>
+            )}
+          </section>
         </section>
       </div>
     </section>
