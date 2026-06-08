@@ -23,8 +23,11 @@ export type {
   CtnDocument,
   CtnInlineSpan,
   CtnInlineSpanType,
+  CtnInlineRule,
   CtnMarkerRule,
+  CtnRuleRole,
   CtnSyntaxProfile,
+  CtnSyntaxTone,
   OutlineNode,
   ParseCtnDocumentOptions,
 } from "./types";
@@ -69,23 +72,30 @@ export function parseCtnDocument(
       id: `block-${lineNumber}`,
       lineNumber,
       endLineNumber:
-        parsedMarker.type === "code"
-          ? findClosingCodeFenceLineNumber(lines, index + 1)
+        parsedMarker.role === "code"
+          ? findClosingCodeFenceLineNumber(
+              lines,
+              index + 1,
+              parsedMarker.marker ?? "",
+            )
           : lineNumber,
       level: indent.level,
       indentText,
       marker: parsedMarker.marker,
       type: parsedMarker.type,
+      role: parsedMarker.role,
+      tone: parsedMarker.tone,
       label: parsedMarker.label,
       text: parsedMarker.text,
       rawText: line,
       inlineSpans:
-        parsedMarker.type === "code"
+        parsedMarker.role === "code"
           ? []
           : parseInlineSpans(
               parsedMarker.text,
               lineNumber,
               parsedMarker.textStartColumn,
+              syntaxProfile.inlineRules,
             ),
       diagnostics: nodeDiagnostics,
       children: [],
@@ -130,7 +140,7 @@ export function parseCtnDocument(
     diagnostics.push(...node.diagnostics);
     stack.push({ level: node.level, node });
 
-    index = node.type === "code" ? node.endLineNumber : index + 1;
+    index = node.role === "code" ? node.endLineNumber : index + 1;
   }
 
   assignBlockEndLineNumbers(blocks, lines.length);

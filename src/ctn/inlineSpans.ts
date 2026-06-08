@@ -1,7 +1,7 @@
-import type { CtnInlineSpan, CtnInlineSpanType } from "./types";
+import type { CtnInlineRule, CtnInlineSpan } from "./types";
 
 function createInlineSpan(
-  type: CtnInlineSpanType,
+  rule: CtnInlineRule,
   lineNumber: number,
   textStartColumn: number,
   startOffset: number,
@@ -11,8 +11,10 @@ function createInlineSpan(
   const startColumn = textStartColumn + startOffset;
 
   return {
-    id: `${lineNumber}-${startColumn}-${type}`,
-    type,
+    id: `${lineNumber}-${startColumn}-${rule.type}`,
+    type: rule.type,
+    label: rule.label,
+    tone: rule.tone,
     lineNumber,
     startColumn,
     endColumn: textStartColumn + endOffset,
@@ -24,84 +26,68 @@ export function parseInlineSpans(
   text: string,
   lineNumber: number,
   textStartColumn: number,
+  inlineRules: CtnInlineRule[],
 ): CtnInlineSpan[] {
   const spans: CtnInlineSpan[] = [];
   let index = 0;
+  const sortedRules = [...inlineRules].sort((left, right) => {
+    const leftLength = left.kind === "paired" ? left.open.length : left.marker.length;
+    const rightLength =
+      right.kind === "paired" ? right.open.length : right.marker.length;
+
+    return rightLength - leftLength;
+  });
 
   while (index < text.length) {
-    if (text[index] === "`") {
-      const closeIndex = text.indexOf("`", index + 1);
+    const matchedRule = sortedRules.find((rule) =>
+      rule.kind === "paired"
+        ? text.startsWith(rule.open, index)
+        : text.startsWith(rule.marker, index),
+    );
 
-      if (closeIndex >= 0) {
-        spans.push(
-          createInlineSpan(
-            "inline-code",
-            lineNumber,
-            textStartColumn,
-            index,
-            closeIndex + 1,
-            text.slice(index + 1, closeIndex),
-          ),
-        );
-        index = closeIndex + 1;
-        continue;
-      }
-    }
-
-    if (text.startsWith("[[", index)) {
-      const closeIndex = text.indexOf("]]", index + 2);
-
-      if (closeIndex >= 0) {
-        spans.push(
-          createInlineSpan(
-            "global-reference",
-            lineNumber,
-            textStartColumn,
-            index,
-            closeIndex + 2,
-            text.slice(index + 2, closeIndex),
-          ),
-        );
-        index = closeIndex + 2;
-        continue;
-      }
-    }
-
-    if (text[index] === "<") {
-      const closeIndex = text.indexOf(">", index + 1);
-
-      if (closeIndex >= 0) {
-        spans.push(
-          createInlineSpan(
-            "local-reference",
-            lineNumber,
-            textStartColumn,
-            index,
-            closeIndex + 1,
-            text.slice(index + 1, closeIndex),
-          ),
-        );
-        index = closeIndex + 1;
-        continue;
-      }
-    }
-
-    if (text[index] === "\\") {
-      spans.push(
-        createInlineSpan(
-          "parallel-separator",
-          lineNumber,
-          textStartColumn,
-          index,
-          index + 1,
-          "\\",
-        ),
-      );
+    if (!matchedRule) {
       index += 1;
       continue;
     }
 
-    index += 1;
+    if (matchedRule.kind === "paired") {
+      const closeIndex = text.indexOf(
+        matchedRule.close,
+        index + matchedRule.open.length,
+      );
+
+      if (closeIndex >= 0) {
+        const endOffset = closeIndex + matchedRule.close.length;
+
+        spans.push(
+          createInlineSpan(
+            matchedRule,
+            lineNumber,
+            textStartColumn,
+            index,
+            endOffset,
+            text.slice(index + matchedRule.open.length, closeIndex),
+          ),
+        );
+        index = endOffset;
+        continue;
+      }
+
+      index += matchedRule.open.length;
+      continue;
+    }
+
+    spans.push(
+      createInlineSpan(
+        matchedRule,
+        lineNumber,
+        textStartColumn,
+        index,
+        index + matchedRule.marker.length,
+        matchedRule.marker,
+      ),
+    );
+    index += matchedRule.marker.length;
   }
 
   return spans;

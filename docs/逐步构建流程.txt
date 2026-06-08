@@ -47,10 +47,11 @@
     独立语法文件 profile 解析、后端读取和默认语法文件生成已提交。
     仓库级语法文件新增、编辑、删除和笔记级语法选择已提交。
     显式跨笔记块迁移闭环已提交。
+    语法界面和迁移界面已从笔记侧栏形态中分化。
 
 当前限制：
 
-    语法界面和迁移界面仍需要从笔记侧栏形态中分化。
+    语法 profile 的 type、行内规则和高亮 tone 表达能力仍偏固定。
     Dockerfile、compose 和 volume 持久化验证尚未引入。
 
 
@@ -82,27 +83,30 @@
 
 3. 近期实施顺序
 
-3.1 工作区界面分化
+3.1 语法 profile 表达能力增强
 
 目标：
 
-    将笔记编辑、语法编辑和块迁移拆成不同主工作区形态，避免语法和迁移继续挤在笔记侧栏里。
+    让语法文件可以声明可扩展 type、受控高亮 tone 和行内规则，同时保持解析底层结构稳定。
 
 步骤：
 
-    notes / outline 保持当前笔记编辑器和结构树。
-    syntax 使用中间主区承载完整 TOML 编辑器，右侧承载 profile 摘要、诊断和保存状态。
-    migration 使用中间主区承载双栏块迁移工作台，右侧承载兼容性和迁移结果。
-    左侧侧栏在 syntax 中只保留语法文件列表和新建/删除入口。
-    左侧侧栏在 migration 中只保留迁移状态摘要。
+    type 改为 ASCII kebab-case 机器语义 ID。
+    marker rule 新增 role，只有 role = code 触发 fenced code block 行为。
+    marker rule 和 inline rule 新增受控 tone。
+    syntax profile 新增 inlineRules，支持 paired 和 single 两种行内规则。
+    role、tone 和 inlineRules 必须显式写入语法文件，不保留旧 schema 兼容入口。
+    前端 TypeScript 与后端 Node TOML parser 同步校验新 schema。
+    编辑器高亮改为使用 tone class，不再依赖 type class。
 
 小提交顺序：
 
-    App 主工作区分支
-    语法侧栏和语法主区拆分
-    迁移侧栏和迁移主区拆分
-    右侧详情区状态展示
-    自动验证和界面审核
+    文档 schema 同步
+    TypeScript 语法模型和默认 profile
+    Node TOML parser 同步
+    CTN 解析器 role / inlineRules 接入
+    CodeMirror tone 高亮接入
+    测试、自动验证和界面审核
 
 3.2 拖拽式块迁移
 

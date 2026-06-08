@@ -14,6 +14,7 @@ export function NoteEditorPanel({
   syntaxIssueMessage,
   syntaxProfiles,
   title,
+  workspaceErrorMessage,
   onCreateNote,
   onDocumentTextChange,
   onSyntaxProfileChange,
@@ -26,6 +27,7 @@ export function NoteEditorPanel({
   syntaxIssueMessage: string | null;
   syntaxProfiles: CtnSyntaxProfile[];
   title: string;
+  workspaceErrorMessage: string;
   onCreateNote: () => void;
   onDocumentTextChange: (source: string) => void;
   onSyntaxProfileChange: (syntaxProfileId: string, syntaxVersion: number) => void;
@@ -108,6 +110,13 @@ export function NoteEditorPanel({
         <section className="diagnostics-panel" aria-label="语法状态">
           <h3>语法</h3>
           <p>{syntaxIssueMessage}</p>
+        </section>
+      ) : null}
+
+      {workspaceErrorMessage ? (
+        <section className="diagnostics-panel" aria-label="工作区状态">
+          <h3>工作区</h3>
+          <p>{workspaceErrorMessage}</p>
         </section>
       ) : null}
 

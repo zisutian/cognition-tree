@@ -1,5 +1,6 @@
 import type { CtnSyntaxProfile } from "../ctn/parseOutline";
 import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
+import { getSyntaxProfileShapeError } from "../syntax/profileValidation";
 
 export type NoteId = string;
 export type FolderId = string;
@@ -86,6 +87,17 @@ export function resolveNoteSyntaxProfile(
   );
 
   if (profile) {
+    const shapeError = getSyntaxProfileShapeError(profile);
+
+    if (shapeError) {
+      return {
+        status: "missing-profile",
+        message: shapeError,
+        syntaxProfileId: note.syntaxProfileId,
+        syntaxVersion: note.syntaxVersion,
+      };
+    }
+
     return { status: "resolved", profile };
   }
 
@@ -105,6 +117,16 @@ export function resolveWorkspaceSyntaxProfile(
   );
 
   if (profile) {
+    const shapeError = getSyntaxProfileShapeError(profile);
+
+    if (shapeError) {
+      return {
+        status: "missing-profile",
+        message: shapeError,
+        syntaxProfileId: workspace.defaultSyntaxProfileId,
+      };
+    }
+
     return { status: "resolved", profile };
   }
 

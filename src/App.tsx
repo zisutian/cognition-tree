@@ -80,6 +80,7 @@ function App() {
     updateActiveNoteSyntaxProfile,
     updateSyntaxFile,
     workspace,
+    workspaceErrorMessage,
   } = useNoteWorkspace();
   const documentText = activeNote?.source ?? "";
   const activeSyntaxProfileResolution = useMemo(
@@ -241,6 +242,7 @@ function App() {
         parsedDocument={parsedDocument}
         syntaxProfile={activeSyntaxProfile}
         syntaxIssueMessage={syntaxIssueMessage}
+        workspaceErrorMessage={workspaceErrorMessage}
         syntaxProfiles={workspace.syntaxProfiles}
         title={activeNote?.title ?? "本地笔记库"}
         onCreateNote={createNote}

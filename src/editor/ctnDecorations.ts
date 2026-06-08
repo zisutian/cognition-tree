@@ -8,11 +8,18 @@ import {
 import {
   parseCtnDocument,
   type CtnBlock,
+  type CtnInlineSpan,
   type CtnSyntaxProfile,
 } from "../ctn/parseOutline";
 
 function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
-  return `${syntaxProfile.id}@${syntaxProfile.version}`;
+  return JSON.stringify({
+    id: syntaxProfile.id,
+    inlineRules: syntaxProfile.inlineRules,
+    markerRules: syntaxProfile.markerRules,
+    spaceIndentUnit: syntaxProfile.spaceIndentUnit,
+    version: syntaxProfile.version,
+  });
 }
 
 function isRootConceptBlock(block: CtnBlock) {
@@ -56,6 +63,14 @@ export function shouldDecorateMarker(block: CtnBlock) {
   );
 }
 
+export function getMarkerDecorationClass(block: CtnBlock) {
+  return `ctn-marker ctn-tone-${block.tone}`;
+}
+
+export function getInlineDecorationClass(span: CtnInlineSpan) {
+  return `ctn-inline ctn-tone-${span.tone}`;
+}
+
 function buildCtnDecorations(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
@@ -66,7 +81,7 @@ function buildCtnDecorations(
   });
 
   for (const block of parsedDocument.blocks) {
-    if (block.type === "code" && block.endLineNumber > block.lineNumber) {
+    if (block.role === "code" && block.endLineNumber > block.lineNumber) {
       for (
         let lineNumber = block.lineNumber;
         lineNumber <= block.endLineNumber;
@@ -102,7 +117,7 @@ function buildCtnDecorations(
     }
 
     const line = view.state.doc.line(block.lineNumber);
-    const lineClasses = ["ctn-line", `ctn-line-${block.type}`];
+    const lineClasses = ["ctn-line", `ctn-tone-${block.tone}`];
 
     if (isRootConceptBlock(block)) {
       lineClasses.push("ctn-line-root-concept");
@@ -149,7 +164,7 @@ function buildCtnDecorations(
           decorations.push(
             Decoration.mark({
               attributes: {
-                class: `ctn-marker ctn-marker-${block.type}`,
+                class: getMarkerDecorationClass(block),
               },
             }).range(
               line.from + markerStart,
@@ -168,7 +183,7 @@ function buildCtnDecorations(
         decorations.push(
           Decoration.mark({
             attributes: {
-              class: `ctn-inline ctn-inline-${span.type}`,
+              class: getInlineDecorationClass(span),
             },
           }).range(spanStart, spanEnd),
         );

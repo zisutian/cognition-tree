@@ -132,6 +132,7 @@ export function useNoteWorkspace() {
     return createInitialWorkspace();
   });
   const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
+  const [workspaceErrorMessage, setWorkspaceErrorMessage] = useState("");
   const [repositoryPath, setRepositoryPath] = useState("");
   const [syntaxFiles, setSyntaxFiles] = useState<SyntaxProfileFile[]>([]);
   const [selectedFolderId, setSelectedFolderId] =
@@ -144,22 +145,34 @@ export function useNoteWorkspace() {
       repository.loadWorkspace(),
       repository.getRepositoryInfo(),
       repository.listSyntaxFiles(),
-    ]).then(([storedWorkspace, repositoryInfo, storedSyntaxFiles]) => {
-      if (!isActive) {
-        return;
-      }
+    ])
+      .then(([storedWorkspace, repositoryInfo, storedSyntaxFiles]) => {
+        if (!isActive) {
+          return;
+        }
 
-      setRepositoryPath(repositoryInfo.path);
-      const nextWorkspace = applySyntaxFilesToWorkspace(
-        storedWorkspace,
-        storedSyntaxFiles,
-      );
+        setRepositoryPath(repositoryInfo.path);
+        const nextWorkspace = applySyntaxFilesToWorkspace(
+          storedWorkspace,
+          storedSyntaxFiles,
+        );
 
-      setSyntaxFiles(storedSyntaxFiles);
-      setWorkspace(nextWorkspace);
-      setSelectedFolderId(resolveExistingFolderId(nextWorkspace, defaultFolderId));
-      setIsWorkspaceLoaded(true);
-    });
+        setSyntaxFiles(storedSyntaxFiles);
+        setWorkspace(nextWorkspace);
+        setSelectedFolderId(resolveExistingFolderId(nextWorkspace, defaultFolderId));
+        setWorkspaceErrorMessage("");
+        setIsWorkspaceLoaded(true);
+      })
+      .catch((error: unknown) => {
+        if (!isActive) {
+          return;
+        }
+
+        setWorkspaceErrorMessage(
+          error instanceof Error ? error.message : "工作区加载失败。",
+        );
+        setIsWorkspaceLoaded(false);
+      });
 
     return () => {
       isActive = false;
@@ -258,25 +271,33 @@ export function useNoteWorkspace() {
 
   const reloadWorkspace = async () => {
     setIsWorkspaceLoaded(false);
+    setWorkspaceErrorMessage("");
 
-    const [storedWorkspace, repositoryInfo, storedSyntaxFiles] = await Promise.all([
-      repository.loadWorkspace(),
-      repository.getRepositoryInfo(),
-      repository.listSyntaxFiles(),
-    ]);
+    try {
+      const [storedWorkspace, repositoryInfo, storedSyntaxFiles] =
+        await Promise.all([
+          repository.loadWorkspace(),
+          repository.getRepositoryInfo(),
+          repository.listSyntaxFiles(),
+        ]);
 
-    setRepositoryPath(repositoryInfo.path);
-    const nextWorkspace = applySyntaxFilesToWorkspace(
-      storedWorkspace,
-      storedSyntaxFiles,
-    );
+      setRepositoryPath(repositoryInfo.path);
+      const nextWorkspace = applySyntaxFilesToWorkspace(
+        storedWorkspace,
+        storedSyntaxFiles,
+      );
 
-    setSyntaxFiles(storedSyntaxFiles);
-    setWorkspace(nextWorkspace);
-    setSelectedFolderId((currentFolderId) =>
-      resolveExistingFolderId(nextWorkspace, currentFolderId),
-    );
-    setIsWorkspaceLoaded(true);
+      setSyntaxFiles(storedSyntaxFiles);
+      setWorkspace(nextWorkspace);
+      setSelectedFolderId((currentFolderId) =>
+        resolveExistingFolderId(nextWorkspace, currentFolderId),
+      );
+      setIsWorkspaceLoaded(true);
+    } catch (error) {
+      setWorkspaceErrorMessage(
+        error instanceof Error ? error.message : "工作区加载失败。",
+      );
+    }
   };
 
   const deleteNote = (noteId: NoteId) => {
@@ -621,5 +642,6 @@ export function useNoteWorkspace() {
     updateActiveNoteSyntaxProfile,
     updateSyntaxFile,
     workspace,
+    workspaceErrorMessage,
   };
 }

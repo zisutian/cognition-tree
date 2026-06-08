@@ -25,6 +25,8 @@
     notes/*.ctn
     syntax/*.toml
 
+语法文件使用 TOML。当前支持行首 marker、行内规则和受控高亮 tone；块 `type` 是可扩展语义 ID，解析行为由 `role` 控制。
+
 ## 运行环境
 
 运行软件需要：

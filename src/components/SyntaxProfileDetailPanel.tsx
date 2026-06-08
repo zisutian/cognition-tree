@@ -74,7 +74,37 @@ export function SyntaxProfileDetailPanel({
                 <div className="workspace-marker-entry" key={rule.marker}>
                   <code>{rule.marker}</code>
                   <span>{rule.label}</span>
-                  <small>{rule.type}</small>
+                  <small>
+                    {rule.type} / {rule.role} / {rule.tone}
+                  </small>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="workspace-detail-section">
+          <p className="workspace-detail-title">Inline Rules</p>
+          {draftProfile ? (
+            <div className="workspace-marker-list">
+              {draftProfile.inlineRules.map((rule) => (
+                <div
+                  className="workspace-marker-entry"
+                  key={
+                    rule.kind === "paired"
+                      ? `${rule.kind}-${rule.open}-${rule.close}`
+                      : `${rule.kind}-${rule.marker}`
+                  }
+                >
+                  <code>
+                    {rule.kind === "paired"
+                      ? `${rule.open}…${rule.close}`
+                      : rule.marker}
+                  </code>
+                  <span>{rule.label}</span>
+                  <small>
+                    {rule.type} / {rule.kind} / {rule.tone}
+                  </small>
                 </div>
               ))}
             </div>

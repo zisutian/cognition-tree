@@ -46,6 +46,7 @@ describe("parseCtnDocument", () => {
       label: "代码块",
       lineNumber: 5,
       marker: "```",
+      role: "code",
       text: "ts",
       type: "code",
     });
@@ -182,7 +183,13 @@ Sibling
         ...defaultCtnSyntaxProfile,
         id: "restricted-profile",
         markerRules: [
-          { marker: "```", type: "code", label: "代码块" },
+          {
+            marker: "```",
+            type: "code",
+            label: "代码块",
+            role: "code",
+            tone: "code",
+          },
         ],
       },
     });
@@ -265,7 +272,13 @@ Sibling
           spaceIndentUnit: 4,
           markerRules: [
             ...defaultCtnSyntaxProfile.markerRules,
-            { marker: "!", type: "component", label: "重点" },
+            {
+              marker: "!",
+              type: "risk",
+              label: "重点",
+              role: "normal",
+              tone: "red",
+            },
           ],
         },
       },
@@ -277,7 +290,80 @@ Sibling
       level: 1,
       marker: "!",
       text: "Custom item",
-      type: "component",
+      tone: "red",
+      type: "risk",
     });
+  });
+
+  it("uses role instead of type for fenced code block behavior", () => {
+    const document = parseCtnDocument(`Root
+    ~ js
+    : Raw definition
+    ~
+    ! Normal custom`, {
+      syntaxProfile: {
+        ...defaultCtnSyntaxProfile,
+        id: "role-profile",
+        markerRules: [
+          {
+            label: "代码片段",
+            marker: "~",
+            role: "code",
+            tone: "code",
+            type: "snippet",
+          },
+          {
+            label: "风险",
+            marker: "!",
+            role: "normal",
+            tone: "red",
+            type: "risk",
+          },
+        ],
+      },
+    });
+
+    expect(document.diagnostics).toHaveLength(0);
+    expect(document.roots[0].children.map((node) => node.type)).toEqual([
+      "snippet",
+      "risk",
+    ]);
+    expect(document.roots[0].children[0]).toMatchObject({
+      endLineNumber: 4,
+      inlineSpans: [],
+      role: "code",
+      text: "js",
+    });
+  });
+
+  it("reads inline structural spans from the syntax profile", () => {
+    const document = parseCtnDocument("Root <<external>> A | B <ignored>", {
+      syntaxProfile: {
+        ...defaultCtnSyntaxProfile,
+        id: "inline-profile",
+        inlineRules: [
+          {
+            close: ">>",
+            kind: "paired",
+            label: "外部引用",
+            open: "<<",
+            tone: "violet",
+            type: "external-reference",
+          },
+          {
+            kind: "single",
+            label: "选择分隔",
+            marker: "|",
+            tone: "amber",
+            type: "choice-separator",
+          },
+        ],
+      },
+    });
+
+    expect(document.roots[0].inlineSpans.map((span) => [span.type, span.text])).toEqual([
+      ["external-reference", "external"],
+      ["choice-separator", "|"],
+    ]);
   });
 });

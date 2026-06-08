@@ -1,12 +1,20 @@
 import { createDiagnostic } from "./diagnostics";
-import type { CtnBlockType, CtnDiagnostic, CtnMarkerRule } from "./types";
+import type {
+  CtnBlockType,
+  CtnDiagnostic,
+  CtnMarkerRule,
+  CtnRuleRole,
+  CtnSyntaxTone,
+} from "./types";
 
 export type ParsedLineMarker = {
   diagnostics: CtnDiagnostic[];
   label: string;
   marker: string | null;
+  role: CtnRuleRole;
   text: string;
   textStartColumn: number;
+  tone: CtnSyntaxTone;
   type: CtnBlockType;
 };
 
@@ -36,9 +44,11 @@ export function parseMarker(
       diagnostics: [],
       label: matchedRule.label,
       marker: matchedRule.marker,
+      role: matchedRule.role,
       text: textAfterMarker.trim(),
       textStartColumn:
         indentWidth + matchedRule.marker.length + textLeadingWhitespace + 1,
+      tone: matchedRule.tone,
       type: matchedRule.type,
     };
   }
@@ -63,8 +73,10 @@ export function parseMarker(
         ],
         label: "未知符号",
         marker,
+        role: "normal",
         text: textAfterMarker.trim(),
         textStartColumn: indentWidth + marker.length + textLeadingWhitespace + 1,
+        tone: "default",
         type: "text",
       };
     }
@@ -88,9 +100,11 @@ export function parseMarker(
       ],
       label: "未知符号",
       marker: unknownLineStartMarker,
+      role: "normal",
       text: textAfterMarker.trim(),
       textStartColumn:
         indentWidth + unknownLineStartMarker.length + textLeadingWhitespace + 1,
+      tone: "default",
       type: "text",
     };
   }
@@ -99,8 +113,10 @@ export function parseMarker(
     diagnostics: [],
     label: "概念",
     marker: null,
+    role: "normal",
     text: trimmed,
     textStartColumn: indentWidth + 1,
+    tone: "default",
     type: "concept",
   };
 }

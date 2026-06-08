@@ -1,20 +1,23 @@
-export type CtnBlockType =
-  | "concept"
-  | "definition"
-  | "component"
-  | "personal-understanding"
-  | "code"
-  | "text";
+export type CtnBlockType = string;
 
-export type CtnInlineSpanType =
-  | "inline-code"
-  | "local-reference"
-  | "global-reference"
-  | "parallel-separator";
+export type CtnRuleRole = "normal" | "code";
+
+export type CtnSyntaxTone =
+  | "default"
+  | "green"
+  | "blue"
+  | "amber"
+  | "red"
+  | "violet"
+  | "code";
+
+export type CtnInlineSpanType = string;
 
 export type CtnInlineSpan = {
   id: string;
   type: CtnInlineSpanType;
+  label: string;
+  tone: CtnSyntaxTone;
   lineNumber: number;
   startColumn: number;
   endColumn: number;
@@ -46,6 +49,8 @@ export type CtnBlock = {
   indentText: string;
   marker: string | null;
   type: CtnBlockType;
+  role: CtnRuleRole;
+  tone: CtnSyntaxTone;
   label: string;
   text: string;
   rawText: string;
@@ -66,7 +71,28 @@ export type CtnMarkerRule = {
   marker: string;
   type: CtnBlockType;
   label: string;
+  role: CtnRuleRole;
+  tone: CtnSyntaxTone;
 };
+
+export type CtnInlineRuleBase = {
+  type: CtnInlineSpanType;
+  label: string;
+  tone: CtnSyntaxTone;
+};
+
+export type CtnPairedInlineRule = CtnInlineRuleBase & {
+  kind: "paired";
+  open: string;
+  close: string;
+};
+
+export type CtnSingleInlineRule = CtnInlineRuleBase & {
+  kind: "single";
+  marker: string;
+};
+
+export type CtnInlineRule = CtnPairedInlineRule | CtnSingleInlineRule;
 
 export type CtnSyntaxProfile = {
   id: string;
@@ -74,6 +100,7 @@ export type CtnSyntaxProfile = {
   version: number;
   spaceIndentUnit: number;
   markerRules: CtnMarkerRule[];
+  inlineRules: CtnInlineRule[];
 };
 
 export type ParseCtnDocumentOptions = {

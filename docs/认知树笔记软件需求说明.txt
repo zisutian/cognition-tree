@@ -57,6 +57,9 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
     符号长什么样
     符号对应什么语义
+    语义 type ID
+    行内符号规则
+    受控高亮 tone
     某类块能否有子块
     某类块如何显示
     某类块如何导出
@@ -66,8 +69,8 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     行
     缩进
     父子块
-    块类型
-    行内标记
+    解析 role 集合
+    tone 令牌集合
     引用
     转义
     语法版本
@@ -263,11 +266,9 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     配置名称
     版本号
     缩进规则
-    块规则
+    行首 marker 规则
     行内规则
-    转义规则
-    显示规则
-    导出规则
+    受控显示 tone
 
 6.2 第一版 TOML 结构
 
@@ -277,21 +278,65 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     spaceIndentUnit = 4
 
     [[markers]]
+    marker = "```"
+    type = "code"
+    label = "代码块"
+    role = "code"
+    tone = "code"
+
+    [[markers]]
     marker = ":"
     type = "definition"
     label = "定义"
+    role = "normal"
+    tone = "green"
 
     [[markers]]
     marker = ">"
     type = "personal-understanding"
     label = "理解"
+    role = "normal"
+    tone = "green"
 
     [[markers]]
     marker = "-"
     type = "component"
     label = "组分"
+    role = "normal"
+    tone = "blue"
 
-第一版只支持 profile 基本信息、缩进单位和行首 marker rules。
+    [[inlineRules]]
+    kind = "paired"
+    open = "`"
+    close = "`"
+    type = "inline-code"
+    label = "行内代码"
+    tone = "code"
+
+    [[inlineRules]]
+    kind = "paired"
+    open = "<"
+    close = ">"
+    type = "local-reference"
+    label = "局部概念引用"
+    tone = "green"
+
+    [[inlineRules]]
+    kind = "paired"
+    open = "[["
+    close = "]]"
+    type = "global-reference"
+    label = "全局概念引用"
+    tone = "blue"
+
+    [[inlineRules]]
+    kind = "single"
+    marker = "\\"
+    type = "parallel-separator"
+    label = "并列分隔"
+    tone = "amber"
+
+第一版支持 profile 基本信息、缩进单位、行首 marker rules、行内 inline rules 和受控高亮 tone。
 
 必填字段：
 
@@ -308,8 +353,18 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     spaceIndentUnit 必须是正整数。
     markers 必须是非空数组。
     marker、type、label 必须是非空字符串。
+    marker rule 必须显式提供 role 和 tone。
     marker 不允许重复。
-    type 必须属于内置稳定块类型。
+    type 必须是 ASCII kebab-case 机器语义 ID，例如 definition、risk、claim-source。
+    role 只能是 normal 或 code。
+    只有 role = "code" 的 marker 触发 fenced code block 解析行为。
+    tone 只能使用 default、green、blue、amber、red、violet、code。
+    inlineRules 必须显式提供；空数组表示禁用所有行内结构。
+    inlineRules 可声明成对规则和单符号规则。
+    inlineRules 中 kind 只能是 paired 或 single。
+    paired 规则必须提供 open 和 close。
+    single 规则必须提供 marker。
+    inline rule 的 type、label 和 tone 与 marker rule 使用同一套约束。
     第一版不接受 schema 之外的字段。
 
 第一版不支持语法继承、笔记级语法导入、在 `.ctn` 正文里定义语法、自动修改目标笔记语法。

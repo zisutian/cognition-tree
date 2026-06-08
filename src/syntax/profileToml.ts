@@ -2,9 +2,11 @@
 
 import { parse } from "smol-toml";
 import type {
-  CtnBlockType,
+  CtnInlineRule,
   CtnMarkerRule,
+  CtnRuleRole,
   CtnSyntaxProfile,
+  CtnSyntaxTone,
 } from "../ctn/types";
 import { defaultCtnSyntaxProfile } from "./defaultSyntaxProfile";
 
@@ -14,7 +16,7 @@ export type SyntaxProfileTomlDiagnosticCode =
   | "invalid-field"
   | "unsupported-field"
   | "duplicate-marker"
-  | "unknown-block-type";
+  | "invalid-type-id";
 
 export type SyntaxProfileTomlDiagnostic = {
   code: SyntaxProfileTomlDiagnosticCode;
@@ -29,17 +31,35 @@ export type ParseSyntaxProfileTomlResult = {
   profile: CtnSyntaxProfile | null;
 };
 
-const allowedBlockTypes = new Set<CtnBlockType>([
-  "concept",
-  "definition",
-  "component",
-  "personal-understanding",
+const validRoles = new Set<CtnRuleRole>(["normal", "code"]);
+const validTones = new Set<CtnSyntaxTone>([
+  "default",
+  "green",
+  "blue",
+  "amber",
+  "red",
+  "violet",
   "code",
-  "text",
 ]);
-
-const rootFields = new Set(["id", "name", "version", "spaceIndentUnit", "markers"]);
-const markerFields = new Set(["marker", "type", "label"]);
+const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
+const rootFields = new Set([
+  "id",
+  "name",
+  "version",
+  "spaceIndentUnit",
+  "markers",
+  "inlineRules",
+]);
+const markerFields = new Set(["marker", "type", "label", "role", "tone"]);
+const inlineRuleFields = new Set([
+  "kind",
+  "type",
+  "label",
+  "tone",
+  "open",
+  "close",
+  "marker",
+]);
 
 function createDiagnostic(
   code: SyntaxProfileTomlDiagnosticCode,
@@ -137,6 +157,72 @@ function formatTomlString(value: string): string {
   return JSON.stringify(value);
 }
 
+function validateSemanticTypeId(
+  value: string | null,
+  path: string,
+  diagnostics: SyntaxProfileTomlDiagnostic[],
+) {
+  if (value && !semanticIdPattern.test(value)) {
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-type-id",
+        path,
+        `${value} 必须是 ASCII kebab-case 语义 ID。`,
+      ),
+    );
+  }
+}
+
+function readRequiredRole(
+  value: Record<string, unknown>,
+  path: string,
+  diagnostics: SyntaxProfileTomlDiagnostic[],
+): CtnRuleRole {
+  const role = readRequiredString(value, "role", path, diagnostics);
+
+  if (!role) {
+    return "normal";
+  }
+
+  if (!validRoles.has(role as CtnRuleRole)) {
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-field",
+        `${path}.role`,
+        `role 只能是 ${[...validRoles].join("、")}。`,
+      ),
+    );
+    return "normal";
+  }
+
+  return role as CtnRuleRole;
+}
+
+function readRequiredTone(
+  value: Record<string, unknown>,
+  path: string,
+  diagnostics: SyntaxProfileTomlDiagnostic[],
+): CtnSyntaxTone {
+  const tone = readRequiredString(value, "tone", path, diagnostics);
+
+  if (!tone) {
+    return "default";
+  }
+
+  if (!validTones.has(tone as CtnSyntaxTone)) {
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-field",
+        `${path}.tone`,
+        `tone 只能是 ${[...validTones].join("、")}。`,
+      ),
+    );
+    return "default";
+  }
+
+  return tone as CtnSyntaxTone;
+}
+
 function validateMarkers(
   value: unknown,
   diagnostics: SyntaxProfileTomlDiagnostic[],
@@ -170,6 +256,8 @@ function validateMarkers(
     const marker = readRequiredString(markerValue, "marker", path, diagnostics);
     const type = readRequiredString(markerValue, "type", path, diagnostics);
     const label = readRequiredString(markerValue, "label", path, diagnostics);
+    const role = readRequiredRole(markerValue, path, diagnostics);
+    const tone = readRequiredTone(markerValue, path, diagnostics);
 
     if (marker && markers.has(marker)) {
       diagnostics.push(
@@ -181,17 +269,9 @@ function validateMarkers(
       );
     }
 
-    if (type && !allowedBlockTypes.has(type as CtnBlockType)) {
-      diagnostics.push(
-        createDiagnostic(
-          "unknown-block-type",
-          `${path}.type`,
-          `未知块类型 ${type}。`,
-        ),
-      );
-    }
+    validateSemanticTypeId(type, `${path}.type`, diagnostics);
 
-    if (!marker || !type || !label || !allowedBlockTypes.has(type as CtnBlockType)) {
+    if (!marker || !type || !label || !semanticIdPattern.test(type)) {
       return;
     }
 
@@ -199,11 +279,112 @@ function validateMarkers(
     markerRules.push({
       label,
       marker,
-      type: type as CtnBlockType,
+      role,
+      tone,
+      type,
     });
   });
 
   return markerRules;
+}
+
+function validateInlineRules(
+  value: unknown,
+  diagnostics: SyntaxProfileTomlDiagnostic[],
+): CtnInlineRule[] {
+  if (value === undefined) {
+    diagnostics.push(
+      createDiagnostic(
+        "missing-field",
+        "inlineRules",
+        "缺少字段 inlineRules。",
+      ),
+    );
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-field",
+        "inlineRules",
+        "inlineRules 必须是数组。",
+      ),
+    );
+    return [];
+  }
+
+  const inlineRules: CtnInlineRule[] = [];
+
+  value.forEach((ruleValue, index) => {
+    const path = `inlineRules[${index}]`;
+
+    if (!isRecord(ruleValue)) {
+      diagnostics.push(
+        createDiagnostic("invalid-field", path, "inline rule 必须是对象。"),
+      );
+      return;
+    }
+
+    validateSupportedFields(ruleValue, inlineRuleFields, path, diagnostics);
+
+    const kind = readRequiredString(ruleValue, "kind", path, diagnostics);
+    const type = readRequiredString(ruleValue, "type", path, diagnostics);
+    const label = readRequiredString(ruleValue, "label", path, diagnostics);
+    const tone = readRequiredTone(ruleValue, path, diagnostics);
+
+    validateSemanticTypeId(type, `${path}.type`, diagnostics);
+
+    if (!kind || !type || !label || !semanticIdPattern.test(type)) {
+      return;
+    }
+
+    if (kind === "paired") {
+      const open = readRequiredString(ruleValue, "open", path, diagnostics);
+      const close = readRequiredString(ruleValue, "close", path, diagnostics);
+
+      if (!open || !close) {
+        return;
+      }
+
+      inlineRules.push({
+        close,
+        kind,
+        label,
+        open,
+        tone,
+        type,
+      });
+      return;
+    }
+
+    if (kind === "single") {
+      const marker = readRequiredString(ruleValue, "marker", path, diagnostics);
+
+      if (!marker) {
+        return;
+      }
+
+      inlineRules.push({
+        kind,
+        label,
+        marker,
+        tone,
+        type,
+      });
+      return;
+    }
+
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-field",
+        `${path}.kind`,
+        "kind 只能是 paired 或 single。",
+      ),
+    );
+  });
+
+  return inlineRules;
 }
 
 export function parseSyntaxProfileToml(
@@ -259,6 +440,7 @@ export function parseSyntaxProfileToml(
     diagnostics,
   );
   const markerRules = validateMarkers(parsed.markers, diagnostics);
+  const inlineRules = validateInlineRules(parsed.inlineRules, diagnostics);
 
   if (
     diagnostics.length > 0 ||
@@ -278,6 +460,7 @@ export function parseSyntaxProfileToml(
     diagnostics: [],
     profile: {
       id,
+      inlineRules,
       markerRules,
       name,
       spaceIndentUnit,
@@ -290,10 +473,22 @@ export function formatSyntaxProfileToml(
   profile: CtnSyntaxProfile = defaultCtnSyntaxProfile,
 ): string {
   const lines = [
+    "# CTN 语法配置文件。",
+    "# id：稳定的机器标识，供笔记和仓库默认语法引用。",
+    "# name：界面中显示的人类可读名称。",
+    "# version：正整数版本号。笔记通过 id + version 指向语法。",
+    "# spaceIndentUnit：每一层 CTN 树缩进使用的空格数。当前默认值为 4。",
     `id = ${formatTomlString(profile.id)}`,
     `name = ${formatTomlString(profile.name)}`,
     `version = ${profile.version}`,
     `spaceIndentUnit = ${profile.spaceIndentUnit}`,
+    "",
+    "# markers：行首块规则。",
+    "# marker：缩进之后匹配的字面量行首标记。",
+    "# type：可扩展的语义 ID，使用 ASCII kebab-case。",
+    "# label：该规则在界面中显示的名称。",
+    '# role：解析行为。"normal" 表示普通块；"code" 表示 fenced code block。',
+    "# tone：受控高亮令牌，可选 default、green、blue、amber、red、violet、code。",
   ];
 
   for (const markerRule of profile.markerRules) {
@@ -303,6 +498,39 @@ export function formatSyntaxProfileToml(
       `marker = ${formatTomlString(markerRule.marker)}`,
       `type = ${formatTomlString(markerRule.type)}`,
       `label = ${formatTomlString(markerRule.label)}`,
+      `role = ${formatTomlString(markerRule.role)}`,
+      `tone = ${formatTomlString(markerRule.tone)}`,
+    );
+  }
+
+  lines.push(
+    "",
+    "# inlineRules：普通块内部的行内结构规则。",
+    '# kind = "paired"：匹配 open 和 close 之间的文本。',
+    '# kind = "single"：匹配一个字面量标记。',
+    "# type、label、tone 的含义与 markers 中一致。",
+  );
+
+  for (const inlineRule of profile.inlineRules) {
+    lines.push(
+      "",
+      "[[inlineRules]]",
+      `kind = ${formatTomlString(inlineRule.kind)}`,
+    );
+
+    if (inlineRule.kind === "paired") {
+      lines.push(
+        `open = ${formatTomlString(inlineRule.open)}`,
+        `close = ${formatTomlString(inlineRule.close)}`,
+      );
+    } else {
+      lines.push(`marker = ${formatTomlString(inlineRule.marker)}`);
+    }
+
+    lines.push(
+      `type = ${formatTomlString(inlineRule.type)}`,
+      `label = ${formatTomlString(inlineRule.label)}`,
+      `tone = ${formatTomlString(inlineRule.tone)}`,
     );
   }
 

@@ -10,6 +10,7 @@ import type {
   MoveNoteBlockActionResult,
   MoveNoteBlockRequest,
 } from "../hooks/useNoteWorkspace";
+import { getSyntaxProfileShapeError } from "../syntax/profileValidation";
 import type { BlockMigrationPanelStatus } from "./BlockMigrationStatusPanel";
 
 type BlockMigrationWorkspacePanelProps = {
@@ -54,6 +55,16 @@ function parseMigrationNote(
   if (!syntaxProfile) {
     return {
       message: `笔记引用的语法 ${note.syntaxProfileId}@${note.syntaxVersion} 不存在。`,
+      note,
+      status: "missing-profile",
+    };
+  }
+
+  const shapeError = getSyntaxProfileShapeError(syntaxProfile);
+
+  if (shapeError) {
+    return {
+      message: shapeError,
       note,
       status: "missing-profile",
     };

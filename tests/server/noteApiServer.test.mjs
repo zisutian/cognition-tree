@@ -158,11 +158,14 @@ describe("note API request handler", () => {
 name = "自定义语法"
 version = 1
 spaceIndentUnit = 4
+inlineRules = []
 
 [[markers]]
 marker = "!"
 type = "component"
 label = "风险"
+role = "normal"
+tone = "red"
 `;
 
       await expect(

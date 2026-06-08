@@ -125,11 +125,14 @@ describe("NoteFileStore", () => {
 name = "自定义语法"
 version = 1
 spaceIndentUnit = 4
+inlineRules = []
 
 [[markers]]
 marker = "!"
 type = "component"
 label = "风险"
+role = "normal"
+tone = "red"
 `,
         "utf8",
       );
@@ -138,7 +141,16 @@ label = "风险"
         defaultSyntaxProfile,
         {
           id: "ctn-custom",
-          markerRules: [{ marker: "!", type: "component", label: "风险" }],
+          inlineRules: [],
+          markerRules: [
+            {
+              label: "风险",
+              marker: "!",
+              role: "normal",
+              tone: "red",
+              type: "component",
+            },
+          ],
           name: "自定义语法",
           spaceIndentUnit: 4,
           version: 1,
@@ -170,11 +182,14 @@ label = "风险"
 name = "自定义语法"
 version = 1
 spaceIndentUnit = 4
+inlineRules = []
 
 [[markers]]
 marker = "!"
 type = "component"
 label = "风险"
+role = "normal"
+tone = "red"
 `,
       );
 
@@ -182,7 +197,16 @@ label = "风险"
         fileName: "custom.toml",
         profile: {
           id: "ctn-custom",
-          markerRules: [{ marker: "!", type: "component", label: "风险" }],
+          inlineRules: [],
+          markerRules: [
+            {
+              label: "风险",
+              marker: "!",
+              role: "normal",
+              tone: "red",
+              type: "component",
+            },
+          ],
           version: 1,
         },
       });
@@ -196,11 +220,14 @@ label = "风险"
 name = "重复语法"
 version = 1
 spaceIndentUnit = 4
+inlineRules = []
 
 [[markers]]
 marker = "!"
 type = "component"
 label = "风险"
+role = "normal"
+tone = "red"
 `;
 
       await store.saveSyntaxFile("a.toml", source);
@@ -220,11 +247,14 @@ label = "风险"
 name = "其他语法"
 version = 1
 spaceIndentUnit = 4
+inlineRules = []
 
 [[markers]]
 marker = "!"
 type = "component"
 label = "风险"
+role = "normal"
+tone = "red"
 `,
       );
 

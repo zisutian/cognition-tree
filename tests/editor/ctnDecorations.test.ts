@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CtnBlock } from "../../src/ctn/parseOutline";
-import { shouldDecorateMarker } from "../../src/editor/ctnDecorations";
+import {
+  getInlineDecorationClass,
+  getMarkerDecorationClass,
+  shouldDecorateMarker,
+} from "../../src/editor/ctnDecorations";
 
 function createBlock(overrides: Partial<CtnBlock>): CtnBlock {
   return {
@@ -14,8 +18,10 @@ function createBlock(overrides: Partial<CtnBlock>): CtnBlock {
     level: 0,
     lineNumber: 1,
     marker: ":",
+    role: "normal",
     rawText: ": Definition",
     text: "Definition",
+    tone: "green",
     type: "definition",
     ...overrides,
   };
@@ -46,5 +52,28 @@ describe("ctn editor decorations", () => {
         }),
       ),
     ).toBe(false);
+  });
+
+  it("uses tone classes instead of type classes", () => {
+    expect(
+      getMarkerDecorationClass(
+        createBlock({
+          tone: "red",
+          type: "custom-risk",
+        }),
+      ),
+    ).toBe("ctn-marker ctn-tone-red");
+    expect(
+      getInlineDecorationClass({
+        endColumn: 8,
+        id: "inline-1",
+        label: "自定义",
+        lineNumber: 1,
+        startColumn: 1,
+        text: "value",
+        tone: "violet",
+        type: "custom-inline",
+      }),
+    ).toBe("ctn-inline ctn-tone-violet");
   });
 });

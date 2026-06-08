@@ -3,9 +3,10 @@ import type { CtnBlock } from "./types";
 export function findClosingCodeFenceLineNumber(
   lines: string[],
   startIndex: number,
+  fenceMarker: string,
 ): number {
   for (let index = startIndex; index < lines.length; index += 1) {
-    if (lines[index].trim().startsWith("```")) {
+    if (lines[index].trim().startsWith(fenceMarker)) {
       return index + 1;
     }
   }
