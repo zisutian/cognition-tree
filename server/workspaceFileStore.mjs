@@ -7,6 +7,10 @@ import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
 } from "./syntaxProfileToml.mjs";
+import {
+  assertWorkspaceManifestDto,
+  assertWorkspacePayloadDto,
+} from "./workspaceManifestDto.mjs";
 
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
@@ -64,25 +68,6 @@ function createEmptyWorkspace(syntaxProfiles) {
   };
 }
 
-function pruneMissingNoteNodes(nodes, noteIds) {
-  return nodes.flatMap((node) => {
-    if (node.kind === "folder") {
-      return [
-        {
-          ...node,
-          children: pruneMissingNoteNodes(node.children ?? [], noteIds),
-        },
-      ];
-    }
-
-    if (node.kind === "note" && noteIds.has(node.noteId)) {
-      return [node];
-    }
-
-    return [];
-  });
-}
-
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
@@ -124,51 +109,50 @@ export class WorkspaceFileStore {
       throw error;
     }
 
+    assertWorkspaceManifestDto(manifest);
+
     const notes = [];
 
-    for (const note of manifest.notes ?? []) {
+    for (const note of manifest.notes) {
       assertSafeFileName(note.fileName, "note file name");
 
-      let source;
-
       try {
-        source = await readFile(path.join(this.#notesDir, note.fileName), "utf8");
+        const source = await readFile(
+          path.join(this.#notesDir, note.fileName),
+          "utf8",
+        );
+
+        notes.push({
+          id: note.id,
+          title: note.title,
+          source,
+          syntaxProfileId: note.syntaxProfileId,
+          syntaxVersion: note.syntaxVersion,
+          createdAt: note.createdAt,
+          updatedAt: note.updatedAt,
+        });
       } catch (error) {
         if (error?.code === "ENOENT") {
-          continue;
+          throw new Error(`Missing note source file: ${note.fileName}`);
         }
 
         throw error;
       }
-
-      notes.push({
-        id: note.id,
-        title: note.title,
-        source,
-        syntaxProfileId: note.syntaxProfileId,
-        syntaxVersion: note.syntaxVersion,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      });
     }
-
-    const noteIds = new Set(notes.map((note) => note.id));
-    const activeNoteId = noteIds.has(manifest.activeNoteId)
-      ? manifest.activeNoteId
-      : null;
 
     return {
       id: manifest.id,
       name: manifest.name,
-      activeNoteId,
-      defaultSyntaxProfileId: manifest.defaultSyntaxProfileId ?? defaultSyntaxProfile.id,
+      activeNoteId: manifest.activeNoteId,
+      defaultSyntaxProfileId: manifest.defaultSyntaxProfileId,
       syntaxProfiles,
       notes,
-      tree: pruneMissingNoteNodes(manifest.tree ?? [], noteIds),
+      tree: manifest.tree,
     };
   }
 
   async saveWorkspace(workspace) {
+    assertWorkspacePayloadDto(workspace);
     await this.initialize();
 
     const expectedNoteFiles = new Set();
@@ -406,7 +390,11 @@ export class WorkspaceFileStore {
 
   async #readManifestOrNull() {
     try {
-      return await readJson(this.#manifestPath);
+      const manifest = await readJson(this.#manifestPath);
+
+      assertWorkspaceManifestDto(manifest);
+
+      return manifest;
     } catch (error) {
       if (error?.code === "ENOENT") {
         return null;

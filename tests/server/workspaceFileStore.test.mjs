@@ -45,6 +45,39 @@ function createWorkspace() {
   };
 }
 
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function createManifest() {
+  const workspace = createWorkspace();
+
+  return {
+    activeNoteId: workspace.activeNoteId,
+    defaultSyntaxProfileId: workspace.defaultSyntaxProfileId,
+    id: workspace.id,
+    name: workspace.name,
+    notes: workspace.notes.map((note) => ({
+      createdAt: note.createdAt,
+      fileName: `${note.id}.ctn`,
+      id: note.id,
+      syntaxProfileId: note.syntaxProfileId,
+      syntaxVersion: note.syntaxVersion,
+      title: note.title,
+      updatedAt: note.updatedAt,
+    })),
+    tree: workspace.tree,
+  };
+}
+
+async function writeWorkspaceManifest(rootDir, manifest) {
+  await writeFile(
+    path.join(rootDir, "workspace.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
+}
+
 async function withTempStore(testFn) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-file-store-"));
 
@@ -172,6 +205,118 @@ tone = "red"
         "Invalid syntax profile broken.toml",
       );
     });
+  });
+
+  it("rejects invalid workspace manifest DTOs", async () => {
+    const cases = [
+      {
+        message: "unsupported field",
+        mutate(manifest) {
+          manifest.extra = true;
+        },
+      },
+      {
+        message: "missing field",
+        mutate(manifest) {
+          delete manifest.notes;
+        },
+      },
+      {
+        message: "expected array",
+        mutate(manifest) {
+          manifest.notes = {};
+        },
+      },
+      {
+        message: "unsupported field",
+        mutate(manifest) {
+          manifest.notes[0].extra = true;
+        },
+      },
+      {
+        message: "duplicate note id",
+        mutate(manifest) {
+          manifest.notes.push(clone(manifest.notes[0]));
+        },
+      },
+      {
+        message: "unsafe file name",
+        mutate(manifest) {
+          manifest.notes[0].fileName = "../note-test.ctn";
+        },
+      },
+      {
+        message: "unknown note note-missing",
+        mutate(manifest) {
+          manifest.activeNoteId = "note-missing";
+        },
+      },
+      {
+        message: "duplicate tree node id",
+        mutate(manifest) {
+          manifest.tree[0].children.push(clone(manifest.tree[0].children[0]));
+        },
+      },
+      {
+        message: "unknown note note-missing",
+        mutate(manifest) {
+          manifest.tree[0].children[0].noteId = "note-missing";
+        },
+      },
+    ];
+
+    for (const testCase of cases) {
+      await withTempStore(async (store, rootDir) => {
+        const manifest = createManifest();
+
+        testCase.mutate(manifest);
+        await writeWorkspaceManifest(rootDir, manifest);
+
+        await expect(store.loadWorkspace()).rejects.toThrow(testCase.message);
+      });
+    }
+  });
+
+  it("rejects workspace manifests that reference missing note files", async () => {
+    await withTempStore(async (store, rootDir) => {
+      await store.saveWorkspace(createWorkspace());
+      await rm(path.join(rootDir, "notes", "note-test.ctn"));
+
+      await expect(store.loadWorkspace()).rejects.toThrow(
+        "Missing note source file: note-test.ctn",
+      );
+    });
+  });
+
+  it("rejects invalid workspace payloads without writing manifests", async () => {
+    const cases = [
+      {
+        message: "unknown note note-missing",
+        mutate(workspace) {
+          workspace.activeNoteId = "note-missing";
+        },
+      },
+      {
+        message: "unsupported field",
+        mutate(workspace) {
+          workspace.notes[0].fileName = "custom.ctn";
+        },
+      },
+    ];
+
+    for (const testCase of cases) {
+      await withTempStore(async (store, rootDir) => {
+        const workspace = createWorkspace();
+
+        testCase.mutate(workspace);
+
+        await expect(store.saveWorkspace(workspace)).rejects.toThrow(
+          testCase.message,
+        );
+        await expect(readFile(path.join(rootDir, "workspace.json"), "utf8"))
+          .rejects.toThrow("ENOENT");
+      });
+    }
   });
 
   it("creates, reads, and updates syntax profile files", async () => {

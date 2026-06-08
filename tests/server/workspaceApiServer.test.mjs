@@ -193,4 +193,64 @@ tone = "red"
       });
     });
   });
+
+  it("rejects invalid workspace payloads without changing the stored workspace", async () => {
+    await withHandler(async (handler) => {
+      const workspace = createWorkspace();
+
+      workspace.notes = [
+        {
+          id: "note-valid",
+          title: "有效笔记",
+          source: "有效笔记",
+          syntaxProfileId: "ctn-default",
+          syntaxVersion: 1,
+          createdAt: "2026-05-25T00:00:00.000Z",
+          updatedAt: "2026-05-25T00:00:00.000Z",
+        },
+      ];
+      workspace.activeNoteId = "note-valid";
+      workspace.tree[0].children = [
+        {
+          id: "tree-note-valid",
+          kind: "note",
+          noteId: "note-valid",
+        },
+      ];
+
+      await expect(
+        dispatch(handler, {
+          body: JSON.stringify(workspace),
+          method: "PUT",
+          url: "/api/workspace",
+        }),
+      ).resolves.toMatchObject({
+        body: null,
+        statusCode: 204,
+      });
+
+      await expect(
+        dispatch(handler, {
+          body: JSON.stringify({
+            ...workspace,
+            activeNoteId: "note-missing",
+          }),
+          method: "PUT",
+          url: "/api/workspace",
+        }),
+      ).resolves.toMatchObject({
+        body: {
+          error: expect.stringContaining("unknown note note-missing"),
+        },
+        statusCode: 500,
+      });
+
+      await expect(
+        dispatch(handler, { method: "GET", url: "/api/workspace" }),
+      ).resolves.toMatchObject({
+        body: workspace,
+        statusCode: 200,
+      });
+    });
+  });
 });

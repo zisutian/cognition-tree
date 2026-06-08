@@ -216,6 +216,7 @@ src/syntax/：
 
     提供 HTTP API。
     安全读写本地文件仓库。
+    保存和读取 workspace 前校验 workspace manifest / payload DTO。
     校验语法文件。
     保护被引用语法文件不被删除。
 
@@ -272,6 +273,7 @@ workspace.json：
     保存 defaultSyntaxProfileId。
     保存 notes 元信息。
     保存目录树。
+    读取时必须符合当前 manifest DTO；旧 schema 或损坏数据显式报错。
 
 notes/*.ctn：
 
@@ -304,6 +306,7 @@ syntax/*.toml：
     useWorkspaceController 调用 workspace action。
     workspace 更新后自动保存。
     WorkspaceRepository 写回后端文件仓库。
+    后端保存前校验 PUT /api/workspace payload，非法 payload 不应覆盖已有 workspace。
 
 解析：
 
@@ -324,7 +327,6 @@ syntax/*.toml：
 
 短期：
 
-    前后端 TOML parser parity tests。
     workspace manifest DTO 校验。
     文件写入原子化 helper。
     拖拽式块迁移复用现有 workflow。
