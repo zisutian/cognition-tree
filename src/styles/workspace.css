@@ -333,6 +333,21 @@
   box-shadow: inset 2px 0 0 #397c72;
 }
 
+.migration-tree-node.is-dragging {
+  border-color: #7ca88b;
+  background: #dcebd4;
+  opacity: 0.68;
+}
+
+.migration-tree-node.is-drop-target,
+.migration-position-card.is-drop-target {
+  border-color: #397c72;
+  background: #dff0ea;
+  box-shadow:
+    inset 2px 0 0 #397c72,
+    0 0 0 2px rgba(57, 124, 114, 0.14);
+}
+
 .migration-tree-node:focus-visible,
 .migration-position-card:focus-visible,
 .migration-node-action:focus-visible {
