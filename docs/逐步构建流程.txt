@@ -31,49 +31,49 @@
     语法界面和迁移界面分化。
     Workspace 应用层初步拆分。
     源码层级整理为 app / features / shell / workspace / domain / ctn / syntax / storage。
+    Workspace 架构重构和 docs 文档体系重构。
+    持久化链路命名调整为 WorkspaceRepository / WorkspaceFileStore / WorkspaceApiServer。
+    workspace 应用层命名调整为 syntaxResolution、parsedNoteView、useRepositorySession、useWorkspaceController。
 
 当前未提交工作：
 
-    Workspace 架构重构。
-    docs 文档体系重构。
-    持久化链路命名从早期 note-only 语义调整为 WorkspaceRepository / WorkspaceFileStore / workspaceApiServer。
-    workspace 应用层命名调整为 syntaxResolution、parsedNoteView、useRepositorySession、useWorkspaceController。
+    前后端 TOML parser parity tests。
 
 
 2. 当前主线
 
 主线名称：
 
-    Workspace 应用层整理
+    前后端 TOML parser parity tests
 
 目标：
 
-    UI 调 command。
-    Workspace 应用层编排 session、解析视图模型和 workflow。
-    Domain 承载可测试规则。
-    CTN / Syntax / Storage 保持独立。
+    固定 src/syntax/profileToml.ts 与 server/syntaxProfileToml.mjs 的行为一致性。
+    降低前后端双份 TOML 解析实现继续漂移的风险。
+    暂不迁移 server 到 TypeScript，也暂不抽共享包。
 
 当前步骤：
 
-    审核本轮架构重构和文档重构。
-    审核通过后本地提交。
+    新增 parity test。
+    同步文档状态。
+    验证通过后停下审核。
 
 完成标准：
 
-    useWorkspaceController 保持 facade。
-    workspaceActions、syntaxResolution、parsedNoteView、workspaceBlockMigration、useRepositorySession 有测试或明确调用边界。
-    App 和迁移面板不再重复解析 profile 和块迁移规则。
+    默认 profile 对象一致。
+    默认 TOML 格式化结果一致。
+    合法 TOML 解析结果一致。
+    非法 marker schema 和 inline schema 诊断结果一致。
 
 
 3. 下一步顺序
 
-1. 审核本轮重构。
-2. 提交 Workspace 架构重构和 docs 重构。
-3. 前后端 TOML parser parity tests。
-4. workspace manifest DTO 校验。
-5. 文件写入原子化 helper。
-6. 拖拽式块迁移。
-7. Docker 后端容器化和 volume 持久化验证。
+1. 审核前后端 TOML parser parity tests。
+2. 提交 parity test 和文档状态更新。
+3. workspace manifest DTO 校验。
+4. 文件写入原子化 helper。
+5. 拖拽式块迁移。
+6. Docker 后端容器化和 volume 持久化验证。
 
 
 4. 验证命令
@@ -103,6 +103,7 @@
     语法文件类型命名可后续评估：SyntaxProfileFile -> SyntaxFile
     分层目录命名可后续评估：domain -> core，workspace -> application
     UI 边界可后续评估：feature-specific sidebar panel 从 shell 下沉到对应 features
+    以上命名和目录层级评估必须作为独立提交粒度，不并入 TOML parity 或 manifest 校验提交。
     Redux / Zustand 等全局状态库
     后端框架重写
     旧语法 schema 兼容入口

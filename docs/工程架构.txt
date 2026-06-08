@@ -200,7 +200,7 @@ src/syntax/：
 服务端：
 
     server/syntaxProfileToml.mjs 当前保留独立 Node 实现。
-    后续可通过 parity tests 降低前后端 TOML 解析漂移风险。
+    tests/syntax/syntaxProfileTomlParity.test.mjs 用于固定前后端 TOML 解析、格式化和默认 profile 的一致性。
     是否共享 TS schema 或迁移 server 到 TS，后续单独评估。
 
 
@@ -254,6 +254,7 @@ SyntaxProfileFile：
     domain 当前表示纯规则、纯模型和纯数据变换。
     workspace 当前表示前端应用编排、当前会话上下文、view model 和 workflow。
     两者命名维度不完全一致；后续如继续整理，可独立评估 domain -> core、workspace -> application。
+    该评估属于目录层级策略调整，不并入 TOML parity、manifest DTO 校验或文件写入原子化提交。
 
 
 9. 文件仓库模型
