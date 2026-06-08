@@ -23,6 +23,9 @@ test-results/
 .agents/
 .codex/
 
+# Local planning notes
+docs/长期规划原则.txt
+
 # Editor / OS noise
 .DS_Store
 Thumbs.db

@@ -348,4 +348,4 @@ syntax/*.toml：
     workspaceBlockMigration 解析源笔记和目标笔记。
     目标语法不支持源块子树 marker 时返回失败。
     成功时更新源笔记、目标笔记、activeNoteId 和更新时间。
-    拖拽式迁移只作为后续输入方式，不替代 workspaceBlockMigration workflow。
+    拖拽式迁移只作为输入方式，不替代 workspaceBlockMigration workflow。
