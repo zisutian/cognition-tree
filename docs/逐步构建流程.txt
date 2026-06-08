@@ -27,7 +27,7 @@
     独立 syntax/*.toml 语法文件。
     仓库级语法文件新增、编辑、删除和笔记级语法选择。
     语法 profile 表达能力增强。
-    显式跨笔记块迁移闭环。
+    跨笔记块迁移领域 workflow 和点击式最小验证。
     语法界面和迁移界面分化。
     Workspace 应用层初步拆分。
     源码层级整理为 app / features / shell / workspace / domain / ctn / syntax / storage。
@@ -35,49 +35,77 @@
     持久化链路命名调整为 WorkspaceRepository / WorkspaceFileStore / WorkspaceApiServer。
     workspace 应用层命名调整为 syntaxResolution、parsedNoteView、useRepositorySession、useWorkspaceController。
     前后端 TOML parser parity tests。
+    workspace manifest DTO 校验。
 
 当前未提交工作：
 
-    workspace manifest DTO 校验。
+    块迁移选择工作台路线调整。
 
 
-2. 当前主线
+2. 第一版闭环边界
+
+第一版目标不是堆功能清单，而是先让核心认知树工作流闭合。
+
+必须闭合：
+
+    本地文件仓库可以保存和恢复笔记、目录树、语法文件和笔记语法选择。
+    用户可以创建、编辑、删除和移动笔记。
+    用户可以创建、重命名、删除文件夹，并用文件夹组织笔记。
+    用户可以编辑认知树原文，并用四空格缩进表达结构层级。
+    当前笔记可以按选定语法配置解析为结构树和诊断。
+    语法文件可以新增、编辑、删除，并影响引用该语法的笔记解析。
+    用户可以在两篇笔记之间移动整棵块子树。
+    块迁移界面必须让用户明确判断移动对象、子树范围和目标插入位置。
+
+后移能力：
+
+    搜索、导出、导入、链接、统计、同步、插件、图谱、桌面恢复和 AI 辅助整理。
+    这些能力只有在笔记、语法和块迁移闭环稳定后再逐步扩展。
+
+
+3. 当前主线
 
 主线名称：
 
-    workspace manifest DTO 校验
+    块迁移选择工作台
 
 目标：
 
-    收紧 workspace.json 和 PUT /api/workspace 的数据边界。
-    后端读取和保存 workspace 前显式校验 DTO shape。
-    损坏或旧 schema 数据直接报错，不做静默修剪和兼容迁移。
+    先解决用户能否可靠判断“移动什么、移动到哪里”。
+    源块选择应基于结构树，而不是长 select 列表。
+    目标插入位置应基于目标结构树，并能明确展示插入语义。
+    拖拽后移；拖拽只作为输入方式，复用同一套选择状态和迁移 workflow。
 
 当前步骤：
 
-    新增 server 侧 workspace DTO 校验模块。
-    WorkspaceFileStore 读写前调用 DTO 校验。
-    补齐文件仓库和 API 回归测试。
+    文档先修正当前主线。
+    实现迁移工作台结构树选择。
+    显示源块整棵子树范围和目标插入位置。
+    复用 workspaceBlockMigration 预览和执行逻辑。
     验证通过后停下审核。
 
 完成标准：
 
-    manifest schema 外字段、缺失字段、错误类型被拒绝。
-    重复 note id、重复 tree id、未知 note 引用被拒绝。
-    manifest 指向缺失 note 文件时报错。
-    非法 PUT /api/workspace 不覆盖已有 workspace。
+    用户能从源笔记结构树选择要移动的块。
+    UI 明确展示该块包含的子树范围。
+    用户能从目标笔记结构树选择插入位置。
+    UI 明确显示文末根块或某块之后的插入语义。
+    语法兼容性和迁移结果仍由 workspaceBlockMigration 给出。
 
 
-3. 下一步顺序
+4. 下一步顺序
 
-1. 审核 workspace manifest DTO 校验。
-2. 提交 manifest DTO 校验和文档状态更新。
-3. 文件写入原子化 helper。
+1. 审核块迁移选择工作台文档调整。
+2. 实现块迁移选择工作台。
+3. 提交块迁移选择工作台。
 4. 拖拽式块迁移。
-5. Docker 后端容器化和 volume 持久化验证。
+5. 文件写入原子化 helper。
+6. Docker 后端容器化和 volume 持久化验证。
+7. SQLite / FTS5 派生索引。
+8. 搜索与链接索引。
 
 
-4. 验证命令
+5. 验证命令
 
 常规验证：
 
@@ -100,7 +128,7 @@
     rg "产品需求|工程架构|逐步构建流程|环境准备|长期规划原则" docs README.md
 
 
-5. 暂缓事项
+6. 暂缓事项
 
     语法文件类型命名可后续评估：SyntaxProfileFile -> SyntaxFile
     分层目录命名可后续评估：domain -> core，workspace -> application
@@ -108,6 +136,7 @@
     以上命名和目录层级评估必须作为独立提交粒度，不并入 TOML parity 或 manifest 校验提交。
     Redux / Zustand 等全局状态库
     后端框架重写
+    跨层大规模目录重排
     旧语法 schema 兼容入口
     FTS5 全文索引
     双向链接

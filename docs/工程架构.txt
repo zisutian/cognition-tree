@@ -3,13 +3,13 @@
 
 文档职责：
 
-    记录当前工程路线、分层架构、源码目录、数据流、存储边界和后续工程约束。
-    不记录产品愿景、功能需求细节、个人环境和当前 TODO。
+    记录稳定工程架构、源码目录、数据流、存储边界和模块职责。
+    不记录产品愿景、功能需求细节、个人环境、当前主线、当前 TODO 和近期任务顺序。
 
 
-1. 当前运行路线
+1. 运行形态
 
-当前主线：
+当前支持的运行形态：
 
     浏览器前端
     本机 Node HTTP 后端
@@ -17,14 +17,13 @@
 
 桌面路线：
 
-    当前分支已经剔除 Tauri 运行实现。
-    如需恢复桌面路线，应从 main 或历史提交派生，不在当前分支维护。
+    当前架构不维护 Tauri 桌面运行层。
+    如需恢复桌面路线，应作为独立运行形态重新评估。
 
 Docker 路线：
 
-    Docker 作为后续独立阶段引入。
-    当前开发闭环仍是 pnpm server + pnpm dev。
-    Docker 后续目标是容器化 HTTP 后端并验证 volume 持久化。
+    Docker 属于 HTTP 后端的部署形态。
+    它不改变 Browser React UI、Node HTTP API 和本地文件仓库的职责边界。
 
 
 2. 总体分层
@@ -129,7 +128,7 @@ src/shell/：
 
     负责全局导航、活动栏、仓库侧栏和当前功能入口。
     shell 只应承载应用外壳、导航、活动栏和布局容器。
-    若 sidebar 中的组件知道具体业务功能，应后续评估下沉到对应 feature。
+    知道具体业务功能的 sidebar 组件不应长期停留在 shell。
 
 src/workspace/：
 
@@ -197,11 +196,27 @@ src/syntax/：
     负责 TOML profile 解析、格式化、校验和运行时 shape 检查。
     不解析 .ctn 笔记原文。
 
+第一版 TOML schema：
+
+    根字段为 id、name、version、spaceIndentUnit、markers、inlineRules。
+    id 和 name 必须是非空字符串。
+    version 和 spaceIndentUnit 必须是正整数。
+    markers 必须是非空数组。
+    marker rule 字段为 marker、type、label、role、tone。
+    marker 不允许重复。
+    type 必须是 ASCII kebab-case 机器语义 ID。
+    role 只能是 normal 或 code。
+    只有 role = "code" 的 marker 触发 fenced code block。
+    tone 只能使用 default、green、blue、amber、red、violet、code。
+    inlineRules 必须显式提供，空数组表示禁用所有行内结构。
+    inline rule 支持 paired 和 single。
+    schema 之外的字段必须拒绝。
+
 服务端：
 
     server/syntaxProfileToml.mjs 当前保留独立 Node 实现。
     tests/syntax/syntaxProfileTomlParity.test.mjs 用于固定前后端 TOML 解析、格式化和默认 profile 的一致性。
-    是否共享 TS schema 或迁移 server 到 TS，后续单独评估。
+    是否共享 TS schema 或迁移 server 到 TS，不在当前架构中承诺。
 
 
 7. 存储边界
@@ -209,7 +224,7 @@ src/syntax/：
 前端存储端口：
 
     WorkspaceRepository 是前端唯一存储端口。
-    HTTP WorkspaceRepository 是当前主线实现。
+    HTTP WorkspaceRepository 是标准实现。
     localStorage WorkspaceRepository 仅作为显式开发备选。
 
 后端职责：
@@ -243,7 +258,7 @@ SyntaxProfileFile：
 
     SyntaxProfileFile 暂时保留。
     它表示语法 profile 文件，不是 workspace persistence port。
-    后续如语法文件模型扩展，再单独评估是否改为 SyntaxFile。
+    只有语法文件模型语义变化时，才重新评估是否改为 SyntaxFile。
 
 应用层 hook：
 
@@ -254,11 +269,21 @@ SyntaxProfileFile：
 
     domain 当前表示纯规则、纯模型和纯数据变换。
     workspace 当前表示前端应用编排、当前会话上下文、view model 和 workflow。
-    两者命名维度不完全一致；后续如继续整理，可独立评估 domain -> core、workspace -> application。
-    该评估属于目录层级策略调整，不并入 TOML parity、manifest DTO 校验或文件写入原子化提交。
+    两者命名维度不完全一致；目录层级命名变更必须作为独立架构重构处理。
 
 
 9. 文件仓库模型
+
+稳定工程模型：
+
+    NoteWorkspace
+    NoteRecord
+    NoteTreeNode
+    CtnDocument
+    CtnBlock
+    CtnSyntaxProfile
+    CtnMarkerRule
+    CtnInlineRule
 
 权威源文件：
 
@@ -318,28 +343,9 @@ syntax/*.toml：
 块迁移：
 
     UI 选择源笔记、源块、目标笔记和目标位置。
+    源块选择应基于源笔记结构树，并展示将被移动的整棵子树。
+    目标位置选择应基于目标笔记结构树，并展示插入到文末根块或某块之后。
     workspaceBlockMigration 解析源笔记和目标笔记。
     目标语法不支持源块子树 marker 时返回失败。
     成功时更新源笔记、目标笔记、activeNoteId 和更新时间。
-
-
-11. 后续工程任务
-
-短期：
-
-    workspace manifest DTO 校验。
-    文件写入原子化 helper。
-    拖拽式块迁移复用现有 workflow。
-
-中期：
-
-    Docker 后端容器化。
-    SQLite / FTS5 派生索引。
-    搜索与链接索引。
-
-暂不做：
-
-    Redux / Zustand 等全局状态库。
-    后端框架重写。
-    跨层大规模目录重排。
-    旧语法 schema 兼容入口。
+    拖拽式迁移只作为后续输入方式，不替代 workspaceBlockMigration workflow。
