@@ -1,0 +1,295 @@
+工程架构
+
+
+文档职责：
+
+    记录当前工程路线、分层架构、源码目录、数据流、存储边界和后续工程约束。
+    不记录产品愿景、功能需求细节、个人环境和当前 TODO。
+
+
+1. 当前运行路线
+
+当前主线：
+
+    浏览器前端
+    本机 Node HTTP 后端
+    本地文件仓库
+
+桌面路线：
+
+    当前分支已经剔除 Tauri 运行实现。
+    如需恢复桌面路线，应从 main 或历史提交派生，不在当前分支维护。
+
+Docker 路线：
+
+    Docker 作为后续独立阶段引入。
+    当前开发闭环仍是 pnpm server + pnpm dev。
+    Docker 后续目标是容器化 HTTP 后端并验证 volume 持久化。
+
+
+2. 总体分层
+
+整体链路：
+
+    Browser React UI
+        |
+        v
+    Workspace 应用层
+        |
+        v
+    Domain Layer
+        |
+        v
+    CTN + Syntax Core
+        |
+        v
+    Storage Port
+        |
+        v
+    HTTP Adapter <-> Node HTTP API <-> File Store
+
+分层职责：
+
+    Browser React UI 负责交互、布局和视图状态。
+    Workspace 应用层负责 session、command 编排、parsed note view model 和功能 workflow。
+    Domain Layer 承载笔记、目录树、块文本、块迁移等可测试规则。
+    CTN Core 只解析 .ctn 原文，产出块、行内结构、诊断和范围信息。
+    Syntax Core 负责语法 profile、TOML 解析、TOML 校验、默认语法和默认 TOML 序列化。
+    Storage Port 由 NoteRepository 表示，前端只依赖该端口。
+    HTTP Adapter 把 NoteRepository 调用转为 HTTP 请求。
+    Node HTTP API 和 File Store 负责安全读写本地文件仓库。
+
+原则：
+
+    影响数据正确性的规则不放在 React 组件中。
+    UI 只负责选择、展示和触发 command。
+    Domain 和 Workspace 应用层应优先可单元测试。
+    CTN 解析器必须显式接收 CtnSyntaxProfile，不负责选择或兜底语法。
+    Syntax 模块是前端 TypeScript 里的语法 profile、profile 类型和默认语法权威来源。
+
+
+3. 源码目录
+
+    src/app/
+        React 应用入口和主工作区组合。
+
+    src/features/
+        按功能划分的 React 工作区界面。
+        当前包含 notes、syntax、migration。
+
+    src/shell/
+        应用外壳、左侧活动栏和仓库侧栏。
+
+    src/workspace/
+        Workspace 应用层。
+        负责 repository session、workspace commands、workspace syntax 解析、parsed note view model 和功能 workflow。
+
+    src/domain/
+        领域规则。
+        负责 notes、noteTree、noteBlockText、noteBlockMigration、workspaceActions。
+
+    src/ctn/
+        CTN 原文解析核心。
+
+    src/syntax/
+        语法 profile、TOML 解析、校验和默认语法资源。
+
+    src/editor/
+        CodeMirror 6 集成层。
+
+    src/storage/
+        前端存储端口和存储适配器。
+
+    src/styles/
+        全局样式和按区域拆分的 CSS。
+
+    server/
+        Node HTTP API 和文件仓库读写逻辑。
+
+    tests/
+        顶层测试目录，按模块边界组织。
+
+
+4. 前端应用层
+
+src/app/：
+
+    组合主工作区、侧栏、功能面板和右侧详情区。
+    不直接实现领域规则。
+
+src/features/：
+
+    notes 负责笔记编辑区和结构树。
+    syntax 负责语法 TOML 编辑和语法详情。
+    migration 负责跨笔记块迁移界面。
+    feature 组件不直接处理数据正确性规则。
+
+src/shell/：
+
+    负责全局导航、活动栏、仓库侧栏和当前功能入口。
+
+src/workspace/：
+
+    useWorkspaceRepository 负责加载、保存、刷新、切换仓库路径和语法文件 API。
+    useNoteWorkspace 保留为 facade，组合 repository session、当前选择状态和 workspace commands。
+    workspaceSyntax 统一处理 workspace 中的语法 profile 查找、缺失和非法状态。
+    parsedNote 统一处理“笔记 + workspace -> 解析视图模型”。
+    workspaceBlockMigration 负责跨笔记块迁移完整 workflow。
+
+
+5. 领域层
+
+src/domain/notes.ts：
+
+    定义 NoteRecord、NoteWorkspace、NoteTreeNode 等基础模型。
+    提供笔记标题推断和初始 workspace 结构。
+    不负责语法 profile 查找、校验或默认语法选择。
+
+src/domain/noteTree.ts：
+
+    负责文件夹和笔记树规则。
+
+src/domain/noteBlockText.ts：
+
+    负责文本块范围、提取、删除、插入和缩进改写。
+
+src/domain/noteBlockMigration.ts：
+
+    负责单次块文本迁移规则。
+    不依赖 workspace、React 或 repository。
+
+src/domain/workspaceActions.ts：
+
+    负责 workspace 级笔记、文件夹和语法切换变换。
+    由调用方传入 id 和 timestamp。
+
+
+6. CTN 与 Syntax 边界
+
+src/ctn/：
+
+    只解析 .ctn 原文。
+    只消费 CtnSyntaxProfile。
+    只拥有 CTN 解析结果类型，例如 CtnDocument、CtnBlock、CtnDiagnostic。
+    不负责语法文件读取、默认语法生成、语法选择和存储。
+
+src/syntax/：
+
+    拥有 CtnSyntaxProfile、CtnMarkerRule、CtnInlineRule 等 profile 类型。
+    负责默认语法 profile。
+    负责 TOML profile 解析、格式化、校验和运行时 shape 检查。
+    不解析 .ctn 笔记原文。
+
+服务端：
+
+    server/syntaxProfileToml.mjs 当前保留独立 Node 实现。
+    后续可通过 parity tests 降低前后端 TOML 解析漂移风险。
+    是否共享 TS schema 或迁移 server 到 TS，后续单独评估。
+
+
+7. 存储边界
+
+前端存储端口：
+
+    NoteRepository 是前端唯一存储端口。
+    HTTP NoteRepository 是当前主线实现。
+    localStorage NoteRepository 仅作为显式开发备选。
+
+后端职责：
+
+    提供 HTTP API。
+    安全读写本地文件仓库。
+    校验语法文件。
+    保护被引用语法文件不被删除。
+
+后端不负责：
+
+    编辑器交互规则。
+    UI 视图状态。
+    CTN 文本编辑行为。
+
+
+8. 文件仓库模型
+
+权威源文件：
+
+    workspace.json
+    notes/*.ctn
+    syntax/*.toml
+
+workspace.json：
+
+    保存 workspace 元信息。
+    保存 activeNoteId。
+    保存 defaultSyntaxProfileId。
+    保存 notes 元信息。
+    保存目录树。
+
+notes/*.ctn：
+
+    保存每篇笔记原文。
+
+syntax/*.toml：
+
+    保存仓库可用语法资源。
+    workspace.json 不作为语法 profile 的权威来源。
+
+后续索引：
+
+    index.sqlite 可作为派生缓存。
+    FTS5 可用于全文搜索。
+    索引缓存不替代权威源文件。
+
+
+9. 数据流
+
+加载：
+
+    useWorkspaceRepository 调用 NoteRepository。
+    HTTP adapter 请求 Node API。
+    File Store 读取 workspace.json、notes/*.ctn、syntax/*.toml。
+    前端把语法 profile 注入 workspace。
+
+编辑：
+
+    UI 触发 command。
+    useNoteWorkspace 调用 workspace action。
+    workspace 更新后自动保存。
+    NoteRepository 写回后端文件仓库。
+
+解析：
+
+    parsedNote 根据 note.syntaxProfileId 和 note.syntaxVersion 找 profile。
+    找不到 profile 时返回错误视图模型。
+    profile shape 非法时返回错误视图模型。
+    profile 有效时调用 CTN parser。
+
+块迁移：
+
+    UI 选择源笔记、源块、目标笔记和目标位置。
+    workspaceBlockMigration 解析源笔记和目标笔记。
+    目标语法不支持源块子树 marker 时返回失败。
+    成功时更新源笔记、目标笔记、activeNoteId 和更新时间。
+
+
+10. 后续工程任务
+
+短期：
+
+    前后端 TOML parser parity tests。
+    workspace manifest DTO 校验。
+    文件写入原子化 helper。
+    拖拽式块迁移复用现有 workflow。
+
+中期：
+
+    Docker 后端容器化。
+    SQLite / FTS5 派生索引。
+    搜索与链接索引。
+
+暂不做：
+
+    Redux / Zustand 等全局状态库。
+    后端框架重写。
+    跨层大规模目录重排。
+    旧语法 schema 兼容入口。

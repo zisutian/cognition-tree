@@ -1,4 +1,4 @@
-import type { CtnSyntaxProfile, OutlineNode } from "../ctn/parseOutline";
+import type { OutlineNode } from "../ctn/parseOutline";
 import type {
   FolderId,
   NoteId,
@@ -6,6 +6,7 @@ import type {
   NoteTreeNode,
 } from "../domain/notes";
 import type { SyntaxProfileFile } from "../storage/noteRepository";
+import type { CtnSyntaxProfile } from "../syntax/types";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";
 import {

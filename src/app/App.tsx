@@ -2,36 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BlockMigrationStatusPanel,
   type BlockMigrationPanelStatus,
-} from "./components/BlockMigrationStatusPanel";
-import { BlockMigrationWorkspacePanel } from "./components/BlockMigrationWorkspacePanel";
-import { NoteEditorPanel } from "./components/NoteEditorPanel";
-import { NoteOutlinePanel } from "./components/NoteOutlinePanel";
+} from "../features/migration/BlockMigrationStatusPanel";
+import { BlockMigrationWorkspacePanel } from "../features/migration/BlockMigrationWorkspacePanel";
+import { NoteEditorPanel } from "../features/notes/NoteEditorPanel";
+import { NoteOutlinePanel } from "../features/notes/NoteOutlinePanel";
 import {
   SyntaxProfileDetailPanel,
   type WorkspaceFeedback,
-} from "./components/SyntaxProfileDetailPanel";
-import { SyntaxWorkspacePanel } from "./components/SyntaxWorkspacePanel";
+} from "../features/syntax/SyntaxProfileDetailPanel";
+import { SyntaxWorkspacePanel } from "../features/syntax/SyntaxWorkspacePanel";
 import {
   type SidebarActivityId,
   WorkspaceSidebar,
-} from "./components/WorkspaceSidebar";
-import { parseCtnDocument, type CtnDocument } from "./ctn/parseOutline";
-import {
-  resolveNoteSyntaxProfile,
-  resolveWorkspaceSyntaxProfile,
-} from "./domain/notes";
-import { useNoteWorkspace } from "./hooks/useNoteWorkspace";
-import "./styles/index.css";
+} from "../shell/WorkspaceSidebar";
+import "../styles/index.css";
+import { resolveParsedNote } from "../workspace/parsedNote";
+import { useNoteWorkspace } from "../workspace/useNoteWorkspace";
 
 type EditorFocusRequest = {
   lineNumber: number;
   requestId: number;
-};
-
-const emptyCtnDocument: CtnDocument = {
-  blocks: [],
-  diagnostics: [],
-  roots: [],
 };
 
 const initialMigrationSelectionStatus: BlockMigrationPanelStatus = {
@@ -82,34 +72,16 @@ function App() {
     workspace,
     workspaceErrorMessage,
   } = useNoteWorkspace();
-  const documentText = activeNote?.source ?? "";
-  const activeSyntaxProfileResolution = useMemo(
-    () =>
-      activeNote
-        ? resolveNoteSyntaxProfile(workspace, activeNote)
-        : resolveWorkspaceSyntaxProfile(workspace),
+  const parsedNote = useMemo(
+    () => resolveParsedNote(workspace, activeNote),
     [activeNote, workspace],
   );
+  const documentText = parsedNote.source;
   const activeSyntaxProfile =
-    activeSyntaxProfileResolution.status === "resolved"
-      ? activeSyntaxProfileResolution.profile
-      : null;
+    parsedNote.status === "parsed" ? parsedNote.profile : null;
   const syntaxIssueMessage =
-    activeSyntaxProfileResolution.status === "missing-profile"
-      ? activeSyntaxProfileResolution.message
-      : null;
-  const parsedDocument = useMemo(
-    () => {
-      if (!activeSyntaxProfile) {
-        return emptyCtnDocument;
-      }
-
-      return parseCtnDocument(documentText, {
-        syntaxProfile: activeSyntaxProfile,
-      });
-    },
-    [activeSyntaxProfile, documentText],
-  );
+    parsedNote.status === "parsed" ? null : parsedNote.message;
+  const parsedDocument = parsedNote.document;
   const selectedSyntaxFile = useMemo(
     () =>
       syntaxFiles.find((file) => file.fileName === selectedSyntaxFileName) ??
@@ -225,11 +197,10 @@ function App() {
       return (
         <BlockMigrationWorkspacePanel
           activeNoteId={activeNote?.id ?? null}
-          notes={workspace.notes}
-          syntaxProfiles={workspace.syntaxProfiles}
           onMoveNoteBlock={moveNoteBlock}
           onResultStatusChange={setMigrationResultStatus}
           onSelectionStatusChange={setMigrationSelectionStatus}
+          workspace={workspace}
         />
       );
     }

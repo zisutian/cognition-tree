@@ -101,26 +101,35 @@ SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性�
 
 ## 代码结构
 
+    src/app/
+        React 应用入口和主工作区组合。
+
+    src/features/
+        按功能划分的 React 工作区界面，例如 notes、syntax、migration。
+
+    src/shell/
+        应用外壳、左侧活动栏和仓库侧栏。
+
+    src/workspace/
+        前端 workspace 应用层，负责 session、commands、workspace syntax、parsed note view model 和功能 workflow。
+
+    src/domain/
+        笔记、workspace、目录树、块文本和纯领域规则。
+
     src/ctn/
         CTN 原文解析核心。
 
     src/syntax/
-        语法 profile、TOML 解析和默认语法资源。
-
-    src/domain/
-        笔记、workspace、语法归属和目录树领域模型。
+        语法 profile 类型、TOML 解析和默认语法资源。
 
     src/editor/
         CodeMirror 6 集成层。
 
-    src/components/
-        React 展示组件和工作台布局。
-
-    src/hooks/
-        前端状态编排层。
-
     src/storage/
         前端存储端口和存储适配器。
+
+    src/styles/
+        全局样式和按界面区域拆分的 CSS。
 
     server/
         Web 后端 HTTP API 和文件仓库读写逻辑。

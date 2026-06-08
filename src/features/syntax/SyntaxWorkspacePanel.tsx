@@ -1,5 +1,5 @@
 import { Save } from "lucide-react";
-import type { SyntaxProfileFile } from "../storage/noteRepository";
+import type { SyntaxProfileFile } from "../../storage/noteRepository";
 
 type SyntaxWorkspacePanelProps = {
   draftSource: string;

@@ -1,5 +1,6 @@
-import { CtnEditor, type CtnEditorFocusTarget } from "../editor/CtnEditor";
-import type { CtnDocument, CtnSyntaxProfile } from "../ctn/parseOutline";
+import type { CtnDocument } from "../../ctn/parseOutline";
+import { CtnEditor, type CtnEditorFocusTarget } from "../../editor/CtnEditor";
+import type { CtnSyntaxProfile } from "../../syntax/types";
 
 function syntaxProfileOptionValue(profile: CtnSyntaxProfile) {
   return JSON.stringify([profile.id, profile.version]);

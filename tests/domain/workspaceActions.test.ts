@@ -1,0 +1,159 @@
+import { describe, expect, it } from "vitest";
+import {
+  appendFolderToWorkspaceTree,
+  appendNoteToWorkspaceTree,
+  createFolderTreeNode,
+  findFolderIdContainingNote,
+} from "../../src/domain/noteTree";
+import {
+  createInitialWorkspace,
+  createNoteRecord,
+  type NoteWorkspace,
+} from "../../src/domain/notes";
+import {
+  createWorkspaceFolder,
+  createWorkspaceNote,
+  deleteWorkspaceFolder,
+  deleteWorkspaceNote,
+  moveWorkspaceNote,
+  renameWorkspaceFolder,
+  resolveExistingFolderId,
+  selectWorkspaceNote,
+  updateActiveWorkspaceNoteSource,
+  updateActiveWorkspaceNoteSyntaxProfile,
+} from "../../src/domain/workspaceActions";
+import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+
+const timestamp = "2026-06-08T00:00:00.000Z";
+
+function createWorkspaceWithNotes(): NoteWorkspace {
+  const firstNote = createNoteRecord(
+    "note-first",
+    "第一篇",
+    timestamp,
+    defaultCtnSyntaxProfile,
+  );
+  const secondNote = createNoteRecord(
+    "note-second",
+    "第二篇",
+    timestamp,
+    defaultCtnSyntaxProfile,
+  );
+  const workspace = createInitialWorkspace([defaultCtnSyntaxProfile]);
+
+  return {
+    ...workspace,
+    activeNoteId: firstNote.id,
+    notes: [firstNote, secondNote],
+    tree: appendNoteToWorkspaceTree(
+      appendNoteToWorkspaceTree(workspace.tree, firstNote.id),
+      secondNote.id,
+    ),
+  };
+}
+
+describe("workspace actions", () => {
+  it("creates notes with the workspace default syntax in the target folder", () => {
+    const workspace = {
+      ...createInitialWorkspace([defaultCtnSyntaxProfile]),
+      tree: appendFolderToWorkspaceTree(
+        createInitialWorkspace([defaultCtnSyntaxProfile]).tree,
+        createFolderTreeNode("folder-target", "目标"),
+      ),
+    };
+    const nextWorkspace = createWorkspaceNote(workspace, {
+      folderId: "folder-target",
+      noteId: "note-new",
+      syntaxProfile: defaultCtnSyntaxProfile,
+      timestamp,
+    });
+
+    expect(nextWorkspace.activeNoteId).toBe("note-new");
+    expect(nextWorkspace.notes[0]).toMatchObject({
+      id: "note-new",
+      syntaxProfileId: defaultCtnSyntaxProfile.id,
+      syntaxVersion: defaultCtnSyntaxProfile.version,
+    });
+    expect(findFolderIdContainingNote(nextWorkspace.tree, "note-new")).toBe(
+      "folder-target",
+    );
+  });
+
+  it("selects and deletes notes while keeping activeNote valid", () => {
+    const workspace = createWorkspaceWithNotes();
+    const selectedWorkspace = selectWorkspaceNote(workspace, "note-second");
+
+    expect(selectedWorkspace.activeNoteId).toBe("note-second");
+
+    const nextWorkspace = deleteWorkspaceNote(selectedWorkspace, "note-second");
+
+    expect(nextWorkspace.activeNoteId).toBe("note-first");
+    expect(nextWorkspace.notes.map((note) => note.id)).toEqual(["note-first"]);
+    expect(findFolderIdContainingNote(nextWorkspace.tree, "note-second")).toBeNull();
+  });
+
+  it("creates, renames, deletes folders and removes nested notes", () => {
+    const workspace = createWorkspaceWithNotes();
+    const withFolder = createWorkspaceFolder(workspace, {
+      folderId: "folder-target",
+      parentFolderId: "folder-inbox",
+      title: "  目标  ",
+    });
+    const renamed = renameWorkspaceFolder(
+      withFolder,
+      "folder-target",
+      "资料",
+    );
+    const moved = moveWorkspaceNote(renamed, "note-second", "folder-target");
+    const deleted = deleteWorkspaceFolder(moved, "folder-target");
+
+    expect(resolveExistingFolderId(withFolder, "folder-target")).toBe(
+      "folder-target",
+    );
+    expect(JSON.stringify(renamed.tree)).toContain("资料");
+    expect(findFolderIdContainingNote(moved.tree, "note-second")).toBe(
+      "folder-target",
+    );
+    expect(deleted.notes.map((note) => note.id)).toEqual(["note-first"]);
+    expect(findFolderIdContainingNote(deleted.tree, "note-second")).toBeNull();
+  });
+
+  it("updates active note source and syntax metadata", () => {
+    const workspace = createWorkspaceWithNotes();
+    const updatedSourceWorkspace = updateActiveWorkspaceNoteSource(
+      workspace,
+      "新标题\n    : 定义",
+      "2026-06-08T01:00:00.000Z",
+    );
+    const updatedSyntaxWorkspace = updateActiveWorkspaceNoteSyntaxProfile(
+      updatedSourceWorkspace,
+      defaultCtnSyntaxProfile.id,
+      defaultCtnSyntaxProfile.version,
+      "2026-06-08T02:00:00.000Z",
+    );
+
+    expect(updatedSourceWorkspace.notes[0]).toMatchObject({
+      source: "新标题\n    : 定义",
+      title: "新标题",
+      updatedAt: "2026-06-08T01:00:00.000Z",
+    });
+    expect(updatedSyntaxWorkspace.notes[0]).toMatchObject({
+      syntaxProfileId: defaultCtnSyntaxProfile.id,
+      syntaxVersion: defaultCtnSyntaxProfile.version,
+      updatedAt: "2026-06-08T02:00:00.000Z",
+    });
+  });
+
+  it("ignores missing syntax profiles when switching note syntax", () => {
+    const workspace = createWorkspaceWithNotes();
+
+    expect(
+      updateActiveWorkspaceNoteSyntaxProfile(
+        workspace,
+        "missing",
+        99,
+        "2026-06-08T02:00:00.000Z",
+      ),
+    ).toBe(workspace);
+  });
+});

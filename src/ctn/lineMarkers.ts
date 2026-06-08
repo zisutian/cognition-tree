@@ -1,11 +1,13 @@
 import { createDiagnostic } from "./diagnostics";
 import type {
-  CtnBlockType,
   CtnDiagnostic,
+} from "./types";
+import type {
+  CtnBlockType,
   CtnMarkerRule,
   CtnRuleRole,
   CtnSyntaxTone,
-} from "./types";
+} from "../syntax/types";
 
 export type ParsedLineMarker = {
   diagnostics: CtnDiagnostic[];

@@ -1,14 +1,10 @@
 逐步构建流程
 
-日期：2026-06-05
-
 
 文档职责：
 
-    记录当前工程状态、近期 TODO、实施顺序、验证命令、暂缓事项和文档分工。
-    不重新定义产品原则、默认语法、数据模型和成功标准；这些内容统一维护在 docs/认知树笔记软件需求说明.txt。
-    不记录个人机器安装细节；这些内容维护在 docs/环境准备.txt。
-    不承载外部使用说明；这些内容维护在 README。
+    记录当前工程状态、当前主线、近期执行顺序、验证命令和暂缓事项。
+    不记录产品原则、详细需求、长期架构和个人环境。
 
 
 1. 当前状态
@@ -17,125 +13,94 @@
 
     web-docker-runtime
 
-最近主线：
+当前路线：
 
-    Web/HTTP 路线已确立。
+    浏览器前端 + 本机 Node HTTP 后端 + 本地文件仓库。
     桌面运行实现已从当前分支剔除。
-    NoteRepository 仍是前端存储端口。
-    HTTP NoteRepository 已接入前端。
-    Node HTTP 后端最小服务已建立。
-    浏览器 localStorage 适配器保留为显式开发模式。
-    Docker 容器化作为后续独立步骤专门引入。
+    Docker 容器化后移为独立阶段。
 
-已完成：
+已完成主线：
 
-    前端最小工作台。
-    CodeMirror 6 原文编辑区。
-    右侧结构树和诊断统计。
-    VS Code 风格左侧工作区入口。
-    笔记内容模型和仓库目录树模型分离。
-    文件夹新建、重命名、删除和笔记移动。
-    TypeScript CTN 解析器基础能力。
-    顶层 tests/ 单元测试目录。
-    HTTP NoteRepository 前端适配器。
-    server/ Node HTTP API 和文件仓库读写逻辑。
-    HTTP 存储闭环已提交。
-    默认语法代码已切换到新版规则。
-    解析器已具备 fenced code block、inlineSpans 和 endLineNumber。
-    CTN 解析器已按职责拆分。
-    前端样式已按区域拆分。
-    独立语法文件 profile 解析、后端读取和默认语法文件生成已提交。
-    仓库级语法文件新增、编辑、删除和笔记级语法选择已提交。
-    显式跨笔记块迁移闭环已提交。
-    语法界面和迁移界面已从笔记侧栏形态中分化。
+    HTTP 存储闭环。
+    默认 CTN 语法和解析器结构能力。
+    CTN parser 与 CSS 拆分。
+    独立 syntax/*.toml 语法文件。
+    仓库级语法文件新增、编辑、删除和笔记级语法选择。
+    语法 profile 表达能力增强。
+    显式跨笔记块迁移闭环。
+    语法界面和迁移界面分化。
+    Workspace 应用层初步拆分。
+    源码层级整理为 app / features / shell / workspace / domain / ctn / syntax / storage。
 
-当前限制：
+当前未提交工作：
 
-    语法 profile 的 type、行内规则和高亮 tone 表达能力仍偏固定。
-    Dockerfile、compose 和 volume 持久化验证尚未引入。
+    Workspace 架构重构。
+    docs 文档体系重构。
 
 
-2. 日常命令
+2. 当前主线
 
-安装依赖：
+主线名称：
 
-    pnpm install
+    Workspace 应用层整理
 
-前端开发：
+目标：
 
-    pnpm dev
+    UI 调 command。
+    Workspace 应用层编排 session、解析视图模型和 workflow。
+    Domain 承载可测试规则。
+    CTN / Syntax / Storage 保持独立。
 
-后端服务：
+当前步骤：
 
-    pnpm server
+    审核本轮架构重构和文档重构。
+    审核通过后本地提交。
 
-测试与检查：
+完成标准：
+
+    useNoteWorkspace 保持 facade。
+    workspaceActions、workspaceSyntax、parsedNote、workspaceBlockMigration、useWorkspaceRepository 有测试或明确调用边界。
+    App 和迁移面板不再重复解析 profile 和块迁移规则。
+
+
+3. 下一步顺序
+
+1. 审核本轮重构。
+2. 提交 Workspace 架构重构和 docs 重构。
+3. 前后端 TOML parser parity tests。
+4. workspace manifest DTO 校验。
+5. 文件写入原子化 helper。
+6. 拖拽式块迁移。
+7. Docker 后端容器化和 volume 持久化验证。
+
+
+4. 验证命令
+
+常规验证：
 
     pnpm test
     pnpm check
     pnpm build
+    git diff --check
+
+后端脚本语法检查：
+
     node --check server/index.mjs
     node --check server/noteApiServer.mjs
     node --check server/noteFileStore.mjs
     node --check server/syntaxProfileToml.mjs
-    git diff --check
+
+文档重构检查：
+
+    确认 README、docs、src、tests 中不再引用旧组件目录和旧 hook 目录。
+    rg "产品需求|工程架构|逐步构建流程|环境准备|长期规划原则" docs README.md
 
 
-3. 近期实施顺序
+5. 暂缓事项
 
-3.1 语法 profile 表达能力增强
-
-目标：
-
-    让语法文件可以声明可扩展 type、受控高亮 tone 和行内规则，同时保持解析底层结构稳定。
-
-步骤：
-
-    type 改为 ASCII kebab-case 机器语义 ID。
-    marker rule 新增 role，只有 role = code 触发 fenced code block 行为。
-    marker rule 和 inline rule 新增受控 tone。
-    syntax profile 新增 inlineRules，支持 paired 和 single 两种行内规则。
-    role、tone 和 inlineRules 必须显式写入语法文件，不保留旧 schema 兼容入口。
-    前端 TypeScript 与后端 Node TOML parser 同步校验新 schema。
-    编辑器高亮改为使用 tone class，不再依赖 type class。
-
-小提交顺序：
-
-    文档 schema 同步
-    TypeScript 语法模型和默认 profile
-    Node TOML parser 同步
-    CTN 解析器 role / inlineRules 接入
-    CodeMirror tone 高亮接入
-    测试、自动验证和界面审核
-
-3.2 拖拽式块迁移
-
-目标：
-
-    在显式迁移闭环稳定后，复用同一套移动 API 接入拖拽。
-
-步骤：
-
-    增加双笔记结构面板或结构树拖放入口。
-    拖拽只负责选择源块和目标位置。
-    迁移仍复用领域层移动 API。
-
-3.3 Docker 打包与部署验证
-
-目标：
-
-    将已经稳定的 HTTP 后端容器化，并验证 Docker volume 持久化。
-
-步骤：
-
-    增加 Dockerfile。
-    增加 compose 文件。
-    明确 volume 数据目录。
-    验证容器重启后数据保留。
-
-
-4. 暂缓事项
-
+    Redux / Zustand 等全局状态库
+    后端框架重写
+    旧语法 schema 兼容入口
     FTS5 全文索引
     双向链接
     Obsidian 导入
@@ -145,35 +110,3 @@
     图谱视图
     同步能力
     AI 辅助整理
-
-
-5. 文档分工
-
-README：
-
-    面向使用者和普通开发者。
-    记录项目简介、运行环境、开发环境、开发命令、代码结构、许可证和依赖策略。
-
-docs/认知树笔记软件需求说明.txt：
-
-    唯一产品设计和需求文档。
-    记录产品定位、设计原则、核心概念、默认语法、数据模型、功能范围、风险和示例笔记。
-
-docs/逐步构建流程.txt：
-
-    当前文件。
-    记录当前工程状态、近期 TODO、实施顺序、验证命令、暂缓事项和文档分工。
-
-docs/环境准备.txt：
-
-    只记录我的本机环境、双机分工和待确认项。
-
-docs/长期规划原则.txt：
-
-    记录长期工作方式和流程约束。
-    规定分步骤、写入 docs、执行 step、用户审核、提交、分支判断的顺序。
-
-规则：
-
-    新内容必须先判断唯一归属。
-    不在多个文档重复维护同一类信息。

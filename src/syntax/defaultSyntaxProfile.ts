@@ -1,4 +1,4 @@
-import type { CtnSyntaxProfile } from "../ctn/types";
+import type { CtnSyntaxProfile } from "./types";
 
 export const defaultCtnSyntaxProfile = {
   id: "ctn-default",

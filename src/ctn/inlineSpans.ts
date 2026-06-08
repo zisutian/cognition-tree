@@ -1,4 +1,5 @@
-import type { CtnInlineRule, CtnInlineSpan } from "./types";
+import type { CtnInlineRule } from "../syntax/types";
+import type { CtnInlineSpan } from "./types";
 
 function createInlineSpan(
   rule: CtnInlineRule,

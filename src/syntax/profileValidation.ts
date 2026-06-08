@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnSyntaxProfile } from "../ctn/types";
+import type { CtnSyntaxProfile } from "./types";
 
 export function getSyntaxProfileShapeError(profile: CtnSyntaxProfile) {
   if (!Array.isArray(profile.markerRules)) {

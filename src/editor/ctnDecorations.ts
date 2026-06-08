@@ -9,8 +9,8 @@ import {
   parseCtnDocument,
   type CtnBlock,
   type CtnInlineSpan,
-  type CtnSyntaxProfile,
 } from "../ctn/parseOutline";
+import type { CtnSyntaxProfile } from "../syntax/types";
 
 function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
   return JSON.stringify({

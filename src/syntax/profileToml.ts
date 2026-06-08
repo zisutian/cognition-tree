@@ -7,7 +7,7 @@ import type {
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
-} from "../ctn/types";
+} from "./types";
 import { defaultCtnSyntaxProfile } from "./defaultSyntaxProfile";
 
 export type SyntaxProfileTomlDiagnosticCode =

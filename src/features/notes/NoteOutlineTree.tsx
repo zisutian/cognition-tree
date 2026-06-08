@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { OutlineNode } from "../ctn/parseOutline";
+import type { OutlineNode } from "../../ctn/parseOutline";
 
 export function NoteOutlineTree({
   collapsedNodeIds,

@@ -23,7 +23,7 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import type { CtnSyntaxProfile } from "../ctn/parseOutline";
+import type { CtnSyntaxProfile } from "../syntax/types";
 import { createCtnDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 

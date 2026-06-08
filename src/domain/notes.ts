@@ -1,6 +1,4 @@
-import type { CtnSyntaxProfile } from "../ctn/parseOutline";
-import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
-import { getSyntaxProfileShapeError } from "../syntax/profileValidation";
+import type { CtnSyntaxProfile } from "../syntax/types";
 
 export type NoteId = string;
 export type FolderId = string;
@@ -40,18 +38,6 @@ export type NoteWorkspace = {
   tree: NoteTreeNode[];
 };
 
-export type SyntaxProfileResolution =
-  | {
-      status: "resolved";
-      profile: CtnSyntaxProfile;
-    }
-  | {
-      status: "missing-profile";
-      message: string;
-      syntaxProfileId: string;
-      syntaxVersion?: number;
-    };
-
 export function inferNoteTitle(source: string): string {
   return source
     .split("\n")
@@ -76,86 +62,20 @@ export function createNoteRecord(
   };
 }
 
-export function resolveNoteSyntaxProfile(
-  workspace: NoteWorkspace,
-  note: NoteRecord,
-): SyntaxProfileResolution {
-  const profile = workspace.syntaxProfiles.find(
-    (candidate) =>
-      candidate.id === note.syntaxProfileId &&
-      candidate.version === note.syntaxVersion,
-  );
-
-  if (profile) {
-    const shapeError = getSyntaxProfileShapeError(profile);
-
-    if (shapeError) {
-      return {
-        status: "missing-profile",
-        message: shapeError,
-        syntaxProfileId: note.syntaxProfileId,
-        syntaxVersion: note.syntaxVersion,
-      };
-    }
-
-    return { status: "resolved", profile };
-  }
-
-  return {
-    status: "missing-profile",
-    message: `笔记引用的语法 ${note.syntaxProfileId}@${note.syntaxVersion} 不存在。`,
-    syntaxProfileId: note.syntaxProfileId,
-    syntaxVersion: note.syntaxVersion,
-  };
-}
-
-export function resolveWorkspaceSyntaxProfile(
-  workspace: NoteWorkspace,
-): SyntaxProfileResolution {
-  const profile = workspace.syntaxProfiles.find(
-    (candidate) => candidate.id === workspace.defaultSyntaxProfileId,
-  );
-
-  if (profile) {
-    const shapeError = getSyntaxProfileShapeError(profile);
-
-    if (shapeError) {
-      return {
-        status: "missing-profile",
-        message: shapeError,
-        syntaxProfileId: workspace.defaultSyntaxProfileId,
-      };
-    }
-
-    return { status: "resolved", profile };
-  }
-
-  return {
-    status: "missing-profile",
-    message: `仓库默认语法 ${workspace.defaultSyntaxProfileId} 不存在。`,
-    syntaxProfileId: workspace.defaultSyntaxProfileId,
-  };
-}
-
-export function createInitialWorkspace() {
-  const syntaxProfiles = [defaultCtnSyntaxProfile];
-
+export function createInitialWorkspace(syntaxProfiles: CtnSyntaxProfile[] = []) {
   return createWorkspaceWithSyntaxProfiles(syntaxProfiles);
 }
 
 export function createWorkspaceWithSyntaxProfiles(
   syntaxProfiles: CtnSyntaxProfile[],
 ) {
-  const defaultSyntaxProfile =
-    syntaxProfiles.find((profile) => profile.id === defaultCtnSyntaxProfile.id) ??
-    syntaxProfiles[0] ??
-    defaultCtnSyntaxProfile;
+  const defaultSyntaxProfile = syntaxProfiles[0] ?? null;
 
   return {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    defaultSyntaxProfileId: defaultSyntaxProfile.id,
+    defaultSyntaxProfileId: defaultSyntaxProfile?.id ?? "",
     syntaxProfiles,
     notes: [],
     tree: [

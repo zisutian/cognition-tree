@@ -16,18 +16,11 @@ import type {
 
 export type {
   CtnBlock,
-  CtnBlockType,
   CtnDiagnostic,
   CtnDiagnosticCode,
   CtnDiagnosticSeverity,
   CtnDocument,
   CtnInlineSpan,
-  CtnInlineSpanType,
-  CtnInlineRule,
-  CtnMarkerRule,
-  CtnRuleRole,
-  CtnSyntaxProfile,
-  CtnSyntaxTone,
   OutlineNode,
   ParseCtnDocumentOptions,
 } from "./types";
