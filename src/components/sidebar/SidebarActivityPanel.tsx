@@ -1,4 +1,8 @@
-import type { OutlineNode } from "../../ctn/parseOutline";
+import type { CtnSyntaxProfile, OutlineNode } from "../../ctn/parseOutline";
+import type {
+  MoveNoteBlockActionResult,
+  MoveNoteBlockRequest,
+} from "../../hooks/useNoteWorkspace";
 import type {
   FolderId,
   NoteId,
@@ -11,6 +15,7 @@ import {
   sidebarPlaceholderEntries,
   type SidebarActivityId,
 } from "./sidebarConfig";
+import { SidebarBlockMigrationPanel } from "./SidebarBlockMigrationPanel";
 import { SidebarNotesPanel } from "./SidebarNotesPanel";
 import { SidebarOutlineSummary } from "./SidebarOutlineSummary";
 import { SidebarPlaceholderPanel } from "./SidebarPlaceholderPanel";
@@ -26,6 +31,7 @@ type SidebarActivityPanelProps = {
   outline: OutlineNode[];
   repositoryPath: string;
   storageLabel: string;
+  syntaxProfiles: CtnSyntaxProfile[];
   syntaxFiles: SyntaxProfileFile[];
   totalBlocks: number;
   canChangeRepositoryPath: boolean;
@@ -36,6 +42,7 @@ type SidebarActivityPanelProps = {
   onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
+  onMoveNoteBlock: (request: MoveNoteBlockRequest) => MoveNoteBlockActionResult;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
@@ -55,6 +62,7 @@ export function SidebarActivityPanel({
   outline,
   repositoryPath,
   storageLabel,
+  syntaxProfiles,
   syntaxFiles,
   totalBlocks,
   canChangeRepositoryPath,
@@ -65,6 +73,7 @@ export function SidebarActivityPanel({
   onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
+  onMoveNoteBlock,
   onMoveNote,
   onReloadWorkspace,
   onRenameFolder,
@@ -115,6 +124,17 @@ export function SidebarActivityPanel({
         onCreateSyntaxFile={onCreateSyntaxFile}
         onDeleteSyntaxFile={onDeleteSyntaxFile}
         onUpdateSyntaxFile={onUpdateSyntaxFile}
+      />
+    );
+  }
+
+  if (activeActivityId === "migration") {
+    return (
+      <SidebarBlockMigrationPanel
+        activeNoteId={activeNoteId}
+        notes={notes}
+        syntaxProfiles={syntaxProfiles}
+        onMoveNoteBlock={onMoveNoteBlock}
       />
     );
   }

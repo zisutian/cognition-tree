@@ -5,6 +5,7 @@ import {
   createWorkspaceWithSyntaxProfiles,
   defaultFolderId,
   inferNoteTitle,
+  resolveNoteSyntaxProfile,
   resolveWorkspaceSyntaxProfile,
   type FolderId,
   type NoteId,
@@ -25,10 +26,41 @@ import {
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
 } from "../domain/noteTree";
+import {
+  moveNoteBlock as moveNoteBlockText,
+  type NoteBlockMigrationTargetPosition,
+} from "../domain/noteBlockMigration";
 import { createRuntimeNoteRepository } from "../storage/runtimeNoteRepository";
 import type { SyntaxProfileFile } from "../storage/noteRepository";
 import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
 import { formatSyntaxProfileToml } from "../syntax/profileToml";
+import { parseCtnDocument } from "../ctn/parseOutline";
+
+export type MoveNoteBlockTargetPositionRequest =
+  | {
+      kind: "end";
+    }
+  | {
+      kind: "after-block";
+      lineNumber: number;
+    };
+
+export type MoveNoteBlockRequest = {
+  sourceBlockLineNumber: number;
+  sourceNoteId: NoteId;
+  targetNoteId: NoteId;
+  targetPosition: MoveNoteBlockTargetPositionRequest;
+};
+
+export type MoveNoteBlockActionResult =
+  | {
+      message: string;
+      status: "moved";
+    }
+  | {
+      message: string;
+      status: "failed";
+    };
 
 function createDraftNote(workspace: NoteWorkspace) {
   const timestamp = new Date().toISOString();
@@ -85,6 +117,13 @@ function createSyntaxTemplateSource(fileName: string) {
     id,
     name: id,
   });
+}
+
+function createMoveFailure(message: string): MoveNoteBlockActionResult {
+  return {
+    message,
+    status: "failed",
+  };
 }
 
 export function useNoteWorkspace() {
@@ -446,6 +485,118 @@ export function useNoteWorkspace() {
     });
   };
 
+  const moveNoteBlock = (
+    request: MoveNoteBlockRequest,
+  ): MoveNoteBlockActionResult => {
+    const sourceNote = workspace.notes.find(
+      (note) => note.id === request.sourceNoteId,
+    );
+    const targetNote = workspace.notes.find(
+      (note) => note.id === request.targetNoteId,
+    );
+
+    if (!sourceNote || !targetNote) {
+      return createMoveFailure("源笔记或目标笔记不存在。");
+    }
+
+    if (sourceNote.id === targetNote.id) {
+      return createMoveFailure("第一版不支持同一笔记内移动块。");
+    }
+
+    const sourceSyntaxResolution = resolveNoteSyntaxProfile(workspace, sourceNote);
+    const targetSyntaxResolution = resolveNoteSyntaxProfile(workspace, targetNote);
+
+    if (sourceSyntaxResolution.status !== "resolved") {
+      return createMoveFailure(sourceSyntaxResolution.message);
+    }
+
+    if (targetSyntaxResolution.status !== "resolved") {
+      return createMoveFailure(targetSyntaxResolution.message);
+    }
+
+    const sourceDocument = parseCtnDocument(sourceNote.source, {
+      syntaxProfile: sourceSyntaxResolution.profile,
+    });
+    const targetDocument = parseCtnDocument(targetNote.source, {
+      syntaxProfile: targetSyntaxResolution.profile,
+    });
+    const sourceBlock = sourceDocument.blocks.find(
+      (block) => block.lineNumber === request.sourceBlockLineNumber,
+    );
+
+    if (!sourceBlock) {
+      return createMoveFailure("源块不存在。");
+    }
+
+    let targetPosition: NoteBlockMigrationTargetPosition = { kind: "end" };
+
+    if (request.targetPosition.kind === "after-block") {
+      const targetLineNumber = request.targetPosition.lineNumber;
+      const targetBlock = targetDocument.blocks.find(
+        (block) => block.lineNumber === targetLineNumber,
+      );
+
+      if (!targetBlock) {
+        return createMoveFailure("目标插入位置不存在。");
+      }
+
+      targetPosition = {
+        block: targetBlock,
+        kind: "after-block",
+      };
+    }
+
+    const result = moveNoteBlockText({
+      sourceBlock,
+      sourceBlocks: sourceDocument.blocks,
+      sourceSource: sourceNote.source,
+      targetPosition,
+      targetSource: targetNote.source,
+      targetSyntaxProfile: targetSyntaxResolution.profile,
+    });
+
+    if (result.status !== "moved") {
+      return createMoveFailure(result.message);
+    }
+
+    const timestamp = new Date().toISOString();
+
+    setWorkspace((current) => ({
+      ...current,
+      activeNoteId: targetNote.id,
+      notes: current.notes.map((note): NoteRecord => {
+        if (note.id === sourceNote.id) {
+          return {
+            ...note,
+            source: result.nextSourceSource,
+            title: inferNoteTitle(result.nextSourceSource),
+            updatedAt: timestamp,
+          };
+        }
+
+        if (note.id === targetNote.id) {
+          return {
+            ...note,
+            source: result.nextTargetSource,
+            title: inferNoteTitle(result.nextTargetSource),
+            updatedAt: timestamp,
+          };
+        }
+
+        return note;
+      }),
+    }));
+
+    setSelectedFolderId(
+      findFolderIdContainingNote(workspace.tree, targetNote.id) ?? selectedFolderId,
+    );
+
+    return {
+      message: "块迁移完成。",
+      status: "moved",
+    };
+  };
+
   return {
     activeNote,
     changeRepositoryPath,
@@ -456,6 +607,7 @@ export function useNoteWorkspace() {
     deleteSyntaxFile,
     deleteFolder,
     deleteNote,
+    moveNoteBlock,
     moveNote,
     reloadWorkspace,
     repositoryPath,

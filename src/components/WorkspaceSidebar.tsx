@@ -1,4 +1,8 @@
-import type { OutlineNode } from "../ctn/parseOutline";
+import type { CtnSyntaxProfile, OutlineNode } from "../ctn/parseOutline";
+import type {
+  MoveNoteBlockActionResult,
+  MoveNoteBlockRequest,
+} from "../hooks/useNoteWorkspace";
 import type {
   FolderId,
   NoteId,
@@ -25,6 +29,7 @@ type WorkspaceSidebarProps = {
   outline: OutlineNode[];
   repositoryPath: string;
   storageLabel: string;
+  syntaxProfiles: CtnSyntaxProfile[];
   syntaxFiles: SyntaxProfileFile[];
   totalBlocks: number;
   canChangeRepositoryPath: boolean;
@@ -36,6 +41,7 @@ type WorkspaceSidebarProps = {
   onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
+  onMoveNoteBlock: (request: MoveNoteBlockRequest) => MoveNoteBlockActionResult;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
@@ -55,6 +61,7 @@ export function WorkspaceSidebar({
   outline,
   repositoryPath,
   storageLabel,
+  syntaxProfiles,
   syntaxFiles,
   totalBlocks,
   canChangeRepositoryPath,
@@ -66,6 +73,7 @@ export function WorkspaceSidebar({
   onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
+  onMoveNoteBlock,
   onMoveNote,
   onReloadWorkspace,
   onRenameFolder,
@@ -100,6 +108,7 @@ export function WorkspaceSidebar({
           outline={outline}
           repositoryPath={repositoryPath}
           storageLabel={storageLabel}
+          syntaxProfiles={syntaxProfiles}
           syntaxFiles={syntaxFiles}
           totalBlocks={totalBlocks}
           canChangeRepositoryPath={canChangeRepositoryPath}
@@ -110,6 +119,7 @@ export function WorkspaceSidebar({
           onDeleteSyntaxFile={onDeleteSyntaxFile}
           onDeleteFolder={onDeleteFolder}
           onDeleteNote={onDeleteNote}
+          onMoveNoteBlock={onMoveNoteBlock}
           onMoveNote={onMoveNote}
           onReloadWorkspace={onReloadWorkspace}
           onRenameFolder={onRenameFolder}

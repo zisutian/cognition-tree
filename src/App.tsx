@@ -39,6 +39,7 @@ function App() {
     deleteSyntaxFile,
     deleteFolder,
     deleteNote,
+    moveNoteBlock,
     moveNote,
     reloadWorkspace,
     repositoryPath,
@@ -100,6 +101,7 @@ function App() {
         outline={parsedDocument.roots}
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
+        syntaxProfiles={workspace.syntaxProfiles}
         syntaxFiles={syntaxFiles}
         totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivityId}
@@ -111,6 +113,7 @@ function App() {
         onDeleteSyntaxFile={deleteSyntaxFile}
         onDeleteFolder={deleteFolder}
         onDeleteNote={deleteNote}
+        onMoveNoteBlock={moveNoteBlock}
         onMoveNote={moveNote}
         onReloadWorkspace={reloadWorkspace}
         onRenameFolder={renameFolder}
