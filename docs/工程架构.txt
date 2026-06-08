@@ -133,11 +133,11 @@ src/shell/：
 
 src/workspace/：
 
-    useWorkspaceRepository 负责加载、保存、刷新、切换仓库路径和语法文件 API。
-    useNoteWorkspace 保留为 facade，组合 repository session、当前选择状态和 workspace commands。
-    workspaceSyntax 统一处理 workspace 中的 syntax profile resolution。
-    workspaceSyntax 只把 note/workspace 引用解析为 resolved、missing-profile 或 invalid-profile 状态，不解析 TOML。
-    parsedNote 统一处理“笔记 + workspace -> 解析视图模型”。
+    useRepositorySession 负责加载、保存、刷新、切换仓库路径和语法文件 API。
+    useWorkspaceController 保留为 facade，组合 repository session、当前选择状态和 workspace commands。
+    syntaxResolution 统一处理 workspace 中的 syntax profile resolution。
+    syntaxResolution 只把 note/workspace 引用解析为 resolved、missing-profile 或 invalid-profile 状态，不解析 TOML。
+    parsedNoteView 统一处理“笔记 + workspace -> 解析视图模型”。
     workspaceBlockMigration 负责跨笔记块迁移完整 workflow。
 
 
@@ -246,8 +246,8 @@ SyntaxProfileFile：
 
 应用层 hook：
 
-    useNoteWorkspace 和 useWorkspaceRepository 本轮暂不改名。
-    若后续要改，应作为独立提交粒度评估 useWorkspaceController、useRepositorySession 等命名。
+    useWorkspaceController 表示 workspace 应用层 facade，向 UI 暴露命令和当前选择状态。
+    useRepositorySession 表示 repository session，负责加载、保存、刷新、路径和语法文件 API。
 
 目录命名：
 
@@ -292,7 +292,7 @@ syntax/*.toml：
 
 加载：
 
-    useWorkspaceRepository 调用 WorkspaceRepository。
+    useRepositorySession 调用 WorkspaceRepository。
     HTTP adapter 请求 Node API。
     File Store 读取 workspace.json、notes/*.ctn、syntax/*.toml。
     前端把语法 profile 注入 workspace。
@@ -300,13 +300,13 @@ syntax/*.toml：
 编辑：
 
     UI 触发 command。
-    useNoteWorkspace 调用 workspace action。
+    useWorkspaceController 调用 workspace action。
     workspace 更新后自动保存。
     WorkspaceRepository 写回后端文件仓库。
 
 解析：
 
-    parsedNote 根据 note.syntaxProfileId 和 note.syntaxVersion 找 profile。
+    parsedNoteView 根据 note.syntaxProfileId 和 note.syntaxVersion 找 profile。
     找不到 profile 时返回错误视图模型。
     profile shape 非法时返回错误视图模型。
     profile 有效时调用 CTN parser。

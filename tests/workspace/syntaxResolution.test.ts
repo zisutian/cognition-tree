@@ -5,9 +5,9 @@ import type { CtnSyntaxProfile } from "../../src/syntax/types";
 import {
   resolveNoteSyntaxProfile,
   resolveWorkspaceDefaultSyntaxProfile,
-} from "../../src/workspace/workspaceSyntax";
+} from "../../src/workspace/syntaxResolution";
 
-describe("workspace syntax resolution", () => {
+describe("syntax resolution", () => {
   it("resolves note and workspace syntax profiles without folder config", () => {
     const workspace = createInitialWorkspace([defaultCtnSyntaxProfile]);
     const note = createNoteRecord(

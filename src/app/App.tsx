@@ -16,8 +16,8 @@ import {
   WorkspaceSidebar,
 } from "../shell/WorkspaceSidebar";
 import "../styles/index.css";
-import { resolveParsedNote } from "../workspace/parsedNote";
-import { useNoteWorkspace } from "../workspace/useNoteWorkspace";
+import { resolveParsedNoteView } from "../workspace/parsedNoteView";
+import { useWorkspaceController } from "../workspace/useWorkspaceController";
 
 type EditorFocusRequest = {
   lineNumber: number;
@@ -71,17 +71,17 @@ function App() {
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
-  } = useNoteWorkspace();
-  const parsedNote = useMemo(
-    () => resolveParsedNote(workspace, activeNote),
+  } = useWorkspaceController();
+  const parsedNoteView = useMemo(
+    () => resolveParsedNoteView(workspace, activeNote),
     [activeNote, workspace],
   );
-  const documentText = parsedNote.source;
+  const documentText = parsedNoteView.source;
   const activeSyntaxProfile =
-    parsedNote.status === "parsed" ? parsedNote.profile : null;
+    parsedNoteView.status === "parsed" ? parsedNoteView.profile : null;
   const syntaxIssueMessage =
-    parsedNote.status === "parsed" ? null : parsedNote.message;
-  const parsedDocument = parsedNote.document;
+    parsedNoteView.status === "parsed" ? null : parsedNoteView.message;
+  const parsedDocument = parsedNoteView.document;
   const selectedSyntaxFile = useMemo(
     () =>
       syntaxFiles.find((file) => file.fileName === selectedSyntaxFileName) ??

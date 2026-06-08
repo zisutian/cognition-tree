@@ -3,16 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import type { CtnBlock } from "../../ctn/parseOutline";
 import type { NoteId, NoteWorkspace } from "../../domain/notes";
 import type {
-  MoveNoteBlockActionResult,
-  MoveNoteBlockRequest,
-} from "../../workspace/useNoteWorkspace";
-import { resolveParsedNote } from "../../workspace/parsedNote";
+  MoveWorkspaceBlockActionResult,
+  MoveWorkspaceBlockRequest,
+} from "../../workspace/useWorkspaceController";
+import { resolveParsedNoteView } from "../../workspace/parsedNoteView";
 import { previewWorkspaceBlockMigration } from "../../workspace/workspaceBlockMigration";
 import type { BlockMigrationPanelStatus } from "./BlockMigrationStatusPanel";
 
 type BlockMigrationWorkspacePanelProps = {
   activeNoteId: NoteId | null;
-  onMoveNoteBlock: (request: MoveNoteBlockRequest) => MoveNoteBlockActionResult;
+  onMoveNoteBlock: (request: MoveWorkspaceBlockRequest) => MoveWorkspaceBlockActionResult;
   onResultStatusChange: (status: BlockMigrationPanelStatus | null) => void;
   onSelectionStatusChange: (status: BlockMigrationPanelStatus) => void;
   workspace: NoteWorkspace;
@@ -25,7 +25,7 @@ function blockOptionLabel(block: CtnBlock) {
   return `L${block.lineNumber} ${prefix}${block.label}: ${text}`;
 }
 
-function parseTargetPosition(value: string): MoveNoteBlockRequest["targetPosition"] {
+function parseTargetPosition(value: string): MoveWorkspaceBlockRequest["targetPosition"] {
   if (value === "end") {
     return { kind: "end" };
   }
@@ -53,7 +53,7 @@ export function BlockMigrationWorkspacePanel({
       new Map(
         notes.map((note) => [
           note.id,
-          resolveParsedNote(workspace, note),
+          resolveParsedNoteView(workspace, note),
         ]),
       ),
     [notes, workspace],

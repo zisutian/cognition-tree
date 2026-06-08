@@ -7,7 +7,7 @@ import type { CtnSyntaxProfile } from "../syntax/types";
 import {
   resolveNoteSyntaxProfile,
   resolveWorkspaceDefaultSyntaxProfile,
-} from "./workspaceSyntax";
+} from "./syntaxResolution";
 
 export const emptyCtnDocument: CtnDocument = {
   blocks: [],
@@ -31,7 +31,7 @@ export type ParsedNoteView =
       status: "invalid-profile" | "missing-profile";
     };
 
-export function resolveParsedNote(
+export function resolveParsedNoteView(
   workspace: NoteWorkspace,
   note: NoteRecord | null,
 ): ParsedNoteView {

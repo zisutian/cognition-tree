@@ -13,7 +13,7 @@ import {
   type NoteWorkspace,
 } from "../domain/notes";
 import type { CtnSyntaxProfile } from "../syntax/types";
-import { resolveNoteSyntaxProfile } from "./workspaceSyntax";
+import { resolveNoteSyntaxProfile } from "./syntaxResolution";
 
 export type WorkspaceBlockMigrationTargetPositionRequest =
   | {

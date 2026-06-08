@@ -2,7 +2,7 @@ import type { NoteRecord, NoteWorkspace } from "../domain/notes";
 import { getSyntaxProfileShapeError } from "../syntax/profileValidation";
 import type { CtnSyntaxProfile } from "../syntax/types";
 
-export type WorkspaceSyntaxProfileResolution =
+export type SyntaxProfileResolution =
   | {
       status: "resolved";
       profile: CtnSyntaxProfile;
@@ -24,7 +24,7 @@ function resolveProfileShape(
   profile: CtnSyntaxProfile,
   syntaxProfileId: string,
   syntaxVersion?: number,
-): WorkspaceSyntaxProfileResolution {
+): SyntaxProfileResolution {
   const shapeError = getSyntaxProfileShapeError(profile);
 
   if (shapeError) {
@@ -42,7 +42,7 @@ function resolveProfileShape(
 export function resolveNoteSyntaxProfile(
   workspace: NoteWorkspace,
   note: NoteRecord,
-): WorkspaceSyntaxProfileResolution {
+): SyntaxProfileResolution {
   const profile = workspace.syntaxProfiles.find(
     (candidate) =>
       candidate.id === note.syntaxProfileId &&
@@ -63,7 +63,7 @@ export function resolveNoteSyntaxProfile(
 
 export function resolveWorkspaceDefaultSyntaxProfile(
   workspace: NoteWorkspace,
-): WorkspaceSyntaxProfileResolution {
+): SyntaxProfileResolution {
   const profile = workspace.syntaxProfiles.find(
     (candidate) => candidate.id === workspace.defaultSyntaxProfileId,
   );

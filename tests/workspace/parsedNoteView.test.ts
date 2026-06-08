@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createInitialWorkspace, createNoteRecord } from "../../src/domain/notes";
 import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
 import type { CtnSyntaxProfile } from "../../src/syntax/types";
-import { resolveParsedNote } from "../../src/workspace/parsedNote";
+import { resolveParsedNoteView } from "../../src/workspace/parsedNoteView";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
-describe("resolveParsedNote", () => {
+describe("resolveParsedNoteView", () => {
   it("parses notes with their selected syntax profile", () => {
     const note = createNoteRecord(
       "note-first",
@@ -19,7 +19,7 @@ describe("resolveParsedNote", () => {
       notes: [note],
       activeNoteId: note.id,
     };
-    const result = resolveParsedNote(workspace, note);
+    const result = resolveParsedNoteView(workspace, note);
 
     expect(result.status).toBe("parsed");
     expect(result.document.blocks.map((block) => block.label)).toEqual([
@@ -29,7 +29,7 @@ describe("resolveParsedNote", () => {
   });
 
   it("parses an empty document with the workspace default syntax without an active note", () => {
-    const result = resolveParsedNote(
+    const result = resolveParsedNoteView(
       createInitialWorkspace([defaultCtnSyntaxProfile]),
       null,
     );
@@ -54,7 +54,7 @@ describe("resolveParsedNote", () => {
       syntaxProfiles: [defaultCtnSyntaxProfile],
     };
 
-    expect(resolveParsedNote(workspace, note)).toMatchObject({
+    expect(resolveParsedNoteView(workspace, note)).toMatchObject({
       message: "笔记引用的语法 missing@99 不存在。",
       status: "missing-profile",
     });
@@ -72,7 +72,7 @@ describe("resolveParsedNote", () => {
       syntaxProfiles: [invalidProfile],
     };
 
-    expect(resolveParsedNote(workspace, note)).toMatchObject({
+    expect(resolveParsedNoteView(workspace, note)).toMatchObject({
       status: "invalid-profile",
     });
   });

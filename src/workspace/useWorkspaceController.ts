@@ -17,20 +17,20 @@ import {
   updateActiveWorkspaceNoteSource,
   updateActiveWorkspaceNoteSyntaxProfile,
 } from "../domain/workspaceActions";
-import { resolveWorkspaceDefaultSyntaxProfile } from "./workspaceSyntax";
+import { resolveWorkspaceDefaultSyntaxProfile } from "./syntaxResolution";
 import {
   moveWorkspaceBlock,
   type WorkspaceBlockMigrationRequest,
   type WorkspaceBlockMigrationTargetPositionRequest,
 } from "./workspaceBlockMigration";
-import { useWorkspaceRepository } from "./useWorkspaceRepository";
+import { useRepositorySession } from "./useRepositorySession";
 
-export type MoveNoteBlockTargetPositionRequest =
+export type MoveWorkspaceBlockTargetPositionRequest =
   WorkspaceBlockMigrationTargetPositionRequest;
 
-export type MoveNoteBlockRequest = WorkspaceBlockMigrationRequest;
+export type MoveWorkspaceBlockRequest = WorkspaceBlockMigrationRequest;
 
-export type MoveNoteBlockActionResult =
+export type MoveWorkspaceBlockActionResult =
   | {
       message: string;
       status: "moved";
@@ -48,7 +48,7 @@ function createLocalNoteId() {
   return `note-${Date.now()}`;
 }
 
-export function useNoteWorkspace() {
+export function useWorkspaceController() {
   const {
     canChangeRepositoryPath,
     changeRepositoryPath,
@@ -62,7 +62,7 @@ export function useNoteWorkspace() {
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
-  } = useWorkspaceRepository();
+  } = useRepositorySession();
   const [selectedFolderId, setSelectedFolderId] =
     useState<FolderId>(defaultFolderId);
   const activeNote =
@@ -167,8 +167,8 @@ export function useNoteWorkspace() {
   };
 
   const moveNoteBlock = (
-    request: MoveNoteBlockRequest,
-  ): MoveNoteBlockActionResult => {
+    request: MoveWorkspaceBlockRequest,
+  ): MoveWorkspaceBlockActionResult => {
     const result = moveWorkspaceBlock(
       workspace,
       request,

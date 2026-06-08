@@ -37,6 +37,7 @@
     Workspace 架构重构。
     docs 文档体系重构。
     持久化链路命名从早期 note-only 语义调整为 WorkspaceRepository / WorkspaceFileStore / workspaceApiServer。
+    workspace 应用层命名调整为 syntaxResolution、parsedNoteView、useRepositorySession、useWorkspaceController。
 
 
 2. 当前主线
@@ -59,8 +60,8 @@
 
 完成标准：
 
-    useNoteWorkspace 保持 facade。
-    workspaceActions、workspaceSyntax、parsedNote、workspaceBlockMigration、useWorkspaceRepository 有测试或明确调用边界。
+    useWorkspaceController 保持 facade。
+    workspaceActions、syntaxResolution、parsedNoteView、workspaceBlockMigration、useRepositorySession 有测试或明确调用边界。
     App 和迁移面板不再重复解析 profile 和块迁移规则。
 
 
@@ -99,9 +100,6 @@
 
 5. 暂缓事项
 
-    应用层命名可后续评估：useNoteWorkspace -> useWorkspaceController
-    会话 hook 命名可后续评估：useWorkspaceRepository -> useRepositorySession
-    语法解析入口命名可后续评估：workspaceSyntax -> syntaxResolution
     语法文件类型命名可后续评估：SyntaxProfileFile -> SyntaxFile
     分层目录命名可后续评估：domain -> core，workspace -> application
     UI 边界可后续评估：feature-specific sidebar panel 从 shell 下沉到对应 features

@@ -9,7 +9,7 @@ import { formatSyntaxProfileToml } from "../syntax/profileToml";
 import type { SyntaxProfileFile } from "../storage/workspaceRepository";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
 
-type UseWorkspaceRepositoryResult = {
+type UseRepositorySessionResult = {
   canChangeRepositoryPath: boolean;
   changeRepositoryPath: (path: string) => Promise<void>;
   createSyntaxFile: (fileName: string) => Promise<void>;
@@ -59,7 +59,7 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
-export function useWorkspaceRepository(): UseWorkspaceRepositoryResult {
+export function useRepositorySession(): UseRepositorySessionResult {
   const repository = useMemo(() => createRuntimeWorkspaceRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
     return createInitialWorkspace([defaultCtnSyntaxProfile]);
