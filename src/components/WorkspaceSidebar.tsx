@@ -1,9 +1,5 @@
 import type { CtnSyntaxProfile, OutlineNode } from "../ctn/parseOutline";
 import type {
-  MoveNoteBlockActionResult,
-  MoveNoteBlockRequest,
-} from "../hooks/useNoteWorkspace";
-import type {
   FolderId,
   NoteId,
   NoteRecord,
@@ -29,6 +25,7 @@ type WorkspaceSidebarProps = {
   outline: OutlineNode[];
   repositoryPath: string;
   storageLabel: string;
+  selectedSyntaxFileName: string;
   syntaxProfiles: CtnSyntaxProfile[];
   syntaxFiles: SyntaxProfileFile[];
   totalBlocks: number;
@@ -41,14 +38,13 @@ type WorkspaceSidebarProps = {
   onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
-  onMoveNoteBlock: (request: MoveNoteBlockRequest) => MoveNoteBlockActionResult;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
-  onUpdateSyntaxFile: (fileName: string, source: string) => void;
+  onSelectSyntaxFile: (fileName: string) => void;
 };
 
 export function WorkspaceSidebar({
@@ -61,6 +57,7 @@ export function WorkspaceSidebar({
   outline,
   repositoryPath,
   storageLabel,
+  selectedSyntaxFileName,
   syntaxProfiles,
   syntaxFiles,
   totalBlocks,
@@ -73,14 +70,13 @@ export function WorkspaceSidebar({
   onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
-  onMoveNoteBlock,
   onMoveNote,
   onReloadWorkspace,
   onRenameFolder,
   onSelectFolder,
   onSelectLine,
   onSelectNote,
-  onUpdateSyntaxFile,
+  onSelectSyntaxFile,
 }: WorkspaceSidebarProps) {
   const activeActivityItem =
     sidebarActivityItems.find((item) => item.id === activeActivityId) ??
@@ -108,6 +104,7 @@ export function WorkspaceSidebar({
           outline={outline}
           repositoryPath={repositoryPath}
           storageLabel={storageLabel}
+          selectedSyntaxFileName={selectedSyntaxFileName}
           syntaxProfiles={syntaxProfiles}
           syntaxFiles={syntaxFiles}
           totalBlocks={totalBlocks}
@@ -119,14 +116,13 @@ export function WorkspaceSidebar({
           onDeleteSyntaxFile={onDeleteSyntaxFile}
           onDeleteFolder={onDeleteFolder}
           onDeleteNote={onDeleteNote}
-          onMoveNoteBlock={onMoveNoteBlock}
           onMoveNote={onMoveNote}
           onReloadWorkspace={onReloadWorkspace}
           onRenameFolder={onRenameFolder}
           onSelectFolder={onSelectFolder}
           onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}
-          onUpdateSyntaxFile={onUpdateSyntaxFile}
+          onSelectSyntaxFile={onSelectSyntaxFile}
         />
       </section>
     </aside>

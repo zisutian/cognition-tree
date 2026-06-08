@@ -1,9 +1,5 @@
 import type { CtnSyntaxProfile, OutlineNode } from "../../ctn/parseOutline";
 import type {
-  MoveNoteBlockActionResult,
-  MoveNoteBlockRequest,
-} from "../../hooks/useNoteWorkspace";
-import type {
   FolderId,
   NoteId,
   NoteRecord,
@@ -15,7 +11,7 @@ import {
   sidebarPlaceholderEntries,
   type SidebarActivityId,
 } from "./sidebarConfig";
-import { SidebarBlockMigrationPanel } from "./SidebarBlockMigrationPanel";
+import { SidebarMigrationPanel } from "./SidebarMigrationPanel";
 import { SidebarNotesPanel } from "./SidebarNotesPanel";
 import { SidebarOutlineSummary } from "./SidebarOutlineSummary";
 import { SidebarPlaceholderPanel } from "./SidebarPlaceholderPanel";
@@ -31,6 +27,7 @@ type SidebarActivityPanelProps = {
   outline: OutlineNode[];
   repositoryPath: string;
   storageLabel: string;
+  selectedSyntaxFileName: string;
   syntaxProfiles: CtnSyntaxProfile[];
   syntaxFiles: SyntaxProfileFile[];
   totalBlocks: number;
@@ -42,14 +39,13 @@ type SidebarActivityPanelProps = {
   onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
-  onMoveNoteBlock: (request: MoveNoteBlockRequest) => MoveNoteBlockActionResult;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
-  onUpdateSyntaxFile: (fileName: string, source: string) => void;
+  onSelectSyntaxFile: (fileName: string) => void;
 };
 
 export function SidebarActivityPanel({
@@ -62,6 +58,7 @@ export function SidebarActivityPanel({
   outline,
   repositoryPath,
   storageLabel,
+  selectedSyntaxFileName,
   syntaxProfiles,
   syntaxFiles,
   totalBlocks,
@@ -73,14 +70,13 @@ export function SidebarActivityPanel({
   onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
-  onMoveNoteBlock,
   onMoveNote,
   onReloadWorkspace,
   onRenameFolder,
   onSelectFolder,
   onSelectLine,
   onSelectNote,
-  onUpdateSyntaxFile,
+  onSelectSyntaxFile,
 }: SidebarActivityPanelProps) {
   if (activeActivityId === "notes") {
     return (
@@ -120,21 +116,20 @@ export function SidebarActivityPanel({
   if (activeActivityId === "syntax") {
     return (
       <SidebarSyntaxPanel
+        selectedFileName={selectedSyntaxFileName}
         syntaxFiles={syntaxFiles}
         onCreateSyntaxFile={onCreateSyntaxFile}
         onDeleteSyntaxFile={onDeleteSyntaxFile}
-        onUpdateSyntaxFile={onUpdateSyntaxFile}
+        onSelectSyntaxFile={onSelectSyntaxFile}
       />
     );
   }
 
   if (activeActivityId === "migration") {
     return (
-      <SidebarBlockMigrationPanel
-        activeNoteId={activeNoteId}
-        notes={notes}
-        syntaxProfiles={syntaxProfiles}
-        onMoveNoteBlock={onMoveNoteBlock}
+      <SidebarMigrationPanel
+        notesCount={notes.length}
+        syntaxProfilesCount={syntaxProfiles.length}
       />
     );
   }

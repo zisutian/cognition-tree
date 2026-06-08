@@ -1,42 +1,21 @@
-import { FilePlus, Save, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { FilePlus, Trash2 } from "lucide-react";
 import type { SyntaxProfileFile } from "../../storage/noteRepository";
 
 type SidebarSyntaxPanelProps = {
+  selectedFileName: string;
   syntaxFiles: SyntaxProfileFile[];
   onCreateSyntaxFile: (fileName: string) => void;
   onDeleteSyntaxFile: (fileName: string) => void;
-  onUpdateSyntaxFile: (fileName: string, source: string) => void;
+  onSelectSyntaxFile: (fileName: string) => void;
 };
 
 export function SidebarSyntaxPanel({
+  selectedFileName,
   syntaxFiles,
   onCreateSyntaxFile,
   onDeleteSyntaxFile,
-  onUpdateSyntaxFile,
+  onSelectSyntaxFile,
 }: SidebarSyntaxPanelProps) {
-  const [selectedFileName, setSelectedFileName] = useState("");
-  const [draftSource, setDraftSource] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const selectedFile = useMemo(
-    () =>
-      syntaxFiles.find((file) => file.fileName === selectedFileName) ??
-      syntaxFiles[0] ??
-      null,
-    [selectedFileName, syntaxFiles],
-  );
-
-  useEffect(() => {
-    if (!selectedFile) {
-      setSelectedFileName("");
-      setDraftSource("");
-      return;
-    }
-
-    setSelectedFileName(selectedFile.fileName);
-    setDraftSource(selectedFile.source);
-  }, [selectedFile]);
-
   const requestCreateSyntaxFile = () => {
     const fileName = window.prompt("语法文件名", "ctn-custom.toml");
 
@@ -44,38 +23,18 @@ export function SidebarSyntaxPanel({
       return;
     }
 
-    setErrorMessage("");
-    void Promise.resolve(onCreateSyntaxFile(fileName)).catch((error: unknown) => {
-      setErrorMessage(error instanceof Error ? error.message : "语法文件创建失败。");
-    });
+    onCreateSyntaxFile(fileName);
   };
 
-  const saveSelectedSyntaxFile = () => {
-    if (!selectedFile) {
+  const requestDeleteSyntaxFile = () => {
+    if (
+      !selectedFileName ||
+      !window.confirm(`删除语法文件「${selectedFileName}」？`)
+    ) {
       return;
     }
 
-    setErrorMessage("");
-    void Promise.resolve(
-      onUpdateSyntaxFile(selectedFile.fileName, draftSource),
-    ).catch((error: unknown) => {
-      setErrorMessage(error instanceof Error ? error.message : "语法文件保存失败。");
-    });
-  };
-
-  const deleteSelectedSyntaxFile = () => {
-    if (!selectedFile || !window.confirm(`删除语法文件「${selectedFile.fileName}」？`)) {
-      return;
-    }
-
-    setErrorMessage("");
-    void Promise.resolve(onDeleteSyntaxFile(selectedFile.fileName)).catch(
-      (error: unknown) => {
-        setErrorMessage(
-          error instanceof Error ? error.message : "语法文件删除失败。",
-        );
-      },
-    );
+    onDeleteSyntaxFile(selectedFileName);
   };
 
   return (
@@ -96,12 +55,12 @@ export function SidebarSyntaxPanel({
           {syntaxFiles.map((file) => (
             <button
               className={
-                file.fileName === selectedFile?.fileName
+                file.fileName === selectedFileName
                   ? "syntax-file-entry active"
                   : "syntax-file-entry"
               }
               key={file.fileName}
-              onClick={() => setSelectedFileName(file.fileName)}
+              onClick={() => onSelectSyntaxFile(file.fileName)}
               type="button"
             >
               <span>{file.profile.name}</span>
@@ -113,38 +72,16 @@ export function SidebarSyntaxPanel({
         </div>
       </section>
 
-      <section className="side-section syntax-editor-section">
-        <div className="side-section-header">
-          <p className="side-section-title">{selectedFile?.fileName ?? "TOML"}</p>
-          <div className="side-action-group">
-            <button
-              className="side-action-button"
-              disabled={!selectedFile}
-              onClick={saveSelectedSyntaxFile}
-              type="button"
-            >
-              <Save aria-hidden="true" size={13} strokeWidth={2} />
-              保存
-            </button>
-            <button
-              className="side-action-button"
-              disabled={!selectedFile}
-              onClick={deleteSelectedSyntaxFile}
-              type="button"
-            >
-              <Trash2 aria-hidden="true" size={13} strokeWidth={2} />
-              删除
-            </button>
-          </div>
-        </div>
-        <textarea
-          className="syntax-source-editor"
-          disabled={!selectedFile}
-          spellCheck={false}
-          value={draftSource}
-          onChange={(event) => setDraftSource(event.target.value)}
-        />
-        {errorMessage ? <p className="side-error">{errorMessage}</p> : null}
+      <section className="side-section">
+        <button
+          className="side-action-button syntax-delete-button"
+          disabled={!selectedFileName}
+          onClick={requestDeleteSyntaxFile}
+          type="button"
+        >
+          <Trash2 aria-hidden="true" size={13} strokeWidth={2} />
+          删除当前语法
+        </button>
       </section>
     </div>
   );

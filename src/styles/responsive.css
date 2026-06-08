@@ -25,7 +25,18 @@
     border-left: 0;
   }
 
-  .source-editor {
+  .workspace-detail-panel {
+    border-top: 1px solid #d9ded7;
+    border-left: 0;
+  }
+
+  .source-editor,
+  .workspace-source-editor,
+  .workspace-empty-state {
     min-height: 340px;
+  }
+
+  .migration-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
