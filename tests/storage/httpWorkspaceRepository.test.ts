@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspace } from "../../src/domain/notes";
-import { createHttpNoteRepository } from "../../src/storage/httpNoteRepository";
+import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -15,7 +15,7 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-describe("createHttpNoteRepository", () => {
+describe("createHttpWorkspaceRepository", () => {
   it("loads repository info and workspace through HTTP", async () => {
     const workspace = createInitialWorkspace();
     const calls: FetchCall[] = [];
@@ -36,7 +36,7 @@ describe("createHttpNoteRepository", () => {
 
       return jsonResponse({ error: "not found" }, 404);
     };
-    const repository = createHttpNoteRepository({
+    const repository = createHttpWorkspaceRepository({
       baseUrl: "http://api.test/base/",
       fetch: fetchMock,
     });
@@ -65,7 +65,7 @@ describe("createHttpNoteRepository", () => {
 
       return new Response(null, { status: 204 });
     };
-    const repository = createHttpNoteRepository({
+    const repository = createHttpWorkspaceRepository({
       baseUrl: "http://api.test",
       fetch: fetchMock,
     });
@@ -91,7 +91,7 @@ describe("createHttpNoteRepository", () => {
     const fetchMock: typeof fetch = async () => {
       return jsonResponse({ error: "backend failed" }, 500);
     };
-    const repository = createHttpNoteRepository({ fetch: fetchMock });
+    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
 
     await expect(repository.loadWorkspace()).rejects.toThrow("backend failed");
   });

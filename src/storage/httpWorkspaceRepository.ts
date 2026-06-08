@@ -1,11 +1,11 @@
 import type { NoteWorkspace } from "../domain/notes";
 import type {
-  NoteRepository,
+  WorkspaceRepository,
   RepositoryInfo,
   SyntaxProfileFile,
-} from "./noteRepository";
+} from "./workspaceRepository";
 
-type HttpNoteRepositoryOptions = {
+type HttpWorkspaceRepositoryOptions = {
   baseUrl?: string;
   fetch?: typeof fetch;
 };
@@ -60,10 +60,10 @@ async function sendJson(
   }
 }
 
-export function createHttpNoteRepository({
+export function createHttpWorkspaceRepository({
   baseUrl = "http://127.0.0.1:3001",
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-}: HttpNoteRepositoryOptions = {}): NoteRepository {
+}: HttpWorkspaceRepositoryOptions = {}): WorkspaceRepository {
   return {
     label: "HTTP 后端",
     canChangeRepositoryPath: false,

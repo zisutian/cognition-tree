@@ -5,10 +5,10 @@ import {
   parseSyntaxProfileToml,
 } from "../syntax/profileToml";
 import type {
-  NoteRepository,
+  WorkspaceRepository,
   RepositoryInfo,
   SyntaxProfileFile,
-} from "./noteRepository";
+} from "./workspaceRepository";
 
 const workspaceStorageKey = "cognition-tree.workspace";
 const repositoryLabelStorageKey = "cognition-tree.repository-label";
@@ -92,7 +92,7 @@ function assertNoDuplicateSyntaxProfiles(files: SyntaxProfileFile[]) {
   }
 }
 
-export function createLocalStorageNoteRepository(): NoteRepository {
+export function createBrowserWorkspaceRepository(): WorkspaceRepository {
   return {
     label: "浏览器本地存储",
     canChangeRepositoryPath: true,

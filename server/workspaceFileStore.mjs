@@ -91,7 +91,7 @@ async function writeJson(filePath, value) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-export class NoteFileStore {
+export class WorkspaceFileStore {
   #rootDir;
 
   constructor(rootDir) {

@@ -1,5 +1,5 @@
 import { FilePlus, Trash2 } from "lucide-react";
-import type { SyntaxProfileFile } from "../../storage/noteRepository";
+import type { SyntaxProfileFile } from "../../storage/workspaceRepository";
 
 type SidebarSyntaxPanelProps = {
   selectedFileName: string;

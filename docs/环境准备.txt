@@ -38,8 +38,8 @@
     pnpm check
     pnpm build
     node --check server/index.mjs
-    node --check server/noteApiServer.mjs
-    node --check server/noteFileStore.mjs
+    node --check server/workspaceApiServer.mjs
+    node --check server/workspaceFileStore.mjs
     git diff --check
 
 

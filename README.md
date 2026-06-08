@@ -14,8 +14,8 @@
     CodeMirror 6 原文编辑区
     TypeScript CTN 解析器
     笔记和目录树领域模型
-    NoteRepository 存储端口
-    HTTP NoteRepository 存储适配器
+    WorkspaceRepository 存储端口
+    HTTP WorkspaceRepository 存储适配器
     Node HTTP 后端最小服务
     Vitest 单元测试
 
@@ -80,8 +80,8 @@ SQLite 当前只用于后续索引缓存，不是启动前端和后端的硬性�
 后端脚本语法检查：
 
     node --check server/index.mjs
-    node --check server/noteApiServer.mjs
-    node --check server/noteFileStore.mjs
+    node --check server/workspaceApiServer.mjs
+    node --check server/workspaceFileStore.mjs
 
 前端默认访问：
 

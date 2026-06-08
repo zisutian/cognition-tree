@@ -36,6 +36,7 @@
 
     Workspace 架构重构。
     docs 文档体系重构。
+    持久化链路命名从早期 note-only 语义调整为 WorkspaceRepository / WorkspaceFileStore / workspaceApiServer。
 
 
 2. 当前主线
@@ -86,8 +87,8 @@
 后端脚本语法检查：
 
     node --check server/index.mjs
-    node --check server/noteApiServer.mjs
-    node --check server/noteFileStore.mjs
+    node --check server/workspaceApiServer.mjs
+    node --check server/workspaceFileStore.mjs
     node --check server/syntaxProfileToml.mjs
 
 文档重构检查：
@@ -98,6 +99,12 @@
 
 5. 暂缓事项
 
+    应用层命名可后续评估：useNoteWorkspace -> useWorkspaceController
+    会话 hook 命名可后续评估：useWorkspaceRepository -> useRepositorySession
+    语法解析入口命名可后续评估：workspaceSyntax -> syntaxResolution
+    语法文件类型命名可后续评估：SyntaxProfileFile -> SyntaxFile
+    分层目录命名可后续评估：domain -> core，workspace -> application
+    UI 边界可后续评估：feature-specific sidebar panel 从 shell 下沉到对应 features
     Redux / Zustand 等全局状态库
     后端框架重写
     旧语法 schema 兼容入口

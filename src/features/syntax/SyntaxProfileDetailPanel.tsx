@@ -1,4 +1,4 @@
-import type { SyntaxProfileFile } from "../../storage/noteRepository";
+import type { SyntaxProfileFile } from "../../storage/workspaceRepository";
 import { parseSyntaxProfileToml } from "../../syntax/profileToml";
 
 export type WorkspaceFeedback = {

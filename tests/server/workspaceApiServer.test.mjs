@@ -6,9 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  createNoteApiRequestHandler,
-  NoteFileStore,
-} from "../../server/noteApiServer.mjs";
+  createWorkspaceApiRequestHandler,
+  WorkspaceFileStore,
+} from "../../server/workspaceApiServer.mjs";
 import { defaultSyntaxProfile } from "../../server/syntaxProfileToml.mjs";
 
 function createWorkspace() {
@@ -75,8 +75,8 @@ async function withHandler(testFn) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-"));
 
   try {
-    const handler = createNoteApiRequestHandler({
-      store: new NoteFileStore(rootDir),
+    const handler = createWorkspaceApiRequestHandler({
+      store: new WorkspaceFileStore(rootDir),
     });
 
     return await testFn(handler, rootDir);

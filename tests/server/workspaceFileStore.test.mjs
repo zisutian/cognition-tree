@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { NoteFileStore } from "../../server/noteFileStore.mjs";
+import { WorkspaceFileStore } from "../../server/workspaceFileStore.mjs";
 import {
   defaultSyntaxProfile,
   formatSyntaxProfileToml,
@@ -49,13 +49,13 @@ async function withTempStore(testFn) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-file-store-"));
 
   try {
-    return await testFn(new NoteFileStore(rootDir), rootDir);
+    return await testFn(new WorkspaceFileStore(rootDir), rootDir);
   } finally {
     await rm(rootDir, { force: true, recursive: true });
   }
 }
 
-describe("NoteFileStore", () => {
+describe("WorkspaceFileStore", () => {
   it("saves notes as .ctn files and loads workspace manifests", async () => {
     await withTempStore(async (store, rootDir) => {
       const workspace = createWorkspace();

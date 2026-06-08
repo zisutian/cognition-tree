@@ -6,8 +6,8 @@ import {
 } from "../domain/notes";
 import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
 import { formatSyntaxProfileToml } from "../syntax/profileToml";
-import type { SyntaxProfileFile } from "../storage/noteRepository";
-import { createRuntimeNoteRepository } from "../storage/runtimeNoteRepository";
+import type { SyntaxProfileFile } from "../storage/workspaceRepository";
+import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
 
 type UseWorkspaceRepositoryResult = {
   canChangeRepositoryPath: boolean;
@@ -60,7 +60,7 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 }
 
 export function useWorkspaceRepository(): UseWorkspaceRepositoryResult {
-  const repository = useMemo(() => createRuntimeNoteRepository(), []);
+  const repository = useMemo(() => createRuntimeWorkspaceRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
     return createInitialWorkspace([defaultCtnSyntaxProfile]);
   });

@@ -11,7 +11,7 @@ export type SyntaxProfileFile = {
   source: string;
 };
 
-export type NoteRepository = {
+export type WorkspaceRepository = {
   label: string;
   canChangeRepositoryPath?: boolean;
   loadWorkspace: () => Promise<NoteWorkspace | null>;

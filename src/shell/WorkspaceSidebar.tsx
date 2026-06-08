@@ -5,7 +5,7 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../domain/notes";
-import type { SyntaxProfileFile } from "../storage/noteRepository";
+import type { SyntaxProfileFile } from "../storage/workspaceRepository";
 import type { CtnSyntaxProfile } from "../syntax/types";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";

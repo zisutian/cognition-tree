@@ -55,8 +55,8 @@ Docker 路线：
     Domain Layer 承载笔记、目录树、块文本、块迁移等可测试规则。
     CTN Core 只解析 .ctn 原文，产出块、行内结构、诊断和范围信息。
     Syntax Core 负责语法 profile、TOML 解析、TOML 校验、默认语法和默认 TOML 序列化。
-    Storage Port 由 NoteRepository 表示，前端只依赖该端口。
-    HTTP Adapter 把 NoteRepository 调用转为 HTTP 请求。
+    Storage Port 由 WorkspaceRepository 表示，前端只依赖该端口。
+    HTTP Adapter 把 WorkspaceRepository 调用转为 HTTP 请求。
     Node HTTP API 和 File Store 负责安全读写本地文件仓库。
 
 原则：
@@ -123,16 +123,20 @@ src/features/：
     syntax 负责语法 TOML 编辑和语法详情。
     migration 负责跨笔记块迁移界面。
     feature 组件不直接处理数据正确性规则。
+    具体 notes、syntax、migration、outline 面板属于 feature UI。
 
 src/shell/：
 
     负责全局导航、活动栏、仓库侧栏和当前功能入口。
+    shell 只应承载应用外壳、导航、活动栏和布局容器。
+    若 sidebar 中的组件知道具体业务功能，应后续评估下沉到对应 feature。
 
 src/workspace/：
 
     useWorkspaceRepository 负责加载、保存、刷新、切换仓库路径和语法文件 API。
     useNoteWorkspace 保留为 facade，组合 repository session、当前选择状态和 workspace commands。
-    workspaceSyntax 统一处理 workspace 中的语法 profile 查找、缺失和非法状态。
+    workspaceSyntax 统一处理 workspace 中的 syntax profile resolution。
+    workspaceSyntax 只把 note/workspace 引用解析为 resolved、missing-profile 或 invalid-profile 状态，不解析 TOML。
     parsedNote 统一处理“笔记 + workspace -> 解析视图模型”。
     workspaceBlockMigration 负责跨笔记块迁移完整 workflow。
 
@@ -163,8 +167,21 @@ src/domain/workspaceActions.ts：
     负责 workspace 级笔记、文件夹和语法切换变换。
     由调用方传入 id 和 timestamp。
 
+domain / workspace 判断标准：
+
+    只需要普通对象作为输入，并返回普通对象或失败结果的纯规则，优先放 domain。
+    需要 repository、session、active note、syntax file list、UI 错误状态或多个模块调用顺序的逻辑，放 workspace。
+    能脱离应用直接测试的逻辑应尽量下沉到 domain。
+    描述一次用户操作要串起哪些步骤的 workflow 留在 workspace。
+
 
 6. CTN 与 Syntax 边界
+
+三类解析必须分开：
+
+    syntax/*.toml 解析归属 src/syntax，输入 TOML 原文，输出 CtnSyntaxProfile。
+    .ctn 原文解析归属 src/ctn，输入 note.source 和 CtnSyntaxProfile，输出 CtnDocument。
+    syntax profile resolution 归属 src/workspace，输入 NoteWorkspace 和 NoteRecord，输出 resolved、missing-profile 或 invalid-profile 状态。
 
 src/ctn/：
 
@@ -191,9 +208,9 @@ src/syntax/：
 
 前端存储端口：
 
-    NoteRepository 是前端唯一存储端口。
-    HTTP NoteRepository 是当前主线实现。
-    localStorage NoteRepository 仅作为显式开发备选。
+    WorkspaceRepository 是前端唯一存储端口。
+    HTTP WorkspaceRepository 是当前主线实现。
+    localStorage WorkspaceRepository 仅作为显式开发备选。
 
 后端职责：
 
@@ -209,7 +226,37 @@ src/syntax/：
     CTN 文本编辑行为。
 
 
-8. 文件仓库模型
+8. 命名边界
+
+持久化链路：
+
+    WorkspaceRepository、WorkspaceFileStore、WorkspaceApiServer 使用 Workspace 命名。
+    原因是它们负责完整 workspace persistence，包括 workspace、repository info、syntax file CRUD，而不是单篇 note。
+
+Note 命名：
+
+    NoteRecord、NoteTree、NoteEditor、NoteOutline 等 Note 命名只用于真实单篇笔记、笔记树、笔记编辑和笔记结构语义。
+    不再用于仓库级持久化端口、文件仓库实现和 HTTP API server。
+
+SyntaxProfileFile：
+
+    SyntaxProfileFile 暂时保留。
+    它表示语法 profile 文件，不是 workspace persistence port。
+    后续如语法文件模型扩展，再单独评估是否改为 SyntaxFile。
+
+应用层 hook：
+
+    useNoteWorkspace 和 useWorkspaceRepository 本轮暂不改名。
+    若后续要改，应作为独立提交粒度评估 useWorkspaceController、useRepositorySession 等命名。
+
+目录命名：
+
+    domain 当前表示纯规则、纯模型和纯数据变换。
+    workspace 当前表示前端应用编排、当前会话上下文、view model 和 workflow。
+    两者命名维度不完全一致；后续如继续整理，可独立评估 domain -> core、workspace -> application。
+
+
+9. 文件仓库模型
 
 权威源文件：
 
@@ -241,11 +288,11 @@ syntax/*.toml：
     索引缓存不替代权威源文件。
 
 
-9. 数据流
+10. 数据流
 
 加载：
 
-    useWorkspaceRepository 调用 NoteRepository。
+    useWorkspaceRepository 调用 WorkspaceRepository。
     HTTP adapter 请求 Node API。
     File Store 读取 workspace.json、notes/*.ctn、syntax/*.toml。
     前端把语法 profile 注入 workspace。
@@ -255,7 +302,7 @@ syntax/*.toml：
     UI 触发 command。
     useNoteWorkspace 调用 workspace action。
     workspace 更新后自动保存。
-    NoteRepository 写回后端文件仓库。
+    WorkspaceRepository 写回后端文件仓库。
 
 解析：
 
@@ -272,7 +319,7 @@ syntax/*.toml：
     成功时更新源笔记、目标笔记、activeNoteId 和更新时间。
 
 
-10. 后续工程任务
+11. 后续工程任务
 
 短期：
 

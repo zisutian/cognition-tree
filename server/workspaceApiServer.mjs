@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import http from "node:http";
-import { NoteFileStore } from "./noteFileStore.mjs";
+import { WorkspaceFileStore } from "./workspaceFileStore.mjs";
 
 const jsonHeaders = {
   "Access-Control-Allow-Headers": "content-type",
@@ -48,7 +48,7 @@ async function readJsonBody(request) {
   return JSON.parse(body);
 }
 
-export function createNoteApiRequestHandler({ store }) {
+export function createWorkspaceApiRequestHandler({ store }) {
   return async (request, response) => {
     try {
       response.setHeader("Access-Control-Allow-Origin", "*");
@@ -130,8 +130,8 @@ export function createNoteApiRequestHandler({ store }) {
   };
 }
 
-export function createNoteApiServer({ store }) {
-  return http.createServer(createNoteApiRequestHandler({ store }));
+export function createWorkspaceApiServer({ store }) {
+  return http.createServer(createWorkspaceApiRequestHandler({ store }));
 }
 
-export { NoteFileStore };
+export { WorkspaceFileStore };
