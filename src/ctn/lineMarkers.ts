@@ -1,8 +1,6 @@
 import { createDiagnostic } from "./diagnostics";
 import type { CtnBlockType, CtnDiagnostic, CtnMarkerRule } from "./types";
 
-const invalidLineStartMarkers = ["#", "=", "?", "+"];
-
 export type ParsedLineMarker = {
   diagnostics: CtnDiagnostic[];
   label: string;
@@ -16,6 +14,10 @@ export function sortMarkerRules(markerRules: CtnMarkerRule[]): CtnMarkerRule[] {
   return [...markerRules].sort(
     (left, right) => right.marker.length - left.marker.length,
   );
+}
+
+function readUnknownLineStartMarker(trimmed: string) {
+  return trimmed.match(/^[^\p{L}\p{N}\s_]+/u)?.[0] ?? null;
 }
 
 export function parseMarker(
@@ -68,12 +70,10 @@ export function parseMarker(
     }
   }
 
-  const invalidLineStartMarker = invalidLineStartMarkers.find((marker) =>
-    trimmed.startsWith(marker),
-  );
+  const unknownLineStartMarker = readUnknownLineStartMarker(trimmed);
 
-  if (invalidLineStartMarker) {
-    const textAfterMarker = trimmed.slice(invalidLineStartMarker.length);
+  if (unknownLineStartMarker) {
+    const textAfterMarker = trimmed.slice(unknownLineStartMarker.length);
     const textLeadingWhitespace = textAfterMarker.match(/^\s*/)?.[0].length ?? 0;
 
     return {
@@ -83,14 +83,14 @@ export function parseMarker(
           "warning",
           lineNumber,
           indentWidth + 1,
-          `未知行首符号 ${invalidLineStartMarker}。`,
+          `未知行首符号 ${unknownLineStartMarker}。`,
         ),
       ],
       label: "未知符号",
-      marker: invalidLineStartMarker,
+      marker: unknownLineStartMarker,
       text: textAfterMarker.trim(),
       textStartColumn:
-        indentWidth + invalidLineStartMarker.length + textLeadingWhitespace + 1,
+        indentWidth + unknownLineStartMarker.length + textLeadingWhitespace + 1,
       type: "text",
     };
   }

@@ -1,4 +1,4 @@
-import type { CtnSyntaxProfile } from "./types";
+import type { CtnSyntaxProfile } from "../ctn/types";
 
 export const defaultCtnSyntaxProfile = {
   id: "ctn-default",
@@ -6,7 +6,6 @@ export const defaultCtnSyntaxProfile = {
   version: 1,
   spaceIndentUnit: 4,
   markerRules: [
-    { marker: "[语法]", type: "syntax-rule", label: "语法" },
     { marker: "```", type: "code", label: "代码块" },
     { marker: ":", type: "definition", label: "定义" },
     { marker: ">", type: "personal-understanding", label: "理解" },

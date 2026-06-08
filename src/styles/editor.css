@@ -9,9 +9,36 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
 }
 
-.source-editor:focus-within {
+.source-editor:focus-within,
+.source-editor-fallback:focus {
   border-color: #397c72;
   box-shadow: 0 0 0 3px rgba(57, 124, 114, 0.16);
+}
+
+.source-editor-fallback {
+  width: 100%;
+  flex: 1;
+  min-height: 500px;
+  padding: 12px 14px;
+  border: 1px solid #cdd6cc;
+  border-radius: 8px;
+  resize: none;
+  color: #15201d;
+  background: #fffef8;
+  font-family: var(--font-content);
+  font-size: 14px;
+  line-height: 1.62;
+  outline: none;
+}
+
+.syntax-profile-select {
+  max-width: 180px;
+  min-height: 24px;
+  border: 1px solid #c5d0c8;
+  border-radius: 6px;
+  color: #20302d;
+  background: #ffffff;
+  font-size: 12px;
 }
 
 .empty-editor {
@@ -127,8 +154,7 @@
 }
 
 .source-editor .ctn-marker-definition,
-.source-editor .ctn-marker-personal-understanding,
-.source-editor .ctn-marker-syntax-rule {
+.source-editor .ctn-marker-personal-understanding {
   color: #113d37;
   background: #dcefc2;
 }

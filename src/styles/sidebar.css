@@ -163,6 +163,79 @@
   cursor: default;
 }
 
+.side-error {
+  margin: 0;
+  color: #ffe0d0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.syntax-file-list {
+  display: grid;
+  gap: 3px;
+}
+
+.syntax-file-entry {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 7px;
+  border-radius: 6px;
+  color: #dbe8e2;
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  text-align: left;
+}
+
+.syntax-file-entry:hover,
+.syntax-file-entry.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.syntax-file-entry span,
+.syntax-file-entry code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syntax-file-entry span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.syntax-file-entry code {
+  color: #d7eb8f;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.syntax-editor-section {
+  flex: 1;
+  min-height: 0;
+}
+
+.syntax-source-editor {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 7px;
+  resize: none;
+  color: #f8fbf5;
+  background: rgba(18, 59, 55, 0.86);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.syntax-source-editor:focus {
+  border-color: #d7eb8f;
+}
+
 .repository-strip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

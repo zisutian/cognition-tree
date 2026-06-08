@@ -1,23 +1,26 @@
 import { describe, expect, it } from "vitest";
-import {
-  defaultCtnSyntaxProfile,
-  parseCtnDocument,
-} from "../../src/ctn/parseOutline";
+import { parseCtnDocument } from "../../src/ctn/parseOutline";
+import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+
+function parseDefaultCtnDocument(source: string) {
+  return parseCtnDocument(source, {
+    syntaxProfile: defaultCtnSyntaxProfile,
+  });
+}
 
 describe("parseCtnDocument", () => {
   it("builds a semantic block tree from the default CTN markers", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Root
     : Definition
     > Understanding
         - Component
-    [语法] Rule
     \`\`\` ts`);
 
     expect(document.roots).toHaveLength(1);
-    expect(document.blocks).toHaveLength(6);
+    expect(document.blocks).toHaveLength(5);
     expect(document.diagnostics).toHaveLength(0);
     expect(document.roots[0]).toMatchObject({
-      endLineNumber: 6,
+      endLineNumber: 5,
       label: "概念",
       level: 0,
       lineNumber: 1,
@@ -28,7 +31,6 @@ describe("parseCtnDocument", () => {
     expect(document.roots[0].children.map((node) => node.type)).toEqual([
       "definition",
       "personal-understanding",
-      "syntax-rule",
       "code",
     ]);
     expect(document.roots[0].children[1].children[0]).toMatchObject({
@@ -40,16 +42,9 @@ describe("parseCtnDocument", () => {
       type: "component",
     });
     expect(document.roots[0].children[2]).toMatchObject({
-      label: "语法",
-      lineNumber: 5,
-      marker: "[语法]",
-      text: "Rule",
-      type: "syntax-rule",
-    });
-    expect(document.roots[0].children[3]).toMatchObject({
-      endLineNumber: 6,
+      endLineNumber: 5,
       label: "代码块",
-      lineNumber: 6,
+      lineNumber: 5,
       marker: "```",
       text: "ts",
       type: "code",
@@ -57,7 +52,7 @@ describe("parseCtnDocument", () => {
   });
 
   it("computes subtree ranges across roots, children, last blocks, and blank lines", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Root
     : Definition
 
     - Component
@@ -80,7 +75,7 @@ Sibling
   });
 
   it("parses inline structural spans outside code blocks", () => {
-    const document = parseCtnDocument(
+    const document = parseDefaultCtnDocument(
       "Root `code` <local> [[global]] A \\ B\n    : `literal <ignored>` <term> [[Topic]] A \\ B\n    - <当前笔记> \\ [[全局概念]]",
     );
     const root = document.roots[0];
@@ -122,7 +117,7 @@ Sibling
   });
 
   it("treats fenced code block contents as raw block range", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Root
     \`\`\`ts
     : Not a definition
         - Not a component
@@ -152,7 +147,7 @@ Sibling
   });
 
   it("reports invalid line-start symbols instead of parsing aliases", () => {
-    const document = parseCtnDocument(`# Root
+    const document = parseDefaultCtnDocument(`# Root
     = Definition
     ? Question
     + Action`);
@@ -177,8 +172,43 @@ Sibling
     ]);
   });
 
+  it("reports removed profile markers instead of treating them as concepts", () => {
+    const document = parseCtnDocument(`Root
+    : Removed definition
+    > Removed understanding
+    - Removed component
+    ! Removed custom marker`, {
+      syntaxProfile: {
+        ...defaultCtnSyntaxProfile,
+        id: "restricted-profile",
+        markerRules: [
+          { marker: "```", type: "code", label: "代码块" },
+        ],
+      },
+    });
+
+    expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "unknown-marker",
+      "unknown-marker",
+      "unknown-marker",
+      "unknown-marker",
+    ]);
+    expect(document.roots[0].children.map((node) => node.type)).toEqual([
+      "text",
+      "text",
+      "text",
+      "text",
+    ]);
+    expect(document.roots[0].children.map((node) => node.marker)).toEqual([
+      ":",
+      ">",
+      "-",
+      "!",
+    ]);
+  });
+
   it("preserves raw text and ignores blank lines", () => {
-    const document = parseCtnDocument(`    plain text
+    const document = parseDefaultCtnDocument(`    plain text
 
     : Definition`);
 
@@ -197,7 +227,7 @@ Sibling
   });
 
   it("reports indentation and marker diagnostics", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Root
    [未知] Something
 Sibling
         : Missing parent`);
@@ -212,7 +242,7 @@ Sibling
   });
 
   it("treats tabs as one indentation level", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Root
 \t> Tab child`);
 
     expect(document.roots[0].children[0]).toMatchObject({

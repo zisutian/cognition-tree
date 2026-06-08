@@ -5,6 +5,7 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../domain/notes";
+import type { SyntaxProfileFile } from "../storage/noteRepository";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";
 import {
@@ -24,12 +25,15 @@ type WorkspaceSidebarProps = {
   outline: OutlineNode[];
   repositoryPath: string;
   storageLabel: string;
+  syntaxFiles: SyntaxProfileFile[];
   totalBlocks: number;
   canChangeRepositoryPath: boolean;
   onActivityChange: (activityId: SidebarActivityId) => void;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
+  onCreateSyntaxFile: (fileName: string) => void;
+  onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
@@ -38,6 +42,7 @@ type WorkspaceSidebarProps = {
   onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
+  onUpdateSyntaxFile: (fileName: string, source: string) => void;
 };
 
 export function WorkspaceSidebar({
@@ -50,12 +55,15 @@ export function WorkspaceSidebar({
   outline,
   repositoryPath,
   storageLabel,
+  syntaxFiles,
   totalBlocks,
   canChangeRepositoryPath,
   onActivityChange,
   onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
+  onCreateSyntaxFile,
+  onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
   onMoveNote,
@@ -64,6 +72,7 @@ export function WorkspaceSidebar({
   onSelectFolder,
   onSelectLine,
   onSelectNote,
+  onUpdateSyntaxFile,
 }: WorkspaceSidebarProps) {
   const activeActivityItem =
     sidebarActivityItems.find((item) => item.id === activeActivityId) ??
@@ -91,11 +100,14 @@ export function WorkspaceSidebar({
           outline={outline}
           repositoryPath={repositoryPath}
           storageLabel={storageLabel}
+          syntaxFiles={syntaxFiles}
           totalBlocks={totalBlocks}
           canChangeRepositoryPath={canChangeRepositoryPath}
           onChangeRepositoryPath={onChangeRepositoryPath}
           onCreateFolder={onCreateFolder}
           onCreateNote={onCreateNote}
+          onCreateSyntaxFile={onCreateSyntaxFile}
+          onDeleteSyntaxFile={onDeleteSyntaxFile}
           onDeleteFolder={onDeleteFolder}
           onDeleteNote={onDeleteNote}
           onMoveNote={onMoveNote}
@@ -104,6 +116,7 @@ export function WorkspaceSidebar({
           onSelectFolder={onSelectFolder}
           onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}
+          onUpdateSyntaxFile={onUpdateSyntaxFile}
         />
       </section>
     </aside>

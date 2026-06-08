@@ -44,11 +44,12 @@
     解析器已具备 fenced code block、inlineSpans 和 endLineNumber。
     CTN 解析器已按职责拆分。
     前端样式已按区域拆分。
+    独立语法文件 profile 解析、后端读取和默认语法文件生成已提交。
 
 当前限制：
 
     跨笔记块迁移尚未实现。
-    独立语法文件模型尚未实现。
+    语法文件可新增、编辑、删除和笔记级选择正在实现。
     Dockerfile、compose 和 volume 持久化验证尚未引入。
 
 
@@ -74,25 +75,36 @@
     node --check server/index.mjs
     node --check server/noteApiServer.mjs
     node --check server/noteFileStore.mjs
+    node --check server/syntaxProfileToml.mjs
     git diff --check
 
 
 3. 近期实施顺序
 
-3.1 独立语法文件模型
+3.1 仓库级可新增语法
 
 目标：
 
-    将语法配置从笔记正文中分离，使用 syntax/*.toml 保存仓库语法资源。
+    让每个仓库持有自己的 syntax/*.toml，并让每篇笔记独立指定语法 profile。
 
 步骤：
 
-    登记 TOML schema。
-    增加 syntax/*.toml 文件存储。
-    后端读取语法文件并生成 syntaxProfiles。
-    前端解析使用笔记指向的 syntax profile。
-    块迁移前检查目标语法是否支持源块 marker。
-    后续增加可视化语法编辑器。
+    parseCtnDocument 必须显式接收 syntaxProfile。
+    resolveWorkspaceSyntaxProfile 和 resolveNoteSyntaxProfile 不再静默 fallback。
+    后端提供 syntax 文件列表、读取、保存和删除 API。
+    保存 syntax TOML 前进行 schema 校验和重复 id/version 检查。
+    删除被仓库默认语法或笔记引用的 syntax 文件时拒绝。
+    前端语法面板支持 TOML 文件新建、编辑、保存和删除。
+    编辑器支持当前笔记独立切换 syntaxProfileId 和 syntaxVersion。
+    缺失语法时显示错误状态，不使用默认语法解析正文。
+
+小提交顺序：
+
+    显式 parser profile
+    后端 syntax API
+    前端 repository 和语法面板
+    笔记级语法选择
+    缺失语法状态
 
 3.2 跨笔记块迁移底座
 

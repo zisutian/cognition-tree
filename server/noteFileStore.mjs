@@ -2,9 +2,17 @@
 
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  defaultSyntaxProfile,
+  formatSyntaxProfileToml,
+  parseSyntaxProfileToml,
+} from "./syntaxProfileToml.mjs";
 
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
+const syntaxDirName = "syntax";
+const defaultSyntaxFileName = `${defaultSyntaxProfile.id}.toml`;
+const defaultFolderId = "folder-inbox";
 
 function assertSafeFileName(fileName, label) {
   if (
@@ -22,6 +30,38 @@ function assertSafeFileName(fileName, label) {
 function noteFileName(noteId) {
   assertSafeFileName(noteId, "note id");
   return `${noteId}.ctn`;
+}
+
+function assertSafeSyntaxFileName(fileName) {
+  assertSafeFileName(fileName, "syntax file name");
+
+  if (!fileName.endsWith(".toml")) {
+    throw new Error(`Syntax file must use .toml: ${fileName}`);
+  }
+}
+
+function createEmptyWorkspace(syntaxProfiles) {
+  const defaultProfile =
+    syntaxProfiles.find((profile) => profile.id === defaultSyntaxProfile.id) ??
+    syntaxProfiles[0] ??
+    defaultSyntaxProfile;
+
+  return {
+    id: "local-workspace",
+    name: "本地笔记库",
+    activeNoteId: null,
+    defaultSyntaxProfileId: defaultProfile.id,
+    syntaxProfiles,
+    notes: [],
+    tree: [
+      {
+        id: defaultFolderId,
+        kind: "folder",
+        title: "仓库根目录",
+        children: [],
+      },
+    ],
+  };
 }
 
 function pruneMissingNoteNodes(nodes, noteIds) {
@@ -60,6 +100,8 @@ export class NoteFileStore {
 
   async initialize() {
     await mkdir(this.#notesDir, { recursive: true });
+    await mkdir(this.#syntaxDir, { recursive: true });
+    await this.#ensureDefaultSyntaxProfile();
   }
 
   get repositoryPath() {
@@ -68,6 +110,7 @@ export class NoteFileStore {
 
   async loadWorkspace() {
     await this.initialize();
+    const syntaxProfiles = await this.#readSyntaxProfiles();
 
     let manifest;
 
@@ -75,7 +118,7 @@ export class NoteFileStore {
       manifest = await readJson(this.#manifestPath);
     } catch (error) {
       if (error?.code === "ENOENT") {
-        return null;
+        return createEmptyWorkspace(syntaxProfiles);
       }
 
       throw error;
@@ -118,8 +161,8 @@ export class NoteFileStore {
       id: manifest.id,
       name: manifest.name,
       activeNoteId,
-      defaultSyntaxProfileId: manifest.defaultSyntaxProfileId ?? "ctn-default",
-      syntaxProfiles: manifest.syntaxProfiles ?? [],
+      defaultSyntaxProfileId: manifest.defaultSyntaxProfileId ?? defaultSyntaxProfile.id,
+      syntaxProfiles,
       notes,
       tree: pruneMissingNoteNodes(manifest.tree ?? [], noteIds),
     };
@@ -134,7 +177,6 @@ export class NoteFileStore {
       name: workspace.name,
       activeNoteId: workspace.activeNoteId,
       defaultSyntaxProfileId: workspace.defaultSyntaxProfileId,
-      syntaxProfiles: workspace.syntaxProfiles,
       notes: workspace.notes.map((note) => {
         const fileName = noteFileName(note.id);
 
@@ -164,7 +206,169 @@ export class NoteFileStore {
   async clearWorkspace() {
     await rm(this.#manifestPath, { force: true });
     await rm(this.#notesDir, { force: true, recursive: true });
+    await rm(this.#syntaxDir, { force: true, recursive: true });
     await mkdir(this.#notesDir, { recursive: true });
+    await mkdir(this.#syntaxDir, { recursive: true });
+    await this.#ensureDefaultSyntaxProfile();
+  }
+
+  async listSyntaxFiles() {
+    await this.initialize();
+
+    return this.#readSyntaxProfileFiles();
+  }
+
+  async readSyntaxFile(fileName) {
+    await this.initialize();
+
+    return this.#readSyntaxProfileFile(fileName);
+  }
+
+  async saveSyntaxFile(fileName, source) {
+    await this.initialize();
+    assertSafeSyntaxFileName(fileName);
+
+    if (typeof source !== "string" || source.trim().length === 0) {
+      throw new Error("Syntax profile source is empty");
+    }
+
+    const parsed = parseSyntaxProfileToml(source);
+
+    if (!parsed.profile) {
+      throw new Error(`Invalid syntax profile ${fileName}: ${formatSyntaxDiagnostics(parsed)}`);
+    }
+
+    const existingFiles = await this.#readSyntaxProfileFiles({
+      excludeFileName: fileName,
+    });
+
+    this.#assertUniqueSyntaxProfiles([
+      ...existingFiles,
+      { fileName, profile: parsed.profile, source },
+    ]);
+
+    await writeFile(path.join(this.#syntaxDir, fileName), source, "utf8");
+  }
+
+  async deleteSyntaxFile(fileName) {
+    await this.initialize();
+
+    const files = await this.#readSyntaxProfileFiles();
+    const target = files.find((file) => file.fileName === fileName);
+
+    if (!target) {
+      throw new Error(`Syntax profile file not found: ${fileName}`);
+    }
+
+    if (files.length <= 1) {
+      throw new Error("Cannot delete the last syntax profile file");
+    }
+
+    const manifest = await this.#readManifestOrNull();
+
+    if (manifest?.defaultSyntaxProfileId === target.profile.id) {
+      throw new Error(`Cannot delete repository default syntax profile: ${target.profile.id}`);
+    }
+
+    const referencingNote = (manifest?.notes ?? []).find(
+      (note) =>
+        note.syntaxProfileId === target.profile.id &&
+        note.syntaxVersion === target.profile.version,
+    );
+
+    if (referencingNote) {
+      throw new Error(`Cannot delete syntax profile used by note: ${referencingNote.id}`);
+    }
+
+    await rm(path.join(this.#syntaxDir, target.fileName));
+  }
+
+  async #ensureDefaultSyntaxProfile() {
+    const entries = await readdir(this.#syntaxDir, { withFileTypes: true });
+    const hasSyntaxProfile = entries.some(
+      (entry) => entry.isFile() && entry.name.endsWith(".toml"),
+    );
+
+    if (hasSyntaxProfile) {
+      return;
+    }
+
+    await writeFile(
+      path.join(this.#syntaxDir, defaultSyntaxFileName),
+      formatSyntaxProfileToml(),
+      "utf8",
+    );
+  }
+
+  async #readSyntaxProfiles() {
+    return (await this.#readSyntaxProfileFiles()).map((file) => file.profile);
+  }
+
+  async #readSyntaxProfileFiles({ excludeFileName } = {}) {
+    const entries = await readdir(this.#syntaxDir, { withFileTypes: true });
+    const syntaxFileNames = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".toml"))
+      .map((entry) => entry.name)
+      .filter((fileName) => fileName !== excludeFileName)
+      .sort((left, right) => left.localeCompare(right));
+
+    if (syntaxFileNames.length === 0 && !excludeFileName) {
+      return [
+        {
+          fileName: defaultSyntaxFileName,
+          profile: defaultSyntaxProfile,
+          source: formatSyntaxProfileToml(),
+        },
+      ];
+    }
+
+    if (syntaxFileNames.length === 0) {
+      return [];
+    }
+
+    const files = [];
+
+    for (const fileName of syntaxFileNames) {
+      files.push(await this.#readSyntaxProfileFile(fileName));
+    }
+
+    this.#assertUniqueSyntaxProfiles(files);
+
+    return files;
+  }
+
+  async #readSyntaxProfileFile(fileName) {
+    assertSafeSyntaxFileName(fileName);
+
+    const source = await readFile(path.join(this.#syntaxDir, fileName), "utf8");
+    const result = parseSyntaxProfileToml(source);
+
+    if (!result.profile) {
+      throw new Error(`Invalid syntax profile ${fileName}: ${formatSyntaxDiagnostics(result)}`);
+    }
+
+    return {
+      fileName,
+      profile: result.profile,
+      source,
+    };
+  }
+
+  #assertUniqueSyntaxProfiles(files) {
+    const profileKeys = new Map();
+
+    for (const file of files) {
+      const key = `${file.profile.id}@${file.profile.version}`;
+      const existingFileName = profileKeys.get(key);
+
+      if (existingFileName) {
+        throw new Error(
+          `Duplicate syntax profile ${key}: ${existingFileName}, ${file.fileName}`,
+        );
+      }
+
+      profileKeys.set(key, file.fileName);
+    }
   }
 
   async #removeStaleNoteFiles(expectedNoteFiles) {
@@ -195,5 +399,26 @@ export class NoteFileStore {
   get #notesDir() {
     return path.join(this.#rootDir, notesDirName);
   }
+
+  get #syntaxDir() {
+    return path.join(this.#rootDir, syntaxDirName);
+  }
+
+  async #readManifestOrNull() {
+    try {
+      return await readJson(this.#manifestPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        return null;
+      }
+
+      throw error;
+    }
+  }
 }
 
+function formatSyntaxDiagnostics(result) {
+  return result.diagnostics
+    .map((diagnostic) => `${diagnostic.path}: ${diagnostic.message}`)
+    .join("; ");
+}

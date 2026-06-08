@@ -9,6 +9,7 @@ import {
   createNoteApiRequestHandler,
   NoteFileStore,
 } from "../../server/noteApiServer.mjs";
+import { defaultSyntaxProfile } from "../../server/syntaxProfileToml.mjs";
 
 function createWorkspace() {
   return {
@@ -16,7 +17,7 @@ function createWorkspace() {
     name: "本地笔记库",
     activeNoteId: null,
     defaultSyntaxProfileId: "ctn-default",
-    syntaxProfiles: [],
+    syntaxProfiles: [defaultSyntaxProfile],
     notes: [],
     tree: [
       {
@@ -102,7 +103,7 @@ describe("note API request handler", () => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/workspace" }),
       ).resolves.toMatchObject({
-        body: null,
+        body: createWorkspace(),
         statusCode: 200,
       });
 
@@ -133,10 +134,60 @@ describe("note API request handler", () => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/workspace" }),
       ).resolves.toMatchObject({
+        body: createWorkspace(),
+        statusCode: 200,
+      });
+    });
+  });
+
+  it("serves syntax profile file endpoints", async () => {
+    await withHandler(async (handler) => {
+      await expect(
+        dispatch(handler, { method: "GET", url: "/api/syntax" }),
+      ).resolves.toMatchObject({
+        body: [
+          {
+            fileName: "ctn-default.toml",
+            profile: defaultSyntaxProfile,
+          },
+        ],
+        statusCode: 200,
+      });
+
+      const source = `id = "ctn-custom"
+name = "自定义语法"
+version = 1
+spaceIndentUnit = 4
+
+[[markers]]
+marker = "!"
+type = "component"
+label = "风险"
+`;
+
+      await expect(
+        dispatch(handler, {
+          body: JSON.stringify({ source }),
+          method: "PUT",
+          url: "/api/syntax/custom.toml",
+        }),
+      ).resolves.toMatchObject({
         body: null,
+        statusCode: 204,
+      });
+      await expect(
+        dispatch(handler, { method: "GET", url: "/api/syntax/custom.toml" }),
+      ).resolves.toMatchObject({
+        body: {
+          fileName: "custom.toml",
+          profile: {
+            id: "ctn-custom",
+            version: 1,
+          },
+          source,
+        },
         statusCode: 200,
       });
     });
   });
 });
-

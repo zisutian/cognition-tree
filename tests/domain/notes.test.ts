@@ -5,6 +5,7 @@ import {
   resolveNoteSyntaxProfile,
   resolveWorkspaceSyntaxProfile,
 } from "../../src/domain/notes";
+import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
 
 describe("note workspace", () => {
   it("keeps note content separate from the repository tree", () => {
@@ -21,10 +22,43 @@ describe("note workspace", () => {
       "note-new",
       "",
       "2026-05-25T00:00:00.000Z",
+      defaultCtnSyntaxProfile,
     );
 
-    expect(resolveNoteSyntaxProfile(workspace, note).id).toBe("ctn-default");
-    expect(resolveWorkspaceSyntaxProfile(workspace).id).toBe("ctn-default");
+    expect(resolveNoteSyntaxProfile(workspace, note)).toMatchObject({
+      profile: { id: "ctn-default" },
+      status: "resolved",
+    });
+    expect(resolveWorkspaceSyntaxProfile(workspace)).toMatchObject({
+      profile: { id: "ctn-default" },
+      status: "resolved",
+    });
     expect("defaultSyntaxProfileId" in workspace.tree[0]).toBe(false);
+  });
+
+  it("reports missing syntax profiles without falling back", () => {
+    const workspace = {
+      ...createInitialWorkspace(),
+      defaultSyntaxProfileId: "missing-default",
+      syntaxProfiles: [],
+    };
+    const note = {
+      ...createNoteRecord(
+        "note-new",
+        "",
+        "2026-05-25T00:00:00.000Z",
+        defaultCtnSyntaxProfile,
+      ),
+      syntaxProfileId: "missing-note",
+    };
+
+    expect(resolveWorkspaceSyntaxProfile(workspace)).toMatchObject({
+      status: "missing-profile",
+      syntaxProfileId: "missing-default",
+    });
+    expect(resolveNoteSyntaxProfile(workspace, note)).toMatchObject({
+      status: "missing-profile",
+      syntaxProfileId: "missing-note",
+    });
   });
 });

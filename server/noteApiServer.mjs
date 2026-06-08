@@ -89,6 +89,40 @@ export function createNoteApiRequestHandler({ store }) {
         return;
       }
 
+      if (url.pathname === "/api/syntax" && request.method === "GET") {
+        sendJson(response, 200, await store.listSyntaxFiles());
+        return;
+      }
+
+      if (url.pathname.startsWith("/api/syntax/")) {
+        const fileName = decodeURIComponent(
+          url.pathname.slice("/api/syntax/".length),
+        );
+
+        if (request.method === "GET") {
+          sendJson(response, 200, await store.readSyntaxFile(fileName));
+          return;
+        }
+
+        if (request.method === "PUT") {
+          const body = await readJsonBody(request);
+
+          if (typeof body.source !== "string") {
+            throw new Error("Syntax profile source is required");
+          }
+
+          await store.saveSyntaxFile(fileName, body.source);
+          sendNoContent(response);
+          return;
+        }
+
+        if (request.method === "DELETE") {
+          await store.deleteSyntaxFile(fileName);
+          sendNoContent(response);
+          return;
+        }
+      }
+
       sendError(response, 404, "Not found");
     } catch (error) {
       sendError(response, 500, error instanceof Error ? error.message : "Unknown error");

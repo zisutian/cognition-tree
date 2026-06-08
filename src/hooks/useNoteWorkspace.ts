@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   createInitialWorkspace,
   createNoteRecord,
+  createWorkspaceWithSyntaxProfiles,
   defaultFolderId,
   inferNoteTitle,
   resolveWorkspaceSyntaxProfile,
@@ -25,13 +26,20 @@ import {
   renameFolderInWorkspaceTree,
 } from "../domain/noteTree";
 import { createRuntimeNoteRepository } from "../storage/runtimeNoteRepository";
+import type { SyntaxProfileFile } from "../storage/noteRepository";
+import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
+import { formatSyntaxProfileToml } from "../syntax/profileToml";
 
 function createDraftNote(workspace: NoteWorkspace) {
   const timestamp = new Date().toISOString();
   const id = `note-${Date.now()}`;
-  const syntaxProfile = resolveWorkspaceSyntaxProfile(workspace);
+  const syntaxProfileResolution = resolveWorkspaceSyntaxProfile(workspace);
 
-  return createNoteRecord(id, "", timestamp, syntaxProfile);
+  if (syntaxProfileResolution.status !== "resolved") {
+    return null;
+  }
+
+  return createNoteRecord(id, "", timestamp, syntaxProfileResolution.profile);
 }
 
 function createLocalFolderId() {
@@ -49,6 +57,36 @@ function resolveExistingFolderId(
   );
 }
 
+function applySyntaxFilesToWorkspace(
+  workspace: NoteWorkspace | null,
+  syntaxFiles: SyntaxProfileFile[],
+) {
+  const syntaxProfiles = syntaxFiles.map((file) => file.profile);
+
+  if (!workspace) {
+    return createWorkspaceWithSyntaxProfiles(syntaxProfiles);
+  }
+
+  return {
+    ...workspace,
+    syntaxProfiles,
+  };
+}
+
+function createSyntaxTemplateSource(fileName: string) {
+  const id =
+    fileName
+      .replace(/\.toml$/i, "")
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]+/g, "-") || "ctn-custom";
+
+  return formatSyntaxProfileToml({
+    ...defaultCtnSyntaxProfile,
+    id,
+    name: id,
+  });
+}
+
 export function useNoteWorkspace() {
   const repository = useMemo(() => createRuntimeNoteRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
@@ -56,6 +94,7 @@ export function useNoteWorkspace() {
   });
   const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
   const [repositoryPath, setRepositoryPath] = useState("");
+  const [syntaxFiles, setSyntaxFiles] = useState<SyntaxProfileFile[]>([]);
   const [selectedFolderId, setSelectedFolderId] =
     useState<FolderId>(defaultFolderId);
 
@@ -65,14 +104,19 @@ export function useNoteWorkspace() {
     void Promise.all([
       repository.loadWorkspace(),
       repository.getRepositoryInfo(),
-    ]).then(([storedWorkspace, repositoryInfo]) => {
+      repository.listSyntaxFiles(),
+    ]).then(([storedWorkspace, repositoryInfo, storedSyntaxFiles]) => {
       if (!isActive) {
         return;
       }
 
       setRepositoryPath(repositoryInfo.path);
-      const nextWorkspace = storedWorkspace ?? createInitialWorkspace();
+      const nextWorkspace = applySyntaxFilesToWorkspace(
+        storedWorkspace,
+        storedSyntaxFiles,
+      );
 
+      setSyntaxFiles(storedSyntaxFiles);
       setWorkspace(nextWorkspace);
       setSelectedFolderId(resolveExistingFolderId(nextWorkspace, defaultFolderId));
       setIsWorkspaceLoaded(true);
@@ -115,6 +159,10 @@ export function useNoteWorkspace() {
     setWorkspace((current) => {
       const targetFolderId = resolveExistingFolderId(current, selectedFolderId);
       const note = createDraftNote(current);
+
+      if (!note) {
+        return current;
+      }
 
       return {
         ...current,
@@ -172,14 +220,19 @@ export function useNoteWorkspace() {
   const reloadWorkspace = async () => {
     setIsWorkspaceLoaded(false);
 
-    const [storedWorkspace, repositoryInfo] = await Promise.all([
+    const [storedWorkspace, repositoryInfo, storedSyntaxFiles] = await Promise.all([
       repository.loadWorkspace(),
       repository.getRepositoryInfo(),
+      repository.listSyntaxFiles(),
     ]);
 
     setRepositoryPath(repositoryInfo.path);
-    const nextWorkspace = storedWorkspace ?? createInitialWorkspace();
+    const nextWorkspace = applySyntaxFilesToWorkspace(
+      storedWorkspace,
+      storedSyntaxFiles,
+    );
 
+    setSyntaxFiles(storedSyntaxFiles);
     setWorkspace(nextWorkspace);
     setSelectedFolderId((currentFolderId) =>
       resolveExistingFolderId(nextWorkspace, currentFolderId),
@@ -270,12 +323,19 @@ export function useNoteWorkspace() {
 
     setIsWorkspaceLoaded(false);
 
-    const storedWorkspace = await repository.setRepositoryPath(nextPath);
-    const repositoryInfo = await repository.getRepositoryInfo();
+    const [storedWorkspace, repositoryInfo, storedSyntaxFiles] = await Promise.all([
+      repository.setRepositoryPath(nextPath),
+      repository.getRepositoryInfo(),
+      repository.listSyntaxFiles(),
+    ]);
 
     setRepositoryPath(repositoryInfo.path);
-    const nextWorkspace = storedWorkspace ?? createInitialWorkspace();
+    const nextWorkspace = applySyntaxFilesToWorkspace(
+      storedWorkspace,
+      storedSyntaxFiles,
+    );
 
+    setSyntaxFiles(storedSyntaxFiles);
     setWorkspace(nextWorkspace);
     setSelectedFolderId(resolveExistingFolderId(nextWorkspace, defaultFolderId));
     setIsWorkspaceLoaded(true);
@@ -307,12 +367,93 @@ export function useNoteWorkspace() {
     });
   };
 
+  const refreshSyntaxState = async () => {
+    const [storedWorkspace, storedSyntaxFiles] = await Promise.all([
+      repository.loadWorkspace(),
+      repository.listSyntaxFiles(),
+    ]);
+    const nextWorkspace = applySyntaxFilesToWorkspace(
+      storedWorkspace,
+      storedSyntaxFiles,
+    );
+
+    setSyntaxFiles(storedSyntaxFiles);
+    setWorkspace(nextWorkspace);
+    setSelectedFolderId((currentFolderId) =>
+      resolveExistingFolderId(nextWorkspace, currentFolderId),
+    );
+  };
+
+  const createSyntaxFile = async (fileName: string) => {
+    const nextFileName = fileName.trim();
+
+    if (!nextFileName) {
+      return;
+    }
+
+    await repository.saveSyntaxFile(
+      nextFileName,
+      createSyntaxTemplateSource(nextFileName),
+    );
+    await refreshSyntaxState();
+  };
+
+  const updateSyntaxFile = async (fileName: string, source: string) => {
+    await repository.saveSyntaxFile(fileName, source);
+    await refreshSyntaxState();
+  };
+
+  const deleteSyntaxFile = async (fileName: string) => {
+    await repository.deleteSyntaxFile(fileName);
+    await refreshSyntaxState();
+  };
+
+  const updateActiveNoteSyntaxProfile = (
+    syntaxProfileId: string,
+    syntaxVersion: number,
+  ) => {
+    setWorkspace((current) => {
+      if (!current.activeNoteId) {
+        return current;
+      }
+
+      const syntaxProfile = current.syntaxProfiles.find(
+        (profile) =>
+          profile.id === syntaxProfileId && profile.version === syntaxVersion,
+      );
+
+      if (!syntaxProfile) {
+        return current;
+      }
+
+      const timestamp = new Date().toISOString();
+
+      return {
+        ...current,
+        notes: current.notes.map((note): NoteRecord => {
+          if (note.id !== current.activeNoteId) {
+            return note;
+          }
+
+          return {
+            ...note,
+            syntaxProfileId: syntaxProfile.id,
+            syntaxVersion: syntaxProfile.version,
+            updatedAt: timestamp,
+          };
+        }),
+      };
+    });
+  };
+
   return {
     activeNote,
     changeRepositoryPath,
     canChangeRepositoryPath: Boolean(repository.canChangeRepositoryPath),
     createFolder,
     createNote,
+    createSyntaxFile,
+    deleteSyntaxFile,
     deleteFolder,
     deleteNote,
     moveNote,
@@ -323,7 +464,10 @@ export function useNoteWorkspace() {
     selectNote,
     selectedFolderId,
     storageLabel: repository.label,
+    syntaxFiles,
     updateActiveNoteSource,
+    updateActiveNoteSyntaxProfile,
+    updateSyntaxFile,
     workspace,
   };
 }

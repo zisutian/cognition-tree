@@ -2,7 +2,6 @@ import {
   assignBlockEndLineNumbers,
   findClosingCodeFenceLineNumber,
 } from "./blockRanges";
-import { defaultCtnSyntaxProfile } from "./defaultSyntaxProfile";
 import { createDiagnostic } from "./diagnostics";
 import { analyzeIndent } from "./indent";
 import { parseInlineSpans } from "./inlineSpans";
@@ -15,7 +14,6 @@ import type {
   ParseCtnDocumentOptions,
 } from "./types";
 
-export { defaultCtnSyntaxProfile } from "./defaultSyntaxProfile";
 export type {
   CtnBlock,
   CtnBlockType,
@@ -33,14 +31,14 @@ export type {
 
 export function parseCtnDocument(
   source: string,
-  options: ParseCtnDocumentOptions = {},
+  options: ParseCtnDocumentOptions,
 ): CtnDocument {
   const lines = source.split("\n");
   const roots: CtnBlock[] = [];
   const blocks: CtnBlock[] = [];
   const diagnostics: CtnDiagnostic[] = [];
   const stack: Array<{ level: number; node: CtnBlock }> = [];
-  const syntaxProfile = options.syntaxProfile ?? defaultCtnSyntaxProfile;
+  const syntaxProfile = options.syntaxProfile;
   const markerRules = sortMarkerRules(syntaxProfile.markerRules);
   let index = 0;
 
@@ -142,7 +140,7 @@ export function parseCtnDocument(
 
 export function parseOutline(
   source: string,
-  options: ParseCtnDocumentOptions = {},
+  options: ParseCtnDocumentOptions,
 ): OutlineNode[] {
   return parseCtnDocument(source, options).roots;
 }

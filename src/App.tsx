@@ -5,7 +5,7 @@ import {
   type SidebarActivityId,
   WorkspaceSidebar,
 } from "./components/WorkspaceSidebar";
-import { defaultCtnSyntaxProfile, parseCtnDocument } from "./ctn/parseOutline";
+import { parseCtnDocument, type CtnDocument } from "./ctn/parseOutline";
 import {
   resolveNoteSyntaxProfile,
   resolveWorkspaceSyntaxProfile,
@@ -16,6 +16,12 @@ import "./styles/index.css";
 type EditorFocusRequest = {
   lineNumber: number;
   requestId: number;
+};
+
+const emptyCtnDocument: CtnDocument = {
+  blocks: [],
+  diagnostics: [],
+  roots: [],
 };
 
 function App() {
@@ -29,6 +35,8 @@ function App() {
     changeRepositoryPath,
     createFolder,
     createNote,
+    createSyntaxFile,
+    deleteSyntaxFile,
     deleteFolder,
     deleteNote,
     moveNote,
@@ -39,22 +47,38 @@ function App() {
     selectNote,
     selectedFolderId,
     storageLabel,
+    syntaxFiles,
     updateActiveNoteSource,
+    updateActiveNoteSyntaxProfile,
+    updateSyntaxFile,
     workspace,
   } = useNoteWorkspace();
   const documentText = activeNote?.source ?? "";
-  const activeSyntaxProfile = useMemo(
+  const activeSyntaxProfileResolution = useMemo(
     () =>
       activeNote
         ? resolveNoteSyntaxProfile(workspace, activeNote)
-        : (resolveWorkspaceSyntaxProfile(workspace) ?? defaultCtnSyntaxProfile),
+        : resolveWorkspaceSyntaxProfile(workspace),
     [activeNote, workspace],
   );
+  const activeSyntaxProfile =
+    activeSyntaxProfileResolution.status === "resolved"
+      ? activeSyntaxProfileResolution.profile
+      : null;
+  const syntaxIssueMessage =
+    activeSyntaxProfileResolution.status === "missing-profile"
+      ? activeSyntaxProfileResolution.message
+      : null;
   const parsedDocument = useMemo(
-    () =>
-      parseCtnDocument(documentText, {
+    () => {
+      if (!activeSyntaxProfile) {
+        return emptyCtnDocument;
+      }
+
+      return parseCtnDocument(documentText, {
         syntaxProfile: activeSyntaxProfile,
-      }),
+      });
+    },
     [activeSyntaxProfile, documentText],
   );
   const focusEditorLine = (lineNumber: number) => {
@@ -76,12 +100,15 @@ function App() {
         outline={parsedDocument.roots}
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
+        syntaxFiles={syntaxFiles}
         totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivityId}
         canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={changeRepositoryPath}
         onCreateFolder={createFolder}
         onCreateNote={createNote}
+        onCreateSyntaxFile={createSyntaxFile}
+        onDeleteSyntaxFile={deleteSyntaxFile}
         onDeleteFolder={deleteFolder}
         onDeleteNote={deleteNote}
         onMoveNote={moveNote}
@@ -90,6 +117,7 @@ function App() {
         onSelectFolder={selectFolder}
         onSelectLine={focusEditorLine}
         onSelectNote={selectNote}
+        onUpdateSyntaxFile={updateSyntaxFile}
       />
 
       <NoteEditorPanel
@@ -98,9 +126,12 @@ function App() {
         hasActiveNote={Boolean(activeNote)}
         parsedDocument={parsedDocument}
         syntaxProfile={activeSyntaxProfile}
+        syntaxIssueMessage={syntaxIssueMessage}
+        syntaxProfiles={workspace.syntaxProfiles}
         title={activeNote?.title ?? "本地笔记库"}
         onCreateNote={createNote}
         onDocumentTextChange={updateActiveNoteSource}
+        onSyntaxProfileChange={updateActiveNoteSyntaxProfile}
       />
 
       <NoteOutlinePanel

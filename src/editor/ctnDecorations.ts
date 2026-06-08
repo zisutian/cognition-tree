@@ -49,6 +49,13 @@ function getLineTextStart(lineText: string) {
   return lineText.match(/^\s*/)?.[0].length ?? 0;
 }
 
+export function shouldDecorateMarker(block: CtnBlock) {
+  return (
+    block.marker !== null &&
+    !block.diagnostics.some((diagnostic) => diagnostic.code === "unknown-marker")
+  );
+}
+
 function buildCtnDecorations(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
@@ -132,20 +139,24 @@ function buildCtnDecorations(
       }
     }
 
-    if (block.marker) {
-      const markerStart = line.text.indexOf(block.marker);
+    if (shouldDecorateMarker(block)) {
+      const marker = block.marker;
 
-      if (markerStart >= 0) {
-        decorations.push(
-          Decoration.mark({
-            attributes: {
-              class: `ctn-marker ctn-marker-${block.type}`,
-            },
-          }).range(
-            line.from + markerStart,
-            line.from + markerStart + block.marker.length,
-          ),
-        );
+      if (marker) {
+        const markerStart = line.text.indexOf(marker);
+
+        if (markerStart >= 0) {
+          decorations.push(
+            Decoration.mark({
+              attributes: {
+                class: `ctn-marker ctn-marker-${block.type}`,
+              },
+            }).range(
+              line.from + markerStart,
+              line.from + markerStart + marker.length,
+            ),
+          );
+        }
       }
     }
 

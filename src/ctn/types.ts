@@ -4,7 +4,6 @@ export type CtnBlockType =
   | "component"
   | "personal-understanding"
   | "code"
-  | "syntax-rule"
   | "text";
 
 export type CtnInlineSpanType =
@@ -78,5 +77,5 @@ export type CtnSyntaxProfile = {
 };
 
 export type ParseCtnDocumentOptions = {
-  syntaxProfile?: CtnSyntaxProfile;
+  syntaxProfile: CtnSyntaxProfile;
 };

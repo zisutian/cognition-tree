@@ -4,6 +4,7 @@ import {
   createNoteRecord,
   type NoteTreeNode,
 } from "../../src/domain/notes";
+import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
 import {
   appendNoteToWorkspaceTree,
   appendFolderToWorkspaceTree,
@@ -26,6 +27,7 @@ describe("note tree operations", () => {
       "note-new",
       "新笔记\n    : 本地保存",
       "2026-05-25T00:00:00.000Z",
+      defaultCtnSyntaxProfile,
     );
     const tree = appendNoteToWorkspaceTree(workspace.tree, note.id);
 

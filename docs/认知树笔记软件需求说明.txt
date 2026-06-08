@@ -47,7 +47,7 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 3.3 符号即语义
 
-行首符号、行内符号、块头符号应映射为明确的语义类型，例如定义、组分、自我理解、代码块和语法规则。
+行首符号、行内符号、块头符号应映射为明确的语义类型，例如定义、组分、自我理解和代码块。
 
 3.4 语法可配置，底层结构稳定
 
@@ -247,7 +247,15 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 6.1 语法配置文件
 
-软件应支持多个语法配置方案。语法配置以仓库为主要管理边界，仓库通过 `syntax/*.toml` 保存多套可用语法，并提供简洁的切换入口。
+软件应支持多个语法配置方案。语法配置以仓库为主要管理边界，仓库通过 `syntax/*.toml` 保存多套可用语法，并提供新增、编辑、删除和切换入口。
+
+工程边界：
+
+    src/ctn/ 只负责解析 .ctn 原文，产出块、行内结构、诊断和范围信息。
+    src/syntax/ 负责语法 profile、TOML 解析、TOML 校验、默认语法和默认 TOML 序列化。
+    CTN 解析器必须接收 CtnSyntaxProfile，但不负责选择、生成或保存语法配置。
+    内置默认语法的 TypeScript 权威来源位于 src/syntax/。
+    服务端当前使用独立 .mjs 实现读取 syntax/*.toml，后续再评估共享默认语法资源。
 
 每个语法配置方案包含：
 
@@ -285,6 +293,25 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
 
 第一版只支持 profile 基本信息、缩进单位和行首 marker rules。
 
+必填字段：
+
+    id
+    name
+    version
+    spaceIndentUnit
+    markers
+
+校验规则：
+
+    id 和 name 必须是非空字符串。
+    version 必须是正整数。
+    spaceIndentUnit 必须是正整数。
+    markers 必须是非空数组。
+    marker、type、label 必须是非空字符串。
+    marker 不允许重复。
+    type 必须属于内置稳定块类型。
+    第一版不接受 schema 之外的字段。
+
 第一版不支持语法继承、笔记级语法导入、在 `.ctn` 正文里定义语法、自动修改目标笔记语法。
 
 6.3 笔记语法记录
@@ -294,23 +321,35 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     syntaxProfileId
     syntaxVersion
 
-内置默认语法以软件当前定义为准，并可作为缺失语法文件时的 fallback。
+每篇笔记都可以独立指定语法 profile。
 
-当前阶段不提供缩进单位配置，所有内置默认语法统一按四个空格作为一个层级。
+解析正文时必须从仓库 `syntax/*.toml` 解析出的 profile 中寻找匹配的 `syntaxProfileId` 和 `syntaxVersion`。
 
-后续接入仓库级语法配置入口后，再允许用户选择或新增语法。
+找不到匹配 profile 时应显示明确错误状态，不使用内置默认语法静默解析。
+
+当某个行首符号不属于当前笔记使用的 syntax profile 时，应输出未知行首符号诊断，不应退化为普通概念。删除语法文件中的 marker 后，使用该 marker 的既有正文必须暴露为语法不匹配。
+
+当前阶段语法文件允许记录 spaceIndentUnit，但内置默认语法统一按四个空格作为一个层级。
+
+新建笔记使用仓库默认语法，并把实际使用的 syntaxProfileId 和 syntaxVersion 写入笔记元信息。
 
 当原始文本不符合当前语法时，解析器应给出诊断，用户手动修改文本。
 
-文件夹不保存 syntaxProfileId 或 syntaxVersion，也不参与语法继承。新建笔记使用仓库当前选中的语法或仓库默认语法，并把实际使用的 syntaxProfileId 和 syntaxVersion 写入笔记元信息。
+文件夹不保存 syntaxProfileId 或 syntaxVersion，也不参与语法继承。
 
 6.4 语法文件管理
 
 语法文件是仓库资源，不属于笔记目录树。
 
-语法文件可以通过后续可视化界面编辑，也可以直接编辑 TOML 原文。
+语法文件可以通过界面新增、编辑和删除。第一版编辑 TOML 原文，后续再增加可视化语法编辑器。
 
 语法文件变更后，引用该 profile 的笔记在下一次解析时使用新的有效语法。
+
+当仓库没有任何语法文件时，后端应生成默认 `syntax/ctn-default.toml`。生成后该文件就是仓库语法资源，不再由 CTN 解析器隐式提供默认语法。
+
+保存语法文件前必须校验 TOML schema。非法 TOML、重复 `id/version` 和空 marker 配置应被拒绝。
+
+删除语法文件前必须检查引用。被仓库默认语法或任意笔记引用的语法文件应拒绝删除。
 
 语法文件不得改变底层结构：
 
@@ -453,6 +492,7 @@ Markdown、HTML、PDF、纯文本只作为导出格式，不作为主要写作�
     笔记通过 syntaxProfileId 和 syntaxVersion 指向 syntax/*.toml 解析出的 profile。
     仓库可以保存多套 syntaxProfile，并提供简洁切换入口。
     文件夹不得保存 syntaxProfileId、syntaxVersion 或其他语法配置。
+    每篇笔记可以独立切换 syntaxProfileId 和 syntaxVersion。
     跨笔记移动块时必须移动整棵子树，并检查目标笔记语法是否支持该子树使用的 marker；不支持时应提示切换目标笔记语法或取消迁移。
 
 8.3 后续索引缓存表
@@ -694,7 +734,7 @@ Markdown 只是导出格式。
     创建笔记
     编辑缩进块
     Tab / Shift+Tab 调整层级
-    支持定义、组分、自我理解、代码块和语法规则块
+    支持定义、组分、自我理解和代码块
     支持语法配置文件
     支持保存到 HTTP 后端文件库
     支持纯文本导出
@@ -778,7 +818,7 @@ Markdown 只是导出格式。
 
 缓解：
 
-    移动前检查源块子树使用的语法规则。
+    移动前检查源块子树使用的 marker。
     目标语法不支持时提示用户。
     用户可以切换目标笔记语法或取消迁移。
     用户取消时不修改任何笔记。

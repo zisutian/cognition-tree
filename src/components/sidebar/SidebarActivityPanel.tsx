@@ -5,6 +5,7 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../../domain/notes";
+import type { SyntaxProfileFile } from "../../storage/noteRepository";
 import {
   sidebarActivityItems,
   sidebarPlaceholderEntries,
@@ -13,6 +14,7 @@ import {
 import { SidebarNotesPanel } from "./SidebarNotesPanel";
 import { SidebarOutlineSummary } from "./SidebarOutlineSummary";
 import { SidebarPlaceholderPanel } from "./SidebarPlaceholderPanel";
+import { SidebarSyntaxPanel } from "./SidebarSyntaxPanel";
 
 type SidebarActivityPanelProps = {
   activeActivityId: SidebarActivityId;
@@ -24,11 +26,14 @@ type SidebarActivityPanelProps = {
   outline: OutlineNode[];
   repositoryPath: string;
   storageLabel: string;
+  syntaxFiles: SyntaxProfileFile[];
   totalBlocks: number;
   canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
+  onCreateSyntaxFile: (fileName: string) => void;
+  onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
@@ -37,6 +42,7 @@ type SidebarActivityPanelProps = {
   onSelectFolder: (folderId: FolderId) => void;
   onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
+  onUpdateSyntaxFile: (fileName: string, source: string) => void;
 };
 
 export function SidebarActivityPanel({
@@ -49,11 +55,14 @@ export function SidebarActivityPanel({
   outline,
   repositoryPath,
   storageLabel,
+  syntaxFiles,
   totalBlocks,
   canChangeRepositoryPath,
   onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
+  onCreateSyntaxFile,
+  onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
   onMoveNote,
@@ -62,6 +71,7 @@ export function SidebarActivityPanel({
   onSelectFolder,
   onSelectLine,
   onSelectNote,
+  onUpdateSyntaxFile,
 }: SidebarActivityPanelProps) {
   if (activeActivityId === "notes") {
     return (
@@ -94,6 +104,17 @@ export function SidebarActivityPanel({
         outline={outline}
         totalBlocks={totalBlocks}
         onSelectLine={onSelectLine}
+      />
+    );
+  }
+
+  if (activeActivityId === "syntax") {
+    return (
+      <SidebarSyntaxPanel
+        syntaxFiles={syntaxFiles}
+        onCreateSyntaxFile={onCreateSyntaxFile}
+        onDeleteSyntaxFile={onDeleteSyntaxFile}
+        onUpdateSyntaxFile={onUpdateSyntaxFile}
       />
     );
   }

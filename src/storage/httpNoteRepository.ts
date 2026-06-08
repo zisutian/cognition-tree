@@ -1,5 +1,9 @@
 import type { NoteWorkspace } from "../domain/notes";
-import type { NoteRepository, RepositoryInfo } from "./noteRepository";
+import type {
+  NoteRepository,
+  RepositoryInfo,
+  SyntaxProfileFile,
+} from "./noteRepository";
 
 type HttpNoteRepositoryOptions = {
   baseUrl?: string;
@@ -74,6 +78,33 @@ export function createHttpNoteRepository({
     },
     async getRepositoryInfo(): Promise<RepositoryInfo> {
       return requestJson<RepositoryInfo>(fetchFn, baseUrl, "/api/repository");
+    },
+    async listSyntaxFiles() {
+      return requestJson<SyntaxProfileFile[]>(fetchFn, baseUrl, "/api/syntax");
+    },
+    async readSyntaxFile(fileName) {
+      return requestJson<SyntaxProfileFile>(
+        fetchFn,
+        baseUrl,
+        `/api/syntax/${encodeURIComponent(fileName)}`,
+      );
+    },
+    async saveSyntaxFile(fileName, source) {
+      await sendJson(
+        fetchFn,
+        baseUrl,
+        `/api/syntax/${encodeURIComponent(fileName)}`,
+        "PUT",
+        { source },
+      );
+    },
+    async deleteSyntaxFile(fileName) {
+      await sendJson(
+        fetchFn,
+        baseUrl,
+        `/api/syntax/${encodeURIComponent(fileName)}`,
+        "DELETE",
+      );
     },
   };
 }
