@@ -11,11 +11,14 @@ import {
   type WorkspaceFeedback,
 } from "../features/syntax/SyntaxProfileDetailPanel";
 import { SyntaxWorkspacePanel } from "../features/syntax/SyntaxWorkspacePanel";
+import { NoteReferenceGraphDetailPanel } from "../features/visualization/NoteReferenceGraphDetailPanel";
+import { NoteReferenceGraphPanel } from "../features/visualization/NoteReferenceGraphPanel";
 import {
   type SidebarActivityId,
   WorkspaceSidebar,
 } from "../shell/WorkspaceSidebar";
 import "../styles/index.css";
+import { createNoteReferenceGraph } from "../workspace/noteReferenceGraph";
 import { resolveParsedNoteView } from "../workspace/parsedNoteView";
 import { useWorkspaceController } from "../workspace/useWorkspaceController";
 
@@ -27,6 +30,13 @@ type EditorFocusRequest = {
 const initialMigrationSelectionStatus: BlockMigrationPanelStatus = {
   message: "源笔记或目标笔记未选定。",
   status: "idle",
+};
+
+const emptyNoteReferenceGraph = {
+  edges: [],
+  issues: [],
+  nodes: [],
+  unresolvedReferences: [],
 };
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
@@ -82,6 +92,13 @@ function App() {
   const syntaxIssueMessage =
     parsedNoteView.status === "parsed" ? null : parsedNoteView.message;
   const parsedDocument = parsedNoteView.document;
+  const noteReferenceGraph = useMemo(
+    () =>
+      activeActivityId === "visualization"
+        ? createNoteReferenceGraph(workspace)
+        : emptyNoteReferenceGraph,
+    [activeActivityId, workspace],
+  );
   const selectedSyntaxFile = useMemo(
     () =>
       syntaxFiles.find((file) => file.fileName === selectedSyntaxFileName) ??
@@ -205,6 +222,10 @@ function App() {
       );
     }
 
+    if (activeActivityId === "visualization") {
+      return <NoteReferenceGraphPanel graph={noteReferenceGraph} />;
+    }
+
     return (
       <NoteEditorPanel
         documentText={documentText}
@@ -242,6 +263,15 @@ function App() {
       );
     }
 
+    if (activeActivityId === "visualization") {
+      return (
+        <NoteReferenceGraphDetailPanel
+          graph={noteReferenceGraph}
+          workspace={workspace}
+        />
+      );
+    }
+
     return (
       <NoteOutlinePanel
         diagnosticsCount={parsedDocument.diagnostics.length}
@@ -258,16 +288,14 @@ function App() {
         activeActivityId={activeActivityId}
         activeFolderId={selectedFolderId}
         activeNoteId={activeNote?.id ?? null}
-        diagnosticsCount={parsedDocument.diagnostics.length}
         notes={workspace.notes}
         noteTree={workspace.tree}
-        outline={parsedDocument.roots}
+        referenceGraph={noteReferenceGraph}
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
         selectedSyntaxFileName={selectedSyntaxFile?.fileName ?? ""}
         syntaxProfiles={workspace.syntaxProfiles}
         syntaxFiles={syntaxFiles}
-        totalBlocks={parsedDocument.blocks.length}
         onActivityChange={setActiveActivityId}
         canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={changeRepositoryPath}
@@ -281,7 +309,6 @@ function App() {
         onReloadWorkspace={reloadWorkspace}
         onRenameFolder={renameFolder}
         onSelectFolder={selectFolder}
-        onSelectLine={focusEditorLine}
         onSelectNote={selectNote}
         onSelectSyntaxFile={selectSyntaxFile}
       />

@@ -1,4 +1,3 @@
-import type { OutlineNode } from "../ctn/parseOutline";
 import type {
   FolderId,
   NoteId,
@@ -7,6 +6,7 @@ import type {
 } from "../domain/notes";
 import type { SyntaxProfileFile } from "../storage/workspaceRepository";
 import type { CtnSyntaxProfile } from "../syntax/types";
+import type { NoteReferenceGraph } from "../workspace/noteReferenceGraph";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";
 import {
@@ -20,16 +20,14 @@ type WorkspaceSidebarProps = {
   activeActivityId: SidebarActivityId;
   activeFolderId: FolderId;
   activeNoteId: NoteId | null;
-  diagnosticsCount: number;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
-  outline: OutlineNode[];
+  referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
   storageLabel: string;
   selectedSyntaxFileName: string;
   syntaxProfiles: CtnSyntaxProfile[];
   syntaxFiles: SyntaxProfileFile[];
-  totalBlocks: number;
   canChangeRepositoryPath: boolean;
   onActivityChange: (activityId: SidebarActivityId) => void;
   onChangeRepositoryPath: (path: string) => void;
@@ -43,7 +41,6 @@ type WorkspaceSidebarProps = {
   onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
-  onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
   onSelectSyntaxFile: (fileName: string) => void;
 };
@@ -52,16 +49,14 @@ export function WorkspaceSidebar({
   activeActivityId,
   activeFolderId,
   activeNoteId,
-  diagnosticsCount,
   notes,
   noteTree,
-  outline,
+  referenceGraph,
   repositoryPath,
   storageLabel,
   selectedSyntaxFileName,
   syntaxProfiles,
   syntaxFiles,
-  totalBlocks,
   canChangeRepositoryPath,
   onActivityChange,
   onChangeRepositoryPath,
@@ -75,7 +70,6 @@ export function WorkspaceSidebar({
   onReloadWorkspace,
   onRenameFolder,
   onSelectFolder,
-  onSelectLine,
   onSelectNote,
   onSelectSyntaxFile,
 }: WorkspaceSidebarProps) {
@@ -99,16 +93,14 @@ export function WorkspaceSidebar({
           activeActivityId={activeActivityId}
           activeFolderId={activeFolderId}
           activeNoteId={activeNoteId}
-          diagnosticsCount={diagnosticsCount}
           notes={notes}
           noteTree={noteTree}
-          outline={outline}
+          referenceGraph={referenceGraph}
           repositoryPath={repositoryPath}
           storageLabel={storageLabel}
           selectedSyntaxFileName={selectedSyntaxFileName}
           syntaxProfiles={syntaxProfiles}
           syntaxFiles={syntaxFiles}
-          totalBlocks={totalBlocks}
           canChangeRepositoryPath={canChangeRepositoryPath}
           onChangeRepositoryPath={onChangeRepositoryPath}
           onCreateFolder={onCreateFolder}
@@ -121,7 +113,6 @@ export function WorkspaceSidebar({
           onReloadWorkspace={onReloadWorkspace}
           onRenameFolder={onRenameFolder}
           onSelectFolder={onSelectFolder}
-          onSelectLine={onSelectLine}
           onSelectNote={onSelectNote}
           onSelectSyntaxFile={onSelectSyntaxFile}
         />

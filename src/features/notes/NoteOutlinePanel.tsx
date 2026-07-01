@@ -50,41 +50,41 @@ export function NoteOutlinePanel({
   };
 
   return (
-    <aside className="outline-panel" aria-label="结构预览">
+    <aside className="outline-panel" aria-label="笔记结构预览">
       <header className="panel-header compact">
         <div>
           <p className="eyebrow">Outline</p>
-          <h2>结构</h2>
+          <h2>笔记结构</h2>
         </div>
         <div className="outline-header-actions">
-          <div className="outline-zoom-controls" aria-label="结构树缩放">
+          <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
             <button
-              aria-label="缩小结构树"
+              aria-label="缩小笔记结构树"
               className="outline-icon-button"
               disabled={outlineZoom <= outlineZoomMin}
               onClick={() => changeOutlineZoom(-outlineZoomStep)}
-              title="缩小结构树"
+              title="缩小笔记结构树"
               type="button"
             >
               <Minus aria-hidden="true" size={14} strokeWidth={2} />
             </button>
             <span className="outline-zoom-value">{outlineZoomPercent}%</span>
             <button
-              aria-label="放大结构树"
+              aria-label="放大笔记结构树"
               className="outline-icon-button"
               disabled={outlineZoom >= outlineZoomMax}
               onClick={() => changeOutlineZoom(outlineZoomStep)}
-              title="放大结构树"
+              title="放大笔记结构树"
               type="button"
             >
               <Plus aria-hidden="true" size={14} strokeWidth={2} />
             </button>
             <button
-              aria-label="重置结构树缩放"
+              aria-label="重置笔记结构树缩放"
               className="outline-icon-button"
               disabled={outlineZoom === outlineZoomDefault}
               onClick={() => setOutlineZoom(outlineZoomDefault)}
-              title="重置结构树缩放"
+              title="重置笔记结构树缩放"
               type="button"
             >
               <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />

@@ -1,4 +1,3 @@
-import type { OutlineNode } from "../../ctn/parseOutline";
 import type {
   FolderId,
   NoteId,
@@ -7,6 +6,7 @@ import type {
 } from "../../domain/notes";
 import type { SyntaxProfileFile } from "../../storage/workspaceRepository";
 import type { CtnSyntaxProfile } from "../../syntax/types";
+import type { NoteReferenceGraph } from "../../workspace/noteReferenceGraph";
 import {
   sidebarActivityItems,
   sidebarPlaceholderEntries,
@@ -14,24 +14,22 @@ import {
 } from "./sidebarConfig";
 import { SidebarMigrationPanel } from "./SidebarMigrationPanel";
 import { SidebarNotesPanel } from "./SidebarNotesPanel";
-import { SidebarOutlineSummary } from "./SidebarOutlineSummary";
 import { SidebarPlaceholderPanel } from "./SidebarPlaceholderPanel";
 import { SidebarSyntaxPanel } from "./SidebarSyntaxPanel";
+import { SidebarVisualizationSummary } from "./SidebarVisualizationSummary";
 
 type SidebarActivityPanelProps = {
   activeActivityId: SidebarActivityId;
   activeFolderId: FolderId;
   activeNoteId: NoteId | null;
-  diagnosticsCount: number;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
-  outline: OutlineNode[];
+  referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
   storageLabel: string;
   selectedSyntaxFileName: string;
   syntaxProfiles: CtnSyntaxProfile[];
   syntaxFiles: SyntaxProfileFile[];
-  totalBlocks: number;
   canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
@@ -44,7 +42,6 @@ type SidebarActivityPanelProps = {
   onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
-  onSelectLine: (lineNumber: number) => void;
   onSelectNote: (noteId: NoteId) => void;
   onSelectSyntaxFile: (fileName: string) => void;
 };
@@ -53,16 +50,14 @@ export function SidebarActivityPanel({
   activeActivityId,
   activeFolderId,
   activeNoteId,
-  diagnosticsCount,
   notes,
   noteTree,
-  outline,
+  referenceGraph,
   repositoryPath,
   storageLabel,
   selectedSyntaxFileName,
   syntaxProfiles,
   syntaxFiles,
-  totalBlocks,
   canChangeRepositoryPath,
   onChangeRepositoryPath,
   onCreateFolder,
@@ -75,7 +70,6 @@ export function SidebarActivityPanel({
   onReloadWorkspace,
   onRenameFolder,
   onSelectFolder,
-  onSelectLine,
   onSelectNote,
   onSelectSyntaxFile,
 }: SidebarActivityPanelProps) {
@@ -103,14 +97,9 @@ export function SidebarActivityPanel({
     );
   }
 
-  if (activeActivityId === "outline") {
+  if (activeActivityId === "visualization") {
     return (
-      <SidebarOutlineSummary
-        diagnosticsCount={diagnosticsCount}
-        outline={outline}
-        totalBlocks={totalBlocks}
-        onSelectLine={onSelectLine}
-      />
+      <SidebarVisualizationSummary graph={referenceGraph} />
     );
   }
 
