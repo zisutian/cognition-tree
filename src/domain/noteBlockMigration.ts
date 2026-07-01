@@ -24,7 +24,15 @@ export type NoteBlockMigrationTargetPosition =
     }
   | {
       block: NoteBlockMigrationBlock;
-      kind: "after-block";
+      kind: "inside-block";
+    }
+  | {
+      block: NoteBlockMigrationBlock;
+      kind: "sibling-above";
+    }
+  | {
+      block: NoteBlockMigrationBlock;
+      kind: "sibling-below";
     };
 
 export type MoveNoteBlockInput = {
@@ -81,18 +89,30 @@ function collectMissingMarkers(
 }
 
 function getTargetLevel(targetPosition: NoteBlockMigrationTargetPosition) {
-  return targetPosition.kind === "after-block"
-    ? targetPosition.block.level
-    : 0;
+  switch (targetPosition.kind) {
+    case "inside-block":
+      return targetPosition.block.level + 1;
+    case "sibling-above":
+    case "sibling-below":
+      return targetPosition.block.level;
+    case "end":
+      return 0;
+  }
 }
 
 function getTargetInsertionLineNumber(
   targetSource: string,
   targetPosition: NoteBlockMigrationTargetPosition,
 ) {
-  return targetPosition.kind === "after-block"
-    ? targetPosition.block.endLineNumber + 1
-    : getDocumentAppendLineNumber(targetSource);
+  switch (targetPosition.kind) {
+    case "inside-block":
+    case "sibling-below":
+      return targetPosition.block.endLineNumber + 1;
+    case "sibling-above":
+      return targetPosition.block.lineNumber;
+    case "end":
+      return getDocumentAppendLineNumber(targetSource);
+  }
 }
 
 export function moveNoteBlock(input: MoveNoteBlockInput): MoveNoteBlockResult {

@@ -20,7 +20,15 @@ export type WorkspaceBlockMigrationTargetPositionRequest =
       kind: "end";
     }
   | {
-      kind: "after-block";
+      kind: "inside-block";
+      lineNumber: number;
+    }
+  | {
+      kind: "sibling-above";
+      lineNumber: number;
+    }
+  | {
+      kind: "sibling-below";
       lineNumber: number;
     };
 
@@ -135,7 +143,7 @@ function resolveTargetPosition(
 
   return {
     block: targetBlock,
-    kind: "after-block",
+    kind: targetPositionRequest.kind,
   };
 }
 

@@ -24,7 +24,7 @@ describe("note block migration", () => {
       sourceSource,
       targetPosition: {
         block: targetBlocks[0],
-        kind: "after-block",
+        kind: "inside-block",
       },
       targetSource,
       targetSyntaxProfile: defaultCtnSyntaxProfile,
@@ -32,6 +32,56 @@ describe("note block migration", () => {
 
     expect(result).toEqual({
       nextSourceSource: "Root\nSibling",
+      nextTargetSource:
+        "Target\n    > Understanding\n    : Definition\n        - Component",
+      status: "moved",
+    });
+  });
+
+  it("moves a subtree above a target block as a sibling", () => {
+    const sourceSource = "Root\n    : Definition\n        - Component";
+    const targetSource = "Target\n    > Understanding";
+    const sourceBlocks = parseBlocks(sourceSource);
+    const targetBlocks = parseBlocks(targetSource);
+    const result = moveNoteBlock({
+      sourceBlock: sourceBlocks[1],
+      sourceBlocks,
+      sourceSource,
+      targetPosition: {
+        block: targetBlocks[0],
+        kind: "sibling-above",
+      },
+      targetSource,
+      targetSyntaxProfile: defaultCtnSyntaxProfile,
+    });
+
+    expect(result).toEqual({
+      nextSourceSource: "Root",
+      nextTargetSource:
+        ": Definition\n    - Component\nTarget\n    > Understanding",
+      status: "moved",
+    });
+  });
+
+  it("moves a subtree below a target block as a sibling", () => {
+    const sourceSource = "Root\n    : Definition\n        - Component";
+    const targetSource = "Target\n    > Understanding";
+    const sourceBlocks = parseBlocks(sourceSource);
+    const targetBlocks = parseBlocks(targetSource);
+    const result = moveNoteBlock({
+      sourceBlock: sourceBlocks[1],
+      sourceBlocks,
+      sourceSource,
+      targetPosition: {
+        block: targetBlocks[0],
+        kind: "sibling-below",
+      },
+      targetSource,
+      targetSyntaxProfile: defaultCtnSyntaxProfile,
+    });
+
+    expect(result).toEqual({
+      nextSourceSource: "Root",
       nextTargetSource:
         "Target\n    > Understanding\n: Definition\n    - Component",
       status: "moved",

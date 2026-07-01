@@ -1,4 +1,3 @@
-import { MoveRight } from "lucide-react";
 import type { DragEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { CtnBlock } from "../../ctn/parseOutline";
@@ -9,6 +8,12 @@ import type {
 } from "../../workspace/useWorkspaceController";
 import { resolveParsedNoteView } from "../../workspace/parsedNoteView";
 import { previewWorkspaceBlockMigration } from "../../workspace/workspaceBlockMigration";
+import {
+  blockDragDataType,
+  createBlockDragLineNumberPayload,
+  parseBlockMigrationTargetPosition,
+  readBlockDragLineNumberPayload,
+} from "./blockMigrationDrag";
 import type { BlockMigrationPanelStatus } from "./BlockMigrationStatusPanel";
 
 type BlockMigrationWorkspacePanelProps = {
@@ -18,19 +23,6 @@ type BlockMigrationWorkspacePanelProps = {
   onSelectionStatusChange: (status: BlockMigrationPanelStatus) => void;
   workspace: NoteWorkspace;
 };
-
-const blockDragDataType = "application/x-cognition-tree-block-line";
-
-function parseTargetPosition(value: string): MoveWorkspaceBlockRequest["targetPosition"] {
-  if (value === "end") {
-    return { kind: "end" };
-  }
-
-  return {
-    kind: "after-block",
-    lineNumber: Number(value.slice("after:".length)),
-  };
-}
 
 function getBlockTitle(block: CtnBlock) {
   return block.text || block.label;
@@ -46,82 +38,37 @@ function flattenBlockSubtree(block: CtnBlock): CtnBlock[] {
   return [block, ...block.children.flatMap(flattenBlockSubtree)];
 }
 
-function MigrationSourceTree({
-  draggingLineNumber,
-  onDragEnd,
-  onDragStart,
-  nodes,
-  onSelectLine,
-  selectedLineNumber,
-}: {
-  draggingLineNumber: string | null;
-  nodes: CtnBlock[];
-  onDragEnd: () => void;
-  onDragStart: (
-    event: DragEvent<HTMLButtonElement>,
-    lineNumber: number,
-  ) => void;
-  onSelectLine: (lineNumber: string) => void;
-  selectedLineNumber: string;
-}) {
-  return (
-    <ul className="migration-tree">
-      {nodes.map((node) => {
-        const isSelected = selectedLineNumber === String(node.lineNumber);
-        const isDragging = draggingLineNumber === String(node.lineNumber);
-        const hasChildren = node.children.length > 0;
+function getTargetPositionLabel(value: string) {
+  if (value === "end") {
+    return "文末根块";
+  }
 
-        return (
-          <li key={node.id}>
-            <button
-              className={
-                [
-                  "migration-tree-node",
-                  isSelected ? "is-selected" : "",
-                  isDragging ? "is-dragging" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              }
-              draggable
-              onDragEnd={onDragEnd}
-              onDragStart={(event) => onDragStart(event, node.lineNumber)}
-              onClick={() => onSelectLine(String(node.lineNumber))}
-              title={`${node.label}: ${getBlockTitle(node)}`}
-              type="button"
-            >
-              <span className="migration-node-kind">{node.label}</span>
-              <span className="migration-node-text">{getBlockTitle(node)}</span>
-              <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
-            </button>
-            {hasChildren ? (
-              <MigrationSourceTree
-                draggingLineNumber={draggingLineNumber}
-                nodes={node.children}
-                onDragEnd={onDragEnd}
-                onDragStart={onDragStart}
-                onSelectLine={onSelectLine}
-                selectedLineNumber={selectedLineNumber}
-              />
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
+  const [kind] = value.split(":");
+
+  switch (kind) {
+    case "sibling-above":
+      return "上方并列";
+    case "sibling-below":
+      return "下方并列";
+    case "inside":
+      return "作为子结点";
+    default:
+      return "未知位置";
+  }
 }
 
-function MigrationTargetTree({
+function MigrationDropZone({
   activeDropPositionValue,
-  nodes,
+  isChildZone = false,
+  label,
   onDragLeavePosition,
   onDragOverPosition,
   onDropPosition,
-  onSelectAfterBlock,
-  selectedPositionValue,
+  positionValue,
 }: {
   activeDropPositionValue: string | null;
-  nodes: CtnBlock[];
+  isChildZone?: boolean;
+  label: string;
   onDragLeavePosition: (
     event: DragEvent<HTMLElement>,
     positionValue: string,
@@ -134,15 +81,46 @@ function MigrationTargetTree({
     event: DragEvent<HTMLElement>,
     positionValue: string,
   ) => void;
-  onSelectAfterBlock: (lineNumber: number) => void;
-  selectedPositionValue: string;
+  positionValue: string;
+}) {
+  return (
+    <div
+      className={
+        [
+          "migration-drop-zone",
+          isChildZone ? "child-zone" : "",
+          activeDropPositionValue === positionValue ? "is-drop-target" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+      }
+      onDragLeave={(event) => onDragLeavePosition(event, positionValue)}
+      onDragOver={(event) => onDragOverPosition(event, positionValue)}
+      onDrop={(event) => onDropPosition(event, positionValue)}
+    >
+      {label}
+    </div>
+  );
+}
+
+function MigrationSourceTree({
+  draggingLineNumber,
+  onDragEnd,
+  onDragStart,
+  nodes,
+}: {
+  draggingLineNumber: string | null;
+  nodes: CtnBlock[];
+  onDragEnd: () => void;
+  onDragStart: (
+    event: DragEvent<HTMLDivElement>,
+    lineNumber: number,
+  ) => void;
 }) {
   return (
     <ul className="migration-tree">
       {nodes.map((node) => {
-        const positionValue = `after:${node.lineNumber}`;
-        const isSelected = selectedPositionValue === positionValue;
-        const isDropTarget = activeDropPositionValue === positionValue;
+        const isDragging = draggingLineNumber === String(node.lineNumber);
         const hasChildren = node.children.length > 0;
 
         return (
@@ -150,40 +128,134 @@ function MigrationTargetTree({
             <div
               className={
                 [
-                  "migration-tree-node target-node",
-                  isSelected ? "is-selected" : "",
-                  isDropTarget ? "is-drop-target" : "",
+                  "migration-tree-node",
+                  "source-node",
+                  isDragging ? "is-dragging" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")
               }
-              onDragLeave={(event) => onDragLeavePosition(event, positionValue)}
-              onDragOver={(event) => onDragOverPosition(event, positionValue)}
-              onDrop={(event) => onDropPosition(event, positionValue)}
+              draggable
+              onDragEnd={onDragEnd}
+              onDragStart={(event) => onDragStart(event, node.lineNumber)}
+              title={`${node.label}: ${getBlockTitle(node)}`}
             >
-              <div className="migration-node-main">
-                <span className="migration-node-kind">{node.label}</span>
-                <span className="migration-node-text">{getBlockTitle(node)}</span>
-                <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
-              </div>
-              <button
-                className="migration-node-action"
-                onClick={() => onSelectAfterBlock(node.lineNumber)}
-                title={`插入到 ${getBlockTitle(node)} 之后`}
-                type="button"
-              >
-                之后
-              </button>
+              <span className="migration-node-kind">{node.label}</span>
+              <span className="migration-node-text">{getBlockTitle(node)}</span>
+              <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
+            </div>
+            {hasChildren ? (
+              <MigrationSourceTree
+                draggingLineNumber={draggingLineNumber}
+                nodes={node.children}
+                onDragEnd={onDragEnd}
+                onDragStart={onDragStart}
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function MigrationTargetTree({
+  activeDropPositionValue,
+  activeTargetBlockLineNumber,
+  isDropMode,
+  nodes,
+  onDragLeavePosition,
+  onDragOverPosition,
+  onDragOverTargetBlock,
+  onDropPosition,
+}: {
+  activeDropPositionValue: string | null;
+  activeTargetBlockLineNumber: number | null;
+  isDropMode: boolean;
+  nodes: CtnBlock[];
+  onDragLeavePosition: (
+    event: DragEvent<HTMLElement>,
+    positionValue: string,
+  ) => void;
+  onDragOverPosition: (
+    event: DragEvent<HTMLElement>,
+    positionValue: string,
+  ) => void;
+  onDragOverTargetBlock: (
+    event: DragEvent<HTMLElement>,
+    lineNumber: number,
+  ) => void;
+  onDropPosition: (
+    event: DragEvent<HTMLElement>,
+    positionValue: string,
+  ) => void;
+}) {
+  return (
+    <ul className="migration-tree">
+      {nodes.map((node) => {
+        const insidePositionValue = `inside:${node.lineNumber}`;
+        const isActiveTarget =
+          isDropMode && activeTargetBlockLineNumber === node.lineNumber;
+        const hasChildren = node.children.length > 0;
+
+        return (
+          <li key={node.id}>
+            {isActiveTarget ? (
+              <MigrationDropZone
+                activeDropPositionValue={activeDropPositionValue}
+                label="上方并列"
+                onDragLeavePosition={onDragLeavePosition}
+                onDragOverPosition={onDragOverPosition}
+                onDropPosition={onDropPosition}
+                positionValue={`sibling-above:${node.lineNumber}`}
+              />
+            ) : null}
+            <div
+              className={
+                [
+                  "migration-tree-node target-node",
+                  isActiveTarget ? "is-position-source" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+              onDragOver={(event) => onDragOverTargetBlock(event, node.lineNumber)}
+            >
+              <span className="migration-node-kind">{node.label}</span>
+              <span className="migration-node-text">{getBlockTitle(node)}</span>
+              <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
             </div>
             {hasChildren ? (
               <MigrationTargetTree
                 activeDropPositionValue={activeDropPositionValue}
+                activeTargetBlockLineNumber={activeTargetBlockLineNumber}
+                isDropMode={isDropMode}
                 nodes={node.children}
                 onDragLeavePosition={onDragLeavePosition}
                 onDragOverPosition={onDragOverPosition}
+                onDragOverTargetBlock={onDragOverTargetBlock}
                 onDropPosition={onDropPosition}
-                onSelectAfterBlock={onSelectAfterBlock}
-                selectedPositionValue={selectedPositionValue}
+              />
+            ) : null}
+            {isActiveTarget ? (
+              <MigrationDropZone
+                activeDropPositionValue={activeDropPositionValue}
+                isChildZone
+                label="作为子结点"
+                onDragLeavePosition={onDragLeavePosition}
+                onDragOverPosition={onDragOverPosition}
+                onDropPosition={onDropPosition}
+                positionValue={insidePositionValue}
+              />
+            ) : null}
+            {isActiveTarget ? (
+              <MigrationDropZone
+                activeDropPositionValue={activeDropPositionValue}
+                label="下方并列"
+                onDragLeavePosition={onDragLeavePosition}
+                onDragOverPosition={onDragOverPosition}
+                onDropPosition={onDropPosition}
+                positionValue={`sibling-below:${node.lineNumber}`}
               />
             ) : null}
           </li>
@@ -204,11 +276,12 @@ export function BlockMigrationWorkspacePanel({
   const [sourceNoteId, setSourceNoteId] = useState("");
   const [targetNoteId, setTargetNoteId] = useState("");
   const [sourceBlockLineNumber, setSourceBlockLineNumber] = useState("");
-  const [targetPositionValue, setTargetPositionValue] = useState("end");
   const [draggingSourceLineNumber, setDraggingSourceLineNumber] =
     useState<string | null>(null);
   const [activeDropPositionValue, setActiveDropPositionValue] =
     useState<string | null>(null);
+  const [activeTargetBlockLineNumber, setActiveTargetBlockLineNumber] =
+    useState<number | null>(null);
   const parsedNotesById = useMemo(
     () =>
       new Map(
@@ -225,38 +298,33 @@ export function BlockMigrationWorkspacePanel({
   const targetParsed = targetNote ? parsedNotesById.get(targetNote.id) ?? null : null;
   const sourceBlocks =
     sourceParsed?.status === "parsed" ? sourceParsed.document.blocks : [];
-  const targetBlocks =
-    targetParsed?.status === "parsed" ? targetParsed.document.blocks : [];
   const sourceRoots =
     sourceParsed?.status === "parsed" ? sourceParsed.document.roots : [];
   const targetRoots =
     targetParsed?.status === "parsed" ? targetParsed.document.roots : [];
+  const isDropMode = draggingSourceLineNumber !== null;
   const sourceBlock =
     sourceBlocks.find((block) => String(block.lineNumber) === sourceBlockLineNumber) ??
     null;
   const sourceSubtreeBlocks = sourceBlock ? flattenBlockSubtree(sourceBlock) : [];
-  const selectedTargetBlock =
-    targetPositionValue === "end"
-      ? null
-      : targetBlocks.find(
-          (block) => targetPositionValue === `after:${block.lineNumber}`,
-        ) ?? null;
   const sourceBlockLineNumberValue = sourceBlock
     ? Number(sourceBlockLineNumber)
     : null;
-  const selectionStatus = previewWorkspaceBlockMigration(workspace, {
-    sourceBlockLineNumber: sourceBlockLineNumberValue,
-    sourceNoteId: sourceNote?.id ?? null,
-    targetNoteId: targetNote?.id ?? null,
-    targetPosition: parseTargetPosition(targetPositionValue),
-  });
+  const selectionStatus = activeDropPositionValue
+    ? previewWorkspaceBlockMigration(workspace, {
+        sourceBlockLineNumber: sourceBlockLineNumberValue,
+        sourceNoteId: sourceNote?.id ?? null,
+        targetNoteId: targetNote?.id ?? null,
+        targetPosition: parseBlockMigrationTargetPosition(activeDropPositionValue),
+      })
+    : {
+        message: "拖动源笔记中的块到目标笔记的投放区域。",
+        status: "idle" as const,
+      };
   const selectionStatusDetailsKey = selectionStatus.details?.join("\u0000") ?? "";
-  const canMove =
-    selectionStatus.status === "ready" &&
-    Boolean(sourceNote) &&
-    Boolean(targetNote) &&
-    sourceNote?.id !== targetNote?.id;
-
+  const activeDropLabel = activeDropPositionValue
+    ? getTargetPositionLabel(activeDropPositionValue)
+    : null;
   useEffect(() => {
     if (sourceNoteId && notes.some((note) => note.id === sourceNoteId)) {
       return;
@@ -291,21 +359,8 @@ export function BlockMigrationWorkspacePanel({
       return;
     }
 
-    setSourceBlockLineNumber(
-      sourceBlocks[0] ? String(sourceBlocks[0].lineNumber) : "",
-    );
+    setSourceBlockLineNumber("");
   }, [sourceBlockLineNumber, sourceBlocks]);
-
-  useEffect(() => {
-    if (
-      targetPositionValue === "end" ||
-      targetBlocks.some((block) => targetPositionValue === `after:${block.lineNumber}`)
-    ) {
-      return;
-    }
-
-    setTargetPositionValue("end");
-  }, [targetBlocks, targetPositionValue]);
 
   useEffect(() => {
     onSelectionStatusChange(selectionStatus);
@@ -329,7 +384,7 @@ export function BlockMigrationWorkspacePanel({
       sourceBlockLineNumber: Number(nextSourceBlockLineNumber),
       sourceNoteId: sourceNote.id,
       targetNoteId: targetNote.id,
-      targetPosition: parseTargetPosition(nextTargetPositionValue),
+      targetPosition: parseBlockMigrationTargetPosition(nextTargetPositionValue),
     });
 
     onResultStatusChange({
@@ -337,31 +392,36 @@ export function BlockMigrationWorkspacePanel({
       status: result.status === "moved" ? "success" : "failed",
     });
   };
-  const moveSelectedBlock = () => {
-    moveBlockToPosition(sourceBlockLineNumber, targetPositionValue);
-  };
-  const selectSourceLine = (lineNumber: string) => {
-    setSourceBlockLineNumber(lineNumber);
-    onResultStatusChange(null);
-  };
-  const selectTargetPosition = (positionValue: string) => {
-    setTargetPositionValue(positionValue);
-    onResultStatusChange(null);
-  };
   const startSourceBlockDrag = (
-    event: DragEvent<HTMLButtonElement>,
+    event: DragEvent<HTMLDivElement>,
     lineNumber: number,
   ) => {
     const lineNumberValue = String(lineNumber);
+    const payload = createBlockDragLineNumberPayload(lineNumber);
 
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData(blockDragDataType, lineNumberValue);
-    event.dataTransfer.setData("text/plain", lineNumberValue);
+    event.dataTransfer.setData(blockDragDataType, payload);
+    event.dataTransfer.setData("text/plain", payload);
     setDraggingSourceLineNumber(lineNumberValue);
-    selectSourceLine(lineNumberValue);
+    setSourceBlockLineNumber(lineNumberValue);
+    onResultStatusChange(null);
   };
   const finishSourceBlockDrag = () => {
     setDraggingSourceLineNumber(null);
+    setActiveDropPositionValue(null);
+    setActiveTargetBlockLineNumber(null);
+  };
+  const dragOverTargetBlock = (
+    event: DragEvent<HTMLElement>,
+    lineNumber: number,
+  ) => {
+    if (!isDropMode) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setActiveTargetBlockLineNumber(lineNumber);
     setActiveDropPositionValue(null);
   };
   const dragOverTargetPosition = (
@@ -392,38 +452,36 @@ export function BlockMigrationWorkspacePanel({
   ) => {
     event.preventDefault();
 
-    const lineNumberValue =
-      event.dataTransfer.getData(blockDragDataType) ||
-      event.dataTransfer.getData("text/plain") ||
-      draggingSourceLineNumber;
+    const lineNumberValue = readBlockDragLineNumberPayload({
+      fallback: draggingSourceLineNumber,
+      plainText: event.dataTransfer.getData("text/plain"),
+      typedPayload: event.dataTransfer.getData(blockDragDataType),
+    });
 
     if (!lineNumberValue) {
+      onResultStatusChange({
+        message: "没有读取到有效的源块，迁移未执行。",
+        status: "failed",
+      });
       finishSourceBlockDrag();
       return;
     }
 
     setSourceBlockLineNumber(lineNumberValue);
-    setTargetPositionValue(positionValue);
     moveBlockToPosition(lineNumberValue, positionValue);
     finishSourceBlockDrag();
   };
 
   return (
-    <section className="workspace-main-panel migration-workspace-panel" aria-label="块迁移">
+    <section className="workspace-main-panel migration-workspace-panel" aria-label="跨笔记组分迁移">
       <header className="panel-header">
         <div>
           <p className="eyebrow">Block Migration</p>
-          <h2>块迁移</h2>
+          <h2>组分 / 块迁移</h2>
         </div>
-        <button
-          className="primary-action-button"
-          disabled={!canMove}
-          onClick={moveSelectedBlock}
-          type="button"
-        >
-          <MoveRight aria-hidden="true" size={14} strokeWidth={2} />
-          移动块
-        </button>
+        <div className="stats">
+          <span>拖拽释放即迁移</span>
+        </div>
       </header>
 
       <div className="migration-workspace-grid">
@@ -450,8 +508,6 @@ export function BlockMigrationWorkspacePanel({
                 nodes={sourceRoots}
                 onDragEnd={finishSourceBlockDrag}
                 onDragStart={startSourceBlockDrag}
-                onSelectLine={selectSourceLine}
-                selectedLineNumber={sourceBlockLineNumber}
               />
             ) : (
               <p className="migration-empty-state">源笔记没有可移动块。</p>
@@ -498,51 +554,37 @@ export function BlockMigrationWorkspacePanel({
               ))}
           </select>
           <div className="migration-tree-panel">
-            <button
-              className={
-                [
-                  "migration-position-card",
-                  targetPositionValue === "end" ? "is-selected" : "",
-                  activeDropPositionValue === "end" ? "is-drop-target" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              }
-              onDragLeave={(event) => dragLeaveTargetPosition(event, "end")}
-              onDragOver={(event) => dragOverTargetPosition(event, "end")}
-              onDrop={(event) => dropOnTargetPosition(event, "end")}
-              onClick={() => selectTargetPosition("end")}
-              type="button"
-            >
-              文末，作为根块
-            </button>
             {targetRoots.length > 0 ? (
               <MigrationTargetTree
                 activeDropPositionValue={activeDropPositionValue}
+                activeTargetBlockLineNumber={activeTargetBlockLineNumber}
+                isDropMode={isDropMode}
                 nodes={targetRoots}
                 onDragLeavePosition={dragLeaveTargetPosition}
                 onDragOverPosition={dragOverTargetPosition}
+                onDragOverTargetBlock={dragOverTargetBlock}
                 onDropPosition={dropOnTargetPosition}
-                onSelectAfterBlock={(lineNumber) =>
-                  selectTargetPosition(`after:${lineNumber}`)
-                }
-                selectedPositionValue={targetPositionValue}
               />
             ) : (
               <p className="migration-empty-state">目标笔记没有结构，当前只能插入文末。</p>
             )}
+            {isDropMode ? (
+              <MigrationDropZone
+                activeDropPositionValue={activeDropPositionValue}
+                label="文末根块"
+                onDragLeavePosition={dragLeaveTargetPosition}
+                onDragOverPosition={dragOverTargetPosition}
+                onDropPosition={dropOnTargetPosition}
+                positionValue="end"
+              />
+            ) : null}
           </div>
           <section className="migration-selection-card">
             <p className="workspace-detail-title">目标插入位置</p>
-            {targetPositionValue === "end" ? (
-              <p>插入到目标笔记文末，作为根块。</p>
-            ) : selectedTargetBlock ? (
-              <p>
-                插入到 {getBlockLineLabel(selectedTargetBlock)} ·{" "}
-                {getBlockTitle(selectedTargetBlock)} 的整棵子树之后。
-              </p>
+            {activeDropLabel ? (
+              <p>当前投放位置：{activeDropLabel}。</p>
             ) : (
-              <p>目标插入位置不存在。</p>
+              <p>拖到目标块后显示上方并列、下方并列和作为子结点投放区。</p>
             )}
           </section>
         </section>

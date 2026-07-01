@@ -58,7 +58,7 @@ describe("workspace block migration", () => {
         sourceBlockLineNumber: 2,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "after-block", lineNumber: 1 },
+        targetPosition: { kind: "inside-block", lineNumber: 1 },
       },
       "2026-06-08T01:00:00.000Z",
     );
@@ -79,13 +79,54 @@ describe("workspace block migration", () => {
     expect(result.workspace.notes.find((note) => note.id === "note-target"))
       .toMatchObject({
         source:
-          "Target\n    > Understanding\n: Definition\n    - Component",
+          "Target\n    > Understanding\n    : Definition\n        - Component",
         title: "Target",
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
     expect(findFolderIdContainingNote(result.workspace.tree, "note-target")).toBe(
       "folder-inbox",
     );
+  });
+
+  it("moves a block subtree to sibling positions through workspace requests", () => {
+    const aboveResult = moveWorkspaceBlock(
+      createMigrationWorkspace(),
+      {
+        sourceBlockLineNumber: 2,
+        sourceNoteId: "note-source",
+        targetNoteId: "note-target",
+        targetPosition: { kind: "sibling-above", lineNumber: 1 },
+      },
+      "2026-06-08T01:00:00.000Z",
+    );
+    const belowResult = moveWorkspaceBlock(
+      createMigrationWorkspace(),
+      {
+        sourceBlockLineNumber: 2,
+        sourceNoteId: "note-source",
+        targetNoteId: "note-target",
+        targetPosition: { kind: "sibling-below", lineNumber: 1 },
+      },
+      "2026-06-08T01:00:00.000Z",
+    );
+
+    expect(aboveResult.status).toBe("moved");
+    expect(belowResult.status).toBe("moved");
+
+    if (aboveResult.status !== "moved" || belowResult.status !== "moved") {
+      throw new Error("Expected sibling migration requests to move blocks.");
+    }
+
+    expect(aboveResult.workspace.notes.find((note) => note.id === "note-target"))
+      .toMatchObject({
+        source:
+          ": Definition\n    - Component\nTarget\n    > Understanding",
+      });
+    expect(belowResult.workspace.notes.find((note) => note.id === "note-target"))
+      .toMatchObject({
+        source:
+          "Target\n    > Understanding\n: Definition\n    - Component",
+      });
   });
 
   it("rejects invalid migration requests before editing the workspace", () => {
@@ -128,7 +169,7 @@ describe("workspace block migration", () => {
           sourceBlockLineNumber: 1,
           sourceNoteId: "note-source",
           targetNoteId: "note-target",
-          targetPosition: { kind: "after-block", lineNumber: 99 },
+          targetPosition: { kind: "inside-block", lineNumber: 99 },
         },
         timestamp,
       ),
