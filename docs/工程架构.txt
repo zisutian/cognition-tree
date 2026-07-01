@@ -121,8 +121,9 @@ src/features/：
     notes 负责笔记编辑区和结构树。
     syntax 负责语法 TOML 编辑和语法详情。
     migration 负责跨笔记块迁移界面。
+    visualization 负责仓库级可视化页面和点状引用图谱。
     feature 组件不直接处理数据正确性规则。
-    具体 notes、syntax、migration、outline 面板属于 feature UI。
+    具体 notes、syntax、migration、visualization 面板属于 feature UI。
 
 src/shell/：
 
@@ -313,6 +314,9 @@ syntax/*.toml：
 
     index.sqlite 可作为派生缓存。
     FTS5 可用于全文搜索。
+    引用图谱、点状统计和可视化页面应优先读取派生索引。
+    图谱视图不应在 React render 期间全量解析 notes/*.ctn。
+    在派生索引完成前，前端只应在进入可视化页面时生成临时图谱，避免编辑时重算全仓库。
     索引缓存不替代权威源文件。
 
 
@@ -339,6 +343,18 @@ syntax/*.toml：
     找不到 profile 时返回错误视图模型。
     profile shape 非法时返回错误视图模型。
     profile 有效时调用 CTN parser。
+
+可视化图谱：
+
+    当前笔记结构树可以直接使用 parsedNoteView 的解析结果。
+    仓库级可视化页面应使用派生索引，不直接遍历并解析所有笔记原文。
+    引用边来自 CTN 行内结构，例如全局概念引用。
+    第一版引用图谱以笔记级节点和笔记间引用边为主。
+    没有引用关系的笔记也必须作为孤立节点进入图谱数据。
+    后续可扩展为概念级、块级、语法使用和时间演化图谱。
+    时间演化图谱需要块级写入时间；该数据模型应独立设计，不混入第一版引用图谱。
+    图谱渲染应控制节点数量、边数量和重算频率。
+    大规模图谱应优先考虑 Canvas、Web Worker、分层抽样、视口裁剪或按需展开。
 
 块迁移：
 
