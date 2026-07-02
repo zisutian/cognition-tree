@@ -19,16 +19,10 @@ import {
 import {
   moveWorkspaceBlock,
   type WorkspaceBlockMigrationRequest,
-  type WorkspaceBlockMigrationTargetPositionRequest,
 } from "./workspaceBlockMigration";
 import { useRepositorySession } from "./useRepositorySession";
 
-export type MoveWorkspaceBlockTargetPositionRequest =
-  WorkspaceBlockMigrationTargetPositionRequest;
-
-export type MoveWorkspaceBlockRequest = WorkspaceBlockMigrationRequest;
-
-export type MoveWorkspaceBlockActionResult =
+type MoveWorkspaceBlockActionResult =
   | {
       message: string;
       status: "moved";
@@ -58,6 +52,7 @@ export function useWorkspaceController() {
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
+    workspaceSaveStatus,
   } = useRepositorySession();
   const [selectedFolderId, setSelectedFolderId] =
     useState<FolderId>(defaultFolderId);
@@ -140,7 +135,7 @@ export function useWorkspaceController() {
   };
 
   const moveNoteBlock = (
-    request: MoveWorkspaceBlockRequest,
+    request: WorkspaceBlockMigrationRequest,
   ): MoveWorkspaceBlockActionResult => {
     const result = moveWorkspaceBlock(
       workspace,
@@ -189,5 +184,6 @@ export function useWorkspaceController() {
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
+    workspaceSaveStatus,
   };
 }

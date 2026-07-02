@@ -7,7 +7,7 @@ const rootManifestFields = new Set([
   "notes",
   "tree",
 ]);
-const rootWorkspaceFields = new Set([...rootManifestFields, "syntaxProfile"]);
+const rootWorkspaceFields = rootManifestFields;
 const manifestNoteFields = new Set([
   "createdAt",
   "fileName",
@@ -92,20 +92,6 @@ function readRequiredStringOrNull(value, key, path) {
 
   if (typeof value[key] !== "string" || value[key].length === 0) {
     throw new Error(`Invalid workspace DTO at ${fieldPath}: expected non-empty string or null`);
-  }
-
-  return value[key];
-}
-
-function readRequiredObject(value, key, path) {
-  const fieldPath = formatPath(path, key);
-
-  if (!(key in value)) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: missing field`);
-  }
-
-  if (!isRecord(value[key])) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected object`);
   }
 
   return value[key];
@@ -263,8 +249,6 @@ export function assertWorkspacePayloadDto(workspace) {
     rootWorkspaceFields,
   );
   const noteIds = new Set();
-
-  readRequiredObject(workspace, "syntaxProfile", "$");
 
   notes.forEach((note, index) => {
     validateWorkspaceNote(note, index, noteIds);

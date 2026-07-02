@@ -1,12 +1,11 @@
 import type { DragEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { NoteId, NoteWorkspace } from "../../domain/notes";
-import type {
-  MoveWorkspaceBlockActionResult,
-  MoveWorkspaceBlockRequest,
-} from "../../workspace/useWorkspaceController";
 import { resolveParsedNoteView } from "../../workspace/parsedNoteView";
-import { previewWorkspaceBlockMigration } from "../../workspace/workspaceBlockMigration";
+import {
+  previewWorkspaceBlockMigration,
+  type WorkspaceBlockMigrationRequest,
+} from "../../workspace/workspaceBlockMigration";
 import {
   flattenBlockSubtree,
   getBlockLineLabel,
@@ -28,7 +27,10 @@ import {
 
 type BlockMigrationWorkspacePanelProps = {
   activeNoteId: NoteId | null;
-  onMoveNoteBlock: (request: MoveWorkspaceBlockRequest) => MoveWorkspaceBlockActionResult;
+  onMoveNoteBlock: (request: WorkspaceBlockMigrationRequest) => {
+    message: string;
+    status: "failed" | "moved";
+  };
   onResultStatusChange: (status: BlockMigrationPanelStatus | null) => void;
   onSelectionStatusChange: (status: BlockMigrationPanelStatus) => void;
   workspace: NoteWorkspace;
@@ -51,20 +53,16 @@ export function BlockMigrationWorkspacePanel({
     useState<string | null>(null);
   const [activeTargetBlockLineNumber, setActiveTargetBlockLineNumber] =
     useState<number | null>(null);
-  const parsedNotesById = useMemo(
-    () =>
-      new Map(
-        notes.map((note) => [
-          note.id,
-          resolveParsedNoteView(workspace, note),
-        ]),
-      ),
-    [notes, workspace],
-  );
   const sourceNote = notes.find((note) => note.id === sourceNoteId) ?? null;
   const targetNote = notes.find((note) => note.id === targetNoteId) ?? null;
-  const sourceParsed = sourceNote ? parsedNotesById.get(sourceNote.id) ?? null : null;
-  const targetParsed = targetNote ? parsedNotesById.get(targetNote.id) ?? null : null;
+  const sourceParsed = useMemo(
+    () => (sourceNote ? resolveParsedNoteView(workspace, sourceNote) : null),
+    [sourceNote, workspace],
+  );
+  const targetParsed = useMemo(
+    () => (targetNote ? resolveParsedNoteView(workspace, targetNote) : null),
+    [targetNote, workspace],
+  );
   const sourceBlocks =
     sourceParsed?.status === "parsed" ? sourceParsed.document.blocks : [];
   const sourceRoots =

@@ -41,10 +41,11 @@
     跨笔记组分拖拽迁移。
     块迁移工作台 UI 拆分。
     可视化页面笔记引用图谱。
+    仓库唯一语法模型收敛。
 
 当前未提交工作：
 
-    仓库唯一语法模型收敛。
+    持久化与解析边界收紧。
 
 
 2. 第一版闭环边界
@@ -72,41 +73,46 @@
 
 主线名称：
 
-    仓库唯一语法模型收敛
+    持久化与解析边界收紧
 
 目标：
 
-    删除单篇笔记独立指定语法的模型。
-    删除仓库内多语法文件管理。
-    仓库只保留一份 syntax/workspace.toml。
-    所有笔记统一使用 workspace.syntaxProfile 解析。
-    语法界面只编辑当前仓库语法，不提供新增、删除和笔记级切换。
-    块迁移发生在同一仓库语法环境内，不再做目标笔记语法兼容检查。
+    自动保存按顺序执行并合并等待中的旧快照。
+    自动保存失败必须进入可见错误状态。
+    WorkspaceRepository 不再把运行时 syntaxProfile 作为 workspace payload 发送。
+    HTTP adapter 在响应进入 workspace 应用层前校验 DTO。
+    File Store 使用原子文件替换，并串行执行写操作。
+    引用图谱复用 CTN parser 的行内结构语义。
+    块迁移界面只解析当前源笔记和目标笔记。
 
 当前步骤：
 
-    更新领域模型和 workspace 解析流程。
-    更新前端语法编辑界面。
-    更新 HTTP API 和文件仓库保存格式。
-    更新测试和文档。
+    拆分 WorkspaceData 和前端运行时 NoteWorkspace。
+    实现 HTTP DTO 校验。
+    实现可合并的串行自动保存队列。
+    实现 File Store 原子写入和写操作串行化。
+    抽出 CTN 引用提取器。
+    优化块迁移解析范围。
+    补充自动保存、DTO、代码块引用和并发写入测试。
     验证通过后停下审核。
 
 完成标准：
 
-    NoteRecord 只保存笔记身份、标题、原文和时间。
-    NoteWorkspace 只保存 syntaxProfile。
-    workspace.json 不再保存默认语法字段或笔记语法字段。
-    syntax/workspace.toml 是唯一语法配置文件。
-    UI 不再出现语法文件列表、新建、删除和单篇笔记语法选择。
-    旧多语法模型引用在 README、docs、src、server、tests 中清理干净。
+    快速连续更新不会让旧 workspace 覆盖新 workspace。
+    保存错误不会产生未处理 Promise，并能显示在界面中。
+    PUT /api/workspace payload 不包含 syntaxProfile。
+    非法 workspace、syntax 和 repository info 响应在 storage adapter 被拒绝。
+    note 和 manifest 文件通过原子替换写入。
+    代码块中的 [[...]] 不进入引用图谱。
+    迁移界面不再解析未选中的笔记。
 
 
 4. 下一步顺序
 
-1. 提交仓库唯一语法模型收敛。
-2. 文件写入原子化 helper。
-3. SQLite / FTS5 派生索引。
-4. 引用索引和链接查询。
+1. 提交持久化与解析边界收紧。
+2. SQLite / FTS5 派生索引。
+3. 引用索引和链接查询。
+4. 稳定块身份设计。
 5. 时间演化图谱数据模型：块级写入时间。
 6. 标题和正文搜索。
 7. Docker 后端容器化和 volume 持久化验证。

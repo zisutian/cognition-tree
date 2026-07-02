@@ -74,7 +74,7 @@ Docker 路线：
 
     src/features/
         按功能划分的 React 工作区界面。
-        当前包含 notes、syntax、migration。
+        当前包含 notes、syntax、migration、visualization。
 
     src/shell/
         应用外壳、左侧活动栏和仓库侧栏。
@@ -135,8 +135,8 @@ src/workspace/：
 
     useRepositorySession 负责加载、保存、刷新、切换仓库路径和语法文件 API。
     useWorkspaceController 保留为 facade，组合 repository session、当前选择状态和 workspace commands。
-    syntaxResolution 统一处理 workspace 中的 syntax profile resolution。
-    syntaxResolution 只把 note/workspace 引用解析为 resolved、missing-profile 或 invalid-profile 状态，不解析 TOML。
+    syntaxResolution 校验 workspace 中唯一 syntax profile 的运行时 shape。
+    syntaxResolution 只返回 resolved 或 invalid-profile 状态，不解析 TOML。
     parsedNoteView 统一处理“笔记 + workspace -> 解析视图模型”。
     workspaceBlockMigration 负责跨笔记块迁移完整 workflow。
 
@@ -164,13 +164,13 @@ src/domain/noteBlockMigration.ts：
 
 src/domain/workspaceActions.ts：
 
-    负责 workspace 级笔记、文件夹和语法切换变换。
+    负责 workspace 级笔记和文件夹变换。
     由调用方传入 id 和 timestamp。
 
 domain / workspace 判断标准：
 
     只需要普通对象作为输入，并返回普通对象或失败结果的纯规则，优先放 domain。
-    需要 repository、session、active note、syntax file list、UI 错误状态或多个模块调用顺序的逻辑，放 workspace。
+    需要 repository、session、active note、workspace syntax file、UI 错误状态或多个模块调用顺序的逻辑，放 workspace。
     能脱离应用直接测试的逻辑应尽量下沉到 domain。
     描述一次用户操作要串起哪些步骤的 workflow 留在 workspace。
 
@@ -181,7 +181,7 @@ domain / workspace 判断标准：
 
     syntax/workspace.toml 解析归属 src/syntax，输入 TOML 原文，输出 CtnSyntaxProfile。
     .ctn 原文解析归属 src/ctn，输入 note.source 和 CtnSyntaxProfile，输出 CtnDocument。
-    syntax profile resolution 归属 src/workspace，输入 NoteWorkspace 和 NoteRecord，输出 resolved、missing-profile 或 invalid-profile 状态。
+    syntax profile resolution 归属 src/workspace，输入 NoteWorkspace，输出 resolved 或 invalid-profile 状态。
 
 src/ctn/：
 
@@ -234,7 +234,8 @@ src/syntax/：
     安全读写本地文件仓库。
     保存和读取 workspace 前校验 workspace manifest / payload DTO。
     校验语法文件。
-    保护被引用语法文件不被删除。
+    串行执行文件仓库写操作。
+    通过临时文件和 rename 原子替换单个权威文件。
 
 后端不负责：
 
@@ -300,6 +301,13 @@ workspace.json：
     不保存语法 profile 权威内容。
     读取时必须符合当前 manifest DTO；旧 schema 或损坏数据显式报错。
 
+运行时与持久化边界：
+
+    WorkspaceData 表示 workspace.json 与 notes/*.ctn 对应的持久化数据。
+    NoteWorkspace 是前端运行时聚合，包含 WorkspaceData 和由 syntax/workspace.toml 解析出的 syntaxProfile。
+    WorkspaceRepository 的 workspace 读写只传输 WorkspaceData，不重复传输 syntaxProfile。
+    HTTP adapter 必须在数据进入应用层前校验 workspace、syntax file 和 repository info DTO。
+
 notes/*.ctn：
 
     保存每篇笔记原文。
@@ -332,9 +340,11 @@ syntax/workspace.toml：
 
     UI 触发 command。
     useWorkspaceController 调用 workspace action。
-    workspace 更新后自动保存。
+    workspace 更新后进入串行、可合并的自动保存队列。
+    自动保存必须暴露 saving、saved 和 error 状态。
     WorkspaceRepository 写回后端文件仓库。
     后端保存前校验 PUT /api/workspace payload，非法 payload 不应覆盖已有 workspace。
+    File Store 先原子替换 notes/*.ctn，最后原子替换 workspace.json。
 
 解析：
 
@@ -347,10 +357,13 @@ syntax/workspace.toml：
     当前笔记结构树可以直接使用 parsedNoteView 的解析结果。
     仓库级可视化页面应使用派生索引，不直接遍历并解析所有笔记原文。
     引用边来自 CTN 行内结构，例如全局概念引用。
+    引用提取必须复用 CTN parser 语义，不得另写会解析代码块内部内容的文本扫描器。
     第一版引用图谱以笔记级节点和笔记间引用边为主。
     没有引用关系的笔记也必须作为孤立节点进入图谱数据。
     后续可扩展为概念级、块级和时间演化图谱。
     时间演化图谱需要块级写入时间；该数据模型应独立设计，不混入第一版引用图谱。
+    parser 当前生成的行号临时 block id 不能作为持久化标识。
+    块级写入时间实施前必须先设计稳定块身份。
     图谱渲染应控制节点数量、边数量和重算频率。
     大规模图谱应优先考虑 Canvas、Web Worker、分层抽样、视口裁剪或按需展开。
 

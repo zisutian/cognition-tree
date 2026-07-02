@@ -9,14 +9,12 @@ import {
   createWorkspaceApiRequestHandler,
   WorkspaceFileStore,
 } from "../../server/workspaceApiServer.mjs";
-import { defaultSyntaxProfile } from "../../server/syntaxProfileToml.mjs";
 
 function createWorkspace() {
   return {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    syntaxProfile: defaultSyntaxProfile,
     notes: [],
     tree: [
       {
@@ -160,7 +158,7 @@ describe("workspace API request handler", () => {
       ).resolves.toMatchObject({
         body: {
           fileName: "workspace.toml",
-          profile: defaultSyntaxProfile,
+          source: expect.stringContaining('id = "ctn-default"'),
         },
         statusCode: 200,
       });
@@ -180,10 +178,6 @@ describe("workspace API request handler", () => {
       ).resolves.toMatchObject({
         body: {
           fileName: "workspace.toml",
-          profile: {
-            id: "ctn-custom",
-            version: 1,
-          },
           source: customSyntaxSource,
         },
         statusCode: 200,

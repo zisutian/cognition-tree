@@ -90,7 +90,9 @@ export function createWorkspaceApiRequestHandler({ store }) {
       }
 
       if (url.pathname === "/api/syntax" && request.method === "GET") {
-        sendJson(response, 200, await store.readSyntaxFile());
+        const { fileName, source } = await store.readSyntaxFile();
+
+        sendJson(response, 200, { fileName, source });
         return;
       }
 

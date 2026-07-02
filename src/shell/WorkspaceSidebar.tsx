@@ -23,6 +23,7 @@ type WorkspaceSidebarProps = {
   noteTree: NoteTreeNode[];
   referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
+  saveStatusLabel: string;
   storageLabel: string;
   syntaxFile: WorkspaceSyntaxFile;
   canChangeRepositoryPath: boolean;
@@ -47,6 +48,7 @@ export function WorkspaceSidebar({
   noteTree,
   referenceGraph,
   repositoryPath,
+  saveStatusLabel,
   storageLabel,
   syntaxFile,
   canChangeRepositoryPath,
@@ -86,6 +88,7 @@ export function WorkspaceSidebar({
           noteTree={noteTree}
           referenceGraph={referenceGraph}
           repositoryPath={repositoryPath}
+          saveStatusLabel={saveStatusLabel}
           storageLabel={storageLabel}
           syntaxFile={syntaxFile}
           canChangeRepositoryPath={canChangeRepositoryPath}

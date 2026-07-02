@@ -53,6 +53,7 @@ type SidebarNotesPanelProps = {
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
   repositoryPath: string;
+  saveStatusLabel: string;
   storageLabel: string;
   canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
@@ -73,6 +74,7 @@ export function SidebarNotesPanel({
   notes,
   noteTree,
   repositoryPath,
+  saveStatusLabel,
   storageLabel,
   canChangeRepositoryPath,
   onChangeRepositoryPath,
@@ -245,7 +247,7 @@ export function SidebarNotesPanel({
           </div>
         </div>
         <div className="repository-strip">
-          <span>{storageLabel} · 自动保存</span>
+          <span>{storageLabel} · {saveStatusLabel}</span>
           <code>{repositoryPath || "加载中"}</code>
         </div>
       </section>

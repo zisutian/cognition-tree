@@ -77,7 +77,14 @@ function App() {
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
+    workspaceSaveStatus,
   } = useWorkspaceController();
+  const workspaceSaveStatusLabel = {
+    error: "保存失败",
+    idle: "等待保存",
+    saved: "已保存",
+    saving: "保存中",
+  }[workspaceSaveStatus];
   const parsedNoteView = useMemo(
     () => resolveParsedNoteView(workspace, activeNote),
     [activeNote, workspace],
@@ -219,6 +226,7 @@ function App() {
         noteTree={workspace.tree}
         referenceGraph={noteReferenceGraph}
         repositoryPath={repositoryPath}
+        saveStatusLabel={workspaceSaveStatusLabel}
         storageLabel={storageLabel}
         syntaxFile={syntaxFile}
         onActivityChange={setActiveActivityId}

@@ -25,6 +25,7 @@ type SidebarActivityPanelProps = {
   noteTree: NoteTreeNode[];
   referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
+  saveStatusLabel: string;
   storageLabel: string;
   syntaxFile: WorkspaceSyntaxFile;
   canChangeRepositoryPath: boolean;
@@ -48,6 +49,7 @@ export function SidebarActivityPanel({
   noteTree,
   referenceGraph,
   repositoryPath,
+  saveStatusLabel,
   storageLabel,
   syntaxFile,
   canChangeRepositoryPath,
@@ -70,6 +72,7 @@ export function SidebarActivityPanel({
         notes={notes}
         noteTree={noteTree}
         repositoryPath={repositoryPath}
+        saveStatusLabel={saveStatusLabel}
         storageLabel={storageLabel}
         canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={onChangeRepositoryPath}

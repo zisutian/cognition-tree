@@ -1,10 +1,10 @@
-import type { MoveWorkspaceBlockRequest } from "../../workspace/useWorkspaceController";
+import type { WorkspaceBlockMigrationTargetPositionRequest } from "../../workspace/workspaceBlockMigration";
 
 export const blockDragDataType = "application/x-cognition-tree-block-line";
 
 export function parseBlockMigrationTargetPosition(
   value: string,
-): MoveWorkspaceBlockRequest["targetPosition"] {
+): WorkspaceBlockMigrationTargetPositionRequest {
   if (value === "end") {
     return { kind: "end" };
   }
@@ -33,7 +33,7 @@ export function parseBlockMigrationTargetPosition(
 }
 
 export function createBlockMigrationTargetPositionValue(
-  targetPosition: MoveWorkspaceBlockRequest["targetPosition"],
+  targetPosition: WorkspaceBlockMigrationTargetPositionRequest,
 ) {
   switch (targetPosition.kind) {
     case "end":

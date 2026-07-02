@@ -1,4 +1,3 @@
-import type { NoteWorkspace } from "../domain/notes";
 import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
 import {
   formatSyntaxProfileToml,
@@ -9,6 +8,7 @@ import type {
   RepositoryInfo,
   WorkspaceSyntaxFile,
 } from "./workspaceRepository";
+import { parseWorkspaceDataDto } from "./workspaceDto";
 
 const workspaceStorageKey = "cognition-tree.workspace";
 const repositoryLabelStorageKey = "cognition-tree.repository-label";
@@ -24,28 +24,12 @@ function getRepositoryLabel() {
 
 function loadStoredWorkspace() {
   const storedWorkspace = globalThis.localStorage?.getItem(workspaceStorageKey);
-  const syntaxFile = loadStoredSyntaxFile();
 
   if (!storedWorkspace) {
     return null;
   }
 
-  const workspace = JSON.parse(storedWorkspace) as NoteWorkspace;
-
-  return {
-    activeNoteId: workspace.activeNoteId,
-    id: workspace.id,
-    name: workspace.name,
-    notes: workspace.notes.map((note) => ({
-      createdAt: note.createdAt,
-      id: note.id,
-      source: note.source,
-      title: note.title,
-      updatedAt: note.updatedAt,
-    })),
-    syntaxProfile: syntaxFile.profile,
-    tree: workspace.tree,
-  };
+  return parseWorkspaceDataDto(JSON.parse(storedWorkspace));
 }
 
 function createDefaultSyntaxFile(): WorkspaceSyntaxFile {

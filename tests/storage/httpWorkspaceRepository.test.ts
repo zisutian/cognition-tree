@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createInitialWorkspace } from "../../src/domain/notes";
+import { createInitialWorkspaceData } from "../../src/domain/notes";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { formatSyntaxProfileToml } from "../../src/syntax/profileToml";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -18,7 +18,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 describe("createHttpWorkspaceRepository", () => {
   it("loads repository info and workspace through HTTP", async () => {
-    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
+    const workspace = createInitialWorkspaceData();
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
@@ -55,7 +55,7 @@ describe("createHttpWorkspaceRepository", () => {
   });
 
   it("saves and clears workspaces through HTTP", async () => {
-    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
+    const workspace = createInitialWorkspaceData();
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
@@ -95,5 +95,45 @@ describe("createHttpWorkspaceRepository", () => {
     const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
 
     await expect(repository.loadWorkspace()).rejects.toThrow("backend failed");
+  });
+
+  it("parses workspace syntax responses", async () => {
+    const source = formatSyntaxProfileToml();
+    const fetchMock: typeof fetch = async () =>
+      jsonResponse({
+        fileName: "workspace.toml",
+        source,
+      });
+    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+
+    await expect(repository.readSyntaxFile()).resolves.toMatchObject({
+      fileName: "workspace.toml",
+      profile: {
+        id: "ctn-default",
+      },
+      source,
+    });
+  });
+
+  it("rejects obsolete response shapes", async () => {
+    const workspace = {
+      ...createInitialWorkspaceData(),
+      syntaxProfile: {},
+    };
+    const fetchMock: typeof fetch = async (input) => {
+      if (String(input).endsWith("/api/syntax")) {
+        return jsonResponse([]);
+      }
+
+      return jsonResponse(workspace);
+    };
+    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+
+    await expect(repository.loadWorkspace()).rejects.toThrow(
+      "unsupported field",
+    );
+    await expect(repository.readSyntaxFile()).rejects.toThrow(
+      "expected object",
+    );
   });
 });

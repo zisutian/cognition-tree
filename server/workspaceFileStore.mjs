@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
+import {
+  writeFileAtomically,
+  writeJsonAtomically,
+} from "./atomicWrite.mjs";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
@@ -35,12 +39,11 @@ function noteFileName(noteId) {
   return `${noteId}.ctn`;
 }
 
-function createEmptyWorkspace(syntaxProfile) {
+function createEmptyWorkspace() {
   return {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    syntaxProfile,
     notes: [],
     tree: [
       {
@@ -57,12 +60,9 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
-async function writeJson(filePath, value) {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
 export class WorkspaceFileStore {
   #rootDir;
+  #writeQueue = Promise.resolve();
 
   constructor(rootDir) {
     this.#rootDir = path.resolve(rootDir);
@@ -80,7 +80,6 @@ export class WorkspaceFileStore {
 
   async loadWorkspace() {
     await this.initialize();
-    const syntaxFile = await this.#readSyntaxFile();
 
     let manifest;
 
@@ -88,7 +87,7 @@ export class WorkspaceFileStore {
       manifest = await readJson(this.#manifestPath);
     } catch (error) {
       if (error?.code === "ENOENT") {
-        return createEmptyWorkspace(syntaxFile.profile);
+        return createEmptyWorkspace();
       }
 
       throw error;
@@ -127,7 +126,6 @@ export class WorkspaceFileStore {
       id: manifest.id,
       name: manifest.name,
       activeNoteId: manifest.activeNoteId,
-      syntaxProfile: syntaxFile.profile,
       notes,
       tree: manifest.tree,
     };
@@ -135,6 +133,11 @@ export class WorkspaceFileStore {
 
   async saveWorkspace(workspace) {
     assertWorkspacePayloadDto(workspace);
+
+    return this.#enqueueWrite(() => this.#saveWorkspace(workspace));
+  }
+
+  async #saveWorkspace(workspace) {
     await this.initialize();
 
     const expectedNoteFiles = new Set();
@@ -159,14 +162,21 @@ export class WorkspaceFileStore {
     };
 
     for (const note of workspace.notes) {
-      await writeFile(path.join(this.#notesDir, noteFileName(note.id)), note.source, "utf8");
+      await writeFileAtomically(
+        path.join(this.#notesDir, noteFileName(note.id)),
+        note.source,
+      );
     }
 
     await this.#removeStaleNoteFiles(expectedNoteFiles);
-    await writeJson(this.#manifestPath, manifest);
+    await writeJsonAtomically(this.#manifestPath, manifest);
   }
 
   async clearWorkspace() {
+    return this.#enqueueWrite(() => this.#clearWorkspace());
+  }
+
+  async #clearWorkspace() {
     await rm(this.#manifestPath, { force: true });
     await rm(this.#notesDir, { force: true, recursive: true });
     await rm(this.#syntaxDir, { force: true, recursive: true });
@@ -182,6 +192,10 @@ export class WorkspaceFileStore {
   }
 
   async saveSyntaxFile(source) {
+    return this.#enqueueWrite(() => this.#saveSyntaxFile(source));
+  }
+
+  async #saveSyntaxFile(source) {
     await this.initialize();
 
     if (typeof source !== "string" || source.trim().length === 0) {
@@ -194,7 +208,10 @@ export class WorkspaceFileStore {
       throw new Error(`Invalid syntax profile ${workspaceSyntaxFileName}: ${formatSyntaxDiagnostics(parsed)}`);
     }
 
-    await writeFile(path.join(this.#syntaxDir, workspaceSyntaxFileName), source, "utf8");
+    await writeFileAtomically(
+      path.join(this.#syntaxDir, workspaceSyntaxFileName),
+      source,
+    );
   }
 
   async #ensureDefaultSyntaxProfile() {
@@ -207,10 +224,9 @@ export class WorkspaceFileStore {
       }
     }
 
-    await writeFile(
+    await writeFileAtomically(
       path.join(this.#syntaxDir, workspaceSyntaxFileName),
       formatSyntaxProfileToml(),
-      "utf8",
     );
   }
 
@@ -260,6 +276,13 @@ export class WorkspaceFileStore {
 
   get #syntaxDir() {
     return path.join(this.#rootDir, syntaxDirName);
+  }
+
+  #enqueueWrite(operation) {
+    const result = this.#writeQueue.then(operation);
+
+    this.#writeQueue = result.catch(() => undefined);
+    return result;
   }
 }
 

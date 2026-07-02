@@ -1,9 +1,5 @@
 import type { NoteId, NoteRecord, NoteWorkspace } from "../domain/notes";
-import type {
-  CtnInlineRule,
-  CtnPairedInlineRule,
-  CtnSyntaxProfile,
-} from "../syntax/types";
+import { extractCtnInlineReferences } from "../ctn/references";
 import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export type NoteReferenceGraphNode = {
@@ -61,52 +57,6 @@ function incrementCounter(counters: Map<NoteId, number>, noteId: NoteId) {
   counters.set(noteId, (counters.get(noteId) ?? 0) + 1);
 }
 
-function isGlobalReferenceRule(
-  rule: CtnInlineRule,
-): rule is CtnPairedInlineRule {
-  return rule.kind === "paired" && rule.type === "global-reference";
-}
-
-function getGlobalReferenceRule(
-  syntaxProfile: CtnSyntaxProfile,
-): CtnPairedInlineRule | null {
-  return syntaxProfile.inlineRules.find(isGlobalReferenceRule) ?? null;
-}
-
-function extractGlobalReferenceTexts(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-) {
-  const rule = getGlobalReferenceRule(syntaxProfile);
-
-  if (!rule) {
-    return [];
-  }
-
-  const references: string[] = [];
-  let index = 0;
-
-  while (index < source.length) {
-    const openIndex = source.indexOf(rule.open, index);
-
-    if (openIndex < 0) {
-      break;
-    }
-
-    const textStartIndex = openIndex + rule.open.length;
-    const closeIndex = source.indexOf(rule.close, textStartIndex);
-
-    if (closeIndex < 0) {
-      break;
-    }
-
-    references.push(source.slice(textStartIndex, closeIndex));
-    index = closeIndex + rule.close.length;
-  }
-
-  return references;
-}
-
 export function createNoteReferenceGraph(
   workspace: NoteWorkspace,
 ): NoteReferenceGraph {
@@ -136,11 +86,12 @@ export function createNoteReferenceGraph(
   }
 
   for (const note of workspace.notes) {
-    for (const referenceText of extractGlobalReferenceTexts(
+    for (const reference of extractCtnInlineReferences(
       note.source,
       syntaxResolution.profile,
+      "global-reference",
     )) {
-      const targetText = normalizeReferenceText(referenceText);
+      const targetText = normalizeReferenceText(reference.text);
 
       if (!targetText) {
         continue;

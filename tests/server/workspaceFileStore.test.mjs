@@ -15,7 +15,6 @@ function createWorkspace() {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: "note-test",
-    syntaxProfile: defaultSyntaxProfile,
     notes: [
       {
         id: "note-test",
@@ -179,7 +178,10 @@ describe("WorkspaceFileStore", () => {
         },
         source: customSyntaxSource,
       });
-      expect((await store.loadWorkspace()).syntaxProfile.id).toBe("ctn-custom");
+      await expect(store.loadWorkspace()).resolves.toMatchObject({
+        id: "local-workspace",
+        notes: [],
+      });
     });
   });
 
@@ -192,7 +194,7 @@ describe("WorkspaceFileStore", () => {
         "utf8",
       );
 
-      await expect(store.loadWorkspace()).rejects.toThrow(
+      await expect(store.readSyntaxFile()).rejects.toThrow(
         "Invalid syntax profile workspace.toml",
       );
     });
@@ -308,5 +310,34 @@ describe("WorkspaceFileStore", () => {
           .rejects.toThrow("ENOENT");
       });
     }
+  });
+
+  it("serializes concurrent workspace saves in call order", async () => {
+    await withTempStore(async (store, rootDir) => {
+      const first = createWorkspace();
+      const latest = createWorkspace();
+
+      first.notes[0].source = "first";
+      first.notes[0].title = "first";
+      latest.notes[0].source = "latest";
+      latest.notes[0].title = "latest";
+
+      await Promise.all([
+        store.saveWorkspace(first),
+        store.saveWorkspace(latest),
+      ]);
+
+      expect(
+        await readFile(path.join(rootDir, "notes", "note-test.ctn"), "utf8"),
+      ).toBe("latest");
+      await expect(store.loadWorkspace()).resolves.toMatchObject({
+        notes: [
+          {
+            source: "latest",
+            title: "latest",
+          },
+        ],
+      });
+    });
   });
 });

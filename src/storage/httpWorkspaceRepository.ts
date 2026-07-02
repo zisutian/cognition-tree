@@ -1,9 +1,11 @@
-import type { NoteWorkspace } from "../domain/notes";
 import type {
   WorkspaceRepository,
-  RepositoryInfo,
-  WorkspaceSyntaxFile,
 } from "./workspaceRepository";
+import {
+  parseRepositoryInfoDto,
+  parseWorkspaceDataDto,
+  parseWorkspaceSyntaxFileDto,
+} from "./workspaceDto";
 
 type HttpWorkspaceRepositoryOptions = {
   baseUrl?: string;
@@ -28,18 +30,18 @@ async function readErrorMessage(response: Response) {
   }
 }
 
-async function requestJson<T>(
+async function requestJson(
   fetchFn: typeof fetch,
   baseUrl: string,
   endpoint: string,
-): Promise<T> {
+): Promise<unknown> {
   const response = await fetchFn(resolveApiUrl(baseUrl, endpoint));
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
   }
 
-  return (await response.json()) as T;
+  return response.json();
 }
 
 async function sendJson(
@@ -68,7 +70,9 @@ export function createHttpWorkspaceRepository({
     label: "HTTP 后端",
     canChangeRepositoryPath: false,
     async loadWorkspace() {
-      return requestJson<NoteWorkspace | null>(fetchFn, baseUrl, "/api/workspace");
+      return parseWorkspaceDataDto(
+        await requestJson(fetchFn, baseUrl, "/api/workspace"),
+      );
     },
     async saveWorkspace(workspace) {
       await sendJson(fetchFn, baseUrl, "/api/workspace", "PUT", workspace);
@@ -76,11 +80,15 @@ export function createHttpWorkspaceRepository({
     async clearWorkspace() {
       await sendJson(fetchFn, baseUrl, "/api/workspace", "DELETE");
     },
-    async getRepositoryInfo(): Promise<RepositoryInfo> {
-      return requestJson<RepositoryInfo>(fetchFn, baseUrl, "/api/repository");
+    async getRepositoryInfo() {
+      return parseRepositoryInfoDto(
+        await requestJson(fetchFn, baseUrl, "/api/repository"),
+      );
     },
     async readSyntaxFile() {
-      return requestJson<WorkspaceSyntaxFile>(fetchFn, baseUrl, "/api/syntax");
+      return parseWorkspaceSyntaxFileDto(
+        await requestJson(fetchFn, baseUrl, "/api/syntax"),
+      );
     },
     async saveSyntaxFile(source) {
       await sendJson(fetchFn, baseUrl, "/api/syntax", "PUT", { source });

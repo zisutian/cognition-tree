@@ -26,13 +26,16 @@ export type NoteTreeNode =
       noteId: NoteId;
     };
 
-export type NoteWorkspace = {
+export type WorkspaceData = {
   id: string;
   name: string;
   activeNoteId: NoteId | null;
-  syntaxProfile: CtnSyntaxProfile;
   notes: NoteRecord[];
   tree: NoteTreeNode[];
+};
+
+export type NoteWorkspace = WorkspaceData & {
+  syntaxProfile: CtnSyntaxProfile;
 };
 
 export function inferNoteTitle(source: string): string {
@@ -56,12 +59,11 @@ export function createNoteRecord(
   };
 }
 
-export function createInitialWorkspace(syntaxProfile: CtnSyntaxProfile) {
+export function createInitialWorkspaceData(): WorkspaceData {
   return {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    syntaxProfile,
     notes: [],
     tree: [
       {
@@ -71,5 +73,32 @@ export function createInitialWorkspace(syntaxProfile: CtnSyntaxProfile) {
         children: [],
       },
     ],
+  };
+}
+
+export function createInitialWorkspace(syntaxProfile: CtnSyntaxProfile) {
+  return {
+    ...createInitialWorkspaceData(),
+    syntaxProfile,
   } satisfies NoteWorkspace;
+}
+
+export function attachWorkspaceSyntaxProfile(
+  workspace: WorkspaceData,
+  syntaxProfile: CtnSyntaxProfile,
+): NoteWorkspace {
+  return {
+    ...workspace,
+    syntaxProfile,
+  };
+}
+
+export function toWorkspaceData(workspace: NoteWorkspace): WorkspaceData {
+  return {
+    activeNoteId: workspace.activeNoteId,
+    id: workspace.id,
+    name: workspace.name,
+    notes: workspace.notes,
+    tree: workspace.tree,
+  };
 }

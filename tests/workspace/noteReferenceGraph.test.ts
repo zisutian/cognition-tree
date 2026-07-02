@@ -13,7 +13,7 @@ describe("createNoteReferenceGraph", () => {
   it("creates note nodes, reference edges, and isolated nodes", () => {
     const source = createNoteRecord(
       "note-source",
-      "Source\n    [[Target]]",
+      "Source [[Target]]",
       timestamp,
     );
     const target = createNoteRecord(
@@ -63,7 +63,7 @@ describe("createNoteReferenceGraph", () => {
   it("keeps unresolved global references visible", () => {
     const source = createNoteRecord(
       "note-source",
-      "Source\n    [[Missing Note]]\n    [[Missing Note]]",
+      "Source [[Missing Note]] and [[Missing Note]]",
       timestamp,
     );
     const workspace = {
@@ -85,6 +85,33 @@ describe("createNoteReferenceGraph", () => {
           count: 2,
           sourceNoteId: "note-source",
           targetText: "Missing Note",
+        },
+      ],
+    });
+  });
+
+  it("ignores global-reference text inside fenced code blocks", () => {
+    const source = createNoteRecord(
+      "note-source",
+      "Source\n    ```txt\n    [[Target]]\n    ```",
+      timestamp,
+    );
+    const target = createNoteRecord("note-target", "Target", timestamp);
+    const workspace = {
+      ...createInitialWorkspace(defaultCtnSyntaxProfile),
+      notes: [source, target],
+    };
+
+    expect(createNoteReferenceGraph(workspace)).toMatchObject({
+      edges: [],
+      nodes: [
+        {
+          id: "note-source",
+          isolated: true,
+        },
+        {
+          id: "note-target",
+          isolated: true,
         },
       ],
     });

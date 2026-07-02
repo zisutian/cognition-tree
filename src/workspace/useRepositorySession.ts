@@ -1,11 +1,27 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import {
+  attachWorkspaceSyntaxProfile,
   createInitialWorkspace,
+  toWorkspaceData,
   type NoteWorkspace,
+  type WorkspaceData,
 } from "../domain/notes";
-import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
-import type { WorkspaceSyntaxFile } from "../storage/workspaceRepository";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
+import type { WorkspaceSyntaxFile } from "../storage/workspaceRepository";
+import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
+import {
+  createWorkspaceSaveQueue,
+  type WorkspaceSaveStatus,
+} from "./workspaceSaveQueue";
+
+export type { WorkspaceSaveStatus } from "./workspaceSaveQueue";
 
 type UseRepositorySessionResult = {
   canChangeRepositoryPath: boolean;
@@ -19,36 +35,16 @@ type UseRepositorySessionResult = {
   updateSyntaxFile: (source: string) => Promise<void>;
   workspace: NoteWorkspace;
   workspaceErrorMessage: string;
+  workspaceSaveStatus: WorkspaceSaveStatus;
 };
 
 function applySyntaxFileToWorkspace(
-  workspace: NoteWorkspace | null,
+  workspace: WorkspaceData | null,
   syntaxFile: WorkspaceSyntaxFile,
 ) {
-  if (!workspace) {
-    return createInitialWorkspace(syntaxFile.profile);
-  }
-
-  return {
-    ...workspace,
-    syntaxProfile: syntaxFile.profile,
-  };
-}
-
-function assertWorkspaceSyntaxFile(value: unknown): WorkspaceSyntaxFile {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value) ||
-    typeof (value as Partial<WorkspaceSyntaxFile>).fileName !== "string" ||
-    typeof (value as Partial<WorkspaceSyntaxFile>).source !== "string" ||
-    typeof (value as Partial<WorkspaceSyntaxFile>).profile !== "object" ||
-    (value as Partial<WorkspaceSyntaxFile>).profile === null
-  ) {
-    throw new Error("仓库语法响应格式无效。");
-  }
-
-  return value as WorkspaceSyntaxFile;
+  return workspace
+    ? attachWorkspaceSyntaxProfile(workspace, syntaxFile.profile)
+    : createInitialWorkspace(syntaxFile.profile);
 }
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
@@ -57,17 +53,54 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 
 export function useRepositorySession(): UseRepositorySessionResult {
   const repository = useMemo(() => createRuntimeWorkspaceRepository(), []);
-  const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
-    return createInitialWorkspace(defaultCtnSyntaxProfile);
-  });
+  const [workspace, setWorkspace] = useState<NoteWorkspace>(() =>
+    createInitialWorkspace(defaultCtnSyntaxProfile),
+  );
   const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
   const [workspaceErrorMessage, setWorkspaceErrorMessage] = useState("");
+  const [workspaceSaveStatus, setWorkspaceSaveStatus] =
+    useState<WorkspaceSaveStatus>("idle");
   const [repositoryPath, setRepositoryPath] = useState("");
   const [syntaxFile, setSyntaxFile] = useState<WorkspaceSyntaxFile>({
     fileName: "workspace.toml",
     profile: defaultCtnSyntaxProfile,
     source: "",
   });
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const saveQueue = useMemo(
+    () =>
+      createWorkspaceSaveQueue({
+        onError(error) {
+          if (isMountedRef.current) {
+            setWorkspaceErrorMessage(
+              getErrorMessage(error, "工作区自动保存失败。"),
+            );
+          }
+        },
+        onStatusChange(status) {
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          if (status === "saved") {
+            setWorkspaceErrorMessage("");
+          }
+
+          setWorkspaceSaveStatus(status);
+        },
+        save: (nextWorkspace) => repository.saveWorkspace(nextWorkspace),
+      }),
+    [repository],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -82,14 +115,13 @@ export function useRepositorySession(): UseRepositorySessionResult {
           return;
         }
 
-        const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
-
         setRepositoryPath(repositoryInfo.path);
-        setSyntaxFile(nextSyntaxFile);
+        setSyntaxFile(storedSyntaxFile);
         setWorkspace(
-          applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile),
+          applySyntaxFileToWorkspace(storedWorkspace, storedSyntaxFile),
         );
         setWorkspaceErrorMessage("");
+        setWorkspaceSaveStatus("idle");
         setIsWorkspaceLoaded(true);
       })
       .catch((error: unknown) => {
@@ -98,6 +130,7 @@ export function useRepositorySession(): UseRepositorySessionResult {
         }
 
         setWorkspaceErrorMessage(getErrorMessage(error, "工作区加载失败。"));
+        setWorkspaceSaveStatus("error");
         setIsWorkspaceLoaded(false);
       });
 
@@ -107,16 +140,15 @@ export function useRepositorySession(): UseRepositorySessionResult {
   }, [repository]);
 
   useEffect(() => {
-    if (!isWorkspaceLoaded) {
-      return;
+    if (isWorkspaceLoaded) {
+      saveQueue.enqueue(toWorkspaceData(workspace));
     }
-
-    void repository.saveWorkspace(workspace);
-  }, [isWorkspaceLoaded, repository, workspace]);
+  }, [isWorkspaceLoaded, saveQueue, workspace]);
 
   const reloadWorkspace = async () => {
     setIsWorkspaceLoaded(false);
     setWorkspaceErrorMessage("");
+    await saveQueue.waitForIdle();
 
     try {
       const [storedWorkspace, repositoryInfo, storedSyntaxFile] =
@@ -127,15 +159,15 @@ export function useRepositorySession(): UseRepositorySessionResult {
         ]);
 
       setRepositoryPath(repositoryInfo.path);
-      const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
-
-      setSyntaxFile(nextSyntaxFile);
+      setSyntaxFile(storedSyntaxFile);
       setWorkspace(
-        applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile),
+        applySyntaxFileToWorkspace(storedWorkspace, storedSyntaxFile),
       );
+      setWorkspaceSaveStatus("idle");
       setIsWorkspaceLoaded(true);
     } catch (error) {
       setWorkspaceErrorMessage(getErrorMessage(error, "工作区加载失败。"));
+      setWorkspaceSaveStatus("error");
     }
   };
 
@@ -145,10 +177,8 @@ export function useRepositorySession(): UseRepositorySessionResult {
       repository.readSyntaxFile(),
     ]);
 
-    const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
-
-    setSyntaxFile(nextSyntaxFile);
-    setWorkspace(applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile));
+    setSyntaxFile(storedSyntaxFile);
+    setWorkspace(applySyntaxFileToWorkspace(storedWorkspace, storedSyntaxFile));
   };
 
   const changeRepositoryPath = async (path: string) => {
@@ -163,19 +193,19 @@ export function useRepositorySession(): UseRepositorySessionResult {
     }
 
     setIsWorkspaceLoaded(false);
+    await saveQueue.waitForIdle();
 
-    const [storedWorkspace, repositoryInfo, storedSyntaxFile] = await Promise.all([
-      repository.setRepositoryPath(nextPath),
+    const storedWorkspace = await repository.setRepositoryPath(nextPath);
+    const [repositoryInfo, storedSyntaxFile] = await Promise.all([
       repository.getRepositoryInfo(),
       repository.readSyntaxFile(),
     ]);
 
     setRepositoryPath(repositoryInfo.path);
-    const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
-
-    setSyntaxFile(nextSyntaxFile);
-    setWorkspace(applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile));
+    setSyntaxFile(storedSyntaxFile);
+    setWorkspace(applySyntaxFileToWorkspace(storedWorkspace, storedSyntaxFile));
     setWorkspaceErrorMessage("");
+    setWorkspaceSaveStatus("idle");
     setIsWorkspaceLoaded(true);
   };
 
@@ -196,5 +226,6 @@ export function useRepositorySession(): UseRepositorySessionResult {
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
+    workspaceSaveStatus,
   };
 }

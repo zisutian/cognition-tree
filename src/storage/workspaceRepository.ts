@@ -1,4 +1,4 @@
-import type { NoteWorkspace } from "../domain/notes";
+import type { WorkspaceData } from "../domain/notes";
 import type { CtnSyntaxProfile } from "../syntax/types";
 
 export type RepositoryInfo = {
@@ -14,11 +14,11 @@ export type WorkspaceSyntaxFile = {
 export type WorkspaceRepository = {
   label: string;
   canChangeRepositoryPath?: boolean;
-  loadWorkspace: () => Promise<NoteWorkspace | null>;
-  saveWorkspace: (workspace: NoteWorkspace) => Promise<void>;
+  loadWorkspace: () => Promise<WorkspaceData | null>;
+  saveWorkspace: (workspace: WorkspaceData) => Promise<void>;
   clearWorkspace: () => Promise<void>;
   getRepositoryInfo: () => Promise<RepositoryInfo>;
   readSyntaxFile: () => Promise<WorkspaceSyntaxFile>;
   saveSyntaxFile: (source: string) => Promise<void>;
-  setRepositoryPath?: (path: string) => Promise<NoteWorkspace | null>;
+  setRepositoryPath?: (path: string) => Promise<WorkspaceData | null>;
 };
