@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CtnBlock } from "../../src/ctn/parseOutline";
 import {
+  getInlineDecorationStyle,
   getInlineDecorationClass,
+  getMarkerDecorationStyle,
   getMarkerDecorationClass,
   shouldDecorateMarker,
 } from "../../src/editor/ctnDecorations";
@@ -75,5 +77,39 @@ describe("ctn editor decorations", () => {
         type: "custom-inline",
       }),
     ).toBe("ctn-inline ctn-tone-violet");
+  });
+
+  it("uses custom tone classes and CSS variables for hex colors", () => {
+    const block = createBlock({
+      tone: "#4455aa",
+      type: "custom-risk",
+    });
+
+    expect(getMarkerDecorationClass(block)).toBe("ctn-marker ctn-tone-custom");
+    expect(getMarkerDecorationStyle(block)).toBe("--ctn-tone-color: #4455aa;");
+    expect(
+      getInlineDecorationClass({
+        endColumn: 8,
+        id: "inline-1",
+        label: "自定义",
+        lineNumber: 1,
+        startColumn: 1,
+        text: "value",
+        tone: "#4455aa",
+        type: "custom-inline",
+      }),
+    ).toBe("ctn-inline ctn-tone-custom");
+    expect(
+      getInlineDecorationStyle({
+        endColumn: 8,
+        id: "inline-1",
+        label: "自定义",
+        lineNumber: 1,
+        startColumn: 1,
+        text: "value",
+        tone: "#4455aa",
+        type: "custom-inline",
+      }),
+    ).toBe("--ctn-tone-color: #4455aa;");
   });
 });

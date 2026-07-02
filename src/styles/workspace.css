@@ -30,6 +30,52 @@
   gap: 5px;
 }
 
+.workspace-main-panel .primary-action-button:disabled,
+.workspace-main-panel .primary-action-button:disabled:hover {
+  color: #8c9993;
+  background: #edf0eb;
+  cursor: not-allowed;
+}
+
+.secondary-action-button,
+.icon-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cfd9cf;
+  border-radius: 7px;
+  color: #25302d;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.secondary-action-button {
+  min-height: 26px;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.icon-action-button {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.syntax-protected-rule-lock {
+  display: block;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.secondary-action-button:hover,
+.icon-action-button:hover {
+  background: #ffffff;
+}
+
 .workspace-source-editor {
   flex: 1;
   min-height: 500px;
@@ -48,6 +94,359 @@
 .workspace-source-editor:focus {
   border-color: #397c72;
   box-shadow: 0 0 0 3px rgba(57, 124, 114, 0.16);
+}
+
+.syntax-form-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  padding: 2px 2px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.syntax-form-section {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid #d7dfd5;
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.syntax-form-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 28px;
+}
+
+.syntax-form-section-header h3 {
+  margin: 0;
+  color: #25302d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.syntax-profile-grid,
+.syntax-marker-rule-columns,
+.syntax-inline-rule-columns {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.syntax-profile-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 0.32fr);
+}
+
+.syntax-marker-rule-row,
+.syntax-inline-rule-row {
+  align-items: end;
+  padding: 7px;
+  border: 1px solid #d9e1d7;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.syntax-marker-rule-columns {
+  grid-template-columns:
+    minmax(44px, 0.36fr)
+    minmax(88px, 0.9fr)
+    minmax(82px, 0.68fr)
+    minmax(104px, 0.74fr)
+    28px;
+}
+
+.syntax-inline-rule-columns {
+  grid-template-columns:
+    minmax(70px, 0.62fr)
+    minmax(112px, 0.95fr)
+    minmax(98px, 0.9fr)
+    minmax(104px, 0.74fr)
+    28px;
+}
+
+.syntax-rule-column-header {
+  align-items: center;
+  min-height: 22px;
+  padding: 0 7px;
+  color: #65736d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.syntax-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.syntax-field span {
+  color: #65736d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.syntax-field input,
+.syntax-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid #c5d0c8;
+  border-radius: 7px;
+  color: #20302d;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.syntax-field input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.syntax-field input:focus,
+.syntax-field select:focus {
+  border-color: #397c72;
+  box-shadow: 0 0 0 3px rgba(57, 124, 114, 0.16);
+}
+
+.syntax-field input:disabled {
+  color: #8c9993;
+  background: #edf0eb;
+}
+
+.syntax-rule-list {
+  display: grid;
+  gap: 5px;
+}
+
+.syntax-rule-list .syntax-field > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.syntax-inline-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.syntax-symbol-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.syntax-tone-picker {
+  position: relative;
+  min-width: 0;
+  min-height: 28px;
+}
+
+.syntax-tone-button,
+.syntax-tone-custom-button {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #c5d0c8;
+  border-radius: 7px;
+  color: #20302d;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.syntax-tone-button {
+  width: 100%;
+  min-height: 28px;
+  gap: 5px;
+  justify-content: space-between;
+  padding: 3px 5px;
+}
+
+.syntax-tone-button > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syntax-tone-button:hover,
+.syntax-tone-custom-button:hover,
+.syntax-tone-tile:hover {
+  background: #f6f8f2;
+}
+
+.syntax-tone-button:focus,
+.syntax-tone-custom-button:focus,
+.syntax-tone-tile:focus,
+.syntax-tone-picker input[type="color"]:focus {
+  border-color: #397c72;
+  box-shadow: 0 0 0 3px rgba(57, 124, 114, 0.16);
+  outline: none;
+}
+
+.syntax-tone-menu {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  top: calc(100% + 5px);
+  display: grid;
+  gap: 7px;
+  width: 168px;
+  padding: 8px;
+  border: 1px solid #cbd5ca;
+  border-radius: 8px;
+  background: #fffef8;
+  box-shadow: 0 10px 24px rgba(32, 48, 45, 0.16);
+}
+
+.syntax-tone-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.syntax-tone-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #c5d0c8;
+  border-radius: 5px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.syntax-tone-tile.is-selected {
+  border-color: #397c72;
+  box-shadow: 0 0 0 2px rgba(57, 124, 114, 0.18);
+}
+
+.syntax-tone-tile svg {
+  position: absolute;
+  color: #15201d;
+  filter: drop-shadow(0 0 1px #ffffff);
+}
+
+.syntax-tone-custom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px;
+  gap: 6px;
+  align-items: center;
+}
+
+.syntax-tone-custom-button {
+  min-height: 26px;
+  gap: 6px;
+  justify-content: flex-start;
+  padding: 3px 6px;
+}
+
+.syntax-tone-custom-button.is-selected {
+  border-color: #397c72;
+}
+
+.syntax-tone-picker input[type="color"] {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #c5d0c8;
+  border-radius: 7px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.syntax-tone-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  border: 1px solid #c5d0c8;
+  border-radius: 5px;
+  background: #ffffff;
+}
+
+.syntax-tone-swatch span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: #87938d;
+}
+
+.syntax-tone-green span {
+  background: #3b7f5b;
+}
+
+.syntax-tone-teal span {
+  background: #278276;
+}
+
+.syntax-tone-cyan span {
+  background: #2f89a4;
+}
+
+.syntax-tone-blue span {
+  background: #356f9e;
+}
+
+.syntax-tone-indigo span {
+  background: #5b66ad;
+}
+
+.syntax-tone-violet span {
+  background: #7961a8;
+}
+
+.syntax-tone-pink span {
+  background: #b45a87;
+}
+
+.syntax-tone-red span {
+  background: #b85b46;
+}
+
+.syntax-tone-amber span {
+  background: #b47a23;
+}
+
+.syntax-tone-gray span {
+  background: #6d7a74;
+}
+
+.syntax-tone-code span {
+  background: #34423d;
+}
+
+.syntax-tone-custom span {
+  background: var(--syntax-tone-color);
+}
+
+.syntax-marker-rule-row .icon-action-button,
+.syntax-inline-rule-row .icon-action-button {
+  align-self: end;
+  justify-self: end;
 }
 
 .workspace-empty-state {
@@ -136,42 +535,39 @@
 
 .workspace-marker-entry {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) minmax(80px, auto);
+  grid-template-columns: 58px 18px minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
-  min-height: 28px;
+  min-height: 30px;
   padding: 4px 6px;
   border: 1px solid #d8ded5;
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.68);
 }
 
-.workspace-marker-entry code,
-.workspace-marker-entry span,
-.workspace-marker-entry small {
+.workspace-marker-entry code {
   min-width: 0;
   overflow: hidden;
+  color: #0e4b43;
+  font-family: var(--font-mono);
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.workspace-marker-entry code {
-  color: #0e4b43;
-  font-family: var(--font-mono);
-  font-weight: 700;
+.workspace-marker-entry > .syntax-tone-swatch {
+  justify-self: center;
 }
 
-.workspace-marker-entry span {
+.workspace-marker-label {
+  min-width: 0;
+  overflow: hidden;
   color: #25302d;
   font-size: 12px;
   font-weight: 700;
-}
-
-.workspace-marker-entry small {
-  color: #708078;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-diagnostic-list,

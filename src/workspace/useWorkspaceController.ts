@@ -44,6 +44,7 @@ export function useWorkspaceController() {
   const {
     canChangeRepositoryPath,
     changeRepositoryPath,
+    isWorkspaceLoaded,
     reloadWorkspace,
     repositoryPath,
     setWorkspace,
@@ -170,6 +171,7 @@ export function useWorkspaceController() {
     createNote,
     deleteFolder,
     deleteNote,
+    isWorkspaceLoaded,
     moveNote,
     moveNoteBlock,
     reloadWorkspace,

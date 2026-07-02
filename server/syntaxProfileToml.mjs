@@ -3,12 +3,16 @@
 import { parse } from "smol-toml";
 
 export const defaultSyntaxProfile = {
-  id: "ctn-default",
   name: "默认 CTN 语法",
-  version: 1,
   spaceIndentUnit: 4,
   markerRules: [
-    { marker: "```", type: "code", label: "代码块", role: "code", tone: "code" },
+    {
+      marker: "```",
+      type: "multiline-block",
+      label: "多行块",
+      role: "multiline",
+      tone: "code",
+    },
     {
       marker: ":",
       type: "definition",
@@ -33,6 +37,14 @@ export const defaultSyntaxProfile = {
   ],
   inlineRules: [
     {
+      close: "]]",
+      kind: "paired",
+      label: "全局概念引用",
+      open: "[[",
+      tone: "blue",
+      type: "global-reference",
+    },
+    {
       close: "`",
       kind: "paired",
       label: "行内代码",
@@ -49,14 +61,6 @@ export const defaultSyntaxProfile = {
       type: "local-reference",
     },
     {
-      close: "]]",
-      kind: "paired",
-      label: "全局概念引用",
-      open: "[[",
-      tone: "blue",
-      type: "global-reference",
-    },
-    {
       kind: "single",
       label: "并列分隔",
       marker: "\\",
@@ -66,22 +70,27 @@ export const defaultSyntaxProfile = {
   ],
 };
 
-const validRoles = new Set(["normal", "code"]);
-const validTones = new Set([
-  "default",
+const validRoles = new Set(["normal", "multiline"]);
+const requiredGlobalReferenceType = "global-reference";
+const configurableSyntaxTones = [
   "green",
+  "teal",
+  "cyan",
   "blue",
-  "amber",
-  "red",
+  "indigo",
   "violet",
+  "pink",
+  "red",
+  "amber",
+  "gray",
   "code",
-]);
+];
+const validTones = new Set(configurableSyntaxTones);
+const customSyntaxTonePattern = /^#[0-9a-fA-F]{6}$/;
 const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
 
 const rootFields = new Set([
-  "id",
   "name",
-  "version",
   "spaceIndentUnit",
   "markers",
   "inlineRules",
@@ -169,6 +178,10 @@ function formatTomlString(value) {
   return JSON.stringify(value);
 }
 
+function isConfigurableSyntaxTone(tone) {
+  return validTones.has(tone) || customSyntaxTonePattern.test(tone);
+}
+
 function validateSemanticTypeId(value, path, diagnostics) {
   if (value && !semanticIdPattern.test(value)) {
     diagnostics.push(
@@ -206,18 +219,18 @@ function readRequiredTone(value, path, diagnostics) {
   const tone = readRequiredString(value, "tone", path, diagnostics);
 
   if (!tone) {
-    return "default";
+    return "green";
   }
 
-  if (!validTones.has(tone)) {
+  if (!isConfigurableSyntaxTone(tone)) {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
         `${path}.tone`,
-        `tone 只能是 ${[...validTones].join("、")}。`,
+        `tone 只能是 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
       ),
     );
-    return "default";
+    return "green";
   }
 
   return tone;
@@ -360,6 +373,21 @@ function validateInlineRules(value, diagnostics) {
     );
   });
 
+  if (
+    !inlineRules.some(
+      (rule) =>
+        rule.kind === "paired" && rule.type === requiredGlobalReferenceType,
+    )
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "missing-required-rule",
+        "inlineRules.global-reference",
+        "缺少全局概念引用规则。",
+      ),
+    );
+  }
+
   return inlineRules;
 }
 
@@ -398,9 +426,7 @@ export function parseSyntaxProfileToml(source) {
 
   validateSupportedFields(parsed, rootFields, "$", diagnostics);
 
-  const id = readRequiredString(parsed, "id", "$", diagnostics);
   const name = readRequiredString(parsed, "name", "$", diagnostics);
-  const version = readRequiredPositiveInteger(parsed, "version", "$", diagnostics);
   const spaceIndentUnit = readRequiredPositiveInteger(
     parsed,
     "spaceIndentUnit",
@@ -412,9 +438,7 @@ export function parseSyntaxProfileToml(source) {
 
   if (
     diagnostics.length > 0 ||
-    !id ||
     !name ||
-    !version ||
     !spaceIndentUnit ||
     markerRules.length === 0
   ) {
@@ -424,12 +448,10 @@ export function parseSyntaxProfileToml(source) {
   return {
     diagnostics: [],
     profile: {
-      id,
       inlineRules,
       markerRules,
       name,
       spaceIndentUnit,
-      version,
     },
   };
 }
@@ -437,21 +459,17 @@ export function parseSyntaxProfileToml(source) {
 export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
   const lines = [
     "# CTN 语法配置文件。",
-    "# id：稳定的机器标识，供笔记和仓库默认语法引用。",
     "# name：界面中显示的人类可读名称。",
-    "# version：正整数版本号。笔记通过 id + version 指向语法。",
     "# spaceIndentUnit：每一层 CTN 树缩进使用的空格数。当前默认值为 4。",
-    `id = ${formatTomlString(profile.id)}`,
     `name = ${formatTomlString(profile.name)}`,
-    `version = ${profile.version}`,
     `spaceIndentUnit = ${profile.spaceIndentUnit}`,
     "",
     "# markers：行首块规则。",
     "# marker：缩进之后匹配的字面量行首标记。",
     "# type：可扩展的语义 ID，使用 ASCII kebab-case。",
     "# label：该规则在界面中显示的名称。",
-    '# role：解析行为。"normal" 表示普通块；"code" 表示 fenced code block。',
-    "# tone：受控高亮令牌，可选 default、green、blue、amber、red、violet、code。",
+    '# role：解析行为。"normal" 表示普通块；"multiline" 表示多行块。',
+    `# tone：高亮颜色，可选 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
   ];
 
   for (const markerRule of profile.markerRules) {

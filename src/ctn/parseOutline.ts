@@ -1,6 +1,6 @@
 import {
   assignBlockEndLineNumbers,
-  findClosingCodeFenceLineNumber,
+  findClosingMultilineFenceLineNumber,
 } from "./blockRanges";
 import { createDiagnostic } from "./diagnostics";
 import { analyzeIndent } from "./indent";
@@ -65,8 +65,8 @@ export function parseCtnDocument(
       id: `block-${lineNumber}`,
       lineNumber,
       endLineNumber:
-        parsedMarker.role === "code"
-          ? findClosingCodeFenceLineNumber(
+        parsedMarker.role === "multiline"
+          ? findClosingMultilineFenceLineNumber(
               lines,
               index + 1,
               parsedMarker.marker ?? "",
@@ -82,7 +82,7 @@ export function parseCtnDocument(
       text: parsedMarker.text,
       rawText: line,
       inlineSpans:
-        parsedMarker.role === "code"
+        parsedMarker.role === "multiline"
           ? []
           : parseInlineSpans(
               parsedMarker.text,
@@ -133,7 +133,7 @@ export function parseCtnDocument(
     diagnostics.push(...node.diagnostics);
     stack.push({ level: node.level, node });
 
-    index = node.role === "code" ? node.endLineNumber : index + 1;
+    index = node.role === "multiline" ? node.endLineNumber : index + 1;
   }
 
   assignBlockEndLineNumbers(blocks, lines.length);

@@ -204,23 +204,28 @@ src/features/syntax/：
     负责仓库语法配置的受控编辑界面。
     主编辑界面不直接暴露 raw TOML textarea。
     用户通过表单编辑 profile 基本信息、行首规则和行内规则。
-    role、tone、inline rule kind 等枚举字段必须使用固定控件。
+    用户主路径只编辑符号、名称、角色、规则类型和视觉提示。
+    type 是内部机器语义 ID，由 draft 层保留或生成，不作为普通编辑主字段。
+    UI 使用功能性中文名称展示语法配置，不把 workspace.toml 当作页面标题。
+    role、inline rule kind 等枚举字段必须使用固定控件。
+    tone 必须使用预设色块控件或 #RRGGBB 自定义颜色控件。
     保存时先生成 CtnSyntaxProfile，再由 src/syntax 序列化为 TOML。
     右侧详情用于显示校验、生成结果摘要和保存反馈，不作为重复编辑入口。
 
 第一版 TOML schema：
 
-    根字段为 id、name、version、spaceIndentUnit、markers、inlineRules。
-    id 和 name 必须是非空字符串。
-    version 和 spaceIndentUnit 必须是正整数。
+    根字段为 name、spaceIndentUnit、markers、inlineRules。
+    name 必须是非空字符串。
+    spaceIndentUnit 必须是正整数。
     markers 必须是非空数组。
     marker rule 字段为 marker、type、label、role、tone。
     marker 不允许重复。
     type 必须是 ASCII kebab-case 机器语义 ID。
-    role 只能是 normal 或 code。
-    只有 role = "code" 的 marker 触发 fenced code block。
-    tone 只能使用 default、green、blue、amber、red、violet、code。
-    inlineRules 必须显式提供，空数组表示禁用所有行内结构。
+    role 只能是 normal 或 multiline。
+    只有 role = "multiline" 的 marker 触发多行块范围。
+    tone 只能使用 green、teal、cyan、blue、indigo、violet、pink、red、amber、gray、code 或 #RRGGBB。
+    inlineRules 必须显式提供。
+    inlineRules 必须保留 paired global-reference 规则，因为可视化图谱依赖它解析笔记间引用。
     inline rule 支持 paired 和 single。
     schema 之外的字段必须拒绝。
 
@@ -368,7 +373,7 @@ syntax/workspace.toml：
     当前笔记结构树可以直接使用 parsedNoteView 的解析结果。
     仓库级可视化页面应使用派生索引，不直接遍历并解析所有笔记原文。
     引用边来自 CTN 行内结构，例如全局概念引用。
-    引用提取必须复用 CTN parser 语义，不得另写会解析代码块内部内容的文本扫描器。
+    引用提取必须复用 CTN parser 语义，不得另写会解析多行块内部内容的文本扫描器。
     第一版引用图谱以笔记级节点和笔记间引用边为主。
     没有引用关系的笔记也必须作为孤立节点进入图谱数据。
     后续可扩展为概念级、块级和时间演化图谱。

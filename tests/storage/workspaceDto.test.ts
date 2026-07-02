@@ -21,7 +21,7 @@ describe("workspace storage DTOs", () => {
     ).toMatchObject({
       fileName: "workspace.toml",
       profile: {
-        id: "ctn-default",
+        name: "默认 CTN 语法",
       },
       source,
     });
@@ -56,7 +56,7 @@ describe("workspace storage DTOs", () => {
     expect(() =>
       parseWorkspaceSyntaxFileDto({
         fileName: "workspace.toml",
-        source: 'id = "broken"\n',
+        source: 'name = "broken"\n',
       }),
     ).toThrow("Invalid workspace syntax response");
   });

@@ -1,12 +1,16 @@
 import type { CtnSyntaxProfile } from "./types";
 
 export const defaultCtnSyntaxProfile = {
-  id: "ctn-default",
   name: "默认 CTN 语法",
-  version: 1,
   spaceIndentUnit: 4,
   markerRules: [
-    { marker: "```", type: "code", label: "代码块", role: "code", tone: "code" },
+    {
+      marker: "```",
+      type: "multiline-block",
+      label: "多行块",
+      role: "multiline",
+      tone: "code",
+    },
     {
       marker: ":",
       type: "definition",
@@ -31,6 +35,14 @@ export const defaultCtnSyntaxProfile = {
   ],
   inlineRules: [
     {
+      close: "]]",
+      kind: "paired",
+      label: "全局概念引用",
+      open: "[[",
+      tone: "blue",
+      type: "global-reference",
+    },
+    {
       close: "`",
       kind: "paired",
       label: "行内代码",
@@ -45,14 +57,6 @@ export const defaultCtnSyntaxProfile = {
       open: "<",
       tone: "green",
       type: "local-reference",
-    },
-    {
-      close: "]]",
-      kind: "paired",
-      label: "全局概念引用",
-      open: "[[",
-      tone: "blue",
-      type: "global-reference",
     },
     {
       kind: "single",

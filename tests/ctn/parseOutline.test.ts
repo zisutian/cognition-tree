@@ -31,7 +31,7 @@ describe("parseCtnDocument", () => {
     expect(document.roots[0].children.map((node) => node.type)).toEqual([
       "definition",
       "personal-understanding",
-      "code",
+      "multiline-block",
     ]);
     expect(document.roots[0].children[1].children[0]).toMatchObject({
       label: "组分",
@@ -43,12 +43,12 @@ describe("parseCtnDocument", () => {
     });
     expect(document.roots[0].children[2]).toMatchObject({
       endLineNumber: 5,
-      label: "代码块",
+      label: "多行块",
       lineNumber: 5,
       marker: "```",
-      role: "code",
+      role: "multiline",
       text: "ts",
-      type: "code",
+      type: "multiline-block",
     });
   });
 
@@ -75,7 +75,7 @@ Sibling
     ]);
   });
 
-  it("parses inline structural spans outside code blocks", () => {
+  it("parses inline structural spans outside multiline blocks", () => {
     const document = parseDefaultCtnDocument(
       "Root `code` <local> [[global]] A \\ B\n    : `literal <ignored>` <term> [[Topic]] A \\ B\n    - <当前笔记> \\ [[全局概念]]",
     );
@@ -117,7 +117,7 @@ Sibling
     ]);
   });
 
-  it("treats fenced code block contents as raw block range", () => {
+  it("treats multiline block contents as raw block range", () => {
     const document = parseDefaultCtnDocument(`Root
     \`\`\`ts
     : Not a definition
@@ -137,7 +137,7 @@ Sibling
       inlineSpans: [],
       lineNumber: 2,
       marker: "```",
-      type: "code",
+      type: "multiline-block",
     });
     expect(document.roots[0].children[1]).toMatchObject({
       endLineNumber: 6,
@@ -181,13 +181,12 @@ Sibling
     ! Removed custom marker`, {
       syntaxProfile: {
         ...defaultCtnSyntaxProfile,
-        id: "restricted-profile",
         markerRules: [
           {
             marker: "```",
-            type: "code",
-            label: "代码块",
-            role: "code",
+            type: "multiline-block",
+            label: "多行块",
+            role: "multiline",
             tone: "code",
           },
         ],
@@ -267,7 +266,6 @@ Sibling
       {
         syntaxProfile: {
           ...defaultCtnSyntaxProfile,
-          id: "custom-profile",
           name: "Custom profile",
           spaceIndentUnit: 4,
           markerRules: [
@@ -295,7 +293,7 @@ Sibling
     });
   });
 
-  it("uses role instead of type for fenced code block behavior", () => {
+  it("uses role instead of type for multiline block behavior", () => {
     const document = parseCtnDocument(`Root
     ~ js
     : Raw definition
@@ -303,12 +301,11 @@ Sibling
     ! Normal custom`, {
       syntaxProfile: {
         ...defaultCtnSyntaxProfile,
-        id: "role-profile",
         markerRules: [
           {
-            label: "代码片段",
+            label: "原文块",
             marker: "~",
-            role: "code",
+            role: "multiline",
             tone: "code",
             type: "snippet",
           },
@@ -331,7 +328,7 @@ Sibling
     expect(document.roots[0].children[0]).toMatchObject({
       endLineNumber: 4,
       inlineSpans: [],
-      role: "code",
+      role: "multiline",
       text: "js",
     });
   });
@@ -340,7 +337,6 @@ Sibling
     const document = parseCtnDocument("Root <<external>> A | B <ignored>", {
       syntaxProfile: {
         ...defaultCtnSyntaxProfile,
-        id: "inline-profile",
         inlineRules: [
           {
             close: ">>",

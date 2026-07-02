@@ -7,9 +7,7 @@ import {
 
 describe("syntax profile TOML", () => {
   it("parses a valid syntax profile", () => {
-    const result = parseSyntaxProfileToml(`id = "ctn-custom"
-name = "自定义语法"
-version = 2
+    const result = parseSyntaxProfileToml(`name = "自定义语法"
 spaceIndentUnit = 4
 
 [[markers]]
@@ -17,14 +15,22 @@ marker = "!"
 type = "risk"
 label = "风险"
 role = "normal"
-tone = "red"
+tone = "teal"
 
 [[markers]]
 marker = "\`\`\`"
-type = "code"
-label = "代码块"
-role = "code"
+type = "multiline-block"
+label = "多行块"
+role = "multiline"
 tone = "code"
+
+[[inlineRules]]
+kind = "paired"
+open = "[["
+close = "]]"
+type = "global-reference"
+label = "全局概念引用"
+tone = "blue"
 
 [[inlineRules]]
 kind = "paired"
@@ -32,7 +38,7 @@ open = "<<"
 close = ">>"
 type = "external-reference"
 label = "外部引用"
-tone = "violet"
+tone = "#4455aa"
 
 [[inlineRules]]
 kind = "single"
@@ -44,14 +50,21 @@ tone = "amber"
 
     expect(result.diagnostics).toEqual([]);
     expect(result.profile).toEqual({
-      id: "ctn-custom",
       inlineRules: [
+        {
+          close: "]]",
+          kind: "paired",
+          label: "全局概念引用",
+          open: "[[",
+          tone: "blue",
+          type: "global-reference",
+        },
         {
           close: ">>",
           kind: "paired",
           label: "外部引用",
           open: "<<",
-          tone: "violet",
+          tone: "#4455aa",
           type: "external-reference",
         },
         {
@@ -63,12 +76,23 @@ tone = "amber"
         },
       ],
       markerRules: [
-        { marker: "!", type: "risk", label: "风险", role: "normal", tone: "red" },
-        { marker: "```", type: "code", label: "代码块", role: "code", tone: "code" },
+        {
+          marker: "!",
+          type: "risk",
+          label: "风险",
+          role: "normal",
+          tone: "teal",
+        },
+        {
+          marker: "```",
+          type: "multiline-block",
+          label: "多行块",
+          role: "multiline",
+          tone: "code",
+        },
       ],
       name: "自定义语法",
       spaceIndentUnit: 4,
-      version: 2,
     });
   });
 
@@ -80,15 +104,12 @@ tone = "amber"
   });
 
   it("rejects missing fields and invalid scalar values", () => {
-    const result = parseSyntaxProfileToml(`id = ""
-version = 1.5
+    const result = parseSyntaxProfileToml(`name = ""
 spaceIndentUnit = 0
 `);
 
     expect(result.profile).toBeNull();
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
-      "invalid-field",
-      "missing-field",
       "invalid-field",
       "invalid-field",
       "invalid-field",
@@ -97,9 +118,7 @@ spaceIndentUnit = 0
   });
 
   it("rejects duplicate markers, invalid type ids, invalid role or tone, and unsupported fields", () => {
-    const result = parseSyntaxProfileToml(`id = "ctn-invalid"
-name = "非法语法"
-version = 1
+    const result = parseSyntaxProfileToml(`name = "非法语法"
 spaceIndentUnit = 4
 extra = true
 inlineRules = []
@@ -117,7 +136,7 @@ marker = ":"
 type = "Unknown"
 label = "重复"
 role = "invalid"
-tone = "nope"
+tone = "default"
 `);
 
     expect(result.profile).toBeNull();
@@ -128,13 +147,12 @@ tone = "nope"
       "invalid-field",
       "duplicate-marker",
       "invalid-type-id",
+      "missing-required-rule",
     ]);
   });
 
   it("requires explicit role, tone, and inlineRules", () => {
-    const result = parseSyntaxProfileToml(`id = "old"
-name = "旧语法"
-version = 1
+    const result = parseSyntaxProfileToml(`name = "旧语法"
 spaceIndentUnit = 4
 
 [[markers]]
@@ -152,7 +170,7 @@ label = "定义"
   });
 
   it("reports TOML parse errors", () => {
-    const result = parseSyntaxProfileToml(`id = "broken`);
+    const result = parseSyntaxProfileToml(`name = "broken`);
 
     expect(result.profile).toBeNull();
     expect(result.diagnostics[0]).toMatchObject({

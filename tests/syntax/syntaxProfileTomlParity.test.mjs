@@ -12,9 +12,7 @@ import {
   parseSyntaxProfileToml as parseServerSyntaxProfileToml,
 } from "../../server/syntaxProfileToml.mjs";
 
-const validCustomProfileToml = `id = "ctn-custom"
-name = "自定义语法"
-version = 2
+const validCustomProfileToml = `name = "自定义语法"
 spaceIndentUnit = 4
 
 [[markers]]
@@ -26,10 +24,18 @@ tone = "red"
 
 [[markers]]
 marker = "\`\`\`"
-type = "code"
-label = "代码块"
-role = "code"
+type = "multiline-block"
+label = "多行块"
+role = "multiline"
 tone = "code"
+
+[[inlineRules]]
+kind = "paired"
+open = "[["
+close = "]]"
+type = "global-reference"
+label = "全局概念引用"
+tone = "blue"
 
 [[inlineRules]]
 kind = "paired"
@@ -37,7 +43,7 @@ open = "<<"
 close = ">>"
 type = "external-reference"
 label = "外部引用"
-tone = "violet"
+tone = "#4455aa"
 
 [[inlineRules]]
 kind = "single"
@@ -47,9 +53,7 @@ label = "选择分隔"
 tone = "amber"
 `;
 
-const invalidMarkerProfileToml = `id = "ctn-invalid"
-name = "非法语法"
-version = 1
+const invalidMarkerProfileToml = `name = "非法语法"
 spaceIndentUnit = 4
 extra = true
 inlineRules = []
@@ -67,12 +71,10 @@ marker = ":"
 type = "Unknown"
 label = "重复"
 role = "invalid"
-tone = "nope"
+tone = "default"
 `;
 
-const invalidInlineProfileToml = `id = "ctn-inline-invalid"
-name = "非法行内语法"
-version = 1
+const invalidInlineProfileToml = `name = "非法行内语法"
 spaceIndentUnit = 4
 
 [[markers]]

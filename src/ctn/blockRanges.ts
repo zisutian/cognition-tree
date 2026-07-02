@@ -1,6 +1,6 @@
 import type { CtnBlock } from "./types";
 
-export function findClosingCodeFenceLineNumber(
+export function findClosingMultilineFenceLineNumber(
   lines: string[],
   startIndex: number,
   fenceMarker: string,

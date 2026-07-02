@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BlockMigrationWorkspacePanel } from "../features/migration/BlockMigrationWorkspacePanel";
 import { NoteEditorPanel } from "../features/notes/NoteEditorPanel";
 import { NoteOutlinePanel } from "../features/notes/NoteOutlinePanel";
@@ -7,6 +7,10 @@ import {
   type WorkspaceFeedback,
 } from "../features/syntax/SyntaxProfileDetailPanel";
 import { SyntaxWorkspacePanel } from "../features/syntax/SyntaxWorkspacePanel";
+import {
+  buildSyntaxProfileDraft,
+  createSyntaxProfileDraft,
+} from "../features/syntax/syntaxProfileDraft";
 import { NoteReferenceGraphDetailPanel } from "../features/visualization/NoteReferenceGraphDetailPanel";
 import { NoteReferenceGraphPanel } from "../features/visualization/NoteReferenceGraphPanel";
 import {
@@ -14,6 +18,8 @@ import {
   WorkspaceSidebar,
 } from "../shell/WorkspaceSidebar";
 import "../styles/index.css";
+import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
+import { formatSyntaxProfileToml } from "../syntax/profileToml";
 import { createNoteReferenceGraph } from "../workspace/noteReferenceGraph";
 import { resolveParsedNoteView } from "../workspace/parsedNoteView";
 import { useWorkspaceController } from "../workspace/useWorkspaceController";
@@ -39,10 +45,16 @@ function App() {
     useState<SidebarActivityId>("notes");
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
-  const [syntaxDraftSource, setSyntaxDraftSource] = useState("");
+  const [syntaxDraft, setSyntaxDraft] = useState(() =>
+    createSyntaxProfileDraft(defaultCtnSyntaxProfile),
+  );
   const [syntaxFeedback, setSyntaxFeedback] =
     useState<WorkspaceFeedback | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const lastPersistedSyntaxSourceRef = useRef("");
+  const updateSyntaxFileRef = useRef<(source: string) => Promise<void>>(
+    async () => undefined,
+  );
   const {
     activeNote,
     canChangeRepositoryPath,
@@ -51,6 +63,7 @@ function App() {
     createNote,
     deleteFolder,
     deleteNote,
+    isWorkspaceLoaded,
     moveNoteBlock,
     moveNote,
     reloadWorkspace,
@@ -73,9 +86,34 @@ function App() {
     saved: "已保存",
     saving: "保存中",
   }[workspaceSaveStatus];
+  const syntaxDraftResult = useMemo(
+    () => buildSyntaxProfileDraft(syntaxDraft),
+    [syntaxDraft],
+  );
+  const syntaxDraftSource = useMemo(
+    () =>
+      syntaxDraftResult.profile
+        ? formatSyntaxProfileToml(syntaxDraftResult.profile)
+        : null,
+    [syntaxDraftResult.profile],
+  );
+  const effectiveWorkspace = useMemo(
+    () =>
+      syntaxDraftResult.profile
+        ? {
+            ...workspace,
+            syntaxProfile: syntaxDraftResult.profile,
+          }
+        : workspace,
+    [syntaxDraftResult.profile, workspace],
+  );
+  const effectiveActiveNote =
+    effectiveWorkspace.notes.find(
+      (note) => note.id === effectiveWorkspace.activeNoteId,
+    ) ?? null;
   const parsedNoteView = useMemo(
-    () => resolveParsedNoteView(workspace, activeNote),
-    [activeNote, workspace],
+    () => resolveParsedNoteView(effectiveWorkspace, effectiveActiveNote),
+    [effectiveActiveNote, effectiveWorkspace],
   );
   const documentText = parsedNoteView.source;
   const activeSyntaxProfile =
@@ -86,13 +124,52 @@ function App() {
   const noteReferenceGraph = useMemo(
     () =>
       activeActivityId === "visualization"
-        ? createNoteReferenceGraph(workspace)
+        ? createNoteReferenceGraph(effectiveWorkspace)
         : emptyNoteReferenceGraph,
-    [activeActivityId, workspace],
+    [activeActivityId, effectiveWorkspace],
   );
+
   useEffect(() => {
-    setSyntaxDraftSource(syntaxFile.source);
-  }, [syntaxFile.source]);
+    lastPersistedSyntaxSourceRef.current = formatSyntaxProfileToml(
+      syntaxFile.profile,
+    );
+    setSyntaxDraft(createSyntaxProfileDraft(syntaxFile.profile));
+  }, [syntaxFile.profile]);
+
+  useEffect(() => {
+    updateSyntaxFileRef.current = updateSyntaxFile;
+  }, [updateSyntaxFile]);
+
+  useEffect(() => {
+    if (
+      !isWorkspaceLoaded ||
+      !syntaxDraftSource ||
+      syntaxDraftSource === lastPersistedSyntaxSourceRef.current
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const source = syntaxDraftSource;
+
+      void updateSyntaxFileRef.current(source)
+        .then(() => {
+          lastPersistedSyntaxSourceRef.current = source;
+          setSyntaxFeedback({
+            message: "仓库语法已自动保存。",
+            status: "success",
+          });
+        })
+        .catch((error: unknown) => {
+          setSyntaxFeedback({
+            message: getErrorMessage(error, "仓库语法自动保存失败。"),
+            status: "error",
+          });
+        });
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isWorkspaceLoaded, syntaxDraftSource]);
 
   const handleActivityChange = (activityId: SidebarActivityId) => {
     if (activityId === activeActivityId) {
@@ -110,35 +187,16 @@ function App() {
       requestId: (current?.requestId ?? 0) + 1,
     }));
   };
-  const saveSelectedSyntaxFile = () => {
-    setSyntaxFeedback(null);
-
-    void Promise.resolve(updateSyntaxFile(syntaxDraftSource))
-      .then(() => {
-        setSyntaxFeedback({
-          message: "仓库语法已保存。",
-          status: "success",
-        });
-      })
-      .catch((error: unknown) => {
-        setSyntaxFeedback({
-          message: getErrorMessage(error, "仓库语法保存失败。"),
-          status: "error",
-        });
-      });
-  };
-  const updateSyntaxDraftSource = (source: string) => {
-    setSyntaxDraftSource(source);
+  const updateSyntaxDraft = (nextDraft: typeof syntaxDraft) => {
+    setSyntaxDraft(nextDraft);
     setSyntaxFeedback(null);
   };
   const renderMainWorkspace = () => {
     if (activeActivityId === "syntax") {
       return (
         <SyntaxWorkspacePanel
-          draftSource={syntaxDraftSource}
-          syntaxFile={syntaxFile}
-          onDraftSourceChange={updateSyntaxDraftSource}
-          onSaveSyntaxFile={saveSelectedSyntaxFile}
+          draft={syntaxDraft}
+          onDraftChange={updateSyntaxDraft}
         />
       );
     }
@@ -146,9 +204,9 @@ function App() {
     if (activeActivityId === "migration") {
       return (
         <BlockMigrationWorkspacePanel
-          activeNoteId={activeNote?.id ?? null}
+          activeNoteId={effectiveActiveNote?.id ?? null}
           onMoveNoteBlock={moveNoteBlock}
-          workspace={workspace}
+          workspace={effectiveWorkspace}
         />
       );
     }
@@ -176,9 +234,8 @@ function App() {
     if (activeActivityId === "syntax") {
       return (
         <SyntaxProfileDetailPanel
-          draftSource={syntaxDraftSource}
+          draftResult={syntaxDraftResult}
           feedback={syntaxFeedback}
-          syntaxFile={syntaxFile}
         />
       );
     }

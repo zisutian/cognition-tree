@@ -10,15 +10,17 @@ import {
   type CtnBlock,
   type CtnInlineSpan,
 } from "../ctn/parseOutline";
+import {
+  getSyntaxToneClassName,
+  getSyntaxToneStyle,
+} from "../syntax/tones";
 import type { CtnSyntaxProfile } from "../syntax/types";
 
 function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
   return JSON.stringify({
-    id: syntaxProfile.id,
     inlineRules: syntaxProfile.inlineRules,
     markerRules: syntaxProfile.markerRules,
     spaceIndentUnit: syntaxProfile.spaceIndentUnit,
-    version: syntaxProfile.version,
   });
 }
 
@@ -64,11 +66,19 @@ export function shouldDecorateMarker(block: CtnBlock) {
 }
 
 export function getMarkerDecorationClass(block: CtnBlock) {
-  return `ctn-marker ctn-tone-${block.tone}`;
+  return `ctn-marker ${getSyntaxToneClassName(block.tone)}`;
 }
 
 export function getInlineDecorationClass(span: CtnInlineSpan) {
-  return `ctn-inline ctn-tone-${span.tone}`;
+  return `ctn-inline ${getSyntaxToneClassName(span.tone)}`;
+}
+
+export function getMarkerDecorationStyle(block: CtnBlock) {
+  return getSyntaxToneStyle(block.tone);
+}
+
+export function getInlineDecorationStyle(span: CtnInlineSpan) {
+  return getSyntaxToneStyle(span.tone);
 }
 
 function buildCtnDecorations(
@@ -81,43 +91,44 @@ function buildCtnDecorations(
   });
 
   for (const block of parsedDocument.blocks) {
-    if (block.role === "code" && block.endLineNumber > block.lineNumber) {
+    if (block.role === "multiline" && block.endLineNumber > block.lineNumber) {
       for (
         let lineNumber = block.lineNumber;
         lineNumber <= block.endLineNumber;
         lineNumber += 1
       ) {
-        const codeLine = view.state.doc.line(lineNumber);
-        const codeMarkClasses = ["ctn-code-block-mark"];
-        const codeTextStart = getLineTextStart(codeLine.text);
-        const codeMarkStart = codeLine.from + codeTextStart;
-        const codeMarkEnd =
-          codeTextStart < codeLine.text.length
-            ? codeLine.to
-            : codeLine.from + codeLine.text.length;
+        const multilineLine = view.state.doc.line(lineNumber);
+        const multilineMarkClasses = ["ctn-multiline-block-mark"];
+        const multilineTextStart = getLineTextStart(multilineLine.text);
+        const multilineMarkStart = multilineLine.from + multilineTextStart;
+        const multilineMarkEnd =
+          multilineTextStart < multilineLine.text.length
+            ? multilineLine.to
+            : multilineLine.from + multilineLine.text.length;
 
         if (lineNumber === block.lineNumber) {
-          codeMarkClasses.push("ctn-code-block-start");
+          multilineMarkClasses.push("ctn-multiline-block-start");
         }
 
         if (lineNumber === block.endLineNumber) {
-          codeMarkClasses.push("ctn-code-block-end");
+          multilineMarkClasses.push("ctn-multiline-block-end");
         }
 
-        if (codeMarkStart < codeMarkEnd) {
+        if (multilineMarkStart < multilineMarkEnd) {
           decorations.push(
             Decoration.mark({
               attributes: {
-                class: codeMarkClasses.join(" "),
+                class: multilineMarkClasses.join(" "),
               },
-            }).range(codeMarkStart, codeMarkEnd),
+            }).range(multilineMarkStart, multilineMarkEnd),
           );
         }
       }
     }
 
     const line = view.state.doc.line(block.lineNumber);
-    const lineClasses = ["ctn-line", `ctn-tone-${block.tone}`];
+    const lineClasses = ["ctn-line", getSyntaxToneClassName(block.tone)];
+    const lineStyle = getSyntaxToneStyle(block.tone);
 
     if (isRootConceptBlock(block)) {
       lineClasses.push("ctn-line-root-concept");
@@ -133,9 +144,11 @@ function buildCtnDecorations(
 
     decorations.push(
       Decoration.line({
-        attributes: diagnosticTitle
-          ? { class: lineClasses.join(" "), title: diagnosticTitle }
-          : { class: lineClasses.join(" ") },
+        attributes: {
+          class: lineClasses.join(" "),
+          ...(diagnosticTitle ? { title: diagnosticTitle } : {}),
+          ...(lineStyle ? { style: lineStyle } : {}),
+        },
       }).range(line.from),
     );
 
@@ -165,6 +178,9 @@ function buildCtnDecorations(
             Decoration.mark({
               attributes: {
                 class: getMarkerDecorationClass(block),
+                ...(getMarkerDecorationStyle(block)
+                  ? { style: getMarkerDecorationStyle(block) }
+                  : {}),
               },
             }).range(
               line.from + markerStart,
@@ -184,6 +200,9 @@ function buildCtnDecorations(
           Decoration.mark({
             attributes: {
               class: getInlineDecorationClass(span),
+              ...(getInlineDecorationStyle(span)
+                ? { style: getInlineDecorationStyle(span) }
+                : {}),
             },
           }).range(spanStart, spanEnd),
         );

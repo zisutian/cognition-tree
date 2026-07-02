@@ -90,7 +90,7 @@ describe("createNoteReferenceGraph", () => {
     });
   });
 
-  it("ignores global-reference text inside fenced code blocks", () => {
+  it("ignores global-reference text inside multiline blocks", () => {
     const source = createNoteRecord(
       "note-source",
       "Source\n    ```txt\n    [[Target]]\n    ```",

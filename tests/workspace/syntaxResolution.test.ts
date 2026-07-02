@@ -11,7 +11,7 @@ describe("syntax resolution", () => {
         createInitialWorkspace(defaultCtnSyntaxProfile),
       ),
     ).toMatchObject({
-      profile: { id: "ctn-default" },
+      profile: { name: "默认 CTN 语法" },
       status: "resolved",
     });
   });

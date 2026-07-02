@@ -81,11 +81,8 @@ async function withTempStore(testFn) {
   }
 }
 
-const customSyntaxSource = `id = "ctn-custom"
-name = "自定义语法"
-version = 1
+const customSyntaxSource = `name = "自定义语法"
 spaceIndentUnit = 4
-inlineRules = []
 
 [[markers]]
 marker = "!"
@@ -93,6 +90,14 @@ type = "component"
 label = "风险"
 role = "normal"
 tone = "red"
+
+[[inlineRules]]
+kind = "paired"
+open = "[["
+close = "]]"
+type = "global-reference"
+label = "全局概念引用"
+tone = "blue"
 `;
 
 describe("WorkspaceFileStore", () => {
@@ -163,8 +168,16 @@ describe("WorkspaceFileStore", () => {
       await expect(store.readSyntaxFile()).resolves.toMatchObject({
         fileName: "workspace.toml",
         profile: {
-          id: "ctn-custom",
-          inlineRules: [],
+          inlineRules: [
+            {
+              close: "]]",
+              kind: "paired",
+              label: "全局概念引用",
+              open: "[[",
+              tone: "blue",
+              type: "global-reference",
+            },
+          ],
           markerRules: [
             {
               label: "风险",
@@ -174,7 +187,6 @@ describe("WorkspaceFileStore", () => {
               type: "component",
             },
           ],
-          version: 1,
         },
         source: customSyntaxSource,
       });
@@ -190,7 +202,7 @@ describe("WorkspaceFileStore", () => {
       await store.saveWorkspace(createWorkspace());
       await writeFile(
         path.join(rootDir, "syntax", "workspace.toml"),
-        "id = \"broken\"\n",
+        "name = \"broken\"\n",
         "utf8",
       );
 

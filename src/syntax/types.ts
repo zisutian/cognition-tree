@@ -1,15 +1,26 @@
 export type CtnBlockType = string;
 
-export type CtnRuleRole = "normal" | "code";
+export type CtnRuleRole = "normal" | "multiline";
+
+export type CtnPresetSyntaxTone =
+  | "green"
+  | "teal"
+  | "cyan"
+  | "blue"
+  | "indigo"
+  | "amber"
+  | "red"
+  | "pink"
+  | "violet"
+  | "gray"
+  | "code";
+
+export type CtnCustomSyntaxTone = `#${string}`;
 
 export type CtnSyntaxTone =
   | "default"
-  | "green"
-  | "blue"
-  | "amber"
-  | "red"
-  | "violet"
-  | "code";
+  | CtnPresetSyntaxTone
+  | CtnCustomSyntaxTone;
 
 export type CtnInlineSpanType = string;
 
@@ -41,9 +52,7 @@ export type CtnSingleInlineRule = CtnInlineRuleBase & {
 export type CtnInlineRule = CtnPairedInlineRule | CtnSingleInlineRule;
 
 export type CtnSyntaxProfile = {
-  id: string;
   name: string;
-  version: number;
   spaceIndentUnit: number;
   markerRules: CtnMarkerRule[];
   inlineRules: CtnInlineRule[];

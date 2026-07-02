@@ -109,7 +109,7 @@ describe("createHttpWorkspaceRepository", () => {
     await expect(repository.readSyntaxFile()).resolves.toMatchObject({
       fileName: "workspace.toml",
       profile: {
-        id: "ctn-default",
+        name: "默认 CTN 语法",
       },
       source,
     });

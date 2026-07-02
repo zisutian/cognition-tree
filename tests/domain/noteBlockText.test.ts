@@ -67,7 +67,7 @@ describe("note block text operations", () => {
     );
   });
 
-  it("keeps code block contents relative to the moved subtree", () => {
+  it("keeps multiline block contents relative to the moved subtree", () => {
     expect(
       rewriteBlockIndent("    ```ts\n        const value = 1;\n    ```", 1, 0),
     ).toBe("```ts\n    const value = 1;\n```");

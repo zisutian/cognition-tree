@@ -9,6 +9,10 @@ import type {
   CtnSyntaxTone,
 } from "./types";
 import { defaultCtnSyntaxProfile } from "./defaultSyntaxProfile";
+import {
+  configurableSyntaxTones,
+  isConfigurableSyntaxTone,
+} from "./tones";
 
 export type SyntaxProfileTomlDiagnosticCode =
   | "toml-parse-error"
@@ -16,7 +20,8 @@ export type SyntaxProfileTomlDiagnosticCode =
   | "invalid-field"
   | "unsupported-field"
   | "duplicate-marker"
-  | "invalid-type-id";
+  | "invalid-type-id"
+  | "missing-required-rule";
 
 export type SyntaxProfileTomlDiagnostic = {
   code: SyntaxProfileTomlDiagnosticCode;
@@ -31,21 +36,11 @@ export type ParseSyntaxProfileTomlResult = {
   profile: CtnSyntaxProfile | null;
 };
 
-const validRoles = new Set<CtnRuleRole>(["normal", "code"]);
-const validTones = new Set<CtnSyntaxTone>([
-  "default",
-  "green",
-  "blue",
-  "amber",
-  "red",
-  "violet",
-  "code",
-]);
+const validRoles = new Set<CtnRuleRole>(["normal", "multiline"]);
+const requiredGlobalReferenceType = "global-reference";
 const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
 const rootFields = new Set([
-  "id",
   "name",
-  "version",
   "spaceIndentUnit",
   "markers",
   "inlineRules",
@@ -206,18 +201,18 @@ function readRequiredTone(
   const tone = readRequiredString(value, "tone", path, diagnostics);
 
   if (!tone) {
-    return "default";
+    return "green";
   }
 
-  if (!validTones.has(tone as CtnSyntaxTone)) {
+  if (!isConfigurableSyntaxTone(tone)) {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
         `${path}.tone`,
-        `tone 只能是 ${[...validTones].join("、")}。`,
+        `tone 只能是 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
       ),
     );
-    return "default";
+    return "green";
   }
 
   return tone as CtnSyntaxTone;
@@ -384,6 +379,21 @@ function validateInlineRules(
     );
   });
 
+  if (
+    !inlineRules.some(
+      (rule) =>
+        rule.kind === "paired" && rule.type === requiredGlobalReferenceType,
+    )
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "missing-required-rule",
+        "inlineRules.global-reference",
+        "缺少全局概念引用规则。",
+      ),
+    );
+  }
+
   return inlineRules;
 }
 
@@ -430,9 +440,7 @@ export function parseSyntaxProfileToml(
 
   validateSupportedFields(parsed, rootFields, "$", diagnostics);
 
-  const id = readRequiredString(parsed, "id", "$", diagnostics);
   const name = readRequiredString(parsed, "name", "$", diagnostics);
-  const version = readRequiredPositiveInteger(parsed, "version", "$", diagnostics);
   const spaceIndentUnit = readRequiredPositiveInteger(
     parsed,
     "spaceIndentUnit",
@@ -444,9 +452,7 @@ export function parseSyntaxProfileToml(
 
   if (
     diagnostics.length > 0 ||
-    !id ||
     !name ||
-    !version ||
     !spaceIndentUnit ||
     markerRules.length === 0
   ) {
@@ -459,12 +465,10 @@ export function parseSyntaxProfileToml(
   return {
     diagnostics: [],
     profile: {
-      id,
       inlineRules,
       markerRules,
       name,
       spaceIndentUnit,
-      version,
     },
   };
 }
@@ -474,21 +478,17 @@ export function formatSyntaxProfileToml(
 ): string {
   const lines = [
     "# CTN 语法配置文件。",
-    "# id：稳定的机器标识，供笔记和仓库默认语法引用。",
     "# name：界面中显示的人类可读名称。",
-    "# version：正整数版本号。笔记通过 id + version 指向语法。",
     "# spaceIndentUnit：每一层 CTN 树缩进使用的空格数。当前默认值为 4。",
-    `id = ${formatTomlString(profile.id)}`,
     `name = ${formatTomlString(profile.name)}`,
-    `version = ${profile.version}`,
     `spaceIndentUnit = ${profile.spaceIndentUnit}`,
     "",
     "# markers：行首块规则。",
     "# marker：缩进之后匹配的字面量行首标记。",
     "# type：可扩展的语义 ID，使用 ASCII kebab-case。",
     "# label：该规则在界面中显示的名称。",
-    '# role：解析行为。"normal" 表示普通块；"code" 表示 fenced code block。',
-    "# tone：受控高亮令牌，可选 default、green、blue、amber、red、violet、code。",
+    '# role：解析行为。"normal" 表示普通块；"multiline" 表示多行块。',
+    `# tone：高亮颜色，可选 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
   ];
 
   for (const markerRule of profile.markerRules) {

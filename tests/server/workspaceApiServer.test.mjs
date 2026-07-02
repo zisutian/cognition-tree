@@ -82,11 +82,8 @@ async function withHandler(testFn) {
   }
 }
 
-const customSyntaxSource = `id = "ctn-custom"
-name = "自定义语法"
-version = 1
+const customSyntaxSource = `name = "自定义语法"
 spaceIndentUnit = 4
-inlineRules = []
 
 [[markers]]
 marker = "!"
@@ -94,6 +91,14 @@ type = "component"
 label = "风险"
 role = "normal"
 tone = "red"
+
+[[inlineRules]]
+kind = "paired"
+open = "[["
+close = "]]"
+type = "global-reference"
+label = "全局概念引用"
+tone = "blue"
 `;
 
 describe("workspace API request handler", () => {
@@ -158,7 +163,7 @@ describe("workspace API request handler", () => {
       ).resolves.toMatchObject({
         body: {
           fileName: "workspace.toml",
-          source: expect.stringContaining('id = "ctn-default"'),
+          source: expect.stringContaining('name = "默认 CTN 语法"'),
         },
         statusCode: 200,
       });
