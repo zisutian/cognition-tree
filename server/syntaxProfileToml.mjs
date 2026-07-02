@@ -8,7 +8,8 @@ export const defaultSyntaxProfile = {
   conceptRule: {
     type: "concept",
     label: "顶格概念",
-    tone: "green",
+    textColor: "cyan",
+    tone: "blue",
   },
   markerRules: [
     {
@@ -16,13 +17,15 @@ export const defaultSyntaxProfile = {
       type: "multiline-block",
       label: "多行块",
       role: "multiline",
-      tone: "green",
+      textColor: "green",
+      tone: "gray",
     },
     {
       marker: ":",
       type: "definition",
       label: "定义",
       role: "normal",
+      textColor: "teal",
       tone: "green",
     },
     {
@@ -30,13 +33,15 @@ export const defaultSyntaxProfile = {
       type: "personal-understanding",
       label: "理解",
       role: "normal",
-      tone: "green",
+      textColor: "violet",
+      tone: "violet",
     },
     {
       marker: "-",
       type: "component",
       label: "组分",
       role: "normal",
+      textColor: "blue",
       tone: "blue",
     },
   ],
@@ -46,6 +51,7 @@ export const defaultSyntaxProfile = {
       kind: "paired",
       label: "全局概念引用",
       open: "[[",
+      textColor: "cyan",
       tone: "blue",
       type: "global-reference",
     },
@@ -54,6 +60,7 @@ export const defaultSyntaxProfile = {
       kind: "paired",
       label: "行内代码",
       open: "`",
+      textColor: "green",
       tone: "green",
       type: "inline-code",
     },
@@ -62,13 +69,15 @@ export const defaultSyntaxProfile = {
       kind: "paired",
       label: "局部概念引用",
       open: "<",
-      tone: "green",
+      textColor: "teal",
+      tone: "teal",
       type: "local-reference",
     },
     {
       kind: "single",
       label: "并列分隔",
       marker: "\\",
+      textColor: "amber",
       tone: "amber",
       type: "parallel-separator",
     },
@@ -100,12 +109,20 @@ const rootFields = new Set([
   "markers",
   "inlineRules",
 ]);
-const conceptFields = new Set(["type", "label", "tone"]);
-const markerFields = new Set(["marker", "type", "label", "role", "tone"]);
+const conceptFields = new Set(["type", "label", "textColor", "tone"]);
+const markerFields = new Set([
+  "marker",
+  "type",
+  "label",
+  "role",
+  "textColor",
+  "tone",
+]);
 const inlineRuleFields = new Set([
   "kind",
   "type",
   "label",
+  "textColor",
   "tone",
   "open",
   "close",
@@ -221,8 +238,8 @@ function readRequiredRole(value, path, diagnostics) {
   return role;
 }
 
-function readRequiredTone(value, path, diagnostics) {
-  const tone = readRequiredString(value, "tone", path, diagnostics);
+function readRequiredColor(value, key, path, diagnostics) {
+  const tone = readRequiredString(value, key, path, diagnostics);
 
   if (!tone) {
     return "green";
@@ -232,14 +249,22 @@ function readRequiredTone(value, path, diagnostics) {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
-        `${path}.tone`,
-        `tone 只能是 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
+        `${path}.${key}`,
+        `${key} 只能是 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
       ),
     );
     return "green";
   }
 
   return tone;
+}
+
+function readRequiredTone(value, path, diagnostics) {
+  return readRequiredColor(value, "tone", path, diagnostics);
+}
+
+function readRequiredTextColor(value, path, diagnostics) {
+  return readRequiredColor(value, "textColor", path, diagnostics);
 }
 
 function validateMarkers(value, diagnostics) {
@@ -269,6 +294,7 @@ function validateMarkers(value, diagnostics) {
     const type = readRequiredString(markerValue, "type", path, diagnostics);
     const label = readRequiredString(markerValue, "label", path, diagnostics);
     const role = readRequiredRole(markerValue, path, diagnostics);
+    const textColor = readRequiredTextColor(markerValue, path, diagnostics);
     const tone = readRequiredTone(markerValue, path, diagnostics);
 
     if (marker && markers.has(marker)) {
@@ -288,7 +314,7 @@ function validateMarkers(value, diagnostics) {
     }
 
     markers.add(marker);
-    markerRules.push({ label, marker, role, tone, type });
+    markerRules.push({ label, marker, role, textColor, tone, type });
   });
 
   return markerRules;
@@ -308,6 +334,7 @@ function validateConcept(value, diagnostics) {
 
   const type = readRequiredString(value, "type", path, diagnostics);
   const label = readRequiredString(value, "label", path, diagnostics);
+  const textColor = readRequiredTextColor(value, path, diagnostics);
   const tone = readRequiredTone(value, path, diagnostics);
 
   validateSemanticTypeId(type, `${path}.type`, diagnostics);
@@ -326,7 +353,7 @@ function validateConcept(value, diagnostics) {
     return null;
   }
 
-  return { label, tone, type };
+  return { label, textColor, tone, type };
 }
 
 function validateInlineRules(value, diagnostics) {
@@ -361,6 +388,7 @@ function validateInlineRules(value, diagnostics) {
     const kind = readRequiredString(ruleValue, "kind", path, diagnostics);
     const type = readRequiredString(ruleValue, "type", path, diagnostics);
     const label = readRequiredString(ruleValue, "label", path, diagnostics);
+    const textColor = readRequiredTextColor(ruleValue, path, diagnostics);
     const tone = readRequiredTone(ruleValue, path, diagnostics);
 
     validateSemanticTypeId(type, `${path}.type`, diagnostics);
@@ -382,6 +410,7 @@ function validateInlineRules(value, diagnostics) {
         kind,
         label,
         open,
+        textColor,
         tone,
         type,
       });
@@ -399,6 +428,7 @@ function validateInlineRules(value, diagnostics) {
         kind,
         label,
         marker,
+        textColor,
         tone,
         type,
       });
@@ -509,18 +539,21 @@ export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
     `tabDisplayWidth = ${profile.tabDisplayWidth}`,
     "",
     "# concept：没有行首符号、且位于顶格的概念行规则。",
-    "# type 固定为 concept；label 是界面显示名称；tone 是整行高亮颜色。",
+    "# type 固定为 concept；label 是界面显示名称。",
+    "# tone 是弱背景颜色；textColor 是字体颜色，视觉优先级高于背景。",
     "[concept]",
     `type = ${formatTomlString(profile.conceptRule.type)}`,
     `label = ${formatTomlString(profile.conceptRule.label)}`,
     `tone = ${formatTomlString(profile.conceptRule.tone)}`,
+    `textColor = ${formatTomlString(profile.conceptRule.textColor)}`,
     "",
     "# markers：行首块规则。",
     "# marker：缩进之后匹配的字面量行首标记。",
     "# type：可扩展的语义 ID，使用 ASCII kebab-case。",
     "# label：该规则在界面中显示的名称。",
     '# role：解析行为。"normal" 表示普通块；"multiline" 表示多行块。',
-    `# tone：高亮颜色，可选 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
+    `# tone：弱背景颜色，可选 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
+    "# textColor：字体颜色，和正文可读性直接相关，优先于 tone。",
   ];
 
   for (const markerRule of profile.markerRules) {
@@ -532,6 +565,7 @@ export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
       `label = ${formatTomlString(markerRule.label)}`,
       `role = ${formatTomlString(markerRule.role)}`,
       `tone = ${formatTomlString(markerRule.tone)}`,
+      `textColor = ${formatTomlString(markerRule.textColor)}`,
     );
   }
 
@@ -540,7 +574,7 @@ export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
     "# inlineRules：普通块内部的行内结构规则。",
     '# kind = "paired"：匹配 open 和 close 之间的文本。',
     '# kind = "single"：用一个字面量标记触发行内结构；显示范围扩展到左右最近空白之间。',
-    "# type、label、tone 的含义与 markers 中一致。",
+    "# type、label、tone、textColor 的含义与 markers 中一致。",
   );
 
   for (const inlineRule of profile.inlineRules) {
@@ -563,6 +597,7 @@ export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
       `type = ${formatTomlString(inlineRule.type)}`,
       `label = ${formatTomlString(inlineRule.label)}`,
       `tone = ${formatTomlString(inlineRule.tone)}`,
+      `textColor = ${formatTomlString(inlineRule.textColor)}`,
     );
   }
 

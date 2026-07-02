@@ -23,6 +23,7 @@ function createBlock(overrides: Partial<CtnBlock>): CtnBlock {
     role: "normal",
     rawText: ": Definition",
     text: "Definition",
+    textColor: "green",
     tone: "green",
     type: "definition",
     ...overrides,
@@ -56,15 +57,19 @@ describe("ctn editor decorations", () => {
     ).toBe(false);
   });
 
-  it("uses tone classes instead of type classes", () => {
+  it("uses text color classes instead of type classes for markers", () => {
     expect(
       getMarkerDecorationClass(
         createBlock({
+          textColor: "blue",
           tone: "red",
           type: "custom-risk",
         }),
       ),
-    ).toBe("ctn-marker ctn-tone-red");
+    ).toBe("ctn-marker ctn-text-color-blue");
+  });
+
+  it("keeps inline tone and text color separate", () => {
     expect(
       getInlineDecorationClass({
         endColumn: 8,
@@ -73,20 +78,22 @@ describe("ctn editor decorations", () => {
         lineNumber: 1,
         startColumn: 1,
         text: "value",
+        textColor: "blue",
         tone: "violet",
         type: "custom-inline",
       }),
-    ).toBe("ctn-inline ctn-tone-violet");
+    ).toBe("ctn-inline ctn-tone-violet ctn-text-color-blue");
   });
 
-  it("uses custom tone classes and CSS variables for hex colors", () => {
+  it("uses custom text color classes and CSS variables for hex colors", () => {
     const block = createBlock({
+      textColor: "#cc8844",
       tone: "#4455aa",
       type: "custom-risk",
     });
 
-    expect(getMarkerDecorationClass(block)).toBe("ctn-marker ctn-tone-custom");
-    expect(getMarkerDecorationStyle(block)).toBe("--ctn-tone-color: #4455aa;");
+    expect(getMarkerDecorationClass(block)).toBe("ctn-marker ctn-text-color-custom");
+    expect(getMarkerDecorationStyle(block)).toBe("--ctn-text-color: #cc8844;");
     expect(
       getInlineDecorationClass({
         endColumn: 8,
@@ -95,10 +102,11 @@ describe("ctn editor decorations", () => {
         lineNumber: 1,
         startColumn: 1,
         text: "value",
+        textColor: "#cc8844",
         tone: "#4455aa",
         type: "custom-inline",
       }),
-    ).toBe("ctn-inline ctn-tone-custom");
+    ).toBe("ctn-inline ctn-tone-custom ctn-text-color-custom");
     expect(
       getInlineDecorationStyle({
         endColumn: 8,
@@ -107,9 +115,10 @@ describe("ctn editor decorations", () => {
         lineNumber: 1,
         startColumn: 1,
         text: "value",
+        textColor: "#cc8844",
         tone: "#4455aa",
         type: "custom-inline",
       }),
-    ).toBe("--ctn-tone-color: #4455aa;");
+    ).toBe("--ctn-tone-color: #4455aa; --ctn-text-color: #cc8844;");
   });
 });

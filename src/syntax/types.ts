@@ -28,18 +28,21 @@ export type CtnMarkerRule = {
   type: CtnBlockType;
   label: string;
   role: CtnRuleRole;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
 };
 
 export type CtnConceptRule = {
   type: CtnBlockType;
   label: string;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
 };
 
 export type CtnInlineRuleBase = {
   type: CtnInlineSpanType;
   label: string;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
 };
 

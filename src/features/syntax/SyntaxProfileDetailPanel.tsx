@@ -25,6 +25,25 @@ function getToneSwatchStyle(tone: CtnSyntaxTone): CSSProperties | undefined {
     : undefined;
 }
 
+function ToneSwatch({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: CtnSyntaxTone;
+}) {
+  return (
+    <span
+      aria-label={`${label} ${tone}`}
+      className={getToneSwatchClass(tone)}
+      style={getToneSwatchStyle(tone)}
+      title={`${label} ${tone}`}
+    >
+      <span />
+    </span>
+  );
+}
+
 export function SyntaxProfileDetailPanel({
   draftResult,
   feedback,
@@ -82,14 +101,11 @@ export function SyntaxProfileDetailPanel({
             <div className="workspace-marker-list">
               <div className="workspace-marker-entry">
                 <code>顶格</code>
-                <span
-                  aria-label={`颜色 ${draftProfile.conceptRule.tone}`}
-                  className={getToneSwatchClass(draftProfile.conceptRule.tone)}
-                  style={getToneSwatchStyle(draftProfile.conceptRule.tone)}
-                  title={draftProfile.conceptRule.tone}
-                >
-                  <span />
-                </span>
+                <ToneSwatch label="背景" tone={draftProfile.conceptRule.tone} />
+                <ToneSwatch
+                  label="字体"
+                  tone={draftProfile.conceptRule.textColor}
+                />
                 <span className="workspace-marker-label">
                   {draftProfile.conceptRule.label}
                 </span>
@@ -97,14 +113,8 @@ export function SyntaxProfileDetailPanel({
               {draftProfile.markerRules.map((rule) => (
                 <div className="workspace-marker-entry" key={rule.marker}>
                   <code>{rule.marker}</code>
-                  <span
-                    aria-label={`颜色 ${rule.tone}`}
-                    className={getToneSwatchClass(rule.tone)}
-                    style={getToneSwatchStyle(rule.tone)}
-                    title={rule.tone}
-                  >
-                    <span />
-                  </span>
+                  <ToneSwatch label="背景" tone={rule.tone} />
+                  <ToneSwatch label="字体" tone={rule.textColor} />
                   <span className="workspace-marker-label">{rule.label}</span>
                 </div>
               ))}
@@ -130,14 +140,8 @@ export function SyntaxProfileDetailPanel({
                       ? `${rule.open}…${rule.close}`
                       : rule.marker}
                   </code>
-                  <span
-                    aria-label={`颜色 ${rule.tone}`}
-                    className={getToneSwatchClass(rule.tone)}
-                    style={getToneSwatchStyle(rule.tone)}
-                    title={rule.tone}
-                  >
-                    <span />
-                  </span>
+                  <ToneSwatch label="背景" tone={rule.tone} />
+                  <ToneSwatch label="字体" tone={rule.textColor} />
                   <span className="workspace-marker-label">{rule.label}</span>
                 </div>
               ))}

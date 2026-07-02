@@ -28,6 +28,7 @@ function createBlock(
     rawText: `- Block ${id}`,
     role: "normal",
     text: `Block ${id}`,
+    textColor: "green",
     tone: "green",
     type: "item",
   };

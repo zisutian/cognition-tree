@@ -88,6 +88,7 @@ tabDisplayWidth = 4
 type = "concept"
 label = "顶格概念"
 tone = "teal"
+textColor = "cyan"
 
 [[markers]]
 marker = "!"
@@ -95,6 +96,7 @@ type = "component"
 label = "风险"
 role = "normal"
 tone = "red"
+textColor = "amber"
 
 [[inlineRules]]
 kind = "paired"
@@ -103,6 +105,7 @@ close = "]]"
 type = "global-reference"
 label = "全局概念引用"
 tone = "blue"
+textColor = "cyan"
 `;
 
 describe("WorkspaceFileStore", () => {
@@ -175,6 +178,7 @@ describe("WorkspaceFileStore", () => {
         profile: {
           conceptRule: {
             label: "顶格概念",
+            textColor: "cyan",
             tone: "teal",
             type: "concept",
           },
@@ -184,6 +188,7 @@ describe("WorkspaceFileStore", () => {
               kind: "paired",
               label: "全局概念引用",
               open: "[[",
+              textColor: "cyan",
               tone: "blue",
               type: "global-reference",
             },
@@ -193,6 +198,7 @@ describe("WorkspaceFileStore", () => {
               label: "风险",
               marker: "!",
               role: "normal",
+              textColor: "amber",
               tone: "red",
               type: "component",
             },

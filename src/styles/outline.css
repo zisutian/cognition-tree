@@ -228,19 +228,13 @@
 .node-text {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-fg);
   font-size: 0.96em;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.note-outline-panel .node-text {
-  color: var(--note-text);
-}
-
 .outline-inline {
-  color: inherit;
   text-decoration-line: underline;
   text-decoration-color: var(--color-link);
   text-decoration-thickness: 2px;
@@ -249,6 +243,50 @@
 
 .note-outline-panel .outline-inline {
   text-decoration-color: var(--color-link);
+}
+
+.outline-inline.ctn-tone-green {
+  text-decoration-color: var(--ctn-tone-green);
+}
+
+.outline-inline.ctn-tone-teal {
+  text-decoration-color: var(--ctn-tone-teal);
+}
+
+.outline-inline.ctn-tone-cyan {
+  text-decoration-color: var(--ctn-tone-cyan);
+}
+
+.outline-inline.ctn-tone-blue {
+  text-decoration-color: var(--ctn-tone-blue);
+}
+
+.outline-inline.ctn-tone-indigo {
+  text-decoration-color: var(--ctn-tone-indigo);
+}
+
+.outline-inline.ctn-tone-violet {
+  text-decoration-color: var(--ctn-tone-violet);
+}
+
+.outline-inline.ctn-tone-pink {
+  text-decoration-color: var(--ctn-tone-pink);
+}
+
+.outline-inline.ctn-tone-red {
+  text-decoration-color: var(--ctn-tone-red);
+}
+
+.outline-inline.ctn-tone-amber {
+  text-decoration-color: var(--ctn-tone-amber);
+}
+
+.outline-inline.ctn-tone-gray {
+  text-decoration-color: var(--ctn-tone-gray);
+}
+
+.outline-inline.ctn-tone-custom {
+  text-decoration-color: var(--ctn-tone-color);
 }
 
 .empty-outline {

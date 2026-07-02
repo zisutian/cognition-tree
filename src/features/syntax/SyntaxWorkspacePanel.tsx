@@ -49,6 +49,7 @@ const toneLabels: Record<CtnPresetSyntaxTone, string> = {
 const defaultCustomTone = "#397c72";
 
 type TonePickerProps = {
+  ariaLabel: string;
   value: CtnSyntaxTone;
   onChange: (tone: CtnSyntaxTone) => void;
 };
@@ -77,7 +78,7 @@ function getToneSwatchStyle(tone: CtnSyntaxTone): CSSProperties | undefined {
     : undefined;
 }
 
-function TonePicker({ value, onChange }: TonePickerProps) {
+function TonePicker({ ariaLabel, value, onChange }: TonePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuId = useId();
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -141,7 +142,7 @@ function TonePicker({ value, onChange }: TonePickerProps) {
 
       {isOpen ? (
         <div
-          aria-label="颜色"
+          aria-label={ariaLabel}
           className="syntax-tone-menu"
           id={menuId}
           role="dialog"
@@ -349,7 +350,8 @@ export function SyntaxWorkspacePanel({
             <span>符号</span>
             <span>名称</span>
             <span>角色</span>
-            <span>颜色</span>
+            <span>背景</span>
+            <span>字体</span>
             <span />
           </div>
           <div className="syntax-rule-list">
@@ -369,12 +371,25 @@ export function SyntaxWorkspacePanel({
                 </select>
               </label>
               <div className="syntax-field syntax-tone-field">
-                <span>颜色</span>
+                <span>背景</span>
                 <TonePicker
+                  ariaLabel="顶格概念背景色"
                   value={draft.conceptRule.tone}
                   onChange={(tone) =>
                     updateConceptRule({
                       tone,
+                    })
+                  }
+                />
+              </div>
+              <div className="syntax-field syntax-tone-field">
+                <span>字体</span>
+                <TonePicker
+                  ariaLabel="顶格概念字体色"
+                  value={draft.conceptRule.textColor}
+                  onChange={(textColor) =>
+                    updateConceptRule({
+                      textColor,
                     })
                   }
                 />
@@ -426,12 +441,25 @@ export function SyntaxWorkspacePanel({
                   </select>
                 </label>
                 <div className="syntax-field syntax-tone-field">
-                  <span>颜色</span>
+                  <span>背景</span>
                   <TonePicker
+                    ariaLabel={`${rule.label || rule.marker || rule.id} 背景色`}
                     value={rule.tone}
                     onChange={(tone) =>
                       updateMarkerRule(rule.id, {
                         tone,
+                      })
+                    }
+                  />
+                </div>
+                <div className="syntax-field syntax-tone-field">
+                  <span>字体</span>
+                  <TonePicker
+                    ariaLabel={`${rule.label || rule.marker || rule.id} 字体色`}
+                    value={rule.textColor}
+                    onChange={(textColor) =>
+                      updateMarkerRule(rule.id, {
+                        textColor,
                       })
                     }
                   />
@@ -476,7 +504,8 @@ export function SyntaxWorkspacePanel({
             <span>类型</span>
             <span>符号</span>
             <span>名称</span>
-            <span>颜色</span>
+            <span>背景</span>
+            <span>字体</span>
             <span />
           </div>
           <div className="syntax-rule-list">
@@ -545,12 +574,25 @@ export function SyntaxWorkspacePanel({
                       />
                     </label>
                     <div className="syntax-field syntax-tone-field">
-                      <span>颜色</span>
+                      <span>背景</span>
                       <TonePicker
+                        ariaLabel={`${rule.label || rule.type || rule.id} 背景色`}
                         value={rule.tone}
                         onChange={(tone) =>
                           updateInlineRule(rule.id, {
                             tone,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="syntax-field syntax-tone-field">
+                      <span>字体</span>
+                      <TonePicker
+                        ariaLabel={`${rule.label || rule.type || rule.id} 字体色`}
+                        value={rule.textColor}
+                        onChange={(textColor) =>
+                          updateInlineRule(rule.id, {
+                            textColor,
                           })
                         }
                       />

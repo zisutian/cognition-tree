@@ -10,6 +10,7 @@ export type CtnInlineSpan = {
   id: string;
   type: CtnInlineSpanType;
   label: string;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
   lineNumber: number;
   startColumn: number;
@@ -42,6 +43,7 @@ export type CtnBlock = {
   marker: string | null;
   type: CtnBlockType;
   role: CtnRuleRole;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
   label: string;
   text: string;

@@ -15,6 +15,7 @@ export type ParsedLineMarker = {
   marker: string | null;
   role: CtnRuleRole;
   text: string;
+  textColor: CtnSyntaxTone;
   textStartColumn: number;
   tone: CtnSyntaxTone;
   type: CtnBlockType;
@@ -52,6 +53,7 @@ export function parseMarker(
       marker: matchedRule.marker,
       role: matchedRule.role,
       text: textAfterMarker.trim(),
+      textColor: matchedRule.textColor,
       textStartColumn:
         indentWidth + matchedRule.marker.length + textLeadingWhitespace + 1,
       tone: matchedRule.tone,
@@ -81,6 +83,7 @@ export function parseMarker(
         marker,
         role: "normal",
         text: textAfterMarker.trim(),
+        textColor: "default",
         textStartColumn: indentWidth + marker.length + textLeadingWhitespace + 1,
         tone: "default",
         type: "text",
@@ -111,6 +114,7 @@ export function parseMarker(
       marker: unknownLineStartMarker,
       role: "normal",
       text: textAfterMarker.trim(),
+      textColor: "default",
       textStartColumn:
         indentWidth + unknownLineStartMarker.length + textLeadingWhitespace + 1,
       tone: "default",
@@ -124,6 +128,7 @@ export function parseMarker(
     marker: null,
     role: "normal",
     text: trimmed,
+    textColor: "default",
     textStartColumn: indentWidth + 1,
     tone: "default",
     type: "concept",

@@ -17,6 +17,7 @@ export type SyntaxProfileDraftMarkerRule = {
   label: string;
   marker: string;
   role: CtnRuleRole;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
   type: string;
 };
@@ -24,6 +25,7 @@ export type SyntaxProfileDraftMarkerRule = {
 export type SyntaxProfileDraftConceptRule = {
   id: string;
   label: string;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
   type: string;
 };
@@ -35,6 +37,7 @@ export type SyntaxProfileDraftInlineRule = {
   label: string;
   marker: string;
   open: string;
+  textColor: CtnSyntaxTone;
   tone: CtnSyntaxTone;
   type: string;
 };
@@ -166,6 +169,7 @@ export function createEmptyMarkerRuleDraft(
     label: "",
     marker: "",
     role: "normal",
+    textColor: "green",
     tone: "green",
     type: createGeneratedType("marker-rule", index),
   };
@@ -182,6 +186,7 @@ export function createEmptyInlineRuleDraft(
     label: "",
     marker: "",
     open: "",
+    textColor: "green",
     tone: "green",
     type: createGeneratedType("inline-rule", index),
   };
@@ -194,6 +199,7 @@ export function createSyntaxProfileDraft(
     conceptRule: {
       id: "concept-1",
       label: profile.conceptRule.label,
+      textColor: profile.conceptRule.textColor,
       tone: profile.conceptRule.tone,
       type: profile.conceptRule.type,
     },
@@ -205,6 +211,7 @@ export function createSyntaxProfileDraft(
         label: rule.label,
         marker: rule.kind === "single" ? rule.marker : "",
         open: rule.kind === "paired" ? rule.open : "",
+        textColor: rule.textColor,
         tone: rule.tone,
         type: rule.type,
       }),
@@ -214,6 +221,7 @@ export function createSyntaxProfileDraft(
       label: rule.label,
       marker: rule.marker,
       role: rule.role,
+      textColor: rule.textColor,
       tone: rule.tone,
       type: rule.type,
     })),
@@ -252,6 +260,7 @@ export function buildSyntaxProfileDraft(
   );
 
   validateSemanticId(conceptType, "concept.type", "顶格概念语义 ID", diagnostics);
+  validateTone(draft.conceptRule.textColor, "concept.textColor", diagnostics);
   validateTone(draft.conceptRule.tone, "concept.tone", diagnostics);
 
   if (conceptType !== requiredTopLevelConceptType) {
@@ -264,10 +273,12 @@ export function buildSyntaxProfileDraft(
   if (
     conceptLabel &&
     conceptType === requiredTopLevelConceptType &&
+    isConfigurableSyntaxTone(draft.conceptRule.textColor) &&
     isConfigurableSyntaxTone(draft.conceptRule.tone)
   ) {
     conceptRule = {
       label: conceptLabel,
+      textColor: draft.conceptRule.textColor,
       tone: draft.conceptRule.tone,
       type: conceptType,
     };
@@ -295,6 +306,7 @@ export function buildSyntaxProfileDraft(
     );
 
     validateSemanticId(type, `${path}.type`, "行首语义 ID", diagnostics);
+    validateTone(rule.textColor, `${path}.textColor`, diagnostics);
     validateTone(rule.tone, `${path}.tone`, diagnostics);
 
     if (marker && markerSet.has(marker)) {
@@ -309,6 +321,7 @@ export function buildSyntaxProfileDraft(
       !type ||
       !label ||
       !semanticIdPattern.test(type) ||
+      !isConfigurableSyntaxTone(rule.textColor) ||
       !isConfigurableSyntaxTone(rule.tone)
     ) {
       return;
@@ -319,6 +332,7 @@ export function buildSyntaxProfileDraft(
       label,
       marker,
       role: rule.role,
+      textColor: rule.textColor,
       tone: rule.tone,
       type,
     });
@@ -347,12 +361,14 @@ export function buildSyntaxProfileDraft(
     );
 
     validateSemanticId(type, `${path}.type`, "行内语义 ID", diagnostics);
+    validateTone(rule.textColor, `${path}.textColor`, diagnostics);
     validateTone(rule.tone, `${path}.tone`, diagnostics);
 
     if (
       !type ||
       !label ||
       !semanticIdPattern.test(type) ||
+      !isConfigurableSyntaxTone(rule.textColor) ||
       !isConfigurableSyntaxTone(rule.tone)
     ) {
       return;
@@ -381,6 +397,7 @@ export function buildSyntaxProfileDraft(
         kind: "paired",
         label,
         open,
+        textColor: rule.textColor,
         tone: rule.tone,
         type,
       });
@@ -402,6 +419,7 @@ export function buildSyntaxProfileDraft(
       kind: "single",
       label,
       marker,
+      textColor: rule.textColor,
       tone: rule.tone,
       type,
     });

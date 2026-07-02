@@ -44,3 +44,13 @@ export function getSyntaxToneClassName(tone: CtnSyntaxTone) {
 export function getSyntaxToneStyle(tone: CtnSyntaxTone) {
   return isCustomSyntaxTone(tone) ? `--ctn-tone-color: ${tone};` : undefined;
 }
+
+export function getSyntaxTextColorClassName(tone: CtnSyntaxTone) {
+  return isCustomSyntaxTone(tone)
+    ? "ctn-text-color-custom"
+    : `ctn-text-color-${tone}`;
+}
+
+export function getSyntaxTextColorStyle(tone: CtnSyntaxTone) {
+  return isCustomSyntaxTone(tone) ? `--ctn-text-color: ${tone};` : undefined;
+}

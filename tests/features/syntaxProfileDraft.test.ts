@@ -26,6 +26,7 @@ describe("syntax profile draft", () => {
       conceptRule: {
         id: "concept-1",
         label: "顶格概念",
+        textColor: "cyan",
         tone: "teal",
         type: "concept",
       },
@@ -37,6 +38,7 @@ describe("syntax profile draft", () => {
           label: "全局概念引用",
           marker: "",
           open: "[[",
+          textColor: "cyan",
           tone: "blue",
           type: "global-reference",
         },
@@ -47,6 +49,7 @@ describe("syntax profile draft", () => {
           label: "外部引用",
           marker: "",
           open: "<<",
+          textColor: "#dd8844",
           tone: "#4455aa",
           type: "external-reference",
         },
@@ -57,6 +60,7 @@ describe("syntax profile draft", () => {
           label: "选择分隔",
           marker: "|",
           open: "",
+          textColor: "red",
           tone: "amber",
           type: "choice-separator",
         },
@@ -67,6 +71,7 @@ describe("syntax profile draft", () => {
           label: "风险",
           marker: "!",
           role: "normal",
+          textColor: "amber",
           tone: "red",
           type: "risk",
         },
@@ -75,6 +80,7 @@ describe("syntax profile draft", () => {
           label: "多行块",
           marker: "```",
           role: "multiline",
+          textColor: "green",
           tone: "green",
           type: "multiline-block",
         },
@@ -99,6 +105,7 @@ describe("syntax profile draft", () => {
     draft.tabDisplayWidth = "0";
     draft.conceptRule = {
       ...draft.conceptRule,
+      textColor: "default",
       tone: "default",
       type: "root-concept",
     };
@@ -107,12 +114,14 @@ describe("syntax profile draft", () => {
         ...createEmptyMarkerRuleDraft(0),
         label: "定义",
         marker: ":",
+        textColor: "green",
         type: "definition",
       },
       {
         ...createEmptyMarkerRuleDraft(1),
         label: "重复",
         marker: ":",
+        textColor: "green",
         type: "BadType",
       },
     ];
@@ -122,6 +131,7 @@ describe("syntax profile draft", () => {
         close: "",
         label: "行内",
         open: "<",
+        textColor: "green",
         type: "inline-ref",
       },
     ];
@@ -133,6 +143,7 @@ describe("syntax profile draft", () => {
         expect.objectContaining({ path: "$.name" }),
         expect.objectContaining({ path: "$.tabDisplayWidth" }),
         expect.objectContaining({ path: "concept.type" }),
+        expect.objectContaining({ path: "concept.textColor" }),
         expect.objectContaining({ path: "concept.tone" }),
         expect.objectContaining({ path: "markers[1].marker" }),
         expect.objectContaining({ path: "markers[1].type" }),
@@ -174,11 +185,13 @@ describe("syntax profile draft", () => {
   it("allows changing the protected top-level concept color", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
     draft.conceptRule.tone = "pink";
+    draft.conceptRule.textColor = "cyan";
     const result = buildSyntaxProfileDraft(draft);
 
     expect(result.diagnostics).toEqual([]);
     expect(result.profile?.conceptRule).toEqual({
       label: "顶格概念",
+      textColor: "cyan",
       tone: "pink",
       type: "concept",
     });

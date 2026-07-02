@@ -209,7 +209,9 @@ src/features/syntax/：
     type 是内部机器语义 ID，由 draft 层保留或生成，不作为普通编辑主字段。
     UI 使用功能性中文名称展示语法配置，不把 workspace.toml 当作页面标题。
     role、inline rule kind 等枚举字段必须使用固定控件。
-    tone 必须使用预设色块控件或 #RRGGBB 自定义颜色控件。
+    tone 和 textColor 必须使用预设色块控件或 #RRGGBB 自定义颜色控件。
+    tone 表示弱背景或下划线颜色。
+    textColor 表示字体颜色，视觉优先级高于 tone。
     保存时先生成 CtnSyntaxProfile，再由 src/syntax 序列化为 TOML。
     右侧详情用于显示校验、生成结果摘要和保存反馈，不作为重复编辑入口。
 
@@ -220,16 +222,18 @@ src/features/syntax/：
     tabDisplayWidth 必须是正整数。
     tabDisplayWidth 只控制编辑器显示宽度，不参与 CTN 层级解析。
     concept 必须显式提供。
-    concept 字段为 type、label、tone。
+    concept 字段为 type、label、tone、textColor。
     concept.type 固定为 concept。
     concept 表示没有行首符号、且位于顶格的概念行。
     markers 必须是非空数组。
-    marker rule 字段为 marker、type、label、role、tone。
+    marker rule 字段为 marker、type、label、role、tone、textColor。
     marker 不允许重复。
     type 必须是 ASCII kebab-case 机器语义 ID。
     role 只能是 normal 或 multiline。
     只有 role = "multiline" 的 marker 触发多行块范围。
-    tone 只能使用 green、teal、cyan、blue、indigo、violet、pink、red、amber、gray 或 #RRGGBB。
+    tone 和 textColor 只能使用 green、teal、cyan、blue、indigo、violet、pink、red、amber、gray 或 #RRGGBB。
+    编辑器中行首规则的 tone 只渲染低透明度行背景，textColor 渲染行文本。
+    行内规则的 tone 渲染下划线，textColor 渲染行内文本。
     代码不是独立 tone；多行块和行内代码如需默认视觉提示，使用 green。
     inlineRules 必须显式提供。
     inlineRules 必须保留 paired global-reference 规则，因为可视化图谱依赖它解析笔记间引用。

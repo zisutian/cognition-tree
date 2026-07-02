@@ -89,6 +89,7 @@ tabDisplayWidth = 4
 type = "concept"
 label = "顶格概念"
 tone = "teal"
+textColor = "cyan"
 
 [[markers]]
 marker = "!"
@@ -96,6 +97,7 @@ type = "component"
 label = "风险"
 role = "normal"
 tone = "red"
+textColor = "amber"
 
 [[inlineRules]]
 kind = "paired"
@@ -104,6 +106,7 @@ close = "]]"
 type = "global-reference"
 label = "全局概念引用"
 tone = "blue"
+textColor = "cyan"
 `;
 
 describe("workspace API request handler", () => {

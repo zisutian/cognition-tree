@@ -181,7 +181,6 @@
 }
 
 .source-editor .ctn-block-text-root-concept {
-  color: var(--note-text);
   font-weight: 700;
 }
 
@@ -231,73 +230,61 @@
 
 .source-editor .ctn-marker.ctn-tone-default,
 .source-editor .ctn-inline.ctn-tone-default {
-  color: var(--color-fg);
   text-decoration-color: var(--color-fg-muted);
 }
 
 .source-editor .ctn-marker.ctn-tone-green,
 .source-editor .ctn-inline.ctn-tone-green {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-green);
 }
 
 .source-editor .ctn-marker.ctn-tone-teal,
 .source-editor .ctn-inline.ctn-tone-teal {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-teal);
 }
 
 .source-editor .ctn-marker.ctn-tone-cyan,
 .source-editor .ctn-inline.ctn-tone-cyan {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-cyan);
 }
 
 .source-editor .ctn-marker.ctn-tone-blue,
 .source-editor .ctn-inline.ctn-tone-blue {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-blue);
 }
 
 .source-editor .ctn-marker.ctn-tone-indigo,
 .source-editor .ctn-inline.ctn-tone-indigo {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-indigo);
 }
 
 .source-editor .ctn-marker.ctn-tone-violet,
 .source-editor .ctn-inline.ctn-tone-violet {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-violet);
 }
 
 .source-editor .ctn-marker.ctn-tone-pink,
 .source-editor .ctn-inline.ctn-tone-pink {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-pink);
 }
 
 .source-editor .ctn-marker.ctn-tone-red,
 .source-editor .ctn-inline.ctn-tone-red {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-red);
 }
 
 .source-editor .ctn-marker.ctn-tone-amber,
 .source-editor .ctn-inline.ctn-tone-amber {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-amber);
 }
 
 .source-editor .ctn-marker.ctn-tone-gray,
 .source-editor .ctn-inline.ctn-tone-gray {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-gray);
 }
 
 .source-editor .ctn-marker.ctn-tone-custom,
 .source-editor .ctn-inline.ctn-tone-custom {
-  color: var(--color-fg);
   text-decoration-color: var(--ctn-tone-color);
 }
 

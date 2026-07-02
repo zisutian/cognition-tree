@@ -14,6 +14,7 @@ tabDisplayWidth = 4
 type = "concept"
 label = "顶格概念"
 tone = "teal"
+textColor = "cyan"
 
 [[markers]]
 marker = "!"
@@ -21,6 +22,7 @@ type = "risk"
 label = "风险"
 role = "normal"
 tone = "teal"
+textColor = "amber"
 
 [[markers]]
 marker = "\`\`\`"
@@ -28,6 +30,7 @@ type = "multiline-block"
 label = "多行块"
 role = "multiline"
 tone = "green"
+textColor = "green"
 
 [[inlineRules]]
 kind = "paired"
@@ -36,6 +39,7 @@ close = "]]"
 type = "global-reference"
 label = "全局概念引用"
 tone = "blue"
+textColor = "cyan"
 
 [[inlineRules]]
 kind = "paired"
@@ -44,6 +48,7 @@ close = ">>"
 type = "external-reference"
 label = "外部引用"
 tone = "#4455aa"
+textColor = "#dd8844"
 
 [[inlineRules]]
 kind = "single"
@@ -51,12 +56,14 @@ marker = "|"
 type = "choice-separator"
 label = "选择分隔"
 tone = "amber"
+textColor = "red"
 `);
 
     expect(result.diagnostics).toEqual([]);
     expect(result.profile).toEqual({
       conceptRule: {
         label: "顶格概念",
+        textColor: "cyan",
         tone: "teal",
         type: "concept",
       },
@@ -66,6 +73,7 @@ tone = "amber"
           kind: "paired",
           label: "全局概念引用",
           open: "[[",
+          textColor: "cyan",
           tone: "blue",
           type: "global-reference",
         },
@@ -74,6 +82,7 @@ tone = "amber"
           kind: "paired",
           label: "外部引用",
           open: "<<",
+          textColor: "#dd8844",
           tone: "#4455aa",
           type: "external-reference",
         },
@@ -81,6 +90,7 @@ tone = "amber"
           kind: "single",
           label: "选择分隔",
           marker: "|",
+          textColor: "red",
           tone: "amber",
           type: "choice-separator",
         },
@@ -91,6 +101,7 @@ tone = "amber"
           type: "risk",
           label: "风险",
           role: "normal",
+          textColor: "amber",
           tone: "teal",
         },
         {
@@ -98,6 +109,7 @@ tone = "amber"
           type: "multiline-block",
           label: "多行块",
           role: "multiline",
+          textColor: "green",
           tone: "green",
         },
       ],
@@ -138,6 +150,7 @@ inlineRules = []
 type = "root-concept"
 label = "顶格概念"
 tone = "default"
+textColor = "default"
 
 [[markers]]
 marker = ":"
@@ -145,6 +158,7 @@ type = "definition"
 label = "定义"
 role = "normal"
 tone = "green"
+textColor = "green"
 extra = "no"
 
 [[markers]]
@@ -153,6 +167,7 @@ type = "Unknown"
 label = "重复"
 role = "invalid"
 tone = "default"
+textColor = "default"
 `);
 
     expect(result.profile).toBeNull();
@@ -160,7 +175,9 @@ tone = "default"
       "unsupported-field",
       "invalid-field",
       "invalid-field",
+      "invalid-field",
       "unsupported-field",
+      "invalid-field",
       "invalid-field",
       "invalid-field",
       "duplicate-marker",
@@ -183,6 +200,7 @@ label = "定义"
     expect(result.diagnostics.map((diagnostic) => diagnostic.path)).toEqual([
       "concept",
       "markers[0].role",
+      "markers[0].textColor",
       "markers[0].tone",
       "inlineRules",
     ]);

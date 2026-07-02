@@ -77,6 +77,9 @@ export function parseCtnDocument(
         ? syntaxProfile.conceptRule.type
         : parsedMarker.type,
       role: parsedMarker.role,
+      textColor: isTopLevelConcept
+        ? syntaxProfile.conceptRule.textColor
+        : parsedMarker.textColor,
       tone: isTopLevelConcept
         ? syntaxProfile.conceptRule.tone
         : parsedMarker.tone,

@@ -7,10 +7,11 @@ export type OutlineTextSegment =
       kind: "text";
       text: string;
     }
-  | {
+    | {
       id: string;
       kind: "inline";
       text: string;
+      textColor: CtnSyntaxTone;
       tone: CtnSyntaxTone;
     };
 
@@ -84,6 +85,7 @@ export function createOutlineTextSegments(
         id: span.id,
         kind: "inline",
         text: displayText,
+        textColor: span.textColor,
         tone: span.tone,
       });
     }

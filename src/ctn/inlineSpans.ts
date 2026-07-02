@@ -15,6 +15,7 @@ function createInlineSpan(
     id: `${lineNumber}-${startColumn}-${rule.type}`,
     type: rule.type,
     label: rule.label,
+    textColor: rule.textColor,
     tone: rule.tone,
     lineNumber,
     startColumn,

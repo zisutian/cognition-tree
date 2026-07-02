@@ -11,6 +11,8 @@ import {
   type CtnInlineSpan,
 } from "../ctn/parseOutline";
 import {
+  getSyntaxTextColorClassName,
+  getSyntaxTextColorStyle,
   getSyntaxToneClassName,
   getSyntaxToneStyle,
 } from "../syntax/tones";
@@ -29,11 +31,13 @@ function isRootConceptBlock(block: CtnBlock) {
 }
 
 function getBlockTextClass(block: CtnBlock) {
+  const textColorClass = getSyntaxTextColorClassName(block.textColor);
+
   if (isRootConceptBlock(block)) {
-    return "ctn-block-text ctn-block-text-root-concept";
+    return `ctn-block-text ctn-block-text-root-concept ${textColorClass}`;
   }
 
-  return null;
+  return `ctn-block-text ${textColorClass}`;
 }
 
 function getBlockTextStart(lineText: string, block: CtnBlock) {
@@ -66,19 +70,25 @@ export function shouldDecorateMarker(block: CtnBlock) {
 }
 
 export function getMarkerDecorationClass(block: CtnBlock) {
-  return `ctn-marker ${getSyntaxToneClassName(block.tone)}`;
+  return `ctn-marker ${getSyntaxTextColorClassName(block.textColor)}`;
 }
 
 export function getInlineDecorationClass(span: CtnInlineSpan) {
-  return `ctn-inline ${getSyntaxToneClassName(span.tone)}`;
+  return `ctn-inline ${getSyntaxToneClassName(span.tone)} ${getSyntaxTextColorClassName(span.textColor)}`;
 }
 
 export function getMarkerDecorationStyle(block: CtnBlock) {
-  return getSyntaxToneStyle(block.tone);
+  return getSyntaxTextColorStyle(block.textColor);
 }
 
 export function getInlineDecorationStyle(span: CtnInlineSpan) {
-  return getSyntaxToneStyle(span.tone);
+  return [getSyntaxToneStyle(span.tone), getSyntaxTextColorStyle(span.textColor)]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function getBlockTextDecorationStyle(block: CtnBlock) {
+  return getSyntaxTextColorStyle(block.textColor);
 }
 
 function buildCtnDecorations(
@@ -157,10 +167,13 @@ function buildCtnDecorations(
     if (blockTextClass) {
       const textStart = getBlockTextStart(line.text, block);
       if (textStart < line.text.length) {
+        const blockTextStyle = getBlockTextDecorationStyle(block);
+
         decorations.push(
           Decoration.mark({
             attributes: {
               class: blockTextClass,
+              ...(blockTextStyle ? { style: blockTextStyle } : {}),
             },
           }).range(line.from + textStart, line.to),
         );

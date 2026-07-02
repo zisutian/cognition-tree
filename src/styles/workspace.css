@@ -157,7 +157,8 @@
     minmax(44px, 0.36fr)
     minmax(88px, 0.9fr)
     minmax(82px, 0.68fr)
-    minmax(104px, 0.74fr)
+    minmax(82px, 0.62fr)
+    minmax(82px, 0.62fr)
     28px;
 }
 
@@ -166,7 +167,8 @@
     minmax(70px, 0.62fr)
     minmax(112px, 0.95fr)
     minmax(98px, 0.9fr)
-    minmax(104px, 0.74fr)
+    minmax(82px, 0.62fr)
+    minmax(82px, 0.62fr)
     28px;
 }
 
@@ -531,7 +533,7 @@
 
 .workspace-marker-entry {
   display: grid;
-  grid-template-columns: 58px 18px minmax(0, 1fr);
+  grid-template-columns: 58px 18px 18px minmax(0, 1fr);
   align-items: center;
   gap: 6px;
   min-width: 0;
