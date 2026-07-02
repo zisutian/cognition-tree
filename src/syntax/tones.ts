@@ -15,7 +15,6 @@ export const configurableSyntaxTones: CtnPresetSyntaxTone[] = [
   "red",
   "amber",
   "gray",
-  "code",
 ];
 
 export const customSyntaxTonePattern = /^#[0-9a-fA-F]{6}$/;

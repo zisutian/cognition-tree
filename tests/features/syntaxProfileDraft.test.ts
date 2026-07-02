@@ -75,7 +75,7 @@ describe("syntax profile draft", () => {
           label: "多行块",
           marker: "```",
           role: "multiline",
-          tone: "code",
+          tone: "green",
           type: "multiline-block",
         },
       ],

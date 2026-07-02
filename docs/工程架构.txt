@@ -102,6 +102,7 @@ Docker 路线：
 
     src/styles/
         全局样式和按区域拆分的 CSS。
+        主题 token、字体、字号、字重和颜色约定见 docs/界面样式约定.txt。
 
     server/
         Node HTTP API 和文件仓库读写逻辑。
@@ -228,7 +229,8 @@ src/features/syntax/：
     type 必须是 ASCII kebab-case 机器语义 ID。
     role 只能是 normal 或 multiline。
     只有 role = "multiline" 的 marker 触发多行块范围。
-    tone 只能使用 green、teal、cyan、blue、indigo、violet、pink、red、amber、gray、code 或 #RRGGBB。
+    tone 只能使用 green、teal、cyan、blue、indigo、violet、pink、red、amber、gray 或 #RRGGBB。
+    代码不是独立 tone；多行块和行内代码如需默认视觉提示，使用 green。
     inlineRules 必须显式提供。
     inlineRules 必须保留 paired global-reference 规则，因为可视化图谱依赖它解析笔记间引用。
     inline rule 支持 paired 和 single。

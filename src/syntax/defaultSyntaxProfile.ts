@@ -14,7 +14,7 @@ export const defaultCtnSyntaxProfile = {
       type: "multiline-block",
       label: "多行块",
       role: "multiline",
-      tone: "code",
+      tone: "green",
     },
     {
       marker: ":",
@@ -52,7 +52,7 @@ export const defaultCtnSyntaxProfile = {
       kind: "paired",
       label: "行内代码",
       open: "`",
-      tone: "code",
+      tone: "green",
       type: "inline-code",
     },
     {

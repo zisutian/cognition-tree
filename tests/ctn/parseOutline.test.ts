@@ -187,7 +187,7 @@ Sibling
             type: "multiline-block",
             label: "多行块",
             role: "multiline",
-            tone: "code",
+            tone: "green",
           },
         ],
       },
@@ -334,7 +334,7 @@ Sibling
             label: "原文块",
             marker: "~",
             role: "multiline",
-            tone: "code",
+            tone: "green",
             type: "snippet",
           },
           {

@@ -27,7 +27,7 @@ marker = "\`\`\`"
 type = "multiline-block"
 label = "多行块"
 role = "multiline"
-tone = "code"
+tone = "green"
 
 [[inlineRules]]
 kind = "paired"
@@ -98,7 +98,7 @@ tone = "amber"
           type: "multiline-block",
           label: "多行块",
           role: "multiline",
-          tone: "code",
+          tone: "green",
         },
       ],
       name: "自定义语法",

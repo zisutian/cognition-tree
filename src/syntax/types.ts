@@ -12,8 +12,7 @@ export type CtnPresetSyntaxTone =
   | "red"
   | "pink"
   | "violet"
-  | "gray"
-  | "code";
+  | "gray";
 
 export type CtnCustomSyntaxTone = `#${string}`;
 

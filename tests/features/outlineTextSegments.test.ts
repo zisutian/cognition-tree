@@ -31,7 +31,7 @@ describe("outline text segments", () => {
         id: "1-15-inline-code",
         kind: "inline",
         text: "code",
-        tone: "code",
+        tone: "green",
       },
     ]);
     expect(getOutlineDisplayText(root)).toBe("主题 全局概念 和 code");

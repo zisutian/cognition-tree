@@ -46,7 +46,7 @@ export function NoteOutlinePanel({
   };
 
   return (
-    <aside className="outline-panel" aria-label="笔记结构预览">
+    <aside className="outline-panel note-outline-panel" aria-label="笔记结构预览">
       <header className="panel-header">
         <div>
           <h2>笔记结构</h2>

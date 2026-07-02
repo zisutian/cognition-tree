@@ -32,7 +32,7 @@ marker = "\`\`\`"
 type = "multiline-block"
 label = "多行块"
 role = "multiline"
-tone = "code"
+tone = "green"
 
 [[inlineRules]]
 kind = "paired"

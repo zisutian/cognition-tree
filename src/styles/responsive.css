@@ -21,12 +21,16 @@
   }
 
   .outline-panel {
-    border-top: 1px solid #d9ded7;
+    border-top: 1px solid var(--color-border);
     border-left: 0;
   }
 
+  .note-outline-panel {
+    border-top-color: var(--color-border);
+  }
+
   .workspace-detail-panel {
-    border-top: 1px solid #d9ded7;
+    border-top: 1px solid var(--color-border);
     border-left: 0;
   }
 

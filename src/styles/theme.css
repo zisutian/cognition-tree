@@ -1,0 +1,81 @@
+:root {
+  --font-cjk: "Noto Sans CJK SC";
+  --font-ui: var(--font-cjk);
+  --font-content: var(--font-cjk);
+  --font-mono: var(--font-cjk);
+
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-section-title: 18px;
+  --font-size-page-title: 20px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --color-activity-bar: #333333;
+  --color-side-bar: #252526;
+  --color-editor: #1e1e1e;
+  --color-panel: #252526;
+  --color-panel-strong: #2d2d30;
+  --color-input: #3c3c3c;
+  --color-hover: #2a2d2e;
+  --color-selection: #37373d;
+  --color-border: #2d2d30;
+  --color-border-strong: #3c3c3c;
+
+  --color-fg: #cccccc;
+  --color-fg-strong: #ffffff;
+  --color-fg-muted: #969696;
+  --color-fg-subtle: #6f6f6f;
+  --color-fg-disabled: #6a6a6a;
+
+  --color-accent: #007acc;
+  --color-accent-soft: rgba(0, 122, 204, 0.18);
+  --color-button: #0e639c;
+  --color-button-hover: #1177bb;
+  --color-link: #569cd6;
+
+  --color-error: #f48771;
+  --color-error-soft: rgba(244, 135, 113, 0.12);
+  --color-warning: #cca700;
+  --color-warning-soft: rgba(204, 167, 0, 0.12);
+  --color-success: #6a9955;
+  --color-success-soft: rgba(106, 153, 85, 0.12);
+
+  --ctn-tone-green: #6a9955;
+  --ctn-tone-teal: #4ec9b0;
+  --ctn-tone-cyan: #9cdcfe;
+  --ctn-tone-blue: #569cd6;
+  --ctn-tone-indigo: #6796e6;
+  --ctn-tone-violet: #c586c0;
+  --ctn-tone-pink: #d16d9e;
+  --ctn-tone-red: #f48771;
+  --ctn-tone-amber: #d7ba7d;
+  --ctn-tone-gray: #858585;
+
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  --shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.32);
+
+  --note-page-background: var(--color-editor);
+  --note-panel-background: var(--color-editor);
+  --note-panel-background-elevated: var(--color-panel);
+  --note-border: var(--color-border);
+  --note-border-strong: var(--color-border-strong);
+  --note-text: var(--color-fg);
+  --note-muted: var(--color-fg-muted);
+  --note-subtle: var(--color-fg-subtle);
+  --note-chip-background: transparent;
+  --note-chip-hover-background: var(--color-hover);
+  --note-hover-background: var(--color-hover);
+  --note-selection-background: var(--color-selection);
+  --note-accent: var(--color-accent);
+  --note-accent-soft: var(--color-accent-soft);
+}

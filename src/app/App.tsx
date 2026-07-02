@@ -187,6 +187,13 @@ function App() {
       requestId: (current?.requestId ?? 0) + 1,
     }));
   };
+  const appShellClassName = [
+    "app-shell",
+    `activity-${activeActivityId}`,
+    sidebarCollapsed ? "sidebar-collapsed" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const updateSyntaxDraft = (nextDraft: typeof syntaxDraft) => {
     setSyntaxDraft(nextDraft);
     setSyntaxFeedback(null);
@@ -261,7 +268,7 @@ function App() {
   };
 
   return (
-    <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+    <main className={appShellClassName}>
       <WorkspaceSidebar
         activeActivityId={activeActivityId}
         activeFolderId={selectedFolderId}

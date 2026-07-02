@@ -37,7 +37,6 @@ const toneLabels: Record<CtnPresetSyntaxTone, string> = {
   amber: "琥珀",
   blue: "蓝色",
   cyan: "青色",
-  code: "代码",
   gray: "灰色",
   green: "绿色",
   indigo: "靛蓝",

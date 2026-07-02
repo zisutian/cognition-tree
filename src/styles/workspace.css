@@ -396,47 +396,43 @@
 }
 
 .syntax-tone-green span {
-  background: #3b7f5b;
+  background: var(--ctn-tone-green);
 }
 
 .syntax-tone-teal span {
-  background: #278276;
+  background: var(--ctn-tone-teal);
 }
 
 .syntax-tone-cyan span {
-  background: #2f89a4;
+  background: var(--ctn-tone-cyan);
 }
 
 .syntax-tone-blue span {
-  background: #356f9e;
+  background: var(--ctn-tone-blue);
 }
 
 .syntax-tone-indigo span {
-  background: #5b66ad;
+  background: var(--ctn-tone-indigo);
 }
 
 .syntax-tone-violet span {
-  background: #7961a8;
+  background: var(--ctn-tone-violet);
 }
 
 .syntax-tone-pink span {
-  background: #b45a87;
+  background: var(--ctn-tone-pink);
 }
 
 .syntax-tone-red span {
-  background: #b85b46;
+  background: var(--ctn-tone-red);
 }
 
 .syntax-tone-amber span {
-  background: #b47a23;
+  background: var(--ctn-tone-amber);
 }
 
 .syntax-tone-gray span {
-  background: #6d7a74;
-}
-
-.syntax-tone-code span {
-  background: #34423d;
+  background: var(--ctn-tone-gray);
 }
 
 .syntax-tone-custom span {
@@ -1105,4 +1101,328 @@
   font-family: var(--font-mono);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.workspace-main-panel,
+.workspace-detail-panel {
+  color: var(--color-fg);
+  background: var(--color-editor);
+}
+
+.workspace-detail-panel {
+  border-left-color: var(--color-border);
+  background: var(--color-editor);
+}
+
+.workspace-main-panel .primary-action-button:disabled,
+.workspace-main-panel .primary-action-button:disabled:hover,
+.side-action-button:disabled {
+  color: var(--color-fg-disabled);
+  background: var(--color-input);
+}
+
+.secondary-action-button,
+.icon-action-button,
+.syntax-tone-button,
+.syntax-tone-custom-button {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg);
+  background: transparent;
+}
+
+.secondary-action-button {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.secondary-action-button:hover,
+.icon-action-button:hover,
+.syntax-tone-button:hover,
+.syntax-tone-custom-button:hover,
+.syntax-tone-tile:hover {
+  background: var(--color-hover);
+}
+
+.workspace-source-editor,
+.workspace-empty-state,
+.syntax-form-section,
+.syntax-marker-rule-row,
+.syntax-inline-rule-row,
+.syntax-tone-menu,
+.workspace-status,
+.migration-tree-panel,
+.migration-selection-card,
+.migration-note-list,
+.visualization-graph-surface {
+  border-color: var(--color-border);
+  color: var(--color-fg);
+  background: var(--color-editor);
+}
+
+.syntax-form-section,
+.syntax-marker-rule-row,
+.syntax-inline-rule-row,
+.workspace-status,
+.migration-selection-card {
+  background: var(--color-panel);
+}
+
+.workspace-source-editor,
+.syntax-field input,
+.syntax-field select,
+.syntax-tone-picker input[type="color"],
+.workspace-select {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg);
+  background: var(--color-input);
+}
+
+.workspace-source-editor:focus,
+.syntax-field input:focus,
+.syntax-field select:focus,
+.syntax-tone-button:focus,
+.syntax-tone-custom-button:focus,
+.syntax-tone-tile:focus,
+.syntax-tone-picker input[type="color"]:focus,
+.workspace-select:focus {
+  border-color: var(--color-accent);
+  box-shadow: none;
+}
+
+.syntax-field input:disabled,
+.workspace-select:disabled {
+  color: var(--color-fg-disabled);
+  background: var(--color-panel-strong);
+}
+
+.syntax-form-section-header h3,
+.workspace-empty-state h3,
+.workspace-definition-list dd,
+.workspace-marker-label,
+.workspace-status p,
+.migration-tree-node,
+.migration-subtree-node-text,
+.migration-selection-card p,
+.migration-subtree-list li,
+.migration-note-row,
+.visualization-detail-list li,
+.visualization-rank-list li {
+  color: var(--color-fg);
+}
+
+.syntax-rule-column-header,
+.syntax-field span,
+.workspace-detail-title,
+.workspace-muted,
+.workspace-definition-list dt,
+.workspace-marker-entry small,
+.workspace-marker-entry span,
+.workspace-status li,
+.migration-node-lines,
+.migration-empty-state,
+.migration-mode-tab,
+.visualization-empty-state,
+.visualization-detail-list small,
+.visualization-rank-list small {
+  color: var(--color-fg-muted);
+}
+
+.syntax-tone-menu {
+  box-shadow: var(--shadow-menu);
+}
+
+.syntax-tone-tile,
+.syntax-tone-swatch,
+.syntax-tone-picker input[type="color"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-input);
+}
+
+.syntax-tone-tile.is-selected,
+.syntax-tone-custom-button.is-selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.syntax-tone-tile svg {
+  color: var(--color-fg-strong);
+  filter: drop-shadow(0 0 1px var(--color-editor));
+}
+
+.workspace-marker-entry,
+.workspace-diagnostic-list li,
+.visualization-detail-list li,
+.visualization-rank-list li {
+  border-color: var(--color-border);
+  background: var(--color-panel);
+}
+
+.workspace-marker-entry code,
+.workspace-marker-label,
+.visualization-detail-list strong {
+  color: var(--color-link);
+}
+
+.workspace-diagnostic-list li,
+.workspace-status.error,
+.workspace-status.failed,
+.workspace-status.blocked {
+  border-color: rgba(244, 135, 113, 0.42);
+  background: var(--color-error-soft);
+}
+
+.workspace-diagnostic-list span,
+.workspace-diagnostic-list p,
+.workspace-status.error p,
+.workspace-status.failed p,
+.workspace-status.blocked p,
+.workspace-status.error li,
+.workspace-status.failed li,
+.workspace-status.blocked li {
+  color: var(--color-error);
+}
+
+.workspace-status.success,
+.workspace-status.ready {
+  border-color: rgba(106, 153, 85, 0.42);
+  background: var(--color-success-soft);
+}
+
+.workspace-status.success p,
+.workspace-status.ready p {
+  color: var(--color-success);
+}
+
+.migration-tree .migration-tree {
+  border-left-color: var(--color-border);
+}
+
+.migration-tree-node:hover,
+.migration-note-row:hover,
+.migration-mode-tab:hover {
+  color: var(--color-fg);
+  background: var(--color-hover);
+}
+
+.migration-tree-node.is-dragging,
+.migration-tree-node.target-node.is-position-source,
+.migration-note-row.is-source,
+.migration-note-row.is-target,
+.migration-note-row.is-drop-target {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.migration-tree-node:focus-visible {
+  outline: 1px solid var(--color-accent);
+}
+
+.migration-drop-zone {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg-muted);
+  background: transparent;
+}
+
+.migration-drop-zone.is-drop-target {
+  border-color: var(--color-accent);
+  color: var(--color-fg);
+  background: var(--color-accent-soft);
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.migration-node-kind,
+.migration-subtree-list span:first-child {
+  color: var(--color-link);
+  background: transparent;
+  font-weight: var(--font-weight-semibold);
+}
+
+.migration-mode-tabs {
+  border-bottom-color: var(--color-border);
+}
+
+.migration-mode-tab {
+  color: var(--color-fg-muted);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.migration-mode-tab.is-active {
+  color: var(--color-fg);
+  border-bottom-color: var(--color-accent);
+}
+
+.visualization-graph-surface {
+  background:
+    linear-gradient(rgba(86, 156, 214, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(86, 156, 214, 0.08) 1px, transparent 1px),
+    var(--color-editor);
+}
+
+.note-reference-edge {
+  stroke: rgba(86, 156, 214, 0.5);
+}
+
+.note-reference-node circle {
+  fill: var(--color-accent);
+  stroke: var(--color-editor);
+}
+
+.note-reference-node.is-isolated circle {
+  fill: var(--color-fg-subtle);
+}
+
+.note-reference-node text {
+  fill: var(--color-fg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  stroke: rgba(30, 30, 30, 0.9);
+}
+
+.syntax-tone-button,
+.syntax-tone-button > span:nth-child(2),
+.syntax-tone-custom-button,
+.syntax-field input,
+.syntax-field select,
+.workspace-source-editor,
+.workspace-select,
+.migration-node-text,
+.migration-subtree-list span:last-child,
+.visualization-detail-list span,
+.visualization-rank-list span {
+  color: var(--color-fg);
+}
+
+.syntax-field input::placeholder,
+.workspace-source-editor::placeholder {
+  color: var(--color-fg-subtle);
+}
+
+.syntax-rule-column-header,
+.syntax-field span,
+.workspace-detail-title,
+.workspace-muted,
+.workspace-definition-list dt,
+.workspace-status li,
+.migration-node-lines,
+.migration-empty-state,
+.visualization-empty-state,
+.visualization-detail-list small,
+.visualization-rank-list small {
+  color: var(--color-fg-muted);
+}
+
+.workspace-panel-header h2,
+.workspace-empty-state h3,
+.syntax-form-section-header h3,
+.migration-selection-card h3,
+.visualization-detail-list strong {
+  color: var(--color-fg-strong);
+}
+
+.workspace-marker-entry code,
+.workspace-marker-label,
+.migration-node-kind,
+.migration-subtree-list span:first-child {
+  color: var(--color-link);
 }

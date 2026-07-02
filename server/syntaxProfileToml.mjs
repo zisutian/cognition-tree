@@ -16,7 +16,7 @@ export const defaultSyntaxProfile = {
       type: "multiline-block",
       label: "多行块",
       role: "multiline",
-      tone: "code",
+      tone: "green",
     },
     {
       marker: ":",
@@ -54,7 +54,7 @@ export const defaultSyntaxProfile = {
       kind: "paired",
       label: "行内代码",
       open: "`",
-      tone: "code",
+      tone: "green",
       type: "inline-code",
     },
     {
@@ -88,7 +88,6 @@ const configurableSyntaxTones = [
   "red",
   "amber",
   "gray",
-  "code",
 ];
 const validTones = new Set(configurableSyntaxTones);
 const customSyntaxTonePattern = /^#[0-9a-fA-F]{6}$/;

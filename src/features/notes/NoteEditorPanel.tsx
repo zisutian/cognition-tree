@@ -30,7 +30,7 @@ export function NoteEditorPanel({
   const outline = parsedDocument.roots;
 
   return (
-    <section className="editor-panel" aria-label="原文编辑">
+    <section className="editor-panel note-editor-panel" aria-label="原文编辑">
       <header className="panel-header">
         <div>
           <h2>笔记编辑</h2>
