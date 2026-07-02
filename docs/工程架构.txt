@@ -120,7 +120,7 @@ src/app/：
 src/features/：
 
     notes 负责笔记编辑区和结构树。
-    syntax 负责语法 TOML 编辑和语法详情。
+    syntax 负责语法配置受控编辑和语法详情。
     migration 负责跨笔记块迁移界面。
     visualization 负责仓库级可视化页面和点状引用图谱。
     feature 组件不直接处理数据正确性规则。
@@ -196,7 +196,17 @@ src/syntax/：
     拥有 CtnSyntaxProfile、CtnMarkerRule、CtnInlineRule 等 profile 类型。
     负责默认语法 profile。
     负责 TOML profile 解析、格式化、校验和运行时 shape 检查。
+    负责将受控语法 profile 序列化为 TOML。
     不解析 .ctn 笔记原文。
+
+src/features/syntax/：
+
+    负责仓库语法配置的受控编辑界面。
+    主编辑界面不直接暴露 raw TOML textarea。
+    用户通过表单编辑 profile 基本信息、行首规则和行内规则。
+    role、tone、inline rule kind 等枚举字段必须使用固定控件。
+    保存时先生成 CtnSyntaxProfile，再由 src/syntax 序列化为 TOML。
+    右侧详情用于显示校验、生成结果摘要和保存反馈，不作为重复编辑入口。
 
 第一版 TOML schema：
 
