@@ -3,116 +3,50 @@
 
 文档职责：
 
-    记录当前工程状态、当前主线、近期执行顺序、验证命令和暂缓事项。
-    不记录产品原则、详细需求、长期架构和个人环境。
-    协作节奏参考本地 docs/长期规划原则.txt；该文件由 .gitignore 排除，不属于项目版本内容。
+    只记录当前状态、已实现能力摘要、下一步顺序、验证命令和暂缓事项。
+    不记录产品原则、详细需求、长期架构、样式规则和个人环境。
 
 
 1. 当前状态
 
-当前分支：
+分支：
 
     web-docker-runtime
 
-当前路线：
+路线：
 
     浏览器前端 + 本机 Node HTTP 后端 + 本地文件仓库。
-    桌面运行实现已从当前分支剔除。
-    Docker 容器化后移为独立阶段。
-
-已完成主线：
-
-    HTTP 存储闭环。
-    默认 CTN 语法和解析器结构能力。
-    CTN parser 与 CSS 拆分。
-    独立 syntax/workspace.toml 仓库语法文件。
-    仓库唯一语法文件编辑。
-    语法 profile 表达能力增强。
-    跨笔记块迁移领域 workflow 和点击式最小验证。
-    语法界面和迁移界面分化。
-    Workspace 应用层初步拆分。
-    源码层级整理为 app / features / shell / workspace / domain / ctn / syntax / storage。
-    Workspace 架构重构和 docs 文档体系重构。
-    持久化链路命名调整为 WorkspaceRepository / WorkspaceFileStore / WorkspaceApiServer。
-    workspace 应用层命名调整为 syntaxResolution、parsedNoteView、useRepositorySession、useWorkspaceController。
-    前后端 TOML parser parity tests。
-    workspace manifest DTO 校验。
-    块迁移选择工作台。
-    跨笔记组分拖拽迁移。
-    块迁移工作台 UI 拆分。
-    可视化页面笔记引用图谱。
-    仓库唯一语法模型收敛。
-    块迁移双视图模式：笔记选择视图 + 块迁移视图。
-    侧栏可折叠，点击已激活活动图标可切换侧栏显示。
-    工作区标题、侧栏和可视化详情样式整理。
-    VS Code 风格主题统一。
-    语法字体色配置。
-    笔记界面高度边界约束。
-    仓库控制入口迁入设置页。
+    桌面运行已剔除。
+    Docker 容器化后移。
 
 当前未提交工作：
 
-    滚动列表滚动条统一隐藏。
+    文档职责收敛和全量精简。
 
 
-2. 第一版闭环边界
+2. 已实现能力
 
-第一版目标不是堆功能清单，而是先让核心认知树工作流闭合。
-
-必须闭合：
-
-    本地文件仓库可以保存和恢复笔记、目录树和仓库语法文件。
-    用户可以创建、编辑、删除和移动笔记。
-    用户可以创建、重命名、删除文件夹，并用文件夹组织笔记。
-    用户可以编辑认知树原文，并用 Tab 缩进表达结构层级。
-    当前笔记可以按仓库语法配置解析为结构树和诊断。
-    仓库语法文件可以编辑，并影响仓库内所有笔记解析。
-    用户可以在两篇笔记之间移动整棵块子树。
-    块迁移界面必须让用户明确判断移动对象、子树范围和目标插入位置。
-
-后移能力：
-
-    搜索、导出、导入、链接、统计、同步、插件、桌面恢复和 AI 辅助整理。
-    这些能力只有在笔记、语法和块迁移闭环稳定后再逐步扩展。
+    本地文件仓库：workspace.json、notes/*.ctn、syntax/workspace.toml。
+    HTTP 存储闭环：WorkspaceRepository、HTTP adapter、Node API、File Store。
+    笔记与目录：笔记 CRUD、文件夹 CRUD、笔记移动。
+    CTN 编辑：CodeMirror 原文编辑、Tab 层级、结构树和诊断。
+    仓库语法：唯一 TOML 语法、受控编辑、前后端 parity tests。
+    块迁移：双视图工作台，跨笔记移动整棵块子树。
+    可视化：第一版笔记级引用图谱。
+    界面：app / features / shell / workspace / domain / ctn / syntax / storage 分层，VS Code 风格暗色主题。
 
 
-3. 当前主线
-
-主线名称：
-
-    滚动列表滚动条统一隐藏
-
-目标：
-
-    让列表型滚动区域保持笔记列表一致的低干扰视觉表现。
-    隐藏原生滚动条，但保留滚轮、触控板和键盘滚动能力。
-    正文编辑器不纳入该规则。
-
-当前步骤：
-
-    抽出共享隐藏滚动条规则。
-    应用到侧栏列表、结构树、语法表单、详情面板、迁移列表和可视化详情列表。
-    清理局部滚动条样式，避免多个区域表现不一致。
-    验证通过后停下审核。
-
-完成标准：
-
-    笔记列表、结构树、语法规则表单、详情面板列表、迁移列表和可视化详情列表均不显示原生滚动条。
-    上述区域仍可正常滚动。
-    编辑器滚动行为不被本轮修改。
-
-
-4. 下一步顺序
+3. 下一步顺序
 
 1. SQLite / FTS5 派生索引。
 2. 引用索引和链接查询。
 3. 稳定块身份设计。
-4. 时间演化图谱数据模型：块级写入时间。
+4. 时间演化图谱数据模型。
 5. 标题和正文搜索。
 6. Docker 后端容器化和 volume 持久化验证。
 
 
-5. 验证命令
+4. 验证命令
 
 常规验证：
 
@@ -129,18 +63,17 @@
     node --check server/workspaceManifestDto.mjs
     node --check server/syntaxProfileToml.mjs
 
-文档重构检查：
+文档检查：
 
-    确认 README、docs、src、tests 中不再引用旧组件目录和旧 hook 目录。
-    rg "产品需求|工程架构|逐步构建流程|环境准备" docs README.md --glob "!docs/长期规划原则.txt"
+    rg "不同笔记使用不同语法|目标语法不兼容|^\\s*图谱视图$" docs README.md --glob "!docs/逐步构建流程.txt"
 
 
-6. 暂缓事项
+5. 暂缓事项
 
-    分层目录命名可后续评估：domain -> core，workspace -> application
-    UI 边界可后续评估：feature-specific sidebar panel 从 shell 下沉到对应 features
-    以上命名和目录层级评估必须作为独立提交粒度，不并入 TOML parity 或 manifest 校验提交。
-    Redux / Zustand 等全局状态库
+    domain -> core，workspace -> application
+    feature-specific sidebar panel 从 shell 下沉到 features
+    server 迁入 TS 或共享 syntax schema
+    Redux / Zustand
     后端框架重写
     跨层大规模目录重排
     旧语法 schema 兼容入口
@@ -150,6 +83,6 @@
     Markdown / HTML 完整导出
     桌面扩展和安装包
     插件系统
-    图谱视图
+    复杂图谱视图
     同步能力
     AI 辅助整理

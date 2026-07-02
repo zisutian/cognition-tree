@@ -1,26 +1,19 @@
 环境准备
 
-日期：2026-06-05
+
+文档职责：
+
+    只记录当前开发者本机环境、双机分工和待确认项。
+    不记录外部使用说明、产品需求、工程架构、当前任务和长期流程规则。
 
 
-1. 文档职责
-
-本文件只面向当前开发者，记录我的本机环境、双机分工和待确认项。
-
-不记录外部使用说明、产品需求、工程架构、当前执行主线和长期流程规则。
-
-
-2. Linux 本机记录
+1. Linux
 
 用途：
 
-    日常开发
-    运行测试
-    运行后端服务
-    后续运行 Docker 容器化验证
-    提交 Git
+    日常开发、测试、后端服务、Docker 验证、Git 提交。
 
-当前状态：
+状态：
 
     系统：Ubuntu 24.04.4 LTS
     项目目录：/home/zisu/code/cognition-tree/repo
@@ -32,24 +25,12 @@
     Docker Compose：v2.39.1
     SQLite：3.45.1
 
-常用检查：
 
-    pnpm test
-    pnpm check
-    pnpm build
-    node --check server/index.mjs
-    node --check server/workspaceApiServer.mjs
-    node --check server/workspaceFileStore.mjs
-    git diff --check
-
-
-3. Windows 本机记录
+2. Windows
 
 用途：
 
-    拉取代码
-    通过浏览器访问同一个后端服务
-    检查界面、输入法、路径和数据互通
+    拉取代码，通过浏览器访问同一个后端服务，检查界面、输入法、路径和数据互通。
 
 当前目录：
 
@@ -59,26 +40,13 @@
 
     独立 Node.js LTS
     pnpm
-    后续 Docker Desktop
+    Docker Desktop
 
 
-4. 双机原则
-
-代码：
+3. 双机原则
 
     Windows 和 Linux 可以各自保留一份代码仓库。
-
-数据：
-
-    当前笔记数据互通应通过同一个 HTTP 后端服务完成。
-    Docker 后端服务作为后续独立阶段引入。
+    笔记数据互通应通过同一个 HTTP 后端服务完成。
     不依赖同步代码目录来同步笔记数据。
-
-路径：
-
     主项目避免长期放在中文路径、空格路径或同步盘特殊目录下。
-
-换行：
-
-    仓库统一使用 LF。
-    Windows 批处理和 PowerShell 文件保留 CRLF。
+    仓库统一使用 LF；Windows 批处理和 PowerShell 文件保留 CRLF。
