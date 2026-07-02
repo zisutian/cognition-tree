@@ -1,8 +1,8 @@
 import type { DragEvent } from "react";
 import type { CtnBlock } from "../../ctn/parseOutline";
+import { OutlineNodeText } from "../notes/OutlineNodeText";
 import {
   getBlockLineLabel,
-  getBlockTitle,
 } from "./blockMigrationView";
 
 type MigrationDropZoneProps = {
@@ -118,7 +118,7 @@ export function MigrationTargetTree({
               onDragOver={(event) => onDragOverTargetBlock(event, node.lineNumber)}
             >
               <span className="migration-node-kind">{node.label}</span>
-              <span className="migration-node-text">{getBlockTitle(node)}</span>
+              <OutlineNodeText className="migration-node-text" node={node} />
               <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
             </div>
             {hasChildren ? (

@@ -798,6 +798,16 @@
   white-space: nowrap;
 }
 
+.migration-subtree-node-text {
+  min-width: 0;
+  overflow: hidden;
+  color: #25302d;
+  font-family: var(--font-content);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .migration-node-lines {
   flex: 0 0 auto;
   margin-left: auto;

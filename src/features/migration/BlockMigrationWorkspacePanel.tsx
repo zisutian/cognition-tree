@@ -2,13 +2,13 @@ import type { DragEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { NoteId, NoteWorkspace } from "../../domain/notes";
 import { resolveParsedNoteView } from "../../workspace/parsedNoteView";
+import { OutlineNodeText } from "../notes/OutlineNodeText";
 import {
   type WorkspaceBlockMigrationRequest,
 } from "../../workspace/workspaceBlockMigration";
 import {
   flattenBlockSubtree,
   getBlockLineLabel,
-  getBlockTitle,
   getTargetPositionLabel,
 } from "./blockMigrationView";
 import {
@@ -298,7 +298,10 @@ function BlockMigrationView({
                 {sourceSubtreeBlocks.map((block) => (
                   <li key={block.id} style={{ paddingLeft: `${block.level * 12}px` }}>
                     <span>{block.label}</span>
-                    <span>{getBlockTitle(block)}</span>
+                    <OutlineNodeText
+                      className="migration-subtree-node-text"
+                      node={block}
+                    />
                   </li>
                 ))}
               </ul>

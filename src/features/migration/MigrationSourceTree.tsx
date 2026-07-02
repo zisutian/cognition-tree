@@ -1,8 +1,9 @@
 import type { DragEvent } from "react";
 import type { CtnBlock } from "../../ctn/parseOutline";
+import { OutlineNodeText } from "../notes/OutlineNodeText";
+import { getOutlineDisplayText } from "../notes/outlineTextSegments";
 import {
   getBlockLineLabel,
-  getBlockTitle,
 } from "./blockMigrationView";
 
 type MigrationSourceTreeProps = {
@@ -42,10 +43,10 @@ export function MigrationSourceTree({
               draggable
               onDragEnd={onDragEnd}
               onDragStart={(event) => onDragStart(event, node.lineNumber)}
-              title={`${node.label}: ${getBlockTitle(node)}`}
+              title={`${node.label}: ${getOutlineDisplayText(node)}`}
             >
               <span className="migration-node-kind">{node.label}</span>
-              <span className="migration-node-text">{getBlockTitle(node)}</span>
+              <OutlineNodeText className="migration-node-text" node={node} />
               <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
             </div>
             {hasChildren ? (

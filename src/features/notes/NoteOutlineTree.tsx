@@ -1,44 +1,7 @@
-import type { CSSProperties } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { OutlineNode } from "../../ctn/parseOutline";
-import { isCustomSyntaxTone } from "../../syntax/tones";
-import type { CtnSyntaxTone } from "../../syntax/types";
-import {
-  createOutlineTextSegments,
-  getOutlineDisplayText,
-} from "./outlineTextSegments";
-
-function getOutlineInlineClass(tone: CtnSyntaxTone) {
-  return isCustomSyntaxTone(tone)
-    ? "outline-inline ctn-tone-custom"
-    : `outline-inline ctn-tone-${tone}`;
-}
-
-function getOutlineInlineStyle(tone: CtnSyntaxTone): CSSProperties | undefined {
-  return isCustomSyntaxTone(tone)
-    ? ({ "--ctn-tone-color": tone } as CSSProperties)
-    : undefined;
-}
-
-function OutlineNodeText({ node }: { node: OutlineNode }) {
-  return (
-    <span className="node-text">
-      {createOutlineTextSegments(node).map((segment) =>
-        segment.kind === "inline" ? (
-          <span
-            className={getOutlineInlineClass(segment.tone)}
-            key={segment.id}
-            style={getOutlineInlineStyle(segment.tone)}
-          >
-            {segment.text}
-          </span>
-        ) : (
-          <span key={segment.id}>{segment.text}</span>
-        ),
-      )}
-    </span>
-  );
-}
+import { OutlineNodeText } from "./OutlineNodeText";
+import { getOutlineDisplayText } from "./outlineTextSegments";
 
 export function NoteOutlineTree({
   collapsedNodeIds,
