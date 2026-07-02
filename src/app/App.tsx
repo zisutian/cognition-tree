@@ -48,7 +48,6 @@ function App() {
     useState<SidebarActivityId>("notes");
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
-  const [selectedSyntaxFileName, setSelectedSyntaxFileName] = useState("");
   const [syntaxDraftSource, setSyntaxDraftSource] = useState("");
   const [syntaxFeedback, setSyntaxFeedback] =
     useState<WorkspaceFeedback | null>(null);
@@ -62,8 +61,6 @@ function App() {
     changeRepositoryPath,
     createFolder,
     createNote,
-    createSyntaxFile,
-    deleteSyntaxFile,
     deleteFolder,
     deleteNote,
     moveNoteBlock,
@@ -75,9 +72,8 @@ function App() {
     selectNote,
     selectedFolderId,
     storageLabel,
-    syntaxFiles,
+    syntaxFile,
     updateActiveNoteSource,
-    updateActiveNoteSyntaxProfile,
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
@@ -99,32 +95,9 @@ function App() {
         : emptyNoteReferenceGraph,
     [activeActivityId, workspace],
   );
-  const selectedSyntaxFile = useMemo(
-    () =>
-      syntaxFiles.find((file) => file.fileName === selectedSyntaxFileName) ??
-      null,
-    [selectedSyntaxFileName, syntaxFiles],
-  );
-
   useEffect(() => {
-    if (
-      selectedSyntaxFileName &&
-      syntaxFiles.some((file) => file.fileName === selectedSyntaxFileName)
-    ) {
-      return;
-    }
-
-    setSelectedSyntaxFileName(syntaxFiles[0]?.fileName ?? "");
-  }, [selectedSyntaxFileName, syntaxFiles]);
-
-  useEffect(() => {
-    if (!selectedSyntaxFile) {
-      setSyntaxDraftSource("");
-      return;
-    }
-
-    setSyntaxDraftSource(selectedSyntaxFile.source);
-  }, [selectedSyntaxFile]);
+    setSyntaxDraftSource(syntaxFile.source);
+  }, [syntaxFile.source]);
 
   const focusEditorLine = (lineNumber: number) => {
     setEditorFocusRequest((current) => ({
@@ -132,64 +105,19 @@ function App() {
       requestId: (current?.requestId ?? 0) + 1,
     }));
   };
-  const selectSyntaxFile = (fileName: string) => {
-    setSelectedSyntaxFileName(fileName);
-    setSyntaxFeedback(null);
-  };
-  const createSyntaxFileWithFeedback = (fileName: string) => {
-    setSyntaxFeedback(null);
-
-    void Promise.resolve(createSyntaxFile(fileName))
-      .then(() => {
-        setSelectedSyntaxFileName(fileName);
-        setSyntaxFeedback({
-          message: "语法文件已创建。",
-          status: "success",
-        });
-      })
-      .catch((error: unknown) => {
-        setSyntaxFeedback({
-          message: getErrorMessage(error, "语法文件创建失败。"),
-          status: "error",
-        });
-      });
-  };
-  const deleteSyntaxFileWithFeedback = (fileName: string) => {
-    setSyntaxFeedback(null);
-
-    void Promise.resolve(deleteSyntaxFile(fileName))
-      .then(() => {
-        setSyntaxFeedback({
-          message: "语法文件已删除。",
-          status: "success",
-        });
-      })
-      .catch((error: unknown) => {
-        setSyntaxFeedback({
-          message: getErrorMessage(error, "语法文件删除失败。"),
-          status: "error",
-        });
-      });
-  };
   const saveSelectedSyntaxFile = () => {
-    if (!selectedSyntaxFile) {
-      return;
-    }
-
     setSyntaxFeedback(null);
 
-    void Promise.resolve(
-      updateSyntaxFile(selectedSyntaxFile.fileName, syntaxDraftSource),
-    )
+    void Promise.resolve(updateSyntaxFile(syntaxDraftSource))
       .then(() => {
         setSyntaxFeedback({
-          message: "语法文件已保存。",
+          message: "仓库语法已保存。",
           status: "success",
         });
       })
       .catch((error: unknown) => {
         setSyntaxFeedback({
-          message: getErrorMessage(error, "语法文件保存失败。"),
+          message: getErrorMessage(error, "仓库语法保存失败。"),
           status: "error",
         });
       });
@@ -203,7 +131,7 @@ function App() {
       return (
         <SyntaxWorkspacePanel
           draftSource={syntaxDraftSource}
-          selectedFile={selectedSyntaxFile}
+          syntaxFile={syntaxFile}
           onDraftSourceChange={updateSyntaxDraftSource}
           onSaveSyntaxFile={saveSelectedSyntaxFile}
         />
@@ -235,11 +163,10 @@ function App() {
         syntaxProfile={activeSyntaxProfile}
         syntaxIssueMessage={syntaxIssueMessage}
         workspaceErrorMessage={workspaceErrorMessage}
-        syntaxProfiles={workspace.syntaxProfiles}
+        syntaxProfileName={workspace.syntaxProfile.name}
         title={activeNote?.title ?? "本地笔记库"}
         onCreateNote={createNote}
         onDocumentTextChange={updateActiveNoteSource}
-        onSyntaxProfileChange={updateActiveNoteSyntaxProfile}
       />
     );
   };
@@ -249,7 +176,7 @@ function App() {
         <SyntaxProfileDetailPanel
           draftSource={syntaxDraftSource}
           feedback={syntaxFeedback}
-          selectedFile={selectedSyntaxFile}
+          syntaxFile={syntaxFile}
         />
       );
     }
@@ -293,16 +220,12 @@ function App() {
         referenceGraph={noteReferenceGraph}
         repositoryPath={repositoryPath}
         storageLabel={storageLabel}
-        selectedSyntaxFileName={selectedSyntaxFile?.fileName ?? ""}
-        syntaxProfiles={workspace.syntaxProfiles}
-        syntaxFiles={syntaxFiles}
+        syntaxFile={syntaxFile}
         onActivityChange={setActiveActivityId}
         canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={changeRepositoryPath}
         onCreateFolder={createFolder}
         onCreateNote={createNote}
-        onCreateSyntaxFile={createSyntaxFileWithFeedback}
-        onDeleteSyntaxFile={deleteSyntaxFileWithFeedback}
         onDeleteFolder={deleteFolder}
         onDeleteNote={deleteNote}
         onMoveNote={moveNote}
@@ -310,7 +233,6 @@ function App() {
         onRenameFolder={renameFolder}
         onSelectFolder={selectFolder}
         onSelectNote={selectNote}
-        onSelectSyntaxFile={selectSyntaxFile}
       />
 
       {renderMainWorkspace()}

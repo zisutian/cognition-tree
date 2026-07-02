@@ -11,11 +11,6 @@ export type NoteBlockMigrationBlock = {
   endLineNumber: number;
   level: number;
   lineNumber: number;
-  marker: string | null;
-};
-
-export type NoteBlockMigrationSyntaxProfile = {
-  markerRules: Array<{ marker: string }>;
 };
 
 export type NoteBlockMigrationTargetPosition =
@@ -37,56 +32,16 @@ export type NoteBlockMigrationTargetPosition =
 
 export type MoveNoteBlockInput = {
   sourceBlock: NoteBlockMigrationBlock;
-  sourceBlocks: NoteBlockMigrationBlock[];
   sourceSource: string;
   targetPosition: NoteBlockMigrationTargetPosition;
   targetSource: string;
-  targetSyntaxProfile: NoteBlockMigrationSyntaxProfile;
 };
 
-export type MoveNoteBlockResult =
-  | {
-      nextSourceSource: string;
-      nextTargetSource: string;
-      status: "moved";
-    }
-  | {
-      message: string;
-      missingMarkers: string[];
-      status: "incompatible-target-syntax";
-    };
-
-function getSubtreeBlocks(
-  sourceBlocks: NoteBlockMigrationBlock[],
-  sourceBlock: NoteBlockMigrationBlock,
-) {
-  return sourceBlocks.filter(
-    (block) =>
-      block.lineNumber >= sourceBlock.lineNumber &&
-      block.endLineNumber <= sourceBlock.endLineNumber,
-  );
-}
-
-function collectUsedMarkers(blocks: NoteBlockMigrationBlock[]) {
-  return [
-    ...new Set(
-      blocks
-        .map((block) => block.marker)
-        .filter((marker): marker is string => marker !== null),
-    ),
-  ];
-}
-
-function collectMissingMarkers(
-  usedMarkers: string[],
-  targetSyntaxProfile: NoteBlockMigrationSyntaxProfile,
-) {
-  const targetMarkers = new Set(
-    targetSyntaxProfile.markerRules.map((rule) => rule.marker),
-  );
-
-  return usedMarkers.filter((marker) => !targetMarkers.has(marker));
-}
+export type MoveNoteBlockResult = {
+  nextSourceSource: string;
+  nextTargetSource: string;
+  status: "moved";
+};
 
 function getTargetLevel(targetPosition: NoteBlockMigrationTargetPosition) {
   switch (targetPosition.kind) {
@@ -116,23 +71,6 @@ function getTargetInsertionLineNumber(
 }
 
 export function moveNoteBlock(input: MoveNoteBlockInput): MoveNoteBlockResult {
-  const sourceSubtreeBlocks = getSubtreeBlocks(
-    input.sourceBlocks,
-    input.sourceBlock,
-  );
-  const missingMarkers = collectMissingMarkers(
-    collectUsedMarkers(sourceSubtreeBlocks),
-    input.targetSyntaxProfile,
-  );
-
-  if (missingMarkers.length > 0) {
-    return {
-      message: `目标笔记语法不支持 marker: ${missingMarkers.join(", ")}。`,
-      missingMarkers,
-      status: "incompatible-target-syntax",
-    };
-  }
-
   const sourceRange = getBlockLineRange(input.sourceBlock);
   const extractedText = extractBlockText(input.sourceSource, sourceRange);
   const rewrittenText = rewriteBlockIndent(

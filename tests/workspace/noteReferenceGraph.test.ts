@@ -4,6 +4,7 @@ import {
   createNoteRecord,
 } from "../../src/domain/notes";
 import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../src/syntax/types";
 import { createNoteReferenceGraph } from "../../src/workspace/noteReferenceGraph";
 
 const timestamp = "2026-07-02T00:00:00.000Z";
@@ -14,22 +15,19 @@ describe("createNoteReferenceGraph", () => {
       "note-source",
       "Source\n    [[Target]]",
       timestamp,
-      defaultCtnSyntaxProfile,
     );
     const target = createNoteRecord(
       "note-target",
       "Target",
       timestamp,
-      defaultCtnSyntaxProfile,
     );
     const isolated = createNoteRecord(
       "note-isolated",
       "Isolated",
       timestamp,
-      defaultCtnSyntaxProfile,
     );
     const workspace = {
-      ...createInitialWorkspace([defaultCtnSyntaxProfile]),
+      ...createInitialWorkspace(defaultCtnSyntaxProfile),
       notes: [source, target, isolated],
     };
 
@@ -67,10 +65,9 @@ describe("createNoteReferenceGraph", () => {
       "note-source",
       "Source\n    [[Missing Note]]\n    [[Missing Note]]",
       timestamp,
-      defaultCtnSyntaxProfile,
     );
     const workspace = {
-      ...createInitialWorkspace([defaultCtnSyntaxProfile]),
+      ...createInitialWorkspace(defaultCtnSyntaxProfile),
       notes: [source],
     };
 
@@ -93,18 +90,18 @@ describe("createNoteReferenceGraph", () => {
     });
   });
 
-  it("reports notes whose syntax profile cannot be resolved", () => {
-    const note = {
-      ...createNoteRecord(
-        "note-source",
-        "Source\n    [[Target]]",
-        timestamp,
-        defaultCtnSyntaxProfile,
-      ),
-      syntaxProfileId: "missing-profile",
-    };
+  it("reports notes when the workspace syntax profile is invalid", () => {
+    const invalidProfile = {
+      ...defaultCtnSyntaxProfile,
+      inlineRules: undefined,
+    } as unknown as CtnSyntaxProfile;
+    const note = createNoteRecord(
+      "note-source",
+      "Source\n    [[Target]]",
+      timestamp,
+    );
     const workspace = {
-      ...createInitialWorkspace([defaultCtnSyntaxProfile]),
+      ...createInitialWorkspace(invalidProfile),
       notes: [note],
     };
 

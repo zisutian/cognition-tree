@@ -4,8 +4,7 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../../domain/notes";
-import type { SyntaxProfileFile } from "../../storage/workspaceRepository";
-import type { CtnSyntaxProfile } from "../../syntax/types";
+import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
 import type { NoteReferenceGraph } from "../../workspace/noteReferenceGraph";
 import {
   sidebarActivityItems,
@@ -27,15 +26,11 @@ type SidebarActivityPanelProps = {
   referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
   storageLabel: string;
-  selectedSyntaxFileName: string;
-  syntaxProfiles: CtnSyntaxProfile[];
-  syntaxFiles: SyntaxProfileFile[];
+  syntaxFile: WorkspaceSyntaxFile;
   canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
-  onCreateSyntaxFile: (fileName: string) => void;
-  onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
@@ -43,7 +38,6 @@ type SidebarActivityPanelProps = {
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
-  onSelectSyntaxFile: (fileName: string) => void;
 };
 
 export function SidebarActivityPanel({
@@ -55,15 +49,11 @@ export function SidebarActivityPanel({
   referenceGraph,
   repositoryPath,
   storageLabel,
-  selectedSyntaxFileName,
-  syntaxProfiles,
-  syntaxFiles,
+  syntaxFile,
   canChangeRepositoryPath,
   onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
-  onCreateSyntaxFile,
-  onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
   onMoveNote,
@@ -71,7 +61,6 @@ export function SidebarActivityPanel({
   onRenameFolder,
   onSelectFolder,
   onSelectNote,
-  onSelectSyntaxFile,
 }: SidebarActivityPanelProps) {
   if (activeActivityId === "notes") {
     return (
@@ -106,11 +95,7 @@ export function SidebarActivityPanel({
   if (activeActivityId === "syntax") {
     return (
       <SidebarSyntaxPanel
-        selectedFileName={selectedSyntaxFileName}
-        syntaxFiles={syntaxFiles}
-        onCreateSyntaxFile={onCreateSyntaxFile}
-        onDeleteSyntaxFile={onDeleteSyntaxFile}
-        onSelectSyntaxFile={onSelectSyntaxFile}
+        syntaxFile={syntaxFile}
       />
     );
   }
@@ -119,7 +104,6 @@ export function SidebarActivityPanel({
     return (
       <SidebarMigrationPanel
         notesCount={notes.length}
-        syntaxProfilesCount={syntaxProfiles.length}
       />
     );
   }

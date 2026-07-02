@@ -4,10 +4,7 @@ import {
 } from "../ctn/parseOutline";
 import type { NoteRecord, NoteWorkspace } from "../domain/notes";
 import type { CtnSyntaxProfile } from "../syntax/types";
-import {
-  resolveNoteSyntaxProfile,
-  resolveWorkspaceDefaultSyntaxProfile,
-} from "./syntaxResolution";
+import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export const emptyCtnDocument: CtnDocument = {
   blocks: [],
@@ -28,7 +25,7 @@ export type ParsedNoteView =
       message: string;
       note: NoteRecord | null;
       source: string;
-      status: "invalid-profile" | "missing-profile";
+      status: "invalid-profile";
     };
 
 export function resolveParsedNoteView(
@@ -36,9 +33,7 @@ export function resolveParsedNoteView(
   note: NoteRecord | null,
 ): ParsedNoteView {
   const source = note?.source ?? "";
-  const syntaxResolution = note
-    ? resolveNoteSyntaxProfile(workspace, note)
-    : resolveWorkspaceDefaultSyntaxProfile(workspace);
+  const syntaxResolution = resolveWorkspaceSyntaxProfile(workspace);
 
   if (syntaxResolution.status !== "resolved") {
     return {

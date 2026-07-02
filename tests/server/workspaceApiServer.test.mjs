@@ -16,8 +16,7 @@ function createWorkspace() {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    defaultSyntaxProfileId: "ctn-default",
-    syntaxProfiles: [defaultSyntaxProfile],
+    syntaxProfile: defaultSyntaxProfile,
     notes: [],
     tree: [
       {
@@ -85,7 +84,21 @@ async function withHandler(testFn) {
   }
 }
 
-describe("note API request handler", () => {
+const customSyntaxSource = `id = "ctn-custom"
+name = "自定义语法"
+version = 1
+spaceIndentUnit = 4
+inlineRules = []
+
+[[markers]]
+marker = "!"
+type = "component"
+label = "风险"
+role = "normal"
+tone = "red"
+`;
+
+describe("workspace API request handler", () => {
   it("serves repository info and workspace CRUD endpoints", async () => {
     await withHandler(async (handler, rootDir) => {
       await expect(
@@ -140,54 +153,38 @@ describe("note API request handler", () => {
     });
   });
 
-  it("serves syntax profile file endpoints", async () => {
+  it("serves the workspace syntax endpoint", async () => {
     await withHandler(async (handler) => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/syntax" }),
       ).resolves.toMatchObject({
-        body: [
-          {
-            fileName: "ctn-default.toml",
-            profile: defaultSyntaxProfile,
-          },
-        ],
+        body: {
+          fileName: "workspace.toml",
+          profile: defaultSyntaxProfile,
+        },
         statusCode: 200,
       });
 
-      const source = `id = "ctn-custom"
-name = "自定义语法"
-version = 1
-spaceIndentUnit = 4
-inlineRules = []
-
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-`;
-
       await expect(
         dispatch(handler, {
-          body: JSON.stringify({ source }),
+          body: JSON.stringify({ source: customSyntaxSource }),
           method: "PUT",
-          url: "/api/syntax/custom.toml",
+          url: "/api/syntax",
         }),
       ).resolves.toMatchObject({
         body: null,
         statusCode: 204,
       });
       await expect(
-        dispatch(handler, { method: "GET", url: "/api/syntax/custom.toml" }),
+        dispatch(handler, { method: "GET", url: "/api/syntax" }),
       ).resolves.toMatchObject({
         body: {
-          fileName: "custom.toml",
+          fileName: "workspace.toml",
           profile: {
             id: "ctn-custom",
             version: 1,
           },
-          source,
+          source: customSyntaxSource,
         },
         statusCode: 200,
       });
@@ -203,8 +200,6 @@ tone = "red"
           id: "note-valid",
           title: "有效笔记",
           source: "有效笔记",
-          syntaxProfileId: "ctn-default",
-          syntaxVersion: 1,
           createdAt: "2026-05-25T00:00:00.000Z",
           updatedAt: "2026-05-25T00:00:00.000Z",
         },

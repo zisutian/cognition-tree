@@ -20,7 +20,6 @@ import {
   type NoteRecord,
   type NoteWorkspace,
 } from "./notes";
-import type { CtnSyntaxProfile } from "../syntax/types";
 
 export function resolveExistingFolderId(
   workspace: NoteWorkspace,
@@ -52,17 +51,15 @@ export function createWorkspaceNote(
   {
     folderId,
     noteId,
-    syntaxProfile,
     timestamp,
   }: {
     folderId: FolderId;
     noteId: NoteId;
-    syntaxProfile: CtnSyntaxProfile;
     timestamp: string;
   },
 ): NoteWorkspace {
   const targetFolderId = resolveExistingFolderId(workspace, folderId);
-  const note = createNoteRecord(noteId, "", timestamp, syntaxProfile);
+  const note = createNoteRecord(noteId, "", timestamp);
 
   return {
     ...workspace,
@@ -203,42 +200,6 @@ export function updateActiveWorkspaceNoteSource(
         ...note,
         source,
         title: inferNoteTitle(source),
-        updatedAt: timestamp,
-      };
-    }),
-  };
-}
-
-export function updateActiveWorkspaceNoteSyntaxProfile(
-  workspace: NoteWorkspace,
-  syntaxProfileId: string,
-  syntaxVersion: number,
-  timestamp: string,
-): NoteWorkspace {
-  if (!workspace.activeNoteId) {
-    return workspace;
-  }
-
-  const syntaxProfile = workspace.syntaxProfiles.find(
-    (profile) =>
-      profile.id === syntaxProfileId && profile.version === syntaxVersion,
-  );
-
-  if (!syntaxProfile) {
-    return workspace;
-  }
-
-  return {
-    ...workspace,
-    notes: workspace.notes.map((note): NoteRecord => {
-      if (note.id !== workspace.activeNoteId) {
-        return note;
-      }
-
-      return {
-        ...note,
-        syntaxProfileId: syntaxProfile.id,
-        syntaxVersion: syntaxProfile.version,
         updatedAt: timestamp,
       };
     }),

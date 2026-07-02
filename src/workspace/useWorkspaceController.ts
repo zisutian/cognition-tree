@@ -15,9 +15,7 @@ import {
   resolveExistingFolderId,
   selectWorkspaceNote,
   updateActiveWorkspaceNoteSource,
-  updateActiveWorkspaceNoteSyntaxProfile,
 } from "../domain/workspaceActions";
-import { resolveWorkspaceDefaultSyntaxProfile } from "./syntaxResolution";
 import {
   moveWorkspaceBlock,
   type WorkspaceBlockMigrationRequest,
@@ -52,13 +50,11 @@ export function useWorkspaceController() {
   const {
     canChangeRepositoryPath,
     changeRepositoryPath,
-    createSyntaxFile,
-    deleteSyntaxFile,
     reloadWorkspace,
     repositoryPath,
     setWorkspace,
     storageLabel,
-    syntaxFiles,
+    syntaxFile,
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
@@ -92,20 +88,13 @@ export function useWorkspaceController() {
     const timestamp = new Date().toISOString();
     const noteId = createLocalNoteId();
 
-    setWorkspace((current) => {
-      const syntaxResolution = resolveWorkspaceDefaultSyntaxProfile(current);
-
-      if (syntaxResolution.status !== "resolved") {
-        return current;
-      }
-
-      return createWorkspaceNote(current, {
+    setWorkspace((current) =>
+      createWorkspaceNote(current, {
         folderId: selectedFolderId,
         noteId,
-        syntaxProfile: syntaxResolution.profile,
         timestamp,
-      });
-    });
+      }),
+    );
   };
 
   const createFolder = (parentFolderId: FolderId, title: string) => {
@@ -150,22 +139,6 @@ export function useWorkspaceController() {
     );
   };
 
-  const updateActiveNoteSyntaxProfile = (
-    syntaxProfileId: string,
-    syntaxVersion: number,
-  ) => {
-    const timestamp = new Date().toISOString();
-
-    setWorkspace((current) =>
-      updateActiveWorkspaceNoteSyntaxProfile(
-        current,
-        syntaxProfileId,
-        syntaxVersion,
-        timestamp,
-      ),
-    );
-  };
-
   const moveNoteBlock = (
     request: MoveWorkspaceBlockRequest,
   ): MoveWorkspaceBlockActionResult => {
@@ -200,10 +173,8 @@ export function useWorkspaceController() {
     changeRepositoryPath,
     createFolder,
     createNote,
-    createSyntaxFile,
     deleteFolder,
     deleteNote,
-    deleteSyntaxFile,
     moveNote,
     moveNoteBlock,
     reloadWorkspace,
@@ -213,9 +184,8 @@ export function useWorkspaceController() {
     selectNote,
     selectedFolderId,
     storageLabel,
-    syntaxFiles,
+    syntaxFile,
     updateActiveNoteSource,
-    updateActiveNoteSyntaxProfile,
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,

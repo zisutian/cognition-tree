@@ -20,14 +20,12 @@ describe("note block migration", () => {
     const targetBlocks = parseBlocks(targetSource);
     const result = moveNoteBlock({
       sourceBlock: sourceBlocks[1],
-      sourceBlocks,
       sourceSource,
       targetPosition: {
         block: targetBlocks[0],
         kind: "inside-block",
       },
       targetSource,
-      targetSyntaxProfile: defaultCtnSyntaxProfile,
     });
 
     expect(result).toEqual({
@@ -45,14 +43,12 @@ describe("note block migration", () => {
     const targetBlocks = parseBlocks(targetSource);
     const result = moveNoteBlock({
       sourceBlock: sourceBlocks[1],
-      sourceBlocks,
       sourceSource,
       targetPosition: {
         block: targetBlocks[0],
         kind: "sibling-above",
       },
       targetSource,
-      targetSyntaxProfile: defaultCtnSyntaxProfile,
     });
 
     expect(result).toEqual({
@@ -70,14 +66,12 @@ describe("note block migration", () => {
     const targetBlocks = parseBlocks(targetSource);
     const result = moveNoteBlock({
       sourceBlock: sourceBlocks[1],
-      sourceBlocks,
       sourceSource,
       targetPosition: {
         block: targetBlocks[0],
         kind: "sibling-below",
       },
       targetSource,
-      targetSyntaxProfile: defaultCtnSyntaxProfile,
     });
 
     expect(result).toEqual({
@@ -95,11 +89,9 @@ describe("note block migration", () => {
     expect(
       moveNoteBlock({
         sourceBlock: sourceBlocks[0],
-        sourceBlocks,
         sourceSource,
         targetPosition: { kind: "end" },
         targetSource: "",
-        targetSyntaxProfile: defaultCtnSyntaxProfile,
       }),
     ).toEqual({
       nextSourceSource: "",
@@ -108,24 +100,4 @@ describe("note block migration", () => {
     });
   });
 
-  it("rejects target syntax that does not support moved markers", () => {
-    const sourceSource = "Root\n    : Definition\n        - Component";
-    const sourceBlocks = parseBlocks(sourceSource);
-    const result = moveNoteBlock({
-      sourceBlock: sourceBlocks[1],
-      sourceBlocks,
-      sourceSource,
-      targetPosition: { kind: "end" },
-      targetSource: "Target",
-      targetSyntaxProfile: {
-        markerRules: [{ marker: "```" }],
-      },
-    });
-
-    expect(result).toEqual({
-      message: "目标笔记语法不支持 marker: :, -。",
-      missingMarkers: [":", "-"],
-      status: "incompatible-target-syntax",
-    });
-  });
 });

@@ -7,15 +7,14 @@ import { resolveParsedNoteView } from "../../src/workspace/parsedNoteView";
 const timestamp = "2026-06-08T00:00:00.000Z";
 
 describe("resolveParsedNoteView", () => {
-  it("parses notes with their selected syntax profile", () => {
+  it("parses notes with the workspace syntax profile", () => {
     const note = createNoteRecord(
       "note-first",
       "概念\n    : 定义",
       timestamp,
-      defaultCtnSyntaxProfile,
     );
     const workspace = {
-      ...createInitialWorkspace([defaultCtnSyntaxProfile]),
+      ...createInitialWorkspace(defaultCtnSyntaxProfile),
       notes: [note],
       activeNoteId: note.id,
     };
@@ -28,9 +27,9 @@ describe("resolveParsedNoteView", () => {
     ]);
   });
 
-  it("parses an empty document with the workspace default syntax without an active note", () => {
+  it("parses an empty document with the workspace syntax without an active note", () => {
     const result = resolveParsedNoteView(
-      createInitialWorkspace([defaultCtnSyntaxProfile]),
+      createInitialWorkspace(defaultCtnSyntaxProfile),
       null,
     );
 
@@ -41,35 +40,15 @@ describe("resolveParsedNoteView", () => {
     });
   });
 
-  it("reports missing note syntax profiles", () => {
-    const note = {
-      ...createNoteRecord("note-first", "概念", timestamp, defaultCtnSyntaxProfile),
-      syntaxProfileId: "missing",
-      syntaxVersion: 99,
-    };
-    const workspace = {
-      ...createInitialWorkspace(),
-      defaultSyntaxProfileId: defaultCtnSyntaxProfile.id,
-      notes: [note],
-      syntaxProfiles: [defaultCtnSyntaxProfile],
-    };
-
-    expect(resolveParsedNoteView(workspace, note)).toMatchObject({
-      message: "笔记引用的语法 missing@99 不存在。",
-      status: "missing-profile",
-    });
-  });
-
-  it("reports invalid profile shape separately from missing profiles", () => {
+  it("reports invalid workspace profile shape", () => {
     const invalidProfile = {
       ...defaultCtnSyntaxProfile,
       inlineRules: undefined,
     } as unknown as CtnSyntaxProfile;
-    const note = createNoteRecord("note-first", "概念", timestamp, invalidProfile);
+    const note = createNoteRecord("note-first", "概念", timestamp);
     const workspace = {
-      ...createInitialWorkspace([invalidProfile]),
+      ...createInitialWorkspace(invalidProfile),
       notes: [note],
-      syntaxProfiles: [invalidProfile],
     };
 
     expect(resolveParsedNoteView(workspace, note)).toMatchObject({

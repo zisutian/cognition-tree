@@ -15,15 +15,12 @@ function createWorkspace() {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: "note-test",
-    defaultSyntaxProfileId: "ctn-default",
-    syntaxProfiles: [defaultSyntaxProfile],
+    syntaxProfile: defaultSyntaxProfile,
     notes: [
       {
         id: "note-test",
         title: "测试笔记",
         source: "测试笔记\n    : 文件保存",
-        syntaxProfileId: "ctn-default",
-        syntaxVersion: 1,
         createdAt: "2026-05-25T00:00:00.000Z",
         updatedAt: "2026-05-25T00:00:00.000Z",
       },
@@ -54,15 +51,12 @@ function createManifest() {
 
   return {
     activeNoteId: workspace.activeNoteId,
-    defaultSyntaxProfileId: workspace.defaultSyntaxProfileId,
     id: workspace.id,
     name: workspace.name,
     notes: workspace.notes.map((note) => ({
       createdAt: note.createdAt,
       fileName: `${note.id}.ctn`,
       id: note.id,
-      syntaxProfileId: note.syntaxProfileId,
-      syntaxVersion: note.syntaxVersion,
       title: note.title,
       updatedAt: note.updatedAt,
     })),
@@ -88,6 +82,20 @@ async function withTempStore(testFn) {
   }
 }
 
+const customSyntaxSource = `id = "ctn-custom"
+name = "自定义语法"
+version = 1
+spaceIndentUnit = 4
+inlineRules = []
+
+[[markers]]
+marker = "!"
+type = "component"
+label = "风险"
+role = "normal"
+tone = "red"
+`;
+
 describe("WorkspaceFileStore", () => {
   it("saves notes as .ctn files and loads workspace manifests", async () => {
     await withTempStore(async (store, rootDir) => {
@@ -99,13 +107,12 @@ describe("WorkspaceFileStore", () => {
         await readFile(path.join(rootDir, "notes", "note-test.ctn"), "utf8"),
       ).toBe("测试笔记\n    : 文件保存");
       expect(
-        await readFile(path.join(rootDir, "syntax", "ctn-default.toml"), "utf8"),
+        await readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
       ).toBe(formatSyntaxProfileToml());
       await expect(
         readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
       ).resolves.toEqual({
         activeNoteId: "note-test",
-        defaultSyntaxProfileId: "ctn-default",
         id: "local-workspace",
         name: "本地笔记库",
         notes: [
@@ -113,8 +120,6 @@ describe("WorkspaceFileStore", () => {
             createdAt: "2026-05-25T00:00:00.000Z",
             fileName: "note-test.ctn",
             id: "note-test",
-            syntaxProfileId: "ctn-default",
-            syntaxVersion: 1,
             title: "测试笔记",
             updatedAt: "2026-05-25T00:00:00.000Z",
           },
@@ -147,32 +152,18 @@ describe("WorkspaceFileStore", () => {
     });
   });
 
-  it("loads syntax profiles from syntax TOML files", async () => {
-    await withTempStore(async (store, rootDir) => {
-      const workspace = createWorkspace();
+  it("reads and updates the workspace syntax file", async () => {
+    await withTempStore(async (store) => {
+      await expect(store.readSyntaxFile()).resolves.toMatchObject({
+        fileName: "workspace.toml",
+        profile: defaultSyntaxProfile,
+      });
 
-      await store.saveWorkspace(workspace);
-      await writeFile(
-        path.join(rootDir, "syntax", "custom.toml"),
-        `id = "ctn-custom"
-name = "自定义语法"
-version = 1
-spaceIndentUnit = 4
-inlineRules = []
+      await store.saveSyntaxFile(customSyntaxSource);
 
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-`,
-        "utf8",
-      );
-
-      expect((await store.loadWorkspace()).syntaxProfiles).toEqual([
-        defaultSyntaxProfile,
-        {
+      await expect(store.readSyntaxFile()).resolves.toMatchObject({
+        fileName: "workspace.toml",
+        profile: {
           id: "ctn-custom",
           inlineRules: [],
           markerRules: [
@@ -184,25 +175,25 @@ tone = "red"
               type: "component",
             },
           ],
-          name: "自定义语法",
-          spaceIndentUnit: 4,
           version: 1,
         },
-      ]);
+        source: customSyntaxSource,
+      });
+      expect((await store.loadWorkspace()).syntaxProfile.id).toBe("ctn-custom");
     });
   });
 
-  it("rejects invalid syntax profile files", async () => {
+  it("rejects invalid workspace syntax files", async () => {
     await withTempStore(async (store, rootDir) => {
       await store.saveWorkspace(createWorkspace());
       await writeFile(
-        path.join(rootDir, "syntax", "broken.toml"),
+        path.join(rootDir, "syntax", "workspace.toml"),
         "id = \"broken\"\n",
         "utf8",
       );
 
       await expect(store.loadWorkspace()).rejects.toThrow(
-        "Invalid syntax profile broken.toml",
+        "Invalid syntax profile workspace.toml",
       );
     });
   });
@@ -317,96 +308,5 @@ tone = "red"
           .rejects.toThrow("ENOENT");
       });
     }
-  });
-
-  it("creates, reads, and updates syntax profile files", async () => {
-    await withTempStore(async (store) => {
-      await store.saveSyntaxFile(
-        "custom.toml",
-        `id = "ctn-custom"
-name = "自定义语法"
-version = 1
-spaceIndentUnit = 4
-inlineRules = []
-
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-`,
-      );
-
-      await expect(store.readSyntaxFile("custom.toml")).resolves.toMatchObject({
-        fileName: "custom.toml",
-        profile: {
-          id: "ctn-custom",
-          inlineRules: [],
-          markerRules: [
-            {
-              label: "风险",
-              marker: "!",
-              role: "normal",
-              tone: "red",
-              type: "component",
-            },
-          ],
-          version: 1,
-        },
-      });
-      await expect(store.listSyntaxFiles()).resolves.toHaveLength(2);
-    });
-  });
-
-  it("rejects duplicate syntax profiles", async () => {
-    await withTempStore(async (store) => {
-      const source = `id = "ctn-duplicate"
-name = "重复语法"
-version = 1
-spaceIndentUnit = 4
-inlineRules = []
-
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-`;
-
-      await store.saveSyntaxFile("a.toml", source);
-
-      await expect(
-        store.saveSyntaxFile("b.toml", source),
-      ).rejects.toThrow("Duplicate syntax profile ctn-duplicate@1");
-    });
-  });
-
-  it("rejects deletion of referenced syntax profiles", async () => {
-    await withTempStore(async (store) => {
-      await store.saveWorkspace(createWorkspace());
-      await store.saveSyntaxFile(
-        "other.toml",
-        `id = "ctn-other"
-name = "其他语法"
-version = 1
-spaceIndentUnit = 4
-inlineRules = []
-
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-`,
-      );
-
-      await expect(store.deleteSyntaxFile("ctn-default.toml")).rejects.toThrow(
-        "Cannot delete repository default syntax profile",
-      );
-      await expect(store.deleteSyntaxFile("other.toml")).resolves.toBeUndefined();
-    });
   });
 });

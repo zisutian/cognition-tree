@@ -9,8 +9,6 @@ export type NoteRecord = {
   id: NoteId;
   title: string;
   source: string;
-  syntaxProfileId: string;
-  syntaxVersion: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -32,8 +30,7 @@ export type NoteWorkspace = {
   id: string;
   name: string;
   activeNoteId: NoteId | null;
-  defaultSyntaxProfileId: string;
-  syntaxProfiles: CtnSyntaxProfile[];
+  syntaxProfile: CtnSyntaxProfile;
   notes: NoteRecord[];
   tree: NoteTreeNode[];
 };
@@ -49,34 +46,22 @@ export function createNoteRecord(
   id: NoteId,
   source: string,
   timestamp: string,
-  syntaxProfile: CtnSyntaxProfile,
 ): NoteRecord {
   return {
     id,
     title: inferNoteTitle(source),
     source,
-    syntaxProfileId: syntaxProfile.id,
-    syntaxVersion: syntaxProfile.version,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
 }
 
-export function createInitialWorkspace(syntaxProfiles: CtnSyntaxProfile[] = []) {
-  return createWorkspaceWithSyntaxProfiles(syntaxProfiles);
-}
-
-export function createWorkspaceWithSyntaxProfiles(
-  syntaxProfiles: CtnSyntaxProfile[],
-) {
-  const defaultSyntaxProfile = syntaxProfiles[0] ?? null;
-
+export function createInitialWorkspace(syntaxProfile: CtnSyntaxProfile) {
   return {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    defaultSyntaxProfileId: defaultSyntaxProfile?.id ?? "",
-    syntaxProfiles,
+    syntaxProfile,
     notes: [],
     tree: [
       {

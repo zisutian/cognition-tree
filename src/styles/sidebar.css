@@ -170,11 +170,6 @@
   line-height: 1.4;
 }
 
-.syntax-delete-button {
-  justify-content: center;
-  width: 100%;
-}
-
 .syntax-file-list {
   display: grid;
   gap: 3px;

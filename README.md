@@ -23,9 +23,9 @@
 
     workspace.json
     notes/*.ctn
-    syntax/*.toml
+    syntax/workspace.toml
 
-语法文件使用 TOML。当前支持行首 marker、行内规则和受控高亮 tone；块 `type` 是可扩展语义 ID，解析行为由 `role` 控制。
+每个仓库使用一份 TOML 语法文件。当前支持行首 marker、行内规则和受控高亮 tone；块 `type` 是可扩展语义 ID，解析行为由 `role` 控制。
 
 ## 运行环境
 
@@ -38,7 +38,7 @@
 数据保存位置：
 
     笔记数据保存在本机文件仓库目录。
-    后端读写 workspace.json、notes/*.ctn 和 syntax/*.toml。
+    后端读写 workspace.json、notes/*.ctn 和 syntax/workspace.toml。
     浏览器只作为界面入口，不作为长期数据存放位置。
 
 当前限制：

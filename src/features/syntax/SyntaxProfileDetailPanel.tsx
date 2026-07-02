@@ -1,4 +1,4 @@
-import type { SyntaxProfileFile } from "../../storage/workspaceRepository";
+import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
 import { parseSyntaxProfileToml } from "../../syntax/profileToml";
 
 export type WorkspaceFeedback = {
@@ -9,15 +9,15 @@ export type WorkspaceFeedback = {
 type SyntaxProfileDetailPanelProps = {
   draftSource: string;
   feedback: WorkspaceFeedback | null;
-  selectedFile: SyntaxProfileFile | null;
+  syntaxFile: WorkspaceSyntaxFile;
 };
 
 export function SyntaxProfileDetailPanel({
   draftSource,
   feedback,
-  selectedFile,
+  syntaxFile,
 }: SyntaxProfileDetailPanelProps) {
-  const parsedDraft = selectedFile ? parseSyntaxProfileToml(draftSource) : null;
+  const parsedDraft = parseSyntaxProfileToml(draftSource);
   const draftProfile = parsedDraft?.profile ?? null;
   const diagnostics = parsedDraft?.diagnostics ?? [];
 
@@ -29,6 +29,7 @@ export function SyntaxProfileDetailPanel({
           <h2>语法</h2>
         </div>
         <div className="stats compact-stats">
+          <span>{syntaxFile.fileName}</span>
           <span>{diagnostics.length} 诊断</span>
         </div>
       </header>

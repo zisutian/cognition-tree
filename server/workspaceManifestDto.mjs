@@ -2,19 +2,16 @@
 
 const rootManifestFields = new Set([
   "activeNoteId",
-  "defaultSyntaxProfileId",
   "id",
   "name",
   "notes",
   "tree",
 ]);
-const rootWorkspaceFields = new Set([...rootManifestFields, "syntaxProfiles"]);
+const rootWorkspaceFields = new Set([...rootManifestFields, "syntaxProfile"]);
 const manifestNoteFields = new Set([
   "createdAt",
   "fileName",
   "id",
-  "syntaxProfileId",
-  "syntaxVersion",
   "title",
   "updatedAt",
 ]);
@@ -22,8 +19,6 @@ const workspaceNoteFields = new Set([
   "createdAt",
   "id",
   "source",
-  "syntaxProfileId",
-  "syntaxVersion",
   "title",
   "updatedAt",
 ]);
@@ -102,15 +97,15 @@ function readRequiredStringOrNull(value, key, path) {
   return value[key];
 }
 
-function readRequiredPositiveInteger(value, key, path) {
+function readRequiredObject(value, key, path) {
   const fieldPath = formatPath(path, key);
 
   if (!(key in value)) {
     throw new Error(`Invalid workspace DTO at ${fieldPath}: missing field`);
   }
 
-  if (!Number.isInteger(value[key]) || value[key] < 1) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected positive integer`);
+  if (!isRecord(value[key])) {
+    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected object`);
   }
 
   return value[key];
@@ -169,8 +164,6 @@ function validateManifestNote(note, index, noteIds) {
   assertUnique(id, noteIds, `${path}.id`, "note id");
   assertNoteFileName(fileName, `${path}.fileName`);
   readRequiredString(note, "title", path);
-  readRequiredString(note, "syntaxProfileId", path);
-  readRequiredPositiveInteger(note, "syntaxVersion", path);
   readRequiredString(note, "createdAt", path);
   readRequiredString(note, "updatedAt", path);
 }
@@ -187,8 +180,6 @@ function validateWorkspaceNote(note, index, noteIds) {
   assertSafeFileName(id, `${path}.id`);
   readRequiredString(note, "title", path);
   readRequiredStringValue(note, "source", path);
-  readRequiredString(note, "syntaxProfileId", path);
-  readRequiredPositiveInteger(note, "syntaxVersion", path);
   readRequiredString(note, "createdAt", path);
   readRequiredString(note, "updatedAt", path);
 }
@@ -231,7 +222,6 @@ function validateWorkspaceRoot(value, supportedFields) {
   assertSupportedFields(value, supportedFields, "$");
 
   const activeNoteId = readRequiredStringOrNull(value, "activeNoteId", "$");
-  readRequiredString(value, "defaultSyntaxProfileId", "$");
   readRequiredString(value, "id", "$");
   readRequiredString(value, "name", "$");
 
@@ -274,13 +264,7 @@ export function assertWorkspacePayloadDto(workspace) {
   );
   const noteIds = new Set();
 
-  if (!("syntaxProfiles" in workspace)) {
-    throw new Error("Invalid workspace DTO at $.syntaxProfiles: missing field");
-  }
-
-  if (!Array.isArray(workspace.syntaxProfiles)) {
-    throw new Error("Invalid workspace DTO at $.syntaxProfiles: expected array");
-  }
+  readRequiredObject(workspace, "syntaxProfile", "$");
 
   notes.forEach((note, index) => {
     validateWorkspaceNote(note, index, noteIds);

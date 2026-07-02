@@ -1,58 +1,54 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   createInitialWorkspace,
-  createWorkspaceWithSyntaxProfiles,
   type NoteWorkspace,
 } from "../domain/notes";
 import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
-import { formatSyntaxProfileToml } from "../syntax/profileToml";
-import type { SyntaxProfileFile } from "../storage/workspaceRepository";
+import type { WorkspaceSyntaxFile } from "../storage/workspaceRepository";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
 
 type UseRepositorySessionResult = {
   canChangeRepositoryPath: boolean;
   changeRepositoryPath: (path: string) => Promise<void>;
-  createSyntaxFile: (fileName: string) => Promise<void>;
-  deleteSyntaxFile: (fileName: string) => Promise<void>;
   isWorkspaceLoaded: boolean;
   reloadWorkspace: () => Promise<void>;
   repositoryPath: string;
   setWorkspace: Dispatch<SetStateAction<NoteWorkspace>>;
   storageLabel: string;
-  syntaxFiles: SyntaxProfileFile[];
-  updateSyntaxFile: (fileName: string, source: string) => Promise<void>;
+  syntaxFile: WorkspaceSyntaxFile;
+  updateSyntaxFile: (source: string) => Promise<void>;
   workspace: NoteWorkspace;
   workspaceErrorMessage: string;
 };
 
-function applySyntaxFilesToWorkspace(
+function applySyntaxFileToWorkspace(
   workspace: NoteWorkspace | null,
-  syntaxFiles: SyntaxProfileFile[],
+  syntaxFile: WorkspaceSyntaxFile,
 ) {
-  const syntaxProfiles = syntaxFiles.map((file) => file.profile);
-
   if (!workspace) {
-    return createWorkspaceWithSyntaxProfiles(syntaxProfiles);
+    return createInitialWorkspace(syntaxFile.profile);
   }
 
   return {
     ...workspace,
-    syntaxProfiles,
+    syntaxProfile: syntaxFile.profile,
   };
 }
 
-function createSyntaxTemplateSource(fileName: string) {
-  const id =
-    fileName
-      .replace(/\.toml$/i, "")
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]+/g, "-") || "ctn-custom";
+function assertWorkspaceSyntaxFile(value: unknown): WorkspaceSyntaxFile {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    typeof (value as Partial<WorkspaceSyntaxFile>).fileName !== "string" ||
+    typeof (value as Partial<WorkspaceSyntaxFile>).source !== "string" ||
+    typeof (value as Partial<WorkspaceSyntaxFile>).profile !== "object" ||
+    (value as Partial<WorkspaceSyntaxFile>).profile === null
+  ) {
+    throw new Error("仓库语法响应格式无效。");
+  }
 
-  return formatSyntaxProfileToml({
-    ...defaultCtnSyntaxProfile,
-    id,
-    name: id,
-  });
+  return value as WorkspaceSyntaxFile;
 }
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
@@ -62,12 +58,16 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 export function useRepositorySession(): UseRepositorySessionResult {
   const repository = useMemo(() => createRuntimeWorkspaceRepository(), []);
   const [workspace, setWorkspace] = useState<NoteWorkspace>(() => {
-    return createInitialWorkspace([defaultCtnSyntaxProfile]);
+    return createInitialWorkspace(defaultCtnSyntaxProfile);
   });
   const [isWorkspaceLoaded, setIsWorkspaceLoaded] = useState(false);
   const [workspaceErrorMessage, setWorkspaceErrorMessage] = useState("");
   const [repositoryPath, setRepositoryPath] = useState("");
-  const [syntaxFiles, setSyntaxFiles] = useState<SyntaxProfileFile[]>([]);
+  const [syntaxFile, setSyntaxFile] = useState<WorkspaceSyntaxFile>({
+    fileName: "workspace.toml",
+    profile: defaultCtnSyntaxProfile,
+    source: "",
+  });
 
   useEffect(() => {
     let isActive = true;
@@ -75,17 +75,19 @@ export function useRepositorySession(): UseRepositorySessionResult {
     void Promise.all([
       repository.loadWorkspace(),
       repository.getRepositoryInfo(),
-      repository.listSyntaxFiles(),
+      repository.readSyntaxFile(),
     ])
-      .then(([storedWorkspace, repositoryInfo, storedSyntaxFiles]) => {
+      .then(([storedWorkspace, repositoryInfo, storedSyntaxFile]) => {
         if (!isActive) {
           return;
         }
 
+        const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
+
         setRepositoryPath(repositoryInfo.path);
-        setSyntaxFiles(storedSyntaxFiles);
+        setSyntaxFile(nextSyntaxFile);
         setWorkspace(
-          applySyntaxFilesToWorkspace(storedWorkspace, storedSyntaxFiles),
+          applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile),
         );
         setWorkspaceErrorMessage("");
         setIsWorkspaceLoaded(true);
@@ -117,17 +119,19 @@ export function useRepositorySession(): UseRepositorySessionResult {
     setWorkspaceErrorMessage("");
 
     try {
-      const [storedWorkspace, repositoryInfo, storedSyntaxFiles] =
+      const [storedWorkspace, repositoryInfo, storedSyntaxFile] =
         await Promise.all([
           repository.loadWorkspace(),
           repository.getRepositoryInfo(),
-          repository.listSyntaxFiles(),
+          repository.readSyntaxFile(),
         ]);
 
       setRepositoryPath(repositoryInfo.path);
-      setSyntaxFiles(storedSyntaxFiles);
+      const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
+
+      setSyntaxFile(nextSyntaxFile);
       setWorkspace(
-        applySyntaxFilesToWorkspace(storedWorkspace, storedSyntaxFiles),
+        applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile),
       );
       setIsWorkspaceLoaded(true);
     } catch (error) {
@@ -136,13 +140,15 @@ export function useRepositorySession(): UseRepositorySessionResult {
   };
 
   const refreshSyntaxState = async () => {
-    const [storedWorkspace, storedSyntaxFiles] = await Promise.all([
+    const [storedWorkspace, storedSyntaxFile] = await Promise.all([
       repository.loadWorkspace(),
-      repository.listSyntaxFiles(),
+      repository.readSyntaxFile(),
     ]);
 
-    setSyntaxFiles(storedSyntaxFiles);
-    setWorkspace(applySyntaxFilesToWorkspace(storedWorkspace, storedSyntaxFiles));
+    const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
+
+    setSyntaxFile(nextSyntaxFile);
+    setWorkspace(applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile));
   };
 
   const changeRepositoryPath = async (path: string) => {
@@ -158,54 +164,35 @@ export function useRepositorySession(): UseRepositorySessionResult {
 
     setIsWorkspaceLoaded(false);
 
-    const [storedWorkspace, repositoryInfo, storedSyntaxFiles] = await Promise.all([
+    const [storedWorkspace, repositoryInfo, storedSyntaxFile] = await Promise.all([
       repository.setRepositoryPath(nextPath),
       repository.getRepositoryInfo(),
-      repository.listSyntaxFiles(),
+      repository.readSyntaxFile(),
     ]);
 
     setRepositoryPath(repositoryInfo.path);
-    setSyntaxFiles(storedSyntaxFiles);
-    setWorkspace(applySyntaxFilesToWorkspace(storedWorkspace, storedSyntaxFiles));
+    const nextSyntaxFile = assertWorkspaceSyntaxFile(storedSyntaxFile);
+
+    setSyntaxFile(nextSyntaxFile);
+    setWorkspace(applySyntaxFileToWorkspace(storedWorkspace, nextSyntaxFile));
     setWorkspaceErrorMessage("");
     setIsWorkspaceLoaded(true);
   };
 
-  const createSyntaxFile = async (fileName: string) => {
-    const nextFileName = fileName.trim();
-
-    if (!nextFileName) {
-      return;
-    }
-
-    await repository.saveSyntaxFile(
-      nextFileName,
-      createSyntaxTemplateSource(nextFileName),
-    );
-    await refreshSyntaxState();
-  };
-
-  const updateSyntaxFile = async (fileName: string, source: string) => {
-    await repository.saveSyntaxFile(fileName, source);
-    await refreshSyntaxState();
-  };
-
-  const deleteSyntaxFile = async (fileName: string) => {
-    await repository.deleteSyntaxFile(fileName);
+  const updateSyntaxFile = async (source: string) => {
+    await repository.saveSyntaxFile(source);
     await refreshSyntaxState();
   };
 
   return {
     canChangeRepositoryPath: Boolean(repository.canChangeRepositoryPath),
     changeRepositoryPath,
-    createSyntaxFile,
-    deleteSyntaxFile,
     isWorkspaceLoaded,
     reloadWorkspace,
     repositoryPath,
     setWorkspace,
     storageLabel: repository.label,
-    syntaxFiles,
+    syntaxFile,
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,

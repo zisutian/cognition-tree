@@ -4,8 +4,7 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../domain/notes";
-import type { SyntaxProfileFile } from "../storage/workspaceRepository";
-import type { CtnSyntaxProfile } from "../syntax/types";
+import type { WorkspaceSyntaxFile } from "../storage/workspaceRepository";
 import type { NoteReferenceGraph } from "../workspace/noteReferenceGraph";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";
@@ -25,16 +24,12 @@ type WorkspaceSidebarProps = {
   referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
   storageLabel: string;
-  selectedSyntaxFileName: string;
-  syntaxProfiles: CtnSyntaxProfile[];
-  syntaxFiles: SyntaxProfileFile[];
+  syntaxFile: WorkspaceSyntaxFile;
   canChangeRepositoryPath: boolean;
   onActivityChange: (activityId: SidebarActivityId) => void;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
-  onCreateSyntaxFile: (fileName: string) => void;
-  onDeleteSyntaxFile: (fileName: string) => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
@@ -42,7 +37,6 @@ type WorkspaceSidebarProps = {
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
-  onSelectSyntaxFile: (fileName: string) => void;
 };
 
 export function WorkspaceSidebar({
@@ -54,16 +48,12 @@ export function WorkspaceSidebar({
   referenceGraph,
   repositoryPath,
   storageLabel,
-  selectedSyntaxFileName,
-  syntaxProfiles,
-  syntaxFiles,
+  syntaxFile,
   canChangeRepositoryPath,
   onActivityChange,
   onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
-  onCreateSyntaxFile,
-  onDeleteSyntaxFile,
   onDeleteFolder,
   onDeleteNote,
   onMoveNote,
@@ -71,7 +61,6 @@ export function WorkspaceSidebar({
   onRenameFolder,
   onSelectFolder,
   onSelectNote,
-  onSelectSyntaxFile,
 }: WorkspaceSidebarProps) {
   const activeActivityItem =
     sidebarActivityItems.find((item) => item.id === activeActivityId) ??
@@ -98,15 +87,11 @@ export function WorkspaceSidebar({
           referenceGraph={referenceGraph}
           repositoryPath={repositoryPath}
           storageLabel={storageLabel}
-          selectedSyntaxFileName={selectedSyntaxFileName}
-          syntaxProfiles={syntaxProfiles}
-          syntaxFiles={syntaxFiles}
+          syntaxFile={syntaxFile}
           canChangeRepositoryPath={canChangeRepositoryPath}
           onChangeRepositoryPath={onChangeRepositoryPath}
           onCreateFolder={onCreateFolder}
           onCreateNote={onCreateNote}
-          onCreateSyntaxFile={onCreateSyntaxFile}
-          onDeleteSyntaxFile={onDeleteSyntaxFile}
           onDeleteFolder={onDeleteFolder}
           onDeleteNote={onDeleteNote}
           onMoveNote={onMoveNote}
@@ -114,7 +99,6 @@ export function WorkspaceSidebar({
           onRenameFolder={onRenameFolder}
           onSelectFolder={onSelectFolder}
           onSelectNote={onSelectNote}
-          onSelectSyntaxFile={onSelectSyntaxFile}
         />
       </section>
     </aside>

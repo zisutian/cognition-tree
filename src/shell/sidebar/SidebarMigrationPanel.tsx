@@ -1,11 +1,9 @@
 type SidebarMigrationPanelProps = {
   notesCount: number;
-  syntaxProfilesCount: number;
 };
 
 export function SidebarMigrationPanel({
   notesCount,
-  syntaxProfilesCount,
 }: SidebarMigrationPanelProps) {
   return (
     <div className="side-panel-body">
@@ -18,7 +16,7 @@ export function SidebarMigrationPanel({
           </div>
           <div className="side-metric">
             <span>语法</span>
-            <strong>{syntaxProfilesCount}</strong>
+            <strong>1</strong>
           </div>
         </div>
       </section>

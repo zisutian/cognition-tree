@@ -2,51 +2,34 @@ import type { CtnDocument } from "../../ctn/parseOutline";
 import { CtnEditor, type CtnEditorFocusTarget } from "../../editor/CtnEditor";
 import type { CtnSyntaxProfile } from "../../syntax/types";
 
-function syntaxProfileOptionValue(profile: CtnSyntaxProfile) {
-  return JSON.stringify([profile.id, profile.version]);
-}
-
 export function NoteEditorPanel({
   documentText,
   focusTarget,
   hasActiveNote,
   parsedDocument,
   syntaxProfile,
+  syntaxProfileName,
   syntaxIssueMessage,
-  syntaxProfiles,
   title,
   workspaceErrorMessage,
   onCreateNote,
   onDocumentTextChange,
-  onSyntaxProfileChange,
 }: {
   documentText: string;
   focusTarget: CtnEditorFocusTarget | null;
   hasActiveNote: boolean;
   parsedDocument: CtnDocument;
   syntaxProfile: CtnSyntaxProfile | null;
+  syntaxProfileName: string;
   syntaxIssueMessage: string | null;
-  syntaxProfiles: CtnSyntaxProfile[];
   title: string;
   workspaceErrorMessage: string;
   onCreateNote: () => void;
   onDocumentTextChange: (source: string) => void;
-  onSyntaxProfileChange: (syntaxProfileId: string, syntaxVersion: number) => void;
 }) {
   const lineCount = documentText.split("\n").length;
   const totalBlocks = parsedDocument.blocks.length;
   const outline = parsedDocument.roots;
-  const selectedSyntaxProfileValue = syntaxProfile
-    ? syntaxProfileOptionValue(syntaxProfile)
-    : "";
-  const changeSyntaxProfile = (value: string) => {
-    const [syntaxProfileId, syntaxVersion] = JSON.parse(value) as [
-      string,
-      number,
-    ];
-
-    onSyntaxProfileChange(syntaxProfileId, syntaxVersion);
-  };
 
   return (
     <section className="editor-panel" aria-label="原文编辑">
@@ -60,27 +43,7 @@ export function NoteEditorPanel({
           <span>{totalBlocks} 个块</span>
           <span>{outline.length} 个根节点</span>
           <span>{parsedDocument.diagnostics.length} 个诊断</span>
-          {hasActiveNote ? (
-            <select
-              aria-label="笔记语法"
-              className="syntax-profile-select"
-              value={selectedSyntaxProfileValue}
-              onChange={(event) => changeSyntaxProfile(event.target.value)}
-            >
-              {!syntaxProfile ? (
-                <option value="" disabled>
-                  语法缺失
-                </option>
-              ) : null}
-              {syntaxProfiles.map((profile) => (
-                <option key={syntaxProfileOptionValue(profile)} value={syntaxProfileOptionValue(profile)}>
-                  {profile.name}@{profile.version}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span>{syntaxProfile?.name ?? "无语法"}</span>
-          )}
+          <span>{syntaxProfile?.name ?? syntaxProfileName}</span>
         </div>
       </header>
 

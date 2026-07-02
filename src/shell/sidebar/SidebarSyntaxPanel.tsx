@@ -1,87 +1,38 @@
-import { FilePlus, Trash2 } from "lucide-react";
-import type { SyntaxProfileFile } from "../../storage/workspaceRepository";
+import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
 
 type SidebarSyntaxPanelProps = {
-  selectedFileName: string;
-  syntaxFiles: SyntaxProfileFile[];
-  onCreateSyntaxFile: (fileName: string) => void;
-  onDeleteSyntaxFile: (fileName: string) => void;
-  onSelectSyntaxFile: (fileName: string) => void;
+  syntaxFile: WorkspaceSyntaxFile;
 };
 
 export function SidebarSyntaxPanel({
-  selectedFileName,
-  syntaxFiles,
-  onCreateSyntaxFile,
-  onDeleteSyntaxFile,
-  onSelectSyntaxFile,
+  syntaxFile,
 }: SidebarSyntaxPanelProps) {
-  const requestCreateSyntaxFile = () => {
-    const fileName = window.prompt("语法文件名", "ctn-custom.toml");
-
-    if (!fileName) {
-      return;
-    }
-
-    onCreateSyntaxFile(fileName);
-  };
-
-  const requestDeleteSyntaxFile = () => {
-    if (
-      !selectedFileName ||
-      !window.confirm(`删除语法文件「${selectedFileName}」？`)
-    ) {
-      return;
-    }
-
-    onDeleteSyntaxFile(selectedFileName);
-  };
-
   return (
     <div className="side-panel-body">
       <section className="side-section">
-        <div className="side-section-header">
-          <p className="side-section-title">语法文件</p>
-          <button
-            className="side-action-button"
-            onClick={requestCreateSyntaxFile}
-            type="button"
-          >
-            <FilePlus aria-hidden="true" size={13} strokeWidth={2} />
-            新建
-          </button>
-        </div>
+        <p className="side-section-title">仓库语法</p>
         <div className="syntax-file-list">
-          {syntaxFiles.map((file) => (
-            <button
-              className={
-                file.fileName === selectedFileName
-                  ? "syntax-file-entry active"
-                  : "syntax-file-entry"
-              }
-              key={file.fileName}
-              onClick={() => onSelectSyntaxFile(file.fileName)}
-              type="button"
-            >
-              <span>{file.profile.name}</span>
-              <code>
-                {file.profile.id}@{file.profile.version}
-              </code>
-            </button>
-          ))}
+          <div className="syntax-file-entry active">
+            <span>{syntaxFile.profile.name}</span>
+            <code>
+              {syntaxFile.profile.id}@{syntaxFile.profile.version}
+            </code>
+          </div>
         </div>
       </section>
 
       <section className="side-section">
-        <button
-          className="side-action-button syntax-delete-button"
-          disabled={!selectedFileName}
-          onClick={requestDeleteSyntaxFile}
-          type="button"
-        >
-          <Trash2 aria-hidden="true" size={13} strokeWidth={2} />
-          删除当前语法
-        </button>
+        <p className="side-section-title">规则数量</p>
+        <div className="side-metrics">
+          <div className="side-metric">
+            <span>行首</span>
+            <strong>{syntaxFile.profile.markerRules.length}</strong>
+          </div>
+          <div className="side-metric">
+            <span>行内</span>
+            <strong>{syntaxFile.profile.inlineRules.length}</strong>
+          </div>
+        </div>
       </section>
     </div>
   );

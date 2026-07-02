@@ -7,13 +7,13 @@ import {
 import type {
   WorkspaceRepository,
   RepositoryInfo,
-  SyntaxProfileFile,
+  WorkspaceSyntaxFile,
 } from "./workspaceRepository";
 
 const workspaceStorageKey = "cognition-tree.workspace";
 const repositoryLabelStorageKey = "cognition-tree.repository-label";
-const syntaxFilesStorageKey = "cognition-tree.syntax-files";
-const defaultSyntaxFileName = `${defaultCtnSyntaxProfile.id}.toml`;
+const syntaxFileStorageKey = "cognition-tree.syntax-file";
+const workspaceSyntaxFileName = "workspace.toml";
 
 function getRepositoryLabel() {
   return (
@@ -24,40 +24,53 @@ function getRepositoryLabel() {
 
 function loadStoredWorkspace() {
   const storedWorkspace = globalThis.localStorage?.getItem(workspaceStorageKey);
+  const syntaxFile = loadStoredSyntaxFile();
 
   if (!storedWorkspace) {
     return null;
   }
 
+  const workspace = JSON.parse(storedWorkspace) as NoteWorkspace;
+
   return {
-    ...(JSON.parse(storedWorkspace) as NoteWorkspace),
-    syntaxProfiles: loadStoredSyntaxFiles().map((file) => file.profile),
+    activeNoteId: workspace.activeNoteId,
+    id: workspace.id,
+    name: workspace.name,
+    notes: workspace.notes.map((note) => ({
+      createdAt: note.createdAt,
+      id: note.id,
+      source: note.source,
+      title: note.title,
+      updatedAt: note.updatedAt,
+    })),
+    syntaxProfile: syntaxFile.profile,
+    tree: workspace.tree,
   };
 }
 
-function createDefaultSyntaxProfileFile(): SyntaxProfileFile {
+function createDefaultSyntaxFile(): WorkspaceSyntaxFile {
   return {
-    fileName: defaultSyntaxFileName,
+    fileName: workspaceSyntaxFileName,
     profile: defaultCtnSyntaxProfile,
     source: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
   };
 }
 
-function loadStoredSyntaxFiles() {
-  const storedSyntaxFiles = globalThis.localStorage?.getItem(syntaxFilesStorageKey);
+function loadStoredSyntaxFile() {
+  const storedSyntaxFile = globalThis.localStorage?.getItem(syntaxFileStorageKey);
 
-  if (!storedSyntaxFiles) {
-    return [createDefaultSyntaxProfileFile()];
+  if (!storedSyntaxFile) {
+    return createDefaultSyntaxFile();
   }
 
-  return JSON.parse(storedSyntaxFiles) as SyntaxProfileFile[];
+  return parseWorkspaceSyntaxFile(workspaceSyntaxFileName, storedSyntaxFile);
 }
 
-function saveStoredSyntaxFiles(files: SyntaxProfileFile[]) {
-  globalThis.localStorage?.setItem(syntaxFilesStorageKey, JSON.stringify(files));
+function saveStoredSyntaxFile(source: string) {
+  globalThis.localStorage?.setItem(syntaxFileStorageKey, source);
 }
 
-function parseSyntaxProfileFile(fileName: string, source: string) {
+function parseWorkspaceSyntaxFile(fileName: string, source: string) {
   const result = parseSyntaxProfileToml(source);
 
   if (!result.profile) {
@@ -75,23 +88,6 @@ function parseSyntaxProfileFile(fileName: string, source: string) {
   };
 }
 
-function assertNoDuplicateSyntaxProfiles(files: SyntaxProfileFile[]) {
-  const profileKeys = new Map<string, string>();
-
-  for (const file of files) {
-    const key = `${file.profile.id}@${file.profile.version}`;
-    const existingFileName = profileKeys.get(key);
-
-    if (existingFileName) {
-      throw new Error(
-        `Duplicate syntax profile ${key}: ${existingFileName}, ${file.fileName}`,
-      );
-    }
-
-    profileKeys.set(key, file.fileName);
-  }
-}
-
 export function createBrowserWorkspaceRepository(): WorkspaceRepository {
   return {
     label: "浏览器本地存储",
@@ -107,72 +103,19 @@ export function createBrowserWorkspaceRepository(): WorkspaceRepository {
     },
     async clearWorkspace() {
       globalThis.localStorage?.removeItem(workspaceStorageKey);
-      globalThis.localStorage?.removeItem(syntaxFilesStorageKey);
+      globalThis.localStorage?.removeItem(syntaxFileStorageKey);
     },
     async getRepositoryInfo(): Promise<RepositoryInfo> {
       return {
         path: getRepositoryLabel(),
       };
     },
-    async listSyntaxFiles() {
-      const files = loadStoredSyntaxFiles();
-      assertNoDuplicateSyntaxProfiles(files);
-      return files;
+    async readSyntaxFile() {
+      return loadStoredSyntaxFile();
     },
-    async readSyntaxFile(fileName) {
-      const file = loadStoredSyntaxFiles().find(
-        (candidate) => candidate.fileName === fileName,
-      );
-
-      if (!file) {
-        throw new Error(`Syntax profile file not found: ${fileName}`);
-      }
-
-      return file;
-    },
-    async saveSyntaxFile(fileName, source) {
-      const nextFile = parseSyntaxProfileFile(fileName, source);
-      const files = loadStoredSyntaxFiles().filter(
-        (file) => file.fileName !== fileName,
-      );
-      const nextFiles = [...files, nextFile].sort((left, right) =>
-        left.fileName.localeCompare(right.fileName),
-      );
-
-      assertNoDuplicateSyntaxProfiles(nextFiles);
-      saveStoredSyntaxFiles(nextFiles);
-    },
-    async deleteSyntaxFile(fileName) {
-      const files = loadStoredSyntaxFiles();
-      const target = files.find((file) => file.fileName === fileName);
-
-      if (!target) {
-        throw new Error(`Syntax profile file not found: ${fileName}`);
-      }
-
-      if (files.length <= 1) {
-        throw new Error("Cannot delete the last syntax profile file");
-      }
-
-      const workspace = loadStoredWorkspace();
-
-      if (workspace?.defaultSyntaxProfileId === target.profile.id) {
-        throw new Error(
-          `Cannot delete repository default syntax profile: ${target.profile.id}`,
-        );
-      }
-
-      const referencingNote = workspace?.notes.find(
-        (note) =>
-          note.syntaxProfileId === target.profile.id &&
-          note.syntaxVersion === target.profile.version,
-      );
-
-      if (referencingNote) {
-        throw new Error(`Cannot delete syntax profile used by note: ${referencingNote.id}`);
-      }
-
-      saveStoredSyntaxFiles(files.filter((file) => file.fileName !== fileName));
+    async saveSyntaxFile(source) {
+      parseWorkspaceSyntaxFile(workspaceSyntaxFileName, source);
+      saveStoredSyntaxFile(source);
     },
     async setRepositoryPath(path) {
       globalThis.localStorage?.setItem(repositoryLabelStorageKey, path);

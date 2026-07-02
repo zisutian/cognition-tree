@@ -13,7 +13,7 @@ import {
   type NoteWorkspace,
 } from "../domain/notes";
 import type { CtnSyntaxProfile } from "../syntax/types";
-import { resolveNoteSyntaxProfile } from "./syntaxResolution";
+import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export type WorkspaceBlockMigrationTargetPositionRequest =
   | {
@@ -50,48 +50,34 @@ export type WorkspaceBlockMigrationPreviewResult =
   | {
       details?: never;
       message: string;
-      missingMarkers?: never;
       status: "ready";
     }
   | {
       details?: string[];
       message: string;
-      missingMarkers?: string[];
       status: "blocked" | "idle";
     };
 
 export type MoveWorkspaceBlockResult =
   | {
       message: string;
-      missingMarkers?: never;
       status: "moved";
       targetNoteId: NoteId;
       workspace: NoteWorkspace;
     }
   | {
       message: string;
-      missingMarkers?: string[];
       status: "failed";
     };
-
-type MoveWorkspaceBlockFailureResult = Extract<
-  MoveWorkspaceBlockResult,
-  { status: "failed" }
->;
 
 type ParsedMigrationNote = {
   blocks: CtnBlock[];
   note: NoteRecord;
-  profile: CtnSyntaxProfile;
 };
 
-function createFailure(
-  message: string,
-  missingMarkers?: string[],
-): MoveWorkspaceBlockResult {
+function createFailure(message: string): MoveWorkspaceBlockResult {
   return {
     message,
-    missingMarkers,
     status: "failed",
   };
 }
@@ -101,28 +87,15 @@ function findNote(workspace: NoteWorkspace, noteId: NoteId) {
 }
 
 function resolveMigrationNote(
-  workspace: NoteWorkspace,
+  profile: CtnSyntaxProfile,
   note: NoteRecord,
-): ParsedMigrationNote | MoveWorkspaceBlockResult {
-  const syntaxResolution = resolveNoteSyntaxProfile(workspace, note);
-
-  if (syntaxResolution.status !== "resolved") {
-    return createFailure(syntaxResolution.message);
-  }
-
+): ParsedMigrationNote {
   return {
     blocks: parseCtnDocument(note.source, {
-      syntaxProfile: syntaxResolution.profile,
+      syntaxProfile: profile,
     }).blocks,
     note,
-    profile: syntaxResolution.profile,
   };
-}
-
-function isMoveFailure(
-  result: ParsedMigrationNote | MoveWorkspaceBlockResult,
-): result is MoveWorkspaceBlockResult {
-  return "status" in result;
 }
 
 function resolveTargetPosition(
@@ -168,16 +141,14 @@ function resolveMigrationInput(
     return createFailure("第一版不支持同一笔记内移动块。");
   }
 
-  const sourceParsed = resolveMigrationNote(workspace, sourceNote);
-  const targetParsed = resolveMigrationNote(workspace, targetNote);
+  const syntaxResolution = resolveWorkspaceSyntaxProfile(workspace);
 
-  if (isMoveFailure(sourceParsed)) {
-    return sourceParsed;
+  if (syntaxResolution.status !== "resolved") {
+    return createFailure(syntaxResolution.message);
   }
 
-  if (isMoveFailure(targetParsed)) {
-    return targetParsed;
-  }
+  const sourceParsed = resolveMigrationNote(syntaxResolution.profile, sourceNote);
+  const targetParsed = resolveMigrationNote(syntaxResolution.profile, targetNote);
 
   const sourceBlock = sourceParsed.blocks.find(
     (block) => block.lineNumber === request.sourceBlockLineNumber,
@@ -204,16 +175,12 @@ function resolveMigrationInput(
   };
 }
 
-function mapPreviewFailure(
-  result: MoveWorkspaceBlockFailureResult,
-): WorkspaceBlockMigrationPreviewResult {
+function mapPreviewFailure(result: Extract<
+  MoveWorkspaceBlockResult,
+  { status: "failed" }
+>): WorkspaceBlockMigrationPreviewResult {
   return {
-    details: result.missingMarkers?.map((marker) => `缺失 marker: ${marker}`),
-    message:
-      result.missingMarkers && result.missingMarkers.length > 0
-        ? "目标笔记语法不兼容。"
-        : result.message,
-    missingMarkers: result.missingMarkers,
+    message: result.message,
     status: "blocked",
   };
 }
@@ -273,16 +240,10 @@ export function moveWorkspaceBlock(
 
   const result = moveNoteBlock({
     sourceBlock: migrationInput.sourceBlock,
-    sourceBlocks: migrationInput.sourceParsed.blocks,
     sourceSource: migrationInput.sourceParsed.note.source,
     targetPosition: migrationInput.targetPosition,
     targetSource: migrationInput.targetParsed.note.source,
-    targetSyntaxProfile: migrationInput.targetParsed.profile,
   });
-
-  if (result.status !== "moved") {
-    return createFailure(result.message, result.missingMarkers);
-  }
 
   const sourceNoteId = migrationInput.sourceParsed.note.id;
   const targetNoteId = migrationInput.targetParsed.note.id;

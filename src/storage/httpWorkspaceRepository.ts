@@ -2,7 +2,7 @@ import type { NoteWorkspace } from "../domain/notes";
 import type {
   WorkspaceRepository,
   RepositoryInfo,
-  SyntaxProfileFile,
+  WorkspaceSyntaxFile,
 } from "./workspaceRepository";
 
 type HttpWorkspaceRepositoryOptions = {
@@ -79,32 +79,11 @@ export function createHttpWorkspaceRepository({
     async getRepositoryInfo(): Promise<RepositoryInfo> {
       return requestJson<RepositoryInfo>(fetchFn, baseUrl, "/api/repository");
     },
-    async listSyntaxFiles() {
-      return requestJson<SyntaxProfileFile[]>(fetchFn, baseUrl, "/api/syntax");
+    async readSyntaxFile() {
+      return requestJson<WorkspaceSyntaxFile>(fetchFn, baseUrl, "/api/syntax");
     },
-    async readSyntaxFile(fileName) {
-      return requestJson<SyntaxProfileFile>(
-        fetchFn,
-        baseUrl,
-        `/api/syntax/${encodeURIComponent(fileName)}`,
-      );
-    },
-    async saveSyntaxFile(fileName, source) {
-      await sendJson(
-        fetchFn,
-        baseUrl,
-        `/api/syntax/${encodeURIComponent(fileName)}`,
-        "PUT",
-        { source },
-      );
-    },
-    async deleteSyntaxFile(fileName) {
-      await sendJson(
-        fetchFn,
-        baseUrl,
-        `/api/syntax/${encodeURIComponent(fileName)}`,
-        "DELETE",
-      );
+    async saveSyntaxFile(source) {
+      await sendJson(fetchFn, baseUrl, "/api/syntax", "PUT", { source });
     },
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspace } from "../../src/domain/notes";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
+import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -17,7 +18,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 describe("createHttpWorkspaceRepository", () => {
   it("loads repository info and workspace through HTTP", async () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
@@ -54,7 +55,7 @@ describe("createHttpWorkspaceRepository", () => {
   });
 
   it("saves and clears workspaces through HTTP", async () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({

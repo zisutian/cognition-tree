@@ -5,7 +5,7 @@ export type RepositoryInfo = {
   path: string;
 };
 
-export type SyntaxProfileFile = {
+export type WorkspaceSyntaxFile = {
   fileName: string;
   profile: CtnSyntaxProfile;
   source: string;
@@ -18,9 +18,7 @@ export type WorkspaceRepository = {
   saveWorkspace: (workspace: NoteWorkspace) => Promise<void>;
   clearWorkspace: () => Promise<void>;
   getRepositoryInfo: () => Promise<RepositoryInfo>;
-  listSyntaxFiles: () => Promise<SyntaxProfileFile[]>;
-  readSyntaxFile: (fileName: string) => Promise<SyntaxProfileFile>;
-  saveSyntaxFile: (fileName: string, source: string) => Promise<void>;
-  deleteSyntaxFile: (fileName: string) => Promise<void>;
+  readSyntaxFile: () => Promise<WorkspaceSyntaxFile>;
+  saveSyntaxFile: (source: string) => Promise<void>;
   setRepositoryPath?: (path: string) => Promise<NoteWorkspace | null>;
 };

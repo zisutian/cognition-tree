@@ -3,7 +3,6 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
-  defaultSyntaxProfile,
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
 } from "./syntaxProfileToml.mjs";
@@ -15,7 +14,7 @@ import {
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
 const syntaxDirName = "syntax";
-const defaultSyntaxFileName = `${defaultSyntaxProfile.id}.toml`;
+const workspaceSyntaxFileName = "workspace.toml";
 const defaultFolderId = "folder-inbox";
 
 function assertSafeFileName(fileName, label) {
@@ -36,26 +35,12 @@ function noteFileName(noteId) {
   return `${noteId}.ctn`;
 }
 
-function assertSafeSyntaxFileName(fileName) {
-  assertSafeFileName(fileName, "syntax file name");
-
-  if (!fileName.endsWith(".toml")) {
-    throw new Error(`Syntax file must use .toml: ${fileName}`);
-  }
-}
-
-function createEmptyWorkspace(syntaxProfiles) {
-  const defaultProfile =
-    syntaxProfiles.find((profile) => profile.id === defaultSyntaxProfile.id) ??
-    syntaxProfiles[0] ??
-    defaultSyntaxProfile;
-
+function createEmptyWorkspace(syntaxProfile) {
   return {
     id: "local-workspace",
     name: "本地笔记库",
     activeNoteId: null,
-    defaultSyntaxProfileId: defaultProfile.id,
-    syntaxProfiles,
+    syntaxProfile,
     notes: [],
     tree: [
       {
@@ -95,7 +80,7 @@ export class WorkspaceFileStore {
 
   async loadWorkspace() {
     await this.initialize();
-    const syntaxProfiles = await this.#readSyntaxProfiles();
+    const syntaxFile = await this.#readSyntaxFile();
 
     let manifest;
 
@@ -103,7 +88,7 @@ export class WorkspaceFileStore {
       manifest = await readJson(this.#manifestPath);
     } catch (error) {
       if (error?.code === "ENOENT") {
-        return createEmptyWorkspace(syntaxProfiles);
+        return createEmptyWorkspace(syntaxFile.profile);
       }
 
       throw error;
@@ -126,8 +111,6 @@ export class WorkspaceFileStore {
           id: note.id,
           title: note.title,
           source,
-          syntaxProfileId: note.syntaxProfileId,
-          syntaxVersion: note.syntaxVersion,
           createdAt: note.createdAt,
           updatedAt: note.updatedAt,
         });
@@ -144,8 +127,7 @@ export class WorkspaceFileStore {
       id: manifest.id,
       name: manifest.name,
       activeNoteId: manifest.activeNoteId,
-      defaultSyntaxProfileId: manifest.defaultSyntaxProfileId,
-      syntaxProfiles,
+      syntaxProfile: syntaxFile.profile,
       notes,
       tree: manifest.tree,
     };
@@ -160,7 +142,6 @@ export class WorkspaceFileStore {
       id: workspace.id,
       name: workspace.name,
       activeNoteId: workspace.activeNoteId,
-      defaultSyntaxProfileId: workspace.defaultSyntaxProfileId,
       notes: workspace.notes.map((note) => {
         const fileName = noteFileName(note.id);
 
@@ -170,8 +151,6 @@ export class WorkspaceFileStore {
           id: note.id,
           title: note.title,
           fileName,
-          syntaxProfileId: note.syntaxProfileId,
-          syntaxVersion: note.syntaxVersion,
           createdAt: note.createdAt,
           updatedAt: note.updatedAt,
         };
@@ -196,21 +175,14 @@ export class WorkspaceFileStore {
     await this.#ensureDefaultSyntaxProfile();
   }
 
-  async listSyntaxFiles() {
+  async readSyntaxFile() {
     await this.initialize();
 
-    return this.#readSyntaxProfileFiles();
+    return this.#readSyntaxFile();
   }
 
-  async readSyntaxFile(fileName) {
+  async saveSyntaxFile(source) {
     await this.initialize();
-
-    return this.#readSyntaxProfileFile(fileName);
-  }
-
-  async saveSyntaxFile(fileName, source) {
-    await this.initialize();
-    assertSafeSyntaxFileName(fileName);
 
     if (typeof source !== "string" || source.trim().length === 0) {
       throw new Error("Syntax profile source is empty");
@@ -219,140 +191,42 @@ export class WorkspaceFileStore {
     const parsed = parseSyntaxProfileToml(source);
 
     if (!parsed.profile) {
-      throw new Error(`Invalid syntax profile ${fileName}: ${formatSyntaxDiagnostics(parsed)}`);
+      throw new Error(`Invalid syntax profile ${workspaceSyntaxFileName}: ${formatSyntaxDiagnostics(parsed)}`);
     }
 
-    const existingFiles = await this.#readSyntaxProfileFiles({
-      excludeFileName: fileName,
-    });
-
-    this.#assertUniqueSyntaxProfiles([
-      ...existingFiles,
-      { fileName, profile: parsed.profile, source },
-    ]);
-
-    await writeFile(path.join(this.#syntaxDir, fileName), source, "utf8");
-  }
-
-  async deleteSyntaxFile(fileName) {
-    await this.initialize();
-
-    const files = await this.#readSyntaxProfileFiles();
-    const target = files.find((file) => file.fileName === fileName);
-
-    if (!target) {
-      throw new Error(`Syntax profile file not found: ${fileName}`);
-    }
-
-    if (files.length <= 1) {
-      throw new Error("Cannot delete the last syntax profile file");
-    }
-
-    const manifest = await this.#readManifestOrNull();
-
-    if (manifest?.defaultSyntaxProfileId === target.profile.id) {
-      throw new Error(`Cannot delete repository default syntax profile: ${target.profile.id}`);
-    }
-
-    const referencingNote = (manifest?.notes ?? []).find(
-      (note) =>
-        note.syntaxProfileId === target.profile.id &&
-        note.syntaxVersion === target.profile.version,
-    );
-
-    if (referencingNote) {
-      throw new Error(`Cannot delete syntax profile used by note: ${referencingNote.id}`);
-    }
-
-    await rm(path.join(this.#syntaxDir, target.fileName));
+    await writeFile(path.join(this.#syntaxDir, workspaceSyntaxFileName), source, "utf8");
   }
 
   async #ensureDefaultSyntaxProfile() {
-    const entries = await readdir(this.#syntaxDir, { withFileTypes: true });
-    const hasSyntaxProfile = entries.some(
-      (entry) => entry.isFile() && entry.name.endsWith(".toml"),
-    );
-
-    if (hasSyntaxProfile) {
+    try {
+      await readFile(path.join(this.#syntaxDir, workspaceSyntaxFileName), "utf8");
       return;
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
     }
 
     await writeFile(
-      path.join(this.#syntaxDir, defaultSyntaxFileName),
+      path.join(this.#syntaxDir, workspaceSyntaxFileName),
       formatSyntaxProfileToml(),
       "utf8",
     );
   }
 
-  async #readSyntaxProfiles() {
-    return (await this.#readSyntaxProfileFiles()).map((file) => file.profile);
-  }
-
-  async #readSyntaxProfileFiles({ excludeFileName } = {}) {
-    const entries = await readdir(this.#syntaxDir, { withFileTypes: true });
-    const syntaxFileNames = entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".toml"))
-      .map((entry) => entry.name)
-      .filter((fileName) => fileName !== excludeFileName)
-      .sort((left, right) => left.localeCompare(right));
-
-    if (syntaxFileNames.length === 0 && !excludeFileName) {
-      return [
-        {
-          fileName: defaultSyntaxFileName,
-          profile: defaultSyntaxProfile,
-          source: formatSyntaxProfileToml(),
-        },
-      ];
-    }
-
-    if (syntaxFileNames.length === 0) {
-      return [];
-    }
-
-    const files = [];
-
-    for (const fileName of syntaxFileNames) {
-      files.push(await this.#readSyntaxProfileFile(fileName));
-    }
-
-    this.#assertUniqueSyntaxProfiles(files);
-
-    return files;
-  }
-
-  async #readSyntaxProfileFile(fileName) {
-    assertSafeSyntaxFileName(fileName);
-
-    const source = await readFile(path.join(this.#syntaxDir, fileName), "utf8");
+  async #readSyntaxFile() {
+    const source = await readFile(path.join(this.#syntaxDir, workspaceSyntaxFileName), "utf8");
     const result = parseSyntaxProfileToml(source);
 
     if (!result.profile) {
-      throw new Error(`Invalid syntax profile ${fileName}: ${formatSyntaxDiagnostics(result)}`);
+      throw new Error(`Invalid syntax profile ${workspaceSyntaxFileName}: ${formatSyntaxDiagnostics(result)}`);
     }
 
     return {
-      fileName,
+      fileName: workspaceSyntaxFileName,
       profile: result.profile,
       source,
     };
-  }
-
-  #assertUniqueSyntaxProfiles(files) {
-    const profileKeys = new Map();
-
-    for (const file of files) {
-      const key = `${file.profile.id}@${file.profile.version}`;
-      const existingFileName = profileKeys.get(key);
-
-      if (existingFileName) {
-        throw new Error(
-          `Duplicate syntax profile ${key}: ${existingFileName}, ${file.fileName}`,
-        );
-      }
-
-      profileKeys.set(key, file.fileName);
-    }
   }
 
   async #removeStaleNoteFiles(expectedNoteFiles) {
@@ -386,22 +260,6 @@ export class WorkspaceFileStore {
 
   get #syntaxDir() {
     return path.join(this.#rootDir, syntaxDirName);
-  }
-
-  async #readManifestOrNull() {
-    try {
-      const manifest = await readJson(this.#manifestPath);
-
-      assertWorkspaceManifestDto(manifest);
-
-      return manifest;
-    } catch (error) {
-      if (error?.code === "ENOENT") {
-        return null;
-      }
-
-      throw error;
-    }
   }
 }
 

@@ -31,16 +31,6 @@
   outline: none;
 }
 
-.syntax-profile-select {
-  max-width: 180px;
-  min-height: 24px;
-  border: 1px solid #c5d0c8;
-  border-radius: 6px;
-  color: #20302d;
-  background: #ffffff;
-  font-size: 12px;
-}
-
 .empty-editor {
   display: grid;
   place-items: center;

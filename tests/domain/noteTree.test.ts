@@ -22,12 +22,11 @@ import {
 
 describe("note tree operations", () => {
   it("adds newly created notes to the inbox folder", () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const note = createNoteRecord(
       "note-new",
       "新笔记\n    : 本地保存",
       "2026-05-25T00:00:00.000Z",
-      defaultCtnSyntaxProfile,
     );
     const tree = appendNoteToWorkspaceTree(workspace.tree, note.id);
 
@@ -95,7 +94,7 @@ describe("note tree operations", () => {
   });
 
   it("finds folders for note creation and note selection", () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const tree = appendNoteToWorkspaceTree(workspace.tree, "note-new");
 
     expect(findFirstFolderId(tree)).toBe("folder-inbox");
@@ -104,7 +103,7 @@ describe("note tree operations", () => {
   });
 
   it("removes notes from nested repository tree nodes", () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const tree = appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree(workspace.tree, "note-first"),
       "note-second",
@@ -127,7 +126,7 @@ describe("note tree operations", () => {
   });
 
   it("adds and renames folders within the repository tree", () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const workspaceWithNote = {
       ...workspace,
       tree: appendNoteToWorkspaceTree(workspace.tree, "note-first"),
@@ -221,7 +220,7 @@ describe("note tree operations", () => {
   });
 
   it("moves notes between folders", () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
     const tree = appendFolderToWorkspaceTree(
       appendNoteToWorkspaceTree(workspace.tree, "note-first"),
       createFolderTreeNode("folder-target", "目标"),

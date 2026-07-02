@@ -13,35 +13,26 @@ import {
   previewWorkspaceBlockMigration,
 } from "../../src/workspace/workspaceBlockMigration";
 import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../src/syntax/types";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
-function createMigrationWorkspace(
-  targetProfile: CtnSyntaxProfile = defaultCtnSyntaxProfile,
-): NoteWorkspace {
+function createMigrationWorkspace(): NoteWorkspace {
   const sourceNote = createNoteRecord(
     "note-source",
     "Root\n    : Definition\n        - Component\nSibling",
     timestamp,
-    defaultCtnSyntaxProfile,
   );
   const targetNote = createNoteRecord(
     "note-target",
     "Target\n    > Understanding",
     timestamp,
-    targetProfile,
   );
-  const workspace = createInitialWorkspace();
+  const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
 
   return {
     ...workspace,
     activeNoteId: sourceNote.id,
     notes: [sourceNote, targetNote],
-    syntaxProfiles:
-      targetProfile.id === defaultCtnSyntaxProfile.id
-        ? [defaultCtnSyntaxProfile]
-        : [defaultCtnSyntaxProfile, targetProfile],
     tree: appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree(workspace.tree, sourceNote.id),
       targetNote.id,
@@ -175,31 +166,6 @@ describe("workspace block migration", () => {
       ),
     ).toMatchObject({
       message: "目标插入位置不存在。",
-      status: "failed",
-    });
-  });
-
-  it("rejects target syntax that does not support moved markers", () => {
-    const targetProfile = {
-      ...defaultCtnSyntaxProfile,
-      id: "ctn-minimal",
-      markerRules: [{ marker: "```", type: "code", label: "代码块", role: "code", tone: "code" }],
-    } satisfies CtnSyntaxProfile;
-    const workspace = createMigrationWorkspace(targetProfile);
-    const result = moveWorkspaceBlock(
-      workspace,
-      {
-        sourceBlockLineNumber: 2,
-        sourceNoteId: "note-source",
-        targetNoteId: "note-target",
-        targetPosition: { kind: "end" },
-      },
-      timestamp,
-    );
-
-    expect(result).toEqual({
-      message: "目标笔记语法不支持 marker: :, -。",
-      missingMarkers: [":", "-"],
       status: "failed",
     });
   });

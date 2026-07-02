@@ -4,7 +4,7 @@ import type {
   CtnPairedInlineRule,
   CtnSyntaxProfile,
 } from "../syntax/types";
-import { resolveNoteSyntaxProfile } from "./syntaxResolution";
+import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export type NoteReferenceGraphNode = {
   id: NoteId;
@@ -110,24 +110,32 @@ function extractGlobalReferenceTexts(
 export function createNoteReferenceGraph(
   workspace: NoteWorkspace,
 ): NoteReferenceGraph {
+  const syntaxResolution = resolveWorkspaceSyntaxProfile(workspace);
   const titleIndex = createTitleIndex(workspace.notes);
   const referencesIn = new Map<NoteId, number>();
   const referencesOut = new Map<NoteId, number>();
   const edgeCounts = new Map<string, NoteReferenceGraphEdge>();
   const unresolvedCounts = new Map<string, UnresolvedNoteReference>();
-  const issues: NoteReferenceGraphIssue[] = [];
 
-  for (const note of workspace.notes) {
-    const syntaxResolution = resolveNoteSyntaxProfile(workspace, note);
-
-    if (syntaxResolution.status !== "resolved") {
-      issues.push({
+  if (syntaxResolution.status !== "resolved") {
+    return {
+      edges: [],
+      issues: workspace.notes.map((note) => ({
         message: syntaxResolution.message,
         noteId: note.id,
-      });
-      continue;
-    }
+      })),
+      nodes: workspace.notes.map((note) => ({
+        id: note.id,
+        isolated: true,
+        referencesIn: 0,
+        referencesOut: 0,
+        title: note.title,
+      })),
+      unresolvedReferences: [],
+    };
+  }
 
+  for (const note of workspace.notes) {
     for (const referenceText of extractGlobalReferenceTexts(
       note.source,
       syntaxResolution.profile,
@@ -186,7 +194,7 @@ export function createNoteReferenceGraph(
 
   return {
     edges,
-    issues,
+    issues: [],
     nodes,
     unresolvedReferences: [...unresolvedCounts.values()],
   };

@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialWorkspace,
 } from "../../src/domain/notes";
+import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
 
 describe("note workspace", () => {
   it("keeps note content separate from the repository tree", () => {
-    const workspace = createInitialWorkspace();
+    const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
 
     expect(workspace.activeNoteId).toBeNull();
     expect(workspace.notes).toEqual([]);
