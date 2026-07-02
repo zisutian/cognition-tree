@@ -540,7 +540,7 @@ export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
     "",
     "# inlineRules：普通块内部的行内结构规则。",
     '# kind = "paired"：匹配 open 和 close 之间的文本。',
-    '# kind = "single"：匹配一个字面量标记。',
+    '# kind = "single"：用一个字面量标记触发行内结构；显示范围扩展到左右最近空白之间。',
     "# type、label、tone 的含义与 markers 中一致。",
   );
 

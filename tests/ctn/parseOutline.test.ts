@@ -390,4 +390,44 @@ Sibling
       ["choice-separator", "|"],
     ]);
   });
+
+  it("expands single inline markers to the surrounding non-space run", () => {
+    const document = parseDefaultCtnDocument(
+      "Root 并列1\\并列2\\并列3 A \\ B C\\D",
+    );
+
+    expect(
+      document.roots[0].inlineSpans
+        .filter((span) => span.type === "parallel-separator")
+        .map((span) => span.text),
+    ).toEqual(["并列1\\并列2\\并列3", "\\", "C\\D"]);
+  });
+
+  it("does not expand single inline markers across paired inline spans", () => {
+    const document = parseDefaultCtnDocument("Root <当前笔记>\\[[全局概念]]");
+
+    expect(document.roots[0].inlineSpans.map((span) => [span.type, span.text]))
+      .toEqual([
+        ["local-reference", "当前笔记"],
+        ["parallel-separator", "\\"],
+        ["global-reference", "全局概念"],
+      ]);
+  });
+
+  it("keeps leading paired inline syntax in concept text", () => {
+    const document = parseDefaultCtnDocument("<当前笔记>\\[[全局概念]]");
+
+    expect(document.diagnostics).toEqual([]);
+    expect(document.roots[0]).toMatchObject({
+      marker: null,
+      text: "<当前笔记>\\[[全局概念]]",
+      type: "concept",
+    });
+    expect(document.roots[0].inlineSpans.map((span) => [span.type, span.text]))
+      .toEqual([
+        ["local-reference", "当前笔记"],
+        ["parallel-separator", "\\"],
+        ["global-reference", "全局概念"],
+      ]);
+  });
 });

@@ -232,6 +232,7 @@ src/features/syntax/：
     inlineRules 必须显式提供。
     inlineRules 必须保留 paired global-reference 规则，因为可视化图谱依赖它解析笔记间引用。
     inline rule 支持 paired 和 single。
+    single inline rule 由一个字面量标记触发，解析 span 显示范围扩展到左右最近空白之间。
     schema 之外的字段必须拒绝。
 
 服务端：

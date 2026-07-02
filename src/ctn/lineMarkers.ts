@@ -30,6 +30,10 @@ function readUnknownLineStartMarker(trimmed: string) {
   return trimmed.match(/^[^\p{L}\p{N}\s_]+/u)?.[0] ?? null;
 }
 
+function hasMarkerTextSeparator(trimmed: string, markerLength: number) {
+  return markerLength < trimmed.length && /\s/.test(trimmed[markerLength]);
+}
+
 export function parseMarker(
   trimmed: string,
   lineNumber: number,
@@ -58,7 +62,7 @@ export function parseMarker(
   if (trimmed.startsWith("[")) {
     const markerEnd = trimmed.indexOf("]");
 
-    if (markerEnd > 0) {
+    if (markerEnd > 0 && hasMarkerTextSeparator(trimmed, markerEnd + 1)) {
       const marker = trimmed.slice(0, markerEnd + 1);
       const textAfterMarker = trimmed.slice(marker.length);
       const textLeadingWhitespace = textAfterMarker.match(/^\s*/)?.[0].length ?? 0;
@@ -86,7 +90,10 @@ export function parseMarker(
 
   const unknownLineStartMarker = readUnknownLineStartMarker(trimmed);
 
-  if (unknownLineStartMarker) {
+  if (
+    unknownLineStartMarker &&
+    hasMarkerTextSeparator(trimmed, unknownLineStartMarker.length)
+  ) {
     const textAfterMarker = trimmed.slice(unknownLineStartMarker.length);
     const textLeadingWhitespace = textAfterMarker.match(/^\s*/)?.[0].length ?? 0;
 

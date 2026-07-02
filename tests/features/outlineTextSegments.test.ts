@@ -51,4 +51,51 @@ describe("outline text segments", () => {
       { id: "block-1-text-3", kind: "text", text: " 乙" },
     ]);
   });
+
+  it("underlines compact parallel groups as one inline segment", () => {
+    const root = parseFirstRoot("并列1\\并列2\\并列3 和 甲 \\ 乙");
+
+    expect(createOutlineTextSegments(root)).toEqual([
+      {
+        id: "1-1-parallel-separator",
+        kind: "inline",
+        text: "并列1\\并列2\\并列3",
+        tone: "amber",
+      },
+      { id: "block-1-text-11", kind: "text", text: " 和 甲 " },
+      {
+        id: "1-17-parallel-separator",
+        kind: "inline",
+        text: "\\",
+        tone: "amber",
+      },
+      { id: "block-1-text-17", kind: "text", text: " 乙" },
+    ]);
+  });
+
+  it("keeps paired references separate from adjacent parallel separators", () => {
+    const root = parseFirstRoot("<当前笔记>\\[[全局概念]]");
+
+    expect(createOutlineTextSegments(root)).toEqual([
+      {
+        id: "1-1-local-reference",
+        kind: "inline",
+        text: "当前笔记",
+        tone: "green",
+      },
+      {
+        id: "1-7-parallel-separator",
+        kind: "inline",
+        text: "\\",
+        tone: "amber",
+      },
+      {
+        id: "1-8-global-reference",
+        kind: "inline",
+        text: "全局概念",
+        tone: "blue",
+      },
+    ]);
+    expect(getOutlineDisplayText(root)).toBe("当前笔记\\全局概念");
+  });
 });
