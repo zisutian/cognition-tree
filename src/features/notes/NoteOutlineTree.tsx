@@ -1,5 +1,44 @@
+import type { CSSProperties } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { OutlineNode } from "../../ctn/parseOutline";
+import { isCustomSyntaxTone } from "../../syntax/tones";
+import type { CtnSyntaxTone } from "../../syntax/types";
+import {
+  createOutlineTextSegments,
+  getOutlineDisplayText,
+} from "./outlineTextSegments";
+
+function getOutlineInlineClass(tone: CtnSyntaxTone) {
+  return isCustomSyntaxTone(tone)
+    ? "outline-inline ctn-tone-custom"
+    : `outline-inline ctn-tone-${tone}`;
+}
+
+function getOutlineInlineStyle(tone: CtnSyntaxTone): CSSProperties | undefined {
+  return isCustomSyntaxTone(tone)
+    ? ({ "--ctn-tone-color": tone } as CSSProperties)
+    : undefined;
+}
+
+function OutlineNodeText({ node }: { node: OutlineNode }) {
+  return (
+    <span className="node-text">
+      {createOutlineTextSegments(node).map((segment) =>
+        segment.kind === "inline" ? (
+          <span
+            className={getOutlineInlineClass(segment.tone)}
+            key={segment.id}
+            style={getOutlineInlineStyle(segment.tone)}
+          >
+            {segment.text}
+          </span>
+        ) : (
+          <span key={segment.id}>{segment.text}</span>
+        ),
+      )}
+    </span>
+  );
+}
 
 export function NoteOutlineTree({
   collapsedNodeIds,
@@ -19,6 +58,7 @@ export function NoteOutlineTree({
       {nodes.map((node) => {
         const hasChildren = node.children.length > 0;
         const isCollapsed = collapsedNodeIds.has(node.id);
+        const displayText = getOutlineDisplayText(node);
 
         return (
           <li key={node.id}>
@@ -31,7 +71,7 @@ export function NoteOutlineTree({
             >
               <button
                 aria-label={
-                  isCollapsed ? `展开 ${node.text}` : `折叠 ${node.text}`
+                  isCollapsed ? `展开 ${displayText}` : `折叠 ${displayText}`
                 }
                 className="outline-toggle-button"
                 disabled={!hasChildren}
@@ -60,12 +100,12 @@ export function NoteOutlineTree({
               <button
                 className="outline-node-content"
                 onClick={() => onSelectLine(node.lineNumber)}
-                title={`${node.label}: ${node.text}`}
+                title={`${node.label}: ${displayText}`}
                 type="button"
               >
                 <div className="node-main">
                   <span className="node-kind">{node.label}</span>
-                  <span className="node-text">{node.text}</span>
+                  <OutlineNodeText node={node} />
                 </div>
               </button>
             </div>

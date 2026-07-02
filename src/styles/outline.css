@@ -164,6 +164,65 @@
   white-space: nowrap;
 }
 
+.outline-inline {
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+
+.outline-inline.ctn-tone-default {
+  text-decoration-color: #87938d;
+}
+
+.outline-inline.ctn-tone-green {
+  text-decoration-color: #4f9c6a;
+}
+
+.outline-inline.ctn-tone-teal {
+  text-decoration-color: #278276;
+}
+
+.outline-inline.ctn-tone-cyan {
+  text-decoration-color: #2f89a4;
+}
+
+.outline-inline.ctn-tone-code {
+  font-family: var(--font-mono);
+  text-decoration-color: #b47a23;
+}
+
+.outline-inline.ctn-tone-blue {
+  text-decoration-color: #356f9e;
+}
+
+.outline-inline.ctn-tone-indigo {
+  text-decoration-color: #5b66ad;
+}
+
+.outline-inline.ctn-tone-violet {
+  text-decoration-color: #7961a8;
+}
+
+.outline-inline.ctn-tone-pink {
+  text-decoration-color: #b45a87;
+}
+
+.outline-inline.ctn-tone-red {
+  text-decoration-color: #b85b46;
+}
+
+.outline-inline.ctn-tone-amber {
+  text-decoration-color: #b47a23;
+}
+
+.outline-inline.ctn-tone-gray {
+  text-decoration-color: #6d7a74;
+}
+
+.outline-inline.ctn-tone-custom {
+  text-decoration-color: var(--ctn-tone-color);
+}
+
 .empty-outline {
   margin: 0;
   color: #708078;
