@@ -153,7 +153,6 @@
 }
 
 .source-editor .ctn-multiline-block-mark {
-  background: rgba(0, 122, 204, 0.06);
   font-family: var(--font-mono);
 }
 

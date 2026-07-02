@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { CtnBlock } from "../../src/ctn/parseOutline";
 import {
+  getBlockLineDecorationClass,
+  getBlockLineDecorationStyle,
   getInlineDecorationStyle,
   getInlineDecorationClass,
   getMarkerDecorationStyle,
   getMarkerDecorationClass,
+  getMultilineMarkDecorationClass,
+  getMultilineMarkDecorationStyle,
   shouldDecorateMarker,
 } from "../../src/editor/ctnDecorations";
 
@@ -69,6 +73,47 @@ describe("ctn editor decorations", () => {
     ).toBe("ctn-marker ctn-text-color-blue");
   });
 
+  it("uses tone classes for block line backgrounds", () => {
+    expect(
+      getBlockLineDecorationClass(
+        createBlock({
+          role: "multiline",
+          textColor: "green",
+          tone: "gray",
+          type: "multiline-block",
+        }),
+      ),
+    ).toBe("ctn-line ctn-tone-gray");
+    expect(
+      getBlockLineDecorationClass(
+        createBlock({
+          diagnostics: [
+            {
+              code: "unknown-marker",
+              column: 1,
+              id: "diagnostic-1",
+              lineNumber: 1,
+              message: "未知行首符号 :。",
+              severity: "warning",
+            },
+          ],
+          endLineNumber: 3,
+          role: "multiline",
+          tone: "gray",
+          type: "multiline-block",
+        }),
+        2,
+      ),
+    ).toBe("ctn-line ctn-tone-gray");
+    expect(
+      getBlockLineDecorationStyle(
+        createBlock({
+          tone: "#4455aa",
+        }),
+      ),
+    ).toBe("--ctn-tone-color: #4455aa;");
+  });
+
   it("keeps inline tone and text color separate", () => {
     expect(
       getInlineDecorationClass({
@@ -120,5 +165,44 @@ describe("ctn editor decorations", () => {
         type: "custom-inline",
       }),
     ).toBe("--ctn-tone-color: #4455aa; --ctn-text-color: #cc8844;");
+  });
+
+  it("applies text color classes across multiline block marks", () => {
+    const block = createBlock({
+      endLineNumber: 4,
+      lineNumber: 1,
+      role: "multiline",
+      textColor: "green",
+      tone: "gray",
+      type: "multiline-block",
+    });
+
+    expect(getMultilineMarkDecorationClass(block, 1)).toBe(
+      "ctn-multiline-block-mark ctn-text-color-green ctn-multiline-block-start",
+    );
+    expect(getMultilineMarkDecorationClass(block, 2)).toBe(
+      "ctn-multiline-block-mark ctn-text-color-green",
+    );
+    expect(getMultilineMarkDecorationClass(block, 4)).toBe(
+      "ctn-multiline-block-mark ctn-text-color-green ctn-multiline-block-end",
+    );
+    expect(getMultilineMarkDecorationStyle(block)).toBeUndefined();
+  });
+
+  it("applies custom text color styles across multiline block marks", () => {
+    const block = createBlock({
+      endLineNumber: 3,
+      lineNumber: 1,
+      role: "multiline",
+      textColor: "#cc8844",
+      type: "multiline-block",
+    });
+
+    expect(getMultilineMarkDecorationClass(block, 2)).toBe(
+      "ctn-multiline-block-mark ctn-text-color-custom",
+    );
+    expect(getMultilineMarkDecorationStyle(block)).toBe(
+      "--ctn-text-color: #cc8844;",
+    );
   });
 });

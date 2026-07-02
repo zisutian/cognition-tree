@@ -73,11 +73,57 @@ export function getMarkerDecorationClass(block: CtnBlock) {
   return `ctn-marker ${getSyntaxTextColorClassName(block.textColor)}`;
 }
 
+export function getBlockLineDecorationClass(
+  block: CtnBlock,
+  lineNumber = block.lineNumber,
+) {
+  const lineClasses = ["ctn-line", getSyntaxToneClassName(block.tone)];
+  const isBlockStartLine = lineNumber === block.lineNumber;
+
+  if (isBlockStartLine && isRootConceptBlock(block)) {
+    lineClasses.push("ctn-line-root-concept");
+  }
+
+  if (isBlockStartLine && block.diagnostics.length > 0) {
+    lineClasses.push("ctn-line-diagnostic");
+  }
+
+  return lineClasses.join(" ");
+}
+
+export function getBlockLineDecorationStyle(block: CtnBlock) {
+  return getSyntaxToneStyle(block.tone);
+}
+
 export function getInlineDecorationClass(span: CtnInlineSpan) {
   return `ctn-inline ${getSyntaxToneClassName(span.tone)} ${getSyntaxTextColorClassName(span.textColor)}`;
 }
 
 export function getMarkerDecorationStyle(block: CtnBlock) {
+  return getSyntaxTextColorStyle(block.textColor);
+}
+
+export function getMultilineMarkDecorationClass(
+  block: CtnBlock,
+  lineNumber: number,
+) {
+  const classes = [
+    "ctn-multiline-block-mark",
+    getSyntaxTextColorClassName(block.textColor),
+  ];
+
+  if (lineNumber === block.lineNumber) {
+    classes.push("ctn-multiline-block-start");
+  }
+
+  if (lineNumber === block.endLineNumber) {
+    classes.push("ctn-multiline-block-end");
+  }
+
+  return classes.join(" ");
+}
+
+export function getMultilineMarkDecorationStyle(block: CtnBlock) {
   return getSyntaxTextColorStyle(block.textColor);
 }
 
@@ -108,27 +154,33 @@ function buildCtnDecorations(
         lineNumber += 1
       ) {
         const multilineLine = view.state.doc.line(lineNumber);
-        const multilineMarkClasses = ["ctn-multiline-block-mark"];
         const multilineTextStart = getLineTextStart(multilineLine.text);
         const multilineMarkStart = multilineLine.from + multilineTextStart;
         const multilineMarkEnd =
           multilineTextStart < multilineLine.text.length
             ? multilineLine.to
             : multilineLine.from + multilineLine.text.length;
+        const multilineLineStyle = getSyntaxToneStyle(block.tone);
 
-        if (lineNumber === block.lineNumber) {
-          multilineMarkClasses.push("ctn-multiline-block-start");
-        }
-
-        if (lineNumber === block.endLineNumber) {
-          multilineMarkClasses.push("ctn-multiline-block-end");
+        if (lineNumber !== block.lineNumber) {
+          decorations.push(
+            Decoration.line({
+              attributes: {
+                class: getBlockLineDecorationClass(block, lineNumber),
+                ...(multilineLineStyle ? { style: multilineLineStyle } : {}),
+              },
+            }).range(multilineLine.from),
+          );
         }
 
         if (multilineMarkStart < multilineMarkEnd) {
+          const multilineMarkStyle = getMultilineMarkDecorationStyle(block);
+
           decorations.push(
             Decoration.mark({
               attributes: {
-                class: multilineMarkClasses.join(" "),
+                class: getMultilineMarkDecorationClass(block, lineNumber),
+                ...(multilineMarkStyle ? { style: multilineMarkStyle } : {}),
               },
             }).range(multilineMarkStart, multilineMarkEnd),
           );
@@ -137,16 +189,7 @@ function buildCtnDecorations(
     }
 
     const line = view.state.doc.line(block.lineNumber);
-    const lineClasses = ["ctn-line", getSyntaxToneClassName(block.tone)];
-    const lineStyle = getSyntaxToneStyle(block.tone);
-
-    if (isRootConceptBlock(block)) {
-      lineClasses.push("ctn-line-root-concept");
-    }
-
-    if (block.diagnostics.length > 0) {
-      lineClasses.push("ctn-line-diagnostic");
-    }
+    const lineStyle = getBlockLineDecorationStyle(block);
 
     const diagnosticTitle = block.diagnostics
       .map((diagnostic) => diagnostic.message)
@@ -155,7 +198,7 @@ function buildCtnDecorations(
     decorations.push(
       Decoration.line({
         attributes: {
-          class: lineClasses.join(" "),
+          class: getBlockLineDecorationClass(block),
           ...(diagnosticTitle ? { title: diagnosticTitle } : {}),
           ...(lineStyle ? { style: lineStyle } : {}),
         },
