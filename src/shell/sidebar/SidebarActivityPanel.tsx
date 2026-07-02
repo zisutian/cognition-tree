@@ -12,6 +12,7 @@ import {
 import { SidebarMigrationPanel } from "./SidebarMigrationPanel";
 import { SidebarNotesPanel } from "./SidebarNotesPanel";
 import { SidebarPlaceholderPanel } from "./SidebarPlaceholderPanel";
+import { SidebarSettingsPanel } from "./SidebarSettingsPanel";
 
 type SidebarActivityPanelProps = {
   activeActivityId: SidebarActivityId;
@@ -63,17 +64,11 @@ export function SidebarActivityPanel({
         activeNoteId={activeNoteId}
         notes={notes}
         noteTree={noteTree}
-        repositoryPath={repositoryPath}
-        saveStatusLabel={saveStatusLabel}
-        storageLabel={storageLabel}
-        canChangeRepositoryPath={canChangeRepositoryPath}
-        onChangeRepositoryPath={onChangeRepositoryPath}
         onCreateFolder={onCreateFolder}
         onCreateNote={onCreateNote}
         onDeleteFolder={onDeleteFolder}
         onDeleteNote={onDeleteNote}
         onMoveNote={onMoveNote}
-        onReloadWorkspace={onReloadWorkspace}
         onRenameFolder={onRenameFolder}
         onSelectFolder={onSelectFolder}
         onSelectNote={onSelectNote}
@@ -91,6 +86,19 @@ export function SidebarActivityPanel({
 
   if (activeActivityId === "migration") {
     return <SidebarMigrationPanel />;
+  }
+
+  if (activeActivityId === "settings") {
+    return (
+      <SidebarSettingsPanel
+        canChangeRepositoryPath={canChangeRepositoryPath}
+        repositoryPath={repositoryPath}
+        saveStatusLabel={saveStatusLabel}
+        storageLabel={storageLabel}
+        onChangeRepositoryPath={onChangeRepositoryPath}
+        onReloadWorkspace={onReloadWorkspace}
+      />
+    );
   }
 
   return (

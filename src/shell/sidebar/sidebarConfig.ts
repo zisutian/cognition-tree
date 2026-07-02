@@ -35,10 +35,12 @@ export const sidebarActivityItems: SidebarActivityItem[] = [
 ];
 
 export const sidebarPlaceholderEntries: Record<
-  Exclude<SidebarActivityId, "notes" | "visualization" | "syntax" | "migration">,
+  Exclude<
+    SidebarActivityId,
+    "notes" | "visualization" | "syntax" | "migration" | "settings"
+  >,
   string[]
 > = {
   search: ["标题", "正文", "块类型"],
   data: ["文件库", "索引", "导入导出"],
-  settings: ["外观", "快捷键", "许可证"],
 };

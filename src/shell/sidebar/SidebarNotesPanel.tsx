@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FolderPlus, Plus, RefreshCw } from "lucide-react";
+import { FolderPlus, Plus } from "lucide-react";
 import {
   defaultFolderId,
   type FolderId,
@@ -52,17 +52,11 @@ type SidebarNotesPanelProps = {
   activeNoteId: NoteId | null;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
-  repositoryPath: string;
-  saveStatusLabel: string;
-  storageLabel: string;
-  canChangeRepositoryPath: boolean;
-  onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
   onCreateNote: () => void;
   onDeleteFolder: (folderId: FolderId) => void;
   onDeleteNote: (noteId: NoteId) => void;
   onMoveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
-  onReloadWorkspace: () => void;
   onRenameFolder: (folderId: FolderId, title: string) => void;
   onSelectFolder: (folderId: FolderId) => void;
   onSelectNote: (noteId: NoteId) => void;
@@ -73,17 +67,11 @@ export function SidebarNotesPanel({
   activeNoteId,
   notes,
   noteTree,
-  repositoryPath,
-  saveStatusLabel,
-  storageLabel,
-  canChangeRepositoryPath,
-  onChangeRepositoryPath,
   onCreateFolder,
   onCreateNote,
   onDeleteFolder,
   onDeleteNote,
   onMoveNote,
-  onReloadWorkspace,
   onRenameFolder,
   onSelectFolder,
   onSelectNote,
@@ -122,17 +110,6 @@ export function SidebarNotesPanel({
     };
   }, [contextMenu]);
 
-  const requestRepositoryPath = () => {
-    if (!canChangeRepositoryPath) {
-      return;
-    }
-
-    const nextPath = window.prompt("仓库文件夹路径", repositoryPath);
-
-    if (nextPath) {
-      onChangeRepositoryPath(nextPath);
-    }
-  };
   const toggleFolder = (folderId: FolderId) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -223,35 +200,6 @@ export function SidebarNotesPanel({
 
   return (
     <div className="side-panel-body">
-      <section className="side-section">
-        <div className="side-section-header">
-          <p className="side-section-title">仓库</p>
-          <div className="side-action-group">
-            <button
-              className="side-action-button"
-              onClick={onReloadWorkspace}
-              type="button"
-            >
-              <RefreshCw aria-hidden="true" size={13} strokeWidth={2} />
-              刷新
-            </button>
-            {canChangeRepositoryPath ? (
-              <button
-                className="side-action-button"
-                onClick={requestRepositoryPath}
-                type="button"
-              >
-                更改
-              </button>
-            ) : null}
-          </div>
-        </div>
-        <div className="repository-strip">
-          <span>{storageLabel} · {saveStatusLabel}</span>
-          <code>{repositoryPath || "加载中"}</code>
-        </div>
-      </section>
-
       <section className="side-section notes-section">
         <div className="side-section-header">
           <p className="side-section-title">笔记</p>
