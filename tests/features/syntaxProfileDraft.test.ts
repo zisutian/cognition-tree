@@ -23,6 +23,12 @@ describe("syntax profile draft", () => {
 
   it("formats a valid draft into parseable syntax TOML", () => {
     const draft: SyntaxProfileDraft = {
+      conceptRule: {
+        id: "concept-1",
+        label: "顶格概念",
+        tone: "teal",
+        type: "concept",
+      },
       inlineRules: [
         {
           close: "]]",
@@ -91,6 +97,11 @@ describe("syntax profile draft", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
     draft.name = "";
     draft.spaceIndentUnit = "0";
+    draft.conceptRule = {
+      ...draft.conceptRule,
+      tone: "default",
+      type: "root-concept",
+    };
     draft.markerRules = [
       {
         ...createEmptyMarkerRuleDraft(0),
@@ -121,6 +132,8 @@ describe("syntax profile draft", () => {
       expect.arrayContaining([
         expect.objectContaining({ path: "$.name" }),
         expect.objectContaining({ path: "$.spaceIndentUnit" }),
+        expect.objectContaining({ path: "concept.type" }),
+        expect.objectContaining({ path: "concept.tone" }),
         expect.objectContaining({ path: "markers[1].marker" }),
         expect.objectContaining({ path: "markers[1].type" }),
         expect.objectContaining({ path: "inlineRules[0].close" }),
@@ -155,6 +168,19 @@ describe("syntax profile draft", () => {
     expect(result.diagnostics).toContainEqual({
       message: "颜色必须是预设颜色或 #RRGGBB。",
       path: "markers[0].tone",
+    });
+  });
+
+  it("allows changing the protected top-level concept color", () => {
+    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    draft.conceptRule.tone = "pink";
+    const result = buildSyntaxProfileDraft(draft);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.profile?.conceptRule).toEqual({
+      label: "顶格概念",
+      tone: "pink",
+      type: "concept",
     });
   });
 });

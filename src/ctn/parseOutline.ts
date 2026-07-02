@@ -60,6 +60,8 @@ export function parseCtnDocument(
       indentText.length,
       markerRules,
     );
+    const isTopLevelConcept =
+      indent.level === 0 && parsedMarker.marker === null && parsedMarker.type === "concept";
     const nodeDiagnostics = [...indent.diagnostics, ...parsedMarker.diagnostics];
     const node: CtnBlock = {
       id: `block-${lineNumber}`,
@@ -75,10 +77,16 @@ export function parseCtnDocument(
       level: indent.level,
       indentText,
       marker: parsedMarker.marker,
-      type: parsedMarker.type,
+      type: isTopLevelConcept
+        ? syntaxProfile.conceptRule.type
+        : parsedMarker.type,
       role: parsedMarker.role,
-      tone: parsedMarker.tone,
-      label: parsedMarker.label,
+      tone: isTopLevelConcept
+        ? syntaxProfile.conceptRule.tone
+        : parsedMarker.tone,
+      label: isTopLevelConcept
+        ? syntaxProfile.conceptRule.label
+        : parsedMarker.label,
       text: parsedMarker.text,
       rawText: line,
       inlineSpans:

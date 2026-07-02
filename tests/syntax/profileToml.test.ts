@@ -7,8 +7,13 @@ import {
 
 describe("syntax profile TOML", () => {
   it("parses a valid syntax profile", () => {
-    const result = parseSyntaxProfileToml(`name = "自定义语法"
+const result = parseSyntaxProfileToml(`name = "自定义语法"
 spaceIndentUnit = 4
+
+[concept]
+type = "concept"
+label = "顶格概念"
+tone = "teal"
 
 [[markers]]
 marker = "!"
@@ -50,6 +55,11 @@ tone = "amber"
 
     expect(result.diagnostics).toEqual([]);
     expect(result.profile).toEqual({
+      conceptRule: {
+        label: "顶格概念",
+        tone: "teal",
+        type: "concept",
+      },
       inlineRules: [
         {
           close: "]]",
@@ -112,6 +122,7 @@ spaceIndentUnit = 0
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "invalid-field",
       "invalid-field",
+      "missing-field",
       "invalid-field",
       "missing-field",
     ]);
@@ -122,6 +133,11 @@ spaceIndentUnit = 0
 spaceIndentUnit = 4
 extra = true
 inlineRules = []
+
+[concept]
+type = "root-concept"
+label = "顶格概念"
+tone = "default"
 
 [[markers]]
 marker = ":"
@@ -142,6 +158,8 @@ tone = "default"
     expect(result.profile).toBeNull();
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "unsupported-field",
+      "invalid-field",
+      "invalid-field",
       "unsupported-field",
       "invalid-field",
       "invalid-field",
@@ -163,6 +181,7 @@ label = "定义"
 
     expect(result.profile).toBeNull();
     expect(result.diagnostics.map((diagnostic) => diagnostic.path)).toEqual([
+      "concept",
       "markers[0].role",
       "markers[0].tone",
       "inlineRules",

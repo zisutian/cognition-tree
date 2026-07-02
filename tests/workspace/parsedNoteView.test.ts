@@ -22,7 +22,7 @@ describe("resolveParsedNoteView", () => {
 
     expect(result.status).toBe("parsed");
     expect(result.document.blocks.map((block) => block.label)).toEqual([
-      "概念",
+      "顶格概念",
       "定义",
     ]);
   });

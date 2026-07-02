@@ -25,7 +25,7 @@
     notes/*.ctn
     syntax/workspace.toml
 
-每个仓库使用一份 TOML 语法文件。当前支持行首 marker、行内规则和受控高亮颜色；块 `type` 是可扩展语义 ID，解析行为由 `role` 控制。
+每个仓库使用一份 TOML 语法文件。当前支持顶格概念规则、行首 marker、行内规则和受控高亮颜色；块 `type` 是可扩展语义 ID，解析行为由 `role` 控制。
 
 ## 运行环境
 

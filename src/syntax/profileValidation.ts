@@ -5,6 +5,14 @@ import type { CtnSyntaxProfile } from "./types";
 const requiredGlobalReferenceType = "global-reference";
 
 export function getSyntaxProfileShapeError(profile: CtnSyntaxProfile) {
+  if (
+    !profile.conceptRule ||
+    profile.conceptRule.type !== "concept" ||
+    !profile.conceptRule.tone
+  ) {
+    return "语法配置缺少顶格概念规则。";
+  }
+
   if (!Array.isArray(profile.markerRules)) {
     return "语法配置缺少 markers。";
   }

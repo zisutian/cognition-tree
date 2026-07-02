@@ -25,7 +25,7 @@ function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
 }
 
 function isRootConceptBlock(block: CtnBlock) {
-  return block.level === 0 && block.type === "concept";
+  return block.level === 0 && block.marker === null;
 }
 
 function getBlockTextClass(block: CtnBlock) {

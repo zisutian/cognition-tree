@@ -84,6 +84,11 @@ async function withTempStore(testFn) {
 const customSyntaxSource = `name = "自定义语法"
 spaceIndentUnit = 4
 
+[concept]
+type = "concept"
+label = "顶格概念"
+tone = "teal"
+
 [[markers]]
 marker = "!"
 type = "component"
@@ -168,6 +173,11 @@ describe("WorkspaceFileStore", () => {
       await expect(store.readSyntaxFile()).resolves.toMatchObject({
         fileName: "workspace.toml",
         profile: {
+          conceptRule: {
+            label: "顶格概念",
+            tone: "teal",
+            type: "concept",
+          },
           inlineRules: [
             {
               close: "]]",

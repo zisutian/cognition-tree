@@ -5,6 +5,11 @@ import { parse } from "smol-toml";
 export const defaultSyntaxProfile = {
   name: "默认 CTN 语法",
   spaceIndentUnit: 4,
+  conceptRule: {
+    type: "concept",
+    label: "顶格概念",
+    tone: "green",
+  },
   markerRules: [
     {
       marker: "```",
@@ -92,9 +97,11 @@ const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
 const rootFields = new Set([
   "name",
   "spaceIndentUnit",
+  "concept",
   "markers",
   "inlineRules",
 ]);
+const conceptFields = new Set(["type", "label", "tone"]);
 const markerFields = new Set(["marker", "type", "label", "role", "tone"]);
 const inlineRuleFields = new Set([
   "kind",
@@ -288,6 +295,41 @@ function validateMarkers(value, diagnostics) {
   return markerRules;
 }
 
+function validateConcept(value, diagnostics) {
+  const path = "concept";
+
+  if (!isRecord(value)) {
+    diagnostics.push(
+      createDiagnostic("missing-field", path, "缺少顶格概念规则。"),
+    );
+    return null;
+  }
+
+  validateSupportedFields(value, conceptFields, path, diagnostics);
+
+  const type = readRequiredString(value, "type", path, diagnostics);
+  const label = readRequiredString(value, "label", path, diagnostics);
+  const tone = readRequiredTone(value, path, diagnostics);
+
+  validateSemanticTypeId(type, `${path}.type`, diagnostics);
+
+  if (type !== "concept") {
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-field",
+        `${path}.type`,
+        "顶格概念 type 必须是 concept。",
+      ),
+    );
+  }
+
+  if (!type || !label || type !== "concept" || !semanticIdPattern.test(type)) {
+    return null;
+  }
+
+  return { label, tone, type };
+}
+
 function validateInlineRules(value, diagnostics) {
   if (value === undefined) {
     diagnostics.push(
@@ -433,6 +475,7 @@ export function parseSyntaxProfileToml(source) {
     "$",
     diagnostics,
   );
+  const conceptRule = validateConcept(parsed.concept, diagnostics);
   const markerRules = validateMarkers(parsed.markers, diagnostics);
   const inlineRules = validateInlineRules(parsed.inlineRules, diagnostics);
 
@@ -440,6 +483,7 @@ export function parseSyntaxProfileToml(source) {
     diagnostics.length > 0 ||
     !name ||
     !spaceIndentUnit ||
+    !conceptRule ||
     markerRules.length === 0
   ) {
     return { diagnostics, profile: null };
@@ -448,6 +492,7 @@ export function parseSyntaxProfileToml(source) {
   return {
     diagnostics: [],
     profile: {
+      conceptRule,
       inlineRules,
       markerRules,
       name,
@@ -463,6 +508,13 @@ export function formatSyntaxProfileToml(profile = defaultSyntaxProfile) {
     "# spaceIndentUnit：每一层 CTN 树缩进使用的空格数。当前默认值为 4。",
     `name = ${formatTomlString(profile.name)}`,
     `spaceIndentUnit = ${profile.spaceIndentUnit}`,
+    "",
+    "# concept：没有行首符号、且位于顶格的概念行规则。",
+    "# type 固定为 concept；label 是界面显示名称；tone 是整行高亮颜色。",
+    "[concept]",
+    `type = ${formatTomlString(profile.conceptRule.type)}`,
+    `label = ${formatTomlString(profile.conceptRule.label)}`,
+    `tone = ${formatTomlString(profile.conceptRule.tone)}`,
     "",
     "# markers：行首块规则。",
     "# marker：缩进之后匹配的字面量行首标记。",

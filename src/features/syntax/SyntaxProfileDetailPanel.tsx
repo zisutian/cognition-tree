@@ -64,7 +64,7 @@ export function SyntaxProfileDetailPanel({
               </div>
               <div>
                 <dt>行首</dt>
-                <dd>{draftProfile.markerRules.length}</dd>
+                <dd>{draftProfile.markerRules.length + 1}</dd>
               </div>
               <div>
                 <dt>行内</dt>
@@ -80,6 +80,20 @@ export function SyntaxProfileDetailPanel({
           <p className="workspace-detail-title">行首规则</p>
           {draftProfile ? (
             <div className="workspace-marker-list">
+              <div className="workspace-marker-entry">
+                <code>顶格</code>
+                <span
+                  aria-label={`颜色 ${draftProfile.conceptRule.tone}`}
+                  className={getToneSwatchClass(draftProfile.conceptRule.tone)}
+                  style={getToneSwatchStyle(draftProfile.conceptRule.tone)}
+                  title={draftProfile.conceptRule.tone}
+                >
+                  <span />
+                </span>
+                <span className="workspace-marker-label">
+                  {draftProfile.conceptRule.label}
+                </span>
+              </div>
               {draftProfile.markerRules.map((rule) => (
                 <div className="workspace-marker-entry" key={rule.marker}>
                   <code>{rule.marker}</code>

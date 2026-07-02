@@ -203,7 +203,7 @@ src/features/syntax/：
 
     负责仓库语法配置的受控编辑界面。
     主编辑界面不直接暴露 raw TOML textarea。
-    用户通过表单编辑 profile 基本信息、行首规则和行内规则。
+    用户通过表单编辑 profile 基本信息、顶格概念规则、行首规则和行内规则。
     用户主路径只编辑符号、名称、角色、规则类型和视觉提示。
     type 是内部机器语义 ID，由 draft 层保留或生成，不作为普通编辑主字段。
     UI 使用功能性中文名称展示语法配置，不把 workspace.toml 当作页面标题。
@@ -214,9 +214,13 @@ src/features/syntax/：
 
 第一版 TOML schema：
 
-    根字段为 name、spaceIndentUnit、markers、inlineRules。
+    根字段为 name、spaceIndentUnit、concept、markers、inlineRules。
     name 必须是非空字符串。
     spaceIndentUnit 必须是正整数。
+    concept 必须显式提供。
+    concept 字段为 type、label、tone。
+    concept.type 固定为 concept。
+    concept 表示没有行首符号、且位于顶格的概念行。
     markers 必须是非空数组。
     marker rule 字段为 marker、type、label、role、tone。
     marker 不允许重复。

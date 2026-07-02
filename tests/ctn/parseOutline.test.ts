@@ -21,7 +21,7 @@ describe("parseCtnDocument", () => {
     expect(document.diagnostics).toHaveLength(0);
     expect(document.roots[0]).toMatchObject({
       endLineNumber: 5,
-      label: "概念",
+      label: "顶格概念",
       level: 0,
       lineNumber: 1,
       marker: null,
@@ -229,6 +229,34 @@ Sibling
       label: "定义",
       lineNumber: 3,
       rawText: "    : Definition",
+    });
+  });
+
+  it("uses the configured top-level concept tone", () => {
+    const document = parseCtnDocument("Root\n    Child", {
+      syntaxProfile: {
+        ...defaultCtnSyntaxProfile,
+        conceptRule: {
+          label: "顶格概念",
+          tone: "pink",
+          type: "concept",
+        },
+      },
+    });
+
+    expect(document.roots[0]).toMatchObject({
+      label: "顶格概念",
+      level: 0,
+      marker: null,
+      tone: "pink",
+      type: "concept",
+    });
+    expect(document.roots[0].children[0]).toMatchObject({
+      label: "概念",
+      level: 1,
+      marker: null,
+      tone: "default",
+      type: "concept",
     });
   });
 

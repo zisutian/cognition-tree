@@ -32,6 +32,12 @@ export type CtnMarkerRule = {
   tone: CtnSyntaxTone;
 };
 
+export type CtnConceptRule = {
+  type: CtnBlockType;
+  label: string;
+  tone: CtnSyntaxTone;
+};
+
 export type CtnInlineRuleBase = {
   type: CtnInlineSpanType;
   label: string;
@@ -52,6 +58,7 @@ export type CtnSingleInlineRule = CtnInlineRuleBase & {
 export type CtnInlineRule = CtnPairedInlineRule | CtnSingleInlineRule;
 
 export type CtnSyntaxProfile = {
+  conceptRule: CtnConceptRule;
   name: string;
   spaceIndentUnit: number;
   markerRules: CtnMarkerRule[];

@@ -1,4 +1,5 @@
 import type {
+  CtnConceptRule,
   CtnInlineRule,
   CtnMarkerRule,
   CtnPresetSyntaxTone,
@@ -20,6 +21,13 @@ export type SyntaxProfileDraftMarkerRule = {
   type: string;
 };
 
+export type SyntaxProfileDraftConceptRule = {
+  id: string;
+  label: string;
+  tone: CtnSyntaxTone;
+  type: string;
+};
+
 export type SyntaxProfileDraftInlineRule = {
   close: string;
   id: string;
@@ -32,6 +40,7 @@ export type SyntaxProfileDraftInlineRule = {
 };
 
 export type SyntaxProfileDraft = {
+  conceptRule: SyntaxProfileDraftConceptRule;
   inlineRules: SyntaxProfileDraftInlineRule[];
   markerRules: SyntaxProfileDraftMarkerRule[];
   name: string;
@@ -53,6 +62,7 @@ export const syntaxRuleRoles: CtnRuleRole[] = ["normal", "multiline"];
 export const syntaxTones: CtnPresetSyntaxTone[] = configurableSyntaxTones;
 
 const requiredGlobalReferenceType = "global-reference";
+const requiredTopLevelConceptType = "concept";
 const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
 
 function createDraftId(prefix: string, index: number) {
@@ -185,6 +195,12 @@ export function createSyntaxProfileDraft(
   profile: CtnSyntaxProfile,
 ): SyntaxProfileDraft {
   return {
+    conceptRule: {
+      id: "concept-1",
+      label: profile.conceptRule.label,
+      tone: profile.conceptRule.tone,
+      type: profile.conceptRule.type,
+    },
     inlineRules: sortProtectedInlineRuleFirst(profile.inlineRules).map(
       (rule, index) => ({
         close: rule.kind === "paired" ? rule.close : "",
@@ -222,8 +238,44 @@ export function buildSyntaxProfileDraft(
     diagnostics,
   );
   const markerSet = new Set<string>();
+  let conceptRule: CtnConceptRule | null = null;
   const markerRules: CtnMarkerRule[] = [];
   const inlineRules: CtnInlineRule[] = [];
+
+  const conceptLabel = readRequiredText(
+    draft.conceptRule.label,
+    "concept.label",
+    "顶格概念名称",
+    diagnostics,
+  );
+  const conceptType = readRequiredText(
+    draft.conceptRule.type,
+    "concept.type",
+    "顶格概念语义 ID",
+    diagnostics,
+  );
+
+  validateSemanticId(conceptType, "concept.type", "顶格概念语义 ID", diagnostics);
+  validateTone(draft.conceptRule.tone, "concept.tone", diagnostics);
+
+  if (conceptType !== requiredTopLevelConceptType) {
+    diagnostics.push({
+      message: "顶格概念规则不能改为其他语义 ID。",
+      path: "concept.type",
+    });
+  }
+
+  if (
+    conceptLabel &&
+    conceptType === requiredTopLevelConceptType &&
+    isConfigurableSyntaxTone(draft.conceptRule.tone)
+  ) {
+    conceptRule = {
+      label: conceptLabel,
+      tone: draft.conceptRule.tone,
+      type: conceptType,
+    };
+  }
 
   draft.markerRules.forEach((rule, index) => {
     const path = `markers[${index}]`;
@@ -375,6 +427,7 @@ export function buildSyntaxProfileDraft(
     diagnostics.length > 0 ||
     !name ||
     !spaceIndentUnit ||
+    !conceptRule ||
     markerRules.length === 0
   ) {
     return {
@@ -386,6 +439,7 @@ export function buildSyntaxProfileDraft(
   return {
     diagnostics: [],
     profile: {
+      conceptRule,
       inlineRules: sortProtectedInlineRuleFirst(inlineRules),
       markerRules,
       name,

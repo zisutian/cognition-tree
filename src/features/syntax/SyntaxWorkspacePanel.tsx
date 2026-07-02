@@ -16,6 +16,7 @@ import {
   createEmptyMarkerRuleDraft,
   isProtectedInlineRuleDraft,
   type SyntaxProfileDraft,
+  type SyntaxProfileDraftConceptRule,
   type SyntaxProfileDraftInlineRule,
   type SyntaxProfileDraftMarkerRule,
   syntaxRuleRoles,
@@ -233,6 +234,16 @@ export function SyntaxWorkspacePanel({
     });
   };
 
+  const updateConceptRule = (patch: Partial<SyntaxProfileDraftConceptRule>) => {
+    onDraftChange({
+      ...draft,
+      conceptRule: {
+        ...draft.conceptRule,
+        ...patch,
+      },
+    });
+  };
+
   const updateInlineRule = (
     ruleId: string,
     patch: Partial<SyntaxProfileDraftInlineRule>,
@@ -286,7 +297,7 @@ export function SyntaxWorkspacePanel({
           <h2>仓库语法配置</h2>
         </div>
         <div className="stats">
-          <span>{draft.markerRules.length} 行首</span>
+          <span>{draft.markerRules.length + 1} 行首</span>
           <span>{draft.inlineRules.length} 行内</span>
         </div>
       </header>
@@ -334,6 +345,38 @@ export function SyntaxWorkspacePanel({
             <span />
           </div>
           <div className="syntax-rule-list">
+            <div className="syntax-marker-rule-row syntax-marker-rule-columns">
+              <label className="syntax-field compact">
+                <span>符号</span>
+                <input disabled value="顶格" />
+              </label>
+              <label className="syntax-field">
+                <span>名称</span>
+                <input disabled value={draft.conceptRule.label} />
+              </label>
+              <label className="syntax-field compact">
+                <span>角色</span>
+                <select disabled value="normal">
+                  <option value="normal">{roleLabels.normal}</option>
+                </select>
+              </label>
+              <div className="syntax-field syntax-tone-field">
+                <span>颜色</span>
+                <TonePicker
+                  value={draft.conceptRule.tone}
+                  onChange={(tone) =>
+                    updateConceptRule({
+                      tone,
+                    })
+                  }
+                />
+              </div>
+              <span
+                aria-label="顶格概念是基础行首规则，不能删除"
+                className="syntax-protected-rule-lock"
+                title="基础行首规则，不能删除"
+              />
+            </div>
             {draft.markerRules.map((rule) => (
               <div
                 className="syntax-marker-rule-row syntax-marker-rule-columns"

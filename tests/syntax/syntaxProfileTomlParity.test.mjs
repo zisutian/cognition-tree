@@ -15,6 +15,11 @@ import {
 const validCustomProfileToml = `name = "自定义语法"
 spaceIndentUnit = 4
 
+[concept]
+type = "concept"
+label = "顶格概念"
+tone = "teal"
+
 [[markers]]
 marker = "!"
 type = "risk"
@@ -58,6 +63,11 @@ spaceIndentUnit = 4
 extra = true
 inlineRules = []
 
+[concept]
+type = "root-concept"
+label = "顶格概念"
+tone = "default"
+
 [[markers]]
 marker = ":"
 type = "definition"
@@ -76,6 +86,11 @@ tone = "default"
 
 const invalidInlineProfileToml = `name = "非法行内语法"
 spaceIndentUnit = 4
+
+[concept]
+type = "concept"
+label = "顶格概念"
+tone = "green"
 
 [[markers]]
 marker = ":"
