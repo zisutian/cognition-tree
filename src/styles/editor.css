@@ -44,7 +44,7 @@
 .source-editor {
   width: 100%;
   flex: 1;
-  min-height: 500px;
+  min-height: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -61,7 +61,7 @@
 .source-editor-fallback {
   width: 100%;
   flex: 1;
-  min-height: 500px;
+  min-height: 0;
   padding: 12px 14px;
   border: 1px solid var(--note-border);
   border-radius: var(--radius-lg);
@@ -76,10 +76,11 @@
 
 .empty-editor {
   display: grid;
+  flex: 1;
   place-items: center;
   align-content: center;
   gap: 10px;
-  min-height: 500px;
+  min-height: 0;
   border: 1px solid var(--note-border);
   border-radius: var(--radius-lg);
   background: var(--color-editor);
@@ -93,7 +94,7 @@
 
 .source-editor .cm-editor {
   height: 100%;
-  min-height: inherit;
+  min-height: 0;
   color: var(--note-text);
   background: transparent;
   font-family: var(--font-content);
@@ -108,6 +109,7 @@
 .source-editor .cm-scroller {
   font-family: inherit;
   line-height: inherit;
+  overflow: auto;
 }
 
 .source-editor .cm-cursor {
@@ -120,7 +122,7 @@
 }
 
 .source-editor .cm-content {
-  min-height: 500px;
+  min-height: 100%;
   padding: 12px 14px;
 }
 

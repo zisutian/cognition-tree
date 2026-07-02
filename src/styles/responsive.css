@@ -5,6 +5,7 @@
 
   .app-shell {
     grid-template-columns: 280px minmax(360px, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(220px, 36dvh);
     grid-template-areas:
       "sidebar editor"
       "sidebar outline";
@@ -34,7 +35,6 @@
     border-left: 0;
   }
 
-  .source-editor,
   .workspace-source-editor,
   .workspace-empty-state {
     min-height: 340px;
