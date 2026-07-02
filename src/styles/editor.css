@@ -106,12 +106,11 @@
 }
 
 .source-editor .ctn-line-root-concept {
-  box-shadow: inset 3px 0 0 #d7eb8f;
+  background: rgba(69, 142, 100, 0.24);
 }
 
 .source-editor .ctn-multiline-block-mark {
   background: rgba(203, 145, 75, 0.22);
-  box-shadow: inset 3px 0 0 #c9904d;
   font-family: var(--font-mono);
 }
 
@@ -145,57 +144,46 @@
 
 .source-editor .ctn-line.ctn-tone-green {
   background: rgba(69, 142, 100, 0.22);
-  box-shadow: inset 3px 0 0 #65bc84;
 }
 
 .source-editor .ctn-line.ctn-tone-teal {
   background: rgba(39, 130, 118, 0.24);
-  box-shadow: inset 3px 0 0 #48b8a8;
 }
 
 .source-editor .ctn-line.ctn-tone-cyan {
   background: rgba(47, 137, 164, 0.24);
-  box-shadow: inset 3px 0 0 #55b2cf;
 }
 
 .source-editor .ctn-line.ctn-tone-blue {
   background: rgba(53, 111, 158, 0.26);
-  box-shadow: inset 3px 0 0 #6da4d4;
 }
 
 .source-editor .ctn-line.ctn-tone-indigo {
   background: rgba(91, 102, 173, 0.26);
-  box-shadow: inset 3px 0 0 #8d97e3;
 }
 
 .source-editor .ctn-line.ctn-tone-violet {
   background: rgba(121, 97, 168, 0.28);
-  box-shadow: inset 3px 0 0 #ad94df;
 }
 
 .source-editor .ctn-line.ctn-tone-pink {
   background: rgba(180, 90, 135, 0.26);
-  box-shadow: inset 3px 0 0 #de8ab5;
 }
 
 .source-editor .ctn-line.ctn-tone-red {
   background: rgba(184, 91, 70, 0.28);
-  box-shadow: inset 3px 0 0 #e18470;
 }
 
 .source-editor .ctn-line.ctn-tone-amber {
   background: rgba(180, 122, 35, 0.26);
-  box-shadow: inset 3px 0 0 #d8a54a;
 }
 
 .source-editor .ctn-line.ctn-tone-gray {
   background: rgba(109, 122, 116, 0.24);
-  box-shadow: inset 3px 0 0 #9da9a4;
 }
 
 .source-editor .ctn-line.ctn-tone-custom {
   background: color-mix(in srgb, var(--ctn-tone-color) 26%, transparent);
-  box-shadow: inset 3px 0 0 var(--ctn-tone-color);
 }
 
 .source-editor .ctn-marker.ctn-tone-default,
