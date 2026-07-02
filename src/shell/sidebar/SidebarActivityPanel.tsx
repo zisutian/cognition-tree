@@ -104,11 +104,7 @@ export function SidebarActivityPanel({
   }
 
   if (activeActivityId === "migration") {
-    return (
-      <SidebarMigrationPanel
-        notesCount={notes.length}
-      />
-    );
+    return <SidebarMigrationPanel />;
   }
 
   return (

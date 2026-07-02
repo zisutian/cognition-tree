@@ -140,6 +140,13 @@
   text-transform: uppercase;
 }
 
+.side-section-hint {
+  margin: 4px 0 0;
+  color: #7a9187;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .side-action-button {
   display: inline-flex;
   align-items: center;

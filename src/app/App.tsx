@@ -1,8 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  BlockMigrationStatusPanel,
-  type BlockMigrationPanelStatus,
-} from "../features/migration/BlockMigrationStatusPanel";
 import { BlockMigrationWorkspacePanel } from "../features/migration/BlockMigrationWorkspacePanel";
 import { NoteEditorPanel } from "../features/notes/NoteEditorPanel";
 import { NoteOutlinePanel } from "../features/notes/NoteOutlinePanel";
@@ -27,11 +23,6 @@ type EditorFocusRequest = {
   requestId: number;
 };
 
-const initialMigrationSelectionStatus: BlockMigrationPanelStatus = {
-  message: "源笔记或目标笔记未选定。",
-  status: "idle",
-};
-
 const emptyNoteReferenceGraph = {
   edges: [],
   issues: [],
@@ -51,10 +42,7 @@ function App() {
   const [syntaxDraftSource, setSyntaxDraftSource] = useState("");
   const [syntaxFeedback, setSyntaxFeedback] =
     useState<WorkspaceFeedback | null>(null);
-  const [migrationSelectionStatus, setMigrationSelectionStatus] =
-    useState<BlockMigrationPanelStatus>(initialMigrationSelectionStatus);
-  const [migrationResultStatus, setMigrationResultStatus] =
-    useState<BlockMigrationPanelStatus | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
     activeNote,
     canChangeRepositoryPath,
@@ -106,6 +94,16 @@ function App() {
     setSyntaxDraftSource(syntaxFile.source);
   }, [syntaxFile.source]);
 
+  const handleActivityChange = (activityId: SidebarActivityId) => {
+    if (activityId === activeActivityId) {
+      setSidebarCollapsed((v) => !v);
+      return;
+    }
+
+    setActiveActivityId(activityId);
+    setSidebarCollapsed(false);
+  };
+
   const focusEditorLine = (lineNumber: number) => {
     setEditorFocusRequest((current) => ({
       lineNumber,
@@ -150,8 +148,6 @@ function App() {
         <BlockMigrationWorkspacePanel
           activeNoteId={activeNote?.id ?? null}
           onMoveNoteBlock={moveNoteBlock}
-          onResultStatusChange={setMigrationResultStatus}
-          onSelectionStatusChange={setMigrationSelectionStatus}
           workspace={workspace}
         />
       );
@@ -189,12 +185,7 @@ function App() {
     }
 
     if (activeActivityId === "migration") {
-      return (
-        <BlockMigrationStatusPanel
-          resultStatus={migrationResultStatus}
-          selectionStatus={migrationSelectionStatus}
-        />
-      );
+      return null;
     }
 
     if (activeActivityId === "visualization") {
@@ -217,7 +208,7 @@ function App() {
   };
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <WorkspaceSidebar
         activeActivityId={activeActivityId}
         activeFolderId={selectedFolderId}
@@ -229,7 +220,7 @@ function App() {
         saveStatusLabel={workspaceSaveStatusLabel}
         storageLabel={storageLabel}
         syntaxFile={syntaxFile}
-        onActivityChange={setActiveActivityId}
+        onActivityChange={handleActivityChange}
         canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={changeRepositoryPath}
         onCreateFolder={createFolder}

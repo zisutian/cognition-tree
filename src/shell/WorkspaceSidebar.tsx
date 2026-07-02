@@ -76,34 +76,34 @@ export function WorkspaceSidebar({
       />
 
       <section className="side-panel" aria-label={activeActivityItem.label}>
-        <header className="side-panel-header">
-          <p className="eyebrow">Workspace</p>
-          <h1>{activeActivityItem.label}</h1>
-        </header>
-        <SidebarActivityPanel
-          activeActivityId={activeActivityId}
-          activeFolderId={activeFolderId}
-          activeNoteId={activeNoteId}
-          notes={notes}
-          noteTree={noteTree}
-          referenceGraph={referenceGraph}
-          repositoryPath={repositoryPath}
-          saveStatusLabel={saveStatusLabel}
-          storageLabel={storageLabel}
-          syntaxFile={syntaxFile}
-          canChangeRepositoryPath={canChangeRepositoryPath}
-          onChangeRepositoryPath={onChangeRepositoryPath}
-          onCreateFolder={onCreateFolder}
-          onCreateNote={onCreateNote}
-          onDeleteFolder={onDeleteFolder}
-          onDeleteNote={onDeleteNote}
-          onMoveNote={onMoveNote}
-          onReloadWorkspace={onReloadWorkspace}
-          onRenameFolder={onRenameFolder}
-          onSelectFolder={onSelectFolder}
-          onSelectNote={onSelectNote}
-        />
-      </section>
+          <header className="side-panel-header">
+            <p className="eyebrow">Workspace</p>
+            <h1>{activeActivityItem.label}</h1>
+          </header>
+          <SidebarActivityPanel
+            activeActivityId={activeActivityId}
+            activeFolderId={activeFolderId}
+            activeNoteId={activeNoteId}
+            notes={notes}
+            noteTree={noteTree}
+            referenceGraph={referenceGraph}
+            repositoryPath={repositoryPath}
+            saveStatusLabel={saveStatusLabel}
+            storageLabel={storageLabel}
+            syntaxFile={syntaxFile}
+            canChangeRepositoryPath={canChangeRepositoryPath}
+            onChangeRepositoryPath={onChangeRepositoryPath}
+            onCreateFolder={onCreateFolder}
+            onCreateNote={onCreateNote}
+            onDeleteFolder={onDeleteFolder}
+            onDeleteNote={onDeleteNote}
+            onMoveNote={onMoveNote}
+            onReloadWorkspace={onReloadWorkspace}
+            onRenameFolder={onRenameFolder}
+            onSelectFolder={onSelectFolder}
+            onSelectNote={onSelectNote}
+          />
+        </section>
     </aside>
   );
 }

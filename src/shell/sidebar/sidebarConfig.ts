@@ -26,10 +26,10 @@ export type SidebarActivityItem = {
 
 export const sidebarActivityItems: SidebarActivityItem[] = [
   { id: "notes", label: "笔记", icon: FileText },
-  { id: "search", label: "搜索", icon: Search },
+  { id: "migration", label: "块迁移", icon: MoveRight },
   { id: "visualization", label: "可视化", icon: Network },
   { id: "syntax", label: "语法", icon: Braces },
-  { id: "migration", label: "迁移", icon: MoveRight },
+  { id: "search", label: "搜索", icon: Search },
   { id: "data", label: "数据", icon: Database },
   { id: "settings", label: "设置", icon: Settings },
 ];
