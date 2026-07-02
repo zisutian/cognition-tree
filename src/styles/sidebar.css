@@ -84,17 +84,15 @@
 }
 
 .side-panel-header {
+  display: flex;
+  align-items: center;
   min-height: 42px;
 }
 
 .side-panel-header h1 {
   color: #f8fbf5;
   font-size: 18px;
-  line-height: 1.1;
-}
-
-.side-panel .eyebrow {
-  color: #d7eb8f;
+  line-height: 1.2;
 }
 
 .side-panel-body {
@@ -175,48 +173,6 @@
   color: #ffe0d0;
   font-size: 11px;
   line-height: 1.4;
-}
-
-.syntax-file-list {
-  display: grid;
-  gap: 3px;
-}
-
-.syntax-file-entry {
-  display: grid;
-  gap: 2px;
-  width: 100%;
-  padding: 6px 7px;
-  border-radius: 6px;
-  color: #dbe8e2;
-  background: rgba(255, 255, 255, 0.07);
-  cursor: pointer;
-  text-align: left;
-}
-
-.syntax-file-entry:hover,
-.syntax-file-entry.active {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.syntax-file-entry span,
-.syntax-file-entry code {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.syntax-file-entry span {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.syntax-file-entry code {
-  color: #d7eb8f;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
 }
 
 .repository-strip {
@@ -438,47 +394,23 @@
   cursor: default;
 }
 
-.side-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.side-metric {
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.07);
-}
-
-.side-metric span {
-  display: block;
-  color: #bdd0c8;
-  font-size: 11px;
-}
-
-.side-metric strong {
-  display: block;
-  margin-top: 2px;
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 1.1;
-}
-
 .side-entry-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 1px;
 }
 
 .side-entry {
-  min-height: 30px;
-  padding: 6px 8px;
-  border-radius: 7px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 5px;
+  border-radius: 5px;
   overflow: hidden;
   color: #eaf1ed;
-  background: rgba(255, 255, 255, 0.06);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -490,7 +422,7 @@
 }
 
 .side-entry:disabled {
-  color: #a8beb6;
+  color: #c8d7d2;
   cursor: default;
 }
 

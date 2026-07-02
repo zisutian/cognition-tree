@@ -4,8 +4,6 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../../domain/notes";
-import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
-import type { NoteReferenceGraph } from "../../workspace/noteReferenceGraph";
 import {
   sidebarActivityItems,
   sidebarPlaceholderEntries,
@@ -14,8 +12,6 @@ import {
 import { SidebarMigrationPanel } from "./SidebarMigrationPanel";
 import { SidebarNotesPanel } from "./SidebarNotesPanel";
 import { SidebarPlaceholderPanel } from "./SidebarPlaceholderPanel";
-import { SidebarSyntaxPanel } from "./SidebarSyntaxPanel";
-import { SidebarVisualizationSummary } from "./SidebarVisualizationSummary";
 
 type SidebarActivityPanelProps = {
   activeActivityId: SidebarActivityId;
@@ -23,11 +19,9 @@ type SidebarActivityPanelProps = {
   activeNoteId: NoteId | null;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
-  referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
   saveStatusLabel: string;
   storageLabel: string;
-  syntaxFile: WorkspaceSyntaxFile;
   canChangeRepositoryPath: boolean;
   onChangeRepositoryPath: (path: string) => void;
   onCreateFolder: (parentFolderId: FolderId, title: string) => void;
@@ -47,11 +41,9 @@ export function SidebarActivityPanel({
   activeNoteId,
   notes,
   noteTree,
-  referenceGraph,
   repositoryPath,
   saveStatusLabel,
   storageLabel,
-  syntaxFile,
   canChangeRepositoryPath,
   onChangeRepositoryPath,
   onCreateFolder,
@@ -90,17 +82,11 @@ export function SidebarActivityPanel({
   }
 
   if (activeActivityId === "visualization") {
-    return (
-      <SidebarVisualizationSummary graph={referenceGraph} />
-    );
+    return null;
   }
 
   if (activeActivityId === "syntax") {
-    return (
-      <SidebarSyntaxPanel
-        syntaxFile={syntaxFile}
-      />
-    );
+    return null;
   }
 
   if (activeActivityId === "migration") {

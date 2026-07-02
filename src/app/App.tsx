@@ -159,6 +159,7 @@ function App() {
 
     return (
       <NoteEditorPanel
+        currentNoteTitle={activeNote?.title ?? null}
         documentText={documentText}
         focusTarget={editorFocusRequest}
         hasActiveNote={Boolean(activeNote)}
@@ -166,8 +167,6 @@ function App() {
         syntaxProfile={activeSyntaxProfile}
         syntaxIssueMessage={syntaxIssueMessage}
         workspaceErrorMessage={workspaceErrorMessage}
-        syntaxProfileName={workspace.syntaxProfile.name}
-        title={activeNote?.title ?? "本地笔记库"}
         onCreateNote={createNote}
         onDocumentTextChange={updateActiveNoteSource}
       />
@@ -192,16 +191,13 @@ function App() {
       return (
         <NoteReferenceGraphDetailPanel
           graph={noteReferenceGraph}
-          workspace={workspace}
         />
       );
     }
 
     return (
       <NoteOutlinePanel
-        diagnosticsCount={parsedDocument.diagnostics.length}
         nodes={parsedDocument.roots}
-        totalBlocks={parsedDocument.blocks.length}
         onSelectLine={focusEditorLine}
       />
     );
@@ -215,11 +211,9 @@ function App() {
         activeNoteId={activeNote?.id ?? null}
         notes={workspace.notes}
         noteTree={workspace.tree}
-        referenceGraph={noteReferenceGraph}
         repositoryPath={repositoryPath}
         saveStatusLabel={workspaceSaveStatusLabel}
         storageLabel={storageLabel}
-        syntaxFile={syntaxFile}
         onActivityChange={handleActivityChange}
         canChangeRepositoryPath={canChangeRepositoryPath}
         onChangeRepositoryPath={changeRepositoryPath}

@@ -8,9 +8,8 @@ export function NoteEditorPanel({
   hasActiveNote,
   parsedDocument,
   syntaxProfile,
-  syntaxProfileName,
   syntaxIssueMessage,
-  title,
+  currentNoteTitle,
   workspaceErrorMessage,
   onCreateNote,
   onDocumentTextChange,
@@ -20,9 +19,8 @@ export function NoteEditorPanel({
   hasActiveNote: boolean;
   parsedDocument: CtnDocument;
   syntaxProfile: CtnSyntaxProfile | null;
-  syntaxProfileName: string;
   syntaxIssueMessage: string | null;
-  title: string;
+  currentNoteTitle: string | null;
   workspaceErrorMessage: string;
   onCreateNote: () => void;
   onDocumentTextChange: (source: string) => void;
@@ -35,15 +33,16 @@ export function NoteEditorPanel({
     <section className="editor-panel" aria-label="原文编辑">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">CTN Source</p>
-          <h2>{title}</h2>
+          <h2>笔记编辑</h2>
         </div>
         <div className="stats">
+          <span className="current-note-chip">
+            {currentNoteTitle ? `当前：${currentNoteTitle}` : "未选择笔记"}
+          </span>
           <span>{lineCount} 行</span>
           <span>{totalBlocks} 个块</span>
           <span>{outline.length} 个根节点</span>
           <span>{parsedDocument.diagnostics.length} 个诊断</span>
-          <span>{syntaxProfile?.name ?? syntaxProfileName}</span>
         </div>
       </header>
 

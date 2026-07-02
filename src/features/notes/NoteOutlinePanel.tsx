@@ -9,15 +9,11 @@ const outlineZoomStep = 0.1;
 const outlineZoomDefault = 1;
 
 export function NoteOutlinePanel({
-  diagnosticsCount,
   nodes,
   onSelectLine,
-  totalBlocks,
 }: {
-  diagnosticsCount: number;
   nodes: OutlineNode[];
   onSelectLine: (lineNumber: number) => void;
-  totalBlocks: number;
 }) {
   const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(
@@ -51,49 +47,42 @@ export function NoteOutlinePanel({
 
   return (
     <aside className="outline-panel" aria-label="笔记结构预览">
-      <header className="panel-header compact">
+      <header className="panel-header">
         <div>
-          <p className="eyebrow">Outline</p>
           <h2>笔记结构</h2>
         </div>
-        <div className="outline-header-actions">
-          <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
-            <button
-              aria-label="缩小笔记结构树"
-              className="outline-icon-button"
-              disabled={outlineZoom <= outlineZoomMin}
-              onClick={() => changeOutlineZoom(-outlineZoomStep)}
-              title="缩小笔记结构树"
-              type="button"
-            >
-              <Minus aria-hidden="true" size={14} strokeWidth={2} />
-            </button>
-            <span className="outline-zoom-value">{outlineZoomPercent}%</span>
-            <button
-              aria-label="放大笔记结构树"
-              className="outline-icon-button"
-              disabled={outlineZoom >= outlineZoomMax}
-              onClick={() => changeOutlineZoom(outlineZoomStep)}
-              title="放大笔记结构树"
-              type="button"
-            >
-              <Plus aria-hidden="true" size={14} strokeWidth={2} />
-            </button>
-            <button
-              aria-label="重置笔记结构树缩放"
-              className="outline-icon-button"
-              disabled={outlineZoom === outlineZoomDefault}
-              onClick={() => setOutlineZoom(outlineZoomDefault)}
-              title="重置笔记结构树缩放"
-              type="button"
-            >
-              <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
-            </button>
-          </div>
-          <div className="stats compact-stats">
-            <span>{totalBlocks} 块</span>
-            <span>{diagnosticsCount} 诊断</span>
-          </div>
+        <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
+          <button
+            aria-label="缩小笔记结构树"
+            className="outline-icon-button"
+            disabled={outlineZoom <= outlineZoomMin}
+            onClick={() => changeOutlineZoom(-outlineZoomStep)}
+            title="缩小笔记结构树"
+            type="button"
+          >
+            <Minus aria-hidden="true" size={14} strokeWidth={2} />
+          </button>
+          <span className="outline-zoom-value">{outlineZoomPercent}%</span>
+          <button
+            aria-label="放大笔记结构树"
+            className="outline-icon-button"
+            disabled={outlineZoom >= outlineZoomMax}
+            onClick={() => changeOutlineZoom(outlineZoomStep)}
+            title="放大笔记结构树"
+            type="button"
+          >
+            <Plus aria-hidden="true" size={14} strokeWidth={2} />
+          </button>
+          <button
+            aria-label="重置笔记结构树缩放"
+            className="outline-icon-button"
+            disabled={outlineZoom === outlineZoomDefault}
+            onClick={() => setOutlineZoom(outlineZoomDefault)}
+            title="重置笔记结构树缩放"
+            type="button"
+          >
+            <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
+          </button>
         </div>
       </header>
 

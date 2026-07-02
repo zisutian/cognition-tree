@@ -71,7 +71,6 @@ export function NoteReferenceGraphPanel({
     <section className="workspace-main-panel visualization-workspace-panel" aria-label="可视化">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">Visualization</p>
           <h2>笔记引用图谱</h2>
         </div>
         <div className="stats">

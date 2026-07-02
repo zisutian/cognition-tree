@@ -23,12 +23,11 @@ export function SyntaxProfileDetailPanel({
 
   return (
     <aside className="workspace-detail-panel" aria-label="语法状态">
-      <header className="panel-header compact">
+      <header className="panel-header">
         <div>
-          <p className="eyebrow">Syntax</p>
           <h2>语法</h2>
         </div>
-        <div className="stats compact-stats">
+        <div className="stats">
           <span>{syntaxFile.fileName}</span>
           <span>{diagnostics.length} 诊断</span>
         </div>

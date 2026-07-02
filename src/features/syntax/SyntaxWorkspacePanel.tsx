@@ -18,7 +18,6 @@ export function SyntaxWorkspacePanel({
     <section className="workspace-main-panel syntax-workspace-panel" aria-label="语法编辑">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">Syntax TOML</p>
           <h2>{syntaxFile.fileName}</h2>
         </div>
         <div className="stats">

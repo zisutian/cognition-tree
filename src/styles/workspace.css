@@ -664,3 +664,39 @@
   font-family: var(--font-mono);
   font-size: 11px;
 }
+
+.visualization-rank-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.visualization-rank-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 4px 6px;
+  border: 1px solid #d8ded5;
+  border-radius: 7px;
+  color: #25302d;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.visualization-rank-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visualization-rank-list small {
+  color: #708078;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}

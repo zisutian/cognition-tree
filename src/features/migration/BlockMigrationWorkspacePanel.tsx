@@ -398,7 +398,6 @@ export function BlockMigrationWorkspacePanel({
     <section className="workspace-main-panel migration-full-width migration-workspace-panel" aria-label="块迁移">
       <header className="panel-header">
         <div>
-          <p className="eyebrow">Block Migration</p>
           <h2>块迁移</h2>
         </div>
         <div className="stats">

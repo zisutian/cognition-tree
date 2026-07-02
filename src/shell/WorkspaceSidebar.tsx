@@ -4,8 +4,6 @@ import type {
   NoteRecord,
   NoteTreeNode,
 } from "../domain/notes";
-import type { WorkspaceSyntaxFile } from "../storage/workspaceRepository";
-import type { NoteReferenceGraph } from "../workspace/noteReferenceGraph";
 import { SidebarActivityBar } from "./sidebar/SidebarActivityBar";
 import { SidebarActivityPanel } from "./sidebar/SidebarActivityPanel";
 import {
@@ -21,11 +19,9 @@ type WorkspaceSidebarProps = {
   activeNoteId: NoteId | null;
   notes: NoteRecord[];
   noteTree: NoteTreeNode[];
-  referenceGraph: NoteReferenceGraph;
   repositoryPath: string;
   saveStatusLabel: string;
   storageLabel: string;
-  syntaxFile: WorkspaceSyntaxFile;
   canChangeRepositoryPath: boolean;
   onActivityChange: (activityId: SidebarActivityId) => void;
   onChangeRepositoryPath: (path: string) => void;
@@ -46,11 +42,9 @@ export function WorkspaceSidebar({
   activeNoteId,
   notes,
   noteTree,
-  referenceGraph,
   repositoryPath,
   saveStatusLabel,
   storageLabel,
-  syntaxFile,
   canChangeRepositoryPath,
   onActivityChange,
   onChangeRepositoryPath,
@@ -76,34 +70,31 @@ export function WorkspaceSidebar({
       />
 
       <section className="side-panel" aria-label={activeActivityItem.label}>
-          <header className="side-panel-header">
-            <p className="eyebrow">Workspace</p>
-            <h1>{activeActivityItem.label}</h1>
-          </header>
-          <SidebarActivityPanel
-            activeActivityId={activeActivityId}
-            activeFolderId={activeFolderId}
-            activeNoteId={activeNoteId}
-            notes={notes}
-            noteTree={noteTree}
-            referenceGraph={referenceGraph}
-            repositoryPath={repositoryPath}
-            saveStatusLabel={saveStatusLabel}
-            storageLabel={storageLabel}
-            syntaxFile={syntaxFile}
-            canChangeRepositoryPath={canChangeRepositoryPath}
-            onChangeRepositoryPath={onChangeRepositoryPath}
-            onCreateFolder={onCreateFolder}
-            onCreateNote={onCreateNote}
-            onDeleteFolder={onDeleteFolder}
-            onDeleteNote={onDeleteNote}
-            onMoveNote={onMoveNote}
-            onReloadWorkspace={onReloadWorkspace}
-            onRenameFolder={onRenameFolder}
-            onSelectFolder={onSelectFolder}
-            onSelectNote={onSelectNote}
-          />
-        </section>
+        <header className="side-panel-header">
+          <h1>{activeActivityItem.label}</h1>
+        </header>
+        <SidebarActivityPanel
+          activeActivityId={activeActivityId}
+          activeFolderId={activeFolderId}
+          activeNoteId={activeNoteId}
+          notes={notes}
+          noteTree={noteTree}
+          repositoryPath={repositoryPath}
+          saveStatusLabel={saveStatusLabel}
+          storageLabel={storageLabel}
+          canChangeRepositoryPath={canChangeRepositoryPath}
+          onChangeRepositoryPath={onChangeRepositoryPath}
+          onCreateFolder={onCreateFolder}
+          onCreateNote={onCreateNote}
+          onDeleteFolder={onDeleteFolder}
+          onDeleteNote={onDeleteNote}
+          onMoveNote={onMoveNote}
+          onReloadWorkspace={onReloadWorkspace}
+          onRenameFolder={onRenameFolder}
+          onSelectFolder={onSelectFolder}
+          onSelectNote={onSelectNote}
+        />
+      </section>
     </aside>
   );
 }
