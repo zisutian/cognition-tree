@@ -11,10 +11,10 @@ function parseDefaultCtnDocument(source: string) {
 describe("parseCtnDocument", () => {
   it("builds a semantic block tree from the default CTN markers", () => {
     const document = parseDefaultCtnDocument(`Root
-    : Definition
-    > Understanding
-        - Component
-    \`\`\` ts`);
+	: Definition
+	> Understanding
+		- Component
+	\`\`\` ts`);
 
     expect(document.roots).toHaveLength(1);
     expect(document.blocks).toHaveLength(5);
@@ -54,11 +54,11 @@ describe("parseCtnDocument", () => {
 
   it("computes subtree ranges across roots, children, last blocks, and blank lines", () => {
     const document = parseDefaultCtnDocument(`Root
-    : Definition
+	: Definition
 
-    - Component
+	- Component
 Sibling
-    > Understanding`);
+	> Understanding`);
 
     expect(
       document.blocks.map((block) => ({
@@ -77,7 +77,7 @@ Sibling
 
   it("parses inline structural spans outside multiline blocks", () => {
     const document = parseDefaultCtnDocument(
-      "Root `code` <local> [[global]] A \\ B\n    : `literal <ignored>` <term> [[Topic]] A \\ B\n    - <当前笔记> \\ [[全局概念]]",
+      "Root `code` <local> [[global]] A \\ B\n	: `literal <ignored>` <term> [[Topic]] A \\ B\n	- <当前笔记> \\ [[全局概念]]",
     );
     const root = document.roots[0];
     const definition = root.children[0];
@@ -119,11 +119,11 @@ Sibling
 
   it("treats multiline block contents as raw block range", () => {
     const document = parseDefaultCtnDocument(`Root
-    \`\`\`ts
-    : Not a definition
-        - Not a component
-    \`\`\`
-    : After`);
+	\`\`\`ts
+	: Not a definition
+		- Not a component
+	\`\`\`
+	: After`);
 
     expect(document.diagnostics).toHaveLength(0);
     expect(document.blocks.map((block) => block.text)).toEqual([
@@ -149,9 +149,9 @@ Sibling
 
   it("reports invalid line-start symbols instead of parsing aliases", () => {
     const document = parseDefaultCtnDocument(`# Root
-    = Definition
-    ? Question
-    + Action`);
+	= Definition
+	? Question
+	+ Action`);
 
     expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "unknown-marker",
@@ -175,10 +175,10 @@ Sibling
 
   it("reports removed profile markers instead of treating them as concepts", () => {
     const document = parseCtnDocument(`Root
-    : Removed definition
-    > Removed understanding
-    - Removed component
-    ! Removed custom marker`, {
+	: Removed definition
+	> Removed understanding
+	- Removed component
+	! Removed custom marker`, {
       syntaxProfile: {
         ...defaultCtnSyntaxProfile,
         markerRules: [
@@ -214,26 +214,26 @@ Sibling
   });
 
   it("preserves raw text and ignores blank lines", () => {
-    const document = parseDefaultCtnDocument(`    plain text
+    const document = parseDefaultCtnDocument(`	plain text
 
-    : Definition`);
+	: Definition`);
 
     expect(document.roots).toHaveLength(2);
     expect(document.roots[0]).toMatchObject({
       label: "概念",
       marker: null,
-      rawText: "    plain text",
+      rawText: "	plain text",
       text: "plain text",
     });
     expect(document.roots[1]).toMatchObject({
       label: "定义",
       lineNumber: 3,
-      rawText: "    : Definition",
+      rawText: "	: Definition",
     });
   });
 
   it("uses the configured top-level concept tone", () => {
-    const document = parseCtnDocument("Root\n    Child", {
+    const document = parseCtnDocument("Root\n	Child", {
       syntaxProfile: {
         ...defaultCtnSyntaxProfile,
         conceptRule: {
@@ -264,10 +264,10 @@ Sibling
     const document = parseDefaultCtnDocument(`Root
    [未知] Something
 Sibling
-        : Missing parent`);
+		: Missing parent`);
 
     expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
-      "indent-not-multiple",
+      "space-indent",
       "unknown-marker",
       "indent-level-jump",
     ]);
@@ -290,12 +290,12 @@ Sibling
   it("accepts custom syntax profiles", () => {
     const document = parseCtnDocument(
       `Root
-    ! Custom item`,
+	! Custom item`,
       {
         syntaxProfile: {
           ...defaultCtnSyntaxProfile,
           name: "Custom profile",
-          spaceIndentUnit: 4,
+          tabDisplayWidth: 4,
           markerRules: [
             ...defaultCtnSyntaxProfile.markerRules,
             {
@@ -323,10 +323,10 @@ Sibling
 
   it("uses role instead of type for multiline block behavior", () => {
     const document = parseCtnDocument(`Root
-    ~ js
-    : Raw definition
-    ~
-    ! Normal custom`, {
+	~ js
+	: Raw definition
+	~
+	! Normal custom`, {
       syntaxProfile: {
         ...defaultCtnSyntaxProfile,
         markerRules: [

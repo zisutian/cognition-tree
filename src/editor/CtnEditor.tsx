@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { CtnSyntaxProfile } from "../syntax/types";
-import { createCtnEditorExtensions } from "./ctnEditorExtensions";
+import {
+  createCtnEditorExtensions,
+  createCtnTabSizeExtension,
+  ctnTabSizeCompartment,
+} from "./ctnEditorExtensions";
 
 type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;
@@ -27,6 +31,7 @@ export function CtnEditor({
   const initialValueRef = useRef(value);
   const onChangeRef = useRef(onChange);
   const syntaxProfileRef = useRef(syntaxProfile);
+  const tabDisplayWidthRef = useRef(syntaxProfile.tabDisplayWidth);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -34,7 +39,20 @@ export function CtnEditor({
 
   useEffect(() => {
     syntaxProfileRef.current = syntaxProfile;
-    editorViewRef.current?.dispatch({});
+    const view = editorViewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    if (tabDisplayWidthRef.current !== syntaxProfile.tabDisplayWidth) {
+      view.dispatch({
+        effects: ctnTabSizeCompartment.reconfigure(
+          createCtnTabSizeExtension(syntaxProfile.tabDisplayWidth),
+        ),
+      });
+      tabDisplayWidthRef.current = syntaxProfile.tabDisplayWidth;
+    }
   }, [syntaxProfile]);
 
   useEffect(() => {

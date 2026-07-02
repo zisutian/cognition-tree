@@ -18,9 +18,9 @@ import type { CtnSyntaxProfile } from "../syntax/types";
 
 function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
   return JSON.stringify({
+    conceptRule: syntaxProfile.conceptRule,
     inlineRules: syntaxProfile.inlineRules,
     markerRules: syntaxProfile.markerRules,
-    spaceIndentUnit: syntaxProfile.spaceIndentUnit,
   });
 }
 

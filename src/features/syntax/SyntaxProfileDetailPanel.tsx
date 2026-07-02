@@ -59,8 +59,8 @@ export function SyntaxProfileDetailPanel({
                 <dd>{draftProfile.name}</dd>
               </div>
               <div>
-                <dt>缩进</dt>
-                <dd>{draftProfile.spaceIndentUnit}</dd>
+                <dt>Tab</dt>
+                <dd>{draftProfile.tabDisplayWidth}</dd>
               </div>
               <div>
                 <dt>行首</dt>

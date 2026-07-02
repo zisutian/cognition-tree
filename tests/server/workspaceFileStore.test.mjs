@@ -19,7 +19,7 @@ function createWorkspace() {
       {
         id: "note-test",
         title: "测试笔记",
-        source: "测试笔记\n    : 文件保存",
+        source: "测试笔记\n	: 文件保存",
         createdAt: "2026-05-25T00:00:00.000Z",
         updatedAt: "2026-05-25T00:00:00.000Z",
       },
@@ -82,7 +82,7 @@ async function withTempStore(testFn) {
 }
 
 const customSyntaxSource = `name = "自定义语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 
 [concept]
 type = "concept"
@@ -114,7 +114,7 @@ describe("WorkspaceFileStore", () => {
 
       expect(
         await readFile(path.join(rootDir, "notes", "note-test.ctn"), "utf8"),
-      ).toBe("测试笔记\n    : 文件保存");
+      ).toBe("测试笔记\n	: 文件保存");
       expect(
         await readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
       ).toBe(formatSyntaxProfileToml());

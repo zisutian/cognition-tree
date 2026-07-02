@@ -118,12 +118,12 @@ describe("workspace actions", () => {
     const workspace = createWorkspaceWithNotes();
     const updatedSourceWorkspace = updateActiveWorkspaceNoteSource(
       workspace,
-      "新标题\n    : 定义",
+      "新标题\n\t: 定义",
       "2026-06-08T01:00:00.000Z",
     );
 
     expect(updatedSourceWorkspace.notes[0]).toMatchObject({
-      source: "新标题\n    : 定义",
+      source: "新标题\n\t: 定义",
       title: "新标题",
       updatedAt: "2026-06-08T01:00:00.000Z",
     });

@@ -42,7 +42,7 @@ const requiredGlobalReferenceType = "global-reference";
 const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
 const rootFields = new Set([
   "name",
-  "spaceIndentUnit",
+  "tabDisplayWidth",
   "concept",
   "markers",
   "inlineRules",
@@ -486,9 +486,9 @@ export function parseSyntaxProfileToml(
   validateSupportedFields(parsed, rootFields, "$", diagnostics);
 
   const name = readRequiredString(parsed, "name", "$", diagnostics);
-  const spaceIndentUnit = readRequiredPositiveInteger(
+  const tabDisplayWidth = readRequiredPositiveInteger(
     parsed,
-    "spaceIndentUnit",
+    "tabDisplayWidth",
     "$",
     diagnostics,
   );
@@ -499,7 +499,7 @@ export function parseSyntaxProfileToml(
   if (
     diagnostics.length > 0 ||
     !name ||
-    !spaceIndentUnit ||
+    !tabDisplayWidth ||
     !conceptRule ||
     markerRules.length === 0
   ) {
@@ -516,7 +516,7 @@ export function parseSyntaxProfileToml(
       inlineRules,
       markerRules,
       name,
-      spaceIndentUnit,
+      tabDisplayWidth,
     },
   };
 }
@@ -527,9 +527,9 @@ export function formatSyntaxProfileToml(
   const lines = [
     "# CTN 语法配置文件。",
     "# name：界面中显示的人类可读名称。",
-    "# spaceIndentUnit：每一层 CTN 树缩进使用的空格数。当前默认值为 4。",
+    "# tabDisplayWidth：一个 Tab 在编辑器中显示为几格宽；CTN 源文件仍使用 Tab 存储层级。",
     `name = ${formatTomlString(profile.name)}`,
-    `spaceIndentUnit = ${profile.spaceIndentUnit}`,
+    `tabDisplayWidth = ${profile.tabDisplayWidth}`,
     "",
     "# concept：没有行首符号、且位于顶格的概念行规则。",
     "# type 固定为 concept；label 是界面显示名称；tone 是整行高亮颜色。",

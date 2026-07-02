@@ -8,7 +8,7 @@ import {
 describe("syntax profile TOML", () => {
   it("parses a valid syntax profile", () => {
 const result = parseSyntaxProfileToml(`name = "自定义语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 
 [concept]
 type = "concept"
@@ -102,7 +102,7 @@ tone = "amber"
         },
       ],
       name: "自定义语法",
-      spaceIndentUnit: 4,
+      tabDisplayWidth: 4,
     });
   });
 
@@ -115,7 +115,7 @@ tone = "amber"
 
   it("rejects missing fields and invalid scalar values", () => {
     const result = parseSyntaxProfileToml(`name = ""
-spaceIndentUnit = 0
+tabDisplayWidth = 0
 `);
 
     expect(result.profile).toBeNull();
@@ -130,7 +130,7 @@ spaceIndentUnit = 0
 
   it("rejects duplicate markers, invalid type ids, invalid role or tone, and unsupported fields", () => {
     const result = parseSyntaxProfileToml(`name = "非法语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 extra = true
 inlineRules = []
 
@@ -171,7 +171,7 @@ tone = "default"
 
   it("requires explicit role, tone, and inlineRules", () => {
     const result = parseSyntaxProfileToml(`name = "旧语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 
 [[markers]]
 marker = ":"

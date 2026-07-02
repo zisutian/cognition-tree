@@ -44,7 +44,7 @@ export type SyntaxProfileDraft = {
   inlineRules: SyntaxProfileDraftInlineRule[];
   markerRules: SyntaxProfileDraftMarkerRule[];
   name: string;
-  spaceIndentUnit: string;
+  tabDisplayWidth: string;
 };
 
 export type SyntaxProfileDraftDiagnostic = {
@@ -114,11 +114,7 @@ function readPositiveInteger(
   const trimmed = value.trim();
   const numericValue = Number(trimmed);
 
-  if (
-    !trimmed ||
-    !Number.isInteger(numericValue) ||
-    numericValue < 1
-  ) {
+  if (!trimmed || !Number.isInteger(numericValue) || numericValue < 1) {
     diagnostics.push({
       message: `${label}必须是正整数。`,
       path,
@@ -222,7 +218,7 @@ export function createSyntaxProfileDraft(
       type: rule.type,
     })),
     name: profile.name,
-    spaceIndentUnit: String(profile.spaceIndentUnit),
+    tabDisplayWidth: String(profile.tabDisplayWidth),
   };
 }
 
@@ -231,10 +227,10 @@ export function buildSyntaxProfileDraft(
 ): SyntaxProfileDraftBuildResult {
   const diagnostics: SyntaxProfileDraftDiagnostic[] = [];
   const name = readRequiredText(draft.name, "$.name", "语法名称", diagnostics);
-  const spaceIndentUnit = readPositiveInteger(
-    draft.spaceIndentUnit,
-    "$.spaceIndentUnit",
-    "缩进单位",
+  const tabDisplayWidth = readPositiveInteger(
+    draft.tabDisplayWidth,
+    "$.tabDisplayWidth",
+    "Tab 显示宽度",
     diagnostics,
   );
   const markerSet = new Set<string>();
@@ -426,7 +422,7 @@ export function buildSyntaxProfileDraft(
   if (
     diagnostics.length > 0 ||
     !name ||
-    !spaceIndentUnit ||
+    !tabDisplayWidth ||
     !conceptRule ||
     markerRules.length === 0
   ) {
@@ -443,7 +439,7 @@ export function buildSyntaxProfileDraft(
       inlineRules: sortProtectedInlineRuleFirst(inlineRules),
       markerRules,
       name,
-      spaceIndentUnit,
+      tabDisplayWidth,
     },
   };
 }

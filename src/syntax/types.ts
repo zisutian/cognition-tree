@@ -60,7 +60,7 @@ export type CtnInlineRule = CtnPairedInlineRule | CtnSingleInlineRule;
 export type CtnSyntaxProfile = {
   conceptRule: CtnConceptRule;
   name: string;
-  spaceIndentUnit: number;
+  tabDisplayWidth: number;
   markerRules: CtnMarkerRule[];
   inlineRules: CtnInlineRule[];
 };

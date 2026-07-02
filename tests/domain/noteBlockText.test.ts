@@ -10,36 +10,36 @@ import {
 
 describe("note block text operations", () => {
   it("extracts a root block subtree range", () => {
-    const source = "Root\n    : Definition\nSibling";
+    const source = "Root\n\t: Definition\nSibling";
 
     expect(
       extractBlockText(source, {
         endLineNumber: 2,
         startLineNumber: 1,
       }),
-    ).toBe("Root\n    : Definition");
+    ).toBe("Root\n\t: Definition");
   });
 
   it("extracts a child block with blank lines inside its range", () => {
-    const source = "Root\n    : Definition\n\nSibling";
+    const source = "Root\n\t: Definition\n\nSibling";
 
     expect(
       extractBlockText(source, {
         endLineNumber: 3,
         startLineNumber: 2,
       }),
-    ).toBe("    : Definition\n");
+    ).toBe("\t: Definition\n");
   });
 
   it("removes a final block without leaving an empty document hole", () => {
-    const source = "Root\n    : Definition\nSibling";
+    const source = "Root\n\t: Definition\nSibling";
 
     expect(
       removeBlockText(source, {
         endLineNumber: 3,
         startLineNumber: 3,
       }),
-    ).toBe("Root\n    : Definition");
+    ).toBe("Root\n\t: Definition");
   });
 
   it("inserts block text before a target line or at document end", () => {
@@ -58,19 +58,19 @@ describe("note block text operations", () => {
     );
   });
 
-  it("rewrites indentation by four-space levels", () => {
+  it("rewrites indentation by tab levels", () => {
     expect(
-      rewriteBlockIndent("    : Definition\n        - Component", 1, 0),
-    ).toBe(": Definition\n    - Component");
-    expect(rewriteBlockIndent(": Definition\n    - Component", 0, 1)).toBe(
-      "    : Definition\n        - Component",
+      rewriteBlockIndent("\t: Definition\n\t\t- Component", 1, 0),
+    ).toBe(": Definition\n\t- Component");
+    expect(rewriteBlockIndent(": Definition\n\t- Component", 0, 1)).toBe(
+      "\t: Definition\n\t\t- Component",
     );
   });
 
   it("keeps multiline block contents relative to the moved subtree", () => {
     expect(
-      rewriteBlockIndent("    ```ts\n        const value = 1;\n    ```", 1, 0),
-    ).toBe("```ts\n    const value = 1;\n```");
+      rewriteBlockIndent("\t```ts\n\t\tconst value = 1;\n\t```", 1, 0),
+    ).toBe("```ts\n\tconst value = 1;\n```");
   });
 
   it("derives ranges from parser-shaped blocks and append line numbers", () => {

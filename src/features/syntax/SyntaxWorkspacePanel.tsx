@@ -213,7 +213,7 @@ export function SyntaxWorkspacePanel({
   onDraftChange,
 }: SyntaxWorkspacePanelProps) {
   const updateDraftField = (
-    field: keyof Pick<SyntaxProfileDraft, "name">,
+    field: keyof Pick<SyntaxProfileDraft, "name" | "tabDisplayWidth">,
     value: string,
   ) => {
     onDraftChange({
@@ -318,8 +318,17 @@ export function SyntaxWorkspacePanel({
               />
             </label>
             <label className="syntax-field">
-              <span>缩进单位</span>
-              <input disabled value={draft.spaceIndentUnit} />
+              <span>Tab 宽度</span>
+              <input
+                inputMode="numeric"
+                min="1"
+                step="1"
+                type="number"
+                value={draft.tabDisplayWidth}
+                onChange={(event) =>
+                  updateDraftField("tabDisplayWidth", event.target.value)
+                }
+              />
             </label>
           </div>
         </section>

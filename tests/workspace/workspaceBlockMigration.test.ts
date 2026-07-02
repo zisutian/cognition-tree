@@ -19,12 +19,12 @@ const timestamp = "2026-06-08T00:00:00.000Z";
 function createMigrationWorkspace(): NoteWorkspace {
   const sourceNote = createNoteRecord(
     "note-source",
-    "Root\n    : Definition\n        - Component\nSibling",
+    "Root\n\t: Definition\n\t\t- Component\nSibling",
     timestamp,
   );
   const targetNote = createNoteRecord(
     "note-target",
-    "Target\n    > Understanding",
+    "Target\n\t> Understanding",
     timestamp,
   );
   const workspace = createInitialWorkspace(defaultCtnSyntaxProfile);
@@ -70,7 +70,7 @@ describe("workspace block migration", () => {
     expect(result.workspace.notes.find((note) => note.id === "note-target"))
       .toMatchObject({
         source:
-          "Target\n    > Understanding\n    : Definition\n        - Component",
+          "Target\n\t> Understanding\n\t: Definition\n\t\t- Component",
         title: "Target",
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
@@ -111,12 +111,12 @@ describe("workspace block migration", () => {
     expect(aboveResult.workspace.notes.find((note) => note.id === "note-target"))
       .toMatchObject({
         source:
-          ": Definition\n    - Component\nTarget\n    > Understanding",
+          ": Definition\n\t- Component\nTarget\n\t> Understanding",
       });
     expect(belowResult.workspace.notes.find((note) => note.id === "note-target"))
       .toMatchObject({
         source:
-          "Target\n    > Understanding\n: Definition\n    - Component",
+          "Target\n\t> Understanding\n: Definition\n\t- Component",
       });
   });
 

@@ -80,7 +80,7 @@ describe("syntax profile draft", () => {
         },
       ],
       name: "自定义语法",
-      spaceIndentUnit: "4",
+      tabDisplayWidth: "4",
     };
     const result = buildSyntaxProfileDraft(draft);
 
@@ -96,7 +96,7 @@ describe("syntax profile draft", () => {
   it("reports controlled draft errors before TOML is generated", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
     draft.name = "";
-    draft.spaceIndentUnit = "0";
+    draft.tabDisplayWidth = "0";
     draft.conceptRule = {
       ...draft.conceptRule,
       tone: "default",
@@ -131,7 +131,7 @@ describe("syntax profile draft", () => {
     expect(result.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ path: "$.name" }),
-        expect.objectContaining({ path: "$.spaceIndentUnit" }),
+        expect.objectContaining({ path: "$.tabDisplayWidth" }),
         expect.objectContaining({ path: "concept.type" }),
         expect.objectContaining({ path: "concept.tone" }),
         expect.objectContaining({ path: "markers[1].marker" }),

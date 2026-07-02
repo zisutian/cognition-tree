@@ -11,7 +11,7 @@ import {
   indentOnInput,
   indentUnit,
 } from "@codemirror/language";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -26,6 +26,20 @@ import {
 import type { CtnSyntaxProfile } from "../syntax/types";
 import { createCtnDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
+
+export const ctnTabSizeCompartment = new Compartment();
+
+export function createCtnIndentUnit() {
+  return "\t";
+}
+
+export function createCtnIndentUnitExtension() {
+  return indentUnit.of(createCtnIndentUnit());
+}
+
+export function createCtnTabSizeExtension(tabDisplayWidth: number) {
+  return EditorState.tabSize.of(Math.max(1, Math.floor(tabDisplayWidth)));
+}
 
 export function createCtnEditorExtensions(
   onChangeRef: {
@@ -48,7 +62,10 @@ export function createCtnEditorExtensions(
     bracketMatching(),
     rectangularSelection(),
     highlightActiveLine(),
-    indentUnit.of("    "),
+    createCtnIndentUnitExtension(),
+    ctnTabSizeCompartment.of(
+      createCtnTabSizeExtension(syntaxProfileRef.current.tabDisplayWidth),
+    ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
     createCtnDecorationPlugin(syntaxProfileRef),
     createCtnDiagnosticTooltip(syntaxProfileRef),

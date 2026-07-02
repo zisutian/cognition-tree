@@ -14,8 +14,8 @@ function parseBlocks(source: string): NoteBlockMigrationBlock[] {
 
 describe("note block migration", () => {
   it("moves a whole subtree between notes and rewrites indentation", () => {
-    const sourceSource = "Root\n    : Definition\n        - Component\nSibling";
-    const targetSource = "Target\n    > Understanding";
+    const sourceSource = "Root\n\t: Definition\n\t\t- Component\nSibling";
+    const targetSource = "Target\n\t> Understanding";
     const sourceBlocks = parseBlocks(sourceSource);
     const targetBlocks = parseBlocks(targetSource);
     const result = moveNoteBlock({
@@ -31,14 +31,14 @@ describe("note block migration", () => {
     expect(result).toEqual({
       nextSourceSource: "Root\nSibling",
       nextTargetSource:
-        "Target\n    > Understanding\n    : Definition\n        - Component",
+        "Target\n\t> Understanding\n\t: Definition\n\t\t- Component",
       status: "moved",
     });
   });
 
   it("moves a subtree above a target block as a sibling", () => {
-    const sourceSource = "Root\n    : Definition\n        - Component";
-    const targetSource = "Target\n    > Understanding";
+    const sourceSource = "Root\n\t: Definition\n\t\t- Component";
+    const targetSource = "Target\n\t> Understanding";
     const sourceBlocks = parseBlocks(sourceSource);
     const targetBlocks = parseBlocks(targetSource);
     const result = moveNoteBlock({
@@ -54,14 +54,14 @@ describe("note block migration", () => {
     expect(result).toEqual({
       nextSourceSource: "Root",
       nextTargetSource:
-        ": Definition\n    - Component\nTarget\n    > Understanding",
+        ": Definition\n\t- Component\nTarget\n\t> Understanding",
       status: "moved",
     });
   });
 
   it("moves a subtree below a target block as a sibling", () => {
-    const sourceSource = "Root\n    : Definition\n        - Component";
-    const targetSource = "Target\n    > Understanding";
+    const sourceSource = "Root\n\t: Definition\n\t\t- Component";
+    const targetSource = "Target\n\t> Understanding";
     const sourceBlocks = parseBlocks(sourceSource);
     const targetBlocks = parseBlocks(targetSource);
     const result = moveNoteBlock({
@@ -77,13 +77,13 @@ describe("note block migration", () => {
     expect(result).toEqual({
       nextSourceSource: "Root",
       nextTargetSource:
-        "Target\n    > Understanding\n: Definition\n    - Component",
+        "Target\n\t> Understanding\n: Definition\n\t- Component",
       status: "moved",
     });
   });
 
   it("moves a root block to an empty target note", () => {
-    const sourceSource = "Root\n    : Definition";
+    const sourceSource = "Root\n\t: Definition";
     const sourceBlocks = parseBlocks(sourceSource);
 
     expect(
@@ -95,7 +95,7 @@ describe("note block migration", () => {
       }),
     ).toEqual({
       nextSourceSource: "",
-      nextTargetSource: "Root\n    : Definition",
+      nextTargetSource: "Root\n\t: Definition",
       status: "moved",
     });
   });

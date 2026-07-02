@@ -13,7 +13,7 @@ import {
 } from "../../server/syntaxProfileToml.mjs";
 
 const validCustomProfileToml = `name = "自定义语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 
 [concept]
 type = "concept"
@@ -59,7 +59,7 @@ tone = "amber"
 `;
 
 const invalidMarkerProfileToml = `name = "非法语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 extra = true
 inlineRules = []
 
@@ -85,7 +85,7 @@ tone = "default"
 `;
 
 const invalidInlineProfileToml = `name = "非法行内语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 
 [concept]
 type = "concept"

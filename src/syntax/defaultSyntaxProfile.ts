@@ -2,7 +2,7 @@ import type { CtnSyntaxProfile } from "./types";
 
 export const defaultCtnSyntaxProfile = {
   name: "默认 CTN 语法",
-  spaceIndentUnit: 4,
+  tabDisplayWidth: 4,
   conceptRule: {
     type: "concept",
     label: "顶格概念",

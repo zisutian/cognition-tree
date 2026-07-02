@@ -8,7 +8,7 @@ export type NoteBlockLineRangeSource = {
   lineNumber: number;
 };
 
-const defaultIndentUnit = "    ";
+const defaultIndentUnit = "\t";
 
 function splitDocumentLines(source: string) {
   return source.length === 0 ? [] : source.split("\n");

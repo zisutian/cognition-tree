@@ -83,7 +83,7 @@ async function withHandler(testFn) {
 }
 
 const customSyntaxSource = `name = "自定义语法"
-spaceIndentUnit = 4
+tabDisplayWidth = 4
 
 [concept]
 type = "concept"

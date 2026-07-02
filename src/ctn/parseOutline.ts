@@ -49,11 +49,7 @@ export function parseCtnDocument(
     }
 
     const indentText = line.match(/^\s*/)?.[0] ?? "";
-    const indent = analyzeIndent(
-      indentText,
-      lineNumber,
-      syntaxProfile.spaceIndentUnit,
-    );
+    const indent = analyzeIndent(indentText, lineNumber);
     const parsedMarker = parseMarker(
       trimmed,
       lineNumber,
