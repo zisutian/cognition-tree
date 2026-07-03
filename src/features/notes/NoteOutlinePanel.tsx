@@ -1,6 +1,6 @@
 import { type CSSProperties, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import type { OutlineNode } from "../../ctn-parser/parseOutline";
+import type { OutlineNode } from "../../ctn-parser/types";
 import { NoteOutlineTree } from "./NoteOutlineTree";
 
 const outlineZoomMin = 0.85;
@@ -29,7 +29,7 @@ export function NoteOutlinePanel({
   };
   const outlineZoomPercent = Math.round(outlineZoom * 100);
   const outlineBodyStyle = {
-    "--outline-font-size": `${(12.5 * outlineZoom).toFixed(1)}px`,
+    "--outline-font-size": `${(12 * outlineZoom).toFixed(1)}px`,
   } as CSSProperties;
   const toggleNode = (nodeId: string) => {
     setCollapsedNodeIds((current) => {

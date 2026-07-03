@@ -6,11 +6,11 @@ import {
   type NoteId,
   type NoteRecord,
   type NoteTreeNode,
-} from "../../domain/notes";
+} from "../../workspace/model/workspaceData";
 import {
   countFolders,
   findFolderIdContainingNote,
-} from "../../domain/noteTree";
+} from "../../workspace/model/noteTree";
 import {
   SidebarNoteTree,
   type TreeContextMenuPosition,
@@ -223,7 +223,7 @@ export function SidebarNotesPanel({
           </div>
         </div>
         <nav className="note-tree" aria-label="笔记仓库">
-          <SidebarScrollArea contentClassName="note-tree-content">
+          <SidebarScrollArea contentClassName="ctn-tree-list note-tree-content">
             <SidebarNoteTree
               activeFolderId={activeFolderId}
               activeNoteId={activeNoteId}

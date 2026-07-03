@@ -254,13 +254,6 @@
   white-space: nowrap;
 }
 
-.note-tree-content,
-.note-folder-children {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
 .note-tree {
   flex: 1;
   min-height: 0;
@@ -291,73 +284,8 @@
   gap: 1px;
 }
 
-.note-folder-row {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  align-items: center;
-  width: 100%;
-  border-radius: 5px;
-  background: transparent;
-}
-
-.note-folder-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 24px;
-  border-radius: var(--radius-md);
-  color: var(--color-fg-muted);
-  background: transparent;
-  cursor: pointer;
-}
-
-.note-folder-toggle:disabled {
-  color: transparent;
-  cursor: default;
-}
-
 .note-folder-label {
-  display: grid;
-  grid-template-columns: 15px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 24px;
-  padding: 3px 5px 3px 3px;
-  border-radius: var(--radius-md);
-  color: var(--color-fg);
-  background: transparent;
-  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  text-align: left;
-  cursor: pointer;
-}
-
-.note-folder-label span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.note-folder-label small {
-  color: var(--color-fg-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.note-folder-row.active,
-.note-folder-row:hover {
-  background: var(--color-selection);
-  box-shadow: none;
-}
-
-.app-shell.activity-notes .note-folder-row.active,
-.app-shell.activity-notes .note-folder-row:hover {
-  background: var(--note-selection-background);
-  box-shadow: none;
 }
 
 .note-folder-row.active .note-folder-label,
@@ -367,58 +295,9 @@
   color: var(--color-fg-strong);
 }
 
-.note-folder-children {
-  padding-left: 13px;
-  border-left: 1px solid var(--color-border);
-}
-
 .note-item-row {
   position: relative;
   min-height: 26px;
-}
-
-.note-item {
-  display: grid;
-  grid-template-columns: 15px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 26px;
-  padding: 3px 5px;
-  border-radius: var(--radius-md);
-  color: var(--color-fg);
-  background: transparent;
-  font-size: var(--font-size-sm);
-  line-height: 1.2;
-  text-align: left;
-  cursor: pointer;
-}
-
-.note-item span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.note-item.active,
-.note-item-row:hover .note-item,
-.note-item:hover {
-  background: var(--color-selection);
-}
-
-.app-shell.activity-notes .note-item.active,
-.app-shell.activity-notes .note-item-row:hover .note-item,
-.app-shell.activity-notes .note-item:hover {
-  background: var(--note-selection-background);
-}
-
-.note-item.active {
-  box-shadow: none;
-}
-
-.app-shell.activity-notes .note-item.active {
-  box-shadow: none;
 }
 
 .sidebar-context-menu {

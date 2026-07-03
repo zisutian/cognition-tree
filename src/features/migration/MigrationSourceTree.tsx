@@ -1,10 +1,9 @@
 import type { DragEvent } from "react";
-import type { CtnBlock } from "../../ctn-parser/parseOutline";
-import { OutlineNodeText } from "../notes/OutlineNodeText";
-import { getOutlineDisplayText } from "../notes/outlineTextSegments";
-import {
-  getBlockLineLabel,
-} from "./blockMigrationView";
+import type { CtnBlock } from "../../ctn-parser/types";
+import { CtnBlockTree } from "../blocks/CtnBlockTree";
+import { OutlineNodeText } from "../blocks/OutlineNodeText";
+import { getOutlineDisplayText } from "../blocks/outlineTextSegments";
+import { getBlockLineLabel } from "./blockMigrationView";
 
 type MigrationSourceTreeProps = {
   draggingLineNumber: string | null;
@@ -23,17 +22,20 @@ export function MigrationSourceTree({
   nodes,
 }: MigrationSourceTreeProps) {
   return (
-    <ul className="migration-tree">
-      {nodes.map((node) => {
-        const isDragging = draggingLineNumber === String(node.lineNumber);
-        const hasChildren = node.children.length > 0;
+    <CtnBlockTree
+      className="ctn-tree-list migration-tree"
+      nodes={nodes}
+      renderBlock={({ block, children }) => {
+        const isDragging = draggingLineNumber === String(block.lineNumber);
 
         return (
-          <li key={node.id}>
+          <>
             <div
               className={
                 [
                   "migration-tree-node",
+                  "ctn-tree-main",
+                  "ctn-tree-main-with-meta",
                   "source-node",
                   isDragging ? "is-dragging" : "",
                 ]
@@ -42,24 +44,24 @@ export function MigrationSourceTree({
               }
               draggable
               onDragEnd={onDragEnd}
-              onDragStart={(event) => onDragStart(event, node.lineNumber)}
-              title={`${node.label}: ${getOutlineDisplayText(node)}`}
+              onDragStart={(event) => onDragStart(event, block.lineNumber)}
+              title={`${block.label}: ${getOutlineDisplayText(block)}`}
             >
-              <span className="migration-node-kind">{node.label}</span>
-              <OutlineNodeText className="migration-node-text" node={node} />
-              <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
-            </div>
-            {hasChildren ? (
-              <MigrationSourceTree
-                draggingLineNumber={draggingLineNumber}
-                nodes={node.children}
-                onDragEnd={onDragEnd}
-                onDragStart={onDragStart}
+              <span className="ctn-tree-kind migration-node-kind">
+                {block.label}
+              </span>
+              <OutlineNodeText
+                className="ctn-tree-text migration-node-text"
+                node={block}
               />
-            ) : null}
-          </li>
+              <span className="ctn-tree-meta migration-node-lines">
+                {getBlockLineLabel(block)}
+              </span>
+            </div>
+            {children}
+          </>
         );
-      })}
-    </ul>
+      }}
+    />
   );
 }

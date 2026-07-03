@@ -1,9 +1,8 @@
 import type { DragEvent } from "react";
-import type { CtnBlock } from "../../ctn-parser/parseOutline";
-import { OutlineNodeText } from "../notes/OutlineNodeText";
-import {
-  getBlockLineLabel,
-} from "./blockMigrationView";
+import type { CtnBlock } from "../../ctn-parser/types";
+import { CtnBlockTree } from "../blocks/CtnBlockTree";
+import { OutlineNodeText } from "../blocks/OutlineNodeText";
+import { getBlockLineLabel } from "./blockMigrationView";
 
 type MigrationDropZoneProps = {
   activeDropPositionValue: string | null;
@@ -87,15 +86,16 @@ export function MigrationTargetTree({
   onDropPosition,
 }: MigrationTargetTreeProps) {
   return (
-    <ul className="migration-tree">
-      {nodes.map((node) => {
-        const insidePositionValue = `inside:${node.lineNumber}`;
+    <CtnBlockTree
+      className="ctn-tree-list migration-tree"
+      nodes={nodes}
+      renderBlock={({ block, children }) => {
+        const insidePositionValue = `inside:${block.lineNumber}`;
         const isActiveTarget =
-          isDropMode && activeTargetBlockLineNumber === node.lineNumber;
-        const hasChildren = node.children.length > 0;
+          isDropMode && activeTargetBlockLineNumber === block.lineNumber;
 
         return (
-          <li key={node.id}>
+          <>
             {isActiveTarget ? (
               <MigrationDropZone
                 activeDropPositionValue={activeDropPositionValue}
@@ -103,36 +103,36 @@ export function MigrationTargetTree({
                 onDragLeavePosition={onDragLeavePosition}
                 onDragOverPosition={onDragOverPosition}
                 onDropPosition={onDropPosition}
-                positionValue={`sibling-above:${node.lineNumber}`}
+                positionValue={`sibling-above:${block.lineNumber}`}
               />
             ) : null}
             <div
               className={
                 [
+                  "ctn-tree-main",
+                  "ctn-tree-main-with-meta",
                   "migration-tree-node target-node",
-                  isActiveTarget ? "is-position-source" : "",
+                  isActiveTarget ? "is-position-source is-active" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")
               }
-              onDragOver={(event) => onDragOverTargetBlock(event, node.lineNumber)}
+              onDragOver={(event) =>
+                onDragOverTargetBlock(event, block.lineNumber)
+              }
             >
-              <span className="migration-node-kind">{node.label}</span>
-              <OutlineNodeText className="migration-node-text" node={node} />
-              <span className="migration-node-lines">{getBlockLineLabel(node)}</span>
-            </div>
-            {hasChildren ? (
-              <MigrationTargetTree
-                activeDropPositionValue={activeDropPositionValue}
-                activeTargetBlockLineNumber={activeTargetBlockLineNumber}
-                isDropMode={isDropMode}
-                nodes={node.children}
-                onDragLeavePosition={onDragLeavePosition}
-                onDragOverPosition={onDragOverPosition}
-                onDragOverTargetBlock={onDragOverTargetBlock}
-                onDropPosition={onDropPosition}
+              <span className="ctn-tree-kind migration-node-kind">
+                {block.label}
+              </span>
+              <OutlineNodeText
+                className="ctn-tree-text migration-node-text"
+                node={block}
               />
-            ) : null}
+              <span className="ctn-tree-meta migration-node-lines">
+                {getBlockLineLabel(block)}
+              </span>
+            </div>
+            {children}
             {isActiveTarget ? (
               <MigrationDropZone
                 activeDropPositionValue={activeDropPositionValue}
@@ -151,12 +151,12 @@ export function MigrationTargetTree({
                 onDragLeavePosition={onDragLeavePosition}
                 onDragOverPosition={onDragOverPosition}
                 onDropPosition={onDropPosition}
-                positionValue={`sibling-below:${node.lineNumber}`}
+                positionValue={`sibling-below:${block.lineNumber}`}
               />
             ) : null}
-          </li>
+          </>
         );
-      })}
-    </ul>
+      }}
+    />
   );
 }

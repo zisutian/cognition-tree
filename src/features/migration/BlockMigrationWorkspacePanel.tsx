@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { NoteId, NoteWorkspace } from "../../domain/notes";
-import type { WorkspaceBlockMigrationRequest } from "../../workspace/workspaceBlockMigration";
+import type { NoteId } from "../../workspace/model/workspaceData";
+import type { WorkspaceBlockMigrationRequest } from "../../workspace/workflows/blockMigrationWorkflow";
+import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
 import { BlockMigrationView } from "./BlockMigrationView";
 import { NoteSelectionView } from "./NoteSelectionView";
 
@@ -12,7 +13,7 @@ type BlockMigrationWorkspacePanelProps = {
     message: string;
     status: "failed" | "moved";
   };
-  workspace: NoteWorkspace;
+  workspace: WorkspaceRuntime;
 };
 
 export function BlockMigrationWorkspacePanel({

@@ -23,6 +23,12 @@ describe("block migration drag helpers", () => {
       kind: "sibling-below",
       lineNumber: 12,
     });
+    expect(() => parseBlockMigrationTargetPosition("unknown:12")).toThrow(
+      "Invalid block migration target position",
+    );
+    expect(() => parseBlockMigrationTargetPosition("inside:0")).toThrow(
+      "Invalid block migration target position",
+    );
   });
 
   it("serializes migration target positions", () => {
@@ -49,49 +55,37 @@ describe("block migration drag helpers", () => {
     ).toBe("sibling-below:7");
   });
 
-  it("reads typed drag payload before fallback values", () => {
+  it("reads typed drag payload before plain text payloads", () => {
     expect(createBlockDragLineNumberPayload(5)).toBe("5");
     expect(
       readBlockDragLineNumberPayload({
-        fallback: "3",
         plainText: "4",
         typedPayload: "5",
       }),
     ).toBe("5");
     expect(
       readBlockDragLineNumberPayload({
-        fallback: "3",
         plainText: "4",
         typedPayload: "",
       }),
     ).toBe("4");
-    expect(
-      readBlockDragLineNumberPayload({
-        fallback: "3",
-        plainText: "",
-        typedPayload: "",
-      }),
-    ).toBe("3");
   });
 
   it("rejects missing or invalid drag payloads", () => {
     expect(
       readBlockDragLineNumberPayload({
-        fallback: null,
         plainText: "",
         typedPayload: "",
       }),
     ).toBeNull();
     expect(
       readBlockDragLineNumberPayload({
-        fallback: null,
         plainText: "not-a-line",
         typedPayload: "",
       }),
     ).toBeNull();
     expect(
       readBlockDragLineNumberPayload({
-        fallback: null,
         plainText: "0",
         typedPayload: "",
       }),

@@ -1,4 +1,4 @@
-import type { NoteReferenceGraph } from "../../workspace/noteReferenceGraph";
+import type { NoteReferenceGraph } from "../../workspace/view-model/noteReferenceGraph";
 
 type NoteReferenceGraphDetailPanelProps = {
   graph: NoteReferenceGraph;
@@ -11,8 +11,7 @@ function getNodeTitle(graph: NoteReferenceGraph, noteId: string) {
 export function NoteReferenceGraphDetailPanel({
   graph,
 }: NoteReferenceGraphDetailPanelProps) {
-  const hasIssues =
-    graph.unresolvedReferences.length > 0 || graph.issues.length > 0;
+  const hasIssues = graph.unresolvedReferences.length > 0;
   const mostReferencedNodes = [...graph.nodes]
     .map((node) => ({
       ...node,
@@ -69,19 +68,6 @@ export function NoteReferenceGraphDetailPanel({
           </section>
         ) : null}
 
-        {graph.issues.length > 0 ? (
-          <section className="workspace-detail-section">
-            <p className="workspace-detail-title">解析问题</p>
-            <ul className="workspace-diagnostic-list">
-              {graph.issues.map((issue) => (
-                <li key={issue.noteId}>
-                  <span>{getNodeTitle(graph, issue.noteId)}</span>
-                  <p>{issue.message}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
       </div>
     </aside>
   );

@@ -1,4 +1,4 @@
-import type { WorkspaceData } from "../domain/notes";
+import type { WorkspaceData } from "../workspace/model/workspaceData";
 import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 export type RepositoryInfo = {

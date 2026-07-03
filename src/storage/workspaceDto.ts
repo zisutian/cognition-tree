@@ -2,7 +2,7 @@ import type {
   NoteRecord,
   NoteTreeNode,
   WorkspaceData,
-} from "../domain/notes";
+} from "../workspace/model/workspaceData";
 import { parseSyntaxProfileToml } from "../ctn-syntax/profileToml";
 import type {
   RepositoryInfo,
@@ -52,16 +52,25 @@ function assertExactFields(
   }
 }
 
-function readString(
+function readString(value: Record<string, unknown>, key: string, path: string) {
+  const field = value[key];
+
+  if (typeof field !== "string") {
+    throw new Error(`Invalid response at ${path}.${key}: expected string`);
+  }
+
+  return field;
+}
+
+function readRequiredString(
   value: Record<string, unknown>,
   key: string,
   path: string,
-  allowEmpty = false,
 ) {
-  const field = value[key];
+  const field = readString(value, key, path);
 
-  if (typeof field !== "string" || (!allowEmpty && field.length === 0)) {
-    throw new Error(`Invalid response at ${path}.${key}: expected string`);
+  if (field.length === 0) {
+    throw new Error(`Invalid response at ${path}.${key}: expected non-empty string`);
   }
 
   return field;
@@ -72,17 +81,17 @@ function parseNote(value: unknown, path: string): NoteRecord {
   assertExactFields(value, noteFields, path);
 
   return {
-    createdAt: readString(value, "createdAt", path),
-    id: readString(value, "id", path),
-    source: readString(value, "source", path, true),
-    title: readString(value, "title", path),
-    updatedAt: readString(value, "updatedAt", path),
+    createdAt: readRequiredString(value, "createdAt", path),
+    id: readRequiredString(value, "id", path),
+    source: readString(value, "source", path),
+    title: readRequiredString(value, "title", path),
+    updatedAt: readRequiredString(value, "updatedAt", path),
   };
 }
 
 function parseTreeNode(value: unknown, path: string): NoteTreeNode {
   assertRecord(value, path);
-  const kind = readString(value, "kind", path);
+  const kind = readRequiredString(value, "kind", path);
 
   if (kind === "folder") {
     assertExactFields(value, folderFields, path);
@@ -95,9 +104,9 @@ function parseTreeNode(value: unknown, path: string): NoteTreeNode {
       children: value.children.map((child, index) =>
         parseTreeNode(child, `${path}.children[${index}]`),
       ),
-      id: readString(value, "id", path),
+      id: readRequiredString(value, "id", path),
       kind,
-      title: readString(value, "title", path),
+      title: readRequiredString(value, "title", path),
     };
   }
 
@@ -105,9 +114,9 @@ function parseTreeNode(value: unknown, path: string): NoteTreeNode {
     assertExactFields(value, noteNodeFields, path);
 
     return {
-      id: readString(value, "id", path),
+      id: readRequiredString(value, "id", path),
       kind,
-      noteId: readString(value, "noteId", path),
+      noteId: readRequiredString(value, "noteId", path),
     };
   }
 
@@ -182,8 +191,8 @@ export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
 
   const workspace: WorkspaceData = {
     activeNoteId,
-    id: readString(value, "id", "$"),
-    name: readString(value, "name", "$"),
+    id: readRequiredString(value, "id", "$"),
+    name: readRequiredString(value, "name", "$"),
     notes,
     tree: value.tree.map((node, index) =>
       parseTreeNode(node, `$.tree[${index}]`),
@@ -199,7 +208,7 @@ export function parseRepositoryInfoDto(value: unknown): RepositoryInfo {
   assertExactFields(value, repositoryInfoFields, "$");
 
   return {
-    path: readString(value, "path", "$", true),
+    path: readString(value, "path", "$"),
   };
 }
 
@@ -209,7 +218,7 @@ export function parseWorkspaceSyntaxFileDto(
   assertRecord(value, "$");
   assertExactFields(value, syntaxFileFields, "$");
 
-  const fileName = readString(value, "fileName", "$");
+  const fileName = readRequiredString(value, "fileName", "$");
   const source = readString(value, "source", "$");
   const result = parseSyntaxProfileToml(source);
 

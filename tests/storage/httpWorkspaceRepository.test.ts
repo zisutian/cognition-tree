@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createInitialWorkspaceData } from "../../src/domain/notes";
+import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
 import { formatSyntaxProfileToml } from "../../src/ctn-syntax/profileToml";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -98,7 +99,7 @@ describe("createHttpWorkspaceRepository", () => {
   });
 
   it("parses workspace syntax responses", async () => {
-    const source = formatSyntaxProfileToml();
+    const source = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
     const fetchMock: typeof fetch = async () =>
       jsonResponse({
         fileName: "workspace.toml",

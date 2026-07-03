@@ -9,7 +9,6 @@ import type {
   CtnSyntaxProfile,
   CtnSyntaxTone,
 } from "./types";
-import { defaultCtnSyntaxProfile } from "./defaultSyntaxProfile";
 import {
   configurableSyntaxTones,
   isConfigurableSyntaxTone,
@@ -553,9 +552,7 @@ export function parseSyntaxProfileToml(
   };
 }
 
-export function formatSyntaxProfileToml(
-  profile: CtnSyntaxProfile = defaultCtnSyntaxProfile,
-): string {
+export function formatSyntaxProfileToml(profile: CtnSyntaxProfile): string {
   const lines = [
     "# CTN 语法配置文件。",
     "# name：界面中显示的人类可读名称。",

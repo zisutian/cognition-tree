@@ -52,26 +52,9 @@
   box-shadow: none;
 }
 
-.source-editor:focus-within,
-.source-editor-fallback:focus {
+.source-editor:focus-within {
   border-color: var(--note-border-strong);
   box-shadow: none;
-}
-
-.source-editor-fallback {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--note-border);
-  border-radius: var(--radius-lg);
-  resize: none;
-  color: var(--note-text);
-  background: var(--color-editor);
-  font-family: var(--font-content);
-  font-size: var(--font-size-base);
-  line-height: 1.62;
-  outline: none;
 }
 
 .empty-editor {

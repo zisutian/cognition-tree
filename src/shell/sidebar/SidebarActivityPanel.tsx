@@ -3,7 +3,7 @@ import type {
   NoteId,
   NoteRecord,
   NoteTreeNode,
-} from "../../domain/notes";
+} from "../../workspace/model/workspaceData";
 import {
   sidebarActivityItems,
   sidebarPlaceholderEntries,

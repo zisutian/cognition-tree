@@ -1,4 +1,4 @@
-import type { WorkspaceBlockMigrationTargetPositionRequest } from "../../workspace/workspaceBlockMigration";
+import type { WorkspaceBlockMigrationTargetPositionRequest } from "../../workspace/workflows/blockMigrationWorkflow";
 
 export const blockDragDataType = "application/x-cognition-tree-block-line";
 
@@ -12,6 +12,10 @@ export function parseBlockMigrationTargetPosition(
   const [kind, lineNumberValue] = value.split(":");
   const lineNumber = Number(lineNumberValue);
 
+  if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
+    throw new Error(`Invalid block migration target position: ${value}`);
+  }
+
   if (kind === "sibling-above") {
     return {
       kind: "sibling-above",
@@ -24,6 +28,10 @@ export function parseBlockMigrationTargetPosition(
       kind: "sibling-below",
       lineNumber,
     };
+  }
+
+  if (kind !== "inside") {
+    throw new Error(`Invalid block migration target position: ${value}`);
   }
 
   return {
@@ -52,15 +60,13 @@ export function createBlockDragLineNumberPayload(lineNumber: number) {
 }
 
 export function readBlockDragLineNumberPayload({
-  fallback,
   plainText,
   typedPayload,
 }: {
-  fallback: string | null;
   plainText: string;
   typedPayload: string;
 }) {
-  const lineNumberValue = typedPayload || plainText || fallback;
+  const lineNumberValue = typedPayload || plainText;
 
   if (!lineNumberValue) {
     return null;

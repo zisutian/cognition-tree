@@ -1,5 +1,6 @@
 import type { CtnSyntaxProfile } from "../ctn-syntax/types";
-import { parseCtnDocument, type CtnDocument } from "./parseOutline";
+import { parseCtnDocument } from "./parseCtnDocument";
+import type { CtnDocument } from "./types";
 
 export type CtnInlineReference = {
   lineNumber: number;
@@ -28,7 +29,7 @@ export function extractCtnInlineReferences(
   type: string,
 ) {
   return collectCtnInlineReferences(
-    parseCtnDocument(source, { syntaxProfile }),
+    parseCtnDocument(source, syntaxProfile),
     type,
   );
 }

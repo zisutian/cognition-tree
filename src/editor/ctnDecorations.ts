@@ -5,11 +5,8 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import {
-  parseCtnDocument,
-  type CtnBlock,
-  type CtnInlineSpan,
-} from "../ctn-parser/parseOutline";
+import { parseCtnDocument } from "../ctn-parser/parseCtnDocument";
+import type { CtnBlock, CtnInlineSpan } from "../ctn-parser/types";
 import {
   getSyntaxTextColorClassName,
   getSyntaxTextColorStyle,
@@ -142,9 +139,10 @@ function buildCtnDecorations(
   syntaxProfile: CtnSyntaxProfile,
 ): DecorationSet {
   const decorations = [];
-  const parsedDocument = parseCtnDocument(view.state.doc.toString(), {
+  const parsedDocument = parseCtnDocument(
+    view.state.doc.toString(),
     syntaxProfile,
-  });
+  );
 
   for (const block of parsedDocument.blocks) {
     if (block.role === "multiline" && block.endLineNumber > block.lineNumber) {

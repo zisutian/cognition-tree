@@ -6,12 +6,14 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { isCustomSyntaxTone } from "../../ctn-syntax/tones";
+import {
+  configurableSyntaxTones,
+  isCustomSyntaxTone,
+} from "../../ctn-syntax/tones";
 import type {
   CtnPresetSyntaxTone,
   CtnSyntaxTone,
 } from "../../ctn-syntax/types";
-import { syntaxTones } from "./syntaxProfileDraft";
 
 const toneLabels: Record<CtnPresetSyntaxTone, string> = {
   amber: "琥珀",
@@ -130,7 +132,7 @@ export function TonePicker({ ariaLabel, value, onChange }: TonePickerProps) {
           role="dialog"
         >
           <div className="syntax-tone-grid" role="group" aria-label="预设颜色">
-            {syntaxTones.map((tone) => (
+            {configurableSyntaxTones.map((tone) => (
               <button
                 aria-label={toneLabels[tone]}
                 className={

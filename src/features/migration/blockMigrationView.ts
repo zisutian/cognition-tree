@@ -1,4 +1,4 @@
-import type { CtnBlock } from "../../ctn-parser/parseOutline";
+import type { CtnBlock } from "../../ctn-parser/types";
 
 export function getBlockTitle(block: CtnBlock) {
   return block.text || block.label;
@@ -19,7 +19,12 @@ export function getTargetPositionLabel(value: string) {
     return "文末根块";
   }
 
-  const [kind] = value.split(":");
+  const [kind, lineNumberValue] = value.split(":");
+  const lineNumber = Number(lineNumberValue);
+
+  if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
+    throw new Error(`Invalid block migration target position: ${value}`);
+  }
 
   switch (kind) {
     case "sibling-above":
@@ -29,6 +34,6 @@ export function getTargetPositionLabel(value: string) {
     case "inside":
       return "作为子结点";
     default:
-      return "未知位置";
+      throw new Error(`Invalid block migration target position: ${value}`);
   }
 }

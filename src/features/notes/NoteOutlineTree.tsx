@@ -1,7 +1,8 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { OutlineNode } from "../../ctn-parser/parseOutline";
-import { OutlineNodeText } from "./OutlineNodeText";
-import { getOutlineDisplayText } from "./outlineTextSegments";
+import type { OutlineNode } from "../../ctn-parser/types";
+import { CtnBlockTree } from "../blocks/CtnBlockTree";
+import { OutlineNodeText } from "../blocks/OutlineNodeText";
+import { getOutlineDisplayText } from "../blocks/outlineTextSegments";
 
 export function NoteOutlineTree({
   collapsedNodeIds,
@@ -17,28 +18,30 @@ export function NoteOutlineTree({
   depth?: number;
 }) {
   return (
-    <ul className="outline-list" data-depth={depth}>
-      {nodes.map((node) => {
-        const hasChildren = node.children.length > 0;
-        const isCollapsed = collapsedNodeIds.has(node.id);
-        const displayText = getOutlineDisplayText(node);
+    <CtnBlockTree
+      className="ctn-tree-list outline-list"
+      depth={depth}
+      nodes={nodes}
+      renderBlock={({ block, children, hasChildren }) => {
+        const isCollapsed = collapsedNodeIds.has(block.id);
+        const displayText = getOutlineDisplayText(block);
 
         return (
-          <li key={node.id}>
+          <>
             <div
               className={
-                node.diagnostics.length > 0
-                  ? "outline-node has-diagnostics"
-                  : "outline-node"
+                block.diagnostics.length > 0
+                  ? "ctn-tree-row ctn-tree-row-with-toggle outline-node has-diagnostics"
+                  : "ctn-tree-row ctn-tree-row-with-toggle outline-node"
               }
             >
               <button
                 aria-label={
                   isCollapsed ? `展开 ${displayText}` : `折叠 ${displayText}`
                 }
-                className="outline-toggle-button"
+                className="ctn-tree-toggle outline-toggle-button"
                 disabled={!hasChildren}
-                onClick={() => onToggleNode(node.id)}
+                onClick={() => onToggleNode(block.id)}
                 title={isCollapsed ? "展开节点" : "折叠节点"}
                 type="button"
               >
@@ -61,29 +64,22 @@ export function NoteOutlineTree({
                 )}
               </button>
               <button
-                className="outline-node-content"
-                onClick={() => onSelectLine(node.lineNumber)}
-                title={`${node.label}: ${displayText}`}
+                className="ctn-tree-main ctn-tree-main-label ctn-tree-main-compact outline-node-content"
+                onClick={() => onSelectLine(block.lineNumber)}
+                title={`${block.label}: ${displayText}`}
                 type="button"
               >
-                <div className="node-main">
-                  <span className="node-kind">{node.label}</span>
-                  <OutlineNodeText node={node} />
-                </div>
+                <span className="ctn-tree-kind node-kind">{block.label}</span>
+                <OutlineNodeText
+                  className="ctn-tree-text node-text"
+                  node={block}
+                />
               </button>
             </div>
-            {hasChildren && !isCollapsed ? (
-              <NoteOutlineTree
-                collapsedNodeIds={collapsedNodeIds}
-                nodes={node.children}
-                onSelectLine={onSelectLine}
-                onToggleNode={onToggleNode}
-                depth={depth + 1}
-              />
-            ) : null}
-          </li>
+            {hasChildren && !isCollapsed ? children : null}
+          </>
         );
-      })}
-    </ul>
+      }}
+    />
   );
 }

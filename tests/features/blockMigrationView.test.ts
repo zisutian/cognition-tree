@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CtnBlock } from "../../src/ctn-parser/parseOutline";
+import type { CtnBlock } from "../../src/ctn-parser/types";
 import {
   flattenBlockSubtree,
   getBlockLineLabel,
@@ -52,5 +52,8 @@ describe("block migration view helpers", () => {
     expect(getTargetPositionLabel("sibling-above:1")).toBe("上方并列");
     expect(getTargetPositionLabel("sibling-below:1")).toBe("下方并列");
     expect(getTargetPositionLabel("inside:1")).toBe("作为子结点");
+    expect(() => getTargetPositionLabel("unknown:1")).toThrow(
+      "Invalid block migration target position",
+    );
   });
 });

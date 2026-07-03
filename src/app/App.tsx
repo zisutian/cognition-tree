@@ -11,10 +11,10 @@ import {
   WorkspaceSidebar,
 } from "../shell/WorkspaceSidebar";
 import "../styles/index.css";
-import { createNoteReferenceGraph } from "../workspace/noteReferenceGraph";
-import { resolveParsedNoteView } from "../workspace/parsedNoteView";
-import { useWorkspaceController } from "../workspace/useWorkspaceController";
-import { useSyntaxDraftSession } from "./useSyntaxDraftSession";
+import { createNoteReferenceGraph } from "../workspace/view-model/noteReferenceGraph";
+import { resolveParsedNoteView } from "../workspace/view-model/parsedNoteView";
+import { useWorkspaceController } from "../workspace/commands/useWorkspaceController";
+import { useSyntaxDraftSession } from "../features/syntax/useSyntaxDraftSession";
 
 type EditorFocusRequest = {
   lineNumber: number;
@@ -23,7 +23,6 @@ type EditorFocusRequest = {
 
 const emptyNoteReferenceGraph = {
   edges: [],
-  issues: [],
   nodes: [],
   unresolvedReferences: [],
 };
@@ -86,10 +85,7 @@ function App() {
     [effectiveActiveNote, effectiveWorkspace],
   );
   const documentText = parsedNoteView.source;
-  const activeSyntaxProfile =
-    parsedNoteView.status === "parsed" ? parsedNoteView.profile : null;
-  const syntaxIssueMessage =
-    parsedNoteView.status === "parsed" ? null : parsedNoteView.message;
+  const activeSyntaxProfile = parsedNoteView.profile;
   const parsedDocument = parsedNoteView.document;
   const noteReferenceGraph = useMemo(
     () =>
@@ -154,7 +150,6 @@ function App() {
         hasActiveNote={Boolean(activeNote)}
         parsedDocument={parsedDocument}
         syntaxProfile={activeSyntaxProfile}
-        syntaxIssueMessage={syntaxIssueMessage}
         workspaceErrorMessage={workspaceErrorMessage}
         onCreateNote={createNote}
         onDocumentTextChange={updateActiveNoteSource}

@@ -57,10 +57,9 @@
 ## 代码结构
 
     src/app/          React 应用入口
-    src/features/     notes、syntax、migration、visualization 功能界面
+    src/features/     blocks、notes、syntax、migration、visualization 功能界面
     src/shell/        应用外壳、活动栏和侧栏
-    src/workspace/    前端应用层和 workflow
-    src/domain/       纯领域规则
+    src/workspace/    model、runtime、session、command、workflow 和 view model
     src/ctn-parser/   CTN 原文解析
     src/ctn-syntax/   语法 profile 与 TOML
     src/editor/       CodeMirror 集成

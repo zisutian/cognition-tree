@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createInitialWorkspaceData } from "../../src/domain/notes";
+import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import {
   parseRepositoryInfoDto,
   parseWorkspaceDataDto,
   parseWorkspaceSyntaxFileDto,
 } from "../../src/storage/workspaceDto";
 import { formatSyntaxProfileToml } from "../../src/ctn-syntax/profileToml";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 describe("workspace storage DTOs", () => {
   it("parses current workspace and syntax responses", () => {
     const workspace = createInitialWorkspaceData();
-    const source = formatSyntaxProfileToml();
+    const source = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
 
     expect(parseWorkspaceDataDto(workspace)).toEqual(workspace);
     expect(
@@ -47,7 +48,7 @@ describe("workspace storage DTOs", () => {
       parseWorkspaceSyntaxFileDto({
         fileName: "workspace.toml",
         profile: {},
-        source: formatSyntaxProfileToml(),
+        source: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
       }),
     ).toThrow("unsupported field");
   });

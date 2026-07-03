@@ -1,9 +1,10 @@
 import type { DragEvent } from "react";
 import { useMemo, useState } from "react";
-import type { NoteId, NoteWorkspace } from "../../domain/notes";
-import { resolveParsedNoteView } from "../../workspace/parsedNoteView";
-import type { WorkspaceBlockMigrationRequest } from "../../workspace/workspaceBlockMigration";
-import { OutlineNodeText } from "../notes/OutlineNodeText";
+import type { NoteId } from "../../workspace/model/workspaceData";
+import { resolveParsedNoteView } from "../../workspace/view-model/parsedNoteView";
+import type { WorkspaceBlockMigrationRequest } from "../../workspace/workflows/blockMigrationWorkflow";
+import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
+import { OutlineNodeText } from "../blocks/OutlineNodeText";
 import {
   blockDragDataType,
   createBlockDragLineNumberPayload,
@@ -30,7 +31,7 @@ type BlockMigrationViewProps = {
   onMoveNoteBlock: MoveNoteBlock;
   sourceNoteId: NoteId;
   targetNoteId: NoteId;
-  workspace: NoteWorkspace;
+  workspace: WorkspaceRuntime;
 };
 
 export function BlockMigrationView({
@@ -58,12 +59,9 @@ export function BlockMigrationView({
     () => (targetNote ? resolveParsedNoteView(workspace, targetNote) : null),
     [targetNote, workspace],
   );
-  const sourceBlocks =
-    sourceParsed?.status === "parsed" ? sourceParsed.document.blocks : [];
-  const sourceRoots =
-    sourceParsed?.status === "parsed" ? sourceParsed.document.roots : [];
-  const targetRoots =
-    targetParsed?.status === "parsed" ? targetParsed.document.roots : [];
+  const sourceBlocks = sourceParsed?.document.blocks ?? [];
+  const sourceRoots = sourceParsed?.document.roots ?? [];
+  const targetRoots = targetParsed?.document.roots ?? [];
   const isDropMode = draggingSourceLineNumber !== null;
   const sourceBlock =
     sourceBlocks.find(
@@ -151,7 +149,6 @@ export function BlockMigrationView({
     event.preventDefault();
 
     const lineNumberValue = readBlockDragLineNumberPayload({
-      fallback: draggingSourceLineNumber,
       plainText: event.dataTransfer.getData("text/plain"),
       typedPayload: event.dataTransfer.getData(blockDragDataType),
     });

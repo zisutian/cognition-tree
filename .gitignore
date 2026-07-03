@@ -25,10 +25,11 @@ test-results/
 
 # Local planning notes
 docs/长期规划原则.txt
+docs/重构原则.txt
 
 # Editor / OS noise
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-todo
+temp.txt

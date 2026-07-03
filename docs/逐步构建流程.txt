@@ -33,7 +33,7 @@
     仓库语法：唯一 TOML 语法、受控编辑、前后端 parity tests。
     块迁移：双视图工作台，跨笔记移动整棵块子树。
     可视化：第一版笔记级引用图谱。
-    界面：app / features / shell / workspace / domain / ctn-parser / ctn-syntax / storage 分层，VS Code 风格暗色主题。
+    界面：app / features / shell / workspace / ctn-parser / ctn-syntax / editor / storage 分层，VS Code 风格暗色主题。
 
 
 3. 下一步顺序
@@ -70,7 +70,6 @@
 
 5. 暂缓事项
 
-    src/domain 迁入 workspace/model 或 workspace/runtime
     feature-specific sidebar panel 从 shell 下沉到 features
     server 迁入 TS 或共享 syntax schema
     Redux / Zustand

@@ -1,4 +1,4 @@
-import type { CtnDocument } from "../../ctn-parser/parseOutline";
+import type { CtnDocument } from "../../ctn-parser/types";
 import { CtnEditor, type CtnEditorFocusTarget } from "../../editor/CtnEditor";
 import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
 
@@ -8,7 +8,6 @@ export function NoteEditorPanel({
   hasActiveNote,
   parsedDocument,
   syntaxProfile,
-  syntaxIssueMessage,
   currentNoteTitle,
   workspaceErrorMessage,
   onCreateNote,
@@ -18,8 +17,7 @@ export function NoteEditorPanel({
   focusTarget: CtnEditorFocusTarget | null;
   hasActiveNote: boolean;
   parsedDocument: CtnDocument;
-  syntaxProfile: CtnSyntaxProfile | null;
-  syntaxIssueMessage: string | null;
+  syntaxProfile: CtnSyntaxProfile;
   currentNoteTitle: string | null;
   workspaceErrorMessage: string;
   onCreateNote: () => void;
@@ -46,19 +44,12 @@ export function NoteEditorPanel({
         </div>
       </header>
 
-      {hasActiveNote && syntaxProfile ? (
+      {hasActiveNote ? (
         <CtnEditor
           focusTarget={focusTarget}
           syntaxProfile={syntaxProfile}
           value={documentText}
           onChange={onDocumentTextChange}
-        />
-      ) : hasActiveNote ? (
-        <textarea
-          className="source-editor-fallback"
-          spellCheck={false}
-          value={documentText}
-          onChange={(event) => onDocumentTextChange(event.target.value)}
         />
       ) : (
         <div className="empty-editor">
@@ -68,13 +59,6 @@ export function NoteEditorPanel({
           </button>
         </div>
       )}
-
-      {hasActiveNote && syntaxIssueMessage ? (
-        <section className="diagnostics-panel" aria-label="语法状态">
-          <h3>语法</h3>
-          <p>{syntaxIssueMessage}</p>
-        </section>
-      ) : null}
 
       {workspaceErrorMessage ? (
         <section className="diagnostics-panel" aria-label="工作区状态">

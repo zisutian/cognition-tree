@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type {
   NoteReferenceGraph,
   NoteReferenceGraphNode,
-} from "../../workspace/noteReferenceGraph";
+} from "../../workspace/view-model/noteReferenceGraph";
 
 type NoteReferenceGraphPanelProps = {
   graph: NoteReferenceGraph;

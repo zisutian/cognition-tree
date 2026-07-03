@@ -10,8 +10,8 @@ import {
   type NoteId,
   type NoteRecord,
   type NoteTreeNode,
-} from "../../domain/notes";
-import { orderNoteTreeNodesFoldersFirst } from "../../domain/noteTree";
+} from "../../workspace/model/workspaceData";
+import { orderNoteTreeNodesFoldersFirst } from "../../workspace/model/noteTree";
 
 export type TreeContextMenuPosition = {
   x: number;
@@ -81,8 +81,8 @@ export function SidebarNoteTree({
               <div
                 className={
                   node.id === activeFolderId
-                    ? "note-folder-row active"
-                    : "note-folder-row"
+                    ? "ctn-tree-row ctn-tree-row-with-toggle is-active note-folder-row active"
+                    : "ctn-tree-row ctn-tree-row-with-toggle note-folder-row"
                 }
                 onContextMenu={openFolderMenu}
               >
@@ -90,7 +90,7 @@ export function SidebarNoteTree({
                   aria-label={
                     isCollapsed ? `展开 ${title}` : `折叠 ${title}`
                   }
-                  className="note-folder-toggle"
+                  className="ctn-tree-toggle note-folder-toggle"
                   disabled={!hasChildren}
                   onClick={() => onToggleFolder(node.id)}
                   title={isCollapsed ? "展开文件夹" : "折叠文件夹"}
@@ -115,18 +115,20 @@ export function SidebarNoteTree({
                   )}
                 </button>
                 <button
-                  className="note-folder-label"
+                  className="ctn-tree-main ctn-tree-main-with-meta ctn-tree-main-compact note-folder-label"
                   onClick={() => onSelectFolder(node.id)}
                   title={title}
                   type="button"
                 >
                   <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
-                  <span>{title}</span>
-                  <small>{node.children.length}</small>
+                  <span className="ctn-tree-text">{title}</span>
+                  <small className="ctn-tree-meta">
+                    {node.children.length}
+                  </small>
                 </button>
               </div>
               {!isCollapsed ? (
-                <div className="note-folder-children">
+                <div className="ctn-tree-children note-folder-children">
                   {hasChildren ? (
                     <SidebarNoteTree
                       activeFolderId={activeFolderId}
@@ -172,14 +174,16 @@ export function SidebarNoteTree({
           >
             <button
               className={
-                note.id === activeNoteId ? "note-item active" : "note-item"
+                note.id === activeNoteId
+                  ? "ctn-tree-main ctn-tree-main-note is-active note-item active"
+                  : "ctn-tree-main ctn-tree-main-note note-item"
               }
               onClick={() => onSelectNote(note.id)}
               title={note.title}
               type="button"
             >
               <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
-              <span>{note.title}</span>
+              <span className="ctn-tree-text">{note.title}</span>
             </button>
           </div>
         );

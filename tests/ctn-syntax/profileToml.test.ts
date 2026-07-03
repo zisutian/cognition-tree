@@ -119,7 +119,9 @@ textColor = "red"
   });
 
   it("formats the default profile as parseable TOML", () => {
-    const result = parseSyntaxProfileToml(formatSyntaxProfileToml());
+    const result = parseSyntaxProfileToml(
+      formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+    );
 
     expect(result.diagnostics).toEqual([]);
     expect(result.profile).toEqual(defaultCtnSyntaxProfile);

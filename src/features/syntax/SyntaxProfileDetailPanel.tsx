@@ -1,15 +1,15 @@
 import type { CtnSyntaxTone } from "../../ctn-syntax/types";
 import { getToneSwatchClass, getToneSwatchStyle } from "./TonePicker";
-import type { SyntaxProfileDraftBuildResult } from "./syntaxProfileDraft";
+import type { SyntaxProfileDraftBuildResult } from "../../ctn-syntax/profileDraft";
 
-export type WorkspaceFeedback = {
+type SyntaxProfileFeedback = {
   message: string;
   status: "error" | "success";
 };
 
 type SyntaxProfileDetailPanelProps = {
   draftResult: SyntaxProfileDraftBuildResult;
-  feedback: WorkspaceFeedback | null;
+  feedback: SyntaxProfileFeedback | null;
 };
 
 function ToneSwatch({

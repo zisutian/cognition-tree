@@ -2,7 +2,6 @@ import type {
   CtnBlockType,
   CtnInlineSpanType,
   CtnRuleRole,
-  CtnSyntaxProfile,
   CtnSyntaxTone,
 } from "../ctn-syntax/types";
 
@@ -60,7 +59,3 @@ export type CtnDocument = {
 };
 
 export type OutlineNode = CtnBlock;
-
-export type ParseCtnDocumentOptions = {
-  syntaxProfile: CtnSyntaxProfile;
-};

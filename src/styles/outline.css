@@ -106,48 +106,11 @@
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
-  font-size: var(--outline-font-size, 12.5px);
+  font-size: var(--outline-font-size, 12px);
 }
 
-.outline-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.outline-list .outline-list {
-  margin-top: 0;
-  margin-left: 0.54em;
-  padding-left: 0.72em;
-  border-left: 1px solid var(--color-border);
-}
-
-.note-outline-panel .outline-list .outline-list {
+.note-outline-panel .ctn-tree-list .ctn-tree-list {
   border-left-color: var(--note-border);
-}
-
-.outline-node {
-  display: grid;
-  grid-template-columns: 1.5em minmax(0, 1fr);
-  align-items: center;
-  width: 100%;
-  min-height: 2em;
-  padding: 0.16em 0.28em;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: inherit;
-  background: transparent;
-}
-
-.outline-node:hover {
-  background: var(--color-hover);
-}
-
-.note-outline-panel .outline-node:hover {
-  background: var(--color-hover);
 }
 
 .outline-node.has-diagnostics {
@@ -160,77 +123,8 @@
   box-shadow: inset 2px 0 0 rgba(244, 135, 113, 0.72);
 }
 
-.outline-toggle-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5em;
-  height: 1.7em;
-  border-radius: var(--radius-md);
-  color: var(--color-fg-muted);
-  background: transparent;
-  cursor: pointer;
-}
-
 .note-outline-panel .outline-toggle-button {
   color: var(--note-muted);
-}
-
-.outline-toggle-button:disabled {
-  color: transparent;
-  cursor: default;
-}
-
-.outline-node-content {
-  min-width: 0;
-  min-height: 1.7em;
-  padding: 0;
-  color: inherit;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.node-main {
-  display: flex;
-  align-items: center;
-  gap: 0.56em;
-  min-width: 0;
-}
-
-.node-kind {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  min-width: 2.7em;
-  min-height: 1.55em;
-  padding: 0 0.32em;
-  border-radius: var(--radius-md);
-  color: var(--color-link);
-  background: transparent;
-  font-size: 0.86em;
-  font-weight: var(--font-weight-semibold);
-  line-height: 1;
-  text-align: center;
-}
-
-.note-outline-panel .node-kind {
-  min-width: auto;
-  min-height: auto;
-  padding: 0;
-  color: var(--color-link);
-  background: transparent;
-  font-weight: var(--font-weight-semibold);
-}
-
-.node-text {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.96em;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .outline-inline {

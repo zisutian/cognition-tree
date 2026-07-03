@@ -9,7 +9,7 @@ import {
   type SyntaxProfileDraftInlineRule,
   type SyntaxProfileDraftMarkerRule,
   syntaxRuleRoles,
-} from "./syntaxProfileDraft";
+} from "../../ctn-syntax/profileDraft";
 
 type SyntaxWorkspacePanelProps = {
   draft: SyntaxProfileDraft;

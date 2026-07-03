@@ -1,5 +1,5 @@
 import { hoverTooltip } from "@codemirror/view";
-import { parseCtnDocument } from "../ctn-parser/parseOutline";
+import { parseCtnDocument } from "../ctn-parser/parseCtnDocument";
 import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 export function createCtnDiagnosticTooltip(syntaxProfileRef: {
@@ -7,9 +7,10 @@ export function createCtnDiagnosticTooltip(syntaxProfileRef: {
 }) {
   return hoverTooltip((view, pos) => {
     const line = view.state.doc.lineAt(pos);
-    const parsedDocument = parseCtnDocument(view.state.doc.toString(), {
-      syntaxProfile: syntaxProfileRef.current,
-    });
+    const parsedDocument = parseCtnDocument(
+      view.state.doc.toString(),
+      syntaxProfileRef.current,
+    );
     const diagnostics = parsedDocument.diagnostics.filter(
       (diagnostic) => diagnostic.lineNumber === line.number,
     );

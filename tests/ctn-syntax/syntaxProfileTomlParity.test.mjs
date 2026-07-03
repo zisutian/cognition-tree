@@ -128,8 +128,10 @@ function expectParseParity(source) {
 describe("syntax profile TOML frontend/backend parity", () => {
   it("keeps default profile objects and TOML formatting aligned", () => {
     expect(defaultCtnSyntaxProfile).toEqual(serverDefaultSyntaxProfile);
-    expect(formatClientSyntaxProfileToml()).toBe(formatServerSyntaxProfileToml());
-    expectParseParity(formatClientSyntaxProfileToml());
+    expect(formatClientSyntaxProfileToml(defaultCtnSyntaxProfile)).toBe(
+      formatServerSyntaxProfileToml(serverDefaultSyntaxProfile),
+    );
+    expectParseParity(formatClientSyntaxProfileToml(defaultCtnSyntaxProfile));
   });
 
   it("parses valid custom profiles consistently", () => {
