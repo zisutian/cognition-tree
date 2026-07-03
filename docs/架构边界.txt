@@ -1,35 +1,29 @@
 架构边界
 
 
-文档边界：
-
-    本文件只记录逻辑模块和依赖方向。
-    不记录源码目录、文件命名、组件拆分、实现流程、数据存储细节和排期。
-    文件组织和具体重构步骤后续单独讨论。
-
-
 1. 逻辑模块
 
 UI：
 
     应用入口、应用外壳和用户可见功能界面。
     负责展示状态、接收输入和触发命令。
+    共享 UI 渲染结构属于 UI 层。
 
 Workspace：
 
     应用运行边界和 workspace 模型边界。
-    负责 workspace 数据模型、运行时聚合、session、command、workflow 和 view model。
-    Workspace Model 承载笔记、目录树、块文本移动和 workspace action 的模型规则。
+    包含 workspace 数据模型、运行时聚合、session、command、workflow 和 view model。
+    Workspace Model 承载笔记、目录树、块文本移动和 workspace action 的纯模型规则。
 
 CTN Parser：
 
     CTN 原文解析核心。
-    负责把 .ctn source 和 CtnSyntaxProfile 解析成结构结果、诊断和引用信息。
+    把 .ctn source 和 CtnSyntaxProfile 解析成结构结果、诊断和引用信息。
 
 CTN Syntax：
 
     CTN 语法核心。
-    负责 CtnSyntaxProfile、默认语法、语法配置解析、validation、draft 和 tone 规则。
+    包含 CtnSyntaxProfile、默认语法、语法配置解析、validation、draft 和 tone 规则。
 
 Editor：
 
@@ -46,9 +40,7 @@ Server：
     Node HTTP API 和本地文件仓库读写。
 
 
-2. 依赖方向
-
-允许的主要方向：
+2. 当前依赖关系
 
     UI -> Workspace
     UI -> CTN Parser
@@ -61,14 +53,12 @@ Server：
     Storage -> CTN Syntax
     CTN Parser -> CTN Syntax
 
-禁止的主要方向：
 
-    Workspace -> UI
-    Storage -> UI
-    CTN Syntax -> Workspace
-    CTN Syntax -> UI
-    CTN Parser -> Workspace
-    CTN Parser -> UI
-    Workspace Model -> CTN Syntax
-    Workspace Model -> Storage
-    Workspace Model -> React
+3. 隔离边界
+
+    Workspace 不依赖 UI。
+    Storage 不依赖 UI。
+    CTN Syntax 不依赖 Workspace 和 UI。
+    CTN Parser 不依赖 Workspace 和 UI。
+    Workspace Model 不依赖 CTN Syntax、Storage 和 React。
+    React 组件、交互状态和视觉结构位于 UI 层。

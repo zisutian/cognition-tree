@@ -44,6 +44,21 @@
     pnpm check
     pnpm build
 
+提交前验证：
+
+    pnpm test
+    pnpm check
+    pnpm build
+    git diff --check
+
+后端脚本语法检查：
+
+    node --check server/index.mjs
+    node --check server/workspaceApiServer.mjs
+    node --check server/workspaceFileStore.mjs
+    node --check server/workspaceManifestDto.mjs
+    node --check server/syntaxProfileToml.mjs
+
 默认地址：
 
     前端：http://127.0.0.1:5173
