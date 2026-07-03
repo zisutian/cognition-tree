@@ -4,7 +4,7 @@ import {
   createNoteRecord,
   type NoteTreeNode,
 } from "../../src/domain/notes";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 import {
   appendNoteToWorkspaceTree,
   appendFolderToWorkspaceTree,

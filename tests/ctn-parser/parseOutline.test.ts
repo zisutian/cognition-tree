@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../src/ctn/parseOutline";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { parseCtnDocument } from "../../src/ctn-parser/parseOutline";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 function parseDefaultCtnDocument(source: string) {
   return parseCtnDocument(source, {

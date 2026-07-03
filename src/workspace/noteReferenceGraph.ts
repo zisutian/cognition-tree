@@ -1,5 +1,5 @@
 import type { NoteId, NoteRecord, NoteWorkspace } from "../domain/notes";
-import { extractCtnInlineReferences } from "../ctn/references";
+import { extractCtnInlineReferences } from "../ctn-parser/references";
 import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export type NoteReferenceGraphNode = {

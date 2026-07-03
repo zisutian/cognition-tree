@@ -6,8 +6,8 @@ import {
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
 } from "../features/syntax/syntaxProfileDraft";
-import { formatSyntaxProfileToml } from "../syntax/profileToml";
-import type { CtnSyntaxProfile } from "../syntax/types";
+import { formatSyntaxProfileToml } from "../ctn-syntax/profileToml";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 type UseSyntaxDraftSessionOptions = {
   isWorkspaceLoaded: boolean;

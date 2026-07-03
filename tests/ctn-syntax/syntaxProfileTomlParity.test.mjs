@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile.ts";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile.ts";
 import {
   formatSyntaxProfileToml as formatClientSyntaxProfileToml,
   parseSyntaxProfileToml as parseClientSyntaxProfileToml,
-} from "../../src/syntax/profileToml.ts";
+} from "../../src/ctn-syntax/profileToml.ts";
 import {
   defaultSyntaxProfile as serverDefaultSyntaxProfile,
   formatSyntaxProfileToml as formatServerSyntaxProfileToml,

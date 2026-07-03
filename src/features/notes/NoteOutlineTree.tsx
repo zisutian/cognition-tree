@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { OutlineNode } from "../../ctn/parseOutline";
+import type { OutlineNode } from "../../ctn-parser/parseOutline";
 import { OutlineNodeText } from "./OutlineNodeText";
 import { getOutlineDisplayText } from "./outlineTextSegments";
 

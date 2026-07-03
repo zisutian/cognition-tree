@@ -3,8 +3,8 @@ import {
   createInitialWorkspace,
   createNoteRecord,
 } from "../../src/domain/notes";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../src/syntax/types";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../src/ctn-syntax/types";
 import { createNoteReferenceGraph } from "../../src/workspace/noteReferenceGraph";
 
 const timestamp = "2026-07-02T00:00:00.000Z";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspace, createNoteRecord } from "../../src/domain/notes";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../src/syntax/types";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../src/ctn-syntax/types";
 import { resolveParsedNoteView } from "../../src/workspace/parsedNoteView";
 
 const timestamp = "2026-06-08T00:00:00.000Z";

@@ -1,6 +1,6 @@
-import type { CtnDocument } from "../../ctn/parseOutline";
+import type { CtnDocument } from "../../ctn-parser/parseOutline";
 import { CtnEditor, type CtnEditorFocusTarget } from "../../editor/CtnEditor";
-import type { CtnSyntaxProfile } from "../../syntax/types";
+import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
 
 export function NoteEditorPanel({
   documentText,

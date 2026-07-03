@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../src/ctn/parseOutline";
+import { parseCtnDocument } from "../../src/ctn-parser/parseOutline";
 import {
   createOutlineTextSegments,
   getOutlineDisplayText,
 } from "../../src/features/notes/outlineTextSegments";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 function parseFirstRoot(source: string) {
   const document = parseCtnDocument(source, {

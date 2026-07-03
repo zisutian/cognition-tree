@@ -1,5 +1,5 @@
-import type { CtnSyntaxTone } from "../../syntax/types";
-import type { OutlineNode } from "../../ctn/parseOutline";
+import type { CtnSyntaxTone } from "../../ctn-syntax/types";
+import type { OutlineNode } from "../../ctn-parser/parseOutline";
 
 export type OutlineTextSegment =
   | {

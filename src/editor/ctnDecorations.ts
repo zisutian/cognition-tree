@@ -9,14 +9,14 @@ import {
   parseCtnDocument,
   type CtnBlock,
   type CtnInlineSpan,
-} from "../ctn/parseOutline";
+} from "../ctn-parser/parseOutline";
 import {
   getSyntaxTextColorClassName,
   getSyntaxTextColorStyle,
   getSyntaxToneClassName,
   getSyntaxToneStyle,
-} from "../syntax/tones";
-import type { CtnSyntaxProfile } from "../syntax/types";
+} from "../ctn-syntax/tones";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
   return JSON.stringify({

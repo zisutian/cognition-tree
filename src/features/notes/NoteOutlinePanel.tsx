@@ -1,6 +1,6 @@
 import { type CSSProperties, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import type { OutlineNode } from "../../ctn/parseOutline";
+import type { OutlineNode } from "../../ctn-parser/parseOutline";
 import { NoteOutlineTree } from "./NoteOutlineTree";
 
 const outlineZoomMin = 0.85;

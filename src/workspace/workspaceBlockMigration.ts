@@ -1,7 +1,7 @@
 import {
   parseCtnDocument,
   type CtnBlock,
-} from "../ctn/parseOutline";
+} from "../ctn-parser/parseOutline";
 import {
   moveNoteBlock,
   type NoteBlockMigrationTargetPosition,
@@ -12,7 +12,7 @@ import {
   type NoteRecord,
   type NoteWorkspace,
 } from "../domain/notes";
-import type { CtnSyntaxProfile } from "../syntax/types";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export type WorkspaceBlockMigrationTargetPositionRequest =

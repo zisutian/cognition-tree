@@ -6,11 +6,11 @@ import type {
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
-} from "../../syntax/types";
+} from "../../ctn-syntax/types";
 import {
   configurableSyntaxTones,
   isConfigurableSyntaxTone,
-} from "../../syntax/tones";
+} from "../../ctn-syntax/tones";
 
 export type SyntaxProfileDraftMarkerRule = {
   id: string;

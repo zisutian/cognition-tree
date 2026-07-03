@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../src/ctn/parseOutline";
+import { parseCtnDocument } from "../../src/ctn-parser/parseOutline";
 import {
   moveNoteBlock,
   type NoteBlockMigrationBlock,
 } from "../../src/domain/noteBlockMigration";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 function parseBlocks(source: string): NoteBlockMigrationBlock[] {
   return parseCtnDocument(source, {

@@ -1,11 +1,11 @@
 import type { CSSProperties } from "react";
-import type { OutlineNode } from "../../ctn/parseOutline";
+import type { OutlineNode } from "../../ctn-parser/parseOutline";
 import {
   getSyntaxTextColorClassName,
   getSyntaxToneClassName,
   isCustomSyntaxTone,
-} from "../../syntax/tones";
-import type { CtnSyntaxTone } from "../../syntax/types";
+} from "../../ctn-syntax/tones";
+import type { CtnSyntaxTone } from "../../ctn-syntax/types";
 import { createOutlineTextSegments } from "./outlineTextSegments";
 
 type OutlineNodeTextProps = {

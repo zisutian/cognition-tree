@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspace } from "../../src/domain/notes";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../src/syntax/types";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../src/ctn-syntax/types";
 import { resolveWorkspaceSyntaxProfile } from "../../src/workspace/syntaxResolution";
 
 describe("syntax resolution", () => {

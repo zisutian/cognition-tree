@@ -7,7 +7,7 @@ import type {
   CtnMarkerRule,
   CtnRuleRole,
   CtnSyntaxTone,
-} from "../syntax/types";
+} from "../ctn-syntax/types";
 
 export type ParsedLineMarker = {
   diagnostics: CtnDiagnostic[];

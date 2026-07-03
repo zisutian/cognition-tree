@@ -1,6 +1,6 @@
 import { hoverTooltip } from "@codemirror/view";
-import { parseCtnDocument } from "../ctn/parseOutline";
-import type { CtnSyntaxProfile } from "../syntax/types";
+import { parseCtnDocument } from "../ctn-parser/parseOutline";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 export function createCtnDiagnosticTooltip(syntaxProfileRef: {
   current: CtnSyntaxProfile;

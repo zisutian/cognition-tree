@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialWorkspace,
 } from "../../src/domain/notes";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 describe("note workspace", () => {
   it("keeps note content separate from the repository tree", () => {

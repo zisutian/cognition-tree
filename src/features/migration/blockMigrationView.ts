@@ -1,4 +1,4 @@
-import type { CtnBlock } from "../../ctn/parseOutline";
+import type { CtnBlock } from "../../ctn-parser/parseOutline";
 
 export function getBlockTitle(block: CtnBlock) {
   return block.text || block.label;

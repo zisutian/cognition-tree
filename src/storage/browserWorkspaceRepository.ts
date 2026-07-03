@@ -1,8 +1,8 @@
-import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../ctn-syntax/defaultSyntaxProfile";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
-} from "../syntax/profileToml";
+} from "../ctn-syntax/profileToml";
 import type {
   WorkspaceRepository,
   RepositoryInfo,

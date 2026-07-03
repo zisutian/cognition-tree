@@ -21,7 +21,7 @@ import {
   selectWorkspaceNote,
   updateActiveWorkspaceNoteSource,
 } from "../../src/domain/workspaceActions";
-import { defaultCtnSyntaxProfile } from "../../src/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 

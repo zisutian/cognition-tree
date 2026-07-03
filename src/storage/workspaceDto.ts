@@ -3,7 +3,7 @@ import type {
   NoteTreeNode,
   WorkspaceData,
 } from "../domain/notes";
-import { parseSyntaxProfileToml } from "../syntax/profileToml";
+import { parseSyntaxProfileToml } from "../ctn-syntax/profileToml";
 import type {
   RepositoryInfo,
   WorkspaceSyntaxFile,

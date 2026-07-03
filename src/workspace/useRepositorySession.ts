@@ -15,7 +15,7 @@ import {
 } from "../domain/notes";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
 import type { WorkspaceSyntaxFile } from "../storage/workspaceRepository";
-import { defaultCtnSyntaxProfile } from "../syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../ctn-syntax/defaultSyntaxProfile";
 import {
   createWorkspaceSaveQueue,
   type WorkspaceSaveStatus,

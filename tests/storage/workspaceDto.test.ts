@@ -5,7 +5,7 @@ import {
   parseWorkspaceDataDto,
   parseWorkspaceSyntaxFileDto,
 } from "../../src/storage/workspaceDto";
-import { formatSyntaxProfileToml } from "../../src/syntax/profileToml";
+import { formatSyntaxProfileToml } from "../../src/ctn-syntax/profileToml";
 
 describe("workspace storage DTOs", () => {
   it("parses current workspace and syntax responses", () => {

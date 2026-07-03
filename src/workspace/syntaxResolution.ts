@@ -1,6 +1,6 @@
 import type { NoteWorkspace } from "../domain/notes";
-import { getSyntaxProfileShapeError } from "../syntax/profileValidation";
-import type { CtnSyntaxProfile } from "../syntax/types";
+import { getSyntaxProfileShapeError } from "../ctn-syntax/profileValidation";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 export type SyntaxProfileResolution =
   | {

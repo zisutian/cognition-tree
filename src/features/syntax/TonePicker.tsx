@@ -6,11 +6,11 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { isCustomSyntaxTone } from "../../syntax/tones";
+import { isCustomSyntaxTone } from "../../ctn-syntax/tones";
 import type {
   CtnPresetSyntaxTone,
   CtnSyntaxTone,
-} from "../../syntax/types";
+} from "../../ctn-syntax/types";
 import { syntaxTones } from "./syntaxProfileDraft";
 
 const toneLabels: Record<CtnPresetSyntaxTone, string> = {

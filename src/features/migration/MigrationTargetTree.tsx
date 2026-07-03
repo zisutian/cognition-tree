@@ -1,5 +1,5 @@
 import type { DragEvent } from "react";
-import type { CtnBlock } from "../../ctn/parseOutline";
+import type { CtnBlock } from "../../ctn-parser/parseOutline";
 import { OutlineNodeText } from "../notes/OutlineNodeText";
 import {
   getBlockLineLabel,

@@ -1,4 +1,4 @@
-import type { CtnSyntaxTone } from "../../syntax/types";
+import type { CtnSyntaxTone } from "../../ctn-syntax/types";
 import { getToneSwatchClass, getToneSwatchStyle } from "./TonePicker";
 import type { SyntaxProfileDraftBuildResult } from "./syntaxProfileDraft";
 

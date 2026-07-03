@@ -4,7 +4,7 @@ import type {
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
-} from "../syntax/types";
+} from "../ctn-syntax/types";
 
 export type CtnInlineSpan = {
   id: string;

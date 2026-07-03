@@ -1,9 +1,9 @@
 import {
   parseCtnDocument,
   type CtnDocument,
-} from "../ctn/parseOutline";
+} from "../ctn-parser/parseOutline";
 import type { NoteRecord, NoteWorkspace } from "../domain/notes";
-import type { CtnSyntaxProfile } from "../syntax/types";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 import { resolveWorkspaceSyntaxProfile } from "./syntaxResolution";
 
 export const emptyCtnDocument: CtnDocument = {

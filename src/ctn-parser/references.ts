@@ -1,4 +1,4 @@
-import type { CtnSyntaxProfile } from "../syntax/types";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 import { parseCtnDocument, type CtnDocument } from "./parseOutline";
 
 export type CtnInlineReference = {

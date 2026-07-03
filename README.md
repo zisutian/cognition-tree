@@ -61,8 +61,8 @@
     src/shell/        应用外壳、活动栏和侧栏
     src/workspace/    前端应用层和 workflow
     src/domain/       纯领域规则
-    src/ctn/          CTN 原文解析
-    src/syntax/       语法 profile 与 TOML
+    src/ctn-parser/   CTN 原文解析
+    src/ctn-syntax/   语法 profile 与 TOML
     src/editor/       CodeMirror 集成
     src/storage/      前端存储端口和适配器
     src/styles/       全局样式

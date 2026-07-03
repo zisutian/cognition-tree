@@ -1,4 +1,4 @@
-import type { CtnSyntaxProfile } from "../syntax/types";
+import type { CtnSyntaxProfile } from "../ctn-syntax/types";
 
 export type NoteId = string;
 export type FolderId = string;

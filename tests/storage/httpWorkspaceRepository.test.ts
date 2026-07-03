@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspaceData } from "../../src/domain/notes";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
-import { formatSyntaxProfileToml } from "../../src/syntax/profileToml";
+import { formatSyntaxProfileToml } from "../../src/ctn-syntax/profileToml";
 
 type FetchCall = {
   body?: BodyInit | null;
