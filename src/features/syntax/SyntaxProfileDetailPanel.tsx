@@ -1,6 +1,5 @@
-import type { CSSProperties } from "react";
 import type { CtnSyntaxTone } from "../../syntax/types";
-import { isCustomSyntaxTone } from "../../syntax/tones";
+import { getToneSwatchClass, getToneSwatchStyle } from "./TonePicker";
 import type { SyntaxProfileDraftBuildResult } from "./syntaxProfileDraft";
 
 export type WorkspaceFeedback = {
@@ -12,18 +11,6 @@ type SyntaxProfileDetailPanelProps = {
   draftResult: SyntaxProfileDraftBuildResult;
   feedback: WorkspaceFeedback | null;
 };
-
-function getToneSwatchClass(tone: CtnSyntaxTone) {
-  return isCustomSyntaxTone(tone)
-    ? "syntax-tone-swatch syntax-tone-custom"
-    : `syntax-tone-swatch syntax-tone-${tone}`;
-}
-
-function getToneSwatchStyle(tone: CtnSyntaxTone): CSSProperties | undefined {
-  return isCustomSyntaxTone(tone)
-    ? ({ "--syntax-tone-color": tone } as CSSProperties)
-    : undefined;
-}
 
 function ToneSwatch({
   label,
