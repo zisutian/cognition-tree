@@ -21,7 +21,7 @@
 
 当前未提交工作：
 
-    工程架构约定和 ctn-parser / ctn-syntax 成对命名。
+    架构边界约定和 ctn-parser / ctn-syntax 成对命名。
 
 
 2. 已实现能力
