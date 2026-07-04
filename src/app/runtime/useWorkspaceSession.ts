@@ -14,15 +14,15 @@ import { createRuntimeWorkspaceRepository } from "../../storage/runtimeWorkspace
 import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
 import { defaultCtnSyntaxProfile } from "../../ctn-syntax/defaultSyntaxProfile";
 import {
-  createWorkspaceSaveQueue,
+  createWorkspaceDataSaveQueue,
   type WorkspaceSaveStatus,
-} from "./workspaceSaveQueue";
+} from "./workspaceDataSaveQueue";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceRuntime,
 } from "../../workspace/runtime/workspaceRuntime";
 
-export type { WorkspaceSaveStatus } from "./workspaceSaveQueue";
+export type { WorkspaceSaveStatus } from "./workspaceDataSaveQueue";
 
 type UseWorkspaceSessionResult = {
   canChangeRepositoryPath: boolean;
@@ -78,7 +78,7 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
 
   const saveQueue = useMemo(
     () =>
-      createWorkspaceSaveQueue({
+      createWorkspaceDataSaveQueue({
         onError(error) {
           if (isMountedRef.current) {
             setWorkspaceErrorMessage(
@@ -97,7 +97,7 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
 
           setWorkspaceSaveStatus(status);
         },
-        save: (nextWorkspace) => repository.saveWorkspace(nextWorkspace),
+        save: (nextWorkspaceData) => repository.saveWorkspace(nextWorkspaceData),
       }),
     [repository],
   );

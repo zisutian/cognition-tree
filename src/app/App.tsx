@@ -38,7 +38,6 @@ import {
   type WorkspaceBlockMigrationRequest,
 } from "../workspace/actions/blockMigrationActions";
 import { useWorkspaceSession } from "./runtime/useWorkspaceSession";
-import { toWorkspaceData } from "../workspace/runtime/workspaceRuntime";
 
 type EditorFocusRequest = {
   lineNumber: number;
@@ -186,10 +185,10 @@ function App() {
       };
     }
 
-    setWorkspaceData(toWorkspaceData(result.workspace));
+    setWorkspaceData(result.workspaceData);
     setSelectedFolderId(
       findWorkspaceFolderIdContainingNote(
-        result.workspace,
+        result.workspaceData,
         result.targetNoteId,
       ) ??
         selectedFolderId,

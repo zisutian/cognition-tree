@@ -4,65 +4,65 @@ import {
   type WorkspaceData,
 } from "../../src/workspace/model/workspaceData";
 import {
-  createWorkspaceSaveQueue,
+  createWorkspaceDataSaveQueue,
   type WorkspaceSaveStatus,
-} from "../../src/app/runtime/workspaceSaveQueue";
+} from "../../src/app/runtime/workspaceDataSaveQueue";
 
-function createWorkspace(name: string): WorkspaceData {
+function createWorkspaceData(name: string): WorkspaceData {
   return {
     ...createInitialWorkspaceData(),
     name,
   };
 }
 
-describe("workspace save queue", () => {
+describe("workspace data save queue", () => {
   it("serializes saves and coalesces pending snapshots", async () => {
     let releaseFirstSave = () => {};
     const firstSaveGate = new Promise<void>((resolve) => {
       releaseFirstSave = resolve;
     });
-    const savedNames: string[] = [];
+    const savedWorkspaceDataNames: string[] = [];
     const statuses: WorkspaceSaveStatus[] = [];
-    const queue = createWorkspaceSaveQueue({
+    const queue = createWorkspaceDataSaveQueue({
       onError() {
         throw new Error("save should not fail");
       },
       onStatusChange(status) {
         statuses.push(status);
       },
-      async save(workspace) {
-        savedNames.push(workspace.name);
+      async save(workspaceData) {
+        savedWorkspaceDataNames.push(workspaceData.name);
 
-        if (workspace.name === "first") {
+        if (workspaceData.name === "first") {
           await firstSaveGate;
         }
       },
     });
 
-    queue.enqueue(createWorkspace("first"));
-    queue.enqueue(createWorkspace("second"));
-    queue.enqueue(createWorkspace("latest"));
+    queue.enqueue(createWorkspaceData("first"));
+    queue.enqueue(createWorkspaceData("second"));
+    queue.enqueue(createWorkspaceData("latest"));
     releaseFirstSave();
     await queue.waitForIdle();
 
-    expect(savedNames).toEqual(["first", "latest"]);
+    expect(savedWorkspaceDataNames).toEqual(["first", "latest"]);
     expect(statuses).toEqual(["saving", "saving", "saved"]);
   });
 
   it("reports errors and accepts a later save", async () => {
-    const savedNames: string[] = [];
+    const savedWorkspaceDataNames: string[] = [];
     const errors: unknown[] = [];
     const statuses: WorkspaceSaveStatus[] = [];
     let shouldFail = true;
-    const queue = createWorkspaceSaveQueue({
+    const queue = createWorkspaceDataSaveQueue({
       onError(error) {
         errors.push(error);
       },
       onStatusChange(status) {
         statuses.push(status);
       },
-      async save(workspace) {
-        savedNames.push(workspace.name);
+      async save(workspaceData) {
+        savedWorkspaceDataNames.push(workspaceData.name);
 
         if (shouldFail) {
           shouldFail = false;
@@ -71,12 +71,12 @@ describe("workspace save queue", () => {
       },
     });
 
-    queue.enqueue(createWorkspace("first"));
+    queue.enqueue(createWorkspaceData("first"));
     await queue.waitForIdle();
-    queue.enqueue(createWorkspace("second"));
+    queue.enqueue(createWorkspaceData("second"));
     await queue.waitForIdle();
 
-    expect(savedNames).toEqual(["first", "second"]);
+    expect(savedWorkspaceDataNames).toEqual(["first", "second"]);
     expect(errors).toHaveLength(1);
     expect(statuses).toEqual(["saving", "error", "saving", "saved"]);
   });

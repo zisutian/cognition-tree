@@ -39,13 +39,3 @@ export function attachWorkspaceSyntaxProfile(
     syntaxProfile,
   };
 }
-
-export function toWorkspaceData(workspace: WorkspaceRuntime): WorkspaceData {
-  return {
-    activeNoteId: workspace.activeNoteId,
-    id: workspace.id,
-    name: workspace.name,
-    notes: workspace.notes,
-    tree: workspace.tree,
-  };
-}

@@ -60,7 +60,7 @@ export type MoveWorkspaceBlockResult =
       message: string;
       status: "moved";
       targetNoteId: NoteId;
-      workspace: WorkspaceBlockMigrationRuntime;
+      workspaceData: WorkspaceData;
     }
   | {
       message: string;
@@ -72,12 +72,12 @@ type ParsedMigrationNote = {
   note: NoteRecord;
 };
 
-type WorkspaceBlockMigrationRuntime = WorkspaceData & {
+type WorkspaceBlockMigrationSource = WorkspaceData & {
   syntaxProfile: CtnSyntaxProfile;
 };
 
 function findWorkspaceNote(
-  workspace: WorkspaceBlockMigrationRuntime,
+  workspace: WorkspaceBlockMigrationSource,
   noteId: NoteId,
 ) {
   return workspace.notes.find((note) => note.id === noteId) ?? null;
@@ -129,7 +129,7 @@ function isTargetPosition(
 }
 
 function resolveMigrationInput(
-  workspace: WorkspaceBlockMigrationRuntime,
+  workspace: WorkspaceBlockMigrationSource,
   request: WorkspaceBlockMigrationRequest,
 ) {
   const sourceNote = findWorkspaceNote(workspace, request.sourceNoteId);
@@ -188,7 +188,7 @@ function mapPreviewFailure(result: Extract<
 }
 
 export function previewWorkspaceBlockMigration(
-  workspace: WorkspaceBlockMigrationRuntime,
+  workspace: WorkspaceBlockMigrationSource,
   request: WorkspaceBlockMigrationPreviewRequest,
 ): WorkspaceBlockMigrationPreviewResult {
   if (workspace.notes.length < 2) {
@@ -234,7 +234,7 @@ export function previewWorkspaceBlockMigration(
 }
 
 export function moveWorkspaceBlock(
-  workspace: WorkspaceBlockMigrationRuntime,
+  workspace: WorkspaceBlockMigrationSource,
   request: WorkspaceBlockMigrationRequest,
   timestamp: string,
 ): MoveWorkspaceBlockResult {
@@ -258,9 +258,10 @@ export function moveWorkspaceBlock(
     message: "块迁移完成。",
     status: "moved",
     targetNoteId,
-    workspace: {
-      ...workspace,
+    workspaceData: {
       activeNoteId: targetNoteId,
+      id: workspace.id,
+      name: workspace.name,
       notes: workspace.notes.map((note): NoteRecord => {
         if (note.id === sourceNoteId) {
           return {
@@ -282,6 +283,7 @@ export function moveWorkspaceBlock(
 
         return note;
       }),
+      tree: workspace.tree,
     },
   };
 }

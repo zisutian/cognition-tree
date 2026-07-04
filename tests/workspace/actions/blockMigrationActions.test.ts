@@ -61,14 +61,14 @@ describe("workspace block migration", () => {
       throw new Error(result.message);
     }
 
-    expect(result.workspace.activeNoteId).toBe("note-target");
-    expect(result.workspace.notes.find((note) => note.id === "note-source"))
+    expect(result.workspaceData.activeNoteId).toBe("note-target");
+    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
       .toMatchObject({
         source: "Root\nSibling",
         title: "Root",
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
-    expect(result.workspace.notes.find((note) => note.id === "note-target"))
+    expect(result.workspaceData.notes.find((note) => note.id === "note-target"))
       .toMatchObject({
         source:
           "Target\n\t> Understanding\n\t: Definition\n\t\t- Component",
@@ -76,7 +76,7 @@ describe("workspace block migration", () => {
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
     expect(
-      findFolderIdContainingNote(result.workspace.tree, "note-target"),
+      findFolderIdContainingNote(result.workspaceData.tree, "note-target"),
     ).toBe("folder-inbox");
   });
 
@@ -109,12 +109,16 @@ describe("workspace block migration", () => {
       throw new Error("Expected sibling migration requests to move blocks.");
     }
 
-    expect(aboveResult.workspace.notes.find((note) => note.id === "note-target"))
+    expect(
+      aboveResult.workspaceData.notes.find((note) => note.id === "note-target"),
+    )
       .toMatchObject({
         source:
           ": Definition\n\t- Component\nTarget\n\t> Understanding",
       });
-    expect(belowResult.workspace.notes.find((note) => note.id === "note-target"))
+    expect(
+      belowResult.workspaceData.notes.find((note) => note.id === "note-target"),
+    )
       .toMatchObject({
         source:
           "Target\n\t> Understanding\n: Definition\n\t- Component",

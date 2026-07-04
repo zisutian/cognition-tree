@@ -2,23 +2,23 @@ import type { WorkspaceData } from "../../workspace/model/workspaceData";
 
 export type WorkspaceSaveStatus = "idle" | "saving" | "saved" | "error";
 
-type WorkspaceSaveQueueOptions = {
+type WorkspaceDataSaveQueueOptions = {
   onError: (error: unknown) => void;
   onStatusChange: (status: WorkspaceSaveStatus) => void;
-  save: (workspace: WorkspaceData) => Promise<void>;
+  save: (workspaceData: WorkspaceData) => Promise<void>;
 };
 
-export type WorkspaceSaveQueue = {
-  enqueue: (workspace: WorkspaceData) => void;
+export type WorkspaceDataSaveQueue = {
+  enqueue: (workspaceData: WorkspaceData) => void;
   waitForIdle: () => Promise<void>;
 };
 
-export function createWorkspaceSaveQueue({
+export function createWorkspaceDataSaveQueue({
   onError,
   onStatusChange,
   save,
-}: WorkspaceSaveQueueOptions): WorkspaceSaveQueue {
-  let pendingWorkspace: WorkspaceData | null = null;
+}: WorkspaceDataSaveQueueOptions): WorkspaceDataSaveQueue {
+  let pendingWorkspaceData: WorkspaceData | null = null;
   let activePromise: Promise<void> | null = null;
 
   const start = () => {
@@ -32,30 +32,30 @@ export function createWorkspaceSaveQueue({
 
   const flush = async () => {
     try {
-      while (pendingWorkspace) {
-        const nextWorkspace = pendingWorkspace;
-        pendingWorkspace = null;
+      while (pendingWorkspaceData) {
+        const nextWorkspaceData = pendingWorkspaceData;
+        pendingWorkspaceData = null;
         onStatusChange("saving");
-        await save(nextWorkspace);
+        await save(nextWorkspaceData);
       }
 
       onStatusChange("saved");
     } catch (error) {
-      pendingWorkspace = null;
+      pendingWorkspaceData = null;
       onError(error);
       onStatusChange("error");
     } finally {
       activePromise = null;
 
-      if (pendingWorkspace) {
+      if (pendingWorkspaceData) {
         start();
       }
     }
   };
 
   return {
-    enqueue(workspace) {
-      pendingWorkspace = workspace;
+    enqueue(workspaceData) {
+      pendingWorkspaceData = workspaceData;
       start();
     },
     async waitForIdle() {
