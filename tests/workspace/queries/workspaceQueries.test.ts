@@ -10,11 +10,11 @@ import {
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn-syntax/defaultSyntaxProfile";
-import { createWorkspaceIndex } from "../../../src/workspace/index/workspaceIndex";
 import { createInitialWorkspaceRuntime } from "../../../src/workspace/runtime/workspaceRuntime";
 import {
   collectWorkspaceNoteIdsInFolder,
   countWorkspaceFolders,
+  createWorkspaceIndex,
   createWorkspaceNoteSelectionTree,
   findActiveWorkspaceNote,
   findWorkspaceFolder,

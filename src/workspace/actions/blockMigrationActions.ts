@@ -1,4 +1,3 @@
-import { parseCtnDocument } from "../../ctn-parser/parseCtnDocument";
 import type { CtnBlock } from "../../ctn-parser/types";
 import {
   moveNoteBlockText,
@@ -10,7 +9,6 @@ import {
   type NoteRecord,
   type WorkspaceData,
 } from "../model/workspaceData";
-import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
 
 export type WorkspaceBlockMigrationTargetPositionRequest =
   | {
@@ -72,9 +70,19 @@ type ParsedMigrationNote = {
   note: NoteRecord;
 };
 
-type WorkspaceBlockMigrationSource = WorkspaceData & {
-  syntaxProfile: CtnSyntaxProfile;
+type WorkspaceBlockMigrationIndex = {
+  parsedNotesById: Map<
+    NoteId,
+    {
+      document: {
+        blocks: CtnBlock[];
+      };
+      note: NoteRecord | null;
+    }
+  >;
 };
+
+type WorkspaceBlockMigrationSource = WorkspaceData;
 
 function findWorkspaceNote(
   workspace: WorkspaceBlockMigrationSource,
@@ -91,12 +99,18 @@ function createFailure(message: string): MoveWorkspaceBlockResult {
 }
 
 function resolveMigrationNote(
-  profile: CtnSyntaxProfile,
+  index: WorkspaceBlockMigrationIndex,
   note: NoteRecord,
-): ParsedMigrationNote {
+): ParsedMigrationNote | MoveWorkspaceBlockResult {
+  const parsedNote = index.parsedNotesById.get(note.id);
+
+  if (!parsedNote || !parsedNote.note) {
+    return createFailure("笔记解析结果不存在。");
+  }
+
   return {
-    blocks: parseCtnDocument(note.source, profile).blocks,
-    note,
+    blocks: parsedNote.document.blocks,
+    note: parsedNote.note,
   };
 }
 
@@ -128,8 +142,15 @@ function isTargetPosition(
   return !("status" in result);
 }
 
+function isMigrationNote(
+  result: ParsedMigrationNote | MoveWorkspaceBlockResult,
+): result is ParsedMigrationNote {
+  return !("status" in result);
+}
+
 function resolveMigrationInput(
   workspace: WorkspaceBlockMigrationSource,
+  index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationRequest,
 ) {
   const sourceNote = findWorkspaceNote(workspace, request.sourceNoteId);
@@ -143,14 +164,16 @@ function resolveMigrationInput(
     return createFailure("第一版不支持同一笔记内移动块。");
   }
 
-  const sourceParsed = resolveMigrationNote(
-    workspace.syntaxProfile,
-    sourceNote,
-  );
-  const targetParsed = resolveMigrationNote(
-    workspace.syntaxProfile,
-    targetNote,
-  );
+  const sourceParsed = resolveMigrationNote(index, sourceNote);
+  const targetParsed = resolveMigrationNote(index, targetNote);
+
+  if (!isMigrationNote(sourceParsed)) {
+    return sourceParsed;
+  }
+
+  if (!isMigrationNote(targetParsed)) {
+    return targetParsed;
+  }
 
   const sourceBlock = sourceParsed.blocks.find(
     (block) => block.lineNumber === request.sourceBlockLineNumber,
@@ -189,6 +212,7 @@ function mapPreviewFailure(result: Extract<
 
 export function previewWorkspaceBlockMigration(
   workspace: WorkspaceBlockMigrationSource,
+  index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationPreviewRequest,
 ): WorkspaceBlockMigrationPreviewResult {
   if (workspace.notes.length < 2) {
@@ -214,6 +238,7 @@ export function previewWorkspaceBlockMigration(
 
   const result = moveWorkspaceBlock(
     workspace,
+    index,
     {
       sourceBlockLineNumber: request.sourceBlockLineNumber,
       sourceNoteId: request.sourceNoteId,
@@ -235,10 +260,11 @@ export function previewWorkspaceBlockMigration(
 
 export function moveWorkspaceBlock(
   workspace: WorkspaceBlockMigrationSource,
+  index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationRequest,
   timestamp: string,
 ): MoveWorkspaceBlockResult {
-  const migrationInput = resolveMigrationInput(workspace, request);
+  const migrationInput = resolveMigrationInput(workspace, index, request);
 
   if ("status" in migrationInput) {
     return migrationInput;

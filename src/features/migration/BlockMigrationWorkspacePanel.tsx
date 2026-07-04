@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { NoteId } from "../../workspace/model/workspaceData";
+import type { WorkspaceIndex } from "../../workspace/queries/workspaceQueries";
 import {
   findWorkspaceNote,
   getWorkspaceTree,
@@ -20,12 +21,14 @@ type BlockMigrationWorkspacePanelProps = {
     status: "failed" | "moved";
   };
   workspace: WorkspaceRuntime;
+  workspaceIndex: WorkspaceIndex;
 };
 
 export function BlockMigrationWorkspacePanel({
   activeNoteId,
   onMoveNoteBlock,
   workspace,
+  workspaceIndex,
 }: BlockMigrationWorkspacePanelProps) {
   const notes = listWorkspaceNotes(workspace);
   const [mode, setMode] = useState<MigrationMode>("note");
@@ -106,6 +109,7 @@ export function BlockMigrationWorkspacePanel({
           sourceNoteId={sourceNoteId}
           targetNoteId={targetNoteId}
           workspace={workspace}
+          workspaceIndex={workspaceIndex}
         />
       )}
     </section>

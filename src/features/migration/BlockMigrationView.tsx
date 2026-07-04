@@ -3,7 +3,8 @@ import { useMemo, useState } from "react";
 import type { NoteId } from "../../workspace/model/workspaceData";
 import {
   findWorkspaceNote,
-  resolveParsedWorkspaceNote,
+  getParsedWorkspaceNote,
+  type WorkspaceIndex,
 } from "../../workspace/queries/workspaceQueries";
 import type { WorkspaceBlockMigrationRequest } from "../../workspace/actions/blockMigrationActions";
 import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
@@ -35,6 +36,7 @@ type BlockMigrationViewProps = {
   sourceNoteId: NoteId;
   targetNoteId: NoteId;
   workspace: WorkspaceRuntime;
+  workspaceIndex: WorkspaceIndex;
 };
 
 export function BlockMigrationView({
@@ -42,6 +44,7 @@ export function BlockMigrationView({
   sourceNoteId,
   targetNoteId,
   workspace,
+  workspaceIndex,
 }: BlockMigrationViewProps) {
   const [sourceBlockLineNumber, setSourceBlockLineNumber] = useState("");
   const [draggingSourceLineNumber, setDraggingSourceLineNumber] =
@@ -54,13 +57,13 @@ export function BlockMigrationView({
   const targetNote = findWorkspaceNote(workspace, targetNoteId);
   const sourceParsed = useMemo(
     () =>
-      sourceNote ? resolveParsedWorkspaceNote(workspace, sourceNote) : null,
-    [sourceNote, workspace],
+      sourceNote ? getParsedWorkspaceNote(workspaceIndex, sourceNote.id) : null,
+    [sourceNote, workspaceIndex],
   );
   const targetParsed = useMemo(
     () =>
-      targetNote ? resolveParsedWorkspaceNote(workspace, targetNote) : null,
-    [targetNote, workspace],
+      targetNote ? getParsedWorkspaceNote(workspaceIndex, targetNote.id) : null,
+    [targetNote, workspaceIndex],
   );
   const sourceBlocks = sourceParsed?.document.blocks ?? [];
   const sourceRoots = sourceParsed?.document.roots ?? [];

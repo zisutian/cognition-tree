@@ -1,5 +1,3 @@
-import type { CtnSyntaxProfile } from "../ctn-syntax/types";
-import { parseCtnDocument } from "./parseCtnDocument";
 import type { CtnDocument } from "./types";
 
 export type CtnInlineReference = {
@@ -20,16 +18,5 @@ export function collectCtnInlineReferences(
         text: span.text,
         type: span.type,
       })),
-  );
-}
-
-export function extractCtnInlineReferences(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-  type: string,
-) {
-  return collectCtnInlineReferences(
-    parseCtnDocument(source, syntaxProfile),
-    type,
   );
 }

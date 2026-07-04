@@ -1,12 +1,19 @@
-import { collectCtnInlineReferences } from "../../ctn-parser/references";
+import { collectCtnInlineReferences } from "../../ctn-parser/inlineReferences";
 import { parseCtnDocument } from "../../ctn-parser/parseCtnDocument";
 import type { CtnDocument } from "../../ctn-parser/types";
+import { createCtnSyntaxParseProfileKey } from "../../ctn-syntax/profileKey";
 import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
 import type { NoteId, NoteRecord } from "../model/workspaceData";
 
 type WorkspaceIndexSource = {
   notes: NoteRecord[];
   syntaxProfile: CtnSyntaxProfile;
+};
+
+export type ParsedWorkspaceNoteCacheEntry = {
+  document: CtnDocument;
+  source: string;
+  syntaxProfileKey: string;
 };
 
 export const emptyCtnDocument: CtnDocument = {
@@ -20,6 +27,11 @@ export type ParsedWorkspaceNote = {
   note: NoteRecord | null;
   profile: CtnSyntaxProfile;
   source: string;
+};
+
+export type WorkspaceParseCache = {
+  entriesById: Map<NoteId, ParsedWorkspaceNoteCacheEntry>;
+  syntaxProfileKey: string;
 };
 
 export type NoteReferenceGraphNode = {
@@ -51,9 +63,14 @@ export type NoteReferenceGraph = {
 };
 
 export type WorkspaceIndex = {
+  parseCache: WorkspaceParseCache;
   parsedNotesById: Map<NoteId, ParsedWorkspaceNote>;
-  referenceGraph: NoteReferenceGraph;
+  readonly referenceGraph: NoteReferenceGraph;
   syntaxProfile: CtnSyntaxProfile;
+};
+
+export type WorkspaceIndexCache = {
+  resolve(workspace: WorkspaceIndexSource): WorkspaceIndex;
 };
 
 function normalizeReferenceText(text: string) {
@@ -63,12 +80,31 @@ function normalizeReferenceText(text: string) {
 function createParsedWorkspaceNote(
   note: NoteRecord,
   syntaxProfile: CtnSyntaxProfile,
+  syntaxProfileKey: string,
+  previousCacheEntry: ParsedWorkspaceNoteCacheEntry | undefined,
 ): ParsedWorkspaceNote {
+  const document =
+    previousCacheEntry?.source === note.source &&
+    previousCacheEntry.syntaxProfileKey === syntaxProfileKey
+      ? previousCacheEntry.document
+      : parseCtnDocument(note.source, syntaxProfile);
+
   return {
-    document: parseCtnDocument(note.source, syntaxProfile),
+    document,
     note,
     profile: syntaxProfile,
     source: note.source,
+  };
+}
+
+function createParseCacheEntry(
+  parsedNote: ParsedWorkspaceNote,
+  syntaxProfileKey: string,
+): ParsedWorkspaceNoteCacheEntry {
+  return {
+    document: parsedNote.document,
+    source: parsedNote.source,
+    syntaxProfileKey,
   };
 }
 
@@ -100,7 +136,7 @@ function incrementCounter(counters: Map<NoteId, number>, noteId: NoteId) {
   counters.set(noteId, (counters.get(noteId) ?? 0) + 1);
 }
 
-function createWorkspaceNoteReferenceGraphIndex(
+function buildWorkspaceNoteReferenceGraph(
   parsedNotes: ParsedWorkspaceNote[],
 ): NoteReferenceGraph {
   const notes = parsedNotes.flatMap((parsedNote) =>
@@ -179,18 +215,59 @@ function createWorkspaceNoteReferenceGraphIndex(
 
 export function createWorkspaceIndex(
   workspace: WorkspaceIndexSource,
+  previousIndex?: WorkspaceIndex | null,
 ): WorkspaceIndex {
+  const syntaxProfileKey = createCtnSyntaxParseProfileKey(
+    workspace.syntaxProfile,
+  );
   const parsedNotes = workspace.notes.map((note) =>
-    createParsedWorkspaceNote(note, workspace.syntaxProfile),
+    createParsedWorkspaceNote(
+      note,
+      workspace.syntaxProfile,
+      syntaxProfileKey,
+      previousIndex?.parseCache.entriesById.get(note.id),
+    ),
   );
   const parsedNoteEntries = parsedNotes.flatMap(
     (parsedNote): [NoteId, ParsedWorkspaceNote][] =>
       parsedNote.note ? [[parsedNote.note.id, parsedNote]] : [],
   );
+  const parseCacheEntries = parsedNotes.flatMap(
+    (parsedNote): [NoteId, ParsedWorkspaceNoteCacheEntry][] =>
+      parsedNote.note
+        ? [
+            [
+              parsedNote.note.id,
+              createParseCacheEntry(parsedNote, syntaxProfileKey),
+            ],
+          ]
+        : [],
+  );
+  let referenceGraph: NoteReferenceGraph | null = null;
 
   return {
+    parseCache: {
+      entriesById: new Map(parseCacheEntries),
+      syntaxProfileKey,
+    },
     parsedNotesById: new Map(parsedNoteEntries),
-    referenceGraph: createWorkspaceNoteReferenceGraphIndex(parsedNotes),
+    get referenceGraph() {
+      referenceGraph ??= buildWorkspaceNoteReferenceGraph(parsedNotes);
+
+      return referenceGraph;
+    },
     syntaxProfile: workspace.syntaxProfile,
+  };
+}
+
+export function createWorkspaceIndexCache(): WorkspaceIndexCache {
+  let previousIndex: WorkspaceIndex | null = null;
+
+  return {
+    resolve(workspace) {
+      previousIndex = createWorkspaceIndex(workspace, previousIndex);
+
+      return previousIndex;
+    },
   };
 }

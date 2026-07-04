@@ -52,7 +52,10 @@ export function CtnEditor({
         ),
       });
       tabDisplayWidthRef.current = syntaxProfile.tabDisplayWidth;
+      return;
     }
+
+    view.dispatch({});
   }, [syntaxProfile]);
 
   useEffect(() => {

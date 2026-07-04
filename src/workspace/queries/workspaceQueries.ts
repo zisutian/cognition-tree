@@ -6,10 +6,8 @@ import {
   findFolderNode,
   orderNoteTreeNodesFoldersFirst,
 } from "../model/noteTree";
-import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
 import {
   createEmptyParsedWorkspaceNote,
-  createWorkspaceIndex,
   type NoteReferenceGraph,
   type ParsedWorkspaceNote,
   type WorkspaceIndex,
@@ -29,10 +27,6 @@ type WorkspaceReadSource = Pick<
   WorkspaceData,
   "activeNoteId" | "notes" | "tree"
 >;
-type WorkspaceRuntimeReadSource = {
-  notes: NoteRecord[];
-  syntaxProfile: CtnSyntaxProfile;
-};
 type WorkspaceFolderNode = Extract<NoteTreeNode, { kind: "folder" }>;
 type WorkspaceNoteSummary = Pick<NoteRecord, "id" | "title">;
 
@@ -43,6 +37,11 @@ export type {
   ParsedWorkspaceNote,
   UnresolvedNoteReference,
   WorkspaceIndex,
+} from "../index/workspaceIndex";
+
+export {
+  createWorkspaceIndex,
+  createWorkspaceIndexCache,
 } from "../index/workspaceIndex";
 
 export function listWorkspaceNotes(workspace: WorkspaceNoteSource): NoteRecord[] {
@@ -213,23 +212,8 @@ export function getParsedWorkspaceNote(
   );
 }
 
-export function resolveParsedWorkspaceNote(
-  workspace: WorkspaceRuntimeReadSource,
-  note: NoteRecord | null,
-): ParsedWorkspaceNote {
-  const index = createWorkspaceIndex(workspace);
-
-  return getParsedWorkspaceNote(index, note?.id ?? null);
-}
-
 export function getWorkspaceNoteReferenceGraph(
   index: WorkspaceIndex,
 ): NoteReferenceGraph {
   return index.referenceGraph;
-}
-
-export function createWorkspaceNoteReferenceGraph(
-  workspace: WorkspaceRuntimeReadSource,
-): NoteReferenceGraph {
-  return getWorkspaceNoteReferenceGraph(createWorkspaceIndex(workspace));
 }

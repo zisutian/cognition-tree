@@ -24,19 +24,20 @@ import {
   updateActiveWorkspaceNoteSource,
 } from "../workspace/actions/workspaceActions";
 import {
-  createWorkspaceNoteReferenceGraph,
   findActiveWorkspaceNote,
   findWorkspaceFolderIdContainingNote,
   getDefaultWorkspaceFolderId,
+  getParsedWorkspaceNote,
   getWorkspaceTree,
+  getWorkspaceNoteReferenceGraph,
   listWorkspaceNotes,
   resolveExistingWorkspaceFolderId,
-  resolveParsedWorkspaceNote,
 } from "../workspace/queries/workspaceQueries";
 import {
   moveWorkspaceBlock,
   type WorkspaceBlockMigrationRequest,
 } from "../workspace/actions/blockMigrationActions";
+import { useWorkspaceIndex } from "./runtime/useWorkspaceIndex";
 import { useWorkspaceSession } from "./runtime/useWorkspaceSession";
 
 type EditorFocusRequest = {
@@ -169,11 +170,46 @@ function App() {
     );
   };
 
+  const {
+    effectiveWorkspace,
+    syntaxDraft,
+    syntaxDraftResult,
+    syntaxFeedback,
+    updateSyntaxDraft,
+  } = useSyntaxDraftSession({
+    isWorkspaceLoaded,
+    syntaxProfile: syntaxFile.profile,
+    updateSyntaxFile,
+    workspace,
+  });
+  const workspaceSaveStatusLabel = {
+    error: "保存失败",
+    idle: "等待保存",
+    saved: "已保存",
+    saving: "保存中",
+  }[workspaceSaveStatus];
+  const effectiveActiveNote = findActiveWorkspaceNote(effectiveWorkspace);
+  const workspaceIndex = useWorkspaceIndex(effectiveWorkspace);
+  const parsedWorkspaceNote = useMemo(
+    () => getParsedWorkspaceNote(workspaceIndex, effectiveActiveNote?.id ?? null),
+    [effectiveActiveNote, workspaceIndex],
+  );
+  const documentText = parsedWorkspaceNote.source;
+  const activeSyntaxProfile = parsedWorkspaceNote.profile;
+  const parsedDocument = parsedWorkspaceNote.document;
+  const noteReferenceGraph = useMemo(
+    () =>
+      activeActivityId === "visualization"
+        ? getWorkspaceNoteReferenceGraph(workspaceIndex)
+        : emptyNoteReferenceGraph,
+    [activeActivityId, workspaceIndex],
+  );
   const moveNoteBlock = (
     request: WorkspaceBlockMigrationRequest,
   ): MoveWorkspaceBlockActionResult => {
     const result = moveWorkspaceBlock(
-      workspace,
+      effectiveWorkspace,
+      workspaceIndex,
       request,
       new Date().toISOString(),
     );
@@ -199,40 +235,6 @@ function App() {
       status: "moved",
     };
   };
-  const {
-    effectiveWorkspace,
-    syntaxDraft,
-    syntaxDraftResult,
-    syntaxFeedback,
-    updateSyntaxDraft,
-  } = useSyntaxDraftSession({
-    isWorkspaceLoaded,
-    syntaxProfile: syntaxFile.profile,
-    updateSyntaxFile,
-    workspace,
-  });
-  const workspaceSaveStatusLabel = {
-    error: "保存失败",
-    idle: "等待保存",
-    saved: "已保存",
-    saving: "保存中",
-  }[workspaceSaveStatus];
-  const effectiveActiveNote = findActiveWorkspaceNote(effectiveWorkspace);
-  const parsedWorkspaceNote = useMemo(
-    () =>
-      resolveParsedWorkspaceNote(effectiveWorkspace, effectiveActiveNote),
-    [effectiveActiveNote, effectiveWorkspace],
-  );
-  const documentText = parsedWorkspaceNote.source;
-  const activeSyntaxProfile = parsedWorkspaceNote.profile;
-  const parsedDocument = parsedWorkspaceNote.document;
-  const noteReferenceGraph = useMemo(
-    () =>
-      activeActivityId === "visualization"
-        ? createWorkspaceNoteReferenceGraph(effectiveWorkspace)
-        : emptyNoteReferenceGraph,
-    [activeActivityId, effectiveWorkspace],
-  );
 
   const handleActivityChange = (activityId: SidebarActivityId) => {
     if (activityId === activeActivityId) {
@@ -273,6 +275,7 @@ function App() {
           activeNoteId={effectiveActiveNote?.id ?? null}
           onMoveNoteBlock={moveNoteBlock}
           workspace={effectiveWorkspace}
+          workspaceIndex={workspaceIndex}
         />
       );
     }

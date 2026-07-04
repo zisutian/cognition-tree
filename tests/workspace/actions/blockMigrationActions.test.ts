@@ -13,6 +13,7 @@ import {
   createInitialWorkspaceRuntime,
   type WorkspaceRuntime,
 } from "../../../src/workspace/runtime/workspaceRuntime";
+import { createWorkspaceIndex } from "../../../src/workspace/index/workspaceIndex";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
@@ -41,10 +42,34 @@ function createMigrationWorkspace(): WorkspaceRuntime {
   };
 }
 
+function moveMigrationBlock(
+  workspace: WorkspaceRuntime,
+  request: Parameters<typeof moveWorkspaceBlock>[2],
+  nextTimestamp = "2026-06-08T01:00:00.000Z",
+) {
+  return moveWorkspaceBlock(
+    workspace,
+    createWorkspaceIndex(workspace),
+    request,
+    nextTimestamp,
+  );
+}
+
+function previewMigrationBlock(
+  workspace: WorkspaceRuntime,
+  request: Parameters<typeof previewWorkspaceBlockMigration>[2],
+) {
+  return previewWorkspaceBlockMigration(
+    workspace,
+    createWorkspaceIndex(workspace),
+    request,
+  );
+}
+
 describe("workspace block migration", () => {
   it("moves a block subtree and updates both note records", () => {
     const workspace = createMigrationWorkspace();
-    const result = moveWorkspaceBlock(
+    const result = moveMigrationBlock(
       workspace,
       {
         sourceBlockLineNumber: 2,
@@ -52,7 +77,6 @@ describe("workspace block migration", () => {
         targetNoteId: "note-target",
         targetPosition: { kind: "inside-block", lineNumber: 1 },
       },
-      "2026-06-08T01:00:00.000Z",
     );
 
     expect(result.status).toBe("moved");
@@ -81,7 +105,7 @@ describe("workspace block migration", () => {
   });
 
   it("moves a block subtree to sibling positions through workspace requests", () => {
-    const aboveResult = moveWorkspaceBlock(
+    const aboveResult = moveMigrationBlock(
       createMigrationWorkspace(),
       {
         sourceBlockLineNumber: 2,
@@ -89,9 +113,8 @@ describe("workspace block migration", () => {
         targetNoteId: "note-target",
         targetPosition: { kind: "sibling-above", lineNumber: 1 },
       },
-      "2026-06-08T01:00:00.000Z",
     );
-    const belowResult = moveWorkspaceBlock(
+    const belowResult = moveMigrationBlock(
       createMigrationWorkspace(),
       {
         sourceBlockLineNumber: 2,
@@ -99,7 +122,6 @@ describe("workspace block migration", () => {
         targetNoteId: "note-target",
         targetPosition: { kind: "sibling-below", lineNumber: 1 },
       },
-      "2026-06-08T01:00:00.000Z",
     );
 
     expect(aboveResult.status).toBe("moved");
@@ -129,7 +151,7 @@ describe("workspace block migration", () => {
     const workspace = createMigrationWorkspace();
 
     expect(
-      moveWorkspaceBlock(
+      moveMigrationBlock(
         workspace,
         {
           sourceBlockLineNumber: 1,
@@ -144,7 +166,7 @@ describe("workspace block migration", () => {
       status: "failed",
     });
     expect(
-      moveWorkspaceBlock(
+      moveMigrationBlock(
         workspace,
         {
           sourceBlockLineNumber: 99,
@@ -159,7 +181,7 @@ describe("workspace block migration", () => {
       status: "failed",
     });
     expect(
-      moveWorkspaceBlock(
+      moveMigrationBlock(
         workspace,
         {
           sourceBlockLineNumber: 1,
@@ -179,7 +201,7 @@ describe("workspace block migration", () => {
     const workspace = createMigrationWorkspace();
 
     expect(
-      previewWorkspaceBlockMigration(workspace, {
+      previewMigrationBlock(workspace, {
         sourceBlockLineNumber: 2,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
@@ -190,7 +212,7 @@ describe("workspace block migration", () => {
       status: "ready",
     });
     expect(
-      previewWorkspaceBlockMigration(workspace, {
+      previewMigrationBlock(workspace, {
         sourceBlockLineNumber: null,
         sourceNoteId: null,
         targetNoteId: "note-target",

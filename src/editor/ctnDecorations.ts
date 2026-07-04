@@ -6,7 +6,12 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import { parseCtnDocument } from "../ctn-parser/parseCtnDocument";
-import type { CtnBlock, CtnInlineSpan } from "../ctn-parser/types";
+import type {
+  CtnBlock,
+  CtnDocument,
+  CtnInlineSpan,
+} from "../ctn-parser/types";
+import { createCtnSyntaxParseProfileKey } from "../ctn-syntax/profileKey";
 import {
   getSyntaxTextColorClassName,
   getSyntaxTextColorStyle,
@@ -14,14 +19,6 @@ import {
   getSyntaxToneStyle,
 } from "../ctn-syntax/tones";
 import type { CtnSyntaxProfile } from "../ctn-syntax/types";
-
-function syntaxProfileKey(syntaxProfile: CtnSyntaxProfile) {
-  return JSON.stringify({
-    conceptRule: syntaxProfile.conceptRule,
-    inlineRules: syntaxProfile.inlineRules,
-    markerRules: syntaxProfile.markerRules,
-  });
-}
 
 function isRootConceptBlock(block: CtnBlock) {
   return block.level === 0 && block.marker === null;
@@ -136,13 +133,9 @@ function getBlockTextDecorationStyle(block: CtnBlock) {
 
 function buildCtnDecorations(
   view: EditorView,
-  syntaxProfile: CtnSyntaxProfile,
+  parsedDocument: CtnDocument,
 ): DecorationSet {
   const decorations = [];
-  const parsedDocument = parseCtnDocument(
-    view.state.doc.toString(),
-    syntaxProfile,
-  );
 
   for (const block of parsedDocument.blocks) {
     if (block.role === "multiline" && block.endLineNumber > block.lineNumber) {
@@ -267,32 +260,50 @@ function buildCtnDecorations(
   return Decoration.set(decorations, true);
 }
 
-export function createCtnDecorationPlugin(syntaxProfileRef: {
+export type CtnEditorParsePluginValue = {
+  decorations: DecorationSet;
+  document: CtnDocument;
+  profileKey: string;
+};
+
+export type CtnEditorParsePlugin = ViewPlugin<CtnEditorParsePluginValue>;
+
+function parseEditorDocument(
+  view: EditorView,
+  syntaxProfile: CtnSyntaxProfile,
+) {
+  return parseCtnDocument(view.state.doc.toString(), syntaxProfile);
+}
+
+export function createCtnParseDecorationPlugin(syntaxProfileRef: {
   current: CtnSyntaxProfile;
-}) {
+}): CtnEditorParsePlugin {
   return ViewPlugin.fromClass(
-    class {
+    class implements CtnEditorParsePluginValue {
       decorations: DecorationSet;
+      document: CtnDocument;
       profileKey: string;
 
       constructor(view: EditorView) {
-        this.profileKey = syntaxProfileKey(syntaxProfileRef.current);
-        this.decorations = buildCtnDecorations(view, syntaxProfileRef.current);
+        this.profileKey = createCtnSyntaxParseProfileKey(
+          syntaxProfileRef.current,
+        );
+        this.document = parseEditorDocument(view, syntaxProfileRef.current);
+        this.decorations = buildCtnDecorations(view, this.document);
       }
 
       update(update: ViewUpdate) {
-        const nextProfileKey = syntaxProfileKey(syntaxProfileRef.current);
+        const nextProfileKey = createCtnSyntaxParseProfileKey(
+          syntaxProfileRef.current,
+        );
 
-        if (
-          update.docChanged ||
-          update.viewportChanged ||
-          nextProfileKey !== this.profileKey
-        ) {
+        if (update.docChanged || nextProfileKey !== this.profileKey) {
           this.profileKey = nextProfileKey;
-          this.decorations = buildCtnDecorations(
+          this.document = parseEditorDocument(
             update.view,
             syntaxProfileRef.current,
           );
+          this.decorations = buildCtnDecorations(update.view, this.document);
         }
       }
     },
@@ -300,4 +311,11 @@ export function createCtnDecorationPlugin(syntaxProfileRef: {
       decorations: (plugin) => plugin.decorations,
     },
   );
+}
+
+export function getCtnEditorParsedDocument(
+  view: EditorView,
+  parsePlugin: CtnEditorParsePlugin,
+) {
+  return view.plugin(parsePlugin)?.document ?? null;
 }

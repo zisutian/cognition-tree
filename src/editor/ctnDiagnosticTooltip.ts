@@ -1,16 +1,18 @@
 import { hoverTooltip } from "@codemirror/view";
-import { parseCtnDocument } from "../ctn-parser/parseCtnDocument";
-import type { CtnSyntaxProfile } from "../ctn-syntax/types";
+import {
+  getCtnEditorParsedDocument,
+  type CtnEditorParsePlugin,
+} from "./ctnDecorations";
 
-export function createCtnDiagnosticTooltip(syntaxProfileRef: {
-  current: CtnSyntaxProfile;
-}) {
+export function createCtnDiagnosticTooltip(parsePlugin: CtnEditorParsePlugin) {
   return hoverTooltip((view, pos) => {
     const line = view.state.doc.lineAt(pos);
-    const parsedDocument = parseCtnDocument(
-      view.state.doc.toString(),
-      syntaxProfileRef.current,
-    );
+    const parsedDocument = getCtnEditorParsedDocument(view, parsePlugin);
+
+    if (!parsedDocument) {
+      return null;
+    }
+
     const diagnostics = parsedDocument.diagnostics.filter(
       (diagnostic) => diagnostic.lineNumber === line.number,
     );

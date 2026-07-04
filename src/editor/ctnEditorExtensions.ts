@@ -24,7 +24,7 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import type { CtnSyntaxProfile } from "../ctn-syntax/types";
-import { createCtnDecorationPlugin } from "./ctnDecorations";
+import { createCtnParseDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 
 export const ctnTabSizeCompartment = new Compartment();
@@ -49,6 +49,8 @@ export function createCtnEditorExtensions(
     current: CtnSyntaxProfile;
   },
 ): Extension[] {
+  const parseDecorationPlugin = createCtnParseDecorationPlugin(syntaxProfileRef);
+
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -67,8 +69,8 @@ export function createCtnEditorExtensions(
       createCtnTabSizeExtension(syntaxProfileRef.current.tabDisplayWidth),
     ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
-    createCtnDecorationPlugin(syntaxProfileRef),
-    createCtnDiagnosticTooltip(syntaxProfileRef),
+    parseDecorationPlugin,
+    createCtnDiagnosticTooltip(parseDecorationPlugin),
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({
       "aria-label": "CTN 原文",
