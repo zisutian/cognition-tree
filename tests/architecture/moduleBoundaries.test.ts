@@ -183,6 +183,35 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps app workspace action wiring inside app runtime", () => {
+    const violations = listSourceFiles("app")
+      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
+      .flatMap((filePath) =>
+        readImports(filePath)
+          .filter((importPath) => /workspace\/actions/.test(importPath))
+          .map((importPath) => `${filePath} imports ${importPath}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps raw workspace data setters inside app runtime", () => {
+    const rawWorkspaceDataSetters = [
+      /\bcommitWorkspaceDataSnapshot\b/,
+      /\bsetWorkspaceData\b/,
+    ];
+    const violations = listSourceFiles("app")
+      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
+      .filter((filePath) =>
+        rawWorkspaceDataSetters.some((setterPattern) =>
+          setterPattern.test(sourceModules[filePath]),
+        ),
+      )
+      .sort();
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps workspace runtime indexes out of storage adapters", () => {
     const blockedIndexImports = [/workspace\/runtime\/[^'"]*Index/];
     const violations = listSourceFiles("storage").flatMap((filePath) =>

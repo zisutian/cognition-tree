@@ -14,16 +14,6 @@ import "../styles/index.css";
 import { useSyntaxDraftSession } from "../features/syntax/useSyntaxDraftSession";
 import type { FolderId, NoteId } from "../workspace/model/workspaceData";
 import {
-  createWorkspaceFolder,
-  createWorkspaceNote,
-  deleteWorkspaceFolder,
-  deleteWorkspaceNote,
-  moveWorkspaceNote,
-  renameWorkspaceFolder,
-  selectWorkspaceNote,
-  updateActiveWorkspaceNoteSource,
-} from "../workspace/actions/workspaceActions";
-import {
   findActiveWorkspaceNote,
   findWorkspaceFolderIdContainingNote,
   getDefaultWorkspaceFolderId,
@@ -33,10 +23,6 @@ import {
   listWorkspaceNotes,
   resolveExistingWorkspaceFolderId,
 } from "../workspace/queries/workspaceQueries";
-import {
-  moveWorkspaceBlock,
-  type WorkspaceBlockMigrationRequest,
-} from "../workspace/actions/blockMigrationActions";
 import { useWorkspaceIndex } from "./runtime/useWorkspaceIndex";
 import { useWorkspaceSession } from "./runtime/useWorkspaceSession";
 
@@ -81,11 +67,11 @@ function App() {
     isWorkspaceLoaded,
     reloadWorkspace,
     repositoryPath,
-    setWorkspaceData,
     storageLabel,
     syntaxFile,
     updateSyntaxFile,
     workspace,
+    workspaceCommands,
     workspaceErrorMessage,
     workspaceSaveStatus,
   } = useWorkspaceSession();
@@ -106,7 +92,7 @@ function App() {
       setSelectedFolderId(folderId);
     }
 
-    setWorkspaceData((current) => selectWorkspaceNote(current, noteId));
+    workspaceCommands.selectNote(noteId);
   };
 
   const selectFolder = (folderId: FolderId) => {
@@ -117,57 +103,47 @@ function App() {
     const timestamp = new Date().toISOString();
     const noteId = createLocalNoteId();
 
-    setWorkspaceData((current) =>
-      createWorkspaceNote(current, {
-        folderId: selectedFolderId,
-        noteId,
-        timestamp,
-      }),
-    );
+    workspaceCommands.createNote({
+      folderId: selectedFolderId,
+      noteId,
+      timestamp,
+    });
   };
 
   const createFolder = (parentFolderId: FolderId, title: string) => {
     const folderId = createLocalFolderId();
 
-    setWorkspaceData((current) =>
-      createWorkspaceFolder(current, {
-        folderId,
-        parentFolderId,
-        title,
-      }),
-    );
+    workspaceCommands.createFolder({
+      folderId,
+      parentFolderId,
+      title,
+    });
     setSelectedFolderId(folderId);
   };
 
   const renameFolder = (folderId: FolderId, title: string) => {
-    setWorkspaceData((current) =>
-      renameWorkspaceFolder(current, folderId, title),
-    );
+    workspaceCommands.renameFolder(folderId, title);
     setSelectedFolderId(folderId);
   };
 
   const deleteNote = (noteId: NoteId) => {
-    setWorkspaceData((current) => deleteWorkspaceNote(current, noteId));
+    workspaceCommands.deleteNote(noteId);
   };
 
   const deleteFolder = (folderId: FolderId) => {
-    setWorkspaceData((current) => deleteWorkspaceFolder(current, folderId));
+    workspaceCommands.deleteFolder(folderId);
     setSelectedFolderId(getDefaultWorkspaceFolderId());
   };
 
   const moveNote = (noteId: NoteId, targetFolderId: FolderId) => {
-    setWorkspaceData((current) =>
-      moveWorkspaceNote(current, noteId, targetFolderId),
-    );
+    workspaceCommands.moveNote(noteId, targetFolderId);
     setSelectedFolderId(targetFolderId);
   };
 
   const updateActiveNoteSource = (source: string) => {
     const timestamp = new Date().toISOString();
 
-    setWorkspaceData((current) =>
-      updateActiveWorkspaceNoteSource(current, source, timestamp),
-    );
+    workspaceCommands.updateActiveNoteSource(source, timestamp);
   };
 
   const {
@@ -205,10 +181,9 @@ function App() {
     [activeActivityId, workspaceIndex],
   );
   const moveNoteBlock = (
-    request: WorkspaceBlockMigrationRequest,
+    request: Parameters<typeof workspaceCommands.moveBlock>[1],
   ): MoveWorkspaceBlockActionResult => {
-    const result = moveWorkspaceBlock(
-      effectiveWorkspace,
+    const result = workspaceCommands.moveBlock(
       workspaceIndex,
       request,
       new Date().toISOString(),
@@ -221,10 +196,9 @@ function App() {
       };
     }
 
-    setWorkspaceData(result.workspaceData);
     setSelectedFolderId(
       findWorkspaceFolderIdContainingNote(
-        result.workspaceData,
+        effectiveWorkspace,
         result.targetNoteId,
       ) ??
         selectedFolderId,
