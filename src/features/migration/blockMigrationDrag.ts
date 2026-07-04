@@ -1,4 +1,4 @@
-import type { WorkspaceBlockMigrationTargetPositionRequest } from "../../workspace/workflows/blockMigrationWorkflow";
+import type { WorkspaceBlockMigrationTargetPositionRequest } from "../../workspace/actions/blockMigrationActions";
 
 export const blockDragDataType = "application/x-cognition-tree-block-line";
 

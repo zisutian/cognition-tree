@@ -5,7 +5,7 @@ import {
   findWorkspaceNote,
   resolveParsedWorkspaceNote,
 } from "../../workspace/queries/workspaceQueries";
-import type { WorkspaceBlockMigrationRequest } from "../../workspace/workflows/blockMigrationWorkflow";
+import type { WorkspaceBlockMigrationRequest } from "../../workspace/actions/blockMigrationActions";
 import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
 import { OutlineNodeText } from "../blocks/OutlineNodeText";
 import {

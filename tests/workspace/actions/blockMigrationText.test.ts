@@ -3,7 +3,7 @@ import { parseCtnDocument } from "../../../src/ctn-parser/parseCtnDocument";
 import {
   moveNoteBlockText,
   type BlockMigrationBlock,
-} from "../../../src/workspace/workflows/blockMigrationText";
+} from "../../../src/workspace/actions/blockMigrationText";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn-syntax/defaultSyntaxProfile";
 
 function parseBlocks(source: string): BlockMigrationBlock[] {

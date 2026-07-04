@@ -23,11 +23,10 @@ UI：
 Workspace：
 
     应用运行边界和 workspace 模型边界。
-    数据模型、actions、queries、index、runtime、workflows。
+    数据模型、actions、queries、index、runtime。
     Model：workspace 数据类型、笔记、目录树的纯模型逻辑。
-    Actions：workspace 纯模型修改入口。
+    Actions：workspace 修改入口，包含简单修改和跨笔记复合修改。
     Queries：结构读取、index 读取、上层查询入口。
-    Workflows：跨笔记、跨目录树的复合操作。
     Index：解析结果、引用图、高频查询加速、索引失效逻辑。
 
 CTN Parser：
@@ -60,7 +59,7 @@ Server：
 3. 依赖与归属
 
     UI -> Workspace、CTN Parser、CTN Syntax、Editor；App Runtime -> Storage；归属展示、交互状态、应用运行装配。
-    Workspace -> CTN Parser、CTN Syntax；归属模型、修改、查询、索引、流程。
+    Workspace -> CTN Parser、CTN Syntax；归属模型、修改、查询、索引。
     Storage -> Workspace Data、CTN Syntax；归属持久化端口、适配器、缓存读写。
     CTN Parser -> CTN Syntax；归属 CTN 原文解析。
     Server -> HTTP API、本地文件仓库读写。

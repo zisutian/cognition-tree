@@ -6,7 +6,7 @@ import {
   listWorkspaceNoteSummaries,
   listWorkspaceNotes,
 } from "../../workspace/queries/workspaceQueries";
-import type { WorkspaceBlockMigrationRequest } from "../../workspace/workflows/blockMigrationWorkflow";
+import type { WorkspaceBlockMigrationRequest } from "../../workspace/actions/blockMigrationActions";
 import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
 import { BlockMigrationView } from "./BlockMigrationView";
 import { NoteSelectionView } from "./NoteSelectionView";

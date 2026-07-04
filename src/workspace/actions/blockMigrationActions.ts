@@ -8,13 +8,9 @@ import {
   inferNoteTitle,
   type NoteId,
   type NoteRecord,
+  type WorkspaceData,
 } from "../model/workspaceData";
-import {
-  findWorkspaceNote,
-  getWorkspaceNoteCount,
-} from "../queries/workspaceQueries";
 import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
-import type { WorkspaceRuntime } from "../runtime/workspaceRuntime";
 
 export type WorkspaceBlockMigrationTargetPositionRequest =
   | {
@@ -64,7 +60,7 @@ export type MoveWorkspaceBlockResult =
       message: string;
       status: "moved";
       targetNoteId: NoteId;
-      workspace: WorkspaceRuntime;
+      workspace: WorkspaceBlockMigrationRuntime;
     }
   | {
       message: string;
@@ -75,6 +71,17 @@ type ParsedMigrationNote = {
   blocks: CtnBlock[];
   note: NoteRecord;
 };
+
+type WorkspaceBlockMigrationRuntime = WorkspaceData & {
+  syntaxProfile: CtnSyntaxProfile;
+};
+
+function findWorkspaceNote(
+  workspace: WorkspaceBlockMigrationRuntime,
+  noteId: NoteId,
+) {
+  return workspace.notes.find((note) => note.id === noteId) ?? null;
+}
 
 function createFailure(message: string): MoveWorkspaceBlockResult {
   return {
@@ -122,7 +129,7 @@ function isTargetPosition(
 }
 
 function resolveMigrationInput(
-  workspace: WorkspaceRuntime,
+  workspace: WorkspaceBlockMigrationRuntime,
   request: WorkspaceBlockMigrationRequest,
 ) {
   const sourceNote = findWorkspaceNote(workspace, request.sourceNoteId);
@@ -181,10 +188,10 @@ function mapPreviewFailure(result: Extract<
 }
 
 export function previewWorkspaceBlockMigration(
-  workspace: WorkspaceRuntime,
+  workspace: WorkspaceBlockMigrationRuntime,
   request: WorkspaceBlockMigrationPreviewRequest,
 ): WorkspaceBlockMigrationPreviewResult {
-  if (getWorkspaceNoteCount(workspace) < 2) {
+  if (workspace.notes.length < 2) {
     return {
       message: "至少需要两篇笔记。",
       status: "blocked",
@@ -227,7 +234,7 @@ export function previewWorkspaceBlockMigration(
 }
 
 export function moveWorkspaceBlock(
-  workspace: WorkspaceRuntime,
+  workspace: WorkspaceBlockMigrationRuntime,
   request: WorkspaceBlockMigrationRequest,
   timestamp: string,
 ): MoveWorkspaceBlockResult {

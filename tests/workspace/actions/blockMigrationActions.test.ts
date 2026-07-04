@@ -7,7 +7,7 @@ import { createNoteRecord } from "../../../src/workspace/model/workspaceData";
 import {
   moveWorkspaceBlock,
   previewWorkspaceBlockMigration,
-} from "../../../src/workspace/workflows/blockMigrationWorkflow";
+} from "../../../src/workspace/actions/blockMigrationActions";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn-syntax/defaultSyntaxProfile";
 import {
   createInitialWorkspaceRuntime,

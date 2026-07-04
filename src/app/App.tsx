@@ -36,7 +36,7 @@ import {
 import {
   moveWorkspaceBlock,
   type WorkspaceBlockMigrationRequest,
-} from "../workspace/workflows/blockMigrationWorkflow";
+} from "../workspace/actions/blockMigrationActions";
 import { useWorkspaceSession } from "./runtime/useWorkspaceSession";
 import { toWorkspaceData } from "../workspace/runtime/workspaceRuntime";
 

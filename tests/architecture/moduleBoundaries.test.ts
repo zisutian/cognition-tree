@@ -64,7 +64,6 @@ describe("architecture module boundaries", () => {
       "model",
       "queries",
       "runtime",
-      "workflows",
     ]);
   });
 
@@ -215,7 +214,6 @@ describe("architecture module boundaries", () => {
           /shell/,
           /storage/,
           /runtime/,
-          /workflows/,
           /actions/,
         ],
       },
@@ -230,7 +228,6 @@ describe("architecture module boundaries", () => {
           /shell/,
           /storage/,
           /runtime/,
-          /workflows/,
           /actions/,
           /queries/,
         ],
@@ -248,7 +245,6 @@ describe("architecture module boundaries", () => {
           /index/,
           /queries/,
           /runtime/,
-          /workflows/,
         ],
       },
       {
@@ -262,18 +258,6 @@ describe("architecture module boundaries", () => {
           /shell/,
           /storage/,
           /index/,
-        ],
-      },
-      {
-        fromDir: "workspace/workflows",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
         ],
       },
       {
@@ -315,7 +299,6 @@ describe("architecture module boundaries", () => {
           /workspace\/index/,
           /workspace\/queries/,
           /workspace\/runtime/,
-          /workspace\/workflows/,
         ],
       },
     ];
