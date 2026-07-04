@@ -3,10 +3,9 @@ import type {
   NoteTreeNode,
   WorkspaceData,
 } from "../workspace/model/workspaceData";
-import { parseSyntaxProfileToml } from "../ctn-syntax/profileToml";
 import type {
   RepositoryInfo,
-  WorkspaceSyntaxFile,
+  WorkspaceSyntaxSourceFile,
 } from "./workspaceRepository";
 
 const workspaceFields = new Set([
@@ -214,25 +213,19 @@ export function parseRepositoryInfoDto(value: unknown): RepositoryInfo {
 
 export function parseWorkspaceSyntaxFileDto(
   value: unknown,
-): WorkspaceSyntaxFile {
+): WorkspaceSyntaxSourceFile | null {
+  if (value === null) {
+    return null;
+  }
+
   assertRecord(value, "$");
   assertExactFields(value, syntaxFileFields, "$");
 
   const fileName = readRequiredString(value, "fileName", "$");
   const source = readString(value, "source", "$");
-  const result = parseSyntaxProfileToml(source);
-
-  if (!result.profile) {
-    const message = result.diagnostics
-      .map((diagnostic) => `${diagnostic.path}: ${diagnostic.message}`)
-      .join("; ");
-
-    throw new Error(`Invalid workspace syntax response: ${message}`);
-  }
 
   return {
     fileName,
-    profile: result.profile,
     source,
   };
 }

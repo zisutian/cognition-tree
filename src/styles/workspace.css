@@ -16,6 +16,47 @@
   grid-column: editor / span 2;
 }
 
+.syntax-setup-panel {
+  justify-content: center;
+}
+
+.syntax-setup-empty {
+  display: grid;
+  gap: 10px;
+  max-width: 520px;
+  padding: 22px;
+  border: 1px solid #d7dfd5;
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.syntax-setup-empty h2,
+.syntax-setup-empty p {
+  margin: 0;
+}
+
+.syntax-setup-empty h2 {
+  color: #1f2c28;
+  font-size: 20px;
+}
+
+.syntax-setup-empty p {
+  color: #4e5d58;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.syntax-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.syntax-setup-empty .syntax-setup-error {
+  color: #8e2f2f;
+}
+
 .workspace-detail-panel {
   grid-area: outline;
   gap: 8px;

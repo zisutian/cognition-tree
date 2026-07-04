@@ -20,8 +20,6 @@ import {
   type WorkspaceBlockMigrationRequest,
 } from "../../workspace/actions/blockMigrationActions";
 import { createRuntimeWorkspaceRepository } from "../../storage/runtimeWorkspaceRepository";
-import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
-import { defaultCtnSyntaxProfile } from "../../ctn-syntax/defaultSyntaxProfile";
 import {
   createWorkspaceDataSaveQueue,
   type WorkspaceSaveStatus,
@@ -30,6 +28,13 @@ import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceRuntime,
 } from "../../workspace/runtime/workspaceRuntime";
+import {
+  createDefaultWorkspaceSyntaxFile,
+  parseWorkspaceSyntaxSource,
+  resolveWorkspaceSyntaxFile,
+  workspaceSyntaxFileName,
+  type WorkspaceSyntaxFile,
+} from "../../workspace/runtime/workspaceSyntax";
 
 export type { WorkspaceSaveStatus } from "./workspaceDataSaveQueue";
 
@@ -75,9 +80,12 @@ type UseWorkspaceSessionResult = {
   reloadWorkspace: () => Promise<void>;
   repositoryPath: string;
   storageLabel: string;
-  syntaxFile: WorkspaceSyntaxFile;
+  defaultSyntaxFile: WorkspaceSyntaxFile;
+  syntaxFile: WorkspaceSyntaxFile | null;
+  useDefaultSyntaxFile: () => Promise<void>;
   updateSyntaxFile: (source: string) => Promise<void>;
-  workspace: WorkspaceRuntime;
+  workspaceData: WorkspaceData;
+  workspaceRuntime: WorkspaceRuntime | null;
   workspaceCommands: WorkspaceSessionCommands;
   workspaceErrorMessage: string;
   workspaceSaveStatus: WorkspaceSaveStatus;
@@ -100,15 +108,15 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
   const [workspaceSaveStatus, setWorkspaceSaveStatus] =
     useState<WorkspaceSaveStatus>("idle");
   const [repositoryPath, setRepositoryPath] = useState("");
-  const [syntaxFile, setSyntaxFile] = useState<WorkspaceSyntaxFile>({
-    fileName: "workspace.toml",
-    profile: defaultCtnSyntaxProfile,
-    source: "",
-  });
+  const [syntaxFile, setSyntaxFile] = useState<WorkspaceSyntaxFile | null>(null);
+  const defaultSyntaxFile = useMemo(createDefaultWorkspaceSyntaxFile, []);
   const isMountedRef = useRef(true);
-  const workspace = useMemo(
-    () => attachWorkspaceSyntaxProfile(workspaceData, syntaxFile.profile),
-    [syntaxFile.profile, workspaceData],
+  const workspaceRuntime = useMemo(
+    () =>
+      syntaxFile
+        ? attachWorkspaceSyntaxProfile(workspaceData, syntaxFile.profile)
+        : null,
+    [syntaxFile, workspaceData],
   );
   const workspaceCommands = useMemo(
     (): WorkspaceSessionCommands => ({
@@ -227,7 +235,7 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
         }
 
         setRepositoryPath(repositoryInfo.path);
-        setSyntaxFile(storedSyntaxFile);
+        setSyntaxFile(resolveWorkspaceSyntaxFile(storedSyntaxFile));
         commitWorkspaceDataSnapshot(resolveWorkspaceData(storedWorkspace));
         setWorkspaceErrorMessage("");
         setWorkspaceSaveStatus("idle");
@@ -268,7 +276,7 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
         ]);
 
       setRepositoryPath(repositoryInfo.path);
-      setSyntaxFile(storedSyntaxFile);
+      setSyntaxFile(resolveWorkspaceSyntaxFile(storedSyntaxFile));
       commitWorkspaceDataSnapshot(resolveWorkspaceData(storedWorkspace));
       setWorkspaceSaveStatus("idle");
       setIsWorkspaceLoaded(true);
@@ -284,7 +292,7 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
       repository.readSyntaxFile(),
     ]);
 
-    setSyntaxFile(storedSyntaxFile);
+    setSyntaxFile(resolveWorkspaceSyntaxFile(storedSyntaxFile));
     commitWorkspaceDataSnapshot(resolveWorkspaceData(storedWorkspace));
   };
 
@@ -309,7 +317,7 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
     ]);
 
     setRepositoryPath(repositoryInfo.path);
-    setSyntaxFile(storedSyntaxFile);
+    setSyntaxFile(resolveWorkspaceSyntaxFile(storedSyntaxFile));
     commitWorkspaceDataSnapshot(resolveWorkspaceData(storedWorkspace));
     setWorkspaceErrorMessage("");
     setWorkspaceSaveStatus("idle");
@@ -317,8 +325,20 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
   };
 
   const updateSyntaxFile = async (source: string) => {
-    await repository.saveSyntaxFile(source);
-    await refreshSyntaxState();
+    try {
+      parseWorkspaceSyntaxSource(workspaceSyntaxFileName, source);
+      await repository.saveSyntaxFile(source);
+      await refreshSyntaxState();
+      setWorkspaceErrorMessage("");
+    } catch (error) {
+      setWorkspaceErrorMessage(
+        getErrorMessage(error, "仓库语法保存失败。"),
+      );
+      throw error;
+    }
+  };
+  const useDefaultSyntaxFile = async () => {
+    await updateSyntaxFile(defaultSyntaxFile.source);
   };
 
   return {
@@ -328,9 +348,12 @@ export function useWorkspaceSession(): UseWorkspaceSessionResult {
     reloadWorkspace,
     repositoryPath,
     storageLabel: repository.label,
+    defaultSyntaxFile,
     syntaxFile,
+    useDefaultSyntaxFile,
     updateSyntaxFile,
-    workspace,
+    workspaceData,
+    workspaceRuntime,
     workspaceCommands,
     workspaceErrorMessage,
     workspaceSaveStatus,

@@ -169,10 +169,7 @@ describe("workspace API request handler", () => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/syntax" }),
       ).resolves.toMatchObject({
-        body: {
-          fileName: "workspace.toml",
-          source: expect.stringContaining('name = "默认 CTN 语法"'),
-        },
+        body: null,
         statusCode: 200,
       });
 

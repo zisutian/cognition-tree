@@ -13,20 +13,38 @@ const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
   query: "?raw",
 }) as SourceModules;
 
+const serverModules = import.meta.glob("../../server/**/*.mjs", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as SourceModules;
+
 function listSourceFiles(dir: string) {
   return Object.keys(sourceModules).filter((filePath) =>
     filePath.startsWith(`../../src/${dir}/`),
   );
 }
 
-function readImports(filePath: string) {
-  const source = sourceModules[filePath] ?? "";
+function listServerFiles() {
+  return Object.keys(serverModules);
+}
+
+function readModuleImports(modules: SourceModules, filePath: string) {
+  const source = modules[filePath] ?? "";
   const imports = [
     ...source.matchAll(/\bimport\s+(?:type\s+)?[^'"]*from\s+['"]([^'"]+)['"]/g),
     ...source.matchAll(/\bimport\s+['"]([^'"]+)['"]/g),
   ];
 
   return imports.map((match) => match[1]);
+}
+
+function readImports(filePath: string) {
+  return readModuleImports(sourceModules, filePath);
+}
+
+function readServerImports(filePath: string) {
+  return readModuleImports(serverModules, filePath);
 }
 
 describe("architecture module boundaries", () => {
@@ -81,6 +99,59 @@ describe("architecture module boundaries", () => {
       .sort();
 
     expect(workspaceQueryFiles).toEqual(["workspaceQueries.ts"]);
+  });
+
+  it("keeps server from owning CTN syntax parsing rules", () => {
+    const serverSyntaxCoreFiles = listServerFiles()
+      .filter((filePath) => /syntaxProfileToml/.test(filePath))
+      .sort();
+    const violations = listServerFiles().flatMap((filePath) =>
+      readServerImports(filePath)
+        .filter((importPath) => importPath === "smol-toml")
+        .map((importPath) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(serverSyntaxCoreFiles).toEqual([]);
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps server behind the storage execution boundary", () => {
+    const blockedServerImports = [
+      /^react$/,
+      /^react\//,
+      /\.\.\/src\//,
+      /^src\//,
+      /ctn-parser/,
+      /ctn-syntax/,
+      /editor/,
+      /features/,
+      /shell/,
+      /workspace\/actions/,
+      /workspace\/index/,
+      /workspace\/queries/,
+      /workspace\/runtime/,
+    ];
+    const violations = listServerFiles().flatMap((filePath) =>
+      readServerImports(filePath)
+        .filter((importPath) =>
+          blockedServerImports.some((blockedImport) =>
+            blockedImport.test(importPath),
+          ),
+        )
+        .map((importPath) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps frontend source out of server modules", () => {
+    const violations = Object.keys(sourceModules).flatMap((filePath) =>
+      readImports(filePath)
+        .filter((importPath) => /server\//.test(importPath))
+        .map((importPath) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
   });
 
   it("keeps rendered React components out of workspace", () => {
@@ -333,6 +404,7 @@ describe("architecture module boundaries", () => {
           /^react$/,
           /^react\//,
           /app/,
+          /ctn-syntax/,
           /editor/,
           /features/,
           /shell/,

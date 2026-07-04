@@ -14,7 +14,7 @@
 
     运行与存储：React / Vite 前端、Node HTTP 后端、本地文件仓库、WorkspaceRepository。
     笔记编辑：CodeMirror 原文编辑、CTN parser、笔记和目录树管理。
-    仓库语法：唯一 syntax/workspace.toml、受控语法编辑、前后端 TOML parity tests。
+    仓库语法：syntax/workspace.toml、受控语法编辑、前端 CTN syntax 解析。
     块迁移：跨笔记移动整棵块子树。
     可视化：第一版笔记级引用图谱。
 
@@ -78,7 +78,6 @@
     node --check server/workspaceApiServer.mjs
     node --check server/workspaceFileStore.mjs
     node --check server/workspaceManifestDto.mjs
-    node --check server/syntaxProfileToml.mjs
 
 默认地址：
 
@@ -95,11 +94,11 @@
     src/app/          React 应用入口
     src/features/     blocks、notes、syntax、migration、visualization 功能界面
     src/shell/        应用外壳、活动栏和侧栏
-    src/workspace/    model、runtime、session、command、workflow 和 view model
+    src/workspace/    actions、index、model、queries、runtime workspace 业务边界
     src/ctn-parser/   CTN 原文解析
     src/ctn-syntax/   语法 profile 与 TOML
     src/editor/       CodeMirror 集成
-    src/storage/      前端存储端口和适配器
+    src/storage/      前端存储端口、DTO 和适配器
     src/styles/       全局样式
-    server/           Node HTTP API 和文件仓库
+    server/           本地文件仓库 HTTP 执行端
     tests/            单元测试

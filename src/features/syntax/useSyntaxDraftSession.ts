@@ -15,7 +15,7 @@ type UseSyntaxDraftSessionOptions = {
   isWorkspaceLoaded: boolean;
   syntaxProfile: CtnSyntaxProfile;
   updateSyntaxFile: (source: string) => Promise<void>;
-  workspace: WorkspaceRuntime;
+  workspace: WorkspaceRuntime | null;
 };
 
 type SyntaxProfileFeedback = {
@@ -53,9 +53,9 @@ export function useSyntaxDraftSession({
   );
   const effectiveWorkspace = useMemo(
     () =>
-      syntaxDraftResult.profile
+      workspace && syntaxDraftResult.profile
         ? attachWorkspaceSyntaxProfile(workspace, syntaxDraftResult.profile)
-        : workspace,
+        : null,
     [syntaxDraftResult.profile, workspace],
   );
 

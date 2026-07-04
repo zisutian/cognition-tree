@@ -55,6 +55,47 @@ function createLocalNoteId() {
   return `note-${Date.now()}`;
 }
 
+function SyntaxSetupPanel({
+  onConfigureSyntax,
+  onUseDefaultSyntax,
+  workspaceErrorMessage,
+}: {
+  onConfigureSyntax: () => void;
+  onUseDefaultSyntax: () => void;
+  workspaceErrorMessage: string;
+}) {
+  return (
+    <section
+      aria-label="仓库语法未配置"
+      className="workspace-main-panel migration-full-width syntax-setup-panel"
+    >
+      <div className="syntax-setup-empty">
+        <h2>仓库语法未配置</h2>
+        <p>需要先配置仓库语法，才能解析、编辑和迁移 CTN 笔记。</p>
+        <div className="syntax-setup-actions">
+          <button
+            className="primary-action-button"
+            onClick={onConfigureSyntax}
+            type="button"
+          >
+            配置语法
+          </button>
+          <button
+            className="secondary-action-button"
+            onClick={onUseDefaultSyntax}
+            type="button"
+          >
+            使用默认配置
+          </button>
+        </div>
+        {workspaceErrorMessage ? (
+          <p className="syntax-setup-error">{workspaceErrorMessage}</p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [activeActivityId, setActiveActivityId] =
     useState<SidebarActivityId>("notes");
@@ -68,25 +109,28 @@ function App() {
     reloadWorkspace,
     repositoryPath,
     storageLabel,
+    defaultSyntaxFile,
     syntaxFile,
+    useDefaultSyntaxFile,
     updateSyntaxFile,
-    workspace,
+    workspaceData,
+    workspaceRuntime,
     workspaceCommands,
     workspaceErrorMessage,
     workspaceSaveStatus,
   } = useWorkspaceSession();
   const [selectedFolderId, setSelectedFolderId] =
     useState<FolderId>(getDefaultWorkspaceFolderId);
-  const activeNote = findActiveWorkspaceNote(workspace);
+  const activeNote = findActiveWorkspaceNote(workspaceData);
 
   useEffect(() => {
     setSelectedFolderId((currentFolderId) =>
-      resolveExistingWorkspaceFolderId(workspace, currentFolderId),
+      resolveExistingWorkspaceFolderId(workspaceData, currentFolderId),
     );
-  }, [workspace]);
+  }, [workspaceData]);
 
   const selectNote = (noteId: NoteId) => {
-    const folderId = findWorkspaceFolderIdContainingNote(workspace, noteId);
+    const folderId = findWorkspaceFolderIdContainingNote(workspaceData, noteId);
 
     if (folderId) {
       setSelectedFolderId(folderId);
@@ -96,7 +140,9 @@ function App() {
   };
 
   const selectFolder = (folderId: FolderId) => {
-    setSelectedFolderId(resolveExistingWorkspaceFolderId(workspace, folderId));
+    setSelectedFolderId(
+      resolveExistingWorkspaceFolderId(workspaceData, folderId),
+    );
   };
 
   const createNote = () => {
@@ -154,9 +200,9 @@ function App() {
     updateSyntaxDraft,
   } = useSyntaxDraftSession({
     isWorkspaceLoaded,
-    syntaxProfile: syntaxFile.profile,
+    syntaxProfile: syntaxFile?.profile ?? defaultSyntaxFile.profile,
     updateSyntaxFile,
-    workspace,
+    workspace: workspaceRuntime,
   });
   const workspaceSaveStatusLabel = {
     error: "保存失败",
@@ -164,18 +210,24 @@ function App() {
     saved: "已保存",
     saving: "保存中",
   }[workspaceSaveStatus];
-  const effectiveActiveNote = findActiveWorkspaceNote(effectiveWorkspace);
+  const effectiveActiveNote = effectiveWorkspace
+    ? findActiveWorkspaceNote(effectiveWorkspace)
+    : null;
   const workspaceIndex = useWorkspaceIndex(effectiveWorkspace);
   const parsedWorkspaceNote = useMemo(
-    () => getParsedWorkspaceNote(workspaceIndex, effectiveActiveNote?.id ?? null),
+    () =>
+      workspaceIndex
+        ? getParsedWorkspaceNote(workspaceIndex, effectiveActiveNote?.id ?? null)
+        : null,
     [effectiveActiveNote, workspaceIndex],
   );
-  const documentText = parsedWorkspaceNote.source;
-  const activeSyntaxProfile = parsedWorkspaceNote.profile;
-  const parsedDocument = parsedWorkspaceNote.document;
+  const documentText = parsedWorkspaceNote?.source ?? "";
+  const activeSyntaxProfile =
+    parsedWorkspaceNote?.profile ?? defaultSyntaxFile.profile;
+  const parsedDocument = parsedWorkspaceNote?.document ?? null;
   const noteReferenceGraph = useMemo(
     () =>
-      activeActivityId === "visualization"
+      activeActivityId === "visualization" && workspaceIndex
         ? getWorkspaceNoteReferenceGraph(workspaceIndex)
         : emptyNoteReferenceGraph,
     [activeActivityId, workspaceIndex],
@@ -183,6 +235,13 @@ function App() {
   const moveNoteBlock = (
     request: Parameters<typeof workspaceCommands.moveBlock>[1],
   ): MoveWorkspaceBlockActionResult => {
+    if (!workspaceIndex || !effectiveWorkspace) {
+      return {
+        message: "需要先配置仓库语法。",
+        status: "failed",
+      };
+    }
+
     const result = workspaceCommands.moveBlock(
       workspaceIndex,
       request,
@@ -226,6 +285,13 @@ function App() {
       requestId: (current?.requestId ?? 0) + 1,
     }));
   };
+  const configureSyntax = () => {
+    setActiveActivityId("syntax");
+    setSidebarCollapsed(false);
+  };
+  const useDefaultSyntax = () => {
+    void useDefaultSyntaxFile();
+  };
   const appShellClassName = [
     "app-shell",
     `activity-${activeActivityId}`,
@@ -243,6 +309,16 @@ function App() {
       );
     }
 
+    if (!syntaxFile || !effectiveWorkspace || !workspaceIndex) {
+      return (
+        <SyntaxSetupPanel
+          workspaceErrorMessage={workspaceErrorMessage}
+          onConfigureSyntax={configureSyntax}
+          onUseDefaultSyntax={useDefaultSyntax}
+        />
+      );
+    }
+
     if (activeActivityId === "migration") {
       return (
         <BlockMigrationWorkspacePanel
@@ -256,6 +332,16 @@ function App() {
 
     if (activeActivityId === "visualization") {
       return <NoteReferenceGraphPanel graph={noteReferenceGraph} />;
+    }
+
+    if (!parsedDocument) {
+      return (
+        <SyntaxSetupPanel
+          workspaceErrorMessage={workspaceErrorMessage}
+          onConfigureSyntax={configureSyntax}
+          onUseDefaultSyntax={useDefaultSyntax}
+        />
+      );
     }
 
     return (
@@ -282,7 +368,12 @@ function App() {
       );
     }
 
-    if (activeActivityId === "migration") {
+    if (
+      activeActivityId === "migration" ||
+      !syntaxFile ||
+      !workspaceIndex ||
+      !parsedDocument
+    ) {
       return null;
     }
 
@@ -308,8 +399,8 @@ function App() {
         activeActivityId={activeActivityId}
         activeFolderId={selectedFolderId}
         activeNoteId={activeNote?.id ?? null}
-        notes={listWorkspaceNotes(workspace)}
-        noteTree={getWorkspaceTree(workspace)}
+        notes={listWorkspaceNotes(workspaceData)}
+        noteTree={getWorkspaceTree(workspaceData)}
         repositoryPath={repositoryPath}
         saveStatusLabel={workspaceSaveStatusLabel}
         storageLabel={storageLabel}

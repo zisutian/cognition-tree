@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
-import { formatSyntaxProfileToml } from "../../src/ctn-syntax/profileToml";
-import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -98,8 +96,8 @@ describe("createHttpWorkspaceRepository", () => {
     await expect(repository.loadWorkspace()).rejects.toThrow("backend failed");
   });
 
-  it("parses workspace syntax responses", async () => {
-    const source = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+  it("loads raw workspace syntax source responses", async () => {
+    const source = 'name = "默认 CTN 语法"\n';
     const fetchMock: typeof fetch = async () =>
       jsonResponse({
         fileName: "workspace.toml",
@@ -107,13 +105,41 @@ describe("createHttpWorkspaceRepository", () => {
       });
     const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
 
-    await expect(repository.readSyntaxFile()).resolves.toMatchObject({
+    await expect(repository.readSyntaxFile()).resolves.toEqual({
       fileName: "workspace.toml",
-      profile: {
-        name: "默认 CTN 语法",
-      },
       source,
     });
+  });
+
+  it("reports missing workspace syntax without applying defaults", async () => {
+    const fetchMock: typeof fetch = async () => jsonResponse(null);
+    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+
+    await expect(repository.readSyntaxFile()).resolves.toBeNull();
+  });
+
+  it("sends workspace syntax source without parsing it", async () => {
+    const calls: FetchCall[] = [];
+    const fetchMock: typeof fetch = async (input, init) => {
+      calls.push({
+        body: init?.body,
+        method: init?.method ?? "GET",
+        url: String(input),
+      });
+
+      return new Response(null, { status: 204 });
+    };
+    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+
+    await repository.saveSyntaxFile('name = "broken"\n');
+
+    expect(calls).toEqual([
+      {
+        body: JSON.stringify({ source: 'name = "broken"\n' }),
+        method: "PUT",
+        url: "http://127.0.0.1:3001/api/syntax",
+      },
+    ]);
   });
 
   it("rejects obsolete response shapes", async () => {

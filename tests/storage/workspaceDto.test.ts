@@ -5,25 +5,21 @@ import {
   parseWorkspaceDataDto,
   parseWorkspaceSyntaxFileDto,
 } from "../../src/storage/workspaceDto";
-import { formatSyntaxProfileToml } from "../../src/ctn-syntax/profileToml";
-import { defaultCtnSyntaxProfile } from "../../src/ctn-syntax/defaultSyntaxProfile";
 
 describe("workspace storage DTOs", () => {
   it("parses current workspace and syntax responses", () => {
     const workspace = createInitialWorkspaceData();
-    const source = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+    const source = 'name = "默认 CTN 语法"\n';
 
     expect(parseWorkspaceDataDto(workspace)).toEqual(workspace);
+    expect(parseWorkspaceSyntaxFileDto(null)).toBeNull();
     expect(
       parseWorkspaceSyntaxFileDto({
         fileName: "workspace.toml",
         source,
       }),
-    ).toMatchObject({
+    ).toEqual({
       fileName: "workspace.toml",
-      profile: {
-        name: "默认 CTN 语法",
-      },
       source,
     });
     expect(parseRepositoryInfoDto({ path: "/data/repository" })).toEqual({
@@ -48,17 +44,20 @@ describe("workspace storage DTOs", () => {
       parseWorkspaceSyntaxFileDto({
         fileName: "workspace.toml",
         profile: {},
-        source: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+        source: 'name = "默认 CTN 语法"\n',
       }),
     ).toThrow("unsupported field");
   });
 
-  it("rejects invalid workspace syntax source", () => {
-    expect(() =>
+  it("does not validate workspace syntax semantics", () => {
+    expect(
       parseWorkspaceSyntaxFileDto({
         fileName: "workspace.toml",
         source: 'name = "broken"\n',
       }),
-    ).toThrow("Invalid workspace syntax response");
+    ).toEqual({
+      fileName: "workspace.toml",
+      source: 'name = "broken"\n',
+    });
   });
 });

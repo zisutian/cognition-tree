@@ -5,10 +5,6 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { WorkspaceFileStore } from "../../server/workspaceFileStore.mjs";
-import {
-  defaultSyntaxProfile,
-  formatSyntaxProfileToml,
-} from "../../server/syntaxProfileToml.mjs";
 
 function createWorkspace() {
   return {
@@ -118,9 +114,6 @@ describe("WorkspaceFileStore", () => {
       expect(
         await readFile(path.join(rootDir, "notes", "note-test.ctn"), "utf8"),
       ).toBe("测试笔记\n	: 文件保存");
-      expect(
-        await readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
-      ).toBe(formatSyntaxProfileToml());
       await expect(
         readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
       ).resolves.toEqual({
@@ -140,6 +133,7 @@ describe("WorkspaceFileStore", () => {
       });
 
       expect(await store.loadWorkspace()).toEqual(workspace);
+      await expect(store.readSyntaxFile()).resolves.toBeNull();
     });
   });
 
@@ -166,44 +160,12 @@ describe("WorkspaceFileStore", () => {
 
   it("reads and updates the workspace syntax file", async () => {
     await withTempStore(async (store) => {
-      await expect(store.readSyntaxFile()).resolves.toMatchObject({
-        fileName: "workspace.toml",
-        profile: defaultSyntaxProfile,
-      });
+      await expect(store.readSyntaxFile()).resolves.toBeNull();
 
       await store.saveSyntaxFile(customSyntaxSource);
 
-      await expect(store.readSyntaxFile()).resolves.toMatchObject({
+      await expect(store.readSyntaxFile()).resolves.toEqual({
         fileName: "workspace.toml",
-        profile: {
-          conceptRule: {
-            label: "顶格概念",
-            textColor: "cyan",
-            tone: "teal",
-            type: "concept",
-          },
-          inlineRules: [
-            {
-              close: "]]",
-              kind: "paired",
-              label: "全局概念引用",
-              open: "[[",
-              textColor: "cyan",
-              tone: "blue",
-              type: "global-reference",
-            },
-          ],
-          markerRules: [
-            {
-              label: "风险",
-              marker: "!",
-              role: "normal",
-              textColor: "amber",
-              tone: "red",
-              type: "component",
-            },
-          ],
-        },
         source: customSyntaxSource,
       });
       await expect(store.loadWorkspace()).resolves.toMatchObject({
@@ -213,18 +175,16 @@ describe("WorkspaceFileStore", () => {
     });
   });
 
-  it("rejects invalid workspace syntax files", async () => {
-    await withTempStore(async (store, rootDir) => {
-      await store.saveWorkspace(createWorkspace());
-      await writeFile(
-        path.join(rootDir, "syntax", "workspace.toml"),
-        "name = \"broken\"\n",
-        "utf8",
-      );
+  it("stores workspace syntax source without parsing it", async () => {
+    await withTempStore(async (store) => {
+      const source = "name = \"broken\"\n";
 
-      await expect(store.readSyntaxFile()).rejects.toThrow(
-        "Invalid syntax profile workspace.toml",
-      );
+      await store.saveSyntaxFile(source);
+
+      await expect(store.readSyntaxFile()).resolves.toEqual({
+        fileName: "workspace.toml",
+        source,
+      });
     });
   });
 

@@ -7,10 +7,6 @@ import {
   writeJsonAtomically,
 } from "./atomicWrite.mjs";
 import {
-  formatSyntaxProfileToml,
-  parseSyntaxProfileToml,
-} from "./syntaxProfileToml.mjs";
-import {
   assertWorkspaceManifestDto,
   assertWorkspacePayloadDto,
 } from "./workspaceManifestDto.mjs";
@@ -71,7 +67,6 @@ export class WorkspaceFileStore {
   async initialize() {
     await mkdir(this.#notesDir, { recursive: true });
     await mkdir(this.#syntaxDir, { recursive: true });
-    await this.#ensureDefaultSyntaxProfile();
   }
 
   get repositoryPath() {
@@ -182,7 +177,6 @@ export class WorkspaceFileStore {
     await rm(this.#syntaxDir, { force: true, recursive: true });
     await mkdir(this.#notesDir, { recursive: true });
     await mkdir(this.#syntaxDir, { recursive: true });
-    await this.#ensureDefaultSyntaxProfile();
   }
 
   async readSyntaxFile() {
@@ -202,45 +196,30 @@ export class WorkspaceFileStore {
       throw new Error("Syntax profile source is empty");
     }
 
-    const parsed = parseSyntaxProfileToml(source);
-
-    if (!parsed.profile) {
-      throw new Error(`Invalid syntax profile ${workspaceSyntaxFileName}: ${formatSyntaxDiagnostics(parsed)}`);
-    }
-
     await writeFileAtomically(
       path.join(this.#syntaxDir, workspaceSyntaxFileName),
       source,
     );
   }
 
-  async #ensureDefaultSyntaxProfile() {
-    try {
-      await readFile(path.join(this.#syntaxDir, workspaceSyntaxFileName), "utf8");
-      return;
-    } catch (error) {
-      if (error?.code !== "ENOENT") {
-        throw error;
-      }
-    }
-
-    await writeFileAtomically(
-      path.join(this.#syntaxDir, workspaceSyntaxFileName),
-      formatSyntaxProfileToml(),
-    );
-  }
-
   async #readSyntaxFile() {
-    const source = await readFile(path.join(this.#syntaxDir, workspaceSyntaxFileName), "utf8");
-    const result = parseSyntaxProfileToml(source);
+    let source;
 
-    if (!result.profile) {
-      throw new Error(`Invalid syntax profile ${workspaceSyntaxFileName}: ${formatSyntaxDiagnostics(result)}`);
+    try {
+      source = await readFile(
+        path.join(this.#syntaxDir, workspaceSyntaxFileName),
+        "utf8",
+      );
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        return null;
+      }
+
+      throw error;
     }
 
     return {
       fileName: workspaceSyntaxFileName,
-      profile: result.profile,
       source,
     };
   }
@@ -284,10 +263,4 @@ export class WorkspaceFileStore {
     this.#writeQueue = result.catch(() => undefined);
     return result;
   }
-}
-
-function formatSyntaxDiagnostics(result) {
-  return result.diagnostics
-    .map((diagnostic) => `${diagnostic.path}: ${diagnostic.message}`)
-    .join("; ");
 }
