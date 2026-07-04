@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CtnBlock } from "../../src/ctn-parser/types";
+import type { CtnBlock } from "../../src/ctn/parser/types";
 import {
   getBlockLineDecorationClass,
   getBlockLineDecorationStyle,

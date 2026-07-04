@@ -5,20 +5,20 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import { parseCtnDocument } from "../ctn-parser/parseCtnDocument";
+import { parseCtnDocument } from "../ctn/parser/parseCtnDocument";
 import type {
   CtnBlock,
   CtnDocument,
   CtnInlineSpan,
-} from "../ctn-parser/types";
-import { createCtnSyntaxParseProfileKey } from "../ctn-syntax/profileKey";
+} from "../ctn/parser/types";
+import { createCtnSyntaxParseProfileKey } from "../ctn/syntax/profileKey";
 import {
   getSyntaxTextColorClassName,
   getSyntaxTextColorStyle,
   getSyntaxToneClassName,
   getSyntaxToneStyle,
-} from "../ctn-syntax/tones";
-import type { CtnSyntaxProfile } from "../ctn-syntax/types";
+} from "../ctn/syntax/tones";
+import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 
 function isRootConceptBlock(block: CtnBlock) {
   return block.level === 0 && block.marker === null;

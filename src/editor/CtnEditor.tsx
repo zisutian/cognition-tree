@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { CtnSyntaxProfile } from "../ctn-syntax/types";
+import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 import {
   createCtnEditorExtensions,
   createCtnTabSizeExtension,

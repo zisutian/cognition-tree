@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest";
 
 type SourceModules = Record<string, string>;
 
-type BoundaryRule = {
-  blockedImports: RegExp[];
-  fromDir: string;
+type SourceImport = {
+  filePath: string;
+  importPath: string;
+  targetPath: string;
+  targetRoot: string;
 };
 
 const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as SourceModules;
+
+const sourceStyleModules = import.meta.glob("../../src/**/*.css", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -19,14 +27,98 @@ const serverModules = import.meta.glob("../../server/**/*.mjs", {
   query: "?raw",
 }) as SourceModules;
 
+const allowedSourceRoots = [
+  "app",
+  "application",
+  "ctn",
+  "editor",
+  "storage",
+  "ui",
+  "workspace",
+];
+
+const allowedRootImports = new Map(
+  Object.entries({
+    app: ["app", "application", "editor", "storage", "ui"],
+    application: ["application", "ctn", "storage", "workspace"],
+    ctn: ["ctn"],
+    editor: ["ctn", "editor"],
+    storage: ["ctn", "storage", "workspace"],
+    ui: ["application", "ctn", "editor", "ui", "workspace"],
+    workspace: ["ctn", "workspace"],
+  }).map(([sourceRoot, imports]) => [sourceRoot, new Set(imports)]),
+);
+
+function sourcePathToRelative(filePath: string) {
+  return filePath.replace("../../src/", "");
+}
+
+function getSourceRoot(filePath: string) {
+  return sourcePathToRelative(filePath).split("/")[0] ?? "";
+}
+
 function listSourceFiles(dir: string) {
   return Object.keys(sourceModules).filter((filePath) =>
     filePath.startsWith(`../../src/${dir}/`),
   );
 }
 
-function listServerFiles() {
-  return Object.keys(serverModules);
+function listAllSourcePaths() {
+  return [
+    ...new Set([
+      ...Object.keys(sourceModules),
+      ...Object.keys(sourceStyleModules),
+    ]),
+  ].sort();
+}
+
+function listSourceRootDirectories() {
+  return [
+    ...new Set(
+      listAllSourcePaths().flatMap((filePath) => {
+        const relativePath = sourcePathToRelative(filePath);
+        const separatorIndex = relativePath.indexOf("/");
+
+        return separatorIndex === -1
+          ? []
+          : [relativePath.slice(0, separatorIndex)];
+      }),
+    ),
+  ].sort();
+}
+
+function listSourceRootFiles() {
+  return listAllSourcePaths()
+    .map(sourcePathToRelative)
+    .filter((filePath) => !filePath.includes("/"))
+    .sort();
+}
+
+function listSubdirectories(dir: string) {
+  return [
+    ...new Set(
+      listAllSourcePaths().flatMap((filePath) => {
+        const prefix = `../../src/${dir}/`;
+
+        if (!filePath.startsWith(prefix)) {
+          return [];
+        }
+
+        const relativePath = filePath.slice(prefix.length);
+        const separatorIndex = relativePath.indexOf("/");
+
+        return separatorIndex === -1
+          ? []
+          : [relativePath.slice(0, separatorIndex)];
+      }),
+    ),
+  ].sort();
+}
+
+function listSourceFileNames(dir: string) {
+  return listSourceFiles(dir)
+    .map((filePath) => filePath.replace(`../../src/${dir}/`, ""))
+    .sort();
 }
 
 function readModuleImports(modules: SourceModules, filePath: string) {
@@ -39,8 +131,59 @@ function readModuleImports(modules: SourceModules, filePath: string) {
   return imports.map((match) => match[1]);
 }
 
-function readImports(filePath: string) {
-  return readModuleImports(sourceModules, filePath);
+function normalizePath(segments: string[]) {
+  return segments.reduce<string[]>((normalizedSegments, segment) => {
+    if (!segment || segment === ".") {
+      return normalizedSegments;
+    }
+
+    if (segment === "..") {
+      return normalizedSegments.slice(0, -1);
+    }
+
+    return [...normalizedSegments, segment];
+  }, []);
+}
+
+function resolveRelativeImport(filePath: string, importPath: string) {
+  if (!importPath.startsWith(".")) {
+    return null;
+  }
+
+  const fileDirectory = filePath.split("/").slice(0, -1);
+  const resolvedPath = normalizePath([
+    ...fileDirectory,
+    ...importPath.split("/"),
+  ]).join("/");
+
+  return resolvedPath.startsWith("../../src/") ? resolvedPath : null;
+}
+
+function readSourceImports(filePath: string): SourceImport[] {
+  return readModuleImports(sourceModules, filePath).flatMap((importPath) => {
+    const targetPath = resolveRelativeImport(filePath, importPath);
+
+    if (!targetPath) {
+      return [];
+    }
+
+    return [
+      {
+        filePath,
+        importPath,
+        targetPath,
+        targetRoot: getSourceRoot(targetPath),
+      },
+    ];
+  });
+}
+
+function listInternalImports() {
+  return Object.keys(sourceModules).flatMap(readSourceImports);
+}
+
+function listServerFiles() {
+  return Object.keys(serverModules);
 }
 
 function readServerImports(filePath: string) {
@@ -48,57 +191,114 @@ function readServerImports(filePath: string) {
 }
 
 describe("architecture module boundaries", () => {
-  it("keeps workspace model inside the workspace layer", () => {
-    expect(listSourceFiles("domain")).toEqual([]);
+  it("keeps src top-level directories aligned with the architecture document", () => {
+    expect(listSourceRootDirectories()).toEqual(allowedSourceRoots);
+    expect(listSourceRootFiles()).toEqual(["vite-env.d.ts"]);
   });
 
-  it("keeps CTN core directories explicitly named", () => {
-    expect(listSourceFiles("ctn")).toEqual([]);
-    expect(listSourceFiles("syntax")).toEqual([]);
+  it("keeps app as the composition root", () => {
+    expect(listSourceFileNames("app")).toEqual(["main.tsx"]);
   });
 
-  it("keeps workspace source files grouped by submodule", () => {
-    const workspaceRootFiles = Object.keys(sourceModules).filter((filePath) =>
-      /^\.\.\/\.\.\/src\/workspace\/[^/]+\.(ts|tsx)$/.test(filePath),
-    );
-
-    expect(workspaceRootFiles).toEqual([]);
-  });
-
-  it("keeps workspace submodules explicitly named", () => {
-    const workspaceSubmodules = [
-      ...new Set(
-        Object.keys(sourceModules).flatMap((filePath) => {
-          const match = filePath.match(/^\.\.\/\.\.\/src\/workspace\/([^/]+)\//);
-
-          return match ? [match[1]] : [];
-        }),
-      ),
-    ].sort();
-
-    expect(workspaceSubmodules).toEqual([
-      "actions",
-      "index",
-      "model",
-      "queries",
-      "runtime",
+  it("keeps application submodules explicitly named", () => {
+    expect(listSubdirectories("application")).toEqual([
+      "workspaceIndexes",
+      "workspaceSession",
     ]);
   });
 
-  it("keeps workspace model focused on workspace data and tree model", () => {
-    const workspaceModelFiles = listSourceFiles("workspace/model")
-      .map((filePath) => filePath.replace("../../src/workspace/model/", ""))
-      .sort();
+  it("keeps ui submodules explicitly named", () => {
+    expect(listSubdirectories("ui")).toEqual([
+      "activities",
+      "shared",
+      "shell",
+    ]);
+    expect(listSubdirectories("ui/activities")).toEqual([
+      "migration",
+      "notes",
+      "syntax",
+      "visualization",
+    ]);
+    expect(listSubdirectories("ui/shared")).toEqual(["blocks", "styles"]);
+  });
 
-    expect(workspaceModelFiles).toEqual(["noteTree.ts", "workspaceData.ts"]);
+  it("keeps workspace submodules explicitly named", () => {
+    expect(listSubdirectories("workspace")).toEqual([
+      "commands",
+      "context",
+      "indexes",
+      "model",
+      "queries",
+    ]);
+  });
+
+  it("keeps ctn submodules explicitly named", () => {
+    expect(listSubdirectories("ctn")).toEqual(["parser", "syntax"]);
+  });
+
+  it("keeps workspace model focused on workspace data and tree model", () => {
+    expect(listSourceFileNames("workspace/model")).toEqual([
+      "noteTree.ts",
+      "workspaceData.ts",
+    ]);
   });
 
   it("keeps workspace queries behind a single entry file", () => {
-    const workspaceQueryFiles = listSourceFiles("workspace/queries")
-      .map((filePath) => filePath.replace("../../src/workspace/queries/", ""))
-      .sort();
+    expect(listSourceFileNames("workspace/queries")).toEqual([
+      "workspaceQueries.ts",
+    ]);
+  });
 
-    expect(workspaceQueryFiles).toEqual(["workspaceQueries.ts"]);
+  it("keeps rendered React components out of workspace", () => {
+    const workspaceComponentFiles = listSourceFiles("workspace").filter(
+      (filePath) => filePath.endsWith(".tsx"),
+    );
+
+    expect(workspaceComponentFiles).toEqual([]);
+  });
+
+  it("keeps internal source imports following documented dependency direction", () => {
+    const violations = listInternalImports().flatMap(
+      ({ filePath, importPath, targetRoot }) => {
+        const sourceRoot = getSourceRoot(filePath);
+        const allowedImports = allowedRootImports.get(sourceRoot);
+
+        if (!allowedImports || allowedImports.has(targetRoot)) {
+          return [];
+        }
+
+        return [
+          `${filePath} imports ${importPath} (${sourceRoot} -> ${targetRoot})`,
+        ];
+      },
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps ui shared independent from shell and activities", () => {
+    const violations = listSourceFiles("ui/shared").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(
+          ({ targetPath }) =>
+            targetPath.startsWith("../../src/ui/shell/") ||
+            targetPath.startsWith("../../src/ui/activities/") ||
+            targetPath.startsWith("../../src/application/"),
+        )
+        .map(({ importPath }) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps ui activities independent from shell", () => {
+    const violations = listSourceFiles("ui/activities").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetPath }) => targetPath.startsWith("../../src/ui/shell/"))
+        .map(({ importPath }) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
   });
 
   it("keeps server from owning CTN syntax parsing rules", () => {
@@ -115,21 +315,12 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps server behind the storage execution boundary", () => {
+  it("keeps server behind the local HTTP and file repository boundary", () => {
     const blockedServerImports = [
       /^react$/,
       /^react\//,
       /\.\.\/src\//,
       /^src\//,
-      /ctn-parser/,
-      /ctn-syntax/,
-      /editor/,
-      /features/,
-      /shell/,
-      /workspace\/actions/,
-      /workspace\/index/,
-      /workspace\/queries/,
-      /workspace\/runtime/,
     ];
     const violations = listServerFiles().flatMap((filePath) =>
       readServerImports(filePath)
@@ -146,288 +337,9 @@ describe("architecture module boundaries", () => {
 
   it("keeps frontend source out of server modules", () => {
     const violations = Object.keys(sourceModules).flatMap((filePath) =>
-      readImports(filePath)
+      readModuleImports(sourceModules, filePath)
         .filter((importPath) => /server\//.test(importPath))
         .map((importPath) => `${filePath} imports ${importPath}`),
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps rendered React components out of workspace", () => {
-    const workspaceComponentFiles = Object.keys(sourceModules).filter(
-      (filePath) => /^\.\.\/\.\.\/src\/workspace\/.+\.tsx$/.test(filePath),
-    );
-
-    expect(workspaceComponentFiles).toEqual([]);
-  });
-
-  it("keeps feature packages decoupled through shared feature modules", () => {
-    const featureDirs = [
-      "features/blocks",
-      "features/migration",
-      "features/notes",
-      "features/syntax",
-      "features/visualization",
-    ];
-    const consumerFeatureImport =
-      /^\.\.\/(migration|notes|syntax|visualization)(\/|$)/;
-    const violations = featureDirs.flatMap((featureDir) =>
-      listSourceFiles(featureDir).flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) => consumerFeatureImport.test(importPath))
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      ),
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps UI code behind workspace query and action boundaries", () => {
-    const uiDirs = ["app", "features", "shell"];
-    const blockedWorkspaceInternals = [
-      /workspace\/model\/noteTree/,
-      /workspace\/runtime\/[^'"]*Index/,
-    ];
-    const violations = uiDirs.flatMap((uiDir) =>
-      listSourceFiles(uiDir).flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) =>
-            blockedWorkspaceInternals.some((blockedImport) =>
-              blockedImport.test(importPath),
-            ),
-          )
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      ),
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps UI code behind workspace index queries", () => {
-    const uiDirs = ["app", "features", "shell"];
-    const violations = uiDirs.flatMap((uiDir) =>
-      listSourceFiles(uiDir).flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) => /workspace\/index/.test(importPath))
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      ),
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps storage adapters behind the app composition root", () => {
-    const uiSurfaceDirs = ["features", "shell"];
-    const violations = uiSurfaceDirs.flatMap((uiDir) =>
-      listSourceFiles(uiDir).flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) => /storage/.test(importPath))
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      ),
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps app storage wiring inside app runtime", () => {
-    const violations = listSourceFiles("app")
-      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
-      .flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) => /storage/.test(importPath))
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps app workspace runtime wiring inside app runtime", () => {
-    const violations = listSourceFiles("app")
-      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
-      .flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) => /workspace\/runtime/.test(importPath))
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps app workspace action wiring inside app runtime", () => {
-    const violations = listSourceFiles("app")
-      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
-      .flatMap((filePath) =>
-        readImports(filePath)
-          .filter((importPath) => /workspace\/actions/.test(importPath))
-          .map((importPath) => `${filePath} imports ${importPath}`),
-      );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps raw workspace data setters inside app runtime", () => {
-    const rawWorkspaceDataSetters = [
-      /\bcommitWorkspaceDataSnapshot\b/,
-      /\bsetWorkspaceData\b/,
-    ];
-    const violations = listSourceFiles("app")
-      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
-      .filter((filePath) =>
-        rawWorkspaceDataSetters.some((setterPattern) =>
-          setterPattern.test(sourceModules[filePath]),
-        ),
-      )
-      .sort();
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps workspace runtime indexes out of storage adapters", () => {
-    const blockedIndexImports = [/workspace\/runtime\/[^'"]*Index/];
-    const violations = listSourceFiles("storage").flatMap((filePath) =>
-      readImports(filePath)
-        .filter((importPath) =>
-          blockedIndexImports.some((blockedImport) =>
-            blockedImport.test(importPath),
-          ),
-        )
-        .map((importPath) => `${filePath} imports ${importPath}`),
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps core layers from depending on forbidden higher layers", () => {
-    const rules: BoundaryRule[] = [
-      {
-        fromDir: "workspace/model",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /ctn-parser/,
-          /ctn-syntax/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /runtime/,
-          /workspaceRuntime/,
-        ],
-      },
-      {
-        fromDir: "workspace/queries",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /runtime/,
-          /actions/,
-        ],
-      },
-      {
-        fromDir: "workspace/index",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /runtime/,
-          /actions/,
-          /queries/,
-        ],
-      },
-      {
-        fromDir: "workspace/actions",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /index/,
-          /queries/,
-          /runtime/,
-        ],
-      },
-      {
-        fromDir: "workspace/runtime",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /index/,
-        ],
-      },
-      {
-        fromDir: "ctn-syntax",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /workspace/,
-        ],
-      },
-      {
-        fromDir: "ctn-parser",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /editor/,
-          /features/,
-          /shell/,
-          /storage/,
-          /workspace/,
-        ],
-      },
-      {
-        fromDir: "storage",
-        blockedImports: [
-          /^react$/,
-          /^react\//,
-          /app/,
-          /ctn-syntax/,
-          /editor/,
-          /features/,
-          /shell/,
-          /workspace\/actions/,
-          /workspace\/index/,
-          /workspace\/queries/,
-          /workspace\/runtime/,
-        ],
-      },
-    ];
-
-    const violations = rules.flatMap((rule) =>
-      listSourceFiles(rule.fromDir).flatMap((filePath) => {
-        const fileImports = readImports(filePath);
-
-        return fileImports
-          .filter((importPath) =>
-            rule.blockedImports.some((blockedImport) =>
-              blockedImport.test(importPath),
-            ),
-          )
-          .map((importPath) => `${filePath} imports ${importPath}`);
-      }),
     );
 
     expect(violations).toEqual([]);

@@ -91,14 +91,12 @@
 
 ## 代码结构
 
-    src/app/          React 应用入口
-    src/features/     blocks、notes、syntax、migration、visualization 功能界面
-    src/shell/        应用外壳、活动栏和侧栏
-    src/workspace/    actions、index、model、queries、runtime workspace 业务边界
-    src/ctn-parser/   CTN 原文解析
-    src/ctn-syntax/   语法 profile 与 TOML
-    src/editor/       CodeMirror 集成
-    src/storage/      前端存储端口、DTO 和适配器
-    src/styles/       全局样式
-    server/           本地文件仓库 HTTP 执行端
-    tests/            单元测试
+    src/app/          应用组合根
+    src/application/  session、命令流程、加载保存、状态和端口调用
+    src/ui/           shell、activities、shared 用户界面
+    src/workspace/    model、commands、queries、indexes、context workspace 业务核心
+    src/ctn/          parser、syntax CTN 解析和语法核心
+    src/storage/      workspace 数据和 syntax source 读写
+    src/editor/       编辑器技术适配
+    server/           本地 HTTP API 和文件仓库执行端
+    tests/            单元测试和架构边界测试

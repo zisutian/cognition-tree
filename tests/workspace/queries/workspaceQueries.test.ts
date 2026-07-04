@@ -9,30 +9,25 @@ import {
   createNoteRecord,
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn-syntax/defaultSyntaxProfile";
-import { createInitialWorkspaceRuntime } from "../../../src/workspace/runtime/workspaceRuntime";
+import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { createInitialWorkspaceContext } from "../../../src/workspace/context/workspaceContext";
 import {
   collectWorkspaceNoteIdsInFolder,
   countWorkspaceFolders,
   createWorkspaceIndex,
-  createWorkspaceNoteSelectionTree,
   findActiveWorkspaceNote,
   findWorkspaceFolder,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
   getDefaultWorkspaceFolderId,
   getParsedWorkspaceNote,
-  getWorkspaceFolderChildCount,
-  getWorkspaceFolderDisplayTitle,
   getWorkspaceNoteReferenceGraph,
   getWorkspaceNoteLineCount,
   getWorkspaceNoteCount,
   getWorkspaceTree,
-  hasWorkspaceFolderChildren,
   hasWorkspaceNote,
   listWorkspaceNoteSummaries,
   listWorkspaceNotes,
-  orderWorkspaceTreeNodesFoldersFirst,
   resolveExistingWorkspaceFolderId,
 } from "../../../src/workspace/queries/workspaceQueries";
 
@@ -103,46 +98,10 @@ describe("workspace queries", () => {
     );
   });
 
-  it("prepares tree details for feature display without exposing note tree helpers", () => {
-    const workspace = createWorkspace();
-    const rootFolder = findWorkspaceFolder(workspace, "folder-inbox");
-
-    if (!rootFolder) {
-      throw new Error("Expected inbox folder to exist.");
-    }
-
-    expect(getWorkspaceFolderDisplayTitle(rootFolder.id, rootFolder.title)).toBe(
-      "仓库根目录",
-    );
-    expect(getWorkspaceFolderChildCount(rootFolder)).toBe(2);
-    expect(hasWorkspaceFolderChildren(rootFolder)).toBe(true);
-    expect(
-      orderWorkspaceTreeNodesFoldersFirst(rootFolder.children)[0],
-    ).toMatchObject({
-      id: "folder-project",
-      kind: "folder",
-    });
-
-    const selectionTree = createWorkspaceNoteSelectionTree(
-      [
-        { id: "note-source" },
-        { id: "note-target" },
-        { id: "note-orphan" },
-      ],
-      workspace.tree,
-    );
-
-    expect(selectionTree[selectionTree.length - 1]).toEqual({
-      id: "workspace-orphan-note-orphan",
-      kind: "note",
-      noteId: "note-orphan",
-    });
-  });
-
   it("reads parsed notes from the workspace index", () => {
     const note = createNoteRecord("note-first", "概念\n    : 定义", timestamp);
     const workspace = {
-      ...createInitialWorkspaceRuntime(defaultCtnSyntaxProfile),
+      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [note],
       activeNoteId: note.id,
     };
@@ -157,7 +116,7 @@ describe("workspace queries", () => {
 
   it("returns an empty parsed note for missing note ids", () => {
     const index = createWorkspaceIndex(
-      createInitialWorkspaceRuntime(defaultCtnSyntaxProfile),
+      createInitialWorkspaceContext(defaultCtnSyntaxProfile),
     );
     const result = getParsedWorkspaceNote(index, null);
 
@@ -176,7 +135,7 @@ describe("workspace queries", () => {
     const target = createNoteRecord("note-target", "Target", timestamp);
     const isolated = createNoteRecord("note-isolated", "Isolated", timestamp);
     const workspace = {
-      ...createInitialWorkspaceRuntime(defaultCtnSyntaxProfile),
+      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [source, target, isolated],
     };
 
@@ -218,7 +177,7 @@ describe("workspace queries", () => {
       timestamp,
     );
     const workspace = {
-      ...createInitialWorkspaceRuntime(defaultCtnSyntaxProfile),
+      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [source],
     };
 
@@ -251,7 +210,7 @@ describe("workspace queries", () => {
     );
     const target = createNoteRecord("note-target", "Target", timestamp);
     const workspace = {
-      ...createInitialWorkspaceRuntime(defaultCtnSyntaxProfile),
+      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [source, target],
     };
 
