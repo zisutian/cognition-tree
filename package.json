@@ -11,6 +11,7 @@
     "server": "node server/index.mjs",
     "build": "tsc && vite build",
     "check": "tsc --noEmit",
+    "hooks:install": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"

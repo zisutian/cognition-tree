@@ -38,11 +38,32 @@
 常用命令：
 
     pnpm install
+    pnpm hooks:install
     pnpm server
     pnpm dev
     pnpm test
     pnpm check
     pnpm build
+
+提交信息格式：
+
+    type(scope): subject
+
+提交类型：
+
+    feat
+    fix
+    refactor
+    test
+    docs
+    chore
+    build
+    ci
+
+本地提交钩子：
+
+    commit-msg：检查提交信息格式。
+    pre-commit：运行 git diff --cached --check、pnpm check 和架构边界测试。
 
 提交前验证：
 
