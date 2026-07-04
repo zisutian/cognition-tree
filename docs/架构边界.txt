@@ -1,68 +1,57 @@
 架构边界
 
 
-1. 文件职责
+1. 文档边界
 
-    架构边界文档：
-
-        记录系统模块边界。
-        记录依赖与归属。
-        谨慎修改。
-        使用正向描述。
+    本文记录目标目录职责和依赖方向。
+    本文采用最精简的正向描述。
+    文档边界章节保留。
 
 
-2. 模块职责
+2. 目录职责
 
-UI：
+src/app：
 
-    应用入口、应用外壳、用户可见功能界面。
-    App Runtime：React 生命周期、事件编排、workspace 命令装配、仓库路径、保存状态。
-    展示状态、接收输入、触发 workspace 命令。
+    应用组合根，装配 application、ui、storage、editor。
 
-Workspace：
+src/application：
 
-    workspace 业务边界。
-    WorkspaceData、语法 profile、命令参数和查询参数进入 workspace。
-    WorkspaceData、查询结果和操作结果离开 workspace。
-    Model：workspace 数据类型、笔记、目录树模型逻辑。
-    Actions：workspace 修改入口。
-    Queries：workspace 读取入口。
-    Index：解析缓存、引用图、高频查询。
-    Runtime：WorkspaceData 与语法 profile 的运行期组合，syntax source 到 profile 的装配。
+    应用用例编排，管理 session、命令流程、加载保存、状态和端口调用。
 
-CTN Parser：
+src/ui：
 
-    CTN 原文解析核心。
-    .ctn source 和 CtnSyntaxProfile 到结构结果、诊断、引用信息的转换。
+    shell：应用外壳，提供导航、侧栏框架、主区域和详情区域 slot。
+    activities：用户功能界面，承载 activity 视图、局部交互状态和 view model。
+    shared：UI 共用组件和展示结构。
 
-CTN Syntax：
+src/workspace：
 
-    CTN 语法核心。
-    CtnSyntaxProfile、默认语法、语法配置解析、validation、draft、tone 配置。
+    workspace 业务核心，承载数据模型、命令、查询、索引和语法上下文。
 
-Editor：
+src/ctn：
 
-    编辑器技术适配层。
-    编辑器集成能力。
+    parser：CTN 原文解析，输出结构、诊断和引用信息。
+    syntax：CTN 语法核心，提供 profile、默认语法、配置解析和校验。
 
-Storage：
+src/storage：
 
-    前端持久化端口和存储适配器。
-    workspace 数据契约读写适配。
-    syntax/workspace.toml 原文读写适配。
-    浏览器存储、HTTP 存储和后续云端存储的统一入口。
+    持久化端口和存储实现，负责 workspace 数据和 syntax source 读写。
 
-Server：
+src/editor：
 
-    Node HTTP API。
-    本地文件仓库读写执行端。
-    文件路径安全、原子写入、workspace manifest DTO 校验。
+    编辑器技术适配，提供编辑器组件、事件桥接和语法能力集成。
+
+server：
+
+    本地 HTTP API 和文件仓库执行端。
 
 
-3. 依赖与归属
+3. 依赖方向
 
-    UI -> Workspace、CTN Parser、CTN Syntax、Editor；App Runtime -> Storage；归属展示、交互状态、应用运行装配。
-    Workspace -> CTN Parser、CTN Syntax；归属模型、修改、查询、索引、runtime syntax 装配。
-    Storage -> Workspace Data；归属持久化端口、适配器、缓存读写、syntax 原文读写。
-    CTN Parser -> CTN Syntax；归属 CTN 原文解析。
-    Server -> Node HTTP、文件系统、本地文件仓库 DTO；归属本地文件 storage 执行端。
+    src/app -> src/application、src/ui、src/storage、src/editor
+    src/ui -> src/application、src/workspace、src/ctn、src/editor
+    src/application -> src/workspace、src/ctn、src/storage
+    src/workspace -> src/ctn
+    src/storage -> src/workspace、src/ctn
+    src/editor -> src/ctn
+    server -> Node HTTP、文件系统、本地文件仓库 DTO
