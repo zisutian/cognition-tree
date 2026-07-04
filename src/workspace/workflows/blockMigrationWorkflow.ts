@@ -1,14 +1,18 @@
 import { parseCtnDocument } from "../../ctn-parser/parseCtnDocument";
 import type { CtnBlock } from "../../ctn-parser/types";
 import {
-  moveNoteBlock,
-  type NoteBlockMigrationTargetPosition,
-} from "../model/noteBlockMigration";
+  moveNoteBlockText,
+  type BlockMigrationTargetPosition,
+} from "./blockMigrationText";
 import {
   inferNoteTitle,
   type NoteId,
   type NoteRecord,
 } from "../model/workspaceData";
+import {
+  findWorkspaceNote,
+  getWorkspaceNoteCount,
+} from "../queries/workspaceQueries";
 import type { CtnSyntaxProfile } from "../../ctn-syntax/types";
 import type { WorkspaceRuntime } from "../runtime/workspaceRuntime";
 
@@ -79,10 +83,6 @@ function createFailure(message: string): MoveWorkspaceBlockResult {
   };
 }
 
-function findNote(workspace: WorkspaceRuntime, noteId: NoteId) {
-  return workspace.notes.find((note) => note.id === noteId) ?? null;
-}
-
 function resolveMigrationNote(
   profile: CtnSyntaxProfile,
   note: NoteRecord,
@@ -96,7 +96,7 @@ function resolveMigrationNote(
 function resolveTargetPosition(
   targetBlocks: CtnBlock[],
   targetPositionRequest: WorkspaceBlockMigrationTargetPositionRequest,
-): NoteBlockMigrationTargetPosition | MoveWorkspaceBlockResult {
+): BlockMigrationTargetPosition | MoveWorkspaceBlockResult {
   if (targetPositionRequest.kind === "end") {
     return { kind: "end" };
   }
@@ -116,8 +116,8 @@ function resolveTargetPosition(
 }
 
 function isTargetPosition(
-  result: NoteBlockMigrationTargetPosition | MoveWorkspaceBlockResult,
-): result is NoteBlockMigrationTargetPosition {
+  result: BlockMigrationTargetPosition | MoveWorkspaceBlockResult,
+): result is BlockMigrationTargetPosition {
   return !("status" in result);
 }
 
@@ -125,8 +125,8 @@ function resolveMigrationInput(
   workspace: WorkspaceRuntime,
   request: WorkspaceBlockMigrationRequest,
 ) {
-  const sourceNote = findNote(workspace, request.sourceNoteId);
-  const targetNote = findNote(workspace, request.targetNoteId);
+  const sourceNote = findWorkspaceNote(workspace, request.sourceNoteId);
+  const targetNote = findWorkspaceNote(workspace, request.targetNoteId);
 
   if (!sourceNote || !targetNote) {
     return createFailure("源笔记或目标笔记不存在。");
@@ -184,7 +184,7 @@ export function previewWorkspaceBlockMigration(
   workspace: WorkspaceRuntime,
   request: WorkspaceBlockMigrationPreviewRequest,
 ): WorkspaceBlockMigrationPreviewResult {
-  if (workspace.notes.length < 2) {
+  if (getWorkspaceNoteCount(workspace) < 2) {
     return {
       message: "至少需要两篇笔记。",
       status: "blocked",
@@ -237,7 +237,7 @@ export function moveWorkspaceBlock(
     return migrationInput;
   }
 
-  const result = moveNoteBlock({
+  const result = moveNoteBlockText({
     sourceBlock: migrationInput.sourceBlock,
     sourceSource: migrationInput.sourceParsed.note.source,
     targetPosition: migrationInput.targetPosition,

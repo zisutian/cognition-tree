@@ -47,6 +47,43 @@ describe("architecture module boundaries", () => {
     expect(workspaceRootFiles).toEqual([]);
   });
 
+  it("keeps workspace submodules explicitly named", () => {
+    const workspaceSubmodules = [
+      ...new Set(
+        Object.keys(sourceModules).flatMap((filePath) => {
+          const match = filePath.match(/^\.\.\/\.\.\/src\/workspace\/([^/]+)\//);
+
+          return match ? [match[1]] : [];
+        }),
+      ),
+    ].sort();
+
+    expect(workspaceSubmodules).toEqual([
+      "actions",
+      "index",
+      "model",
+      "queries",
+      "runtime",
+      "workflows",
+    ]);
+  });
+
+  it("keeps workspace model focused on workspace data and tree model", () => {
+    const workspaceModelFiles = listSourceFiles("workspace/model")
+      .map((filePath) => filePath.replace("../../src/workspace/model/", ""))
+      .sort();
+
+    expect(workspaceModelFiles).toEqual(["noteTree.ts", "workspaceData.ts"]);
+  });
+
+  it("keeps workspace queries behind a single entry file", () => {
+    const workspaceQueryFiles = listSourceFiles("workspace/queries")
+      .map((filePath) => filePath.replace("../../src/workspace/queries/", ""))
+      .sort();
+
+    expect(workspaceQueryFiles).toEqual(["workspaceQueries.ts"]);
+  });
+
   it("keeps rendered React components out of workspace", () => {
     const workspaceComponentFiles = Object.keys(sourceModules).filter(
       (filePath) => /^\.\.\/\.\.\/src\/workspace\/.+\.tsx$/.test(filePath),
@@ -76,6 +113,80 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps UI code behind workspace query and action boundaries", () => {
+    const uiDirs = ["app", "features", "shell"];
+    const blockedWorkspaceInternals = [
+      /workspace\/model\/noteTree/,
+      /workspace\/runtime\/[^'"]*Index/,
+    ];
+    const violations = uiDirs.flatMap((uiDir) =>
+      listSourceFiles(uiDir).flatMap((filePath) =>
+        readImports(filePath)
+          .filter((importPath) =>
+            blockedWorkspaceInternals.some((blockedImport) =>
+              blockedImport.test(importPath),
+            ),
+          )
+          .map((importPath) => `${filePath} imports ${importPath}`),
+      ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps UI code behind workspace index queries", () => {
+    const uiDirs = ["app", "features", "shell"];
+    const violations = uiDirs.flatMap((uiDir) =>
+      listSourceFiles(uiDir).flatMap((filePath) =>
+        readImports(filePath)
+          .filter((importPath) => /workspace\/index/.test(importPath))
+          .map((importPath) => `${filePath} imports ${importPath}`),
+      ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps storage adapters behind the app composition root", () => {
+    const uiSurfaceDirs = ["features", "shell"];
+    const violations = uiSurfaceDirs.flatMap((uiDir) =>
+      listSourceFiles(uiDir).flatMap((filePath) =>
+        readImports(filePath)
+          .filter((importPath) => /storage/.test(importPath))
+          .map((importPath) => `${filePath} imports ${importPath}`),
+      ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps app storage wiring inside app runtime", () => {
+    const violations = listSourceFiles("app")
+      .filter((filePath) => !filePath.startsWith("../../src/app/runtime/"))
+      .flatMap((filePath) =>
+        readImports(filePath)
+          .filter((importPath) => /storage/.test(importPath))
+          .map((importPath) => `${filePath} imports ${importPath}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps workspace runtime indexes out of storage adapters", () => {
+    const blockedIndexImports = [/workspace\/runtime\/[^'"]*Index/];
+    const violations = listSourceFiles("storage").flatMap((filePath) =>
+      readImports(filePath)
+        .filter((importPath) =>
+          blockedIndexImports.some((blockedImport) =>
+            blockedImport.test(importPath),
+          ),
+        )
+        .map((importPath) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps core layers from depending on forbidden higher layers", () => {
     const rules: BoundaryRule[] = [
       {
@@ -91,6 +202,78 @@ describe("architecture module boundaries", () => {
           /storage/,
           /runtime/,
           /workspaceRuntime/,
+        ],
+      },
+      {
+        fromDir: "workspace/queries",
+        blockedImports: [
+          /^react$/,
+          /^react\//,
+          /app/,
+          /editor/,
+          /features/,
+          /shell/,
+          /storage/,
+          /runtime/,
+          /workflows/,
+          /actions/,
+        ],
+      },
+      {
+        fromDir: "workspace/index",
+        blockedImports: [
+          /^react$/,
+          /^react\//,
+          /app/,
+          /editor/,
+          /features/,
+          /shell/,
+          /storage/,
+          /runtime/,
+          /workflows/,
+          /actions/,
+          /queries/,
+        ],
+      },
+      {
+        fromDir: "workspace/actions",
+        blockedImports: [
+          /^react$/,
+          /^react\//,
+          /app/,
+          /editor/,
+          /features/,
+          /shell/,
+          /storage/,
+          /index/,
+          /queries/,
+          /runtime/,
+          /workflows/,
+        ],
+      },
+      {
+        fromDir: "workspace/runtime",
+        blockedImports: [
+          /^react$/,
+          /^react\//,
+          /app/,
+          /editor/,
+          /features/,
+          /shell/,
+          /storage/,
+          /index/,
+        ],
+      },
+      {
+        fromDir: "workspace/workflows",
+        blockedImports: [
+          /^react$/,
+          /^react\//,
+          /app/,
+          /editor/,
+          /features/,
+          /shell/,
+          /storage/,
         ],
       },
       {
@@ -128,6 +311,11 @@ describe("architecture module boundaries", () => {
           /editor/,
           /features/,
           /shell/,
+          /workspace\/actions/,
+          /workspace\/index/,
+          /workspace\/queries/,
+          /workspace\/runtime/,
+          /workspace\/workflows/,
         ],
       },
     ];

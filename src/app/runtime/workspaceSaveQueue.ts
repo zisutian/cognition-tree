@@ -1,4 +1,4 @@
-import type { WorkspaceData } from "../model/workspaceData";
+import type { WorkspaceData } from "../../workspace/model/workspaceData";
 
 export type WorkspaceSaveStatus = "idle" | "saving" | "saved" | "error";
 

@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { FolderPlus, Plus } from "lucide-react";
 import {
-  defaultFolderId,
   type FolderId,
   type NoteId,
   type NoteRecord,
   type NoteTreeNode,
 } from "../../workspace/model/workspaceData";
 import {
-  countFolders,
-  findFolderIdContainingNote,
-} from "../../workspace/model/noteTree";
+  countWorkspaceFolders,
+  findWorkspaceFolderIdContainingNote,
+  getDefaultWorkspaceFolderId,
+} from "../../workspace/queries/workspaceQueries";
 import {
   SidebarNoteTree,
   type TreeContextMenuPosition,
@@ -81,10 +81,11 @@ export function SidebarNotesPanel({
   );
   const [contextMenu, setContextMenu] =
     useState<SidebarTreeContextMenu | null>(null);
+  const treeSource = { tree: noteTree };
   const notesById = new Map(notes.map((note) => [note.id, note]));
-  const folderCount = countFolders(noteTree);
+  const folderCount = countWorkspaceFolders(treeSource);
   const activeNoteFolderId = activeNoteId
-    ? findFolderIdContainingNote(noteTree, activeNoteId)
+    ? findWorkspaceFolderIdContainingNote(treeSource, activeNoteId)
     : null;
 
   useEffect(() => {
@@ -191,7 +192,10 @@ export function SidebarNotesPanel({
     onMoveNote(activeNoteId, folderId);
   };
   const moveNoteToSelectedFolder = (noteId: NoteId) => {
-    if (findFolderIdContainingNote(noteTree, noteId) === activeFolderId) {
+    if (
+      findWorkspaceFolderIdContainingNote(treeSource, noteId) ===
+      activeFolderId
+    ) {
       return;
     }
 
@@ -257,7 +261,9 @@ export function SidebarNotesPanel({
                   新建子文件夹
                 </button>
                 <button
-                  disabled={contextMenu.folderId === defaultFolderId}
+                  disabled={
+                    contextMenu.folderId === getDefaultWorkspaceFolderId()
+                  }
                   onClick={() =>
                     requestRenameFolder(contextMenu.folderId, contextMenu.title)
                   }
@@ -278,7 +284,8 @@ export function SidebarNotesPanel({
                 </button>
                 <button
                   disabled={
-                    contextMenu.folderId === defaultFolderId || folderCount <= 1
+                    contextMenu.folderId === getDefaultWorkspaceFolderId() ||
+                    folderCount <= 1
                   }
                   onClick={() =>
                     requestDeleteFolder(contextMenu.folderId, contextMenu.title)
@@ -293,8 +300,10 @@ export function SidebarNotesPanel({
               <>
                 <button
                   disabled={
-                    findFolderIdContainingNote(noteTree, contextMenu.noteId) ===
-                    activeFolderId
+                    findWorkspaceFolderIdContainingNote(
+                      treeSource,
+                      contextMenu.noteId,
+                    ) === activeFolderId
                   }
                   onClick={() => moveNoteToSelectedFolder(contextMenu.noteId)}
                   role="menuitem"

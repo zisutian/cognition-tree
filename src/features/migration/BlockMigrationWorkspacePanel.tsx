@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import type { NoteId } from "../../workspace/model/workspaceData";
+import {
+  findWorkspaceNote,
+  getWorkspaceTree,
+  listWorkspaceNoteSummaries,
+  listWorkspaceNotes,
+} from "../../workspace/queries/workspaceQueries";
 import type { WorkspaceBlockMigrationRequest } from "../../workspace/workflows/blockMigrationWorkflow";
 import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
 import { BlockMigrationView } from "./BlockMigrationView";
@@ -21,40 +27,37 @@ export function BlockMigrationWorkspacePanel({
   onMoveNoteBlock,
   workspace,
 }: BlockMigrationWorkspacePanelProps) {
-  const notes = workspace.notes;
+  const notes = listWorkspaceNotes(workspace);
   const [mode, setMode] = useState<MigrationMode>("note");
   const [sourceNoteId, setSourceNoteId] = useState("");
   const [targetNoteId, setTargetNoteId] = useState("");
 
   useEffect(() => {
-    if (sourceNoteId && notes.some((note) => note.id === sourceNoteId)) {
+    if (sourceNoteId && findWorkspaceNote(workspace, sourceNoteId)) {
       return;
     }
 
-    if (activeNoteId && notes.some((note) => note.id === activeNoteId)) {
+    if (activeNoteId && findWorkspaceNote(workspace, activeNoteId)) {
       setSourceNoteId(activeNoteId);
       return;
     }
 
     setSourceNoteId(notes[0]?.id ?? "");
-  }, [activeNoteId, notes, sourceNoteId]);
+  }, [activeNoteId, notes, sourceNoteId, workspace]);
 
   useEffect(() => {
     if (
       targetNoteId &&
       targetNoteId !== sourceNoteId &&
-      notes.some((note) => note.id === targetNoteId)
+      findWorkspaceNote(workspace, targetNoteId)
     ) {
       return;
     }
 
     setTargetNoteId(notes.find((note) => note.id !== sourceNoteId)?.id ?? "");
-  }, [notes, sourceNoteId, targetNoteId]);
+  }, [notes, sourceNoteId, targetNoteId, workspace]);
 
-  const noteRecords = notes.map((note) => ({
-    id: note.id,
-    title: note.title,
-  }));
+  const noteRecords = listWorkspaceNoteSummaries(workspace);
 
   return (
     <section
@@ -89,6 +92,7 @@ export function BlockMigrationWorkspacePanel({
 
       {mode === "note" ? (
         <NoteSelectionView
+          noteTree={getWorkspaceTree(workspace)}
           notes={noteRecords}
           sourceNoteId={sourceNoteId}
           targetNoteId={targetNoteId}

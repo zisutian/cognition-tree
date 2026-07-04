@@ -5,13 +5,17 @@ import {
   Folder,
 } from "lucide-react";
 import {
-  defaultFolderId,
   type FolderId,
   type NoteId,
   type NoteRecord,
   type NoteTreeNode,
 } from "../../workspace/model/workspaceData";
-import { orderNoteTreeNodesFoldersFirst } from "../../workspace/model/noteTree";
+import {
+  getWorkspaceFolderChildCount,
+  getWorkspaceFolderDisplayTitle,
+  hasWorkspaceFolderChildren,
+  orderWorkspaceTreeNodesFoldersFirst,
+} from "../../workspace/queries/workspaceQueries";
 
 export type TreeContextMenuPosition = {
   x: number;
@@ -39,10 +43,6 @@ type SidebarNoteTreeProps = {
   onToggleFolder: (folderId: FolderId) => void;
 };
 
-function getFolderDisplayTitle(folderId: FolderId, title: string) {
-  return folderId === defaultFolderId ? "仓库根目录" : title;
-}
-
 export function SidebarNoteTree({
   activeFolderId,
   activeNoteId,
@@ -55,15 +55,15 @@ export function SidebarNoteTree({
   onSelectNote,
   onToggleFolder,
 }: SidebarNoteTreeProps) {
-  const orderedNodes = orderNoteTreeNodesFoldersFirst(nodes);
+  const orderedNodes = orderWorkspaceTreeNodesFoldersFirst(nodes);
 
   return (
     <>
       {orderedNodes.map((node) => {
         if (node.kind === "folder") {
           const isCollapsed = collapsedFolderIds.has(node.id);
-          const hasChildren = node.children.length > 0;
-          const title = getFolderDisplayTitle(node.id, node.title);
+          const hasChildren = hasWorkspaceFolderChildren(node);
+          const title = getWorkspaceFolderDisplayTitle(node.id, node.title);
           const openFolderMenu = (
             event: React.MouseEvent<HTMLDivElement>,
           ) => {
@@ -123,7 +123,7 @@ export function SidebarNoteTree({
                   <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
                   <span className="ctn-tree-text">{title}</span>
                   <small className="ctn-tree-meta">
-                    {node.children.length}
+                    {getWorkspaceFolderChildCount(node)}
                   </small>
                 </button>
               </div>

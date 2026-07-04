@@ -831,6 +831,22 @@
   overflow: auto;
 }
 
+.migration-note-list > .ctn-tree-list {
+  min-width: 0;
+}
+
+.migration-note-folder-row {
+  min-width: 0;
+}
+
+.migration-note-folder-label {
+  color: #4a5651;
+}
+
+.migration-note-folder-row:hover .migration-note-folder-label {
+  background: var(--color-selection);
+}
+
 .migration-note-row.is-drop-target {
   background: var(--color-accent-soft);
   box-shadow: inset 2px 0 0 var(--color-accent);

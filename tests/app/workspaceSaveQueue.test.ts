@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
-} from "../../../src/workspace/model/workspaceData";
+} from "../../src/workspace/model/workspaceData";
 import {
   createWorkspaceSaveQueue,
   type WorkspaceSaveStatus,
-} from "../../../src/workspace/session/workspaceSaveQueue";
+} from "../../src/app/runtime/workspaceSaveQueue";
 
 function createWorkspace(name: string): WorkspaceData {
   return {

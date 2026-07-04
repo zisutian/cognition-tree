@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BlockMigrationWorkspacePanel } from "../features/migration/BlockMigrationWorkspacePanel";
 import { NoteEditorPanel } from "../features/notes/NoteEditorPanel";
 import { NoteOutlinePanel } from "../features/notes/NoteOutlinePanel";
@@ -11,21 +11,63 @@ import {
   WorkspaceSidebar,
 } from "../shell/WorkspaceSidebar";
 import "../styles/index.css";
-import { createNoteReferenceGraph } from "../workspace/view-model/noteReferenceGraph";
-import { resolveParsedNoteView } from "../workspace/view-model/parsedNoteView";
-import { useWorkspaceController } from "../workspace/commands/useWorkspaceController";
 import { useSyntaxDraftSession } from "../features/syntax/useSyntaxDraftSession";
+import type { FolderId, NoteId } from "../workspace/model/workspaceData";
+import {
+  createWorkspaceFolder,
+  createWorkspaceNote,
+  deleteWorkspaceFolder,
+  deleteWorkspaceNote,
+  moveWorkspaceNote,
+  renameWorkspaceFolder,
+  selectWorkspaceNote,
+  updateActiveWorkspaceNoteSource,
+} from "../workspace/actions/workspaceActions";
+import {
+  createWorkspaceNoteReferenceGraph,
+  findActiveWorkspaceNote,
+  findWorkspaceFolderIdContainingNote,
+  getDefaultWorkspaceFolderId,
+  getWorkspaceTree,
+  listWorkspaceNotes,
+  resolveExistingWorkspaceFolderId,
+  resolveParsedWorkspaceNote,
+} from "../workspace/queries/workspaceQueries";
+import {
+  moveWorkspaceBlock,
+  type WorkspaceBlockMigrationRequest,
+} from "../workspace/workflows/blockMigrationWorkflow";
+import { useWorkspaceSession } from "./runtime/useWorkspaceSession";
+import { toWorkspaceData } from "../workspace/runtime/workspaceRuntime";
 
 type EditorFocusRequest = {
   lineNumber: number;
   requestId: number;
 };
 
+type MoveWorkspaceBlockActionResult =
+  | {
+      message: string;
+      status: "moved";
+    }
+  | {
+      message: string;
+      status: "failed";
+    };
+
 const emptyNoteReferenceGraph = {
   edges: [],
   nodes: [],
   unresolvedReferences: [],
 };
+
+function createLocalFolderId() {
+  return `folder-${globalThis.crypto.randomUUID()}`;
+}
+
+function createLocalNoteId() {
+  return `note-${Date.now()}`;
+}
 
 function App() {
   const [activeActivityId, setActiveActivityId] =
@@ -34,30 +76,130 @@ function App() {
     useState<EditorFocusRequest | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const {
-    activeNote,
     canChangeRepositoryPath,
     changeRepositoryPath,
-    createFolder,
-    createNote,
-    deleteFolder,
-    deleteNote,
     isWorkspaceLoaded,
-    moveNoteBlock,
-    moveNote,
     reloadWorkspace,
     repositoryPath,
-    renameFolder,
-    selectFolder,
-    selectNote,
-    selectedFolderId,
+    setWorkspaceData,
     storageLabel,
     syntaxFile,
-    updateActiveNoteSource,
     updateSyntaxFile,
     workspace,
     workspaceErrorMessage,
     workspaceSaveStatus,
-  } = useWorkspaceController();
+  } = useWorkspaceSession();
+  const [selectedFolderId, setSelectedFolderId] =
+    useState<FolderId>(getDefaultWorkspaceFolderId);
+  const activeNote = findActiveWorkspaceNote(workspace);
+
+  useEffect(() => {
+    setSelectedFolderId((currentFolderId) =>
+      resolveExistingWorkspaceFolderId(workspace, currentFolderId),
+    );
+  }, [workspace]);
+
+  const selectNote = (noteId: NoteId) => {
+    const folderId = findWorkspaceFolderIdContainingNote(workspace, noteId);
+
+    if (folderId) {
+      setSelectedFolderId(folderId);
+    }
+
+    setWorkspaceData((current) => selectWorkspaceNote(current, noteId));
+  };
+
+  const selectFolder = (folderId: FolderId) => {
+    setSelectedFolderId(resolveExistingWorkspaceFolderId(workspace, folderId));
+  };
+
+  const createNote = () => {
+    const timestamp = new Date().toISOString();
+    const noteId = createLocalNoteId();
+
+    setWorkspaceData((current) =>
+      createWorkspaceNote(current, {
+        folderId: selectedFolderId,
+        noteId,
+        timestamp,
+      }),
+    );
+  };
+
+  const createFolder = (parentFolderId: FolderId, title: string) => {
+    const folderId = createLocalFolderId();
+
+    setWorkspaceData((current) =>
+      createWorkspaceFolder(current, {
+        folderId,
+        parentFolderId,
+        title,
+      }),
+    );
+    setSelectedFolderId(folderId);
+  };
+
+  const renameFolder = (folderId: FolderId, title: string) => {
+    setWorkspaceData((current) =>
+      renameWorkspaceFolder(current, folderId, title),
+    );
+    setSelectedFolderId(folderId);
+  };
+
+  const deleteNote = (noteId: NoteId) => {
+    setWorkspaceData((current) => deleteWorkspaceNote(current, noteId));
+  };
+
+  const deleteFolder = (folderId: FolderId) => {
+    setWorkspaceData((current) => deleteWorkspaceFolder(current, folderId));
+    setSelectedFolderId(getDefaultWorkspaceFolderId());
+  };
+
+  const moveNote = (noteId: NoteId, targetFolderId: FolderId) => {
+    setWorkspaceData((current) =>
+      moveWorkspaceNote(current, noteId, targetFolderId),
+    );
+    setSelectedFolderId(targetFolderId);
+  };
+
+  const updateActiveNoteSource = (source: string) => {
+    const timestamp = new Date().toISOString();
+
+    setWorkspaceData((current) =>
+      updateActiveWorkspaceNoteSource(current, source, timestamp),
+    );
+  };
+
+  const moveNoteBlock = (
+    request: WorkspaceBlockMigrationRequest,
+  ): MoveWorkspaceBlockActionResult => {
+    const result = moveWorkspaceBlock(
+      workspace,
+      request,
+      new Date().toISOString(),
+    );
+
+    if (result.status !== "moved") {
+      return {
+        message: result.message,
+        status: "failed",
+      };
+    }
+
+    setWorkspaceData(toWorkspaceData(result.workspace));
+    setSelectedFolderId(
+      findWorkspaceFolderIdContainingNote(
+        result.workspace,
+        result.targetNoteId,
+      ) ??
+        selectedFolderId,
+    );
+
+    return {
+      message: result.message,
+      status: "moved",
+    };
+  };
   const {
     effectiveWorkspace,
     syntaxDraft,
@@ -76,21 +218,19 @@ function App() {
     saved: "已保存",
     saving: "保存中",
   }[workspaceSaveStatus];
-  const effectiveActiveNote =
-    effectiveWorkspace.notes.find(
-      (note) => note.id === effectiveWorkspace.activeNoteId,
-    ) ?? null;
-  const parsedNoteView = useMemo(
-    () => resolveParsedNoteView(effectiveWorkspace, effectiveActiveNote),
+  const effectiveActiveNote = findActiveWorkspaceNote(effectiveWorkspace);
+  const parsedWorkspaceNote = useMemo(
+    () =>
+      resolveParsedWorkspaceNote(effectiveWorkspace, effectiveActiveNote),
     [effectiveActiveNote, effectiveWorkspace],
   );
-  const documentText = parsedNoteView.source;
-  const activeSyntaxProfile = parsedNoteView.profile;
-  const parsedDocument = parsedNoteView.document;
+  const documentText = parsedWorkspaceNote.source;
+  const activeSyntaxProfile = parsedWorkspaceNote.profile;
+  const parsedDocument = parsedWorkspaceNote.document;
   const noteReferenceGraph = useMemo(
     () =>
       activeActivityId === "visualization"
-        ? createNoteReferenceGraph(effectiveWorkspace)
+        ? createWorkspaceNoteReferenceGraph(effectiveWorkspace)
         : emptyNoteReferenceGraph,
     [activeActivityId, effectiveWorkspace],
   );
@@ -192,8 +332,8 @@ function App() {
         activeActivityId={activeActivityId}
         activeFolderId={selectedFolderId}
         activeNoteId={activeNote?.id ?? null}
-        notes={workspace.notes}
-        noteTree={workspace.tree}
+        notes={listWorkspaceNotes(workspace)}
+        noteTree={getWorkspaceTree(workspace)}
         repositoryPath={repositoryPath}
         saveStatusLabel={workspaceSaveStatusLabel}
         storageLabel={storageLabel}

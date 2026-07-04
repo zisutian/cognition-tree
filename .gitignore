@@ -24,7 +24,6 @@ test-results/
 .codex/
 
 # Local planning notes
-docs/长期规划原则.txt
 docs/重构原则.txt
 docs/*.zip
 

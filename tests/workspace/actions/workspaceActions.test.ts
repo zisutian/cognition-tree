@@ -17,36 +17,27 @@ import {
   deleteWorkspaceNote,
   moveWorkspaceNote,
   renameWorkspaceFolder,
-  resolveExistingFolderId,
   selectWorkspaceNote,
   updateActiveWorkspaceNoteSource,
-} from "../../../src/workspace/model/workspaceActions";
+} from "../../../src/workspace/actions/workspaceActions";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
 function createWorkspaceWithNotes(): WorkspaceData {
-  const firstNote = createNoteRecord(
-    "note-first",
-    "第一篇",
-    timestamp,
-  );
-  const secondNote = createNoteRecord(
-    "note-second",
-    "第二篇",
-    timestamp,
-  );
+  const firstNote = createNoteRecord("note-first", "第一篇", timestamp);
+  const secondNote = createNoteRecord("note-second", "第二篇", timestamp);
   const workspace = createInitialWorkspaceData();
 
-    return {
-      ...workspace,
-      activeNoteId: firstNote.id,
-      notes: [firstNote, secondNote],
-      tree: appendNoteToWorkspaceTree(
-        appendNoteToWorkspaceTree(workspace.tree, firstNote.id, "folder-inbox"),
-        secondNote.id,
-        "folder-inbox",
-      ),
-    };
+  return {
+    ...workspace,
+    activeNoteId: firstNote.id,
+    notes: [firstNote, secondNote],
+    tree: appendNoteToWorkspaceTree(
+      appendNoteToWorkspaceTree(workspace.tree, firstNote.id, "folder-inbox"),
+      secondNote.id,
+      "folder-inbox",
+    ),
+  };
 }
 
 describe("workspace actions", () => {
@@ -86,7 +77,9 @@ describe("workspace actions", () => {
 
     expect(nextWorkspace.activeNoteId).toBe("note-first");
     expect(nextWorkspace.notes.map((note) => note.id)).toEqual(["note-first"]);
-    expect(findFolderIdContainingNote(nextWorkspace.tree, "note-second")).toBeNull();
+    expect(
+      findFolderIdContainingNote(nextWorkspace.tree, "note-second"),
+    ).toBeNull();
   });
 
   it("creates, renames, deletes folders and removes nested notes", () => {
@@ -96,23 +89,18 @@ describe("workspace actions", () => {
       parentFolderId: "folder-inbox",
       title: "  目标  ",
     });
-    const renamed = renameWorkspaceFolder(
-      withFolder,
-      "folder-target",
-      "资料",
-    );
+    const renamed = renameWorkspaceFolder(withFolder, "folder-target", "资料");
     const moved = moveWorkspaceNote(renamed, "note-second", "folder-target");
     const deleted = deleteWorkspaceFolder(moved, "folder-target");
 
-    expect(resolveExistingFolderId(withFolder, "folder-target")).toBe(
-      "folder-target",
-    );
     expect(JSON.stringify(renamed.tree)).toContain("资料");
     expect(findFolderIdContainingNote(moved.tree, "note-second")).toBe(
       "folder-target",
     );
     expect(deleted.notes.map((note) => note.id)).toEqual(["note-first"]);
-    expect(findFolderIdContainingNote(deleted.tree, "note-second")).toBeNull();
+    expect(
+      findFolderIdContainingNote(deleted.tree, "note-second"),
+    ).toBeNull();
   });
 
   it("updates active note source", () => {

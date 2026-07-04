@@ -10,7 +10,7 @@ import {
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
-} from "./noteTree";
+} from "../model/noteTree";
 import {
   createNoteRecord,
   defaultFolderId,
@@ -19,9 +19,13 @@ import {
   type NoteId,
   type NoteRecord,
   type WorkspaceData,
-} from "./workspaceData";
+} from "../model/workspaceData";
 
-export function resolveExistingFolderId(
+function hasWorkspaceNote(workspace: WorkspaceData, noteId: NoteId) {
+  return workspace.notes.some((note) => note.id === noteId);
+}
+
+function resolveExistingWorkspaceFolderId(
   workspace: WorkspaceData,
   preferredFolderId: FolderId,
 ) {
@@ -36,7 +40,7 @@ export function selectWorkspaceNote(
   workspace: WorkspaceData,
   noteId: NoteId,
 ): WorkspaceData {
-  if (!workspace.notes.some((note) => note.id === noteId)) {
+  if (!hasWorkspaceNote(workspace, noteId)) {
     return workspace;
   }
 
@@ -58,7 +62,7 @@ export function createWorkspaceNote(
     timestamp: string;
   },
 ): WorkspaceData {
-  const targetFolderId = resolveExistingFolderId(workspace, folderId);
+  const targetFolderId = resolveExistingWorkspaceFolderId(workspace, folderId);
   const note = createNoteRecord(noteId, "", timestamp);
 
   return {
@@ -87,7 +91,10 @@ export function createWorkspaceFolder(
     return workspace;
   }
 
-  const targetFolderId = resolveExistingFolderId(workspace, parentFolderId);
+  const targetFolderId = resolveExistingWorkspaceFolderId(
+    workspace,
+    parentFolderId,
+  );
 
   return {
     ...workspace,
@@ -149,7 +156,9 @@ export function deleteWorkspaceFolder(
     return workspace;
   }
 
-  const removedNoteIds = new Set(collectNoteIdsInFolder(workspace.tree, folderId));
+  const removedNoteIds = new Set(
+    collectNoteIdsInFolder(workspace.tree, folderId),
+  );
   const notes = workspace.notes.filter((note) => !removedNoteIds.has(note.id));
 
   return {
@@ -168,11 +177,14 @@ export function moveWorkspaceNote(
   noteId: NoteId,
   targetFolderId: FolderId,
 ): WorkspaceData {
-  if (!workspace.notes.some((note) => note.id === noteId)) {
+  if (!hasWorkspaceNote(workspace, noteId)) {
     return workspace;
   }
 
-  const nextTargetFolderId = resolveExistingFolderId(workspace, targetFolderId);
+  const nextTargetFolderId = resolveExistingWorkspaceFolderId(
+    workspace,
+    targetFolderId,
+  );
 
   return {
     ...workspace,

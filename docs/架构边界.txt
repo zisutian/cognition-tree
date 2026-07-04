@@ -1,64 +1,66 @@
 架构边界
 
 
-1. 逻辑模块
+1. 文件职责
+
+    架构边界文档：
+
+        记录系统模块边界。
+        记录依赖与归属。
+
+    不允许轻易进行修改
+
+2. 模块
 
 UI：
 
-    应用入口、应用外壳和用户可见功能界面。
-    负责展示状态、接收输入和触发命令。
-    共享 UI 渲染结构属于 UI 层。
+    应用入口、应用外壳、用户可见功能界面。
+    应用运行装配。
+    App Runtime（src/app/runtime）：React 生命周期、workspace 持久化装配、仓库路径、保存状态。
+    展示状态、接收输入、触发命令。
+    共享 UI 渲染结构。
 
 Workspace：
 
     应用运行边界和 workspace 模型边界。
-    包含 workspace 数据模型、运行时聚合、session、command、workflow 和 view model。
-    Workspace Model 承载笔记、目录树、块文本移动和 workspace action 的纯模型规则。
+    数据模型、actions、queries、index、runtime、workflows。
+    Model：workspace 数据类型、笔记、目录树的纯模型逻辑。
+    Actions：workspace 纯模型修改入口。
+    Queries：结构读取、index 读取、上层查询入口。
+    Workflows：跨笔记、跨目录树的复合操作。
+    Index：解析结果、引用图、高频查询加速、索引失效逻辑。
 
 CTN Parser：
 
     CTN 原文解析核心。
-    把 .ctn source 和 CtnSyntaxProfile 解析成结构结果、诊断和引用信息。
+    .ctn source 和 CtnSyntaxProfile 到结构结果、诊断、引用信息的转换。
 
 CTN Syntax：
 
     CTN 语法核心。
-    包含 CtnSyntaxProfile、默认语法、语法配置解析、validation、draft 和 tone 规则。
+    CtnSyntaxProfile、默认语法、语法配置解析、validation、draft、tone 配置。
 
 Editor：
 
     编辑器技术适配层。
-    提供编辑器集成能力。
+    编辑器集成能力。
 
 Storage：
 
     前端持久化端口和存储适配器。
-    承载 workspace 数据契约的读写适配。
+    workspace 数据契约读写适配。
+    可恢复缓存载体读写。
 
 Server：
 
-    Node HTTP API 和本地文件仓库读写。
+    Node HTTP API。
+    本地文件仓库读写。
 
 
-2. 当前依赖关系
+3. 依赖与归属
 
-    UI -> Workspace
-    UI -> CTN Parser
-    UI -> CTN Syntax
-    UI -> Editor
-    Workspace -> CTN Parser
-    Workspace -> CTN Syntax
-    Workspace -> Storage
-    Storage -> Workspace Data
-    Storage -> CTN Syntax
-    CTN Parser -> CTN Syntax
-
-
-3. 隔离边界
-
-    Workspace 不依赖 UI。
-    Storage 不依赖 UI。
-    CTN Syntax 不依赖 Workspace 和 UI。
-    CTN Parser 不依赖 Workspace 和 UI。
-    Workspace Model 不依赖 CTN Syntax、Storage 和 React。
-    React 组件、交互状态和视觉结构位于 UI 层。
+    UI -> Workspace、CTN Parser、CTN Syntax、Editor；App Runtime -> Storage；归属展示、交互状态、应用运行装配。
+    Workspace -> CTN Parser、CTN Syntax；归属模型、修改、查询、索引、流程。
+    Storage -> Workspace Data、CTN Syntax；归属持久化端口、适配器、缓存读写。
+    CTN Parser -> CTN Syntax；归属 CTN 原文解析。
+    Server -> HTTP API、本地文件仓库读写。

@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { parseCtnDocument } from "../../../src/ctn-parser/parseCtnDocument";
 import {
-  moveNoteBlock,
-  type NoteBlockMigrationBlock,
-} from "../../../src/workspace/model/noteBlockMigration";
+  moveNoteBlockText,
+  type BlockMigrationBlock,
+} from "../../../src/workspace/workflows/blockMigrationText";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn-syntax/defaultSyntaxProfile";
 
-function parseBlocks(source: string): NoteBlockMigrationBlock[] {
+function parseBlocks(source: string): BlockMigrationBlock[] {
   return parseCtnDocument(source, defaultCtnSyntaxProfile).blocks;
 }
 
-describe("note block migration", () => {
+describe("block migration text", () => {
   it("moves a whole subtree between notes and rewrites indentation", () => {
     const sourceSource = "Root\n\t: Definition\n\t\t- Component\nSibling";
     const targetSource = "Target\n\t> Understanding";
     const sourceBlocks = parseBlocks(sourceSource);
     const targetBlocks = parseBlocks(targetSource);
-    const result = moveNoteBlock({
+    const result = moveNoteBlockText({
       sourceBlock: sourceBlocks[1],
       sourceSource,
       targetPosition: {
@@ -39,7 +39,7 @@ describe("note block migration", () => {
     const targetSource = "Target\n\t> Understanding";
     const sourceBlocks = parseBlocks(sourceSource);
     const targetBlocks = parseBlocks(targetSource);
-    const result = moveNoteBlock({
+    const result = moveNoteBlockText({
       sourceBlock: sourceBlocks[1],
       sourceSource,
       targetPosition: {
@@ -62,7 +62,7 @@ describe("note block migration", () => {
     const targetSource = "Target\n\t> Understanding";
     const sourceBlocks = parseBlocks(sourceSource);
     const targetBlocks = parseBlocks(targetSource);
-    const result = moveNoteBlock({
+    const result = moveNoteBlockText({
       sourceBlock: sourceBlocks[1],
       sourceSource,
       targetPosition: {
@@ -85,7 +85,7 @@ describe("note block migration", () => {
     const sourceBlocks = parseBlocks(sourceSource);
 
     expect(
-      moveNoteBlock({
+      moveNoteBlockText({
         sourceBlock: sourceBlocks[0],
         sourceSource,
         targetPosition: { kind: "end" },
@@ -98,4 +98,39 @@ describe("note block migration", () => {
     });
   });
 
+  it("inserts before a target terminal newline", () => {
+    const sourceSource = "Root";
+    const sourceBlocks = parseBlocks(sourceSource);
+
+    expect(
+      moveNoteBlockText({
+        sourceBlock: sourceBlocks[0],
+        sourceSource,
+        targetPosition: { kind: "end" },
+        targetSource: "Target\n",
+      }),
+    ).toEqual({
+      nextSourceSource: "",
+      nextTargetSource: "Target\nRoot\n",
+      status: "moved",
+    });
+  });
+
+  it("keeps multiline block contents relative to the moved subtree", () => {
+    const sourceSource = "Root\n\t```ts\n\t\tconst value = 1;\n\t```";
+    const sourceBlocks = parseBlocks(sourceSource);
+
+    expect(
+      moveNoteBlockText({
+        sourceBlock: sourceBlocks[1],
+        sourceSource,
+        targetPosition: { kind: "end" },
+        targetSource: "",
+      }),
+    ).toEqual({
+      nextSourceSource: "Root",
+      nextTargetSource: "```ts\n\tconst value = 1;\n```",
+      status: "moved",
+    });
+  });
 });

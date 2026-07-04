@@ -1,4 +1,4 @@
-import type { NoteReferenceGraph } from "../../workspace/view-model/noteReferenceGraph";
+import type { NoteReferenceGraph } from "../../workspace/queries/workspaceQueries";
 
 type NoteReferenceGraphDetailPanelProps = {
   graph: NoteReferenceGraph;

@@ -9,7 +9,7 @@ import {
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
-} from "../model/workspaceData";
+} from "../../workspace/model/workspaceData";
 import { createRuntimeWorkspaceRepository } from "../../storage/runtimeWorkspaceRepository";
 import type { WorkspaceSyntaxFile } from "../../storage/workspaceRepository";
 import { defaultCtnSyntaxProfile } from "../../ctn-syntax/defaultSyntaxProfile";
@@ -20,7 +20,7 @@ import {
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceRuntime,
-} from "../runtime/workspaceRuntime";
+} from "../../workspace/runtime/workspaceRuntime";
 
 export type { WorkspaceSaveStatus } from "./workspaceSaveQueue";
 

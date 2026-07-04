@@ -1,7 +1,10 @@
 import type { DragEvent } from "react";
 import { useMemo, useState } from "react";
 import type { NoteId } from "../../workspace/model/workspaceData";
-import { resolveParsedNoteView } from "../../workspace/view-model/parsedNoteView";
+import {
+  findWorkspaceNote,
+  resolveParsedWorkspaceNote,
+} from "../../workspace/queries/workspaceQueries";
 import type { WorkspaceBlockMigrationRequest } from "../../workspace/workflows/blockMigrationWorkflow";
 import type { WorkspaceRuntime } from "../../workspace/runtime/workspaceRuntime";
 import { OutlineNodeText } from "../blocks/OutlineNodeText";
@@ -47,16 +50,16 @@ export function BlockMigrationView({
     useState<string | null>(null);
   const [activeTargetBlockLineNumber, setActiveTargetBlockLineNumber] =
     useState<number | null>(null);
-  const sourceNote =
-    workspace.notes.find((note) => note.id === sourceNoteId) ?? null;
-  const targetNote =
-    workspace.notes.find((note) => note.id === targetNoteId) ?? null;
+  const sourceNote = findWorkspaceNote(workspace, sourceNoteId);
+  const targetNote = findWorkspaceNote(workspace, targetNoteId);
   const sourceParsed = useMemo(
-    () => (sourceNote ? resolveParsedNoteView(workspace, sourceNote) : null),
+    () =>
+      sourceNote ? resolveParsedWorkspaceNote(workspace, sourceNote) : null,
     [sourceNote, workspace],
   );
   const targetParsed = useMemo(
-    () => (targetNote ? resolveParsedNoteView(workspace, targetNote) : null),
+    () =>
+      targetNote ? resolveParsedWorkspaceNote(workspace, targetNote) : null,
     [targetNote, workspace],
   );
   const sourceBlocks = sourceParsed?.document.blocks ?? [];

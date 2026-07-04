@@ -3,9 +3,7 @@ import {
   appendNoteToWorkspaceTree,
   findFolderIdContainingNote,
 } from "../../../src/workspace/model/noteTree";
-import {
-  createNoteRecord,
-} from "../../../src/workspace/model/workspaceData";
+import { createNoteRecord } from "../../../src/workspace/model/workspaceData";
 import {
   moveWorkspaceBlock,
   previewWorkspaceBlockMigration,
@@ -31,16 +29,16 @@ function createMigrationWorkspace(): WorkspaceRuntime {
   );
   const workspace = createInitialWorkspaceRuntime(defaultCtnSyntaxProfile);
 
-    return {
-      ...workspace,
-      activeNoteId: sourceNote.id,
-      notes: [sourceNote, targetNote],
-      tree: appendNoteToWorkspaceTree(
-        appendNoteToWorkspaceTree(workspace.tree, sourceNote.id, "folder-inbox"),
-        targetNote.id,
-        "folder-inbox",
-      ),
-    };
+  return {
+    ...workspace,
+    activeNoteId: sourceNote.id,
+    notes: [sourceNote, targetNote],
+    tree: appendNoteToWorkspaceTree(
+      appendNoteToWorkspaceTree(workspace.tree, sourceNote.id, "folder-inbox"),
+      targetNote.id,
+      "folder-inbox",
+    ),
+  };
 }
 
 describe("workspace block migration", () => {
@@ -77,9 +75,9 @@ describe("workspace block migration", () => {
         title: "Target",
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
-    expect(findFolderIdContainingNote(result.workspace.tree, "note-target")).toBe(
-      "folder-inbox",
-    );
+    expect(
+      findFolderIdContainingNote(result.workspace.tree, "note-target"),
+    ).toBe("folder-inbox");
   });
 
   it("moves a block subtree to sibling positions through workspace requests", () => {
