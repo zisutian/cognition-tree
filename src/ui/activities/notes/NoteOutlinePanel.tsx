@@ -8,6 +8,7 @@ import {
 import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
 import {
   UiButton,
+  UiMetrics,
   UiPanel,
   UiPanelHeader,
 } from "../../shared/primitives";
@@ -29,7 +30,6 @@ function toScaledPx(baseValue: number, zoom: number) {
 function createOutlineBodyStyle(outlineZoom: number): OutlineBodyStyle {
   return {
     "--outline-font-size": toScaledPx(12, outlineZoom),
-    "--outline-line-height": "1.2",
     "--outline-list-indent": toScaledPx(13, outlineZoom),
     "--outline-row-min-height": toScaledPx(26, outlineZoom),
     "--outline-row-radius": toScaledPx(5, outlineZoom),
@@ -49,10 +49,17 @@ export function NoteOutlinePanel({
   nodes,
   onCollapseDetail,
   onSelectLine,
+  stats,
 }: {
   nodes: UiOutlineNode[];
   onCollapseDetail?: () => void;
   onSelectLine: (lineNumber: number) => void;
+  stats: {
+    diagnosticCount: number;
+    lineCount: number;
+    rootCount: number;
+    totalBlocks: number;
+  };
 }) {
   const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(
@@ -90,44 +97,7 @@ export function NoteOutlinePanel({
       variant="outline"
     >
       <UiPanelHeader
-        actions={
-          <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
-            <UiButton
-              aria-label="缩小笔记结构树"
-              className="outline-icon-button"
-              disabled={outlineZoom <= outlineZoomMin}
-              onClick={() => changeOutlineZoom(-outlineZoomStep)}
-              title="缩小笔记结构树"
-              type="button"
-              variant="icon"
-            >
-              <Minus aria-hidden="true" size={14} strokeWidth={2} />
-            </UiButton>
-            <span className="outline-zoom-value">{outlineZoomPercent}%</span>
-            <UiButton
-              aria-label="放大笔记结构树"
-              className="outline-icon-button"
-              disabled={outlineZoom >= outlineZoomMax}
-              onClick={() => changeOutlineZoom(outlineZoomStep)}
-              title="放大笔记结构树"
-              type="button"
-              variant="icon"
-            >
-              <Plus aria-hidden="true" size={14} strokeWidth={2} />
-            </UiButton>
-            <UiButton
-              aria-label="重置笔记结构树缩放"
-              className="outline-icon-button"
-              disabled={outlineZoom === outlineZoomDefault}
-              onClick={() => setOutlineZoom(outlineZoomDefault)}
-              title="重置笔记结构树缩放"
-              type="button"
-              variant="icon"
-            >
-              <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
-            </UiButton>
-          </div>
-        }
+        className="ui-panel-header-stacked"
         leadingActions={
           onCollapseDetail ? (
             <UiButton
@@ -145,17 +115,66 @@ export function NoteOutlinePanel({
         title="笔记结构"
       />
 
-      <div className="outline-body" style={outlineBodyStyle}>
-        {nodes.length > 0 ? (
-          <NoteOutlineTree
-            collapsedNodeIds={collapsedNodeIds}
-            nodes={nodes}
-            onSelectLine={onSelectLine}
-            onToggleNode={toggleNode}
-          />
-        ) : (
-          <p className="empty-outline">没有可解析的结构</p>
-        )}
+      <UiMetrics
+        aria-label="笔记统计"
+        items={[
+          { label: "行", value: stats.lineCount },
+          { label: "个块", value: stats.totalBlocks },
+          { label: "个根节点", value: stats.rootCount },
+          { label: "个诊断", value: stats.diagnosticCount },
+        ]}
+      />
+
+      <div className="outline-structure-area">
+        <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
+          <UiButton
+            aria-label="缩小笔记结构树"
+            className="outline-icon-button"
+            disabled={outlineZoom <= outlineZoomMin}
+            onClick={() => changeOutlineZoom(-outlineZoomStep)}
+            title="缩小笔记结构树"
+            type="button"
+            variant="icon"
+          >
+            <Minus aria-hidden="true" size={12} strokeWidth={1.8} />
+          </UiButton>
+          <span className="outline-zoom-value">{outlineZoomPercent}%</span>
+          <UiButton
+            aria-label="放大笔记结构树"
+            className="outline-icon-button"
+            disabled={outlineZoom >= outlineZoomMax}
+            onClick={() => changeOutlineZoom(outlineZoomStep)}
+            title="放大笔记结构树"
+            type="button"
+            variant="icon"
+          >
+            <Plus aria-hidden="true" size={12} strokeWidth={1.8} />
+          </UiButton>
+          <UiButton
+            aria-label="重置笔记结构树缩放"
+            className="outline-icon-button"
+            disabled={outlineZoom === outlineZoomDefault}
+            onClick={() => setOutlineZoom(outlineZoomDefault)}
+            title="重置笔记结构树缩放"
+            type="button"
+            variant="icon"
+          >
+            <RotateCcw aria-hidden="true" size={12} strokeWidth={1.8} />
+          </UiButton>
+        </div>
+
+        <div className="outline-body" style={outlineBodyStyle}>
+          {nodes.length > 0 ? (
+            <NoteOutlineTree
+              collapsedNodeIds={collapsedNodeIds}
+              nodes={nodes}
+              onSelectLine={onSelectLine}
+              onToggleNode={toggleNode}
+            />
+          ) : (
+            <p className="empty-outline">没有可解析的结构</p>
+          )}
+        </div>
       </div>
     </UiPanel>
   );

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 type SourceModules = Record<string, string>;
+type RawSourceModules = Record<string, string | { default?: string }>;
+
+// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
+const { readFileSync } = (await import("node:fs")) as {
+  readFileSync: (path: URL, encoding: "utf8") => string;
+};
 
 type SourceImport = {
   filePath: string;
@@ -15,11 +21,17 @@ const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
   query: "?raw",
 }) as SourceModules;
 
-const sourceStyleModules = import.meta.glob("../../src/**/*.css", {
+const rawSourceStyleModules = import.meta.glob("../../src/**/*.css", {
   eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
+  query: "?inline",
+}) as RawSourceModules;
+
+const sourceStyleModules = Object.fromEntries(
+  Object.keys(rawSourceStyleModules).map((filePath) => [
+    filePath,
+    readFileSync(new URL(filePath, import.meta.url), "utf8"),
+  ]),
+) as SourceModules;
 
 const serverModules = import.meta.glob("../../server/**/*.mjs", {
   eager: true,
@@ -197,6 +209,17 @@ function readSourceImports(filePath: string): SourceImport[] {
   });
 }
 
+function readStyleSource(relativePath: string) {
+  const globSource = Object.entries(sourceStyleModules).find(
+    ([filePath]) =>
+      sourcePathToRelative(filePath) === relativePath ||
+      filePath.endsWith(`/${relativePath}`) ||
+      filePath.includes(relativePath),
+  )?.[1];
+
+  return globSource ?? "";
+}
+
 function listInternalImports() {
   return Object.keys(sourceModules).flatMap(readSourceImports);
 }
@@ -344,6 +367,7 @@ describe("architecture module boundaries", () => {
       "UiEmptyState.tsx",
       "UiField.tsx",
       "UiList.tsx",
+      "UiMetrics.tsx",
       "UiPanel.tsx",
       "UiStatus.tsx",
       "classNames.ts",
@@ -369,6 +393,259 @@ describe("architecture module boundaries", () => {
     expect(primitiveSelectorDefinitions).toEqual([]);
   });
 
+  it("keeps activity styles from redefining shared panel titles", () => {
+    const titleSelectorPattern =
+      /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.side-panel-header)(?:\s|[.{:#>])/;
+    const violations = Object.entries(sourceStyleModules)
+      .filter(([filePath]) =>
+        filePath.startsWith("../../src/ui/styles/activities/"),
+      )
+      .flatMap(([filePath, source]) =>
+        source
+          .split("\n")
+          .map((line, index) => ({ filePath, index, line }))
+          .filter(({ line }) => titleSelectorPattern.test(line))
+          .map(({ filePath, index, line }) =>
+            `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`,
+          ),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps typography and numeric style tokens centralized", () => {
+    const themeSource = readStyleSource("ui/styles/foundation/theme.css");
+    const primitiveSource = readStyleSource("ui/styles/shared/primitives.css");
+    const sidebarSource = readStyleSource("ui/styles/frame/sidebar.css");
+    const treeSource = readStyleSource("ui/styles/shared/tree.css");
+    const notesSource = readStyleSource("ui/styles/activities/notes.css");
+
+    expect(themeSource).toContain("--font-ui");
+    expect(themeSource).toContain("--font-content");
+    expect(themeSource).toContain("--font-code");
+    expect(themeSource).toContain("--ui-root-font-size");
+    expect(themeSource).toContain("--ui-title-font-size");
+    expect(themeSource).toContain("--ui-body-font-size");
+    expect(themeSource).toContain("--ui-control-font-size");
+    expect(themeSource).toContain("--ui-micro-font-size");
+    expect(themeSource).toContain("--ui-code-font-size");
+    expect(themeSource).toContain("--ui-tree-font-size");
+    expect(themeSource).toContain("--ui-outline-font-size");
+    expect(themeSource).toContain("--ui-badge-line-height");
+    expect(themeSource).toContain("--ui-micro-line-height");
+    expect(themeSource).toContain("--ui-micro-weight");
+    expect(themeSource).toContain("--ui-micro-strong-weight");
+    expect(themeSource).toContain("--ui-numeric-font-variant");
+    expect(themeSource).toContain("--ui-numeric-weight");
+    expect(themeSource).toContain("--ui-numeric-strong-weight");
+    expect(themeSource).toContain("--ctn-editor-numeric-font-variant");
+    expect(primitiveSource).toContain("var(--ui-micro-font-size)");
+    expect(primitiveSource).toContain("var(--ui-numeric-font-variant)");
+    expect(sidebarSource).toContain("var(--ui-micro-font-size)");
+    expect(treeSource).toContain("var(--ui-numeric-font-variant)");
+    expect(notesSource).toContain("var(--ctn-editor-numeric-font-variant)");
+    expect(`${primitiveSource}\n${sidebarSource}`).not.toContain(
+      "text-transform: uppercase",
+    );
+  });
+
+  it("keeps typography variables role based", () => {
+    const styleSource = Object.values(sourceStyleModules).join("\n");
+    const forbiddenFontVariables = [
+      /--font-cjk\b/,
+      /--font-mono\b/,
+      /--font-size-/,
+      /--font-weight-/,
+    ];
+    const violations = forbiddenFontVariables.flatMap((pattern) =>
+      pattern.test(styleSource) ? [String(pattern)] : [],
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps UI typography from bypassing role tokens outside foundation", () => {
+    const violations = Object.entries(sourceStyleModules)
+      .filter(
+        ([filePath]) =>
+          filePath.startsWith("../../src/ui/styles/") &&
+          !filePath.startsWith("../../src/ui/styles/foundation/"),
+      )
+      .flatMap(([filePath, source]) =>
+        source
+          .split("\n")
+          .map((line, index) => ({ filePath, index, line }))
+          .filter(({ line }) =>
+            /font-(?:size|weight):\s*(?:[0-9]|var\(--font-)/.test(line),
+          )
+          .map(({ filePath, index, line }) =>
+            `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`,
+          ),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps UI font family and line height behind role tokens", () => {
+    const violations = Object.entries(sourceStyleModules)
+      .filter(
+        ([filePath]) =>
+          filePath.startsWith("../../src/ui/styles/") &&
+          !filePath.startsWith("../../src/ui/styles/foundation/"),
+      )
+      .flatMap(([filePath, source]) =>
+        source
+          .split("\n")
+          .map((line, index) => ({ filePath, index, line }))
+          .filter(({ line }) => {
+            const fontFamilyValue = line.match(/font-family:\s*([^;]+)/)?.[1].trim();
+            const usesRawFontFamily = fontFamilyValue
+              ? fontFamilyValue !== "inherit" &&
+                !fontFamilyValue.startsWith("var(--font-")
+              : false;
+            const usesRawLineHeight = /line-height:\s*[0-9]/.test(line);
+
+            return usesRawFontFamily || usesRawLineHeight;
+          })
+          .map(({ filePath, index, line }) =>
+            `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`,
+          ),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps numeric alignment behind numeric tokens", () => {
+    const violations = Object.entries(sourceStyleModules)
+      .filter(
+        ([filePath]) =>
+          filePath.startsWith("../../src/ui/styles/") &&
+          sourcePathToRelative(filePath) !== "ui/styles/foundation/theme.css",
+      )
+      .flatMap(([filePath, source]) =>
+        source
+          .split("\n")
+          .map((line, index) => ({ filePath, index, line }))
+          .filter(({ line }) => line.includes("tabular-nums"))
+          .map(({ filePath, index, line }) =>
+            `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`,
+          ),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps activity microcopy styles from defining ad hoc small text", () => {
+    const microcopySelectorPattern =
+      /^\s*\.(?:syntax-rule-column-header|migration-drop-zone|migration-note-badge|empty-outline|visualization-rank-row small)\b/;
+    const violations = Object.entries(sourceStyleModules)
+      .filter(([filePath]) =>
+        filePath.startsWith("../../src/ui/styles/activities/"),
+      )
+      .flatMap(([filePath, source]) => {
+        const lines = source.split("\n");
+
+        return lines.flatMap((line, index) => {
+          if (!microcopySelectorPattern.test(line)) {
+            return [];
+          }
+
+          const block = lines.slice(index, index + 12).join("\n");
+          const usesAdHocFont =
+            /font-size:\s*(?:[0-9]|var\(--font-)/.test(block) ||
+            /font-weight:\s*(?:[0-9]|var\(--font-)/.test(block);
+
+          return usesAdHocFont
+            ? [`${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`]
+            : [];
+        });
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps contextual microcopy emphasis consistent", () => {
+    const notesSource = readStyleSource("ui/styles/activities/notes.css");
+    const migrationSource = readStyleSource("ui/styles/activities/migration.css");
+    const noteCurrentTitleBlock =
+      notesSource.match(/\.note-current-title\s*\{[^}]*\}/s)?.[0] ?? "";
+    const migrationNoteBadgeBlock =
+      migrationSource.match(/\.migration-note-badge\s*\{[^}]*\}/s)?.[0] ?? "";
+
+    expect(noteCurrentTitleBlock).toContain(
+      "font-weight: var(--ui-micro-strong-weight)",
+    );
+    expect(noteCurrentTitleBlock).toContain("transform: translateY(2px)");
+    expect(migrationNoteBadgeBlock).toContain(
+      "font-weight: var(--ui-micro-strong-weight)",
+    );
+  });
+
+  it("keeps old syntax UI wording out of source", () => {
+    const forbiddenSyntaxText = [
+      "Tab 宽度",
+      "无有效 profile",
+      "生成摘要",
+      "行首规则",
+      "单符号",
+      "标题字体色",
+      "顶格概念字体色",
+    ];
+    const violations = Object.entries(sourceModules)
+      .filter(([filePath]) => filePath.startsWith("../../src/ui/"))
+      .flatMap(([filePath, source]) =>
+        forbiddenSyntaxText.flatMap((text) =>
+          source.includes(text)
+            ? [`${sourcePathToRelative(filePath)}: ${text}`]
+            : [],
+        ),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps the collapsed detail opener in a header wrapper", () => {
+    const source = sourceModules["../../src/ui/AppFrame.tsx"] ?? "";
+
+    expect(source).toContain("app-detail-collapsed-header");
+    expect(source).toContain("app-detail-toggle");
+  });
+
+  it("keeps display primitives from reintroducing card frames", () => {
+    const source = readStyleSource("ui/styles/shared/primitives.css");
+    const selectorPatterns = [
+      /\.ui-section-framed,\n\.ui-form-section\s*\{[^}]*\bborder:\s*1px/s,
+      /\.ui-form-row\s*\{[^}]*\bborder:\s*1px/s,
+      /\.ui-list-cards \.ui-list-row,[^}]*\bborder:\s*1px/s,
+      /\.ui-status\s*\{[^}]*\bborder:\s*1px\s+solid/s,
+      /\.ui-empty-state\s*\{[^}]*\bborder:\s*1px/s,
+      /\.ui-section-framed,\n\.ui-form-section\s*\{[^}]*\bbackground:\s*var\(--color-panel\)/s,
+      /\.ui-form-row\s*\{[^}]*\bbackground:\s*var\(--color-panel\)/s,
+      /\.ui-list-cards \.ui-list-row,[^}]*\bbackground:\s*var\(--color-panel\)/s,
+      /\.ui-status\s*\{[^}]*\bbackground:\s*var\(--color-panel\)/s,
+      /\.ui-empty-state\s*\{[^}]*\bbackground:\s*var\(--color-panel\)/s,
+    ];
+    const violations = selectorPatterns.flatMap((pattern) =>
+      pattern.test(source) ? [String(pattern)] : [],
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps activity panel headers free of stats payloads", () => {
+    const violations = Object.entries(sourceModules)
+      .filter(([filePath]) =>
+        filePath.startsWith("../../src/ui/activities/"),
+      )
+      .flatMap(([filePath, source]) =>
+        /<UiPanelHeader\b[\s\S]*?\bstats\s*=/.test(source)
+          ? [sourcePathToRelative(filePath)]
+          : [],
+      );
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps hard-coded style colors centralized in the theme", () => {
     const hardCodedColorPattern = /#[0-9a-fA-F]{3,8}\b|rgba?\(/;
     const violations = Object.entries(sourceStyleModules)
@@ -392,7 +669,6 @@ describe("architecture module boundaries", () => {
   it("keeps removed style aliases and dead primitive classes out of source", () => {
     const forbiddenStylePatterns = [
       /--note-/,
-      /--font-weight-medium/,
       /--space-9/,
       /--color-warning/,
       /--color-warning-soft/,
@@ -402,6 +678,14 @@ describe("architecture module boundaries", () => {
       /ui-status-neutral/,
       /diagnostics-panel/,
       /diagnostic-location/,
+      /current-note-chip/,
+      /note-editor-count-row/,
+      /ui-panel-stats/,
+      /header-chip/,
+      /ui-panel-header-start/,
+      /syntax-marker-row/,
+      /syntax-marker-label/,
+      /syntax-inline-actions/,
     ];
     const violations = listAllSourcePaths().flatMap((filePath) => {
       const source = sourceModules[filePath] ?? sourceStyleModules[filePath] ?? "";

@@ -110,15 +110,17 @@ export function AppFrame({
           }
         >
           {detailCollapsed ? (
-            <button
-              aria-label="展开右侧栏"
-              className="app-detail-toggle"
-              onClick={onDetailToggle}
-              title="展开右侧栏"
-              type="button"
-            >
-              <ChevronLeft aria-hidden="true" size={16} strokeWidth={2} />
-            </button>
+            <div className="app-detail-collapsed-header">
+              <button
+                aria-label="展开右侧栏"
+                className="app-detail-toggle"
+                onClick={onDetailToggle}
+                title="展开右侧栏"
+                type="button"
+              >
+                <ChevronLeft aria-hidden="true" size={15} strokeWidth={2} />
+              </button>
+            </div>
           ) : (
             <>
               <div

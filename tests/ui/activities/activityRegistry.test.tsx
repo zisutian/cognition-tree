@@ -243,4 +243,84 @@ describe("activity registry", () => {
       "aria-label=\"收回右侧栏\"",
     );
   });
+
+  it("moves note editor counts into the note detail panel", () => {
+    const baseView = createView();
+    const view = createView({
+      editor: {
+        ...baseView.editor,
+        stats: {
+          diagnosticCount: 4,
+          lineCount: 69,
+          rootCount: 8,
+          totalBlocks: 55,
+        },
+      },
+    });
+    const main = renderSlot(createSlots("notes", view).main);
+    const detail = renderSlot(createSlots("notes", view).detail);
+
+    expect(main).toContain("当前：当前笔记");
+    expect(main).not.toContain("69 行");
+    expect(main).not.toContain("55 个块");
+    expect(detail).toContain("aria-label=\"笔记统计\"");
+    expect(detail).toContain("<dd>69</dd><dt>行</dt>");
+    expect(detail).toContain("<dd>55</dd><dt>个块</dt>");
+    expect(detail).toContain("<dd>8</dd><dt>个根节点</dt>");
+    expect(detail).toContain("<dd>4</dd><dt>个诊断</dt>");
+    expect(detail).not.toContain("当前笔记</dt>");
+  });
+
+  it("moves syntax and visualization counts into right detail panels", () => {
+    const baseView = createView();
+    const view = createView({
+      visualization: {
+        ...baseView.visualization,
+        stats: {
+          edgeCount: 7,
+          isolatedCount: 2,
+          nodeCount: 9,
+        },
+      },
+    });
+    const syntaxMain = renderSlot(createSlots("syntax", view).main);
+    const syntaxDetail = renderSlot(createSlots("syntax", view).detail);
+    const graphMain = renderSlot(createSlots("visualization", view).main);
+    const graphDetail = renderSlot(createSlots("visualization", view).detail);
+
+    expect(syntaxMain).not.toContain("ui-panel-stats");
+    expect(syntaxMain).toContain("缩进宽度");
+    expect(syntaxMain).toContain("块规则");
+    expect(syntaxMain).toContain("首行标题");
+    expect(syntaxMain).toContain("顶格概念");
+    expect(syntaxMain).toContain("背景色");
+    expect(syntaxMain).toContain("文字色");
+    expect(syntaxMain).toContain("新增");
+    expect(syntaxMain).toContain("成对符号");
+    expect(syntaxMain).toContain("单个符号");
+    expect(syntaxMain).not.toContain("syntax-inline-actions");
+    expect(syntaxMain).not.toContain("Tab 宽度");
+    expect(syntaxMain).not.toContain("行首规则");
+    expect(syntaxMain).not.toContain("单符号");
+    expect(syntaxDetail).toContain("aria-label=\"语法统计\"");
+    expect(syntaxDetail).toContain("<dt>块规则</dt>");
+    expect(syntaxDetail).toContain("<dt>行内规则</dt>");
+    expect(syntaxDetail).toContain("<dt>问题</dt>");
+    expect(syntaxDetail.match(/<dt>块规则<\/dt>/g)).toHaveLength(1);
+    expect(syntaxDetail.match(/<dt>行内规则<\/dt>/g)).toHaveLength(1);
+    expect(syntaxDetail).toContain("当前配置");
+    expect(syntaxDetail).toContain("缩进宽度");
+    expect(syntaxDetail).not.toContain("首行标题");
+    expect(syntaxDetail).not.toContain("顶格概念");
+    expect(syntaxDetail).not.toContain("syntax-tone-swatch");
+    expect(syntaxDetail).not.toContain("<dt>Tab</dt>");
+    expect(syntaxDetail).not.toContain("无有效 profile");
+    expect(graphMain).not.toContain("9 点");
+    expect(graphMain).not.toContain("7 边");
+    expect(graphMain).not.toContain("2 孤立");
+    expect(graphDetail).toContain("aria-label=\"图谱统计\"");
+    expect(graphDetail).toContain("<dd>9</dd><dt>点</dt>");
+    expect(graphDetail).toContain("<dd>7</dd><dt>边</dt>");
+    expect(graphDetail).toContain("<dd>2</dd><dt>孤立</dt>");
+  });
 });

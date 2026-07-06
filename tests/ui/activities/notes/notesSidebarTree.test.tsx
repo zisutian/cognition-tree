@@ -76,6 +76,7 @@ describe("NotesSidebarTree", () => {
 
     expect(markup).toContain("重命名笔记");
     expect(markup).toContain("删除笔记");
+    expect(markup.match(/width="16" height="16"/g)).toHaveLength(2);
     expect(markup).not.toContain("重命名文件夹");
     expect(markup).not.toContain("删除文件夹");
   });

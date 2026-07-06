@@ -18,12 +18,8 @@ export function NoteEditorPanel({
   diagnostics,
   focusTarget,
   hasActiveNote,
-  lineCount,
-  rootCount,
-  syntaxProfile,
   currentNoteTitle,
-  totalBlocks,
-  totalDiagnostics,
+  syntaxProfile,
   value,
   errorMessage,
   onCreateNote,
@@ -32,12 +28,8 @@ export function NoteEditorPanel({
   diagnostics: UiEditorDiagnostic[];
   focusTarget: CtnEditorFocusTarget | null;
   hasActiveNote: boolean;
-  lineCount: number;
-  rootCount: number;
-  syntaxProfile: CtnEditorSyntaxProfile;
   currentNoteTitle: string | null;
-  totalBlocks: number;
-  totalDiagnostics: number;
+  syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
   errorMessage: string;
   onCreateNote: () => void;
@@ -46,17 +38,11 @@ export function NoteEditorPanel({
   return (
     <UiPanel className="note-editor-panel" aria-label="原文编辑" variant="editor">
       <UiPanelHeader
-        stats={[
-          <span className="current-note-chip" key="current">
+        actions={
+          <span className="note-current-title">
             {currentNoteTitle ? `当前：${currentNoteTitle}` : "未选择笔记"}
-          </span>,
-          <span className="note-editor-count-row" key="counts">
-            <span>{lineCount} 行</span>
-            <span>{totalBlocks} 个块</span>
-            <span>{rootCount} 个根节点</span>
-            <span>{totalDiagnostics} 个诊断</span>
-          </span>,
-        ]}
+          </span>
+        }
         title="笔记编辑"
       />
 

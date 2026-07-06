@@ -4,6 +4,7 @@ import {
   UiButton,
   UiList,
   UiListRow,
+  UiMetrics,
   UiPanel,
   UiPanelBody,
   UiPanelHeader,
@@ -43,6 +44,15 @@ export function NoteReferenceGraphDetailPanel({
       />
 
       <UiPanelBody>
+        <UiMetrics
+          aria-label="图谱统计"
+          items={[
+            { label: "点", value: graph.stats.nodeCount },
+            { label: "边", value: graph.stats.edgeCount },
+            { label: "孤立", value: graph.stats.isolatedCount },
+          ]}
+        />
+
         <UiSection>
           <UiSectionTitle>引用量最多</UiSectionTitle>
           {graph.mostReferencedNodes.length > 0 ? (

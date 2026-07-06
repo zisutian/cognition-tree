@@ -72,14 +72,7 @@ export function NoteReferenceGraphPanel({
   );
   return (
     <UiPanel className="visualization-main-panel" aria-label="可视化" variant="main">
-      <UiPanelHeader
-        stats={[
-          `${graph.stats.nodeCount} 点`,
-          `${graph.stats.edgeCount} 边`,
-          `${graph.stats.isolatedCount} 孤立`,
-        ]}
-        title="笔记引用图谱"
-      />
+      <UiPanelHeader title="笔记引用图谱" />
 
       <div className="visualization-graph-surface">
         {graph.nodes.length > 0 ? (

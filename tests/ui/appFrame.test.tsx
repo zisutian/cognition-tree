@@ -103,6 +103,8 @@ describe("AppFrame", () => {
 
     expect(markup).toContain("detail-collapsed");
     expect(markup).toContain("app-detail-region-collapsed");
+    expect(markup).toContain("app-detail-collapsed-header");
+    expect(markup).toContain("app-detail-toggle");
     expect(markup).toContain("aria-label=\"展开右侧栏\"");
     expect(markup).not.toContain("aria-label=\"调整右侧栏宽度\"");
     expect(markup).not.toContain("outline</aside>");

@@ -1,4 +1,3 @@
-import { isValidElement } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cx } from "./classNames";
 
@@ -15,7 +14,6 @@ type UiPanelProps = HTMLAttributes<HTMLElement> & {
 type UiPanelHeaderProps = HTMLAttributes<HTMLElement> & {
   actions?: ReactNode;
   leadingActions?: ReactNode;
-  stats?: ReactNode[];
   title: ReactNode;
 };
 
@@ -55,7 +53,6 @@ export function UiPanelHeader({
   actions,
   className,
   leadingActions,
-  stats,
   title,
   ...props
 }: UiPanelHeaderProps) {
@@ -69,13 +66,6 @@ export function UiPanelHeader({
           <h2>{title}</h2>
         </div>
       </div>
-      {stats ? (
-        <div className="ui-panel-stats">
-          {stats.map((stat, index) =>
-            isValidElement(stat) ? stat : <span key={index}>{stat}</span>,
-          )}
-        </div>
-      ) : null}
       {actions ? <div className="ui-panel-actions">{actions}</div> : null}
     </header>
   );

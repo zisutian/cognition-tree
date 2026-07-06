@@ -60,8 +60,8 @@
   border-radius: var(--radius-md);
   color: var(--color-fg-muted);
   background: transparent;
-  font-size: var(--font-size-xs);
-  line-height: 1.2;
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
 }
 
 .migration-drop-zone.child-zone {
@@ -125,8 +125,9 @@
   border-radius: var(--radius-sm);
   color: var(--color-fg-muted);
   background: var(--color-hover);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  line-height: 1;
+  font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
+  line-height: var(--ui-badge-line-height);
+  font-variant-numeric: var(--ui-numeric-font-variant);
   white-space: nowrap;
 }

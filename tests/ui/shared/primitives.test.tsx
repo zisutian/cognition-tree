@@ -7,6 +7,7 @@ import {
   UiFormSection,
   UiList,
   UiListRow,
+  UiMetrics,
   UiPanel,
   UiPanelBody,
   UiPanelHeader,
@@ -30,10 +31,13 @@ describe("ui primitives", () => {
               ←
             </UiButton>
           }
-          stats={["1 项"]}
           title="示例面板"
         />
         <UiPanelBody>
+          <UiMetrics
+            aria-label="示例统计"
+            items={[{ label: "项目", value: 1 }]}
+          />
           <UiFormSection
             actions={
               <UiButton aria-label="删除" type="button" variant="icon">
@@ -64,8 +68,12 @@ describe("ui primitives", () => {
 
     expect(markup).toContain("ui-panel ui-panel-main ui-panel-full-width");
     expect(markup).toContain("ui-panel-header");
+    expect(markup).not.toContain("ui-panel-stats");
     expect(markup).toContain("ui-panel-leading-actions");
     expect(markup).toContain("ui-panel-title-group");
+    expect(markup).toContain("ui-metrics");
+    expect(markup).toContain("ui-metric-row");
+    expect(markup).toContain("<dd>1</dd><dt>项目</dt>");
     expect(markup).toContain("ui-button ui-button-secondary");
     expect(markup).toContain("ui-button ui-button-icon");
     expect(markup).toContain("ui-form-section");

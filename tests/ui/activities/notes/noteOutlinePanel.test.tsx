@@ -40,12 +40,25 @@ describe("NoteOutlinePanel", () => {
     const markup = renderToStaticMarkup(
       <NoteOutlinePanel
         nodes={outlineNodes}
+        stats={{
+          diagnosticCount: 1,
+          lineCount: 12,
+          rootCount: 3,
+          totalBlocks: 8,
+        }}
         onSelectLine={() => undefined}
       />,
     );
 
     expect(markup).toContain("笔记结构");
     expect(markup).toContain("aria-label=\"笔记结构树缩放\"");
+    expect(markup).toContain("outline-structure-area");
+    expect(markup).toContain("aria-label=\"笔记统计\"");
+    expect(markup).toContain("<dd>12</dd><dt>行</dt>");
+    expect(markup).toContain("<dd>8</dd><dt>个块</dt>");
+    expect(markup).toContain("<dd>3</dd><dt>个根节点</dt>");
+    expect(markup).toContain("<dd>1</dd><dt>个诊断</dt>");
+    expect(markup).not.toContain("当前笔记");
     expect(markup).toContain("根节点");
     expect(markup).toContain("子节点");
     expect(markup).toContain("--outline-font-size:12.0px");

@@ -140,7 +140,7 @@ function SidebarTreeRowActions({
         title={renameLabel}
         type="button"
       >
-        <Pencil aria-hidden="true" size={13} strokeWidth={2} />
+        <Pencil aria-hidden="true" size={16} strokeWidth={2} />
       </button>
       <button
         aria-label={deleteLabel}
@@ -152,7 +152,7 @@ function SidebarTreeRowActions({
         title={deleteLabel}
         type="button"
       >
-        <Trash2 aria-hidden="true" size={13} strokeWidth={2} />
+        <Trash2 aria-hidden="true" size={16} strokeWidth={2} />
       </button>
     </span>
   );

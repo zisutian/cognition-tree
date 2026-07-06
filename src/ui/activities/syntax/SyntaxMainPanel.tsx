@@ -53,13 +53,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
 
   return (
     <UiPanel className="syntax-main-panel" aria-label="语法编辑" variant="main">
-      <UiPanelHeader
-        stats={[
-          `${view.stats.lineRuleCount} 行首`,
-          `${view.stats.inlineRuleCount} 行内`,
-        ]}
-        title="仓库语法配置"
-      />
+      <UiPanelHeader title="仓库语法配置" />
 
       <div className="syntax-form-scroll">
         <UiFormSection title="基础信息">
@@ -72,7 +66,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                 }
               />
             </UiField>
-            <UiField label="Tab 宽度">
+            <UiField label="缩进宽度">
               <input
                 inputMode="numeric"
                 min="1"
@@ -98,21 +92,21 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
               新增
             </UiButton>
           }
-          title="行首规则"
+          title="块规则"
         >
 
           <div className="syntax-rule-column-header syntax-marker-rule-columns">
             <span>符号</span>
             <span>名称</span>
             <span>角色</span>
-            <span>背景</span>
-            <span>字体</span>
+            <span>背景色</span>
+            <span>文字色</span>
             <span />
           </div>
           <div className="syntax-rule-list">
             <div className="ui-form-row syntax-marker-rule-columns">
               <UiField hiddenLabel label="符号">
-                <input disabled value="首行" />
+                <input disabled value="首行标题" />
               </UiField>
               <UiField hiddenLabel label="名称">
                 <input disabled value={draft.titleRule.label} />
@@ -126,17 +120,17 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                   ))}
                 </select>
               </UiField>
-              <UiField as="div" hiddenLabel label="背景">
+              <UiField as="div" hiddenLabel label="背景色">
                 <TonePicker
-                  ariaLabel="标题背景色"
+                  ariaLabel="首行标题背景色"
                   options={toneOptions}
                   value={draft.titleRule.tone}
                   onChange={(tone) => actions.updateTitleRule({ tone })}
                 />
               </UiField>
-              <UiField as="div" hiddenLabel label="字体">
+              <UiField as="div" hiddenLabel label="文字色">
                 <TonePicker
-                  ariaLabel="标题字体色"
+                  ariaLabel="首行标题文字色"
                   options={toneOptions}
                   value={draft.titleRule.textColor}
                   onChange={(textColor) =>
@@ -145,14 +139,14 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                 />
               </UiField>
               <span
-                aria-label="首行标题是固定行首规则，不能删除"
+                aria-label="首行标题是固定块规则，不能删除"
                 className="syntax-protected-rule-lock"
-                title="固定行首规则，不能删除"
+                title="固定块规则，不能删除"
               />
             </div>
             <div className="ui-form-row syntax-marker-rule-columns">
               <UiField hiddenLabel label="符号">
-                <input disabled value="顶格" />
+                <input disabled value="顶格概念" />
               </UiField>
               <UiField hiddenLabel label="名称">
                 <input disabled value={draft.conceptRule.label} />
@@ -166,7 +160,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                   ))}
                 </select>
               </UiField>
-              <UiField as="div" hiddenLabel label="背景">
+              <UiField as="div" hiddenLabel label="背景色">
                 <TonePicker
                   ariaLabel="顶格概念背景色"
                   options={toneOptions}
@@ -174,9 +168,9 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                   onChange={(tone) => actions.updateConceptRule({ tone })}
                 />
               </UiField>
-              <UiField as="div" hiddenLabel label="字体">
+              <UiField as="div" hiddenLabel label="文字色">
                 <TonePicker
-                  ariaLabel="顶格概念字体色"
+                  ariaLabel="顶格概念文字色"
                   options={toneOptions}
                   value={draft.conceptRule.textColor}
                   onChange={(textColor) =>
@@ -185,9 +179,9 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                 />
               </UiField>
               <span
-                aria-label="顶格概念是基础行首规则，不能删除"
+                aria-label="顶格概念是基础块规则，不能删除"
                 className="syntax-protected-rule-lock"
-                title="基础行首规则，不能删除"
+                title="基础块规则，不能删除"
               />
             </div>
             {draft.markerRules.map((rule) => (
@@ -231,7 +225,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                     ))}
                   </select>
                 </UiField>
-                <UiField as="div" hiddenLabel label="背景">
+                <UiField as="div" hiddenLabel label="背景色">
                   <TonePicker
                     ariaLabel={`${rule.label || rule.marker || rule.id} 背景色`}
                     options={toneOptions}
@@ -241,9 +235,9 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                     }
                   />
                 </UiField>
-                <UiField as="div" hiddenLabel label="字体">
+                <UiField as="div" hiddenLabel label="文字色">
                   <TonePicker
-                    ariaLabel={`${rule.label || rule.marker || rule.id} 字体色`}
+                    ariaLabel={`${rule.label || rule.marker || rule.id} 文字色`}
                     options={toneOptions}
                     value={rule.textColor}
                     onChange={(textColor) =>
@@ -252,7 +246,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                   />
                 </UiField>
                 <UiButton
-                  aria-label={`删除行首规则 ${rule.label || rule.marker || rule.id}`}
+                  aria-label={`删除块规则 ${rule.label || rule.marker || rule.id}`}
                   className="syntax-rule-action"
                   onClick={() => actions.removeMarkerRule(rule.id)}
                   type="button"
@@ -267,34 +261,23 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
 
         <UiFormSection
           actions={
-            <div className="syntax-inline-actions">
-              <UiButton
-                onClick={() => actions.addInlineRule("paired")}
-                type="button"
-                variant="secondary"
-              >
-                <Plus aria-hidden="true" size={14} strokeWidth={2} />
-                成对
-              </UiButton>
-              <UiButton
-                onClick={() => actions.addInlineRule("single")}
-                type="button"
-                variant="secondary"
-              >
-                <Plus aria-hidden="true" size={14} strokeWidth={2} />
-                单符号
-              </UiButton>
-            </div>
+            <UiButton
+              onClick={() => actions.addInlineRule("paired")}
+              type="button"
+              variant="secondary"
+            >
+              <Plus aria-hidden="true" size={14} strokeWidth={2} />
+              新增
+            </UiButton>
           }
           title="行内规则"
         >
-
           <div className="syntax-rule-column-header syntax-inline-rule-columns">
             <span>类型</span>
             <span>符号</span>
             <span>名称</span>
-            <span>背景</span>
-            <span>字体</span>
+            <span>背景色</span>
+            <span>文字色</span>
             <span />
           </div>
           <div className="syntax-rule-list">
@@ -316,8 +299,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                         })
                       }
                     >
-                      <option value="paired">成对</option>
-                      <option value="single">单符号</option>
+                      <option value="paired">成对符号</option>
+                      <option value="single">单个符号</option>
                     </select>
                   </UiField>
                   <UiField as="div" hiddenLabel label="符号">
@@ -364,7 +347,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       }
                     />
                   </UiField>
-                  <UiField as="div" hiddenLabel label="背景">
+                  <UiField as="div" hiddenLabel label="背景色">
                     <TonePicker
                       ariaLabel={`${rule.label || rule.type || rule.id} 背景色`}
                       options={toneOptions}
@@ -374,9 +357,9 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       }
                     />
                   </UiField>
-                  <UiField as="div" hiddenLabel label="字体">
+                  <UiField as="div" hiddenLabel label="文字色">
                     <TonePicker
-                      ariaLabel={`${rule.label || rule.type || rule.id} 字体色`}
+                      ariaLabel={`${rule.label || rule.type || rule.id} 文字色`}
                       options={toneOptions}
                       value={rule.textColor}
                       onChange={(textColor) =>

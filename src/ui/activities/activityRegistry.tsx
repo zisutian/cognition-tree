@@ -97,6 +97,7 @@ function createNotesSlots({
     detail: (
       <NoteOutlinePanel
         nodes={view.outline.nodes}
+        stats={view.editor.stats}
         onCollapseDetail={onCollapseDetail}
         onSelectLine={view.outline.onSelectLine}
       />
@@ -107,11 +108,7 @@ function createNotesSlots({
         diagnostics={view.editor.diagnostics}
         focusTarget={view.editor.focusTarget}
         hasActiveNote={view.editor.hasActiveNote}
-        lineCount={view.editor.stats.lineCount}
-        rootCount={view.editor.stats.rootCount}
         syntaxProfile={view.editor.syntaxProfile}
-        totalBlocks={view.editor.stats.totalBlocks}
-        totalDiagnostics={view.editor.stats.diagnosticCount}
         value={view.editor.documentText}
         errorMessage={view.errorMessage}
         onCreateNote={view.createNote}
@@ -181,6 +178,7 @@ function createSyntaxSlots({
       <SyntaxProfileDetailPanel
         draftResult={view.syntax.draftResult}
         feedback={view.syntax.feedback}
+        stats={view.syntax.stats}
         onCollapseDetail={onCollapseDetail}
       />
     ),

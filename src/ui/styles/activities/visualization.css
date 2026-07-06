@@ -46,9 +46,9 @@
 
 .note-reference-node text {
   fill: var(--color-fg);
-  font-family: var(--font-content);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-ui);
+  font-size: var(--ui-body-font-size);
+  font-weight: var(--ui-body-strong-weight);
   text-anchor: middle;
   paint-order: stroke;
   stroke: var(--color-graph-label-stroke);
@@ -83,5 +83,9 @@
 }
 
 .visualization-rank-row small {
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+  font-weight: var(--ui-numeric-weight);
   white-space: nowrap;
 }

@@ -46,19 +46,14 @@
   min-height: 22px;
   padding: 0 var(--space-5);
   color: var(--color-fg-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
+  line-height: var(--ui-micro-line-height);
 }
 
 .syntax-rule-list {
   display: grid;
   gap: var(--space-3);
-}
-
-.syntax-inline-actions {
-  display: flex;
-  gap: var(--space-4);
-  align-items: center;
 }
 
 .syntax-symbol-inputs {
@@ -95,7 +90,8 @@
   color: var(--color-fg);
   background: transparent;
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--ui-control-font-size);
+  line-height: var(--ui-control-line-height);
   cursor: pointer;
 }
 
@@ -270,23 +266,4 @@
 
 .syntax-tone-custom span {
   background: var(--syntax-tone-color);
-}
-
-.syntax-marker-row {
-  grid-template-columns: 58px 18px 18px minmax(0, 1fr);
-  gap: var(--space-4);
-}
-
-.syntax-marker-row > .syntax-tone-swatch {
-  justify-self: center;
-}
-
-.syntax-marker-label {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-link);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
