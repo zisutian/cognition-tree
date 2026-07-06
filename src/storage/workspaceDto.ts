@@ -3,8 +3,7 @@ import type {
   NoteTreeNode,
   WorkspaceData,
 } from "../workspace/model/workspaceData";
-import { defaultFolderId } from "../workspace/model/workspaceData";
-import { findFolderNode } from "../workspace/model/noteTree";
+import { validateWorkspaceData } from "../workspace/model/workspaceValidation";
 import type {
   RepositoryInfo,
 } from "./workspaceRepository";
@@ -123,44 +122,6 @@ function parseTreeNode(value: unknown, path: string): NoteTreeNode {
   throw new Error(`Invalid response at ${path}.kind: unsupported node kind`);
 }
 
-function assertWorkspaceReferences(workspace: WorkspaceData) {
-  const noteIds = new Set(workspace.notes.map((note) => note.id));
-  const treeNodeIds = new Set<string>();
-  const treeNoteIds = new Set<string>();
-
-  if (!findFolderNode(workspace.tree, defaultFolderId)) {
-    throw new Error("Invalid response at $.tree: missing default folder");
-  }
-
-  const visit = (node: NoteTreeNode) => {
-    if (treeNodeIds.has(node.id)) {
-      throw new Error(`Invalid response at $.tree: duplicate node ${node.id}`);
-    }
-
-    treeNodeIds.add(node.id);
-
-    if (node.kind === "note" && !noteIds.has(node.noteId)) {
-      throw new Error(`Invalid response at $.tree: unknown note ${node.noteId}`);
-    }
-
-    if (node.kind === "note") {
-      if (treeNoteIds.has(node.noteId)) {
-        throw new Error(
-          `Invalid response at $.tree: duplicate note node ${node.noteId}`,
-        );
-      }
-
-      treeNoteIds.add(node.noteId);
-    }
-
-    if (node.kind === "folder") {
-      node.children.forEach(visit);
-    }
-  };
-
-  workspace.tree.forEach(visit);
-}
-
 export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
   if (value === null) {
     return null;
@@ -197,7 +158,7 @@ export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
     ),
   };
 
-  assertWorkspaceReferences(workspace);
+  validateWorkspaceData(workspace);
   return workspace;
 }
 

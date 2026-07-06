@@ -7,17 +7,23 @@ import {
 import {
   appendNoteToWorkspaceTree,
   appendFolderToWorkspaceTree,
-  collectNoteIdsInFolder,
-  countFolders,
-  createNoteTreeFolderNode,
-  findFolderIdContainingNote,
-  findFirstFolderId,
   moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
-  moveNoteTreeNode,
   renameFolderInWorkspaceTree,
-} from "../../../src/workspace/model/noteTree";
+} from "../../../src/workspace/model/noteTree/mutations";
+import {
+  collectNoteIdsInFolder,
+  countFolders,
+  findFolderIdContainingNote,
+  findFirstFolderId,
+} from "../../../src/workspace/model/noteTree/query";
+import {
+  createNoteTreeFolderNode,
+} from "../../../src/workspace/model/noteTree/create";
+import {
+  moveNoteTreeNode,
+} from "../../../src/workspace/model/noteTree/move";
 
 describe("note tree operations", () => {
   it("adds newly created notes to the inbox folder", () => {

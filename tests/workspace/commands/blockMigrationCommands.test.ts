@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   appendNoteToWorkspaceTree,
+} from "../../../src/workspace/model/noteTree/mutations";
+import {
   findFolderIdContainingNote,
-} from "../../../src/workspace/model/noteTree";
+} from "../../../src/workspace/model/noteTree/query";
 import {
   createInitialWorkspaceData,
   createNoteRecord,

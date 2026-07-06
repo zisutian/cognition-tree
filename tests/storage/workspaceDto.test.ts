@@ -55,53 +55,6 @@ describe("workspace storage DTOs", () => {
     ).toThrow("unsupported field");
   });
 
-  it("rejects workspace data without the default folder", () => {
-    expect(() =>
-      parseWorkspaceDataDto({
-        ...createInitialWorkspaceData(),
-        tree: [],
-      }),
-    ).toThrow("missing default folder");
-  });
-
-  it("rejects duplicate note placement in the workspace tree", () => {
-    const workspace = createInitialWorkspaceData();
-
-    expect(() =>
-      parseWorkspaceDataDto({
-        ...workspace,
-        notes: [
-          {
-            createdAt: "2026-07-04T00:00:00.000Z",
-            id: "note-duplicate",
-            source: "",
-            title: "重复",
-            updatedAt: "2026-07-04T00:00:00.000Z",
-          },
-        ],
-        tree: [
-          {
-            children: [
-              {
-                id: "tree-note-a",
-                kind: "note",
-                noteId: "note-duplicate",
-              },
-              {
-                id: "tree-note-b",
-                kind: "note",
-                noteId: "note-duplicate",
-              },
-            ],
-            id: "folder-inbox",
-            kind: "folder",
-            title: "仓库根目录",
-          },
-        ],
-      }),
-    ).toThrow("duplicate note node");
-  });
-
   it("does not validate workspace syntax semantics", () => {
     expect(
       parseWorkspaceSyntaxSourceFileDto({

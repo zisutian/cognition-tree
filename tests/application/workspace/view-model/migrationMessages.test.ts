@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getMoveBlockFailureMessage,
   getMoveBlockSuccessMessage,
-} from "../../../../src/application/workspace/projection/viewMigrationMessages";
+} from "../../../../src/application/workspace/view-model/migrationMessages";
 
 describe("workspace migration view messages", () => {
   it("maps migration result codes to application messages", () => {

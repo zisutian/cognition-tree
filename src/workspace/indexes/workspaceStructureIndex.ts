@@ -5,7 +5,7 @@ import type {
   NoteTreeNode,
   WorkspaceData,
 } from "../model/workspaceData";
-import type { NoteTreeFolderNode } from "../model/noteTree";
+import type { NoteTreeFolderNode } from "../model/noteTree/types";
 
 export type WorkspaceStructureIndex = {
   data: WorkspaceData;

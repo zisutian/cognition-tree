@@ -1,83 +1,49 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  createNextInlineRuleDraft,
-  createNextMarkerRuleDraft,
-  isProtectedInlineRuleDraft,
-  type SyntaxProfileDraft,
-  type SyntaxProfileDraftConceptRule,
-  type SyntaxProfileDraftInlineRule,
-  type SyntaxProfileDraftMarkerRule,
-} from "../../../ctn/syntax/profileDraft";
 import type { FolderId } from "../../../workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
   countWorkspaceFolders,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
-  hasWorkspaceNote,
   getDefaultWorkspaceFolderId,
   getParsedWorkspaceNote,
   getWorkspaceNoteReferenceGraph,
   getWorkspaceTree,
   listWorkspaceNotes,
 } from "../../../workspace/queries/workspaceQueries";
-import type { WorkspaceBlockMigrationRequest } from "../../../workspace/commands/blockMigrationCommands";
 import {
-  createUiBlockNodes,
   createUiOutlineNodes,
 } from "../projection/viewBlocks";
 import { createUiEditorView } from "../projection/viewEditor";
 import { createUiReferenceGraphView } from "../projection/viewGraph";
 import {
-  createUiNoteSummaries,
   createUiNoteTree,
   type UiFolderId,
   type UiNoteId,
-  type UiTreeNodeReference,
   type UiTreeMoveRequest,
 } from "../projection/viewTree";
-import {
-  createUiSyntaxView,
-  type UiSyntaxProfileDraftConceptRule,
-  type UiSyntaxProfileDraftInlineRule,
-  type UiSyntaxProfileDraftMarkerRule,
-} from "../projection/viewSyntax";
+import { createUiSyntaxView } from "../projection/viewSyntax";
 import { createUiSidebarView } from "../projection/viewSidebar";
 import type {
   WorkspaceSaveStatus,
   Session,
 } from "../session/useSession";
-import {
-  parseUiBlockMigrationTargetPosition,
-} from "../projection/viewMigration";
+import { createSyntaxDraftActions } from "./syntaxDraftActions";
+import { createWorkspaceTreeNodeReference } from "./sidebarTreeMove";
+import { useMigrationViewModel } from "./useMigrationViewModel";
 import { useWorkspaceParseIndex } from "./useWorkspaceParseIndex";
 import { useSyntaxDraft } from "./useSyntaxDraft";
 import { resolveFolderSelection } from "./selection";
 import {
-  getMoveBlockFailureMessage,
-  getMoveBlockSuccessMessage,
-} from "../projection/viewMigrationMessages";
-import {
   resolveActiveNoteId,
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
-  resolveDifferentNoteId,
 } from "./viewSelection";
 
 type EditorFocusRequest = {
   lineNumber: number;
   requestId: number;
 };
-
-type MoveBlockActionResult =
-  | {
-      message: string;
-      status: "moved";
-    }
-  | {
-      message: string;
-      status: "failed";
-    };
 
 export type WorkspaceViewModelScope = {
   editor: boolean;
@@ -101,18 +67,6 @@ const emptyReferenceGraphView = createUiReferenceGraphView({
   nodes: [],
   unresolvedReferences: [],
 });
-
-function createWorkspaceTreeNodeReference(reference: UiTreeNodeReference) {
-  return reference.kind === "folder"
-    ? {
-        folderId: reference.folderId as FolderId,
-        kind: "folder" as const,
-      }
-    : {
-        kind: "note" as const,
-        noteId: reference.noteId,
-      };
-}
 
 export function useViewModel(
   session: Session,
@@ -140,8 +94,6 @@ export function useViewModel(
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
   const [activeNoteId, setActiveNoteId] = useState<UiNoteId | null>(null);
-  const [migrationSourceNoteId, setMigrationSourceNoteId] = useState("");
-  const [migrationTargetNoteId, setMigrationTargetNoteId] = useState("");
   const notes = listWorkspaceNotes(workspace);
   const activeNote = activeNoteId
     ? findWorkspaceNote(workspace, activeNoteId)
@@ -275,123 +227,6 @@ export function useViewModel(
   const parsedDocument = parsedNote?.document ?? null;
   const documentText = parsedNote?.source ?? "";
 
-  useEffect(() => {
-    if (
-      migrationSourceNoteId &&
-      effectiveWorkspace &&
-      hasWorkspaceNote(effectiveWorkspace, migrationSourceNoteId)
-    ) {
-      return;
-    }
-
-    if (
-      effectiveActiveNote &&
-      effectiveWorkspace &&
-      hasWorkspaceNote(effectiveWorkspace, effectiveActiveNote.id)
-    ) {
-      setMigrationSourceNoteId(effectiveActiveNote.id);
-      return;
-    }
-
-    setMigrationSourceNoteId(effectiveNotes[0]?.id ?? "");
-  }, [
-    effectiveActiveNote,
-    effectiveNotes,
-    effectiveWorkspace,
-    migrationSourceNoteId,
-  ]);
-
-  useEffect(() => {
-    if (
-      migrationTargetNoteId &&
-      migrationTargetNoteId !== migrationSourceNoteId &&
-      effectiveWorkspace &&
-      hasWorkspaceNote(effectiveWorkspace, migrationTargetNoteId)
-    ) {
-      return;
-    }
-
-    setMigrationTargetNoteId(
-      resolveDifferentNoteId(effectiveNotes, migrationSourceNoteId),
-    );
-  }, [
-    effectiveNotes,
-    effectiveWorkspace,
-    migrationSourceNoteId,
-    migrationTargetNoteId,
-  ]);
-
-  const sourceMigrationNote = effectiveWorkspace
-    ? findWorkspaceNote(effectiveWorkspace, migrationSourceNoteId)
-    : null;
-  const targetMigrationNote = effectiveWorkspace
-    ? findWorkspaceNote(effectiveWorkspace, migrationTargetNoteId)
-    : null;
-  const sourceMigrationParsed = useMemo(
-    () =>
-      scope.migration && index && sourceMigrationNote
-        ? getParsedWorkspaceNote(index, sourceMigrationNote.id)
-        : null,
-    [sourceMigrationNote, index, scope.migration],
-  );
-  const targetMigrationParsed = useMemo(
-    () =>
-      scope.migration && index && targetMigrationNote
-        ? getParsedWorkspaceNote(index, targetMigrationNote.id)
-        : null,
-    [targetMigrationNote, index, scope.migration],
-  );
-  const moveNoteBlock = (
-    request: WorkspaceBlockMigrationRequest,
-  ): MoveBlockActionResult => {
-    if (!index || !effectiveContext) {
-      return {
-        message: "需要先配置仓库语法。",
-        status: "failed",
-      };
-    }
-
-    const result = commands.moveBlock(index, request);
-
-    if (result.status !== "moved") {
-      return {
-        message: getMoveBlockFailureMessage(result.reason),
-        status: "failed",
-      };
-    }
-
-    setActiveNoteId(result.targetNoteId);
-    setSelectedFolderId(
-      findWorkspaceFolderIdContainingNote(
-        effectiveContext.workspace,
-        result.targetNoteId,
-      ) ?? selectedFolderId,
-    );
-
-    return {
-      message: getMoveBlockSuccessMessage(),
-      status: "moved",
-    };
-  };
-  const moveMigrationBlock = (
-    sourceBlockLineNumberValue: string,
-    targetPositionValue: string,
-  ) => {
-    if (
-      !sourceMigrationNote ||
-      !targetMigrationNote ||
-      !sourceBlockLineNumberValue
-    ) {
-      return;
-    }
-
-    moveNoteBlock({
-      sourceBlockLineNumber: Number(sourceBlockLineNumberValue),
-      sourceNoteId: sourceMigrationNote.id,
-      targetNoteId: targetMigrationNote.id,
-      targetPosition: parseUiBlockMigrationTargetPosition(targetPositionValue),
-    });
-  };
   const focusEditorLine = (lineNumber: number) => {
     setEditorFocusRequest((current) => ({
       lineNumber,
@@ -400,82 +235,6 @@ export function useViewModel(
   };
   const useDefaultSyntax = () => {
     void useDefaultWorkspaceSyntaxFile();
-  };
-  const updateSyntaxDraftField = (
-    field: keyof Pick<SyntaxProfileDraft, "name" | "tabDisplayWidth">,
-    value: string,
-  ) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      [field]: value,
-    });
-  };
-  const updateSyntaxMarkerRule = (
-    ruleId: string,
-    patch: Partial<UiSyntaxProfileDraftMarkerRule>,
-  ) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      markerRules: syntaxDraft.markerRules.map((rule) =>
-        rule.id === ruleId
-          ? { ...rule, ...(patch as Partial<SyntaxProfileDraftMarkerRule>) }
-          : rule,
-      ),
-    });
-  };
-  const updateSyntaxConceptRule = (
-    patch: Partial<UiSyntaxProfileDraftConceptRule>,
-  ) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      conceptRule: {
-        ...syntaxDraft.conceptRule,
-        ...(patch as Partial<SyntaxProfileDraftConceptRule>),
-      },
-    });
-  };
-  const updateSyntaxInlineRule = (
-    ruleId: string,
-    patch: Partial<UiSyntaxProfileDraftInlineRule>,
-  ) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      inlineRules: syntaxDraft.inlineRules.map((rule) =>
-        rule.id === ruleId
-          ? { ...rule, ...(patch as Partial<SyntaxProfileDraftInlineRule>) }
-          : rule,
-      ),
-    });
-  };
-  const addSyntaxMarkerRule = () => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      markerRules: [
-        ...syntaxDraft.markerRules,
-        createNextMarkerRuleDraft(syntaxDraft.markerRules),
-      ],
-    });
-  };
-  const removeSyntaxMarkerRule = (ruleId: string) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      markerRules: syntaxDraft.markerRules.filter((rule) => rule.id !== ruleId),
-    });
-  };
-  const addSyntaxInlineRule = (kind: "paired" | "single") => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      inlineRules: [
-        ...syntaxDraft.inlineRules,
-        createNextInlineRuleDraft(syntaxDraft.inlineRules, kind),
-      ],
-    });
-  };
-  const removeSyntaxInlineRule = (ruleId: string) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      inlineRules: syntaxDraft.inlineRules.filter((rule) => rule.id !== ruleId),
-    });
   };
   const sidebarNoteTree = useMemo(
     () =>
@@ -490,17 +249,6 @@ export function useViewModel(
   const sidebarFolderCount = useMemo(
     () => (scope.sidebar ? countWorkspaceFolders(workspace) : 0),
     [scope.sidebar, workspace],
-  );
-  const migrationNoteTree = useMemo(
-    () =>
-      scope.migration && effectiveWorkspace
-        ? createUiNoteTree({
-            includeOrphans: true,
-            notes: effectiveNotes,
-            tree: getWorkspaceTree(effectiveWorkspace),
-          })
-        : [],
-    [effectiveNotes, effectiveWorkspace, scope.migration],
   );
   const noteReferenceGraph = useMemo(
     () =>
@@ -517,6 +265,14 @@ export function useViewModel(
         feedback: syntaxFeedback,
       }),
     [syntaxDraft, syntaxDraftResult, syntaxFeedback],
+  );
+  const syntaxDraftActions = useMemo(
+    () =>
+      createSyntaxDraftActions({
+        syntaxDraft,
+        updateSyntaxDraft,
+      }),
+    [syntaxDraft, updateSyntaxDraft],
   );
   const editor = useMemo(
     () =>
@@ -543,31 +299,18 @@ export function useViewModel(
       scope.outline ? createUiOutlineNodes(parsedDocument?.roots ?? []) : [],
     [parsedDocument, scope.outline],
   );
-  const migrationNoteSummaries = useMemo(
-    () => (scope.migration ? createUiNoteSummaries(effectiveNotes) : []),
-    [effectiveNotes, scope.migration],
-  );
-  const sourceMigrationBlocks = useMemo(
-    () =>
-      scope.migration
-        ? createUiBlockNodes(sourceMigrationParsed?.document.blocks ?? [])
-        : [],
-    [scope.migration, sourceMigrationParsed],
-  );
-  const sourceMigrationRoots = useMemo(
-    () =>
-      scope.migration
-        ? createUiBlockNodes(sourceMigrationParsed?.document.roots ?? [])
-        : [],
-    [scope.migration, sourceMigrationParsed],
-  );
-  const targetMigrationRoots = useMemo(
-    () =>
-      scope.migration
-        ? createUiBlockNodes(targetMigrationParsed?.document.roots ?? [])
-        : [],
-    [scope.migration, targetMigrationParsed],
-  );
+  const migration = useMigrationViewModel({
+    commands,
+    effectiveActiveNote,
+    effectiveContext,
+    effectiveNotes,
+    effectiveWorkspace,
+    index,
+    scopeMigration: scope.migration,
+    selectedFolderId,
+    setActiveNoteId,
+    setSelectedFolderId,
+  });
   const sidebar = useMemo(
     () =>
       createUiSidebarView({
@@ -604,24 +347,7 @@ export function useViewModel(
     hasConfiguredSyntax: Boolean(
       workspaceSyntaxFile && effectiveContext && index,
     ),
-    migration: {
-      noteTree: migrationNoteTree,
-      notes: migrationNoteSummaries,
-      onMoveBlockToPosition: moveMigrationBlock,
-      onSourceNoteChange: setMigrationSourceNoteId,
-      onTargetNoteChange: setMigrationTargetNoteId,
-      sourceBlocks: sourceMigrationBlocks,
-      sourceNote: sourceMigrationNote
-        ? { id: sourceMigrationNote.id, title: sourceMigrationNote.title }
-        : null,
-      sourceNoteId: migrationSourceNoteId,
-      sourceRoots: sourceMigrationRoots,
-      targetNote: targetMigrationNote
-        ? { id: targetMigrationNote.id, title: targetMigrationNote.title }
-        : null,
-      targetNoteId: migrationTargetNoteId,
-      targetRoots: targetMigrationRoots,
-    },
+    migration,
     moveNote,
     moveSidebarTreeNode,
     outline: {
@@ -635,19 +361,7 @@ export function useViewModel(
     sidebar,
     syntax: {
       ...syntax,
-      actions: {
-        addInlineRule: addSyntaxInlineRule,
-        addMarkerRule: addSyntaxMarkerRule,
-        removeInlineRule: removeSyntaxInlineRule,
-        removeMarkerRule: removeSyntaxMarkerRule,
-        updateConceptRule: updateSyntaxConceptRule,
-        updateDraftField: updateSyntaxDraftField,
-        updateInlineRule: updateSyntaxInlineRule,
-        updateMarkerRule: updateSyntaxMarkerRule,
-      },
-      protectedInlineRuleIds: syntaxDraft.inlineRules
-        .filter(isProtectedInlineRuleDraft)
-        .map((rule) => rule.id),
+      ...syntaxDraftActions,
     },
     updateActiveNoteSource,
     useDefaultSyntax,

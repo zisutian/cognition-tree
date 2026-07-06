@@ -1,14 +1,14 @@
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  createNoteTreeFolderNode,
   moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
-  moveNoteTreeNode,
-  type NoteTreeMoveRequest,
   renameFolderInWorkspaceTree,
-} from "../model/noteTree";
+} from "../model/noteTree/mutations";
+import { createNoteTreeFolderNode } from "../model/noteTree/create";
+import { moveNoteTreeNode } from "../model/noteTree/move";
+import type { NoteTreeMoveRequest } from "../model/noteTree/types";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import {
   createNoteRecord,

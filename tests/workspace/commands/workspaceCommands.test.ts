@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
+} from "../../../src/workspace/model/noteTree/mutations";
+import {
   createNoteTreeFolderNode,
+} from "../../../src/workspace/model/noteTree/create";
+import {
   findFolderIdContainingNote,
-} from "../../../src/workspace/model/noteTree";
+} from "../../../src/workspace/model/noteTree/query";
 import {
   createInitialWorkspaceData,
   createNoteRecord,

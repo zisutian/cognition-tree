@@ -53,6 +53,6 @@ server：
     src/ui -> src/application、src/editor
     src/application -> src/workspace、src/ctn、src/storage
     src/workspace -> src/ctn
-    src/storage -> src/workspace、src/ctn
+    src/storage -> src/workspace
     src/editor -> src/ctn
     server -> Node HTTP、文件系统、本地文件仓库 DTO

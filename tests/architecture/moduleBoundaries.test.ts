@@ -43,7 +43,7 @@ const allowedRootImports = new Map(
     application: ["application", "ctn", "storage", "workspace"],
     ctn: ["ctn"],
     editor: ["ctn", "editor"],
-    storage: ["ctn", "storage", "workspace"],
+    storage: ["storage", "workspace"],
     ui: ["application", "editor", "ui"],
     workspace: ["ctn", "workspace"],
   }).map(([sourceRoot, imports]) => [sourceRoot, new Set(imports)]),
@@ -228,11 +228,18 @@ describe("architecture module boundaries", () => {
       "view-model",
     ]);
     expect(listSourceFileNames("application/workspace/session")).toEqual([
+      "sessionCommands.ts",
+      "sessionRepositorySnapshot.ts",
       "useSession.ts",
       "workspaceSaveQueue.ts",
     ]);
     expect(listSourceFileNames("application/workspace/view-model")).toEqual([
+      "migrationMessages.ts",
+      "migrationTargetPosition.ts",
       "selection.ts",
+      "sidebarTreeMove.ts",
+      "syntaxDraftActions.ts",
+      "useMigrationViewModel.ts",
       "useSyntaxDraft.ts",
       "useViewModel.ts",
       "useWorkspaceParseIndex.ts",
@@ -243,7 +250,6 @@ describe("architecture module boundaries", () => {
       "viewEditor.ts",
       "viewGraph.ts",
       "viewMigration.ts",
-      "viewMigrationMessages.ts",
       "viewSidebar.ts",
       "viewSyntax.ts",
       "viewText.ts",
@@ -459,9 +465,17 @@ describe("architecture module boundaries", () => {
   });
 
   it("keeps workspace model focused on workspace data and tree model", () => {
-    expect(listSourceFileNames("workspace/model")).toEqual([
-      "noteTree.ts",
+    expect(listImmediateSourceFileNames("workspace/model")).toEqual([
       "workspaceData.ts",
+      "workspaceValidation.ts",
+    ]);
+    expect(listSubdirectories("workspace/model")).toEqual(["noteTree"]);
+    expect(listSourceFileNames("workspace/model/noteTree")).toEqual([
+      "create.ts",
+      "move.ts",
+      "mutations.ts",
+      "query.ts",
+      "types.ts",
     ]);
   });
 
@@ -513,6 +527,19 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps application projections free of workspace command adapters", () => {
+    const violations = listSourceFiles("application/workspace/projection")
+      .flatMap((filePath) =>
+        readSourceImports(filePath)
+          .filter(({ targetPath }) =>
+            targetPath.startsWith("../../src/workspace/commands/"),
+          )
+          .map(({ importPath }) => `${filePath} imports ${importPath}`),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps rendered React components out of workspace", () => {
     const workspaceComponentFiles = listSourceFiles("workspace").filter(
       (filePath) => filePath.endsWith(".tsx"),
@@ -531,6 +558,16 @@ describe("architecture module boundaries", () => {
       );
 
     expect(uiBoundaryViolations).toEqual([]);
+  });
+
+  it("keeps storage out of CTN internals", () => {
+    const violations = listSourceFiles("storage").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetRoot }) => targetRoot === "ctn")
+        .map(({ importPath }) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
   });
 
   it("keeps internal source imports following documented dependency direction", () => {

@@ -9,16 +9,16 @@ import type { CtnBlock } from "../../../../src/ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
+} from "../../../../src/workspace/model/noteTree/mutations";
+import {
   createNoteTreeFolderNode,
-} from "../../../../src/workspace/model/noteTree";
+} from "../../../../src/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
   createNoteRecord,
 } from "../../../../src/workspace/model/workspaceData";
 import {
-  createUiBlockMigrationTargetPositionValue,
   getUiTargetPositionLabel,
-  parseUiBlockMigrationTargetPosition,
 } from "../../../../src/application/workspace/projection/viewMigration";
 import {
   createUiBlockNode,
@@ -198,53 +198,11 @@ describe("workspace view projection", () => {
     ]);
   });
 
-  it("parses and labels migration target position values", () => {
-    expect(parseUiBlockMigrationTargetPosition("end")).toEqual({
-      kind: "end",
-    });
-    expect(parseUiBlockMigrationTargetPosition("inside:12")).toEqual({
-      kind: "inside-block",
-      lineNumber: 12,
-    });
-    expect(parseUiBlockMigrationTargetPosition("sibling-above:12")).toEqual({
-      kind: "sibling-above",
-      lineNumber: 12,
-    });
-    expect(parseUiBlockMigrationTargetPosition("sibling-below:12")).toEqual({
-      kind: "sibling-below",
-      lineNumber: 12,
-    });
+  it("labels migration target position values", () => {
     expect(getUiTargetPositionLabel("inside:1")).toBe("作为子结点");
-    expect(() => parseUiBlockMigrationTargetPosition("unknown:12")).toThrow(
-      "Invalid block migration target position",
-    );
     expect(() => getUiTargetPositionLabel("inside:0")).toThrow(
       "Invalid block migration target position",
     );
-  });
-
-  it("serializes migration target positions", () => {
-    expect(createUiBlockMigrationTargetPositionValue({ kind: "end" })).toBe(
-      "end",
-    );
-    expect(
-      createUiBlockMigrationTargetPositionValue({
-        kind: "inside-block",
-        lineNumber: 7,
-      }),
-    ).toBe("inside:7");
-    expect(
-      createUiBlockMigrationTargetPositionValue({
-        kind: "sibling-above",
-        lineNumber: 7,
-      }),
-    ).toBe("sibling-above:7");
-    expect(
-      createUiBlockMigrationTargetPositionValue({
-        kind: "sibling-below",
-        lineNumber: 7,
-      }),
-    ).toBe("sibling-below:7");
   });
 
   it("maps syntax draft state into UI display data", () => {
