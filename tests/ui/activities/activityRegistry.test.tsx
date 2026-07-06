@@ -66,6 +66,7 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
       targetRoots: [],
     },
     moveNote: () => undefined,
+    moveSidebarTreeNode: () => undefined,
     outline: {
       nodes: [],
       onSelectLine: () => undefined,

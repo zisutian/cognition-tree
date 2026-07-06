@@ -5,6 +5,8 @@ import {
   moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
+  moveNoteTreeNode,
+  type NoteTreeMoveRequest,
   renameFolderInWorkspaceTree,
 } from "../model/noteTree";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
@@ -187,6 +189,16 @@ export function moveWorkspaceNote(
       noteId,
       targetFolderId,
     ),
+  };
+}
+
+export function moveWorkspaceTreeNode(
+  workspace: WorkspaceStructureIndex,
+  request: NoteTreeMoveRequest,
+): WorkspaceData {
+  return {
+    ...workspace.data,
+    tree: moveNoteTreeNode(workspace.data.tree, request),
   };
 }
 

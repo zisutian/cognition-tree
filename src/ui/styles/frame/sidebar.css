@@ -318,15 +318,38 @@
   gap: 1px;
 }
 
+.note-tree-drop-zone {
+  height: 8px;
+  margin: -3px 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+
+.note-tree-drop-zone.is-drop-target {
+  background: var(--color-accent);
+}
+
 .note-folder-label {
   font-weight: var(--font-weight-semibold);
 }
 
+.note-folder-row.is-dragging,
+.note-item.is-dragging {
+  opacity: 0.48;
+}
+
 .note-folder-row.active .note-folder-label,
 .note-folder-row.active .note-folder-toggle,
+.note-folder-row.is-drop-inside .note-folder-label,
+.note-folder-row.is-drop-inside .note-folder-toggle,
 .note-folder-row:hover .note-folder-label,
 .note-folder-row:hover .note-folder-toggle {
   color: var(--color-fg-strong);
+}
+
+.note-folder-row.is-drop-inside .note-folder-label,
+.note-folder-row.is-drop-inside .note-folder-toggle {
+  background: var(--color-selection);
 }
 
 .note-item-row {

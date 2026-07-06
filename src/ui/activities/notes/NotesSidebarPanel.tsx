@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { FolderPlus, Plus } from "lucide-react";
 import type {
   UiFolderId,
   UiNoteId,
+  UiTreeNode,
+  UiTreeNodeReference,
+  UiTreeMovePlacement,
+  UiTreeMoveRequest,
 } from "../../../application/workspace/projection/viewTree";
 import type { UiSidebarView } from "../../../application/workspace/projection/viewSidebar";
 import {
@@ -10,6 +14,14 @@ import {
   type TreeContextMenuPosition,
 } from "./NotesSidebarTree";
 import { SidebarScrollArea } from "../../shared/SidebarScrollArea";
+import {
+  createSidebarTreeDragSession,
+  createSidebarTreeDropRequest,
+  createSidebarTreeNodeReference,
+  getSidebarTreeDropTargetKey,
+  getSidebarTreeNodeKey,
+  sidebarTreeDragDataType,
+} from "./sidebarTreeDrag";
 
 type SidebarTreeContextMenu =
   | {
@@ -49,6 +61,7 @@ type NotesSidebarPanelProps = {
   onDeleteFolder: (folderId: UiFolderId) => void;
   onDeleteNote: (noteId: UiNoteId) => void;
   onMoveNote: (noteId: UiNoteId, targetFolderId: UiFolderId) => void;
+  onMoveTreeNode: (request: UiTreeMoveRequest) => void;
   onRenameFolder: (folderId: UiFolderId, title: string) => void;
   onSelectFolder: (folderId: UiFolderId) => void;
   onSelectNote: (noteId: UiNoteId) => void;
@@ -61,6 +74,7 @@ export function NotesSidebarPanel({
   onDeleteFolder,
   onDeleteNote,
   onMoveNote,
+  onMoveTreeNode,
   onRenameFolder,
   onSelectFolder,
   onSelectNote,
@@ -70,6 +84,11 @@ export function NotesSidebarPanel({
   );
   const [contextMenu, setContextMenu] =
     useState<SidebarTreeContextMenu | null>(null);
+  const [draggingNodeKey, setDraggingNodeKey] = useState<string | null>(null);
+  const [activeDropTargetKey, setActiveDropTargetKey] = useState<string | null>(
+    null,
+  );
+  const dragSession = useMemo(createSidebarTreeDragSession, []);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -186,6 +205,110 @@ export function NotesSidebarPanel({
 
     onMoveNote(noteId, view.activeFolderId);
   };
+  const readDragPayload = (event: DragEvent<HTMLElement>) =>
+    dragSession.read({
+      plainText: event.dataTransfer.getData("text/plain"),
+      typedPayload: event.dataTransfer.getData(sidebarTreeDragDataType),
+    });
+  const startTreeNodeDrag = (
+    event: DragEvent<HTMLButtonElement>,
+    node: UiTreeNode,
+    siblingIndex: number,
+  ) => {
+    if (!node.canDrag) {
+      event.preventDefault();
+      return;
+    }
+
+    const nodeReference = createSidebarTreeNodeReference(node);
+    const payload = {
+      ...nodeReference,
+      siblingIndex,
+    };
+    const payloadText = dragSession.start(payload);
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(sidebarTreeDragDataType, payloadText);
+    event.dataTransfer.setData("text/plain", payloadText);
+    setContextMenu(null);
+    setDraggingNodeKey(getSidebarTreeNodeKey(nodeReference));
+  };
+  const finishTreeNodeDrag = () => {
+    dragSession.finish();
+    setDraggingNodeKey(null);
+    setActiveDropTargetKey(null);
+  };
+  const getTreeDropRequest = (
+    event: DragEvent<HTMLElement>,
+    target: UiTreeNodeReference,
+    placement: UiTreeMovePlacement,
+    targetSiblingIndex: number,
+  ) => {
+    const source = readDragPayload(event);
+
+    return source
+      ? createSidebarTreeDropRequest({
+          placement,
+          source,
+          target,
+          targetSiblingIndex,
+        })
+      : null;
+  };
+  const dragOverTreeDropTarget = (
+    event: DragEvent<HTMLDivElement>,
+    target: UiTreeNodeReference,
+    placement: UiTreeMovePlacement,
+    targetSiblingIndex: number,
+  ) => {
+    const request = getTreeDropRequest(
+      event,
+      target,
+      placement,
+      targetSiblingIndex,
+    );
+
+    if (!request) {
+      setActiveDropTargetKey(null);
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setActiveDropTargetKey(
+      getSidebarTreeDropTargetKey({
+        placement,
+        target,
+      }),
+    );
+  };
+  const leaveTreeDropTarget = (dropTargetKey: string) => {
+    setActiveDropTargetKey((current) =>
+      current === dropTargetKey ? null : current,
+    );
+  };
+  const dropOnTreeNode = (
+    event: DragEvent<HTMLDivElement>,
+    target: UiTreeNodeReference,
+    placement: UiTreeMovePlacement,
+    targetSiblingIndex: number,
+  ) => {
+    const request = getTreeDropRequest(
+      event,
+      target,
+      placement,
+      targetSiblingIndex,
+    );
+
+    if (!request) {
+      finishTreeNodeDrag();
+      return;
+    }
+
+    event.preventDefault();
+    onMoveTreeNode(request);
+    finishTreeNodeDrag();
+  };
 
   return (
     <div className="side-panel-body">
@@ -214,10 +337,17 @@ export function NotesSidebarPanel({
         <nav className="note-tree" aria-label="笔记仓库">
           <SidebarScrollArea contentClassName="ctn-tree-list note-tree-content">
             <NotesSidebarTree
+              activeDropTargetKey={activeDropTargetKey}
               activeFolderId={view.activeFolderId}
               activeNoteId={view.activeNoteId}
               collapsedFolderIds={collapsedFolderIds}
+              draggingNodeKey={draggingNodeKey}
               nodes={view.noteTree}
+              onDragEnd={finishTreeNodeDrag}
+              onDragLeaveDropTarget={leaveTreeDropTarget}
+              onDragOverDropTarget={dragOverTreeDropTarget}
+              onDragStart={startTreeNodeDrag}
+              onDropOnTreeNode={dropOnTreeNode}
               onOpenFolderMenu={openFolderContextMenu}
               onOpenNoteMenu={openNoteContextMenu}
               onSelectFolder={onSelectFolder}

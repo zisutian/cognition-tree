@@ -33,6 +33,8 @@ import {
   createUiNoteTree,
   type UiFolderId,
   type UiNoteId,
+  type UiTreeNodeReference,
+  type UiTreeMoveRequest,
 } from "../projection/viewTree";
 import {
   createUiSyntaxView,
@@ -99,6 +101,18 @@ const emptyReferenceGraphView = createUiReferenceGraphView({
   nodes: [],
   unresolvedReferences: [],
 });
+
+function createWorkspaceTreeNodeReference(reference: UiTreeNodeReference) {
+  return reference.kind === "folder"
+    ? {
+        folderId: reference.folderId as FolderId,
+        kind: "folder" as const,
+      }
+    : {
+        kind: "note" as const,
+        noteId: reference.noteId,
+      };
+}
 
 export function useViewModel(
   session: Session,
@@ -209,6 +223,13 @@ export function useViewModel(
   const moveNote = (noteId: UiNoteId, targetFolderId: UiFolderId) => {
     commands.moveNote(noteId, targetFolderId);
     setSelectedFolderId(targetFolderId);
+  };
+  const moveSidebarTreeNode = (request: UiTreeMoveRequest) => {
+    commands.moveTreeNode({
+      placement: request.placement,
+      source: createWorkspaceTreeNodeReference(request.source),
+      target: createWorkspaceTreeNodeReference(request.target),
+    });
   };
 
   const updateActiveNoteSource = (source: string) => {
@@ -602,6 +623,7 @@ export function useViewModel(
       targetRoots: targetMigrationRoots,
     },
     moveNote,
+    moveSidebarTreeNode,
     outline: {
       nodes: outlineNodes,
       onSelectLine: focusEditorLine,

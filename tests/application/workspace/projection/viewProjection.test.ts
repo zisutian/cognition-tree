@@ -46,8 +46,13 @@ function createWorkspace() {
   const sourceNote = createNoteRecord("note-source", "源笔记", timestamp);
   const targetNote = createNoteRecord("note-target", "目标笔记", timestamp);
   const workspace = createInitialWorkspaceData();
-  const treeWithFolder = appendFolderToWorkspaceTree(
+  const treeWithSourceNote = appendNoteToWorkspaceTree(
     workspace.tree,
+    sourceNote.id,
+    "folder-inbox",
+  );
+  const treeWithFolder = appendFolderToWorkspaceTree(
+    treeWithSourceNote,
     createNoteTreeFolderNode("folder-project", "项目"),
     "folder-inbox",
   );
@@ -56,7 +61,7 @@ function createWorkspace() {
     ...workspace,
     notes: [sourceNote, targetNote],
     tree: appendNoteToWorkspaceTree(
-      appendNoteToWorkspaceTree(treeWithFolder, sourceNote.id, "folder-inbox"),
+      treeWithFolder,
       targetNote.id,
       "folder-project",
     ),
@@ -144,30 +149,38 @@ describe("workspace view projection", () => {
     });
 
     expect(noteTree[0]).toMatchObject({
+      canDrag: false,
       childCount: 2,
       folderId: "folder-inbox",
       kind: "folder",
+      parentFolderId: null,
       title: "仓库根目录",
     });
     expect(noteTree[0]).toMatchObject({
       children: [
         {
-          folderId: "folder-project",
-          kind: "folder",
-          title: "项目",
-        },
-        {
+          canDrag: true,
           folderId: "folder-inbox",
           kind: "note",
           noteId: "note-source",
+          parentFolderId: "folder-inbox",
           title: "源笔记",
+        },
+        {
+          canDrag: true,
+          folderId: "folder-project",
+          kind: "folder",
+          parentFolderId: "folder-inbox",
+          title: "项目",
         },
       ],
     });
     expect(noteTree[noteTree.length - 1]).toMatchObject({
+      canDrag: false,
       id: "workspace-orphan-note-orphan",
       kind: "note",
       noteId: "note-orphan",
+      parentFolderId: null,
       title: "孤立笔记",
     });
   });

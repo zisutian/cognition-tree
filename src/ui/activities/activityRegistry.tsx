@@ -75,6 +75,7 @@ function createNotesSlots({
       onDeleteFolder={view.deleteFolder}
       onDeleteNote={view.deleteNote}
       onMoveNote={view.moveNote}
+      onMoveTreeNode={view.moveSidebarTreeNode}
       onRenameFolder={view.renameFolder}
       onSelectFolder={view.selectFolder}
       onSelectNote={view.selectNote}

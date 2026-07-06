@@ -17,6 +17,7 @@ import {
   deleteWorkspaceFolder,
   deleteWorkspaceNote,
   moveWorkspaceNote,
+  moveWorkspaceTreeNode,
   renameWorkspaceFolder,
   updateWorkspaceNoteSource,
 } from "../../../src/workspace/commands/workspaceCommands";
@@ -130,6 +131,40 @@ describe("workspace actions", () => {
     });
   });
 
+  it("moves sidebar tree nodes within or across folders", () => {
+    const workspace = createWorkspaceWithNotes();
+    const movedBeforeNote = moveWorkspaceTreeNode(indexWorkspace(workspace), {
+      placement: "before",
+      source: { kind: "note", noteId: "note-second" },
+      target: { kind: "note", noteId: "note-first" },
+    });
+    const withFolder = createWorkspaceFolder(indexWorkspace(movedBeforeNote), {
+      folderId: "folder-target",
+      parentFolderId: "folder-inbox",
+      title: "目标",
+    });
+    const movedInsideFolder = moveWorkspaceTreeNode(indexWorkspace(withFolder), {
+      placement: "inside",
+      source: { kind: "note", noteId: "note-first" },
+      target: { folderId: "folder-target", kind: "folder" },
+    });
+    const root = movedInsideFolder.tree[0];
+
+    expect(root.kind).toBe("folder");
+
+    if (root.kind !== "folder") {
+      throw new Error("workspace root should be a folder");
+    }
+
+    expect(root.children.map((node) => node.id)).toEqual([
+      "tree-note-second",
+      "folder-target",
+    ]);
+    expect(
+      findFolderIdContainingNote(movedInsideFolder.tree, "note-first"),
+    ).toBe("folder-target");
+  });
+
   it("rejects invalid workspace command input", () => {
     const workspace = createWorkspaceWithNotes();
 
@@ -178,5 +213,12 @@ describe("workspace actions", () => {
         timestamp,
       ),
     ).toThrow("Workspace note does not exist");
+    expect(() =>
+      moveWorkspaceTreeNode(indexWorkspace(workspace), {
+        placement: "after",
+        source: { kind: "note", noteId: "missing-note" },
+        target: { kind: "note", noteId: "note-first" },
+      }),
+    ).toThrow("Workspace tree node does not exist");
   });
 });

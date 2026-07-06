@@ -317,6 +317,14 @@ describe("architecture module boundaries", () => {
       "MigrationTargetTree.tsx",
       "blockMigrationDrag.ts",
     ]);
+    expect(listSourceFileNames("ui/activities/notes")).toEqual([
+      "NoteEditorPanel.tsx",
+      "NoteOutlinePanel.tsx",
+      "NoteOutlineTree.tsx",
+      "NotesSidebarPanel.tsx",
+      "NotesSidebarTree.tsx",
+      "sidebarTreeDrag.ts",
+    ]);
     expect(listSourceFileNames("ui/shared/blocks")).toEqual([
       "BlockTextDisplay.tsx",
       "BlockTree.tsx",

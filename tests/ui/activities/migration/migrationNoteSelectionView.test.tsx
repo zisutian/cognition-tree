@@ -5,31 +5,39 @@ import type { UiTreeNode } from "../../../../src/application/workspace/projectio
 
 const noteTree: UiTreeNode[] = [
   {
+    canDrag: false,
     childCount: 1,
     folderId: "folder-inbox",
     id: "folder-inbox",
     kind: "folder",
+    parentFolderId: null,
     title: "仓库根目录",
     children: [
       {
+        canDrag: true,
         childCount: 2,
         folderId: "folder-project",
         id: "folder-project",
         kind: "folder",
+        parentFolderId: "folder-inbox",
         title: "项目",
         children: [
           {
+            canDrag: true,
             folderId: "folder-project",
             id: "tree-note-source",
             kind: "note",
             noteId: "note-source",
+            parentFolderId: "folder-project",
             title: "Source note",
           },
           {
+            canDrag: true,
             folderId: "folder-project",
             id: "tree-note-target",
             kind: "note",
             noteId: "note-target",
+            parentFolderId: "folder-project",
             title: "Target note",
           },
         ],

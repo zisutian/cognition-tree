@@ -15,6 +15,7 @@ import {
   deleteWorkspaceFolder as deleteWorkspaceFolderAction,
   deleteWorkspaceNote as deleteWorkspaceNoteAction,
   moveWorkspaceNote as moveWorkspaceNoteAction,
+  moveWorkspaceTreeNode as moveWorkspaceTreeNodeAction,
   renameWorkspaceFolder as renameWorkspaceFolderAction,
   updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
 } from "../../../workspace/commands/workspaceCommands";
@@ -49,6 +50,9 @@ type CreateWorkspaceFolderCommand = Parameters<
 type WorkspaceBlockMigrationIndex = Parameters<
   typeof moveWorkspaceBlockAction
 >[1];
+type MoveWorkspaceTreeNodeCommand = Parameters<
+  typeof moveWorkspaceTreeNodeAction
+>[1];
 type MoveWorkspaceBlockCommandResult =
   | {
       status: "moved";
@@ -73,6 +77,7 @@ export type SessionCommands = {
     request: WorkspaceBlockMigrationRequest,
   ) => MoveWorkspaceBlockCommandResult;
   moveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
+  moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
   updateNoteSource: (noteId: NoteId, source: string) => void;
 };
@@ -209,6 +214,11 @@ export function useSession({
       moveNote(noteId, targetFolderId) {
         commitDataSnapshot(
           moveWorkspaceNoteAction(workspace, noteId, targetFolderId),
+        );
+      },
+      moveTreeNode(request) {
+        commitDataSnapshot(
+          moveWorkspaceTreeNodeAction(workspace, request),
         );
       },
       renameFolder(folderId, title) {

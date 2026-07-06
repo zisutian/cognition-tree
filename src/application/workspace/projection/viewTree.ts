@@ -9,18 +9,22 @@ export type UiNoteId = string;
 
 export type UiTreeNode =
   | {
+      canDrag: boolean;
       childCount: number;
       children: UiTreeNode[];
       folderId: UiFolderId;
       id: string;
       kind: "folder";
+      parentFolderId: UiFolderId | null;
       title: string;
     }
   | {
+      canDrag: boolean;
       folderId: UiFolderId | null;
       id: string;
       kind: "note";
       noteId: UiNoteId;
+      parentFolderId: UiFolderId | null;
       title: string;
     };
 
@@ -28,16 +32,23 @@ export type UiNoteSummary = {
   id: UiNoteId;
   title: string;
 };
-
-function orderNoteTreeNodesFoldersFirst(nodes: NoteTreeNode[]) {
-  return [...nodes].sort((left, right) => {
-    if (left.kind === right.kind) {
-      return 0;
+export type UiTreeNodeReference =
+  | {
+      folderId: UiFolderId;
+      kind: "folder";
+      parentFolderId: UiFolderId | null;
     }
-
-    return left.kind === "folder" ? -1 : 1;
-  });
-}
+  | {
+      kind: "note";
+      noteId: UiNoteId;
+      parentFolderId: UiFolderId | null;
+    };
+export type UiTreeMovePlacement = "after" | "before" | "inside";
+export type UiTreeMoveRequest = {
+  placement: UiTreeMovePlacement;
+  source: UiTreeNodeReference;
+  target: UiTreeNodeReference;
+};
 
 function collectWorkspaceTreeNoteIds(
   nodes: NoteTreeNode[],
@@ -77,7 +88,7 @@ function createUiNoteTreeNodes({
   nodes: NoteTreeNode[];
   visitedNodeIds?: Set<string>;
 }): UiTreeNode[] {
-  return orderNoteTreeNodesFoldersFirst(nodes).flatMap<UiTreeNode>((node) => {
+  return nodes.flatMap<UiTreeNode>((node) => {
     if (visitedNodeIds.has(node.id)) {
       return [];
     }
@@ -90,10 +101,12 @@ function createUiNoteTreeNodes({
       return note
         ? [
             {
+              canDrag: Boolean(folderId),
               folderId,
               id: node.id,
               kind: "note" as const,
               noteId: note.id,
+              parentFolderId: folderId,
               title: note.title,
             },
           ]
@@ -109,11 +122,13 @@ function createUiNoteTreeNodes({
 
     return [
       {
+        canDrag: node.id !== defaultFolderId,
         childCount: node.children.length,
         children,
         folderId: node.id,
         id: node.id,
         kind: "folder" as const,
+        parentFolderId: folderId,
         title: node.id === defaultFolderId ? "仓库根目录" : node.title,
       },
     ];
