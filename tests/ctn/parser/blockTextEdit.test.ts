@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
 import {
+  moveCtnBlockWithinText,
   moveCtnBlockText,
   type CtnBlockTextRange,
 } from "../../../src/ctn/parser/blockTextEdit";
@@ -8,6 +9,18 @@ import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxPr
 
 function parseBlocks(source: string): CtnBlockTextRange[] {
   return parseCtnDocument(source, defaultCtnSyntaxProfile).blocks;
+}
+
+function findBlock(source: string, lineNumber: number) {
+  const block = parseBlocks(source).find(
+    (entry) => entry.lineNumber === lineNumber,
+  );
+
+  if (!block) {
+    throw new Error(`Expected block at line ${lineNumber}.`);
+  }
+
+  return block;
 }
 
 describe("ctn block text edit", () => {
@@ -134,5 +147,85 @@ describe("ctn block text edit", () => {
       nextTargetText: "```ts\n\tconst value = 1;\n```",
       status: "moved",
     });
+  });
+
+  it("moves a whole subtree within the same document", () => {
+    const sourceText =
+      "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling";
+
+    expect(
+      moveCtnBlockWithinText({
+        sourceBlock: findBlock(sourceText, 2),
+        sourceText,
+        targetPosition: { kind: "end" },
+      }),
+    ).toEqual({
+      nextText: "Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
+      status: "moved",
+    });
+  });
+
+  it("moves a same-document block to sibling positions", () => {
+    const sourceText = "Title\nRoot\n\t: A\n\t: B\nOther";
+
+    expect(
+      moveCtnBlockWithinText({
+        sourceBlock: findBlock(sourceText, 3),
+        sourceText,
+        targetPosition: {
+          block: findBlock(sourceText, 4),
+          kind: "sibling-below",
+        },
+      }),
+    ).toEqual({
+      nextText: "Title\nRoot\n\t: B\n\t: A\nOther",
+      status: "moved",
+    });
+    expect(
+      moveCtnBlockWithinText({
+        sourceBlock: findBlock(sourceText, 4),
+        sourceText,
+        targetPosition: {
+          block: findBlock(sourceText, 3),
+          kind: "sibling-above",
+        },
+      }),
+    ).toEqual({
+      nextText: "Title\nRoot\n\t: B\n\t: A\nOther",
+      status: "moved",
+    });
+  });
+
+  it("moves a same-document block inside another block and rewrites indentation", () => {
+    const sourceText = "Title\nRoot\n\t: A\n\t: B\nOther";
+
+    expect(
+      moveCtnBlockWithinText({
+        sourceBlock: findBlock(sourceText, 3),
+        sourceText,
+        targetPosition: {
+          block: findBlock(sourceText, 4),
+          kind: "inside-block",
+        },
+      }),
+    ).toEqual({
+      nextText: "Title\nRoot\n\t: B\n\t\t: A\nOther",
+      status: "moved",
+    });
+  });
+
+  it("rejects same-document targets inside the moved subtree", () => {
+    const sourceText = "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling";
+
+    expect(() =>
+      moveCtnBlockWithinText({
+        sourceBlock: findBlock(sourceText, 2),
+        sourceText,
+        targetPosition: {
+          block: findBlock(sourceText, 3),
+          kind: "inside-block",
+        },
+      }),
+    ).toThrow("Cannot move a CTN block into its own subtree.");
   });
 });

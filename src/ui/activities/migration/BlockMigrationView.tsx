@@ -12,10 +12,10 @@ import {
   UiSectionTitle,
 } from "../../shared/primitives";
 import {
-  blockDragDataType,
-  createBlockDragLineNumberPayload,
-  readBlockDragLineNumberPayload,
-} from "./blockMigrationDrag";
+  blockLineDragDataType,
+  createBlockLineDragPayload,
+  readBlockLineDragPayload,
+} from "./blockLineDrag";
 import { MigrationSourceTree } from "./MigrationSourceTree";
 import {
   MigrationDropZone,
@@ -68,10 +68,10 @@ export function BlockMigrationView({
     lineNumber: number,
   ) => {
     const lineNumberValue = String(lineNumber);
-    const payload = createBlockDragLineNumberPayload(lineNumber);
+    const payload = createBlockLineDragPayload(lineNumber);
 
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData(blockDragDataType, payload);
+    event.dataTransfer.setData(blockLineDragDataType, payload);
     event.dataTransfer.setData("text/plain", payload);
     setDraggingSourceLineNumber(lineNumberValue);
     setSourceBlockLineNumber(lineNumberValue);
@@ -122,9 +122,9 @@ export function BlockMigrationView({
   ) => {
     event.preventDefault();
 
-    const lineNumberValue = readBlockDragLineNumberPayload({
+    const lineNumberValue = readBlockLineDragPayload({
       plainText: event.dataTransfer.getData("text/plain"),
-      typedPayload: event.dataTransfer.getData(blockDragDataType),
+      typedPayload: event.dataTransfer.getData(blockLineDragDataType),
     });
 
     if (!lineNumberValue) {

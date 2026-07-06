@@ -22,9 +22,12 @@ import {
 } from "./MigrationNoteTree";
 
 type MigrationSidebarPanelProps = {
+  mode: "pair" | "structure";
   noteTree: UiTreeNode[];
   sourceNoteId: UiNoteId;
+  structureNoteId: UiNoteId;
   targetNoteId: UiNoteId;
+  onOpenNoteStructure: (noteId: UiNoteId) => void;
   onPairNotesForMigration: (
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
@@ -32,9 +35,12 @@ type MigrationSidebarPanelProps = {
 };
 
 export function MigrationSidebarPanel({
+  mode,
   noteTree,
   sourceNoteId,
+  structureNoteId,
   targetNoteId,
+  onOpenNoteStructure,
   onPairNotesForMigration,
 }: MigrationSidebarPanelProps) {
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<
@@ -148,15 +154,18 @@ export function MigrationSidebarPanel({
                   activeDropNoteId={activeDropNoteId}
                   collapsedFolderIds={collapsedFolderIds}
                   draggingNoteId={draggingNoteId}
+                  mode={mode}
                   noteIds={noteIds}
                   nodes={noteTree}
                   sourceNoteId={sourceNoteId}
+                  structureNoteId={structureNoteId}
                   targetNoteId={targetNoteId}
                   onDragEnd={clearDragState}
                   onDragLeaveNote={dragLeaveNote}
                   onDragOverNote={dragOverNote}
                   onDragStartNote={startNoteDrag}
                   onDropNote={dropNote}
+                  onOpenNoteStructure={onOpenNoteStructure}
                   onToggleFolder={toggleFolder}
                 />
               ) : (

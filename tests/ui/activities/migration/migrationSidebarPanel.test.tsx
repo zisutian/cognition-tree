@@ -39,9 +39,12 @@ describe("MigrationSidebarPanel", () => {
   it("renders a note tree for migration pairing without note management actions", () => {
     const markup = renderToStaticMarkup(
       <MigrationSidebarPanel
+        mode="pair"
         noteTree={noteTree}
         sourceNoteId="note-source"
+        structureNoteId="note-source"
         targetNoteId="note-target"
+        onOpenNoteStructure={() => undefined}
         onPairNotesForMigration={() => undefined}
       />,
     );
@@ -53,9 +56,28 @@ describe("MigrationSidebarPanel", () => {
     expect(markup).toContain("draggable=\"true\"");
     expect(markup).toContain("源");
     expect(markup).toContain("目标");
+    expect(markup).not.toContain("结构");
     expect(markup).not.toContain("笔记选择");
     expect(markup).not.toContain("重命名");
     expect(markup).not.toContain("删除");
     expect(markup).not.toContain("新建");
+  });
+
+  it("renders only the active structure marker in structure mode", () => {
+    const markup = renderToStaticMarkup(
+      <MigrationSidebarPanel
+        mode="structure"
+        noteTree={noteTree}
+        sourceNoteId="note-source"
+        structureNoteId="note-source"
+        targetNoteId="note-target"
+        onOpenNoteStructure={() => undefined}
+        onPairNotesForMigration={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("结构");
+    expect(markup).not.toContain("源");
+    expect(markup).not.toContain("目标");
   });
 });

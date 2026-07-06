@@ -12,10 +12,12 @@ import type {
 type MigrationNoteTreeProps = {
   collapsedFolderIds: Set<UiFolderId>;
   draggingNoteId: UiNoteId | null;
+  mode: "pair" | "structure";
   noteIds: Set<UiNoteId>;
   activeDropNoteId: UiNoteId | null;
   nodes: UiTreeNode[];
   sourceNoteId: UiNoteId;
+  structureNoteId: UiNoteId;
   targetNoteId: UiNoteId;
   onDragEnd: () => void;
   onDragLeaveNote: (
@@ -34,6 +36,7 @@ type MigrationNoteTreeProps = {
     event: DragEvent<HTMLButtonElement>,
     noteId: UiNoteId,
   ) => void;
+  onOpenNoteStructure: (noteId: UiNoteId) => void;
   onToggleFolder: (folderId: UiFolderId) => void;
 };
 
@@ -57,15 +60,18 @@ export function MigrationNoteTree({
   activeDropNoteId,
   collapsedFolderIds,
   draggingNoteId,
+  mode,
   noteIds,
   nodes,
   sourceNoteId,
+  structureNoteId,
   targetNoteId,
   onDragEnd,
   onDragLeaveNote,
   onDragOverNote,
   onDragStartNote,
   onDropNote,
+  onOpenNoteStructure,
   onToggleFolder,
 }: MigrationNoteTreeProps) {
   return (
@@ -114,15 +120,18 @@ export function MigrationNoteTree({
                     activeDropNoteId={activeDropNoteId}
                     collapsedFolderIds={collapsedFolderIds}
                     draggingNoteId={draggingNoteId}
+                    mode={mode}
                     noteIds={noteIds}
                     nodes={node.children}
                     sourceNoteId={sourceNoteId}
+                    structureNoteId={structureNoteId}
                     targetNoteId={targetNoteId}
                     onDragEnd={onDragEnd}
                     onDragLeaveNote={onDragLeaveNote}
                     onDragOverNote={onDragOverNote}
                     onDragStartNote={onDragStartNote}
                     onDropNote={onDropNote}
+                    onOpenNoteStructure={onOpenNoteStructure}
                     onToggleFolder={onToggleFolder}
                   />
                 </div>
@@ -135,8 +144,10 @@ export function MigrationNoteTree({
           return null;
         }
 
-        const isSource = node.noteId === sourceNoteId;
-        const isTarget = node.noteId === targetNoteId;
+        const isSource = mode === "pair" && node.noteId === sourceNoteId;
+        const isStructure =
+          mode === "structure" && node.noteId === structureNoteId;
+        const isTarget = mode === "pair" && node.noteId === targetNoteId;
         const isDragging = node.noteId === draggingNoteId;
         const isDropTarget = node.noteId === activeDropNoteId;
 
@@ -147,6 +158,7 @@ export function MigrationNoteTree({
                 [
                   "ctn-tree-row note-item-row-content migration-note-row",
                   isSource ? "is-source" : "",
+                  isStructure ? "is-structure" : "",
                   isTarget ? "is-target" : "",
                   isDragging ? "is-dragging" : "",
                   isDropTarget ? "is-drop-target" : "",
@@ -158,6 +170,7 @@ export function MigrationNoteTree({
               <button
                 className="ctn-tree-main ctn-tree-main-note note-item migration-note-button"
                 draggable={node.canDrag}
+                onClick={() => onOpenNoteStructure(node.noteId)}
                 onDragEnd={onDragEnd}
                 onDragLeave={(event) => onDragLeaveNote(event, node.noteId)}
                 onDragOver={(event) => onDragOverNote(event, node.noteId)}
@@ -169,6 +182,9 @@ export function MigrationNoteTree({
                 <span className="ctn-tree-text">{node.title}</span>
                 {isSource ? (
                   <span className="migration-note-badge">源</span>
+                ) : null}
+                {isStructure ? (
+                  <span className="migration-note-badge">结构</span>
                 ) : null}
                 {isTarget ? (
                   <span className="migration-note-badge">目标</span>

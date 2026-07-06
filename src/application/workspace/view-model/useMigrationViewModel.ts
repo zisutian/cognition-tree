@@ -32,7 +32,10 @@ import {
   getMoveBlockFailureMessage,
   getMoveBlockSuccessMessage,
 } from "./migrationMessages";
-import type { WorkspaceBlockMigrationRequest } from "../../../workspace/commands/blockMigrationCommands";
+import type {
+  WorkspaceBlockMigrationRequest,
+  WorkspaceNoteBlockMoveRequest,
+} from "../../../workspace/commands/blockMigrationCommands";
 import { resolveDifferentNoteId } from "./viewSelection";
 import { parseUiBlockMigrationTargetPosition } from "./migrationTargetPosition";
 
@@ -51,6 +54,11 @@ export type MigrationViewModel = UiMigrationView & {
     sourceBlockLineNumberValue: string,
     targetPositionValue: string,
   ) => void;
+  onMoveStructureBlock: (
+    sourceBlockLineNumberValue: string,
+    targetPositionValue: string,
+  ) => void;
+  onOpenNoteStructure: (noteId: UiNoteId) => void;
   onPairNotesForMigration: (
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
@@ -78,8 +86,11 @@ export function useMigrationViewModel({
   setActiveNoteId: Dispatch<SetStateAction<UiNoteId | null>>;
   setSelectedFolderId: Dispatch<SetStateAction<FolderId | null>>;
 }): MigrationViewModel {
+  const [migrationMode, setMigrationMode] =
+    useState<UiMigrationView["mode"]>("pair");
   const [migrationSourceNoteId, setMigrationSourceNoteId] = useState("");
   const [migrationTargetNoteId, setMigrationTargetNoteId] = useState("");
+  const [structureNoteId, setStructureNoteId] = useState("");
 
   useEffect(() => {
     if (
@@ -127,25 +138,61 @@ export function useMigrationViewModel({
     migrationTargetNoteId,
   ]);
 
+  useEffect(() => {
+    if (
+      structureNoteId &&
+      effectiveWorkspace &&
+      hasWorkspaceNote(effectiveWorkspace, structureNoteId)
+    ) {
+      return;
+    }
+
+    if (
+      effectiveActiveNote &&
+      effectiveWorkspace &&
+      hasWorkspaceNote(effectiveWorkspace, effectiveActiveNote.id)
+    ) {
+      setStructureNoteId(effectiveActiveNote.id);
+      return;
+    }
+
+    setStructureNoteId(effectiveNotes[0]?.id ?? "");
+  }, [
+    effectiveActiveNote,
+    effectiveNotes,
+    effectiveWorkspace,
+    structureNoteId,
+  ]);
+
   const sourceMigrationNote = effectiveWorkspace
     ? findWorkspaceNote(effectiveWorkspace, migrationSourceNoteId)
     : null;
   const targetMigrationNote = effectiveWorkspace
     ? findWorkspaceNote(effectiveWorkspace, migrationTargetNoteId)
     : null;
+  const structureNote = effectiveWorkspace
+    ? findWorkspaceNote(effectiveWorkspace, structureNoteId)
+    : null;
   const sourceMigrationParsed = useMemo(
     () =>
-      scopeMigration && index && sourceMigrationNote
+      scopeMigration && migrationMode === "pair" && index && sourceMigrationNote
         ? getParsedWorkspaceNote(index, sourceMigrationNote.id)
         : null,
-    [sourceMigrationNote, index, scopeMigration],
+    [sourceMigrationNote, index, migrationMode, scopeMigration],
   );
   const targetMigrationParsed = useMemo(
     () =>
-      scopeMigration && index && targetMigrationNote
+      scopeMigration && migrationMode === "pair" && index && targetMigrationNote
         ? getParsedWorkspaceNote(index, targetMigrationNote.id)
         : null,
-    [targetMigrationNote, index, scopeMigration],
+    [targetMigrationNote, index, migrationMode, scopeMigration],
+  );
+  const structureParsed = useMemo(
+    () =>
+      scopeMigration && migrationMode === "structure" && index && structureNote
+        ? getParsedWorkspaceNote(index, structureNote.id)
+        : null,
+    [structureNote, index, migrationMode, scopeMigration],
   );
   const moveNoteBlock = (
     request: WorkspaceBlockMigrationRequest,
@@ -198,6 +245,44 @@ export function useMigrationViewModel({
       targetPosition: parseUiBlockMigrationTargetPosition(targetPositionValue),
     });
   };
+  const moveStructureBlock = (
+    sourceBlockLineNumberValue: string,
+    targetPositionValue: string,
+  ) => {
+    if (!index || !structureNote || !sourceBlockLineNumberValue) {
+      return;
+    }
+
+    const request: WorkspaceNoteBlockMoveRequest = {
+      noteId: structureNote.id,
+      sourceBlockLineNumber: Number(sourceBlockLineNumberValue),
+      targetPosition: parseUiBlockMigrationTargetPosition(targetPositionValue),
+    };
+    const result = commands.moveNoteBlock(index, request);
+
+    if (result.status !== "moved") {
+      return;
+    }
+
+    setMigrationMode("structure");
+    setActiveNoteId(result.noteId);
+    setSelectedFolderId(
+      effectiveContext
+        ? findWorkspaceFolderIdContainingNote(
+            effectiveContext.workspace,
+            result.noteId,
+          ) ?? null
+        : null,
+    );
+  };
+  const openNoteStructure = (noteId: UiNoteId) => {
+    if (!effectiveWorkspace || !hasWorkspaceNote(effectiveWorkspace, noteId)) {
+      return;
+    }
+
+    setStructureNoteId(noteId);
+    setMigrationMode("structure");
+  };
   const pairNotesForMigration = (
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
@@ -213,6 +298,7 @@ export function useMigrationViewModel({
 
     setMigrationSourceNoteId(sourceNoteId);
     setMigrationTargetNoteId(targetNoteId);
+    setMigrationMode("pair");
   };
   const migrationNoteTree = useMemo(
     () =>
@@ -226,29 +312,46 @@ export function useMigrationViewModel({
   );
   const sourceMigrationBlocks = useMemo(
     () =>
-      scopeMigration
+      scopeMigration && migrationMode === "pair"
         ? createUiBlockNodes(sourceMigrationParsed?.document.blocks ?? [])
         : [],
-    [scopeMigration, sourceMigrationParsed],
+    [migrationMode, scopeMigration, sourceMigrationParsed],
   );
   const sourceMigrationRoots = useMemo(
     () =>
-      scopeMigration
+      scopeMigration && migrationMode === "pair"
         ? createUiBlockNodes(sourceMigrationParsed?.document.roots ?? [])
         : [],
-    [scopeMigration, sourceMigrationParsed],
+    [migrationMode, scopeMigration, sourceMigrationParsed],
   );
   const targetMigrationRoots = useMemo(
     () =>
-      scopeMigration
+      scopeMigration && migrationMode === "pair"
         ? createUiBlockNodes(targetMigrationParsed?.document.roots ?? [])
         : [],
-    [scopeMigration, targetMigrationParsed],
+    [migrationMode, scopeMigration, targetMigrationParsed],
+  );
+  const structureBlocks = useMemo(
+    () =>
+      scopeMigration && migrationMode === "structure"
+        ? createUiBlockNodes(structureParsed?.document.blocks ?? [])
+        : [],
+    [migrationMode, scopeMigration, structureParsed],
+  );
+  const structureRoots = useMemo(
+    () =>
+      scopeMigration && migrationMode === "structure"
+        ? createUiBlockNodes(structureParsed?.document.roots ?? [])
+        : [],
+    [migrationMode, scopeMigration, structureParsed],
   );
 
   return {
+    mode: migrationMode,
     noteTree: migrationNoteTree,
     onMoveBlockToPosition: moveMigrationBlock,
+    onMoveStructureBlock: moveStructureBlock,
+    onOpenNoteStructure: openNoteStructure,
     onPairNotesForMigration: pairNotesForMigration,
     sourceBlocks: sourceMigrationBlocks,
     sourceNote: sourceMigrationNote
@@ -256,6 +359,12 @@ export function useMigrationViewModel({
       : null,
     sourceNoteId: migrationSourceNoteId,
     sourceRoots: sourceMigrationRoots,
+    structureBlocks,
+    structureNote: structureNote
+      ? { id: structureNote.id, title: structureNote.title }
+      : null,
+    structureNoteId,
+    structureRoots,
     targetNote: targetMigrationNote
       ? { id: targetMigrationNote.id, title: targetMigrationNote.title }
       : null,

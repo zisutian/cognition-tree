@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
-  createBlockDragLineNumberPayload,
-  readBlockDragLineNumberPayload,
-} from "../../../../src/ui/activities/migration/blockMigrationDrag";
+  createBlockLineDragPayload,
+  readBlockLineDragPayload,
+} from "../../../../src/ui/activities/migration/blockLineDrag";
 
-describe("block migration drag helpers", () => {
+describe("block line drag helpers", () => {
   it("reads typed drag payload before plain text payloads", () => {
-    expect(createBlockDragLineNumberPayload(5)).toBe("5");
+    expect(createBlockLineDragPayload(5)).toBe("5");
     expect(
-      readBlockDragLineNumberPayload({
+      readBlockLineDragPayload({
         plainText: "4",
         typedPayload: "5",
       }),
     ).toBe("5");
     expect(
-      readBlockDragLineNumberPayload({
+      readBlockLineDragPayload({
         plainText: "4",
         typedPayload: "",
       }),
@@ -23,19 +23,19 @@ describe("block migration drag helpers", () => {
 
   it("rejects missing or invalid drag payloads", () => {
     expect(
-      readBlockDragLineNumberPayload({
+      readBlockLineDragPayload({
         plainText: "",
         typedPayload: "",
       }),
     ).toBeNull();
     expect(
-      readBlockDragLineNumberPayload({
+      readBlockLineDragPayload({
         plainText: "not-a-line",
         typedPayload: "",
       }),
     ).toBeNull();
     expect(
-      readBlockDragLineNumberPayload({
+      readBlockLineDragPayload({
         plainText: "0",
         typedPayload: "",
       }),

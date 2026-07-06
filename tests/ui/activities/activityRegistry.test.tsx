@@ -52,6 +52,7 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     focusEditorLine: () => undefined,
     hasConfiguredSyntax: true,
     migration: {
+      mode: "pair",
       noteTree: [
         {
           canDrag: true,
@@ -73,11 +74,17 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
         },
       ],
       onMoveBlockToPosition: () => undefined,
+      onMoveStructureBlock: () => undefined,
+      onOpenNoteStructure: () => undefined,
       onPairNotesForMigration: () => undefined,
       sourceBlocks: [],
       sourceNote: { id: "note-source", title: "Source note" },
       sourceNoteId: "note-source",
       sourceRoots: [],
+      structureBlocks: [],
+      structureNote: { id: "note-source", title: "Source note" },
+      structureNoteId: "note-source",
+      structureRoots: [],
       targetNote: { id: "note-target", title: "Target note" },
       targetNoteId: "note-target",
       targetRoots: [],
@@ -196,11 +203,31 @@ describe("activity registry", () => {
     const sidebar = renderSlot(slots.sidebar);
 
     expect(main).toContain("块迁移");
+    expect(main).not.toContain("笔记结构调整");
     expect(main).toContain("源 · Source note");
     expect(main).toContain("目标 · Target note");
     expect(main).not.toContain("笔记选择");
     expect(sidebar).toContain("迁移目录");
     expect(sidebar).toContain("Source note");
     expect(sidebar).toContain("Target note");
+  });
+
+  it("renders migration structure mode as a single note block tree", () => {
+    const baseView = createView();
+    const view = createView({
+      migration: {
+        ...baseView.migration,
+        mode: "structure",
+        structureNote: { id: "note-source", title: "Source note" },
+        structureNoteId: "note-source",
+      },
+    });
+    const main = renderSlot(createSlots("migration", view).main);
+
+    expect(main).toContain("笔记结构调整");
+    expect(main).not.toContain("块迁移</h2>");
+    expect(main).toContain("结构 · Source note");
+    expect(main).toContain("当前笔记没有可调整块");
+    expect(main).not.toContain("目标 · Target note");
   });
 });

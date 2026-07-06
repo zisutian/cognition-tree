@@ -39,6 +39,17 @@ export type MoveCtnBlockTextResult = {
   status: "moved";
 };
 
+export type MoveCtnBlockWithinTextInput = {
+  sourceBlock: CtnBlockTextRange;
+  sourceText: string;
+  targetPosition: CtnBlockTextTargetPosition;
+};
+
+export type MoveCtnBlockWithinTextResult = {
+  nextText: string;
+  status: "moved";
+};
+
 const indentUnit = "\t";
 
 function splitDocumentLines(source: string) {
@@ -164,6 +175,43 @@ function getTargetInsertionLineNumber(
   }
 }
 
+function isBlockInsideLineRange(
+  block: CtnBlockTextRange,
+  range: BlockLineRange,
+) {
+  return (
+    block.lineNumber >= range.startLineNumber &&
+    block.lineNumber <= range.endLineNumber
+  );
+}
+
+function assertTargetOutsideSourceRange(
+  sourceRange: BlockLineRange,
+  targetPosition: CtnBlockTextTargetPosition,
+) {
+  if (targetPosition.kind === "end") {
+    return;
+  }
+
+  if (isBlockInsideLineRange(targetPosition.block, sourceRange)) {
+    throw new Error("Cannot move a CTN block into its own subtree.");
+  }
+}
+
+function adjustInsertionLineNumberAfterRemoval(
+  insertionLineNumber: number,
+  removedRange: BlockLineRange,
+) {
+  if (insertionLineNumber > removedRange.endLineNumber) {
+    return (
+      insertionLineNumber -
+      (removedRange.endLineNumber - removedRange.startLineNumber + 1)
+    );
+  }
+
+  return insertionLineNumber;
+}
+
 export function moveCtnBlockText(
   input: MoveCtnBlockTextInput,
 ): MoveCtnBlockTextResult {
@@ -184,6 +232,35 @@ export function moveCtnBlockText(
   return {
     nextSourceText,
     nextTargetText,
+    status: "moved",
+  };
+}
+
+export function moveCtnBlockWithinText(
+  input: MoveCtnBlockWithinTextInput,
+): MoveCtnBlockWithinTextResult {
+  const sourceRange = getBlockLineRange(input.sourceBlock);
+  assertTargetOutsideSourceRange(sourceRange, input.targetPosition);
+
+  const extractedText = extractBlockText(input.sourceText, sourceRange);
+  const rewrittenText = rewriteBlockIndent(
+    extractedText,
+    input.sourceBlock.level,
+    getTargetLevel(input.targetPosition),
+  );
+  const insertionLineNumber = adjustInsertionLineNumberAfterRemoval(
+    getTargetInsertionLineNumber(input.sourceText, input.targetPosition),
+    sourceRange,
+  );
+  const textWithoutSourceBlock = removeBlockText(input.sourceText, sourceRange);
+  const nextText = insertBlockTextBeforeLine(
+    textWithoutSourceBlock,
+    rewrittenText,
+    insertionLineNumber,
+  );
+
+  return {
+    nextText,
     status: "moved",
   };
 }

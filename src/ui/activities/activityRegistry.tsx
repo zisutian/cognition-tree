@@ -132,9 +132,12 @@ function createMigrationSlots({
     ),
     sidebar: (
       <MigrationSidebarPanel
+        mode={view.migration.mode}
         noteTree={view.migration.noteTree}
         sourceNoteId={view.migration.sourceNoteId}
+        structureNoteId={view.migration.structureNoteId}
         targetNoteId={view.migration.targetNoteId}
+        onOpenNoteStructure={view.migration.onOpenNoteStructure}
         onPairNotesForMigration={view.migration.onPairNotesForMigration}
       />
     ),

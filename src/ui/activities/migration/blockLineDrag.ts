@@ -1,10 +1,10 @@
-export const blockDragDataType = "application/x-cognition-tree-block-line";
+export const blockLineDragDataType = "application/x-cognition-tree-block-line";
 
-export function createBlockDragLineNumberPayload(lineNumber: number) {
+export function createBlockLineDragPayload(lineNumber: number) {
   return String(lineNumber);
 }
 
-export function readBlockDragLineNumberPayload({
+export function readBlockLineDragPayload({
   plainText,
   typedPayload,
 }: {

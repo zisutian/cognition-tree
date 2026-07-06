@@ -12,8 +12,11 @@ import {
 } from "../../../workspace/commands/workspaceCommands";
 import {
   moveWorkspaceBlock as moveWorkspaceBlockAction,
+  moveWorkspaceNoteBlock as moveWorkspaceNoteBlockAction,
   type MoveWorkspaceBlockFailureReason,
+  type MoveWorkspaceNoteBlockFailureReason,
   type WorkspaceBlockMigrationRequest,
+  type WorkspaceNoteBlockMoveRequest,
 } from "../../../workspace/commands/blockMigrationCommands";
 import type {
   FolderId,
@@ -41,6 +44,16 @@ type MoveWorkspaceBlockCommandResult =
       status: "failed";
       targetNoteId?: never;
     };
+type MoveWorkspaceNoteBlockCommandResult =
+  | {
+      noteId: NoteId;
+      status: "moved";
+    }
+  | {
+      noteId?: never;
+      reason: MoveWorkspaceNoteBlockFailureReason;
+      status: "failed";
+    };
 
 export type SessionCommands = {
   createFolder: (
@@ -56,6 +69,10 @@ export type SessionCommands = {
     index: WorkspaceBlockMigrationIndex,
     request: WorkspaceBlockMigrationRequest,
   ) => MoveWorkspaceBlockCommandResult;
+  moveNoteBlock: (
+    index: WorkspaceBlockMigrationIndex,
+    request: WorkspaceNoteBlockMoveRequest,
+  ) => MoveWorkspaceNoteBlockCommandResult;
   moveNote: (noteId: NoteId, targetFolderId: FolderId | null) => void;
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
@@ -133,6 +150,28 @@ export function createSessionCommands({
       return {
         status: "moved",
         targetNoteId: result.targetNoteId,
+      };
+    },
+    moveNoteBlock(index, request) {
+      const result = moveWorkspaceNoteBlockAction(
+        workspace,
+        index,
+        request,
+        createTimestamp(),
+      );
+
+      if (result.status !== "moved") {
+        return {
+          reason: result.reason,
+          status: "failed",
+        };
+      }
+
+      commitDataSnapshot(result.workspaceData);
+
+      return {
+        noteId: result.noteId,
+        status: "moved",
       };
     },
     moveNote(noteId, targetFolderId) {

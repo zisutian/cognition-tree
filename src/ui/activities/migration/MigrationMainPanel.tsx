@@ -4,10 +4,15 @@ import {
   UiPanelHeader,
 } from "../../shared/primitives";
 import { BlockMigrationView } from "./BlockMigrationView";
+import { BlockStructureView } from "./BlockStructureView";
 
 type MigrationMainPanelProps = {
   view: UiMigrationView & {
     onMoveBlockToPosition: (
+      sourceBlockLineNumberValue: string,
+      targetPositionValue: string,
+    ) => void;
+    onMoveStructureBlock: (
       sourceBlockLineNumberValue: string,
       targetPositionValue: string,
     ) => void;
@@ -17,23 +22,35 @@ type MigrationMainPanelProps = {
 export function MigrationMainPanel({
   view,
 }: MigrationMainPanelProps) {
+  const panelTitle =
+    view.mode === "structure" ? "笔记结构调整" : "块迁移";
+
   return (
     <UiPanel
       className="migration-main-panel"
-      aria-label="块迁移"
+      aria-label={panelTitle}
       fullWidth
       variant="main"
     >
-      <UiPanelHeader title="块迁移" />
+      <UiPanelHeader title={panelTitle} />
 
-      <BlockMigrationView
-        onMoveBlockToPosition={view.onMoveBlockToPosition}
-        sourceBlocks={view.sourceBlocks}
-        sourceNote={view.sourceNote}
-        sourceRoots={view.sourceRoots}
-        targetNote={view.targetNote}
-        targetRoots={view.targetRoots}
-      />
+      {view.mode === "structure" ? (
+        <BlockStructureView
+          blocks={view.structureBlocks}
+          note={view.structureNote}
+          roots={view.structureRoots}
+          onMoveStructureBlock={view.onMoveStructureBlock}
+        />
+      ) : (
+        <BlockMigrationView
+          onMoveBlockToPosition={view.onMoveBlockToPosition}
+          sourceBlocks={view.sourceBlocks}
+          sourceNote={view.sourceNote}
+          sourceRoots={view.sourceRoots}
+          targetNote={view.targetNote}
+          targetRoots={view.targetRoots}
+        />
+      )}
     </UiPanel>
   );
 }

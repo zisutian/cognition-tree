@@ -14,7 +14,10 @@ import {
   createNoteRecord,
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
-import { moveWorkspaceBlock } from "../../../src/workspace/commands/blockMigrationCommands";
+import {
+  moveWorkspaceBlock,
+  moveWorkspaceNoteBlock,
+} from "../../../src/workspace/commands/blockMigrationCommands";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
@@ -58,6 +61,24 @@ function moveMigrationBlock(
   const workspace = createWorkspaceStructureIndex(workspaceData);
 
   return moveWorkspaceBlock(
+    workspace,
+    createWorkspaceParseIndex({
+      syntaxProfile: defaultCtnSyntaxProfile,
+      workspace,
+    }),
+    request,
+    nextTimestamp,
+  );
+}
+
+function moveStructureBlock(
+  workspaceData: WorkspaceData,
+  request: Parameters<typeof moveWorkspaceNoteBlock>[2],
+  nextTimestamp = "2026-06-08T01:00:00.000Z",
+) {
+  const workspace = createWorkspaceStructureIndex(workspaceData);
+
+  return moveWorkspaceNoteBlock(
     workspace,
     createWorkspaceParseIndex({
       syntaxProfile: defaultCtnSyntaxProfile,
@@ -296,4 +317,98 @@ describe("workspace block migration", () => {
     });
   });
 
+});
+
+describe("workspace note block structure move", () => {
+  it("moves a note block subtree inside the same note and updates the note record", () => {
+    const result = moveStructureBlock(
+      createMigrationWorkspace(),
+      {
+        noteId: "note-source",
+        sourceBlockLineNumber: 2,
+        targetPosition: { kind: "end" },
+      },
+    );
+
+    expect(result.status).toBe("moved");
+
+    if (result.status !== "moved") {
+      throw new Error(result.reason);
+    }
+
+    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
+      .toMatchObject({
+        source: "Source Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
+        title: "Source Title",
+        updatedAt: "2026-06-08T01:00:00.000Z",
+      });
+  });
+
+  it("rewrites indentation when moving a note block inside another block", () => {
+    const result = moveStructureBlock(
+      createMigrationWorkspace(),
+      {
+        noteId: "note-source",
+        sourceBlockLineNumber: 5,
+        targetPosition: { kind: "inside-block", lineNumber: 3 },
+      },
+    );
+
+    expect(result.status).toBe("moved");
+
+    if (result.status !== "moved") {
+      throw new Error(result.reason);
+    }
+
+    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
+      .toMatchObject({
+        source:
+          "Source Title\nRoot\n\t: Definition\n\t\t- Component\n\t\tSibling",
+      });
+  });
+
+  it("rejects invalid note block structure moves", () => {
+    const workspace = createMigrationWorkspace();
+
+    expect(
+      moveStructureBlock(workspace, {
+        noteId: "note-missing",
+        sourceBlockLineNumber: 2,
+        targetPosition: { kind: "end" },
+      }),
+    ).toMatchObject({
+      reason: "missing-note",
+      status: "failed",
+    });
+    expect(
+      moveStructureBlock(workspace, {
+        noteId: "note-source",
+        sourceBlockLineNumber: 1,
+        targetPosition: { kind: "end" },
+      }),
+    ).toMatchObject({
+      reason: "source-block-missing",
+      status: "failed",
+    });
+    expect(
+      moveStructureBlock(workspace, {
+        noteId: "note-source",
+        sourceBlockLineNumber: 2,
+        targetPosition: { kind: "inside-block", lineNumber: 3 },
+      }),
+    ).toMatchObject({
+      reason: "target-inside-source",
+      status: "failed",
+    });
+    expect(
+      moveStructureBlock(workspace, {
+        noteId: "note-source",
+        sourceBlockLineNumber: 3,
+        targetPosition: { kind: "inside-block", lineNumber: 99 },
+      }),
+    ).toMatchObject({
+      reason: "target-position-missing",
+      status: "failed",
+    });
+  });
 });

@@ -42,6 +42,7 @@ export function MigrationSourceTree({
                   "migration-tree-node",
                   "ctn-tree-main",
                   "ctn-tree-main-with-meta",
+                  "draggable-node",
                   "source-node",
                   isDragging ? "is-dragging" : "",
                   isSelected ? "is-selected-subtree" : "",

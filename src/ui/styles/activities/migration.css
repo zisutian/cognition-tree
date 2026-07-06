@@ -24,16 +24,20 @@
   overflow: auto;
 }
 
-.migration-tree-node.source-node {
+.migration-structure-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.migration-tree-node.draggable-node {
   cursor: grab;
   user-select: none;
 }
 
-.migration-tree-node.source-node.is-selected-subtree {
+.migration-tree-node.is-selected-subtree {
   background: var(--color-selection);
 }
 
-.migration-tree-node.source-node.is-selected-root {
+.migration-tree-node.is-selected-root {
   box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
@@ -97,6 +101,7 @@
 }
 
 .migration-note-row.is-source,
+.migration-note-row.is-structure,
 .migration-note-row.is-target {
   background: var(--color-selection);
 }

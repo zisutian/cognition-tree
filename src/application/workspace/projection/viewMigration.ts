@@ -6,11 +6,16 @@ import type {
 } from "./viewTree";
 
 export type UiMigrationView = {
+  mode: "pair" | "structure";
   noteTree: UiTreeNode[];
   sourceBlocks: UiBlockNode[];
   sourceNote: UiNoteSummary | null;
   sourceNoteId: UiNoteId;
   sourceRoots: UiBlockNode[];
+  structureBlocks: UiBlockNode[];
+  structureNote: UiNoteSummary | null;
+  structureNoteId: UiNoteId;
+  structureRoots: UiBlockNode[];
   targetNote: UiNoteSummary | null;
   targetNoteId: UiNoteId;
   targetRoots: UiBlockNode[];
