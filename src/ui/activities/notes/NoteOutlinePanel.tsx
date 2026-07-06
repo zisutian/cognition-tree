@@ -1,6 +1,6 @@
 import { type CSSProperties, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import type { OutlineNode } from "../../../ctn/parser/types";
+import type { UiOutlineNode } from "../../../application/workspace/viewTypes";
 import { NoteOutlineTree } from "./NoteOutlineTree";
 
 const outlineZoomMin = 0.85;
@@ -12,7 +12,7 @@ export function NoteOutlinePanel({
   nodes,
   onSelectLine,
 }: {
-  nodes: OutlineNode[];
+  nodes: UiOutlineNode[];
   onSelectLine: (lineNumber: number) => void;
 }) {
   const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);

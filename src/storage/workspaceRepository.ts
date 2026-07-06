@@ -1,12 +1,8 @@
 import type { WorkspaceData } from "../workspace/model/workspaceData";
+import type { WorkspaceSyntaxSourceFile } from "../workspace/context/syntaxFile";
 
 export type RepositoryInfo = {
   path: string;
-};
-
-export type WorkspaceSyntaxSourceFile = {
-  fileName: string;
-  source: string;
 };
 
 export type WorkspaceRepository = {

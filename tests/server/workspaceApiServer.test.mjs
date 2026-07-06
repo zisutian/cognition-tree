@@ -14,7 +14,6 @@ function createWorkspace() {
   return {
     id: "local-workspace",
     name: "本地笔记库",
-    activeNoteId: null,
     notes: [],
     tree: [
       {
@@ -208,7 +207,6 @@ describe("workspace API request handler", () => {
           updatedAt: "2026-05-25T00:00:00.000Z",
         },
       ];
-      workspace.activeNoteId = "note-valid";
       workspace.tree[0].children = [
         {
           id: "tree-note-valid",
@@ -239,7 +237,7 @@ describe("workspace API request handler", () => {
         }),
       ).resolves.toMatchObject({
         body: {
-          error: expect.stringContaining("unknown note note-missing"),
+          error: expect.stringContaining("unsupported field"),
         },
         statusCode: 500,
       });

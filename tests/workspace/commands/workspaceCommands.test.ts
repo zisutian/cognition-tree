@@ -17,8 +17,7 @@ import {
   deleteWorkspaceNote,
   moveWorkspaceNote,
   renameWorkspaceFolder,
-  selectWorkspaceNote,
-  updateActiveWorkspaceNoteSource,
+  updateWorkspaceNoteSource,
 } from "../../../src/workspace/commands/workspaceCommands";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
@@ -30,7 +29,6 @@ function createWorkspaceWithNotes(): WorkspaceData {
 
   return {
     ...workspace,
-    activeNoteId: firstNote.id,
     notes: [firstNote, secondNote],
     tree: appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree(workspace.tree, firstNote.id, "folder-inbox"),
@@ -56,7 +54,6 @@ describe("workspace actions", () => {
       timestamp,
     });
 
-    expect(nextWorkspace.activeNoteId).toBe("note-new");
     expect(nextWorkspace.notes[0]).toMatchObject({
       id: "note-new",
       source: "",
@@ -67,15 +64,10 @@ describe("workspace actions", () => {
     );
   });
 
-  it("selects and deletes notes while keeping activeNote valid", () => {
+  it("deletes notes without owning active note selection", () => {
     const workspace = createWorkspaceWithNotes();
-    const selectedWorkspace = selectWorkspaceNote(workspace, "note-second");
+    const nextWorkspace = deleteWorkspaceNote(workspace, "note-second");
 
-    expect(selectedWorkspace.activeNoteId).toBe("note-second");
-
-    const nextWorkspace = deleteWorkspaceNote(selectedWorkspace, "note-second");
-
-    expect(nextWorkspace.activeNoteId).toBe("note-first");
     expect(nextWorkspace.notes.map((note) => note.id)).toEqual(["note-first"]);
     expect(
       findFolderIdContainingNote(nextWorkspace.tree, "note-second"),
@@ -103,10 +95,11 @@ describe("workspace actions", () => {
     ).toBeNull();
   });
 
-  it("updates active note source", () => {
+  it("updates note source by explicit note id", () => {
     const workspace = createWorkspaceWithNotes();
-    const updatedSourceWorkspace = updateActiveWorkspaceNoteSource(
+    const updatedSourceWorkspace = updateWorkspaceNoteSource(
       workspace,
+      "note-first",
       "新标题\n\t: 定义",
       "2026-06-08T01:00:00.000Z",
     );
@@ -116,5 +109,51 @@ describe("workspace actions", () => {
       title: "新标题",
       updatedAt: "2026-06-08T01:00:00.000Z",
     });
+  });
+
+  it("rejects invalid workspace command input", () => {
+    const workspace = createWorkspaceWithNotes();
+
+    expect(() =>
+      createWorkspaceNote(workspace, {
+        folderId: "missing-folder",
+        noteId: "note-new",
+        timestamp,
+      }),
+    ).toThrow("Workspace folder does not exist");
+    expect(() =>
+      createWorkspaceFolder(workspace, {
+        folderId: "folder-target",
+        parentFolderId: "missing-folder",
+        title: "目标",
+      }),
+    ).toThrow("Workspace folder does not exist");
+    expect(() =>
+      createWorkspaceFolder(workspace, {
+        folderId: "folder-target",
+        parentFolderId: "folder-inbox",
+        title: "   ",
+      }),
+    ).toThrow("Workspace folder title is required");
+    expect(() =>
+      renameWorkspaceFolder(workspace, "missing-folder", "资料"),
+    ).toThrow("Workspace folder does not exist");
+    expect(() => deleteWorkspaceNote(workspace, "missing-note")).toThrow(
+      "Workspace note does not exist",
+    );
+    expect(() => deleteWorkspaceFolder(workspace, "folder-inbox")).toThrow(
+      "Default workspace folder cannot be deleted",
+    );
+    expect(() =>
+      moveWorkspaceNote(workspace, "note-second", "missing-folder"),
+    ).toThrow("Workspace folder does not exist");
+    expect(() =>
+      updateWorkspaceNoteSource(
+        workspace,
+        "missing-note",
+        "内容",
+        timestamp,
+      ),
+    ).toThrow("Workspace note does not exist");
   });
 });

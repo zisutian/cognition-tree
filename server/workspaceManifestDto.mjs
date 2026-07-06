@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const rootManifestFields = new Set([
-  "activeNoteId",
   "id",
   "name",
   "notes",
@@ -74,24 +73,6 @@ function readRequiredStringValue(value, key, path) {
 
   if (typeof value[key] !== "string") {
     throw new Error(`Invalid workspace DTO at ${fieldPath}: expected string`);
-  }
-
-  return value[key];
-}
-
-function readRequiredStringOrNull(value, key, path) {
-  const fieldPath = formatPath(path, key);
-
-  if (!(key in value)) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: missing field`);
-  }
-
-  if (value[key] === null) {
-    return null;
-  }
-
-  if (typeof value[key] !== "string" || value[key].length === 0) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected non-empty string or null`);
   }
 
   return value[key];
@@ -207,22 +188,16 @@ function validateWorkspaceRoot(value, supportedFields) {
   assertRecord(value, "$");
   assertSupportedFields(value, supportedFields, "$");
 
-  const activeNoteId = readRequiredStringOrNull(value, "activeNoteId", "$");
   readRequiredString(value, "id", "$");
   readRequiredString(value, "name", "$");
 
   return {
-    activeNoteId,
     notes: readRequiredArray(value, "notes", "$"),
     tree: readRequiredArray(value, "tree", "$"),
   };
 }
 
-function validateWorkspaceReferences({ activeNoteId, noteIds, tree }) {
-  if (activeNoteId !== null && !noteIds.has(activeNoteId)) {
-    throw new Error(`Invalid workspace DTO at $.activeNoteId: unknown note ${activeNoteId}`);
-  }
-
+function validateWorkspaceReferences({ noteIds, tree }) {
   const treeNodeIds = new Set();
 
   tree.forEach((node, index) => {
@@ -231,7 +206,7 @@ function validateWorkspaceReferences({ activeNoteId, noteIds, tree }) {
 }
 
 export function assertWorkspaceManifestDto(manifest) {
-  const { activeNoteId, notes, tree } = validateWorkspaceRoot(
+  const { notes, tree } = validateWorkspaceRoot(
     manifest,
     rootManifestFields,
   );
@@ -240,11 +215,11 @@ export function assertWorkspaceManifestDto(manifest) {
   notes.forEach((note, index) => {
     validateManifestNote(note, index, noteIds);
   });
-  validateWorkspaceReferences({ activeNoteId, noteIds, tree });
+  validateWorkspaceReferences({ noteIds, tree });
 }
 
 export function assertWorkspacePayloadDto(workspace) {
-  const { activeNoteId, notes, tree } = validateWorkspaceRoot(
+  const { notes, tree } = validateWorkspaceRoot(
     workspace,
     rootWorkspaceFields,
   );
@@ -253,5 +228,5 @@ export function assertWorkspacePayloadDto(workspace) {
   notes.forEach((note, index) => {
     validateWorkspaceNote(note, index, noteIds);
   });
-  validateWorkspaceReferences({ activeNoteId, noteIds, tree });
+  validateWorkspaceReferences({ noteIds, tree });
 }

@@ -1,32 +1,39 @@
-import type { CtnDocument } from "../../../ctn/parser/types";
-import { CtnEditor, type CtnEditorFocusTarget } from "../../../editor/CtnEditor";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import {
+  CtnEditor,
+  type CtnEditorFocusTarget,
+  type CtnEditorSyntaxProfile,
+} from "../../../editor/CtnEditor";
+import type { UiEditorDiagnostic } from "../../../application/workspace/viewTypes";
 
 export function NoteEditorPanel({
-  documentText,
+  diagnostics,
   focusTarget,
   hasActiveNote,
-  parsedDocument,
+  lineCount,
+  rootCount,
   syntaxProfile,
   currentNoteTitle,
-  workspaceErrorMessage,
+  totalBlocks,
+  totalDiagnostics,
+  value,
+  errorMessage,
   onCreateNote,
   onDocumentTextChange,
 }: {
-  documentText: string;
+  diagnostics: UiEditorDiagnostic[];
   focusTarget: CtnEditorFocusTarget | null;
   hasActiveNote: boolean;
-  parsedDocument: CtnDocument;
-  syntaxProfile: CtnSyntaxProfile;
+  lineCount: number;
+  rootCount: number;
+  syntaxProfile: CtnEditorSyntaxProfile;
   currentNoteTitle: string | null;
-  workspaceErrorMessage: string;
+  totalBlocks: number;
+  totalDiagnostics: number;
+  value: string;
+  errorMessage: string;
   onCreateNote: () => void;
   onDocumentTextChange: (source: string) => void;
 }) {
-  const lineCount = documentText.split("\n").length;
-  const totalBlocks = parsedDocument.blocks.length;
-  const outline = parsedDocument.roots;
-
   return (
     <section className="editor-panel note-editor-panel" aria-label="原文编辑">
       <header className="panel-header">
@@ -39,8 +46,8 @@ export function NoteEditorPanel({
           </span>
           <span>{lineCount} 行</span>
           <span>{totalBlocks} 个块</span>
-          <span>{outline.length} 个根节点</span>
-          <span>{parsedDocument.diagnostics.length} 个诊断</span>
+          <span>{rootCount} 个根节点</span>
+          <span>{totalDiagnostics} 个诊断</span>
         </div>
       </header>
 
@@ -48,7 +55,7 @@ export function NoteEditorPanel({
         <CtnEditor
           focusTarget={focusTarget}
           syntaxProfile={syntaxProfile}
-          value={documentText}
+          value={value}
           onChange={onDocumentTextChange}
         />
       ) : (
@@ -60,18 +67,18 @@ export function NoteEditorPanel({
         </div>
       )}
 
-      {workspaceErrorMessage ? (
+      {errorMessage ? (
         <section className="diagnostics-panel" aria-label="工作区状态">
           <h3>工作区</h3>
-          <p>{workspaceErrorMessage}</p>
+          <p>{errorMessage}</p>
         </section>
       ) : null}
 
-      {hasActiveNote && parsedDocument.diagnostics.length > 0 ? (
+      {hasActiveNote && diagnostics.length > 0 ? (
         <section className="diagnostics-panel" aria-label="诊断">
           <h3>诊断</h3>
           <ul>
-            {parsedDocument.diagnostics.map((diagnostic) => (
+            {diagnostics.map((diagnostic) => (
               <li key={diagnostic.id}>
                 <span className="diagnostic-location">
                   L{diagnostic.lineNumber}

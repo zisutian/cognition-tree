@@ -1,28 +1,36 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { NoteSelectionView } from "../../../../src/ui/activities/migration/NoteSelectionView";
-import type { NoteTreeNode } from "../../../../src/workspace/model/workspaceData";
+import type { UiTreeNode } from "../../../../src/application/workspace/viewTypes";
 
-const noteTree: NoteTreeNode[] = [
+const noteTree: UiTreeNode[] = [
   {
+    childCount: 1,
+    folderId: "folder-inbox",
     id: "folder-inbox",
     kind: "folder",
     title: "仓库根目录",
     children: [
       {
+        childCount: 2,
+        folderId: "folder-project",
         id: "folder-project",
         kind: "folder",
         title: "项目",
         children: [
           {
+            folderId: "folder-project",
             id: "tree-note-source",
             kind: "note",
             noteId: "note-source",
+            title: "Source note",
           },
           {
+            folderId: "folder-project",
             id: "tree-note-target",
             kind: "note",
             noteId: "note-target",
+            title: "Target note",
           },
         ],
       },

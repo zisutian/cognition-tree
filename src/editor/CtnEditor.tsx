@@ -8,9 +8,11 @@ import {
   ctnTabSizeCompartment,
 } from "./ctnEditorExtensions";
 
+export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
+
 type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;
-  syntaxProfile: CtnSyntaxProfile;
+  syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
   onChange: (value: string) => void;
 };

@@ -15,7 +15,6 @@ import {
   collectWorkspaceNoteIdsInFolder,
   countWorkspaceFolders,
   createWorkspaceIndex,
-  findActiveWorkspaceNote,
   findWorkspaceFolder,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
@@ -28,7 +27,6 @@ import {
   hasWorkspaceNote,
   listWorkspaceNoteSummaries,
   listWorkspaceNotes,
-  resolveExistingWorkspaceFolderId,
 } from "../../../src/workspace/queries/workspaceQueries";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
@@ -45,7 +43,6 @@ function createWorkspace(): WorkspaceData {
 
   return {
     ...workspace,
-    activeNoteId: sourceNote.id,
     notes: [sourceNote, targetNote],
     tree: appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree(treeWithFolder, sourceNote.id, "folder-inbox"),
@@ -74,16 +71,13 @@ describe("workspace queries", () => {
     expect(findWorkspaceNote(workspace, "note-source")).toMatchObject({
       title: "源笔记",
     });
-    expect(findActiveWorkspaceNote(workspace)).toMatchObject({
-      id: "note-source",
-    });
     expect(hasWorkspaceNote(workspace, "missing-note")).toBe(false);
     expect(findWorkspaceFolder(workspace, "folder-project")).toMatchObject({
       title: "项目",
     });
   });
 
-  it("resolves note placement and folder fallbacks from the workspace tree", () => {
+  it("resolves note placement from the workspace tree", () => {
     const workspace = createWorkspace();
 
     expect(
@@ -93,9 +87,6 @@ describe("workspace queries", () => {
       collectWorkspaceNoteIdsInFolder(workspace, "folder-project"),
     ).toEqual(["note-target"]);
     expect(countWorkspaceFolders(workspace)).toBe(2);
-    expect(resolveExistingWorkspaceFolderId(workspace, "missing-folder")).toBe(
-      "folder-inbox",
-    );
   });
 
   it("reads parsed notes from the workspace index", () => {
@@ -103,7 +94,6 @@ describe("workspace queries", () => {
     const workspace = {
       ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [note],
-      activeNoteId: note.id,
     };
     const index = createWorkspaceIndex(workspace);
     const result = getParsedWorkspaceNote(index, note.id);

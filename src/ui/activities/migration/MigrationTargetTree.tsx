@@ -1,8 +1,7 @@
 import type { DragEvent } from "react";
-import type { CtnBlock } from "../../../ctn/parser/types";
-import { CtnBlockTree } from "../../shared/blocks/CtnBlockTree";
+import type { UiBlockNode } from "../../../application/workspace/viewTypes";
+import { BlockTree } from "../../shared/blocks/BlockTree";
 import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
-import { getBlockLineLabel } from "./blockMigrationView";
 
 type MigrationDropZoneProps = {
   activeDropPositionValue: string | null;
@@ -56,7 +55,7 @@ type MigrationTargetTreeProps = {
   activeDropPositionValue: string | null;
   activeTargetBlockLineNumber: number | null;
   isDropMode: boolean;
-  nodes: CtnBlock[];
+  nodes: UiBlockNode[];
   onDragLeavePosition: (
     event: DragEvent<HTMLElement>,
     positionValue: string,
@@ -86,7 +85,7 @@ export function MigrationTargetTree({
   onDropPosition,
 }: MigrationTargetTreeProps) {
   return (
-    <CtnBlockTree
+    <BlockTree
       className="ctn-tree-list migration-tree"
       nodes={nodes}
       renderBlock={({ block, children }) => {
@@ -126,10 +125,10 @@ export function MigrationTargetTree({
               </span>
               <OutlineNodeText
                 className="ctn-tree-text migration-node-text"
-                node={block}
+                text={block.textDisplay}
               />
               <span className="ctn-tree-meta migration-node-lines">
-                {getBlockLineLabel(block)}
+                {block.lineLabel}
               </span>
             </div>
             {children}

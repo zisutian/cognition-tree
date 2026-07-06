@@ -10,7 +10,6 @@ function createWorkspace() {
   return {
     id: "local-workspace",
     name: "本地笔记库",
-    activeNoteId: "note-test",
     notes: [
       {
         id: "note-test",
@@ -45,7 +44,6 @@ function createManifest() {
   const workspace = createWorkspace();
 
   return {
-    activeNoteId: workspace.activeNoteId,
     id: workspace.id,
     name: workspace.name,
     notes: workspace.notes.map((note) => ({
@@ -117,7 +115,6 @@ describe("WorkspaceFileStore", () => {
       await expect(
         readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
       ).resolves.toEqual({
-        activeNoteId: "note-test",
         id: "local-workspace",
         name: "本地笔记库",
         notes: [
@@ -144,7 +141,6 @@ describe("WorkspaceFileStore", () => {
 
       expect(await store.loadWorkspace()).toEqual({
         ...createWorkspace(),
-        activeNoteId: null,
         notes: [],
         tree: [
           {
@@ -227,7 +223,7 @@ describe("WorkspaceFileStore", () => {
         },
       },
       {
-        message: "unknown note note-missing",
+        message: "unsupported field",
         mutate(manifest) {
           manifest.activeNoteId = "note-missing";
         },
@@ -272,7 +268,7 @@ describe("WorkspaceFileStore", () => {
   it("rejects invalid workspace payloads without writing manifests", async () => {
     const cases = [
       {
-        message: "unknown note note-missing",
+        message: "unsupported field",
         mutate(workspace) {
           workspace.activeNoteId = "note-missing";
         },

@@ -182,11 +182,11 @@ function readRequiredRole(
   value: Record<string, unknown>,
   path: string,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnRuleRole {
+): CtnRuleRole | null {
   const role = readRequiredString(value, "role", path, diagnostics);
 
   if (!role) {
-    return "normal";
+    return null;
   }
 
   if (!validRoles.has(role as CtnRuleRole)) {
@@ -197,7 +197,7 @@ function readRequiredRole(
         `role 只能是 ${[...validRoles].join("、")}。`,
       ),
     );
-    return "normal";
+    return null;
   }
 
   return role as CtnRuleRole;
@@ -208,11 +208,11 @@ function readRequiredColor(
   key: "textColor" | "tone",
   path: string,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnSyntaxTone {
+): CtnSyntaxTone | null {
   const tone = readRequiredString(value, key, path, diagnostics);
 
   if (!tone) {
-    return "green";
+    return null;
   }
 
   if (!isConfigurableSyntaxTone(tone)) {
@@ -223,7 +223,7 @@ function readRequiredColor(
         `${key} 只能是 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
       ),
     );
-    return "green";
+    return null;
   }
 
   return tone as CtnSyntaxTone;
@@ -233,7 +233,7 @@ function readRequiredTone(
   value: Record<string, unknown>,
   path: string,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnSyntaxTone {
+): CtnSyntaxTone | null {
   return readRequiredColor(value, "tone", path, diagnostics);
 }
 
@@ -241,7 +241,7 @@ function readRequiredTextColor(
   value: Record<string, unknown>,
   path: string,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnSyntaxTone {
+): CtnSyntaxTone | null {
   return readRequiredColor(value, "textColor", path, diagnostics);
 }
 
@@ -294,7 +294,15 @@ function validateMarkers(
 
     validateSemanticTypeId(type, `${path}.type`, diagnostics);
 
-    if (!marker || !type || !label || !semanticIdPattern.test(type)) {
+    if (
+      !marker ||
+      !type ||
+      !label ||
+      !role ||
+      !textColor ||
+      !tone ||
+      !semanticIdPattern.test(type)
+    ) {
       return;
     }
 
@@ -344,7 +352,14 @@ function validateConcept(
     );
   }
 
-  if (!type || !label || type !== "concept" || !semanticIdPattern.test(type)) {
+  if (
+    !type ||
+    !label ||
+    !textColor ||
+    !tone ||
+    type !== "concept" ||
+    !semanticIdPattern.test(type)
+  ) {
     return null;
   }
 
@@ -404,7 +419,14 @@ function validateInlineRules(
 
     validateSemanticTypeId(type, `${path}.type`, diagnostics);
 
-    if (!kind || !type || !label || !semanticIdPattern.test(type)) {
+    if (
+      !kind ||
+      !type ||
+      !label ||
+      !textColor ||
+      !tone ||
+      !semanticIdPattern.test(type)
+    ) {
       return;
     }
 

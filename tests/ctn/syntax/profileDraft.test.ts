@@ -8,6 +8,8 @@ import {
   buildSyntaxProfileDraft,
   createEmptyInlineRuleDraft,
   createEmptyMarkerRuleDraft,
+  createNextInlineRuleDraft,
+  createNextMarkerRuleDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
 } from "../../../src/ctn/syntax/profileDraft";
@@ -194,6 +196,27 @@ describe("syntax profile draft", () => {
       textColor: "cyan",
       tone: "pink",
       type: "concept",
+    });
+  });
+
+  it("creates draft rule ids after the highest existing id", () => {
+    expect(
+      createNextMarkerRuleDraft([
+        createEmptyMarkerRuleDraft(0),
+        createEmptyMarkerRuleDraft(2),
+      ]),
+    ).toMatchObject({
+      id: "marker-4",
+      type: "marker-rule-4",
+    });
+    expect(
+      createNextInlineRuleDraft([
+        createEmptyInlineRuleDraft(0),
+        createEmptyInlineRuleDraft(2),
+      ]),
+    ).toMatchObject({
+      id: "inline-4",
+      type: "inline-rule-4",
     });
   });
 });

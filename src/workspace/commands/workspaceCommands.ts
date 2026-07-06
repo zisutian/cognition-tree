@@ -4,7 +4,6 @@ import {
   collectNoteIdsInFolder,
   countFolders,
   createFolderTreeNode,
-  findFirstFolderId,
   findFolderNode,
   moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
@@ -25,29 +24,37 @@ function hasWorkspaceNote(workspace: WorkspaceData, noteId: NoteId) {
   return workspace.notes.some((note) => note.id === noteId);
 }
 
-function resolveExistingWorkspaceFolderId(
-  workspace: WorkspaceData,
-  preferredFolderId: FolderId,
-) {
-  return (
-    findFolderNode(workspace.tree, preferredFolderId)?.id ??
-    findFirstFolderId(workspace.tree) ??
-    defaultFolderId
-  );
+function assertWorkspaceNoteExists(workspace: WorkspaceData, noteId: NoteId) {
+  if (!hasWorkspaceNote(workspace, noteId)) {
+    throw new Error(`Workspace note does not exist: ${noteId}`);
+  }
 }
 
-export function selectWorkspaceNote(
+function assertWorkspaceFolderExists(
+  workspace: WorkspaceData,
+  folderId: FolderId,
+) {
+  if (!findFolderNode(workspace.tree, folderId)) {
+    throw new Error(`Workspace folder does not exist: ${folderId}`);
+  }
+}
+
+function assertWorkspaceNoteIdAvailable(
   workspace: WorkspaceData,
   noteId: NoteId,
-): WorkspaceData {
-  if (!hasWorkspaceNote(workspace, noteId)) {
-    return workspace;
+) {
+  if (hasWorkspaceNote(workspace, noteId)) {
+    throw new Error(`Workspace note already exists: ${noteId}`);
   }
+}
 
-  return {
-    ...workspace,
-    activeNoteId: noteId,
-  };
+function assertWorkspaceFolderIdAvailable(
+  workspace: WorkspaceData,
+  folderId: FolderId,
+) {
+  if (findFolderNode(workspace.tree, folderId)) {
+    throw new Error(`Workspace folder already exists: ${folderId}`);
+  }
 }
 
 export function createWorkspaceNote(
@@ -62,14 +69,15 @@ export function createWorkspaceNote(
     timestamp: string;
   },
 ): WorkspaceData {
-  const targetFolderId = resolveExistingWorkspaceFolderId(workspace, folderId);
+  assertWorkspaceNoteIdAvailable(workspace, noteId);
+  assertWorkspaceFolderExists(workspace, folderId);
+
   const note = createNoteRecord(noteId, "", timestamp);
 
   return {
     ...workspace,
-    activeNoteId: note.id,
     notes: [...workspace.notes, note],
-    tree: appendNoteToWorkspaceTree(workspace.tree, note.id, targetFolderId),
+    tree: appendNoteToWorkspaceTree(workspace.tree, note.id, folderId),
   };
 }
 
@@ -88,20 +96,18 @@ export function createWorkspaceFolder(
   const nextTitle = title.trim();
 
   if (!nextTitle) {
-    return workspace;
+    throw new Error("Workspace folder title is required.");
   }
 
-  const targetFolderId = resolveExistingWorkspaceFolderId(
-    workspace,
-    parentFolderId,
-  );
+  assertWorkspaceFolderIdAvailable(workspace, folderId);
+  assertWorkspaceFolderExists(workspace, parentFolderId);
 
   return {
     ...workspace,
     tree: appendFolderToWorkspaceTree(
       workspace.tree,
       createFolderTreeNode(folderId, nextTitle),
-      targetFolderId,
+      parentFolderId,
     ),
   };
 }
@@ -113,9 +119,11 @@ export function renameWorkspaceFolder(
 ): WorkspaceData {
   const nextTitle = title.trim();
 
-  if (!nextTitle || !findFolderNode(workspace.tree, folderId)) {
-    return workspace;
+  if (!nextTitle) {
+    throw new Error("Workspace folder title is required.");
   }
+
+  assertWorkspaceFolderExists(workspace, folderId);
 
   return {
     ...workspace,
@@ -127,18 +135,12 @@ export function deleteWorkspaceNote(
   workspace: WorkspaceData,
   noteId: NoteId,
 ): WorkspaceData {
-  const notes = workspace.notes.filter((note) => note.id !== noteId);
+  assertWorkspaceNoteExists(workspace, noteId);
 
-  if (notes.length === workspace.notes.length) {
-    return workspace;
-  }
+  const notes = workspace.notes.filter((note) => note.id !== noteId);
 
   return {
     ...workspace,
-    activeNoteId:
-      workspace.activeNoteId === noteId
-        ? (notes[0]?.id ?? null)
-        : workspace.activeNoteId,
     notes,
     tree: removeNoteFromWorkspaceTree(workspace.tree, noteId),
   };
@@ -148,12 +150,14 @@ export function deleteWorkspaceFolder(
   workspace: WorkspaceData,
   folderId: FolderId,
 ): WorkspaceData {
-  if (
-    folderId === defaultFolderId ||
-    countFolders(workspace.tree) <= 1 ||
-    !findFolderNode(workspace.tree, folderId)
-  ) {
-    return workspace;
+  assertWorkspaceFolderExists(workspace, folderId);
+
+  if (folderId === defaultFolderId) {
+    throw new Error("Default workspace folder cannot be deleted.");
+  }
+
+  if (countFolders(workspace.tree) <= 1) {
+    throw new Error("Workspace must contain at least one folder.");
   }
 
   const removedNoteIds = new Set(
@@ -163,10 +167,6 @@ export function deleteWorkspaceFolder(
 
   return {
     ...workspace,
-    activeNoteId:
-      workspace.activeNoteId && removedNoteIds.has(workspace.activeNoteId)
-        ? (notes[0]?.id ?? null)
-        : workspace.activeNoteId,
     notes,
     tree: removeFolderFromWorkspaceTree(workspace.tree, folderId),
   };
@@ -177,34 +177,27 @@ export function moveWorkspaceNote(
   noteId: NoteId,
   targetFolderId: FolderId,
 ): WorkspaceData {
-  if (!hasWorkspaceNote(workspace, noteId)) {
-    return workspace;
-  }
-
-  const nextTargetFolderId = resolveExistingWorkspaceFolderId(
-    workspace,
-    targetFolderId,
-  );
+  assertWorkspaceNoteExists(workspace, noteId);
+  assertWorkspaceFolderExists(workspace, targetFolderId);
 
   return {
     ...workspace,
-    tree: moveNoteInWorkspaceTree(workspace.tree, noteId, nextTargetFolderId),
+    tree: moveNoteInWorkspaceTree(workspace.tree, noteId, targetFolderId),
   };
 }
 
-export function updateActiveWorkspaceNoteSource(
+export function updateWorkspaceNoteSource(
   workspace: WorkspaceData,
+  noteId: NoteId,
   source: string,
   timestamp: string,
 ): WorkspaceData {
-  if (!workspace.activeNoteId) {
-    return workspace;
-  }
+  assertWorkspaceNoteExists(workspace, noteId);
 
   return {
     ...workspace,
     notes: workspace.notes.map((note): NoteRecord => {
-      if (note.id !== workspace.activeNoteId) {
+      if (note.id !== noteId) {
         return note;
       }
 

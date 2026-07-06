@@ -16,13 +16,14 @@ src/app：
 
 src/application：
 
-    应用用例编排，管理 session、命令流程、加载保存、状态和端口调用。
+    workspace 应用用例，管理 session、页面状态、命令流程、加载保存和端口调用。
 
 src/ui：
 
-    shell：应用外壳，提供导航、侧栏框架、主区域和详情区域 slot。
-    activities：用户功能界面，承载 activity 视图、局部交互状态和 view model。
+    应用界面层，组合导航、布局、activity 和共享展示。
+    activities：用户功能界面，承载 activity 视图和局部交互状态。
     shared：UI 共用组件和展示结构。
+    styles：UI 全局样式、主题和布局。
 
 src/workspace：
 
@@ -49,7 +50,7 @@ server：
 3. 依赖方向
 
     src/app -> src/application、src/ui、src/storage、src/editor
-    src/ui -> src/application、src/workspace、src/ctn、src/editor
+    src/ui -> src/application、src/editor
     src/application -> src/workspace、src/ctn、src/storage
     src/workspace -> src/ctn
     src/storage -> src/workspace、src/ctn

@@ -1,8 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { OutlineNode } from "../../../ctn/parser/types";
-import { CtnBlockTree } from "../../shared/blocks/CtnBlockTree";
+import type { UiOutlineNode } from "../../../application/workspace/viewTypes";
+import { BlockTree } from "../../shared/blocks/BlockTree";
 import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
-import { getOutlineDisplayText } from "../../shared/blocks/outlineTextSegments";
 
 export function NoteOutlineTree({
   collapsedNodeIds,
@@ -12,32 +11,33 @@ export function NoteOutlineTree({
   depth = 0,
 }: {
   collapsedNodeIds: Set<string>;
-  nodes: OutlineNode[];
+  nodes: UiOutlineNode[];
   onSelectLine: (lineNumber: number) => void;
   onToggleNode: (nodeId: string) => void;
   depth?: number;
 }) {
   return (
-    <CtnBlockTree
+    <BlockTree
       className="ctn-tree-list outline-list"
       depth={depth}
       nodes={nodes}
       renderBlock={({ block, children, hasChildren }) => {
         const isCollapsed = collapsedNodeIds.has(block.id);
-        const displayText = getOutlineDisplayText(block);
 
         return (
           <>
             <div
               className={
-                block.diagnostics.length > 0
+                block.hasDiagnostics
                   ? "ctn-tree-row ctn-tree-row-with-toggle outline-node has-diagnostics"
                   : "ctn-tree-row ctn-tree-row-with-toggle outline-node"
               }
             >
               <button
                 aria-label={
-                  isCollapsed ? `展开 ${displayText}` : `折叠 ${displayText}`
+                  isCollapsed
+                    ? `展开 ${block.textDisplay.displayText}`
+                    : `折叠 ${block.textDisplay.displayText}`
                 }
                 className="ctn-tree-toggle outline-toggle-button"
                 disabled={!hasChildren}
@@ -66,13 +66,13 @@ export function NoteOutlineTree({
               <button
                 className="ctn-tree-main ctn-tree-main-label ctn-tree-main-compact outline-node-content"
                 onClick={() => onSelectLine(block.lineNumber)}
-                title={`${block.label}: ${displayText}`}
+                title={`${block.label}: ${block.textDisplay.displayText}`}
                 type="button"
               >
                 <span className="ctn-tree-kind node-kind">{block.label}</span>
                 <OutlineNodeText
                   className="ctn-tree-text node-text"
-                  node={block}
+                  text={block.textDisplay}
                 />
               </button>
             </div>

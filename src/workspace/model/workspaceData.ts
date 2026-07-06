@@ -27,7 +27,6 @@ export type NoteTreeNode =
 export type WorkspaceData = {
   id: string;
   name: string;
-  activeNoteId: NoteId | null;
   notes: NoteRecord[];
   tree: NoteTreeNode[];
 };
@@ -57,7 +56,6 @@ export function createInitialWorkspaceData(): WorkspaceData {
   return {
     id: "local-workspace",
     name: "本地笔记库",
-    activeNoteId: null,
     notes: [],
     tree: [
       {

@@ -1,13 +1,13 @@
-import type {
-  WorkspaceRepository,
-  RepositoryInfo,
+import {
+  type RepositoryInfo,
+  type WorkspaceRepository,
 } from "./workspaceRepository";
+import { workspaceSyntaxFileName } from "../workspace/context/syntaxFile";
 import { parseWorkspaceDataDto } from "./workspaceDto";
 
 const workspaceStorageKey = "cognition-tree.workspace";
 const repositoryLabelStorageKey = "cognition-tree.repository-label";
 const syntaxFileStorageKey = "cognition-tree.syntax-file";
-const workspaceSyntaxFileName = "workspace.toml";
 
 function getRepositoryLabel() {
   return (

@@ -44,7 +44,7 @@ const allowedRootImports = new Map(
     ctn: ["ctn"],
     editor: ["ctn", "editor"],
     storage: ["ctn", "storage", "workspace"],
-    ui: ["application", "ctn", "editor", "ui", "workspace"],
+    ui: ["application", "editor", "ui"],
     workspace: ["ctn", "workspace"],
   }).map(([sourceRoot, imports]) => [sourceRoot, new Set(imports)]),
 );
@@ -118,6 +118,12 @@ function listSubdirectories(dir: string) {
 function listSourceFileNames(dir: string) {
   return listSourceFiles(dir)
     .map((filePath) => filePath.replace(`../../src/${dir}/`, ""))
+    .sort();
+}
+
+function listImmediateSourceFileNames(dir: string) {
+  return listSourceFileNames(dir)
+    .filter((filePath) => !filePath.includes("/"))
     .sort();
 }
 
@@ -197,29 +203,49 @@ describe("architecture module boundaries", () => {
   });
 
   it("keeps app as the composition root", () => {
-    expect(listSourceFileNames("app")).toEqual(["main.tsx"]);
+    expect(listSourceFileNames("app")).toEqual(["AppRoot.tsx", "main.tsx"]);
   });
 
   it("keeps application submodules explicitly named", () => {
-    expect(listSubdirectories("application")).toEqual([
-      "workspaceIndexes",
-      "workspaceSession",
+    expect(listSubdirectories("application")).toEqual(["workspace"]);
+    expect(listSourceFileNames("application/workspace")).toEqual([
+      "dataSaveQueue.ts",
+      "selection.ts",
+      "useIndex.ts",
+      "useSession.ts",
+      "useSyntaxDraft.ts",
+      "useViewModel.ts",
+      "viewData.ts",
+      "viewState.ts",
+      "viewTypes.ts",
     ]);
   });
 
   it("keeps ui submodules explicitly named", () => {
+    expect(listImmediateSourceFileNames("ui")).toEqual([
+      "ActivityBar.tsx",
+      "AppFrame.tsx",
+      "AppSidebar.tsx",
+      "AppView.tsx",
+      "activityTypes.ts",
+    ]);
     expect(listSubdirectories("ui")).toEqual([
       "activities",
       "shared",
-      "shell",
+      "styles",
+    ]);
+    expect(listImmediateSourceFileNames("ui/activities")).toEqual([
+      "ActivityPlaceholderPanels.tsx",
+      "activityRegistry.tsx",
     ]);
     expect(listSubdirectories("ui/activities")).toEqual([
       "migration",
       "notes",
+      "settings",
       "syntax",
       "visualization",
     ]);
-    expect(listSubdirectories("ui/shared")).toEqual(["blocks", "styles"]);
+    expect(listSubdirectories("ui/shared")).toEqual(["blocks"]);
   });
 
   it("keeps workspace submodules explicitly named", () => {
@@ -229,6 +255,13 @@ describe("architecture module boundaries", () => {
       "indexes",
       "model",
       "queries",
+    ]);
+  });
+
+  it("keeps workspace syntax source handling in workspace context", () => {
+    expect(listSourceFileNames("workspace/context")).toEqual([
+      "syntaxFile.ts",
+      "workspaceContext.ts",
     ]);
   });
 
@@ -257,6 +290,18 @@ describe("architecture module boundaries", () => {
     expect(workspaceComponentFiles).toEqual([]);
   });
 
+  it("keeps ui isolated from workspace and ctn internals", () => {
+    const uiBoundaryViolations = listInternalImports()
+      .filter(({ filePath }) => getSourceRoot(filePath) === "ui")
+      .filter(({ targetRoot }) => targetRoot === "workspace" || targetRoot === "ctn")
+      .map(
+        ({ filePath, importPath, targetRoot }) =>
+          `${filePath} imports ${importPath} (ui -> ${targetRoot})`,
+      );
+
+    expect(uiBoundaryViolations).toEqual([]);
+  });
+
   it("keeps internal source imports following documented dependency direction", () => {
     const violations = listInternalImports().flatMap(
       ({ filePath, importPath, targetRoot }) => {
@@ -276,12 +321,11 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps ui shared independent from shell and activities", () => {
+  it("keeps ui shared independent from activities and application", () => {
     const violations = listSourceFiles("ui/shared").flatMap((filePath) =>
       readSourceImports(filePath)
         .filter(
           ({ targetPath }) =>
-            targetPath.startsWith("../../src/ui/shell/") ||
             targetPath.startsWith("../../src/ui/activities/") ||
             targetPath.startsWith("../../src/application/"),
         )
@@ -291,10 +335,21 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps ui activities independent from shell", () => {
-    const violations = listSourceFiles("ui/activities").flatMap((filePath) =>
+  it("keeps ui frame components independent from application and activities", () => {
+    const frameFiles = [
+      "../../src/ui/ActivityBar.tsx",
+      "../../src/ui/AppFrame.tsx",
+      "../../src/ui/AppSidebar.tsx",
+    ];
+    const violations = frameFiles.flatMap((filePath) =>
       readSourceImports(filePath)
-        .filter(({ targetPath }) => targetPath.startsWith("../../src/ui/shell/"))
+        .filter(
+          ({ targetPath }) =>
+            targetPath.startsWith("../../src/application/") ||
+            targetPath.startsWith("../../src/workspace/") ||
+            targetPath.startsWith("../../src/ctn/") ||
+            targetPath.startsWith("../../src/ui/activities/"),
+        )
         .map(({ importPath }) => `${filePath} imports ${importPath}`),
     );
 

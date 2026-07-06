@@ -3,13 +3,14 @@ import type {
   NoteTreeNode,
   WorkspaceData,
 } from "../workspace/model/workspaceData";
+import { defaultFolderId } from "../workspace/model/workspaceData";
+import { findFolderNode } from "../workspace/model/noteTree";
 import type {
   RepositoryInfo,
-  WorkspaceSyntaxSourceFile,
 } from "./workspaceRepository";
+import type { WorkspaceSyntaxSourceFile } from "../workspace/context/syntaxFile";
 
 const workspaceFields = new Set([
-  "activeNoteId",
   "id",
   "name",
   "notes",
@@ -125,12 +126,10 @@ function parseTreeNode(value: unknown, path: string): NoteTreeNode {
 function assertWorkspaceReferences(workspace: WorkspaceData) {
   const noteIds = new Set(workspace.notes.map((note) => note.id));
   const treeNodeIds = new Set<string>();
+  const treeNoteIds = new Set<string>();
 
-  if (
-    workspace.activeNoteId !== null &&
-    !noteIds.has(workspace.activeNoteId)
-  ) {
-    throw new Error("Invalid response at $.activeNoteId: unknown note");
+  if (!findFolderNode(workspace.tree, defaultFolderId)) {
+    throw new Error("Invalid response at $.tree: missing default folder");
   }
 
   const visit = (node: NoteTreeNode) => {
@@ -142,6 +141,16 @@ function assertWorkspaceReferences(workspace: WorkspaceData) {
 
     if (node.kind === "note" && !noteIds.has(node.noteId)) {
       throw new Error(`Invalid response at $.tree: unknown note ${node.noteId}`);
+    }
+
+    if (node.kind === "note") {
+      if (treeNoteIds.has(node.noteId)) {
+        throw new Error(
+          `Invalid response at $.tree: duplicate note node ${node.noteId}`,
+        );
+      }
+
+      treeNoteIds.add(node.noteId);
     }
 
     if (node.kind === "folder") {
@@ -179,17 +188,7 @@ export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
     noteIds.add(parsedNote.id);
     return parsedNote;
   });
-  const activeNoteId = value.activeNoteId;
-
-  if (
-    activeNoteId !== null &&
-    (typeof activeNoteId !== "string" || activeNoteId.length === 0)
-  ) {
-    throw new Error("Invalid response at $.activeNoteId: expected string or null");
-  }
-
   const workspace: WorkspaceData = {
-    activeNoteId,
     id: readRequiredString(value, "id", "$"),
     name: readRequiredString(value, "name", "$"),
     notes,
@@ -211,7 +210,7 @@ export function parseRepositoryInfoDto(value: unknown): RepositoryInfo {
   };
 }
 
-export function parseWorkspaceSyntaxFileDto(
+export function parseSyntaxFileDto(
   value: unknown,
 ): WorkspaceSyntaxSourceFile | null {
   if (value === null) {

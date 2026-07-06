@@ -1,0 +1,135 @@
+.ctn-tree-list,
+.ctn-tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ctn-tree-list .ctn-tree-list,
+.ctn-tree-children {
+  margin-left: 0;
+  padding-left: 13px;
+  border-left: 1px solid var(--color-border);
+}
+
+.ctn-tree-row {
+  display: grid;
+  align-items: center;
+  width: 100%;
+  min-height: 26px;
+  border-radius: 5px;
+  color: var(--color-fg);
+  background: transparent;
+}
+
+.ctn-tree-row-with-toggle {
+  grid-template-columns: 18px minmax(0, 1fr);
+}
+
+.ctn-tree-row:hover,
+.ctn-tree-row.is-active,
+.ctn-tree-main:hover,
+.ctn-tree-main.is-active {
+  background: var(--color-selection);
+  box-shadow: none;
+}
+
+.app-frame.activity-notes .ctn-tree-row:hover,
+.app-frame.activity-notes .ctn-tree-row.is-active,
+.app-frame.activity-notes .ctn-tree-main:hover,
+.app-frame.activity-notes .ctn-tree-main.is-active,
+.note-outline-panel .ctn-tree-row:hover,
+.note-outline-panel .ctn-tree-row.is-active {
+  background: var(--note-selection-background);
+  box-shadow: none;
+}
+
+.ctn-tree-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  color: var(--color-fg-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ctn-tree-toggle:disabled {
+  color: transparent;
+  cursor: default;
+}
+
+.ctn-tree-toggle:focus-visible,
+.ctn-tree-main:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.ctn-tree-main {
+  display: grid;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-fg);
+  background: transparent;
+  font-size: var(--font-size-sm);
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctn-tree-main-compact {
+  min-height: 24px;
+  padding: 3px 5px 3px 3px;
+}
+
+.ctn-tree-main-note {
+  grid-template-columns: 15px minmax(0, 1fr);
+}
+
+.ctn-tree-main-label {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.ctn-tree-main-with-meta {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.ctn-tree-text {
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctn-tree-meta {
+  color: var(--color-fg-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ctn-tree-kind {
+  flex: 0 0 auto;
+  min-width: auto;
+  min-height: auto;
+  padding: 0;
+  color: var(--color-link);
+  background: transparent;
+  font-size: 0.92em;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+  text-align: center;
+}

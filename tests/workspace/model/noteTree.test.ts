@@ -251,9 +251,27 @@ describe("note tree operations", () => {
     expect(findFolderIdContainingNote(movedTree, "note-first")).toBe(
       "folder-target",
     );
-    expect(moveNoteInWorkspaceTree(movedTree, "note-first", "missing")).toBe(
-      movedTree,
-    );
+    expect(() =>
+      moveNoteInWorkspaceTree(movedTree, "note-first", "missing"),
+    ).toThrow("Workspace folder does not exist");
+    expect(() =>
+      moveNoteInWorkspaceTree(movedTree, "missing-note", "folder-target"),
+    ).toThrow("Workspace note tree node does not exist");
+  });
+
+  it("rejects missing target folders when appending tree nodes", () => {
+    const workspace = createInitialWorkspaceData();
+
+    expect(() =>
+      appendNoteToWorkspaceTree(workspace.tree, "note-new", "missing"),
+    ).toThrow("Workspace folder does not exist");
+    expect(() =>
+      appendFolderToWorkspaceTree(
+        workspace.tree,
+        createFolderTreeNode("folder-target", "目标"),
+        "missing",
+      ),
+    ).toThrow("Workspace folder does not exist");
   });
 
   it("orders folders before notes while preserving local order", () => {

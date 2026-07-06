@@ -1,13 +1,11 @@
 import type { DragEvent } from "react";
-import type { CtnBlock } from "../../../ctn/parser/types";
-import { CtnBlockTree } from "../../shared/blocks/CtnBlockTree";
+import type { UiBlockNode } from "../../../application/workspace/viewTypes";
+import { BlockTree } from "../../shared/blocks/BlockTree";
 import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
-import { getOutlineDisplayText } from "../../shared/blocks/outlineTextSegments";
-import { getBlockLineLabel } from "./blockMigrationView";
 
 type MigrationSourceTreeProps = {
   draggingLineNumber: string | null;
-  nodes: CtnBlock[];
+  nodes: UiBlockNode[];
   onDragEnd: () => void;
   onDragStart: (
     event: DragEvent<HTMLDivElement>,
@@ -22,7 +20,7 @@ export function MigrationSourceTree({
   nodes,
 }: MigrationSourceTreeProps) {
   return (
-    <CtnBlockTree
+    <BlockTree
       className="ctn-tree-list migration-tree"
       nodes={nodes}
       renderBlock={({ block, children }) => {
@@ -45,17 +43,17 @@ export function MigrationSourceTree({
               draggable
               onDragEnd={onDragEnd}
               onDragStart={(event) => onDragStart(event, block.lineNumber)}
-              title={`${block.label}: ${getOutlineDisplayText(block)}`}
+              title={`${block.label}: ${block.textDisplay.displayText}`}
             >
               <span className="ctn-tree-kind migration-node-kind">
                 {block.label}
               </span>
               <OutlineNodeText
                 className="ctn-tree-text migration-node-text"
-                node={block}
+                text={block.textDisplay}
               />
               <span className="ctn-tree-meta migration-node-lines">
-                {getBlockLineLabel(block)}
+                {block.lineLabel}
               </span>
             </div>
             {children}

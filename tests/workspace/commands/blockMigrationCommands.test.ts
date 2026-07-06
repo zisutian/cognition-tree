@@ -29,7 +29,6 @@ function createMigrationWorkspace(): WorkspaceContext {
 
   return {
     ...workspace,
-    activeNoteId: sourceNote.id,
     notes: [sourceNote, targetNote],
     tree: appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree(workspace.tree, sourceNote.id, "folder-inbox"),
@@ -68,10 +67,9 @@ describe("workspace block migration", () => {
     expect(result.status).toBe("moved");
 
     if (result.status !== "moved") {
-      throw new Error(result.message);
+      throw new Error(result.reason);
     }
 
-    expect(result.workspaceData.activeNoteId).toBe("note-target");
     expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
       .toMatchObject({
         source: "Root\nSibling",
@@ -148,7 +146,7 @@ describe("workspace block migration", () => {
         timestamp,
       ),
     ).toMatchObject({
-      message: "第一版不支持同一笔记内移动块。",
+      reason: "same-note-unsupported",
       status: "failed",
     });
     expect(
@@ -163,7 +161,7 @@ describe("workspace block migration", () => {
         timestamp,
       ),
     ).toMatchObject({
-      message: "源块不存在。",
+      reason: "source-block-missing",
       status: "failed",
     });
     expect(
@@ -178,7 +176,7 @@ describe("workspace block migration", () => {
         timestamp,
       ),
     ).toMatchObject({
-      message: "目标插入位置不存在。",
+      reason: "target-position-missing",
       status: "failed",
     });
   });

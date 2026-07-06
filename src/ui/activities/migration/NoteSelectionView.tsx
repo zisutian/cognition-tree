@@ -6,61 +6,49 @@ import {
   FileText,
   Folder,
 } from "lucide-react";
-import {
-  type FolderId,
-  type NoteId,
-  type NoteTreeNode,
-} from "../../../workspace/model/workspaceData";
-import {
-  createWorkspaceNoteSelectionTree,
-  getWorkspaceFolderChildCount,
-  getWorkspaceFolderDisplayTitle,
-  hasWorkspaceFolderChildren,
-  orderWorkspaceTreeNodesFoldersFirst,
-} from "../../shared/workspaceTreeView";
-
-type MigrationSelectableNote = {
-  id: NoteId;
-  title: string;
-};
+import type {
+  UiFolderId,
+  UiNoteId,
+  UiNoteSummary,
+  UiTreeNode,
+} from "../../../application/workspace/viewTypes";
 
 type NoteSelectionViewProps = {
-  notes: MigrationSelectableNote[];
-  noteTree: NoteTreeNode[];
-  sourceNoteId: NoteId;
-  targetNoteId: NoteId;
-  onSourceNoteChange: (id: NoteId) => void;
-  onTargetNoteChange: (id: NoteId) => void;
+  notes: UiNoteSummary[];
+  noteTree: UiTreeNode[];
+  sourceNoteId: UiNoteId;
+  targetNoteId: UiNoteId;
+  onSourceNoteChange: (id: UiNoteId) => void;
+  onTargetNoteChange: (id: UiNoteId) => void;
   onComplete: () => void;
 };
 
 type MigrationNoteTreeMode = "source" | "target";
 
 type MigrationNoteTreeProps = {
-  collapsedFolderIds: Set<FolderId>;
-  dragOverNoteId: NoteId | null;
+  collapsedFolderIds: Set<UiFolderId>;
+  dragOverNoteId: UiNoteId | null;
   mode: MigrationNoteTreeMode;
-  nodes: NoteTreeNode[];
-  notesById: Map<NoteId, MigrationSelectableNote>;
+  nodes: UiTreeNode[];
+  noteIds: Set<UiNoteId>;
   onSourceDragStart: (
     event: DragEvent<HTMLButtonElement>,
-    noteId: NoteId,
+    noteId: UiNoteId,
   ) => void;
-  onSourceNoteChange: (id: NoteId) => void;
+  onSourceNoteChange: (id: UiNoteId) => void;
   onTargetDragLeave: () => void;
   onTargetDragOver: (
     event: DragEvent<HTMLButtonElement>,
-    noteId: NoteId,
+    noteId: UiNoteId,
   ) => void;
   onTargetDrop: (
     event: DragEvent<HTMLButtonElement>,
-    noteId: NoteId,
+    noteId: UiNoteId,
   ) => void;
-  onTargetNoteChange: (id: NoteId) => void;
-  onToggleFolder: (folderId: FolderId) => void;
-  sourceNoteId: NoteId;
-  targetNoteId: NoteId;
-  visitedNodeIds?: Set<string>;
+  onTargetNoteChange: (id: UiNoteId) => void;
+  onToggleFolder: (folderId: UiFolderId) => void;
+  sourceNoteId: UiNoteId;
+  targetNoteId: UiNoteId;
 };
 
 function MigrationNoteTree({
@@ -68,7 +56,7 @@ function MigrationNoteTree({
   dragOverNoteId,
   mode,
   nodes,
-  notesById,
+  noteIds,
   onSourceDragStart,
   onSourceNoteChange,
   onTargetDragLeave,
@@ -78,35 +66,24 @@ function MigrationNoteTree({
   onToggleFolder,
   sourceNoteId,
   targetNoteId,
-  visitedNodeIds = new Set(),
 }: MigrationNoteTreeProps) {
-  const orderedNodes = orderWorkspaceTreeNodesFoldersFirst(nodes);
-
   return (
     <ol className="ctn-tree-list">
-      {orderedNodes.map((node) => {
-        if (visitedNodeIds.has(node.id)) {
-          return null;
-        }
-
+      {nodes.map((node) => {
         if (node.kind === "folder") {
-          const isCollapsed = collapsedFolderIds.has(node.id);
-          const hasChildren = hasWorkspaceFolderChildren(node);
-          const title = getWorkspaceFolderDisplayTitle(node.id, node.title);
-          const nextVisitedNodeIds = new Set(visitedNodeIds);
-
-          nextVisitedNodeIds.add(node.id);
+          const isCollapsed = collapsedFolderIds.has(node.folderId);
+          const hasChildren = node.children.length > 0;
 
           return (
             <li key={node.id}>
               <div className="ctn-tree-row ctn-tree-row-with-toggle migration-note-folder-row">
                 <button
                   aria-label={
-                    isCollapsed ? `展开 ${title}` : `折叠 ${title}`
+                    isCollapsed ? `展开 ${node.title}` : `折叠 ${node.title}`
                   }
                   className="ctn-tree-toggle migration-note-folder-toggle"
                   disabled={!hasChildren}
-                  onClick={() => onToggleFolder(node.id)}
+                  onClick={() => onToggleFolder(node.folderId)}
                   title={isCollapsed ? "展开文件夹" : "折叠文件夹"}
                   type="button"
                 >
@@ -130,15 +107,13 @@ function MigrationNoteTree({
                 </button>
                 <button
                   className="ctn-tree-main ctn-tree-main-with-meta ctn-tree-main-compact migration-note-folder-label"
-                  onClick={() => onToggleFolder(node.id)}
-                  title={title}
+                  onClick={() => onToggleFolder(node.folderId)}
+                  title={node.title}
                   type="button"
                 >
                   <Folder aria-hidden="true" size={14} strokeWidth={1.9} />
-                  <span className="ctn-tree-text">{title}</span>
-                  <small className="ctn-tree-meta">
-                    {getWorkspaceFolderChildCount(node)}
-                  </small>
+                  <span className="ctn-tree-text">{node.title}</span>
+                  <small className="ctn-tree-meta">{node.childCount}</small>
                 </button>
               </div>
               {!isCollapsed && hasChildren ? (
@@ -147,7 +122,7 @@ function MigrationNoteTree({
                   dragOverNoteId={dragOverNoteId}
                   mode={mode}
                   nodes={node.children}
-                  notesById={notesById}
+                  noteIds={noteIds}
                   onSourceDragStart={onSourceDragStart}
                   onSourceNoteChange={onSourceNoteChange}
                   onTargetDragLeave={onTargetDragLeave}
@@ -157,16 +132,13 @@ function MigrationNoteTree({
                   onToggleFolder={onToggleFolder}
                   sourceNoteId={sourceNoteId}
                   targetNoteId={targetNoteId}
-                  visitedNodeIds={nextVisitedNodeIds}
                 />
               ) : null}
             </li>
           );
         }
 
-        const note = notesById.get(node.noteId);
-
-        if (!note || (mode === "target" && note.id === sourceNoteId)) {
+        if (!noteIds.has(node.noteId) || (mode === "target" && node.noteId === sourceNoteId)) {
           return null;
         }
 
@@ -175,16 +147,16 @@ function MigrationNoteTree({
             <li key={node.id}>
               <button
                 className={`ctn-tree-main ctn-tree-main-note migration-note-row ${
-                  note.id === sourceNoteId ? "is-source is-active" : ""
+                  node.noteId === sourceNoteId ? "is-source is-active" : ""
                 }`}
                 draggable
-                onClick={() => onSourceNoteChange(note.id)}
-                onDragStart={(event) => onSourceDragStart(event, note.id)}
-                title={note.title}
+                onClick={() => onSourceNoteChange(node.noteId)}
+                onDragStart={(event) => onSourceDragStart(event, node.noteId)}
+                title={node.title}
                 type="button"
               >
                 <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
-                <span className="ctn-tree-text">{note.title}</span>
+                <span className="ctn-tree-text">{node.title}</span>
               </button>
             </li>
           );
@@ -194,17 +166,17 @@ function MigrationNoteTree({
           <li key={node.id}>
             <button
               className={`ctn-tree-main ctn-tree-main-note migration-note-row ${
-                note.id === targetNoteId ? "is-target is-active" : ""
-              } ${note.id === dragOverNoteId ? "is-drop-target" : ""}`}
-              onClick={() => onTargetNoteChange(note.id)}
+                node.noteId === targetNoteId ? "is-target is-active" : ""
+              } ${node.noteId === dragOverNoteId ? "is-drop-target" : ""}`}
+              onClick={() => onTargetNoteChange(node.noteId)}
               onDragLeave={onTargetDragLeave}
-              onDragOver={(event) => onTargetDragOver(event, note.id)}
-              onDrop={(event) => onTargetDrop(event, note.id)}
-              title={note.title}
+              onDragOver={(event) => onTargetDragOver(event, node.noteId)}
+              onDrop={(event) => onTargetDrop(event, node.noteId)}
+              title={node.title}
               type="button"
             >
               <FileText aria-hidden="true" size={14} strokeWidth={1.9} />
-              <span className="ctn-tree-text">{note.title}</span>
+              <span className="ctn-tree-text">{node.title}</span>
             </button>
           </li>
         );
@@ -222,26 +194,22 @@ export function NoteSelectionView({
   onTargetNoteChange,
   onComplete,
 }: NoteSelectionViewProps) {
-  const [dragOverNoteId, setDragOverNoteId] = useState<NoteId | null>(null);
+  const [dragOverNoteId, setDragOverNoteId] = useState<UiNoteId | null>(null);
   const [collapsedSourceFolderIds, setCollapsedSourceFolderIds] = useState<
-    Set<FolderId>
+    Set<UiFolderId>
   >(() => new Set());
   const [collapsedTargetFolderIds, setCollapsedTargetFolderIds] = useState<
-    Set<FolderId>
+    Set<UiFolderId>
   >(() => new Set());
-  const notesById = useMemo(
-    () => new Map(notes.map((note) => [note.id, note])),
+  const noteIds = useMemo(
+    () => new Set(notes.map((note) => note.id)),
     [notes],
-  );
-  const selectionTree = useMemo(
-    () => createWorkspaceNoteSelectionTree(notes, noteTree),
-    [noteTree, notes],
   );
   const hasTargetCandidates = notes.some((note) => note.id !== sourceNoteId);
 
   const toggleFolder = (
-    folderId: FolderId,
-    setCollapsedFolderIds: Dispatch<SetStateAction<Set<FolderId>>>,
+    folderId: UiFolderId,
+    setCollapsedFolderIds: Dispatch<SetStateAction<Set<UiFolderId>>>,
   ) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -258,7 +226,7 @@ export function NoteSelectionView({
 
   const handleSourceDragStart = (
     event: DragEvent<HTMLButtonElement>,
-    noteId: NoteId,
+    noteId: UiNoteId,
   ) => {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", noteId);
@@ -267,7 +235,7 @@ export function NoteSelectionView({
 
   const handleTargetDragOver = (
     event: DragEvent<HTMLButtonElement>,
-    noteId: NoteId,
+    noteId: UiNoteId,
   ) => {
     if (noteId === sourceNoteId) return;
     event.preventDefault();
@@ -281,13 +249,19 @@ export function NoteSelectionView({
 
   const handleTargetDrop = (
     event: DragEvent<HTMLButtonElement>,
-    noteId: NoteId,
+    noteId: UiNoteId,
   ) => {
     event.preventDefault();
     setDragOverNoteId(null);
 
     const droppedSourceId = event.dataTransfer.getData("text/plain");
-    if (!droppedSourceId || droppedSourceId === noteId) return;
+    if (
+      !droppedSourceId ||
+      droppedSourceId === noteId ||
+      !noteIds.has(droppedSourceId)
+    ) {
+      return;
+    }
 
     onSourceNoteChange(droppedSourceId);
     onTargetNoteChange(noteId);
@@ -296,16 +270,16 @@ export function NoteSelectionView({
 
   return (
     <div className="migration-note-grid">
-      <section className="migration-workspace-column">
-        <p className="workspace-detail-title">源笔记（拖拽到目标）</p>
+      <section className="migration-column">
+        <p className="activity-detail-title">源笔记（拖拽到目标）</p>
         <div className="migration-note-list">
           {notes.length > 0 ? (
             <MigrationNoteTree
               collapsedFolderIds={collapsedSourceFolderIds}
               dragOverNoteId={dragOverNoteId}
               mode="source"
-              nodes={selectionTree}
-              notesById={notesById}
+              nodes={noteTree}
+              noteIds={noteIds}
               onSourceDragStart={handleSourceDragStart}
               onSourceNoteChange={onSourceNoteChange}
               onTargetDragLeave={handleTargetDragLeave}
@@ -324,16 +298,16 @@ export function NoteSelectionView({
         </div>
       </section>
 
-      <section className="migration-workspace-column">
-        <p className="workspace-detail-title">目标笔记（拖放到此处）</p>
+      <section className="migration-column">
+        <p className="activity-detail-title">目标笔记（拖放到此处）</p>
         <div className="migration-note-list">
           {hasTargetCandidates ? (
             <MigrationNoteTree
               collapsedFolderIds={collapsedTargetFolderIds}
               dragOverNoteId={dragOverNoteId}
               mode="target"
-              nodes={selectionTree}
-              notesById={notesById}
+              nodes={noteTree}
+              noteIds={noteIds}
               onSourceDragStart={handleSourceDragStart}
               onSourceNoteChange={onSourceNoteChange}
               onTargetDragLeave={handleTargetDragLeave}

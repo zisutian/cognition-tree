@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import type {
-  NoteReferenceGraph,
-  NoteReferenceGraphNode,
-} from "../../../workspace/queries/workspaceQueries";
+  UiReferenceGraphNode,
+  UiReferenceGraphView,
+} from "../../../application/workspace/viewTypes";
 
 type NoteReferenceGraphPanelProps = {
-  graph: NoteReferenceGraph;
+  graph: UiReferenceGraphView;
 };
 
-type PositionedNode = NoteReferenceGraphNode & {
+type PositionedNode = UiReferenceGraphNode & {
   x: number;
   y: number;
 };
@@ -18,7 +18,7 @@ const viewBoxHeight = 560;
 const graphCenterX = viewBoxWidth / 2;
 const graphCenterY = viewBoxHeight / 2;
 
-function createNodePositions(nodes: NoteReferenceGraphNode[]) {
+function createNodePositions(nodes: UiReferenceGraphNode[]) {
   if (nodes.length === 0) {
     return new Map<string, PositionedNode>();
   }
@@ -50,7 +50,7 @@ function createNodePositions(nodes: NoteReferenceGraphNode[]) {
   return new Map(positionedNodes.map((node) => [node.id, node]));
 }
 
-function getNodeRadius(node: NoteReferenceGraphNode) {
+function getNodeRadius(node: UiReferenceGraphNode) {
   return Math.min(18, 7 + node.referencesIn + node.referencesOut);
 }
 
@@ -65,18 +65,16 @@ export function NoteReferenceGraphPanel({
     () => createNodePositions(graph.nodes),
     [graph.nodes],
   );
-  const isolatedCount = graph.nodes.filter((node) => node.isolated).length;
-
   return (
-    <section className="workspace-main-panel visualization-workspace-panel" aria-label="可视化">
+    <section className="activity-main-panel visualization-main-panel" aria-label="可视化">
       <header className="panel-header">
         <div>
           <h2>笔记引用图谱</h2>
         </div>
         <div className="stats">
-          <span>{graph.nodes.length} 点</span>
-          <span>{graph.edges.length} 边</span>
-          <span>{isolatedCount} 孤立</span>
+          <span>{graph.stats.nodeCount} 点</span>
+          <span>{graph.stats.edgeCount} 边</span>
+          <span>{graph.stats.isolatedCount} 孤立</span>
         </div>
       </header>
 

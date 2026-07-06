@@ -70,6 +70,24 @@ function createGeneratedType(prefix: string, index: number) {
   return `${prefix}-${index + 1}`;
 }
 
+function getNextDraftIndex<T extends { id: string }>(
+  drafts: T[],
+  prefix: string,
+) {
+  const idPrefix = `${prefix}-`;
+  const maxExistingIndex = drafts.reduce((maxIndex, draft) => {
+    if (!draft.id.startsWith(idPrefix)) {
+      return maxIndex;
+    }
+
+    const index = Number(draft.id.slice(idPrefix.length));
+
+    return Number.isInteger(index) && index > maxIndex ? index : maxIndex;
+  }, 0);
+
+  return maxExistingIndex;
+}
+
 function sortProtectedInlineRuleFirst<T extends { type: string }>(rules: T[]) {
   return [...rules].sort((left, right) => {
     if (left.type === requiredGlobalReferenceType) {
@@ -169,6 +187,12 @@ export function createEmptyMarkerRuleDraft(
   };
 }
 
+export function createNextMarkerRuleDraft(
+  markerRules: SyntaxProfileDraftMarkerRule[],
+): SyntaxProfileDraftMarkerRule {
+  return createEmptyMarkerRuleDraft(getNextDraftIndex(markerRules, "marker"));
+}
+
 export function createEmptyInlineRuleDraft(
   index: number,
   kind: "paired" | "single" = "paired",
@@ -184,6 +208,16 @@ export function createEmptyInlineRuleDraft(
     tone: "green",
     type: createGeneratedType("inline-rule", index),
   };
+}
+
+export function createNextInlineRuleDraft(
+  inlineRules: SyntaxProfileDraftInlineRule[],
+  kind: "paired" | "single" = "paired",
+): SyntaxProfileDraftInlineRule {
+  return createEmptyInlineRuleDraft(
+    getNextDraftIndex(inlineRules, "inline"),
+    kind,
+  );
 }
 
 export function createSyntaxProfileDraft(

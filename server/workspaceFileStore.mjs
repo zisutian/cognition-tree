@@ -39,7 +39,6 @@ function createEmptyWorkspace() {
   return {
     id: "local-workspace",
     name: "本地笔记库",
-    activeNoteId: null,
     notes: [],
     tree: [
       {
@@ -120,7 +119,6 @@ export class WorkspaceFileStore {
     return {
       id: manifest.id,
       name: manifest.name,
-      activeNoteId: manifest.activeNoteId,
       notes,
       tree: manifest.tree,
     };
@@ -139,7 +137,6 @@ export class WorkspaceFileStore {
     const manifest = {
       id: workspace.id,
       name: workspace.name,
-      activeNoteId: workspace.activeNoteId,
       notes: workspace.notes.map((note) => {
         const fileName = noteFileName(note.id);
 

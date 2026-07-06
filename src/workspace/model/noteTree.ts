@@ -51,6 +51,18 @@ export function appendNoteToWorkspaceTree(
   noteId: NoteId,
   folderId: FolderId,
 ): NoteTreeNode[] {
+  if (!findFolderNode(tree, folderId)) {
+    throw new Error(`Workspace folder does not exist: ${folderId}`);
+  }
+
+  return appendNoteToWorkspaceTreeUnchecked(tree, noteId, folderId);
+}
+
+function appendNoteToWorkspaceTreeUnchecked(
+  tree: NoteTreeNode[],
+  noteId: NoteId,
+  folderId: FolderId,
+): NoteTreeNode[] {
   return tree.map((node) => {
     if (node.kind !== "folder") {
       return node;
@@ -59,7 +71,11 @@ export function appendNoteToWorkspaceTree(
     if (node.id !== folderId) {
       return {
         ...node,
-        children: appendNoteToWorkspaceTree(node.children, noteId, folderId),
+        children: appendNoteToWorkspaceTreeUnchecked(
+          node.children,
+          noteId,
+          folderId,
+        ),
       };
     }
 
@@ -78,6 +94,18 @@ export function appendFolderToWorkspaceTree(
   folder: FolderTreeNode,
   parentFolderId: FolderId,
 ): NoteTreeNode[] {
+  if (!findFolderNode(tree, parentFolderId)) {
+    throw new Error(`Workspace folder does not exist: ${parentFolderId}`);
+  }
+
+  return appendFolderToWorkspaceTreeUnchecked(tree, folder, parentFolderId);
+}
+
+function appendFolderToWorkspaceTreeUnchecked(
+  tree: NoteTreeNode[],
+  folder: FolderTreeNode,
+  parentFolderId: FolderId,
+): NoteTreeNode[] {
   return tree.map((node) => {
     if (node.kind !== "folder") {
       return node;
@@ -86,7 +114,7 @@ export function appendFolderToWorkspaceTree(
     if (node.id !== parentFolderId) {
       return {
         ...node,
-        children: appendFolderToWorkspaceTree(
+        children: appendFolderToWorkspaceTreeUnchecked(
           node.children,
           folder,
           parentFolderId,
@@ -260,10 +288,16 @@ export function moveNoteInWorkspaceTree(
   targetFolderId: FolderId,
 ): NoteTreeNode[] {
   if (!findFolderNode(tree, targetFolderId)) {
-    return tree;
+    throw new Error(`Workspace folder does not exist: ${targetFolderId}`);
   }
 
-  if (findFolderIdContainingNote(tree, noteId) === targetFolderId) {
+  const sourceFolderId = findFolderIdContainingNote(tree, noteId);
+
+  if (!sourceFolderId) {
+    throw new Error(`Workspace note tree node does not exist: ${noteId}`);
+  }
+
+  if (sourceFolderId === targetFolderId) {
     return tree;
   }
 

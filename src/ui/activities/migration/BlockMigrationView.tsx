@@ -1,50 +1,44 @@
 import type { DragEvent } from "react";
-import { useMemo, useState } from "react";
-import type { NoteId } from "../../../workspace/model/workspaceData";
+import { useState } from "react";
 import {
-  findWorkspaceNote,
-  getParsedWorkspaceNote,
-  type WorkspaceIndex,
-} from "../../../workspace/queries/workspaceQueries";
-import type { WorkspaceBlockMigrationRequest } from "../../../workspace/commands/blockMigrationCommands";
-import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
+  flattenUiBlockSubtree,
+  getUiTargetPositionLabel,
+} from "../../../application/workspace/viewData";
+import type {
+  UiBlockNode,
+  UiNoteSummary,
+} from "../../../application/workspace/viewTypes";
 import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
 import {
   blockDragDataType,
   createBlockDragLineNumberPayload,
-  parseBlockMigrationTargetPosition,
   readBlockDragLineNumberPayload,
 } from "./blockMigrationDrag";
-import {
-  flattenBlockSubtree,
-  getBlockLineLabel,
-  getTargetPositionLabel,
-} from "./blockMigrationView";
 import { MigrationSourceTree } from "./MigrationSourceTree";
 import {
   MigrationDropZone,
   MigrationTargetTree,
 } from "./MigrationTargetTree";
 
-type MoveNoteBlock = (request: WorkspaceBlockMigrationRequest) => {
-  message: string;
-  status: "failed" | "moved";
-};
-
 type BlockMigrationViewProps = {
-  onMoveNoteBlock: MoveNoteBlock;
-  sourceNoteId: NoteId;
-  targetNoteId: NoteId;
-  workspace: WorkspaceContext;
-  workspaceIndex: WorkspaceIndex;
+  onMoveBlockToPosition: (
+    sourceBlockLineNumberValue: string,
+    targetPositionValue: string,
+  ) => void;
+  sourceBlocks: UiBlockNode[];
+  sourceNote: UiNoteSummary | null;
+  sourceRoots: UiBlockNode[];
+  targetNote: UiNoteSummary | null;
+  targetRoots: UiBlockNode[];
 };
 
 export function BlockMigrationView({
-  onMoveNoteBlock,
-  sourceNoteId,
-  targetNoteId,
-  workspace,
-  workspaceIndex,
+  onMoveBlockToPosition,
+  sourceBlocks,
+  sourceNote,
+  sourceRoots,
+  targetNote,
+  targetRoots,
 }: BlockMigrationViewProps) {
   const [sourceBlockLineNumber, setSourceBlockLineNumber] = useState("");
   const [draggingSourceLineNumber, setDraggingSourceLineNumber] =
@@ -53,48 +47,16 @@ export function BlockMigrationView({
     useState<string | null>(null);
   const [activeTargetBlockLineNumber, setActiveTargetBlockLineNumber] =
     useState<number | null>(null);
-  const sourceNote = findWorkspaceNote(workspace, sourceNoteId);
-  const targetNote = findWorkspaceNote(workspace, targetNoteId);
-  const sourceParsed = useMemo(
-    () =>
-      sourceNote ? getParsedWorkspaceNote(workspaceIndex, sourceNote.id) : null,
-    [sourceNote, workspaceIndex],
-  );
-  const targetParsed = useMemo(
-    () =>
-      targetNote ? getParsedWorkspaceNote(workspaceIndex, targetNote.id) : null,
-    [targetNote, workspaceIndex],
-  );
-  const sourceBlocks = sourceParsed?.document.blocks ?? [];
-  const sourceRoots = sourceParsed?.document.roots ?? [];
-  const targetRoots = targetParsed?.document.roots ?? [];
   const isDropMode = draggingSourceLineNumber !== null;
   const sourceBlock =
     sourceBlocks.find(
       (block) => String(block.lineNumber) === sourceBlockLineNumber,
     ) ?? null;
-  const sourceSubtreeBlocks = sourceBlock ? flattenBlockSubtree(sourceBlock) : [];
+  const sourceSubtreeBlocks = sourceBlock ? flattenUiBlockSubtree(sourceBlock) : [];
   const activeDropLabel = activeDropPositionValue
-    ? getTargetPositionLabel(activeDropPositionValue)
+    ? getUiTargetPositionLabel(activeDropPositionValue)
     : null;
 
-  const moveBlockToPosition = (
-    nextSourceBlockLineNumber: string,
-    nextTargetPositionValue: string,
-  ) => {
-    if (!sourceNote || !targetNote || !nextSourceBlockLineNumber) {
-      return;
-    }
-
-    onMoveNoteBlock({
-      sourceBlockLineNumber: Number(nextSourceBlockLineNumber),
-      sourceNoteId: sourceNote.id,
-      targetNoteId: targetNote.id,
-      targetPosition: parseBlockMigrationTargetPosition(
-        nextTargetPositionValue,
-      ),
-    });
-  };
   const startSourceBlockDrag = (
     event: DragEvent<HTMLDivElement>,
     lineNumber: number,
@@ -165,14 +127,14 @@ export function BlockMigrationView({
     }
 
     setSourceBlockLineNumber(lineNumberValue);
-    moveBlockToPosition(lineNumberValue, positionValue);
+    onMoveBlockToPosition(lineNumberValue, positionValue);
     finishSourceBlockDrag();
   };
 
   return (
-    <div className="migration-workspace-grid">
-      <section className="migration-workspace-column">
-        <p className="workspace-detail-title">
+    <div className="migration-grid">
+      <section className="migration-column">
+        <p className="activity-detail-title">
           源 · {sourceNote?.title ?? "—"}
         </p>
         <div className="migration-tree-panel">
@@ -188,11 +150,11 @@ export function BlockMigrationView({
           )}
         </div>
         <section className="migration-selection-card">
-          <p className="workspace-detail-title">将移动的子树</p>
+          <p className="activity-detail-title">将移动的子树</p>
           {sourceBlock ? (
             <>
               <p>
-                {getBlockLineLabel(sourceBlock)} · {sourceSubtreeBlocks.length} 块
+                {sourceBlock.lineLabel} · {sourceSubtreeBlocks.length} 块
               </p>
               <ul className="migration-subtree-list">
                 {sourceSubtreeBlocks.map((block) => (
@@ -203,7 +165,7 @@ export function BlockMigrationView({
                     <span>{block.label}</span>
                     <OutlineNodeText
                       className="migration-subtree-node-text"
-                      node={block}
+                      text={block.textDisplay}
                     />
                   </li>
                 ))}
@@ -215,8 +177,8 @@ export function BlockMigrationView({
         </section>
       </section>
 
-      <section className="migration-workspace-column">
-        <p className="workspace-detail-title">
+      <section className="migration-column">
+        <p className="activity-detail-title">
           目标 · {targetNote?.title ?? "—"}
         </p>
         <div className="migration-tree-panel">
@@ -248,7 +210,7 @@ export function BlockMigrationView({
           ) : null}
         </div>
         <section className="migration-selection-card">
-          <p className="workspace-detail-title">目标插入位置</p>
+          <p className="activity-detail-title">目标插入位置</p>
           {activeDropLabel ? (
             <p>当前投放位置：{activeDropLabel}。</p>
           ) : (

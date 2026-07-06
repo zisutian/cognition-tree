@@ -34,15 +34,21 @@ export type WorkspaceBlockMigrationRequest = {
   targetPosition: WorkspaceBlockMigrationTargetPositionRequest;
 };
 
+export type MoveWorkspaceBlockFailureReason =
+  | "missing-note"
+  | "parsed-note-missing"
+  | "same-note-unsupported"
+  | "source-block-missing"
+  | "target-position-missing";
+
 export type MoveWorkspaceBlockResult =
   | {
-      message: string;
       status: "moved";
       targetNoteId: NoteId;
       workspaceData: WorkspaceData;
     }
   | {
-      message: string;
+      reason: MoveWorkspaceBlockFailureReason;
       status: "failed";
     };
 
@@ -72,9 +78,11 @@ function findWorkspaceNote(
   return workspace.notes.find((note) => note.id === noteId) ?? null;
 }
 
-function createFailure(message: string): MoveWorkspaceBlockResult {
+function createFailure(
+  reason: MoveWorkspaceBlockFailureReason,
+): MoveWorkspaceBlockResult {
   return {
-    message,
+    reason,
     status: "failed",
   };
 }
@@ -86,7 +94,7 @@ function resolveMigrationNote(
   const parsedNote = index.parsedNotesById.get(note.id);
 
   if (!parsedNote || !parsedNote.note) {
-    return createFailure("笔记解析结果不存在。");
+    return createFailure("parsed-note-missing");
   }
 
   return {
@@ -108,7 +116,7 @@ function resolveTargetPosition(
   );
 
   if (!targetBlock) {
-    return createFailure("目标插入位置不存在。");
+    return createFailure("target-position-missing");
   }
 
   return {
@@ -138,11 +146,11 @@ function resolveMigrationInput(
   const targetNote = findWorkspaceNote(workspace, request.targetNoteId);
 
   if (!sourceNote || !targetNote) {
-    return createFailure("源笔记或目标笔记不存在。");
+    return createFailure("missing-note");
   }
 
   if (sourceNote.id === targetNote.id) {
-    return createFailure("第一版不支持同一笔记内移动块。");
+    return createFailure("same-note-unsupported");
   }
 
   const sourceParsed = resolveMigrationNote(index, sourceNote);
@@ -161,7 +169,7 @@ function resolveMigrationInput(
   );
 
   if (!sourceBlock) {
-    return createFailure("源块不存在。");
+    return createFailure("source-block-missing");
   }
 
   const targetPosition = resolveTargetPosition(
@@ -204,11 +212,9 @@ export function moveWorkspaceBlock(
   const targetNoteId = migrationInput.targetParsed.note.id;
 
   return {
-    message: "块迁移完成。",
     status: "moved",
     targetNoteId,
     workspaceData: {
-      activeNoteId: targetNoteId,
       id: workspace.id,
       name: workspace.name,
       notes: workspace.notes.map((note): NoteRecord => {

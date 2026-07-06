@@ -1,7 +1,6 @@
 import {
   collectNoteIdsInFolder,
   countFolders,
-  findFirstFolderId,
   findFolderIdContainingNote,
   findFolderNode,
 } from "../model/noteTree";
@@ -22,10 +21,6 @@ import {
 
 type WorkspaceNoteSource = Pick<WorkspaceData, "notes">;
 type WorkspaceTreeSource = Pick<WorkspaceData, "tree">;
-type WorkspaceReadSource = Pick<
-  WorkspaceData,
-  "activeNoteId" | "notes" | "tree"
->;
 type WorkspaceNoteSummary = Pick<NoteRecord, "id" | "title">;
 
 export type {
@@ -90,21 +85,11 @@ export function getWorkspaceNoteLineCount(
   return note ? note.source.split("\n").length : null;
 }
 
-export function findActiveWorkspaceNote(workspace: WorkspaceReadSource) {
-  return workspace.activeNoteId
-    ? findWorkspaceNote(workspace, workspace.activeNoteId)
-    : null;
-}
-
 export function findWorkspaceFolder(
   workspace: WorkspaceTreeSource,
   folderId: FolderId,
 ) {
   return findFolderNode(workspace.tree, folderId);
-}
-
-export function findFirstWorkspaceFolderId(workspace: WorkspaceTreeSource) {
-  return findFirstFolderId(workspace.tree);
 }
 
 export function findWorkspaceFolderIdContainingNote(
@@ -123,17 +108,6 @@ export function collectWorkspaceNoteIdsInFolder(
   folderId: FolderId,
 ) {
   return collectNoteIdsInFolder(workspace.tree, folderId);
-}
-
-export function resolveExistingWorkspaceFolderId(
-  workspace: WorkspaceTreeSource,
-  preferredFolderId: FolderId,
-) {
-  return (
-    findWorkspaceFolder(workspace, preferredFolderId)?.id ??
-    findFirstWorkspaceFolderId(workspace) ??
-    defaultFolderId
-  );
 }
 
 export function getParsedWorkspaceNote(
