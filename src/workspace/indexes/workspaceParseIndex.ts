@@ -4,10 +4,11 @@ import type { CtnDocument } from "../../ctn/parser/types";
 import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import type { NoteId, NoteRecord } from "../model/workspaceData";
+import type { WorkspaceStructureIndex } from "./workspaceStructureIndex";
 
-type WorkspaceIndexSource = {
-  notes: NoteRecord[];
+type WorkspaceParseIndexSource = {
   syntaxProfile: CtnSyntaxProfile;
+  workspace: WorkspaceStructureIndex;
 };
 
 export type ParsedWorkspaceNoteCacheEntry = {
@@ -62,15 +63,15 @@ export type NoteReferenceGraph = {
   unresolvedReferences: UnresolvedNoteReference[];
 };
 
-export type WorkspaceIndex = {
+export type WorkspaceParseIndex = {
   parseCache: WorkspaceParseCache;
   getParsedNote(noteId: NoteId): ParsedWorkspaceNote | null;
   readonly referenceGraph: NoteReferenceGraph;
   syntaxProfile: CtnSyntaxProfile;
 };
 
-export type WorkspaceIndexCache = {
-  resolve(workspace: WorkspaceIndexSource): WorkspaceIndex;
+export type WorkspaceParseIndexCache = {
+  resolve(source: WorkspaceParseIndexSource): WorkspaceParseIndex;
 };
 
 function normalizeReferenceText(text: string) {
@@ -160,7 +161,7 @@ type ReferenceGraphCacheEntry = {
 };
 
 const referenceGraphCacheByIndex = new WeakMap<
-  WorkspaceIndex,
+  WorkspaceParseIndex,
   ReferenceGraphCacheEntry
 >();
 
@@ -279,16 +280,16 @@ function buildWorkspaceNoteReferenceGraph(
   };
 }
 
-export function createWorkspaceIndex(
-  workspace: WorkspaceIndexSource,
-  previousIndex?: WorkspaceIndex | null,
-): WorkspaceIndex {
+export function createWorkspaceParseIndex(
+  source: WorkspaceParseIndexSource,
+  previousIndex?: WorkspaceParseIndex | null,
+): WorkspaceParseIndex {
   const syntaxProfileKey = createCtnSyntaxParseProfileKey(
-    workspace.syntaxProfile,
+    source.syntaxProfile,
   );
-  const notesById = new Map(workspace.notes.map((note) => [note.id, note]));
+  const notes = source.workspace.data.notes;
   const parseCacheEntries = new Map<NoteId, ParsedWorkspaceNoteCacheEntry>(
-    workspace.notes.flatMap(
+    notes.flatMap(
       (note): [NoteId, ParsedWorkspaceNoteCacheEntry][] => {
         const previousCacheEntry = previousIndex?.parseCache.entriesById.get(
           note.id,
@@ -315,7 +316,7 @@ export function createWorkspaceIndex(
       currentCacheEntry ?? previousIndex?.parseCache.entriesById.get(note.id);
     const parsedNote = createParsedWorkspaceNote(
       note,
-      workspace.syntaxProfile,
+      source.syntaxProfile,
       syntaxProfileKey,
       previousCacheEntry,
     );
@@ -332,7 +333,7 @@ export function createWorkspaceIndex(
       previousReferenceGraphCache &&
       canReuseReferenceGraph(
         previousReferenceGraphCache,
-        workspace.notes,
+        notes,
         syntaxProfileKey,
       )
     ) {
@@ -340,17 +341,17 @@ export function createWorkspaceIndex(
     }
 
     return buildWorkspaceNoteReferenceGraph(
-      workspace.notes.map(resolveParsedNote),
+      notes.map(resolveParsedNote),
     );
   };
 
-  const index: WorkspaceIndex = {
+  const index: WorkspaceParseIndex = {
     parseCache: {
       entriesById: parseCacheEntries,
       syntaxProfileKey,
     },
     getParsedNote(noteId) {
-      const note = notesById.get(noteId);
+      const note = source.workspace.noteById.get(noteId);
 
       return note ? resolveParsedNote(note) : null;
     },
@@ -358,24 +359,24 @@ export function createWorkspaceIndex(
       referenceGraph ??= createReferenceGraph();
       referenceGraphCacheByIndex.set(index, {
         graph: referenceGraph,
-        notes: createReferenceGraphNoteSnapshot(workspace.notes),
+        notes: createReferenceGraphNoteSnapshot(notes),
         syntaxProfileKey,
       });
 
       return referenceGraph;
     },
-    syntaxProfile: workspace.syntaxProfile,
+    syntaxProfile: source.syntaxProfile,
   };
 
   return index;
 }
 
-export function createWorkspaceIndexCache(): WorkspaceIndexCache {
-  let previousIndex: WorkspaceIndex | null = null;
+export function createWorkspaceParseIndexCache(): WorkspaceParseIndexCache {
+  let previousIndex: WorkspaceParseIndex | null = null;
 
   return {
-    resolve(workspace) {
-      previousIndex = createWorkspaceIndex(workspace, previousIndex);
+    resolve(source) {
+      previousIndex = createWorkspaceParseIndex(source, previousIndex);
 
       return previousIndex;
     },

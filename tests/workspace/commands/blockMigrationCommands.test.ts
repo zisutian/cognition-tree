@@ -3,18 +3,19 @@ import {
   appendNoteToWorkspaceTree,
   findFolderIdContainingNote,
 } from "../../../src/workspace/model/noteTree";
-import { createNoteRecord } from "../../../src/workspace/model/workspaceData";
+import {
+  createInitialWorkspaceData,
+  createNoteRecord,
+  type WorkspaceData,
+} from "../../../src/workspace/model/workspaceData";
 import { moveWorkspaceBlock } from "../../../src/workspace/commands/blockMigrationCommands";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
-import {
-  createInitialWorkspaceContext,
-  type WorkspaceContext,
-} from "../../../src/workspace/context/workspaceContext";
-import { createWorkspaceIndex } from "../../../src/workspace/indexes/workspaceIndex";
+import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
-function createMigrationWorkspace(): WorkspaceContext {
+function createMigrationWorkspace(): WorkspaceData {
   const sourceNote = createNoteRecord(
     "note-source",
     "Root\n\t: Definition\n\t\t- Component\nSibling",
@@ -25,7 +26,7 @@ function createMigrationWorkspace(): WorkspaceContext {
     "Target\n\t> Understanding",
     timestamp,
   );
-  const workspace = createInitialWorkspaceContext(defaultCtnSyntaxProfile);
+  const workspace = createInitialWorkspaceData();
 
   return {
     ...workspace,
@@ -39,13 +40,18 @@ function createMigrationWorkspace(): WorkspaceContext {
 }
 
 function moveMigrationBlock(
-  workspace: WorkspaceContext,
+  workspaceData: WorkspaceData,
   request: Parameters<typeof moveWorkspaceBlock>[2],
   nextTimestamp = "2026-06-08T01:00:00.000Z",
 ) {
+  const workspace = createWorkspaceStructureIndex(workspaceData);
+
   return moveWorkspaceBlock(
     workspace,
-    createWorkspaceIndex(workspace),
+    createWorkspaceParseIndex({
+      syntaxProfile: defaultCtnSyntaxProfile,
+      workspace,
+    }),
     request,
     nextTimestamp,
   );
@@ -97,10 +103,14 @@ describe("workspace block migration", () => {
         createNoteRecord("note-unrelated", "Unrelated", timestamp),
       ],
     };
-    const index = createWorkspaceIndex(workspace);
+    const workspaceIndex = createWorkspaceStructureIndex(workspace);
+    const index = createWorkspaceParseIndex({
+      syntaxProfile: defaultCtnSyntaxProfile,
+      workspace: workspaceIndex,
+    });
     const requestedNoteIds: string[] = [];
     const result = moveWorkspaceBlock(
-      workspace,
+      workspaceIndex,
       {
         getParsedNote(noteId) {
           requestedNoteIds.push(noteId);

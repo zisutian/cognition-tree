@@ -222,7 +222,7 @@ describe("architecture module boundaries", () => {
       "selection.ts",
       "useSyntaxDraft.ts",
       "useViewModel.ts",
-      "useWorkspaceIndex.ts",
+      "useWorkspaceParseIndex.ts",
       "viewSelection.ts",
     ]);
     expect(listSourceFileNames("application/workspace/projection")).toEqual([
@@ -341,10 +341,44 @@ describe("architecture module boundaries", () => {
     ]);
   });
 
+  it("keeps workspace indexes named by runtime responsibility", () => {
+    expect(listSourceFileNames("workspace/indexes")).toEqual([
+      "workspaceParseIndex.ts",
+      "workspaceStructureIndex.ts",
+    ]);
+  });
+
   it("keeps workspace parsed notes behind on-demand index access", () => {
     const violations = Object.entries(sourceModules)
       .filter(([, source]) => source.includes("parsedNotesById"))
       .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps old generic workspace index names out of source", () => {
+    const blockedNames = [
+      "WorkspaceIndex",
+      "WorkspaceIndexCache",
+      "createWorkspaceIndex",
+      "createWorkspaceIndexCache",
+      "useWorkspaceIndex",
+    ];
+    const violations = Object.entries(sourceModules)
+      .filter(([, source]) => blockedNames.some((name) => source.includes(name)))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps application from bypassing workspace runtime indexes", () => {
+    const violations = listSourceFiles("application").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetPath }) =>
+          targetPath.startsWith("../../src/workspace/model/noteTree"),
+        )
+        .map(({ importPath }) => `${filePath} imports ${importPath}`),
+    );
 
     expect(violations).toEqual([]);
   });

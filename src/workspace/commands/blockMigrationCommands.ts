@@ -7,8 +7,8 @@ import {
   inferNoteTitle,
   type NoteId,
   type NoteRecord,
-  type WorkspaceData,
 } from "../model/workspaceData";
+import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
 export type WorkspaceBlockMigrationTargetPositionRequest =
   | {
@@ -45,7 +45,7 @@ export type MoveWorkspaceBlockResult =
   | {
       status: "moved";
       targetNoteId: NoteId;
-      workspaceData: WorkspaceData;
+      workspaceData: WorkspaceStructureIndex["data"];
     }
   | {
       reason: MoveWorkspaceBlockFailureReason;
@@ -66,8 +66,8 @@ type WorkspaceBlockMigrationIndex = {
   } | null;
 };
 
-function findWorkspaceNote(workspace: WorkspaceData, noteId: NoteId) {
-  return workspace.notes.find((note) => note.id === noteId) ?? null;
+function findWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
+  return workspace.noteById.get(noteId) ?? null;
 }
 
 function createFailure(
@@ -130,7 +130,7 @@ function isMigrationNote(
 }
 
 function resolveMigrationInput(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationRequest,
 ) {
@@ -182,7 +182,7 @@ function resolveMigrationInput(
 }
 
 export function moveWorkspaceBlock(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationRequest,
   timestamp: string,
@@ -202,35 +202,38 @@ export function moveWorkspaceBlock(
 
   const sourceNoteId = migrationInput.sourceParsed.note.id;
   const targetNoteId = migrationInput.targetParsed.note.id;
+  const sourceNoteIndex = workspace.noteIndexById.get(sourceNoteId);
+  const targetNoteIndex = workspace.noteIndexById.get(targetNoteId);
+
+  if (sourceNoteIndex === undefined || targetNoteIndex === undefined) {
+    return createFailure("missing-note");
+  }
+
+  const notes = [...workspace.data.notes];
+  const sourceNote = notes[sourceNoteIndex];
+  const targetNote = notes[targetNoteIndex];
+
+  notes[sourceNoteIndex] = {
+    ...sourceNote,
+    source: result.nextSourceText,
+    title: inferNoteTitle(result.nextSourceText),
+    updatedAt: timestamp,
+  };
+  notes[targetNoteIndex] = {
+    ...targetNote,
+    source: result.nextTargetText,
+    title: inferNoteTitle(result.nextTargetText),
+    updatedAt: timestamp,
+  };
 
   return {
     status: "moved",
     targetNoteId,
     workspaceData: {
-      id: workspace.id,
-      name: workspace.name,
-      notes: workspace.notes.map((note): NoteRecord => {
-        if (note.id === sourceNoteId) {
-          return {
-            ...note,
-            source: result.nextSourceText,
-            title: inferNoteTitle(result.nextSourceText),
-            updatedAt: timestamp,
-          };
-        }
-
-        if (note.id === targetNoteId) {
-          return {
-            ...note,
-            source: result.nextTargetText,
-            title: inferNoteTitle(result.nextTargetText),
-            updatedAt: timestamp,
-          };
-        }
-
-        return note;
-      }),
-      tree: workspace.tree,
+      id: workspace.data.id,
+      name: workspace.data.name,
+      notes,
+      tree: workspace.data.tree,
     },
   };
 }

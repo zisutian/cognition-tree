@@ -1,46 +1,46 @@
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  collectNoteIdsInFolder,
-  countFolders,
   createNoteTreeFolderNode,
-  findFolderNode,
   moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
 } from "../model/noteTree";
+import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import {
   createNoteRecord,
   defaultFolderId,
   inferNoteTitle,
   type FolderId,
   type NoteId,
-  type NoteRecord,
   type WorkspaceData,
 } from "../model/workspaceData";
 
-function hasWorkspaceNote(workspace: WorkspaceData, noteId: NoteId) {
-  return workspace.notes.some((note) => note.id === noteId);
+function hasWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
+  return workspace.noteById.has(noteId);
 }
 
-function assertWorkspaceNoteExists(workspace: WorkspaceData, noteId: NoteId) {
+function assertWorkspaceNoteExists(
+  workspace: WorkspaceStructureIndex,
+  noteId: NoteId,
+) {
   if (!hasWorkspaceNote(workspace, noteId)) {
     throw new Error(`Workspace note does not exist: ${noteId}`);
   }
 }
 
 function assertWorkspaceFolderExists(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   folderId: FolderId,
 ) {
-  if (!findFolderNode(workspace.tree, folderId)) {
+  if (!workspace.folderById.has(folderId)) {
     throw new Error(`Workspace folder does not exist: ${folderId}`);
   }
 }
 
 function assertWorkspaceNoteIdAvailable(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   noteId: NoteId,
 ) {
   if (hasWorkspaceNote(workspace, noteId)) {
@@ -49,16 +49,16 @@ function assertWorkspaceNoteIdAvailable(
 }
 
 function assertWorkspaceFolderIdAvailable(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   folderId: FolderId,
 ) {
-  if (findFolderNode(workspace.tree, folderId)) {
+  if (workspace.folderById.has(folderId)) {
     throw new Error(`Workspace folder already exists: ${folderId}`);
   }
 }
 
 export function createWorkspaceNote(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   {
     folderId,
     noteId,
@@ -75,14 +75,14 @@ export function createWorkspaceNote(
   const note = createNoteRecord(noteId, "", timestamp);
 
   return {
-    ...workspace,
-    notes: [...workspace.notes, note],
-    tree: appendNoteToWorkspaceTree(workspace.tree, note.id, folderId),
+    ...workspace.data,
+    notes: [...workspace.data.notes, note],
+    tree: appendNoteToWorkspaceTree(workspace.data.tree, note.id, folderId),
   };
 }
 
 export function createWorkspaceFolder(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   {
     folderId,
     parentFolderId,
@@ -103,9 +103,9 @@ export function createWorkspaceFolder(
   assertWorkspaceFolderExists(workspace, parentFolderId);
 
   return {
-    ...workspace,
+    ...workspace.data,
     tree: appendFolderToWorkspaceTree(
-      workspace.tree,
+      workspace.data.tree,
       createNoteTreeFolderNode(folderId, nextTitle),
       parentFolderId,
     ),
@@ -113,7 +113,7 @@ export function createWorkspaceFolder(
 }
 
 export function renameWorkspaceFolder(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   folderId: FolderId,
   title: string,
 ): WorkspaceData {
@@ -126,28 +126,28 @@ export function renameWorkspaceFolder(
   assertWorkspaceFolderExists(workspace, folderId);
 
   return {
-    ...workspace,
-    tree: renameFolderInWorkspaceTree(workspace.tree, folderId, nextTitle),
+    ...workspace.data,
+    tree: renameFolderInWorkspaceTree(workspace.data.tree, folderId, nextTitle),
   };
 }
 
 export function deleteWorkspaceNote(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   noteId: NoteId,
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
 
-  const notes = workspace.notes.filter((note) => note.id !== noteId);
+  const notes = workspace.data.notes.filter((note) => note.id !== noteId);
 
   return {
-    ...workspace,
+    ...workspace.data,
     notes,
-    tree: removeNoteFromWorkspaceTree(workspace.tree, noteId),
+    tree: removeNoteFromWorkspaceTree(workspace.data.tree, noteId),
   };
 }
 
 export function deleteWorkspaceFolder(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   folderId: FolderId,
 ): WorkspaceData {
   assertWorkspaceFolderExists(workspace, folderId);
@@ -156,24 +156,24 @@ export function deleteWorkspaceFolder(
     throw new Error("Default workspace folder cannot be deleted.");
   }
 
-  if (countFolders(workspace.tree) <= 1) {
+  if (workspace.folderCount <= 1) {
     throw new Error("Workspace must contain at least one folder.");
   }
 
-  const removedNoteIds = new Set(
-    collectNoteIdsInFolder(workspace.tree, folderId),
+  const removedNoteIds = new Set(workspace.noteIdsByFolderId.get(folderId));
+  const notes = workspace.data.notes.filter(
+    (note) => !removedNoteIds.has(note.id),
   );
-  const notes = workspace.notes.filter((note) => !removedNoteIds.has(note.id));
 
   return {
-    ...workspace,
+    ...workspace.data,
     notes,
-    tree: removeFolderFromWorkspaceTree(workspace.tree, folderId),
+    tree: removeFolderFromWorkspaceTree(workspace.data.tree, folderId),
   };
 }
 
 export function moveWorkspaceNote(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   noteId: NoteId,
   targetFolderId: FolderId,
 ): WorkspaceData {
@@ -181,32 +181,41 @@ export function moveWorkspaceNote(
   assertWorkspaceFolderExists(workspace, targetFolderId);
 
   return {
-    ...workspace,
-    tree: moveNoteInWorkspaceTree(workspace.tree, noteId, targetFolderId),
+    ...workspace.data,
+    tree: moveNoteInWorkspaceTree(
+      workspace.data.tree,
+      noteId,
+      targetFolderId,
+    ),
   };
 }
 
 export function updateWorkspaceNoteSource(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   noteId: NoteId,
   source: string,
   timestamp: string,
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
 
-  return {
-    ...workspace,
-    notes: workspace.notes.map((note): NoteRecord => {
-      if (note.id !== noteId) {
-        return note;
-      }
+  const noteIndex = workspace.noteIndexById.get(noteId);
 
-      return {
-        ...note,
-        source,
-        title: inferNoteTitle(source),
-        updatedAt: timestamp,
-      };
-    }),
+  if (noteIndex === undefined) {
+    throw new Error(`Workspace note does not exist: ${noteId}`);
+  }
+
+  const notes = [...workspace.data.notes];
+  const note = notes[noteIndex];
+
+  notes[noteIndex] = {
+    ...note,
+    source,
+    title: inferNoteTitle(source),
+    updatedAt: timestamp,
+  };
+
+  return {
+    ...workspace.data,
+    notes,
   };
 }

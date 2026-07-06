@@ -7,14 +7,15 @@ import {
 import {
   createInitialWorkspaceData,
   createNoteRecord,
+  type NoteRecord,
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
-import { createInitialWorkspaceContext } from "../../../src/workspace/context/workspaceContext";
+import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 import {
   collectWorkspaceNoteIdsInFolder,
   countWorkspaceFolders,
-  createWorkspaceIndex,
+  createWorkspaceParseIndex,
   findWorkspaceFolder,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
@@ -52,16 +53,33 @@ function createWorkspace(): WorkspaceData {
   };
 }
 
+function indexWorkspace(workspace: WorkspaceData) {
+  return createWorkspaceStructureIndex(workspace);
+}
+
+function createParseIndex(notes: NoteRecord[]) {
+  const workspace = indexWorkspace({
+    ...createInitialWorkspaceData(),
+    notes,
+  });
+
+  return createWorkspaceParseIndex({
+    syntaxProfile: defaultCtnSyntaxProfile,
+    workspace,
+  });
+}
+
 describe("workspace queries", () => {
   it("reads notes and folders through workspace-level query names", () => {
-    const workspace = createWorkspace();
+    const workspaceData = createWorkspace();
+    const workspace = indexWorkspace(workspaceData);
 
     expect(listWorkspaceNotes(workspace).map((note) => note.id)).toEqual([
       "note-source",
       "note-target",
     ]);
     expect(getDefaultWorkspaceFolderId()).toBe("folder-inbox");
-    expect(getWorkspaceTree(workspace)).toBe(workspace.tree);
+    expect(getWorkspaceTree(workspace)).toBe(workspaceData.tree);
     expect(listWorkspaceNoteSummaries(workspace)).toEqual([
       { id: "note-source", title: "源笔记" },
       { id: "note-target", title: "目标笔记" },
@@ -78,7 +96,7 @@ describe("workspace queries", () => {
   });
 
   it("resolves note placement from the workspace tree", () => {
-    const workspace = createWorkspace();
+    const workspace = indexWorkspace(createWorkspace());
 
     expect(
       findWorkspaceFolderIdContainingNote(workspace, "note-target"),
@@ -91,11 +109,7 @@ describe("workspace queries", () => {
 
   it("reads parsed notes from the workspace index", () => {
     const note = createNoteRecord("note-first", "概念\n    : 定义", timestamp);
-    const workspace = {
-      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
-      notes: [note],
-    };
-    const index = createWorkspaceIndex(workspace);
+    const index = createParseIndex([note]);
     const result = getParsedWorkspaceNote(index, note.id);
 
     expect(result.document.blocks.map((block) => block.label)).toEqual([
@@ -105,9 +119,7 @@ describe("workspace queries", () => {
   });
 
   it("returns an empty parsed note for missing note ids", () => {
-    const index = createWorkspaceIndex(
-      createInitialWorkspaceContext(defaultCtnSyntaxProfile),
-    );
+    const index = createParseIndex([]);
     const result = getParsedWorkspaceNote(index, null);
 
     expect(result).toMatchObject({
@@ -124,13 +136,10 @@ describe("workspace queries", () => {
     );
     const target = createNoteRecord("note-target", "Target", timestamp);
     const isolated = createNoteRecord("note-isolated", "Isolated", timestamp);
-    const workspace = {
-      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
-      notes: [source, target, isolated],
-    };
-
     expect(
-      getWorkspaceNoteReferenceGraph(createWorkspaceIndex(workspace)),
+      getWorkspaceNoteReferenceGraph(
+        createParseIndex([source, target, isolated]),
+      ),
     ).toMatchObject({
       edges: [
         {
@@ -166,13 +175,8 @@ describe("workspace queries", () => {
       "Source [[Missing Note]] and [[Missing Note]]",
       timestamp,
     );
-    const workspace = {
-      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
-      notes: [source],
-    };
-
     expect(
-      getWorkspaceNoteReferenceGraph(createWorkspaceIndex(workspace)),
+      getWorkspaceNoteReferenceGraph(createParseIndex([source])),
     ).toMatchObject({
       edges: [],
       nodes: [
@@ -199,13 +203,8 @@ describe("workspace queries", () => {
       timestamp,
     );
     const target = createNoteRecord("note-target", "Target", timestamp);
-    const workspace = {
-      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
-      notes: [source, target],
-    };
-
     expect(
-      getWorkspaceNoteReferenceGraph(createWorkspaceIndex(workspace)),
+      getWorkspaceNoteReferenceGraph(createParseIndex([source, target])),
     ).toMatchObject({
       edges: [],
       nodes: [

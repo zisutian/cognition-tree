@@ -14,6 +14,7 @@ import {
   countWorkspaceFolders,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
+  hasWorkspaceNote,
   getDefaultWorkspaceFolderId,
   getParsedWorkspaceNote,
   getWorkspaceNoteReferenceGraph,
@@ -47,7 +48,7 @@ import type {
 import {
   parseUiBlockMigrationTargetPosition,
 } from "../projection/viewMigration";
-import { useWorkspaceIndex } from "./useWorkspaceIndex";
+import { useWorkspaceParseIndex } from "./useWorkspaceParseIndex";
 import { useSyntaxDraft } from "./useSyntaxDraft";
 import { resolveFolderSelection } from "./selection";
 import {
@@ -114,7 +115,7 @@ export function useViewModel(
     workspaceSyntaxFile,
     useDefaultWorkspaceSyntaxFile,
     updateWorkspaceSyntaxSource,
-    workspaceData,
+    workspace,
     context,
     commands,
     errorMessage,
@@ -127,12 +128,12 @@ export function useViewModel(
   const [activeNoteId, setActiveNoteId] = useState<UiNoteId | null>(null);
   const [migrationSourceNoteId, setMigrationSourceNoteId] = useState("");
   const [migrationTargetNoteId, setMigrationTargetNoteId] = useState("");
-  const notes = listWorkspaceNotes(workspaceData);
+  const notes = listWorkspaceNotes(workspace);
   const activeNote = activeNoteId
-    ? findWorkspaceNote(workspaceData, activeNoteId)
+    ? findWorkspaceNote(workspace, activeNoteId)
     : null;
   const activeNoteFolderId = activeNote
-    ? findWorkspaceFolderIdContainingNote(workspaceData, activeNote.id)
+    ? findWorkspaceFolderIdContainingNote(workspace, activeNote.id)
     : null;
 
   useEffect(() => {
@@ -143,16 +144,16 @@ export function useViewModel(
 
   useEffect(() => {
     setSelectedFolderId((currentFolderId) =>
-      resolveFolderSelection(workspaceData, currentFolderId),
+      resolveFolderSelection(workspace, currentFolderId),
     );
-  }, [workspaceData]);
+  }, [workspace]);
 
   const selectNote = (noteId: UiNoteId) => {
-    if (!findWorkspaceNote(workspaceData, noteId)) {
+    if (!findWorkspaceNote(workspace, noteId)) {
       return;
     }
 
-    const folderId = findWorkspaceFolderIdContainingNote(workspaceData, noteId);
+    const folderId = findWorkspaceFolderIdContainingNote(workspace, noteId);
 
     if (folderId) {
       setSelectedFolderId(folderId);
@@ -163,7 +164,7 @@ export function useViewModel(
 
   const selectFolder = (folderId: UiFolderId) => {
     setSelectedFolderId(
-      resolveFolderSelection(workspaceData, folderId),
+      resolveFolderSelection(workspace, folderId),
     );
   };
 
@@ -194,7 +195,7 @@ export function useViewModel(
 
   const deleteFolder = (folderId: UiFolderId) => {
     const removedNoteIds = new Set(
-      collectWorkspaceNoteIdsInFolder(workspaceData, folderId),
+      collectWorkspaceNoteIdsInFolder(workspace, folderId),
     );
 
     commands.deleteFolder(folderId);
@@ -229,16 +230,17 @@ export function useViewModel(
     syntaxProfile:
       workspaceSyntaxFile?.profile ?? defaultWorkspaceSyntaxFile.profile,
     updateWorkspaceSyntaxSource,
-    workspace: context,
+    workspace: context?.workspace ?? null,
   });
+  const effectiveWorkspace = effectiveContext?.workspace ?? null;
   const effectiveActiveNote = effectiveContext && activeNoteId
-    ? findWorkspaceNote(effectiveContext, activeNoteId)
+    ? findWorkspaceNote(effectiveContext.workspace, activeNoteId)
     : null;
   const effectiveNotes = useMemo(
-    () => (effectiveContext ? listWorkspaceNotes(effectiveContext) : []),
-    [effectiveContext],
+    () => (effectiveWorkspace ? listWorkspaceNotes(effectiveWorkspace) : []),
+    [effectiveWorkspace],
   );
-  const index = useWorkspaceIndex(effectiveContext);
+  const index = useWorkspaceParseIndex(effectiveContext);
   const shouldReadActiveNote = scope.editor || scope.outline;
   const parsedNote = useMemo(
     () =>
@@ -255,27 +257,35 @@ export function useViewModel(
   useEffect(() => {
     if (
       migrationSourceNoteId &&
-      findWorkspaceNote({ notes: effectiveNotes }, migrationSourceNoteId)
+      effectiveWorkspace &&
+      hasWorkspaceNote(effectiveWorkspace, migrationSourceNoteId)
     ) {
       return;
     }
 
     if (
       effectiveActiveNote &&
-      findWorkspaceNote({ notes: effectiveNotes }, effectiveActiveNote.id)
+      effectiveWorkspace &&
+      hasWorkspaceNote(effectiveWorkspace, effectiveActiveNote.id)
     ) {
       setMigrationSourceNoteId(effectiveActiveNote.id);
       return;
     }
 
     setMigrationSourceNoteId(effectiveNotes[0]?.id ?? "");
-  }, [effectiveActiveNote, effectiveNotes, migrationSourceNoteId]);
+  }, [
+    effectiveActiveNote,
+    effectiveNotes,
+    effectiveWorkspace,
+    migrationSourceNoteId,
+  ]);
 
   useEffect(() => {
     if (
       migrationTargetNoteId &&
       migrationTargetNoteId !== migrationSourceNoteId &&
-      findWorkspaceNote({ notes: effectiveNotes }, migrationTargetNoteId)
+      effectiveWorkspace &&
+      hasWorkspaceNote(effectiveWorkspace, migrationTargetNoteId)
     ) {
       return;
     }
@@ -283,13 +293,18 @@ export function useViewModel(
     setMigrationTargetNoteId(
       resolveDifferentNoteId(effectiveNotes, migrationSourceNoteId),
     );
-  }, [effectiveNotes, migrationSourceNoteId, migrationTargetNoteId]);
+  }, [
+    effectiveNotes,
+    effectiveWorkspace,
+    migrationSourceNoteId,
+    migrationTargetNoteId,
+  ]);
 
-  const sourceMigrationNote = effectiveContext
-    ? findWorkspaceNote(effectiveContext, migrationSourceNoteId)
+  const sourceMigrationNote = effectiveWorkspace
+    ? findWorkspaceNote(effectiveWorkspace, migrationSourceNoteId)
     : null;
-  const targetMigrationNote = effectiveContext
-    ? findWorkspaceNote(effectiveContext, migrationTargetNoteId)
+  const targetMigrationNote = effectiveWorkspace
+    ? findWorkspaceNote(effectiveWorkspace, migrationTargetNoteId)
     : null;
   const sourceMigrationParsed = useMemo(
     () =>
@@ -327,7 +342,7 @@ export function useViewModel(
     setActiveNoteId(result.targetNoteId);
     setSelectedFolderId(
       findWorkspaceFolderIdContainingNote(
-        effectiveContext,
+        effectiveContext.workspace,
         result.targetNoteId,
       ) ?? selectedFolderId,
     );
@@ -446,25 +461,25 @@ export function useViewModel(
       scope.sidebar
         ? createUiNoteTree({
             notes,
-            tree: getWorkspaceTree(workspaceData),
+            tree: getWorkspaceTree(workspace),
           })
         : [],
-    [notes, scope.sidebar, workspaceData],
+    [notes, scope.sidebar, workspace],
   );
   const sidebarFolderCount = useMemo(
-    () => (scope.sidebar ? countWorkspaceFolders(workspaceData) : 0),
-    [scope.sidebar, workspaceData],
+    () => (scope.sidebar ? countWorkspaceFolders(workspace) : 0),
+    [scope.sidebar, workspace],
   );
   const migrationNoteTree = useMemo(
     () =>
-      scope.migration && effectiveContext
+      scope.migration && effectiveWorkspace
         ? createUiNoteTree({
             includeOrphans: true,
             notes: effectiveNotes,
-            tree: getWorkspaceTree(effectiveContext),
+            tree: getWorkspaceTree(effectiveWorkspace),
           })
         : [],
-    [effectiveContext, effectiveNotes, scope.migration],
+    [effectiveNotes, effectiveWorkspace, scope.migration],
   );
   const noteReferenceGraph = useMemo(
     () =>

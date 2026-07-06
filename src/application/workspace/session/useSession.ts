@@ -6,6 +6,10 @@ import {
   type WorkspaceData,
 } from "../../../workspace/model/workspaceData";
 import {
+  createWorkspaceStructureIndex,
+  type WorkspaceStructureIndex,
+} from "../../../workspace/indexes/workspaceStructureIndex";
+import {
   createWorkspaceFolder as createWorkspaceFolderAction,
   createWorkspaceNote as createWorkspaceNoteAction,
   deleteWorkspaceFolder as deleteWorkspaceFolderAction,
@@ -84,7 +88,7 @@ export type Session = {
   workspaceSyntaxFile: WorkspaceSyntaxFile | null;
   useDefaultWorkspaceSyntaxFile: () => Promise<void>;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  workspaceData: WorkspaceData;
+  workspace: WorkspaceStructureIndex;
   context: WorkspaceContext | null;
   commands: SessionCommands;
   errorMessage: string;
@@ -130,15 +134,19 @@ export function useSession({
     [],
   );
   const isMountedRef = useRef(true);
+  const workspace = useMemo(
+    () => createWorkspaceStructureIndex(workspaceData),
+    [workspaceData],
+  );
   const context = useMemo(
     () =>
       workspaceSyntaxFile
         ? attachWorkspaceSyntaxProfile(
-            workspaceData,
+            workspace,
             workspaceSyntaxFile.profile,
           )
         : null,
-    [workspaceSyntaxFile, workspaceData],
+    [workspaceSyntaxFile, workspace],
   );
   const commands = useMemo(
     (): SessionCommands => ({
@@ -146,7 +154,7 @@ export function useSession({
         const folderId = createFolderId();
 
         commitDataSnapshot(
-          createWorkspaceFolderAction(workspaceData, {
+          createWorkspaceFolderAction(workspace, {
             folderId,
             parentFolderId,
             title,
@@ -158,7 +166,7 @@ export function useSession({
         const noteId = createNoteId();
 
         commitDataSnapshot(
-          createWorkspaceNoteAction(workspaceData, {
+          createWorkspaceNoteAction(workspace, {
             folderId,
             noteId,
             timestamp: createTimestamp(),
@@ -168,17 +176,17 @@ export function useSession({
       },
       deleteFolder(folderId) {
         commitDataSnapshot(
-          deleteWorkspaceFolderAction(workspaceData, folderId),
+          deleteWorkspaceFolderAction(workspace, folderId),
         );
       },
       deleteNote(noteId) {
         commitDataSnapshot(
-          deleteWorkspaceNoteAction(workspaceData, noteId),
+          deleteWorkspaceNoteAction(workspace, noteId),
         );
       },
       moveBlock(index, request) {
         const result = moveWorkspaceBlockAction(
-          workspaceData,
+          workspace,
           index,
           request,
           createTimestamp(),
@@ -200,18 +208,18 @@ export function useSession({
       },
       moveNote(noteId, targetFolderId) {
         commitDataSnapshot(
-          moveWorkspaceNoteAction(workspaceData, noteId, targetFolderId),
+          moveWorkspaceNoteAction(workspace, noteId, targetFolderId),
         );
       },
       renameFolder(folderId, title) {
         commitDataSnapshot(
-          renameWorkspaceFolderAction(workspaceData, folderId, title),
+          renameWorkspaceFolderAction(workspace, folderId, title),
         );
       },
       updateNoteSource(noteId, source) {
         commitDataSnapshot(
           updateWorkspaceNoteSourceAction(
-            workspaceData,
+            workspace,
             noteId,
             source,
             createTimestamp(),
@@ -219,7 +227,7 @@ export function useSession({
         );
       },
     }),
-    [workspaceData],
+    [workspace],
   );
 
   useEffect(() => {
@@ -395,7 +403,7 @@ export function useSession({
     workspaceSyntaxFile,
     useDefaultWorkspaceSyntaxFile,
     updateWorkspaceSyntaxSource,
-    workspaceData,
+    workspace,
     context,
     commands,
     errorMessage,

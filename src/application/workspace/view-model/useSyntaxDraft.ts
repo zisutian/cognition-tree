@@ -8,14 +8,14 @@ import { formatSyntaxProfileToml } from "../../../ctn/syntax/profileToml";
 import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import {
   attachWorkspaceSyntaxProfile,
-  type WorkspaceContext,
 } from "../../../workspace/context/workspaceContext";
+import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 
 type UseSyntaxDraftOptions = {
   isLoaded: boolean;
   syntaxProfile: CtnSyntaxProfile;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  workspace: WorkspaceContext | null;
+  workspace: WorkspaceStructureIndex | null;
 };
 
 type SyntaxProfileFeedback = {

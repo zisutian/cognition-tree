@@ -4,9 +4,14 @@ import {
   createInitialWorkspaceData,
   type WorkspaceData,
 } from "../model/workspaceData";
+import {
+  createWorkspaceStructureIndex,
+  type WorkspaceStructureIndex,
+} from "../indexes/workspaceStructureIndex";
 
-export type WorkspaceContext = WorkspaceData & {
+export type WorkspaceContext = {
   syntaxProfile: CtnSyntaxProfile;
+  workspace: WorkspaceStructureIndex;
 };
 
 export function assertValidWorkspaceSyntaxProfile(profile: CtnSyntaxProfile) {
@@ -20,22 +25,27 @@ export function assertValidWorkspaceSyntaxProfile(profile: CtnSyntaxProfile) {
 export function createInitialWorkspaceContext(
   syntaxProfile: CtnSyntaxProfile,
 ): WorkspaceContext {
-  assertValidWorkspaceSyntaxProfile(syntaxProfile);
+  return createWorkspaceContext(createInitialWorkspaceData(), syntaxProfile);
+}
 
-  return {
-    ...createInitialWorkspaceData(),
+export function createWorkspaceContext(
+  workspaceData: WorkspaceData,
+  syntaxProfile: CtnSyntaxProfile,
+): WorkspaceContext {
+  return attachWorkspaceSyntaxProfile(
+    createWorkspaceStructureIndex(workspaceData),
     syntaxProfile,
-  };
+  );
 }
 
 export function attachWorkspaceSyntaxProfile(
-  workspace: WorkspaceData,
+  workspace: WorkspaceStructureIndex,
   syntaxProfile: CtnSyntaxProfile,
 ): WorkspaceContext {
   assertValidWorkspaceSyntaxProfile(syntaxProfile);
 
   return {
-    ...workspace,
     syntaxProfile,
+    workspace,
   };
 }

@@ -1,26 +1,20 @@
 import {
-  collectNoteIdsInFolder,
-  countFolders,
-  findFolderIdContainingNote,
-  findFolderNode,
-} from "../model/noteTree";
-import {
   createEmptyParsedWorkspaceNote,
   type NoteReferenceGraph,
   type ParsedWorkspaceNote,
-  type WorkspaceIndex,
-} from "../indexes/workspaceIndex";
+  type WorkspaceParseIndex,
+} from "../indexes/workspaceParseIndex";
+import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import {
   defaultFolderId,
   type FolderId,
   type NoteId,
   type NoteRecord,
   type NoteTreeNode,
-  type WorkspaceData,
 } from "../model/workspaceData";
 
-type WorkspaceNoteSource = Pick<WorkspaceData, "notes">;
-type WorkspaceTreeSource = Pick<WorkspaceData, "tree">;
+type WorkspaceNoteSource = WorkspaceStructureIndex;
+type WorkspaceTreeSource = WorkspaceStructureIndex;
 type WorkspaceNoteSummary = Pick<NoteRecord, "id" | "title">;
 
 export type {
@@ -29,20 +23,22 @@ export type {
   NoteReferenceGraphNode,
   ParsedWorkspaceNote,
   UnresolvedNoteReference,
-  WorkspaceIndex,
-} from "../indexes/workspaceIndex";
+  WorkspaceParseIndex,
+} from "../indexes/workspaceParseIndex";
+export type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
 export {
-  createWorkspaceIndex,
-  createWorkspaceIndexCache,
-} from "../indexes/workspaceIndex";
+  createWorkspaceParseIndex,
+  createWorkspaceParseIndexCache,
+} from "../indexes/workspaceParseIndex";
+export { createWorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
 export function listWorkspaceNotes(workspace: WorkspaceNoteSource): NoteRecord[] {
-  return workspace.notes;
+  return workspace.data.notes;
 }
 
 export function getWorkspaceTree(workspace: WorkspaceTreeSource): NoteTreeNode[] {
-  return workspace.tree;
+  return workspace.data.tree;
 }
 
 export function getDefaultWorkspaceFolderId() {
@@ -52,21 +48,21 @@ export function getDefaultWorkspaceFolderId() {
 export function listWorkspaceNoteSummaries(
   workspace: WorkspaceNoteSource,
 ): WorkspaceNoteSummary[] {
-  return workspace.notes.map((note) => ({
+  return workspace.data.notes.map((note) => ({
     id: note.id,
     title: note.title,
   }));
 }
 
 export function getWorkspaceNoteCount(workspace: WorkspaceNoteSource) {
-  return workspace.notes.length;
+  return workspace.data.notes.length;
 }
 
 export function findWorkspaceNote(
   workspace: WorkspaceNoteSource,
   noteId: NoteId,
 ) {
-  return workspace.notes.find((note) => note.id === noteId) ?? null;
+  return workspace.noteById.get(noteId) ?? null;
 }
 
 export function hasWorkspaceNote(
@@ -89,29 +85,29 @@ export function findWorkspaceFolder(
   workspace: WorkspaceTreeSource,
   folderId: FolderId,
 ) {
-  return findFolderNode(workspace.tree, folderId);
+  return workspace.folderById.get(folderId) ?? null;
 }
 
 export function findWorkspaceFolderIdContainingNote(
   workspace: WorkspaceTreeSource,
   noteId: NoteId,
 ) {
-  return findFolderIdContainingNote(workspace.tree, noteId);
+  return workspace.noteFolderIdById.get(noteId) ?? null;
 }
 
 export function countWorkspaceFolders(workspace: WorkspaceTreeSource) {
-  return countFolders(workspace.tree);
+  return workspace.folderCount;
 }
 
 export function collectWorkspaceNoteIdsInFolder(
   workspace: WorkspaceTreeSource,
   folderId: FolderId,
 ) {
-  return collectNoteIdsInFolder(workspace.tree, folderId);
+  return workspace.noteIdsByFolderId.get(folderId) ?? [];
 }
 
 export function getParsedWorkspaceNote(
-  index: WorkspaceIndex,
+  index: WorkspaceParseIndex,
   noteId: NoteId | null,
 ): ParsedWorkspaceNote {
   if (!noteId) {
@@ -125,7 +121,7 @@ export function getParsedWorkspaceNote(
 }
 
 export function getWorkspaceNoteReferenceGraph(
-  index: WorkspaceIndex,
+  index: WorkspaceParseIndex,
 ): NoteReferenceGraph {
   return index.referenceGraph;
 }
