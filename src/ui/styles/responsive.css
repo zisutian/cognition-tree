@@ -1,14 +1,14 @@
 @media (max-width: 1120px) {
-  body {
-    min-width: 0;
-  }
-
   .app-frame {
-    grid-template-columns: 280px minmax(360px, 1fr);
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(220px, 36dvh);
     grid-template-areas:
       "sidebar editor"
       "sidebar outline";
+  }
+
+  .app-frame.sidebar-collapsed {
+    grid-template-columns: 48px minmax(0, 1fr);
   }
 
   .app-sidebar {

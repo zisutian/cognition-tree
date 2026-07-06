@@ -49,13 +49,13 @@ export function NoteOutlineTree({
                   isCollapsed ? (
                     <ChevronRight
                       aria-hidden="true"
-                      size={13}
+                      size="1em"
                       strokeWidth={2}
                     />
                   ) : (
                     <ChevronDown
                       aria-hidden="true"
-                      size={13}
+                      size="1em"
                       strokeWidth={2}
                     />
                   )

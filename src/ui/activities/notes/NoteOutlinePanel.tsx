@@ -3,10 +3,37 @@ import { Minus, Plus, RotateCcw } from "lucide-react";
 import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
 import { NoteOutlineTree } from "./NoteOutlineTree";
 
-const outlineZoomMin = 0.85;
+const outlineZoomMin = 0.8;
 const outlineZoomMax = 1.3;
 const outlineZoomStep = 0.1;
 const outlineZoomDefault = 1;
+
+type OutlineBodyStyle = CSSProperties & {
+  [key: `--${string}`]: string;
+};
+
+function toScaledPx(baseValue: number, zoom: number) {
+  return `${(baseValue * zoom).toFixed(1)}px`;
+}
+
+function createOutlineBodyStyle(outlineZoom: number): OutlineBodyStyle {
+  return {
+    "--outline-font-size": toScaledPx(12, outlineZoom),
+    "--outline-line-height": "1.2",
+    "--outline-list-indent": toScaledPx(13, outlineZoom),
+    "--outline-row-min-height": toScaledPx(26, outlineZoom),
+    "--outline-row-radius": toScaledPx(5, outlineZoom),
+    "--outline-toggle-column-width": toScaledPx(18, outlineZoom),
+    "--outline-toggle-height": toScaledPx(24, outlineZoom),
+    "--outline-toggle-icon-size": toScaledPx(13, outlineZoom),
+    "--outline-main-gap": toScaledPx(6, outlineZoom),
+    "--outline-main-min-height": toScaledPx(26, outlineZoom),
+    "--outline-main-compact-min-height": toScaledPx(24, outlineZoom),
+    "--outline-main-padding-block": toScaledPx(3, outlineZoom),
+    "--outline-main-padding-inline": toScaledPx(5, outlineZoom),
+    "--outline-main-compact-padding-start": toScaledPx(3, outlineZoom),
+  };
+}
 
 export function NoteOutlinePanel({
   nodes,
@@ -28,9 +55,7 @@ export function NoteOutlinePanel({
     );
   };
   const outlineZoomPercent = Math.round(outlineZoom * 100);
-  const outlineBodyStyle = {
-    "--outline-font-size": `${(12 * outlineZoom).toFixed(1)}px`,
-  } as CSSProperties;
+  const outlineBodyStyle = createOutlineBodyStyle(outlineZoom);
   const toggleNode = (nodeId: string) => {
     setCollapsedNodeIds((current) => {
       const next = new Set(current);

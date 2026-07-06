@@ -1,6 +1,11 @@
 .app-frame {
+  --app-sidebar-width: clamp(240px, 21vw, 292px);
+  --app-editor-min-width: 420px;
+  --app-outline-width: clamp(280px, 24vw, 340px);
   display: grid;
-  grid-template-columns: 292px minmax(500px, 1fr) 340px;
+  grid-template-columns:
+    var(--app-sidebar-width) minmax(var(--app-editor-min-width), 1fr)
+    var(--app-outline-width);
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas: "sidebar editor outline";
   height: 100dvh;
@@ -12,7 +17,9 @@
 }
 
 .app-frame.sidebar-collapsed {
-  grid-template-columns: 52px minmax(500px, 1fr) 340px;
+  grid-template-columns:
+    52px minmax(var(--app-editor-min-width), 1fr)
+    var(--app-outline-width);
 }
 
 .app-frame.activity-notes {
