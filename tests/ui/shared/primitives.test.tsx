@@ -25,6 +25,11 @@ describe("ui primitives", () => {
               操作
             </UiButton>
           }
+          leadingActions={
+            <UiButton aria-label="收起" type="button" variant="icon">
+              ←
+            </UiButton>
+          }
           stats={["1 项"]}
           title="示例面板"
         />
@@ -59,6 +64,8 @@ describe("ui primitives", () => {
 
     expect(markup).toContain("ui-panel ui-panel-main ui-panel-full-width");
     expect(markup).toContain("ui-panel-header");
+    expect(markup).toContain("ui-panel-leading-actions");
+    expect(markup).toContain("ui-panel-title-group");
     expect(markup).toContain("ui-button ui-button-secondary");
     expect(markup).toContain("ui-button ui-button-icon");
     expect(markup).toContain("ui-form-section");

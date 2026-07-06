@@ -264,6 +264,7 @@ describe("architecture module boundaries", () => {
       "AppSidebar.tsx",
       "AppView.tsx",
       "activityTypes.ts",
+      "detailResize.ts",
       "sidebarResize.ts",
     ]);
     expect(listSubdirectories("ui")).toEqual([

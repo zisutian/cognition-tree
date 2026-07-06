@@ -1,5 +1,7 @@
+import { ChevronRight } from "lucide-react";
 import type { UiReferenceGraphView } from "../../../application/workspace/projection/viewGraph";
 import {
+  UiButton,
   UiList,
   UiListRow,
   UiPanel,
@@ -11,16 +13,34 @@ import {
 
 type NoteReferenceGraphDetailPanelProps = {
   graph: UiReferenceGraphView;
+  onCollapseDetail?: () => void;
 };
 
 export function NoteReferenceGraphDetailPanel({
   graph,
+  onCollapseDetail,
 }: NoteReferenceGraphDetailPanelProps) {
   const hasIssues = graph.unresolvedReferences.length > 0;
 
   return (
     <UiPanel as="aside" aria-label="可视化详情" variant="detail">
-      <UiPanelHeader title="可视化" />
+      <UiPanelHeader
+        leadingActions={
+          onCollapseDetail ? (
+            <UiButton
+              aria-label="收回右侧栏"
+              className="detail-header-collapse-button"
+              onClick={onCollapseDetail}
+              title="收回右侧栏"
+              type="button"
+              variant="icon"
+            >
+              <ChevronRight aria-hidden="true" size={15} strokeWidth={2} />
+            </UiButton>
+          ) : null
+        }
+        title="可视化"
+      />
 
       <UiPanelBody>
         <UiSection>

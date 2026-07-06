@@ -1,9 +1,11 @@
+import { ChevronRight } from "lucide-react";
 import { getToneSwatchClass, getToneSwatchStyle } from "./TonePicker";
 import type {
   UiSyntaxProfileDraftBuildResult,
   UiSyntaxTone,
 } from "../../../application/workspace/projection/viewSyntax";
 import {
+  UiButton,
   UiList,
   UiListRow,
   UiPanel,
@@ -22,6 +24,7 @@ type SyntaxProfileFeedback = {
 type SyntaxProfileDetailPanelProps = {
   draftResult: UiSyntaxProfileDraftBuildResult;
   feedback: SyntaxProfileFeedback | null;
+  onCollapseDetail?: () => void;
 };
 
 function ToneSwatch({
@@ -46,13 +49,31 @@ function ToneSwatch({
 export function SyntaxProfileDetailPanel({
   draftResult,
   feedback,
+  onCollapseDetail,
 }: SyntaxProfileDetailPanelProps) {
   const draftProfile = draftResult.profile;
   const diagnostics = draftResult.diagnostics;
 
   return (
     <UiPanel as="aside" aria-label="语法状态" variant="detail">
-      <UiPanelHeader stats={[`${diagnostics.length} 校验`]} title="语法" />
+      <UiPanelHeader
+        leadingActions={
+          onCollapseDetail ? (
+            <UiButton
+              aria-label="收回右侧栏"
+              className="detail-header-collapse-button"
+              onClick={onCollapseDetail}
+              title="收回右侧栏"
+              type="button"
+              variant="icon"
+            >
+              <ChevronRight aria-hidden="true" size={15} strokeWidth={2} />
+            </UiButton>
+          ) : null
+        }
+        stats={[`${diagnostics.length} 校验`]}
+        title="语法"
+      />
 
       <UiPanelBody>
         {feedback ? (

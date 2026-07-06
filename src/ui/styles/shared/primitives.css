@@ -49,6 +49,7 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-8);
+  min-width: 0;
   min-height: var(--ui-panel-header-height);
 }
 
@@ -59,24 +60,51 @@
 
 .ui-panel-header h2 {
   flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--color-fg-strong);
   font-size: var(--font-size-page-title);
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-panel-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ui-panel-leading-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
 }
 
 .ui-panel-title {
   min-width: 0;
+  overflow: hidden;
 }
 
 .ui-panel-actions,
 .ui-panel-stats {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-4);
+  min-width: 0;
+}
+
+.ui-panel-actions {
+  flex: 0 0 auto;
 }
 
 .ui-panel-stats {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  overflow: hidden;
   color: var(--header-chip-muted-color);
   font-size: var(--font-size-xs);
 }
@@ -201,6 +229,21 @@
 
 .ui-button-secondary:hover:not(:disabled),
 .ui-button-icon:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.ui-button-icon.detail-header-collapse-button {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  border-color: transparent;
+  color: var(--color-fg-muted);
+  background: transparent;
+}
+
+.ui-button-icon.detail-header-collapse-button:hover:not(:disabled) {
+  color: var(--color-fg-strong);
+  border-color: transparent;
   background: var(--color-hover);
 }
 

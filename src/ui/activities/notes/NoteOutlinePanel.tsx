@@ -1,5 +1,10 @@
 import { type CSSProperties, useState } from "react";
-import { Minus, Plus, RotateCcw } from "lucide-react";
+import {
+  ChevronRight,
+  Minus,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
 import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
 import {
   UiButton,
@@ -42,9 +47,11 @@ function createOutlineBodyStyle(outlineZoom: number): OutlineBodyStyle {
 
 export function NoteOutlinePanel({
   nodes,
+  onCollapseDetail,
   onSelectLine,
 }: {
   nodes: UiOutlineNode[];
+  onCollapseDetail?: () => void;
   onSelectLine: (lineNumber: number) => void;
 }) {
   const [outlineZoom, setOutlineZoom] = useState(outlineZoomDefault);
@@ -84,42 +91,56 @@ export function NoteOutlinePanel({
     >
       <UiPanelHeader
         actions={
-        <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
-          <UiButton
-            aria-label="缩小笔记结构树"
-            className="outline-icon-button"
-            disabled={outlineZoom <= outlineZoomMin}
-            onClick={() => changeOutlineZoom(-outlineZoomStep)}
-            title="缩小笔记结构树"
-            type="button"
-            variant="icon"
-          >
-            <Minus aria-hidden="true" size={14} strokeWidth={2} />
-          </UiButton>
-          <span className="outline-zoom-value">{outlineZoomPercent}%</span>
-          <UiButton
-            aria-label="放大笔记结构树"
-            className="outline-icon-button"
-            disabled={outlineZoom >= outlineZoomMax}
-            onClick={() => changeOutlineZoom(outlineZoomStep)}
-            title="放大笔记结构树"
-            type="button"
-            variant="icon"
-          >
-            <Plus aria-hidden="true" size={14} strokeWidth={2} />
-          </UiButton>
-          <UiButton
-            aria-label="重置笔记结构树缩放"
-            className="outline-icon-button"
-            disabled={outlineZoom === outlineZoomDefault}
-            onClick={() => setOutlineZoom(outlineZoomDefault)}
-            title="重置笔记结构树缩放"
-            type="button"
-            variant="icon"
-          >
-            <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
-          </UiButton>
-        </div>
+          <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
+            <UiButton
+              aria-label="缩小笔记结构树"
+              className="outline-icon-button"
+              disabled={outlineZoom <= outlineZoomMin}
+              onClick={() => changeOutlineZoom(-outlineZoomStep)}
+              title="缩小笔记结构树"
+              type="button"
+              variant="icon"
+            >
+              <Minus aria-hidden="true" size={14} strokeWidth={2} />
+            </UiButton>
+            <span className="outline-zoom-value">{outlineZoomPercent}%</span>
+            <UiButton
+              aria-label="放大笔记结构树"
+              className="outline-icon-button"
+              disabled={outlineZoom >= outlineZoomMax}
+              onClick={() => changeOutlineZoom(outlineZoomStep)}
+              title="放大笔记结构树"
+              type="button"
+              variant="icon"
+            >
+              <Plus aria-hidden="true" size={14} strokeWidth={2} />
+            </UiButton>
+            <UiButton
+              aria-label="重置笔记结构树缩放"
+              className="outline-icon-button"
+              disabled={outlineZoom === outlineZoomDefault}
+              onClick={() => setOutlineZoom(outlineZoomDefault)}
+              title="重置笔记结构树缩放"
+              type="button"
+              variant="icon"
+            >
+              <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
+            </UiButton>
+          </div>
+        }
+        leadingActions={
+          onCollapseDetail ? (
+            <UiButton
+              aria-label="收回右侧栏"
+              className="detail-header-collapse-button"
+              onClick={onCollapseDetail}
+              title="收回右侧栏"
+              type="button"
+              variant="icon"
+            >
+              <ChevronRight aria-hidden="true" size={15} strokeWidth={2} />
+            </UiButton>
+          ) : null
         }
         title="笔记结构"
       />

@@ -20,7 +20,7 @@
   white-space: nowrap;
 }
 
-.note-editor-panel .ui-panel-title {
+.note-editor-panel .ui-panel-title-group {
   flex: 0 0 auto;
 }
 
@@ -327,19 +327,36 @@
 }
 
 .note-outline-panel .ui-panel-header {
-  flex-wrap: wrap;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  justify-content: start;
+  gap: var(--space-3);
   padding-bottom: 4px;
   border-bottom: 0;
 }
 
+.note-outline-panel .ui-panel-title-group {
+  flex: 0 0 auto;
+  min-width: max-content;
+}
+
 .note-outline-panel .ui-panel-title {
-  flex: 1 1 96px;
-  min-width: 0;
+  min-width: max-content;
+  overflow: visible;
 }
 
 .note-outline-panel .ui-panel-header h2 {
+  overflow: visible;
   color: var(--color-fg);
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.note-outline-panel .ui-panel-actions {
+  flex: none;
+  min-width: max-content;
+  justify-content: flex-start;
 }
 
 .outline-zoom-controls {

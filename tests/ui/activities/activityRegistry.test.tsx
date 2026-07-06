@@ -145,6 +145,7 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
 function createSlots(activityId: ActivityId, view = createView()) {
   return createActivitySlots({
     activityId,
+    onCollapseDetail: () => undefined,
     onConfigureSyntax: () => undefined,
     view,
   });
@@ -229,5 +230,17 @@ describe("activity registry", () => {
     expect(main).toContain("结构 · Source note");
     expect(main).toContain("当前笔记没有可调整块");
     expect(main).not.toContain("目标 · Target note");
+  });
+
+  it("adds collapse actions to right detail panels", () => {
+    expect(renderSlot(createSlots("notes").detail)).toContain(
+      "aria-label=\"收回右侧栏\"",
+    );
+    expect(renderSlot(createSlots("syntax").detail)).toContain(
+      "aria-label=\"收回右侧栏\"",
+    );
+    expect(renderSlot(createSlots("visualization").detail)).toContain(
+      "aria-label=\"收回右侧栏\"",
+    );
   });
 });

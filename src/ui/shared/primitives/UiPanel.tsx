@@ -14,6 +14,7 @@ type UiPanelProps = HTMLAttributes<HTMLElement> & {
 
 type UiPanelHeaderProps = HTMLAttributes<HTMLElement> & {
   actions?: ReactNode;
+  leadingActions?: ReactNode;
   stats?: ReactNode[];
   title: ReactNode;
 };
@@ -53,14 +54,20 @@ export function UiPanel({
 export function UiPanelHeader({
   actions,
   className,
+  leadingActions,
   stats,
   title,
   ...props
 }: UiPanelHeaderProps) {
   return (
     <header className={cx("ui-panel-header", className)} {...props}>
-      <div className="ui-panel-title">
-        <h2>{title}</h2>
+      <div className="ui-panel-title-group">
+        {leadingActions ? (
+          <div className="ui-panel-leading-actions">{leadingActions}</div>
+        ) : null}
+        <div className="ui-panel-title">
+          <h2>{title}</h2>
+        </div>
       </div>
       {stats ? (
         <div className="ui-panel-stats">

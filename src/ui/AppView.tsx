@@ -13,6 +13,11 @@ import {
 } from "./activities/activityRegistry";
 import { AppFrame } from "./AppFrame";
 import {
+  appDetailDefaultWidth,
+  clampAppDetailWidth,
+  getAppDetailKeyboardResizeWidth,
+} from "./detailResize";
+import {
   appSidebarDefaultWidth,
   clampAppSidebarWidth,
   getAppSidebarKeyboardResizeWidth,
@@ -31,17 +36,21 @@ function AppView({
   onActiveActivityChange,
 }: AppViewProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [detailWidth, setDetailWidth] = useState<number | null>(null);
+  const [isDetailResizing, setIsDetailResizing] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState<number | null>(null);
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
-  const removeSidebarResizeListenersRef = useRef<(() => void) | null>(null);
+  const removeFrameResizeListenersRef = useRef<(() => void) | null>(null);
 
-  const removeSidebarResizeListeners = () => {
-    removeSidebarResizeListenersRef.current?.();
-    removeSidebarResizeListenersRef.current = null;
+  const removeFrameResizeListeners = () => {
+    removeFrameResizeListenersRef.current?.();
+    removeFrameResizeListenersRef.current = null;
   };
 
-  useEffect(() => () => removeSidebarResizeListeners(), []);
+  useEffect(() => () => removeFrameResizeListeners(), []);
 
+  const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
   const sidebarResizeValue = sidebarWidth ?? appSidebarDefaultWidth;
 
   const handleActivityChange = (activityId: ActivityId) => {
@@ -65,7 +74,7 @@ function AppView({
     }
 
     event.preventDefault();
-    removeSidebarResizeListeners();
+    removeFrameResizeListeners();
 
     const sidebarElement = event.currentTarget.closest(".app-sidebar");
     const currentWidth =
@@ -85,14 +94,14 @@ function AppView({
       );
     };
     const handlePointerEnd = () => {
-      removeSidebarResizeListeners();
+      removeFrameResizeListeners();
       setIsSidebarResizing(false);
     };
 
     document.addEventListener("pointermove", handlePointerMove);
     document.addEventListener("pointerup", handlePointerEnd);
     document.addEventListener("pointercancel", handlePointerEnd);
-    removeSidebarResizeListenersRef.current = () => {
+    removeFrameResizeListenersRef.current = () => {
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerEnd);
       document.removeEventListener("pointercancel", handlePointerEnd);
@@ -113,8 +122,65 @@ function AppView({
     event.preventDefault();
     setSidebarWidth(nextWidth);
   };
+  const handleDetailResizeStart = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    if (detailCollapsed || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    removeFrameResizeListeners();
+
+    const detailElement = event.currentTarget.closest(".app-detail-region");
+    const currentWidth =
+      detailElement instanceof HTMLElement
+        ? detailElement.getBoundingClientRect().width
+        : detailResizeValue;
+    const startWidth = clampAppDetailWidth(currentWidth);
+    const startX = event.clientX;
+
+    setDetailWidth(startWidth);
+    setIsDetailResizing(true);
+
+    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
+      moveEvent.preventDefault();
+      setDetailWidth(
+        clampAppDetailWidth(startWidth + startX - moveEvent.clientX),
+      );
+    };
+    const handlePointerEnd = () => {
+      removeFrameResizeListeners();
+      setIsDetailResizing(false);
+    };
+
+    document.addEventListener("pointermove", handlePointerMove);
+    document.addEventListener("pointerup", handlePointerEnd);
+    document.addEventListener("pointercancel", handlePointerEnd);
+    removeFrameResizeListenersRef.current = () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerEnd);
+      document.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  };
+  const handleDetailResizeKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+  ) => {
+    const nextWidth = getAppDetailKeyboardResizeWidth(
+      detailResizeValue,
+      event.key,
+    );
+
+    if (nextWidth === null) {
+      return;
+    }
+
+    event.preventDefault();
+    setDetailWidth(nextWidth);
+  };
   const activitySlots = createActivitySlots({
     activityId: activeActivityId,
+    onCollapseDetail: () => setDetailCollapsed(true),
     onConfigureSyntax: configureSyntax,
     view,
   });
@@ -123,14 +189,21 @@ function AppView({
     <AppFrame
       activeActivityId={activeActivityId}
       activityItems={activityItems}
+      detailCollapsed={detailCollapsed}
+      detailResizeValue={detailResizeValue}
       detailSlot={activitySlots.detail}
+      detailWidth={detailWidth}
       mainSlot={activitySlots.main}
+      isDetailResizing={isDetailResizing}
       isSidebarResizing={isSidebarResizing}
       sidebarResizeValue={sidebarResizeValue}
       sidebarCollapsed={sidebarCollapsed}
       sidebarWidth={sidebarWidth}
       sidebarSlot={activitySlots.sidebar}
       onActivityChange={handleActivityChange}
+      onDetailResizeKeyDown={handleDetailResizeKeyDown}
+      onDetailResizeStart={handleDetailResizeStart}
+      onDetailToggle={() => setDetailCollapsed((current) => !current)}
       onSidebarResizeKeyDown={handleSidebarResizeKeyDown}
       onSidebarResizeStart={handleSidebarResizeStart}
     />

@@ -46,8 +46,9 @@ const placeholderEntries: Record<"search" | "data", string[]> = {
 
 type ActivityContext = {
   activityId: ActivityId;
-  view: ViewModel;
+  onCollapseDetail: () => void;
   onConfigureSyntax: () => void;
+  view: ViewModel;
 };
 
 function createSyntaxSetupMain({
@@ -64,9 +65,10 @@ function createSyntaxSetupMain({
 }
 
 function createNotesSlots({
+  onCollapseDetail,
   view,
   onConfigureSyntax,
-}: Pick<ActivityContext, "view" | "onConfigureSyntax">): ActivitySlots {
+}: Pick<ActivityContext, "onCollapseDetail" | "view" | "onConfigureSyntax">): ActivitySlots {
   const sidebar = (
     <NotesSidebarPanel
       view={view.sidebar}
@@ -95,6 +97,7 @@ function createNotesSlots({
     detail: (
       <NoteOutlinePanel
         nodes={view.outline.nodes}
+        onCollapseDetail={onCollapseDetail}
         onSelectLine={view.outline.onSelectLine}
       />
     ),
@@ -145,9 +148,10 @@ function createMigrationSlots({
 }
 
 function createVisualizationSlots({
+  onCollapseDetail,
   view,
   onConfigureSyntax,
-}: Pick<ActivityContext, "view" | "onConfigureSyntax">): ActivitySlots {
+}: Pick<ActivityContext, "onCollapseDetail" | "view" | "onConfigureSyntax">): ActivitySlots {
   if (!view.hasConfiguredSyntax) {
     return {
       detail: null,
@@ -157,18 +161,27 @@ function createVisualizationSlots({
   }
 
   return {
-    detail: <NoteReferenceGraphDetailPanel graph={view.visualization} />,
+    detail: (
+      <NoteReferenceGraphDetailPanel
+        graph={view.visualization}
+        onCollapseDetail={onCollapseDetail}
+      />
+    ),
     main: <NoteReferenceGraphPanel graph={view.visualization} />,
     sidebar: null,
   };
 }
 
-function createSyntaxSlots({ view }: Pick<ActivityContext, "view">): ActivitySlots {
+function createSyntaxSlots({
+  onCollapseDetail,
+  view,
+}: Pick<ActivityContext, "onCollapseDetail" | "view">): ActivitySlots {
   return {
     detail: (
       <SyntaxProfileDetailPanel
         draftResult={view.syntax.draftResult}
         feedback={view.syntax.feedback}
+        onCollapseDetail={onCollapseDetail}
       />
     ),
     main: <SyntaxMainPanel view={view.syntax} />,
@@ -219,18 +232,23 @@ function createPlaceholderSlots(
 
 export function createActivitySlots({
   activityId,
-  view,
+  onCollapseDetail,
   onConfigureSyntax,
+  view,
 }: ActivityContext): ActivitySlots {
   switch (activityId) {
     case "notes":
-      return createNotesSlots({ view, onConfigureSyntax });
+      return createNotesSlots({ onCollapseDetail, view, onConfigureSyntax });
     case "migration":
       return createMigrationSlots({ view, onConfigureSyntax });
     case "visualization":
-      return createVisualizationSlots({ view, onConfigureSyntax });
+      return createVisualizationSlots({
+        onCollapseDetail,
+        view,
+        onConfigureSyntax,
+      });
     case "syntax":
-      return createSyntaxSlots({ view });
+      return createSyntaxSlots({ onCollapseDetail, view });
     case "settings":
       return createSettingsSlots({ view });
     case "search":
