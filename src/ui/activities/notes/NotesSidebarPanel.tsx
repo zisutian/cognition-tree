@@ -328,7 +328,7 @@ export function NotesSidebarPanel({
             <button
               aria-label="新建文件夹"
               className="side-action-button"
-              onClick={() => requestCreateFolder(view.activeFolderId)}
+              onClick={() => requestCreateFolder(view.defaultFolderId)}
               title="新建文件夹"
               type="button"
             >

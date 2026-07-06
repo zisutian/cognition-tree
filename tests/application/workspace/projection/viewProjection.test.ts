@@ -148,32 +148,23 @@ describe("workspace view projection", () => {
       tree: workspace.tree,
     });
 
+    expect(noteTree).not.toContainEqual(
+      expect.objectContaining({ title: "仓库根目录" }),
+    );
     expect(noteTree[0]).toMatchObject({
-      canDrag: false,
-      childCount: 2,
+      canDrag: true,
       folderId: "folder-inbox",
-      kind: "folder",
-      parentFolderId: null,
-      title: "仓库根目录",
+      kind: "note",
+      noteId: "note-source",
+      parentFolderId: "folder-inbox",
+      title: "源笔记",
     });
-    expect(noteTree[0]).toMatchObject({
-      children: [
-        {
-          canDrag: true,
-          folderId: "folder-inbox",
-          kind: "note",
-          noteId: "note-source",
-          parentFolderId: "folder-inbox",
-          title: "源笔记",
-        },
-        {
-          canDrag: true,
-          folderId: "folder-project",
-          kind: "folder",
-          parentFolderId: "folder-inbox",
-          title: "项目",
-        },
-      ],
+    expect(noteTree[1]).toMatchObject({
+      canDrag: true,
+      folderId: "folder-project",
+      kind: "folder",
+      parentFolderId: "folder-inbox",
+      title: "项目",
     });
     expect(noteTree[noteTree.length - 1]).toMatchObject({
       canDrag: false,

@@ -5,34 +5,23 @@ import { NotesSidebarTree } from "../../../../src/ui/activities/notes/NotesSideb
 
 const noteTree: UiTreeNode[] = [
   {
-    canDrag: false,
-    childCount: 2,
-    children: [
-      {
-        canDrag: true,
-        folderId: "folder-project",
-        id: "folder-project",
-        kind: "folder",
-        parentFolderId: "folder-inbox",
-        title: "项目",
-        childCount: 0,
-        children: [],
-      },
-      {
-        canDrag: true,
-        folderId: "folder-inbox",
-        id: "tree-note-source",
-        kind: "note",
-        noteId: "note-source",
-        parentFolderId: "folder-inbox",
-        title: "源笔记",
-      },
-    ],
-    folderId: "folder-inbox",
-    id: "folder-inbox",
+    canDrag: true,
+    folderId: "folder-project",
+    id: "folder-project",
     kind: "folder",
-    parentFolderId: null,
-    title: "仓库根目录",
+    parentFolderId: "folder-inbox",
+    title: "项目",
+    childCount: 0,
+    children: [],
+  },
+  {
+    canDrag: true,
+    folderId: "folder-inbox",
+    id: "tree-note-source",
+    kind: "note",
+    noteId: "note-source",
+    parentFolderId: "folder-inbox",
+    title: "源笔记",
   },
 ];
 
@@ -63,7 +52,7 @@ describe("NotesSidebarTree", () => {
     expect(markup).toContain("note-tree-node-frame");
     expect(markup).toContain("note-tree-drop-zone-before");
     expect(markup).toContain("note-tree-drop-zone-after");
-    expect(markup).toContain('draggable="false"');
+    expect(markup).not.toContain("仓库根目录");
     expect(markup.match(/draggable="true"/g)).toHaveLength(2);
     expect(markup).toContain("项目");
     expect(markup).toContain("源笔记");

@@ -120,6 +120,10 @@ function createUiNoteTreeNodes({
       visitedNodeIds,
     });
 
+    if (node.id === defaultFolderId) {
+      return children;
+    }
+
     return [
       {
         canDrag: node.id !== defaultFolderId,
@@ -129,7 +133,7 @@ function createUiNoteTreeNodes({
         id: node.id,
         kind: "folder" as const,
         parentFolderId: folderId,
-        title: node.id === defaultFolderId ? "仓库根目录" : node.title,
+        title: node.title,
       },
     ];
   });
