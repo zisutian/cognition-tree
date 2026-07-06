@@ -12,6 +12,7 @@ import type {
   UiNoteSummary,
   UiTreeNode,
 } from "../../../application/workspace/projection/viewTree";
+import { UiSectionTitle } from "../../shared/primitives";
 
 type MigrationNoteSelectionViewProps = {
   notes: UiNoteSummary[];
@@ -271,7 +272,7 @@ export function MigrationNoteSelectionView({
   return (
     <div className="migration-note-grid">
       <section className="migration-column">
-        <p className="activity-detail-title">源笔记（拖拽到目标）</p>
+        <UiSectionTitle>源笔记（拖拽到目标）</UiSectionTitle>
         <div className="migration-note-list">
           {notes.length > 0 ? (
             <MigrationNoteTree
@@ -293,13 +294,13 @@ export function MigrationNoteSelectionView({
               targetNoteId={targetNoteId}
             />
           ) : (
-            <p className="migration-empty-state">没有可选择的源笔记。</p>
+            <p className="ui-muted">没有可选择的源笔记。</p>
           )}
         </div>
       </section>
 
       <section className="migration-column">
-        <p className="activity-detail-title">目标笔记（拖放到此处）</p>
+        <UiSectionTitle>目标笔记（拖放到此处）</UiSectionTitle>
         <div className="migration-note-list">
           {hasTargetCandidates ? (
             <MigrationNoteTree
@@ -321,7 +322,7 @@ export function MigrationNoteSelectionView({
               targetNoteId={targetNoteId}
             />
           ) : (
-            <p className="migration-empty-state">没有可选择的目标笔记。</p>
+            <p className="ui-muted">没有可选择的目标笔记。</p>
           )}
         </div>
       </section>

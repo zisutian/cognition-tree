@@ -1,44 +1,44 @@
 .note-editor-panel {
-  --header-chip-color: var(--note-text);
-  --header-chip-muted-color: var(--note-muted);
-  --header-chip-border: var(--note-border-strong);
-  --header-chip-background: var(--note-chip-background);
-  --header-chip-hover-background: var(--note-chip-hover-background);
-  color: var(--note-text);
-  border-right: 1px solid var(--note-border);
-  background: var(--note-panel-background);
+  --header-chip-color: var(--color-fg);
+  --header-chip-muted-color: var(--color-fg-muted);
+  --header-chip-border: var(--color-border-strong);
+  --header-chip-background: transparent;
+  --header-chip-hover-background: var(--color-hover);
+  color: var(--color-fg);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-editor);
 }
 
-.note-editor-panel .panel-header {
+.note-editor-panel .ui-panel-header {
   padding-bottom: 4px;
   border-bottom: 0;
 }
 
-.note-editor-panel .panel-header h2 {
-  color: var(--note-text);
+.note-editor-panel .ui-panel-header h2 {
+  color: var(--color-fg);
 }
 
-.note-editor-panel .stats {
+.note-editor-panel .ui-panel-stats {
   align-items: center;
   gap: 0;
 }
 
-.note-editor-panel .stats span {
+.note-editor-panel .ui-panel-stats span {
   min-height: auto;
   padding: 0;
   border: 0;
-  color: var(--note-muted);
+  color: var(--color-fg-muted);
   background: transparent;
 }
 
-.note-editor-panel .stats span + span::before {
+.note-editor-panel .ui-panel-stats span + span::before {
   margin: 0 7px;
-  color: var(--note-subtle);
+  color: var(--color-fg-subtle);
   content: "·";
 }
 
-.note-editor-panel .stats .current-note-chip {
-  color: var(--note-text);
+.note-editor-panel .ui-panel-stats .current-note-chip {
+  color: var(--color-fg);
 }
 
 .source-editor {
@@ -53,32 +53,14 @@
 }
 
 .source-editor:focus-within {
-  border-color: var(--note-border-strong);
+  border-color: var(--color-border-strong);
   box-shadow: none;
-}
-
-.empty-editor {
-  display: grid;
-  flex: 1;
-  place-items: center;
-  align-content: center;
-  gap: 10px;
-  min-height: 0;
-  border: 1px solid var(--note-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-editor);
-}
-
-.empty-editor h3 {
-  margin: 0;
-  color: var(--note-text);
-  font-size: var(--font-size-lg);
 }
 
 .source-editor .cm-editor {
   height: 100%;
   min-height: 0;
-  color: var(--note-text);
+  color: var(--color-fg);
   background: transparent;
   font-family: var(--font-content);
   font-size: var(--font-size-base);
@@ -96,12 +78,12 @@
 }
 
 .source-editor .cm-cursor {
-  border-left-color: var(--note-text);
+  border-left-color: var(--color-fg);
 }
 
 .source-editor .cm-selectionBackground,
 .source-editor .cm-content ::selection {
-  background: rgba(0, 122, 204, 0.38) !important;
+  background: var(--color-editor-selection) !important;
 }
 
 .source-editor .cm-content {
@@ -114,7 +96,7 @@
 }
 
 .source-editor .cm-gutters {
-  border-right: 1px solid var(--note-border);
+  border-right: 1px solid var(--color-border);
   color: var(--color-fg-subtle);
   background: var(--color-editor);
   font-family: var(--font-mono);
@@ -134,7 +116,7 @@
 }
 
 .source-editor .ctn-line-root-concept {
-  background: rgba(0, 122, 204, 0.08);
+  background: var(--color-accent-subtle);
 }
 
 .source-editor .ctn-multiline-block-mark {
@@ -152,7 +134,7 @@
 }
 
 .source-editor .ctn-line-diagnostic {
-  background: rgba(244, 135, 113, 0.12);
+  background: var(--color-error-soft);
 }
 
 .source-editor .ctn-marker {
@@ -169,43 +151,43 @@
 }
 
 .source-editor .ctn-line.ctn-tone-green {
-  background: rgba(106, 153, 85, 0.08);
+  background: var(--ctn-tone-green-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-teal {
-  background: rgba(78, 201, 176, 0.08);
+  background: var(--ctn-tone-teal-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-cyan {
-  background: rgba(86, 156, 214, 0.08);
+  background: var(--ctn-tone-cyan-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-blue {
-  background: rgba(86, 156, 214, 0.08);
+  background: var(--ctn-tone-blue-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-indigo {
-  background: rgba(100, 102, 149, 0.1);
+  background: var(--ctn-tone-indigo-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-violet {
-  background: rgba(197, 134, 192, 0.08);
+  background: var(--ctn-tone-violet-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-pink {
-  background: rgba(197, 134, 192, 0.08);
+  background: var(--ctn-tone-pink-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-red {
-  background: rgba(244, 135, 113, 0.09);
+  background: var(--ctn-tone-red-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-amber {
-  background: rgba(206, 145, 120, 0.08);
+  background: var(--ctn-tone-amber-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-gray {
-  background: rgba(128, 128, 128, 0.08);
+  background: var(--ctn-tone-gray-soft);
 }
 
 .source-editor .ctn-line.ctn-tone-custom {
@@ -296,91 +278,38 @@
   min-width: 0;
 }
 
-.diagnostics-panel {
-  padding: 9px 11px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--color-panel);
-}
-
-.note-editor-panel .diagnostics-panel {
-  border-color: rgba(244, 135, 113, 0.42);
-  background: var(--color-error-soft);
-}
-
-.diagnostics-panel h3 {
-  margin: 0 0 6px;
-  color: var(--color-error);
-  font-size: var(--font-size-sm);
-}
-
-.note-editor-panel .diagnostics-panel h3 {
-  color: var(--color-error);
-}
-
-.diagnostics-panel ul {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.diagnostics-panel li {
+.note-diagnostic-row {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
-  gap: 6px;
-  color: var(--color-fg);
-  font-size: var(--font-size-sm);
-}
-
-.note-editor-panel .diagnostics-panel li,
-.note-editor-panel .diagnostics-panel p {
-  color: var(--color-fg);
-}
-
-.diagnostic-location {
-  color: var(--color-error);
+  gap: var(--space-4);
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.note-editor-panel .diagnostic-location {
-  color: var(--color-error);
-}
-
-.outline-panel {
-  gap: 8px;
-  border-left: 1px solid var(--color-border);
-  background: var(--color-editor);
-  overflow: hidden;
 }
 
 .note-outline-panel {
-  --header-chip-color: var(--note-text);
-  --header-chip-muted-color: var(--note-muted);
-  --header-chip-border: var(--note-border-strong);
-  --header-chip-background: var(--note-chip-background);
-  --header-chip-hover-background: var(--note-chip-hover-background);
-  color: var(--note-text);
-  border-left-color: var(--note-border);
-  background: var(--note-panel-background);
+  --header-chip-color: var(--color-fg);
+  --header-chip-muted-color: var(--color-fg-muted);
+  --header-chip-border: var(--color-border-strong);
+  --header-chip-background: transparent;
+  --header-chip-hover-background: var(--color-hover);
+  color: var(--color-fg);
+  border-left-color: var(--color-border);
+  background: var(--color-editor);
 }
 
-.note-outline-panel .panel-header {
+.note-outline-panel .ui-panel-header {
   flex-wrap: wrap;
   align-items: flex-start;
   padding-bottom: 4px;
   border-bottom: 0;
 }
 
-.note-outline-panel .panel-header > div:first-child {
+.note-outline-panel .ui-panel-title {
   flex: 1 1 96px;
   min-width: 0;
 }
 
-.note-outline-panel .panel-header h2 {
-  color: var(--note-text);
+.note-outline-panel .ui-panel-header h2 {
+  color: var(--color-fg);
 }
 
 .outline-zoom-controls {
@@ -416,9 +345,9 @@
 }
 
 .note-outline-panel .outline-icon-button:hover:not(:disabled) {
-  color: var(--note-text);
+  color: var(--color-fg);
   border-color: transparent;
-  background: var(--note-hover-background);
+  background: var(--color-hover);
 }
 
 .outline-icon-button:disabled {
@@ -456,7 +385,7 @@
   min-width: 34px;
   padding: 0 4px;
   border: 0;
-  color: var(--note-muted);
+  color: var(--color-fg-muted);
   background: transparent;
 }
 
@@ -487,7 +416,7 @@
 }
 
 .note-outline-panel .ctn-tree-list .ctn-tree-list {
-  border-left-color: var(--note-border);
+  border-left-color: var(--color-border);
 }
 
 .outline-body .ctn-tree-row {
@@ -536,12 +465,12 @@
 }
 
 .note-outline-panel .outline-node.has-diagnostics {
-  background: rgba(244, 135, 113, 0.1);
-  box-shadow: inset 2px 0 0 rgba(244, 135, 113, 0.72);
+  background: var(--color-error-soft);
+  box-shadow: inset 2px 0 0 var(--color-error-accent);
 }
 
 .note-outline-panel .outline-toggle-button {
-  color: var(--note-muted);
+  color: var(--color-fg-muted);
 }
 
 .empty-outline {
@@ -551,5 +480,5 @@
 }
 
 .note-outline-panel .empty-outline {
-  color: var(--note-muted);
+  color: var(--color-fg-muted);
 }

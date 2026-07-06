@@ -6,6 +6,13 @@ import type {
   UiSyntaxRole,
   UiSyntaxView,
 } from "../../../application/workspace/projection/viewSyntax";
+import {
+  UiButton,
+  UiField,
+  UiFormSection,
+  UiPanel,
+  UiPanelHeader,
+} from "../../shared/primitives";
 import { TonePicker } from "./TonePicker";
 
 type SyntaxMainPanelProps = {
@@ -41,34 +48,27 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
   const protectedInlineRuleIdSet = new Set(protectedInlineRuleIds);
 
   return (
-    <section className="activity-main-panel syntax-main-panel" aria-label="语法编辑">
-      <header className="panel-header">
-        <div>
-          <h2>仓库语法配置</h2>
-        </div>
-        <div className="stats">
-          <span>{view.stats.markerRuleCount} 行首</span>
-          <span>{view.stats.inlineRuleCount} 行内</span>
-        </div>
-      </header>
+    <UiPanel className="syntax-main-panel" aria-label="语法编辑" variant="main">
+      <UiPanelHeader
+        stats={[
+          `${view.stats.markerRuleCount} 行首`,
+          `${view.stats.inlineRuleCount} 行内`,
+        ]}
+        title="仓库语法配置"
+      />
 
       <div className="syntax-form-scroll">
-        <section className="syntax-form-section">
-          <div className="syntax-form-section-header">
-            <h3>基础信息</h3>
-          </div>
+        <UiFormSection title="基础信息">
           <div className="syntax-profile-grid">
-            <label className="syntax-field">
-              <span>名称</span>
+            <UiField label="名称">
               <input
                 value={draft.name}
                 onChange={(event) =>
                   actions.updateDraftField("name", event.target.value)
                 }
               />
-            </label>
-            <label className="syntax-field">
-              <span>Tab 宽度</span>
+            </UiField>
+            <UiField label="Tab 宽度">
               <input
                 inputMode="numeric"
                 min="1"
@@ -79,22 +79,23 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                   actions.updateDraftField("tabDisplayWidth", event.target.value)
                 }
               />
-            </label>
+            </UiField>
           </div>
-        </section>
+        </UiFormSection>
 
-        <section className="syntax-form-section">
-          <div className="syntax-form-section-header">
-            <h3>行首规则</h3>
-            <button
-              className="secondary-action-button"
+        <UiFormSection
+          actions={
+            <UiButton
               onClick={actions.addMarkerRule}
               type="button"
+              variant="secondary"
             >
               <Plus aria-hidden="true" size={14} strokeWidth={2} />
               新增
-            </button>
-          </div>
+            </UiButton>
+          }
+          title="行首规则"
+        >
 
           <div className="syntax-rule-column-header syntax-marker-rule-columns">
             <span>符号</span>
@@ -105,17 +106,14 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
             <span />
           </div>
           <div className="syntax-rule-list">
-            <div className="syntax-marker-rule-row syntax-marker-rule-columns">
-              <label className="syntax-field compact">
-                <span>符号</span>
+            <div className="ui-form-row syntax-marker-rule-columns">
+              <UiField hiddenLabel label="符号">
                 <input disabled value="顶格" />
-              </label>
-              <label className="syntax-field">
-                <span>名称</span>
+              </UiField>
+              <UiField hiddenLabel label="名称">
                 <input disabled value={draft.conceptRule.label} />
-              </label>
-              <label className="syntax-field compact">
-                <span>角色</span>
+              </UiField>
+              <UiField hiddenLabel label="角色">
                 <select disabled value="normal">
                   {roleOptions.map((role) => (
                     <option key={role.value} value={role.value}>
@@ -123,18 +121,16 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                     </option>
                   ))}
                 </select>
-              </label>
-              <div className="syntax-field syntax-tone-field">
-                <span>背景</span>
+              </UiField>
+              <UiField as="div" hiddenLabel label="背景">
                 <TonePicker
                   ariaLabel="顶格概念背景色"
                   options={toneOptions}
                   value={draft.conceptRule.tone}
                   onChange={(tone) => actions.updateConceptRule({ tone })}
                 />
-              </div>
-              <div className="syntax-field syntax-tone-field">
-                <span>字体</span>
+              </UiField>
+              <UiField as="div" hiddenLabel label="字体">
                 <TonePicker
                   ariaLabel="顶格概念字体色"
                   options={toneOptions}
@@ -143,7 +139,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                     actions.updateConceptRule({ textColor })
                   }
                 />
-              </div>
+              </UiField>
               <span
                 aria-label="顶格概念是基础行首规则，不能删除"
                 className="syntax-protected-rule-lock"
@@ -152,11 +148,10 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
             </div>
             {draft.markerRules.map((rule) => (
               <div
-                className="syntax-marker-rule-row syntax-marker-rule-columns"
+                className="ui-form-row syntax-marker-rule-columns"
                 key={rule.id}
               >
-                <label className="syntax-field compact">
-                  <span>符号</span>
+                <UiField hiddenLabel label="符号">
                   <input
                     value={rule.marker}
                     onChange={(event) =>
@@ -165,9 +160,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       })
                     }
                   />
-                </label>
-                <label className="syntax-field">
-                  <span>名称</span>
+                </UiField>
+                <UiField hiddenLabel label="名称">
                   <input
                     value={rule.label}
                     onChange={(event) =>
@@ -176,9 +170,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       })
                     }
                   />
-                </label>
-                <label className="syntax-field compact">
-                  <span>角色</span>
+                </UiField>
+                <UiField hiddenLabel label="角色">
                   <select
                     value={rule.role}
                     onChange={(event) =>
@@ -193,9 +186,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       </option>
                     ))}
                   </select>
-                </label>
-                <div className="syntax-field syntax-tone-field">
-                  <span>背景</span>
+                </UiField>
+                <UiField as="div" hiddenLabel label="背景">
                   <TonePicker
                     ariaLabel={`${rule.label || rule.marker || rule.id} 背景色`}
                     options={toneOptions}
@@ -204,9 +196,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       actions.updateMarkerRule(rule.id, { tone })
                     }
                   />
-                </div>
-                <div className="syntax-field syntax-tone-field">
-                  <span>字体</span>
+                </UiField>
+                <UiField as="div" hiddenLabel label="字体">
                   <TonePicker
                     ariaLabel={`${rule.label || rule.marker || rule.id} 字体色`}
                     options={toneOptions}
@@ -215,42 +206,44 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       actions.updateMarkerRule(rule.id, { textColor })
                     }
                   />
-                </div>
-                <button
+                </UiField>
+                <UiButton
                   aria-label={`删除行首规则 ${rule.label || rule.marker || rule.id}`}
-                  className="icon-action-button"
+                  className="syntax-rule-action"
                   onClick={() => actions.removeMarkerRule(rule.id)}
                   type="button"
+                  variant="icon"
                 >
                   <Trash2 aria-hidden="true" size={14} strokeWidth={2} />
-                </button>
+                </UiButton>
               </div>
             ))}
           </div>
-        </section>
+        </UiFormSection>
 
-        <section className="syntax-form-section">
-          <div className="syntax-form-section-header">
-            <h3>行内规则</h3>
+        <UiFormSection
+          actions={
             <div className="syntax-inline-actions">
-              <button
-                className="secondary-action-button"
+              <UiButton
                 onClick={() => actions.addInlineRule("paired")}
                 type="button"
+                variant="secondary"
               >
                 <Plus aria-hidden="true" size={14} strokeWidth={2} />
                 成对
-              </button>
-              <button
-                className="secondary-action-button"
+              </UiButton>
+              <UiButton
                 onClick={() => actions.addInlineRule("single")}
                 type="button"
+                variant="secondary"
               >
                 <Plus aria-hidden="true" size={14} strokeWidth={2} />
                 单符号
-              </button>
+              </UiButton>
             </div>
-          </div>
+          }
+          title="行内规则"
+        >
 
           <div className="syntax-rule-column-header syntax-inline-rule-columns">
             <span>类型</span>
@@ -265,12 +258,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
               const isProtectedRule = protectedInlineRuleIdSet.has(rule.id);
 
               return (
-                <div
-                  className="syntax-inline-rule-row syntax-inline-rule-columns"
-                  key={rule.id}
-                >
-                  <label className="syntax-field compact">
-                    <span>类型</span>
+                <div className="ui-form-row syntax-inline-rule-columns" key={rule.id}>
+                  <UiField hiddenLabel label="类型">
                     <select
                       disabled={isProtectedRule}
                       value={rule.kind}
@@ -286,9 +275,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       <option value="paired">成对</option>
                       <option value="single">单符号</option>
                     </select>
-                  </label>
-                  <div className="syntax-field syntax-symbol-field">
-                    <span>符号</span>
+                  </UiField>
+                  <UiField as="div" hiddenLabel label="符号">
                     {rule.kind === "paired" ? (
                       <div className="syntax-symbol-inputs">
                         <input
@@ -321,9 +309,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                         }
                       />
                     )}
-                  </div>
-                  <label className="syntax-field">
-                    <span>名称</span>
+                  </UiField>
+                  <UiField hiddenLabel label="名称">
                     <input
                       value={rule.label}
                       onChange={(event) =>
@@ -332,9 +319,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                         })
                       }
                     />
-                  </label>
-                  <div className="syntax-field syntax-tone-field">
-                    <span>背景</span>
+                  </UiField>
+                  <UiField as="div" hiddenLabel label="背景">
                     <TonePicker
                       ariaLabel={`${rule.label || rule.type || rule.id} 背景色`}
                       options={toneOptions}
@@ -343,9 +329,8 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                         actions.updateInlineRule(rule.id, { tone })
                       }
                     />
-                  </div>
-                  <div className="syntax-field syntax-tone-field">
-                    <span>字体</span>
+                  </UiField>
+                  <UiField as="div" hiddenLabel label="字体">
                     <TonePicker
                       ariaLabel={`${rule.label || rule.type || rule.id} 字体色`}
                       options={toneOptions}
@@ -354,7 +339,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                         actions.updateInlineRule(rule.id, { textColor })
                       }
                     />
-                  </div>
+                  </UiField>
                   {isProtectedRule ? (
                     <span
                       aria-label="全局概念引用是可视化依赖规则，不能删除"
@@ -362,21 +347,22 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
                       title="可视化依赖规则，不能删除"
                     />
                   ) : (
-                    <button
+                    <UiButton
                       aria-label={`删除行内规则 ${rule.label || rule.type || rule.id}`}
-                      className="icon-action-button"
+                      className="syntax-rule-action"
                       onClick={() => actions.removeInlineRule(rule.id)}
                       type="button"
+                      variant="icon"
                     >
                       <Trash2 aria-hidden="true" size={14} strokeWidth={2} />
-                    </button>
+                    </UiButton>
                   )}
                 </div>
               );
             })}
           </div>
-        </section>
+        </UiFormSection>
       </div>
-    </section>
+    </UiPanel>
   );
 }

@@ -1,4 +1,13 @@
 import type { UiReferenceGraphView } from "../../../application/workspace/projection/viewGraph";
+import {
+  UiList,
+  UiListRow,
+  UiPanel,
+  UiPanelBody,
+  UiPanelHeader,
+  UiSection,
+  UiSectionTitle,
+} from "../../shared/primitives";
 
 type NoteReferenceGraphDetailPanelProps = {
   graph: UiReferenceGraphView;
@@ -10,53 +19,52 @@ export function NoteReferenceGraphDetailPanel({
   const hasIssues = graph.unresolvedReferences.length > 0;
 
   return (
-    <aside className="activity-detail-panel" aria-label="可视化详情">
-      <header className="panel-header">
-        <div>
-          <h2>可视化</h2>
-        </div>
-      </header>
+    <UiPanel as="aside" aria-label="可视化详情" variant="detail">
+      <UiPanelHeader title="可视化" />
 
-      <div className="activity-detail-body">
-        <section className="activity-detail-section">
-          <p className="activity-detail-title">引用量最多</p>
+      <UiPanelBody>
+        <UiSection>
+          <UiSectionTitle>引用量最多</UiSectionTitle>
           {graph.mostReferencedNodes.length > 0 ? (
-            <ol className="visualization-rank-list">
+            <UiList as="ol" scroll variant="cards">
               {graph.mostReferencedNodes.map((node) => (
-                <li key={node.id}>
+                <UiListRow className="visualization-rank-row" key={node.id}>
                   <span>{node.title}</span>
                   <small>
                     入 {node.referencesIn} / 出 {node.referencesOut}
                   </small>
-                </li>
+                </UiListRow>
               ))}
-            </ol>
+            </UiList>
           ) : (
-            <p className="activity-muted">暂无引用关系。</p>
+            <p className="ui-muted">暂无引用关系。</p>
           )}
-        </section>
+        </UiSection>
 
         {!hasIssues ? (
-          <p className="activity-muted">没有需要处理的引用问题。</p>
+          <p className="ui-muted">没有需要处理的引用问题。</p>
         ) : null}
 
         {graph.unresolvedReferences.length > 0 ? (
-          <section className="activity-detail-section">
-            <p className="activity-detail-title">未匹配引用</p>
-            <ul className="visualization-detail-list">
+          <UiSection>
+            <UiSectionTitle>未匹配引用</UiSectionTitle>
+            <UiList scroll variant="cards">
               {graph.unresolvedReferences.slice(0, 24).map((reference) => (
-                <li key={`${reference.sourceNoteId}-${reference.targetText}`}>
+                <UiListRow
+                  className="visualization-detail-row"
+                  key={`${reference.sourceNoteId}-${reference.targetText}`}
+                >
                   <span>{reference.sourceTitle}</span>
                   <strong>?</strong>
                   <span>{reference.targetText}</span>
                   {reference.count > 1 ? <small>×{reference.count}</small> : null}
-                </li>
+                </UiListRow>
               ))}
-            </ul>
-          </section>
+            </UiList>
+          </UiSection>
         ) : null}
 
-      </div>
-    </aside>
+      </UiPanelBody>
+    </UiPanel>
   );
 }

@@ -1,5 +1,9 @@
 import { useState } from "react";
 import type { UiMigrationView } from "../../../application/workspace/projection/viewMigration";
+import {
+  UiPanel,
+  UiPanelHeader,
+} from "../../shared/primitives";
 import { BlockMigrationView } from "./BlockMigrationView";
 import { MigrationNoteSelectionView } from "./MigrationNoteSelectionView";
 
@@ -22,18 +26,13 @@ export function MigrationMainPanel({
   const [mode, setMode] = useState<MigrationMode>("note");
 
   return (
-    <section
-      className="activity-main-panel migration-full-width migration-main-panel"
+    <UiPanel
+      className="migration-main-panel"
       aria-label="块迁移"
+      fullWidth
+      variant="main"
     >
-      <header className="panel-header">
-        <div>
-          <h2>块迁移</h2>
-        </div>
-        <div className="stats">
-          <span>拖拽释放即迁移</span>
-        </div>
-      </header>
+      <UiPanelHeader stats={["拖拽释放即迁移"]} title="块迁移" />
 
       <div className="migration-mode-tabs">
         <button
@@ -72,6 +71,6 @@ export function MigrationMainPanel({
           targetRoots={view.targetRoots}
         />
       )}
-    </section>
+    </UiPanel>
   );
 }

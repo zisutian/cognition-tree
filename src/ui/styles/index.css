@@ -3,12 +3,10 @@
 @import "./frame/layout.css";
 @import "./frame/sidebar.css";
 @import "./shared/scrollbars.css";
+@import "./shared/primitives.css";
 @import "./shared/tree.css";
 @import "./shared/blockText.css";
-@import "./shared/panels.css";
-@import "./shared/controls.css";
 @import "./activities/notes.css";
-@import "./activities/placeholders.css";
 @import "./activities/syntax.css";
 @import "./activities/migration.css";
 @import "./activities/visualization.css";

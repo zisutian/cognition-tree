@@ -3,6 +3,11 @@ import type {
   UiReferenceGraphNode,
   UiReferenceGraphView,
 } from "../../../application/workspace/projection/viewGraph";
+import {
+  UiEmptyState,
+  UiPanel,
+  UiPanelHeader,
+} from "../../shared/primitives";
 
 type NoteReferenceGraphPanelProps = {
   graph: UiReferenceGraphView;
@@ -66,17 +71,15 @@ export function NoteReferenceGraphPanel({
     [graph.nodes],
   );
   return (
-    <section className="activity-main-panel visualization-main-panel" aria-label="可视化">
-      <header className="panel-header">
-        <div>
-          <h2>笔记引用图谱</h2>
-        </div>
-        <div className="stats">
-          <span>{graph.stats.nodeCount} 点</span>
-          <span>{graph.stats.edgeCount} 边</span>
-          <span>{graph.stats.isolatedCount} 孤立</span>
-        </div>
-      </header>
+    <UiPanel className="visualization-main-panel" aria-label="可视化" variant="main">
+      <UiPanelHeader
+        stats={[
+          `${graph.stats.nodeCount} 点`,
+          `${graph.stats.edgeCount} 边`,
+          `${graph.stats.isolatedCount} 孤立`,
+        ]}
+        title="笔记引用图谱"
+      />
 
       <div className="visualization-graph-surface">
         {graph.nodes.length > 0 ? (
@@ -145,12 +148,14 @@ export function NoteReferenceGraphPanel({
             </g>
           </svg>
         ) : (
-          <div className="visualization-empty-state">
-            <h3>没有笔记</h3>
-            <p>创建笔记后会在这里显示点状引用图谱。</p>
-          </div>
+          <UiEmptyState
+            className="visualization-empty-state"
+            description="创建笔记后会在这里显示点状引用图谱。"
+            fill
+            title="没有笔记"
+          />
         )}
       </div>
-    </section>
+    </UiPanel>
   );
 }

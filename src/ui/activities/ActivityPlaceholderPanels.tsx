@@ -1,3 +1,8 @@
+import {
+  UiEmptyState,
+  UiPanel,
+} from "../shared/primitives";
+
 type ActivitySidebarPlaceholderProps = {
   entries: string[];
   label: string;
@@ -40,14 +45,13 @@ export function ActivityMainPlaceholder({
   label,
 }: ActivityMainPlaceholderProps) {
   return (
-    <section
+    <UiPanel
       aria-label={`${label}待接入`}
-      className="activity-main-panel migration-full-width activity-placeholder-panel"
+      centered
+      fullWidth
+      variant="main"
     >
-      <div className="activity-placeholder-empty">
-        <h2>{label}</h2>
-        <p>{description}</p>
-      </div>
-    </section>
+      <UiEmptyState description={description} title={label} />
+    </UiPanel>
   );
 }

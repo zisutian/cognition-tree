@@ -44,7 +44,7 @@
 }
 
 .app-frame.activity-notes .app-sidebar {
-  color: var(--note-text);
+  color: var(--color-fg);
   background: var(--color-side-bar);
 }
 
@@ -60,7 +60,7 @@
 }
 
 .app-frame.activity-notes .activity-bar {
-  border-right-color: var(--note-border);
+  border-right-color: var(--color-border);
   background: var(--color-activity-bar);
 }
 
@@ -118,7 +118,7 @@
 
 .app-frame.activity-notes .activity-button:hover,
 .app-frame.activity-notes .activity-button.active {
-  color: var(--note-text);
+  color: var(--color-fg);
   background: var(--color-selection);
 }
 
@@ -133,7 +133,7 @@
 }
 
 .app-frame.activity-notes .activity-button.active::before {
-  background: var(--note-accent);
+  background: var(--color-accent);
 }
 
 .side-panel {

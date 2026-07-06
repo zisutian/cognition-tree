@@ -3,6 +3,16 @@ import type {
   UiSyntaxProfileDraftBuildResult,
   UiSyntaxTone,
 } from "../../../application/workspace/projection/viewSyntax";
+import {
+  UiList,
+  UiListRow,
+  UiPanel,
+  UiPanelBody,
+  UiPanelHeader,
+  UiSection,
+  UiSectionTitle,
+  UiStatus,
+} from "../../shared/primitives";
 
 type SyntaxProfileFeedback = {
   message: string;
@@ -41,83 +51,81 @@ export function SyntaxProfileDetailPanel({
   const diagnostics = draftResult.diagnostics;
 
   return (
-    <aside className="activity-detail-panel" aria-label="语法状态">
-      <header className="panel-header">
-        <div>
-          <h2>语法</h2>
-        </div>
-        <div className="stats">
-          <span>{diagnostics.length} 校验</span>
-        </div>
-      </header>
+    <UiPanel as="aside" aria-label="语法状态" variant="detail">
+      <UiPanelHeader stats={[`${diagnostics.length} 校验`]} title="语法" />
 
-      <div className="activity-detail-body">
+      <UiPanelBody>
         {feedback ? (
-          <section className={`activity-status ${feedback.status}`}>
+          <UiStatus tone={feedback.status}>
             <p>{feedback.message}</p>
-          </section>
+          </UiStatus>
         ) : null}
 
-        <section className="activity-detail-section">
-          <p className="activity-detail-title">生成摘要</p>
+        <UiSection>
+          <UiSectionTitle>生成摘要</UiSectionTitle>
           {draftProfile ? (
-            <dl className="activity-definition-list">
-              <div>
+            <UiList as="dl" variant="definition">
+              <UiListRow as="div">
                 <dt>名称</dt>
                 <dd>{draftProfile.name}</dd>
-              </div>
-              <div>
+              </UiListRow>
+              <UiListRow as="div">
                 <dt>Tab</dt>
                 <dd>{draftProfile.tabDisplayWidth}</dd>
-              </div>
-              <div>
+              </UiListRow>
+              <UiListRow as="div">
                 <dt>行首</dt>
                 <dd>{draftProfile.markerRules.length + 1}</dd>
-              </div>
-              <div>
+              </UiListRow>
+              <UiListRow as="div">
                 <dt>行内</dt>
                 <dd>{draftProfile.inlineRules.length}</dd>
-              </div>
-            </dl>
+              </UiListRow>
+            </UiList>
           ) : (
-            <p className="activity-muted">无有效 profile</p>
+            <p className="ui-muted">无有效 profile</p>
           )}
-        </section>
+        </UiSection>
 
-        <section className="activity-detail-section">
-          <p className="activity-detail-title">行首规则</p>
+        <UiSection>
+          <UiSectionTitle>行首规则</UiSectionTitle>
           {draftProfile ? (
-            <div className="activity-marker-list">
-              <div className="activity-marker-entry">
+            <UiList as="div" variant="cards">
+              <UiListRow as="div" className="syntax-marker-row">
                 <code>顶格</code>
                 <ToneSwatch label="背景" tone={draftProfile.conceptRule.tone} />
                 <ToneSwatch
                   label="字体"
                   tone={draftProfile.conceptRule.textColor}
                 />
-                <span className="activity-marker-label">
+                <span className="syntax-marker-label">
                   {draftProfile.conceptRule.label}
                 </span>
-              </div>
+              </UiListRow>
               {draftProfile.markerRules.map((rule) => (
-                <div className="activity-marker-entry" key={rule.marker}>
+                <UiListRow
+                  as="div"
+                  className="syntax-marker-row"
+                  key={rule.marker}
+                >
                   <code>{rule.marker}</code>
                   <ToneSwatch label="背景" tone={rule.tone} />
                   <ToneSwatch label="字体" tone={rule.textColor} />
-                  <span className="activity-marker-label">{rule.label}</span>
-                </div>
+                  <span className="syntax-marker-label">{rule.label}</span>
+                </UiListRow>
               ))}
-            </div>
+            </UiList>
           ) : null}
-        </section>
+        </UiSection>
 
-        <section className="activity-detail-section">
-          <p className="activity-detail-title">行内规则</p>
+        <UiSection>
+          <UiSectionTitle>行内规则</UiSectionTitle>
           {draftProfile ? (
-            <div className="activity-marker-list">
+            <UiList as="div" variant="cards">
               {draftProfile.inlineRules.map((rule) => (
-                <div
-                  className="activity-marker-entry"
+                <UiListRow
+                  as="div"
+                  className="syntax-marker-row"
                   key={
                     rule.kind === "paired"
                       ? `${rule.kind}-${rule.open}-${rule.close}`
@@ -131,27 +139,27 @@ export function SyntaxProfileDetailPanel({
                   </code>
                   <ToneSwatch label="背景" tone={rule.tone} />
                   <ToneSwatch label="字体" tone={rule.textColor} />
-                  <span className="activity-marker-label">{rule.label}</span>
-                </div>
+                  <span className="syntax-marker-label">{rule.label}</span>
+                </UiListRow>
               ))}
-            </div>
+            </UiList>
           ) : null}
-        </section>
+        </UiSection>
 
         {diagnostics.length > 0 ? (
-          <section className="activity-detail-section">
-            <p className="activity-detail-title">校验问题</p>
-            <ul className="activity-diagnostic-list">
+          <UiSection>
+            <UiSectionTitle>校验问题</UiSectionTitle>
+            <UiList variant="diagnostic" scroll>
               {diagnostics.map((diagnostic, index) => (
-                <li key={`${diagnostic.path}-${index}`}>
+                <UiListRow key={`${diagnostic.path}-${index}`}>
                   <span>{diagnostic.path}</span>
                   <p>{diagnostic.message}</p>
-                </li>
+                </UiListRow>
               ))}
-            </ul>
-          </section>
+            </UiList>
+          </UiSection>
         ) : null}
-      </div>
-    </aside>
+      </UiPanelBody>
+    </UiPanel>
   );
 }

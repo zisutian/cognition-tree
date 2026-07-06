@@ -1,6 +1,11 @@
 import { type CSSProperties, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
+import {
+  UiButton,
+  UiPanel,
+  UiPanelHeader,
+} from "../../shared/primitives";
 import { NoteOutlineTree } from "./NoteOutlineTree";
 
 const outlineZoomMin = 0.8;
@@ -71,45 +76,53 @@ export function NoteOutlinePanel({
   };
 
   return (
-    <aside className="outline-panel note-outline-panel" aria-label="笔记结构预览">
-      <header className="panel-header">
-        <div>
-          <h2>笔记结构</h2>
-        </div>
+    <UiPanel
+      as="aside"
+      className="note-outline-panel"
+      aria-label="笔记结构预览"
+      variant="outline"
+    >
+      <UiPanelHeader
+        actions={
         <div className="outline-zoom-controls" aria-label="笔记结构树缩放">
-          <button
+          <UiButton
             aria-label="缩小笔记结构树"
             className="outline-icon-button"
             disabled={outlineZoom <= outlineZoomMin}
             onClick={() => changeOutlineZoom(-outlineZoomStep)}
             title="缩小笔记结构树"
             type="button"
+            variant="icon"
           >
             <Minus aria-hidden="true" size={14} strokeWidth={2} />
-          </button>
+          </UiButton>
           <span className="outline-zoom-value">{outlineZoomPercent}%</span>
-          <button
+          <UiButton
             aria-label="放大笔记结构树"
             className="outline-icon-button"
             disabled={outlineZoom >= outlineZoomMax}
             onClick={() => changeOutlineZoom(outlineZoomStep)}
             title="放大笔记结构树"
             type="button"
+            variant="icon"
           >
             <Plus aria-hidden="true" size={14} strokeWidth={2} />
-          </button>
-          <button
+          </UiButton>
+          <UiButton
             aria-label="重置笔记结构树缩放"
             className="outline-icon-button"
             disabled={outlineZoom === outlineZoomDefault}
             onClick={() => setOutlineZoom(outlineZoomDefault)}
             title="重置笔记结构树缩放"
             type="button"
+            variant="icon"
           >
             <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
-          </button>
+          </UiButton>
         </div>
-      </header>
+        }
+        title="笔记结构"
+      />
 
       <div className="outline-body" style={outlineBodyStyle}>
         {nodes.length > 0 ? (
@@ -123,6 +136,6 @@ export function NoteOutlinePanel({
           <p className="empty-outline">没有可解析的结构</p>
         )}
       </div>
-    </aside>
+    </UiPanel>
   );
 }

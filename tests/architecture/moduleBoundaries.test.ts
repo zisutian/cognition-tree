@@ -283,15 +283,13 @@ describe("architecture module boundaries", () => {
     ]);
     expect(listAllFileNames("ui/styles/shared")).toEqual([
       "blockText.css",
-      "controls.css",
-      "panels.css",
+      "primitives.css",
       "scrollbars.css",
       "tree.css",
     ]);
     expect(listAllFileNames("ui/styles/activities")).toEqual([
       "migration.css",
       "notes.css",
-      "placeholders.css",
       "syntax.css",
       "visualization.css",
     ]);
@@ -306,7 +304,10 @@ describe("architecture module boundaries", () => {
       "syntax",
       "visualization",
     ]);
-    expect(listSubdirectories("ui/shared")).toEqual(["blocks"]);
+    expect(listSubdirectories("ui/shared")).toEqual([
+      "blocks",
+      "primitives",
+    ]);
     expect(listSourceFileNames("ui/activities/migration")).toEqual([
       "BlockMigrationView.tsx",
       "MigrationMainPanel.tsx",
@@ -320,6 +321,83 @@ describe("architecture module boundaries", () => {
       "BlockTextDisplay.tsx",
       "BlockTree.tsx",
     ]);
+    expect(listSourceFileNames("ui/shared/primitives")).toEqual([
+      "UiButton.tsx",
+      "UiEmptyState.tsx",
+      "UiField.tsx",
+      "UiList.tsx",
+      "UiPanel.tsx",
+      "UiStatus.tsx",
+      "classNames.ts",
+      "index.ts",
+    ]);
+  });
+
+  it("keeps activity styles from redefining shared primitives", () => {
+    const primitiveSelectorDefinitions = Object.entries(sourceStyleModules)
+      .filter(([filePath]) =>
+        filePath.startsWith("../../src/ui/styles/activities/"),
+      )
+      .flatMap(([filePath, source]) =>
+        source
+          .split("\n")
+          .map((line, index) => ({ filePath, index, line }))
+          .filter(({ line }) => /^\s*\.ui-[\w-]/.test(line))
+          .map(({ filePath, index, line }) =>
+            `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`,
+          ),
+      );
+
+    expect(primitiveSelectorDefinitions).toEqual([]);
+  });
+
+  it("keeps hard-coded style colors centralized in the theme", () => {
+    const hardCodedColorPattern = /#[0-9a-fA-F]{3,8}\b|rgba?\(/;
+    const violations = Object.entries(sourceStyleModules)
+      .filter(
+        ([filePath]) =>
+          filePath !== "../../src/ui/styles/foundation/theme.css",
+      )
+      .flatMap(([filePath, source]) =>
+        source
+          .split("\n")
+          .map((line, index) => ({ filePath, index, line }))
+          .filter(({ line }) => hardCodedColorPattern.test(line))
+          .map(({ filePath, index, line }) =>
+            `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`,
+          ),
+      );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps removed style aliases and dead primitive classes out of source", () => {
+    const forbiddenStylePatterns = [
+      /--note-/,
+      /--font-weight-medium/,
+      /--space-9/,
+      /--color-warning/,
+      /--color-warning-soft/,
+      /ui-field-compact/,
+      /ui-list-plain/,
+      /ui-status-warning/,
+      /ui-status-neutral/,
+      /diagnostics-panel/,
+      /diagnostic-location/,
+    ];
+    const violations = listAllSourcePaths().flatMap((filePath) => {
+      const source = sourceModules[filePath] ?? sourceStyleModules[filePath] ?? "";
+
+      return source
+        .split("\n")
+        .flatMap((line, index) =>
+          forbiddenStylePatterns.some((pattern) => pattern.test(line))
+            ? [`${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`]
+            : [],
+        );
+    });
+
+    expect(violations).toEqual([]);
   });
 
   it("keeps workspace submodules explicitly named", () => {

@@ -43,7 +43,7 @@
 .app-frame.activity-notes .ctn-tree-main.is-active,
 .note-outline-panel .ctn-tree-row:hover,
 .note-outline-panel .ctn-tree-row.is-active {
-  background: var(--note-selection-background);
+  background: var(--color-selection);
   box-shadow: none;
 }
 

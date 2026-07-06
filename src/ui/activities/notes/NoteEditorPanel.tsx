@@ -4,6 +4,15 @@ import {
   type CtnEditorSyntaxProfile,
 } from "../../../editor/CtnEditor";
 import type { UiEditorDiagnostic } from "../../../application/workspace/projection/viewEditor";
+import {
+  UiButton,
+  UiEmptyState,
+  UiList,
+  UiListRow,
+  UiPanel,
+  UiPanelHeader,
+  UiStatus,
+} from "../../shared/primitives";
 
 export function NoteEditorPanel({
   diagnostics,
@@ -35,21 +44,19 @@ export function NoteEditorPanel({
   onDocumentTextChange: (source: string) => void;
 }) {
   return (
-    <section className="editor-panel note-editor-panel" aria-label="原文编辑">
-      <header className="panel-header">
-        <div>
-          <h2>笔记编辑</h2>
-        </div>
-        <div className="stats">
-          <span className="current-note-chip">
+    <UiPanel className="note-editor-panel" aria-label="原文编辑" variant="editor">
+      <UiPanelHeader
+        stats={[
+          <span className="current-note-chip" key="current">
             {currentNoteTitle ? `当前：${currentNoteTitle}` : "未选择笔记"}
-          </span>
-          <span>{lineCount} 行</span>
-          <span>{totalBlocks} 个块</span>
-          <span>{rootCount} 个根节点</span>
-          <span>{totalDiagnostics} 个诊断</span>
-        </div>
-      </header>
+          </span>,
+          `${lineCount} 行`,
+          `${totalBlocks} 个块`,
+          `${rootCount} 个根节点`,
+          `${totalDiagnostics} 个诊断`,
+        ]}
+        title="笔记编辑"
+      />
 
       {hasActiveNote ? (
         <CtnEditor
@@ -59,36 +66,36 @@ export function NoteEditorPanel({
           onChange={onDocumentTextChange}
         />
       ) : (
-        <div className="empty-editor">
-          <h3>尚无笔记</h3>
-          <button className="primary-action-button" onClick={onCreateNote} type="button">
-            新建笔记
-          </button>
-        </div>
+        <UiEmptyState
+          actions={
+            <UiButton onClick={onCreateNote} type="button" variant="primary">
+              新建笔记
+            </UiButton>
+          }
+          fill
+          title="尚无笔记"
+        />
       )}
 
       {errorMessage ? (
-        <section className="diagnostics-panel" aria-label="工作区状态">
-          <h3>工作区</h3>
+        <UiStatus aria-label="工作区状态" tone="error">
           <p>{errorMessage}</p>
-        </section>
+        </UiStatus>
       ) : null}
 
       {hasActiveNote && diagnostics.length > 0 ? (
-        <section className="diagnostics-panel" aria-label="诊断">
-          <h3>诊断</h3>
-          <ul>
+        <UiStatus aria-label="诊断" tone="error">
+          <p>诊断</p>
+          <UiList variant="diagnostic">
             {diagnostics.map((diagnostic) => (
-              <li key={diagnostic.id}>
-                <span className="diagnostic-location">
-                  L{diagnostic.lineNumber}
-                </span>
+              <UiListRow className="note-diagnostic-row" key={diagnostic.id}>
+                <span>L{diagnostic.lineNumber}</span>
                 <span>{diagnostic.message}</span>
-              </li>
+              </UiListRow>
             ))}
-          </ul>
-        </section>
+          </UiList>
+        </UiStatus>
       ) : null}
-    </section>
+    </UiPanel>
   );
 }

@@ -33,105 +33,10 @@
 }
 
 .app-frame.activity-notes {
-  background: var(--note-page-background);
+  background: var(--color-editor);
 }
 
-.panel-header h2,
-.panel-header p,
 .side-panel-header h1,
 .side-section-title {
   margin: 0;
-}
-
-.editor-panel,
-.outline-panel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  padding: 16px;
-}
-
-.editor-panel {
-  grid-area: editor;
-  gap: 10px;
-}
-
-.outline-panel {
-  grid-area: outline;
-}
-
-.panel-header {
-  --header-chip-color: var(--color-fg);
-  --header-chip-muted-color: var(--color-fg-muted);
-  --header-chip-border: var(--color-border-strong);
-  --header-chip-background: transparent;
-  --header-chip-hover-background: var(--color-hover);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  min-height: 42px;
-}
-
-.panel-header h2 {
-  flex: 0 0 auto;
-  color: var(--color-fg-strong);
-  font-size: var(--font-size-page-title);
-  line-height: 1.15;
-}
-
-.stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  color: var(--header-chip-muted-color);
-  font-size: var(--font-size-xs);
-}
-
-.stats span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 3px 7px;
-  border: 1px solid var(--header-chip-border);
-  border-radius: 7px;
-  color: var(--header-chip-muted-color);
-  background: var(--header-chip-background);
-  white-space: nowrap;
-}
-
-.stats .current-note-chip {
-  max-width: 220px;
-  overflow: hidden;
-  color: var(--header-chip-color);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.primary-action-button {
-  min-height: 30px;
-  padding: 5px 10px;
-  border-radius: var(--radius-lg);
-  color: var(--color-fg-strong);
-  background: var(--color-button);
-  cursor: pointer;
-}
-
-.primary-action-button:hover {
-  background: var(--color-button-hover);
-}
-
-.panel-header .primary-action-button {
-  min-height: 24px;
-  padding: 3px 7px;
-  border: 1px solid var(--header-chip-border);
-  border-radius: var(--radius-lg);
-  color: var(--header-chip-color);
-  background: var(--header-chip-background);
-}
-
-.panel-header .primary-action-button:hover {
-  background: var(--header-chip-hover-background);
 }

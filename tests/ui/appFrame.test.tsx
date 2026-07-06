@@ -21,7 +21,7 @@ function renderAppFrame({
       activityItems={activityItems}
       detailSlot={null}
       isSidebarResizing={false}
-      mainSlot={<section className="editor-panel">main</section>}
+      mainSlot={<section className="ui-panel ui-panel-editor">main</section>}
       sidebarCollapsed={sidebarCollapsed}
       sidebarResizeValue={sidebarWidth ?? 292}
       sidebarSlot={<div>sidebar</div>}

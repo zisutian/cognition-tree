@@ -10,6 +10,12 @@ import type { UiBlockNode } from "../../../application/workspace/projection/view
 import type { UiNoteSummary } from "../../../application/workspace/projection/viewTree";
 import { BlockTextDisplay } from "../../shared/blocks/BlockTextDisplay";
 import {
+  UiList,
+  UiListRow,
+  UiSection,
+  UiSectionTitle,
+} from "../../shared/primitives";
+import {
   blockDragDataType,
   createBlockDragLineNumberPayload,
   readBlockDragLineNumberPayload,
@@ -134,9 +140,9 @@ export function BlockMigrationView({
   return (
     <div className="migration-grid">
       <section className="migration-column">
-        <p className="activity-detail-title">
+        <UiSectionTitle>
           源 · {sourceNote?.title ?? "—"}
-        </p>
+        </UiSectionTitle>
         <div className="migration-tree-panel">
           {sourceRoots.length > 0 ? (
             <MigrationSourceTree
@@ -146,19 +152,20 @@ export function BlockMigrationView({
               onDragStart={startSourceBlockDrag}
             />
           ) : (
-            <p className="migration-empty-state">源笔记没有可移动块。</p>
+            <p className="ui-muted">源笔记没有可移动块。</p>
           )}
         </div>
-        <section className="migration-selection-card">
-          <p className="activity-detail-title">将移动的子树</p>
+        <UiSection className="ui-section-framed migration-selection-panel">
+          <UiSectionTitle>将移动的子树</UiSectionTitle>
           {sourceBlock ? (
             <>
               <p>
                 {sourceBlock.lineLabel} · {sourceSubtreeBlocks.length} 块
               </p>
-              <ul className="migration-subtree-list">
+              <UiList className="migration-subtree-list" scroll>
                 {sourceSubtreeBlocks.map((block) => (
-                  <li
+                  <UiListRow
+                    className="migration-subtree-row"
                     key={block.id}
                     style={{ paddingLeft: `${block.level * 12}px` }}
                   >
@@ -167,20 +174,20 @@ export function BlockMigrationView({
                       className="migration-subtree-node-text"
                       text={block.textDisplay}
                     />
-                  </li>
+                  </UiListRow>
                 ))}
-              </ul>
+              </UiList>
             </>
           ) : (
             <p>尚未选择源块。</p>
           )}
-        </section>
+        </UiSection>
       </section>
 
       <section className="migration-column">
-        <p className="activity-detail-title">
+        <UiSectionTitle>
           目标 · {targetNote?.title ?? "—"}
-        </p>
+        </UiSectionTitle>
         <div className="migration-tree-panel">
           {targetRoots.length > 0 ? (
             <MigrationTargetTree
@@ -194,7 +201,7 @@ export function BlockMigrationView({
               onDropPosition={dropOnTargetPosition}
             />
           ) : (
-            <p className="migration-empty-state">
+            <p className="ui-muted">
               目标笔记没有结构，当前只能插入文末。
             </p>
           )}
@@ -209,14 +216,14 @@ export function BlockMigrationView({
             />
           ) : null}
         </div>
-        <section className="migration-selection-card">
-          <p className="activity-detail-title">目标插入位置</p>
+        <UiSection className="ui-section-framed migration-selection-panel">
+          <UiSectionTitle>目标插入位置</UiSectionTitle>
           {activeDropLabel ? (
             <p>当前投放位置：{activeDropLabel}。</p>
           ) : (
             <p>拖到目标块后显示上方并列、下方并列和作为子结点投放区。</p>
           )}
-        </section>
+        </UiSection>
       </section>
     </div>
   );
