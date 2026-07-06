@@ -413,6 +413,11 @@
   border-radius: 0;
 }
 
+.note-tree .note-folder-row,
+.note-tree .note-item-row-content {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .note-tree .ctn-tree-row-with-toggle {
   grid-template-columns: 24px minmax(0, 1fr);
 }
@@ -427,6 +432,11 @@
   gap: 2px;
   padding: 2px 4px;
   font-size: var(--font-size-sm);
+}
+
+.note-tree .ctn-tree-row > .ctn-tree-main {
+  min-width: 0;
+  background: transparent;
 }
 
 .note-tree .ctn-tree-main-compact {
@@ -488,7 +498,7 @@
 }
 
 .note-folder-row.is-dragging,
-.note-item.is-dragging {
+.note-item-row-content.is-dragging {
   opacity: 0.48;
 }
 
@@ -513,6 +523,36 @@
 .note-item-row {
   position: relative;
   min-height: 24px;
+}
+
+.note-tree-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  padding-right: 2px;
+}
+
+.note-tree-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--color-fg-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.note-tree-row-action:hover {
+  color: var(--color-fg-strong);
+  background: var(--color-hover);
+}
+
+.note-tree-row-action:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: 1px;
 }
 
 .sidebar-context-menu {

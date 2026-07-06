@@ -23,6 +23,7 @@ import {
   moveWorkspaceNote,
   moveWorkspaceTreeNode,
   renameWorkspaceFolder,
+  renameWorkspaceNote,
   updateWorkspaceNoteSource,
 } from "../../../src/workspace/commands/workspaceCommands";
 
@@ -135,6 +136,50 @@ describe("workspace actions", () => {
     });
   });
 
+  it("renames notes by updating the first non-empty source line", () => {
+    const workspace = updateWorkspaceNoteSource(
+      indexWorkspace(createWorkspaceWithNotes()),
+      "note-first",
+      "\n旧标题\n\t: 定义",
+      "2026-06-08T01:00:00.000Z",
+    );
+    const renamed = renameWorkspaceNote(
+      indexWorkspace(workspace),
+      "note-first",
+      "  新标题  ",
+      "2026-06-08T02:00:00.000Z",
+    );
+
+    expect(renamed.notes[0]).toMatchObject({
+      source: "\n新标题\n\t: 定义",
+      title: "新标题",
+      updatedAt: "2026-06-08T02:00:00.000Z",
+    });
+  });
+
+  it("renames notes with blank source by writing the title", () => {
+    const workspace = createWorkspaceNote(
+      indexWorkspace(createInitialWorkspaceData()),
+      {
+        folderId: "folder-inbox",
+        noteId: "note-new",
+        timestamp,
+      },
+    );
+    const renamed = renameWorkspaceNote(
+      indexWorkspace(workspace),
+      "note-new",
+      "新笔记",
+      "2026-06-08T02:00:00.000Z",
+    );
+
+    expect(renamed.notes[0]).toMatchObject({
+      source: "新笔记",
+      title: "新笔记",
+      updatedAt: "2026-06-08T02:00:00.000Z",
+    });
+  });
+
   it("moves sidebar tree nodes within or across folders", () => {
     const workspace = createWorkspaceWithNotes();
     const movedBeforeNote = moveWorkspaceTreeNode(indexWorkspace(workspace), {
@@ -196,6 +241,22 @@ describe("workspace actions", () => {
     expect(() =>
       renameWorkspaceFolder(indexWorkspace(workspace), "missing-folder", "资料"),
     ).toThrow("Workspace folder does not exist");
+    expect(() =>
+      renameWorkspaceNote(
+        indexWorkspace(workspace),
+        "note-first",
+        "   ",
+        timestamp,
+      ),
+    ).toThrow("Workspace note title is required");
+    expect(() =>
+      renameWorkspaceNote(
+        indexWorkspace(workspace),
+        "missing-note",
+        "新标题",
+        timestamp,
+      ),
+    ).toThrow("Workspace note does not exist");
     expect(() =>
       deleteWorkspaceNote(indexWorkspace(workspace), "missing-note"),
     ).toThrow("Workspace note does not exist");

@@ -73,6 +73,7 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     },
     reload: async () => undefined,
     renameFolder: () => undefined,
+    renameNote: () => undefined,
     selectFolder: () => undefined,
     selectNote: () => undefined,
     sidebar: {

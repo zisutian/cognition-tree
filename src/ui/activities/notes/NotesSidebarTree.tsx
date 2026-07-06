@@ -1,6 +1,8 @@
 import {
   ChevronDown,
   ChevronRight,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import type { DragEvent, MouseEvent } from "react";
 import type {
@@ -24,11 +26,13 @@ export type TreeContextMenuPosition = {
 
 type NotesSidebarTreeProps = {
   activeDropTargetKey: string | null;
-  activeFolderId: UiFolderId;
-  activeNoteId: UiNoteId | null;
   collapsedFolderIds: Set<UiFolderId>;
+  defaultFolderId: UiFolderId;
   draggingNodeKey: string | null;
   nodes: UiTreeNode[];
+  selectedTreeNodeKey: string | null;
+  onDeleteFolder: (folderId: UiFolderId, title: string) => void;
+  onDeleteNote: (noteId: UiNoteId, title: string) => void;
   onDragEnd: () => void;
   onDragLeaveDropTarget: (dropTargetKey: string) => void;
   onDragOverDropTarget: (
@@ -59,6 +63,8 @@ type NotesSidebarTreeProps = {
     folderId: UiFolderId | null,
     position: TreeContextMenuPosition,
   ) => void;
+  onRenameFolder: (folderId: UiFolderId, title: string) => void;
+  onRenameNote: (noteId: UiNoteId, title: string) => void;
   onSelectFolder: (folderId: UiFolderId) => void;
   onSelectNote: (noteId: UiNoteId) => void;
   onToggleFolder: (folderId: UiFolderId) => void;
@@ -112,13 +118,56 @@ function SidebarTreeDropZone({
   );
 }
 
+function SidebarTreeRowActions({
+  deleteLabel,
+  onDelete,
+  onRename,
+  renameLabel,
+}: {
+  deleteLabel: string;
+  onDelete: () => void;
+  onRename: () => void;
+  renameLabel: string;
+}) {
+  return (
+    <span className="note-tree-row-actions">
+      <button
+        aria-label={renameLabel}
+        className="note-tree-row-action"
+        onClick={(event) => {
+          event.stopPropagation();
+          onRename();
+        }}
+        title={renameLabel}
+        type="button"
+      >
+        <Pencil aria-hidden="true" size={13} strokeWidth={2} />
+      </button>
+      <button
+        aria-label={deleteLabel}
+        className="note-tree-row-action"
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
+        title={deleteLabel}
+        type="button"
+      >
+        <Trash2 aria-hidden="true" size={13} strokeWidth={2} />
+      </button>
+    </span>
+  );
+}
+
 export function NotesSidebarTree({
   activeDropTargetKey,
-  activeFolderId,
-  activeNoteId,
   collapsedFolderIds,
+  defaultFolderId,
   draggingNodeKey,
   nodes,
+  selectedTreeNodeKey,
+  onDeleteFolder,
+  onDeleteNote,
   onDragEnd,
   onDragLeaveDropTarget,
   onDragOverDropTarget,
@@ -126,6 +175,8 @@ export function NotesSidebarTree({
   onDropOnTreeNode,
   onOpenFolderMenu,
   onOpenNoteMenu,
+  onRenameFolder,
+  onRenameNote,
   onSelectFolder,
   onSelectNote,
   onToggleFolder,
@@ -164,6 +215,7 @@ export function NotesSidebarTree({
         if (node.kind === "folder") {
           const isCollapsed = collapsedFolderIds.has(node.folderId);
           const hasChildren = node.children.length > 0;
+          const isSelectedFolder = selectedTreeNodeKey === nodeKey;
           const openFolderMenu = (event: MouseEvent<HTMLDivElement>) => {
             event.preventDefault();
             event.stopPropagation();
@@ -197,9 +249,7 @@ export function NotesSidebarTree({
                   className={
                     [
                       "ctn-tree-row note-folder-row",
-                      node.folderId === activeFolderId
-                        ? "is-active active"
-                        : "",
+                      isSelectedFolder ? "is-active active" : "",
                       isDragging ? "is-dragging" : "",
                       activeDropTargetKey ===
                         getSidebarTreeDropTargetKey({
@@ -249,6 +299,18 @@ export function NotesSidebarTree({
                     </span>
                     <span className="ctn-tree-text">{node.title}</span>
                   </button>
+                  {isSelectedFolder && node.folderId !== defaultFolderId ? (
+                    <SidebarTreeRowActions
+                      deleteLabel="删除文件夹"
+                      renameLabel="重命名文件夹"
+                      onDelete={() =>
+                        onDeleteFolder(node.folderId, node.title)
+                      }
+                      onRename={() =>
+                        onRenameFolder(node.folderId, node.title)
+                      }
+                    />
+                  ) : null}
                 </div>
                 <SidebarTreeDropZone
                   activeDropTargetKey={activeDropTargetKey}
@@ -264,12 +326,14 @@ export function NotesSidebarTree({
                 <div className="ctn-tree-children note-folder-children">
                   {hasChildren ? (
                     <NotesSidebarTree
-                      activeFolderId={activeFolderId}
-                      activeNoteId={activeNoteId}
                       activeDropTargetKey={activeDropTargetKey}
                       collapsedFolderIds={collapsedFolderIds}
+                      defaultFolderId={defaultFolderId}
                       draggingNodeKey={draggingNodeKey}
                       nodes={node.children}
+                      selectedTreeNodeKey={selectedTreeNodeKey}
+                      onDeleteFolder={onDeleteFolder}
+                      onDeleteNote={onDeleteNote}
                       onDragEnd={onDragEnd}
                       onDragLeaveDropTarget={onDragLeaveDropTarget}
                       onDragOverDropTarget={onDragOverDropTarget}
@@ -277,6 +341,8 @@ export function NotesSidebarTree({
                       onDropOnTreeNode={onDropOnTreeNode}
                       onOpenFolderMenu={onOpenFolderMenu}
                       onOpenNoteMenu={onOpenNoteMenu}
+                      onRenameFolder={onRenameFolder}
+                      onRenameNote={onRenameNote}
                       onSelectFolder={onSelectFolder}
                       onSelectNote={onSelectNote}
                       onToggleFolder={onToggleFolder}
@@ -298,6 +364,7 @@ export function NotesSidebarTree({
             y: event.clientY,
           });
         };
+        const isSelectedNote = selectedTreeNodeKey === nodeKey;
 
         return (
           <div
@@ -316,25 +383,37 @@ export function NotesSidebarTree({
               onDragOverDropTarget={onDragOverDropTarget}
               onDropOnTreeNode={onDropOnTreeNode}
             />
-            <button
+            <div
               className={
                 [
-                  "ctn-tree-main ctn-tree-main-note note-item",
-                  node.noteId === activeNoteId ? "is-active active" : "",
+                  "ctn-tree-row note-item-row-content",
+                  isSelectedNote ? "is-active active" : "",
                   isDragging ? "is-dragging" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")
               }
-              draggable={node.canDrag}
-              onDragEnd={onDragEnd}
-              onDragStart={(event) => onDragStart(event, node, siblingIndex)}
-              onClick={() => onSelectNote(node.noteId)}
-              title={node.title}
-              type="button"
             >
-              <span className="ctn-tree-text">{node.title}</span>
-            </button>
+              <button
+                className="ctn-tree-main ctn-tree-main-note note-item"
+                draggable={node.canDrag}
+                onDragEnd={onDragEnd}
+                onDragStart={(event) => onDragStart(event, node, siblingIndex)}
+                onClick={() => onSelectNote(node.noteId)}
+                title={node.title}
+                type="button"
+              >
+                <span className="ctn-tree-text">{node.title}</span>
+              </button>
+              {isSelectedNote ? (
+                <SidebarTreeRowActions
+                  deleteLabel="删除笔记"
+                  renameLabel="重命名笔记"
+                  onDelete={() => onDeleteNote(node.noteId, node.title)}
+                  onRename={() => onRenameNote(node.noteId, node.title)}
+                />
+              ) : null}
+            </div>
             <SidebarTreeDropZone
               activeDropTargetKey={activeDropTargetKey}
               placement="after"

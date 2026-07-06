@@ -77,6 +77,7 @@ function createNotesSlots({
       onMoveNote={view.moveNote}
       onMoveTreeNode={view.moveSidebarTreeNode}
       onRenameFolder={view.renameFolder}
+      onRenameNote={view.renameNote}
       onSelectFolder={view.selectFolder}
       onSelectNote={view.selectNote}
     />

@@ -25,28 +25,55 @@ const noteTree: UiTreeNode[] = [
   },
 ];
 
+const defaultFolderTree: UiTreeNode[] = [
+  {
+    canDrag: false,
+    folderId: "folder-inbox",
+    id: "folder-inbox",
+    kind: "folder",
+    parentFolderId: null,
+    title: "内部默认文件夹",
+    childCount: 0,
+    children: [],
+  },
+];
+
+function renderNotesSidebarTree({
+  nodes = noteTree,
+  selectedTreeNodeKey = "note:note-source",
+}: {
+  nodes?: UiTreeNode[];
+  selectedTreeNodeKey?: string | null;
+} = {}) {
+  return renderToStaticMarkup(
+    <NotesSidebarTree
+      activeDropTargetKey={null}
+      collapsedFolderIds={new Set()}
+      defaultFolderId="folder-inbox"
+      draggingNodeKey={null}
+      nodes={nodes}
+      selectedTreeNodeKey={selectedTreeNodeKey}
+      onDeleteFolder={() => undefined}
+      onDeleteNote={() => undefined}
+      onDragEnd={() => undefined}
+      onDragLeaveDropTarget={() => undefined}
+      onDragOverDropTarget={() => undefined}
+      onDragStart={() => undefined}
+      onDropOnTreeNode={() => undefined}
+      onOpenFolderMenu={() => undefined}
+      onOpenNoteMenu={() => undefined}
+      onRenameFolder={() => undefined}
+      onRenameNote={() => undefined}
+      onSelectFolder={() => undefined}
+      onSelectNote={() => undefined}
+      onToggleFolder={() => undefined}
+    />,
+  );
+}
+
 describe("NotesSidebarTree", () => {
   it("renders draggable sibling nodes and tree drop zones", () => {
-    const markup = renderToStaticMarkup(
-      <NotesSidebarTree
-        activeDropTargetKey={null}
-        activeFolderId="folder-inbox"
-        activeNoteId="note-source"
-        collapsedFolderIds={new Set()}
-        draggingNodeKey={null}
-        nodes={noteTree}
-        onDragEnd={() => undefined}
-        onDragLeaveDropTarget={() => undefined}
-        onDragOverDropTarget={() => undefined}
-        onDragStart={() => undefined}
-        onDropOnTreeNode={() => undefined}
-        onOpenFolderMenu={() => undefined}
-        onOpenNoteMenu={() => undefined}
-        onSelectFolder={() => undefined}
-        onSelectNote={() => undefined}
-        onToggleFolder={() => undefined}
-      />,
-    );
+    const markup = renderNotesSidebarTree();
 
     expect(markup).toContain("note-tree-drop-zone");
     expect(markup).toContain("note-tree-node-frame");
@@ -56,5 +83,35 @@ describe("NotesSidebarTree", () => {
     expect(markup.match(/draggable="true"/g)).toHaveLength(2);
     expect(markup).toContain("项目");
     expect(markup).toContain("源笔记");
+  });
+
+  it("renders row actions only for the active note", () => {
+    const markup = renderNotesSidebarTree();
+
+    expect(markup).toContain("重命名笔记");
+    expect(markup).toContain("删除笔记");
+    expect(markup).not.toContain("重命名文件夹");
+    expect(markup).not.toContain("删除文件夹");
+  });
+
+  it("renders row actions only for the active non-default folder", () => {
+    const markup = renderNotesSidebarTree({
+      selectedTreeNodeKey: "folder:folder-project",
+    });
+
+    expect(markup).toContain("重命名文件夹");
+    expect(markup).toContain("删除文件夹");
+    expect(markup).not.toContain("重命名笔记");
+    expect(markup).not.toContain("删除笔记");
+  });
+
+  it("does not render row actions for the default folder", () => {
+    const markup = renderNotesSidebarTree({
+      nodes: defaultFolderTree,
+      selectedTreeNodeKey: "folder:folder-inbox",
+    });
+
+    expect(markup).not.toContain("重命名文件夹");
+    expect(markup).not.toContain("删除文件夹");
   });
 });

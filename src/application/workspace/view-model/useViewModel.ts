@@ -151,6 +151,11 @@ export function useViewModel(
     setSelectedFolderId(folderId);
   };
 
+  const renameNote = (noteId: UiNoteId, title: string) => {
+    commands.renameNote(noteId, title);
+    setActiveNoteId(noteId);
+  };
+
   const deleteNote = (noteId: UiNoteId) => {
     commands.deleteNote(noteId);
 
@@ -356,6 +361,7 @@ export function useViewModel(
     },
     reload,
     renameFolder,
+    renameNote,
     selectFolder,
     selectNote,
     sidebar,

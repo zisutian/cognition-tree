@@ -7,6 +7,7 @@ import {
   moveWorkspaceNote as moveWorkspaceNoteAction,
   moveWorkspaceTreeNode as moveWorkspaceTreeNodeAction,
   renameWorkspaceFolder as renameWorkspaceFolderAction,
+  renameWorkspaceNote as renameWorkspaceNoteAction,
   updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
 } from "../../../workspace/commands/workspaceCommands";
 import {
@@ -56,6 +57,7 @@ export type SessionCommands = {
   moveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
+  renameNote: (noteId: NoteId, title: string) => void;
   updateNoteSource: (noteId: NoteId, source: string) => void;
 };
 
@@ -142,6 +144,16 @@ export function createSessionCommands({
     renameFolder(folderId, title) {
       commitDataSnapshot(
         renameWorkspaceFolderAction(workspace, folderId, title),
+      );
+    },
+    renameNote(noteId, title) {
+      commitDataSnapshot(
+        renameWorkspaceNoteAction(
+          workspace,
+          noteId,
+          title,
+          createTimestamp(),
+        ),
       );
     },
     updateNoteSource(noteId, source) {

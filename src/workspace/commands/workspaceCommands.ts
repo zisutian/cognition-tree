@@ -59,6 +59,18 @@ function assertWorkspaceFolderIdAvailable(
   }
 }
 
+function replaceFirstNonEmptyLine(source: string, title: string) {
+  const lines = source.split("\n");
+  const titleLineIndex = lines.findIndex((line) => line.trim());
+
+  if (titleLineIndex < 0) {
+    return title;
+  }
+
+  lines[titleLineIndex] = title;
+  return lines.join("\n");
+}
+
 export function createWorkspaceNote(
   workspace: WorkspaceStructureIndex,
   {
@@ -130,6 +142,43 @@ export function renameWorkspaceFolder(
   return {
     ...workspace.data,
     tree: renameFolderInWorkspaceTree(workspace.data.tree, folderId, nextTitle),
+  };
+}
+
+export function renameWorkspaceNote(
+  workspace: WorkspaceStructureIndex,
+  noteId: NoteId,
+  title: string,
+  timestamp: string,
+): WorkspaceData {
+  const nextTitle = title.trim();
+
+  if (!nextTitle) {
+    throw new Error("Workspace note title is required.");
+  }
+
+  assertWorkspaceNoteExists(workspace, noteId);
+
+  const noteIndex = workspace.noteIndexById.get(noteId);
+
+  if (noteIndex === undefined) {
+    throw new Error(`Workspace note does not exist: ${noteId}`);
+  }
+
+  const notes = [...workspace.data.notes];
+  const note = notes[noteIndex];
+  const source = replaceFirstNonEmptyLine(note.source, nextTitle);
+
+  notes[noteIndex] = {
+    ...note,
+    source,
+    title: inferNoteTitle(source),
+    updatedAt: timestamp,
+  };
+
+  return {
+    ...workspace.data,
+    notes,
   };
 }
 

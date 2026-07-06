@@ -63,6 +63,7 @@ type NotesSidebarPanelProps = {
   onMoveNote: (noteId: UiNoteId, targetFolderId: UiFolderId) => void;
   onMoveTreeNode: (request: UiTreeMoveRequest) => void;
   onRenameFolder: (folderId: UiFolderId, title: string) => void;
+  onRenameNote: (noteId: UiNoteId, title: string) => void;
   onSelectFolder: (folderId: UiFolderId) => void;
   onSelectNote: (noteId: UiNoteId) => void;
 };
@@ -76,6 +77,7 @@ export function NotesSidebarPanel({
   onMoveNote,
   onMoveTreeNode,
   onRenameFolder,
+  onRenameNote,
   onSelectFolder,
   onSelectNote,
 }: NotesSidebarPanelProps) {
@@ -88,7 +90,31 @@ export function NotesSidebarPanel({
   const [activeDropTargetKey, setActiveDropTargetKey] = useState<string | null>(
     null,
   );
+  const [selectedTreeNodeKey, setSelectedTreeNodeKey] = useState<string | null>(
+    () =>
+      view.activeNoteId
+        ? getSidebarTreeNodeKey({
+            kind: "note",
+            noteId: view.activeNoteId,
+            parentFolderId: null,
+          })
+        : null,
+  );
   const dragSession = useMemo(createSidebarTreeDragSession, []);
+
+  useEffect(() => {
+    if (!view.activeNoteId) {
+      return;
+    }
+
+    setSelectedTreeNodeKey(
+      getSidebarTreeNodeKey({
+        kind: "note",
+        noteId: view.activeNoteId,
+        parentFolderId: null,
+      }),
+    );
+  }, [view.activeNoteId]);
 
   useEffect(() => {
     if (!contextMenu) {
@@ -156,9 +182,23 @@ export function NotesSidebarPanel({
 
     onRenameFolder(folderId, title);
   };
+  const requestRenameNote = (noteId: UiNoteId, currentTitle: string) => {
+    const title = window.prompt("笔记名称", currentTitle);
+
+    if (!title) {
+      return;
+    }
+
+    onRenameNote(noteId, title);
+  };
   const requestDeleteFolder = (folderId: UiFolderId, title: string) => {
     if (window.confirm(`删除文件夹「${title}」及其中内容？`)) {
       onDeleteFolder(folderId);
+    }
+  };
+  const requestDeleteNote = (noteId: UiNoteId, title: string) => {
+    if (window.confirm(`删除笔记「${title}」？`)) {
+      onDeleteNote(noteId);
     }
   };
 
@@ -204,6 +244,26 @@ export function NotesSidebarPanel({
     }
 
     onMoveNote(noteId, view.activeFolderId);
+  };
+  const selectFolderRow = (folderId: UiFolderId) => {
+    setSelectedTreeNodeKey(
+      getSidebarTreeNodeKey({
+        folderId,
+        kind: "folder",
+        parentFolderId: null,
+      }),
+    );
+    onSelectFolder(folderId);
+  };
+  const selectNoteRow = (noteId: UiNoteId) => {
+    setSelectedTreeNodeKey(
+      getSidebarTreeNodeKey({
+        kind: "note",
+        noteId,
+        parentFolderId: null,
+      }),
+    );
+    onSelectNote(noteId);
   };
   const readDragPayload = (event: DragEvent<HTMLElement>) =>
     dragSession.read({
@@ -340,11 +400,10 @@ export function NotesSidebarPanel({
           <SidebarScrollArea contentClassName="ctn-tree-list note-tree-content">
             <NotesSidebarTree
               activeDropTargetKey={activeDropTargetKey}
-              activeFolderId={view.activeFolderId}
-              activeNoteId={view.activeNoteId}
               collapsedFolderIds={collapsedFolderIds}
               draggingNodeKey={draggingNodeKey}
               nodes={view.noteTree}
+              selectedTreeNodeKey={selectedTreeNodeKey}
               onDragEnd={finishTreeNodeDrag}
               onDragLeaveDropTarget={leaveTreeDropTarget}
               onDragOverDropTarget={dragOverTreeDropTarget}
@@ -352,9 +411,14 @@ export function NotesSidebarPanel({
               onDropOnTreeNode={dropOnTreeNode}
               onOpenFolderMenu={openFolderContextMenu}
               onOpenNoteMenu={openNoteContextMenu}
-              onSelectFolder={onSelectFolder}
-              onSelectNote={onSelectNote}
+              onRenameFolder={requestRenameFolder}
+              onRenameNote={requestRenameNote}
+              onDeleteFolder={requestDeleteFolder}
+              onDeleteNote={requestDeleteNote}
+              onSelectFolder={selectFolderRow}
+              onSelectNote={selectNoteRow}
               onToggleFolder={toggleFolder}
+              defaultFolderId={view.defaultFolderId}
             />
           </SidebarScrollArea>
         </nav>
@@ -423,9 +487,7 @@ export function NotesSidebarPanel({
                 </button>
                 <button
                   onClick={() => {
-                    if (window.confirm(`删除笔记「${contextMenu.title}」？`)) {
-                      onDeleteNote(contextMenu.noteId);
-                    }
+                    requestDeleteNote(contextMenu.noteId, contextMenu.title);
                   }}
                   role="menuitem"
                   type="button"
