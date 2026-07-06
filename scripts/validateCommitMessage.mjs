@@ -4,6 +4,7 @@ const messageFile = process.argv[2];
 const allowedTypes = [
   "feat",
   "fix",
+  "perf",
   "refactor",
   "test",
   "docs",

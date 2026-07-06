@@ -53,6 +53,7 @@
 
     feat
     fix
+    perf
     refactor
     test
     docs
