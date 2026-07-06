@@ -130,7 +130,7 @@ describe("WorkspaceFileStore", () => {
       });
 
       expect(await store.loadWorkspace()).toEqual(workspace);
-      await expect(store.readSyntaxFile()).resolves.toBeNull();
+      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toBeNull();
     });
   });
 
@@ -156,11 +156,11 @@ describe("WorkspaceFileStore", () => {
 
   it("reads and updates the workspace syntax file", async () => {
     await withTempStore(async (store) => {
-      await expect(store.readSyntaxFile()).resolves.toBeNull();
+      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toBeNull();
 
-      await store.saveSyntaxFile(customSyntaxSource);
+      await store.saveWorkspaceSyntaxSource(customSyntaxSource);
 
-      await expect(store.readSyntaxFile()).resolves.toEqual({
+      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toEqual({
         fileName: "workspace.toml",
         source: customSyntaxSource,
       });
@@ -175,9 +175,9 @@ describe("WorkspaceFileStore", () => {
     await withTempStore(async (store) => {
       const source = "name = \"broken\"\n";
 
-      await store.saveSyntaxFile(source);
+      await store.saveWorkspaceSyntaxSource(source);
 
-      await expect(store.readSyntaxFile()).resolves.toEqual({
+      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toEqual({
         fileName: "workspace.toml",
         source,
       });

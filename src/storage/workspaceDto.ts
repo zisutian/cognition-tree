@@ -8,7 +8,7 @@ import { findFolderNode } from "../workspace/model/noteTree";
 import type {
   RepositoryInfo,
 } from "./workspaceRepository";
-import type { WorkspaceSyntaxSourceFile } from "../workspace/context/syntaxFile";
+import type { WorkspaceSyntaxSourceFile } from "../workspace/context/workspaceSyntaxFile";
 
 const workspaceFields = new Set([
   "id",
@@ -26,7 +26,7 @@ const noteFields = new Set([
 const folderFields = new Set(["children", "id", "kind", "title"]);
 const noteNodeFields = new Set(["id", "kind", "noteId"]);
 const repositoryInfoFields = new Set(["path"]);
-const syntaxFileFields = new Set(["fileName", "source"]);
+const workspaceSyntaxSourceFileFields = new Set(["fileName", "source"]);
 
 function assertRecord(value: unknown, path: string): asserts value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -210,7 +210,7 @@ export function parseRepositoryInfoDto(value: unknown): RepositoryInfo {
   };
 }
 
-export function parseSyntaxFileDto(
+export function parseWorkspaceSyntaxSourceFileDto(
   value: unknown,
 ): WorkspaceSyntaxSourceFile | null {
   if (value === null) {
@@ -218,7 +218,7 @@ export function parseSyntaxFileDto(
   }
 
   assertRecord(value, "$");
-  assertExactFields(value, syntaxFileFields, "$");
+  assertExactFields(value, workspaceSyntaxSourceFileFields, "$");
 
   const fileName = readRequiredString(value, "fileName", "$");
   const source = readString(value, "source", "$");

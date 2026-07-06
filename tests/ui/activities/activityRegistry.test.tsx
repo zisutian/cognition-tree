@@ -6,8 +6,8 @@ import {
   createSyntaxProfileDraft,
 } from "../../../src/ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
-import type { ViewModel } from "../../../src/application/workspace/useViewModel";
-import { createUiSyntaxView } from "../../../src/application/workspace/viewData";
+import type { ViewModel } from "../../../src/application/workspace/view-model/useViewModel";
+import { createUiSyntaxView } from "../../../src/application/workspace/projection/viewSyntax";
 import {
   createActivitySlots,
   activityItems,

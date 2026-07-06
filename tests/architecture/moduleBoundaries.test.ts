@@ -208,16 +208,33 @@ describe("architecture module boundaries", () => {
 
   it("keeps application submodules explicitly named", () => {
     expect(listSubdirectories("application")).toEqual(["workspace"]);
-    expect(listSourceFileNames("application/workspace")).toEqual([
-      "dataSaveQueue.ts",
-      "selection.ts",
-      "useIndex.ts",
+    expect(listImmediateSourceFileNames("application/workspace")).toEqual([]);
+    expect(listSubdirectories("application/workspace")).toEqual([
+      "projection",
+      "session",
+      "view-model",
+    ]);
+    expect(listSourceFileNames("application/workspace/session")).toEqual([
       "useSession.ts",
+      "workspaceSaveQueue.ts",
+    ]);
+    expect(listSourceFileNames("application/workspace/view-model")).toEqual([
+      "selection.ts",
       "useSyntaxDraft.ts",
       "useViewModel.ts",
-      "viewData.ts",
-      "viewState.ts",
-      "viewTypes.ts",
+      "useWorkspaceIndex.ts",
+      "viewSelection.ts",
+    ]);
+    expect(listSourceFileNames("application/workspace/projection")).toEqual([
+      "viewBlocks.ts",
+      "viewEditor.ts",
+      "viewGraph.ts",
+      "viewMigration.ts",
+      "viewMigrationMessages.ts",
+      "viewSidebar.ts",
+      "viewSyntax.ts",
+      "viewText.ts",
+      "viewTree.ts",
     ]);
   });
 
@@ -246,6 +263,19 @@ describe("architecture module boundaries", () => {
       "visualization",
     ]);
     expect(listSubdirectories("ui/shared")).toEqual(["blocks"]);
+    expect(listSourceFileNames("ui/activities/migration")).toEqual([
+      "BlockMigrationView.tsx",
+      "MigrationMainPanel.tsx",
+      "MigrationNoteSelectionView.tsx",
+      "MigrationSidebarPanel.tsx",
+      "MigrationSourceTree.tsx",
+      "MigrationTargetTree.tsx",
+      "blockMigrationDrag.ts",
+    ]);
+    expect(listSourceFileNames("ui/shared/blocks")).toEqual([
+      "BlockTextDisplay.tsx",
+      "BlockTree.tsx",
+    ]);
   });
 
   it("keeps workspace submodules explicitly named", () => {
@@ -267,8 +297,8 @@ describe("architecture module boundaries", () => {
 
   it("keeps workspace syntax source handling in workspace context", () => {
     expect(listSourceFileNames("workspace/context")).toEqual([
-      "syntaxFile.ts",
       "workspaceContext.ts",
+      "workspaceSyntaxFile.ts",
     ]);
   });
 
@@ -288,6 +318,14 @@ describe("architecture module boundaries", () => {
       "parseCtnDocument.ts",
       "types.ts",
     ]);
+  });
+
+  it("keeps ctn syntax free of tone presentation helpers", () => {
+    const toneSource = sourceModules["../../src/ctn/syntax/tones.ts"] ?? "";
+
+    expect(toneSource).not.toMatch(/getSyntax(?:TextColor)?(?:ClassName|Style)/);
+    expect(toneSource).not.toContain("ctn-tone-");
+    expect(toneSource).not.toContain("ctn-text-color-");
   });
 
   it("keeps workspace model focused on workspace data and tree model", () => {
@@ -354,6 +392,16 @@ describe("architecture module boundaries", () => {
     );
 
     expect(violations).toEqual([]);
+  });
+
+  it("keeps shared block text naming independent from outline-only views", () => {
+    const sharedSource = listSourceFiles("ui/shared")
+      .map((filePath) => sourceModules[filePath])
+      .join("\n");
+    const styleSource = Object.values(sourceStyleModules).join("\n");
+
+    expect(sharedSource).not.toMatch(/OutlineNodeText|outline-inline/);
+    expect(styleSource).not.toContain("outline-inline");
   });
 
   it("keeps ui frame components independent from application and activities", () => {

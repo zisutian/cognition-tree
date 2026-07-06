@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import type { UiOutlineNode } from "../../../application/workspace/viewTypes";
+import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
 import { BlockTree } from "../../shared/blocks/BlockTree";
-import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
+import { BlockTextDisplay } from "../../shared/blocks/BlockTextDisplay";
 
 export function NoteOutlineTree({
   collapsedNodeIds,
@@ -70,7 +70,7 @@ export function NoteOutlineTree({
                 type="button"
               >
                 <span className="ctn-tree-kind node-kind">{block.label}</span>
-                <OutlineNodeText
+                <BlockTextDisplay
                   className="ctn-tree-text node-text"
                   text={block.textDisplay}
                 />

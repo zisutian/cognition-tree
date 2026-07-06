@@ -1,7 +1,7 @@
 import type { DragEvent } from "react";
-import type { UiBlockNode } from "../../../application/workspace/viewTypes";
+import type { UiBlockNode } from "../../../application/workspace/projection/viewBlocks";
 import { BlockTree } from "../../shared/blocks/BlockTree";
-import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
+import { BlockTextDisplay } from "../../shared/blocks/BlockTextDisplay";
 
 type MigrationDropZoneProps = {
   activeDropPositionValue: string | null;
@@ -123,7 +123,7 @@ export function MigrationTargetTree({
               <span className="ctn-tree-kind migration-node-kind">
                 {block.label}
               </span>
-              <OutlineNodeText
+              <BlockTextDisplay
                 className="ctn-tree-text migration-node-text"
                 text={block.textDisplay}
               />

@@ -1,5 +1,5 @@
 import type { WorkspaceData } from "../workspace/model/workspaceData";
-import type { WorkspaceSyntaxSourceFile } from "../workspace/context/syntaxFile";
+import type { WorkspaceSyntaxSourceFile } from "../workspace/context/workspaceSyntaxFile";
 
 export type RepositoryInfo = {
   path: string;
@@ -12,7 +12,7 @@ export type WorkspaceRepository = {
   saveWorkspace: (workspace: WorkspaceData) => Promise<void>;
   clearWorkspace: () => Promise<void>;
   getRepositoryInfo: () => Promise<RepositoryInfo>;
-  readSyntaxFile: () => Promise<WorkspaceSyntaxSourceFile | null>;
-  saveSyntaxFile: (source: string) => Promise<void>;
+  readWorkspaceSyntaxSourceFile: () => Promise<WorkspaceSyntaxSourceFile | null>;
+  saveWorkspaceSyntaxSource: (source: string) => Promise<void>;
   setRepositoryPath?: (path: string) => Promise<WorkspaceData | null>;
 };

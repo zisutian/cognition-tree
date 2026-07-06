@@ -3,7 +3,7 @@ import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceD
 import {
   parseRepositoryInfoDto,
   parseWorkspaceDataDto,
-  parseSyntaxFileDto,
+  parseWorkspaceSyntaxSourceFileDto,
 } from "../../src/storage/workspaceDto";
 
 describe("workspace storage DTOs", () => {
@@ -12,9 +12,9 @@ describe("workspace storage DTOs", () => {
     const source = 'name = "默认 CTN 语法"\n';
 
     expect(parseWorkspaceDataDto(workspace)).toEqual(workspace);
-    expect(parseSyntaxFileDto(null)).toBeNull();
+    expect(parseWorkspaceSyntaxSourceFileDto(null)).toBeNull();
     expect(
-      parseSyntaxFileDto({
+      parseWorkspaceSyntaxSourceFileDto({
         fileName: "workspace.toml",
         source,
       }),
@@ -47,7 +47,7 @@ describe("workspace storage DTOs", () => {
       }),
     ).toThrow("unsupported field");
     expect(() =>
-      parseSyntaxFileDto({
+      parseWorkspaceSyntaxSourceFileDto({
         fileName: "workspace.toml",
         profile: {},
         source: 'name = "默认 CTN 语法"\n',
@@ -104,7 +104,7 @@ describe("workspace storage DTOs", () => {
 
   it("does not validate workspace syntax semantics", () => {
     expect(
-      parseSyntaxFileDto({
+      parseWorkspaceSyntaxSourceFileDto({
         fileName: "workspace.toml",
         source: 'name = "broken"\n',
       }),

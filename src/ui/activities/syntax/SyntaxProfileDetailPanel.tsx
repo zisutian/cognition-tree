@@ -2,7 +2,7 @@ import { getToneSwatchClass, getToneSwatchStyle } from "./TonePicker";
 import type {
   UiSyntaxProfileDraftBuildResult,
   UiSyntaxTone,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewSyntax";
 
 type SyntaxProfileFeedback = {
   message: string;

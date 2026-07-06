@@ -7,8 +7,8 @@ import {
   type SyntaxProfileDraftConceptRule,
   type SyntaxProfileDraftInlineRule,
   type SyntaxProfileDraftMarkerRule,
-} from "../../ctn/syntax/profileDraft";
-import type { FolderId } from "../../workspace/model/workspaceData";
+} from "../../../ctn/syntax/profileDraft";
+import type { FolderId } from "../../../workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
   countWorkspaceFolders,
@@ -19,41 +19,47 @@ import {
   getWorkspaceNoteReferenceGraph,
   getWorkspaceTree,
   listWorkspaceNotes,
-} from "../../workspace/queries/workspaceQueries";
-import type { WorkspaceBlockMigrationRequest } from "../../workspace/commands/blockMigrationCommands";
+} from "../../../workspace/queries/workspaceQueries";
+import type { WorkspaceBlockMigrationRequest } from "../../../workspace/commands/blockMigrationCommands";
 import {
   createUiBlockNodes,
-  createUiEditorView,
+  createUiOutlineNodes,
+} from "../projection/viewBlocks";
+import { createUiEditorView } from "../projection/viewEditor";
+import { createUiReferenceGraphView } from "../projection/viewGraph";
+import {
   createUiNoteSummaries,
   createUiNoteTree,
-  createUiOutlineNodes,
-  createUiReferenceGraphView,
-  createUiSidebarView,
-  createUiSyntaxView,
-  parseUiBlockMigrationTargetPosition,
-} from "./viewData";
-import type {
-  UiFolderId,
-  UiNoteId,
-  UiSyntaxProfileDraftConceptRule,
-  UiSyntaxProfileDraftInlineRule,
-  UiSyntaxProfileDraftMarkerRule,
-} from "./viewTypes";
+  type UiFolderId,
+  type UiNoteId,
+} from "../projection/viewTree";
 import {
-  type SaveStatus,
-  type Session,
-} from "./useSession";
-import { useIndex } from "./useIndex";
+  createUiSyntaxView,
+  type UiSyntaxProfileDraftConceptRule,
+  type UiSyntaxProfileDraftInlineRule,
+  type UiSyntaxProfileDraftMarkerRule,
+} from "../projection/viewSyntax";
+import { createUiSidebarView } from "../projection/viewSidebar";
+import type {
+  WorkspaceSaveStatus,
+  Session,
+} from "../session/useSession";
+import {
+  parseUiBlockMigrationTargetPosition,
+} from "../projection/viewMigration";
+import { useWorkspaceIndex } from "./useWorkspaceIndex";
 import { useSyntaxDraft } from "./useSyntaxDraft";
 import { resolveFolderSelection } from "./selection";
 import {
   getMoveBlockFailureMessage,
   getMoveBlockSuccessMessage,
+} from "../projection/viewMigrationMessages";
+import {
   resolveActiveNoteId,
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
   resolveDifferentNoteId,
-} from "./viewState";
+} from "./viewSelection";
 
 type EditorFocusRequest = {
   lineNumber: number;
@@ -70,7 +76,7 @@ type MoveBlockActionResult =
       status: "failed";
     };
 
-const saveStatusLabels: Record<SaveStatus, string> = {
+const saveStatusLabels: Record<WorkspaceSaveStatus, string> = {
   error: "保存失败",
   idle: "等待保存",
   saved: "已保存",
@@ -85,10 +91,10 @@ export function useViewModel(session: Session) {
     reload,
     repositoryPath,
     storageLabel,
-    defaultSyntaxFile,
-    syntaxFile,
-    useDefaultSyntaxFile,
-    updateSyntaxFile,
+    defaultWorkspaceSyntaxFile,
+    workspaceSyntaxFile,
+    useDefaultWorkspaceSyntaxFile,
+    updateWorkspaceSyntaxSource,
     workspaceData,
     context,
     commands,
@@ -201,8 +207,9 @@ export function useViewModel(session: Session) {
     updateSyntaxDraft,
   } = useSyntaxDraft({
     isLoaded,
-    syntaxProfile: syntaxFile?.profile ?? defaultSyntaxFile.profile,
-    updateSyntaxFile,
+    syntaxProfile:
+      workspaceSyntaxFile?.profile ?? defaultWorkspaceSyntaxFile.profile,
+    updateWorkspaceSyntaxSource,
     workspace: context,
   });
   const effectiveActiveNote = effectiveContext && activeNoteId
@@ -212,7 +219,7 @@ export function useViewModel(session: Session) {
     () => (effectiveContext ? listWorkspaceNotes(effectiveContext) : []),
     [effectiveContext],
   );
-  const index = useIndex(effectiveContext);
+  const index = useWorkspaceIndex(effectiveContext);
   const parsedNote = useMemo(
     () =>
       index
@@ -221,7 +228,7 @@ export function useViewModel(session: Session) {
     [effectiveActiveNote, index],
   );
   const activeSyntaxProfile =
-    parsedNote?.profile ?? defaultSyntaxFile.profile;
+    parsedNote?.profile ?? defaultWorkspaceSyntaxFile.profile;
   const parsedDocument = parsedNote?.document ?? null;
   const documentText = parsedNote?.source ?? "";
 
@@ -336,7 +343,7 @@ export function useViewModel(session: Session) {
     }));
   };
   const useDefaultSyntax = () => {
-    void useDefaultSyntaxFile();
+    void useDefaultWorkspaceSyntaxFile();
   };
   const updateSyntaxDraftField = (
     field: keyof Pick<SyntaxProfileDraft, "name" | "tabDisplayWidth">,
@@ -455,7 +462,9 @@ export function useViewModel(session: Session) {
       errorMessage,
     }),
     focusEditorLine,
-    hasConfiguredSyntax: Boolean(syntaxFile && effectiveContext && index),
+    hasConfiguredSyntax: Boolean(
+      workspaceSyntaxFile && effectiveContext && index,
+    ),
     migration: {
       noteTree: migrationNoteTree,
       notes: createUiNoteSummaries(effectiveNotes),

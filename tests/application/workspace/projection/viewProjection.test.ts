@@ -1,32 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { parseCtnDocument } from "../../../../src/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
 import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
-} from "../../../src/ctn/syntax/profileDraft";
-import type { CtnBlock } from "../../../src/ctn/parser/types";
+} from "../../../../src/ctn/syntax/profileDraft";
+import type { CtnBlock } from "../../../../src/ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  createFolderTreeNode,
-} from "../../../src/workspace/model/noteTree";
+  createNoteTreeFolderNode,
+} from "../../../../src/workspace/model/noteTree";
 import {
   createInitialWorkspaceData,
   createNoteRecord,
-} from "../../../src/workspace/model/workspaceData";
+} from "../../../../src/workspace/model/workspaceData";
 import {
   createUiBlockMigrationTargetPositionValue,
+  getUiTargetPositionLabel,
+  parseUiBlockMigrationTargetPosition,
+} from "../../../../src/application/workspace/projection/viewMigration";
+import {
   createUiBlockNode,
-  createUiNoteTree,
-  createUiSyntaxView,
-  createUiTextSegments,
   flattenUiBlockSubtree,
   getUiBlockLineLabel,
-  getUiTargetPositionLabel,
+} from "../../../../src/application/workspace/projection/viewBlocks";
+import {
+  createUiNoteTree,
+} from "../../../../src/application/workspace/projection/viewTree";
+import {
+  createUiTextSegments,
   getUiTextDisplayText,
-  parseUiBlockMigrationTargetPosition,
-} from "../../../src/application/workspace/viewData";
+} from "../../../../src/application/workspace/projection/viewText";
+import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
 
@@ -42,7 +48,7 @@ function createWorkspace() {
   const workspace = createInitialWorkspaceData();
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,
-    createFolderTreeNode("folder-project", "项目"),
+    createNoteTreeFolderNode("folder-project", "项目"),
     "folder-inbox",
   );
 
@@ -84,7 +90,7 @@ function createBlock(
   };
 }
 
-describe("workspace view data", () => {
+describe("workspace view projection", () => {
   it("creates outline text segments with syntax display metadata", () => {
     const root = parseFirstRoot("主题 [[全局概念]] 和 `code`");
     const segments = createUiTextSegments(root);

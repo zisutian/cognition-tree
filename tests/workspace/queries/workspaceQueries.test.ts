@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  createFolderTreeNode,
+  createNoteTreeFolderNode,
 } from "../../../src/workspace/model/noteTree";
 import {
   createInitialWorkspaceData,
@@ -37,7 +37,7 @@ function createWorkspace(): WorkspaceData {
   const workspace = createInitialWorkspaceData();
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,
-    createFolderTreeNode("folder-project", "项目"),
+    createNoteTreeFolderNode("folder-project", "项目"),
     "folder-inbox",
   );
 

@@ -127,58 +127,58 @@
   color: var(--note-muted);
 }
 
-.outline-inline {
+.block-text-inline {
   text-decoration-line: underline;
   text-decoration-color: var(--color-link);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.18em;
 }
 
-.note-outline-panel .outline-inline {
+.note-outline-panel .block-text-inline {
   text-decoration-color: var(--color-link);
 }
 
-.outline-inline.ctn-tone-green {
+.block-text-inline.ctn-tone-green {
   text-decoration-color: var(--ctn-tone-green);
 }
 
-.outline-inline.ctn-tone-teal {
+.block-text-inline.ctn-tone-teal {
   text-decoration-color: var(--ctn-tone-teal);
 }
 
-.outline-inline.ctn-tone-cyan {
+.block-text-inline.ctn-tone-cyan {
   text-decoration-color: var(--ctn-tone-cyan);
 }
 
-.outline-inline.ctn-tone-blue {
+.block-text-inline.ctn-tone-blue {
   text-decoration-color: var(--ctn-tone-blue);
 }
 
-.outline-inline.ctn-tone-indigo {
+.block-text-inline.ctn-tone-indigo {
   text-decoration-color: var(--ctn-tone-indigo);
 }
 
-.outline-inline.ctn-tone-violet {
+.block-text-inline.ctn-tone-violet {
   text-decoration-color: var(--ctn-tone-violet);
 }
 
-.outline-inline.ctn-tone-pink {
+.block-text-inline.ctn-tone-pink {
   text-decoration-color: var(--ctn-tone-pink);
 }
 
-.outline-inline.ctn-tone-red {
+.block-text-inline.ctn-tone-red {
   text-decoration-color: var(--ctn-tone-red);
 }
 
-.outline-inline.ctn-tone-amber {
+.block-text-inline.ctn-tone-amber {
   text-decoration-color: var(--ctn-tone-amber);
 }
 
-.outline-inline.ctn-tone-gray {
+.block-text-inline.ctn-tone-gray {
   text-decoration-color: var(--ctn-tone-gray);
 }
 
-.outline-inline.ctn-tone-custom {
+.block-text-inline.ctn-tone-custom {
   text-decoration-color: var(--ctn-tone-color);
 }
 

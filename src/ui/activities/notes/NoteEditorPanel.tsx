@@ -3,7 +3,7 @@ import {
   type CtnEditorFocusTarget,
   type CtnEditorSyntaxProfile,
 } from "../../../editor/CtnEditor";
-import type { UiEditorDiagnostic } from "../../../application/workspace/viewTypes";
+import type { UiEditorDiagnostic } from "../../../application/workspace/projection/viewEditor";
 
 export function NoteEditorPanel({
   diagnostics,

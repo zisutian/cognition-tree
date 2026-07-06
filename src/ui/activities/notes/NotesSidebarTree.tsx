@@ -8,7 +8,7 @@ import type {
   UiFolderId,
   UiNoteId,
   UiTreeNode,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewTree";
 
 export type TreeContextMenuPosition = {
   x: number;

@@ -3,18 +3,18 @@ import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+} from "../../../ctn/syntax/profileDraft";
+import { formatSyntaxProfileToml } from "../../../ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
-} from "../../workspace/context/workspaceContext";
+} from "../../../workspace/context/workspaceContext";
 
 type UseSyntaxDraftOptions = {
   isLoaded: boolean;
   syntaxProfile: CtnSyntaxProfile;
-  updateSyntaxFile: (source: string) => Promise<void>;
+  updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
   workspace: WorkspaceContext | null;
 };
 
@@ -30,7 +30,7 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 export function useSyntaxDraft({
   isLoaded,
   syntaxProfile,
-  updateSyntaxFile,
+  updateWorkspaceSyntaxSource,
   workspace,
 }: UseSyntaxDraftOptions) {
   const [syntaxDraft, setSyntaxDraft] = useState(() =>
@@ -39,7 +39,7 @@ export function useSyntaxDraft({
   const [syntaxFeedback, setSyntaxFeedback] =
     useState<SyntaxProfileFeedback | null>(null);
   const lastPersistedSyntaxSourceRef = useRef("");
-  const updateSyntaxFileRef = useRef(updateSyntaxFile);
+  const updateWorkspaceSyntaxSourceRef = useRef(updateWorkspaceSyntaxSource);
   const syntaxDraftResult = useMemo(
     () => buildSyntaxProfileDraft(syntaxDraft),
     [syntaxDraft],
@@ -66,8 +66,8 @@ export function useSyntaxDraft({
   }, [syntaxProfile]);
 
   useEffect(() => {
-    updateSyntaxFileRef.current = updateSyntaxFile;
-  }, [updateSyntaxFile]);
+    updateWorkspaceSyntaxSourceRef.current = updateWorkspaceSyntaxSource;
+  }, [updateWorkspaceSyntaxSource]);
 
   useEffect(() => {
     if (
@@ -81,7 +81,7 @@ export function useSyntaxDraft({
     const timeoutId = window.setTimeout(() => {
       const source = syntaxDraftSource;
 
-      void updateSyntaxFileRef.current(source)
+      void updateWorkspaceSyntaxSourceRef.current(source)
         .then(() => {
           lastPersistedSyntaxSourceRef.current = source;
           setSyntaxFeedback({

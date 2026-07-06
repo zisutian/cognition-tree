@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
 import {
   moveCtnBlockText,
-  type CtnEditableBlock,
+  type CtnBlockTextRange,
 } from "../../../src/ctn/parser/blockTextEdit";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 
-function parseBlocks(source: string): CtnEditableBlock[] {
+function parseBlocks(source: string): CtnBlockTextRange[] {
   return parseCtnDocument(source, defaultCtnSyntaxProfile).blocks;
 }
 

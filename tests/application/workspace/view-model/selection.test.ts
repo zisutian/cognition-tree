@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  createFolderTreeNode,
-} from "../../../src/workspace/model/noteTree";
+  createNoteTreeFolderNode,
+} from "../../../../src/workspace/model/noteTree";
 import {
   createInitialWorkspaceData,
   createNoteRecord,
-} from "../../../src/workspace/model/workspaceData";
-import { resolveFolderSelection } from "../../../src/application/workspace/selection";
+} from "../../../../src/workspace/model/workspaceData";
+import { resolveFolderSelection } from "../../../../src/application/workspace/view-model/selection";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
 
@@ -17,7 +17,7 @@ function createWorkspace() {
   const workspace = createInitialWorkspaceData();
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,
-    createFolderTreeNode("folder-project", "项目"),
+    createNoteTreeFolderNode("folder-project", "项目"),
     "folder-inbox",
   );
 

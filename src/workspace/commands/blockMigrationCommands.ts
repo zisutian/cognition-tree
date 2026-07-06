@@ -69,12 +69,7 @@ type WorkspaceBlockMigrationIndex = {
   >;
 };
 
-type WorkspaceBlockMigrationSource = WorkspaceData;
-
-function findWorkspaceNote(
-  workspace: WorkspaceBlockMigrationSource,
-  noteId: NoteId,
-) {
+function findWorkspaceNote(workspace: WorkspaceData, noteId: NoteId) {
   return workspace.notes.find((note) => note.id === noteId) ?? null;
 }
 
@@ -138,7 +133,7 @@ function isMigrationNote(
 }
 
 function resolveMigrationInput(
-  workspace: WorkspaceBlockMigrationSource,
+  workspace: WorkspaceData,
   index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationRequest,
 ) {
@@ -190,7 +185,7 @@ function resolveMigrationInput(
 }
 
 export function moveWorkspaceBlock(
-  workspace: WorkspaceBlockMigrationSource,
+  workspace: WorkspaceData,
   index: WorkspaceBlockMigrationIndex,
   request: WorkspaceBlockMigrationRequest,
   timestamp: string,

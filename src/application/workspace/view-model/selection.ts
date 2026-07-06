@@ -1,12 +1,12 @@
 import {
   findFirstFolderId,
   findFolderNode,
-} from "../../workspace/model/noteTree";
+} from "../../../workspace/model/noteTree";
 import {
   defaultFolderId,
   type FolderId,
   type WorkspaceData,
-} from "../../workspace/model/workspaceData";
+} from "../../../workspace/model/workspaceData";
 
 type TreeSource = Pick<WorkspaceData, "tree">;
 

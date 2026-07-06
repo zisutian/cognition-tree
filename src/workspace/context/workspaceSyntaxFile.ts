@@ -12,26 +12,26 @@ export type WorkspaceSyntaxSourceFile = {
   source: string;
 };
 
-export type SyntaxFile = WorkspaceSyntaxSourceFile & {
+export type WorkspaceSyntaxFile = WorkspaceSyntaxSourceFile & {
   profile: CtnSyntaxProfile;
 };
 
-export function createDefaultSyntaxSource() {
+export function createDefaultWorkspaceSyntaxSource() {
   return formatSyntaxProfileToml(defaultCtnSyntaxProfile);
 }
 
-export function createDefaultSyntaxFile(): SyntaxFile {
+export function createDefaultWorkspaceSyntaxFile(): WorkspaceSyntaxFile {
   return {
     fileName: workspaceSyntaxFileName,
     profile: defaultCtnSyntaxProfile,
-    source: createDefaultSyntaxSource(),
+    source: createDefaultWorkspaceSyntaxSource(),
   };
 }
 
-export function parseSyntaxSource(
+export function parseWorkspaceSyntaxSource(
   fileName: string,
   source: string,
-): SyntaxFile {
+): WorkspaceSyntaxFile {
   const result = parseSyntaxProfileToml(source);
 
   if (!result.profile) {
@@ -49,11 +49,11 @@ export function parseSyntaxSource(
   };
 }
 
-export function resolveSyntaxFile(
+export function resolveWorkspaceSyntaxFile(
   syntaxSourceFile: WorkspaceSyntaxSourceFile | null,
-): SyntaxFile | null {
+): WorkspaceSyntaxFile | null {
   return syntaxSourceFile
-    ? parseSyntaxSource(
+    ? parseWorkspaceSyntaxSource(
         syntaxSourceFile.fileName,
         syntaxSourceFile.source,
       )

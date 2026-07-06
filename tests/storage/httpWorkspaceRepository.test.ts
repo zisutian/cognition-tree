@@ -105,7 +105,7 @@ describe("createHttpWorkspaceRepository", () => {
       });
     const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
 
-    await expect(repository.readSyntaxFile()).resolves.toEqual({
+    await expect(repository.readWorkspaceSyntaxSourceFile()).resolves.toEqual({
       fileName: "workspace.toml",
       source,
     });
@@ -115,7 +115,7 @@ describe("createHttpWorkspaceRepository", () => {
     const fetchMock: typeof fetch = async () => jsonResponse(null);
     const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
 
-    await expect(repository.readSyntaxFile()).resolves.toBeNull();
+    await expect(repository.readWorkspaceSyntaxSourceFile()).resolves.toBeNull();
   });
 
   it("sends workspace syntax source without parsing it", async () => {
@@ -131,7 +131,7 @@ describe("createHttpWorkspaceRepository", () => {
     };
     const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
 
-    await repository.saveSyntaxFile('name = "broken"\n');
+    await repository.saveWorkspaceSyntaxSource('name = "broken"\n');
 
     expect(calls).toEqual([
       {
@@ -159,7 +159,7 @@ describe("createHttpWorkspaceRepository", () => {
     await expect(repository.loadWorkspace()).rejects.toThrow(
       "unsupported field",
     );
-    await expect(repository.readSyntaxFile()).rejects.toThrow(
+    await expect(repository.readWorkspaceSyntaxSourceFile()).rejects.toThrow(
       "expected object",
     );
   });

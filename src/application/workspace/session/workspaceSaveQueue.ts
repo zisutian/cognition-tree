@@ -1,23 +1,23 @@
-import type { WorkspaceData } from "../../workspace/model/workspaceData";
+import type { WorkspaceData } from "../../../workspace/model/workspaceData";
 
-export type SaveStatus = "idle" | "saving" | "saved" | "error";
+export type WorkspaceSaveStatus = "idle" | "saving" | "saved" | "error";
 
-type DataSaveQueueOptions = {
+type WorkspaceSaveQueueOptions = {
   onError: (error: unknown) => void;
-  onStatusChange: (status: SaveStatus) => void;
+  onStatusChange: (status: WorkspaceSaveStatus) => void;
   save: (data: WorkspaceData) => Promise<void>;
 };
 
-export type DataSaveQueue = {
+export type WorkspaceSaveQueue = {
   enqueue: (data: WorkspaceData) => void;
   waitForIdle: () => Promise<void>;
 };
 
-export function createDataSaveQueue({
+export function createWorkspaceSaveQueue({
   onError,
   onStatusChange,
   save,
-}: DataSaveQueueOptions): DataSaveQueue {
+}: WorkspaceSaveQueueOptions): WorkspaceSaveQueue {
   let pendingData: WorkspaceData | null = null;
   let activePromise: Promise<void> | null = null;
 

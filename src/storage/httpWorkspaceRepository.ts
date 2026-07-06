@@ -2,7 +2,7 @@ import type { WorkspaceRepository } from "./workspaceRepository";
 import {
   parseRepositoryInfoDto,
   parseWorkspaceDataDto,
-  parseSyntaxFileDto,
+  parseWorkspaceSyntaxSourceFileDto,
 } from "./workspaceDto";
 
 type HttpWorkspaceRepositoryOptions = {
@@ -83,12 +83,12 @@ export function createHttpWorkspaceRepository({
         await requestJson(fetchFn, baseUrl, "/api/repository"),
       );
     },
-    async readSyntaxFile() {
-      return parseSyntaxFileDto(
+    async readWorkspaceSyntaxSourceFile() {
+      return parseWorkspaceSyntaxSourceFileDto(
         await requestJson(fetchFn, baseUrl, "/api/syntax"),
       );
     },
-    async saveSyntaxFile(source) {
+    async saveWorkspaceSyntaxSource(source) {
       await sendJson(fetchFn, baseUrl, "/api/syntax", "PUT", { source });
     },
   };

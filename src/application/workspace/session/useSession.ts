@@ -4,7 +4,7 @@ import {
   type FolderId,
   type NoteId,
   type WorkspaceData,
-} from "../../workspace/model/workspaceData";
+} from "../../../workspace/model/workspaceData";
 import {
   createWorkspaceFolder as createWorkspaceFolderAction,
   createWorkspaceNote as createWorkspaceNoteAction,
@@ -13,30 +13,30 @@ import {
   moveWorkspaceNote as moveWorkspaceNoteAction,
   renameWorkspaceFolder as renameWorkspaceFolderAction,
   updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
-} from "../../workspace/commands/workspaceCommands";
+} from "../../../workspace/commands/workspaceCommands";
 import {
   moveWorkspaceBlock as moveWorkspaceBlockAction,
   type MoveWorkspaceBlockFailureReason,
   type WorkspaceBlockMigrationRequest,
-} from "../../workspace/commands/blockMigrationCommands";
+} from "../../../workspace/commands/blockMigrationCommands";
 import {
-  createDataSaveQueue,
-  type SaveStatus,
-} from "./dataSaveQueue";
-import type { WorkspaceRepository } from "../../storage/workspaceRepository";
+  createWorkspaceSaveQueue,
+  type WorkspaceSaveStatus,
+} from "./workspaceSaveQueue";
+import type { WorkspaceRepository } from "../../../storage/workspaceRepository";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
-} from "../../workspace/context/workspaceContext";
+} from "../../../workspace/context/workspaceContext";
 import {
-  createDefaultSyntaxFile,
-  parseSyntaxSource,
-  resolveSyntaxFile,
-  type SyntaxFile,
+  createDefaultWorkspaceSyntaxFile,
+  parseWorkspaceSyntaxSource,
+  resolveWorkspaceSyntaxFile,
+  type WorkspaceSyntaxFile,
   workspaceSyntaxFileName,
-} from "../../workspace/context/syntaxFile";
+} from "../../../workspace/context/workspaceSyntaxFile";
 
-export type { SaveStatus } from "./dataSaveQueue";
+export type { WorkspaceSaveStatus } from "./workspaceSaveQueue";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
 type CreateWorkspaceFolderCommand = Parameters<
@@ -80,15 +80,15 @@ export type Session = {
   reload: () => Promise<void>;
   repositoryPath: string;
   storageLabel: string;
-  defaultSyntaxFile: SyntaxFile;
-  syntaxFile: SyntaxFile | null;
-  useDefaultSyntaxFile: () => Promise<void>;
-  updateSyntaxFile: (source: string) => Promise<void>;
+  defaultWorkspaceSyntaxFile: WorkspaceSyntaxFile;
+  workspaceSyntaxFile: WorkspaceSyntaxFile | null;
+  useDefaultWorkspaceSyntaxFile: () => Promise<void>;
+  updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
   workspaceData: WorkspaceData;
   context: WorkspaceContext | null;
   commands: SessionCommands;
   errorMessage: string;
-  saveStatus: SaveStatus;
+  saveStatus: WorkspaceSaveStatus;
 };
 
 function resolveWorkspaceData(workspace: WorkspaceData | null) {
@@ -121,17 +121,24 @@ export function useSession({
   const [isLoaded, setIsLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [saveStatus, setSaveStatus] =
-    useState<SaveStatus>("idle");
+    useState<WorkspaceSaveStatus>("idle");
   const [repositoryPath, setRepositoryPath] = useState("");
-  const [syntaxFile, setSyntaxFile] = useState<SyntaxFile | null>(null);
-  const defaultSyntaxFile = useMemo(createDefaultSyntaxFile, []);
+  const [workspaceSyntaxFile, setWorkspaceSyntaxFile] =
+    useState<WorkspaceSyntaxFile | null>(null);
+  const defaultWorkspaceSyntaxFile = useMemo(
+    createDefaultWorkspaceSyntaxFile,
+    [],
+  );
   const isMountedRef = useRef(true);
   const context = useMemo(
     () =>
-      syntaxFile
-        ? attachWorkspaceSyntaxProfile(workspaceData, syntaxFile.profile)
+      workspaceSyntaxFile
+        ? attachWorkspaceSyntaxProfile(
+            workspaceData,
+            workspaceSyntaxFile.profile,
+          )
         : null,
-    [syntaxFile, workspaceData],
+    [workspaceSyntaxFile, workspaceData],
   );
   const commands = useMemo(
     (): SessionCommands => ({
@@ -225,7 +232,7 @@ export function useSession({
 
   const saveQueue = useMemo(
     () =>
-      createDataSaveQueue({
+      createWorkspaceSaveQueue({
         onError(error) {
           if (isMountedRef.current) {
             setErrorMessage(
@@ -255,15 +262,17 @@ export function useSession({
     void Promise.all([
       repository.loadWorkspace(),
       repository.getRepositoryInfo(),
-      repository.readSyntaxFile(),
+      repository.readWorkspaceSyntaxSourceFile(),
     ])
-      .then(([storedWorkspace, repositoryInfo, storedSyntaxFile]) => {
+      .then(([storedWorkspace, repositoryInfo, storedWorkspaceSyntaxSource]) => {
         if (!isActive) {
           return;
         }
 
         setRepositoryPath(repositoryInfo.path);
-        setSyntaxFile(resolveSyntaxFile(storedSyntaxFile));
+        setWorkspaceSyntaxFile(
+          resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
+        );
         commitDataSnapshot(resolveWorkspaceData(storedWorkspace));
         setErrorMessage("");
         setSaveStatus("idle");
@@ -296,15 +305,17 @@ export function useSession({
     await saveQueue.waitForIdle();
 
     try {
-      const [storedWorkspace, repositoryInfo, storedSyntaxFile] =
+      const [storedWorkspace, repositoryInfo, storedWorkspaceSyntaxSource] =
         await Promise.all([
           repository.loadWorkspace(),
           repository.getRepositoryInfo(),
-          repository.readSyntaxFile(),
+          repository.readWorkspaceSyntaxSourceFile(),
         ]);
 
       setRepositoryPath(repositoryInfo.path);
-      setSyntaxFile(resolveSyntaxFile(storedSyntaxFile));
+      setWorkspaceSyntaxFile(
+        resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
+      );
       commitDataSnapshot(resolveWorkspaceData(storedWorkspace));
       setSaveStatus("idle");
       setIsLoaded(true);
@@ -315,12 +326,14 @@ export function useSession({
   };
 
   const refreshSyntaxState = async () => {
-    const [storedWorkspace, storedSyntaxFile] = await Promise.all([
+    const [storedWorkspace, storedWorkspaceSyntaxSource] = await Promise.all([
       repository.loadWorkspace(),
-      repository.readSyntaxFile(),
+      repository.readWorkspaceSyntaxSourceFile(),
     ]);
 
-    setSyntaxFile(resolveSyntaxFile(storedSyntaxFile));
+    setWorkspaceSyntaxFile(
+      resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
+    );
     commitDataSnapshot(resolveWorkspaceData(storedWorkspace));
   };
 
@@ -339,23 +352,25 @@ export function useSession({
     await saveQueue.waitForIdle();
 
     const storedWorkspace = await repository.setRepositoryPath(nextPath);
-    const [repositoryInfo, storedSyntaxFile] = await Promise.all([
+    const [repositoryInfo, storedWorkspaceSyntaxSource] = await Promise.all([
       repository.getRepositoryInfo(),
-      repository.readSyntaxFile(),
+      repository.readWorkspaceSyntaxSourceFile(),
     ]);
 
     setRepositoryPath(repositoryInfo.path);
-    setSyntaxFile(resolveSyntaxFile(storedSyntaxFile));
+    setWorkspaceSyntaxFile(
+      resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
+    );
     commitDataSnapshot(resolveWorkspaceData(storedWorkspace));
     setErrorMessage("");
     setSaveStatus("idle");
     setIsLoaded(true);
   };
 
-  const updateSyntaxFile = async (source: string) => {
+  const updateWorkspaceSyntaxSource = async (source: string) => {
     try {
-      parseSyntaxSource(workspaceSyntaxFileName, source);
-      await repository.saveSyntaxFile(source);
+      parseWorkspaceSyntaxSource(workspaceSyntaxFileName, source);
+      await repository.saveWorkspaceSyntaxSource(source);
       await refreshSyntaxState();
       setErrorMessage("");
     } catch (error) {
@@ -365,8 +380,8 @@ export function useSession({
       throw error;
     }
   };
-  const useDefaultSyntaxFile = async () => {
-    await updateSyntaxFile(defaultSyntaxFile.source);
+  const useDefaultWorkspaceSyntaxFile = async () => {
+    await updateWorkspaceSyntaxSource(defaultWorkspaceSyntaxFile.source);
   };
 
   return {
@@ -376,10 +391,10 @@ export function useSession({
     reload,
     repositoryPath,
     storageLabel: repository.label,
-    defaultSyntaxFile,
-    syntaxFile,
-    useDefaultSyntaxFile,
-    updateSyntaxFile,
+    defaultWorkspaceSyntaxFile,
+    workspaceSyntaxFile,
+    useDefaultWorkspaceSyntaxFile,
+    updateWorkspaceSyntaxSource,
     workspaceData,
     context,
     commands,

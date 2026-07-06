@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  getMoveBlockFailureMessage,
-  getMoveBlockSuccessMessage,
   resolveActiveNoteId,
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
   resolveDifferentNoteId,
-} from "../../../src/application/workspace/viewState";
+} from "../../../../src/application/workspace/view-model/viewSelection";
 
 const notes = [
   { id: "note-first" },
@@ -51,16 +49,5 @@ describe("workspace view state", () => {
   it("resolves migration target note selection", () => {
     expect(resolveDifferentNoteId(notes, "note-first")).toBe("note-second");
     expect(resolveDifferentNoteId([{ id: "note-first" }], "note-first")).toBe("");
-  });
-
-  it("maps migration result codes to application messages", () => {
-    expect(getMoveBlockSuccessMessage()).toBe("块迁移完成。");
-    expect(getMoveBlockFailureMessage("same-note-unsupported")).toBe(
-      "第一版不支持同一笔记内移动块。",
-    );
-    expect(getMoveBlockFailureMessage("source-block-missing")).toBe("源块不存在。");
-    expect(getMoveBlockFailureMessage("target-position-missing")).toBe(
-      "目标插入位置不存在。",
-    );
   });
 });

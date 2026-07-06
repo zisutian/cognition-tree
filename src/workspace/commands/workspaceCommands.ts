@@ -3,7 +3,7 @@ import {
   appendNoteToWorkspaceTree,
   collectNoteIdsInFolder,
   countFolders,
-  createFolderTreeNode,
+  createNoteTreeFolderNode,
   findFolderNode,
   moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
@@ -106,7 +106,7 @@ export function createWorkspaceFolder(
     ...workspace,
     tree: appendFolderToWorkspaceTree(
       workspace.tree,
-      createFolderTreeNode(folderId, nextTitle),
+      createNoteTreeFolderNode(folderId, nextTitle),
       parentFolderId,
     ),
   };

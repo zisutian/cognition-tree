@@ -5,7 +5,7 @@ import type {
   UiSyntaxProfileDraftMarkerRule,
   UiSyntaxRole,
   UiSyntaxView,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewSyntax";
 import { TonePicker } from "./TonePicker";
 
 type SyntaxMainPanelProps = {

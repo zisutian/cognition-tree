@@ -176,17 +176,17 @@ export class WorkspaceFileStore {
     await mkdir(this.#syntaxDir, { recursive: true });
   }
 
-  async readSyntaxFile() {
+  async readWorkspaceSyntaxSourceFile() {
     await this.initialize();
 
-    return this.#readSyntaxFile();
+    return this.#readWorkspaceSyntaxSourceFile();
   }
 
-  async saveSyntaxFile(source) {
-    return this.#enqueueWrite(() => this.#saveSyntaxFile(source));
+  async saveWorkspaceSyntaxSource(source) {
+    return this.#enqueueWrite(() => this.#saveWorkspaceSyntaxSource(source));
   }
 
-  async #saveSyntaxFile(source) {
+  async #saveWorkspaceSyntaxSource(source) {
     await this.initialize();
 
     if (typeof source !== "string" || source.trim().length === 0) {
@@ -199,7 +199,7 @@ export class WorkspaceFileStore {
     );
   }
 
-  async #readSyntaxFile() {
+  async #readWorkspaceSyntaxSourceFile() {
     let source;
 
     try {

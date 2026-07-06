@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { useSession } from "../application/workspace/useSession";
-import { useViewModel } from "../application/workspace/useViewModel";
+import { useSession } from "../application/workspace/session/useSession";
+import { useViewModel } from "../application/workspace/view-model/useViewModel";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
 import AppView from "../ui/AppView";
 

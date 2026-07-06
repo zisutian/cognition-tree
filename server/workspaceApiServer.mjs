@@ -90,13 +90,17 @@ export function createWorkspaceApiRequestHandler({ store }) {
       }
 
       if (url.pathname === "/api/syntax" && request.method === "GET") {
-        const syntaxFile = await store.readSyntaxFile();
+        const workspaceSyntaxSourceFile =
+          await store.readWorkspaceSyntaxSourceFile();
 
         sendJson(
           response,
           200,
-          syntaxFile
-            ? { fileName: syntaxFile.fileName, source: syntaxFile.source }
+          workspaceSyntaxSourceFile
+            ? {
+                fileName: workspaceSyntaxSourceFile.fileName,
+                source: workspaceSyntaxSourceFile.source,
+              }
             : null,
         );
         return;
@@ -109,7 +113,7 @@ export function createWorkspaceApiRequestHandler({ store }) {
           throw new Error("Syntax profile source is required");
         }
 
-        await store.saveSyntaxFile(body.source);
+        await store.saveWorkspaceSyntaxSource(body.source);
         sendNoContent(response);
         return;
       }

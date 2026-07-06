@@ -9,7 +9,7 @@ import {
   appendFolderToWorkspaceTree,
   collectNoteIdsInFolder,
   countFolders,
-  createFolderTreeNode,
+  createNoteTreeFolderNode,
   findFolderIdContainingNote,
   findFirstFolderId,
   moveNoteInWorkspaceTree,
@@ -143,7 +143,7 @@ describe("note tree operations", () => {
         "folder-inbox",
       ),
     };
-    const folder = createFolderTreeNode("folder-research", "研究");
+    const folder = createNoteTreeFolderNode("folder-research", "研究");
     const tree = appendFolderToWorkspaceTree(
       workspaceWithNote.tree,
       folder,
@@ -239,7 +239,7 @@ describe("note tree operations", () => {
     const workspace = createInitialWorkspaceData();
     const tree = appendFolderToWorkspaceTree(
       appendNoteToWorkspaceTree(workspace.tree, "note-first", "folder-inbox"),
-      createFolderTreeNode("folder-target", "目标"),
+      createNoteTreeFolderNode("folder-target", "目标"),
       "folder-inbox",
     );
     const movedTree = moveNoteInWorkspaceTree(
@@ -268,7 +268,7 @@ describe("note tree operations", () => {
     expect(() =>
       appendFolderToWorkspaceTree(
         workspace.tree,
-        createFolderTreeNode("folder-target", "目标"),
+        createNoteTreeFolderNode("folder-target", "目标"),
         "missing",
       ),
     ).toThrow("Workspace folder does not exist");

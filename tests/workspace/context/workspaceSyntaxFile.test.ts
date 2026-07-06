@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  createDefaultSyntaxFile,
-  parseSyntaxSource,
-  resolveSyntaxFile,
-} from "../../../src/workspace/context/syntaxFile";
+  createDefaultWorkspaceSyntaxFile,
+  parseWorkspaceSyntaxSource,
+  resolveWorkspaceSyntaxFile,
+} from "../../../src/workspace/context/workspaceSyntaxFile";
 
 describe("workspace syntax file", () => {
   it("creates the default workspace syntax source file", () => {
-    expect(createDefaultSyntaxFile()).toMatchObject({
+    expect(createDefaultWorkspaceSyntaxFile()).toMatchObject({
       fileName: "workspace.toml",
       profile: { name: "默认 CTN 语法" },
       source: expect.stringContaining('name = "默认 CTN 语法"'),
@@ -15,19 +15,19 @@ describe("workspace syntax file", () => {
   });
 
   it("resolves stored workspace syntax source files", () => {
-    const defaultSyntaxFile = createDefaultSyntaxFile();
+    const defaultWorkspaceSyntaxFile = createDefaultWorkspaceSyntaxFile();
 
-    expect(resolveSyntaxFile(null)).toBeNull();
-    expect(resolveSyntaxFile(defaultSyntaxFile)).toMatchObject({
+    expect(resolveWorkspaceSyntaxFile(null)).toBeNull();
+    expect(resolveWorkspaceSyntaxFile(defaultWorkspaceSyntaxFile)).toMatchObject({
       fileName: "workspace.toml",
       profile: { name: "默认 CTN 语法" },
-      source: defaultSyntaxFile.source,
+      source: defaultWorkspaceSyntaxFile.source,
     });
   });
 
   it("rejects invalid workspace syntax source", () => {
     expect(() =>
-      parseSyntaxSource("workspace.toml", 'name = "broken"\n'),
+      parseWorkspaceSyntaxSource("workspace.toml", 'name = "broken"\n'),
     ).toThrow("Invalid workspace syntax source");
   });
 });

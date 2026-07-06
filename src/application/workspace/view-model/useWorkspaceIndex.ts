@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { createWorkspaceIndexCache } from "../../workspace/queries/workspaceQueries";
-import type { WorkspaceIndex } from "../../workspace/queries/workspaceQueries";
-import type { WorkspaceContext } from "../../workspace/context/workspaceContext";
+import { createWorkspaceIndexCache } from "../../../workspace/queries/workspaceQueries";
+import type { WorkspaceIndex } from "../../../workspace/queries/workspaceQueries";
+import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
 
-export function useIndex(
+export function useWorkspaceIndex(
   workspace: WorkspaceContext | null,
 ): WorkspaceIndex | null {
   const [indexCache] = useState(createWorkspaceIndexCache);

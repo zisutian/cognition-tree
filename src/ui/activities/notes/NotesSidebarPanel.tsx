@@ -3,8 +3,8 @@ import { FolderPlus, Plus } from "lucide-react";
 import type {
   UiFolderId,
   UiNoteId,
-  UiSidebarView,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewTree";
+import type { UiSidebarView } from "../../../application/workspace/projection/viewSidebar";
 import {
   NotesSidebarTree,
   type TreeContextMenuPosition,

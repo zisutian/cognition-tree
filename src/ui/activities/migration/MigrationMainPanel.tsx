@@ -1,11 +1,11 @@
 import { useState } from "react";
-import type { UiMigrationView } from "../../../application/workspace/viewTypes";
+import type { UiMigrationView } from "../../../application/workspace/projection/viewMigration";
 import { BlockMigrationView } from "./BlockMigrationView";
-import { NoteSelectionView } from "./NoteSelectionView";
+import { MigrationNoteSelectionView } from "./MigrationNoteSelectionView";
 
 type MigrationMode = "note" | "block";
 
-type BlockMigrationMainPanelProps = {
+type MigrationMainPanelProps = {
   view: UiMigrationView & {
     onMoveBlockToPosition: (
       sourceBlockLineNumberValue: string,
@@ -16,9 +16,9 @@ type BlockMigrationMainPanelProps = {
   };
 };
 
-export function BlockMigrationMainPanel({
+export function MigrationMainPanel({
   view,
-}: BlockMigrationMainPanelProps) {
+}: MigrationMainPanelProps) {
   const [mode, setMode] = useState<MigrationMode>("note");
 
   return (
@@ -53,7 +53,7 @@ export function BlockMigrationMainPanel({
       </div>
 
       {mode === "note" ? (
-        <NoteSelectionView
+        <MigrationNoteSelectionView
           noteTree={view.noteTree}
           notes={view.notes}
           sourceNoteId={view.sourceNoteId}

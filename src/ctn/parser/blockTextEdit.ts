@@ -3,7 +3,7 @@ type BlockLineRange = {
   startLineNumber: number;
 };
 
-export type CtnEditableBlock = {
+export type CtnBlockTextRange = {
   endLineNumber: number;
   level: number;
   lineNumber: number;
@@ -14,20 +14,20 @@ export type CtnBlockTextTargetPosition =
       kind: "end";
     }
   | {
-      block: CtnEditableBlock;
+      block: CtnBlockTextRange;
       kind: "inside-block";
     }
   | {
-      block: CtnEditableBlock;
+      block: CtnBlockTextRange;
       kind: "sibling-above";
     }
   | {
-      block: CtnEditableBlock;
+      block: CtnBlockTextRange;
       kind: "sibling-below";
     };
 
 export type MoveCtnBlockTextInput = {
-  sourceBlock: CtnEditableBlock;
+  sourceBlock: CtnBlockTextRange;
   sourceText: string;
   targetPosition: CtnBlockTextTargetPosition;
   targetText: string;
@@ -59,7 +59,7 @@ function assertValidRange(source: string, range: BlockLineRange) {
   }
 }
 
-function getBlockLineRange(block: CtnEditableBlock): BlockLineRange {
+function getBlockLineRange(block: CtnBlockTextRange): BlockLineRange {
   return {
     endLineNumber: block.endLineNumber,
     startLineNumber: block.lineNumber,

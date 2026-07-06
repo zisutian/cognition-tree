@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ViewModel } from "../application/workspace/useViewModel";
+import type { ViewModel } from "../application/workspace/view-model/useViewModel";
 import type { ActivityId } from "./activityTypes";
 import {
   createActivitySlots,

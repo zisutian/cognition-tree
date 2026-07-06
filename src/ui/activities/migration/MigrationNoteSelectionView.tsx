@@ -11,9 +11,9 @@ import type {
   UiNoteId,
   UiNoteSummary,
   UiTreeNode,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewTree";
 
-type NoteSelectionViewProps = {
+type MigrationNoteSelectionViewProps = {
   notes: UiNoteSummary[];
   noteTree: UiTreeNode[];
   sourceNoteId: UiNoteId;
@@ -185,7 +185,7 @@ function MigrationNoteTree({
   );
 }
 
-export function NoteSelectionView({
+export function MigrationNoteSelectionView({
   notes,
   noteTree,
   sourceNoteId,
@@ -193,7 +193,7 @@ export function NoteSelectionView({
   onSourceNoteChange,
   onTargetNoteChange,
   onComplete,
-}: NoteSelectionViewProps) {
+}: MigrationNoteSelectionViewProps) {
   const [dragOverNoteId, setDragOverNoteId] = useState<UiNoteId | null>(null);
   const [collapsedSourceFolderIds, setCollapsedSourceFolderIds] = useState<
     Set<UiFolderId>

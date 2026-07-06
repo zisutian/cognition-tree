@@ -7,7 +7,7 @@ import {
   Search,
   Settings,
 } from "lucide-react";
-import type { ViewModel } from "../../application/workspace/useViewModel";
+import type { ViewModel } from "../../application/workspace/view-model/useViewModel";
 import type {
   ActivityId,
   ActivityItem,
@@ -17,7 +17,7 @@ import {
   ActivityMainPlaceholder,
   ActivitySidebarPlaceholder,
 } from "./ActivityPlaceholderPanels";
-import { BlockMigrationMainPanel } from "./migration/BlockMigrationMainPanel";
+import { MigrationMainPanel } from "./migration/MigrationMainPanel";
 import { MigrationSidebarPanel } from "./migration/MigrationSidebarPanel";
 import { NoteEditorPanel } from "./notes/NoteEditorPanel";
 import { NoteOutlinePanel } from "./notes/NoteOutlinePanel";
@@ -124,7 +124,7 @@ function createMigrationSlots({
   return {
     detail: null,
     main: view.hasConfiguredSyntax ? (
-      <BlockMigrationMainPanel view={view.migration} />
+      <MigrationMainPanel view={view.migration} />
     ) : (
       createSyntaxSetupMain({ view, onConfigureSyntax })
     ),

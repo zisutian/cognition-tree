@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
-} from "../../../src/workspace/model/workspaceData";
+} from "../../../../src/workspace/model/workspaceData";
 import {
-  createDataSaveQueue,
-  type SaveStatus,
-} from "../../../src/application/workspace/dataSaveQueue";
+  createWorkspaceSaveQueue,
+  type WorkspaceSaveStatus,
+} from "../../../../src/application/workspace/session/workspaceSaveQueue";
 
 function createWorkspaceData(name: string): WorkspaceData {
   return {
@@ -22,8 +22,8 @@ describe("workspace data save queue", () => {
       releaseFirstSave = resolve;
     });
     const savedWorkspaceDataNames: string[] = [];
-    const statuses: SaveStatus[] = [];
-    const queue = createDataSaveQueue({
+    const statuses: WorkspaceSaveStatus[] = [];
+    const queue = createWorkspaceSaveQueue({
       onError() {
         throw new Error("save should not fail");
       },
@@ -52,9 +52,9 @@ describe("workspace data save queue", () => {
   it("reports errors and accepts a later save", async () => {
     const savedWorkspaceDataNames: string[] = [];
     const errors: unknown[] = [];
-    const statuses: SaveStatus[] = [];
+    const statuses: WorkspaceSaveStatus[] = [];
     let shouldFail = true;
-    const queue = createDataSaveQueue({
+    const queue = createWorkspaceSaveQueue({
       onError(error) {
         errors.push(error);
       },

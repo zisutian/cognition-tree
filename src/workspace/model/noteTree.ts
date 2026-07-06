@@ -1,9 +1,9 @@
 import type { FolderId, NoteId, NoteTreeNode } from "./workspaceData";
 
-export type FolderTreeNode = Extract<NoteTreeNode, { kind: "folder" }>;
+export type NoteTreeFolderNode = Extract<NoteTreeNode, { kind: "folder" }>;
 export type NoteTreeNoteNode = Extract<NoteTreeNode, { kind: "note" }>;
 
-export function createNoteTreeNode(noteId: NoteId): NoteTreeNoteNode {
+export function createNoteTreeNoteNode(noteId: NoteId): NoteTreeNoteNode {
   return {
     id: `tree-${noteId}`,
     kind: "note",
@@ -11,10 +11,10 @@ export function createNoteTreeNode(noteId: NoteId): NoteTreeNoteNode {
   };
 }
 
-export function createFolderTreeNode(
+export function createNoteTreeFolderNode(
   folderId: FolderId,
   title: string,
-): FolderTreeNode {
+): NoteTreeFolderNode {
   return {
     id: folderId,
     kind: "folder",
@@ -83,7 +83,7 @@ function appendNoteToWorkspaceTreeUnchecked(
       ...node,
       children: orderNoteTreeNodesFoldersFirst([
         ...node.children,
-        createNoteTreeNode(noteId),
+        createNoteTreeNoteNode(noteId),
       ]),
     };
   });
@@ -91,7 +91,7 @@ function appendNoteToWorkspaceTreeUnchecked(
 
 export function appendFolderToWorkspaceTree(
   tree: NoteTreeNode[],
-  folder: FolderTreeNode,
+  folder: NoteTreeFolderNode,
   parentFolderId: FolderId,
 ): NoteTreeNode[] {
   if (!findFolderNode(tree, parentFolderId)) {
@@ -103,7 +103,7 @@ export function appendFolderToWorkspaceTree(
 
 function appendFolderToWorkspaceTreeUnchecked(
   tree: NoteTreeNode[],
-  folder: FolderTreeNode,
+  folder: NoteTreeFolderNode,
   parentFolderId: FolderId,
 ): NoteTreeNode[] {
   return tree.map((node) => {
@@ -199,7 +199,7 @@ export function findFirstFolderId(tree: NoteTreeNode[]): FolderId | null {
 export function findFolderNode(
   tree: NoteTreeNode[],
   folderId: FolderId,
-): FolderTreeNode | null {
+): NoteTreeFolderNode | null {
   for (const node of tree) {
     if (node.kind !== "folder") {
       continue;

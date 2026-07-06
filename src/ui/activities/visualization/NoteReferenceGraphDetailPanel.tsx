@@ -1,4 +1,4 @@
-import type { UiReferenceGraphView } from "../../../application/workspace/viewTypes";
+import type { UiReferenceGraphView } from "../../../application/workspace/projection/viewGraph";
 
 type NoteReferenceGraphDetailPanelProps = {
   graph: UiReferenceGraphView;

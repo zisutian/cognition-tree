@@ -13,11 +13,11 @@ import type {
 } from "../ctn/parser/types";
 import { createCtnSyntaxParseProfileKey } from "../ctn/syntax/profileKey";
 import {
-  getSyntaxTextColorClassName,
-  getSyntaxTextColorStyle,
-  getSyntaxToneClassName,
-  getSyntaxToneStyle,
-} from "../ctn/syntax/tones";
+  getCtnEditorTextColorClassName,
+  getCtnEditorTextColorStyle,
+  getCtnEditorToneClassName,
+  getCtnEditorToneStyle,
+} from "./ctnTonePresentation";
 import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 
 function isRootConceptBlock(block: CtnBlock) {
@@ -25,7 +25,7 @@ function isRootConceptBlock(block: CtnBlock) {
 }
 
 function getBlockTextClass(block: CtnBlock) {
-  const textColorClass = getSyntaxTextColorClassName(block.textColor);
+  const textColorClass = getCtnEditorTextColorClassName(block.textColor);
 
   if (isRootConceptBlock(block)) {
     return `ctn-block-text ctn-block-text-root-concept ${textColorClass}`;
@@ -64,14 +64,14 @@ export function shouldDecorateMarker(block: CtnBlock) {
 }
 
 export function getMarkerDecorationClass(block: CtnBlock) {
-  return `ctn-marker ${getSyntaxTextColorClassName(block.textColor)}`;
+  return `ctn-marker ${getCtnEditorTextColorClassName(block.textColor)}`;
 }
 
 export function getBlockLineDecorationClass(
   block: CtnBlock,
   lineNumber = block.lineNumber,
 ) {
-  const lineClasses = ["ctn-line", getSyntaxToneClassName(block.tone)];
+  const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.tone)];
   const isBlockStartLine = lineNumber === block.lineNumber;
 
   if (isBlockStartLine && isRootConceptBlock(block)) {
@@ -86,15 +86,15 @@ export function getBlockLineDecorationClass(
 }
 
 export function getBlockLineDecorationStyle(block: CtnBlock) {
-  return getSyntaxToneStyle(block.tone);
+  return getCtnEditorToneStyle(block.tone);
 }
 
 export function getInlineDecorationClass(span: CtnInlineSpan) {
-  return `ctn-inline ${getSyntaxToneClassName(span.tone)} ${getSyntaxTextColorClassName(span.textColor)}`;
+  return `ctn-inline ${getCtnEditorToneClassName(span.tone)} ${getCtnEditorTextColorClassName(span.textColor)}`;
 }
 
 export function getMarkerDecorationStyle(block: CtnBlock) {
-  return getSyntaxTextColorStyle(block.textColor);
+  return getCtnEditorTextColorStyle(block.textColor);
 }
 
 export function getMultilineMarkDecorationClass(
@@ -103,7 +103,7 @@ export function getMultilineMarkDecorationClass(
 ) {
   const classes = [
     "ctn-multiline-block-mark",
-    getSyntaxTextColorClassName(block.textColor),
+    getCtnEditorTextColorClassName(block.textColor),
   ];
 
   if (lineNumber === block.lineNumber) {
@@ -118,17 +118,20 @@ export function getMultilineMarkDecorationClass(
 }
 
 export function getMultilineMarkDecorationStyle(block: CtnBlock) {
-  return getSyntaxTextColorStyle(block.textColor);
+  return getCtnEditorTextColorStyle(block.textColor);
 }
 
 export function getInlineDecorationStyle(span: CtnInlineSpan) {
-  return [getSyntaxToneStyle(span.tone), getSyntaxTextColorStyle(span.textColor)]
+  return [
+    getCtnEditorToneStyle(span.tone),
+    getCtnEditorTextColorStyle(span.textColor),
+  ]
     .filter(Boolean)
     .join(" ");
 }
 
 function getBlockTextDecorationStyle(block: CtnBlock) {
-  return getSyntaxTextColorStyle(block.textColor);
+  return getCtnEditorTextColorStyle(block.textColor);
 }
 
 function buildCtnDecorations(
@@ -151,7 +154,7 @@ function buildCtnDecorations(
           multilineTextStart < multilineLine.text.length
             ? multilineLine.to
             : multilineLine.from + multilineLine.text.length;
-        const multilineLineStyle = getSyntaxToneStyle(block.tone);
+        const multilineLineStyle = getCtnEditorToneStyle(block.tone);
 
         if (lineNumber !== block.lineNumber) {
           decorations.push(

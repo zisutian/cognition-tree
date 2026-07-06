@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { NoteSelectionView } from "../../../../src/ui/activities/migration/NoteSelectionView";
-import type { UiTreeNode } from "../../../../src/application/workspace/viewTypes";
+import { MigrationNoteSelectionView } from "../../../../src/ui/activities/migration/MigrationNoteSelectionView";
+import type { UiTreeNode } from "../../../../src/application/workspace/projection/viewTree";
 
 const noteTree: UiTreeNode[] = [
   {
@@ -38,10 +38,10 @@ const noteTree: UiTreeNode[] = [
   },
 ];
 
-describe("NoteSelectionView", () => {
+describe("MigrationNoteSelectionView", () => {
   it("renders folder-backed note choices without offering the source note as a target", () => {
     const markup = renderToStaticMarkup(
-      <NoteSelectionView
+      <MigrationNoteSelectionView
         noteTree={noteTree}
         notes={[
           { id: "note-source", title: "Source note" },

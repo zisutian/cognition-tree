@@ -9,7 +9,7 @@ import {
 import type {
   UiSyntaxTone,
   UiSyntaxToneOption,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewSyntax";
 
 const toneLabels: Record<string, string> = {
   amber: "琥珀",

@@ -2,13 +2,13 @@ import type { DragEvent } from "react";
 import { useState } from "react";
 import {
   flattenUiBlockSubtree,
+} from "../../../application/workspace/projection/viewBlocks";
+import {
   getUiTargetPositionLabel,
-} from "../../../application/workspace/viewData";
-import type {
-  UiBlockNode,
-  UiNoteSummary,
-} from "../../../application/workspace/viewTypes";
-import { OutlineNodeText } from "../../shared/blocks/OutlineNodeText";
+} from "../../../application/workspace/projection/viewMigration";
+import type { UiBlockNode } from "../../../application/workspace/projection/viewBlocks";
+import type { UiNoteSummary } from "../../../application/workspace/projection/viewTree";
+import { BlockTextDisplay } from "../../shared/blocks/BlockTextDisplay";
 import {
   blockDragDataType,
   createBlockDragLineNumberPayload,
@@ -163,7 +163,7 @@ export function BlockMigrationView({
                     style={{ paddingLeft: `${block.level * 12}px` }}
                   >
                     <span>{block.label}</span>
-                    <OutlineNodeText
+                    <BlockTextDisplay
                       className="migration-subtree-node-text"
                       text={block.textDisplay}
                     />

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type {
   UiReferenceGraphNode,
   UiReferenceGraphView,
-} from "../../../application/workspace/viewTypes";
+} from "../../../application/workspace/projection/viewGraph";
 
 type NoteReferenceGraphPanelProps = {
   graph: UiReferenceGraphView;

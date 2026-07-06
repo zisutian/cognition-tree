@@ -1,6 +1,6 @@
 import { type CSSProperties, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
-import type { UiOutlineNode } from "../../../application/workspace/viewTypes";
+import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
 import { NoteOutlineTree } from "./NoteOutlineTree";
 
 const outlineZoomMin = 0.85;

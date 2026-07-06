@@ -2,12 +2,12 @@ import {
   type RepositoryInfo,
   type WorkspaceRepository,
 } from "./workspaceRepository";
-import { workspaceSyntaxFileName } from "../workspace/context/syntaxFile";
+import { workspaceSyntaxFileName } from "../workspace/context/workspaceSyntaxFile";
 import { parseWorkspaceDataDto } from "./workspaceDto";
 
 const workspaceStorageKey = "cognition-tree.workspace";
 const repositoryLabelStorageKey = "cognition-tree.repository-label";
-const syntaxFileStorageKey = "cognition-tree.syntax-file";
+const workspaceSyntaxSourceStorageKey = "cognition-tree.syntax-file";
 
 function getRepositoryLabel() {
   return (
@@ -26,21 +26,23 @@ function loadStoredWorkspace() {
   return parseWorkspaceDataDto(JSON.parse(storedWorkspace));
 }
 
-function loadStoredSyntaxFile() {
-  const storedSyntaxFile = globalThis.localStorage?.getItem(syntaxFileStorageKey);
+function loadStoredWorkspaceSyntaxSourceFile() {
+  const storedWorkspaceSyntaxSource = globalThis.localStorage?.getItem(
+    workspaceSyntaxSourceStorageKey,
+  );
 
-  if (!storedSyntaxFile) {
+  if (!storedWorkspaceSyntaxSource) {
     return null;
   }
 
   return {
     fileName: workspaceSyntaxFileName,
-    source: storedSyntaxFile,
+    source: storedWorkspaceSyntaxSource,
   };
 }
 
-function saveStoredSyntaxFile(source: string) {
-  globalThis.localStorage?.setItem(syntaxFileStorageKey, source);
+function saveStoredWorkspaceSyntaxSource(source: string) {
+  globalThis.localStorage?.setItem(workspaceSyntaxSourceStorageKey, source);
 }
 
 export function createBrowserWorkspaceRepository(): WorkspaceRepository {
@@ -58,18 +60,18 @@ export function createBrowserWorkspaceRepository(): WorkspaceRepository {
     },
     async clearWorkspace() {
       globalThis.localStorage?.removeItem(workspaceStorageKey);
-      globalThis.localStorage?.removeItem(syntaxFileStorageKey);
+      globalThis.localStorage?.removeItem(workspaceSyntaxSourceStorageKey);
     },
     async getRepositoryInfo(): Promise<RepositoryInfo> {
       return {
         path: getRepositoryLabel(),
       };
     },
-    async readSyntaxFile() {
-      return loadStoredSyntaxFile();
+    async readWorkspaceSyntaxSourceFile() {
+      return loadStoredWorkspaceSyntaxSourceFile();
     },
-    async saveSyntaxFile(source) {
-      saveStoredSyntaxFile(source);
+    async saveWorkspaceSyntaxSource(source) {
+      saveStoredWorkspaceSyntaxSource(source);
     },
     async setRepositoryPath(path) {
       globalThis.localStorage?.setItem(repositoryLabelStorageKey, path);

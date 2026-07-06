@@ -1,7 +1,6 @@
 import type {
   CtnCustomSyntaxTone,
   CtnPresetSyntaxTone,
-  CtnSyntaxTone,
 } from "./types";
 
 export const configurableSyntaxTones: CtnPresetSyntaxTone[] = [
@@ -35,22 +34,4 @@ export function isConfigurableSyntaxTone(
   tone: string,
 ): tone is CtnPresetSyntaxTone | CtnCustomSyntaxTone {
   return isPresetSyntaxTone(tone) || isCustomSyntaxTone(tone);
-}
-
-export function getSyntaxToneClassName(tone: CtnSyntaxTone) {
-  return isCustomSyntaxTone(tone) ? "ctn-tone-custom" : `ctn-tone-${tone}`;
-}
-
-export function getSyntaxToneStyle(tone: CtnSyntaxTone) {
-  return isCustomSyntaxTone(tone) ? `--ctn-tone-color: ${tone};` : undefined;
-}
-
-export function getSyntaxTextColorClassName(tone: CtnSyntaxTone) {
-  return isCustomSyntaxTone(tone)
-    ? "ctn-text-color-custom"
-    : `ctn-text-color-${tone}`;
-}
-
-export function getSyntaxTextColorStyle(tone: CtnSyntaxTone) {
-  return isCustomSyntaxTone(tone) ? `--ctn-text-color: ${tone};` : undefined;
 }
