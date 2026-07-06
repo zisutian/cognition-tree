@@ -1,6 +1,8 @@
 @media (max-width: 1120px) {
   .app-frame {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    grid-template-columns:
+      minmax(220px, min(var(--app-sidebar-width), 38vw))
+      minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) minmax(220px, 36dvh);
     grid-template-areas:
       "sidebar editor"

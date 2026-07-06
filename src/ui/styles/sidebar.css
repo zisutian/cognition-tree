@@ -1,5 +1,6 @@
 .app-sidebar {
   grid-area: sidebar;
+  position: relative;
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
   min-width: 0;
@@ -7,6 +8,39 @@
   overflow: hidden;
   color: var(--color-fg);
   background: var(--color-side-bar);
+}
+
+.app-sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: 8px;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.app-sidebar-resize-handle::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  background: transparent;
+  content: "";
+}
+
+.app-sidebar-resize-handle:hover::before,
+.app-sidebar-resize-handle:focus-visible::before,
+.app-sidebar-resize-handle.is-resizing::before {
+  background: var(--color-border-strong);
+}
+
+.app-sidebar-resize-handle:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: -3px;
 }
 
 .app-frame.activity-notes .app-sidebar {

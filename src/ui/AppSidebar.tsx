@@ -1,22 +1,40 @@
-import type { ReactNode } from "react";
+import type {
+  KeyboardEvent,
+  PointerEvent,
+  ReactNode,
+} from "react";
 import type {
   ActivityId,
   ActivityItem,
 } from "./activityTypes";
 import { ActivityBar } from "./ActivityBar";
+import {
+  appSidebarMaxWidth,
+  appSidebarMinWidth,
+} from "./sidebarResize";
 
 type AppSidebarProps = {
   activeActivityId: ActivityId;
   activityItems: ActivityItem[];
+  isSidebarResizing: boolean;
+  sidebarCollapsed: boolean;
+  sidebarResizeValue: number;
   sidebarSlot: ReactNode;
   onActivityChange: (activityId: ActivityId) => void;
+  onSidebarResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  onSidebarResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
 };
 
 export function AppSidebar({
   activeActivityId,
   activityItems,
+  isSidebarResizing,
+  sidebarCollapsed,
+  sidebarResizeValue,
   sidebarSlot,
   onActivityChange,
+  onSidebarResizeKeyDown,
+  onSidebarResizeStart,
 }: AppSidebarProps) {
   const activeActivityItem =
     activityItems.find((item) => item.id === activeActivityId) ??
@@ -36,6 +54,25 @@ export function AppSidebar({
         </header>
         {sidebarSlot}
       </section>
+      {sidebarCollapsed ? null : (
+        <div
+          aria-label="调整左侧栏宽度"
+          aria-orientation="vertical"
+          aria-valuemax={appSidebarMaxWidth}
+          aria-valuemin={appSidebarMinWidth}
+          aria-valuenow={sidebarResizeValue}
+          aria-valuetext={`${sidebarResizeValue}px`}
+          className={
+            isSidebarResizing
+              ? "app-sidebar-resize-handle is-resizing"
+              : "app-sidebar-resize-handle"
+          }
+          onKeyDown={onSidebarResizeKeyDown}
+          onPointerDown={onSidebarResizeStart}
+          role="separator"
+          tabIndex={0}
+        />
+      )}
     </aside>
   );
 }

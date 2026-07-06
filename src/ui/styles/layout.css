@@ -22,6 +22,16 @@
     var(--app-outline-width);
 }
 
+.app-frame.is-resizing-sidebar {
+  transition: none;
+}
+
+.app-frame.is-resizing-sidebar,
+.app-frame.is-resizing-sidebar * {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .app-frame.activity-notes {
   background: var(--note-page-background);
 }
