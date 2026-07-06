@@ -3,39 +3,39 @@ type BlockLineRange = {
   startLineNumber: number;
 };
 
-export type BlockMigrationBlock = {
+export type CtnEditableBlock = {
   endLineNumber: number;
   level: number;
   lineNumber: number;
 };
 
-export type BlockMigrationTargetPosition =
+export type CtnBlockTextTargetPosition =
   | {
       kind: "end";
     }
   | {
-      block: BlockMigrationBlock;
+      block: CtnEditableBlock;
       kind: "inside-block";
     }
   | {
-      block: BlockMigrationBlock;
+      block: CtnEditableBlock;
       kind: "sibling-above";
     }
   | {
-      block: BlockMigrationBlock;
+      block: CtnEditableBlock;
       kind: "sibling-below";
     };
 
-export type MoveNoteBlockTextInput = {
-  sourceBlock: BlockMigrationBlock;
-  sourceSource: string;
-  targetPosition: BlockMigrationTargetPosition;
-  targetSource: string;
+export type MoveCtnBlockTextInput = {
+  sourceBlock: CtnEditableBlock;
+  sourceText: string;
+  targetPosition: CtnBlockTextTargetPosition;
+  targetText: string;
 };
 
-export type MoveNoteBlockTextResult = {
-  nextSourceSource: string;
-  nextTargetSource: string;
+export type MoveCtnBlockTextResult = {
+  nextSourceText: string;
+  nextTargetText: string;
   status: "moved";
 };
 
@@ -59,7 +59,7 @@ function assertValidRange(source: string, range: BlockLineRange) {
   }
 }
 
-function getBlockLineRange(block: BlockMigrationBlock): BlockLineRange {
+function getBlockLineRange(block: CtnEditableBlock): BlockLineRange {
   return {
     endLineNumber: block.endLineNumber,
     startLineNumber: block.lineNumber,
@@ -137,7 +137,7 @@ function getDocumentAppendLineNumber(source: string) {
   return source.endsWith("\n") ? lineCount : lineCount + 1;
 }
 
-function getTargetLevel(targetPosition: BlockMigrationTargetPosition) {
+function getTargetLevel(targetPosition: CtnBlockTextTargetPosition) {
   switch (targetPosition.kind) {
     case "inside-block":
       return targetPosition.block.level + 1;
@@ -150,8 +150,8 @@ function getTargetLevel(targetPosition: BlockMigrationTargetPosition) {
 }
 
 function getTargetInsertionLineNumber(
-  targetSource: string,
-  targetPosition: BlockMigrationTargetPosition,
+  targetText: string,
+  targetPosition: CtnBlockTextTargetPosition,
 ) {
   switch (targetPosition.kind) {
     case "inside-block":
@@ -160,30 +160,30 @@ function getTargetInsertionLineNumber(
     case "sibling-above":
       return targetPosition.block.lineNumber;
     case "end":
-      return getDocumentAppendLineNumber(targetSource);
+      return getDocumentAppendLineNumber(targetText);
   }
 }
 
-export function moveNoteBlockText(
-  input: MoveNoteBlockTextInput,
-): MoveNoteBlockTextResult {
+export function moveCtnBlockText(
+  input: MoveCtnBlockTextInput,
+): MoveCtnBlockTextResult {
   const sourceRange = getBlockLineRange(input.sourceBlock);
-  const extractedText = extractBlockText(input.sourceSource, sourceRange);
+  const extractedText = extractBlockText(input.sourceText, sourceRange);
   const rewrittenText = rewriteBlockIndent(
     extractedText,
     input.sourceBlock.level,
     getTargetLevel(input.targetPosition),
   );
-  const nextSourceSource = removeBlockText(input.sourceSource, sourceRange);
-  const nextTargetSource = insertBlockTextBeforeLine(
-    input.targetSource,
+  const nextSourceText = removeBlockText(input.sourceText, sourceRange);
+  const nextTargetText = insertBlockTextBeforeLine(
+    input.targetText,
     rewrittenText,
-    getTargetInsertionLineNumber(input.targetSource, input.targetPosition),
+    getTargetInsertionLineNumber(input.targetText, input.targetPosition),
   );
 
   return {
-    nextSourceSource,
-    nextTargetSource,
+    nextSourceText,
+    nextTargetText,
     status: "moved",
   };
 }

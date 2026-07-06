@@ -1,8 +1,8 @@
 import type { CtnBlock } from "../../ctn/parser/types";
 import {
-  moveNoteBlockText,
-  type BlockMigrationTargetPosition,
-} from "./blockMigrationText";
+  moveCtnBlockText,
+  type CtnBlockTextTargetPosition,
+} from "../../ctn/parser/blockTextEdit";
 import {
   inferNoteTitle,
   type NoteId,
@@ -106,7 +106,7 @@ function resolveMigrationNote(
 function resolveTargetPosition(
   targetBlocks: CtnBlock[],
   targetPositionRequest: WorkspaceBlockMigrationTargetPositionRequest,
-): BlockMigrationTargetPosition | MoveWorkspaceBlockResult {
+): CtnBlockTextTargetPosition | MoveWorkspaceBlockResult {
   if (targetPositionRequest.kind === "end") {
     return { kind: "end" };
   }
@@ -126,8 +126,8 @@ function resolveTargetPosition(
 }
 
 function isTargetPosition(
-  result: BlockMigrationTargetPosition | MoveWorkspaceBlockResult,
-): result is BlockMigrationTargetPosition {
+  result: CtnBlockTextTargetPosition | MoveWorkspaceBlockResult,
+): result is CtnBlockTextTargetPosition {
   return !("status" in result);
 }
 
@@ -201,11 +201,11 @@ export function moveWorkspaceBlock(
     return migrationInput;
   }
 
-  const result = moveNoteBlockText({
+  const result = moveCtnBlockText({
     sourceBlock: migrationInput.sourceBlock,
-    sourceSource: migrationInput.sourceParsed.note.source,
+    sourceText: migrationInput.sourceParsed.note.source,
     targetPosition: migrationInput.targetPosition,
-    targetSource: migrationInput.targetParsed.note.source,
+    targetText: migrationInput.targetParsed.note.source,
   });
 
   const sourceNoteId = migrationInput.sourceParsed.note.id;
@@ -221,8 +221,8 @@ export function moveWorkspaceBlock(
         if (note.id === sourceNoteId) {
           return {
             ...note,
-            source: result.nextSourceSource,
-            title: inferNoteTitle(result.nextSourceSource),
+            source: result.nextSourceText,
+            title: inferNoteTitle(result.nextSourceText),
             updatedAt: timestamp,
           };
         }
@@ -230,8 +230,8 @@ export function moveWorkspaceBlock(
         if (note.id === targetNoteId) {
           return {
             ...note,
-            source: result.nextTargetSource,
-            title: inferNoteTitle(result.nextTargetSource),
+            source: result.nextTargetText,
+            title: inferNoteTitle(result.nextTargetText),
             updatedAt: timestamp,
           };
         }

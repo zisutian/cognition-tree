@@ -31,7 +31,7 @@ src/workspace：
 
 src/ctn：
 
-    parser：CTN 原文解析，输出结构、诊断和引用信息。
+    parser：CTN 原文解析，提供结构、诊断、引用和 block 文本结构能力。
     syntax：CTN 语法核心，提供 profile、默认语法、配置解析和校验。
 
 src/storage：

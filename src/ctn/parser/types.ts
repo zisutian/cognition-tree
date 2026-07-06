@@ -57,5 +57,3 @@ export type CtnDocument = {
   blocks: CtnBlock[];
   diagnostics: CtnDiagnostic[];
 };
-
-export type OutlineNode = CtnBlock;

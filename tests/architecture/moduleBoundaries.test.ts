@@ -258,6 +258,13 @@ describe("architecture module boundaries", () => {
     ]);
   });
 
+  it("keeps workspace commands focused on workspace business commands", () => {
+    expect(listSourceFileNames("workspace/commands")).toEqual([
+      "blockMigrationCommands.ts",
+      "workspaceCommands.ts",
+    ]);
+  });
+
   it("keeps workspace syntax source handling in workspace context", () => {
     expect(listSourceFileNames("workspace/context")).toEqual([
       "syntaxFile.ts",
@@ -267,6 +274,20 @@ describe("architecture module boundaries", () => {
 
   it("keeps ctn submodules explicitly named", () => {
     expect(listSubdirectories("ctn")).toEqual(["parser", "syntax"]);
+  });
+
+  it("keeps ctn parser owning parsed block text operations", () => {
+    expect(listSourceFileNames("ctn/parser")).toEqual([
+      "blockRanges.ts",
+      "blockTextEdit.ts",
+      "diagnostics.ts",
+      "indent.ts",
+      "inlineReferences.ts",
+      "inlineSpans.ts",
+      "lineMarkers.ts",
+      "parseCtnDocument.ts",
+      "types.ts",
+    ]);
   });
 
   it("keeps workspace model focused on workspace data and tree model", () => {

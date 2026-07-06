@@ -4,11 +4,7 @@ import {
   getSyntaxToneClassName,
   isCustomSyntaxTone,
 } from "../../ctn/syntax/tones";
-import type {
-  CtnBlock,
-  CtnDocument,
-  OutlineNode,
-} from "../../ctn/parser/types";
+import type { CtnBlock, CtnDocument } from "../../ctn/parser/types";
 import type {
   CtnRuleRole,
   CtnSyntaxProfile,
@@ -79,7 +75,7 @@ function createToneStyle(
   return Object.keys(style).length > 0 ? style : undefined;
 }
 
-function getNodeTextStartIndex(node: OutlineNode) {
+function getNodeTextStartIndex(node: CtnBlock) {
   let textStart = node.indentText.length;
 
   if (node.marker) {
@@ -111,7 +107,7 @@ function getInlineDisplayText(sourceText: string, parsedText: string) {
   return parsedTextStart >= 0 ? parsedText : sourceText;
 }
 
-export function createUiTextSegments(node: OutlineNode): UiTextSegment[] {
+export function createUiTextSegments(node: CtnBlock): UiTextSegment[] {
   const textStartColumn = getNodeTextStartIndex(node) + 1;
   const spans = [...node.inlineSpans].sort(
     (left, right) =>
@@ -173,7 +169,7 @@ export function getUiTextDisplayText(segments: UiTextSegment[]) {
   return segments.map((segment) => segment.text).join("");
 }
 
-export function createUiTextDisplay(node: OutlineNode): UiTextDisplay {
+export function createUiTextDisplay(node: CtnBlock): UiTextDisplay {
   const segments = createUiTextSegments(node);
 
   return {
@@ -203,7 +199,7 @@ export function createUiBlockNode(block: CtnBlock): UiBlockNode {
   };
 }
 
-export function createUiOutlineNodes(nodes: OutlineNode[]): UiOutlineNode[] {
+export function createUiOutlineNodes(nodes: CtnBlock[]): UiOutlineNode[] {
   return nodes.map(createUiBlockNode);
 }
 
