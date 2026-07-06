@@ -317,20 +317,22 @@ export function NotesSidebarPanel({
           <p className="side-section-title">笔记</p>
           <div className="side-action-group">
             <button
+              aria-label="新建笔记"
               className="side-action-button"
               onClick={onCreateNote}
+              title="新建笔记"
               type="button"
             >
               <Plus aria-hidden="true" size={13} strokeWidth={2} />
-              新建
             </button>
             <button
+              aria-label="新建文件夹"
               className="side-action-button"
               onClick={() => requestCreateFolder(view.activeFolderId)}
+              title="新建文件夹"
               type="button"
             >
               <FolderPlus aria-hidden="true" size={13} strokeWidth={2} />
-              文件夹
             </button>
           </div>
         </div>

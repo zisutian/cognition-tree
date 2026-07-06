@@ -250,6 +250,35 @@
   cursor: default;
 }
 
+.notes-section .side-action-group {
+  gap: 2px;
+}
+
+.notes-section .side-action-button {
+  justify-content: center;
+  width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-fg-muted);
+  background: transparent;
+}
+
+.app-frame.activity-notes .notes-section .side-action-button {
+  color: var(--color-fg-muted);
+  background: transparent;
+}
+
+.notes-section .side-action-button:hover {
+  color: var(--color-fg-strong);
+  background: var(--color-hover);
+}
+
+.app-frame.activity-notes .notes-section .side-action-button:hover {
+  color: var(--color-fg-strong);
+  background: var(--color-hover);
+}
+
 .side-error {
   margin: 0;
   color: var(--color-error);
@@ -291,6 +320,7 @@
 .note-tree {
   flex: 1;
   min-height: 0;
+  padding: 2px 0;
 }
 
 .sidebar-scroll-area {
@@ -313,24 +343,148 @@
   min-width: 0;
 }
 
+.note-tree-content,
+.note-tree .ctn-tree-children {
+  gap: 0;
+}
+
+.note-tree .ctn-tree-children {
+  padding-left: 10px;
+  border-left: 0;
+}
+
 .note-folder {
   display: grid;
-  gap: 1px;
+  gap: 0;
+}
+
+.note-tree-node-frame {
+  position: relative;
+  min-height: 24px;
 }
 
 .note-tree-drop-zone {
-  height: 8px;
-  margin: -3px 0;
-  border-radius: var(--radius-sm);
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 42%;
+  margin: 0;
   background: transparent;
+  pointer-events: none;
+}
+
+.note-tree-drop-zone-before {
+  top: 0;
+}
+
+.note-tree-drop-zone-after {
+  bottom: 0;
+}
+
+.note-tree-drop-zone::before {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  background: transparent;
+  content: "";
+}
+
+.note-tree-drop-zone-before::before {
+  top: 0;
+}
+
+.note-tree-drop-zone-after::before {
+  bottom: 0;
 }
 
 .note-tree-drop-zone.is-drop-target {
+  background: transparent;
+}
+
+.note-tree-drop-zone.is-drop-target::before {
   background: var(--color-accent);
 }
 
+.note-tree .ctn-tree-row,
+.note-tree .ctn-tree-main {
+  min-height: 24px;
+  border-radius: 0;
+}
+
+.note-tree .ctn-tree-row-with-toggle {
+  grid-template-columns: 24px minmax(0, 1fr);
+}
+
+.note-tree .ctn-tree-toggle {
+  width: 22px;
+  height: 24px;
+  border-radius: 0;
+}
+
+.note-tree .ctn-tree-main {
+  gap: 2px;
+  padding: 2px 4px;
+  font-size: var(--font-size-sm);
+}
+
+.note-tree .ctn-tree-main-compact {
+  padding: 2px 4px 2px 0;
+}
+
+.note-tree .ctn-tree-main-note {
+  grid-template-columns: minmax(0, 1fr);
+  padding-left: 24px;
+}
+
+.note-tree .note-folder-label {
+  grid-template-columns: 22px minmax(0, 1fr);
+}
+
+.note-tree .ctn-tree-row:hover,
+.note-tree .ctn-tree-row.is-active,
+.note-tree .ctn-tree-main:hover,
+.note-tree .ctn-tree-main.is-active {
+  background: var(--color-hover);
+}
+
+.note-tree .ctn-tree-row.is-active,
+.note-tree .ctn-tree-main.is-active {
+  background: var(--color-selection);
+}
+
+.app-frame.activity-notes .note-tree .ctn-tree-row:hover,
+.app-frame.activity-notes .note-tree .ctn-tree-main:hover {
+  background: var(--color-hover);
+}
+
+.app-frame.activity-notes .note-tree .ctn-tree-row.is-active,
+.app-frame.activity-notes .note-tree .ctn-tree-main.is-active {
+  background: var(--color-selection);
+}
+
+.note-tree .ctn-tree-row:hover .ctn-tree-main,
+.note-tree .ctn-tree-row.is-active .ctn-tree-main {
+  background: transparent;
+}
+
+.app-frame.activity-notes .note-tree .ctn-tree-row:hover .ctn-tree-main,
+.app-frame.activity-notes .note-tree .ctn-tree-row.is-active .ctn-tree-main {
+  background: transparent;
+}
+
+.note-tree .ctn-tree-text {
+  line-height: 1.25;
+}
+
+.note-tree .ctn-tree-meta {
+  color: var(--color-fg-subtle);
+  font-weight: var(--font-weight-regular);
+}
+
 .note-folder-label {
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-regular);
 }
 
 .note-folder-row.is-dragging,
@@ -349,12 +503,16 @@
 
 .note-folder-row.is-drop-inside .note-folder-label,
 .note-folder-row.is-drop-inside .note-folder-toggle {
+  background: transparent;
+}
+
+.note-folder-row.is-drop-inside {
   background: var(--color-selection);
 }
 
 .note-item-row {
   position: relative;
-  min-height: 26px;
+  min-height: 24px;
 }
 
 .sidebar-context-menu {

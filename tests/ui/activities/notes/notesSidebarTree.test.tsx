@@ -60,6 +60,9 @@ describe("NotesSidebarTree", () => {
     );
 
     expect(markup).toContain("note-tree-drop-zone");
+    expect(markup).toContain("note-tree-node-frame");
+    expect(markup).toContain("note-tree-drop-zone-before");
+    expect(markup).toContain("note-tree-drop-zone-after");
     expect(markup).toContain('draggable="false"');
     expect(markup.match(/draggable="true"/g)).toHaveLength(2);
     expect(markup).toContain("项目");
