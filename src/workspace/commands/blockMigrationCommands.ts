@@ -58,15 +58,12 @@ type ParsedMigrationNote = {
 };
 
 type WorkspaceBlockMigrationIndex = {
-  parsedNotesById: Map<
-    NoteId,
-    {
-      document: {
-        blocks: CtnBlock[];
-      };
-      note: NoteRecord | null;
-    }
-  >;
+  getParsedNote(noteId: NoteId): {
+    document: {
+      blocks: CtnBlock[];
+    };
+    note: NoteRecord | null;
+  } | null;
 };
 
 function findWorkspaceNote(workspace: WorkspaceData, noteId: NoteId) {
@@ -86,7 +83,7 @@ function resolveMigrationNote(
   index: WorkspaceBlockMigrationIndex,
   note: NoteRecord,
 ): ParsedMigrationNote | MoveWorkspaceBlockResult {
-  const parsedNote = index.parsedNotesById.get(note.id);
+  const parsedNote = index.getParsedNote(note.id);
 
   if (!parsedNote || !parsedNote.note) {
     return createFailure("parsed-note-missing");

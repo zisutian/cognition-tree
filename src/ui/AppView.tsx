@@ -9,12 +9,16 @@ import { AppFrame } from "./AppFrame";
 import "./styles/index.css";
 
 type AppViewProps = {
+  activeActivityId: ActivityId;
   view: ViewModel;
+  onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
-function AppView({ view }: AppViewProps) {
-  const [activeActivityId, setActiveActivityId] =
-    useState<ActivityId>("notes");
+function AppView({
+  activeActivityId,
+  view,
+  onActiveActivityChange,
+}: AppViewProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleActivityChange = (activityId: ActivityId) => {
@@ -23,11 +27,11 @@ function AppView({ view }: AppViewProps) {
       return;
     }
 
-    setActiveActivityId(activityId);
+    onActiveActivityChange(activityId);
     setSidebarCollapsed(false);
   };
   const configureSyntax = () => {
-    setActiveActivityId("syntax");
+    onActiveActivityChange("syntax");
     setSidebarCollapsed(false);
   };
   const activitySlots = createActivitySlots({

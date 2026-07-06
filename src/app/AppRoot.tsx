@@ -1,13 +1,43 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSession } from "../application/workspace/session/useSession";
-import { useViewModel } from "../application/workspace/view-model/useViewModel";
+import {
+  useViewModel,
+  type WorkspaceViewModelScope,
+} from "../application/workspace/view-model/useViewModel";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
+import type { ActivityId } from "../ui/activityTypes";
 import AppView from "../ui/AppView";
+
+function createWorkspaceViewModelScope(
+  activeActivityId: ActivityId,
+): WorkspaceViewModelScope {
+  return {
+    editor: activeActivityId === "notes",
+    migration: activeActivityId === "migration",
+    outline: activeActivityId === "notes",
+    referenceGraph: activeActivityId === "visualization",
+    settings: activeActivityId === "settings",
+    sidebar: activeActivityId === "notes",
+    syntax: activeActivityId === "syntax",
+  };
+}
 
 export function AppRoot() {
   const repository = useMemo(() => createRuntimeWorkspaceRepository(), []);
   const session = useSession({ repository });
-  const view = useViewModel(session);
+  const [activeActivityId, setActiveActivityId] =
+    useState<ActivityId>("notes");
+  const viewModelScope = useMemo(
+    () => createWorkspaceViewModelScope(activeActivityId),
+    [activeActivityId],
+  );
+  const view = useViewModel(session, viewModelScope);
 
-  return <AppView view={view} />;
+  return (
+    <AppView
+      activeActivityId={activeActivityId}
+      view={view}
+      onActiveActivityChange={setActiveActivityId}
+    />
+  );
 }

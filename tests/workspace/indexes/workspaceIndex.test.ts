@@ -10,7 +10,25 @@ import { createInitialWorkspaceContext } from "../../../src/workspace/context/wo
 const timestamp = "2026-07-04T00:00:00.000Z";
 
 describe("createWorkspaceIndex", () => {
-  it("materializes parsed notes and reference graph data", () => {
+  it("parses notes only when a parsed note is requested", () => {
+    const note = createNoteRecord(
+      "note-source",
+      "Source [[Target]]",
+      timestamp,
+    );
+    const workspace = {
+      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
+      notes: [note],
+    };
+    const index = createWorkspaceIndex(workspace);
+
+    expect(index.parseCache.entriesById.size).toBe(0);
+    expect(index.getParsedNote("note-source")?.document.blocks).toHaveLength(1);
+    expect(index.parseCache.entriesById.size).toBe(1);
+    expect(index.getParsedNote("missing-note")).toBeNull();
+  });
+
+  it("builds reference graph data on demand", () => {
     const source = createNoteRecord(
       "note-source",
       "Source [[Target]]",
@@ -23,15 +41,14 @@ describe("createWorkspaceIndex", () => {
     };
     const index = createWorkspaceIndex(workspace);
 
-    expect(
-      index.parsedNotesById.get("note-source")?.document.blocks,
-    ).toHaveLength(1);
+    expect(index.parseCache.entriesById.size).toBe(0);
     expect(index.referenceGraph.edges).toEqual([
       expect.objectContaining({
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
       }),
     ]);
+    expect(index.parseCache.entriesById.size).toBe(2);
   });
 
   it("reuses parsed documents for unchanged note sources", () => {
@@ -42,6 +59,8 @@ describe("createWorkspaceIndex", () => {
       notes: [source, target],
     };
     const firstIndex = createWorkspaceIndex(workspace);
+    const firstSource = firstIndex.getParsedNote("note-source");
+    const firstTarget = firstIndex.getParsedNote("note-target");
     const secondIndex = createWorkspaceIndex(
       {
         ...workspace,
@@ -55,13 +74,11 @@ describe("createWorkspaceIndex", () => {
       },
       firstIndex,
     );
+    const secondSource = secondIndex.getParsedNote("note-source");
+    const secondTarget = secondIndex.getParsedNote("note-target");
 
-    expect(secondIndex.parsedNotesById.get("note-source")?.document).toBe(
-      firstIndex.parsedNotesById.get("note-source")?.document,
-    );
-    expect(secondIndex.parsedNotesById.get("note-target")?.document).not.toBe(
-      firstIndex.parsedNotesById.get("note-target")?.document,
-    );
+    expect(secondSource?.document).toBe(firstSource?.document);
+    expect(secondTarget?.document).not.toBe(firstTarget?.document);
   });
 
   it("keeps parse reuse inside the workspace index cache", () => {
@@ -71,6 +88,7 @@ describe("createWorkspaceIndex", () => {
       ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [note],
     });
+    const firstParsedNote = firstIndex.getParsedNote("note-source");
     const secondIndex = cache.resolve({
       ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
       notes: [
@@ -80,10 +98,33 @@ describe("createWorkspaceIndex", () => {
         },
       ],
     });
+    const secondParsedNote = secondIndex.getParsedNote("note-source");
 
-    expect(secondIndex.parsedNotesById.get("note-source")?.document).toBe(
-      firstIndex.parsedNotesById.get("note-source")?.document,
+    expect(secondParsedNote?.document).toBe(firstParsedNote?.document);
+  });
+
+  it("reuses reference graph data for unchanged note graph inputs", () => {
+    const source = createNoteRecord(
+      "note-source",
+      "Source [[Target]]",
+      timestamp,
     );
+    const target = createNoteRecord("note-target", "Target", timestamp);
+    const workspace = {
+      ...createInitialWorkspaceContext(defaultCtnSyntaxProfile),
+      notes: [source, target],
+    };
+    const firstIndex = createWorkspaceIndex(workspace);
+    const firstGraph = firstIndex.referenceGraph;
+    const secondIndex = createWorkspaceIndex(
+      {
+        ...workspace,
+        notes: [{ ...source }, { ...target }],
+      },
+      firstIndex,
+    );
+
+    expect(secondIndex.referenceGraph).toBe(firstGraph);
   });
 
   it("reparses unchanged note sources when the parse profile changes", () => {
@@ -93,6 +134,7 @@ describe("createWorkspaceIndex", () => {
       notes: [note],
     };
     const firstIndex = createWorkspaceIndex(workspace);
+    const firstParsedNote = firstIndex.getParsedNote("note-source");
     const secondIndex = createWorkspaceIndex(
       {
         ...workspace,
@@ -106,9 +148,8 @@ describe("createWorkspaceIndex", () => {
       },
       firstIndex,
     );
+    const secondParsedNote = secondIndex.getParsedNote("note-source");
 
-    expect(secondIndex.parsedNotesById.get("note-source")?.document).not.toBe(
-      firstIndex.parsedNotesById.get("note-source")?.document,
-    );
+    expect(secondParsedNote?.document).not.toBe(firstParsedNote?.document);
   });
 });

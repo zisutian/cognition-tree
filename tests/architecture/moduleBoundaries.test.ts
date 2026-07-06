@@ -341,6 +341,14 @@ describe("architecture module boundaries", () => {
     ]);
   });
 
+  it("keeps workspace parsed notes behind on-demand index access", () => {
+    const violations = Object.entries(sourceModules)
+      .filter(([, source]) => source.includes("parsedNotesById"))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps rendered React components out of workspace", () => {
     const workspaceComponentFiles = listSourceFiles("workspace").filter(
       (filePath) => filePath.endsWith(".tsx"),

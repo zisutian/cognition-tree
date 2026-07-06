@@ -119,7 +119,7 @@ export function getParsedWorkspaceNote(
   }
 
   return (
-    index.parsedNotesById.get(noteId) ??
+    index.getParsedNote(noteId) ??
     createEmptyParsedWorkspaceNote(index.syntaxProfile)
   );
 }

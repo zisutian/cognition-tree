@@ -64,7 +64,7 @@ export type NoteReferenceGraph = {
 
 export type WorkspaceIndex = {
   parseCache: WorkspaceParseCache;
-  parsedNotesById: Map<NoteId, ParsedWorkspaceNote>;
+  getParsedNote(noteId: NoteId): ParsedWorkspaceNote | null;
   readonly referenceGraph: NoteReferenceGraph;
   syntaxProfile: CtnSyntaxProfile;
 };
@@ -108,6 +108,17 @@ function createParseCacheEntry(
   };
 }
 
+function canReuseParseCacheEntry(
+  note: NoteRecord,
+  syntaxProfileKey: string,
+  cacheEntry: ParsedWorkspaceNoteCacheEntry | undefined,
+) {
+  return (
+    cacheEntry?.source === note.source &&
+    cacheEntry.syntaxProfileKey === syntaxProfileKey
+  );
+}
+
 export function createEmptyParsedWorkspaceNote(
   syntaxProfile: CtnSyntaxProfile,
 ): ParsedWorkspaceNote {
@@ -134,6 +145,61 @@ function createTitleIndex(notes: NoteRecord[]) {
 
 function incrementCounter(counters: Map<NoteId, number>, noteId: NoteId) {
   counters.set(noteId, (counters.get(noteId) ?? 0) + 1);
+}
+
+type ReferenceGraphNoteSnapshot = {
+  id: NoteId;
+  source: string;
+  title: string;
+};
+
+type ReferenceGraphCacheEntry = {
+  graph: NoteReferenceGraph;
+  notes: ReferenceGraphNoteSnapshot[];
+  syntaxProfileKey: string;
+};
+
+const referenceGraphCacheByIndex = new WeakMap<
+  WorkspaceIndex,
+  ReferenceGraphCacheEntry
+>();
+
+function createReferenceGraphNoteSnapshot(
+  notes: NoteRecord[],
+): ReferenceGraphNoteSnapshot[] {
+  return notes.map((note) => ({
+    id: note.id,
+    source: note.source,
+    title: note.title,
+  }));
+}
+
+function canReuseReferenceGraph(
+  cacheEntry: ReferenceGraphCacheEntry | null,
+  notes: NoteRecord[],
+  syntaxProfileKey: string,
+): boolean {
+  if (
+    !cacheEntry ||
+    cacheEntry.syntaxProfileKey !== syntaxProfileKey ||
+    cacheEntry.notes.length !== notes.length
+  ) {
+    return false;
+  }
+
+  return cacheEntry.notes.every((cachedNote, index) => {
+    const note = notes[index];
+
+    if (!note) {
+      return false;
+    }
+
+    return (
+      cachedNote.id === note.id &&
+      cachedNote.source === note.source &&
+      cachedNote.title === note.title
+    );
+  });
 }
 
 function buildWorkspaceNoteReferenceGraph(
@@ -220,44 +286,88 @@ export function createWorkspaceIndex(
   const syntaxProfileKey = createCtnSyntaxParseProfileKey(
     workspace.syntaxProfile,
   );
-  const parsedNotes = workspace.notes.map((note) =>
-    createParsedWorkspaceNote(
+  const notesById = new Map(workspace.notes.map((note) => [note.id, note]));
+  const parseCacheEntries = new Map<NoteId, ParsedWorkspaceNoteCacheEntry>(
+    workspace.notes.flatMap(
+      (note): [NoteId, ParsedWorkspaceNoteCacheEntry][] => {
+        const previousCacheEntry = previousIndex?.parseCache.entriesById.get(
+          note.id,
+        );
+
+        if (
+          !previousCacheEntry ||
+          !canReuseParseCacheEntry(note, syntaxProfileKey, previousCacheEntry)
+        ) {
+          return [];
+        }
+
+        return [[note.id, previousCacheEntry]];
+      },
+    ),
+  );
+  const previousReferenceGraphCache = previousIndex
+    ? referenceGraphCacheByIndex.get(previousIndex) ?? null
+    : null;
+  let referenceGraph: NoteReferenceGraph | null = null;
+  const resolveParsedNote = (note: NoteRecord): ParsedWorkspaceNote => {
+    const currentCacheEntry = parseCacheEntries.get(note.id);
+    const previousCacheEntry =
+      currentCacheEntry ?? previousIndex?.parseCache.entriesById.get(note.id);
+    const parsedNote = createParsedWorkspaceNote(
       note,
       workspace.syntaxProfile,
       syntaxProfileKey,
-      previousIndex?.parseCache.entriesById.get(note.id),
-    ),
-  );
-  const parsedNoteEntries = parsedNotes.flatMap(
-    (parsedNote): [NoteId, ParsedWorkspaceNote][] =>
-      parsedNote.note ? [[parsedNote.note.id, parsedNote]] : [],
-  );
-  const parseCacheEntries = parsedNotes.flatMap(
-    (parsedNote): [NoteId, ParsedWorkspaceNoteCacheEntry][] =>
-      parsedNote.note
-        ? [
-            [
-              parsedNote.note.id,
-              createParseCacheEntry(parsedNote, syntaxProfileKey),
-            ],
-          ]
-        : [],
-  );
-  let referenceGraph: NoteReferenceGraph | null = null;
+      previousCacheEntry,
+    );
 
-  return {
+    parseCacheEntries.set(
+      note.id,
+      createParseCacheEntry(parsedNote, syntaxProfileKey),
+    );
+
+    return parsedNote;
+  };
+  const createReferenceGraph = () => {
+    if (
+      previousReferenceGraphCache &&
+      canReuseReferenceGraph(
+        previousReferenceGraphCache,
+        workspace.notes,
+        syntaxProfileKey,
+      )
+    ) {
+      return previousReferenceGraphCache.graph;
+    }
+
+    return buildWorkspaceNoteReferenceGraph(
+      workspace.notes.map(resolveParsedNote),
+    );
+  };
+
+  const index: WorkspaceIndex = {
     parseCache: {
-      entriesById: new Map(parseCacheEntries),
+      entriesById: parseCacheEntries,
       syntaxProfileKey,
     },
-    parsedNotesById: new Map(parsedNoteEntries),
+    getParsedNote(noteId) {
+      const note = notesById.get(noteId);
+
+      return note ? resolveParsedNote(note) : null;
+    },
     get referenceGraph() {
-      referenceGraph ??= buildWorkspaceNoteReferenceGraph(parsedNotes);
+      referenceGraph ??= createReferenceGraph();
+      referenceGraphCacheByIndex.set(index, {
+        graph: referenceGraph,
+        notes: createReferenceGraphNoteSnapshot(workspace.notes),
+        syntaxProfileKey,
+      });
 
       return referenceGraph;
     },
     syntaxProfile: workspace.syntaxProfile,
   };
+
+  return index;
 }
 
 export function createWorkspaceIndexCache(): WorkspaceIndexCache {

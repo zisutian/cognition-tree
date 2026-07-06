@@ -76,6 +76,16 @@ type MoveBlockActionResult =
       status: "failed";
     };
 
+export type WorkspaceViewModelScope = {
+  editor: boolean;
+  migration: boolean;
+  outline: boolean;
+  referenceGraph: boolean;
+  settings: boolean;
+  sidebar: boolean;
+  syntax: boolean;
+};
+
 const saveStatusLabels: Record<WorkspaceSaveStatus, string> = {
   error: "保存失败",
   idle: "等待保存",
@@ -83,7 +93,16 @@ const saveStatusLabels: Record<WorkspaceSaveStatus, string> = {
   saving: "保存中",
 };
 
-export function useViewModel(session: Session) {
+const emptyReferenceGraphView = createUiReferenceGraphView({
+  edges: [],
+  nodes: [],
+  unresolvedReferences: [],
+});
+
+export function useViewModel(
+  session: Session,
+  scope: WorkspaceViewModelScope,
+) {
   const {
     canChangeRepositoryPath,
     changeRepositoryPath,
@@ -220,12 +239,13 @@ export function useViewModel(session: Session) {
     [effectiveContext],
   );
   const index = useWorkspaceIndex(effectiveContext);
+  const shouldReadActiveNote = scope.editor || scope.outline;
   const parsedNote = useMemo(
     () =>
-      index
+      shouldReadActiveNote && index
         ? getParsedWorkspaceNote(index, effectiveActiveNote?.id ?? null)
         : null,
-    [effectiveActiveNote, index],
+    [effectiveActiveNote, index, shouldReadActiveNote],
   );
   const activeSyntaxProfile =
     parsedNote?.profile ?? defaultWorkspaceSyntaxFile.profile;
@@ -273,17 +293,17 @@ export function useViewModel(session: Session) {
     : null;
   const sourceMigrationParsed = useMemo(
     () =>
-      index && sourceMigrationNote
+      scope.migration && index && sourceMigrationNote
         ? getParsedWorkspaceNote(index, sourceMigrationNote.id)
         : null,
-    [sourceMigrationNote, index],
+    [sourceMigrationNote, index, scope.migration],
   );
   const targetMigrationParsed = useMemo(
     () =>
-      index && targetMigrationNote
+      scope.migration && index && targetMigrationNote
         ? getParsedWorkspaceNote(index, targetMigrationNote.id)
         : null,
-    [targetMigrationNote, index],
+    [targetMigrationNote, index, scope.migration],
   );
   const moveNoteBlock = (
     request: WorkspaceBlockMigrationRequest,
@@ -421,29 +441,120 @@ export function useViewModel(session: Session) {
       inlineRules: syntaxDraft.inlineRules.filter((rule) => rule.id !== ruleId),
     });
   };
-  const sidebarNoteTree = createUiNoteTree({
-    notes: notes,
-    tree: getWorkspaceTree(workspaceData),
-  });
-  const migrationNoteTree = effectiveContext
-    ? createUiNoteTree({
-        includeOrphans: true,
-        notes: effectiveNotes,
-        tree: getWorkspaceTree(effectiveContext),
-      })
-    : [];
-  const noteReferenceGraph = index
-    ? createUiReferenceGraphView(getWorkspaceNoteReferenceGraph(index))
-    : createUiReferenceGraphView({
-        edges: [],
-        nodes: [],
-        unresolvedReferences: [],
-      });
-  const syntax = createUiSyntaxView({
-    draft: syntaxDraft,
-    draftResult: syntaxDraftResult,
-    feedback: syntaxFeedback,
-  });
+  const sidebarNoteTree = useMemo(
+    () =>
+      scope.sidebar
+        ? createUiNoteTree({
+            notes,
+            tree: getWorkspaceTree(workspaceData),
+          })
+        : [],
+    [notes, scope.sidebar, workspaceData],
+  );
+  const sidebarFolderCount = useMemo(
+    () => (scope.sidebar ? countWorkspaceFolders(workspaceData) : 0),
+    [scope.sidebar, workspaceData],
+  );
+  const migrationNoteTree = useMemo(
+    () =>
+      scope.migration && effectiveContext
+        ? createUiNoteTree({
+            includeOrphans: true,
+            notes: effectiveNotes,
+            tree: getWorkspaceTree(effectiveContext),
+          })
+        : [],
+    [effectiveContext, effectiveNotes, scope.migration],
+  );
+  const noteReferenceGraph = useMemo(
+    () =>
+      scope.referenceGraph && index
+        ? createUiReferenceGraphView(getWorkspaceNoteReferenceGraph(index))
+        : emptyReferenceGraphView,
+    [index, scope.referenceGraph],
+  );
+  const syntax = useMemo(
+    () =>
+      createUiSyntaxView({
+        draft: syntaxDraft,
+        draftResult: syntaxDraftResult,
+        feedback: syntaxFeedback,
+      }),
+    [syntaxDraft, syntaxDraftResult, syntaxFeedback],
+  );
+  const editor = useMemo(
+    () =>
+      createUiEditorView({
+        activeNoteTitle: activeNote?.title ?? null,
+        document: parsedDocument,
+        documentText,
+        focusTarget: editorFocusRequest,
+        hasActiveNote: Boolean(activeNote),
+        syntaxProfile: activeSyntaxProfile,
+        errorMessage,
+      }),
+    [
+      activeNote,
+      activeSyntaxProfile,
+      documentText,
+      editorFocusRequest,
+      errorMessage,
+      parsedDocument,
+    ],
+  );
+  const outlineNodes = useMemo(
+    () =>
+      scope.outline ? createUiOutlineNodes(parsedDocument?.roots ?? []) : [],
+    [parsedDocument, scope.outline],
+  );
+  const migrationNoteSummaries = useMemo(
+    () => (scope.migration ? createUiNoteSummaries(effectiveNotes) : []),
+    [effectiveNotes, scope.migration],
+  );
+  const sourceMigrationBlocks = useMemo(
+    () =>
+      scope.migration
+        ? createUiBlockNodes(sourceMigrationParsed?.document.blocks ?? [])
+        : [],
+    [scope.migration, sourceMigrationParsed],
+  );
+  const sourceMigrationRoots = useMemo(
+    () =>
+      scope.migration
+        ? createUiBlockNodes(sourceMigrationParsed?.document.roots ?? [])
+        : [],
+    [scope.migration, sourceMigrationParsed],
+  );
+  const targetMigrationRoots = useMemo(
+    () =>
+      scope.migration
+        ? createUiBlockNodes(targetMigrationParsed?.document.roots ?? [])
+        : [],
+    [scope.migration, targetMigrationParsed],
+  );
+  const sidebar = useMemo(
+    () =>
+      createUiSidebarView({
+        activeFolderId: selectedFolderId,
+        activeNoteFolderId,
+        activeNoteId: activeNote?.id ?? null,
+        folderCount: sidebarFolderCount,
+        noteTree: sidebarNoteTree,
+        repositoryPath,
+        saveStatusLabel: saveStatusLabels[saveStatus],
+        storageLabel,
+      }),
+    [
+      activeNote,
+      activeNoteFolderId,
+      repositoryPath,
+      saveStatus,
+      selectedFolderId,
+      sidebarFolderCount,
+      sidebarNoteTree,
+      storageLabel,
+    ],
+  );
 
   return {
     canChangeRepositoryPath,
@@ -452,58 +563,39 @@ export function useViewModel(session: Session) {
     createNote,
     deleteFolder,
     deleteNote,
-    editor: createUiEditorView({
-      activeNoteTitle: activeNote?.title ?? null,
-      document: parsedDocument,
-      documentText,
-      focusTarget: editorFocusRequest,
-      hasActiveNote: Boolean(activeNote),
-      syntaxProfile: activeSyntaxProfile,
-      errorMessage,
-    }),
+    editor,
     focusEditorLine,
     hasConfiguredSyntax: Boolean(
       workspaceSyntaxFile && effectiveContext && index,
     ),
     migration: {
       noteTree: migrationNoteTree,
-      notes: createUiNoteSummaries(effectiveNotes),
+      notes: migrationNoteSummaries,
       onMoveBlockToPosition: moveMigrationBlock,
       onSourceNoteChange: setMigrationSourceNoteId,
       onTargetNoteChange: setMigrationTargetNoteId,
-      sourceBlocks: createUiBlockNodes(
-        sourceMigrationParsed?.document.blocks ?? [],
-      ),
+      sourceBlocks: sourceMigrationBlocks,
       sourceNote: sourceMigrationNote
         ? { id: sourceMigrationNote.id, title: sourceMigrationNote.title }
         : null,
       sourceNoteId: migrationSourceNoteId,
-      sourceRoots: createUiBlockNodes(sourceMigrationParsed?.document.roots ?? []),
+      sourceRoots: sourceMigrationRoots,
       targetNote: targetMigrationNote
         ? { id: targetMigrationNote.id, title: targetMigrationNote.title }
         : null,
       targetNoteId: migrationTargetNoteId,
-      targetRoots: createUiBlockNodes(targetMigrationParsed?.document.roots ?? []),
+      targetRoots: targetMigrationRoots,
     },
     moveNote,
     outline: {
-      nodes: createUiOutlineNodes(parsedDocument?.roots ?? []),
+      nodes: outlineNodes,
       onSelectLine: focusEditorLine,
     },
     reload,
     renameFolder,
     selectFolder,
     selectNote,
-    sidebar: createUiSidebarView({
-      activeFolderId: selectedFolderId,
-      activeNoteFolderId,
-      activeNoteId: activeNote?.id ?? null,
-      folderCount: countWorkspaceFolders(workspaceData),
-      noteTree: sidebarNoteTree,
-      repositoryPath,
-      saveStatusLabel: saveStatusLabels[saveStatus],
-      storageLabel,
-    }),
+    sidebar,
     syntax: {
       ...syntax,
       actions: {

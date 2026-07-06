@@ -88,6 +88,42 @@ describe("workspace block migration", () => {
     ).toBe("folder-inbox");
   });
 
+  it("reads only source and target parsed notes from the migration index", () => {
+    const baseWorkspace = createMigrationWorkspace();
+    const workspace = {
+      ...baseWorkspace,
+      notes: [
+        ...baseWorkspace.notes,
+        createNoteRecord("note-unrelated", "Unrelated", timestamp),
+      ],
+    };
+    const index = createWorkspaceIndex(workspace);
+    const requestedNoteIds: string[] = [];
+    const result = moveWorkspaceBlock(
+      workspace,
+      {
+        getParsedNote(noteId) {
+          requestedNoteIds.push(noteId);
+          return index.getParsedNote(noteId);
+        },
+      },
+      {
+        sourceBlockLineNumber: 2,
+        sourceNoteId: "note-source",
+        targetNoteId: "note-target",
+        targetPosition: { kind: "end" },
+      },
+      "2026-06-08T01:00:00.000Z",
+    );
+
+    expect(result.status).toBe("moved");
+    expect(requestedNoteIds).toEqual(["note-source", "note-target"]);
+    expect([...index.parseCache.entriesById.keys()]).toEqual([
+      "note-source",
+      "note-target",
+    ]);
+  });
+
   it("moves a block subtree to sibling positions through workspace requests", () => {
     const aboveResult = moveMigrationBlock(
       createMigrationWorkspace(),
