@@ -1,18 +1,14 @@
 import type { DragEvent } from "react";
-import { useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 import {
   flattenUiBlockSubtree,
 } from "../../../application/workspace/projection/viewBlocks";
-import {
-  getUiTargetPositionLabel,
-} from "../../../application/workspace/projection/viewMigration";
 import type { UiBlockNode } from "../../../application/workspace/projection/viewBlocks";
 import type { UiNoteSummary } from "../../../application/workspace/projection/viewTree";
-import { BlockTextDisplay } from "../../shared/blocks/BlockTextDisplay";
 import {
-  UiList,
-  UiListRow,
-  UiSection,
   UiSectionTitle,
 } from "../../shared/primitives";
 import {
@@ -58,10 +54,14 @@ export function BlockMigrationView({
     sourceBlocks.find(
       (block) => String(block.lineNumber) === sourceBlockLineNumber,
     ) ?? null;
-  const sourceSubtreeBlocks = sourceBlock ? flattenUiBlockSubtree(sourceBlock) : [];
-  const activeDropLabel = activeDropPositionValue
-    ? getUiTargetPositionLabel(activeDropPositionValue)
-    : null;
+  const sourceSubtreeBlocks = useMemo(
+    () => (sourceBlock ? flattenUiBlockSubtree(sourceBlock) : []),
+    [sourceBlock],
+  );
+  const selectedSourceLineNumbers = useMemo(
+    () => new Set(sourceSubtreeBlocks.map((block) => block.lineNumber)),
+    [sourceSubtreeBlocks],
+  );
 
   const startSourceBlockDrag = (
     event: DragEvent<HTMLDivElement>,
@@ -148,40 +148,18 @@ export function BlockMigrationView({
             <MigrationSourceTree
               draggingLineNumber={draggingSourceLineNumber}
               nodes={sourceRoots}
+              selectedLineNumbers={selectedSourceLineNumbers}
+              selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
               onDragEnd={finishSourceBlockDrag}
               onDragStart={startSourceBlockDrag}
+              onSelectBlock={(lineNumber) =>
+                setSourceBlockLineNumber(String(lineNumber))
+              }
             />
           ) : (
             <p className="ui-muted">源笔记没有可移动块。</p>
           )}
         </div>
-        <UiSection className="ui-section-framed migration-selection-panel">
-          <UiSectionTitle>将移动的子树</UiSectionTitle>
-          {sourceBlock ? (
-            <>
-              <p>
-                {sourceBlock.lineLabel} · {sourceSubtreeBlocks.length} 块
-              </p>
-              <UiList className="migration-subtree-list" scroll>
-                {sourceSubtreeBlocks.map((block) => (
-                  <UiListRow
-                    className="migration-subtree-row"
-                    key={block.id}
-                    style={{ paddingLeft: `${block.level * 12}px` }}
-                  >
-                    <span>{block.label}</span>
-                    <BlockTextDisplay
-                      className="migration-subtree-node-text"
-                      text={block.textDisplay}
-                    />
-                  </UiListRow>
-                ))}
-              </UiList>
-            </>
-          ) : (
-            <p>尚未选择源块。</p>
-          )}
-        </UiSection>
       </section>
 
       <section className="migration-column">
@@ -216,14 +194,6 @@ export function BlockMigrationView({
             />
           ) : null}
         </div>
-        <UiSection className="ui-section-framed migration-selection-panel">
-          <UiSectionTitle>目标插入位置</UiSectionTitle>
-          {activeDropLabel ? (
-            <p>当前投放位置：{activeDropLabel}。</p>
-          ) : (
-            <p>拖到目标块后显示上方并列、下方并列和作为子结点投放区。</p>
-          )}
-        </UiSection>
       </section>
     </div>
   );

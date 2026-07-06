@@ -317,11 +317,12 @@ describe("architecture module boundaries", () => {
     expect(listSourceFileNames("ui/activities/migration")).toEqual([
       "BlockMigrationView.tsx",
       "MigrationMainPanel.tsx",
-      "MigrationNoteSelectionView.tsx",
+      "MigrationNoteTree.tsx",
       "MigrationSidebarPanel.tsx",
       "MigrationSourceTree.tsx",
       "MigrationTargetTree.tsx",
       "blockMigrationDrag.ts",
+      "migrationNoteDrag.ts",
     ]);
     expect(listSourceFileNames("ui/activities/notes")).toEqual([
       "NoteEditorPanel.tsx",

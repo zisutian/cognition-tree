@@ -7,7 +7,6 @@ import type {
 
 export type UiMigrationView = {
   noteTree: UiTreeNode[];
-  notes: UiNoteSummary[];
   sourceBlocks: UiBlockNode[];
   sourceNote: UiNoteSummary | null;
   sourceNoteId: UiNoteId;

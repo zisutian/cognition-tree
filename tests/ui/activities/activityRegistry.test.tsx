@@ -52,17 +52,34 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     focusEditorLine: () => undefined,
     hasConfiguredSyntax: true,
     migration: {
-      noteTree: [],
-      notes: [],
+      noteTree: [
+        {
+          canDrag: true,
+          folderId: null,
+          id: "tree-note-source",
+          kind: "note",
+          noteId: "note-source",
+          parentFolderId: null,
+          title: "Source note",
+        },
+        {
+          canDrag: true,
+          folderId: null,
+          id: "tree-note-target",
+          kind: "note",
+          noteId: "note-target",
+          parentFolderId: null,
+          title: "Target note",
+        },
+      ],
       onMoveBlockToPosition: () => undefined,
-      onSourceNoteChange: () => undefined,
-      onTargetNoteChange: () => undefined,
+      onPairNotesForMigration: () => undefined,
       sourceBlocks: [],
-      sourceNote: null,
-      sourceNoteId: "",
+      sourceNote: { id: "note-source", title: "Source note" },
+      sourceNoteId: "note-source",
       sourceRoots: [],
-      targetNote: null,
-      targetNoteId: "",
+      targetNote: { id: "note-target", title: "Target note" },
+      targetNoteId: "note-target",
       targetRoots: [],
     },
     moveNote: () => undefined,
@@ -171,5 +188,19 @@ describe("activity registry", () => {
     expect(settingsMain).toContain("仓库设置在侧栏中管理");
     expect(settingsSidebar).toContain("/workspace");
     expect(`${searchMain}${dataMain}${settingsMain}`).not.toContain("笔记编辑");
+  });
+
+  it("renders migration as a sidebar note tree plus block migration view", () => {
+    const slots = createSlots("migration");
+    const main = renderSlot(slots.main);
+    const sidebar = renderSlot(slots.sidebar);
+
+    expect(main).toContain("块迁移");
+    expect(main).toContain("源 · Source note");
+    expect(main).toContain("目标 · Target note");
+    expect(main).not.toContain("笔记选择");
+    expect(sidebar).toContain("迁移目录");
+    expect(sidebar).toContain("Source note");
+    expect(sidebar).toContain("Target note");
   });
 });

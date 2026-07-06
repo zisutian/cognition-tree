@@ -130,7 +130,14 @@ function createMigrationSlots({
     ) : (
       createSyntaxSetupMain({ view, onConfigureSyntax })
     ),
-    sidebar: <MigrationSidebarPanel />,
+    sidebar: (
+      <MigrationSidebarPanel
+        noteTree={view.migration.noteTree}
+        sourceNoteId={view.migration.sourceNoteId}
+        targetNoteId={view.migration.targetNoteId}
+        onPairNotesForMigration={view.migration.onPairNotesForMigration}
+      />
+    ),
   };
 }
 

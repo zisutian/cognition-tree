@@ -105,6 +105,34 @@ describe("workspace block migration", () => {
     ).toBe("folder-target");
   });
 
+  it("moves an entire top-level concept block with its nested children", () => {
+    const result = moveMigrationBlock(
+      createMigrationWorkspace(),
+      {
+        sourceBlockLineNumber: 2,
+        sourceNoteId: "note-source",
+        targetNoteId: "note-target",
+        targetPosition: { kind: "end" },
+      },
+    );
+
+    expect(result.status).toBe("moved");
+
+    if (result.status !== "moved") {
+      throw new Error(result.reason);
+    }
+
+    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
+      .toMatchObject({
+        source: "Source Title\nSibling",
+      });
+    expect(result.workspaceData.notes.find((note) => note.id === "note-target"))
+      .toMatchObject({
+        source:
+          "Target Title\nTarget\n\t> Understanding\nRoot\n\t: Definition\n\t\t- Component",
+      });
+  });
+
   it("reads only source and target parsed notes from the migration index", () => {
     const baseWorkspace = createMigrationWorkspace();
     const workspace = {
@@ -191,6 +219,36 @@ describe("workspace block migration", () => {
   it("rejects invalid migration requests before editing the workspace", () => {
     const workspace = createMigrationWorkspace();
 
+    expect(
+      moveMigrationBlock(
+        workspace,
+        {
+          sourceBlockLineNumber: 1,
+          sourceNoteId: "note-source",
+          targetNoteId: "note-target",
+          targetPosition: { kind: "end" },
+        },
+        timestamp,
+      ),
+    ).toMatchObject({
+      reason: "source-block-missing",
+      status: "failed",
+    });
+    expect(
+      moveMigrationBlock(
+        workspace,
+        {
+          sourceBlockLineNumber: 3,
+          sourceNoteId: "note-source",
+          targetNoteId: "note-target",
+          targetPosition: { kind: "inside-block", lineNumber: 1 },
+        },
+        timestamp,
+      ),
+    ).toMatchObject({
+      reason: "target-position-missing",
+      status: "failed",
+    });
     expect(
       moveMigrationBlock(
         workspace,

@@ -4,7 +4,6 @@
 .ui-panel-body,
 .ui-list-scroll,
 .migration-tree-panel,
-.migration-subtree-list,
 .migration-note-list {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -16,7 +15,6 @@
 .ui-panel-body::-webkit-scrollbar,
 .ui-list-scroll::-webkit-scrollbar,
 .migration-tree-panel::-webkit-scrollbar,
-.migration-subtree-list::-webkit-scrollbar,
 .migration-note-list::-webkit-scrollbar {
   width: 0;
   height: 0;

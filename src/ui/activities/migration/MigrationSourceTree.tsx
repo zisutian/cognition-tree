@@ -6,18 +6,24 @@ import { BlockTextDisplay } from "../../shared/blocks/BlockTextDisplay";
 type MigrationSourceTreeProps = {
   draggingLineNumber: string | null;
   nodes: UiBlockNode[];
+  selectedLineNumbers: ReadonlySet<number>;
+  selectedRootLineNumber: number | null;
   onDragEnd: () => void;
   onDragStart: (
     event: DragEvent<HTMLDivElement>,
     lineNumber: number,
   ) => void;
+  onSelectBlock: (lineNumber: number) => void;
 };
 
 export function MigrationSourceTree({
   draggingLineNumber,
   onDragEnd,
   onDragStart,
+  onSelectBlock,
   nodes,
+  selectedLineNumbers,
+  selectedRootLineNumber,
 }: MigrationSourceTreeProps) {
   return (
     <BlockTree
@@ -25,6 +31,8 @@ export function MigrationSourceTree({
       nodes={nodes}
       renderBlock={({ block, children }) => {
         const isDragging = draggingLineNumber === String(block.lineNumber);
+        const isSelected = selectedLineNumbers.has(block.lineNumber);
+        const isSelectedRoot = selectedRootLineNumber === block.lineNumber;
 
         return (
           <>
@@ -36,11 +44,14 @@ export function MigrationSourceTree({
                   "ctn-tree-main-with-meta",
                   "source-node",
                   isDragging ? "is-dragging" : "",
+                  isSelected ? "is-selected-subtree" : "",
+                  isSelectedRoot ? "is-selected-root" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")
               }
               draggable
+              onClick={() => onSelectBlock(block.lineNumber)}
               onDragEnd={onDragEnd}
               onDragStart={(event) => onDragStart(event, block.lineNumber)}
               title={`${block.label}: ${block.textDisplay.displayText}`}

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { MigrationNoteSelectionView } from "../../../../src/ui/activities/migration/MigrationNoteSelectionView";
 import type { UiTreeNode } from "../../../../src/application/workspace/projection/viewTree";
+import { MigrationSidebarPanel } from "../../../../src/ui/activities/migration/MigrationSidebarPanel";
 
 const noteTree: UiTreeNode[] = [
   {
@@ -35,26 +35,27 @@ const noteTree: UiTreeNode[] = [
   },
 ];
 
-describe("MigrationNoteSelectionView", () => {
-  it("renders folder-backed note choices without offering the source note as a target", () => {
+describe("MigrationSidebarPanel", () => {
+  it("renders a note tree for migration pairing without note management actions", () => {
     const markup = renderToStaticMarkup(
-      <MigrationNoteSelectionView
+      <MigrationSidebarPanel
         noteTree={noteTree}
-        notes={[
-          { id: "note-source", title: "Source note" },
-          { id: "note-target", title: "Target note" },
-        ]}
         sourceNoteId="note-source"
         targetNoteId="note-target"
-        onComplete={() => undefined}
-        onSourceNoteChange={() => undefined}
-        onTargetNoteChange={() => undefined}
+        onPairNotesForMigration={() => undefined}
       />,
     );
 
+    expect(markup).toContain("迁移目录");
     expect(markup).toContain("项目");
-    expect(markup).not.toContain("仓库根目录");
-    expect(markup.match(/title="Source note"/g)).toHaveLength(1);
-    expect(markup.match(/title="Target note"/g)).toHaveLength(2);
+    expect(markup).toContain("Source note");
+    expect(markup).toContain("Target note");
+    expect(markup).toContain("draggable=\"true\"");
+    expect(markup).toContain("源");
+    expect(markup).toContain("目标");
+    expect(markup).not.toContain("笔记选择");
+    expect(markup).not.toContain("重命名");
+    expect(markup).not.toContain("删除");
+    expect(markup).not.toContain("新建");
   });
 });

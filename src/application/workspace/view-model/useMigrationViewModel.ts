@@ -25,7 +25,6 @@ import {
   createUiBlockNodes,
 } from "../projection/viewBlocks";
 import {
-  createUiNoteSummaries,
   createUiNoteTree,
   type UiNoteId,
 } from "../projection/viewTree";
@@ -52,8 +51,10 @@ export type MigrationViewModel = UiMigrationView & {
     sourceBlockLineNumberValue: string,
     targetPositionValue: string,
   ) => void;
-  onSourceNoteChange: (id: UiNoteId) => void;
-  onTargetNoteChange: (id: UiNoteId) => void;
+  onPairNotesForMigration: (
+    sourceNoteId: UiNoteId,
+    targetNoteId: UiNoteId,
+  ) => void;
 };
 
 export function useMigrationViewModel({
@@ -197,6 +198,22 @@ export function useMigrationViewModel({
       targetPosition: parseUiBlockMigrationTargetPosition(targetPositionValue),
     });
   };
+  const pairNotesForMigration = (
+    sourceNoteId: UiNoteId,
+    targetNoteId: UiNoteId,
+  ) => {
+    if (
+      !effectiveWorkspace ||
+      sourceNoteId === targetNoteId ||
+      !hasWorkspaceNote(effectiveWorkspace, sourceNoteId) ||
+      !hasWorkspaceNote(effectiveWorkspace, targetNoteId)
+    ) {
+      return;
+    }
+
+    setMigrationSourceNoteId(sourceNoteId);
+    setMigrationTargetNoteId(targetNoteId);
+  };
   const migrationNoteTree = useMemo(
     () =>
       scopeMigration && effectiveWorkspace
@@ -206,10 +223,6 @@ export function useMigrationViewModel({
           })
         : [],
     [effectiveNotes, effectiveWorkspace, scopeMigration],
-  );
-  const migrationNoteSummaries = useMemo(
-    () => (scopeMigration ? createUiNoteSummaries(effectiveNotes) : []),
-    [effectiveNotes, scopeMigration],
   );
   const sourceMigrationBlocks = useMemo(
     () =>
@@ -235,10 +248,8 @@ export function useMigrationViewModel({
 
   return {
     noteTree: migrationNoteTree,
-    notes: migrationNoteSummaries,
     onMoveBlockToPosition: moveMigrationBlock,
-    onSourceNoteChange: setMigrationSourceNoteId,
-    onTargetNoteChange: setMigrationTargetNoteId,
+    onPairNotesForMigration: pairNotesForMigration,
     sourceBlocks: sourceMigrationBlocks,
     sourceNote: sourceMigrationNote
       ? { id: sourceMigrationNote.id, title: sourceMigrationNote.title }
