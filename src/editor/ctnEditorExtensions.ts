@@ -71,7 +71,6 @@ export function createCtnEditorExtensions(
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
     parseDecorationPlugin,
     createCtnDiagnosticTooltip(parseDecorationPlugin),
-    EditorView.lineWrapping,
     EditorView.contentAttributes.of({
       "aria-label": "CTN 原文",
       spellcheck: "false",

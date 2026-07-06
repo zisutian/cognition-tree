@@ -50,10 +50,12 @@ export function NoteEditorPanel({
           <span className="current-note-chip" key="current">
             {currentNoteTitle ? `当前：${currentNoteTitle}` : "未选择笔记"}
           </span>,
-          `${lineCount} 行`,
-          `${totalBlocks} 个块`,
-          `${rootCount} 个根节点`,
-          `${totalDiagnostics} 个诊断`,
+          <span className="note-editor-count-row" key="counts">
+            <span>{lineCount} 行</span>
+            <span>{totalBlocks} 个块</span>
+            <span>{rootCount} 个根节点</span>
+            <span>{totalDiagnostics} 个诊断</span>
+          </span>,
         ]}
         title="笔记编辑"
       />

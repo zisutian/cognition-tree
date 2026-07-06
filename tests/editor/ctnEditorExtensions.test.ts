@@ -3,6 +3,7 @@ import {
   createCtnIndentUnit,
   createCtnTabSizeExtension,
 } from "../../src/editor/ctnEditorExtensions";
+import ctnEditorExtensionsSource from "../../src/editor/ctnEditorExtensions.ts?raw";
 
 describe("ctn editor extensions", () => {
   it("stores editor indentation as tabs", () => {
@@ -13,5 +14,9 @@ describe("ctn editor extensions", () => {
     expect(createCtnTabSizeExtension(2)).toBeDefined();
     expect(createCtnTabSizeExtension(4)).toBeDefined();
     expect(createCtnTabSizeExtension(6)).toBeDefined();
+  });
+
+  it("keeps CTN source lines from soft wrapping", () => {
+    expect(ctnEditorExtensionsSource).not.toContain("EditorView.lineWrapping");
   });
 });
