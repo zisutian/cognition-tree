@@ -12,13 +12,13 @@ describe("sidebar tree drag helpers", () => {
     const typedPayload = createSidebarTreeDragPayload({
       kind: "note",
       noteId: "note-source",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       siblingIndex: 1,
     });
     const plainPayload = createSidebarTreeDragPayload({
       folderId: "folder-project",
       kind: "folder",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       siblingIndex: 0,
     });
 
@@ -30,7 +30,7 @@ describe("sidebar tree drag helpers", () => {
     ).toEqual({
       kind: "note",
       noteId: "note-source",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       siblingIndex: 1,
     });
   });
@@ -53,7 +53,7 @@ describe("sidebar tree drag helpers", () => {
         plainText: JSON.stringify({
           kind: "note",
           noteId: "note-source",
-          parentFolderId: "folder-inbox",
+          parentFolderId: null,
         }),
         typedPayload: "",
       }),
@@ -65,7 +65,7 @@ describe("sidebar tree drag helpers", () => {
     const payload = {
       folderId: "folder-project",
       kind: "folder" as const,
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       siblingIndex: 0,
     };
 
@@ -91,7 +91,7 @@ describe("sidebar tree drag helpers", () => {
     const source = {
       kind: "note" as const,
       noteId: "note-source",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       siblingIndex: 2,
     };
 
@@ -102,7 +102,7 @@ describe("sidebar tree drag helpers", () => {
         target: {
           folderId: "folder-project",
           kind: "folder",
-          parentFolderId: "folder-inbox",
+          parentFolderId: null,
         },
         targetSiblingIndex: 0,
       }),
@@ -112,7 +112,7 @@ describe("sidebar tree drag helpers", () => {
       target: {
         folderId: "folder-project",
         kind: "folder",
-        parentFolderId: "folder-inbox",
+        parentFolderId: null,
       },
     });
 
@@ -143,7 +143,7 @@ describe("sidebar tree drag helpers", () => {
         target: {
           folderId: "folder-other",
           kind: "folder",
-          parentFolderId: "folder-inbox",
+          parentFolderId: null,
         },
         targetSiblingIndex: 1,
       }),
@@ -153,7 +153,7 @@ describe("sidebar tree drag helpers", () => {
       target: {
         folderId: "folder-other",
         kind: "folder",
-        parentFolderId: "folder-inbox",
+        parentFolderId: null,
       },
     });
     expect(
@@ -163,7 +163,7 @@ describe("sidebar tree drag helpers", () => {
         target: {
           kind: "note",
           noteId: "note-target",
-          parentFolderId: "folder-inbox",
+          parentFolderId: null,
         },
         targetSiblingIndex: 3,
       }),
@@ -173,13 +173,21 @@ describe("sidebar tree drag helpers", () => {
         placement: "before",
         source,
         target: {
-          folderId: "folder-inbox",
+          folderId: "folder-root",
           kind: "folder",
           parentFolderId: null,
         },
         targetSiblingIndex: 0,
       }),
-    ).toBeNull();
+    ).toEqual({
+      placement: "before",
+      source,
+      target: {
+        folderId: "folder-root",
+        kind: "folder",
+        parentFolderId: null,
+      },
+    });
     expect(
       createSidebarTreeDropRequest({
         placement: "before",
@@ -187,7 +195,7 @@ describe("sidebar tree drag helpers", () => {
         target: {
           kind: "note",
           noteId: "note-target",
-          parentFolderId: "folder-inbox",
+          parentFolderId: null,
         },
         targetSiblingIndex: 3,
       }),

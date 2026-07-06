@@ -21,7 +21,6 @@ import {
   findWorkspaceFolder,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
-  getDefaultWorkspaceFolderId,
   getParsedWorkspaceNote,
   getWorkspaceNoteReferenceGraph,
   getWorkspaceNoteLineCount,
@@ -41,14 +40,14 @@ function createWorkspace(): WorkspaceData {
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,
     createNoteTreeFolderNode("folder-project", "项目"),
-    "folder-inbox",
+    null,
   );
 
   return {
     ...workspace,
     notes: [sourceNote, targetNote],
     tree: appendNoteToWorkspaceTree(
-      appendNoteToWorkspaceTree(treeWithFolder, sourceNote.id, "folder-inbox"),
+      appendNoteToWorkspaceTree(treeWithFolder, sourceNote.id, null),
       targetNote.id,
       "folder-project",
     ),
@@ -80,7 +79,6 @@ describe("workspace queries", () => {
       "note-source",
       "note-target",
     ]);
-    expect(getDefaultWorkspaceFolderId()).toBe("folder-inbox");
     expect(getWorkspaceTree(workspace)).toBe(workspaceData.tree);
     expect(listWorkspaceNoteSummaries(workspace)).toEqual([
       { id: "note-source", title: "源笔记" },
@@ -106,15 +104,20 @@ describe("workspace queries", () => {
     expect(
       collectWorkspaceNoteIdsInFolder(workspace, "folder-project"),
     ).toEqual(["note-target"]);
-    expect(countWorkspaceFolders(workspace)).toBe(2);
+    expect(countWorkspaceFolders(workspace)).toBe(1);
   });
 
   it("reads parsed notes from the workspace index", () => {
-    const note = createNoteRecord("note-first", "概念\n    : 定义", timestamp);
+    const note = createNoteRecord(
+      "note-first",
+      "标题\n概念\n    : 定义",
+      timestamp,
+    );
     const index = createParseIndex([note]);
     const result = getParsedWorkspaceNote(index, note.id);
 
     expect(result.document.blocks.map((block) => block.label)).toEqual([
+      "标题",
       "顶格概念",
       "定义",
     ]);

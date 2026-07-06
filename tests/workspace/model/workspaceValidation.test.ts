@@ -3,13 +3,13 @@ import { createInitialWorkspaceData } from "../../../src/workspace/model/workspa
 import { validateWorkspaceData } from "../../../src/workspace/model/workspaceValidation";
 
 describe("workspace data validation", () => {
-  it("rejects workspace data without the default folder", () => {
+  it("accepts an empty workspace tree", () => {
     expect(() =>
       validateWorkspaceData({
         ...createInitialWorkspaceData(),
         tree: [],
       }),
-    ).toThrow("missing default folder");
+    ).not.toThrow();
   });
 
   it("rejects duplicate tree node ids", () => {
@@ -34,9 +34,9 @@ describe("workspace data validation", () => {
                 title: "B",
               },
             ],
-            id: "folder-inbox",
+            id: "folder-root",
             kind: "folder",
-            title: "仓库根目录",
+            title: "资料",
           },
         ],
       }),
@@ -58,9 +58,9 @@ describe("workspace data validation", () => {
                 noteId: "note-missing",
               },
             ],
-            id: "folder-inbox",
+            id: "folder-root",
             kind: "folder",
-            title: "仓库根目录",
+            title: "资料",
           },
         ],
       }),
@@ -96,12 +96,32 @@ describe("workspace data validation", () => {
                 noteId: "note-duplicate",
               },
             ],
-            id: "folder-inbox",
+            id: "folder-root",
             kind: "folder",
-            title: "仓库根目录",
+            title: "资料",
           },
         ],
       }),
     ).toThrow("duplicate note node");
+  });
+
+  it("rejects notes that are missing from the workspace tree", () => {
+    const workspace = createInitialWorkspaceData();
+
+    expect(() =>
+      validateWorkspaceData({
+        ...workspace,
+        notes: [
+          {
+            createdAt: "2026-07-04T00:00:00.000Z",
+            id: "note-missing-tree-node",
+            source: "缺失树节点",
+            title: "缺失树节点",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+        tree: [],
+      }),
+    ).toThrow("missing note node");
   });
 });

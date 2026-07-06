@@ -41,6 +41,27 @@ describe("workspace storage DTOs", () => {
       }),
     ).toThrow("unsupported field");
     expect(() =>
+      parseWorkspaceDataDto({
+        ...createInitialWorkspaceData(),
+        notes: [
+          {
+            createdAt: "2026-07-04T00:00:00.000Z",
+            id: "note-title-mismatch",
+            source: "首行标题",
+            title: "错误标题",
+            updatedAt: "2026-07-04T00:00:00.000Z",
+          },
+        ],
+        tree: [
+          {
+            id: "tree-note-title-mismatch",
+            kind: "note",
+            noteId: "note-title-mismatch",
+          },
+        ],
+      }),
+    ).toThrow("title does not match first line");
+    expect(() =>
       parseRepositoryInfoDto({
         path: "/data/repository",
         extra: true,

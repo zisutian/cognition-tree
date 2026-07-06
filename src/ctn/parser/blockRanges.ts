@@ -19,6 +19,10 @@ export function assignBlockEndLineNumbers(
   totalLineCount: number,
 ) {
   blocks.forEach((block, blockIndex) => {
+    if (block.type === "title") {
+      return;
+    }
+
     let subtreeEndLineNumber = totalLineCount;
 
     for (

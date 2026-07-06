@@ -6,7 +6,6 @@ import {
 } from "../indexes/workspaceParseIndex";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import {
-  defaultFolderId,
   type FolderId,
   type NoteId,
   type NoteRecord,
@@ -39,10 +38,6 @@ export function listWorkspaceNotes(workspace: WorkspaceNoteSource): NoteRecord[]
 
 export function getWorkspaceTree(workspace: WorkspaceTreeSource): NoteTreeNode[] {
   return workspace.data.tree;
-}
-
-export function getDefaultWorkspaceFolderId() {
-  return defaultFolderId;
 }
 
 export function listWorkspaceNoteSummaries(

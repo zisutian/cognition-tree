@@ -1,5 +1,4 @@
 import {
-  defaultFolderId,
   type FolderId,
   type NoteTreeNode,
 } from "../workspaceData";
@@ -164,13 +163,6 @@ export function moveNoteTreeNode(
   tree: NoteTreeNode[],
   request: NoteTreeMoveRequest,
 ): NoteTreeNode[] {
-  if (
-    request.source.kind === "folder" &&
-    request.source.folderId === defaultFolderId
-  ) {
-    throw new Error("Default workspace folder cannot be moved.");
-  }
-
   const sourceLocation = findNoteTreeNodeLocation(tree, request.source);
   const targetLocation = findNoteTreeNodeLocation(tree, request.target);
 
@@ -199,13 +191,6 @@ export function moveNoteTreeNode(
         request.target,
       )}`,
     );
-  }
-
-  if (
-    request.placement !== "inside" &&
-    targetLocation.parentFolderId === null
-  ) {
-    throw new Error("Workspace tree node cannot be moved outside a folder.");
   }
 
   const removed = removeNoteTreeNode(tree, request.source);

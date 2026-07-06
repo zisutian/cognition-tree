@@ -8,6 +8,7 @@ import type {
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
+  CtnTitleRule,
 } from "./types";
 import {
   configurableSyntaxTones,
@@ -39,13 +40,17 @@ export type ParseSyntaxProfileTomlResult = {
 const validRoles = new Set<CtnRuleRole>(["normal", "multiline"]);
 const requiredGlobalReferenceType = "global-reference";
 const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
+const requiredTitleType = "title";
+const requiredTopLevelConceptType = "concept";
 const rootFields = new Set([
   "name",
   "tabDisplayWidth",
+  "title",
   "concept",
   "markers",
   "inlineRules",
 ]);
+const titleFields = new Set(["type", "label", "textColor", "tone"]);
 const conceptFields = new Set(["type", "label", "textColor", "tone"]);
 const markerFields = new Set([
   "marker",
@@ -342,7 +347,7 @@ function validateConcept(
 
   validateSemanticTypeId(type, `${path}.type`, diagnostics);
 
-  if (type !== "concept") {
+  if (type !== requiredTopLevelConceptType) {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
@@ -357,7 +362,58 @@ function validateConcept(
     !label ||
     !textColor ||
     !tone ||
-    type !== "concept" ||
+    type !== requiredTopLevelConceptType ||
+    !semanticIdPattern.test(type)
+  ) {
+    return null;
+  }
+
+  return {
+    label,
+    textColor,
+    tone,
+    type,
+  };
+}
+
+function validateTitle(
+  value: unknown,
+  diagnostics: SyntaxProfileTomlDiagnostic[],
+): CtnTitleRule | null {
+  const path = "title";
+
+  if (!isRecord(value)) {
+    diagnostics.push(
+      createDiagnostic("missing-field", path, "缺少首行标题规则。"),
+    );
+    return null;
+  }
+
+  validateSupportedFields(value, titleFields, path, diagnostics);
+
+  const type = readRequiredString(value, "type", path, diagnostics);
+  const label = readRequiredString(value, "label", path, diagnostics);
+  const textColor = readRequiredTextColor(value, path, diagnostics);
+  const tone = readRequiredTone(value, path, diagnostics);
+
+  validateSemanticTypeId(type, `${path}.type`, diagnostics);
+
+  if (type !== requiredTitleType) {
+    diagnostics.push(
+      createDiagnostic(
+        "invalid-field",
+        `${path}.type`,
+        "首行标题 type 必须是 title。",
+      ),
+    );
+  }
+
+  if (
+    !type ||
+    !label ||
+    !textColor ||
+    !tone ||
+    type !== requiredTitleType ||
     !semanticIdPattern.test(type)
   ) {
     return null;
@@ -545,6 +601,7 @@ export function parseSyntaxProfileToml(
     "$",
     diagnostics,
   );
+  const titleRule = validateTitle(parsed.title, diagnostics);
   const conceptRule = validateConcept(parsed.concept, diagnostics);
   const markerRules = validateMarkers(parsed.markers, diagnostics);
   const inlineRules = validateInlineRules(parsed.inlineRules, diagnostics);
@@ -553,6 +610,7 @@ export function parseSyntaxProfileToml(
     diagnostics.length > 0 ||
     !name ||
     !tabDisplayWidth ||
+    !titleRule ||
     !conceptRule ||
     markerRules.length === 0
   ) {
@@ -570,6 +628,7 @@ export function parseSyntaxProfileToml(
       markerRules,
       name,
       tabDisplayWidth,
+      titleRule,
     },
   };
 }
@@ -581,6 +640,14 @@ export function formatSyntaxProfileToml(profile: CtnSyntaxProfile): string {
     "# tabDisplayWidth：一个 Tab 在编辑器中显示为几格宽；CTN 源文件仍使用 Tab 存储层级。",
     `name = ${formatTomlString(profile.name)}`,
     `tabDisplayWidth = ${profile.tabDisplayWidth}`,
+    "",
+    "# title：固定第 1 行的笔记标题规则。",
+    "# type 固定为 title；label、tone、textColor 控制标题块显示。",
+    "[title]",
+    `type = ${formatTomlString(profile.titleRule.type)}`,
+    `label = ${formatTomlString(profile.titleRule.label)}`,
+    `tone = ${formatTomlString(profile.titleRule.tone)}`,
+    `textColor = ${formatTomlString(profile.titleRule.textColor)}`,
     "",
     "# concept：没有行首符号、且位于顶格的概念行规则。",
     "# type 固定为 concept；label 是界面显示名称。",

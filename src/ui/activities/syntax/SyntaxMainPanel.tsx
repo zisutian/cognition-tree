@@ -3,6 +3,7 @@ import type {
   UiSyntaxProfileDraftConceptRule,
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxProfileDraftMarkerRule,
+  UiSyntaxProfileDraftTitleRule,
   UiSyntaxRole,
   UiSyntaxView,
 } from "../../../application/workspace/projection/viewSyntax";
@@ -24,6 +25,9 @@ type SyntaxMainPanelProps = {
       removeMarkerRule: (ruleId: string) => void;
       updateConceptRule: (
         patch: Partial<UiSyntaxProfileDraftConceptRule>,
+      ) => void;
+      updateTitleRule: (
+        patch: Partial<UiSyntaxProfileDraftTitleRule>,
       ) => void;
       updateDraftField: (
         field: "name" | "tabDisplayWidth",
@@ -51,7 +55,7 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
     <UiPanel className="syntax-main-panel" aria-label="语法编辑" variant="main">
       <UiPanelHeader
         stats={[
-          `${view.stats.markerRuleCount} 行首`,
+          `${view.stats.lineRuleCount} 行首`,
           `${view.stats.inlineRuleCount} 行内`,
         ]}
         title="仓库语法配置"
@@ -106,6 +110,46 @@ export function SyntaxMainPanel({ view }: SyntaxMainPanelProps) {
             <span />
           </div>
           <div className="syntax-rule-list">
+            <div className="ui-form-row syntax-marker-rule-columns">
+              <UiField hiddenLabel label="符号">
+                <input disabled value="首行" />
+              </UiField>
+              <UiField hiddenLabel label="名称">
+                <input disabled value={draft.titleRule.label} />
+              </UiField>
+              <UiField hiddenLabel label="角色">
+                <select disabled value="normal">
+                  {roleOptions.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+              </UiField>
+              <UiField as="div" hiddenLabel label="背景">
+                <TonePicker
+                  ariaLabel="标题背景色"
+                  options={toneOptions}
+                  value={draft.titleRule.tone}
+                  onChange={(tone) => actions.updateTitleRule({ tone })}
+                />
+              </UiField>
+              <UiField as="div" hiddenLabel label="字体">
+                <TonePicker
+                  ariaLabel="标题字体色"
+                  options={toneOptions}
+                  value={draft.titleRule.textColor}
+                  onChange={(textColor) =>
+                    actions.updateTitleRule({ textColor })
+                  }
+                />
+              </UiField>
+              <span
+                aria-label="首行标题是固定行首规则，不能删除"
+                className="syntax-protected-rule-lock"
+                title="固定行首规则，不能删除"
+              />
+            </div>
             <div className="ui-form-row syntax-marker-rule-columns">
               <UiField hiddenLabel label="符号">
                 <input disabled value="顶格" />

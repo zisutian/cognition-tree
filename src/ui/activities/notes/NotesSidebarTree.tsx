@@ -27,7 +27,6 @@ export type TreeContextMenuPosition = {
 type NotesSidebarTreeProps = {
   activeDropTargetKey: string | null;
   collapsedFolderIds: Set<UiFolderId>;
-  defaultFolderId: UiFolderId;
   draggingNodeKey: string | null;
   nodes: UiTreeNode[];
   selectedTreeNodeKey: string | null;
@@ -162,7 +161,6 @@ function SidebarTreeRowActions({
 export function NotesSidebarTree({
   activeDropTargetKey,
   collapsedFolderIds,
-  defaultFolderId,
   draggingNodeKey,
   nodes,
   selectedTreeNodeKey,
@@ -299,7 +297,7 @@ export function NotesSidebarTree({
                     </span>
                     <span className="ctn-tree-text">{node.title}</span>
                   </button>
-                  {isSelectedFolder && node.folderId !== defaultFolderId ? (
+                  {isSelectedFolder ? (
                     <SidebarTreeRowActions
                       deleteLabel="删除文件夹"
                       renameLabel="重命名文件夹"
@@ -328,7 +326,6 @@ export function NotesSidebarTree({
                     <NotesSidebarTree
                       activeDropTargetKey={activeDropTargetKey}
                       collapsedFolderIds={collapsedFolderIds}
-                      defaultFolderId={defaultFolderId}
                       draggingNodeKey={draggingNodeKey}
                       nodes={node.children}
                       selectedTreeNodeKey={selectedTreeNodeKey}

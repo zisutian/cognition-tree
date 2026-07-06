@@ -75,17 +75,29 @@ function readRequiredString(
   return field;
 }
 
+function inferSourceTitle(source: string) {
+  return source.split("\n")[0]?.trim() ?? "";
+}
+
 function parseNote(value: unknown, path: string): NoteRecord {
   assertRecord(value, path);
   assertExactFields(value, noteFields, path);
 
-  return {
+  const note = {
     createdAt: readRequiredString(value, "createdAt", path),
     id: readRequiredString(value, "id", path),
     source: readString(value, "source", path),
     title: readRequiredString(value, "title", path),
     updatedAt: readRequiredString(value, "updatedAt", path),
   };
+
+  if (note.title !== inferSourceTitle(note.source)) {
+    throw new Error(
+      `Invalid response at ${path}.title: title does not match first line`,
+    );
+  }
+
+  return note;
 }
 
 function parseTreeNode(value: unknown, path: string): NoteTreeNode {
@@ -149,13 +161,15 @@ export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
     noteIds.add(parsedNote.id);
     return parsedNote;
   });
+  const tree = value.tree.map((node, index) =>
+    parseTreeNode(node, `$.tree[${index}]`),
+  );
+
   const workspace: WorkspaceData = {
     id: readRequiredString(value, "id", "$"),
     name: readRequiredString(value, "name", "$"),
     notes,
-    tree: value.tree.map((node, index) =>
-      parseTreeNode(node, `$.tree[${index}]`),
-    ),
+    tree,
   };
 
   validateWorkspaceData(workspace);

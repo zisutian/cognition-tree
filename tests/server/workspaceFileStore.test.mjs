@@ -21,9 +21,6 @@ function createWorkspace() {
     ],
     tree: [
       {
-        id: "folder-inbox",
-        kind: "folder",
-        title: "仓库根目录",
         children: [
           {
             id: "tree-note-test",
@@ -31,6 +28,9 @@ function createWorkspace() {
             noteId: "note-test",
           },
         ],
+        id: "folder-docs",
+        kind: "folder",
+        title: "资料",
       },
     ],
   };
@@ -48,7 +48,7 @@ function createManifest() {
     name: workspace.name,
     notes: workspace.notes.map((note) => ({
       createdAt: note.createdAt,
-      fileName: `${note.id}.ctn`,
+      fileName: `资料/${note.title}.ctn`,
       id: note.id,
       title: note.title,
       updatedAt: note.updatedAt,
@@ -110,7 +110,10 @@ describe("WorkspaceFileStore", () => {
       await store.saveWorkspace(workspace);
 
       expect(
-        await readFile(path.join(rootDir, "notes", "note-test.ctn"), "utf8"),
+        await readFile(
+          path.join(rootDir, "notes", "资料", "测试笔记.ctn"),
+          "utf8",
+        ),
       ).toBe("测试笔记\n	: 文件保存");
       await expect(
         readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
@@ -120,7 +123,7 @@ describe("WorkspaceFileStore", () => {
         notes: [
           {
             createdAt: "2026-05-25T00:00:00.000Z",
-            fileName: "note-test.ctn",
+            fileName: "资料/测试笔记.ctn",
             id: "note-test",
             title: "测试笔记",
             updatedAt: "2026-05-25T00:00:00.000Z",
@@ -142,14 +145,7 @@ describe("WorkspaceFileStore", () => {
       expect(await store.loadWorkspace()).toEqual({
         ...createWorkspace(),
         notes: [],
-        tree: [
-          {
-            id: "folder-inbox",
-            kind: "folder",
-            title: "仓库根目录",
-            children: [],
-          },
-        ],
+        tree: [],
       });
     });
   });
@@ -217,9 +213,15 @@ describe("WorkspaceFileStore", () => {
         },
       },
       {
-        message: "unsafe file name",
+        message: "unsafe path segment",
         mutate(manifest) {
           manifest.notes[0].fileName = "../note-test.ctn";
+        },
+      },
+      {
+        message: "note file must use .ctn",
+        mutate(manifest) {
+          manifest.notes[0].fileName = "资料/测试笔记.txt";
         },
       },
       {
@@ -231,7 +233,7 @@ describe("WorkspaceFileStore", () => {
       {
         message: "duplicate tree node id",
         mutate(manifest) {
-          manifest.tree[0].children.push(clone(manifest.tree[0].children[0]));
+          manifest.tree.push(clone(manifest.tree[0]));
         },
       },
       {
@@ -257,10 +259,42 @@ describe("WorkspaceFileStore", () => {
   it("rejects workspace manifests that reference missing note files", async () => {
     await withTempStore(async (store, rootDir) => {
       await store.saveWorkspace(createWorkspace());
-      await rm(path.join(rootDir, "notes", "note-test.ctn"));
+      await rm(path.join(rootDir, "notes", "资料", "测试笔记.ctn"));
 
       await expect(store.loadWorkspace()).rejects.toThrow(
-        "Missing note source file: note-test.ctn",
+        "Missing note source file: 资料/测试笔记.ctn",
+      );
+    });
+  });
+
+  it("rejects manifests whose paths or titles diverge from the workspace tree", async () => {
+    await withTempStore(async (store, rootDir) => {
+      await store.saveWorkspace(createWorkspace());
+
+      const manifest = createManifest();
+      manifest.notes[0].fileName = "note-test.ctn";
+      await writeWorkspaceManifest(rootDir, manifest);
+      await writeFile(
+        path.join(rootDir, "notes", "note-test.ctn"),
+        "测试笔记\n\t: 文件保存",
+        "utf8",
+      );
+
+      await expect(store.loadWorkspace()).rejects.toThrow(
+        "Workspace note file path does not match tree: note-test",
+      );
+    });
+
+    await withTempStore(async (store, rootDir) => {
+      await store.saveWorkspace(createWorkspace());
+      await writeFile(
+        path.join(rootDir, "notes", "资料", "测试笔记.ctn"),
+        "错误标题\n\t: 文件保存",
+        "utf8",
+      );
+
+      await expect(store.loadWorkspace()).rejects.toThrow(
+        "Workspace note title does not match first line: note-test",
       );
     });
   });
@@ -277,6 +311,39 @@ describe("WorkspaceFileStore", () => {
         message: "unsupported field",
         mutate(workspace) {
           workspace.notes[0].fileName = "custom.ctn";
+        },
+      },
+      {
+        message: "Workspace note title does not match first line",
+        mutate(workspace) {
+          workspace.notes[0].title = "错误标题";
+        },
+      },
+      {
+        message: "Unsafe note title",
+        mutate(workspace) {
+          workspace.notes[0].title = "非法/标题";
+          workspace.notes[0].source = "非法/标题\n\t: 文件保存";
+        },
+      },
+      {
+        message: "Unsafe folder title",
+        mutate(workspace) {
+          workspace.tree[0].title = ".";
+        },
+      },
+      {
+        message: "Duplicate workspace file path",
+        mutate(workspace) {
+          workspace.notes.push({
+            ...workspace.notes[0],
+            id: "note-duplicate-title",
+          });
+          workspace.tree[0].children.push({
+            id: "tree-note-duplicate-title",
+            kind: "note",
+            noteId: "note-duplicate-title",
+          });
         },
       },
     ];
@@ -312,8 +379,11 @@ describe("WorkspaceFileStore", () => {
       ]);
 
       expect(
-        await readFile(path.join(rootDir, "notes", "note-test.ctn"), "utf8"),
+        await readFile(path.join(rootDir, "notes", "资料", "latest.ctn"), "utf8"),
       ).toBe("latest");
+      await expect(
+        readFile(path.join(rootDir, "notes", "资料", "first.ctn"), "utf8"),
+      ).rejects.toThrow("ENOENT");
       await expect(store.loadWorkspace()).resolves.toMatchObject({
         notes: [
           {

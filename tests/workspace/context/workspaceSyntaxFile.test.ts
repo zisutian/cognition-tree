@@ -7,7 +7,12 @@ import {
 
 describe("workspace syntax file", () => {
   it("creates the default workspace syntax source file", () => {
-    expect(createDefaultWorkspaceSyntaxFile()).toMatchObject({
+    const defaultWorkspaceSyntaxFile = createDefaultWorkspaceSyntaxFile();
+
+    expect(defaultWorkspaceSyntaxFile.source).toContain("[title]");
+    expect(defaultWorkspaceSyntaxFile.source).toContain('type = "title"');
+    expect(defaultWorkspaceSyntaxFile.source).toContain("笔记标题");
+    expect(defaultWorkspaceSyntaxFile).toMatchObject({
       fileName: "workspace.toml",
       profile: { name: "默认 CTN 语法" },
       source: expect.stringContaining('name = "默认 CTN 语法"'),

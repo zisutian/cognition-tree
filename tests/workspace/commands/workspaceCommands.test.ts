@@ -38,9 +38,9 @@ function createWorkspaceWithNotes(): WorkspaceData {
     ...workspace,
     notes: [firstNote, secondNote],
     tree: appendNoteToWorkspaceTree(
-      appendNoteToWorkspaceTree(workspace.tree, firstNote.id, "folder-inbox"),
+      appendNoteToWorkspaceTree(workspace.tree, firstNote.id, null),
       secondNote.id,
-      "folder-inbox",
+      null,
     ),
   };
 }
@@ -56,18 +56,18 @@ describe("workspace actions", () => {
       tree: appendFolderToWorkspaceTree(
         createInitialWorkspaceData().tree,
         createNoteTreeFolderNode("folder-target", "目标"),
-        "folder-inbox",
+        null,
       ),
     };
     const nextWorkspace = createWorkspaceNote(indexWorkspace(workspace), {
-      folderId: "folder-target",
       noteId: "note-new",
+      parentFolderId: "folder-target",
       timestamp,
     });
 
     expect(nextWorkspace.notes[0]).toMatchObject({
       id: "note-new",
-      source: "",
+      source: "未命名笔记",
       title: "未命名笔记",
     });
     expect(findFolderIdContainingNote(nextWorkspace.tree, "note-new")).toBe(
@@ -92,7 +92,7 @@ describe("workspace actions", () => {
     const workspace = createWorkspaceWithNotes();
     const withFolder = createWorkspaceFolder(indexWorkspace(workspace), {
       folderId: "folder-target",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       title: "  目标  ",
     });
     const renamed = renameWorkspaceFolder(
@@ -136,11 +136,11 @@ describe("workspace actions", () => {
     });
   });
 
-  it("renames notes by updating the first non-empty source line", () => {
+  it("renames notes by updating the fixed title line", () => {
     const workspace = updateWorkspaceNoteSource(
       indexWorkspace(createWorkspaceWithNotes()),
       "note-first",
-      "\n旧标题\n\t: 定义",
+      "旧标题\n\t: 定义",
       "2026-06-08T01:00:00.000Z",
     );
     const renamed = renameWorkspaceNote(
@@ -151,21 +151,26 @@ describe("workspace actions", () => {
     );
 
     expect(renamed.notes[0]).toMatchObject({
-      source: "\n新标题\n\t: 定义",
+      source: "新标题\n\t: 定义",
       title: "新标题",
       updatedAt: "2026-06-08T02:00:00.000Z",
     });
   });
 
-  it("renames notes with blank source by writing the title", () => {
-    const workspace = createWorkspaceNote(
-      indexWorkspace(createInitialWorkspaceData()),
-      {
-        folderId: "folder-inbox",
-        noteId: "note-new",
-        timestamp,
-      },
-    );
+  it("renames notes with blank source by writing the title line", () => {
+    const workspace = {
+      ...createInitialWorkspaceData(),
+      notes: [
+        {
+          createdAt: timestamp,
+          id: "note-new",
+          source: "",
+          title: "",
+          updatedAt: timestamp,
+        },
+      ],
+      tree: appendNoteToWorkspaceTree([], "note-new", null),
+    };
     const renamed = renameWorkspaceNote(
       indexWorkspace(workspace),
       "note-new",
@@ -189,7 +194,7 @@ describe("workspace actions", () => {
     });
     const withFolder = createWorkspaceFolder(indexWorkspace(movedBeforeNote), {
       folderId: "folder-target",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       title: "目标",
     });
     const movedInsideFolder = moveWorkspaceTreeNode(indexWorkspace(withFolder), {
@@ -197,15 +202,7 @@ describe("workspace actions", () => {
       source: { kind: "note", noteId: "note-first" },
       target: { folderId: "folder-target", kind: "folder" },
     });
-    const root = movedInsideFolder.tree[0];
-
-    expect(root.kind).toBe("folder");
-
-    if (root.kind !== "folder") {
-      throw new Error("workspace root should be a folder");
-    }
-
-    expect(root.children.map((node) => node.id)).toEqual([
+    expect(movedInsideFolder.tree.map((node) => node.id)).toEqual([
       "tree-note-second",
       "folder-target",
     ]);
@@ -219,8 +216,8 @@ describe("workspace actions", () => {
 
     expect(() =>
       createWorkspaceNote(indexWorkspace(workspace), {
-        folderId: "missing-folder",
         noteId: "note-new",
+        parentFolderId: "missing-folder",
         timestamp,
       }),
     ).toThrow("Workspace folder does not exist");
@@ -234,7 +231,7 @@ describe("workspace actions", () => {
     expect(() =>
       createWorkspaceFolder(indexWorkspace(workspace), {
         folderId: "folder-target",
-        parentFolderId: "folder-inbox",
+        parentFolderId: null,
         title: "   ",
       }),
     ).toThrow("Workspace folder title is required");
@@ -261,8 +258,8 @@ describe("workspace actions", () => {
       deleteWorkspaceNote(indexWorkspace(workspace), "missing-note"),
     ).toThrow("Workspace note does not exist");
     expect(() =>
-      deleteWorkspaceFolder(indexWorkspace(workspace), "folder-inbox"),
-    ).toThrow("Default workspace folder cannot be deleted");
+      deleteWorkspaceFolder(indexWorkspace(workspace), "missing-folder"),
+    ).toThrow("Workspace folder does not exist");
     expect(() =>
       moveWorkspaceNote(
         indexWorkspace(workspace),

@@ -39,7 +39,7 @@ const timestamp = "2026-07-04T00:00:00.000Z";
 function parseFirstRoot(source: string) {
   const document = parseCtnDocument(source, defaultCtnSyntaxProfile);
 
-  return document.roots[0];
+  return document.roots[1];
 }
 
 function createWorkspace() {
@@ -49,12 +49,12 @@ function createWorkspace() {
   const treeWithSourceNote = appendNoteToWorkspaceTree(
     workspace.tree,
     sourceNote.id,
-    "folder-inbox",
+    null,
   );
   const treeWithFolder = appendFolderToWorkspaceTree(
     treeWithSourceNote,
     createNoteTreeFolderNode("folder-project", "项目"),
-    "folder-inbox",
+    null,
   );
 
   return {
@@ -97,21 +97,21 @@ function createBlock(
 
 describe("workspace view projection", () => {
   it("creates outline text segments with syntax display metadata", () => {
-    const root = parseFirstRoot("主题 [[全局概念]] 和 `code`");
+    const root = parseFirstRoot("标题\n主题 [[全局概念]] 和 `code`");
     const segments = createUiTextSegments(root);
 
     expect(segments).toMatchObject([
-      { id: "block-1-text-0", kind: "text", text: "主题 " },
+      { id: "block-2-text-0", kind: "text", text: "主题 " },
       {
-        id: "1-4-global-reference",
+        id: "2-4-global-reference",
         kind: "inline",
         text: "全局概念",
         textColorClassName: "ctn-text-color-cyan",
         toneClassName: "ctn-tone-blue",
       },
-      { id: "block-1-text-11", kind: "text", text: " 和 " },
+      { id: "block-2-text-11", kind: "text", text: " 和 " },
       {
-        id: "1-15-inline-code",
+        id: "2-15-inline-code",
         kind: "inline",
         text: "code",
         textColorClassName: "ctn-text-color-green",
@@ -122,57 +122,42 @@ describe("workspace view projection", () => {
   });
 
   it("keeps single inline syntax visible as the underlined content", () => {
-    const root = parseFirstRoot("甲 \\ 乙");
+    const root = parseFirstRoot("标题\n甲 \\ 乙");
 
     expect(createUiTextSegments(root)).toMatchObject([
-      { id: "block-1-text-0", kind: "text", text: "甲 " },
+      { id: "block-2-text-0", kind: "text", text: "甲 " },
       {
-        id: "1-3-parallel-separator",
+        id: "2-3-parallel-separator",
         kind: "inline",
         text: "\\",
         textColorClassName: "ctn-text-color-amber",
         toneClassName: "ctn-tone-amber",
       },
-      { id: "block-1-text-3", kind: "text", text: " 乙" },
+      { id: "block-2-text-3", kind: "text", text: " 乙" },
     ]);
   });
 
   it("prepares note trees for UI rendering", () => {
     const workspace = createWorkspace();
     const noteTree = createUiNoteTree({
-      includeOrphans: true,
-      notes: [
-        ...workspace.notes,
-        { id: "note-orphan", title: "孤立笔记" },
-      ],
+      notes: workspace.notes,
       tree: workspace.tree,
     });
 
-    expect(noteTree).not.toContainEqual(
-      expect.objectContaining({ title: "仓库根目录" }),
-    );
     expect(noteTree[0]).toMatchObject({
       canDrag: true,
-      folderId: "folder-inbox",
+      folderId: null,
       kind: "note",
       noteId: "note-source",
-      parentFolderId: "folder-inbox",
+      parentFolderId: null,
       title: "源笔记",
     });
     expect(noteTree[1]).toMatchObject({
       canDrag: true,
       folderId: "folder-project",
       kind: "folder",
-      parentFolderId: "folder-inbox",
-      title: "项目",
-    });
-    expect(noteTree[noteTree.length - 1]).toMatchObject({
-      canDrag: false,
-      id: "workspace-orphan-note-orphan",
-      kind: "note",
-      noteId: "note-orphan",
       parentFolderId: null,
-      title: "孤立笔记",
+      title: "项目",
     });
   });
 
@@ -205,6 +190,16 @@ describe("workspace view projection", () => {
     });
 
     expect(view.draft.tabDisplayWidth).toBe("4");
+    expect(view.stats.lineRuleCount).toBe(
+      defaultCtnSyntaxProfile.markerRules.length + 2,
+    );
+    expect(view.draft.titleRule).toMatchObject({
+      label: "标题",
+      type: "title",
+    });
+    expect(view.draft.markerRules.map((rule) => rule.type)).not.toContain(
+      "title",
+    );
     expect(view.draftResult.diagnostics).toEqual([]);
     expect(view.draftResult.profile).toMatchObject({
       name: "默认 CTN 语法",

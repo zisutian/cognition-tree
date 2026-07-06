@@ -23,7 +23,7 @@ function createWorkspaceData() {
     appendFolderToWorkspaceTree(
       workspace.tree,
       createNoteTreeFolderNode("folder-project", "Project"),
-      "folder-inbox",
+      null,
     ),
     createNoteTreeFolderNode("folder-child", "Child"),
     "folder-project",
@@ -34,7 +34,7 @@ function createWorkspaceData() {
     notes: [firstNote, secondNote, thirdNote],
     tree: appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree(
-        appendNoteToWorkspaceTree(treeWithFolders, firstNote.id, "folder-inbox"),
+        appendNoteToWorkspaceTree(treeWithFolders, firstNote.id, null),
         secondNote.id,
         "folder-project",
       ),
@@ -53,8 +53,8 @@ describe("createWorkspaceStructureIndex", () => {
     expect(index.noteById.get("note-second")?.title).toBe("Second");
     expect(index.noteIndexById.get("note-third")).toBe(2);
     expect(index.folderById.get("folder-project")?.title).toBe("Project");
-    expect(index.folderCount).toBe(3);
-    expect(index.noteFolderIdById.get("note-first")).toBe("folder-inbox");
+    expect(index.folderCount).toBe(2);
+    expect(index.noteFolderIdById.get("note-first")).toBeUndefined();
     expect(index.noteFolderIdById.get("note-third")).toBe("folder-child");
     expect(index.noteIdsByFolderId.get("folder-project")).toEqual([
       "note-third",

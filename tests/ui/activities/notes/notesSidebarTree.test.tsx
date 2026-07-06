@@ -9,32 +9,19 @@ const noteTree: UiTreeNode[] = [
     folderId: "folder-project",
     id: "folder-project",
     kind: "folder",
-    parentFolderId: "folder-inbox",
+    parentFolderId: null,
     title: "项目",
     childCount: 0,
     children: [],
   },
   {
     canDrag: true,
-    folderId: "folder-inbox",
+    folderId: null,
     id: "tree-note-source",
     kind: "note",
     noteId: "note-source",
-    parentFolderId: "folder-inbox",
-    title: "源笔记",
-  },
-];
-
-const defaultFolderTree: UiTreeNode[] = [
-  {
-    canDrag: false,
-    folderId: "folder-inbox",
-    id: "folder-inbox",
-    kind: "folder",
     parentFolderId: null,
-    title: "内部默认文件夹",
-    childCount: 0,
-    children: [],
+    title: "源笔记",
   },
 ];
 
@@ -49,7 +36,6 @@ function renderNotesSidebarTree({
     <NotesSidebarTree
       activeDropTargetKey={null}
       collapsedFolderIds={new Set()}
-      defaultFolderId="folder-inbox"
       draggingNodeKey={null}
       nodes={nodes}
       selectedTreeNodeKey={selectedTreeNodeKey}
@@ -94,7 +80,7 @@ describe("NotesSidebarTree", () => {
     expect(markup).not.toContain("删除文件夹");
   });
 
-  it("renders row actions only for the active non-default folder", () => {
+  it("renders row actions only for the active folder", () => {
     const markup = renderNotesSidebarTree({
       selectedTreeNodeKey: "folder:folder-project",
     });
@@ -105,13 +91,4 @@ describe("NotesSidebarTree", () => {
     expect(markup).not.toContain("删除笔记");
   });
 
-  it("does not render row actions for the default folder", () => {
-    const markup = renderNotesSidebarTree({
-      nodes: defaultFolderTree,
-      selectedTreeNodeKey: "folder:folder-inbox",
-    });
-
-    expect(markup).not.toContain("重命名文件夹");
-    expect(markup).not.toContain("删除文件夹");
-  });
 });

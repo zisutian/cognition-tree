@@ -47,14 +47,16 @@ export type SessionCommands = {
     parentFolderId: CreateWorkspaceFolderCommand["parentFolderId"],
     title: CreateWorkspaceFolderCommand["title"],
   ) => FolderId;
-  createNote: (folderId: CreateWorkspaceNoteCommand["folderId"]) => NoteId;
+  createNote: (
+    parentFolderId: CreateWorkspaceNoteCommand["parentFolderId"],
+  ) => NoteId;
   deleteFolder: (folderId: FolderId) => void;
   deleteNote: (noteId: NoteId) => void;
   moveBlock: (
     index: WorkspaceBlockMigrationIndex,
     request: WorkspaceBlockMigrationRequest,
   ) => MoveWorkspaceBlockCommandResult;
-  moveNote: (noteId: NoteId, targetFolderId: FolderId) => void;
+  moveNote: (noteId: NoteId, targetFolderId: FolderId | null) => void;
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
   renameNote: (noteId: NoteId, title: string) => void;
@@ -93,13 +95,13 @@ export function createSessionCommands({
       );
       return folderId;
     },
-    createNote(folderId) {
+    createNote(parentFolderId) {
       const noteId = createNoteId();
 
       commitDataSnapshot(
         createWorkspaceNoteAction(workspace, {
-          folderId,
           noteId,
+          parentFolderId,
           timestamp: createTimestamp(),
         }),
       );

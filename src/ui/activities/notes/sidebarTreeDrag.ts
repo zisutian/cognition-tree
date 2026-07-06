@@ -206,10 +206,6 @@ export function createSidebarTreeDropRequest({
       : null;
   }
 
-  if (target.parentFolderId === null) {
-    return null;
-  }
-
   if (
     source.parentFolderId === target.parentFolderId &&
     isNoopSiblingDrop({

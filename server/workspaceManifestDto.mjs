@@ -92,19 +92,34 @@ function readRequiredArray(value, key, path) {
   return value[key];
 }
 
-function assertSafeFileName(fileName, path) {
+function assertSafePathSegment(segment, path) {
   if (
-    fileName.includes("/") ||
-    fileName.includes("\\") ||
-    fileName === "." ||
-    fileName === ".."
+    segment.length === 0 ||
+    segment.includes("/") ||
+    segment.includes("\\") ||
+    segment === "." ||
+    segment === ".."
   ) {
-    throw new Error(`Invalid workspace DTO at ${path}: unsafe file name`);
+    throw new Error(`Invalid workspace DTO at ${path}: unsafe path segment`);
   }
 }
 
-function assertNoteFileName(fileName, path) {
-  assertSafeFileName(fileName, path);
+function assertSafeRelativePath(fileName, path) {
+  if (
+    fileName.length === 0 ||
+    fileName.startsWith("/") ||
+    fileName.includes("\\")
+  ) {
+    throw new Error(`Invalid workspace DTO at ${path}: unsafe file path`);
+  }
+
+  fileName.split("/").forEach((segment) =>
+    assertSafePathSegment(segment, path),
+  );
+}
+
+function assertNoteFilePath(fileName, path) {
+  assertSafeRelativePath(fileName, path);
 
   if (!fileName.endsWith(".ctn")) {
     throw new Error(`Invalid workspace DTO at ${path}: note file must use .ctn`);
@@ -129,7 +144,7 @@ function validateManifestNote(note, index, noteIds) {
   const fileName = readRequiredString(note, "fileName", path);
 
   assertUnique(id, noteIds, `${path}.id`, "note id");
-  assertNoteFileName(fileName, `${path}.fileName`);
+  assertNoteFilePath(fileName, `${path}.fileName`);
   readRequiredString(note, "title", path);
   readRequiredString(note, "createdAt", path);
   readRequiredString(note, "updatedAt", path);
@@ -144,7 +159,7 @@ function validateWorkspaceNote(note, index, noteIds) {
   const id = readRequiredString(note, "id", path);
 
   assertUnique(id, noteIds, `${path}.id`, "note id");
-  assertSafeFileName(id, `${path}.id`);
+  assertSafePathSegment(id, `${path}.id`);
   readRequiredString(note, "title", path);
   readRequiredStringValue(note, "source", path);
   readRequiredString(note, "createdAt", path);

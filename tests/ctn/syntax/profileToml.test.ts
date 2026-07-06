@@ -10,6 +10,12 @@ describe("syntax profile TOML", () => {
 const result = parseSyntaxProfileToml(`name = "自定义语法"
 tabDisplayWidth = 4
 
+[title]
+type = "title"
+label = "标题"
+tone = "blue"
+textColor = "cyan"
+
 [concept]
 type = "concept"
 label = "顶格概念"
@@ -66,6 +72,12 @@ textColor = "red"
         textColor: "cyan",
         tone: "teal",
         type: "concept",
+      },
+      titleRule: {
+        label: "标题",
+        textColor: "cyan",
+        tone: "blue",
+        type: "title",
       },
       inlineRules: [
         {
@@ -137,6 +149,7 @@ tabDisplayWidth = 0
       "invalid-field",
       "invalid-field",
       "missing-field",
+      "missing-field",
       "invalid-field",
       "missing-field",
     ]);
@@ -147,6 +160,12 @@ tabDisplayWidth = 0
 tabDisplayWidth = 4
 extra = true
 inlineRules = []
+
+[title]
+type = "title"
+label = "标题"
+tone = "blue"
+textColor = "cyan"
 
 [concept]
 type = "root-concept"
@@ -191,6 +210,12 @@ textColor = "default"
   it("requires explicit role, tone, and inlineRules", () => {
     const result = parseSyntaxProfileToml(`name = "旧语法"
 tabDisplayWidth = 4
+
+[title]
+type = "title"
+label = "标题"
+tone = "blue"
+textColor = "cyan"
 
 [[markers]]
 marker = ":"

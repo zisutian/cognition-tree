@@ -1,16 +1,13 @@
-import {
-  defaultFolderId,
-  type FolderId,
-} from "../../../workspace/model/workspaceData";
+import type { FolderId } from "../../../workspace/model/workspaceData";
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 
 export function resolveFolderSelection(
   workspace: WorkspaceStructureIndex,
-  preferredFolderId: FolderId,
-) {
-  return (
-    workspace.folderById.get(preferredFolderId)?.id ??
-    workspace.folderById.keys().next().value ??
-    defaultFolderId
-  );
+  preferredFolderId: FolderId | null,
+): FolderId | null {
+  if (preferredFolderId === null) {
+    return null;
+  }
+
+  return workspace.folderById.get(preferredFolderId)?.id ?? null;
 }

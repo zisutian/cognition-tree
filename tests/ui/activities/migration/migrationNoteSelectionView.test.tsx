@@ -10,7 +10,7 @@ const noteTree: UiTreeNode[] = [
     folderId: "folder-project",
     id: "folder-project",
     kind: "folder",
-    parentFolderId: "folder-inbox",
+    parentFolderId: null,
     title: "项目",
     children: [
       {

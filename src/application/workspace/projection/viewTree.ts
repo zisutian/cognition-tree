@@ -1,7 +1,6 @@
-import {
-  defaultFolderId,
-  type NoteRecord,
-  type NoteTreeNode,
+import type {
+  NoteRecord,
+  NoteTreeNode,
 } from "../../../workspace/model/workspaceData";
 
 export type UiFolderId = string;
@@ -50,29 +49,6 @@ export type UiTreeMoveRequest = {
   target: UiTreeNodeReference;
 };
 
-function collectWorkspaceTreeNoteIds(
-  nodes: NoteTreeNode[],
-  noteIds = new Set<string>(),
-  visitedNodeIds = new Set<string>(),
-) {
-  nodes.forEach((node) => {
-    if (visitedNodeIds.has(node.id)) {
-      return;
-    }
-
-    visitedNodeIds.add(node.id);
-
-    if (node.kind === "note") {
-      noteIds.add(node.noteId);
-      return;
-    }
-
-    collectWorkspaceTreeNoteIds(node.children, noteIds, visitedNodeIds);
-  });
-
-  return noteIds;
-}
-
 function createNoteMap(notes: Pick<NoteRecord, "id" | "title">[]) {
   return new Map(notes.map((note) => [note.id, note]));
 }
@@ -101,7 +77,7 @@ function createUiNoteTreeNodes({
       return note
         ? [
             {
-              canDrag: Boolean(folderId),
+              canDrag: true,
               folderId,
               id: node.id,
               kind: "note" as const,
@@ -120,13 +96,9 @@ function createUiNoteTreeNodes({
       visitedNodeIds,
     });
 
-    if (node.id === defaultFolderId) {
-      return children;
-    }
-
     return [
       {
-        canDrag: node.id !== defaultFolderId,
+        canDrag: true,
         childCount: node.children.length,
         children,
         folderId: node.id,
@@ -140,35 +112,18 @@ function createUiNoteTreeNodes({
 }
 
 export function createUiNoteTree({
-  includeOrphans = false,
   notes,
   tree,
 }: {
-  includeOrphans?: boolean;
   notes: Pick<NoteRecord, "id" | "title">[];
   tree: NoteTreeNode[];
 }): UiTreeNode[] {
   const noteMap = createNoteMap(notes);
-  const treeNoteIds = collectWorkspaceTreeNoteIds(tree);
-  const nodes = includeOrphans
-    ? [
-        ...tree,
-        ...notes
-          .filter((note) => !treeNoteIds.has(note.id))
-          .map(
-            (note): NoteTreeNode => ({
-              id: `workspace-orphan-${note.id}`,
-              kind: "note",
-              noteId: note.id,
-            }),
-          ),
-      ]
-    : tree;
 
   return createUiNoteTreeNodes({
     folderId: null,
     noteMap,
-    nodes,
+    nodes: tree,
   });
 }
 

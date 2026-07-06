@@ -5,6 +5,7 @@ export function createCtnSyntaxParseProfileKey(
 ) {
   return JSON.stringify({
     conceptRule: syntaxProfile.conceptRule,
+    titleRule: syntaxProfile.titleRule,
     inlineRules: syntaxProfile.inlineRules,
     markerRules: syntaxProfile.markerRules,
   });

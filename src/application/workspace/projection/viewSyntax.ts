@@ -41,6 +41,14 @@ export type UiSyntaxProfileDraftConceptRule = {
   type: string;
 };
 
+export type UiSyntaxProfileDraftTitleRule = {
+  id: string;
+  label: string;
+  textColor: UiSyntaxTone;
+  tone: UiSyntaxTone;
+  type: string;
+};
+
 export type UiSyntaxProfileDraftInlineRule = {
   close: string;
   id: string;
@@ -59,6 +67,7 @@ export type UiSyntaxProfileDraft = {
   markerRules: UiSyntaxProfileDraftMarkerRule[];
   name: string;
   tabDisplayWidth: string;
+  titleRule: UiSyntaxProfileDraftTitleRule;
 };
 
 export type UiSyntaxProfileMarkerRuleSummary = Omit<
@@ -68,6 +77,11 @@ export type UiSyntaxProfileMarkerRuleSummary = Omit<
 
 export type UiSyntaxProfileConceptRuleSummary = Omit<
   UiSyntaxProfileDraftConceptRule,
+  "id"
+>;
+
+export type UiSyntaxProfileTitleRuleSummary = Omit<
+  UiSyntaxProfileDraftTitleRule,
   "id"
 >;
 
@@ -82,6 +96,7 @@ export type UiSyntaxProfileSummary = {
   markerRules: UiSyntaxProfileMarkerRuleSummary[];
   name: string;
   tabDisplayWidth: number;
+  titleRule: UiSyntaxProfileTitleRuleSummary;
 };
 
 export type UiSyntaxProfileDiagnostic = {
@@ -104,7 +119,7 @@ export type UiSyntaxView = {
   roleOptions: UiSyntaxRoleOption[];
   stats: {
     inlineRuleCount: number;
-    markerRuleCount: number;
+    lineRuleCount: number;
   };
   toneOptions: UiSyntaxToneOption[];
 };
@@ -134,6 +149,7 @@ function createUiSyntaxProfileDraft(
     markerRules: draft.markerRules.map((rule) => ({ ...rule })),
     name: draft.name,
     tabDisplayWidth: draft.tabDisplayWidth,
+    titleRule: { ...draft.titleRule },
   };
 }
 
@@ -162,6 +178,7 @@ function createUiSyntaxProfileSummary(
         markerRules: profile.markerRules.map((rule) => ({ ...rule })),
         name: profile.name,
         tabDisplayWidth: profile.tabDisplayWidth,
+        titleRule: { ...profile.titleRule },
       }
     : null;
 }
@@ -191,7 +208,7 @@ export function createUiSyntaxView({
     roleOptions: syntaxRoleOptions,
     stats: {
       inlineRuleCount: draft.inlineRules.length,
-      markerRuleCount: draft.markerRules.length + 1,
+      lineRuleCount: draft.markerRules.length + 2,
     },
     toneOptions: syntaxToneOptions,
   };

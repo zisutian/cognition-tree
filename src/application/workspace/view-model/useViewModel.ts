@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { FolderId } from "../../../workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
-  countWorkspaceFolders,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
-  getDefaultWorkspaceFolderId,
   getParsedWorkspaceNote,
   getWorkspaceNoteReferenceGraph,
   getWorkspaceTree,
@@ -90,7 +88,7 @@ export function useViewModel(
     saveStatus,
   } = session;
   const [selectedFolderId, setSelectedFolderId] =
-    useState<FolderId>(getDefaultWorkspaceFolderId);
+    useState<FolderId | null>(null);
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
   const [activeNoteId, setActiveNoteId] = useState<UiNoteId | null>(null);
@@ -121,9 +119,7 @@ export function useViewModel(
 
     const folderId = findWorkspaceFolderIdContainingNote(workspace, noteId);
 
-    if (folderId) {
-      setSelectedFolderId(folderId);
-    }
+    setSelectedFolderId(folderId);
 
     setActiveNoteId(noteId);
   };
@@ -140,7 +136,7 @@ export function useViewModel(
     setActiveNoteId(noteId);
   };
 
-  const createFolder = (parentFolderId: UiFolderId, title: string) => {
+  const createFolder = (parentFolderId: UiFolderId | null, title: string) => {
     const folderId = commands.createFolder(parentFolderId, title);
 
     setSelectedFolderId(folderId);
@@ -170,14 +166,14 @@ export function useViewModel(
     );
 
     commands.deleteFolder(folderId);
-    setSelectedFolderId(getDefaultWorkspaceFolderId());
+    setSelectedFolderId(null);
 
     setActiveNoteId((currentNoteId) =>
       resolveActiveNoteIdAfterRemovingNotes(notes, currentNoteId, removedNoteIds),
     );
   };
 
-  const moveNote = (noteId: UiNoteId, targetFolderId: UiFolderId) => {
+  const moveNote = (noteId: UiNoteId, targetFolderId: UiFolderId | null) => {
     commands.moveNote(noteId, targetFolderId);
     setSelectedFolderId(targetFolderId);
   };
@@ -251,10 +247,6 @@ export function useViewModel(
         : [],
     [notes, scope.sidebar, workspace],
   );
-  const sidebarFolderCount = useMemo(
-    () => (scope.sidebar ? countWorkspaceFolders(workspace) : 0),
-    [scope.sidebar, workspace],
-  );
   const noteReferenceGraph = useMemo(
     () =>
       scope.referenceGraph && index
@@ -312,7 +304,6 @@ export function useViewModel(
     effectiveWorkspace,
     index,
     scopeMigration: scope.migration,
-    selectedFolderId,
     setActiveNoteId,
     setSelectedFolderId,
   });
@@ -322,7 +313,6 @@ export function useViewModel(
         activeFolderId: selectedFolderId,
         activeNoteFolderId,
         activeNoteId: activeNote?.id ?? null,
-        folderCount: sidebarFolderCount,
         noteTree: sidebarNoteTree,
         repositoryPath,
         saveStatusLabel: saveStatusLabels[saveStatus],
@@ -334,7 +324,6 @@ export function useViewModel(
       repositoryPath,
       saveStatus,
       selectedFolderId,
-      sidebarFolderCount,
       sidebarNoteTree,
       storageLabel,
     ],

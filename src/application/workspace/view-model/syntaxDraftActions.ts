@@ -6,11 +6,13 @@ import {
   type SyntaxProfileDraftConceptRule,
   type SyntaxProfileDraftInlineRule,
   type SyntaxProfileDraftMarkerRule,
+  type SyntaxProfileDraftTitleRule,
 } from "../../../ctn/syntax/profileDraft";
 import type {
   UiSyntaxProfileDraftConceptRule,
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxProfileDraftMarkerRule,
+  UiSyntaxProfileDraftTitleRule,
 } from "../projection/viewSyntax";
 
 export function createSyntaxDraftActions({
@@ -50,6 +52,17 @@ export function createSyntaxDraftActions({
       conceptRule: {
         ...syntaxDraft.conceptRule,
         ...(patch as Partial<SyntaxProfileDraftConceptRule>),
+      },
+    });
+  };
+  const updateSyntaxTitleRule = (
+    patch: Partial<UiSyntaxProfileDraftTitleRule>,
+  ) => {
+    updateSyntaxDraft({
+      ...syntaxDraft,
+      titleRule: {
+        ...syntaxDraft.titleRule,
+        ...(patch as Partial<SyntaxProfileDraftTitleRule>),
       },
     });
   };
@@ -107,6 +120,7 @@ export function createSyntaxDraftActions({
       updateDraftField: updateSyntaxDraftField,
       updateInlineRule: updateSyntaxInlineRule,
       updateMarkerRule: updateSyntaxMarkerRule,
+      updateTitleRule: updateSyntaxTitleRule,
     },
     protectedInlineRuleIds: syntaxDraft.inlineRules
       .filter(isProtectedInlineRuleDraft)

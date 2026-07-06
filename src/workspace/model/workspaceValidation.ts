@@ -1,18 +1,9 @@
-import {
-  defaultFolderId,
-  type NoteTreeNode,
-  type WorkspaceData,
-} from "./workspaceData";
-import { findFolderNode } from "./noteTree/query";
+import type { NoteTreeNode, WorkspaceData } from "./workspaceData";
 
 export function validateWorkspaceData(workspace: WorkspaceData) {
   const noteIds = new Set(workspace.notes.map((note) => note.id));
   const treeNodeIds = new Set<string>();
   const treeNoteIds = new Set<string>();
-
-  if (!findFolderNode(workspace.tree, defaultFolderId)) {
-    throw new Error("Invalid response at $.tree: missing default folder");
-  }
 
   const visit = (node: NoteTreeNode) => {
     if (treeNodeIds.has(node.id)) {
@@ -41,4 +32,10 @@ export function validateWorkspaceData(workspace: WorkspaceData) {
   };
 
   workspace.tree.forEach(visit);
+
+  for (const noteId of noteIds) {
+    if (!treeNoteIds.has(noteId)) {
+      throw new Error(`Invalid response at $.tree: missing note node ${noteId}`);
+    }
+  }
 }

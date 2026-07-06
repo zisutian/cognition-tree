@@ -3,6 +3,12 @@ import type { CtnSyntaxProfile } from "./types";
 export const defaultCtnSyntaxProfile = {
   name: "默认 CTN 语法",
   tabDisplayWidth: 4,
+  titleRule: {
+    type: "title",
+    label: "标题",
+    textColor: "cyan",
+    tone: "blue",
+  },
   conceptRule: {
     type: "concept",
     label: "顶格概念",

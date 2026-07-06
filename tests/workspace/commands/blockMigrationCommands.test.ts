@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
 } from "../../../src/workspace/model/noteTree/mutations";
+import {
+  createNoteTreeFolderNode,
+} from "../../../src/workspace/model/noteTree/create";
 import {
   findFolderIdContainingNote,
 } from "../../../src/workspace/model/noteTree/query";
@@ -20,23 +24,28 @@ const timestamp = "2026-06-08T00:00:00.000Z";
 function createMigrationWorkspace(): WorkspaceData {
   const sourceNote = createNoteRecord(
     "note-source",
-    "Root\n\t: Definition\n\t\t- Component\nSibling",
+    "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
     timestamp,
   );
   const targetNote = createNoteRecord(
     "note-target",
-    "Target\n\t> Understanding",
+    "Target Title\nTarget\n\t> Understanding",
     timestamp,
   );
   const workspace = createInitialWorkspaceData();
+  const treeWithFolder = appendFolderToWorkspaceTree(
+    workspace.tree,
+    createNoteTreeFolderNode("folder-target", "目标"),
+    null,
+  );
 
   return {
     ...workspace,
     notes: [sourceNote, targetNote],
     tree: appendNoteToWorkspaceTree(
-      appendNoteToWorkspaceTree(workspace.tree, sourceNote.id, "folder-inbox"),
+      appendNoteToWorkspaceTree(treeWithFolder, sourceNote.id, null),
       targetNote.id,
-      "folder-inbox",
+      "folder-target",
     ),
   };
 }
@@ -65,10 +74,10 @@ describe("workspace block migration", () => {
     const result = moveMigrationBlock(
       workspace,
       {
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: 3,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "inside-block", lineNumber: 1 },
+        targetPosition: { kind: "inside-block", lineNumber: 2 },
       },
     );
 
@@ -80,20 +89,20 @@ describe("workspace block migration", () => {
 
     expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
       .toMatchObject({
-        source: "Root\nSibling",
-        title: "Root",
+        source: "Source Title\nRoot\nSibling",
+        title: "Source Title",
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
     expect(result.workspaceData.notes.find((note) => note.id === "note-target"))
       .toMatchObject({
         source:
-          "Target\n\t> Understanding\n\t: Definition\n\t\t- Component",
-        title: "Target",
+          "Target Title\nTarget\n\t> Understanding\n\t: Definition\n\t\t- Component",
+        title: "Target Title",
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
     expect(
       findFolderIdContainingNote(result.workspaceData.tree, "note-target"),
-    ).toBe("folder-inbox");
+    ).toBe("folder-target");
   });
 
   it("reads only source and target parsed notes from the migration index", () => {
@@ -120,7 +129,7 @@ describe("workspace block migration", () => {
         },
       },
       {
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: 3,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
         targetPosition: { kind: "end" },
@@ -140,19 +149,19 @@ describe("workspace block migration", () => {
     const aboveResult = moveMigrationBlock(
       createMigrationWorkspace(),
       {
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: 3,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "sibling-above", lineNumber: 1 },
+        targetPosition: { kind: "sibling-above", lineNumber: 2 },
       },
     );
     const belowResult = moveMigrationBlock(
       createMigrationWorkspace(),
       {
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: 3,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "sibling-below", lineNumber: 1 },
+        targetPosition: { kind: "sibling-below", lineNumber: 2 },
       },
     );
 
@@ -168,14 +177,14 @@ describe("workspace block migration", () => {
     )
       .toMatchObject({
         source:
-          ": Definition\n\t- Component\nTarget\n\t> Understanding",
+          "Target Title\n: Definition\n\t- Component\nTarget\n\t> Understanding",
       });
     expect(
       belowResult.workspaceData.notes.find((note) => note.id === "note-target"),
     )
       .toMatchObject({
         source:
-          "Target\n\t> Understanding\n: Definition\n\t- Component",
+          "Target Title\nTarget\n\t> Understanding\n: Definition\n\t- Component",
       });
   });
 
@@ -216,7 +225,7 @@ describe("workspace block migration", () => {
       moveMigrationBlock(
         workspace,
         {
-          sourceBlockLineNumber: 1,
+          sourceBlockLineNumber: 3,
           sourceNoteId: "note-source",
           targetNoteId: "note-target",
           targetPosition: { kind: "inside-block", lineNumber: 99 },

@@ -79,6 +79,10 @@ function createFailure(
   };
 }
 
+function isMigratableBlock(block: CtnBlock) {
+  return block.type !== "title";
+}
+
 function resolveMigrationNote(
   index: WorkspaceBlockMigrationIndex,
   note: NoteRecord,
@@ -90,7 +94,7 @@ function resolveMigrationNote(
   }
 
   return {
-    blocks: parsedNote.document.blocks,
+    blocks: parsedNote.document.blocks.filter(isMigratableBlock),
     note: parsedNote.note,
   };
 }

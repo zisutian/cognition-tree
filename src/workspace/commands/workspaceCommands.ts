@@ -12,7 +12,7 @@ import type { NoteTreeMoveRequest } from "../model/noteTree/types";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import {
   createNoteRecord,
-  defaultFolderId,
+  defaultNoteTitle,
   inferNoteTitle,
   type FolderId,
   type NoteId,
@@ -59,39 +59,41 @@ function assertWorkspaceFolderIdAvailable(
   }
 }
 
-function replaceFirstNonEmptyLine(source: string, title: string) {
+function replaceTitleLine(source: string, title: string) {
   const lines = source.split("\n");
-  const titleLineIndex = lines.findIndex((line) => line.trim());
 
-  if (titleLineIndex < 0) {
-    return title;
-  }
-
-  lines[titleLineIndex] = title;
+  lines[0] = title;
   return lines.join("\n");
 }
 
 export function createWorkspaceNote(
   workspace: WorkspaceStructureIndex,
   {
-    folderId,
+    parentFolderId,
     noteId,
     timestamp,
   }: {
-    folderId: FolderId;
+    parentFolderId: FolderId | null;
     noteId: NoteId;
     timestamp: string;
   },
 ): WorkspaceData {
   assertWorkspaceNoteIdAvailable(workspace, noteId);
-  assertWorkspaceFolderExists(workspace, folderId);
 
-  const note = createNoteRecord(noteId, "", timestamp);
+  if (parentFolderId !== null) {
+    assertWorkspaceFolderExists(workspace, parentFolderId);
+  }
+
+  const note = createNoteRecord(noteId, defaultNoteTitle, timestamp);
 
   return {
     ...workspace.data,
     notes: [...workspace.data.notes, note],
-    tree: appendNoteToWorkspaceTree(workspace.data.tree, note.id, folderId),
+    tree: appendNoteToWorkspaceTree(
+      workspace.data.tree,
+      note.id,
+      parentFolderId,
+    ),
   };
 }
 
@@ -103,7 +105,7 @@ export function createWorkspaceFolder(
     title,
   }: {
     folderId: FolderId;
-    parentFolderId: FolderId;
+    parentFolderId: FolderId | null;
     title: string;
   },
 ): WorkspaceData {
@@ -114,7 +116,10 @@ export function createWorkspaceFolder(
   }
 
   assertWorkspaceFolderIdAvailable(workspace, folderId);
-  assertWorkspaceFolderExists(workspace, parentFolderId);
+
+  if (parentFolderId !== null) {
+    assertWorkspaceFolderExists(workspace, parentFolderId);
+  }
 
   return {
     ...workspace.data,
@@ -167,7 +172,7 @@ export function renameWorkspaceNote(
 
   const notes = [...workspace.data.notes];
   const note = notes[noteIndex];
-  const source = replaceFirstNonEmptyLine(note.source, nextTitle);
+  const source = replaceTitleLine(note.source, nextTitle);
 
   notes[noteIndex] = {
     ...note,
@@ -203,14 +208,6 @@ export function deleteWorkspaceFolder(
 ): WorkspaceData {
   assertWorkspaceFolderExists(workspace, folderId);
 
-  if (folderId === defaultFolderId) {
-    throw new Error("Default workspace folder cannot be deleted.");
-  }
-
-  if (workspace.folderCount <= 1) {
-    throw new Error("Workspace must contain at least one folder.");
-  }
-
   const removedNoteIds = new Set(workspace.noteIdsByFolderId.get(folderId));
   const notes = workspace.data.notes.filter(
     (note) => !removedNoteIds.has(note.id),
@@ -226,10 +223,13 @@ export function deleteWorkspaceFolder(
 export function moveWorkspaceNote(
   workspace: WorkspaceStructureIndex,
   noteId: NoteId,
-  targetFolderId: FolderId,
+  targetFolderId: FolderId | null,
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
-  assertWorkspaceFolderExists(workspace, targetFolderId);
+
+  if (targetFolderId !== null) {
+    assertWorkspaceFolderExists(workspace, targetFolderId);
+  }
 
   return {
     ...workspace.data,

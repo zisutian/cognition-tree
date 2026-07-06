@@ -11,7 +11,7 @@ describe("workspace context syntax profile", () => {
     expect(createInitialWorkspaceContext(defaultCtnSyntaxProfile)).toMatchObject({
       syntaxProfile: { name: "默认 CTN 语法" },
       workspace: {
-        folderCount: 1,
+        folderCount: 0,
       },
     });
   });

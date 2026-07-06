@@ -15,14 +15,7 @@ function createWorkspace() {
     id: "local-workspace",
     name: "本地笔记库",
     notes: [],
-    tree: [
-      {
-        id: "folder-inbox",
-        kind: "folder",
-        title: "仓库根目录",
-        children: [],
-      },
-    ],
+    tree: [],
   };
 }
 
@@ -207,7 +200,7 @@ describe("workspace API request handler", () => {
           updatedAt: "2026-05-25T00:00:00.000Z",
         },
       ];
-      workspace.tree[0].children = [
+      workspace.tree = [
         {
           id: "tree-note-valid",
           kind: "note",

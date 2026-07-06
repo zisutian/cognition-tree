@@ -1,18 +1,22 @@
 import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData";
 import type { NoteTreeFolderNode } from "./types";
 import { createNoteTreeNoteNode } from "./create";
-import { findFolderIdContainingNote, findFolderNode } from "./query";
+import { findFolderNode, findNoteTreeNodeLocation } from "./query";
 
 export function appendNoteToWorkspaceTree(
   tree: NoteTreeNode[],
   noteId: NoteId,
-  folderId: FolderId,
+  parentFolderId: FolderId | null,
 ): NoteTreeNode[] {
-  if (!findFolderNode(tree, folderId)) {
-    throw new Error(`Workspace folder does not exist: ${folderId}`);
+  if (parentFolderId === null) {
+    return [...tree, createNoteTreeNoteNode(noteId)];
   }
 
-  return appendNoteToWorkspaceTreeUnchecked(tree, noteId, folderId);
+  if (!findFolderNode(tree, parentFolderId)) {
+    throw new Error(`Workspace folder does not exist: ${parentFolderId}`);
+  }
+
+  return appendNoteToWorkspaceTreeUnchecked(tree, noteId, parentFolderId);
 }
 
 function appendNoteToWorkspaceTreeUnchecked(
@@ -46,8 +50,12 @@ function appendNoteToWorkspaceTreeUnchecked(
 export function appendFolderToWorkspaceTree(
   tree: NoteTreeNode[],
   folder: NoteTreeFolderNode,
-  parentFolderId: FolderId,
+  parentFolderId: FolderId | null,
 ): NoteTreeNode[] {
+  if (parentFolderId === null) {
+    return [...tree, folder];
+  }
+
   if (!findFolderNode(tree, parentFolderId)) {
     throw new Error(`Workspace folder does not exist: ${parentFolderId}`);
   }
@@ -144,19 +152,22 @@ export function removeFolderFromWorkspaceTree(
 export function moveNoteInWorkspaceTree(
   tree: NoteTreeNode[],
   noteId: NoteId,
-  targetFolderId: FolderId,
+  targetFolderId: FolderId | null,
 ): NoteTreeNode[] {
-  if (!findFolderNode(tree, targetFolderId)) {
+  if (targetFolderId !== null && !findFolderNode(tree, targetFolderId)) {
     throw new Error(`Workspace folder does not exist: ${targetFolderId}`);
   }
 
-  const sourceFolderId = findFolderIdContainingNote(tree, noteId);
+  const sourceLocation = findNoteTreeNodeLocation(tree, {
+    kind: "note",
+    noteId,
+  });
 
-  if (!sourceFolderId) {
+  if (!sourceLocation) {
     throw new Error(`Workspace note tree node does not exist: ${noteId}`);
   }
 
-  if (sourceFolderId === targetFolderId) {
+  if (sourceLocation.parentFolderId === targetFolderId) {
     return tree;
   }
 

@@ -1,8 +1,6 @@
 export type NoteId = string;
 export type FolderId = string;
 
-export const defaultFolderId: FolderId = "folder-inbox";
-
 export type NoteRecord = {
   id: NoteId;
   title: string;
@@ -31,11 +29,10 @@ export type WorkspaceData = {
   tree: NoteTreeNode[];
 };
 
+export const defaultNoteTitle = "未命名笔记";
+
 export function inferNoteTitle(source: string): string {
-  return source
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean) ?? "未命名笔记";
+  return source.split("\n")[0]?.trim() ?? "";
 }
 
 export function createNoteRecord(
@@ -57,13 +54,6 @@ export function createInitialWorkspaceData(): WorkspaceData {
     id: "local-workspace",
     name: "本地笔记库",
     notes: [],
-    tree: [
-      {
-        id: defaultFolderId,
-        kind: "folder",
-        title: "仓库根目录",
-        children: [],
-      },
-    ],
+    tree: [],
   };
 }

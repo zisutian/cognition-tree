@@ -75,7 +75,7 @@ export function SyntaxProfileDetailPanel({
               </UiListRow>
               <UiListRow as="div">
                 <dt>行首</dt>
-                <dd>{draftProfile.markerRules.length + 1}</dd>
+                <dd>{draftProfile.markerRules.length + 2}</dd>
               </UiListRow>
               <UiListRow as="div">
                 <dt>行内</dt>
@@ -91,6 +91,17 @@ export function SyntaxProfileDetailPanel({
           <UiSectionTitle>行首规则</UiSectionTitle>
           {draftProfile ? (
             <UiList as="div" variant="cards">
+              <UiListRow as="div" className="syntax-marker-row">
+                <code>首行</code>
+                <ToneSwatch label="背景" tone={draftProfile.titleRule.tone} />
+                <ToneSwatch
+                  label="字体"
+                  tone={draftProfile.titleRule.textColor}
+                />
+                <span className="syntax-marker-label">
+                  {draftProfile.titleRule.label}
+                </span>
+              </UiListRow>
               <UiListRow as="div" className="syntax-marker-row">
                 <code>顶格</code>
                 <ToneSwatch label="背景" tone={draftProfile.conceptRule.tone} />

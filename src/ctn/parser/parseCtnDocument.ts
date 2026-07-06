@@ -13,6 +13,85 @@ import type {
 } from "./types";
 import type { CtnSyntaxProfile } from "../syntax/types";
 
+function createTitleBlock({
+  line,
+  markerRules,
+  syntaxProfile,
+}: {
+  line: string;
+  markerRules: ReturnType<typeof sortMarkerRules>;
+  syntaxProfile: CtnSyntaxProfile;
+}): CtnBlock {
+  const lineNumber = 1;
+  const trimmed = line.trim();
+  const indentText = line.match(/^\s*/)?.[0] ?? "";
+  const indent = analyzeIndent(indentText, lineNumber);
+  const parsedMarker = trimmed
+    ? parseMarker(trimmed, lineNumber, indentText.length, markerRules)
+    : null;
+  const diagnostics: CtnDiagnostic[] = [...indent.diagnostics];
+
+  if (!trimmed) {
+    diagnostics.push(
+      createDiagnostic(
+        "title-line-invalid",
+        "error",
+        lineNumber,
+        1,
+        "首行标题不能为空。",
+      ),
+    );
+  } else if (indent.level > 0 || indentText.length > 0) {
+    diagnostics.push(
+      createDiagnostic(
+        "title-line-invalid",
+        "error",
+        lineNumber,
+        1,
+        "首行标题必须顶格书写。",
+      ),
+    );
+  } else if (parsedMarker?.marker !== null) {
+    diagnostics.push(
+      createDiagnostic(
+        "title-line-invalid",
+        "error",
+        lineNumber,
+        1,
+        "首行标题不能使用行首符号。",
+      ),
+    );
+  }
+
+  const textStartColumn = indentText.length + 1;
+
+  return {
+    id: "block-1",
+    lineNumber,
+    endLineNumber: lineNumber,
+    level: 0,
+    indentText,
+    marker: null,
+    type: syntaxProfile.titleRule.type,
+    role: "normal",
+    textColor: syntaxProfile.titleRule.textColor,
+    tone: syntaxProfile.titleRule.tone,
+    label: syntaxProfile.titleRule.label,
+    text: trimmed,
+    rawText: line,
+    inlineSpans: trimmed
+      ? parseInlineSpans(
+          trimmed,
+          lineNumber,
+          textStartColumn,
+          syntaxProfile.inlineRules,
+        )
+      : [],
+    diagnostics,
+    children: [],
+  };
+}
+
 export function parseCtnDocument(
   source: string,
   syntaxProfile: CtnSyntaxProfile,
@@ -23,7 +102,15 @@ export function parseCtnDocument(
   const diagnostics: CtnDiagnostic[] = [];
   const stack: Array<{ level: number; node: CtnBlock }> = [];
   const markerRules = sortMarkerRules(syntaxProfile.markerRules);
-  let index = 0;
+  const titleBlock = createTitleBlock({
+    line: lines[0] ?? "",
+    markerRules,
+    syntaxProfile,
+  });
+  roots.push(titleBlock);
+  blocks.push(titleBlock);
+  diagnostics.push(...titleBlock.diagnostics);
+  let index = 1;
 
   while (index < lines.length) {
     const line = lines[index];

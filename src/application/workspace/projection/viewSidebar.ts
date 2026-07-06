@@ -1,4 +1,3 @@
-import { defaultFolderId } from "../../../workspace/model/workspaceData";
 import type {
   UiFolderId,
   UiNoteId,
@@ -6,11 +5,9 @@ import type {
 } from "./viewTree";
 
 export type UiSidebarView = {
-  activeFolderId: UiFolderId;
+  activeFolderId: UiFolderId | null;
   activeNoteFolderId: UiFolderId | null;
   activeNoteId: UiNoteId | null;
-  defaultFolderId: UiFolderId;
-  folderCount: number;
   noteTree: UiTreeNode[];
   repositoryPath: string;
   saveStatusLabel: string;
@@ -21,18 +18,15 @@ export function createUiSidebarView({
   activeFolderId,
   activeNoteFolderId,
   activeNoteId,
-  folderCount,
   noteTree,
   repositoryPath,
   saveStatusLabel,
   storageLabel,
-}: Omit<UiSidebarView, "defaultFolderId">): UiSidebarView {
+}: UiSidebarView): UiSidebarView {
   return {
     activeFolderId,
     activeNoteFolderId,
     activeNoteId,
-    defaultFolderId,
-    folderCount,
     noteTree,
     repositoryPath,
     saveStatusLabel,

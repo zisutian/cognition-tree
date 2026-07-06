@@ -21,7 +21,7 @@ function createWorkspace() {
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,
     createNoteTreeFolderNode("folder-project", "项目"),
-    "folder-inbox",
+    null,
   );
 
   return {
@@ -48,11 +48,11 @@ describe("workspace selection", () => {
     ).toBe("folder-project");
   });
 
-  it("resolves missing folder selection to the first workspace folder", () => {
+  it("resolves missing folder selection to the top level", () => {
     const workspace = indexWorkspace();
 
     expect(
       resolveFolderSelection(workspace, "missing-folder"),
-    ).toBe("folder-inbox");
+    ).toBeNull();
   });
 });

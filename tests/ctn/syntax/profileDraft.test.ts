@@ -32,6 +32,13 @@ describe("syntax profile draft", () => {
         tone: "teal",
         type: "concept",
       },
+      titleRule: {
+        id: "title-1",
+        label: "标题",
+        textColor: "cyan",
+        tone: "blue",
+        type: "title",
+      },
       inlineRules: [
         {
           close: "]]",
@@ -111,6 +118,12 @@ describe("syntax profile draft", () => {
       tone: "default",
       type: "root-concept",
     };
+    draft.titleRule = {
+      ...draft.titleRule,
+      textColor: "default",
+      tone: "default",
+      type: "note-title",
+    };
     draft.markerRules = [
       {
         ...createEmptyMarkerRuleDraft(0),
@@ -144,6 +157,9 @@ describe("syntax profile draft", () => {
       expect.arrayContaining([
         expect.objectContaining({ path: "$.name" }),
         expect.objectContaining({ path: "$.tabDisplayWidth" }),
+        expect.objectContaining({ path: "title.type" }),
+        expect.objectContaining({ path: "title.textColor" }),
+        expect.objectContaining({ path: "title.tone" }),
         expect.objectContaining({ path: "concept.type" }),
         expect.objectContaining({ path: "concept.textColor" }),
         expect.objectContaining({ path: "concept.tone" }),
@@ -196,6 +212,21 @@ describe("syntax profile draft", () => {
       textColor: "cyan",
       tone: "pink",
       type: "concept",
+    });
+  });
+
+  it("allows changing the fixed title color", () => {
+    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    draft.titleRule.tone = "pink";
+    draft.titleRule.textColor = "cyan";
+    const result = buildSyntaxProfileDraft(draft);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.profile?.titleRule).toEqual({
+      label: "标题",
+      textColor: "cyan",
+      tone: "pink",
+      type: "title",
     });
   });
 

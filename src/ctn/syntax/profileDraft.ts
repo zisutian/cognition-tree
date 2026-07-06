@@ -5,6 +5,7 @@ import type {
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
+  CtnTitleRule,
 } from "./types";
 import { isConfigurableSyntaxTone } from "./tones";
 
@@ -19,6 +20,14 @@ export type SyntaxProfileDraftMarkerRule = {
 };
 
 export type SyntaxProfileDraftConceptRule = {
+  id: string;
+  label: string;
+  textColor: CtnSyntaxTone;
+  tone: CtnSyntaxTone;
+  type: string;
+};
+
+export type SyntaxProfileDraftTitleRule = {
   id: string;
   label: string;
   textColor: CtnSyntaxTone;
@@ -44,6 +53,7 @@ export type SyntaxProfileDraft = {
   markerRules: SyntaxProfileDraftMarkerRule[];
   name: string;
   tabDisplayWidth: string;
+  titleRule: SyntaxProfileDraftTitleRule;
 };
 
 export type SyntaxProfileDraftDiagnostic = {
@@ -59,6 +69,7 @@ export type SyntaxProfileDraftBuildResult = {
 export const syntaxRuleRoles: CtnRuleRole[] = ["normal", "multiline"];
 
 const requiredGlobalReferenceType = "global-reference";
+const requiredTitleType = "title";
 const requiredTopLevelConceptType = "concept";
 const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
 
@@ -231,6 +242,13 @@ export function createSyntaxProfileDraft(
       tone: profile.conceptRule.tone,
       type: profile.conceptRule.type,
     },
+    titleRule: {
+      id: "title-1",
+      label: profile.titleRule.label,
+      textColor: profile.titleRule.textColor,
+      tone: profile.titleRule.tone,
+      type: profile.titleRule.type,
+    },
     inlineRules: sortProtectedInlineRuleFirst(profile.inlineRules).map(
       (rule, index) => ({
         close: rule.kind === "paired" ? rule.close : "",
@@ -270,9 +288,48 @@ export function buildSyntaxProfileDraft(
     diagnostics,
   );
   const markerSet = new Set<string>();
+  let titleRule: CtnTitleRule | null = null;
   let conceptRule: CtnConceptRule | null = null;
   const markerRules: CtnMarkerRule[] = [];
   const inlineRules: CtnInlineRule[] = [];
+
+  const titleLabel = readRequiredText(
+    draft.titleRule.label,
+    "title.label",
+    "首行标题名称",
+    diagnostics,
+  );
+  const titleType = readRequiredText(
+    draft.titleRule.type,
+    "title.type",
+    "首行标题语义 ID",
+    diagnostics,
+  );
+
+  validateSemanticId(titleType, "title.type", "首行标题语义 ID", diagnostics);
+  validateTone(draft.titleRule.textColor, "title.textColor", diagnostics);
+  validateTone(draft.titleRule.tone, "title.tone", diagnostics);
+
+  if (titleType !== requiredTitleType) {
+    diagnostics.push({
+      message: "首行标题规则不能改为其他语义 ID。",
+      path: "title.type",
+    });
+  }
+
+  if (
+    titleLabel &&
+    titleType === requiredTitleType &&
+    isConfigurableSyntaxTone(draft.titleRule.textColor) &&
+    isConfigurableSyntaxTone(draft.titleRule.tone)
+  ) {
+    titleRule = {
+      label: titleLabel,
+      textColor: draft.titleRule.textColor,
+      tone: draft.titleRule.tone,
+      type: titleType,
+    };
+  }
 
   const conceptLabel = readRequiredText(
     draft.conceptRule.label,
@@ -469,6 +526,7 @@ export function buildSyntaxProfileDraft(
     diagnostics.length > 0 ||
     !name ||
     !tabDisplayWidth ||
+    !titleRule ||
     !conceptRule ||
     markerRules.length === 0
   ) {
@@ -486,6 +544,7 @@ export function buildSyntaxProfileDraft(
       markerRules,
       name,
       tabDisplayWidth,
+      titleRule,
     },
   };
 }

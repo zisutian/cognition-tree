@@ -64,7 +64,6 @@ export function useMigrationViewModel({
   effectiveWorkspace,
   index,
   scopeMigration,
-  selectedFolderId,
   setActiveNoteId,
   setSelectedFolderId,
 }: {
@@ -75,9 +74,8 @@ export function useMigrationViewModel({
   effectiveWorkspace: WorkspaceStructureIndex | null;
   index: WorkspaceParseIndex | null;
   scopeMigration: boolean;
-  selectedFolderId: FolderId;
   setActiveNoteId: Dispatch<SetStateAction<UiNoteId | null>>;
-  setSelectedFolderId: Dispatch<SetStateAction<FolderId>>;
+  setSelectedFolderId: Dispatch<SetStateAction<FolderId | null>>;
 }): MigrationViewModel {
   const [migrationSourceNoteId, setMigrationSourceNoteId] = useState("");
   const [migrationTargetNoteId, setMigrationTargetNoteId] = useState("");
@@ -172,7 +170,7 @@ export function useMigrationViewModel({
       findWorkspaceFolderIdContainingNote(
         effectiveContext.workspace,
         result.targetNoteId,
-      ) ?? selectedFolderId,
+      ) ?? null,
     );
 
     return {
@@ -203,7 +201,6 @@ export function useMigrationViewModel({
     () =>
       scopeMigration && effectiveWorkspace
         ? createUiNoteTree({
-            includeOrphans: true,
             notes: effectiveNotes,
             tree: getWorkspaceTree(effectiveWorkspace),
           })

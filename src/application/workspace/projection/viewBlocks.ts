@@ -19,6 +19,10 @@ export type UiBlockNode = {
 
 export type UiOutlineNode = UiBlockNode;
 
+function isBodyBlock(block: CtnBlock) {
+  return block.type !== "title";
+}
+
 export function getUiBlockLineLabel(
   block: Pick<CtnBlock, "endLineNumber" | "lineNumber">,
 ) {
@@ -41,11 +45,11 @@ export function createUiBlockNode(block: CtnBlock): UiBlockNode {
 }
 
 export function createUiOutlineNodes(nodes: CtnBlock[]): UiOutlineNode[] {
-  return nodes.map(createUiBlockNode);
+  return nodes.filter(isBodyBlock).map(createUiBlockNode);
 }
 
 export function createUiBlockNodes(nodes: CtnBlock[]): UiBlockNode[] {
-  return nodes.map(createUiBlockNode);
+  return nodes.filter(isBodyBlock).map(createUiBlockNode);
 }
 
 export function flattenUiBlockSubtree(block: UiBlockNode): UiBlockNode[] {

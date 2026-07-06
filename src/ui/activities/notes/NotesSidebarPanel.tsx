@@ -56,11 +56,11 @@ function clampContextMenuPosition(position: TreeContextMenuPosition) {
 
 type NotesSidebarPanelProps = {
   view: UiSidebarView;
-  onCreateFolder: (parentFolderId: UiFolderId, title: string) => void;
+  onCreateFolder: (parentFolderId: UiFolderId | null, title: string) => void;
   onCreateNote: () => void;
   onDeleteFolder: (folderId: UiFolderId) => void;
   onDeleteNote: (noteId: UiNoteId) => void;
-  onMoveNote: (noteId: UiNoteId, targetFolderId: UiFolderId) => void;
+  onMoveNote: (noteId: UiNoteId, targetFolderId: UiFolderId | null) => void;
   onMoveTreeNode: (request: UiTreeMoveRequest) => void;
   onRenameFolder: (folderId: UiFolderId, title: string) => void;
   onRenameNote: (noteId: UiNoteId, title: string) => void;
@@ -163,7 +163,7 @@ export function NotesSidebarPanel({
       return next;
     });
   };
-  const requestCreateFolder = (parentFolderId: UiFolderId) => {
+  const requestCreateFolder = (parentFolderId: UiFolderId | null) => {
     const title = window.prompt("新文件夹名称", "新文件夹");
 
     if (!title) {
@@ -171,7 +171,10 @@ export function NotesSidebarPanel({
     }
 
     onCreateFolder(parentFolderId, title);
-    expandFolder(parentFolderId);
+
+    if (parentFolderId) {
+      expandFolder(parentFolderId);
+    }
   };
   const requestRenameFolder = (folderId: UiFolderId, currentTitle: string) => {
     const title = window.prompt("文件夹名称", currentTitle);
@@ -388,7 +391,7 @@ export function NotesSidebarPanel({
             <button
               aria-label="新建文件夹"
               className="side-action-button"
-              onClick={() => requestCreateFolder(view.defaultFolderId)}
+              onClick={() => requestCreateFolder(view.activeFolderId)}
               title="新建文件夹"
               type="button"
             >
@@ -418,7 +421,6 @@ export function NotesSidebarPanel({
               onSelectFolder={selectFolderRow}
               onSelectNote={selectNoteRow}
               onToggleFolder={toggleFolder}
-              defaultFolderId={view.defaultFolderId}
             />
           </SidebarScrollArea>
         </nav>
@@ -441,7 +443,6 @@ export function NotesSidebarPanel({
                   新建子文件夹
                 </button>
                 <button
-                  disabled={contextMenu.folderId === view.defaultFolderId}
                   onClick={() =>
                     requestRenameFolder(contextMenu.folderId, contextMenu.title)
                   }
@@ -462,10 +463,6 @@ export function NotesSidebarPanel({
                   移动当前笔记到此处
                 </button>
                 <button
-                  disabled={
-                    contextMenu.folderId === view.defaultFolderId ||
-                    view.folderCount <= 1
-                  }
                   onClick={() =>
                     requestDeleteFolder(contextMenu.folderId, contextMenu.title)
                   }
@@ -483,7 +480,7 @@ export function NotesSidebarPanel({
                   role="menuitem"
                   type="button"
                 >
-                  移动此笔记到所选文件夹
+                  移动此笔记到当前位置
                 </button>
                 <button
                   onClick={() => {

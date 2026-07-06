@@ -6,6 +6,14 @@ const requiredGlobalReferenceType = "global-reference";
 
 export function getSyntaxProfileShapeError(profile: CtnSyntaxProfile) {
   if (
+    !profile.titleRule ||
+    profile.titleRule.type !== "title" ||
+    !profile.titleRule.tone
+  ) {
+    return "语法配置缺少首行标题规则。";
+  }
+
+  if (
     !profile.conceptRule ||
     profile.conceptRule.type !== "concept" ||
     !profile.conceptRule.tone

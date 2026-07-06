@@ -22,6 +22,7 @@ export type CtnDiagnosticSeverity = "warning" | "error";
 export type CtnDiagnosticCode =
   | "indent-level-jump"
   | "space-indent"
+  | "title-line-invalid"
   | "unknown-marker";
 
 export type CtnDiagnostic = {

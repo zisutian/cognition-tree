@@ -7,42 +7,83 @@ function parseDefaultCtnDocument(source: string) {
 }
 
 describe("parseCtnDocument", () => {
-  it("builds a semantic block tree from the default CTN markers", () => {
-    const document = parseDefaultCtnDocument(`Root
+  it("parses the fixed first line as the document title block", () => {
+    const document = parseDefaultCtnDocument("Document Title\nRoot");
+
+    expect(document.diagnostics).toHaveLength(0);
+    expect(document.roots[0]).toMatchObject({
+      endLineNumber: 1,
+      label: "标题",
+      level: 0,
+      lineNumber: 1,
+      marker: null,
+      text: "Document Title",
+      type: "title",
+    });
+    expect(document.roots[1]).toMatchObject({
+      label: "顶格概念",
+      lineNumber: 2,
+      text: "Root",
+      type: "concept",
+    });
+  });
+
+  it("reports invalid fixed title lines", () => {
+    expect(
+      parseDefaultCtnDocument("\nRoot").diagnostics.map(
+        (diagnostic) => diagnostic.code,
+      ),
+    ).toEqual(["title-line-invalid"]);
+    expect(
+      parseDefaultCtnDocument("# Root\nRoot").diagnostics.map(
+        (diagnostic) => diagnostic.code,
+      ),
+    ).toEqual(["title-line-invalid"]);
+    expect(
+      parseDefaultCtnDocument("\tRoot\nRoot").diagnostics.map(
+        (diagnostic) => diagnostic.code,
+      ),
+    ).toEqual(["title-line-invalid"]);
+  });
+
+  it("builds a semantic block tree from the default CTN markers after the title", () => {
+    const document = parseDefaultCtnDocument(`Document Title
+Root
 	: Definition
 	> Understanding
 		- Component
 	\`\`\` ts`);
+    const root = document.roots[1];
 
-    expect(document.roots).toHaveLength(1);
-    expect(document.blocks).toHaveLength(5);
+    expect(document.roots).toHaveLength(2);
+    expect(document.blocks).toHaveLength(6);
     expect(document.diagnostics).toHaveLength(0);
-    expect(document.roots[0]).toMatchObject({
-      endLineNumber: 5,
+    expect(root).toMatchObject({
+      endLineNumber: 6,
       label: "顶格概念",
       level: 0,
-      lineNumber: 1,
+      lineNumber: 2,
       marker: null,
       text: "Root",
       type: "concept",
     });
-    expect(document.roots[0].children.map((node) => node.type)).toEqual([
+    expect(root.children.map((node) => node.type)).toEqual([
       "definition",
       "personal-understanding",
       "multiline-block",
     ]);
-    expect(document.roots[0].children[1].children[0]).toMatchObject({
+    expect(root.children[1].children[0]).toMatchObject({
       label: "组分",
       level: 2,
-      lineNumber: 4,
+      lineNumber: 5,
       marker: "-",
       text: "Component",
       type: "component",
     });
-    expect(document.roots[0].children[2]).toMatchObject({
-      endLineNumber: 5,
+    expect(root.children[2]).toMatchObject({
+      endLineNumber: 6,
       label: "多行块",
-      lineNumber: 5,
+      lineNumber: 6,
       marker: "```",
       role: "multiline",
       text: "ts",
@@ -51,7 +92,8 @@ describe("parseCtnDocument", () => {
   });
 
   it("computes subtree ranges across roots, children, last blocks, and blank lines", () => {
-    const document = parseDefaultCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Document Title
+Root
 	: Definition
 
 	- Component
@@ -65,19 +107,20 @@ Sibling
         text: block.text,
       })),
     ).toEqual([
-      { endLineNumber: 4, lineNumber: 1, text: "Root" },
-      { endLineNumber: 3, lineNumber: 2, text: "Definition" },
-      { endLineNumber: 4, lineNumber: 4, text: "Component" },
-      { endLineNumber: 6, lineNumber: 5, text: "Sibling" },
-      { endLineNumber: 6, lineNumber: 6, text: "Understanding" },
+      { endLineNumber: 1, lineNumber: 1, text: "Document Title" },
+      { endLineNumber: 5, lineNumber: 2, text: "Root" },
+      { endLineNumber: 4, lineNumber: 3, text: "Definition" },
+      { endLineNumber: 5, lineNumber: 5, text: "Component" },
+      { endLineNumber: 7, lineNumber: 6, text: "Sibling" },
+      { endLineNumber: 7, lineNumber: 7, text: "Understanding" },
     ]);
   });
 
   it("parses inline structural spans outside multiline blocks", () => {
     const document = parseDefaultCtnDocument(
-      "Root `code` <local> [[global]] A \\ B\n	: `literal <ignored>` <term> [[Topic]] A \\ B\n	- <当前笔记> \\ [[全局概念]]",
+      "Document Title\nRoot `code` <local> [[global]] A \\ B\n\t: `literal <ignored>` <term> [[Topic]] A \\ B\n\t- <当前笔记> \\ [[全局概念]]",
     );
-    const root = document.roots[0];
+    const root = document.roots[1];
     const definition = root.children[0];
     const component = root.children[1];
 
@@ -116,40 +159,45 @@ Sibling
   });
 
   it("treats multiline block contents as raw block range", () => {
-    const document = parseDefaultCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Document Title
+Root
 	\`\`\`ts
 	: Not a definition
 		- Not a component
 	\`\`\`
 	: After`);
+    const root = document.roots[1];
 
     expect(document.diagnostics).toHaveLength(0);
     expect(document.blocks.map((block) => block.text)).toEqual([
+      "Document Title",
       "Root",
       "ts",
       "After",
     ]);
-    expect(document.roots[0].children[0]).toMatchObject({
+    expect(root.children[0]).toMatchObject({
       children: [],
-      endLineNumber: 5,
+      endLineNumber: 6,
       inlineSpans: [],
-      lineNumber: 2,
+      lineNumber: 3,
       marker: "```",
       type: "multiline-block",
     });
-    expect(document.roots[0].children[1]).toMatchObject({
-      endLineNumber: 6,
-      lineNumber: 6,
+    expect(root.children[1]).toMatchObject({
+      endLineNumber: 7,
+      lineNumber: 7,
       text: "After",
       type: "definition",
     });
   });
 
   it("reports invalid line-start symbols instead of parsing aliases", () => {
-    const document = parseDefaultCtnDocument(`# Root
+    const document = parseDefaultCtnDocument(`Document Title
+# Root
 	= Definition
 	? Question
 	+ Action`);
+    const root = document.roots[1];
 
     expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "unknown-marker",
@@ -157,14 +205,14 @@ Sibling
       "unknown-marker",
       "unknown-marker",
     ]);
-    expect(document.roots[0]).toMatchObject({
+    expect(root).toMatchObject({
       label: "未知符号",
       level: 0,
       marker: "#",
       text: "Root",
       type: "text",
     });
-    expect(document.roots[0].children.map((node) => node.marker)).toEqual([
+    expect(root.children.map((node) => node.marker)).toEqual([
       "=",
       "?",
       "+",
@@ -172,7 +220,8 @@ Sibling
   });
 
   it("reports removed profile markers instead of treating them as concepts", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseCtnDocument(`Document Title
+Root
 	: Removed definition
 	> Removed understanding
 	- Removed component
@@ -189,6 +238,7 @@ Sibling
         },
       ],
     });
+    const root = document.roots[1];
 
     expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
       "unknown-marker",
@@ -196,13 +246,13 @@ Sibling
       "unknown-marker",
       "unknown-marker",
     ]);
-    expect(document.roots[0].children.map((node) => node.type)).toEqual([
+    expect(root.children.map((node) => node.type)).toEqual([
       "text",
       "text",
       "text",
       "text",
     ]);
-    expect(document.roots[0].children.map((node) => node.marker)).toEqual([
+    expect(root.children.map((node) => node.marker)).toEqual([
       ":",
       ">",
       "-",
@@ -211,26 +261,27 @@ Sibling
   });
 
   it("preserves raw text and ignores blank lines", () => {
-    const document = parseDefaultCtnDocument(`	plain text
+    const document = parseDefaultCtnDocument(`Document Title
+plain text
 
 	: Definition`);
 
     expect(document.roots).toHaveLength(2);
-    expect(document.roots[0]).toMatchObject({
-      label: "概念",
+    expect(document.roots[1]).toMatchObject({
+      label: "顶格概念",
       marker: null,
-      rawText: "	plain text",
+      rawText: "plain text",
       text: "plain text",
     });
-    expect(document.roots[1]).toMatchObject({
+    expect(document.roots[1].children[0]).toMatchObject({
       label: "定义",
-      lineNumber: 3,
+      lineNumber: 4,
       rawText: "	: Definition",
     });
   });
 
-  it("uses the configured top-level concept tone", () => {
-    const document = parseCtnDocument("Root\n	Child", {
+  it("uses the configured top-level concept tone after the title", () => {
+    const document = parseCtnDocument("Document Title\nRoot\n\tChild", {
       ...defaultCtnSyntaxProfile,
       conceptRule: {
         label: "顶格概念",
@@ -239,8 +290,15 @@ Sibling
         type: "concept",
       },
     });
+    const root = document.roots[1];
 
     expect(document.roots[0]).toMatchObject({
+      label: "标题",
+      textColor: "cyan",
+      tone: "blue",
+      type: "title",
+    });
+    expect(root).toMatchObject({
       label: "顶格概念",
       level: 0,
       marker: null,
@@ -248,7 +306,7 @@ Sibling
       tone: "pink",
       type: "concept",
     });
-    expect(document.roots[0].children[0]).toMatchObject({
+    expect(root.children[0]).toMatchObject({
       label: "概念",
       level: 1,
       marker: null,
@@ -258,7 +316,8 @@ Sibling
   });
 
   it("reports indentation and marker diagnostics", () => {
-    const document = parseDefaultCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Document Title
+Root
    [未知] Something
 Sibling
 		: Missing parent`);
@@ -268,15 +327,16 @@ Sibling
       "unknown-marker",
       "indent-level-jump",
     ]);
-    expect(document.blocks[1].diagnostics).toHaveLength(2);
-    expect(document.blocks[3].diagnostics).toHaveLength(1);
+    expect(document.blocks[2].diagnostics).toHaveLength(2);
+    expect(document.blocks[4].diagnostics).toHaveLength(1);
   });
 
   it("treats tabs as one indentation level", () => {
-    const document = parseDefaultCtnDocument(`Root
+    const document = parseDefaultCtnDocument(`Document Title
+Root
 \t> Tab child`);
 
-    expect(document.roots[0].children[0]).toMatchObject({
+    expect(document.roots[1].children[0]).toMatchObject({
       label: "理解",
       level: 1,
       text: "Tab child",
@@ -286,7 +346,8 @@ Sibling
 
   it("accepts custom syntax profiles", () => {
     const document = parseCtnDocument(
-      `Root
+      `Document Title
+Root
 	! Custom item`,
       {
         ...defaultCtnSyntaxProfile,
@@ -307,7 +368,7 @@ Sibling
     );
 
     expect(document.diagnostics).toHaveLength(0);
-    expect(document.roots[0].children[0]).toMatchObject({
+    expect(document.roots[1].children[0]).toMatchObject({
       label: "重点",
       level: 1,
       marker: "!",
@@ -319,7 +380,8 @@ Sibling
   });
 
   it("uses role instead of type for multiline block behavior", () => {
-    const document = parseCtnDocument(`Root
+    const document = parseCtnDocument(`Document Title
+Root
 	~ js
 	: Raw definition
 	~
@@ -346,12 +408,12 @@ Sibling
     });
 
     expect(document.diagnostics).toHaveLength(0);
-    expect(document.roots[0].children.map((node) => node.type)).toEqual([
+    expect(document.roots[1].children.map((node) => node.type)).toEqual([
       "snippet",
       "risk",
     ]);
-    expect(document.roots[0].children[0]).toMatchObject({
-      endLineNumber: 4,
+    expect(document.roots[1].children[0]).toMatchObject({
+      endLineNumber: 5,
       inlineSpans: [],
       role: "multiline",
       text: "js",
@@ -359,7 +421,7 @@ Sibling
   });
 
   it("reads inline structural spans from the syntax profile", () => {
-    const document = parseCtnDocument("Root <<external>> A | B <ignored>", {
+    const document = parseCtnDocument("Document Title\nRoot <<external>> A | B <ignored>", {
       ...defaultCtnSyntaxProfile,
       inlineRules: [
         {
@@ -382,28 +444,31 @@ Sibling
       ],
     });
 
-    expect(document.roots[0].inlineSpans.map((span) => [span.type, span.text])).toEqual([
-      ["external-reference", "external"],
-      ["choice-separator", "|"],
-    ]);
+    expect(document.roots[1].inlineSpans.map((span) => [span.type, span.text]))
+      .toEqual([
+        ["external-reference", "external"],
+        ["choice-separator", "|"],
+      ]);
   });
 
   it("expands single inline markers to the surrounding non-space run", () => {
     const document = parseDefaultCtnDocument(
-      "Root 并列1\\并列2\\并列3 A \\ B C\\D",
+      "Document Title\nRoot 并列1\\并列2\\并列3 A \\ B C\\D",
     );
 
     expect(
-      document.roots[0].inlineSpans
+      document.roots[1].inlineSpans
         .filter((span) => span.type === "parallel-separator")
         .map((span) => span.text),
     ).toEqual(["并列1\\并列2\\并列3", "\\", "C\\D"]);
   });
 
   it("does not expand single inline markers across paired inline spans", () => {
-    const document = parseDefaultCtnDocument("Root <当前笔记>\\[[全局概念]]");
+    const document = parseDefaultCtnDocument(
+      "Document Title\nRoot <当前笔记>\\[[全局概念]]",
+    );
 
-    expect(document.roots[0].inlineSpans.map((span) => [span.type, span.text]))
+    expect(document.roots[1].inlineSpans.map((span) => [span.type, span.text]))
       .toEqual([
         ["local-reference", "当前笔记"],
         ["parallel-separator", "\\"],
@@ -412,15 +477,17 @@ Sibling
   });
 
   it("keeps leading paired inline syntax in concept text", () => {
-    const document = parseDefaultCtnDocument("<当前笔记>\\[[全局概念]]");
+    const document = parseDefaultCtnDocument(
+      "Document Title\n<当前笔记>\\[[全局概念]]",
+    );
 
     expect(document.diagnostics).toEqual([]);
-    expect(document.roots[0]).toMatchObject({
+    expect(document.roots[1]).toMatchObject({
       marker: null,
       text: "<当前笔记>\\[[全局概念]]",
       type: "concept",
     });
-    expect(document.roots[0].inlineSpans.map((span) => [span.type, span.text]))
+    expect(document.roots[1].inlineSpans.map((span) => [span.type, span.text]))
       .toEqual([
         ["local-reference", "当前笔记"],
         ["parallel-separator", "\\"],
