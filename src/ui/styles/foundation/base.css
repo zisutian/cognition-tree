@@ -1,0 +1,38 @@
+:root {
+  font-family:
+    var(--font-ui);
+  font-size: var(--font-size-base);
+  line-height: 1.42;
+  font-weight: var(--font-weight-regular);
+  color: var(--color-fg);
+  background: var(--color-editor);
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 0;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  border: 0;
+}
+
+input,
+select,
+textarea {
+  color-scheme: dark;
+}

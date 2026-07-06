@@ -127,6 +127,19 @@ function listImmediateSourceFileNames(dir: string) {
     .sort();
 }
 
+function listAllFileNames(dir: string) {
+  return listAllSourcePaths()
+    .filter((filePath) => filePath.startsWith(`../../src/${dir}/`))
+    .map((filePath) => filePath.replace(`../../src/${dir}/`, ""))
+    .sort();
+}
+
+function listImmediateAllFileNames(dir: string) {
+  return listAllFileNames(dir)
+    .filter((filePath) => !filePath.includes("/"))
+    .sort();
+}
+
 function readModuleImports(modules: SourceModules, filePath: string) {
   const source = modules[filePath] ?? "";
   const imports = [
@@ -251,6 +264,36 @@ describe("architecture module boundaries", () => {
       "activities",
       "shared",
       "styles",
+    ]);
+    expect(listImmediateAllFileNames("ui/styles")).toEqual(["index.css"]);
+    expect(listSubdirectories("ui/styles")).toEqual([
+      "activities",
+      "foundation",
+      "frame",
+      "shared",
+    ]);
+    expect(listAllFileNames("ui/styles/foundation")).toEqual([
+      "base.css",
+      "theme.css",
+    ]);
+    expect(listAllFileNames("ui/styles/frame")).toEqual([
+      "layout.css",
+      "responsive.css",
+      "sidebar.css",
+    ]);
+    expect(listAllFileNames("ui/styles/shared")).toEqual([
+      "blockText.css",
+      "controls.css",
+      "panels.css",
+      "scrollbars.css",
+      "tree.css",
+    ]);
+    expect(listAllFileNames("ui/styles/activities")).toEqual([
+      "migration.css",
+      "notes.css",
+      "placeholders.css",
+      "syntax.css",
+      "visualization.css",
     ]);
     expect(listImmediateSourceFileNames("ui/activities")).toEqual([
       "ActivityPlaceholderPanels.tsx",

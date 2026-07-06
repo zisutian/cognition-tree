@@ -1,0 +1,85 @@
+.activity-button:focus-visible,
+.primary-action-button:focus-visible,
+.sidebar-context-menu button:focus-visible,
+.side-action-button:focus-visible,
+.side-entry:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.activity-main-panel .primary-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.activity-main-panel .primary-action-button:disabled,
+.activity-main-panel .primary-action-button:disabled:hover {
+  color: #8c9993;
+  background: #edf0eb;
+  cursor: not-allowed;
+}
+
+.secondary-action-button,
+.icon-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cfd9cf;
+  border-radius: 7px;
+  color: #25302d;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.secondary-action-button {
+  min-height: 26px;
+  gap: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.icon-action-button {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.syntax-protected-rule-lock {
+  display: block;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.secondary-action-button:hover,
+.icon-action-button:hover {
+  background: #ffffff;
+}
+
+
+.activity-main-panel .primary-action-button:disabled,
+.activity-main-panel .primary-action-button:disabled:hover,
+.side-action-button:disabled {
+  color: var(--color-fg-disabled);
+  background: var(--color-input);
+}
+
+.secondary-action-button,
+.icon-action-button {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg);
+  background: transparent;
+}
+
+.secondary-action-button {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.secondary-action-button:hover,
+.icon-action-button:hover {
+  background: var(--color-hover);
+}

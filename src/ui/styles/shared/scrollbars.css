@@ -1,0 +1,28 @@
+.sidebar-scroll-area-viewport,
+.outline-body,
+.syntax-form-scroll,
+.activity-detail-body,
+.migration-tree-panel,
+.migration-subtree-list,
+.migration-note-list,
+.visualization-detail-list,
+.visualization-rank-list,
+.activity-diagnostic-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-scroll-area-viewport::-webkit-scrollbar,
+.outline-body::-webkit-scrollbar,
+.syntax-form-scroll::-webkit-scrollbar,
+.activity-detail-body::-webkit-scrollbar,
+.migration-tree-panel::-webkit-scrollbar,
+.migration-subtree-list::-webkit-scrollbar,
+.migration-note-list::-webkit-scrollbar,
+.visualization-detail-list::-webkit-scrollbar,
+.visualization-rank-list::-webkit-scrollbar,
+.activity-diagnostic-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
