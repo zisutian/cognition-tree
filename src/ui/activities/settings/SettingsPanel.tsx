@@ -39,7 +39,7 @@ export function SettingsPanel({ view }: { view: ViewModel }) {
           </>
         }
       />
-      <PanelBody>
+      <PanelBody scroll>
         <Section title="仓库">
           <dl className="settings-grid">
             <div>

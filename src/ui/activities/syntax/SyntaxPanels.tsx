@@ -7,31 +7,29 @@ import type {
 import {
   Button,
   Field,
-  Metrics,
   Panel,
   PanelBody,
   PanelHeader,
   Section,
   StatusLine,
 } from "../../shared/primitives";
+import {
+  TonePicker,
+  getToneSwatchClass,
+  getToneSwatchStyle,
+} from "./TonePicker";
 
-function ToneSelect({
-  options,
-  value,
-  onChange,
-}: {
-  options: ViewModel["syntax"]["toneOptions"];
-  value: UiSyntaxTone;
-  onChange: (value: UiSyntaxTone) => void;
-}) {
-  return (
-    <select value={value} onChange={(event) => onChange(event.target.value)}>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+const maxTabDisplayWidth = 16;
+
+function readTabDisplayWidthInput(value: string) {
+  const digits = value.replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  return String(
+    Math.min(maxTabDisplayWidth, Math.max(1, Number.parseInt(digits, 10))),
   );
 }
 
@@ -51,12 +49,14 @@ function ToneFields({
   return (
     <div className="syntax-tone-fields">
       <span>{label}</span>
-      <ToneSelect
+      <TonePicker
+        ariaLabel={`${label}背景色`}
         options={options}
         value={tone}
         onChange={(nextTone) => onChange({ tone: nextTone })}
       />
-      <ToneSelect
+      <TonePicker
+        ariaLabel={`${label}文字色`}
         options={options}
         value={textColor}
         onChange={(nextColor) => onChange({ textColor: nextColor })}
@@ -81,6 +81,7 @@ function InlineRuleRow({
       <input
         aria-label="名称"
         value={rule.label}
+        maxLength={32}
         onChange={(event) =>
           syntax.actions.updateInlineRule(rule.id, { label: event.target.value })
         }
@@ -89,6 +90,7 @@ function InlineRuleRow({
         <>
           <input
             aria-label="开始"
+            maxLength={12}
             value={rule.open}
             onChange={(event) =>
               syntax.actions.updateInlineRule(rule.id, { open: event.target.value })
@@ -96,6 +98,7 @@ function InlineRuleRow({
           />
           <input
             aria-label="结束"
+            maxLength={12}
             value={rule.close}
             onChange={(event) =>
               syntax.actions.updateInlineRule(rule.id, { close: event.target.value })
@@ -106,6 +109,7 @@ function InlineRuleRow({
         <>
           <input
             aria-label="符号"
+            maxLength={12}
             value={rule.marker}
             onChange={(event) =>
               syntax.actions.updateInlineRule(rule.id, {
@@ -116,12 +120,14 @@ function InlineRuleRow({
           <span className="syntax-readonly">单个符号</span>
         </>
       )}
-      <ToneSelect
+      <TonePicker
+        ariaLabel={`${rule.label}背景色`}
         options={syntax.toneOptions}
         value={rule.tone}
         onChange={(tone) => syntax.actions.updateInlineRule(rule.id, { tone })}
       />
-      <ToneSelect
+      <TonePicker
+        ariaLabel={`${rule.label}文字色`}
         options={syntax.toneOptions}
         value={rule.textColor}
         onChange={(textColor) =>
@@ -176,13 +182,14 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
   return (
     <Panel className="syntax-panel" aria-label="语法配置">
       <PanelHeader title="语法配置" />
-      <PanelBody>
+      <PanelBody scroll>
         {syntax.feedback ? (
           <StatusLine tone={syntax.feedback.status}>{syntax.feedback.message}</StatusLine>
         ) : null}
         <Section className="syntax-grid-section" title="配置">
           <Field label="名称">
             <input
+              maxLength={64}
               value={syntax.draft.name}
               onChange={(event) =>
                 syntax.actions.updateDraftField("name", event.target.value)
@@ -191,11 +198,16 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
           </Field>
           <Field label="缩进宽度">
             <input
+              inputMode="numeric"
+              max={maxTabDisplayWidth}
+              min={1}
+              step={1}
+              type="number"
               value={syntax.draft.tabDisplayWidth}
               onChange={(event) =>
                 syntax.actions.updateDraftField(
                   "tabDisplayWidth",
-                  event.target.value,
+                  readTabDisplayWidthInput(event.target.value),
                 )
               }
             />
@@ -228,6 +240,7 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
             <div className="syntax-row syntax-block-row" key={rule.id}>
               <input
                 aria-label="名称"
+                maxLength={32}
                 value={rule.label}
                 onChange={(event) =>
                   syntax.actions.updateMarkerRule(rule.id, {
@@ -237,6 +250,7 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
               />
               <input
                 aria-label="标记"
+                maxLength={12}
                 value={rule.marker}
                 onChange={(event) =>
                   syntax.actions.updateMarkerRule(rule.id, {
@@ -259,14 +273,16 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
                   </option>
                 ))}
               </select>
-              <ToneSelect
+              <TonePicker
+                ariaLabel={`${rule.label}背景色`}
                 options={syntax.toneOptions}
                 value={rule.tone}
                 onChange={(tone) =>
                   syntax.actions.updateMarkerRule(rule.id, { tone })
                 }
               />
-              <ToneSelect
+              <TonePicker
+                ariaLabel={`${rule.label}文字色`}
                 options={syntax.toneOptions}
                 value={rule.textColor}
                 onChange={(textColor) =>
@@ -283,7 +299,12 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
               </Button>
             </div>
           ))}
-          <Button onClick={syntax.actions.addMarkerRule} type="button" variant="secondary">
+          <Button
+            className="syntax-add-rule-button"
+            onClick={syntax.actions.addMarkerRule}
+            type="button"
+            variant="secondary"
+          >
             <Plus aria-hidden="true" size={13} />
             新增块规则
           </Button>
@@ -329,6 +350,40 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
   );
 }
 
+function SyntaxTonePreview({
+  label,
+  textColor,
+  tone,
+}: {
+  label: string;
+  textColor: UiSyntaxTone;
+  tone: UiSyntaxTone;
+}) {
+  return (
+    <div className="syntax-preview-row">
+      <span>{label}</span>
+      <span className="syntax-preview-swatches">
+        <span
+          aria-label="背景色"
+          className={getToneSwatchClass(tone)}
+          role="img"
+          style={getToneSwatchStyle(tone)}
+        >
+          <span />
+        </span>
+        <span
+          aria-label="文字色"
+          className={getToneSwatchClass(textColor)}
+          role="img"
+          style={getToneSwatchStyle(textColor)}
+        >
+          <span />
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function SyntaxDetailPanel({
   onCollapseDetail,
   view,
@@ -346,44 +401,51 @@ export function SyntaxDetailPanel({
           </Button>
         }
       />
-      <PanelBody>
-        <Metrics
-          aria-label="语法统计"
-          items={[
-            { label: "块规则", value: view.syntax.stats.lineRuleCount },
-            { label: "行内规则", value: view.syntax.stats.inlineRuleCount },
-            { label: "问题", value: view.syntax.draftResult.diagnostics.length },
-          ]}
-        />
+      <PanelBody scroll>
         <Section title="当前配置">
-          {view.syntax.draftResult.profile ? (
-            <dl className="detail-list">
-              <div>
-                <dt>名称</dt>
-                <dd>{view.syntax.draftResult.profile.name}</dd>
-              </div>
-              <div>
-                <dt>缩进宽度</dt>
-                <dd>{view.syntax.draftResult.profile.tabDisplayWidth}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="ui-muted">当前配置无效</p>
-          )}
+          <dl className="detail-list">
+            <div>
+              <dt>名称</dt>
+              <dd>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</dd>
+            </div>
+            <div>
+              <dt>缩进宽度</dt>
+              <dd>
+                {view.syntax.draftResult.profile?.tabDisplayWidth ??
+                  view.syntax.draft.tabDisplayWidth}
+              </dd>
+            </div>
+          </dl>
         </Section>
-        <Section title="问题">
-          {view.syntax.draftResult.diagnostics.length > 0 ? (
-            <ul className="dense-list">
-              {view.syntax.draftResult.diagnostics.map((diagnostic) => (
-                <li key={`${diagnostic.path}-${diagnostic.message}`}>
-                  <span>{diagnostic.path}</span>
-                  {diagnostic.message}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ui-muted">没有问题。</p>
-          )}
+        <Section title="语法可视化">
+          <div className="syntax-preview-list">
+            <SyntaxTonePreview
+              label="首行标题"
+              textColor={view.syntax.draft.titleRule.textColor}
+              tone={view.syntax.draft.titleRule.tone}
+            />
+            <SyntaxTonePreview
+              label="顶格概念"
+              textColor={view.syntax.draft.conceptRule.textColor}
+              tone={view.syntax.draft.conceptRule.tone}
+            />
+            {view.syntax.draft.markerRules.map((rule) => (
+              <SyntaxTonePreview
+                key={rule.id}
+                label={rule.label}
+                textColor={rule.textColor}
+                tone={rule.tone}
+              />
+            ))}
+            {view.syntax.draft.inlineRules.map((rule) => (
+              <SyntaxTonePreview
+                key={rule.id}
+                label={rule.label}
+                textColor={rule.textColor}
+                tone={rule.tone}
+              />
+            ))}
+          </div>
         </Section>
       </PanelBody>
     </Panel>

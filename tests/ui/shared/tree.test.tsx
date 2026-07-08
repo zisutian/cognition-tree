@@ -40,6 +40,39 @@ describe("shared trees", () => {
     expect(markup).toContain("当前笔记");
   });
 
+  it("hides folder children when folder collapse state is controlled", () => {
+    const markup = renderToStaticMarkup(
+      <NoteTree
+        collapsedFolderIds={new Set(["folder-1"])}
+        nodes={[
+          {
+            canDrag: true,
+            children: [
+              {
+                canDrag: true,
+                folderId: "folder-1",
+                id: "tree-note-1",
+                kind: "note",
+                noteId: "note-1",
+                parentFolderId: "folder-1",
+                title: "折叠中的笔记",
+              },
+            ],
+            folderId: "folder-1",
+            id: "folder-1",
+            kind: "folder",
+            parentFolderId: null,
+            title: "文件夹",
+          },
+        ]}
+        onToggleFolder={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("aria-expanded=\"false\"");
+    expect(markup).not.toContain("折叠中的笔记");
+  });
+
   it("renders block trees with kind, text and line metadata", () => {
     const markup = renderToStaticMarkup(
       <BlockTree

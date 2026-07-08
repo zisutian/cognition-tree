@@ -3,6 +3,7 @@ import {
   FolderPlus,
   Plus,
 } from "lucide-react";
+import { useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import {
@@ -29,6 +30,9 @@ function promptText(label: string, value = "") {
 }
 
 export function NotesContext({ view }: NotesContextProps) {
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const createFolder = () => {
     const title = promptText("文件夹名称", "新文件夹");
 
@@ -69,7 +73,20 @@ export function NotesContext({ view }: NotesContextProps) {
             label: "删",
             onClick: () => view.deleteNote(node.noteId),
           },
-        ];
+      ];
+  const toggleFolder = (folderId: string) => {
+    setCollapsedFolderIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+
+      return next;
+    });
+  };
 
   return (
     <div className="activity-context-content">
@@ -85,10 +102,12 @@ export function NotesContext({ view }: NotesContextProps) {
         activeFolderId={view.sidebar.activeFolderId}
         activeNoteId={view.sidebar.activeNoteId}
         actions={actions}
+        collapsedFolderIds={collapsedFolderIds}
         nodes={view.sidebar.noteTree}
         onMoveNode={view.moveSidebarTreeNode}
         onSelectFolder={view.selectFolder}
         onSelectNote={view.selectNote}
+        onToggleFolder={toggleFolder}
       />
       {view.sidebar.noteTree.length === 0 ? (
         <p className="context-empty">没有笔记。</p>
@@ -150,7 +169,7 @@ export function NoteDetailPanel({
           </Button>
         }
       />
-      <PanelBody>
+      <PanelBody scroll>
         <Metrics
           aria-label="笔记统计"
           items={[

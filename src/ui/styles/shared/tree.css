@@ -120,6 +120,11 @@
   background: var(--color-hover);
 }
 
+.ui-tree-actions button:disabled {
+  color: var(--color-fg-disabled);
+  cursor: not-allowed;
+}
+
 .has-diagnostics {
   box-shadow: inset calc(var(--ui-border-width) * 2) 0 0 var(--color-error);
 }

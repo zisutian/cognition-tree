@@ -225,7 +225,7 @@ export function VisualizationDetailPanel({
           </Button>
         }
       />
-      <PanelBody>
+      <PanelBody scroll>
         <Metrics
           aria-label="图谱统计"
           items={[
@@ -256,17 +256,25 @@ export function VisualizationDetailPanel({
         </Section>
         <Section title="邻接关系">
           {incomingEdges.length + outgoingEdges.length > 0 ? (
-            <ul className="dense-list">
+            <ul className="detail-row-list">
               {incomingEdges.slice(0, 8).map((edge) => (
                 <li key={`in-${edge.id}`}>
-                  <span>{titleById.get(edge.sourceNoteId) ?? edge.sourceNoteId}</span>
-                  <small>引用此笔记 × {edge.count}</small>
+                  <div className="detail-row">
+                    <span className="detail-row-main">
+                      {titleById.get(edge.sourceNoteId) ?? edge.sourceNoteId}
+                    </span>
+                    <span className="detail-row-meta">引用此笔记 × {edge.count}</span>
+                  </div>
                 </li>
               ))}
               {outgoingEdges.slice(0, 8).map((edge) => (
                 <li key={`out-${edge.id}`}>
-                  <span>{edge.targetTitle}</span>
-                  <small>被此笔记引用 × {edge.count}</small>
+                  <div className="detail-row">
+                    <span className="detail-row-main">{edge.targetTitle}</span>
+                    <span className="detail-row-meta">
+                      被此笔记引用 × {edge.count}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -276,15 +284,16 @@ export function VisualizationDetailPanel({
         </Section>
         <Section title="引用排名">
           {graph.mostReferencedNodes.length > 0 ? (
-            <ul className="dense-list">
+            <ul className="detail-row-list">
               {graph.mostReferencedNodes.map((node) => (
                 <li key={node.id}>
                   <button
+                    className="detail-row detail-row-button"
                     type="button"
                     onClick={() => visualization.onSelectNote(node.id)}
                   >
-                    {node.title}
-                    <span>{node.totalReferences}</span>
+                    <span className="detail-row-main">{node.title}</span>
+                    <span className="detail-row-meta">{node.totalReferences}</span>
                   </button>
                 </li>
               ))}
@@ -295,13 +304,16 @@ export function VisualizationDetailPanel({
         </Section>
         <Section title="未解析引用">
           {graph.unresolvedReferences.length > 0 ? (
-            <ul className="dense-list">
+            <ul className="detail-row-list">
               {graph.unresolvedReferences.slice(0, 24).map((reference) => (
                 <li key={`${reference.sourceNoteId}-${reference.targetText}`}>
-                  <span>{reference.sourceTitle}</span>
-                  <strong>?</strong>
-                  <span>{reference.targetText}</span>
-                  {reference.count > 1 ? <small>× {reference.count}</small> : null}
+                  <div className="detail-row">
+                    <span className="detail-row-main">{reference.sourceTitle}</span>
+                    <span className="detail-row-meta">
+                      ? {reference.targetText}
+                      {reference.count > 1 ? ` × ${reference.count}` : ""}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

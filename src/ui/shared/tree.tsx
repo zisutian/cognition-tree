@@ -66,8 +66,10 @@ export type TreeMoveRequest = {
 };
 
 export type NoteTreeAction = {
+  disabled?: boolean;
   label: string;
   onClick: () => void;
+  title?: string;
 };
 
 function getTreeNodeReference(node: TreeNode): TreeNodeReference {
@@ -199,8 +201,10 @@ export function NoteTree({
   actions,
   activeFolderId,
   className,
+  collapsedFolderIds,
   nodes,
   renderNoteBadges,
+  onToggleFolder,
   onMoveNode,
   onSelectFolder,
   onSelectNote,
@@ -209,8 +213,10 @@ export function NoteTree({
   activeNoteId?: string | null;
   actions?: (node: TreeNode) => NoteTreeAction[];
   className?: string;
+  collapsedFolderIds?: ReadonlySet<string>;
   nodes: TreeNode[];
   renderNoteBadges?: (node: Extract<TreeNode, { kind: "note" }>) => ReactNode;
+  onToggleFolder?: (folderId: string) => void;
   onMoveNode?: (request: TreeMoveRequest) => void;
   onSelectFolder?: (folderId: string) => void;
   onSelectNote?: (noteId: string) => void;
@@ -224,6 +230,10 @@ export function NoteTree({
           node.kind === "note"
             ? activeNoteId === node.noteId
             : activeFolderId === node.folderId;
+        const isFolder = node.kind === "folder";
+        const hasChildren = isFolder && node.children.length > 0;
+        const isCollapsed =
+          isFolder && collapsedFolderIds?.has(node.folderId) === true;
 
         return (
           <li key={node.id}>
@@ -248,11 +258,21 @@ export function NoteTree({
               <button
                 className="ui-tree-row ui-tree-note"
                 draggable={node.canDrag}
-                onClick={() =>
-                  node.kind === "note"
-                    ? onSelectNote?.(node.noteId)
-                    : onSelectFolder?.(node.folderId)
+                aria-expanded={
+                  isFolder && hasChildren ? !isCollapsed : undefined
                 }
+                onClick={() => {
+                  if (node.kind === "note") {
+                    onSelectNote?.(node.noteId);
+                    return;
+                  }
+
+                  onSelectFolder?.(node.folderId);
+
+                  if (hasChildren) {
+                    onToggleFolder?.(node.folderId);
+                  }
+                }}
                 onDragStart={(event) => {
                   event.dataTransfer.setData(
                     "application/x-cognition-tree-node",
@@ -264,7 +284,7 @@ export function NoteTree({
               >
                 {node.kind === "folder" ? (
                   <>
-                    {node.children.length > 0 ? (
+                    {hasChildren && !isCollapsed ? (
                       <ChevronDown aria-hidden="true" size={13} />
                     ) : (
                       <ChevronRight aria-hidden="true" size={13} />
@@ -280,20 +300,31 @@ export function NoteTree({
               {nodeActions.length > 0 ? (
                 <span className="ui-tree-actions">
                   {nodeActions.map((action) => (
-                    <button key={action.label} onClick={action.onClick} type="button">
+                    <button
+                      disabled={action.disabled}
+                      key={action.label}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        action.onClick();
+                      }}
+                      title={action.title}
+                      type="button"
+                    >
                       {action.label}
                     </button>
                   ))}
                 </span>
               ) : null}
             </div>
-            {node.kind === "folder" && node.children.length > 0 ? (
+            {node.kind === "folder" && node.children.length > 0 && !isCollapsed ? (
               <NoteTree
                 activeFolderId={activeFolderId}
                 activeNoteId={activeNoteId}
                 actions={actions}
+                collapsedFolderIds={collapsedFolderIds}
                 nodes={node.children}
                 renderNoteBadges={renderNoteBadges}
+                onToggleFolder={onToggleFolder}
                 onMoveNode={onMoveNode}
                 onSelectFolder={onSelectFolder}
                 onSelectNote={onSelectNote}

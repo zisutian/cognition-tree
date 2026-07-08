@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
   type DragEvent,
@@ -10,6 +11,7 @@ import {
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import { BlockText } from "../../shared/blockText";
 import {
+  Button,
   EmptyState,
   Metrics,
   Panel,
@@ -233,6 +235,9 @@ function MovingTargetTree({
 }
 
 export function MigrationContext({ view }: { view: ViewModel }) {
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const moveNode = (request: TreeMoveRequest) => {
     if (request.source.kind !== "note" || request.target.kind !== "note") {
       return;
@@ -260,15 +265,67 @@ export function MigrationContext({ view }: { view: ViewModel }) {
     node.kind === "note"
       ? [
           {
+            label: "源",
+            onClick: () => view.migration.onSelectMigrationSourceNote(node.noteId),
+          },
+          {
+            disabled: node.noteId === view.migration.sourceNoteId,
+            label: "目标",
+            onClick: () => view.migration.onSelectMigrationTargetNote(node.noteId),
+            title:
+              node.noteId === view.migration.sourceNoteId
+                ? "目标不能与源相同"
+                : "设为目标",
+          },
+          {
             label: "结构",
-            onClick: () => view.migration.onOpenNoteStructure(node.noteId),
+            onClick: () => view.migration.onSelectStructureNote(node.noteId),
           },
         ]
       : [];
+  const toggleFolder = (folderId: string) => {
+    setCollapsedFolderIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+
+      return next;
+    });
+  };
+  const selectNote = (noteId: string) => {
+    if (view.migration.mode === "structure") {
+      view.migration.onSelectStructureNote(noteId);
+      return;
+    }
+
+    view.migration.onSelectMigrationSourceNote(noteId);
+  };
 
   return (
     <div className="activity-context-content">
       <p className="context-caption">拖动笔记到另一个笔记形成迁移配对。</p>
+      <div className="migration-mode-switch" aria-label="迁移模式" role="group">
+        <Button
+          className={view.migration.mode === "pair" ? "is-active" : undefined}
+          onClick={() => view.migration.onSetMigrationMode("pair")}
+          type="button"
+        >
+          源和目标
+        </Button>
+        <Button
+          className={
+            view.migration.mode === "structure" ? "is-active" : undefined
+          }
+          onClick={() => view.migration.onSetMigrationMode("structure")}
+          type="button"
+        >
+          结构
+        </Button>
+      </div>
       <NoteTree
         activeNoteId={
           view.migration.mode === "structure"
@@ -276,10 +333,12 @@ export function MigrationContext({ view }: { view: ViewModel }) {
             : view.migration.sourceNoteId
         }
         actions={actions}
+        collapsedFolderIds={collapsedFolderIds}
         nodes={view.migration.noteTree}
         renderNoteBadges={noteBadges}
         onMoveNode={moveNode}
-        onSelectNote={view.migration.onOpenNoteStructure}
+        onSelectNote={selectNote}
+        onToggleFolder={toggleFolder}
       />
     </div>
   );
@@ -301,6 +360,12 @@ function MigrationPairView({ view }: { view: ViewModel }) {
     sourceLineNumber,
   );
   const selectedLineNumbers = useSelectedBlockLines(sourceBlock);
+  useEffect(() => {
+    setSourceLineNumber("");
+    setDraggingLineNumber(null);
+    setActiveDropPosition(null);
+    setActiveTargetLineNumber(null);
+  }, [view.migration.sourceNoteId, view.migration.targetNoteId]);
   const finishDrag = () => {
     setDraggingLineNumber(null);
     setActiveDropPosition(null);
@@ -390,6 +455,12 @@ function StructureView({ view }: { view: ViewModel }) {
     selectedLineNumber,
   );
   const selectedLineNumbers = useSelectedBlockLines(selectedBlock);
+  useEffect(() => {
+    setSelectedLineNumber("");
+    setDraggingLineNumber(null);
+    setActiveDropPosition(null);
+    setActiveTargetLineNumber(null);
+  }, [view.migration.mode, view.migration.structureNoteId]);
   const finishDrag = () => {
     setDraggingLineNumber(null);
     setActiveDropPosition(null);

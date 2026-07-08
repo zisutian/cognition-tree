@@ -344,6 +344,7 @@ describe("architecture module boundaries", () => {
     ]);
     expect(listSourceFileNames("ui/activities/syntax")).toEqual([
       "SyntaxPanels.tsx",
+      "TonePicker.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/visualization")).toEqual([
       "ReferenceGraphCanvas.tsx",

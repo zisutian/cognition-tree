@@ -49,10 +49,20 @@ export function PanelHeader({
 export function PanelBody({
   children,
   className,
+  scroll = false,
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
+}: HTMLAttributes<HTMLDivElement> & {
+  scroll?: boolean;
+}) {
   return (
-    <div className={cx("ui-panel-body", className)} {...props}>
+    <div
+      className={cx(
+        "ui-panel-body",
+        scroll && "ui-panel-body-scroll ui-scroll-surface",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
