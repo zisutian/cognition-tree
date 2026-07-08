@@ -1,151 +1,192 @@
-import { useMemo } from "react";
+import { RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
 import type {
-  UiReferenceGraphNode,
-  UiReferenceGraphView,
+  UiVisualizationViewModel,
 } from "../../../application/workspace/projection/viewGraph";
 import {
+  UiButton,
   UiEmptyState,
+  UiField,
   UiPanel,
   UiPanelHeader,
 } from "../../shared/primitives";
+import { NoteReferenceGraphCanvas } from "./NoteReferenceGraphCanvas";
+import {
+  createVisibleReferenceGraph,
+  type ReferenceGraphLocalDepth,
+  type ReferenceGraphMode,
+} from "./referenceGraphView";
 
 type NoteReferenceGraphPanelProps = {
-  graph: UiReferenceGraphView;
+  visualization: UiVisualizationViewModel;
 };
 
-type PositionedNode = UiReferenceGraphNode & {
-  x: number;
-  y: number;
-};
-
-const viewBoxWidth = 920;
-const viewBoxHeight = 560;
-const graphCenterX = viewBoxWidth / 2;
-const graphCenterY = viewBoxHeight / 2;
-
-function createNodePositions(nodes: UiReferenceGraphNode[]) {
-  if (nodes.length === 0) {
-    return new Map<string, PositionedNode>();
-  }
-
-  if (nodes.length === 1) {
-    return new Map([
-      [
-        nodes[0].id,
-        {
-          ...nodes[0],
-          x: graphCenterX,
-          y: graphCenterY,
-        },
-      ],
-    ]);
-  }
-
-  const radius = Math.min(230, Math.max(110, nodes.length * 14));
-  const positionedNodes = nodes.map((node, index) => {
-    const angle = (Math.PI * 2 * index) / nodes.length - Math.PI / 2;
-
+function getEmptyGraphMessage({
+  graphNodeCount,
+  hasActiveNote,
+  hideIsolated,
+  mode,
+  query,
+}: {
+  graphNodeCount: number;
+  hasActiveNote: boolean;
+  hideIsolated: boolean;
+  mode: ReferenceGraphMode;
+  query: string;
+}) {
+  if (graphNodeCount === 0) {
     return {
-      ...node,
-      x: graphCenterX + Math.cos(angle) * radius,
-      y: graphCenterY + Math.sin(angle) * radius,
+      description: "创建笔记后会在这里显示点状引用图谱。",
+      title: "没有笔记",
     };
-  });
+  }
 
-  return new Map(positionedNodes.map((node) => [node.id, node]));
-}
+  if (mode === "local" && !hasActiveNote) {
+    return {
+      description: "选择一个笔记后会显示它周围的引用关系。",
+      title: "未选择笔记",
+    };
+  }
 
-function getNodeRadius(node: UiReferenceGraphNode) {
-  return Math.min(18, 7 + node.referencesIn + node.referencesOut);
-}
+  if (query.trim()) {
+    return {
+      description: "调整搜索内容后重新查看图谱。",
+      title: "没有匹配节点",
+    };
+  }
 
-function truncateTitle(title: string) {
-  return title.length > 16 ? `${title.slice(0, 15)}…` : title;
+  if (hideIsolated) {
+    return {
+      description: "当前过滤条件隐藏了全部孤立节点。",
+      title: "没有可显示节点",
+    };
+  }
+
+  return {
+    description: "当前图谱没有可显示的引用关系。",
+    title: "没有可显示节点",
+  };
 }
 
 export function NoteReferenceGraphPanel({
-  graph,
+  visualization,
 }: NoteReferenceGraphPanelProps) {
-  const positionedNodes = useMemo(
-    () => createNodePositions(graph.nodes),
-    [graph.nodes],
+  const [mode, setMode] = useState<ReferenceGraphMode>("global");
+  const [localDepth, setLocalDepth] =
+    useState<ReferenceGraphLocalDepth>(1);
+  const [query, setQuery] = useState("");
+  const [hideIsolated, setHideIsolated] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
+  const visibleGraph = useMemo(
+    () =>
+      createVisibleReferenceGraph(visualization.graph, {
+        activeNoteId: visualization.activeNoteId,
+        hideIsolated,
+        localDepth,
+        mode,
+        query,
+      }),
+    [hideIsolated, localDepth, mode, query, visualization],
   );
+  const emptyMessage = getEmptyGraphMessage({
+    graphNodeCount: visualization.graph.nodes.length,
+    hasActiveNote: Boolean(visualization.activeNoteId),
+    hideIsolated,
+    mode,
+    query,
+  });
+
   return (
     <UiPanel className="visualization-main-panel" aria-label="可视化" variant="main">
       <UiPanelHeader title="笔记引用图谱" />
 
-      <div className="visualization-graph-surface">
-        {graph.nodes.length > 0 ? (
-          <svg
-            className="note-reference-graph"
-            role="img"
-            viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+      <div className="visualization-toolbar" aria-label="图谱控制">
+        <div className="visualization-segmented-control" aria-label="图谱范围" role="group">
+          <UiButton
+            className={mode === "global" ? "is-active" : undefined}
+            onClick={() => setMode("global")}
+            type="button"
+            variant="secondary"
           >
-            <title>笔记引用图谱</title>
-            <g className="note-reference-edges">
-              {graph.edges.map((edge) => {
-                const sourceNode = positionedNodes.get(edge.sourceNoteId);
-                const targetNode = positionedNodes.get(edge.targetNoteId);
+            全库
+          </UiButton>
+          <UiButton
+            className={mode === "local" ? "is-active" : undefined}
+            onClick={() => setMode("local")}
+            type="button"
+            variant="secondary"
+          >
+            局部
+          </UiButton>
+        </div>
 
-                if (!sourceNode || !targetNode) {
-                  return null;
-                }
+        {mode === "local" ? (
+          <div
+            className="visualization-segmented-control"
+            aria-label="局部图谱深度"
+            role="group"
+          >
+            <UiButton
+              className={localDepth === 1 ? "is-active" : undefined}
+              onClick={() => setLocalDepth(1)}
+              type="button"
+              variant="secondary"
+            >
+              1 层
+            </UiButton>
+            <UiButton
+              className={localDepth === 2 ? "is-active" : undefined}
+              onClick={() => setLocalDepth(2)}
+              type="button"
+              variant="secondary"
+            >
+              2 层
+            </UiButton>
+          </div>
+        ) : null}
 
-                if (sourceNode.id === targetNode.id) {
-                  return (
-                    <path
-                      className="note-reference-edge self-edge"
-                      d={`M ${sourceNode.x} ${sourceNode.y - 18} C ${sourceNode.x + 42} ${sourceNode.y - 58}, ${sourceNode.x + 58} ${sourceNode.y + 18}, ${sourceNode.x + 10} ${sourceNode.y + 14}`}
-                      key={edge.id}
-                    />
-                  );
-                }
+        <UiField className="visualization-search-field" label="搜索">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="笔记标题"
+          />
+        </UiField>
 
-                return (
-                  <line
-                    className="note-reference-edge"
-                    key={edge.id}
-                    x1={sourceNode.x}
-                    x2={targetNode.x}
-                    y1={sourceNode.y}
-                    y2={targetNode.y}
-                  />
-                );
-              })}
-            </g>
-            <g className="note-reference-nodes">
-              {graph.nodes.map((node) => {
-                const positionedNode = positionedNodes.get(node.id);
+        <label className="visualization-toggle">
+          <input
+            checked={hideIsolated}
+            type="checkbox"
+            onChange={(event) => setHideIsolated(event.target.checked)}
+          />
+          <span>隐藏孤立点</span>
+        </label>
 
-                if (!positionedNode) {
-                  return null;
-                }
+        <UiButton
+          className="visualization-reset-button"
+          onClick={() => setResetSignal((current) => current + 1)}
+          type="button"
+          variant="secondary"
+        >
+          <RotateCcw aria-hidden="true" size={14} strokeWidth={2} />
+          重置视图
+        </UiButton>
+      </div>
 
-                return (
-                  <g
-                    className={
-                      node.isolated
-                        ? "note-reference-node is-isolated"
-                        : "note-reference-node"
-                    }
-                    key={node.id}
-                    transform={`translate(${positionedNode.x}, ${positionedNode.y})`}
-                  >
-                    <circle r={getNodeRadius(node)} />
-                    <text x="0" y="28">
-                      {truncateTitle(node.title)}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
-          </svg>
+      <div className="visualization-graph-surface">
+        {visibleGraph.nodes.length > 0 ? (
+          <NoteReferenceGraphCanvas
+            graph={visibleGraph}
+            resetSignal={resetSignal}
+            selectedNoteId={visualization.activeNoteId}
+            onSelectNote={visualization.onSelectNote}
+          />
         ) : (
           <UiEmptyState
             className="visualization-empty-state"
-            description="创建笔记后会在这里显示点状引用图谱。"
+            description={emptyMessage.description}
             fill
-            title="没有笔记"
+            title={emptyMessage.title}
           />
         )}
       </div>

@@ -358,6 +358,12 @@ describe("architecture module boundaries", () => {
       "NotesSidebarTree.tsx",
       "sidebarTreeDrag.ts",
     ]);
+    expect(listSourceFileNames("ui/activities/visualization")).toEqual([
+      "NoteReferenceGraphCanvas.tsx",
+      "NoteReferenceGraphDetailPanel.tsx",
+      "NoteReferenceGraphPanel.tsx",
+      "referenceGraphView.ts",
+    ]);
     expect(listSourceFileNames("ui/shared/blocks")).toEqual([
       "BlockTextDisplay.tsx",
       "BlockTree.tsx",

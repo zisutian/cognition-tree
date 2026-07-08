@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FolderId } from "../../../workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
@@ -112,7 +112,7 @@ export function useViewModel(
     );
   }, [workspace]);
 
-  const selectNote = (noteId: UiNoteId) => {
+  const selectNote = useCallback((noteId: UiNoteId) => {
     if (!findWorkspaceNote(workspace, noteId)) {
       return;
     }
@@ -122,7 +122,7 @@ export function useViewModel(
     setSelectedFolderId(folderId);
 
     setActiveNoteId(noteId);
-  };
+  }, [workspace]);
 
   const selectFolder = (folderId: UiFolderId) => {
     setSelectedFolderId(
@@ -254,6 +254,14 @@ export function useViewModel(
         : emptyReferenceGraphView,
     [index, scope.referenceGraph],
   );
+  const visualization = useMemo(
+    () => ({
+      activeNoteId: activeNote?.id ?? null,
+      graph: noteReferenceGraph,
+      onSelectNote: selectNote,
+    }),
+    [activeNote, noteReferenceGraph, selectNote],
+  );
   const syntax = useMemo(
     () =>
       createUiSyntaxView({
@@ -360,7 +368,7 @@ export function useViewModel(
     },
     updateActiveNoteSource,
     useDefaultSyntax,
-    visualization: noteReferenceGraph,
+    visualization,
     errorMessage,
   };
 }

@@ -40,6 +40,12 @@ export type UiReferenceGraphView = {
   unresolvedReferences: UiReferenceGraphUnresolvedReference[];
 };
 
+export type UiVisualizationViewModel = {
+  activeNoteId: UiNoteId | null;
+  graph: UiReferenceGraphView;
+  onSelectNote: (noteId: UiNoteId) => void;
+};
+
 export function createUiReferenceGraphView(
   graph: NoteReferenceGraph,
 ): UiReferenceGraphView {

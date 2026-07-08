@@ -160,11 +160,11 @@ function createVisualizationSlots({
   return {
     detail: (
       <NoteReferenceGraphDetailPanel
-        graph={view.visualization}
+        visualization={view.visualization}
         onCollapseDetail={onCollapseDetail}
       />
     ),
-    main: <NoteReferenceGraphPanel graph={view.visualization} />,
+    main: <NoteReferenceGraphPanel visualization={view.visualization} />,
     sidebar: null,
   };
 }

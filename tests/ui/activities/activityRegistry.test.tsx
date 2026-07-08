@@ -127,15 +127,19 @@ function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     updateActiveNoteSource: () => undefined,
     useDefaultSyntax: () => undefined,
     visualization: {
-      edges: [],
-      mostReferencedNodes: [],
-      nodes: [],
-      stats: {
-        edgeCount: 0,
-        isolatedCount: 0,
-        nodeCount: 0,
+      activeNoteId: "note-1",
+      graph: {
+        edges: [],
+        mostReferencedNodes: [],
+        nodes: [],
+        stats: {
+          edgeCount: 0,
+          isolatedCount: 0,
+          nodeCount: 0,
+        },
+        unresolvedReferences: [],
       },
-      unresolvedReferences: [],
+      onSelectNote: () => undefined,
     },
     errorMessage: "",
     ...overrides,
@@ -276,10 +280,13 @@ describe("activity registry", () => {
     const view = createView({
       visualization: {
         ...baseView.visualization,
-        stats: {
-          edgeCount: 7,
-          isolatedCount: 2,
-          nodeCount: 9,
+        graph: {
+          ...baseView.visualization.graph,
+          stats: {
+            edgeCount: 7,
+            isolatedCount: 2,
+            nodeCount: 9,
+          },
         },
       },
     });

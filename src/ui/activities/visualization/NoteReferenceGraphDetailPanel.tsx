@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import type { UiReferenceGraphView } from "../../../application/workspace/projection/viewGraph";
+import type { UiVisualizationViewModel } from "../../../application/workspace/projection/viewGraph";
 import {
   UiButton,
   UiList,
@@ -13,15 +13,26 @@ import {
 } from "../../shared/primitives";
 
 type NoteReferenceGraphDetailPanelProps = {
-  graph: UiReferenceGraphView;
+  visualization: UiVisualizationViewModel;
   onCollapseDetail?: () => void;
 };
 
 export function NoteReferenceGraphDetailPanel({
-  graph,
+  visualization,
   onCollapseDetail,
 }: NoteReferenceGraphDetailPanelProps) {
+  const graph = visualization.graph;
   const hasIssues = graph.unresolvedReferences.length > 0;
+  const selectedNode = visualization.activeNoteId
+    ? graph.nodes.find((node) => node.id === visualization.activeNoteId) ?? null
+    : null;
+  const selectedIncomingEdges = selectedNode
+    ? graph.edges.filter((edge) => edge.targetNoteId === selectedNode.id)
+    : [];
+  const selectedOutgoingEdges = selectedNode
+    ? graph.edges.filter((edge) => edge.sourceNoteId === selectedNode.id)
+    : [];
+  const titleById = new Map(graph.nodes.map((node) => [node.id, node.title]));
 
   return (
     <UiPanel as="aside" aria-label="可视化详情" variant="detail">
@@ -52,6 +63,48 @@ export function NoteReferenceGraphDetailPanel({
             { label: "孤立", value: graph.stats.isolatedCount },
           ]}
         />
+
+        <UiSection>
+          <UiSectionTitle>当前节点</UiSectionTitle>
+          {selectedNode ? (
+            <div className="visualization-node-summary">
+              <strong>{selectedNode.title}</strong>
+              <UiMetrics
+                aria-label="当前节点统计"
+                items={[
+                  { label: "入链", value: selectedNode.referencesIn },
+                  { label: "出链", value: selectedNode.referencesOut },
+                ]}
+              />
+              {selectedIncomingEdges.length + selectedOutgoingEdges.length > 0 ? (
+                <UiList scroll variant="cards">
+                  {selectedIncomingEdges.slice(0, 8).map((edge) => (
+                    <UiListRow
+                      className="visualization-neighbor-row"
+                      key={`in-${edge.id}`}
+                    >
+                      <span>{titleById.get(edge.sourceNoteId) ?? edge.sourceNoteId}</span>
+                      <small>引用此笔记 ×{edge.count}</small>
+                    </UiListRow>
+                  ))}
+                  {selectedOutgoingEdges.slice(0, 8).map((edge) => (
+                    <UiListRow
+                      className="visualization-neighbor-row"
+                      key={`out-${edge.id}`}
+                    >
+                      <span>{edge.targetTitle}</span>
+                      <small>被此笔记引用 ×{edge.count}</small>
+                    </UiListRow>
+                  ))}
+                </UiList>
+              ) : (
+                <p className="ui-muted">这个节点暂无引用关系。</p>
+              )}
+            </div>
+          ) : (
+            <p className="ui-muted">点击图中的笔记节点查看详情。</p>
+          )}
+        </UiSection>
 
         <UiSection>
           <UiSectionTitle>引用量最多</UiSectionTitle>
