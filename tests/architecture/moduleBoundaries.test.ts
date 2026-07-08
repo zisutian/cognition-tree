@@ -284,11 +284,9 @@ describe("architecture module boundaries", () => {
     expect(listImmediateSourceFileNames("ui")).toEqual([
       "ActivityBar.tsx",
       "AppFrame.tsx",
-      "AppSidebar.tsx",
       "AppView.tsx",
       "activityTypes.ts",
-      "detailResize.ts",
-      "sidebarResize.ts",
+      "frameResize.ts",
     ]);
     expect(listSubdirectories("ui")).toEqual([
       "activities",
@@ -307,24 +305,18 @@ describe("architecture module boundaries", () => {
       "theme.css",
     ]);
     expect(listAllFileNames("ui/styles/frame")).toEqual([
-      "layout.css",
-      "responsive.css",
-      "sidebar.css",
+      "frame.css",
     ]);
     expect(listAllFileNames("ui/styles/shared")).toEqual([
       "blockText.css",
       "primitives.css",
-      "scrollbars.css",
       "tree.css",
     ]);
     expect(listAllFileNames("ui/styles/activities")).toEqual([
-      "migration.css",
-      "notes.css",
-      "syntax.css",
-      "visualization.css",
+      "activities.css",
     ]);
     expect(listImmediateSourceFileNames("ui/activities")).toEqual([
-      "ActivityPlaceholderPanels.tsx",
+      "PlaceholderPanel.tsx",
       "activityRegistry.tsx",
     ]);
     expect(listSubdirectories("ui/activities")).toEqual([
@@ -334,50 +326,29 @@ describe("architecture module boundaries", () => {
       "syntax",
       "visualization",
     ]);
-    expect(listSubdirectories("ui/shared")).toEqual([
-      "blocks",
-      "primitives",
+    expect(listImmediateSourceFileNames("ui/shared")).toEqual([
+      "blockText.tsx",
+      "primitives.tsx",
+      "tree.tsx",
     ]);
+    expect(listSubdirectories("ui/shared")).toEqual([]);
     expect(listSourceFileNames("ui/activities/migration")).toEqual([
-      "BlockMigrationView.tsx",
-      "BlockStructureTree.tsx",
-      "BlockStructureView.tsx",
-      "MigrationMainPanel.tsx",
-      "MigrationNoteTree.tsx",
-      "MigrationSidebarPanel.tsx",
-      "MigrationSourceTree.tsx",
-      "MigrationTargetTree.tsx",
+      "MigrationPanels.tsx",
       "blockLineDrag.ts",
-      "migrationNoteDrag.ts",
     ]);
     expect(listSourceFileNames("ui/activities/notes")).toEqual([
-      "NoteEditorPanel.tsx",
-      "NoteOutlinePanel.tsx",
-      "NoteOutlineTree.tsx",
-      "NotesSidebarPanel.tsx",
-      "NotesSidebarTree.tsx",
-      "sidebarTreeDrag.ts",
+      "NotesPanels.tsx",
+    ]);
+    expect(listSourceFileNames("ui/activities/settings")).toEqual([
+      "SettingsPanel.tsx",
+    ]);
+    expect(listSourceFileNames("ui/activities/syntax")).toEqual([
+      "SyntaxPanels.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/visualization")).toEqual([
-      "NoteReferenceGraphCanvas.tsx",
-      "NoteReferenceGraphDetailPanel.tsx",
-      "NoteReferenceGraphPanel.tsx",
+      "ReferenceGraphCanvas.tsx",
+      "VisualizationPanels.tsx",
       "referenceGraphView.ts",
-    ]);
-    expect(listSourceFileNames("ui/shared/blocks")).toEqual([
-      "BlockTextDisplay.tsx",
-      "BlockTree.tsx",
-    ]);
-    expect(listSourceFileNames("ui/shared/primitives")).toEqual([
-      "UiButton.tsx",
-      "UiEmptyState.tsx",
-      "UiField.tsx",
-      "UiList.tsx",
-      "UiMetrics.tsx",
-      "UiPanel.tsx",
-      "UiStatus.tsx",
-      "classNames.ts",
-      "index.ts",
     ]);
   });
 
@@ -401,7 +372,7 @@ describe("architecture module boundaries", () => {
 
   it("keeps activity styles from redefining shared panel titles", () => {
     const titleSelectorPattern =
-      /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.side-panel-header)(?:\s|[.{:#>])/;
+      /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.context-panel-header)(?:\s|[.{:#>])/;
     const violations = Object.entries(sourceStyleModules)
       .filter(([filePath]) =>
         filePath.startsWith("../../src/ui/styles/activities/"),
@@ -422,35 +393,37 @@ describe("architecture module boundaries", () => {
   it("keeps typography and numeric style tokens centralized", () => {
     const themeSource = readStyleSource("ui/styles/foundation/theme.css");
     const primitiveSource = readStyleSource("ui/styles/shared/primitives.css");
-    const sidebarSource = readStyleSource("ui/styles/frame/sidebar.css");
+    const frameSource = readStyleSource("ui/styles/frame/frame.css");
     const treeSource = readStyleSource("ui/styles/shared/tree.css");
-    const notesSource = readStyleSource("ui/styles/activities/notes.css");
+    const activitiesSource = readStyleSource("ui/styles/activities/activities.css");
 
     expect(themeSource).toContain("--font-ui");
     expect(themeSource).toContain("--font-content");
     expect(themeSource).toContain("--font-code");
+    expect(themeSource).toContain("--app-activity-width: 48px");
+    expect(themeSource).toContain("--app-detail-collapsed-width: 36px");
+    expect(themeSource).toContain("--app-main-min-width: 420px");
+    expect(themeSource).toContain("--ui-panel-padding: 10px");
+    expect(themeSource).toContain("--ui-tree-row-height: 22px");
     expect(themeSource).toContain("--ui-root-font-size");
     expect(themeSource).toContain("--ui-title-font-size");
     expect(themeSource).toContain("--ui-body-font-size");
     expect(themeSource).toContain("--ui-control-font-size");
     expect(themeSource).toContain("--ui-micro-font-size");
     expect(themeSource).toContain("--ui-code-font-size");
-    expect(themeSource).toContain("--ui-tree-font-size");
-    expect(themeSource).toContain("--ui-outline-font-size");
-    expect(themeSource).toContain("--ui-badge-line-height");
     expect(themeSource).toContain("--ui-micro-line-height");
     expect(themeSource).toContain("--ui-micro-weight");
     expect(themeSource).toContain("--ui-micro-strong-weight");
     expect(themeSource).toContain("--ui-numeric-font-variant");
     expect(themeSource).toContain("--ui-numeric-weight");
     expect(themeSource).toContain("--ui-numeric-strong-weight");
-    expect(themeSource).toContain("--ctn-editor-numeric-font-variant");
+    expect(themeSource).toContain("--ctn-editor-font-size: 14px");
     expect(primitiveSource).toContain("var(--ui-micro-font-size)");
     expect(primitiveSource).toContain("var(--ui-numeric-font-variant)");
-    expect(sidebarSource).toContain("var(--ui-micro-font-size)");
+    expect(frameSource).toContain("var(--ui-micro-font-size)");
     expect(treeSource).toContain("var(--ui-numeric-font-variant)");
-    expect(notesSource).toContain("var(--ctn-editor-numeric-font-variant)");
-    expect(`${primitiveSource}\n${sidebarSource}`).not.toContain(
+    expect(activitiesSource).toContain("var(--ctn-editor-font-size)");
+    expect(`${primitiveSource}\n${frameSource}`).not.toContain(
       "text-transform: uppercase",
     );
   });
@@ -541,9 +514,9 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps activity microcopy styles from defining ad hoc small text", () => {
+  it("keeps activity microcopy styles behind role tokens", () => {
     const microcopySelectorPattern =
-      /^\s*\.(?:syntax-rule-column-header|migration-drop-zone|migration-note-badge|empty-outline|visualization-rank-row small)\b/;
+      /^\s*\.(?:context-caption|context-empty|syntax-readonly|graph-label)\b/;
     const violations = Object.entries(sourceStyleModules)
       .filter(([filePath]) =>
         filePath.startsWith("../../src/ui/styles/activities/"),
@@ -570,21 +543,15 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps contextual microcopy emphasis consistent", () => {
-    const notesSource = readStyleSource("ui/styles/activities/notes.css");
-    const migrationSource = readStyleSource("ui/styles/activities/migration.css");
-    const noteCurrentTitleBlock =
-      notesSource.match(/\.note-current-title\s*\{[^}]*\}/s)?.[0] ?? "";
-    const migrationNoteBadgeBlock =
-      migrationSource.match(/\.migration-note-badge\s*\{[^}]*\}/s)?.[0] ?? "";
+  it("keeps high-density UI scales stable", () => {
+    const themeSource = readStyleSource("ui/styles/foundation/theme.css");
 
-    expect(noteCurrentTitleBlock).toContain(
-      "font-weight: var(--ui-micro-strong-weight)",
-    );
-    expect(noteCurrentTitleBlock).toContain("transform: translateY(2px)");
-    expect(migrationNoteBadgeBlock).toContain(
-      "font-weight: var(--ui-micro-strong-weight)",
-    );
+    expect(themeSource).toContain("--ui-panel-header-height: 34px");
+    expect(themeSource).toContain("--ui-control-height: 24px");
+    expect(themeSource).toContain("--ui-icon-size: 22px");
+    expect(themeSource).toContain("--ui-title-font-size: 16px");
+    expect(themeSource).toContain("--ui-body-font-size: 13px");
+    expect(themeSource).toContain("--ui-micro-font-size: 12px");
   });
 
   it("keeps old syntax UI wording out of source", () => {
@@ -692,6 +659,9 @@ describe("architecture module boundaries", () => {
       /syntax-marker-row/,
       /syntax-marker-label/,
       /syntax-inline-actions/,
+      /app-sidebar/,
+      /side-panel/,
+      /sidebar-scroll-area/,
     ];
     const violations = listAllSourcePaths().flatMap((filePath) => {
       const source = sourceModules[filePath] ?? sourceStyleModules[filePath] ?? "";
@@ -911,7 +881,7 @@ describe("architecture module boundaries", () => {
     const frameFiles = [
       "../../src/ui/ActivityBar.tsx",
       "../../src/ui/AppFrame.tsx",
-      "../../src/ui/AppSidebar.tsx",
+      "../../src/ui/frameResize.ts",
     ];
     const violations = frameFiles.flatMap((filePath) =>
       readSourceImports(filePath)

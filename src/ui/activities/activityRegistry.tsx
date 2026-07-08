@@ -1,48 +1,25 @@
-import {
-  Braces,
-  Database,
-  FileText,
-  MoveRight,
-  Network,
-  Search,
-  Settings,
-} from "lucide-react";
 import type { ViewModel } from "../../application/workspace/view-model/useViewModel";
 import type {
   ActivityId,
-  ActivityItem,
   ActivitySlots,
 } from "../activityTypes";
+import { MigrationContext, MigrationMainPanel } from "./migration/MigrationPanels";
 import {
-  ActivityMainPlaceholder,
-  ActivitySidebarPlaceholder,
-} from "./ActivityPlaceholderPanels";
-import { MigrationMainPanel } from "./migration/MigrationMainPanel";
-import { MigrationSidebarPanel } from "./migration/MigrationSidebarPanel";
-import { NoteEditorPanel } from "./notes/NoteEditorPanel";
-import { NoteOutlinePanel } from "./notes/NoteOutlinePanel";
-import { NotesSidebarPanel } from "./notes/NotesSidebarPanel";
-import { SettingsSidebarPanel } from "./settings/SettingsSidebarPanel";
-import { SyntaxProfileDetailPanel } from "./syntax/SyntaxProfileDetailPanel";
-import { SyntaxSetupPanel } from "./syntax/SyntaxSetupPanel";
-import { SyntaxMainPanel } from "./syntax/SyntaxMainPanel";
-import { NoteReferenceGraphDetailPanel } from "./visualization/NoteReferenceGraphDetailPanel";
-import { NoteReferenceGraphPanel } from "./visualization/NoteReferenceGraphPanel";
-
-export const activityItems: ActivityItem[] = [
-  { id: "notes", label: "笔记", icon: FileText },
-  { id: "migration", label: "块迁移", icon: MoveRight },
-  { id: "visualization", label: "可视化", icon: Network },
-  { id: "syntax", label: "语法", icon: Braces },
-  { id: "search", label: "搜索", icon: Search },
-  { id: "data", label: "数据", icon: Database },
-  { id: "settings", label: "设置", icon: Settings },
-];
-
-const placeholderEntries: Record<"search" | "data", string[]> = {
-  data: ["文件库", "索引", "导入导出"],
-  search: ["标题", "正文", "块类型"],
-};
+  NoteDetailPanel,
+  NoteEditorPanel,
+  NotesContext,
+} from "./notes/NotesPanels";
+import { PlaceholderPanel } from "./PlaceholderPanel";
+import { SettingsPanel } from "./settings/SettingsPanel";
+import {
+  SyntaxDetailPanel,
+  SyntaxMainPanel,
+  SyntaxSetupPanel,
+} from "./syntax/SyntaxPanels";
+import {
+  VisualizationDetailPanel,
+  VisualizationPanel,
+} from "./visualization/VisualizationPanels";
 
 type ActivityContext = {
   activityId: ActivityId;
@@ -51,10 +28,10 @@ type ActivityContext = {
   view: ViewModel;
 };
 
-function createSyntaxSetupMain({
-  view,
+function syntaxSetup({
   onConfigureSyntax,
-}: Pick<ActivityContext, "view" | "onConfigureSyntax">) {
+  view,
+}: Pick<ActivityContext, "onConfigureSyntax" | "view">) {
   return (
     <SyntaxSetupPanel
       errorMessage={view.errorMessage}
@@ -64,167 +41,98 @@ function createSyntaxSetupMain({
   );
 }
 
-function createNotesSlots({
+function notesSlots({
   onCollapseDetail,
-  view,
   onConfigureSyntax,
-}: Pick<ActivityContext, "onCollapseDetail" | "view" | "onConfigureSyntax">): ActivitySlots {
-  const sidebar = (
-    <NotesSidebarPanel
-      view={view.sidebar}
-      onCreateFolder={view.createFolder}
-      onCreateNote={view.createNote}
-      onDeleteFolder={view.deleteFolder}
-      onDeleteNote={view.deleteNote}
-      onMoveNote={view.moveNote}
-      onMoveTreeNode={view.moveSidebarTreeNode}
-      onRenameFolder={view.renameFolder}
-      onRenameNote={view.renameNote}
-      onSelectFolder={view.selectFolder}
-      onSelectNote={view.selectNote}
-    />
-  );
-
-  if (!view.hasConfiguredSyntax || !view.editor.hasParsedDocument) {
-    return {
-      detail: null,
-      main: createSyntaxSetupMain({ view, onConfigureSyntax }),
-      sidebar,
-    };
-  }
-
+  view,
+}: Pick<ActivityContext, "onCollapseDetail" | "onConfigureSyntax" | "view">): ActivitySlots {
   return {
-    detail: (
-      <NoteOutlinePanel
-        nodes={view.outline.nodes}
-        stats={view.editor.stats}
-        onCollapseDetail={onCollapseDetail}
-        onSelectLine={view.outline.onSelectLine}
-      />
-    ),
-    main: (
-      <NoteEditorPanel
-        currentNoteTitle={view.editor.currentNoteTitle}
-        diagnostics={view.editor.diagnostics}
-        focusTarget={view.editor.focusTarget}
-        hasActiveNote={view.editor.hasActiveNote}
-        syntaxProfile={view.editor.syntaxProfile}
-        value={view.editor.documentText}
-        errorMessage={view.errorMessage}
-        onCreateNote={view.createNote}
-        onDocumentTextChange={view.updateActiveNoteSource}
-      />
-    ),
-    sidebar,
+    context: {
+      content: <NotesContext view={view} />,
+      title: "笔记",
+    },
+    detail:
+      view.hasConfiguredSyntax && view.editor.hasParsedDocument ? (
+        <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
+      ) : null,
+    main:
+      view.hasConfiguredSyntax && view.editor.hasParsedDocument ? (
+        <NoteEditorPanel view={view} />
+      ) : (
+        syntaxSetup({ onConfigureSyntax, view })
+      ),
+    mainSpan: "standard",
   };
 }
 
-function createMigrationSlots({
-  view,
+function migrationSlots({
   onConfigureSyntax,
-}: Pick<ActivityContext, "view" | "onConfigureSyntax">): ActivitySlots {
+  view,
+}: Pick<ActivityContext, "onConfigureSyntax" | "view">): ActivitySlots {
   return {
+    context: {
+      content: <MigrationContext view={view} />,
+      title: "块迁移",
+    },
     detail: null,
     main: view.hasConfiguredSyntax ? (
-      <MigrationMainPanel view={view.migration} />
+      <MigrationMainPanel view={view} />
     ) : (
-      createSyntaxSetupMain({ view, onConfigureSyntax })
+      syntaxSetup({ onConfigureSyntax, view })
     ),
-    sidebar: (
-      <MigrationSidebarPanel
-        mode={view.migration.mode}
-        noteTree={view.migration.noteTree}
-        sourceNoteId={view.migration.sourceNoteId}
-        structureNoteId={view.migration.structureNoteId}
-        targetNoteId={view.migration.targetNoteId}
-        onOpenNoteStructure={view.migration.onOpenNoteStructure}
-        onPairNotesForMigration={view.migration.onPairNotesForMigration}
-      />
-    ),
+    mainSpan: "full",
   };
 }
 
-function createVisualizationSlots({
-  onCollapseDetail,
-  view,
-  onConfigureSyntax,
-}: Pick<ActivityContext, "onCollapseDetail" | "view" | "onConfigureSyntax">): ActivitySlots {
-  if (!view.hasConfiguredSyntax) {
-    return {
-      detail: null,
-      main: createSyntaxSetupMain({ view, onConfigureSyntax }),
-      sidebar: null,
-    };
-  }
-
-  return {
-    detail: (
-      <NoteReferenceGraphDetailPanel
-        visualization={view.visualization}
-        onCollapseDetail={onCollapseDetail}
-      />
-    ),
-    main: <NoteReferenceGraphPanel visualization={view.visualization} />,
-    sidebar: null,
-  };
-}
-
-function createSyntaxSlots({
+function syntaxSlots({
   onCollapseDetail,
   view,
 }: Pick<ActivityContext, "onCollapseDetail" | "view">): ActivitySlots {
   return {
+    context: null,
+    detail: <SyntaxDetailPanel onCollapseDetail={onCollapseDetail} view={view} />,
+    main: <SyntaxMainPanel view={view} />,
+    mainSpan: "standard",
+  };
+}
+
+function visualizationSlots({
+  onCollapseDetail,
+  onConfigureSyntax,
+  view,
+}: Pick<ActivityContext, "onCollapseDetail" | "onConfigureSyntax" | "view">): ActivitySlots {
+  if (!view.hasConfiguredSyntax) {
+    return {
+      context: null,
+      detail: null,
+      main: syntaxSetup({ onConfigureSyntax, view }),
+      mainSpan: "standard",
+    };
+  }
+
+  return {
+    context: null,
     detail: (
-      <SyntaxProfileDetailPanel
-        draftResult={view.syntax.draftResult}
-        feedback={view.syntax.feedback}
-        stats={view.syntax.stats}
-        onCollapseDetail={onCollapseDetail}
-      />
+      <VisualizationDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
     ),
-    main: <SyntaxMainPanel view={view.syntax} />,
-    sidebar: null,
+    main: <VisualizationPanel view={view} />,
+    mainSpan: "standard",
   };
 }
 
-function createSettingsSlots({ view }: Pick<ActivityContext, "view">): ActivitySlots {
-  return {
-    detail: null,
-    main: (
-      <ActivityMainPlaceholder
-        description="仓库设置在侧栏中管理。"
-        label="设置"
-      />
-    ),
-    sidebar: (
-      <SettingsSidebarPanel
-        canChangeRepositoryPath={view.canChangeRepositoryPath}
-        repositoryPath={view.sidebar.repositoryPath}
-        saveStatusLabel={view.sidebar.saveStatusLabel}
-        storageLabel={view.sidebar.storageLabel}
-        onChangeRepositoryPath={view.changeRepositoryPath}
-        onReload={view.reload}
-      />
-    ),
-  };
-}
-
-function createPlaceholderSlots(
-  activityId: "search" | "data",
-): ActivitySlots {
-  const item = activityItems.find((entry) => entry.id === activityId);
-  const label = item?.label ?? "功能";
-  const entries = placeholderEntries[activityId];
+function placeholderSlots(activityId: "data" | "search"): ActivitySlots {
+  const label = activityId === "search" ? "搜索" : "数据";
 
   return {
+    context: null,
     detail: null,
     main: (
-      <ActivityMainPlaceholder
+      <PlaceholderPanel
         description={`${label}功能待接入。`}
-        label={label}
+        title={label}
       />
     ),
-    sidebar: <ActivitySidebarPlaceholder entries={entries} label={label} />,
+    mainSpan: "full",
   };
 }
 
@@ -236,21 +144,22 @@ export function createActivitySlots({
 }: ActivityContext): ActivitySlots {
   switch (activityId) {
     case "notes":
-      return createNotesSlots({ onCollapseDetail, view, onConfigureSyntax });
+      return notesSlots({ onCollapseDetail, onConfigureSyntax, view });
     case "migration":
-      return createMigrationSlots({ view, onConfigureSyntax });
-    case "visualization":
-      return createVisualizationSlots({
-        onCollapseDetail,
-        view,
-        onConfigureSyntax,
-      });
+      return migrationSlots({ onConfigureSyntax, view });
     case "syntax":
-      return createSyntaxSlots({ onCollapseDetail, view });
+      return syntaxSlots({ onCollapseDetail, view });
+    case "visualization":
+      return visualizationSlots({ onCollapseDetail, onConfigureSyntax, view });
     case "settings":
-      return createSettingsSlots({ view });
-    case "search":
+      return {
+        context: null,
+        detail: null,
+        main: <SettingsPanel view={view} />,
+        mainSpan: "full",
+      };
     case "data":
-      return createPlaceholderSlots(activityId);
+    case "search":
+      return placeholderSlots(activityId);
   }
 }

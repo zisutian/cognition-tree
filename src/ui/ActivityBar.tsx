@@ -1,67 +1,70 @@
+import {
+  Braces,
+  Database,
+  FileText,
+  MoveRight,
+  Network,
+  Search,
+  Settings,
+} from "lucide-react";
 import type {
   ActivityId,
   ActivityItem,
 } from "./activityTypes";
 
-type ActivityBarProps = {
-  activeActivityId: ActivityId;
-  activityItems: ActivityItem[];
-  onActivityChange: (activityId: ActivityId) => void;
-};
+export const activityItems: ActivityItem[] = [
+  { id: "notes", label: "笔记", icon: FileText },
+  { id: "migration", label: "块迁移", icon: MoveRight },
+  { id: "visualization", label: "可视化", icon: Network },
+  { id: "syntax", label: "语法", icon: Braces },
+  { id: "search", label: "搜索", icon: Search },
+  { id: "data", label: "数据", icon: Database },
+  { id: "settings", label: "设置", icon: Settings },
+];
 
 export function ActivityBar({
   activeActivityId,
-  activityItems,
   onActivityChange,
-}: ActivityBarProps) {
-  const primaryItems = activityItems.slice(0, 5);
-  const secondaryItems = activityItems.slice(5);
-
+}: {
+  activeActivityId: ActivityId;
+  onActivityChange: (activityId: ActivityId) => void;
+}) {
   return (
     <nav className="activity-bar" aria-label="工作区功能">
-      <div className="activity-brand" aria-hidden="true">
-        认
-      </div>
       <div className="activity-group">
-        {primaryItems.map((item) => {
+        {activityItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
 
           return (
             <button
+              aria-current={item.id === activeActivityId ? "page" : undefined}
               aria-label={item.label}
-              className={
-                item.id === activeActivityId
-                  ? "activity-button active"
-                  : "activity-button"
-              }
+              className={item.id === activeActivityId ? "is-active" : ""}
               key={item.id}
               onClick={() => onActivityChange(item.id)}
               title={item.label}
               type="button"
             >
-              <Icon aria-hidden="true" size={20} strokeWidth={1.9} />
+              <Icon aria-hidden="true" size={18} strokeWidth={1.9} />
             </button>
           );
         })}
       </div>
       <div className="activity-group activity-group-bottom">
-        {secondaryItems.map((item) => {
+        {activityItems.slice(5).map((item) => {
           const Icon = item.icon;
 
           return (
             <button
+              aria-current={item.id === activeActivityId ? "page" : undefined}
               aria-label={item.label}
-              className={
-                item.id === activeActivityId
-                  ? "activity-button active"
-                  : "activity-button"
-              }
+              className={item.id === activeActivityId ? "is-active" : ""}
               key={item.id}
               onClick={() => onActivityChange(item.id)}
               title={item.label}
               type="button"
             >
-              <Icon aria-hidden="true" size={20} strokeWidth={1.9} />
+              <Icon aria-hidden="true" size={18} strokeWidth={1.9} />
             </button>
           );
         })}

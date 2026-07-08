@@ -34,7 +34,10 @@ export type PositionedReferenceGraphNode = VisibleReferenceGraphNode & {
 export function getReferenceGraphNodeRadius(
   node: Pick<UiReferenceGraphNode, "referencesIn" | "referencesOut">,
 ) {
-  return Math.min(14, 4 + Math.sqrt(node.referencesIn + node.referencesOut) * 2.4);
+  return Math.min(
+    14,
+    4 + Math.sqrt(node.referencesIn + node.referencesOut) * 2.4,
+  );
 }
 
 function normalizeGraphQuery(query: string) {

@@ -1,13 +1,7 @@
 @import "./foundation/theme.css";
 @import "./foundation/base.css";
-@import "./frame/layout.css";
-@import "./frame/sidebar.css";
-@import "./shared/scrollbars.css";
+@import "./frame/frame.css";
 @import "./shared/primitives.css";
 @import "./shared/tree.css";
 @import "./shared/blockText.css";
-@import "./activities/notes.css";
-@import "./activities/syntax.css";
-@import "./activities/migration.css";
-@import "./activities/visualization.css";
-@import "./frame/responsive.css";
+@import "./activities/activities.css";

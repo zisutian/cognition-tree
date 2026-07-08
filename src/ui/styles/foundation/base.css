@@ -1,9 +1,8 @@
 :root {
-  font-family:
-    var(--font-ui);
+  font-family: var(--font-ui);
   font-size: var(--ui-root-font-size);
-  line-height: var(--ui-root-line-height);
   font-weight: var(--ui-body-weight);
+  line-height: var(--ui-root-line-height);
   color: var(--color-fg);
   background: var(--color-editor);
   color-scheme: dark;
@@ -11,7 +10,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -26,8 +24,14 @@ body {
   overflow: hidden;
 }
 
-button {
+button,
+input,
+select,
+textarea {
   font: inherit;
+}
+
+button {
   border: 0;
 }
 

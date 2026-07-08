@@ -9,12 +9,12 @@ import {
   type SimulationNodeDatum,
 } from "d3-force";
 import {
-  type PointerEvent,
-  type WheelEvent,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type PointerEvent,
+  type WheelEvent,
 } from "react";
 import type { UiNoteId } from "../../../application/workspace/projection/viewTree";
 import {
@@ -26,7 +26,7 @@ import {
   type VisibleReferenceGraphNode,
 } from "./referenceGraphView";
 
-type NoteReferenceGraphCanvasProps = {
+type ReferenceGraphCanvasProps = {
   graph: VisibleReferenceGraph;
   resetSignal: number;
   selectedNoteId: UiNoteId | null;
@@ -180,9 +180,13 @@ function drawGraph({
     const sourceId = resolveLinkedNodeId(link.source);
     const targetId = resolveLinkedNodeId(link.target);
     const source =
-      typeof link.source === "object" ? link.source : nodes.find((node) => node.id === sourceId);
+      typeof link.source === "object"
+        ? link.source
+        : nodes.find((node) => node.id === sourceId);
     const target =
-      typeof link.target === "object" ? link.target : nodes.find((node) => node.id === targetId);
+      typeof link.target === "object"
+        ? link.target
+        : nodes.find((node) => node.id === targetId);
 
     if (!source || !target) {
       continue;
@@ -198,10 +202,8 @@ function drawGraph({
     context.strokeStyle = isActive ? edgeStrongColor : edgeColor;
     context.globalAlpha = isActive ? 0.82 : 0.36;
     context.lineWidth = Math.min(4, 0.9 + Math.log2(link.count + 1) * 0.7);
-
     context.moveTo(source.x, source.y);
     context.lineTo(target.x, target.y);
-
     context.stroke();
   }
 
@@ -231,7 +233,8 @@ function drawGraph({
     }
 
     if (showLabels || isSelected || isHovered) {
-      const label = node.title.length > 22 ? `${node.title.slice(0, 21)}…` : node.title;
+      const label =
+        node.title.length > 22 ? `${node.title.slice(0, 21)}...` : node.title;
 
       context.font = `${isSelected || isHovered ? 600 : 500} 12px ${fontFamily}`;
       context.textAlign = "center";
@@ -247,14 +250,17 @@ function drawGraph({
   context.restore();
 }
 
-export function NoteReferenceGraphCanvas({
+export function ReferenceGraphCanvas({
   graph,
   resetSignal,
   selectedNoteId,
   onSelectNote,
-}: NoteReferenceGraphCanvasProps) {
+}: ReferenceGraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const simulationRef = useRef<Simulation<GraphSimulationNode, GraphSimulationLink> | null>(null);
+  const simulationRef = useRef<Simulation<
+    GraphSimulationNode,
+    GraphSimulationLink
+  > | null>(null);
   const nodesRef = useRef<GraphSimulationNode[]>([]);
   const linksRef = useRef<GraphSimulationLink[]>([]);
   const transformRef = useRef<GraphTransform>({ scale: 1, x: 0, y: 0 });
@@ -289,7 +295,7 @@ export function NoteReferenceGraphCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
 
-    if (!canvas) {
+    if (!canvas || typeof ResizeObserver === "undefined") {
       return undefined;
     }
 
@@ -330,7 +336,10 @@ export function NoteReferenceGraphCanvas({
     );
     const nodeIds = new Set(nodes.map((node) => node.id));
     const links = createDrawableReferenceGraphEdges(graph.edges)
-      .filter((edge) => nodeIds.has(edge.sourceNoteId) && nodeIds.has(edge.targetNoteId))
+      .filter(
+        (edge) =>
+          nodeIds.has(edge.sourceNoteId) && nodeIds.has(edge.targetNoteId),
+      )
       .map((edge) => ({
         ...edge,
         source: edge.sourceNoteId,
@@ -345,7 +354,9 @@ export function NoteReferenceGraphCanvas({
       return undefined;
     }
 
-    const simulation = forceSimulation<GraphSimulationNode, GraphSimulationLink>(nodes)
+    const simulation = forceSimulation<GraphSimulationNode, GraphSimulationLink>(
+      nodes,
+    )
       .force(
         "link",
         forceLink<GraphSimulationNode, GraphSimulationLink>(links)
@@ -400,7 +411,11 @@ export function NoteReferenceGraphCanvas({
       return;
     }
 
-    const graphPoint = toGraphPoint(event, event.currentTarget, transformRef.current);
+    const graphPoint = toGraphPoint(
+      event,
+      event.currentTarget,
+      transformRef.current,
+    );
     const hitNode = findReferenceGraphNodeAtPoint({
       nodes: nodesRef.current as PositionedReferenceGraphNode[],
       x: graphPoint.x,
@@ -410,7 +425,9 @@ export function NoteReferenceGraphCanvas({
     event.currentTarget.setPointerCapture(event.pointerId);
 
     if (hitNode) {
-      const simulationNode = nodesRef.current.find((node) => node.id === hitNode.id);
+      const simulationNode = nodesRef.current.find(
+        (node) => node.id === hitNode.id,
+      );
 
       if (!simulationNode) {
         return;
@@ -443,7 +460,11 @@ export function NoteReferenceGraphCanvas({
 
     if (dragState?.pointerId === event.pointerId) {
       if (dragState.kind === "node") {
-        const graphPoint = toGraphPoint(event, event.currentTarget, transformRef.current);
+        const graphPoint = toGraphPoint(
+          event,
+          event.currentTarget,
+          transformRef.current,
+        );
 
         dragState.node.fx = graphPoint.x;
         dragState.node.fy = graphPoint.y;
@@ -460,7 +481,11 @@ export function NoteReferenceGraphCanvas({
       return;
     }
 
-    const graphPoint = toGraphPoint(event, event.currentTarget, transformRef.current);
+    const graphPoint = toGraphPoint(
+      event,
+      event.currentTarget,
+      transformRef.current,
+    );
     const hitNode = findReferenceGraphNodeAtPoint({
       nodes: nodesRef.current as PositionedReferenceGraphNode[],
       x: graphPoint.x,
@@ -478,7 +503,11 @@ export function NoteReferenceGraphCanvas({
     }
 
     if (dragState.kind === "node") {
-      const graphPoint = toGraphPoint(event, event.currentTarget, transformRef.current);
+      const graphPoint = toGraphPoint(
+        event,
+        event.currentTarget,
+        transformRef.current,
+      );
       const movedDistance = Math.hypot(
         graphPoint.x - dragState.startGraphX,
         graphPoint.y - dragState.startGraphY,
@@ -501,7 +530,7 @@ export function NoteReferenceGraphCanvas({
   return (
     <canvas
       aria-label="笔记引用力导向图"
-      className="note-reference-graph-canvas"
+      className="graph-force-canvas"
       ref={canvasRef}
       role="img"
       tabIndex={0}

@@ -48,13 +48,8 @@
 
 .block-text-inline {
   text-decoration-line: underline;
-  text-decoration-color: var(--color-link);
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: calc(var(--ui-border-width) * 2);
   text-underline-offset: 0.18em;
-}
-
-.note-outline-panel .block-text-inline {
-  text-decoration-color: var(--color-link);
 }
 
 .block-text-inline.ctn-tone-green {

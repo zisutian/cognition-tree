@@ -1,8 +1,12 @@
 import type { CSSProperties } from "react";
 
-type BlockTextDisplayStyle = CSSProperties | Record<string, string | undefined>;
+type ToneStyle = {
+  "--ctn-text-color"?: string;
+  "--ctn-tone-color"?: string;
+};
 
-type BlockTextDisplayText = {
+export type DisplayText = {
+  displayText: string;
   segments: Array<
     | {
         id: string;
@@ -15,33 +19,26 @@ type BlockTextDisplayText = {
         text: string;
         textColorClassName: string;
         toneClassName: string;
-        style?: BlockTextDisplayStyle;
+        style?: ToneStyle;
       }
   >;
-  style?: BlockTextDisplayStyle;
+  style?: ToneStyle;
   textColorClassName: string;
 };
 
-type BlockTextDisplayProps = {
-  className?: string;
-  text: BlockTextDisplayText;
-};
+function toneStyle(style: ToneStyle | undefined) {
+  return style as CSSProperties | undefined;
+}
 
-export function BlockTextDisplay({
-  className = "node-text",
-  text,
-}: BlockTextDisplayProps) {
+export function BlockText({ text }: { text: DisplayText }) {
   return (
-    <span
-      className={`${className} ${text.textColorClassName}`}
-      style={text.style as CSSProperties | undefined}
-    >
+    <span className={`block-text ${text.textColorClassName}`} style={toneStyle(text.style)}>
       {text.segments.map((segment) =>
         segment.kind === "inline" ? (
           <span
             className={`block-text-inline ${segment.toneClassName} ${segment.textColorClassName}`}
             key={segment.id}
-            style={segment.style as CSSProperties | undefined}
+            style={toneStyle(segment.style)}
           >
             {segment.text}
           </span>

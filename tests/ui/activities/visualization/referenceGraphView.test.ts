@@ -163,8 +163,12 @@ describe("reference graph view helpers", () => {
   });
 
   it("keeps graph node dots compact", () => {
-    expect(getReferenceGraphNodeRadius({ referencesIn: 0, referencesOut: 0 })).toBe(4);
-    expect(getReferenceGraphNodeRadius({ referencesIn: 8, referencesOut: 8 })).toBeLessThanOrEqual(14);
+    expect(
+      getReferenceGraphNodeRadius({ referencesIn: 0, referencesOut: 0 }),
+    ).toBe(4);
+    expect(
+      getReferenceGraphNodeRadius({ referencesIn: 8, referencesOut: 8 }),
+    ).toBeLessThanOrEqual(14);
   });
 
   it("finds the topmost graph node at a canvas point", () => {

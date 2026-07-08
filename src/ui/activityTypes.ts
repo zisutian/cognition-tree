@@ -16,8 +16,14 @@ export type ActivityItem = {
   label: string;
 };
 
+export type ActivityContextSlot = {
+  content: ReactNode;
+  title: string;
+};
+
 export type ActivitySlots = {
-  detail: ReactNode;
+  context: ActivityContextSlot | null;
+  detail: ReactNode | null;
   main: ReactNode;
-  sidebar: ReactNode;
+  mainSpan: "full" | "standard";
 };
