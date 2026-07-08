@@ -45,6 +45,10 @@
   grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
 }
 
+.ui-tree-toggle-spacer {
+  width: 13px;
+}
+
 .ui-tree-block {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
@@ -87,6 +91,11 @@
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
   font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
+.ui-tree-meta {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .ui-badge {

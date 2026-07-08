@@ -81,9 +81,12 @@ describe("activity registry", () => {
 
     expect(context).toContain("Source note");
     expect(context).toContain("Target note");
+    expect(context).toContain("点选源");
+    expect(context).toContain("当前源");
     expect(context).toContain("源和目标");
     expect(context).toContain("结构");
     expect(context).toContain("目标");
+    expect(context).not.toContain("ui-tree-actions");
     expect(main).toContain("块迁移");
     expect(main).toContain("源 · Source note");
     expect(main).toContain("目标 · Target note");

@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
+import type { CSSProperties } from "react";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import type {
   UiSyntaxProfileDraftInlineRule,
@@ -12,14 +13,12 @@ import {
   PanelHeader,
   Section,
   StatusLine,
+  cx,
 } from "../../shared/primitives";
-import {
-  TonePicker,
-  getToneSwatchClass,
-  getToneSwatchStyle,
-} from "./TonePicker";
+import { TonePicker } from "./TonePicker";
 
 const maxTabDisplayWidth = 16;
+const customTonePattern = /^#[0-9a-fA-F]{6}$/;
 
 function readTabDisplayWidthInput(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -31,6 +30,42 @@ function readTabDisplayWidthInput(value: string) {
   return String(
     Math.min(maxTabDisplayWidth, Math.max(1, Number.parseInt(digits, 10))),
   );
+}
+
+function isCustomTone(tone: UiSyntaxTone) {
+  return customTonePattern.test(tone);
+}
+
+function getRenderToneClass(tone: UiSyntaxTone) {
+  return isCustomTone(tone)
+    ? "syntax-render-tone-custom"
+    : `syntax-render-tone-${tone}`;
+}
+
+function getRenderTextColorClass(tone: UiSyntaxTone) {
+  return isCustomTone(tone)
+    ? "syntax-render-text-custom"
+    : `syntax-render-text-${tone}`;
+}
+
+function getRenderStyle({
+  textColor,
+  tone,
+}: {
+  textColor: UiSyntaxTone;
+  tone: UiSyntaxTone;
+}): CSSProperties | undefined {
+  const style: Record<string, string> = {};
+
+  if (isCustomTone(tone)) {
+    style["--syntax-render-tone-color"] = tone;
+  }
+
+  if (isCustomTone(textColor)) {
+    style["--syntax-render-text-color"] = textColor;
+  }
+
+  return Object.keys(style).length > 0 ? (style as CSSProperties) : undefined;
 }
 
 function ToneFields({
@@ -350,38 +385,40 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
   );
 }
 
-function SyntaxTonePreview({
-  label,
+function SyntaxRenderLine({
+  inline = false,
+  marker,
   textColor,
   tone,
+  value,
 }: {
-  label: string;
+  inline?: boolean;
+  marker: string;
   textColor: UiSyntaxTone;
   tone: UiSyntaxTone;
+  value: string;
 }) {
   return (
-    <div className="syntax-preview-row">
-      <span>{label}</span>
-      <span className="syntax-preview-swatches">
-        <span
-          aria-label="背景色"
-          className={getToneSwatchClass(tone)}
-          role="img"
-          style={getToneSwatchStyle(tone)}
-        >
-          <span />
-        </span>
-        <span
-          aria-label="文字色"
-          className={getToneSwatchClass(textColor)}
-          role="img"
-          style={getToneSwatchStyle(textColor)}
-        >
-          <span />
-        </span>
+    <div
+      className={cx(
+        "syntax-render-line",
+        getRenderToneClass(tone),
+        getRenderTextColorClass(textColor),
+      )}
+      style={getRenderStyle({ textColor, tone })}
+    >
+      <span className="syntax-render-marker">{marker}</span>
+      <span className={cx("syntax-render-text", inline && "syntax-render-inline")}>
+        {value}
       </span>
     </div>
   );
+}
+
+function getInlinePreviewValue(rule: UiSyntaxProfileDraftInlineRule) {
+  return rule.kind === "paired"
+    ? `${rule.open || "{"}行内内容${rule.close || "}"}`
+    : `${rule.marker || "*"}行内内容`;
 }
 
 export function SyntaxDetailPanel({
@@ -418,31 +455,36 @@ export function SyntaxDetailPanel({
           </dl>
         </Section>
         <Section title="语法可视化">
-          <div className="syntax-preview-list">
-            <SyntaxTonePreview
-              label="首行标题"
+          <div className="syntax-render-list">
+            <SyntaxRenderLine
+              marker="T"
               textColor={view.syntax.draft.titleRule.textColor}
               tone={view.syntax.draft.titleRule.tone}
+              value="首行标题示例"
             />
-            <SyntaxTonePreview
-              label="顶格概念"
+            <SyntaxRenderLine
+              marker="C"
               textColor={view.syntax.draft.conceptRule.textColor}
               tone={view.syntax.draft.conceptRule.tone}
+              value="顶格概念示例"
             />
             {view.syntax.draft.markerRules.map((rule) => (
-              <SyntaxTonePreview
+              <SyntaxRenderLine
                 key={rule.id}
-                label={rule.label}
+                marker={rule.marker || "·"}
                 textColor={rule.textColor}
                 tone={rule.tone}
+                value={`${rule.label}示例`}
               />
             ))}
             {view.syntax.draft.inlineRules.map((rule) => (
-              <SyntaxTonePreview
+              <SyntaxRenderLine
+                inline
                 key={rule.id}
-                label={rule.label}
+                marker="I"
                 textColor={rule.textColor}
                 tone={rule.tone}
+                value={getInlinePreviewValue(rule)}
               />
             ))}
           </div>

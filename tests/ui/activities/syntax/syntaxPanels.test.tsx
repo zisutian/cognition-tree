@@ -27,6 +27,8 @@ describe("syntax panels", () => {
     expect(markup).toContain("当前配置");
     expect(markup).toContain("缩进宽度");
     expect(markup).toContain("语法可视化");
+    expect(markup).toContain("syntax-render-line");
+    expect(markup).toContain("首行标题示例");
     expect(markup).not.toContain("语法统计");
   });
 });

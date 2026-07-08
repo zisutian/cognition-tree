@@ -44,9 +44,12 @@
 .context-caption,
 .context-empty {
   margin: 0;
+  overflow: hidden;
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .note-editor-panel {
@@ -319,7 +322,14 @@
 }
 
 .syntax-grid-section {
-  grid-template-columns: minmax(0, 1fr) calc(var(--ui-control-height) * 3);
+  grid-template-columns:
+    minmax(calc(var(--ui-control-height) * 14), 1fr)
+    calc(var(--ui-control-height) * 3);
+  justify-content: start;
+}
+
+.syntax-grid-section > :first-child {
+  grid-column: 1 / -1;
 }
 
 .syntax-row {
@@ -352,23 +362,30 @@
 .syntax-block-row,
 .syntax-block-header {
   grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 4), 1fr)
-    calc(var(--ui-control-height) * 2)
+    minmax(calc(var(--ui-control-height) * 5), calc(var(--ui-control-height) * 7))
+    calc(var(--ui-control-height) * 2 + var(--ui-gap))
     calc(var(--ui-control-height) * 4)
-    minmax(calc(var(--ui-control-height) * 4), 0.8fr)
-    minmax(calc(var(--ui-control-height) * 4), 0.8fr)
+    calc(var(--ui-control-height) * 5)
+    calc(var(--ui-control-height) * 5)
     var(--ui-icon-size);
 }
 
 .syntax-inline-row,
 .syntax-inline-header {
   grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 4), 1fr)
-    minmax(calc(var(--ui-control-height) * 3), 0.8fr)
-    minmax(calc(var(--ui-control-height) * 3), 0.8fr)
-    minmax(calc(var(--ui-control-height) * 4), 0.8fr)
-    minmax(calc(var(--ui-control-height) * 4), 0.8fr)
+    minmax(calc(var(--ui-control-height) * 5), calc(var(--ui-control-height) * 7))
+    calc(var(--ui-control-height) * 4)
+    calc(var(--ui-control-height) * 4)
+    calc(var(--ui-control-height) * 5)
+    calc(var(--ui-control-height) * 5)
     var(--ui-icon-size);
+}
+
+.syntax-block-row,
+.syntax-block-header,
+.syntax-inline-row,
+.syntax-inline-header {
+  justify-content: start;
 }
 
 .syntax-block-header,
@@ -383,8 +400,9 @@
   display: grid;
   grid-template-columns:
     calc(var(--ui-control-height) * 4)
-    minmax(calc(var(--ui-control-height) * 4), 1fr)
-    minmax(calc(var(--ui-control-height) * 4), 1fr);
+    calc(var(--ui-control-height) * 5)
+    calc(var(--ui-control-height) * 5);
+  justify-content: start;
   align-items: center;
   gap: var(--ui-gap-tight);
 }
@@ -581,32 +599,189 @@
   background: var(--syntax-tone-color);
 }
 
-.syntax-preview-list {
+.syntax-render-list {
   display: grid;
   gap: calc(var(--ui-gap-tight) / 2);
 }
 
-.syntax-preview-row {
+.syntax-render-line {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: calc(var(--ui-control-height) + var(--ui-gap)) minmax(0, 1fr);
   align-items: center;
-  gap: var(--ui-gap);
-  min-height: var(--ui-tree-row-height);
+  gap: var(--ui-gap-tight);
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap-tight);
+  border-left: calc(var(--ui-border-width) * 2) solid transparent;
+  border-radius: var(--ui-radius);
   color: var(--color-fg);
   font-size: var(--ui-body-font-size);
   line-height: var(--ui-body-line-height);
 }
 
-.syntax-preview-row > span:first-child {
+.syntax-render-marker {
+  overflow: hidden;
+  color: var(--color-link);
+  font-family: var(--font-code);
+  font-size: var(--ui-code-font-size);
+  line-height: var(--ui-code-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syntax-render-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.syntax-preview-swatches {
-  display: inline-flex;
-  gap: calc(var(--ui-gap-tight) / 2);
+.syntax-render-inline {
+  text-decoration-line: underline;
+  text-decoration-thickness: calc(var(--ui-border-width) * 2);
+  text-underline-offset: 0.18em;
+}
+
+.syntax-render-tone-default {
+  background: transparent;
+}
+
+.syntax-render-tone-green {
+  background: var(--ctn-tone-green-soft);
+  border-left-color: var(--ctn-tone-green);
+}
+
+.syntax-render-tone-teal {
+  background: var(--ctn-tone-teal-soft);
+  border-left-color: var(--ctn-tone-teal);
+}
+
+.syntax-render-tone-cyan,
+.syntax-render-tone-blue {
+  background: var(--ctn-tone-blue-soft);
+  border-left-color: var(--ctn-tone-blue);
+}
+
+.syntax-render-tone-indigo {
+  background: var(--ctn-tone-indigo-soft);
+  border-left-color: var(--ctn-tone-indigo);
+}
+
+.syntax-render-tone-violet,
+.syntax-render-tone-pink {
+  background: var(--ctn-tone-violet-soft);
+  border-left-color: var(--ctn-tone-violet);
+}
+
+.syntax-render-tone-red {
+  background: var(--ctn-tone-red-soft);
+  border-left-color: var(--ctn-tone-red);
+}
+
+.syntax-render-tone-amber {
+  background: var(--ctn-tone-amber-soft);
+  border-left-color: var(--ctn-tone-amber);
+}
+
+.syntax-render-tone-gray {
+  background: var(--ctn-tone-gray-soft);
+  border-left-color: var(--ctn-tone-gray);
+}
+
+.syntax-render-tone-custom {
+  background: color-mix(in srgb, var(--syntax-render-tone-color) 10%, transparent);
+  border-left-color: var(--syntax-render-tone-color);
+}
+
+.syntax-render-text-default .syntax-render-text {
+  color: var(--color-fg);
+}
+
+.syntax-render-text-green .syntax-render-text {
+  color: var(--ctn-tone-green);
+}
+
+.syntax-render-text-teal .syntax-render-text {
+  color: var(--ctn-tone-teal);
+}
+
+.syntax-render-text-cyan .syntax-render-text {
+  color: var(--ctn-tone-cyan);
+}
+
+.syntax-render-text-blue .syntax-render-text {
+  color: var(--ctn-tone-blue);
+}
+
+.syntax-render-text-indigo .syntax-render-text {
+  color: var(--ctn-tone-indigo);
+}
+
+.syntax-render-text-violet .syntax-render-text {
+  color: var(--ctn-tone-violet);
+}
+
+.syntax-render-text-pink .syntax-render-text {
+  color: var(--ctn-tone-pink);
+}
+
+.syntax-render-text-red .syntax-render-text {
+  color: var(--ctn-tone-red);
+}
+
+.syntax-render-text-amber .syntax-render-text {
+  color: var(--ctn-tone-amber);
+}
+
+.syntax-render-text-gray .syntax-render-text {
+  color: var(--ctn-tone-gray);
+}
+
+.syntax-render-text-custom .syntax-render-text {
+  color: var(--syntax-render-text-color);
+}
+
+.syntax-render-tone-green .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-green);
+}
+
+.syntax-render-tone-teal .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-teal);
+}
+
+.syntax-render-tone-cyan .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-cyan);
+}
+
+.syntax-render-tone-blue .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-blue);
+}
+
+.syntax-render-tone-indigo .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-indigo);
+}
+
+.syntax-render-tone-violet .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-violet);
+}
+
+.syntax-render-tone-pink .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-pink);
+}
+
+.syntax-render-tone-red .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-red);
+}
+
+.syntax-render-tone-amber .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-amber);
+}
+
+.syntax-render-tone-gray .syntax-render-inline {
+  text-decoration-color: var(--ctn-tone-gray);
+}
+
+.syntax-render-tone-custom .syntax-render-inline {
+  text-decoration-color: var(--syntax-render-tone-color);
 }
 
 .graph-body {

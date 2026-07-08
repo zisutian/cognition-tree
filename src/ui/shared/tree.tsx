@@ -292,7 +292,10 @@ export function NoteTree({
                     <Folder aria-hidden="true" size={13} />
                   </>
                 ) : (
-                  <FileText aria-hidden="true" size={13} />
+                  <>
+                    <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+                    <FileText aria-hidden="true" size={13} />
+                  </>
                 )}
                 <span className="ui-tree-text">{node.title}</span>
                 {node.kind === "note" ? renderNoteBadges?.(node) : null}

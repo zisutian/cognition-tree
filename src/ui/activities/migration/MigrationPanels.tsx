@@ -57,6 +57,26 @@ function readDraggedLine(event: DragEvent<HTMLElement>) {
   });
 }
 
+const emptySelectedLineNumbers = new Set<number>();
+
+function findNoteTitle(nodes: TreeNode[], noteId: string): string | null {
+  for (const node of nodes) {
+    if (node.kind === "note" && node.noteId === noteId) {
+      return node.title;
+    }
+
+    if (node.kind === "folder") {
+      const title = findNoteTitle(node.children, noteId);
+
+      if (title) {
+        return title;
+      }
+    }
+  }
+
+  return null;
+}
+
 function DropTarget({
   activePosition,
   label,
@@ -238,6 +258,15 @@ export function MigrationContext({ view }: { view: ViewModel }) {
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [pairSelectionPhase, setPairSelectionPhase] =
+    useState<"selectSource" | "selectTarget">("selectSource");
+  const [pendingSourceNoteId, setPendingSourceNoteId] = useState<string | null>(
+    null,
+  );
+  const resetPairSelection = () => {
+    setPairSelectionPhase("selectSource");
+    setPendingSourceNoteId(null);
+  };
   const moveNode = (request: TreeMoveRequest) => {
     if (request.source.kind !== "note" || request.target.kind !== "note") {
       return;
@@ -247,6 +276,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
       request.source.noteId,
       request.target.noteId,
     );
+    resetPairSelection();
   };
   const noteBadges = (node: Extract<TreeNode, { kind: "note" }>) => (
     <>
@@ -261,28 +291,6 @@ export function MigrationContext({ view }: { view: ViewModel }) {
       ) : null}
     </>
   );
-  const actions = (node: TreeNode) =>
-    node.kind === "note"
-      ? [
-          {
-            label: "源",
-            onClick: () => view.migration.onSelectMigrationSourceNote(node.noteId),
-          },
-          {
-            disabled: node.noteId === view.migration.sourceNoteId,
-            label: "目标",
-            onClick: () => view.migration.onSelectMigrationTargetNote(node.noteId),
-            title:
-              node.noteId === view.migration.sourceNoteId
-                ? "目标不能与源相同"
-                : "设为目标",
-          },
-          {
-            label: "结构",
-            onClick: () => view.migration.onSelectStructureNote(node.noteId),
-          },
-        ]
-      : [];
   const toggleFolder = (folderId: string) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -302,16 +310,54 @@ export function MigrationContext({ view }: { view: ViewModel }) {
       return;
     }
 
+    if (pairSelectionPhase === "selectTarget") {
+      const sourceNoteId = pendingSourceNoteId ?? view.migration.sourceNoteId;
+
+      if (noteId === sourceNoteId) {
+        return;
+      }
+
+      view.migration.onPairNotesForMigration(sourceNoteId, noteId);
+      resetPairSelection();
+      return;
+    }
+
     view.migration.onSelectMigrationSourceNote(noteId);
+    setPendingSourceNoteId(noteId);
+    setPairSelectionPhase("selectTarget");
   };
+  const pendingSourceTitle = pendingSourceNoteId
+    ? findNoteTitle(view.migration.noteTree, pendingSourceNoteId) ??
+      view.migration.sourceNote?.title ??
+      "未选择"
+    : (view.migration.sourceNote?.title ?? "未选择");
+  const activeNoteId =
+    view.migration.mode === "structure"
+      ? view.migration.structureNoteId
+      : pairSelectionPhase === "selectTarget"
+        ? pendingSourceNoteId ?? view.migration.sourceNoteId
+        : view.migration.sourceNoteId;
+  const statusText =
+    view.migration.mode === "structure"
+      ? `点选结构 · ${view.migration.structureNote?.title ?? "未选择"}`
+      : pairSelectionPhase === "selectTarget"
+        ? [`已选源 ${pendingSourceTitle}`, "点选目标"].join(" · ")
+        : [
+            "点选源",
+            `当前源 ${view.migration.sourceNote?.title ?? "未选择"}`,
+            `目标 ${view.migration.targetNote?.title ?? "未选择"}`,
+          ].join(" · ");
 
   return (
     <div className="activity-context-content">
-      <p className="context-caption">拖动笔记到另一个笔记形成迁移配对。</p>
+      <p className="context-caption">{statusText}</p>
       <div className="migration-mode-switch" aria-label="迁移模式" role="group">
         <Button
           className={view.migration.mode === "pair" ? "is-active" : undefined}
-          onClick={() => view.migration.onSetMigrationMode("pair")}
+          onClick={() => {
+            view.migration.onSetMigrationMode("pair");
+            resetPairSelection();
+          }}
           type="button"
         >
           源和目标
@@ -320,19 +366,17 @@ export function MigrationContext({ view }: { view: ViewModel }) {
           className={
             view.migration.mode === "structure" ? "is-active" : undefined
           }
-          onClick={() => view.migration.onSetMigrationMode("structure")}
+          onClick={() => {
+            view.migration.onSetMigrationMode("structure");
+            resetPairSelection();
+          }}
           type="button"
         >
           结构
         </Button>
       </div>
       <NoteTree
-        activeNoteId={
-          view.migration.mode === "structure"
-            ? view.migration.structureNoteId
-            : view.migration.sourceNoteId
-        }
-        actions={actions}
+        activeNoteId={activeNoteId}
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.migration.noteTree}
         renderNoteBadges={noteBadges}
@@ -425,7 +469,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
             activeTargetLineNumber={activeTargetLineNumber}
             draggingLineNumber={draggingLineNumber}
             nodes={view.migration.targetRoots}
-            selectedLineNumbers={selectedLineNumbers}
+            selectedLineNumbers={emptySelectedLineNumbers}
             selectedRootLineNumber={null}
             onActivateTarget={setActiveTargetLineNumber}
             onDropLine={dropLine}
