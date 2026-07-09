@@ -1,58 +1,57 @@
 架构边界
 
 
-1. 文档边界
+1. 模块职责
 
-    本文记录目标目录职责和依赖方向。
-    本文采用最精简的正向描述。
-    文档边界章节保留。
+app：
 
+    应用组合根，装配 application、ui、storage 和 editor。
 
-2. 目录职责
+application：
 
-src/app：
+    workspace 应用层，管理 session、命令流程、加载保存、页面状态、视图选择和 UI 投影。
 
-    应用组合根，装配 application、ui、storage、editor。
+ui：
 
-src/application：
+    workbench 界面层，组合活动栏、槽位布局、activity 页面、共享组件和样式系统。
 
-    workspace 应用用例，管理 session、页面状态、命令流程、加载保存和端口调用。
-
-src/ui：
-
-    应用界面层，组合导航、布局、activity 和共享展示。
-    activities：用户功能界面，承载 activity 视图和局部交互状态。
-    shared：UI 共用组件和展示结构。
-    styles：UI 全局样式、主题和布局。
-
-src/workspace：
+workspace：
 
     workspace 业务核心，承载数据模型、命令、查询、索引和语法上下文。
 
-src/ctn：
+ctn：
 
-    parser：CTN 原文解析，提供结构、诊断、引用和 block 文本结构能力。
-    syntax：CTN 语法核心，提供 profile、默认语法、配置解析和校验。
+    CTN 核心能力，承载原文解析、结构诊断、引用解析、块文本编辑和 syntax profile。
 
-src/storage：
+storage：
 
-    持久化端口和存储实现，负责 workspace 数据和 syntax source 读写。
+    前端持久化端口和实现，负责 workspace 数据与仓库语法 source 的读取和保存。
 
-src/editor：
+editor：
 
-    编辑器技术适配，提供编辑器组件、事件桥接和语法能力集成。
+    编辑器技术适配，承载 CodeMirror 组件、扩展、装饰、诊断提示和语法展示。
 
 server：
 
-    本地 HTTP API 和文件仓库执行端。
+    本机 HTTP API 和文件仓库执行端，负责请求处理、DTO 校验、原子写入和本地文件布局。
 
 
-3. 依赖方向
+2. 依赖方向
 
-    src/app -> src/application、src/ui、src/storage、src/editor
-    src/ui -> src/application、src/editor
-    src/application -> src/workspace、src/ctn、src/storage
-    src/workspace -> src/ctn
-    src/storage -> src/workspace
-    src/editor -> src/ctn
+    app -> application、ui、storage、editor
+    ui -> application、editor
+    application -> workspace、ctn、storage
+    workspace -> ctn
+    storage -> workspace
+    editor -> ctn
     server -> Node HTTP、文件系统、本地文件仓库 DTO
+
+
+3. 数据流
+
+    server 从本地文件仓库读取 workspace 和 syntax source。
+    storage 将后端响应转换为前端 workspace repository 数据。
+    application 维护 session，调用 workspace 命令并生成 UI 需要的 view model。
+    ui 根据 view model 渲染 workbench，并通过回调触发 application 命令。
+    editor 接收 ui 和 application 给出的文本、诊断和语法展示数据。
+    workspace 和 ctn 负责结构、语义和派生数据的确定性计算。

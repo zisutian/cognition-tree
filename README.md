@@ -1,75 +1,57 @@
 # 认知树
 
-本地优先的可配置语法认知树笔记软件。
+认知树是本地优先的可配置语法结构化笔记应用。它以 `.ctn` 原文、缩进层级、仓库语法和引用关系组织知识，面向概念记录、结构整理和本地文件仓库管理。
 
-认知树不是 Markdown 编辑器，也不是传统富文本笔记。它用 `.ctn` 原文、缩进层级和仓库语法记录概念、定义、组分、自我理解、多行内容和引用关系。
+## 当前运行形态
 
-## 当前状态
+当前仓库包含一个浏览器前端和一个本机 Node HTTP 后端。
 
-当前路线：
+    前端：React、Vite、CodeMirror、Canvas 引用图谱。
+    后端：Node HTTP API、本地文件仓库读写。
+    存储：默认写入 .cognition-tree/repository。
 
-    浏览器前端 + 本机 Node HTTP 后端 + 本地文件仓库。
-
-已具备能力：
-
-    运行与存储：React / Vite 前端、Node HTTP 后端、本地文件仓库、WorkspaceRepository。
-    笔记编辑：CodeMirror 原文编辑、CTN parser、笔记和目录树管理。
-    仓库语法：syntax/workspace.toml、受控语法编辑、前端 CTN syntax 解析。
-    块迁移：跨笔记移动整棵块子树。
-    可视化：第一版笔记级引用图谱。
-
-数据文件：
+数据文件由后端按仓库结构生成和读取：
 
     workspace.json
     notes/*.ctn
     syntax/workspace.toml
 
-第一版限制：
+前端也可以切换到浏览器存储模式，用于不连接本机后端的界面验证。
 
-    不处理多用户账号、公网部署、桌面安装包和移动端应用。
+## 当前能力
 
-## 开发
+    笔记：创建、编辑、删除、重命名和移动笔记。
+    目录：创建、重命名、删除和移动文件夹。
+    编辑器：编辑 CTN 原文，以 Tab 表达结构层级。
+    仓库语法：编辑仓库级语法配置，并用当前配置解析笔记。
+    结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
+    引用图谱：查看笔记级引用关系、局部图谱和未解析引用。
+    设置：查看存储模式、仓库位置和保存状态。
 
-需要：
+搜索和数据活动保留入口，当前作为后续能力的占位页面。
 
-    Node.js LTS
-    pnpm
+## 开发命令
 
-常用命令：
+安装依赖：
 
     pnpm install
+
+安装本地 Git hooks：
+
     pnpm hooks:install
+
+启动本机后端：
+
     pnpm server
+
+启动前端开发服务：
+
     pnpm dev
-    pnpm test
+
+常用验证：
+
     pnpm check
-    pnpm build
-
-提交信息格式：
-
-    type(scope): subject
-
-提交类型：
-
-    feat
-    fix
-    perf
-    refactor
-    test
-    docs
-    chore
-    build
-    ci
-
-本地提交钩子：
-
-    commit-msg：检查提交信息格式。
-    pre-commit：运行 git diff --cached --check、pnpm check 和架构边界测试。
-
-提交前验证：
-
     pnpm test
-    pnpm check
     pnpm build
     git diff --check
 
@@ -80,24 +62,36 @@
     node --check server/workspaceFileStore.mjs
     node --check server/workspaceManifestDto.mjs
 
+本地提交钩子会运行暂存 diff 检查、TypeScript 检查和架构边界测试。提交信息使用 `type(scope): subject` 格式。
+
+## 地址和环境变量
+
 默认地址：
 
     前端：http://127.0.0.1:5173
     后端：http://127.0.0.1:3001
 
-环境变量：
+后端环境变量：
 
-    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001 pnpm dev
-    VITE_CTN_STORAGE_MODE=browser pnpm dev
+    CTN_API_HOST=127.0.0.1
+    CTN_API_PORT=3001
+    CTN_REPOSITORY_DIR=.cognition-tree/repository
+
+前端环境变量：
+
+    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001
+    VITE_CTN_STORAGE_MODE=browser
 
 ## 代码结构
 
     src/app/          应用组合根
-    src/application/  session、命令流程、加载保存、状态和端口调用
-    src/ui/           shell、activities、shared 用户界面
-    src/workspace/    model、commands、queries、indexes、context workspace 业务核心
-    src/ctn/          parser、syntax CTN 解析和语法核心
-    src/storage/      workspace 数据和 syntax source 读写
-    src/editor/       编辑器技术适配
+    src/application/  workspace session、命令流程、状态和视图投影
+    src/ui/           workbench 框架、activities、shared primitives 和样式
+    src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
+    src/ctn/          CTN parser 和 syntax profile
+    src/storage/      workspace repository 端口和前端存储实现
+    src/editor/       CodeMirror 编辑器适配
     server/           本地 HTTP API 和文件仓库执行端
-    tests/            单元测试和架构边界测试
+    tests/            单元测试、UI 测试和架构边界测试
+
+更细的产品、架构、工程和界面约束记录在 `docs/` 下的专题文档中。

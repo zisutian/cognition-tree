@@ -1,46 +1,116 @@
 环境准备
 
 
-1. Linux
+1. 基础工具
 
-用途：
+当前项目使用 Node.js、pnpm、Vite、Vitest 和 TypeScript。
 
-    日常开发、测试、后端服务、Docker 验证、Git 提交。
+推荐工具：
 
-状态：
+    Node.js 22.x
+    pnpm 11.1.3
+    Git 2.x
 
-    系统：Ubuntu 24.04.4 LTS
-    项目目录：/home/zisu/code/cognition-tree/repo
-    Git：2.43.0
-    Node.js：v22.18.0
-    npm：10.9.3
-    pnpm：11.1.3
-    Docker：28.3.3
-    Docker Compose：v2.39.1
-    SQLite：3.45.1
+依赖安装：
 
+    pnpm install
 
-2. Windows
+本地 Git hooks：
 
-用途：
+    pnpm hooks:install
 
-    通过浏览器访问同一个后端服务，检查界面、输入法、路径和数据互通。
-
-当前目录：
-
-    C:\Users\thefu\Documents\cognition-tree
-
-待确认：
-
-    独立 Node.js LTS
-    pnpm
-    Docker Desktop
+package.json 固定的包管理器为 `pnpm@11.1.3`。
 
 
-3. 双端运行
+2. 本机后端
 
-    Windows 和 Linux 各自保留一份代码仓库。
-    笔记数据互通通过同一个 HTTP 后端服务完成。
-    笔记数据不依赖同步代码目录。
-    主项目目录避开中文路径、空格路径和同步盘特殊目录。
-    仓库统一使用 LF；Windows 批处理和 PowerShell 文件保留 CRLF。
+启动命令：
+
+    pnpm server
+
+默认地址：
+
+    http://127.0.0.1:3001
+
+默认仓库路径：
+
+    .cognition-tree/repository
+
+后端环境变量：
+
+    CTN_API_HOST
+    CTN_API_PORT
+    CTN_REPOSITORY_DIR
+
+后端提供 workspace、syntax、repository 和 health API。文件仓库写入由 server 执行，前端通过 HTTP repository 访问。
+
+
+3. 前端开发服务
+
+启动命令：
+
+    pnpm dev
+
+默认地址：
+
+    http://127.0.0.1:5173
+
+连接本机后端：
+
+    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001 pnpm dev
+
+使用浏览器存储：
+
+    VITE_CTN_STORAGE_MODE=browser pnpm dev
+
+HTTP 模式用于真实本地文件仓库。浏览器存储模式用于界面和交互验证。
+
+
+4. 数据文件
+
+本地文件仓库包含：
+
+    workspace.json
+    notes/*.ctn
+    syntax/workspace.toml
+
+`workspace.json` 保存仓库、目录树和笔记元信息。`notes/*.ctn` 保存笔记原文。`syntax/workspace.toml` 保存仓库语法 source。
+
+笔记文件名来自笔记标题，笔记标题来自原文第一行。目录和文件名由文件仓库执行端校验。
+
+
+5. 验证命令
+
+TypeScript：
+
+    pnpm check
+
+测试：
+
+    pnpm test
+
+构建：
+
+    pnpm build
+
+diff 空白检查：
+
+    git diff --check
+
+架构边界测试：
+
+    pnpm vitest run tests/architecture/moduleBoundaries.test.ts
+
+后端脚本语法检查：
+
+    node --check server/index.mjs
+    node --check server/workspaceApiServer.mjs
+    node --check server/workspaceFileStore.mjs
+    node --check server/workspaceManifestDto.mjs
+
+
+6. 双端使用
+
+Linux 作为主要开发、测试和后端运行环境。Windows 可通过浏览器访问同一个本机后端服务，用于检查界面、输入法、路径展示和数据互通。
+
+两端代码仓库可以分别存在。笔记数据以 HTTP 后端指向的仓库路径为准。项目目录使用普通英文路径，仓库文件使用 LF。
