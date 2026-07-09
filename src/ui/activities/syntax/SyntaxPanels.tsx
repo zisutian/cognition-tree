@@ -445,10 +445,10 @@ export function SyntaxDetailPanel({
           </Button>
         }
       />
-      <PanelBody scroll>
-        <div className="syntax-detail-summary">
+      <PanelBody className="detail-panel-stack" scroll>
+        <div className="detail-primary-row">
           <p>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</p>
-          <dl className="syntax-detail-meta">
+          <dl className="detail-meta-line" aria-label="语法配置摘要">
             <div>
               <dd>
                 {view.syntax.draftResult.profile?.tabDisplayWidth ??
@@ -458,41 +458,40 @@ export function SyntaxDetailPanel({
             </div>
           </dl>
         </div>
-        <Section className="syntax-detail-preview" title="语法可视化">
-          <div className="syntax-render-list">
+        <div aria-hidden="true" className="detail-divider" />
+        <div aria-label="语法可视化" className="syntax-render-list">
+          <SyntaxRenderLine
+            marker="T"
+            textColor={view.syntax.draft.titleRule.textColor}
+            tone={view.syntax.draft.titleRule.tone}
+            value="首行标题示例"
+          />
+          <SyntaxRenderLine
+            marker="C"
+            textColor={view.syntax.draft.conceptRule.textColor}
+            tone={view.syntax.draft.conceptRule.tone}
+            value="顶格概念示例"
+          />
+          {view.syntax.draft.markerRules.map((rule) => (
             <SyntaxRenderLine
-              marker="T"
-              textColor={view.syntax.draft.titleRule.textColor}
-              tone={view.syntax.draft.titleRule.tone}
-              value="首行标题示例"
+              key={rule.id}
+              marker={rule.marker || "·"}
+              textColor={rule.textColor}
+              tone={rule.tone}
+              value={`${rule.label}示例`}
             />
+          ))}
+          {view.syntax.draft.inlineRules.map((rule) => (
             <SyntaxRenderLine
-              marker="C"
-              textColor={view.syntax.draft.conceptRule.textColor}
-              tone={view.syntax.draft.conceptRule.tone}
-              value="顶格概念示例"
+              inline
+              key={rule.id}
+              marker="I"
+              textColor={rule.textColor}
+              tone={rule.tone}
+              value={getInlinePreviewValue(rule)}
             />
-            {view.syntax.draft.markerRules.map((rule) => (
-              <SyntaxRenderLine
-                key={rule.id}
-                marker={rule.marker || "·"}
-                textColor={rule.textColor}
-                tone={rule.tone}
-                value={`${rule.label}示例`}
-              />
-            ))}
-            {view.syntax.draft.inlineRules.map((rule) => (
-              <SyntaxRenderLine
-                inline
-                key={rule.id}
-                marker="I"
-                textColor={rule.textColor}
-                tone={rule.tone}
-                value={getInlinePreviewValue(rule)}
-              />
-            ))}
-          </div>
-        </Section>
+          ))}
+        </div>
       </PanelBody>
     </Panel>
   );

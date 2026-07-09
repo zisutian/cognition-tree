@@ -39,11 +39,18 @@ describe("syntax panels", () => {
     expect(markup).toContain("语法详情");
     expect(markup).toContain("缩进宽度");
     expect(markup).toContain("语法可视化");
-    expect(markup).toContain("syntax-detail-summary");
-    expect(markup).toContain("syntax-detail-meta");
-    expect(markup).toContain("syntax-detail-preview");
+    expect(markup).toContain("detail-panel-stack");
+    expect(markup).toContain("detail-primary-row");
+    expect(markup).toContain("detail-meta-line");
+    expect(markup).toContain("detail-divider");
     expect(markup).toContain("syntax-render-line");
+    expect(markup).toContain("syntax-render-marker");
     expect(markup).toContain("首行标题示例");
+    expect(markup).not.toContain("ui-symbol-slot");
+    expect(markup).not.toContain("ui-section-title");
+    expect(markup).not.toContain("syntax-detail-summary");
+    expect(markup).not.toContain("syntax-detail-meta");
+    expect(markup).not.toContain("syntax-detail-preview");
     expect(markup).not.toContain("syntax-detail-config");
     expect(markup).not.toContain("当前配置");
     expect(markup).not.toContain("语法统计");
@@ -63,6 +70,9 @@ describe("syntax panels", () => {
     );
     expect(activitiesCss).not.toMatch(
       /\.syntax-render-tone-green \{[\s\S]*?background: var\(--ctn-tone-green-soft\)/,
+    );
+    expect(activitiesCss).toContain(
+      "minmax(calc(var(--ui-control-height) * 2), max-content)",
     );
   });
 });

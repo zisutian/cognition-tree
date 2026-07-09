@@ -107,9 +107,10 @@ describe("visualization panels", () => {
       />,
     );
 
-    expect(markup).toContain("graph-detail-summary");
-    expect(markup).toContain("graph-current-node");
-    expect(markup).toContain("graph-current-node-meta");
+    expect(markup).toContain("detail-summary-strip");
+    expect(markup).toContain("detail-primary-row");
+    expect(markup).toContain("detail-meta-line");
+    expect(markup).toContain("detail-divider");
     expect(markup).toContain("<dd>3</dd><dt>点</dt>");
     expect(markup).toContain("<dd>2</dd><dt>边</dt>");
     expect(markup).toContain("Target note");
@@ -117,8 +118,12 @@ describe("visualization panels", () => {
     expect(markup).toContain("出链");
     expect(markup).not.toContain("ui-metrics");
     expect(markup).not.toContain("detail-list");
-    expect(markup.match(/detail-row-list/g)?.length).toBe(3);
-    expect(markup.match(/detail-row-main/g)?.length).toBeGreaterThanOrEqual(4);
-    expect(markup).toContain("detail-row-button");
+    expect(markup).not.toContain("detail-row-list");
+    expect(markup).not.toContain("ui-section-title");
+    expect(markup.match(/detail-line-list/g)?.length).toBe(3);
+    expect(markup.match(/detail-line-main/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(markup.match(/detail-line-marker/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(markup.match(/ui-symbol-slot/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(markup).toContain("detail-line-button");
   });
 });

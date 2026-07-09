@@ -1,5 +1,9 @@
 import {
+  CircleHelp,
   ChevronRight,
+  FileInput,
+  FileOutput,
+  Hash,
   RotateCcw,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -11,8 +15,8 @@ import {
   Panel,
   PanelBody,
   PanelHeader,
-  Section,
   SegmentedControl,
+  SymbolSlot,
 } from "../../shared/primitives";
 import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas";
 import {
@@ -203,10 +207,10 @@ export function VisualizationDetailPanel({
           </Button>
         }
       />
-      <PanelBody scroll>
+      <PanelBody className="detail-panel-stack" scroll>
         <dl
           aria-label="图谱统计"
-          className="graph-detail-summary"
+          className="detail-summary-strip"
         >
           <div>
             <dd>{graph.stats.nodeCount}</dd>
@@ -221,92 +225,113 @@ export function VisualizationDetailPanel({
             <dt>孤立</dt>
           </div>
         </dl>
-        <Section title="当前节点">
-          {activeNode ? (
-            <div className="graph-current-node">
-              <p>{activeNode.title}</p>
-              <dl className="graph-current-node-meta">
-                <div>
-                  <dd>{activeNode.referencesIn}</dd>
-                  <dt>入链</dt>
-                </div>
-                <div>
-                  <dd>{activeNode.referencesOut}</dd>
-                  <dt>出链</dt>
-                </div>
-              </dl>
-            </div>
-          ) : (
-            <p className="ui-muted">选择图中的笔记节点查看详情。</p>
-          )}
-        </Section>
-        <Section title="邻接关系">
-          {incomingEdges.length + outgoingEdges.length > 0 ? (
-            <ul className="detail-row-list">
-              {incomingEdges.slice(0, 8).map((edge) => (
-                <li key={`in-${edge.id}`}>
-                  <div className="detail-row">
-                    <span className="detail-row-main">
-                      {titleById.get(edge.sourceNoteId) ?? edge.sourceNoteId}
-                    </span>
-                    <span className="detail-row-meta">引用此笔记 × {edge.count}</span>
-                  </div>
-                </li>
-              ))}
-              {outgoingEdges.slice(0, 8).map((edge) => (
-                <li key={`out-${edge.id}`}>
-                  <div className="detail-row">
-                    <span className="detail-row-main">{edge.targetTitle}</span>
-                    <span className="detail-row-meta">
-                      被此笔记引用 × {edge.count}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ui-muted">这个节点暂无引用关系。</p>
-          )}
-        </Section>
-        <Section title="引用排名">
-          {graph.mostReferencedNodes.length > 0 ? (
-            <ul className="detail-row-list">
-              {graph.mostReferencedNodes.map((node) => (
-                <li key={node.id}>
-                  <button
-                    className="detail-row detail-row-button"
-                    type="button"
-                    onClick={() => visualization.onSelectNote(node.id)}
+        {activeNode ? (
+          <div className="detail-primary-row">
+            <p>{activeNode.title}</p>
+            <dl className="detail-meta-line" aria-label="当前节点引用">
+              <div>
+                <dd>{activeNode.referencesIn}</dd>
+                <dt>入链</dt>
+              </div>
+              <div>
+                <dd>{activeNode.referencesOut}</dd>
+                <dt>出链</dt>
+              </div>
+            </dl>
+          </div>
+        ) : (
+          <p className="ui-muted">选择图中的笔记节点查看详情。</p>
+        )}
+        <div aria-hidden="true" className="detail-divider" />
+        {incomingEdges.length + outgoingEdges.length > 0 ? (
+          <ul aria-label="邻接关系" className="detail-line-list">
+            {incomingEdges.slice(0, 8).map((edge) => (
+              <li key={`in-${edge.id}`}>
+                <div className="detail-line-row">
+                  <SymbolSlot
+                    aria-hidden="true"
+                    className="detail-line-marker"
+                    tone="muted"
                   >
-                    <span className="detail-row-main">{node.title}</span>
-                    <span className="detail-row-meta">{node.totalReferences}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ui-muted">暂无引用关系。</p>
-          )}
-        </Section>
-        <Section title="未解析引用">
-          {graph.unresolvedReferences.length > 0 ? (
-            <ul className="detail-row-list">
-              {graph.unresolvedReferences.slice(0, 24).map((reference) => (
-                <li key={`${reference.sourceNoteId}-${reference.targetText}`}>
-                  <div className="detail-row">
-                    <span className="detail-row-main">{reference.sourceTitle}</span>
-                    <span className="detail-row-meta">
-                      ? {reference.targetText}
-                      {reference.count > 1 ? ` × ${reference.count}` : ""}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ui-muted">没有需要处理的引用问题。</p>
-          )}
-        </Section>
+                    <FileInput aria-hidden="true" size={13} strokeWidth={2} />
+                  </SymbolSlot>
+                  <span className="detail-line-main">
+                    {titleById.get(edge.sourceNoteId) ?? edge.sourceNoteId}
+                  </span>
+                  <span className="detail-line-meta">× {edge.count}</span>
+                </div>
+              </li>
+            ))}
+            {outgoingEdges.slice(0, 8).map((edge) => (
+              <li key={`out-${edge.id}`}>
+                <div className="detail-line-row">
+                  <SymbolSlot
+                    aria-hidden="true"
+                    className="detail-line-marker"
+                    tone="muted"
+                  >
+                    <FileOutput aria-hidden="true" size={13} strokeWidth={2} />
+                  </SymbolSlot>
+                  <span className="detail-line-main">{edge.targetTitle}</span>
+                  <span className="detail-line-meta">× {edge.count}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ui-muted">这个节点暂无引用关系。</p>
+        )}
+        <div aria-hidden="true" className="detail-divider" />
+        {graph.mostReferencedNodes.length > 0 ? (
+          <ul aria-label="引用排名" className="detail-line-list">
+            {graph.mostReferencedNodes.map((node) => (
+              <li key={node.id}>
+                <button
+                  className="detail-line-row detail-line-button"
+                  type="button"
+                  onClick={() => visualization.onSelectNote(node.id)}
+                >
+                  <SymbolSlot
+                    aria-hidden="true"
+                    className="detail-line-marker"
+                    tone="muted"
+                  >
+                    <Hash aria-hidden="true" size={13} strokeWidth={2} />
+                  </SymbolSlot>
+                  <span className="detail-line-main">{node.title}</span>
+                  <span className="detail-line-meta">{node.totalReferences}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ui-muted">暂无引用关系。</p>
+        )}
+        <div aria-hidden="true" className="detail-divider" />
+        {graph.unresolvedReferences.length > 0 ? (
+          <ul aria-label="未解析引用" className="detail-line-list">
+            {graph.unresolvedReferences.slice(0, 24).map((reference) => (
+              <li key={`${reference.sourceNoteId}-${reference.targetText}`}>
+                <div className="detail-line-row">
+                  <SymbolSlot
+                    aria-hidden="true"
+                    className="detail-line-marker"
+                    tone="muted"
+                  >
+                    <CircleHelp aria-hidden="true" size={13} strokeWidth={2} />
+                  </SymbolSlot>
+                  <span className="detail-line-main">{reference.sourceTitle}</span>
+                  <span className="detail-line-meta">
+                    {reference.targetText}
+                    {reference.count > 1 ? ` × ${reference.count}` : ""}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ui-muted">没有需要处理的引用问题。</p>
+        )}
       </PanelBody>
     </Panel>
   );

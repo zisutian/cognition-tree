@@ -41,21 +41,26 @@
   cursor: pointer;
 }
 
-.ui-tree-note {
+.ui-directory-tree-row {
   grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
 }
 
 .ui-tree-toggle-spacer {
-  width: 13px;
+  width: var(--ui-symbol-size);
 }
 
 .ui-tree-row svg {
   display: block;
   flex: none;
+  width: var(--ui-symbol-size);
+  height: var(--ui-symbol-size);
 }
 
-.ui-tree-block {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+.ui-structure-tree-row {
+  grid-template-columns:
+    minmax(calc(var(--ui-control-height) * 2), max-content)
+    minmax(0, 1fr)
+    auto;
 }
 
 .ui-tree-row:hover,
@@ -94,9 +99,13 @@
   cursor: not-allowed;
 }
 
-.ui-tree-kind {
+.ui-structure-marker {
+  justify-self: start;
   color: var(--color-link);
+  font-size: var(--ui-code-font-size);
   font-weight: var(--ui-micro-strong-weight);
+  line-height: var(--ui-code-line-height);
+  white-space: nowrap;
 }
 
 .ui-tree-text,
@@ -121,16 +130,7 @@
 }
 
 .ui-tree-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 13px;
-  height: 13px;
   color: var(--color-fg-strong);
-  font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-  line-height: var(--ui-micro-line-height);
-  font-variant-numeric: var(--ui-numeric-font-variant);
 }
 
 .ui-badge {

@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  BlockTree,
   canDropTreeNode,
   createTreeMoveRequest,
   createTreeNodeDragPayload,
@@ -9,6 +8,7 @@ import {
   getTreeNodeReferenceKey,
   NoteTree,
   readTreeNodeDragPayload,
+  StructureTree,
   treeNodeDragDataType,
 } from "../../../src/ui/shared/tree";
 
@@ -43,7 +43,9 @@ describe("shared trees", () => {
     );
 
     expect(markup).toContain("ui-tree");
+    expect(markup).toContain("ui-directory-tree");
     expect(markup).toContain("ui-tree-row");
+    expect(markup).toContain("ui-directory-tree-row");
     expect(markup).toContain("当前笔记");
   });
 
@@ -208,15 +210,15 @@ describe("shared trees", () => {
     ).toEqual([]);
   });
 
-  it("renders block trees with kind, text and line metadata", () => {
+  it("renders structure trees with variable text markers and line metadata", () => {
     const markup = renderToStaticMarkup(
-      <BlockTree
+      <StructureTree
         nodes={[
           {
             children: [],
             hasDiagnostics: true,
             id: "block-1",
-            label: "#",
+            label: "顶格概念",
             lineLabel: "L1",
             lineNumber: 1,
             textDisplay: {
@@ -229,7 +231,11 @@ describe("shared trees", () => {
       />,
     );
 
-    expect(markup).toContain("ui-tree-block");
+    expect(markup).toContain("ui-structure-tree");
+    expect(markup).toContain("ui-structure-tree-row");
+    expect(markup).toContain("ui-structure-marker");
+    expect(markup).toContain("顶格概念");
+    expect(markup).not.toContain("ui-symbol-slot");
     expect(markup).toContain("has-diagnostics");
     expect(markup).toContain("L1");
   });

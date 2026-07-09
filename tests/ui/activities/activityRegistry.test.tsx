@@ -126,6 +126,8 @@ describe("activity registry", () => {
     expect(context).not.toContain("migration-mode-switch");
     expect(context).toContain("目标笔记");
     expect(context).toContain("draggable=\"true\"");
+    expect(context).toContain("ui-symbol-slot");
+    expect(context).toContain("ui-tree-status");
     expect(context).toContain("ui-tree-actions");
     expect(context).toContain("lucide-file-output");
     expect(context).toContain("lucide-file-input");
@@ -155,6 +157,8 @@ describe("activity registry", () => {
     const context = renderSlot(migrationSlots.context?.content);
 
     expect(context).toContain("点选笔记结构");
+    expect(context).toContain("ui-symbol-slot");
+    expect(context).toContain("ui-tree-status");
     expect(context).toContain("lucide-git-branch");
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");

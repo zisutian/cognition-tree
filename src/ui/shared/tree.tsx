@@ -19,8 +19,8 @@ import { cx } from "./primitives";
 
 export type TreeDropPlacement = "after" | "before" | "inside";
 
-export type TreeBlockNode = {
-  children: TreeBlockNode[];
+export type StructureTreeNode = {
+  children: StructureTreeNode[];
   hasDiagnostics: boolean;
   id: string;
   label: string;
@@ -219,7 +219,7 @@ function isActiveTreeNode({
     : activeFolderId === node.folderId;
 }
 
-export function BlockTree({
+export function StructureTree({
   activeLineNumber,
   activeLineNumbers,
   className,
@@ -240,7 +240,7 @@ export function BlockTree({
   draggingLineNumber?: string | null;
   draggable?: boolean;
   getDragPayload?: (lineNumber: number) => string;
-  nodes: TreeBlockNode[];
+  nodes: StructureTreeNode[];
   selectedRootLineNumber?: number | null;
   onDragEnd?: () => void;
   onDragStart?: (
@@ -250,7 +250,7 @@ export function BlockTree({
   onSelectLine?: (lineNumber: number) => void;
 }) {
   return (
-    <ul className={cx("ui-tree", className)}>
+    <ul className={cx("ui-tree ui-structure-tree", className)}>
       {nodes.map((node) => {
         const isSelected =
           activeLineNumber === node.lineNumber ||
@@ -261,7 +261,7 @@ export function BlockTree({
           <li key={node.id}>
             <button
               className={cx(
-                "ui-tree-row ui-tree-block",
+                "ui-tree-row ui-structure-tree-row",
                 isSelected && "is-selected is-selected-subtree",
                 selectedRootLineNumber === node.lineNumber && "is-selected-root",
                 draggingLineNumber === String(node.lineNumber) && "is-dragging",
@@ -283,12 +283,12 @@ export function BlockTree({
               title={`${node.label}: ${node.textDisplay.displayText}`}
               type="button"
             >
-              <span className="ui-tree-kind">{node.label}</span>
+              <span className="ui-structure-marker">{node.label}</span>
               <BlockText text={node.textDisplay} />
               <span className="ui-tree-meta">{node.lineLabel}</span>
             </button>
             {node.children.length > 0 ? (
-              <BlockTree
+              <StructureTree
                 activeLineNumber={activeLineNumber}
                 activeLineNumbers={activeLineNumbers}
                 dragDataType={dragDataType}
@@ -313,10 +313,10 @@ export function OutlineTree({
   nodes,
   onSelectLine,
 }: {
-  nodes: TreeBlockNode[];
+  nodes: StructureTreeNode[];
   onSelectLine: (lineNumber: number) => void;
 }) {
-  return <BlockTree nodes={nodes} onSelectLine={onSelectLine} />;
+  return <StructureTree nodes={nodes} onSelectLine={onSelectLine} />;
 }
 
 type NoteTreeProps = {
@@ -362,7 +362,7 @@ function NoteTreeContent({
   setDragState,
 }: NoteTreeContentProps) {
   return (
-    <ul className={cx("ui-tree", className)}>
+    <ul className={cx("ui-tree ui-directory-tree", className)}>
       {nodes.map((node) => {
         const nodeActions = actions?.(node) ?? [];
         const nodeReference = getTreeNodeReference(node);
@@ -481,7 +481,7 @@ function NoteTreeContent({
               }}
             >
               <button
-                className="ui-tree-row ui-tree-note"
+                className="ui-tree-row ui-directory-tree-row"
                 draggable={draggable}
                 aria-expanded={
                   isFolder && hasChildren ? !isCollapsed : undefined

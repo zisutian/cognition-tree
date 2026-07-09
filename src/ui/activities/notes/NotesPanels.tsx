@@ -1,4 +1,5 @@
 import {
+  CircleAlert,
   ChevronRight,
   FolderPlus,
   Plus,
@@ -9,11 +10,10 @@ import type { ViewModel } from "../../../application/workspace/view-model/useVie
 import {
   Button,
   EmptyState,
-  Metrics,
   Panel,
   PanelBody,
   PanelHeader,
-  Section,
+  SymbolSlot,
 } from "../../shared/primitives";
 import {
   NoteTree,
@@ -191,41 +191,63 @@ export function NoteDetailPanel({
           </Button>
         }
       />
-      <PanelBody scroll>
-        <Metrics
+      <PanelBody className="detail-panel-stack" scroll>
+        <dl
           aria-label="笔记统计"
-          items={[
-            { label: "行", value: view.editor.stats.lineCount },
-            { label: "块", value: view.editor.stats.totalBlocks },
-            { label: "根", value: view.editor.stats.rootCount },
-            { label: "诊断", value: view.editor.stats.diagnosticCount },
-          ]}
-        />
-        <Section title="结构树">
-          {view.outline.nodes.length > 0 ? (
-            <OutlineTree
-              nodes={view.outline.nodes}
-              onSelectLine={view.outline.onSelectLine}
-            />
-          ) : (
-            <p className="ui-muted">没有可解析结构。</p>
-          )}
-        </Section>
-        <Section title="诊断">
-          {view.editor.diagnostics.length > 0 ? (
-            <ul className="dense-list">
-              {view.editor.diagnostics.map((diagnostic) => (
-                <li key={diagnostic.id}>
-                  <button type="button" onClick={() => view.focusEditorLine(diagnostic.lineNumber)}>
+          className="detail-summary-strip"
+        >
+          <div>
+            <dd>{view.editor.stats.lineCount}</dd>
+            <dt>行</dt>
+          </div>
+          <div>
+            <dd>{view.editor.stats.totalBlocks}</dd>
+            <dt>块</dt>
+          </div>
+          <div>
+            <dd>{view.editor.stats.rootCount}</dd>
+            <dt>根</dt>
+          </div>
+          <div>
+            <dd>{view.editor.stats.diagnosticCount}</dd>
+            <dt>诊断</dt>
+          </div>
+        </dl>
+        {view.outline.nodes.length > 0 ? (
+          <OutlineTree
+            nodes={view.outline.nodes}
+            onSelectLine={view.outline.onSelectLine}
+          />
+        ) : (
+          <p className="ui-muted">没有可解析结构。</p>
+        )}
+        <div aria-hidden="true" className="detail-divider" />
+        {view.editor.diagnostics.length > 0 ? (
+          <ul aria-label="诊断" className="detail-line-list">
+            {view.editor.diagnostics.map((diagnostic) => (
+              <li key={diagnostic.id}>
+                <button
+                  className="detail-line-row detail-line-button"
+                  type="button"
+                  onClick={() => view.focusEditorLine(diagnostic.lineNumber)}
+                >
+                  <SymbolSlot
+                    aria-hidden="true"
+                    className="detail-line-marker"
+                    tone="danger"
+                  >
+                    <CircleAlert aria-hidden="true" size={13} strokeWidth={2} />
+                  </SymbolSlot>
+                  <span className="detail-line-main">
                     L{diagnostic.lineNumber} · {diagnostic.message}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ui-muted">没有诊断。</p>
-          )}
-        </Section>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ui-muted">没有诊断。</p>
+        )}
       </PanelBody>
     </Panel>
   );

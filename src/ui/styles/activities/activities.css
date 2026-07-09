@@ -611,54 +611,6 @@
   background: var(--syntax-tone-color);
 }
 
-.syntax-detail-summary {
-  display: grid;
-  gap: calc(var(--ui-gap-tight) / 2);
-  min-width: 0;
-}
-
-.syntax-detail-summary p {
-  margin: 0;
-  min-width: 0;
-  color: var(--color-fg);
-  font-size: var(--ui-body-font-size);
-  font-weight: var(--ui-body-weight);
-  line-height: var(--ui-body-line-height);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.syntax-detail-meta {
-  display: flex;
-  gap: var(--ui-gap);
-  margin: 0;
-  min-width: 0;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
-}
-
-.syntax-detail-meta div {
-  display: inline-flex;
-  align-items: baseline;
-  gap: calc(var(--ui-gap-tight) / 2);
-}
-
-.syntax-detail-meta dt,
-.syntax-detail-meta dd {
-  margin: 0;
-}
-
-.syntax-detail-meta dd {
-  color: var(--color-fg);
-  font-variant-numeric: var(--ui-numeric-font-variant);
-}
-
-.syntax-detail-preview {
-  gap: var(--ui-gap-tight);
-}
-
 .syntax-render-list {
   display: grid;
   gap: calc(var(--ui-gap-tight) / 2);
@@ -666,7 +618,9 @@
 
 .syntax-render-line {
   display: grid;
-  grid-template-columns: calc(var(--ui-control-height) + var(--ui-gap)) minmax(0, 1fr);
+  grid-template-columns:
+    minmax(calc(var(--ui-control-height) * 2), max-content)
+    minmax(0, 1fr);
   align-items: center;
   gap: var(--ui-gap-tight);
   min-height: var(--ui-tree-row-height);
@@ -680,12 +634,10 @@
 }
 
 .syntax-render-marker {
-  overflow: hidden;
   color: var(--color-link);
-  font-family: var(--font-code);
   font-size: var(--ui-code-font-size);
+  font-weight: var(--ui-micro-strong-weight);
   line-height: var(--ui-code-line-height);
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -941,67 +893,6 @@
 
 .graph-force-canvas:active {
   cursor: grabbing;
-}
-
-.graph-detail-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: calc(var(--ui-gap) * 2);
-  row-gap: var(--ui-gap-tight);
-  margin: 0;
-  min-width: 0;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
-}
-
-.graph-detail-summary div,
-.graph-current-node-meta div {
-  display: inline-flex;
-  align-items: baseline;
-  gap: calc(var(--ui-gap-tight) / 2);
-}
-
-.graph-detail-summary dt,
-.graph-detail-summary dd,
-.graph-current-node-meta dt,
-.graph-current-node-meta dd {
-  margin: 0;
-}
-
-.graph-detail-summary dd,
-.graph-current-node-meta dd {
-  color: var(--color-fg);
-  font-variant-numeric: var(--ui-numeric-font-variant);
-}
-
-.graph-current-node {
-  display: grid;
-  gap: calc(var(--ui-gap-tight) / 2);
-  min-width: 0;
-}
-
-.graph-current-node p {
-  margin: 0;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-fg);
-  font-size: var(--ui-body-font-size);
-  font-weight: var(--ui-body-weight);
-  line-height: var(--ui-body-line-height);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.graph-current-node-meta {
-  display: flex;
-  gap: var(--ui-gap);
-  margin: 0;
-  min-width: 0;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
 }
 
 .settings-grid {

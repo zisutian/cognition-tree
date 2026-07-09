@@ -26,11 +26,12 @@ import {
   PanelHeader,
   Section,
   SegmentedControl,
+  SymbolSlot,
   cx,
 } from "../../shared/primitives";
 import {
-  BlockTree,
   NoteTree,
+  StructureTree,
   type TreeMoveRequest,
   type TreeNode,
 } from "../../shared/tree";
@@ -123,15 +124,16 @@ function MigrationDirectoryStatusIcon({
   };
 
   return (
-    <span
+    <SymbolSlot
       aria-label={labelByStatus[status]}
       className="ui-tree-status"
       title={labelByStatus[status]}
+      tone="strong"
     >
       {status === "source" ? <FileOutput {...iconProps} /> : null}
       {status === "target" ? <FileInput {...iconProps} /> : null}
       {status === "structure" ? <GitBranch {...iconProps} /> : null}
-    </span>
+    </SymbolSlot>
   );
 }
 
@@ -264,7 +266,7 @@ function MovingTargetTree({
             ) : null}
             <button
               className={cx(
-                "ui-tree-row ui-tree-block migration-target-node",
+                "ui-tree-row ui-structure-tree-row migration-target-node",
                 isSelected && "is-selected is-selected-subtree",
                 selectedRootLineNumber === node.lineNumber && "is-selected-root",
                 draggingLineNumber === String(node.lineNumber) && "is-dragging",
@@ -295,7 +297,7 @@ function MovingTargetTree({
               title={`${node.label}: ${node.textDisplay.displayText}`}
               type="button"
             >
-              <span className="ui-tree-kind">{node.label}</span>
+              <span className="ui-structure-marker">{node.label}</span>
               <BlockText text={node.textDisplay} />
               <span className="ui-tree-meta">{node.lineLabel}</span>
             </button>
@@ -581,7 +583,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
         title={`源笔记 · ${view.migration.sourceNote?.title ?? "未选择"}`}
       >
         {view.migration.sourceRoots.length > 0 ? (
-          <BlockTree
+          <StructureTree
             activeLineNumbers={selectedLineNumbers}
             dragDataType={blockLineDragDataType}
             draggingLineNumber={draggingLineNumber}

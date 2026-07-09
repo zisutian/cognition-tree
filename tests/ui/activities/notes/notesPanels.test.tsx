@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { NotesContext } from "../../../../src/ui/activities/notes/NotesPanels";
+import {
+  NoteDetailPanel,
+  NotesContext,
+} from "../../../../src/ui/activities/notes/NotesPanels";
 import { createView } from "../../viewFactory";
 
 describe("notes panels", () => {
@@ -44,5 +47,62 @@ describe("notes panels", () => {
     expect(markup.match(/ui-tree-row-frame is-selected/g) ?? []).toHaveLength(1);
     expect(markup).toContain("文件夹");
     expect(markup).toContain("当前笔记");
+  });
+
+  it("uses divider and marker rows instead of section titles in note detail", () => {
+    const baseView = createView();
+    const markup = renderToStaticMarkup(
+      <NoteDetailPanel
+        onCollapseDetail={() => undefined}
+        view={createView({
+          editor: {
+            ...baseView.editor,
+            diagnostics: [
+              {
+                id: "diagnostic-1",
+                lineNumber: 3,
+                message: "示例诊断",
+              },
+            ],
+            stats: {
+              diagnosticCount: 1,
+              lineCount: 8,
+              rootCount: 1,
+              totalBlocks: 2,
+            },
+          },
+          outline: {
+            nodes: [
+              {
+                children: [],
+                hasDiagnostics: false,
+                id: "outline-1",
+                label: "T",
+                level: 0,
+                lineLabel: "L1",
+                lineNumber: 1,
+                textDisplay: {
+                  displayText: "当前笔记",
+                  segments: [{ id: "text", kind: "text", text: "当前笔记" }],
+                  textColorClassName: "block-text-default",
+                },
+              },
+            ],
+            onSelectLine: () => undefined,
+          },
+        })}
+      />,
+    );
+
+    expect(markup).toContain("detail-summary-strip");
+    expect(markup).toContain("detail-divider");
+    expect(markup).toContain("detail-line-list");
+    expect(markup).toContain("detail-line-marker");
+    expect(markup).toContain("ui-symbol-slot");
+    expect(markup).toContain("ui-symbol-slot-danger");
+    expect(markup).toContain("示例诊断");
+    expect(markup).not.toContain("ui-section-title");
+    expect(markup).not.toContain("ui-metrics");
+    expect(markup).not.toContain("dense-list");
   });
 });

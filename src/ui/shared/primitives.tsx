@@ -153,6 +153,24 @@ export function SegmentedControl<Value extends string>({
   );
 }
 
+export function SymbolSlot({
+  children,
+  className,
+  tone = "muted",
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & {
+  tone?: "danger" | "link" | "muted" | "strong";
+}) {
+  return (
+    <span
+      className={cx("ui-symbol-slot", `ui-symbol-slot-${tone}`, className)}
+      {...props}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Field({
   children,
   className,
