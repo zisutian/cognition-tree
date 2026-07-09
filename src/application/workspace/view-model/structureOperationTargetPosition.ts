@@ -1,8 +1,8 @@
-import type { WorkspaceBlockMigrationTargetPositionRequest } from "../../../workspace/commands/blockMigrationCommands";
+import type { WorkspaceStructureBlockTargetPositionRequest } from "../../../workspace/commands/structureBlockCommands";
 
-export function parseUiBlockMigrationTargetPosition(
+export function parseUiStructureOperationTargetPosition(
   value: string,
-): WorkspaceBlockMigrationTargetPositionRequest {
+): WorkspaceStructureBlockTargetPositionRequest {
   if (value === "end") {
     return { kind: "end" };
   }
@@ -11,7 +11,7 @@ export function parseUiBlockMigrationTargetPosition(
   const lineNumber = Number(lineNumberValue);
 
   if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-    throw new Error(`Invalid block migration target position: ${value}`);
+    throw new Error(`Invalid structure operation target position: ${value}`);
   }
 
   if (kind === "sibling-above" || kind === "sibling-below") {
@@ -22,7 +22,7 @@ export function parseUiBlockMigrationTargetPosition(
   }
 
   if (kind !== "inside") {
-    throw new Error(`Invalid block migration target position: ${value}`);
+    throw new Error(`Invalid structure operation target position: ${value}`);
   }
 
   return {

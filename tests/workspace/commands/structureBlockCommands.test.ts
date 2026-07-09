@@ -15,16 +15,16 @@ import {
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
 import {
-  moveWorkspaceBlock,
-  moveWorkspaceNoteBlock,
-} from "../../../src/workspace/commands/blockMigrationCommands";
+  moveWorkspaceStructureBlockBetweenNotes,
+  moveWorkspaceStructureBlockWithinNote,
+} from "../../../src/workspace/commands/structureBlockCommands";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
-function createMigrationWorkspace(): WorkspaceData {
+function createStructureOperationWorkspace(): WorkspaceData {
   const sourceNote = createNoteRecord(
     "note-source",
     "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
@@ -53,14 +53,14 @@ function createMigrationWorkspace(): WorkspaceData {
   };
 }
 
-function moveMigrationBlock(
+function moveStructureBlockBetweenNotes(
   workspaceData: WorkspaceData,
-  request: Parameters<typeof moveWorkspaceBlock>[2],
+  request: Parameters<typeof moveWorkspaceStructureBlockBetweenNotes>[2],
   nextTimestamp = "2026-06-08T01:00:00.000Z",
 ) {
   const workspace = createWorkspaceStructureIndex(workspaceData);
 
-  return moveWorkspaceBlock(
+  return moveWorkspaceStructureBlockBetweenNotes(
     workspace,
     createWorkspaceParseIndex({
       syntaxProfile: defaultCtnSyntaxProfile,
@@ -73,12 +73,12 @@ function moveMigrationBlock(
 
 function moveStructureBlock(
   workspaceData: WorkspaceData,
-  request: Parameters<typeof moveWorkspaceNoteBlock>[2],
+  request: Parameters<typeof moveWorkspaceStructureBlockWithinNote>[2],
   nextTimestamp = "2026-06-08T01:00:00.000Z",
 ) {
   const workspace = createWorkspaceStructureIndex(workspaceData);
 
-  return moveWorkspaceNoteBlock(
+  return moveWorkspaceStructureBlockWithinNote(
     workspace,
     createWorkspaceParseIndex({
       syntaxProfile: defaultCtnSyntaxProfile,
@@ -89,10 +89,10 @@ function moveStructureBlock(
   );
 }
 
-describe("workspace block migration", () => {
+describe("workspace structure block moves", () => {
   it("moves a block subtree and updates both note records", () => {
-    const workspace = createMigrationWorkspace();
-    const result = moveMigrationBlock(
+    const workspace = createStructureOperationWorkspace();
+    const result = moveStructureBlockBetweenNotes(
       workspace,
       {
         sourceBlockLineNumber: 3,
@@ -127,8 +127,8 @@ describe("workspace block migration", () => {
   });
 
   it("moves an entire top-level concept block with its nested children", () => {
-    const result = moveMigrationBlock(
-      createMigrationWorkspace(),
+    const result = moveStructureBlockBetweenNotes(
+      createStructureOperationWorkspace(),
       {
         sourceBlockLineNumber: 2,
         sourceNoteId: "note-source",
@@ -154,8 +154,8 @@ describe("workspace block migration", () => {
       });
   });
 
-  it("reads only source and target parsed notes from the migration index", () => {
-    const baseWorkspace = createMigrationWorkspace();
+  it("reads only source and target parsed notes from the structure block move index", () => {
+    const baseWorkspace = createStructureOperationWorkspace();
     const workspace = {
       ...baseWorkspace,
       notes: [
@@ -169,7 +169,7 @@ describe("workspace block migration", () => {
       workspace: workspaceIndex,
     });
     const requestedNoteIds: string[] = [];
-    const result = moveWorkspaceBlock(
+    const result = moveWorkspaceStructureBlockBetweenNotes(
       workspaceIndex,
       {
         getParsedNote(noteId) {
@@ -195,8 +195,8 @@ describe("workspace block migration", () => {
   });
 
   it("moves a block subtree to sibling positions through workspace requests", () => {
-    const aboveResult = moveMigrationBlock(
-      createMigrationWorkspace(),
+    const aboveResult = moveStructureBlockBetweenNotes(
+      createStructureOperationWorkspace(),
       {
         sourceBlockLineNumber: 3,
         sourceNoteId: "note-source",
@@ -204,8 +204,8 @@ describe("workspace block migration", () => {
         targetPosition: { kind: "sibling-above", lineNumber: 2 },
       },
     );
-    const belowResult = moveMigrationBlock(
-      createMigrationWorkspace(),
+    const belowResult = moveStructureBlockBetweenNotes(
+      createStructureOperationWorkspace(),
       {
         sourceBlockLineNumber: 3,
         sourceNoteId: "note-source",
@@ -218,7 +218,7 @@ describe("workspace block migration", () => {
     expect(belowResult.status).toBe("moved");
 
     if (aboveResult.status !== "moved" || belowResult.status !== "moved") {
-      throw new Error("Expected sibling migration requests to move blocks.");
+      throw new Error("Expected sibling structure block move requests to move blocks.");
     }
 
     expect(
@@ -237,11 +237,11 @@ describe("workspace block migration", () => {
       });
   });
 
-  it("rejects invalid migration requests before editing the workspace", () => {
-    const workspace = createMigrationWorkspace();
+  it("rejects invalid structure block move requests before editing the workspace", () => {
+    const workspace = createStructureOperationWorkspace();
 
     expect(
-      moveMigrationBlock(
+      moveStructureBlockBetweenNotes(
         workspace,
         {
           sourceBlockLineNumber: 1,
@@ -256,7 +256,7 @@ describe("workspace block migration", () => {
       status: "failed",
     });
     expect(
-      moveMigrationBlock(
+      moveStructureBlockBetweenNotes(
         workspace,
         {
           sourceBlockLineNumber: 3,
@@ -271,7 +271,7 @@ describe("workspace block migration", () => {
       status: "failed",
     });
     expect(
-      moveMigrationBlock(
+      moveStructureBlockBetweenNotes(
         workspace,
         {
           sourceBlockLineNumber: 1,
@@ -286,7 +286,7 @@ describe("workspace block migration", () => {
       status: "failed",
     });
     expect(
-      moveMigrationBlock(
+      moveStructureBlockBetweenNotes(
         workspace,
         {
           sourceBlockLineNumber: 99,
@@ -301,7 +301,7 @@ describe("workspace block migration", () => {
       status: "failed",
     });
     expect(
-      moveMigrationBlock(
+      moveStructureBlockBetweenNotes(
         workspace,
         {
           sourceBlockLineNumber: 3,
@@ -322,7 +322,7 @@ describe("workspace block migration", () => {
 describe("workspace note block structure move", () => {
   it("moves a note block subtree inside the same note and updates the note record", () => {
     const result = moveStructureBlock(
-      createMigrationWorkspace(),
+      createStructureOperationWorkspace(),
       {
         noteId: "note-source",
         sourceBlockLineNumber: 2,
@@ -346,7 +346,7 @@ describe("workspace note block structure move", () => {
 
   it("rewrites indentation when moving a note block inside another block", () => {
     const result = moveStructureBlock(
-      createMigrationWorkspace(),
+      createStructureOperationWorkspace(),
       {
         noteId: "note-source",
         sourceBlockLineNumber: 5,
@@ -368,7 +368,7 @@ describe("workspace note block structure move", () => {
   });
 
   it("rejects invalid note block structure moves", () => {
-    const workspace = createMigrationWorkspace();
+    const workspace = createStructureOperationWorkspace();
 
     expect(
       moveStructureBlock(workspace, {

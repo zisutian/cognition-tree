@@ -90,7 +90,7 @@ describe("activity registry", () => {
     expect(renderSlot(slots("settings").main)).toContain("/workspace");
   });
 
-  it("renders migration context and full-width main work surface", () => {
+  it("renders structure operation context and full-width main work surface", () => {
     const baseView = createView();
     const migrationSlots = slotsWithView(
       "migration",
@@ -102,10 +102,10 @@ describe("activity registry", () => {
             tabDisplayWidth: 7,
           },
         },
-        migration: {
-          ...baseView.migration,
+        structureOperation: {
+          ...baseView.structureOperation,
           noteTree: [
-            ...baseView.migration.noteTree,
+            ...baseView.structureOperation.noteTree,
             {
               canDrag: true,
               folderId: null,
@@ -235,9 +235,9 @@ describe("activity registry", () => {
             tabDisplayWidth: 5,
           },
         },
-        migration: {
-          ...baseView.migration,
-          mode: "structure",
+        structureOperation: {
+          ...baseView.structureOperation,
+          mode: "withinNote",
           structureRoots: [
             {
               children: [

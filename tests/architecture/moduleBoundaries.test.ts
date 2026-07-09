@@ -257,12 +257,11 @@ describe("architecture module boundaries", () => {
       "workspaceSaveQueue.ts",
     ]);
     expect(listSourceFileNames("application/workspace/view-model")).toEqual([
-      "migrationMessages.ts",
-      "migrationTargetPosition.ts",
       "selection.ts",
       "sidebarTreeMove.ts",
+      "structureOperationTargetPosition.ts",
       "syntaxDraftActions.ts",
-      "useMigrationViewModel.ts",
+      "useStructureOperationViewModel.ts",
       "useSyntaxDraft.ts",
       "useViewModel.ts",
       "useWorkspaceParseIndex.ts",
@@ -272,8 +271,8 @@ describe("architecture module boundaries", () => {
       "viewBlocks.ts",
       "viewEditor.ts",
       "viewGraph.ts",
-      "viewMigration.ts",
       "viewSidebar.ts",
+      "viewStructureOperation.ts",
       "viewSyntax.ts",
       "viewText.ts",
       "viewTree.ts",
@@ -320,9 +319,9 @@ describe("architecture module boundaries", () => {
       "activityRegistry.tsx",
     ]);
     expect(listSubdirectories("ui/activities")).toEqual([
-      "migration",
       "notes",
       "settings",
+      "structure-operation",
       "syntax",
       "visualization",
     ]);
@@ -339,7 +338,7 @@ describe("architecture module boundaries", () => {
       "structureIndent.ts",
       "types.ts",
     ]);
-    expect(listSourceFileNames("ui/activities/migration")).toEqual([
+    expect(listSourceFileNames("ui/activities/structure-operation")).toEqual([
       "StructureOperationContext.tsx",
       "StructureOperationPairView.tsx",
       "StructureOperationPanels.tsx",
@@ -694,7 +693,16 @@ describe("architecture module boundaries", () => {
       /app-sidebar/,
       /side-panel/,
       /sidebar-scroll-area/,
+      /blockMigrationCommands/,
+      /migrationMessages/,
+      /migrationTargetPosition/,
       /MigrationPanels/,
+      /UiMigrationView/,
+      /useMigrationViewModel/,
+      /viewMigration/,
+      /WorkspaceBlockMigration/,
+      /moveWorkspaceBlock/,
+      /moveWorkspaceNoteBlock/,
       /migration-(?:grid|column|drop-target|target-node|target-tree|panel|body)/,
     ];
     const violations = listAllSourcePaths().flatMap((filePath) => {
@@ -724,7 +732,7 @@ describe("architecture module boundaries", () => {
 
   it("keeps workspace commands focused on workspace business commands", () => {
     expect(listSourceFileNames("workspace/commands")).toEqual([
-      "blockMigrationCommands.ts",
+      "structureBlockCommands.ts",
       "workspaceCommands.ts",
     ]);
   });

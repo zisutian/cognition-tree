@@ -13,7 +13,7 @@ import { StructureOperationStructureView } from "./StructureOperationStructureVi
 export { StructureOperationContext };
 
 export function StructureOperationMainPanel({ view }: { view: ViewModel }) {
-  if (view.migration.noteTree.length === 0) {
+  if (view.structureOperation.noteTree.length === 0) {
     return (
       <Panel className="structure-operation-panel" aria-label="结构操作">
         <EmptyState description="没有可操作笔记。" title="结构操作" />
@@ -24,8 +24,8 @@ export function StructureOperationMainPanel({ view }: { view: ViewModel }) {
   return (
     <Panel className="structure-operation-panel" aria-label="结构操作">
       <PanelHeader title="结构操作" />
-      <PanelBody className={cx("structure-operation-body", view.migration.mode)}>
-        {view.migration.mode === "structure" ? (
+      <PanelBody className={cx("structure-operation-body", view.structureOperation.mode)}>
+        {view.structureOperation.mode === "withinNote" ? (
           <StructureOperationStructureView view={view} />
         ) : (
           <StructureOperationPairView view={view} />

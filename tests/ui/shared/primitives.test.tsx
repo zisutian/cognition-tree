@@ -44,10 +44,10 @@ describe("shared primitives", () => {
         ariaLabel="结构操作模式"
         fill
         options={[
-          { label: "源笔记 / 目标笔记", value: "pair" },
-          { label: "笔记结构", value: "structure" },
+          { label: "源笔记 / 目标笔记", value: "betweenNotes" },
+          { label: "笔记结构", value: "withinNote" },
         ]}
-        value="structure"
+        value="withinNote"
         onChange={() => undefined}
       />,
     );

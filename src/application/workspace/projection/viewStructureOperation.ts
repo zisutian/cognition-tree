@@ -5,8 +5,8 @@ import type {
   UiTreeNode,
 } from "./viewTree";
 
-export type UiMigrationView = {
-  mode: "pair" | "structure";
+export type UiStructureOperationView = {
+  mode: "betweenNotes" | "withinNote";
   noteTree: UiTreeNode[];
   sourceBlocks: UiBlockNode[];
   sourceNote: UiNoteSummary | null;
@@ -30,7 +30,7 @@ export function getUiTargetPositionLabel(value: string) {
   const lineNumber = Number(lineNumberValue);
 
   if (!Number.isInteger(lineNumber) || lineNumber <= 0) {
-    throw new Error(`Invalid block migration target position: ${value}`);
+    throw new Error(`Invalid structure operation target position: ${value}`);
   }
 
   switch (kind) {
@@ -41,6 +41,6 @@ export function getUiTargetPositionLabel(value: string) {
     case "inside":
       return "作为子结点";
     default:
-      throw new Error(`Invalid block migration target position: ${value}`);
+      throw new Error(`Invalid structure operation target position: ${value}`);
   }
 }

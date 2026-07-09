@@ -11,7 +11,7 @@ import {
 } from "../model/workspaceData";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
-export type WorkspaceBlockMigrationTargetPositionRequest =
+export type WorkspaceStructureBlockTargetPositionRequest =
   | {
       kind: "end";
     }
@@ -28,66 +28,66 @@ export type WorkspaceBlockMigrationTargetPositionRequest =
       lineNumber: number;
     };
 
-export type WorkspaceBlockMigrationRequest = {
+export type WorkspaceStructureBlockMoveBetweenNotesRequest = {
   sourceBlockLineNumber: number;
   sourceNoteId: NoteId;
   targetNoteId: NoteId;
-  targetPosition: WorkspaceBlockMigrationTargetPositionRequest;
+  targetPosition: WorkspaceStructureBlockTargetPositionRequest;
 };
 
-export type WorkspaceNoteBlockMoveRequest = {
+export type WorkspaceStructureBlockMoveWithinNoteRequest = {
   noteId: NoteId;
   sourceBlockLineNumber: number;
-  targetPosition: WorkspaceBlockMigrationTargetPositionRequest;
+  targetPosition: WorkspaceStructureBlockTargetPositionRequest;
 };
 
-export type MoveWorkspaceBlockFailureReason =
+export type MoveWorkspaceStructureBlockBetweenNotesFailureReason =
   | "missing-note"
   | "parsed-note-missing"
   | "same-note-unsupported"
   | "source-block-missing"
   | "target-position-missing";
 
-export type MoveWorkspaceBlockResult =
+export type MoveWorkspaceStructureBlockBetweenNotesResult =
   | {
       status: "moved";
       targetNoteId: NoteId;
       workspaceData: WorkspaceStructureIndex["data"];
     }
   | {
-      reason: MoveWorkspaceBlockFailureReason;
+      reason: MoveWorkspaceStructureBlockBetweenNotesFailureReason;
       status: "failed";
     };
 
-type MoveWorkspaceBlockFailureResult = Extract<
-  MoveWorkspaceBlockResult,
+type MoveWorkspaceStructureBlockBetweenNotesFailureResult = Extract<
+  MoveWorkspaceStructureBlockBetweenNotesResult,
   { status: "failed" }
 >;
 
-export type MoveWorkspaceNoteBlockFailureReason =
+export type MoveWorkspaceStructureBlockWithinNoteFailureReason =
   | "missing-note"
   | "parsed-note-missing"
   | "source-block-missing"
   | "target-inside-source"
   | "target-position-missing";
 
-export type MoveWorkspaceNoteBlockResult =
+export type MoveWorkspaceStructureBlockWithinNoteResult =
   | {
       noteId: NoteId;
       status: "moved";
       workspaceData: WorkspaceStructureIndex["data"];
     }
   | {
-      reason: MoveWorkspaceNoteBlockFailureReason;
+      reason: MoveWorkspaceStructureBlockWithinNoteFailureReason;
       status: "failed";
     };
 
-type ParsedMigrationNote = {
+type ParsedStructureBlockNote = {
   blocks: CtnBlock[];
   note: NoteRecord;
 };
 
-type WorkspaceBlockMigrationIndex = {
+type WorkspaceStructureBlockMoveIndex = {
   getParsedNote(noteId: NoteId): {
     document: {
       blocks: CtnBlock[];
@@ -101,8 +101,8 @@ function findWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
 }
 
 function createFailure(
-  reason: MoveWorkspaceBlockFailureReason,
-): MoveWorkspaceBlockFailureResult {
+  reason: MoveWorkspaceStructureBlockBetweenNotesFailureReason,
+): MoveWorkspaceStructureBlockBetweenNotesFailureResult {
   return {
     reason,
     status: "failed",
@@ -110,8 +110,8 @@ function createFailure(
 }
 
 function createNoteBlockFailure(
-  reason: MoveWorkspaceNoteBlockFailureReason,
-): MoveWorkspaceNoteBlockResult {
+  reason: MoveWorkspaceStructureBlockWithinNoteFailureReason,
+): MoveWorkspaceStructureBlockWithinNoteResult {
   return {
     reason,
     status: "failed",
@@ -119,7 +119,7 @@ function createNoteBlockFailure(
 }
 
 function createNoteBlockFailureFromBlockFailure(
-  reason: MoveWorkspaceBlockFailureReason,
+  reason: MoveWorkspaceStructureBlockBetweenNotesFailureReason,
 ) {
   switch (reason) {
     case "missing-note":
@@ -132,14 +132,14 @@ function createNoteBlockFailureFromBlockFailure(
   }
 }
 
-function isMigratableBlock(block: CtnBlock) {
+function isMovableStructureBlock(block: CtnBlock) {
   return block.type !== "title";
 }
 
-function resolveMigrationNote(
-  index: WorkspaceBlockMigrationIndex,
+function resolveStructureBlockNote(
+  index: WorkspaceStructureBlockMoveIndex,
   note: NoteRecord,
-): ParsedMigrationNote | MoveWorkspaceBlockFailureResult {
+): ParsedStructureBlockNote | MoveWorkspaceStructureBlockBetweenNotesFailureResult {
   const parsedNote = index.getParsedNote(note.id);
 
   if (!parsedNote || !parsedNote.note) {
@@ -147,15 +147,15 @@ function resolveMigrationNote(
   }
 
   return {
-    blocks: parsedNote.document.blocks.filter(isMigratableBlock),
+    blocks: parsedNote.document.blocks.filter(isMovableStructureBlock),
     note: parsedNote.note,
   };
 }
 
 function resolveTargetPosition(
   targetBlocks: CtnBlock[],
-  targetPositionRequest: WorkspaceBlockMigrationTargetPositionRequest,
-): CtnBlockTextTargetPosition | MoveWorkspaceBlockFailureResult {
+  targetPositionRequest: WorkspaceStructureBlockTargetPositionRequest,
+): CtnBlockTextTargetPosition | MoveWorkspaceStructureBlockBetweenNotesFailureResult {
   if (targetPositionRequest.kind === "end") {
     return { kind: "end" };
   }
@@ -186,21 +186,25 @@ function isTargetInsideSourceBlock(
 }
 
 function isTargetPosition(
-  result: CtnBlockTextTargetPosition | MoveWorkspaceBlockFailureResult,
+  result:
+    | CtnBlockTextTargetPosition
+    | MoveWorkspaceStructureBlockBetweenNotesFailureResult,
 ): result is CtnBlockTextTargetPosition {
   return !("status" in result);
 }
 
-function isMigrationNote(
-  result: ParsedMigrationNote | MoveWorkspaceBlockFailureResult,
-): result is ParsedMigrationNote {
+function isStructureBlockNote(
+  result:
+    | ParsedStructureBlockNote
+    | MoveWorkspaceStructureBlockBetweenNotesFailureResult,
+): result is ParsedStructureBlockNote {
   return !("status" in result);
 }
 
-function resolveMigrationInput(
+function resolveBetweenNotesMoveInput(
   workspace: WorkspaceStructureIndex,
-  index: WorkspaceBlockMigrationIndex,
-  request: WorkspaceBlockMigrationRequest,
+  index: WorkspaceStructureBlockMoveIndex,
+  request: WorkspaceStructureBlockMoveBetweenNotesRequest,
 ) {
   const sourceNote = findWorkspaceNote(workspace, request.sourceNoteId);
   const targetNote = findWorkspaceNote(workspace, request.targetNoteId);
@@ -213,14 +217,14 @@ function resolveMigrationInput(
     return createFailure("same-note-unsupported");
   }
 
-  const sourceParsed = resolveMigrationNote(index, sourceNote);
-  const targetParsed = resolveMigrationNote(index, targetNote);
+  const sourceParsed = resolveStructureBlockNote(index, sourceNote);
+  const targetParsed = resolveStructureBlockNote(index, targetNote);
 
-  if (!isMigrationNote(sourceParsed)) {
+  if (!isStructureBlockNote(sourceParsed)) {
     return sourceParsed;
   }
 
-  if (!isMigrationNote(targetParsed)) {
+  if (!isStructureBlockNote(targetParsed)) {
     return targetParsed;
   }
 
@@ -249,27 +253,27 @@ function resolveMigrationInput(
   };
 }
 
-export function moveWorkspaceBlock(
+export function moveWorkspaceStructureBlockBetweenNotes(
   workspace: WorkspaceStructureIndex,
-  index: WorkspaceBlockMigrationIndex,
-  request: WorkspaceBlockMigrationRequest,
+  index: WorkspaceStructureBlockMoveIndex,
+  request: WorkspaceStructureBlockMoveBetweenNotesRequest,
   timestamp: string,
-): MoveWorkspaceBlockResult {
-  const migrationInput = resolveMigrationInput(workspace, index, request);
+): MoveWorkspaceStructureBlockBetweenNotesResult {
+  const moveInput = resolveBetweenNotesMoveInput(workspace, index, request);
 
-  if ("status" in migrationInput) {
-    return migrationInput;
+  if ("status" in moveInput) {
+    return moveInput;
   }
 
   const result = moveCtnBlockText({
-    sourceBlock: migrationInput.sourceBlock,
-    sourceText: migrationInput.sourceParsed.note.source,
-    targetPosition: migrationInput.targetPosition,
-    targetText: migrationInput.targetParsed.note.source,
+    sourceBlock: moveInput.sourceBlock,
+    sourceText: moveInput.sourceParsed.note.source,
+    targetPosition: moveInput.targetPosition,
+    targetText: moveInput.targetParsed.note.source,
   });
 
-  const sourceNoteId = migrationInput.sourceParsed.note.id;
-  const targetNoteId = migrationInput.targetParsed.note.id;
+  const sourceNoteId = moveInput.sourceParsed.note.id;
+  const targetNoteId = moveInput.targetParsed.note.id;
   const sourceNoteIndex = workspace.noteIndexById.get(sourceNoteId);
   const targetNoteIndex = workspace.noteIndexById.get(targetNoteId);
 
@@ -306,21 +310,21 @@ export function moveWorkspaceBlock(
   };
 }
 
-export function moveWorkspaceNoteBlock(
+export function moveWorkspaceStructureBlockWithinNote(
   workspace: WorkspaceStructureIndex,
-  index: WorkspaceBlockMigrationIndex,
-  request: WorkspaceNoteBlockMoveRequest,
+  index: WorkspaceStructureBlockMoveIndex,
+  request: WorkspaceStructureBlockMoveWithinNoteRequest,
   timestamp: string,
-): MoveWorkspaceNoteBlockResult {
+): MoveWorkspaceStructureBlockWithinNoteResult {
   const note = findWorkspaceNote(workspace, request.noteId);
 
   if (!note) {
     return createNoteBlockFailure("missing-note");
   }
 
-  const parsedNote = resolveMigrationNote(index, note);
+  const parsedNote = resolveStructureBlockNote(index, note);
 
-  if (!isMigrationNote(parsedNote)) {
+  if (!isStructureBlockNote(parsedNote)) {
     return createNoteBlockFailureFromBlockFailure(parsedNote.reason);
   }
 

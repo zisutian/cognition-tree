@@ -40,8 +40,8 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     errorMessage: "",
     focusEditorLine: () => undefined,
     hasConfiguredSyntax: true,
-    migration: {
-      mode: "pair",
+    structureOperation: {
+      mode: "betweenNotes",
       noteTree: [
         {
           canDrag: true,
@@ -62,14 +62,14 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
           title: "Target note",
         },
       ],
-      onMoveBlockToPosition: () => undefined,
-      onMoveStructureBlock: () => undefined,
+      onMoveStructureBlockBetweenNotes: () => undefined,
+      onMoveStructureBlockWithinNote: () => undefined,
       onOpenNoteStructure: () => undefined,
-      onPairNotesForMigration: () => undefined,
-      onSelectMigrationSourceNote: () => undefined,
-      onSelectMigrationTargetNote: () => undefined,
+      onPairNotesForStructureOperation: () => undefined,
+      onSelectSourceNote: () => undefined,
+      onSelectTargetNote: () => undefined,
       onSelectStructureNote: () => undefined,
-      onSetMigrationMode: () => undefined,
+      onSetMode: () => undefined,
       sourceBlocks: [],
       sourceNote: { id: "note-source", title: "Source note" },
       sourceNoteId: "note-source",

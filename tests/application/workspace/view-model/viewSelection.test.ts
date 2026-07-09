@@ -46,7 +46,7 @@ describe("workspace view state", () => {
     ).toBe("note-third");
   });
 
-  it("resolves migration target note selection", () => {
+  it("resolves structure operation target note selection", () => {
     expect(resolveDifferentNoteId(notes, "note-first")).toBe("note-second");
     expect(resolveDifferentNoteId([{ id: "note-first" }], "note-first")).toBe("");
   });

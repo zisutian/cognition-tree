@@ -28,7 +28,7 @@ import type {
 } from "../session/useSession";
 import { createSyntaxDraftActions } from "./syntaxDraftActions";
 import { createWorkspaceTreeNodeReference } from "./sidebarTreeMove";
-import { useMigrationViewModel } from "./useMigrationViewModel";
+import { useStructureOperationViewModel } from "./useStructureOperationViewModel";
 import { useWorkspaceParseIndex } from "./useWorkspaceParseIndex";
 import { useSyntaxDraft } from "./useSyntaxDraft";
 import { resolveFolderSelection } from "./selection";
@@ -45,7 +45,7 @@ type EditorFocusRequest = {
 
 export type WorkspaceViewModelScope = {
   editor: boolean;
-  migration: boolean;
+  structureOperation: boolean;
   outline: boolean;
   referenceGraph: boolean;
   settings: boolean;
@@ -304,14 +304,14 @@ export function useViewModel(
       scope.outline ? createUiOutlineNodes(parsedDocument?.roots ?? []) : [],
     [parsedDocument, scope.outline],
   );
-  const migration = useMigrationViewModel({
+  const structureOperation = useStructureOperationViewModel({
     commands,
     effectiveActiveNote,
     effectiveContext,
     effectiveNotes,
     effectiveWorkspace,
     index,
-    scopeMigration: scope.migration,
+    scopeStructureOperation: scope.structureOperation,
     setActiveNoteId,
     setSelectedFolderId,
   });
@@ -349,7 +349,6 @@ export function useViewModel(
     hasConfiguredSyntax: Boolean(
       workspaceSyntaxFile && effectiveContext && index,
     ),
-    migration,
     moveNote,
     moveSidebarTreeNode,
     outline: {
@@ -362,6 +361,7 @@ export function useViewModel(
     selectFolder,
     selectNote,
     sidebar,
+    structureOperation,
     syntax: {
       ...syntax,
       ...syntaxDraftActions,

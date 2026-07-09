@@ -19,7 +19,7 @@ import {
   type TreeNode,
 } from "../../shared/tree";
 
-type StructureOperationDirectoryMode = "pair" | "structure";
+type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";
 type StructureOperationPairSelectionPhase = "selectSource" | "selectTarget";
 
@@ -40,7 +40,7 @@ export function getStructureOperationDirectoryNoteStatus({
   structureNoteId: string;
   targetNoteId: string;
 }) {
-  if (mode === "structure") {
+  if (mode === "withinNote") {
     return noteId === structureNoteId ? "structure" : "";
   }
 
@@ -117,7 +117,7 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
       return;
     }
 
-    view.migration.onPairNotesForMigration(
+    view.structureOperation.onPairNotesForStructureOperation(
       request.source.noteId,
       request.target.noteId,
     );
@@ -171,36 +171,36 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
     });
   };
   const selectNote = (noteId: string) => {
-    if (view.migration.mode === "structure") {
-      view.migration.onSelectStructureNote(noteId);
+    if (view.structureOperation.mode === "withinNote") {
+      view.structureOperation.onSelectStructureNote(noteId);
       return;
     }
 
     if (pairSelectionPhase === "selectTarget") {
-      const sourceNoteId = pendingSourceNoteId ?? view.migration.sourceNoteId;
+      const sourceNoteId = pendingSourceNoteId ?? view.structureOperation.sourceNoteId;
 
       if (noteId === sourceNoteId) {
         return;
       }
 
-      view.migration.onPairNotesForMigration(sourceNoteId, noteId);
+      view.structureOperation.onPairNotesForStructureOperation(sourceNoteId, noteId);
       resetPairSelection();
       return;
     }
 
-    view.migration.onSelectMigrationSourceNote(noteId);
+    view.structureOperation.onSelectSourceNote(noteId);
     setPendingSourceNoteId(noteId);
     setPairSelectionPhase("selectTarget");
   };
   const getNoteStatus = (node: Extract<TreeNode, { kind: "note" }>) => {
     return getStructureOperationDirectoryNoteStatus({
-      mode: view.migration.mode,
+      mode: view.structureOperation.mode,
       noteId: node.noteId,
       pairSelectionPhase,
       pendingSourceNoteId,
-      sourceNoteId: view.migration.sourceNoteId,
-      structureNoteId: view.migration.structureNoteId,
-      targetNoteId: view.migration.targetNoteId,
+      sourceNoteId: view.structureOperation.sourceNoteId,
+      structureNoteId: view.structureOperation.structureNoteId,
+      targetNoteId: view.structureOperation.targetNoteId,
     });
   };
   const renderNodeLeading = (
@@ -238,11 +238,11 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
     );
   };
   const activeNoteId =
-    view.migration.mode === "structure"
-      ? view.migration.structureNoteId
+    view.structureOperation.mode === "withinNote"
+      ? view.structureOperation.structureNoteId
       : pairSelectionPhase === "selectTarget"
-        ? pendingSourceNoteId ?? view.migration.sourceNoteId
-        : view.migration.sourceNoteId;
+        ? pendingSourceNoteId ?? view.structureOperation.sourceNoteId
+        : view.structureOperation.sourceNoteId;
 
   return (
     <div className="activity-context-content">
@@ -250,12 +250,12 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
         ariaLabel="结构操作模式"
         fill
         options={[
-          { label: "源笔记 / 目标笔记", value: "pair" },
-          { label: "笔记结构", value: "structure" },
+          { label: "源笔记 / 目标笔记", value: "betweenNotes" },
+          { label: "笔记结构", value: "withinNote" },
         ]}
-        value={view.migration.mode}
+        value={view.structureOperation.mode}
         onChange={(nextMode) => {
-          view.migration.onSetMigrationMode(nextMode);
+          view.structureOperation.onSetMode(nextMode);
           resetPairSelection();
         }}
       />
@@ -265,7 +265,7 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
         canDragNode={(node) => node.kind === "note"}
         canDropNode={canPairStructureOperationDirectoryNodes}
         collapsedFolderIds={collapsedFolderIds}
-        nodes={view.migration.noteTree}
+        nodes={view.structureOperation.noteTree}
         renderNodeLeading={renderNodeLeading}
         onMoveNode={moveNode}
         onSelectNote={selectNote}

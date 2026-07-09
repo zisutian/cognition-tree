@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   canPairStructureOperationDirectoryNodes,
   getStructureOperationDirectoryNoteStatus,
-} from "../../../../src/ui/activities/migration/StructureOperationContext";
-import { findBlockByLineNumber } from "../../../../src/ui/activities/migration/structureOperationBlocks";
+} from "../../../../src/ui/activities/structure-operation/StructureOperationContext";
+import { findBlockByLineNumber } from "../../../../src/ui/activities/structure-operation/structureOperationBlocks";
 import {
   canDropStructureBlockAtEnd,
   canDropStructureBlockOnLine,
   getBlockedStructureDropLineNumbers,
   getStructureBlockDropPosition,
   getStructureRowDropPlacement,
-} from "../../../../src/ui/activities/migration/structureOperationDropTargets";
+} from "../../../../src/ui/activities/structure-operation/structureOperationDropTargets";
 
 // @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
 const { readFileSync } = (await import("node:fs")) as {
@@ -21,11 +21,11 @@ const activitiesCss = readFileSync(
   "utf8",
 );
 
-describe("migration panels", () => {
-  it("hides stale target status while selecting a new migration target", () => {
+describe("structure operation panels", () => {
+  it("hides stale target status while selecting a new structure operation target", () => {
     expect(
       getStructureOperationDirectoryNoteStatus({
-        mode: "pair",
+        mode: "betweenNotes",
         noteId: "note-source",
         pairSelectionPhase: "selectSource",
         pendingSourceNoteId: null,
@@ -36,7 +36,7 @@ describe("migration panels", () => {
     ).toBe("source");
     expect(
       getStructureOperationDirectoryNoteStatus({
-        mode: "pair",
+        mode: "betweenNotes",
         noteId: "note-target",
         pairSelectionPhase: "selectSource",
         pendingSourceNoteId: null,
@@ -47,7 +47,7 @@ describe("migration panels", () => {
     ).toBe("target");
     expect(
       getStructureOperationDirectoryNoteStatus({
-        mode: "pair",
+        mode: "betweenNotes",
         noteId: "note-target",
         pairSelectionPhase: "selectTarget",
         pendingSourceNoteId: "note-neutral",
@@ -58,7 +58,7 @@ describe("migration panels", () => {
     ).toBe("");
     expect(
       getStructureOperationDirectoryNoteStatus({
-        mode: "pair",
+        mode: "betweenNotes",
         noteId: "note-neutral",
         pairSelectionPhase: "selectTarget",
         pendingSourceNoteId: "note-neutral",
@@ -72,7 +72,7 @@ describe("migration panels", () => {
   it("keeps structure status separate from source and target status", () => {
     expect(
       getStructureOperationDirectoryNoteStatus({
-        mode: "structure",
+        mode: "withinNote",
         noteId: "note-source",
         pairSelectionPhase: "selectSource",
         pendingSourceNoteId: null,
@@ -83,7 +83,7 @@ describe("migration panels", () => {
     ).toBe("structure");
     expect(
       getStructureOperationDirectoryNoteStatus({
-        mode: "structure",
+        mode: "withinNote",
         noteId: "note-target",
         pairSelectionPhase: "selectSource",
         pendingSourceNoteId: null,
@@ -249,7 +249,7 @@ describe("migration panels", () => {
     expect(dropStyleSource).not.toContain("box-shadow");
   });
 
-  it("keeps migration structure columns top aligned", () => {
+  it("keeps structure operation columns top aligned", () => {
     const columnStyleStart = activitiesCss.indexOf(".structure-operation-column");
     const columnStyleEnd = activitiesCss.indexOf(
       ".structure-operation-drop-target",

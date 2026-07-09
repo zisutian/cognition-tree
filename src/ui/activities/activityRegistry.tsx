@@ -6,7 +6,7 @@ import type {
 import {
   StructureOperationContext,
   StructureOperationMainPanel,
-} from "./migration/StructureOperationPanels";
+} from "./structure-operation/StructureOperationPanels";
 import {
   NoteDetailPanel,
   NoteEditorPanel,

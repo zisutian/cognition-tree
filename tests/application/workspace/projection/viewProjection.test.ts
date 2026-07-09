@@ -19,7 +19,7 @@ import {
 } from "../../../../src/workspace/model/workspaceData";
 import {
   getUiTargetPositionLabel,
-} from "../../../../src/application/workspace/projection/viewMigration";
+} from "../../../../src/application/workspace/projection/viewStructureOperation";
 import {
   createUiBlockNode,
   flattenUiBlockSubtree,
@@ -174,10 +174,10 @@ describe("workspace view projection", () => {
     ]);
   });
 
-  it("labels migration target position values", () => {
+  it("labels structure operation target position values", () => {
     expect(getUiTargetPositionLabel("inside:1")).toBe("作为子结点");
     expect(() => getUiTargetPositionLabel("inside:0")).toThrow(
-      "Invalid block migration target position",
+      "Invalid structure operation target position",
     );
   });
 

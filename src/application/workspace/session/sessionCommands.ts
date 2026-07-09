@@ -11,13 +11,13 @@ import {
   updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
 } from "../../../workspace/commands/workspaceCommands";
 import {
-  moveWorkspaceBlock as moveWorkspaceBlockAction,
-  moveWorkspaceNoteBlock as moveWorkspaceNoteBlockAction,
-  type MoveWorkspaceBlockFailureReason,
-  type MoveWorkspaceNoteBlockFailureReason,
-  type WorkspaceBlockMigrationRequest,
-  type WorkspaceNoteBlockMoveRequest,
-} from "../../../workspace/commands/blockMigrationCommands";
+  moveWorkspaceStructureBlockBetweenNotes as moveWorkspaceStructureBlockBetweenNotesAction,
+  moveWorkspaceStructureBlockWithinNote as moveWorkspaceStructureBlockWithinNoteAction,
+  type MoveWorkspaceStructureBlockBetweenNotesFailureReason,
+  type MoveWorkspaceStructureBlockWithinNoteFailureReason,
+  type WorkspaceStructureBlockMoveBetweenNotesRequest,
+  type WorkspaceStructureBlockMoveWithinNoteRequest,
+} from "../../../workspace/commands/structureBlockCommands";
 import type {
   FolderId,
   NoteId,
@@ -28,30 +28,30 @@ type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1
 type CreateWorkspaceFolderCommand = Parameters<
   typeof createWorkspaceFolderAction
 >[1];
-type WorkspaceBlockMigrationIndex = Parameters<
-  typeof moveWorkspaceBlockAction
+type WorkspaceStructureBlockMoveIndex = Parameters<
+  typeof moveWorkspaceStructureBlockBetweenNotesAction
 >[1];
 type MoveWorkspaceTreeNodeCommand = Parameters<
   typeof moveWorkspaceTreeNodeAction
 >[1];
-type MoveWorkspaceBlockCommandResult =
+type MoveWorkspaceStructureBlockBetweenNotesCommandResult =
   | {
       status: "moved";
       targetNoteId: NoteId;
     }
   | {
-      reason: MoveWorkspaceBlockFailureReason;
+      reason: MoveWorkspaceStructureBlockBetweenNotesFailureReason;
       status: "failed";
       targetNoteId?: never;
     };
-type MoveWorkspaceNoteBlockCommandResult =
+type MoveWorkspaceStructureBlockWithinNoteCommandResult =
   | {
       noteId: NoteId;
       status: "moved";
     }
   | {
       noteId?: never;
-      reason: MoveWorkspaceNoteBlockFailureReason;
+      reason: MoveWorkspaceStructureBlockWithinNoteFailureReason;
       status: "failed";
     };
 
@@ -65,14 +65,14 @@ export type SessionCommands = {
   ) => NoteId;
   deleteFolder: (folderId: FolderId) => void;
   deleteNote: (noteId: NoteId) => void;
-  moveBlock: (
-    index: WorkspaceBlockMigrationIndex,
-    request: WorkspaceBlockMigrationRequest,
-  ) => MoveWorkspaceBlockCommandResult;
-  moveNoteBlock: (
-    index: WorkspaceBlockMigrationIndex,
-    request: WorkspaceNoteBlockMoveRequest,
-  ) => MoveWorkspaceNoteBlockCommandResult;
+  moveStructureBlockBetweenNotes: (
+    index: WorkspaceStructureBlockMoveIndex,
+    request: WorkspaceStructureBlockMoveBetweenNotesRequest,
+  ) => MoveWorkspaceStructureBlockBetweenNotesCommandResult;
+  moveStructureBlockWithinNote: (
+    index: WorkspaceStructureBlockMoveIndex,
+    request: WorkspaceStructureBlockMoveWithinNoteRequest,
+  ) => MoveWorkspaceStructureBlockWithinNoteCommandResult;
   moveNote: (noteId: NoteId, targetFolderId: FolderId | null) => void;
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
@@ -130,8 +130,8 @@ export function createSessionCommands({
     deleteNote(noteId) {
       commitDataSnapshot(deleteWorkspaceNoteAction(workspace, noteId));
     },
-    moveBlock(index, request) {
-      const result = moveWorkspaceBlockAction(
+    moveStructureBlockBetweenNotes(index, request) {
+      const result = moveWorkspaceStructureBlockBetweenNotesAction(
         workspace,
         index,
         request,
@@ -152,8 +152,8 @@ export function createSessionCommands({
         targetNoteId: result.targetNoteId,
       };
     },
-    moveNoteBlock(index, request) {
-      const result = moveWorkspaceNoteBlockAction(
+    moveStructureBlockWithinNote(index, request) {
+      const result = moveWorkspaceStructureBlockWithinNoteAction(
         workspace,
         index,
         request,

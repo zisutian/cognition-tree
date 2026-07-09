@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createBlockLineDragPayload,
   readBlockLineDragPayload,
-} from "../../../../src/ui/activities/migration/blockLineDrag";
+} from "../../../../src/ui/activities/structure-operation/blockLineDrag";
 
 describe("block line drag helpers", () => {
   it("reads typed drag payload before plain text payloads", () => {

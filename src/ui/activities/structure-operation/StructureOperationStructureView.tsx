@@ -1,14 +1,10 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import { Section } from "../../shared/primitives";
-import { StructureTree } from "../../shared/tree";
-import {
-  blockLineDragDataType,
-  createBlockLineDragPayload,
-} from "./blockLineDrag";
 import {
   findBlockByLineNumber,
   useSelectedBlockLines,
@@ -17,11 +13,11 @@ import {
   DropTarget,
   MovingTargetTree,
   canDropStructureBlockAtEnd,
-  emptySelectedLineNumbers,
+  getBlockedStructureDropLineNumbers,
 } from "./structureOperationDropTargets";
 
-export function StructureOperationPairView({ view }: { view: ViewModel }) {
-  const [sourceLineNumber, setSourceLineNumber] = useState("");
+export function StructureOperationStructureView({ view }: { view: ViewModel }) {
+  const [selectedLineNumber, setSelectedLineNumber] = useState("");
   const [draggingLineNumber, setDraggingLineNumber] = useState<string | null>(
     null,
   );
@@ -31,19 +27,23 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
   const [activeTargetLineNumber, setActiveTargetLineNumber] = useState<
     number | null
   >(null);
-  const sourceBlock = findBlockByLineNumber(
-    view.migration.sourceBlocks,
-    sourceLineNumber,
+  const selectedBlock = findBlockByLineNumber(
+    view.structureOperation.structureBlocks,
+    draggingLineNumber ?? selectedLineNumber,
   );
-  const selectedLineNumbers = useSelectedBlockLines(sourceBlock);
+  const selectedLineNumbers = useSelectedBlockLines(selectedBlock);
+  const blockedLineNumbers = useMemo(
+    () => getBlockedStructureDropLineNumbers(selectedBlock),
+    [selectedBlock],
+  );
   const showEndDropTarget = canDropStructureBlockAtEnd(draggingLineNumber);
 
   useEffect(() => {
-    setSourceLineNumber("");
+    setSelectedLineNumber("");
     setDraggingLineNumber(null);
     setActiveDropPosition(null);
     setActiveTargetLineNumber(null);
-  }, [view.migration.sourceNoteId, view.migration.targetNoteId]);
+  }, [view.structureOperation.mode, view.structureOperation.structureNoteId]);
 
   const finishDrag = () => {
     setDraggingLineNumber(null);
@@ -54,43 +54,21 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
     const lineNumberValue = String(lineNumber);
 
     setDraggingLineNumber(lineNumberValue);
-    setSourceLineNumber(lineNumberValue);
+    setSelectedLineNumber(lineNumberValue);
   };
   const dropLine = (lineNumber: string, position: string) => {
-    setSourceLineNumber(lineNumber);
-    view.migration.onMoveBlockToPosition(lineNumber, position);
+    view.structureOperation.onMoveStructureBlockWithinNote(lineNumber, position);
+    setSelectedLineNumber("");
     finishDrag();
   };
 
   return (
-    <div className="structure-operation-grid">
+    <div className="structure-operation-grid structure-operation-grid-single">
       <Section
         className="structure-operation-column"
-        title={`源笔记 · ${view.migration.sourceNote?.title ?? "未选择"}`}
+        title={`笔记结构 · ${view.structureOperation.structureNote?.title ?? "未选择"}`}
       >
-        {view.migration.sourceRoots.length > 0 ? (
-          <StructureTree
-            activeLineNumbers={selectedLineNumbers}
-            dragDataType={blockLineDragDataType}
-            draggingLineNumber={draggingLineNumber}
-            draggable
-            getDragPayload={createBlockLineDragPayload}
-            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
-            nodes={view.migration.sourceRoots}
-            selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
-            onDragEnd={finishDrag}
-            onDragStart={startDrag}
-            onSelectLine={(lineNumber) => setSourceLineNumber(String(lineNumber))}
-          />
-        ) : (
-          <p className="ui-muted">源笔记没有可移动块。</p>
-        )}
-      </Section>
-      <Section
-        className="structure-operation-column"
-        title={`目标笔记 · ${view.migration.targetNote?.title ?? "未选择"}`}
-      >
-        {showEndDropTarget && view.migration.targetRoots.length === 0 ? (
+        {showEndDropTarget && view.structureOperation.structureRoots.length === 0 ? (
           <DropTarget
             activePosition={activeDropPosition}
             label="文末根块"
@@ -99,19 +77,25 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
             onSetActivePosition={setActiveDropPosition}
           />
         ) : null}
-        {view.migration.targetRoots.length > 0 ? (
+        {view.structureOperation.structureRoots.length > 0 ? (
           <>
             <MovingTargetTree
               activeDropPosition={activeDropPosition}
               activeTargetLineNumber={activeTargetLineNumber}
-              blockedLineNumbers={emptySelectedLineNumbers}
+              blockedLineNumbers={blockedLineNumbers}
               draggingLineNumber={draggingLineNumber}
+              draggable
               indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
-              nodes={view.migration.targetRoots}
-              selectedLineNumbers={emptySelectedLineNumbers}
-              selectedRootLineNumber={null}
+              nodes={view.structureOperation.structureRoots}
+              selectedLineNumbers={selectedLineNumbers}
+              selectedRootLineNumber={selectedBlock?.lineNumber ?? null}
               onActivateTarget={setActiveTargetLineNumber}
+              onDragEnd={finishDrag}
+              onDragStartLine={startDrag}
               onDropLine={dropLine}
+              onSelectLine={(lineNumber) =>
+                setSelectedLineNumber(String(lineNumber))
+              }
               onSetActiveDropPosition={setActiveDropPosition}
             />
             {showEndDropTarget ? (
@@ -125,7 +109,7 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
             ) : null}
           </>
         ) : (
-          <p className="ui-muted">目标笔记没有结构。</p>
+          <p className="ui-muted">当前笔记结构没有可调整块。</p>
         )}
       </Section>
     </div>
