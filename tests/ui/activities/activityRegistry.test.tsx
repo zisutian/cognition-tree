@@ -189,11 +189,12 @@ describe("activity registry", () => {
     expect(context).toContain("Source note");
     expect(context).toContain("Target note");
     expect(context).toContain("Neutral note");
-    expect(context).toContain("点选源笔记");
-    expect(context).toContain("当前源笔记");
     expect(context).toContain("源笔记 / 目标笔记");
     expect(context).toContain("笔记结构");
     expect(context).toContain("ui-segmented-control");
+    expect(context).not.toContain("context-caption");
+    expect(context).not.toContain("点选源笔记");
+    expect(context).not.toContain("当前源笔记");
     expect(context).not.toContain("migration-mode-switch");
     expect(context).toContain("目标笔记");
     expect(context).toContain("draggable=\"true\"");
@@ -272,10 +273,11 @@ describe("activity registry", () => {
     const context = renderSlot(migrationSlots.context?.content);
     const main = renderSlot(migrationSlots.main);
 
-    expect(context).toContain("点选笔记结构");
     expect(context).toContain("ui-symbol-slot");
     expect(context).toContain("ui-tree-status");
     expect(context).toContain("lucide-git-branch");
+    expect(context).not.toContain("context-caption");
+    expect(context).not.toContain("点选笔记结构");
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");
     expect(main).toContain("ui-tree ui-structure-tree migration-target-tree");

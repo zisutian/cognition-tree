@@ -41,7 +41,6 @@
   gap: var(--ui-gap-tight);
 }
 
-.context-caption,
 .context-empty {
   margin: 0;
   overflow: hidden;

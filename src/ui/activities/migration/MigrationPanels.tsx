@@ -213,24 +213,6 @@ function promptText(label: string, value = "") {
   return window.prompt(label, value)?.trim() ?? "";
 }
 
-function findNoteTitle(nodes: TreeNode[], noteId: string): string | null {
-  for (const node of nodes) {
-    if (node.kind === "note" && node.noteId === noteId) {
-      return node.title;
-    }
-
-    if (node.kind === "folder") {
-      const title = findNoteTitle(node.children, noteId);
-
-      if (title) {
-        return title;
-      }
-    }
-  }
-
-  return null;
-}
-
 function DropTarget({
   activePosition,
   label,
@@ -606,33 +588,15 @@ export function MigrationContext({ view }: { view: ViewModel }) {
       </>
     );
   };
-  const pendingSourceTitle = pendingSourceNoteId
-    ? findNoteTitle(view.migration.noteTree, pendingSourceNoteId) ??
-      view.migration.sourceNote?.title ??
-      "未选择"
-    : (view.migration.sourceNote?.title ?? "未选择");
   const activeNoteId =
     view.migration.mode === "structure"
       ? view.migration.structureNoteId
       : pairSelectionPhase === "selectTarget"
         ? pendingSourceNoteId ?? view.migration.sourceNoteId
         : view.migration.sourceNoteId;
-  const statusText =
-    view.migration.mode === "structure"
-      ? `点选笔记结构 · ${view.migration.structureNote?.title ?? "未选择"}`
-      : pairSelectionPhase === "selectTarget"
-        ? [`已选源笔记 ${pendingSourceTitle}`, "点选或拖到目标笔记"].join(
-            " · ",
-          )
-        : [
-            "点选源笔记",
-            `当前源笔记 ${view.migration.sourceNote?.title ?? "未选择"}`,
-            `目标笔记 ${view.migration.targetNote?.title ?? "未选择"}`,
-          ].join(" · ");
 
   return (
     <div className="activity-context-content">
-      <p className="context-caption">{statusText}</p>
       <SegmentedControl
         ariaLabel="迁移模式"
         fill
