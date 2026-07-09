@@ -321,15 +321,23 @@
   cursor: default;
 }
 
-.syntax-grid-section {
+.syntax-config-grid {
+  display: grid;
   grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 14), 1fr)
+    minmax(calc(var(--ui-control-height) * 14), calc(var(--ui-control-height) * 22))
     calc(var(--ui-control-height) * 3);
+  gap: var(--ui-gap);
   justify-content: start;
+  align-items: end;
+  min-width: 0;
 }
 
-.syntax-grid-section > :first-child {
-  grid-column: 1 / -1;
+.syntax-config-name-field {
+  width: min(calc(var(--ui-control-height) * 22), 100%);
+}
+
+.syntax-config-width-field {
+  width: calc(var(--ui-control-height) * 3);
 }
 
 .syntax-row {
@@ -599,6 +607,39 @@
   background: var(--syntax-tone-color);
 }
 
+.syntax-detail-config {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.syntax-detail-config-row {
+  display: grid;
+  grid-template-columns: calc(var(--ui-control-height) * 3) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ui-gap);
+  min-width: 0;
+  color: var(--color-fg);
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
+.syntax-detail-config-row > span:first-child {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.syntax-detail-config-row > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syntax-detail-render-row {
+  align-items: start;
+}
+
 .syntax-render-list {
   display: grid;
   gap: calc(var(--ui-gap-tight) / 2);
@@ -818,7 +859,13 @@
 }
 
 .graph-search-field {
-  width: min(240px, 100%);
+  flex: 0 1 calc(var(--ui-control-height) * 8);
+  min-width: calc(var(--ui-control-height) * 5);
+}
+
+.graph-search-field input {
+  width: 100%;
+  min-width: 0;
 }
 
 .graph-toggle {
@@ -826,13 +873,48 @@
   align-items: center;
   gap: var(--ui-gap-tight);
   min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap-tight);
+  border: var(--ui-border-width) solid var(--color-border-strong);
+  border-radius: var(--ui-radius);
   color: var(--color-fg-muted);
+  background: transparent;
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
+  cursor: pointer;
 }
 
-.graph-toggle input {
-  margin: 0;
+.graph-toggle:hover,
+.graph-toggle.is-active {
+  color: var(--color-fg);
+  background: var(--color-hover);
+}
+
+.graph-toggle-track {
+  position: relative;
+  width: calc(var(--ui-control-height) + var(--ui-gap));
+  height: calc(var(--ui-control-height) - var(--ui-gap));
+  border-radius: var(--ui-radius);
+  background: var(--color-input);
+}
+
+.graph-toggle-track span {
+  position: absolute;
+  top: var(--ui-border-width);
+  left: var(--ui-border-width);
+  width: calc(var(--ui-control-height) - var(--ui-gap) - calc(var(--ui-border-width) * 2));
+  height: calc(var(--ui-control-height) - var(--ui-gap) - calc(var(--ui-border-width) * 2));
+  border-radius: var(--ui-radius);
+  background: var(--color-fg-muted);
+}
+
+.graph-toggle.is-active .graph-toggle-track {
+  background: var(--color-accent-soft);
+}
+
+.graph-toggle.is-active .graph-toggle-track span {
+  right: var(--ui-border-width);
+  left: auto;
+  background: var(--color-accent);
 }
 
 .graph-canvas {
@@ -872,7 +954,7 @@
 
 @media (max-width: 1120px) {
   .migration-grid,
-  .syntax-grid-section {
+  .syntax-config-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

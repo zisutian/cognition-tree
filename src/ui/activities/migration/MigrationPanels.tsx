@@ -1,4 +1,8 @@
 import {
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+import {
   useEffect,
   useMemo,
   useState,
@@ -13,7 +17,6 @@ import { BlockText } from "../../shared/blockText";
 import {
   Button,
   EmptyState,
-  Metrics,
   Panel,
   PanelBody,
   PanelHeader,
@@ -58,6 +61,10 @@ function readDraggedLine(event: DragEvent<HTMLElement>) {
 }
 
 const emptySelectedLineNumbers = new Set<number>();
+
+function promptText(label: string, value = "") {
+  return window.prompt(label, value)?.trim() ?? "";
+}
 
 function findNoteTitle(nodes: TreeNode[], noteId: string): string | null {
   for (const node of nodes) {
@@ -278,19 +285,40 @@ export function MigrationContext({ view }: { view: ViewModel }) {
     );
     resetPairSelection();
   };
-  const noteBadges = (node: Extract<TreeNode, { kind: "note" }>) => (
-    <>
-      {node.noteId === view.migration.sourceNoteId ? (
-        <span className="ui-badge">源</span>
-      ) : null}
-      {node.noteId === view.migration.structureNoteId ? (
-        <span className="ui-badge">结构</span>
-      ) : null}
-      {node.noteId === view.migration.targetNoteId ? (
-        <span className="ui-badge">目标</span>
-      ) : null}
-    </>
-  );
+  const actions = (node: TreeNode) =>
+    node.kind === "folder"
+      ? [
+          {
+            label: "改",
+            onClick: () => {
+              const title = promptText("文件夹名称", node.title);
+
+              if (title) {
+                view.renameFolder(node.folderId, title);
+              }
+            },
+          },
+          {
+            label: "删",
+            onClick: () => view.deleteFolder(node.folderId),
+          },
+        ]
+      : [
+          {
+            label: "改",
+            onClick: () => {
+              const title = promptText("笔记名称", node.title);
+
+              if (title) {
+                view.renameNote(node.noteId, title);
+              }
+            },
+          },
+          {
+            label: "删",
+            onClick: () => view.deleteNote(node.noteId),
+          },
+        ];
   const toggleFolder = (folderId: string) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -326,6 +354,51 @@ export function MigrationContext({ view }: { view: ViewModel }) {
     setPendingSourceNoteId(noteId);
     setPairSelectionPhase("selectTarget");
   };
+  const getNoteStatus = (node: Extract<TreeNode, { kind: "note" }>) => {
+    if (view.migration.mode === "structure") {
+      return node.noteId === view.migration.structureNoteId ? "本" : "";
+    }
+
+    if (node.noteId === view.migration.sourceNoteId) {
+      return "出";
+    }
+
+    return node.noteId === view.migration.targetNoteId ? "入" : "";
+  };
+  const renderNodeLeading = (
+    node: TreeNode,
+    state: { hasChildren: boolean; isCollapsed: boolean },
+  ) => {
+    if (node.kind === "folder") {
+      return (
+        <>
+          {state.hasChildren ? (
+            state.isCollapsed ? (
+              <ChevronRight aria-hidden="true" size={13} />
+            ) : (
+              <ChevronDown aria-hidden="true" size={13} />
+            )
+          ) : (
+            <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+          )}
+          <span aria-hidden="true" className="ui-tree-status-spacer" />
+        </>
+      );
+    }
+
+    const status = getNoteStatus(node);
+
+    return (
+      <>
+        <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+        {status ? (
+          <span className="ui-tree-status">{status}</span>
+        ) : (
+          <span aria-hidden="true" className="ui-tree-status-spacer" />
+        )}
+      </>
+    );
+  };
   const pendingSourceTitle = pendingSourceNoteId
     ? findNoteTitle(view.migration.noteTree, pendingSourceNoteId) ??
       view.migration.sourceNote?.title ??
@@ -339,13 +412,13 @@ export function MigrationContext({ view }: { view: ViewModel }) {
         : view.migration.sourceNoteId;
   const statusText =
     view.migration.mode === "structure"
-      ? `点选结构 · ${view.migration.structureNote?.title ?? "未选择"}`
+      ? `点选笔记结构 · ${view.migration.structureNote?.title ?? "未选择"}`
       : pairSelectionPhase === "selectTarget"
-        ? [`已选源 ${pendingSourceTitle}`, "点选目标"].join(" · ")
+        ? [`已选源笔记 ${pendingSourceTitle}`, "点选目标笔记"].join(" · ")
         : [
-            "点选源",
-            `当前源 ${view.migration.sourceNote?.title ?? "未选择"}`,
-            `目标 ${view.migration.targetNote?.title ?? "未选择"}`,
+            "点选源笔记",
+            `当前源笔记 ${view.migration.sourceNote?.title ?? "未选择"}`,
+            `目标笔记 ${view.migration.targetNote?.title ?? "未选择"}`,
           ].join(" · ");
 
   return (
@@ -360,7 +433,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
           }}
           type="button"
         >
-          源和目标
+          源笔记 / 目标笔记
         </Button>
         <Button
           className={
@@ -372,14 +445,19 @@ export function MigrationContext({ view }: { view: ViewModel }) {
           }}
           type="button"
         >
-          结构
+          笔记结构
         </Button>
       </div>
       <NoteTree
-        activeNoteId={activeNoteId}
+        actions={actions}
+        activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
+        canDragNode={(node) => node.kind === "note"}
+        canDropNode={(source, target) =>
+          source.kind === "note" && target.kind === "note"
+        }
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.migration.noteTree}
-        renderNoteBadges={noteBadges}
+        renderNodeLeading={renderNodeLeading}
         onMoveNode={moveNode}
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}
@@ -431,7 +509,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
     <div className="migration-grid">
       <Section
         className="migration-column"
-        title={`源 · ${view.migration.sourceNote?.title ?? "未选择"}`}
+        title={`源笔记 · ${view.migration.sourceNote?.title ?? "未选择"}`}
       >
         {view.migration.sourceRoots.length > 0 ? (
           <BlockTree
@@ -452,7 +530,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
       </Section>
       <Section
         className="migration-column"
-        title={`目标 · ${view.migration.targetNote?.title ?? "未选择"}`}
+        title={`目标笔记 · ${view.migration.targetNote?.title ?? "未选择"}`}
       >
         {draggingLineNumber ? (
           <DropTarget
@@ -526,7 +604,7 @@ function StructureView({ view }: { view: ViewModel }) {
     <div className="migration-grid migration-grid-single">
       <Section
         className="migration-column"
-        title={`结构 · ${view.migration.structureNote?.title ?? "未选择"}`}
+        title={`笔记结构 · ${view.migration.structureNote?.title ?? "未选择"}`}
       >
         {draggingLineNumber ? (
           <DropTarget
@@ -556,7 +634,7 @@ function StructureView({ view }: { view: ViewModel }) {
             onSetActiveDropPosition={setActiveDropPosition}
           />
         ) : (
-          <p className="ui-muted">当前笔记没有可调整块。</p>
+          <p className="ui-muted">当前笔记结构没有可调整块。</p>
         )}
       </Section>
     </div>
@@ -566,26 +644,15 @@ function StructureView({ view }: { view: ViewModel }) {
 export function MigrationMainPanel({ view }: { view: ViewModel }) {
   if (view.migration.noteTree.length === 0) {
     return (
-      <Panel className="migration-panel" aria-label="块迁移">
-        <EmptyState description="没有可迁移笔记。" title="块迁移" />
+      <Panel className="migration-panel" aria-label="结构操作">
+        <EmptyState description="没有可操作笔记。" title="结构操作" />
       </Panel>
     );
   }
 
   return (
-    <Panel className="migration-panel" aria-label="块迁移">
-      <PanelHeader
-        title={view.migration.mode === "structure" ? "笔记结构调整" : "块迁移"}
-        actions={
-          <Metrics
-            items={[
-              { label: "源块", value: view.migration.sourceBlocks.length },
-              { label: "目标块", value: view.migration.targetRoots.length },
-              { label: "结构块", value: view.migration.structureBlocks.length },
-            ]}
-          />
-        }
-      />
+    <Panel className="migration-panel" aria-label="结构操作">
+      <PanelHeader title="结构操作" />
       <PanelBody className={cx("migration-body", view.migration.mode)}>
         {view.migration.mode === "structure" ? (
           <StructureView view={view} />

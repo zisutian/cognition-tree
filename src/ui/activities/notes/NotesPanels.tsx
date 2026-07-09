@@ -3,7 +3,7 @@ import {
   FolderPlus,
   Plus,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import {
@@ -18,6 +18,7 @@ import {
 import {
   NoteTree,
   OutlineTree,
+  type NoteTreeActiveNode,
   type TreeNode,
 } from "../../shared/tree";
 
@@ -33,6 +34,22 @@ export function NotesContext({ view }: NotesContextProps) {
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [activeTreeNode, setActiveTreeNode] =
+    useState<NoteTreeActiveNode | null>(() =>
+      view.sidebar.activeNoteId
+        ? { kind: "note", noteId: view.sidebar.activeNoteId }
+        : view.sidebar.activeFolderId
+          ? { folderId: view.sidebar.activeFolderId, kind: "folder" }
+          : null,
+    );
+  useEffect(() => {
+    if (view.sidebar.activeNoteId) {
+      setActiveTreeNode({ kind: "note", noteId: view.sidebar.activeNoteId });
+      return;
+    }
+
+    setActiveTreeNode(null);
+  }, [view.sidebar.activeNoteId]);
   const createFolder = () => {
     const title = promptText("文件夹名称", "新文件夹");
 
@@ -99,14 +116,19 @@ export function NotesContext({ view }: NotesContextProps) {
         </Button>
       </div>
       <NoteTree
-        activeFolderId={view.sidebar.activeFolderId}
-        activeNoteId={view.sidebar.activeNoteId}
+        activeNode={activeTreeNode}
         actions={actions}
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.sidebar.noteTree}
         onMoveNode={view.moveSidebarTreeNode}
-        onSelectFolder={view.selectFolder}
-        onSelectNote={view.selectNote}
+        onSelectFolder={(folderId) => {
+          setActiveTreeNode({ folderId, kind: "folder" });
+          view.selectFolder(folderId);
+        }}
+        onSelectNote={(noteId) => {
+          setActiveTreeNode({ kind: "note", noteId });
+          view.selectNote(noteId);
+        }}
         onToggleFolder={toggleFolder}
       />
       {view.sidebar.noteTree.length === 0 ? (

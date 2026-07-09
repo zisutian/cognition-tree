@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createActivitySlots,
 } from "../../../src/ui/activities/activityRegistry";
+import { activityItems } from "../../../src/ui/ActivityBar";
 import type { ActivityId } from "../../../src/ui/activityTypes";
 import { createView } from "../viewFactory";
 
@@ -19,13 +20,22 @@ function slots(activityId: ActivityId) {
   });
 }
 
+function slotsWithView(activityId: ActivityId, view = createView()) {
+  return createActivitySlots({
+    activityId,
+    onCollapseDetail: () => undefined,
+    onConfigureSyntax: () => undefined,
+    view,
+  });
+}
+
 describe("activity registry", () => {
   it("maps each activity to explicit slots", () => {
     expect(slots("notes").context?.title).toBe("笔记");
     expect(slots("notes").detail).not.toBeNull();
     expect(slots("notes").mainSpan).toBe("standard");
 
-    expect(slots("migration").context?.title).toBe("块迁移");
+    expect(slots("migration").context?.title).toBe("结构操作");
     expect(slots("migration").detail).toBeNull();
     expect(slots("migration").mainSpan).toBe("full");
 
@@ -41,6 +51,12 @@ describe("activity registry", () => {
     expect(slots("search").mainSpan).toBe("full");
     expect(slots("data").context).toBeNull();
     expect(slots("settings").context).toBeNull();
+  });
+
+  it("uses structure operation label in the activity bar", () => {
+    expect(activityItems.find((item) => item.id === "migration")?.label).toBe(
+      "结构操作",
+    );
   });
 
   it("uses syntax setup for syntax-dependent activities before configuration", () => {
@@ -81,14 +97,43 @@ describe("activity registry", () => {
 
     expect(context).toContain("Source note");
     expect(context).toContain("Target note");
-    expect(context).toContain("点选源");
-    expect(context).toContain("当前源");
-    expect(context).toContain("源和目标");
-    expect(context).toContain("结构");
-    expect(context).toContain("目标");
-    expect(context).not.toContain("ui-tree-actions");
-    expect(main).toContain("块迁移");
-    expect(main).toContain("源 · Source note");
-    expect(main).toContain("目标 · Target note");
+    expect(context).toContain("点选源笔记");
+    expect(context).toContain("当前源笔记");
+    expect(context).toContain("源笔记 / 目标笔记");
+    expect(context).toContain("笔记结构");
+    expect(context).toContain("目标笔记");
+    expect(context).toContain("draggable=\"true\"");
+    expect(context).toContain("ui-tree-actions");
+    expect(context).toContain(">出<");
+    expect(context).toContain(">入<");
+    expect(context).toContain(">改<");
+    expect(context).toContain(">删<");
+    expect(context).not.toContain(">本<");
+    expect(context).not.toContain("lucide-file-text");
+    expect(main).toContain("结构操作");
+    expect(main).toContain("源笔记 · Source note");
+    expect(main).toContain("目标笔记 · Target note");
+    expect(main).not.toContain("源块");
+    expect(main).not.toContain("目标块");
+    expect(main).not.toContain("结构块");
+  });
+
+  it("renders only structure status in structure operation mode", () => {
+    const baseView = createView();
+    const migrationSlots = slotsWithView(
+      "migration",
+      createView({
+        migration: {
+          ...baseView.migration,
+          mode: "structure",
+        },
+      }),
+    );
+    const context = renderSlot(migrationSlots.context?.content);
+
+    expect(context).toContain("点选笔记结构");
+    expect(context).toContain(">本<");
+    expect(context).not.toContain(">出<");
+    expect(context).not.toContain(">入<");
   });
 });

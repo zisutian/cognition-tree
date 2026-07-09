@@ -2,7 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   BlockTree,
+  createTreeMoveRequest,
+  createTreeNodeDragPayload,
   NoteTree,
+  readTreeNodeDragPayload,
+  treeNodeDragDataType,
 } from "../../../src/ui/shared/tree";
 
 describe("shared trees", () => {
@@ -71,6 +75,72 @@ describe("shared trees", () => {
 
     expect(markup).toContain("aria-expanded=\"false\"");
     expect(markup).not.toContain("折叠中的笔记");
+  });
+
+  it("uses active node selection to keep note and folder selection exclusive", () => {
+    const markup = renderToStaticMarkup(
+      <NoteTree
+        activeFolderId="folder-1"
+        activeNode={{ kind: "note", noteId: "note-1" }}
+        activeNoteId="note-1"
+        nodes={[
+          {
+            canDrag: true,
+            children: [
+              {
+                canDrag: true,
+                folderId: "folder-1",
+                id: "tree-note-1",
+                kind: "note",
+                noteId: "note-1",
+                parentFolderId: "folder-1",
+                title: "当前笔记",
+              },
+            ],
+            folderId: "folder-1",
+            id: "folder-1",
+            kind: "folder",
+            parentFolderId: null,
+            title: "文件夹",
+          },
+        ]}
+      />,
+    );
+
+    expect(markup.match(/ui-tree-row-frame is-selected/g) ?? []).toHaveLength(1);
+  });
+
+  it("serializes note tree drag payloads and move requests", () => {
+    const source = {
+      kind: "note" as const,
+      noteId: "note-source",
+      parentFolderId: null,
+    };
+    const target = {
+      kind: "note" as const,
+      noteId: "note-target",
+      parentFolderId: null,
+    };
+    const folderTarget = {
+      folderId: "folder-target",
+      kind: "folder" as const,
+      parentFolderId: null,
+    };
+    const payload = createTreeNodeDragPayload(source);
+
+    expect(treeNodeDragDataType).toBe("application/x-cognition-tree-node");
+    expect(readTreeNodeDragPayload(payload)).toEqual(source);
+    expect(readTreeNodeDragPayload("invalid")).toBeNull();
+    expect(createTreeMoveRequest({ source, target })).toEqual({
+      placement: "after",
+      source,
+      target,
+    });
+    expect(createTreeMoveRequest({ source, target: folderTarget })).toEqual({
+      placement: "inside",
+      source,
+      target: folderTarget,
+    });
   });
 
   it("renders block trees with kind, text and line metadata", () => {

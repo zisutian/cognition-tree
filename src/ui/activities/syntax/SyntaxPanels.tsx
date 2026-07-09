@@ -221,8 +221,8 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
         {syntax.feedback ? (
           <StatusLine tone={syntax.feedback.status}>{syntax.feedback.message}</StatusLine>
         ) : null}
-        <Section className="syntax-grid-section" title="配置">
-          <Field label="名称">
+        <div className="syntax-config-grid">
+          <Field className="syntax-config-name-field" label="名称">
             <input
               maxLength={64}
               value={syntax.draft.name}
@@ -231,7 +231,7 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
               }
             />
           </Field>
-          <Field label="缩进宽度">
+          <Field className="syntax-config-width-field" label="缩进宽度">
             <input
               inputMode="numeric"
               max={maxTabDisplayWidth}
@@ -247,7 +247,7 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
               }
             />
           </Field>
-        </Section>
+        </div>
         <Section title="块规则">
           <ToneFields
             label="首行标题"
@@ -439,56 +439,55 @@ export function SyntaxDetailPanel({
         }
       />
       <PanelBody scroll>
-        <Section title="当前配置">
-          <dl className="detail-list">
-            <div>
-              <dt>名称</dt>
-              <dd>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</dd>
-            </div>
-            <div>
-              <dt>缩进宽度</dt>
-              <dd>
-                {view.syntax.draftResult.profile?.tabDisplayWidth ??
-                  view.syntax.draft.tabDisplayWidth}
-              </dd>
-            </div>
-          </dl>
-        </Section>
-        <Section title="语法可视化">
-          <div className="syntax-render-list">
-            <SyntaxRenderLine
-              marker="T"
-              textColor={view.syntax.draft.titleRule.textColor}
-              tone={view.syntax.draft.titleRule.tone}
-              value="首行标题示例"
-            />
-            <SyntaxRenderLine
-              marker="C"
-              textColor={view.syntax.draft.conceptRule.textColor}
-              tone={view.syntax.draft.conceptRule.tone}
-              value="顶格概念示例"
-            />
-            {view.syntax.draft.markerRules.map((rule) => (
-              <SyntaxRenderLine
-                key={rule.id}
-                marker={rule.marker || "·"}
-                textColor={rule.textColor}
-                tone={rule.tone}
-                value={`${rule.label}示例`}
-              />
-            ))}
-            {view.syntax.draft.inlineRules.map((rule) => (
-              <SyntaxRenderLine
-                inline
-                key={rule.id}
-                marker="I"
-                textColor={rule.textColor}
-                tone={rule.tone}
-                value={getInlinePreviewValue(rule)}
-              />
-            ))}
+        <div className="syntax-detail-config">
+          <div className="syntax-detail-config-row">
+            <span>名称</span>
+            <span>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</span>
           </div>
-        </Section>
+          <div className="syntax-detail-config-row">
+            <span>缩进宽度</span>
+            <span>
+              {view.syntax.draftResult.profile?.tabDisplayWidth ??
+                view.syntax.draft.tabDisplayWidth}
+            </span>
+          </div>
+          <div className="syntax-detail-config-row syntax-detail-render-row">
+            <span>语法可视化</span>
+            <div className="syntax-render-list">
+              <SyntaxRenderLine
+                marker="T"
+                textColor={view.syntax.draft.titleRule.textColor}
+                tone={view.syntax.draft.titleRule.tone}
+                value="首行标题示例"
+              />
+              <SyntaxRenderLine
+                marker="C"
+                textColor={view.syntax.draft.conceptRule.textColor}
+                tone={view.syntax.draft.conceptRule.tone}
+                value="顶格概念示例"
+              />
+              {view.syntax.draft.markerRules.map((rule) => (
+                <SyntaxRenderLine
+                  key={rule.id}
+                  marker={rule.marker || "·"}
+                  textColor={rule.textColor}
+                  tone={rule.tone}
+                  value={`${rule.label}示例`}
+                />
+              ))}
+              {view.syntax.draft.inlineRules.map((rule) => (
+                <SyntaxRenderLine
+                  inline
+                  key={rule.id}
+                  marker="I"
+                  textColor={rule.textColor}
+                  tone={rule.tone}
+                  value={getInlinePreviewValue(rule)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </PanelBody>
     </Panel>
   );

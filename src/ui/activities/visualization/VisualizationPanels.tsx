@@ -8,7 +8,6 @@ import type { ViewModel } from "../../../application/workspace/view-model/useVie
 import {
   Button,
   EmptyState,
-  Field,
   Metrics,
   Panel,
   PanelBody,
@@ -97,18 +96,7 @@ export function VisualizationPanel({ view }: { view: ViewModel }) {
 
   return (
     <Panel className="visualization-panel" aria-label="可视化">
-      <PanelHeader
-        title="引用图谱"
-        actions={
-          <Metrics
-            items={[
-              { label: "点", value: visualization.graph.stats.nodeCount },
-              { label: "边", value: visualization.graph.stats.edgeCount },
-              { label: "孤立", value: visualization.graph.stats.isolatedCount },
-            ]}
-          />
-        }
-      />
+      <PanelHeader title="引用图谱" />
       <PanelBody className="graph-body">
         <div className="graph-toolbar" aria-label="图谱控制">
           <div className="graph-segments" aria-label="图谱范围" role="group">
@@ -145,21 +133,25 @@ export function VisualizationPanel({ view }: { view: ViewModel }) {
               </Button>
             </div>
           ) : null}
-          <Field className="graph-search-field" label="搜索">
+          <div className="graph-search-field">
             <input
+              aria-label="搜索笔记标题"
               placeholder="笔记标题"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-          </Field>
-          <label className="graph-toggle">
-            <input
-              checked={hideIsolated}
-              type="checkbox"
-              onChange={(event) => setHideIsolated(event.target.checked)}
-            />
+          </div>
+          <button
+            aria-pressed={hideIsolated}
+            className={hideIsolated ? "graph-toggle is-active" : "graph-toggle"}
+            onClick={() => setHideIsolated((current) => !current)}
+            type="button"
+          >
+            <span className="graph-toggle-track" aria-hidden="true">
+              <span />
+            </span>
             <span>隐藏孤立点</span>
-          </label>
+          </button>
           <Button
             onClick={() => setResetSignal((current) => current + 1)}
             title="重置图谱视图"

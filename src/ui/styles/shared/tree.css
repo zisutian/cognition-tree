@@ -98,6 +98,25 @@
   white-space: nowrap;
 }
 
+.ui-tree-status,
+.ui-tree-status-spacer {
+  width: calc(var(--ui-control-height) - var(--ui-gap-tight));
+}
+
+.ui-tree-status {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--color-fg-strong);
+  font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
+  line-height: var(--ui-micro-line-height);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
+.ui-tree-status-spacer {
+  display: inline-block;
+}
+
 .ui-badge {
   padding: 0 var(--ui-gap-tight);
   border-radius: var(--ui-radius);

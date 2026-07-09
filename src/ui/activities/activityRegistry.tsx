@@ -72,7 +72,7 @@ function migrationSlots({
   return {
     context: {
       content: <MigrationContext view={view} />,
-      title: "块迁移",
+      title: "结构操作",
     },
     detail: null,
     main: view.hasConfiguredSyntax ? (

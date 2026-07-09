@@ -72,6 +72,24 @@ export type NoteTreeAction = {
   title?: string;
 };
 
+export type NoteTreeActiveNode =
+  | {
+      folderId: string;
+      kind: "folder";
+    }
+  | {
+      kind: "note";
+      noteId: string;
+    };
+
+type NoteTreeNodeState = {
+  hasChildren: boolean;
+  isCollapsed: boolean;
+  isFolder: boolean;
+};
+
+export const treeNodeDragDataType = "application/x-cognition-tree-node";
+
 function getTreeNodeReference(node: TreeNode): TreeNodeReference {
   return node.kind === "folder"
     ? {
@@ -83,10 +101,14 @@ function getTreeNodeReference(node: TreeNode): TreeNodeReference {
         kind: "note",
         noteId: node.noteId,
         parentFolderId: node.parentFolderId,
-      };
+    };
 }
 
-function readTreeNodeReference(value: string): TreeNodeReference | null {
+export function createTreeNodeDragPayload(reference: TreeNodeReference) {
+  return JSON.stringify(reference);
+}
+
+export function readTreeNodeDragPayload(value: string): TreeNodeReference | null {
   try {
     const parsed = JSON.parse(value) as TreeNodeReference;
 
@@ -94,6 +116,48 @@ function readTreeNodeReference(value: string): TreeNodeReference | null {
   } catch {
     return null;
   }
+}
+
+export function createTreeMoveRequest({
+  source,
+  target,
+}: {
+  source: TreeNodeReference;
+  target: TreeNodeReference;
+}): TreeMoveRequest {
+  return {
+    placement: target.kind === "folder" ? "inside" : "after",
+    source,
+    target,
+  };
+}
+
+function isActiveTreeNode({
+  activeFolderId,
+  activeNode,
+  activeNoteId,
+  node,
+}: {
+  activeFolderId?: string | null;
+  activeNode?: NoteTreeActiveNode | null;
+  activeNoteId?: string | null;
+  node: TreeNode;
+}) {
+  if (activeNode) {
+    if (node.kind === "note" && activeNode.kind === "note") {
+      return node.noteId === activeNode.noteId;
+    }
+
+    if (node.kind === "folder" && activeNode.kind === "folder") {
+      return node.folderId === activeNode.folderId;
+    }
+
+    return false;
+  }
+
+  return node.kind === "note"
+    ? activeNoteId === node.noteId
+    : activeFolderId === node.folderId;
 }
 
 export function BlockTree({
@@ -199,11 +263,15 @@ export function OutlineTree({
 export function NoteTree({
   activeNoteId,
   actions,
+  activeNode,
   activeFolderId,
+  canDragNode,
+  canDropNode,
   className,
   collapsedFolderIds,
   nodes,
   renderNoteBadges,
+  renderNodeLeading,
   onToggleFolder,
   onMoveNode,
   onSelectFolder,
@@ -211,11 +279,15 @@ export function NoteTree({
 }: {
   activeFolderId?: string | null;
   activeNoteId?: string | null;
+  activeNode?: NoteTreeActiveNode | null;
   actions?: (node: TreeNode) => NoteTreeAction[];
+  canDragNode?: (node: TreeNode) => boolean;
+  canDropNode?: (source: TreeNodeReference, target: TreeNodeReference) => boolean;
   className?: string;
   collapsedFolderIds?: ReadonlySet<string>;
   nodes: TreeNode[];
   renderNoteBadges?: (node: Extract<TreeNode, { kind: "note" }>) => ReactNode;
+  renderNodeLeading?: (node: TreeNode, state: NoteTreeNodeState) => ReactNode;
   onToggleFolder?: (folderId: string) => void;
   onMoveNode?: (request: TreeMoveRequest) => void;
   onSelectFolder?: (folderId: string) => void;
@@ -226,38 +298,74 @@ export function NoteTree({
       {nodes.map((node) => {
         const nodeActions = actions?.(node) ?? [];
         const nodeReference = getTreeNodeReference(node);
-        const isActive =
-          node.kind === "note"
-            ? activeNoteId === node.noteId
-            : activeFolderId === node.folderId;
         const isFolder = node.kind === "folder";
         const hasChildren = isFolder && node.children.length > 0;
         const isCollapsed =
           isFolder && collapsedFolderIds?.has(node.folderId) === true;
+        const isActive = isActiveTreeNode({
+          activeFolderId,
+          activeNode,
+          activeNoteId,
+          node,
+        });
+        const draggable = node.canDrag && (canDragNode?.(node) ?? true);
+        const nodeState = {
+          hasChildren,
+          isCollapsed,
+          isFolder,
+        };
+        const leadingContent = renderNodeLeading ? (
+          renderNodeLeading(node, nodeState)
+        ) : node.kind === "folder" ? (
+          <>
+            {hasChildren && !isCollapsed ? (
+              <ChevronDown aria-hidden="true" size={13} />
+            ) : (
+              <ChevronRight aria-hidden="true" size={13} />
+            )}
+            <Folder aria-hidden="true" size={13} />
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true" className="ui-tree-toggle-spacer" />
+            <FileText aria-hidden="true" size={13} />
+          </>
+        );
 
         return (
           <li key={node.id}>
             <div
               className={cx("ui-tree-row-frame", isActive && "is-selected")}
-              onDragOver={(event) => event.preventDefault()}
+              onDragOver={(event) => {
+                if (onMoveNode) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }
+              }}
               onDrop={(event) => {
+                if (!onMoveNode) {
+                  return;
+                }
+
                 event.preventDefault();
-                const source = readTreeNodeReference(
-                  event.dataTransfer.getData("application/x-cognition-tree-node"),
+                const source = readTreeNodeDragPayload(
+                  event.dataTransfer.getData(treeNodeDragDataType) ||
+                    event.dataTransfer.getData("text/plain"),
                 );
 
-                if (source) {
-                  onMoveNode?.({
-                    placement: node.kind === "folder" ? "inside" : "after",
-                    source,
-                    target: nodeReference,
-                  });
+                if (source && (canDropNode?.(source, nodeReference) ?? true)) {
+                  onMoveNode?.(
+                    createTreeMoveRequest({
+                      source,
+                      target: nodeReference,
+                    }),
+                  );
                 }
               }}
             >
               <button
                 className="ui-tree-row ui-tree-note"
-                draggable={node.canDrag}
+                draggable={draggable}
                 aria-expanded={
                   isFolder && hasChildren ? !isCollapsed : undefined
                 }
@@ -274,29 +382,21 @@ export function NoteTree({
                   }
                 }}
                 onDragStart={(event) => {
-                  event.dataTransfer.setData(
-                    "application/x-cognition-tree-node",
-                    JSON.stringify(nodeReference),
-                  );
+                  if (!draggable) {
+                    event.preventDefault();
+                    return;
+                  }
+
+                  const payload = createTreeNodeDragPayload(nodeReference);
+
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData(treeNodeDragDataType, payload);
+                  event.dataTransfer.setData("text/plain", payload);
                 }}
                 title={node.title}
                 type="button"
               >
-                {node.kind === "folder" ? (
-                  <>
-                    {hasChildren && !isCollapsed ? (
-                      <ChevronDown aria-hidden="true" size={13} />
-                    ) : (
-                      <ChevronRight aria-hidden="true" size={13} />
-                    )}
-                    <Folder aria-hidden="true" size={13} />
-                  </>
-                ) : (
-                  <>
-                    <span aria-hidden="true" className="ui-tree-toggle-spacer" />
-                    <FileText aria-hidden="true" size={13} />
-                  </>
-                )}
+                {leadingContent}
                 <span className="ui-tree-text">{node.title}</span>
                 {node.kind === "note" ? renderNoteBadges?.(node) : null}
               </button>
@@ -310,6 +410,7 @@ export function NoteTree({
                         event.stopPropagation();
                         action.onClick();
                       }}
+                      onMouseDown={(event) => event.stopPropagation()}
                       title={action.title}
                       type="button"
                     >
@@ -322,11 +423,15 @@ export function NoteTree({
             {node.kind === "folder" && node.children.length > 0 && !isCollapsed ? (
               <NoteTree
                 activeFolderId={activeFolderId}
+                activeNode={activeNode}
                 activeNoteId={activeNoteId}
                 actions={actions}
+                canDragNode={canDragNode}
+                canDropNode={canDropNode}
                 collapsedFolderIds={collapsedFolderIds}
                 nodes={node.children}
                 renderNoteBadges={renderNoteBadges}
+                renderNodeLeading={renderNodeLeading}
                 onToggleFolder={onToggleFolder}
                 onMoveNode={onMoveNode}
                 onSelectFolder={onSelectFolder}

@@ -1,9 +1,26 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { VisualizationDetailPanel } from "../../../../src/ui/activities/visualization/VisualizationPanels";
+import {
+  VisualizationDetailPanel,
+  VisualizationPanel,
+} from "../../../../src/ui/activities/visualization/VisualizationPanels";
 import { createView } from "../../viewFactory";
 
-describe("visualization detail panel", () => {
+describe("visualization panels", () => {
+  it("keeps main graph controls free of header metrics and visible search label", () => {
+    const markup = renderToStaticMarkup(<VisualizationPanel view={createView()} />);
+
+    expect(markup).toContain("引用图谱");
+    expect(markup).toContain("graph-search-field");
+    expect(markup).toContain("aria-label=\"搜索笔记标题\"");
+    expect(markup).toContain("placeholder=\"笔记标题\"");
+    expect(markup).toContain("graph-toggle");
+    expect(markup).toContain("aria-pressed=\"false\"");
+    expect(markup).toContain("隐藏孤立点");
+    expect(markup).not.toContain(">搜索<");
+    expect(markup).not.toContain("ui-metrics");
+  });
+
   it("renders all reference lists with unified detail row structure", () => {
     const view = createView({
       visualization: {

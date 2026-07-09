@@ -12,6 +12,7 @@ describe("syntax panels", () => {
 
     expect(markup).toContain("type=\"number\"");
     expect(markup).toContain("max=\"16\"");
+    expect(markup).toContain("syntax-config-grid");
     expect(markup).toContain("syntax-tone-picker");
     expect(markup).toContain("新增块规则");
   });
@@ -24,11 +25,12 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain("当前配置");
     expect(markup).toContain("缩进宽度");
     expect(markup).toContain("语法可视化");
+    expect(markup).toContain("syntax-detail-config");
     expect(markup).toContain("syntax-render-line");
     expect(markup).toContain("首行标题示例");
+    expect(markup).not.toContain("当前配置");
     expect(markup).not.toContain("语法统计");
   });
 });
