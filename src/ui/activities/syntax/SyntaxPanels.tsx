@@ -1,5 +1,5 @@
 import { ChevronRight, Plus, Trash2 } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import type {
   UiSyntaxProfileDraftInlineRule,
@@ -10,7 +10,6 @@ import {
   Panel,
   PanelBody,
   PanelHeader,
-  Section,
   StatusLine,
   cx,
 } from "../../shared/primitives";
@@ -67,7 +66,7 @@ function getRenderStyle({
   return Object.keys(style).length > 0 ? (style as CSSProperties) : undefined;
 }
 
-function ToneFields({
+function SyntaxToneCells({
   label,
   options,
   textColor,
@@ -81,22 +80,57 @@ function ToneFields({
   onChange: (patch: { textColor?: UiSyntaxTone; tone?: UiSyntaxTone }) => void;
 }) {
   return (
-    <div className="syntax-tone-fields">
-      <span>{label}</span>
+    <>
       <TonePicker
         ariaLabel={`${label}背景色`}
         options={options}
+        showLabel={false}
         value={tone}
         onChange={(nextTone) => onChange({ tone: nextTone })}
       />
       <TonePicker
         ariaLabel={`${label}文字色`}
         options={options}
+        showLabel={false}
         value={textColor}
         onChange={(nextColor) => onChange({ textColor: nextColor })}
       />
+    </>
+  );
+}
+
+function SyntaxSettingsGroup({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <div className="syntax-settings-group" aria-label={title}>
+      <div className="syntax-group-label">
+        <span>{title}</span>
+      </div>
+      {children}
     </div>
   );
+}
+
+function SyntaxRuleHeader() {
+  return (
+    <div className="syntax-rule-row syntax-rule-header">
+      <span>名称</span>
+      <span>标记</span>
+      <span>类型</span>
+      <span>背景</span>
+      <span>文字</span>
+      <span />
+    </div>
+  );
+}
+
+function SyntaxRuleSpacer() {
+  return <span aria-hidden="true" className="syntax-rule-spacer" />;
 }
 
 function InlineRuleRow({
@@ -111,7 +145,7 @@ function InlineRuleRow({
   const isProtected = protectedRuleIds.includes(rule.id);
 
   return (
-    <div className="syntax-row syntax-inline-row">
+    <div className="syntax-rule-row">
       <input
         aria-label="名称"
         value={rule.label}
@@ -121,7 +155,7 @@ function InlineRuleRow({
         }
       />
       {rule.kind === "paired" ? (
-        <>
+        <div className="syntax-pair-fields">
           <input
             aria-label="开始"
             maxLength={12}
@@ -138,31 +172,33 @@ function InlineRuleRow({
               syntax.actions.updateInlineRule(rule.id, { close: event.target.value })
             }
           />
-        </>
+        </div>
       ) : (
-        <>
-          <input
-            aria-label="符号"
-            maxLength={12}
-            value={rule.marker}
-            onChange={(event) =>
-              syntax.actions.updateInlineRule(rule.id, {
-                marker: event.target.value,
-              })
-            }
-          />
-          <span className="syntax-readonly">单个符号</span>
-        </>
+        <input
+          aria-label="符号"
+          maxLength={12}
+          value={rule.marker}
+          onChange={(event) =>
+            syntax.actions.updateInlineRule(rule.id, {
+              marker: event.target.value,
+            })
+          }
+        />
       )}
+      <span className="syntax-readonly">
+        {rule.kind === "paired" ? "成对" : "单个"}
+      </span>
       <TonePicker
         ariaLabel={`${rule.label}背景色`}
         options={syntax.toneOptions}
+        showLabel={false}
         value={rule.tone}
         onChange={(tone) => syntax.actions.updateInlineRule(rule.id, { tone })}
       />
       <TonePicker
         ariaLabel={`${rule.label}文字色`}
         options={syntax.toneOptions}
+        showLabel={false}
         value={rule.textColor}
         onChange={(textColor) =>
           syntax.actions.updateInlineRule(rule.id, { textColor })
@@ -220,167 +256,174 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
         {syntax.feedback ? (
           <StatusLine tone={syntax.feedback.status}>{syntax.feedback.message}</StatusLine>
         ) : null}
-        <div className="syntax-config-strip">
-          <label className="syntax-config-item syntax-config-name-field">
-            <span>名称</span>
-            <input
-              maxLength={64}
-              value={syntax.draft.name}
-              onChange={(event) =>
-                syntax.actions.updateDraftField("name", event.target.value)
-              }
-            />
-          </label>
-          <label className="syntax-config-item syntax-config-width-field">
-            <span>缩进宽度</span>
-            <input
-              inputMode="numeric"
-              max={maxTabDisplayWidth}
-              min={1}
-              step={1}
-              type="number"
-              value={syntax.draft.tabDisplayWidth}
-              onChange={(event) =>
-                syntax.actions.updateDraftField(
-                  "tabDisplayWidth",
-                  readTabDisplayWidthInput(event.target.value),
-                )
-              }
-            />
-          </label>
-        </div>
-        <Section title="块规则">
-          <ToneFields
-            label="首行标题"
-            options={syntax.toneOptions}
-            textColor={syntax.draft.titleRule.textColor}
-            tone={syntax.draft.titleRule.tone}
-            onChange={syntax.actions.updateTitleRule}
-          />
-          <ToneFields
-            label="顶格概念"
-            options={syntax.toneOptions}
-            textColor={syntax.draft.conceptRule.textColor}
-            tone={syntax.draft.conceptRule.tone}
-            onChange={syntax.actions.updateConceptRule}
-          />
-          <div className="syntax-row syntax-block-header">
-            <span>类型</span>
-            <span>标记</span>
-            <span>角色</span>
-            <span>背景色</span>
-            <span>文字色</span>
-            <span />
-          </div>
-          {syntax.draft.markerRules.map((rule) => (
-            <div className="syntax-row syntax-block-row" key={rule.id}>
+        <div className="syntax-settings-stack" aria-label="语法设置">
+          <SyntaxSettingsGroup title="基础">
+            <label className="syntax-setting-line">
+              <span className="syntax-setting-label">名称</span>
               <input
-                aria-label="名称"
-                maxLength={32}
-                value={rule.label}
+                aria-label="语法名称"
+                className="syntax-name-control"
+                maxLength={64}
+                value={syntax.draft.name}
                 onChange={(event) =>
-                  syntax.actions.updateMarkerRule(rule.id, {
-                    label: event.target.value,
-                  })
+                  syntax.actions.updateDraftField("name", event.target.value)
                 }
               />
+            </label>
+            <label className="syntax-setting-line">
+              <span className="syntax-setting-label">缩进宽度</span>
               <input
-                aria-label="标记"
-                maxLength={12}
-                value={rule.marker}
+                aria-label="缩进宽度"
+                className="syntax-number-control"
+                inputMode="numeric"
+                max={maxTabDisplayWidth}
+                min={1}
+                step={1}
+                type="number"
+                value={syntax.draft.tabDisplayWidth}
                 onChange={(event) =>
-                  syntax.actions.updateMarkerRule(rule.id, {
-                    marker: event.target.value,
-                  })
+                  syntax.actions.updateDraftField(
+                    "tabDisplayWidth",
+                    readTabDisplayWidthInput(event.target.value),
+                  )
                 }
               />
-              <select
-                aria-label="角色"
-                value={rule.role}
-                onChange={(event) =>
-                  syntax.actions.updateMarkerRule(rule.id, {
-                    role: event.target.value as typeof rule.role,
-                  })
-                }
-              >
-                {syntax.roleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <TonePicker
-                ariaLabel={`${rule.label}背景色`}
+            </label>
+          </SyntaxSettingsGroup>
+          <SyntaxSettingsGroup title="块规则">
+            <SyntaxRuleHeader />
+            <div className="syntax-rule-row">
+              <span className="syntax-readonly">首行标题</span>
+              <span className="syntax-readonly">首行</span>
+              <span className="syntax-readonly">标题</span>
+              <SyntaxToneCells
+                label="首行标题"
                 options={syntax.toneOptions}
-                value={rule.tone}
-                onChange={(tone) =>
-                  syntax.actions.updateMarkerRule(rule.id, { tone })
-                }
+                textColor={syntax.draft.titleRule.textColor}
+                tone={syntax.draft.titleRule.tone}
+                onChange={syntax.actions.updateTitleRule}
               />
-              <TonePicker
-                ariaLabel={`${rule.label}文字色`}
+              <SyntaxRuleSpacer />
+            </div>
+            <div className="syntax-rule-row">
+              <span className="syntax-readonly">顶格概念</span>
+              <span className="syntax-readonly">顶格</span>
+              <span className="syntax-readonly">概念</span>
+              <SyntaxToneCells
+                label="顶格概念"
                 options={syntax.toneOptions}
-                value={rule.textColor}
-                onChange={(textColor) =>
-                  syntax.actions.updateMarkerRule(rule.id, { textColor })
-                }
+                textColor={syntax.draft.conceptRule.textColor}
+                tone={syntax.draft.conceptRule.tone}
+                onChange={syntax.actions.updateConceptRule}
               />
+              <SyntaxRuleSpacer />
+            </div>
+            {syntax.draft.markerRules.map((rule) => (
+              <div className="syntax-rule-row" key={rule.id}>
+                <input
+                  aria-label="名称"
+                  maxLength={32}
+                  value={rule.label}
+                  onChange={(event) =>
+                    syntax.actions.updateMarkerRule(rule.id, {
+                      label: event.target.value,
+                    })
+                  }
+                />
+                <input
+                  aria-label="标记"
+                  maxLength={12}
+                  value={rule.marker}
+                  onChange={(event) =>
+                    syntax.actions.updateMarkerRule(rule.id, {
+                      marker: event.target.value,
+                    })
+                  }
+                />
+                <select
+                  aria-label="角色"
+                  value={rule.role}
+                  onChange={(event) =>
+                    syntax.actions.updateMarkerRule(rule.id, {
+                      role: event.target.value as typeof rule.role,
+                    })
+                  }
+                >
+                  {syntax.roleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <TonePicker
+                  ariaLabel={`${rule.label}背景色`}
+                  options={syntax.toneOptions}
+                  showLabel={false}
+                  value={rule.tone}
+                  onChange={(tone) =>
+                    syntax.actions.updateMarkerRule(rule.id, { tone })
+                  }
+                />
+                <TonePicker
+                  ariaLabel={`${rule.label}文字色`}
+                  options={syntax.toneOptions}
+                  showLabel={false}
+                  value={rule.textColor}
+                  onChange={(textColor) =>
+                    syntax.actions.updateMarkerRule(rule.id, { textColor })
+                  }
+                />
+                <Button
+                  aria-label="删除块规则"
+                  onClick={() => syntax.actions.removeMarkerRule(rule.id)}
+                  type="button"
+                  variant="icon"
+                >
+                  <Trash2 aria-hidden="true" size={13} />
+                </Button>
+              </div>
+            ))}
+            <div className="syntax-rule-actions">
               <Button
-                aria-label="删除块规则"
-                onClick={() => syntax.actions.removeMarkerRule(rule.id)}
+                onClick={syntax.actions.addMarkerRule}
                 type="button"
-                variant="icon"
+                variant="secondary"
               >
-                <Trash2 aria-hidden="true" size={13} />
+                <Plus aria-hidden="true" size={13} />
+                新增块规则
               </Button>
             </div>
-          ))}
-          <Button
-            className="syntax-add-rule-button"
-            onClick={syntax.actions.addMarkerRule}
-            type="button"
-            variant="secondary"
-          >
-            <Plus aria-hidden="true" size={13} />
-            新增块规则
-          </Button>
-        </Section>
-        <Section title="行内规则">
-          <div className="syntax-row syntax-inline-header">
-            <span>名称</span>
-            <span>开始/符号</span>
-            <span>结束</span>
-            <span>背景色</span>
-            <span>文字色</span>
-            <span />
-          </div>
-          {syntax.draft.inlineRules.map((rule) => (
-            <InlineRuleRow
-              key={rule.id}
-              protectedRuleIds={syntax.protectedInlineRuleIds}
-              rule={rule}
-              syntax={syntax}
-            />
-          ))}
-          <div className="ui-actions">
-            <Button
-              onClick={() => syntax.actions.addInlineRule("paired")}
-              type="button"
-              variant="secondary"
-            >
-              <Plus aria-hidden="true" size={13} />
-              成对符号
-            </Button>
-            <Button
-              onClick={() => syntax.actions.addInlineRule("single")}
-              type="button"
-              variant="secondary"
-            >
-              <Plus aria-hidden="true" size={13} />
-              单个符号
-            </Button>
-          </div>
-        </Section>
+          </SyntaxSettingsGroup>
+          <SyntaxSettingsGroup title="行内规则">
+            <SyntaxRuleHeader />
+            {syntax.draft.inlineRules.map((rule) => (
+              <InlineRuleRow
+                key={rule.id}
+                protectedRuleIds={syntax.protectedInlineRuleIds}
+                rule={rule}
+                syntax={syntax}
+              />
+            ))}
+            <div className="syntax-rule-actions">
+              <Button
+                onClick={() => syntax.actions.addInlineRule("paired")}
+                type="button"
+                variant="secondary"
+              >
+                <Plus aria-hidden="true" size={13} />
+                成对符号
+              </Button>
+              <Button
+                onClick={() => syntax.actions.addInlineRule("single")}
+                type="button"
+                variant="secondary"
+              >
+                <Plus aria-hidden="true" size={13} />
+                单个符号
+              </Button>
+            </div>
+          </SyntaxSettingsGroup>
+        </div>
       </PanelBody>
     </Panel>
   );

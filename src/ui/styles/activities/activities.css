@@ -349,130 +349,135 @@
   background: var(--color-selected);
 }
 
-.syntax-config-strip {
+.syntax-settings-stack {
   display: grid;
-  grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 14), calc(var(--ui-control-height) * 24))
-    calc(var(--ui-control-height) * 4);
   gap: var(--ui-gap);
-  justify-content: start;
-  align-items: start;
   min-width: 0;
 }
 
-.syntax-config-item {
+.syntax-settings-group {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: calc(var(--ui-gap-tight) / 2);
   min-width: 0;
+}
+
+.syntax-group-label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--ui-tree-row-height);
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
   line-height: var(--ui-micro-line-height);
 }
 
-.syntax-config-name-field {
-  min-width: 0;
+.syntax-group-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.syntax-config-width-field {
-  min-width: 0;
-}
-
-.syntax-config-item input {
-  min-width: 0;
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: var(--color-input);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-  text-align: left;
-  outline: none;
-}
-
-.syntax-config-item input:focus {
-  background: var(--color-selected);
-}
-
-.syntax-row {
+.syntax-setting-line {
   display: grid;
+  grid-template-columns:
+    calc(var(--ui-control-height) * 4)
+    minmax(calc(var(--ui-control-height) * 8), calc(var(--ui-control-height) * 18));
   align-items: center;
   gap: var(--ui-gap-tight);
   min-width: 0;
-}
-
-.syntax-row input,
-.syntax-row select {
-  min-width: 0;
   min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: var(--color-input);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-  outline: none;
 }
 
-.syntax-row input:focus,
-.syntax-row select:focus {
-  outline: none;
-  background: var(--color-selected);
-}
-
-.syntax-block-row,
-.syntax-block-header {
-  grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 7), calc(var(--ui-control-height) * 10))
-    calc(var(--ui-control-height) * 3)
-    calc(var(--ui-control-height) * 4)
-    calc(var(--ui-control-height) * 5)
-    calc(var(--ui-control-height) * 5)
-    var(--ui-icon-size);
-}
-
-.syntax-inline-row,
-.syntax-inline-header {
-  grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 7), calc(var(--ui-control-height) * 10))
-    calc(var(--ui-control-height) * 4)
-    calc(var(--ui-control-height) * 4)
-    calc(var(--ui-control-height) * 5)
-    calc(var(--ui-control-height) * 5)
-    var(--ui-icon-size);
-}
-
-.syntax-block-row,
-.syntax-block-header,
-.syntax-inline-row,
-.syntax-inline-header {
-  justify-content: start;
-}
-
-.syntax-block-header,
-.syntax-inline-header,
+.syntax-setting-label,
+.syntax-rule-header,
 .syntax-readonly {
+  min-width: 0;
+  overflow: hidden;
   color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+  line-height: var(--ui-control-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syntax-setting-label,
+.syntax-rule-header {
+  color: var(--color-fg-subtle);
+  font-weight: var(--ui-control-weight);
+}
+
+.syntax-rule-row {
+  display: grid;
+  grid-template-columns:
+    minmax(calc(var(--ui-control-height) * 4), calc(var(--ui-control-height) * 7))
+    calc(var(--ui-control-height) * 2)
+    calc(var(--ui-control-height) * 3)
+    calc(var(--ui-control-height) * 1.75)
+    calc(var(--ui-control-height) * 1.75)
+    var(--ui-icon-size);
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  min-height: var(--ui-control-height);
+}
+
+.syntax-rule-header {
+  min-height: var(--ui-tree-row-height);
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
 }
 
-.syntax-tone-fields {
-  display: grid;
-  grid-template-columns:
-    calc(var(--ui-control-height) * 4)
-    calc(var(--ui-control-height) * 5)
-    calc(var(--ui-control-height) * 5);
-  justify-content: start;
-  align-items: center;
-  gap: var(--ui-gap-tight);
+.syntax-setting-line input,
+.syntax-rule-row input,
+.syntax-rule-row select {
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap);
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  background: var(--color-input);
+  font-size: var(--ui-control-font-size);
+  line-height: var(--ui-control-line-height);
+  outline: none;
 }
 
-.syntax-add-rule-button {
-  justify-self: start;
-  width: max-content;
+.syntax-setting-line input:focus,
+.syntax-rule-row input:focus,
+.syntax-rule-row select:focus {
+  outline: none;
+  background: var(--color-selected);
+}
+
+.syntax-name-control {
+  width: min(100%, calc(var(--ui-control-height) * 18));
+}
+
+.syntax-number-control {
+  width: calc(var(--ui-control-height) * 3);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
+.syntax-pair-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+}
+
+.syntax-rule-spacer {
+  min-width: 0;
+  min-height: var(--ui-control-height);
+}
+
+.syntax-rule-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  padding-left: calc(var(--ui-control-height) * 4 + var(--ui-gap-tight));
 }
 
 .syntax-tone-picker {
@@ -510,6 +515,12 @@
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.syntax-tone-button.is-compact {
+  justify-content: center;
+  gap: calc(var(--ui-gap-tight) / 2);
+  padding: 0 var(--ui-gap-tight);
 }
 
 .syntax-tone-button:hover,
@@ -929,8 +940,7 @@
 }
 
 @media (max-width: 1120px) {
-  .migration-grid,
-  .syntax-config-strip {
+  .migration-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

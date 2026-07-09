@@ -30,6 +30,7 @@ const defaultCustomTone = "#397c72";
 type TonePickerProps = {
   ariaLabel: string;
   options: UiSyntaxToneOption[];
+  showLabel?: boolean;
   value: UiSyntaxTone;
   onChange: (tone: UiSyntaxTone) => void;
 };
@@ -67,6 +68,7 @@ export function getToneSwatchStyle(
 export function TonePicker({
   ariaLabel,
   options,
+  showLabel = true,
   value,
   onChange,
 }: TonePickerProps) {
@@ -116,7 +118,8 @@ export function TonePicker({
         aria-controls={menuId}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="syntax-tone-button"
+        aria-label={`${ariaLabel}: ${getToneLabel(value, options)}`}
+        className={showLabel ? "syntax-tone-button" : "syntax-tone-button is-compact"}
         onClick={() => setIsOpen((current) => !current)}
         type="button"
       >
@@ -127,7 +130,7 @@ export function TonePicker({
         >
           <span />
         </span>
-        <span>{getToneLabel(value, options)}</span>
+        {showLabel ? <span>{getToneLabel(value, options)}</span> : null}
         <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
       </button>
 

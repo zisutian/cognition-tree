@@ -190,7 +190,7 @@ describe("migration panels", () => {
     const dropStyleStart = activitiesCss.indexOf(
       ".migration-drop-target.is-active",
     );
-    const dropStyleEnd = activitiesCss.indexOf(".syntax-config-strip");
+    const dropStyleEnd = activitiesCss.indexOf(".syntax-settings-stack");
     const dropStyleSource = activitiesCss.slice(dropStyleStart, dropStyleEnd);
 
     expect(dropStyleSource).toContain("background: var(--color-selected)");

@@ -16,16 +16,35 @@ const activitiesCss = readFileSync(
 );
 
 describe("syntax panels", () => {
-  it("uses constrained tab width input and tone pickers", () => {
+  it("uses grouped settings rows with one rule row format", () => {
     const markup = renderToStaticMarkup(<SyntaxMainPanel view={createView()} />);
 
     expect(markup).toContain("type=\"number\"");
     expect(markup).toContain("max=\"16\"");
-    expect(markup).toContain("syntax-config-strip");
-    expect(markup).toContain("syntax-config-item");
+    expect(markup).toContain("syntax-settings-stack");
+    expect(markup).toContain("syntax-settings-group");
+    expect(markup).toContain("syntax-setting-line");
+    expect(markup).toContain("syntax-rule-row");
+    expect(markup).toContain("syntax-rule-header");
+    expect(markup).toContain("syntax-rule-actions");
+    expect(markup).toContain("语法名称");
+    expect(markup).toContain("缩进宽度");
+    expect(markup).toContain("块规则");
+    expect(markup).toContain("行内规则");
     expect(markup).toContain("syntax-tone-picker");
+    expect(markup).toContain("syntax-tone-button is-compact");
     expect(markup).toContain("新增块规则");
+    expect(markup).not.toContain("<span>默认</span>");
+    expect(markup).not.toContain("<span>蓝色</span>");
+    expect(markup).not.toContain("<span>灰色</span>");
+    expect(markup).not.toContain("syntax-settings-table");
+    expect(markup).not.toContain("syntax-setting-row");
+    expect(markup).not.toContain("syntax-row-scope");
+    expect(markup).not.toContain("syntax-config-strip");
+    expect(markup).not.toContain("syntax-config-item");
     expect(markup).not.toContain("syntax-config-grid");
+    expect(markup).not.toContain("syntax-block-header");
+    expect(markup).not.toContain("syntax-inline-header");
   });
 
   it("keeps the detail panel focused on configuration and visual preview", () => {
@@ -58,12 +77,13 @@ describe("syntax panels", () => {
   });
 
   it("keeps syntax controls from using bright focus or selected borders", () => {
-    expect(activitiesCss).toContain(".syntax-row input");
+    expect(activitiesCss).toContain(".syntax-setting-line input");
+    expect(activitiesCss).toContain(".syntax-rule-row input");
     expect(activitiesCss).toContain(
       "border: var(--ui-border-width) solid transparent",
     );
     expect(activitiesCss).not.toMatch(
-      /\.syntax-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
+      /\.syntax-rule-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
     );
     expect(activitiesCss).not.toMatch(
       /\.syntax-tone-tile\.is-selected,[\s\S]*?border-color: var\(--color-accent\)/,
@@ -74,5 +94,21 @@ describe("syntax panels", () => {
     expect(activitiesCss).toContain(
       "minmax(calc(var(--ui-control-height) * 2), max-content)",
     );
+  });
+
+  it("keeps syntax main layout on one table grid instead of mixed row systems", () => {
+    expect(activitiesCss).toContain(".syntax-settings-stack");
+    expect(activitiesCss).toContain(".syntax-settings-group");
+    expect(activitiesCss).toContain(".syntax-setting-line");
+    expect(activitiesCss).toContain(".syntax-rule-row");
+    expect(activitiesCss).toContain(".syntax-pair-fields");
+    expect(activitiesCss).toContain(".syntax-tone-button.is-compact");
+    expect(activitiesCss).not.toContain(".syntax-settings-table");
+    expect(activitiesCss).not.toContain(".syntax-setting-row");
+    expect(activitiesCss).not.toContain(".syntax-config-strip");
+    expect(activitiesCss).not.toContain(".syntax-config-item");
+    expect(activitiesCss).not.toContain(".syntax-block-row");
+    expect(activitiesCss).not.toContain(".syntax-inline-row");
+    expect(activitiesCss).not.toContain(".syntax-tone-fields");
   });
 });
