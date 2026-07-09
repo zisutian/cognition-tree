@@ -318,15 +318,22 @@ function StructureTreeContent({
         const isSelected =
           activeLineNumber === node.lineNumber ||
           activeLineNumbers?.has(node.lineNumber) === true;
+        const isSelectedRoot = selectedRootLineNumber === node.lineNumber;
         const payload = getDragPayload?.(node.lineNumber) ?? String(node.lineNumber);
 
         return (
-          <li key={node.id}>
+          <li
+            className={cx(
+              "ui-structure-tree-item",
+              isSelected && "is-selected-subtree",
+              isSelectedRoot && "is-selected-root",
+            )}
+            key={node.id}
+          >
             <button
               className={cx(
                 "ui-tree-row ui-structure-tree-row",
-                isSelected && "is-selected is-selected-subtree",
-                selectedRootLineNumber === node.lineNumber && "is-selected-root",
+                isSelected && "is-selected",
                 draggingLineNumber === String(node.lineNumber) && "is-dragging",
                 node.hasDiagnostics && "has-diagnostics",
               )}

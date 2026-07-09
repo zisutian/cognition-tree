@@ -258,6 +258,7 @@ describe("shared trees", () => {
     );
 
     expect(markup).toContain("ui-structure-tree");
+    expect(markup).toContain("ui-structure-tree-item");
     expect(markup).toContain("ui-structure-tree-row");
     expect(markup).toContain("--ui-structure-depth:0");
     expect(markup).toContain("--ui-structure-depth:1");
@@ -269,6 +270,56 @@ describe("shared trees", () => {
     expect(markup).not.toContain("ui-symbol-slot");
     expect(markup).toContain("has-diagnostics");
     expect(markup).toContain("L1");
+  });
+
+  it("renders selected structure subtrees as whole tree items", () => {
+    const markup = renderToStaticMarkup(
+      <StructureTree
+        activeLineNumbers={new Set([1, 2])}
+        nodes={[
+          {
+            children: [
+              {
+                children: [],
+                hasDiagnostics: false,
+                id: "block-2",
+                label: "定义",
+                lineLabel: "L2",
+                lineNumber: 2,
+                textDisplay: {
+                  displayText: "子块",
+                  segments: [{ id: "text", kind: "text", text: "子块" }],
+                  textColorClassName: "ctn-text-color-default",
+                },
+              },
+            ],
+            hasDiagnostics: false,
+            id: "block-1",
+            label: "组分",
+            lineLabel: "L1",
+            lineNumber: 1,
+            textDisplay: {
+              displayText: "根块",
+              segments: [{ id: "text", kind: "text", text: "根块" }],
+              textColorClassName: "ctn-text-color-default",
+            },
+          },
+        ]}
+        selectedRootLineNumber={1}
+      />,
+    );
+
+    expect(markup).toContain(
+      "ui-structure-tree-item is-selected-subtree is-selected-root",
+    );
+    expect(markup).toContain("ui-structure-tree-item is-selected-subtree");
+    expect(markup).toContain("ui-tree-row ui-structure-tree-row is-selected");
+    expect(markup).not.toContain(
+      "ui-tree-row ui-structure-tree-row is-selected is-selected-subtree",
+    );
+    expect(markup).not.toContain(
+      "ui-tree-row ui-structure-tree-row is-selected is-selected-root",
+    );
   });
 
   it("normalizes structure tree indentation width for css rendering", () => {
@@ -289,6 +340,11 @@ describe("shared trees", () => {
     expect(treeCss).toContain("var(--ui-structure-depth)");
     expect(treeCss).toContain("var(--ui-structure-indent-width)");
     expect(treeCss).toContain("grid-template-columns:\n    max-content");
+    expect(treeCss).toContain(".ui-structure-tree-item.is-selected-subtree");
+    expect(treeCss).toContain(
+      "box-shadow: inset 0 0 0 var(--ui-border-width) var(--color-border-strong)",
+    );
+    expect(treeCss).not.toContain("color-accent");
     expect(treeCss).not.toContain(
       "minmax(calc(var(--ui-control-height) * 2), max-content)",
     );

@@ -271,6 +271,7 @@
 }
 
 .migration-column {
+  align-content: start;
   min-height: 0;
   overflow: auto;
 }

@@ -201,4 +201,12 @@ describe("migration panels", () => {
     expect(dropStyleSource).not.toContain("color-accent");
     expect(dropStyleSource).not.toContain("box-shadow");
   });
+
+  it("keeps migration structure columns top aligned", () => {
+    const columnStyleStart = activitiesCss.indexOf(".migration-column");
+    const columnStyleEnd = activitiesCss.indexOf(".migration-drop-target");
+    const columnStyleSource = activitiesCss.slice(columnStyleStart, columnStyleEnd);
+
+    expect(columnStyleSource).toContain("align-content: start");
+  });
 });

@@ -336,6 +336,7 @@ function MovingTargetTree({
     <ul className="ui-tree ui-structure-tree migration-target-tree">
       {nodes.map((node) => {
         const isSelected = selectedLineNumbers.has(node.lineNumber);
+        const isSelectedRoot = selectedRootLineNumber === node.lineNumber;
         const canDropOnNode = canDropStructureBlockOnLine({
           blockedLineNumbers,
           draggingLineNumber,
@@ -350,12 +351,18 @@ function MovingTargetTree({
           : null;
 
         return (
-          <li key={node.id}>
+          <li
+            className={cx(
+              "ui-structure-tree-item",
+              isSelected && "is-selected-subtree",
+              isSelectedRoot && "is-selected-root",
+            )}
+            key={node.id}
+          >
             <button
               className={cx(
                 "ui-tree-row ui-structure-tree-row migration-target-node",
-                isSelected && "is-selected is-selected-subtree",
-                selectedRootLineNumber === node.lineNumber && "is-selected-root",
+                isSelected && "is-selected",
                 draggingLineNumber === String(node.lineNumber) && "is-dragging",
                 isActiveTarget && "is-position-source is-drop-target",
                 activePlacement === "sibling-above" && "is-drop-above",
