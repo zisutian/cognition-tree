@@ -210,6 +210,7 @@ describe("activity registry", () => {
     expect(main).toContain("源笔记 · Source note");
     expect(main).toContain("目标笔记 · Target note");
     expect(main).toContain("ui-tree ui-structure-tree migration-target-tree");
+    expect(main).toContain("data-structure-row-drop=\"true\"");
     expect(main).toContain("--ui-structure-depth:1");
     expect(main).toContain("--ui-structure-indent-width:24.5px");
     expect(main).not.toContain("源块");
@@ -278,6 +279,7 @@ describe("activity registry", () => {
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");
     expect(main).toContain("ui-tree ui-structure-tree migration-target-tree");
+    expect(main).toContain("data-structure-row-drop=\"true\"");
     expect(main).toContain("--ui-structure-depth:1");
     expect(main).toContain("--ui-structure-indent-width:17.5px");
   });

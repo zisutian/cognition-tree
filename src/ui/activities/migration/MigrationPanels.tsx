@@ -92,6 +92,38 @@ export function canDropStructureBlockAtEnd(draggingLineNumber: string | null) {
   return readPositiveLineNumber(draggingLineNumber) !== null;
 }
 
+export function getStructureRowDropPlacement({
+  clientY,
+  height,
+  top,
+}: {
+  clientY: number;
+  height: number;
+  top: number;
+}): StructureRowDropPlacement {
+  const rowHeight = Math.max(1, height);
+  const offsetY = Math.max(0, Math.min(rowHeight, clientY - top));
+
+  if (offsetY < rowHeight / 3) {
+    return "sibling-above";
+  }
+
+  if (offsetY > (rowHeight * 2) / 3) {
+    return "sibling-below";
+  }
+
+  return "inside";
+}
+
+export function getStructureBlockDropPosition(
+  targetLineNumber: number,
+  placement: StructureRowDropPlacement,
+) {
+  return placement === "inside"
+    ? `inside:${targetLineNumber}`
+    : `${placement}:${targetLineNumber}`;
+}
+
 export function getBlockedStructureDropLineNumbers(block: UiBlockNode | null) {
   return new Set(
     block ? flattenUiBlockSubtree(block).map((node) => node.lineNumber) : [],
@@ -103,6 +135,7 @@ const emptySelectedLineNumbers = new Set<number>();
 type MigrationDirectoryMode = "pair" | "structure";
 type MigrationDirectoryNoteStatus = "source" | "structure" | "target" | "";
 type MigrationPairSelectionPhase = "selectSource" | "selectTarget";
+type StructureRowDropPlacement = "inside" | "sibling-above" | "sibling-below";
 
 export function getMigrationDirectoryNoteStatus({
   mode,
@@ -235,6 +268,7 @@ function DropTarget({
         const lineNumber = readDraggedLine(event);
 
         event.preventDefault();
+        event.stopPropagation();
         onSetActivePosition(null);
 
         if (lineNumber) {
@@ -244,6 +278,22 @@ function DropTarget({
     >
       {label}
     </div>
+  );
+}
+
+function readStructureRowDropPosition(
+  event: DragEvent<HTMLButtonElement>,
+  targetLineNumber: number,
+) {
+  const rect = event.currentTarget.getBoundingClientRect();
+
+  return getStructureBlockDropPosition(
+    targetLineNumber,
+    getStructureRowDropPlacement({
+      clientY: event.clientY,
+      height: rect.height,
+      top: rect.top,
+    }),
   );
 }
 
@@ -295,41 +345,77 @@ function MovingTargetTree({
           draggingLineNumber !== null &&
           activeTargetLineNumber === node.lineNumber &&
           canDropOnNode;
+        const activePlacement = isActiveTarget
+          ? activeDropPosition?.split(":")[0]
+          : null;
 
         return (
           <li key={node.id}>
-            {isActiveTarget ? (
-              <DropTarget
-                activePosition={activeDropPosition}
-                label="上方并列"
-                position={`sibling-above:${node.lineNumber}`}
-                onDropLine={onDropLine}
-                onSetActivePosition={onSetActiveDropPosition}
-              />
-            ) : null}
             <button
               className={cx(
                 "ui-tree-row ui-structure-tree-row migration-target-node",
                 isSelected && "is-selected is-selected-subtree",
                 selectedRootLineNumber === node.lineNumber && "is-selected-root",
                 draggingLineNumber === String(node.lineNumber) && "is-dragging",
-                isActiveTarget && "is-position-source",
+                isActiveTarget && "is-position-source is-drop-target",
+                activePlacement === "sibling-above" && "is-drop-above",
+                activePlacement === "inside" && "is-drop-inside",
+                activePlacement === "sibling-below" && "is-drop-below",
                 node.hasDiagnostics && "has-diagnostics",
               )}
+              data-structure-row-drop="true"
               draggable={draggable}
               style={getStructureTreeRowStyle({ depth, indentUnitCount })}
               onClick={() => onSelectLine?.(node.lineNumber)}
               onDragEnd={onDragEnd}
+              onDragLeave={(event) => {
+                const nextTarget = event.relatedTarget;
+
+                if (
+                  nextTarget instanceof Node &&
+                  event.currentTarget.contains(nextTarget)
+                ) {
+                  return;
+                }
+
+                onActivateTarget(null);
+                onSetActiveDropPosition(null);
+              }}
               onDragOver={(event) => {
                 if (!canDropOnNode) {
                   event.dataTransfer.dropEffect = "none";
                   return;
                 }
 
+                const dropPosition = readStructureRowDropPosition(
+                  event,
+                  node.lineNumber,
+                );
+
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
                 onActivateTarget(node.lineNumber);
+                onSetActiveDropPosition(dropPosition);
+              }}
+              onDrop={(event) => {
+                if (!canDropOnNode) {
+                  return;
+                }
+
+                const lineNumber = readDraggedLine(event);
+                const dropPosition = readStructureRowDropPosition(
+                  event,
+                  node.lineNumber,
+                );
+
+                event.preventDefault();
+                event.stopPropagation();
+                onActivateTarget(null);
                 onSetActiveDropPosition(null);
+
+                if (lineNumber) {
+                  onDropLine(lineNumber, dropPosition);
+                }
               }}
               onDragStart={(event) => {
                 const payload = createBlockLineDragPayload(node.lineNumber);
@@ -366,24 +452,6 @@ function MovingTargetTree({
                 onDropLine={onDropLine}
                 onSelectLine={onSelectLine}
                 onSetActiveDropPosition={onSetActiveDropPosition}
-              />
-            ) : null}
-            {isActiveTarget ? (
-              <DropTarget
-                activePosition={activeDropPosition}
-                label="作为子结点"
-                position={`inside:${node.lineNumber}`}
-                onDropLine={onDropLine}
-                onSetActivePosition={onSetActiveDropPosition}
-              />
-            ) : null}
-            {isActiveTarget ? (
-              <DropTarget
-                activePosition={activeDropPosition}
-                label="下方并列"
-                position={`sibling-below:${node.lineNumber}`}
-                onDropLine={onDropLine}
-                onSetActivePosition={onSetActiveDropPosition}
               />
             ) : null}
           </li>
@@ -654,7 +722,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
         className="migration-column"
         title={`目标笔记 · ${view.migration.targetNote?.title ?? "未选择"}`}
       >
-        {draggingLineNumber ? (
+        {draggingLineNumber && view.migration.targetRoots.length === 0 ? (
           <DropTarget
             activePosition={activeDropPosition}
             label="文末根块"
@@ -734,7 +802,8 @@ function StructureView({ view }: { view: ViewModel }) {
         className="migration-column"
         title={`笔记结构 · ${view.migration.structureNote?.title ?? "未选择"}`}
       >
-        {canDropStructureBlockAtEnd(draggingLineNumber) ? (
+        {canDropStructureBlockAtEnd(draggingLineNumber) &&
+        view.migration.structureRoots.length === 0 ? (
           <DropTarget
             activePosition={activeDropPosition}
             label="文末根块"

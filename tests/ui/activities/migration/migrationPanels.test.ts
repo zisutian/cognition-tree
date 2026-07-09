@@ -5,7 +5,18 @@ import {
   canDropStructureBlockOnLine,
   getBlockedStructureDropLineNumbers,
   getMigrationDirectoryNoteStatus,
+  getStructureBlockDropPosition,
+  getStructureRowDropPlacement,
 } from "../../../../src/ui/activities/migration/MigrationPanels";
+
+// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
+const { readFileSync } = (await import("node:fs")) as {
+  readFileSync: (path: URL, encoding: "utf8") => string;
+};
+const activitiesCss = readFileSync(
+  new URL("../../../../src/ui/styles/activities/activities.css", import.meta.url),
+  "utf8",
+);
 
 describe("migration panels", () => {
   it("hides stale target status while selecting a new migration target", () => {
@@ -157,5 +168,37 @@ describe("migration panels", () => {
         targetLineNumber: 3,
       }),
     ).toBe(true);
+  });
+
+  it("maps structure row pointer position to stable drop positions", () => {
+    expect(getStructureRowDropPlacement({ clientY: 101, height: 30, top: 100 }))
+      .toBe("sibling-above");
+    expect(getStructureRowDropPlacement({ clientY: 115, height: 30, top: 100 }))
+      .toBe("inside");
+    expect(getStructureRowDropPlacement({ clientY: 129, height: 30, top: 100 }))
+      .toBe("sibling-below");
+    expect(getStructureBlockDropPosition(12, "inside")).toBe("inside:12");
+    expect(getStructureBlockDropPosition(12, "sibling-above")).toBe(
+      "sibling-above:12",
+    );
+    expect(getStructureBlockDropPosition(12, "sibling-below")).toBe(
+      "sibling-below:12",
+    );
+  });
+
+  it("uses neutral tree tones for structure drag targets", () => {
+    const dropStyleStart = activitiesCss.indexOf(
+      ".migration-drop-target.is-active",
+    );
+    const dropStyleEnd = activitiesCss.indexOf(".syntax-config-strip");
+    const dropStyleSource = activitiesCss.slice(dropStyleStart, dropStyleEnd);
+
+    expect(dropStyleSource).toContain("background: var(--color-selected)");
+    expect(dropStyleSource).toContain("border-color: var(--color-border-strong)");
+    expect(dropStyleSource).toContain("height: 8px");
+    expect(dropStyleSource).toContain(".migration-target-node.is-drop-above::before");
+    expect(dropStyleSource).toContain(".migration-target-node.is-drop-below::after");
+    expect(dropStyleSource).not.toContain("color-accent");
+    expect(dropStyleSource).not.toContain("box-shadow");
   });
 });

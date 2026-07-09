@@ -290,12 +290,63 @@
 
 .migration-drop-target.is-active {
   color: var(--color-fg);
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
+  background: var(--color-selected);
+  border-color: var(--color-border-strong);
 }
 
 .migration-target-node {
+  box-sizing: border-box;
+  position: relative;
+  border: var(--ui-border-width) solid transparent;
+  overflow: hidden;
   cursor: default;
+}
+
+.migration-target-node::before,
+.migration-target-node::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 0;
+  display: none;
+  height: 8px;
+  pointer-events: none;
+  content: "";
+}
+
+.migration-target-node > * {
+  position: relative;
+  z-index: 1;
+}
+
+.migration-target-node.is-drop-target {
+  background: var(--color-hover);
+}
+
+.migration-target-node.is-drop-above {
+  background: transparent;
+}
+
+.migration-target-node.is-drop-above::before {
+  top: 0;
+  display: block;
+  background: var(--color-selected);
+}
+
+.migration-target-node.is-drop-inside {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg-strong);
+  background: var(--color-selected);
+}
+
+.migration-target-node.is-drop-below {
+  background: transparent;
+}
+
+.migration-target-node.is-drop-below::after {
+  bottom: 0;
+  display: block;
+  background: var(--color-selected);
 }
 
 .syntax-config-strip {
