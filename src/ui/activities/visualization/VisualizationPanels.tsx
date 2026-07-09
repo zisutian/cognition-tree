@@ -17,6 +17,7 @@ import {
   PanelHeader,
   SegmentedControl,
   SymbolSlot,
+  ToggleButton,
 } from "../../shared/primitives";
 import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas";
 import {
@@ -125,14 +126,12 @@ export function VisualizationPanel({ view }: { view: ViewModel }) {
               }
             />
           ) : null}
-          <button
-            aria-pressed={hideIsolated}
-            className={hideIsolated ? "graph-toggle is-active" : "graph-toggle"}
+          <ToggleButton
             onClick={() => setHideIsolated((current) => !current)}
-            type="button"
+            pressed={hideIsolated}
           >
             隐藏孤立点
-          </button>
+          </ToggleButton>
           <Button
             aria-label="重置图谱视图"
             onClick={() => setResetSignal((current) => current + 1)}

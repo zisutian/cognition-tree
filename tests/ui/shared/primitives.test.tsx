@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   SegmentedControl,
   SymbolSlot,
+  ToggleButton,
 } from "../../../src/ui/shared/primitives";
 
 // @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
@@ -56,6 +57,16 @@ describe("shared primitives", () => {
     expect(markup).toContain("aria-pressed=\"true\"");
   });
 
+  it("renders shared toggle buttons for pressed toolbar options", () => {
+    const markup = renderToStaticMarkup(
+      <ToggleButton pressed>隐藏孤立点</ToggleButton>,
+    );
+
+    expect(markup).toContain("ui-toggle-button is-active");
+    expect(markup).toContain("aria-pressed=\"true\"");
+    expect(markup).toContain("隐藏孤立点");
+  });
+
   it("renders shared symbol slots for tree and detail markers", () => {
     const markup = renderToStaticMarkup(
       <SymbolSlot className="detail-line-marker" tone="link">
@@ -72,6 +83,8 @@ describe("shared primitives", () => {
     expect(primitivesCss).not.toContain(".ui-panel-detail .ui-panel-header h2");
     expect(primitivesCss).toContain(".ui-symbol-slot");
     expect(primitivesCss).toContain("width: var(--ui-symbol-size)");
+    expect(primitivesCss).toContain(".ui-toggle-button.is-active");
+    expect(primitivesCss).toContain("color: var(--color-fg-strong)");
     expect(primitivesCss).toContain(".detail-summary-strip");
     expect(primitivesCss).toContain(".detail-primary-row");
     expect(primitivesCss).toContain(".detail-divider");

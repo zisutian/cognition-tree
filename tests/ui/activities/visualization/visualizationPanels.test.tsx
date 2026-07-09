@@ -15,13 +15,14 @@ describe("visualization panels", () => {
     expect(markup).toContain("graph-search-field");
     expect(markup).toContain("aria-label=\"搜索笔记标题\"");
     expect(markup).toContain("placeholder=\"笔记标题\"");
-    expect(markup).toContain("graph-toggle");
+    expect(markup).toContain("ui-toggle-button");
     expect(markup).toContain("aria-pressed=\"false\"");
     expect(markup).toContain("隐藏孤立点");
     expect(markup).toContain("aria-label=\"重置图谱视图\"");
     expect(markup).toContain("ui-button-icon");
     expect(markup).not.toContain(">搜索<");
     expect(markup).not.toContain("graph-segments");
+    expect(markup).not.toContain("graph-toggle");
     expect(markup).not.toContain("graph-toggle-track");
     expect(markup).not.toContain("ui-metrics");
     expect(markup.indexOf("aria-label=\"重置图谱视图\"")).toBeLessThan(

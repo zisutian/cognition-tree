@@ -842,34 +842,6 @@
   background: var(--color-selected);
 }
 
-.graph-toggle {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: var(--ui-control-height);
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg-muted);
-  background: transparent;
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-  cursor: pointer;
-}
-
-.graph-toggle:hover,
-.graph-toggle.is-active {
-  color: var(--color-fg);
-  background: var(--color-selected);
-}
-
-.graph-toggle:focus-visible {
-  outline: none;
-  background: var(--color-selected);
-}
-
 .graph-canvas {
   display: flex;
   flex: 1;

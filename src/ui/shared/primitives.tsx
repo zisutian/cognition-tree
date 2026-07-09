@@ -97,6 +97,23 @@ export function Button({
   );
 }
 
+export function ToggleButton({
+  className,
+  pressed,
+  ...props
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "aria-pressed"> & {
+  pressed: boolean;
+}) {
+  return (
+    <button
+      aria-pressed={pressed}
+      className={cx("ui-toggle-button", pressed && "is-active", className)}
+      type="button"
+      {...props}
+    />
+  );
+}
+
 type SegmentedControlOption<Value extends string> = {
   disabled?: boolean;
   label: ReactNode;
