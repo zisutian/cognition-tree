@@ -5,9 +5,12 @@ import {
   Folder,
 } from "lucide-react";
 import type {
+  Dispatch,
   DragEvent,
   ReactNode,
+  SetStateAction,
 } from "react";
+import { useState } from "react";
 import {
   BlockText,
   type DisplayText,
@@ -88,6 +91,13 @@ type NoteTreeNodeState = {
   isFolder: boolean;
 };
 
+export type TreeDragState = {
+  activeTargetCanDrop: boolean;
+  activeTargetKey: string | null;
+  source: TreeNodeReference;
+  sourceKey: string;
+};
+
 export const treeNodeDragDataType = "application/x-cognition-tree-node";
 
 function getTreeNodeReference(node: TreeNode): TreeNodeReference {
@@ -108,6 +118,19 @@ export function createTreeNodeDragPayload(reference: TreeNodeReference) {
   return JSON.stringify(reference);
 }
 
+export function getTreeNodeReferenceKey(reference: TreeNodeReference) {
+  return reference.kind === "folder"
+    ? `folder:${reference.folderId}`
+    : `note:${reference.noteId}`;
+}
+
+function isSameTreeNodeReference(
+  first: TreeNodeReference,
+  second: TreeNodeReference,
+) {
+  return getTreeNodeReferenceKey(first) === getTreeNodeReferenceKey(second);
+}
+
 export function readTreeNodeDragPayload(value: string): TreeNodeReference | null {
   try {
     const parsed = JSON.parse(value) as TreeNodeReference;
@@ -116,6 +139,22 @@ export function readTreeNodeDragPayload(value: string): TreeNodeReference | null
   } catch {
     return null;
   }
+}
+
+export function canDropTreeNode({
+  canDropNode,
+  source,
+  target,
+}: {
+  canDropNode?: (source: TreeNodeReference, target: TreeNodeReference) => boolean;
+  source: TreeNodeReference;
+  target: TreeNodeReference;
+}) {
+  if (isSameTreeNodeReference(source, target)) {
+    return false;
+  }
+
+  return canDropNode?.(source, target) ?? true;
 }
 
 export function createTreeMoveRequest({
@@ -130,6 +169,26 @@ export function createTreeMoveRequest({
     source,
     target,
   };
+}
+
+export function getTreeDragClassNames({
+  dragState,
+  nodeReference,
+}: {
+  dragState: TreeDragState | null;
+  nodeReference: TreeNodeReference;
+}) {
+  if (!dragState) {
+    return [];
+  }
+
+  const nodeKey = getTreeNodeReferenceKey(nodeReference);
+
+  return [
+    dragState.sourceKey === nodeKey && "is-dragging",
+    dragState.activeTargetKey === nodeKey &&
+      (dragState.activeTargetCanDrop ? "is-drop-target" : "is-drop-disabled"),
+  ];
 }
 
 function isActiveTreeNode({
@@ -260,23 +319,7 @@ export function OutlineTree({
   return <BlockTree nodes={nodes} onSelectLine={onSelectLine} />;
 }
 
-export function NoteTree({
-  activeNoteId,
-  actions,
-  activeNode,
-  activeFolderId,
-  canDragNode,
-  canDropNode,
-  className,
-  collapsedFolderIds,
-  nodes,
-  renderNoteBadges,
-  renderNodeLeading,
-  onToggleFolder,
-  onMoveNode,
-  onSelectFolder,
-  onSelectNote,
-}: {
+type NoteTreeProps = {
   activeFolderId?: string | null;
   activeNoteId?: string | null;
   activeNode?: NoteTreeActiveNode | null;
@@ -292,12 +335,38 @@ export function NoteTree({
   onMoveNode?: (request: TreeMoveRequest) => void;
   onSelectFolder?: (folderId: string) => void;
   onSelectNote?: (noteId: string) => void;
-}) {
+};
+
+type NoteTreeContentProps = NoteTreeProps & {
+  dragState: TreeDragState | null;
+  setDragState: Dispatch<SetStateAction<TreeDragState | null>>;
+};
+
+function NoteTreeContent({
+  activeNoteId,
+  actions,
+  activeNode,
+  activeFolderId,
+  canDragNode,
+  canDropNode,
+  className,
+  collapsedFolderIds,
+  nodes,
+  renderNoteBadges,
+  renderNodeLeading,
+  onToggleFolder,
+  onMoveNode,
+  onSelectFolder,
+  onSelectNote,
+  dragState,
+  setDragState,
+}: NoteTreeContentProps) {
   return (
     <ul className={cx("ui-tree", className)}>
       {nodes.map((node) => {
         const nodeActions = actions?.(node) ?? [];
         const nodeReference = getTreeNodeReference(node);
+        const nodeKey = getTreeNodeReferenceKey(nodeReference);
         const isFolder = node.kind === "folder";
         const hasChildren = isFolder && node.children.length > 0;
         const isCollapsed =
@@ -335,12 +404,55 @@ export function NoteTree({
         return (
           <li key={node.id}>
             <div
-              className={cx("ui-tree-row-frame", isActive && "is-selected")}
-              onDragOver={(event) => {
-                if (onMoveNode) {
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
+              className={cx(
+                "ui-tree-row-frame",
+                isActive && "is-selected",
+                ...getTreeDragClassNames({ dragState, nodeReference }),
+              )}
+              onDragLeave={(event) => {
+                const nextTarget = event.relatedTarget;
+
+                if (
+                  nextTarget instanceof Node &&
+                  event.currentTarget.contains(nextTarget)
+                ) {
+                  return;
                 }
+
+                setDragState((current) =>
+                  current?.activeTargetKey === nodeKey
+                    ? {
+                        ...current,
+                        activeTargetCanDrop: false,
+                        activeTargetKey: null,
+                      }
+                    : current,
+                );
+              }}
+              onDragOver={(event) => {
+                if (!onMoveNode || !dragState) {
+                  return;
+                }
+
+                const activeTargetCanDrop = canDropTreeNode({
+                  canDropNode,
+                  source: dragState.source,
+                  target: nodeReference,
+                });
+
+                event.preventDefault();
+                event.dataTransfer.dropEffect = activeTargetCanDrop
+                  ? "move"
+                  : "none";
+                setDragState((current) =>
+                  current
+                    ? {
+                        ...current,
+                        activeTargetCanDrop,
+                        activeTargetKey: nodeKey,
+                      }
+                    : current,
+                );
               }}
               onDrop={(event) => {
                 if (!onMoveNode) {
@@ -353,7 +465,10 @@ export function NoteTree({
                     event.dataTransfer.getData("text/plain"),
                 );
 
-                if (source && (canDropNode?.(source, nodeReference) ?? true)) {
+                if (
+                  source &&
+                  canDropTreeNode({ canDropNode, source, target: nodeReference })
+                ) {
                   onMoveNode?.(
                     createTreeMoveRequest({
                       source,
@@ -361,6 +476,8 @@ export function NoteTree({
                     }),
                   );
                 }
+
+                setDragState(null);
               }}
             >
               <button
@@ -392,7 +509,14 @@ export function NoteTree({
                   event.dataTransfer.effectAllowed = "move";
                   event.dataTransfer.setData(treeNodeDragDataType, payload);
                   event.dataTransfer.setData("text/plain", payload);
+                  setDragState({
+                    activeTargetCanDrop: false,
+                    activeTargetKey: null,
+                    source: nodeReference,
+                    sourceKey: nodeKey,
+                  });
                 }}
+                onDragEnd={() => setDragState(null)}
                 title={node.title}
                 type="button"
               >
@@ -421,7 +545,7 @@ export function NoteTree({
               ) : null}
             </div>
             {node.kind === "folder" && node.children.length > 0 && !isCollapsed ? (
-              <NoteTree
+              <NoteTreeContent
                 activeFolderId={activeFolderId}
                 activeNode={activeNode}
                 activeNoteId={activeNoteId}
@@ -429,9 +553,11 @@ export function NoteTree({
                 canDragNode={canDragNode}
                 canDropNode={canDropNode}
                 collapsedFolderIds={collapsedFolderIds}
+                dragState={dragState}
                 nodes={node.children}
                 renderNoteBadges={renderNoteBadges}
                 renderNodeLeading={renderNodeLeading}
+                setDragState={setDragState}
                 onToggleFolder={onToggleFolder}
                 onMoveNode={onMoveNode}
                 onSelectFolder={onSelectFolder}
@@ -442,5 +568,17 @@ export function NoteTree({
         );
       })}
     </ul>
+  );
+}
+
+export function NoteTree(props: NoteTreeProps) {
+  const [dragState, setDragState] = useState<TreeDragState | null>(null);
+
+  return (
+    <NoteTreeContent
+      {...props}
+      dragState={dragState}
+      setDragState={setDragState}
+    />
   );
 }

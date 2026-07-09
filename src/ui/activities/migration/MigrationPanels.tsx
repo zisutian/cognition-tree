@@ -1,6 +1,8 @@
 import {
   ChevronDown,
   ChevronRight,
+  FileText,
+  Folder,
 } from "lucide-react";
 import {
   useEffect,
@@ -61,6 +63,51 @@ function readDraggedLine(event: DragEvent<HTMLElement>) {
 }
 
 const emptySelectedLineNumbers = new Set<number>();
+
+type MigrationDirectoryMode = "pair" | "structure";
+type MigrationPairSelectionPhase = "selectSource" | "selectTarget";
+
+export function getMigrationDirectoryNoteStatus({
+  mode,
+  noteId,
+  pairSelectionPhase,
+  pendingSourceNoteId,
+  sourceNoteId,
+  structureNoteId,
+  targetNoteId,
+}: {
+  mode: MigrationDirectoryMode;
+  noteId: string;
+  pairSelectionPhase: MigrationPairSelectionPhase;
+  pendingSourceNoteId: string | null;
+  sourceNoteId: string;
+  structureNoteId: string;
+  targetNoteId: string;
+}) {
+  if (mode === "structure") {
+    return noteId === structureNoteId ? "本" : "";
+  }
+
+  const activeSourceNoteId =
+    pairSelectionPhase === "selectTarget"
+      ? pendingSourceNoteId ?? sourceNoteId
+      : sourceNoteId;
+
+  if (noteId === activeSourceNoteId) {
+    return "出";
+  }
+
+  return pairSelectionPhase === "selectSource" && noteId === targetNoteId
+    ? "入"
+    : "";
+}
+
+export function canPairMigrationDirectoryNodes(
+  source: TreeMoveRequest["source"],
+  target: TreeMoveRequest["target"],
+) {
+  return source.kind === "note" && target.kind === "note";
+}
 
 function promptText(label: string, value = "") {
   return window.prompt(label, value)?.trim() ?? "";
@@ -266,7 +313,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
     () => new Set(),
   );
   const [pairSelectionPhase, setPairSelectionPhase] =
-    useState<"selectSource" | "selectTarget">("selectSource");
+    useState<MigrationPairSelectionPhase>("selectSource");
   const [pendingSourceNoteId, setPendingSourceNoteId] = useState<string | null>(
     null,
   );
@@ -355,15 +402,15 @@ export function MigrationContext({ view }: { view: ViewModel }) {
     setPairSelectionPhase("selectTarget");
   };
   const getNoteStatus = (node: Extract<TreeNode, { kind: "note" }>) => {
-    if (view.migration.mode === "structure") {
-      return node.noteId === view.migration.structureNoteId ? "本" : "";
-    }
-
-    if (node.noteId === view.migration.sourceNoteId) {
-      return "出";
-    }
-
-    return node.noteId === view.migration.targetNoteId ? "入" : "";
+    return getMigrationDirectoryNoteStatus({
+      mode: view.migration.mode,
+      noteId: node.noteId,
+      pairSelectionPhase,
+      pendingSourceNoteId,
+      sourceNoteId: view.migration.sourceNoteId,
+      structureNoteId: view.migration.structureNoteId,
+      targetNoteId: view.migration.targetNoteId,
+    });
   };
   const renderNodeLeading = (
     node: TreeNode,
@@ -381,7 +428,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
           ) : (
             <span aria-hidden="true" className="ui-tree-toggle-spacer" />
           )}
-          <span aria-hidden="true" className="ui-tree-status-spacer" />
+          <Folder aria-hidden="true" size={13} />
         </>
       );
     }
@@ -394,7 +441,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
         {status ? (
           <span className="ui-tree-status">{status}</span>
         ) : (
-          <span aria-hidden="true" className="ui-tree-status-spacer" />
+          <FileText aria-hidden="true" size={13} />
         )}
       </>
     );
@@ -414,7 +461,9 @@ export function MigrationContext({ view }: { view: ViewModel }) {
     view.migration.mode === "structure"
       ? `点选笔记结构 · ${view.migration.structureNote?.title ?? "未选择"}`
       : pairSelectionPhase === "selectTarget"
-        ? [`已选源笔记 ${pendingSourceTitle}`, "点选目标笔记"].join(" · ")
+        ? [`已选源笔记 ${pendingSourceTitle}`, "点选或拖到目标笔记"].join(
+            " · ",
+          )
         : [
             "点选源笔记",
             `当前源笔记 ${view.migration.sourceNote?.title ?? "未选择"}`,
@@ -452,9 +501,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
         actions={actions}
         activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
         canDragNode={(node) => node.kind === "note"}
-        canDropNode={(source, target) =>
-          source.kind === "note" && target.kind === "note"
-        }
+        canDropNode={canPairMigrationDirectoryNodes}
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.migration.noteTree}
         renderNodeLeading={renderNodeLeading}

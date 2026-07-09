@@ -2,8 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   BlockTree,
+  canDropTreeNode,
   createTreeMoveRequest,
   createTreeNodeDragPayload,
+  getTreeDragClassNames,
+  getTreeNodeReferenceKey,
   NoteTree,
   readTreeNodeDragPayload,
   treeNodeDragDataType,
@@ -141,6 +144,68 @@ describe("shared trees", () => {
       source,
       target: folderTarget,
     });
+  });
+
+  it("classifies note tree drag targets", () => {
+    const source = {
+      kind: "note" as const,
+      noteId: "note-source",
+      parentFolderId: null,
+    };
+    const target = {
+      kind: "note" as const,
+      noteId: "note-target",
+      parentFolderId: null,
+    };
+
+    expect(canDropTreeNode({ source, target })).toBe(true);
+    expect(canDropTreeNode({ source, target: source })).toBe(false);
+    expect(
+      canDropTreeNode({
+        canDropNode: () => false,
+        source,
+        target,
+      }),
+    ).toBe(false);
+    expect(
+      getTreeDragClassNames({
+        dragState: {
+          activeTargetCanDrop: true,
+          activeTargetKey: getTreeNodeReferenceKey(target),
+          source,
+          sourceKey: getTreeNodeReferenceKey(source),
+        },
+        nodeReference: target,
+      }),
+    ).toContain("is-drop-target");
+    expect(
+      getTreeDragClassNames({
+        dragState: {
+          activeTargetCanDrop: false,
+          activeTargetKey: getTreeNodeReferenceKey(target),
+          source,
+          sourceKey: getTreeNodeReferenceKey(source),
+        },
+        nodeReference: target,
+      }),
+    ).toContain("is-drop-disabled");
+    expect(
+      getTreeDragClassNames({
+        dragState: {
+          activeTargetCanDrop: false,
+          activeTargetKey: null,
+          source,
+          sourceKey: getTreeNodeReferenceKey(source),
+        },
+        nodeReference: source,
+      }),
+    ).toContain("is-dragging");
+    expect(
+      getTreeDragClassNames({
+        dragState: null,
+        nodeReference: target,
+      }),
+    ).toEqual([]);
   });
 
   it("renders block trees with kind, text and line metadata", () => {

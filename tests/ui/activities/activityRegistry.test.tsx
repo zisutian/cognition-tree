@@ -91,12 +91,33 @@ describe("activity registry", () => {
   });
 
   it("renders migration context and full-width main work surface", () => {
-    const migrationSlots = slots("migration");
+    const baseView = createView();
+    const migrationSlots = slotsWithView(
+      "migration",
+      createView({
+        migration: {
+          ...baseView.migration,
+          noteTree: [
+            ...baseView.migration.noteTree,
+            {
+              canDrag: true,
+              folderId: null,
+              id: "neutral-node",
+              kind: "note",
+              noteId: "note-neutral",
+              parentFolderId: null,
+              title: "Neutral note",
+            },
+          ],
+        },
+      }),
+    );
     const context = renderSlot(migrationSlots.context?.content);
     const main = renderSlot(migrationSlots.main);
 
     expect(context).toContain("Source note");
     expect(context).toContain("Target note");
+    expect(context).toContain("Neutral note");
     expect(context).toContain("点选源笔记");
     expect(context).toContain("当前源笔记");
     expect(context).toContain("源笔记 / 目标笔记");
@@ -109,7 +130,7 @@ describe("activity registry", () => {
     expect(context).toContain(">改<");
     expect(context).toContain(">删<");
     expect(context).not.toContain(">本<");
-    expect(context).not.toContain("lucide-file-text");
+    expect(context).toContain("lucide-file-text");
     expect(main).toContain("结构操作");
     expect(main).toContain("源笔记 · Source note");
     expect(main).toContain("目标笔记 · Target note");
