@@ -6,11 +6,21 @@ import {
   createTreeNodeDragPayload,
   getTreeDragClassNames,
   getTreeNodeReferenceKey,
+  normalizeStructureTreeIndentWidth,
   NoteTree,
   readTreeNodeDragPayload,
   StructureTree,
   treeNodeDragDataType,
 } from "../../../src/ui/shared/tree";
+
+// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
+const { readFileSync } = (await import("node:fs")) as {
+  readFileSync: (path: URL, encoding: "utf8") => string;
+};
+const treeCss = readFileSync(
+  new URL("../../../src/ui/styles/shared/tree.css", import.meta.url),
+  "utf8",
+);
 
 describe("shared trees", () => {
   it("renders note and folder rows with shared tree classes", () => {
@@ -213,12 +223,27 @@ describe("shared trees", () => {
   it("renders structure trees with variable text markers and line metadata", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
+        indentWidth={6}
         nodes={[
           {
-            children: [],
+            children: [
+              {
+                children: [],
+                hasDiagnostics: false,
+                id: "block-2",
+                label: "顶格概念",
+                lineLabel: "L2",
+                lineNumber: 2,
+                textDisplay: {
+                  displayText: "子节点",
+                  segments: [{ id: "text", kind: "text", text: "子节点" }],
+                  textColorClassName: "ctn-text-color-default",
+                },
+              },
+            ],
             hasDiagnostics: true,
             id: "block-1",
-            label: "顶格概念",
+            label: "组分",
             lineLabel: "L1",
             lineNumber: 1,
             textDisplay: {
@@ -233,10 +258,35 @@ describe("shared trees", () => {
 
     expect(markup).toContain("ui-structure-tree");
     expect(markup).toContain("ui-structure-tree-row");
+    expect(markup).toContain("--ui-structure-depth:0");
+    expect(markup).toContain("--ui-structure-depth:1");
+    expect(markup).toContain("--ui-structure-indent-width:6ch");
+    expect(markup).toContain("ui-structure-prefix");
     expect(markup).toContain("ui-structure-marker");
+    expect(markup).toContain("组分");
     expect(markup).toContain("顶格概念");
     expect(markup).not.toContain("ui-symbol-slot");
     expect(markup).toContain("has-diagnostics");
     expect(markup).toContain("L1");
+  });
+
+  it("normalizes structure tree indentation width for css rendering", () => {
+    expect(normalizeStructureTreeIndentWidth(8)).toBe(8);
+    expect(normalizeStructureTreeIndentWidth(2.9)).toBe(2);
+    expect(normalizeStructureTreeIndentWidth(0)).toBe(4);
+    expect(normalizeStructureTreeIndentWidth(Number.NaN)).toBe(4);
+  });
+
+  it("keeps structure tree indentation separate from directory tree nesting", () => {
+    expect(treeCss).toContain(".ui-structure-tree .ui-structure-tree");
+    expect(treeCss).toContain("padding-left: 0");
+    expect(treeCss).toContain("border-left: 0");
+    expect(treeCss).toContain("--ui-structure-indent-width: 4ch");
+    expect(treeCss).toContain("var(--ui-structure-depth)");
+    expect(treeCss).toContain("var(--ui-structure-indent-width)");
+    expect(treeCss).toContain("grid-template-columns:\n    max-content");
+    expect(treeCss).not.toContain(
+      "minmax(calc(var(--ui-control-height) * 2), max-content)",
+    );
   });
 });

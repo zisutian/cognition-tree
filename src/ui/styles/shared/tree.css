@@ -12,6 +12,11 @@
   border-left: var(--ui-border-width) solid var(--color-border);
 }
 
+.ui-structure-tree .ui-structure-tree {
+  padding-left: 0;
+  border-left: 0;
+}
+
 .ui-tree-row-frame {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -57,10 +62,17 @@
 }
 
 .ui-structure-tree-row {
+  --ui-structure-depth: 0;
+  --ui-structure-indent-width: 4ch;
+
   grid-template-columns:
-    minmax(calc(var(--ui-control-height) * 2), max-content)
+    max-content
     minmax(0, 1fr)
     auto;
+  padding-left: calc(
+    var(--ui-gap-tight) +
+      var(--ui-structure-depth) * var(--ui-structure-indent-width)
+  );
 }
 
 .ui-tree-row:hover,
@@ -97,6 +109,14 @@
 
 .ui-tree-row-frame.is-drop-disabled .ui-tree-row {
   cursor: not-allowed;
+}
+
+.ui-structure-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
 }
 
 .ui-structure-marker {

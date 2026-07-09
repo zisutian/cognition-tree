@@ -70,11 +70,30 @@ describe("notes panels", () => {
               rootCount: 1,
               totalBlocks: 2,
             },
+            syntaxProfile: {
+              ...baseView.editor.syntaxProfile,
+              tabDisplayWidth: 6,
+            },
           },
           outline: {
             nodes: [
               {
-                children: [],
+                children: [
+                  {
+                    children: [],
+                    hasDiagnostics: false,
+                    id: "outline-2",
+                    label: "定义",
+                    level: 1,
+                    lineLabel: "L2",
+                    lineNumber: 2,
+                    textDisplay: {
+                      displayText: "子结构",
+                      segments: [{ id: "text", kind: "text", text: "子结构" }],
+                      textColorClassName: "block-text-default",
+                    },
+                  },
+                ],
                 hasDiagnostics: false,
                 id: "outline-1",
                 label: "T",
@@ -98,6 +117,8 @@ describe("notes panels", () => {
     expect(markup).toContain("detail-divider");
     expect(markup).toContain("detail-line-list");
     expect(markup).toContain("detail-line-marker");
+    expect(markup).toContain("--ui-structure-depth:1");
+    expect(markup).toContain("--ui-structure-indent-width:6ch");
     expect(markup).toContain("ui-symbol-slot");
     expect(markup).toContain("ui-symbol-slot-danger");
     expect(markup).toContain("示例诊断");

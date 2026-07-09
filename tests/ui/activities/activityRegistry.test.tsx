@@ -95,6 +95,13 @@ describe("activity registry", () => {
     const migrationSlots = slotsWithView(
       "migration",
       createView({
+        editor: {
+          ...baseView.editor,
+          syntaxProfile: {
+            ...baseView.editor.syntaxProfile,
+            tabDisplayWidth: 7,
+          },
+        },
         migration: {
           ...baseView.migration,
           noteTree: [
@@ -107,6 +114,70 @@ describe("activity registry", () => {
               noteId: "note-neutral",
               parentFolderId: null,
               title: "Neutral note",
+            },
+          ],
+          sourceRoots: [
+            {
+              children: [
+                {
+                  children: [],
+                  hasDiagnostics: false,
+                  id: "source-block-2",
+                  label: "定义",
+                  level: 1,
+                  lineLabel: "L2",
+                  lineNumber: 2,
+                  textDisplay: {
+                    displayText: "源子块",
+                    segments: [{ id: "text", kind: "text", text: "源子块" }],
+                    textColorClassName: "block-text-default",
+                  },
+                },
+              ],
+              hasDiagnostics: false,
+              id: "source-block-1",
+              label: "组分",
+              level: 0,
+              lineLabel: "L1",
+              lineNumber: 1,
+              textDisplay: {
+                displayText: "源内容",
+                segments: [{ id: "text", kind: "text", text: "源内容" }],
+                textColorClassName: "block-text-default",
+              },
+            },
+          ],
+          targetRoots: [
+            {
+              children: [
+                {
+                  children: [],
+                  hasDiagnostics: false,
+                  id: "target-block-12",
+                  label: "定义",
+                  level: 1,
+                  lineLabel: "L12",
+                  lineNumber: 12,
+                  textDisplay: {
+                    displayText: "目标子块",
+                    segments: [
+                      { id: "text", kind: "text", text: "目标子块" },
+                    ],
+                    textColorClassName: "block-text-default",
+                  },
+                },
+              ],
+              hasDiagnostics: false,
+              id: "target-block-11",
+              label: "理解",
+              level: 0,
+              lineLabel: "L11",
+              lineNumber: 11,
+              textDisplay: {
+                displayText: "目标内容",
+                segments: [{ id: "text", kind: "text", text: "目标内容" }],
+                textColorClassName: "block-text-default",
+              },
             },
           ],
         },
@@ -138,6 +209,8 @@ describe("activity registry", () => {
     expect(main).toContain("结构操作");
     expect(main).toContain("源笔记 · Source note");
     expect(main).toContain("目标笔记 · Target note");
+    expect(main).toContain("--ui-structure-depth:1");
+    expect(main).toContain("--ui-structure-indent-width:7ch");
     expect(main).not.toContain("源块");
     expect(main).not.toContain("目标块");
     expect(main).not.toContain("结构块");
@@ -148,13 +221,54 @@ describe("activity registry", () => {
     const migrationSlots = slotsWithView(
       "migration",
       createView({
+        editor: {
+          ...baseView.editor,
+          syntaxProfile: {
+            ...baseView.editor.syntaxProfile,
+            tabDisplayWidth: 5,
+          },
+        },
         migration: {
           ...baseView.migration,
           mode: "structure",
+          structureRoots: [
+            {
+              children: [
+                {
+                  children: [],
+                  hasDiagnostics: false,
+                  id: "structure-block-2",
+                  label: "顶格概念",
+                  level: 1,
+                  lineLabel: "L2",
+                  lineNumber: 2,
+                  textDisplay: {
+                    displayText: "结构子项",
+                    segments: [
+                      { id: "text", kind: "text", text: "结构子项" },
+                    ],
+                    textColorClassName: "block-text-default",
+                  },
+                },
+              ],
+              hasDiagnostics: false,
+              id: "structure-block-1",
+              label: "组分",
+              level: 0,
+              lineLabel: "L1",
+              lineNumber: 1,
+              textDisplay: {
+                displayText: "结构项",
+                segments: [{ id: "text", kind: "text", text: "结构项" }],
+                textColorClassName: "block-text-default",
+              },
+            },
+          ],
         },
       }),
     );
     const context = renderSlot(migrationSlots.context?.content);
+    const main = renderSlot(migrationSlots.main);
 
     expect(context).toContain("点选笔记结构");
     expect(context).toContain("ui-symbol-slot");
@@ -162,5 +276,7 @@ describe("activity registry", () => {
     expect(context).toContain("lucide-git-branch");
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");
+    expect(main).toContain("--ui-structure-depth:1");
+    expect(main).toContain("--ui-structure-indent-width:5ch");
   });
 });

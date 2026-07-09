@@ -5,6 +5,7 @@ import {
   Folder,
 } from "lucide-react";
 import type {
+  CSSProperties,
   Dispatch,
   DragEvent,
   ReactNode,
@@ -27,6 +28,25 @@ export type StructureTreeNode = {
   lineLabel: string;
   lineNumber: number;
   textDisplay: DisplayText;
+};
+
+type StructureTreeProps = {
+  activeLineNumber?: number | null;
+  activeLineNumbers?: ReadonlySet<number>;
+  className?: string;
+  dragDataType?: string;
+  draggingLineNumber?: string | null;
+  draggable?: boolean;
+  getDragPayload?: (lineNumber: number) => string;
+  indentWidth?: number;
+  nodes: StructureTreeNode[];
+  selectedRootLineNumber?: number | null;
+  onDragEnd?: () => void;
+  onDragStart?: (
+    lineNumber: number,
+    event: DragEvent<HTMLButtonElement>,
+  ) => void;
+  onSelectLine?: (lineNumber: number) => void;
 };
 
 export type TreeNode =
@@ -219,36 +239,65 @@ function isActiveTreeNode({
     : activeFolderId === node.folderId;
 }
 
-export function StructureTree({
+export function normalizeStructureTreeIndentWidth(indentWidth = 4) {
+  const normalizedIndentWidth = Math.floor(indentWidth);
+
+  return Number.isFinite(normalizedIndentWidth) && normalizedIndentWidth > 0
+    ? normalizedIndentWidth
+    : 4;
+}
+
+export function getStructureTreeRowStyle({
+  depth,
+  indentWidth,
+}: {
+  depth: number;
+  indentWidth?: number;
+}) {
+  return {
+    "--ui-structure-depth": String(depth),
+    "--ui-structure-indent-width": `${normalizeStructureTreeIndentWidth(
+      indentWidth,
+    )}ch`,
+  } as CSSProperties;
+}
+
+export function StructureTreeRowContent({
+  label,
+  lineLabel,
+  textDisplay,
+}: {
+  label: string;
+  lineLabel: string;
+  textDisplay: DisplayText;
+}) {
+  return (
+    <>
+      <span className="ui-structure-prefix">
+        <span className="ui-structure-marker">{label}</span>
+      </span>
+      <BlockText text={textDisplay} />
+      <span className="ui-tree-meta">{lineLabel}</span>
+    </>
+  );
+}
+
+function StructureTreeContent({
   activeLineNumber,
   activeLineNumbers,
   className,
+  depth,
   dragDataType,
   draggingLineNumber,
   draggable = false,
   getDragPayload,
+  indentWidth,
   nodes,
   selectedRootLineNumber,
   onDragEnd,
   onDragStart,
   onSelectLine,
-}: {
-  activeLineNumber?: number | null;
-  activeLineNumbers?: ReadonlySet<number>;
-  className?: string;
-  dragDataType?: string;
-  draggingLineNumber?: string | null;
-  draggable?: boolean;
-  getDragPayload?: (lineNumber: number) => string;
-  nodes: StructureTreeNode[];
-  selectedRootLineNumber?: number | null;
-  onDragEnd?: () => void;
-  onDragStart?: (
-    lineNumber: number,
-    event: DragEvent<HTMLButtonElement>,
-  ) => void;
-  onSelectLine?: (lineNumber: number) => void;
-}) {
+}: StructureTreeProps & { depth: number }) {
   return (
     <ul className={cx("ui-tree ui-structure-tree", className)}>
       {nodes.map((node) => {
@@ -268,6 +317,7 @@ export function StructureTree({
                 node.hasDiagnostics && "has-diagnostics",
               )}
               draggable={draggable}
+              style={getStructureTreeRowStyle({ depth, indentWidth })}
               onClick={() => onSelectLine?.(node.lineNumber)}
               onDragEnd={onDragEnd}
               onDragStart={(event) => {
@@ -283,18 +333,22 @@ export function StructureTree({
               title={`${node.label}: ${node.textDisplay.displayText}`}
               type="button"
             >
-              <span className="ui-structure-marker">{node.label}</span>
-              <BlockText text={node.textDisplay} />
-              <span className="ui-tree-meta">{node.lineLabel}</span>
+              <StructureTreeRowContent
+                label={node.label}
+                lineLabel={node.lineLabel}
+                textDisplay={node.textDisplay}
+              />
             </button>
             {node.children.length > 0 ? (
-              <StructureTree
+              <StructureTreeContent
                 activeLineNumber={activeLineNumber}
                 activeLineNumbers={activeLineNumbers}
+                depth={depth + 1}
                 dragDataType={dragDataType}
                 draggingLineNumber={draggingLineNumber}
                 draggable={draggable}
                 getDragPayload={getDragPayload}
+                indentWidth={indentWidth}
                 nodes={node.children}
                 selectedRootLineNumber={selectedRootLineNumber}
                 onDragEnd={onDragEnd}
@@ -309,14 +363,26 @@ export function StructureTree({
   );
 }
 
+export function StructureTree(props: StructureTreeProps) {
+  return <StructureTreeContent {...props} depth={0} />;
+}
+
 export function OutlineTree({
+  indentWidth,
   nodes,
   onSelectLine,
 }: {
+  indentWidth?: number;
   nodes: StructureTreeNode[];
   onSelectLine: (lineNumber: number) => void;
 }) {
-  return <StructureTree nodes={nodes} onSelectLine={onSelectLine} />;
+  return (
+    <StructureTree
+      indentWidth={indentWidth}
+      nodes={nodes}
+      onSelectLine={onSelectLine}
+    />
+  );
 }
 
 type NoteTreeProps = {

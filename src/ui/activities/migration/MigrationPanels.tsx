@@ -18,7 +18,6 @@ import {
   type UiBlockNode,
 } from "../../../application/workspace/projection/viewBlocks";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
-import { BlockText } from "../../shared/blockText";
 import {
   EmptyState,
   Panel,
@@ -32,6 +31,8 @@ import {
 import {
   NoteTree,
   StructureTree,
+  StructureTreeRowContent,
+  getStructureTreeRowStyle,
   type TreeMoveRequest,
   type TreeNode,
 } from "../../shared/tree";
@@ -64,6 +65,37 @@ function readDraggedLine(event: DragEvent<HTMLElement>) {
     plainText: event.dataTransfer.getData("text/plain"),
     typedPayload: event.dataTransfer.getData(blockLineDragDataType),
   });
+}
+
+function readPositiveLineNumber(value: string | null) {
+  const lineNumber = Number(value);
+
+  return Number.isInteger(lineNumber) && lineNumber > 0 ? lineNumber : null;
+}
+
+export function canDropStructureBlockOnLine({
+  blockedLineNumbers,
+  draggingLineNumber,
+  targetLineNumber,
+}: {
+  blockedLineNumbers: ReadonlySet<number>;
+  draggingLineNumber: string | null;
+  targetLineNumber: number;
+}) {
+  return (
+    readPositiveLineNumber(draggingLineNumber) !== null &&
+    !blockedLineNumbers.has(targetLineNumber)
+  );
+}
+
+export function canDropStructureBlockAtEnd(draggingLineNumber: string | null) {
+  return readPositiveLineNumber(draggingLineNumber) !== null;
+}
+
+export function getBlockedStructureDropLineNumbers(block: UiBlockNode | null) {
+  return new Set(
+    block ? flattenUiBlockSubtree(block).map((node) => node.lineNumber) : [],
+  );
 }
 
 const emptySelectedLineNumbers = new Set<number>();
@@ -218,8 +250,11 @@ function DropTarget({
 function MovingTargetTree({
   activeDropPosition,
   activeTargetLineNumber,
+  blockedLineNumbers,
+  depth = 0,
   draggingLineNumber,
   draggable = false,
+  indentWidth,
   nodes,
   selectedLineNumbers,
   selectedRootLineNumber,
@@ -232,8 +267,11 @@ function MovingTargetTree({
 }: {
   activeDropPosition: string | null;
   activeTargetLineNumber: number | null;
+  blockedLineNumbers: ReadonlySet<number>;
+  depth?: number;
   draggingLineNumber: string | null;
   draggable?: boolean;
+  indentWidth?: number;
   nodes: UiBlockNode[];
   selectedLineNumbers: ReadonlySet<number>;
   selectedRootLineNumber: number | null;
@@ -248,10 +286,15 @@ function MovingTargetTree({
     <ul className="ui-tree migration-target-tree">
       {nodes.map((node) => {
         const isSelected = selectedLineNumbers.has(node.lineNumber);
+        const canDropOnNode = canDropStructureBlockOnLine({
+          blockedLineNumbers,
+          draggingLineNumber,
+          targetLineNumber: node.lineNumber,
+        });
         const isActiveTarget =
           draggingLineNumber !== null &&
           activeTargetLineNumber === node.lineNumber &&
-          !isSelected;
+          canDropOnNode;
 
         return (
           <li key={node.id}>
@@ -274,10 +317,12 @@ function MovingTargetTree({
                 node.hasDiagnostics && "has-diagnostics",
               )}
               draggable={draggable}
+              style={getStructureTreeRowStyle({ depth, indentWidth })}
               onClick={() => onSelectLine?.(node.lineNumber)}
               onDragEnd={onDragEnd}
               onDragOver={(event) => {
-                if (!draggingLineNumber || isSelected) {
+                if (!canDropOnNode) {
+                  event.dataTransfer.dropEffect = "none";
                   return;
                 }
 
@@ -297,16 +342,21 @@ function MovingTargetTree({
               title={`${node.label}: ${node.textDisplay.displayText}`}
               type="button"
             >
-              <span className="ui-structure-marker">{node.label}</span>
-              <BlockText text={node.textDisplay} />
-              <span className="ui-tree-meta">{node.lineLabel}</span>
+              <StructureTreeRowContent
+                label={node.label}
+                lineLabel={node.lineLabel}
+                textDisplay={node.textDisplay}
+              />
             </button>
             {node.children.length > 0 ? (
               <MovingTargetTree
                 activeDropPosition={activeDropPosition}
                 activeTargetLineNumber={activeTargetLineNumber}
+                blockedLineNumbers={blockedLineNumbers}
+                depth={depth + 1}
                 draggingLineNumber={draggingLineNumber}
                 draggable={draggable}
+                indentWidth={indentWidth}
                 nodes={node.children}
                 selectedLineNumbers={selectedLineNumbers}
                 selectedRootLineNumber={selectedRootLineNumber}
@@ -589,6 +639,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
             draggingLineNumber={draggingLineNumber}
             draggable
             getDragPayload={createBlockLineDragPayload}
+            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.migration.sourceRoots}
             selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
             onDragEnd={finishDrag}
@@ -616,7 +667,9 @@ function MigrationPairView({ view }: { view: ViewModel }) {
           <MovingTargetTree
             activeDropPosition={activeDropPosition}
             activeTargetLineNumber={activeTargetLineNumber}
+            blockedLineNumbers={emptySelectedLineNumbers}
             draggingLineNumber={draggingLineNumber}
+            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.migration.targetRoots}
             selectedLineNumbers={emptySelectedLineNumbers}
             selectedRootLineNumber={null}
@@ -645,9 +698,13 @@ function StructureView({ view }: { view: ViewModel }) {
   >(null);
   const selectedBlock = findBlockByLineNumber(
     view.migration.structureBlocks,
-    selectedLineNumber,
+    draggingLineNumber ?? selectedLineNumber,
   );
   const selectedLineNumbers = useSelectedBlockLines(selectedBlock);
+  const blockedLineNumbers = useMemo(
+    () => getBlockedStructureDropLineNumbers(selectedBlock),
+    [selectedBlock],
+  );
   useEffect(() => {
     setSelectedLineNumber("");
     setDraggingLineNumber(null);
@@ -677,7 +734,7 @@ function StructureView({ view }: { view: ViewModel }) {
         className="migration-column"
         title={`笔记结构 · ${view.migration.structureNote?.title ?? "未选择"}`}
       >
-        {draggingLineNumber ? (
+        {canDropStructureBlockAtEnd(draggingLineNumber) ? (
           <DropTarget
             activePosition={activeDropPosition}
             label="文末根块"
@@ -690,8 +747,10 @@ function StructureView({ view }: { view: ViewModel }) {
           <MovingTargetTree
             activeDropPosition={activeDropPosition}
             activeTargetLineNumber={activeTargetLineNumber}
+            blockedLineNumbers={blockedLineNumbers}
             draggingLineNumber={draggingLineNumber}
             draggable
+            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.migration.structureRoots}
             selectedLineNumbers={selectedLineNumbers}
             selectedRootLineNumber={selectedBlock?.lineNumber ?? null}
