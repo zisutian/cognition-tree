@@ -63,6 +63,10 @@ export type MigrationViewModel = UiMigrationView & {
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
   ) => void;
+  onSelectMigrationSourceNote: (noteId: UiNoteId) => void;
+  onSelectMigrationTargetNote: (noteId: UiNoteId) => void;
+  onSelectStructureNote: (noteId: UiNoteId) => void;
+  onSetMigrationMode: (mode: UiMigrationView["mode"]) => void;
 };
 
 export function useMigrationViewModel({
@@ -86,7 +90,7 @@ export function useMigrationViewModel({
   setActiveNoteId: Dispatch<SetStateAction<UiNoteId | null>>;
   setSelectedFolderId: Dispatch<SetStateAction<FolderId | null>>;
 }): MigrationViewModel {
-  const [migrationMode, setMigrationMode] =
+  const [migrationMode, setMigrationModeState] =
     useState<UiMigrationView["mode"]>("pair");
   const [migrationSourceNoteId, setMigrationSourceNoteId] = useState("");
   const [migrationTargetNoteId, setMigrationTargetNoteId] = useState("");
@@ -264,7 +268,7 @@ export function useMigrationViewModel({
       return;
     }
 
-    setMigrationMode("structure");
+    setMigrationModeState("structure");
     setActiveNoteId(result.noteId);
     setSelectedFolderId(
       effectiveContext
@@ -275,14 +279,49 @@ export function useMigrationViewModel({
         : null,
     );
   };
-  const openNoteStructure = (noteId: UiNoteId) => {
+  const noteExists = (noteId: UiNoteId) =>
+    Boolean(effectiveWorkspace && hasWorkspaceNote(effectiveWorkspace, noteId));
+  const resolveTargetNoteId = (sourceNoteId: UiNoteId, targetNoteId: UiNoteId) =>
+    targetNoteId && targetNoteId !== sourceNoteId && noteExists(targetNoteId)
+      ? targetNoteId
+      : resolveDifferentNoteId(effectiveNotes, sourceNoteId);
+  const setMigrationMode = (mode: UiMigrationView["mode"]) => {
+    if (mode === "pair") {
+      setMigrationTargetNoteId((currentTargetNoteId) =>
+        resolveTargetNoteId(migrationSourceNoteId, currentTargetNoteId),
+      );
+    }
+
+    setMigrationModeState(mode);
+  };
+  const selectMigrationSourceNote = (noteId: UiNoteId) => {
+    if (!noteExists(noteId)) {
+      return;
+    }
+
+    setMigrationSourceNoteId(noteId);
+    setMigrationTargetNoteId((currentTargetNoteId) =>
+      resolveTargetNoteId(noteId, currentTargetNoteId),
+    );
+    setMigrationModeState("pair");
+  };
+  const selectMigrationTargetNote = (noteId: UiNoteId) => {
+    if (!noteExists(noteId) || noteId === migrationSourceNoteId) {
+      return;
+    }
+
+    setMigrationTargetNoteId(noteId);
+    setMigrationModeState("pair");
+  };
+  const selectStructureNote = (noteId: UiNoteId) => {
     if (!effectiveWorkspace || !hasWorkspaceNote(effectiveWorkspace, noteId)) {
       return;
     }
 
     setStructureNoteId(noteId);
-    setMigrationMode("structure");
+    setMigrationModeState("structure");
   };
+  const openNoteStructure = selectStructureNote;
   const pairNotesForMigration = (
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
@@ -298,7 +337,7 @@ export function useMigrationViewModel({
 
     setMigrationSourceNoteId(sourceNoteId);
     setMigrationTargetNoteId(targetNoteId);
-    setMigrationMode("pair");
+    setMigrationModeState("pair");
   };
   const migrationNoteTree = useMemo(
     () =>
@@ -353,6 +392,10 @@ export function useMigrationViewModel({
     onMoveStructureBlock: moveStructureBlock,
     onOpenNoteStructure: openNoteStructure,
     onPairNotesForMigration: pairNotesForMigration,
+    onSelectMigrationSourceNote: selectMigrationSourceNote,
+    onSelectMigrationTargetNote: selectMigrationTargetNote,
+    onSelectStructureNote: selectStructureNote,
+    onSetMigrationMode: setMigrationMode,
     sourceBlocks: sourceMigrationBlocks,
     sourceNote: sourceMigrationNote
       ? { id: sourceMigrationNote.id, title: sourceMigrationNote.title }

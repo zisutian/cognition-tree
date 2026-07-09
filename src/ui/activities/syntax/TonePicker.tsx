@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import type {
   UiSyntaxTone,
@@ -30,8 +31,21 @@ const defaultCustomTone = "#397c72";
 type TonePickerProps = {
   ariaLabel: string;
   options: UiSyntaxToneOption[];
+  showLabel?: boolean;
   value: UiSyntaxTone;
   onChange: (tone: UiSyntaxTone) => void;
+};
+
+type SyntaxDropdownProps = {
+  ariaLabel: string;
+  children: (controls: { close: () => void }) => ReactNode;
+  className: string;
+  menuClassName: string;
+  renderButton: (controls: {
+    isOpen: boolean;
+    menuId: string;
+    toggle: () => void;
+  }) => ReactNode;
 };
 
 function isCustomTone(tone: string) {
@@ -64,17 +78,16 @@ export function getToneSwatchStyle(
     : undefined;
 }
 
-export function TonePicker({
+export function SyntaxDropdown({
   ariaLabel,
-  options,
-  value,
-  onChange,
-}: TonePickerProps) {
+  children,
+  className,
+  menuClassName,
+  renderButton,
+}: SyntaxDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuId = useId();
-  const pickerRef = useRef<HTMLDivElement | null>(null);
-  const isCustomValue = isCustomTone(value);
-  const customTone = isCustomValue ? value : defaultCustomTone;
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -83,9 +96,9 @@ export function TonePicker({
 
     const handlePointerDown = (event: PointerEvent) => {
       if (
-        pickerRef.current &&
+        dropdownRef.current &&
         event.target instanceof Node &&
-        !pickerRef.current.contains(event.target)
+        !dropdownRef.current.contains(event.target)
       ) {
         setIsOpen(false);
       }
@@ -105,41 +118,77 @@ export function TonePicker({
     };
   }, [isOpen]);
 
-  const selectTone = (tone: UiSyntaxTone) => {
-    onChange(tone);
-    setIsOpen(false);
-  };
+  const close = () => setIsOpen(false);
+  const toggle = () => setIsOpen((current) => !current);
 
   return (
-    <div className="syntax-tone-picker" ref={pickerRef}>
-      <button
-        aria-controls={menuId}
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
-        className="syntax-tone-button"
-        onClick={() => setIsOpen((current) => !current)}
-        type="button"
-      >
-        <span
-          aria-hidden="true"
-          className={getToneSwatchClass(value)}
-          style={getToneSwatchStyle(value)}
-        >
-          <span />
-        </span>
-        <span>{getToneLabel(value, options)}</span>
-        <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
-      </button>
-
+    <div className={className} ref={dropdownRef}>
+      {renderButton({ isOpen, menuId, toggle })}
       {isOpen ? (
         <div
           aria-label={ariaLabel}
-          className="syntax-tone-menu"
+          className={menuClassName}
           id={menuId}
           role="dialog"
         >
+          {children({ close })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function TonePicker({
+  ariaLabel,
+  options,
+  showLabel = true,
+  value,
+  onChange,
+}: TonePickerProps) {
+  const isCustomValue = isCustomTone(value);
+  const customTone = isCustomValue ? value : defaultCustomTone;
+
+  const selectTone = (tone: UiSyntaxTone) => {
+    onChange(tone);
+  };
+
+  return (
+    <SyntaxDropdown
+      ariaLabel={ariaLabel}
+      className="syntax-tone-picker"
+      menuClassName="syntax-dropdown-menu syntax-tone-menu"
+      renderButton={({ isOpen, menuId, toggle }) => (
+        <button
+          aria-controls={menuId}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          aria-label={`${ariaLabel}: ${getToneLabel(value, options)}`}
+          className={showLabel ? "syntax-tone-button" : "syntax-tone-button is-compact"}
+          onClick={toggle}
+          type="button"
+        >
+          <span
+            aria-hidden="true"
+            className={getToneSwatchClass(value)}
+            style={getToneSwatchStyle(value)}
+          >
+            <span />
+          </span>
+          {showLabel ? <span>{getToneLabel(value, options)}</span> : null}
+          <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
+        </button>
+      )}
+    >
+      {({ close }) => (
+        <>
           <div className="syntax-tone-grid" role="group" aria-label="预设颜色">
-            {options.map((option) => (
+            {options.map((option) => {
+              const selectOption = () => {
+                selectTone(option.value);
+                close();
+              };
+
+              return (
               <button
                 aria-label={getToneLabel(option.value, options)}
                 className={
@@ -148,7 +197,7 @@ export function TonePicker({
                     : "syntax-tone-tile"
                 }
                 key={option.value}
-                onClick={() => selectTone(option.value)}
+                onClick={selectOption}
                 title={getToneLabel(option.value, options)}
                 type="button"
               >
@@ -162,7 +211,8 @@ export function TonePicker({
                   <Check aria-hidden="true" size={12} strokeWidth={2.4} />
                 ) : null}
               </button>
-            ))}
+              );
+            })}
           </div>
 
           <div className="syntax-tone-custom-row">
@@ -172,7 +222,10 @@ export function TonePicker({
                   ? "syntax-tone-custom-button is-selected"
                   : "syntax-tone-custom-button"
               }
-              onClick={() => selectTone(customTone)}
+              onClick={() => {
+                selectTone(customTone);
+                close();
+              }}
               type="button"
             >
               <span
@@ -191,8 +244,8 @@ export function TonePicker({
               onChange={(event) => onChange(event.target.value)}
             />
           </div>
-        </div>
-      ) : null}
-    </div>
+        </>
+      )}
+    </SyntaxDropdown>
   );
 }

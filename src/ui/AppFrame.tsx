@@ -6,135 +6,143 @@ import type {
 } from "react";
 import { ChevronLeft } from "lucide-react";
 import type {
+  ActivityContextSlot,
   ActivityId,
-  ActivityItem,
 } from "./activityTypes";
-import { AppSidebar } from "./AppSidebar";
+import { ActivityBar } from "./ActivityBar";
 import {
+  appContextMaxWidth,
+  appContextMinWidth,
   appDetailMaxWidth,
   appDetailMinWidth,
-} from "./detailResize";
+} from "./frameResize";
+import { Button } from "./shared/primitives";
 
 type AppFrameStyle = CSSProperties & {
+  "--app-context-width"?: string;
   "--app-detail-width"?: string;
-  "--app-sidebar-width"?: string;
-};
-
-type AppFrameProps = {
-  activeActivityId: ActivityId;
-  activityItems: ActivityItem[];
-  detailCollapsed: boolean;
-  detailResizeValue: number;
-  detailSlot: ReactNode;
-  detailWidth: number | null;
-  isDetailResizing: boolean;
-  isSidebarResizing: boolean;
-  mainSlot: ReactNode;
-  sidebarCollapsed: boolean;
-  sidebarResizeValue: number;
-  sidebarSlot: ReactNode;
-  sidebarWidth: number | null;
-  onActivityChange: (activityId: ActivityId) => void;
-  onDetailResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-  onDetailResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
-  onDetailToggle: () => void;
-  onSidebarResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-  onSidebarResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
 };
 
 export function AppFrame({
   activeActivityId,
-  activityItems,
+  contextCollapsed,
+  contextResizeValue,
+  contextSlot,
+  contextWidth,
   detailCollapsed,
   detailResizeValue,
   detailSlot,
   detailWidth,
+  isContextResizing,
   isDetailResizing,
-  isSidebarResizing,
   mainSlot,
-  sidebarCollapsed,
-  sidebarResizeValue,
-  sidebarSlot,
-  sidebarWidth,
+  mainSpan,
   onActivityChange,
+  onContextResizeKeyDown,
+  onContextResizeStart,
   onDetailResizeKeyDown,
   onDetailResizeStart,
   onDetailToggle,
-  onSidebarResizeKeyDown,
-  onSidebarResizeStart,
-}: AppFrameProps) {
-  const hasDetailSlot = detailSlot !== null && detailSlot !== undefined;
-  const appFrameClassName = [
+}: {
+  activeActivityId: ActivityId;
+  contextCollapsed: boolean;
+  contextResizeValue: number;
+  contextSlot: ActivityContextSlot | null;
+  contextWidth: number | null;
+  detailCollapsed: boolean;
+  detailResizeValue: number;
+  detailSlot: ReactNode | null;
+  detailWidth: number | null;
+  isContextResizing: boolean;
+  isDetailResizing: boolean;
+  mainSlot: ReactNode;
+  mainSpan: "full" | "standard";
+  onActivityChange: (activityId: ActivityId) => void;
+  onContextResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  onContextResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
+  onDetailResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  onDetailResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
+  onDetailToggle: () => void;
+}) {
+  const hasContext = contextSlot !== null;
+  const showContext = hasContext && !contextCollapsed;
+  const hasDetail = detailSlot !== null;
+  const frameClassName = [
     "app-frame",
     `activity-${activeActivityId}`,
-    sidebarCollapsed ? "sidebar-collapsed" : "",
-    hasDetailSlot && detailCollapsed ? "detail-collapsed" : "",
+    showContext ? "has-context" : "no-context",
+    hasDetail ? "has-detail" : "no-detail",
+    detailCollapsed && hasDetail ? "detail-collapsed" : "",
+    mainSpan === "full" ? "main-full" : "main-standard",
+    isContextResizing ? "is-resizing-context" : "",
     isDetailResizing ? "is-resizing-detail" : "",
-    isSidebarResizing ? "is-resizing-sidebar" : "",
   ]
     .filter(Boolean)
     .join(" ");
-  const appFrameStyle: AppFrameStyle | undefined =
-    sidebarWidth === null && detailWidth === null
-      ? undefined
-      : ({
-          ...(detailWidth === null
-            ? {}
-            : { "--app-detail-width": `${detailWidth}px` }),
-          ...(sidebarWidth === null
-            ? {}
-            : { "--app-sidebar-width": `${sidebarWidth}px` }),
-        } as AppFrameStyle);
+  const style: AppFrameStyle = {
+    ...(contextWidth === null ? {} : { "--app-context-width": `${contextWidth}px` }),
+    ...(detailWidth === null ? {} : { "--app-detail-width": `${detailWidth}px` }),
+  };
 
   return (
-    <main className={appFrameClassName} style={appFrameStyle}>
-      <AppSidebar
+    <main className={frameClassName} style={style}>
+      <ActivityBar
         activeActivityId={activeActivityId}
-        activityItems={activityItems}
-        isSidebarResizing={isSidebarResizing}
-        sidebarCollapsed={sidebarCollapsed}
-        sidebarResizeValue={sidebarResizeValue}
-        sidebarSlot={sidebarSlot}
         onActivityChange={onActivityChange}
-        onSidebarResizeKeyDown={onSidebarResizeKeyDown}
-        onSidebarResizeStart={onSidebarResizeStart}
       />
-
-      {mainSlot}
-      {hasDetailSlot ? (
-        <div
+      {showContext ? (
+        <aside className="app-context" aria-label={contextSlot.title}>
+          <header className="app-context-header">
+            <h1>{contextSlot.title}</h1>
+          </header>
+          <div className="app-context-body">{contextSlot.content}</div>
+          <div
+            aria-label="调整上下文区宽度"
+            aria-orientation="vertical"
+            aria-valuemax={appContextMaxWidth}
+            aria-valuemin={appContextMinWidth}
+            aria-valuenow={contextResizeValue}
+            aria-valuetext={`${contextResizeValue}px`}
+            className="app-resize-handle app-context-resize"
+            onKeyDown={onContextResizeKeyDown}
+            onPointerDown={onContextResizeStart}
+            role="separator"
+            tabIndex={0}
+          />
+        </aside>
+      ) : null}
+      <section className="app-main-region">{mainSlot}</section>
+      {hasDetail ? (
+        <aside
           className={
             detailCollapsed
-              ? "app-detail-region app-detail-region-collapsed"
-              : "app-detail-region"
+              ? "app-detail app-detail-collapsed"
+              : "app-detail"
           }
         >
           {detailCollapsed ? (
-            <div className="app-detail-collapsed-header">
-              <button
-                aria-label="展开右侧栏"
+            <header className="app-detail-collapsed-header">
+              <Button
+                aria-label="展开右侧详情"
                 className="app-detail-toggle"
                 onClick={onDetailToggle}
-                title="展开右侧栏"
+                title="展开右侧详情"
                 type="button"
+                variant="icon"
               >
-                <ChevronLeft aria-hidden="true" size={15} strokeWidth={2} />
-              </button>
-            </div>
+                <ChevronLeft aria-hidden="true" size={14} />
+              </Button>
+            </header>
           ) : (
             <>
               <div
-                aria-label="调整右侧栏宽度"
+                aria-label="调整右侧详情宽度"
                 aria-orientation="vertical"
                 aria-valuemax={appDetailMaxWidth}
                 aria-valuemin={appDetailMinWidth}
                 aria-valuenow={detailResizeValue}
                 aria-valuetext={`${detailResizeValue}px`}
-                className={
-                  isDetailResizing
-                    ? "app-detail-resize-handle is-resizing"
-                    : "app-detail-resize-handle"
-                }
+                className="app-resize-handle app-detail-resize"
                 onKeyDown={onDetailResizeKeyDown}
                 onPointerDown={onDetailResizeStart}
                 role="separator"
@@ -143,7 +151,7 @@ export function AppFrame({
               {detailSlot}
             </>
           )}
-        </div>
+        </aside>
       ) : null}
     </main>
   );

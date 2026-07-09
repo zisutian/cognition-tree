@@ -1,86 +1,96 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
-  UiButton,
-  UiEmptyState,
-  UiField,
-  UiFormSection,
-  UiList,
-  UiListRow,
-  UiMetrics,
-  UiPanel,
-  UiPanelBody,
-  UiPanelHeader,
-  UiSection,
-  UiSectionTitle,
-  UiStatus,
+  SegmentedControl,
+  SymbolSlot,
+  ToggleButton,
 } from "../../../src/ui/shared/primitives";
 
-describe("ui primitives", () => {
-  it("renders shared panel, form, list, status and empty state classes", () => {
+// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
+const { readFileSync } = (await import("node:fs")) as {
+  readFileSync: (path: URL, encoding: "utf8") => string;
+};
+const primitivesCss = readFileSync(
+  new URL("../../../src/ui/styles/shared/primitives.css", import.meta.url),
+  "utf8",
+);
+
+describe("shared primitives", () => {
+  it("renders segmented controls without activity-specific classes", () => {
     const markup = renderToStaticMarkup(
-      <UiPanel aria-label="示例" fullWidth variant="main">
-        <UiPanelHeader
-          actions={
-            <UiButton type="button" variant="secondary">
-              操作
-            </UiButton>
-          }
-          leadingActions={
-            <UiButton aria-label="收起" type="button" variant="icon">
-              ←
-            </UiButton>
-          }
-          title="示例面板"
-        />
-        <UiPanelBody>
-          <UiMetrics
-            aria-label="示例统计"
-            items={[{ label: "项目", value: 1 }]}
-          />
-          <UiFormSection
-            actions={
-              <UiButton aria-label="删除" type="button" variant="icon">
-                x
-              </UiButton>
-            }
-            title="表单"
-          >
-            <UiField label="名称">
-              <input defaultValue="demo" />
-            </UiField>
-          </UiFormSection>
-          <UiSection>
-            <UiSectionTitle>列表</UiSectionTitle>
-            <UiList variant="cards">
-              <UiListRow>
-                <span>行</span>
-              </UiListRow>
-            </UiList>
-          </UiSection>
-          <UiStatus tone="success">
-            <p>完成</p>
-          </UiStatus>
-          <UiEmptyState description="暂无内容" title="空状态" />
-        </UiPanelBody>
-      </UiPanel>,
+      <SegmentedControl
+        ariaLabel="图谱范围"
+        options={[
+          { label: "全库", value: "global" },
+          { label: "局部", value: "local" },
+        ]}
+        value="global"
+        onChange={() => undefined}
+      />,
     );
 
-    expect(markup).toContain("ui-panel ui-panel-main ui-panel-full-width");
-    expect(markup).toContain("ui-panel-header");
-    expect(markup).not.toContain("ui-panel-stats");
-    expect(markup).toContain("ui-panel-leading-actions");
-    expect(markup).toContain("ui-panel-title-group");
-    expect(markup).toContain("ui-metrics");
-    expect(markup).toContain("ui-metric-row");
-    expect(markup).toContain("<dd>1</dd><dt>项目</dt>");
-    expect(markup).toContain("ui-button ui-button-secondary");
-    expect(markup).toContain("ui-button ui-button-icon");
-    expect(markup).toContain("ui-form-section");
-    expect(markup).toContain("ui-field");
-    expect(markup).toContain("ui-list ui-list-cards");
-    expect(markup).toContain("ui-list-row");
-    expect(markup).toContain("ui-status ui-status-success");
-    expect(markup).toContain("ui-empty-state");
+    expect(markup).toContain("ui-segmented-control");
+    expect(markup).toContain("ui-segmented-control-option is-active");
+    expect(markup).toContain("aria-label=\"图谱范围\"");
+    expect(markup).toContain("aria-pressed=\"true\"");
+    expect(markup).toContain("aria-pressed=\"false\"");
+    expect(markup).not.toContain("graph-segments");
+    expect(markup).not.toContain("migration-mode-switch");
+  });
+
+  it("supports filled segmented controls for context panels", () => {
+    const markup = renderToStaticMarkup(
+      <SegmentedControl
+        ariaLabel="迁移模式"
+        fill
+        options={[
+          { label: "源笔记 / 目标笔记", value: "pair" },
+          { label: "笔记结构", value: "structure" },
+        ]}
+        value="structure"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("ui-segmented-control-fill");
+    expect(markup).toContain("--ui-segment-count:2");
+    expect(markup).toContain("aria-pressed=\"true\"");
+  });
+
+  it("renders shared toggle buttons for pressed toolbar options", () => {
+    const markup = renderToStaticMarkup(
+      <ToggleButton pressed>隐藏孤立点</ToggleButton>,
+    );
+
+    expect(markup).toContain("ui-toggle-button is-active");
+    expect(markup).toContain("aria-pressed=\"true\"");
+    expect(markup).toContain("隐藏孤立点");
+  });
+
+  it("renders shared symbol slots for tree and detail markers", () => {
+    const markup = renderToStaticMarkup(
+      <SymbolSlot className="detail-line-marker" tone="link">
+        T
+      </SymbolSlot>,
+    );
+
+    expect(markup).toContain("ui-symbol-slot");
+    expect(markup).toContain("ui-symbol-slot-link");
+    expect(markup).toContain("detail-line-marker");
+  });
+
+  it("defines row-style primitives for detail panels without changing panel titles", () => {
+    expect(primitivesCss).not.toContain(".ui-panel-detail .ui-panel-header h2");
+    expect(primitivesCss).toContain(".ui-symbol-slot");
+    expect(primitivesCss).toContain("width: var(--ui-symbol-size)");
+    expect(primitivesCss).toContain(".ui-toggle-button.is-active");
+    expect(primitivesCss).toContain("color: var(--color-fg-strong)");
+    expect(primitivesCss).toContain(".detail-summary-strip");
+    expect(primitivesCss).toContain(".detail-primary-row");
+    expect(primitivesCss).toContain(".detail-divider");
+    expect(primitivesCss).toContain(".detail-line-row");
+    expect(primitivesCss).not.toMatch(
+      /\.detail-line-row[\s\S]*?border: var\(--ui-border-width\) solid var\(--color-border/,
+    );
   });
 });
