@@ -350,6 +350,11 @@
 }
 
 .syntax-settings-stack {
+  --syntax-rule-row-width: calc(
+    var(--ui-control-height) * 15.5 + var(--ui-icon-size) +
+      var(--ui-gap-tight) * 5
+  );
+
   display: grid;
   gap: var(--ui-gap);
   min-width: 0;
@@ -382,7 +387,7 @@
   display: grid;
   grid-template-columns:
     calc(var(--ui-control-height) * 4)
-    minmax(calc(var(--ui-control-height) * 8), calc(var(--ui-control-height) * 18));
+    minmax(calc(var(--ui-control-height) * 8), calc(var(--ui-control-height) * 12));
   align-items: center;
   gap: var(--ui-gap-tight);
   min-width: 0;
@@ -418,6 +423,7 @@
     var(--ui-icon-size);
   align-items: center;
   gap: var(--ui-gap-tight);
+  width: min(100%, var(--syntax-rule-row-width));
   min-width: 0;
   min-height: var(--ui-control-height);
 }
@@ -429,8 +435,7 @@
 }
 
 .syntax-setting-line input,
-.syntax-rule-row input,
-.syntax-rule-row select {
+.syntax-rule-row input {
   min-width: 0;
   min-height: var(--ui-control-height);
   padding: 0 var(--ui-gap);
@@ -444,14 +449,13 @@
 }
 
 .syntax-setting-line input:focus,
-.syntax-rule-row input:focus,
-.syntax-rule-row select:focus {
+.syntax-rule-row input:focus {
   outline: none;
   background: var(--color-selected);
 }
 
 .syntax-name-control {
-  width: min(100%, calc(var(--ui-control-height) * 18));
+  width: min(100%, calc(var(--ui-control-height) * 12));
 }
 
 .syntax-number-control {
@@ -475,19 +479,23 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: var(--ui-gap-tight);
+  width: min(100%, var(--syntax-rule-row-width));
   min-width: 0;
-  padding-left: calc(var(--ui-control-height) * 4 + var(--ui-gap-tight));
 }
 
-.syntax-tone-picker {
+.syntax-tone-picker,
+.syntax-role-picker {
   position: relative;
   min-width: 0;
   min-height: var(--ui-control-height);
 }
 
 .syntax-tone-button,
-.syntax-tone-custom-button {
+.syntax-tone-custom-button,
+.syntax-role-button,
+.syntax-role-option {
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -498,6 +506,22 @@
   font-size: var(--ui-control-font-size);
   line-height: var(--ui-control-line-height);
   cursor: pointer;
+}
+
+.syntax-role-button {
+  justify-content: center;
+  gap: calc(var(--ui-gap-tight) / 2);
+  width: 100%;
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap-tight);
+  background: var(--color-input);
+}
+
+.syntax-role-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .syntax-tone-button {
@@ -524,12 +548,16 @@
 }
 
 .syntax-tone-button:hover,
+.syntax-role-button:hover,
+.syntax-role-option:hover,
 .syntax-tone-custom-button:hover,
 .syntax-tone-tile:hover {
   background: var(--color-hover);
 }
 
 .syntax-tone-button:focus-visible,
+.syntax-role-button:focus-visible,
+.syntax-role-option:focus-visible,
 .syntax-tone-custom-button:focus-visible,
 .syntax-tone-tile:focus-visible,
 .syntax-tone-picker input[type="color"]:focus-visible {
@@ -537,20 +565,61 @@
   background: var(--color-hover);
 }
 
-.syntax-tone-menu {
+.syntax-dropdown-menu {
   position: absolute;
   z-index: 30;
   top: calc(100% + var(--ui-gap-tight));
   right: 0;
   display: grid;
   gap: var(--ui-gap);
-  width: calc(var(--ui-control-height) * 7);
   padding: var(--ui-gap);
   border: var(--ui-border-width) solid var(--color-border);
   border-radius: var(--ui-radius);
   color: var(--color-fg);
   background: var(--color-editor);
   box-shadow: var(--shadow-float);
+}
+
+.syntax-tone-menu {
+  width: calc(var(--ui-control-height) * 7);
+}
+
+.syntax-role-menu {
+  right: auto;
+  left: 50%;
+  width: calc(var(--ui-control-height) * 4.5);
+  transform: translateX(-50%);
+}
+
+.syntax-role-list {
+  display: grid;
+  gap: calc(var(--ui-gap-tight) / 2);
+}
+
+.syntax-role-option {
+  position: relative;
+  justify-content: center;
+  min-height: var(--ui-control-height);
+  padding: 0 calc(var(--ui-gap) + var(--ui-icon-size)) 0 var(--ui-gap);
+  background: transparent;
+  text-align: center;
+}
+
+.syntax-role-option.is-selected {
+  color: var(--color-fg-strong);
+  background: var(--color-selected);
+}
+
+.syntax-role-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.syntax-role-option svg {
+  position: absolute;
+  right: var(--ui-gap-tight);
 }
 
 .syntax-tone-grid {

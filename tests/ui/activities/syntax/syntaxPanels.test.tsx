@@ -33,7 +33,10 @@ describe("syntax panels", () => {
     expect(markup).toContain("行内规则");
     expect(markup).toContain("syntax-tone-picker");
     expect(markup).toContain("syntax-tone-button is-compact");
+    expect(markup).toContain("syntax-role-picker");
+    expect(markup).toContain("syntax-role-button");
     expect(markup).toContain("新增块规则");
+    expect(markup).not.toContain("<select");
     expect(markup).not.toContain("<span>默认</span>");
     expect(markup).not.toContain("<span>蓝色</span>");
     expect(markup).not.toContain("<span>灰色</span>");
@@ -96,13 +99,22 @@ describe("syntax panels", () => {
     );
   });
 
-  it("keeps syntax main layout on one table grid instead of mixed row systems", () => {
+  it("keeps syntax main layout on grouped settings instead of mixed row systems", () => {
     expect(activitiesCss).toContain(".syntax-settings-stack");
     expect(activitiesCss).toContain(".syntax-settings-group");
     expect(activitiesCss).toContain(".syntax-setting-line");
     expect(activitiesCss).toContain(".syntax-rule-row");
     expect(activitiesCss).toContain(".syntax-pair-fields");
+    expect(activitiesCss).toContain("--syntax-rule-row-width");
+    expect(activitiesCss).toContain("width: min(100%, var(--syntax-rule-row-width))");
+    expect(activitiesCss).toContain("calc(var(--ui-control-height) * 12)");
+    expect(activitiesCss).not.toContain("calc(var(--ui-control-height) * 26)");
     expect(activitiesCss).toContain(".syntax-tone-button.is-compact");
+    expect(activitiesCss).toContain(".syntax-dropdown-menu");
+    expect(activitiesCss).toContain(".syntax-role-menu");
+    expect(activitiesCss).toContain(".syntax-role-list");
+    expect(activitiesCss).toContain(".syntax-role-option");
+    expect(activitiesCss).toContain("justify-content: center");
     expect(activitiesCss).not.toContain(".syntax-settings-table");
     expect(activitiesCss).not.toContain(".syntax-setting-row");
     expect(activitiesCss).not.toContain(".syntax-config-strip");

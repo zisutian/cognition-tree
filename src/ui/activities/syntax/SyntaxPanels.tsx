@@ -1,8 +1,9 @@
-import { ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import type {
   UiSyntaxProfileDraftInlineRule,
+  UiSyntaxRole,
   UiSyntaxTone,
 } from "../../../application/workspace/projection/viewSyntax";
 import {
@@ -13,7 +14,7 @@ import {
   StatusLine,
   cx,
 } from "../../shared/primitives";
-import { TonePicker } from "./TonePicker";
+import { SyntaxDropdown, TonePicker } from "./TonePicker";
 
 const maxTabDisplayWidth = 16;
 const customTonePattern = /^#[0-9a-fA-F]{6}$/;
@@ -131,6 +132,77 @@ function SyntaxRuleHeader() {
 
 function SyntaxRuleSpacer() {
   return <span aria-hidden="true" className="syntax-rule-spacer" />;
+}
+
+function SyntaxRolePicker({
+  ariaLabel,
+  options,
+  value,
+  onChange,
+}: {
+  ariaLabel: string;
+  options: ViewModel["syntax"]["roleOptions"];
+  value: UiSyntaxRole;
+  onChange: (role: UiSyntaxRole) => void;
+}) {
+  const selectedOption =
+    options.find((option) => option.value === value) ?? {
+      label: value,
+      value,
+    };
+
+  return (
+    <SyntaxDropdown
+      ariaLabel={ariaLabel}
+      className="syntax-role-picker"
+      menuClassName="syntax-dropdown-menu syntax-role-menu"
+      renderButton={({ isOpen, menuId, toggle }) => (
+        <button
+          aria-controls={menuId}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
+          aria-label={`${ariaLabel}: ${selectedOption.label}`}
+          className="syntax-role-button"
+          onClick={toggle}
+          type="button"
+        >
+          <span>{selectedOption.label}</span>
+          <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
+        </button>
+      )}
+    >
+      {({ close }) => (
+        <div className="syntax-role-list" role="listbox">
+          {options.map((option) => {
+            const isSelected = option.value === value;
+
+            return (
+              <button
+                aria-selected={isSelected}
+                className={
+                  isSelected
+                    ? "syntax-role-option is-selected"
+                    : "syntax-role-option"
+                }
+                key={option.value}
+                onClick={() => {
+                  onChange(option.value);
+                  close();
+                }}
+                role="option"
+                type="button"
+              >
+                <span>{option.label}</span>
+                {isSelected ? (
+                  <Check aria-hidden="true" size={12} strokeWidth={2.4} />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </SyntaxDropdown>
+  );
 }
 
 function InlineRuleRow({
@@ -340,21 +412,16 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
                     })
                   }
                 />
-                <select
-                  aria-label="角色"
+                <SyntaxRolePicker
+                  ariaLabel="角色"
+                  options={syntax.roleOptions}
                   value={rule.role}
-                  onChange={(event) =>
+                  onChange={(role) =>
                     syntax.actions.updateMarkerRule(rule.id, {
-                      role: event.target.value as typeof rule.role,
+                      role,
                     })
                   }
-                >
-                  {syntax.roleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                />
                 <TonePicker
                   ariaLabel={`${rule.label}背景色`}
                   options={syntax.toneOptions}
