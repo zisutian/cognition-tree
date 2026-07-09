@@ -756,7 +756,6 @@
   gap: var(--ui-gap-tight);
   min-height: var(--ui-tree-row-height);
   padding: 0 0 0 var(--ui-gap-tight);
-  border-left: calc(var(--ui-border-width) * 2) solid transparent;
   border-radius: 0;
   color: var(--color-fg);
   background: transparent;
@@ -790,50 +789,47 @@
 }
 
 .syntax-render-tone-green {
-  background: transparent;
-  border-left-color: var(--ctn-tone-green);
+  background: var(--ctn-tone-green-soft);
 }
 
 .syntax-render-tone-teal {
-  background: transparent;
-  border-left-color: var(--ctn-tone-teal);
+  background: var(--ctn-tone-teal-soft);
 }
 
-.syntax-render-tone-cyan,
+.syntax-render-tone-cyan {
+  background: var(--ctn-tone-cyan-soft);
+}
+
 .syntax-render-tone-blue {
-  background: transparent;
-  border-left-color: var(--ctn-tone-blue);
+  background: var(--ctn-tone-blue-soft);
 }
 
 .syntax-render-tone-indigo {
-  background: transparent;
-  border-left-color: var(--ctn-tone-indigo);
+  background: var(--ctn-tone-indigo-soft);
 }
 
-.syntax-render-tone-violet,
+.syntax-render-tone-violet {
+  background: var(--ctn-tone-violet-soft);
+}
+
 .syntax-render-tone-pink {
-  background: transparent;
-  border-left-color: var(--ctn-tone-violet);
+  background: var(--ctn-tone-pink-soft);
 }
 
 .syntax-render-tone-red {
-  background: transparent;
-  border-left-color: var(--ctn-tone-red);
+  background: var(--ctn-tone-red-soft);
 }
 
 .syntax-render-tone-amber {
-  background: transparent;
-  border-left-color: var(--ctn-tone-amber);
+  background: var(--ctn-tone-amber-soft);
 }
 
 .syntax-render-tone-gray {
-  background: transparent;
-  border-left-color: var(--ctn-tone-gray);
+  background: var(--ctn-tone-gray-soft);
 }
 
 .syntax-render-tone-custom {
-  background: transparent;
-  border-left-color: var(--syntax-render-tone-color);
+  background: color-mix(in srgb, var(--syntax-render-tone-color) 12%, transparent);
 }
 
 .syntax-render-text-default .syntax-render-text {

@@ -527,9 +527,13 @@ function SyntaxRenderLine({
 }
 
 function getInlinePreviewValue(rule: UiSyntaxProfileDraftInlineRule) {
+  return rule.label || "行内规则";
+}
+
+function getInlinePreviewMarker(rule: UiSyntaxProfileDraftInlineRule) {
   return rule.kind === "paired"
-    ? `${rule.open || "{"}行内内容${rule.close || "}"}`
-    : `${rule.marker || "*"}行内内容`;
+    ? `${rule.open || "{"}${rule.close || "}"}`
+    : rule.marker || "*";
 }
 
 export function SyntaxDetailPanel({
@@ -540,9 +544,9 @@ export function SyntaxDetailPanel({
   view: ViewModel;
 }) {
   return (
-    <Panel aria-label="语法详情" as="aside" tone="detail">
+    <Panel aria-label="语法预览" as="aside" tone="detail">
       <PanelHeader
-        title="语法详情"
+        title="语法预览"
         actions={
           <Button
             aria-label="收回右侧详情"
@@ -556,20 +560,7 @@ export function SyntaxDetailPanel({
         }
       />
       <PanelBody className="detail-panel-stack" scroll>
-        <div className="detail-primary-row">
-          <p>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</p>
-          <dl className="detail-meta-line" aria-label="语法配置摘要">
-            <div>
-              <dd>
-                {view.syntax.draftResult.profile?.tabDisplayWidth ??
-                  view.syntax.draft.tabDisplayWidth}
-              </dd>
-              <dt>缩进宽度</dt>
-            </div>
-          </dl>
-        </div>
-        <div aria-hidden="true" className="detail-divider" />
-        <div aria-label="语法可视化" className="syntax-render-list">
+        <div aria-label="语法预览内容" className="syntax-render-list">
           <SyntaxRenderLine
             marker="T"
             textColor={view.syntax.draft.titleRule.textColor}
@@ -595,7 +586,7 @@ export function SyntaxDetailPanel({
             <SyntaxRenderLine
               inline
               key={rule.id}
-              marker="I"
+              marker={getInlinePreviewMarker(rule)}
               textColor={rule.textColor}
               tone={rule.tone}
               value={getInlinePreviewValue(rule)}

@@ -50,7 +50,7 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("syntax-inline-header");
   });
 
-  it("keeps the detail panel focused on configuration and visual preview", () => {
+  it("keeps the detail panel focused on syntax preview only", () => {
     const markup = renderToStaticMarkup(
       <SyntaxDetailPanel
         onCollapseDetail={() => undefined}
@@ -58,16 +58,22 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain("语法详情");
-    expect(markup).toContain("缩进宽度");
-    expect(markup).toContain("语法可视化");
+    expect(markup).toContain("语法预览");
+    expect(markup).toContain("语法预览内容");
     expect(markup).toContain("detail-panel-stack");
-    expect(markup).toContain("detail-primary-row");
-    expect(markup).toContain("detail-meta-line");
-    expect(markup).toContain("detail-divider");
     expect(markup).toContain("syntax-render-line");
     expect(markup).toContain("syntax-render-marker");
     expect(markup).toContain("首行标题示例");
+    expect(markup).toContain("[[]]");
+    expect(markup).toContain("全局概念引用");
+    expect(markup).toContain("行内代码");
+    expect(markup).not.toContain("行内内容");
+    expect(markup).not.toContain("语法详情");
+    expect(markup).not.toContain("缩进宽度");
+    expect(markup).not.toContain("语法可视化");
+    expect(markup).not.toContain("detail-primary-row");
+    expect(markup).not.toContain("detail-meta-line");
+    expect(markup).not.toContain("detail-divider");
     expect(markup).not.toContain("ui-symbol-slot");
     expect(markup).not.toContain("ui-section-title");
     expect(markup).not.toContain("syntax-detail-summary");
@@ -91,8 +97,15 @@ describe("syntax panels", () => {
     expect(activitiesCss).not.toMatch(
       /\.syntax-tone-tile\.is-selected,[\s\S]*?border-color: var\(--color-accent\)/,
     );
-    expect(activitiesCss).not.toMatch(
+    expect(activitiesCss).toMatch(
       /\.syntax-render-tone-green \{[\s\S]*?background: var\(--ctn-tone-green-soft\)/,
+    );
+    expect(activitiesCss).toContain(
+      "background: color-mix(in srgb, var(--syntax-render-tone-color) 12%, transparent)",
+    );
+    expect(activitiesCss).not.toContain("border-left-color: var(--ctn-tone");
+    expect(activitiesCss).not.toContain(
+      "border-left: calc(var(--ui-border-width) * 2) solid transparent",
     );
     expect(activitiesCss).toContain(
       "minmax(calc(var(--ui-control-height) * 2), max-content)",
