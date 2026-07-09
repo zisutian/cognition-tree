@@ -38,7 +38,7 @@ type StructureTreeProps = {
   draggingLineNumber?: string | null;
   draggable?: boolean;
   getDragPayload?: (lineNumber: number) => string;
-  indentWidth?: number;
+  indentUnitCount?: number;
   nodes: StructureTreeNode[];
   selectedRootLineNumber?: number | null;
   onDragEnd?: () => void;
@@ -239,26 +239,40 @@ function isActiveTreeNode({
     : activeFolderId === node.folderId;
 }
 
-export function normalizeStructureTreeIndentWidth(indentWidth = 4) {
-  const normalizedIndentWidth = Math.floor(indentWidth);
+export const defaultStructureTreeIndentUnitCount = 4;
+export const defaultStructureTreeIndentWidthPx = 14;
 
-  return Number.isFinite(normalizedIndentWidth) && normalizedIndentWidth > 0
-    ? normalizedIndentWidth
-    : 4;
+export function normalizeStructureTreeIndentUnitCount(
+  indentUnitCount = defaultStructureTreeIndentUnitCount,
+) {
+  const normalizedIndentUnitCount = Math.floor(indentUnitCount);
+
+  return Number.isFinite(normalizedIndentUnitCount) &&
+    normalizedIndentUnitCount > 0
+    ? normalizedIndentUnitCount
+    : defaultStructureTreeIndentUnitCount;
+}
+
+export function getStructureTreeIndentWidthPx(indentUnitCount?: number) {
+  return (
+    (normalizeStructureTreeIndentUnitCount(indentUnitCount) /
+      defaultStructureTreeIndentUnitCount) *
+    defaultStructureTreeIndentWidthPx
+  );
 }
 
 export function getStructureTreeRowStyle({
   depth,
-  indentWidth,
+  indentUnitCount,
 }: {
   depth: number;
-  indentWidth?: number;
+  indentUnitCount?: number;
 }) {
   return {
     "--ui-structure-depth": String(depth),
-    "--ui-structure-indent-width": `${normalizeStructureTreeIndentWidth(
-      indentWidth,
-    )}ch`,
+    "--ui-structure-indent-width": `${getStructureTreeIndentWidthPx(
+      indentUnitCount,
+    )}px`,
   } as CSSProperties;
 }
 
@@ -291,7 +305,7 @@ function StructureTreeContent({
   draggingLineNumber,
   draggable = false,
   getDragPayload,
-  indentWidth,
+  indentUnitCount,
   nodes,
   selectedRootLineNumber,
   onDragEnd,
@@ -317,7 +331,7 @@ function StructureTreeContent({
                 node.hasDiagnostics && "has-diagnostics",
               )}
               draggable={draggable}
-              style={getStructureTreeRowStyle({ depth, indentWidth })}
+              style={getStructureTreeRowStyle({ depth, indentUnitCount })}
               onClick={() => onSelectLine?.(node.lineNumber)}
               onDragEnd={onDragEnd}
               onDragStart={(event) => {
@@ -348,7 +362,7 @@ function StructureTreeContent({
                 draggingLineNumber={draggingLineNumber}
                 draggable={draggable}
                 getDragPayload={getDragPayload}
-                indentWidth={indentWidth}
+                indentUnitCount={indentUnitCount}
                 nodes={node.children}
                 selectedRootLineNumber={selectedRootLineNumber}
                 onDragEnd={onDragEnd}
@@ -368,17 +382,17 @@ export function StructureTree(props: StructureTreeProps) {
 }
 
 export function OutlineTree({
-  indentWidth,
+  indentUnitCount,
   nodes,
   onSelectLine,
 }: {
-  indentWidth?: number;
+  indentUnitCount?: number;
   nodes: StructureTreeNode[];
   onSelectLine: (lineNumber: number) => void;
 }) {
   return (
     <StructureTree
-      indentWidth={indentWidth}
+      indentUnitCount={indentUnitCount}
       nodes={nodes}
       onSelectLine={onSelectLine}
     />

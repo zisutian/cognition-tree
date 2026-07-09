@@ -254,7 +254,7 @@ function MovingTargetTree({
   depth = 0,
   draggingLineNumber,
   draggable = false,
-  indentWidth,
+  indentUnitCount,
   nodes,
   selectedLineNumbers,
   selectedRootLineNumber,
@@ -271,7 +271,7 @@ function MovingTargetTree({
   depth?: number;
   draggingLineNumber: string | null;
   draggable?: boolean;
-  indentWidth?: number;
+  indentUnitCount?: number;
   nodes: UiBlockNode[];
   selectedLineNumbers: ReadonlySet<number>;
   selectedRootLineNumber: number | null;
@@ -283,7 +283,7 @@ function MovingTargetTree({
   onSetActiveDropPosition: (position: string | null) => void;
 }) {
   return (
-    <ul className="ui-tree migration-target-tree">
+    <ul className="ui-tree ui-structure-tree migration-target-tree">
       {nodes.map((node) => {
         const isSelected = selectedLineNumbers.has(node.lineNumber);
         const canDropOnNode = canDropStructureBlockOnLine({
@@ -317,7 +317,7 @@ function MovingTargetTree({
                 node.hasDiagnostics && "has-diagnostics",
               )}
               draggable={draggable}
-              style={getStructureTreeRowStyle({ depth, indentWidth })}
+              style={getStructureTreeRowStyle({ depth, indentUnitCount })}
               onClick={() => onSelectLine?.(node.lineNumber)}
               onDragEnd={onDragEnd}
               onDragOver={(event) => {
@@ -356,7 +356,7 @@ function MovingTargetTree({
                 depth={depth + 1}
                 draggingLineNumber={draggingLineNumber}
                 draggable={draggable}
-                indentWidth={indentWidth}
+                indentUnitCount={indentUnitCount}
                 nodes={node.children}
                 selectedLineNumbers={selectedLineNumbers}
                 selectedRootLineNumber={selectedRootLineNumber}
@@ -639,7 +639,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
             draggingLineNumber={draggingLineNumber}
             draggable
             getDragPayload={createBlockLineDragPayload}
-            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
+            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.migration.sourceRoots}
             selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
             onDragEnd={finishDrag}
@@ -669,7 +669,7 @@ function MigrationPairView({ view }: { view: ViewModel }) {
             activeTargetLineNumber={activeTargetLineNumber}
             blockedLineNumbers={emptySelectedLineNumbers}
             draggingLineNumber={draggingLineNumber}
-            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
+            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.migration.targetRoots}
             selectedLineNumbers={emptySelectedLineNumbers}
             selectedRootLineNumber={null}
@@ -750,7 +750,7 @@ function StructureView({ view }: { view: ViewModel }) {
             blockedLineNumbers={blockedLineNumbers}
             draggingLineNumber={draggingLineNumber}
             draggable
-            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
+            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.migration.structureRoots}
             selectedLineNumbers={selectedLineNumbers}
             selectedRootLineNumber={selectedBlock?.lineNumber ?? null}

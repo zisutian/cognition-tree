@@ -4,9 +4,10 @@ import {
   canDropTreeNode,
   createTreeMoveRequest,
   createTreeNodeDragPayload,
+  getStructureTreeIndentWidthPx,
   getTreeDragClassNames,
   getTreeNodeReferenceKey,
-  normalizeStructureTreeIndentWidth,
+  normalizeStructureTreeIndentUnitCount,
   NoteTree,
   readTreeNodeDragPayload,
   StructureTree,
@@ -223,7 +224,7 @@ describe("shared trees", () => {
   it("renders structure trees with variable text markers and line metadata", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
-        indentWidth={6}
+        indentUnitCount={6}
         nodes={[
           {
             children: [
@@ -260,7 +261,7 @@ describe("shared trees", () => {
     expect(markup).toContain("ui-structure-tree-row");
     expect(markup).toContain("--ui-structure-depth:0");
     expect(markup).toContain("--ui-structure-depth:1");
-    expect(markup).toContain("--ui-structure-indent-width:6ch");
+    expect(markup).toContain("--ui-structure-indent-width:21px");
     expect(markup).toContain("ui-structure-prefix");
     expect(markup).toContain("ui-structure-marker");
     expect(markup).toContain("组分");
@@ -271,17 +272,20 @@ describe("shared trees", () => {
   });
 
   it("normalizes structure tree indentation width for css rendering", () => {
-    expect(normalizeStructureTreeIndentWidth(8)).toBe(8);
-    expect(normalizeStructureTreeIndentWidth(2.9)).toBe(2);
-    expect(normalizeStructureTreeIndentWidth(0)).toBe(4);
-    expect(normalizeStructureTreeIndentWidth(Number.NaN)).toBe(4);
+    expect(normalizeStructureTreeIndentUnitCount(8)).toBe(8);
+    expect(normalizeStructureTreeIndentUnitCount(2.9)).toBe(2);
+    expect(normalizeStructureTreeIndentUnitCount(0)).toBe(4);
+    expect(normalizeStructureTreeIndentUnitCount(Number.NaN)).toBe(4);
+    expect(getStructureTreeIndentWidthPx()).toBe(14);
+    expect(getStructureTreeIndentWidthPx(8)).toBe(28);
+    expect(getStructureTreeIndentWidthPx(2.9)).toBe(7);
   });
 
   it("keeps structure tree indentation separate from directory tree nesting", () => {
     expect(treeCss).toContain(".ui-structure-tree .ui-structure-tree");
     expect(treeCss).toContain("padding-left: 0");
     expect(treeCss).toContain("border-left: 0");
-    expect(treeCss).toContain("--ui-structure-indent-width: 4ch");
+    expect(treeCss).toContain("--ui-structure-indent-width: 14px");
     expect(treeCss).toContain("var(--ui-structure-depth)");
     expect(treeCss).toContain("var(--ui-structure-indent-width)");
     expect(treeCss).toContain("grid-template-columns:\n    max-content");

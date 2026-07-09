@@ -215,7 +215,7 @@ export function NoteDetailPanel({
         </dl>
         {view.outline.nodes.length > 0 ? (
           <OutlineTree
-            indentWidth={view.editor.syntaxProfile.tabDisplayWidth}
+            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.outline.nodes}
             onSelectLine={view.outline.onSelectLine}
           />

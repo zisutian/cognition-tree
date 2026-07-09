@@ -118,7 +118,7 @@ describe("notes panels", () => {
     expect(markup).toContain("detail-line-list");
     expect(markup).toContain("detail-line-marker");
     expect(markup).toContain("--ui-structure-depth:1");
-    expect(markup).toContain("--ui-structure-indent-width:6ch");
+    expect(markup).toContain("--ui-structure-indent-width:21px");
     expect(markup).toContain("ui-symbol-slot");
     expect(markup).toContain("ui-symbol-slot-danger");
     expect(markup).toContain("示例诊断");
