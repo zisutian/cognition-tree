@@ -329,12 +329,24 @@ describe("architecture module boundaries", () => {
     expect(listImmediateSourceFileNames("ui/shared")).toEqual([
       "blockText.tsx",
       "primitives.tsx",
-      "tree.tsx",
     ]);
-    expect(listSubdirectories("ui/shared")).toEqual([]);
+    expect(listSubdirectories("ui/shared")).toEqual(["tree"]);
+    expect(listSourceFileNames("ui/shared/tree")).toEqual([
+      "NoteTree.tsx",
+      "StructureTree.tsx",
+      "drag.ts",
+      "index.ts",
+      "structureIndent.ts",
+      "types.ts",
+    ]);
     expect(listSourceFileNames("ui/activities/migration")).toEqual([
-      "MigrationPanels.tsx",
+      "StructureOperationContext.tsx",
+      "StructureOperationPairView.tsx",
+      "StructureOperationPanels.tsx",
+      "StructureOperationStructureView.tsx",
       "blockLineDrag.ts",
+      "structureOperationBlocks.ts",
+      "structureOperationDropTargets.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/notes")).toEqual([
       "NotesPanels.tsx",
@@ -343,12 +355,25 @@ describe("architecture module boundaries", () => {
       "SettingsPanel.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/syntax")).toEqual([
+      "SyntaxDetailPanel.tsx",
+      "SyntaxMainPanel.tsx",
       "SyntaxPanels.tsx",
+      "SyntaxRolePicker.tsx",
+      "SyntaxRuleRows.tsx",
+      "SyntaxSetupPanel.tsx",
       "TonePicker.tsx",
+      "syntaxPreview.ts",
     ]);
     expect(listSourceFileNames("ui/activities/visualization")).toEqual([
       "ReferenceGraphCanvas.tsx",
+      "VisualizationDetailLists.tsx",
+      "VisualizationDetailPanel.tsx",
+      "VisualizationPanel.tsx",
       "VisualizationPanels.tsx",
+      "VisualizationToolbar.tsx",
+      "graphEmptyState.ts",
+      "referenceGraphCanvasDrawing.ts",
+      "referenceGraphCanvasModel.ts",
       "referenceGraphView.ts",
     ]);
   });
@@ -646,10 +671,16 @@ describe("architecture module boundaries", () => {
       /--space-9/,
       /--color-warning/,
       /--color-warning-soft/,
+      /ui-field\b/,
       /ui-field-compact/,
+      /ui-metrics\b/,
+      /ui-metric\b/,
       /ui-list-plain/,
       /ui-status-warning/,
       /ui-status-neutral/,
+      /dense-list\b/,
+      /detail-list\b/,
+      /detail-row(?:-|\b)/,
       /diagnostics-panel/,
       /diagnostic-location/,
       /current-note-chip/,
@@ -663,6 +694,8 @@ describe("architecture module boundaries", () => {
       /app-sidebar/,
       /side-panel/,
       /sidebar-scroll-area/,
+      /MigrationPanels/,
+      /migration-(?:grid|column|drop-target|target-node|target-tree|panel|body)/,
     ];
     const violations = listAllSourcePaths().flatMap((filePath) => {
       const source = sourceModules[filePath] ?? sourceStyleModules[filePath] ?? "";

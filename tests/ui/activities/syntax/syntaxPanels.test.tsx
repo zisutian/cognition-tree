@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   SyntaxDetailPanel,
   SyntaxMainPanel,
+  SyntaxSetupPanel,
 } from "../../../../src/ui/activities/syntax/SyntaxPanels";
 import { createView } from "../../viewFactory";
 
@@ -48,6 +49,19 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("syntax-config-grid");
     expect(markup).not.toContain("syntax-block-header");
     expect(markup).not.toContain("syntax-inline-header");
+  });
+
+  it("keeps setup copy aligned with structure operation wording", () => {
+    const markup = renderToStaticMarkup(
+      <SyntaxSetupPanel
+        errorMessage=""
+        onConfigureSyntax={() => undefined}
+        onUseDefaultSyntax={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("结构操作");
+    expect(markup).not.toContain("迁移结构");
   });
 
   it("keeps the detail panel focused on syntax preview only", () => {

@@ -41,7 +41,7 @@ describe("shared primitives", () => {
   it("supports filled segmented controls for context panels", () => {
     const markup = renderToStaticMarkup(
       <SegmentedControl
-        ariaLabel="迁移模式"
+        ariaLabel="结构操作模式"
         fill
         options={[
           { label: "源笔记 / 目标笔记", value: "pair" },

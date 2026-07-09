@@ -4,15 +4,15 @@ import {
   getMoveBlockSuccessMessage,
 } from "../../../../src/application/workspace/view-model/migrationMessages";
 
-describe("workspace migration view messages", () => {
-  it("maps migration result codes to application messages", () => {
-    expect(getMoveBlockSuccessMessage()).toBe("块迁移完成。");
+describe("structure operation view messages", () => {
+  it("maps move result codes to user-facing messages", () => {
+    expect(getMoveBlockSuccessMessage()).toBe("结构移动完成。");
     expect(getMoveBlockFailureMessage("same-note-unsupported")).toBe(
-      "第一版不支持同一笔记内移动块。",
+      "源笔记和目标笔记不能相同。",
     );
-    expect(getMoveBlockFailureMessage("source-block-missing")).toBe("源块不存在。");
+    expect(getMoveBlockFailureMessage("source-block-missing")).toBe("源结构不存在。");
     expect(getMoveBlockFailureMessage("target-position-missing")).toBe(
-      "目标插入位置不存在。",
+      "目标位置不存在。",
     );
   });
 });

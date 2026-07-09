@@ -3,7 +3,10 @@ import type {
   ActivityId,
   ActivitySlots,
 } from "../activityTypes";
-import { MigrationContext, MigrationMainPanel } from "./migration/MigrationPanels";
+import {
+  StructureOperationContext,
+  StructureOperationMainPanel,
+} from "./migration/StructureOperationPanels";
 import {
   NoteDetailPanel,
   NoteEditorPanel,
@@ -71,12 +74,12 @@ function migrationSlots({
 }: Pick<ActivityContext, "onConfigureSyntax" | "view">): ActivitySlots {
   return {
     context: {
-      content: <MigrationContext view={view} />,
+      content: <StructureOperationContext view={view} />,
       title: "结构操作",
     },
     detail: null,
     main: view.hasConfiguredSyntax ? (
-      <MigrationMainPanel view={view} />
+      <StructureOperationMainPanel view={view} />
     ) : (
       syntaxSetup({ onConfigureSyntax, view })
     ),

@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  canPairMigrationDirectoryNodes,
+  canPairStructureOperationDirectoryNodes,
+  getStructureOperationDirectoryNoteStatus,
+} from "../../../../src/ui/activities/migration/StructureOperationContext";
+import { findBlockByLineNumber } from "../../../../src/ui/activities/migration/structureOperationBlocks";
+import {
   canDropStructureBlockAtEnd,
   canDropStructureBlockOnLine,
   getBlockedStructureDropLineNumbers,
-  getMigrationDirectoryNoteStatus,
   getStructureBlockDropPosition,
   getStructureRowDropPlacement,
-} from "../../../../src/ui/activities/migration/MigrationPanels";
+} from "../../../../src/ui/activities/migration/structureOperationDropTargets";
 
 // @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
 const { readFileSync } = (await import("node:fs")) as {
@@ -21,7 +24,7 @@ const activitiesCss = readFileSync(
 describe("migration panels", () => {
   it("hides stale target status while selecting a new migration target", () => {
     expect(
-      getMigrationDirectoryNoteStatus({
+      getStructureOperationDirectoryNoteStatus({
         mode: "pair",
         noteId: "note-source",
         pairSelectionPhase: "selectSource",
@@ -32,7 +35,7 @@ describe("migration panels", () => {
       }),
     ).toBe("source");
     expect(
-      getMigrationDirectoryNoteStatus({
+      getStructureOperationDirectoryNoteStatus({
         mode: "pair",
         noteId: "note-target",
         pairSelectionPhase: "selectSource",
@@ -43,7 +46,7 @@ describe("migration panels", () => {
       }),
     ).toBe("target");
     expect(
-      getMigrationDirectoryNoteStatus({
+      getStructureOperationDirectoryNoteStatus({
         mode: "pair",
         noteId: "note-target",
         pairSelectionPhase: "selectTarget",
@@ -54,7 +57,7 @@ describe("migration panels", () => {
       }),
     ).toBe("");
     expect(
-      getMigrationDirectoryNoteStatus({
+      getStructureOperationDirectoryNoteStatus({
         mode: "pair",
         noteId: "note-neutral",
         pairSelectionPhase: "selectTarget",
@@ -68,7 +71,7 @@ describe("migration panels", () => {
 
   it("keeps structure status separate from source and target status", () => {
     expect(
-      getMigrationDirectoryNoteStatus({
+      getStructureOperationDirectoryNoteStatus({
         mode: "structure",
         noteId: "note-source",
         pairSelectionPhase: "selectSource",
@@ -79,7 +82,7 @@ describe("migration panels", () => {
       }),
     ).toBe("structure");
     expect(
-      getMigrationDirectoryNoteStatus({
+      getStructureOperationDirectoryNoteStatus({
         mode: "structure",
         noteId: "note-target",
         pairSelectionPhase: "selectSource",
@@ -108,9 +111,12 @@ describe("migration panels", () => {
       parentFolderId: null,
     };
 
-    expect(canPairMigrationDirectoryNodes(sourceNote, targetNote)).toBe(true);
-    expect(canPairMigrationDirectoryNodes(sourceNote, folder)).toBe(false);
-    expect(canPairMigrationDirectoryNodes(folder, targetNote)).toBe(false);
+    expect(canPairStructureOperationDirectoryNodes(sourceNote, targetNote))
+      .toBe(true);
+    expect(canPairStructureOperationDirectoryNodes(sourceNote, folder))
+      .toBe(false);
+    expect(canPairStructureOperationDirectoryNodes(folder, targetNote))
+      .toBe(false);
   });
 
   it("classifies structure block drop targets from the dragged subtree", () => {
@@ -170,6 +176,43 @@ describe("migration panels", () => {
     ).toBe(true);
   });
 
+  it("finds nested structure blocks by line number", () => {
+    const roots = [
+      {
+        children: [
+          {
+            children: [],
+            hasDiagnostics: false,
+            id: "block-2",
+            label: "定义",
+            level: 1,
+            lineLabel: "L2",
+            lineNumber: 2,
+            textDisplay: {
+              displayText: "子块",
+              segments: [{ id: "text", kind: "text" as const, text: "子块" }],
+              textColorClassName: "ctn-text-color-default",
+            },
+          },
+        ],
+        hasDiagnostics: false,
+        id: "block-1",
+        label: "组分",
+        level: 0,
+        lineLabel: "L1-L2",
+        lineNumber: 1,
+        textDisplay: {
+          displayText: "根块",
+          segments: [{ id: "text", kind: "text" as const, text: "根块" }],
+          textColorClassName: "ctn-text-color-default",
+        },
+      },
+    ];
+
+    expect(findBlockByLineNumber(roots, "2")?.id).toBe("block-2");
+    expect(findBlockByLineNumber(roots, "not-a-line")).toBeNull();
+  });
+
   it("maps structure row pointer position to stable drop positions", () => {
     expect(getStructureRowDropPlacement({ clientY: 101, height: 30, top: 100 }))
       .toBe("sibling-above");
@@ -188,7 +231,7 @@ describe("migration panels", () => {
 
   it("uses neutral tree tones for structure drag targets", () => {
     const dropStyleStart = activitiesCss.indexOf(
-      ".migration-drop-target.is-active",
+      ".structure-operation-drop-target.is-active",
     );
     const dropStyleEnd = activitiesCss.indexOf(".syntax-settings-stack");
     const dropStyleSource = activitiesCss.slice(dropStyleStart, dropStyleEnd);
@@ -196,15 +239,21 @@ describe("migration panels", () => {
     expect(dropStyleSource).toContain("background: var(--color-selected)");
     expect(dropStyleSource).toContain("border-color: var(--color-border-strong)");
     expect(dropStyleSource).toContain("height: 8px");
-    expect(dropStyleSource).toContain(".migration-target-node.is-drop-above::before");
-    expect(dropStyleSource).toContain(".migration-target-node.is-drop-below::after");
+    expect(dropStyleSource).toContain(
+      ".structure-operation-target-node.is-drop-above::before",
+    );
+    expect(dropStyleSource).toContain(
+      ".structure-operation-target-node.is-drop-below::after",
+    );
     expect(dropStyleSource).not.toContain("color-accent");
     expect(dropStyleSource).not.toContain("box-shadow");
   });
 
   it("keeps migration structure columns top aligned", () => {
-    const columnStyleStart = activitiesCss.indexOf(".migration-column");
-    const columnStyleEnd = activitiesCss.indexOf(".migration-drop-target");
+    const columnStyleStart = activitiesCss.indexOf(".structure-operation-column");
+    const columnStyleEnd = activitiesCss.indexOf(
+      ".structure-operation-drop-target",
+    );
     const columnStyleSource = activitiesCss.slice(columnStyleStart, columnStyleEnd);
 
     expect(columnStyleSource).toContain("align-content: start");

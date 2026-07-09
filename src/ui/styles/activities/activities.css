@@ -8,27 +8,27 @@
 }
 
 .activity-context-content,
-.migration-column,
+.structure-operation-column,
 .source-editor .cm-scroller {
   scrollbar-color: var(--color-border-strong) transparent;
   scrollbar-width: thin;
 }
 
 .activity-context-content::-webkit-scrollbar,
-.migration-column::-webkit-scrollbar,
+.structure-operation-column::-webkit-scrollbar,
 .source-editor .cm-scroller::-webkit-scrollbar {
   width: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
   height: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
 }
 
 .activity-context-content::-webkit-scrollbar-track,
-.migration-column::-webkit-scrollbar-track,
+.structure-operation-column::-webkit-scrollbar-track,
 .source-editor .cm-scroller::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .activity-context-content::-webkit-scrollbar-thumb,
-.migration-column::-webkit-scrollbar-thumb,
+.structure-operation-column::-webkit-scrollbar-thumb,
 .source-editor .cm-scroller::-webkit-scrollbar-thumb {
   border: calc(var(--ui-border-width) * 2) solid transparent;
   border-radius: var(--ui-radius);
@@ -257,7 +257,7 @@
   text-underline-offset: 0.18em;
 }
 
-.migration-grid {
+.structure-operation-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--ui-gap);
@@ -265,17 +265,17 @@
   min-height: 0;
 }
 
-.migration-grid-single {
+.structure-operation-grid-single {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.migration-column {
+.structure-operation-column {
   align-content: start;
   min-height: 0;
   overflow: auto;
 }
 
-.migration-drop-target {
+.structure-operation-drop-target {
   display: flex;
   align-items: center;
   min-height: var(--ui-tree-row-height);
@@ -288,13 +288,13 @@
   line-height: var(--ui-micro-line-height);
 }
 
-.migration-drop-target.is-active {
+.structure-operation-drop-target.is-active {
   color: var(--color-fg);
   background: var(--color-selected);
   border-color: var(--color-border-strong);
 }
 
-.migration-target-node {
+.structure-operation-target-node {
   box-sizing: border-box;
   position: relative;
   border: var(--ui-border-width) solid transparent;
@@ -302,8 +302,8 @@
   cursor: default;
 }
 
-.migration-target-node::before,
-.migration-target-node::after {
+.structure-operation-target-node::before,
+.structure-operation-target-node::after {
   position: absolute;
   right: 0;
   left: 0;
@@ -314,36 +314,36 @@
   content: "";
 }
 
-.migration-target-node > * {
+.structure-operation-target-node > * {
   position: relative;
   z-index: 1;
 }
 
-.migration-target-node.is-drop-target {
+.structure-operation-target-node.is-drop-target {
   background: var(--color-hover);
 }
 
-.migration-target-node.is-drop-above {
+.structure-operation-target-node.is-drop-above {
   background: transparent;
 }
 
-.migration-target-node.is-drop-above::before {
+.structure-operation-target-node.is-drop-above::before {
   top: 0;
   display: block;
   background: var(--color-selected);
 }
 
-.migration-target-node.is-drop-inside {
+.structure-operation-target-node.is-drop-inside {
   border-color: var(--color-border-strong);
   color: var(--color-fg-strong);
   background: var(--color-selected);
 }
 
-.migration-target-node.is-drop-below {
+.structure-operation-target-node.is-drop-below {
   background: transparent;
 }
 
-.migration-target-node.is-drop-below::after {
+.structure-operation-target-node.is-drop-below::after {
   bottom: 0;
   display: block;
   background: var(--color-selected);
@@ -1005,7 +1005,7 @@
 }
 
 @media (max-width: 1120px) {
-  .migration-grid {
+  .structure-operation-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -188,41 +188,6 @@ export function SymbolSlot({
   );
 }
 
-export function Field({
-  children,
-  className,
-  label,
-}: {
-  children: ReactNode;
-  className?: string;
-  label: ReactNode;
-}) {
-  return (
-    <label className={cx("ui-field", className)}>
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-export function Metrics({
-  items,
-  ...props
-}: HTMLAttributes<HTMLDListElement> & {
-  items: Array<{ label: string; value: ReactNode }>;
-}) {
-  return (
-    <dl className="ui-metrics" {...props}>
-      {items.map((item) => (
-        <div className="ui-metric" key={item.label}>
-          <dd>{item.value}</dd>
-          <dt>{item.label}</dt>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 export function EmptyState({
   action,
   description,

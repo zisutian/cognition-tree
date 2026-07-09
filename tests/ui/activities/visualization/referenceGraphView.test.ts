@@ -6,6 +6,7 @@ import {
   findReferenceGraphNodeAtPoint,
   getReferenceGraphNodeRadius,
 } from "../../../../src/ui/activities/visualization/referenceGraphView";
+import { createReferenceGraphSimulationKey } from "../../../../src/ui/activities/visualization/referenceGraphCanvasModel";
 
 const graph: UiReferenceGraphView = {
   edges: [
@@ -192,5 +193,34 @@ describe("reference graph view helpers", () => {
     });
 
     expect(node?.id).toBe("note-b");
+  });
+
+  it("includes visible node and edge data in the canvas simulation key", () => {
+    const visibleGraph = createVisibleReferenceGraph(graph, {
+      activeNoteId: "note-a",
+      hideIsolated: false,
+      localDepth: 1,
+      mode: "global",
+      query: "",
+    });
+    const renamedGraph = {
+      ...visibleGraph,
+      nodes: visibleGraph.nodes.map((node) =>
+        node.id === "note-a" ? { ...node, title: "Renamed Alpha" } : node,
+      ),
+    };
+    const recountedGraph = {
+      ...visibleGraph,
+      edges: visibleGraph.edges.map((edge) =>
+        edge.id === "note-a->note-b" ? { ...edge, count: 9 } : edge,
+      ),
+    };
+
+    expect(createReferenceGraphSimulationKey(renamedGraph)).not.toBe(
+      createReferenceGraphSimulationKey(visibleGraph),
+    );
+    expect(createReferenceGraphSimulationKey(recountedGraph)).not.toBe(
+      createReferenceGraphSimulationKey(visibleGraph),
+    );
   });
 });

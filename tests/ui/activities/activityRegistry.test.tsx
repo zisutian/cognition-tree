@@ -191,6 +191,8 @@ describe("activity registry", () => {
     expect(context).toContain("Neutral note");
     expect(context).toContain("源笔记 / 目标笔记");
     expect(context).toContain("笔记结构");
+    expect(context).toContain("aria-label=\"结构操作模式\"");
+    expect(context).not.toContain("迁移模式");
     expect(context).toContain("ui-segmented-control");
     expect(context).not.toContain("context-caption");
     expect(context).not.toContain("点选源笔记");
@@ -210,7 +212,9 @@ describe("activity registry", () => {
     expect(main).toContain("结构操作");
     expect(main).toContain("源笔记 · Source note");
     expect(main).toContain("目标笔记 · Target note");
-    expect(main).toContain("ui-tree ui-structure-tree migration-target-tree");
+    expect(main).toContain(
+      "ui-tree ui-structure-tree structure-operation-target-tree",
+    );
     expect(main).toContain("data-structure-row-drop=\"true\"");
     expect(main).toContain("--ui-structure-depth:1");
     expect(main).toContain("--ui-structure-indent-width:24.5px");
@@ -280,7 +284,9 @@ describe("activity registry", () => {
     expect(context).not.toContain("点选笔记结构");
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");
-    expect(main).toContain("ui-tree ui-structure-tree migration-target-tree");
+    expect(main).toContain(
+      "ui-tree ui-structure-tree structure-operation-target-tree",
+    );
     expect(main).toContain("data-structure-row-drop=\"true\"");
     expect(main).toContain("--ui-structure-depth:1");
     expect(main).toContain("--ui-structure-indent-width:17.5px");

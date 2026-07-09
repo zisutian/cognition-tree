@@ -93,6 +93,28 @@ describe("shared trees", () => {
     expect(markup).not.toContain("折叠中的笔记");
   });
 
+  it("uses a toggle spacer for empty directory folders", () => {
+    const markup = renderToStaticMarkup(
+      <NoteTree
+        nodes={[
+          {
+            canDrag: true,
+            children: [],
+            folderId: "folder-empty",
+            id: "folder-empty",
+            kind: "folder",
+            parentFolderId: null,
+            title: "空文件夹",
+          },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain("ui-tree-toggle-spacer");
+    expect(markup).not.toContain("lucide-chevron-right");
+    expect(markup).not.toContain("aria-expanded=");
+  });
+
   it("uses active node selection to keep note and folder selection exclusive", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
