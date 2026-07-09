@@ -265,7 +265,8 @@ export function ReferenceGraphCanvas({
   const linksRef = useRef<GraphSimulationLink[]>([]);
   const transformRef = useRef<GraphTransform>({ scale: 1, x: 0, y: 0 });
   const dragStateRef = useRef<GraphDragState | null>(null);
-  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
+  const hoveredNoteIdRef = useRef<string | null>(null);
+  const selectedNoteIdRef = useRef<UiNoteId | null>(selectedNoteId);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
   const graphKey = useMemo(
     () =>
@@ -274,6 +275,8 @@ export function ReferenceGraphCanvas({
         .join("|")}`,
     [graph],
   );
+
+  selectedNoteIdRef.current = selectedNoteId;
 
   const redraw = () => {
     const canvas = canvasRef.current;
@@ -284,10 +287,10 @@ export function ReferenceGraphCanvas({
 
     drawGraph({
       canvas,
-      hoveredNoteId,
+      hoveredNoteId: hoveredNoteIdRef.current,
       links: linksRef.current,
       nodes: nodesRef.current,
-      selectedNoteId,
+      selectedNoteId: selectedNoteIdRef.current,
       transform: transformRef.current,
     });
   };
@@ -382,8 +385,9 @@ export function ReferenceGraphCanvas({
   }, [canvasSize.height, canvasSize.width, graphKey]);
 
   useEffect(() => {
+    selectedNoteIdRef.current = selectedNoteId;
     redraw();
-  }, [hoveredNoteId, selectedNoteId]);
+  }, [selectedNoteId]);
 
   const handleWheel = (event: WheelEvent<HTMLCanvasElement>) => {
     event.preventDefault();
@@ -492,7 +496,12 @@ export function ReferenceGraphCanvas({
       y: graphPoint.y,
     });
 
-    setHoveredNoteId(hitNode?.id ?? null);
+    const nextHoveredNoteId = hitNode?.id ?? null;
+
+    if (hoveredNoteIdRef.current !== nextHoveredNoteId) {
+      hoveredNoteIdRef.current = nextHoveredNoteId;
+      redraw();
+    }
   };
 
   const handlePointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -518,6 +527,8 @@ export function ReferenceGraphCanvas({
       simulationRef.current?.alphaTarget(0);
 
       if (movedDistance < 4) {
+        selectedNoteIdRef.current = dragState.node.id;
+        redraw();
         onSelectNote(dragState.node.id);
       }
     }
@@ -535,7 +546,10 @@ export function ReferenceGraphCanvas({
       role="img"
       tabIndex={0}
       onPointerDown={handlePointerDown}
-      onPointerLeave={() => setHoveredNoteId(null)}
+      onPointerLeave={() => {
+        hoveredNoteIdRef.current = null;
+        redraw();
+      }}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onWheel={handleWheel}

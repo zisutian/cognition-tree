@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import type {
@@ -7,7 +7,6 @@ import type {
 } from "../../../application/workspace/projection/viewSyntax";
 import {
   Button,
-  Field,
   Panel,
   PanelBody,
   PanelHeader,
@@ -221,8 +220,9 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
         {syntax.feedback ? (
           <StatusLine tone={syntax.feedback.status}>{syntax.feedback.message}</StatusLine>
         ) : null}
-        <div className="syntax-config-grid">
-          <Field className="syntax-config-name-field" label="名称">
+        <div className="syntax-config-strip">
+          <label className="syntax-config-item syntax-config-name-field">
+            <span>名称</span>
             <input
               maxLength={64}
               value={syntax.draft.name}
@@ -230,8 +230,9 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
                 syntax.actions.updateDraftField("name", event.target.value)
               }
             />
-          </Field>
-          <Field className="syntax-config-width-field" label="缩进宽度">
+          </label>
+          <label className="syntax-config-item syntax-config-width-field">
+            <span>缩进宽度</span>
             <input
               inputMode="numeric"
               max={maxTabDisplayWidth}
@@ -246,7 +247,7 @@ export function SyntaxMainPanel({ view }: { view: ViewModel }) {
                 )
               }
             />
-          </Field>
+          </label>
         </div>
         <Section title="块规则">
           <ToneFields
@@ -431,63 +432,67 @@ export function SyntaxDetailPanel({
   return (
     <Panel aria-label="语法详情" as="aside" tone="detail">
       <PanelHeader
-        title="状态"
+        title="语法详情"
         actions={
-          <Button aria-label="收回右侧详情" onClick={onCollapseDetail} type="button" variant="icon">
-            ×
+          <Button
+            aria-label="收回右侧详情"
+            onClick={onCollapseDetail}
+            title="收回右侧详情"
+            type="button"
+            variant="icon"
+          >
+            <ChevronRight aria-hidden="true" size={14} />
           </Button>
         }
       />
       <PanelBody scroll>
-        <div className="syntax-detail-config">
-          <div className="syntax-detail-config-row">
-            <span>名称</span>
-            <span>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</span>
-          </div>
-          <div className="syntax-detail-config-row">
-            <span>缩进宽度</span>
-            <span>
-              {view.syntax.draftResult.profile?.tabDisplayWidth ??
-                view.syntax.draft.tabDisplayWidth}
-            </span>
-          </div>
-          <div className="syntax-detail-config-row syntax-detail-render-row">
-            <span>语法可视化</span>
-            <div className="syntax-render-list">
-              <SyntaxRenderLine
-                marker="T"
-                textColor={view.syntax.draft.titleRule.textColor}
-                tone={view.syntax.draft.titleRule.tone}
-                value="首行标题示例"
-              />
-              <SyntaxRenderLine
-                marker="C"
-                textColor={view.syntax.draft.conceptRule.textColor}
-                tone={view.syntax.draft.conceptRule.tone}
-                value="顶格概念示例"
-              />
-              {view.syntax.draft.markerRules.map((rule) => (
-                <SyntaxRenderLine
-                  key={rule.id}
-                  marker={rule.marker || "·"}
-                  textColor={rule.textColor}
-                  tone={rule.tone}
-                  value={`${rule.label}示例`}
-                />
-              ))}
-              {view.syntax.draft.inlineRules.map((rule) => (
-                <SyntaxRenderLine
-                  inline
-                  key={rule.id}
-                  marker="I"
-                  textColor={rule.textColor}
-                  tone={rule.tone}
-                  value={getInlinePreviewValue(rule)}
-                />
-              ))}
+        <div className="syntax-detail-summary">
+          <p>{view.syntax.draftResult.profile?.name ?? view.syntax.draft.name}</p>
+          <dl className="syntax-detail-meta">
+            <div>
+              <dd>
+                {view.syntax.draftResult.profile?.tabDisplayWidth ??
+                  view.syntax.draft.tabDisplayWidth}
+              </dd>
+              <dt>缩进宽度</dt>
             </div>
-          </div>
+          </dl>
         </div>
+        <Section className="syntax-detail-preview" title="语法可视化">
+          <div className="syntax-render-list">
+            <SyntaxRenderLine
+              marker="T"
+              textColor={view.syntax.draft.titleRule.textColor}
+              tone={view.syntax.draft.titleRule.tone}
+              value="首行标题示例"
+            />
+            <SyntaxRenderLine
+              marker="C"
+              textColor={view.syntax.draft.conceptRule.textColor}
+              tone={view.syntax.draft.conceptRule.tone}
+              value="顶格概念示例"
+            />
+            {view.syntax.draft.markerRules.map((rule) => (
+              <SyntaxRenderLine
+                key={rule.id}
+                marker={rule.marker || "·"}
+                textColor={rule.textColor}
+                tone={rule.tone}
+                value={`${rule.label}示例`}
+              />
+            ))}
+            {view.syntax.draft.inlineRules.map((rule) => (
+              <SyntaxRenderLine
+                inline
+                key={rule.id}
+                marker="I"
+                textColor={rule.textColor}
+                tone={rule.tone}
+                value={getInlinePreviewValue(rule)}
+              />
+            ))}
+          </div>
+        </Section>
       </PanelBody>
     </Panel>
   );

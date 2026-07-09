@@ -8,11 +8,11 @@ import type { ViewModel } from "../../../application/workspace/view-model/useVie
 import {
   Button,
   EmptyState,
-  Metrics,
   Panel,
   PanelBody,
   PanelHeader,
   Section,
+  SegmentedControl,
 } from "../../shared/primitives";
 import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas";
 import {
@@ -99,40 +99,45 @@ export function VisualizationPanel({ view }: { view: ViewModel }) {
       <PanelHeader title="引用图谱" />
       <PanelBody className="graph-body">
         <div className="graph-toolbar" aria-label="图谱控制">
-          <div className="graph-segments" aria-label="图谱范围" role="group">
-            <Button
-              className={mode === "global" ? "is-active" : undefined}
-              onClick={() => setMode("global")}
-              type="button"
-            >
-              全库
-            </Button>
-            <Button
-              className={mode === "local" ? "is-active" : undefined}
-              onClick={() => setMode("local")}
-              type="button"
-            >
-              局部
-            </Button>
-          </div>
+          <SegmentedControl
+            ariaLabel="图谱范围"
+            options={[
+              { label: "全库", value: "global" },
+              { label: "局部", value: "local" },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
           {mode === "local" ? (
-            <div className="graph-segments" aria-label="局部图谱深度" role="group">
-              <Button
-                className={localDepth === 1 ? "is-active" : undefined}
-                onClick={() => setLocalDepth(1)}
-                type="button"
-              >
-                1 层
-              </Button>
-              <Button
-                className={localDepth === 2 ? "is-active" : undefined}
-                onClick={() => setLocalDepth(2)}
-                type="button"
-              >
-                2 层
-              </Button>
-            </div>
+            <SegmentedControl
+              ariaLabel="局部图谱深度"
+              options={[
+                { label: "1 层", value: "1" },
+                { label: "2 层", value: "2" },
+              ]}
+              value={String(localDepth)}
+              onChange={(nextDepth) =>
+                setLocalDepth(Number(nextDepth) as ReferenceGraphLocalDepth)
+              }
+            />
           ) : null}
+          <button
+            aria-pressed={hideIsolated}
+            className={hideIsolated ? "graph-toggle is-active" : "graph-toggle"}
+            onClick={() => setHideIsolated((current) => !current)}
+            type="button"
+          >
+            隐藏孤立点
+          </button>
+          <Button
+            aria-label="重置图谱视图"
+            onClick={() => setResetSignal((current) => current + 1)}
+            title="重置图谱视图"
+            type="button"
+            variant="icon"
+          >
+            <RotateCcw aria-hidden="true" size={14} />
+          </Button>
           <div className="graph-search-field">
             <input
               aria-label="搜索笔记标题"
@@ -141,25 +146,6 @@ export function VisualizationPanel({ view }: { view: ViewModel }) {
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <button
-            aria-pressed={hideIsolated}
-            className={hideIsolated ? "graph-toggle is-active" : "graph-toggle"}
-            onClick={() => setHideIsolated((current) => !current)}
-            type="button"
-          >
-            <span className="graph-toggle-track" aria-hidden="true">
-              <span />
-            </span>
-            <span>隐藏孤立点</span>
-          </button>
-          <Button
-            onClick={() => setResetSignal((current) => current + 1)}
-            title="重置图谱视图"
-            type="button"
-          >
-            <RotateCcw aria-hidden="true" size={14} />
-            重置
-          </Button>
         </div>
         <div className="graph-canvas">
           {visibleGraph.nodes.length > 0 ? (
@@ -218,30 +204,38 @@ export function VisualizationDetailPanel({
         }
       />
       <PanelBody scroll>
-        <Metrics
+        <dl
           aria-label="图谱统计"
-          items={[
-            { label: "点", value: graph.stats.nodeCount },
-            { label: "边", value: graph.stats.edgeCount },
-            { label: "孤立", value: graph.stats.isolatedCount },
-          ]}
-        />
+          className="graph-detail-summary"
+        >
+          <div>
+            <dd>{graph.stats.nodeCount}</dd>
+            <dt>点</dt>
+          </div>
+          <div>
+            <dd>{graph.stats.edgeCount}</dd>
+            <dt>边</dt>
+          </div>
+          <div>
+            <dd>{graph.stats.isolatedCount}</dd>
+            <dt>孤立</dt>
+          </div>
+        </dl>
         <Section title="当前节点">
           {activeNode ? (
-            <dl className="detail-list">
-              <div>
-                <dt>标题</dt>
-                <dd>{activeNode.title}</dd>
-              </div>
-              <div>
-                <dt>入链</dt>
-                <dd>{activeNode.referencesIn}</dd>
-              </div>
-              <div>
-                <dt>出链</dt>
-                <dd>{activeNode.referencesOut}</dd>
-              </div>
-            </dl>
+            <div className="graph-current-node">
+              <p>{activeNode.title}</p>
+              <dl className="graph-current-node-meta">
+                <div>
+                  <dd>{activeNode.referencesIn}</dd>
+                  <dt>入链</dt>
+                </div>
+                <div>
+                  <dd>{activeNode.referencesOut}</dd>
+                  <dt>出链</dt>
+                </div>
+              </dl>
+            </div>
           ) : (
             <p className="ui-muted">选择图中的笔记节点查看详情。</p>
           )}

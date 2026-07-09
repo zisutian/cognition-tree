@@ -11,14 +11,22 @@ describe("visualization panels", () => {
     const markup = renderToStaticMarkup(<VisualizationPanel view={createView()} />);
 
     expect(markup).toContain("引用图谱");
+    expect(markup).toContain("ui-segmented-control");
     expect(markup).toContain("graph-search-field");
     expect(markup).toContain("aria-label=\"搜索笔记标题\"");
     expect(markup).toContain("placeholder=\"笔记标题\"");
     expect(markup).toContain("graph-toggle");
     expect(markup).toContain("aria-pressed=\"false\"");
     expect(markup).toContain("隐藏孤立点");
+    expect(markup).toContain("aria-label=\"重置图谱视图\"");
+    expect(markup).toContain("ui-button-icon");
     expect(markup).not.toContain(">搜索<");
+    expect(markup).not.toContain("graph-segments");
+    expect(markup).not.toContain("graph-toggle-track");
     expect(markup).not.toContain("ui-metrics");
+    expect(markup.indexOf("aria-label=\"重置图谱视图\"")).toBeLessThan(
+      markup.indexOf("graph-search-field"),
+    );
   });
 
   it("renders all reference lists with unified detail row structure", () => {
@@ -99,6 +107,16 @@ describe("visualization panels", () => {
       />,
     );
 
+    expect(markup).toContain("graph-detail-summary");
+    expect(markup).toContain("graph-current-node");
+    expect(markup).toContain("graph-current-node-meta");
+    expect(markup).toContain("<dd>3</dd><dt>点</dt>");
+    expect(markup).toContain("<dd>2</dd><dt>边</dt>");
+    expect(markup).toContain("Target note");
+    expect(markup).toContain("入链");
+    expect(markup).toContain("出链");
+    expect(markup).not.toContain("ui-metrics");
+    expect(markup).not.toContain("detail-list");
     expect(markup.match(/detail-row-list/g)?.length).toBe(3);
     expect(markup.match(/detail-row-main/g)?.length).toBeGreaterThanOrEqual(4);
     expect(markup).toContain("detail-row-button");

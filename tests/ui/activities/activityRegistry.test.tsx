@@ -122,6 +122,8 @@ describe("activity registry", () => {
     expect(context).toContain("当前源笔记");
     expect(context).toContain("源笔记 / 目标笔记");
     expect(context).toContain("笔记结构");
+    expect(context).toContain("ui-segmented-control");
+    expect(context).not.toContain("migration-mode-switch");
     expect(context).toContain("目标笔记");
     expect(context).toContain("draggable=\"true\"");
     expect(context).toContain("ui-tree-actions");

@@ -1,5 +1,6 @@
 import type {
   ButtonHTMLAttributes,
+  CSSProperties,
   HTMLAttributes,
   ReactNode,
 } from "react";
@@ -93,6 +94,62 @@ export function Button({
 }) {
   return (
     <button className={cx("ui-button", `ui-button-${variant}`, className)} {...props} />
+  );
+}
+
+type SegmentedControlOption<Value extends string> = {
+  disabled?: boolean;
+  label: ReactNode;
+  value: Value;
+};
+
+export function SegmentedControl<Value extends string>({
+  ariaLabel,
+  className,
+  fill = false,
+  options,
+  value,
+  onChange,
+}: {
+  ariaLabel: string;
+  className?: string;
+  fill?: boolean;
+  options: Array<SegmentedControlOption<Value>>;
+  value: Value;
+  onChange: (value: Value) => void;
+}) {
+  return (
+    <div
+      aria-label={ariaLabel}
+      className={cx(
+        "ui-segmented-control",
+        fill && "ui-segmented-control-fill",
+        className,
+      )}
+      role="group"
+      style={
+        fill
+          ? ({ "--ui-segment-count": options.length } as CSSProperties)
+          : undefined
+      }
+    >
+      {options.map((option) => {
+        const isActive = option.value === value;
+
+        return (
+          <button
+            aria-pressed={isActive}
+            className={cx("ui-segmented-control-option", isActive && "is-active")}
+            disabled={option.disabled}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

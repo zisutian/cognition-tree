@@ -20,12 +20,12 @@ import {
 import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import { BlockText } from "../../shared/blockText";
 import {
-  Button,
   EmptyState,
   Panel,
   PanelBody,
   PanelHeader,
   Section,
+  SegmentedControl,
   cx,
 } from "../../shared/primitives";
 import {
@@ -506,30 +506,19 @@ export function MigrationContext({ view }: { view: ViewModel }) {
   return (
     <div className="activity-context-content">
       <p className="context-caption">{statusText}</p>
-      <div className="migration-mode-switch" aria-label="迁移模式" role="group">
-        <Button
-          className={view.migration.mode === "pair" ? "is-active" : undefined}
-          onClick={() => {
-            view.migration.onSetMigrationMode("pair");
-            resetPairSelection();
-          }}
-          type="button"
-        >
-          源笔记 / 目标笔记
-        </Button>
-        <Button
-          className={
-            view.migration.mode === "structure" ? "is-active" : undefined
-          }
-          onClick={() => {
-            view.migration.onSetMigrationMode("structure");
-            resetPairSelection();
-          }}
-          type="button"
-        >
-          笔记结构
-        </Button>
-      </div>
+      <SegmentedControl
+        ariaLabel="迁移模式"
+        fill
+        options={[
+          { label: "源笔记 / 目标笔记", value: "pair" },
+          { label: "笔记结构", value: "structure" },
+        ]}
+        value={view.migration.mode}
+        onChange={(nextMode) => {
+          view.migration.onSetMigrationMode(nextMode);
+          resetPairSelection();
+        }}
+      />
       <NoteTree
         actions={actions}
         activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
