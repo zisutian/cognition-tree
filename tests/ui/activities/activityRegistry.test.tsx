@@ -125,11 +125,11 @@ describe("activity registry", () => {
     expect(context).toContain("目标笔记");
     expect(context).toContain("draggable=\"true\"");
     expect(context).toContain("ui-tree-actions");
-    expect(context).toContain(">出<");
-    expect(context).toContain(">入<");
+    expect(context).toContain("lucide-file-output");
+    expect(context).toContain("lucide-file-input");
     expect(context).toContain(">改<");
     expect(context).toContain(">删<");
-    expect(context).not.toContain(">本<");
+    expect(context).not.toContain("lucide-git-branch");
     expect(context).toContain("lucide-file-text");
     expect(main).toContain("结构操作");
     expect(main).toContain("源笔记 · Source note");
@@ -153,8 +153,8 @@ describe("activity registry", () => {
     const context = renderSlot(migrationSlots.context?.content);
 
     expect(context).toContain("点选笔记结构");
-    expect(context).toContain(">本<");
-    expect(context).not.toContain(">出<");
-    expect(context).not.toContain(">入<");
+    expect(context).toContain("lucide-git-branch");
+    expect(context).not.toContain("lucide-file-output");
+    expect(context).not.toContain("lucide-file-input");
   });
 });

@@ -16,7 +16,7 @@ describe("migration panels", () => {
         structureNoteId: "note-source",
         targetNoteId: "note-target",
       }),
-    ).toBe("出");
+    ).toBe("source");
     expect(
       getMigrationDirectoryNoteStatus({
         mode: "pair",
@@ -27,7 +27,7 @@ describe("migration panels", () => {
         structureNoteId: "note-source",
         targetNoteId: "note-target",
       }),
-    ).toBe("入");
+    ).toBe("target");
     expect(
       getMigrationDirectoryNoteStatus({
         mode: "pair",
@@ -49,7 +49,7 @@ describe("migration panels", () => {
         structureNoteId: "note-source",
         targetNoteId: "note-target",
       }),
-    ).toBe("出");
+    ).toBe("source");
   });
 
   it("keeps structure status separate from source and target status", () => {
@@ -63,7 +63,7 @@ describe("migration panels", () => {
         structureNoteId: "note-source",
         targetNoteId: "note-target",
       }),
-    ).toBe("本");
+    ).toBe("structure");
     expect(
       getMigrationDirectoryNoteStatus({
         mode: "structure",

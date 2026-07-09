@@ -1,8 +1,11 @@
 import {
   ChevronDown,
   ChevronRight,
+  FileInput,
+  FileOutput,
   FileText,
   Folder,
+  GitBranch,
 } from "lucide-react";
 import {
   useEffect,
@@ -65,6 +68,7 @@ function readDraggedLine(event: DragEvent<HTMLElement>) {
 const emptySelectedLineNumbers = new Set<number>();
 
 type MigrationDirectoryMode = "pair" | "structure";
+type MigrationDirectoryNoteStatus = "source" | "structure" | "target" | "";
 type MigrationPairSelectionPhase = "selectSource" | "selectTarget";
 
 export function getMigrationDirectoryNoteStatus({
@@ -85,7 +89,7 @@ export function getMigrationDirectoryNoteStatus({
   targetNoteId: string;
 }) {
   if (mode === "structure") {
-    return noteId === structureNoteId ? "本" : "";
+    return noteId === structureNoteId ? "structure" : "";
   }
 
   const activeSourceNoteId =
@@ -94,12 +98,41 @@ export function getMigrationDirectoryNoteStatus({
       : sourceNoteId;
 
   if (noteId === activeSourceNoteId) {
-    return "出";
+    return "source";
   }
 
   return pairSelectionPhase === "selectSource" && noteId === targetNoteId
-    ? "入"
+    ? "target"
     : "";
+}
+
+function MigrationDirectoryStatusIcon({
+  status,
+}: {
+  status: Exclude<MigrationDirectoryNoteStatus, "">;
+}) {
+  const iconProps = {
+    "aria-hidden": true,
+    size: 13,
+    strokeWidth: 2,
+  };
+  const labelByStatus = {
+    source: "源笔记",
+    structure: "笔记结构",
+    target: "目标笔记",
+  };
+
+  return (
+    <span
+      aria-label={labelByStatus[status]}
+      className="ui-tree-status"
+      title={labelByStatus[status]}
+    >
+      {status === "source" ? <FileOutput {...iconProps} /> : null}
+      {status === "target" ? <FileInput {...iconProps} /> : null}
+      {status === "structure" ? <GitBranch {...iconProps} /> : null}
+    </span>
+  );
 }
 
 export function canPairMigrationDirectoryNodes(
@@ -439,7 +472,7 @@ export function MigrationContext({ view }: { view: ViewModel }) {
       <>
         <span aria-hidden="true" className="ui-tree-toggle-spacer" />
         {status ? (
-          <span className="ui-tree-status">{status}</span>
+          <MigrationDirectoryStatusIcon status={status} />
         ) : (
           <FileText aria-hidden="true" size={13} />
         )}

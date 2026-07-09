@@ -49,6 +49,11 @@
   width: 13px;
 }
 
+.ui-tree-row svg {
+  display: block;
+  flex: none;
+}
+
 .ui-tree-block {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
@@ -116,9 +121,11 @@
 }
 
 .ui-tree-status {
-  width: calc(var(--ui-control-height) - var(--ui-gap-tight));
   display: inline-flex;
+  align-items: center;
   justify-content: center;
+  width: 13px;
+  height: 13px;
   color: var(--color-fg-strong);
   font-size: var(--ui-micro-font-size);
   font-weight: var(--ui-micro-strong-weight);
