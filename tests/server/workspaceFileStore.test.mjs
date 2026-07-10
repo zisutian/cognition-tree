@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { workspaceCommitPhases } from "../../server/workspaceCommitTransaction.mjs";
 import { WorkspaceFileStore } from "../../server/workspaceFileStore.mjs";
 
 function createWorkspace() {
@@ -38,6 +39,17 @@ function createWorkspace() {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function createRenamedWorkspace() {
+  const workspace = createWorkspace();
+  const note = workspace.notes[0];
+
+  note.title = "重命名笔记";
+  note.source = "重命名笔记\n\t: 新文件保存";
+  note.updatedAt = "2026-05-26T00:00:00.000Z";
+
+  return workspace;
 }
 
 function createManifest() {
@@ -392,6 +404,136 @@ describe("WorkspaceFileStore", () => {
           },
         ],
       });
+    });
+  });
+
+  it("recovers a complete workspace around every commit phase", async () => {
+    const cases = [
+      {
+        phase: workspaceCommitPhases.prepared,
+        expected: createWorkspace,
+      },
+      {
+        phase: workspaceCommitPhases.previousNotesMoved,
+        expected: createWorkspace,
+      },
+      {
+        phase: workspaceCommitPhases.notesCommitted,
+        expected: createWorkspace,
+      },
+      {
+        phase: workspaceCommitPhases.manifestCommitted,
+        expected: createRenamedWorkspace,
+      },
+      {
+        phase: workspaceCommitPhases.cleanupCompleted,
+        expected: createRenamedWorkspace,
+      },
+    ];
+
+    for (const testCase of cases) {
+      await withTempStore(async (initialStore, rootDir) => {
+        await initialStore.saveWorkspace(createWorkspace());
+
+        const interruptedStore = new WorkspaceFileStore(rootDir, {
+          onWorkspaceCommitPhase(phase) {
+            if (phase === testCase.phase) {
+              throw new Error(`Interrupted at ${phase}`);
+            }
+          },
+        });
+
+        await expect(
+          interruptedStore.saveWorkspace(createRenamedWorkspace()),
+        ).rejects.toThrow(`Interrupted at ${testCase.phase}`);
+
+        const recoveredStore = new WorkspaceFileStore(rootDir);
+        const expectedWorkspace = testCase.expected();
+
+        await expect(recoveredStore.loadWorkspace()).resolves.toEqual(
+          expectedWorkspace,
+        );
+        await expect(
+          readFile(path.join(rootDir, ".workspace-transaction.json"), "utf8"),
+        ).rejects.toThrow("ENOENT");
+        await expect(
+          readFile(
+            path.join(
+              rootDir,
+              "notes",
+              "资料",
+              `${expectedWorkspace.notes[0].title}.ctn`,
+            ),
+            "utf8",
+          ),
+        ).resolves.toBe(expectedWorkspace.notes[0].source);
+      });
+    }
+  });
+
+  it("restores overwritten note content when the manifest was not committed", async () => {
+    await withTempStore(async (initialStore, rootDir) => {
+      const originalWorkspace = createWorkspace();
+      const updatedWorkspace = clone(originalWorkspace);
+
+      updatedWorkspace.notes[0].source = "测试笔记\n\t: 未提交的新正文";
+      updatedWorkspace.notes[0].updatedAt = "2026-05-26T00:00:00.000Z";
+
+      await initialStore.saveWorkspace(originalWorkspace);
+
+      const interruptedStore = new WorkspaceFileStore(rootDir, {
+        onWorkspaceCommitPhase(phase) {
+          if (phase === workspaceCommitPhases.notesCommitted) {
+            throw new Error("Interrupted before manifest");
+          }
+        },
+      });
+
+      await expect(
+        interruptedStore.saveWorkspace(updatedWorkspace),
+      ).rejects.toThrow("Interrupted before manifest");
+
+      const recoveredStore = new WorkspaceFileStore(rootDir);
+
+      await expect(recoveredStore.loadWorkspace()).resolves.toEqual(
+        originalWorkspace,
+      );
+    });
+  });
+
+  it("removes orphan transactions and atomic-write temporary files", async () => {
+    await withTempStore(async (store, rootDir) => {
+      const temporaryFileName =
+        "workspace.json.123.00000000-0000-4000-8000-000000000000.tmp";
+      const nestedTemporaryFileName =
+        "note.ctn.123.00000000-0000-4000-8000-000000000001.tmp";
+      const transactionDir = path.join(rootDir, ".workspace-transaction");
+
+      await mkdir(path.join(rootDir, "notes"), { recursive: true });
+      await mkdir(transactionDir, { recursive: true });
+      await writeFile(path.join(rootDir, temporaryFileName), "temporary", "utf8");
+      await writeFile(
+        path.join(rootDir, "notes", nestedTemporaryFileName),
+        "temporary",
+        "utf8",
+      );
+      await writeFile(
+        path.join(transactionDir, "orphan.ctn"),
+        "orphan",
+        "utf8",
+      );
+
+      await store.initialize();
+
+      await expect(
+        readFile(path.join(rootDir, temporaryFileName), "utf8"),
+      ).rejects.toThrow("ENOENT");
+      await expect(
+        readFile(path.join(rootDir, "notes", nestedTemporaryFileName), "utf8"),
+      ).rejects.toThrow("ENOENT");
+      await expect(
+        readFile(path.join(transactionDir, "orphan.ctn"), "utf8"),
+      ).rejects.toThrow("ENOENT");
     });
   });
 });

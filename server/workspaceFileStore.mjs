@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import {
+  removeAtomicWriteTemporaryFiles,
   writeFileAtomically,
-  writeJsonAtomically,
 } from "./atomicWrite.mjs";
+import { WorkspaceCommitTransaction } from "./workspaceCommitTransaction.mjs";
 import {
   assertWorkspaceManifestDto,
   assertWorkspacePayloadDto,
@@ -167,15 +168,29 @@ async function readJson(filePath) {
 
 export class WorkspaceFileStore {
   #rootDir;
-  #writeQueue = Promise.resolve();
+  #operationQueue = Promise.resolve();
+  #initializePromise = null;
+  #workspaceCommitTransaction;
 
-  constructor(rootDir) {
+  constructor(rootDir, { onWorkspaceCommitPhase = async () => {} } = {}) {
     this.#rootDir = path.resolve(rootDir);
+    this.#workspaceCommitTransaction = new WorkspaceCommitTransaction(
+      this.#rootDir,
+      { onCommitPhase: onWorkspaceCommitPhase },
+    );
   }
 
   async initialize() {
-    await mkdir(this.#notesDir, { recursive: true });
-    await mkdir(this.#syntaxDir, { recursive: true });
+    if (!this.#initializePromise) {
+      this.#initializePromise = this.#initialize();
+    }
+
+    try {
+      await this.#initializePromise;
+    } catch (error) {
+      this.#initializePromise = null;
+      throw error;
+    }
   }
 
   get repositoryPath() {
@@ -183,6 +198,18 @@ export class WorkspaceFileStore {
   }
 
   async loadWorkspace() {
+    return this.#enqueueOperation(() => this.#loadWorkspace());
+  }
+
+  async #initialize() {
+    await mkdir(this.#rootDir, { recursive: true });
+    await mkdir(this.#syntaxDir, { recursive: true });
+    await removeAtomicWriteTemporaryFiles(this.#rootDir);
+    await this.#workspaceCommitTransaction.recover();
+    await mkdir(this.#notesDir, { recursive: true });
+  }
+
+  async #loadWorkspace() {
     await this.initialize();
 
     let manifest;
@@ -256,59 +283,58 @@ export class WorkspaceFileStore {
   async saveWorkspace(workspace) {
     assertWorkspacePayloadDto(workspace);
 
-    return this.#enqueueWrite(() => this.#saveWorkspace(workspace));
+    return this.#enqueueOperation(() => this.#saveWorkspace(workspace));
   }
 
   async #saveWorkspace(workspace) {
-    await this.initialize();
+    try {
+      await this.initialize();
 
-    const noteFileLayout = createWorkspaceNoteFileLayout(workspace);
-    const fileNameByNoteId = new Map(
-      noteFileLayout.map((entry) => [entry.note.id, entry.relativePath]),
-    );
-    const expectedNoteFiles = new Set(
-      noteFileLayout.map((entry) => entry.relativePath),
-    );
-    const manifest = {
-      id: workspace.id,
-      name: workspace.name,
-      notes: workspace.notes.map((note) => {
-        const fileName = fileNameByNoteId.get(note.id);
-
-        if (!fileName) {
-          throw new Error(`Workspace note is missing from tree: ${note.id}`);
-        }
-
-        return {
-          id: note.id,
-          title: note.title,
-          fileName,
-          createdAt: note.createdAt,
-          updatedAt: note.updatedAt,
-        };
-      }),
-      tree: workspace.tree,
-    };
-
-    for (const { note, relativePath } of noteFileLayout) {
-      const filePath = path.join(this.#notesDir, ...relativePath.split("/"));
-
-      await mkdir(path.dirname(filePath), { recursive: true });
-      await writeFileAtomically(
-        filePath,
-        note.source,
+      const noteFileLayout = createWorkspaceNoteFileLayout(workspace);
+      const fileNameByNoteId = new Map(
+        noteFileLayout.map((entry) => [entry.note.id, entry.relativePath]),
       );
-    }
+      const manifest = {
+        id: workspace.id,
+        name: workspace.name,
+        notes: workspace.notes.map((note) => {
+          const fileName = fileNameByNoteId.get(note.id);
 
-    await this.#removeStaleNoteFiles(expectedNoteFiles);
-    await writeJsonAtomically(this.#manifestPath, manifest);
+          if (!fileName) {
+            throw new Error(`Workspace note is missing from tree: ${note.id}`);
+          }
+
+          return {
+            id: note.id,
+            title: note.title,
+            fileName,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+          };
+        }),
+        tree: workspace.tree,
+      };
+
+      await this.#workspaceCommitTransaction.commit({
+        manifest,
+        noteFiles: noteFileLayout.map(({ note, relativePath }) => ({
+          relativePath,
+          source: note.source,
+        })),
+      });
+    } catch (error) {
+      this.#initializePromise = null;
+      throw error;
+    }
   }
 
   async clearWorkspace() {
-    return this.#enqueueWrite(() => this.#clearWorkspace());
+    return this.#enqueueOperation(() => this.#clearWorkspace());
   }
 
   async #clearWorkspace() {
+    await this.initialize();
+    await this.#workspaceCommitTransaction.remove();
     await rm(this.#manifestPath, { force: true });
     await rm(this.#notesDir, { force: true, recursive: true });
     await rm(this.#syntaxDir, { force: true, recursive: true });
@@ -317,13 +343,14 @@ export class WorkspaceFileStore {
   }
 
   async readWorkspaceSyntaxSourceFile() {
-    await this.initialize();
-
-    return this.#readWorkspaceSyntaxSourceFile();
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      return this.#readWorkspaceSyntaxSourceFile();
+    });
   }
 
   async saveWorkspaceSyntaxSource(source) {
-    return this.#enqueueWrite(() => this.#saveWorkspaceSyntaxSource(source));
+    return this.#enqueueOperation(() => this.#saveWorkspaceSyntaxSource(source));
   }
 
   async #saveWorkspaceSyntaxSource(source) {
@@ -361,48 +388,6 @@ export class WorkspaceFileStore {
     };
   }
 
-  async #removeStaleNoteFiles(expectedNoteFiles) {
-    const removeStaleEntries = async (directory, relativeSegments = []) => {
-      let entries;
-
-      try {
-        entries = await readdir(directory, { withFileTypes: true });
-      } catch (error) {
-        if (error?.code === "ENOENT") {
-          return false;
-        }
-
-        throw error;
-      }
-
-      await Promise.all(
-        entries.map(async (entry) => {
-          const entryPath = path.join(directory, entry.name);
-          const entrySegments = [...relativeSegments, entry.name];
-          const relativePath = entrySegments.join("/");
-
-          if (entry.isDirectory()) {
-            const isEmpty = await removeStaleEntries(entryPath, entrySegments);
-
-            if (isEmpty) {
-              await rm(entryPath, { force: true, recursive: true });
-            }
-            return;
-          }
-
-          if (entry.isFile() && entry.name.endsWith(".ctn") && !expectedNoteFiles.has(relativePath)) {
-            await rm(entryPath);
-          }
-        }),
-      );
-
-      const nextEntries = await readdir(directory, { withFileTypes: true });
-      return nextEntries.length === 0 && relativeSegments.length > 0;
-    };
-
-    await removeStaleEntries(this.#notesDir);
-  }
-
   get #manifestPath() {
     return path.join(this.#rootDir, workspaceFileName);
   }
@@ -415,10 +400,10 @@ export class WorkspaceFileStore {
     return path.join(this.#rootDir, syntaxDirName);
   }
 
-  #enqueueWrite(operation) {
-    const result = this.#writeQueue.then(operation);
+  #enqueueOperation(operation) {
+    const result = this.#operationQueue.then(operation);
 
-    this.#writeQueue = result.catch(() => undefined);
+    this.#operationQueue = result.catch(() => undefined);
     return result;
   }
 }
