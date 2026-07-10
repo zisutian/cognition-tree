@@ -24,6 +24,17 @@ const workspaceNoteFields = new Set([
 const folderNodeFields = new Set(["children", "id", "kind", "title"]);
 const noteNodeFields = new Set(["id", "kind", "noteId"]);
 
+export class WorkspaceDtoValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "WorkspaceDtoValidationError";
+  }
+}
+
+function failValidation(message) {
+  throw new WorkspaceDtoValidationError(message);
+}
+
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -38,14 +49,14 @@ function formatPath(path, key) {
 
 function assertRecord(value, path) {
   if (!isRecord(value)) {
-    throw new Error(`Invalid workspace DTO at ${path}: expected object`);
+    failValidation(`Invalid workspace DTO at ${path}: expected object`);
   }
 }
 
 function assertSupportedFields(value, supportedFields, path) {
   for (const key of Object.keys(value)) {
     if (!supportedFields.has(key)) {
-      throw new Error(`Invalid workspace DTO at ${formatPath(path, key)}: unsupported field`);
+      failValidation(`Invalid workspace DTO at ${formatPath(path, key)}: unsupported field`);
     }
   }
 }
@@ -54,11 +65,11 @@ function readRequiredString(value, key, path) {
   const fieldPath = formatPath(path, key);
 
   if (!(key in value)) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: missing field`);
+    failValidation(`Invalid workspace DTO at ${fieldPath}: missing field`);
   }
 
   if (typeof value[key] !== "string" || value[key].length === 0) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected non-empty string`);
+    failValidation(`Invalid workspace DTO at ${fieldPath}: expected non-empty string`);
   }
 
   return value[key];
@@ -68,11 +79,11 @@ function readRequiredStringValue(value, key, path) {
   const fieldPath = formatPath(path, key);
 
   if (!(key in value)) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: missing field`);
+    failValidation(`Invalid workspace DTO at ${fieldPath}: missing field`);
   }
 
   if (typeof value[key] !== "string") {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected string`);
+    failValidation(`Invalid workspace DTO at ${fieldPath}: expected string`);
   }
 
   return value[key];
@@ -82,11 +93,11 @@ function readRequiredArray(value, key, path) {
   const fieldPath = formatPath(path, key);
 
   if (!(key in value)) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: missing field`);
+    failValidation(`Invalid workspace DTO at ${fieldPath}: missing field`);
   }
 
   if (!Array.isArray(value[key])) {
-    throw new Error(`Invalid workspace DTO at ${fieldPath}: expected array`);
+    failValidation(`Invalid workspace DTO at ${fieldPath}: expected array`);
   }
 
   return value[key];
@@ -100,7 +111,7 @@ function assertSafePathSegment(segment, path) {
     segment === "." ||
     segment === ".."
   ) {
-    throw new Error(`Invalid workspace DTO at ${path}: unsafe path segment`);
+    failValidation(`Invalid workspace DTO at ${path}: unsafe path segment`);
   }
 }
 
@@ -110,7 +121,7 @@ function assertSafeRelativePath(fileName, path) {
     fileName.startsWith("/") ||
     fileName.includes("\\")
   ) {
-    throw new Error(`Invalid workspace DTO at ${path}: unsafe file path`);
+    failValidation(`Invalid workspace DTO at ${path}: unsafe file path`);
   }
 
   fileName.split("/").forEach((segment) =>
@@ -122,13 +133,13 @@ function assertNoteFilePath(fileName, path) {
   assertSafeRelativePath(fileName, path);
 
   if (!fileName.endsWith(".ctn")) {
-    throw new Error(`Invalid workspace DTO at ${path}: note file must use .ctn`);
+    failValidation(`Invalid workspace DTO at ${path}: note file must use .ctn`);
   }
 }
 
 function assertUnique(value, values, path, label) {
   if (values.has(value)) {
-    throw new Error(`Invalid workspace DTO at ${path}: duplicate ${label} ${value}`);
+    failValidation(`Invalid workspace DTO at ${path}: duplicate ${label} ${value}`);
   }
 
   values.add(value);
@@ -191,12 +202,12 @@ function validateTreeNode(node, path, noteIds, treeNodeIds) {
     const noteId = readRequiredString(node, "noteId", path);
 
     if (!noteIds.has(noteId)) {
-      throw new Error(`Invalid workspace DTO at ${path}.noteId: unknown note ${noteId}`);
+      failValidation(`Invalid workspace DTO at ${path}.noteId: unknown note ${noteId}`);
     }
     return;
   }
 
-  throw new Error(`Invalid workspace DTO at ${path}.kind: unsupported node kind ${kind}`);
+  failValidation(`Invalid workspace DTO at ${path}.kind: unsupported node kind ${kind}`);
 }
 
 function validateWorkspaceRoot(value, supportedFields) {

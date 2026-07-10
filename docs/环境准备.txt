@@ -41,8 +41,16 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
     CTN_API_HOST
     CTN_API_PORT
     CTN_REPOSITORY_DIR
+    CTN_API_ALLOWED_ORIGINS
 
 后端提供 workspace、syntax、repository 和 health API。文件仓库写入由 server 执行，前端通过 HTTP repository 访问。
+
+浏览器 Origin 默认允许：
+
+    http://127.0.0.1:5173
+    http://localhost:5173
+
+使用其它前端地址时，通过逗号分隔的 `CTN_API_ALLOWED_ORIGINS` 显式配置。带 Origin 的非白名单请求会被拒绝；本机命令行请求可以不携带 Origin。
 
 
 3. 前端开发服务

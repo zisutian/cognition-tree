@@ -58,10 +58,6 @@ export function createBrowserWorkspaceRepository(): WorkspaceRepository {
         JSON.stringify(workspace),
       );
     },
-    async clearWorkspace() {
-      globalThis.localStorage?.removeItem(workspaceStorageKey);
-      globalThis.localStorage?.removeItem(workspaceSyntaxSourceStorageKey);
-    },
     async getRepositoryInfo(): Promise<RepositoryInfo> {
       return {
         path: getRepositoryLabel(),

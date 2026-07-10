@@ -46,13 +46,12 @@ async function sendJson(
   fetchFn: typeof fetch,
   baseUrl: string,
   endpoint: string,
-  method: "DELETE" | "PUT",
-  body?: unknown,
+  body: unknown,
 ) {
   const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), {
-    body: body === undefined ? undefined : JSON.stringify(body),
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-    method,
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    method: "PUT",
   });
 
   if (!response.ok) {
@@ -73,10 +72,7 @@ export function createHttpWorkspaceRepository({
       );
     },
     async saveWorkspace(workspace) {
-      await sendJson(fetchFn, baseUrl, "/api/workspace", "PUT", workspace);
-    },
-    async clearWorkspace() {
-      await sendJson(fetchFn, baseUrl, "/api/workspace", "DELETE");
+      await sendJson(fetchFn, baseUrl, "/api/workspace", workspace);
     },
     async getRepositoryInfo() {
       return parseRepositoryInfoDto(
@@ -89,7 +85,7 @@ export function createHttpWorkspaceRepository({
       );
     },
     async saveWorkspaceSyntaxSource(source) {
-      await sendJson(fetchFn, baseUrl, "/api/syntax", "PUT", { source });
+      await sendJson(fetchFn, baseUrl, "/api/syntax", { source });
     },
   };
 }

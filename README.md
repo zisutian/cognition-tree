@@ -76,11 +76,14 @@
     CTN_API_HOST=127.0.0.1
     CTN_API_PORT=3001
     CTN_REPOSITORY_DIR=.cognition-tree/repository
+    CTN_API_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 
 前端环境变量：
 
     VITE_CTN_API_BASE_URL=http://127.0.0.1:3001
     VITE_CTN_STORAGE_MODE=browser
+
+HTTP 后端默认只接受来自本机开发前端地址的浏览器请求。使用其它前端地址时，通过 `CTN_API_ALLOWED_ORIGINS` 显式加入对应 Origin。
 
 ## 代码结构
 

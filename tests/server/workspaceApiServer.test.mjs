@@ -7,6 +7,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createWorkspaceApiRequestHandler,
+  parseWorkspaceApiAllowedOrigins,
   WorkspaceFileStore,
 } from "../../server/workspaceApiServer.mjs";
 
@@ -19,9 +20,10 @@ function createWorkspace() {
   };
 }
 
-function createRequest({ body = "", method, url }) {
+function createRequest({ body = "", headers = {}, method, url }) {
   const request = Readable.from(body ? [Buffer.from(body)] : []);
 
+  request.headers = headers;
   request.method = method;
   request.url = url;
 
@@ -60,11 +62,12 @@ async function dispatch(handler, requestOptions) {
   };
 }
 
-async function withHandler(testFn) {
+async function withHandler(testFn, { allowedOrigins } = {}) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-"));
 
   try {
     const handler = createWorkspaceApiRequestHandler({
+      allowedOrigins,
       store: new WorkspaceFileStore(rootDir),
     });
 
@@ -102,7 +105,7 @@ textColor = "cyan"
 `;
 
 describe("workspace API request handler", () => {
-  it("serves repository info and workspace CRUD endpoints", async () => {
+  it("serves repository info and workspace read/write endpoints", async () => {
     await withHandler(async (handler, rootDir) => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/health" }),
@@ -140,13 +143,56 @@ describe("workspace API request handler", () => {
         body: workspace,
         statusCode: 200,
       });
+    });
+  });
 
+  it("allows configured browser origins and rejects other origins", async () => {
+    const allowedOrigin = "http://127.0.0.1:5173";
+
+    await withHandler(async (handler) => {
       await expect(
-        dispatch(handler, { method: "DELETE", url: "/api/workspace" }),
+        dispatch(handler, {
+          headers: { origin: allowedOrigin },
+          method: "OPTIONS",
+          url: "/api/workspace",
+        }),
       ).resolves.toMatchObject({
         body: null,
+        headers: {
+          "access-control-allow-methods": "GET, OPTIONS, PUT",
+          "access-control-allow-origin": allowedOrigin,
+          vary: "Origin",
+        },
         statusCode: 204,
       });
+
+      await expect(
+        dispatch(handler, {
+          headers: { origin: allowedOrigin },
+          method: "GET",
+          url: "/api/health",
+        }),
+      ).resolves.toMatchObject({
+        body: { ok: true },
+        headers: { "access-control-allow-origin": allowedOrigin },
+        statusCode: 200,
+      });
+
+      await expect(
+        dispatch(handler, {
+          body: JSON.stringify({
+            ...createWorkspace(),
+            name: "不应写入",
+          }),
+          headers: { origin: "https://example.com" },
+          method: "PUT",
+          url: "/api/workspace",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Origin is not allowed" },
+        statusCode: 403,
+      });
+
       await expect(
         dispatch(handler, { method: "GET", url: "/api/workspace" }),
       ).resolves.toMatchObject({
@@ -154,6 +200,17 @@ describe("workspace API request handler", () => {
         statusCode: 200,
       });
     });
+  });
+
+  it("parses an explicit origin allowlist", () => {
+    expect(
+      parseWorkspaceApiAllowedOrigins(
+        "http://localhost:4173/, https://notes.example.test, http://localhost:4173",
+      ),
+    ).toEqual([
+      "http://localhost:4173",
+      "https://notes.example.test",
+    ]);
   });
 
   it("serves the workspace syntax endpoint", async () => {
@@ -232,7 +289,26 @@ describe("workspace API request handler", () => {
         body: {
           error: expect.stringContaining("unsupported field"),
         },
-        statusCode: 500,
+        statusCode: 400,
+      });
+
+      await expect(
+        dispatch(handler, {
+          body: JSON.stringify({
+            ...workspace,
+            notes: workspace.notes.map((note) => ({
+              ...note,
+              title: "标题与原文不一致",
+            })),
+          }),
+          method: "PUT",
+          url: "/api/workspace",
+        }),
+      ).resolves.toMatchObject({
+        body: {
+          error: expect.stringContaining("does not match first line"),
+        },
+        statusCode: 400,
       });
 
       await expect(
@@ -240,6 +316,58 @@ describe("workspace API request handler", () => {
       ).resolves.toMatchObject({
         body: workspace,
         statusCode: 200,
+      });
+    });
+  });
+
+  it("classifies request and routing errors", async () => {
+    await withHandler(async (handler) => {
+      await expect(
+        dispatch(handler, {
+          body: "{",
+          method: "PUT",
+          url: "/api/workspace",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Request body is invalid JSON" },
+        statusCode: 400,
+      });
+
+      await expect(
+        dispatch(handler, {
+          body: JSON.stringify({ source: "" }),
+          method: "PUT",
+          url: "/api/syntax",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Syntax profile source is required" },
+        statusCode: 400,
+      });
+
+      await expect(
+        dispatch(handler, {
+          body: "x".repeat(20 * 1024 * 1024 + 1),
+          method: "PUT",
+          url: "/api/workspace",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Request body is too large" },
+        statusCode: 413,
+      });
+
+      await expect(
+        dispatch(handler, { method: "DELETE", url: "/api/workspace" }),
+      ).resolves.toMatchObject({
+        body: { error: "Method not allowed" },
+        headers: { allow: "GET, PUT" },
+        statusCode: 405,
+      });
+
+      await expect(
+        dispatch(handler, { method: "GET", url: "/api/missing" }),
+      ).resolves.toMatchObject({
+        body: { error: "Not found" },
+        statusCode: 404,
       });
     });
   });

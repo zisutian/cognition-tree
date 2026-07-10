@@ -149,19 +149,6 @@ describe("WorkspaceFileStore", () => {
     });
   });
 
-  it("clears workspace manifests and note files", async () => {
-    await withTempStore(async (store) => {
-      await store.saveWorkspace(createWorkspace());
-      await store.clearWorkspace();
-
-      expect(await store.loadWorkspace()).toEqual({
-        ...createWorkspace(),
-        notes: [],
-        tree: [],
-      });
-    });
-  });
-
   it("reads and updates the workspace syntax file", async () => {
     await withTempStore(async (store) => {
       await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toBeNull();

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   removeAtomicWriteTemporaryFiles,
@@ -17,6 +17,17 @@ const notesDirName = "notes";
 const syntaxDirName = "syntax";
 const workspaceSyntaxFileName = "workspace.toml";
 
+export class WorkspacePayloadValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "WorkspacePayloadValidationError";
+  }
+}
+
+function failPayloadValidation(message) {
+  throw new WorkspacePayloadValidationError(message);
+}
+
 function assertSafePathSegment(segment, label) {
   if (
     typeof segment !== "string" ||
@@ -26,7 +37,7 @@ function assertSafePathSegment(segment, label) {
     segment === "." ||
     segment === ".."
   ) {
-    throw new Error(`Unsafe ${label}: ${segment}`);
+    failPayloadValidation(`Unsafe ${label}: ${segment}`);
   }
 }
 
@@ -37,7 +48,7 @@ function assertSafeRelativeFilePath(filePath, label) {
     filePath.startsWith("/") ||
     filePath.includes("\\")
   ) {
-    throw new Error(`Unsafe ${label}: ${filePath}`);
+    failPayloadValidation(`Unsafe ${label}: ${filePath}`);
   }
 
   filePath.split("/").forEach((segment) =>
@@ -58,7 +69,7 @@ function assertNoteTitleMatchesSource(note) {
   const sourceTitle = inferNoteTitle(note.source);
 
   if (note.title !== sourceTitle) {
-    throw new Error(`Workspace note title does not match first line: ${note.id}`);
+    failPayloadValidation(`Workspace note title does not match first line: ${note.id}`);
   }
 }
 
@@ -81,7 +92,7 @@ function createNoteFileLayout({
       assertSafePathSegment(node.title, "folder title");
 
       if (siblingNames.has(node.title)) {
-        throw new Error(`Duplicate workspace file path: ${path.posix.join(...parentSegments, node.title)}`);
+        failPayloadValidation(`Duplicate workspace file path: ${path.posix.join(...parentSegments, node.title)}`);
       }
 
       siblingNames.add(node.title);
@@ -100,13 +111,13 @@ function createNoteFileLayout({
     const note = noteById.get(node.noteId);
 
     if (!note) {
-      throw new Error(`Workspace note does not exist: ${node.noteId}`);
+      failPayloadValidation(`Workspace note does not exist: ${node.noteId}`);
     }
 
     assertNoteTitleMatchesSource(note);
 
     if (usedNoteIds.has(note.id)) {
-      throw new Error(`Duplicate workspace note placement: ${note.id}`);
+      failPayloadValidation(`Duplicate workspace note placement: ${note.id}`);
     }
 
     usedNoteIds.add(note.id);
@@ -114,7 +125,7 @@ function createNoteFileLayout({
     const fileName = noteFileName(note.title);
 
     if (siblingNames.has(fileName)) {
-      throw new Error(`Duplicate workspace file path: ${path.posix.join(...parentSegments, fileName)}`);
+      failPayloadValidation(`Duplicate workspace file path: ${path.posix.join(...parentSegments, fileName)}`);
     }
 
     siblingNames.add(fileName);
@@ -122,7 +133,7 @@ function createNoteFileLayout({
     const relativePath = path.posix.join(...parentSegments, fileName);
 
     if (usedPaths.has(relativePath)) {
-      throw new Error(`Duplicate workspace file path: ${relativePath}`);
+      failPayloadValidation(`Duplicate workspace file path: ${relativePath}`);
     }
 
     usedPaths.add(relativePath);
@@ -147,7 +158,7 @@ function createWorkspaceNoteFileLayout(workspace) {
   const missingNotes = workspace.notes.filter((note) => !placedNoteIds.has(note.id));
 
   if (missingNotes.length > 0) {
-    throw new Error(`Workspace note is missing from tree: ${missingNotes[0].id}`);
+    failPayloadValidation(`Workspace note is missing from tree: ${missingNotes[0].id}`);
   }
 
   return entries;
@@ -301,7 +312,7 @@ export class WorkspaceFileStore {
           const fileName = fileNameByNoteId.get(note.id);
 
           if (!fileName) {
-            throw new Error(`Workspace note is missing from tree: ${note.id}`);
+            failPayloadValidation(`Workspace note is missing from tree: ${note.id}`);
           }
 
           return {
@@ -326,20 +337,6 @@ export class WorkspaceFileStore {
       this.#initializePromise = null;
       throw error;
     }
-  }
-
-  async clearWorkspace() {
-    return this.#enqueueOperation(() => this.#clearWorkspace());
-  }
-
-  async #clearWorkspace() {
-    await this.initialize();
-    await this.#workspaceCommitTransaction.remove();
-    await rm(this.#manifestPath, { force: true });
-    await rm(this.#notesDir, { force: true, recursive: true });
-    await rm(this.#syntaxDir, { force: true, recursive: true });
-    await mkdir(this.#notesDir, { recursive: true });
-    await mkdir(this.#syntaxDir, { recursive: true });
   }
 
   async readWorkspaceSyntaxSourceFile() {

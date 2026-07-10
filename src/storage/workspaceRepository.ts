@@ -10,7 +10,6 @@ export type WorkspaceRepository = {
   canChangeRepositoryPath?: boolean;
   loadWorkspace: () => Promise<WorkspaceData | null>;
   saveWorkspace: (workspace: WorkspaceData) => Promise<void>;
-  clearWorkspace: () => Promise<void>;
   getRepositoryInfo: () => Promise<RepositoryInfo>;
   readWorkspaceSyntaxSourceFile: () => Promise<WorkspaceSyntaxSourceFile | null>;
   saveWorkspaceSyntaxSource: (source: string) => Promise<void>;

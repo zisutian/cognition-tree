@@ -53,7 +53,7 @@ describe("createHttpWorkspaceRepository", () => {
     ]);
   });
 
-  it("saves and clears workspaces through HTTP", async () => {
+  it("saves workspaces through HTTP", async () => {
     const workspace = createInitialWorkspaceData();
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
@@ -71,17 +71,11 @@ describe("createHttpWorkspaceRepository", () => {
     });
 
     await repository.saveWorkspace(workspace);
-    await repository.clearWorkspace();
 
     expect(calls).toEqual([
       {
         body: JSON.stringify(workspace),
         method: "PUT",
-        url: "http://api.test/api/workspace",
-      },
-      {
-        body: undefined,
-        method: "DELETE",
         url: "http://api.test/api/workspace",
       },
     ]);
