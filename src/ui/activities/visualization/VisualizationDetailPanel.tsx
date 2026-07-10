@@ -1,6 +1,5 @@
 import { ChevronRight } from "lucide-react";
 import type { UiVisualizationViewModel } from "../../../application/workspace/projection/viewGraph";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
 import {
   Button,
   Panel,
@@ -18,9 +17,9 @@ export function VisualizationDetailPanel({
   view,
 }: {
   onCollapseDetail: () => void;
-  view: ViewModel;
+  view: UiVisualizationViewModel;
 }) {
-  const visualization: UiVisualizationViewModel = view.visualization;
+  const visualization = view;
   const graph = visualization.graph;
   const activeNode = visualization.activeNoteId
     ? graph.nodes.find((node) => node.id === visualization.activeNoteId) ?? null

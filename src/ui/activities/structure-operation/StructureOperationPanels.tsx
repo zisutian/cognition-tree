@@ -1,4 +1,4 @@
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   EmptyState,
   Panel,
@@ -12,8 +12,12 @@ import { StructureOperationStructureView } from "./StructureOperationStructureVi
 
 export { StructureOperationContext };
 
-export function StructureOperationMainPanel({ view }: { view: ViewModel }) {
-  if (view.structureOperation.noteTree.length === 0) {
+export function StructureOperationMainPanel({
+  view,
+}: {
+  view: StructureOperationActivityViewModel;
+}) {
+  if (view.noteTree.length === 0) {
     return (
       <Panel className="structure-operation-panel" aria-label="结构操作">
         <EmptyState description="没有可操作笔记。" title="结构操作" />
@@ -24,8 +28,8 @@ export function StructureOperationMainPanel({ view }: { view: ViewModel }) {
   return (
     <Panel className="structure-operation-panel" aria-label="结构操作">
       <PanelHeader title="结构操作" />
-      <PanelBody className={cx("structure-operation-body", view.structureOperation.mode)}>
-        {view.structureOperation.mode === "withinNote" ? (
+      <PanelBody className={cx("structure-operation-body", view.mode)}>
+        {view.mode === "withinNote" ? (
           <StructureOperationStructureView view={view} />
         ) : (
           <StructureOperationPairView view={view} />

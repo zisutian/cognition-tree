@@ -26,6 +26,7 @@ import {
 } from "../projection/viewBlocks";
 import {
   createUiNoteTree,
+  type UiDirectoryActiveNode,
   type UiNoteId,
 } from "../projection/viewTree";
 import type {
@@ -64,6 +65,7 @@ export function useStructureOperationViewModel({
   index,
   scopeStructureOperation,
   setActiveNoteId,
+  setDirectoryActiveNode,
   setSelectedFolderId,
 }: {
   commands: SessionCommands;
@@ -74,6 +76,9 @@ export function useStructureOperationViewModel({
   index: WorkspaceParseIndex | null;
   scopeStructureOperation: boolean;
   setActiveNoteId: Dispatch<SetStateAction<UiNoteId | null>>;
+  setDirectoryActiveNode: Dispatch<
+    SetStateAction<UiDirectoryActiveNode | null>
+  >;
   setSelectedFolderId: Dispatch<SetStateAction<FolderId | null>>;
 }): StructureOperationViewModel {
   const [structureOperationMode, setStructureOperationMode] =
@@ -211,6 +216,7 @@ export function useStructureOperationViewModel({
     }
 
     setActiveNoteId(result.targetNoteId);
+    setDirectoryActiveNode({ kind: "note", noteId: result.targetNoteId });
     setSelectedFolderId(
       findWorkspaceFolderIdContainingNote(
         effectiveContext.workspace,
@@ -239,6 +245,7 @@ export function useStructureOperationViewModel({
 
     setStructureOperationMode("withinNote");
     setActiveNoteId(result.noteId);
+    setDirectoryActiveNode({ kind: "note", noteId: result.noteId });
     setSelectedFolderId(
       effectiveContext
         ? findWorkspaceFolderIdContainingNote(

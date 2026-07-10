@@ -251,6 +251,26 @@
       "activity detail";
   }
 
+  .app-frame.detail-collapsed {
+    grid-template-columns:
+      var(--app-activity-width)
+      minmax(220px, min(var(--app-context-width), 36vw))
+      minmax(0, 1fr);
+    grid-template-rows:
+      minmax(0, 1fr)
+      var(--app-detail-collapsed-width);
+    grid-template-areas:
+      "activity context main"
+      "activity context detail";
+  }
+
+  .app-frame.no-context.detail-collapsed {
+    grid-template-columns: var(--app-activity-width) minmax(0, 1fr);
+    grid-template-areas:
+      "activity main"
+      "activity detail";
+  }
+
   .app-frame.no-detail,
   .app-frame.no-context.no-detail {
     grid-template-rows: minmax(0, 1fr);
@@ -267,6 +287,10 @@
 
   .app-detail {
     border-top: var(--ui-border-width) solid var(--color-border);
+  }
+
+  .app-detail-collapsed {
+    border-left: 0;
   }
 
   .app-detail-resize {

@@ -16,8 +16,11 @@ import {
 const { readFileSync } = (await import("node:fs")) as {
   readFileSync: (path: URL, encoding: "utf8") => string;
 };
-const activitiesCss = readFileSync(
-  new URL("../../../../src/ui/styles/activities/activities.css", import.meta.url),
+const structureOperationCss = readFileSync(
+  new URL(
+    "../../../../src/ui/styles/activities/structure-operation.css",
+    import.meta.url,
+  ),
   "utf8",
 );
 
@@ -230,11 +233,10 @@ describe("structure operation panels", () => {
   });
 
   it("uses neutral tree tones for structure drag targets", () => {
-    const dropStyleStart = activitiesCss.indexOf(
+    const dropStyleStart = structureOperationCss.indexOf(
       ".structure-operation-drop-target.is-active",
     );
-    const dropStyleEnd = activitiesCss.indexOf(".syntax-settings-stack");
-    const dropStyleSource = activitiesCss.slice(dropStyleStart, dropStyleEnd);
+    const dropStyleSource = structureOperationCss.slice(dropStyleStart);
 
     expect(dropStyleSource).toContain("background: var(--color-selected)");
     expect(dropStyleSource).toContain("border-color: var(--color-border-strong)");
@@ -250,11 +252,14 @@ describe("structure operation panels", () => {
   });
 
   it("keeps structure operation columns top aligned", () => {
-    const columnStyleStart = activitiesCss.indexOf(".structure-operation-column");
-    const columnStyleEnd = activitiesCss.indexOf(
+    const columnStyleStart = structureOperationCss.indexOf(".structure-operation-column");
+    const columnStyleEnd = structureOperationCss.indexOf(
       ".structure-operation-drop-target",
     );
-    const columnStyleSource = activitiesCss.slice(columnStyleStart, columnStyleEnd);
+    const columnStyleSource = structureOperationCss.slice(
+      columnStyleStart,
+      columnStyleEnd,
+    );
 
     expect(columnStyleSource).toContain("align-content: start");
   });

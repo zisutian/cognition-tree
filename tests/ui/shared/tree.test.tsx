@@ -115,6 +115,32 @@ describe("shared trees", () => {
     expect(markup).not.toContain("aria-expanded=");
   });
 
+  it("provides shared inline rename and confirmed delete actions", () => {
+    const markup = renderToStaticMarkup(
+      <NoteTree
+        nodes={[
+          {
+            canDrag: true,
+            folderId: null,
+            id: "tree-note-1",
+            kind: "note",
+            noteId: "note-1",
+            parentFolderId: null,
+            title: "当前笔记",
+          },
+        ]}
+        onDeleteNode={() => undefined}
+        onRenameNode={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("ui-tree-actions");
+    expect(markup).toContain(">改<");
+    expect(markup).toContain(">删<");
+    expect(treeCss).toContain(".ui-tree-row-editing input");
+    expect(treeCss).toContain(".ui-tree-row-frame.is-delete-pending");
+  });
+
   it("uses active node selection to keep note and folder selection exclusive", () => {
     const markup = renderToStaticMarkup(
       <NoteTree

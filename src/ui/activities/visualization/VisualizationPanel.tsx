@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { UiVisualizationViewModel } from "../../../application/workspace/projection/viewGraph";
 import {
   EmptyState,
   Panel,
@@ -15,13 +15,17 @@ import {
 } from "./referenceGraphView";
 import { VisualizationToolbar } from "./VisualizationToolbar";
 
-export function VisualizationPanel({ view }: { view: ViewModel }) {
+export function VisualizationPanel({
+  view,
+}: {
+  view: UiVisualizationViewModel;
+}) {
   const [mode, setMode] = useState<ReferenceGraphMode>("global");
   const [localDepth, setLocalDepth] = useState<ReferenceGraphLocalDepth>(1);
   const [query, setQuery] = useState("");
   const [hideIsolated, setHideIsolated] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
-  const visualization = view.visualization;
+  const visualization = view;
   const visibleGraph = useMemo(
     () =>
       createVisibleReferenceGraph(visualization.graph, {
@@ -42,7 +46,7 @@ export function VisualizationPanel({ view }: { view: ViewModel }) {
   });
 
   return (
-    <Panel className="visualization-panel" aria-label="可视化">
+    <Panel className="visualization-panel" aria-label="引用图谱">
       <PanelHeader title="引用图谱" />
       <PanelBody className="graph-body">
         <VisualizationToolbar

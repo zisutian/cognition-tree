@@ -2,12 +2,20 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AppFrame } from "../../src/ui/AppFrame";
 
+// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
+const { readFileSync } = (await import("node:fs")) as {
+  readFileSync: (path: URL, encoding: "utf8") => string;
+};
+const frameCss = readFileSync(
+  new URL("../../src/ui/styles/frame/frame.css", import.meta.url),
+  "utf8",
+);
+
 describe("AppFrame", () => {
   function renderFrame({
     context = true,
     detail = false,
     detailCollapsed = false,
-    span = "standard" as "full" | "standard",
   } = {}) {
     return renderToStaticMarkup(
       <AppFrame
@@ -23,7 +31,6 @@ describe("AppFrame", () => {
         isContextResizing={false}
         isDetailResizing={false}
         mainSlot={<section className="ui-panel">main</section>}
-        mainSpan={span}
         onActivityChange={() => undefined}
         onContextResizeKeyDown={() => undefined}
         onContextResizeStart={() => undefined}
@@ -35,11 +42,10 @@ describe("AppFrame", () => {
   }
 
   it("does not render an empty context panel for context-free pages", () => {
-    const markup = renderFrame({ context: false, span: "full" });
+    const markup = renderFrame({ context: false });
 
     expect(markup).toContain("activity-bar");
     expect(markup).toContain("no-context");
-    expect(markup).toContain("main-full");
     expect(markup).not.toContain("app-context-header");
     expect(markup).not.toContain("调整上下文区宽度");
   });
@@ -60,5 +66,18 @@ describe("AppFrame", () => {
     expect(markup).toContain("app-detail-toggle");
     expect(markup).toContain("展开右侧详情");
     expect(markup).not.toContain("detail</aside>");
+  });
+
+  it("reduces collapsed detail to the compact row on narrow screens", () => {
+    const responsiveStart = frameCss.indexOf("@media (max-width: 1120px)");
+    const responsiveSource = frameCss.slice(responsiveStart);
+
+    expect(responsiveSource).toContain(".app-frame.detail-collapsed");
+    expect(responsiveSource).toContain("var(--app-detail-collapsed-width)");
+    expect(responsiveSource).toContain(
+      ".app-frame.no-context.detail-collapsed",
+    );
+    expect(responsiveSource).toContain(".app-detail-collapsed");
+    expect(responsiveSource).toContain("border-left: 0");
   });
 });

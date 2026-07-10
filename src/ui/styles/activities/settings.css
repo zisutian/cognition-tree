@@ -1,0 +1,56 @@
+.settings-grid {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin: 0;
+}
+
+.settings-grid > div {
+  display: grid;
+  grid-template-columns:
+    calc(var(--ui-control-height) * 3)
+    minmax(0, 1fr);
+  gap: var(--ui-gap);
+}
+
+.settings-grid dt,
+.settings-grid dd {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
+.settings-grid dt {
+  color: var(--color-fg-muted);
+}
+
+.settings-grid dd {
+  overflow: hidden;
+  color: var(--color-fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-path-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--ui-gap-tight);
+}
+
+.settings-path-editor input {
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap);
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  background: var(--color-input);
+  font-family: var(--font-code);
+  font-size: var(--ui-code-font-size);
+  line-height: var(--ui-code-line-height);
+  outline: none;
+}
+
+.settings-path-editor input:focus {
+  background: var(--color-selected);
+}

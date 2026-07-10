@@ -4,9 +4,9 @@ import {
   FolderPlus,
   Plus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { NotesViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   Button,
   EmptyState,
@@ -18,79 +18,45 @@ import {
 import {
   NoteTree,
   OutlineTree,
-  type NoteTreeActiveNode,
   type TreeNode,
 } from "../../shared/tree";
 
 type NotesContextProps = {
-  view: ViewModel;
+  view: NotesViewModel;
 };
-
-function promptText(label: string, value = "") {
-  return window.prompt(label, value)?.trim() ?? "";
-}
 
 export function NotesContext({ view }: NotesContextProps) {
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [activeTreeNode, setActiveTreeNode] =
-    useState<NoteTreeActiveNode | null>(() =>
-      view.sidebar.activeNoteId
-        ? { kind: "note", noteId: view.sidebar.activeNoteId }
-        : view.sidebar.activeFolderId
-          ? { folderId: view.sidebar.activeFolderId, kind: "folder" }
-          : null,
-    );
-  useEffect(() => {
-    if (view.sidebar.activeNoteId) {
-      setActiveTreeNode({ kind: "note", noteId: view.sidebar.activeNoteId });
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [folderTitle, setFolderTitle] = useState("新文件夹");
+  const directory = view.directory;
+  const createFolder = () => {
+    const title = folderTitle.trim();
+
+    if (!title) {
       return;
     }
 
-    setActiveTreeNode(null);
-  }, [view.sidebar.activeNoteId]);
-  const createFolder = () => {
-    const title = promptText("文件夹名称", "新文件夹");
-
-    if (title) {
-      view.createFolder(view.sidebar.activeFolderId, title);
+    directory.createFolder(directory.activeFolderId, title);
+    setCreatingFolder(false);
+    setFolderTitle("新文件夹");
+  };
+  const renameNode = (node: TreeNode, title: string) => {
+    if (node.kind === "folder") {
+      directory.renameFolder(node.folderId, title);
+    } else {
+      directory.renameNote(node.noteId, title);
     }
   };
-  const actions = (node: TreeNode) =>
-    node.kind === "folder"
-      ? [
-          {
-            label: "改",
-            onClick: () => {
-              const title = promptText("文件夹名称", node.title);
-
-              if (title) {
-                view.renameFolder(node.folderId, title);
-              }
-            },
-          },
-          {
-            label: "删",
-            onClick: () => view.deleteFolder(node.folderId),
-          },
-        ]
-      : [
-          {
-            label: "改",
-            onClick: () => {
-              const title = promptText("笔记名称", node.title);
-
-              if (title) {
-                view.renameNote(node.noteId, title);
-              }
-            },
-          },
-          {
-            label: "删",
-            onClick: () => view.deleteNote(node.noteId),
-          },
-      ];
+  const deleteNode = (node: TreeNode) => {
+    if (node.kind === "folder") {
+      directory.deleteFolder(node.folderId);
+    } else {
+      directory.deleteNote(node.noteId);
+    }
+  };
   const toggleFolder = (folderId: string) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -108,30 +74,54 @@ export function NotesContext({ view }: NotesContextProps) {
   return (
     <div className="activity-context-content">
       <div className="context-toolbar">
-        <Button aria-label="新建笔记" onClick={view.createNote} title="新建笔记" type="button" variant="icon">
+        <Button aria-label="新建笔记" onClick={directory.createNote} title="新建笔记" type="button" variant="icon">
           <Plus aria-hidden="true" size={14} />
         </Button>
-        <Button aria-label="新建文件夹" onClick={createFolder} title="新建文件夹" type="button" variant="icon">
+        <Button
+          aria-label="新建文件夹"
+          onClick={() => setCreatingFolder(true)}
+          title="新建文件夹"
+          type="button"
+          variant="icon"
+        >
           <FolderPlus aria-hidden="true" size={14} />
         </Button>
       </div>
+      {creatingFolder ? (
+        <form
+          className="directory-create-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            createFolder();
+          }}
+        >
+          <input
+            autoFocus
+            aria-label="文件夹名称"
+            value={folderTitle}
+            onChange={(event) => setFolderTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setCreatingFolder(false);
+              }
+            }}
+          />
+          <Button type="submit" variant="secondary">确定</Button>
+          <Button onClick={() => setCreatingFolder(false)} type="button" variant="ghost">取消</Button>
+        </form>
+      ) : null}
       <NoteTree
-        activeNode={activeTreeNode}
-        actions={actions}
+        activeNode={directory.activeNode}
         collapsedFolderIds={collapsedFolderIds}
-        nodes={view.sidebar.noteTree}
-        onMoveNode={view.moveSidebarTreeNode}
-        onSelectFolder={(folderId) => {
-          setActiveTreeNode({ folderId, kind: "folder" });
-          view.selectFolder(folderId);
-        }}
-        onSelectNote={(noteId) => {
-          setActiveTreeNode({ kind: "note", noteId });
-          view.selectNote(noteId);
-        }}
+        nodes={directory.noteTree}
+        onDeleteNode={deleteNode}
+        onMoveNode={directory.moveTreeNode}
+        onRenameNode={renameNode}
+        onSelectFolder={directory.selectFolder}
+        onSelectNote={directory.selectNote}
         onToggleFolder={toggleFolder}
       />
-      {view.sidebar.noteTree.length === 0 ? (
+      {directory.noteTree.length === 0 ? (
         <p className="context-empty">没有笔记。</p>
       ) : null}
     </div>
@@ -144,7 +134,7 @@ export function NoteEditorPanel({ view }: NotesContextProps) {
       <Panel className="note-editor-panel" aria-label="笔记编辑">
         <EmptyState
           action={
-            <Button onClick={view.createNote} type="button" variant="primary">
+            <Button onClick={view.directory.createNote} type="button" variant="primary">
               新建笔记
             </Button>
           }
@@ -169,7 +159,7 @@ export function NoteEditorPanel({ view }: NotesContextProps) {
         focusTarget={view.editor.focusTarget}
         syntaxProfile={view.editor.syntaxProfile}
         value={view.editor.documentText}
-        onChange={view.updateActiveNoteSource}
+        onChange={view.updateSource}
       />
     </Panel>
   );
@@ -230,7 +220,7 @@ export function NoteDetailPanel({
                 <button
                   className="detail-line-row detail-line-button"
                   type="button"
-                  onClick={() => view.focusEditorLine(diagnostic.lineNumber)}
+                  onClick={() => view.outline.onSelectLine(diagnostic.lineNumber)}
                 >
                   <SymbolSlot
                     aria-hidden="true"

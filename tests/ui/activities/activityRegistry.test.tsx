@@ -33,22 +33,17 @@ describe("activity registry", () => {
   it("maps each activity to explicit slots", () => {
     expect(slots("notes").context?.title).toBe("笔记");
     expect(slots("notes").detail).not.toBeNull();
-    expect(slots("notes").mainSpan).toBe("standard");
 
     expect(slots("migration").context?.title).toBe("结构操作");
     expect(slots("migration").detail).toBeNull();
-    expect(slots("migration").mainSpan).toBe("full");
 
     expect(slots("syntax").context).toBeNull();
     expect(slots("syntax").detail).not.toBeNull();
-    expect(slots("syntax").mainSpan).toBe("standard");
 
     expect(slots("visualization").context).toBeNull();
     expect(slots("visualization").detail).not.toBeNull();
-    expect(slots("visualization").mainSpan).toBe("standard");
 
     expect(slots("search").context).toBeNull();
-    expect(slots("search").mainSpan).toBe("full");
     expect(slots("data").context).toBeNull();
     expect(slots("settings").context).toBeNull();
   });
@@ -57,10 +52,16 @@ describe("activity registry", () => {
     expect(activityItems.find((item) => item.id === "migration")?.label).toBe(
       "结构操作",
     );
+    expect(
+      activityItems.find((item) => item.id === "visualization")?.label,
+    ).toBe("引用图谱");
   });
 
   it("uses syntax setup for syntax-dependent activities before configuration", () => {
-    const view = createView({ hasConfiguredSyntax: false });
+    const baseView = createView();
+    const view = createView({
+      shell: { ...baseView.shell, hasConfiguredSyntax: false },
+    });
 
     expect(
       renderSlot(
@@ -95,15 +96,9 @@ describe("activity registry", () => {
     const migrationSlots = slotsWithView(
       "migration",
       createView({
-        editor: {
-          ...baseView.editor,
-          syntaxProfile: {
-            ...baseView.editor.syntaxProfile,
-            tabDisplayWidth: 7,
-          },
-        },
         structureOperation: {
           ...baseView.structureOperation,
+          indentUnitCount: 7,
           noteTree: [
             ...baseView.structureOperation.noteTree,
             {
@@ -228,15 +223,9 @@ describe("activity registry", () => {
     const migrationSlots = slotsWithView(
       "migration",
       createView({
-        editor: {
-          ...baseView.editor,
-          syntaxProfile: {
-            ...baseView.editor.syntaxProfile,
-            tabDisplayWidth: 5,
-          },
-        },
         structureOperation: {
           ...baseView.structureOperation,
+          indentUnitCount: 5,
           mode: "withinNote",
           structureRoots: [
             {

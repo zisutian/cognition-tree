@@ -2,7 +2,6 @@ import {
   isCustomSyntaxTone,
 } from "../../../ctn/syntax/tones";
 import type { CtnBlock } from "../../../ctn/parser/types";
-import type { CtnSyntaxTone } from "../../../ctn/syntax/types";
 
 export type UiSyntaxTone = string;
 
@@ -33,19 +32,19 @@ export type UiTextDisplay = {
   textColorClassName: string;
 };
 
-export function getUiSyntaxToneClassName(tone: CtnSyntaxTone) {
+export function getUiSyntaxToneClassName(tone: UiSyntaxTone) {
   return isCustomSyntaxTone(tone) ? "ctn-tone-custom" : `ctn-tone-${tone}`;
 }
 
-export function getUiSyntaxTextColorClassName(tone: CtnSyntaxTone) {
+export function getUiSyntaxTextColorClassName(tone: UiSyntaxTone) {
   return isCustomSyntaxTone(tone)
     ? "ctn-text-color-custom"
     : `ctn-text-color-${tone}`;
 }
 
-function createUiToneStyle(
-  tone: CtnSyntaxTone,
-  textColor: CtnSyntaxTone,
+export function createUiToneStyle(
+  tone: UiSyntaxTone,
+  textColor: UiSyntaxTone,
 ): UiToneStyle | undefined {
   const style: UiToneStyle = {};
 

@@ -1,4 +1,4 @@
-import type { ViewModel } from "../../application/workspace/view-model/useViewModel";
+import type { ViewModel } from "../../application/workspace/view-model/activityViewModels";
 import type {
   ActivityId,
   ActivitySlots,
@@ -37,9 +37,9 @@ function syntaxSetup({
 }: Pick<ActivityContext, "onConfigureSyntax" | "view">) {
   return (
     <SyntaxSetupPanel
-      errorMessage={view.errorMessage}
+      errorMessage={view.shell.errorMessage}
       onConfigureSyntax={onConfigureSyntax}
-      onUseDefaultSyntax={view.useDefaultSyntax}
+      onUseDefaultSyntax={view.shell.useDefaultSyntax}
     />
   );
 }
@@ -51,39 +51,37 @@ function notesSlots({
 }: Pick<ActivityContext, "onCollapseDetail" | "onConfigureSyntax" | "view">): ActivitySlots {
   return {
     context: {
-      content: <NotesContext view={view} />,
+      content: <NotesContext view={view.notes} />,
       title: "笔记",
     },
     detail:
-      view.hasConfiguredSyntax && view.editor.hasParsedDocument ? (
-        <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
+      view.shell.hasConfiguredSyntax && view.notes.editor.hasParsedDocument ? (
+        <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view.notes} />
       ) : null,
     main:
-      view.hasConfiguredSyntax && view.editor.hasParsedDocument ? (
-        <NoteEditorPanel view={view} />
+      view.shell.hasConfiguredSyntax && view.notes.editor.hasParsedDocument ? (
+        <NoteEditorPanel view={view.notes} />
       ) : (
         syntaxSetup({ onConfigureSyntax, view })
       ),
-    mainSpan: "standard",
   };
 }
 
-function migrationSlots({
+function structureOperationSlots({
   onConfigureSyntax,
   view,
 }: Pick<ActivityContext, "onConfigureSyntax" | "view">): ActivitySlots {
   return {
     context: {
-      content: <StructureOperationContext view={view} />,
+      content: <StructureOperationContext view={view.structureOperation} />,
       title: "结构操作",
     },
     detail: null,
-    main: view.hasConfiguredSyntax ? (
-      <StructureOperationMainPanel view={view} />
+    main: view.shell.hasConfiguredSyntax ? (
+      <StructureOperationMainPanel view={view.structureOperation} />
     ) : (
       syntaxSetup({ onConfigureSyntax, view })
     ),
-    mainSpan: "full",
   };
 }
 
@@ -93,9 +91,8 @@ function syntaxSlots({
 }: Pick<ActivityContext, "onCollapseDetail" | "view">): ActivitySlots {
   return {
     context: null,
-    detail: <SyntaxDetailPanel onCollapseDetail={onCollapseDetail} view={view} />,
-    main: <SyntaxMainPanel view={view} />,
-    mainSpan: "standard",
+    detail: <SyntaxDetailPanel onCollapseDetail={onCollapseDetail} view={view.syntax} />,
+    main: <SyntaxMainPanel view={view.syntax} />,
   };
 }
 
@@ -104,22 +101,23 @@ function visualizationSlots({
   onConfigureSyntax,
   view,
 }: Pick<ActivityContext, "onCollapseDetail" | "onConfigureSyntax" | "view">): ActivitySlots {
-  if (!view.hasConfiguredSyntax) {
+  if (!view.shell.hasConfiguredSyntax) {
     return {
       context: null,
       detail: null,
       main: syntaxSetup({ onConfigureSyntax, view }),
-      mainSpan: "standard",
     };
   }
 
   return {
     context: null,
     detail: (
-      <VisualizationDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
+      <VisualizationDetailPanel
+        onCollapseDetail={onCollapseDetail}
+        view={view.visualization}
+      />
     ),
-    main: <VisualizationPanel view={view} />,
-    mainSpan: "standard",
+    main: <VisualizationPanel view={view.visualization} />,
   };
 }
 
@@ -135,7 +133,6 @@ function placeholderSlots(activityId: "data" | "search"): ActivitySlots {
         title={label}
       />
     ),
-    mainSpan: "full",
   };
 }
 
@@ -149,7 +146,7 @@ export function createActivitySlots({
     case "notes":
       return notesSlots({ onCollapseDetail, onConfigureSyntax, view });
     case "migration":
-      return migrationSlots({ onConfigureSyntax, view });
+      return structureOperationSlots({ onConfigureSyntax, view });
     case "syntax":
       return syntaxSlots({ onCollapseDetail, view });
     case "visualization":
@@ -158,8 +155,7 @@ export function createActivitySlots({
       return {
         context: null,
         detail: null,
-        main: <SettingsPanel view={view} />,
-        mainSpan: "full",
+        main: <SettingsPanel view={view.settings} />,
       };
     case "data":
     case "search":

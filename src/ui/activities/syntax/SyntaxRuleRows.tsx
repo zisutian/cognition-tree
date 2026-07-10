@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import type {
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxTone,
@@ -17,7 +17,7 @@ function SyntaxToneCells({
   onChange,
 }: {
   label: string;
-  options: ViewModel["syntax"]["toneOptions"];
+  options: SyntaxViewModel["toneOptions"];
   textColor: UiSyntaxTone;
   tone: UiSyntaxTone;
   onChange: (patch: { textColor?: UiSyntaxTone; tone?: UiSyntaxTone }) => void;
@@ -79,7 +79,7 @@ function SyntaxRuleSpacer() {
 export function TitleAndConceptRows({
   syntax,
 }: {
-  syntax: ViewModel["syntax"];
+  syntax: SyntaxViewModel;
 }) {
   return (
     <>
@@ -116,7 +116,7 @@ export function TitleAndConceptRows({
 export function MarkerRuleRows({
   syntax,
 }: {
-  syntax: ViewModel["syntax"];
+  syntax: SyntaxViewModel;
 }) {
   return (
     <>
@@ -201,7 +201,7 @@ function InlineRuleRow({
 }: {
   protectedRuleIds: string[];
   rule: UiSyntaxProfileDraftInlineRule;
-  syntax: ViewModel["syntax"];
+  syntax: SyntaxViewModel;
 }) {
   const isProtected = protectedRuleIds.includes(rule.id);
 
@@ -282,7 +282,7 @@ function InlineRuleRow({
 export function InlineRuleRows({
   syntax,
 }: {
-  syntax: ViewModel["syntax"];
+  syntax: SyntaxViewModel;
 }) {
   return (
     <>

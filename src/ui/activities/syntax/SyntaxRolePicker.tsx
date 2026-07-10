@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "lucide-react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import type { UiSyntaxRole } from "../../../application/workspace/projection/viewSyntax";
 import { SyntaxDropdown } from "./TonePicker";
 
@@ -10,7 +10,7 @@ export function SyntaxRolePicker({
   onChange,
 }: {
   ariaLabel: string;
-  options: ViewModel["syntax"]["roleOptions"];
+  options: SyntaxViewModel["roleOptions"];
   value: UiSyntaxRole;
   onChange: (role: UiSyntaxRole) => void;
 }) {

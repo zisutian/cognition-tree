@@ -8,7 +8,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { useState } from "react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   SegmentedControl,
   SymbolSlot,
@@ -95,11 +95,11 @@ export function canPairStructureOperationDirectoryNodes(
   return source.kind === "note" && target.kind === "note";
 }
 
-function promptText(label: string, value = "") {
-  return window.prompt(label, value)?.trim() ?? "";
-}
-
-export function StructureOperationContext({ view }: { view: ViewModel }) {
+export function StructureOperationContext({
+  view,
+}: {
+  view: StructureOperationActivityViewModel;
+}) {
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -117,46 +117,26 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
       return;
     }
 
-    view.structureOperation.onPairNotesForStructureOperation(
+    view.onPairNotesForStructureOperation(
       request.source.noteId,
       request.target.noteId,
     );
     resetPairSelection();
   };
-  const actions = (node: TreeNode) =>
-    node.kind === "folder"
-      ? [
-          {
-            label: "改",
-            onClick: () => {
-              const title = promptText("文件夹名称", node.title);
-
-              if (title) {
-                view.renameFolder(node.folderId, title);
-              }
-            },
-          },
-          {
-            label: "删",
-            onClick: () => view.deleteFolder(node.folderId),
-          },
-        ]
-      : [
-          {
-            label: "改",
-            onClick: () => {
-              const title = promptText("笔记名称", node.title);
-
-              if (title) {
-                view.renameNote(node.noteId, title);
-              }
-            },
-          },
-          {
-            label: "删",
-            onClick: () => view.deleteNote(node.noteId),
-          },
-        ];
+  const renameNode = (node: TreeNode, title: string) => {
+    if (node.kind === "folder") {
+      view.renameFolder(node.folderId, title);
+    } else {
+      view.renameNote(node.noteId, title);
+    }
+  };
+  const deleteNode = (node: TreeNode) => {
+    if (node.kind === "folder") {
+      view.deleteFolder(node.folderId);
+    } else {
+      view.deleteNote(node.noteId);
+    }
+  };
   const toggleFolder = (folderId: string) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -171,36 +151,36 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
     });
   };
   const selectNote = (noteId: string) => {
-    if (view.structureOperation.mode === "withinNote") {
-      view.structureOperation.onSelectStructureNote(noteId);
+    if (view.mode === "withinNote") {
+      view.onSelectStructureNote(noteId);
       return;
     }
 
     if (pairSelectionPhase === "selectTarget") {
-      const sourceNoteId = pendingSourceNoteId ?? view.structureOperation.sourceNoteId;
+      const sourceNoteId = pendingSourceNoteId ?? view.sourceNoteId;
 
       if (noteId === sourceNoteId) {
         return;
       }
 
-      view.structureOperation.onPairNotesForStructureOperation(sourceNoteId, noteId);
+      view.onPairNotesForStructureOperation(sourceNoteId, noteId);
       resetPairSelection();
       return;
     }
 
-    view.structureOperation.onSelectSourceNote(noteId);
+    view.onSelectSourceNote(noteId);
     setPendingSourceNoteId(noteId);
     setPairSelectionPhase("selectTarget");
   };
   const getNoteStatus = (node: Extract<TreeNode, { kind: "note" }>) => {
     return getStructureOperationDirectoryNoteStatus({
-      mode: view.structureOperation.mode,
+      mode: view.mode,
       noteId: node.noteId,
       pairSelectionPhase,
       pendingSourceNoteId,
-      sourceNoteId: view.structureOperation.sourceNoteId,
-      structureNoteId: view.structureOperation.structureNoteId,
-      targetNoteId: view.structureOperation.targetNoteId,
+      sourceNoteId: view.sourceNoteId,
+      structureNoteId: view.structureNoteId,
+      targetNoteId: view.targetNoteId,
     });
   };
   const renderNodeLeading = (
@@ -238,11 +218,11 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
     );
   };
   const activeNoteId =
-    view.structureOperation.mode === "withinNote"
-      ? view.structureOperation.structureNoteId
+    view.mode === "withinNote"
+      ? view.structureNoteId
       : pairSelectionPhase === "selectTarget"
-        ? pendingSourceNoteId ?? view.structureOperation.sourceNoteId
-        : view.structureOperation.sourceNoteId;
+        ? pendingSourceNoteId ?? view.sourceNoteId
+        : view.sourceNoteId;
 
   return (
     <div className="activity-context-content">
@@ -253,21 +233,22 @@ export function StructureOperationContext({ view }: { view: ViewModel }) {
           { label: "源笔记 / 目标笔记", value: "betweenNotes" },
           { label: "笔记结构", value: "withinNote" },
         ]}
-        value={view.structureOperation.mode}
+        value={view.mode}
         onChange={(nextMode) => {
-          view.structureOperation.onSetMode(nextMode);
+          view.onSetMode(nextMode);
           resetPairSelection();
         }}
       />
       <NoteTree
-        actions={actions}
         activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
         canDragNode={(node) => node.kind === "note"}
         canDropNode={canPairStructureOperationDirectoryNodes}
         collapsedFolderIds={collapsedFolderIds}
-        nodes={view.structureOperation.noteTree}
+        nodes={view.noteTree}
         renderNodeLeading={renderNodeLeading}
+        onDeleteNode={deleteNode}
         onMoveNode={moveNode}
+        onRenameNode={renameNode}
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}
       />

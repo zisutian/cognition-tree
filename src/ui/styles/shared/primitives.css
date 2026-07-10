@@ -337,31 +337,6 @@
   color: var(--color-success);
 }
 
-.settings-grid div {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: var(--ui-gap);
-}
-
-.settings-grid dt,
-.settings-grid dd {
-  margin: 0;
-  min-width: 0;
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
-}
-
-.settings-grid dt {
-  color: var(--color-fg-muted);
-}
-
-.settings-grid dd {
-  overflow: hidden;
-  color: var(--color-fg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .detail-panel-stack {
   gap: var(--ui-gap-tight);
 }

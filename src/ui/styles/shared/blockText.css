@@ -1,3 +1,67 @@
+.ctn-tone-default {
+  --ctn-tone-current: var(--color-fg-muted);
+  --ctn-tone-background: transparent;
+}
+
+.ctn-tone-green {
+  --ctn-tone-current: var(--ctn-tone-green);
+  --ctn-tone-background: var(--ctn-tone-green-soft);
+}
+
+.ctn-tone-teal {
+  --ctn-tone-current: var(--ctn-tone-teal);
+  --ctn-tone-background: var(--ctn-tone-teal-soft);
+}
+
+.ctn-tone-cyan {
+  --ctn-tone-current: var(--ctn-tone-cyan);
+  --ctn-tone-background: var(--ctn-tone-cyan-soft);
+}
+
+.ctn-tone-blue {
+  --ctn-tone-current: var(--ctn-tone-blue);
+  --ctn-tone-background: var(--ctn-tone-blue-soft);
+}
+
+.ctn-tone-indigo {
+  --ctn-tone-current: var(--ctn-tone-indigo);
+  --ctn-tone-background: var(--ctn-tone-indigo-soft);
+}
+
+.ctn-tone-violet {
+  --ctn-tone-current: var(--ctn-tone-violet);
+  --ctn-tone-background: var(--ctn-tone-violet-soft);
+}
+
+.ctn-tone-pink {
+  --ctn-tone-current: var(--ctn-tone-pink);
+  --ctn-tone-background: var(--ctn-tone-pink-soft);
+}
+
+.ctn-tone-red {
+  --ctn-tone-current: var(--ctn-tone-red);
+  --ctn-tone-background: var(--ctn-tone-red-soft);
+}
+
+.ctn-tone-amber {
+  --ctn-tone-current: var(--ctn-tone-amber);
+  --ctn-tone-background: var(--ctn-tone-amber-soft);
+}
+
+.ctn-tone-gray {
+  --ctn-tone-current: var(--ctn-tone-gray);
+  --ctn-tone-background: var(--ctn-tone-gray-soft);
+}
+
+.ctn-tone-custom {
+  --ctn-tone-current: var(--ctn-tone-color);
+  --ctn-tone-background: color-mix(
+    in srgb,
+    var(--ctn-tone-color) 10%,
+    transparent
+  );
+}
+
 .ctn-text-color-default {
   color: var(--color-fg);
 }
@@ -48,50 +112,7 @@
 
 .block-text-inline {
   text-decoration-line: underline;
+  text-decoration-color: var(--ctn-tone-current, var(--color-fg-muted));
   text-decoration-thickness: calc(var(--ui-border-width) * 2);
   text-underline-offset: 0.18em;
-}
-
-.block-text-inline.ctn-tone-green {
-  text-decoration-color: var(--ctn-tone-green);
-}
-
-.block-text-inline.ctn-tone-teal {
-  text-decoration-color: var(--ctn-tone-teal);
-}
-
-.block-text-inline.ctn-tone-cyan {
-  text-decoration-color: var(--ctn-tone-cyan);
-}
-
-.block-text-inline.ctn-tone-blue {
-  text-decoration-color: var(--ctn-tone-blue);
-}
-
-.block-text-inline.ctn-tone-indigo {
-  text-decoration-color: var(--ctn-tone-indigo);
-}
-
-.block-text-inline.ctn-tone-violet {
-  text-decoration-color: var(--ctn-tone-violet);
-}
-
-.block-text-inline.ctn-tone-pink {
-  text-decoration-color: var(--ctn-tone-pink);
-}
-
-.block-text-inline.ctn-tone-red {
-  text-decoration-color: var(--ctn-tone-red);
-}
-
-.block-text-inline.ctn-tone-amber {
-  text-decoration-color: var(--ctn-tone-amber);
-}
-
-.block-text-inline.ctn-tone-gray {
-  text-decoration-color: var(--ctn-tone-gray);
-}
-
-.block-text-inline.ctn-tone-custom {
-  text-decoration-color: var(--ctn-tone-color);
 }

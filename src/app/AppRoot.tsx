@@ -12,13 +12,9 @@ function createWorkspaceViewModelScope(
   activeActivityId: ActivityId,
 ): WorkspaceViewModelScope {
   return {
-    editor: activeActivityId === "notes",
+    notes: activeActivityId === "notes",
     structureOperation: activeActivityId === "migration",
-    outline: activeActivityId === "notes",
-    referenceGraph: activeActivityId === "visualization",
-    settings: activeActivityId === "settings",
-    sidebar: activeActivityId === "notes",
-    syntax: activeActivityId === "syntax",
+    visualization: activeActivityId === "visualization",
   };
 }
 

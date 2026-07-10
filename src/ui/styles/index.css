@@ -4,4 +4,10 @@
 @import "./shared/primitives.css";
 @import "./shared/tree.css";
 @import "./shared/blockText.css";
-@import "./activities/activities.css";
+@import "./shared/context.css";
+@import "./activities/notes.css";
+@import "./activities/placeholder.css";
+@import "./activities/structure-operation.css";
+@import "./activities/syntax.css";
+@import "./activities/visualization.css";
+@import "./activities/settings.css";

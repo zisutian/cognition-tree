@@ -1,4 +1,4 @@
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   Panel,
   PanelBody,
@@ -17,8 +17,8 @@ import {
   readTabDisplayWidthInput,
 } from "./syntaxPreview";
 
-export function SyntaxMainPanel({ view }: { view: ViewModel }) {
-  const { syntax } = view;
+export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
+  const syntax = view;
 
   return (
     <Panel className="syntax-panel" aria-label="语法配置">

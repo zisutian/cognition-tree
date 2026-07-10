@@ -1,0 +1,64 @@
+.activity-context-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-gap);
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.activity-context-content::-webkit-scrollbar {
+  width: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
+  height: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
+}
+
+.activity-context-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-context-content::-webkit-scrollbar-thumb {
+  border: calc(var(--ui-border-width) * 2) solid transparent;
+  border-radius: var(--ui-radius);
+  background: var(--color-border-strong);
+  background-clip: content-box;
+}
+
+.context-toolbar {
+  display: inline-flex;
+  gap: var(--ui-gap-tight);
+}
+
+.directory-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--ui-gap-tight);
+}
+
+.directory-create-row input {
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap);
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  background: var(--color-input);
+  font-size: var(--ui-control-font-size);
+  line-height: var(--ui-control-line-height);
+  outline: none;
+}
+
+.directory-create-row input:focus {
+  background: var(--color-selected);
+}
+
+.context-empty {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

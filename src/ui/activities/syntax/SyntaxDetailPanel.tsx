@@ -1,6 +1,12 @@
 import { ChevronRight } from "lucide-react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { CSSProperties } from "react";
+import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import type { UiSyntaxTone } from "../../../application/workspace/projection/viewSyntax";
+import {
+  createUiToneStyle,
+  getUiSyntaxTextColorClassName,
+  getUiSyntaxToneClassName,
+} from "../../../application/workspace/projection/viewText";
 import {
   Button,
   Panel,
@@ -11,9 +17,6 @@ import {
 import {
   getInlinePreviewMarker,
   getInlinePreviewValue,
-  getRenderStyle,
-  getRenderTextColorClass,
-  getRenderToneClass,
 } from "./syntaxPreview";
 
 function SyntaxRenderLine({
@@ -29,17 +32,25 @@ function SyntaxRenderLine({
   tone: UiSyntaxTone;
   value: string;
 }) {
+  const toneClassName = getUiSyntaxToneClassName(tone);
+
   return (
     <div
       className={cx(
         "syntax-render-line",
-        getRenderToneClass(tone),
-        getRenderTextColorClass(textColor),
+        toneClassName,
       )}
-      style={getRenderStyle({ textColor, tone })}
+      style={createUiToneStyle(tone, textColor) as CSSProperties | undefined}
     >
       <span className="syntax-render-marker">{marker}</span>
-      <span className={cx("syntax-render-text", inline && "syntax-render-inline")}>
+      <span
+        className={cx(
+          "syntax-render-text",
+          getUiSyntaxTextColorClassName(textColor),
+          inline && "block-text-inline",
+          inline && toneClassName,
+        )}
+      >
         {value}
       </span>
     </div>
@@ -51,7 +62,7 @@ export function SyntaxDetailPanel({
   view,
 }: {
   onCollapseDetail: () => void;
-  view: ViewModel;
+  view: SyntaxViewModel;
 }) {
   return (
     <Panel aria-label="语法预览" as="aside" tone="detail">
@@ -73,17 +84,17 @@ export function SyntaxDetailPanel({
         <div aria-label="语法预览内容" className="syntax-render-list">
           <SyntaxRenderLine
             marker="T"
-            textColor={view.syntax.draft.titleRule.textColor}
-            tone={view.syntax.draft.titleRule.tone}
+            textColor={view.draft.titleRule.textColor}
+            tone={view.draft.titleRule.tone}
             value="首行标题示例"
           />
           <SyntaxRenderLine
             marker="C"
-            textColor={view.syntax.draft.conceptRule.textColor}
-            tone={view.syntax.draft.conceptRule.tone}
+            textColor={view.draft.conceptRule.textColor}
+            tone={view.draft.conceptRule.tone}
             value="顶格概念示例"
           />
-          {view.syntax.draft.markerRules.map((rule) => (
+          {view.draft.markerRules.map((rule) => (
             <SyntaxRenderLine
               key={rule.id}
               marker={rule.marker || "·"}
@@ -92,7 +103,7 @@ export function SyntaxDetailPanel({
               value={`${rule.label}示例`}
             />
           ))}
-          {view.syntax.draft.inlineRules.map((rule) => (
+          {view.draft.inlineRules.map((rule) => (
             <SyntaxRenderLine
               inline
               key={rule.id}

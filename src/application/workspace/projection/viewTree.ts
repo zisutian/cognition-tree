@@ -6,6 +6,16 @@ import type {
 export type UiFolderId = string;
 export type UiNoteId = string;
 
+export type UiDirectoryActiveNode =
+  | {
+      folderId: UiFolderId;
+      kind: "folder";
+    }
+  | {
+      kind: "note";
+      noteId: UiNoteId;
+    };
+
 export type UiTreeNode =
   | {
       canDrag: boolean;

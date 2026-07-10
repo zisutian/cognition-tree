@@ -16,12 +16,12 @@ import { createUiEditorView } from "../projection/viewEditor";
 import { createUiReferenceGraphView } from "../projection/viewGraph";
 import {
   createUiNoteTree,
+  type UiDirectoryActiveNode,
   type UiFolderId,
   type UiNoteId,
   type UiTreeMoveRequest,
 } from "../projection/viewTree";
 import { createUiSyntaxView } from "../projection/viewSyntax";
-import { createUiSidebarView } from "../projection/viewSidebar";
 import type {
   WorkspaceSaveStatus,
   Session,
@@ -37,6 +37,7 @@ import {
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
 } from "./viewSelection";
+import type { ViewModel } from "./activityViewModels";
 
 type EditorFocusRequest = {
   lineNumber: number;
@@ -44,13 +45,9 @@ type EditorFocusRequest = {
 };
 
 export type WorkspaceViewModelScope = {
-  editor: boolean;
+  notes: boolean;
   structureOperation: boolean;
-  outline: boolean;
-  referenceGraph: boolean;
-  settings: boolean;
-  sidebar: boolean;
-  syntax: boolean;
+  visualization: boolean;
 };
 
 const saveStatusLabels: Record<WorkspaceSaveStatus, string> = {
@@ -69,7 +66,7 @@ const emptyReferenceGraphView = createUiReferenceGraphView({
 export function useViewModel(
   session: Session,
   scope: WorkspaceViewModelScope,
-) {
+): ViewModel {
   const {
     canChangeRepositoryPath,
     changeRepositoryPath,
@@ -89,15 +86,14 @@ export function useViewModel(
   } = session;
   const [selectedFolderId, setSelectedFolderId] =
     useState<FolderId | null>(null);
+  const [directoryActiveNode, setDirectoryActiveNode] =
+    useState<UiDirectoryActiveNode | null>(null);
   const [editorFocusRequest, setEditorFocusRequest] =
     useState<EditorFocusRequest | null>(null);
   const [activeNoteId, setActiveNoteId] = useState<UiNoteId | null>(null);
   const notes = listWorkspaceNotes(workspace);
   const activeNote = activeNoteId
     ? findWorkspaceNote(workspace, activeNoteId)
-    : null;
-  const activeNoteFolderId = activeNote
-    ? findWorkspaceFolderIdContainingNote(workspace, activeNote.id)
     : null;
 
   useEffect(() => {
@@ -112,6 +108,26 @@ export function useViewModel(
     );
   }, [workspace]);
 
+  useEffect(() => {
+    setDirectoryActiveNode((currentNode) => {
+      if (currentNode?.kind === "note" && findWorkspaceNote(workspace, currentNode.noteId)) {
+        return currentNode;
+      }
+
+      if (
+        currentNode?.kind === "folder" &&
+        resolveFolderSelection(workspace, currentNode.folderId) ===
+          currentNode.folderId
+      ) {
+        return currentNode;
+      }
+
+      return activeNoteId
+        ? { kind: "note", noteId: activeNoteId }
+        : null;
+    });
+  }, [activeNoteId, workspace]);
+
   const selectNote = useCallback((noteId: UiNoteId) => {
     if (!findWorkspaceNote(workspace, noteId)) {
       return;
@@ -120,13 +136,16 @@ export function useViewModel(
     const folderId = findWorkspaceFolderIdContainingNote(workspace, noteId);
 
     setSelectedFolderId(folderId);
-
     setActiveNoteId(noteId);
+    setDirectoryActiveNode({ kind: "note", noteId });
   }, [workspace]);
 
   const selectFolder = (folderId: UiFolderId) => {
-    setSelectedFolderId(
-      resolveFolderSelection(workspace, folderId),
+    const nextFolderId = resolveFolderSelection(workspace, folderId);
+
+    setSelectedFolderId(nextFolderId);
+    setDirectoryActiveNode(
+      nextFolderId ? { folderId: nextFolderId, kind: "folder" } : null,
     );
   };
 
@@ -134,29 +153,43 @@ export function useViewModel(
     const noteId = commands.createNote(selectedFolderId);
 
     setActiveNoteId(noteId);
+    setDirectoryActiveNode({ kind: "note", noteId });
   };
 
   const createFolder = (parentFolderId: UiFolderId | null, title: string) => {
     const folderId = commands.createFolder(parentFolderId, title);
 
     setSelectedFolderId(folderId);
+    setDirectoryActiveNode({ folderId, kind: "folder" });
   };
 
   const renameFolder = (folderId: UiFolderId, title: string) => {
     commands.renameFolder(folderId, title);
     setSelectedFolderId(folderId);
+    setDirectoryActiveNode({ folderId, kind: "folder" });
   };
 
   const renameNote = (noteId: UiNoteId, title: string) => {
     commands.renameNote(noteId, title);
     setActiveNoteId(noteId);
+    setDirectoryActiveNode({ kind: "note", noteId });
   };
 
   const deleteNote = (noteId: UiNoteId) => {
-    commands.deleteNote(noteId);
+    const nextActiveNoteId = resolveActiveNoteIdAfterRemovingNote(
+      notes,
+      activeNoteId,
+      noteId,
+    );
 
-    setActiveNoteId((currentNoteId) =>
-      resolveActiveNoteIdAfterRemovingNote(notes, currentNoteId, noteId),
+    commands.deleteNote(noteId);
+    setActiveNoteId(nextActiveNoteId);
+    setDirectoryActiveNode((currentNode) =>
+      currentNode?.kind === "note" && currentNode.noteId === noteId
+        ? nextActiveNoteId
+          ? { kind: "note", noteId: nextActiveNoteId }
+          : null
+        : currentNode,
     );
   };
 
@@ -164,18 +197,26 @@ export function useViewModel(
     const removedNoteIds = new Set(
       collectWorkspaceNoteIdsInFolder(workspace, folderId),
     );
+    const nextActiveNoteId = resolveActiveNoteIdAfterRemovingNotes(
+      notes,
+      activeNoteId,
+      removedNoteIds,
+    );
 
     commands.deleteFolder(folderId);
     setSelectedFolderId(null);
-
-    setActiveNoteId((currentNoteId) =>
-      resolveActiveNoteIdAfterRemovingNotes(notes, currentNoteId, removedNoteIds),
+    setActiveNoteId(nextActiveNoteId);
+    setDirectoryActiveNode((currentNode) =>
+      currentNode?.kind === "folder" && currentNode.folderId === folderId
+        ? nextActiveNoteId
+          ? { kind: "note", noteId: nextActiveNoteId }
+          : null
+        : currentNode?.kind === "note" && removedNoteIds.has(currentNode.noteId)
+          ? nextActiveNoteId
+            ? { kind: "note", noteId: nextActiveNoteId }
+            : null
+          : currentNode,
     );
-  };
-
-  const moveNote = (noteId: UiNoteId, targetFolderId: UiFolderId | null) => {
-    commands.moveNote(noteId, targetFolderId);
-    setSelectedFolderId(targetFolderId);
   };
   const moveSidebarTreeNode = (request: UiTreeMoveRequest) => {
     commands.moveTreeNode({
@@ -215,13 +256,12 @@ export function useViewModel(
     [effectiveWorkspace],
   );
   const index = useWorkspaceParseIndex(effectiveContext);
-  const shouldReadActiveNote = scope.editor || scope.outline;
   const parsedNote = useMemo(
     () =>
-      shouldReadActiveNote && index
+      scope.notes && index
         ? getParsedWorkspaceNote(index, effectiveActiveNote?.id ?? null)
         : null,
-    [effectiveActiveNote, index, shouldReadActiveNote],
+    [effectiveActiveNote, index, scope.notes],
   );
   const activeSyntaxProfile =
     parsedNote?.profile ?? defaultWorkspaceSyntaxFile.profile;
@@ -239,20 +279,20 @@ export function useViewModel(
   };
   const sidebarNoteTree = useMemo(
     () =>
-      scope.sidebar
+      scope.notes
         ? createUiNoteTree({
             notes,
             tree: getWorkspaceTree(workspace),
           })
         : [],
-    [notes, scope.sidebar, workspace],
+    [notes, scope.notes, workspace],
   );
   const noteReferenceGraph = useMemo(
     () =>
-      scope.referenceGraph && index
+      scope.visualization && index
         ? createUiReferenceGraphView(getWorkspaceNoteReferenceGraph(index))
         : emptyReferenceGraphView,
-    [index, scope.referenceGraph],
+    [index, scope.visualization],
   );
   const visualization = useMemo(
     () => ({
@@ -301,8 +341,8 @@ export function useViewModel(
   );
   const outlineNodes = useMemo(
     () =>
-      scope.outline ? createUiOutlineNodes(parsedDocument?.roots ?? []) : [],
-    [parsedDocument, scope.outline],
+      scope.notes ? createUiOutlineNodes(parsedDocument?.roots ?? []) : [],
+    [parsedDocument, scope.notes],
   );
   const structureOperation = useStructureOperationViewModel({
     commands,
@@ -313,64 +353,63 @@ export function useViewModel(
     index,
     scopeStructureOperation: scope.structureOperation,
     setActiveNoteId,
+    setDirectoryActiveNode,
     setSelectedFolderId,
   });
-  const sidebar = useMemo(
-    () =>
-      createUiSidebarView({
-        activeFolderId: selectedFolderId,
-        activeNoteFolderId,
-        activeNoteId: activeNote?.id ?? null,
-        noteTree: sidebarNoteTree,
-        repositoryPath,
-        saveStatusLabel: saveStatusLabels[saveStatus],
-        storageLabel,
-      }),
-    [
-      activeNote,
-      activeNoteFolderId,
-      repositoryPath,
-      saveStatus,
-      selectedFolderId,
-      sidebarNoteTree,
-      storageLabel,
-    ],
+  const hasConfiguredSyntax = Boolean(
+    workspaceSyntaxFile && effectiveContext && index,
   );
 
   return {
-    canChangeRepositoryPath,
-    changeRepositoryPath,
-    createFolder,
-    createNote,
-    deleteFolder,
-    deleteNote,
-    editor,
-    focusEditorLine,
-    hasConfiguredSyntax: Boolean(
-      workspaceSyntaxFile && effectiveContext && index,
-    ),
-    moveNote,
-    moveSidebarTreeNode,
-    outline: {
-      nodes: outlineNodes,
-      onSelectLine: focusEditorLine,
+    notes: {
+      directory: {
+        activeFolderId: selectedFolderId,
+        activeNode: directoryActiveNode,
+        createFolder,
+        createNote,
+        deleteFolder,
+        deleteNote,
+        moveTreeNode: moveSidebarTreeNode,
+        noteTree: sidebarNoteTree,
+        renameFolder,
+        renameNote,
+        selectFolder,
+        selectNote,
+      },
+      editor,
+      outline: {
+        nodes: outlineNodes,
+        onSelectLine: focusEditorLine,
+      },
+      updateSource: updateActiveNoteSource,
     },
-    reload,
-    renameFolder,
-    renameNote,
-    selectFolder,
-    selectNote,
-    sidebar,
-    structureOperation,
+    settings: {
+      canChangeRepositoryPath,
+      changeRepositoryPath,
+      reload,
+      repositoryPath,
+      saveStatusLabel: saveStatusLabels[saveStatus],
+      storageLabel,
+    },
+    shell: {
+      errorMessage,
+      hasConfiguredSyntax,
+      useDefaultSyntax,
+    },
+    structureOperation: {
+      ...structureOperation,
+      deleteFolder,
+      deleteNote,
+      indentUnitCount:
+        effectiveContext?.syntaxProfile.tabDisplayWidth ??
+        defaultWorkspaceSyntaxFile.profile.tabDisplayWidth,
+      renameFolder,
+      renameNote,
+    },
     syntax: {
       ...syntax,
       ...syntaxDraftActions,
     },
-    updateActiveNoteSource,
-    useDefaultSyntax,
     visualization,
-    errorMessage,
   };
 }
-
-export type ViewModel = ReturnType<typeof useViewModel>;

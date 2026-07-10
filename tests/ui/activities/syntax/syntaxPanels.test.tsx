@@ -11,14 +11,20 @@ import { createView } from "../../viewFactory";
 const { readFileSync } = (await import("node:fs")) as {
   readFileSync: (path: URL, encoding: "utf8") => string;
 };
-const activitiesCss = readFileSync(
-  new URL("../../../../src/ui/styles/activities/activities.css", import.meta.url),
+const syntaxCss = readFileSync(
+  new URL("../../../../src/ui/styles/activities/syntax.css", import.meta.url),
+  "utf8",
+);
+const blockTextCss = readFileSync(
+  new URL("../../../../src/ui/styles/shared/blockText.css", import.meta.url),
   "utf8",
 );
 
 describe("syntax panels", () => {
   it("uses grouped settings rows with one rule row format", () => {
-    const markup = renderToStaticMarkup(<SyntaxMainPanel view={createView()} />);
+    const markup = renderToStaticMarkup(
+      <SyntaxMainPanel view={createView().syntax} />,
+    );
 
     expect(markup).toContain("type=\"number\"");
     expect(markup).toContain("max=\"16\"");
@@ -68,7 +74,7 @@ describe("syntax panels", () => {
     const markup = renderToStaticMarkup(
       <SyntaxDetailPanel
         onCollapseDetail={() => undefined}
-        view={createView()}
+        view={createView().syntax}
       />,
     );
 
@@ -77,6 +83,10 @@ describe("syntax panels", () => {
     expect(markup).toContain("detail-panel-stack");
     expect(markup).toContain("syntax-render-line");
     expect(markup).toContain("syntax-render-marker");
+    expect(markup).toContain("ctn-tone-");
+    expect(markup).toContain("ctn-text-color-");
+    expect(markup).not.toContain("syntax-render-tone-");
+    expect(markup).not.toContain("syntax-render-text-");
     expect(markup).toContain("首行标题示例");
     expect(markup).toContain("[[]]");
     expect(markup).toContain("全局概念引用");
@@ -100,54 +110,54 @@ describe("syntax panels", () => {
   });
 
   it("keeps syntax controls from using bright focus or selected borders", () => {
-    expect(activitiesCss).toContain(".syntax-setting-line input");
-    expect(activitiesCss).toContain(".syntax-rule-row input");
-    expect(activitiesCss).toContain(
+    expect(syntaxCss).toContain(".syntax-setting-line input");
+    expect(syntaxCss).toContain(".syntax-rule-row input");
+    expect(syntaxCss).toContain(
       "border: var(--ui-border-width) solid transparent",
     );
-    expect(activitiesCss).not.toMatch(
+    expect(syntaxCss).not.toMatch(
       /\.syntax-rule-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
     );
-    expect(activitiesCss).not.toMatch(
+    expect(syntaxCss).not.toMatch(
       /\.syntax-tone-tile\.is-selected,[\s\S]*?border-color: var\(--color-accent\)/,
     );
-    expect(activitiesCss).toMatch(
-      /\.syntax-render-tone-green \{[\s\S]*?background: var\(--ctn-tone-green-soft\)/,
+    expect(blockTextCss).toMatch(
+      /\.ctn-tone-green \{[\s\S]*?--ctn-tone-background: var\(--ctn-tone-green-soft\)/,
     );
-    expect(activitiesCss).toContain(
-      "background: color-mix(in srgb, var(--syntax-render-tone-color) 12%, transparent)",
+    expect(blockTextCss).toContain(
+      "--ctn-tone-background: color-mix(",
     );
-    expect(activitiesCss).not.toContain("border-left-color: var(--ctn-tone");
-    expect(activitiesCss).not.toContain(
+    expect(syntaxCss).not.toContain("border-left-color: var(--ctn-tone");
+    expect(syntaxCss).not.toContain(
       "border-left: calc(var(--ui-border-width) * 2) solid transparent",
     );
-    expect(activitiesCss).toContain(
+    expect(syntaxCss).toContain(
       "minmax(calc(var(--ui-control-height) * 2), max-content)",
     );
   });
 
   it("keeps syntax main layout on grouped settings instead of mixed row systems", () => {
-    expect(activitiesCss).toContain(".syntax-settings-stack");
-    expect(activitiesCss).toContain(".syntax-settings-group");
-    expect(activitiesCss).toContain(".syntax-setting-line");
-    expect(activitiesCss).toContain(".syntax-rule-row");
-    expect(activitiesCss).toContain(".syntax-pair-fields");
-    expect(activitiesCss).toContain("--syntax-rule-row-width");
-    expect(activitiesCss).toContain("width: min(100%, var(--syntax-rule-row-width))");
-    expect(activitiesCss).toContain("calc(var(--ui-control-height) * 12)");
-    expect(activitiesCss).not.toContain("calc(var(--ui-control-height) * 26)");
-    expect(activitiesCss).toContain(".syntax-tone-button.is-compact");
-    expect(activitiesCss).toContain(".syntax-dropdown-menu");
-    expect(activitiesCss).toContain(".syntax-role-menu");
-    expect(activitiesCss).toContain(".syntax-role-list");
-    expect(activitiesCss).toContain(".syntax-role-option");
-    expect(activitiesCss).toContain("justify-content: center");
-    expect(activitiesCss).not.toContain(".syntax-settings-table");
-    expect(activitiesCss).not.toContain(".syntax-setting-row");
-    expect(activitiesCss).not.toContain(".syntax-config-strip");
-    expect(activitiesCss).not.toContain(".syntax-config-item");
-    expect(activitiesCss).not.toContain(".syntax-block-row");
-    expect(activitiesCss).not.toContain(".syntax-inline-row");
-    expect(activitiesCss).not.toContain(".syntax-tone-fields");
+    expect(syntaxCss).toContain(".syntax-settings-stack");
+    expect(syntaxCss).toContain(".syntax-settings-group");
+    expect(syntaxCss).toContain(".syntax-setting-line");
+    expect(syntaxCss).toContain(".syntax-rule-row");
+    expect(syntaxCss).toContain(".syntax-pair-fields");
+    expect(syntaxCss).toContain("--syntax-rule-row-width");
+    expect(syntaxCss).toContain("width: min(100%, var(--syntax-rule-row-width))");
+    expect(syntaxCss).toContain("calc(var(--ui-control-height) * 12)");
+    expect(syntaxCss).not.toContain("calc(var(--ui-control-height) * 26)");
+    expect(syntaxCss).toContain(".syntax-tone-button.is-compact");
+    expect(syntaxCss).toContain(".syntax-dropdown-menu");
+    expect(syntaxCss).toContain(".syntax-role-menu");
+    expect(syntaxCss).toContain(".syntax-role-list");
+    expect(syntaxCss).toContain(".syntax-role-option");
+    expect(syntaxCss).toContain("justify-content: center");
+    expect(syntaxCss).not.toContain(".syntax-settings-table");
+    expect(syntaxCss).not.toContain(".syntax-setting-row");
+    expect(syntaxCss).not.toContain(".syntax-config-strip");
+    expect(syntaxCss).not.toContain(".syntax-config-item");
+    expect(syntaxCss).not.toContain(".syntax-block-row");
+    expect(syntaxCss).not.toContain(".syntax-inline-row");
+    expect(syntaxCss).not.toContain(".syntax-tone-fields");
   });
 });

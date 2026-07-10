@@ -1,0 +1,69 @@
+.graph-body {
+  overflow: hidden;
+}
+
+.graph-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.graph-search-field {
+  flex: 0 0 calc(var(--ui-control-height) * 7);
+  margin-left: auto;
+  min-width: calc(var(--ui-control-height) * 5);
+}
+
+.graph-search-field input {
+  width: 100%;
+  min-width: 0;
+  height: var(--ui-control-height);
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap);
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  background: var(--color-input);
+  font-size: var(--ui-control-font-size);
+  line-height: var(--ui-control-line-height);
+  outline: none;
+}
+
+.graph-search-field input:focus {
+  outline: none;
+  background: var(--color-selected);
+}
+
+.graph-canvas {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
+  background:
+    linear-gradient(var(--color-graph-grid) var(--ui-border-width), transparent var(--ui-border-width)),
+    linear-gradient(90deg, var(--color-graph-grid) var(--ui-border-width), transparent var(--ui-border-width)),
+    var(--color-editor);
+  background-size: var(--ui-control-height) var(--ui-control-height);
+}
+
+.graph-force-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.graph-force-canvas:active {
+  cursor: grabbing;
+}

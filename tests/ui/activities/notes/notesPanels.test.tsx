@@ -11,12 +11,12 @@ describe("notes panels", () => {
     const baseView = createView();
     const markup = renderToStaticMarkup(
       <NotesContext
-        view={createView({
-          sidebar: {
-            ...baseView.sidebar,
+        view={{
+          ...baseView.notes,
+          directory: {
+            ...baseView.notes.directory,
             activeFolderId: "folder-1",
-            activeNoteFolderId: "folder-1",
-            activeNoteId: "note-1",
+            activeNode: { folderId: "folder-1", kind: "folder" },
             noteTree: [
               {
                 canDrag: true,
@@ -40,7 +40,7 @@ describe("notes panels", () => {
               },
             ],
           },
-        })}
+        }}
       />,
     );
 
@@ -54,9 +54,10 @@ describe("notes panels", () => {
     const markup = renderToStaticMarkup(
       <NoteDetailPanel
         onCollapseDetail={() => undefined}
-        view={createView({
+        view={{
+          ...baseView.notes,
           editor: {
-            ...baseView.editor,
+            ...baseView.notes.editor,
             diagnostics: [
               {
                 id: "diagnostic-1",
@@ -71,7 +72,7 @@ describe("notes panels", () => {
               totalBlocks: 2,
             },
             syntaxProfile: {
-              ...baseView.editor.syntaxProfile,
+              ...baseView.notes.editor.syntaxProfile,
               tabDisplayWidth: 6,
             },
           },
@@ -109,7 +110,7 @@ describe("notes panels", () => {
             ],
             onSelectLine: () => undefined,
           },
-        })}
+        }}
       />,
     );
 

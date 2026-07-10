@@ -3,7 +3,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import { Section } from "../../shared/primitives";
 import {
   findBlockByLineNumber,
@@ -16,7 +16,11 @@ import {
   getBlockedStructureDropLineNumbers,
 } from "./structureOperationDropTargets";
 
-export function StructureOperationStructureView({ view }: { view: ViewModel }) {
+export function StructureOperationStructureView({
+  view,
+}: {
+  view: StructureOperationActivityViewModel;
+}) {
   const [selectedLineNumber, setSelectedLineNumber] = useState("");
   const [draggingLineNumber, setDraggingLineNumber] = useState<string | null>(
     null,
@@ -28,7 +32,7 @@ export function StructureOperationStructureView({ view }: { view: ViewModel }) {
     number | null
   >(null);
   const selectedBlock = findBlockByLineNumber(
-    view.structureOperation.structureBlocks,
+    view.structureBlocks,
     draggingLineNumber ?? selectedLineNumber,
   );
   const selectedLineNumbers = useSelectedBlockLines(selectedBlock);
@@ -43,7 +47,7 @@ export function StructureOperationStructureView({ view }: { view: ViewModel }) {
     setDraggingLineNumber(null);
     setActiveDropPosition(null);
     setActiveTargetLineNumber(null);
-  }, [view.structureOperation.mode, view.structureOperation.structureNoteId]);
+  }, [view.mode, view.structureNoteId]);
 
   const finishDrag = () => {
     setDraggingLineNumber(null);
@@ -57,7 +61,7 @@ export function StructureOperationStructureView({ view }: { view: ViewModel }) {
     setSelectedLineNumber(lineNumberValue);
   };
   const dropLine = (lineNumber: string, position: string) => {
-    view.structureOperation.onMoveStructureBlockWithinNote(lineNumber, position);
+    view.onMoveStructureBlockWithinNote(lineNumber, position);
     setSelectedLineNumber("");
     finishDrag();
   };
@@ -66,9 +70,9 @@ export function StructureOperationStructureView({ view }: { view: ViewModel }) {
     <div className="structure-operation-grid structure-operation-grid-single">
       <Section
         className="structure-operation-column"
-        title={`笔记结构 · ${view.structureOperation.structureNote?.title ?? "未选择"}`}
+        title={`笔记结构 · ${view.structureNote?.title ?? "未选择"}`}
       >
-        {showEndDropTarget && view.structureOperation.structureRoots.length === 0 ? (
+        {showEndDropTarget && view.structureRoots.length === 0 ? (
           <DropTarget
             activePosition={activeDropPosition}
             label="文末根块"
@@ -77,7 +81,7 @@ export function StructureOperationStructureView({ view }: { view: ViewModel }) {
             onSetActivePosition={setActiveDropPosition}
           />
         ) : null}
-        {view.structureOperation.structureRoots.length > 0 ? (
+        {view.structureRoots.length > 0 ? (
           <>
             <MovingTargetTree
               activeDropPosition={activeDropPosition}
@@ -85,8 +89,8 @@ export function StructureOperationStructureView({ view }: { view: ViewModel }) {
               blockedLineNumbers={blockedLineNumbers}
               draggingLineNumber={draggingLineNumber}
               draggable
-              indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
-              nodes={view.structureOperation.structureRoots}
+              indentUnitCount={view.indentUnitCount}
+              nodes={view.structureRoots}
               selectedLineNumbers={selectedLineNumbers}
               selectedRootLineNumber={selectedBlock?.lineNumber ?? null}
               onActivateTarget={setActiveTargetLineNumber}

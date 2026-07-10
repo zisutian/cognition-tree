@@ -2,7 +2,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import { Section } from "../../shared/primitives";
 import { StructureTree } from "../../shared/tree";
 import {
@@ -20,7 +20,11 @@ import {
   emptySelectedLineNumbers,
 } from "./structureOperationDropTargets";
 
-export function StructureOperationPairView({ view }: { view: ViewModel }) {
+export function StructureOperationPairView({
+  view,
+}: {
+  view: StructureOperationActivityViewModel;
+}) {
   const [sourceLineNumber, setSourceLineNumber] = useState("");
   const [draggingLineNumber, setDraggingLineNumber] = useState<string | null>(
     null,
@@ -32,7 +36,7 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
     number | null
   >(null);
   const sourceBlock = findBlockByLineNumber(
-    view.structureOperation.sourceBlocks,
+    view.sourceBlocks,
     sourceLineNumber,
   );
   const selectedLineNumbers = useSelectedBlockLines(sourceBlock);
@@ -43,7 +47,7 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
     setDraggingLineNumber(null);
     setActiveDropPosition(null);
     setActiveTargetLineNumber(null);
-  }, [view.structureOperation.sourceNoteId, view.structureOperation.targetNoteId]);
+  }, [view.sourceNoteId, view.targetNoteId]);
 
   const finishDrag = () => {
     setDraggingLineNumber(null);
@@ -58,7 +62,7 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
   };
   const dropLine = (lineNumber: string, position: string) => {
     setSourceLineNumber(lineNumber);
-    view.structureOperation.onMoveStructureBlockBetweenNotes(lineNumber, position);
+    view.onMoveStructureBlockBetweenNotes(lineNumber, position);
     finishDrag();
   };
 
@@ -66,17 +70,17 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
     <div className="structure-operation-grid">
       <Section
         className="structure-operation-column"
-        title={`源笔记 · ${view.structureOperation.sourceNote?.title ?? "未选择"}`}
+        title={`源笔记 · ${view.sourceNote?.title ?? "未选择"}`}
       >
-        {view.structureOperation.sourceRoots.length > 0 ? (
+        {view.sourceRoots.length > 0 ? (
           <StructureTree
             activeLineNumbers={selectedLineNumbers}
             dragDataType={blockLineDragDataType}
             draggingLineNumber={draggingLineNumber}
             draggable
             getDragPayload={createBlockLineDragPayload}
-            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
-            nodes={view.structureOperation.sourceRoots}
+            indentUnitCount={view.indentUnitCount}
+            nodes={view.sourceRoots}
             selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
             onDragEnd={finishDrag}
             onDragStart={startDrag}
@@ -88,9 +92,9 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
       </Section>
       <Section
         className="structure-operation-column"
-        title={`目标笔记 · ${view.structureOperation.targetNote?.title ?? "未选择"}`}
+        title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}
       >
-        {showEndDropTarget && view.structureOperation.targetRoots.length === 0 ? (
+        {showEndDropTarget && view.targetRoots.length === 0 ? (
           <DropTarget
             activePosition={activeDropPosition}
             label="文末根块"
@@ -99,15 +103,15 @@ export function StructureOperationPairView({ view }: { view: ViewModel }) {
             onSetActivePosition={setActiveDropPosition}
           />
         ) : null}
-        {view.structureOperation.targetRoots.length > 0 ? (
+        {view.targetRoots.length > 0 ? (
           <>
             <MovingTargetTree
               activeDropPosition={activeDropPosition}
               activeTargetLineNumber={activeTargetLineNumber}
               blockedLineNumbers={emptySelectedLineNumbers}
               draggingLineNumber={draggingLineNumber}
-              indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
-              nodes={view.structureOperation.targetRoots}
+              indentUnitCount={view.indentUnitCount}
+              nodes={view.targetRoots}
               selectedLineNumbers={emptySelectedLineNumbers}
               selectedRootLineNumber={null}
               onActivateTarget={setActiveTargetLineNumber}

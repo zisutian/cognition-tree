@@ -1,0 +1,139 @@
+.source-editor {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-radius);
+  overflow: hidden;
+  background: var(--color-editor);
+}
+
+.source-editor .cm-scroller {
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.source-editor .cm-scroller::-webkit-scrollbar {
+  width: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
+  height: calc(var(--ui-gap) + calc(var(--ui-border-width) * 2));
+}
+
+.source-editor .cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.source-editor .cm-scroller::-webkit-scrollbar-thumb {
+  border: calc(var(--ui-border-width) * 2) solid transparent;
+  border-radius: var(--ui-radius);
+  background: var(--color-border-strong);
+  background-clip: content-box;
+}
+
+.source-editor:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+.source-editor .cm-editor {
+  height: 100%;
+  min-height: 0;
+  color: var(--color-fg);
+  background: transparent;
+  font-family: var(--font-content);
+  font-size: var(--ctn-editor-font-size);
+  font-weight: var(--ui-body-weight);
+  line-height: var(--ctn-editor-line-height);
+}
+
+.source-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.source-editor .cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.source-editor .cm-content {
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  padding: calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2));
+}
+
+.source-editor .cm-line {
+  padding: 0 calc(var(--ui-gap-tight) / 2) 0 var(--ui-gap-tight);
+  white-space: pre;
+}
+
+.source-editor .cm-gutters {
+  border-right: var(--ui-border-width) solid var(--color-border);
+  color: var(--color-fg-subtle);
+  background: var(--color-editor);
+  font-family: var(--font-code);
+}
+
+.source-editor .cm-lineNumbers .cm-gutterElement {
+  min-width: calc(var(--ui-control-height) + var(--ui-gap));
+  padding:
+    0
+    calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2))
+    0
+    var(--ui-gap);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
+.source-editor .cm-cursor {
+  border-left-color: var(--color-fg);
+}
+
+.source-editor .cm-selectionBackground,
+.source-editor .cm-content ::selection {
+  background: var(--color-selected) !important;
+}
+
+.source-editor .cm-activeLine,
+.source-editor .cm-activeLineGutter {
+  background: var(--color-hover);
+}
+
+.source-editor .ctn-line-root-concept {
+  background: var(--color-accent-subtle);
+}
+
+.source-editor .ctn-line-diagnostic {
+  background: var(--color-error-soft);
+}
+
+.source-editor .ctn-marker,
+.source-editor .ctn-multiline-block-mark {
+  font-family: var(--font-code);
+}
+
+.source-editor .ctn-marker {
+  font-weight: var(--ctn-editor-strong-weight);
+}
+
+.source-editor .ctn-block-text {
+  border-radius: var(--ui-radius);
+}
+
+.source-editor .ctn-block-text-root-concept {
+  font-weight: var(--ctn-editor-strong-weight);
+}
+
+.source-editor .ctn-line:not(.ctn-tone-default) {
+  background: var(--ctn-tone-background, transparent);
+}
+
+.source-editor .ctn-marker,
+.source-editor .ctn-inline {
+  text-decoration-color: var(--ctn-tone-current, var(--color-fg-muted));
+}
+
+.source-editor .ctn-inline {
+  text-decoration-line: underline;
+  text-decoration-thickness: calc(var(--ui-border-width) * 2);
+  text-underline-offset: 0.18em;
+}

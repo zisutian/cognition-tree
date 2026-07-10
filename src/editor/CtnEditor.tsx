@@ -7,6 +7,7 @@ import {
   createCtnTabSizeExtension,
   ctnTabSizeCompartment,
 } from "./ctnEditorExtensions";
+import "./CtnEditor.css";
 
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
 

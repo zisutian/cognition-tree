@@ -57,12 +57,17 @@ function isActiveTreeNode({
 
 type NoteTreeContentProps = NoteTreeProps & {
   dragState: TreeDragState | null;
+  editingNode: { key: string; title: string } | null;
+  pendingDeleteNodeKey: string | null;
   setDragState: Dispatch<SetStateAction<TreeDragState | null>>;
+  setEditingNode: Dispatch<
+    SetStateAction<{ key: string; title: string } | null>
+  >;
+  setPendingDeleteNodeKey: Dispatch<SetStateAction<string | null>>;
 };
 
 function NoteTreeContent({
   activeNoteId,
-  actions,
   activeNode,
   activeFolderId,
   canDragNode,
@@ -72,17 +77,22 @@ function NoteTreeContent({
   nodes,
   renderNoteBadges,
   renderNodeLeading,
+  onDeleteNode,
   onMoveNode,
+  onRenameNode,
   onSelectFolder,
   onSelectNote,
   onToggleFolder,
   dragState,
+  editingNode,
+  pendingDeleteNodeKey,
   setDragState,
+  setEditingNode,
+  setPendingDeleteNodeKey,
 }: NoteTreeContentProps) {
   return (
     <ul className={cx("ui-tree ui-directory-tree", className)}>
       {nodes.map((node) => {
-        const nodeActions = actions?.(node) ?? [];
         const nodeReference = getTreeNodeReference(node);
         const nodeKey = getTreeNodeReferenceKey(nodeReference);
         const isFolder = node.kind === "folder";
@@ -96,6 +106,8 @@ function NoteTreeContent({
           node,
         });
         const draggable = node.canDrag && (canDragNode?.(node) ?? true);
+        const isEditing = editingNode?.key === nodeKey;
+        const isDeletePending = pendingDeleteNodeKey === nodeKey;
         const nodeState = {
           hasChildren,
           isCollapsed,
@@ -122,6 +134,15 @@ function NoteTreeContent({
             <FileText aria-hidden="true" size={13} />
           </>
         );
+        const commitRename = () => {
+          const nextTitle = editingNode?.title.trim() ?? "";
+
+          if (nextTitle && nextTitle !== node.title) {
+            onRenameNode?.(node, nextTitle);
+          }
+
+          setEditingNode(null);
+        };
 
         return (
           <li key={node.id}>
@@ -129,6 +150,8 @@ function NoteTreeContent({
               className={cx(
                 "ui-tree-row-frame",
                 isActive && "is-selected",
+                isEditing && "is-editing",
+                isDeletePending && "is-delete-pending",
                 ...getTreeDragClassNames({ dragState, nodeReference }),
               )}
               onDragLeave={(event) => {
@@ -202,67 +225,126 @@ function NoteTreeContent({
                 setDragState(null);
               }}
             >
-              <button
-                aria-expanded={
-                  isFolder && hasChildren ? !isCollapsed : undefined
-                }
-                className="ui-tree-row ui-directory-tree-row"
-                draggable={draggable}
-                onClick={() => {
-                  if (node.kind === "note") {
-                    onSelectNote?.(node.noteId);
-                    return;
+              {isEditing ? (
+                <div className="ui-tree-row ui-directory-tree-row ui-tree-row-editing">
+                  {leadingContent}
+                  <input
+                    autoFocus
+                    aria-label={`重命名${node.kind === "folder" ? "文件夹" : "笔记"}`}
+                    value={editingNode.title}
+                    onChange={(event) =>
+                      setEditingNode({ key: nodeKey, title: event.target.value })
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitRename();
+                      } else if (event.key === "Escape") {
+                        setEditingNode(null);
+                      }
+                    }}
+                  />
+                  {node.kind === "note" ? renderNoteBadges?.(node) : null}
+                </div>
+              ) : (
+                <button
+                  aria-expanded={
+                    isFolder && hasChildren ? !isCollapsed : undefined
                   }
+                  className="ui-tree-row ui-directory-tree-row"
+                  draggable={draggable}
+                  onClick={() => {
+                    setPendingDeleteNodeKey(null);
 
-                  onSelectFolder?.(node.folderId);
+                    if (node.kind === "note") {
+                      onSelectNote?.(node.noteId);
+                      return;
+                    }
 
-                  if (hasChildren) {
-                    onToggleFolder?.(node.folderId);
-                  }
-                }}
-                onDragEnd={() => setDragState(null)}
-                onDragStart={(event) => {
-                  if (!draggable) {
-                    event.preventDefault();
-                    return;
-                  }
+                    onSelectFolder?.(node.folderId);
 
-                  const payload = createTreeNodeDragPayload(nodeReference);
+                    if (hasChildren) {
+                      onToggleFolder?.(node.folderId);
+                    }
+                  }}
+                  onDragEnd={() => setDragState(null)}
+                  onDragStart={(event) => {
+                    if (!draggable) {
+                      event.preventDefault();
+                      return;
+                    }
 
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData(treeNodeDragDataType, payload);
-                  event.dataTransfer.setData("text/plain", payload);
-                  setDragState({
-                    activeTargetCanDrop: false,
-                    activeTargetKey: null,
-                    source: nodeReference,
-                    sourceKey: nodeKey,
-                  });
-                }}
-                title={node.title}
-                type="button"
-              >
-                {leadingContent}
-                <span className="ui-tree-text">{node.title}</span>
-                {node.kind === "note" ? renderNoteBadges?.(node) : null}
-              </button>
-              {nodeActions.length > 0 ? (
+                    const payload = createTreeNodeDragPayload(nodeReference);
+
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData(treeNodeDragDataType, payload);
+                    event.dataTransfer.setData("text/plain", payload);
+                    setDragState({
+                      activeTargetCanDrop: false,
+                      activeTargetKey: null,
+                      source: nodeReference,
+                      sourceKey: nodeKey,
+                    });
+                  }}
+                  title={node.title}
+                  type="button"
+                >
+                  {leadingContent}
+                  <span className="ui-tree-text">{node.title}</span>
+                  {node.kind === "note" ? renderNoteBadges?.(node) : null}
+                </button>
+              )}
+              {onRenameNode || onDeleteNode ? (
                 <span className="ui-tree-actions">
-                  {nodeActions.map((action) => (
-                    <button
-                      disabled={action.disabled}
-                      key={action.label}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        action.onClick();
-                      }}
-                      onMouseDown={(event) => event.stopPropagation()}
-                      title={action.title}
-                      type="button"
-                    >
-                      {action.label}
-                    </button>
-                  ))}
+                  {isEditing ? (
+                    <>
+                      <button onClick={commitRename} type="button">确定</button>
+                      <button onClick={() => setEditingNode(null)} type="button">取消</button>
+                    </>
+                  ) : isDeletePending ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          onDeleteNode?.(node);
+                          setPendingDeleteNodeKey(null);
+                        }}
+                        type="button"
+                      >
+                        确认
+                      </button>
+                      <button
+                        onClick={() => setPendingDeleteNodeKey(null)}
+                        type="button"
+                      >
+                        取消
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {onRenameNode ? (
+                        <button
+                          onClick={() => {
+                            setEditingNode({ key: nodeKey, title: node.title });
+                            setPendingDeleteNodeKey(null);
+                          }}
+                          type="button"
+                        >
+                          改
+                        </button>
+                      ) : null}
+                      {onDeleteNode ? (
+                        <button
+                          onClick={() => {
+                            setEditingNode(null);
+                            setPendingDeleteNodeKey(nodeKey);
+                          }}
+                          type="button"
+                        >
+                          删
+                        </button>
+                      ) : null}
+                    </>
+                  )}
                 </span>
               ) : null}
             </div>
@@ -271,16 +353,21 @@ function NoteTreeContent({
                 activeFolderId={activeFolderId}
                 activeNode={activeNode}
                 activeNoteId={activeNoteId}
-                actions={actions}
                 canDragNode={canDragNode}
                 canDropNode={canDropNode}
                 collapsedFolderIds={collapsedFolderIds}
                 dragState={dragState}
+                editingNode={editingNode}
                 nodes={node.children}
+                pendingDeleteNodeKey={pendingDeleteNodeKey}
                 renderNoteBadges={renderNoteBadges}
                 renderNodeLeading={renderNodeLeading}
                 setDragState={setDragState}
+                setEditingNode={setEditingNode}
+                setPendingDeleteNodeKey={setPendingDeleteNodeKey}
+                onDeleteNode={onDeleteNode}
                 onMoveNode={onMoveNode}
+                onRenameNode={onRenameNode}
                 onSelectFolder={onSelectFolder}
                 onSelectNote={onSelectNote}
                 onToggleFolder={onToggleFolder}
@@ -295,12 +382,23 @@ function NoteTreeContent({
 
 export function NoteTree(props: NoteTreeProps) {
   const [dragState, setDragState] = useState<TreeDragState | null>(null);
+  const [editingNode, setEditingNode] = useState<{
+    key: string;
+    title: string;
+  } | null>(null);
+  const [pendingDeleteNodeKey, setPendingDeleteNodeKey] = useState<string | null>(
+    null,
+  );
 
   return (
     <NoteTreeContent
       {...props}
       dragState={dragState}
+      editingNode={editingNode}
+      pendingDeleteNodeKey={pendingDeleteNodeKey}
       setDragState={setDragState}
+      setEditingNode={setEditingNode}
+      setPendingDeleteNodeKey={setPendingDeleteNodeKey}
     />
   );
 }

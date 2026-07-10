@@ -74,13 +74,6 @@ export type TreeMoveRequest = {
   target: TreeNodeReference;
 };
 
-export type NoteTreeAction = {
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-  title?: string;
-};
-
 export type NoteTreeActiveNode =
   | {
       folderId: string;
@@ -108,7 +101,6 @@ export type NoteTreeProps = {
   activeFolderId?: string | null;
   activeNoteId?: string | null;
   activeNode?: NoteTreeActiveNode | null;
-  actions?: (node: TreeNode) => NoteTreeAction[];
   canDragNode?: (node: TreeNode) => boolean;
   canDropNode?: (source: TreeNodeReference, target: TreeNodeReference) => boolean;
   className?: string;
@@ -116,7 +108,9 @@ export type NoteTreeProps = {
   nodes: TreeNode[];
   renderNoteBadges?: (node: Extract<TreeNode, { kind: "note" }>) => ReactNode;
   renderNodeLeading?: (node: TreeNode, state: NoteTreeNodeState) => ReactNode;
+  onDeleteNode?: (node: TreeNode) => void;
   onMoveNode?: (request: TreeMoveRequest) => void;
+  onRenameNode?: (node: TreeNode, title: string) => void;
   onSelectFolder?: (folderId: string) => void;
   onSelectNote?: (noteId: string) => void;
   onToggleFolder?: (folderId: string) => void;

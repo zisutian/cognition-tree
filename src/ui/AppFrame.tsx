@@ -36,7 +36,6 @@ export function AppFrame({
   isContextResizing,
   isDetailResizing,
   mainSlot,
-  mainSpan,
   onActivityChange,
   onContextResizeKeyDown,
   onContextResizeStart,
@@ -56,7 +55,6 @@ export function AppFrame({
   isContextResizing: boolean;
   isDetailResizing: boolean;
   mainSlot: ReactNode;
-  mainSpan: "full" | "standard";
   onActivityChange: (activityId: ActivityId) => void;
   onContextResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onContextResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
@@ -73,7 +71,6 @@ export function AppFrame({
     showContext ? "has-context" : "no-context",
     hasDetail ? "has-detail" : "no-detail",
     detailCollapsed && hasDetail ? "detail-collapsed" : "",
-    mainSpan === "full" ? "main-full" : "main-standard",
     isContextResizing ? "is-resizing-context" : "",
     isDetailResizing ? "is-resizing-detail" : "",
   ]

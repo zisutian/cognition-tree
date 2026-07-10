@@ -8,7 +8,9 @@ import { createView } from "../../viewFactory";
 
 describe("visualization panels", () => {
   it("keeps main graph controls free of header metrics and visible search label", () => {
-    const markup = renderToStaticMarkup(<VisualizationPanel view={createView()} />);
+    const markup = renderToStaticMarkup(
+      <VisualizationPanel view={createView().visualization} />,
+    );
 
     expect(markup).toContain("引用图谱");
     expect(markup).toContain("ui-segmented-control");
@@ -104,7 +106,7 @@ describe("visualization panels", () => {
     const markup = renderToStaticMarkup(
       <VisualizationDetailPanel
         onCollapseDetail={() => undefined}
-        view={view}
+        view={view.visualization}
       />,
     );
 

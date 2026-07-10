@@ -25,5 +25,4 @@ export type ActivitySlots = {
   context: ActivityContextSlot | null;
   detail: ReactNode | null;
   main: ReactNode;
-  mainSpan: "full" | "standard";
 };

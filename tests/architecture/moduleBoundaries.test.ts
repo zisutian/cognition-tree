@@ -257,6 +257,7 @@ describe("architecture module boundaries", () => {
       "workspaceSaveQueue.ts",
     ]);
     expect(listSourceFileNames("application/workspace/view-model")).toEqual([
+      "activityViewModels.ts",
       "selection.ts",
       "sidebarTreeMove.ts",
       "structureOperationTargetPosition.ts",
@@ -271,7 +272,6 @@ describe("architecture module boundaries", () => {
       "viewBlocks.ts",
       "viewEditor.ts",
       "viewGraph.ts",
-      "viewSidebar.ts",
       "viewStructureOperation.ts",
       "viewSyntax.ts",
       "viewText.ts",
@@ -308,11 +308,17 @@ describe("architecture module boundaries", () => {
     ]);
     expect(listAllFileNames("ui/styles/shared")).toEqual([
       "blockText.css",
+      "context.css",
       "primitives.css",
       "tree.css",
     ]);
     expect(listAllFileNames("ui/styles/activities")).toEqual([
-      "activities.css",
+      "notes.css",
+      "placeholder.css",
+      "settings.css",
+      "structure-operation.css",
+      "syntax.css",
+      "visualization.css",
     ]);
     expect(listImmediateSourceFileNames("ui/activities")).toEqual([
       "PlaceholderPanel.tsx",
@@ -395,6 +401,56 @@ describe("architecture module boundaries", () => {
     expect(primitiveSelectorDefinitions).toEqual([]);
   });
 
+  it("keeps activity components on activity-specific view models", () => {
+    const violations = listSourceFiles("ui/activities")
+      .filter(
+        (filePath) =>
+          filePath !== "../../src/ui/activities/activityRegistry.tsx",
+      )
+      .flatMap((filePath) => {
+        const source = sourceModules[filePath] ?? "";
+
+        return /\bViewModel\b/.test(source)
+          ? [sourcePathToRelative(filePath)]
+          : [];
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps workbench interactions out of native browser dialogs", () => {
+    const uiSource = listSourceFiles("ui")
+      .map((filePath) => sourceModules[filePath])
+      .join("\n");
+
+    expect(uiSource).not.toMatch(/window\.(?:alert|confirm|prompt)\s*\(/);
+  });
+
+  it("keeps editor and activity styles in their owning modules", () => {
+    const sharedStyleSource = Object.entries(sourceStyleModules)
+      .filter(([filePath]) =>
+        filePath.startsWith("../../src/ui/styles/shared/"),
+      )
+      .map(([, source]) => source)
+      .join("\n");
+    const activityStyleSource = Object.entries(sourceStyleModules)
+      .filter(([filePath]) =>
+        filePath.startsWith("../../src/ui/styles/activities/"),
+      )
+      .map(([, source]) => source)
+      .join("\n");
+    const editorSource = readStyleSource("editor/CtnEditor.css");
+
+    expect(sharedStyleSource).not.toMatch(
+      /\.(?:graph|settings|structure-operation|syntax)-/,
+    );
+    expect(activityStyleSource).not.toContain(".source-editor");
+    expect(editorSource).toContain(".source-editor");
+    expect(editorSource).toContain(
+      ".source-editor .ctn-line:not(.ctn-tone-default)",
+    );
+  });
+
   it("keeps activity styles from redefining shared panel titles", () => {
     const titleSelectorPattern =
       /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.context-panel-header)(?:\s|[.{:#>])/;
@@ -420,7 +476,7 @@ describe("architecture module boundaries", () => {
     const primitiveSource = readStyleSource("ui/styles/shared/primitives.css");
     const frameSource = readStyleSource("ui/styles/frame/frame.css");
     const treeSource = readStyleSource("ui/styles/shared/tree.css");
-    const activitiesSource = readStyleSource("ui/styles/activities/activities.css");
+    const editorSource = readStyleSource("editor/CtnEditor.css");
 
     expect(themeSource).toContain("--font-ui");
     expect(themeSource).toContain("--font-content");
@@ -447,7 +503,7 @@ describe("architecture module boundaries", () => {
     expect(primitiveSource).toContain("var(--ui-numeric-font-variant)");
     expect(frameSource).toContain("var(--ui-micro-font-size)");
     expect(treeSource).toContain("var(--ui-numeric-font-variant)");
-    expect(activitiesSource).toContain("var(--ctn-editor-font-size)");
+    expect(editorSource).toContain("var(--ctn-editor-font-size)");
     expect(`${primitiveSource}\n${frameSource}`).not.toContain(
       "text-transform: uppercase",
     );

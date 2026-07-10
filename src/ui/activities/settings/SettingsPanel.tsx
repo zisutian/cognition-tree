@@ -1,5 +1,6 @@
 import { RefreshCw } from "lucide-react";
-import type { ViewModel } from "../../../application/workspace/view-model/useViewModel";
+import { useEffect, useState } from "react";
+import type { SettingsViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   Button,
   Panel,
@@ -8,17 +9,25 @@ import {
   Section,
 } from "../../shared/primitives";
 
-export function SettingsPanel({ view }: { view: ViewModel }) {
-  const changeRepositoryPath = () => {
-    if (!view.canChangeRepositoryPath) {
+export function SettingsPanel({ view }: { view: SettingsViewModel }) {
+  const [editingPath, setEditingPath] = useState(false);
+  const [repositoryPath, setRepositoryPath] = useState(view.repositoryPath);
+
+  useEffect(() => {
+    if (!editingPath) {
+      setRepositoryPath(view.repositoryPath);
+    }
+  }, [editingPath, view.repositoryPath]);
+
+  const changeRepositoryPath = async () => {
+    const nextPath = repositoryPath.trim();
+
+    if (!view.canChangeRepositoryPath || !nextPath) {
       return;
     }
 
-    const nextPath = window.prompt("仓库文件夹路径", view.sidebar.repositoryPath);
-
-    if (nextPath) {
-      void view.changeRepositoryPath(nextPath);
-    }
+    await view.changeRepositoryPath(nextPath);
+    setEditingPath(false);
   };
 
   return (
@@ -32,7 +41,7 @@ export function SettingsPanel({ view }: { view: ViewModel }) {
               刷新
             </Button>
             {view.canChangeRepositoryPath ? (
-              <Button onClick={changeRepositoryPath} type="button" variant="secondary">
+              <Button onClick={() => setEditingPath(true)} type="button" variant="secondary">
                 更改仓库
               </Button>
             ) : null}
@@ -44,15 +53,41 @@ export function SettingsPanel({ view }: { view: ViewModel }) {
           <dl className="settings-grid">
             <div>
               <dt>存储</dt>
-              <dd>{view.sidebar.storageLabel}</dd>
+              <dd>{view.storageLabel}</dd>
             </div>
             <div>
               <dt>状态</dt>
-              <dd>{view.sidebar.saveStatusLabel}</dd>
+              <dd>{view.saveStatusLabel}</dd>
             </div>
             <div>
               <dt>路径</dt>
-              <dd>{view.sidebar.repositoryPath || "加载中"}</dd>
+              <dd>
+                {editingPath ? (
+                  <form
+                    className="settings-path-editor"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void changeRepositoryPath();
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      aria-label="仓库文件夹路径"
+                      value={repositoryPath}
+                      onChange={(event) => setRepositoryPath(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          setEditingPath(false);
+                        }
+                      }}
+                    />
+                    <Button type="submit" variant="secondary">应用</Button>
+                    <Button onClick={() => setEditingPath(false)} type="button" variant="ghost">取消</Button>
+                  </form>
+                ) : (
+                  view.repositoryPath || "加载中"
+                )}
+              </dd>
             </div>
           </dl>
         </Section>

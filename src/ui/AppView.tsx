@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ViewModel } from "../application/workspace/view-model/useViewModel";
+import type { ViewModel } from "../application/workspace/view-model/activityViewModels";
 import type { ActivityId } from "./activityTypes";
 import { createActivitySlots } from "./activities/activityRegistry";
 import { AppFrame } from "./AppFrame";
@@ -185,7 +185,6 @@ function AppView({
       isContextResizing={isContextResizing}
       isDetailResizing={isDetailResizing}
       mainSlot={activitySlots.main}
-      mainSpan={activitySlots.mainSpan}
       onActivityChange={handleActivityChange}
       onContextResizeKeyDown={resizeContextByKeyboard}
       onContextResizeStart={startContextResize}
