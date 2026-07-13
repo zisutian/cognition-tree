@@ -2,16 +2,14 @@ import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
 import { createInitialWorkspaceData } from "../../../src/workspace/model/workspaceData";
-import {
-  assertValidWorkspaceSyntaxProfile,
-  createWorkspaceContext,
-} from "../../../src/workspace/context/workspaceContext";
+import { attachWorkspaceSyntaxProfile } from "../../../src/workspace/context/workspaceContext";
+import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 
 describe("workspace context syntax profile", () => {
   it("creates a context with a valid workspace syntax profile", () => {
     expect(
-      createWorkspaceContext(
-        createInitialWorkspaceData(),
+      attachWorkspaceSyntaxProfile(
+        createWorkspaceStructureIndex(createInitialWorkspaceData()),
         defaultCtnSyntaxProfile,
       ),
     ).toMatchObject({
@@ -28,11 +26,11 @@ describe("workspace context syntax profile", () => {
       tabDisplayWidth: 17,
     } satisfies CtnSyntaxProfile;
 
-    expect(() => assertValidWorkspaceSyntaxProfile(invalidProfile)).toThrow(
-      "Invalid workspace syntax profile",
-    );
     expect(() =>
-      createWorkspaceContext(createInitialWorkspaceData(), invalidProfile),
+      attachWorkspaceSyntaxProfile(
+        createWorkspaceStructureIndex(createInitialWorkspaceData()),
+        invalidProfile,
+      ),
     ).toThrow(
       "Invalid workspace syntax profile",
     );

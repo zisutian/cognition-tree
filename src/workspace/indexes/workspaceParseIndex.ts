@@ -136,9 +136,13 @@ function createTitleIndex(notes: NoteRecord[]) {
 
   for (const note of notes) {
     const normalizedTitle = normalizeReferenceText(note.title);
-    const current = titleIndex.get(normalizedTitle) ?? [];
+    const current = titleIndex.get(normalizedTitle);
 
-    titleIndex.set(normalizedTitle, [...current, note]);
+    if (current) {
+      current.push(note);
+    } else {
+      titleIndex.set(normalizedTitle, [note]);
+    }
   }
 
   return titleIndex;

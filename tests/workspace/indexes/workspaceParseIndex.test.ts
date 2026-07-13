@@ -64,6 +64,27 @@ describe("createWorkspaceParseIndex", () => {
     expect(index.parseCache.entriesById.size).toBe(2);
   });
 
+  it("resolves a reference to every note with the same normalized title", () => {
+    const source = createNoteRecord(
+      "note-source",
+      "Source [[Target]]",
+      timestamp,
+    );
+    const firstTarget = createNoteRecord("note-target-a", "Target", timestamp);
+    const secondTarget = createNoteRecord(
+      "note-target-b",
+      "  Target  ",
+      timestamp,
+    );
+    const index = createWorkspaceParseIndex(
+      createParseIndexSource([source, firstTarget, secondTarget]),
+    );
+
+    expect(
+      index.referenceGraph.edges.map((edge) => edge.targetNoteId),
+    ).toEqual(["note-target-a", "note-target-b"]);
+  });
+
   it("reuses parsed documents for unchanged note sources", () => {
     const source = createNoteRecord("note-source", "Source", timestamp);
     const target = createNoteRecord("note-target", "Target", timestamp);
