@@ -11,7 +11,7 @@ import {
   appDetailMaxWidth,
   appDetailMinWidth,
 } from "./frameResize";
-import { Button } from "./shared/primitives";
+import { Button, cx } from "./shared/primitives";
 import type { WorkbenchLayout } from "./useWorkbenchLayout";
 
 type AppFrameStyle = CSSProperties & {
@@ -52,16 +52,14 @@ export function AppFrame({
   const hasContext = contextSlot !== null;
   const showContext = hasContext && !contextCollapsed;
   const hasDetail = detailSlot !== null;
-  const frameClassName = [
+  const frameClassName = cx(
     "app-frame",
     showContext ? "has-context" : "no-context",
     hasDetail ? "has-detail" : "no-detail",
-    detailCollapsed && hasDetail ? "detail-collapsed" : "",
-    isContextResizing ? "is-resizing-context" : "",
-    isDetailResizing ? "is-resizing-detail" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+    detailCollapsed && hasDetail && "detail-collapsed",
+    isContextResizing && "is-resizing-context",
+    isDetailResizing && "is-resizing-detail",
+  );
   const style: AppFrameStyle = {
     ...(contextWidth === null
       ? {}

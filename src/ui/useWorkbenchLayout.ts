@@ -49,31 +49,51 @@ export function useWorkbenchLayout() {
 
   useEffect(() => () => removeResizeListeners(), [removeResizeListeners]);
 
-  const startContextResize = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || contextCollapsed) {
+  const startPanelResize = ({
+    clampWidth,
+    collapsed,
+    direction,
+    event,
+    panelSelector,
+    resizeValue,
+    setResizing,
+    setWidth,
+  }: {
+    clampWidth: (width: number) => number;
+    collapsed: boolean;
+    direction: 1 | -1;
+    event: PointerEvent<HTMLDivElement>;
+    panelSelector: string;
+    resizeValue: number;
+    setResizing: (resizing: boolean) => void;
+    setWidth: (width: number) => void;
+  }) => {
+    if (event.button !== 0 || collapsed) {
       return;
     }
 
     event.preventDefault();
     removeResizeListeners();
     const startX = event.clientX;
-    const startWidth = clampAppContextWidth(
-      event.currentTarget.closest(".app-context")?.getBoundingClientRect().width ??
-        contextResizeValue,
+    const startWidth = clampWidth(
+      event.currentTarget.closest(panelSelector)?.getBoundingClientRect().width ??
+        resizeValue,
     );
 
-    setContextWidth(startWidth);
-    setIsContextResizing(true);
+    setWidth(startWidth);
+    setResizing(true);
 
     const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
       moveEvent.preventDefault();
-      setContextWidth(
-        clampAppContextWidth(startWidth + moveEvent.clientX - startX),
+      setWidth(
+        clampWidth(
+          startWidth + direction * (moveEvent.clientX - startX),
+        ),
       );
     };
     const handlePointerEnd = () => {
       removeResizeListeners();
-      setIsContextResizing(false);
+      setResizing(false);
     };
 
     document.addEventListener("pointermove", handlePointerMove);
@@ -85,64 +105,55 @@ export function useWorkbenchLayout() {
       document.removeEventListener("pointercancel", handlePointerEnd);
     };
   };
-  const startDetailResize = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || detailCollapsed) {
-      return;
+  const resizePanelByKeyboard = (
+    event: KeyboardEvent<HTMLDivElement>,
+    resizeValue: number,
+    resolveWidth: (currentWidth: number, key: string) => number | null,
+    setWidth: (width: number) => void,
+  ) => {
+    const nextWidth = resolveWidth(resizeValue, event.key);
+
+    if (nextWidth !== null) {
+      event.preventDefault();
+      setWidth(nextWidth);
     }
-
-    event.preventDefault();
-    removeResizeListeners();
-    const startX = event.clientX;
-    const startWidth = clampAppDetailWidth(
-      event.currentTarget.closest(".app-detail")?.getBoundingClientRect().width ??
-        detailResizeValue,
-    );
-
-    setDetailWidth(startWidth);
-    setIsDetailResizing(true);
-
-    const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-      moveEvent.preventDefault();
-      setDetailWidth(
-        clampAppDetailWidth(startWidth + startX - moveEvent.clientX),
-      );
-    };
-    const handlePointerEnd = () => {
-      removeResizeListeners();
-      setIsDetailResizing(false);
-    };
-
-    document.addEventListener("pointermove", handlePointerMove);
-    document.addEventListener("pointerup", handlePointerEnd);
-    document.addEventListener("pointercancel", handlePointerEnd);
-    removeResizeListenersRef.current = () => {
-      document.removeEventListener("pointermove", handlePointerMove);
-      document.removeEventListener("pointerup", handlePointerEnd);
-      document.removeEventListener("pointercancel", handlePointerEnd);
-    };
   };
-  const resizeContextByKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
-    const nextWidth = getAppContextKeyboardResizeWidth(
+  const startContextResize = (event: PointerEvent<HTMLDivElement>) =>
+    startPanelResize({
+      clampWidth: clampAppContextWidth,
+      collapsed: contextCollapsed,
+      direction: 1,
+      event,
+      panelSelector: ".app-context",
+      resizeValue: contextResizeValue,
+      setResizing: setIsContextResizing,
+      setWidth: setContextWidth,
+    });
+  const startDetailResize = (event: PointerEvent<HTMLDivElement>) =>
+    startPanelResize({
+      clampWidth: clampAppDetailWidth,
+      collapsed: detailCollapsed,
+      direction: -1,
+      event,
+      panelSelector: ".app-detail",
+      resizeValue: detailResizeValue,
+      setResizing: setIsDetailResizing,
+      setWidth: setDetailWidth,
+    });
+  const resizeContextByKeyboard = (event: KeyboardEvent<HTMLDivElement>) =>
+    resizePanelByKeyboard(
+      event,
       contextResizeValue,
-      event.key,
+      getAppContextKeyboardResizeWidth,
+      setContextWidth,
     );
-
-    if (nextWidth !== null) {
-      event.preventDefault();
-      setContextWidth(nextWidth);
-    }
-  };
-  const resizeDetailByKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
-    const nextWidth = getAppDetailKeyboardResizeWidth(
+  const resizeDetailByKeyboard = (event: KeyboardEvent<HTMLDivElement>) =>
+    resizePanelByKeyboard(
+      event,
       detailResizeValue,
-      event.key,
+      getAppDetailKeyboardResizeWidth,
+      setDetailWidth,
     );
-
-    if (nextWidth !== null) {
-      event.preventDefault();
-      setDetailWidth(nextWidth);
-    }
-  };
   const expandPanels = () => {
     setContextCollapsed(false);
     setDetailCollapsed(false);
