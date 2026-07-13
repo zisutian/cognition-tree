@@ -172,6 +172,16 @@ function resolveRelativeSourceImport(filePath: string, importPath: string) {
   return targetPath.startsWith("../../src/") ? targetPath : null;
 }
 
+function resolveSourceFilePath(targetPath: string) {
+  return [
+    targetPath,
+    `${targetPath}.ts`,
+    `${targetPath}.tsx`,
+    `${targetPath}/index.ts`,
+    `${targetPath}/index.tsx`,
+  ].find((candidate) => candidate in sourceModules) ?? null;
+}
+
 export function readSourceImports(filePath: string): SourceImport[] {
   return readModuleImports(sourceModules, filePath).flatMap((importPath) => {
     const targetPath = resolveRelativeSourceImport(filePath, importPath);
@@ -191,4 +201,83 @@ export function readSourceImports(filePath: string): SourceImport[] {
 
 export function listInternalSourceImports() {
   return Object.keys(sourceModules).flatMap(readSourceImports);
+}
+
+export function findDependencyCycles(
+  graph: ReadonlyMap<string, readonly string[]>,
+) {
+  const indexByNode = new Map<string, number>();
+  const lowLinkByNode = new Map<string, number>();
+  const stack: string[] = [];
+  const nodesOnStack = new Set<string>();
+  const cycles: string[][] = [];
+  let nextIndex = 0;
+
+  const visit = (node: string) => {
+    indexByNode.set(node, nextIndex);
+    lowLinkByNode.set(node, nextIndex);
+    nextIndex += 1;
+    stack.push(node);
+    nodesOnStack.add(node);
+
+    for (const target of graph.get(node) ?? []) {
+      if (!indexByNode.has(target)) {
+        visit(target);
+        lowLinkByNode.set(
+          node,
+          Math.min(lowLinkByNode.get(node)!, lowLinkByNode.get(target)!),
+        );
+      } else if (nodesOnStack.has(target)) {
+        lowLinkByNode.set(
+          node,
+          Math.min(lowLinkByNode.get(node)!, indexByNode.get(target)!),
+        );
+      }
+    }
+
+    if (lowLinkByNode.get(node) !== indexByNode.get(node)) {
+      return;
+    }
+
+    const component: string[] = [];
+    let member: string;
+
+    do {
+      member = stack.pop()!;
+      nodesOnStack.delete(member);
+      component.push(member);
+    } while (member !== node);
+
+    if (
+      component.length > 1 ||
+      (graph.get(node) ?? []).includes(node)
+    ) {
+      cycles.push(component.sort());
+    }
+  };
+
+  for (const node of graph.keys()) {
+    if (!indexByNode.has(node)) {
+      visit(node);
+    }
+  }
+
+  return cycles.sort(([left], [right]) => left.localeCompare(right));
+}
+
+export function listSourceDependencyCycles() {
+  const graph = new Map(
+    Object.keys(sourceModules).map((filePath) => [
+      filePath,
+      readSourceImports(filePath).flatMap(({ targetPath }) => {
+        const targetFilePath = resolveSourceFilePath(targetPath);
+
+        return targetFilePath ? [targetFilePath] : [];
+      }),
+    ]),
+  );
+
+  return findDependencyCycles(graph).map((cycle) =>
+    cycle.map(sourcePathToRelative),
+  );
 }

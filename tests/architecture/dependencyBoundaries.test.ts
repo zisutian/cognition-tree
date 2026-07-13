@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   contractModules,
+  findDependencyCycles,
   getSourceRoot,
   listInternalSourceImports,
+  listSourceDependencyCycles,
   listSourceFiles,
   readModuleImports,
   readSourceImports,
@@ -72,6 +74,23 @@ describe("dependency boundaries", () => {
     );
 
     expect(violations).toEqual([]);
+  });
+
+  it("detects dependency cycles as strongly connected components", () => {
+    expect(
+      findDependencyCycles(
+        new Map([
+          ["a", ["b"]],
+          ["b", ["a"]],
+          ["independent", []],
+          ["self", ["self"]],
+        ]),
+      ),
+    ).toEqual([["a", "b"], ["self"]]);
+  });
+
+  it("keeps the source dependency graph acyclic", () => {
+    expect(listSourceDependencyCycles()).toEqual([]);
   });
 
   it("keeps application activity state behind local activity boundaries", () => {

@@ -7,9 +7,6 @@ import {
   type WorkspaceSessionControllerState,
   type WorkspaceSessionReadyState,
 } from "./workspaceSessionController";
-export type { SessionCommands } from "./sessionCommands";
-export type { WorkspaceSessionSaveStatus } from "./workspaceSessionSaveQueue";
-
 type ActiveSessionState =
   | WorkspaceSessionConflictState
   | WorkspaceSessionReadyState;
