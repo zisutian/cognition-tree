@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
@@ -8,9 +8,9 @@ import {
   type WorkspaceStructureIndex,
 } from "../../../workspace/indexes/workspaceStructureIndex";
 import {
-  createWorkspaceSaveQueue,
-  type WorkspaceSaveStatus,
-} from "./workspaceSaveQueue";
+  createWorkspaceSessionSaveQueue,
+  type WorkspaceSessionSaveStatus,
+} from "./workspaceSessionSaveQueue";
 import {
   createSessionCommands,
   type SessionCommands,
@@ -26,12 +26,9 @@ import {
   type WorkspaceSyntaxFile,
   workspaceSyntaxFileName,
 } from "../../../workspace/context/workspaceSyntaxFile";
-import {
-  loadWorkspaceSessionSnapshot,
-  loadWorkspaceSyntaxSessionSnapshot,
-} from "./sessionRepositorySnapshot";
+import { loadWorkspaceSessionSnapshot } from "./sessionRepositorySnapshot";
 
-export type { WorkspaceSaveStatus } from "./workspaceSaveQueue";
+export type { WorkspaceSessionSaveStatus } from "./workspaceSessionSaveQueue";
 export type { SessionCommands } from "./sessionCommands";
 
 export type Session = {
@@ -49,7 +46,7 @@ export type Session = {
   context: WorkspaceContext | null;
   commands: SessionCommands;
   errorMessage: string;
-  saveStatus: WorkspaceSaveStatus;
+  saveStatus: WorkspaceSessionSaveStatus;
 };
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
@@ -66,7 +63,7 @@ export function useSession({
   const [isLoaded, setIsLoaded] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [saveStatus, setSaveStatus] =
-    useState<WorkspaceSaveStatus>("idle");
+    useState<WorkspaceSessionSaveStatus>("idle");
   const [repositoryPath, setRepositoryPath] = useState("");
   const [workspaceSyntaxFile, setWorkspaceSyntaxFile] =
     useState<WorkspaceSyntaxFile | null>(null);
@@ -75,6 +72,8 @@ export function useSession({
     [],
   );
   const isMountedRef = useRef(true);
+  const latestSyntaxFileRef = useRef<WorkspaceSyntaxFile | null>(null);
+  const latestSyntaxSourceRef = useRef("");
   const workspace = useMemo(
     () => createWorkspaceStructureIndex(workspaceData),
     [workspaceData],
@@ -89,14 +88,6 @@ export function useSession({
         : null,
     [workspaceSyntaxFile, workspace],
   );
-  const commands = useMemo(
-    (): SessionCommands => createSessionCommands({
-      commitDataSnapshot,
-      workspace,
-    }),
-    [workspace],
-  );
-
   useEffect(() => {
     isMountedRef.current = true;
 
@@ -107,7 +98,7 @@ export function useSession({
 
   const saveQueue = useMemo(
     () =>
-      createWorkspaceSaveQueue({
+      createWorkspaceSessionSaveQueue({
         onError(error) {
           if (isMountedRef.current) {
             setErrorMessage(
@@ -126,9 +117,33 @@ export function useSession({
 
           setSaveStatus(status);
         },
-        save: (nextData) => repository.saveWorkspace(nextData),
+        onSyntaxSourceSaved(source) {
+          if (
+            isMountedRef.current &&
+            latestSyntaxSourceRef.current === source
+          ) {
+            setWorkspaceSyntaxFile(latestSyntaxFileRef.current);
+          }
+        },
+        saveSyntaxSource: (source) =>
+          repository.saveWorkspaceSyntaxSource(source),
+        saveWorkspace: (nextData) => repository.saveWorkspace(nextData),
       }),
     [repository],
+  );
+  const commitWorkspaceData = useCallback(
+    (nextData: WorkspaceData) => {
+      commitDataSnapshot(nextData);
+      saveQueue.enqueueWorkspace(nextData);
+    },
+    [saveQueue],
+  );
+  const commands = useMemo(
+    (): SessionCommands => createSessionCommands({
+      commitDataSnapshot: commitWorkspaceData,
+      workspace,
+    }),
+    [commitWorkspaceData, workspace],
   );
 
   useEffect(() => {
@@ -162,16 +177,17 @@ export function useSession({
     };
   }, [repository]);
 
-  useEffect(() => {
-    if (isLoaded) {
-      saveQueue.enqueue(workspaceData);
-    }
-  }, [isLoaded, saveQueue, workspaceData]);
-
   const reload = async () => {
-    setIsLoaded(false);
     setErrorMessage("");
-    await saveQueue.waitForIdle();
+
+    try {
+      await saveQueue.flush();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "工作区保存失败，无法重新加载。"));
+      return;
+    }
+
+    setIsLoaded(false);
 
     try {
       const snapshot = await loadWorkspaceSessionSnapshot(repository);
@@ -187,13 +203,6 @@ export function useSession({
     }
   };
 
-  const refreshSyntaxState = async () => {
-    const snapshot = await loadWorkspaceSyntaxSessionSnapshot(repository);
-
-    setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
-    commitDataSnapshot(snapshot.workspaceData);
-  };
-
   const changeRepositoryPath = async (path: string) => {
     const nextPath = path.trim();
 
@@ -205,26 +214,42 @@ export function useSession({
       return;
     }
 
+    try {
+      await saveQueue.flush();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "工作区保存失败，无法切换仓库。"));
+      return;
+    }
+
     setIsLoaded(false);
-    await saveQueue.waitForIdle();
 
-    await repository.setRepositoryPath(nextPath);
+    try {
+      await repository.setRepositoryPath(nextPath);
 
-    const snapshot = await loadWorkspaceSessionSnapshot(repository);
+      const snapshot = await loadWorkspaceSessionSnapshot(repository);
 
-    setRepositoryPath(snapshot.repositoryPath);
-    setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
-    commitDataSnapshot(snapshot.workspaceData);
-    setErrorMessage("");
-    setSaveStatus("idle");
-    setIsLoaded(true);
+      setRepositoryPath(snapshot.repositoryPath);
+      setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
+      commitDataSnapshot(snapshot.workspaceData);
+      setErrorMessage("");
+      setSaveStatus("idle");
+      setIsLoaded(true);
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "仓库切换失败。"));
+      setSaveStatus("error");
+    }
   };
 
   const updateWorkspaceSyntaxSource = async (source: string) => {
     try {
-      parseWorkspaceSyntaxSource(workspaceSyntaxFileName, source);
-      await repository.saveWorkspaceSyntaxSource(source);
-      await refreshSyntaxState();
+      const syntaxFile = parseWorkspaceSyntaxSource(
+        workspaceSyntaxFileName,
+        source,
+      );
+
+      latestSyntaxFileRef.current = syntaxFile;
+      latestSyntaxSourceRef.current = source;
+      await saveQueue.enqueueSyntaxSource(source);
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(

@@ -23,7 +23,7 @@ import {
 } from "../projection/viewTree";
 import { createUiSyntaxView } from "../projection/viewSyntax";
 import type {
-  WorkspaceSaveStatus,
+  WorkspaceSessionSaveStatus,
   Session,
 } from "../session/useSession";
 import { createSyntaxDraftActions } from "./syntaxDraftActions";
@@ -50,9 +50,10 @@ export type WorkspaceViewModelScope = {
   visualization: boolean;
 };
 
-const saveStatusLabels: Record<WorkspaceSaveStatus, string> = {
+const saveStatusLabels: Record<WorkspaceSessionSaveStatus, string> = {
   error: "保存失败",
   idle: "等待保存",
+  pending: "等待保存",
   saved: "已保存",
   saving: "保存中",
 };
@@ -244,6 +245,8 @@ export function useViewModel(
     isLoaded,
     syntaxProfile:
       workspaceSyntaxFile?.profile ?? defaultWorkspaceSyntaxFile.profile,
+    syntaxSource:
+      workspaceSyntaxFile?.source ?? defaultWorkspaceSyntaxFile.source,
     updateWorkspaceSyntaxSource,
     workspace: context?.workspace ?? null,
   });

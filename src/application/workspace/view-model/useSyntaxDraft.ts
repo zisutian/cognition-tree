@@ -14,6 +14,7 @@ import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspa
 type UseSyntaxDraftOptions = {
   isLoaded: boolean;
   syntaxProfile: CtnSyntaxProfile;
+  syntaxSource: string;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
   workspace: WorkspaceStructureIndex | null;
 };
@@ -27,9 +28,35 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
+export function resolveSyntaxDraftAfterPersistence({
+  currentDraft,
+  previousPersistedSource,
+  syntaxProfile,
+  syntaxSource,
+}: {
+  currentDraft: SyntaxProfileDraft;
+  previousPersistedSource: string;
+  syntaxProfile: CtnSyntaxProfile;
+  syntaxSource: string;
+}) {
+  const currentDraftResult = buildSyntaxProfileDraft(currentDraft);
+  const currentDraftSource = currentDraftResult.profile
+    ? formatSyntaxProfileToml(currentDraftResult.profile)
+    : null;
+
+  if (currentDraftSource === syntaxSource) {
+    return currentDraft;
+  }
+
+  return !previousPersistedSource || currentDraftSource === previousPersistedSource
+    ? createSyntaxProfileDraft(syntaxProfile)
+    : currentDraft;
+}
+
 export function useSyntaxDraft({
   isLoaded,
   syntaxProfile,
+  syntaxSource,
   updateWorkspaceSyntaxSource,
   workspace,
 }: UseSyntaxDraftOptions) {
@@ -60,10 +87,26 @@ export function useSyntaxDraft({
   );
 
   useEffect(() => {
-    lastPersistedSyntaxSourceRef.current =
-      formatSyntaxProfileToml(syntaxProfile);
-    setSyntaxDraft(createSyntaxProfileDraft(syntaxProfile));
-  }, [syntaxProfile]);
+    const previousPersistedSource = lastPersistedSyntaxSourceRef.current;
+
+    lastPersistedSyntaxSourceRef.current = syntaxSource;
+    setSyntaxDraft((currentDraft) =>
+      resolveSyntaxDraftAfterPersistence({
+        currentDraft,
+        previousPersistedSource,
+        syntaxProfile,
+        syntaxSource,
+      }),
+    );
+    setSyntaxFeedback((currentFeedback) =>
+      currentFeedback?.status === "error"
+        ? {
+            message: "仓库语法已自动保存。",
+            status: "success",
+          }
+        : currentFeedback,
+    );
+  }, [syntaxProfile, syntaxSource]);
 
   useEffect(() => {
     updateWorkspaceSyntaxSourceRef.current = updateWorkspaceSyntaxSource;
@@ -78,26 +121,31 @@ export function useSyntaxDraft({
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      const source = syntaxDraftSource;
+    const source = syntaxDraftSource;
+    let isActive = true;
 
-      void updateWorkspaceSyntaxSourceRef.current(source)
-        .then(() => {
+    void updateWorkspaceSyntaxSourceRef.current(source)
+      .then(() => {
+        if (isActive) {
           lastPersistedSyntaxSourceRef.current = source;
           setSyntaxFeedback({
             message: "仓库语法已自动保存。",
             status: "success",
           });
-        })
-        .catch((error: unknown) => {
+        }
+      })
+      .catch((error: unknown) => {
+        if (isActive) {
           setSyntaxFeedback({
             message: getErrorMessage(error, "仓库语法自动保存失败。"),
             status: "error",
           });
-        });
-    }, 500);
+        }
+      });
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      isActive = false;
+    };
   }, [isLoaded, syntaxDraftSource]);
 
   const updateSyntaxDraft = (nextDraft: SyntaxProfileDraft) => {

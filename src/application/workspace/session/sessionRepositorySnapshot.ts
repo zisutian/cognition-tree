@@ -14,11 +14,6 @@ export type WorkspaceSessionSnapshot = {
   workspaceSyntaxFile: WorkspaceSyntaxFile | null;
 };
 
-export type WorkspaceSyntaxSessionSnapshot = {
-  workspaceData: WorkspaceData;
-  workspaceSyntaxFile: WorkspaceSyntaxFile | null;
-};
-
 function resolveWorkspaceData(workspace: WorkspaceData | null) {
   return workspace ?? createInitialWorkspaceData();
 }
@@ -35,20 +30,6 @@ export async function loadWorkspaceSessionSnapshot(
 
   return {
     repositoryPath: repositoryInfo.path,
-    workspaceData: resolveWorkspaceData(storedWorkspace),
-    workspaceSyntaxFile: resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
-  };
-}
-
-export async function loadWorkspaceSyntaxSessionSnapshot(
-  repository: WorkspaceRepository,
-): Promise<WorkspaceSyntaxSessionSnapshot> {
-  const [storedWorkspace, storedWorkspaceSyntaxSource] = await Promise.all([
-    repository.loadWorkspace(),
-    repository.readWorkspaceSyntaxSourceFile(),
-  ]);
-
-  return {
     workspaceData: resolveWorkspaceData(storedWorkspace),
     workspaceSyntaxFile: resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
   };
