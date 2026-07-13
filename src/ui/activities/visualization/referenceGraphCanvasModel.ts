@@ -23,6 +23,12 @@ export type GraphTransform = {
   y: number;
 };
 
+export type GraphNodePointerMovement = {
+  dragStarted: boolean;
+  startGraphX: number;
+  startGraphY: number;
+};
+
 export const defaultCanvasSize = {
   height: 520,
   width: 920,
@@ -30,9 +36,29 @@ export const defaultCanvasSize = {
 
 const minScale = 0.35;
 const maxScale = 2.8;
+export const graphNodeDragThreshold = 4;
 
 export function clampScale(scale: number) {
   return Math.min(maxScale, Math.max(minScale, scale));
+}
+
+export function updateGraphNodePointerMovement(
+  movement: GraphNodePointerMovement,
+  point: { x: number; y: number },
+): GraphNodePointerMovement {
+  if (
+    movement.dragStarted ||
+    Math.hypot(
+      point.x - movement.startGraphX,
+      point.y - movement.startGraphY,
+    ) >= graphNodeDragThreshold
+  ) {
+    return movement.dragStarted
+      ? movement
+      : { ...movement, dragStarted: true };
+  }
+
+  return movement;
 }
 
 export function createInitialNode(

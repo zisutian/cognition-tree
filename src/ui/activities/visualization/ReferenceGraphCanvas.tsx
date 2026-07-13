@@ -28,8 +28,10 @@ import {
   createReferenceGraphSimulationKey,
   defaultCanvasSize,
   toGraphPoint,
+  updateGraphNodePointerMovement,
   type GraphSimulationLink,
   type GraphSimulationNode,
+  type GraphNodePointerMovement,
   type GraphTransform,
 } from "./referenceGraphCanvasModel";
 
@@ -43,10 +45,9 @@ type ReferenceGraphCanvasProps = {
 type GraphDragState =
   | {
       kind: "node";
+      movement: GraphNodePointerMovement;
       node: GraphSimulationNode;
       pointerId: number;
-      startGraphX: number;
-      startGraphY: number;
     }
   | {
       kind: "pan";
@@ -240,15 +241,15 @@ export function ReferenceGraphCanvas({
         return;
       }
 
-      simulationNode.fx = simulationNode.x;
-      simulationNode.fy = simulationNode.y;
-      simulationRef.current?.alphaTarget(0.18).restart();
       dragStateRef.current = {
         kind: "node",
+        movement: {
+          dragStarted: false,
+          startGraphX: graphPoint.x,
+          startGraphY: graphPoint.y,
+        },
         node: simulationNode,
         pointerId: event.pointerId,
-        startGraphX: graphPoint.x,
-        startGraphY: graphPoint.y,
       };
       return;
     }
@@ -272,7 +273,22 @@ export function ReferenceGraphCanvas({
           event.currentTarget,
           transformRef.current,
         );
+        const movement = updateGraphNodePointerMovement(
+          dragState.movement,
+          graphPoint,
+        );
 
+        if (!movement.dragStarted) {
+          return;
+        }
+
+        if (!dragState.movement.dragStarted) {
+          dragState.node.fx = dragState.node.x;
+          dragState.node.fy = dragState.node.y;
+          simulationRef.current?.alphaTarget(0.18).restart();
+        }
+
+        dragStateRef.current = { ...dragState, movement };
         dragState.node.fx = graphPoint.x;
         dragState.node.fy = graphPoint.y;
         redraw();
@@ -320,16 +336,16 @@ export function ReferenceGraphCanvas({
         event.currentTarget,
         transformRef.current,
       );
-      const movedDistance = Math.hypot(
-        graphPoint.x - dragState.startGraphX,
-        graphPoint.y - dragState.startGraphY,
+      const movement = updateGraphNodePointerMovement(
+        dragState.movement,
+        graphPoint,
       );
 
-      dragState.node.fx = null;
-      dragState.node.fy = null;
-      simulationRef.current?.alphaTarget(0);
-
-      if (movedDistance < 4) {
+      if (movement.dragStarted) {
+        dragState.node.fx = null;
+        dragState.node.fy = null;
+        simulationRef.current?.alphaTarget(0);
+      } else {
         selectedNoteIdRef.current = dragState.node.id;
         redraw();
         onSelectNote(dragState.node.id);
