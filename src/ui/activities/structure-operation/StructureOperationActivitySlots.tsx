@@ -3,10 +3,8 @@ import "../../styles/activities/structure-operation.css";
 import type { WorkspaceShell } from "../../../application/workspace/runtime/useWorkspaceApplication";
 import type { ActivitySlots } from "../../activityTypes";
 import { WorkspaceSyntaxSetupView } from "../../WorkspaceSyntaxSetupView";
-import {
-  StructureOperationContext,
-  StructureOperationMainPanel,
-} from "./StructureOperationPanels";
+import { StructureOperationContext } from "./StructureOperationContext";
+import { StructureOperationMainPanel } from "./StructureOperationPanels";
 
 export function createStructureOperationActivitySlots({
   onConfigureSyntax,

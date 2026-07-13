@@ -6,11 +6,8 @@ import {
   PanelHeader,
   cx,
 } from "../../shared/primitives";
-import { StructureOperationContext } from "./StructureOperationContext";
 import { StructureOperationPairView } from "./StructureOperationPairView";
 import { StructureOperationStructureView } from "./StructureOperationStructureView";
-
-export { StructureOperationContext };
 
 export function StructureOperationMainPanel({
   view,

@@ -111,8 +111,6 @@ export function isProtectedInlineRuleDraft(
   return rule.type === syntaxProfileSchema.requiredTypes.globalReference;
 }
 
-export { normalizeSyntaxTabDisplayWidthInput } from "./profileSchema";
-
 export function createEmptyMarkerRuleDraft(
   index: number,
 ): SyntaxProfileDraftMarkerRule {

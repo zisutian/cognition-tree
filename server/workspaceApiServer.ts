@@ -12,7 +12,6 @@ import type {
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace-repository/types.ts";
 import {
-  WorkspaceFileStore,
   WorkspacePayloadValidationError,
   WorkspaceRevisionConflictError,
 } from "./workspaceFileStore.ts";
@@ -274,5 +273,3 @@ export function createWorkspaceApiServer({
     createWorkspaceApiRequestHandler({ allowedOrigins, store }),
   );
 }
-
-export { WorkspaceFileStore };

@@ -2,13 +2,13 @@ import {
   createNextInlineRuleDraft,
   createNextMarkerRuleDraft,
   isProtectedInlineRuleDraft,
-  normalizeSyntaxTabDisplayWidthInput,
   type SyntaxProfileDraft,
   type SyntaxProfileDraftConceptRule,
   type SyntaxProfileDraftInlineRule,
   type SyntaxProfileDraftMarkerRule,
   type SyntaxProfileDraftTitleRule,
 } from "../../../../ctn/syntax/profileDraft";
+import { normalizeSyntaxTabDisplayWidthInput } from "../../../../ctn/syntax/profileSchema";
 import type {
   UiSyntaxProfileDraftConceptRule,
   UiSyntaxProfileDraftInlineRule,

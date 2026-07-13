@@ -22,8 +22,8 @@ import {
   createWorkspaceApiRequestHandler,
   parseWorkspaceApiAllowedOrigins,
   type WorkspaceApiRequestHandler,
-  WorkspaceFileStore,
 } from "../../server/workspaceApiServer.ts";
+import { WorkspaceFileStore } from "../../server/workspaceFileStore.ts";
 
 function createWorkspace(name = "本地笔记库") {
   return {
