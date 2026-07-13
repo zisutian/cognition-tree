@@ -8,7 +8,7 @@ import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 export const workspaceSyntaxFileName = "workspace.toml";
 
 export type WorkspaceSyntaxSourceFile = {
-  fileName: string;
+  fileName: typeof workspaceSyntaxFileName;
   source: string;
 };
 
@@ -29,7 +29,7 @@ export function createDefaultWorkspaceSyntaxFile(): WorkspaceSyntaxFile {
 }
 
 export function parseWorkspaceSyntaxSource(
-  fileName: string,
+  fileName: typeof workspaceSyntaxFileName,
   source: string,
 ): WorkspaceSyntaxFile {
   const result = parseSyntaxProfileToml(source);

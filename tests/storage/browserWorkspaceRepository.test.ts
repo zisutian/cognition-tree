@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBrowserWorkspaceRepository } from "../../src/storage/browserWorkspaceRepository";
-import { WorkspaceRepositoryConflictError } from "../../src/storage/workspaceRepository";
+import {
+  WorkspaceRepositoryConflictError,
+  type WorkspaceRepositoryContent,
+} from "../../src/storage/workspaceRepository";
+import { workspaceSyntaxFileName } from "../../src/workspace/context/workspaceSyntaxFile";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 
 function createMemoryStorage(): Storage {
@@ -41,9 +45,9 @@ describe("createBrowserWorkspaceRepository", () => {
     const repository = createBrowserWorkspaceRepository();
     const initialSnapshot = await repository.loadSnapshot();
     const workspace = createInitialWorkspaceData();
-    const content = {
+    const content: WorkspaceRepositoryContent = {
       syntaxSourceFile: {
-        fileName: "workspace.toml",
+        fileName: workspaceSyntaxFileName,
         source: 'name = "browser"\n',
       },
       workspace,

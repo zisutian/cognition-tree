@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRepository } from "../../../../src/storage/workspaceRepository";
 import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
-import { createDefaultWorkspaceSyntaxSource } from "../../../../src/workspace/context/workspaceSyntaxFile";
+import {
+  createDefaultWorkspaceSyntaxSource,
+  type WorkspaceSyntaxSourceFile,
+  workspaceSyntaxFileName,
+} from "../../../../src/workspace/context/workspaceSyntaxFile";
 import { loadWorkspaceSessionSnapshot } from "../../../../src/application/workspace/session/sessionRepositorySnapshot";
 
 function createRepository(
@@ -18,8 +22,8 @@ describe("loadWorkspaceSessionSnapshot", () => {
   it("loads one repository snapshot and resolves its syntax profile", async () => {
     const workspace = createInitialWorkspaceData();
     const source = createDefaultWorkspaceSyntaxSource();
-    const syntaxSourceFile = {
-      fileName: "workspace.toml",
+    const syntaxSourceFile: WorkspaceSyntaxSourceFile = {
+      fileName: workspaceSyntaxFileName,
       source,
     };
 

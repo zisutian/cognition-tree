@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   parseWorkspaceRepositoryCommit,
 } from "../contracts/workspace-repository/parseRepository.ts";
+import { serializeWorkspaceRepositoryRevisionContent } from "../contracts/workspace-repository/revision.ts";
 import type {
   RepositoryNoteDto,
   RepositorySyntaxSourceDto,
@@ -202,31 +203,16 @@ function createEmptyWorkspace(): RepositoryWorkspaceDto {
   };
 }
 
-function createCanonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(createCanonicalValue);
-  }
-
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) =>
-          left < right ? -1 : left > right ? 1 : 0,
-        )
-        .map(([key, fieldValue]) => [key, createCanonicalValue(fieldValue)]),
-    );
-  }
-
-  return value;
-}
-
 function createRepositoryRevision({
   syntaxSourceFile,
   workspace,
 }: WorkspaceRepositoryContentDto) {
   return createHash("sha256")
     .update(
-      JSON.stringify(createCanonicalValue({ syntaxSourceFile, workspace })),
+      serializeWorkspaceRepositoryRevisionContent({
+        syntaxSourceFile,
+        workspace,
+      }),
     )
     .digest("hex");
 }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
-import { WorkspaceRepositoryConflictError } from "../../src/storage/workspaceRepository";
+import {
+  WorkspaceRepositoryConflictError,
+  type WorkspaceRepositoryCommit,
+} from "../../src/storage/workspaceRepository";
+import { workspaceSyntaxFileName } from "../../src/workspace/context/workspaceSyntaxFile";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -51,10 +55,10 @@ describe("createHttpWorkspaceRepository", () => {
 
   it("commits workspace and syntax as one request", async () => {
     const workspace = createInitialWorkspaceData();
-    const commit = {
+    const commit: WorkspaceRepositoryCommit = {
       baseRevision: "revision-1",
       syntaxSourceFile: {
-        fileName: "workspace.toml",
+        fileName: workspaceSyntaxFileName,
         source: 'name = "custom"\n',
       },
       workspace,
