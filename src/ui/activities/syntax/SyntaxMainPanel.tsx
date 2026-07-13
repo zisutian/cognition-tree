@@ -33,7 +33,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
               <span className="syntax-setting-label">名称</span>
               <input
                 aria-label="语法名称"
-                className="syntax-name-control"
+                className="ui-input syntax-name-control"
                 maxLength={64}
                 value={syntax.draft.name}
                 onChange={(event) =>
@@ -45,7 +45,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
               <span className="syntax-setting-label">缩进宽度</span>
               <input
                 aria-label="缩进宽度"
-                className="syntax-number-control"
+                className="ui-input syntax-number-control"
                 inputMode="numeric"
                 max={maxTabDisplayWidth}
                 min={1}

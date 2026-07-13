@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import type { UiVisualizationViewModel } from "../../../application/workspace/projection/viewGraph";
+import type { VisualizationViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   Button,
   Panel,
@@ -17,7 +17,7 @@ export function VisualizationDetailPanel({
   view,
 }: {
   onCollapseDetail: () => void;
-  view: UiVisualizationViewModel;
+  view: VisualizationViewModel;
 }) {
   const visualization = view;
   const graph = visualization.graph;
@@ -26,7 +26,7 @@ export function VisualizationDetailPanel({
     : null;
 
   return (
-    <Panel aria-label="图谱详情" as="aside" tone="detail">
+    <Panel aria-label="图谱详情" tone="detail">
       <PanelHeader
         title="图谱详情"
         actions={

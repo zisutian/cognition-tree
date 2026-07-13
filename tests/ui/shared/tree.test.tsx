@@ -27,7 +27,7 @@ describe("shared trees", () => {
   it("renders note and folder rows with shared tree classes", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
-        activeNoteId="note-1"
+        activeNode={{ kind: "note", noteId: "note-1" }}
         nodes={[
           {
             canDrag: true,
@@ -137,16 +137,13 @@ describe("shared trees", () => {
     expect(markup).toContain("ui-tree-actions");
     expect(markup).toContain(">改<");
     expect(markup).toContain(">删<");
-    expect(treeCss).toContain(".ui-tree-row-editing input");
     expect(treeCss).toContain(".ui-tree-row-frame.is-delete-pending");
   });
 
   it("uses active node selection to keep note and folder selection exclusive", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
-        activeFolderId="folder-1"
         activeNode={{ kind: "note", noteId: "note-1" }}
-        activeNoteId="note-1"
         nodes={[
           {
             canDrag: true,
@@ -195,6 +192,12 @@ describe("shared trees", () => {
     expect(treeNodeDragDataType).toBe("application/x-cognition-tree-node");
     expect(readTreeNodeDragPayload(payload)).toEqual(source);
     expect(readTreeNodeDragPayload("invalid")).toBeNull();
+    expect(readTreeNodeDragPayload('{"kind":"note"}')).toBeNull();
+    expect(
+      readTreeNodeDragPayload(
+        '{"kind":"folder","folderId":"folder","parentFolderId":7}',
+      ),
+    ).toBeNull();
     expect(createTreeMoveRequest({ source, target })).toEqual({
       placement: "after",
       source,
@@ -272,6 +275,10 @@ describe("shared trees", () => {
   it("renders structure trees with variable text markers and line metadata", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
+        getRowProps={(node, state) => ({
+          className: state.depth === 1 ? "nested-row" : undefined,
+          "data-line": String(node.lineNumber),
+        })}
         indentUnitCount={6}
         nodes={[
           {
@@ -286,7 +293,7 @@ describe("shared trees", () => {
                 textDisplay: {
                   displayText: "子节点",
                   segments: [{ id: "text", kind: "text", text: "子节点" }],
-                  textColorClassName: "ctn-text-color-default",
+                  textColor: "default",
                 },
               },
             ],
@@ -298,7 +305,7 @@ describe("shared trees", () => {
             textDisplay: {
               displayText: "标题",
               segments: [{ id: "text", kind: "text", text: "标题" }],
-              textColorClassName: "ctn-text-color-default",
+              textColor: "default",
             },
           },
         ]}
@@ -310,6 +317,8 @@ describe("shared trees", () => {
     expect(markup).toContain("ui-structure-tree-row");
     expect(markup).toContain("--ui-structure-depth:0");
     expect(markup).toContain("--ui-structure-depth:1");
+    expect(markup).toContain("data-line=\"2\"");
+    expect(markup).toContain("nested-row");
     expect(markup).toContain("--ui-structure-indent-width:21px");
     expect(markup).toContain("ui-structure-prefix");
     expect(markup).toContain("ui-structure-marker");
@@ -323,7 +332,7 @@ describe("shared trees", () => {
   it("renders selected structure subtrees as whole tree items", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
-        activeLineNumbers={new Set([1, 2])}
+        selectedLineNumbers={new Set([1, 2])}
         nodes={[
           {
             children: [
@@ -337,7 +346,7 @@ describe("shared trees", () => {
                 textDisplay: {
                   displayText: "子块",
                   segments: [{ id: "text", kind: "text", text: "子块" }],
-                  textColorClassName: "ctn-text-color-default",
+                  textColor: "default",
                 },
               },
             ],
@@ -349,7 +358,7 @@ describe("shared trees", () => {
             textDisplay: {
               displayText: "根块",
               segments: [{ id: "text", kind: "text", text: "根块" }],
-              textColorClassName: "ctn-text-color-default",
+              textColor: "default",
             },
           },
         ]}

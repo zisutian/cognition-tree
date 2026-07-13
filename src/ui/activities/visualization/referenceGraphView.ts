@@ -3,9 +3,10 @@ import type {
   UiReferenceGraphNode,
   UiReferenceGraphView,
 } from "../../../application/workspace/projection/viewGraph";
-
-export type ReferenceGraphMode = "global" | "local";
-export type ReferenceGraphLocalDepth = 1 | 2;
+import type {
+  ReferenceGraphLocalDepth,
+  ReferenceGraphMode,
+} from "../../../application/workspace/view-model/activityViewModels";
 
 export type VisibleReferenceGraphNode = UiReferenceGraphNode & {
   radius: number;

@@ -92,12 +92,10 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
       ],
       onMoveStructureBlockBetweenNotes: () => undefined,
       onMoveStructureBlockWithinNote: () => undefined,
-      onOpenNoteStructure: () => undefined,
       onPairNotesForStructureOperation: () => undefined,
-      onSelectSourceNote: () => undefined,
-      onSelectTargetNote: () => undefined,
-      onSelectStructureNote: () => undefined,
+      onSelectDirectoryNote: () => undefined,
       onSetMode: () => undefined,
+      pairSelectionPhase: "selectSource",
       renameFolder: () => undefined,
       renameNote: () => undefined,
       sourceBlocks: [],
@@ -129,6 +127,12 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     },
     visualization: {
       activeNoteId: "note-source",
+      filter: {
+        hideIsolated: false,
+        localDepth: 1,
+        mode: "global",
+        query: "",
+      },
       graph: {
         edges: [],
         mostReferencedNodes: [],
@@ -141,6 +145,10 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
         unresolvedReferences: [],
       },
       onSelectNote: () => undefined,
+      setHideIsolated: () => undefined,
+      setLocalDepth: () => undefined,
+      setMode: () => undefined,
+      setQuery: () => undefined,
     },
     ...overrides,
   };

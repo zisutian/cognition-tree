@@ -83,26 +83,6 @@
   line-height: var(--ui-micro-line-height);
 }
 
-.syntax-setting-line input,
-.syntax-rule-row input {
-  min-width: 0;
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: var(--color-input);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-  outline: none;
-}
-
-.syntax-setting-line input:focus,
-.syntax-rule-row input:focus {
-  outline: none;
-  background: var(--color-selected);
-}
-
 .syntax-name-control {
   width: min(100%, calc(var(--ui-control-height) * 12));
 }

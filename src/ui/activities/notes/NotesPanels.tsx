@@ -17,7 +17,7 @@ import {
 } from "../../shared/primitives";
 import {
   NoteTree,
-  OutlineTree,
+  StructureTree,
   type TreeNode,
 } from "../../shared/tree";
 
@@ -98,6 +98,7 @@ export function NotesContext({ view }: NotesContextProps) {
           <input
             autoFocus
             aria-label="文件夹名称"
+            className="ui-input"
             value={folderTitle}
             onChange={(event) => setFolderTitle(event.target.value)}
             onKeyDown={(event) => {
@@ -172,7 +173,11 @@ export function NoteDetailPanel({
   onCollapseDetail: () => void;
 }) {
   return (
-    <Panel className="note-detail-panel" aria-label="笔记详情" as="aside" tone="detail">
+    <Panel
+      className="note-detail-panel"
+      aria-label="笔记详情"
+      tone="detail"
+    >
       <PanelHeader
         title="结构"
         actions={
@@ -204,7 +209,7 @@ export function NoteDetailPanel({
           </div>
         </dl>
         {view.outline.nodes.length > 0 ? (
-          <OutlineTree
+          <StructureTree
             indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.outline.nodes}
             onSelectLine={view.outline.onSelectLine}

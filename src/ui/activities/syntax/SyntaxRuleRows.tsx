@@ -124,6 +124,7 @@ export function MarkerRuleRows({
         <div className="syntax-rule-row" key={rule.id}>
           <input
             aria-label="名称"
+            className="ui-input"
             maxLength={32}
             value={rule.label}
             onChange={(event) =>
@@ -134,6 +135,7 @@ export function MarkerRuleRows({
           />
           <input
             aria-label="标记"
+            className="ui-input"
             maxLength={12}
             value={rule.marker}
             onChange={(event) =>
@@ -209,6 +211,7 @@ function InlineRuleRow({
     <div className="syntax-rule-row">
       <input
         aria-label="名称"
+        className="ui-input"
         maxLength={32}
         value={rule.label}
         onChange={(event) =>
@@ -219,6 +222,7 @@ function InlineRuleRow({
         <div className="syntax-pair-fields">
           <input
             aria-label="开始"
+            className="ui-input"
             maxLength={12}
             value={rule.open}
             onChange={(event) =>
@@ -227,6 +231,7 @@ function InlineRuleRow({
           />
           <input
             aria-label="结束"
+            className="ui-input"
             maxLength={12}
             value={rule.close}
             onChange={(event) =>
@@ -237,6 +242,7 @@ function InlineRuleRow({
       ) : (
         <input
           aria-label="符号"
+          className="ui-input"
           maxLength={12}
           value={rule.marker}
           onChange={(event) =>

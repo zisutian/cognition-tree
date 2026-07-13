@@ -20,23 +20,25 @@ describe("AppFrame", () => {
     return renderToStaticMarkup(
       <AppFrame
         activeActivityId="notes"
-        contextCollapsed={false}
-        contextResizeValue={280}
         contextSlot={context ? { content: <div>context</div>, title: "笔记" } : null}
-        contextWidth={280}
-        detailCollapsed={detailCollapsed}
-        detailResizeValue={320}
-        detailSlot={detail ? <aside className="ui-panel">detail</aside> : null}
-        detailWidth={320}
-        isContextResizing={false}
-        isDetailResizing={false}
+        detailSlot={detail ? <section className="ui-panel">detail</section> : null}
+        layout={{
+          contextCollapsed: false,
+          contextResizeValue: 280,
+          contextWidth: 280,
+          detailCollapsed,
+          detailResizeValue: 320,
+          detailWidth: 320,
+          isContextResizing: false,
+          isDetailResizing: false,
+          onContextResizeKeyDown: () => undefined,
+          onContextResizeStart: () => undefined,
+          onDetailResizeKeyDown: () => undefined,
+          onDetailResizeStart: () => undefined,
+          onDetailToggle: () => undefined,
+        }}
         mainSlot={<section className="ui-panel">main</section>}
         onActivityChange={() => undefined}
-        onContextResizeKeyDown={() => undefined}
-        onContextResizeStart={() => undefined}
-        onDetailResizeKeyDown={() => undefined}
-        onDetailResizeStart={() => undefined}
-        onDetailToggle={() => undefined}
       />,
     );
   }

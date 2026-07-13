@@ -1,14 +1,6 @@
-import {
-  isCustomSyntaxTone,
-} from "../../../ctn/syntax/tones";
 import type { CtnBlock } from "../../../ctn/parser/types";
 
 export type UiSyntaxTone = string;
-
-export type UiToneStyle = {
-  "--ctn-text-color"?: string;
-  "--ctn-tone-color"?: string;
-};
 
 export type UiTextSegment =
   | {
@@ -20,44 +12,15 @@ export type UiTextSegment =
       id: string;
       kind: "inline";
       text: string;
-      textColorClassName: string;
-      toneClassName: string;
-      style?: UiToneStyle;
+      textColor: UiSyntaxTone;
+      tone: UiSyntaxTone;
     };
 
 export type UiTextDisplay = {
   displayText: string;
   segments: UiTextSegment[];
-  style?: UiToneStyle;
-  textColorClassName: string;
+  textColor: UiSyntaxTone;
 };
-
-export function getUiSyntaxToneClassName(tone: UiSyntaxTone) {
-  return isCustomSyntaxTone(tone) ? "ctn-tone-custom" : `ctn-tone-${tone}`;
-}
-
-export function getUiSyntaxTextColorClassName(tone: UiSyntaxTone) {
-  return isCustomSyntaxTone(tone)
-    ? "ctn-text-color-custom"
-    : `ctn-text-color-${tone}`;
-}
-
-export function createUiToneStyle(
-  tone: UiSyntaxTone,
-  textColor: UiSyntaxTone,
-): UiToneStyle | undefined {
-  const style: UiToneStyle = {};
-
-  if (isCustomSyntaxTone(tone)) {
-    style["--ctn-tone-color"] = tone;
-  }
-
-  if (isCustomSyntaxTone(textColor)) {
-    style["--ctn-text-color"] = textColor;
-  }
-
-  return Object.keys(style).length > 0 ? style : undefined;
-}
 
 function getNodeTextStartIndex(node: CtnBlock) {
   let textStart = node.indentText.length;
@@ -127,9 +90,8 @@ export function createUiTextSegments(node: CtnBlock): UiTextSegment[] {
         id: span.id,
         kind: "inline",
         text: displayText,
-        textColorClassName: getUiSyntaxTextColorClassName(span.textColor),
-        toneClassName: getUiSyntaxToneClassName(span.tone),
-        style: createUiToneStyle(span.tone, span.textColor),
+        textColor: span.textColor,
+        tone: span.tone,
       });
     }
 
@@ -159,7 +121,6 @@ export function createUiTextDisplay(node: CtnBlock): UiTextDisplay {
   return {
     displayText: getUiTextDisplayText(segments),
     segments,
-    style: createUiToneStyle("default", node.textColor),
-    textColorClassName: getUiSyntaxTextColorClassName(node.textColor),
+    textColor: node.textColor,
   };
 }

@@ -260,11 +260,13 @@ describe("architecture module boundaries", () => {
       "activityViewModels.ts",
       "selection.ts",
       "sidebarTreeMove.ts",
+      "structureOperationDirectorySelection.ts",
       "structureOperationTargetPosition.ts",
       "syntaxDraftActions.ts",
       "useStructureOperationViewModel.ts",
       "useSyntaxDraft.ts",
       "useViewModel.ts",
+      "useVisualizationViewModel.ts",
       "useWorkspaceParseIndex.ts",
       "viewSelection.ts",
     ]);
@@ -286,6 +288,7 @@ describe("architecture module boundaries", () => {
       "AppView.tsx",
       "activityTypes.ts",
       "frameResize.ts",
+      "useWorkbenchLayout.ts",
     ]);
     expect(listSubdirectories("ui")).toEqual([
       "activities",
@@ -332,8 +335,10 @@ describe("architecture module boundaries", () => {
       "visualization",
     ]);
     expect(listImmediateSourceFileNames("ui/shared")).toEqual([
+      "Popover.tsx",
       "blockText.tsx",
       "primitives.tsx",
+      "tonePresentation.ts",
     ]);
     expect(listSubdirectories("ui/shared")).toEqual(["tree"]);
     expect(listSourceFileNames("ui/shared/tree")).toEqual([
@@ -362,7 +367,6 @@ describe("architecture module boundaries", () => {
     expect(listSourceFileNames("ui/activities/syntax")).toEqual([
       "SyntaxDetailPanel.tsx",
       "SyntaxMainPanel.tsx",
-      "SyntaxPanels.tsx",
       "SyntaxRolePicker.tsx",
       "SyntaxRuleRows.tsx",
       "SyntaxSetupPanel.tsx",
@@ -374,7 +378,6 @@ describe("architecture module boundaries", () => {
       "VisualizationDetailLists.tsx",
       "VisualizationDetailPanel.tsx",
       "VisualizationPanel.tsx",
-      "VisualizationPanels.tsx",
       "VisualizationToolbar.tsx",
       "graphEmptyState.ts",
       "referenceGraphCanvasDrawing.ts",
@@ -416,6 +419,16 @@ describe("architecture module boundaries", () => {
       });
 
     expect(violations).toEqual([]);
+  });
+
+  it("keeps structure tree recursion in the shared structure tree", () => {
+    const owners = listSourceFiles("ui")
+      .filter((filePath) =>
+        (sourceModules[filePath] ?? "").includes("ui-tree ui-structure-tree"),
+      )
+      .map(sourcePathToRelative);
+
+    expect(owners).toEqual(["ui/shared/tree/StructureTree.tsx"]);
   });
 
   it("keeps workbench interactions out of native browser dialogs", () => {
@@ -842,6 +855,25 @@ describe("architecture module boundaries", () => {
           )
           .map(({ importPath }) => `${filePath} imports ${importPath}`),
       );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps application projections free of css presentation output", () => {
+    const blockedPresentationTokens = [
+      "CSSProperties",
+      "className",
+      "--ctn-",
+      "ctn-text-color-",
+      "ctn-tone-",
+    ];
+    const violations = listSourceFiles("application/workspace/projection")
+      .filter((filePath) =>
+        blockedPresentationTokens.some((token) =>
+          (sourceModules[filePath] ?? "").includes(token),
+        ),
+      )
+      .map(sourcePathToRelative);
 
     expect(violations).toEqual([]);
   });

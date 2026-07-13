@@ -28,31 +28,19 @@ import type {
 } from "./types";
 
 function isActiveTreeNode({
-  activeFolderId,
   activeNode,
-  activeNoteId,
   node,
 }: {
-  activeFolderId?: string | null;
   activeNode?: NoteTreeActiveNode | null;
-  activeNoteId?: string | null;
   node: TreeNode;
 }) {
-  if (activeNode) {
-    if (node.kind === "note" && activeNode.kind === "note") {
-      return node.noteId === activeNode.noteId;
-    }
-
-    if (node.kind === "folder" && activeNode.kind === "folder") {
-      return node.folderId === activeNode.folderId;
-    }
-
-    return false;
+  if (node.kind === "note" && activeNode?.kind === "note") {
+    return node.noteId === activeNode.noteId;
   }
 
-  return node.kind === "note"
-    ? activeNoteId === node.noteId
-    : activeFolderId === node.folderId;
+  return node.kind === "folder" && activeNode?.kind === "folder"
+    ? node.folderId === activeNode.folderId
+    : false;
 }
 
 type NoteTreeContentProps = NoteTreeProps & {
@@ -67,9 +55,7 @@ type NoteTreeContentProps = NoteTreeProps & {
 };
 
 function NoteTreeContent({
-  activeNoteId,
   activeNode,
-  activeFolderId,
   canDragNode,
   canDropNode,
   className,
@@ -100,9 +86,7 @@ function NoteTreeContent({
         const isCollapsed =
           isFolder && collapsedFolderIds?.has(node.folderId) === true;
         const isActive = isActiveTreeNode({
-          activeFolderId,
           activeNode,
-          activeNoteId,
           node,
         });
         const draggable = node.canDrag && (canDragNode?.(node) ?? true);
@@ -231,6 +215,7 @@ function NoteTreeContent({
                   <input
                     autoFocus
                     aria-label={`重命名${node.kind === "folder" ? "文件夹" : "笔记"}`}
+                    className="ui-input ui-input-tree"
                     value={editingNode.title}
                     onChange={(event) =>
                       setEditingNode({ key: nodeKey, title: event.target.value })
@@ -350,9 +335,7 @@ function NoteTreeContent({
             </div>
             {node.kind === "folder" && node.children.length > 0 && !isCollapsed ? (
               <NoteTreeContent
-                activeFolderId={activeFolderId}
                 activeNode={activeNode}
-                activeNoteId={activeNoteId}
                 canDragNode={canDragNode}
                 canDropNode={canDropNode}
                 collapsedFolderIds={collapsedFolderIds}

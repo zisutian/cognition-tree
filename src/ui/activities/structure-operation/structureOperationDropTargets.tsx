@@ -5,8 +5,8 @@ import {
 } from "../../../application/workspace/projection/viewBlocks";
 import { cx } from "../../shared/primitives";
 import {
-  StructureTreeRowContent,
-  getStructureTreeRowStyle,
+  StructureTree,
+  type StructureTreeRowProps,
 } from "../../shared/tree";
 import {
   blockLineDragDataType,
@@ -19,7 +19,7 @@ export type StructureRowDropPlacement =
   | "sibling-above"
   | "sibling-below";
 
-export const emptySelectedLineNumbers = new Set<number>();
+export const emptySelectedLineNumbers: ReadonlySet<number> = new Set();
 
 function readDraggedLine(event: DragEvent<HTMLElement>) {
   return readBlockLineDragPayload({
@@ -157,11 +157,10 @@ function readStructureRowDropPosition(
   );
 }
 
-export function MovingTargetTree({
+export function StructureOperationTargetTree({
   activeDropPosition,
   activeTargetLineNumber,
   blockedLineNumbers,
-  depth = 0,
   draggingLineNumber,
   draggable = false,
   indentUnitCount,
@@ -178,7 +177,6 @@ export function MovingTargetTree({
   activeDropPosition: string | null;
   activeTargetLineNumber: number | null;
   blockedLineNumbers: ReadonlySet<number>;
-  depth?: number;
   draggingLineNumber: string | null;
   draggable?: boolean;
   indentUnitCount?: number;
@@ -192,138 +190,114 @@ export function MovingTargetTree({
   onSelectLine?: (lineNumber: number) => void;
   onSetActiveDropPosition: (position: string | null) => void;
 }) {
-  return (
-    <ul className="ui-tree ui-structure-tree structure-operation-target-tree">
-      {nodes.map((node) => {
-        const isSelected = selectedLineNumbers.has(node.lineNumber);
-        const isSelectedRoot = selectedRootLineNumber === node.lineNumber;
+  const getRowProps = (node: UiBlockNode): StructureTreeRowProps => {
+    const isActiveTarget =
+      draggingLineNumber !== null &&
+      activeTargetLineNumber === node.lineNumber &&
+      canDropStructureBlockOnLine({
+        blockedLineNumbers,
+        draggingLineNumber,
+        targetLineNumber: node.lineNumber,
+      });
+    const activePlacement = isActiveTarget
+      ? activeDropPosition?.split(":")[0]
+      : null;
+
+    return {
+      className: cx(
+        "structure-operation-target-node",
+        draggingLineNumber === String(node.lineNumber) && "is-dragging",
+        isActiveTarget && "is-position-source is-drop-target",
+        activePlacement === "sibling-above" && "is-drop-above",
+        activePlacement === "inside" && "is-drop-inside",
+        activePlacement === "sibling-below" && "is-drop-below",
+      ),
+      "data-structure-row-drop": "true",
+      draggable,
+      onDragEnd,
+      onDragLeave: (event) => {
+        const nextTarget = event.relatedTarget;
+
+        if (
+          nextTarget instanceof Node &&
+          event.currentTarget.contains(nextTarget)
+        ) {
+          return;
+        }
+
+        onActivateTarget(null);
+        onSetActiveDropPosition(null);
+      },
+      onDragOver: (event) => {
         const canDropOnNode = canDropStructureBlockOnLine({
           blockedLineNumbers,
           draggingLineNumber,
           targetLineNumber: node.lineNumber,
         });
-        const isActiveTarget =
-          draggingLineNumber !== null &&
-          activeTargetLineNumber === node.lineNumber &&
-          canDropOnNode;
-        const activePlacement = isActiveTarget
-          ? activeDropPosition?.split(":")[0]
-          : null;
 
-        return (
-          <li
-            className={cx(
-              "ui-structure-tree-item",
-              isSelected && "is-selected-subtree",
-              isSelectedRoot && "is-selected-root",
-            )}
-            key={node.id}
-          >
-            <button
-              className={cx(
-                "ui-tree-row ui-structure-tree-row structure-operation-target-node",
-                isSelected && "is-selected",
-                draggingLineNumber === String(node.lineNumber) && "is-dragging",
-                isActiveTarget && "is-position-source is-drop-target",
-                activePlacement === "sibling-above" && "is-drop-above",
-                activePlacement === "inside" && "is-drop-inside",
-                activePlacement === "sibling-below" && "is-drop-below",
-                node.hasDiagnostics && "has-diagnostics",
-              )}
-              data-structure-row-drop="true"
-              draggable={draggable}
-              style={getStructureTreeRowStyle({ depth, indentUnitCount })}
-              onClick={() => onSelectLine?.(node.lineNumber)}
-              onDragEnd={onDragEnd}
-              onDragLeave={(event) => {
-                const nextTarget = event.relatedTarget;
+        if (!canDropOnNode) {
+          event.dataTransfer.dropEffect = "none";
+          return;
+        }
 
-                if (
-                  nextTarget instanceof Node &&
-                  event.currentTarget.contains(nextTarget)
-                ) {
-                  return;
-                }
-
-                onActivateTarget(null);
-                onSetActiveDropPosition(null);
-              }}
-              onDragOver={(event) => {
-                if (!canDropOnNode) {
-                  event.dataTransfer.dropEffect = "none";
-                  return;
-                }
-
-                const dropPosition = readStructureRowDropPosition(
-                  event,
-                  node.lineNumber,
-                );
-
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                onActivateTarget(node.lineNumber);
-                onSetActiveDropPosition(dropPosition);
-              }}
-              onDrop={(event) => {
-                if (!canDropOnNode) {
-                  return;
-                }
-
-                const lineNumber = readDraggedLine(event);
-                const dropPosition = readStructureRowDropPosition(
-                  event,
-                  node.lineNumber,
-                );
-
-                event.preventDefault();
-                event.stopPropagation();
-                onActivateTarget(null);
-                onSetActiveDropPosition(null);
-
-                if (lineNumber) {
-                  onDropLine(lineNumber, dropPosition);
-                }
-              }}
-              onDragStart={(event) => {
-                const payload = createBlockLineDragPayload(node.lineNumber);
-
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData(blockLineDragDataType, payload);
-                event.dataTransfer.setData("text/plain", payload);
-                onDragStartLine?.(node.lineNumber);
-              }}
-              title={`${node.label}: ${node.textDisplay.displayText}`}
-              type="button"
-            >
-              <StructureTreeRowContent
-                label={node.label}
-                lineLabel={node.lineLabel}
-                textDisplay={node.textDisplay}
-              />
-            </button>
-            {node.children.length > 0 ? (
-              <MovingTargetTree
-                activeDropPosition={activeDropPosition}
-                activeTargetLineNumber={activeTargetLineNumber}
-                blockedLineNumbers={blockedLineNumbers}
-                depth={depth + 1}
-                draggingLineNumber={draggingLineNumber}
-                draggable={draggable}
-                indentUnitCount={indentUnitCount}
-                nodes={node.children}
-                selectedLineNumbers={selectedLineNumbers}
-                selectedRootLineNumber={selectedRootLineNumber}
-                onActivateTarget={onActivateTarget}
-                onDragEnd={onDragEnd}
-                onDragStartLine={onDragStartLine}
-                onDropLine={onDropLine}
-                onSelectLine={onSelectLine}
-                onSetActiveDropPosition={onSetActiveDropPosition}
-              />
-            ) : null}
-          </li>
+        const dropPosition = readStructureRowDropPosition(
+          event,
+          node.lineNumber,
         );
-      })}
-    </ul>
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        onActivateTarget(node.lineNumber);
+        onSetActiveDropPosition(dropPosition);
+      },
+      onDrop: (event) => {
+        if (
+          !canDropStructureBlockOnLine({
+            blockedLineNumbers,
+            draggingLineNumber,
+            targetLineNumber: node.lineNumber,
+          })
+        ) {
+          return;
+        }
+
+        const lineNumber = readDraggedLine(event);
+        const dropPosition = readStructureRowDropPosition(
+          event,
+          node.lineNumber,
+        );
+
+        event.preventDefault();
+        event.stopPropagation();
+        onActivateTarget(null);
+        onSetActiveDropPosition(null);
+
+        if (lineNumber) {
+          onDropLine(lineNumber, dropPosition);
+        }
+      },
+      onDragStart: draggable
+        ? (event) => {
+            const payload = createBlockLineDragPayload(node.lineNumber);
+
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData(blockLineDragDataType, payload);
+            event.dataTransfer.setData("text/plain", payload);
+            onDragStartLine?.(node.lineNumber);
+          }
+        : undefined,
+    };
+  };
+
+  return (
+    <StructureTree
+      className="structure-operation-target-tree"
+      getRowProps={getRowProps}
+      indentUnitCount={indentUnitCount}
+      nodes={nodes}
+      selectedLineNumbers={selectedLineNumbers}
+      selectedRootLineNumber={selectedRootLineNumber}
+      onSelectLine={onSelectLine}
+    />
   );
 }

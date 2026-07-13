@@ -224,6 +224,12 @@
   background: var(--color-border-strong);
 }
 
+.activity-bar button:focus-visible,
+.app-resize-handle:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: calc(var(--ui-border-width) * 2);
+}
+
 .is-resizing-context,
 .is-resizing-context *,
 .is-resizing-detail,

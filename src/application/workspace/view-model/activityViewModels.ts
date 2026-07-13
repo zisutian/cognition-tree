@@ -1,6 +1,6 @@
 import type { UiOutlineNode } from "../projection/viewBlocks";
 import type { UiEditorView } from "../projection/viewEditor";
-import type { UiVisualizationViewModel } from "../projection/viewGraph";
+import type { UiVisualizationView } from "../projection/viewGraph";
 import type { UiSyntaxView } from "../projection/viewSyntax";
 import type {
   UiDirectoryActiveNode,
@@ -53,6 +53,23 @@ export type StructureOperationActivityViewModel =
 export type SyntaxViewModel = UiSyntaxView &
   ReturnType<typeof createSyntaxDraftActions>;
 
+export type ReferenceGraphMode = "global" | "local";
+export type ReferenceGraphLocalDepth = 1 | 2;
+
+export type VisualizationViewModel = UiVisualizationView & {
+  filter: {
+    hideIsolated: boolean;
+    localDepth: ReferenceGraphLocalDepth;
+    mode: ReferenceGraphMode;
+    query: string;
+  };
+  onSelectNote: (noteId: UiNoteId) => void;
+  setHideIsolated: (hideIsolated: boolean) => void;
+  setLocalDepth: (depth: ReferenceGraphLocalDepth) => void;
+  setMode: (mode: ReferenceGraphMode) => void;
+  setQuery: (query: string) => void;
+};
+
 export type SettingsViewModel = {
   discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
@@ -68,5 +85,5 @@ export type ViewModel = {
   shell: WorkspaceShellViewModel;
   structureOperation: StructureOperationActivityViewModel;
   syntax: SyntaxViewModel;
-  visualization: UiVisualizationViewModel;
+  visualization: VisualizationViewModel;
 };

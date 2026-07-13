@@ -15,7 +15,7 @@ import {
 } from "./structureOperationBlocks";
 import {
   DropTarget,
-  MovingTargetTree,
+  StructureOperationTargetTree,
   canDropStructureBlockAtEnd,
   emptySelectedLineNumbers,
 } from "./structureOperationDropTargets";
@@ -74,16 +74,26 @@ export function StructureOperationPairView({
       >
         {view.sourceRoots.length > 0 ? (
           <StructureTree
-            activeLineNumbers={selectedLineNumbers}
-            dragDataType={blockLineDragDataType}
-            draggingLineNumber={draggingLineNumber}
-            draggable
-            getDragPayload={createBlockLineDragPayload}
+            getRowProps={(node) => ({
+              className:
+                draggingLineNumber === String(node.lineNumber)
+                  ? "is-dragging"
+                  : undefined,
+              draggable: true,
+              onDragEnd: finishDrag,
+              onDragStart: (event) => {
+                const payload = createBlockLineDragPayload(node.lineNumber);
+
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData(blockLineDragDataType, payload);
+                event.dataTransfer.setData("text/plain", payload);
+                startDrag(node.lineNumber);
+              },
+            })}
             indentUnitCount={view.indentUnitCount}
             nodes={view.sourceRoots}
+            selectedLineNumbers={selectedLineNumbers}
             selectedRootLineNumber={sourceBlock?.lineNumber ?? null}
-            onDragEnd={finishDrag}
-            onDragStart={startDrag}
             onSelectLine={(lineNumber) => setSourceLineNumber(String(lineNumber))}
           />
         ) : (
@@ -105,7 +115,7 @@ export function StructureOperationPairView({
         ) : null}
         {view.targetRoots.length > 0 ? (
           <>
-            <MovingTargetTree
+            <StructureOperationTargetTree
               activeDropPosition={activeDropPosition}
               activeTargetLineNumber={activeTargetLineNumber}
               blockedLineNumbers={emptySelectedLineNumbers}

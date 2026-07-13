@@ -34,6 +34,10 @@ import type {
   WorkspaceStructureBlockMoveWithinNoteRequest,
 } from "../../../workspace/commands/structureBlockCommands";
 import { resolveDifferentNoteId } from "./viewSelection";
+import {
+  resolveStructureOperationDirectorySelection,
+  type StructureOperationPairSelectionPhase,
+} from "./structureOperationDirectorySelection";
 import { parseUiStructureOperationTargetPosition } from "./structureOperationTargetPosition";
 
 export type StructureOperationViewModel = UiStructureOperationView & {
@@ -45,15 +49,13 @@ export type StructureOperationViewModel = UiStructureOperationView & {
     sourceBlockLineNumberValue: string,
     targetPositionValue: string,
   ) => void;
-  onOpenNoteStructure: (noteId: UiNoteId) => void;
+  onSelectDirectoryNote: (noteId: UiNoteId) => void;
   onPairNotesForStructureOperation: (
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
   ) => void;
-  onSelectSourceNote: (noteId: UiNoteId) => void;
-  onSelectTargetNote: (noteId: UiNoteId) => void;
-  onSelectStructureNote: (noteId: UiNoteId) => void;
   onSetMode: (mode: UiStructureOperationView["mode"]) => void;
+  pairSelectionPhase: StructureOperationPairSelectionPhase;
 };
 
 export function useStructureOperationViewModel({
@@ -86,6 +88,8 @@ export function useStructureOperationViewModel({
   const [selectedSourceNoteId, setSelectedSourceNoteId] = useState("");
   const [selectedTargetNoteId, setSelectedTargetNoteId] = useState("");
   const [structureNoteId, setStructureNoteId] = useState("");
+  const [pairSelectionPhase, setPairSelectionPhase] =
+    useState<StructureOperationPairSelectionPhase>("selectSource");
 
   useEffect(() => {
     if (
@@ -269,6 +273,7 @@ export function useStructureOperationViewModel({
     }
 
     setStructureOperationMode(mode);
+    setPairSelectionPhase("selectSource");
   };
   const selectSourceNote = (noteId: UiNoteId) => {
     if (!noteExists(noteId)) {
@@ -297,7 +302,32 @@ export function useStructureOperationViewModel({
     setStructureNoteId(noteId);
     setStructureOperationMode("withinNote");
   };
-  const openNoteStructure = selectStructureNote;
+  const selectDirectoryNote = (noteId: UiNoteId) => {
+    if (!noteExists(noteId)) {
+      return;
+    }
+
+    const selection = resolveStructureOperationDirectorySelection({
+      mode: structureOperationMode,
+      noteId,
+      pairSelectionPhase,
+      sourceNoteId: selectedSourceNoteId,
+    });
+
+    if (!selection) {
+      return;
+    }
+
+    if (selection.kind === "selectSource") {
+      selectSourceNote(selection.noteId);
+    } else if (selection.kind === "selectTarget") {
+      selectTargetNote(selection.noteId);
+    } else {
+      selectStructureNote(selection.noteId);
+    }
+
+    setPairSelectionPhase(selection.nextPhase);
+  };
   const pairNotesForStructureOperation = (
     sourceNoteId: UiNoteId,
     targetNoteId: UiNoteId,
@@ -314,6 +344,7 @@ export function useStructureOperationViewModel({
     setSelectedSourceNoteId(sourceNoteId);
     setSelectedTargetNoteId(targetNoteId);
     setStructureOperationMode("betweenNotes");
+    setPairSelectionPhase("selectSource");
   };
   const noteTree = useMemo(
     () =>
@@ -366,12 +397,10 @@ export function useStructureOperationViewModel({
     noteTree,
     onMoveStructureBlockBetweenNotes: moveBlockBetweenNotes,
     onMoveStructureBlockWithinNote: moveStructureBlock,
-    onOpenNoteStructure: openNoteStructure,
+    onSelectDirectoryNote: selectDirectoryNote,
     onPairNotesForStructureOperation: pairNotesForStructureOperation,
-    onSelectSourceNote: selectSourceNote,
-    onSelectTargetNote: selectTargetNote,
-    onSelectStructureNote: selectStructureNote,
     onSetMode: setMode,
+    pairSelectionPhase,
     sourceBlocks,
     sourceNote: sourceNote
       ? { id: sourceNote.id, title: sourceNote.title }

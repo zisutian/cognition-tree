@@ -136,6 +136,34 @@
   cursor: not-allowed;
 }
 
+.ui-input {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--ui-control-height);
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap);
+  border: var(--ui-border-width) solid transparent;
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  background: var(--color-input);
+  font-size: var(--ui-control-font-size);
+  line-height: var(--ui-control-line-height);
+  outline: none;
+}
+
+.ui-input:focus {
+  background: var(--color-selected);
+}
+
+.ui-input-tree {
+  height: calc(var(--ui-tree-row-height) - calc(var(--ui-border-width) * 2));
+  min-height: calc(var(--ui-tree-row-height) - calc(var(--ui-border-width) * 2));
+  padding: 0 var(--ui-gap-tight);
+  color: var(--color-fg-strong);
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
 .ui-segmented-control {
   display: inline-flex;
   flex: 0 0 auto;
@@ -270,12 +298,6 @@
 .ui-button:focus-visible {
   outline: none;
   background: var(--color-hover);
-}
-
-.activity-bar button:focus-visible,
-.app-resize-handle:focus-visible {
-  outline: var(--ui-focus-outline);
-  outline-offset: calc(var(--ui-border-width) * 2);
 }
 
 .ui-empty-state {

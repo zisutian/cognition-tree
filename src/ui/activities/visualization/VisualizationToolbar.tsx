@@ -7,7 +7,7 @@ import {
 import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
-} from "./referenceGraphView";
+} from "../../../application/workspace/view-model/activityViewModels";
 
 export function VisualizationToolbar({
   hideIsolated,
@@ -72,6 +72,7 @@ export function VisualizationToolbar({
       <div className="graph-search-field">
         <input
           aria-label="搜索笔记标题"
+          className="ui-input"
           placeholder="笔记标题"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}

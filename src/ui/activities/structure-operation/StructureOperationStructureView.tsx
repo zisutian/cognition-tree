@@ -11,7 +11,7 @@ import {
 } from "./structureOperationBlocks";
 import {
   DropTarget,
-  MovingTargetTree,
+  StructureOperationTargetTree,
   canDropStructureBlockAtEnd,
   getBlockedStructureDropLineNumbers,
 } from "./structureOperationDropTargets";
@@ -83,7 +83,7 @@ export function StructureOperationStructureView({
         ) : null}
         {view.structureRoots.length > 0 ? (
           <>
-            <MovingTargetTree
+            <StructureOperationTargetTree
               activeDropPosition={activeDropPosition}
               activeTargetLineNumber={activeTargetLineNumber}
               blockedLineNumbers={blockedLineNumbers}

@@ -1,7 +1,7 @@
 import { Check, ChevronDown } from "lucide-react";
 import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import type { UiSyntaxRole } from "../../../application/workspace/projection/viewSyntax";
-import { SyntaxDropdown } from "./TonePicker";
+import { Popover } from "../../shared/Popover";
 
 export function SyntaxRolePicker({
   ariaLabel,
@@ -21,18 +21,20 @@ export function SyntaxRolePicker({
     };
 
   return (
-    <SyntaxDropdown
+    <Popover
       ariaLabel={ariaLabel}
       className="syntax-role-picker"
-      menuClassName="syntax-dropdown-menu syntax-role-menu"
-      renderButton={({ isOpen, menuId, toggle }) => (
+      panelClassName="syntax-dropdown-menu syntax-role-menu"
+      panelRole="listbox"
+      renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <button
-          aria-controls={menuId}
+          aria-controls={panelId}
           aria-expanded={isOpen}
-          aria-haspopup="dialog"
+          aria-haspopup="listbox"
           aria-label={`${ariaLabel}: ${selectedOption.label}`}
           className="syntax-role-button"
           onClick={toggle}
+          ref={triggerRef}
           type="button"
         >
           <span>{selectedOption.label}</span>
@@ -41,7 +43,7 @@ export function SyntaxRolePicker({
       )}
     >
       {({ close }) => (
-        <div className="syntax-role-list" role="listbox">
+        <div className="syntax-role-list">
           {options.map((option) => {
             const isSelected = option.value === value;
 
@@ -70,6 +72,6 @@ export function SyntaxRolePicker({
           })}
         </div>
       )}
-    </SyntaxDropdown>
+    </Popover>
   );
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { UiVisualizationViewModel } from "../../../application/workspace/projection/viewGraph";
+import type { VisualizationViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
   EmptyState,
   Panel,
@@ -10,22 +10,17 @@ import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas";
 import { getEmptyGraphMessage } from "./graphEmptyState";
 import {
   createVisibleReferenceGraph,
-  type ReferenceGraphLocalDepth,
-  type ReferenceGraphMode,
 } from "./referenceGraphView";
 import { VisualizationToolbar } from "./VisualizationToolbar";
 
 export function VisualizationPanel({
   view,
 }: {
-  view: UiVisualizationViewModel;
+  view: VisualizationViewModel;
 }) {
-  const [mode, setMode] = useState<ReferenceGraphMode>("global");
-  const [localDepth, setLocalDepth] = useState<ReferenceGraphLocalDepth>(1);
-  const [query, setQuery] = useState("");
-  const [hideIsolated, setHideIsolated] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const visualization = view;
+  const { hideIsolated, localDepth, mode, query } = visualization.filter;
   const visibleGraph = useMemo(
     () =>
       createVisibleReferenceGraph(visualization.graph, {
@@ -54,10 +49,10 @@ export function VisualizationPanel({
           localDepth={localDepth}
           mode={mode}
           query={query}
-          onHideIsolatedChange={setHideIsolated}
-          onLocalDepthChange={setLocalDepth}
-          onModeChange={setMode}
-          onQueryChange={setQuery}
+          onHideIsolatedChange={visualization.setHideIsolated}
+          onLocalDepthChange={visualization.setLocalDepth}
+          onModeChange={visualization.setMode}
+          onQueryChange={visualization.setQuery}
           onReset={() => setResetSignal((current) => current + 1)}
         />
         <div className="graph-canvas">

@@ -1,12 +1,6 @@
 import { ChevronRight } from "lucide-react";
-import type { CSSProperties } from "react";
 import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import type { UiSyntaxTone } from "../../../application/workspace/projection/viewSyntax";
-import {
-  createUiToneStyle,
-  getUiSyntaxTextColorClassName,
-  getUiSyntaxToneClassName,
-} from "../../../application/workspace/projection/viewText";
 import {
   Button,
   Panel,
@@ -14,6 +8,11 @@ import {
   PanelHeader,
   cx,
 } from "../../shared/primitives";
+import {
+  createToneStyle,
+  getTextColorClassName,
+  getToneClassName,
+} from "../../shared/tonePresentation";
 import {
   getInlinePreviewMarker,
   getInlinePreviewValue,
@@ -32,7 +31,7 @@ function SyntaxRenderLine({
   tone: UiSyntaxTone;
   value: string;
 }) {
-  const toneClassName = getUiSyntaxToneClassName(tone);
+  const toneClassName = getToneClassName(tone);
 
   return (
     <div
@@ -40,13 +39,13 @@ function SyntaxRenderLine({
         "syntax-render-line",
         toneClassName,
       )}
-      style={createUiToneStyle(tone, textColor) as CSSProperties | undefined}
+      style={createToneStyle(tone, textColor)}
     >
       <span className="syntax-render-marker">{marker}</span>
       <span
         className={cx(
           "syntax-render-text",
-          getUiSyntaxTextColorClassName(textColor),
+          getTextColorClassName(textColor),
           inline && "block-text-inline",
           inline && toneClassName,
         )}
@@ -65,7 +64,7 @@ export function SyntaxDetailPanel({
   view: SyntaxViewModel;
 }) {
   return (
-    <Panel aria-label="语法预览" as="aside" tone="detail">
+    <Panel aria-label="语法预览" tone="detail">
       <PanelHeader
         title="语法预览"
         actions={

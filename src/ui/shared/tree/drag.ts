@@ -40,9 +40,42 @@ function isSameTreeNodeReference(
 
 export function readTreeNodeDragPayload(value: string): TreeNodeReference | null {
   try {
-    const parsed = JSON.parse(value) as TreeNodeReference;
+    const parsed = JSON.parse(value) as unknown;
 
-    return parsed.kind === "folder" || parsed.kind === "note" ? parsed : null;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const candidate = parsed as Record<string, unknown>;
+    const hasValidParent =
+      candidate.parentFolderId === null ||
+      typeof candidate.parentFolderId === "string";
+
+    if (!hasValidParent) {
+      return null;
+    }
+
+    if (
+      candidate.kind === "folder" &&
+      typeof candidate.folderId === "string" &&
+      candidate.folderId.length > 0
+    ) {
+      return {
+        folderId: candidate.folderId,
+        kind: "folder",
+        parentFolderId: candidate.parentFolderId as string | null,
+      };
+    }
+
+    return candidate.kind === "note" &&
+      typeof candidate.noteId === "string" &&
+      candidate.noteId.length > 0
+      ? {
+          kind: "note",
+          noteId: candidate.noteId,
+          parentFolderId: candidate.parentFolderId as string | null,
+        }
+      : null;
   } catch {
     return null;
   }

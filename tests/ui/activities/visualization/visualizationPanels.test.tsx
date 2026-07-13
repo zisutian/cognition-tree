@@ -1,9 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  VisualizationDetailPanel,
-  VisualizationPanel,
-} from "../../../../src/ui/activities/visualization/VisualizationPanels";
+import { VisualizationDetailPanel } from "../../../../src/ui/activities/visualization/VisualizationDetailPanel";
+import { VisualizationPanel } from "../../../../src/ui/activities/visualization/VisualizationPanel";
 import { createView } from "../../viewFactory";
 
 describe("visualization panels", () => {
@@ -36,6 +34,12 @@ describe("visualization panels", () => {
     const view = createView({
       visualization: {
         activeNoteId: "note-target",
+        filter: {
+          hideIsolated: false,
+          localDepth: 1,
+          mode: "global",
+          query: "",
+        },
         graph: {
           edges: [
             {
@@ -101,6 +105,10 @@ describe("visualization panels", () => {
           ],
         },
         onSelectNote: () => undefined,
+        setHideIsolated: () => undefined,
+        setLocalDepth: () => undefined,
+        setMode: () => undefined,
+        setQuery: () => undefined,
       },
     });
     const markup = renderToStaticMarkup(

@@ -23,24 +23,8 @@
   min-width: calc(var(--ui-control-height) * 5);
 }
 
-.graph-search-field input {
+.graph-search-field .ui-input {
   width: 100%;
-  min-width: 0;
-  height: var(--ui-control-height);
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: var(--color-input);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-  outline: none;
-}
-
-.graph-search-field input:focus {
-  outline: none;
-  background: var(--color-selected);
 }
 
 .graph-canvas {

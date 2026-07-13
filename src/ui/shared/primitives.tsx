@@ -10,23 +10,19 @@ export function cx(...classNames: Array<string | false | null | undefined>) {
 }
 
 type PanelProps = HTMLAttributes<HTMLElement> & {
-  as?: "aside" | "section";
   tone?: "detail" | "main";
 };
 
 export function Panel({
-  as = "section",
   children,
   className,
   tone = "main",
   ...props
 }: PanelProps) {
-  const Component = as;
-
   return (
-    <Component className={cx("ui-panel", `ui-panel-${tone}`, className)} {...props}>
+    <section className={cx("ui-panel", `ui-panel-${tone}`, className)} {...props}>
       {children}
-    </Component>
+    </section>
   );
 }
 

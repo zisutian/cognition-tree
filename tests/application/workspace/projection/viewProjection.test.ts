@@ -106,16 +106,16 @@ describe("workspace view projection", () => {
         id: "2-4-global-reference",
         kind: "inline",
         text: "全局概念",
-        textColorClassName: "ctn-text-color-cyan",
-        toneClassName: "ctn-tone-blue",
+        textColor: "cyan",
+        tone: "blue",
       },
       { id: "block-2-text-11", kind: "text", text: " 和 " },
       {
         id: "2-15-inline-code",
         kind: "inline",
         text: "code",
-        textColorClassName: "ctn-text-color-green",
-        toneClassName: "ctn-tone-green",
+        textColor: "green",
+        tone: "green",
       },
     ]);
     expect(getUiTextDisplayText(segments)).toBe("主题 全局概念 和 code");
@@ -130,8 +130,8 @@ describe("workspace view projection", () => {
         id: "2-3-parallel-separator",
         kind: "inline",
         text: "\\",
-        textColorClassName: "ctn-text-color-amber",
-        toneClassName: "ctn-tone-amber",
+        textColor: "amber",
+        tone: "amber",
       },
       { id: "block-2-text-3", kind: "text", text: " 乙" },
     ]);

@@ -29,6 +29,7 @@ import type {
 import { createSyntaxDraftActions } from "./syntaxDraftActions";
 import { createWorkspaceTreeNodeReference } from "./sidebarTreeMove";
 import { useStructureOperationViewModel } from "./useStructureOperationViewModel";
+import { useVisualizationViewModel } from "./useVisualizationViewModel";
 import { useWorkspaceParseIndex } from "./useWorkspaceParseIndex";
 import { useSyntaxDraft } from "./useSyntaxDraft";
 import { resolveFolderSelection } from "./selection";
@@ -297,7 +298,7 @@ export function useViewModel(
         : emptyReferenceGraphView,
     [index, scope.visualization],
   );
-  const visualization = useMemo(
+  const visualizationBase = useMemo(
     () => ({
       activeNoteId: activeNote?.id ?? null,
       graph: noteReferenceGraph,
@@ -305,6 +306,7 @@ export function useViewModel(
     }),
     [activeNote, noteReferenceGraph, selectNote],
   );
+  const visualization = useVisualizationViewModel(visualizationBase);
   const syntax = useMemo(
     () =>
       createUiSyntaxView({

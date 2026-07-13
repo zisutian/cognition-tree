@@ -1,10 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  SyntaxDetailPanel,
-  SyntaxMainPanel,
-  SyntaxSetupPanel,
-} from "../../../../src/ui/activities/syntax/SyntaxPanels";
+import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDetailPanel";
+import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
+import { SyntaxSetupPanel } from "../../../../src/ui/activities/syntax/SyntaxSetupPanel";
 import { createView } from "../../viewFactory";
 
 // @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
@@ -17,6 +15,10 @@ const syntaxCss = readFileSync(
 );
 const blockTextCss = readFileSync(
   new URL("../../../../src/ui/styles/shared/blockText.css", import.meta.url),
+  "utf8",
+);
+const primitivesCss = readFileSync(
+  new URL("../../../../src/ui/styles/shared/primitives.css", import.meta.url),
   "utf8",
 );
 
@@ -110,11 +112,12 @@ describe("syntax panels", () => {
   });
 
   it("keeps syntax controls from using bright focus or selected borders", () => {
-    expect(syntaxCss).toContain(".syntax-setting-line input");
-    expect(syntaxCss).toContain(".syntax-rule-row input");
-    expect(syntaxCss).toContain(
+    expect(primitivesCss).toContain(".ui-input");
+    expect(primitivesCss).toContain(
       "border: var(--ui-border-width) solid transparent",
     );
+    expect(syntaxCss).not.toContain(".syntax-setting-line input");
+    expect(syntaxCss).not.toContain(".syntax-rule-row input");
     expect(syntaxCss).not.toMatch(
       /\.syntax-rule-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
     );

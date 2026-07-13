@@ -21,21 +21,18 @@ import {
 
 type StructureOperationDirectoryMode = "betweenNotes" | "withinNote";
 type StructureOperationNoteStatus = "source" | "structure" | "target" | "";
-type StructureOperationPairSelectionPhase = "selectSource" | "selectTarget";
 
 export function getStructureOperationDirectoryNoteStatus({
   mode,
   noteId,
   pairSelectionPhase,
-  pendingSourceNoteId,
   sourceNoteId,
   structureNoteId,
   targetNoteId,
 }: {
   mode: StructureOperationDirectoryMode;
   noteId: string;
-  pairSelectionPhase: StructureOperationPairSelectionPhase;
-  pendingSourceNoteId: string | null;
+  pairSelectionPhase: StructureOperationActivityViewModel["pairSelectionPhase"];
   sourceNoteId: string;
   structureNoteId: string;
   targetNoteId: string;
@@ -44,12 +41,7 @@ export function getStructureOperationDirectoryNoteStatus({
     return noteId === structureNoteId ? "structure" : "";
   }
 
-  const activeSourceNoteId =
-    pairSelectionPhase === "selectTarget"
-      ? pendingSourceNoteId ?? sourceNoteId
-      : sourceNoteId;
-
-  if (noteId === activeSourceNoteId) {
+  if (noteId === sourceNoteId) {
     return "source";
   }
 
@@ -103,15 +95,6 @@ export function StructureOperationContext({
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [pairSelectionPhase, setPairSelectionPhase] =
-    useState<StructureOperationPairSelectionPhase>("selectSource");
-  const [pendingSourceNoteId, setPendingSourceNoteId] = useState<string | null>(
-    null,
-  );
-  const resetPairSelection = () => {
-    setPairSelectionPhase("selectSource");
-    setPendingSourceNoteId(null);
-  };
   const moveNode = (request: TreeMoveRequest) => {
     if (request.source.kind !== "note" || request.target.kind !== "note") {
       return;
@@ -121,7 +104,6 @@ export function StructureOperationContext({
       request.source.noteId,
       request.target.noteId,
     );
-    resetPairSelection();
   };
   const renameNode = (node: TreeNode, title: string) => {
     if (node.kind === "folder") {
@@ -151,33 +133,13 @@ export function StructureOperationContext({
     });
   };
   const selectNote = (noteId: string) => {
-    if (view.mode === "withinNote") {
-      view.onSelectStructureNote(noteId);
-      return;
-    }
-
-    if (pairSelectionPhase === "selectTarget") {
-      const sourceNoteId = pendingSourceNoteId ?? view.sourceNoteId;
-
-      if (noteId === sourceNoteId) {
-        return;
-      }
-
-      view.onPairNotesForStructureOperation(sourceNoteId, noteId);
-      resetPairSelection();
-      return;
-    }
-
-    view.onSelectSourceNote(noteId);
-    setPendingSourceNoteId(noteId);
-    setPairSelectionPhase("selectTarget");
+    view.onSelectDirectoryNote(noteId);
   };
   const getNoteStatus = (node: Extract<TreeNode, { kind: "note" }>) => {
     return getStructureOperationDirectoryNoteStatus({
       mode: view.mode,
       noteId: node.noteId,
-      pairSelectionPhase,
-      pendingSourceNoteId,
+      pairSelectionPhase: view.pairSelectionPhase,
       sourceNoteId: view.sourceNoteId,
       structureNoteId: view.structureNoteId,
       targetNoteId: view.targetNoteId,
@@ -220,9 +182,7 @@ export function StructureOperationContext({
   const activeNoteId =
     view.mode === "withinNote"
       ? view.structureNoteId
-      : pairSelectionPhase === "selectTarget"
-        ? pendingSourceNoteId ?? view.sourceNoteId
-        : view.sourceNoteId;
+      : view.sourceNoteId;
 
   return (
     <div className="activity-context-content">
@@ -234,10 +194,7 @@ export function StructureOperationContext({
           { label: "笔记结构", value: "withinNote" },
         ]}
         value={view.mode}
-        onChange={(nextMode) => {
-          view.onSetMode(nextMode);
-          resetPairSelection();
-        }}
+        onChange={view.onSetMode}
       />
       <NoteTree
         activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}

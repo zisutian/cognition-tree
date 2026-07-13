@@ -4,10 +4,10 @@ import {
   FileOutput,
   Hash,
 } from "lucide-react";
-import type { UiVisualizationViewModel } from "../../../application/workspace/projection/viewGraph";
+import type { UiReferenceGraphView } from "../../../application/workspace/projection/viewGraph";
 import { SymbolSlot } from "../../shared/primitives";
 
-type VisualizationGraph = UiVisualizationViewModel["graph"];
+type VisualizationGraph = UiReferenceGraphView;
 
 export function AdjacentReferenceList({
   activeNodeId,

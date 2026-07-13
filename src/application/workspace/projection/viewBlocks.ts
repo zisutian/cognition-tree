@@ -11,7 +11,6 @@ export type UiBlockNode = {
   hasDiagnostics: boolean;
   id: UiNodeId;
   label: string;
-  level: number;
   lineLabel: string;
   lineNumber: number;
   textDisplay: UiTextDisplay;
@@ -37,7 +36,6 @@ export function createUiBlockNode(block: CtnBlock): UiBlockNode {
     hasDiagnostics: block.diagnostics.length > 0,
     id: block.id,
     label: block.label,
-    level: block.level,
     lineLabel: getUiBlockLineLabel(block),
     lineNumber: block.lineNumber,
     textDisplay: createUiTextDisplay(block),

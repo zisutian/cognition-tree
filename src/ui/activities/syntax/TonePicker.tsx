@@ -1,16 +1,11 @@
 import { Check, ChevronDown } from "lucide-react";
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import type { CSSProperties } from "react";
 import type {
   UiSyntaxTone,
   UiSyntaxToneOption,
 } from "../../../application/workspace/projection/viewSyntax";
+import { Popover } from "../../shared/Popover";
+import { isCustomTone } from "../../shared/tonePresentation";
 
 const toneLabels: Record<string, string> = {
   amber: "琥珀",
@@ -25,7 +20,6 @@ const toneLabels: Record<string, string> = {
   violet: "紫色",
 };
 
-const customTonePattern = /^#[0-9a-fA-F]{6}$/;
 const defaultCustomTone = "#397c72";
 
 type TonePickerProps = {
@@ -36,22 +30,6 @@ type TonePickerProps = {
   onChange: (tone: UiSyntaxTone) => void;
 };
 
-type SyntaxDropdownProps = {
-  ariaLabel: string;
-  children: (controls: { close: () => void }) => ReactNode;
-  className: string;
-  menuClassName: string;
-  renderButton: (controls: {
-    isOpen: boolean;
-    menuId: string;
-    toggle: () => void;
-  }) => ReactNode;
-};
-
-function isCustomTone(tone: string) {
-  return customTonePattern.test(tone);
-}
-
 function getToneLabel(tone: UiSyntaxTone, options: UiSyntaxToneOption[]) {
   if (isCustomTone(tone)) {
     return "自定义";
@@ -61,7 +39,11 @@ function getToneLabel(tone: UiSyntaxTone, options: UiSyntaxToneOption[]) {
     return "默认";
   }
 
-  return options.find((option) => option.value === tone)?.label ?? toneLabels[tone] ?? tone;
+  return (
+    options.find((option) => option.value === tone)?.label ??
+    toneLabels[tone] ??
+    tone
+  );
 }
 
 export function getToneSwatchClass(tone: UiSyntaxTone) {
@@ -76,66 +58,6 @@ export function getToneSwatchStyle(
   return isCustomTone(tone)
     ? ({ "--syntax-tone-color": tone } as CSSProperties)
     : undefined;
-}
-
-export function SyntaxDropdown({
-  ariaLabel,
-  children,
-  className,
-  menuClassName,
-  renderButton,
-}: SyntaxDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuId = useId();
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        dropdownRef.current &&
-        event.target instanceof Node &&
-        !dropdownRef.current.contains(event.target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
-  const close = () => setIsOpen(false);
-  const toggle = () => setIsOpen((current) => !current);
-
-  return (
-    <div className={className} ref={dropdownRef}>
-      {renderButton({ isOpen, menuId, toggle })}
-      {isOpen ? (
-        <div
-          aria-label={ariaLabel}
-          className={menuClassName}
-          id={menuId}
-          role="dialog"
-        >
-          {children({ close })}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 export function TonePicker({
@@ -153,18 +75,20 @@ export function TonePicker({
   };
 
   return (
-    <SyntaxDropdown
+    <Popover
       ariaLabel={ariaLabel}
       className="syntax-tone-picker"
-      menuClassName="syntax-dropdown-menu syntax-tone-menu"
-      renderButton={({ isOpen, menuId, toggle }) => (
+      panelClassName="syntax-dropdown-menu syntax-tone-menu"
+      panelRole="dialog"
+      renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <button
-          aria-controls={menuId}
+          aria-controls={panelId}
           aria-expanded={isOpen}
           aria-haspopup="dialog"
           aria-label={`${ariaLabel}: ${getToneLabel(value, options)}`}
           className={showLabel ? "syntax-tone-button" : "syntax-tone-button is-compact"}
           onClick={toggle}
+          ref={triggerRef}
           type="button"
         >
           <span
@@ -189,28 +113,28 @@ export function TonePicker({
               };
 
               return (
-              <button
-                aria-label={getToneLabel(option.value, options)}
-                className={
-                  value === option.value
-                    ? "syntax-tone-tile is-selected"
-                    : "syntax-tone-tile"
-                }
-                key={option.value}
-                onClick={selectOption}
-                title={getToneLabel(option.value, options)}
-                type="button"
-              >
-                <span
-                  aria-hidden="true"
-                  className={getToneSwatchClass(option.value)}
+                <button
+                  aria-label={getToneLabel(option.value, options)}
+                  className={
+                    value === option.value
+                      ? "syntax-tone-tile is-selected"
+                      : "syntax-tone-tile"
+                  }
+                  key={option.value}
+                  onClick={selectOption}
+                  title={getToneLabel(option.value, options)}
+                  type="button"
                 >
-                  <span />
-                </span>
-                {value === option.value ? (
-                  <Check aria-hidden="true" size={12} strokeWidth={2.4} />
-                ) : null}
-              </button>
+                  <span
+                    aria-hidden="true"
+                    className={getToneSwatchClass(option.value)}
+                  >
+                    <span />
+                  </span>
+                  {value === option.value ? (
+                    <Check aria-hidden="true" size={12} strokeWidth={2.4} />
+                  ) : null}
+                </button>
               );
             })}
           </div>
@@ -246,6 +170,6 @@ export function TonePicker({
           </div>
         </>
       )}
-    </SyntaxDropdown>
+    </Popover>
   );
 }

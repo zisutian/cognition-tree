@@ -54,23 +54,6 @@
   grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
 }
 
-.ui-tree-row-editing input {
-  min-width: 0;
-  min-height: calc(var(--ui-tree-row-height) - calc(var(--ui-border-width) * 2));
-  padding: 0 var(--ui-gap-tight);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg-strong);
-  background: var(--color-input);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
-  outline: none;
-}
-
-.ui-tree-row-editing input:focus {
-  background: var(--color-selected);
-}
-
 .ui-tree-toggle-spacer {
   width: var(--ui-symbol-size);
 }

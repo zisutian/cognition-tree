@@ -14,15 +14,11 @@ import {
 } from "./notes/NotesPanels";
 import { PlaceholderPanel } from "./PlaceholderPanel";
 import { SettingsPanel } from "./settings/SettingsPanel";
-import {
-  SyntaxDetailPanel,
-  SyntaxMainPanel,
-  SyntaxSetupPanel,
-} from "./syntax/SyntaxPanels";
-import {
-  VisualizationDetailPanel,
-  VisualizationPanel,
-} from "./visualization/VisualizationPanels";
+import { SyntaxDetailPanel } from "./syntax/SyntaxDetailPanel";
+import { SyntaxMainPanel } from "./syntax/SyntaxMainPanel";
+import { SyntaxSetupPanel } from "./syntax/SyntaxSetupPanel";
+import { VisualizationDetailPanel } from "./visualization/VisualizationDetailPanel";
+import { VisualizationPanel } from "./visualization/VisualizationPanel";
 
 type ActivityContext = {
   activityId: ActivityId;

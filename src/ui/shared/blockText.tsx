@@ -1,44 +1,24 @@
-import type { CSSProperties } from "react";
+import type { UiTextDisplay } from "../../application/workspace/projection/viewText";
+import {
+  createToneStyle,
+  getTextColorClassName,
+  getToneClassName,
+} from "./tonePresentation";
 
-type ToneStyle = {
-  "--ctn-text-color"?: string;
-  "--ctn-tone-color"?: string;
-};
-
-export type DisplayText = {
-  displayText: string;
-  segments: Array<
-    | {
-        id: string;
-        kind: "text";
-        text: string;
-      }
-    | {
-        id: string;
-        kind: "inline";
-        text: string;
-        textColorClassName: string;
-        toneClassName: string;
-        style?: ToneStyle;
-      }
-  >;
-  style?: ToneStyle;
-  textColorClassName: string;
-};
-
-function toneStyle(style: ToneStyle | undefined) {
-  return style as CSSProperties | undefined;
-}
+export type DisplayText = UiTextDisplay;
 
 export function BlockText({ text }: { text: DisplayText }) {
   return (
-    <span className={`block-text ${text.textColorClassName}`} style={toneStyle(text.style)}>
+    <span
+      className={`block-text ${getTextColorClassName(text.textColor)}`}
+      style={createToneStyle("default", text.textColor)}
+    >
       {text.segments.map((segment) =>
         segment.kind === "inline" ? (
           <span
-            className={`block-text-inline ${segment.toneClassName} ${segment.textColorClassName}`}
+            className={`block-text-inline ${getToneClassName(segment.tone)} ${getTextColorClassName(segment.textColor)}`}
             key={segment.id}
-            style={toneStyle(segment.style)}
+            style={createToneStyle(segment.tone, segment.textColor)}
           >
             {segment.text}
           </span>

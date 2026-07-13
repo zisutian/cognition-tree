@@ -1,5 +1,5 @@
 import type {
-  DragEvent,
+  ButtonHTMLAttributes,
   ReactNode,
 } from "react";
 import type { DisplayText } from "../blockText";
@@ -16,22 +16,30 @@ export type StructureTreeNode = {
   textDisplay: DisplayText;
 };
 
-export type StructureTreeProps = {
-  activeLineNumber?: number | null;
-  activeLineNumbers?: ReadonlySet<number>;
+export type StructureTreeRowState = {
+  depth: number;
+  isSelected: boolean;
+  isSelectedRoot: boolean;
+};
+
+export type StructureTreeRowProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "children" | "className" | "onClick" | "style" | "title" | "type"
+> & {
   className?: string;
-  dragDataType?: string;
-  draggingLineNumber?: string | null;
-  draggable?: boolean;
-  getDragPayload?: (lineNumber: number) => string;
+  [dataAttribute: `data-${string}`]: string | boolean | undefined;
+};
+
+export type StructureTreeProps = {
+  className?: string;
+  getRowProps?: (
+    node: StructureTreeNode,
+    state: StructureTreeRowState,
+  ) => StructureTreeRowProps;
   indentUnitCount?: number;
   nodes: StructureTreeNode[];
+  selectedLineNumbers?: ReadonlySet<number>;
   selectedRootLineNumber?: number | null;
-  onDragEnd?: () => void;
-  onDragStart?: (
-    lineNumber: number,
-    event: DragEvent<HTMLButtonElement>,
-  ) => void;
   onSelectLine?: (lineNumber: number) => void;
 };
 
@@ -98,8 +106,6 @@ export type TreeDragState = {
 };
 
 export type NoteTreeProps = {
-  activeFolderId?: string | null;
-  activeNoteId?: string | null;
   activeNode?: NoteTreeActiveNode | null;
   canDragNode?: (node: TreeNode) => boolean;
   canDropNode?: (source: TreeNodeReference, target: TreeNodeReference) => boolean;

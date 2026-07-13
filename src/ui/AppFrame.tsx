@@ -1,9 +1,4 @@
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  PointerEvent,
-  ReactNode,
-} from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import type {
   ActivityContextSlot,
@@ -17,6 +12,7 @@ import {
   appDetailMinWidth,
 } from "./frameResize";
 import { Button } from "./shared/primitives";
+import type { WorkbenchLayout } from "./useWorkbenchLayout";
 
 type AppFrameStyle = CSSProperties & {
   "--app-context-width"?: string;
@@ -25,49 +21,39 @@ type AppFrameStyle = CSSProperties & {
 
 export function AppFrame({
   activeActivityId,
-  contextCollapsed,
-  contextResizeValue,
   contextSlot,
-  contextWidth,
-  detailCollapsed,
-  detailResizeValue,
   detailSlot,
-  detailWidth,
-  isContextResizing,
-  isDetailResizing,
+  layout,
   mainSlot,
   onActivityChange,
-  onContextResizeKeyDown,
-  onContextResizeStart,
-  onDetailResizeKeyDown,
-  onDetailResizeStart,
-  onDetailToggle,
 }: {
   activeActivityId: ActivityId;
-  contextCollapsed: boolean;
-  contextResizeValue: number;
   contextSlot: ActivityContextSlot | null;
-  contextWidth: number | null;
-  detailCollapsed: boolean;
-  detailResizeValue: number;
   detailSlot: ReactNode | null;
-  detailWidth: number | null;
-  isContextResizing: boolean;
-  isDetailResizing: boolean;
+  layout: WorkbenchLayout;
   mainSlot: ReactNode;
   onActivityChange: (activityId: ActivityId) => void;
-  onContextResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-  onContextResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
-  onDetailResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
-  onDetailResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
-  onDetailToggle: () => void;
 }) {
+  const {
+    contextCollapsed,
+    contextResizeValue,
+    contextWidth,
+    detailCollapsed,
+    detailResizeValue,
+    detailWidth,
+    isContextResizing,
+    isDetailResizing,
+    onContextResizeKeyDown,
+    onContextResizeStart,
+    onDetailResizeKeyDown,
+    onDetailResizeStart,
+    onDetailToggle,
+  } = layout;
   const hasContext = contextSlot !== null;
   const showContext = hasContext && !contextCollapsed;
   const hasDetail = detailSlot !== null;
   const frameClassName = [
     "app-frame",
-    `activity-${activeActivityId}`,
     showContext ? "has-context" : "no-context",
     hasDetail ? "has-detail" : "no-detail",
     detailCollapsed && hasDetail ? "detail-collapsed" : "",
@@ -77,8 +63,12 @@ export function AppFrame({
     .filter(Boolean)
     .join(" ");
   const style: AppFrameStyle = {
-    ...(contextWidth === null ? {} : { "--app-context-width": `${contextWidth}px` }),
-    ...(detailWidth === null ? {} : { "--app-detail-width": `${detailWidth}px` }),
+    ...(contextWidth === null
+      ? {}
+      : { "--app-context-width": `${contextWidth}px` }),
+    ...(detailWidth === null
+      ? {}
+      : { "--app-detail-width": `${detailWidth}px` }),
   };
 
   return (
