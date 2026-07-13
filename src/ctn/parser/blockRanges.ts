@@ -18,26 +18,31 @@ export function assignBlockEndLineNumbers(
   blocks: CtnBlock[],
   totalLineCount: number,
 ) {
-  blocks.forEach((block, blockIndex) => {
+  const openBlocks: CtnBlock[] = [];
+
+  for (const block of blocks) {
     if (block.type === "title") {
-      return;
+      continue;
     }
 
-    let subtreeEndLineNumber = totalLineCount;
-
-    for (
-      let nextBlockIndex = blockIndex + 1;
-      nextBlockIndex < blocks.length;
-      nextBlockIndex += 1
+    while (
+      openBlocks.length > 0 &&
+      openBlocks[openBlocks.length - 1].level >= block.level
     ) {
-      const nextBlock = blocks[nextBlockIndex];
+      const completedBlock = openBlocks.pop();
 
-      if (nextBlock.level <= block.level) {
-        subtreeEndLineNumber = nextBlock.lineNumber - 1;
-        break;
+      if (completedBlock) {
+        completedBlock.endLineNumber = Math.max(
+          completedBlock.endLineNumber,
+          block.lineNumber - 1,
+        );
       }
     }
 
-    block.endLineNumber = Math.max(block.endLineNumber, subtreeEndLineNumber);
-  });
+    openBlocks.push(block);
+  }
+
+  for (const block of openBlocks) {
+    block.endLineNumber = Math.max(block.endLineNumber, totalLineCount);
+  }
 }
