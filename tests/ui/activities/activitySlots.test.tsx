@@ -1,35 +1,65 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  createActivitySlots,
-} from "../../../src/ui/activities/activityRegistry";
+import { createNotesActivitySlots } from "../../../src/ui/activities/notes/NotesActivitySlots";
+import { createPlaceholderActivitySlots } from "../../../src/ui/activities/PlaceholderActivitySlots";
+import { createSettingsActivitySlots } from "../../../src/ui/activities/settings/SettingsActivitySlots";
+import { createStructureOperationActivitySlots } from "../../../src/ui/activities/structure-operation/StructureOperationActivitySlots";
+import { createSyntaxActivitySlots } from "../../../src/ui/activities/syntax/SyntaxActivitySlots";
+import { createVisualizationActivitySlots } from "../../../src/ui/activities/visualization/VisualizationActivitySlots";
 import { activityItems } from "../../../src/ui/ActivityBar";
 import type { ActivityId } from "../../../src/ui/activityTypes";
-import { createView } from "../viewFactory";
+import { createView, type TestActivityViews } from "../viewFactory";
 
 function renderSlot(slot: React.ReactNode) {
   return renderToStaticMarkup(<>{slot}</>);
 }
 
 function slots(activityId: ActivityId) {
-  return createActivitySlots({
-    activityId,
-    onCollapseDetail: () => undefined,
-    onConfigureSyntax: () => undefined,
-    view: createView(),
-  });
+  return slotsWithView(activityId, createView());
 }
 
-function slotsWithView(activityId: ActivityId, view = createView()) {
-  return createActivitySlots({
-    activityId,
+function slotsWithView(
+  activityId: ActivityId,
+  view: TestActivityViews,
+) {
+  const controls = {
     onCollapseDetail: () => undefined,
     onConfigureSyntax: () => undefined,
-    view,
-  });
+  };
+
+  switch (activityId) {
+    case "notes":
+      return createNotesActivitySlots({
+        ...controls,
+        shell: view.shell,
+        view: view.notes,
+      });
+    case "structure-operation":
+      return createStructureOperationActivitySlots({
+        onConfigureSyntax: controls.onConfigureSyntax,
+        shell: view.shell,
+        view: view.structureOperation,
+      });
+    case "syntax":
+      return createSyntaxActivitySlots({
+        onCollapseDetail: controls.onCollapseDetail,
+        view: view.syntax,
+      });
+    case "visualization":
+      return createVisualizationActivitySlots({
+        ...controls,
+        shell: view.shell,
+        view: view.visualization,
+      });
+    case "settings":
+      return createSettingsActivitySlots(view.settings);
+    case "data":
+    case "search":
+      return createPlaceholderActivitySlots(activityId);
+  }
 }
 
-describe("activity registry", () => {
+describe("activity slots", () => {
   it("maps each activity to explicit slots", () => {
     expect(slots("notes").context?.title).toBe("笔记");
     expect(slots("notes").detail).not.toBeNull();
@@ -74,22 +104,12 @@ describe("activity registry", () => {
 
     expect(
       renderSlot(
-        createActivitySlots({
-          activityId: "notes",
-          onCollapseDetail: () => undefined,
-          onConfigureSyntax: () => undefined,
-          view,
-        }).main,
+        slotsWithView("notes", view).main,
       ),
     ).toContain("仓库语法未配置");
     expect(
       renderSlot(
-        createActivitySlots({
-          activityId: "visualization",
-          onCollapseDetail: () => undefined,
-          onConfigureSyntax: () => undefined,
-          view,
-        }).main,
+        slotsWithView("visualization", view).main,
       ),
     ).toContain("仓库语法未配置");
   });

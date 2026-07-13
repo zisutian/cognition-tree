@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "lucide-react";
-import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { SyntaxViewModel } from "../../../application/workspace/activities/syntax/syntaxViewModel";
 import type { UiSyntaxRole } from "../../../application/workspace/projection/viewSyntax";
 import { Popover } from "../../shared/Popover";
 

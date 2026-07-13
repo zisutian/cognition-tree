@@ -3,24 +3,11 @@ import {
   useSession,
   type ActiveSession,
 } from "../application/workspace/session/useSession";
-import {
-  useViewModel,
-  type WorkspaceViewModelScope,
-} from "../application/workspace/view-model/useViewModel";
+import { useWorkspaceApplication } from "../application/workspace/runtime/useWorkspaceApplication";
 import { createRuntimeWorkspaceRepository } from "../storage/runtimeWorkspaceRepository";
 import type { ActivityId } from "../ui/activityTypes";
-import AppView from "../ui/AppView";
 import { SessionStateView } from "../ui/SessionStateView";
-
-function createWorkspaceViewModelScope(
-  activeActivityId: ActivityId,
-): WorkspaceViewModelScope {
-  return {
-    notes: activeActivityId === "notes",
-    structureOperation: activeActivityId === "structure-operation",
-    visualization: activeActivityId === "visualization",
-  };
-}
+import { WorkspaceActivities } from "./activities/WorkspaceActivities";
 
 function ActiveWorkspaceApp({
   activeActivityId,
@@ -31,16 +18,12 @@ function ActiveWorkspaceApp({
   session: ActiveSession;
   onActiveActivityChange: (activityId: ActivityId) => void;
 }) {
-  const viewModelScope = useMemo(
-    () => createWorkspaceViewModelScope(activeActivityId),
-    [activeActivityId],
-  );
-  const view = useViewModel(session, viewModelScope);
+  const application = useWorkspaceApplication(session);
 
   return (
-    <AppView
+    <WorkspaceActivities
       activeActivityId={activeActivityId}
-      view={view}
+      application={application}
       onActiveActivityChange={onActiveActivityChange}
     />
   );

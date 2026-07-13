@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
 import { createSyntaxProfileDraft } from "../../../../src/ctn/syntax/profileDraft";
 import { formatSyntaxProfileToml } from "../../../../src/ctn/syntax/profileToml";
-import { resolveSyntaxDraftAfterPersistence } from "../../../../src/application/workspace/view-model/useSyntaxDraft";
+import { resolveSyntaxDraftAfterPersistence } from "../../../../src/application/workspace/runtime/useSyntaxRuntime";
 
 const renamedSyntaxProfile = {
   ...defaultCtnSyntaxProfile,

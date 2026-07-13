@@ -250,16 +250,39 @@ describe("architecture module boundaries", () => {
   });
 
   it("keeps app as the composition root", () => {
-    expect(listSourceFileNames("app")).toEqual(["AppRoot.tsx", "main.tsx"]);
+    expect(listImmediateSourceFileNames("app")).toEqual([
+      "AppRoot.tsx",
+      "main.tsx",
+    ]);
+    expect(listSubdirectories("app")).toEqual(["activities"]);
+    expect(listSourceFileNames("app/activities")).toEqual([
+      "NotesActivityController.tsx",
+      "PlaceholderActivityController.tsx",
+      "SettingsActivityController.tsx",
+      "StructureOperationActivityController.tsx",
+      "SyntaxActivityController.tsx",
+      "VisualizationActivityController.tsx",
+      "WorkspaceActivities.tsx",
+      "activityController.ts",
+    ]);
   });
 
   it("keeps application submodules explicitly named", () => {
     expect(listSubdirectories("application")).toEqual(["workspace"]);
     expect(listImmediateSourceFileNames("application/workspace")).toEqual([]);
     expect(listSubdirectories("application/workspace")).toEqual([
+      "activities",
       "projection",
+      "runtime",
+      "selection",
       "session",
-      "view-model",
+    ]);
+    expect(listSubdirectories("application/workspace/activities")).toEqual([
+      "notes",
+      "settings",
+      "structure-operation",
+      "syntax",
+      "visualization",
     ]);
     expect(listSourceFileNames("application/workspace/session")).toEqual([
       "sessionCommands.ts",
@@ -268,19 +291,47 @@ describe("architecture module boundaries", () => {
       "workspaceSessionController.ts",
       "workspaceSessionSaveQueue.ts",
     ]);
-    expect(listSourceFileNames("application/workspace/view-model")).toEqual([
-      "activityViewModels.ts",
-      "selection.ts",
-      "sidebarTreeMove.ts",
-      "structureOperationDirectorySelection.ts",
-      "structureOperationTargetPosition.ts",
-      "syntaxDraftActions.ts",
-      "useStructureOperationViewModel.ts",
-      "useSyntaxDraft.ts",
-      "useViewModel.ts",
-      "useVisualizationViewModel.ts",
+    expect(listSourceFileNames("application/workspace/runtime")).toEqual([
+      "useSyntaxRuntime.ts",
+      "useWorkspaceApplication.ts",
       "useWorkspaceParseIndex.ts",
+    ]);
+    expect(listSourceFileNames("application/workspace/selection")).toEqual([
+      "resolveFolderSelection.ts",
+      "sidebarTreeMove.ts",
+      "useWorkspaceSelection.ts",
       "viewSelection.ts",
+    ]);
+    expect(
+      listSourceFileNames("application/workspace/activities/notes"),
+    ).toEqual(["notesViewModel.ts", "useNotesActivity.ts"]);
+    expect(
+      listSourceFileNames("application/workspace/activities/settings"),
+    ).toEqual(["settingsViewModel.ts"]);
+    expect(
+      listSourceFileNames(
+        "application/workspace/activities/structure-operation",
+      ),
+    ).toEqual([
+      "directorySelection.ts",
+      "structureOperationViewModel.ts",
+      "targetPosition.ts",
+      "useStructureOperationActivity.ts",
+      "useStructureOperationState.ts",
+    ]);
+    expect(
+      listSourceFileNames("application/workspace/activities/syntax"),
+    ).toEqual([
+      "syntaxDraftActions.ts",
+      "syntaxViewModel.ts",
+      "useSyntaxActivity.ts",
+    ]);
+    expect(
+      listSourceFileNames("application/workspace/activities/visualization"),
+    ).toEqual([
+      "useVisualizationActivity.ts",
+      "useVisualizationFilter.ts",
+      "visualizationViewModel.ts",
     ]);
     expect(listSourceFileNames("application/workspace/projection")).toEqual([
       "viewBlocks.ts",
@@ -299,6 +350,7 @@ describe("architecture module boundaries", () => {
       "AppFrame.tsx",
       "AppView.tsx",
       "SessionStateView.tsx",
+      "WorkspaceSyntaxSetupView.tsx",
       "activityTypes.ts",
       "frameResize.ts",
       "useWorkbenchLayout.ts",
@@ -337,8 +389,8 @@ describe("architecture module boundaries", () => {
       "visualization.css",
     ]);
     expect(listImmediateSourceFileNames("ui/activities")).toEqual([
+      "PlaceholderActivitySlots.tsx",
       "PlaceholderPanel.tsx",
-      "activityRegistry.tsx",
     ]);
     expect(listSubdirectories("ui/activities")).toEqual([
       "notes",
@@ -363,6 +415,7 @@ describe("architecture module boundaries", () => {
       "types.ts",
     ]);
     expect(listSourceFileNames("ui/activities/structure-operation")).toEqual([
+      "StructureOperationActivitySlots.tsx",
       "StructureOperationContext.tsx",
       "StructureOperationPairView.tsx",
       "StructureOperationPanels.tsx",
@@ -372,22 +425,25 @@ describe("architecture module boundaries", () => {
       "structureOperationDropTargets.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/notes")).toEqual([
+      "NotesActivitySlots.tsx",
       "NotesPanels.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/settings")).toEqual([
+      "SettingsActivitySlots.tsx",
       "SettingsPanel.tsx",
     ]);
     expect(listSourceFileNames("ui/activities/syntax")).toEqual([
+      "SyntaxActivitySlots.tsx",
       "SyntaxDetailPanel.tsx",
       "SyntaxMainPanel.tsx",
       "SyntaxRolePicker.tsx",
       "SyntaxRuleRows.tsx",
-      "SyntaxSetupPanel.tsx",
       "TonePicker.tsx",
       "syntaxPreview.ts",
     ]);
     expect(listSourceFileNames("ui/activities/visualization")).toEqual([
       "ReferenceGraphCanvas.tsx",
+      "VisualizationActivitySlots.tsx",
       "VisualizationDetailLists.tsx",
       "VisualizationDetailPanel.tsx",
       "VisualizationPanel.tsx",
@@ -419,10 +475,6 @@ describe("architecture module boundaries", () => {
 
   it("keeps activity components on activity-specific view models", () => {
     const violations = listSourceFiles("ui/activities")
-      .filter(
-        (filePath) =>
-          filePath !== "../../src/ui/activities/activityRegistry.tsx",
-      )
       .flatMap((filePath) => {
         const source = sourceModules[filePath] ?? "";
 
@@ -430,6 +482,72 @@ describe("architecture module boundaries", () => {
           ? [sourcePathToRelative(filePath)]
           : [];
       });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps activity projection out of an aggregate workspace view model", () => {
+    const applicationSource = listSourceFiles("application/workspace")
+      .map((filePath) => sourceModules[filePath] ?? "")
+      .join("\n");
+
+    expect(listSubdirectories("application/workspace")).not.toContain(
+      "view-model",
+    );
+    expect(applicationSource).not.toMatch(/\bWorkspaceViewModelScope\b/);
+    expect(applicationSource).not.toMatch(/\bscopeStructureOperation\b/);
+    expect(applicationSource).not.toMatch(/\btype ViewModel\s*=/);
+  });
+
+  it("keeps application activities independent from sibling activities", () => {
+    const activityPrefix = "../../src/application/workspace/activities/";
+    const violations = listSourceFiles("application/workspace/activities")
+      .flatMap((filePath) => {
+        const sourceActivity = filePath
+          .slice(activityPrefix.length)
+          .split("/")[0];
+
+        return readSourceImports(filePath)
+          .filter(({ targetPath }) => targetPath.startsWith(activityPrefix))
+          .filter(({ targetPath }) =>
+            targetPath.slice(activityPrefix.length).split("/")[0] !==
+              sourceActivity,
+          )
+          .map(({ importPath }) => `${filePath} imports ${importPath}`);
+      });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps shared workspace application state independent from activities", () => {
+    const sharedDirectories = ["runtime", "selection", "session"];
+    const violations = sharedDirectories.flatMap((directory) =>
+      listSourceFiles(`application/workspace/${directory}`).flatMap(
+        (filePath) => readSourceImports(filePath)
+          .filter(({ targetPath }) =>
+            targetPath.startsWith(
+              "../../src/application/workspace/activities/",
+            ),
+          )
+          .map(({ importPath }) => `${filePath} imports ${importPath}`),
+      ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps ui activities independent from sibling activity components", () => {
+    const activityPrefix = "../../src/ui/activities/";
+    const violations = listSubdirectories("ui/activities").flatMap(
+      (activity) => listSourceFiles(`ui/activities/${activity}`).flatMap(
+        (filePath) => readSourceImports(filePath)
+          .filter(({ targetPath }) => targetPath.startsWith(activityPrefix))
+          .filter(({ targetPath }) =>
+            targetPath.slice(activityPrefix.length).split("/")[0] !== activity,
+          )
+          .map(({ importPath }) => `${filePath} imports ${importPath}`),
+      ),
+    );
 
     expect(violations).toEqual([]);
   });

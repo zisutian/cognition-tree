@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { VisualizationViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { VisualizationViewModel } from "../../../application/workspace/activities/visualization/visualizationViewModel";
 import {
   EmptyState,
   Panel,

@@ -2,7 +2,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import { Section } from "../../shared/primitives";
 import { StructureTree } from "../../shared/tree";
 import {

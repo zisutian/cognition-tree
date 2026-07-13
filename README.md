@@ -84,8 +84,8 @@ HTTP 后端默认只接受来自本机开发前端地址的浏览器请求。使
 
 ## 代码结构
 
-    src/app/          应用组合根
-    src/application/  workspace session、命令流程、状态和视图投影
+    src/app/          应用组合根和 activity controller 装配
+    src/application/  workspace session、共享 runtime、选择和 activity 投影
     src/ui/           workbench 框架、activities、shared primitives 和样式
     src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
     src/ctn/          CTN parser 和 syntax profile

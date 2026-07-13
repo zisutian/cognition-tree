@@ -1,4 +1,4 @@
-import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import {
   EmptyState,
   Panel,

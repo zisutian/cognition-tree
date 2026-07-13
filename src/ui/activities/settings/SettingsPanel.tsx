@@ -1,5 +1,5 @@
 import { RefreshCw, Undo2 } from "lucide-react";
-import type { SettingsViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { SettingsViewModel } from "../../../application/workspace/activities/settings/settingsViewModel";
 import {
   Button,
   Panel,

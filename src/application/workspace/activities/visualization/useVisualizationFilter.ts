@@ -2,15 +2,10 @@ import { useMemo, useState } from "react";
 import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
-  VisualizationViewModel,
-} from "./activityViewModels";
+  VisualizationFilterController,
+} from "./visualizationViewModel";
 
-export function useVisualizationViewModel(
-  visualization: Pick<
-    VisualizationViewModel,
-    "activeNoteId" | "graph" | "onSelectNote"
-  >,
-): VisualizationViewModel {
+export function useVisualizationFilter(): VisualizationFilterController {
   const [mode, setMode] = useState<ReferenceGraphMode>("global");
   const [localDepth, setLocalDepth] = useState<ReferenceGraphLocalDepth>(1);
   const [query, setQuery] = useState("");
@@ -18,18 +13,12 @@ export function useVisualizationViewModel(
 
   return useMemo(
     () => ({
-      ...visualization,
-      filter: {
-        hideIsolated,
-        localDepth,
-        mode,
-        query,
-      },
+      filter: { hideIsolated, localDepth, mode, query },
       setHideIsolated,
       setLocalDepth,
       setMode,
       setQuery,
     }),
-    [hideIsolated, localDepth, mode, query, visualization],
+    [hideIsolated, localDepth, mode, query],
   );
 }

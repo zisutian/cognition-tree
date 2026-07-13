@@ -1,6 +1,6 @@
 import type {
   ReferenceGraphMode,
-} from "../../../application/workspace/view-model/activityViewModels";
+} from "../../../application/workspace/activities/visualization/visualizationViewModel";
 
 export function getEmptyGraphMessage({
   graphNodeCount,

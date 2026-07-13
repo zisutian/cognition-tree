@@ -171,3 +171,5 @@ export function useWorkbenchLayout() {
     toggleContext: () => setContextCollapsed((current) => !current),
   };
 }
+
+export type WorkbenchController = ReturnType<typeof useWorkbenchLayout>;

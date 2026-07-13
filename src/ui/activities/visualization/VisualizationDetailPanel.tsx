@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import type { VisualizationViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { VisualizationViewModel } from "../../../application/workspace/activities/visualization/visualizationViewModel";
 import {
   Button,
   Panel,

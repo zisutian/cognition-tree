@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
-import type { NotesViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
 import {
   Button,
   EmptyState,

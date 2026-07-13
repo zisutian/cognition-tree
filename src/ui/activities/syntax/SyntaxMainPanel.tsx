@@ -1,4 +1,4 @@
-import type { SyntaxViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { SyntaxViewModel } from "../../../application/workspace/activities/syntax/syntaxViewModel";
 import {
   Panel,
   PanelBody,

@@ -8,7 +8,7 @@ import {
   GitBranch,
 } from "lucide-react";
 import { useState } from "react";
-import type { StructureOperationActivityViewModel } from "../../../application/workspace/view-model/activityViewModels";
+import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import {
   SegmentedControl,
   SymbolSlot,

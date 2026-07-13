@@ -11,7 +11,7 @@ import {
 } from "../../../workspace/context/workspaceContext";
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 
-type UseSyntaxDraftOptions = {
+type UseSyntaxRuntimeOptions = {
   syntaxProfile: CtnSyntaxProfile;
   syntaxSource: string;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
@@ -52,12 +52,12 @@ export function resolveSyntaxDraftAfterPersistence({
     : currentDraft;
 }
 
-export function useSyntaxDraft({
+export function useSyntaxRuntime({
   syntaxProfile,
   syntaxSource,
   updateWorkspaceSyntaxSource,
   workspace,
-}: UseSyntaxDraftOptions) {
+}: UseSyntaxRuntimeOptions) {
   const [syntaxDraft, setSyntaxDraft] = useState(() =>
     createSyntaxProfileDraft(syntaxProfile),
   );
@@ -158,3 +158,5 @@ export function useSyntaxDraft({
     updateSyntaxDraft,
   };
 }
+
+export type SyntaxRuntime = ReturnType<typeof useSyntaxRuntime>;

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDetailPanel";
 import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
-import { SyntaxSetupPanel } from "../../../../src/ui/activities/syntax/SyntaxSetupPanel";
+import { WorkspaceSyntaxSetupView } from "../../../../src/ui/WorkspaceSyntaxSetupView";
 import { createView } from "../../viewFactory";
 
 const { readFileSync } = (await import("node:fs")) as {
@@ -60,7 +60,7 @@ describe("syntax panels", () => {
 
   it("keeps setup copy aligned with structure operation wording", () => {
     const markup = renderToStaticMarkup(
-      <SyntaxSetupPanel
+      <WorkspaceSyntaxSetupView
         errorMessage=""
         onConfigureSyntax={() => undefined}
         onUseDefaultSyntax={() => undefined}

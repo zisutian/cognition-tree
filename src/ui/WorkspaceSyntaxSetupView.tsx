@@ -4,9 +4,9 @@ import {
   PanelBody,
   PanelHeader,
   StatusLine,
-} from "../../shared/primitives";
+} from "./shared/primitives";
 
-export function SyntaxSetupPanel({
+export function WorkspaceSyntaxSetupView({
   errorMessage,
   onConfigureSyntax,
   onUseDefaultSyntax,

@@ -4,9 +4,25 @@ import {
 } from "../../src/ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
-import type { ViewModel } from "../../src/application/workspace/view-model/activityViewModels";
+import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
+import type { SettingsViewModel } from "../../src/application/workspace/activities/settings/settingsViewModel";
+import type { StructureOperationActivityViewModel } from "../../src/application/workspace/activities/structure-operation/structureOperationViewModel";
+import type { SyntaxViewModel } from "../../src/application/workspace/activities/syntax/syntaxViewModel";
+import type { VisualizationViewModel } from "../../src/application/workspace/activities/visualization/visualizationViewModel";
+import type { WorkspaceShell } from "../../src/application/workspace/runtime/useWorkspaceApplication";
 
-export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
+export type TestActivityViews = {
+  notes: NotesViewModel;
+  settings: SettingsViewModel;
+  shell: WorkspaceShell;
+  structureOperation: StructureOperationActivityViewModel;
+  syntax: SyntaxViewModel;
+  visualization: VisualizationViewModel;
+};
+
+export function createView(
+  overrides: Partial<TestActivityViews> = {},
+): TestActivityViews {
   const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
   const syntax = createUiSyntaxView({
     draft,

@@ -7,13 +7,13 @@ import {
   type SyntaxProfileDraftInlineRule,
   type SyntaxProfileDraftMarkerRule,
   type SyntaxProfileDraftTitleRule,
-} from "../../../ctn/syntax/profileDraft";
+} from "../../../../ctn/syntax/profileDraft";
 import type {
   UiSyntaxProfileDraftConceptRule,
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxProfileDraftMarkerRule,
   UiSyntaxProfileDraftTitleRule,
-} from "../projection/viewSyntax";
+} from "../../projection/viewSyntax";
 
 export function createSyntaxDraftActions({
   syntaxDraft,

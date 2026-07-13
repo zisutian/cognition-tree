@@ -1,32 +1,31 @@
-import type { ViewModel } from "../application/workspace/view-model/activityViewModels";
-import type { ActivityId } from "./activityTypes";
-import { createActivitySlots } from "./activities/activityRegistry";
+import type { ActivityId, ActivitySlots } from "./activityTypes";
 import { AppFrame } from "./AppFrame";
-import { useWorkbenchLayout } from "./useWorkbenchLayout";
+import type { WorkbenchController } from "./useWorkbenchLayout";
 import "./styles/index.css";
 
 type AppViewProps = {
   activeActivityId: ActivityId;
-  view: ViewModel;
+  createActivitySlots: (controls: {
+    onCollapseDetail: () => void;
+    onConfigureSyntax: () => void;
+  }) => ActivitySlots;
   onActiveActivityChange: (activityId: ActivityId) => void;
+  workbench: WorkbenchController;
 };
 
 function AppView({
   activeActivityId,
-  view,
+  createActivitySlots,
   onActiveActivityChange,
+  workbench,
 }: AppViewProps) {
-  const workbench = useWorkbenchLayout();
-
   const configureSyntax = () => {
     onActiveActivityChange("syntax");
     workbench.expandPanels();
   };
   const activitySlots = createActivitySlots({
-    activityId: activeActivityId,
     onCollapseDetail: workbench.collapseDetail,
     onConfigureSyntax: configureSyntax,
-    view,
   });
   const hasContext = activitySlots.context !== null;
 

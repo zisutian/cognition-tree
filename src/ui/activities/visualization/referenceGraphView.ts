@@ -6,7 +6,7 @@ import type {
 import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
-} from "../../../application/workspace/view-model/activityViewModels";
+} from "../../../application/workspace/activities/visualization/visualizationViewModel";
 
 export type VisibleReferenceGraphNode = UiReferenceGraphNode & {
   radius: number;
