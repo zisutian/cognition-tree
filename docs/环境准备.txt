@@ -107,7 +107,7 @@ diff 空白检查：
 
 架构边界测试：
 
-    pnpm vitest run tests/architecture/moduleBoundaries.test.ts
+    pnpm test:architecture
 
 后端 TypeScript 检查：
 

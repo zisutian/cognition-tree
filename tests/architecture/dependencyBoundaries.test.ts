@@ -1,0 +1,247 @@
+import { describe, expect, it } from "vitest";
+import {
+  contractModules,
+  getSourceRoot,
+  listInternalSourceImports,
+  listSourceFiles,
+  readModuleImports,
+  readSourceImports,
+  serverModules,
+  sourceModules,
+} from "./sourceGraph";
+
+const allowedRootImports = new Map(
+  Object.entries({
+    app: ["app", "application", "editor", "storage", "ui"],
+    application: ["application", "ctn", "storage", "workspace"],
+    ctn: ["ctn"],
+    editor: ["ctn", "editor"],
+    storage: ["storage", "workspace"],
+    ui: ["application", "editor", "ui"],
+    workspace: ["ctn", "workspace"],
+  }).map(([sourceRoot, imports]) => [sourceRoot, new Set(imports)]),
+);
+
+function formatImport(filePath: string, importPath: string) {
+  return `${filePath} imports ${importPath}`;
+}
+
+describe("dependency boundaries", () => {
+  it("reads imports, re-exports, and dynamic imports through the TypeScript AST", () => {
+    const modules = {
+      "sample.ts": `
+        import value from "./imported";
+        export { value as exported } from "./exported";
+        export * from "./star";
+        const lazy = import("./lazy");
+      `,
+    };
+
+    expect(readModuleImports(modules, "sample.ts")).toEqual([
+      "./imported",
+      "./exported",
+      "./star",
+      "./lazy",
+    ]);
+  });
+
+  it("enforces the documented source dependency direction", () => {
+    const violations = listInternalSourceImports().flatMap(
+      ({ filePath, importPath, targetRoot }) => {
+        const sourceRoot = getSourceRoot(filePath);
+        const allowedImports = allowedRootImports.get(sourceRoot);
+
+        return !allowedImports || allowedImports.has(targetRoot)
+          ? []
+          : [
+              `${formatImport(filePath, importPath)} (${sourceRoot} -> ${targetRoot})`,
+            ];
+      },
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps application activity state behind local activity boundaries", () => {
+    const activityPrefix = "../../src/application/workspace/activities/";
+    const siblingViolations = listSourceFiles(
+      "application/workspace/activities",
+    ).flatMap((filePath) => {
+      const sourceActivity = filePath
+        .slice(activityPrefix.length)
+        .split("/")[0];
+
+      return readSourceImports(filePath)
+        .filter(({ targetPath }) => targetPath.startsWith(activityPrefix))
+        .filter(
+          ({ targetPath }) =>
+            targetPath.slice(activityPrefix.length).split("/")[0] !==
+            sourceActivity,
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath));
+    });
+    const sharedViolations = ["runtime", "selection", "session"].flatMap(
+      (directory) =>
+        listSourceFiles(`application/workspace/${directory}`).flatMap(
+          (filePath) =>
+            readSourceImports(filePath)
+              .filter(({ targetPath }) =>
+                targetPath.startsWith(activityPrefix),
+              )
+              .map(({ importPath }) => formatImport(filePath, importPath)),
+        ),
+    );
+
+    expect([...siblingViolations, ...sharedViolations]).toEqual([]);
+  });
+
+  it("keeps UI activities, shared components, and frame modules independent", () => {
+    const activityPrefix = "../../src/ui/activities/";
+    const activityViolations = listSourceFiles("ui/activities").flatMap(
+      (filePath) => {
+        const relativeActivityPath = filePath.slice(activityPrefix.length);
+        const sourceActivity = relativeActivityPath.includes("/")
+          ? relativeActivityPath.split("/")[0]
+          : null;
+
+        return readSourceImports(filePath)
+          .filter(({ targetPath }) => targetPath.startsWith(activityPrefix))
+          .filter(({ targetPath }) => {
+            const targetActivity = targetPath
+              .slice(activityPrefix.length)
+              .split("/")[0];
+
+            return sourceActivity && targetActivity !== sourceActivity;
+          })
+          .map(({ importPath }) => formatImport(filePath, importPath));
+      },
+    );
+    const sharedViolations = listSourceFiles("ui/shared").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(
+          ({ targetPath }) =>
+            targetPath.startsWith(activityPrefix) ||
+            targetPath.startsWith("../../src/application/"),
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const frameViolations = [
+      "../../src/ui/ActivityBar.tsx",
+      "../../src/ui/AppFrame.tsx",
+      "../../src/ui/frameResize.ts",
+    ].flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(
+          ({ targetPath }) =>
+            targetPath.startsWith("../../src/application/") ||
+            targetPath.startsWith("../../src/workspace/") ||
+            targetPath.startsWith("../../src/ctn/") ||
+            targetPath.startsWith(activityPrefix),
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+
+    expect([
+      ...activityViolations,
+      ...sharedViolations,
+      ...frameViolations,
+    ]).toEqual([]);
+  });
+
+  it("keeps UI, storage, and application projections on their public inputs", () => {
+    const uiViolations = listSourceFiles("ui").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(
+          ({ targetRoot }) =>
+            targetRoot === "workspace" || targetRoot === "ctn",
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const storageViolations = listSourceFiles("storage").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetRoot }) => targetRoot === "ctn")
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const projectionViolations = listSourceFiles(
+      "application/workspace/projection",
+    ).flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetPath }) =>
+          targetPath.startsWith("../../src/workspace/commands/"),
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const noteTreeViolations = listSourceFiles("application").flatMap(
+      (filePath) =>
+        readSourceImports(filePath)
+          .filter(({ targetPath }) =>
+            targetPath.startsWith("../../src/workspace/model/noteTree/"),
+          )
+          .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+
+    expect([
+      ...uiViolations,
+      ...storageViolations,
+      ...projectionViolations,
+      ...noteTreeViolations,
+    ]).toEqual([]);
+  });
+
+  it("keeps the wire contract runtime-neutral and consumed only at boundaries", () => {
+    const blockedContractImports = [
+      /^node:/,
+      /^react$/,
+      /^react\//,
+      /\/server\//,
+      /\/src\//,
+    ];
+    const contractViolations = Object.keys(contractModules).flatMap(
+      (filePath) =>
+        readModuleImports(contractModules, filePath)
+          .filter((importPath) =>
+            blockedContractImports.some((pattern) => pattern.test(importPath)),
+          )
+          .map((importPath) => formatImport(filePath, importPath)),
+    );
+    const sourceViolations = Object.keys(sourceModules).flatMap((filePath) =>
+      readModuleImports(sourceModules, filePath)
+        .filter((importPath) => importPath.includes("contracts/"))
+        .filter(() => getSourceRoot(filePath) !== "storage")
+        .map((importPath) => formatImport(filePath, importPath)),
+    );
+    const serverConsumesContract = Object.keys(serverModules).some((filePath) =>
+      readModuleImports(serverModules, filePath).some((importPath) =>
+        importPath.includes("contracts/workspace-repository/"),
+      ),
+    );
+
+    expect([...contractViolations, ...sourceViolations]).toEqual([]);
+    expect(serverConsumesContract).toBe(true);
+  });
+
+  it("keeps server and frontend behind the repository HTTP boundary", () => {
+    const blockedServerImports = [
+      /^react$/,
+      /^react\//,
+      /\/src\//,
+      /^src\//,
+    ];
+    const serverViolations = Object.keys(serverModules).flatMap((filePath) =>
+      readModuleImports(serverModules, filePath)
+        .filter(
+          (importPath) =>
+            importPath === "smol-toml" ||
+            blockedServerImports.some((pattern) => pattern.test(importPath)),
+        )
+        .map((importPath) => formatImport(filePath, importPath)),
+    );
+    const sourceViolations = Object.keys(sourceModules).flatMap((filePath) =>
+      readModuleImports(sourceModules, filePath)
+        .filter((importPath) => /server\//.test(importPath))
+        .map((importPath) => formatImport(filePath, importPath)),
+    );
+
+    expect([...serverViolations, ...sourceViolations]).toEqual([]);
+  });
+});

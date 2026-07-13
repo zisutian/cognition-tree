@@ -3,4 +3,4 @@ set -eu
 
 git diff --cached --check
 pnpm run check
-pnpm test tests/architecture/moduleBoundaries.test.ts
+pnpm run test:architecture
