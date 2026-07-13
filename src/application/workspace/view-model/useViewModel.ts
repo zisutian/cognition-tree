@@ -71,6 +71,8 @@ export function useViewModel(
   const {
     canChangeRepositoryPath,
     changeRepositoryPath,
+    discardPendingChangesAndReload,
+    hasSaveConflict,
     isLoaded,
     reload,
     repositoryPath,
@@ -389,9 +391,13 @@ export function useViewModel(
     settings: {
       canChangeRepositoryPath,
       changeRepositoryPath,
+      discardPendingChangesAndReload,
+      hasSaveConflict,
       reload,
       repositoryPath,
-      saveStatusLabel: saveStatusLabels[saveStatus],
+      saveStatusLabel: hasSaveConflict
+        ? "磁盘内容已更改"
+        : saveStatusLabels[saveStatus],
       storageLabel,
     },
     shell: {

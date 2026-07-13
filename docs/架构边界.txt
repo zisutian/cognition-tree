@@ -25,7 +25,7 @@ ctn：
 
 storage：
 
-    前端持久化端口和实现，负责 workspace 数据与仓库语法 source 的读取和保存。
+    前端持久化端口和实现，以带 revision 的仓库快照统一读取和提交 workspace 数据与仓库语法 source。
 
 editor：
 
@@ -33,7 +33,7 @@ editor：
 
 server：
 
-    本机 HTTP API 和文件仓库执行端，负责请求处理、DTO 校验、原子写入和本地文件布局。
+    本机 HTTP API 和文件仓库执行端，负责请求处理、DTO 校验、版本冲突检测、仓库快照事务和本地文件布局。
 
 
 2. 依赖方向
@@ -49,9 +49,9 @@ server：
 
 3. 数据流
 
-    server 从本地文件仓库读取 workspace 和 syntax source。
-    storage 将后端响应转换为前端 workspace repository 数据。
-    application 维护 session，调用 workspace 命令并生成 UI 需要的 view model。
+    server 从本地文件仓库生成包含 workspace、syntax source 和 revision 的完整快照，并以事务提交完整新版本。
+    storage 将仓库快照和提交结果转换为前端 repository 契约，过期 revision 不覆盖当前仓库。
+    application 维护 session 和单一保存队列，调用 workspace 命令并生成 UI 需要的 view model。
     ui 根据 view model 渲染 workbench，并通过回调触发 application 命令。
     editor 接收 ui 和 application 给出的文本、诊断和语法展示数据。
     workspace 和 ctn 负责结构、语义和派生数据的确定性计算。

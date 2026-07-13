@@ -11,10 +11,10 @@ import {
   WorkspaceFileStore,
 } from "../../server/workspaceApiServer.mjs";
 
-function createWorkspace() {
+function createWorkspace(name = "本地笔记库") {
   return {
     id: "local-workspace",
-    name: "本地笔记库",
+    name,
     notes: [],
     tree: [],
   };
@@ -77,6 +77,24 @@ async function withHandler(testFn, { allowedOrigins } = {}) {
   }
 }
 
+async function loadSnapshot(handler) {
+  const response = await dispatch(handler, {
+    method: "GET",
+    url: "/api/repository-snapshot",
+  });
+
+  expect(response.statusCode).toBe(200);
+  return response.body;
+}
+
+async function commitSnapshot(handler, content, baseRevision) {
+  return dispatch(handler, {
+    body: JSON.stringify({ ...content, baseRevision }),
+    method: "PUT",
+    url: "/api/repository-snapshot",
+  });
+}
+
 const customSyntaxSource = `name = "自定义语法"
 tabDisplayWidth = 4
 
@@ -85,63 +103,85 @@ type = "concept"
 label = "顶格概念"
 tone = "teal"
 textColor = "cyan"
-
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-textColor = "amber"
-
-[[inlineRules]]
-kind = "paired"
-open = "[["
-close = "]]"
-type = "global-reference"
-label = "全局概念引用"
-tone = "blue"
-textColor = "cyan"
 `;
 
 describe("workspace API request handler", () => {
-  it("serves repository info and workspace read/write endpoints", async () => {
+  it("serves repository metadata and commits aggregate snapshots", async () => {
     await withHandler(async (handler, rootDir) => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/health" }),
-      ).resolves.toMatchObject({
-        body: { ok: true },
-        statusCode: 200,
-      });
+      ).resolves.toMatchObject({ body: { ok: true }, statusCode: 200 });
       await expect(
         dispatch(handler, { method: "GET", url: "/api/repository" }),
       ).resolves.toMatchObject({
         body: { path: rootDir },
         statusCode: 200,
       });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/workspace" }),
-      ).resolves.toMatchObject({
-        body: createWorkspace(),
-        statusCode: 200,
-      });
 
-      const workspace = createWorkspace();
-      await expect(
-        dispatch(handler, {
-          body: JSON.stringify(workspace),
-          method: "PUT",
-          url: "/api/workspace",
-        }),
-      ).resolves.toMatchObject({
-        body: null,
-        statusCode: 204,
+      const initialSnapshot = await loadSnapshot(handler);
+
+      expect(initialSnapshot).toMatchObject({
+        syntaxSourceFile: null,
+        workspace: createWorkspace(),
       });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/workspace" }),
-      ).resolves.toMatchObject({
-        body: workspace,
+      expect(initialSnapshot.revision).toEqual(expect.any(String));
+
+      const content = {
+        syntaxSourceFile: {
+          fileName: "workspace.toml",
+          source: customSyntaxSource,
+        },
+        workspace: createWorkspace("聚合仓库"),
+      };
+      const commit = await commitSnapshot(
+        handler,
+        content,
+        initialSnapshot.revision,
+      );
+
+      expect(commit).toMatchObject({
+        body: { revision: expect.any(String) },
         statusCode: 200,
+      });
+      expect(commit.body.revision).not.toBe(initialSnapshot.revision);
+      await expect(loadSnapshot(handler)).resolves.toEqual({
+        ...content,
+        revision: commit.body.revision,
+      });
+    });
+  });
+
+  it("rejects stale commits without overwriting the current snapshot", async () => {
+    await withHandler(async (handler) => {
+      const initialSnapshot = await loadSnapshot(handler);
+      const currentContent = {
+        syntaxSourceFile: null,
+        workspace: createWorkspace("current"),
+      };
+      const firstCommit = await commitSnapshot(
+        handler,
+        currentContent,
+        initialSnapshot.revision,
+      );
+      const staleCommit = await commitSnapshot(
+        handler,
+        {
+          syntaxSourceFile: null,
+          workspace: createWorkspace("stale overwrite"),
+        },
+        initialSnapshot.revision,
+      );
+
+      expect(staleCommit).toEqual(expect.objectContaining({
+        body: {
+          currentRevision: firstCommit.body.revision,
+          error: "Repository content changed outside the current session",
+        },
+        statusCode: 409,
+      }));
+      await expect(loadSnapshot(handler)).resolves.toEqual({
+        ...currentContent,
+        revision: firstCommit.body.revision,
       });
     });
   });
@@ -154,7 +194,7 @@ describe("workspace API request handler", () => {
         dispatch(handler, {
           headers: { origin: allowedOrigin },
           method: "OPTIONS",
-          url: "/api/workspace",
+          url: "/api/repository-snapshot",
         }),
       ).resolves.toMatchObject({
         body: null,
@@ -166,39 +206,23 @@ describe("workspace API request handler", () => {
         statusCode: 204,
       });
 
-      await expect(
-        dispatch(handler, {
-          headers: { origin: allowedOrigin },
-          method: "GET",
-          url: "/api/health",
-        }),
-      ).resolves.toMatchObject({
-        body: { ok: true },
-        headers: { "access-control-allow-origin": allowedOrigin },
-        statusCode: 200,
-      });
-
+      const initialSnapshot = await loadSnapshot(handler);
       await expect(
         dispatch(handler, {
           body: JSON.stringify({
-            ...createWorkspace(),
-            name: "不应写入",
+            baseRevision: initialSnapshot.revision,
+            syntaxSourceFile: null,
+            workspace: createWorkspace("不应写入"),
           }),
           headers: { origin: "https://example.com" },
           method: "PUT",
-          url: "/api/workspace",
+          url: "/api/repository-snapshot",
         }),
       ).resolves.toMatchObject({
         body: { error: "Origin is not allowed" },
         statusCode: 403,
       });
-
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/workspace" }),
-      ).resolves.toMatchObject({
-        body: createWorkspace(),
-        statusCode: 200,
-      });
+      await expect(loadSnapshot(handler)).resolves.toEqual(initialSnapshot);
     });
   });
 
@@ -213,162 +237,126 @@ describe("workspace API request handler", () => {
     ]);
   });
 
-  it("serves the workspace syntax endpoint", async () => {
+  it("rejects invalid commit content without changing the repository", async () => {
     await withHandler(async (handler) => {
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/syntax" }),
-      ).resolves.toMatchObject({
-        body: null,
-        statusCode: 200,
-      });
+      const initialSnapshot = await loadSnapshot(handler);
+      const workspace = {
+        ...createWorkspace(),
+        notes: [
+          {
+            createdAt: "2026-05-25T00:00:00.000Z",
+            id: "note-valid",
+            source: "有效笔记",
+            title: "有效笔记",
+            updatedAt: "2026-05-25T00:00:00.000Z",
+          },
+        ],
+        tree: [
+          {
+            id: "tree-note-valid",
+            kind: "note",
+            noteId: "note-valid",
+          },
+        ],
+      };
+      const validCommit = await commitSnapshot(
+        handler,
+        { syntaxSourceFile: null, workspace },
+        initialSnapshot.revision,
+      );
 
-      await expect(
-        dispatch(handler, {
-          body: JSON.stringify({ source: customSyntaxSource }),
-          method: "PUT",
-          url: "/api/syntax",
+      const unsupportedField = await dispatch(handler, {
+        body: JSON.stringify({
+          baseRevision: validCommit.body.revision,
+          extra: true,
+          syntaxSourceFile: null,
+          workspace,
         }),
-      ).resolves.toMatchObject({
-        body: null,
-        statusCode: 204,
+        method: "PUT",
+        url: "/api/repository-snapshot",
       });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/syntax" }),
-      ).resolves.toMatchObject({
-        body: {
-          fileName: "workspace.toml",
-          source: customSyntaxSource,
-        },
-        statusCode: 200,
-      });
-    });
-  });
-
-  it("rejects invalid workspace payloads without changing the stored workspace", async () => {
-    await withHandler(async (handler) => {
-      const workspace = createWorkspace();
-
-      workspace.notes = [
-        {
-          id: "note-valid",
-          title: "有效笔记",
-          source: "有效笔记",
-          createdAt: "2026-05-25T00:00:00.000Z",
-          updatedAt: "2026-05-25T00:00:00.000Z",
-        },
-      ];
-      workspace.tree = [
-        {
-          id: "tree-note-valid",
-          kind: "note",
-          noteId: "note-valid",
-        },
-      ];
-
-      await expect(
-        dispatch(handler, {
-          body: JSON.stringify(workspace),
-          method: "PUT",
-          url: "/api/workspace",
-        }),
-      ).resolves.toMatchObject({
-        body: null,
-        statusCode: 204,
-      });
-
-      await expect(
-        dispatch(handler, {
-          body: JSON.stringify({
-            ...workspace,
-            activeNoteId: "note-missing",
-          }),
-          method: "PUT",
-          url: "/api/workspace",
-        }),
-      ).resolves.toMatchObject({
-        body: {
-          error: expect.stringContaining("unsupported field"),
-        },
+      expect(unsupportedField).toMatchObject({
+        body: { error: expect.stringContaining("Unsupported") },
         statusCode: 400,
       });
 
-      await expect(
-        dispatch(handler, {
-          body: JSON.stringify({
+      const invalidTitle = await commitSnapshot(
+        handler,
+        {
+          syntaxSourceFile: null,
+          workspace: {
             ...workspace,
             notes: workspace.notes.map((note) => ({
               ...note,
               title: "标题与原文不一致",
             })),
-          }),
-          method: "PUT",
-          url: "/api/workspace",
-        }),
-      ).resolves.toMatchObject({
-        body: {
-          error: expect.stringContaining("does not match first line"),
+          },
         },
+        validCommit.body.revision,
+      );
+      expect(invalidTitle).toMatchObject({
+        body: { error: expect.stringContaining("does not match first line") },
         statusCode: 400,
       });
-
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/workspace" }),
-      ).resolves.toMatchObject({
-        body: workspace,
-        statusCode: 200,
+      await expect(loadSnapshot(handler)).resolves.toEqual({
+        revision: validCommit.body.revision,
+        syntaxSourceFile: null,
+        workspace,
       });
     });
   });
 
-  it("classifies request and routing errors", async () => {
+  it("classifies malformed requests and removed routes", async () => {
     await withHandler(async (handler) => {
       await expect(
         dispatch(handler, {
           body: "{",
           method: "PUT",
-          url: "/api/workspace",
+          url: "/api/repository-snapshot",
         }),
       ).resolves.toMatchObject({
         body: { error: "Request body is invalid JSON" },
         statusCode: 400,
       });
-
       await expect(
         dispatch(handler, {
-          body: JSON.stringify({ source: "" }),
+          body: JSON.stringify({ baseRevision: "revision" }),
           method: "PUT",
-          url: "/api/syntax",
+          url: "/api/repository-snapshot",
         }),
       ).resolves.toMatchObject({
-        body: { error: "Syntax profile source is required" },
+        body: { error: expect.stringContaining("Missing") },
         statusCode: 400,
       });
-
       await expect(
         dispatch(handler, {
           body: "x".repeat(20 * 1024 * 1024 + 1),
           method: "PUT",
-          url: "/api/workspace",
+          url: "/api/repository-snapshot",
         }),
       ).resolves.toMatchObject({
         body: { error: "Request body is too large" },
         statusCode: 413,
       });
-
       await expect(
-        dispatch(handler, { method: "DELETE", url: "/api/workspace" }),
+        dispatch(handler, {
+          method: "DELETE",
+          url: "/api/repository-snapshot",
+        }),
       ).resolves.toMatchObject({
         body: { error: "Method not allowed" },
         headers: { allow: "GET, PUT" },
         statusCode: 405,
       });
 
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/missing" }),
-      ).resolves.toMatchObject({
-        body: { error: "Not found" },
-        statusCode: 404,
-      });
+      for (const url of ["/api/workspace", "/api/syntax", "/api/missing"]) {
+        await expect(
+          dispatch(handler, { method: "GET", url }),
+        ).resolves.toMatchObject({
+          body: { error: "Not found" },
+          statusCode: 404,
+        });
+      }
     });
   });
 });

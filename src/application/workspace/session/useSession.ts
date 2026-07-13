@@ -15,7 +15,11 @@ import {
   createSessionCommands,
   type SessionCommands,
 } from "./sessionCommands";
-import type { WorkspaceRepository } from "../../../storage/workspaceRepository";
+import {
+  WorkspaceRepositoryConflictError,
+  type WorkspaceRepository,
+  type WorkspaceRepositoryContent,
+} from "../../../storage/workspaceRepository";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
@@ -23,6 +27,7 @@ import {
 import {
   createDefaultWorkspaceSyntaxFile,
   parseWorkspaceSyntaxSource,
+  type WorkspaceSyntaxSourceFile,
   type WorkspaceSyntaxFile,
   workspaceSyntaxFileName,
 } from "../../../workspace/context/workspaceSyntaxFile";
@@ -34,6 +39,8 @@ export type { SessionCommands } from "./sessionCommands";
 export type Session = {
   canChangeRepositoryPath: boolean;
   changeRepositoryPath: (path: string) => Promise<void>;
+  discardPendingChangesAndReload: () => Promise<void>;
+  hasSaveConflict: boolean;
   isLoaded: boolean;
   reload: () => Promise<void>;
   repositoryPath: string;
@@ -67,13 +74,16 @@ export function useSession({
   const [repositoryPath, setRepositoryPath] = useState("");
   const [workspaceSyntaxFile, setWorkspaceSyntaxFile] =
     useState<WorkspaceSyntaxFile | null>(null);
+  const [hasSaveConflict, setHasSaveConflict] = useState(false);
   const defaultWorkspaceSyntaxFile = useMemo(
     createDefaultWorkspaceSyntaxFile,
     [],
   );
   const isMountedRef = useRef(true);
+  const repositoryRevisionRef = useRef("");
+  const workspaceDataRef = useRef(workspaceData);
+  const syntaxSourceFileRef = useRef<WorkspaceSyntaxSourceFile | null>(null);
   const latestSyntaxFileRef = useRef<WorkspaceSyntaxFile | null>(null);
-  const latestSyntaxSourceRef = useRef("");
   const workspace = useMemo(
     () => createWorkspaceStructureIndex(workspaceData),
     [workspaceData],
@@ -101,8 +111,14 @@ export function useSession({
       createWorkspaceSessionSaveQueue({
         onError(error) {
           if (isMountedRef.current) {
+            const isConflict =
+              error instanceof WorkspaceRepositoryConflictError;
+
+            setHasSaveConflict(isConflict);
             setErrorMessage(
-              getErrorMessage(error, "工作区自动保存失败。"),
+              isConflict
+                ? "磁盘中的仓库内容已更改，本地修改尚未保存。"
+                : getErrorMessage(error, "工作区自动保存失败。"),
             );
           }
         },
@@ -113,28 +129,57 @@ export function useSession({
 
           if (status === "saved") {
             setErrorMessage("");
+            setHasSaveConflict(false);
           }
 
           setSaveStatus(status);
         },
-        onSyntaxSourceSaved(source) {
+        onContentSaved(content) {
           if (
             isMountedRef.current &&
-            latestSyntaxSourceRef.current === source
+            latestSyntaxFileRef.current?.source ===
+              content.syntaxSourceFile?.source
           ) {
             setWorkspaceSyntaxFile(latestSyntaxFileRef.current);
           }
         },
-        saveSyntaxSource: (source) =>
-          repository.saveWorkspaceSyntaxSource(source),
-        saveWorkspace: (nextData) => repository.saveWorkspace(nextData),
+        async save(content) {
+          const result = await repository.commitSnapshot({
+            ...content,
+            baseRevision: repositoryRevisionRef.current,
+          });
+
+          repositoryRevisionRef.current = result.revision;
+        },
       }),
     [repository],
   );
+  const applySessionSnapshot = useCallback(
+    (snapshot: Awaited<ReturnType<typeof loadWorkspaceSessionSnapshot>>) => {
+      repositoryRevisionRef.current = snapshot.revision;
+      workspaceDataRef.current = snapshot.workspaceData;
+      syntaxSourceFileRef.current = snapshot.syntaxSourceFile;
+      latestSyntaxFileRef.current = snapshot.workspaceSyntaxFile;
+      setRepositoryPath(snapshot.repositoryPath);
+      setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
+      commitDataSnapshot(snapshot.workspaceData);
+      setErrorMessage("");
+      setHasSaveConflict(false);
+      setSaveStatus("idle");
+      setIsLoaded(true);
+    },
+    [],
+  );
   const commitWorkspaceData = useCallback(
     (nextData: WorkspaceData) => {
+      const content: WorkspaceRepositoryContent = {
+        syntaxSourceFile: syntaxSourceFileRef.current,
+        workspace: nextData,
+      };
+
+      workspaceDataRef.current = nextData;
       commitDataSnapshot(nextData);
-      saveQueue.enqueueWorkspace(nextData);
+      saveQueue.enqueue(content);
     },
     [saveQueue],
   );
@@ -155,12 +200,7 @@ export function useSession({
           return;
         }
 
-        setRepositoryPath(snapshot.repositoryPath);
-        setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
-        commitDataSnapshot(snapshot.workspaceData);
-        setErrorMessage("");
-        setSaveStatus("idle");
-        setIsLoaded(true);
+        applySessionSnapshot(snapshot);
       })
       .catch((error: unknown) => {
         if (!isActive) {
@@ -175,7 +215,7 @@ export function useSession({
     return () => {
       isActive = false;
     };
-  }, [repository]);
+  }, [applySessionSnapshot, repository]);
 
   const reload = async () => {
     setErrorMessage("");
@@ -192,11 +232,7 @@ export function useSession({
     try {
       const snapshot = await loadWorkspaceSessionSnapshot(repository);
 
-      setRepositoryPath(snapshot.repositoryPath);
-      setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
-      commitDataSnapshot(snapshot.workspaceData);
-      setSaveStatus("idle");
-      setIsLoaded(true);
+      applySessionSnapshot(snapshot);
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "工作区加载失败。"));
       setSaveStatus("error");
@@ -228,12 +264,7 @@ export function useSession({
 
       const snapshot = await loadWorkspaceSessionSnapshot(repository);
 
-      setRepositoryPath(snapshot.repositoryPath);
-      setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
-      commitDataSnapshot(snapshot.workspaceData);
-      setErrorMessage("");
-      setSaveStatus("idle");
-      setIsLoaded(true);
+      applySessionSnapshot(snapshot);
     } catch (error) {
       setErrorMessage(getErrorMessage(error, "仓库切换失败。"));
       setSaveStatus("error");
@@ -246,10 +277,17 @@ export function useSession({
         workspaceSyntaxFileName,
         source,
       );
+      const syntaxSourceFile = {
+        fileName: syntaxFile.fileName,
+        source: syntaxFile.source,
+      };
 
       latestSyntaxFileRef.current = syntaxFile;
-      latestSyntaxSourceRef.current = source;
-      await saveQueue.enqueueSyntaxSource(source);
+      syntaxSourceFileRef.current = syntaxSourceFile;
+      await saveQueue.enqueueAndWait({
+        syntaxSourceFile,
+        workspace: workspaceDataRef.current,
+      });
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(
@@ -261,10 +299,23 @@ export function useSession({
   const useDefaultWorkspaceSyntaxFile = async () => {
     await updateWorkspaceSyntaxSource(defaultWorkspaceSyntaxFile.source);
   };
+  const discardPendingChangesAndReload = async () => {
+    setIsLoaded(false);
+
+    try {
+      await saveQueue.discardPendingChanges();
+      applySessionSnapshot(await loadWorkspaceSessionSnapshot(repository));
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, "工作区加载失败。"));
+      setSaveStatus("error");
+    }
+  };
 
   return {
-    canChangeRepositoryPath: Boolean(repository.canChangeRepositoryPath),
+    canChangeRepositoryPath: Boolean(repository.setRepositoryPath),
     changeRepositoryPath,
+    discardPendingChangesAndReload,
+    hasSaveConflict,
     isLoaded,
     reload,
     repositoryPath,

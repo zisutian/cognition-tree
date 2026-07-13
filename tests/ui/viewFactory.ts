@@ -55,6 +55,8 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
     settings: {
       canChangeRepositoryPath: true,
       changeRepositoryPath: async () => undefined,
+      discardPendingChangesAndReload: async () => undefined,
+      hasSaveConflict: false,
       reload: async () => undefined,
       repositoryPath: "/workspace",
       saveStatusLabel: "已保存",

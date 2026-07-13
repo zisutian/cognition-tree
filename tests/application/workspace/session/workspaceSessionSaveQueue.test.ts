@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { WorkspaceRepositoryContent } from "../../../../src/storage/workspaceRepository";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
@@ -16,96 +17,104 @@ function createWorkspaceData(name: string): WorkspaceData {
   };
 }
 
+function createContent(
+  name: string,
+  syntaxSource = `name = "${name} syntax"\n`,
+): WorkspaceRepositoryContent {
+  return {
+    syntaxSourceFile: {
+      fileName: "workspace.toml",
+      source: syntaxSource,
+    },
+    workspace: createWorkspaceData(name),
+  };
+}
+
+function createQueue(
+  save: (content: WorkspaceRepositoryContent) => Promise<void>,
+  options: {
+    onContentSaved?: (content: WorkspaceRepositoryContent) => void;
+    onError?: (error: unknown) => void;
+    onStatusChange?: (status: WorkspaceSessionSaveStatus) => void;
+  } = {},
+) {
+  return createWorkspaceSessionSaveQueue({
+    onContentSaved: options.onContentSaved ?? (() => undefined),
+    onError: options.onError ?? (() => undefined),
+    onStatusChange: options.onStatusChange ?? (() => undefined),
+    save,
+  });
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("workspace session save queue", () => {
-  it("serializes workspace and syntax saves while keeping the latest snapshot", async () => {
+  it("serializes commits while replacing pending content with the latest snapshot", async () => {
     let releaseFirstSave = () => {};
     const firstSaveGate = new Promise<void>((resolve) => {
       releaseFirstSave = resolve;
     });
-    const saveOrder: string[] = [];
-    const queue = createWorkspaceSessionSaveQueue({
-      onError() {
-        throw new Error("save should not fail");
-      },
-      onStatusChange() {},
-      onSyntaxSourceSaved() {},
-      async saveSyntaxSource(source) {
-        saveOrder.push(`syntax:${source}`);
-      },
-      async saveWorkspace(workspace) {
-        saveOrder.push(`workspace:${workspace.name}`);
+    const saved: WorkspaceRepositoryContent[] = [];
+    const queue = createQueue(async (content) => {
+      saved.push(content);
 
-        if (workspace.name === "first") {
-          await firstSaveGate;
-        }
-      },
+      if (content.workspace.name === "first") {
+        await firstSaveGate;
+      }
     });
 
-    queue.enqueueWorkspace(createWorkspaceData("first"));
+    queue.enqueue(createContent("first"));
     const activeFlush = queue.flush();
 
-    queue.enqueueWorkspace(createWorkspaceData("second"));
-    queue.enqueueWorkspace(createWorkspaceData("latest"));
-    const syntaxSave = queue.enqueueSyntaxSource("syntax-latest");
+    queue.enqueue(createContent("second"));
+    const latestSave = queue.enqueueAndWait(createContent("latest"));
     releaseFirstSave();
 
     await activeFlush;
-    await syntaxSave;
+    await latestSave;
 
-    expect(saveOrder).toEqual([
-      "workspace:first",
-      "workspace:latest",
-      "syntax:syntax-latest",
+    expect(saved.map((content) => content.workspace.name)).toEqual([
+      "first",
+      "latest",
     ]);
+    expect(saved[1].syntaxSourceFile?.source).toBe(
+      'name = "latest syntax"\n',
+    );
   });
 
-  it("debounces pending changes and flushes them immediately on demand", async () => {
+  it("debounces pending content and flushes it immediately on demand", async () => {
     vi.useFakeTimers();
 
-    const savedWorkspaceNames: string[] = [];
-    const queue = createWorkspaceSessionSaveQueue({
-      onError() {},
-      onStatusChange() {},
-      onSyntaxSourceSaved() {},
-      async saveSyntaxSource() {},
-      async saveWorkspace(workspace) {
-        savedWorkspaceNames.push(workspace.name);
-      },
+    const savedNames: string[] = [];
+    const queue = createQueue(async (content) => {
+      savedNames.push(content.workspace.name);
     });
 
-    queue.enqueueWorkspace(createWorkspaceData("debounced"));
+    queue.enqueue(createContent("debounced"));
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs - 1);
-    expect(savedWorkspaceNames).toEqual([]);
+    expect(savedNames).toEqual([]);
 
     await queue.flush();
-    expect(savedWorkspaceNames).toEqual(["debounced"]);
+    expect(savedNames).toEqual(["debounced"]);
 
-    queue.enqueueWorkspace(createWorkspaceData("timer"));
+    queue.enqueue(createContent("timer"));
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
-    expect(savedWorkspaceNames).toEqual(["debounced", "timer"]);
+    expect(savedNames).toEqual(["debounced", "timer"]);
   });
 
-  it("preserves the latest workspace snapshot after a failed save", async () => {
+  it("keeps the newer complete snapshot when an active commit fails", async () => {
     let releaseFailedSave = () => {};
     const failedSaveGate = new Promise<void>((resolve) => {
       releaseFailedSave = resolve;
     });
-    const savedWorkspaceNames: string[] = [];
+    const savedNames: string[] = [];
     const statuses: WorkspaceSessionSaveStatus[] = [];
     let shouldFail = true;
-    const queue = createWorkspaceSessionSaveQueue({
-      onError() {},
-      onStatusChange(status) {
-        statuses.push(status);
-      },
-      onSyntaxSourceSaved() {},
-      async saveSyntaxSource() {},
-      async saveWorkspace(workspace) {
-        savedWorkspaceNames.push(workspace.name);
+    const queue = createQueue(
+      async (content) => {
+        savedNames.push(content.workspace.name);
 
         if (shouldFail) {
           await failedSaveGate;
@@ -113,73 +122,116 @@ describe("workspace session save queue", () => {
           throw new Error("save failed");
         }
       },
-    });
+      {
+        onStatusChange(status) {
+          statuses.push(status);
+        },
+      },
+    );
 
-    queue.enqueueWorkspace(createWorkspaceData("first"));
+    queue.enqueue(createContent("first"));
     const failedFlush = queue.flush();
-    queue.enqueueWorkspace(createWorkspaceData("latest"));
+    queue.enqueue(createContent("latest"));
     releaseFailedSave();
 
     await expect(failedFlush).rejects.toThrow("save failed");
     await queue.flush();
 
-    expect(savedWorkspaceNames).toEqual(["first", "latest"]);
+    expect(savedNames).toEqual(["first", "latest"]);
     expect(statuses).toContain("error");
     expect(statuses[statuses.length - 1]).toBe("saved");
   });
 
-  it("retains failed syntax source for flush retry", async () => {
-    const savedSyntaxSources: string[] = [];
-    const confirmedSyntaxSources: string[] = [];
+  it("retains failed content for an explicit retry", async () => {
+    const savedNames: string[] = [];
+    const confirmedNames: string[] = [];
     let shouldFail = true;
-    const queue = createWorkspaceSessionSaveQueue({
-      onError() {},
-      onStatusChange() {},
-      onSyntaxSourceSaved(source) {
-        confirmedSyntaxSources.push(source);
-      },
-      async saveSyntaxSource(source) {
-        savedSyntaxSources.push(source);
+    const queue = createQueue(
+      async (content) => {
+        savedNames.push(content.workspace.name);
 
         if (shouldFail) {
           shouldFail = false;
-          throw new Error("syntax save failed");
+          throw new Error("commit failed");
         }
       },
-      async saveWorkspace() {},
-    });
-
-    const syntaxSave = queue.enqueueSyntaxSource("syntax-source");
-    const syntaxFailure = expect(syntaxSave).rejects.toThrow(
-      "syntax save failed",
+      {
+        onContentSaved(content) {
+          confirmedNames.push(content.workspace.name);
+        },
+      },
     );
 
-    await expect(queue.flush()).rejects.toThrow("syntax save failed");
-    await syntaxFailure;
+    const save = queue.enqueueAndWait(createContent("pending"));
+    const rejectedSave = expect(save).rejects.toThrow("commit failed");
+
+    await expect(queue.flush()).rejects.toThrow("commit failed");
+    await rejectedSave;
     await queue.flush();
 
-    expect(savedSyntaxSources).toEqual(["syntax-source", "syntax-source"]);
-    expect(confirmedSyntaxSources).toEqual(["syntax-source"]);
+    expect(savedNames).toEqual(["pending", "pending"]);
+    expect(confirmedNames).toEqual(["pending"]);
   });
 
-  it("resolves superseded syntax saves when the latest source is stored", async () => {
-    const savedSyntaxSources: string[] = [];
-    const queue = createWorkspaceSessionSaveQueue({
-      onError() {},
-      onStatusChange() {},
-      onSyntaxSourceSaved() {},
-      async saveSyntaxSource(source) {
-        savedSyntaxSources.push(source);
-      },
-      async saveWorkspace() {},
+  it("resolves superseded waiters after the latest snapshot is committed", async () => {
+    const savedNames: string[] = [];
+    const queue = createQueue(async (content) => {
+      savedNames.push(content.workspace.name);
     });
 
-    const firstSave = queue.enqueueSyntaxSource("first");
-    const latestSave = queue.enqueueSyntaxSource("latest");
+    const firstSave = queue.enqueueAndWait(createContent("first"));
+    const latestSave = queue.enqueueAndWait(createContent("latest"));
 
     await queue.flush();
     await Promise.all([firstSave, latestSave]);
 
-    expect(savedSyntaxSources).toEqual(["latest"]);
+    expect(savedNames).toEqual(["latest"]);
+  });
+
+  it("discards pending content without committing it", async () => {
+    const savedNames: string[] = [];
+    const queue = createQueue(async (content) => {
+      savedNames.push(content.workspace.name);
+    });
+    const save = queue.enqueueAndWait(createContent("discarded"));
+    const rejectedSave = expect(save).rejects.toThrow(
+      "Pending repository changes were discarded",
+    );
+
+    await queue.discardPendingChanges();
+    await rejectedSave;
+    await queue.flush();
+
+    expect(savedNames).toEqual([]);
+  });
+
+  it("does not commit a newer pending snapshot while discarding an active save", async () => {
+    let releaseActiveSave = () => {};
+    const activeSaveGate = new Promise<void>((resolve) => {
+      releaseActiveSave = resolve;
+    });
+    const savedNames: string[] = [];
+    const queue = createQueue(async (content) => {
+      savedNames.push(content.workspace.name);
+
+      if (content.workspace.name === "active") {
+        await activeSaveGate;
+      }
+    });
+
+    queue.enqueue(createContent("active"));
+    const activeFlush = queue.flush();
+    const pendingSave = queue.enqueueAndWait(createContent("pending"));
+    const rejectedPendingSave = expect(pendingSave).rejects.toThrow(
+      "Pending repository changes were discarded",
+    );
+    const discard = queue.discardPendingChanges();
+
+    releaseActiveSave();
+    await activeFlush;
+    await discard;
+    await rejectedPendingSave;
+
+    expect(savedNames).toEqual(["active"]);
   });
 });

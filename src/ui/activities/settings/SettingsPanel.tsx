@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SettingsViewModel } from "../../../application/workspace/view-model/activityViewModels";
 import {
@@ -36,6 +36,16 @@ export function SettingsPanel({ view }: { view: SettingsViewModel }) {
         title="设置"
         actions={
           <>
+            {view.hasSaveConflict ? (
+              <Button
+                onClick={() => void view.discardPendingChangesAndReload()}
+                type="button"
+                variant="secondary"
+              >
+                <Undo2 aria-hidden="true" size={13} />
+                放弃本地修改并重新加载
+              </Button>
+            ) : null}
             <Button onClick={() => void view.reload()} type="button" variant="secondary">
               <RefreshCw aria-hidden="true" size={13} />
               刷新

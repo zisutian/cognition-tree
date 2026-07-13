@@ -3,6 +3,9 @@ import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceD
 import {
   parseRepositoryInfoDto,
   parseWorkspaceDataDto,
+  parseWorkspaceRepositoryCommitResultDto,
+  parseWorkspaceRepositoryContentDto,
+  parseWorkspaceRepositorySnapshotDto,
   parseWorkspaceSyntaxSourceFileDto,
 } from "../../src/storage/workspaceDto";
 
@@ -25,6 +28,26 @@ describe("workspace storage DTOs", () => {
     expect(parseRepositoryInfoDto({ path: "/data/repository" })).toEqual({
       path: "/data/repository",
     });
+    expect(
+      parseWorkspaceRepositorySnapshotDto({
+        revision: "revision-1",
+        syntaxSourceFile: null,
+        workspace,
+      }),
+    ).toEqual({
+      revision: "revision-1",
+      syntaxSourceFile: null,
+      workspace,
+    });
+    expect(
+      parseWorkspaceRepositoryContentDto({
+        syntaxSourceFile: null,
+        workspace,
+      }),
+    ).toEqual({ syntaxSourceFile: null, workspace });
+    expect(
+      parseWorkspaceRepositoryCommitResultDto({ revision: "revision-2" }),
+    ).toEqual({ revision: "revision-2" });
   });
 
   it("rejects runtime and unsupported fields", () => {
@@ -72,6 +95,31 @@ describe("workspace storage DTOs", () => {
         fileName: "workspace.toml",
         profile: {},
         source: 'name = "默认 CTN 语法"\n',
+      }),
+    ).toThrow("unsupported field");
+    expect(() =>
+      parseWorkspaceSyntaxSourceFileDto({
+        fileName: "other.toml",
+        source: 'name = "默认 CTN 语法"\n',
+      }),
+    ).toThrow("expected workspace.toml");
+    expect(() =>
+      parseWorkspaceRepositorySnapshotDto({
+        revision: "",
+        syntaxSourceFile: null,
+        workspace: createInitialWorkspaceData(),
+      }),
+    ).toThrow("expected non-empty string");
+    expect(() =>
+      parseWorkspaceRepositoryContentDto({
+        syntaxSourceFile: null,
+        workspace: null,
+      }),
+    ).toThrow("expected object");
+    expect(() =>
+      parseWorkspaceRepositoryCommitResultDto({
+        extra: true,
+        revision: "revision-2",
       }),
     ).toThrow("unsupported field");
   });

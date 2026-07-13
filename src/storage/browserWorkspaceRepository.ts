@@ -1,78 +1,71 @@
 import {
+  WorkspaceRepositoryConflictError,
   type RepositoryInfo,
   type WorkspaceRepository,
+  type WorkspaceRepositoryContent,
 } from "./workspaceRepository";
-import { workspaceSyntaxFileName } from "../workspace/context/workspaceSyntaxFile";
-import { parseWorkspaceDataDto } from "./workspaceDto";
+import { parseWorkspaceRepositoryContentDto } from "./workspaceDto";
+import { createWorkspaceRepositoryRevision } from "./workspaceRepositoryRevision";
+import { createInitialWorkspaceData } from "../workspace/model/workspaceData";
 
-const workspaceStorageKey = "cognition-tree.workspace";
-const repositoryLabelStorageKey = "cognition-tree.repository-label";
-const workspaceSyntaxSourceStorageKey = "cognition-tree.syntax-file";
+const repositoryStorageKey = "cognition-tree.repository";
 
-function getRepositoryLabel() {
-  return (
-    globalThis.localStorage?.getItem(repositoryLabelStorageKey) ??
-    `localStorage:${workspaceStorageKey}`
-  );
-}
-
-function loadStoredWorkspace() {
-  const storedWorkspace = globalThis.localStorage?.getItem(workspaceStorageKey);
-
-  if (!storedWorkspace) {
-    return null;
+function getStorage() {
+  if (!globalThis.localStorage) {
+    throw new Error("Browser local storage is unavailable");
   }
 
-  return parseWorkspaceDataDto(JSON.parse(storedWorkspace));
+  return globalThis.localStorage;
 }
 
-function loadStoredWorkspaceSyntaxSourceFile() {
-  const storedWorkspaceSyntaxSource = globalThis.localStorage?.getItem(
-    workspaceSyntaxSourceStorageKey,
-  );
+function loadStoredContent(): WorkspaceRepositoryContent | null {
+  const storedContent = getStorage().getItem(repositoryStorageKey);
 
-  if (!storedWorkspaceSyntaxSource) {
-    return null;
-  }
-
-  return {
-    fileName: workspaceSyntaxFileName,
-    source: storedWorkspaceSyntaxSource,
-  };
-}
-
-function saveStoredWorkspaceSyntaxSource(source: string) {
-  globalThis.localStorage?.setItem(workspaceSyntaxSourceStorageKey, source);
+  return storedContent
+    ? parseWorkspaceRepositoryContentDto(JSON.parse(storedContent))
+    : null;
 }
 
 export function createBrowserWorkspaceRepository(): WorkspaceRepository {
+  const loadSnapshot: WorkspaceRepository["loadSnapshot"] = async () => {
+    const content = loadStoredContent();
+    const snapshotContent = content ?? {
+      syntaxSourceFile: null,
+      workspace: createInitialWorkspaceData(),
+    };
+
+    return {
+      ...snapshotContent,
+      revision: await createWorkspaceRepositoryRevision(snapshotContent),
+    };
+  };
+
   return {
     label: "浏览器本地存储",
-    canChangeRepositoryPath: true,
-    async loadWorkspace() {
-      return loadStoredWorkspace();
-    },
-    async saveWorkspace(workspace) {
-      globalThis.localStorage?.setItem(
-        workspaceStorageKey,
-        JSON.stringify(workspace),
-      );
+    async commitSnapshot({
+      baseRevision,
+      syntaxSourceFile,
+      workspace,
+    }) {
+      const currentSnapshot = await loadSnapshot();
+
+      if (currentSnapshot.revision !== baseRevision) {
+        throw new WorkspaceRepositoryConflictError(currentSnapshot.revision);
+      }
+
+      const content = { syntaxSourceFile, workspace };
+
+      getStorage().setItem(repositoryStorageKey, JSON.stringify(content));
+
+      return {
+        revision: await createWorkspaceRepositoryRevision(content),
+      };
     },
     async getRepositoryInfo(): Promise<RepositoryInfo> {
       return {
-        path: getRepositoryLabel(),
+        path: `localStorage:${repositoryStorageKey}`,
       };
     },
-    async readWorkspaceSyntaxSourceFile() {
-      return loadStoredWorkspaceSyntaxSourceFile();
-    },
-    async saveWorkspaceSyntaxSource(source) {
-      saveStoredWorkspaceSyntaxSource(source);
-    },
-    async setRepositoryPath(path) {
-      globalThis.localStorage?.setItem(repositoryLabelStorageKey, path);
-
-      return loadStoredWorkspace();
-    },
+    loadSnapshot,
   };
 }

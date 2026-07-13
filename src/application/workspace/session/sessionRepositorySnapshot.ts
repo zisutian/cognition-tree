@@ -1,36 +1,35 @@
 import type { WorkspaceRepository } from "../../../storage/workspaceRepository";
-import {
-  createInitialWorkspaceData,
-  type WorkspaceData,
-} from "../../../workspace/model/workspaceData";
+import type { WorkspaceData } from "../../../workspace/model/workspaceData";
 import {
   resolveWorkspaceSyntaxFile,
+  type WorkspaceSyntaxSourceFile,
   type WorkspaceSyntaxFile,
 } from "../../../workspace/context/workspaceSyntaxFile";
 
 export type WorkspaceSessionSnapshot = {
   repositoryPath: string;
+  revision: string;
+  syntaxSourceFile: WorkspaceSyntaxSourceFile | null;
   workspaceData: WorkspaceData;
   workspaceSyntaxFile: WorkspaceSyntaxFile | null;
 };
 
-function resolveWorkspaceData(workspace: WorkspaceData | null) {
-  return workspace ?? createInitialWorkspaceData();
-}
-
 export async function loadWorkspaceSessionSnapshot(
   repository: WorkspaceRepository,
 ): Promise<WorkspaceSessionSnapshot> {
-  const [storedWorkspace, repositoryInfo, storedWorkspaceSyntaxSource] =
+  const [repositorySnapshot, repositoryInfo] =
     await Promise.all([
-      repository.loadWorkspace(),
+      repository.loadSnapshot(),
       repository.getRepositoryInfo(),
-      repository.readWorkspaceSyntaxSourceFile(),
     ]);
 
   return {
     repositoryPath: repositoryInfo.path,
-    workspaceData: resolveWorkspaceData(storedWorkspace),
-    workspaceSyntaxFile: resolveWorkspaceSyntaxFile(storedWorkspaceSyntaxSource),
+    revision: repositorySnapshot.revision,
+    syntaxSourceFile: repositorySnapshot.syntaxSourceFile,
+    workspaceData: repositorySnapshot.workspace,
+    workspaceSyntaxFile: resolveWorkspaceSyntaxFile(
+      repositorySnapshot.syntaxSourceFile,
+    ),
   };
 }

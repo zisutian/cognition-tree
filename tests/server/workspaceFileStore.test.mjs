@@ -5,7 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { workspaceCommitPhases } from "../../server/workspaceCommitTransaction.mjs";
-import { WorkspaceFileStore } from "../../server/workspaceFileStore.mjs";
+import {
+  WorkspaceFileStore,
+  WorkspaceRevisionConflictError,
+} from "../../server/workspaceFileStore.mjs";
 
 function createWorkspace() {
   return {
@@ -15,7 +18,7 @@ function createWorkspace() {
       {
         id: "note-test",
         title: "测试笔记",
-        source: "测试笔记\n	: 文件保存",
+        source: "测试笔记\n\t: 文件保存",
         createdAt: "2026-05-25T00:00:00.000Z",
         updatedAt: "2026-05-25T00:00:00.000Z",
       },
@@ -87,190 +90,133 @@ async function withTempStore(testFn) {
   }
 }
 
-const customSyntaxSource = `name = "自定义语法"
+async function commitContent(
+  store,
+  {
+    baseRevision,
+    syntaxSource = null,
+    workspace = createWorkspace(),
+  } = {},
+) {
+  const revision = baseRevision ?? (await store.loadSnapshot()).revision;
+
+  return store.commitSnapshot({
+    baseRevision: revision,
+    syntaxSourceFile: syntaxSource === null
+      ? null
+      : { fileName: "workspace.toml", source: syntaxSource },
+    workspace,
+  });
+}
+
+const originalSyntaxSource = `name = "原始语法"
 tabDisplayWidth = 4
-
-[concept]
-type = "concept"
-label = "顶格概念"
-tone = "teal"
-textColor = "cyan"
-
-[[markers]]
-marker = "!"
-type = "component"
-label = "风险"
-role = "normal"
-tone = "red"
-textColor = "amber"
-
-[[inlineRules]]
-kind = "paired"
-open = "[["
-close = "]]"
-type = "global-reference"
-label = "全局概念引用"
-tone = "blue"
-textColor = "cyan"
+`;
+const updatedSyntaxSource = `name = "更新语法"
+tabDisplayWidth = 8
 `;
 
 describe("WorkspaceFileStore", () => {
-  it("saves notes as .ctn files and loads workspace manifests", async () => {
+  it("commits notes, manifest, and syntax as one repository snapshot", async () => {
     await withTempStore(async (store, rootDir) => {
       const workspace = createWorkspace();
+      const initialSnapshot = await store.loadSnapshot();
 
-      await store.saveWorkspace(workspace);
+      expect(initialSnapshot).toMatchObject({
+        syntaxSourceFile: null,
+        workspace: {
+          id: "local-workspace",
+          notes: [],
+        },
+      });
+
+      const commit = await commitContent(store, {
+        baseRevision: initialSnapshot.revision,
+        syntaxSource: originalSyntaxSource,
+        workspace,
+      });
 
       expect(
         await readFile(
           path.join(rootDir, "notes", "资料", "测试笔记.ctn"),
           "utf8",
         ),
-      ).toBe("测试笔记\n	: 文件保存");
+      ).toBe("测试笔记\n\t: 文件保存");
+      await expect(
+        readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
+      ).resolves.toBe(originalSyntaxSource);
       await expect(
         readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
-      ).resolves.toEqual({
-        id: "local-workspace",
-        name: "本地笔记库",
-        notes: [
-          {
-            createdAt: "2026-05-25T00:00:00.000Z",
-            fileName: "资料/测试笔记.ctn",
-            id: "note-test",
-            title: "测试笔记",
-            updatedAt: "2026-05-25T00:00:00.000Z",
-          },
-        ],
-        tree: workspace.tree,
-      });
-
-      expect(await store.loadWorkspace()).toEqual(workspace);
-      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toBeNull();
-    });
-  });
-
-  it("reads and updates the workspace syntax file", async () => {
-    await withTempStore(async (store) => {
-      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toBeNull();
-
-      await store.saveWorkspaceSyntaxSource(customSyntaxSource);
-
-      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toEqual({
-        fileName: "workspace.toml",
-        source: customSyntaxSource,
-      });
-      await expect(store.loadWorkspace()).resolves.toMatchObject({
-        id: "local-workspace",
-        notes: [],
+      ).resolves.toEqual(createManifest());
+      await expect(store.loadSnapshot()).resolves.toEqual({
+        revision: commit.revision,
+        syntaxSourceFile: {
+          fileName: "workspace.toml",
+          source: originalSyntaxSource,
+        },
+        workspace,
       });
     });
   });
 
-  it("stores workspace syntax source without parsing it", async () => {
-    await withTempStore(async (store) => {
-      const source = "name = \"broken\"\n";
+  it("stores syntax source without parsing it and removes it with a null snapshot value", async () => {
+    await withTempStore(async (store, rootDir) => {
+      const source = 'name = "broken"\n';
 
-      await store.saveWorkspaceSyntaxSource(source);
-
-      await expect(store.readWorkspaceSyntaxSourceFile()).resolves.toEqual({
-        fileName: "workspace.toml",
-        source,
+      await commitContent(store, { syntaxSource: source });
+      await expect(store.loadSnapshot()).resolves.toMatchObject({
+        syntaxSourceFile: { fileName: "workspace.toml", source },
       });
+
+      await commitContent(store, { syntaxSource: null });
+      await expect(store.loadSnapshot()).resolves.toMatchObject({
+        syntaxSourceFile: null,
+      });
+      await expect(
+        readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
+      ).rejects.toThrow("ENOENT");
     });
   });
 
   it("rejects invalid workspace manifest DTOs", async () => {
     const cases = [
-      {
-        message: "unsupported field",
-        mutate(manifest) {
-          manifest.extra = true;
-        },
-      },
-      {
-        message: "missing field",
-        mutate(manifest) {
-          delete manifest.notes;
-        },
-      },
-      {
-        message: "expected array",
-        mutate(manifest) {
-          manifest.notes = {};
-        },
-      },
-      {
-        message: "unsupported field",
-        mutate(manifest) {
-          manifest.notes[0].extra = true;
-        },
-      },
-      {
-        message: "duplicate note id",
-        mutate(manifest) {
-          manifest.notes.push(clone(manifest.notes[0]));
-        },
-      },
-      {
-        message: "unsafe path segment",
-        mutate(manifest) {
-          manifest.notes[0].fileName = "../note-test.ctn";
-        },
-      },
-      {
-        message: "note file must use .ctn",
-        mutate(manifest) {
-          manifest.notes[0].fileName = "资料/测试笔记.txt";
-        },
-      },
-      {
-        message: "unsupported field",
-        mutate(manifest) {
-          manifest.activeNoteId = "note-missing";
-        },
-      },
-      {
-        message: "duplicate tree node id",
-        mutate(manifest) {
-          manifest.tree.push(clone(manifest.tree[0]));
-        },
-      },
-      {
-        message: "unknown note note-missing",
-        mutate(manifest) {
-          manifest.tree[0].children[0].noteId = "note-missing";
-        },
-      },
+      ["unsupported field", (manifest) => { manifest.extra = true; }],
+      ["missing field", (manifest) => { delete manifest.notes; }],
+      ["expected array", (manifest) => { manifest.notes = {}; }],
+      ["unsupported field", (manifest) => { manifest.notes[0].extra = true; }],
+      ["duplicate note id", (manifest) => { manifest.notes.push(clone(manifest.notes[0])); }],
+      ["unsafe path segment", (manifest) => { manifest.notes[0].fileName = "../note-test.ctn"; }],
+      ["note file must use .ctn", (manifest) => { manifest.notes[0].fileName = "资料/测试笔记.txt"; }],
+      ["duplicate tree node id", (manifest) => { manifest.tree.push(clone(manifest.tree[0])); }],
+      ["unknown note note-missing", (manifest) => { manifest.tree[0].children[0].noteId = "note-missing"; }],
     ];
 
-    for (const testCase of cases) {
+    for (const [message, mutate] of cases) {
       await withTempStore(async (store, rootDir) => {
         const manifest = createManifest();
 
-        testCase.mutate(manifest);
+        mutate(manifest);
         await writeWorkspaceManifest(rootDir, manifest);
 
-        await expect(store.loadWorkspace()).rejects.toThrow(testCase.message);
+        await expect(store.loadSnapshot()).rejects.toThrow(message);
       });
     }
   });
 
-  it("rejects workspace manifests that reference missing note files", async () => {
+  it("rejects missing, misplaced, and title-divergent note files", async () => {
     await withTempStore(async (store, rootDir) => {
-      await store.saveWorkspace(createWorkspace());
+      await commitContent(store);
       await rm(path.join(rootDir, "notes", "资料", "测试笔记.ctn"));
 
-      await expect(store.loadWorkspace()).rejects.toThrow(
+      await expect(store.loadSnapshot()).rejects.toThrow(
         "Missing note source file: 资料/测试笔记.ctn",
       );
     });
-  });
 
-  it("rejects manifests whose paths or titles diverge from the workspace tree", async () => {
     await withTempStore(async (store, rootDir) => {
-      await store.saveWorkspace(createWorkspace());
-
+      await commitContent(store);
       const manifest = createManifest();
+
       manifest.notes[0].fileName = "note-test.ctn";
       await writeWorkspaceManifest(rootDir, manifest);
       await writeFile(
@@ -279,167 +225,170 @@ describe("WorkspaceFileStore", () => {
         "utf8",
       );
 
-      await expect(store.loadWorkspace()).rejects.toThrow(
+      await expect(store.loadSnapshot()).rejects.toThrow(
         "Workspace note file path does not match tree: note-test",
       );
     });
 
     await withTempStore(async (store, rootDir) => {
-      await store.saveWorkspace(createWorkspace());
+      await commitContent(store);
       await writeFile(
         path.join(rootDir, "notes", "资料", "测试笔记.ctn"),
         "错误标题\n\t: 文件保存",
         "utf8",
       );
 
-      await expect(store.loadWorkspace()).rejects.toThrow(
+      await expect(store.loadSnapshot()).rejects.toThrow(
         "Workspace note title does not match first line: note-test",
       );
     });
   });
 
-  it("rejects invalid workspace payloads without writing manifests", async () => {
+  it("rejects invalid aggregate commit payloads without writing a manifest", async () => {
     const cases = [
-      {
-        message: "unsupported field",
-        mutate(workspace) {
-          workspace.activeNoteId = "note-missing";
-        },
-      },
-      {
-        message: "unsupported field",
-        mutate(workspace) {
-          workspace.notes[0].fileName = "custom.ctn";
-        },
-      },
-      {
-        message: "Workspace note title does not match first line",
-        mutate(workspace) {
-          workspace.notes[0].title = "错误标题";
-        },
-      },
-      {
-        message: "Unsafe note title",
-        mutate(workspace) {
-          workspace.notes[0].title = "非法/标题";
-          workspace.notes[0].source = "非法/标题\n\t: 文件保存";
-        },
-      },
-      {
-        message: "Unsafe folder title",
-        mutate(workspace) {
-          workspace.tree[0].title = ".";
-        },
-      },
-      {
-        message: "Duplicate workspace file path",
-        mutate(workspace) {
-          workspace.notes.push({
-            ...workspace.notes[0],
-            id: "note-duplicate-title",
-          });
-          workspace.tree[0].children.push({
-            id: "tree-note-duplicate-title",
-            kind: "note",
-            noteId: "note-duplicate-title",
-          });
-        },
-      },
+      ["unsupported field", (workspace) => { workspace.activeNoteId = "note-missing"; }],
+      ["unsupported field", (workspace) => { workspace.notes[0].fileName = "custom.ctn"; }],
+      ["Workspace note title does not match first line", (workspace) => { workspace.notes[0].title = "错误标题"; }],
+      ["Unsafe note title", (workspace) => {
+        workspace.notes[0].title = "非法/标题";
+        workspace.notes[0].source = "非法/标题\n\t: 文件保存";
+      }],
+      ["Unsafe folder title", (workspace) => { workspace.tree[0].title = "."; }],
+      ["Duplicate workspace file path", (workspace) => {
+        workspace.notes.push({ ...workspace.notes[0], id: "note-duplicate-title" });
+        workspace.tree[0].children.push({
+          id: "tree-note-duplicate-title",
+          kind: "note",
+          noteId: "note-duplicate-title",
+        });
+      }],
     ];
 
-    for (const testCase of cases) {
+    for (const [message, mutate] of cases) {
       await withTempStore(async (store, rootDir) => {
         const workspace = createWorkspace();
 
-        testCase.mutate(workspace);
+        mutate(workspace);
 
-        await expect(store.saveWorkspace(workspace)).rejects.toThrow(
-          testCase.message,
-        );
-        await expect(readFile(path.join(rootDir, "workspace.json"), "utf8"))
-          .rejects.toThrow("ENOENT");
+        await expect(commitContent(store, { workspace })).rejects.toThrow(message);
+        await expect(
+          readFile(path.join(rootDir, "workspace.json"), "utf8"),
+        ).rejects.toThrow("ENOENT");
       });
     }
   });
 
-  it("serializes concurrent workspace saves in call order", async () => {
-    await withTempStore(async (store, rootDir) => {
+  it("serializes concurrent commits and rejects the stale base revision", async () => {
+    await withTempStore(async (store) => {
+      const baseRevision = (await store.loadSnapshot()).revision;
       const first = createWorkspace();
-      const latest = createWorkspace();
+      const stale = createRenamedWorkspace();
 
-      first.notes[0].source = "first";
-      first.notes[0].title = "first";
-      latest.notes[0].source = "latest";
-      latest.notes[0].title = "latest";
-
-      await Promise.all([
-        store.saveWorkspace(first),
-        store.saveWorkspace(latest),
+      const [firstResult, staleResult] = await Promise.allSettled([
+        commitContent(store, { baseRevision, workspace: first }),
+        commitContent(store, { baseRevision, workspace: stale }),
       ]);
 
-      expect(
-        await readFile(path.join(rootDir, "notes", "资料", "latest.ctn"), "utf8"),
-      ).toBe("latest");
+      expect(firstResult.status).toBe("fulfilled");
+      expect(staleResult.status).toBe("rejected");
+      expect(staleResult.reason).toBeInstanceOf(WorkspaceRevisionConflictError);
+      await expect(store.loadSnapshot()).resolves.toMatchObject({ workspace: first });
+    });
+  });
+
+  it("detects valid external edits to note and syntax content", async () => {
+    await withTempStore(async (store, rootDir) => {
+      await commitContent(store, { syntaxSource: originalSyntaxSource });
+      const staleSnapshot = await store.loadSnapshot();
+
+      await writeFile(
+        path.join(rootDir, "notes", "资料", "测试笔记.ctn"),
+        "测试笔记\n\t: 外部修改",
+        "utf8",
+      );
+      const noteEditedSnapshot = await store.loadSnapshot();
+
+      expect(noteEditedSnapshot.revision).not.toBe(staleSnapshot.revision);
       await expect(
-        readFile(path.join(rootDir, "notes", "资料", "first.ctn"), "utf8"),
-      ).rejects.toThrow("ENOENT");
-      await expect(store.loadWorkspace()).resolves.toMatchObject({
-        notes: [
-          {
-            source: "latest",
-            title: "latest",
-          },
-        ],
+        commitContent(store, {
+          baseRevision: staleSnapshot.revision,
+          syntaxSource: originalSyntaxSource,
+          workspace: createRenamedWorkspace(),
+        }),
+      ).rejects.toMatchObject({
+        currentRevision: noteEditedSnapshot.revision,
+        name: "WorkspaceRevisionConflictError",
+      });
+
+      await writeFile(
+        path.join(rootDir, "syntax", "workspace.toml"),
+        updatedSyntaxSource,
+        "utf8",
+      );
+      const syntaxEditedSnapshot = await store.loadSnapshot();
+
+      expect(syntaxEditedSnapshot.revision).not.toBe(noteEditedSnapshot.revision);
+      await expect(
+        commitContent(store, {
+          baseRevision: noteEditedSnapshot.revision,
+          syntaxSource: originalSyntaxSource,
+          workspace: noteEditedSnapshot.workspace,
+        }),
+      ).rejects.toMatchObject({
+        currentRevision: syntaxEditedSnapshot.revision,
       });
     });
   });
 
-  it("recovers a complete workspace around every commit phase", async () => {
-    const cases = [
-      {
-        phase: workspaceCommitPhases.prepared,
-        expected: createWorkspace,
-      },
-      {
-        phase: workspaceCommitPhases.previousNotesMoved,
-        expected: createWorkspace,
-      },
-      {
-        phase: workspaceCommitPhases.notesCommitted,
-        expected: createWorkspace,
-      },
-      {
-        phase: workspaceCommitPhases.manifestCommitted,
-        expected: createRenamedWorkspace,
-      },
-      {
-        phase: workspaceCommitPhases.cleanupCompleted,
-        expected: createRenamedWorkspace,
-      },
-    ];
+  it("recovers workspace and syntax atomically around every commit phase", async () => {
+    const oldPhases = new Set([
+      workspaceCommitPhases.prepared,
+      workspaceCommitPhases.previousNotesMoved,
+      workspaceCommitPhases.previousSyntaxMoved,
+      workspaceCommitPhases.notesCommitted,
+      workspaceCommitPhases.syntaxCommitted,
+      workspaceCommitPhases.manifestCommitted,
+    ]);
 
-    for (const testCase of cases) {
+    for (const phase of Object.values(workspaceCommitPhases)) {
       await withTempStore(async (initialStore, rootDir) => {
-        await initialStore.saveWorkspace(createWorkspace());
-
+        await commitContent(initialStore, {
+          syntaxSource: originalSyntaxSource,
+          workspace: createWorkspace(),
+        });
+        const baseRevision = (await initialStore.loadSnapshot()).revision;
         const interruptedStore = new WorkspaceFileStore(rootDir, {
-          onWorkspaceCommitPhase(phase) {
-            if (phase === testCase.phase) {
+          onWorkspaceCommitPhase(currentPhase) {
+            if (currentPhase === phase) {
               throw new Error(`Interrupted at ${phase}`);
             }
           },
         });
 
         await expect(
-          interruptedStore.saveWorkspace(createRenamedWorkspace()),
-        ).rejects.toThrow(`Interrupted at ${testCase.phase}`);
+          commitContent(interruptedStore, {
+            baseRevision,
+            syntaxSource: updatedSyntaxSource,
+            workspace: createRenamedWorkspace(),
+          }),
+        ).rejects.toThrow(`Interrupted at ${phase}`);
 
-        const recoveredStore = new WorkspaceFileStore(rootDir);
-        const expectedWorkspace = testCase.expected();
+        const recoveredSnapshot = await new WorkspaceFileStore(rootDir).loadSnapshot();
+        const shouldRollback = oldPhases.has(phase);
+        const expectedWorkspace = shouldRollback
+          ? createWorkspace()
+          : createRenamedWorkspace();
+        const expectedSyntax = shouldRollback
+          ? originalSyntaxSource
+          : updatedSyntaxSource;
 
-        await expect(recoveredStore.loadWorkspace()).resolves.toEqual(
-          expectedWorkspace,
-        );
+        expect(recoveredSnapshot).toMatchObject({
+          syntaxSourceFile: {
+            fileName: "workspace.toml",
+            source: expectedSyntax,
+          },
+          workspace: expectedWorkspace,
+        });
         await expect(
           readFile(path.join(rootDir, ".workspace-transaction.json"), "utf8"),
         ).rejects.toThrow("ENOENT");
@@ -458,36 +407,6 @@ describe("WorkspaceFileStore", () => {
     }
   });
 
-  it("restores overwritten note content when the manifest was not committed", async () => {
-    await withTempStore(async (initialStore, rootDir) => {
-      const originalWorkspace = createWorkspace();
-      const updatedWorkspace = clone(originalWorkspace);
-
-      updatedWorkspace.notes[0].source = "测试笔记\n\t: 未提交的新正文";
-      updatedWorkspace.notes[0].updatedAt = "2026-05-26T00:00:00.000Z";
-
-      await initialStore.saveWorkspace(originalWorkspace);
-
-      const interruptedStore = new WorkspaceFileStore(rootDir, {
-        onWorkspaceCommitPhase(phase) {
-          if (phase === workspaceCommitPhases.notesCommitted) {
-            throw new Error("Interrupted before manifest");
-          }
-        },
-      });
-
-      await expect(
-        interruptedStore.saveWorkspace(updatedWorkspace),
-      ).rejects.toThrow("Interrupted before manifest");
-
-      const recoveredStore = new WorkspaceFileStore(rootDir);
-
-      await expect(recoveredStore.loadWorkspace()).resolves.toEqual(
-        originalWorkspace,
-      );
-    });
-  });
-
   it("removes orphan transactions and atomic-write temporary files", async () => {
     await withTempStore(async (store, rootDir) => {
       const temporaryFileName =
@@ -504,11 +423,7 @@ describe("WorkspaceFileStore", () => {
         "temporary",
         "utf8",
       );
-      await writeFile(
-        path.join(transactionDir, "orphan.ctn"),
-        "orphan",
-        "utf8",
-      );
+      await writeFile(path.join(transactionDir, "orphan.ctn"), "orphan", "utf8");
 
       await store.initialize();
 

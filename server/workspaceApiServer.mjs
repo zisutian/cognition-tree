@@ -4,6 +4,7 @@ import http from "node:http";
 import {
   WorkspaceFileStore,
   WorkspacePayloadValidationError,
+  WorkspaceRevisionConflictError,
 } from "./workspaceFileStore.mjs";
 import { WorkspaceDtoValidationError } from "./workspaceManifestDto.mjs";
 
@@ -12,8 +13,7 @@ const maxBodyBytes = 20 * 1024 * 1024;
 const routeMethods = new Map([
   ["/api/health", ["GET"]],
   ["/api/repository", ["GET"]],
-  ["/api/syntax", ["GET", "PUT"]],
-  ["/api/workspace", ["GET", "PUT"]],
+  ["/api/repository-snapshot", ["GET", "PUT"]],
 ]);
 
 export const defaultWorkspaceApiAllowedOrigins = Object.freeze([
@@ -26,6 +26,14 @@ class WorkspaceApiRequestError extends Error {
     super(message);
     this.name = "WorkspaceApiRequestError";
     this.statusCode = statusCode;
+  }
+}
+
+class WorkspaceApiConflictError extends WorkspaceApiRequestError {
+  constructor(currentRevision) {
+    super(409, "Repository content changed outside the current session");
+    this.name = "WorkspaceApiConflictError";
+    this.currentRevision = currentRevision;
   }
 }
 
@@ -110,7 +118,11 @@ async function readJsonBody(request) {
   }
 }
 
-function mapWorkspaceSaveError(error) {
+function mapRepositoryCommitError(error) {
+  if (error instanceof WorkspaceRevisionConflictError) {
+    return new WorkspaceApiConflictError(error.currentRevision);
+  }
+
   if (
     error instanceof WorkspaceDtoValidationError ||
     error instanceof WorkspacePayloadValidationError
@@ -169,58 +181,48 @@ export function createWorkspaceApiRequestHandler({
         return;
       }
 
-      if (url.pathname === "/api/workspace" && request.method === "GET") {
-        sendJson(response, 200, await store.loadWorkspace(), responseHeaders);
+      if (
+        url.pathname === "/api/repository-snapshot" &&
+        request.method === "GET"
+      ) {
+        sendJson(response, 200, await store.loadSnapshot(), responseHeaders);
         return;
       }
 
-      if (url.pathname === "/api/workspace") {
+      if (url.pathname === "/api/repository-snapshot") {
         try {
-          await store.saveWorkspace(await readJsonBody(request));
+          const body = await readJsonBody(request);
+
+          sendJson(
+            response,
+            200,
+            await store.commitSnapshot(body),
+            responseHeaders,
+          );
         } catch (error) {
-          throw mapWorkspaceSaveError(error);
+          throw mapRepositoryCommitError(error);
         }
-
-        sendNoContent(response, responseHeaders);
         return;
       }
-
-      if (url.pathname === "/api/syntax" && request.method === "GET") {
-        const workspaceSyntaxSourceFile =
-          await store.readWorkspaceSyntaxSourceFile();
-
-        sendJson(
-          response,
-          200,
-          workspaceSyntaxSourceFile
-            ? {
-                fileName: workspaceSyntaxSourceFile.fileName,
-                source: workspaceSyntaxSourceFile.source,
-              }
-            : null,
-          responseHeaders,
-        );
-        return;
-      }
-
-      const body = await readJsonBody(request);
-
-      if (typeof body.source !== "string" || body.source.trim().length === 0) {
-        throw new WorkspaceApiRequestError(
-          400,
-          "Syntax profile source is required",
-        );
-      }
-
-      await store.saveWorkspaceSyntaxSource(body.source);
-      sendNoContent(response, responseHeaders);
     } catch (error) {
       const statusCode = error instanceof WorkspaceApiRequestError
         ? error.statusCode
         : 500;
       const message = error instanceof Error ? error.message : "Unknown error";
 
-      sendError(response, statusCode, message, responseHeaders);
+      if (error instanceof WorkspaceApiConflictError) {
+        sendJson(
+          response,
+          statusCode,
+          {
+            currentRevision: error.currentRevision,
+            error: message,
+          },
+          responseHeaders,
+        );
+      } else {
+        sendError(response, statusCode, message, responseHeaders);
+      }
     }
   };
 }

@@ -91,6 +91,28 @@ describe("activity registry", () => {
     expect(renderSlot(slots("settings").main)).toContain("/workspace");
   });
 
+  it("shows repository conflict recovery only when local changes are blocked", () => {
+    const baseView = createView();
+    const conflictMarkup = renderSlot(
+      slotsWithView(
+        "settings",
+        createView({
+          settings: {
+            ...baseView.settings,
+            hasSaveConflict: true,
+            saveStatusLabel: "磁盘内容已更改",
+          },
+        }),
+      ).main,
+    );
+
+    expect(conflictMarkup).toContain("磁盘内容已更改");
+    expect(conflictMarkup).toContain("放弃本地修改并重新加载");
+    expect(renderSlot(slots("settings").main)).not.toContain(
+      "放弃本地修改并重新加载",
+    );
+  });
+
   it("renders structure operation context and full-width main work surface", () => {
     const baseView = createView();
     const migrationSlots = slotsWithView(

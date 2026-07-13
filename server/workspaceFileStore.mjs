@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  removeAtomicWriteTemporaryFiles,
-  writeFileAtomically,
-} from "./atomicWrite.mjs";
+import { removeAtomicWriteTemporaryFiles } from "./atomicWrite.mjs";
 import { WorkspaceCommitTransaction } from "./workspaceCommitTransaction.mjs";
 import {
   assertWorkspaceManifestDto,
@@ -21,6 +19,14 @@ export class WorkspacePayloadValidationError extends Error {
   constructor(message) {
     super(message);
     this.name = "WorkspacePayloadValidationError";
+  }
+}
+
+export class WorkspaceRevisionConflictError extends Error {
+  constructor(currentRevision) {
+    super("Repository content changed outside the current session");
+    this.name = "WorkspaceRevisionConflictError";
+    this.currentRevision = currentRevision;
   }
 }
 
@@ -173,6 +179,80 @@ function createEmptyWorkspace() {
   };
 }
 
+function createCanonicalValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(createCanonicalValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) =>
+          left < right ? -1 : left > right ? 1 : 0,
+        )
+        .map(([key, fieldValue]) => [key, createCanonicalValue(fieldValue)]),
+    );
+  }
+
+  return value;
+}
+
+function createRepositoryRevision({ syntaxSourceFile, workspace }) {
+  return createHash("sha256")
+    .update(
+      JSON.stringify(createCanonicalValue({ syntaxSourceFile, workspace })),
+    )
+    .digest("hex");
+}
+
+function assertCommitRequest(commit) {
+  if (!commit || typeof commit !== "object" || Array.isArray(commit)) {
+    failPayloadValidation("Repository commit is required");
+  }
+
+  const fields = new Set([
+    "baseRevision",
+    "syntaxSourceFile",
+    "workspace",
+  ]);
+
+  for (const key of Object.keys(commit)) {
+    if (!fields.has(key)) {
+      failPayloadValidation(`Unsupported repository commit field: ${key}`);
+    }
+  }
+
+  for (const field of fields) {
+    if (!(field in commit)) {
+      failPayloadValidation(`Missing repository commit field: ${field}`);
+    }
+  }
+
+  const { baseRevision, syntaxSourceFile } = commit;
+
+  if (typeof baseRevision !== "string" || baseRevision.length === 0) {
+    failPayloadValidation("Repository base revision is required");
+  }
+
+  if (syntaxSourceFile === null) {
+    return;
+  }
+
+  if (
+    !syntaxSourceFile ||
+    typeof syntaxSourceFile !== "object" ||
+    Array.isArray(syntaxSourceFile) ||
+    Object.keys(syntaxSourceFile).length !== 2 ||
+    !("fileName" in syntaxSourceFile) ||
+    !("source" in syntaxSourceFile) ||
+    syntaxSourceFile.fileName !== workspaceSyntaxFileName ||
+    typeof syntaxSourceFile.source !== "string" ||
+    syntaxSourceFile.source.trim().length === 0
+  ) {
+    failPayloadValidation("Invalid workspace syntax source file");
+  }
+}
+
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
@@ -208,21 +288,31 @@ export class WorkspaceFileStore {
     return this.#rootDir;
   }
 
-  async loadWorkspace() {
-    return this.#enqueueOperation(() => this.#loadWorkspace());
+  async loadSnapshot() {
+    return this.#enqueueOperation(() => this.#loadSnapshot());
+  }
+
+  async commitSnapshot(commit) {
+    assertCommitRequest(commit);
+
+    const { baseRevision, syntaxSourceFile, workspace } = commit;
+
+    assertWorkspacePayloadDto(workspace);
+
+    return this.#enqueueOperation(() =>
+      this.#commitSnapshot({ baseRevision, syntaxSourceFile, workspace }),
+    );
   }
 
   async #initialize() {
     await mkdir(this.#rootDir, { recursive: true });
-    await mkdir(this.#syntaxDir, { recursive: true });
     await removeAtomicWriteTemporaryFiles(this.#rootDir);
     await this.#workspaceCommitTransaction.recover();
     await mkdir(this.#notesDir, { recursive: true });
+    await mkdir(this.#syntaxDir, { recursive: true });
   }
 
   async #loadWorkspace() {
-    await this.initialize();
-
     let manifest;
 
     try {
@@ -291,76 +381,76 @@ export class WorkspaceFileStore {
     return workspace;
   }
 
-  async saveWorkspace(workspace) {
-    assertWorkspacePayloadDto(workspace);
-
-    return this.#enqueueOperation(() => this.#saveWorkspace(workspace));
+  async #loadSnapshotContent() {
+    return {
+      syntaxSourceFile: await this.#readWorkspaceSyntaxSourceFile(),
+      workspace: await this.#loadWorkspace(),
+    };
   }
 
-  async #saveWorkspace(workspace) {
+  async #loadSnapshot() {
+    await this.initialize();
+
+    const content = await this.#loadSnapshotContent();
+
+    return {
+      ...content,
+      revision: createRepositoryRevision(content),
+    };
+  }
+
+  async #commitSnapshot({ baseRevision, syntaxSourceFile, workspace }) {
+    await this.initialize();
+
+    const currentContent = await this.#loadSnapshotContent();
+    const currentRevision = createRepositoryRevision(currentContent);
+
+    if (currentRevision !== baseRevision) {
+      throw new WorkspaceRevisionConflictError(currentRevision);
+    }
+
+    const noteFileLayout = createWorkspaceNoteFileLayout(workspace);
+    const fileNameByNoteId = new Map(
+      noteFileLayout.map((entry) => [entry.note.id, entry.relativePath]),
+    );
+    const manifest = {
+      id: workspace.id,
+      name: workspace.name,
+      notes: workspace.notes.map((note) => {
+        const fileName = fileNameByNoteId.get(note.id);
+
+        if (!fileName) {
+          failPayloadValidation(`Workspace note is missing from tree: ${note.id}`);
+        }
+
+        return {
+          id: note.id,
+          title: note.title,
+          fileName,
+          createdAt: note.createdAt,
+          updatedAt: note.updatedAt,
+        };
+      }),
+      tree: workspace.tree,
+    };
+
     try {
-      await this.initialize();
-
-      const noteFileLayout = createWorkspaceNoteFileLayout(workspace);
-      const fileNameByNoteId = new Map(
-        noteFileLayout.map((entry) => [entry.note.id, entry.relativePath]),
-      );
-      const manifest = {
-        id: workspace.id,
-        name: workspace.name,
-        notes: workspace.notes.map((note) => {
-          const fileName = fileNameByNoteId.get(note.id);
-
-          if (!fileName) {
-            failPayloadValidation(`Workspace note is missing from tree: ${note.id}`);
-          }
-
-          return {
-            id: note.id,
-            title: note.title,
-            fileName,
-            createdAt: note.createdAt,
-            updatedAt: note.updatedAt,
-          };
-        }),
-        tree: workspace.tree,
-      };
-
       await this.#workspaceCommitTransaction.commit({
         manifest,
         noteFiles: noteFileLayout.map(({ note, relativePath }) => ({
           relativePath,
           source: note.source,
         })),
+        syntaxSource: syntaxSourceFile?.source ?? null,
       });
     } catch (error) {
       this.#initializePromise = null;
       throw error;
     }
-  }
 
-  async readWorkspaceSyntaxSourceFile() {
-    return this.#enqueueOperation(async () => {
-      await this.initialize();
-      return this.#readWorkspaceSyntaxSourceFile();
-    });
-  }
-
-  async saveWorkspaceSyntaxSource(source) {
-    return this.#enqueueOperation(() => this.#saveWorkspaceSyntaxSource(source));
-  }
-
-  async #saveWorkspaceSyntaxSource(source) {
-    await this.initialize();
-
-    if (typeof source !== "string" || source.trim().length === 0) {
-      throw new Error("Syntax profile source is empty");
-    }
-
-    await writeFileAtomically(
-      path.join(this.#syntaxDir, workspaceSyntaxFileName),
-      source,
-    );
+    return {
+      revision: createRepositoryRevision({ syntaxSourceFile, workspace }),
+    };
   }
 
   async #readWorkspaceSyntaxSourceFile() {

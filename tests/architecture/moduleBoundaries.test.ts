@@ -932,6 +932,39 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps storage organized around one versioned repository aggregate", () => {
+    expect(listImmediateSourceFileNames("storage")).toEqual([
+      "browserWorkspaceRepository.ts",
+      "httpWorkspaceRepository.ts",
+      "runtimeWorkspaceRepository.ts",
+      "workspaceDto.ts",
+      "workspaceRepository.ts",
+      "workspaceRepositoryRevision.ts",
+    ]);
+
+    const repositoryPort =
+      sourceModules["../../src/storage/workspaceRepository.ts"] ?? "";
+    const sessionQueue =
+      sourceModules[
+        "../../src/application/workspace/session/workspaceSessionSaveQueue.ts"
+      ] ?? "";
+    const apiServer =
+      serverModules["../../server/workspaceApiServer.mjs"] ?? "";
+
+    expect(repositoryPort).toContain("commitSnapshot");
+    expect(repositoryPort).toContain("loadSnapshot");
+    expect(repositoryPort).not.toMatch(
+      /saveWorkspace|loadWorkspace|saveWorkspaceSyntax|readWorkspaceSyntax/,
+    );
+    expect(sessionQueue).not.toMatch(
+      /enqueueWorkspace|enqueueSyntax|saveWorkspace|saveSyntax/,
+    );
+    expect(apiServer).toContain('"/api/repository-snapshot"');
+    expect(apiServer).not.toMatch(
+      /["']\/api\/(?:workspace|syntax)["']/,
+    );
+  });
+
   it("keeps internal source imports following documented dependency direction", () => {
     const violations = listInternalImports().flatMap(
       ({ filePath, importPath, targetRoot }) => {

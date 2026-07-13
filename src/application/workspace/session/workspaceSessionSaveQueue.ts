@@ -1,4 +1,4 @@
-import type { WorkspaceData } from "../../../workspace/model/workspaceData";
+import type { WorkspaceRepositoryContent } from "../../../storage/workspaceRepository";
 
 export type WorkspaceSessionSaveStatus =
   | "error"
@@ -7,49 +7,44 @@ export type WorkspaceSessionSaveStatus =
   | "saved"
   | "saving";
 
-type PendingSyntaxSource = {
-  source: string;
+type PendingContent = {
+  content: WorkspaceRepositoryContent;
   version: number;
 };
 
-type SyntaxSaveWaiter = {
+type SaveWaiter = {
   reject: (error: unknown) => void;
   resolve: () => void;
   version: number;
 };
 
 type WorkspaceSessionSaveQueueOptions = {
+  onContentSaved: (content: WorkspaceRepositoryContent) => void;
   onError: (error: unknown) => void;
   onStatusChange: (status: WorkspaceSessionSaveStatus) => void;
-  onSyntaxSourceSaved: (source: string) => void;
-  saveSyntaxSource: (source: string) => Promise<void>;
-  saveWorkspace: (data: WorkspaceData) => Promise<void>;
+  save: (content: WorkspaceRepositoryContent) => Promise<void>;
 };
 
 export type WorkspaceSessionSaveQueue = {
-  enqueueSyntaxSource: (source: string) => Promise<void>;
-  enqueueWorkspace: (data: WorkspaceData) => void;
+  discardPendingChanges: () => Promise<void>;
+  enqueue: (content: WorkspaceRepositoryContent) => void;
+  enqueueAndWait: (content: WorkspaceRepositoryContent) => Promise<void>;
   flush: () => Promise<void>;
 };
 
 export const workspaceSessionSaveDelayMs = 500;
 
 export function createWorkspaceSessionSaveQueue({
+  onContentSaved,
   onError,
   onStatusChange,
-  onSyntaxSourceSaved,
-  saveSyntaxSource,
-  saveWorkspace,
+  save,
 }: WorkspaceSessionSaveQueueOptions): WorkspaceSessionSaveQueue {
   let activePromise: Promise<void> | null = null;
-  let pendingSyntaxSource: PendingSyntaxSource | null = null;
-  let pendingWorkspace: WorkspaceData | null = null;
+  let pendingContent: PendingContent | null = null;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
-  let syntaxVersion = 0;
-  let syntaxWaiters: SyntaxSaveWaiter[] = [];
-
-  const hasPendingChanges = () =>
-    pendingWorkspace !== null || pendingSyntaxSource !== null;
+  let saveVersion = 0;
+  let waiters: SaveWaiter[] = [];
 
   const clearSaveTimer = () => {
     if (saveTimer) {
@@ -58,76 +53,37 @@ export function createWorkspaceSessionSaveQueue({
     }
   };
 
-  const settleSyntaxWaiters = (
+  const settleWaiters = (
     version: number,
-    settle: (waiter: SyntaxSaveWaiter) => void,
+    settle: (waiter: SaveWaiter) => void,
   ) => {
-    const settledWaiters = syntaxWaiters.filter(
+    const settledWaiters = waiters.filter(
       (waiter) => waiter.version <= version,
     );
 
-    syntaxWaiters = syntaxWaiters.filter(
-      (waiter) => waiter.version > version,
-    );
+    waiters = waiters.filter((waiter) => waiter.version > version);
     settledWaiters.forEach(settle);
   };
 
-  const restoreWorkspace = (workspace: WorkspaceData | null) => {
-    if (!pendingWorkspace && workspace) {
-      pendingWorkspace = workspace;
-    }
-  };
-
-  const restoreSyntaxSource = (
-    syntaxSource: PendingSyntaxSource | null,
-  ) => {
-    if (!pendingSyntaxSource && syntaxSource) {
-      pendingSyntaxSource = syntaxSource;
-    }
-  };
-
-  const savePendingChanges = async () => {
-    while (hasPendingChanges()) {
+  const savePendingContent = async () => {
+    while (pendingContent) {
       clearSaveTimer();
 
-      const workspace = pendingWorkspace;
-      const syntaxSource = pendingSyntaxSource;
-      let workspaceSaved = false;
-      let syntaxSaved = false;
+      const pending = pendingContent;
 
-      pendingWorkspace = null;
-      pendingSyntaxSource = null;
+      pendingContent = null;
       onStatusChange("saving");
 
       try {
-        if (workspace) {
-          await saveWorkspace(workspace);
-          workspaceSaved = true;
-        }
-
-        if (syntaxSource) {
-          await saveSyntaxSource(syntaxSource.source);
-          syntaxSaved = true;
-          onSyntaxSourceSaved(syntaxSource.source);
-          settleSyntaxWaiters(syntaxSource.version, (waiter) => {
-            waiter.resolve();
-          });
-        }
+        await save(pending.content);
+        onContentSaved(pending.content);
+        settleWaiters(pending.version, (waiter) => waiter.resolve());
       } catch (error) {
-        if (!workspaceSaved) {
-          restoreWorkspace(workspace);
+        if (!pendingContent) {
+          pendingContent = pending;
         }
 
-        if (!syntaxSaved) {
-          restoreSyntaxSource(syntaxSource);
-
-          if (syntaxSource) {
-            settleSyntaxWaiters(syntaxSource.version, (waiter) => {
-              waiter.reject(error);
-            });
-          }
-        }
-
+        settleWaiters(pending.version, (waiter) => waiter.reject(error));
         onError(error);
         onStatusChange("error");
         throw error;
@@ -141,7 +97,7 @@ export function createWorkspaceSessionSaveQueue({
     clearSaveTimer();
 
     if (!activePromise) {
-      activePromise = savePendingChanges().finally(() => {
+      activePromise = savePendingContent().finally(() => {
         activePromise = null;
       });
     }
@@ -158,19 +114,43 @@ export function createWorkspaceSessionSaveQueue({
     }, workspaceSessionSaveDelayMs);
   };
 
+  const queueContent = (content: WorkspaceRepositoryContent) => {
+    saveVersion += 1;
+    pendingContent = { content, version: saveVersion };
+    scheduleSave();
+
+    return saveVersion;
+  };
+
   return {
-    enqueueSyntaxSource(source) {
-      syntaxVersion += 1;
-      pendingSyntaxSource = { source, version: syntaxVersion };
-      scheduleSave();
+    async discardPendingChanges() {
+      clearSaveTimer();
+
+      const discardError = new Error("Pending repository changes were discarded");
+
+      pendingContent = null;
+      waiters.forEach((waiter) => waiter.reject(discardError));
+      waiters = [];
+
+      if (activePromise) {
+        try {
+          await activePromise;
+        } catch {
+          // The pending snapshot is discarded explicitly after the failed save.
+        }
+      }
+
+      onStatusChange("idle");
+    },
+    enqueue(content) {
+      queueContent(content);
+    },
+    enqueueAndWait(content) {
+      const version = queueContent(content);
 
       return new Promise<void>((resolve, reject) => {
-        syntaxWaiters.push({ reject, resolve, version: syntaxVersion });
+        waiters.push({ reject, resolve, version });
       });
-    },
-    enqueueWorkspace(data) {
-      pendingWorkspace = data;
-      scheduleSave();
     },
     async flush() {
       clearSaveTimer();
@@ -180,7 +160,7 @@ export function createWorkspaceSessionSaveQueue({
         return;
       }
 
-      if (hasPendingChanges()) {
+      if (pendingContent) {
         await startSaving();
       }
     },

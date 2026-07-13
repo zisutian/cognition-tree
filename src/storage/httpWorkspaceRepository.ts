@@ -1,8 +1,11 @@
-import type { WorkspaceRepository } from "./workspaceRepository";
+import {
+  WorkspaceRepositoryConflictError,
+  type WorkspaceRepository,
+} from "./workspaceRepository";
 import {
   parseRepositoryInfoDto,
-  parseWorkspaceDataDto,
-  parseWorkspaceSyntaxSourceFileDto,
+  parseWorkspaceRepositoryCommitResultDto,
+  parseWorkspaceRepositorySnapshotDto,
 } from "./workspaceDto";
 
 type HttpWorkspaceRepositoryOptions = {
@@ -18,45 +21,46 @@ function resolveApiUrl(baseUrl: string, endpoint: string) {
   return new URL(endpoint.replace(/^\//, ""), normalizeBaseUrl(baseUrl)).toString();
 }
 
-async function readErrorMessage(response: Response) {
+async function readErrorBody(response: Response) {
   try {
-    const body = (await response.json()) as { error?: unknown };
-
-    return typeof body.error === "string" ? body.error : response.statusText;
+    return (await response.json()) as {
+      currentRevision?: unknown;
+      error?: unknown;
+    };
   } catch {
-    return response.statusText;
+    return {};
   }
+}
+
+async function assertSuccessfulResponse(response: Response) {
+  if (response.ok) {
+    return;
+  }
+
+  const body = await readErrorBody(response);
+
+  if (
+    response.status === 409 &&
+    typeof body.currentRevision === "string"
+  ) {
+    throw new WorkspaceRepositoryConflictError(body.currentRevision);
+  }
+
+  throw new Error(
+    typeof body.error === "string" ? body.error : response.statusText,
+  );
 }
 
 async function requestJson(
   fetchFn: typeof fetch,
   baseUrl: string,
   endpoint: string,
+  init?: RequestInit,
 ): Promise<unknown> {
-  const response = await fetchFn(resolveApiUrl(baseUrl, endpoint));
+  const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), init);
 
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
+  await assertSuccessfulResponse(response);
   return response.json();
-}
-
-async function sendJson(
-  fetchFn: typeof fetch,
-  baseUrl: string,
-  endpoint: string,
-  body: unknown,
-) {
-  const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), {
-    body: JSON.stringify(body),
-    headers: { "Content-Type": "application/json" },
-    method: "PUT",
-  });
-
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
 }
 
 export function createHttpWorkspaceRepository({
@@ -65,27 +69,33 @@ export function createHttpWorkspaceRepository({
 }: HttpWorkspaceRepositoryOptions = {}): WorkspaceRepository {
   return {
     label: "HTTP 后端",
-    canChangeRepositoryPath: false,
-    async loadWorkspace() {
-      return parseWorkspaceDataDto(
-        await requestJson(fetchFn, baseUrl, "/api/workspace"),
+    async commitSnapshot(commit) {
+      return parseWorkspaceRepositoryCommitResultDto(
+        await requestJson(
+          fetchFn,
+          baseUrl,
+          "/api/repository-snapshot",
+          {
+            body: JSON.stringify(commit),
+            headers: { "Content-Type": "application/json" },
+            method: "PUT",
+          },
+        ),
       );
-    },
-    async saveWorkspace(workspace) {
-      await sendJson(fetchFn, baseUrl, "/api/workspace", workspace);
     },
     async getRepositoryInfo() {
       return parseRepositoryInfoDto(
         await requestJson(fetchFn, baseUrl, "/api/repository"),
       );
     },
-    async readWorkspaceSyntaxSourceFile() {
-      return parseWorkspaceSyntaxSourceFileDto(
-        await requestJson(fetchFn, baseUrl, "/api/syntax"),
+    async loadSnapshot() {
+      return parseWorkspaceRepositorySnapshotDto(
+        await requestJson(
+          fetchFn,
+          baseUrl,
+          "/api/repository-snapshot",
+        ),
       );
-    },
-    async saveWorkspaceSyntaxSource(source) {
-      await sendJson(fetchFn, baseUrl, "/api/syntax", { source });
     },
   };
 }

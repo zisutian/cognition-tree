@@ -5,13 +5,39 @@ export type RepositoryInfo = {
   path: string;
 };
 
+export type WorkspaceRepositoryContent = {
+  syntaxSourceFile: WorkspaceSyntaxSourceFile | null;
+  workspace: WorkspaceData;
+};
+
+export type WorkspaceRepositorySnapshot = WorkspaceRepositoryContent & {
+  revision: string;
+};
+
+export type WorkspaceRepositoryCommit = WorkspaceRepositoryContent & {
+  baseRevision: string;
+};
+
+export type WorkspaceRepositoryCommitResult = {
+  revision: string;
+};
+
+export class WorkspaceRepositoryConflictError extends Error {
+  currentRevision: string;
+
+  constructor(currentRevision: string) {
+    super("Repository content changed outside the current session");
+    this.name = "WorkspaceRepositoryConflictError";
+    this.currentRevision = currentRevision;
+  }
+}
+
 export type WorkspaceRepository = {
   label: string;
-  canChangeRepositoryPath?: boolean;
-  loadWorkspace: () => Promise<WorkspaceData | null>;
-  saveWorkspace: (workspace: WorkspaceData) => Promise<void>;
+  commitSnapshot: (
+    commit: WorkspaceRepositoryCommit,
+  ) => Promise<WorkspaceRepositoryCommitResult>;
   getRepositoryInfo: () => Promise<RepositoryInfo>;
-  readWorkspaceSyntaxSourceFile: () => Promise<WorkspaceSyntaxSourceFile | null>;
-  saveWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  setRepositoryPath?: (path: string) => Promise<WorkspaceData | null>;
+  loadSnapshot: () => Promise<WorkspaceRepositorySnapshot>;
+  setRepositoryPath?: (path: string) => Promise<void>;
 };
