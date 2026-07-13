@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import type { UiSyntaxTone } from "../../application/workspace/projection/viewText";
+
+type ToneValue = string;
 
 type ToneStyle = CSSProperties & {
   "--ctn-text-color"?: string;
@@ -8,23 +9,23 @@ type ToneStyle = CSSProperties & {
 
 const customTonePattern = /^#[0-9a-fA-F]{6}$/;
 
-export function isCustomTone(tone: UiSyntaxTone) {
+export function isCustomTone(tone: ToneValue) {
   return customTonePattern.test(tone);
 }
 
-export function getToneClassName(tone: UiSyntaxTone) {
+export function getToneClassName(tone: ToneValue) {
   return isCustomTone(tone) ? "ctn-tone-custom" : `ctn-tone-${tone}`;
 }
 
-export function getTextColorClassName(tone: UiSyntaxTone) {
+export function getTextColorClassName(tone: ToneValue) {
   return isCustomTone(tone)
     ? "ctn-text-color-custom"
     : `ctn-text-color-${tone}`;
 }
 
 export function createToneStyle(
-  tone: UiSyntaxTone,
-  textColor: UiSyntaxTone,
+  tone: ToneValue,
+  textColor: ToneValue,
 ): ToneStyle | undefined {
   const style: ToneStyle = {};
 

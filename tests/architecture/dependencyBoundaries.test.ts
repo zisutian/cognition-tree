@@ -45,6 +45,18 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("resolves source imports without discarding leading parent segments", () => {
+    const sourceImport = readSourceImports(
+      "../../src/app/AppRoot.tsx",
+    ).find(({ importPath }) => importPath.includes("session/useSession"));
+
+    expect(sourceImport).toMatchObject({
+      targetPath:
+        "../../src/application/workspace/session/useSession",
+      targetRoot: "application",
+    });
+  });
+
   it("enforces the documented source dependency direction", () => {
     const violations = listInternalSourceImports().flatMap(
       ({ filePath, importPath, targetRoot }) => {

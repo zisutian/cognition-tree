@@ -146,7 +146,11 @@ function normalizePath(segments: string[]) {
     }
 
     if (segment === "..") {
-      return normalizedSegments.slice(0, -1);
+      const previousSegment = normalizedSegments.at(-1);
+
+      return previousSegment && previousSegment !== ".."
+        ? normalizedSegments.slice(0, -1)
+        : [...normalizedSegments, segment];
     }
 
     normalizedSegments.push(segment);

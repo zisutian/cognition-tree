@@ -1,11 +1,27 @@
-import type { UiTextDisplay } from "../../application/workspace/projection/viewText";
 import {
   createToneStyle,
   getTextColorClassName,
   getToneClassName,
 } from "./tonePresentation";
 
-export type DisplayText = UiTextDisplay;
+export type DisplayText = {
+  displayText: string;
+  segments: Array<
+    | {
+        id: string;
+        kind: "text";
+        text: string;
+      }
+    | {
+        id: string;
+        kind: "inline";
+        text: string;
+        textColor: string;
+        tone: string;
+      }
+  >;
+  textColor: string;
+};
 
 export function BlockText({ text }: { text: DisplayText }) {
   return (

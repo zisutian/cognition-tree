@@ -28,11 +28,11 @@ export type StructureOperationState = {
 };
 
 export function useStructureOperationState({
-  activeNote,
+  activeNoteId,
   notes,
   workspace,
 }: {
-  activeNote: NoteRecord | null;
+  activeNoteId: UiNoteId | null;
   notes: NoteRecord[];
   workspace: WorkspaceStructureIndex | null;
 }): StructureOperationState {
@@ -53,13 +53,13 @@ export function useStructureOperationState({
       return;
     }
 
-    if (activeNote && workspace && hasWorkspaceNote(workspace, activeNote.id)) {
-      setSourceNoteId(activeNote.id);
+    if (activeNoteId && workspace && hasWorkspaceNote(workspace, activeNoteId)) {
+      setSourceNoteId(activeNoteId);
       return;
     }
 
     setSourceNoteId(notes[0]?.id ?? "");
-  }, [activeNote, notes, sourceNoteId, workspace]);
+  }, [activeNoteId, notes, sourceNoteId, workspace]);
 
   useEffect(() => {
     if (
@@ -83,13 +83,13 @@ export function useStructureOperationState({
       return;
     }
 
-    if (activeNote && workspace && hasWorkspaceNote(workspace, activeNote.id)) {
-      setStructureNoteId(activeNote.id);
+    if (activeNoteId && workspace && hasWorkspaceNote(workspace, activeNoteId)) {
+      setStructureNoteId(activeNoteId);
       return;
     }
 
     setStructureNoteId(notes[0]?.id ?? "");
-  }, [activeNote, notes, structureNoteId, workspace]);
+  }, [activeNoteId, notes, structureNoteId, workspace]);
 
   return {
     mode,

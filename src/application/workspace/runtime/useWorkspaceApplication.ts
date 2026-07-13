@@ -4,7 +4,6 @@ import type { WorkspaceParseIndexCache } from "../../../workspace/indexes/worksp
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { NoteRecord } from "../../../workspace/model/workspaceData";
 import { listWorkspaceNotes } from "../../../workspace/queries/workspaceQueries";
-import { createSettingsViewModel } from "../activities/settings/settingsViewModel";
 import type { SessionCommands } from "../session/sessionCommands";
 import type { ActiveSession } from "../session/useSession";
 import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
@@ -61,7 +60,14 @@ export function useWorkspaceApplication(session: ActiveSession) {
       void useDefaultWorkspaceSyntaxFile();
     },
   };
-  const settings = createSettingsViewModel(session);
+  const repository = {
+    discardPendingChangesAndReload: session.discardPendingChangesAndReload,
+    reload: session.reload,
+    repositoryPath: session.repositoryPath,
+    saveStatus: session.saveStatus,
+    status: session.status,
+    storageLabel: session.storageLabel,
+  };
   const runtime: WorkspaceRuntime = {
     commands,
     defaultSyntaxProfile: defaultWorkspaceSyntaxFile.profile,
@@ -74,8 +80,8 @@ export function useWorkspaceApplication(session: ActiveSession) {
 
   return {
     runtime,
+    repository,
     selection,
-    settings,
     shell,
     syntax,
   };

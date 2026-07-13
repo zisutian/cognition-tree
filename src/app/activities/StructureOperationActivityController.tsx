@@ -1,4 +1,3 @@
-import { findWorkspaceNote } from "../../workspace/queries/workspaceQueries";
 import { useStructureOperationActivity } from "../../application/workspace/activities/structure-operation/useStructureOperationActivity";
 import { useStructureOperationState } from "../../application/workspace/activities/structure-operation/useStructureOperationState";
 import AppView from "../../ui/AppView";
@@ -40,16 +39,8 @@ export function StructureOperationActivityController({
   application,
   ...props
 }: WorkspaceActivityControllerProps) {
-  const activeNote =
-    application.runtime.effectiveWorkspace &&
-    application.selection.activeNoteId
-      ? findWorkspaceNote(
-          application.runtime.effectiveWorkspace,
-          application.selection.activeNoteId,
-        )
-      : null;
   const state = useStructureOperationState({
-    activeNote,
+    activeNoteId: application.selection.activeNoteId,
     notes: application.runtime.effectiveNotes,
     workspace: application.runtime.effectiveWorkspace,
   });
