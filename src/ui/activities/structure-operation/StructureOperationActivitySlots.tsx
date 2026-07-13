@@ -1,4 +1,5 @@
 import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
+import "../../styles/activities/structure-operation.css";
 import type { WorkspaceShell } from "../../../application/workspace/runtime/useWorkspaceApplication";
 import type { ActivitySlots } from "../../activityTypes";
 import { WorkspaceSyntaxSetupView } from "../../WorkspaceSyntaxSetupView";

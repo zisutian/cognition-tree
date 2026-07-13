@@ -1,4 +1,5 @@
 import type { SettingsViewModel } from "../../../application/workspace/activities/settings/settingsViewModel";
+import "../../styles/activities/settings.css";
 import type { ActivitySlots } from "../../activityTypes";
 import { SettingsPanel } from "./SettingsPanel";
 

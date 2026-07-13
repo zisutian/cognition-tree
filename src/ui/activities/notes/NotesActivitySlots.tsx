@@ -1,4 +1,5 @@
 import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
+import "../../styles/activities/notes.css";
 import type { WorkspaceShell } from "../../../application/workspace/runtime/useWorkspaceApplication";
 import type { ActivitySlots } from "../../activityTypes";
 import { WorkspaceSyntaxSetupView } from "../../WorkspaceSyntaxSetupView";

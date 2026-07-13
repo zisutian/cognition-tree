@@ -1,4 +1,5 @@
 import type { SyntaxViewModel } from "../../../application/workspace/activities/syntax/syntaxViewModel";
+import "../../styles/activities/syntax.css";
 import type { ActivitySlots } from "../../activityTypes";
 import { SyntaxDetailPanel } from "./SyntaxDetailPanel";
 import { SyntaxMainPanel } from "./SyntaxMainPanel";

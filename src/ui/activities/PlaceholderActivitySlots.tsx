@@ -1,4 +1,5 @@
 import type { ActivitySlots } from "../activityTypes";
+import "../styles/activities/placeholder.css";
 import { PlaceholderPanel } from "./PlaceholderPanel";
 
 export function createPlaceholderActivitySlots(

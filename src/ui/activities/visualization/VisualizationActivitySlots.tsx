@@ -1,4 +1,5 @@
 import type { VisualizationViewModel } from "../../../application/workspace/activities/visualization/visualizationViewModel";
+import "../../styles/activities/visualization.css";
 import type { WorkspaceShell } from "../../../application/workspace/runtime/useWorkspaceApplication";
 import type { ActivitySlots } from "../../activityTypes";
 import { WorkspaceSyntaxSetupView } from "../../WorkspaceSyntaxSetupView";

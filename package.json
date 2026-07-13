@@ -14,12 +14,13 @@
     "server": "node server/index.ts",
     "server:build": "tsc -p tsconfig.server.json",
     "server:start": "node dist/runtime/server/index.js",
-    "build": "tsc && vite build && pnpm server:build",
-    "check": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "build": "tsc && vite build && pnpm verify:bundle && pnpm server:build",
+    "check": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "hooks:install": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:architecture": "vitest run tests/architecture tests/ui/designContract.test.ts",
     "test:watch": "vitest",
+    "verify:bundle": "node scripts/verifyClientBundle.ts",
     "preview": "vite preview"
   },
   "dependencies": {

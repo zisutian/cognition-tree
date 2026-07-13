@@ -53,6 +53,32 @@ describe("UI design contract", () => {
     );
   });
 
+  it("loads activity styles through their owning activity modules", () => {
+    const globalStyleEntry = readStyle("ui/styles/index.css");
+    const activityStylePaths = Object.keys(styleModules).filter((path) =>
+      path.startsWith("../../src/ui/styles/activities/"),
+    );
+    const violations = activityStylePaths.flatMap((stylePath) => {
+      const styleName = stylePath.split("/").at(-1)?.replace(".css", "") ?? "";
+      const owners = Object.entries(sourceModules)
+        .filter(([, source]) =>
+          source.includes(`styles/activities/${styleName}.css`),
+        )
+        .map(([filePath]) => sourcePathToRelative(filePath));
+      const expectedOwnerPrefix =
+        styleName === "placeholder"
+          ? "ui/activities/Placeholder"
+          : `ui/activities/${styleName}/`;
+
+      return owners.length === 1 && owners[0].startsWith(expectedOwnerPrefix)
+        ? []
+        : [`${styleName}: ${owners.join(", ") || "missing"}`];
+    });
+
+    expect(globalStyleEntry).not.toContain("./activities/");
+    expect(violations).toEqual([]);
+  });
+
   it("keeps shared primitive selectors out of activity styles", () => {
     const titleSelectorPattern =
       /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.context-panel-header)(?:\s|[.{:#>])/;
