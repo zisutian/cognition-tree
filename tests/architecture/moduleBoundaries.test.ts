@@ -254,6 +254,7 @@ describe("architecture module boundaries", () => {
       "sessionCommands.ts",
       "sessionRepositorySnapshot.ts",
       "useSession.ts",
+      "workspaceSessionController.ts",
       "workspaceSessionSaveQueue.ts",
     ]);
     expect(listSourceFileNames("application/workspace/view-model")).toEqual([
@@ -286,6 +287,7 @@ describe("architecture module boundaries", () => {
       "ActivityBar.tsx",
       "AppFrame.tsx",
       "AppView.tsx",
+      "SessionStateView.tsx",
       "activityTypes.ts",
       "frameResize.ts",
       "useWorkbenchLayout.ts",

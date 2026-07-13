@@ -303,3 +303,10 @@
     display: none;
   }
 }
+.session-state-frame {
+  display: grid;
+  min-width: 0;
+  min-height: 100dvh;
+  padding: var(--ui-panel-padding);
+  background: var(--color-editor);
+}

@@ -24,7 +24,7 @@ import {
 import { createUiSyntaxView } from "../projection/viewSyntax";
 import type {
   WorkspaceSessionSaveStatus,
-  Session,
+  ActiveSession,
 } from "../session/useSession";
 import { createSyntaxDraftActions } from "./syntaxDraftActions";
 import { createWorkspaceTreeNodeReference } from "./sidebarTreeMove";
@@ -66,13 +66,11 @@ const emptyReferenceGraphView = createUiReferenceGraphView({
 });
 
 export function useViewModel(
-  session: Session,
+  session: ActiveSession,
   scope: WorkspaceViewModelScope,
 ): ViewModel {
   const {
     discardPendingChangesAndReload,
-    hasSaveConflict,
-    isLoaded,
     reload,
     repositoryPath,
     storageLabel,
@@ -86,6 +84,7 @@ export function useViewModel(
     errorMessage,
     saveStatus,
   } = session;
+  const hasSaveConflict = session.status === "conflict";
   const [selectedFolderId, setSelectedFolderId] =
     useState<FolderId | null>(null);
   const [directoryActiveNode, setDirectoryActiveNode] =
@@ -243,7 +242,6 @@ export function useViewModel(
     syntaxFeedback,
     updateSyntaxDraft,
   } = useSyntaxDraft({
-    isLoaded,
     syntaxProfile:
       workspaceSyntaxFile?.profile ?? defaultWorkspaceSyntaxFile.profile,
     syntaxSource:

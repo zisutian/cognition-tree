@@ -27,6 +27,7 @@ type WorkspaceSessionSaveQueueOptions = {
 
 export type WorkspaceSessionSaveQueue = {
   discardPendingChanges: () => Promise<void>;
+  dispose: () => void;
   enqueue: (content: WorkspaceRepositoryContent) => void;
   enqueueAndWait: (content: WorkspaceRepositoryContent) => Promise<void>;
   flush: () => Promise<void>;
@@ -141,6 +142,15 @@ export function createWorkspaceSessionSaveQueue({
       }
 
       onStatusChange("idle");
+    },
+    dispose() {
+      clearSaveTimer();
+      pendingContent = null;
+
+      const disposeError = new Error("Workspace session save queue was disposed");
+
+      waiters.forEach((waiter) => waiter.reject(disposeError));
+      waiters = [];
     },
     enqueue(content) {
       queueContent(content);

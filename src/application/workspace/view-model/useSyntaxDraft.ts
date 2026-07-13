@@ -12,7 +12,6 @@ import {
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 
 type UseSyntaxDraftOptions = {
-  isLoaded: boolean;
   syntaxProfile: CtnSyntaxProfile;
   syntaxSource: string;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
@@ -54,7 +53,6 @@ export function resolveSyntaxDraftAfterPersistence({
 }
 
 export function useSyntaxDraft({
-  isLoaded,
   syntaxProfile,
   syntaxSource,
   updateWorkspaceSyntaxSource,
@@ -114,7 +112,6 @@ export function useSyntaxDraft({
 
   useEffect(() => {
     if (
-      !isLoaded ||
       !syntaxDraftSource ||
       syntaxDraftSource === lastPersistedSyntaxSourceRef.current
     ) {
@@ -146,7 +143,7 @@ export function useSyntaxDraft({
     return () => {
       isActive = false;
     };
-  }, [isLoaded, syntaxDraftSource]);
+  }, [syntaxDraftSource]);
 
   const updateSyntaxDraft = (nextDraft: SyntaxProfileDraft) => {
     setSyntaxDraft(nextDraft);

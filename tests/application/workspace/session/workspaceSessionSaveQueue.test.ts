@@ -234,4 +234,23 @@ describe("workspace session save queue", () => {
 
     expect(savedNames).toEqual(["active"]);
   });
+
+  it("cancels timers and waiters when its owning session is disposed", async () => {
+    vi.useFakeTimers();
+
+    const savedNames: string[] = [];
+    const queue = createQueue(async (content) => {
+      savedNames.push(content.workspace.name);
+    });
+    const pendingSave = queue.enqueueAndWait(createContent("disposed"));
+    const rejectedSave = expect(pendingSave).rejects.toThrow(
+      "Workspace session save queue was disposed",
+    );
+
+    queue.dispose();
+    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+    await rejectedSave;
+
+    expect(savedNames).toEqual([]);
+  });
 });

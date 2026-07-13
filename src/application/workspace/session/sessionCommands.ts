@@ -4,7 +4,6 @@ import {
   createWorkspaceNote as createWorkspaceNoteAction,
   deleteWorkspaceFolder as deleteWorkspaceFolderAction,
   deleteWorkspaceNote as deleteWorkspaceNoteAction,
-  moveWorkspaceNote as moveWorkspaceNoteAction,
   moveWorkspaceTreeNode as moveWorkspaceTreeNodeAction,
   renameWorkspaceFolder as renameWorkspaceFolderAction,
   renameWorkspaceNote as renameWorkspaceNoteAction,
@@ -73,7 +72,6 @@ export type SessionCommands = {
     index: WorkspaceStructureBlockMoveIndex,
     request: WorkspaceStructureBlockMoveWithinNoteRequest,
   ) => MoveWorkspaceStructureBlockWithinNoteCommandResult;
-  moveNote: (noteId: NoteId, targetFolderId: FolderId | null) => void;
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
   renameNote: (noteId: NoteId, title: string) => void;
@@ -94,14 +92,15 @@ function createTimestamp() {
 
 export function createSessionCommands({
   commitDataSnapshot,
-  workspace,
+  getWorkspace,
 }: {
   commitDataSnapshot: (workspaceData: WorkspaceData) => void;
-  workspace: WorkspaceStructureIndex;
+  getWorkspace: () => WorkspaceStructureIndex;
 }): SessionCommands {
   return {
     createFolder(parentFolderId, title) {
       const folderId = createFolderId();
+      const workspace = getWorkspace();
 
       commitDataSnapshot(
         createWorkspaceFolderAction(workspace, {
@@ -114,6 +113,7 @@ export function createSessionCommands({
     },
     createNote(parentFolderId) {
       const noteId = createNoteId();
+      const workspace = getWorkspace();
 
       commitDataSnapshot(
         createWorkspaceNoteAction(workspace, {
@@ -125,14 +125,16 @@ export function createSessionCommands({
       return noteId;
     },
     deleteFolder(folderId) {
-      commitDataSnapshot(deleteWorkspaceFolderAction(workspace, folderId));
+      commitDataSnapshot(
+        deleteWorkspaceFolderAction(getWorkspace(), folderId),
+      );
     },
     deleteNote(noteId) {
-      commitDataSnapshot(deleteWorkspaceNoteAction(workspace, noteId));
+      commitDataSnapshot(deleteWorkspaceNoteAction(getWorkspace(), noteId));
     },
     moveStructureBlockBetweenNotes(index, request) {
       const result = moveWorkspaceStructureBlockBetweenNotesAction(
-        workspace,
+        getWorkspace(),
         index,
         request,
         createTimestamp(),
@@ -154,7 +156,7 @@ export function createSessionCommands({
     },
     moveStructureBlockWithinNote(index, request) {
       const result = moveWorkspaceStructureBlockWithinNoteAction(
-        workspace,
+        getWorkspace(),
         index,
         request,
         createTimestamp(),
@@ -174,23 +176,20 @@ export function createSessionCommands({
         status: "moved",
       };
     },
-    moveNote(noteId, targetFolderId) {
-      commitDataSnapshot(
-        moveWorkspaceNoteAction(workspace, noteId, targetFolderId),
-      );
-    },
     moveTreeNode(request) {
-      commitDataSnapshot(moveWorkspaceTreeNodeAction(workspace, request));
+      commitDataSnapshot(
+        moveWorkspaceTreeNodeAction(getWorkspace(), request),
+      );
     },
     renameFolder(folderId, title) {
       commitDataSnapshot(
-        renameWorkspaceFolderAction(workspace, folderId, title),
+        renameWorkspaceFolderAction(getWorkspace(), folderId, title),
       );
     },
     renameNote(noteId, title) {
       commitDataSnapshot(
         renameWorkspaceNoteAction(
-          workspace,
+          getWorkspace(),
           noteId,
           title,
           createTimestamp(),
@@ -200,7 +199,7 @@ export function createSessionCommands({
     updateNoteSource(noteId, source) {
       commitDataSnapshot(
         updateWorkspaceNoteSourceAction(
-          workspace,
+          getWorkspace(),
           noteId,
           source,
           createTimestamp(),
