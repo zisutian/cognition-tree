@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
 import {
+  createWorkspaceRepositorySyntaxSourceFile,
   WorkspaceRepositoryConflictError,
   type WorkspaceRepositoryCommit,
 } from "../../src/storage/workspaceRepository";
-import { workspaceSyntaxFileName } from "../../src/workspace/context/workspaceSyntaxFile";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -57,10 +57,9 @@ describe("createHttpWorkspaceRepository", () => {
     const workspace = createInitialWorkspaceData();
     const commit: WorkspaceRepositoryCommit = {
       baseRevision: "revision-1",
-      syntaxSourceFile: {
-        fileName: workspaceSyntaxFileName,
-        source: 'name = "custom"\n',
-      },
+      syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
+        'name = "custom"\n',
+      ),
       workspace,
     };
     const calls: FetchCall[] = [];

@@ -1,10 +1,22 @@
 import type { WorkspaceData } from "../workspace/model/workspaceData";
-import type { WorkspaceSyntaxSourceFile } from "../workspace/context/workspaceSyntaxFile";
+import {
+  repositorySyntaxFileName,
+  type RepositorySyntaxSourceDto,
+} from "../../contracts/workspace-repository/types";
 
 export type WorkspaceRepositoryContent = {
-  syntaxSourceFile: WorkspaceSyntaxSourceFile | null;
+  syntaxSourceFile: RepositorySyntaxSourceDto | null;
   workspace: WorkspaceData;
 };
+
+export function createWorkspaceRepositorySyntaxSourceFile(
+  source: string,
+): RepositorySyntaxSourceDto {
+  return {
+    fileName: repositorySyntaxFileName,
+    source,
+  };
+}
 
 export type WorkspaceRepositorySnapshot = WorkspaceRepositoryContent & {
   repositoryPath: string;

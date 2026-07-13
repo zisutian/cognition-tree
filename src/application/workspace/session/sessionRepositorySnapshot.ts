@@ -1,17 +1,19 @@
-import type { WorkspaceRepository } from "../../../storage/workspaceRepository";
+import type {
+  WorkspaceRepository,
+  WorkspaceRepositorySnapshot,
+} from "../../../storage/workspaceRepository";
 import type { WorkspaceData } from "../../../workspace/model/workspaceData";
 import {
-  resolveWorkspaceSyntaxFile,
-  type WorkspaceSyntaxSourceFile,
-  type WorkspaceSyntaxFile,
-} from "../../../workspace/context/workspaceSyntaxFile";
+  resolveWorkspaceSyntax,
+  type WorkspaceSyntax,
+} from "../../../workspace/context/workspaceSyntax";
 
 export type WorkspaceSessionSnapshot = {
   repositoryPath: string;
   revision: string;
-  syntaxSourceFile: WorkspaceSyntaxSourceFile | null;
+  syntaxSourceFile: WorkspaceRepositorySnapshot["syntaxSourceFile"];
   workspaceData: WorkspaceData;
-  workspaceSyntaxFile: WorkspaceSyntaxFile | null;
+  workspaceSyntax: WorkspaceSyntax | null;
 };
 
 export async function loadWorkspaceSessionSnapshot(
@@ -24,8 +26,8 @@ export async function loadWorkspaceSessionSnapshot(
     revision: repositorySnapshot.revision,
     syntaxSourceFile: repositorySnapshot.syntaxSourceFile,
     workspaceData: repositorySnapshot.workspace,
-    workspaceSyntaxFile: resolveWorkspaceSyntaxFile(
-      repositorySnapshot.syntaxSourceFile,
+    workspaceSyntax: resolveWorkspaceSyntax(
+      repositorySnapshot.syntaxSourceFile?.source ?? null,
     ),
   };
 }

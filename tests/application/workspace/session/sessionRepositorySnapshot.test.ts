@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceRepository } from "../../../../src/storage/workspaceRepository";
-import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
 import {
-  createDefaultWorkspaceSyntaxSource,
-  type WorkspaceSyntaxSourceFile,
-  workspaceSyntaxFileName,
-} from "../../../../src/workspace/context/workspaceSyntaxFile";
+  createWorkspaceRepositorySyntaxSourceFile,
+  type WorkspaceRepository,
+} from "../../../../src/storage/workspaceRepository";
+import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
+import { createDefaultWorkspaceSyntaxSource } from "../../../../src/workspace/context/workspaceSyntax";
 import { loadWorkspaceSessionSnapshot } from "../../../../src/application/workspace/session/sessionRepositorySnapshot";
 
 function createRepository(
@@ -22,10 +21,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
   it("loads one repository snapshot and resolves its syntax profile", async () => {
     const workspace = createInitialWorkspaceData();
     const source = createDefaultWorkspaceSyntaxSource();
-    const syntaxSourceFile: WorkspaceSyntaxSourceFile = {
-      fileName: workspaceSyntaxFileName,
-      source,
-    };
+    const syntaxSourceFile = createWorkspaceRepositorySyntaxSourceFile(source);
 
     await expect(
       loadWorkspaceSessionSnapshot(
@@ -41,8 +37,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
       revision: "revision-1",
       syntaxSourceFile,
       workspaceData: workspace,
-      workspaceSyntaxFile: {
-        fileName: "workspace.toml",
+      workspaceSyntax: {
         source,
       },
     });
@@ -65,7 +60,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
       revision: "revision-empty-syntax",
       syntaxSourceFile: null,
       workspaceData: workspace,
-      workspaceSyntaxFile: null,
+      workspaceSyntax: null,
     });
   });
 });

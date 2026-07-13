@@ -30,20 +30,20 @@ export type WorkspaceRuntime = {
 export function useWorkspaceApplication(session: ActiveSession) {
   const {
     commands,
-    defaultWorkspaceSyntaxFile,
+    defaultWorkspaceSyntax,
     errorMessage,
     updateWorkspaceSyntaxSource,
-    useDefaultWorkspaceSyntaxFile,
+    useDefaultWorkspaceSyntax,
     workspace,
-    workspaceSyntaxFile,
+    workspaceSyntax,
     context,
   } = session;
   const selection = useWorkspaceSelection({ commands, workspace });
   const syntax = useSyntaxRuntime({
     syntaxProfile:
-      workspaceSyntaxFile?.profile ?? defaultWorkspaceSyntaxFile.profile,
+      workspaceSyntax?.profile ?? defaultWorkspaceSyntax.profile,
     syntaxSource:
-      workspaceSyntaxFile?.source ?? defaultWorkspaceSyntaxFile.source,
+      workspaceSyntax?.source ?? defaultWorkspaceSyntax.source,
     updateWorkspaceSyntaxSource,
     workspace: context?.workspace ?? null,
   });
@@ -55,9 +55,9 @@ export function useWorkspaceApplication(session: ActiveSession) {
   const parseIndexCache = useWorkspaceParseIndexCache();
   const shell: WorkspaceShell = {
     errorMessage,
-    hasConfiguredSyntax: Boolean(workspaceSyntaxFile && syntax.effectiveContext),
+    hasConfiguredSyntax: Boolean(workspaceSyntax && syntax.effectiveContext),
     useDefaultSyntax: () => {
-      void useDefaultWorkspaceSyntaxFile();
+      void useDefaultWorkspaceSyntax();
     },
   };
   const repository = {
@@ -70,7 +70,7 @@ export function useWorkspaceApplication(session: ActiveSession) {
   };
   const runtime: WorkspaceRuntime = {
     commands,
-    defaultSyntaxProfile: defaultWorkspaceSyntaxFile.profile,
+    defaultSyntaxProfile: defaultWorkspaceSyntax.profile,
     effectiveContext: syntax.effectiveContext,
     effectiveNotes,
     effectiveWorkspace,

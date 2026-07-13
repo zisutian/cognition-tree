@@ -19,7 +19,7 @@ export type ActiveSession = ActiveSessionState & {
   discardPendingChangesAndReload: () => Promise<void>;
   reload: () => Promise<void>;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  useDefaultWorkspaceSyntaxFile: () => Promise<void>;
+  useDefaultWorkspaceSyntax: () => Promise<void>;
 };
 
 export type Session =
@@ -54,7 +54,7 @@ function createSession(
       controller.discardPendingChangesAndReload,
     reload: controller.reload,
     updateWorkspaceSyntaxSource: controller.updateWorkspaceSyntaxSource,
-    useDefaultWorkspaceSyntaxFile: controller.useDefaultWorkspaceSyntaxFile,
+    useDefaultWorkspaceSyntax: controller.useDefaultWorkspaceSyntax,
   };
 }
 

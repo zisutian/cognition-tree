@@ -1,16 +1,18 @@
-import type { WorkspaceRepository } from "../../../storage/workspaceRepository";
-import { WorkspaceRepositoryConflictError } from "../../../storage/workspaceRepository";
+import {
+  createWorkspaceRepositorySyntaxSourceFile,
+  WorkspaceRepositoryConflictError,
+  type WorkspaceRepository,
+  type WorkspaceRepositoryContent,
+} from "../../../storage/workspaceRepository";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
 } from "../../../workspace/context/workspaceContext";
 import {
-  createDefaultWorkspaceSyntaxFile,
-  parseWorkspaceSyntaxSource,
-  type WorkspaceSyntaxSourceFile,
-  type WorkspaceSyntaxFile,
-  workspaceSyntaxFileName,
-} from "../../../workspace/context/workspaceSyntaxFile";
+  createDefaultWorkspaceSyntax,
+  parseWorkspaceSyntax,
+  type WorkspaceSyntax,
+} from "../../../workspace/context/workspaceSyntax";
 import {
   createWorkspaceStructureIndex,
   type WorkspaceStructureIndex,
@@ -32,13 +34,13 @@ import {
 
 type WorkspaceSessionAvailableStateBase = {
   context: WorkspaceContext | null;
-  defaultWorkspaceSyntaxFile: WorkspaceSyntaxFile;
+  defaultWorkspaceSyntax: WorkspaceSyntax;
   errorMessage: string;
   repositoryPath: string;
   saveStatus: WorkspaceSessionSaveStatus;
   storageLabel: string;
   workspace: WorkspaceStructureIndex;
-  workspaceSyntaxFile: WorkspaceSyntaxFile | null;
+  workspaceSyntax: WorkspaceSyntax | null;
 };
 
 export type WorkspaceSessionReadyState =
@@ -68,13 +70,13 @@ export type WorkspaceSessionControllerState =
 type LoadedWorkspaceSession = {
   context: WorkspaceContext | null;
   generation: number;
-  latestSyntaxFile: WorkspaceSyntaxFile | null;
+  latestWorkspaceSyntax: WorkspaceSyntax | null;
   repositoryPath: string;
   revision: string;
-  syntaxSourceFile: WorkspaceSyntaxSourceFile | null;
+  syntaxSourceFile: WorkspaceRepositoryContent["syntaxSourceFile"];
   workspace: WorkspaceStructureIndex;
   workspaceData: WorkspaceData;
-  workspaceSyntaxFile: WorkspaceSyntaxFile | null;
+  workspaceSyntax: WorkspaceSyntax | null;
 };
 
 export type WorkspaceSessionController = {
@@ -87,7 +89,7 @@ export type WorkspaceSessionController = {
   start: () => void;
   subscribe: (listener: () => void) => () => void;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  useDefaultWorkspaceSyntaxFile: () => Promise<void>;
+  useDefaultWorkspaceSyntax: () => Promise<void>;
 };
 
 export class WorkspaceSessionUnavailableError extends Error {
@@ -111,20 +113,20 @@ function createLoadedWorkspaceSession({
   const workspace = createWorkspaceStructureIndex(snapshot.workspaceData);
 
   return {
-    context: snapshot.workspaceSyntaxFile
+    context: snapshot.workspaceSyntax
       ? attachWorkspaceSyntaxProfile(
           workspace,
-          snapshot.workspaceSyntaxFile.profile,
+          snapshot.workspaceSyntax.profile,
         )
       : null,
     generation,
-    latestSyntaxFile: snapshot.workspaceSyntaxFile,
+    latestWorkspaceSyntax: snapshot.workspaceSyntax,
     repositoryPath: snapshot.repositoryPath,
     revision: snapshot.revision,
     syntaxSourceFile: snapshot.syntaxSourceFile,
     workspace,
     workspaceData: snapshot.workspaceData,
-    workspaceSyntaxFile: snapshot.workspaceSyntaxFile,
+    workspaceSyntax: snapshot.workspaceSyntax,
   };
 }
 
@@ -133,7 +135,7 @@ export function createWorkspaceSessionController({
 }: {
   repository: WorkspaceRepository;
 }): WorkspaceSessionController {
-  const defaultWorkspaceSyntaxFile = createDefaultWorkspaceSyntaxFile();
+  const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
   const listeners = new Set<() => void>();
   let generation = 0;
   let transitionVersion = 0;
@@ -176,13 +178,13 @@ export function createWorkspaceSessionController({
 
     const availableState = {
       context: loadedSession.context,
-      defaultWorkspaceSyntaxFile,
+      defaultWorkspaceSyntax,
       errorMessage,
       repositoryPath: loadedSession.repositoryPath,
       saveStatus,
       storageLabel: repository.label,
       workspace: loadedSession.workspace,
-      workspaceSyntaxFile: loadedSession.workspaceSyntaxFile,
+      workspaceSyntax: loadedSession.workspaceSyntax,
     };
 
     return status === "conflict"
@@ -228,10 +230,10 @@ export function createWorkspaceSessionController({
 
     loadedSession = {
       ...session,
-      context: session.workspaceSyntaxFile
+      context: session.workspaceSyntax
         ? attachWorkspaceSyntaxProfile(
             workspace,
-            session.workspaceSyntaxFile.profile,
+            session.workspaceSyntax.profile,
           )
         : null,
       workspace,
@@ -303,20 +305,20 @@ export function createWorkspaceSessionController({
         }
 
         if (
-          loadedSession.latestSyntaxFile?.source ===
+          loadedSession.latestWorkspaceSyntax?.source ===
           content.syntaxSourceFile?.source
         ) {
-          const workspaceSyntaxFile = loadedSession.latestSyntaxFile;
+          const workspaceSyntax = loadedSession.latestWorkspaceSyntax;
 
           loadedSession = {
             ...loadedSession,
-            context: workspaceSyntaxFile
+            context: workspaceSyntax
               ? attachWorkspaceSyntaxProfile(
                   loadedSession.workspace,
-                  workspaceSyntaxFile.profile,
+                  workspaceSyntax.profile,
                 )
               : null,
-            workspaceSyntaxFile,
+            workspaceSyntax,
           };
           publishCurrentAvailableState({
             currentRevision:
@@ -456,18 +458,14 @@ export function createWorkspaceSessionController({
   };
   const updateWorkspaceSyntaxSource = async (source: string) => {
     const session = requireAvailableSession();
-    const syntaxFile = parseWorkspaceSyntaxSource(
-      workspaceSyntaxFileName,
-      source,
+    const workspaceSyntax = parseWorkspaceSyntax(source);
+    const syntaxSourceFile = createWorkspaceRepositorySyntaxSourceFile(
+      workspaceSyntax.source,
     );
-    const syntaxSourceFile = {
-      fileName: syntaxFile.fileName,
-      source: syntaxFile.source,
-    };
 
     loadedSession = {
       ...session,
-      latestSyntaxFile: syntaxFile,
+      latestWorkspaceSyntax: workspaceSyntax,
       syntaxSourceFile,
     };
 
@@ -513,8 +511,8 @@ export function createWorkspaceSessionController({
       return () => listeners.delete(listener);
     },
     updateWorkspaceSyntaxSource,
-    useDefaultWorkspaceSyntaxFile() {
-      return updateWorkspaceSyntaxSource(defaultWorkspaceSyntaxFile.source);
+    useDefaultWorkspaceSyntax() {
+      return updateWorkspaceSyntaxSource(defaultWorkspaceSyntax.source);
     },
   };
 }

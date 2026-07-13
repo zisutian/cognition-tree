@@ -5,33 +5,23 @@ import {
 } from "../../ctn/syntax/profileToml";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 
-export const workspaceSyntaxFileName = "workspace.toml";
-
-export type WorkspaceSyntaxSourceFile = {
-  fileName: typeof workspaceSyntaxFileName;
-  source: string;
-};
-
-export type WorkspaceSyntaxFile = WorkspaceSyntaxSourceFile & {
+export type WorkspaceSyntax = {
   profile: CtnSyntaxProfile;
+  source: string;
 };
 
 export function createDefaultWorkspaceSyntaxSource() {
   return formatSyntaxProfileToml(defaultCtnSyntaxProfile);
 }
 
-export function createDefaultWorkspaceSyntaxFile(): WorkspaceSyntaxFile {
+export function createDefaultWorkspaceSyntax(): WorkspaceSyntax {
   return {
-    fileName: workspaceSyntaxFileName,
     profile: defaultCtnSyntaxProfile,
     source: createDefaultWorkspaceSyntaxSource(),
   };
 }
 
-export function parseWorkspaceSyntaxSource(
-  fileName: typeof workspaceSyntaxFileName,
-  source: string,
-): WorkspaceSyntaxFile {
+export function parseWorkspaceSyntax(source: string): WorkspaceSyntax {
   const result = parseSyntaxProfileToml(source);
 
   if (!result.profile) {
@@ -43,19 +33,11 @@ export function parseWorkspaceSyntaxSource(
   }
 
   return {
-    fileName,
     profile: result.profile,
     source,
   };
 }
 
-export function resolveWorkspaceSyntaxFile(
-  syntaxSourceFile: WorkspaceSyntaxSourceFile | null,
-): WorkspaceSyntaxFile | null {
-  return syntaxSourceFile
-    ? parseWorkspaceSyntaxSource(
-        syntaxSourceFile.fileName,
-        syntaxSourceFile.source,
-      )
-    : null;
+export function resolveWorkspaceSyntax(source: string | null) {
+  return source === null ? null : parseWorkspaceSyntax(source);
 }
