@@ -130,14 +130,29 @@ export function parseCtnDocument(
       indentText.length,
       markerRules,
     );
+    const isUnmarkedLine =
+      parsedMarker.marker === null && parsedMarker.type === "concept";
     const isTopLevelConcept =
-      indent.level === 0 &&
-      parsedMarker.marker === null &&
-      parsedMarker.type === "concept";
+      indentText.length === 0 && isUnmarkedLine;
+    const isUnknownIndentedSyntax =
+      indentText.length > 0 && isUnmarkedLine;
     const nodeDiagnostics = [
       ...indent.diagnostics,
       ...parsedMarker.diagnostics,
     ];
+
+    if (isUnknownIndentedSyntax) {
+      nodeDiagnostics.push(
+        createDiagnostic(
+          "unknown-syntax",
+          "warning",
+          lineNumber,
+          indentText.length + 1,
+          "缩进行必须使用已配置的行首符号。",
+        ),
+      );
+    }
+
     const node: CtnBlock = {
       id: `block-${lineNumber}`,
       lineNumber,
@@ -152,9 +167,11 @@ export function parseCtnDocument(
       level: indent.level,
       indentText,
       marker: parsedMarker.marker,
-      type: isTopLevelConcept
-        ? syntaxProfile.conceptRule.type
-        : parsedMarker.type,
+      type: isUnknownIndentedSyntax
+        ? "text"
+        : isTopLevelConcept
+          ? syntaxProfile.conceptRule.type
+          : parsedMarker.type,
       role: parsedMarker.role,
       textColor: isTopLevelConcept
         ? syntaxProfile.conceptRule.textColor
@@ -162,13 +179,15 @@ export function parseCtnDocument(
       tone: isTopLevelConcept
         ? syntaxProfile.conceptRule.tone
         : parsedMarker.tone,
-      label: isTopLevelConcept
-        ? syntaxProfile.conceptRule.label
-        : parsedMarker.label,
+      label: isUnknownIndentedSyntax
+        ? "未知语法"
+        : isTopLevelConcept
+          ? syntaxProfile.conceptRule.label
+          : parsedMarker.label,
       text: parsedMarker.text,
       rawText: line,
       inlineSpans:
-        parsedMarker.role === "multiline"
+        parsedMarker.role === "multiline" || isUnknownIndentedSyntax
           ? []
           : parseInlineSpans(
               parsedMarker.text,

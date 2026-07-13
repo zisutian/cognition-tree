@@ -23,7 +23,8 @@ export type CtnDiagnosticCode =
   | "indent-level-jump"
   | "space-indent"
   | "title-line-invalid"
-  | "unknown-marker";
+  | "unknown-marker"
+  | "unknown-syntax";
 
 export type CtnDiagnostic = {
   id: string;

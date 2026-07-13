@@ -280,8 +280,8 @@ plain text
     });
   });
 
-  it("uses the configured top-level concept tone after the title", () => {
-    const document = parseCtnDocument("Document Title\nRoot\n\tChild", {
+  it("uses the configured concept tone only for top-level unmarked lines", () => {
+    const document = parseCtnDocument("Document Title\nRoot\n\t: Child", {
       ...defaultCtnSyntaxProfile,
       conceptRule: {
         label: "顶格概念",
@@ -307,11 +307,38 @@ plain text
       type: "concept",
     });
     expect(root.children[0]).toMatchObject({
-      label: "概念",
+      label: "定义",
       level: 1,
+      marker: ":",
+      tone: "green",
+      type: "definition",
+    });
+  });
+
+  it("reports indented unmarked lines without concept or inline semantics", () => {
+    const document = parseDefaultCtnDocument(
+      "Document Title\nRoot\n\t?内容 [[Target]]\n\tPlain child",
+    );
+    const children = document.roots[1].children;
+
+    expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "unknown-syntax",
+      "unknown-syntax",
+    ]);
+    expect(children).toHaveLength(2);
+    expect(children[0]).toMatchObject({
+      inlineSpans: [],
+      label: "未知语法",
       marker: null,
-      tone: "default",
-      type: "concept",
+      text: "?内容 [[Target]]",
+      type: "text",
+    });
+    expect(children[1]).toMatchObject({
+      inlineSpans: [],
+      label: "未知语法",
+      marker: null,
+      text: "Plain child",
+      type: "text",
     });
   });
 
