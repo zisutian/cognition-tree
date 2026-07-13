@@ -1,20 +1,4 @@
-import type {
-  UiSyntaxProfileDraftInlineRule,
-} from "../../../application/workspace/projection/viewSyntax";
-
-export const maxTabDisplayWidth = 16;
-
-export function readTabDisplayWidthInput(value: string) {
-  const digits = value.replace(/\D/g, "");
-
-  if (!digits) {
-    return "";
-  }
-
-  return String(
-    Math.min(maxTabDisplayWidth, Math.max(1, Number.parseInt(digits, 10))),
-  );
-}
+import type { UiSyntaxProfileDraftInlineRule } from "../../../application/workspace/projection/viewSyntax";
 
 export function getInlinePreviewValue(rule: UiSyntaxProfileDraftInlineRule) {
   return rule.label || "行内规则";

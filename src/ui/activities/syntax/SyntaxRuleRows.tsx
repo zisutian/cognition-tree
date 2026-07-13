@@ -125,7 +125,7 @@ export function MarkerRuleRows({
           <input
             aria-label="名称"
             className="ui-input"
-            maxLength={32}
+            maxLength={syntax.constraints.label.maxLength}
             value={rule.label}
             onChange={(event) =>
               syntax.actions.updateMarkerRule(rule.id, {
@@ -136,7 +136,7 @@ export function MarkerRuleRows({
           <input
             aria-label="标记"
             className="ui-input"
-            maxLength={12}
+            maxLength={syntax.constraints.token.maxLength}
             value={rule.marker}
             onChange={(event) =>
               syntax.actions.updateMarkerRule(rule.id, {
@@ -212,7 +212,7 @@ function InlineRuleRow({
       <input
         aria-label="名称"
         className="ui-input"
-        maxLength={32}
+        maxLength={syntax.constraints.label.maxLength}
         value={rule.label}
         onChange={(event) =>
           syntax.actions.updateInlineRule(rule.id, { label: event.target.value })
@@ -223,7 +223,7 @@ function InlineRuleRow({
           <input
             aria-label="开始"
             className="ui-input"
-            maxLength={12}
+            maxLength={syntax.constraints.token.maxLength}
             value={rule.open}
             onChange={(event) =>
               syntax.actions.updateInlineRule(rule.id, { open: event.target.value })
@@ -232,7 +232,7 @@ function InlineRuleRow({
           <input
             aria-label="结束"
             className="ui-input"
-            maxLength={12}
+            maxLength={syntax.constraints.token.maxLength}
             value={rule.close}
             onChange={(event) =>
               syntax.actions.updateInlineRule(rule.id, { close: event.target.value })
@@ -243,7 +243,7 @@ function InlineRuleRow({
         <input
           aria-label="符号"
           className="ui-input"
-          maxLength={12}
+          maxLength={syntax.constraints.token.maxLength}
           value={rule.marker}
           onChange={(event) =>
             syntax.actions.updateInlineRule(rule.id, {

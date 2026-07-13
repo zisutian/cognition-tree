@@ -139,19 +139,38 @@ textColor = "red"
     expect(result.profile).toEqual(defaultCtnSyntaxProfile);
   });
 
+  it("applies schema bounds after decoding TOML", () => {
+    const source = formatSyntaxProfileToml(defaultCtnSyntaxProfile)
+      .replace('name = "默认 CTN 语法"', `name = "${"n".repeat(65)}"`)
+      .replace("tabDisplayWidth = 4", "tabDisplayWidth = 17");
+    const result = parseSyntaxProfileToml(source);
+
+    expect(result.profile).toBeNull();
+    expect(
+      result.diagnostics.map(({ code, path }) => ({ code, path })),
+    ).toEqual(
+      expect.arrayContaining([
+        { code: "invalid-field", path: "$.name" },
+        { code: "invalid-field", path: "$.tabDisplayWidth" },
+      ]),
+    );
+  });
+
   it("rejects missing fields and invalid scalar values", () => {
     const result = parseSyntaxProfileToml(`name = ""
 tabDisplayWidth = 0
 `);
 
     expect(result.profile).toBeNull();
-    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
-      "invalid-field",
-      "invalid-field",
-      "missing-field",
-      "missing-field",
-      "invalid-field",
-      "missing-field",
+    expect(
+      result.diagnostics.map(({ code, path }) => ({ code, path })),
+    ).toEqual([
+      { code: "missing-field", path: "title" },
+      { code: "missing-field", path: "concept" },
+      { code: "missing-field", path: "markers" },
+      { code: "missing-field", path: "inlineRules" },
+      { code: "invalid-field", path: "$.name" },
+      { code: "invalid-field", path: "$.tabDisplayWidth" },
     ]);
   });
 
@@ -192,18 +211,23 @@ textColor = "default"
 `);
 
     expect(result.profile).toBeNull();
-    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
-      "unsupported-field",
-      "invalid-field",
-      "invalid-field",
-      "invalid-field",
-      "unsupported-field",
-      "invalid-field",
-      "invalid-field",
-      "invalid-field",
-      "duplicate-marker",
-      "invalid-type-id",
-      "missing-required-rule",
+    expect(
+      result.diagnostics.map(({ code, path }) => ({ code, path })),
+    ).toEqual([
+      { code: "unsupported-field", path: "$.extra" },
+      { code: "unsupported-field", path: "markers[0].extra" },
+      { code: "invalid-field", path: "concept.textColor" },
+      { code: "invalid-field", path: "concept.tone" },
+      { code: "invalid-field", path: "concept.type" },
+      { code: "invalid-type-id", path: "markers[1].type" },
+      { code: "invalid-field", path: "markers[1].textColor" },
+      { code: "invalid-field", path: "markers[1].tone" },
+      { code: "invalid-field", path: "markers[1].role" },
+      { code: "duplicate-marker", path: "markers[1].marker" },
+      {
+        code: "missing-required-rule",
+        path: "inlineRules.global-reference",
+      },
     ]);
   });
 

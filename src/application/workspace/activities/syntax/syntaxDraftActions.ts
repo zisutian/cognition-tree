@@ -2,6 +2,7 @@ import {
   createNextInlineRuleDraft,
   createNextMarkerRuleDraft,
   isProtectedInlineRuleDraft,
+  normalizeSyntaxTabDisplayWidthInput,
   type SyntaxProfileDraft,
   type SyntaxProfileDraftConceptRule,
   type SyntaxProfileDraftInlineRule,
@@ -22,13 +23,16 @@ export function createSyntaxDraftActions({
   syntaxDraft: SyntaxProfileDraft;
   updateSyntaxDraft: (draft: SyntaxProfileDraft) => void;
 }) {
-  const updateSyntaxDraftField = (
-    field: keyof Pick<SyntaxProfileDraft, "name" | "tabDisplayWidth">,
-    value: string,
-  ) => {
+  const updateSyntaxName = (name: string) => {
     updateSyntaxDraft({
       ...syntaxDraft,
-      [field]: value,
+      name,
+    });
+  };
+  const updateSyntaxTabDisplayWidth = (value: string) => {
+    updateSyntaxDraft({
+      ...syntaxDraft,
+      tabDisplayWidth: normalizeSyntaxTabDisplayWidthInput(value),
     });
   };
   const updateSyntaxMarkerRule = (
@@ -117,9 +121,10 @@ export function createSyntaxDraftActions({
       removeInlineRule: removeSyntaxInlineRule,
       removeMarkerRule: removeSyntaxMarkerRule,
       updateConceptRule: updateSyntaxConceptRule,
-      updateDraftField: updateSyntaxDraftField,
       updateInlineRule: updateSyntaxInlineRule,
       updateMarkerRule: updateSyntaxMarkerRule,
+      updateName: updateSyntaxName,
+      updateTabDisplayWidth: updateSyntaxTabDisplayWidth,
       updateTitleRule: updateSyntaxTitleRule,
     },
     protectedInlineRuleIds: syntaxDraft.inlineRules

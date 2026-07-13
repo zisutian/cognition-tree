@@ -11,9 +11,12 @@ import type {
   CtnTitleRule,
 } from "./types";
 import {
-  configurableSyntaxTones,
-  isConfigurableSyntaxTone,
-} from "./tones";
+  syntaxProfileSchema,
+  validateSyntaxProfile,
+  validateSyntaxProfileName,
+  validateSyntaxTabDisplayWidth,
+  type SyntaxProfileSchemaDiagnostic,
+} from "./profileSchema";
 
 export type SyntaxProfileTomlDiagnosticCode =
   | "toml-parse-error"
@@ -21,6 +24,8 @@ export type SyntaxProfileTomlDiagnosticCode =
   | "invalid-field"
   | "unsupported-field"
   | "duplicate-marker"
+  | "duplicate-inline-trigger"
+  | "duplicate-semantic-id"
   | "invalid-type-id"
   | "missing-required-rule";
 
@@ -37,11 +42,6 @@ export type ParseSyntaxProfileTomlResult = {
   profile: CtnSyntaxProfile | null;
 };
 
-const validRoles = new Set<CtnRuleRole>(["normal", "multiline"]);
-const requiredGlobalReferenceType = "global-reference";
-const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
-const requiredTitleType = "title";
-const requiredTopLevelConceptType = "concept";
 const rootFields = new Set([
   "name",
   "tabDisplayWidth",
@@ -122,12 +122,12 @@ function readRequiredString(
     return null;
   }
 
-  if (typeof value[key] !== "string" || value[key].trim().length === 0) {
+  if (typeof value[key] !== "string") {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
         `${path}.${key}`,
-        `${key} 必须是非空字符串。`,
+        `${key} 必须是字符串。`,
       ),
     );
     return null;
@@ -136,7 +136,7 @@ function readRequiredString(
   return value[key].trim();
 }
 
-function readRequiredPositiveInteger(
+function readRequiredNumber(
   value: Record<string, unknown>,
   key: string,
   path: string,
@@ -149,12 +149,12 @@ function readRequiredPositiveInteger(
     return null;
   }
 
-  if (!Number.isInteger(value[key]) || Number(value[key]) < 1) {
+  if (typeof value[key] !== "number") {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
         `${path}.${key}`,
-        `${key} 必须是正整数。`,
+        `${key} 必须是数字。`,
       ),
     );
     return null;
@@ -167,22 +167,6 @@ function formatTomlString(value: string): string {
   return JSON.stringify(value);
 }
 
-function validateSemanticTypeId(
-  value: string | null,
-  path: string,
-  diagnostics: SyntaxProfileTomlDiagnostic[],
-) {
-  if (value && !semanticIdPattern.test(value)) {
-    diagnostics.push(
-      createDiagnostic(
-        "invalid-type-id",
-        path,
-        `${value} 必须是 ASCII kebab-case 语义 ID。`,
-      ),
-    );
-  }
-}
-
 function readRequiredRole(
   value: Record<string, unknown>,
   path: string,
@@ -190,18 +174,7 @@ function readRequiredRole(
 ): CtnRuleRole | null {
   const role = readRequiredString(value, "role", path, diagnostics);
 
-  if (!role) {
-    return null;
-  }
-
-  if (!validRoles.has(role as CtnRuleRole)) {
-    diagnostics.push(
-      createDiagnostic(
-        "invalid-field",
-        `${path}.role`,
-        `role 只能是 ${[...validRoles].join("、")}。`,
-      ),
-    );
+  if (role === null) {
     return null;
   }
 
@@ -216,18 +189,7 @@ function readRequiredColor(
 ): CtnSyntaxTone | null {
   const tone = readRequiredString(value, key, path, diagnostics);
 
-  if (!tone) {
-    return null;
-  }
-
-  if (!isConfigurableSyntaxTone(tone)) {
-    diagnostics.push(
-      createDiagnostic(
-        "invalid-field",
-        `${path}.${key}`,
-        `${key} 只能是 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
-      ),
-    );
+  if (tone === null) {
     return null;
   }
 
@@ -253,19 +215,25 @@ function readRequiredTextColor(
 function validateMarkers(
   value: unknown,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnMarkerRule[] {
-  if (!Array.isArray(value) || value.length === 0) {
+): CtnMarkerRule[] | null {
+  if (value === undefined) {
+    diagnostics.push(
+      createDiagnostic("missing-field", "markers", "缺少字段 markers。"),
+    );
+    return null;
+  }
+
+  if (!Array.isArray(value)) {
     diagnostics.push(
       createDiagnostic(
         "invalid-field",
         "markers",
-        "markers 必须是非空数组。",
+        "markers 必须是数组。",
       ),
     );
-    return [];
+    return null;
   }
 
-  const markers = new Set<string>();
   const markerRules: CtnMarkerRule[] = [];
 
   value.forEach((markerValue, index) => {
@@ -287,31 +255,17 @@ function validateMarkers(
     const textColor = readRequiredTextColor(markerValue, path, diagnostics);
     const tone = readRequiredTone(markerValue, path, diagnostics);
 
-    if (marker && markers.has(marker)) {
-      diagnostics.push(
-        createDiagnostic(
-          "duplicate-marker",
-          `${path}.marker`,
-          `重复 marker ${marker}。`,
-        ),
-      );
-    }
-
-    validateSemanticTypeId(type, `${path}.type`, diagnostics);
-
     if (
-      !marker ||
-      !type ||
-      !label ||
-      !role ||
-      !textColor ||
-      !tone ||
-      !semanticIdPattern.test(type)
+      marker === null ||
+      type === null ||
+      label === null ||
+      role === null ||
+      textColor === null ||
+      tone === null
     ) {
       return;
     }
 
-    markers.add(marker);
     markerRules.push({
       label,
       marker,
@@ -345,25 +299,11 @@ function validateConcept(
   const textColor = readRequiredTextColor(value, path, diagnostics);
   const tone = readRequiredTone(value, path, diagnostics);
 
-  validateSemanticTypeId(type, `${path}.type`, diagnostics);
-
-  if (type !== requiredTopLevelConceptType) {
-    diagnostics.push(
-      createDiagnostic(
-        "invalid-field",
-        `${path}.type`,
-        "顶格概念 type 必须是 concept。",
-      ),
-    );
-  }
-
   if (
-    !type ||
-    !label ||
-    !textColor ||
-    !tone ||
-    type !== requiredTopLevelConceptType ||
-    !semanticIdPattern.test(type)
+    type === null ||
+    label === null ||
+    textColor === null ||
+    tone === null
   ) {
     return null;
   }
@@ -396,25 +336,11 @@ function validateTitle(
   const textColor = readRequiredTextColor(value, path, diagnostics);
   const tone = readRequiredTone(value, path, diagnostics);
 
-  validateSemanticTypeId(type, `${path}.type`, diagnostics);
-
-  if (type !== requiredTitleType) {
-    diagnostics.push(
-      createDiagnostic(
-        "invalid-field",
-        `${path}.type`,
-        "首行标题 type 必须是 title。",
-      ),
-    );
-  }
-
   if (
-    !type ||
-    !label ||
-    !textColor ||
-    !tone ||
-    type !== requiredTitleType ||
-    !semanticIdPattern.test(type)
+    type === null ||
+    label === null ||
+    textColor === null ||
+    tone === null
   ) {
     return null;
   }
@@ -430,7 +356,7 @@ function validateTitle(
 function validateInlineRules(
   value: unknown,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnInlineRule[] {
+): CtnInlineRule[] | null {
   if (value === undefined) {
     diagnostics.push(
       createDiagnostic(
@@ -439,7 +365,7 @@ function validateInlineRules(
         "缺少字段 inlineRules。",
       ),
     );
-    return [];
+    return null;
   }
 
   if (!Array.isArray(value)) {
@@ -450,7 +376,7 @@ function validateInlineRules(
         "inlineRules 必须是数组。",
       ),
     );
-    return [];
+    return null;
   }
 
   const inlineRules: CtnInlineRule[] = [];
@@ -473,15 +399,12 @@ function validateInlineRules(
     const textColor = readRequiredTextColor(ruleValue, path, diagnostics);
     const tone = readRequiredTone(ruleValue, path, diagnostics);
 
-    validateSemanticTypeId(type, `${path}.type`, diagnostics);
-
     if (
-      !kind ||
-      !type ||
-      !label ||
-      !textColor ||
-      !tone ||
-      !semanticIdPattern.test(type)
+      kind === null ||
+      type === null ||
+      label === null ||
+      textColor === null ||
+      tone === null
     ) {
       return;
     }
@@ -490,7 +413,7 @@ function validateInlineRules(
       const open = readRequiredString(ruleValue, "open", path, diagnostics);
       const close = readRequiredString(ruleValue, "close", path, diagnostics);
 
-      if (!open || !close) {
+      if (open === null || close === null) {
         return;
       }
 
@@ -509,7 +432,7 @@ function validateInlineRules(
     if (kind === "single") {
       const marker = readRequiredString(ruleValue, "marker", path, diagnostics);
 
-      if (!marker) {
+      if (marker === null) {
         return;
       }
 
@@ -533,22 +456,29 @@ function validateInlineRules(
     );
   });
 
-  if (
-    !inlineRules.some(
-      (rule) =>
-        rule.kind === "paired" && rule.type === requiredGlobalReferenceType,
-    )
-  ) {
-    diagnostics.push(
-      createDiagnostic(
-        "missing-required-rule",
-        "inlineRules.global-reference",
-        "缺少全局概念引用规则。",
-      ),
-    );
-  }
-
   return inlineRules;
+}
+
+function createTomlSchemaDiagnostic(
+  diagnostic: SyntaxProfileSchemaDiagnostic,
+): SyntaxProfileTomlDiagnostic {
+  const code: SyntaxProfileTomlDiagnosticCode = (() => {
+    switch (diagnostic.code) {
+      case "duplicate-inline-trigger":
+      case "duplicate-marker":
+      case "duplicate-semantic-id":
+        return diagnostic.code;
+      case "invalid-semantic-id":
+        return "invalid-type-id";
+      case "missing-marker-rule":
+      case "missing-required-rule":
+        return "missing-required-rule";
+      default:
+        return "invalid-field";
+    }
+  })();
+
+  return createDiagnostic(code, diagnostic.path, diagnostic.message);
 }
 
 export function parseSyntaxProfileToml(
@@ -595,7 +525,7 @@ export function parseSyntaxProfileToml(
   validateSupportedFields(parsed, rootFields, "$", diagnostics);
 
   const name = readRequiredString(parsed, "name", "$", diagnostics);
-  const tabDisplayWidth = readRequiredPositiveInteger(
+  const tabDisplayWidth = readRequiredNumber(
     parsed,
     "tabDisplayWidth",
     "$",
@@ -607,13 +537,47 @@ export function parseSyntaxProfileToml(
   const inlineRules = validateInlineRules(parsed.inlineRules, diagnostics);
 
   if (
-    diagnostics.length > 0 ||
-    !name ||
-    !tabDisplayWidth ||
-    !titleRule ||
-    !conceptRule ||
-    markerRules.length === 0
+    name === null ||
+    tabDisplayWidth === null ||
+    titleRule === null ||
+    conceptRule === null ||
+    markerRules === null ||
+    inlineRules === null
   ) {
+    if (name !== null) {
+      diagnostics.push(
+        ...validateSyntaxProfileName(name).map(createTomlSchemaDiagnostic),
+      );
+    }
+
+    if (tabDisplayWidth !== null) {
+      diagnostics.push(
+        ...validateSyntaxTabDisplayWidth(tabDisplayWidth).map(
+          createTomlSchemaDiagnostic,
+        ),
+      );
+    }
+
+    return {
+      diagnostics,
+      profile: null,
+    };
+  }
+
+  const profile: CtnSyntaxProfile = {
+    conceptRule,
+    inlineRules,
+    markerRules,
+    name,
+    tabDisplayWidth,
+    titleRule,
+  };
+
+  diagnostics.push(
+    ...validateSyntaxProfile(profile).map(createTomlSchemaDiagnostic),
+  );
+
+  if (diagnostics.length > 0) {
     return {
       diagnostics,
       profile: null,
@@ -622,14 +586,7 @@ export function parseSyntaxProfileToml(
 
   return {
     diagnostics: [],
-    profile: {
-      conceptRule,
-      inlineRules,
-      markerRules,
-      name,
-      tabDisplayWidth,
-      titleRule,
-    },
+    profile,
   };
 }
 
@@ -663,7 +620,7 @@ export function formatSyntaxProfileToml(profile: CtnSyntaxProfile): string {
     "# type：可扩展的语义 ID，使用 ASCII kebab-case。",
     "# label：该规则在界面中显示的名称。",
     '# role：解析行为。"normal" 表示普通块；"multiline" 表示多行块。',
-    `# tone：弱背景颜色，可选 ${configurableSyntaxTones.join("、")} 或 #RRGGBB。`,
+    `# tone：弱背景颜色，可选 ${syntaxProfileSchema.tones.join("、")} 或 #RRGGBB。`,
     "# textColor：字体颜色，和正文可读性直接相关，优先于 tone。",
   ];
 

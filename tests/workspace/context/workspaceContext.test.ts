@@ -16,11 +16,11 @@ describe("workspace context syntax profile", () => {
     });
   });
 
-  it("rejects invalid workspace profile shape at the context boundary", () => {
+  it("rejects a profile outside the syntax schema at the context boundary", () => {
     const invalidProfile = {
       ...defaultCtnSyntaxProfile,
-      inlineRules: undefined,
-    } as unknown as CtnSyntaxProfile;
+      tabDisplayWidth: 17,
+    } satisfies CtnSyntaxProfile;
 
     expect(() => assertValidWorkspaceSyntaxProfile(invalidProfile)).toThrow(
       "Invalid workspace syntax profile",

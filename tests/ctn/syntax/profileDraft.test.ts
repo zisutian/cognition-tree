@@ -200,6 +200,29 @@ describe("syntax profile draft", () => {
     });
   });
 
+  it("uses schema length and tab width bounds", () => {
+    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+
+    draft.name = "n".repeat(65);
+    draft.tabDisplayWidth = "17";
+    draft.markerRules[0] = {
+      ...draft.markerRules[0],
+      label: "l".repeat(33),
+      marker: "m".repeat(13),
+    };
+
+    expect(
+      buildSyntaxProfileDraft(draft).diagnostics.map(({ path }) => path),
+    ).toEqual(
+      expect.arrayContaining([
+        "$.name",
+        "$.tabDisplayWidth",
+        "markers[0].label",
+        "markers[0].marker",
+      ]),
+    );
+  });
+
   it("allows changing the protected top-level concept color", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
     draft.conceptRule.tone = "pink";

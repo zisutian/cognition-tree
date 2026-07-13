@@ -1,5 +1,5 @@
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
-import { getSyntaxProfileShapeError } from "../../ctn/syntax/profileValidation";
+import { validateSyntaxProfile } from "../../ctn/syntax/profileSchema";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
@@ -15,10 +15,12 @@ export type WorkspaceContext = {
 };
 
 export function assertValidWorkspaceSyntaxProfile(profile: CtnSyntaxProfile) {
-  const shapeError = getSyntaxProfileShapeError(profile);
+  const [diagnostic] = validateSyntaxProfile(profile);
 
-  if (shapeError) {
-    throw new Error(`Invalid workspace syntax profile: ${shapeError}`);
+  if (diagnostic) {
+    throw new Error(
+      `Invalid workspace syntax profile at ${diagnostic.path}: ${diagnostic.message}`,
+    );
   }
 }
 

@@ -190,6 +190,12 @@ describe("workspace view projection", () => {
     });
 
     expect(view.draft.tabDisplayWidth).toBe("4");
+    expect(view.constraints).toEqual({
+      label: { maxLength: 32 },
+      profileName: { maxLength: 64 },
+      tabDisplayWidth: { max: 16, min: 1 },
+      token: { maxLength: 12 },
+    });
     expect(view.stats.lineRuleCount).toBe(
       defaultCtnSyntaxProfile.markerRules.length + 2,
     );

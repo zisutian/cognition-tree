@@ -12,10 +12,6 @@ import {
   SyntaxSettingsGroup,
   TitleAndConceptRows,
 } from "./SyntaxRuleRows";
-import {
-  maxTabDisplayWidth,
-  readTabDisplayWidthInput,
-} from "./syntaxPreview";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
@@ -34,10 +30,10 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
               <input
                 aria-label="语法名称"
                 className="ui-input syntax-name-control"
-                maxLength={64}
+                maxLength={syntax.constraints.profileName.maxLength}
                 value={syntax.draft.name}
                 onChange={(event) =>
-                  syntax.actions.updateDraftField("name", event.target.value)
+                  syntax.actions.updateName(event.target.value)
                 }
               />
             </label>
@@ -47,16 +43,13 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
                 aria-label="缩进宽度"
                 className="ui-input syntax-number-control"
                 inputMode="numeric"
-                max={maxTabDisplayWidth}
-                min={1}
+                max={syntax.constraints.tabDisplayWidth.max}
+                min={syntax.constraints.tabDisplayWidth.min}
                 step={1}
                 type="number"
                 value={syntax.draft.tabDisplayWidth}
                 onChange={(event) =>
-                  syntax.actions.updateDraftField(
-                    "tabDisplayWidth",
-                    readTabDisplayWidthInput(event.target.value),
-                  )
+                  syntax.actions.updateTabDisplayWidth(event.target.value)
                 }
               />
             </label>

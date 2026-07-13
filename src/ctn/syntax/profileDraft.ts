@@ -1,13 +1,12 @@
 import type {
-  CtnConceptRule,
-  CtnInlineRule,
-  CtnMarkerRule,
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
-  CtnTitleRule,
 } from "./types";
-import { isConfigurableSyntaxTone } from "./tones";
+import {
+  syntaxProfileSchema,
+  validateSyntaxProfile,
+} from "./profileSchema";
 
 export type SyntaxProfileDraftMarkerRule = {
   id: string;
@@ -66,13 +65,6 @@ export type SyntaxProfileDraftBuildResult = {
   profile: CtnSyntaxProfile | null;
 };
 
-export const syntaxRuleRoles: CtnRuleRole[] = ["normal", "multiline"];
-
-const requiredGlobalReferenceType = "global-reference";
-const requiredTitleType = "title";
-const requiredTopLevelConceptType = "concept";
-const semanticIdPattern = /^[a-z][a-z0-9-]*$/;
-
 function createDraftId(prefix: string, index: number) {
   return `${prefix}-${index + 1}`;
 }
@@ -101,11 +93,11 @@ function getNextDraftIndex<T extends { id: string }>(
 
 function sortProtectedInlineRuleFirst<T extends { type: string }>(rules: T[]) {
   return [...rules].sort((left, right) => {
-    if (left.type === requiredGlobalReferenceType) {
+    if (left.type === syntaxProfileSchema.requiredTypes.globalReference) {
       return -1;
     }
 
-    if (right.type === requiredGlobalReferenceType) {
+    if (right.type === syntaxProfileSchema.requiredTypes.globalReference) {
       return 1;
     }
 
@@ -113,76 +105,13 @@ function sortProtectedInlineRuleFirst<T extends { type: string }>(rules: T[]) {
   });
 }
 
-function readRequiredText(
-  value: string,
-  path: string,
-  label: string,
-  diagnostics: SyntaxProfileDraftDiagnostic[],
-) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    diagnostics.push({
-      message: `${label}不能为空。`,
-      path,
-    });
-  }
-
-  return trimmed;
-}
-
-function readPositiveInteger(
-  value: string,
-  path: string,
-  label: string,
-  diagnostics: SyntaxProfileDraftDiagnostic[],
-) {
-  const trimmed = value.trim();
-  const numericValue = Number(trimmed);
-
-  if (!trimmed || !Number.isInteger(numericValue) || numericValue < 1) {
-    diagnostics.push({
-      message: `${label}必须是正整数。`,
-      path,
-    });
-    return null;
-  }
-
-  return numericValue;
-}
-
-function validateSemanticId(
-  value: string,
-  path: string,
-  label: string,
-  diagnostics: SyntaxProfileDraftDiagnostic[],
-) {
-  if (value && !semanticIdPattern.test(value)) {
-    diagnostics.push({
-      message: `${label}必须是 ASCII kebab-case，例如 definition 或 claim-source。`,
-      path,
-    });
-  }
-}
-
-function validateTone(
-  value: string,
-  path: string,
-  diagnostics: SyntaxProfileDraftDiagnostic[],
-) {
-  if (!isConfigurableSyntaxTone(value)) {
-    diagnostics.push({
-      message: "颜色必须是预设颜色或 #RRGGBB。",
-      path,
-    });
-  }
-}
-
 export function isProtectedInlineRuleDraft(
   rule: SyntaxProfileDraftInlineRule,
 ) {
-  return rule.type === requiredGlobalReferenceType;
+  return rule.type === syntaxProfileSchema.requiredTypes.globalReference;
 }
+
+export { normalizeSyntaxTabDisplayWidthInput } from "./profileSchema";
 
 export function createEmptyMarkerRuleDraft(
   index: number,
@@ -279,257 +208,55 @@ export function createSyntaxProfileDraft(
 export function buildSyntaxProfileDraft(
   draft: SyntaxProfileDraft,
 ): SyntaxProfileDraftBuildResult {
-  const diagnostics: SyntaxProfileDraftDiagnostic[] = [];
-  const name = readRequiredText(draft.name, "$.name", "语法名称", diagnostics);
-  const tabDisplayWidth = readPositiveInteger(
-    draft.tabDisplayWidth,
-    "$.tabDisplayWidth",
-    "Tab 显示宽度",
-    diagnostics,
-  );
-  const markerSet = new Set<string>();
-  let titleRule: CtnTitleRule | null = null;
-  let conceptRule: CtnConceptRule | null = null;
-  const markerRules: CtnMarkerRule[] = [];
-  const inlineRules: CtnInlineRule[] = [];
-
-  const titleLabel = readRequiredText(
-    draft.titleRule.label,
-    "title.label",
-    "首行标题名称",
-    diagnostics,
-  );
-  const titleType = readRequiredText(
-    draft.titleRule.type,
-    "title.type",
-    "首行标题语义 ID",
-    diagnostics,
-  );
-
-  validateSemanticId(titleType, "title.type", "首行标题语义 ID", diagnostics);
-  validateTone(draft.titleRule.textColor, "title.textColor", diagnostics);
-  validateTone(draft.titleRule.tone, "title.tone", diagnostics);
-
-  if (titleType !== requiredTitleType) {
-    diagnostics.push({
-      message: "首行标题规则不能改为其他语义 ID。",
-      path: "title.type",
-    });
-  }
-
-  if (
-    titleLabel &&
-    titleType === requiredTitleType &&
-    isConfigurableSyntaxTone(draft.titleRule.textColor) &&
-    isConfigurableSyntaxTone(draft.titleRule.tone)
-  ) {
-    titleRule = {
-      label: titleLabel,
-      textColor: draft.titleRule.textColor,
-      tone: draft.titleRule.tone,
-      type: titleType,
-    };
-  }
-
-  const conceptLabel = readRequiredText(
-    draft.conceptRule.label,
-    "concept.label",
-    "顶格概念名称",
-    diagnostics,
-  );
-  const conceptType = readRequiredText(
-    draft.conceptRule.type,
-    "concept.type",
-    "顶格概念语义 ID",
-    diagnostics,
-  );
-
-  validateSemanticId(conceptType, "concept.type", "顶格概念语义 ID", diagnostics);
-  validateTone(draft.conceptRule.textColor, "concept.textColor", diagnostics);
-  validateTone(draft.conceptRule.tone, "concept.tone", diagnostics);
-
-  if (conceptType !== requiredTopLevelConceptType) {
-    diagnostics.push({
-      message: "顶格概念规则不能改为其他语义 ID。",
-      path: "concept.type",
-    });
-  }
-
-  if (
-    conceptLabel &&
-    conceptType === requiredTopLevelConceptType &&
-    isConfigurableSyntaxTone(draft.conceptRule.textColor) &&
-    isConfigurableSyntaxTone(draft.conceptRule.tone)
-  ) {
-    conceptRule = {
-      label: conceptLabel,
+  const profile: CtnSyntaxProfile = {
+    conceptRule: {
+      label: draft.conceptRule.label.trim(),
       textColor: draft.conceptRule.textColor,
       tone: draft.conceptRule.tone,
-      type: conceptType,
-    };
-  }
-
-  draft.markerRules.forEach((rule, index) => {
-    const path = `markers[${index}]`;
-    const marker = readRequiredText(
-      rule.marker,
-      `${path}.marker`,
-      "行首符号",
-      diagnostics,
-    );
-    const type = readRequiredText(
-      rule.type,
-      `${path}.type`,
-      "行首语义 ID",
-      diagnostics,
-    );
-    const label = readRequiredText(
-      rule.label,
-      `${path}.label`,
-      "行首名称",
-      diagnostics,
-    );
-
-    validateSemanticId(type, `${path}.type`, "行首语义 ID", diagnostics);
-    validateTone(rule.textColor, `${path}.textColor`, diagnostics);
-    validateTone(rule.tone, `${path}.tone`, diagnostics);
-
-    if (marker && markerSet.has(marker)) {
-      diagnostics.push({
-        message: `行首符号 ${marker} 重复。`,
-        path: `${path}.marker`,
-      });
-    }
-
-    if (
-      !marker ||
-      !type ||
-      !label ||
-      !semanticIdPattern.test(type) ||
-      !isConfigurableSyntaxTone(rule.textColor) ||
-      !isConfigurableSyntaxTone(rule.tone)
-    ) {
-      return;
-    }
-
-    markerSet.add(marker);
-    markerRules.push({
-      label,
-      marker,
+      type: draft.conceptRule.type.trim(),
+    },
+    inlineRules: draft.inlineRules.map((rule) =>
+      rule.kind === "paired"
+        ? {
+            close: rule.close.trim(),
+            kind: rule.kind,
+            label: rule.label.trim(),
+            open: rule.open.trim(),
+            textColor: rule.textColor,
+            tone: rule.tone,
+            type: rule.type.trim(),
+          }
+        : {
+            kind: rule.kind,
+            label: rule.label.trim(),
+            marker: rule.marker.trim(),
+            textColor: rule.textColor,
+            tone: rule.tone,
+            type: rule.type.trim(),
+          },
+    ),
+    markerRules: draft.markerRules.map((rule) => ({
+      label: rule.label.trim(),
+      marker: rule.marker.trim(),
       role: rule.role,
       textColor: rule.textColor,
       tone: rule.tone,
-      type,
-    });
-  });
+      type: rule.type.trim(),
+    })),
+    name: draft.name.trim(),
+    tabDisplayWidth: Number(draft.tabDisplayWidth.trim()),
+    titleRule: {
+      label: draft.titleRule.label.trim(),
+      textColor: draft.titleRule.textColor,
+      tone: draft.titleRule.tone,
+      type: draft.titleRule.type.trim(),
+    },
+  };
+  const diagnostics = validateSyntaxProfile(profile).map(
+    ({ message, path }) => ({ message, path }),
+  );
 
-  if (markerRules.length === 0) {
-    diagnostics.push({
-      message: "至少需要一个行首规则。",
-      path: "markers",
-    });
-  }
-
-  draft.inlineRules.forEach((rule, index) => {
-    const path = `inlineRules[${index}]`;
-    const type = readRequiredText(
-      rule.type,
-      `${path}.type`,
-      "行内语义 ID",
-      diagnostics,
-    );
-    const label = readRequiredText(
-      rule.label,
-      `${path}.label`,
-      "行内名称",
-      diagnostics,
-    );
-
-    validateSemanticId(type, `${path}.type`, "行内语义 ID", diagnostics);
-    validateTone(rule.textColor, `${path}.textColor`, diagnostics);
-    validateTone(rule.tone, `${path}.tone`, diagnostics);
-
-    if (
-      !type ||
-      !label ||
-      !semanticIdPattern.test(type) ||
-      !isConfigurableSyntaxTone(rule.textColor) ||
-      !isConfigurableSyntaxTone(rule.tone)
-    ) {
-      return;
-    }
-
-    if (rule.kind === "paired") {
-      const open = readRequiredText(
-        rule.open,
-        `${path}.open`,
-        "开始符号",
-        diagnostics,
-      );
-      const close = readRequiredText(
-        rule.close,
-        `${path}.close`,
-        "结束符号",
-        diagnostics,
-      );
-
-      if (!open || !close) {
-        return;
-      }
-
-      inlineRules.push({
-        close,
-        kind: "paired",
-        label,
-        open,
-        textColor: rule.textColor,
-        tone: rule.tone,
-        type,
-      });
-      return;
-    }
-
-    const marker = readRequiredText(
-      rule.marker,
-      `${path}.marker`,
-      "行内符号",
-      diagnostics,
-    );
-
-    if (!marker) {
-      return;
-    }
-
-    inlineRules.push({
-      kind: "single",
-      label,
-      marker,
-      textColor: rule.textColor,
-      tone: rule.tone,
-      type,
-    });
-  });
-
-  if (
-    !inlineRules.some(
-      (rule) =>
-        rule.kind === "paired" && rule.type === requiredGlobalReferenceType,
-    )
-  ) {
-    diagnostics.push({
-      message: "全局概念引用规则不能删除，且必须是成对行内规则。",
-      path: "inlineRules.global-reference",
-    });
-  }
-
-  if (
-    diagnostics.length > 0 ||
-    !name ||
-    !tabDisplayWidth ||
-    !titleRule ||
-    !conceptRule ||
-    markerRules.length === 0
-  ) {
+  if (diagnostics.length > 0) {
     return {
       diagnostics,
       profile: null,
@@ -539,12 +266,8 @@ export function buildSyntaxProfileDraft(
   return {
     diagnostics: [],
     profile: {
-      conceptRule,
-      inlineRules: sortProtectedInlineRuleFirst(inlineRules),
-      markerRules,
-      name,
-      tabDisplayWidth,
-      titleRule,
+      ...profile,
+      inlineRules: sortProtectedInlineRuleFirst(profile.inlineRules),
     },
   };
 }

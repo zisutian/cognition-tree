@@ -1,4 +1,4 @@
-import { configurableSyntaxTones } from "../../../ctn/syntax/tones";
+import { syntaxProfileSchema } from "../../../ctn/syntax/profileSchema";
 import type {
   CtnRuleRole,
   CtnSyntaxProfile,
@@ -109,7 +109,24 @@ export type UiSyntaxProfileDraftBuildResult = {
   profile: UiSyntaxProfileSummary | null;
 };
 
+export type UiSyntaxConstraints = {
+  label: {
+    maxLength: number;
+  };
+  profileName: {
+    maxLength: number;
+  };
+  tabDisplayWidth: {
+    max: number;
+    min: number;
+  };
+  token: {
+    maxLength: number;
+  };
+};
+
 export type UiSyntaxView = {
+  constraints: UiSyntaxConstraints;
   draft: UiSyntaxProfileDraft;
   draftResult: UiSyntaxProfileDraftBuildResult;
   feedback: {
@@ -129,16 +146,31 @@ const roleLabels: Record<CtnRuleRole, string> = {
   normal: "普通块",
 };
 
-const syntaxRoleOptions: UiSyntaxRoleOption[] = [
-  { label: roleLabels.normal, value: "normal" },
-  { label: roleLabels.multiline, value: "multiline" },
-];
+const syntaxRoleOptions: UiSyntaxRoleOption[] = syntaxProfileSchema.roles.map(
+  (value) => ({ label: roleLabels[value], value }),
+);
 
 export const syntaxToneOptions: UiSyntaxToneOption[] =
-  configurableSyntaxTones.map((tone) => ({
+  syntaxProfileSchema.tones.map((tone) => ({
     label: tone,
     value: tone,
   }));
+
+const syntaxConstraints: UiSyntaxConstraints = {
+  label: {
+    maxLength: syntaxProfileSchema.label.maxLength,
+  },
+  profileName: {
+    maxLength: syntaxProfileSchema.profileName.maxLength,
+  },
+  tabDisplayWidth: {
+    max: syntaxProfileSchema.tabDisplayWidth.max,
+    min: syntaxProfileSchema.tabDisplayWidth.min,
+  },
+  token: {
+    maxLength: syntaxProfileSchema.token.maxLength,
+  },
+};
 
 function createUiSyntaxProfileDraft(
   draft: SyntaxProfileDraft,
@@ -202,6 +234,7 @@ export function createUiSyntaxView({
   feedback: UiSyntaxView["feedback"];
 }): UiSyntaxView {
   return {
+    constraints: syntaxConstraints,
     draft: createUiSyntaxProfileDraft(draft),
     draftResult: createUiSyntaxProfileDraftBuildResult(draftResult),
     feedback,
