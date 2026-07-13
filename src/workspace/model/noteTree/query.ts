@@ -1,4 +1,4 @@
-import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData";
+import type { FolderId, NoteTreeNode } from "../workspaceData";
 import type {
   NoteTreeFolderNode,
   NoteTreeNodeLocation,
@@ -50,55 +50,6 @@ export function findNoteTreeNodeLocation(
   return null;
 }
 
-export function findFolderIdContainingNote(
-  tree: NoteTreeNode[],
-  noteId: NoteId,
-): FolderId | null {
-  for (const node of tree) {
-    if (node.kind !== "folder") {
-      continue;
-    }
-
-    if (
-      node.children.some(
-        (child) => child.kind === "note" && child.noteId === noteId,
-      )
-    ) {
-      return node.id;
-    }
-
-    const childFolderId = findFolderIdContainingNote(node.children, noteId);
-
-    if (childFolderId) {
-      return childFolderId;
-    }
-  }
-
-  return null;
-}
-
-export function countFolders(tree: NoteTreeNode[]): number {
-  return tree.reduce((count, node) => {
-    if (node.kind !== "folder") {
-      return count;
-    }
-
-    return count + 1 + countFolders(node.children);
-  }, 0);
-}
-
-export function findFirstFolderId(tree: NoteTreeNode[]): FolderId | null {
-  for (const node of tree) {
-    if (node.kind !== "folder") {
-      continue;
-    }
-
-    return node.id;
-  }
-
-  return null;
-}
-
 export function findFolderNode(
   tree: NoteTreeNode[],
   folderId: FolderId,
@@ -120,27 +71,4 @@ export function findFolderNode(
   }
 
   return null;
-}
-
-export function collectNoteIdsInFolder(
-  tree: NoteTreeNode[],
-  folderId: FolderId,
-): NoteId[] {
-  const folder = findFolderNode(tree, folderId);
-
-  if (!folder) {
-    return [];
-  }
-
-  return collectNoteIds(folder.children);
-}
-
-function collectNoteIds(tree: NoteTreeNode[]): NoteId[] {
-  return tree.flatMap((node): NoteId[] => {
-    if (node.kind === "note") {
-      return [node.noteId];
-    }
-
-    return collectNoteIds(node.children);
-  });
 }

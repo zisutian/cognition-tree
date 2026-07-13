@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { createWorkspaceParseIndexCache } from "../../../workspace/queries/workspaceQueries";
 import type {
   WorkspaceParseIndex,
-} from "../../../workspace/queries/workspaceQueries";
+  WorkspaceParseIndexCache,
+} from "../../../workspace/indexes/workspaceParseIndex";
+import { createWorkspaceParseIndexCache } from "../../../workspace/indexes/workspaceParseIndex";
 import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
-import type { WorkspaceParseIndexCache } from "../../../workspace/indexes/workspaceParseIndex";
 
 export function useWorkspaceParseIndexCache() {
   const [indexCache] = useState(createWorkspaceParseIndexCache);

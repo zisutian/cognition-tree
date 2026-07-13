@@ -7,9 +7,6 @@ import {
   createNoteTreeFolderNode,
 } from "../../../src/workspace/model/noteTree/create";
 import {
-  findFolderIdContainingNote,
-} from "../../../src/workspace/model/noteTree/query";
-import {
   createInitialWorkspaceData,
   createNoteRecord,
   type WorkspaceData,
@@ -20,7 +17,6 @@ import {
   createWorkspaceNote,
   deleteWorkspaceFolder,
   deleteWorkspaceNote,
-  moveWorkspaceNote,
   moveWorkspaceTreeNode,
   renameWorkspaceFolder,
   renameWorkspaceNote,
@@ -49,6 +45,10 @@ function indexWorkspace(workspace: WorkspaceData) {
   return createWorkspaceStructureIndex(workspace);
 }
 
+function findFolderIdContainingNote(workspace: WorkspaceData, noteId: string) {
+  return indexWorkspace(workspace).noteFolderIdById.get(noteId) ?? null;
+}
+
 describe("workspace actions", () => {
   it("creates notes in the target folder", () => {
     const workspace = {
@@ -70,7 +70,7 @@ describe("workspace actions", () => {
       source: "未命名笔记",
       title: "未命名笔记",
     });
-    expect(findFolderIdContainingNote(nextWorkspace.tree, "note-new")).toBe(
+    expect(findFolderIdContainingNote(nextWorkspace, "note-new")).toBe(
       "folder-target",
     );
   });
@@ -84,7 +84,7 @@ describe("workspace actions", () => {
 
     expect(nextWorkspace.notes.map((note) => note.id)).toEqual(["note-first"]);
     expect(
-      findFolderIdContainingNote(nextWorkspace.tree, "note-second"),
+      findFolderIdContainingNote(nextWorkspace, "note-second"),
     ).toBeNull();
   });
 
@@ -100,23 +100,23 @@ describe("workspace actions", () => {
       "folder-target",
       "资料",
     );
-    const moved = moveWorkspaceNote(
-      indexWorkspace(renamed),
-      "note-second",
-      "folder-target",
-    );
+    const moved = moveWorkspaceTreeNode(indexWorkspace(renamed), {
+      placement: "inside",
+      source: { kind: "note", noteId: "note-second" },
+      target: { folderId: "folder-target", kind: "folder" },
+    });
     const deleted = deleteWorkspaceFolder(
       indexWorkspace(moved),
       "folder-target",
     );
 
     expect(JSON.stringify(renamed.tree)).toContain("资料");
-    expect(findFolderIdContainingNote(moved.tree, "note-second")).toBe(
+    expect(findFolderIdContainingNote(moved, "note-second")).toBe(
       "folder-target",
     );
     expect(deleted.notes.map((note) => note.id)).toEqual(["note-first"]);
     expect(
-      findFolderIdContainingNote(deleted.tree, "note-second"),
+      findFolderIdContainingNote(deleted, "note-second"),
     ).toBeNull();
   });
 
@@ -207,7 +207,7 @@ describe("workspace actions", () => {
       "folder-target",
     ]);
     expect(
-      findFolderIdContainingNote(movedInsideFolder.tree, "note-first"),
+      findFolderIdContainingNote(movedInsideFolder, "note-first"),
     ).toBe("folder-target");
   });
 
@@ -259,13 +259,6 @@ describe("workspace actions", () => {
     ).toThrow("Workspace note does not exist");
     expect(() =>
       deleteWorkspaceFolder(indexWorkspace(workspace), "missing-folder"),
-    ).toThrow("Workspace folder does not exist");
-    expect(() =>
-      moveWorkspaceNote(
-        indexWorkspace(workspace),
-        "note-second",
-        "missing-folder",
-      ),
     ).toThrow("Workspace folder does not exist");
     expect(() =>
       updateWorkspaceNoteSource(

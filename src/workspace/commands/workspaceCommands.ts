@@ -1,7 +1,6 @@
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
@@ -217,27 +216,6 @@ export function deleteWorkspaceFolder(
     ...workspace.data,
     notes,
     tree: removeFolderFromWorkspaceTree(workspace.data.tree, folderId),
-  };
-}
-
-export function moveWorkspaceNote(
-  workspace: WorkspaceStructureIndex,
-  noteId: NoteId,
-  targetFolderId: FolderId | null,
-): WorkspaceData {
-  assertWorkspaceNoteExists(workspace, noteId);
-
-  if (targetFolderId !== null) {
-    assertWorkspaceFolderExists(workspace, targetFolderId);
-  }
-
-  return {
-    ...workspace.data,
-    tree: moveNoteInWorkspaceTree(
-      workspace.data.tree,
-      noteId,
-      targetFolderId,
-    ),
   };
 }
 

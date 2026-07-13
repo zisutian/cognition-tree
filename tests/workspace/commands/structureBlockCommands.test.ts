@@ -7,9 +7,6 @@ import {
   createNoteTreeFolderNode,
 } from "../../../src/workspace/model/noteTree/create";
 import {
-  findFolderIdContainingNote,
-} from "../../../src/workspace/model/noteTree/query";
-import {
   createInitialWorkspaceData,
   createNoteRecord,
   type WorkspaceData,
@@ -122,7 +119,9 @@ describe("workspace structure block moves", () => {
         updatedAt: "2026-06-08T01:00:00.000Z",
       });
     expect(
-      findFolderIdContainingNote(result.workspaceData.tree, "note-target"),
+      createWorkspaceStructureIndex(result.workspaceData).noteFolderIdById.get(
+        "note-target",
+      ),
     ).toBe("folder-target");
   });
 

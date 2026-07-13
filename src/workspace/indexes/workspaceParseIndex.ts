@@ -17,7 +17,7 @@ export type ParsedWorkspaceNoteCacheEntry = {
   syntaxProfileKey: string;
 };
 
-export const emptyCtnDocument: CtnDocument = {
+const emptyCtnDocument: CtnDocument = {
   blocks: [],
   diagnostics: [],
   roots: [],

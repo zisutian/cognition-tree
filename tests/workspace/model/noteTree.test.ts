@@ -6,17 +6,10 @@ import {
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-  moveNoteInWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
 } from "../../../src/workspace/model/noteTree/mutations";
-import {
-  collectNoteIdsInFolder,
-  countFolders,
-  findFolderIdContainingNote,
-  findFirstFolderId,
-} from "../../../src/workspace/model/noteTree/query";
 import {
   createNoteTreeFolderNode,
 } from "../../../src/workspace/model/noteTree/create";
@@ -102,18 +95,6 @@ describe("note tree operations", () => {
     ]);
   });
 
-  it("finds folders and top-level note placement", () => {
-    const tree = appendFolderToWorkspaceTree(
-      appendNoteToWorkspaceTree([], "note-root", null),
-      createNoteTreeFolderNode("folder-project", "项目"),
-      null,
-    );
-
-    expect(findFirstFolderId(tree)).toBe("folder-project");
-    expect(findFolderIdContainingNote(tree, "note-root")).toBeNull();
-    expect(findFolderIdContainingNote(tree, "missing-note")).toBeNull();
-  });
-
   it("removes notes from repository tree nodes", () => {
     const tree = appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree([], "note-first", null),
@@ -137,7 +118,6 @@ describe("note tree operations", () => {
       null,
     );
 
-    expect(countFolders(tree)).toBe(1);
     expect(tree.map((node) => node.id)).toEqual([
       "tree-note-first",
       "folder-research",
@@ -155,12 +135,9 @@ describe("note tree operations", () => {
     });
   });
 
-  it("removes folders and reports nested note ids", () => {
+  it("removes folders and their nested nodes", () => {
     const tree = createNestedTree();
 
-    expect(collectNoteIdsInFolder(tree, "folder-project")).toEqual([
-      "note-child",
-    ]);
     expect(removeFolderFromWorkspaceTree(tree, "folder-project")).toEqual([
       {
         id: "tree-note-root",
@@ -168,39 +145,6 @@ describe("note tree operations", () => {
         noteId: "note-root",
       },
     ]);
-  });
-
-  it("moves notes between top level and folders", () => {
-    const tree = appendFolderToWorkspaceTree(
-      appendNoteToWorkspaceTree([], "note-first", null),
-      createNoteTreeFolderNode("folder-target", "目标"),
-      null,
-    );
-    const movedIntoFolder = moveNoteInWorkspaceTree(
-      tree,
-      "note-first",
-      "folder-target",
-    );
-    const movedToTopLevel = moveNoteInWorkspaceTree(
-      movedIntoFolder,
-      "note-first",
-      null,
-    );
-
-    expect(findFolderIdContainingNote(movedIntoFolder, "note-first")).toBe(
-      "folder-target",
-    );
-    expect(findFolderIdContainingNote(movedToTopLevel, "note-first")).toBeNull();
-    expect(movedToTopLevel.map((node) => node.id)).toEqual([
-      "folder-target",
-      "tree-note-first",
-    ]);
-    expect(() =>
-      moveNoteInWorkspaceTree(movedIntoFolder, "note-first", "missing"),
-    ).toThrow("Workspace folder does not exist");
-    expect(() =>
-      moveNoteInWorkspaceTree(movedIntoFolder, "missing-note", "folder-target"),
-    ).toThrow("Workspace note tree node does not exist");
   });
 
   it("rejects missing target folders when appending tree nodes", () => {
@@ -297,9 +241,6 @@ describe("note tree operations", () => {
       target: { folderId: "folder-target", kind: "folder" },
     });
 
-    expect(collectNoteIdsInFolder(folderInsideFolder, "folder-target")).toEqual([
-      "note-root",
-    ]);
     expect(folderInsideFolder).toMatchObject([
       {
         children: [

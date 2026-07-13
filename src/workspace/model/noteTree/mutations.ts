@@ -1,7 +1,7 @@
 import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData";
 import type { NoteTreeFolderNode } from "./types";
 import { createNoteTreeNoteNode } from "./create";
-import { findFolderNode, findNoteTreeNodeLocation } from "./query";
+import { findFolderNode } from "./query";
 
 export function appendNoteToWorkspaceTree(
   tree: NoteTreeNode[],
@@ -147,33 +147,4 @@ export function removeFolderFromWorkspaceTree(
       },
     ];
   });
-}
-
-export function moveNoteInWorkspaceTree(
-  tree: NoteTreeNode[],
-  noteId: NoteId,
-  targetFolderId: FolderId | null,
-): NoteTreeNode[] {
-  if (targetFolderId !== null && !findFolderNode(tree, targetFolderId)) {
-    throw new Error(`Workspace folder does not exist: ${targetFolderId}`);
-  }
-
-  const sourceLocation = findNoteTreeNodeLocation(tree, {
-    kind: "note",
-    noteId,
-  });
-
-  if (!sourceLocation) {
-    throw new Error(`Workspace note tree node does not exist: ${noteId}`);
-  }
-
-  if (sourceLocation.parentFolderId === targetFolderId) {
-    return tree;
-  }
-
-  return appendNoteToWorkspaceTree(
-    removeNoteFromWorkspaceTree(tree, noteId),
-    noteId,
-    targetFolderId,
-  );
 }

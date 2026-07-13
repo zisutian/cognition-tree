@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
+import { createInitialWorkspaceData } from "../../../src/workspace/model/workspaceData";
 import {
   assertValidWorkspaceSyntaxProfile,
-  createInitialWorkspaceContext,
+  createWorkspaceContext,
 } from "../../../src/workspace/context/workspaceContext";
 
 describe("workspace context syntax profile", () => {
   it("creates a context with a valid workspace syntax profile", () => {
-    expect(createInitialWorkspaceContext(defaultCtnSyntaxProfile)).toMatchObject({
+    expect(
+      createWorkspaceContext(
+        createInitialWorkspaceData(),
+        defaultCtnSyntaxProfile,
+      ),
+    ).toMatchObject({
       syntaxProfile: { name: "默认 CTN 语法" },
       workspace: {
         folderCount: 0,
@@ -25,7 +31,9 @@ describe("workspace context syntax profile", () => {
     expect(() => assertValidWorkspaceSyntaxProfile(invalidProfile)).toThrow(
       "Invalid workspace syntax profile",
     );
-    expect(() => createInitialWorkspaceContext(invalidProfile)).toThrow(
+    expect(() =>
+      createWorkspaceContext(createInitialWorkspaceData(), invalidProfile),
+    ).toThrow(
       "Invalid workspace syntax profile",
     );
   });

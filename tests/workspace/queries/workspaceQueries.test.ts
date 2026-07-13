@@ -13,21 +13,15 @@ import {
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 import {
-  collectWorkspaceNoteIdsInFolder,
-  countWorkspaceFolders,
-  createWorkspaceParseIndex,
-  findWorkspaceFolder,
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
   getParsedWorkspaceNote,
   getWorkspaceNoteReferenceGraph,
-  getWorkspaceNoteLineCount,
-  getWorkspaceNoteCount,
   getWorkspaceTree,
   hasWorkspaceNote,
-  listWorkspaceNoteSummaries,
   listWorkspaceNotes,
 } from "../../../src/workspace/queries/workspaceQueries";
 
@@ -71,7 +65,7 @@ function createParseIndex(notes: NoteRecord[]) {
 }
 
 describe("workspace queries", () => {
-  it("reads notes and folders through workspace-level query names", () => {
+  it("reads notes through workspace-level query names", () => {
     const workspaceData = createWorkspace();
     const workspace = indexWorkspace(workspaceData);
 
@@ -80,19 +74,10 @@ describe("workspace queries", () => {
       "note-target",
     ]);
     expect(getWorkspaceTree(workspace)).toBe(workspaceData.tree);
-    expect(listWorkspaceNoteSummaries(workspace)).toEqual([
-      { id: "note-source", title: "源笔记" },
-      { id: "note-target", title: "目标笔记" },
-    ]);
-    expect(getWorkspaceNoteCount(workspace)).toBe(2);
-    expect(getWorkspaceNoteLineCount(workspace, "note-source")).toBe(1);
     expect(findWorkspaceNote(workspace, "note-source")).toMatchObject({
       title: "源笔记",
     });
     expect(hasWorkspaceNote(workspace, "missing-note")).toBe(false);
-    expect(findWorkspaceFolder(workspace, "folder-project")).toMatchObject({
-      title: "项目",
-    });
   });
 
   it("resolves note placement from the workspace tree", () => {
@@ -101,10 +86,6 @@ describe("workspace queries", () => {
     expect(
       findWorkspaceFolderIdContainingNote(workspace, "note-target"),
     ).toBe("folder-project");
-    expect(
-      collectWorkspaceNoteIdsInFolder(workspace, "folder-project"),
-    ).toEqual(["note-target"]);
-    expect(countWorkspaceFolders(workspace)).toBe(1);
   });
 
   it("reads parsed notes from the workspace index", () => {

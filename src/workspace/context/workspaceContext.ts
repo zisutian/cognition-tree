@@ -1,9 +1,6 @@
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import { validateSyntaxProfile } from "../../ctn/syntax/profileSchema";
-import {
-  createInitialWorkspaceData,
-  type WorkspaceData,
-} from "../model/workspaceData";
+import type { WorkspaceData } from "../model/workspaceData";
 import {
   createWorkspaceStructureIndex,
   type WorkspaceStructureIndex,
@@ -22,12 +19,6 @@ export function assertValidWorkspaceSyntaxProfile(profile: CtnSyntaxProfile) {
       `Invalid workspace syntax profile at ${diagnostic.path}: ${diagnostic.message}`,
     );
   }
-}
-
-export function createInitialWorkspaceContext(
-  syntaxProfile: CtnSyntaxProfile,
-): WorkspaceContext {
-  return createWorkspaceContext(createInitialWorkspaceData(), syntaxProfile);
 }
 
 export function createWorkspaceContext(

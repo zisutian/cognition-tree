@@ -136,12 +136,3 @@ export function createUiNoteTree({
     nodes: tree,
   });
 }
-
-export function createUiNoteSummaries(
-  notes: Pick<NoteRecord, "id" | "title">[],
-): UiNoteSummary[] {
-  return notes.map((note) => ({
-    id: note.id,
-    title: note.title,
-  }));
-}
