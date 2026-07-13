@@ -1,16 +1,13 @@
 import type { WorkspaceData } from "../workspace/model/workspaceData";
 import type { WorkspaceSyntaxSourceFile } from "../workspace/context/workspaceSyntaxFile";
 
-export type RepositoryInfo = {
-  path: string;
-};
-
 export type WorkspaceRepositoryContent = {
   syntaxSourceFile: WorkspaceSyntaxSourceFile | null;
   workspace: WorkspaceData;
 };
 
 export type WorkspaceRepositorySnapshot = WorkspaceRepositoryContent & {
+  repositoryPath: string;
   revision: string;
 };
 
@@ -37,7 +34,5 @@ export type WorkspaceRepository = {
   commitSnapshot: (
     commit: WorkspaceRepositoryCommit,
   ) => Promise<WorkspaceRepositoryCommitResult>;
-  getRepositoryInfo: () => Promise<RepositoryInfo>;
   loadSnapshot: () => Promise<WorkspaceRepositorySnapshot>;
-  setRepositoryPath?: (path: string) => Promise<void>;
 };

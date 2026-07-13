@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 
 export type ActivityId =
   | "notes"
-  | "migration"
+  | "structure-operation"
   | "visualization"
   | "syntax"
   | "search"

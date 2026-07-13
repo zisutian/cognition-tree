@@ -30,27 +30,3 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.settings-path-editor {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: var(--ui-gap-tight);
-}
-
-.settings-path-editor input {
-  min-width: 0;
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-  color: var(--color-fg);
-  background: var(--color-input);
-  font-family: var(--font-code);
-  font-size: var(--ui-code-font-size);
-  line-height: var(--ui-code-line-height);
-  outline: none;
-}
-
-.settings-path-editor input:focus {
-  background: var(--color-selected);
-}

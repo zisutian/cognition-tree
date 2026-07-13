@@ -6,13 +6,12 @@ import {
   WorkspacePayloadValidationError,
   WorkspaceRevisionConflictError,
 } from "./workspaceFileStore.mjs";
-import { WorkspaceDtoValidationError } from "./workspaceManifestDto.mjs";
+import { WorkspaceDataValidationError } from "./workspaceDataValidation.mjs";
 
 const allowedMethods = "GET, OPTIONS, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
 const routeMethods = new Map([
   ["/api/health", ["GET"]],
-  ["/api/repository", ["GET"]],
   ["/api/repository-snapshot", ["GET", "PUT"]],
 ]);
 
@@ -124,7 +123,7 @@ function mapRepositoryCommitError(error) {
   }
 
   if (
-    error instanceof WorkspaceDtoValidationError ||
+    error instanceof WorkspaceDataValidationError ||
     error instanceof WorkspacePayloadValidationError
   ) {
     return new WorkspaceApiRequestError(400, error.message);
@@ -173,11 +172,6 @@ export function createWorkspaceApiRequestHandler({
 
       if (url.pathname === "/api/health") {
         sendJson(response, 200, { ok: true }, responseHeaders);
-        return;
-      }
-
-      if (url.pathname === "/api/repository") {
-        sendJson(response, 200, { path: store.repositoryPath }, responseHeaders);
         return;
       }
 

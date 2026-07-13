@@ -3,10 +3,9 @@ import {
   type WorkspaceRepository,
 } from "./workspaceRepository";
 import {
-  parseRepositoryInfoDto,
   parseWorkspaceRepositoryCommitResultDto,
   parseWorkspaceRepositorySnapshotDto,
-} from "./workspaceDto";
+} from "./workspaceRepositoryDto";
 
 type HttpWorkspaceRepositoryOptions = {
   baseUrl?: string;
@@ -81,11 +80,6 @@ export function createHttpWorkspaceRepository({
             method: "PUT",
           },
         ),
-      );
-    },
-    async getRepositoryInfo() {
-      return parseRepositoryInfoDto(
-        await requestJson(fetchFn, baseUrl, "/api/repository"),
       );
     },
     async loadSnapshot() {

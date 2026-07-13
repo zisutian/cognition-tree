@@ -9,7 +9,6 @@ function createRepository(
 ): WorkspaceRepository {
   return {
     commitSnapshot: async () => ({ revision: "unused" }),
-    getRepositoryInfo: async () => ({ path: "/repository" }),
     label: "test repository",
     loadSnapshot: async () => snapshot,
   };
@@ -27,6 +26,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
     await expect(
       loadWorkspaceSessionSnapshot(
         createRepository({
+          repositoryPath: "/repository",
           revision: "revision-1",
           syntaxSourceFile,
           workspace,
@@ -50,6 +50,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
     await expect(
       loadWorkspaceSessionSnapshot(
         createRepository({
+          repositoryPath: "/repository",
           revision: "revision-empty-syntax",
           syntaxSourceFile: null,
           workspace,

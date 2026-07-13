@@ -6,9 +6,9 @@ import path from "node:path";
 import { removeAtomicWriteTemporaryFiles } from "./atomicWrite.mjs";
 import { WorkspaceCommitTransaction } from "./workspaceCommitTransaction.mjs";
 import {
-  assertWorkspaceManifestDto,
-  assertWorkspacePayloadDto,
-} from "./workspaceManifestDto.mjs";
+  assertWorkspaceData,
+  assertWorkspaceManifest,
+} from "./workspaceDataValidation.mjs";
 
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
@@ -297,7 +297,7 @@ export class WorkspaceFileStore {
 
     const { baseRevision, syntaxSourceFile, workspace } = commit;
 
-    assertWorkspacePayloadDto(workspace);
+    assertWorkspaceData(workspace);
 
     return this.#enqueueOperation(() =>
       this.#commitSnapshot({ baseRevision, syntaxSourceFile, workspace }),
@@ -312,7 +312,7 @@ export class WorkspaceFileStore {
     await mkdir(this.#syntaxDir, { recursive: true });
   }
 
-  async #loadWorkspace() {
+  async #readWorkspace() {
     let manifest;
 
     try {
@@ -325,7 +325,7 @@ export class WorkspaceFileStore {
       throw error;
     }
 
-    assertWorkspaceManifestDto(manifest);
+    assertWorkspaceManifest(manifest);
 
     const notes = [];
 
@@ -381,20 +381,21 @@ export class WorkspaceFileStore {
     return workspace;
   }
 
-  async #loadSnapshotContent() {
+  async #readSnapshotContent() {
     return {
-      syntaxSourceFile: await this.#readWorkspaceSyntaxSourceFile(),
-      workspace: await this.#loadWorkspace(),
+      syntaxSourceFile: await this.#readSyntaxSourceFile(),
+      workspace: await this.#readWorkspace(),
     };
   }
 
   async #loadSnapshot() {
     await this.initialize();
 
-    const content = await this.#loadSnapshotContent();
+    const content = await this.#readSnapshotContent();
 
     return {
       ...content,
+      repositoryPath: this.#rootDir,
       revision: createRepositoryRevision(content),
     };
   }
@@ -402,7 +403,7 @@ export class WorkspaceFileStore {
   async #commitSnapshot({ baseRevision, syntaxSourceFile, workspace }) {
     await this.initialize();
 
-    const currentContent = await this.#loadSnapshotContent();
+    const currentContent = await this.#readSnapshotContent();
     const currentRevision = createRepositoryRevision(currentContent);
 
     if (currentRevision !== baseRevision) {
@@ -453,7 +454,7 @@ export class WorkspaceFileStore {
     };
   }
 
-  async #readWorkspaceSyntaxSourceFile() {
+  async #readSyntaxSourceFile() {
     let source;
 
     try {

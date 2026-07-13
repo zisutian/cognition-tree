@@ -14,7 +14,7 @@ import type {
 
 export const activityItems: ActivityItem[] = [
   { id: "notes", label: "笔记", icon: FileText },
-  { id: "migration", label: "结构操作", icon: MoveRight },
+  { id: "structure-operation", label: "结构操作", icon: MoveRight },
   { id: "visualization", label: "引用图谱", icon: Network },
   { id: "syntax", label: "语法", icon: Braces },
   { id: "search", label: "搜索", icon: Search },

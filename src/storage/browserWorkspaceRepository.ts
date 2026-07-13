@@ -1,10 +1,9 @@
 import {
   WorkspaceRepositoryConflictError,
-  type RepositoryInfo,
   type WorkspaceRepository,
   type WorkspaceRepositoryContent,
 } from "./workspaceRepository";
-import { parseWorkspaceRepositoryContentDto } from "./workspaceDto";
+import { parseWorkspaceRepositoryContentDto } from "./workspaceRepositoryDto";
 import { createWorkspaceRepositoryRevision } from "./workspaceRepositoryRevision";
 import { createInitialWorkspaceData } from "../workspace/model/workspaceData";
 
@@ -36,6 +35,7 @@ export function createBrowserWorkspaceRepository(): WorkspaceRepository {
 
     return {
       ...snapshotContent,
+      repositoryPath: `localStorage:${repositoryStorageKey}`,
       revision: await createWorkspaceRepositoryRevision(snapshotContent),
     };
   };
@@ -59,11 +59,6 @@ export function createBrowserWorkspaceRepository(): WorkspaceRepository {
 
       return {
         revision: await createWorkspaceRepositoryRevision(content),
-      };
-    },
-    async getRepositoryInfo(): Promise<RepositoryInfo> {
-      return {
-        path: `localStorage:${repositoryStorageKey}`,
       };
     },
     loadSnapshot,

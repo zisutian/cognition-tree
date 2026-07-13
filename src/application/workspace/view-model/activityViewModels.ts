@@ -54,8 +54,6 @@ export type SyntaxViewModel = UiSyntaxView &
   ReturnType<typeof createSyntaxDraftActions>;
 
 export type SettingsViewModel = {
-  canChangeRepositoryPath: boolean;
-  changeRepositoryPath: (path: string) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
   reload: () => Promise<void>;

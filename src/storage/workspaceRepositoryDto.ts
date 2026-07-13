@@ -5,7 +5,6 @@ import type {
 } from "../workspace/model/workspaceData";
 import { validateWorkspaceData } from "../workspace/model/workspaceValidation";
 import type {
-  RepositoryInfo,
   WorkspaceRepositoryContent,
   WorkspaceRepositoryCommitResult,
   WorkspaceRepositorySnapshot,
@@ -30,8 +29,8 @@ const noteFields = new Set([
 ]);
 const folderFields = new Set(["children", "id", "kind", "title"]);
 const noteNodeFields = new Set(["id", "kind", "noteId"]);
-const repositoryInfoFields = new Set(["path"]);
 const repositorySnapshotFields = new Set([
+  "repositoryPath",
   "revision",
   "syntaxSourceFile",
   "workspace",
@@ -150,11 +149,7 @@ function parseTreeNode(value: unknown, path: string): NoteTreeNode {
   throw new Error(`Invalid response at ${path}.kind: unsupported node kind`);
 }
 
-export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
-  if (value === null) {
-    return null;
-  }
-
+function parseWorkspaceDataDto(value: unknown): WorkspaceData {
   assertRecord(value, "$");
   assertExactFields(value, workspaceFields, "$");
 
@@ -192,16 +187,7 @@ export function parseWorkspaceDataDto(value: unknown): WorkspaceData | null {
   return workspace;
 }
 
-export function parseRepositoryInfoDto(value: unknown): RepositoryInfo {
-  assertRecord(value, "$");
-  assertExactFields(value, repositoryInfoFields, "$");
-
-  return {
-    path: readString(value, "path", "$"),
-  };
-}
-
-export function parseWorkspaceSyntaxSourceFileDto(
+function parseWorkspaceSyntaxSourceFileDto(
   value: unknown,
 ): WorkspaceSyntaxSourceFile | null {
   if (value === null) {
@@ -232,18 +218,13 @@ export function parseWorkspaceRepositorySnapshotDto(
   assertRecord(value, "$");
   assertExactFields(value, repositorySnapshotFields, "$");
 
-  const workspace = parseWorkspaceDataDto(value.workspace);
-
-  if (!workspace) {
-    throw new Error("Invalid response at $.workspace: expected object");
-  }
-
   return {
+    repositoryPath: readRequiredString(value, "repositoryPath", "$"),
     revision: readRequiredString(value, "revision", "$"),
     syntaxSourceFile: parseWorkspaceSyntaxSourceFileDto(
       value.syntaxSourceFile,
     ),
-    workspace,
+    workspace: parseWorkspaceDataDto(value.workspace),
   };
 }
 
@@ -253,17 +234,11 @@ export function parseWorkspaceRepositoryContentDto(
   assertRecord(value, "$");
   assertExactFields(value, repositoryContentFields, "$");
 
-  const workspace = parseWorkspaceDataDto(value.workspace);
-
-  if (!workspace) {
-    throw new Error("Invalid response at $.workspace: expected object");
-  }
-
   return {
     syntaxSourceFile: parseWorkspaceSyntaxSourceFileDto(
       value.syntaxSourceFile,
     ),
-    workspace,
+    workspace: parseWorkspaceDataDto(value.workspace),
   };
 }
 

@@ -17,14 +17,10 @@ export type WorkspaceSessionSnapshot = {
 export async function loadWorkspaceSessionSnapshot(
   repository: WorkspaceRepository,
 ): Promise<WorkspaceSessionSnapshot> {
-  const [repositorySnapshot, repositoryInfo] =
-    await Promise.all([
-      repository.loadSnapshot(),
-      repository.getRepositoryInfo(),
-    ]);
+  const repositorySnapshot = await repository.loadSnapshot();
 
   return {
-    repositoryPath: repositoryInfo.path,
+    repositoryPath: repositorySnapshot.repositoryPath,
     revision: repositorySnapshot.revision,
     syntaxSourceFile: repositorySnapshot.syntaxSourceFile,
     workspaceData: repositorySnapshot.workspace,

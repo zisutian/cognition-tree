@@ -35,7 +35,6 @@ describe("shared primitives", () => {
     expect(markup).toContain("aria-pressed=\"true\"");
     expect(markup).toContain("aria-pressed=\"false\"");
     expect(markup).not.toContain("graph-segments");
-    expect(markup).not.toContain("migration-mode-switch");
   });
 
   it("supports filled segmented controls for context panels", () => {

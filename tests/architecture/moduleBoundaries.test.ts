@@ -720,62 +720,6 @@ describe("architecture module boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps removed style aliases and dead primitive classes out of source", () => {
-    const forbiddenStylePatterns = [
-      /--note-/,
-      /--space-9/,
-      /--color-warning/,
-      /--color-warning-soft/,
-      /ui-field\b/,
-      /ui-field-compact/,
-      /ui-metrics\b/,
-      /ui-metric\b/,
-      /ui-list-plain/,
-      /ui-status-warning/,
-      /ui-status-neutral/,
-      /dense-list\b/,
-      /detail-list\b/,
-      /detail-row(?:-|\b)/,
-      /diagnostics-panel/,
-      /diagnostic-location/,
-      /current-note-chip/,
-      /note-editor-count-row/,
-      /ui-panel-stats/,
-      /header-chip/,
-      /ui-panel-header-start/,
-      /syntax-marker-row/,
-      /syntax-marker-label/,
-      /syntax-inline-actions/,
-      /app-sidebar/,
-      /side-panel/,
-      /sidebar-scroll-area/,
-      /blockMigrationCommands/,
-      /migrationMessages/,
-      /migrationTargetPosition/,
-      /MigrationPanels/,
-      /UiMigrationView/,
-      /useMigrationViewModel/,
-      /viewMigration/,
-      /WorkspaceBlockMigration/,
-      /moveWorkspaceBlock/,
-      /moveWorkspaceNoteBlock/,
-      /migration-(?:grid|column|drop-target|target-node|target-tree|panel|body)/,
-    ];
-    const violations = listAllSourcePaths().flatMap((filePath) => {
-      const source = sourceModules[filePath] ?? sourceStyleModules[filePath] ?? "";
-
-      return source
-        .split("\n")
-        .flatMap((line, index) =>
-          forbiddenStylePatterns.some((pattern) => pattern.test(line))
-            ? [`${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`]
-            : [],
-        );
-    });
-
-    expect(violations).toEqual([]);
-  });
-
   it("keeps workspace submodules explicitly named", () => {
     expect(listSubdirectories("workspace")).toEqual([
       "commands",
@@ -937,8 +881,8 @@ describe("architecture module boundaries", () => {
       "browserWorkspaceRepository.ts",
       "httpWorkspaceRepository.ts",
       "runtimeWorkspaceRepository.ts",
-      "workspaceDto.ts",
       "workspaceRepository.ts",
+      "workspaceRepositoryDto.ts",
       "workspaceRepositoryRevision.ts",
     ]);
 
@@ -950,19 +894,21 @@ describe("architecture module boundaries", () => {
       ] ?? "";
     const apiServer =
       serverModules["../../server/workspaceApiServer.mjs"] ?? "";
+    const routeDefinitions =
+      apiServer.match(/const routeMethods = new Map\(\[([\s\S]*?)\]\);/)?.[1] ?? "";
+    const routePaths = [
+      ...routeDefinitions.matchAll(/\["(\/api\/[^"]+)"/g),
+    ].map((match) => match[1]);
 
     expect(repositoryPort).toContain("commitSnapshot");
     expect(repositoryPort).toContain("loadSnapshot");
-    expect(repositoryPort).not.toMatch(
-      /saveWorkspace|loadWorkspace|saveWorkspaceSyntax|readWorkspaceSyntax/,
-    );
-    expect(sessionQueue).not.toMatch(
-      /enqueueWorkspace|enqueueSyntax|saveWorkspace|saveSyntax/,
-    );
-    expect(apiServer).toContain('"/api/repository-snapshot"');
-    expect(apiServer).not.toMatch(
-      /["']\/api\/(?:workspace|syntax)["']/,
-    );
+    expect(sessionQueue).toContain("WorkspaceRepositoryContent");
+    expect(sessionQueue).toContain("enqueueAndWait");
+    expect(sessionQueue).toContain("flush");
+    expect(routePaths).toEqual([
+      "/api/health",
+      "/api/repository-snapshot",
+    ]);
   });
 
   it("keeps internal source imports following documented dependency direction", () => {

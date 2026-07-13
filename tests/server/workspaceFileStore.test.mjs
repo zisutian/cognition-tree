@@ -149,6 +149,7 @@ describe("WorkspaceFileStore", () => {
         readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
       ).resolves.toEqual(createManifest());
       await expect(store.loadSnapshot()).resolves.toEqual({
+        repositoryPath: rootDir,
         revision: commit.revision,
         syntaxSourceFile: {
           fileName: "workspace.toml",

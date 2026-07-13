@@ -53,8 +53,6 @@ export function createView(overrides: Partial<ViewModel> = {}): ViewModel {
       updateSource: () => undefined,
     },
     settings: {
-      canChangeRepositoryPath: true,
-      changeRepositoryPath: async () => undefined,
       discardPendingChangesAndReload: async () => undefined,
       hasSaveConflict: false,
       reload: async () => undefined,

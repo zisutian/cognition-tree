@@ -60,7 +60,7 @@
     node --check server/index.mjs
     node --check server/workspaceApiServer.mjs
     node --check server/workspaceFileStore.mjs
-    node --check server/workspaceManifestDto.mjs
+    node --check server/workspaceDataValidation.mjs
 
 本地提交钩子会运行暂存 diff 检查、TypeScript 检查和架构边界测试。提交信息使用 `type(scope): subject` 格式。
 

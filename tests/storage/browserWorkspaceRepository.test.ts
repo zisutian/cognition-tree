@@ -56,6 +56,7 @@ describe("createBrowserWorkspaceRepository", () => {
 
     await expect(repository.loadSnapshot()).resolves.toEqual({
       ...content,
+      repositoryPath: "localStorage:cognition-tree.repository",
       revision: result.revision,
     });
     expect(globalThis.localStorage.length).toBe(1);
@@ -93,12 +94,11 @@ describe("createBrowserWorkspaceRepository", () => {
     ).rejects.toBeInstanceOf(WorkspaceRepositoryConflictError);
   });
 
-  it("does not claim filesystem path switching support", async () => {
+  it("reports its fixed browser storage location", async () => {
     const repository = createBrowserWorkspaceRepository();
 
-    expect(repository.setRepositoryPath).toBeUndefined();
-    await expect(repository.getRepositoryInfo()).resolves.toEqual({
-      path: "localStorage:cognition-tree.repository",
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      repositoryPath: "localStorage:cognition-tree.repository",
     });
   });
 });

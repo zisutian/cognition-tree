@@ -37,8 +37,6 @@ export type { WorkspaceSessionSaveStatus } from "./workspaceSessionSaveQueue";
 export type { SessionCommands } from "./sessionCommands";
 
 export type Session = {
-  canChangeRepositoryPath: boolean;
-  changeRepositoryPath: (path: string) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
   isLoaded: boolean;
@@ -71,7 +69,7 @@ export function useSession({
   const [errorMessage, setErrorMessage] = useState("");
   const [saveStatus, setSaveStatus] =
     useState<WorkspaceSessionSaveStatus>("idle");
-  const [repositoryPath, setRepositoryPath] = useState("");
+  const [repositoryPath, setRepositoryLocation] = useState("");
   const [workspaceSyntaxFile, setWorkspaceSyntaxFile] =
     useState<WorkspaceSyntaxFile | null>(null);
   const [hasSaveConflict, setHasSaveConflict] = useState(false);
@@ -160,7 +158,7 @@ export function useSession({
       workspaceDataRef.current = snapshot.workspaceData;
       syntaxSourceFileRef.current = snapshot.syntaxSourceFile;
       latestSyntaxFileRef.current = snapshot.workspaceSyntaxFile;
-      setRepositoryPath(snapshot.repositoryPath);
+      setRepositoryLocation(snapshot.repositoryPath);
       setWorkspaceSyntaxFile(snapshot.workspaceSyntaxFile);
       commitDataSnapshot(snapshot.workspaceData);
       setErrorMessage("");
@@ -239,38 +237,6 @@ export function useSession({
     }
   };
 
-  const changeRepositoryPath = async (path: string) => {
-    const nextPath = path.trim();
-
-    if (
-      !nextPath ||
-      nextPath === repositoryPath ||
-      !repository.setRepositoryPath
-    ) {
-      return;
-    }
-
-    try {
-      await saveQueue.flush();
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, "工作区保存失败，无法切换仓库。"));
-      return;
-    }
-
-    setIsLoaded(false);
-
-    try {
-      await repository.setRepositoryPath(nextPath);
-
-      const snapshot = await loadWorkspaceSessionSnapshot(repository);
-
-      applySessionSnapshot(snapshot);
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, "仓库切换失败。"));
-      setSaveStatus("error");
-    }
-  };
-
   const updateWorkspaceSyntaxSource = async (source: string) => {
     try {
       const syntaxFile = parseWorkspaceSyntaxSource(
@@ -312,8 +278,6 @@ export function useSession({
   };
 
   return {
-    canChangeRepositoryPath: Boolean(repository.setRepositoryPath),
-    changeRepositoryPath,
     discardPendingChangesAndReload,
     hasSaveConflict,
     isLoaded,

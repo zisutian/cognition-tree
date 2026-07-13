@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { writeJsonAtomically } from "./atomicWrite.mjs";
-import { assertWorkspaceManifestDto } from "./workspaceManifestDto.mjs";
+import { assertWorkspaceManifest } from "./workspaceDataValidation.mjs";
 
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
@@ -66,10 +66,10 @@ function assertWorkspaceTransaction(transaction) {
     throw new Error("Invalid workspace transaction");
   }
 
-  assertWorkspaceManifestDto(transaction.manifest);
+  assertWorkspaceManifest(transaction.manifest);
 
   if (transaction.previousManifest !== null) {
-    assertWorkspaceManifestDto(transaction.previousManifest);
+    assertWorkspaceManifest(transaction.previousManifest);
   }
 }
 

@@ -34,8 +34,8 @@ describe("activity registry", () => {
     expect(slots("notes").context?.title).toBe("笔记");
     expect(slots("notes").detail).not.toBeNull();
 
-    expect(slots("migration").context?.title).toBe("结构操作");
-    expect(slots("migration").detail).toBeNull();
+    expect(slots("structure-operation").context?.title).toBe("结构操作");
+    expect(slots("structure-operation").detail).toBeNull();
 
     expect(slots("syntax").context).toBeNull();
     expect(slots("syntax").detail).not.toBeNull();
@@ -49,9 +49,18 @@ describe("activity registry", () => {
   });
 
   it("uses structure operation label in the activity bar", () => {
-    expect(activityItems.find((item) => item.id === "migration")?.label).toBe(
-      "结构操作",
-    );
+    expect(activityItems.map((item) => item.id)).toEqual([
+      "notes",
+      "structure-operation",
+      "visualization",
+      "syntax",
+      "search",
+      "data",
+      "settings",
+    ]);
+    expect(
+      activityItems.find((item) => item.id === "structure-operation")?.label,
+    ).toBe("结构操作");
     expect(
       activityItems.find((item) => item.id === "visualization")?.label,
     ).toBe("引用图谱");
@@ -115,8 +124,8 @@ describe("activity registry", () => {
 
   it("renders structure operation context and full-width main work surface", () => {
     const baseView = createView();
-    const migrationSlots = slotsWithView(
-      "migration",
+    const structureOperationSlots = slotsWithView(
+      "structure-operation",
       createView({
         structureOperation: {
           ...baseView.structureOperation,
@@ -200,8 +209,8 @@ describe("activity registry", () => {
         },
       }),
     );
-    const context = renderSlot(migrationSlots.context?.content);
-    const main = renderSlot(migrationSlots.main);
+    const context = renderSlot(structureOperationSlots.context?.content);
+    const main = renderSlot(structureOperationSlots.main);
 
     expect(context).toContain("Source note");
     expect(context).toContain("Target note");
@@ -214,7 +223,6 @@ describe("activity registry", () => {
     expect(context).not.toContain("context-caption");
     expect(context).not.toContain("点选源笔记");
     expect(context).not.toContain("当前源笔记");
-    expect(context).not.toContain("migration-mode-switch");
     expect(context).toContain("目标笔记");
     expect(context).toContain("draggable=\"true\"");
     expect(context).toContain("ui-symbol-slot");
@@ -242,8 +250,8 @@ describe("activity registry", () => {
 
   it("renders only structure status in structure operation mode", () => {
     const baseView = createView();
-    const migrationSlots = slotsWithView(
-      "migration",
+    const structureOperationSlots = slotsWithView(
+      "structure-operation",
       createView({
         structureOperation: {
           ...baseView.structureOperation,
@@ -285,8 +293,8 @@ describe("activity registry", () => {
         },
       }),
     );
-    const context = renderSlot(migrationSlots.context?.content);
-    const main = renderSlot(migrationSlots.main);
+    const context = renderSlot(structureOperationSlots.context?.content);
+    const main = renderSlot(structureOperationSlots.main);
 
     expect(context).toContain("ui-symbol-slot");
     expect(context).toContain("ui-tree-status");

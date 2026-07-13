@@ -24,15 +24,15 @@ const workspaceNoteFields = new Set([
 const folderNodeFields = new Set(["children", "id", "kind", "title"]);
 const noteNodeFields = new Set(["id", "kind", "noteId"]);
 
-export class WorkspaceDtoValidationError extends Error {
+export class WorkspaceDataValidationError extends Error {
   constructor(message) {
     super(message);
-    this.name = "WorkspaceDtoValidationError";
+    this.name = "WorkspaceDataValidationError";
   }
 }
 
 function failValidation(message) {
-  throw new WorkspaceDtoValidationError(message);
+  throw new WorkspaceDataValidationError(message);
 }
 
 function isRecord(value) {
@@ -231,7 +231,7 @@ function validateWorkspaceReferences({ noteIds, tree }) {
   });
 }
 
-export function assertWorkspaceManifestDto(manifest) {
+export function assertWorkspaceManifest(manifest) {
   const { notes, tree } = validateWorkspaceRoot(
     manifest,
     rootManifestFields,
@@ -244,7 +244,7 @@ export function assertWorkspaceManifestDto(manifest) {
   validateWorkspaceReferences({ noteIds, tree });
 }
 
-export function assertWorkspacePayloadDto(workspace) {
+export function assertWorkspaceData(workspace) {
   const { notes, tree } = validateWorkspaceRoot(
     workspace,
     rootWorkspaceFields,

@@ -18,9 +18,10 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("createHttpWorkspaceRepository", () => {
-  it("loads repository info and the aggregate snapshot", async () => {
+  it("loads the aggregate repository snapshot", async () => {
     const workspace = createInitialWorkspaceData();
     const snapshot = {
+      repositoryPath: "/data/repository",
       revision: "revision-1",
       syntaxSourceFile: null,
       workspace,
@@ -34,23 +35,16 @@ describe("createHttpWorkspaceRepository", () => {
         url: String(input),
       });
 
-      return String(input).endsWith("/api/repository")
-        ? jsonResponse({ path: "/data/repository" })
-        : jsonResponse(snapshot);
+      return jsonResponse(snapshot);
     };
     const repository = createHttpWorkspaceRepository({
       baseUrl: "http://api.test/base/",
       fetch: fetchMock,
     });
 
-    await expect(repository.getRepositoryInfo()).resolves.toEqual({
-      path: "/data/repository",
-    });
     await expect(repository.loadSnapshot()).resolves.toEqual(snapshot);
     expect(repository.label).toBe("HTTP 后端");
-    expect(repository.setRepositoryPath).toBeUndefined();
     expect(calls.map((call) => call.url)).toEqual([
-      "http://api.test/base/api/repository",
       "http://api.test/base/api/repository-snapshot",
     ]);
   });
@@ -129,11 +123,13 @@ describe("createHttpWorkspaceRepository", () => {
     await expect(repository.loadSnapshot()).rejects.toThrow("backend failed");
   });
 
-  it("rejects obsolete snapshot response shapes", async () => {
+  it("rejects unsupported snapshot fields", async () => {
     const fetchMock: typeof fetch = async () =>
       jsonResponse({
+        repositoryPath: "/data/repository",
         revision: "revision-1",
-        syntaxProfile: {},
+        syntaxSourceFile: null,
+        unexpected: true,
         workspace: createInitialWorkspaceData(),
       });
     const repository = createHttpWorkspaceRepository({ fetch: fetchMock });

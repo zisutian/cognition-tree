@@ -106,21 +106,15 @@ textColor = "cyan"
 `;
 
 describe("workspace API request handler", () => {
-  it("serves repository metadata and commits aggregate snapshots", async () => {
+  it("serves and commits aggregate repository snapshots", async () => {
     await withHandler(async (handler, rootDir) => {
       await expect(
         dispatch(handler, { method: "GET", url: "/api/health" }),
       ).resolves.toMatchObject({ body: { ok: true }, statusCode: 200 });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/repository" }),
-      ).resolves.toMatchObject({
-        body: { path: rootDir },
-        statusCode: 200,
-      });
-
       const initialSnapshot = await loadSnapshot(handler);
 
       expect(initialSnapshot).toMatchObject({
+        repositoryPath: rootDir,
         syntaxSourceFile: null,
         workspace: createWorkspace(),
       });
@@ -146,13 +140,14 @@ describe("workspace API request handler", () => {
       expect(commit.body.revision).not.toBe(initialSnapshot.revision);
       await expect(loadSnapshot(handler)).resolves.toEqual({
         ...content,
+        repositoryPath: rootDir,
         revision: commit.body.revision,
       });
     });
   });
 
   it("rejects stale commits without overwriting the current snapshot", async () => {
-    await withHandler(async (handler) => {
+    await withHandler(async (handler, rootDir) => {
       const initialSnapshot = await loadSnapshot(handler);
       const currentContent = {
         syntaxSourceFile: null,
@@ -181,6 +176,7 @@ describe("workspace API request handler", () => {
       }));
       await expect(loadSnapshot(handler)).resolves.toEqual({
         ...currentContent,
+        repositoryPath: rootDir,
         revision: firstCommit.body.revision,
       });
     });
@@ -189,7 +185,7 @@ describe("workspace API request handler", () => {
   it("allows configured browser origins and rejects other origins", async () => {
     const allowedOrigin = "http://127.0.0.1:5173";
 
-    await withHandler(async (handler) => {
+    await withHandler(async (handler, rootDir) => {
       await expect(
         dispatch(handler, {
           headers: { origin: allowedOrigin },
@@ -238,7 +234,7 @@ describe("workspace API request handler", () => {
   });
 
   it("rejects invalid commit content without changing the repository", async () => {
-    await withHandler(async (handler) => {
+    await withHandler(async (handler, rootDir) => {
       const initialSnapshot = await loadSnapshot(handler);
       const workspace = {
         ...createWorkspace(),
@@ -299,6 +295,7 @@ describe("workspace API request handler", () => {
         statusCode: 400,
       });
       await expect(loadSnapshot(handler)).resolves.toEqual({
+        repositoryPath: rootDir,
         revision: validCommit.body.revision,
         syntaxSourceFile: null,
         workspace,
@@ -306,7 +303,7 @@ describe("workspace API request handler", () => {
     });
   });
 
-  it("classifies malformed requests and removed routes", async () => {
+  it("classifies malformed requests and routing errors", async () => {
     await withHandler(async (handler) => {
       await expect(
         dispatch(handler, {
@@ -349,14 +346,12 @@ describe("workspace API request handler", () => {
         statusCode: 405,
       });
 
-      for (const url of ["/api/workspace", "/api/syntax", "/api/missing"]) {
-        await expect(
-          dispatch(handler, { method: "GET", url }),
-        ).resolves.toMatchObject({
-          body: { error: "Not found" },
-          statusCode: 404,
-        });
-      }
+      await expect(
+        dispatch(handler, { method: "GET", url: "/api/missing" }),
+      ).resolves.toMatchObject({
+        body: { error: "Not found" },
+        statusCode: 404,
+      });
     });
   });
 });

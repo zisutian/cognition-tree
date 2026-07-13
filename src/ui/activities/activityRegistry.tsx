@@ -145,7 +145,7 @@ export function createActivitySlots({
   switch (activityId) {
     case "notes":
       return notesSlots({ onCollapseDetail, onConfigureSyntax, view });
-    case "migration":
+    case "structure-operation":
       return structureOperationSlots({ onConfigureSyntax, view });
     case "syntax":
       return syntaxSlots({ onCollapseDetail, view });

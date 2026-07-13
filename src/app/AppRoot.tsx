@@ -13,7 +13,7 @@ function createWorkspaceViewModelScope(
 ): WorkspaceViewModelScope {
   return {
     notes: activeActivityId === "notes",
-    structureOperation: activeActivityId === "migration",
+    structureOperation: activeActivityId === "structure-operation",
     visualization: activeActivityId === "visualization",
   };
 }

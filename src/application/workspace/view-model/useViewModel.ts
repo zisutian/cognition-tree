@@ -69,8 +69,6 @@ export function useViewModel(
   scope: WorkspaceViewModelScope,
 ): ViewModel {
   const {
-    canChangeRepositoryPath,
-    changeRepositoryPath,
     discardPendingChangesAndReload,
     hasSaveConflict,
     isLoaded,
@@ -389,8 +387,6 @@ export function useViewModel(
       updateSource: updateActiveNoteSource,
     },
     settings: {
-      canChangeRepositoryPath,
-      changeRepositoryPath,
       discardPendingChangesAndReload,
       hasSaveConflict,
       reload,
