@@ -81,10 +81,21 @@ function StructureOperationDirectoryStatusIcon({
 }
 
 export function canPairStructureOperationDirectoryNodes(
-  source: TreeMoveRequest["source"],
-  target: TreeMoveRequest["target"],
+  {
+    mode,
+    source,
+    target,
+  }: {
+    mode: StructureOperationDirectoryMode;
+    source: TreeMoveRequest["source"];
+    target: TreeMoveRequest["target"];
+  },
 ) {
-  return source.kind === "note" && target.kind === "note";
+  return (
+    mode === "betweenNotes" &&
+    source.kind === "note" &&
+    target.kind === "note"
+  );
 }
 
 export function StructureOperationContext({
@@ -95,8 +106,17 @@ export function StructureOperationContext({
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const directoryPairingEnabled = view.mode === "betweenNotes";
   const moveNode = (request: TreeMoveRequest) => {
-    if (request.source.kind !== "note" || request.target.kind !== "note") {
+    if (
+      !canPairStructureOperationDirectoryNodes({
+        mode: view.mode,
+        source: request.source,
+        target: request.target,
+      }) ||
+      request.source.kind !== "note" ||
+      request.target.kind !== "note"
+    ) {
       return;
     }
 
@@ -198,13 +218,19 @@ export function StructureOperationContext({
       />
       <NoteTree
         activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
-        canDragNode={(node) => node.kind === "note"}
-        canDropNode={canPairStructureOperationDirectoryNodes}
+        canDragNode={(node) => directoryPairingEnabled && node.kind === "note"}
+        canDropNode={(source, target) =>
+          canPairStructureOperationDirectoryNodes({
+            mode: view.mode,
+            source,
+            target,
+          })
+        }
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.noteTree}
         renderNodeLeading={renderNodeLeading}
         onDeleteNode={deleteNode}
-        onMoveNode={moveNode}
+        onMoveNode={directoryPairingEnabled ? moveNode : undefined}
         onRenameNode={renameNode}
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}

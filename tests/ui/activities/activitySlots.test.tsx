@@ -317,6 +317,7 @@ describe("activity slots", () => {
     expect(context).not.toContain("点选笔记结构");
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");
+    expect(context).not.toContain("draggable=\"true\"");
     expect(main).toContain(
       "ui-tree ui-structure-tree structure-operation-target-tree",
     );

@@ -107,12 +107,37 @@ describe("structure operation panels", () => {
       parentFolderId: null,
     };
 
-    expect(canPairStructureOperationDirectoryNodes(sourceNote, targetNote))
+    expect(
+      canPairStructureOperationDirectoryNodes({
+        mode: "betweenNotes",
+        source: sourceNote,
+        target: targetNote,
+      }),
+    )
       .toBe(true);
-    expect(canPairStructureOperationDirectoryNodes(sourceNote, folder))
+    expect(
+      canPairStructureOperationDirectoryNodes({
+        mode: "betweenNotes",
+        source: sourceNote,
+        target: folder,
+      }),
+    )
       .toBe(false);
-    expect(canPairStructureOperationDirectoryNodes(folder, targetNote))
+    expect(
+      canPairStructureOperationDirectoryNodes({
+        mode: "betweenNotes",
+        source: folder,
+        target: targetNote,
+      }),
+    )
       .toBe(false);
+    expect(
+      canPairStructureOperationDirectoryNodes({
+        mode: "withinNote",
+        source: sourceNote,
+        target: targetNote,
+      }),
+    ).toBe(false);
   });
 
   it("classifies structure block drop targets from the dragged subtree", () => {
