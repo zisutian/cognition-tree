@@ -4,12 +4,26 @@ import { Readable } from "node:stream";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type {
+  IncomingHttpHeaders,
+  IncomingMessage,
+  OutgoingHttpHeader,
+  OutgoingHttpHeaders,
+  ServerResponse,
+} from "node:http";
 import { describe, expect, it } from "vitest";
+import { parseWorkspaceRepositorySnapshot } from "../../contracts/workspace-repository/parseRepository";
+import type {
+  RepositoryWorkspaceDto,
+  WorkspaceRepositoryCommitResultDto,
+  WorkspaceRepositoryContentDto,
+} from "../../contracts/workspace-repository/types";
 import {
   createWorkspaceApiRequestHandler,
   parseWorkspaceApiAllowedOrigins,
+  type WorkspaceApiRequestHandler,
   WorkspaceFileStore,
-} from "../../server/workspaceApiServer.mjs";
+} from "../../server/workspaceApiServer.ts";
 
 function createWorkspace(name = "本地笔记库") {
   return {
@@ -20,18 +34,41 @@ function createWorkspace(name = "本地笔记库") {
   };
 }
 
-function createRequest({ body = "", headers = {}, method, url }) {
+type RequestOptions = {
+  body?: string;
+  headers?: IncomingHttpHeaders;
+  method: string;
+  url: string;
+};
+
+type TestServerResponse = {
+  body: string;
+  headers: Record<string, OutgoingHttpHeader>;
+  statusCode: number;
+  setHeader: (name: string, value: OutgoingHttpHeader) => void;
+  writeHead: (statusCode: number, headers: OutgoingHttpHeaders) => void;
+  end: (chunk?: string | Buffer) => void;
+};
+
+type DispatchResult<Body> = {
+  body: Body | null;
+  headers: Record<string, OutgoingHttpHeader>;
+  statusCode: number;
+};
+
+function createRequest({
+  body = "",
+  headers = {},
+  method,
+  url,
+}: RequestOptions): IncomingMessage {
   const request = Readable.from(body ? [Buffer.from(body)] : []);
 
-  request.headers = headers;
-  request.method = method;
-  request.url = url;
-
-  return request;
+  return Object.assign(request, { headers, method, url }) as IncomingMessage;
 }
 
-function createResponse() {
-  return {
+function createResponse(): TestServerResponse {
+  const response: TestServerResponse = {
     body: "",
     headers: {},
     statusCode: 200,
@@ -41,28 +78,44 @@ function createResponse() {
     writeHead(statusCode, headers) {
       this.statusCode = statusCode;
       Object.entries(headers).forEach(([name, value]) => {
-        this.setHeader(name, value);
+        if (value !== undefined) {
+          this.setHeader(name, value);
+        }
       });
     },
     end(chunk = "") {
-      this.body += chunk;
+      this.body += chunk.toString();
     },
   };
+
+  return response;
 }
 
-async function dispatch(handler, requestOptions) {
+async function dispatch<Body = Record<string, unknown>>(
+  handler: WorkspaceApiRequestHandler,
+  requestOptions: RequestOptions,
+): Promise<DispatchResult<Body>> {
   const response = createResponse();
 
-  await handler(createRequest(requestOptions), response);
+  await handler(
+    createRequest(requestOptions),
+    response as unknown as ServerResponse,
+  );
 
   return {
-    body: response.body ? JSON.parse(response.body) : null,
+    body: response.body ? JSON.parse(response.body) as Body : null,
     headers: response.headers,
     statusCode: response.statusCode,
   };
 }
 
-async function withHandler(testFn, { allowedOrigins } = {}) {
+async function withHandler<Result>(
+  testFn: (
+    handler: WorkspaceApiRequestHandler,
+    rootDir: string,
+  ) => Promise<Result>,
+  { allowedOrigins }: { allowedOrigins?: readonly string[] } = {},
+) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-"));
 
   try {
@@ -77,22 +130,32 @@ async function withHandler(testFn, { allowedOrigins } = {}) {
   }
 }
 
-async function loadSnapshot(handler) {
+async function loadSnapshot(handler: WorkspaceApiRequestHandler) {
   const response = await dispatch(handler, {
     method: "GET",
     url: "/api/repository-snapshot",
   });
 
   expect(response.statusCode).toBe(200);
-  return response.body;
+  return parseWorkspaceRepositorySnapshot(response.body);
 }
 
-async function commitSnapshot(handler, content, baseRevision) {
-  return dispatch(handler, {
+async function commitSnapshot(
+  handler: WorkspaceApiRequestHandler,
+  content: WorkspaceRepositoryContentDto,
+  baseRevision: string,
+) {
+  const result = await dispatch<WorkspaceRepositoryCommitResultDto>(handler, {
     body: JSON.stringify({ ...content, baseRevision }),
     method: "PUT",
     url: "/api/repository-snapshot",
   });
+
+  if (result.body === null) {
+    throw new Error("Expected repository commit response body");
+  }
+
+  return { ...result, body: result.body };
 }
 
 const customSyntaxSource = `name = "自定义语法"
@@ -120,7 +183,7 @@ describe("workspace API request handler", () => {
       });
       expect(initialSnapshot.revision).toEqual(expect.any(String));
 
-      const content = {
+      const content: WorkspaceRepositoryContentDto = {
         syntaxSourceFile: {
           fileName: "workspace.toml",
           source: customSyntaxSource,
@@ -185,7 +248,7 @@ describe("workspace API request handler", () => {
   it("allows configured browser origins and rejects other origins", async () => {
     const allowedOrigin = "http://127.0.0.1:5173";
 
-    await withHandler(async (handler, rootDir) => {
+    await withHandler(async (handler) => {
       await expect(
         dispatch(handler, {
           headers: { origin: allowedOrigin },
@@ -236,7 +299,7 @@ describe("workspace API request handler", () => {
   it("rejects invalid commit content without changing the repository", async () => {
     await withHandler(async (handler, rootDir) => {
       const initialSnapshot = await loadSnapshot(handler);
-      const workspace = {
+      const workspace: RepositoryWorkspaceDto = {
         ...createWorkspace(),
         notes: [
           {
@@ -272,7 +335,7 @@ describe("workspace API request handler", () => {
         url: "/api/repository-snapshot",
       });
       expect(unsupportedField).toMatchObject({
-        body: { error: expect.stringContaining("Unsupported") },
+        body: { error: expect.stringContaining("unsupported") },
         statusCode: 400,
       });
 
@@ -322,7 +385,7 @@ describe("workspace API request handler", () => {
           url: "/api/repository-snapshot",
         }),
       ).resolves.toMatchObject({
-        body: { error: expect.stringContaining("Missing") },
+        body: { error: expect.stringContaining("missing") },
         statusCode: 400,
       });
       await expect(

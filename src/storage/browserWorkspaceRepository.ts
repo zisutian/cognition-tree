@@ -3,7 +3,7 @@ import {
   type WorkspaceRepository,
   type WorkspaceRepositoryContent,
 } from "./workspaceRepository";
-import { parseWorkspaceRepositoryContentDto } from "./workspaceRepositoryDto";
+import { parseWorkspaceRepositoryContent } from "../../contracts/workspace-repository/parseRepository";
 import { createWorkspaceRepositoryRevision } from "./workspaceRepositoryRevision";
 import { createInitialWorkspaceData } from "../workspace/model/workspaceData";
 
@@ -21,7 +21,7 @@ function loadStoredContent(): WorkspaceRepositoryContent | null {
   const storedContent = getStorage().getItem(repositoryStorageKey);
 
   return storedContent
-    ? parseWorkspaceRepositoryContentDto(JSON.parse(storedContent))
+    ? parseWorkspaceRepositoryContent(JSON.parse(storedContent))
     : null;
 }
 

@@ -3,9 +3,9 @@ import {
   type WorkspaceRepository,
 } from "./workspaceRepository";
 import {
-  parseWorkspaceRepositoryCommitResultDto,
-  parseWorkspaceRepositorySnapshotDto,
-} from "./workspaceRepositoryDto";
+  parseWorkspaceRepositoryCommitResult,
+  parseWorkspaceRepositorySnapshot,
+} from "../../contracts/workspace-repository/parseRepository";
 
 type HttpWorkspaceRepositoryOptions = {
   baseUrl?: string;
@@ -69,7 +69,7 @@ export function createHttpWorkspaceRepository({
   return {
     label: "HTTP 后端",
     async commitSnapshot(commit) {
-      return parseWorkspaceRepositoryCommitResultDto(
+      return parseWorkspaceRepositoryCommitResult(
         await requestJson(
           fetchFn,
           baseUrl,
@@ -83,7 +83,7 @@ export function createHttpWorkspaceRepository({
       );
     },
     async loadSnapshot() {
-      return parseWorkspaceRepositorySnapshotDto(
+      return parseWorkspaceRepositorySnapshot(
         await requestJson(
           fetchFn,
           baseUrl,

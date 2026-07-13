@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AppFrame } from "../../src/ui/AppFrame";
 
-// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
 const { readFileSync } = (await import("node:fs")) as {
   readFileSync: (path: URL, encoding: "utf8") => string;
 };

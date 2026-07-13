@@ -6,7 +6,6 @@ import {
   ToggleButton,
 } from "../../../src/ui/shared/primitives";
 
-// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
 const { readFileSync } = (await import("node:fs")) as {
   readFileSync: (path: URL, encoding: "utf8") => string;
 };

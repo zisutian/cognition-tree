@@ -1,27 +1,55 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import http from "node:http";
+import type {
+  IncomingMessage,
+  OutgoingHttpHeaders,
+  ServerResponse,
+} from "node:http";
+import { WorkspaceRepositoryContractError } from "../contracts/workspace-repository/contractValue.ts";
+import type {
+  WorkspaceRepositoryCommitResultDto,
+  WorkspaceRepositorySnapshotDto,
+} from "../contracts/workspace-repository/types.ts";
 import {
   WorkspaceFileStore,
   WorkspacePayloadValidationError,
   WorkspaceRevisionConflictError,
-} from "./workspaceFileStore.mjs";
-import { WorkspaceDataValidationError } from "./workspaceDataValidation.mjs";
+} from "./workspaceFileStore.ts";
 
 const allowedMethods = "GET, OPTIONS, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
-const routeMethods = new Map([
+const routeMethods = new Map<string, readonly string[]>([
   ["/api/health", ["GET"]],
   ["/api/repository-snapshot", ["GET", "PUT"]],
 ]);
 
-export const defaultWorkspaceApiAllowedOrigins = Object.freeze([
+export const defaultWorkspaceApiAllowedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:5173",
-]);
+] as const;
+
+export type WorkspaceApiRequestHandler = (
+  request: IncomingMessage,
+  response: ServerResponse,
+) => Promise<void>;
+
+type WorkspaceRepositoryStore = {
+  commitSnapshot: (
+    value: unknown,
+  ) => Promise<WorkspaceRepositoryCommitResultDto>;
+  loadSnapshot: () => Promise<WorkspaceRepositorySnapshotDto>;
+};
+
+type WorkspaceApiOptions = {
+  allowedOrigins?: readonly string[];
+  store: WorkspaceRepositoryStore;
+};
 
 class WorkspaceApiRequestError extends Error {
-  constructor(statusCode, message) {
+  statusCode: number;
+
+  constructor(statusCode: number, message: string) {
     super(message);
     this.name = "WorkspaceApiRequestError";
     this.statusCode = statusCode;
@@ -29,14 +57,16 @@ class WorkspaceApiRequestError extends Error {
 }
 
 class WorkspaceApiConflictError extends WorkspaceApiRequestError {
-  constructor(currentRevision) {
+  currentRevision: string;
+
+  constructor(currentRevision: string) {
     super(409, "Repository content changed outside the current session");
     this.name = "WorkspaceApiConflictError";
     this.currentRevision = currentRevision;
   }
 }
 
-function normalizeAllowedOrigin(value) {
+function normalizeAllowedOrigin(value: string) {
   const origin = new URL(value).origin;
 
   if (!origin.startsWith("http://") && !origin.startsWith("https://")) {
@@ -46,7 +76,7 @@ function normalizeAllowedOrigin(value) {
   return origin;
 }
 
-export function parseWorkspaceApiAllowedOrigins(value) {
+export function parseWorkspaceApiAllowedOrigins(value: string | undefined) {
   const values = value === undefined
     ? defaultWorkspaceApiAllowedOrigins
     : value.split(",").map((item) => item.trim()).filter(Boolean);
@@ -54,13 +84,13 @@ export function parseWorkspaceApiAllowedOrigins(value) {
   return [...new Set(values.map(normalizeAllowedOrigin))];
 }
 
-function getRequestHeader(request, name) {
-  const value = request.headers?.[name.toLowerCase()];
+function getRequestHeader(request: IncomingMessage, name: string) {
+  const value = request.headers[name.toLowerCase()];
 
   return Array.isArray(value) ? value[0] : value;
 }
 
-function createCorsHeaders(origin) {
+function createCorsHeaders(origin: string | null): OutgoingHttpHeaders {
   return {
     "Access-Control-Allow-Headers": "content-type",
     "Access-Control-Allow-Methods": allowedMethods,
@@ -69,7 +99,12 @@ function createCorsHeaders(origin) {
   };
 }
 
-function sendJson(response, statusCode, body, headers) {
+function sendJson(
+  response: ServerResponse,
+  statusCode: number,
+  body: unknown,
+  headers: OutgoingHttpHeaders,
+) {
   response.writeHead(statusCode, {
     ...headers,
     "Content-Type": "application/json; charset=utf-8",
@@ -77,27 +112,37 @@ function sendJson(response, statusCode, body, headers) {
   response.end(JSON.stringify(body));
 }
 
-function sendNoContent(response, headers) {
+function sendNoContent(
+  response: ServerResponse,
+  headers: OutgoingHttpHeaders,
+) {
   response.writeHead(204, headers);
   response.end();
 }
 
-function sendError(response, statusCode, message, headers) {
+function sendError(
+  response: ServerResponse,
+  statusCode: number,
+  message: string,
+  headers: OutgoingHttpHeaders,
+) {
   sendJson(response, statusCode, { error: message }, headers);
 }
 
-async function readJsonBody(request) {
-  const chunks = [];
+async function readJsonBody(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
   let size = 0;
 
   for await (const chunk of request) {
-    size += chunk.length;
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+
+    size += buffer.length;
 
     if (size > maxBodyBytes) {
       throw new WorkspaceApiRequestError(413, "Request body is too large");
     }
 
-    chunks.push(chunk);
+    chunks.push(buffer);
   }
 
   const body = Buffer.concat(chunks).toString("utf8").trim();
@@ -117,13 +162,13 @@ async function readJsonBody(request) {
   }
 }
 
-function mapRepositoryCommitError(error) {
+function mapRepositoryCommitError(error: unknown): unknown {
   if (error instanceof WorkspaceRevisionConflictError) {
     return new WorkspaceApiConflictError(error.currentRevision);
   }
 
   if (
-    error instanceof WorkspaceDataValidationError ||
+    error instanceof WorkspaceRepositoryContractError ||
     error instanceof WorkspacePayloadValidationError
   ) {
     return new WorkspaceApiRequestError(400, error.message);
@@ -135,7 +180,7 @@ function mapRepositoryCommitError(error) {
 export function createWorkspaceApiRequestHandler({
   allowedOrigins = defaultWorkspaceApiAllowedOrigins,
   store,
-}) {
+}: WorkspaceApiOptions): WorkspaceApiRequestHandler {
   const allowedOriginSet = new Set(allowedOrigins.map(normalizeAllowedOrigin));
 
   return async (request, response) => {
@@ -221,7 +266,10 @@ export function createWorkspaceApiRequestHandler({
   };
 }
 
-export function createWorkspaceApiServer({ allowedOrigins, store }) {
+export function createWorkspaceApiServer({
+  allowedOrigins,
+  store,
+}: WorkspaceApiOptions) {
   return http.createServer(
     createWorkspaceApiRequestHandler({ allowedOrigins, store }),
   );

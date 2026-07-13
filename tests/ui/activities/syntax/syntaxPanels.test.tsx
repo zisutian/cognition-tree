@@ -5,7 +5,6 @@ import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMain
 import { SyntaxSetupPanel } from "../../../../src/ui/activities/syntax/SyntaxSetupPanel";
 import { createView } from "../../viewFactory";
 
-// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
 const { readFileSync } = (await import("node:fs")) as {
   readFileSync: (path: URL, encoding: "utf8") => string;
 };

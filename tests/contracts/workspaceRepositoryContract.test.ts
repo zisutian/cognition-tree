@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import {
-  parseWorkspaceRepositoryCommitResultDto,
-  parseWorkspaceRepositoryContentDto,
-  parseWorkspaceRepositorySnapshotDto,
-} from "../../src/storage/workspaceRepositoryDto";
+  parseWorkspaceRepositoryCommit,
+  parseWorkspaceRepositoryCommitResult,
+  parseWorkspaceRepositoryContent,
+  parseWorkspaceRepositorySnapshot,
+} from "../../contracts/workspace-repository/parseRepository";
 
-describe("workspace repository DTOs", () => {
+describe("workspace repository contract", () => {
   it("parses repository snapshots, content, and commit results", () => {
     const workspace = createInitialWorkspaceData();
     const syntaxSourceFile = {
@@ -15,7 +16,7 @@ describe("workspace repository DTOs", () => {
     };
 
     expect(
-      parseWorkspaceRepositorySnapshotDto({
+      parseWorkspaceRepositorySnapshot({
         repositoryPath: "/data/repository",
         revision: "revision-1",
         syntaxSourceFile,
@@ -28,25 +29,25 @@ describe("workspace repository DTOs", () => {
       workspace,
     });
     expect(
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile: null,
         workspace,
       }),
     ).toEqual({ syntaxSourceFile: null, workspace });
     expect(
-      parseWorkspaceRepositoryCommitResultDto({ revision: "revision-2" }),
+      parseWorkspaceRepositoryCommitResult({ revision: "revision-2" }),
     ).toEqual({ revision: "revision-2" });
   });
 
   it("rejects null, runtime, unsupported, and inconsistent workspace data", () => {
     expect(() =>
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile: null,
         workspace: null,
       }),
     ).toThrow("expected object");
     expect(() =>
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile: null,
         workspace: {
           ...createInitialWorkspaceData(),
@@ -55,7 +56,7 @@ describe("workspace repository DTOs", () => {
       }),
     ).toThrow("unsupported field");
     expect(() =>
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile: null,
         workspace: {
           ...createInitialWorkspaceData(),
@@ -84,7 +85,7 @@ describe("workspace repository DTOs", () => {
     const workspace = createInitialWorkspaceData();
 
     expect(() =>
-      parseWorkspaceRepositorySnapshotDto({
+      parseWorkspaceRepositorySnapshot({
         repositoryPath: "/data/repository",
         revision: "",
         syntaxSourceFile: null,
@@ -92,7 +93,7 @@ describe("workspace repository DTOs", () => {
       }),
     ).toThrow("expected non-empty string");
     expect(() =>
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile: {
           fileName: "workspace.toml",
           profile: {},
@@ -102,7 +103,7 @@ describe("workspace repository DTOs", () => {
       }),
     ).toThrow("unsupported field");
     expect(() =>
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile: {
           fileName: "other.toml",
           source: 'name = "默认 CTN 语法"\n',
@@ -111,7 +112,7 @@ describe("workspace repository DTOs", () => {
       }),
     ).toThrow("expected workspace.toml");
     expect(() =>
-      parseWorkspaceRepositoryCommitResultDto({
+      parseWorkspaceRepositoryCommitResult({
         extra: true,
         revision: "revision-2",
       }),
@@ -126,10 +127,36 @@ describe("workspace repository DTOs", () => {
     };
 
     expect(
-      parseWorkspaceRepositoryContentDto({
+      parseWorkspaceRepositoryContent({
         syntaxSourceFile,
         workspace,
       }),
     ).toEqual({ syntaxSourceFile, workspace });
+  });
+
+  it("validates commit-only fields and syntax source constraints", () => {
+    const workspace = createInitialWorkspaceData();
+
+    expect(
+      parseWorkspaceRepositoryCommit({
+        baseRevision: "revision-1",
+        syntaxSourceFile: null,
+        workspace,
+      }),
+    ).toEqual({
+      baseRevision: "revision-1",
+      syntaxSourceFile: null,
+      workspace,
+    });
+    expect(() =>
+      parseWorkspaceRepositoryCommit({
+        baseRevision: "revision-1",
+        syntaxSourceFile: {
+          fileName: "workspace.toml",
+          source: "   ",
+        },
+        workspace,
+      }),
+    ).toThrow("expected non-empty syntax source");
   });
 });

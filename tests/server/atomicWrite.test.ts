@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   writeFileAtomically,
   writeJsonAtomically,
-} from "../../server/atomicWrite.mjs";
+} from "../../server/atomicWrite.ts";
 
 describe("atomic file writes", () => {
   it("replaces files and removes temporary files", async () => {

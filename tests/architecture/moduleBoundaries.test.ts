@@ -3,10 +3,7 @@ import { describe, expect, it } from "vitest";
 type SourceModules = Record<string, string>;
 type RawSourceModules = Record<string, string | { default?: string }>;
 
-// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
-const { readFileSync } = (await import("node:fs")) as {
-  readFileSync: (path: URL, encoding: "utf8") => string;
-};
+const { readFileSync } = await import("node:fs");
 
 type SourceImport = {
   filePath: string;
@@ -33,7 +30,13 @@ const sourceStyleModules = Object.fromEntries(
   ]),
 ) as SourceModules;
 
-const serverModules = import.meta.glob("../../server/**/*.mjs", {
+const serverModules = import.meta.glob("../../server/**/*.ts", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as SourceModules;
+
+const contractModules = import.meta.glob("../../contracts/**/*.ts", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -230,6 +233,14 @@ function listServerFiles() {
 
 function readServerImports(filePath: string) {
   return readModuleImports(serverModules, filePath);
+}
+
+function listContractFiles() {
+  return Object.keys(contractModules).sort();
+}
+
+function readContractImports(filePath: string) {
+  return readModuleImports(contractModules, filePath);
 }
 
 describe("architecture module boundaries", () => {
@@ -916,7 +927,6 @@ describe("architecture module boundaries", () => {
       "httpWorkspaceRepository.ts",
       "runtimeWorkspaceRepository.ts",
       "workspaceRepository.ts",
-      "workspaceRepositoryDto.ts",
       "workspaceRepositoryRevision.ts",
     ]);
 
@@ -927,9 +937,11 @@ describe("architecture module boundaries", () => {
         "../../src/application/workspace/session/workspaceSessionSaveQueue.ts"
       ] ?? "";
     const apiServer =
-      serverModules["../../server/workspaceApiServer.mjs"] ?? "";
+      serverModules["../../server/workspaceApiServer.ts"] ?? "";
     const routeDefinitions =
-      apiServer.match(/const routeMethods = new Map\(\[([\s\S]*?)\]\);/)?.[1] ?? "";
+      apiServer.match(
+        /const routeMethods = new Map(?:<[^;]+?>)?\(\[([\s\S]*?)\]\);/,
+      )?.[1] ?? "";
     const routePaths = [
       ...routeDefinitions.matchAll(/\["(\/api\/[^"]+)"/g),
     ].map((match) => match[1]);
@@ -943,6 +955,52 @@ describe("architecture module boundaries", () => {
       "/api/health",
       "/api/repository-snapshot",
     ]);
+  });
+
+  it("keeps the repository wire contract runtime-neutral and singular", () => {
+    expect(listContractFiles()).toEqual([
+      "../../contracts/workspace-repository/contractValue.ts",
+      "../../contracts/workspace-repository/parseRepository.ts",
+      "../../contracts/workspace-repository/parseWorkspace.ts",
+      "../../contracts/workspace-repository/types.ts",
+    ]);
+
+    const blockedContractImports = [
+      /^node:/,
+      /^react$/,
+      /^react\//,
+      /\/server\//,
+      /\/src\//,
+    ];
+    const violations = listContractFiles().flatMap((filePath) =>
+      readContractImports(filePath)
+        .filter((importPath) =>
+          blockedContractImports.some((blockedImport) =>
+            blockedImport.test(importPath),
+          ),
+        )
+        .map((importPath) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps repository contract consumption at storage and server boundaries", () => {
+    const sourceViolations = Object.keys(sourceModules).flatMap((filePath) =>
+      readModuleImports(sourceModules, filePath)
+        .filter((importPath) => importPath.includes("contracts/"))
+        .filter(() => getSourceRoot(filePath) !== "storage")
+        .map((importPath) => `${filePath} imports ${importPath}`),
+    );
+
+    expect(sourceViolations).toEqual([]);
+    expect(
+      listServerFiles().some((filePath) =>
+        readServerImports(filePath).some((importPath) =>
+          importPath.includes("contracts/workspace-repository/"),
+        ),
+      ),
+    ).toBe(true);
   });
 
   it("keeps internal source imports following documented dependency direction", () => {
@@ -1027,7 +1085,7 @@ describe("architecture module boundaries", () => {
     const blockedServerImports = [
       /^react$/,
       /^react\//,
-      /\.\.\/src\//,
+      /\/src\//,
       /^src\//,
     ];
     const violations = listServerFiles().flatMap((filePath) =>

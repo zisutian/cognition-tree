@@ -57,10 +57,7 @@
 
 后端脚本语法检查：
 
-    node --check server/index.mjs
-    node --check server/workspaceApiServer.mjs
-    node --check server/workspaceFileStore.mjs
-    node --check server/workspaceDataValidation.mjs
+    pnpm exec tsc -p tsconfig.server.json --noEmit
 
 本地提交钩子会运行暂存 diff 检查、TypeScript 检查和架构边界测试。提交信息使用 `type(scope): subject` 格式。
 
@@ -94,6 +91,7 @@ HTTP 后端默认只接受来自本机开发前端地址的浏览器请求。使
     src/ctn/          CTN parser 和 syntax profile
     src/storage/      workspace repository 端口和前端存储实现
     src/editor/       CodeMirror 编辑器适配
+    contracts/        前后端共享的 repository wire contract
     server/           本地 HTTP API 和文件仓库执行端
     tests/            单元测试、UI 测试和架构边界测试
 

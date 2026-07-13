@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
+import type { Dirent } from "node:fs";
 import { readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 
 const atomicTemporaryFilePattern =
   /\.\d+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/i;
 
-export async function writeFileAtomically(filePath, content) {
+export async function writeFileAtomically(filePath: string, content: string) {
   const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
 
   try {
@@ -18,20 +20,20 @@ export async function writeFileAtomically(filePath, content) {
   }
 }
 
-export async function writeJsonAtomically(filePath, value) {
+export async function writeJsonAtomically(filePath: string, value: unknown) {
   await writeFileAtomically(
     filePath,
     `${JSON.stringify(value, null, 2)}\n`,
   );
 }
 
-export async function removeAtomicWriteTemporaryFiles(directory) {
-  let entries;
+export async function removeAtomicWriteTemporaryFiles(directory: string) {
+  let entries: Dirent<string>[];
 
   try {
     entries = await readdir(directory, { withFileTypes: true });
   } catch (error) {
-    if (error?.code === "ENOENT") {
+    if (hasFileSystemErrorCode(error, "ENOENT")) {
       return;
     }
 

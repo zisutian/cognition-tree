@@ -3,38 +3,55 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { removeAtomicWriteTemporaryFiles } from "./atomicWrite.mjs";
-import { WorkspaceCommitTransaction } from "./workspaceCommitTransaction.mjs";
 import {
-  assertWorkspaceData,
-  assertWorkspaceManifest,
-} from "./workspaceDataValidation.mjs";
+  parseWorkspaceRepositoryCommit,
+} from "../contracts/workspace-repository/parseRepository.ts";
+import type {
+  RepositoryNoteDto,
+  RepositorySyntaxSourceDto,
+  RepositoryWorkspaceDto,
+  WorkspaceRepositoryCommitDto,
+  WorkspaceRepositoryContentDto,
+  WorkspaceRepositoryCommitResultDto,
+  WorkspaceRepositorySnapshotDto,
+} from "../contracts/workspace-repository/types.ts";
+import { repositorySyntaxFileName } from "../contracts/workspace-repository/types.ts";
+import { removeAtomicWriteTemporaryFiles } from "./atomicWrite.ts";
+import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import {
+  WorkspaceCommitTransaction,
+  type WorkspaceCommitPhase,
+} from "./workspaceCommitTransaction.ts";
+import {
+  parseWorkspaceManifest,
+  type WorkspaceManifest,
+} from "./workspaceManifest.ts";
 
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
 const syntaxDirName = "syntax";
-const workspaceSyntaxFileName = "workspace.toml";
-
 export class WorkspacePayloadValidationError extends Error {
-  constructor(message) {
+  constructor(message: string) {
     super(message);
     this.name = "WorkspacePayloadValidationError";
   }
 }
 
 export class WorkspaceRevisionConflictError extends Error {
-  constructor(currentRevision) {
+  currentRevision: string;
+
+  constructor(currentRevision: string) {
     super("Repository content changed outside the current session");
     this.name = "WorkspaceRevisionConflictError";
     this.currentRevision = currentRevision;
   }
 }
 
-function failPayloadValidation(message) {
+function failPayloadValidation(message: string): never {
   throw new WorkspacePayloadValidationError(message);
 }
 
-function assertSafePathSegment(segment, label) {
+function assertSafePathSegment(segment: unknown, label: string): asserts segment is string {
   if (
     typeof segment !== "string" ||
     segment.length === 0 ||
@@ -47,31 +64,16 @@ function assertSafePathSegment(segment, label) {
   }
 }
 
-function assertSafeRelativeFilePath(filePath, label) {
-  if (
-    typeof filePath !== "string" ||
-    filePath.length === 0 ||
-    filePath.startsWith("/") ||
-    filePath.includes("\\")
-  ) {
-    failPayloadValidation(`Unsafe ${label}: ${filePath}`);
-  }
-
-  filePath.split("/").forEach((segment) =>
-    assertSafePathSegment(segment, label),
-  );
-}
-
-function noteFileName(noteTitle) {
+function noteFileName(noteTitle: string) {
   assertSafePathSegment(noteTitle, "note title");
   return `${noteTitle}.ctn`;
 }
 
-function inferNoteTitle(source) {
+function inferNoteTitle(source: string) {
   return source.split("\n")[0]?.trim() ?? "";
 }
 
-function assertNoteTitleMatchesSource(note) {
+function assertNoteTitleMatchesSource(note: RepositoryNoteDto) {
   const sourceTitle = inferNoteTitle(note.source);
 
   if (note.title !== sourceTitle) {
@@ -79,9 +81,28 @@ function assertNoteTitleMatchesSource(note) {
   }
 }
 
-function createNoteById(notes) {
+function createNoteById(notes: RepositoryNoteDto[]) {
   return new Map(notes.map((note) => [note.id, note]));
 }
+
+type NoteFileLayoutEntry = {
+  note: RepositoryNoteDto;
+  relativePath: string;
+};
+
+type NoteFileLayoutInput = {
+  noteById: ReadonlyMap<string, RepositoryNoteDto>;
+  nodes: RepositoryWorkspaceDto["tree"];
+  parentSegments?: string[];
+  usedNoteIds?: Set<string>;
+  usedPaths?: Set<string>;
+};
+
+type WorkspaceFileStoreOptions = {
+  onWorkspaceCommitPhase?: (
+    phase: WorkspaceCommitPhase,
+  ) => Promise<void> | void;
+};
 
 function createNoteFileLayout({
   noteById,
@@ -89,8 +110,8 @@ function createNoteFileLayout({
   parentSegments = [],
   usedNoteIds = new Set(),
   usedPaths = new Set(),
-}) {
-  const entries = [];
+}: NoteFileLayoutInput): NoteFileLayoutEntry[] {
+  const entries: NoteFileLayoutEntry[] = [];
   const siblingNames = new Set();
 
   for (const node of nodes) {
@@ -152,7 +173,9 @@ function createNoteFileLayout({
   return entries;
 }
 
-function createWorkspaceNoteFileLayout(workspace) {
+function createWorkspaceNoteFileLayout(
+  workspace: RepositoryWorkspaceDto,
+): NoteFileLayoutEntry[] {
   workspace.notes.forEach(assertNoteTitleMatchesSource);
 
   const noteById = createNoteById(workspace.notes);
@@ -170,7 +193,7 @@ function createWorkspaceNoteFileLayout(workspace) {
   return entries;
 }
 
-function createEmptyWorkspace() {
+function createEmptyWorkspace(): RepositoryWorkspaceDto {
   return {
     id: "local-workspace",
     name: "本地笔记库",
@@ -179,7 +202,7 @@ function createEmptyWorkspace() {
   };
 }
 
-function createCanonicalValue(value) {
+function createCanonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(createCanonicalValue);
   }
@@ -197,7 +220,10 @@ function createCanonicalValue(value) {
   return value;
 }
 
-function createRepositoryRevision({ syntaxSourceFile, workspace }) {
+function createRepositoryRevision({
+  syntaxSourceFile,
+  workspace,
+}: WorkspaceRepositoryContentDto) {
   return createHash("sha256")
     .update(
       JSON.stringify(createCanonicalValue({ syntaxSourceFile, workspace })),
@@ -205,65 +231,22 @@ function createRepositoryRevision({ syntaxSourceFile, workspace }) {
     .digest("hex");
 }
 
-function assertCommitRequest(commit) {
-  if (!commit || typeof commit !== "object" || Array.isArray(commit)) {
-    failPayloadValidation("Repository commit is required");
-  }
-
-  const fields = new Set([
-    "baseRevision",
-    "syntaxSourceFile",
-    "workspace",
-  ]);
-
-  for (const key of Object.keys(commit)) {
-    if (!fields.has(key)) {
-      failPayloadValidation(`Unsupported repository commit field: ${key}`);
-    }
-  }
-
-  for (const field of fields) {
-    if (!(field in commit)) {
-      failPayloadValidation(`Missing repository commit field: ${field}`);
-    }
-  }
-
-  const { baseRevision, syntaxSourceFile } = commit;
-
-  if (typeof baseRevision !== "string" || baseRevision.length === 0) {
-    failPayloadValidation("Repository base revision is required");
-  }
-
-  if (syntaxSourceFile === null) {
-    return;
-  }
-
-  if (
-    !syntaxSourceFile ||
-    typeof syntaxSourceFile !== "object" ||
-    Array.isArray(syntaxSourceFile) ||
-    Object.keys(syntaxSourceFile).length !== 2 ||
-    !("fileName" in syntaxSourceFile) ||
-    !("source" in syntaxSourceFile) ||
-    syntaxSourceFile.fileName !== workspaceSyntaxFileName ||
-    typeof syntaxSourceFile.source !== "string" ||
-    syntaxSourceFile.source.trim().length === 0
-  ) {
-    failPayloadValidation("Invalid workspace syntax source file");
-  }
-}
-
-async function readJson(filePath) {
+async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
 export class WorkspaceFileStore {
-  #rootDir;
-  #operationQueue = Promise.resolve();
-  #initializePromise = null;
-  #workspaceCommitTransaction;
+  #rootDir: string;
+  #operationQueue: Promise<void> = Promise.resolve();
+  #initializePromise: Promise<void> | null = null;
+  #workspaceCommitTransaction: WorkspaceCommitTransaction;
 
-  constructor(rootDir, { onWorkspaceCommitPhase = async () => {} } = {}) {
+  constructor(
+    rootDir: string,
+    {
+      onWorkspaceCommitPhase = async () => {},
+    }: WorkspaceFileStoreOptions = {},
+  ) {
     this.#rootDir = path.resolve(rootDir);
     this.#workspaceCommitTransaction = new WorkspaceCommitTransaction(
       this.#rootDir,
@@ -288,16 +271,15 @@ export class WorkspaceFileStore {
     return this.#rootDir;
   }
 
-  async loadSnapshot() {
+  async loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
     return this.#enqueueOperation(() => this.#loadSnapshot());
   }
 
-  async commitSnapshot(commit) {
-    assertCommitRequest(commit);
-
+  async commitSnapshot(
+    value: unknown,
+  ): Promise<WorkspaceRepositoryCommitResultDto> {
+    const commit = parseWorkspaceRepositoryCommit(value);
     const { baseRevision, syntaxSourceFile, workspace } = commit;
-
-    assertWorkspaceData(workspace);
 
     return this.#enqueueOperation(() =>
       this.#commitSnapshot({ baseRevision, syntaxSourceFile, workspace }),
@@ -312,26 +294,24 @@ export class WorkspaceFileStore {
     await mkdir(this.#syntaxDir, { recursive: true });
   }
 
-  async #readWorkspace() {
-    let manifest;
+  async #readWorkspace(): Promise<RepositoryWorkspaceDto> {
+    let manifest: unknown;
 
     try {
       manifest = await readJson(this.#manifestPath);
     } catch (error) {
-      if (error?.code === "ENOENT") {
+      if (hasFileSystemErrorCode(error, "ENOENT")) {
         return createEmptyWorkspace();
       }
 
       throw error;
     }
 
-    assertWorkspaceManifest(manifest);
+    const parsedManifest = parseWorkspaceManifest(manifest);
 
-    const notes = [];
+    const notes: RepositoryNoteDto[] = [];
 
-    for (const note of manifest.notes) {
-      assertSafeRelativeFilePath(note.fileName, "note file path");
-
+    for (const note of parsedManifest.notes) {
       try {
         const source = await readFile(
           path.join(this.#notesDir, ...note.fileName.split("/")),
@@ -351,7 +331,7 @@ export class WorkspaceFileStore {
           updatedAt: note.updatedAt,
         });
       } catch (error) {
-        if (error?.code === "ENOENT") {
+        if (hasFileSystemErrorCode(error, "ENOENT")) {
           throw new Error(`Missing note source file: ${note.fileName}`);
         }
 
@@ -360,10 +340,10 @@ export class WorkspaceFileStore {
     }
 
     const workspace = {
-      id: manifest.id,
-      name: manifest.name,
+      id: parsedManifest.id,
+      name: parsedManifest.name,
       notes,
-      tree: manifest.tree,
+      tree: parsedManifest.tree,
     };
     const expectedFileNameByNoteId = new Map(
       createWorkspaceNoteFileLayout(workspace).map((entry) => [
@@ -372,7 +352,7 @@ export class WorkspaceFileStore {
       ]),
     );
 
-    for (const note of manifest.notes) {
+    for (const note of parsedManifest.notes) {
       if (note.fileName !== expectedFileNameByNoteId.get(note.id)) {
         throw new Error(`Workspace note file path does not match tree: ${note.id}`);
       }
@@ -381,14 +361,14 @@ export class WorkspaceFileStore {
     return workspace;
   }
 
-  async #readSnapshotContent() {
+  async #readSnapshotContent(): Promise<WorkspaceRepositoryContentDto> {
     return {
       syntaxSourceFile: await this.#readSyntaxSourceFile(),
       workspace: await this.#readWorkspace(),
     };
   }
 
-  async #loadSnapshot() {
+  async #loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
     await this.initialize();
 
     const content = await this.#readSnapshotContent();
@@ -400,7 +380,11 @@ export class WorkspaceFileStore {
     };
   }
 
-  async #commitSnapshot({ baseRevision, syntaxSourceFile, workspace }) {
+  async #commitSnapshot({
+    baseRevision,
+    syntaxSourceFile,
+    workspace,
+  }: WorkspaceRepositoryCommitDto): Promise<WorkspaceRepositoryCommitResultDto> {
     await this.initialize();
 
     const currentContent = await this.#readSnapshotContent();
@@ -414,7 +398,7 @@ export class WorkspaceFileStore {
     const fileNameByNoteId = new Map(
       noteFileLayout.map((entry) => [entry.note.id, entry.relativePath]),
     );
-    const manifest = {
+    const manifest: WorkspaceManifest = {
       id: workspace.id,
       name: workspace.name,
       notes: workspace.notes.map((note) => {
@@ -454,16 +438,16 @@ export class WorkspaceFileStore {
     };
   }
 
-  async #readSyntaxSourceFile() {
-    let source;
+  async #readSyntaxSourceFile(): Promise<RepositorySyntaxSourceDto | null> {
+    let source: string;
 
     try {
       source = await readFile(
-        path.join(this.#syntaxDir, workspaceSyntaxFileName),
+        path.join(this.#syntaxDir, repositorySyntaxFileName),
         "utf8",
       );
     } catch (error) {
-      if (error?.code === "ENOENT") {
+      if (hasFileSystemErrorCode(error, "ENOENT")) {
         return null;
       }
 
@@ -471,7 +455,7 @@ export class WorkspaceFileStore {
     }
 
     return {
-      fileName: workspaceSyntaxFileName,
+      fileName: repositorySyntaxFileName,
       source,
     };
   }
@@ -488,10 +472,13 @@ export class WorkspaceFileStore {
     return path.join(this.#rootDir, syntaxDirName);
   }
 
-  #enqueueOperation(operation) {
+  #enqueueOperation<Result>(operation: () => Promise<Result>): Promise<Result> {
     const result = this.#operationQueue.then(operation);
 
-    this.#operationQueue = result.catch(() => undefined);
+    this.#operationQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
 }

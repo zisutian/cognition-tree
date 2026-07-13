@@ -3,13 +3,17 @@
 import { randomUUID } from "node:crypto";
 import { access, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { writeJsonAtomically } from "./atomicWrite.mjs";
-import { assertWorkspaceManifest } from "./workspaceDataValidation.mjs";
+import { repositorySyntaxFileName } from "../contracts/workspace-repository/types.ts";
+import { writeJsonAtomically } from "./atomicWrite.ts";
+import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import {
+  parseWorkspaceManifest,
+  type WorkspaceManifest,
+} from "./workspaceManifest.ts";
 
 const workspaceFileName = "workspace.json";
 const notesDirName = "notes";
 const syntaxDirName = "syntax";
-const workspaceSyntaxFileName = "workspace.toml";
 const commitMarkerFileName = ".workspace-commit.json";
 const transactionFileName = ".workspace-transaction.json";
 const transactionDirName = ".workspace-transaction";
@@ -18,7 +22,7 @@ const previousNotesDirName = "previous-notes";
 const nextSyntaxDirName = "next-syntax";
 const previousSyntaxDirName = "previous-syntax";
 
-export const workspaceCommitPhases = Object.freeze({
+export const workspaceCommitPhases = {
   prepared: "prepared",
   previousNotesMoved: "previous-notes-moved",
   previousSyntaxMoved: "previous-syntax-moved",
@@ -27,13 +31,33 @@ export const workspaceCommitPhases = Object.freeze({
   manifestCommitted: "manifest-committed",
   commitMarked: "commit-marked",
   cleanupCompleted: "cleanup-completed",
-});
+} as const;
 
-async function readJsonIfExists(filePath) {
+export type WorkspaceCommitPhase =
+  (typeof workspaceCommitPhases)[keyof typeof workspaceCommitPhases];
+
+type WorkspaceTransaction = {
+  commitId: string;
+  manifest: WorkspaceManifest;
+  previousManifest: WorkspaceManifest | null;
+  version: 2;
+};
+
+type WorkspaceCommitInput = {
+  manifest: WorkspaceManifest;
+  noteFiles: Array<{ relativePath: string; source: string }>;
+  syntaxSource: string | null;
+};
+
+type WorkspaceCommitTransactionOptions = {
+  onCommitPhase?: (phase: WorkspaceCommitPhase) => Promise<void> | void;
+};
+
+async function readJsonIfExists(filePath: string): Promise<unknown | null> {
   try {
     return JSON.parse(await readFile(filePath, "utf8"));
   } catch (error) {
-    if (error?.code === "ENOENT") {
+    if (hasFileSystemErrorCode(error, "ENOENT")) {
       return null;
     }
 
@@ -41,12 +65,12 @@ async function readJsonIfExists(filePath) {
   }
 }
 
-async function pathExists(filePath) {
+async function pathExists(filePath: string) {
   try {
     await access(filePath);
     return true;
   } catch (error) {
-    if (error?.code === "ENOENT") {
+    if (hasFileSystemErrorCode(error, "ENOENT")) {
       return false;
     }
 
@@ -54,11 +78,18 @@ async function pathExists(filePath) {
   }
 }
 
-function assertWorkspaceTransaction(transaction) {
+function parseWorkspaceTransaction(value: unknown): WorkspaceTransaction {
   if (
-    !transaction ||
-    typeof transaction !== "object" ||
-    Array.isArray(transaction) ||
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value)
+  ) {
+    throw new Error("Invalid workspace transaction");
+  }
+
+  const transaction = value as Record<string, unknown>;
+
+  if (
     transaction.version !== 2 ||
     typeof transaction.commitId !== "string" ||
     transaction.commitId.length === 0
@@ -66,23 +97,31 @@ function assertWorkspaceTransaction(transaction) {
     throw new Error("Invalid workspace transaction");
   }
 
-  assertWorkspaceManifest(transaction.manifest);
-
-  if (transaction.previousManifest !== null) {
-    assertWorkspaceManifest(transaction.previousManifest);
-  }
+  return {
+    commitId: transaction.commitId,
+    manifest: parseWorkspaceManifest(transaction.manifest),
+    previousManifest: transaction.previousManifest === null
+      ? null
+      : parseWorkspaceManifest(transaction.previousManifest),
+    version: 2,
+  };
 }
 
 export class WorkspaceCommitTransaction {
-  #rootDir;
-  #onCommitPhase;
+  #rootDir: string;
+  #onCommitPhase: NonNullable<
+    WorkspaceCommitTransactionOptions["onCommitPhase"]
+  >;
 
-  constructor(rootDir, { onCommitPhase = async () => {} } = {}) {
+  constructor(
+    rootDir: string,
+    { onCommitPhase = async () => {} }: WorkspaceCommitTransactionOptions = {},
+  ) {
     this.#rootDir = rootDir;
     this.#onCommitPhase = onCommitPhase;
   }
 
-  async commit({ manifest, noteFiles, syntaxSource }) {
+  async commit({ manifest, noteFiles, syntaxSource }: WorkspaceCommitInput) {
     const transaction = await this.#prepare({
       manifest,
       noteFiles,
@@ -118,18 +157,23 @@ export class WorkspaceCommitTransaction {
   }
 
   async recover() {
-    const transaction = await readJsonIfExists(this.#transactionPath);
+    const value = await readJsonIfExists(this.#transactionPath);
 
-    if (!transaction) {
+    if (!value) {
       await rm(this.#transactionDir, { force: true, recursive: true });
       return;
     }
 
-    assertWorkspaceTransaction(transaction);
+    const transaction = parseWorkspaceTransaction(value);
 
     const commitMarker = await readJsonIfExists(this.#commitMarkerPath);
 
-    if (commitMarker?.commitId === transaction.commitId) {
+    if (
+      typeof commitMarker === "object" &&
+      commitMarker !== null &&
+      "commitId" in commitMarker &&
+      commitMarker.commitId === transaction.commitId
+    ) {
       await this.#complete(transaction);
     } else {
       await this.#rollback(transaction);
@@ -143,7 +187,11 @@ export class WorkspaceCommitTransaction {
     await rm(this.#transactionPath, { force: true });
   }
 
-  async #prepare({ manifest, noteFiles, syntaxSource }) {
+  async #prepare({
+    manifest,
+    noteFiles,
+    syntaxSource,
+  }: WorkspaceCommitInput): Promise<WorkspaceTransaction> {
     await this.remove();
     await mkdir(this.#nextNotesDir, { recursive: true });
     await mkdir(this.#nextSyntaxDir, { recursive: true });
@@ -160,16 +208,20 @@ export class WorkspaceCommitTransaction {
 
     if (syntaxSource !== null) {
       await writeFile(
-        path.join(this.#nextSyntaxDir, workspaceSyntaxFileName),
+        path.join(this.#nextSyntaxDir, repositorySyntaxFileName),
         syntaxSource,
         "utf8",
       );
     }
 
-    const transaction = {
+    const transaction: WorkspaceTransaction = {
       commitId: randomUUID(),
       manifest,
-      previousManifest: await readJsonIfExists(this.#manifestPath),
+      previousManifest: await readJsonIfExists(this.#manifestPath).then(
+        (previousManifest) => previousManifest === null
+          ? null
+          : parseWorkspaceManifest(previousManifest),
+      ),
       version: 2,
     };
 
@@ -177,7 +229,7 @@ export class WorkspaceCommitTransaction {
     return transaction;
   }
 
-  async #complete(transaction) {
+  async #complete(transaction: WorkspaceTransaction) {
     await this.#completeDirectory(
       this.#notesDir,
       this.#nextNotesDir,
@@ -193,7 +245,11 @@ export class WorkspaceCommitTransaction {
     await rm(this.#previousSyntaxDir, { force: true, recursive: true });
   }
 
-  async #completeDirectory(currentDir, nextDir, label) {
+  async #completeDirectory(
+    currentDir: string,
+    nextDir: string,
+    label: string,
+  ) {
     if (await pathExists(currentDir)) {
       return;
     }
@@ -205,7 +261,7 @@ export class WorkspaceCommitTransaction {
     await rename(nextDir, currentDir);
   }
 
-  async #rollback(transaction) {
+  async #rollback(transaction: WorkspaceTransaction) {
     await this.#rollbackDirectory(
       this.#notesDir,
       this.#previousNotesDir,
@@ -225,7 +281,7 @@ export class WorkspaceCommitTransaction {
     }
   }
 
-  async #rollbackDirectory(currentDir, previousDir) {
+  async #rollbackDirectory(currentDir: string, previousDir: string) {
     if (await pathExists(previousDir)) {
       await rm(currentDir, { force: true, recursive: true });
       await rename(previousDir, currentDir);
@@ -237,7 +293,7 @@ export class WorkspaceCommitTransaction {
     }
   }
 
-  async #reachPhase(phase) {
+  async #reachPhase(phase: WorkspaceCommitPhase) {
     await this.#onCommitPhase(phase);
   }
 

@@ -5,7 +5,7 @@ import {
   createWorkspaceApiServer,
   parseWorkspaceApiAllowedOrigins,
   WorkspaceFileStore,
-} from "./workspaceApiServer.mjs";
+} from "./workspaceApiServer.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3001");

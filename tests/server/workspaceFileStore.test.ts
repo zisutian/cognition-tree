@@ -4,13 +4,18 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { workspaceCommitPhases } from "../../server/workspaceCommitTransaction.mjs";
+import type { RepositoryWorkspaceDto } from "../../contracts/workspace-repository/types";
+import {
+  workspaceCommitPhases,
+  type WorkspaceCommitPhase,
+} from "../../server/workspaceCommitTransaction.ts";
 import {
   WorkspaceFileStore,
   WorkspaceRevisionConflictError,
-} from "../../server/workspaceFileStore.mjs";
+} from "../../server/workspaceFileStore.ts";
+import type { WorkspaceManifest } from "../../server/workspaceManifest.ts";
 
-function createWorkspace() {
+function createWorkspace(): RepositoryWorkspaceDto {
   return {
     id: "local-workspace",
     name: "本地笔记库",
@@ -40,8 +45,8 @@ function createWorkspace() {
   };
 }
 
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
+function clone<Value>(value: Value): Value {
+  return JSON.parse(JSON.stringify(value)) as Value;
 }
 
 function createRenamedWorkspace() {
@@ -55,7 +60,7 @@ function createRenamedWorkspace() {
   return workspace;
 }
 
-function createManifest() {
+function createManifest(): WorkspaceManifest {
   const workspace = createWorkspace();
 
   return {
@@ -72,7 +77,10 @@ function createManifest() {
   };
 }
 
-async function writeWorkspaceManifest(rootDir, manifest) {
+async function writeWorkspaceManifest(
+  rootDir: string,
+  manifest: unknown,
+) {
   await writeFile(
     path.join(rootDir, "workspace.json"),
     `${JSON.stringify(manifest, null, 2)}\n`,
@@ -80,7 +88,9 @@ async function writeWorkspaceManifest(rootDir, manifest) {
   );
 }
 
-async function withTempStore(testFn) {
+async function withTempStore<Result>(
+  testFn: (store: WorkspaceFileStore, rootDir: string) => Promise<Result>,
+) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-file-store-"));
 
   try {
@@ -91,11 +101,15 @@ async function withTempStore(testFn) {
 }
 
 async function commitContent(
-  store,
+  store: WorkspaceFileStore,
   {
     baseRevision,
     syntaxSource = null,
     workspace = createWorkspace(),
+  }: {
+    baseRevision?: string;
+    syntaxSource?: string | null;
+    workspace?: RepositoryWorkspaceDto;
   } = {},
 ) {
   const revision = baseRevision ?? (await store.loadSnapshot()).revision;
@@ -180,16 +194,37 @@ describe("WorkspaceFileStore", () => {
   });
 
   it("rejects invalid workspace manifest DTOs", async () => {
-    const cases = [
-      ["unsupported field", (manifest) => { manifest.extra = true; }],
-      ["missing field", (manifest) => { delete manifest.notes; }],
-      ["expected array", (manifest) => { manifest.notes = {}; }],
-      ["unsupported field", (manifest) => { manifest.notes[0].extra = true; }],
+    const cases: Array<[
+      string,
+      (manifest: WorkspaceManifest) => void,
+    ]> = [
+      ["unsupported field", (manifest) => {
+        (manifest as WorkspaceManifest & { extra?: boolean }).extra = true;
+      }],
+      ["missing field", (manifest) => {
+        delete (manifest as Partial<WorkspaceManifest>).notes;
+      }],
+      ["expected array", (manifest) => {
+        (manifest as unknown as { notes: unknown }).notes = {};
+      }],
+      ["unsupported field", (manifest) => {
+        (manifest.notes[0] as WorkspaceManifest["notes"][number] & {
+          extra?: boolean;
+        }).extra = true;
+      }],
       ["duplicate note id", (manifest) => { manifest.notes.push(clone(manifest.notes[0])); }],
-      ["unsafe path segment", (manifest) => { manifest.notes[0].fileName = "../note-test.ctn"; }],
+      ["unsafe file path", (manifest) => { manifest.notes[0].fileName = "../note-test.ctn"; }],
       ["note file must use .ctn", (manifest) => { manifest.notes[0].fileName = "资料/测试笔记.txt"; }],
       ["duplicate tree node id", (manifest) => { manifest.tree.push(clone(manifest.tree[0])); }],
-      ["unknown note note-missing", (manifest) => { manifest.tree[0].children[0].noteId = "note-missing"; }],
+      ["unknown note note-missing", (manifest) => {
+        const root = manifest.tree[0];
+
+        if (root.kind !== "folder" || root.children[0].kind !== "note") {
+          throw new Error("Expected folder fixture");
+        }
+
+        root.children[0].noteId = "note-missing";
+      }],
     ];
 
     for (const [message, mutate] of cases) {
@@ -246,18 +281,43 @@ describe("WorkspaceFileStore", () => {
   });
 
   it("rejects invalid aggregate commit payloads without writing a manifest", async () => {
-    const cases = [
-      ["unsupported field", (workspace) => { workspace.activeNoteId = "note-missing"; }],
-      ["unsupported field", (workspace) => { workspace.notes[0].fileName = "custom.ctn"; }],
-      ["Workspace note title does not match first line", (workspace) => { workspace.notes[0].title = "错误标题"; }],
+    const cases: Array<[
+      string,
+      (workspace: RepositoryWorkspaceDto) => void,
+    ]> = [
+      ["unsupported field", (workspace) => {
+        (workspace as RepositoryWorkspaceDto & {
+          activeNoteId?: string;
+        }).activeNoteId = "note-missing";
+      }],
+      ["unsupported field", (workspace) => {
+        (workspace.notes[0] as RepositoryWorkspaceDto["notes"][number] & {
+          fileName?: string;
+        }).fileName = "custom.ctn";
+      }],
+      ["title does not match first line", (workspace) => { workspace.notes[0].title = "错误标题"; }],
       ["Unsafe note title", (workspace) => {
         workspace.notes[0].title = "非法/标题";
         workspace.notes[0].source = "非法/标题\n\t: 文件保存";
       }],
-      ["Unsafe folder title", (workspace) => { workspace.tree[0].title = "."; }],
+      ["Unsafe folder title", (workspace) => {
+        const root = workspace.tree[0];
+
+        if (root.kind !== "folder") {
+          throw new Error("Expected folder fixture");
+        }
+
+        root.title = ".";
+      }],
       ["Duplicate workspace file path", (workspace) => {
         workspace.notes.push({ ...workspace.notes[0], id: "note-duplicate-title" });
-        workspace.tree[0].children.push({
+        const root = workspace.tree[0];
+
+        if (root.kind !== "folder") {
+          throw new Error("Expected folder fixture");
+        }
+
+        root.children.push({
           id: "tree-note-duplicate-title",
           kind: "note",
           noteId: "note-duplicate-title",
@@ -292,7 +352,11 @@ describe("WorkspaceFileStore", () => {
 
       expect(firstResult.status).toBe("fulfilled");
       expect(staleResult.status).toBe("rejected");
-      expect(staleResult.reason).toBeInstanceOf(WorkspaceRevisionConflictError);
+
+      if (staleResult.status === "rejected") {
+        expect(staleResult.reason).toBeInstanceOf(WorkspaceRevisionConflictError);
+      }
+
       await expect(store.loadSnapshot()).resolves.toMatchObject({ workspace: first });
     });
   });
@@ -342,7 +406,7 @@ describe("WorkspaceFileStore", () => {
   });
 
   it("recovers workspace and syntax atomically around every commit phase", async () => {
-    const oldPhases = new Set([
+    const oldPhases = new Set<WorkspaceCommitPhase>([
       workspaceCommitPhases.prepared,
       workspaceCommitPhases.previousNotesMoved,
       workspaceCommitPhases.previousSyntaxMoved,

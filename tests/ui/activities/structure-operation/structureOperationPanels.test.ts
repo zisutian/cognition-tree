@@ -12,7 +12,6 @@ import {
   getStructureRowDropPlacement,
 } from "../../../../src/ui/activities/structure-operation/structureOperationDropTargets";
 
-// @ts-expect-error Node built-in types are intentionally outside the app tsconfig.
 const { readFileSync } = (await import("node:fs")) as {
   readFileSync: (path: URL, encoding: "utf8") => string;
 };

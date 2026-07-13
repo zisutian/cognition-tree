@@ -109,12 +109,14 @@ diff 空白检查：
 
     pnpm vitest run tests/architecture/moduleBoundaries.test.ts
 
-后端脚本语法检查：
+后端 TypeScript 检查：
 
-    node --check server/index.mjs
-    node --check server/workspaceApiServer.mjs
-    node --check server/workspaceFileStore.mjs
-    node --check server/workspaceDataValidation.mjs
+    pnpm exec tsc -p tsconfig.server.json --noEmit
+
+后端生产构建与启动：
+
+    pnpm server:build
+    pnpm server:start
 
 
 6. 双端使用
