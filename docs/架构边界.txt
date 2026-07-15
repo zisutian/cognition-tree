@@ -29,7 +29,7 @@ storage：
 
 editor：
 
-    编辑器技术适配，承载 CodeMirror 组件、扩展、装饰、诊断提示和语法展示。
+    编辑器技术适配，承载 CodeMirror 组件、扩展、装饰、诊断提示、引用点击识别和多行块键位行为。
 
 server：
 

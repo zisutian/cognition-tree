@@ -8,10 +8,14 @@ import {
 } from "./NotesPanels";
 
 export function createNotesActivitySlots({
+  focusMode,
   onCollapseDetail,
+  onToggleFocusMode,
   view,
 }: {
+  focusMode: boolean;
   onCollapseDetail: () => void;
+  onToggleFocusMode: () => void;
   view: NotesViewModel;
 }): ActivitySlots {
   return {
@@ -22,6 +26,12 @@ export function createNotesActivitySlots({
     detail: view.editor.hasParsedDocument ? (
       <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
     ) : null,
-    main: <NoteEditorPanel view={view} />,
+    main: (
+      <NoteEditorPanel
+        focusMode={focusMode}
+        onToggleFocusMode={onToggleFocusMode}
+        view={view}
+      />
+    ),
   };
 }

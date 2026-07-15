@@ -23,14 +23,18 @@ function slotsWithView(
   view: TestActivityViews,
 ) {
   const controls = {
+    focusMode: false,
     onCollapseDetail: () => undefined,
     onConfigureSyntax: () => undefined,
+    onToggleFocusMode: () => undefined,
   };
 
   switch (activityId) {
     case "notes":
       return createNotesActivitySlots({
+        focusMode: controls.focusMode,
         onCollapseDetail: controls.onCollapseDetail,
+        onToggleFocusMode: controls.onToggleFocusMode,
         view: view.notes,
       });
     case "structure-operation":

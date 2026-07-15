@@ -61,7 +61,10 @@ async function seedRepository(api: APIRequestContext) {
             {
               createdAt: timestamp,
               id: "note-gamma",
-              source: createSeedSource("Gamma\n\t> 孤立笔记", 200),
+              source: createSeedSource(
+                "Gamma\n\t```ts\n\t\tconst value = 1;\n\t```\n\t> 孤立笔记\n\t: <Missing>",
+                200,
+              ),
               title: "Gamma",
               updatedAt: timestamp,
             },
@@ -137,6 +140,94 @@ test.describe.serial("workbench browser baseline", () => {
 
   test.afterAll(async () => {
     await api.dispose();
+  });
+
+  test("supports focus mode and reference navigation", async ({ page }) => {
+    await openWorkbench(page);
+
+    const frame = page.locator(".app-frame");
+    const editorPanel = page.getByLabel("笔记编辑");
+
+    await page.getByRole("button", { name: "进入专注模式" }).click();
+    await expect(frame).toHaveClass(/is-focus-mode/);
+    await expect(page.locator(".app-context")).toHaveCount(0);
+    await expect(page.locator(".app-detail")).toHaveCount(0);
+    await expect(
+      page.getByRole("navigation", { name: "工作区功能" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "退出专注模式" }).click();
+    await expect(page.locator(".app-context")).toBeVisible();
+    await expect(page.locator(".app-detail")).toBeVisible();
+
+    await page.keyboard.press("Control+K");
+    await page.keyboard.press("z");
+    await expect(frame).toHaveClass(/is-focus-mode/);
+    await page.keyboard.press("Escape");
+    await expect(frame).not.toHaveClass(/is-focus-mode/);
+
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page
+      .locator(".source-editor .ctn-inline")
+      .filter({ hasText: "[[Beta]]" })
+      .click({ modifiers: ["Control"] });
+    await expect(
+      editorPanel.getByRole("heading", { name: "Beta", exact: true }),
+    ).toBeVisible();
+
+    await page.locator(".app-context").getByTitle("Gamma").click();
+    await page
+      .locator(".source-editor .ctn-inline")
+      .filter({ hasText: "<Missing>" })
+      .click({ modifiers: ["Control"] });
+    await expect(page.getByRole("status")).toContainText(
+      "未找到引用目标：Missing",
+    );
+    await page.getByRole("button", { name: "关闭通知" }).click();
+  });
+
+  test("edits multiline blocks without applying CTN structural indentation", async ({
+    page,
+  }) => {
+    await openWorkbench(page);
+    await page.locator(".app-context").getByTitle("Gamma").click();
+
+    const editor = page.locator(".source-editor");
+    const codeLine = editor.locator(".cm-line").filter({
+      hasText: "const value = 1;",
+    });
+
+    await codeLine.click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("return value;");
+    await expect(
+      editor.locator(".ctn-active-code-block").filter({
+        hasText: "return value;",
+      }),
+    ).toBeVisible();
+
+    const insertedLine = editor.locator(".cm-line").filter({
+      hasText: "return value;",
+    });
+
+    await insertedLine.click();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/repositories/${repositoryId}/snapshot`,
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const source = snapshot.workspace.notes.find(
+        ({ id }) => id === "note-gamma",
+      )?.source ?? "";
+
+      return source.includes(
+        "\t\tconst value = 1;\n\t\treturn value;\n\t```",
+      );
+    }).toBe(true);
   });
 
   test("preserves directory and layout behavior across activities", async ({

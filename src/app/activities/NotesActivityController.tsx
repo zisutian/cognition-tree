@@ -27,7 +27,9 @@ function ActiveNotesActivity({
     <AppView
       activeActivityId="notes"
       createActivitySlots={(controls) => createNotesActivitySlots({
+        focusMode: controls.focusMode,
         onCollapseDetail: controls.onCollapseDetail,
+        onToggleFocusMode: controls.onToggleFocusMode,
         view,
       })}
       onActiveActivityChange={onActiveActivityChange}

@@ -68,6 +68,10 @@ export function createView(
         nodes: [],
         onSelectLine: () => undefined,
       },
+      referenceNavigation: {
+        navigate: () => undefined,
+        resolve: () => [],
+      },
       updateSource: () => undefined,
     },
     settings: {

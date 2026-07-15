@@ -2,11 +2,33 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   NoteDetailPanel,
+  NoteEditorPanel,
   NotesContext,
 } from "../../../../src/ui/activities/notes/NotesPanels";
 import { createView } from "../../viewFactory";
 
 describe("notes panels", () => {
+  it("exposes the workbench focus mode command from the editor title bar", () => {
+    const view = createView().notes;
+    const normalMarkup = renderToStaticMarkup(
+      <NoteEditorPanel
+        focusMode={false}
+        onToggleFocusMode={() => undefined}
+        view={view}
+      />,
+    );
+    const focusedMarkup = renderToStaticMarkup(
+      <NoteEditorPanel
+        focusMode
+        onToggleFocusMode={() => undefined}
+        view={view}
+      />,
+    );
+
+    expect(normalMarkup).toContain("进入专注模式");
+    expect(focusedMarkup).toContain("退出专注模式");
+  });
+
   it("keeps note and folder selection visually exclusive in the directory", () => {
     const baseView = createView();
     const markup = renderToStaticMarkup(

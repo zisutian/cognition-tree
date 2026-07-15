@@ -1,10 +1,17 @@
 import type { CtnDocument } from "./types";
 
+export const ctnGlobalReferenceType = "global-reference";
+export const ctnLocalReferenceType = "local-reference";
+
 export type CtnInlineReference = {
   lineNumber: number;
   text: string;
   type: string;
 };
+
+export function normalizeCtnReferenceText(text: string) {
+  return text.trim().replace(/\s+/g, " ");
+}
 
 export function collectCtnInlineReferences(
   document: CtnDocument,

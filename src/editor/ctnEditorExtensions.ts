@@ -31,6 +31,11 @@ import {
 import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 import { createCtnParseDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
+import {
+  createCtnReferenceNavigationExtension,
+  type CtnEditorReferenceTarget,
+} from "./ctnReferenceNavigation";
+import { createCtnCodeBlockEditingExtensions } from "./ctnCodeBlockEditing";
 
 export const ctnTabSizeCompartment = new Compartment();
 export const ctnParsingCompartment = new Compartment();
@@ -55,6 +60,9 @@ export function createCtnEditorExtensions(
   syntaxProfileRef: {
     current: CtnSyntaxProfile;
   },
+  onOpenReferenceRef: {
+    current: ((target: CtnEditorReferenceTarget) => void) | undefined;
+  },
   mode: "ctn" | "raw" = "ctn",
 ): Extension[] {
   return [
@@ -76,7 +84,11 @@ export function createCtnEditorExtensions(
     ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
     ctnParsingCompartment.of(
-      createCtnParsingExtensions(syntaxProfileRef, mode),
+      createCtnParsingExtensions(
+        syntaxProfileRef,
+        onOpenReferenceRef,
+        mode,
+      ),
     ),
     EditorView.contentAttributes.of({
       "aria-label": "CTN 原文",
@@ -96,6 +108,9 @@ export function createCtnEditorExtensions(
 
 export function createCtnParsingExtensions(
   syntaxProfileRef: { current: CtnSyntaxProfile },
+  onOpenReferenceRef: {
+    current: ((target: CtnEditorReferenceTarget) => void) | undefined;
+  },
   mode: "ctn" | "raw",
 ): Extension[] {
   if (mode === "raw") {
@@ -107,5 +122,10 @@ export function createCtnParsingExtensions(
   return [
     parseDecorationPlugin,
     createCtnDiagnosticTooltip(parseDecorationPlugin),
+    createCtnReferenceNavigationExtension(
+      parseDecorationPlugin,
+      onOpenReferenceRef,
+    ),
+    ...createCtnCodeBlockEditingExtensions(parseDecorationPlugin),
   ];
 }

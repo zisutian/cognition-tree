@@ -15,6 +15,9 @@ import type {
   EditorFocusRequest,
   NotesViewModel,
 } from "./notesViewModel";
+import {
+  resolveWorkspaceReferenceNavigation,
+} from "../../../../workspace/queries/workspaceReferenceNavigation";
 
 export function useNotesActivity({
   errorMessage,
@@ -94,6 +97,26 @@ export function useNotesActivity({
     outline: {
       nodes: outlineNodes,
       onSelectLine: onFocusLine,
+    },
+    referenceNavigation: {
+      navigate(destination) {
+        if (!findWorkspaceNote(workspace, destination.noteId)) {
+          return;
+        }
+
+        selection.selectNote(destination.noteId);
+        onFocusLine(destination.lineNumber);
+      },
+      resolve(target) {
+        return index && selection.activeNoteId
+          ? resolveWorkspaceReferenceNavigation({
+              activeNoteId: selection.activeNoteId,
+              index,
+              target,
+              workspace,
+            })
+          : [];
+      },
     },
     updateSource(source) {
       if (selection.activeNoteId) {

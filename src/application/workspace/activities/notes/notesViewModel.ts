@@ -7,6 +7,7 @@ import type {
   UiTreeNode,
 } from "../../projection/viewTree";
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
+import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
 
 export type EditorFocusRequest = {
   lineNumber: number;
@@ -28,6 +29,13 @@ export type NotesViewModel = {
   outline: {
     nodes: UiOutlineNode[];
     onSelectLine: (lineNumber: number) => void;
+  };
+  referenceNavigation: {
+    navigate: (destination: WorkspaceReferenceNavigationDestination) => void;
+    resolve: (target: {
+      text: string;
+      type: string;
+    }) => WorkspaceReferenceNavigationDestination[];
   };
   updateSource: (source: string) => void;
 };

@@ -11,6 +11,7 @@ import {
   ctnTabSizeCompartment,
 } from "./ctnEditorExtensions";
 import { createEditorValueSyncChange } from "./editorValueSync";
+import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
 import "./CtnEditor.css";
 
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
@@ -21,6 +22,7 @@ type CtnEditorProps = {
   syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
   onChange: (value: string) => void;
+  onOpenReference?: (target: CtnEditorReferenceTarget) => void;
 };
 
 export type CtnEditorFocusTarget = {
@@ -34,17 +36,23 @@ export function CtnEditor({
   syntaxProfile,
   value,
   onChange,
+  onOpenReference,
 }: CtnEditorProps) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
   const onChangeRef = useRef(onChange);
+  const onOpenReferenceRef = useRef(onOpenReference);
   const syntaxProfileRef = useRef(syntaxProfile);
   const tabDisplayWidthRef = useRef(syntaxProfile.tabDisplayWidth);
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    onOpenReferenceRef.current = onOpenReference;
+  }, [onOpenReference]);
 
   useEffect(() => {
     syntaxProfileRef.current = syntaxProfile;
@@ -79,6 +87,7 @@ export function CtnEditor({
         extensions: createCtnEditorExtensions(
           onChangeRef,
           syntaxProfileRef,
+          onOpenReferenceRef,
           mode,
         ),
       }),
@@ -123,7 +132,11 @@ export function CtnEditor({
 
     view.dispatch({
       effects: ctnParsingCompartment.reconfigure(
-        createCtnParsingExtensions(syntaxProfileRef, mode),
+        createCtnParsingExtensions(
+          syntaxProfileRef,
+          onOpenReferenceRef,
+          mode,
+        ),
       ),
     });
   }, [mode]);

@@ -1,4 +1,8 @@
-import { collectCtnInlineReferences } from "../../ctn/parser/inlineReferences";
+import {
+  collectCtnInlineReferences,
+  ctnGlobalReferenceType,
+  normalizeCtnReferenceText,
+} from "../../ctn/parser/inlineReferences";
 import { parseCtnDocument } from "../../ctn/parser/parseCtnDocument";
 import type { CtnDocument } from "../../ctn/parser/types";
 import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
@@ -74,10 +78,6 @@ export type WorkspaceParseIndexCache = {
   resolve(source: WorkspaceParseIndexSource): WorkspaceParseIndex;
 };
 
-function normalizeReferenceText(text: string) {
-  return text.trim().replace(/\s+/g, " ");
-}
-
 function createParsedWorkspaceNote(
   note: NoteRecord,
   syntaxProfile: CtnSyntaxProfile,
@@ -135,7 +135,7 @@ function createTitleIndex(notes: NoteRecord[]) {
   const titleIndex = new Map<string, NoteRecord[]>();
 
   for (const note of notes) {
-    const normalizedTitle = normalizeReferenceText(note.title);
+    const normalizedTitle = normalizeCtnReferenceText(note.title);
     const current = titleIndex.get(normalizedTitle);
 
     if (current) {
@@ -226,9 +226,9 @@ function buildWorkspaceNoteReferenceGraph(
 
     for (const reference of collectCtnInlineReferences(
       parsedNote.document,
-      "global-reference",
+      ctnGlobalReferenceType,
     )) {
-      const targetText = normalizeReferenceText(reference.text);
+      const targetText = normalizeCtnReferenceText(reference.text);
 
       if (!targetText) {
         continue;

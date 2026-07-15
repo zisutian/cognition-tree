@@ -2,6 +2,8 @@ import {
   CircleAlert,
   ChevronRight,
   FolderPlus,
+  Maximize2,
+  Minimize2,
   Plus,
 } from "lucide-react";
 import { useState } from "react";
@@ -21,6 +23,7 @@ import {
   TreeMoveQuickPick,
   type TreeNode,
 } from "../../shared/tree";
+import { useReferenceNavigation } from "./useReferenceNavigation";
 
 type NotesContextProps = {
   view: NotesViewModel;
@@ -139,7 +142,18 @@ export function NotesContext({ view }: NotesContextProps) {
   );
 }
 
-export function NoteEditorPanel({ view }: NotesContextProps) {
+export function NoteEditorPanel({
+  focusMode,
+  onToggleFocusMode,
+  view,
+}: NotesContextProps & {
+  focusMode: boolean;
+  onToggleFocusMode: () => void;
+}) {
+  const referenceNavigation = useReferenceNavigation(
+    view.referenceNavigation,
+  );
+
   if (!view.editor.hasActiveNote) {
     return (
       <Panel className="note-editor-panel" aria-label="笔记编辑">
@@ -161,9 +175,24 @@ export function NoteEditorPanel({ view }: NotesContextProps) {
       <PanelHeader
         title={view.editor.currentNoteTitle ?? "未命名笔记"}
         actions={
-          view.editor.errorMessage ? (
-            <span className="ui-error">{view.editor.errorMessage}</span>
-          ) : null
+          <>
+            {view.editor.errorMessage ? (
+              <span className="ui-error">{view.editor.errorMessage}</span>
+            ) : null}
+            <Button
+              aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+              onClick={onToggleFocusMode}
+              title={focusMode ? "退出专注模式" : "进入专注模式"}
+              type="button"
+              variant="icon"
+            >
+              {focusMode ? (
+                <Minimize2 aria-hidden="true" size={14} />
+              ) : (
+                <Maximize2 aria-hidden="true" size={14} />
+              )}
+            </Button>
+          </>
         }
       />
       <CtnEditor
@@ -172,7 +201,9 @@ export function NoteEditorPanel({ view }: NotesContextProps) {
         syntaxProfile={view.editor.syntaxProfile}
         value={view.editor.documentText}
         onChange={view.updateSource}
+        onOpenReference={referenceNavigation.openReference}
       />
+      {referenceNavigation.picker}
     </Panel>
   );
 }

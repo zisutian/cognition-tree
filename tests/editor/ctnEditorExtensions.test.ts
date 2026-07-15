@@ -24,8 +24,21 @@ describe("ctn editor extensions", () => {
 
   it("omits CTN parsing and diagnostics in raw mode", () => {
     const syntaxProfileRef = { current: defaultCtnSyntaxProfile };
+    const onOpenReferenceRef = { current: undefined };
 
-    expect(createCtnParsingExtensions(syntaxProfileRef, "raw")).toEqual([]);
-    expect(createCtnParsingExtensions(syntaxProfileRef, "ctn")).toHaveLength(2);
+    expect(
+      createCtnParsingExtensions(
+        syntaxProfileRef,
+        onOpenReferenceRef,
+        "raw",
+      ),
+    ).toEqual([]);
+    expect(
+      createCtnParsingExtensions(
+        syntaxProfileRef,
+        onOpenReferenceRef,
+        "ctn",
+      ),
+    ).toHaveLength(5);
   });
 });

@@ -15,6 +15,7 @@ describe("AppFrame", () => {
     context = true,
     detail = false,
     detailCollapsed = false,
+    focusMode = false,
   } = {}) {
     return renderToStaticMarkup(
       <AppFrame
@@ -28,6 +29,7 @@ describe("AppFrame", () => {
           detailCollapsed,
           detailResizeValue: 320,
           detailWidth: 320,
+          focusMode,
           isContextResizing: false,
           isDetailResizing: false,
           onContextResizeKeyDown: () => undefined,
@@ -67,6 +69,16 @@ describe("AppFrame", () => {
     expect(markup).toContain("app-detail-toggle");
     expect(markup).toContain("展开右侧详情");
     expect(markup).not.toContain("detail</aside>");
+  });
+
+  it("keeps only the activity bar and main slot in focus mode", () => {
+    const markup = renderFrame({ detail: true, focusMode: true });
+
+    expect(markup).toContain("is-focus-mode");
+    expect(markup).toContain("activity-bar");
+    expect(markup).toContain("main");
+    expect(markup).not.toContain('class="app-context"');
+    expect(markup).not.toContain('class="app-detail');
   });
 
   it("reduces collapsed detail to the compact row on narrow screens", () => {

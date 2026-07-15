@@ -134,6 +134,15 @@
   background: var(--ctn-tone-background, transparent);
 }
 
+.source-editor .ctn-active-code-block {
+  background: color-mix(
+    in srgb,
+    var(--color-selected) 64%,
+    var(--ctn-tone-background, transparent)
+  );
+  font-family: var(--font-code);
+}
+
 .source-editor .ctn-marker,
 .source-editor .ctn-inline {
   text-decoration-color: var(--ctn-tone-current, var(--color-fg-muted));

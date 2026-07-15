@@ -10,6 +10,7 @@ import {
 } from "react";
 
 type FeedbackActions = {
+  notify: (message: string) => void;
   notifyError: (error: unknown) => void;
   runAction: <Result>(action: () => Result) => Result | undefined;
 };
@@ -17,9 +18,13 @@ type FeedbackActions = {
 type Notification = {
   id: number;
   message: string;
+  tone: "error" | "info";
 };
 
 const unboundFeedbackActions: FeedbackActions = {
+  notify(message) {
+    throw new Error(message);
+  },
   notifyError(error) {
     throw error;
   },
@@ -42,11 +47,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       current.filter((notification) => notification.id !== notificationId),
     );
   }, []);
-  const notifyError = useCallback(
-    (error: unknown) => {
+  const addNotification = useCallback(
+    (message: string, tone: Notification["tone"]) => {
       const notification = {
         id: nextNotificationIdRef.current,
-        message: getErrorMessage(error),
+        message,
+        tone,
       };
 
       nextNotificationIdRef.current += 1;
@@ -54,8 +60,17 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+  const notify = useCallback(
+    (message: string) => addNotification(message, "info"),
+    [addNotification],
+  );
+  const notifyError = useCallback(
+    (error: unknown) => addNotification(getErrorMessage(error), "error"),
+    [addNotification],
+  );
   const actions = useMemo<FeedbackActions>(
     () => ({
+      notify,
       notifyError,
       runAction<Result>(action: () => Result) {
         try {
@@ -66,7 +81,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [notifyError],
+    [notify, notifyError],
   );
 
   return (
@@ -75,7 +90,11 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       {notifications.length > 0 ? (
         <div aria-label="通知" className="ui-notification-region">
           {notifications.map((notification) => (
-            <div className="ui-notification" key={notification.id} role="alert">
+            <div
+              className={`ui-notification ui-notification-${notification.tone}`}
+              key={notification.id}
+              role={notification.tone === "error" ? "alert" : "status"}
+            >
               <span>{notification.message}</span>
               <button
                 aria-label="关闭通知"

@@ -41,6 +41,7 @@ export function AppFrame({
     detailCollapsed,
     detailResizeValue,
     detailWidth,
+    focusMode,
     isContextResizing,
     isDetailResizing,
     onContextResizeKeyDown,
@@ -49,11 +50,12 @@ export function AppFrame({
     onDetailResizeStart,
     onDetailToggle,
   } = layout;
-  const hasContext = contextSlot !== null;
+  const hasContext = contextSlot !== null && !focusMode;
   const showContext = hasContext && !contextCollapsed;
-  const hasDetail = detailSlot !== null;
+  const hasDetail = detailSlot !== null && !focusMode;
   const frameClassName = cx(
     "app-frame",
+    focusMode && "is-focus-mode",
     showContext ? "has-context" : "no-context",
     hasDetail ? "has-detail" : "no-detail",
     detailCollapsed && hasDetail && "detail-collapsed",

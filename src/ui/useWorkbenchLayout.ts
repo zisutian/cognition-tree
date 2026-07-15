@@ -28,6 +28,7 @@ export type WorkbenchLayout = {
   detailWidth: number | null;
   isContextResizing: boolean;
   isDetailResizing: boolean;
+  focusMode: boolean;
   onContextResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onContextResizeStart: (event: PointerEvent<HTMLDivElement>) => void;
   onDetailResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
@@ -44,6 +45,7 @@ export function useWorkbenchLayout(repositoryId: string) {
   const [detailWidth, setDetailWidth] = useState<number | null>(null);
   const [isContextResizing, setIsContextResizing] = useState(false);
   const [isDetailResizing, setIsDetailResizing] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const removeResizeListenersRef = useRef<(() => void) | null>(null);
   const contextResizeValue = contextWidth ?? appContextDefaultWidth;
   const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
@@ -57,6 +59,7 @@ export function useWorkbenchLayout(repositoryId: string) {
 
   useEffect(() => {
     setContextWidth(loadRepositoryContextWidth(repositoryId));
+    setFocusMode(false);
   }, [repositoryId]);
 
   useEffect(() => {
@@ -171,6 +174,7 @@ export function useWorkbenchLayout(repositoryId: string) {
       setDetailWidth,
     );
   const expandPanels = () => {
+    setFocusMode(false);
     setContextCollapsed(false);
     setDetailCollapsed(false);
   };
@@ -184,6 +188,7 @@ export function useWorkbenchLayout(repositoryId: string) {
     detailWidth,
     isContextResizing,
     isDetailResizing,
+    focusMode,
     onContextResizeKeyDown: resizeContextByKeyboard,
     onContextResizeStart: startContextResize,
     onDetailResizeKeyDown: resizeDetailByKeyboard,
@@ -194,9 +199,11 @@ export function useWorkbenchLayout(repositoryId: string) {
   return {
     collapseDetail: () => setDetailCollapsed(true),
     expandPanels,
+    exitFocusMode: () => setFocusMode(false),
     setContextWidth: (width: number) =>
       setContextWidth(clampAppContextWidth(width)),
     layout,
+    toggleFocusMode: () => setFocusMode((current) => !current),
     toggleContext: () => setContextCollapsed((current) => !current),
   };
 }
