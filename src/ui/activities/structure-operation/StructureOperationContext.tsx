@@ -15,6 +15,7 @@ import {
 } from "../../shared/primitives";
 import {
   NoteTree,
+  TreeMoveQuickPick,
   type TreeNode,
 } from "../../shared/tree";
 
@@ -87,6 +88,7 @@ export function StructureOperationContext({
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
   const renameNode = (node: TreeNode, title: string) => {
     if (node.kind === "folder") {
       view.renameFolder(node.folderId, title);
@@ -186,8 +188,15 @@ export function StructureOperationContext({
         onDeleteNode={deleteNode}
         onMoveNode={view.moveTreeNode}
         onRenameNode={renameNode}
+        onRequestMoveNode={setMoveNode}
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}
+      />
+      <TreeMoveQuickPick
+        nodes={view.noteTree}
+        sourceNode={moveNode}
+        onClose={() => setMoveNode(null)}
+        onMove={view.moveTreeNode}
       />
     </div>
   );

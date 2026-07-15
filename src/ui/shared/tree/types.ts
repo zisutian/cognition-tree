@@ -131,6 +131,7 @@ export type NoteTreeProps = {
   onDeleteNode?: (node: TreeNode) => void;
   onMoveNode?: (request: TreeMoveRequest) => void;
   onRenameNode?: (node: TreeNode, title: string) => void;
+  onRequestMoveNode?: (node: TreeNode) => void;
   onSelectFolder?: (folderId: string) => void;
   onSelectNote?: (noteId: string) => void;
   onToggleFolder?: (folderId: string) => void;

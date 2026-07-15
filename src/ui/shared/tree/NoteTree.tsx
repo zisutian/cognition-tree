@@ -10,6 +10,12 @@ import type {
   SetStateAction,
 } from "react";
 import { useState } from "react";
+import { ConfirmDialog } from "../ConfirmDialog";
+import {
+  ContextMenu,
+  type ContextMenuPosition,
+} from "../ContextMenu";
+import { useFeedback } from "../FeedbackProvider";
 import { cx } from "../primitives";
 import {
   canDropTreeNode,
@@ -63,13 +69,16 @@ function isActiveTreeNode({
 type NoteTreeContentProps = NoteTreeProps & {
   dragState: TreeDragState | null;
   editingNode: { key: string; title: string } | null;
-  pendingDeleteNodeKey: string | null;
+  pendingDeleteNode: TreeNode | null;
   rootNodes: TreeNode[];
+  runAction: (action: () => void) => void;
+  setContextMenuNode: Dispatch<SetStateAction<TreeNode | null>>;
+  setContextMenuPosition: Dispatch<SetStateAction<ContextMenuPosition | null>>;
   setDragState: Dispatch<SetStateAction<TreeDragState | null>>;
   setEditingNode: Dispatch<
     SetStateAction<{ key: string; title: string } | null>
   >;
-  setPendingDeleteNodeKey: Dispatch<SetStateAction<string | null>>;
+  setPendingDeleteNode: Dispatch<SetStateAction<TreeNode | null>>;
 };
 
 function NoteTreeContent({
@@ -84,16 +93,20 @@ function NoteTreeContent({
   onDeleteNode,
   onMoveNode,
   onRenameNode,
+  onRequestMoveNode,
   onSelectFolder,
   onSelectNote,
   onToggleFolder,
   dragState,
   editingNode,
-  pendingDeleteNodeKey,
+  pendingDeleteNode,
   rootNodes,
+  runAction,
+  setContextMenuNode,
+  setContextMenuPosition,
   setDragState,
   setEditingNode,
-  setPendingDeleteNodeKey,
+  setPendingDeleteNode,
 }: NoteTreeContentProps) {
   return (
     <ul className={cx("ui-tree ui-directory-tree", className)}>
@@ -110,6 +123,9 @@ function NoteTreeContent({
         });
         const draggable = node.canDrag && (canDragNode?.(node) ?? true);
         const isEditing = editingNode?.key === nodeKey;
+        const pendingDeleteNodeKey = pendingDeleteNode
+          ? getTreeNodeReferenceKey(getTreeNodeReference(pendingDeleteNode))
+          : null;
         const isDeletePending = pendingDeleteNodeKey === nodeKey;
         const nodeState = {
           hasChildren,
@@ -141,7 +157,7 @@ function NoteTreeContent({
           const nextTitle = editingNode?.title.trim() ?? "";
 
           if (nextTitle && nextTitle !== node.title) {
-            onRenameNode?.(node, nextTitle);
+            runAction(() => onRenameNode?.(node, nextTitle));
           }
 
           setEditingNode(null);
@@ -182,6 +198,20 @@ function NoteTreeContent({
                     activeDestination: null,
                     activeTargetCanDrop: false,
                   };
+                });
+              }}
+              onContextMenu={(event) => {
+                if (!onRequestMoveNode) {
+                  return;
+                }
+
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+
+                setContextMenuNode(node);
+                setContextMenuPosition({
+                  x: event.clientX || rect.left + rect.width / 2,
+                  y: event.clientY || rect.bottom,
                 });
               }}
               onDragOver={(event) => {
@@ -240,11 +270,13 @@ function NoteTreeContent({
                     source,
                   })
                 ) {
-                  onMoveNode?.(
-                    createTreeMoveRequest({
-                      destination,
-                      source,
-                    }),
+                  runAction(() =>
+                    onMoveNode?.(
+                      createTreeMoveRequest({
+                        destination,
+                        source,
+                      }),
+                    ),
                   );
                 }
 
@@ -281,7 +313,7 @@ function NoteTreeContent({
                   className="ui-tree-row ui-directory-tree-row"
                   draggable={draggable}
                   onClick={() => {
-                    setPendingDeleteNodeKey(null);
+                    setPendingDeleteNode(null);
 
                     if (node.kind === "note") {
                       onSelectNote?.(node.noteId);
@@ -328,31 +360,13 @@ function NoteTreeContent({
                       <button onClick={commitRename} type="button">确定</button>
                       <button onClick={() => setEditingNode(null)} type="button">取消</button>
                     </>
-                  ) : isDeletePending ? (
-                    <>
-                      <button
-                        onClick={() => {
-                          onDeleteNode?.(node);
-                          setPendingDeleteNodeKey(null);
-                        }}
-                        type="button"
-                      >
-                        确认
-                      </button>
-                      <button
-                        onClick={() => setPendingDeleteNodeKey(null)}
-                        type="button"
-                      >
-                        取消
-                      </button>
-                    </>
                   ) : (
                     <>
                       {onRenameNode ? (
                         <button
                           onClick={() => {
                             setEditingNode({ key: nodeKey, title: node.title });
-                            setPendingDeleteNodeKey(null);
+                            setPendingDeleteNode(null);
                           }}
                           type="button"
                         >
@@ -363,7 +377,7 @@ function NoteTreeContent({
                         <button
                           onClick={() => {
                             setEditingNode(null);
-                            setPendingDeleteNodeKey(nodeKey);
+                            setPendingDeleteNode(node);
                           }}
                           type="button"
                         >
@@ -384,16 +398,20 @@ function NoteTreeContent({
                 dragState={dragState}
                 editingNode={editingNode}
                 nodes={node.children}
-                pendingDeleteNodeKey={pendingDeleteNodeKey}
+                pendingDeleteNode={pendingDeleteNode}
                 rootNodes={rootNodes}
+                runAction={runAction}
                 renderNoteBadges={renderNoteBadges}
                 renderNodeLeading={renderNodeLeading}
+                setContextMenuNode={setContextMenuNode}
+                setContextMenuPosition={setContextMenuPosition}
                 setDragState={setDragState}
                 setEditingNode={setEditingNode}
-                setPendingDeleteNodeKey={setPendingDeleteNodeKey}
+                setPendingDeleteNode={setPendingDeleteNode}
                 onDeleteNode={onDeleteNode}
                 onMoveNode={onMoveNode}
                 onRenameNode={onRenameNode}
+                onRequestMoveNode={onRequestMoveNode}
                 onSelectFolder={onSelectFolder}
                 onSelectNote={onSelectNote}
                 onToggleFolder={onToggleFolder}
@@ -407,12 +425,16 @@ function NoteTreeContent({
 }
 
 export function NoteTree(props: NoteTreeProps) {
+  const { runAction } = useFeedback();
+  const [contextMenuNode, setContextMenuNode] = useState<TreeNode | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] =
+    useState<ContextMenuPosition | null>(null);
   const [dragState, setDragState] = useState<TreeDragState | null>(null);
   const [editingNode, setEditingNode] = useState<{
     key: string;
     title: string;
   } | null>(null);
-  const [pendingDeleteNodeKey, setPendingDeleteNodeKey] = useState<string | null>(
+  const [pendingDeleteNode, setPendingDeleteNode] = useState<TreeNode | null>(
     null,
   );
   const rootDestination = { kind: "root" } as const;
@@ -505,11 +527,13 @@ export function NoteTree(props: NoteTreeProps) {
             source,
           })
         ) {
-          props.onMoveNode(
-            createTreeMoveRequest({
-              destination: rootDestination,
-              source,
-            }),
+          runAction(() =>
+            props.onMoveNode?.(
+              createTreeMoveRequest({
+                destination: rootDestination,
+                source,
+              }),
+            ),
           );
         }
 
@@ -526,11 +550,49 @@ export function NoteTree(props: NoteTreeProps) {
         {...props}
         dragState={dragState}
         editingNode={editingNode}
-        pendingDeleteNodeKey={pendingDeleteNodeKey}
+        pendingDeleteNode={pendingDeleteNode}
         rootNodes={props.nodes}
+        runAction={runAction}
+        setContextMenuNode={setContextMenuNode}
+        setContextMenuPosition={setContextMenuPosition}
         setDragState={setDragState}
         setEditingNode={setEditingNode}
-        setPendingDeleteNodeKey={setPendingDeleteNodeKey}
+        setPendingDeleteNode={setPendingDeleteNode}
+      />
+      <ContextMenu
+        ariaLabel="目录操作"
+        items={contextMenuNode && props.onRequestMoveNode
+          ? [
+              {
+                id: "move-to",
+                label: "移动到…",
+                onSelect: () => props.onRequestMoveNode?.(contextMenuNode),
+              },
+            ]
+          : []}
+        position={contextMenuPosition}
+        onClose={() => {
+          setContextMenuNode(null);
+          setContextMenuPosition(null);
+        }}
+      />
+      <ConfirmDialog
+        confirmLabel="删除"
+        description={pendingDeleteNode
+          ? `此操作会删除“${pendingDeleteNode.title}”${
+              pendingDeleteNode.kind === "folder" ? "及其全部内容" : ""
+            }。`
+          : ""}
+        open={pendingDeleteNode !== null}
+        title={pendingDeleteNode?.kind === "folder" ? "删除文件夹" : "删除笔记"}
+        onCancel={() => setPendingDeleteNode(null)}
+        onConfirm={() => {
+          if (pendingDeleteNode) {
+            runAction(() => props.onDeleteNode?.(pendingDeleteNode));
+          }
+
+          setPendingDeleteNode(null);
+        }}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canDropTreeNode,
   createTreeMoveRequest,
+  createTreeMoveOptions,
   createTreeNodeDragPayload,
   createTreeRowDropDestination,
   getStructureTreeIndentWidthPx,
@@ -115,7 +116,7 @@ describe("shared trees", () => {
     expect(markup).not.toContain("aria-expanded=");
   });
 
-  it("provides shared inline rename and confirmed delete actions", () => {
+  it("provides inline rename and delete entry points without inline confirmation", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
         nodes={[
@@ -137,6 +138,8 @@ describe("shared trees", () => {
     expect(markup).toContain("ui-tree-actions");
     expect(markup).toContain(">改<");
     expect(markup).toContain(">删<");
+    expect(markup).not.toContain(">确认<");
+    expect(markup).not.toContain('role="alertdialog"');
     expect(treeCss).toContain(".ui-tree-row-frame.is-delete-pending");
   });
 
@@ -370,6 +373,49 @@ describe("shared trees", () => {
         source,
       }),
     ).toBe(true);
+  });
+
+  it("lists root and valid folders for non-pointer moves", () => {
+    const sourceFolder = {
+      canDrag: true,
+      children: [
+        {
+          canDrag: true,
+          children: [],
+          folderId: "folder-child",
+          id: "folder-child",
+          kind: "folder" as const,
+          parentFolderId: "folder-source",
+          title: "Child",
+        },
+      ],
+      folderId: "folder-source",
+      id: "folder-source",
+      kind: "folder" as const,
+      parentFolderId: null,
+      title: "Source",
+    };
+    const nodes = [
+      sourceFolder,
+      {
+        canDrag: true,
+        children: [],
+        folderId: "folder-target",
+        id: "folder-target",
+        kind: "folder" as const,
+        parentFolderId: null,
+        title: "Target",
+      },
+    ];
+
+    expect(createTreeMoveOptions(nodes, sourceFolder)).toEqual([
+      expect.objectContaining({ id: "root", label: "根目录" }),
+      expect.objectContaining({
+        destination: { folderId: "folder-target", kind: "inside" },
+        id: "inside:folder-target",
+        label: "Target",
+      }),
+    ]);
   });
 
   it("renders structure trees with variable text markers and line metadata", () => {

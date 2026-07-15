@@ -4,6 +4,7 @@ import type {
   HTMLAttributes,
   ReactNode,
 } from "react";
+import { forwardRef } from "react";
 
 export function cx(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(" ");
@@ -81,17 +82,21 @@ export function Section({
   );
 }
 
-export function Button({
-  className,
-  variant = "secondary",
-  ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "ghost" | "icon" | "primary" | "secondary";
-}) {
-  return (
-    <button className={cx("ui-button", `ui-button-${variant}`, className)} {...props} />
-  );
-}
+};
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button({ className, variant = "secondary", ...props }, ref) {
+    return (
+      <button
+        className={cx("ui-button", `ui-button-${variant}`, className)}
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
 
 export function ToggleButton({
   className,

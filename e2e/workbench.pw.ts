@@ -136,6 +136,21 @@ test.describe.serial("workbench browser baseline", () => {
       ).getByTitle("Gamma"),
     ).toBeVisible();
 
+    await noteContext.getByTitle("Gamma").click({ button: "right" });
+    const directoryMenu = page.getByRole("menu", { name: "目录操作" });
+
+    await expect(directoryMenu.getByRole("menuitem")).toHaveCount(1);
+    await expect(directoryMenu).not.toContainText("删除");
+    await directoryMenu.getByRole("menuitem", { name: "移动到…" }).click();
+
+    const moveQuickPick = page.getByRole("dialog", { name: "移动到" });
+
+    await moveQuickPick.getByRole("textbox", { name: "移动到" }).fill("资料");
+    await moveQuickPick.getByRole("option", { name: /资料/ }).click();
+    await expect(
+      folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma"),
+    ).toBeVisible();
+
     await folder.click();
     await expect(alpha).toBeHidden();
     await expect(folder.locator(".."))
@@ -147,11 +162,22 @@ test.describe.serial("workbench browser baseline", () => {
     await expect(alpha).toBeVisible();
     await alpha.click();
     await noteContext.getByRole("button", { name: "新建笔记" }).click();
-    await expect(
-      treeSurface.locator(
-        ":scope > .ui-directory-tree > li > .ui-tree-row-frame",
-      ).getByTitle("未命名笔记"),
-    ).toBeVisible();
+    const rootUnnamedNote = noteContext.getByTitle("未命名笔记").locator("..");
+
+    await expect(rootUnnamedNote).toBeVisible();
+    await expect(rootUnnamedNote.locator("xpath=../../.."))
+      .toHaveClass(/ui-directory-tree-surface/);
+    await rootUnnamedNote.getByRole("button", { name: "删" }).click();
+
+    const deleteDialog = page.getByRole("alertdialog", { name: "删除笔记" });
+
+    await expect(deleteDialog).toBeVisible();
+    await deleteDialog.getByRole("button", { name: "取消" }).click();
+    await expect(rootUnnamedNote).toBeVisible();
+
+    await rootUnnamedNote.getByRole("button", { name: "删" }).click();
+    await deleteDialog.getByRole("button", { name: "删除" }).click();
+    await expect(rootUnnamedNote).toBeHidden();
 
     await contextResize.focus();
     await contextResize.press("ArrowRight");

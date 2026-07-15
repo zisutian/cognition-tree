@@ -18,6 +18,7 @@ import {
 import {
   NoteTree,
   StructureTree,
+  TreeMoveQuickPick,
   type TreeNode,
 } from "../../shared/tree";
 
@@ -31,6 +32,7 @@ export function NotesContext({ view }: NotesContextProps) {
   );
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderTitle, setFolderTitle] = useState("新文件夹");
+  const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
   const directory = view.directory;
   const createFolder = () => {
     const title = folderTitle.trim();
@@ -119,9 +121,16 @@ export function NotesContext({ view }: NotesContextProps) {
         onDeleteNode={deleteNode}
         onMoveNode={directory.moveTreeNode}
         onRenameNode={renameNode}
+        onRequestMoveNode={setMoveNode}
         onSelectFolder={directory.selectFolder}
         onSelectNote={directory.selectNote}
         onToggleFolder={toggleFolder}
+      />
+      <TreeMoveQuickPick
+        nodes={directory.noteTree}
+        sourceNode={moveNode}
+        onClose={() => setMoveNode(null)}
+        onMove={directory.moveTreeNode}
       />
       {directory.noteTree.length === 0 ? (
         <p className="context-empty">没有笔记。</p>

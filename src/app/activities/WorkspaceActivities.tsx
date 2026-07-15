@@ -11,6 +11,7 @@ import { activityItems } from "../../ui/ActivityBar";
 import AppView from "../../ui/AppView";
 import { PlaceholderPanel } from "../../ui/activities/PlaceholderPanel";
 import type { ActivityId } from "../../ui/activityTypes";
+import { FeedbackProvider } from "../../ui/shared/FeedbackProvider";
 import {
   useWorkbenchLayout,
   type WorkbenchController,
@@ -140,7 +141,7 @@ export function WorkspaceActivities({
   }, [activeActivityId]);
 
   return (
-    <>
+    <FeedbackProvider>
       {lazyActivityControllers.map(({ activityId, Controller }) => {
         const active = activeActivityId === activityId;
 
@@ -168,6 +169,6 @@ export function WorkspaceActivities({
           workbench={workbench}
         />
       ) : null}
-    </>
+    </FeedbackProvider>
   );
 }
