@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveStructureOperationDirectorySelection } from "../../../../../src/application/workspace/activities/structure-operation/directorySelection";
+import {
+  resolveStructureOperationDirectorySelection,
+  resolveSwappedStructureOperationPair,
+} from "../../../../../src/application/workspace/activities/structure-operation/directorySelection";
 
 describe("structure operation directory selection", () => {
   it("advances source and target selection as one explicit state machine", () => {
@@ -53,5 +56,23 @@ describe("structure operation directory selection", () => {
       nextPhase: "selectSource",
       noteId: "note-structure",
     });
+  });
+
+  it("swaps a complete source and target pair", () => {
+    expect(
+      resolveSwappedStructureOperationPair({
+        sourceNoteId: "note-source",
+        targetNoteId: "note-target",
+      }),
+    ).toEqual({
+      sourceNoteId: "note-target",
+      targetNoteId: "note-source",
+    });
+    expect(
+      resolveSwappedStructureOperationPair({
+        sourceNoteId: "note-source",
+        targetNoteId: "",
+      }),
+    ).toBeNull();
   });
 });

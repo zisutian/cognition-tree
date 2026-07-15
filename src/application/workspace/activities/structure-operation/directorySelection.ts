@@ -22,6 +22,21 @@ export type StructureOperationDirectorySelection =
       nextPhase: "selectSource";
     };
 
+export function resolveSwappedStructureOperationPair({
+  sourceNoteId,
+  targetNoteId,
+}: {
+  sourceNoteId: UiNoteId;
+  targetNoteId: UiNoteId;
+}) {
+  return sourceNoteId && targetNoteId && sourceNoteId !== targetNoteId
+    ? {
+        sourceNoteId: targetNoteId,
+        targetNoteId: sourceNoteId,
+      }
+    : null;
+}
+
 export function resolveStructureOperationDirectorySelection({
   mode,
   noteId,

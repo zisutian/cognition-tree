@@ -253,6 +253,8 @@ describe("activity slots", () => {
     expect(main).toContain("结构操作");
     expect(main).toContain("源笔记 · Source note");
     expect(main).toContain("目标笔记 · Target note");
+    expect(main).toContain("aria-label=\"交换源笔记和目标笔记\"");
+    expect(main).toContain("lucide-arrow-left-right");
     expect(main).toContain(
       "ui-tree ui-structure-tree structure-operation-target-tree",
     );
@@ -317,7 +319,7 @@ describe("activity slots", () => {
     expect(context).not.toContain("点选笔记结构");
     expect(context).not.toContain("lucide-file-output");
     expect(context).not.toContain("lucide-file-input");
-    expect(context).not.toContain("draggable=\"true\"");
+    expect(context).toContain("draggable=\"true\"");
     expect(main).toContain(
       "ui-tree ui-structure-tree structure-operation-target-tree",
     );

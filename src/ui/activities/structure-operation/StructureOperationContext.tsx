@@ -15,7 +15,6 @@ import {
 } from "../../shared/primitives";
 import {
   NoteTree,
-  type TreeMoveRequest,
   type TreeNode,
 } from "../../shared/tree";
 
@@ -80,24 +79,6 @@ function StructureOperationDirectoryStatusIcon({
   );
 }
 
-export function canPairStructureOperationDirectoryNodes(
-  {
-    mode,
-    source,
-    target,
-  }: {
-    mode: StructureOperationDirectoryMode;
-    source: TreeMoveRequest["source"];
-    target: TreeMoveRequest["target"];
-  },
-) {
-  return (
-    mode === "betweenNotes" &&
-    source.kind === "note" &&
-    target.kind === "note"
-  );
-}
-
 export function StructureOperationContext({
   view,
 }: {
@@ -106,25 +87,6 @@ export function StructureOperationContext({
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const directoryPairingEnabled = view.mode === "betweenNotes";
-  const moveNode = (request: TreeMoveRequest) => {
-    if (
-      !canPairStructureOperationDirectoryNodes({
-        mode: view.mode,
-        source: request.source,
-        target: request.target,
-      }) ||
-      request.source.kind !== "note" ||
-      request.target.kind !== "note"
-    ) {
-      return;
-    }
-
-    view.onPairNotesForStructureOperation(
-      request.source.noteId,
-      request.target.noteId,
-    );
-  };
   const renameNode = (node: TreeNode, title: string) => {
     if (node.kind === "folder") {
       view.renameFolder(node.folderId, title);
@@ -218,19 +180,11 @@ export function StructureOperationContext({
       />
       <NoteTree
         activeNode={activeNoteId ? { kind: "note", noteId: activeNoteId } : null}
-        canDragNode={(node) => directoryPairingEnabled && node.kind === "note"}
-        canDropNode={(source, target) =>
-          canPairStructureOperationDirectoryNodes({
-            mode: view.mode,
-            source,
-            target,
-          })
-        }
         collapsedFolderIds={collapsedFolderIds}
         nodes={view.noteTree}
         renderNodeLeading={renderNodeLeading}
         onDeleteNode={deleteNode}
-        onMoveNode={directoryPairingEnabled ? moveNode : undefined}
+        onMoveNode={view.moveTreeNode}
         onRenameNode={renameNode}
         onSelectNote={selectNote}
         onToggleFolder={toggleFolder}

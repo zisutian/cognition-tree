@@ -16,10 +16,7 @@ export type StructureOperationActivityViewModel =
       targetPositionValue: string,
     ) => void;
     onSelectDirectoryNote: (noteId: UiNoteId) => void;
-    onPairNotesForStructureOperation: (
-      sourceNoteId: UiNoteId,
-      targetNoteId: UiNoteId,
-    ) => void;
     onSetMode: (mode: UiStructureOperationView["mode"]) => void;
+    onSwapSourceAndTargetNotes: () => void;
     pairSelectionPhase: StructureOperationPairSelectionPhase;
   };

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  canPairStructureOperationDirectoryNodes,
   getStructureOperationDirectoryNoteStatus,
 } from "../../../../src/ui/activities/structure-operation/StructureOperationContext";
 import { findBlockByLineNumber } from "../../../../src/ui/activities/structure-operation/structureOperationBlocks";
@@ -88,56 +87,6 @@ describe("structure operation panels", () => {
         targetNoteId: "note-target",
       }),
     ).toBe("");
-  });
-
-  it("only allows note-to-note directory pairing", () => {
-    const sourceNote = {
-      kind: "note" as const,
-      noteId: "note-source",
-      parentFolderId: null,
-    };
-    const targetNote = {
-      kind: "note" as const,
-      noteId: "note-target",
-      parentFolderId: null,
-    };
-    const folder = {
-      folderId: "folder-target",
-      kind: "folder" as const,
-      parentFolderId: null,
-    };
-
-    expect(
-      canPairStructureOperationDirectoryNodes({
-        mode: "betweenNotes",
-        source: sourceNote,
-        target: targetNote,
-      }),
-    )
-      .toBe(true);
-    expect(
-      canPairStructureOperationDirectoryNodes({
-        mode: "betweenNotes",
-        source: sourceNote,
-        target: folder,
-      }),
-    )
-      .toBe(false);
-    expect(
-      canPairStructureOperationDirectoryNodes({
-        mode: "betweenNotes",
-        source: folder,
-        target: targetNote,
-      }),
-    )
-      .toBe(false);
-    expect(
-      canPairStructureOperationDirectoryNodes({
-        mode: "withinNote",
-        source: sourceNote,
-        target: targetNote,
-      }),
-    ).toBe(false);
   });
 
   it("classifies structure block drop targets from the dragged subtree", () => {
@@ -276,5 +225,25 @@ describe("structure operation panels", () => {
     );
 
     expect(columnStyleSource).toContain("align-content: start");
+  });
+
+  it("aligns the pair swap control through the title row height", () => {
+    const swapStyleStart = structureOperationCss.indexOf(
+      ".structure-operation-pair-swap",
+    );
+    const swapStyleEnd = structureOperationCss.indexOf(
+      ".structure-operation-column",
+      swapStyleStart,
+    );
+    const swapStyleSource = structureOperationCss.slice(
+      swapStyleStart,
+      swapStyleEnd,
+    );
+
+    expect(swapStyleSource).not.toContain("transform");
+    expect(structureOperationCss).toContain(
+      ".structure-operation-column > .ui-section-title",
+    );
+    expect(structureOperationCss).toContain("min-height: var(--ui-icon-size)");
   });
 });

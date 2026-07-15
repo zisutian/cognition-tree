@@ -1,9 +1,10 @@
+import { ArrowLeftRight } from "lucide-react";
 import {
   useEffect,
   useState,
 } from "react";
 import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
-import { Section } from "../../shared/primitives";
+import { Button, Section } from "../../shared/primitives";
 import { StructureTree } from "../../shared/tree";
 import {
   blockLineDragDataType,
@@ -100,6 +101,22 @@ export function StructureOperationPairView({
           <p className="ui-muted">源笔记没有可移动块。</p>
         )}
       </Section>
+      <div className="structure-operation-pair-swap">
+        <Button
+          aria-label="交换源笔记和目标笔记"
+          disabled={
+            !view.sourceNote ||
+            !view.targetNote ||
+            view.sourceNote.id === view.targetNote.id
+          }
+          onClick={view.onSwapSourceAndTargetNotes}
+          title="交换源笔记和目标笔记"
+          type="button"
+          variant="icon"
+        >
+          <ArrowLeftRight aria-hidden="true" size={14} />
+        </Button>
+      </div>
       <Section
         className="structure-operation-column"
         title={`目标笔记 · ${view.targetNote?.title ?? "未选择"}`}

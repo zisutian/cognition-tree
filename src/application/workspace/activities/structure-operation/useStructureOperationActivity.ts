@@ -16,7 +16,10 @@ import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
 import { useWorkspaceParseIndex } from "../../runtime/useWorkspaceParseIndex";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
 import { resolveDifferentNoteId } from "../../selection/viewSelection";
-import { resolveStructureOperationDirectorySelection } from "./directorySelection";
+import {
+  resolveStructureOperationDirectorySelection,
+  resolveSwappedStructureOperationPair,
+} from "./directorySelection";
 import type { StructureOperationActivityViewModel } from "./structureOperationViewModel";
 import { parseUiStructureOperationTargetPosition } from "./targetPosition";
 import type { StructureOperationState } from "./useStructureOperationState";
@@ -151,17 +154,18 @@ export function useStructureOperationActivity({
 
     setPairSelectionPhase(directorySelection.nextPhase);
   };
-  const pairNotes = (nextSourceNoteId: UiNoteId, nextTargetNoteId: UiNoteId) => {
-    if (
-      nextSourceNoteId === nextTargetNoteId ||
-      !noteExists(nextSourceNoteId) ||
-      !noteExists(nextTargetNoteId)
-    ) {
+  const swapSourceAndTargetNotes = () => {
+    const swappedPair = resolveSwappedStructureOperationPair({
+      sourceNoteId,
+      targetNoteId,
+    });
+
+    if (!swappedPair) {
       return;
     }
 
-    setSourceNoteId(nextSourceNoteId);
-    setTargetNoteId(nextTargetNoteId);
+    setSourceNoteId(swappedPair.sourceNoteId);
+    setTargetNoteId(swappedPair.targetNoteId);
     setMode("betweenNotes");
     setPairSelectionPhase("selectSource");
   };
@@ -261,12 +265,13 @@ export function useStructureOperationActivity({
       effectiveContext?.syntaxProfile.tabDisplayWidth ??
       defaultSyntaxProfile.tabDisplayWidth,
     mode,
+    moveTreeNode: selection.moveTreeNode,
     noteTree,
     onMoveStructureBlockBetweenNotes: moveBlockBetweenNotes,
     onMoveStructureBlockWithinNote: moveBlockWithinNote,
-    onPairNotesForStructureOperation: pairNotes,
     onSelectDirectoryNote: selectDirectoryNote,
     onSetMode: setOperationMode,
+    onSwapSourceAndTargetNotes: swapSourceAndTargetNotes,
     pairSelectionPhase,
     renameFolder: selection.renameFolder,
     renameNote: selection.renameNote,

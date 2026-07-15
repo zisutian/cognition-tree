@@ -86,6 +86,7 @@ export function createView(
       deleteNote: () => undefined,
       indentUnitCount: defaultCtnSyntaxProfile.tabDisplayWidth,
       mode: "betweenNotes",
+      moveTreeNode: () => undefined,
       noteTree: [
         {
           canDrag: true,
@@ -108,9 +109,9 @@ export function createView(
       ],
       onMoveStructureBlockBetweenNotes: () => undefined,
       onMoveStructureBlockWithinNote: () => undefined,
-      onPairNotesForStructureOperation: () => undefined,
       onSelectDirectoryNote: () => undefined,
       onSetMode: () => undefined,
+      onSwapSourceAndTargetNotes: () => undefined,
       pairSelectionPhase: "selectSource",
       renameFolder: () => undefined,
       renameNote: () => undefined,

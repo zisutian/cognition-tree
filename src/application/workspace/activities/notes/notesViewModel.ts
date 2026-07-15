@@ -4,7 +4,6 @@ import type {
   UiDirectoryActiveNode,
   UiFolderId,
   UiNoteId,
-  UiTreeMoveRequest,
   UiTreeNode,
 } from "../../projection/viewTree";
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
@@ -20,7 +19,6 @@ export type NotesViewModel = {
     activeNode: UiDirectoryActiveNode | null;
     createFolder: (parentFolderId: UiFolderId | null, title: string) => void;
     createNote: () => void;
-    moveTreeNode: (request: UiTreeMoveRequest) => void;
     noteTree: UiTreeNode[];
     selectFolder: (folderId: UiFolderId) => void;
     selectNote: (noteId: UiNoteId) => void;

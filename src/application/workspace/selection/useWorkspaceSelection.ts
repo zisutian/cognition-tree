@@ -25,6 +25,7 @@ import {
 export type WorkspaceDirectoryMutations = {
   deleteFolder: (folderId: UiFolderId) => void;
   deleteNote: (noteId: UiNoteId) => void;
+  moveTreeNode: (request: UiTreeMoveRequest) => void;
   renameFolder: (folderId: UiFolderId, title: string) => void;
   renameNote: (noteId: UiNoteId, title: string) => void;
 };
@@ -35,7 +36,6 @@ export type WorkspaceSelection = WorkspaceDirectoryMutations & {
   activeNoteId: UiNoteId | null;
   createFolder: (parentFolderId: UiFolderId | null, title: string) => void;
   createNote: () => void;
-  moveTreeNode: (request: UiTreeMoveRequest) => void;
   selectFolder: (folderId: UiFolderId) => void;
   selectNote: (noteId: UiNoteId) => void;
 };
