@@ -13,6 +13,7 @@ import { appResizeKeyboardStep } from "../src/ui/frameResize";
 import { createDefaultWorkspaceSyntaxSource } from "../src/workspace/context/workspaceSyntax";
 import { initializeCtnSourceBlockMetadata } from "../src/ctn/metadata/sourceMetadata";
 import { defaultCtnSyntaxProfile } from "../src/ctn/syntax/defaultSyntaxProfile";
+import { readGraphCanvasNodes } from "./support/graphCanvas";
 
 const apiBaseUrl = "http://127.0.0.1:3317";
 const repositoryId = "e2e";
@@ -117,6 +118,65 @@ async function seedRawRepository(api: APIRequestContext) {
   expect(createResponse.ok()).toBe(true);
 }
 
+async function seedInteractionRepository(api: APIRequestContext) {
+  const createResponse = await api.post("/api/repositories", {
+    data: {
+      content: {
+        syntaxSourceFile: {
+          fileName: repositorySyntaxFileName,
+          source: createDefaultWorkspaceSyntaxSource(),
+        },
+        workspace: {
+          id: "interaction-workspace",
+          name: "交互回归仓库",
+          notes: [
+            {
+              createdAt: timestamp,
+              id: "interaction-source",
+              source: createSeedSource(
+                [
+                  "Source",
+                  "\t- Source Child",
+                  "\t\t: Source Grandchild",
+                  "\t- Source Sibling",
+                ].join("\n"),
+                300,
+              ),
+              title: "Source",
+              updatedAt: timestamp,
+            },
+            {
+              createdAt: timestamp,
+              id: "interaction-target",
+              source: createSeedSource(
+                "Target\n\t- Target Child",
+                400,
+              ),
+              title: "Target",
+              updatedAt: timestamp,
+            },
+          ],
+          tree: [
+            {
+              id: "tree-interaction-source",
+              kind: "note",
+              noteId: "interaction-source",
+            },
+            {
+              id: "tree-interaction-target",
+              kind: "note",
+              noteId: "interaction-target",
+            },
+          ],
+        },
+      },
+      id: "interactions",
+    },
+  });
+
+  expect(createResponse.ok()).toBe(true);
+}
+
 async function seedLargeTreeRepository(api: APIRequestContext) {
   const noteCount = 600;
   const structureBlockCount = 600;
@@ -190,6 +250,7 @@ test.describe.serial("workbench browser baseline", () => {
     api = await createRequest.newContext({ baseURL: apiBaseUrl });
     await seedRepository(api);
     await seedRawRepository(api);
+    await seedInteractionRepository(api);
     await seedLargeTreeRepository(api);
   });
 
@@ -481,6 +542,86 @@ test.describe.serial("workbench browser baseline", () => {
     });
   });
 
+  test("moves structure blocks through pointer drag targets", async ({
+    page,
+  }) => {
+    await openWorkbench(page);
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption("interactions");
+    await getActivityButton(page, "结构操作").click();
+
+    const columns = page.locator(".structure-operation-column");
+    const sourceColumn = columns.first();
+    const targetColumn = columns.nth(1);
+
+    await expect(
+      sourceColumn.getByText("源笔记 · Source", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      targetColumn.getByText("目标笔记 · Target", { exact: true }),
+    ).toBeVisible();
+
+    const sourceChild = sourceColumn.getByTitle("组分: Source Child");
+    const targetChild = targetColumn.getByTitle("组分: Target Child");
+
+    await sourceChild.dragTo(targetChild);
+    await expect(sourceColumn.getByTitle("组分: Source Child")).toBeHidden();
+    await expect(targetColumn.getByTitle("组分: Source Child")).toBeVisible();
+
+    await expect.poll(async () => {
+      const response = await api.get(
+        "/api/repositories/interactions/snapshot",
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const targetSource = snapshot.workspace.notes.find(
+        ({ id }) => id === "interaction-target",
+      )?.source ?? "";
+      const editableLines = targetSource
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("@ctn-block"));
+
+      return editableLines.includes("\t\t- Source Child");
+    }).toBe(true);
+
+    await page.getByRole("button", { name: "笔记结构", exact: true }).click();
+    await page.locator(".app-context").getByTitle("Target").click();
+
+    const structureColumn = page.locator(".structure-operation-column");
+
+    await expect(
+      structureColumn.getByText("笔记结构 · Target", { exact: true }),
+    ).toBeVisible();
+
+    const nestedSourceChild = structureColumn.getByTitle(
+      "组分: Source Child",
+    );
+    const targetSibling = structureColumn.getByTitle("组分: Target Child");
+    const targetSiblingBox = await targetSibling.boundingBox();
+
+    expect(targetSiblingBox).not.toBeNull();
+    await nestedSourceChild.dragTo(targetSibling, {
+      targetPosition: {
+        x: 12,
+        y: Math.max(1, Math.floor((targetSiblingBox?.height ?? 1) * 0.75)),
+      },
+    });
+    await expect.poll(async () => {
+      const response = await api.get(
+        "/api/repositories/interactions/snapshot",
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const targetSource = snapshot.workspace.notes.find(
+        ({ id }) => id === "interaction-target",
+      )?.source ?? "";
+      const editableLines = targetSource
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("@ctn-block"));
+
+      return editableLines.includes("\t- Source Child") &&
+        !editableLines.includes("\t\t- Source Child");
+    }).toBe(true);
+  });
+
   test("keeps syntax popovers and draft state stable", async ({ page }) => {
     await openWorkbench(page);
     await getActivityButton(page, "语法").click();
@@ -504,7 +645,7 @@ test.describe.serial("workbench browser baseline", () => {
     await expect(syntaxName).toHaveValue("浏览器回归语法");
   });
 
-  test("keeps the reference graph canvas size stable across re-entry", async ({
+  test("switches graph selection without shrinking the canvas", async ({
     page,
   }) => {
     await openWorkbench(page);
@@ -516,6 +657,46 @@ test.describe.serial("workbench browser baseline", () => {
     const initialBox = await canvas.boundingBox();
 
     expect(initialBox).not.toBeNull();
+
+    await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+      .toBeGreaterThanOrEqual(2);
+    let nodeSamples = await readGraphCanvasNodes(canvas);
+    const firstNode = nodeSamples[0];
+    const secondNode = nodeSamples.at(-1);
+
+    expect(firstNode).toBeDefined();
+    expect(secondNode).toBeDefined();
+    await canvas.click({ position: firstNode });
+
+    const activeTitle = page.locator(
+      ".app-detail .detail-primary-row > p",
+    );
+    const firstTitle = await activeTitle.textContent();
+
+    expect(firstTitle).not.toBeNull();
+    await expect.poll(async () => {
+      const samples = await readGraphCanvasNodes(canvas);
+
+      return (samples[0]?.selectedPixelCount ?? 0) >
+        (samples.at(-1)?.selectedPixelCount ?? 0);
+    }).toBe(true);
+
+    nodeSamples = await readGraphCanvasNodes(canvas);
+    await canvas.click({ position: nodeSamples.at(-1) ?? secondNode });
+    await expect(activeTitle).not.toHaveText(firstTitle ?? "");
+    const secondTitle = await activeTitle.textContent();
+
+    await expect.poll(async () => {
+      const samples = await readGraphCanvasNodes(canvas);
+
+      return (samples.at(-1)?.selectedPixelCount ?? 0) >
+        (samples[0]?.selectedPixelCount ?? 0);
+    }).toBe(true);
+
+    nodeSamples = await readGraphCanvasNodes(canvas);
+    await canvas.click({ position: nodeSamples[0] ?? firstNode });
+    await expect(activeTitle).toHaveText(firstTitle ?? "");
+    expect(await activeTitle.textContent()).not.toBe(secondTitle);
 
     for (let index = 0; index < 3; index += 1) {
       await getActivityButton(page, "笔记").click();
