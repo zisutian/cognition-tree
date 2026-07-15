@@ -82,9 +82,15 @@ HTTP 模式用于真实本地文件仓库。浏览器存储模式用于界面和
     notes/*.ctn
     syntax/workspace.toml
 
-`workspace.json` 保存仓库、目录树和笔记元信息。`notes/*.ctn` 保存笔记原文。`syntax/workspace.toml` 保存仓库语法 source。
+`workspace.json` 使用 schema version 2，保存仓库、目录树和笔记元信息。笔记稳定写入 `notes/<noteId>.ctn`，目录层级只由 manifest tree 表达；重命名笔记或目录不改变笔记文件路径。`syntax/workspace.toml` 保存仓库语法 source。
 
-笔记文件名来自笔记标题，笔记标题来自原文第一行。目录和文件名由文件仓库执行端校验。
+配置语法的仓库会在每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行，其中包含稳定块 ID、创建时间和更新时间。没有语法的仓库保留原始文本，不初始化块元数据。
+
+未版本化仓库不由运行时直接读取。停止使用目标仓库的后端后，执行：
+
+    pnpm repository:migrate-v2 -- /absolute/path/to/repository
+
+迁移命令先创建同级完整备份，在临时目录生成并校验 v2，再原子切换目录；失败时目标仓库保持原状。
 
 
 5. 验证命令

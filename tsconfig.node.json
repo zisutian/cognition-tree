@@ -15,5 +15,9 @@
     "playwright.config.ts",
     "scripts/**/*.ts",
     "vite.config.ts"
+  ],
+  "exclude": [
+    "scripts/migrateRepositoryV2.ts",
+    "scripts/repository-v2/**/*.ts"
   ]
 }

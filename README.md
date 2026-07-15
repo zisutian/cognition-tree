@@ -16,6 +16,8 @@
     notes/*.ctn
     syntax/workspace.toml
 
+`workspace.json` 使用 schema version 2。笔记稳定写入 `notes/<noteId>.ctn`，目录关系只由 manifest tree 表达；每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行。
+
 前端也可以切换到浏览器存储模式，用于不连接本机后端的界面验证。
 
 ## 当前能力
@@ -58,6 +60,12 @@
 后端脚本语法检查：
 
     pnpm exec tsc -p tsconfig.server.json --noEmit
+
+将未版本化仓库一次性迁移到 repository v2：
+
+    pnpm repository:migrate-v2 -- /absolute/path/to/repository
+
+迁移前应停止使用目标仓库的后端。命令先在仓库同级目录保留完整 v1 备份，再生成并校验临时 v2 仓库，最后通过目录重命名切换；运行时不读取 v1 manifest。
 
 本地提交钩子会运行暂存 diff 检查、TypeScript 检查和架构边界测试。提交信息使用 `type(scope): subject` 格式。
 
