@@ -1,5 +1,4 @@
 import {
-  CircleHelp,
   FileInput,
   FileOutput,
   Hash,
@@ -91,36 +90,5 @@ export function MostReferencedList({
     </ul>
   ) : (
     <p className="ui-muted">暂无引用关系。</p>
-  );
-}
-
-export function UnresolvedReferenceList({
-  graph,
-}: {
-  graph: VisualizationGraph;
-}) {
-  return graph.unresolvedReferences.length > 0 ? (
-    <ul aria-label="未解析引用" className="detail-line-list">
-      {graph.unresolvedReferences.slice(0, 24).map((reference) => (
-        <li key={`${reference.sourceNoteId}-${reference.targetText}`}>
-          <div className="detail-line-row">
-            <SymbolSlot
-              aria-hidden="true"
-              className="detail-line-marker"
-              tone="muted"
-            >
-              <CircleHelp aria-hidden="true" size={13} strokeWidth={2} />
-            </SymbolSlot>
-            <span className="detail-line-main">{reference.sourceTitle}</span>
-            <span className="detail-line-meta">
-              {reference.targetText}
-              {reference.count > 1 ? ` × ${reference.count}` : ""}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  ) : (
-    <p className="ui-muted">没有需要处理的引用问题。</p>
   );
 }

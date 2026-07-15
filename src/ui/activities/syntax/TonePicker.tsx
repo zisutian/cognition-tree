@@ -24,6 +24,7 @@ const defaultCustomTone = "#397c72";
 
 type TonePickerProps = {
   ariaLabel: string;
+  fieldId?: string;
   options: UiSyntaxToneOption[];
   showLabel?: boolean;
   value: UiSyntaxTone;
@@ -62,6 +63,7 @@ export function getToneSwatchStyle(
 
 export function TonePicker({
   ariaLabel,
+  fieldId,
   options,
   showLabel = true,
   value,
@@ -87,6 +89,7 @@ export function TonePicker({
           aria-haspopup="dialog"
           aria-label={`${ariaLabel}: ${getToneLabel(value, options)}`}
           className={showLabel ? "syntax-tone-button" : "syntax-tone-button is-compact"}
+          data-syntax-field-id={fieldId}
           onClick={toggle}
           ref={triggerRef}
           type="button"

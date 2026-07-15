@@ -28,8 +28,9 @@
     仓库语法：编辑仓库级语法配置，并用当前配置解析笔记。
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
-    引用图谱：查看笔记级引用关系、局部图谱和未解析引用。
-    设置：创建和切换仓库，查看仓库位置与保存状态，并调整工作台目录宽度。
+    引用图谱：查看笔记级引用关系和局部图谱。
+    问题：在工作台底部统一检查全仓库解析错误、语法错误和未解析引用，并跳转到对应笔记行或语法字段。
+    设置：创建和切换仓库，查看仓库位置与保存状态，并调整按仓库保存的工作台布局。
     离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
@@ -56,6 +57,7 @@
 
     pnpm check
     pnpm test
+    pnpm test:e2e
     pnpm build
     git diff --check
 
@@ -108,15 +110,16 @@ HTTP repository 的最近确认快照与待同步提交保存在浏览器 Indexe
 
 ## 代码结构
 
-    src/app/          应用组合根和 activity controller 装配
-    src/application/  workspace session、共享 runtime、选择和 activity 投影
-    src/ui/           workbench 框架、activities、shared primitives 和样式
+    src/app/          应用组合根、workbench 装配和 activity adapter
+    src/application/  workspace session、runtime、选择、导航、诊断和 activity 投影
+    src/ui/           workbench 布局、activity slots、问题面板、共享组件和样式
     src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
     src/ctn/          CTN parser 和 syntax profile
     src/storage/      repository 端口、浏览器/HTTP adapter 和运行时组合
     src/editor/       CodeMirror 编辑器适配
     contracts/        前后端共享的 repository wire contract
     server/           repository 规则、catalog、HTTP API 和本地/WebDAV adapter
-    tests/            单元测试、UI 测试和架构边界测试
+    tests/            按源码职责镜像的单元、UI 和架构测试
+    e2e/              按编辑、结构、活动视图、诊断和仓库流程拆分的浏览器测试及 fixtures
 
 更细的产品、架构、工程和界面约束记录在 `docs/` 下的专题文档中。

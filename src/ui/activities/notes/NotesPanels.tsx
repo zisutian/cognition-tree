@@ -1,5 +1,4 @@
 import {
-  CircleAlert,
   ChevronRight,
   FolderPlus,
   Maximize2,
@@ -15,7 +14,6 @@ import {
   Panel,
   PanelBody,
   PanelHeader,
-  SymbolSlot,
 } from "../../shared/primitives";
 import {
   NoteTree,
@@ -261,10 +259,6 @@ export function NoteDetailPanel({
             <dd>{view.editor.stats.rootCount}</dd>
             <dt>根</dt>
           </div>
-          <div>
-            <dd>{view.editor.stats.diagnosticCount}</dd>
-            <dt>诊断</dt>
-          </div>
         </dl>
         {view.outline.nodes.length > 0 ? (
           <StructureTree
@@ -284,33 +278,6 @@ export function NoteDetailPanel({
           <p className="ui-muted">没有可解析结构。</p>
         )}
         <BlockMetadataDetails block={selectedBlock} />
-        <div aria-hidden="true" className="detail-divider" />
-        {view.editor.diagnostics.length > 0 ? (
-          <ul aria-label="诊断" className="detail-line-list">
-            {view.editor.diagnostics.map((diagnostic) => (
-              <li key={diagnostic.id}>
-                <button
-                  className="detail-line-row detail-line-button"
-                  type="button"
-                  onClick={() => view.outline.onSelectLine(diagnostic.lineNumber)}
-                >
-                  <SymbolSlot
-                    aria-hidden="true"
-                    className="detail-line-marker"
-                    tone="danger"
-                  >
-                    <CircleAlert aria-hidden="true" size={13} strokeWidth={2} />
-                  </SymbolSlot>
-                  <span className="detail-line-main">
-                    L{diagnostic.lineNumber} · {diagnostic.message}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ui-muted">没有诊断。</p>
-        )}
       </PanelBody>
     </Panel>
   );

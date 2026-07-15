@@ -31,13 +31,20 @@ describe("source topology", () => {
   it("keeps app as a small composition root", () => {
     expect(hasSourceFile("app/main.tsx")).toBe(true);
     expect(hasSourceFile("app/AppRoot.tsx")).toBe(true);
-    expect(listSubdirectories("app")).toEqual(["activities"]);
+    expect(listSubdirectories("app")).toEqual(["activities", "workbench"]);
+    expect(hasSourceFile("app/activities/activityRegistry.ts")).toBe(true);
+    expect(hasSourceFile("app/workbench/WorkspaceWorkbench.tsx")).toBe(true);
+    expect(
+      hasSourceFile("app/workbench/WorkbenchProblemsController.tsx"),
+    ).toBe(true);
   });
 
   it("keeps application state organized by workspace responsibility", () => {
     expect(listSubdirectories("application")).toEqual(["workspace"]);
     expect(listSubdirectories("application/workspace")).toEqual([
       "activities",
+      "diagnostics",
+      "navigation",
       "projection",
       "runtime",
       "selection",
@@ -50,6 +57,21 @@ describe("source topology", () => {
       "syntax",
       "visualization",
     ]);
+    expect(
+      hasSourceFile(
+        "application/workspace/diagnostics/workspaceDiagnosticCollection.ts",
+      ),
+    ).toBe(true);
+    expect(
+      hasSourceFile(
+        "application/workspace/diagnostics/useWorkbenchDiagnostics.ts",
+      ),
+    ).toBe(true);
+    expect(
+      hasSourceFile(
+        "application/workspace/diagnostics/workbenchDiagnosticPlan.ts",
+      ),
+    ).toBe(true);
   });
 
   it("keeps workspace and CTN organized by business responsibility", () => {
@@ -107,7 +129,12 @@ describe("source topology", () => {
     expect(hasSourceFile("ui/AppView.tsx")).toBe(true);
     expect(hasSourceFile("ui/AppFrame.tsx")).toBe(true);
     expect(hasSourceFile("ui/activityTypes.ts")).toBe(true);
-    expect(listSubdirectories("ui")).toEqual(["activities", "shared"]);
+    expect(listSubdirectories("ui")).toEqual([
+      "activities",
+      "problems",
+      "shared",
+      "workbench",
+    ]);
     expect(listSubdirectories("ui/activities")).toEqual([
       "notes",
       "settings",
@@ -120,6 +147,13 @@ describe("source topology", () => {
     expect(hasSourceFile("ui/shared/tree/DirectoryTreeContent.tsx")).toBe(true);
     expect(hasSourceFile("ui/shared/tree/DirectoryTreeRow.tsx")).toBe(true);
     expect(hasSourceFile("ui/shared/tree/StructureTree.tsx")).toBe(true);
+    expect(hasSourceFile("ui/problems/ProblemsPanel.tsx")).toBe(true);
+    expect(hasSourceFile("ui/problems/useProblemsShortcut.ts")).toBe(true);
+    expect(hasSourceFile("ui/workbench/frameResize.ts")).toBe(true);
+    expect(hasSourceFile("ui/workbench/useWorkbenchLayout.ts")).toBe(true);
+    expect(
+      hasSourceFile("ui/workbench/useWorkbenchPanelResize.ts"),
+    ).toBe(true);
   });
 
   it("keeps directory tree surface, collection, and row rendering separate", () => {

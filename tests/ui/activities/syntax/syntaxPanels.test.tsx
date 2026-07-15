@@ -43,6 +43,11 @@ describe("syntax panels", () => {
     expect(markup).toContain("syntax-role-picker");
     expect(markup).toContain("syntax-role-button");
     expect(markup).toContain("新增块规则");
+    expect(markup).toContain('data-syntax-field-id="syntax-profile-name"');
+    expect(markup).toContain('data-syntax-field-id="syntax-tab-display-width"');
+    expect(markup).toContain('data-syntax-field-id="syntax-marker-rule-group"');
+    expect(markup).toContain('data-syntax-field-id="syntax-inline-rule-group"');
+    expect(markup).not.toContain("ui-status");
     expect(markup).not.toContain("<select");
     expect(markup).not.toContain("<span>默认</span>");
     expect(markup).not.toContain("<span>蓝色</span>");

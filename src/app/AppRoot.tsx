@@ -9,7 +9,7 @@ import { useRepositoryCatalog } from "../application/workspace/session/useReposi
 import type { ActivityId } from "../ui/activityTypes";
 import { RepositorySetupView } from "../ui/RepositorySetupView";
 import { SessionStateView } from "../ui/SessionStateView";
-import { WorkspaceActivities } from "./activities/WorkspaceActivities";
+import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 import type {
   WorkspaceRepository,
 } from "../storage/repository/workspaceRepository";
@@ -30,7 +30,7 @@ function ActiveWorkspaceApp({
   const application = useWorkspaceApplication(session, repositoryManagement);
 
   return (
-    <WorkspaceActivities
+    <WorkspaceWorkbench
       activeActivityId={activeActivityId}
       application={application}
       onActiveActivityChange={onActiveActivityChange}

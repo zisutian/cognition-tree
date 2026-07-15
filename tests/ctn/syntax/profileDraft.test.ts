@@ -180,6 +180,7 @@ describe("syntax profile draft", () => {
 
     expect(result.profile).toBeNull();
     expect(result.diagnostics).toContainEqual({
+      code: "missing-required-rule",
       message: "全局概念引用规则不能删除，且必须是成对行内规则。",
       path: "inlineRules.global-reference",
     });
@@ -195,6 +196,7 @@ describe("syntax profile draft", () => {
 
     expect(result.profile).toBeNull();
     expect(result.diagnostics).toContainEqual({
+      code: "invalid-tone",
       message: "颜色必须是预设颜色或 #RRGGBB。",
       path: "markers[0].tone",
     });

@@ -177,7 +177,7 @@ export function SymbolSlot({
   tone = "muted",
   ...props
 }: HTMLAttributes<HTMLSpanElement> & {
-  tone?: "danger" | "link" | "muted" | "strong";
+  tone?: "danger" | "link" | "muted" | "strong" | "warning";
 }) {
   return (
     <span
@@ -205,14 +205,4 @@ export function EmptyState({
       {action ? <div className="ui-empty-actions">{action}</div> : null}
     </div>
   );
-}
-
-export function StatusLine({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: "error" | "neutral" | "success";
-}) {
-  return <div className={`ui-status ui-status-${tone}`}>{children}</div>;
 }

@@ -23,9 +23,11 @@ function slotsWithView(
   view: TestActivityViews,
 ) {
   const controls = {
+    contextWidth: 280,
     focusMode: false,
     onCollapseDetail: () => undefined,
     onConfigureSyntax: () => undefined,
+    onContextWidthChange: () => undefined,
     onToggleFocusMode: () => undefined,
   };
 
@@ -55,7 +57,13 @@ function slotsWithView(
         view: view.visualization,
       });
     case "settings":
-      return createSettingsActivitySlots(view.settings);
+      return createSettingsActivitySlots({
+        view: view.settings,
+        workbench: {
+          contextWidth: controls.contextWidth,
+          onContextWidthChange: controls.onContextWidthChange,
+        },
+      });
     case "data":
     case "search":
       return createPlaceholderActivitySlots(activityId);

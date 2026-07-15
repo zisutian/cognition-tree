@@ -5,6 +5,10 @@ import type {
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxTone,
 } from "../../../application/workspace/projection/viewSyntax";
+import {
+  createSyntaxRuleFieldId,
+  syntaxFieldIds,
+} from "../../../application/workspace/projection/viewSyntaxFields";
 import { Button } from "../../shared/primitives";
 import { TonePicker } from "./TonePicker";
 import { SyntaxRolePicker } from "./SyntaxRolePicker";
@@ -44,13 +48,20 @@ function SyntaxToneCells({
 
 export function SyntaxSettingsGroup({
   children,
+  fieldId,
   title,
 }: {
   children: ReactNode;
+  fieldId?: string;
   title: string;
 }) {
   return (
-    <div className="syntax-settings-group" aria-label={title}>
+    <div
+      className="syntax-settings-group"
+      aria-label={title}
+      data-syntax-field-id={fieldId}
+      tabIndex={fieldId ? -1 : undefined}
+    >
       <div className="syntax-group-label">
         <span>{title}</span>
       </div>
@@ -83,7 +94,11 @@ export function TitleAndConceptRows({
 }) {
   return (
     <>
-      <div className="syntax-rule-row">
+      <div
+        className="syntax-rule-row"
+        data-syntax-field-id={syntaxFieldIds.titleRule}
+        tabIndex={-1}
+      >
         <span className="syntax-readonly">首行标题</span>
         <span className="syntax-readonly">首行</span>
         <span className="syntax-readonly">标题</span>
@@ -96,7 +111,11 @@ export function TitleAndConceptRows({
         />
         <SyntaxRuleSpacer />
       </div>
-      <div className="syntax-rule-row">
+      <div
+        className="syntax-rule-row"
+        data-syntax-field-id={syntaxFieldIds.conceptRule}
+        tabIndex={-1}
+      >
         <span className="syntax-readonly">顶格概念</span>
         <span className="syntax-readonly">顶格</span>
         <span className="syntax-readonly">概念</span>
@@ -121,10 +140,20 @@ export function MarkerRuleRows({
   return (
     <>
       {syntax.draft.markerRules.map((rule) => (
-        <div className="syntax-rule-row" key={rule.id}>
+        <div
+          className="syntax-rule-row"
+          data-syntax-field-id={createSyntaxRuleFieldId("marker", rule.id)}
+          key={rule.id}
+          tabIndex={-1}
+        >
           <input
             aria-label="名称"
             className="ui-input"
+            data-syntax-field-id={createSyntaxRuleFieldId(
+              "marker",
+              rule.id,
+              "label",
+            )}
             maxLength={syntax.constraints.label.maxLength}
             value={rule.label}
             onChange={(event) =>
@@ -136,6 +165,11 @@ export function MarkerRuleRows({
           <input
             aria-label="标记"
             className="ui-input"
+            data-syntax-field-id={createSyntaxRuleFieldId(
+              "marker",
+              rule.id,
+              "marker",
+            )}
             maxLength={syntax.constraints.token.maxLength}
             value={rule.marker}
             onChange={(event) =>
@@ -146,6 +180,7 @@ export function MarkerRuleRows({
           />
           <SyntaxRolePicker
             ariaLabel="角色"
+            fieldId={createSyntaxRuleFieldId("marker", rule.id, "role")}
             options={syntax.roleOptions}
             value={rule.role}
             onChange={(role) =>
@@ -156,6 +191,7 @@ export function MarkerRuleRows({
           />
           <TonePicker
             ariaLabel={`${rule.label}背景色`}
+            fieldId={createSyntaxRuleFieldId("marker", rule.id, "tone")}
             options={syntax.toneOptions}
             showLabel={false}
             value={rule.tone}
@@ -165,6 +201,7 @@ export function MarkerRuleRows({
           />
           <TonePicker
             ariaLabel={`${rule.label}文字色`}
+            fieldId={createSyntaxRuleFieldId("marker", rule.id, "textColor")}
             options={syntax.toneOptions}
             showLabel={false}
             value={rule.textColor}
@@ -208,10 +245,19 @@ function InlineRuleRow({
   const isProtected = protectedRuleIds.includes(rule.id);
 
   return (
-    <div className="syntax-rule-row">
+    <div
+      className="syntax-rule-row"
+      data-syntax-field-id={createSyntaxRuleFieldId("inline", rule.id)}
+      tabIndex={-1}
+    >
       <input
         aria-label="名称"
         className="ui-input"
+        data-syntax-field-id={createSyntaxRuleFieldId(
+          "inline",
+          rule.id,
+          "label",
+        )}
         maxLength={syntax.constraints.label.maxLength}
         value={rule.label}
         onChange={(event) =>
@@ -223,6 +269,11 @@ function InlineRuleRow({
           <input
             aria-label="开始"
             className="ui-input"
+            data-syntax-field-id={createSyntaxRuleFieldId(
+              "inline",
+              rule.id,
+              "open",
+            )}
             maxLength={syntax.constraints.token.maxLength}
             value={rule.open}
             onChange={(event) =>
@@ -232,6 +283,11 @@ function InlineRuleRow({
           <input
             aria-label="结束"
             className="ui-input"
+            data-syntax-field-id={createSyntaxRuleFieldId(
+              "inline",
+              rule.id,
+              "close",
+            )}
             maxLength={syntax.constraints.token.maxLength}
             value={rule.close}
             onChange={(event) =>
@@ -243,6 +299,11 @@ function InlineRuleRow({
         <input
           aria-label="符号"
           className="ui-input"
+          data-syntax-field-id={createSyntaxRuleFieldId(
+            "inline",
+            rule.id,
+            "marker",
+          )}
           maxLength={syntax.constraints.token.maxLength}
           value={rule.marker}
           onChange={(event) =>
@@ -257,6 +318,7 @@ function InlineRuleRow({
       </span>
       <TonePicker
         ariaLabel={`${rule.label}背景色`}
+        fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
         options={syntax.toneOptions}
         showLabel={false}
         value={rule.tone}
@@ -264,6 +326,7 @@ function InlineRuleRow({
       />
       <TonePicker
         ariaLabel={`${rule.label}文字色`}
+        fieldId={createSyntaxRuleFieldId("inline", rule.id, "textColor")}
         options={syntax.toneOptions}
         showLabel={false}
         value={rule.textColor}

@@ -1,7 +1,4 @@
-import {
-  buildSyntaxProfileDraft,
-  createSyntaxProfileDraft,
-} from "../../src/ctn/syntax/profileDraft";
+import { createSyntaxProfileDraft } from "../../src/ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
@@ -26,8 +23,6 @@ export function createView(
   const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
   const syntax = createUiSyntaxView({
     draft,
-    draftResult: buildSyntaxProfileDraft(draft),
-    feedback: null,
   });
 
   return {
@@ -49,7 +44,6 @@ export function createView(
       },
       editor: {
         currentNoteTitle: "当前笔记",
-        diagnostics: [],
         documentText: "当前笔记",
         errorMessage: "",
         focusTarget: null,
@@ -57,7 +51,6 @@ export function createView(
         hasParsedDocument: true,
         mode: "ctn",
         stats: {
-          diagnosticCount: 0,
           lineCount: 1,
           rootCount: 1,
           totalBlocks: 1,
@@ -76,7 +69,6 @@ export function createView(
     },
     settings: {
       activeRepositoryId: "primary",
-      contextWidth: 280,
       createRepository: async () => undefined,
       discardPendingChangesAndReload: async () => undefined,
       hasSaveConflict: false,
@@ -93,7 +85,6 @@ export function createView(
       saveStatusLabel: "已保存",
       storageLabel: "本地",
       selectRepository: async () => undefined,
-      setContextWidth: () => undefined,
     },
     shell: {
       errorMessage: "",
@@ -180,7 +171,6 @@ export function createView(
           isolatedCount: 0,
           nodeCount: 0,
         },
-        unresolvedReferences: [],
       },
       onSelectNote: () => undefined,
       setHideIsolated: () => undefined,

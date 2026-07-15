@@ -61,7 +61,6 @@ const graph: UiReferenceGraphView = {
     isolatedCount: 1,
     nodeCount: 4,
   },
-  unresolvedReferences: [],
 };
 
 describe("reference graph view helpers", () => {

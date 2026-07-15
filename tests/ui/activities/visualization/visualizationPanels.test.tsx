@@ -95,14 +95,6 @@ describe("visualization panels", () => {
             isolatedCount: 0,
             nodeCount: 3,
           },
-          unresolvedReferences: [
-            {
-              count: 1,
-              sourceNoteId: "note-target",
-              sourceTitle: "Target note",
-              targetText: "Missing note",
-            },
-          ],
         },
         onSelectNote: () => undefined,
         setHideIsolated: () => undefined,
@@ -131,10 +123,11 @@ describe("visualization panels", () => {
     expect(markup).not.toContain("detail-list");
     expect(markup).not.toContain("detail-row-list");
     expect(markup).not.toContain("ui-section-title");
-    expect(markup.match(/detail-line-list/g)?.length).toBe(3);
-    expect(markup.match(/detail-line-main/g)?.length).toBeGreaterThanOrEqual(4);
-    expect(markup.match(/detail-line-marker/g)?.length).toBeGreaterThanOrEqual(4);
-    expect(markup.match(/ui-symbol-slot/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(markup.match(/detail-line-list/g)?.length).toBe(2);
+    expect(markup.match(/detail-line-main/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(markup.match(/detail-line-marker/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(markup.match(/ui-symbol-slot/g)?.length).toBeGreaterThanOrEqual(3);
     expect(markup).toContain("detail-line-button");
+    expect(markup).not.toContain("未解析引用");
   });
 });

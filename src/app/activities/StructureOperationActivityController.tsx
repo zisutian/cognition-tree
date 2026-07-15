@@ -1,14 +1,12 @@
 import { useStructureOperationActivity } from "../../application/workspace/activities/structure-operation/useStructureOperationActivity";
 import { useStructureOperationState } from "../../application/workspace/activities/structure-operation/useStructureOperationState";
-import AppView from "../../ui/AppView";
 import { createStructureOperationActivitySlots } from "../../ui/activities/structure-operation/StructureOperationActivitySlots";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 
 function ActiveStructureOperationActivity({
   application,
-  onActiveActivityChange,
+  renderActivity,
   state,
-  workbench,
 }: Omit<WorkspaceActivityControllerProps, "active"> & {
   state: ReturnType<typeof useStructureOperationState>;
 }) {
@@ -18,19 +16,12 @@ function ActiveStructureOperationActivity({
     state,
   });
 
-  return (
-    <AppView
-      activeActivityId="structure-operation"
-      createActivitySlots={({ onConfigureSyntax }) =>
-        createStructureOperationActivitySlots({
-          onConfigureSyntax,
-          shell: application.shell,
-          view,
-        })
-      }
-      onActiveActivityChange={onActiveActivityChange}
-      workbench={workbench}
-    />
+  return renderActivity(({ onConfigureSyntax }) =>
+    createStructureOperationActivitySlots({
+      onConfigureSyntax,
+      shell: application.shell,
+      view,
+    }),
   );
 }
 

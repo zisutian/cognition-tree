@@ -7,7 +7,6 @@ function createSource(
   return {
     activeRepositoryId: "primary",
     availability: "online",
-    contextWidth: 280,
     createRepository: vi.fn(async () => undefined),
     discardPendingChangesAndReload: vi.fn(async () => undefined),
     reload: vi.fn(async () => undefined),
@@ -24,7 +23,6 @@ function createSource(
     status: "ready",
     storageLabel: "本地仓库",
     selectRepository: vi.fn(async () => undefined),
-    setContextWidth: vi.fn(),
     ...overrides,
   };
 }
@@ -35,7 +33,6 @@ describe("settings view model", () => {
 
     expect(createSettingsViewModel(source)).toEqual({
       activeRepositoryId: "primary",
-      contextWidth: 280,
       createRepository: source.createRepository,
       discardPendingChangesAndReload: source.discardPendingChangesAndReload,
       hasSaveConflict: false,
@@ -45,7 +42,6 @@ describe("settings view model", () => {
       saveStatusLabel: "保存中",
       storageLabel: "本地仓库",
       selectRepository: source.selectRepository,
-      setContextWidth: source.setContextWidth,
     });
   });
 

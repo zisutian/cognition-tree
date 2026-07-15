@@ -10,7 +10,18 @@ import {
 } from "../../shared/primitives";
 import { useFeedback } from "../../shared/FeedbackProvider";
 
-export function SettingsPanel({ view }: { view: SettingsViewModel }) {
+export type SettingsWorkbenchPreferences = {
+  contextWidth: number;
+  onContextWidthChange: (width: number) => void;
+};
+
+export function SettingsPanel({
+  view,
+  workbench,
+}: {
+  view: SettingsViewModel;
+  workbench: SettingsWorkbenchPreferences;
+}) {
   const feedback = useFeedback();
   const [repositoryId, setRepositoryId] = useState("");
   const [repositoryName, setRepositoryName] = useState("");
@@ -139,12 +150,12 @@ export function SettingsPanel({ view }: { view: SettingsViewModel }) {
                 const width = event.currentTarget.valueAsNumber;
 
                 if (Number.isFinite(width)) {
-                  view.setContextWidth(width);
+                  workbench.onContextWidthChange(width);
                 }
               }}
               step={1}
               type="number"
-              value={view.contextWidth}
+              value={workbench.contextWidth}
             />
             <span>px</span>
           </div>

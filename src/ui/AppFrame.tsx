@@ -10,13 +10,16 @@ import {
   appContextMinWidth,
   appDetailMaxWidth,
   appDetailMinWidth,
-} from "./frameResize";
+  appProblemsMaxHeight,
+  appProblemsMinHeight,
+} from "./workbench/frameResize";
 import { Button, cx } from "./shared/primitives";
-import type { WorkbenchLayout } from "./useWorkbenchLayout";
+import type { WorkbenchLayout } from "./workbench/useWorkbenchLayout";
 
 type AppFrameStyle = CSSProperties & {
   "--app-context-width"?: string;
   "--app-detail-width"?: string;
+  "--app-problems-height"?: string;
 };
 
 export function AppFrame({
@@ -26,6 +29,7 @@ export function AppFrame({
   layout,
   mainSlot,
   onActivityChange,
+  problemsSlot,
 }: {
   activeActivityId: ActivityId;
   contextSlot: ActivityContextSlot | null;
@@ -33,6 +37,7 @@ export function AppFrame({
   layout: WorkbenchLayout;
   mainSlot: ReactNode;
   onActivityChange: (activityId: ActivityId) => void;
+  problemsSlot: ReactNode | null;
 }) {
   const {
     contextCollapsed,
@@ -44,15 +49,22 @@ export function AppFrame({
     focusMode,
     isContextResizing,
     isDetailResizing,
+    isProblemsResizing,
     onContextResizeKeyDown,
     onContextResizeStart,
     onDetailResizeKeyDown,
     onDetailResizeStart,
     onDetailToggle,
+    onProblemsResizeKeyDown,
+    onProblemsResizeStart,
+    problemsExpanded,
+    problemsHeight,
+    problemsResizeValue,
   } = layout;
   const hasContext = contextSlot !== null && !focusMode;
   const showContext = hasContext && !contextCollapsed;
   const hasDetail = detailSlot !== null && !focusMode;
+  const hasProblems = problemsSlot !== null && !focusMode;
   const frameClassName = cx(
     "app-frame",
     focusMode && "is-focus-mode",
@@ -61,6 +73,9 @@ export function AppFrame({
     detailCollapsed && hasDetail && "detail-collapsed",
     isContextResizing && "is-resizing-context",
     isDetailResizing && "is-resizing-detail",
+    isProblemsResizing && "is-resizing-problems",
+    hasProblems && "has-problems",
+    hasProblems && problemsExpanded && "problems-expanded",
   );
   const style: AppFrameStyle = {
     ...(contextWidth === null
@@ -69,6 +84,7 @@ export function AppFrame({
     ...(detailWidth === null
       ? {}
       : { "--app-detail-width": `${detailWidth}px` }),
+    "--app-problems-height": `${problemsHeight}px`,
   };
 
   return (
@@ -98,7 +114,36 @@ export function AppFrame({
           />
         </aside>
       ) : null}
-      <section className="app-main-region">{mainSlot}</section>
+      <section className="app-main-region">
+        <div className="app-main-content">{mainSlot}</div>
+        {hasProblems ? (
+          <aside
+            aria-label="问题"
+            className={
+              problemsExpanded
+                ? "app-problems is-expanded"
+                : "app-problems"
+            }
+          >
+            {problemsExpanded ? (
+              <div
+                aria-label="调整问题面板高度"
+                aria-orientation="horizontal"
+                aria-valuemax={appProblemsMaxHeight}
+                aria-valuemin={appProblemsMinHeight}
+                aria-valuenow={problemsResizeValue}
+                aria-valuetext={`${problemsResizeValue}px`}
+                className="app-resize-handle app-problems-resize"
+                onKeyDown={onProblemsResizeKeyDown}
+                onPointerDown={onProblemsResizeStart}
+                role="separator"
+                tabIndex={0}
+              />
+            ) : null}
+            {problemsSlot}
+          </aside>
+        ) : null}
+      </section>
       {hasDetail ? (
         <aside
           className={

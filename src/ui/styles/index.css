@@ -1,6 +1,7 @@
 @import "./foundation/theme.css";
 @import "./foundation/base.css";
 @import "./frame/frame.css";
+@import "./frame/problems.css";
 @import "./shared/primitives.css";
 @import "./shared/tree.css";
 @import "./shared/blockText.css";

@@ -26,3 +26,16 @@ export type ActivitySlots = {
   detail: ReactNode | null;
   main: ReactNode;
 };
+
+export type ActivitySlotControls = {
+  contextWidth: number;
+  focusMode: boolean;
+  onCollapseDetail: () => void;
+  onConfigureSyntax: () => void;
+  onContextWidthChange: (width: number) => void;
+  onToggleFocusMode: () => void;
+};
+
+export type CreateActivitySlots = (
+  controls: ActivitySlotControls,
+) => ActivitySlots;

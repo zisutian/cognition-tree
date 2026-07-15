@@ -17,13 +17,6 @@ export type UiReferenceGraphEdge = {
   targetTitle: string;
 };
 
-export type UiReferenceGraphUnresolvedReference = {
-  count: number;
-  sourceNoteId: UiNoteId;
-  sourceTitle: string;
-  targetText: string;
-};
-
 export type UiReferenceGraphRankedNode = UiReferenceGraphNode & {
   totalReferences: number;
 };
@@ -37,7 +30,6 @@ export type UiReferenceGraphView = {
     isolatedCount: number;
     nodeCount: number;
   };
-  unresolvedReferences: UiReferenceGraphUnresolvedReference[];
 };
 
 export type UiVisualizationView = {
@@ -55,7 +47,6 @@ export function createUiReferenceGraphView(
     referencesOut: node.referencesOut,
     title: node.title,
   }));
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
   const mostReferencedNodes = nodes
     .map((node) => ({
       ...node,
@@ -80,12 +71,5 @@ export function createUiReferenceGraphView(
       isolatedCount: nodes.filter((node) => node.isolated).length,
       nodeCount: nodes.length,
     },
-    unresolvedReferences: graph.unresolvedReferences.map((reference) => ({
-      count: reference.count,
-      sourceNoteId: reference.sourceNoteId,
-      sourceTitle:
-        nodesById.get(reference.sourceNoteId)?.title ?? reference.sourceNoteId,
-      targetText: reference.targetText,
-    })),
   };
 }

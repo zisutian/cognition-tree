@@ -57,6 +57,7 @@ export type NoteReferenceGraphEdge = {
 
 export type UnresolvedNoteReference = {
   count: number;
+  lineNumber: number;
   sourceNoteId: NoteId;
   targetText: string;
 };
@@ -68,10 +69,17 @@ export type NoteReferenceGraph = {
 };
 
 export type WorkspaceParseIndex = {
+  createScan(): WorkspaceParseScan;
   parseCache: WorkspaceParseCache;
   getParsedNote(noteId: NoteId): ParsedWorkspaceNote | null;
   readonly referenceGraph: NoteReferenceGraph;
   syntaxProfile: CtnSyntaxProfile;
+};
+
+export type WorkspaceParseScan = {
+  complete(): NoteReferenceGraph;
+  noteIds: readonly NoteId[];
+  scanNote(noteId: NoteId): ParsedWorkspaceNote | null;
 };
 
 export type WorkspaceParseIndexCache = {
@@ -207,21 +215,16 @@ function canReuseReferenceGraph(
   });
 }
 
-function buildWorkspaceNoteReferenceGraph(
-  parsedNotes: ParsedWorkspaceNote[],
-): NoteReferenceGraph {
-  const notes = parsedNotes.flatMap((parsedNote) =>
-    parsedNote.note ? [parsedNote.note] : [],
-  );
+function createWorkspaceNoteReferenceGraphBuilder(notes: NoteRecord[]) {
   const titleIndex = createTitleIndex(notes);
   const referencesIn = new Map<NoteId, number>();
   const referencesOut = new Map<NoteId, number>();
   const edgeCounts = new Map<string, NoteReferenceGraphEdge>();
   const unresolvedCounts = new Map<string, UnresolvedNoteReference>();
 
-  for (const parsedNote of parsedNotes) {
+  const addParsedNote = (parsedNote: ParsedWorkspaceNote) => {
     if (!parsedNote.note) {
-      continue;
+      return;
     }
 
     for (const reference of collectCtnInlineReferences(
@@ -242,6 +245,10 @@ function buildWorkspaceNoteReferenceGraph(
 
         unresolvedCounts.set(unresolvedKey, {
           count: (current?.count ?? 0) + 1,
+          lineNumber: Math.min(
+            current?.lineNumber ?? reference.lineNumber,
+            reference.lineNumber,
+          ),
           sourceNoteId: parsedNote.note.id,
           targetText,
         });
@@ -264,23 +271,28 @@ function buildWorkspaceNoteReferenceGraph(
         incrementCounter(referencesIn, targetNote.id);
       }
     }
-  }
+  };
 
   return {
-    edges: [...edgeCounts.values()],
-    nodes: notes.map((note) => {
-      const noteReferencesIn = referencesIn.get(note.id) ?? 0;
-      const noteReferencesOut = referencesOut.get(note.id) ?? 0;
-
+    addParsedNote,
+    complete(): NoteReferenceGraph {
       return {
-        id: note.id,
-        isolated: noteReferencesIn === 0 && noteReferencesOut === 0,
-        referencesIn: noteReferencesIn,
-        referencesOut: noteReferencesOut,
-        title: note.title,
+        edges: [...edgeCounts.values()],
+        nodes: notes.map((note) => {
+          const noteReferencesIn = referencesIn.get(note.id) ?? 0;
+          const noteReferencesOut = referencesOut.get(note.id) ?? 0;
+
+          return {
+            id: note.id,
+            isolated: noteReferencesIn === 0 && noteReferencesOut === 0,
+            referencesIn: noteReferencesIn,
+            referencesOut: noteReferencesOut,
+            title: note.title,
+          };
+        }),
+        unresolvedReferences: [...unresolvedCounts.values()],
       };
-    }),
-    unresolvedReferences: [...unresolvedCounts.values()],
+    },
   };
 }
 
@@ -332,7 +344,7 @@ export function createWorkspaceParseIndex(
 
     return parsedNote;
   };
-  const createReferenceGraph = () => {
+  const getReusableReferenceGraph = () => {
     if (
       previousReferenceGraphCache &&
       canReuseReferenceGraph(
@@ -344,12 +356,57 @@ export function createWorkspaceParseIndex(
       return previousReferenceGraphCache.graph;
     }
 
-    return buildWorkspaceNoteReferenceGraph(
-      notes.map(resolveParsedNote),
-    );
+    return null;
+  };
+  const commitReferenceGraph = (graph: NoteReferenceGraph) => {
+    referenceGraph ??= graph;
+    referenceGraphCacheByIndex.set(index, {
+      graph: referenceGraph,
+      notes: createReferenceGraphNoteSnapshot(notes),
+      syntaxProfileKey,
+    });
+
+    return referenceGraph;
+  };
+  const createScan = (): WorkspaceParseScan => {
+    const reusableReferenceGraph = getReusableReferenceGraph();
+    const graphBuilder = reusableReferenceGraph
+      ? null
+      : createWorkspaceNoteReferenceGraphBuilder(notes);
+    const scannedNoteIds = new Set<NoteId>();
+
+    return {
+      complete() {
+        if (scannedNoteIds.size !== notes.length) {
+          throw new Error("Workspace parse scan is incomplete.");
+        }
+
+        return commitReferenceGraph(
+          reusableReferenceGraph ?? graphBuilder!.complete(),
+        );
+      },
+      noteIds: notes.map((note) => note.id),
+      scanNote(noteId) {
+        const note = source.workspace.noteById.get(noteId);
+
+        if (!note) {
+          return null;
+        }
+
+        const parsedNote = resolveParsedNote(note);
+
+        if (!scannedNoteIds.has(noteId)) {
+          scannedNoteIds.add(noteId);
+          graphBuilder?.addParsedNote(parsedNote);
+        }
+
+        return parsedNote;
+      },
+    };
   };
 
   const index: WorkspaceParseIndex = {
+    createScan,
     parseCache: {
       entriesById: parseCacheEntries,
       syntaxProfileKey,
@@ -360,12 +417,12 @@ export function createWorkspaceParseIndex(
       return note ? resolveParsedNote(note) : null;
     },
     get referenceGraph() {
-      referenceGraph ??= createReferenceGraph();
-      referenceGraphCacheByIndex.set(index, {
-        graph: referenceGraph,
-        notes: createReferenceGraphNoteSnapshot(notes),
-        syntaxProfileKey,
-      });
+      if (!referenceGraph) {
+        const scan = createScan();
+
+        scan.noteIds.forEach((noteId) => scan.scanNote(noteId));
+        referenceGraph = scan.complete();
+      }
 
       return referenceGraph;
     },
@@ -377,10 +434,20 @@ export function createWorkspaceParseIndex(
 
 export function createWorkspaceParseIndexCache(): WorkspaceParseIndexCache {
   let previousIndex: WorkspaceParseIndex | null = null;
+  let previousSource: WorkspaceParseIndexSource | null = null;
 
   return {
     resolve(source) {
+      if (
+        previousIndex &&
+        previousSource?.syntaxProfile === source.syntaxProfile &&
+        previousSource.workspace === source.workspace
+      ) {
+        return previousIndex;
+      }
+
       previousIndex = createWorkspaceParseIndex(source, previousIndex);
+      previousSource = source;
 
       return previousIndex;
     },

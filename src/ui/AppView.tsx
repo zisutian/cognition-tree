@@ -1,18 +1,18 @@
-import type { ActivityId, ActivitySlots } from "./activityTypes";
+import type {
+  ActivityId,
+  CreateActivitySlots,
+} from "./activityTypes";
+import type { ReactNode } from "react";
 import { AppFrame } from "./AppFrame";
-import { useWorkbenchFocusShortcuts } from "./useWorkbenchFocusShortcuts";
-import type { WorkbenchController } from "./useWorkbenchLayout";
+import { useWorkbenchFocusShortcuts } from "./workbench/useWorkbenchFocusShortcuts";
+import type { WorkbenchController } from "./workbench/useWorkbenchLayout";
 import "./styles/index.css";
 
 type AppViewProps = {
   activeActivityId: ActivityId;
-  createActivitySlots: (controls: {
-    focusMode: boolean;
-    onCollapseDetail: () => void;
-    onConfigureSyntax: () => void;
-    onToggleFocusMode: () => void;
-  }) => ActivitySlots;
+  createActivitySlots: CreateActivitySlots;
   onActiveActivityChange: (activityId: ActivityId) => void;
+  problemsSlot: ReactNode | null;
   workbench: WorkbenchController;
 };
 
@@ -20,6 +20,7 @@ function AppView({
   activeActivityId,
   createActivitySlots,
   onActiveActivityChange,
+  problemsSlot,
   workbench,
 }: AppViewProps) {
   const configureSyntax = () => {
@@ -27,9 +28,11 @@ function AppView({
     workbench.expandPanels();
   };
   const activitySlots = createActivitySlots({
+    contextWidth: workbench.layout.contextResizeValue,
     focusMode: workbench.layout.focusMode,
     onCollapseDetail: workbench.collapseDetail,
     onConfigureSyntax: configureSyntax,
+    onContextWidthChange: workbench.setContextWidth,
     onToggleFocusMode: workbench.toggleFocusMode,
   });
   const hasContext = activitySlots.context !== null;
@@ -66,6 +69,7 @@ function AppView({
       layout={workbench.layout}
       mainSlot={activitySlots.main}
       onActivityChange={handleActivityChange}
+      problemsSlot={problemsSlot}
     />
   );
 }

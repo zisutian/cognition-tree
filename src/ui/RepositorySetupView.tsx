@@ -4,7 +4,6 @@ import {
   Panel,
   PanelBody,
   PanelHeader,
-  StatusLine,
 } from "./shared/primitives";
 
 export function RepositorySetupView({
@@ -67,7 +66,9 @@ export function RepositorySetupView({
             </label>
             <div className="repository-setup-meta">{catalogLabel}</div>
             {errorMessage ? (
-              <StatusLine tone="error">{errorMessage}</StatusLine>
+              <p className="repository-setup-error" role="alert">
+                {errorMessage}
+              </p>
             ) : null}
             <div className="ui-actions">
               <Button disabled={creating} type="submit" variant="primary">

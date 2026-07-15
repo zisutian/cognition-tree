@@ -185,6 +185,7 @@ describe("workspace queries", () => {
       unresolvedReferences: [
         {
           count: 2,
+          lineNumber: 2,
           sourceNoteId: "note-source",
           targetText: "Missing Note",
         },

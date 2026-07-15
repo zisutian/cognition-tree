@@ -5,15 +5,15 @@
 
 app：
 
-    应用组合根，装配 application、ui、storage 和 editor。
+    应用组合根，装配 application、ui、storage 和 editor。activities 只把 application activity 状态适配为 UI slots；workbench 单独组合全局 Frame、问题面板、反馈和 activity 生命周期。
 
 application：
 
-    workspace 应用层，管理 session、共享选择与语法运行时，并按 activity 管理页面状态和 UI 投影。
+    workspace 应用层，管理 session、共享选择、统一导航、语法运行时、全局诊断收集，并按 activity 管理页面状态和 UI 投影。选择与导航是独立职责，诊断收集策略、调度和投影相互分离。
 
 ui：
 
-    workbench 界面层，组合活动栏、槽位布局、activity 页面、共享组件和样式系统。
+    workbench 界面层，提供活动栏、槽位 Frame、布局控制、全局问题面板、activity 页面、共享组件和样式系统。布局持久化和 resize 交互不进入 application view model。
 
 workspace：
 
@@ -61,8 +61,8 @@ contracts：
     server 将 repository id 解析为配置 catalog 中的仓库 adapter，再生成包含仓库位置、workspace、syntax source 和 revision 的完整快照，并以事务提交完整新版本。
     contracts 在 storage 和 server 边界解析同一 repository wire shape。
     storage 将仓库快照和提交结果接入前端 repository 端口，过期 revision 不覆盖当前仓库；离线缓存、恢复提交和远端冲突判定都停留在 repository adapter 内。
-    application 维护 session、单一保存队列、共享 runtime 和 activity controller，消费 repository 提供的 online、offline 或 conflict 状态，并按当前 activity 生成局部 view model。
-    application 将持久化 CTN 投影为不含保留元数据行的可编辑文本，并把诊断、结构定位和引用跳转映射到编辑行；editor 不负责保存或解释块元数据。
-    ui 根据局部 view model 生成 activity slots，并通过回调触发 application 命令。
-    editor 接收 ui 和 application 给出的文本、诊断和语法展示数据。
+    application 维护 session、单一保存队列、共享 runtime 和 activity 状态，消费 repository 提供的 online、offline 或 conflict 状态，并按当前 activity 生成局部 view model。
+    application 将持久化 CTN 投影为不含保留元数据行的可编辑文本，复用 workspace parse index 分批汇总全仓库诊断，并把诊断、结构定位和引用跳转映射到编辑行或稳定语法字段。
+    app activity adapter 将局部 view model 交给 ui 生成 activity slots；全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递，并通过 application 导航请求触发定位。
+    editor 接收可编辑文本和语法展示数据，为当前编辑状态生成 CodeMirror 装饰、诊断提示和引用交互；editor 不负责保存或解释块元数据。
     workspace 和 ctn 负责结构、语义和派生数据的确定性计算。

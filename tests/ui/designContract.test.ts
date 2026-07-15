@@ -38,6 +38,7 @@ describe("UI design contract", () => {
     expect(uiStylePaths).toContain("ui/styles/foundation/theme.css");
     expect(uiStylePaths).toContain("ui/styles/foundation/base.css");
     expect(uiStylePaths).toContain("ui/styles/frame/frame.css");
+    expect(uiStylePaths).toContain("ui/styles/frame/problems.css");
     expect(uiStylePaths).toContain("ui/styles/shared/primitives.css");
     expect(uiStylePaths).toContain("ui/styles/shared/tree.css");
     expect(
@@ -76,6 +77,7 @@ describe("UI design contract", () => {
     });
 
     expect(globalStyleEntry).not.toContain("./activities/");
+    expect(globalStyleEntry).toContain('./frame/problems.css');
     expect(violations).toEqual([]);
   });
 
@@ -124,11 +126,14 @@ describe("UI design contract", () => {
       "--app-activity-width: 48px",
       "--app-detail-collapsed-width: 36px",
       "--app-main-min-width: 420px",
+      "--app-problems-collapsed-height: 24px",
+      "--app-problems-height: 200px",
       "--ui-panel-header-height: 34px",
       "--ui-panel-padding: 10px",
       "--ui-control-height: 24px",
       "--ui-icon-size: 22px",
       "--ui-tree-row-height: 22px",
+      "--ui-problems-row-height: 22px",
       "--ui-title-font-size: 16px",
       "--ui-body-font-size: 13px",
       "--ui-micro-font-size: 12px",
@@ -214,6 +219,21 @@ describe("UI design contract", () => {
     expect(activityStyles).not.toContain(".source-editor");
     expect(editorStyle).toContain(".source-editor");
     expect(editorStyle).toContain("var(--ctn-editor-font-size)");
+  });
+
+  it("keeps the collapsed detail responsive behavior in the frame layer", () => {
+    const frame = readStyle("ui/styles/frame/frame.css");
+    const responsiveStart = frame.indexOf("@media (max-width: 1120px)");
+    const responsiveSource = frame.slice(responsiveStart);
+
+    expect(responsiveStart).toBeGreaterThanOrEqual(0);
+    expect(responsiveSource).toContain(".app-frame.detail-collapsed");
+    expect(responsiveSource).toContain("var(--app-detail-collapsed-width)");
+    expect(responsiveSource).toContain(
+      ".app-frame.no-context.detail-collapsed",
+    );
+    expect(responsiveSource).toContain(".app-detail-collapsed");
+    expect(responsiveSource).toContain("border-left: 0");
   });
 
   it("keeps flat primitives free of card framing", () => {

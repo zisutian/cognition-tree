@@ -9,7 +9,6 @@ import {
 import {
   AdjacentReferenceList,
   MostReferencedList,
-  UnresolvedReferenceList,
 } from "./VisualizationDetailLists";
 
 export function VisualizationDetailPanel({
@@ -87,8 +86,6 @@ export function VisualizationDetailPanel({
           graph={graph}
           onSelectNote={visualization.onSelectNote}
         />
-        <div aria-hidden="true" className="detail-divider" />
-        <UnresolvedReferenceList graph={graph} />
       </PanelBody>
     </Panel>
   );

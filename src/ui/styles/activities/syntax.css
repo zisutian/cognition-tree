@@ -15,6 +15,18 @@
   min-width: 0;
 }
 
+.syntax-panel:focus,
+.syntax-settings-group:focus,
+.syntax-rule-row:focus {
+  outline: none;
+}
+
+.syntax-settings-group:focus > .syntax-group-label,
+.syntax-rule-row:focus {
+  color: var(--color-fg-strong);
+  background: var(--color-selected);
+}
+
 .syntax-group-label {
   display: flex;
   align-items: center;

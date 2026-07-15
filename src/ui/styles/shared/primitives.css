@@ -291,6 +291,10 @@
   color: var(--color-link);
 }
 
+.ui-symbol-slot-warning {
+  color: var(--color-warning);
+}
+
 .ui-symbol-slot-strong {
   color: var(--color-fg-strong);
 }
@@ -333,30 +337,8 @@
   gap: var(--ui-gap-tight);
 }
 
-.ui-status {
-  padding:
-    var(--ui-gap-tight)
-    0
-    var(--ui-gap-tight)
-    calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2));
-  border-left: calc(var(--ui-border-width) * 2) solid var(--color-border-strong);
-  color: var(--color-fg);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
-}
-
-.ui-status-error,
 .ui-error {
   color: var(--color-error);
-}
-
-.ui-status-error {
-  border-color: var(--color-error);
-}
-
-.ui-status-success {
-  border-color: var(--color-success);
-  color: var(--color-success);
 }
 
 .detail-panel-stack {

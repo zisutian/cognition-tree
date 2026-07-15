@@ -20,9 +20,9 @@ type UseSyntaxRuntimeOptions = {
   workspace: WorkspaceStructureIndex | null;
 };
 
-type SyntaxProfileFeedback = {
+export type SyntaxPersistenceErrorEvent = {
+  id: number;
   message: string;
-  status: "error" | "success";
 };
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
@@ -65,10 +65,11 @@ export function useSyntaxRuntime({
   const [syntaxDraft, setSyntaxDraft] = useState(() =>
     createSyntaxProfileDraft(syntaxProfile),
   );
-  const [syntaxFeedback, setSyntaxFeedback] =
-    useState<SyntaxProfileFeedback | null>(null);
+  const [persistenceError, setPersistenceError] =
+    useState<SyntaxPersistenceErrorEvent | null>(null);
   const draftEditVersionRef = useRef(0);
   const lastPersistedSyntaxSourceRef = useRef("");
+  const nextPersistenceErrorIdRef = useRef(1);
   const updateWorkspaceSyntaxSourceRef = useRef(updateWorkspaceSyntaxSource);
   const syntaxDraftResult = useMemo(
     () => buildSyntaxProfileDraft(syntaxDraft),
@@ -101,14 +102,6 @@ export function useSyntaxRuntime({
         syntaxSource,
       }),
     );
-    setSyntaxFeedback((currentFeedback) =>
-      currentFeedback?.status === "error"
-        ? {
-            message: "仓库语法已自动保存。",
-            status: "success",
-          }
-        : currentFeedback,
-    );
   }, [syntaxProfile, syntaxSource]);
 
   useEffect(() => {
@@ -131,18 +124,16 @@ export function useSyntaxRuntime({
       .then(() => {
         if (isActive) {
           lastPersistedSyntaxSourceRef.current = source;
-          setSyntaxFeedback({
-            message: "仓库语法已自动保存。",
-            status: "success",
-          });
+          setPersistenceError(null);
         }
       })
       .catch((error: unknown) => {
         if (isActive) {
-          setSyntaxFeedback({
+          setPersistenceError({
+            id: nextPersistenceErrorIdRef.current,
             message: getErrorMessage(error, "仓库语法自动保存失败。"),
-            status: "error",
           });
+          nextPersistenceErrorIdRef.current += 1;
         }
       });
 
@@ -154,16 +145,15 @@ export function useSyntaxRuntime({
   const updateSyntaxDraft = (nextDraft: SyntaxProfileDraft) => {
     draftEditVersionRef.current += 1;
     setSyntaxDraft(nextDraft);
-    setSyntaxFeedback(null);
   };
 
   return {
     createDefaultSyntax,
     effectiveContext,
     isConfigured,
+    persistenceError,
     syntaxDraft,
     syntaxDraftResult,
-    syntaxFeedback,
     updateSyntaxDraft,
   };
 }

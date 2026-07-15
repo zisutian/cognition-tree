@@ -6,17 +6,16 @@ import type { SyntaxViewModel } from "./syntaxViewModel";
 
 export function useSyntaxActivity(
   syntax: SyntaxRuntime,
+  focusTarget: SyntaxViewModel["focusTarget"],
 ): SyntaxViewModel {
   const view = useMemo(
     () => createUiSyntaxView({
       draft: syntax.syntaxDraft,
-      draftResult: syntax.syntaxDraftResult,
-      feedback: syntax.syntaxFeedback,
+      focusTarget,
     }),
     [
+      focusTarget,
       syntax.syntaxDraft,
-      syntax.syntaxDraftResult,
-      syntax.syntaxFeedback,
     ],
   );
   const draftActions = useMemo(

@@ -1,23 +1,12 @@
-import AppView from "../../ui/AppView";
-import type { ActivityId } from "../../ui/activityTypes";
 import { createPlaceholderActivitySlots } from "../../ui/activities/PlaceholderActivitySlots";
-import type { WorkbenchController } from "../../ui/useWorkbenchLayout";
+import type { RenderWorkspaceActivity } from "./activityController";
 
 export function PlaceholderActivityController({
   activityId,
-  onActiveActivityChange,
-  workbench,
+  renderActivity,
 }: {
   activityId: "data" | "search";
-  onActiveActivityChange: (activityId: ActivityId) => void;
-  workbench: WorkbenchController;
+  renderActivity: RenderWorkspaceActivity;
 }) {
-  return (
-    <AppView
-      activeActivityId={activityId}
-      createActivitySlots={() => createPlaceholderActivitySlots(activityId)}
-      onActiveActivityChange={onActiveActivityChange}
-      workbench={workbench}
-    />
-  );
+  return renderActivity(() => createPlaceholderActivitySlots(activityId));
 }

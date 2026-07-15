@@ -1,26 +1,20 @@
 import { createSettingsViewModel } from "../../application/workspace/activities/settings/settingsViewModel";
-import AppView from "../../ui/AppView";
 import { createSettingsActivitySlots } from "../../ui/activities/settings/SettingsActivitySlots";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 
 export function SettingsActivityController({
   active,
   application,
-  onActiveActivityChange,
-  workbench,
+  renderActivity,
 }: WorkspaceActivityControllerProps) {
-  const view = createSettingsViewModel({
-    ...application.repository,
-    contextWidth: workbench.layout.contextResizeValue,
-    setContextWidth: workbench.setContextWidth,
-  });
+  const view = createSettingsViewModel(application.repository);
 
-  return active ? (
-    <AppView
-      activeActivityId="settings"
-      createActivitySlots={() => createSettingsActivitySlots(view)}
-      onActiveActivityChange={onActiveActivityChange}
-      workbench={workbench}
-    />
-  ) : null;
+  return active
+    ? renderActivity(({ contextWidth, onContextWidthChange }) =>
+        createSettingsActivitySlots({
+          view,
+          workbench: { contextWidth, onContextWidthChange },
+        }),
+      )
+    : null;
 }

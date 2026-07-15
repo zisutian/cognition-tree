@@ -29,6 +29,7 @@
   --color-button-hover: #1177bb;
   --color-link: #569cd6;
   --color-error: #f48771;
+  --color-warning: #cca700;
   --color-error-soft: rgba(244, 135, 113, 0.12);
   --color-overlay: rgba(0, 0, 0, 0.35);
   --color-success: #6a9955;
@@ -63,6 +64,8 @@
   --app-detail-width: 320px;
   --app-detail-collapsed-width: 36px;
   --app-main-min-width: 420px;
+  --app-problems-collapsed-height: 24px;
+  --app-problems-height: 200px;
   --ui-border-width: 1px;
   --ui-panel-padding: 10px;
   --ui-panel-header-height: 34px;
@@ -72,6 +75,7 @@
   --ui-icon-size: 22px;
   --ui-symbol-size: 13px;
   --ui-tree-row-height: 22px;
+  --ui-problems-row-height: 22px;
   --ui-tree-indent: 14px;
   --ui-radius: 4px;
   --ui-focus-outline: 1px solid var(--color-accent);

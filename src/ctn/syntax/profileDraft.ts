@@ -6,6 +6,7 @@ import type {
 import {
   syntaxProfileSchema,
   validateSyntaxProfile,
+  type SyntaxProfileSchemaDiagnosticCode,
 } from "./profileSchema";
 
 export type SyntaxProfileDraftMarkerRule = {
@@ -56,6 +57,7 @@ export type SyntaxProfileDraft = {
 };
 
 export type SyntaxProfileDraftDiagnostic = {
+  code: SyntaxProfileSchemaDiagnosticCode;
   message: string;
   path: string;
 };
@@ -250,9 +252,9 @@ export function buildSyntaxProfileDraft(
       type: draft.titleRule.type.trim(),
     },
   };
-  const diagnostics = validateSyntaxProfile(profile).map(
-    ({ message, path }) => ({ message, path }),
-  );
+  const diagnostics = validateSyntaxProfile(profile).map((diagnostic) => ({
+    ...diagnostic,
+  }));
 
   if (diagnostics.length > 0) {
     return {

@@ -5,7 +5,7 @@ import {
 import {
   loadRepositoryContextWidth,
   saveRepositoryContextWidth,
-} from "../../../../src/ui/workbenchLayoutStorage";
+} from "../../../../src/ui/workbench/workbenchLayoutStorage";
 
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();

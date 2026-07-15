@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { parseCtnDocument } from "../../../../src/ctn/parser/parseCtnDocument";
 import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
 import {
-  buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
 } from "../../../../src/ctn/syntax/profileDraft";
 import type { CtnBlock } from "../../../../src/ctn/parser/types";
@@ -149,7 +148,6 @@ describe("workspace view projection", () => {
       errorMessage: "",
       focusTarget: null,
       hasActiveNote: true,
-      projectLineNumber,
       syntaxProfile: defaultCtnSyntaxProfile,
     });
     const outline = createUiOutlineNodes(
@@ -158,9 +156,6 @@ describe("workspace view projection", () => {
     );
 
     expect(view.documentText).toBe("Title\nRoot\n\t? Unknown");
-    expect(view.diagnostics).toEqual([
-      expect.objectContaining({ lineNumber: 3 }),
-    ]);
     expect(view.stats.lineCount).toBe(3);
     expect(outline).toMatchObject([
       {
@@ -255,8 +250,6 @@ describe("workspace view projection", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
     const view = createUiSyntaxView({
       draft,
-      draftResult: buildSyntaxProfileDraft(draft),
-      feedback: null,
     });
 
     expect(view.draft.tabDisplayWidth).toBe("4");
@@ -276,18 +269,12 @@ describe("workspace view projection", () => {
     expect(view.draft.markerRules.map((rule) => rule.type)).not.toContain(
       "title",
     );
-    expect(view.draftResult.diagnostics).toEqual([]);
-    expect(view.draftResult.profile).toMatchObject({
-      name: "默认 CTN 语法",
-      tabDisplayWidth: 4,
-    });
-    expect(view.draftResult.profile?.inlineRules[0]).toMatchObject({
+    expect(view.draft.inlineRules[0]).toMatchObject({
       close: "]]",
       kind: "paired",
       label: "全局概念引用",
-      marker: "",
       open: "[[",
     });
-    expect("id" in view.draftResult.profile!.inlineRules[0]).toBe(false);
+    expect(view.focusTarget).toBeNull();
   });
 });

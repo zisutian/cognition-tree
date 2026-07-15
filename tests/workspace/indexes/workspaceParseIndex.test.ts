@@ -141,6 +141,40 @@ describe("createWorkspaceParseIndex", () => {
     expect(secondParsedNote?.document).toBe(firstParsedNote?.document);
   });
 
+  it("returns one index instance for the same workspace and syntax profile", () => {
+    const cache = createWorkspaceParseIndexCache();
+    const source = createParseIndexSource([
+      createParsedNoteRecord("note-source", "Source"),
+    ]);
+
+    expect(cache.resolve(source)).toBe(cache.resolve(source));
+  });
+
+  it("supports incremental full-workspace scans", () => {
+    const source = createParsedNoteRecord(
+      "note-source",
+      "Source\n\t: [[Missing]]",
+    );
+    const target = createParsedNoteRecord("note-target", "Target", 100);
+    const index = createWorkspaceParseIndex(
+      createParseIndexSource([source, target]),
+    );
+    const scan = index.createScan();
+
+    expect(scan.noteIds).toEqual(["note-source", "note-target"]);
+    expect(scan.scanNote("note-source")?.note?.id).toBe("note-source");
+    expect(() => scan.complete()).toThrow("Workspace parse scan is incomplete");
+    scan.scanNote("note-target");
+    expect(scan.complete().unresolvedReferences).toEqual([
+      expect.objectContaining({
+        count: 1,
+        lineNumber: 4,
+        sourceNoteId: "note-source",
+        targetText: "Missing",
+      }),
+    ]);
+  });
+
   it("reuses reference graph data for unchanged note graph inputs", () => {
     const source = createParsedNoteRecord(
       "note-source",

@@ -1,13 +1,8 @@
 import { syntaxProfileSchema } from "../../../ctn/syntax/profileSchema";
-import type {
-  CtnRuleRole,
-  CtnSyntaxProfile,
-} from "../../../ctn/syntax/types";
-import type {
-  SyntaxProfileDraft,
-  SyntaxProfileDraftBuildResult,
-} from "../../../ctn/syntax/profileDraft";
+import type { CtnRuleRole } from "../../../ctn/syntax/types";
+import type { SyntaxProfileDraft } from "../../../ctn/syntax/profileDraft";
 import type { UiSyntaxTone } from "./viewText";
+import type { UiSyntaxFieldId } from "./viewSyntaxFields";
 
 export type { UiSyntaxTone } from "./viewText";
 
@@ -70,43 +65,9 @@ export type UiSyntaxProfileDraft = {
   titleRule: UiSyntaxProfileDraftTitleRule;
 };
 
-export type UiSyntaxProfileMarkerRuleSummary = Omit<
-  UiSyntaxProfileDraftMarkerRule,
-  "id"
->;
-
-export type UiSyntaxProfileConceptRuleSummary = Omit<
-  UiSyntaxProfileDraftConceptRule,
-  "id"
->;
-
-export type UiSyntaxProfileTitleRuleSummary = Omit<
-  UiSyntaxProfileDraftTitleRule,
-  "id"
->;
-
-export type UiSyntaxProfileInlineRuleSummary = Omit<
-  UiSyntaxProfileDraftInlineRule,
-  "id"
->;
-
-export type UiSyntaxProfileSummary = {
-  conceptRule: UiSyntaxProfileConceptRuleSummary;
-  inlineRules: UiSyntaxProfileInlineRuleSummary[];
-  markerRules: UiSyntaxProfileMarkerRuleSummary[];
-  name: string;
-  tabDisplayWidth: number;
-  titleRule: UiSyntaxProfileTitleRuleSummary;
-};
-
-export type UiSyntaxProfileDiagnostic = {
-  message: string;
-  path: string;
-};
-
-export type UiSyntaxProfileDraftBuildResult = {
-  diagnostics: UiSyntaxProfileDiagnostic[];
-  profile: UiSyntaxProfileSummary | null;
+export type UiSyntaxFocusTarget = {
+  fieldId: UiSyntaxFieldId;
+  requestId: number;
 };
 
 export type UiSyntaxConstraints = {
@@ -128,11 +89,7 @@ export type UiSyntaxConstraints = {
 export type UiSyntaxView = {
   constraints: UiSyntaxConstraints;
   draft: UiSyntaxProfileDraft;
-  draftResult: UiSyntaxProfileDraftBuildResult;
-  feedback: {
-    message: string;
-    status: "error" | "success";
-  } | null;
+  focusTarget: UiSyntaxFocusTarget | null;
   roleOptions: UiSyntaxRoleOption[];
   stats: {
     inlineRuleCount: number;
@@ -185,59 +142,17 @@ function createUiSyntaxProfileDraft(
   };
 }
 
-function createUiSyntaxProfileInlineRuleSummary(
-  rule: CtnSyntaxProfile["inlineRules"][number],
-): UiSyntaxProfileInlineRuleSummary {
-  return {
-    close: rule.kind === "paired" ? rule.close : "",
-    kind: rule.kind,
-    label: rule.label,
-    marker: rule.kind === "single" ? rule.marker : "",
-    open: rule.kind === "paired" ? rule.open : "",
-    textColor: rule.textColor,
-    tone: rule.tone,
-    type: rule.type,
-  };
-}
-
-function createUiSyntaxProfileSummary(
-  profile: CtnSyntaxProfile | null,
-): UiSyntaxProfileSummary | null {
-  return profile
-    ? {
-        conceptRule: { ...profile.conceptRule },
-        inlineRules: profile.inlineRules.map(createUiSyntaxProfileInlineRuleSummary),
-        markerRules: profile.markerRules.map((rule) => ({ ...rule })),
-        name: profile.name,
-        tabDisplayWidth: profile.tabDisplayWidth,
-        titleRule: { ...profile.titleRule },
-      }
-    : null;
-}
-
-function createUiSyntaxProfileDraftBuildResult(
-  draftResult: SyntaxProfileDraftBuildResult,
-): UiSyntaxProfileDraftBuildResult {
-  return {
-    diagnostics: draftResult.diagnostics.map((diagnostic) => ({ ...diagnostic })),
-    profile: createUiSyntaxProfileSummary(draftResult.profile),
-  };
-}
-
 export function createUiSyntaxView({
   draft,
-  draftResult,
-  feedback,
+  focusTarget = null,
 }: {
   draft: SyntaxProfileDraft;
-  draftResult: SyntaxProfileDraftBuildResult;
-  feedback: UiSyntaxView["feedback"];
+  focusTarget?: UiSyntaxFocusTarget | null;
 }): UiSyntaxView {
   return {
     constraints: syntaxConstraints,
     draft: createUiSyntaxProfileDraft(draft),
-    draftResult: createUiSyntaxProfileDraftBuildResult(draftResult),
-    feedback,
+    focusTarget,
     roleOptions: syntaxRoleOptions,
     stats: {
       inlineRuleCount: draft.inlineRules.length,

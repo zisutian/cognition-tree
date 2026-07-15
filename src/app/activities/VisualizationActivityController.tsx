@@ -1,14 +1,12 @@
 import { useVisualizationActivity } from "../../application/workspace/activities/visualization/useVisualizationActivity";
 import { useVisualizationFilter } from "../../application/workspace/activities/visualization/useVisualizationFilter";
-import AppView from "../../ui/AppView";
 import { createVisualizationActivitySlots } from "../../ui/activities/visualization/VisualizationActivitySlots";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 
 function ActiveVisualizationActivity({
   application,
   filter,
-  onActiveActivityChange,
-  workbench,
+  renderActivity,
 }: Omit<WorkspaceActivityControllerProps, "active"> & {
   filter: ReturnType<typeof useVisualizationFilter>;
 }) {
@@ -18,17 +16,13 @@ function ActiveVisualizationActivity({
     selection: application.selection,
   });
 
-  return (
-    <AppView
-      activeActivityId="visualization"
-      createActivitySlots={(controls) => createVisualizationActivitySlots({
-        ...controls,
-        shell: application.shell,
-        view,
-      })}
-      onActiveActivityChange={onActiveActivityChange}
-      workbench={workbench}
-    />
+  return renderActivity((controls) =>
+    createVisualizationActivitySlots({
+      onCollapseDetail: controls.onCollapseDetail,
+      onConfigureSyntax: controls.onConfigureSyntax,
+      shell: application.shell,
+      view,
+    }),
   );
 }
 

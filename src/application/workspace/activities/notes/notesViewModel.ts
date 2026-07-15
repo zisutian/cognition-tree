@@ -9,11 +9,6 @@ import type {
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
 import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
 
-export type EditorFocusRequest = {
-  lineNumber: number;
-  requestId: number;
-};
-
 export type NotesViewModel = {
   directory: WorkspaceDirectoryMutations & {
     activeFolderId: UiFolderId | null;

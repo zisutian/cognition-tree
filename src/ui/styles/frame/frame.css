@@ -147,14 +147,38 @@
 .app-main-region {
   grid-area: main;
   display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
-.app-main-region > .ui-panel {
+.app-main-content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-main-content > .ui-panel {
   flex: 1;
   width: 100%;
+}
+
+.app-problems {
+  position: relative;
+  display: flex;
+  flex: 0 0 var(--app-problems-collapsed-height);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: var(--ui-border-width) solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.app-problems.is-expanded {
+  flex-basis: var(--app-problems-height);
 }
 
 .app-detail {
@@ -186,12 +210,16 @@
 
 .app-resize-handle {
   position: absolute;
+  z-index: 20;
+  touch-action: none;
+}
+
+.app-context-resize,
+.app-detail-resize {
   top: 0;
   bottom: 0;
-  z-index: 20;
   width: calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2));
   cursor: col-resize;
-  touch-action: none;
 }
 
 .app-context-resize {
@@ -202,13 +230,25 @@
   left: 0;
 }
 
+.app-problems-resize {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: calc(var(--ui-panel-padding) - calc(var(--ui-border-width) * 2));
+  cursor: row-resize;
+}
+
 .app-resize-handle::before {
   position: absolute;
+  background: transparent;
+  content: "";
+}
+
+.app-context-resize::before,
+.app-detail-resize::before {
   top: 0;
   bottom: 0;
   width: var(--ui-border-width);
-  background: transparent;
-  content: "";
 }
 
 .app-context-resize::before {
@@ -217,6 +257,13 @@
 
 .app-detail-resize::before {
   left: 0;
+}
+
+.app-problems-resize::before {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--ui-border-width);
 }
 
 .app-resize-handle:hover::before,
@@ -235,6 +282,12 @@
 .is-resizing-detail,
 .is-resizing-detail * {
   cursor: col-resize;
+  user-select: none;
+}
+
+.is-resizing-problems,
+.is-resizing-problems * {
+  cursor: row-resize;
   user-select: none;
 }
 
@@ -334,4 +387,11 @@
 .repository-setup-meta {
   color: var(--color-fg-subtle);
   font-size: var(--ui-micro-font-size);
+}
+
+.repository-setup-error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
 }

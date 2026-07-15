@@ -158,11 +158,12 @@ describe("dependency boundaries", () => {
         )
         .map(({ importPath }) => formatImport(filePath, importPath)),
     );
-    const frameViolations = [
+    const frameFiles = [
       "../../src/ui/ActivityBar.tsx",
       "../../src/ui/AppFrame.tsx",
-      "../../src/ui/frameResize.ts",
-    ].flatMap((filePath) =>
+      ...listSourceFiles("ui/workbench"),
+    ];
+    const frameViolations = frameFiles.flatMap((filePath) =>
       readSourceImports(filePath)
         .filter(
           ({ targetPath }) =>
@@ -179,6 +180,37 @@ describe("dependency boundaries", () => {
       ...sharedViolations,
       ...frameViolations,
     ]).toEqual([]);
+  });
+
+  it("keeps global workbench composition out of activity controllers", () => {
+    const blockedTargets = new Set([
+      "../../src/ui/AppView",
+      "../../src/ui/problems/ProblemsPanel",
+      "../../src/ui/workbench/useWorkbenchLayout",
+    ]);
+    const violations = listSourceFiles("app/activities").flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetPath }) => blockedTargets.has(targetPath))
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const workbenchImports = readSourceImports(
+      "../../src/app/workbench/WorkspaceWorkbench.tsx",
+    ).map(({ targetPath }) => targetPath);
+
+    expect(violations).toEqual([]);
+    expect(workbenchImports).toContain("../../src/ui/AppView");
+    expect(workbenchImports).toContain(
+      "../../src/ui/workbench/useWorkbenchLayout",
+    );
+  });
+
+  it("keeps workbench layout preferences out of application view models", () => {
+    const settingsViewModel =
+      sourceModules[
+        "../../src/application/workspace/activities/settings/settingsViewModel.ts"
+      ] ?? "";
+
+    expect(settingsViewModel).not.toMatch(/\b(?:contextWidth|setContextWidth)\b/);
   });
 
   it("keeps UI, storage, and application projections on their public inputs", () => {

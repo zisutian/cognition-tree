@@ -12,7 +12,6 @@ const saveStatusLabels: Record<WorkspaceSessionSaveStatus, string> = {
 type SettingsActivitySource = {
   activeRepositoryId: string;
   availability: "conflict" | "offline" | "online";
-  contextWidth: number;
   createRepository: (input: { id: string; name: string }) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   reload: () => Promise<void>;
@@ -22,12 +21,10 @@ type SettingsActivitySource = {
   status: "conflict" | "ready";
   storageLabel: string;
   selectRepository: (repositoryId: string) => Promise<void>;
-  setContextWidth: (width: number) => void;
 };
 
 export type SettingsViewModel = {
   activeRepositoryId: string;
-  contextWidth: number;
   createRepository: (input: { id: string; name: string }) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
@@ -37,7 +34,6 @@ export type SettingsViewModel = {
   saveStatusLabel: string;
   storageLabel: string;
   selectRepository: (repositoryId: string) => Promise<void>;
-  setContextWidth: (width: number) => void;
 };
 
 export function createSettingsViewModel(
@@ -47,7 +43,6 @@ export function createSettingsViewModel(
 
   return {
     activeRepositoryId: source.activeRepositoryId,
-    contextWidth: source.contextWidth,
     createRepository: source.createRepository,
     discardPendingChangesAndReload: source.discardPendingChangesAndReload,
     hasSaveConflict,
@@ -61,6 +56,5 @@ export function createSettingsViewModel(
         : saveStatusLabels[source.saveStatus],
     storageLabel: source.storageLabel,
     selectRepository: source.selectRepository,
-    setContextWidth: source.setContextWidth,
   };
 }

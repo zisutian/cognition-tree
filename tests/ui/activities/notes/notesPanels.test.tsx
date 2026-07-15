@@ -102,7 +102,7 @@ describe("notes panels", () => {
     expect(markup).toContain("当前笔记");
   });
 
-  it("uses divider and marker rows instead of section titles in note detail", () => {
+  it("keeps note detail focused on structure, metadata, and note statistics", () => {
     const baseView = createView();
     const markup = renderToStaticMarkup(
       <NoteDetailPanel
@@ -111,15 +111,7 @@ describe("notes panels", () => {
           ...baseView.notes,
           editor: {
             ...baseView.notes.editor,
-            diagnostics: [
-              {
-                id: "diagnostic-1",
-                lineNumber: 3,
-                message: "示例诊断",
-              },
-            ],
             stats: {
-              diagnosticCount: 1,
               lineCount: 8,
               rootCount: 1,
               totalBlocks: 2,
@@ -174,14 +166,11 @@ describe("notes panels", () => {
     );
 
     expect(markup).toContain("detail-summary-strip");
-    expect(markup).toContain("detail-divider");
-    expect(markup).toContain("detail-line-list");
-    expect(markup).toContain("detail-line-marker");
     expect(markup).toContain("--ui-structure-depth:1");
     expect(markup).toContain("--ui-structure-indent-width:21px");
-    expect(markup).toContain("ui-symbol-slot");
-    expect(markup).toContain("ui-symbol-slot-danger");
-    expect(markup).toContain("示例诊断");
+    expect(markup).toContain('aria-label="笔记统计"');
+    expect(markup).not.toContain("诊断");
+    expect(markup).not.toContain("detail-line-list");
     expect(markup).not.toContain("ui-section-title");
     expect(markup).not.toContain("ui-metrics");
     expect(markup).not.toContain("dense-list");

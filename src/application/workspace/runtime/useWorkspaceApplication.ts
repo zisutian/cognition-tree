@@ -8,9 +8,11 @@ import type { SessionCommands } from "../session/sessionCommands";
 import type { ActiveSession } from "../session/useSession";
 import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
+import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
 import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
 import type { WorkspaceRepositoryDescriptor } from "../../../storage/repository/workspaceRepositoryCatalog";
+import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
 
 export type WorkspaceRepositoryManagement = {
   activeRepositoryId: string;
@@ -65,6 +67,14 @@ export function useWorkspaceApplication(
     [effectiveWorkspace],
   );
   const parseIndexCache = useWorkspaceParseIndexCache();
+  const navigation = useWorkspaceNavigation({ selection, workspace });
+  const diagnostics = useWorkbenchDiagnostics({
+    effectiveContext: syntax.effectiveContext,
+    isSyntaxConfigured: syntax.isConfigured,
+    parseIndexCache,
+    syntaxDraft: syntax.syntaxDraft,
+    syntaxDraftResult: syntax.syntaxDraftResult,
+  });
   const shell: WorkspaceShell = {
     errorMessage,
     hasConfiguredSyntax: Boolean(workspaceSyntax && syntax.effectiveContext),
@@ -90,6 +100,8 @@ export function useWorkspaceApplication(
   };
 
   return {
+    diagnostics,
+    navigation,
     runtime,
     repository,
     selection,

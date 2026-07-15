@@ -11,10 +11,8 @@ import { createUiNoteTree } from "../../projection/viewTree";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
 import { useWorkspaceParseIndex } from "../../runtime/useWorkspaceParseIndex";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
-import type {
-  EditorFocusRequest,
-  NotesViewModel,
-} from "./notesViewModel";
+import type { WorkspaceNavigation } from "../../navigation/useWorkspaceNavigation";
+import type { NotesViewModel } from "./notesViewModel";
 import {
   resolveWorkspaceReferenceNavigation,
 } from "../../../../workspace/queries/workspaceReferenceNavigation";
@@ -26,14 +24,12 @@ import {
 
 export function useNotesActivity({
   errorMessage,
-  focusTarget,
-  onFocusLine,
+  navigation,
   runtime,
   selection,
 }: {
   errorMessage: string;
-  focusTarget: EditorFocusRequest | null;
-  onFocusLine: (lineNumber: number) => void;
+  navigation: WorkspaceNavigation;
   runtime: WorkspaceRuntime;
   selection: WorkspaceSelection;
 }): NotesViewModel {
@@ -102,6 +98,10 @@ export function useNotesActivity({
     }),
     [workspace],
   );
+  const focusTarget =
+    navigation.noteFocusRequest?.noteId === selection.activeNoteId
+      ? navigation.noteFocusRequest
+      : null;
   const editor = useMemo(
     () => createUiEditorView({
       activeNoteTitle: activeNote?.title ?? null,
@@ -110,7 +110,6 @@ export function useNotesActivity({
       errorMessage,
       focusTarget,
       hasActiveNote: Boolean(activeNote),
-      projectLineNumber,
       syntaxProfile: parsedNote?.profile ?? defaultSyntaxProfile,
     }),
     [
@@ -129,7 +128,6 @@ export function useNotesActivity({
     ),
     [editableSource, parsedNote],
   );
-
   return {
     directory: {
       activeFolderId: selection.activeFolderId,
@@ -149,7 +147,7 @@ export function useNotesActivity({
     editor,
     outline: {
       nodes: outlineNodes,
-      onSelectLine: onFocusLine,
+      onSelectLine: navigation.focusActiveNoteLine,
     },
     referenceNavigation: {
       navigate(destination) {
@@ -157,8 +155,8 @@ export function useNotesActivity({
           return;
         }
 
-        selection.selectNote(destination.noteId);
-        onFocusLine(
+        navigation.openNoteLine(
+          destination.noteId,
           projectNoteLineNumber(destination.noteId, destination.lineNumber),
         );
       },

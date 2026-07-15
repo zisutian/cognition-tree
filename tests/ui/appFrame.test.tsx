@@ -2,20 +2,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AppFrame } from "../../src/ui/AppFrame";
 
-const { readFileSync } = (await import("node:fs")) as {
-  readFileSync: (path: URL, encoding: "utf8") => string;
-};
-const frameCss = readFileSync(
-  new URL("../../src/ui/styles/frame/frame.css", import.meta.url),
-  "utf8",
-);
-
 describe("AppFrame", () => {
   function renderFrame({
     context = true,
     detail = false,
     detailCollapsed = false,
     focusMode = false,
+    problems = true,
+    problemsExpanded = false,
   } = {}) {
     return renderToStaticMarkup(
       <AppFrame
@@ -32,14 +26,21 @@ describe("AppFrame", () => {
           focusMode,
           isContextResizing: false,
           isDetailResizing: false,
+          isProblemsResizing: false,
           onContextResizeKeyDown: () => undefined,
           onContextResizeStart: () => undefined,
           onDetailResizeKeyDown: () => undefined,
           onDetailResizeStart: () => undefined,
           onDetailToggle: () => undefined,
+          onProblemsResizeKeyDown: () => undefined,
+          onProblemsResizeStart: () => undefined,
+          problemsExpanded,
+          problemsHeight: 200,
+          problemsResizeValue: 200,
         }}
         mainSlot={<section className="ui-panel">main</section>}
         onActivityChange={() => undefined}
+        problemsSlot={problems ? <div>problems</div> : null}
       />,
     );
   }
@@ -79,18 +80,34 @@ describe("AppFrame", () => {
     expect(markup).toContain("main");
     expect(markup).not.toContain('class="app-context"');
     expect(markup).not.toContain('class="app-detail');
+    expect(markup).not.toContain('class="app-problems');
   });
 
-  it("reduces collapsed detail to the compact row on narrow screens", () => {
-    const responsiveStart = frameCss.indexOf("@media (max-width: 1120px)");
-    const responsiveSource = frameCss.slice(responsiveStart);
+  it("keeps the global problems panel collapsed without a resize handle", () => {
+    const markup = renderFrame();
 
-    expect(responsiveSource).toContain(".app-frame.detail-collapsed");
-    expect(responsiveSource).toContain("var(--app-detail-collapsed-width)");
-    expect(responsiveSource).toContain(
-      ".app-frame.no-context.detail-collapsed",
-    );
-    expect(responsiveSource).toContain(".app-detail-collapsed");
-    expect(responsiveSource).toContain("border-left: 0");
+    expect(markup).toContain("app-main-content");
+    expect(markup).toContain("app-problems");
+    expect(markup).toContain("problems");
+    expect(markup).not.toContain("调整问题面板高度");
   });
+
+  it("renders an accessible height separator only while problems are expanded", () => {
+    const markup = renderFrame({ problemsExpanded: true });
+
+    expect(markup).toContain("problems-expanded");
+    expect(markup).toContain("app-problems is-expanded");
+    expect(markup).toContain("调整问题面板高度");
+    expect(markup).toContain('aria-valuemin="120"');
+    expect(markup).toContain('aria-valuemax="360"');
+    expect(markup).toContain("--app-problems-height:200px");
+  });
+
+  it("does not reserve a bottom region when no global panel is supplied", () => {
+    const markup = renderFrame({ problems: false });
+
+    expect(markup).not.toContain("has-problems");
+    expect(markup).not.toContain('class="app-problems');
+  });
+
 });

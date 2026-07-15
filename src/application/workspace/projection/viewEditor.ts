@@ -6,22 +6,14 @@ export type UiEditorFocusTarget = {
   requestId: number;
 };
 
-export type UiEditorDiagnostic = {
-  id: string;
-  lineNumber: number;
-  message: string;
-};
-
 export type UiEditorView = {
   currentNoteTitle: string | null;
-  diagnostics: UiEditorDiagnostic[];
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
   hasActiveNote: boolean;
   hasParsedDocument: boolean;
   mode: "ctn" | "raw";
   stats: {
-    diagnosticCount: number;
     lineCount: number;
     rootCount: number;
     totalBlocks: number;
@@ -36,7 +28,6 @@ export function createUiEditorView({
   documentText,
   focusTarget,
   hasActiveNote,
-  projectLineNumber = (lineNumber) => lineNumber,
   syntaxProfile,
   errorMessage,
 }: {
@@ -45,25 +36,17 @@ export function createUiEditorView({
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
   hasActiveNote: boolean;
-  projectLineNumber?: (lineNumber: number) => number;
   syntaxProfile: CtnSyntaxProfile;
   errorMessage: string;
 }): UiEditorView {
   return {
     currentNoteTitle: activeNoteTitle,
-    diagnostics:
-      document?.diagnostics.map((diagnostic) => ({
-        id: diagnostic.id,
-        lineNumber: projectLineNumber(diagnostic.lineNumber),
-        message: diagnostic.message,
-      })) ?? [],
     documentText,
     focusTarget,
     hasActiveNote,
     hasParsedDocument: document !== null,
     mode: document ? "ctn" : "raw",
     stats: {
-      diagnosticCount: document?.diagnostics.length ?? 0,
       lineCount: documentText.split("\n").length,
       rootCount: document?.roots.length ?? 0,
       totalBlocks: document?.blocks.length ?? 0,
