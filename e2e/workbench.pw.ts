@@ -420,11 +420,21 @@ test.describe.serial("workbench browser baseline", () => {
       .toHaveClass(/is-selected/);
   });
 
-  test("keeps editor input stable while inserting block metadata", async ({
+  test("commits IME composition once while inserting block metadata", async ({
     page,
   }) => {
     await openWorkbench(page);
     await page.locator(".app-context").getByTitle("Alpha").click();
+    const beforeResponse = await api.get(
+      `/api/repositories/${repositoryId}/snapshot`,
+    );
+    const beforeSnapshot = (await beforeResponse.json()) as
+      WorkspaceRepositorySnapshotDto;
+    const beforeSource = beforeSnapshot.workspace.notes.find(
+      (note) => note.id === "note-alpha",
+    )?.source ?? "";
+    const beforeMetadataCount =
+      beforeSource.match(/^\s*@ctn-block /gm)?.length ?? 0;
 
     const compositionLine = page
       .locator(".source-editor .cm-line")
@@ -433,7 +443,18 @@ test.describe.serial("workbench browser baseline", () => {
     await compositionLine.click();
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
-    await page.keyboard.type(": 浏览器新增");
+    await page.keyboard.type(": ");
+
+    const editorContent = page.locator(".source-editor .cm-content");
+
+    await editorContent.dispatchEvent("compositionstart", { data: "" });
+    await page.keyboard.insertText("输入法新增");
+    await editorContent.dispatchEvent("compositionupdate", {
+      data: "输入法新增",
+    });
+    await editorContent.dispatchEvent("compositionend", {
+      data: "输入法新增",
+    });
 
     await expect.poll(async () => {
       const response = await api.get(
@@ -444,10 +465,17 @@ test.describe.serial("workbench browser baseline", () => {
         (note) => note.id === "note-alpha",
       )?.source ?? "";
 
-      return /\t- Alpha 子项[\s\S]*@ctn-block id=[^\n]+\n\t: 浏览器新增/.test(
-        source,
-      );
-    }).toBe(true);
+      return {
+        contentCount: source
+          .split("\n")
+          .filter((line) => line.trim() === ": 输入法新增")
+          .length,
+        metadataCount: source.match(/^\s*@ctn-block /gm)?.length ?? 0,
+      };
+    }).toEqual({
+      contentCount: 1,
+      metadataCount: beforeMetadataCount + 1,
+    });
   });
 
   test("keeps syntax popovers and draft state stable", async ({ page }) => {

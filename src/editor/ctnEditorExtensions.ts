@@ -36,6 +36,7 @@ import {
   type CtnEditorReferenceTarget,
 } from "./ctnReferenceNavigation";
 import { createCtnCodeBlockEditingExtensions } from "./ctnCodeBlockEditing";
+import { createEditorCompositionChange } from "./editorCompositionChange";
 
 export const ctnTabSizeCompartment = new Compartment();
 export const ctnParsingCompartment = new Compartment();
@@ -65,6 +66,10 @@ export function createCtnEditorExtensions(
   },
   mode: "ctn" | "raw" = "ctn",
 ): Extension[] {
+  const compositionChange = createEditorCompositionChange({
+    onChange: (value) => onChangeRef.current(value),
+  });
+
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -94,13 +99,23 @@ export function createCtnEditorExtensions(
       "aria-label": "CTN 原文",
       spellcheck: "false",
     }),
+    EditorView.domEventHandlers({
+      compositionend(_event, view) {
+        compositionChange.handleCompositionEnd(() => view.state.doc.toString());
+        return false;
+      },
+    }),
     EditorView.updateListener.of((update) => {
       const isExternalValueSync = update.transactions.some((transaction) =>
         transaction.annotation(ctnExternalValueSync),
       );
 
-      if (update.docChanged && !isExternalValueSync) {
-        onChangeRef.current(update.state.doc.toString());
+      if (update.docChanged) {
+        compositionChange.handleDocumentChange({
+          isComposing: update.view.composing,
+          isExternal: isExternalValueSync,
+          value: update.state.doc.toString(),
+        });
       }
     }),
   ];
