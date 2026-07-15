@@ -76,7 +76,30 @@ describe("source topology", () => {
     ]);
     expect(hasSourceFile("ui/shared/tree/index.ts")).toBe(true);
     expect(hasSourceFile("ui/shared/tree/NoteTree.tsx")).toBe(true);
+    expect(hasSourceFile("ui/shared/tree/DirectoryTreeContent.tsx")).toBe(true);
+    expect(hasSourceFile("ui/shared/tree/DirectoryTreeRow.tsx")).toBe(true);
     expect(hasSourceFile("ui/shared/tree/StructureTree.tsx")).toBe(true);
+  });
+
+  it("keeps directory tree surface, collection, and row rendering separate", () => {
+    const treeFiles = listSourceFiles("ui/shared/tree");
+    const rowOwners = treeFiles
+      .filter((filePath) =>
+        (sourceModules[filePath] ?? "").includes('"ui-tree-row-frame",'),
+      )
+      .map(sourcePathToRelative);
+    const virtualCollectionOwners = treeFiles
+      .filter((filePath) =>
+        (sourceModules[filePath] ?? "").includes(
+          "ui-directory-tree ui-virtual-tree",
+        ),
+      )
+      .map(sourcePathToRelative);
+
+    expect(rowOwners).toEqual(["ui/shared/tree/DirectoryTreeRow.tsx"]);
+    expect(virtualCollectionOwners).toEqual([
+      "ui/shared/tree/DirectoryTreeContent.tsx",
+    ]);
   });
 
   it("keeps structure tree recursion owned by the shared structure tree", () => {
@@ -118,5 +141,13 @@ describe("source topology", () => {
       ),
     ).toBe(true);
     expect(Object.keys(serverModules).length).toBeGreaterThan(0);
+  });
+
+  it("keeps legacy repository handling out of the runtime source graph", () => {
+    const violations = Object.entries(sourceModules)
+      .filter(([, source]) => /legacy/i.test(source))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(violations).toEqual([]);
   });
 });

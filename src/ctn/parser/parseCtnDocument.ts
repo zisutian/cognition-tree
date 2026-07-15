@@ -17,7 +17,7 @@ import type {
   CtnDocument,
 } from "./types";
 
-type BlockMetadataPolicy = "legacy-initialization" | "required";
+type BlockMetadataPolicy = "required" | "synthetic";
 
 type CtnSourceBlock = {
   contentIndex: number;
@@ -29,7 +29,7 @@ type CtnSourceBlock = {
   nextIndex: number;
 };
 
-const legacyMetadataTimestamp = "1970-01-01T00:00:00.000Z";
+const syntheticMetadataTimestamp = "1970-01-01T00:00:00.000Z";
 
 export class CtnDocumentMetadataError extends Error {
   lineNumber: number;
@@ -41,7 +41,7 @@ export class CtnDocumentMetadataError extends Error {
   }
 }
 
-function createLegacyBlockId(lineNumber: number) {
+function createSyntheticBlockId(lineNumber: number) {
   return `00000000-0000-0000-0000-${String(lineNumber).padStart(12, "0")}`;
 }
 
@@ -54,7 +54,7 @@ function readSourceBlock({
   lines: string[];
   metadataPolicy: BlockMetadataPolicy;
 }): CtnSourceBlock {
-  if (metadataPolicy === "legacy-initialization") {
+  if (metadataPolicy === "synthetic") {
     const line = lines[index] ?? "";
     const lineNumber = index + 1;
     const indentText = line.match(/^\s*/)?.[0] ?? "";
@@ -65,10 +65,10 @@ function readSourceBlock({
       line,
       lineNumber,
       metadata: {
-        createdAt: legacyMetadataTimestamp,
-        id: createLegacyBlockId(lineNumber),
+        createdAt: syntheticMetadataTimestamp,
+        id: createSyntheticBlockId(lineNumber),
         indentText,
-        updatedAt: legacyMetadataTimestamp,
+        updatedAt: syntheticMetadataTimestamp,
       },
       metadataLineNumber: lineNumber,
       nextIndex: index + 1,
@@ -412,9 +412,9 @@ export function parseCtnDocument(
   return parseDocument(source, syntaxProfile, "required");
 }
 
-export function parseLegacyCtnDocumentForMetadataInitialization(
+export function parseCtnSourceWithSyntheticMetadata(
   source: string,
   syntaxProfile: CtnSyntaxProfile,
 ): CtnDocument {
-  return parseDocument(source, syntaxProfile, "legacy-initialization");
+  return parseDocument(source, syntaxProfile, "synthetic");
 }

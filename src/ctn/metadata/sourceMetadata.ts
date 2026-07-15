@@ -1,6 +1,6 @@
 import type { CtnSyntaxProfile } from "../syntax/types";
 import {
-  parseLegacyCtnDocumentForMetadataInitialization,
+  parseCtnSourceWithSyntheticMetadata,
 } from "../parser/parseCtnDocument";
 import {
   formatCtnBlockMetadataLine,
@@ -22,7 +22,7 @@ export function initializeCtnSourceBlockMetadata(
     updatedAt,
   }: InitializeCtnSourceBlockMetadataOptions,
 ) {
-  const document = parseLegacyCtnDocumentForMetadataInitialization(
+  const document = parseCtnSourceWithSyntheticMetadata(
     source,
     syntaxProfile,
   );

@@ -1,6 +1,6 @@
 import {
   parseCtnDocument,
-  parseLegacyCtnDocumentForMetadataInitialization,
+  parseCtnSourceWithSyntheticMetadata,
 } from "../parser/parseCtnDocument";
 import { findClosingMultilineFenceLineNumber } from "../parser/blockRanges";
 import { parseMarker, sortMarkerRules } from "../parser/lineMarkers";
@@ -450,7 +450,7 @@ export function reconcileCtnSourceBlockMetadata(
 
   const previousDocument = parseCtnDocument(previousSource, syntaxProfile);
   const editableSource = extractEditableSource(nextSource, syntaxProfile);
-  const candidateDocument = parseLegacyCtnDocumentForMetadataInitialization(
+  const candidateDocument = parseCtnSourceWithSyntheticMetadata(
     editableSource.source,
     syntaxProfile,
   );
