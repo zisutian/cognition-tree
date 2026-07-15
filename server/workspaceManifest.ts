@@ -4,10 +4,17 @@ import { WorkspaceRepositoryContractError } from "../contracts/workspace-reposit
 import { parseRepositoryTree } from "../contracts/workspace-repository/parseWorkspace.ts";
 import type { RepositoryTreeNodeDto } from "../contracts/workspace-repository/types.ts";
 
-const manifestFields = new Set(["id", "name", "notes", "tree"]);
+export const workspaceManifestSchemaVersion = 2;
+
+const manifestFields = new Set([
+  "id",
+  "name",
+  "notes",
+  "schemaVersion",
+  "tree",
+]);
 const manifestNoteFields = new Set([
   "createdAt",
-  "fileName",
   "id",
   "title",
   "updatedAt",
@@ -15,7 +22,6 @@ const manifestNoteFields = new Set([
 
 export type WorkspaceManifestNote = {
   createdAt: string;
-  fileName: string;
   id: string;
   title: string;
   updatedAt: string;
@@ -25,6 +31,7 @@ export type WorkspaceManifest = {
   id: string;
   name: string;
   notes: WorkspaceManifestNote[];
+  schemaVersion: typeof workspaceManifestSchemaVersion;
   tree: RepositoryTreeNodeDto[];
 };
 
@@ -79,20 +86,8 @@ function readRequiredString(
   return field;
 }
 
-function assertSafeRelativePath(fileName: string, path: string) {
-  if (fileName.startsWith("/") || fileName.includes("\\")) {
-    failManifest(path, "unsafe file path");
-  }
-
-  for (const segment of fileName.split("/")) {
-    if (segment.length === 0 || segment === "." || segment === "..") {
-      failManifest(path, "unsafe file path");
-    }
-  }
-
-  if (!fileName.endsWith(".ctn")) {
-    failManifest(path, "note file must use .ctn");
-  }
+export function isSafeWorkspaceNoteId(noteId: string) {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(noteId);
 }
 
 function parseManifestNote(
@@ -106,13 +101,15 @@ function parseManifestNote(
 
   const parsedNote = {
     createdAt: readRequiredString(note, "createdAt", path),
-    fileName: readRequiredString(note, "fileName", path),
     id: readRequiredString(note, "id", path),
     title: readRequiredString(note, "title", path),
     updatedAt: readRequiredString(note, "updatedAt", path),
   };
 
-  assertSafeRelativePath(parsedNote.fileName, `${path}.fileName`);
+  if (!isSafeWorkspaceNoteId(parsedNote.id)) {
+    failManifest(`${path}.id`, "unsafe note id");
+  }
+
   return parsedNote;
 }
 
@@ -120,6 +117,13 @@ export function parseWorkspaceManifest(value: unknown): WorkspaceManifest {
   const manifest = readObject(value, "$");
 
   assertExactFields(manifest, manifestFields, "$");
+
+  if (manifest.schemaVersion !== workspaceManifestSchemaVersion) {
+    failManifest(
+      "$.schemaVersion",
+      `expected ${workspaceManifestSchemaVersion}`,
+    );
+  }
 
   if (!Array.isArray(manifest.notes)) {
     failManifest("$.notes", "expected array");
@@ -156,6 +160,7 @@ export function parseWorkspaceManifest(value: unknown): WorkspaceManifest {
     id: readRequiredString(manifest, "id", "$"),
     name: readRequiredString(manifest, "name", "$"),
     notes,
+    schemaVersion: workspaceManifestSchemaVersion,
     tree,
   };
 }

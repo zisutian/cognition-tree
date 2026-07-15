@@ -21,6 +21,7 @@ const nextNotesDirName = "next-notes";
 const previousNotesDirName = "previous-notes";
 const nextSyntaxDirName = "next-syntax";
 const previousSyntaxDirName = "previous-syntax";
+const workspaceTransactionVersion = 3;
 
 export const workspaceCommitPhases = {
   prepared: "prepared",
@@ -40,7 +41,7 @@ type WorkspaceTransaction = {
   commitId: string;
   manifest: WorkspaceManifest;
   previousManifest: WorkspaceManifest | null;
-  version: 2;
+  version: typeof workspaceTransactionVersion;
 };
 
 type WorkspaceCommitInput = {
@@ -90,7 +91,7 @@ function parseWorkspaceTransaction(value: unknown): WorkspaceTransaction {
   const transaction = value as Record<string, unknown>;
 
   if (
-    transaction.version !== 2 ||
+    transaction.version !== workspaceTransactionVersion ||
     typeof transaction.commitId !== "string" ||
     transaction.commitId.length === 0
   ) {
@@ -103,7 +104,7 @@ function parseWorkspaceTransaction(value: unknown): WorkspaceTransaction {
     previousManifest: transaction.previousManifest === null
       ? null
       : parseWorkspaceManifest(transaction.previousManifest),
-    version: 2,
+    version: workspaceTransactionVersion,
   };
 }
 
@@ -222,7 +223,7 @@ export class WorkspaceCommitTransaction {
           ? null
           : parseWorkspaceManifest(previousManifest),
       ),
-      version: 2,
+      version: workspaceTransactionVersion,
     };
 
     await writeJsonAtomically(this.#transactionPath, transaction);

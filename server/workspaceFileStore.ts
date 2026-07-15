@@ -24,7 +24,9 @@ import {
   type WorkspaceCommitPhase,
 } from "./workspaceCommitTransaction.ts";
 import {
+  isSafeWorkspaceNoteId,
   parseWorkspaceManifest,
+  workspaceManifestSchemaVersion,
   type WorkspaceManifest,
 } from "./workspaceManifest.ts";
 
@@ -52,22 +54,12 @@ function failPayloadValidation(message: string): never {
   throw new WorkspacePayloadValidationError(message);
 }
 
-function assertSafePathSegment(segment: unknown, label: string): asserts segment is string {
-  if (
-    typeof segment !== "string" ||
-    segment.length === 0 ||
-    segment.includes("/") ||
-    segment.includes("\\") ||
-    segment === "." ||
-    segment === ".."
-  ) {
-    failPayloadValidation(`Unsafe ${label}: ${segment}`);
+function noteFileName(noteId: string) {
+  if (!isSafeWorkspaceNoteId(noteId)) {
+    failPayloadValidation(`Unsafe note id: ${noteId}`);
   }
-}
 
-function noteFileName(noteTitle: string) {
-  assertSafePathSegment(noteTitle, "note title");
-  return `${noteTitle}.ctn`;
+  return `${noteId}.ctn`;
 }
 
 function inferNoteTitle(source: string) {
@@ -82,21 +74,9 @@ function assertNoteTitleMatchesSource(note: RepositoryNoteDto) {
   }
 }
 
-function createNoteById(notes: RepositoryNoteDto[]) {
-  return new Map(notes.map((note) => [note.id, note]));
-}
-
 type NoteFileLayoutEntry = {
   note: RepositoryNoteDto;
   relativePath: string;
-};
-
-type NoteFileLayoutInput = {
-  noteById: ReadonlyMap<string, RepositoryNoteDto>;
-  nodes: RepositoryWorkspaceDto["tree"];
-  parentSegments?: string[];
-  usedNoteIds?: Set<string>;
-  usedPaths?: Set<string>;
 };
 
 type WorkspaceFileStoreOptions = {
@@ -105,93 +85,14 @@ type WorkspaceFileStoreOptions = {
   ) => Promise<void> | void;
 };
 
-function createNoteFileLayout({
-  noteById,
-  nodes,
-  parentSegments = [],
-  usedNoteIds = new Set(),
-  usedPaths = new Set(),
-}: NoteFileLayoutInput): NoteFileLayoutEntry[] {
-  const entries: NoteFileLayoutEntry[] = [];
-  const siblingNames = new Set();
-
-  for (const node of nodes) {
-    if (node.kind === "folder") {
-      assertSafePathSegment(node.title, "folder title");
-
-      if (siblingNames.has(node.title)) {
-        failPayloadValidation(`Duplicate workspace file path: ${path.posix.join(...parentSegments, node.title)}`);
-      }
-
-      siblingNames.add(node.title);
-      entries.push(
-        ...createNoteFileLayout({
-          noteById,
-          nodes: node.children,
-          parentSegments: [...parentSegments, node.title],
-          usedNoteIds,
-          usedPaths,
-        }),
-      );
-      continue;
-    }
-
-    const note = noteById.get(node.noteId);
-
-    if (!note) {
-      failPayloadValidation(`Workspace note does not exist: ${node.noteId}`);
-    }
-
-    assertNoteTitleMatchesSource(note);
-
-    if (usedNoteIds.has(note.id)) {
-      failPayloadValidation(`Duplicate workspace note placement: ${note.id}`);
-    }
-
-    usedNoteIds.add(note.id);
-
-    const fileName = noteFileName(note.title);
-
-    if (siblingNames.has(fileName)) {
-      failPayloadValidation(`Duplicate workspace file path: ${path.posix.join(...parentSegments, fileName)}`);
-    }
-
-    siblingNames.add(fileName);
-
-    const relativePath = path.posix.join(...parentSegments, fileName);
-
-    if (usedPaths.has(relativePath)) {
-      failPayloadValidation(`Duplicate workspace file path: ${relativePath}`);
-    }
-
-    usedPaths.add(relativePath);
-    entries.push({
-      note,
-      relativePath,
-    });
-  }
-
-  return entries;
-}
-
 function createWorkspaceNoteFileLayout(
   workspace: RepositoryWorkspaceDto,
 ): NoteFileLayoutEntry[] {
   workspace.notes.forEach(assertNoteTitleMatchesSource);
-
-  const noteById = createNoteById(workspace.notes);
-  const entries = createNoteFileLayout({
-    noteById,
-    nodes: workspace.tree,
-  });
-  const placedNoteIds = new Set(entries.map((entry) => entry.note.id));
-  const missingNotes = workspace.notes.filter((note) => !placedNoteIds.has(note.id));
-
-  if (missingNotes.length > 0) {
-    failPayloadValidation(`Workspace note is missing from tree: ${missingNotes[0].id}`);
-  }
-
-  return entries;
+  return workspace.notes.map((note) => ({
+    note,
+    relativePath: noteFileName(note.id),
+  }));
 }
 
 function createEmptyWorkspace(): RepositoryWorkspaceDto {
@@ -298,9 +199,11 @@ export class WorkspaceFileStore {
     const notes: RepositoryNoteDto[] = [];
 
     for (const note of parsedManifest.notes) {
+      const fileName = noteFileName(note.id);
+
       try {
         const source = await readFile(
-          path.join(this.#notesDir, ...note.fileName.split("/")),
+          path.join(this.#notesDir, fileName),
           "utf8",
         );
         const sourceTitle = inferNoteTitle(source);
@@ -318,33 +221,19 @@ export class WorkspaceFileStore {
         });
       } catch (error) {
         if (hasFileSystemErrorCode(error, "ENOENT")) {
-          throw new Error(`Missing note source file: ${note.fileName}`);
+          throw new Error(`Missing note source file: notes/${fileName}`);
         }
 
         throw error;
       }
     }
 
-    const workspace = {
+    return {
       id: parsedManifest.id,
       name: parsedManifest.name,
       notes,
       tree: parsedManifest.tree,
     };
-    const expectedFileNameByNoteId = new Map(
-      createWorkspaceNoteFileLayout(workspace).map((entry) => [
-        entry.note.id,
-        entry.relativePath,
-      ]),
-    );
-
-    for (const note of parsedManifest.notes) {
-      if (note.fileName !== expectedFileNameByNoteId.get(note.id)) {
-        throw new Error(`Workspace note file path does not match tree: ${note.id}`);
-      }
-    }
-
-    return workspace;
   }
 
   async #readSnapshotContent(): Promise<WorkspaceRepositoryContentDto> {
@@ -381,27 +270,16 @@ export class WorkspaceFileStore {
     }
 
     const noteFileLayout = createWorkspaceNoteFileLayout(workspace);
-    const fileNameByNoteId = new Map(
-      noteFileLayout.map((entry) => [entry.note.id, entry.relativePath]),
-    );
     const manifest: WorkspaceManifest = {
       id: workspace.id,
       name: workspace.name,
-      notes: workspace.notes.map((note) => {
-        const fileName = fileNameByNoteId.get(note.id);
-
-        if (!fileName) {
-          failPayloadValidation(`Workspace note is missing from tree: ${note.id}`);
-        }
-
-        return {
-          id: note.id,
-          title: note.title,
-          fileName,
-          createdAt: note.createdAt,
-          updatedAt: note.updatedAt,
-        };
-      }),
+      notes: workspace.notes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+      })),
+      schemaVersion: workspaceManifestSchemaVersion,
       tree: workspace.tree,
     };
 
