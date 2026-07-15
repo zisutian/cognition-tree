@@ -4,6 +4,32 @@
   margin: 0;
 }
 
+.settings-control-row,
+.settings-create-repository {
+  display: grid;
+  align-items: center;
+  gap: var(--ui-gap);
+}
+
+.settings-control-row {
+  grid-template-columns: 96px minmax(0, 280px) auto;
+}
+
+.settings-control-row > label,
+.settings-control-row > span {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.settings-create-repository {
+  grid-template-columns: minmax(120px, 180px) minmax(160px, 240px) var(--ui-icon-size);
+  margin-top: var(--ui-gap);
+}
+
+.settings-width-input {
+  width: 88px;
+}
+
 .settings-grid > div {
   display: grid;
   grid-template-columns:

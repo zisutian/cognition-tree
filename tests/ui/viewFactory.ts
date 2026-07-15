@@ -55,6 +55,7 @@ export function createView(
         focusTarget: null,
         hasActiveNote: true,
         hasParsedDocument: true,
+        mode: "ctn",
         stats: {
           diagnosticCount: 0,
           lineCount: 1,
@@ -70,17 +71,29 @@ export function createView(
       updateSource: () => undefined,
     },
     settings: {
+      activeRepositoryId: "primary",
+      contextWidth: 280,
+      createRepository: async () => undefined,
       discardPendingChangesAndReload: async () => undefined,
       hasSaveConflict: false,
       reload: async () => undefined,
+      repositories: [
+        {
+          adapter: "local",
+          id: "primary",
+          label: "Primary",
+          repositoryPath: "/workspace",
+        },
+      ],
       repositoryPath: "/workspace",
       saveStatusLabel: "已保存",
       storageLabel: "本地",
+      selectRepository: async () => undefined,
+      setContextWidth: () => undefined,
     },
     shell: {
       errorMessage: "",
       hasConfiguredSyntax: true,
-      useDefaultSyntax: () => undefined,
     },
     structureOperation: {
       deleteFolder: () => undefined,
@@ -142,6 +155,8 @@ export function createView(
         updateTabDisplayWidth: () => undefined,
         updateTitleRule: () => undefined,
       },
+      createConfiguration: async () => undefined,
+      isConfigured: true,
       protectedInlineRuleIds: [],
     },
     visualization: {

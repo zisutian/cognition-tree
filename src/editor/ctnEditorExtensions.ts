@@ -33,6 +33,7 @@ import { createCtnParseDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 
 export const ctnTabSizeCompartment = new Compartment();
+export const ctnParsingCompartment = new Compartment();
 export const ctnExternalValueSync = Annotation.define<boolean>();
 
 export function createCtnIndentUnit() {
@@ -54,9 +55,8 @@ export function createCtnEditorExtensions(
   syntaxProfileRef: {
     current: CtnSyntaxProfile;
   },
+  mode: "ctn" | "raw" = "ctn",
 ): Extension[] {
-  const parseDecorationPlugin = createCtnParseDecorationPlugin(syntaxProfileRef);
-
   return [
     lineNumbers(),
     highlightActiveLineGutter(),
@@ -75,8 +75,9 @@ export function createCtnEditorExtensions(
       createCtnTabSizeExtension(syntaxProfileRef.current.tabDisplayWidth),
     ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
-    parseDecorationPlugin,
-    createCtnDiagnosticTooltip(parseDecorationPlugin),
+    ctnParsingCompartment.of(
+      createCtnParsingExtensions(syntaxProfileRef, mode),
+    ),
     EditorView.contentAttributes.of({
       "aria-label": "CTN 原文",
       spellcheck: "false",
@@ -90,5 +91,21 @@ export function createCtnEditorExtensions(
         onChangeRef.current(update.state.doc.toString());
       }
     }),
+  ];
+}
+
+export function createCtnParsingExtensions(
+  syntaxProfileRef: { current: CtnSyntaxProfile },
+  mode: "ctn" | "raw",
+): Extension[] {
+  if (mode === "raw") {
+    return [];
+  }
+
+  const parseDecorationPlugin = createCtnParseDecorationPlugin(syntaxProfileRef);
+
+  return [
+    parseDecorationPlugin,
+    createCtnDiagnosticTooltip(parseDecorationPlugin),
   ];
 }

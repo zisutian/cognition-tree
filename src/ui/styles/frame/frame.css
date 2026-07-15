@@ -310,3 +310,28 @@
   padding: var(--ui-panel-padding);
   background: var(--color-editor);
 }
+
+.repository-setup-panel {
+  width: min(420px, calc(100vw - calc(var(--ui-panel-padding) * 2)));
+  height: auto;
+  max-height: calc(100vh - calc(var(--ui-panel-padding) * 2));
+}
+
+.repository-setup-form {
+  display: grid;
+  gap: var(--ui-gap);
+}
+
+.repository-setup-form label {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-gap);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.repository-setup-meta {
+  color: var(--color-fg-subtle);
+  font-size: var(--ui-micro-font-size);
+}

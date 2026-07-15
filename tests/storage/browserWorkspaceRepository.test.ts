@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBrowserWorkspaceRepository } from "../../src/storage/browserWorkspaceRepository";
+import { createBrowserWorkspaceRepositoryCatalog } from "../../src/storage/browserWorkspaceRepository";
 import {
   createWorkspaceRepositorySyntaxSourceFile,
   WorkspaceRepositoryConflictError,
@@ -32,6 +32,15 @@ function createMemoryStorage(): Storage {
   };
 }
 
+function createContent(name: string): WorkspaceRepositoryContent {
+  return {
+    syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
+      'name = "browser"\n',
+    ),
+    workspace: { ...createInitialWorkspaceData(), name },
+  };
+}
+
 beforeEach(() => {
   vi.stubGlobal("localStorage", createMemoryStorage());
 });
@@ -40,68 +49,71 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("createBrowserWorkspaceRepository", () => {
-  it("stores workspace and syntax together under one content key", async () => {
-    const repository = createBrowserWorkspaceRepository();
-    const initialSnapshot = await repository.loadSnapshot();
-    const workspace = createInitialWorkspaceData();
-    const content: WorkspaceRepositoryContent = {
-      syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
-        'name = "browser"\n',
-      ),
-      workspace,
-    };
-
-    const result = await repository.commitSnapshot({
-      ...content,
-      baseRevision: initialSnapshot.revision,
+describe("browser workspace repository catalog", () => {
+  it("creates and lists isolated browser repositories", async () => {
+    const catalog = createBrowserWorkspaceRepositoryCatalog();
+    const firstContent = createContent("First");
+    const first = await catalog.createRepository({
+      content: firstContent,
+      id: "first",
+    });
+    const second = await catalog.createRepository({
+      content: createContent("Second"),
+      id: "second",
     });
 
-    await expect(repository.loadSnapshot()).resolves.toEqual({
-      ...content,
-      repositoryPath: "localStorage:cognition-tree.repository",
-      revision: result.revision,
-    });
-    expect(globalThis.localStorage.length).toBe(1);
-    expect(
-      JSON.parse(
-        globalThis.localStorage.getItem("cognition-tree.repository") ?? "",
-      ),
-    ).toEqual(content);
+    await expect(catalog.listRepositories()).resolves.toEqual([first, second]);
+    await expect(catalog.openRepository(first).loadSnapshot()).resolves
+      .toMatchObject({
+        ...firstContent,
+        repositoryPath: "localStorage:cognition-tree.repositories.first",
+      });
+    await expect(catalog.openRepository(second).loadSnapshot()).resolves
+      .toMatchObject({ workspace: { name: "Second" } });
+    expect(globalThis.localStorage.length).toBe(3);
   });
 
-  it("detects content changed by another browser repository instance", async () => {
-    const firstRepository = createBrowserWorkspaceRepository();
-    const secondRepository = createBrowserWorkspaceRepository();
+  it("detects content changed by another instance of the same repository", async () => {
+    const catalog = createBrowserWorkspaceRepositoryCatalog();
+    const descriptor = await catalog.createRepository({
+      content: createContent("Initial"),
+      id: "shared",
+    });
+    const firstRepository = catalog.openRepository(descriptor);
+    const secondRepository = catalog.openRepository(descriptor);
     const staleSnapshot = await firstRepository.loadSnapshot();
     const currentSnapshot = await secondRepository.loadSnapshot();
 
     await secondRepository.commitSnapshot({
       baseRevision: currentSnapshot.revision,
-      syntaxSourceFile: null,
-      workspace: {
-        ...createInitialWorkspaceData(),
-        name: "external",
-      },
+      ...createContent("External"),
     });
 
     await expect(
       firstRepository.commitSnapshot({
         baseRevision: staleSnapshot.revision,
-        syntaxSourceFile: null,
-        workspace: {
-          ...createInitialWorkspaceData(),
-          name: "local",
-        },
+        ...createContent("Local"),
       }),
     ).rejects.toBeInstanceOf(WorkspaceRepositoryConflictError);
   });
 
-  it("reports its fixed browser storage location", async () => {
-    const repository = createBrowserWorkspaceRepository();
+  it("rejects duplicate repository ids", async () => {
+    const catalog = createBrowserWorkspaceRepositoryCatalog();
 
-    await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      repositoryPath: "localStorage:cognition-tree.repository",
-    });
+    await catalog.createRepository({ content: createContent("A"), id: "same" });
+    await expect(
+      catalog.createRepository({ content: createContent("B"), id: "same" }),
+    ).rejects.toThrow("already exists");
+  });
+
+  it("rejects repository ids that cannot be used as catalog keys", async () => {
+    const catalog = createBrowserWorkspaceRepositoryCatalog();
+
+    await expect(
+      catalog.createRepository({
+        content: createContent("Invalid"),
+        id: "../invalid",
+      }),
+    ).rejects.toThrow("Invalid browser repository id");
   });
 });

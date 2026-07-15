@@ -52,3 +52,21 @@ export type WorkspaceRepositoryCommitDto = WorkspaceRepositoryContentDto & {
 export type WorkspaceRepositoryCommitResultDto = {
   revision: string;
 };
+
+export type RepositoryAdapterKindDto = "browser" | "local" | "webdav";
+
+export type RepositoryDescriptorDto = {
+  adapter: RepositoryAdapterKindDto;
+  id: string;
+  label: string;
+  repositoryPath: string;
+};
+
+export type RepositoryCatalogDto = {
+  repositories: RepositoryDescriptorDto[];
+};
+
+export type CreateRepositoryDto = {
+  content: WorkspaceRepositoryContentDto;
+  id: string;
+};

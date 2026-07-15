@@ -25,6 +25,7 @@ import {
 import {
   createUiNoteTree,
 } from "../../../../src/application/workspace/projection/viewTree";
+import { createUiEditorView } from "../../../../src/application/workspace/projection/viewEditor";
 import {
   createUiTextSegments,
   getUiTextDisplayText,
@@ -105,6 +106,25 @@ function createBlock(
 }
 
 describe("workspace view projection", () => {
+  it("projects unparsed note text as an explicit raw editor", () => {
+    const view = createUiEditorView({
+      activeNoteTitle: "原始笔记",
+      document: null,
+      documentText: "缩进?内容",
+      errorMessage: "",
+      focusTarget: null,
+      hasActiveNote: true,
+      syntaxProfile: defaultCtnSyntaxProfile,
+    });
+
+    expect(view).toMatchObject({
+      documentText: "缩进?内容",
+      hasParsedDocument: false,
+      mode: "raw",
+      stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
+    });
+  });
+
   it("creates outline text segments with syntax display metadata", () => {
     const root = parseFirstRoot("标题\n主题 [[全局概念]] 和 `code`");
     const segments = createUiTextSegments(root);

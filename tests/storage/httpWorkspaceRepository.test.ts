@@ -44,12 +44,13 @@ describe("createHttpWorkspaceRepository", () => {
     const repository = createHttpWorkspaceRepository({
       baseUrl: "http://api.test/base/",
       fetch: fetchMock,
+      repositoryId: "primary",
     });
 
     await expect(repository.loadSnapshot()).resolves.toEqual(snapshot);
-    expect(repository.label).toBe("HTTP 后端");
+    expect(repository.label).toBe("primary");
     expect(calls.map((call) => call.url)).toEqual([
-      "http://api.test/base/api/repository-snapshot",
+      "http://api.test/base/api/repositories/primary/snapshot",
     ]);
   });
 
@@ -76,6 +77,7 @@ describe("createHttpWorkspaceRepository", () => {
     const repository = createHttpWorkspaceRepository({
       baseUrl: "http://api.test",
       fetch: fetchMock,
+      repositoryId: "primary",
     });
 
     await expect(repository.commitSnapshot(commit)).resolves.toEqual({
@@ -86,7 +88,7 @@ describe("createHttpWorkspaceRepository", () => {
         body: JSON.stringify(commit),
         headers: { "Content-Type": "application/json" },
         method: "PUT",
-        url: "http://api.test/api/repository-snapshot",
+        url: "http://api.test/api/repositories/primary/snapshot",
       },
     ]);
   });
@@ -100,7 +102,10 @@ describe("createHttpWorkspaceRepository", () => {
         },
         409,
       );
-    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+    const repository = createHttpWorkspaceRepository({
+      fetch: fetchMock,
+      repositoryId: "primary",
+    });
     const commit = {
       baseRevision: "revision-stale",
       syntaxSourceFile: null,
@@ -121,7 +126,10 @@ describe("createHttpWorkspaceRepository", () => {
   it("reports server errors", async () => {
     const fetchMock: typeof fetch = async () =>
       jsonResponse({ error: "backend failed" }, 500);
-    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+    const repository = createHttpWorkspaceRepository({
+      fetch: fetchMock,
+      repositoryId: "primary",
+    });
 
     await expect(repository.loadSnapshot()).rejects.toThrow("backend failed");
   });
@@ -135,7 +143,10 @@ describe("createHttpWorkspaceRepository", () => {
         unexpected: true,
         workspace: createInitialWorkspaceData(),
       });
-    const repository = createHttpWorkspaceRepository({ fetch: fetchMock });
+    const repository = createHttpWorkspaceRepository({
+      fetch: fetchMock,
+      repositoryId: "primary",
+    });
 
     await expect(repository.loadSnapshot()).rejects.toThrow(
       "unsupported field",

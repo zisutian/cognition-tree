@@ -25,7 +25,7 @@ ctn：
 
 storage：
 
-    前端持久化端口和实现，以带仓库位置和 revision 的仓库快照统一读取 workspace 数据与仓库语法 source，并提交完整内容新版本。
+    前端持久化端口和 adapter。catalog 负责列出、创建和按 id 打开仓库；repository 以带仓库位置和 revision 的快照读取 workspace 数据与仓库语法 source，并提交完整内容新版本。
 
 editor：
 
@@ -33,7 +33,7 @@ editor：
 
 server：
 
-    本机 HTTP API 和文件仓库执行端，负责请求处理、版本冲突检测、仓库快照事务和本地文件布局。
+    HTTP API 和仓库 adapter 执行端，负责 catalog、请求安全、版本冲突检测、仓库快照事务和具体存储布局。
 
 contracts：
 
@@ -53,7 +53,7 @@ contracts：
 
 3. 数据流
 
-    server 从本地文件仓库生成包含仓库位置、workspace、syntax source 和 revision 的完整快照，并以事务提交完整新版本。
+    server 将 repository id 解析为配置 catalog 中的仓库 adapter，再生成包含仓库位置、workspace、syntax source 和 revision 的完整快照，并以事务提交完整新版本。
     contracts 在 storage 和 server 边界解析同一 repository wire shape。
     storage 将仓库快照和提交结果接入前端 repository 端口，过期 revision 不覆盖当前仓库。
     application 维护 session、单一保存队列、共享 runtime 和 activity controller，按当前 activity 生成局部 view model。

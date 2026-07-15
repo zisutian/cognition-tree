@@ -10,8 +10,10 @@ import {
   type WorkspaceSessionControllerState,
 } from "../../src/application/workspace/session/workspaceSessionController";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
+import { createHttpWorkspaceRepositoryCatalog } from "../../src/storage/httpWorkspaceRepositoryCatalog";
 import { createWorkspaceApiServer } from "../../server/workspaceApiServer.ts";
-import { WorkspaceFileStore } from "../../server/workspaceFileStore.ts";
+import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
+import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { stripTestCtnBlockMetadata } from "../ctn/metadata/sourceMetadataFixture";
 
 type TestRepositoryServer = {
@@ -63,11 +65,11 @@ async function startRepositoryServer(): Promise<TestRepositoryServer> {
   const rootDir = await mkdtemp(
     path.join(os.tmpdir(), "cognition-tree-integration-"),
   );
-  const store = new WorkspaceFileStore(rootDir);
+  const catalog = new LocalRepositoryCatalog(rootDir);
 
-  await store.initialize();
+  await catalog.initialize();
 
-  const server = createWorkspaceApiServer({ allowedOrigins: [], store });
+  const server = createWorkspaceApiServer({ allowedOrigins: [], catalog });
   const baseUrl = await listen(server);
   const testServer = {
     baseUrl,
@@ -87,14 +89,26 @@ async function startRepositoryServer(): Promise<TestRepositoryServer> {
   return testServer;
 }
 
-function startController(baseUrl: string) {
+function startController(baseUrl: string, repositoryId: string) {
   const controller = createWorkspaceSessionController({
-    repository: createHttpWorkspaceRepository({ baseUrl }),
+    repository: createHttpWorkspaceRepository({ baseUrl, repositoryId }),
   });
 
   openControllers.push(controller);
   controller.start();
   return controller;
+}
+
+async function createRepository(baseUrl: string, repositoryId: string) {
+  const catalog = createHttpWorkspaceRepositoryCatalog({ baseUrl });
+
+  await catalog.createRepository({
+    content: {
+      syntaxSourceFile: null,
+      workspace: createInitialWorkspaceData(),
+    },
+    id: repositoryId,
+  });
 }
 
 afterEach(async () => {
@@ -109,7 +123,8 @@ afterEach(async () => {
 describe("workspace persistence integration", () => {
   it("persists workspace and syntax through HTTP and reloads a new session", async () => {
     const server = await startRepositoryServer();
-    const firstController = startController(server.baseUrl);
+    await createRepository(server.baseUrl, "integration");
+    const firstController = startController(server.baseUrl, "integration");
 
     await waitForState(firstController, (state) => state.status === "ready");
     await firstController.useDefaultWorkspaceSyntax();
@@ -123,7 +138,7 @@ describe("workspace persistence integration", () => {
     await firstController.flushPendingChanges();
     firstController.dispose();
 
-    const secondController = startController(server.baseUrl);
+    const secondController = startController(server.baseUrl, "integration");
     const reloadedState = await waitForState(
       secondController,
       (state) => state.status === "ready",
@@ -149,17 +164,21 @@ describe("workspace persistence integration", () => {
     expect(reloadedState.workspaceSyntax?.source).toBe(
       reloadedState.defaultWorkspaceSyntax.source,
     );
-    expect(reloadedState.repositoryPath).toBe(server.rootDir);
+    expect(reloadedState.repositoryPath).toBe(
+      path.join(server.rootDir, "integration"),
+    );
   });
 
   it("retains local content on conflict and reloads the remote snapshot after discard", async () => {
     const server = await startRepositoryServer();
-    const controller = startController(server.baseUrl);
+    await createRepository(server.baseUrl, "conflict");
+    const controller = startController(server.baseUrl, "conflict");
 
     await waitForState(controller, (state) => state.status === "ready");
 
     const externalRepository = createHttpWorkspaceRepository({
       baseUrl: server.baseUrl,
+      repositoryId: "conflict",
     });
     const externalSnapshot = await externalRepository.loadSnapshot();
 

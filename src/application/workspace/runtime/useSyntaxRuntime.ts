@@ -12,6 +12,8 @@ import {
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 
 type UseSyntaxRuntimeOptions = {
+  createDefaultSyntax: () => Promise<void>;
+  isConfigured: boolean;
   syntaxProfile: CtnSyntaxProfile;
   syntaxSource: string;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
@@ -53,6 +55,8 @@ export function resolveSyntaxDraftAfterPersistence({
 }
 
 export function useSyntaxRuntime({
+  createDefaultSyntax,
+  isConfigured,
   syntaxProfile,
   syntaxSource,
   updateWorkspaceSyntaxSource,
@@ -63,6 +67,7 @@ export function useSyntaxRuntime({
   );
   const [syntaxFeedback, setSyntaxFeedback] =
     useState<SyntaxProfileFeedback | null>(null);
+  const draftEditVersionRef = useRef(0);
   const lastPersistedSyntaxSourceRef = useRef("");
   const updateWorkspaceSyntaxSourceRef = useRef(updateWorkspaceSyntaxSource);
   const syntaxDraftResult = useMemo(
@@ -112,6 +117,7 @@ export function useSyntaxRuntime({
 
   useEffect(() => {
     if (
+      draftEditVersionRef.current === 0 ||
       !syntaxDraftSource ||
       syntaxDraftSource === lastPersistedSyntaxSourceRef.current
     ) {
@@ -146,12 +152,15 @@ export function useSyntaxRuntime({
   }, [syntaxDraftSource]);
 
   const updateSyntaxDraft = (nextDraft: SyntaxProfileDraft) => {
+    draftEditVersionRef.current += 1;
     setSyntaxDraft(nextDraft);
     setSyntaxFeedback(null);
   };
 
   return {
+    createDefaultSyntax,
     effectiveContext,
+    isConfigured,
     syntaxDraft,
     syntaxDraftResult,
     syntaxFeedback,

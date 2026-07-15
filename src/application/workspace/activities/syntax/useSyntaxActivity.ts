@@ -27,5 +27,10 @@ export function useSyntaxActivity(
     [syntax.syntaxDraft, syntax.updateSyntaxDraft],
   );
 
-  return { ...view, ...draftActions };
+  return {
+    ...view,
+    ...draftActions,
+    createConfiguration: syntax.createDefaultSyntax,
+    isConfigured: syntax.isConfigured,
+  };
 }

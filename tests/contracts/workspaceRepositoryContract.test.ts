@@ -6,8 +6,46 @@ import {
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
 } from "../../contracts/workspace-repository/parseRepository";
+import {
+  parseCreateRepository,
+  parseRepositoryCatalog,
+} from "../../contracts/workspace-repository/parseCatalog";
 
 describe("workspace repository contract", () => {
+  it("parses repository catalogs and creation requests strictly", () => {
+    const workspace = createInitialWorkspaceData();
+    const descriptor = {
+      adapter: "local",
+      id: "primary.repo",
+      label: "Primary",
+      repositoryPath: "/repositories/primary.repo",
+    };
+
+    expect(parseRepositoryCatalog({ repositories: [descriptor] })).toEqual({
+      repositories: [descriptor],
+    });
+    expect(
+      parseCreateRepository({
+        content: { syntaxSourceFile: null, workspace },
+        id: "primary.repo",
+      }),
+    ).toEqual({
+      content: { syntaxSourceFile: null, workspace },
+      id: "primary.repo",
+    });
+    expect(() =>
+      parseRepositoryCatalog({
+        repositories: [descriptor, descriptor],
+      }),
+    ).toThrow("duplicate repository id");
+    expect(() =>
+      parseCreateRepository({
+        content: { syntaxSourceFile: null, workspace },
+        id: "../outside",
+      }),
+    ).toThrow("invalid repository id");
+  });
+
   it("parses repository snapshots, content, and commit results", () => {
     const workspace = createInitialWorkspaceData();
     const syntaxSourceFile = {

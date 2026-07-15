@@ -15,6 +15,7 @@ import { initializeCtnSourceBlockMetadata } from "../src/ctn/metadata/sourceMeta
 import { defaultCtnSyntaxProfile } from "../src/ctn/syntax/defaultSyntaxProfile";
 
 const apiBaseUrl = "http://127.0.0.1:3317";
+const repositoryId = "e2e";
 const timestamp = "2026-01-01T00:00:00.000Z";
 
 function createSeedSource(source: string, idOffset: number) {
@@ -29,65 +30,88 @@ function createSeedSource(source: string, idOffset: number) {
 }
 
 async function seedRepository(api: APIRequestContext) {
-  const snapshotResponse = await api.get("/api/repository-snapshot");
-
-  expect(snapshotResponse.ok()).toBe(true);
-
-  const snapshot =
-    (await snapshotResponse.json()) as WorkspaceRepositorySnapshotDto;
-  const commitResponse = await api.put("/api/repository-snapshot", {
+  const createResponse = await api.post("/api/repositories", {
     data: {
-      baseRevision: snapshot.revision,
-      syntaxSourceFile: {
-        fileName: repositorySyntaxFileName,
-        source: createDefaultWorkspaceSyntaxSource(),
+      content: {
+        syntaxSourceFile: {
+          fileName: repositorySyntaxFileName,
+          source: createDefaultWorkspaceSyntaxSource(),
+        },
+        workspace: {
+          id: "e2e-workspace",
+          name: "浏览器回归仓库",
+          notes: [
+            {
+              createdAt: timestamp,
+              id: "note-alpha",
+              source: createSeedSource(
+                "Alpha\n\t: [[Beta]]\n\t- Alpha 子项",
+                0,
+              ),
+              title: "Alpha",
+              updatedAt: timestamp,
+            },
+            {
+              createdAt: timestamp,
+              id: "note-beta",
+              source: createSeedSource("Beta\n\t: 被 Alpha 引用", 100),
+              title: "Beta",
+              updatedAt: timestamp,
+            },
+            {
+              createdAt: timestamp,
+              id: "note-gamma",
+              source: createSeedSource("Gamma\n\t> 孤立笔记", 200),
+              title: "Gamma",
+              updatedAt: timestamp,
+            },
+          ],
+          tree: [
+            {
+              children: [
+                { id: "tree-alpha", kind: "note", noteId: "note-alpha" },
+                { id: "tree-beta", kind: "note", noteId: "note-beta" },
+              ],
+              id: "folder-guides",
+              kind: "folder",
+              title: "资料",
+            },
+            { id: "tree-gamma", kind: "note", noteId: "note-gamma" },
+          ],
+        },
       },
-      workspace: {
-        id: "e2e-workspace",
-        name: "浏览器回归仓库",
-        notes: [
-          {
-            createdAt: timestamp,
-            id: "note-alpha",
-            source: createSeedSource(
-              "Alpha\n\t: [[Beta]]\n\t- Alpha 子项",
-              0,
-            ),
-            title: "Alpha",
-            updatedAt: timestamp,
-          },
-          {
-            createdAt: timestamp,
-            id: "note-beta",
-            source: createSeedSource("Beta\n\t: 被 Alpha 引用", 100),
-            title: "Beta",
-            updatedAt: timestamp,
-          },
-          {
-            createdAt: timestamp,
-            id: "note-gamma",
-            source: createSeedSource("Gamma\n\t> 孤立笔记", 200),
-            title: "Gamma",
-            updatedAt: timestamp,
-          },
-        ],
-        tree: [
-          {
-            children: [
-              { id: "tree-alpha", kind: "note", noteId: "note-alpha" },
-              { id: "tree-beta", kind: "note", noteId: "note-beta" },
-            ],
-            id: "folder-guides",
-            kind: "folder",
-            title: "资料",
-          },
-          { id: "tree-gamma", kind: "note", noteId: "note-gamma" },
-        ],
-      },
+      id: repositoryId,
     },
   });
 
-  expect(commitResponse.ok()).toBe(true);
+  expect(createResponse.ok()).toBe(true);
+}
+
+async function seedRawRepository(api: APIRequestContext) {
+  const createResponse = await api.post("/api/repositories", {
+    data: {
+      content: {
+        syntaxSourceFile: null,
+        workspace: {
+          id: "raw-workspace",
+          name: "原始文本仓库",
+          notes: [
+            {
+              createdAt: timestamp,
+              id: "note-raw",
+              source: "原始笔记\n\t? 未知语法",
+              title: "原始笔记",
+              updatedAt: timestamp,
+            },
+          ],
+          tree: [{ id: "tree-raw", kind: "note", noteId: "note-raw" }],
+        },
+      },
+      id: "raw",
+    },
+  });
+
+  expect(createResponse.ok()).toBe(true);
 }
 
 async function openWorkbench(page: Page) {
@@ -108,6 +132,7 @@ test.describe.serial("workbench browser baseline", () => {
   test.beforeAll(async () => {
     api = await createRequest.newContext({ baseURL: apiBaseUrl });
     await seedRepository(api);
+    await seedRawRepository(api);
   });
 
   test.afterAll(async () => {
@@ -265,7 +290,9 @@ test.describe.serial("workbench browser baseline", () => {
     await page.keyboard.type(": 浏览器新增");
 
     await expect.poll(async () => {
-      const response = await api.get("/api/repository-snapshot");
+      const response = await api.get(
+        `/api/repositories/${repositoryId}/snapshot`,
+      );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const source = snapshot.workspace.notes.find(
         (note) => note.id === "note-alpha",
@@ -324,5 +351,63 @@ test.describe.serial("workbench browser baseline", () => {
     expect(finalBox).not.toBeNull();
     expect(finalBox?.width).toBeCloseTo(initialBox?.width ?? 0, 0);
     expect(finalBox?.height).toBeCloseTo(initialBox?.height ?? 0, 0);
+  });
+
+  test("creates and switches repositories without sharing layout state", async ({
+    page,
+  }) => {
+    await openWorkbench(page);
+    const contextResize = page.getByRole("separator", {
+      name: "调整上下文区宽度",
+    });
+    const firstWidth = Number(await contextResize.getAttribute("aria-valuenow"));
+
+    await contextResize.focus();
+    await contextResize.press("ArrowRight");
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("textbox", { name: "新仓库 ID" }).fill("second");
+    await page.getByRole("textbox", { name: "新仓库名称" }).fill("第二仓库");
+    await page.getByRole("button", { name: "创建仓库" }).click();
+
+    await expect(page.getByLabel("笔记编辑")).toBeVisible();
+    await expect(page.locator(".app-context").getByTitle("未命名笔记"))
+      .toBeVisible();
+    await expect(contextResize).toHaveAttribute("aria-valuenow", "280");
+
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption(repositoryId);
+    await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
+    await expect(contextResize).toHaveAttribute(
+      "aria-valuenow",
+      String(firstWidth + appResizeKeyboardStep),
+    );
+  });
+
+  test("edits repositories without syntax in raw mode", async ({ page }) => {
+    await openWorkbench(page);
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption("raw");
+
+    const editor = page.locator(".source-editor");
+
+    await expect(editor).toHaveAttribute("data-editor-mode", "raw");
+    await expect(editor).toContainText("? 未知语法");
+    await editor.locator(".cm-content").click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" raw");
+
+    await expect.poll(async () => {
+      const response = await api.get("/api/repositories/raw/snapshot");
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+
+      return snapshot.workspace.notes[0]?.source.endsWith(" raw") ?? false;
+    }).toBe(true);
+
+    await getActivityButton(page, "结构操作").click();
+    await expect(page.getByText("结构操作不可用", { exact: true })).toBeVisible();
+    await getActivityButton(page, "引用图谱").click();
+    await expect(page.getByText("引用图谱不可用", { exact: true })).toBeVisible();
+    await getActivityButton(page, "语法").click();
+    await expect(page.getByRole("button", { name: "创建配置" })).toBeVisible();
   });
 });

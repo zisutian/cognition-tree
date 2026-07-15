@@ -2,7 +2,7 @@ import type { StructureOperationActivityViewModel } from "../../../application/w
 import "../../styles/activities/structure-operation.css";
 import type { WorkspaceShell } from "../../../application/workspace/runtime/useWorkspaceApplication";
 import type { ActivitySlots } from "../../activityTypes";
-import { WorkspaceSyntaxSetupView } from "../../WorkspaceSyntaxSetupView";
+import { SyntaxUnavailablePanel } from "../../SyntaxUnavailablePanel";
 import { StructureOperationContext } from "./StructureOperationContext";
 import { StructureOperationMainPanel } from "./StructureOperationPanels";
 
@@ -24,10 +24,9 @@ export function createStructureOperationActivitySlots({
     main: shell.hasConfiguredSyntax ? (
       <StructureOperationMainPanel view={view} />
     ) : (
-      <WorkspaceSyntaxSetupView
-        errorMessage={shell.errorMessage}
+      <SyntaxUnavailablePanel
+        featureName="结构操作"
         onConfigureSyntax={onConfigureSyntax}
-        onUseDefaultSyntax={shell.useDefaultSyntax}
       />
     ),
   };

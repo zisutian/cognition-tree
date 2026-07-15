@@ -8,9 +8,9 @@
 
     前端：React、Vite、CodeMirror、Canvas 引用图谱。
     后端：Node HTTP API、本地文件仓库读写。
-    存储：默认写入 .cognition-tree/repository。
+    存储：默认在 .cognition-tree/repositories 下管理多个仓库。
 
-数据文件由后端按仓库结构生成和读取：
+每个仓库由稳定的 repository id 标识，数据文件按仓库结构生成和读取：
 
     workspace.json
     notes/*.ctn
@@ -28,7 +28,7 @@
     仓库语法：编辑仓库级语法配置，并用当前配置解析笔记。
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用图谱：查看笔记级引用关系、局部图谱和未解析引用。
-    设置：查看存储模式、仓库位置和保存状态。
+    设置：创建和切换仓库，查看仓库位置与保存状态，并调整工作台目录宽度。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
 
@@ -80,7 +80,7 @@
 
     CTN_API_HOST=127.0.0.1
     CTN_API_PORT=3001
-    CTN_REPOSITORY_DIR=.cognition-tree/repository
+    CTN_REPOSITORY_ROOT=.cognition-tree/repositories
     CTN_API_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 
 前端环境变量：
@@ -89,6 +89,8 @@
     VITE_CTN_STORAGE_MODE=browser
 
 HTTP 后端默认只接受来自本机开发前端地址的浏览器请求。使用其它前端地址时，通过 `CTN_API_ALLOWED_ORIGINS` 显式加入对应 Origin。
+
+后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
 
 ## 代码结构
 

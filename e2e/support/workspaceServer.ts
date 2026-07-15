@@ -6,7 +6,7 @@ import {
   createWorkspaceApiServer,
   parseWorkspaceApiAllowedOrigins,
 } from "../../server/workspaceApiServer.ts";
-import { WorkspaceFileStore } from "../../server/workspaceFileStore.ts";
+import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3317");
@@ -20,11 +20,11 @@ const allowedOrigins = parseWorkspaceApiAllowedOrigins(
 
 await rm(repositoryDir, { force: true, recursive: true });
 
-const store = new WorkspaceFileStore(repositoryDir);
+const catalog = new LocalRepositoryCatalog(repositoryDir);
 
-await store.initialize();
+await catalog.initialize();
 
-const server = createWorkspaceApiServer({ allowedOrigins, store });
+const server = createWorkspaceApiServer({ allowedOrigins, catalog });
 
 server.listen(port, host, () => {
   console.log(`Cognition Tree E2E API listening on http://${host}:${port}`);

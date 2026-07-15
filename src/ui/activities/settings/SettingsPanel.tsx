@@ -1,4 +1,5 @@
-import { RefreshCw, Undo2 } from "lucide-react";
+import { Plus, RefreshCw, Undo2 } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import type { SettingsViewModel } from "../../../application/workspace/activities/settings/settingsViewModel";
 import {
   Button,
@@ -7,8 +8,32 @@ import {
   PanelHeader,
   Section,
 } from "../../shared/primitives";
+import { useFeedback } from "../../shared/FeedbackProvider";
 
 export function SettingsPanel({ view }: { view: SettingsViewModel }) {
+  const feedback = useFeedback();
+  const [repositoryId, setRepositoryId] = useState("");
+  const [repositoryName, setRepositoryName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreating(true);
+
+    try {
+      await view.createRepository({
+        id: repositoryId.trim(),
+        name: repositoryName.trim(),
+      });
+      setRepositoryId("");
+      setRepositoryName("");
+    } catch (error) {
+      feedback.notifyError(error);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <Panel className="settings-panel" aria-label="设置">
       <PanelHeader
@@ -34,6 +59,25 @@ export function SettingsPanel({ view }: { view: SettingsViewModel }) {
       />
       <PanelBody scroll>
         <Section title="仓库">
+          <div className="settings-control-row">
+            <label htmlFor="settings-repository-select">当前仓库</label>
+            <select
+              className="ui-input"
+              id="settings-repository-select"
+              onChange={(event) => {
+                void view.selectRepository(event.target.value).catch(
+                  feedback.notifyError,
+                );
+              }}
+              value={view.activeRepositoryId}
+            >
+              {view.repositories.map((repository) => (
+                <option key={repository.id} value={repository.id}>
+                  {repository.label} ({repository.id})
+                </option>
+              ))}
+            </select>
+          </div>
           <dl className="settings-grid">
             <div>
               <dt>存储</dt>
@@ -48,6 +92,62 @@ export function SettingsPanel({ view }: { view: SettingsViewModel }) {
               <dd>{view.repositoryPath || "加载中"}</dd>
             </div>
           </dl>
+          <form className="settings-create-repository" onSubmit={handleCreate}>
+            <input
+              aria-label="新仓库 ID"
+              autoComplete="off"
+              className="ui-input"
+              disabled={creating}
+              maxLength={64}
+              onChange={(event) => setRepositoryId(event.target.value)}
+              pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+              placeholder="仓库 ID"
+              required
+              value={repositoryId}
+            />
+            <input
+              aria-label="新仓库名称"
+              autoComplete="off"
+              className="ui-input"
+              disabled={creating}
+              maxLength={80}
+              onChange={(event) => setRepositoryName(event.target.value)}
+              placeholder="名称"
+              required
+              value={repositoryName}
+            />
+            <Button
+              aria-label="创建仓库"
+              disabled={creating}
+              title="创建仓库"
+              type="submit"
+              variant="icon"
+            >
+              <Plus aria-hidden="true" size={14} />
+            </Button>
+          </form>
+        </Section>
+        <Section title="工作台">
+          <div className="settings-control-row">
+            <label htmlFor="settings-context-width">左侧栏宽度</label>
+            <input
+              className="ui-input settings-width-input"
+              id="settings-context-width"
+              max={420}
+              min={220}
+              onChange={(event) => {
+                const width = event.currentTarget.valueAsNumber;
+
+                if (Number.isFinite(width)) {
+                  view.setContextWidth(width);
+                }
+              }}
+              step={1}
+              type="number"
+              value={view.contextWidth}
+            />
+            <span>px</span>
+          </div>
         </Section>
       </PanelBody>
     </Panel>

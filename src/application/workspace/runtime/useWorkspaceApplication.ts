@@ -10,11 +10,18 @@ import type { WorkspaceContext } from "../../../workspace/context/workspaceConte
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
 import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
+import type { WorkspaceRepositoryDescriptor } from "../../../storage/workspaceRepositoryCatalog";
+
+export type WorkspaceRepositoryManagement = {
+  activeRepositoryId: string;
+  createRepository: (input: { id: string; name: string }) => Promise<void>;
+  repositories: WorkspaceRepositoryDescriptor[];
+  selectRepository: (repositoryId: string) => Promise<void>;
+};
 
 export type WorkspaceShell = {
   errorMessage: string;
   hasConfiguredSyntax: boolean;
-  useDefaultSyntax: () => void;
 };
 
 export type WorkspaceRuntime = {
@@ -27,7 +34,10 @@ export type WorkspaceRuntime = {
   workspace: WorkspaceStructureIndex;
 };
 
-export function useWorkspaceApplication(session: ActiveSession) {
+export function useWorkspaceApplication(
+  session: ActiveSession,
+  repositoryManagement: WorkspaceRepositoryManagement,
+) {
   const {
     commands,
     defaultWorkspaceSyntax,
@@ -44,6 +54,8 @@ export function useWorkspaceApplication(session: ActiveSession) {
       workspaceSyntax?.profile ?? defaultWorkspaceSyntax.profile,
     syntaxSource:
       workspaceSyntax?.source ?? defaultWorkspaceSyntax.source,
+    createDefaultSyntax: useDefaultWorkspaceSyntax,
+    isConfigured: Boolean(workspaceSyntax),
     updateWorkspaceSyntaxSource,
     workspace: context?.workspace ?? null,
   });
@@ -56,11 +68,9 @@ export function useWorkspaceApplication(session: ActiveSession) {
   const shell: WorkspaceShell = {
     errorMessage,
     hasConfiguredSyntax: Boolean(workspaceSyntax && syntax.effectiveContext),
-    useDefaultSyntax: () => {
-      void useDefaultWorkspaceSyntax();
-    },
   };
   const repository = {
+    ...repositoryManagement,
     discardPendingChangesAndReload: session.discardPendingChangesAndReload,
     reload: session.reload,
     repositoryPath: session.repositoryPath,

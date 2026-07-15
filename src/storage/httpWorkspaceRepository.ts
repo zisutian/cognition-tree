@@ -1,79 +1,36 @@
 import {
-  WorkspaceRepositoryConflictError,
   type WorkspaceRepository,
 } from "./workspaceRepository";
 import {
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositorySnapshot,
 } from "../../contracts/workspace-repository/parseRepository";
+import {
+  requestRepositoryJson,
+  type HttpRepositoryTransportOptions,
+} from "./httpRepositoryTransport";
 
-type HttpWorkspaceRepositoryOptions = {
-  baseUrl?: string;
-  fetch?: typeof fetch;
+type HttpWorkspaceRepositoryOptions = HttpRepositoryTransportOptions & {
+  label?: string;
+  repositoryId: string;
 };
-
-function normalizeBaseUrl(baseUrl: string) {
-  return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-}
-
-function resolveApiUrl(baseUrl: string, endpoint: string) {
-  return new URL(endpoint.replace(/^\//, ""), normalizeBaseUrl(baseUrl)).toString();
-}
-
-async function readErrorBody(response: Response) {
-  try {
-    return (await response.json()) as {
-      currentRevision?: unknown;
-      error?: unknown;
-    };
-  } catch {
-    return {};
-  }
-}
-
-async function assertSuccessfulResponse(response: Response) {
-  if (response.ok) {
-    return;
-  }
-
-  const body = await readErrorBody(response);
-
-  if (
-    response.status === 409 &&
-    typeof body.currentRevision === "string"
-  ) {
-    throw new WorkspaceRepositoryConflictError(body.currentRevision);
-  }
-
-  throw new Error(
-    typeof body.error === "string" ? body.error : response.statusText,
-  );
-}
-
-async function requestJson(
-  fetchFn: typeof fetch,
-  baseUrl: string,
-  endpoint: string,
-  init?: RequestInit,
-): Promise<unknown> {
-  const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), init);
-
-  await assertSuccessfulResponse(response);
-  return response.json();
-}
 
 export function createHttpWorkspaceRepository({
   baseUrl = "http://127.0.0.1:3001",
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-}: HttpWorkspaceRepositoryOptions = {}): WorkspaceRepository {
+  label,
+  repositoryId,
+}: HttpWorkspaceRepositoryOptions): WorkspaceRepository {
+  const endpoint = `/api/repositories/${encodeURIComponent(repositoryId)}/snapshot`;
+
   return {
-    label: "HTTP 后端",
+    label: label ?? repositoryId,
     async commitSnapshot(commit) {
       return parseWorkspaceRepositoryCommitResult(
-        await requestJson(
+        await requestRepositoryJson(
           fetchFn,
           baseUrl,
-          "/api/repository-snapshot",
+          endpoint,
           {
             body: JSON.stringify(commit),
             headers: { "Content-Type": "application/json" },
@@ -84,10 +41,10 @@ export function createHttpWorkspaceRepository({
     },
     async loadSnapshot() {
       return parseWorkspaceRepositorySnapshot(
-        await requestJson(
+        await requestRepositoryJson(
           fetchFn,
           baseUrl,
-          "/api/repository-snapshot",
+          endpoint,
         ),
       );
     },

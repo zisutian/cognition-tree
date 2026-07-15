@@ -4,8 +4,10 @@ import { EditorView } from "@codemirror/view";
 import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 import {
   createCtnEditorExtensions,
+  createCtnParsingExtensions,
   createCtnTabSizeExtension,
   ctnExternalValueSync,
+  ctnParsingCompartment,
   ctnTabSizeCompartment,
 } from "./ctnEditorExtensions";
 import { createEditorValueSyncChange } from "./editorValueSync";
@@ -15,6 +17,7 @@ export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
 
 type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;
+  mode?: "ctn" | "raw";
   syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
   onChange: (value: string) => void;
@@ -27,6 +30,7 @@ export type CtnEditorFocusTarget = {
 
 export function CtnEditor({
   focusTarget,
+  mode = "ctn",
   syntaxProfile,
   value,
   onChange,
@@ -72,7 +76,11 @@ export function CtnEditor({
       parent: editorHostRef.current,
       state: EditorState.create({
         doc: initialValueRef.current,
-        extensions: createCtnEditorExtensions(onChangeRef, syntaxProfileRef),
+        extensions: createCtnEditorExtensions(
+          onChangeRef,
+          syntaxProfileRef,
+          mode,
+        ),
       }),
     });
 
@@ -109,6 +117,20 @@ export function CtnEditor({
   useEffect(() => {
     const view = editorViewRef.current;
 
+    if (!view) {
+      return;
+    }
+
+    view.dispatch({
+      effects: ctnParsingCompartment.reconfigure(
+        createCtnParsingExtensions(syntaxProfileRef, mode),
+      ),
+    });
+  }, [mode]);
+
+  useEffect(() => {
+    const view = editorViewRef.current;
+
     if (!view || !focusTarget) {
       return;
     }
@@ -126,5 +148,11 @@ export function CtnEditor({
     view.focus();
   }, [focusTarget]);
 
-  return <div className="source-editor" ref={editorHostRef} />;
+  return (
+    <div
+      className="source-editor"
+      data-editor-mode={mode}
+      ref={editorHostRef}
+    />
+  );
 }

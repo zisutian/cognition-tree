@@ -32,18 +32,18 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
 
     http://127.0.0.1:3001
 
-默认仓库路径：
+默认仓库根目录：
 
-    .cognition-tree/repository
+    .cognition-tree/repositories
 
 后端环境变量：
 
     CTN_API_HOST
     CTN_API_PORT
-    CTN_REPOSITORY_DIR
+    CTN_REPOSITORY_ROOT
     CTN_API_ALLOWED_ORIGINS
 
-后端提供 health 和 repository-snapshot API。repository-snapshot 以 GET 读取仓库路径、revision、workspace 与 syntax source，以 PUT 原子提交 workspace 与 syntax source；base revision 过期时返回 409，且不覆盖磁盘内容。文件仓库写入由 server 执行，前端通过 HTTP repository 访问。
+后端提供 health、repository catalog 和按 repository id 访问的 snapshot API。`GET /api/repositories` 列出仓库，`POST /api/repositories` 创建仓库，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库；base revision 过期时返回 409，且不覆盖磁盘内容。repository id 只映射到配置根目录的直接子目录，路径规范化和真实目录检查由 server 执行。
 
 浏览器 Origin 默认允许：
 
@@ -71,7 +71,7 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
 
     VITE_CTN_STORAGE_MODE=browser pnpm dev
 
-HTTP 模式用于真实本地文件仓库。浏览器存储模式用于界面和交互验证。
+HTTP 模式用于真实本地文件仓库。浏览器存储模式提供同样的多仓库 catalog 语义，用于界面和交互验证。每个浏览器独立保存当前 repository id。
 
 
 4. 数据文件
@@ -85,6 +85,8 @@ HTTP 模式用于真实本地文件仓库。浏览器存储模式用于界面和
 `workspace.json` 使用 schema version 2，保存仓库、目录树和笔记元信息。笔记稳定写入 `notes/<noteId>.ctn`，目录层级只由 manifest tree 表达；重命名笔记或目录不改变笔记文件路径。`syntax/workspace.toml` 保存仓库语法 source。
 
 配置语法的仓库会在每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行，其中包含稳定块 ID、创建时间和更新时间。没有语法的仓库保留原始文本，不初始化块元数据。
+
+没有语法的仓库仍可在笔记活动中以原始模式编辑 `.ctn` 文本；结构操作和引用图谱保持不可用。语法只在语法活动中显式创建，打开仓库不会自动生成默认配置。
 
 未版本化仓库不由运行时直接读取。停止使用目标仓库的后端后，执行：
 

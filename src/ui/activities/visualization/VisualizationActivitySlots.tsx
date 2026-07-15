@@ -2,7 +2,7 @@ import type { VisualizationViewModel } from "../../../application/workspace/acti
 import "../../styles/activities/visualization.css";
 import type { WorkspaceShell } from "../../../application/workspace/runtime/useWorkspaceApplication";
 import type { ActivitySlots } from "../../activityTypes";
-import { WorkspaceSyntaxSetupView } from "../../WorkspaceSyntaxSetupView";
+import { SyntaxUnavailablePanel } from "../../SyntaxUnavailablePanel";
 import { VisualizationDetailPanel } from "./VisualizationDetailPanel";
 import { VisualizationPanel } from "./VisualizationPanel";
 
@@ -22,10 +22,9 @@ export function createVisualizationActivitySlots({
       context: null,
       detail: null,
       main: (
-        <WorkspaceSyntaxSetupView
-          errorMessage={shell.errorMessage}
+        <SyntaxUnavailablePanel
+          featureName="引用图谱"
           onConfigureSyntax={onConfigureSyntax}
-          onUseDefaultSyntax={shell.useDefaultSyntax}
         />
       ),
     };

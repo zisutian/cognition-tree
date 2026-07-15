@@ -27,8 +27,7 @@ function ActiveNotesActivity({
     <AppView
       activeActivityId="notes"
       createActivitySlots={(controls) => createNotesActivitySlots({
-        ...controls,
-        shell: application.shell,
+        onCollapseDetail: controls.onCollapseDetail,
         view,
       })}
       onActiveActivityChange={onActiveActivityChange}

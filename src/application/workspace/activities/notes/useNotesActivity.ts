@@ -61,7 +61,7 @@ export function useNotesActivity({
     () => createUiEditorView({
       activeNoteTitle: activeNote?.title ?? null,
       document: parsedNote?.document ?? null,
-      documentText: parsedNote?.source ?? "",
+      documentText: parsedNote?.source ?? activeNote?.source ?? "",
       errorMessage,
       focusTarget,
       hasActiveNote: Boolean(activeNote),

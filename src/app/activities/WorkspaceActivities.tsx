@@ -111,7 +111,9 @@ export function WorkspaceActivities({
   application: WorkspaceApplication;
   onActiveActivityChange: (activityId: ActivityId) => void;
 }) {
-  const workbench = useWorkbenchLayout();
+  const workbench = useWorkbenchLayout(
+    application.repository.activeRepositoryId,
+  );
   const [mountedActivityIds, setMountedActivityIds] = useState(
     () =>
       new Set<LazyActivityId>(

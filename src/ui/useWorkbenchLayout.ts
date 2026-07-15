@@ -14,6 +14,10 @@ import {
   getAppContextKeyboardResizeWidth,
   getAppDetailKeyboardResizeWidth,
 } from "./frameResize";
+import {
+  loadRepositoryContextWidth,
+  saveRepositoryContextWidth,
+} from "./workbenchLayoutStorage";
 
 export type WorkbenchLayout = {
   contextCollapsed: boolean;
@@ -31,10 +35,12 @@ export type WorkbenchLayout = {
   onDetailToggle: () => void;
 };
 
-export function useWorkbenchLayout() {
+export function useWorkbenchLayout(repositoryId: string) {
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
-  const [contextWidth, setContextWidth] = useState<number | null>(null);
+  const [contextWidth, setContextWidth] = useState<number | null>(() =>
+    loadRepositoryContextWidth(repositoryId),
+  );
   const [detailWidth, setDetailWidth] = useState<number | null>(null);
   const [isContextResizing, setIsContextResizing] = useState(false);
   const [isDetailResizing, setIsDetailResizing] = useState(false);
@@ -48,6 +54,16 @@ export function useWorkbenchLayout() {
   }, []);
 
   useEffect(() => () => removeResizeListeners(), [removeResizeListeners]);
+
+  useEffect(() => {
+    setContextWidth(loadRepositoryContextWidth(repositoryId));
+  }, [repositoryId]);
+
+  useEffect(() => {
+    if (contextWidth !== null) {
+      saveRepositoryContextWidth(repositoryId, contextWidth);
+    }
+  }, [contextWidth, repositoryId]);
 
   const startPanelResize = ({
     clampWidth,
@@ -178,6 +194,8 @@ export function useWorkbenchLayout() {
   return {
     collapseDetail: () => setDetailCollapsed(true),
     expandPanels,
+    setContextWidth: (width: number) =>
+      setContextWidth(clampAppContextWidth(width)),
     layout,
     toggleContext: () => setContextCollapsed((current) => !current),
   };

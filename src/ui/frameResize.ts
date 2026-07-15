@@ -7,6 +7,10 @@ export const appDetailDefaultWidth = 320;
 export const appResizeKeyboardStep = 16;
 
 export function clampAppContextWidth(width: number) {
+  if (!Number.isFinite(width)) {
+    return appContextDefaultWidth;
+  }
+
   return Math.min(
     appContextMaxWidth,
     Math.max(appContextMinWidth, Math.round(width)),
@@ -14,6 +18,10 @@ export function clampAppContextWidth(width: number) {
 }
 
 export function clampAppDetailWidth(width: number) {
+  if (!Number.isFinite(width)) {
+    return appDetailDefaultWidth;
+  }
+
   return Math.min(
     appDetailMaxWidth,
     Math.max(appDetailMinWidth, Math.round(width)),

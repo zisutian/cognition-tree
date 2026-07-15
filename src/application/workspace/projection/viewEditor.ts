@@ -19,6 +19,7 @@ export type UiEditorView = {
   focusTarget: UiEditorFocusTarget | null;
   hasActiveNote: boolean;
   hasParsedDocument: boolean;
+  mode: "ctn" | "raw";
   stats: {
     diagnosticCount: number;
     lineCount: number;
@@ -58,6 +59,7 @@ export function createUiEditorView({
     focusTarget,
     hasActiveNote,
     hasParsedDocument: document !== null,
+    mode: document ? "ctn" : "raw",
     stats: {
       diagnosticCount: document?.diagnostics.length ?? 0,
       lineCount: documentText.split("\n").length,

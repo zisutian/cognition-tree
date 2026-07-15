@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDetailPanel";
 import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
-import { WorkspaceSyntaxSetupView } from "../../../../src/ui/WorkspaceSyntaxSetupView";
 import { createView } from "../../viewFactory";
 
 const { readFileSync } = (await import("node:fs")) as {
@@ -58,17 +57,13 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("syntax-inline-header");
   });
 
-  it("keeps setup copy aligned with structure operation wording", () => {
+  it("offers explicit configuration creation for repositories without syntax", () => {
+    const view = createView().syntax;
     const markup = renderToStaticMarkup(
-      <WorkspaceSyntaxSetupView
-        errorMessage=""
-        onConfigureSyntax={() => undefined}
-        onUseDefaultSyntax={() => undefined}
-      />,
+      <SyntaxMainPanel view={{ ...view, isConfigured: false }} />,
     );
 
-    expect(markup).toContain("结构操作");
-    expect(markup).not.toContain("迁移结构");
+    expect(markup).toContain("创建配置");
   });
 
   it("keeps the detail panel focused on syntax preview only", () => {

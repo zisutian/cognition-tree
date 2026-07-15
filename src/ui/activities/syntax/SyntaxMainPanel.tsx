@@ -1,10 +1,13 @@
 import type { SyntaxViewModel } from "../../../application/workspace/activities/syntax/syntaxViewModel";
+import { Plus } from "lucide-react";
 import {
+  Button,
   Panel,
   PanelBody,
   PanelHeader,
   StatusLine,
 } from "../../shared/primitives";
+import { useFeedback } from "../../shared/FeedbackProvider";
 import {
   InlineRuleRows,
   MarkerRuleRows,
@@ -15,10 +18,27 @@ import {
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
+  const feedback = useFeedback();
 
   return (
     <Panel className="syntax-panel" aria-label="语法配置">
-      <PanelHeader title="语法配置" />
+      <PanelHeader
+        title="语法配置"
+        actions={
+          syntax.isConfigured ? null : (
+            <Button
+              onClick={() => {
+                void syntax.createConfiguration().catch(feedback.notifyError);
+              }}
+              type="button"
+              variant="secondary"
+            >
+              <Plus aria-hidden="true" size={13} />
+              创建配置
+            </Button>
+          )
+        }
+      />
       <PanelBody scroll>
         {syntax.feedback ? (
           <StatusLine tone={syntax.feedback.status}>{syntax.feedback.message}</StatusLine>

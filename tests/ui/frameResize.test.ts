@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appContextDefaultWidth,
   appContextMaxWidth,
   appContextMinWidth,
   appDetailMaxWidth,
@@ -16,6 +17,7 @@ describe("frame resize", () => {
     expect(clampAppContextWidth(appContextMaxWidth + 10)).toBe(appContextMaxWidth);
     expect(clampAppDetailWidth(appDetailMinWidth - 10)).toBe(appDetailMinWidth);
     expect(clampAppDetailWidth(appDetailMaxWidth + 10)).toBe(appDetailMaxWidth);
+    expect(clampAppContextWidth(Number.NaN)).toBe(appContextDefaultWidth);
   });
 
   it("maps keyboard resize directions", () => {

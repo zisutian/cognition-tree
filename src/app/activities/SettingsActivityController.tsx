@@ -9,7 +9,11 @@ export function SettingsActivityController({
   onActiveActivityChange,
   workbench,
 }: WorkspaceActivityControllerProps) {
-  const view = createSettingsViewModel(application.repository);
+  const view = createSettingsViewModel({
+    ...application.repository,
+    contextWidth: workbench.layout.contextResizeValue,
+    setContextWidth: workbench.setContextWidth,
+  });
 
   return active ? (
     <AppView

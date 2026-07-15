@@ -168,6 +168,7 @@ export function NoteEditorPanel({ view }: NotesContextProps) {
       />
       <CtnEditor
         focusTarget={view.editor.focusTarget}
+        mode={view.editor.mode}
         syntaxProfile={view.editor.syntaxProfile}
         value={view.editor.documentText}
         onChange={view.updateSource}

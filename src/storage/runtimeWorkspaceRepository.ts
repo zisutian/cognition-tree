@@ -1,13 +1,13 @@
-import { createHttpWorkspaceRepository } from "./httpWorkspaceRepository";
-import { createBrowserWorkspaceRepository } from "./browserWorkspaceRepository";
-import type { WorkspaceRepository } from "./workspaceRepository";
+import { createHttpWorkspaceRepositoryCatalog } from "./httpWorkspaceRepositoryCatalog";
+import { createBrowserWorkspaceRepositoryCatalog } from "./browserWorkspaceRepository";
+import type { WorkspaceRepositoryCatalog } from "./workspaceRepositoryCatalog";
 
-export function createRuntimeWorkspaceRepository(): WorkspaceRepository {
+export function createRuntimeWorkspaceRepositoryCatalog(): WorkspaceRepositoryCatalog {
   if (import.meta.env.VITE_CTN_STORAGE_MODE === "browser") {
-    return createBrowserWorkspaceRepository();
+    return createBrowserWorkspaceRepositoryCatalog();
   }
 
-  return createHttpWorkspaceRepository({
+  return createHttpWorkspaceRepositoryCatalog({
     baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
   });
 }

@@ -7,21 +7,30 @@ import type {
   ServerResponse,
 } from "node:http";
 import { WorkspaceRepositoryContractError } from "../contracts/workspace-repository/contractValue.ts";
+import { parseCreateRepository } from "../contracts/workspace-repository/parseCatalog.ts";
 import type {
+  RepositoryCatalogDto,
+  RepositoryDescriptorDto,
   WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace-repository/types.ts";
+import { RepositoryCatalogError } from "./localRepositoryCatalog.ts";
 import {
   WorkspacePayloadValidationError,
   WorkspaceRevisionConflictError,
 } from "./workspaceFileStore.ts";
 
-const allowedMethods = "GET, OPTIONS, PUT";
+const allowedMethods = "GET, OPTIONS, POST, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
-const routeMethods = new Map<string, readonly string[]>([
-  ["/api/health", ["GET"]],
-  ["/api/repository-snapshot", ["GET", "PUT"]],
-]);
+
+type WorkspaceApiRoute =
+  | { kind: "health"; methods: readonly string[] }
+  | { kind: "repositories"; methods: readonly string[] }
+  | {
+      kind: "repository-snapshot";
+      methods: readonly string[];
+      repositoryId: string;
+    };
 
 export const defaultWorkspaceApiAllowedOrigins = [
   "http://127.0.0.1:5173",
@@ -40,9 +49,16 @@ type WorkspaceRepositoryStore = {
   loadSnapshot: () => Promise<WorkspaceRepositorySnapshotDto>;
 };
 
+type WorkspaceRepositoryCatalog = {
+  createRepository: (value: ReturnType<typeof parseCreateRepository>) =>
+    Promise<RepositoryDescriptorDto>;
+  getStore: (repositoryId: string) => Promise<WorkspaceRepositoryStore>;
+  listRepositories: () => Promise<RepositoryCatalogDto>;
+};
+
 type WorkspaceApiOptions = {
   allowedOrigins?: readonly string[];
-  store: WorkspaceRepositoryStore;
+  catalog: WorkspaceRepositoryCatalog;
 };
 
 class WorkspaceApiRequestError extends Error {
@@ -73,6 +89,36 @@ function normalizeAllowedOrigin(value: string) {
   }
 
   return origin;
+}
+
+function resolveRoute(pathname: string): WorkspaceApiRoute | null {
+  if (pathname === "/api/health") {
+    return { kind: "health", methods: ["GET"] };
+  }
+
+  if (pathname === "/api/repositories") {
+    return { kind: "repositories", methods: ["GET", "POST"] };
+  }
+
+  const match = /^\/api\/repositories\/([^/]+)\/snapshot$/.exec(pathname);
+
+  if (!match) {
+    return null;
+  }
+
+  let repositoryId: string;
+
+  try {
+    repositoryId = decodeURIComponent(match[1]);
+  } catch {
+    throw new WorkspaceApiRequestError(400, "Invalid repository id encoding");
+  }
+
+  return {
+    kind: "repository-snapshot",
+    methods: ["GET", "PUT"],
+    repositoryId,
+  };
 }
 
 export function parseWorkspaceApiAllowedOrigins(value: string | undefined) {
@@ -162,6 +208,10 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
 }
 
 function mapRepositoryCommitError(error: unknown): unknown {
+  if (error instanceof RepositoryCatalogError) {
+    return new WorkspaceApiRequestError(error.statusCode, error.message);
+  }
+
   if (error instanceof WorkspaceRevisionConflictError) {
     return new WorkspaceApiConflictError(error.currentRevision);
   }
@@ -178,7 +228,7 @@ function mapRepositoryCommitError(error: unknown): unknown {
 
 export function createWorkspaceApiRequestHandler({
   allowedOrigins = defaultWorkspaceApiAllowedOrigins,
-  store,
+  catalog,
 }: WorkspaceApiOptions): WorkspaceApiRequestHandler {
   const allowedOriginSet = new Set(allowedOrigins.map(normalizeAllowedOrigin));
 
@@ -195,9 +245,9 @@ export function createWorkspaceApiRequestHandler({
       }
 
       const url = new URL(request.url ?? "/", "http://localhost");
-      const methods = routeMethods.get(url.pathname);
+      const route = resolveRoute(url.pathname);
 
-      if (!methods) {
+      if (!route) {
         throw new WorkspaceApiRequestError(404, "Not found");
       }
 
@@ -206,29 +256,51 @@ export function createWorkspaceApiRequestHandler({
         return;
       }
 
-      if (!request.method || !methods.includes(request.method)) {
+      if (!request.method || !route.methods.includes(request.method)) {
         sendError(response, 405, "Method not allowed", {
           ...responseHeaders,
-          Allow: methods.join(", "),
+          Allow: route.methods.join(", "),
         });
         return;
       }
 
-      if (url.pathname === "/api/health") {
+      if (route.kind === "health") {
         sendJson(response, 200, { ok: true }, responseHeaders);
         return;
       }
 
-      if (
-        url.pathname === "/api/repository-snapshot" &&
-        request.method === "GET"
-      ) {
-        sendJson(response, 200, await store.loadSnapshot(), responseHeaders);
+      if (route.kind === "repositories") {
+        try {
+          if (request.method === "GET") {
+            sendJson(
+              response,
+              200,
+              await catalog.listRepositories(),
+              responseHeaders,
+            );
+            return;
+          }
+
+          const body = parseCreateRepository(await readJsonBody(request));
+
+          sendJson(
+            response,
+            201,
+            await catalog.createRepository(body),
+            responseHeaders,
+          );
+        } catch (error) {
+          throw mapRepositoryCommitError(error);
+        }
         return;
       }
 
-      if (url.pathname === "/api/repository-snapshot") {
-        try {
+      try {
+        const store = await catalog.getStore(route.repositoryId);
+
+        if (request.method === "GET") {
+          sendJson(response, 200, await store.loadSnapshot(), responseHeaders);
+        } else {
           const body = await readJsonBody(request);
 
           sendJson(
@@ -237,11 +309,11 @@ export function createWorkspaceApiRequestHandler({
             await store.commitSnapshot(body),
             responseHeaders,
           );
-        } catch (error) {
-          throw mapRepositoryCommitError(error);
         }
-        return;
+      } catch (error) {
+        throw mapRepositoryCommitError(error);
       }
+      return;
     } catch (error) {
       const statusCode = error instanceof WorkspaceApiRequestError
         ? error.statusCode
@@ -267,9 +339,9 @@ export function createWorkspaceApiRequestHandler({
 
 export function createWorkspaceApiServer({
   allowedOrigins,
-  store,
+  catalog,
 }: WorkspaceApiOptions) {
   return http.createServer(
-    createWorkspaceApiRequestHandler({ allowedOrigins, store }),
+    createWorkspaceApiRequestHandler({ allowedOrigins, catalog }),
   );
 }

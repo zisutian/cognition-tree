@@ -30,8 +30,7 @@ function slotsWithView(
   switch (activityId) {
     case "notes":
       return createNotesActivitySlots({
-        ...controls,
-        shell: view.shell,
+        onCollapseDetail: controls.onCollapseDetail,
         view: view.notes,
       });
     case "structure-operation":
@@ -96,22 +95,34 @@ describe("activity slots", () => {
     ).toBe("引用图谱");
   });
 
-  it("uses syntax setup for syntax-dependent activities before configuration", () => {
+  it("keeps raw notes editable and gates parsed activities without syntax", () => {
     const baseView = createView();
     const view = createView({
+      notes: {
+        ...baseView.notes,
+        editor: {
+          ...baseView.notes.editor,
+          hasParsedDocument: false,
+          mode: "raw",
+        },
+      },
       shell: { ...baseView.shell, hasConfiguredSyntax: false },
     });
 
-    expect(
-      renderSlot(
-        slotsWithView("notes", view).main,
-      ),
-    ).toContain("仓库语法未配置");
+    const noteMarkup = renderSlot(slotsWithView("notes", view).main);
+
+    expect(noteMarkup).toContain("data-editor-mode=\"raw\"");
+    expect(noteMarkup).not.toContain("仓库语法未配置");
     expect(
       renderSlot(
         slotsWithView("visualization", view).main,
       ),
-    ).toContain("仓库语法未配置");
+    ).toContain("引用图谱不可用");
+    expect(
+      renderSlot(
+        slotsWithView("structure-operation", view).main,
+      ),
+    ).toContain("结构操作不可用");
   });
 
   it("renders placeholders and settings without a directory context", () => {
