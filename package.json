@@ -15,11 +15,14 @@
     "server:build": "tsc -p tsconfig.server.json",
     "server:start": "node dist/runtime/server/index.js",
     "build": "tsc && vite build && pnpm verify:bundle && pnpm server:build",
-    "check": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "check": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
     "hooks:install": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:architecture": "vitest run tests/architecture tests/ui/designContract.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "test:watch": "vitest",
+    "server:e2e": "node e2e/support/workspaceServer.ts",
     "verify:bundle": "node scripts/verifyClientBundle.ts",
     "preview": "vite preview"
   },
@@ -35,6 +38,7 @@
     "smol-toml": "^1.6.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/d3-force": "^3.0.10",
     "@types/node": "^22.20.1",
     "@types/react": "^19.1.8",

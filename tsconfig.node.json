@@ -9,7 +9,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["node"]
+    "types": ["node", "@playwright/test"]
   },
-  "include": ["scripts/**/*.ts", "vite.config.ts"]
+  "include": [
+    "playwright.config.ts",
+    "scripts/**/*.ts",
+    "vite.config.ts"
+  ]
 }
