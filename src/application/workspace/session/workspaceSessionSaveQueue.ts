@@ -1,4 +1,4 @@
-import type { WorkspaceRepositoryContent } from "../../../storage/workspaceRepository";
+import type { WorkspaceRepositoryContent } from "../../../storage/repository/workspaceRepository";
 
 export type WorkspaceSessionSaveStatus =
   | "error"

@@ -1,5 +1,5 @@
 import type { WorkspaceSessionSaveStatus } from "../../session/workspaceSessionSaveQueue";
-import type { WorkspaceRepositoryDescriptor } from "../../../../storage/workspaceRepositoryCatalog";
+import type { WorkspaceRepositoryDescriptor } from "../../../../storage/repository/workspaceRepositoryCatalog";
 
 const saveStatusLabels: Record<WorkspaceSessionSaveStatus, string> = {
   error: "保存失败",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import type { WorkspaceRepository } from "../../../storage/workspaceRepository";
+import type { WorkspaceRepository } from "../../../storage/repository/workspaceRepository";
 import type { SessionCommands } from "./sessionCommands";
 import {
   createWorkspaceSessionController,

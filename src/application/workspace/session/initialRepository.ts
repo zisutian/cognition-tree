@@ -1,4 +1,4 @@
-import { createWorkspaceRepositorySyntaxSourceFile } from "../../../storage/workspaceRepository";
+import { createWorkspaceRepositorySyntaxSourceFile } from "../../../storage/repository/workspaceRepository";
 import { createWorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 import {
   createInitialWorkspaceData,

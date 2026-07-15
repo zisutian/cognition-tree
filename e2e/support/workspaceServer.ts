@@ -4,12 +4,12 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 import {
   createWorkspaceApiServer,
-} from "../../server/workspaceApiServer.ts";
+} from "../../server/api/workspaceApiServer.ts";
 import {
   createWorkspaceApiSecurityPolicy,
   parseWorkspaceApiAllowedOrigins,
-} from "../../server/workspaceApiSecurity.ts";
-import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
+} from "../../server/api/workspaceApiSecurity.ts";
+import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3317");

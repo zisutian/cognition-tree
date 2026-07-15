@@ -4,7 +4,7 @@ import {
   type WorkspaceRepository,
   type WorkspaceRepositoryCommit,
   type WorkspaceRepositorySnapshot,
-} from "../../../../src/storage/workspaceRepository";
+} from "../../../../src/storage/repository/workspaceRepository";
 import {
   createWorkspaceSessionController,
   WorkspaceSessionUnavailableError,

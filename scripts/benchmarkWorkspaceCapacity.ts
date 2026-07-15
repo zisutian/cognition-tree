@@ -6,8 +6,8 @@ import {
   repositorySyntaxFileName,
   type WorkspaceRepositoryContentDto,
 } from "../contracts/workspace-repository/types.ts";
-import { WorkspaceFileStore } from "../server/workspaceFileStore.ts";
-import { createWorkspaceRepositoryRevision } from "../server/workspaceRepositoryRevision.ts";
+import { WorkspaceFileStore } from "../server/adapters/local/workspaceFileStore.ts";
+import { createWorkspaceRepositoryRevision } from "../server/repository/workspaceRepositoryRevision.ts";
 import { createUiOutlineNodes } from "../src/application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../src/application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../src/ctn/metadata/blockMetadata.ts";

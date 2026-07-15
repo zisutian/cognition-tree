@@ -6,6 +6,8 @@ import {
   listInternalSourceImports,
   listSourceDependencyCycles,
   listSourceFiles,
+  modulePathToRelative,
+  readInternalModuleImports,
   readModuleImports,
   readSourceImports,
   serverModules,
@@ -219,6 +221,58 @@ describe("dependency boundaries", () => {
     ]).toEqual([]);
   });
 
+  it("keeps storage core, adapters, and runtime dependencies directional", () => {
+    const storagePrefix = "../../src/storage/";
+    const getStorageArea = (filePath: string) => {
+      const segments = modulePathToRelative(filePath, storagePrefix).split("/");
+
+      return segments[0] === "adapters"
+        ? `adapters/${segments[1]}`
+        : segments[0];
+    };
+    const allowedStorageImports = new Map<string, ReadonlySet<string>>([
+      ["repository", new Set(["repository"])],
+      ["adapters/browser", new Set(["adapters/browser", "repository"])],
+      ["adapters/http", new Set(["adapters/http", "repository"])],
+      [
+        "runtime",
+        new Set([
+          "adapters/browser",
+          "adapters/http",
+          "repository",
+          "runtime",
+        ]),
+      ],
+    ]);
+    const storageViolations = listSourceFiles("storage").flatMap(
+      (filePath) => {
+        const allowedImports = allowedStorageImports.get(
+          getStorageArea(filePath),
+        );
+
+        return readSourceImports(filePath)
+          .filter(({ targetPath }) => targetPath.startsWith(storagePrefix))
+          .filter(({ targetPath }) =>
+            !allowedImports?.has(getStorageArea(targetPath)),
+          )
+          .map(({ importPath }) => formatImport(filePath, importPath));
+      },
+    );
+    const consumerViolations = Object.keys(sourceModules).flatMap((filePath) =>
+      filePath.startsWith("../../src/storage/") ||
+      filePath.startsWith("../../src/app/")
+        ? []
+        : readSourceImports(filePath)
+            .filter(({ targetPath }) =>
+              targetPath.startsWith(`${storagePrefix}adapters/`) ||
+              targetPath.startsWith(`${storagePrefix}runtime/`),
+            )
+            .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+
+    expect([...storageViolations, ...consumerViolations]).toEqual([]);
+  });
+
   it("keeps the wire contract runtime-neutral and consumed only at boundaries", () => {
     const blockedContractImports = [
       /^node:/,
@@ -274,5 +328,53 @@ describe("dependency boundaries", () => {
     );
 
     expect([...serverViolations, ...sourceViolations]).toEqual([]);
+  });
+
+  it("keeps server repository rules and adapters independent", () => {
+    const serverPrefix = "../../server/";
+    const getServerArea = (filePath: string) => {
+      const segments = modulePathToRelative(filePath, serverPrefix).split("/");
+
+      return segments[0] === "adapters"
+        ? `adapters/${segments[1]}`
+        : segments[0];
+    };
+    const allowedServerImports = new Map<string, ReadonlySet<string>>([
+      ["api", new Set(["api", "repository"])],
+      ["catalog", new Set(["catalog", "repository"])],
+      ["repository", new Set(["repository"])],
+      ["adapters/local", new Set(["adapters/local", "repository"])],
+      ["adapters/webdav", new Set(["adapters/webdav", "repository"])],
+    ]);
+    const violations = Object.keys(serverModules).flatMap((filePath) => {
+      const sourceArea = getServerArea(filePath);
+
+      if (sourceArea === "index.ts") {
+        return [];
+      }
+
+      const allowedImports = allowedServerImports.get(sourceArea);
+
+      return readInternalModuleImports(
+        serverModules,
+        filePath,
+        serverPrefix,
+      )
+        .filter(({ targetPath }) =>
+          !allowedImports?.has(getServerArea(targetPath)),
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath));
+    });
+    const graph = new Map(
+      Object.keys(serverModules).map((filePath) => [
+        filePath,
+        readInternalModuleImports(serverModules, filePath, serverPrefix).map(
+          ({ targetPath }) => targetPath,
+        ),
+      ]),
+    );
+
+    expect(violations).toEqual([]);
+    expect(findDependencyCycles(graph)).toEqual([]);
   });
 });

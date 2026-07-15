@@ -1,7 +1,7 @@
 import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,
-} from "../../../storage/workspaceRepository";
+} from "../../../storage/repository/workspaceRepository";
 import type { WorkspaceData } from "../../../workspace/model/workspaceData";
 import {
   resolveWorkspaceSyntax,

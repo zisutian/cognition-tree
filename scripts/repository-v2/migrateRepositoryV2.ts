@@ -13,11 +13,11 @@ import {
 import path from "node:path";
 import { repositorySyntaxFileName } from "../../contracts/workspace-repository/types.ts";
 import { inferRepositoryNoteTitle } from "../../contracts/workspace-repository/noteSource.ts";
-import { WorkspaceFileStore } from "../../server/workspaceFileStore.ts";
+import { WorkspaceFileStore } from "../../server/adapters/local/workspaceFileStore.ts";
 import {
   workspaceManifestSchemaVersion,
   type WorkspaceManifest,
-} from "../../server/workspaceManifest.ts";
+} from "../../server/repository/workspaceManifest.ts";
 import { ctnBlockMetadataDirective } from "../../src/ctn/metadata/blockMetadata";
 import { parseWorkspaceSyntax } from "../../src/workspace/context/workspaceSyntax";
 import {

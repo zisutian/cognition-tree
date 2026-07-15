@@ -4,7 +4,7 @@ import {
   type ActiveSession,
 } from "../application/workspace/session/useSession";
 import { useWorkspaceApplication } from "../application/workspace/runtime/useWorkspaceApplication";
-import { createRuntimeWorkspaceRepositoryCatalog } from "../storage/runtimeWorkspaceRepository";
+import { createWorkspaceRepositoryRuntime } from "../storage/runtime/workspaceRepositoryRuntime";
 import { useRepositoryCatalog } from "../application/workspace/session/useRepositoryCatalog";
 import type { ActivityId } from "../ui/activityTypes";
 import { RepositorySetupView } from "../ui/RepositorySetupView";
@@ -12,7 +12,7 @@ import { SessionStateView } from "../ui/SessionStateView";
 import { WorkspaceActivities } from "./activities/WorkspaceActivities";
 import type {
   WorkspaceRepository,
-} from "../storage/workspaceRepository";
+} from "../storage/repository/workspaceRepository";
 
 type RepositoryCatalogRuntime = ReturnType<typeof useRepositoryCatalog>;
 
@@ -95,11 +95,14 @@ function RepositoryWorkspaceApp({
 }
 
 export function AppRoot() {
-  const repositoryCatalog = useMemo(
-    () => createRuntimeWorkspaceRepositoryCatalog(),
+  const repositoryRuntime = useMemo(
+    () => createWorkspaceRepositoryRuntime(),
     [],
   );
-  const catalog = useRepositoryCatalog(repositoryCatalog);
+  const catalog = useRepositoryCatalog(
+    repositoryRuntime.catalog,
+    repositoryRuntime.activeRepositorySelection,
+  );
 
   if (catalog.state.status === "loading") {
     return (

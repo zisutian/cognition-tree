@@ -3,7 +3,7 @@ import {
   WorkspaceRepositoryConflictError,
   type WorkspaceRepository,
   type WorkspaceRepositoryContent,
-} from "../../../storage/workspaceRepository";
+} from "../../../storage/repository/workspaceRepository";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,

@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  loadActiveRepositoryId,
-  saveActiveRepositoryId,
-} from "../../../storage/activeRepositorySelection";
+import type { ActiveRepositorySelection } from "../../../storage/repository/activeRepositorySelection";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
-} from "../../../storage/workspaceRepositoryCatalog";
+} from "../../../storage/repository/workspaceRepositoryCatalog";
 import { createInitialRepositoryContent } from "./initialRepository";
 
 type RepositoryCatalogState =
@@ -22,7 +19,10 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Repository catalog failed.";
 }
 
-export function useRepositoryCatalog(catalog: WorkspaceRepositoryCatalog) {
+export function useRepositoryCatalog(
+  catalog: WorkspaceRepositoryCatalog,
+  activeRepositorySelection: ActiveRepositorySelection,
+) {
   const [state, setState] = useState<RepositoryCatalogState>({
     status: "loading",
   });
@@ -32,7 +32,7 @@ export function useRepositoryCatalog(catalog: WorkspaceRepositoryCatalog) {
 
     try {
       const repositories = await catalog.listRepositories();
-      const storedRepositoryId = loadActiveRepositoryId();
+      const storedRepositoryId = activeRepositorySelection.load();
       const activeRepositoryId = repositories.some(
         (repository) => repository.id === storedRepositoryId,
       )
@@ -40,14 +40,14 @@ export function useRepositoryCatalog(catalog: WorkspaceRepositoryCatalog) {
         : repositories[0]?.id ?? null;
 
       if (activeRepositoryId) {
-        saveActiveRepositoryId(activeRepositoryId);
+        activeRepositorySelection.save(activeRepositoryId);
       }
 
       setState({ activeRepositoryId, repositories, status: "ready" });
     } catch (error) {
       setState({ errorMessage: getErrorMessage(error), status: "failed" });
     }
-  }, [catalog]);
+  }, [activeRepositorySelection, catalog]);
 
   useEffect(() => {
     void reload();
@@ -63,9 +63,9 @@ export function useRepositoryCatalog(catalog: WorkspaceRepositoryCatalog) {
       throw new Error(`Repository does not exist: ${repositoryId}`);
     }
 
-    saveActiveRepositoryId(repositoryId);
+    activeRepositorySelection.save(repositoryId);
     setState({ ...state, activeRepositoryId: repositoryId });
-  }, [state]);
+  }, [activeRepositorySelection, state]);
 
   const createRepository = useCallback(async ({
     id,
@@ -82,7 +82,7 @@ export function useRepositoryCatalog(catalog: WorkspaceRepositoryCatalog) {
       id,
     });
 
-    saveActiveRepositoryId(descriptor.id);
+    activeRepositorySelection.save(descriptor.id);
     setState((current) => {
       if (current.status !== "ready") {
         return current;
@@ -97,7 +97,7 @@ export function useRepositoryCatalog(catalog: WorkspaceRepositoryCatalog) {
       };
     });
     return descriptor;
-  }, [catalog]);
+  }, [activeRepositorySelection, catalog]);
 
   const activeDescriptor = state.status === "ready"
     ? state.repositories.find(

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WorkspaceRepositoryContent } from "../../../../src/storage/workspaceRepository";
+import type { WorkspaceRepositoryContent } from "../../../../src/storage/repository/workspaceRepository";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,

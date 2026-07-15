@@ -3,18 +3,18 @@
 import path from "node:path";
 import {
   createWorkspaceApiServer,
-} from "./workspaceApiServer.ts";
+} from "./api/workspaceApiServer.ts";
 import {
   createWorkspaceApiSecurityPolicy,
   parseWorkspaceApiAllowedHosts,
   parseWorkspaceApiAllowedOrigins,
-} from "./workspaceApiSecurity.ts";
-import { LocalRepositoryCatalog } from "./localRepositoryCatalog.ts";
-import { CompositeRepositoryCatalog } from "./compositeRepositoryCatalog.ts";
+} from "./api/workspaceApiSecurity.ts";
+import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
+import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
 import {
   createWebDavRepositoryRegistrations,
   parseWebDavRepositoryConfigs,
-} from "./webDavRepositoryConfig.ts";
+} from "./adapters/webdav/webDavRepositoryConfig.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3001");
@@ -48,7 +48,7 @@ const server = createWorkspaceApiServer({ catalog, security });
 
 server.listen(port, host, () => {
   console.log(`Cognition Tree API listening on http://${host}:${port}`);
-  console.log(`Local repository root: ${catalog.localRootPath}`);
+  console.log(`Local repository root: ${localCatalog.rootPath}`);
   console.log(`Configured WebDAV repositories: ${webDavRegistrations.length}`);
   console.log(`Allowed hosts: ${security.allowedHosts.join(", ")}`);
   console.log(`Allowed origins: ${security.allowedOrigins.join(", ") || "none"}`);

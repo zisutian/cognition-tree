@@ -9,6 +9,12 @@ export type SourceImport = {
   targetRoot: string;
 };
 
+export type InternalModuleImport = {
+  filePath: string;
+  importPath: string;
+  targetPath: string;
+};
+
 export const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
   eager: true,
   import: "default",
@@ -31,6 +37,63 @@ export function sourcePathToRelative(filePath: string) {
   return filePath.replace("../../src/", "");
 }
 
+export function modulePathToRelative(filePath: string, prefix: string) {
+  return filePath.startsWith(prefix) ? filePath.slice(prefix.length) : filePath;
+}
+
+export function listModuleRootDirectories(
+  modules: SourceModules,
+  prefix: string,
+) {
+  return [
+    ...new Set(
+      Object.keys(modules).flatMap((filePath) => {
+        const relativePath = modulePathToRelative(filePath, prefix);
+        const separatorIndex = relativePath.indexOf("/");
+
+        return separatorIndex === -1
+          ? []
+          : [relativePath.slice(0, separatorIndex)];
+      }),
+    ),
+  ].sort();
+}
+
+export function listModuleRootFiles(
+  modules: SourceModules,
+  prefix: string,
+) {
+  return Object.keys(modules)
+    .map((filePath) => modulePathToRelative(filePath, prefix))
+    .filter((filePath) => !filePath.includes("/"))
+    .sort();
+}
+
+export function listModuleSubdirectories(
+  modules: SourceModules,
+  prefix: string,
+  directory: string,
+) {
+  const directoryPrefix = `${prefix}${directory}/`;
+
+  return [
+    ...new Set(
+      Object.keys(modules).flatMap((filePath) => {
+        if (!filePath.startsWith(directoryPrefix)) {
+          return [];
+        }
+
+        const relativePath = filePath.slice(directoryPrefix.length);
+        const separatorIndex = relativePath.indexOf("/");
+
+        return separatorIndex === -1
+          ? []
+          : [relativePath.slice(0, separatorIndex)];
+      }),
+    ),
+  ].sort();
+}
+
 export function getSourceRoot(filePath: string) {
   return sourcePathToRelative(filePath).split("/")[0] ?? "";
 }
@@ -44,46 +107,19 @@ export function listSourceFiles(directory: string) {
 }
 
 export function listSourceRootDirectories() {
-  return [
-    ...new Set(
-      Object.keys(sourceModules).flatMap((filePath) => {
-        const relativePath = sourcePathToRelative(filePath);
-        const separatorIndex = relativePath.indexOf("/");
-
-        return separatorIndex === -1
-          ? []
-          : [relativePath.slice(0, separatorIndex)];
-      }),
-    ),
-  ].sort();
+  return listModuleRootDirectories(sourceModules, "../../src/");
 }
 
 export function listSourceRootFiles() {
-  return Object.keys(sourceModules)
-    .map(sourcePathToRelative)
-    .filter((filePath) => !filePath.includes("/"))
-    .sort();
+  return listModuleRootFiles(sourceModules, "../../src/");
 }
 
 export function listSubdirectories(directory: string) {
-  const prefix = `../../src/${directory}/`;
-
-  return [
-    ...new Set(
-      Object.keys(sourceModules).flatMap((filePath) => {
-        if (!filePath.startsWith(prefix)) {
-          return [];
-        }
-
-        const relativePath = filePath.slice(prefix.length);
-        const separatorIndex = relativePath.indexOf("/");
-
-        return separatorIndex === -1
-          ? []
-          : [relativePath.slice(0, separatorIndex)];
-      }),
-    ),
-  ].sort();
+  return listModuleSubdirectories(
+    sourceModules,
+    "../../src/",
+    directory,
+  );
 }
 
 export function hasSourceFile(relativePath: string) {
@@ -173,13 +209,39 @@ function resolveRelativeSourceImport(filePath: string, importPath: string) {
 }
 
 function resolveSourceFilePath(targetPath: string) {
+  return resolveModuleFilePath(sourceModules, targetPath);
+}
+
+function resolveModuleFilePath(modules: SourceModules, targetPath: string) {
   return [
     targetPath,
     `${targetPath}.ts`,
     `${targetPath}.tsx`,
     `${targetPath}/index.ts`,
     `${targetPath}/index.tsx`,
-  ].find((candidate) => candidate in sourceModules) ?? null;
+  ].find((candidate) => candidate in modules) ?? null;
+}
+
+export function readInternalModuleImports(
+  modules: SourceModules,
+  filePath: string,
+  rootPrefix: string,
+): InternalModuleImport[] {
+  return readModuleImports(modules, filePath).flatMap((importPath) => {
+    if (!importPath.startsWith(".")) {
+      return [];
+    }
+
+    const targetPath = normalizePath([
+      ...filePath.split("/").slice(0, -1),
+      ...importPath.split("/"),
+    ]).join("/");
+    const targetFilePath = resolveModuleFilePath(modules, targetPath);
+
+    return targetFilePath?.startsWith(rootPrefix)
+      ? [{ filePath, importPath, targetPath: targetFilePath }]
+      : [];
+  });
 }
 
 export function readSourceImports(filePath: string): SourceImport[] {

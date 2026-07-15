@@ -10,7 +10,7 @@ import type { WorkspaceContext } from "../../../workspace/context/workspaceConte
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
 import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
-import type { WorkspaceRepositoryDescriptor } from "../../../storage/workspaceRepositoryCatalog";
+import type { WorkspaceRepositoryDescriptor } from "../../../storage/repository/workspaceRepositoryCatalog";
 
 export type WorkspaceRepositoryManagement = {
   activeRepositoryId: string;

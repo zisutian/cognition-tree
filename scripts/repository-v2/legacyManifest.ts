@@ -7,7 +7,7 @@ import {
 } from "../../contracts/workspace-repository/contractValue.ts";
 import { parseRepositoryTree } from "../../contracts/workspace-repository/parseWorkspace.ts";
 import type { RepositoryTreeNodeDto } from "../../contracts/workspace-repository/types.ts";
-import { isSafeWorkspaceNoteId } from "../../server/workspaceManifest.ts";
+import { isSafeWorkspaceNoteId } from "../../server/repository/workspaceManifest.ts";
 
 const legacyManifestFields = ["id", "name", "notes", "tree"] as const;
 const legacyNoteFields = [
@@ -18,7 +18,7 @@ const legacyNoteFields = [
   "updatedAt",
 ] as const;
 
-export type LegacyWorkspaceManifestNote = {
+type LegacyWorkspaceManifestNote = {
   createdAt: string;
   fileName: string;
   id: string;

@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { repositorySyntaxFileName } from "../../contracts/workspace-repository/types.ts";
 import { migrateRepositoryV2 } from "../../scripts/repository-v2/migrateRepositoryV2.ts";
-import { WorkspaceFileStore } from "../../server/workspaceFileStore.ts";
+import { WorkspaceFileStore } from "../../server/adapters/local/workspaceFileStore.ts";
 import { parseCtnDocument } from "../../src/ctn/parser/parseCtnDocument";
 import { createDefaultWorkspaceSyntax } from "../../src/workspace/context/workspaceSyntax";
 import { createTestBlockId } from "../ctn/metadata/sourceMetadataFixture";

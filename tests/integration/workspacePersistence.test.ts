@@ -9,13 +9,13 @@ import {
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
 } from "../../src/application/workspace/session/workspaceSessionController";
-import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
+import { createHttpWorkspaceRepository } from "../../src/storage/adapters/http/httpWorkspaceRepository";
 import {
   createHttpWorkspaceRepositoryCatalog,
-} from "../../src/storage/httpWorkspaceRepositoryCatalog";
-import { createWorkspaceApiServer } from "../../server/workspaceApiServer.ts";
-import { createWorkspaceApiSecurityPolicy } from "../../server/workspaceApiSecurity.ts";
-import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
+} from "../../src/storage/adapters/http/httpWorkspaceRepositoryCatalog";
+import { createWorkspaceApiServer } from "../../server/api/workspaceApiServer.ts";
+import { createWorkspaceApiSecurityPolicy } from "../../server/api/workspaceApiSecurity.ts";
+import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { stripTestCtnBlockMetadata } from "../ctn/metadata/sourceMetadataFixture";
 

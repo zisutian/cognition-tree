@@ -16,7 +16,7 @@
     notes/*.ctn
     syntax/workspace.toml
 
-`workspace.json` 使用 schema version 2。笔记稳定写入 `notes/<noteId>.ctn`，目录关系只由 manifest tree 表达；每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行。
+`workspace.json` 使用 schema version 2。笔记稳定写入 `notes/<noteId>.ctn`，目录关系只由 manifest tree 表达；每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行。该保留行只存在于持久化原文中，编辑区只显示可编辑内容，块时间在笔记详情中查看。
 
 前端也可以切换到浏览器存储模式，用于不连接本机后端的界面验证。
 
@@ -24,7 +24,7 @@
 
     笔记：创建、编辑、删除、重命名和移动笔记。
     目录：创建、重命名、删除和移动文件夹。
-    编辑器：编辑 CTN 原文，以 Tab 表达结构层级；多行块内使用独立的代码缩进键位，并可进入保留活动栏的专注模式。
+    编辑器：编辑 CTN 可编辑内容，以 Tab 表达结构层级；多行块内使用独立的代码缩进键位，并可进入保留活动栏的专注模式。
     仓库语法：编辑仓库级语法配置，并用当前配置解析笔记。
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
@@ -113,10 +113,10 @@ HTTP repository 的最近确认快照与待同步提交保存在浏览器 Indexe
     src/ui/           workbench 框架、activities、shared primitives 和样式
     src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
     src/ctn/          CTN parser 和 syntax profile
-    src/storage/      workspace repository 端口和前端存储实现
+    src/storage/      repository 端口、浏览器/HTTP adapter 和运行时组合
     src/editor/       CodeMirror 编辑器适配
     contracts/        前后端共享的 repository wire contract
-    server/           本地 HTTP API 和文件仓库执行端
+    server/           repository 规则、catalog、HTTP API 和本地/WebDAV adapter
     tests/            单元测试、UI 测试和架构边界测试
 
 更细的产品、架构、工程和界面约束记录在 `docs/` 下的专题文档中。

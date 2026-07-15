@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createWorkspaceRepositorySyntaxSourceFile,
   type WorkspaceRepository,
-} from "../../../../src/storage/workspaceRepository";
+} from "../../../../src/storage/repository/workspaceRepository";
 import {
   createInitialWorkspaceData,
   createNoteRecord,

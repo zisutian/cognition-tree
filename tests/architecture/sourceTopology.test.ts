@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   contractModules,
   hasSourceFile,
+  listModuleRootDirectories,
+  listModuleRootFiles,
+  listModuleSubdirectories,
   listSourceFiles,
   listSourceRootDirectories,
   listSourceRootFiles,
@@ -60,6 +63,44 @@ describe("source topology", () => {
     expect(listSubdirectories("ctn")).toEqual(["metadata", "parser", "syntax"]);
     expect(listSourceFiles("workspace").filter((path) => path.endsWith(".tsx")))
       .toEqual([]);
+  });
+
+  it("keeps frontend persistence organized by core, adapters, and runtime", () => {
+    const storageModules = Object.fromEntries(
+      Object.entries(sourceModules).filter(([filePath]) =>
+        filePath.startsWith("../../src/storage/"),
+      ),
+    );
+
+    expect(
+      listModuleRootDirectories(storageModules, "../../src/storage/"),
+    ).toEqual(["adapters", "repository", "runtime"]);
+    expect(listModuleRootFiles(storageModules, "../../src/storage/")).toEqual(
+      [],
+    );
+    expect(listSubdirectories("storage/adapters")).toEqual([
+      "browser",
+      "http",
+    ]);
+  });
+
+  it("keeps server API, repository rules, catalogs, and adapters explicit", () => {
+    expect(listModuleRootDirectories(serverModules, "../../server/")).toEqual([
+      "adapters",
+      "api",
+      "catalog",
+      "repository",
+    ]);
+    expect(listModuleRootFiles(serverModules, "../../server/")).toEqual([
+      "index.ts",
+    ]);
+    expect(
+      listModuleSubdirectories(
+        serverModules,
+        "../../server/",
+        "adapters",
+      ),
+    ).toEqual(["local", "webdav"]);
   });
 
   it("keeps UI frame, activity, and shared tree boundaries explicit", () => {
