@@ -6,7 +6,7 @@ import {
   Minimize2,
   Plus,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
 import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
 import {
@@ -24,6 +24,8 @@ import {
   type TreeNode,
 } from "../../shared/tree";
 import { useReferenceNavigation } from "./useReferenceNavigation";
+import { BlockMetadataDetails } from "./BlockMetadataDetails";
+import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
 
 type NotesContextProps = {
   view: NotesViewModel;
@@ -214,6 +216,20 @@ export function NoteDetailPanel({
 }: NotesContextProps & {
   onCollapseDetail: () => void;
 }) {
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const outlineNodes = useMemo(() => {
+    const flatten = (nodes: UiOutlineNode[]): UiOutlineNode[] =>
+      nodes.flatMap((node) => [node, ...flatten(node.children)]);
+
+    return flatten(view.outline.nodes);
+  }, [view.outline.nodes]);
+  const selectedBlock = outlineNodes.find(
+    (node) => node.id === selectedBlockId,
+  ) ?? null;
+  const selectedLineNumbers = selectedBlock
+    ? new Set([selectedBlock.lineNumber])
+    : undefined;
+
   return (
     <Panel
       className="note-detail-panel"
@@ -254,11 +270,20 @@ export function NoteDetailPanel({
           <StructureTree
             indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.outline.nodes}
-            onSelectLine={view.outline.onSelectLine}
+            selectedLineNumbers={selectedLineNumbers}
+            onSelectLine={(lineNumber) => {
+              const block = outlineNodes.find(
+                (node) => node.lineNumber === lineNumber,
+              );
+
+              setSelectedBlockId(block?.id ?? null);
+              view.outline.onSelectLine(lineNumber);
+            }}
           />
         ) : (
           <p className="ui-muted">没有可解析结构。</p>
         )}
+        <BlockMetadataDetails block={selectedBlock} />
         <div aria-hidden="true" className="detail-divider" />
         {view.editor.diagnostics.length > 0 ? (
           <ul aria-label="诊断" className="detail-line-list">

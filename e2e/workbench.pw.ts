@@ -425,6 +425,9 @@ test.describe.serial("workbench browser baseline", () => {
   }) => {
     await openWorkbench(page);
     await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.locator(".source-editor")).not.toContainText("@ctn-block");
+    await page.locator(".app-detail .ui-structure-tree-row").first().click();
+    await expect(page.getByLabel("块时间")).toBeVisible();
     const beforeResponse = await api.get(
       `/api/repositories/${repositoryId}/snapshot`,
     );

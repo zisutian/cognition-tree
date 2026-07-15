@@ -36,6 +36,7 @@ export function createUiEditorView({
   documentText,
   focusTarget,
   hasActiveNote,
+  projectLineNumber = (lineNumber) => lineNumber,
   syntaxProfile,
   errorMessage,
 }: {
@@ -44,6 +45,7 @@ export function createUiEditorView({
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
   hasActiveNote: boolean;
+  projectLineNumber?: (lineNumber: number) => number;
   syntaxProfile: CtnSyntaxProfile;
   errorMessage: string;
 }): UiEditorView {
@@ -52,7 +54,7 @@ export function createUiEditorView({
     diagnostics:
       document?.diagnostics.map((diagnostic) => ({
         id: diagnostic.id,
-        lineNumber: diagnostic.lineNumber,
+        lineNumber: projectLineNumber(diagnostic.lineNumber),
         message: diagnostic.message,
       })) ?? [],
     documentText,

@@ -76,23 +76,3 @@ export function replaceCtnSourceTitle(
   lines[1] = title;
   return lines.join("\n");
 }
-
-export function updateCtnBlockMetadataTimestamp(
-  source: string,
-  metadataLineNumber: number,
-  updatedAt: string,
-) {
-  const lines = source.split("\n");
-  const metadataLine = lines[metadataLineNumber - 1];
-  const metadata = parseCtnBlockMetadataLine(metadataLine ?? "");
-
-  if (!metadata) {
-    throw new Error(`Missing CTN block metadata at line ${metadataLineNumber}.`);
-  }
-
-  lines[metadataLineNumber - 1] = formatCtnBlockMetadataLine({
-    ...metadata,
-    updatedAt,
-  });
-  return lines.join("\n");
-}

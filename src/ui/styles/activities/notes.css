@@ -1,3 +1,37 @@
 .note-editor-panel {
   border-right: var(--ui-border-width) solid var(--color-border);
 }
+
+.note-block-metadata {
+  display: grid;
+  gap: var(--ui-border-width);
+  margin: 0;
+  padding-top: var(--ui-gap-tight);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.note-block-metadata > div {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  min-height: var(--ui-tree-row-height);
+}
+
+.note-block-metadata dt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+}
+
+.note-block-metadata dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-fg-subtle);
+  font-size: var(--ui-micro-font-size);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

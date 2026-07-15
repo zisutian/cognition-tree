@@ -18,6 +18,11 @@ import type {
 import {
   resolveWorkspaceReferenceNavigation,
 } from "../../../../workspace/queries/workspaceReferenceNavigation";
+import {
+  createCtnEditableSource,
+  getCtnEditableLineNumber,
+  type CtnEditableSource,
+} from "../../../../ctn/metadata/editableSource";
 
 export function useNotesActivity({
   errorMessage,
@@ -53,6 +58,43 @@ export function useNotesActivity({
       : null,
     [effectiveActiveNote, index],
   );
+  const editableSource = useMemo(
+    () => parsedNote
+      ? createCtnEditableSource(parsedNote.source, parsedNote.profile)
+      : null,
+    [parsedNote],
+  );
+  const editableSourceByNoteId = useMemo(
+    () => new Map<string, CtnEditableSource>(),
+    [index],
+  );
+  const projectLineNumber = (lineNumber: number) =>
+    editableSource
+      ? getCtnEditableLineNumber(editableSource, lineNumber)
+      : lineNumber;
+  const projectNoteLineNumber = (noteId: string, lineNumber: number) => {
+    if (!index) {
+      return lineNumber;
+    }
+
+    let targetEditableSource = editableSourceByNoteId.get(noteId);
+
+    if (!targetEditableSource) {
+      const targetNote = getParsedWorkspaceNote(index, noteId);
+
+      if (!targetNote) {
+        return lineNumber;
+      }
+
+      targetEditableSource = createCtnEditableSource(
+        targetNote.source,
+        targetNote.profile,
+      );
+      editableSourceByNoteId.set(noteId, targetEditableSource);
+    }
+
+    return getCtnEditableLineNumber(targetEditableSource, lineNumber);
+  };
   const noteTree = useMemo(
     () => createUiNoteTree({
       notes: listWorkspaceNotes(workspace),
@@ -64,17 +106,28 @@ export function useNotesActivity({
     () => createUiEditorView({
       activeNoteTitle: activeNote?.title ?? null,
       document: parsedNote?.document ?? null,
-      documentText: parsedNote?.source ?? activeNote?.source ?? "",
+      documentText: editableSource?.source ?? activeNote?.source ?? "",
       errorMessage,
       focusTarget,
       hasActiveNote: Boolean(activeNote),
+      projectLineNumber,
       syntaxProfile: parsedNote?.profile ?? defaultSyntaxProfile,
     }),
-    [activeNote, defaultSyntaxProfile, errorMessage, focusTarget, parsedNote],
+    [
+      activeNote,
+      defaultSyntaxProfile,
+      editableSource,
+      errorMessage,
+      focusTarget,
+      parsedNote,
+    ],
   );
   const outlineNodes = useMemo(
-    () => createUiOutlineNodes(parsedNote?.document.roots ?? []),
-    [parsedNote],
+    () => createUiOutlineNodes(
+      parsedNote?.document.roots ?? [],
+      projectLineNumber,
+    ),
+    [editableSource, parsedNote],
   );
 
   return {
@@ -105,7 +158,9 @@ export function useNotesActivity({
         }
 
         selection.selectNote(destination.noteId);
-        onFocusLine(destination.lineNumber);
+        onFocusLine(
+          projectNoteLineNumber(destination.noteId, destination.lineNumber),
+        );
       },
       resolve(target) {
         return index && selection.activeNoteId

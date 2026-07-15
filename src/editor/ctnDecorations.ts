@@ -6,8 +6,7 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import {
-  CtnDocumentMetadataError,
-  parseCtnDocument,
+  parseCtnSourceWithSyntheticMetadata,
 } from "../ctn/parser/parseCtnDocument";
 import type {
   CtnBlock,
@@ -137,10 +136,6 @@ function getBlockTextDecorationStyle(block: CtnBlock) {
   return getCtnEditorTextColorStyle(block.textColor);
 }
 
-export function getMetadataLineDecorationClass() {
-  return "ctn-metadata-line";
-}
-
 function buildCtnDecorations(
   view: EditorView,
   parsedDocument: CtnDocument,
@@ -148,14 +143,6 @@ function buildCtnDecorations(
   const decorations = [];
 
   for (const block of parsedDocument.blocks) {
-    const metadataLine = view.state.doc.line(block.metadataLineNumber);
-
-    decorations.push(
-      Decoration.line({
-        attributes: { class: getMetadataLineDecorationClass() },
-      }).range(metadataLine.from),
-    );
-
     if (block.role === "multiline" && block.endLineNumber > block.lineNumber) {
       for (
         let lineNumber = block.lineNumber;
@@ -290,7 +277,10 @@ function parseEditorDocument(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
 ) {
-  return parseCtnDocument(view.state.doc.toString(), syntaxProfile);
+  return parseCtnSourceWithSyntheticMetadata(
+    view.state.doc.toString(),
+    syntaxProfile,
+  );
 }
 
 export function createCtnParseDecorationPlugin(syntaxProfileRef: {
@@ -318,19 +308,11 @@ export function createCtnParseDecorationPlugin(syntaxProfileRef: {
         if (update.docChanged || nextProfileKey !== this.profileKey) {
           this.profileKey = nextProfileKey;
 
-          try {
-            this.document = parseEditorDocument(
-              update.view,
-              syntaxProfileRef.current,
-            );
-            this.decorations = buildCtnDecorations(update.view, this.document);
-          } catch (error) {
-            if (!(error instanceof CtnDocumentMetadataError)) {
-              throw error;
-            }
-
-            this.decorations = this.decorations.map(update.changes);
-          }
+          this.document = parseEditorDocument(
+            update.view,
+            syntaxProfileRef.current,
+          );
+          this.decorations = buildCtnDecorations(update.view, this.document);
         }
       }
     },

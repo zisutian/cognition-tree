@@ -5,9 +5,40 @@ import {
   NoteEditorPanel,
   NotesContext,
 } from "../../../../src/ui/activities/notes/NotesPanels";
+import { BlockMetadataDetails } from "../../../../src/ui/activities/notes/BlockMetadataDetails";
 import { createView } from "../../viewFactory";
 
 describe("notes panels", () => {
+  it("keeps block timestamps in a compact detail view", () => {
+    const markup = renderToStaticMarkup(
+      <BlockMetadataDetails
+        block={{
+          children: [],
+          hasDiagnostics: false,
+          id: "block-1",
+          label: "定义",
+          lineLabel: "L2",
+          lineNumber: 2,
+          metadata: {
+            createdAt: "2026-07-15T00:00:00.000Z",
+            updatedAt: "2026-07-15T01:00:00.000Z",
+          },
+          textDisplay: {
+            displayText: "示例",
+            segments: [{ id: "text", kind: "text", text: "示例" }],
+            textColor: "default",
+          },
+        }}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="块时间"');
+    expect(markup).toContain("创建");
+    expect(markup).toContain("更新");
+    expect(markup).toContain('dateTime="2026-07-15T00:00:00.000Z"');
+    expect(markup).not.toContain("@ctn-block");
+  });
+
   it("exposes the workbench focus mode command from the editor title bar", () => {
     const view = createView().notes;
     const normalMarkup = renderToStaticMarkup(
@@ -109,6 +140,10 @@ describe("notes panels", () => {
                     label: "定义",
                     lineLabel: "L2",
                     lineNumber: 2,
+                    metadata: {
+                      createdAt: "2026-07-15T00:00:00.000Z",
+                      updatedAt: "2026-07-15T00:00:00.000Z",
+                    },
                     textDisplay: {
                       displayText: "子结构",
                       segments: [{ id: "text", kind: "text", text: "子结构" }],
@@ -121,6 +156,10 @@ describe("notes panels", () => {
                 label: "T",
                 lineLabel: "L1",
                 lineNumber: 1,
+                metadata: {
+                  createdAt: "2026-07-15T00:00:00.000Z",
+                  updatedAt: "2026-07-15T00:00:00.000Z",
+                },
                 textDisplay: {
                   displayText: "当前笔记",
                   segments: [{ id: "text", kind: "text", text: "当前笔记" }],

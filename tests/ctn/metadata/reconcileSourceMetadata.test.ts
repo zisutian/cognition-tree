@@ -51,6 +51,26 @@ describe("reconcileCtnSourceBlockMetadata", () => {
     ]);
   });
 
+  it("preserves the edited block identity when the editor omits metadata", () => {
+    const previousSource = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t: Child",
+    );
+    const result = parseCtnDocument(
+      reconcile(previousSource, "Title\nRoot\n\t: Changed"),
+      defaultCtnSyntaxProfile,
+    );
+
+    expect(result.blocks.map((block) => block.id)).toEqual([
+      createTestBlockId(1),
+      createTestBlockId(2),
+      createTestBlockId(3),
+    ]);
+    expect(result.blocks[2].metadata).toEqual({
+      createdAt: testBlockTimestamp,
+      updatedAt: changedTimestamp,
+    });
+  });
+
   it("creates metadata for a newly typed block", () => {
     const previousSource = addTestCtnBlockMetadata("Title\nRoot");
     const resultSource = reconcile(

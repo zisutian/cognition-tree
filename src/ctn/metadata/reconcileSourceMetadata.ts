@@ -2,115 +2,20 @@ import {
   parseCtnDocument,
   parseCtnSourceWithSyntheticMetadata,
 } from "../parser/parseCtnDocument";
-import { findClosingMultilineFenceLineNumber } from "../parser/blockRanges";
-import { parseMarker, sortMarkerRules } from "../parser/lineMarkers";
 import type { CtnBlock, CtnDocument } from "../parser/types";
 import type { CtnSyntaxProfile } from "../syntax/types";
 import {
-  ctnBlockMetadataDirective,
   formatCtnBlockMetadataLine,
   isCtnBlockId,
-  parseCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
 } from "./blockMetadata";
+import { createCtnEditableSource } from "./editableSource";
 
 export type ReconcileCtnSourceBlockMetadataOptions = {
   createId?: () => string;
   reservedIds?: ReadonlySet<string>;
   timestamp: string;
 };
-
-type EditableSource = {
-  metadataByLineNumber: ReadonlyMap<number, CtnBlockMetadataRecord | null>;
-  source: string;
-};
-
-function readCandidateMetadata(line: string) {
-  try {
-    return parseCtnBlockMetadataLine(line);
-  } catch {
-    return null;
-  }
-}
-
-function extractEditableSource(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-): EditableSource {
-  const lines = source.split("\n");
-  const markerRules = sortMarkerRules(syntaxProfile.markerRules);
-  const metadataByLineNumber = new Map<
-    number,
-    CtnBlockMetadataRecord | null
-  >();
-  const sourceLines: string[] = [];
-  let candidateMetadata:
-    | { physicalLineIndex: number; record: CtnBlockMetadataRecord | null }
-    | null = null;
-  let hasTitleLine = false;
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index];
-
-    if (line.trimStart().startsWith(ctnBlockMetadataDirective)) {
-      candidateMetadata = {
-        physicalLineIndex: index,
-        record: readCandidateMetadata(line),
-      };
-      index += 1;
-      continue;
-    }
-
-    sourceLines.push(line);
-    const sourceLineNumber = sourceLines.length;
-
-    if (candidateMetadata?.physicalLineIndex === index - 1) {
-      metadataByLineNumber.set(sourceLineNumber, candidateMetadata.record);
-    }
-    candidateMetadata = null;
-
-    if (!hasTitleLine) {
-      hasTitleLine = true;
-      index += 1;
-      continue;
-    }
-
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-
-    const indentText = line.match(/^\s*/)?.[0] ?? "";
-    const marker = parseMarker(
-      line.trim(),
-      sourceLineNumber,
-      indentText.length,
-      markerRules,
-    );
-
-    if (marker.role !== "multiline" || marker.marker === null) {
-      index += 1;
-      continue;
-    }
-
-    const closingLineNumber = findClosingMultilineFenceLineNumber(
-      lines,
-      index + 1,
-      marker.marker,
-    );
-
-    for (let contentIndex = index + 1; contentIndex < closingLineNumber; contentIndex += 1) {
-      sourceLines.push(lines[contentIndex]);
-    }
-    index = closingLineNumber;
-  }
-
-  return {
-    metadataByLineNumber,
-    source: sourceLines.join("\n"),
-  };
-}
 
 function findNearestCandidateIndex({
   candidates,
@@ -150,7 +55,7 @@ function assignExistingBlockIds({
   previousDocument,
 }: {
   candidateDocument: CtnDocument;
-  editableSource: EditableSource;
+    editableSource: ReturnType<typeof createCtnEditableSource>;
   previousDocument: CtnDocument;
 }) {
   const assignedIds = new Map<CtnBlock, string>();
@@ -242,6 +147,32 @@ function assignExistingBlockIds({
     assignedIds.set(candidateDocument.blocks[candidateIndex], previousBlock.id);
     assignedExistingIds.add(previousBlock.id);
   });
+
+  const assignChangedBlocksByOrder = (titleBlocks: boolean) => {
+    const previousBlocks = previousDocument.blocks.filter((block) =>
+      !assignedExistingIds.has(block.id) &&
+      (block.type === "title") === titleBlocks
+    );
+    const candidateEntries = candidateDocument.blocks.flatMap((block, index) =>
+      !assignedCandidateIndexes.has(index) &&
+      (block.type === "title") === titleBlocks
+        ? [{ block, index }]
+        : []
+    );
+    const pairCount = Math.min(previousBlocks.length, candidateEntries.length);
+
+    for (let index = 0; index < pairCount; index += 1) {
+      const previousBlock = previousBlocks[index];
+      const candidate = candidateEntries[index];
+
+      assignedCandidateIndexes.add(candidate.index);
+      assignedExistingIds.add(previousBlock.id);
+      assignedIds.set(candidate.block, previousBlock.id);
+    }
+  };
+
+  assignChangedBlocksByOrder(true);
+  assignChangedBlocksByOrder(false);
 
   return assignedIds;
 }
@@ -449,7 +380,7 @@ export function reconcileCtnSourceBlockMetadata(
   }
 
   const previousDocument = parseCtnDocument(previousSource, syntaxProfile);
-  const editableSource = extractEditableSource(nextSource, syntaxProfile);
+  const editableSource = createCtnEditableSource(nextSource, syntaxProfile);
   const candidateDocument = parseCtnSourceWithSyntheticMetadata(
     editableSource.source,
     syntaxProfile,

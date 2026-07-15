@@ -19,6 +19,7 @@ import {
 } from "../../../../src/workspace/model/workspaceData";
 import {
   createUiBlockNode,
+  createUiOutlineNodes,
   flattenUiBlockSubtree,
   getUiBlockLineLabel,
 } from "../../../../src/application/workspace/projection/viewBlocks";
@@ -27,6 +28,10 @@ import {
 } from "../../../../src/application/workspace/projection/viewTree";
 import { createUiEditorView } from "../../../../src/application/workspace/projection/viewEditor";
 import {
+  createCtnEditableSource,
+  getCtnEditableLineNumber,
+} from "../../../../src/ctn/metadata/editableSource";
+import {
   createUiTextSegments,
   getUiTextDisplayText,
 } from "../../../../src/application/workspace/projection/viewText";
@@ -34,6 +39,7 @@ import { createUiSyntaxView } from "../../../../src/application/workspace/projec
 import {
   addTestCtnBlockMetadata,
   createTestBlockId,
+  testBlockTimestamp,
 } from "../../../ctn/metadata/sourceMetadataFixture";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
@@ -123,6 +129,46 @@ describe("workspace view projection", () => {
       mode: "raw",
       stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
     });
+  });
+
+  it("projects canonical metadata lines out of parsed editor views", () => {
+    const source = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t? Unknown",
+    );
+    const document = parseCtnDocument(source, defaultCtnSyntaxProfile);
+    const editableSource = createCtnEditableSource(
+      source,
+      defaultCtnSyntaxProfile,
+    );
+    const projectLineNumber = (lineNumber: number) =>
+      getCtnEditableLineNumber(editableSource, lineNumber);
+    const view = createUiEditorView({
+      activeNoteTitle: "Title",
+      document,
+      documentText: editableSource.source,
+      errorMessage: "",
+      focusTarget: null,
+      hasActiveNote: true,
+      projectLineNumber,
+      syntaxProfile: defaultCtnSyntaxProfile,
+    });
+    const outline = createUiOutlineNodes(
+      document.roots,
+      projectLineNumber,
+    );
+
+    expect(view.documentText).toBe("Title\nRoot\n\t? Unknown");
+    expect(view.diagnostics).toEqual([
+      expect.objectContaining({ lineNumber: 3 }),
+    ]);
+    expect(view.stats.lineCount).toBe(3);
+    expect(outline).toMatchObject([
+      {
+        lineLabel: "L2-3",
+        lineNumber: 2,
+        metadata: { createdAt: testBlockTimestamp },
+      },
+    ]);
   });
 
   it("creates outline text segments with syntax display metadata", () => {
