@@ -140,13 +140,13 @@ describe("activity slots", () => {
           settings: {
             ...baseView.settings,
             hasSaveConflict: true,
-            saveStatusLabel: "磁盘内容已更改",
+            saveStatusLabel: "仓库内容已更改",
           },
         }),
       ).main,
     );
 
-    expect(conflictMarkup).toContain("磁盘内容已更改");
+    expect(conflictMarkup).toContain("仓库内容已更改");
     expect(conflictMarkup).toContain("放弃本地修改并重新加载");
     expect(renderSlot(slots("settings").main)).not.toContain(
       "放弃本地修改并重新加载",

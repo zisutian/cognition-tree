@@ -10,6 +10,8 @@ import {
 import { validateWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
 
 export type WorkspaceSessionSnapshot = {
+  availability: WorkspaceRepositorySnapshot["availability"];
+  currentRevision: string | null;
   repositoryPath: string;
   revision: string;
   syntaxSourceFile: WorkspaceRepositorySnapshot["syntaxSourceFile"];
@@ -33,6 +35,10 @@ export async function loadWorkspaceSessionSnapshot(
   }
 
   return {
+    availability: repositorySnapshot.availability,
+    currentRevision: repositorySnapshot.availability === "conflict"
+      ? repositorySnapshot.currentRevision
+      : null,
     repositoryPath: repositorySnapshot.repositoryPath,
     revision: repositorySnapshot.revision,
     syntaxSourceFile: repositorySnapshot.syntaxSourceFile,

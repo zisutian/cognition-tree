@@ -14,7 +14,8 @@ function createRepository(
   snapshot: Awaited<ReturnType<WorkspaceRepository["loadSnapshot"]>>,
 ): WorkspaceRepository {
   return {
-    commitSnapshot: async () => ({ revision: "unused" }),
+    commitSnapshot: async () => ({ availability: "online", revision: "unused" }),
+    discardPendingCommit: async () => undefined,
     label: "test repository",
     loadSnapshot: async () => snapshot,
   };
@@ -29,6 +30,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
     await expect(
       loadWorkspaceSessionSnapshot(
         createRepository({
+          availability: "online",
           repositoryPath: "/repository",
           revision: "revision-1",
           syntaxSourceFile,
@@ -52,6 +54,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
     await expect(
       loadWorkspaceSessionSnapshot(
         createRepository({
+          availability: "online",
           repositoryPath: "/repository",
           revision: "revision-empty-syntax",
           syntaxSourceFile: null,
@@ -59,6 +62,8 @@ describe("loadWorkspaceSessionSnapshot", () => {
         }),
       ),
     ).resolves.toEqual({
+      availability: "online",
+      currentRevision: null,
       repositoryPath: "/repository",
       revision: "revision-empty-syntax",
       syntaxSourceFile: null,
@@ -82,6 +87,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
     await expect(
       loadWorkspaceSessionSnapshot(
         createRepository({
+          availability: "online",
           repositoryPath: "/repository",
           revision: "revision-invalid-metadata",
           syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(

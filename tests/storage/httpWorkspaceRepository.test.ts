@@ -47,7 +47,10 @@ describe("createHttpWorkspaceRepository", () => {
       repositoryId: "primary",
     });
 
-    await expect(repository.loadSnapshot()).resolves.toEqual(snapshot);
+    await expect(repository.loadSnapshot()).resolves.toEqual({
+      ...snapshot,
+      availability: "online",
+    });
     expect(repository.label).toBe("primary");
     expect(calls.map((call) => call.url)).toEqual([
       "http://api.test/base/api/repositories/primary/snapshot",
@@ -81,6 +84,7 @@ describe("createHttpWorkspaceRepository", () => {
     });
 
     await expect(repository.commitSnapshot(commit)).resolves.toEqual({
+      availability: "online",
       revision: "revision-2",
     });
     expect(calls).toEqual([

@@ -26,7 +26,7 @@ export function createHttpWorkspaceRepository({
   return {
     label: label ?? repositoryId,
     async commitSnapshot(commit) {
-      return parseWorkspaceRepositoryCommitResult(
+      const result = parseWorkspaceRepositoryCommitResult(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
@@ -38,15 +38,20 @@ export function createHttpWorkspaceRepository({
           },
         ),
       );
+
+      return { ...result, availability: "online" };
     },
+    async discardPendingCommit() {},
     async loadSnapshot() {
-      return parseWorkspaceRepositorySnapshot(
+      const snapshot = parseWorkspaceRepositorySnapshot(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
           endpoint,
         ),
       );
+
+      return { ...snapshot, availability: "online" };
     },
   };
 }

@@ -4,11 +4,11 @@
 
 ## 当前运行形态
 
-当前仓库包含一个浏览器前端和一个本机 Node HTTP 后端。
+当前仓库包含一个浏览器前端和一个 Node HTTP 后端。
 
     前端：React、Vite、CodeMirror、Canvas 引用图谱。
-    后端：Node HTTP API、本地文件仓库读写。
-    存储：默认在 .cognition-tree/repositories 下管理多个仓库。
+    后端：Node HTTP API、本地文件与 WebDAV repository adapter。
+    存储：默认在 .cognition-tree/repositories 下管理本地仓库，可由服务端配置远端仓库。
 
 每个仓库由稳定的 repository id 标识，数据文件按仓库结构生成和读取：
 
@@ -29,6 +29,7 @@
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用图谱：查看笔记级引用关系、局部图谱和未解析引用。
     设置：创建和切换仓库，查看仓库位置与保存状态，并调整工作台目录宽度。
+    离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
 
@@ -94,6 +95,8 @@ HTTP 后端默认只接受来自本机开发前端地址的浏览器请求。使
 后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
 
 `CTN_WEBDAV_REPOSITORIES` 是服务端 JSON 数组，每项包含 `id`、`label`、`url`，以及可选的成对 `username`、`password`。WebDAV 作为独立 repository adapter 直接读写远端文件；本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。
+
+HTTP repository 的最近确认快照与待同步提交保存在浏览器 IndexedDB。网络不可用时，已有缓存的仓库仍可编辑；恢复连接后，远端 revision 未变化则自动同步，已变化则保留本地内容并要求显式丢弃或后续解决冲突。
 
 ## 代码结构
 

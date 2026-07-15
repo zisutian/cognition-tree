@@ -46,11 +46,13 @@ type WorkspaceSessionAvailableStateBase = {
 
 export type WorkspaceSessionReadyState =
   WorkspaceSessionAvailableStateBase & {
+    availability: "offline" | "online";
     status: "ready";
   };
 
 export type WorkspaceSessionConflictState =
   WorkspaceSessionAvailableStateBase & {
+    availability: "conflict";
     currentRevision: string;
     status: "conflict";
   };
@@ -69,7 +71,9 @@ export type WorkspaceSessionControllerState =
   | WorkspaceSessionReadyState;
 
 type LoadedWorkspaceSession = {
+  availability: "conflict" | "offline" | "online";
   context: WorkspaceContext | null;
+  currentRevision: string | null;
   generation: number;
   latestWorkspaceSyntax: WorkspaceSyntax | null;
   repositoryPath: string;
@@ -114,6 +118,7 @@ function createLoadedWorkspaceSession({
   const workspace = createWorkspaceStructureIndex(snapshot.workspaceData);
 
   return {
+    availability: snapshot.availability,
     context: snapshot.workspaceSyntax
       ? attachWorkspaceSyntaxProfile(
           workspace,
@@ -121,6 +126,7 @@ function createLoadedWorkspaceSession({
         )
       : null,
     generation,
+    currentRevision: snapshot.currentRevision,
     latestWorkspaceSyntax: snapshot.workspaceSyntax,
     repositoryPath: snapshot.repositoryPath,
     revision: snapshot.revision,
@@ -191,10 +197,19 @@ export function createWorkspaceSessionController({
     return status === "conflict"
       ? {
           ...availableState,
-          currentRevision: currentRevision ?? loadedSession.revision,
+          availability: "conflict" as const,
+          currentRevision:
+            currentRevision ??
+            loadedSession.currentRevision ??
+            loadedSession.revision,
           status,
         }
-      : { ...availableState, status };
+      : {
+          ...availableState,
+          availability:
+            loadedSession.availability === "offline" ? "offline" : "online",
+          status,
+        };
   };
   const publishCurrentAvailableState = ({
     currentRevision,
@@ -282,9 +297,14 @@ export function createWorkspaceSessionController({
     }
 
     if (error instanceof WorkspaceRepositoryConflictError) {
+      loadedSession = {
+        ...loadedSession,
+        availability: "conflict",
+        currentRevision: error.currentRevision,
+      };
       publishCurrentAvailableState({
         currentRevision: error.currentRevision,
-        errorMessage: "磁盘中的仓库内容已更改，本地修改尚未保存。",
+        errorMessage: "仓库内容已在其它位置更改，本地修改尚未同步。",
         saveStatus: "error",
         status: "conflict",
       });
@@ -369,6 +389,8 @@ export function createWorkspaceSessionController({
         });
 
         if (loadedSession?.generation === expectedGeneration) {
+          loadedSession.availability = result.availability;
+          loadedSession.currentRevision = null;
           loadedSession.revision = result.revision;
         }
       },
@@ -399,7 +421,16 @@ export function createWorkspaceSessionController({
         snapshot,
       });
       saveQueue = createSaveQueue(nextGeneration);
-      publishCurrentAvailableState();
+      publishCurrentAvailableState(
+        snapshot.availability === "conflict"
+          ? {
+              currentRevision: snapshot.currentRevision ?? undefined,
+              errorMessage: "仓库内容已在其它位置更改，本地修改尚未同步。",
+              saveStatus: "error",
+              status: "conflict",
+            }
+          : { status: "ready" },
+      );
     } catch (error) {
       if (
         !isStarted ||
@@ -454,6 +485,7 @@ export function createWorkspaceSessionController({
     if (previousQueue) {
       await previousQueue.discardPendingChanges();
     }
+    await repository.discardPendingCommit();
 
     if (isStarted && transitionVersion === expectedTransitionVersion) {
       await loadForTransition(expectedTransitionVersion);

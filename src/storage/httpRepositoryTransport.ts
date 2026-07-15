@@ -1,4 +1,7 @@
-import { WorkspaceRepositoryConflictError } from "./workspaceRepository";
+import {
+  WorkspaceRepositoryConflictError,
+  WorkspaceRepositoryUnavailableError,
+} from "./workspaceRepository";
 
 export type HttpRepositoryTransportOptions = {
   baseUrl?: string;
@@ -41,6 +44,12 @@ async function assertSuccessfulResponse(response: Response) {
     throw new WorkspaceRepositoryConflictError(body.currentRevision);
   }
 
+  if ([423, 502, 503, 504].includes(response.status)) {
+    throw new WorkspaceRepositoryUnavailableError(
+      typeof body.error === "string" ? body.error : response.statusText,
+    );
+  }
+
   throw new Error(
     typeof body.error === "string" ? body.error : response.statusText,
   );
@@ -52,7 +61,17 @@ export async function requestRepositoryJson(
   endpoint: string,
   init?: RequestInit,
 ): Promise<unknown> {
-  const response = await fetchFn(resolveApiUrl(baseUrl, endpoint), init);
+  let response: Response;
+
+  try {
+    response = await fetchFn(resolveApiUrl(baseUrl, endpoint), init);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new WorkspaceRepositoryUnavailableError();
+    }
+
+    throw error;
+  }
 
   await assertSuccessfulResponse(response);
   return response.json();

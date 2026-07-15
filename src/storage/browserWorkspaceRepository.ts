@@ -66,6 +66,7 @@ function createBrowserWorkspaceRepository(
 
     return {
       ...content,
+      availability: "online",
       repositoryPath: `localStorage:${storageKey}`,
       revision: await createWorkspaceRepositoryRevision(content),
     };
@@ -89,9 +90,11 @@ function createBrowserWorkspaceRepository(
       getStorage().setItem(storageKey, JSON.stringify(content));
 
       return {
+        availability: "online",
         revision: await createWorkspaceRepositoryRevision(content),
       };
     },
+    async discardPendingCommit() {},
     loadSnapshot,
   };
 }

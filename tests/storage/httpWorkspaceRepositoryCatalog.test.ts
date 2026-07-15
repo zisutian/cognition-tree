@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
-import { createHttpWorkspaceRepositoryCatalog } from "../../src/storage/httpWorkspaceRepositoryCatalog";
+import { createMemoryRepositoryClientCache } from "../../src/storage/browserRepositoryClientCache";
+import {
+  createHttpWorkspaceRepositoryCatalog,
+} from "../../src/storage/httpWorkspaceRepositoryCatalog";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -80,6 +83,36 @@ describe("HTTP workspace repository catalog", () => {
     await catalog.openRepository(descriptor).loadSnapshot();
     expect(requestedUrls).toEqual([
       "http://api.test/api/repositories/space-id/snapshot",
+    ]);
+  });
+
+  it("reuses confirmed descriptors when the catalog is offline", async () => {
+    const descriptor = {
+      adapter: "webdav" as const,
+      id: "remote",
+      label: "Remote",
+      repositoryPath: "https://dav.test/remote/",
+    };
+    const cache = createMemoryRepositoryClientCache();
+    let unavailable = false;
+    const createCatalog = () =>
+      createHttpWorkspaceRepositoryCatalog({
+        baseUrl: "http://api.test",
+        cache,
+        fetch: async () => {
+          if (unavailable) {
+            throw new TypeError("network unavailable");
+          }
+          return jsonResponse({ repositories: [descriptor] });
+        },
+      });
+
+    await expect(createCatalog().listRepositories()).resolves.toEqual([
+      descriptor,
+    ]);
+    unavailable = true;
+    await expect(createCatalog().listRepositories()).resolves.toEqual([
+      descriptor,
     ]);
   });
 });

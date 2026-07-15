@@ -71,6 +71,7 @@ export function useWorkspaceApplication(
   };
   const repository = {
     ...repositoryManagement,
+    availability: session.availability,
     discardPendingChangesAndReload: session.discardPendingChangesAndReload,
     reload: session.reload,
     repositoryPath: session.repositoryPath,

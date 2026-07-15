@@ -6,6 +6,7 @@ function createSource(
 ): Parameters<typeof createSettingsViewModel>[0] {
   return {
     activeRepositoryId: "primary",
+    availability: "online",
     contextWidth: 280,
     createRepository: vi.fn(async () => undefined),
     discardPendingChangesAndReload: vi.fn(async () => undefined),
@@ -55,7 +56,18 @@ describe("settings view model", () => {
       ),
     ).toMatchObject({
       hasSaveConflict: true,
-      saveStatusLabel: "磁盘内容已更改",
+      saveStatusLabel: "仓库内容已更改",
+    });
+  });
+
+  it("reports offline commits as pending synchronization", () => {
+    expect(
+      createSettingsViewModel(
+        createSource({ availability: "offline", saveStatus: "saved" }),
+      ),
+    ).toMatchObject({
+      hasSaveConflict: false,
+      saveStatusLabel: "离线，等待同步",
     });
   });
 });

@@ -410,4 +410,40 @@ test.describe.serial("workbench browser baseline", () => {
     await getActivityButton(page, "语法").click();
     await expect(page.getByRole("button", { name: "创建配置" })).toBeVisible();
   });
+
+  test("keeps pending edits across an offline page reload and syncs on recovery", async ({
+    page,
+  }) => {
+    await openWorkbench(page);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await page.route("**/api/**", (route) => route.abort("internetdisconnected"));
+
+    const editor = page.locator(".source-editor .cm-content");
+
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" offline-pending");
+    await getActivityButton(page, "设置").click();
+    await expect(page.getByText("离线，等待同步", { exact: true })).toBeVisible();
+
+    await page.reload();
+    await openWorkbench(page);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText("offline-pending");
+    await getActivityButton(page, "设置").click();
+    await expect(page.getByText("离线，等待同步", { exact: true })).toBeVisible();
+
+    await page.unroute("**/api/**");
+    await page.getByRole("button", { name: "刷新" }).click();
+    await expect(page.getByText("离线，等待同步", { exact: true })).toBeHidden();
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/repositories/${repositoryId}/snapshot`,
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+
+      return snapshot.workspace.notes.find(({ id }) => id === "note-alpha")
+        ?.source.includes("offline-pending") ?? false;
+    }).toBe(true);
+  });
 });

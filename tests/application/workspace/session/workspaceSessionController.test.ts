@@ -48,6 +48,7 @@ function createSnapshot(
   workspace = createWorkspace(),
 ): WorkspaceRepositorySnapshot {
   return {
+    availability: "online",
     repositoryPath: "/repository",
     revision,
     syntaxSourceFile: null,
@@ -85,8 +86,9 @@ describe("workspace session controller", () => {
       repository: {
         commitSnapshot: async (commit) => {
           commits.push(commit);
-          return { revision: "revision-2" };
+          return { availability: "online", revision: "revision-2" };
         },
+        discardPendingCommit: async () => undefined,
         label: "test repository",
         loadSnapshot: () => load.promise,
       },
@@ -113,8 +115,12 @@ describe("workspace session controller", () => {
     const repository: WorkspaceRepository = {
       async commitSnapshot(commit) {
         commits.push(commit);
-        return { revision: `revision-${commits.length + 1}` };
+        return {
+          availability: "online",
+          revision: `revision-${commits.length + 1}`,
+        };
       },
+      discardPendingCommit: async () => undefined,
       label: "test repository",
       loadSnapshot: async () => createSnapshot("revision-1"),
     };
@@ -142,8 +148,9 @@ describe("workspace session controller", () => {
       repository: {
         async commitSnapshot(commit) {
           commits.push(commit);
-          return { revision: "revision-2" };
+          return { availability: "online", revision: "revision-2" };
         },
+        discardPendingCommit: async () => undefined,
         label: "test repository",
         loadSnapshot: async () => createSnapshot("revision-1"),
       },
@@ -172,7 +179,11 @@ describe("workspace session controller", () => {
     let loadCount = 0;
     const controller = createWorkspaceSessionController({
       repository: {
-        commitSnapshot: async () => ({ revision: "unused" }),
+        commitSnapshot: async () => ({
+          availability: "online",
+          revision: "unused",
+        }),
+        discardPendingCommit: async () => undefined,
         label: "test repository",
         loadSnapshot() {
           loadCount += 1;
@@ -205,6 +216,7 @@ describe("workspace session controller", () => {
         commitSnapshot: async () => {
           throw new WorkspaceRepositoryConflictError("revision-remote");
         },
+        discardPendingCommit: async () => undefined,
         label: "test repository",
         loadSnapshot: async () => createSnapshot("revision-local"),
       },
@@ -228,6 +240,127 @@ describe("workspace session controller", () => {
         ? state.workspace.data.notes[0]?.source
         : "",
     ).toBe("标题\n本地修改");
+    controller.dispose();
+  });
+
+  it("keeps an offline snapshot available for editing", async () => {
+    const controller = createWorkspaceSessionController({
+      repository: {
+        commitSnapshot: async () => ({
+          availability: "offline",
+          revision: "local-revision-2",
+        }),
+        discardPendingCommit: async () => undefined,
+        label: "remote repository",
+        loadSnapshot: async () => ({
+          ...createSnapshot("local-revision-1"),
+          availability: "offline",
+        }),
+      },
+    });
+
+    controller.start();
+    const ready = await waitForState(
+      controller,
+      (state) => state.status === "ready",
+    );
+
+    expect(ready).toMatchObject({
+      availability: "offline",
+      status: "ready",
+    });
+    controller.commands.updateNoteSource("note-1", "标题\n离线修改");
+    await controller.flushPendingChanges();
+    expect(controller.getState()).toMatchObject({
+      availability: "offline",
+      saveStatus: "saved",
+      status: "ready",
+    });
+    controller.dispose();
+  });
+
+  it("loads retained local content as an explicit conflict", async () => {
+    const controller = createWorkspaceSessionController({
+      repository: {
+        commitSnapshot: async () => ({
+          availability: "online",
+          revision: "unused",
+        }),
+        discardPendingCommit: async () => undefined,
+        label: "remote repository",
+        loadSnapshot: async () => ({
+          ...createSnapshot(
+            "local-pending-revision",
+            createWorkspace("标题\n本地待同步"),
+          ),
+          availability: "conflict",
+          currentRevision: "remote-revision",
+        }),
+      },
+    });
+
+    controller.start();
+    const conflict = await waitForState(
+      controller,
+      (state) => state.status === "conflict",
+    );
+
+    expect(conflict).toMatchObject({
+      availability: "conflict",
+      currentRevision: "remote-revision",
+      saveStatus: "error",
+      status: "conflict",
+    });
+    expect(
+      conflict.status === "conflict"
+        ? conflict.workspace.data.notes[0]?.source
+        : "",
+    ).toBe("标题\n本地待同步");
+    controller.dispose();
+  });
+
+  it("discards the persisted pending commit before reloading", async () => {
+    const events: string[] = [];
+    let loadCount = 0;
+    const controller = createWorkspaceSessionController({
+      repository: {
+        commitSnapshot: async () => ({
+          availability: "online",
+          revision: "unused",
+        }),
+        async discardPendingCommit() {
+          events.push("discard");
+        },
+        label: "remote repository",
+        async loadSnapshot() {
+          loadCount += 1;
+          events.push(`load-${loadCount}`);
+          return loadCount === 1
+            ? {
+                ...createSnapshot(
+                  "local-pending-revision",
+                  createWorkspace("标题\n本地待同步"),
+                ),
+                availability: "conflict",
+                currentRevision: "remote-revision",
+              }
+            : createSnapshot(
+                "remote-revision",
+                createWorkspace("标题\n远端内容"),
+              );
+        },
+      },
+    });
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "conflict");
+    await controller.discardPendingChangesAndReload();
+
+    expect(events).toEqual(["load-1", "discard", "load-2"]);
+    expect(controller.getState()).toMatchObject({
+      availability: "online",
+      status: "ready",
+    });
     controller.dispose();
   });
 });

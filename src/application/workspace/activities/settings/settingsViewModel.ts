@@ -11,6 +11,7 @@ const saveStatusLabels: Record<WorkspaceSessionSaveStatus, string> = {
 
 type SettingsActivitySource = {
   activeRepositoryId: string;
+  availability: "conflict" | "offline" | "online";
   contextWidth: number;
   createRepository: (input: { id: string; name: string }) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
@@ -54,8 +55,10 @@ export function createSettingsViewModel(
     repositories: source.repositories,
     repositoryPath: source.repositoryPath,
     saveStatusLabel: hasSaveConflict
-      ? "磁盘内容已更改"
-      : saveStatusLabels[source.saveStatus],
+      ? "仓库内容已更改"
+      : source.availability === "offline"
+        ? "离线，等待同步"
+        : saveStatusLabels[source.saveStatus],
     storageLabel: source.storageLabel,
     selectRepository: source.selectRepository,
     setContextWidth: source.setContextWidth,

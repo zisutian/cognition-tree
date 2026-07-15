@@ -18,16 +18,23 @@ export function createWorkspaceRepositorySyntaxSourceFile(
   };
 }
 
-export type WorkspaceRepositorySnapshot = WorkspaceRepositoryContent & {
+type WorkspaceRepositorySnapshotBase = WorkspaceRepositoryContent & {
   repositoryPath: string;
   revision: string;
 };
+
+export type WorkspaceRepositorySnapshot = WorkspaceRepositorySnapshotBase &
+  (
+    | { availability: "offline" | "online" }
+    | { availability: "conflict"; currentRevision: string }
+  );
 
 export type WorkspaceRepositoryCommit = WorkspaceRepositoryContent & {
   baseRevision: string;
 };
 
 export type WorkspaceRepositoryCommitResult = {
+  availability: "offline" | "online";
   revision: string;
 };
 
@@ -46,5 +53,13 @@ export type WorkspaceRepository = {
   commitSnapshot: (
     commit: WorkspaceRepositoryCommit,
   ) => Promise<WorkspaceRepositoryCommitResult>;
+  discardPendingCommit: () => Promise<void>;
   loadSnapshot: () => Promise<WorkspaceRepositorySnapshot>;
 };
+
+export class WorkspaceRepositoryUnavailableError extends Error {
+  constructor(message = "Repository is unavailable") {
+    super(message);
+    this.name = "WorkspaceRepositoryUnavailableError";
+  }
+}
