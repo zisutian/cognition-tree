@@ -1,5 +1,6 @@
 import type {
   TreeDragState,
+  TreeMoveDestination,
   TreeMoveRequest,
   TreeNode,
   TreeNodeReference,
@@ -36,6 +37,59 @@ function isSameTreeNodeReference(
   second: TreeNodeReference,
 ) {
   return getTreeNodeReferenceKey(first) === getTreeNodeReferenceKey(second);
+}
+
+function getTreeMoveDestinationReference(
+  destination: TreeMoveDestination,
+): TreeNodeReference | null {
+  if (destination.kind === "root") {
+    return null;
+  }
+
+  return destination.kind === "inside"
+    ? {
+        folderId: destination.folderId,
+        kind: "folder",
+        parentFolderId: null,
+      }
+    : destination.target;
+}
+
+function folderContainsReference(
+  node: Extract<TreeNode, { kind: "folder" }>,
+  reference: TreeNodeReference,
+): boolean {
+  return node.children.some((child) => {
+    const childReference = getTreeNodeReference(child);
+
+    return (
+      isSameTreeNodeReference(childReference, reference) ||
+      (child.kind === "folder" && folderContainsReference(child, reference))
+    );
+  });
+}
+
+function findFolderNode(
+  nodes: TreeNode[],
+  folderId: string,
+): Extract<TreeNode, { kind: "folder" }> | null {
+  for (const node of nodes) {
+    if (node.kind !== "folder") {
+      continue;
+    }
+
+    if (node.folderId === folderId) {
+      return node;
+    }
+
+    const nested = findFolderNode(node.children, folderId);
+
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return null;
 }
 
 export function readTreeNodeDragPayload(value: string): TreeNodeReference | null {
@@ -82,33 +136,81 @@ export function readTreeNodeDragPayload(value: string): TreeNodeReference | null
 }
 
 export function canDropTreeNode({
-  canDropNode,
+  canDropDestination,
+  destination,
+  nodes,
   source,
-  target,
 }: {
-  canDropNode?: (source: TreeNodeReference, target: TreeNodeReference) => boolean;
+  canDropDestination?: (
+    source: TreeNodeReference,
+    destination: TreeMoveDestination,
+  ) => boolean;
+  destination: TreeMoveDestination;
+  nodes: TreeNode[];
   source: TreeNodeReference;
-  target: TreeNodeReference;
 }) {
-  if (isSameTreeNodeReference(source, target)) {
+  const destinationReference = getTreeMoveDestinationReference(destination);
+
+  if (
+    destinationReference &&
+    isSameTreeNodeReference(source, destinationReference)
+  ) {
     return false;
   }
 
-  return canDropNode?.(source, target) ?? true;
+  if (source.kind === "folder" && destinationReference) {
+    const sourceFolder = findFolderNode(nodes, source.folderId);
+
+    if (
+      sourceFolder &&
+      folderContainsReference(sourceFolder, destinationReference)
+    ) {
+      return false;
+    }
+  }
+
+  return canDropDestination?.(source, destination) ?? true;
+}
+
+export function createTreeRowDropDestination({
+  offsetY,
+  rowHeight,
+  target,
+}: {
+  offsetY: number;
+  rowHeight: number;
+  target: TreeNodeReference;
+}): TreeMoveDestination {
+  const ratio = rowHeight <= 0 ? 0.5 : offsetY / rowHeight;
+
+  if (target.kind === "folder" && ratio >= 0.25 && ratio <= 0.75) {
+    return {
+      folderId: target.folderId,
+      kind: "inside",
+    };
+  }
+
+  return {
+    kind: ratio < 0.5 ? "before" : "after",
+    target,
+  };
 }
 
 export function createTreeMoveRequest({
+  destination,
   source,
-  target,
-}: {
-  source: TreeNodeReference;
-  target: TreeNodeReference;
-}): TreeMoveRequest {
-  return {
-    placement: target.kind === "folder" ? "inside" : "after",
-    source,
-    target,
-  };
+}: TreeMoveRequest): TreeMoveRequest {
+  return { destination, source };
+}
+
+export function getTreeMoveDestinationTargetKey(
+  destination: TreeMoveDestination | null,
+) {
+  const reference = destination
+    ? getTreeMoveDestinationReference(destination)
+    : null;
+
+  return reference ? getTreeNodeReferenceKey(reference) : null;
 }
 
 export function getTreeDragClassNames({
@@ -123,10 +225,18 @@ export function getTreeDragClassNames({
   }
 
   const nodeKey = getTreeNodeReferenceKey(nodeReference);
+  const activeTargetKey = getTreeMoveDestinationTargetKey(
+    dragState.activeDestination,
+  );
+  const placement = dragState.activeDestination?.kind;
 
   return [
     dragState.sourceKey === nodeKey && "is-dragging",
-    dragState.activeTargetKey === nodeKey &&
+    activeTargetKey === nodeKey &&
       (dragState.activeTargetCanDrop ? "is-drop-target" : "is-drop-disabled"),
+    activeTargetKey === nodeKey &&
+      dragState.activeTargetCanDrop &&
+      placement &&
+      `is-drop-${placement}`,
   ];
 }

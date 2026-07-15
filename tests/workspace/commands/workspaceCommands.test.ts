@@ -101,9 +101,8 @@ describe("workspace actions", () => {
       "资料",
     );
     const moved = moveWorkspaceTreeNode(indexWorkspace(renamed), {
-      placement: "inside",
+      destination: { folderId: "folder-target", kind: "inside" },
       source: { kind: "note", noteId: "note-second" },
-      target: { folderId: "folder-target", kind: "folder" },
     });
     const deleted = deleteWorkspaceFolder(
       indexWorkspace(moved),
@@ -188,9 +187,11 @@ describe("workspace actions", () => {
   it("moves sidebar tree nodes within or across folders", () => {
     const workspace = createWorkspaceWithNotes();
     const movedBeforeNote = moveWorkspaceTreeNode(indexWorkspace(workspace), {
-      placement: "before",
+      destination: {
+        kind: "before",
+        target: { kind: "note", noteId: "note-first" },
+      },
       source: { kind: "note", noteId: "note-second" },
-      target: { kind: "note", noteId: "note-first" },
     });
     const withFolder = createWorkspaceFolder(indexWorkspace(movedBeforeNote), {
       folderId: "folder-target",
@@ -198,9 +199,8 @@ describe("workspace actions", () => {
       title: "目标",
     });
     const movedInsideFolder = moveWorkspaceTreeNode(indexWorkspace(withFolder), {
-      placement: "inside",
+      destination: { folderId: "folder-target", kind: "inside" },
       source: { kind: "note", noteId: "note-first" },
-      target: { folderId: "folder-target", kind: "folder" },
     });
     expect(movedInsideFolder.tree.map((node) => node.id)).toEqual([
       "tree-note-second",
@@ -270,9 +270,11 @@ describe("workspace actions", () => {
     ).toThrow("Workspace note does not exist");
     expect(() =>
       moveWorkspaceTreeNode(indexWorkspace(workspace), {
-        placement: "after",
+        destination: {
+          kind: "after",
+          target: { kind: "note", noteId: "note-first" },
+        },
         source: { kind: "note", noteId: "missing-note" },
-        target: { kind: "note", noteId: "note-first" },
       }),
     ).toThrow("Workspace tree node does not exist");
   });

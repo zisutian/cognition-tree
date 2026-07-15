@@ -1,5 +1,8 @@
 import type { FolderId } from "../../../workspace/model/workspaceData";
-import type { UiTreeNodeReference } from "../projection/viewTree";
+import type {
+  UiTreeMoveDestination,
+  UiTreeNodeReference,
+} from "../projection/viewTree";
 
 export function createWorkspaceTreeNodeReference(
   reference: UiTreeNodeReference,
@@ -13,4 +16,24 @@ export function createWorkspaceTreeNodeReference(
         kind: "note" as const,
         noteId: reference.noteId,
       };
+}
+
+export function createWorkspaceTreeMoveDestination(
+  destination: UiTreeMoveDestination,
+) {
+  if (destination.kind === "root") {
+    return destination;
+  }
+
+  if (destination.kind === "inside") {
+    return {
+      folderId: destination.folderId as FolderId,
+      kind: destination.kind,
+    };
+  }
+
+  return {
+    kind: destination.kind,
+    target: createWorkspaceTreeNodeReference(destination.target),
+  };
 }

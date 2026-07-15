@@ -13,12 +13,22 @@ export type NoteTreeNodeReference =
       noteId: NoteId;
     };
 
-export type NoteTreeMovePlacement = "after" | "before" | "inside";
+export type NoteTreeMoveDestination =
+  | {
+      kind: "root";
+    }
+  | {
+      folderId: FolderId;
+      kind: "inside";
+    }
+  | {
+      kind: "after" | "before";
+      target: NoteTreeNodeReference;
+    };
 
 export type NoteTreeMoveRequest = {
-  placement: NoteTreeMovePlacement;
+  destination: NoteTreeMoveDestination;
   source: NoteTreeNodeReference;
-  target: NoteTreeNodeReference;
 };
 
 export type NoteTreeNodeLocation = {

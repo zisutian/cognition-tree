@@ -193,14 +193,18 @@ describe("note tree operations", () => {
       },
     ];
     const folderFirst = moveNoteTreeNode(tree, {
-      placement: "before",
+      destination: {
+        kind: "before",
+        target: { kind: "note", noteId: "note-first" },
+      },
       source: { folderId: "folder-a", kind: "folder" },
-      target: { kind: "note", noteId: "note-first" },
     });
     const noteAfterFolder = moveNoteTreeNode(folderFirst, {
-      placement: "after",
+      destination: {
+        kind: "after",
+        target: { folderId: "folder-a", kind: "folder" },
+      },
       source: { kind: "note", noteId: "note-second" },
-      target: { folderId: "folder-a", kind: "folder" },
     });
 
     expect(noteAfterFolder.map((node) => node.id)).toEqual([
@@ -231,14 +235,12 @@ describe("note tree operations", () => {
       },
     ];
     const noteInsideFolder = moveNoteTreeNode(tree, {
-      placement: "inside",
+      destination: { folderId: "folder-target", kind: "inside" },
       source: { kind: "note", noteId: "note-root" },
-      target: { folderId: "folder-target", kind: "folder" },
     });
     const folderInsideFolder = moveNoteTreeNode(noteInsideFolder, {
-      placement: "inside",
+      destination: { folderId: "folder-target", kind: "inside" },
       source: { folderId: "folder-source", kind: "folder" },
-      target: { folderId: "folder-target", kind: "folder" },
     });
 
     expect(folderInsideFolder).toMatchObject([
@@ -276,24 +278,54 @@ describe("note tree operations", () => {
 
     expect(() =>
       moveNoteTreeNode(tree, {
-        placement: "inside",
+        destination: {
+          kind: "before",
+          target: { kind: "note", noteId: "note-child" },
+        },
         source: { folderId: "folder-child", kind: "folder" },
-        target: { kind: "note", noteId: "note-child" },
       }),
     ).toThrow("Workspace folder cannot be moved into itself");
     expect(() =>
       moveNoteTreeNode(tree, {
-        placement: "inside",
+        destination: { folderId: "missing-folder", kind: "inside" },
         source: { kind: "note", noteId: "note-root" },
-        target: { kind: "note", noteId: "note-child" },
-      }),
-    ).toThrow("Workspace tree node can only be moved inside a folder");
-    expect(() =>
-      moveNoteTreeNode(tree, {
-        placement: "after",
-        source: { kind: "note", noteId: "missing-note" },
-        target: { kind: "note", noteId: "note-root" },
       }),
     ).toThrow("Workspace tree node does not exist");
+    expect(() =>
+      moveNoteTreeNode(tree, {
+        destination: {
+          kind: "after",
+          target: { kind: "note", noteId: "note-root" },
+        },
+        source: { kind: "note", noteId: "missing-note" },
+      }),
+    ).toThrow("Workspace tree node does not exist");
+  });
+
+  it("moves a nested node to the root destination", () => {
+    const tree: NoteTreeNode[] = [
+      {
+        children: [
+          {
+            id: "tree-note-child",
+            kind: "note",
+            noteId: "note-child",
+          },
+        ],
+        id: "folder-parent",
+        kind: "folder",
+        title: "Parent",
+      },
+    ];
+
+    expect(
+      moveNoteTreeNode(tree, {
+        destination: { kind: "root" },
+        source: { kind: "note", noteId: "note-child" },
+      }),
+    ).toEqual([
+      expect.objectContaining({ children: [] }),
+      { id: "tree-note-child", kind: "note", noteId: "note-child" },
+    ]);
   });
 });

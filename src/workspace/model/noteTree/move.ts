@@ -4,7 +4,7 @@ import {
 } from "../workspaceData";
 import type {
   NoteTreeFolderNode,
-  NoteTreeMovePlacement,
+  NoteTreeMoveDestination,
   NoteTreeMoveRequest,
   NoteTreeNodeReference,
 } from "./types";
@@ -73,7 +73,7 @@ function insertNoteTreeNodeAtSiblingTarget({
   targetIndex,
   tree,
 }: {
-  placement: Exclude<NoteTreeMovePlacement, "inside">;
+  placement: "after" | "before";
   sourceNode: NoteTreeNode;
   targetIndex: number;
   tree: NoteTreeNode[];
@@ -126,7 +126,7 @@ function insertNoteTreeNodeNearTarget({
   targetIndex,
   tree,
 }: {
-  placement: Exclude<NoteTreeMovePlacement, "inside">;
+  placement: "after" | "before";
   sourceNode: NoteTreeNode;
   target: NoteTreeNodeReference;
   targetIndex: number;
@@ -159,12 +159,24 @@ function insertNoteTreeNodeNearTarget({
   });
 }
 
+function getDestinationReference(
+  destination: NoteTreeMoveDestination,
+): NoteTreeNodeReference | null {
+  if (destination.kind === "root") {
+    return null;
+  }
+
+  return destination.kind === "inside"
+    ? { folderId: destination.folderId, kind: "folder" }
+    : destination.target;
+}
+
 export function moveNoteTreeNode(
   tree: NoteTreeNode[],
   request: NoteTreeMoveRequest,
 ): NoteTreeNode[] {
   const sourceLocation = findNoteTreeNodeLocation(tree, request.source);
-  const targetLocation = findNoteTreeNodeLocation(tree, request.target);
+  const destinationReference = getDestinationReference(request.destination);
 
   if (!sourceLocation) {
     throw new Error(
@@ -174,21 +186,28 @@ export function moveNoteTreeNode(
     );
   }
 
-  if (isMatchingNoteTreeNode(sourceLocation.node, request.target)) {
+  if (
+    destinationReference &&
+    isMatchingNoteTreeNode(sourceLocation.node, destinationReference)
+  ) {
     throw new Error("Workspace tree node cannot be moved onto itself.");
   }
 
   if (
+    destinationReference &&
     sourceLocation.node.kind === "folder" &&
-    isFolderNodeDescendantReference(sourceLocation.node, request.target)
+    isFolderNodeDescendantReference(sourceLocation.node, destinationReference)
   ) {
     throw new Error("Workspace folder cannot be moved into itself.");
   }
 
-  if (!targetLocation) {
+  if (
+    destinationReference &&
+    !findNoteTreeNodeLocation(tree, destinationReference)
+  ) {
     throw new Error(
       `Workspace tree node does not exist: ${getNoteTreeNodeReferenceId(
-        request.target,
+        destinationReference,
       )}`,
     );
   }
@@ -203,13 +222,13 @@ export function moveNoteTreeNode(
     );
   }
 
-  if (request.placement === "inside") {
-    if (request.target.kind !== "folder") {
-      throw new Error("Workspace tree node can only be moved inside a folder.");
-    }
+  if (request.destination.kind === "root") {
+    return [...removed.tree, removed.removedNode];
+  }
 
+  if (request.destination.kind === "inside") {
     return insertNoteTreeNodeInFolder({
-      folderId: request.target.folderId,
+      folderId: request.destination.folderId,
       sourceNode: removed.removedNode,
       tree: removed.tree,
     });
@@ -217,21 +236,21 @@ export function moveNoteTreeNode(
 
   const nextTargetLocation = findNoteTreeNodeLocation(
     removed.tree,
-    request.target,
+    request.destination.target,
   );
 
   if (!nextTargetLocation) {
     throw new Error(
       `Workspace tree node does not exist: ${getNoteTreeNodeReferenceId(
-        request.target,
+        request.destination.target,
       )}`,
     );
   }
 
   return insertNoteTreeNodeNearTarget({
-    placement: request.placement,
+    placement: request.destination.kind,
     sourceNode: removed.removedNode,
-    target: request.target,
+    target: request.destination.target,
     targetIndex: nextTargetLocation.index,
     tree: removed.tree,
   });

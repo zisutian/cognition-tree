@@ -104,8 +104,10 @@ test.describe.serial("workbench browser baseline", () => {
     await openWorkbench(page);
 
     const noteContext = page.locator(".app-context");
+    const treeSurface = noteContext.locator(".ui-directory-tree-surface");
     const folder = noteContext.getByTitle("资料");
     const alpha = noteContext.getByTitle("Alpha");
+    const gamma = noteContext.getByTitle("Gamma");
     const contextResize = page.getByRole("separator", {
       name: "调整上下文区宽度",
     });
@@ -114,6 +116,26 @@ test.describe.serial("workbench browser baseline", () => {
     );
 
     await expect(alpha).toBeVisible();
+    await gamma.dragTo(folder);
+    await expect(
+      folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma"),
+    ).toBeVisible();
+
+    const treeSurfaceBox = await treeSurface.boundingBox();
+
+    expect(treeSurfaceBox).not.toBeNull();
+    await noteContext.getByTitle("Gamma").dragTo(treeSurface, {
+      targetPosition: {
+        x: 12,
+        y: Math.max(1, (treeSurfaceBox?.height ?? 1) - 2),
+      },
+    });
+    await expect(
+      treeSurface.locator(
+        ":scope > .ui-directory-tree > li > .ui-tree-row-frame",
+      ).getByTitle("Gamma"),
+    ).toBeVisible();
+
     await folder.click();
     await expect(alpha).toBeHidden();
     await folder.click();

@@ -4,6 +4,7 @@ import {
   canDropTreeNode,
   createTreeMoveRequest,
   createTreeNodeDragPayload,
+  createTreeRowDropDestination,
   getStructureTreeIndentWidthPx,
   getTreeDragClassNames,
   getTreeNodeReferenceKey,
@@ -197,16 +198,28 @@ describe("shared trees", () => {
         '{"kind":"folder","folderId":"folder","parentFolderId":7}',
       ),
     ).toBeNull();
-    expect(createTreeMoveRequest({ source, target })).toEqual({
-      placement: "after",
-      source,
+    const noteDestination = createTreeRowDropDestination({
+      offsetY: 18,
+      rowHeight: 22,
       target,
     });
-    expect(createTreeMoveRequest({ source, target: folderTarget })).toEqual({
-      placement: "inside",
-      source,
+    const folderDestination = createTreeRowDropDestination({
+      offsetY: 11,
+      rowHeight: 22,
       target: folderTarget,
     });
+
+    expect(noteDestination).toEqual({ kind: "after", target });
+    expect(folderDestination).toEqual({
+      folderId: "folder-target",
+      kind: "inside",
+    });
+    expect(
+      createTreeMoveRequest({
+        destination: noteDestination,
+        source,
+      }),
+    ).toEqual({ destination: noteDestination, source });
   });
 
   it("classifies note tree drag targets", () => {
@@ -220,21 +233,49 @@ describe("shared trees", () => {
       noteId: "note-target",
       parentFolderId: null,
     };
+    const destination = { kind: "after" as const, target };
+    const nodes = [
+      {
+        canDrag: true,
+        folderId: null,
+        id: "tree-note-source",
+        kind: "note" as const,
+        noteId: source.noteId,
+        parentFolderId: null,
+        title: "Source",
+      },
+      {
+        canDrag: true,
+        folderId: null,
+        id: "tree-note-target",
+        kind: "note" as const,
+        noteId: target.noteId,
+        parentFolderId: null,
+        title: "Target",
+      },
+    ];
 
-    expect(canDropTreeNode({ source, target })).toBe(true);
-    expect(canDropTreeNode({ source, target: source })).toBe(false);
+    expect(canDropTreeNode({ destination, nodes, source })).toBe(true);
     expect(
       canDropTreeNode({
-        canDropNode: () => false,
+        destination: { kind: "before", target: source },
+        nodes,
         source,
-        target,
+      }),
+    ).toBe(false);
+    expect(
+      canDropTreeNode({
+        canDropDestination: () => false,
+        destination,
+        nodes,
+        source,
       }),
     ).toBe(false);
     expect(
       getTreeDragClassNames({
         dragState: {
+          activeDestination: destination,
           activeTargetCanDrop: true,
-          activeTargetKey: getTreeNodeReferenceKey(target),
           source,
           sourceKey: getTreeNodeReferenceKey(source),
         },
@@ -244,8 +285,19 @@ describe("shared trees", () => {
     expect(
       getTreeDragClassNames({
         dragState: {
+          activeDestination: destination,
+          activeTargetCanDrop: true,
+          source,
+          sourceKey: getTreeNodeReferenceKey(source),
+        },
+        nodeReference: target,
+      }),
+    ).toContain("is-drop-after");
+    expect(
+      getTreeDragClassNames({
+        dragState: {
+          activeDestination: destination,
           activeTargetCanDrop: false,
-          activeTargetKey: getTreeNodeReferenceKey(target),
           source,
           sourceKey: getTreeNodeReferenceKey(source),
         },
@@ -255,8 +307,8 @@ describe("shared trees", () => {
     expect(
       getTreeDragClassNames({
         dragState: {
+          activeDestination: null,
           activeTargetCanDrop: false,
-          activeTargetKey: null,
           source,
           sourceKey: getTreeNodeReferenceKey(source),
         },
@@ -269,6 +321,55 @@ describe("shared trees", () => {
         nodeReference: target,
       }),
     ).toEqual([]);
+  });
+
+  it("rejects folder drops onto descendant destinations", () => {
+    const source = {
+      folderId: "folder-source",
+      kind: "folder" as const,
+      parentFolderId: null,
+    };
+    const child = {
+      kind: "note" as const,
+      noteId: "note-child",
+      parentFolderId: "folder-source",
+    };
+    const nodes = [
+      {
+        canDrag: true,
+        children: [
+          {
+            canDrag: true,
+            folderId: "folder-source",
+            id: "tree-note-child",
+            kind: "note" as const,
+            noteId: child.noteId,
+            parentFolderId: "folder-source",
+            title: "Child",
+          },
+        ],
+        folderId: source.folderId,
+        id: source.folderId,
+        kind: "folder" as const,
+        parentFolderId: null,
+        title: "Source",
+      },
+    ];
+
+    expect(
+      canDropTreeNode({
+        destination: { kind: "after", target: child },
+        nodes,
+        source,
+      }),
+    ).toBe(false);
+    expect(
+      canDropTreeNode({
+        destination: { kind: "root" },
+        nodes,
+        source,
+      }),
+    ).toBe(true);
   });
 
   it("renders structure trees with variable text markers and line metadata", () => {
@@ -397,7 +498,10 @@ describe("shared trees", () => {
     expect(treeCss).toContain("var(--ui-structure-indent-width)");
     expect(treeCss).toContain("grid-template-columns:\n    max-content");
     expect(treeCss).toContain(".ui-structure-tree-item.is-selected-subtree");
-    expect(treeCss).toContain(
+    expect(treeCss).toContain(".ui-tree-row-frame.is-drop-target::before");
+    expect(treeCss).toContain(".ui-tree-row-frame.is-drop-before::before");
+    expect(treeCss).toContain("background: var(--color-selected)");
+    expect(treeCss).not.toContain(
       "box-shadow: inset 0 0 0 var(--ui-border-width) var(--color-border-strong)",
     );
     expect(treeCss).not.toContain("color-accent");

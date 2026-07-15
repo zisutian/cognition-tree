@@ -4,8 +4,6 @@ import type {
 } from "react";
 import type { DisplayText } from "../blockText";
 
-export type TreeDropPlacement = "after" | "before" | "inside";
-
 export type StructureTreeNode = {
   children: StructureTreeNode[];
   hasDiagnostics: boolean;
@@ -76,10 +74,22 @@ export type TreeNodeReference =
       parentFolderId: string | null;
     };
 
+export type TreeMoveDestination =
+  | {
+      kind: "root";
+    }
+  | {
+      folderId: string;
+      kind: "inside";
+    }
+  | {
+      kind: "after" | "before";
+      target: TreeNodeReference;
+    };
+
 export type TreeMoveRequest = {
-  placement: TreeDropPlacement;
+  destination: TreeMoveDestination;
   source: TreeNodeReference;
-  target: TreeNodeReference;
 };
 
 export type NoteTreeActiveNode =
@@ -99,8 +109,8 @@ export type NoteTreeNodeState = {
 };
 
 export type TreeDragState = {
+  activeDestination: TreeMoveDestination | null;
   activeTargetCanDrop: boolean;
-  activeTargetKey: string | null;
   source: TreeNodeReference;
   sourceKey: string;
 };
@@ -108,7 +118,10 @@ export type TreeDragState = {
 export type NoteTreeProps = {
   activeNode?: NoteTreeActiveNode | null;
   canDragNode?: (node: TreeNode) => boolean;
-  canDropNode?: (source: TreeNodeReference, target: TreeNodeReference) => boolean;
+  canDropDestination?: (
+    source: TreeNodeReference,
+    destination: TreeMoveDestination,
+  ) => boolean;
   className?: string;
   collapsedFolderIds?: ReadonlySet<string>;
   nodes: TreeNode[];

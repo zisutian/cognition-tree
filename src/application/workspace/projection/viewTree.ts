@@ -52,11 +52,21 @@ export type UiTreeNodeReference =
       noteId: UiNoteId;
       parentFolderId: UiFolderId | null;
     };
-export type UiTreeMovePlacement = "after" | "before" | "inside";
+export type UiTreeMoveDestination =
+  | {
+      kind: "root";
+    }
+  | {
+      folderId: UiFolderId;
+      kind: "inside";
+    }
+  | {
+      kind: "after" | "before";
+      target: UiTreeNodeReference;
+    };
 export type UiTreeMoveRequest = {
-  placement: UiTreeMovePlacement;
+  destination: UiTreeMoveDestination;
   source: UiTreeNodeReference;
-  target: UiTreeNodeReference;
 };
 
 function createNoteMap(notes: Pick<NoteRecord, "id" | "title">[]) {

@@ -5,6 +5,7 @@ import {
   Folder,
 } from "lucide-react";
 import type {
+  DragEvent,
   Dispatch,
   SetStateAction,
 } from "react";
@@ -14,7 +15,9 @@ import {
   canDropTreeNode,
   createTreeMoveRequest,
   createTreeNodeDragPayload,
+  createTreeRowDropDestination,
   getTreeDragClassNames,
+  getTreeMoveDestinationTargetKey,
   getTreeNodeReference,
   getTreeNodeReferenceKey,
   readTreeNodeDragPayload,
@@ -25,7 +28,21 @@ import type {
   NoteTreeProps,
   TreeDragState,
   TreeNode,
+  TreeNodeReference,
 } from "./types";
+
+function getRowDropDestination(
+  event: DragEvent<HTMLDivElement>,
+  target: TreeNodeReference,
+) {
+  const rect = event.currentTarget.getBoundingClientRect();
+
+  return createTreeRowDropDestination({
+    offsetY: event.clientY - rect.top,
+    rowHeight: rect.height,
+    target,
+  });
+}
 
 function isActiveTreeNode({
   activeNode,
@@ -47,6 +64,7 @@ type NoteTreeContentProps = NoteTreeProps & {
   dragState: TreeDragState | null;
   editingNode: { key: string; title: string } | null;
   pendingDeleteNodeKey: string | null;
+  rootNodes: TreeNode[];
   setDragState: Dispatch<SetStateAction<TreeDragState | null>>;
   setEditingNode: Dispatch<
     SetStateAction<{ key: string; title: string } | null>
@@ -57,7 +75,7 @@ type NoteTreeContentProps = NoteTreeProps & {
 function NoteTreeContent({
   activeNode,
   canDragNode,
-  canDropNode,
+  canDropDestination,
   className,
   collapsedFolderIds,
   nodes,
@@ -72,6 +90,7 @@ function NoteTreeContent({
   dragState,
   editingNode,
   pendingDeleteNodeKey,
+  rootNodes,
   setDragState,
   setEditingNode,
   setPendingDeleteNodeKey,
@@ -148,25 +167,38 @@ function NoteTreeContent({
                   return;
                 }
 
-                setDragState((current) =>
-                  current?.activeTargetKey === nodeKey
-                    ? {
-                        ...current,
-                        activeTargetCanDrop: false,
-                        activeTargetKey: null,
-                      }
-                    : current,
-                );
+                setDragState((current) => {
+                  if (
+                    !current ||
+                    getTreeMoveDestinationTargetKey(
+                      current.activeDestination,
+                    ) !== nodeKey
+                  ) {
+                    return current;
+                  }
+
+                  return {
+                    ...current,
+                    activeDestination: null,
+                    activeTargetCanDrop: false,
+                  };
+                });
               }}
               onDragOver={(event) => {
                 if (!onMoveNode || !dragState) {
                   return;
                 }
 
+                event.stopPropagation();
+                const destination = getRowDropDestination(
+                  event,
+                  nodeReference,
+                );
                 const activeTargetCanDrop = canDropTreeNode({
-                  canDropNode,
+                  canDropDestination,
+                  destination,
+                  nodes: rootNodes,
                   source: dragState.source,
-                  target: nodeReference,
                 });
 
                 event.preventDefault();
@@ -177,8 +209,8 @@ function NoteTreeContent({
                   current
                     ? {
                         ...current,
+                        activeDestination: destination,
                         activeTargetCanDrop,
-                        activeTargetKey: nodeKey,
                       }
                     : current,
                 );
@@ -189,19 +221,29 @@ function NoteTreeContent({
                 }
 
                 event.preventDefault();
+                event.stopPropagation();
                 const source = readTreeNodeDragPayload(
                   event.dataTransfer.getData(treeNodeDragDataType) ||
                     event.dataTransfer.getData("text/plain"),
                 );
+                const destination = getRowDropDestination(
+                  event,
+                  nodeReference,
+                );
 
                 if (
                   source &&
-                  canDropTreeNode({ canDropNode, source, target: nodeReference })
+                  canDropTreeNode({
+                    canDropDestination,
+                    destination,
+                    nodes: rootNodes,
+                    source,
+                  })
                 ) {
                   onMoveNode?.(
                     createTreeMoveRequest({
+                      destination,
                       source,
-                      target: nodeReference,
                     }),
                   );
                 }
@@ -265,8 +307,8 @@ function NoteTreeContent({
                     event.dataTransfer.setData(treeNodeDragDataType, payload);
                     event.dataTransfer.setData("text/plain", payload);
                     setDragState({
+                      activeDestination: null,
                       activeTargetCanDrop: false,
-                      activeTargetKey: null,
                       source: nodeReference,
                       sourceKey: nodeKey,
                     });
@@ -337,12 +379,13 @@ function NoteTreeContent({
               <NoteTreeContent
                 activeNode={activeNode}
                 canDragNode={canDragNode}
-                canDropNode={canDropNode}
+                canDropDestination={canDropDestination}
                 collapsedFolderIds={collapsedFolderIds}
                 dragState={dragState}
                 editingNode={editingNode}
                 nodes={node.children}
                 pendingDeleteNodeKey={pendingDeleteNodeKey}
+                rootNodes={rootNodes}
                 renderNoteBadges={renderNoteBadges}
                 renderNodeLeading={renderNodeLeading}
                 setDragState={setDragState}
@@ -372,16 +415,111 @@ export function NoteTree(props: NoteTreeProps) {
   const [pendingDeleteNodeKey, setPendingDeleteNodeKey] = useState<string | null>(
     null,
   );
+  const rootDestination = { kind: "root" } as const;
+  const isRootDropTarget =
+    dragState?.activeDestination?.kind === "root" &&
+    dragState.activeTargetCanDrop;
+
+  const isEventOverTreeRow = (eventTarget: EventTarget | null) =>
+    eventTarget instanceof Element &&
+    eventTarget.closest(".ui-tree-row-frame") !== null;
 
   return (
-    <NoteTreeContent
-      {...props}
-      dragState={dragState}
-      editingNode={editingNode}
-      pendingDeleteNodeKey={pendingDeleteNodeKey}
-      setDragState={setDragState}
-      setEditingNode={setEditingNode}
-      setPendingDeleteNodeKey={setPendingDeleteNodeKey}
-    />
+    <div
+      className={cx(
+        "ui-directory-tree-surface",
+        isRootDropTarget && "is-root-drop-target",
+      )}
+      data-tree-root-drop="true"
+      onDragLeave={(event) => {
+        const nextTarget = event.relatedTarget;
+
+        if (
+          nextTarget instanceof Node &&
+          event.currentTarget.contains(nextTarget)
+        ) {
+          return;
+        }
+
+        setDragState((current) =>
+          current?.activeDestination?.kind === "root"
+            ? {
+                ...current,
+                activeDestination: null,
+                activeTargetCanDrop: false,
+              }
+            : current,
+        );
+      }}
+      onDragOver={(event) => {
+        if (
+          !props.onMoveNode ||
+          !dragState ||
+          isEventOverTreeRow(event.target)
+        ) {
+          return;
+        }
+
+        const activeTargetCanDrop = canDropTreeNode({
+          canDropDestination: props.canDropDestination,
+          destination: rootDestination,
+          nodes: props.nodes,
+          source: dragState.source,
+        });
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = activeTargetCanDrop ? "move" : "none";
+        setDragState((current) =>
+          current
+            ? {
+                ...current,
+                activeDestination: rootDestination,
+                activeTargetCanDrop,
+              }
+            : current,
+        );
+      }}
+      onDrop={(event) => {
+        if (!props.onMoveNode || isEventOverTreeRow(event.target)) {
+          return;
+        }
+
+        event.preventDefault();
+        const source = readTreeNodeDragPayload(
+          event.dataTransfer.getData(treeNodeDragDataType) ||
+            event.dataTransfer.getData("text/plain"),
+        );
+
+        if (
+          source &&
+          canDropTreeNode({
+            canDropDestination: props.canDropDestination,
+            destination: rootDestination,
+            nodes: props.nodes,
+            source,
+          })
+        ) {
+          props.onMoveNode(
+            createTreeMoveRequest({
+              destination: rootDestination,
+              source,
+            }),
+          );
+        }
+
+        setDragState(null);
+      }}
+    >
+      <NoteTreeContent
+        {...props}
+        dragState={dragState}
+        editingNode={editingNode}
+        pendingDeleteNodeKey={pendingDeleteNodeKey}
+        rootNodes={props.nodes}
+        setDragState={setDragState}
+        setEditingNode={setEditingNode}
+        setPendingDeleteNodeKey={setPendingDeleteNodeKey}
+      />
+    </div>
   );
 }

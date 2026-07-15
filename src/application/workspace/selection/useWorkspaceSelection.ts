@@ -15,7 +15,10 @@ import type {
 } from "../projection/viewTree";
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 import { resolveFolderSelection } from "./resolveFolderSelection";
-import { createWorkspaceTreeNodeReference } from "./sidebarTreeMove";
+import {
+  createWorkspaceTreeMoveDestination,
+  createWorkspaceTreeNodeReference,
+} from "./sidebarTreeMove";
 import {
   resolveActiveNoteId,
   resolveActiveNoteIdAfterRemovingNote,
@@ -182,9 +185,8 @@ export function useWorkspaceSelection({
 
   const moveTreeNode = (request: UiTreeMoveRequest) => {
     commands.moveTreeNode({
-      placement: request.placement,
+      destination: createWorkspaceTreeMoveDestination(request.destination),
       source: createWorkspaceTreeNodeReference(request.source),
-      target: createWorkspaceTreeNodeReference(request.target),
     });
   };
 
