@@ -17,6 +17,7 @@ export type NotesViewModel = {
   directory: WorkspaceDirectoryMutations & {
     activeFolderId: UiFolderId | null;
     activeNode: UiDirectoryActiveNode | null;
+    clearFolderSelection: () => void;
     createFolder: (parentFolderId: UiFolderId | null, title: string) => void;
     createNote: () => void;
     noteTree: UiTreeNode[];

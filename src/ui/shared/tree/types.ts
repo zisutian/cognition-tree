@@ -127,6 +127,7 @@ export type NoteTreeProps = {
   nodes: TreeNode[];
   renderNoteBadges?: (node: Extract<TreeNode, { kind: "note" }>) => ReactNode;
   renderNodeLeading?: (node: TreeNode, state: NoteTreeNodeState) => ReactNode;
+  onClearSelection?: () => void;
   onDeleteNode?: (node: TreeNode) => void;
   onMoveNode?: (request: TreeMoveRequest) => void;
   onRenameNode?: (node: TreeNode, title: string) => void;

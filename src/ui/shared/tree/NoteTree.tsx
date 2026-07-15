@@ -431,6 +431,12 @@ export function NoteTree(props: NoteTreeProps) {
         isRootDropTarget && "is-root-drop-target",
       )}
       data-tree-root-drop="true"
+      onClick={(event) => {
+        if (!isEventOverTreeRow(event.target)) {
+          props.onClearSelection?.();
+          event.currentTarget.focus();
+        }
+      }}
       onDragLeave={(event) => {
         const nextTarget = event.relatedTarget;
 
@@ -509,6 +515,12 @@ export function NoteTree(props: NoteTreeProps) {
 
         setDragState(null);
       }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          props.onClearSelection?.();
+        }
+      }}
+      tabIndex={props.onClearSelection ? -1 : undefined}
     >
       <NoteTreeContent
         {...props}

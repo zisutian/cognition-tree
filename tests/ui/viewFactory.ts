@@ -35,6 +35,7 @@ export function createView(
       directory: {
         activeFolderId: null,
         activeNode: { kind: "note", noteId: "note-source" },
+        clearFolderSelection: () => undefined,
         createFolder: () => undefined,
         createNote: () => undefined,
         deleteFolder: () => undefined,

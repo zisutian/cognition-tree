@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { FolderId } from "../../../workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
-  findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
   listWorkspaceNotes,
 } from "../../../workspace/queries/workspaceQueries";
@@ -37,6 +36,7 @@ export type WorkspaceSelection = WorkspaceDirectoryMutations & {
   activeFolderId: UiFolderId | null;
   activeNode: UiDirectoryActiveNode | null;
   activeNoteId: UiNoteId | null;
+  clearFolderSelection: () => void;
   createFolder: (parentFolderId: UiFolderId | null, title: string) => void;
   createNote: () => void;
   selectFolder: (folderId: UiFolderId) => void;
@@ -97,9 +97,7 @@ export function useWorkspaceSelection({
       return;
     }
 
-    setSelectedFolderId(
-      findWorkspaceFolderIdContainingNote(workspace, noteId),
-    );
+    setSelectedFolderId(null);
     setActiveNoteId(noteId);
     setDirectoryActiveNode({ kind: "note", noteId });
   }, [workspace]);
@@ -113,9 +111,17 @@ export function useWorkspaceSelection({
     );
   };
 
+  const clearFolderSelection = useCallback(() => {
+    setSelectedFolderId(null);
+    setDirectoryActiveNode(
+      activeNoteId ? { kind: "note", noteId: activeNoteId } : null,
+    );
+  }, [activeNoteId]);
+
   const createNote = () => {
     const noteId = commands.createNote(selectedFolderId);
 
+    setSelectedFolderId(null);
     setActiveNoteId(noteId);
     setDirectoryActiveNode({ kind: "note", noteId });
   };
@@ -135,6 +141,7 @@ export function useWorkspaceSelection({
 
   const renameNote = (noteId: UiNoteId, title: string) => {
     commands.renameNote(noteId, title);
+    setSelectedFolderId(null);
     setActiveNoteId(noteId);
     setDirectoryActiveNode({ kind: "note", noteId });
   };
@@ -194,6 +201,7 @@ export function useWorkspaceSelection({
     activeFolderId: selectedFolderId,
     activeNode: directoryActiveNode,
     activeNoteId,
+    clearFolderSelection,
     createFolder,
     createNote,
     deleteFolder,

@@ -78,6 +78,7 @@ export function useNotesActivity({
     directory: {
       activeFolderId: selection.activeFolderId,
       activeNode: selection.activeNode,
+      clearFolderSelection: selection.clearFolderSelection,
       createFolder: selection.createFolder,
       createNote: selection.createNote,
       deleteFolder: selection.deleteFolder,

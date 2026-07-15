@@ -138,8 +138,20 @@ test.describe.serial("workbench browser baseline", () => {
 
     await folder.click();
     await expect(alpha).toBeHidden();
+    await expect(folder.locator(".."))
+      .toHaveClass(/is-selected/);
+    await folder.press("Escape");
+    await expect(folder.locator(".."))
+      .not.toHaveClass(/is-selected/);
     await folder.click();
     await expect(alpha).toBeVisible();
+    await alpha.click();
+    await noteContext.getByRole("button", { name: "新建笔记" }).click();
+    await expect(
+      treeSurface.locator(
+        ":scope > .ui-directory-tree > li > .ui-tree-row-frame",
+      ).getByTitle("未命名笔记"),
+    ).toBeVisible();
 
     await contextResize.focus();
     await contextResize.press("ArrowRight");

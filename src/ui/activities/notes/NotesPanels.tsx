@@ -115,6 +115,7 @@ export function NotesContext({ view }: NotesContextProps) {
         activeNode={directory.activeNode}
         collapsedFolderIds={collapsedFolderIds}
         nodes={directory.noteTree}
+        onClearSelection={directory.clearFolderSelection}
         onDeleteNode={deleteNode}
         onMoveNode={directory.moveTreeNode}
         onRenameNode={renameNode}
