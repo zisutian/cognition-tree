@@ -10,8 +10,11 @@ import {
   type WorkspaceSessionControllerState,
 } from "../../src/application/workspace/session/workspaceSessionController";
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
-import { createHttpWorkspaceRepositoryCatalog } from "../../src/storage/httpWorkspaceRepositoryCatalog";
+import {
+  createHttpWorkspaceRepositoryCatalog,
+} from "../../src/storage/httpWorkspaceRepositoryCatalog";
 import { createWorkspaceApiServer } from "../../server/workspaceApiServer.ts";
+import { createWorkspaceApiSecurityPolicy } from "../../server/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { stripTestCtnBlockMetadata } from "../ctn/metadata/sourceMetadataFixture";
@@ -20,6 +23,7 @@ type TestRepositoryServer = {
   baseUrl: string;
   close: () => Promise<void>;
   rootDir: string;
+  token?: string;
 };
 
 const openControllers: WorkspaceSessionController[] = [];
@@ -61,7 +65,9 @@ async function listen(server: Server) {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function startRepositoryServer(): Promise<TestRepositoryServer> {
+async function startRepositoryServer(
+  token?: string,
+): Promise<TestRepositoryServer> {
   const rootDir = await mkdtemp(
     path.join(os.tmpdir(), "cognition-tree-integration-"),
   );
@@ -69,11 +75,19 @@ async function startRepositoryServer(): Promise<TestRepositoryServer> {
 
   await catalog.initialize();
 
-  const server = createWorkspaceApiServer({ allowedOrigins: [], catalog });
+  const server = createWorkspaceApiServer({
+    catalog,
+    security: createWorkspaceApiSecurityPolicy({
+      allowedOrigins: [],
+      bearerToken: token,
+      host: "127.0.0.1",
+    }),
+  });
   const baseUrl = await listen(server);
   const testServer = {
     baseUrl,
     rootDir,
+    token,
     close: () => new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -89,9 +103,17 @@ async function startRepositoryServer(): Promise<TestRepositoryServer> {
   return testServer;
 }
 
-function startController(baseUrl: string, repositoryId: string) {
+function startController(
+  baseUrl: string,
+  repositoryId: string,
+  token?: string,
+) {
   const controller = createWorkspaceSessionController({
-    repository: createHttpWorkspaceRepository({ baseUrl, repositoryId }),
+    repository: createHttpWorkspaceRepository({
+      baseUrl,
+      repositoryId,
+      token,
+    }),
   });
 
   openControllers.push(controller);
@@ -99,8 +121,12 @@ function startController(baseUrl: string, repositoryId: string) {
   return controller;
 }
 
-async function createRepository(baseUrl: string, repositoryId: string) {
-  const catalog = createHttpWorkspaceRepositoryCatalog({ baseUrl });
+async function createRepository(
+  baseUrl: string,
+  repositoryId: string,
+  token?: string,
+) {
+  const catalog = createHttpWorkspaceRepositoryCatalog({ baseUrl, token });
 
   await catalog.createRepository({
     content: {
@@ -169,7 +195,7 @@ describe("workspace persistence integration", () => {
     );
   });
 
-  it("retains local content on conflict and reloads the remote snapshot after discard", async () => {
+  it("retains local content on conflict and reloads remote after discard", async () => {
     const server = await startRepositoryServer();
     await createRepository(server.baseUrl, "conflict");
     const controller = startController(server.baseUrl, "conflict");
@@ -218,5 +244,26 @@ describe("workspace persistence integration", () => {
 
     expect(reloadedState.workspace.data.name).toBe("外部修改后的仓库");
     expect(reloadedState.workspace.noteById.has(localNoteId)).toBe(false);
+  });
+
+  it("authenticates a real session through HTTP before touching the file store", async () => {
+    const token = "integration-token-with-at-least-32-characters";
+    const server = await startRepositoryServer(token);
+
+    await expect(
+      createRepository(server.baseUrl, "unauthorized"),
+    ).rejects.toThrow("Bearer token is invalid");
+    await createRepository(server.baseUrl, "authenticated", token);
+    const controller = startController(
+      server.baseUrl,
+      "authenticated",
+      token,
+    );
+    const ready = await waitForState(
+      controller,
+      (state) => state.status === "ready",
+    );
+
+    expect(ready).toMatchObject({ status: "ready" });
   });
 });

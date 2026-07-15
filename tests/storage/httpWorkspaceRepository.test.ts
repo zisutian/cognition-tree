@@ -4,6 +4,7 @@ import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRe
 import {
   createWorkspaceRepositorySyntaxSourceFile,
   WorkspaceRepositoryConflictError,
+  WorkspaceRepositoryUnavailableError,
   type WorkspaceRepositoryCommit,
 } from "../../src/storage/workspaceRepository";
 
@@ -154,6 +155,46 @@ describe("createHttpWorkspaceRepository", () => {
 
     await expect(repository.loadSnapshot()).rejects.toThrow(
       "unsupported field",
+    );
+  });
+
+  it("adds the configured bearer token to repository requests", async () => {
+    let authorization: string | null = null;
+    const repository = createHttpWorkspaceRepository({
+      fetch: async (_input, init) => {
+        authorization = new Headers(init?.headers).get("Authorization");
+        return jsonResponse({
+          repositoryPath: "/repository",
+          revision: "revision-1",
+          syntaxSourceFile: null,
+          workspace: createInitialWorkspaceData(),
+        });
+      },
+      repositoryId: "primary",
+      token: "client-token",
+    });
+
+    await repository.loadSnapshot();
+    expect(authorization).toBe("Bearer client-token");
+  });
+
+  it("classifies network and transient server failures as unavailable", async () => {
+    const networkRepository = createHttpWorkspaceRepository({
+      fetch: async () => {
+        throw new TypeError("network failed");
+      },
+      repositoryId: "primary",
+    });
+    const unavailableRepository = createHttpWorkspaceRepository({
+      fetch: async () => jsonResponse({ error: "temporarily offline" }, 503),
+      repositoryId: "primary",
+    });
+
+    await expect(networkRepository.loadSnapshot()).rejects.toBeInstanceOf(
+      WorkspaceRepositoryUnavailableError,
+    );
+    await expect(unavailableRepository.loadSnapshot()).rejects.toBeInstanceOf(
+      WorkspaceRepositoryUnavailableError,
     );
   });
 });

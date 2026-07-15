@@ -29,6 +29,7 @@ export function createHttpWorkspaceRepositoryCatalog({
   baseUrl = "http://127.0.0.1:3001",
   cache = createRuntimeRepositoryClientCache(),
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
+  token,
 }: HttpWorkspaceRepositoryCatalogOptions = {}): WorkspaceRepositoryCatalog {
   const catalogIdentity = createCatalogIdentity(baseUrl);
   const saveCatalogBestEffort = async (
@@ -56,11 +57,17 @@ export function createHttpWorkspaceRepositoryCatalog({
   return {
     async createRepository(input) {
       const descriptor = parseRepositoryDescriptor(
-        await requestRepositoryJson(fetchFn, baseUrl, "/api/repositories", {
-          body: JSON.stringify(input),
-          headers: { "Content-Type": "application/json" },
-          method: "POST",
-        }),
+        await requestRepositoryJson(
+          fetchFn,
+          baseUrl,
+          "/api/repositories",
+          {
+            body: JSON.stringify(input),
+            headers: { "Content-Type": "application/json" },
+            method: "POST",
+          },
+          token,
+        ),
       );
 
       const cached = await loadCatalogBestEffort();
@@ -76,7 +83,13 @@ export function createHttpWorkspaceRepositoryCatalog({
     async listRepositories() {
       try {
         const repositories = parseRepositoryCatalog(
-          await requestRepositoryJson(fetchFn, baseUrl, "/api/repositories"),
+          await requestRepositoryJson(
+            fetchFn,
+            baseUrl,
+            "/api/repositories",
+            undefined,
+            token,
+          ),
         ).repositories;
 
         await saveCatalogBestEffort(repositories);
@@ -106,6 +119,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         fetch: fetchFn,
         label: descriptor.label,
         repositoryId: descriptor.id,
+        token,
       });
 
       return createResilientWorkspaceRepository({

@@ -4,8 +4,11 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 import {
   createWorkspaceApiServer,
-  parseWorkspaceApiAllowedOrigins,
 } from "../../server/workspaceApiServer.ts";
+import {
+  createWorkspaceApiSecurityPolicy,
+  parseWorkspaceApiAllowedOrigins,
+} from "../../server/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
@@ -17,6 +20,10 @@ const repositoryDir = path.resolve(
 const allowedOrigins = parseWorkspaceApiAllowedOrigins(
   process.env.CTN_API_ALLOWED_ORIGINS,
 );
+const security = createWorkspaceApiSecurityPolicy({
+  allowedOrigins,
+  host,
+});
 
 await rm(repositoryDir, { force: true, recursive: true });
 
@@ -24,7 +31,7 @@ const catalog = new LocalRepositoryCatalog(repositoryDir);
 
 await catalog.initialize();
 
-const server = createWorkspaceApiServer({ allowedOrigins, catalog });
+const server = createWorkspaceApiServer({ catalog, security });
 
 server.listen(port, host, () => {
   console.log(`Cognition Tree E2E API listening on http://${host}:${port}`);

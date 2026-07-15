@@ -12,7 +12,9 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { parseWorkspaceRepositorySnapshot } from "../../contracts/workspace-repository/parseRepository";
+import {
+  parseWorkspaceRepositorySnapshot,
+} from "../../contracts/workspace-repository/parseRepository";
 import type {
   RepositoryDescriptorDto,
   RepositoryWorkspaceDto,
@@ -22,9 +24,12 @@ import type {
 import { LocalRepositoryCatalog } from "../../server/localRepositoryCatalog.ts";
 import {
   createWorkspaceApiRequestHandler,
-  parseWorkspaceApiAllowedOrigins,
   type WorkspaceApiRequestHandler,
 } from "../../server/workspaceApiServer.ts";
+import {
+  createWorkspaceApiSecurityPolicy,
+  parseWorkspaceApiAllowedOrigins,
+} from "../../server/workspaceApiSecurity.ts";
 
 function createWorkspace(name = "本地笔记库") {
   return {
@@ -69,7 +74,11 @@ function createRequest({
 }: RequestOptions): IncomingMessage {
   const request = Readable.from(body ? [Buffer.from(body)] : []);
 
-  return Object.assign(request, { headers, method, url }) as IncomingMessage;
+  return Object.assign(request, {
+    headers: { host: "127.0.0.1:3001", ...headers },
+    method,
+    url,
+  }) as IncomingMessage;
 }
 
 function createResponse(): TestServerResponse {
@@ -117,15 +126,30 @@ async function withHandler<Result>(
     handler: WorkspaceApiRequestHandler,
     rootDir: string,
   ) => Promise<Result>,
-  { allowedOrigins }: { allowedOrigins?: readonly string[] } = {},
+  {
+    allowedHosts,
+    allowedOrigins,
+    bearerToken,
+    host = "127.0.0.1",
+  }: {
+    allowedHosts?: readonly string[];
+    allowedOrigins?: readonly string[];
+    bearerToken?: string;
+    host?: string;
+  } = {},
 ) {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-catalog-"));
 
   try {
     const catalog = new LocalRepositoryCatalog(rootDir);
     const handler = createWorkspaceApiRequestHandler({
-      allowedOrigins,
       catalog,
+      security: createWorkspaceApiSecurityPolicy({
+        allowedHosts,
+        allowedOrigins,
+        bearerToken,
+        host,
+      }),
     });
 
     return await testFn(handler, rootDir);
@@ -145,6 +169,7 @@ async function createRepository(
 ) {
   return dispatch<RepositoryDescriptorDto>(handler, {
     body: JSON.stringify({ content, id: repositoryId }),
+    headers: { "content-type": "application/json" },
     method: "POST",
     url: "/api/repositories",
   });
@@ -171,6 +196,7 @@ async function commitSnapshot(
 ) {
   const result = await dispatch<WorkspaceRepositoryCommitResultDto>(handler, {
     body: JSON.stringify({ ...content, baseRevision }),
+    headers: { "content-type": "application/json" },
     method: "PUT",
     url: snapshotUrl(repositoryId),
   });
@@ -274,6 +300,7 @@ describe("workspace API request handler", () => {
       ).resolves.toMatchObject({
         body: null,
         headers: {
+          "access-control-allow-headers": "authorization, content-type",
           "access-control-allow-methods": "GET, OPTIONS, POST, PUT",
           "access-control-allow-origin": allowedOrigin,
           vary: "Origin",
@@ -311,6 +338,58 @@ describe("workspace API request handler", () => {
       "http://localhost:4173",
       "https://notes.example.test",
     ]);
+  });
+
+  it("enforces Host and bearer authentication for an exposed API", async () => {
+    const token = "x".repeat(32);
+
+    await withHandler(async (handler) => {
+      await expect(
+        dispatch(handler, {
+          headers: {
+            host: "api.example.test:3001",
+            origin: "https://notes.example.test",
+          },
+          method: "GET",
+          url: "/api/health",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Bearer token is invalid" },
+        headers: {
+          "access-control-allow-origin": "https://notes.example.test",
+          "www-authenticate": "Bearer",
+        },
+        statusCode: 401,
+      });
+      await expect(
+        dispatch(handler, {
+          headers: {
+            authorization: `Bearer ${token}`,
+            host: "api.example.test:3001",
+          },
+          method: "GET",
+          url: "/api/health",
+        }),
+      ).resolves.toMatchObject({ body: { ok: true }, statusCode: 200 });
+      await expect(
+        dispatch(handler, {
+          headers: {
+            authorization: `Bearer ${token}`,
+            host: "attacker.example.test",
+          },
+          method: "GET",
+          url: "/api/health",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Host is not allowed" },
+        statusCode: 403,
+      });
+    }, {
+      allowedHosts: ["api.example.test:3001"],
+      allowedOrigins: ["https://notes.example.test"],
+      bearerToken: token,
+      host: "0.0.0.0",
+    });
   });
 
   it("rejects invalid repository and snapshot content", async () => {
@@ -380,6 +459,7 @@ describe("workspace API request handler", () => {
       await expect(
         dispatch(handler, {
           body: "{",
+          headers: { "content-type": "application/json" },
           method: "PUT",
           url: snapshotUrl("primary"),
         }),
@@ -389,13 +469,35 @@ describe("workspace API request handler", () => {
       });
       await expect(
         dispatch(handler, {
+          body: "{}",
+          method: "PUT",
+          url: snapshotUrl("primary"),
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Content-Type must be application/json" },
+        statusCode: 415,
+      });
+      await expect(
+        dispatch(handler, {
           body: "x".repeat(20 * 1024 * 1024 + 1),
+          headers: { "content-type": "application/json" },
           method: "PUT",
           url: snapshotUrl("primary"),
         }),
       ).resolves.toMatchObject({
         body: { error: "Request body is too large" },
         statusCode: 413,
+      });
+      await expect(
+        dispatch(handler, {
+          body: "unexpected",
+          headers: { "content-length": "10" },
+          method: "GET",
+          url: "/api/repositories",
+        }),
+      ).resolves.toMatchObject({
+        body: { error: "Request body is not allowed for this method" },
+        statusCode: 400,
       });
       await expect(
         dispatch(handler, {

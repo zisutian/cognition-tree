@@ -9,5 +9,6 @@ export function createRuntimeWorkspaceRepositoryCatalog(): WorkspaceRepositoryCa
 
   return createHttpWorkspaceRepositoryCatalog({
     baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
+    token: import.meta.env.VITE_CTN_API_TOKEN,
   });
 }

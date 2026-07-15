@@ -41,7 +41,9 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
     CTN_API_HOST
     CTN_API_PORT
     CTN_REPOSITORY_ROOT
+    CTN_API_ALLOWED_HOSTS
     CTN_API_ALLOWED_ORIGINS
+    CTN_API_TOKEN
     CTN_WEBDAV_REPOSITORIES
 
 后端提供 health、repository catalog 和按 repository id 访问的 snapshot API。`GET /api/repositories` 列出仓库，`POST /api/repositories` 创建仓库，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库；base revision 过期时返回 409，且不覆盖磁盘内容。repository id 只映射到配置根目录的直接子目录，路径规范化和真实目录检查由 server 执行。
@@ -59,6 +61,8 @@ WebDAV 仓库通过服务端 JSON 配置，例如：
 
 使用其它前端地址时，通过逗号分隔的 `CTN_API_ALLOWED_ORIGINS` 显式配置。带 Origin 的非白名单请求会被拒绝；本机命令行请求可以不携带 Origin。
 
+默认 loopback 绑定只接受 `127.0.0.1`、`localhost` 和 `::1` Host，不要求 bearer token。绑定到非 loopback 地址时，`CTN_API_TOKEN` 必须至少包含 32 个字符；可使用 `openssl rand -hex 32` 生成。绑定到 `0.0.0.0` 或 `::` 时必须通过逗号分隔的 `CTN_API_ALLOWED_HOSTS` 明确列出浏览器实际发送的 Host，可包含端口。服务端不记录 token，也不把 token 写入仓库。
+
 
 3. 前端开发服务
 
@@ -74,11 +78,17 @@ WebDAV 仓库通过服务端 JSON 配置，例如：
 
     VITE_CTN_API_BASE_URL=http://127.0.0.1:3001 pnpm dev
 
+连接要求 bearer token 的后端：
+
+    VITE_CTN_API_BASE_URL=http://api.example.test:3001 VITE_CTN_API_TOKEN=<token> pnpm dev
+
 使用浏览器存储：
 
     VITE_CTN_STORAGE_MODE=browser pnpm dev
 
 HTTP 模式用于真实本地文件仓库。浏览器存储模式提供同样的多仓库 catalog 语义，用于界面和交互验证。每个浏览器独立保存当前 repository id。
+
+`VITE_CTN_API_TOKEN` 会由浏览器作为 Authorization bearer 发送，只用于 API 请求；它不写入 repository catalog、workspace、IndexedDB cache 或日志。作为前端构建变量，它对使用该浏览器构建的人可见，因此安全边界仍是单用户部署和受控前端环境。
 
 HTTP 模式会在浏览器 IndexedDB 中保存每个 API 地址对应的最近确认 catalog，以及每个 repository id 对应的最近确认快照。连接中断后，已有缓存的仓库可以在页面刷新后继续打开和编辑，并以单个最新 pending commit 取代更早的待同步内容。连接恢复时，如果远端 revision 未变化则自动提交；如果远端已变化，则保留本地内容并进入冲突状态。设置页的“放弃本地修改”会先删除 pending commit，再重新读取远端内容。
 

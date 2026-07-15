@@ -6,6 +6,7 @@ import {
 export type HttpRepositoryTransportOptions = {
   baseUrl?: string;
   fetch?: typeof fetch;
+  token?: string;
 };
 
 function normalizeBaseUrl(baseUrl: string) {
@@ -60,11 +61,20 @@ export async function requestRepositoryJson(
   baseUrl: string,
   endpoint: string,
   init?: RequestInit,
+  token?: string,
 ): Promise<unknown> {
   let response: Response;
+  let requestInit = init;
+
+  if (token) {
+    const headers = new Headers(init?.headers);
+
+    headers.set("Authorization", `Bearer ${token}`);
+    requestInit = { ...init, headers };
+  }
 
   try {
-    response = await fetchFn(resolveApiUrl(baseUrl, endpoint), init);
+    response = await fetchFn(resolveApiUrl(baseUrl, endpoint), requestInit);
   } catch (error) {
     if (error instanceof TypeError) {
       throw new WorkspaceRepositoryUnavailableError();

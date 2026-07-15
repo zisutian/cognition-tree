@@ -20,6 +20,7 @@ export function createHttpWorkspaceRepository({
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   label,
   repositoryId,
+  token,
 }: HttpWorkspaceRepositoryOptions): WorkspaceRepository {
   const endpoint = `/api/repositories/${encodeURIComponent(repositoryId)}/snapshot`;
 
@@ -36,6 +37,7 @@ export function createHttpWorkspaceRepository({
             headers: { "Content-Type": "application/json" },
             method: "PUT",
           },
+          token,
         ),
       );
 
@@ -48,6 +50,8 @@ export function createHttpWorkspaceRepository({
           fetchFn,
           baseUrl,
           endpoint,
+          undefined,
+          token,
         ),
       );
 
