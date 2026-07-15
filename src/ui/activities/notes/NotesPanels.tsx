@@ -5,7 +5,7 @@ import {
   Minimize2,
   Plus,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
 import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
 import {
@@ -22,8 +22,7 @@ import {
   type TreeNode,
 } from "../../shared/tree";
 import { useReferenceNavigation } from "./useReferenceNavigation";
-import { BlockMetadataDetails } from "./BlockMetadataDetails";
-import type { UiOutlineNode } from "../../../application/workspace/projection/viewBlocks";
+import { NoteTimeDetails } from "./NoteTimeDetails";
 
 type NotesContextProps = {
   view: NotesViewModel;
@@ -154,7 +153,7 @@ export function NoteEditorPanel({
     view.referenceNavigation,
   );
 
-  if (!view.editor.hasActiveNote) {
+  if (!view.activeNote) {
     return (
       <Panel className="note-editor-panel" aria-label="笔记编辑">
         <EmptyState
@@ -173,7 +172,7 @@ export function NoteEditorPanel({
   return (
     <Panel className="note-editor-panel" aria-label="笔记编辑">
       <PanelHeader
-        title={view.editor.currentNoteTitle ?? "未命名笔记"}
+        title={view.activeNote.title}
         actions={
           <>
             {view.editor.errorMessage ? (
@@ -196,10 +195,12 @@ export function NoteEditorPanel({
         }
       />
       <CtnEditor
+        documentKey={view.activeNote.id}
         focusTarget={view.editor.focusTarget}
         mode={view.editor.mode}
         syntaxProfile={view.editor.syntaxProfile}
         value={view.editor.documentText}
+        onActiveLineChange={view.editor.onActiveLineChange}
         onChange={view.updateSource}
         onOpenReference={referenceNavigation.openReference}
       />
@@ -214,16 +215,11 @@ export function NoteDetailPanel({
 }: NotesContextProps & {
   onCollapseDetail: () => void;
 }) {
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-  const outlineNodes = useMemo(() => {
-    const flatten = (nodes: UiOutlineNode[]): UiOutlineNode[] =>
-      nodes.flatMap((node) => [node, ...flatten(node.children)]);
+  if (!view.activeNote) {
+    return null;
+  }
 
-    return flatten(view.outline.nodes);
-  }, [view.outline.nodes]);
-  const selectedBlock = outlineNodes.find(
-    (node) => node.id === selectedBlockId,
-  ) ?? null;
+  const selectedBlock = view.outline.activeBlock;
   const selectedLineNumbers = selectedBlock
     ? new Set([selectedBlock.lineNumber])
     : undefined;
@@ -260,24 +256,20 @@ export function NoteDetailPanel({
             <dt>根</dt>
           </div>
         </dl>
+        <NoteTimeDetails
+          blockMetadata={selectedBlock?.metadata ?? null}
+          noteMetadata={view.activeNote}
+        />
         {view.outline.nodes.length > 0 ? (
           <StructureTree
             indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
             nodes={view.outline.nodes}
             selectedLineNumbers={selectedLineNumbers}
-            onSelectLine={(lineNumber) => {
-              const block = outlineNodes.find(
-                (node) => node.lineNumber === lineNumber,
-              );
-
-              setSelectedBlockId(block?.id ?? null);
-              view.outline.onSelectLine(lineNumber);
-            }}
+            onSelectLine={view.outline.onSelectLine}
           />
         ) : (
           <p className="ui-muted">没有可解析结构。</p>
         )}
-        <BlockMetadataDetails block={selectedBlock} />
       </PanelBody>
     </Panel>
   );

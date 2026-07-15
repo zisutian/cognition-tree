@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { EditorState } from "@codemirror/state";
 import {
   createCtnIndentUnit,
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
+  getCtnEditorActiveLineNumber,
 } from "../../src/editor/ctnEditorExtensions";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import ctnEditorExtensionsSource from "../../src/editor/ctnEditorExtensions.ts?raw";
@@ -16,6 +18,15 @@ describe("ctn editor extensions", () => {
     expect(createCtnTabSizeExtension(2)).toBeDefined();
     expect(createCtnTabSizeExtension(4)).toBeDefined();
     expect(createCtnTabSizeExtension(6)).toBeDefined();
+  });
+
+  it("reports the line containing the primary editor selection", () => {
+    const state = EditorState.create({
+      doc: "first\nsecond\nthird",
+      selection: { anchor: 8 },
+    });
+
+    expect(getCtnEditorActiveLineNumber(state)).toBe(2);
   });
 
   it("keeps CTN source lines from soft wrapping", () => {

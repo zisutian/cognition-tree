@@ -58,6 +58,7 @@ export function VisualizationDetailPanel({
             <dt>孤立</dt>
           </div>
         </dl>
+        <div aria-hidden="true" className="detail-divider" />
         {activeNode ? (
           <div className="detail-primary-row">
             <p>{activeNode.title}</p>

@@ -7,11 +7,8 @@ export type UiEditorFocusTarget = {
 };
 
 export type UiEditorView = {
-  currentNoteTitle: string | null;
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
-  hasActiveNote: boolean;
-  hasParsedDocument: boolean;
   mode: "ctn" | "raw";
   stats: {
     lineCount: number;
@@ -23,28 +20,21 @@ export type UiEditorView = {
 };
 
 export function createUiEditorView({
-  activeNoteTitle,
   document,
   documentText,
   focusTarget,
-  hasActiveNote,
   syntaxProfile,
   errorMessage,
 }: {
-  activeNoteTitle: string | null;
   document: CtnDocument | null;
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
-  hasActiveNote: boolean;
   syntaxProfile: CtnSyntaxProfile;
   errorMessage: string;
 }): UiEditorView {
   return {
-    currentNoteTitle: activeNoteTitle,
     documentText,
     focusTarget,
-    hasActiveNote,
-    hasParsedDocument: document !== null,
     mode: document ? "ctn" : "raw",
     stats: {
       lineCount: documentText.split("\n").length,

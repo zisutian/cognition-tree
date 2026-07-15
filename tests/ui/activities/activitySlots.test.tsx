@@ -114,7 +114,6 @@ describe("activity slots", () => {
         ...baseView.notes,
         editor: {
           ...baseView.notes.editor,
-          hasParsedDocument: false,
           mode: "raw",
         },
       },
@@ -122,9 +121,13 @@ describe("activity slots", () => {
     });
 
     const noteMarkup = renderSlot(slotsWithView("notes", view).main);
+    const noteDetailMarkup = renderSlot(slotsWithView("notes", view).detail);
 
     expect(noteMarkup).toContain("data-editor-mode=\"raw\"");
     expect(noteMarkup).not.toContain("仓库语法未配置");
+    expect(noteDetailMarkup).toContain('aria-label="笔记时间"');
+    expect(noteDetailMarkup).toContain("没有可解析结构");
+    expect(noteDetailMarkup).not.toContain('aria-label="块时间"');
     expect(
       renderSlot(
         slotsWithView("visualization", view).main,

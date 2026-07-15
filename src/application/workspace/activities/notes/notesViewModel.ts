@@ -10,6 +10,12 @@ import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSe
 import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
 
 export type NotesViewModel = {
+  activeNote: {
+    createdAt: string;
+    id: UiNoteId;
+    title: string;
+    updatedAt: string;
+  } | null;
   directory: WorkspaceDirectoryMutations & {
     activeFolderId: UiFolderId | null;
     activeNode: UiDirectoryActiveNode | null;
@@ -20,8 +26,11 @@ export type NotesViewModel = {
     selectFolder: (folderId: UiFolderId) => void;
     selectNote: (noteId: UiNoteId) => void;
   };
-  editor: UiEditorView;
+  editor: UiEditorView & {
+    onActiveLineChange: (lineNumber: number) => void;
+  };
   outline: {
+    activeBlock: UiOutlineNode | null;
     nodes: UiOutlineNode[];
     onSelectLine: (lineNumber: number) => void;
   };

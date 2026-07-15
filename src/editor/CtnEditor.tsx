@@ -9,6 +9,7 @@ import {
   ctnExternalValueSync,
   ctnParsingCompartment,
   ctnTabSizeCompartment,
+  getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
 import { createEditorValueSyncChange } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
@@ -17,10 +18,12 @@ import "./CtnEditor.css";
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
 
 type CtnEditorProps = {
+  documentKey: string;
   focusTarget: CtnEditorFocusTarget | null;
   mode?: "ctn" | "raw";
   syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
+  onActiveLineChange: (lineNumber: number) => void;
   onChange: (value: string) => void;
   onOpenReference?: (target: CtnEditorReferenceTarget) => void;
 };
@@ -31,20 +34,27 @@ export type CtnEditorFocusTarget = {
 };
 
 export function CtnEditor({
+  documentKey,
   focusTarget,
   mode = "ctn",
   syntaxProfile,
   value,
+  onActiveLineChange,
   onChange,
   onOpenReference,
 }: CtnEditorProps) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
+  const onActiveLineChangeRef = useRef(onActiveLineChange);
   const onChangeRef = useRef(onChange);
   const onOpenReferenceRef = useRef(onOpenReference);
   const syntaxProfileRef = useRef(syntaxProfile);
   const tabDisplayWidthRef = useRef(syntaxProfile.tabDisplayWidth);
+
+  useEffect(() => {
+    onActiveLineChangeRef.current = onActiveLineChange;
+  }, [onActiveLineChange]);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -88,6 +98,7 @@ export function CtnEditor({
           onChangeRef,
           syntaxProfileRef,
           onOpenReferenceRef,
+          onActiveLineChangeRef,
           mode,
         ),
       }),
@@ -160,6 +171,18 @@ export function CtnEditor({
     });
     view.focus();
   }, [focusTarget]);
+
+  useEffect(() => {
+    const view = editorViewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    onActiveLineChangeRef.current(
+      getCtnEditorActiveLineNumber(view.state),
+    );
+  }, [documentKey]);
 
   return (
     <div

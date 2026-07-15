@@ -27,6 +27,12 @@ export function createView(
 
   return {
     notes: {
+      activeNote: {
+        createdAt: "2026-01-01T00:00:00.000Z",
+        id: "note-source",
+        title: "当前笔记",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
       directory: {
         activeFolderId: null,
         activeNode: { kind: "note", noteId: "note-source" },
@@ -43,12 +49,9 @@ export function createView(
         selectNote: () => undefined,
       },
       editor: {
-        currentNoteTitle: "当前笔记",
         documentText: "当前笔记",
         errorMessage: "",
         focusTarget: null,
-        hasActiveNote: true,
-        hasParsedDocument: true,
         mode: "ctn",
         stats: {
           lineCount: 1,
@@ -56,8 +59,10 @@ export function createView(
           totalBlocks: 1,
         },
         syntaxProfile: defaultCtnSyntaxProfile,
+        onActiveLineChange: () => undefined,
       },
       outline: {
+        activeBlock: null,
         nodes: [],
         onSelectLine: () => undefined,
       },

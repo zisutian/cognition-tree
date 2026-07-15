@@ -19,6 +19,7 @@ import {
 import {
   createUiBlockNode,
   createUiOutlineNodes,
+  findUiOutlineNodeAtLine,
   flattenUiBlockSubtree,
   getUiBlockLineLabel,
 } from "../../../../src/application/workspace/projection/viewBlocks";
@@ -113,18 +114,15 @@ function createBlock(
 describe("workspace view projection", () => {
   it("projects unparsed note text as an explicit raw editor", () => {
     const view = createUiEditorView({
-      activeNoteTitle: "原始笔记",
       document: null,
       documentText: "缩进?内容",
       errorMessage: "",
       focusTarget: null,
-      hasActiveNote: true,
       syntaxProfile: defaultCtnSyntaxProfile,
     });
 
     expect(view).toMatchObject({
       documentText: "缩进?内容",
-      hasParsedDocument: false,
       mode: "raw",
       stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
     });
@@ -142,12 +140,10 @@ describe("workspace view projection", () => {
     const projectLineNumber = (lineNumber: number) =>
       getCtnEditableLineNumber(editableSource, lineNumber);
     const view = createUiEditorView({
-      activeNoteTitle: "Title",
       document,
       documentText: editableSource.source,
       errorMessage: "",
       focusTarget: null,
-      hasActiveNote: true,
       syntaxProfile: defaultCtnSyntaxProfile,
     });
     const outline = createUiOutlineNodes(
@@ -159,6 +155,7 @@ describe("workspace view projection", () => {
     expect(view.stats.lineCount).toBe(3);
     expect(outline).toMatchObject([
       {
+        endLineNumber: 3,
         lineLabel: "L2-3",
         lineNumber: 2,
         metadata: { createdAt: testBlockTimestamp },
@@ -244,6 +241,24 @@ describe("workspace view projection", () => {
       "root",
       "child",
     ]);
+  });
+
+  it("resolves the deepest outline block containing an editor line", () => {
+    const child = createBlock("child", 3);
+    const root = createBlock("root", 2, [child]);
+    const multiline = {
+      ...createBlock("multiline", 4),
+      endLineNumber: 7,
+      role: "multiline" as const,
+    };
+    const outline = createUiOutlineNodes([root, multiline]);
+
+    expect(findUiOutlineNodeAtLine(outline, 2)?.id).toBe("root");
+    expect(findUiOutlineNodeAtLine(outline, 3)?.id).toBe("child");
+    expect(findUiOutlineNodeAtLine(outline, 6)?.id).toBe("multiline");
+    expect(findUiOutlineNodeAtLine(outline, 1)).toBeNull();
+    expect(findUiOutlineNodeAtLine(outline, 8)).toBeNull();
+    expect(findUiOutlineNodeAtLine(outline, Number.NaN)).toBeNull();
   });
 
   it("maps syntax draft state into UI display data", () => {

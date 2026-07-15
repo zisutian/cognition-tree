@@ -1,11 +1,14 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   findWorkspaceNote,
   getParsedWorkspaceNote,
   getWorkspaceTree,
   listWorkspaceNotes,
 } from "../../../../workspace/queries/workspaceQueries";
-import { createUiOutlineNodes } from "../../projection/viewBlocks";
+import {
+  createUiOutlineNodes,
+  findUiOutlineNodeAtLine,
+} from "../../projection/viewBlocks";
 import { createUiEditorView } from "../../projection/viewEditor";
 import { createUiNoteTree } from "../../projection/viewTree";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
@@ -33,6 +36,10 @@ export function useNotesActivity({
   runtime: WorkspaceRuntime;
   selection: WorkspaceSelection;
 }): NotesViewModel {
+  const [activeEditorPosition, setActiveEditorPosition] = useState<{
+    lineNumber: number;
+    noteId: string;
+  } | null>(null);
   const {
     commands,
     defaultSyntaxProfile,
@@ -45,6 +52,7 @@ export function useNotesActivity({
   const activeNote = selection.activeNoteId
     ? findWorkspaceNote(workspace, selection.activeNoteId)
     : null;
+  const activeNoteId = activeNote?.id ?? null;
   const effectiveActiveNote = effectiveWorkspace && selection.activeNoteId
     ? findWorkspaceNote(effectiveWorkspace, selection.activeNoteId)
     : null;
@@ -104,12 +112,10 @@ export function useNotesActivity({
       : null;
   const editor = useMemo(
     () => createUiEditorView({
-      activeNoteTitle: activeNote?.title ?? null,
       document: parsedNote?.document ?? null,
       documentText: editableSource?.source ?? activeNote?.source ?? "",
       errorMessage,
       focusTarget,
-      hasActiveNote: Boolean(activeNote),
       syntaxProfile: parsedNote?.profile ?? defaultSyntaxProfile,
     }),
     [
@@ -128,7 +134,47 @@ export function useNotesActivity({
     ),
     [editableSource, parsedNote],
   );
+  const updateActiveEditorLine = useCallback((lineNumber: number) => {
+    if (!activeNoteId) {
+      setActiveEditorPosition(null);
+      return;
+    }
+
+    const normalizedLineNumber = Math.max(1, Math.floor(lineNumber));
+
+    setActiveEditorPosition((current) =>
+      current?.noteId === activeNoteId &&
+        current.lineNumber === normalizedLineNumber
+        ? current
+        : {
+            lineNumber: normalizedLineNumber,
+            noteId: activeNoteId,
+          }
+    );
+  }, [activeNoteId]);
+  const activeBlock = useMemo(() => {
+    if (
+      !activeEditorPosition ||
+      activeEditorPosition.noteId !== activeNoteId
+    ) {
+      return null;
+    }
+
+    return findUiOutlineNodeAtLine(
+      outlineNodes,
+      activeEditorPosition.lineNumber,
+    );
+  }, [activeEditorPosition, activeNoteId, outlineNodes]);
+
   return {
+    activeNote: activeNote
+      ? {
+          createdAt: activeNote.createdAt,
+          id: activeNote.id,
+          title: activeNote.title,
+          updatedAt: activeNote.updatedAt,
+        }
+      : null,
     directory: {
       activeFolderId: selection.activeFolderId,
       activeNode: selection.activeNode,
@@ -144,10 +190,17 @@ export function useNotesActivity({
       selectFolder: selection.selectFolder,
       selectNote: selection.selectNote,
     },
-    editor,
+    editor: {
+      ...editor,
+      onActiveLineChange: updateActiveEditorLine,
+    },
     outline: {
+      activeBlock,
       nodes: outlineNodes,
-      onSelectLine: navigation.focusActiveNoteLine,
+      onSelectLine(lineNumber) {
+        updateActiveEditorLine(lineNumber);
+        navigation.focusActiveNoteLine(lineNumber);
+      },
     },
     referenceNavigation: {
       navigate(destination) {

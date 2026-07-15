@@ -54,6 +54,10 @@ export function createCtnTabSizeExtension(tabDisplayWidth: number) {
   return EditorState.tabSize.of(Math.max(1, Math.floor(tabDisplayWidth)));
 }
 
+export function getCtnEditorActiveLineNumber(state: EditorState) {
+  return state.doc.lineAt(state.selection.main.head).number;
+}
+
 export function createCtnEditorExtensions(
   onChangeRef: {
     current: (value: string) => void;
@@ -63,6 +67,9 @@ export function createCtnEditorExtensions(
   },
   onOpenReferenceRef: {
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
+  },
+  onActiveLineChangeRef: {
+    current: (lineNumber: number) => void;
   },
   mode: "ctn" | "raw" = "ctn",
 ): Extension[] {
@@ -116,6 +123,12 @@ export function createCtnEditorExtensions(
           isExternal: isExternalValueSync,
           value: update.state.doc.toString(),
         });
+      }
+
+      if (update.docChanged || update.selectionSet) {
+        onActiveLineChangeRef.current(
+          getCtnEditorActiveLineNumber(update.state),
+        );
       }
     }),
   ];

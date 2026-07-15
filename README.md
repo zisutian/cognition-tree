@@ -16,7 +16,7 @@
     notes/*.ctn
     syntax/workspace.toml
 
-`workspace.json` 使用 schema version 2。笔记稳定写入 `notes/<noteId>.ctn`，目录关系只由 manifest tree 表达；每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行。该保留行只存在于持久化原文中，编辑区只显示可编辑内容，块时间在笔记详情中查看。
+`workspace.json` 使用 schema version 2。笔记稳定写入 `notes/<noteId>.ctn`，目录关系只由 manifest tree 表达；每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行。该保留行只存在于持久化原文中，编辑区只显示可编辑内容；笔记自身时间和当前块时间在笔记详情中分别查看。
 
 前端也可以切换到浏览器存储模式，用于不连接本机后端的界面验证。
 

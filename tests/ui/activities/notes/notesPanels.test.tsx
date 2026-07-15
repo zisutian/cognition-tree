@@ -5,38 +5,47 @@ import {
   NoteEditorPanel,
   NotesContext,
 } from "../../../../src/ui/activities/notes/NotesPanels";
-import { BlockMetadataDetails } from "../../../../src/ui/activities/notes/BlockMetadataDetails";
+import { NoteTimeDetails } from "../../../../src/ui/activities/notes/NoteTimeDetails";
 import { createView } from "../../viewFactory";
 
 describe("notes panels", () => {
   it("keeps block timestamps in a compact detail view", () => {
     const markup = renderToStaticMarkup(
-      <BlockMetadataDetails
-        block={{
-          children: [],
-          hasDiagnostics: false,
-          id: "block-1",
-          label: "定义",
-          lineLabel: "L2",
-          lineNumber: 2,
-          metadata: {
-            createdAt: "2026-07-15T00:00:00.000Z",
-            updatedAt: "2026-07-15T01:00:00.000Z",
-          },
-          textDisplay: {
-            displayText: "示例",
-            segments: [{ id: "text", kind: "text", text: "示例" }],
-            textColor: "default",
-          },
+      <NoteTimeDetails
+        blockMetadata={{
+          createdAt: "2026-07-15T00:00:00.000Z",
+          updatedAt: "2026-07-15T01:00:00.000Z",
+        }}
+        noteMetadata={{
+          createdAt: "2026-07-14T00:00:00.000Z",
+          updatedAt: "2026-07-14T01:00:00.000Z",
         }}
       />,
     );
 
     expect(markup).toContain('aria-label="块时间"');
+    expect(markup).toContain('aria-label="笔记时间"');
+    expect(markup).toContain('aria-label="时间信息"');
+    expect(markup).toContain("当前块");
     expect(markup).toContain("创建");
     expect(markup).toContain("更新");
     expect(markup).toContain('dateTime="2026-07-15T00:00:00.000Z"');
     expect(markup).not.toContain("@ctn-block");
+  });
+
+  it("shows note timestamps independently from the active block", () => {
+    const markup = renderToStaticMarkup(
+      <NoteDetailPanel
+        onCollapseDetail={() => undefined}
+        view={createView().notes}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="笔记时间"');
+    expect(markup).toContain("修改");
+    expect(markup).toContain('dateTime="2026-01-01T00:00:00.000Z"');
+    expect(markup).toContain('dateTime="2026-01-02T00:00:00.000Z"');
+    expect(markup).not.toContain('aria-label="块时间"');
   });
 
   it("exposes the workbench focus mode command from the editor title bar", () => {
@@ -104,6 +113,24 @@ describe("notes panels", () => {
 
   it("keeps note detail focused on structure, metadata, and note statistics", () => {
     const baseView = createView();
+    const activeBlock = {
+      children: [],
+      endLineNumber: 2,
+      hasDiagnostics: false,
+      id: "outline-2",
+      label: "定义",
+      lineLabel: "L2",
+      lineNumber: 2,
+      metadata: {
+        createdAt: "2026-07-15T00:00:00.000Z",
+        updatedAt: "2026-07-15T01:00:00.000Z",
+      },
+      textDisplay: {
+        displayText: "子结构",
+        segments: [{ id: "text", kind: "text" as const, text: "子结构" }],
+        textColor: "default" as const,
+      },
+    };
     const markup = renderToStaticMarkup(
       <NoteDetailPanel
         onCollapseDetail={() => undefined}
@@ -122,27 +149,11 @@ describe("notes panels", () => {
             },
           },
           outline: {
+            activeBlock,
             nodes: [
               {
-                children: [
-                  {
-                    children: [],
-                    hasDiagnostics: false,
-                    id: "outline-2",
-                    label: "定义",
-                    lineLabel: "L2",
-                    lineNumber: 2,
-                    metadata: {
-                      createdAt: "2026-07-15T00:00:00.000Z",
-                      updatedAt: "2026-07-15T00:00:00.000Z",
-                    },
-                    textDisplay: {
-                      displayText: "子结构",
-                      segments: [{ id: "text", kind: "text", text: "子结构" }],
-                      textColor: "default",
-                    },
-                  },
-                ],
+                children: [activeBlock],
+                endLineNumber: 2,
                 hasDiagnostics: false,
                 id: "outline-1",
                 label: "T",
@@ -168,6 +179,9 @@ describe("notes panels", () => {
     expect(markup).toContain("detail-summary-strip");
     expect(markup).toContain("--ui-structure-depth:1");
     expect(markup).toContain("--ui-structure-indent-width:21px");
+    expect(markup).toContain("ui-structure-tree-row is-selected");
+    expect(markup).toContain('aria-label="块时间"');
+    expect(markup).toContain('dateTime="2026-07-15T01:00:00.000Z"');
     expect(markup).toContain('aria-label="笔记统计"');
     expect(markup).not.toContain("诊断");
     expect(markup).not.toContain("detail-line-list");

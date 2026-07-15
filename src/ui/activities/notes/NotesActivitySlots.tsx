@@ -23,7 +23,7 @@ export function createNotesActivitySlots({
       content: <NotesContext view={view} />,
       title: "笔记",
     },
-    detail: view.editor.hasParsedDocument ? (
+    detail: view.activeNote ? (
       <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
     ) : null,
     main: (

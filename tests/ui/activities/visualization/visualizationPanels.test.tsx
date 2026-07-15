@@ -113,7 +113,7 @@ describe("visualization panels", () => {
     expect(markup).toContain("detail-summary-strip");
     expect(markup).toContain("detail-primary-row");
     expect(markup).toContain("detail-meta-line");
-    expect(markup).toContain("detail-divider");
+    expect(markup.match(/class="detail-divider"/g)).toHaveLength(3);
     expect(markup).toContain("<dd>3</dd><dt>点</dt>");
     expect(markup).toContain("<dd>2</dd><dt>边</dt>");
     expect(markup).toContain("Target note");

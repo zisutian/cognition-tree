@@ -4,10 +4,16 @@ import type { APIRequestContext } from "@playwright/test";
 import { repositorySyntaxFileName } from "../../contracts/workspace-repository/types";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import { initializeCtnSourceBlockMetadata } from "../../src/ctn/metadata/sourceMetadata";
+import {
+  formatCtnBlockMetadataLine,
+  parseCtnBlockMetadataLine,
+} from "../../src/ctn/metadata/blockMetadata";
 import { createDefaultWorkspaceSyntaxSource } from "../../src/workspace/context/workspaceSyntax";
 
 export const e2eApiBaseUrl = "http://127.0.0.1:3317";
 export const e2eTimestamp = "2026-01-01T00:00:00.000Z";
+export const e2eAlphaFirstBlockTimestamp = "2026-01-02T00:00:00.000Z";
+export const e2eAlphaSecondBlockTimestamp = "2026-01-03T00:00:00.000Z";
 
 type SeedNote = {
   createdAt: string;
@@ -39,6 +45,34 @@ export function createSeedSource(source: string, idOffset: number) {
       `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
     updatedAt: e2eTimestamp,
   });
+}
+
+function createSeedSourceWithBlockTimestamps(
+  source: string,
+  idOffset: number,
+  timestamps: string[],
+) {
+  let blockIndex = 0;
+
+  return createSeedSource(source, idOffset)
+    .split("\n")
+    .map((line) => {
+      const metadata = parseCtnBlockMetadataLine(line);
+
+      if (!metadata) {
+        return line;
+      }
+
+      const timestamp = timestamps[blockIndex] ?? e2eTimestamp;
+      blockIndex += 1;
+
+      return formatCtnBlockMetadataLine({
+        ...metadata,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+    })
+    .join("\n");
 }
 
 async function createRepository({
@@ -94,9 +128,14 @@ export async function seedWorkbenchRepository(
       {
         createdAt: e2eTimestamp,
         id: "note-alpha",
-        source: createSeedSource(
+        source: createSeedSourceWithBlockTimestamps(
           "Alpha\n\t: [[Beta]]\n\t- Alpha 子项",
           0,
+          [
+            e2eTimestamp,
+            e2eAlphaFirstBlockTimestamp,
+            e2eAlphaSecondBlockTimestamp,
+          ],
         ),
         title: "Alpha",
         updatedAt: e2eTimestamp,

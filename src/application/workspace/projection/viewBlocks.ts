@@ -18,6 +18,7 @@ export type UiBlockNode = {
 
 export type UiOutlineNode = Omit<UiBlockNode, "children"> & {
   children: UiOutlineNode[];
+  endLineNumber: number;
   metadata: CtnBlock["metadata"];
 };
 
@@ -63,6 +64,7 @@ function createUiOutlineNode(
     children: block.children.map((child) =>
       createUiOutlineNode(child, projectLineNumber)
     ),
+    endLineNumber,
     hasDiagnostics: block.diagnostics.length > 0,
     id: block.id,
     label: block.label,
@@ -80,6 +82,28 @@ export function createUiOutlineNodes(
   return nodes
     .filter(isBodyBlock)
     .map((block) => createUiOutlineNode(block, projectLineNumber));
+}
+
+export function findUiOutlineNodeAtLine(
+  nodes: UiOutlineNode[],
+  lineNumber: number,
+): UiOutlineNode | null {
+  if (!Number.isInteger(lineNumber) || lineNumber < 1) {
+    return null;
+  }
+
+  for (const node of nodes) {
+    if (
+      lineNumber < node.lineNumber ||
+      lineNumber > node.endLineNumber
+    ) {
+      continue;
+    }
+
+    return findUiOutlineNodeAtLine(node.children, lineNumber) ?? node;
+  }
+
+  return null;
 }
 
 export function createUiBlockNodes(nodes: CtnBlock[]): UiBlockNode[] {

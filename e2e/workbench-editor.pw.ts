@@ -8,7 +8,10 @@ import {
 } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace-repository/types";
 import {
+  e2eAlphaFirstBlockTimestamp,
+  e2eAlphaSecondBlockTimestamp,
   e2eApiBaseUrl,
+  e2eTimestamp,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
 import { openWorkbench } from "./support/workbenchPage";
@@ -113,6 +116,69 @@ test.describe.serial("editor workbench flows", () => {
         "\t\tconst value = 1;\n\t\treturn value;\n\t```",
       );
     }).toBe(true);
+  });
+
+  test("synchronizes the editor block with outline selection and timestamps", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+
+    const editor = page.locator(".source-editor");
+    const detail = page.locator(".app-detail");
+    const blockTime = page.getByLabel("块时间");
+    const createdTime = blockTime.locator("time").nth(0);
+    const updatedTime = blockTime.locator("time").nth(1);
+    const noteTime = page.getByLabel("笔记时间");
+    const noteCreatedTime = noteTime.locator("time").nth(0);
+    const noteUpdatedTime = noteTime.locator("time").nth(1);
+    const referenceLine = editor.locator(".cm-line").filter({
+      hasText: "[[Beta]]",
+    });
+    const itemLine = editor.locator(".cm-line").filter({
+      hasText: "Alpha 子项",
+    });
+
+    await referenceLine.click();
+    await expect(detail.locator(".ui-structure-tree-row.is-selected"))
+      .toHaveAttribute("title", /Beta/);
+    await expect(createdTime).toHaveAttribute(
+      "datetime",
+      e2eAlphaFirstBlockTimestamp,
+    );
+
+    await itemLine.click();
+    await expect(detail.locator(".ui-structure-tree-row.is-selected"))
+      .toHaveAttribute("title", /Alpha 子项/);
+    await expect(createdTime).toHaveAttribute(
+      "datetime",
+      e2eAlphaSecondBlockTimestamp,
+    );
+    await expect(noteCreatedTime).toHaveAttribute("datetime", e2eTimestamp);
+
+    await page.keyboard.press("End");
+    await page.keyboard.type(" 已编辑");
+    await expect(createdTime).toHaveAttribute(
+      "datetime",
+      e2eAlphaSecondBlockTimestamp,
+    );
+    await expect.poll(async () => updatedTime.getAttribute("datetime"))
+      .not.toBe(e2eAlphaSecondBlockTimestamp);
+    await expect(noteCreatedTime).toHaveAttribute("datetime", e2eTimestamp);
+    await expect.poll(async () => noteUpdatedTime.getAttribute("datetime"))
+      .not.toBe(e2eTimestamp);
+
+    await detail.locator(".ui-structure-tree-row").first().click();
+    await expect(editor.locator(".cm-activeLine")).toContainText("[[Beta]]");
+    await expect(createdTime).toHaveAttribute(
+      "datetime",
+      e2eAlphaFirstBlockTimestamp,
+    );
+
+    await page.locator(".app-context").getByTitle("Beta").click();
+    await expect(blockTime).toHaveCount(0);
+    await expect(noteCreatedTime).toHaveAttribute("datetime", e2eTimestamp);
+    await expect(noteUpdatedTime).toHaveAttribute("datetime", e2eTimestamp);
   });
 
   test("commits IME composition once while inserting block metadata", async ({
