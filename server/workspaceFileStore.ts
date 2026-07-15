@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import {
   parseWorkspaceRepositoryCommit,
 } from "../contracts/workspace-repository/parseRepository.ts";
-import { serializeWorkspaceRepositoryRevisionContent } from "../contracts/workspace-repository/revision.ts";
-import { inferRepositoryNoteTitle } from "../contracts/workspace-repository/noteSource.ts";
 import type {
-  RepositoryNoteDto,
   RepositorySyntaxSourceDto,
-  RepositoryWorkspaceDto,
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryContentDto,
   WorkspaceRepositoryCommitResultDto,
@@ -25,95 +20,24 @@ import {
   type WorkspaceCommitPhase,
 } from "./workspaceCommitTransaction.ts";
 import {
-  isSafeWorkspaceNoteId,
-  parseWorkspaceManifest,
-  workspaceManifestSchemaVersion,
-  type WorkspaceManifest,
-} from "./workspaceManifest.ts";
+  createEmptyRepositoryWorkspace,
+  createRepositoryNoteFileName,
+  createWorkspaceManifest,
+  loadWorkspaceFromManifest,
+  notesDirName,
+  syntaxDirName,
+  workspaceFileName,
+} from "./workspaceRepositoryLayout.ts";
+import { createWorkspaceRepositoryRevision } from "./workspaceRepositoryRevision.ts";
+import { WorkspaceRevisionConflictError } from "./repositoryAdapter.ts";
 
-const workspaceFileName = "workspace.json";
-const notesDirName = "notes";
-const syntaxDirName = "syntax";
-export class WorkspacePayloadValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "WorkspacePayloadValidationError";
-  }
-}
-
-export class WorkspaceRevisionConflictError extends Error {
-  currentRevision: string;
-
-  constructor(currentRevision: string) {
-    super("Repository content changed outside the current session");
-    this.name = "WorkspaceRevisionConflictError";
-    this.currentRevision = currentRevision;
-  }
-}
-
-function failPayloadValidation(message: string): never {
-  throw new WorkspacePayloadValidationError(message);
-}
-
-function noteFileName(noteId: string) {
-  if (!isSafeWorkspaceNoteId(noteId)) {
-    failPayloadValidation(`Unsafe note id: ${noteId}`);
-  }
-
-  return `${noteId}.ctn`;
-}
-
-function assertNoteTitleMatchesSource(note: RepositoryNoteDto) {
-  const sourceTitle = inferRepositoryNoteTitle(note.source);
-
-  if (note.title !== sourceTitle) {
-    failPayloadValidation(`Workspace note title does not match first line: ${note.id}`);
-  }
-}
-
-type NoteFileLayoutEntry = {
-  note: RepositoryNoteDto;
-  relativePath: string;
-};
+export { WorkspacePayloadValidationError } from "./workspaceRepositoryLayout.ts";
 
 type WorkspaceFileStoreOptions = {
   onWorkspaceCommitPhase?: (
     phase: WorkspaceCommitPhase,
   ) => Promise<void> | void;
 };
-
-function createWorkspaceNoteFileLayout(
-  workspace: RepositoryWorkspaceDto,
-): NoteFileLayoutEntry[] {
-  workspace.notes.forEach(assertNoteTitleMatchesSource);
-  return workspace.notes.map((note) => ({
-    note,
-    relativePath: noteFileName(note.id),
-  }));
-}
-
-function createEmptyWorkspace(): RepositoryWorkspaceDto {
-  return {
-    id: "local-workspace",
-    name: "本地笔记库",
-    notes: [],
-    tree: [],
-  };
-}
-
-function createRepositoryRevision({
-  syntaxSourceFile,
-  workspace,
-}: WorkspaceRepositoryContentDto) {
-  return createHash("sha256")
-    .update(
-      serializeWorkspaceRepositoryRevisionContent({
-        syntaxSourceFile,
-        workspace,
-      }),
-    )
-    .digest("hex");
-}
 
 async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await readFile(filePath, "utf8"));
@@ -178,44 +102,24 @@ export class WorkspaceFileStore {
     await mkdir(this.#syntaxDir, { recursive: true });
   }
 
-  async #readWorkspace(): Promise<RepositoryWorkspaceDto> {
+  async #readWorkspace() {
     let manifest: unknown;
 
     try {
       manifest = await readJson(this.#manifestPath);
     } catch (error) {
       if (hasFileSystemErrorCode(error, "ENOENT")) {
-        return createEmptyWorkspace();
+        return createEmptyRepositoryWorkspace();
       }
 
       throw error;
     }
 
-    const parsedManifest = parseWorkspaceManifest(manifest);
-
-    const notes: RepositoryNoteDto[] = [];
-
-    for (const note of parsedManifest.notes) {
-      const fileName = noteFileName(note.id);
+    return loadWorkspaceFromManifest(manifest, async (noteId) => {
+      const fileName = createRepositoryNoteFileName(noteId);
 
       try {
-        const source = await readFile(
-          path.join(this.#notesDir, fileName),
-          "utf8",
-        );
-        const sourceTitle = inferRepositoryNoteTitle(source);
-
-        if (note.title !== sourceTitle) {
-          throw new Error(`Workspace note title does not match first line: ${note.id}`);
-        }
-
-        notes.push({
-          id: note.id,
-          title: note.title,
-          source,
-          createdAt: note.createdAt,
-          updatedAt: note.updatedAt,
-        });
+        return await readFile(path.join(this.#notesDir, fileName), "utf8");
       } catch (error) {
         if (hasFileSystemErrorCode(error, "ENOENT")) {
           throw new Error(`Missing note source file: notes/${fileName}`);
@@ -223,14 +127,7 @@ export class WorkspaceFileStore {
 
         throw error;
       }
-    }
-
-    return {
-      id: parsedManifest.id,
-      name: parsedManifest.name,
-      notes,
-      tree: parsedManifest.tree,
-    };
+    });
   }
 
   async #readSnapshotContent(): Promise<WorkspaceRepositoryContentDto> {
@@ -248,7 +145,7 @@ export class WorkspaceFileStore {
     return {
       ...content,
       repositoryPath: this.#rootDir,
-      revision: createRepositoryRevision(content),
+      revision: createWorkspaceRepositoryRevision(content),
     };
   }
 
@@ -260,31 +157,19 @@ export class WorkspaceFileStore {
     await this.initialize();
 
     const currentContent = await this.#readSnapshotContent();
-    const currentRevision = createRepositoryRevision(currentContent);
+    const currentRevision = createWorkspaceRepositoryRevision(currentContent);
 
     if (currentRevision !== baseRevision) {
       throw new WorkspaceRevisionConflictError(currentRevision);
     }
 
-    const noteFileLayout = createWorkspaceNoteFileLayout(workspace);
-    const manifest: WorkspaceManifest = {
-      id: workspace.id,
-      name: workspace.name,
-      notes: workspace.notes.map((note) => ({
-        id: note.id,
-        title: note.title,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      })),
-      schemaVersion: workspaceManifestSchemaVersion,
-      tree: workspace.tree,
-    };
+    const manifest = createWorkspaceManifest(workspace);
 
     try {
       await this.#workspaceCommitTransaction.commit({
         manifest,
-        noteFiles: noteFileLayout.map(({ note, relativePath }) => ({
-          relativePath,
+        noteFiles: workspace.notes.map((note) => ({
+          relativePath: createRepositoryNoteFileName(note.id),
           source: note.source,
         })),
         syntaxSource: syntaxSourceFile?.source ?? null,
@@ -295,7 +180,10 @@ export class WorkspaceFileStore {
     }
 
     return {
-      revision: createRepositoryRevision({ syntaxSourceFile, workspace }),
+      revision: createWorkspaceRepositoryRevision({
+        syntaxSourceFile,
+        workspace,
+      }),
     };
   }
 

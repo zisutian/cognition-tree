@@ -18,8 +18,8 @@ import {
 } from "../../server/workspaceCommitTransaction.ts";
 import {
   WorkspaceFileStore,
-  WorkspaceRevisionConflictError,
 } from "../../server/workspaceFileStore.ts";
+import { WorkspaceRevisionConflictError } from "../../server/repositoryAdapter.ts";
 import {
   workspaceManifestSchemaVersion,
   type WorkspaceManifest,

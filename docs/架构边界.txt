@@ -33,7 +33,7 @@ editor：
 
 server：
 
-    HTTP API 和仓库 adapter 执行端，负责 catalog、请求安全、版本冲突检测、仓库快照事务和具体存储布局。
+    HTTP API 和仓库 adapter 执行端，负责组合 catalog、请求安全、版本冲突检测、仓库快照事务和具体存储布局。本地文件与 WebDAV adapter 实现同一 store contract，共用 manifest、note 路径与 revision 规则。
 
 contracts：
 

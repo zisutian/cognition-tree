@@ -17,16 +17,7 @@ import type {
 } from "../contracts/workspace-repository/types.ts";
 import { isRepositoryId } from "../contracts/workspace-repository/parseCatalog.ts";
 import { WorkspaceFileStore } from "./workspaceFileStore.ts";
-
-export class RepositoryCatalogError extends Error {
-  statusCode: number;
-
-  constructor(statusCode: number, message: string) {
-    super(message);
-    this.name = "RepositoryCatalogError";
-    this.statusCode = statusCode;
-  }
-}
+import { RepositoryCatalogError } from "./repositoryAdapter.ts";
 
 async function pathExists(filePath: string) {
   try {

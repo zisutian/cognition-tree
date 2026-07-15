@@ -82,6 +82,7 @@
     CTN_API_PORT=3001
     CTN_REPOSITORY_ROOT=.cognition-tree/repositories
     CTN_API_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+    CTN_WEBDAV_REPOSITORIES=[]
 
 前端环境变量：
 
@@ -91,6 +92,8 @@
 HTTP 后端默认只接受来自本机开发前端地址的浏览器请求。使用其它前端地址时，通过 `CTN_API_ALLOWED_ORIGINS` 显式加入对应 Origin。
 
 后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
+
+`CTN_WEBDAV_REPOSITORIES` 是服务端 JSON 数组，每项包含 `id`、`label`、`url`，以及可选的成对 `username`、`password`。WebDAV 作为独立 repository adapter 直接读写远端文件；本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。
 
 ## 代码结构
 

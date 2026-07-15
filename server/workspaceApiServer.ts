@@ -8,17 +8,13 @@ import type {
 } from "node:http";
 import { WorkspaceRepositoryContractError } from "../contracts/workspace-repository/contractValue.ts";
 import { parseCreateRepository } from "../contracts/workspace-repository/parseCatalog.ts";
-import type {
-  RepositoryCatalogDto,
-  RepositoryDescriptorDto,
-  WorkspaceRepositoryCommitResultDto,
-  WorkspaceRepositorySnapshotDto,
-} from "../contracts/workspace-repository/types.ts";
-import { RepositoryCatalogError } from "./localRepositoryCatalog.ts";
 import {
-  WorkspacePayloadValidationError,
+  RepositoryAdapterError,
+  RepositoryCatalogError,
   WorkspaceRevisionConflictError,
-} from "./workspaceFileStore.ts";
+  type WorkspaceRepositoryCatalog,
+} from "./repositoryAdapter.ts";
+import { WorkspacePayloadValidationError } from "./workspaceRepositoryLayout.ts";
 
 const allowedMethods = "GET, OPTIONS, POST, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
@@ -41,20 +37,6 @@ export type WorkspaceApiRequestHandler = (
   request: IncomingMessage,
   response: ServerResponse,
 ) => Promise<void>;
-
-type WorkspaceRepositoryStore = {
-  commitSnapshot: (
-    value: unknown,
-  ) => Promise<WorkspaceRepositoryCommitResultDto>;
-  loadSnapshot: () => Promise<WorkspaceRepositorySnapshotDto>;
-};
-
-type WorkspaceRepositoryCatalog = {
-  createRepository: (value: ReturnType<typeof parseCreateRepository>) =>
-    Promise<RepositoryDescriptorDto>;
-  getStore: (repositoryId: string) => Promise<WorkspaceRepositoryStore>;
-  listRepositories: () => Promise<RepositoryCatalogDto>;
-};
 
 type WorkspaceApiOptions = {
   allowedOrigins?: readonly string[];
@@ -208,6 +190,10 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
 }
 
 function mapRepositoryCommitError(error: unknown): unknown {
+  if (error instanceof RepositoryAdapterError) {
+    return new WorkspaceApiRequestError(error.statusCode, error.message);
+  }
+
   if (error instanceof RepositoryCatalogError) {
     return new WorkspaceApiRequestError(error.statusCode, error.message);
   }
