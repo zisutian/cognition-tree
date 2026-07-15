@@ -42,6 +42,8 @@ export function createWorkspaceSessionSaveQueue({
   save,
 }: WorkspaceSessionSaveQueueOptions): WorkspaceSessionSaveQueue {
   let activePromise: Promise<void> | null = null;
+  let discardedThroughVersion = 0;
+  let isDiscarding = false;
   let pendingContent: PendingContent | null = null;
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let saveVersion = 0;
@@ -67,7 +69,7 @@ export function createWorkspaceSessionSaveQueue({
   };
 
   const savePendingContent = async () => {
-    while (pendingContent) {
+    while (pendingContent && !isDiscarding) {
       clearSaveTimer();
 
       const pending = pendingContent;
@@ -80,7 +82,10 @@ export function createWorkspaceSessionSaveQueue({
         onContentSaved(pending.content);
         settleWaiters(pending.version, (waiter) => waiter.resolve());
       } catch (error) {
-        if (!pendingContent) {
+        if (
+          !pendingContent &&
+          pending.version > discardedThroughVersion
+        ) {
           pendingContent = pending;
         }
 
@@ -91,7 +96,9 @@ export function createWorkspaceSessionSaveQueue({
       }
     }
 
-    onStatusChange("saved");
+    if (!isDiscarding) {
+      onStatusChange("saved");
+    }
   };
 
   const startSaving = () => {
@@ -125,23 +132,38 @@ export function createWorkspaceSessionSaveQueue({
 
   return {
     async discardPendingChanges() {
+      const discardVersion = saveVersion;
+
+      discardedThroughVersion = Math.max(
+        discardedThroughVersion,
+        discardVersion,
+      );
+      isDiscarding = true;
       clearSaveTimer();
 
       const discardError = new Error("Pending repository changes were discarded");
 
-      pendingContent = null;
-      waiters.forEach((waiter) => waiter.reject(discardError));
-      waiters = [];
-
-      if (activePromise) {
-        try {
-          await activePromise;
-        } catch {
-          // The pending snapshot is discarded explicitly after the failed save.
-        }
+      if (pendingContent && pendingContent.version <= discardVersion) {
+        pendingContent = null;
       }
 
-      onStatusChange("idle");
+      settleWaiters(discardVersion, (waiter) => waiter.reject(discardError));
+
+      try {
+        if (activePromise) {
+          await activePromise;
+        }
+      } catch {
+        // Failed content at or before discardVersion must not be requeued.
+      } finally {
+        isDiscarding = false;
+
+        if (pendingContent) {
+          scheduleSave();
+        } else {
+          onStatusChange("idle");
+        }
+      }
     },
     dispose() {
       clearSaveTimer();

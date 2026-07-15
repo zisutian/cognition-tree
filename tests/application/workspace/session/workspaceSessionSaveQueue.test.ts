@@ -235,6 +235,73 @@ describe("workspace session save queue", () => {
     expect(savedNames).toEqual(["active"]);
   });
 
+  it("does not requeue an active save that fails during discard", async () => {
+    let releaseActiveSave = () => {};
+    const activeSaveGate = new Promise<void>((resolve) => {
+      releaseActiveSave = resolve;
+    });
+    const savedNames: string[] = [];
+    const statuses: WorkspaceSessionSaveStatus[] = [];
+    const queue = createQueue(
+      async (content) => {
+        savedNames.push(content.workspace.name);
+        await activeSaveGate;
+        throw new Error("active save failed");
+      },
+      {
+        onStatusChange(status) {
+          statuses.push(status);
+        },
+      },
+    );
+    const activeSave = queue.enqueueAndWait(createContent("active"));
+    const rejectedActiveSave = expect(activeSave).rejects.toThrow(
+      "Pending repository changes were discarded",
+    );
+    const activeFlush = queue.flush();
+    const discard = queue.discardPendingChanges();
+
+    releaseActiveSave();
+    await expect(activeFlush).rejects.toThrow("active save failed");
+    await discard;
+    await rejectedActiveSave;
+    await queue.flush();
+
+    expect(savedNames).toEqual(["active"]);
+    expect(statuses[statuses.length - 1]).toBe("idle");
+  });
+
+  it("keeps content enqueued after discard starts", async () => {
+    let releaseActiveSave = () => {};
+    const activeSaveGate = new Promise<void>((resolve) => {
+      releaseActiveSave = resolve;
+    });
+    const savedNames: string[] = [];
+    const queue = createQueue(async (content) => {
+      savedNames.push(content.workspace.name);
+
+      if (content.workspace.name === "active") {
+        await activeSaveGate;
+      }
+    });
+
+    queue.enqueue(createContent("active"));
+    const activeFlush = queue.flush();
+    const discard = queue.discardPendingChanges();
+    const nextSave = queue.enqueueAndWait(createContent("after-discard"));
+
+    releaseActiveSave();
+    await activeFlush;
+    await discard;
+
+    expect(savedNames).toEqual(["active"]);
+
+    await queue.flush();
+    await nextSave;
+
+    expect(savedNames).toEqual(["active", "after-discard"]);
+  });
+
   it("cancels timers and waiters when its owning session is disposed", async () => {
     vi.useFakeTimers();
 
