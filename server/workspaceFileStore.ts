@@ -7,6 +7,7 @@ import {
   parseWorkspaceRepositoryCommit,
 } from "../contracts/workspace-repository/parseRepository.ts";
 import { serializeWorkspaceRepositoryRevisionContent } from "../contracts/workspace-repository/revision.ts";
+import { inferRepositoryNoteTitle } from "../contracts/workspace-repository/noteSource.ts";
 import type {
   RepositoryNoteDto,
   RepositorySyntaxSourceDto,
@@ -62,12 +63,8 @@ function noteFileName(noteId: string) {
   return `${noteId}.ctn`;
 }
 
-function inferNoteTitle(source: string) {
-  return source.split("\n")[0]?.trim() ?? "";
-}
-
 function assertNoteTitleMatchesSource(note: RepositoryNoteDto) {
-  const sourceTitle = inferNoteTitle(note.source);
+  const sourceTitle = inferRepositoryNoteTitle(note.source);
 
   if (note.title !== sourceTitle) {
     failPayloadValidation(`Workspace note title does not match first line: ${note.id}`);
@@ -206,7 +203,7 @@ export class WorkspaceFileStore {
           path.join(this.#notesDir, fileName),
           "utf8",
         );
-        const sourceTitle = inferNoteTitle(source);
+        const sourceTitle = inferRepositoryNoteTitle(source);
 
         if (note.title !== sourceTitle) {
           throw new Error(`Workspace note title does not match first line: ${note.id}`);

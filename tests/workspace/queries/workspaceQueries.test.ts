@@ -24,8 +24,21 @@ import {
   hasWorkspaceNote,
   listWorkspaceNotes,
 } from "../../../src/workspace/queries/workspaceQueries";
+import { addTestCtnBlockMetadata } from "../../ctn/metadata/sourceMetadataFixture";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
+
+function createParsedNoteRecord(
+  id: string,
+  source: string,
+  idOffset = 0,
+) {
+  return createNoteRecord(
+    id,
+    addTestCtnBlockMetadata(source, defaultCtnSyntaxProfile, idOffset),
+    timestamp,
+  );
+}
 
 function createWorkspace(): WorkspaceData {
   const sourceNote = createNoteRecord("note-source", "源笔记", timestamp);
@@ -89,10 +102,9 @@ describe("workspace queries", () => {
   });
 
   it("reads parsed notes from the workspace index", () => {
-    const note = createNoteRecord(
+    const note = createParsedNoteRecord(
       "note-first",
       "标题\n概念\n    : 定义",
-      timestamp,
     );
     const index = createParseIndex([note]);
     const result = getParsedWorkspaceNote(index, note.id);
@@ -115,13 +127,12 @@ describe("workspace queries", () => {
   });
 
   it("reads note reference graph data from the workspace index", () => {
-    const source = createNoteRecord(
+    const source = createParsedNoteRecord(
       "note-source",
       "Source [[Target]]",
-      timestamp,
     );
-    const target = createNoteRecord("note-target", "Target", timestamp);
-    const isolated = createNoteRecord("note-isolated", "Isolated", timestamp);
+    const target = createParsedNoteRecord("note-target", "Target", 100);
+    const isolated = createParsedNoteRecord("note-isolated", "Isolated", 200);
     expect(
       getWorkspaceNoteReferenceGraph(
         createParseIndex([source, target, isolated]),
@@ -156,10 +167,9 @@ describe("workspace queries", () => {
   });
 
   it("keeps unresolved global references visible in the reference graph", () => {
-    const source = createNoteRecord(
+    const source = createParsedNoteRecord(
       "note-source",
       "Source [[Missing Note]] and [[Missing Note]]",
-      timestamp,
     );
     expect(
       getWorkspaceNoteReferenceGraph(createParseIndex([source])),
@@ -183,12 +193,11 @@ describe("workspace queries", () => {
   });
 
   it("ignores global-reference text inside multiline blocks", () => {
-    const source = createNoteRecord(
+    const source = createParsedNoteRecord(
       "note-source",
       "Source\n    ```txt\n    [[Target]]\n    ```",
-      timestamp,
     );
-    const target = createNoteRecord("note-target", "Target", timestamp);
+    const target = createParsedNoteRecord("note-target", "Target", 100);
     expect(
       getWorkspaceNoteReferenceGraph(createParseIndex([source, target])),
     ).toMatchObject({

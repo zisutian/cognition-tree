@@ -270,6 +270,7 @@ export function moveWorkspaceStructureBlockBetweenNotes(
     sourceText: moveInput.sourceParsed.note.source,
     targetPosition: moveInput.targetPosition,
     targetText: moveInput.targetParsed.note.source,
+    updatedAt: timestamp,
   });
 
   const sourceNoteId = moveInput.sourceParsed.note.id;
@@ -359,6 +360,7 @@ export function moveWorkspaceStructureBlockWithinNote(
     sourceBlock,
     sourceText: note.source,
     targetPosition,
+    updatedAt: timestamp,
   });
   const notes = [...workspace.data.notes];
 

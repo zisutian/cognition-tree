@@ -11,7 +11,12 @@ import {
   indentOnInput,
   indentUnit,
 } from "@codemirror/language";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import {
+  Annotation,
+  Compartment,
+  EditorState,
+  type Extension,
+} from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -28,6 +33,7 @@ import { createCtnParseDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 
 export const ctnTabSizeCompartment = new Compartment();
+export const ctnExternalValueSync = Annotation.define<boolean>();
 
 export function createCtnIndentUnit() {
   return "\t";
@@ -76,7 +82,11 @@ export function createCtnEditorExtensions(
       spellcheck: "false",
     }),
     EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
+      const isExternalValueSync = update.transactions.some((transaction) =>
+        transaction.annotation(ctnExternalValueSync),
+      );
+
+      if (update.docChanged && !isExternalValueSync) {
         onChangeRef.current(update.state.doc.toString());
       }
     }),

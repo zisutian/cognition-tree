@@ -5,8 +5,10 @@ import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 import {
   createCtnEditorExtensions,
   createCtnTabSizeExtension,
+  ctnExternalValueSync,
   ctnTabSizeCompartment,
 } from "./ctnEditorExtensions";
+import { createEditorValueSyncChange } from "./editorValueSync";
 import "./CtnEditor.css";
 
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
@@ -85,16 +87,22 @@ export function CtnEditor({
   useEffect(() => {
     const view = editorViewRef.current;
 
-    if (!view || value === view.state.doc.toString()) {
+    if (!view) {
+      return;
+    }
+
+    const change = createEditorValueSyncChange(
+      view.state.doc.toString(),
+      value,
+    );
+
+    if (!change) {
       return;
     }
 
     view.dispatch({
-      changes: {
-        from: 0,
-        to: view.state.doc.length,
-        insert: value,
-      },
+      annotations: ctnExternalValueSync.of(true),
+      changes: change,
     });
   }, [value]);
 

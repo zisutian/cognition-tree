@@ -3,17 +3,22 @@ import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
 import {
   moveCtnBlockWithinText,
   moveCtnBlockText,
-  type CtnBlockTextRange,
 } from "../../../src/ctn/parser/blockTextEdit";
+import type { CtnBlock } from "../../../src/ctn/parser/types";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import {
+  addTestCtnBlockMetadata,
+  stripTestCtnBlockMetadata,
+} from "../metadata/sourceMetadataFixture";
 
-function parseBlocks(source: string): CtnBlockTextRange[] {
+function parseBlocks(source: string): CtnBlock[] {
   return parseCtnDocument(source, defaultCtnSyntaxProfile).blocks;
 }
 
 function findBlock(source: string, lineNumber: number) {
+  const rawText = stripTestCtnBlockMetadata(source).split("\n")[lineNumber - 1];
   const block = parseBlocks(source).find(
-    (entry) => entry.lineNumber === lineNumber,
+    (entry) => entry.rawText === rawText,
   );
 
   if (!block) {
@@ -23,11 +28,27 @@ function findBlock(source: string, lineNumber: number) {
   return block;
 }
 
+function stripMoveResult<Result extends Record<string, unknown>>(result: Result) {
+  return Object.fromEntries(
+    Object.entries(result).map(([key, value]) => [
+      key,
+      key.startsWith("next") && typeof value === "string"
+        ? stripTestCtnBlockMetadata(value)
+        : value,
+    ]),
+  );
+}
+
 describe("ctn block text edit", () => {
   it("moves a whole subtree between source texts and rewrites indentation", () => {
-    const sourceText =
-      "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling";
-    const targetText = "Target Title\nTarget\n\t> Understanding";
+    const sourceText = addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    );
+    const targetText = addTestCtnBlockMetadata(
+      "Target Title\nTarget\n\t> Understanding",
+      defaultCtnSyntaxProfile,
+      100,
+    );
     const sourceBlocks = parseBlocks(sourceText);
     const targetBlocks = parseBlocks(targetText);
     const result = moveCtnBlockText({
@@ -40,17 +61,36 @@ describe("ctn block text edit", () => {
       targetText,
     });
 
-    expect(result).toEqual({
+    expect(stripMoveResult(result)).toEqual({
       nextSourceText: "Source Title\nRoot\nSibling",
       nextTargetText:
         "Target Title\nTarget\n\t> Understanding\n\t: Definition\n\t\t- Component",
       status: "moved",
     });
+
+    const movedRoot = parseCtnDocument(
+      result.nextTargetText,
+      defaultCtnSyntaxProfile,
+    ).blocks.find((block) => block.id === sourceBlocks[2].id);
+
+    expect(movedRoot).toMatchObject({
+      id: sourceBlocks[2].id,
+      indentText: "\t",
+      metadata: sourceBlocks[2].metadata,
+    });
+    expect(result.nextTargetText.split("\n")[movedRoot!.metadataLineNumber - 1])
+      .toMatch(/^\t@ctn-block /);
   });
 
   it("moves a subtree above a target block as a sibling", () => {
-    const sourceText = "Source Title\nRoot\n\t: Definition\n\t\t- Component";
-    const targetText = "Target Title\nTarget\n\t> Understanding";
+    const sourceText = addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t: Definition\n\t\t- Component",
+    );
+    const targetText = addTestCtnBlockMetadata(
+      "Target Title\nTarget\n\t> Understanding",
+      defaultCtnSyntaxProfile,
+      100,
+    );
     const sourceBlocks = parseBlocks(sourceText);
     const targetBlocks = parseBlocks(targetText);
     const result = moveCtnBlockText({
@@ -63,7 +103,7 @@ describe("ctn block text edit", () => {
       targetText,
     });
 
-    expect(result).toEqual({
+    expect(stripMoveResult(result)).toEqual({
       nextSourceText: "Source Title\nRoot",
       nextTargetText:
         "Target Title\n: Definition\n\t- Component\nTarget\n\t> Understanding",
@@ -72,8 +112,14 @@ describe("ctn block text edit", () => {
   });
 
   it("moves a subtree below a target block as a sibling", () => {
-    const sourceText = "Source Title\nRoot\n\t: Definition\n\t\t- Component";
-    const targetText = "Target Title\nTarget\n\t> Understanding";
+    const sourceText = addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t: Definition\n\t\t- Component",
+    );
+    const targetText = addTestCtnBlockMetadata(
+      "Target Title\nTarget\n\t> Understanding",
+      defaultCtnSyntaxProfile,
+      100,
+    );
     const sourceBlocks = parseBlocks(sourceText);
     const targetBlocks = parseBlocks(targetText);
     const result = moveCtnBlockText({
@@ -86,7 +132,7 @@ describe("ctn block text edit", () => {
       targetText,
     });
 
-    expect(result).toEqual({
+    expect(stripMoveResult(result)).toEqual({
       nextSourceText: "Source Title\nRoot",
       nextTargetText:
         "Target Title\nTarget\n\t> Understanding\n: Definition\n\t- Component",
@@ -95,17 +141,19 @@ describe("ctn block text edit", () => {
   });
 
   it("moves a root block to empty target text", () => {
-    const sourceText = "Source Title\nRoot\n\t: Definition";
+    const sourceText = addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t: Definition",
+    );
     const sourceBlocks = parseBlocks(sourceText);
 
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockText({
         sourceBlock: sourceBlocks[1],
         sourceText,
         targetPosition: { kind: "end" },
         targetText: "",
       }),
-    ).toEqual({
+    )).toEqual({
       nextSourceText: "Source Title",
       nextTargetText: "Root\n\t: Definition",
       status: "moved",
@@ -113,17 +161,21 @@ describe("ctn block text edit", () => {
   });
 
   it("inserts before a target terminal newline", () => {
-    const sourceText = "Source Title\nRoot";
+    const sourceText = addTestCtnBlockMetadata("Source Title\nRoot");
     const sourceBlocks = parseBlocks(sourceText);
 
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockText({
         sourceBlock: sourceBlocks[1],
         sourceText,
         targetPosition: { kind: "end" },
-        targetText: "Target Title\n",
+        targetText: `${addTestCtnBlockMetadata(
+          "Target Title",
+          defaultCtnSyntaxProfile,
+          100,
+        )}\n`,
       }),
-    ).toEqual({
+    )).toEqual({
       nextSourceText: "Source Title",
       nextTargetText: "Target Title\nRoot\n",
       status: "moved",
@@ -131,18 +183,19 @@ describe("ctn block text edit", () => {
   });
 
   it("keeps multiline block contents relative to the moved subtree", () => {
-    const sourceText =
-      "Source Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```";
+    const sourceText = addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```",
+    );
     const sourceBlocks = parseBlocks(sourceText);
 
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockText({
         sourceBlock: sourceBlocks[2],
         sourceText,
         targetPosition: { kind: "end" },
         targetText: "",
       }),
-    ).toEqual({
+    )).toEqual({
       nextSourceText: "Source Title\nRoot",
       nextTargetText: "```ts\n\tconst value = 1;\n```",
       status: "moved",
@@ -150,25 +203,28 @@ describe("ctn block text edit", () => {
   });
 
   it("moves a whole subtree within the same document", () => {
-    const sourceText =
-      "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling";
+    const sourceText = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    );
 
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockWithinText({
         sourceBlock: findBlock(sourceText, 2),
         sourceText,
         targetPosition: { kind: "end" },
       }),
-    ).toEqual({
+    )).toEqual({
       nextText: "Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
       status: "moved",
     });
   });
 
   it("moves a same-document block to sibling positions", () => {
-    const sourceText = "Title\nRoot\n\t: A\n\t: B\nOther";
+    const sourceText = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t: A\n\t: B\nOther",
+    );
 
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockWithinText({
         sourceBlock: findBlock(sourceText, 3),
         sourceText,
@@ -177,11 +233,11 @@ describe("ctn block text edit", () => {
           kind: "sibling-below",
         },
       }),
-    ).toEqual({
+    )).toEqual({
       nextText: "Title\nRoot\n\t: B\n\t: A\nOther",
       status: "moved",
     });
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockWithinText({
         sourceBlock: findBlock(sourceText, 4),
         sourceText,
@@ -190,16 +246,18 @@ describe("ctn block text edit", () => {
           kind: "sibling-above",
         },
       }),
-    ).toEqual({
+    )).toEqual({
       nextText: "Title\nRoot\n\t: B\n\t: A\nOther",
       status: "moved",
     });
   });
 
   it("moves a same-document block inside another block and rewrites indentation", () => {
-    const sourceText = "Title\nRoot\n\t: A\n\t: B\nOther";
+    const sourceText = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t: A\n\t: B\nOther",
+    );
 
-    expect(
+    expect(stripMoveResult(
       moveCtnBlockWithinText({
         sourceBlock: findBlock(sourceText, 3),
         sourceText,
@@ -208,14 +266,16 @@ describe("ctn block text edit", () => {
           kind: "inside-block",
         },
       }),
-    ).toEqual({
+    )).toEqual({
       nextText: "Title\nRoot\n\t: B\n\t\t: A\nOther",
       status: "moved",
     });
   });
 
   it("rejects same-document targets inside the moved subtree", () => {
-    const sourceText = "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling";
+    const sourceText = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    );
 
     expect(() =>
       moveCtnBlockWithinText({

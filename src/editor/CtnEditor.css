@@ -67,6 +67,13 @@
   white-space: pre;
 }
 
+.source-editor .ctn-metadata-line {
+  color: var(--color-fg-subtle);
+  font-family: var(--font-code);
+  font-size: var(--ui-code-font-size);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
 .source-editor .cm-gutters {
   border-right: var(--ui-border-width) solid var(--color-border);
   color: var(--color-fg-subtle);

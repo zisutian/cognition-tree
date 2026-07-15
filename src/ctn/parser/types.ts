@@ -4,6 +4,7 @@ import type {
   CtnRuleRole,
   CtnSyntaxTone,
 } from "../syntax/types";
+import type { CtnBlockMetadata } from "../metadata/blockMetadata";
 
 export type CtnInlineSpan = {
   id: string;
@@ -37,6 +38,8 @@ export type CtnDiagnostic = {
 
 export type CtnBlock = {
   id: string;
+  metadata: CtnBlockMetadata;
+  metadataLineNumber: number;
   lineNumber: number;
   endLineNumber: number;
   level: number;

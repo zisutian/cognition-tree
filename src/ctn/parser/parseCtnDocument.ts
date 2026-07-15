@@ -1,4 +1,9 @@
 import {
+  parseCtnBlockMetadataLine,
+  type CtnBlockMetadataRecord,
+} from "../metadata/blockMetadata";
+import type { CtnSyntaxProfile } from "../syntax/types";
+import {
   assignBlockEndLineNumbers,
   findClosingMultilineFenceLineNumber,
 } from "./blockRanges";
@@ -11,20 +16,132 @@ import type {
   CtnDiagnostic,
   CtnDocument,
 } from "./types";
-import type { CtnSyntaxProfile } from "../syntax/types";
+
+type BlockMetadataPolicy = "legacy-initialization" | "required";
+
+type CtnSourceBlock = {
+  contentIndex: number;
+  indentText: string;
+  line: string;
+  lineNumber: number;
+  metadata: CtnBlockMetadataRecord;
+  metadataLineNumber: number;
+  nextIndex: number;
+};
+
+const legacyMetadataTimestamp = "1970-01-01T00:00:00.000Z";
+
+export class CtnDocumentMetadataError extends Error {
+  lineNumber: number;
+
+  constructor(lineNumber: number, message: string) {
+    super(`Invalid CTN block metadata at line ${lineNumber}: ${message}`);
+    this.name = "CtnDocumentMetadataError";
+    this.lineNumber = lineNumber;
+  }
+}
+
+function createLegacyBlockId(lineNumber: number) {
+  return `00000000-0000-0000-0000-${String(lineNumber).padStart(12, "0")}`;
+}
+
+function readSourceBlock({
+  index,
+  lines,
+  metadataPolicy,
+}: {
+  index: number;
+  lines: string[];
+  metadataPolicy: BlockMetadataPolicy;
+}): CtnSourceBlock {
+  if (metadataPolicy === "legacy-initialization") {
+    const line = lines[index] ?? "";
+    const lineNumber = index + 1;
+    const indentText = line.match(/^\s*/)?.[0] ?? "";
+
+    return {
+      contentIndex: index,
+      indentText,
+      line,
+      lineNumber,
+      metadata: {
+        createdAt: legacyMetadataTimestamp,
+        id: createLegacyBlockId(lineNumber),
+        indentText,
+        updatedAt: legacyMetadataTimestamp,
+      },
+      metadataLineNumber: lineNumber,
+      nextIndex: index + 1,
+    };
+  }
+
+  const metadataLine = lines[index] ?? "";
+  const metadataLineNumber = index + 1;
+  let metadata: CtnBlockMetadataRecord | null;
+
+  try {
+    metadata = parseCtnBlockMetadataLine(metadataLine);
+  } catch (error) {
+    throw new CtnDocumentMetadataError(
+      metadataLineNumber,
+      error instanceof Error ? error.message : "invalid directive",
+    );
+  }
+
+  if (!metadata) {
+    throw new CtnDocumentMetadataError(
+      metadataLineNumber,
+      "expected @ctn-block directive",
+    );
+  }
+
+  const contentIndex = index + 1;
+  const line = lines[contentIndex];
+
+  if (line === undefined) {
+    throw new CtnDocumentMetadataError(
+      metadataLineNumber,
+      "metadata directive has no block source line",
+    );
+  }
+
+  const indentText = line.match(/^\s*/)?.[0] ?? "";
+
+  if (indentText !== metadata.indentText) {
+    throw new CtnDocumentMetadataError(
+      metadataLineNumber,
+      "metadata indentation does not match its block source line",
+    );
+  }
+
+  return {
+    contentIndex,
+    indentText,
+    line,
+    lineNumber: contentIndex + 1,
+    metadata,
+    metadataLineNumber,
+    nextIndex: contentIndex + 1,
+  };
+}
 
 function createTitleBlock({
-  line,
   markerRules,
+  sourceBlock,
   syntaxProfile,
 }: {
-  line: string;
   markerRules: ReturnType<typeof sortMarkerRules>;
+  sourceBlock: CtnSourceBlock;
   syntaxProfile: CtnSyntaxProfile;
 }): CtnBlock {
-  const lineNumber = 1;
+  const {
+    indentText,
+    line,
+    lineNumber,
+    metadata,
+    metadataLineNumber,
+  } = sourceBlock;
   const trimmed = line.trim();
-  const indentText = line.match(/^\s*/)?.[0] ?? "";
   const indent = analyzeIndent(indentText, lineNumber);
   const parsedMarker = trimmed
     ? parseMarker(trimmed, lineNumber, indentText.length, markerRules)
@@ -66,19 +183,11 @@ function createTitleBlock({
   const textStartColumn = indentText.length + 1;
 
   return {
-    id: "block-1",
-    lineNumber,
+    children: [],
+    diagnostics,
     endLineNumber: lineNumber,
-    level: 0,
+    id: metadata.id,
     indentText,
-    marker: null,
-    type: syntaxProfile.titleRule.type,
-    role: "normal",
-    textColor: syntaxProfile.titleRule.textColor,
-    tone: syntaxProfile.titleRule.tone,
-    label: syntaxProfile.titleRule.label,
-    text: trimmed,
-    rawText: line,
     inlineSpans: trimmed
       ? parseInlineSpans(
           trimmed,
@@ -87,14 +196,28 @@ function createTitleBlock({
           syntaxProfile.inlineRules,
         )
       : [],
-    diagnostics,
-    children: [],
+    label: syntaxProfile.titleRule.label,
+    level: 0,
+    lineNumber,
+    marker: null,
+    metadata: {
+      createdAt: metadata.createdAt,
+      updatedAt: metadata.updatedAt,
+    },
+    metadataLineNumber,
+    rawText: line,
+    role: "normal",
+    text: trimmed,
+    textColor: syntaxProfile.titleRule.textColor,
+    tone: syntaxProfile.titleRule.tone,
+    type: syntaxProfile.titleRule.type,
   };
 }
 
-export function parseCtnDocument(
+function parseDocument(
   source: string,
   syntaxProfile: CtnSyntaxProfile,
+  metadataPolicy: BlockMetadataPolicy,
 ): CtnDocument {
   const lines = source.split("\n");
   const roots: CtnBlock[] = [];
@@ -102,27 +225,58 @@ export function parseCtnDocument(
   const diagnostics: CtnDiagnostic[] = [];
   const stack: Array<{ level: number; node: CtnBlock }> = [];
   const markerRules = sortMarkerRules(syntaxProfile.markerRules);
+  const titleSourceBlock = readSourceBlock({
+    index: 0,
+    lines,
+    metadataPolicy,
+  });
   const titleBlock = createTitleBlock({
-    line: lines[0] ?? "",
     markerRules,
+    sourceBlock: titleSourceBlock,
     syntaxProfile,
   });
+  const blockIds = new Set([titleBlock.id]);
+
   roots.push(titleBlock);
   blocks.push(titleBlock);
   diagnostics.push(...titleBlock.diagnostics);
-  let index = 1;
+  let index = titleSourceBlock.nextIndex;
 
   while (index < lines.length) {
-    const line = lines[index];
-    const lineNumber = index + 1;
-    const trimmed = line.trim();
+    const candidateLine = lines[index];
 
-    if (!trimmed) {
+    if (!candidateLine.trim()) {
       index += 1;
       continue;
     }
 
-    const indentText = line.match(/^\s*/)?.[0] ?? "";
+    const sourceBlock = readSourceBlock({ index, lines, metadataPolicy });
+    const {
+      contentIndex,
+      indentText,
+      line,
+      lineNumber,
+      metadata,
+      metadataLineNumber,
+    } = sourceBlock;
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      throw new CtnDocumentMetadataError(
+        metadataLineNumber,
+        "metadata directive must precede a non-empty block source line",
+      );
+    }
+
+    if (blockIds.has(metadata.id)) {
+      throw new CtnDocumentMetadataError(
+        metadataLineNumber,
+        `duplicate block id ${metadata.id}`,
+      );
+    }
+
+    blockIds.add(metadata.id);
+
     const indent = analyzeIndent(indentText, lineNumber);
     const parsedMarker = parseMarker(
       trimmed,
@@ -132,10 +286,8 @@ export function parseCtnDocument(
     );
     const isUnmarkedLine =
       parsedMarker.marker === null && parsedMarker.type === "concept";
-    const isTopLevelConcept =
-      indentText.length === 0 && isUnmarkedLine;
-    const isUnknownIndentedSyntax =
-      indentText.length > 0 && isUnmarkedLine;
+    const isTopLevelConcept = indentText.length === 0 && isUnmarkedLine;
+    const isUnknownIndentedSyntax = indentText.length > 0 && isUnmarkedLine;
     const nodeDiagnostics = [
       ...indent.diagnostics,
       ...parsedMarker.diagnostics,
@@ -154,38 +306,18 @@ export function parseCtnDocument(
     }
 
     const node: CtnBlock = {
-      id: `block-${lineNumber}`,
-      lineNumber,
+      children: [],
+      diagnostics: nodeDiagnostics,
       endLineNumber:
         parsedMarker.role === "multiline"
           ? findClosingMultilineFenceLineNumber(
               lines,
-              index + 1,
+              contentIndex + 1,
               parsedMarker.marker ?? "",
             )
           : lineNumber,
-      level: indent.level,
+      id: metadata.id,
       indentText,
-      marker: parsedMarker.marker,
-      type: isUnknownIndentedSyntax
-        ? "text"
-        : isTopLevelConcept
-          ? syntaxProfile.conceptRule.type
-          : parsedMarker.type,
-      role: parsedMarker.role,
-      textColor: isTopLevelConcept
-        ? syntaxProfile.conceptRule.textColor
-        : parsedMarker.textColor,
-      tone: isTopLevelConcept
-        ? syntaxProfile.conceptRule.tone
-        : parsedMarker.tone,
-      label: isUnknownIndentedSyntax
-        ? "未知语法"
-        : isTopLevelConcept
-          ? syntaxProfile.conceptRule.label
-          : parsedMarker.label,
-      text: parsedMarker.text,
-      rawText: line,
       inlineSpans:
         parsedMarker.role === "multiline" || isUnknownIndentedSyntax
           ? []
@@ -195,8 +327,33 @@ export function parseCtnDocument(
               parsedMarker.textStartColumn,
               syntaxProfile.inlineRules,
             ),
-      diagnostics: nodeDiagnostics,
-      children: [],
+      label: isUnknownIndentedSyntax
+        ? "未知语法"
+        : isTopLevelConcept
+          ? syntaxProfile.conceptRule.label
+          : parsedMarker.label,
+      level: indent.level,
+      lineNumber,
+      marker: parsedMarker.marker,
+      metadata: {
+        createdAt: metadata.createdAt,
+        updatedAt: metadata.updatedAt,
+      },
+      metadataLineNumber,
+      rawText: line,
+      role: parsedMarker.role,
+      text: parsedMarker.text,
+      textColor: isTopLevelConcept
+        ? syntaxProfile.conceptRule.textColor
+        : parsedMarker.textColor,
+      tone: isTopLevelConcept
+        ? syntaxProfile.conceptRule.tone
+        : parsedMarker.tone,
+      type: isUnknownIndentedSyntax
+        ? "text"
+        : isTopLevelConcept
+          ? syntaxProfile.conceptRule.type
+          : parsedMarker.type,
     };
 
     while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
@@ -238,10 +395,26 @@ export function parseCtnDocument(
     diagnostics.push(...node.diagnostics);
     stack.push({ level: node.level, node });
 
-    index = node.role === "multiline" ? node.endLineNumber : index + 1;
+    index = node.role === "multiline"
+      ? node.endLineNumber
+      : sourceBlock.nextIndex;
   }
 
   assignBlockEndLineNumbers(blocks, lines.length);
 
   return { roots, blocks, diagnostics };
+}
+
+export function parseCtnDocument(
+  source: string,
+  syntaxProfile: CtnSyntaxProfile,
+): CtnDocument {
+  return parseDocument(source, syntaxProfile, "required");
+}
+
+export function parseLegacyCtnDocumentForMetadataInitialization(
+  source: string,
+  syntaxProfile: CtnSyntaxProfile,
+): CtnDocument {
+  return parseDocument(source, syntaxProfile, "legacy-initialization");
 }

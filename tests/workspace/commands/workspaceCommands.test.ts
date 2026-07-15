@@ -22,6 +22,13 @@ import {
   renameWorkspaceNote,
   updateWorkspaceNoteSource,
 } from "../../../src/workspace/commands/workspaceCommands";
+import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import {
+  addTestCtnBlockMetadata,
+  createTestBlockId,
+  stripTestCtnBlockMetadata,
+} from "../../ctn/metadata/sourceMetadataFixture";
+import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
@@ -62,14 +69,19 @@ describe("workspace actions", () => {
     const nextWorkspace = createWorkspaceNote(indexWorkspace(workspace), {
       noteId: "note-new",
       parentFolderId: "folder-target",
+      createBlockId: () => createTestBlockId(1),
+      syntaxProfile: defaultCtnSyntaxProfile,
       timestamp,
     });
 
     expect(nextWorkspace.notes[0]).toMatchObject({
       id: "note-new",
-      source: "未命名笔记",
+      source: expect.stringContaining("@ctn-block id="),
       title: "未命名笔记",
     });
+    expect(stripTestCtnBlockMetadata(nextWorkspace.notes[0].source)).toBe(
+      "未命名笔记",
+    );
     expect(findFolderIdContainingNote(nextWorkspace, "note-new")).toBe(
       "folder-target",
     );
@@ -126,6 +138,7 @@ describe("workspace actions", () => {
       "note-first",
       "新标题\n\t: 定义",
       "2026-06-08T01:00:00.000Z",
+      null,
     );
 
     expect(updatedSourceWorkspace.notes[0]).toMatchObject({
@@ -135,12 +148,42 @@ describe("workspace actions", () => {
     });
   });
 
+  it("reconciles persistent block metadata while updating configured notes", () => {
+    const source = addTestCtnBlockMetadata("标题\n概念");
+    const workspace = {
+      ...createWorkspaceWithNotes(),
+      notes: [createNoteRecord("note-first", source, timestamp)],
+    };
+    const updated = updateWorkspaceNoteSource(
+      indexWorkspace(workspace),
+      "note-first",
+      `${source}\n\t: 新定义`,
+      "2026-06-08T01:00:00.000Z",
+      defaultCtnSyntaxProfile,
+      () => createTestBlockId(100),
+    );
+    const parsed = parseCtnDocument(
+      updated.notes[0].source,
+      defaultCtnSyntaxProfile,
+    );
+
+    expect(stripTestCtnBlockMetadata(updated.notes[0].source)).toBe(
+      "标题\n概念\n\t: 新定义",
+    );
+    expect(parsed.blocks.map((block) => block.id)).toEqual([
+      createTestBlockId(1),
+      createTestBlockId(2),
+      createTestBlockId(100),
+    ]);
+  });
+
   it("renames notes by updating the fixed title line", () => {
     const workspace = updateWorkspaceNoteSource(
       indexWorkspace(createWorkspaceWithNotes()),
       "note-first",
       "旧标题\n\t: 定义",
       "2026-06-08T01:00:00.000Z",
+      null,
     );
     const renamed = renameWorkspaceNote(
       indexWorkspace(workspace),
@@ -218,6 +261,7 @@ describe("workspace actions", () => {
       createWorkspaceNote(indexWorkspace(workspace), {
         noteId: "note-new",
         parentFolderId: "missing-folder",
+        syntaxProfile: null,
         timestamp,
       }),
     ).toThrow("Workspace folder does not exist");
@@ -266,6 +310,7 @@ describe("workspace actions", () => {
         "missing-note",
         "内容",
         timestamp,
+        null,
       ),
     ).toThrow("Workspace note does not exist");
     expect(() =>

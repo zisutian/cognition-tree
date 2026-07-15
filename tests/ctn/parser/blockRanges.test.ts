@@ -18,6 +18,11 @@ function createBlock(
     level,
     lineNumber,
     marker: null,
+    metadata: {
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    },
+    metadataLineNumber: lineNumber,
     rawText: type,
     role: "normal",
     text: type,

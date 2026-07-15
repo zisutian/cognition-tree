@@ -7,6 +7,7 @@ import {
   resolveWorkspaceSyntax,
   type WorkspaceSyntax,
 } from "../../../workspace/context/workspaceSyntax";
+import { validateWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
 
 export type WorkspaceSessionSnapshot = {
   repositoryPath: string;
@@ -20,14 +21,22 @@ export async function loadWorkspaceSessionSnapshot(
   repository: WorkspaceRepository,
 ): Promise<WorkspaceSessionSnapshot> {
   const repositorySnapshot = await repository.loadSnapshot();
+  const workspaceSyntax = resolveWorkspaceSyntax(
+    repositorySnapshot.syntaxSourceFile?.source ?? null,
+  );
+
+  if (workspaceSyntax) {
+    validateWorkspaceBlockMetadata(
+      repositorySnapshot.workspace,
+      workspaceSyntax.profile,
+    );
+  }
 
   return {
     repositoryPath: repositorySnapshot.repositoryPath,
     revision: repositorySnapshot.revision,
     syntaxSourceFile: repositorySnapshot.syntaxSourceFile,
     workspaceData: repositorySnapshot.workspace,
-    workspaceSyntax: resolveWorkspaceSyntax(
-      repositorySnapshot.syntaxSourceFile?.source ?? null,
-    ),
+    workspaceSyntax,
   };
 }

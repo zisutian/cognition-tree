@@ -16,6 +16,7 @@ import {
   createNoteRecord,
   type WorkspaceData,
 } from "../../../../src/workspace/model/workspaceData";
+import { stripTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
 
 function createDeferred<Value>() {
   let resolve = (_value: Value) => {};
@@ -132,6 +133,36 @@ describe("workspace session controller", () => {
       "revision-2",
     ]);
     expect(commits[1]?.workspace.notes[0]?.source).toBe("标题\n第二次");
+    controller.dispose();
+  });
+
+  it("initializes block metadata when repository syntax is created", async () => {
+    const commits: WorkspaceRepositoryCommit[] = [];
+    const controller = createWorkspaceSessionController({
+      repository: {
+        async commitSnapshot(commit) {
+          commits.push(commit);
+          return { revision: "revision-2" };
+        },
+        label: "test repository",
+        loadSnapshot: async () => createSnapshot("revision-1"),
+      },
+    });
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "ready");
+    await controller.useDefaultWorkspaceSyntax();
+
+    expect(commits).toHaveLength(1);
+    expect(commits[0].syntaxSourceFile).not.toBeNull();
+    expect(commits[0].workspace.notes[0].source).toContain("@ctn-block id=");
+    expect(
+      stripTestCtnBlockMetadata(commits[0].workspace.notes[0].source),
+    ).toBe("标题\n内容");
+    expect(controller.getState()).toMatchObject({
+      context: expect.any(Object),
+      status: "ready",
+    });
     controller.dispose();
   });
 

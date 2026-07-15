@@ -10,6 +10,12 @@ import { moveNoteTreeNode } from "../model/noteTree/move";
 import type { NoteTreeMoveRequest } from "../model/noteTree/types";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import {
+  initializeCtnSourceBlockMetadata,
+  replaceCtnSourceTitle,
+} from "../../ctn/metadata/sourceMetadata";
+import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import {
   createNoteRecord,
   defaultNoteTitle,
   inferNoteTitle,
@@ -58,22 +64,19 @@ function assertWorkspaceFolderIdAvailable(
   }
 }
 
-function replaceTitleLine(source: string, title: string) {
-  const lines = source.split("\n");
-
-  lines[0] = title;
-  return lines.join("\n");
-}
-
 export function createWorkspaceNote(
   workspace: WorkspaceStructureIndex,
   {
     parentFolderId,
     noteId,
     timestamp,
+    syntaxProfile,
+    createBlockId,
   }: {
+    createBlockId?: () => string;
     parentFolderId: FolderId | null;
     noteId: NoteId;
+    syntaxProfile: CtnSyntaxProfile | null;
     timestamp: string;
   },
 ): WorkspaceData {
@@ -83,7 +86,14 @@ export function createWorkspaceNote(
     assertWorkspaceFolderExists(workspace, parentFolderId);
   }
 
-  const note = createNoteRecord(noteId, defaultNoteTitle, timestamp);
+  const source = syntaxProfile
+    ? initializeCtnSourceBlockMetadata(defaultNoteTitle, syntaxProfile, {
+        createdAt: timestamp,
+        createId: createBlockId,
+        updatedAt: timestamp,
+      })
+    : defaultNoteTitle;
+  const note = createNoteRecord(noteId, source, timestamp);
 
   return {
     ...workspace.data,
@@ -171,7 +181,7 @@ export function renameWorkspaceNote(
 
   const notes = [...workspace.data.notes];
   const note = notes[noteIndex];
-  const source = replaceTitleLine(note.source, nextTitle);
+  const source = replaceCtnSourceTitle(note.source, nextTitle, timestamp);
 
   notes[noteIndex] = {
     ...note,
@@ -234,6 +244,8 @@ export function updateWorkspaceNoteSource(
   noteId: NoteId,
   source: string,
   timestamp: string,
+  syntaxProfile: CtnSyntaxProfile | null,
+  createBlockId?: () => string,
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
 
@@ -245,11 +257,17 @@ export function updateWorkspaceNoteSource(
 
   const notes = [...workspace.data.notes];
   const note = notes[noteIndex];
+  const nextSource = syntaxProfile
+    ? reconcileCtnSourceBlockMetadata(note.source, source, syntaxProfile, {
+        createId: createBlockId,
+        timestamp,
+      })
+    : source;
 
   notes[noteIndex] = {
     ...note,
-    source,
-    title: inferNoteTitle(source),
+    source: nextSource,
+    title: inferNoteTitle(nextSource),
     updatedAt: timestamp,
   };
 

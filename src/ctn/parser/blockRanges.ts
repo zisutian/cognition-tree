@@ -34,7 +34,7 @@ export function assignBlockEndLineNumbers(
       if (completedBlock) {
         completedBlock.endLineNumber = Math.max(
           completedBlock.endLineNumber,
-          block.lineNumber - 1,
+          block.metadataLineNumber - 1,
         );
       }
     }

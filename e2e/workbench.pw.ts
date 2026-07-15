@@ -11,9 +11,22 @@ import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace-repo
 import { repositorySyntaxFileName } from "../contracts/workspace-repository/types";
 import { appResizeKeyboardStep } from "../src/ui/frameResize";
 import { createDefaultWorkspaceSyntaxSource } from "../src/workspace/context/workspaceSyntax";
+import { initializeCtnSourceBlockMetadata } from "../src/ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../src/ctn/syntax/defaultSyntaxProfile";
 
 const apiBaseUrl = "http://127.0.0.1:3317";
 const timestamp = "2026-01-01T00:00:00.000Z";
+
+function createSeedSource(source: string, idOffset: number) {
+  let id = idOffset;
+
+  return initializeCtnSourceBlockMetadata(source, defaultCtnSyntaxProfile, {
+    createdAt: timestamp,
+    createId: () =>
+      `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
+    updatedAt: timestamp,
+  });
+}
 
 async function seedRepository(api: APIRequestContext) {
   const snapshotResponse = await api.get("/api/repository-snapshot");
@@ -36,21 +49,24 @@ async function seedRepository(api: APIRequestContext) {
           {
             createdAt: timestamp,
             id: "note-alpha",
-            source: "Alpha\n\t: [[Beta]]\n\t- Alpha 子项",
+            source: createSeedSource(
+              "Alpha\n\t: [[Beta]]\n\t- Alpha 子项",
+              0,
+            ),
             title: "Alpha",
             updatedAt: timestamp,
           },
           {
             createdAt: timestamp,
             id: "note-beta",
-            source: "Beta\n\t: 被 Alpha 引用",
+            source: createSeedSource("Beta\n\t: 被 Alpha 引用", 100),
             title: "Beta",
             updatedAt: timestamp,
           },
           {
             createdAt: timestamp,
             id: "note-gamma",
-            source: "Gamma\n\t> 孤立笔记",
+            source: createSeedSource("Gamma\n\t> 孤立笔记", 200),
             title: "Gamma",
             updatedAt: timestamp,
           },
@@ -231,6 +247,34 @@ test.describe.serial("workbench browser baseline", () => {
     ).toHaveAttribute("aria-pressed", "true");
     await expect(structureOperationContext.getByTitle("Beta").locator(".."))
       .toHaveClass(/is-selected/);
+  });
+
+  test("keeps editor input stable while inserting block metadata", async ({
+    page,
+  }) => {
+    await openWorkbench(page);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+
+    const definitionLine = page
+      .locator(".source-editor .cm-line")
+      .filter({ hasText: ": [[Beta]]" });
+
+    await definitionLine.click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(": 浏览器新增");
+
+    await expect.poll(async () => {
+      const response = await api.get("/api/repository-snapshot");
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const source = snapshot.workspace.notes.find(
+        (note) => note.id === "note-alpha",
+      )?.source ?? "";
+
+      return /: \[\[Beta\]\][\s\S]*@ctn-block id=[^\n]+\n\t: 浏览器新增[\s\S]*\t- Alpha 子项/.test(
+        source,
+      );
+    }).toBe(true);
   });
 
   test("keeps syntax popovers and draft state stable", async ({ page }) => {

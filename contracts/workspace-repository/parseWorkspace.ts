@@ -13,6 +13,7 @@ import type {
   RepositoryTreeNodeDto,
   RepositoryWorkspaceDto,
 } from "./types.ts";
+import { inferRepositoryNoteTitle } from "./noteSource.ts";
 
 const workspaceFields = ["id", "name", "notes", "tree"] as const;
 const noteFields = [
@@ -24,10 +25,6 @@ const noteFields = [
 ] as const;
 const folderFields = ["children", "id", "kind", "title"] as const;
 const noteNodeFields = ["id", "kind", "noteId"] as const;
-
-function inferSourceTitle(source: string) {
-  return source.split("\n")[0]?.trim() ?? "";
-}
 
 function parseRepositoryNote(value: unknown, path: string): RepositoryNoteDto {
   const note = readContractObject(value, path);
@@ -42,7 +39,7 @@ function parseRepositoryNote(value: unknown, path: string): RepositoryNoteDto {
     updatedAt: readRequiredContractString(note, "updatedAt", path),
   };
 
-  if (parsedNote.title !== inferSourceTitle(parsedNote.source)) {
+  if (parsedNote.title !== inferRepositoryNoteTitle(parsedNote.source)) {
     failContract(`${path}.title`, "title does not match first line");
   }
 

@@ -1,3 +1,5 @@
+import { inferCtnSourceTitle } from "../../ctn/metadata/sourceMetadata";
+
 export type NoteId = string;
 export type FolderId = string;
 
@@ -32,7 +34,7 @@ export type WorkspaceData = {
 export const defaultNoteTitle = "未命名笔记";
 
 export function inferNoteTitle(source: string): string {
-  return source.split("\n")[0]?.trim() ?? "";
+  return inferCtnSourceTitle(source);
 }
 
 export function createNoteRecord(

@@ -18,18 +18,29 @@ import {
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import {
+  addTestCtnBlockMetadata,
+  stripTestCtnBlockMetadata,
+} from "../../ctn/metadata/sourceMetadataFixture";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
 function createStructureOperationWorkspace(): WorkspaceData {
   const sourceNote = createNoteRecord(
     "note-source",
-    "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    ),
     timestamp,
   );
   const targetNote = createNoteRecord(
     "note-target",
-    "Target Title\nTarget\n\t> Understanding",
+    addTestCtnBlockMetadata(
+      "Target Title\nTarget\n\t> Understanding",
+      defaultCtnSyntaxProfile,
+      100,
+    ),
     timestamp,
   );
   const workspace = createInitialWorkspaceData();
@@ -48,6 +59,42 @@ function createStructureOperationWorkspace(): WorkspaceData {
       "folder-target",
     ),
   };
+}
+
+function getNote(workspace: WorkspaceData, noteId: string) {
+  const note = workspace.notes.find((candidate) => candidate.id === noteId);
+
+  if (!note) {
+    throw new Error(`Missing test note: ${noteId}`);
+  }
+
+  return note;
+}
+
+function getContentLineNumber(
+  workspace: WorkspaceData,
+  noteId: string,
+  rawText: string,
+) {
+  const lineIndex = getNote(workspace, noteId).source
+    .split("\n")
+    .findIndex((line) => line === rawText);
+
+  if (lineIndex < 0) {
+    throw new Error(`Missing test source line: ${rawText}`);
+  }
+
+  return lineIndex + 1;
+}
+
+function expectNoteSource(
+  workspace: WorkspaceData,
+  noteId: string,
+  source: string,
+) {
+  expect(stripTestCtnBlockMetadata(getNote(workspace, noteId).source)).toBe(
+    source,
+  );
 }
 
 function moveStructureBlockBetweenNotes(
@@ -89,13 +136,45 @@ function moveStructureBlock(
 describe("workspace structure block moves", () => {
   it("moves a block subtree and updates both note records", () => {
     const workspace = createStructureOperationWorkspace();
+    const sourceBlockLineNumber = getContentLineNumber(
+      workspace,
+      "note-source",
+      "\t: Definition",
+    );
+    const targetLineNumber = getContentLineNumber(
+      workspace,
+      "note-target",
+      "Target",
+    );
+    const sourceDocument = parseCtnDocument(
+      getNote(workspace, "note-source").source,
+      defaultCtnSyntaxProfile,
+    );
+    const movedRoot = sourceDocument.blocks.find(
+      (block) => block.lineNumber === sourceBlockLineNumber,
+    );
+
+    if (!movedRoot) {
+      throw new Error("Missing source block in test fixture.");
+    }
+
+    const movedBlockIds = new Set([
+      movedRoot.id,
+      ...sourceDocument.blocks
+        .filter(
+          (block) =>
+            block.metadataLineNumber > movedRoot.metadataLineNumber &&
+            block.lineNumber <= movedRoot.endLineNumber,
+        )
+        .map((block) => block.id),
+    ]);
     const result = moveStructureBlockBetweenNotes(
       workspace,
       {
-        sourceBlockLineNumber: 3,
+        sourceBlockLineNumber,
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "inside-block", lineNumber: 2 },
+        targetPosition: { kind: "inside-block", lineNumber: targetLineNumber },
       },
     );
 
@@ -105,19 +184,36 @@ describe("workspace structure block moves", () => {
       throw new Error(result.reason);
     }
 
-    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
-      .toMatchObject({
-        source: "Source Title\nRoot\nSibling",
-        title: "Source Title",
-        updatedAt: "2026-06-08T01:00:00.000Z",
-      });
-    expect(result.workspaceData.notes.find((note) => note.id === "note-target"))
-      .toMatchObject({
-        source:
-          "Target Title\nTarget\n\t> Understanding\n\t: Definition\n\t\t- Component",
-        title: "Target Title",
-        updatedAt: "2026-06-08T01:00:00.000Z",
-      });
+    expectNoteSource(
+      result.workspaceData,
+      "note-source",
+      "Source Title\nRoot\nSibling",
+    );
+    expectNoteSource(
+      result.workspaceData,
+      "note-target",
+      "Target Title\nTarget\n\t> Understanding\n\t: Definition\n\t\t- Component",
+    );
+    expect(getNote(result.workspaceData, "note-source")).toMatchObject({
+      title: "Source Title",
+      updatedAt: "2026-06-08T01:00:00.000Z",
+    });
+    expect(getNote(result.workspaceData, "note-target")).toMatchObject({
+      title: "Target Title",
+      updatedAt: "2026-06-08T01:00:00.000Z",
+    });
+    const movedBlocks = parseCtnDocument(
+      getNote(result.workspaceData, "note-target").source,
+      defaultCtnSyntaxProfile,
+    ).blocks.filter((block) => movedBlockIds.has(block.id));
+
+    expect(movedBlocks).toHaveLength(2);
+    expect(
+      movedBlocks.map((block) => block.metadata.updatedAt),
+    ).toEqual([
+      "2026-06-08T01:00:00.000Z",
+      "2026-06-08T01:00:00.000Z",
+    ]);
     expect(
       createWorkspaceStructureIndex(result.workspaceData).noteFolderIdById.get(
         "note-target",
@@ -126,10 +222,15 @@ describe("workspace structure block moves", () => {
   });
 
   it("moves an entire top-level concept block with its nested children", () => {
+    const workspace = createStructureOperationWorkspace();
     const result = moveStructureBlockBetweenNotes(
-      createStructureOperationWorkspace(),
+      workspace,
       {
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: getContentLineNumber(
+          workspace,
+          "note-source",
+          "Root",
+        ),
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
         targetPosition: { kind: "end" },
@@ -142,15 +243,12 @@ describe("workspace structure block moves", () => {
       throw new Error(result.reason);
     }
 
-    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
-      .toMatchObject({
-        source: "Source Title\nSibling",
-      });
-    expect(result.workspaceData.notes.find((note) => note.id === "note-target"))
-      .toMatchObject({
-        source:
-          "Target Title\nTarget\n\t> Understanding\nRoot\n\t: Definition\n\t\t- Component",
-      });
+    expectNoteSource(result.workspaceData, "note-source", "Source Title\nSibling");
+    expectNoteSource(
+      result.workspaceData,
+      "note-target",
+      "Target Title\nTarget\n\t> Understanding\nRoot\n\t: Definition\n\t\t- Component",
+    );
   });
 
   it("reads only source and target parsed notes from the structure block move index", () => {
@@ -159,7 +257,15 @@ describe("workspace structure block moves", () => {
       ...baseWorkspace,
       notes: [
         ...baseWorkspace.notes,
-        createNoteRecord("note-unrelated", "Unrelated", timestamp),
+        createNoteRecord(
+          "note-unrelated",
+          addTestCtnBlockMetadata(
+            "Unrelated",
+            defaultCtnSyntaxProfile,
+            200,
+          ),
+          timestamp,
+        ),
       ],
     };
     const workspaceIndex = createWorkspaceStructureIndex(workspace);
@@ -177,7 +283,11 @@ describe("workspace structure block moves", () => {
         },
       },
       {
-        sourceBlockLineNumber: 3,
+        sourceBlockLineNumber: getContentLineNumber(
+          workspace,
+          "note-source",
+          "\t: Definition",
+        ),
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
         targetPosition: { kind: "end" },
@@ -194,22 +304,46 @@ describe("workspace structure block moves", () => {
   });
 
   it("moves a block subtree to sibling positions through workspace requests", () => {
+    const aboveWorkspace = createStructureOperationWorkspace();
+    const belowWorkspace = createStructureOperationWorkspace();
     const aboveResult = moveStructureBlockBetweenNotes(
-      createStructureOperationWorkspace(),
+      aboveWorkspace,
       {
-        sourceBlockLineNumber: 3,
+        sourceBlockLineNumber: getContentLineNumber(
+          aboveWorkspace,
+          "note-source",
+          "\t: Definition",
+        ),
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "sibling-above", lineNumber: 2 },
+        targetPosition: {
+          kind: "sibling-above",
+          lineNumber: getContentLineNumber(
+            aboveWorkspace,
+            "note-target",
+            "Target",
+          ),
+        },
       },
     );
     const belowResult = moveStructureBlockBetweenNotes(
-      createStructureOperationWorkspace(),
+      belowWorkspace,
       {
-        sourceBlockLineNumber: 3,
+        sourceBlockLineNumber: getContentLineNumber(
+          belowWorkspace,
+          "note-source",
+          "\t: Definition",
+        ),
         sourceNoteId: "note-source",
         targetNoteId: "note-target",
-        targetPosition: { kind: "sibling-below", lineNumber: 2 },
+        targetPosition: {
+          kind: "sibling-below",
+          lineNumber: getContentLineNumber(
+            belowWorkspace,
+            "note-target",
+            "Target",
+          ),
+        },
       },
     );
 
@@ -220,24 +354,30 @@ describe("workspace structure block moves", () => {
       throw new Error("Expected sibling structure block move requests to move blocks.");
     }
 
-    expect(
-      aboveResult.workspaceData.notes.find((note) => note.id === "note-target"),
-    )
-      .toMatchObject({
-        source:
-          "Target Title\n: Definition\n\t- Component\nTarget\n\t> Understanding",
-      });
-    expect(
-      belowResult.workspaceData.notes.find((note) => note.id === "note-target"),
-    )
-      .toMatchObject({
-        source:
-          "Target Title\nTarget\n\t> Understanding\n: Definition\n\t- Component",
-      });
+    expectNoteSource(
+      aboveResult.workspaceData,
+      "note-target",
+      "Target Title\n: Definition\n\t- Component\nTarget\n\t> Understanding",
+    );
+    expectNoteSource(
+      belowResult.workspaceData,
+      "note-target",
+      "Target Title\nTarget\n\t> Understanding\n: Definition\n\t- Component",
+    );
   });
 
   it("rejects invalid structure block move requests before editing the workspace", () => {
     const workspace = createStructureOperationWorkspace();
+    const sourceDefinitionLine = getContentLineNumber(
+      workspace,
+      "note-source",
+      "\t: Definition",
+    );
+    const targetTitleLine = getContentLineNumber(
+      workspace,
+      "note-target",
+      "Target Title",
+    );
 
     expect(
       moveStructureBlockBetweenNotes(
@@ -258,10 +398,10 @@ describe("workspace structure block moves", () => {
       moveStructureBlockBetweenNotes(
         workspace,
         {
-          sourceBlockLineNumber: 3,
+          sourceBlockLineNumber: sourceDefinitionLine,
           sourceNoteId: "note-source",
           targetNoteId: "note-target",
-          targetPosition: { kind: "inside-block", lineNumber: 1 },
+          targetPosition: { kind: "inside-block", lineNumber: targetTitleLine },
         },
         timestamp,
       ),
@@ -303,7 +443,7 @@ describe("workspace structure block moves", () => {
       moveStructureBlockBetweenNotes(
         workspace,
         {
-          sourceBlockLineNumber: 3,
+          sourceBlockLineNumber: sourceDefinitionLine,
           sourceNoteId: "note-source",
           targetNoteId: "note-target",
           targetPosition: { kind: "inside-block", lineNumber: 99 },
@@ -320,11 +460,16 @@ describe("workspace structure block moves", () => {
 
 describe("workspace note block structure move", () => {
   it("moves a note block subtree inside the same note and updates the note record", () => {
+    const workspace = createStructureOperationWorkspace();
     const result = moveStructureBlock(
-      createStructureOperationWorkspace(),
+      workspace,
       {
         noteId: "note-source",
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: getContentLineNumber(
+          workspace,
+          "note-source",
+          "Root",
+        ),
         targetPosition: { kind: "end" },
       },
     );
@@ -335,21 +480,36 @@ describe("workspace note block structure move", () => {
       throw new Error(result.reason);
     }
 
-    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
-      .toMatchObject({
-        source: "Source Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
-        title: "Source Title",
-        updatedAt: "2026-06-08T01:00:00.000Z",
-      });
+    expectNoteSource(
+      result.workspaceData,
+      "note-source",
+      "Source Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
+    );
+    expect(getNote(result.workspaceData, "note-source")).toMatchObject({
+      title: "Source Title",
+      updatedAt: "2026-06-08T01:00:00.000Z",
+    });
   });
 
   it("rewrites indentation when moving a note block inside another block", () => {
+    const workspace = createStructureOperationWorkspace();
     const result = moveStructureBlock(
-      createStructureOperationWorkspace(),
+      workspace,
       {
         noteId: "note-source",
-        sourceBlockLineNumber: 5,
-        targetPosition: { kind: "inside-block", lineNumber: 3 },
+        sourceBlockLineNumber: getContentLineNumber(
+          workspace,
+          "note-source",
+          "Sibling",
+        ),
+        targetPosition: {
+          kind: "inside-block",
+          lineNumber: getContentLineNumber(
+            workspace,
+            "note-source",
+            "\t: Definition",
+          ),
+        },
       },
     );
 
@@ -359,20 +519,26 @@ describe("workspace note block structure move", () => {
       throw new Error(result.reason);
     }
 
-    expect(result.workspaceData.notes.find((note) => note.id === "note-source"))
-      .toMatchObject({
-        source:
-          "Source Title\nRoot\n\t: Definition\n\t\t- Component\n\t\tSibling",
-      });
+    expectNoteSource(
+      result.workspaceData,
+      "note-source",
+      "Source Title\nRoot\n\t: Definition\n\t\t- Component\n\t\tSibling",
+    );
   });
 
   it("rejects invalid note block structure moves", () => {
     const workspace = createStructureOperationWorkspace();
+    const rootLine = getContentLineNumber(workspace, "note-source", "Root");
+    const definitionLine = getContentLineNumber(
+      workspace,
+      "note-source",
+      "\t: Definition",
+    );
 
     expect(
       moveStructureBlock(workspace, {
         noteId: "note-missing",
-        sourceBlockLineNumber: 2,
+        sourceBlockLineNumber: rootLine,
         targetPosition: { kind: "end" },
       }),
     ).toMatchObject({
@@ -392,8 +558,8 @@ describe("workspace note block structure move", () => {
     expect(
       moveStructureBlock(workspace, {
         noteId: "note-source",
-        sourceBlockLineNumber: 2,
-        targetPosition: { kind: "inside-block", lineNumber: 3 },
+        sourceBlockLineNumber: rootLine,
+        targetPosition: { kind: "inside-block", lineNumber: definitionLine },
       }),
     ).toMatchObject({
       reason: "target-inside-source",
@@ -402,7 +568,7 @@ describe("workspace note block structure move", () => {
     expect(
       moveStructureBlock(workspace, {
         noteId: "note-source",
-        sourceBlockLineNumber: 3,
+        sourceBlockLineNumber: definitionLine,
         targetPosition: { kind: "inside-block", lineNumber: 99 },
       }),
     ).toMatchObject({

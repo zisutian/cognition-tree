@@ -1,3 +1,8 @@
+import {
+  formatCtnBlockMetadataLine,
+  parseCtnBlockMetadataLine,
+} from "../metadata/blockMetadata";
+
 type BlockLineRange = {
   endLineNumber: number;
   startLineNumber: number;
@@ -7,6 +12,7 @@ export type CtnBlockTextRange = {
   endLineNumber: number;
   level: number;
   lineNumber: number;
+  metadataLineNumber: number;
 };
 
 export type CtnBlockTextTargetPosition =
@@ -31,6 +37,7 @@ export type MoveCtnBlockTextInput = {
   sourceText: string;
   targetPosition: CtnBlockTextTargetPosition;
   targetText: string;
+  updatedAt?: string;
 };
 
 export type MoveCtnBlockTextResult = {
@@ -43,6 +50,7 @@ export type MoveCtnBlockWithinTextInput = {
   sourceBlock: CtnBlockTextRange;
   sourceText: string;
   targetPosition: CtnBlockTextTargetPosition;
+  updatedAt?: string;
 };
 
 export type MoveCtnBlockWithinTextResult = {
@@ -73,7 +81,7 @@ function assertValidRange(source: string, range: BlockLineRange) {
 function getBlockLineRange(block: CtnBlockTextRange): BlockLineRange {
   return {
     endLineNumber: block.endLineNumber,
-    startLineNumber: block.lineNumber,
+    startLineNumber: block.metadataLineNumber,
   };
 }
 
@@ -119,6 +127,7 @@ function rewriteBlockIndent(
   blockText: string,
   fromLevel: number,
   toLevel: number,
+  updatedAt?: string,
 ) {
   const fromIndent = indentUnit.repeat(Math.max(0, fromLevel));
   const toIndent = indentUnit.repeat(Math.max(0, toLevel));
@@ -133,7 +142,12 @@ function rewriteBlockIndent(
         ? line.slice(fromIndent.length)
         : line.trimStart();
 
-      return `${toIndent}${relativeLine}`;
+      const rewrittenLine = `${toIndent}${relativeLine}`;
+      const metadata = parseCtnBlockMetadataLine(rewrittenLine);
+
+      return metadata && updatedAt
+        ? formatCtnBlockMetadataLine({ ...metadata, updatedAt })
+        : rewrittenLine;
     })
     .join("\n");
 }
@@ -169,7 +183,7 @@ function getTargetInsertionLineNumber(
     case "sibling-below":
       return targetPosition.block.endLineNumber + 1;
     case "sibling-above":
-      return targetPosition.block.lineNumber;
+      return targetPosition.block.metadataLineNumber;
     case "end":
       return getDocumentAppendLineNumber(targetText);
   }
@@ -180,8 +194,8 @@ function isBlockInsideLineRange(
   range: BlockLineRange,
 ) {
   return (
-    block.lineNumber >= range.startLineNumber &&
-    block.lineNumber <= range.endLineNumber
+    block.metadataLineNumber >= range.startLineNumber &&
+    block.metadataLineNumber <= range.endLineNumber
   );
 }
 
@@ -221,6 +235,7 @@ export function moveCtnBlockText(
     extractedText,
     input.sourceBlock.level,
     getTargetLevel(input.targetPosition),
+    input.updatedAt,
   );
   const nextSourceText = removeBlockText(input.sourceText, sourceRange);
   const nextTargetText = insertBlockTextBeforeLine(
@@ -247,6 +262,7 @@ export function moveCtnBlockWithinText(
     extractedText,
     input.sourceBlock.level,
     getTargetLevel(input.targetPosition),
+    input.updatedAt,
   );
   const insertionLineNumber = adjustInsertionLineNumberAfterRemoval(
     getTargetInsertionLineNumber(input.sourceText, input.targetPosition),

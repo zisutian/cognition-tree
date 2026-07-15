@@ -3,7 +3,10 @@ import {
   createWorkspaceRepositorySyntaxSourceFile,
   type WorkspaceRepository,
 } from "../../../../src/storage/workspaceRepository";
-import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
+import {
+  createInitialWorkspaceData,
+  createNoteRecord,
+} from "../../../../src/workspace/model/workspaceData";
 import { createDefaultWorkspaceSyntaxSource } from "../../../../src/workspace/context/workspaceSyntax";
 import { loadWorkspaceSessionSnapshot } from "../../../../src/application/workspace/session/sessionRepositorySnapshot";
 
@@ -62,5 +65,31 @@ describe("loadWorkspaceSessionSnapshot", () => {
       workspaceData: workspace,
       workspaceSyntax: null,
     });
+  });
+
+  it("rejects configured repositories whose notes lack block metadata", async () => {
+    const workspace = {
+      ...createInitialWorkspaceData(),
+      notes: [
+        createNoteRecord(
+          "note-raw",
+          "Raw title",
+          "2026-07-15T00:00:00.000Z",
+        ),
+      ],
+    };
+
+    await expect(
+      loadWorkspaceSessionSnapshot(
+        createRepository({
+          repositoryPath: "/repository",
+          revision: "revision-invalid-metadata",
+          syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
+            createDefaultWorkspaceSyntaxSource(),
+          ),
+          workspace,
+        }),
+      ),
+    ).rejects.toThrow("expected @ctn-block directive");
   });
 });

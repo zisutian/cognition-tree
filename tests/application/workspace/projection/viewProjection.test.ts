@@ -30,11 +30,18 @@ import {
   getUiTextDisplayText,
 } from "../../../../src/application/workspace/projection/viewText";
 import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
+import {
+  addTestCtnBlockMetadata,
+  createTestBlockId,
+} from "../../../ctn/metadata/sourceMetadataFixture";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
 
 function parseFirstRoot(source: string) {
-  const document = parseCtnDocument(source, defaultCtnSyntaxProfile);
+  const document = parseCtnDocument(
+    addTestCtnBlockMetadata(source),
+    defaultCtnSyntaxProfile,
+  );
 
   return document.roots[1];
 }
@@ -83,6 +90,11 @@ function createBlock(
     level: 0,
     lineNumber,
     marker: "-",
+    metadata: {
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    metadataLineNumber: lineNumber,
     rawText: `- Block ${id}`,
     role: "normal",
     text: `Block ${id}`,
@@ -96,19 +108,20 @@ describe("workspace view projection", () => {
   it("creates outline text segments with syntax display metadata", () => {
     const root = parseFirstRoot("标题\n主题 [[全局概念]] 和 `code`");
     const segments = createUiTextSegments(root);
+    const rootId = createTestBlockId(2);
 
     expect(segments).toMatchObject([
-      { id: "block-2-text-0", kind: "text", text: "主题 " },
+      { id: `${rootId}-text-0`, kind: "text", text: "主题 " },
       {
-        id: "2-4-global-reference",
+        id: "4-4-global-reference",
         kind: "inline",
         text: "全局概念",
         textColor: "cyan",
         tone: "blue",
       },
-      { id: "block-2-text-11", kind: "text", text: " 和 " },
+      { id: `${rootId}-text-11`, kind: "text", text: " 和 " },
       {
-        id: "2-15-inline-code",
+        id: "4-15-inline-code",
         kind: "inline",
         text: "code",
         textColor: "green",
@@ -120,17 +133,18 @@ describe("workspace view projection", () => {
 
   it("keeps single inline syntax visible as the underlined content", () => {
     const root = parseFirstRoot("标题\n甲 \\ 乙");
+    const rootId = createTestBlockId(2);
 
     expect(createUiTextSegments(root)).toMatchObject([
-      { id: "block-2-text-0", kind: "text", text: "甲 " },
+      { id: `${rootId}-text-0`, kind: "text", text: "甲 " },
       {
-        id: "2-3-parallel-separator",
+        id: "4-3-parallel-separator",
         kind: "inline",
         text: "\\",
         textColor: "amber",
         tone: "amber",
       },
-      { id: "block-2-text-3", kind: "text", text: " 乙" },
+      { id: `${rootId}-text-3`, kind: "text", text: " 乙" },
     ]);
   });
 

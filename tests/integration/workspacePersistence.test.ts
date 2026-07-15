@@ -12,6 +12,7 @@ import {
 import { createHttpWorkspaceRepository } from "../../src/storage/httpWorkspaceRepository";
 import { createWorkspaceApiServer } from "../../server/workspaceApiServer.ts";
 import { WorkspaceFileStore } from "../../server/workspaceFileStore.ts";
+import { stripTestCtnBlockMetadata } from "../ctn/metadata/sourceMetadataFixture";
 
 type TestRepositoryServer = {
   baseUrl: string;
@@ -137,10 +138,14 @@ describe("workspace persistence integration", () => {
     expect(reloadedState.workspace.data.notes).toEqual([
       expect.objectContaining({
         id: noteId,
-        source: "集成测试笔记\n\t: 已写入磁盘",
         title: "集成测试笔记",
       }),
     ]);
+    expect(
+      stripTestCtnBlockMetadata(
+        reloadedState.workspace.data.notes[0].source,
+      ),
+    ).toBe("集成测试笔记\n\t: 已写入磁盘");
     expect(reloadedState.workspaceSyntax?.source).toBe(
       reloadedState.defaultWorkspaceSyntax.source,
     );

@@ -7,6 +7,7 @@ import {
   getInlineDecorationClass,
   getMarkerDecorationStyle,
   getMarkerDecorationClass,
+  getMetadataLineDecorationClass,
   getMultilineMarkDecorationClass,
   getMultilineMarkDecorationStyle,
   shouldDecorateMarker,
@@ -24,6 +25,11 @@ function createBlock(overrides: Partial<CtnBlock>): CtnBlock {
     level: 0,
     lineNumber: 1,
     marker: ":",
+    metadata: {
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    },
+    metadataLineNumber: 1,
     role: "normal",
     rawText: ": Definition",
     text: "Definition",
@@ -35,6 +41,10 @@ function createBlock(overrides: Partial<CtnBlock>): CtnBlock {
 }
 
 describe("ctn editor decorations", () => {
+  it("uses a dedicated weak metadata line class", () => {
+    expect(getMetadataLineDecorationClass()).toBe("ctn-metadata-line");
+  });
+
   it("decorates known markers", () => {
     expect(shouldDecorateMarker(createBlock({ marker: ":" }))).toBe(true);
   });

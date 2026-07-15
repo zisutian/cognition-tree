@@ -18,6 +18,7 @@ import {
   type WorkspaceStructureIndex,
 } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceData } from "../../../workspace/model/workspaceData";
+import { initializeWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
 import {
   createSessionCommands,
   type SessionCommands,
@@ -264,6 +265,8 @@ export function createWorkspaceSessionController({
   };
   const commands = createSessionCommands({
     commitDataSnapshot: commitWorkspaceData,
+    getSyntaxProfile: () =>
+      requireAvailableSession().workspaceSyntax?.profile ?? null,
     getWorkspace: () => requireAvailableSession().workspace,
   });
 
@@ -462,9 +465,21 @@ export function createWorkspaceSessionController({
     const syntaxSourceFile = createWorkspaceRepositorySyntaxSourceFile(
       workspaceSyntax.source,
     );
+    const workspaceData = session.syntaxSourceFile
+      ? session.workspaceData
+      : initializeWorkspaceBlockMetadata(
+          session.workspaceData,
+          workspaceSyntax.profile,
+        );
+
+    if (workspaceData !== session.workspaceData) {
+      updateLoadedWorkspace(workspaceData);
+    }
+
+    const currentSession = requireAvailableSession();
 
     loadedSession = {
-      ...session,
+      ...currentSession,
       latestWorkspaceSyntax: workspaceSyntax,
       syntaxSourceFile,
     };
@@ -475,7 +490,7 @@ export function createWorkspaceSessionController({
 
     await saveQueue.enqueueAndWait({
       syntaxSourceFile,
-      workspace: loadedSession.workspaceData,
+      workspace: workspaceData,
     });
   };
 

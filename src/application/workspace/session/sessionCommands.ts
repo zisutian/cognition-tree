@@ -22,6 +22,7 @@ import type {
   NoteId,
   WorkspaceData,
 } from "../../../workspace/model/workspaceData";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
 type CreateWorkspaceFolderCommand = Parameters<
@@ -92,9 +93,11 @@ function createTimestamp() {
 
 export function createSessionCommands({
   commitDataSnapshot,
+  getSyntaxProfile,
   getWorkspace,
 }: {
   commitDataSnapshot: (workspaceData: WorkspaceData) => void;
+  getSyntaxProfile: () => CtnSyntaxProfile | null;
   getWorkspace: () => WorkspaceStructureIndex;
 }): SessionCommands {
   return {
@@ -119,6 +122,7 @@ export function createSessionCommands({
         createWorkspaceNoteAction(workspace, {
           noteId,
           parentFolderId,
+          syntaxProfile: getSyntaxProfile(),
           timestamp: createTimestamp(),
         }),
       );
@@ -203,6 +207,7 @@ export function createSessionCommands({
           noteId,
           source,
           createTimestamp(),
+          getSyntaxProfile(),
         ),
       );
     },

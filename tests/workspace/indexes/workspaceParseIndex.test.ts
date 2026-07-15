@@ -11,8 +11,21 @@ import {
 } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
+import { addTestCtnBlockMetadata } from "../../ctn/metadata/sourceMetadataFixture";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
+
+function createParsedNoteRecord(
+  id: string,
+  source: string,
+  idOffset = 0,
+) {
+  return createNoteRecord(
+    id,
+    addTestCtnBlockMetadata(source, defaultCtnSyntaxProfile, idOffset),
+    timestamp,
+  );
+}
 
 function createParseIndexSource(
   notes: NoteRecord[],
@@ -29,10 +42,9 @@ function createParseIndexSource(
 
 describe("createWorkspaceParseIndex", () => {
   it("parses notes only when a parsed note is requested", () => {
-    const note = createNoteRecord(
+    const note = createParsedNoteRecord(
       "note-source",
       "Source [[Target]]",
-      timestamp,
     );
     const source = createParseIndexSource([note]);
     const index = createWorkspaceParseIndex(source);
@@ -44,12 +56,11 @@ describe("createWorkspaceParseIndex", () => {
   });
 
   it("builds reference graph data on demand", () => {
-    const source = createNoteRecord(
+    const source = createParsedNoteRecord(
       "note-source",
       "Source [[Target]]",
-      timestamp,
     );
-    const target = createNoteRecord("note-target", "Target", timestamp);
+    const target = createParsedNoteRecord("note-target", "Target", 100);
     const index = createWorkspaceParseIndex(
       createParseIndexSource([source, target]),
     );
@@ -65,16 +76,15 @@ describe("createWorkspaceParseIndex", () => {
   });
 
   it("resolves a reference to every note with the same normalized title", () => {
-    const source = createNoteRecord(
+    const source = createParsedNoteRecord(
       "note-source",
       "Source [[Target]]",
-      timestamp,
     );
-    const firstTarget = createNoteRecord("note-target-a", "Target", timestamp);
-    const secondTarget = createNoteRecord(
+    const firstTarget = createParsedNoteRecord("note-target-a", "Target", 100);
+    const secondTarget = createParsedNoteRecord(
       "note-target-b",
       "  Target  ",
-      timestamp,
+      200,
     );
     const index = createWorkspaceParseIndex(
       createParseIndexSource([source, firstTarget, secondTarget]),
@@ -86,8 +96,8 @@ describe("createWorkspaceParseIndex", () => {
   });
 
   it("reuses parsed documents for unchanged note sources", () => {
-    const source = createNoteRecord("note-source", "Source", timestamp);
-    const target = createNoteRecord("note-target", "Target", timestamp);
+    const source = createParsedNoteRecord("note-source", "Source");
+    const target = createParsedNoteRecord("note-target", "Target", 100);
     const firstParseSource = createParseIndexSource([source, target]);
     const firstIndex = createWorkspaceParseIndex(firstParseSource);
     const firstParsedSource = firstIndex.getParsedNote("note-source");
@@ -97,7 +107,11 @@ describe("createWorkspaceParseIndex", () => {
         source,
         {
           ...target,
-          source: "Target\n\t: Changed",
+          source: addTestCtnBlockMetadata(
+            "Target\n\t: Changed",
+            defaultCtnSyntaxProfile,
+            100,
+          ),
         },
       ]),
       firstIndex,
@@ -110,7 +124,7 @@ describe("createWorkspaceParseIndex", () => {
   });
 
   it("keeps parse reuse inside the workspace index cache", () => {
-    const note = createNoteRecord("note-source", "Source", timestamp);
+    const note = createParsedNoteRecord("note-source", "Source");
     const cache = createWorkspaceParseIndexCache();
     const firstIndex = cache.resolve(createParseIndexSource([note]));
     const firstParsedNote = firstIndex.getParsedNote("note-source");
@@ -128,12 +142,11 @@ describe("createWorkspaceParseIndex", () => {
   });
 
   it("reuses reference graph data for unchanged note graph inputs", () => {
-    const source = createNoteRecord(
+    const source = createParsedNoteRecord(
       "note-source",
       "Source [[Target]]",
-      timestamp,
     );
-    const target = createNoteRecord("note-target", "Target", timestamp);
+    const target = createParsedNoteRecord("note-target", "Target", 100);
     const firstIndex = createWorkspaceParseIndex(
       createParseIndexSource([source, target]),
     );
@@ -147,7 +160,7 @@ describe("createWorkspaceParseIndex", () => {
   });
 
   it("reparses unchanged note sources when the parse profile changes", () => {
-    const note = createNoteRecord("note-source", "Source", timestamp);
+    const note = createParsedNoteRecord("note-source", "Source");
     const firstIndex = createWorkspaceParseIndex(createParseIndexSource([note]));
     const firstParsedNote = firstIndex.getParsedNote("note-source");
     const secondIndex = createWorkspaceParseIndex(

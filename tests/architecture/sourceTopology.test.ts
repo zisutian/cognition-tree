@@ -57,7 +57,7 @@ describe("source topology", () => {
       "model",
       "queries",
     ]);
-    expect(listSubdirectories("ctn")).toEqual(["parser", "syntax"]);
+    expect(listSubdirectories("ctn")).toEqual(["metadata", "parser", "syntax"]);
     expect(listSourceFiles("workspace").filter((path) => path.endsWith(".tsx")))
       .toEqual([]);
   });

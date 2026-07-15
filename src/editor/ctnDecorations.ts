@@ -5,7 +5,10 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import { parseCtnDocument } from "../ctn/parser/parseCtnDocument";
+import {
+  CtnDocumentMetadataError,
+  parseCtnDocument,
+} from "../ctn/parser/parseCtnDocument";
 import type {
   CtnBlock,
   CtnDocument,
@@ -134,6 +137,10 @@ function getBlockTextDecorationStyle(block: CtnBlock) {
   return getCtnEditorTextColorStyle(block.textColor);
 }
 
+export function getMetadataLineDecorationClass() {
+  return "ctn-metadata-line";
+}
+
 function buildCtnDecorations(
   view: EditorView,
   parsedDocument: CtnDocument,
@@ -141,6 +148,14 @@ function buildCtnDecorations(
   const decorations = [];
 
   for (const block of parsedDocument.blocks) {
+    const metadataLine = view.state.doc.line(block.metadataLineNumber);
+
+    decorations.push(
+      Decoration.line({
+        attributes: { class: getMetadataLineDecorationClass() },
+      }).range(metadataLine.from),
+    );
+
     if (block.role === "multiline" && block.endLineNumber > block.lineNumber) {
       for (
         let lineNumber = block.lineNumber;
@@ -302,11 +317,20 @@ export function createCtnParseDecorationPlugin(syntaxProfileRef: {
 
         if (update.docChanged || nextProfileKey !== this.profileKey) {
           this.profileKey = nextProfileKey;
-          this.document = parseEditorDocument(
-            update.view,
-            syntaxProfileRef.current,
-          );
-          this.decorations = buildCtnDecorations(update.view, this.document);
+
+          try {
+            this.document = parseEditorDocument(
+              update.view,
+              syntaxProfileRef.current,
+            );
+            this.decorations = buildCtnDecorations(update.view, this.document);
+          } catch (error) {
+            if (!(error instanceof CtnDocumentMetadataError)) {
+              throw error;
+            }
+
+            this.decorations = this.decorations.map(update.changes);
+          }
         }
       }
     },
