@@ -3,6 +3,7 @@ import {
   getStructureOperationDirectoryNoteStatus,
 } from "../../../../src/ui/activities/structure-operation/StructureOperationContext";
 import { findBlockByLineNumber } from "../../../../src/ui/activities/structure-operation/structureOperationBlocks";
+import { createStructureBlockMoveOptions } from "../../../../src/ui/activities/structure-operation/StructureBlockMoveQuickPick";
 import {
   canDropStructureBlockAtEnd,
   canDropStructureBlockOnLine,
@@ -177,6 +178,72 @@ describe("structure operation panels", () => {
 
     expect(findBlockByLineNumber(roots, "2")?.id).toBe("block-2");
     expect(findBlockByLineNumber(roots, "not-a-line")).toBeNull();
+  });
+
+  it("builds non-pointer move targets without offering the source subtree", () => {
+    const roots = [
+      {
+        children: [
+          {
+            children: [],
+            hasDiagnostics: false,
+            id: "block-2",
+            label: "定义",
+            lineLabel: "L2",
+            lineNumber: 2,
+            textDisplay: {
+              displayText: "源块子项",
+              segments: [
+                { id: "text", kind: "text" as const, text: "源块子项" },
+              ],
+              textColor: "default",
+            },
+          },
+        ],
+        hasDiagnostics: false,
+        id: "block-1",
+        label: "组分",
+        lineLabel: "L1-L2",
+        lineNumber: 1,
+        textDisplay: {
+          displayText: "源块",
+          segments: [{ id: "text", kind: "text" as const, text: "源块" }],
+          textColor: "default",
+        },
+      },
+      {
+        children: [],
+        hasDiagnostics: false,
+        id: "block-3",
+        label: "理解",
+        lineLabel: "L3",
+        lineNumber: 3,
+        textDisplay: {
+          displayText: "合法目标",
+          segments: [
+            { id: "text", kind: "text" as const, text: "合法目标" },
+          ],
+          textColor: "default",
+        },
+      },
+    ];
+    const options = createStructureBlockMoveOptions({
+      blockedLineNumbers: new Set([1, 2]),
+      nodes: roots,
+    });
+
+    expect(options.map((option) => option.position)).toEqual([
+      "sibling-above:3",
+      "inside:3",
+      "sibling-below:3",
+      "end",
+    ]);
+    expect(options.every((option) => !option.id.endsWith(":1"))).toBe(true);
+    expect(options.every((option) => !option.id.endsWith(":2"))).toBe(true);
+    expect(options.at(-1)).toMatchObject({
+      label: "文末根块",
+      position: "end",
+    });
   });
 
   it("maps structure row pointer position to stable drop positions", () => {

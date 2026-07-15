@@ -4,6 +4,10 @@ import {
   useState,
 } from "react";
 import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
+import {
+  ContextMenu,
+  type ContextMenuPosition,
+} from "../../shared/ContextMenu";
 import { Section } from "../../shared/primitives";
 import {
   findBlockByLineNumber,
@@ -15,6 +19,7 @@ import {
   canDropStructureBlockAtEnd,
   getBlockedStructureDropLineNumbers,
 } from "./structureOperationDropTargets";
+import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick";
 
 export function StructureOperationStructureView({
   view,
@@ -29,6 +34,13 @@ export function StructureOperationStructureView({
     null,
   );
   const [activeTargetLineNumber, setActiveTargetLineNumber] = useState<
+    number | null
+  >(null);
+  const [moveContext, setMoveContext] = useState<{
+    lineNumber: number;
+    position: ContextMenuPosition;
+  } | null>(null);
+  const [moveSourceLineNumber, setMoveSourceLineNumber] = useState<
     number | null
   >(null);
   const selectedBlock = findBlockByLineNumber(
@@ -47,6 +59,8 @@ export function StructureOperationStructureView({
     setDraggingLineNumber(null);
     setActiveDropPosition(null);
     setActiveTargetLineNumber(null);
+    setMoveContext(null);
+    setMoveSourceLineNumber(null);
   }, [view.mode, view.structureNoteId]);
 
   const finishDrag = () => {
@@ -97,6 +111,10 @@ export function StructureOperationStructureView({
               onDragEnd={finishDrag}
               onDragStartLine={startDrag}
               onDropLine={dropLine}
+              onRequestMoveLine={(lineNumber, position) => {
+                setSelectedLineNumber(String(lineNumber));
+                setMoveContext({ lineNumber, position });
+              }}
               onSelectLine={(lineNumber) =>
                 setSelectedLineNumber(String(lineNumber))
               }
@@ -116,6 +134,28 @@ export function StructureOperationStructureView({
           <p className="ui-muted">当前笔记结构没有可调整块。</p>
         )}
       </Section>
+      <ContextMenu
+        ariaLabel="结构块操作"
+        items={moveContext
+          ? [
+              {
+                id: "move-to",
+                label: "移动到…",
+                onSelect: () =>
+                  setMoveSourceLineNumber(moveContext.lineNumber),
+              },
+            ]
+          : []}
+        position={moveContext?.position ?? null}
+        onClose={() => setMoveContext(null)}
+      />
+      <StructureBlockMoveQuickPick
+        blockedLineNumbers={blockedLineNumbers}
+        nodes={view.structureRoots}
+        sourceLineNumber={moveSourceLineNumber}
+        onClose={() => setMoveSourceLineNumber(null)}
+        onMove={dropLine}
+      />
     </div>
   );
 }

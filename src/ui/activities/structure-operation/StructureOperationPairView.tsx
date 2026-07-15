@@ -2,9 +2,14 @@ import { ArrowLeftRight } from "lucide-react";
 import {
   useEffect,
   useState,
+  type MouseEvent,
 } from "react";
 import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import { Button, Section } from "../../shared/primitives";
+import {
+  ContextMenu,
+  type ContextMenuPosition,
+} from "../../shared/ContextMenu";
 import { StructureTree } from "../../shared/tree";
 import {
   blockLineDragDataType,
@@ -20,6 +25,7 @@ import {
   canDropStructureBlockAtEnd,
   emptySelectedLineNumbers,
 } from "./structureOperationDropTargets";
+import { StructureBlockMoveQuickPick } from "./StructureBlockMoveQuickPick";
 
 export function StructureOperationPairView({
   view,
@@ -36,6 +42,13 @@ export function StructureOperationPairView({
   const [activeTargetLineNumber, setActiveTargetLineNumber] = useState<
     number | null
   >(null);
+  const [moveContext, setMoveContext] = useState<{
+    lineNumber: number;
+    position: ContextMenuPosition;
+  } | null>(null);
+  const [moveSourceLineNumber, setMoveSourceLineNumber] = useState<
+    number | null
+  >(null);
   const sourceBlock = findBlockByLineNumber(
     view.sourceBlocks,
     sourceLineNumber,
@@ -48,6 +61,8 @@ export function StructureOperationPairView({
     setDraggingLineNumber(null);
     setActiveDropPosition(null);
     setActiveTargetLineNumber(null);
+    setMoveContext(null);
+    setMoveSourceLineNumber(null);
   }, [view.sourceNoteId, view.targetNoteId]);
 
   const finishDrag = () => {
@@ -65,6 +80,22 @@ export function StructureOperationPairView({
     setSourceLineNumber(lineNumber);
     view.onMoveStructureBlockBetweenNotes(lineNumber, position);
     finishDrag();
+  };
+  const openMoveContext = (
+    event: MouseEvent<HTMLButtonElement>,
+    lineNumber: number,
+  ) => {
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    setSourceLineNumber(String(lineNumber));
+    setMoveContext({
+      lineNumber,
+      position: {
+        x: event.clientX || rect.left + rect.width / 2,
+        y: event.clientY || rect.bottom,
+      },
+    });
   };
 
   return (
@@ -90,6 +121,8 @@ export function StructureOperationPairView({
                 event.dataTransfer.setData("text/plain", payload);
                 startDrag(node.lineNumber);
               },
+              onContextMenu: (event) =>
+                openMoveContext(event, node.lineNumber),
             })}
             indentUnitCount={view.indentUnitCount}
             nodes={view.sourceRoots}
@@ -159,6 +192,28 @@ export function StructureOperationPairView({
           <p className="ui-muted">目标笔记没有结构。</p>
         )}
       </Section>
+      <ContextMenu
+        ariaLabel="结构块操作"
+        items={moveContext
+          ? [
+              {
+                id: "move-to",
+                label: "移动到…",
+                onSelect: () =>
+                  setMoveSourceLineNumber(moveContext.lineNumber),
+              },
+            ]
+          : []}
+        position={moveContext?.position ?? null}
+        onClose={() => setMoveContext(null)}
+      />
+      <StructureBlockMoveQuickPick
+        blockedLineNumbers={emptySelectedLineNumbers}
+        nodes={view.targetRoots}
+        sourceLineNumber={moveSourceLineNumber}
+        onClose={() => setMoveSourceLineNumber(null)}
+        onMove={dropLine}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   type UiBlockNode,
 } from "../../../application/workspace/projection/viewBlocks";
 import { cx } from "../../shared/primitives";
+import type { ContextMenuPosition } from "../../shared/ContextMenu";
 import {
   StructureTree,
   type StructureTreeRowProps,
@@ -171,6 +172,7 @@ export function StructureOperationTargetTree({
   onDragEnd,
   onDragStartLine,
   onDropLine,
+  onRequestMoveLine,
   onSelectLine,
   onSetActiveDropPosition,
 }: {
@@ -187,6 +189,10 @@ export function StructureOperationTargetTree({
   onDragEnd?: () => void;
   onDragStartLine?: (lineNumber: number) => void;
   onDropLine: (lineNumber: string, position: string) => void;
+  onRequestMoveLine?: (
+    lineNumber: number,
+    position: ContextMenuPosition,
+  ) => void;
   onSelectLine?: (lineNumber: number) => void;
   onSetActiveDropPosition: (position: string | null) => void;
 }) {
@@ -215,6 +221,17 @@ export function StructureOperationTargetTree({
       "data-structure-row-drop": "true",
       draggable,
       onDragEnd,
+      onContextMenu: onRequestMoveLine
+        ? (event) => {
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+
+            onRequestMoveLine(node.lineNumber, {
+              x: event.clientX || rect.left + rect.width / 2,
+              y: event.clientY || rect.bottom,
+            });
+          }
+        : undefined,
       onDragLeave: (event) => {
         const nextTarget = event.relatedTarget;
 

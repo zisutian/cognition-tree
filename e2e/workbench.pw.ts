@@ -188,6 +188,30 @@ test.describe.serial("workbench browser baseline", () => {
 
     await getActivityButton(page, "结构操作").click();
     const structureOperationContext = page.locator(".app-context");
+    const structureColumns = page.locator(".structure-operation-column");
+    const sourceStructure = structureColumns.first();
+    const targetStructure = structureColumns.nth(1);
+    const sourceStructureRow = sourceStructure
+      .locator(".ui-structure-tree-row")
+      .first();
+    const movedStructureTitle = await sourceStructureRow.getAttribute("title");
+
+    expect(movedStructureTitle).not.toBeNull();
+    await sourceStructureRow.click({ button: "right" });
+
+    const structureMenu = page.getByRole("menu", { name: "结构块操作" });
+
+    await expect(structureMenu.getByRole("menuitem")).toHaveCount(1);
+    await structureMenu.getByRole("menuitem", { name: "移动到…" }).click();
+
+    const structureMoveQuickPick = page.getByRole("dialog", {
+      name: "移动结构块",
+    });
+
+    await structureMoveQuickPick
+      .getByRole("option", { name: /文末根块/ })
+      .click();
+    await expect(targetStructure.getByTitle(movedStructureTitle ?? "")).toBeVisible();
 
     await page.getByRole("button", { name: "笔记结构", exact: true }).click();
     await structureOperationContext.getByTitle("Beta").click();
