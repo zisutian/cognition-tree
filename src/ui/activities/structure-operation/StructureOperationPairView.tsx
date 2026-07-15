@@ -1,6 +1,7 @@
 import { ArrowLeftRight } from "lucide-react";
 import {
   useEffect,
+  useMemo,
   useState,
   type MouseEvent,
 } from "react";
@@ -54,6 +55,12 @@ export function StructureOperationPairView({
     sourceLineNumber,
   );
   const selectedLineNumbers = useSelectedBlockLines(sourceBlock);
+  const keepMountedLineNumbers = useMemo(
+    () => draggingLineNumber
+      ? new Set([Number(draggingLineNumber)])
+      : undefined,
+    [draggingLineNumber],
+  );
   const showEndDropTarget = canDropStructureBlockAtEnd(draggingLineNumber);
 
   useEffect(() => {
@@ -125,6 +132,7 @@ export function StructureOperationPairView({
                 openMoveContext(event, node.lineNumber),
             })}
             indentUnitCount={view.indentUnitCount}
+            keepMountedLineNumbers={keepMountedLineNumbers}
             nodes={view.sourceRoots}
             selectedLineNumbers={selectedLineNumbers}
             selectedRootLineNumber={sourceBlock?.lineNumber ?? null}

@@ -6,6 +6,8 @@ import {
   createTreeMoveOptions,
   createTreeNodeDragPayload,
   createTreeRowDropDestination,
+  flattenStructureTreeRows,
+  flattenVisibleDirectoryTreeRows,
   getStructureTreeIndentWidthPx,
   getTreeDragClassNames,
   getTreeNodeReferenceKey,
@@ -13,6 +15,9 @@ import {
   NoteTree,
   readTreeNodeDragPayload,
   StructureTree,
+  shouldVirtualizeTreeRows,
+  treeRowHeightPx,
+  treeVirtualizationThreshold,
   treeNodeDragDataType,
 } from "../../../src/ui/shared/tree";
 
@@ -25,6 +30,92 @@ const treeCss = readFileSync(
 );
 
 describe("shared trees", () => {
+  it("flattens directory and structure trees with their own depth rules", () => {
+    const directoryNodes = [
+      {
+        canDrag: true,
+        children: [
+          {
+            canDrag: true,
+            folderId: "folder-1",
+            id: "tree-note-1",
+            kind: "note" as const,
+            noteId: "note-1",
+            parentFolderId: "folder-1",
+            title: "笔记",
+          },
+        ],
+        folderId: "folder-1",
+        id: "folder-1",
+        kind: "folder" as const,
+        parentFolderId: null,
+        title: "文件夹",
+      },
+    ];
+    const structureNodes = [
+      {
+        children: [
+          {
+            children: [],
+            hasDiagnostics: false,
+            id: "block-2",
+            label: "定义",
+            lineLabel: "L2",
+            lineNumber: 2,
+            textDisplay: {
+              displayText: "子块",
+              segments: [{ id: "text", kind: "text" as const, text: "子块" }],
+              textColor: "default",
+            },
+          },
+        ],
+        hasDiagnostics: false,
+        id: "block-1",
+        label: "概念",
+        lineLabel: "L1",
+        lineNumber: 1,
+        textDisplay: {
+          displayText: "根块",
+          segments: [{ id: "text", kind: "text" as const, text: "根块" }],
+          textColor: "default",
+        },
+      },
+    ];
+
+    expect(
+      flattenVisibleDirectoryTreeRows(directoryNodes).map(
+        ({ depth, node }) => [node.id, depth],
+      ),
+    ).toEqual([
+      ["folder-1", 0],
+      ["tree-note-1", 1],
+    ]);
+    expect(
+      flattenVisibleDirectoryTreeRows(
+        directoryNodes,
+        new Set(["folder-1"]),
+      ).map(({ node }) => node.id),
+    ).toEqual(["folder-1"]);
+    expect(
+      flattenStructureTreeRows(structureNodes).map(({ depth, node }) => [
+        node.id,
+        depth,
+      ]),
+    ).toEqual([
+      ["block-1", 0],
+      ["block-2", 1],
+    ]);
+  });
+
+  it("virtualizes only after the fixed 500-row capacity boundary", () => {
+    expect(treeRowHeightPx).toBe(22);
+    expect(treeVirtualizationThreshold).toBe(500);
+    expect(shouldVirtualizeTreeRows(500)).toBe(false);
+    expect(shouldVirtualizeTreeRows(501)).toBe(true);
+    expect(treeCss).toContain(".ui-virtual-tree-row");
+    expect(treeCss).toContain("--ui-directory-depth");
+  });
+
   it("renders note and folder rows with shared tree classes", () => {
     const markup = renderToStaticMarkup(
       <NoteTree

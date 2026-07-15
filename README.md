@@ -59,6 +59,10 @@
     pnpm build
     git diff --check
 
+固定生成 1000 篇笔记、10 万块并测量索引、投影、完整快照和文件写盘：
+
+    pnpm benchmark:capacity
+
 后端脚本语法检查：
 
     pnpm exec tsc -p tsconfig.server.json --noEmit

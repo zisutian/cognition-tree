@@ -35,6 +35,7 @@ export type StructureTreeProps = {
     state: StructureTreeRowState,
   ) => StructureTreeRowProps;
   indentUnitCount?: number;
+  keepMountedLineNumbers?: ReadonlySet<number>;
   nodes: StructureTreeNode[];
   selectedLineNumbers?: ReadonlySet<number>;
   selectedRootLineNumber?: number | null;

@@ -1,4 +1,4 @@
-import type { DragEvent } from "react";
+import { useMemo, type DragEvent } from "react";
 import {
   flattenUiBlockSubtree,
   type UiBlockNode,
@@ -196,6 +196,11 @@ export function StructureOperationTargetTree({
   onSelectLine?: (lineNumber: number) => void;
   onSetActiveDropPosition: (position: string | null) => void;
 }) {
+  const draggedLineNumber = readPositiveLineNumber(draggingLineNumber);
+  const keepMountedLineNumbers = useMemo(
+    () => draggedLineNumber ? new Set([draggedLineNumber]) : undefined,
+    [draggedLineNumber],
+  );
   const getRowProps = (node: UiBlockNode): StructureTreeRowProps => {
     const isActiveTarget =
       draggingLineNumber !== null &&
@@ -311,6 +316,7 @@ export function StructureOperationTargetTree({
       className="structure-operation-target-tree"
       getRowProps={getRowProps}
       indentUnitCount={indentUnitCount}
+      keepMountedLineNumbers={keepMountedLineNumbers}
       nodes={nodes}
       selectedLineNumbers={selectedLineNumbers}
       selectedRootLineNumber={selectedRootLineNumber}

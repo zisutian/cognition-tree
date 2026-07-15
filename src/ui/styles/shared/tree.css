@@ -7,6 +7,31 @@
   list-style: none;
 }
 
+.ui-virtual-tree {
+  position: relative;
+  display: block;
+  flex: none;
+}
+
+.ui-virtual-tree-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.ui-directory-tree-virtual-row {
+  padding-left: calc(
+    var(--ui-directory-depth, 0) * var(--ui-tree-indent)
+  );
+}
+
+.ui-virtual-tree-row > .ui-tree-row,
+.ui-directory-tree-virtual-row > .ui-tree-row-frame {
+  height: 100%;
+}
+
 .ui-directory-tree-surface {
   flex: 1;
   min-height: var(--ui-tree-row-height);

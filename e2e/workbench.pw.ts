@@ -117,6 +117,60 @@ async function seedRawRepository(api: APIRequestContext) {
   expect(createResponse.ok()).toBe(true);
 }
 
+async function seedLargeTreeRepository(api: APIRequestContext) {
+  const noteCount = 600;
+  const structureBlockCount = 600;
+  const structureNote = {
+    createdAt: timestamp,
+    id: "large-structure",
+    source: createSeedSource(
+      [
+        "Large Structure",
+        ...Array.from(
+          { length: structureBlockCount },
+          (_, index) => `\t- Block ${index}`,
+        ),
+      ].join("\n"),
+      1_000_000,
+    ),
+    title: "Large Structure",
+    updatedAt: timestamp,
+  };
+  const notes = Array.from({ length: noteCount }, (_, index) => ({
+    createdAt: timestamp,
+    id: `large-note-${index}`,
+    source: createSeedSource(`Large Note ${index}`, 2_000_000 + index),
+    title: `Large Note ${index}`,
+    updatedAt: timestamp,
+  }));
+  const createResponse = await api.post("/api/repositories", {
+    data: {
+      content: {
+        syntaxSourceFile: {
+          fileName: repositorySyntaxFileName,
+          source: createDefaultWorkspaceSyntaxSource(),
+        },
+        workspace: {
+          id: "large-workspace",
+          name: "大树回归仓库",
+          notes: [structureNote, ...notes],
+          tree: [
+            { id: "tree-large-structure", kind: "note", noteId: structureNote.id },
+            ...notes.map((note) => ({
+              id: `tree-${note.id}`,
+              kind: "note" as const,
+              noteId: note.id,
+            })),
+          ],
+        },
+      },
+      id: "large",
+    },
+  });
+
+  expect(createResponse.ok()).toBe(true);
+}
+
 async function openWorkbench(page: Page) {
   await page.goto("/");
   await expect(page.getByRole("navigation", { name: "工作区功能" })).toBeVisible();
@@ -136,6 +190,7 @@ test.describe.serial("workbench browser baseline", () => {
     api = await createRequest.newContext({ baseURL: apiBaseUrl });
     await seedRepository(api);
     await seedRawRepository(api);
+    await seedLargeTreeRepository(api);
   });
 
   test.afterAll(async () => {
@@ -371,11 +426,11 @@ test.describe.serial("workbench browser baseline", () => {
     await openWorkbench(page);
     await page.locator(".app-context").getByTitle("Alpha").click();
 
-    const definitionLine = page
+    const compositionLine = page
       .locator(".source-editor .cm-line")
-      .filter({ hasText: ": [[Beta]]" });
+      .filter({ hasText: "- Alpha 子项" });
 
-    await definitionLine.click();
+    await compositionLine.click();
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
     await page.keyboard.type(": 浏览器新增");
@@ -389,7 +444,7 @@ test.describe.serial("workbench browser baseline", () => {
         (note) => note.id === "note-alpha",
       )?.source ?? "";
 
-      return /: \[\[Beta\]\][\s\S]*@ctn-block id=[^\n]+\n\t: 浏览器新增[\s\S]*\t- Alpha 子项/.test(
+      return /\t- Alpha 子项[\s\S]*@ctn-block id=[^\n]+\n\t: 浏览器新增/.test(
         source,
       );
     }).toBe(true);
@@ -536,5 +591,48 @@ test.describe.serial("workbench browser baseline", () => {
       return snapshot.workspace.notes.find(({ id }) => id === "note-alpha")
         ?.source.includes("offline-pending") ?? false;
     }).toBe(true);
+  });
+
+  test("virtualizes large directory and structure trees", async ({ page }) => {
+    await openWorkbench(page);
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption("large");
+
+    const context = page.locator(".activity-context-content");
+    const directoryTree = context.locator(
+      '.ui-directory-tree[data-virtual-row-count="601"]',
+    );
+
+    await expect(directoryTree).toBeVisible();
+    await expect(
+      directoryTree.locator(".ui-directory-tree-virtual-row").first(),
+    ).toHaveAttribute("aria-setsize", "601");
+    expect(await directoryTree.locator(".ui-tree-row-frame").count())
+      .toBeLessThan(100);
+    await context.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(context.getByTitle("Large Note 599")).toBeVisible();
+
+    await context.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    await context.getByTitle("Large Structure").click();
+
+    const detailScroll = page.locator(".app-detail .ui-panel-body-scroll");
+    const structureTree = detailScroll.locator(
+      '.ui-structure-tree[data-virtual-row-count="600"]',
+    );
+
+    await expect(structureTree).toBeVisible();
+    await expect(
+      structureTree.locator(".ui-virtual-tree-row").first(),
+    ).toHaveAttribute("aria-setsize", "600");
+    expect(await structureTree.locator(".ui-structure-tree-row").count())
+      .toBeLessThan(100);
+    await detailScroll.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(structureTree.getByTitle("组分: Block 599")).toBeVisible();
   });
 });

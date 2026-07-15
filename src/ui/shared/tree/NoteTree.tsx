@@ -5,11 +5,12 @@ import {
   Folder,
 } from "lucide-react";
 import type {
+  CSSProperties,
   DragEvent,
   Dispatch,
   SetStateAction,
 } from "react";
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../ConfirmDialog";
 import {
   ContextMenu,
@@ -29,6 +30,10 @@ import {
   readTreeNodeDragPayload,
   treeNodeDragDataType,
 } from "./drag";
+import {
+  flattenVisibleDirectoryTreeRows,
+  type DirectoryTreeRow,
+} from "./directoryRows";
 import type {
   NoteTreeActiveNode,
   NoteTreeProps,
@@ -36,6 +41,14 @@ import type {
   TreeNode,
   TreeNodeReference,
 } from "./types";
+import {
+  shouldVirtualizeTreeRows,
+  useVirtualTreeRows,
+} from "./virtualTree";
+
+type VirtualDirectoryTreeItemStyle = CSSProperties & {
+  "--ui-directory-depth": string;
+};
 
 function getRowDropDestination(
   event: DragEvent<HTMLDivElement>,
@@ -67,9 +80,15 @@ function isActiveTreeNode({
 }
 
 type NoteTreeContentProps = NoteTreeProps & {
+  bare?: boolean;
   dragState: TreeDragState | null;
   editingNode: { key: string; title: string } | null;
+  itemClassName?: string;
+  itemPosition?: number;
+  itemSetSize?: number;
+  itemStyle?: CSSProperties;
   pendingDeleteNode: TreeNode | null;
+  renderDescendants?: boolean;
   rootNodes: TreeNode[];
   runAction: (action: () => void) => void;
   setContextMenuNode: Dispatch<SetStateAction<TreeNode | null>>;
@@ -83,6 +102,7 @@ type NoteTreeContentProps = NoteTreeProps & {
 
 function NoteTreeContent({
   activeNode,
+  bare = false,
   canDragNode,
   canDropDestination,
   className,
@@ -99,7 +119,12 @@ function NoteTreeContent({
   onToggleFolder,
   dragState,
   editingNode,
+  itemClassName,
+  itemPosition,
+  itemSetSize,
+  itemStyle,
   pendingDeleteNode,
+  renderDescendants = true,
   rootNodes,
   runAction,
   setContextMenuNode,
@@ -108,9 +133,7 @@ function NoteTreeContent({
   setEditingNode,
   setPendingDeleteNode,
 }: NoteTreeContentProps) {
-  return (
-    <ul className={cx("ui-tree ui-directory-tree", className)}>
-      {nodes.map((node) => {
+  const content = nodes.map((node) => {
         const nodeReference = getTreeNodeReference(node);
         const nodeKey = getTreeNodeReferenceKey(nodeReference);
         const isFolder = node.kind === "folder";
@@ -164,7 +187,13 @@ function NoteTreeContent({
         };
 
         return (
-          <li key={node.id}>
+          <li
+            aria-posinset={itemPosition}
+            aria-setsize={itemSetSize}
+            className={itemClassName}
+            key={node.id}
+            style={itemStyle}
+          >
             <div
               className={cx(
                 "ui-tree-row-frame",
@@ -389,7 +418,10 @@ function NoteTreeContent({
                 </span>
               ) : null}
             </div>
-            {node.kind === "folder" && node.children.length > 0 && !isCollapsed ? (
+            {renderDescendants &&
+            node.kind === "folder" &&
+            node.children.length > 0 &&
+            !isCollapsed ? (
               <NoteTreeContent
                 activeNode={activeNode}
                 canDragNode={canDragNode}
@@ -419,6 +451,93 @@ function NoteTreeContent({
             ) : null}
           </li>
         );
+      });
+
+  return bare ? (
+    <>{content}</>
+  ) : (
+    <ul className={cx("ui-tree ui-directory-tree", className)}>{content}</ul>
+  );
+}
+
+function VirtualNoteTreeContent({
+  className,
+  rows,
+  ...props
+}: NoteTreeContentProps & {
+  rows: DirectoryTreeRow[];
+}) {
+  const hostRef = useRef<HTMLUListElement | null>(null);
+  const pinnedIndexes = useMemo(
+    () => new Set(
+      rows.flatMap((row, index) => {
+        const nodeKey = getTreeNodeReferenceKey(
+          getTreeNodeReference(row.node),
+        );
+        const pinned =
+          nodeKey === props.dragState?.sourceKey ||
+          nodeKey === props.editingNode?.key ||
+          isActiveTreeNode({ activeNode: props.activeNode, node: row.node }) ||
+          row.node === props.pendingDeleteNode;
+
+        return pinned ? [index] : [];
+      }),
+    ),
+    [
+      props.activeNode,
+      props.dragState,
+      props.editingNode,
+      props.pendingDeleteNode,
+      rows,
+    ],
+  );
+  const getItemKey = useCallback(
+    (index: number) => rows[index]?.node.id ?? index.toString(),
+    [rows],
+  );
+  const { scrollMargin, totalSize, virtualRows } = useVirtualTreeRows({
+    count: rows.length,
+    getItemKey,
+    hostRef,
+    pinnedIndexes,
+  });
+
+  return (
+    <ul
+      className={cx(
+        "ui-tree ui-directory-tree ui-virtual-tree",
+        className,
+      )}
+      data-virtual-row-count={rows.length}
+      ref={hostRef}
+      style={{ height: `${totalSize}px` }}
+    >
+      {virtualRows.map((virtualRow) => {
+        const row = rows[virtualRow.index];
+
+        if (!row) {
+          return null;
+        }
+
+        const itemStyle: VirtualDirectoryTreeItemStyle = {
+          "--ui-directory-depth": String(row.depth),
+          height: `${virtualRow.size}px`,
+          transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+        };
+
+        return (
+          <NoteTreeContent
+            {...props}
+            bare
+            itemClassName="ui-virtual-tree-row ui-directory-tree-virtual-row"
+            itemPosition={virtualRow.index + 1}
+            itemSetSize={rows.length}
+            itemStyle={itemStyle}
+            key={virtualRow.key}
+            nodes={[row.node]}
+            renderDescendants={false}
+          />
+        );
       })}
     </ul>
   );
@@ -441,6 +560,14 @@ export function NoteTree(props: NoteTreeProps) {
   const isRootDropTarget =
     dragState?.activeDestination?.kind === "root" &&
     dragState.activeTargetCanDrop;
+  const rows = useMemo(
+    () => flattenVisibleDirectoryTreeRows(
+      props.nodes,
+      props.collapsedFolderIds,
+    ),
+    [props.collapsedFolderIds, props.nodes],
+  );
+  const isVirtualized = shouldVirtualizeTreeRows(rows.length);
 
   const isEventOverTreeRow = (eventTarget: EventTarget | null) =>
     eventTarget instanceof Element &&
@@ -450,6 +577,7 @@ export function NoteTree(props: NoteTreeProps) {
     <div
       className={cx(
         "ui-directory-tree-surface",
+        isVirtualized && "is-virtualized",
         isRootDropTarget && "is-root-drop-target",
       )}
       data-tree-root-drop="true"
@@ -546,19 +674,36 @@ export function NoteTree(props: NoteTreeProps) {
       }}
       tabIndex={props.onClearSelection ? -1 : undefined}
     >
-      <NoteTreeContent
-        {...props}
-        dragState={dragState}
-        editingNode={editingNode}
-        pendingDeleteNode={pendingDeleteNode}
-        rootNodes={props.nodes}
-        runAction={runAction}
-        setContextMenuNode={setContextMenuNode}
-        setContextMenuPosition={setContextMenuPosition}
-        setDragState={setDragState}
-        setEditingNode={setEditingNode}
-        setPendingDeleteNode={setPendingDeleteNode}
-      />
+      {isVirtualized ? (
+        <VirtualNoteTreeContent
+          {...props}
+          dragState={dragState}
+          editingNode={editingNode}
+          pendingDeleteNode={pendingDeleteNode}
+          rootNodes={props.nodes}
+          rows={rows}
+          runAction={runAction}
+          setContextMenuNode={setContextMenuNode}
+          setContextMenuPosition={setContextMenuPosition}
+          setDragState={setDragState}
+          setEditingNode={setEditingNode}
+          setPendingDeleteNode={setPendingDeleteNode}
+        />
+      ) : (
+        <NoteTreeContent
+          {...props}
+          dragState={dragState}
+          editingNode={editingNode}
+          pendingDeleteNode={pendingDeleteNode}
+          rootNodes={props.nodes}
+          runAction={runAction}
+          setContextMenuNode={setContextMenuNode}
+          setContextMenuPosition={setContextMenuPosition}
+          setDragState={setDragState}
+          setEditingNode={setEditingNode}
+          setPendingDeleteNode={setPendingDeleteNode}
+        />
+      )}
       <ContextMenu
         ariaLabel="目录操作"
         items={contextMenuNode && props.onRequestMoveNode

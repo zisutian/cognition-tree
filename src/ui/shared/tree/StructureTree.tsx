@@ -1,12 +1,29 @@
 import {
+  useCallback,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import {
   BlockText,
   type DisplayText,
 } from "../blockText";
 import { cx } from "../primitives";
 import { getStructureTreeRowStyle } from "./structureIndent";
+import {
+  flattenStructureTreeRows,
+  type StructureTreeRow as FlatStructureTreeRow,
+} from "./structureRows";
 import type {
   StructureTreeProps,
 } from "./types";
+import {
+  shouldVirtualizeTreeRows,
+  useVirtualTreeRows,
+} from "./virtualTree";
+
+const emptyKeepMountedLineNumbers: ReadonlySet<number> = new Set();
 
 function StructureTreeRowContent({
   label,
@@ -28,6 +45,73 @@ function StructureTreeRowContent({
   );
 }
 
+function StructureTreeRow({
+  children,
+  depth,
+  getRowProps,
+  indentUnitCount,
+  itemClassName,
+  itemPosition,
+  itemSetSize,
+  itemStyle,
+  node,
+  selectedLineNumbers,
+  selectedRootLineNumber,
+  onSelectLine,
+}: Omit<StructureTreeProps, "className" | "nodes"> & {
+  children?: ReactNode;
+  depth: number;
+  itemClassName?: string;
+  itemPosition?: number;
+  itemSetSize?: number;
+  itemStyle?: CSSProperties;
+  node: StructureTreeProps["nodes"][number];
+}) {
+  const isSelected = selectedLineNumbers?.has(node.lineNumber) === true;
+  const isSelectedRoot = selectedRootLineNumber === node.lineNumber;
+  const rowProps = getRowProps?.(node, {
+    depth,
+    isSelected,
+    isSelectedRoot,
+  });
+  const { className: rowClassName, ...rowAttributes } = rowProps ?? {};
+
+  return (
+    <li
+      aria-posinset={itemPosition}
+      aria-setsize={itemSetSize}
+      className={cx(
+        "ui-structure-tree-item",
+        isSelected && "is-selected-subtree",
+        isSelectedRoot && "is-selected-root",
+        itemClassName,
+      )}
+      style={itemStyle}
+    >
+      <button
+        {...rowAttributes}
+        className={cx(
+          "ui-tree-row ui-structure-tree-row",
+          isSelected && "is-selected",
+          node.hasDiagnostics && "has-diagnostics",
+          rowClassName,
+        )}
+        style={getStructureTreeRowStyle({ depth, indentUnitCount })}
+        onClick={() => onSelectLine?.(node.lineNumber)}
+        title={`${node.label}: ${node.textDisplay.displayText}`}
+        type="button"
+      >
+        <StructureTreeRowContent
+          label={node.label}
+          lineLabel={node.lineLabel}
+          textDisplay={node.textDisplay}
+        />
+      </button>
+      {children}
+    </li>
+  );
+}
+
 function StructureTreeContent({
   className,
   depth,
@@ -40,45 +124,18 @@ function StructureTreeContent({
 }: StructureTreeProps & { depth: number }) {
   return (
     <ul className={cx("ui-tree ui-structure-tree", className)}>
-      {nodes.map((node) => {
-        const isSelected = selectedLineNumbers?.has(node.lineNumber) === true;
-        const isSelectedRoot = selectedRootLineNumber === node.lineNumber;
-        const rowProps = getRowProps?.(node, {
-          depth,
-          isSelected,
-          isSelectedRoot,
-        });
-        const { className: rowClassName, ...rowAttributes } = rowProps ?? {};
-
-        return (
-          <li
-            className={cx(
-              "ui-structure-tree-item",
-              isSelected && "is-selected-subtree",
-              isSelectedRoot && "is-selected-root",
-            )}
-            key={node.id}
-          >
-            <button
-              {...rowAttributes}
-              className={cx(
-                "ui-tree-row ui-structure-tree-row",
-                isSelected && "is-selected",
-                node.hasDiagnostics && "has-diagnostics",
-                rowClassName,
-              )}
-              style={getStructureTreeRowStyle({ depth, indentUnitCount })}
-              onClick={() => onSelectLine?.(node.lineNumber)}
-              title={`${node.label}: ${node.textDisplay.displayText}`}
-              type="button"
-            >
-              <StructureTreeRowContent
-                label={node.label}
-                lineLabel={node.lineLabel}
-                textDisplay={node.textDisplay}
-              />
-            </button>
-            {node.children.length > 0 ? (
+      {nodes.map((node) => (
+        <StructureTreeRow
+          depth={depth}
+          getRowProps={getRowProps}
+          indentUnitCount={indentUnitCount}
+          key={node.id}
+          node={node}
+          selectedLineNumbers={selectedLineNumbers}
+          selectedRootLineNumber={selectedRootLineNumber}
+          onSelectLine={onSelectLine}
+        >
+          {node.children.length > 0 ? (
               <StructureTreeContent
                 depth={depth + 1}
                 getRowProps={getRowProps}
@@ -88,14 +145,86 @@ function StructureTreeContent({
                 selectedRootLineNumber={selectedRootLineNumber}
                 onSelectLine={onSelectLine}
               />
-            ) : null}
-          </li>
-        );
+          ) : null}
+        </StructureTreeRow>
+      ))}
+    </ul>
+  );
+}
+
+function VirtualStructureTree({
+  className,
+  keepMountedLineNumbers = emptyKeepMountedLineNumbers,
+  rows,
+  ...props
+}: Omit<StructureTreeProps, "nodes"> & {
+  rows: FlatStructureTreeRow[];
+}) {
+  const hostRef = useRef<HTMLUListElement | null>(null);
+  const pinnedIndexes = useMemo(
+    () => new Set(
+      rows.flatMap((row, index) =>
+        keepMountedLineNumbers.has(row.node.lineNumber) ||
+        props.selectedRootLineNumber === row.node.lineNumber
+          ? [index]
+          : [],
+      ),
+    ),
+    [keepMountedLineNumbers, props.selectedRootLineNumber, rows],
+  );
+  const getItemKey = useCallback(
+    (index: number) => rows[index]?.node.id ?? index.toString(),
+    [rows],
+  );
+  const { scrollMargin, totalSize, virtualRows } = useVirtualTreeRows({
+    count: rows.length,
+    getItemKey,
+    hostRef,
+    pinnedIndexes,
+  });
+
+  return (
+    <ul
+      className={cx(
+        "ui-tree ui-structure-tree ui-virtual-tree",
+        className,
+      )}
+      data-virtual-row-count={rows.length}
+      ref={hostRef}
+      style={{ height: `${totalSize}px` }}
+    >
+      {virtualRows.map((virtualRow) => {
+        const row = rows[virtualRow.index];
+
+        return row ? (
+          <StructureTreeRow
+            {...props}
+            depth={row.depth}
+            itemClassName="ui-virtual-tree-row"
+            itemPosition={virtualRow.index + 1}
+            itemSetSize={rows.length}
+            itemStyle={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+            }}
+            key={virtualRow.key}
+            node={row.node}
+          />
+        ) : null;
       })}
     </ul>
   );
 }
 
 export function StructureTree(props: StructureTreeProps) {
+  const rows = useMemo(
+    () => flattenStructureTreeRows(props.nodes),
+    [props.nodes],
+  );
+
+  if (shouldVirtualizeTreeRows(rows.length)) {
+    return <VirtualStructureTree {...props} rows={rows} />;
+  }
+
   return <StructureTreeContent {...props} depth={0} />;
 }
