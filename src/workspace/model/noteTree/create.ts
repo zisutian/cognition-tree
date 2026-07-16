@@ -3,7 +3,6 @@ import type { NoteTreeFolderNode, NoteTreeNoteNode } from "./types";
 
 export function createNoteTreeNoteNode(noteId: NoteId): NoteTreeNoteNode {
   return {
-    id: `tree-${noteId}`,
     kind: "note",
     noteId,
   };
@@ -14,7 +13,7 @@ export function createNoteTreeFolderNode(
   title: string,
 ): NoteTreeFolderNode {
   return {
-    id: folderId,
+    folderId,
     kind: "folder",
     title,
     children: [],

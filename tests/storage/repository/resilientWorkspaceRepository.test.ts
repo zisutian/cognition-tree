@@ -1,68 +1,78 @@
-import { describe, expect, it } from "vitest";
-import { createResilientWorkspaceRepository } from "../../../src/storage/repository/resilientWorkspaceRepository";
+import { describe, expect, it, vi } from "vitest";
+import { createLocalFirstWorkspaceRepository } from "../../../src/storage/repository/resilientWorkspaceRepository";
 import {
-  WorkspaceRepositoryConflictError,
+  WorkspaceRepositoryBackendConflictError,
+  WorkspaceRepositoryLocalConflictError,
+  WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-  type WorkspaceRepository,
-  type WorkspaceRepositoryContent,
+  type RemoteWorkspaceCommit,
+  type WorkspaceRepositoryBackend,
 } from "../../../src/storage/repository/workspaceRepository";
 import { createMemoryWorkspaceRepositoryCache } from "../../../src/storage/repository/workspaceRepositoryCache";
-import { createInitialWorkspaceData } from "../../../src/workspace/model/workspaceData";
+import {
+  createRepositoryContent,
+  revisionA,
+  revisionB,
+  revisionC,
+} from "../repositoryV3Fixtures";
 
-function createContent(name: string): WorkspaceRepositoryContent {
-  return {
-    syntaxSourceFile: null,
-    workspace: { ...createInitialWorkspaceData(), name },
-  };
+function createDeferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
 }
 
-function createRemoteRepository() {
-  let content = createContent("Remote");
-  let revision = "revision-1";
+function createRemoteBackend() {
+  let content = createRepositoryContent("Remote");
+  let revision = revisionA;
   let unavailable = false;
-  const commits: Array<{ baseRevision: string; name: string }> = [];
-  const repository: WorkspaceRepository = {
-    async commitSnapshot(commit) {
+  let conflictRevision: typeof revision | null = null;
+  let remoteError: WorkspaceRepositoryRemoteError | null = null;
+  const commits: RemoteWorkspaceCommit[] = [];
+  const backend: WorkspaceRepositoryBackend = {
+    async commitRemoteSnapshot(commit) {
       if (unavailable) {
         throw new WorkspaceRepositoryUnavailableError();
+      }
+      if (remoteError) {
+        throw remoteError;
+      }
+      if (conflictRevision) {
+        throw new WorkspaceRepositoryBackendConflictError(conflictRevision);
       }
       if (commit.baseRevision !== revision) {
-        throw new WorkspaceRepositoryConflictError(revision);
+        throw new WorkspaceRepositoryBackendConflictError(revision);
       }
 
-      content = {
-        syntaxSourceFile: commit.syntaxSourceFile,
-        workspace: commit.workspace,
-      };
-      commits.push({
-        baseRevision: commit.baseRevision,
-        name: commit.workspace.name,
-      });
-      revision = `revision-${commits.length + 1}`;
-      return { availability: "online", revision };
+      commits.push(structuredClone(commit));
+      content = structuredClone(commit.content);
+      revision = revisionB;
+      return { revision };
     },
-    async discardPendingCommit() {},
-    label: "Remote",
-    async loadSnapshot() {
+    async loadRemoteSnapshot() {
       if (unavailable) {
         throw new WorkspaceRepositoryUnavailableError();
       }
 
-      return {
-        ...content,
-        availability: "online" as const,
-        repositoryPath: "https://remote.test/repository/",
-        revision,
-      };
+      return { content: structuredClone(content), revision };
     },
   };
 
   return {
+    backend,
     commits,
-    repository,
-    setRemote(nextContent: WorkspaceRepositoryContent, nextRevision: string) {
-      content = nextContent;
+    setConflict(nextRevision: typeof revision | null) {
+      conflictRevision = nextRevision;
+    },
+    setRemote(nextContent: typeof content, nextRevision: typeof revision) {
+      content = structuredClone(nextContent);
       revision = nextRevision;
+    },
+    setRemoteError(error: WorkspaceRepositoryRemoteError | null) {
+      remoteError = error;
     },
     setUnavailable(value: boolean) {
       unavailable = value;
@@ -71,127 +81,365 @@ function createRemoteRepository() {
 }
 
 function createRepository(
-  remote: ReturnType<typeof createRemoteRepository>,
+  remote: ReturnType<typeof createRemoteBackend>,
   cache = createMemoryWorkspaceRepositoryCache(),
+  validateContent: Parameters<
+    typeof createLocalFirstWorkspaceRepository
+  >[0]["validateContent"] = () => undefined,
 ) {
+  let draftSequence = 0;
+
   return {
     cache,
-    repository: createResilientWorkspaceRepository({
+    repository: createLocalFirstWorkspaceRepository({
+      backend: remote.backend,
       cache,
-      repository: remote.repository,
-      repositoryIdentity: "https://api.test/#remote",
+      createDraftId: () =>
+        `00000000-0000-4000-8000-${String(++draftSequence).padStart(12, "0")}`,
+      label: "Remote catalog label",
+      locationLabel: "Remote · primary",
+      repositoryIdentity: "https://api.test#primary#token-digest",
+      validateContent,
     }),
   };
 }
 
-describe("resilient workspace repository", () => {
-  it("loads the confirmed snapshot while offline", async () => {
-    const remote = createRemoteRepository();
+describe("local-first workspace repository", () => {
+  it("loads a remote snapshot once and then serves the durable local copy", async () => {
+    const remote = createRemoteBackend();
+    const load = vi.spyOn(remote.backend, "loadRemoteSnapshot");
     const { repository } = createRepository(remote);
 
-    await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      availability: "online",
-      revision: "revision-1",
-    });
+    const first = await repository.loadSnapshot();
     remote.setUnavailable(true);
-    await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      availability: "offline",
-      revision: "revision-1",
-      workspace: { name: "Remote" },
+    const cached = await repository.loadSnapshot();
+
+    expect(first).toMatchObject({
+      content: { workspace: { name: "Remote" } },
+      pendingChanges: false,
+      remoteRevision: revisionA,
     });
+    expect(first.localRevision).toMatch(/^draft:/);
+    expect(cached).toEqual(first);
+    expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it("persists and replaces pending content across repository instances", async () => {
-    const remote = createRemoteRepository();
+  it("preserves the local storage failure when initialization did not race", async () => {
+    const remote = createRemoteBackend();
+    const cache = createMemoryWorkspaceRepositoryCache();
+    const storageFailure = new Error("IndexedDB quota exceeded");
+    vi.spyOn(cache, "create").mockRejectedValue(storageFailure);
+    const { repository } = createRepository(remote, cache);
+
+    await expect(repository.loadSnapshot()).rejects.toBe(storageFailure);
+  });
+
+  it("does not cache a remote snapshot rejected by semantic content validation", async () => {
+    const remote = createRemoteBackend();
+    const cache = createMemoryWorkspaceRepositoryCache();
+    remote.setRemote(createRepositoryContent("Invalid remote"), revisionC);
+    const validationFailure = new Error("canonical metadata is invalid");
+    const { repository } = createRepository(remote, cache, (content) => {
+      if (content.workspace.name === "Invalid remote") {
+        throw validationFailure;
+      }
+    });
+
+    await expect(repository.loadSnapshot()).rejects.toBe(validationFailure);
+    await expect(
+      cache.load("https://api.test#primary#token-digest"),
+    ).resolves.toBeNull();
+  });
+
+  it("stages only with the current draft revision and restores the latest pending content", async () => {
+    const remote = createRemoteBackend();
     const { cache, repository } = createRepository(remote);
     const initial = await repository.loadSnapshot();
+    const first = await repository.stageSnapshot({
+      content: createRepositoryContent("First pending"),
+      expectedLocalRevision: initial.localRevision,
+    });
+    const latest = await repository.stageSnapshot({
+      content: createRepositoryContent("Latest pending"),
+      expectedLocalRevision: first.localRevision,
+    });
 
-    remote.setUnavailable(true);
-    const first = await repository.commitSnapshot({
-      ...createContent("Offline first"),
-      baseRevision: initial.revision,
-    });
-    const latest = await repository.commitSnapshot({
-      ...createContent("Offline latest"),
-      baseRevision: first.revision,
-    });
+    await expect(
+      repository.stageSnapshot({
+        content: createRepositoryContent("Stale writer"),
+        expectedLocalRevision: first.localRevision,
+      }),
+    ).rejects.toBeInstanceOf(WorkspaceRepositoryLocalConflictError);
+
     const restored = createRepository(remote, cache).repository;
-
-    expect(first.availability).toBe("offline");
-    expect(latest.availability).toBe("offline");
     await expect(restored.loadSnapshot()).resolves.toMatchObject({
-      availability: "offline",
-      revision: latest.revision,
-      workspace: { name: "Offline latest" },
+      content: { workspace: { name: "Latest pending" } },
+      localRevision: latest.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionA,
     });
   });
 
-  it("submits pending content with its original remote base after recovery", async () => {
-    const remote = createRemoteRepository();
+  it("keeps the original remote base while replacing pending local content", async () => {
+    const remote = createRemoteBackend();
     const { repository } = createRepository(remote);
     const initial = await repository.loadSnapshot();
-
-    remote.setUnavailable(true);
-    await repository.commitSnapshot({
-      ...createContent("Pending"),
-      baseRevision: initial.revision,
+    const first = await repository.stageSnapshot({
+      content: createRepositoryContent("First"),
+      expectedLocalRevision: initial.localRevision,
     });
-    remote.setUnavailable(false);
-
-    await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      availability: "online",
-      revision: "revision-2",
-      workspace: { name: "Pending" },
+    await repository.stageSnapshot({
+      content: createRepositoryContent("Latest"),
+      expectedLocalRevision: first.localRevision,
     });
-    expect(remote.commits).toEqual([
-      { baseRevision: "revision-1", name: "Pending" },
-    ]);
-  });
 
-  it("keeps pending content in conflict until it is explicitly discarded", async () => {
-    const remote = createRemoteRepository();
-    const { repository } = createRepository(remote);
-    const initial = await repository.loadSnapshot();
+    const result = await repository.synchronizePendingSnapshot();
 
-    remote.setUnavailable(true);
-    const pending = await repository.commitSnapshot({
-      ...createContent("Local pending"),
-      baseRevision: initial.revision,
+    expect(result).toMatchObject({
+      pendingChanges: false,
+      remoteRevision: revisionB,
+      status: "synced",
     });
-    remote.setRemote(createContent("External"), "revision-external");
-    remote.setUnavailable(false);
-
-    await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      availability: "conflict",
-      currentRevision: "revision-external",
-      revision: pending.revision,
-      workspace: { name: "Local pending" },
-    });
-    await repository.discardPendingCommit();
-    await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      availability: "online",
-      revision: "revision-external",
-      workspace: { name: "External" },
+    expect(remote.commits).toHaveLength(1);
+    expect(remote.commits[0]).toMatchObject({
+      baseRevision: revisionA,
+      content: { workspace: { name: "Latest" } },
     });
   });
 
-  it("recognizes pending content that already reached the remote repository", async () => {
-    const remote = createRemoteRepository();
+  it("keeps a newer stage pending when an in-flight older sync completes", async () => {
+    const commit = createDeferred<{ revision: typeof revisionB }>();
+    const commitStarted = createDeferred<void>();
+    const backend: WorkspaceRepositoryBackend = {
+      async commitRemoteSnapshot() {
+        commitStarted.resolve();
+        return commit.promise;
+      },
+      async loadRemoteSnapshot() {
+        return {
+          content: createRepositoryContent("Initial"),
+          revision: revisionA,
+        };
+      },
+    };
+    let sequence = 0;
+    const repository = createLocalFirstWorkspaceRepository({
+      backend,
+      cache: createMemoryWorkspaceRepositoryCache(),
+      createDraftId: () =>
+        `00000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
+      label: "Remote",
+      locationLabel: "Remote · primary",
+      repositoryIdentity: "primary",
+      validateContent: () => undefined,
+    });
+    const initial = await repository.loadSnapshot();
+    const older = await repository.stageSnapshot({
+      content: createRepositoryContent("Being synchronized"),
+      expectedLocalRevision: initial.localRevision,
+    });
+    const syncing = repository.synchronizePendingSnapshot();
+
+    await commitStarted.promise;
+    const newest = await repository.stageSnapshot({
+      content: createRepositoryContent("Newer local stage"),
+      expectedLocalRevision: older.localRevision,
+    });
+    commit.resolve({ revision: revisionB });
+
+    await expect(syncing).resolves.toMatchObject({
+      localRevision: newest.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionB,
+      status: "synced",
+    });
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Newer local stage" } },
+      pendingChanges: true,
+      remoteRevision: revisionB,
+    });
+  });
+
+  it("models offline, retryable, and terminal sync failures without deleting pending data", async () => {
+    const remote = createRemoteBackend();
     const { repository } = createRepository(remote);
     const initial = await repository.loadSnapshot();
+    const staged = await repository.stageSnapshot({
+      content: createRepositoryContent("Pending"),
+      expectedLocalRevision: initial.localRevision,
+    });
 
     remote.setUnavailable(true);
-    await repository.commitSnapshot({
-      ...createContent("Already committed"),
-      baseRevision: initial.revision,
+    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
+      localRevision: staged.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionA,
+      status: "offline",
     });
-    remote.setRemote(createContent("Already committed"), "revision-remote");
+
     remote.setUnavailable(false);
+    remote.setRemoteError(new WorkspaceRepositoryRemoteError("bad request"));
+    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
+      localRevision: staged.localRevision,
+      message: "bad request",
+      remoteRevision: revisionA,
+      status: "sync-error",
+    });
 
     await expect(repository.loadSnapshot()).resolves.toMatchObject({
-      availability: "online",
-      revision: "revision-remote",
-      workspace: { name: "Already committed" },
+      content: { workspace: { name: "Pending" } },
+      pendingChanges: true,
     });
+  });
+
+  it("keeps conflict as local persistence state and allows newer local stages", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(remote);
+    const initial = await repository.loadSnapshot();
+    const pending = await repository.stageSnapshot({
+      content: createRepositoryContent("Local pending"),
+      expectedLocalRevision: initial.localRevision,
+    });
+    remote.setConflict(revisionC);
+
+    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
+      localRevision: pending.localRevision,
+      remoteRevision: revisionC,
+      status: "conflict",
+    });
+
+    const latest = await repository.stageSnapshot({
+      content: createRepositoryContent("Local after conflict"),
+      expectedLocalRevision: pending.localRevision,
+    });
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Local after conflict" } },
+      localRevision: latest.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionC,
+    });
+  });
+
+  it("loads remote content before atomically discarding pending state", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(remote);
+    const initial = await repository.loadSnapshot();
+    await repository.stageSnapshot({
+      content: createRepositoryContent("Local pending"),
+      expectedLocalRevision: initial.localRevision,
+    });
+
+    remote.setUnavailable(true);
+    await expect(repository.discardPendingSnapshotAndReload()).rejects.toBeInstanceOf(
+      WorkspaceRepositoryUnavailableError,
+    );
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Local pending" } },
+      pendingChanges: true,
+    });
+
+    remote.setUnavailable(false);
+    remote.setRemote(createRepositoryContent("Remote replacement"), revisionC);
+    await expect(repository.discardPendingSnapshotAndReload()).resolves.toMatchObject({
+      content: { workspace: { name: "Remote replacement" } },
+      pendingChanges: false,
+      remoteRevision: revisionC,
+    });
+  });
+
+  it("keeps content, pending base, and local revision unchanged when discard validation fails", async () => {
+    const remote = createRemoteBackend();
+    const validationFailure = new Error("remote canonical metadata is invalid");
+    const { repository } = createRepository(remote, undefined, (content) => {
+      if (content.workspace.name === "Invalid replacement") {
+        throw validationFailure;
+      }
+    });
+    const initial = await repository.loadSnapshot();
+    const staged = await repository.stageSnapshot({
+      content: createRepositoryContent("Local pending must survive"),
+      expectedLocalRevision: initial.localRevision,
+    });
+    const beforeDiscard = await repository.loadSnapshot();
+
+    remote.setRemote(createRepositoryContent("Invalid replacement"), revisionC);
+    await expect(repository.discardPendingSnapshotAndReload()).rejects.toBe(
+      validationFailure,
+    );
+    await expect(repository.loadSnapshot()).resolves.toEqual(beforeDiscard);
+    expect(beforeDiscard).toMatchObject({
+      content: { workspace: { name: "Local pending must survive" } },
+      localRevision: staged.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionA,
+    });
+  });
+
+  it("does not discard a newer local stage completed while the remote snapshot is loading", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(remote);
+    const initial = await repository.loadSnapshot();
+    const firstPending = await repository.stageSnapshot({
+      content: createRepositoryContent("Pending before discard"),
+      expectedLocalRevision: initial.localRevision,
+    });
+    const remoteLoad = createDeferred<{
+      content: ReturnType<typeof createRepositoryContent>;
+      revision: typeof revisionC;
+    }>();
+
+    vi.spyOn(remote.backend, "loadRemoteSnapshot")
+      .mockImplementationOnce(() => remoteLoad.promise);
+    const discard = repository.discardPendingSnapshotAndReload();
+
+    await vi.waitFor(() => {
+      expect(remote.backend.loadRemoteSnapshot).toHaveBeenCalledTimes(1);
+    });
+    const newest = await repository.stageSnapshot({
+      content: createRepositoryContent("Concurrent newest local stage"),
+      expectedLocalRevision: firstPending.localRevision,
+    });
+
+    remoteLoad.resolve({
+      content: createRepositoryContent("Remote replacement"),
+      revision: revisionC,
+    });
+    await expect(discard).rejects.toBeInstanceOf(
+      WorkspaceRepositoryLocalConflictError,
+    );
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Concurrent newest local stage" } },
+      localRevision: newest.localRevision,
+      pendingChanges: true,
+    });
+  });
+
+  it("exposes the backend reconnect subscription without replay or wrapping", () => {
+    const remote = createRemoteBackend();
+    const subscription: { reconnect: () => void } = {
+      reconnect: () => undefined,
+    };
+    const unsubscribe = vi.fn();
+    const repository = createLocalFirstWorkspaceRepository({
+      backend: remote.backend,
+      cache: createMemoryWorkspaceRepositoryCache(),
+      createDraftId: () => "00000000-0000-4000-8000-000000000001",
+      label: "Remote",
+      locationLabel: "Remote · primary",
+      repositoryIdentity: "primary",
+      subscribeReconnect(listener) {
+        subscription.reconnect = listener;
+        return unsubscribe;
+      },
+      validateContent: () => undefined,
+    });
+    const listener = vi.fn();
+
+    const dispose = repository.subscribeReconnect(listener);
+    expect(listener).not.toHaveBeenCalled();
+    subscription.reconnect();
+    expect(listener).toHaveBeenCalledTimes(1);
+    dispose();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 });

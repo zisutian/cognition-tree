@@ -14,46 +14,56 @@ export type TreeMoveOption = {
 
 function collectFolderMoveOptions({
   nodes,
-  parentPath,
   rootNodes,
   source,
 }: {
   nodes: TreeNode[];
-  parentPath: string[];
   rootNodes: TreeNode[];
   source: TreeNodeReference;
 }): TreeMoveOption[] {
-  return nodes.flatMap((node) => {
-    if (node.kind !== "folder") {
-      return [];
+  const options: TreeMoveOption[] = [];
+  const pending: Array<{ node: TreeNode; parentDescription: string }> = [];
+
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    pending.push({ node: nodes[index], parentDescription: "" });
+  }
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+
+    if (!current || current.node.kind !== "folder") {
+      continue;
     }
+
+    const node = current.node;
 
     const destination = {
       folderId: node.folderId,
       kind: "inside" as const,
     };
-    const currentPath = [...parentPath, node.title];
-    const nestedOptions = collectFolderMoveOptions({
-      nodes: node.children,
-      parentPath: currentPath,
-      rootNodes,
-      source,
-    });
 
-    return canDropTreeNode({ destination, nodes: rootNodes, source })
-      ? [
-          {
-            description: parentPath.length > 0
-              ? parentPath.join(" / ")
-              : "根级文件夹",
-            destination,
-            id: `inside:${node.folderId}`,
-            label: node.title,
-          },
-          ...nestedOptions,
-        ]
-      : nestedOptions;
-  });
+    if (canDropTreeNode({ destination, nodes: rootNodes, source })) {
+      options.push({
+        description: current.parentDescription || "根级文件夹",
+        destination,
+        id: `inside:${node.folderId}`,
+        label: node.title,
+      });
+    }
+
+    const nextParentDescription = current.parentDescription
+      ? `${current.parentDescription} / ${node.title}`
+      : node.title;
+
+    for (let index = node.children.length - 1; index >= 0; index -= 1) {
+      pending.push({
+        node: node.children[index],
+        parentDescription: nextParentDescription,
+      });
+    }
+  }
+
+  return options;
 }
 
 export function createTreeMoveOptions(
@@ -71,7 +81,6 @@ export function createTreeMoveOptions(
     },
     ...collectFolderMoveOptions({
       nodes,
-      parentPath: [],
       rootNodes: nodes,
       source,
     }),

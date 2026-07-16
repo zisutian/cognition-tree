@@ -7,44 +7,52 @@ import {
 const descriptor = {
   adapter: "webdav" as const,
   id: "remote",
-  label: "Remote",
-  repositoryPath: "https://dav.test/remote/",
+  label: "Stable catalog label",
+  locationLabel: "WebDAV · remote",
+};
+const issue = {
+  code: "repository_corrupt" as const,
+  id: "broken",
+  locationLabel: "Local · broken",
+  message: "Repository head is invalid",
 };
 
 describe("workspace repository catalog cache", () => {
-  it("strictly parses versioned repository descriptors", () => {
-    expect(
-      parseWorkspaceRepositoryCatalogCacheState({
-        repositories: [descriptor],
-        version: 1,
-      }),
-    ).toEqual({ repositories: [descriptor], version: 1 });
+  it("strictly parses v3 descriptors and per-repository issues", () => {
+    const state = {
+      issues: [issue],
+      repositories: [descriptor],
+      version: 3 as const,
+    };
+
+    expect(parseWorkspaceRepositoryCatalogCacheState(state)).toEqual(state);
     expect(() =>
       parseWorkspaceRepositoryCatalogCacheState({
-        repositories: [descriptor],
-        unexpected: true,
-        version: 1,
+        ...state,
+        repositoryPath: "/private/repositories",
       }),
-    ).toThrow("Invalid repository catalog cache state");
+    ).toThrow("Unsupported repository catalog cache version");
+    expect(() =>
+      parseWorkspaceRepositoryCatalogCacheState({ ...state, version: 2 }),
+    ).toThrow("Unsupported repository catalog cache version");
   });
 
-  it("isolates cached descriptors from caller mutation", async () => {
+  it("isolates cached labels, location labels, and issues from mutation", async () => {
     const cache = createMemoryWorkspaceRepositoryCatalogCache();
-    const state = { repositories: [{ ...descriptor }], version: 1 as const };
+    const state = {
+      issues: [{ ...issue }],
+      repositories: [{ ...descriptor }],
+      version: 3 as const,
+    };
 
     await cache.save("catalog", state);
     state.repositories[0]!.label = "Mutated";
+    state.issues[0]!.message = "Mutated";
 
     await expect(cache.load("catalog")).resolves.toEqual({
-      repositories: [
-        {
-          adapter: "webdav",
-          id: "remote",
-          label: "Remote",
-          repositoryPath: "https://dav.test/remote/",
-        },
-      ],
-      version: 1,
+      issues: [issue],
+      repositories: [descriptor],
+      version: 3,
     });
   });
 });

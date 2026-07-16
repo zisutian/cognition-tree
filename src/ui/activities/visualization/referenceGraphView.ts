@@ -47,25 +47,13 @@ function normalizeGraphQuery(query: string) {
 
 function collectLocalNoteIds({
   activeNoteId,
+  adjacencyByNoteId,
   depth,
-  edges,
 }: {
   activeNoteId: string;
+  adjacencyByNoteId: UiReferenceGraphView["adjacencyByNoteId"];
   depth: ReferenceGraphLocalDepth;
-  edges: UiReferenceGraphEdge[];
 }) {
-  const adjacency = new Map<string, Set<string>>();
-
-  for (const edge of edges) {
-    const sourceNeighbors = adjacency.get(edge.sourceNoteId) ?? new Set<string>();
-    const targetNeighbors = adjacency.get(edge.targetNoteId) ?? new Set<string>();
-
-    sourceNeighbors.add(edge.targetNoteId);
-    targetNeighbors.add(edge.sourceNoteId);
-    adjacency.set(edge.sourceNoteId, sourceNeighbors);
-    adjacency.set(edge.targetNoteId, targetNeighbors);
-  }
-
   const selectedNoteIds = new Set([activeNoteId]);
   let frontier = new Set([activeNoteId]);
 
@@ -73,7 +61,7 @@ function collectLocalNoteIds({
     const nextFrontier = new Set<string>();
 
     for (const noteId of frontier) {
-      for (const neighborId of adjacency.get(noteId) ?? []) {
+      for (const neighborId of adjacencyByNoteId.get(noteId) ?? []) {
         if (!selectedNoteIds.has(neighborId)) {
           selectedNoteIds.add(neighborId);
           nextFrontier.add(neighborId);
@@ -96,8 +84,8 @@ export function createVisibleReferenceGraph(
     state.mode === "local" && state.activeNoteId
       ? collectLocalNoteIds({
           activeNoteId: state.activeNoteId,
+          adjacencyByNoteId: graph.adjacencyByNoteId,
           depth: state.localDepth,
-          edges: graph.edges,
         })
       : null;
   const nodes = graph.nodes
@@ -113,21 +101,23 @@ export function createVisibleReferenceGraph(
       radius: getReferenceGraphNodeRadius(node),
     }));
   const visibleNoteIds = new Set(nodes.map((node) => node.id));
+  const edges: UiReferenceGraphEdge[] = [];
+
+  for (const node of nodes) {
+    for (
+      const edge of
+      graph.detailsByNoteId.get(node.id)?.outgoingEdges ?? []
+    ) {
+      if (visibleNoteIds.has(edge.targetNoteId)) {
+        edges.push(edge);
+      }
+    }
+  }
 
   return {
-    edges: graph.edges.filter(
-      (edge) =>
-        visibleNoteIds.has(edge.sourceNoteId) &&
-        visibleNoteIds.has(edge.targetNoteId),
-    ),
+    edges,
     nodes,
   };
-}
-
-export function createDrawableReferenceGraphEdges(
-  edges: VisibleReferenceGraphEdge[],
-) {
-  return edges.filter((edge) => edge.sourceNoteId !== edge.targetNoteId);
 }
 
 export function findReferenceGraphNodeAtPoint({

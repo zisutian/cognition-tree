@@ -34,10 +34,10 @@ export default defineConfig({
     {
       command: "pnpm server:e2e",
       env: {
-        CTN_API_ALLOWED_ORIGINS: webBaseUrl,
         CTN_API_HOST: apiHost,
         CTN_API_PORT: String(apiPort),
         CTN_E2E_REPOSITORY_DIR: ".cognition-tree/e2e-repository",
+        CTN_E2E_WEB_ORIGIN: webBaseUrl,
       },
       reuseExistingServer: false,
       timeout: 30_000,

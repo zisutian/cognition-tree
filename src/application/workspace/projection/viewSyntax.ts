@@ -88,6 +88,7 @@ export type UiSyntaxConstraints = {
 
 export type UiSyntaxView = {
   constraints: UiSyntaxConstraints;
+  customToneLabel: string;
   draft: UiSyntaxProfileDraft;
   focusTarget: UiSyntaxFocusTarget | null;
   roleOptions: UiSyntaxRoleOption[];
@@ -107,9 +108,22 @@ const syntaxRoleOptions: UiSyntaxRoleOption[] = syntaxProfileSchema.roles.map(
   (value) => ({ label: roleLabels[value], value }),
 );
 
+const toneLabels: Record<(typeof syntaxProfileSchema.tones)[number], string> = {
+  amber: "琥珀",
+  blue: "蓝色",
+  cyan: "青色",
+  gray: "灰色",
+  green: "绿色",
+  indigo: "靛蓝",
+  pink: "粉色",
+  red: "红色",
+  teal: "青绿",
+  violet: "紫色",
+};
+
 export const syntaxToneOptions: UiSyntaxToneOption[] =
   syntaxProfileSchema.tones.map((tone) => ({
-    label: tone,
+    label: toneLabels[tone],
     value: tone,
   }));
 
@@ -151,6 +165,7 @@ export function createUiSyntaxView({
 }): UiSyntaxView {
   return {
     constraints: syntaxConstraints,
+    customToneLabel: "自定义",
     draft: createUiSyntaxProfileDraft(draft),
     focusTarget,
     roleOptions: syntaxRoleOptions,

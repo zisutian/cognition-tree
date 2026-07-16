@@ -1,27 +1,20 @@
 import { useMemo } from "react";
-import type {
-  WorkspaceStructureBlockMoveBetweenNotesRequest,
-  WorkspaceStructureBlockMoveWithinNoteRequest,
-} from "../../../../workspace/commands/structureBlockCommands";
-import {
-  findWorkspaceNote,
-  getParsedWorkspaceNote,
-  getWorkspaceTree,
-  hasWorkspaceNote,
-} from "../../../../workspace/queries/workspaceQueries";
-import { createUiBlockNodes } from "../../projection/viewBlocks";
+import { hasWorkspaceNote } from "../../../../workspace/queries/workspaceQueries";
 import type { UiStructureOperationView } from "../../projection/viewStructureOperation";
-import { createUiNoteTree, type UiNoteId } from "../../projection/viewTree";
+import type { UiNoteId } from "../../projection/viewTree";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
-import { useWorkspaceParseIndex } from "../../runtime/useWorkspaceParseIndex";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
 import { resolveDifferentNoteId } from "../../selection/viewSelection";
 import {
   resolveStructureOperationDirectorySelection,
   resolveSwappedStructureOperationPair,
 } from "./directorySelection";
+import { createStructureOperationProjection } from "./structureOperationProjection";
 import type { StructureOperationActivityViewModel } from "./structureOperationViewModel";
-import { parseUiStructureOperationTargetPosition } from "./targetPosition";
+import {
+  executeStructureBlockMoveBetweenNotes,
+  executeStructureBlockMoveWithinNote,
+} from "./structureOperationWorkflow";
 import type { StructureOperationState } from "./useStructureOperationState";
 
 export function useStructureOperationActivity({
@@ -34,12 +27,11 @@ export function useStructureOperationActivity({
   state: StructureOperationState;
 }): StructureOperationActivityViewModel {
   const {
+    analysis,
     commands,
     defaultSyntaxProfile,
-    effectiveContext,
     effectiveNotes,
     effectiveWorkspace,
-    parseIndexCache,
   } = runtime;
   const {
     mode,
@@ -53,33 +45,27 @@ export function useStructureOperationActivity({
     structureNoteId,
     targetNoteId,
   } = state;
-  const index = useWorkspaceParseIndex(parseIndexCache, effectiveContext);
-  const sourceNote = effectiveWorkspace
-    ? findWorkspaceNote(effectiveWorkspace, sourceNoteId)
-    : null;
-  const targetNote = effectiveWorkspace
-    ? findWorkspaceNote(effectiveWorkspace, targetNoteId)
-    : null;
-  const structureNote = effectiveWorkspace
-    ? findWorkspaceNote(effectiveWorkspace, structureNoteId)
-    : null;
-  const sourceParsed = useMemo(
-    () => mode === "betweenNotes" && index && sourceNote
-      ? getParsedWorkspaceNote(index, sourceNote.id)
-      : null,
-    [index, mode, sourceNote],
-  );
-  const targetParsed = useMemo(
-    () => mode === "betweenNotes" && index && targetNote
-      ? getParsedWorkspaceNote(index, targetNote.id)
-      : null,
-    [index, mode, targetNote],
-  );
-  const structureParsed = useMemo(
-    () => mode === "withinNote" && index && structureNote
-      ? getParsedWorkspaceNote(index, structureNote.id)
-      : null,
-    [index, mode, structureNote],
+  const index = analysis.index;
+  const view = useMemo(
+    () => createStructureOperationProjection({
+      analysis,
+      mode,
+      notes: effectiveNotes,
+      sourceNoteId,
+      structureNoteId,
+      targetNoteId,
+      workspace: effectiveWorkspace,
+    }),
+    [
+      analysis.index,
+      analysis.parsedNotesById,
+      effectiveNotes,
+      effectiveWorkspace,
+      mode,
+      sourceNoteId,
+      structureNoteId,
+      targetNoteId,
+    ],
   );
   const noteExists = (noteId: UiNoteId) =>
     Boolean(effectiveWorkspace && hasWorkspaceNote(effectiveWorkspace, noteId));
@@ -173,100 +159,39 @@ export function useStructureOperationActivity({
     sourceBlockLineNumberValue: string,
     targetPositionValue: string,
   ) => {
-    if (
-      !index ||
-      !sourceNote ||
-      !targetNote ||
-      !sourceBlockLineNumberValue
-    ) {
-      return;
-    }
-
-    const request: WorkspaceStructureBlockMoveBetweenNotesRequest = {
-      sourceBlockLineNumber: Number(sourceBlockLineNumberValue),
-      sourceNoteId: sourceNote.id,
-      targetNoteId: targetNote.id,
-      targetPosition: parseUiStructureOperationTargetPosition(
-        targetPositionValue,
-      ),
-    };
-    const result = commands.moveStructureBlockBetweenNotes(index, request);
-
-    if (result.status === "moved") {
-      selection.selectNote(result.targetNoteId);
-    }
+    selection.selectNote(executeStructureBlockMoveBetweenNotes({
+      index,
+      move: commands.moveStructureBlockBetweenNotes,
+      sourceBlockLineNumberValue,
+      sourceNoteId: view.sourceNote?.id ?? null,
+      targetNoteId: view.targetNote?.id ?? null,
+      targetPositionValue,
+    }));
   };
   const moveBlockWithinNote = (
     sourceBlockLineNumberValue: string,
     targetPositionValue: string,
   ) => {
-    if (!index || !structureNote || !sourceBlockLineNumberValue) {
-      return;
-    }
+    const noteId = executeStructureBlockMoveWithinNote({
+      index,
+      move: commands.moveStructureBlockWithinNote,
+      noteId: view.structureNote?.id ?? null,
+      sourceBlockLineNumberValue,
+      targetPositionValue,
+    });
 
-    const request: WorkspaceStructureBlockMoveWithinNoteRequest = {
-      noteId: structureNote.id,
-      sourceBlockLineNumber: Number(sourceBlockLineNumberValue),
-      targetPosition: parseUiStructureOperationTargetPosition(
-        targetPositionValue,
-      ),
-    };
-    const result = commands.moveStructureBlockWithinNote(index, request);
-
-    if (result.status === "moved") {
-      setMode("withinNote");
-      selection.selectNote(result.noteId);
-    }
+    setMode("withinNote");
+    selection.selectNote(noteId);
   };
-  const noteTree = useMemo(
-    () => effectiveWorkspace
-      ? createUiNoteTree({
-          notes: effectiveNotes,
-          tree: getWorkspaceTree(effectiveWorkspace),
-        })
-      : [],
-    [effectiveNotes, effectiveWorkspace],
-  );
-  const sourceBlocks = useMemo(
-    () => mode === "betweenNotes"
-      ? createUiBlockNodes(sourceParsed?.document.blocks ?? [])
-      : [],
-    [mode, sourceParsed],
-  );
-  const sourceRoots = useMemo(
-    () => mode === "betweenNotes"
-      ? createUiBlockNodes(sourceParsed?.document.roots ?? [])
-      : [],
-    [mode, sourceParsed],
-  );
-  const targetRoots = useMemo(
-    () => mode === "betweenNotes"
-      ? createUiBlockNodes(targetParsed?.document.roots ?? [])
-      : [],
-    [mode, targetParsed],
-  );
-  const structureBlocks = useMemo(
-    () => mode === "withinNote"
-      ? createUiBlockNodes(structureParsed?.document.blocks ?? [])
-      : [],
-    [mode, structureParsed],
-  );
-  const structureRoots = useMemo(
-    () => mode === "withinNote"
-      ? createUiBlockNodes(structureParsed?.document.roots ?? [])
-      : [],
-    [mode, structureParsed],
-  );
 
   return {
+    ...view,
     deleteFolder: selection.deleteFolder,
     deleteNote: selection.deleteNote,
     indentUnitCount:
-      effectiveContext?.syntaxProfile.tabDisplayWidth ??
+      index?.syntaxProfile.tabDisplayWidth ??
       defaultSyntaxProfile.tabDisplayWidth,
-    mode,
     moveTreeNode: selection.moveTreeNode,
-    noteTree,
     onMoveStructureBlockBetweenNotes: moveBlockBetweenNotes,
     onMoveStructureBlockWithinNote: moveBlockWithinNote,
     onSelectDirectoryNote: selectDirectoryNote,
@@ -275,22 +200,5 @@ export function useStructureOperationActivity({
     pairSelectionPhase,
     renameFolder: selection.renameFolder,
     renameNote: selection.renameNote,
-    sourceBlocks,
-    sourceNote: sourceNote
-      ? { id: sourceNote.id, title: sourceNote.title }
-      : null,
-    sourceNoteId,
-    sourceRoots,
-    structureBlocks,
-    structureNote: structureNote
-      ? { id: structureNote.id, title: structureNote.title }
-      : null,
-    structureNoteId,
-    structureRoots,
-    targetNote: targetNote
-      ? { id: targetNote.id, title: targetNote.title }
-      : null,
-    targetNoteId,
-    targetRoots,
   };
 }

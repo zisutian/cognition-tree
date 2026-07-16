@@ -1,27 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepositoryContentDto } from "./types.ts";
+import { failContract } from "./contractValue.ts";
+import type {
+  RepositoryRevisionDto,
+  WorkspaceRepositoryContentDto,
+} from "./types.ts";
+import { serializeJsonIteratively } from "./json.ts";
 
-function createCanonicalValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(createCanonicalValue);
+const repositoryRevisionPattern = /^sha256:[0-9a-f]{64}$/;
+
+function compareCanonicalStrings(left: string, right: string) {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+}
+
+export function parseRepositoryRevision(
+  value: string,
+  path = "$",
+): RepositoryRevisionDto {
+  if (!repositoryRevisionPattern.test(value)) {
+    failContract(path, "expected sha256 revision");
   }
 
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) =>
-          left < right ? -1 : left > right ? 1 : 0,
-        )
-        .map(([key, fieldValue]) => [key, createCanonicalValue(fieldValue)]),
-    );
-  }
-
-  return value;
+  return value as RepositoryRevisionDto;
 }
 
 export function serializeWorkspaceRepositoryRevisionContent(
   content: WorkspaceRepositoryContentDto,
 ) {
-  return JSON.stringify(createCanonicalValue(content));
+  const canonicalContent: WorkspaceRepositoryContentDto = {
+    ...content,
+    workspace: {
+      ...content.workspace,
+      notes: [...content.workspace.notes].sort((left, right) =>
+        compareCanonicalStrings(left.id, right.id)
+      ),
+    },
+  };
+
+  return serializeJsonIteratively(canonicalContent, { sortObjectKeys: true });
 }

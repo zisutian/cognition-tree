@@ -1,21 +1,15 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../src/ctn/parser/parseCtnDocument";
+import { parseCtnEditableDocument } from "../../src/ctn/parser/parseCtnDocument";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import {
   createCtnCodeBlockEnterTransaction,
   createCtnCodeBlockIndentChanges,
 } from "../../src/editor/ctnCodeBlockEditing";
-import {
-  addTestCtnBlockMetadata,
-} from "../ctn/metadata/sourceMetadataFixture";
-
 function createFixture() {
-  const source = addTestCtnBlockMetadata(
-    "Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```\n\t: After",
-    defaultCtnSyntaxProfile,
-  );
-  const document = parseCtnDocument(source, defaultCtnSyntaxProfile);
+  const source =
+    "Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```\n\t: After";
+  const document = parseCtnEditableDocument(source, defaultCtnSyntaxProfile);
   const state = EditorState.create({
     doc: source,
     extensions: [EditorState.tabSize.of(4)],
@@ -65,7 +59,10 @@ describe("CTN code block editing", () => {
       indented.update({
         selection: { anchor: indentedCodeLine.from },
       }).state,
-      parseCtnDocument(indented.doc.toString(), defaultCtnSyntaxProfile),
+      parseCtnEditableDocument(
+        indented.doc.toString(),
+        defaultCtnSyntaxProfile,
+      ),
       "outdent",
     );
     const restored = indented.update({ changes: outdentChanges! }).state;
@@ -94,5 +91,24 @@ describe("CTN code block editing", () => {
     expect(
       createCtnCodeBlockIndentChanges(selected, document, "indent"),
     ).toBeNull();
+  });
+
+  it("treats the final line of an unterminated multiline block as content", () => {
+    const source = "Title\n\t```ts\n\t\tconst value = 1;";
+    const document = parseCtnEditableDocument(
+      source,
+      defaultCtnSyntaxProfile,
+    );
+    const state = EditorState.create({
+      doc: source,
+      extensions: [EditorState.tabSize.of(4)],
+      selection: { anchor: source.length },
+    });
+    const transaction = createCtnCodeBlockEnterTransaction(state, document);
+
+    expect(transaction).not.toBeNull();
+    expect(state.update(transaction!).state.doc.toString()).toBe(
+      `${source}\n\t\t`,
+    );
   });
 });

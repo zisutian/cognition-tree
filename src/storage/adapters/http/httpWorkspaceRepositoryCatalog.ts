@@ -1,9 +1,12 @@
 import {
+  parseCreateRepository,
   parseRepositoryCatalog,
   parseRepositoryDescriptor,
 } from "../../../../contracts/workspace-repository/parseCatalog";
-import { createHttpWorkspaceRepository } from "./httpWorkspaceRepository";
+import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
+import { createHttpWorkspaceRepositoryBackend } from "./httpWorkspaceRepository";
 import {
+  createHttpRepositoryCacheIdentity,
   requestRepositoryJson,
   type HttpRepositoryTransportOptions,
 } from "./httpRepositoryTransport";
@@ -12,17 +15,32 @@ import {
   createMemoryRepositoryClientCache,
   type RepositoryClientCache,
 } from "../../repository/repositoryClientCache";
-import { createResilientWorkspaceRepository } from "../../repository/resilientWorkspaceRepository";
-import { WorkspaceRepositoryUnavailableError } from "../../repository/workspaceRepository";
+import { createLocalFirstWorkspaceRepository } from "../../repository/resilientWorkspaceRepository";
+import {
+  type WorkspaceRepositoryContentValidator,
+  WorkspaceRepositoryRemoteError,
+  WorkspaceRepositoryUnavailableError,
+} from "../../repository/workspaceRepository";
 
 type HttpWorkspaceRepositoryCatalogOptions = HttpRepositoryTransportOptions & {
   cache?: RepositoryClientCache;
+  validateContent: WorkspaceRepositoryContentValidator;
 };
 
-function createCatalogIdentity(baseUrl: string) {
-  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+function isOfflineError(error: unknown) {
+  return (
+    error instanceof WorkspaceRepositoryUnavailableError ||
+    (error instanceof WorkspaceRepositoryRemoteError && error.retryable)
+  );
+}
 
-  return new URL(normalizedBaseUrl).toString();
+function subscribeBrowserReconnect(listener: () => void) {
+  if (typeof globalThis.addEventListener !== "function") {
+    return () => undefined;
+  }
+
+  globalThis.addEventListener("online", listener);
+  return () => globalThis.removeEventListener("online", listener);
 }
 
 export function createHttpWorkspaceRepositoryCatalog({
@@ -30,25 +48,29 @@ export function createHttpWorkspaceRepositoryCatalog({
   cache = createMemoryRepositoryClientCache(),
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-}: HttpWorkspaceRepositoryCatalogOptions = {}): WorkspaceRepositoryCatalog {
-  const catalogIdentity = createCatalogIdentity(baseUrl);
+  validateContent,
+}: HttpWorkspaceRepositoryCatalogOptions): WorkspaceRepositoryCatalog {
+  const catalogIdentity = createHttpRepositoryCacheIdentity({
+    baseUrl,
+    repositoryId: "__catalog__",
+    token,
+  });
   const saveCatalogBestEffort = async (
-    repositories: Awaited<
-      ReturnType<WorkspaceRepositoryCatalog["listRepositories"]>
-    >,
+    catalog: Awaited<ReturnType<WorkspaceRepositoryCatalog["listRepositories"]>>,
   ) => {
     try {
-      await cache.catalogs.save(catalogIdentity, {
-        repositories,
-        version: 1,
+      await cache.catalogs.save(await catalogIdentity, {
+        ...catalog,
+        version: 3,
       });
     } catch {
-      // Online catalog operations do not depend on the browser cache.
+      // The remote catalog is authoritative; cache failure is reported only
+      // when no remote response is available.
     }
   };
   const loadCatalogBestEffort = async () => {
     try {
-      return await cache.catalogs.load(catalogIdentity);
+      return await cache.catalogs.load(await catalogIdentity);
     } catch {
       return null;
     }
@@ -56,33 +78,38 @@ export function createHttpWorkspaceRepositoryCatalog({
 
   return {
     async createRepository(input) {
+      const outbound = parseCreateRepository(input);
+
+      validateContent(outbound.content);
       const descriptor = parseRepositoryDescriptor(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
           "/api/repositories",
           {
-            body: JSON.stringify(input),
+            body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },
             method: "POST",
           },
           token,
         ),
       );
-
       const cached = await loadCatalogBestEffort();
       const repositories = [
         ...(cached?.repositories.filter(({ id }) => id !== descriptor.id) ?? []),
         descriptor,
       ].sort((left, right) => left.id.localeCompare(right.id));
 
-      await saveCatalogBestEffort(repositories);
+      await saveCatalogBestEffort({
+        issues: cached?.issues.filter(({ id }) => id !== descriptor.id) ?? [],
+        repositories,
+      });
       return descriptor;
     },
     label: "HTTP 后端",
     async listRepositories() {
       try {
-        const repositories = parseRepositoryCatalog(
+        const catalog = parseRepositoryCatalog(
           await requestRepositoryJson(
             fetchFn,
             baseUrl,
@@ -90,12 +117,12 @@ export function createHttpWorkspaceRepositoryCatalog({
             undefined,
             token,
           ),
-        ).repositories;
+        );
 
-        await saveCatalogBestEffort(repositories);
-        return repositories;
+        await saveCatalogBestEffort(catalog);
+        return catalog;
       } catch (error) {
-        if (!(error instanceof WorkspaceRepositoryUnavailableError)) {
+        if (!isOfflineError(error)) {
           throw error;
         }
 
@@ -104,7 +131,11 @@ export function createHttpWorkspaceRepositoryCatalog({
         if (!cached) {
           throw error;
         }
-        return cached.repositories;
+
+        return {
+          issues: cached.issues,
+          repositories: cached.repositories,
+        };
       }
     },
     openRepository(descriptor) {
@@ -114,18 +145,24 @@ export function createHttpWorkspaceRepositoryCatalog({
         );
       }
 
-      const repository = createHttpWorkspaceRepository({
-        baseUrl,
-        fetch: fetchFn,
-        label: descriptor.label,
-        repositoryId: descriptor.id,
-        token,
-      });
-
-      return createResilientWorkspaceRepository({
+      return createLocalFirstWorkspaceRepository({
+        backend: createHttpWorkspaceRepositoryBackend({
+          baseUrl,
+          fetch: fetchFn,
+          repositoryId: descriptor.id,
+          token,
+        }),
         cache: cache.snapshots,
-        repository,
-        repositoryIdentity: `${catalogIdentity}#${descriptor.id}`,
+        createDraftId: () => globalThis.crypto.randomUUID(),
+        label: descriptor.label,
+        locationLabel: descriptor.locationLabel,
+        repositoryIdentity: createHttpRepositoryCacheIdentity({
+          baseUrl,
+          repositoryId: descriptor.id,
+          token,
+        }),
+        subscribeReconnect: subscribeBrowserReconnect,
+        validateContent,
       });
     },
   };

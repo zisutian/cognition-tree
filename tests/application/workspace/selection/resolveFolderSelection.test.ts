@@ -7,6 +7,7 @@ import {
   createNoteTreeFolderNode,
 } from "../../../../src/workspace/model/noteTree/create";
 import {
+  createCanonicalNoteSource,
   createInitialWorkspaceData,
   createNoteRecord,
 } from "../../../../src/workspace/model/workspaceData";
@@ -16,7 +17,14 @@ import { resolveFolderSelection } from "../../../../src/application/workspace/se
 const timestamp = "2026-07-04T00:00:00.000Z";
 
 function createWorkspace() {
-  const sourceNote = createNoteRecord("note-source", "源笔记", timestamp);
+  const sourceNote = createNoteRecord(
+    "note-source",
+    createCanonicalNoteSource({
+      blockId: "00000000-0000-4000-8000-000000000001",
+      timestamp,
+      title: "源笔记",
+    }),
+  );
   const workspace = createInitialWorkspaceData();
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,

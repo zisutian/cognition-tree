@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useId,
   useRef,
   useState,
@@ -7,6 +6,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { Overlay, type OverlayAnchorAlign } from "./Overlay";
 
 const focusableSelector = [
   "button:not(:disabled)",
@@ -23,6 +23,7 @@ type PopoverTriggerControls = {
 
 export function Popover({
   ariaLabel,
+  align = "end",
   children,
   className,
   panelClassName,
@@ -30,6 +31,7 @@ export function Popover({
   renderTrigger,
 }: {
   ariaLabel: string;
+  align?: OverlayAnchorAlign;
   children: (controls: { close: () => void }) => ReactNode;
   className: string;
   panelClassName: string;
@@ -38,45 +40,11 @@ export function Popover({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const panelId = useId();
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    panelRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus();
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        containerRef.current &&
-        event.target instanceof Node &&
-        !containerRef.current.contains(event.target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
-
   const close = () => {
     setIsOpen(false);
-    triggerRef.current?.focus();
   };
   const toggle = () => setIsOpen((current) => !current);
   const movePanelFocus = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -112,19 +80,23 @@ export function Popover({
   };
 
   return (
-    <div className={className} ref={containerRef}>
+    <div className={className}>
       {renderTrigger({ isOpen, panelId, toggle, triggerRef })}
       {isOpen ? (
-        <div
-          aria-label={ariaLabel}
+        <Overlay
+          ariaLabel={ariaLabel}
           className={panelClassName}
           id={panelId}
-          ref={panelRef}
           role={panelRole}
+          outsideRefs={[triggerRef]}
+          position={{ align, anchorRef: triggerRef, kind: "anchor" }}
+          restoreFocusRef={triggerRef}
+          surfaceRef={panelRef}
+          onDismiss={close}
           onKeyDown={movePanelFocus}
         >
           {children({ close })}
-        </div>
+        </Overlay>
       ) : null}
     </div>
   );

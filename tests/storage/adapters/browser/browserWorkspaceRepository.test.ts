@@ -1,119 +1,243 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { RepositoryCatalogDto } from "../../../../contracts/workspace-repository/types";
+import type { BrowserRepositoryClientCache } from "../../../../src/storage/adapters/browser/browserRepositoryClientCache";
 import { createBrowserWorkspaceRepositoryCatalog } from "../../../../src/storage/adapters/browser/browserWorkspaceRepository";
-import {
-  createWorkspaceRepositorySyntaxSourceFile,
-  WorkspaceRepositoryConflictError,
-  type WorkspaceRepositoryContent,
-} from "../../../../src/storage/repository/workspaceRepository";
-import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
+import { createMemoryRepositoryClientCache } from "../../../../src/storage/repository/repositoryClientCache";
+import { WorkspaceRepositoryLocalConflictError } from "../../../../src/storage/repository/workspaceRepository";
+import { createRepositoryContent } from "../../repositoryV3Fixtures";
 
-function createMemoryStorage(): Storage {
-  const values = new Map<string, string>();
+function createMemoryBrowserCache(): BrowserRepositoryClientCache {
+  const cache = createMemoryRepositoryClientCache();
 
   return {
-    clear() {
-      values.clear();
-    },
-    getItem(key) {
-      return values.get(key) ?? null;
-    },
-    key(index) {
-      return [...values.keys()][index] ?? null;
-    },
-    get length() {
-      return values.size;
-    },
-    removeItem(key) {
-      values.delete(key);
-    },
-    setItem(key, value) {
-      values.set(key, value);
+    ...cache,
+    async createRepositoryAtomically({
+      catalogIdentity,
+      content,
+      descriptor,
+      localRevision,
+      remoteRevision,
+      repositoryIdentity,
+    }) {
+      const existing = await cache.catalogs.load(catalogIdentity);
+
+      if (existing?.repositories.some(({ id }) => id === descriptor.id)) {
+        throw new Error(`Browser repository already exists: ${descriptor.id}`);
+      }
+
+      await cache.snapshots.create({
+        identity: repositoryIdentity,
+        localRevision,
+        snapshot: { content, revision: remoteRevision },
+      });
+      try {
+        await cache.catalogs.save(catalogIdentity, {
+          issues: existing?.issues ?? [],
+          repositories: [
+            ...(existing?.repositories ?? []),
+            descriptor,
+          ].sort((left, right) => left.id.localeCompare(right.id)),
+          version: 3,
+        });
+      } catch (error) {
+        await cache.snapshots.remove(repositoryIdentity);
+        throw error;
+      }
     },
   };
 }
-
-function createContent(name: string): WorkspaceRepositoryContent {
-  return {
-    syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
-      'name = "browser"\n',
-    ),
-    workspace: { ...createInitialWorkspaceData(), name },
-  };
-}
-
-beforeEach(() => {
-  vi.stubGlobal("localStorage", createMemoryStorage());
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
 
 describe("browser workspace repository catalog", () => {
-  it("creates and lists isolated browser repositories", async () => {
-    const catalog = createBrowserWorkspaceRepositoryCatalog();
-    const firstContent = createContent("First");
-    const first = await catalog.createRepository({
-      content: firstContent,
-      id: "first",
-    });
-    const second = await catalog.createRepository({
-      content: createContent("Second"),
-      id: "second",
-    });
+  const validateContent = () => undefined;
 
-    await expect(catalog.listRepositories()).resolves.toEqual([first, second]);
-    await expect(catalog.openRepository(first).loadSnapshot()).resolves
-      .toMatchObject({
-        ...firstContent,
-        repositoryPath: "localStorage:cognition-tree.repositories.first",
-      });
-    await expect(catalog.openRepository(second).loadSnapshot()).resolves
-      .toMatchObject({ workspace: { name: "Second" } });
-    expect(globalThis.localStorage.length).toBe(3);
-  });
-
-  it("detects content changed by another instance of the same repository", async () => {
-    const catalog = createBrowserWorkspaceRepositoryCatalog();
+  it("creates v3 repository state and catalog metadata through one atomic port", async () => {
+    const cache = createMemoryBrowserCache();
+    const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const content = createRepositoryContent("Browser workspace");
     const descriptor = await catalog.createRepository({
-      content: createContent("Initial"),
+      content,
+      id: "primary",
+      label: "Stable label",
+    });
+
+    expect(descriptor).toEqual({
+      adapter: "browser",
+      id: "primary",
+      label: "Stable label",
+      locationLabel: "浏览器 · primary",
+    });
+    await expect(catalog.listRepositories()).resolves.toEqual({
+      issues: [],
+      repositories: [descriptor],
+    });
+    expect(atomicCreate).toHaveBeenCalledTimes(1);
+    expect(atomicCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ content, descriptor }),
+    );
+
+    await expect(catalog.openRepository(descriptor).loadSnapshot()).resolves
+      .toMatchObject({
+        content,
+        pendingChanges: false,
+      });
+  });
+
+  it("lets only one tab stage a shared local draft revision", async () => {
+    const cache = createMemoryBrowserCache();
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const descriptor = await catalog.createRepository({
+      content: createRepositoryContent("Initial"),
       id: "shared",
+      label: "Shared",
     });
-    const firstRepository = catalog.openRepository(descriptor);
-    const secondRepository = catalog.openRepository(descriptor);
-    const staleSnapshot = await firstRepository.loadSnapshot();
-    const currentSnapshot = await secondRepository.loadSnapshot();
+    const firstTab = catalog.openRepository(descriptor);
+    const secondTab = catalog.openRepository(descriptor);
+    const firstSnapshot = await firstTab.loadSnapshot();
+    const secondSnapshot = await secondTab.loadSnapshot();
 
-    await secondRepository.commitSnapshot({
-      baseRevision: currentSnapshot.revision,
-      ...createContent("External"),
+    await firstTab.stageSnapshot({
+      content: createRepositoryContent("First tab wins"),
+      expectedLocalRevision: firstSnapshot.localRevision,
     });
 
     await expect(
-      firstRepository.commitSnapshot({
-        baseRevision: staleSnapshot.revision,
-        ...createContent("Local"),
+      secondTab.stageSnapshot({
+        content: createRepositoryContent("Second tab is stale"),
+        expectedLocalRevision: secondSnapshot.localRevision,
       }),
-    ).rejects.toBeInstanceOf(WorkspaceRepositoryConflictError);
+    ).rejects.toBeInstanceOf(WorkspaceRepositoryLocalConflictError);
+    await expect(secondTab.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "First tab wins" } },
+    });
   });
 
-  it("rejects duplicate repository ids", async () => {
-    const catalog = createBrowserWorkspaceRepositoryCatalog();
+  it("persists only the latest v3 content and computes a sha256 saved revision", async () => {
+    const cache = createMemoryBrowserCache();
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const descriptor = await catalog.createRepository({
+      content: createRepositoryContent("Initial"),
+      id: "primary",
+      label: "Primary",
+    });
+    const repository = catalog.openRepository(descriptor);
+    const initial = await repository.loadSnapshot();
+    const content = createRepositoryContent("Updated", "Changed note source");
+    const staged = await repository.stageSnapshot({
+      content,
+      expectedLocalRevision: initial.localRevision,
+    });
 
-    await catalog.createRepository({ content: createContent("A"), id: "same" });
-    await expect(
-      catalog.createRepository({ content: createContent("B"), id: "same" }),
-    ).rejects.toThrow("already exists");
+    expect(staged.localRevision).toMatch(/^draft:/);
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content,
+      localRevision: staged.localRevision,
+      pendingChanges: false,
+      remoteRevision: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+    });
+    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+      pendingChanges: false,
+      status: "synced",
+    });
   });
 
-  it("rejects repository ids that cannot be used as catalog keys", async () => {
-    const catalog = createBrowserWorkspaceRepositoryCatalog();
+  it("rejects duplicates and invalid ids without changing the catalog", async () => {
+    const cache = createMemoryBrowserCache();
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    await catalog.createRepository({
+      content: createRepositoryContent("A"),
+      id: "same",
+      label: "A",
+    });
 
     await expect(
       catalog.createRepository({
-        content: createContent("Invalid"),
+        content: createRepositoryContent("B"),
+        id: "same",
+        label: "B",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      catalog.createRepository({
+        content: createRepositoryContent("Invalid"),
         id: "../invalid",
+        label: "Invalid",
       }),
     ).rejects.toThrow("Invalid browser repository id");
+
+    const catalogState: RepositoryCatalogDto = {
+      issues: [],
+      repositories: [
+        {
+          adapter: "browser",
+          id: "same",
+          label: "A",
+          locationLabel: "浏览器 · same",
+        },
+      ],
+    };
+    await expect(catalog.listRepositories()).resolves.toEqual(catalogState);
+  });
+
+  it("does not publish partial catalog state when atomic creation fails", async () => {
+    const cache = createMemoryBrowserCache();
+    cache.createRepositoryAtomically = vi.fn(async () => {
+      throw new DOMException("quota exceeded", "QuotaExceededError");
+    });
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+
+    await expect(
+      catalog.createRepository({
+        content: createRepositoryContent(),
+        id: "primary",
+        label: "Primary",
+      }),
+    ).rejects.toThrow("quota exceeded");
+    await expect(catalog.listRepositories()).resolves.toEqual({
+      issues: [],
+      repositories: [],
+    });
+  });
+
+  it("rejects invalid exact create content before the atomic cache port", async () => {
+    const cache = createMemoryBrowserCache();
+    const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const content = createRepositoryContent();
+
+    Object.assign(content.workspace.notes[0]!, {
+      title: "derived field must not persist",
+    });
+    await expect(catalog.createRepository({
+      content,
+      id: "invalid",
+      label: "Invalid",
+    })).rejects.toThrow("unsupported field");
+    expect(atomicCreate).not.toHaveBeenCalled();
+    await expect(catalog.listRepositories()).resolves.toEqual({
+      issues: [],
+      repositories: [],
+    });
+  });
+
+  it("rejects unsafe note ids before stage and preserves the prior draft", async () => {
+    const cache = createMemoryBrowserCache();
+    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const descriptor = await catalog.createRepository({
+      content: createRepositoryContent("Initial"),
+      id: "primary",
+      label: "Primary",
+    });
+    const repository = catalog.openRepository(descriptor);
+    const before = await repository.loadSnapshot();
+    const unsafeContent = createRepositoryContent("Unsafe");
+
+    unsafeContent.workspace.notes = [{ id: "../escape", source: "unsafe" }];
+    unsafeContent.workspace.tree = [{ kind: "note", noteId: "../escape" }];
+    await expect(repository.stageSnapshot({
+      content: unsafeContent,
+      expectedLocalRevision: before.localRevision,
+    })).rejects.toThrow("invalid repository note id");
+    await expect(repository.loadSnapshot()).resolves.toEqual(before);
   });
 });

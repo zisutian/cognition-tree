@@ -3,6 +3,7 @@ import {
   FileOutput,
   Hash,
 } from "lucide-react";
+import { useMemo } from "react";
 import type { UiReferenceGraphView } from "../../../application/workspace/projection/viewGraph";
 import { SymbolSlot } from "../../shared/primitives";
 
@@ -15,9 +16,13 @@ export function AdjacentReferenceList({
   activeNodeId: string;
   graph: VisualizationGraph;
 }) {
-  const incomingEdges = graph.edges.filter((edge) => edge.targetNoteId === activeNodeId);
-  const outgoingEdges = graph.edges.filter((edge) => edge.sourceNoteId === activeNodeId);
-  const titleById = new Map(graph.nodes.map((node) => [node.id, node.title]));
+  const details = graph.detailsByNoteId.get(activeNodeId);
+  const incomingEdges = details?.incomingEdges ?? [];
+  const outgoingEdges = details?.outgoingEdges ?? [];
+  const titleById = useMemo(
+    () => new Map(graph.nodes.map((node) => [node.id, node.title])),
+    [graph.revision],
+  );
 
   return incomingEdges.length + outgoingEdges.length > 0 ? (
     <ul aria-label="邻接关系" className="detail-line-list">

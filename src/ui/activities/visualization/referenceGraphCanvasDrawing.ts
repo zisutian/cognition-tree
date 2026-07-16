@@ -9,19 +9,53 @@ function readCanvasColor(canvas: HTMLCanvasElement, name: string) {
   return getComputedStyle(canvas).getPropertyValue(name).trim();
 }
 
+export type ReferenceGraphCanvasTheme = {
+  edgeColor: string;
+  edgeStrongColor: string;
+  editorColor: string;
+  fontFamily: string;
+  mutedNodeColor: string;
+  nodeColor: string;
+  selectedColor: string;
+  textColor: string;
+  textMutedColor: string;
+};
+
+export function readReferenceGraphCanvasTheme(
+  canvas: HTMLCanvasElement,
+): ReferenceGraphCanvasTheme {
+  const edgeColor = readCanvasColor(canvas, "--color-graph-edge");
+
+  return {
+    edgeColor,
+    edgeStrongColor: readCanvasColor(canvas, "--color-accent") || edgeColor,
+    editorColor: readCanvasColor(canvas, "--color-editor"),
+    fontFamily: readCanvasColor(canvas, "--font-ui") || "sans-serif",
+    mutedNodeColor: readCanvasColor(canvas, "--color-fg-subtle"),
+    nodeColor: readCanvasColor(canvas, "--color-accent"),
+    selectedColor: readCanvasColor(canvas, "--color-link"),
+    textColor: readCanvasColor(canvas, "--color-fg"),
+    textMutedColor: readCanvasColor(canvas, "--color-fg-muted"),
+  };
+}
+
 export function drawGraph({
   canvas,
   hoveredNoteId,
   links,
+  nodeById,
   nodes,
   selectedNoteId,
+  theme,
   transform,
 }: {
   canvas: HTMLCanvasElement;
   hoveredNoteId: string | null;
   links: GraphSimulationLink[];
+  nodeById: ReadonlyMap<string, GraphSimulationNode>;
   nodes: GraphSimulationNode[];
   selectedNoteId: string | null;
+  theme: ReferenceGraphCanvasTheme;
   transform: GraphTransform;
 }) {
   const context = canvas.getContext("2d");
@@ -49,16 +83,6 @@ export function drawGraph({
   context.translate(transform.x, transform.y);
   context.scale(transform.scale, transform.scale);
 
-  const edgeColor = readCanvasColor(canvas, "--color-graph-edge");
-  const edgeStrongColor =
-    readCanvasColor(canvas, "--color-accent") || edgeColor;
-  const nodeColor = readCanvasColor(canvas, "--color-accent");
-  const mutedNodeColor = readCanvasColor(canvas, "--color-fg-subtle");
-  const textColor = readCanvasColor(canvas, "--color-fg");
-  const textMutedColor = readCanvasColor(canvas, "--color-fg-muted");
-  const editorColor = readCanvasColor(canvas, "--color-editor");
-  const selectedColor = readCanvasColor(canvas, "--color-link");
-  const fontFamily = readCanvasColor(canvas, "--font-ui") || "sans-serif";
   const activeNodeId = hoveredNoteId ?? selectedNoteId;
 
   for (const link of links) {
@@ -67,11 +91,11 @@ export function drawGraph({
     const source =
       typeof link.source === "object"
         ? link.source
-        : nodes.find((node) => node.id === sourceId);
+        : nodeById.get(sourceId);
     const target =
       typeof link.target === "object"
         ? link.target
-        : nodes.find((node) => node.id === targetId);
+        : nodeById.get(targetId);
 
     if (!source || !target) {
       continue;
@@ -84,11 +108,25 @@ export function drawGraph({
       selectedNoteId === target.id;
 
     context.beginPath();
-    context.strokeStyle = isActive ? edgeStrongColor : edgeColor;
+    context.strokeStyle = isActive ? theme.edgeStrongColor : theme.edgeColor;
     context.globalAlpha = isActive ? 0.82 : 0.36;
     context.lineWidth = Math.min(4, 0.9 + Math.log2(link.count + 1) * 0.7);
-    context.moveTo(source.x, source.y);
-    context.lineTo(target.x, target.y);
+
+    if (source.id === target.id) {
+      const loopRadius = source.radius + 8;
+
+      context.arc(
+        source.x,
+        source.y - loopRadius,
+        loopRadius,
+        Math.PI * 0.2,
+        Math.PI * 1.8,
+      );
+    } else {
+      context.moveTo(source.x, source.y);
+      context.lineTo(target.x, target.y);
+    }
+
     context.stroke();
   }
 
@@ -100,8 +138,10 @@ export function drawGraph({
     const isHovered = node.id === hoveredNoteId;
 
     context.beginPath();
-    context.fillStyle = node.isolated ? mutedNodeColor : nodeColor;
-    context.strokeStyle = isSelected || isHovered ? selectedColor : editorColor;
+    context.fillStyle = node.isolated ? theme.mutedNodeColor : theme.nodeColor;
+    context.strokeStyle = isSelected || isHovered
+      ? theme.selectedColor
+      : theme.editorColor;
     context.lineWidth = isSelected || isHovered ? 3 : 2;
     context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
     context.fill();
@@ -109,7 +149,7 @@ export function drawGraph({
 
     if (isSelected) {
       context.beginPath();
-      context.strokeStyle = selectedColor;
+      context.strokeStyle = theme.selectedColor;
       context.globalAlpha = 0.55;
       context.lineWidth = 1.5;
       context.arc(node.x, node.y, node.radius + 6, 0, Math.PI * 2);
@@ -121,12 +161,14 @@ export function drawGraph({
       const label =
         node.title.length > 22 ? `${node.title.slice(0, 21)}...` : node.title;
 
-      context.font = `${isSelected || isHovered ? 600 : 500} 12px ${fontFamily}`;
+      context.font = `${isSelected || isHovered ? 600 : 500} 12px ${theme.fontFamily}`;
       context.textAlign = "center";
       context.textBaseline = "top";
       context.lineWidth = 4;
-      context.strokeStyle = editorColor;
-      context.fillStyle = isSelected || isHovered ? textColor : textMutedColor;
+      context.strokeStyle = theme.editorColor;
+      context.fillStyle = isSelected || isHovered
+        ? theme.textColor
+        : theme.textMutedColor;
       context.strokeText(label, node.x, node.y + node.radius + 7);
       context.fillText(label, node.x, node.y + node.radius + 7);
     }

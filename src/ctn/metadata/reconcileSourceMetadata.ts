@@ -1,287 +1,349 @@
 import {
-  parseCtnDocument,
-  parseCtnSourceWithSyntheticMetadata,
+  parseCtnCanonicalDocument,
+  parseCtnEditableDocument,
 } from "../parser/parseCtnDocument";
-import type { CtnBlock, CtnDocument } from "../parser/types";
+import type {
+  CtnCanonicalBlock,
+  CtnCanonicalDocument,
+  CtnEditableBlock,
+  CtnEditableDocument,
+} from "../parser/types";
 import type { CtnSyntaxProfile } from "../syntax/types";
 import {
   formatCtnBlockMetadataLine,
-  isCtnBlockId,
   type CtnBlockMetadataRecord,
 } from "./blockMetadata";
-import { createCtnEditableSource } from "./editableSource";
+import { createCtnBlockIdAllocator } from "./blockIdAllocator";
+import { createCtnEditableSourceFromDocument } from "./editableSource";
+import {
+  assertCtnEditableSourceChange,
+  mapCtnTextOffset,
+  type CtnEditableSourceChange,
+  type CtnTextEdit,
+} from "./textEdits";
 
 export type ReconcileCtnSourceBlockMetadataOptions = {
-  createId?: () => string;
-  reservedIds?: ReadonlySet<string>;
+  createId: () => string;
+  reservedIds: ReadonlySet<string>;
   timestamp: string;
 };
 
-function findNearestCandidateIndex({
-  candidates,
-  candidateBlocks,
-  previousBlock,
-  previousIndex,
-}: {
-  candidates: number[];
-  candidateBlocks: CtnBlock[];
-  previousBlock: CtnBlock;
-  previousIndex: number;
-}) {
-  return candidates.reduce((bestIndex, candidateIndex) => {
-    if (bestIndex === -1) {
-      return candidateIndex;
+export type RecanonicalizeCtnSourceBlockMetadataOptions = {
+  allocateId: () => string;
+  timestamp: string;
+};
+
+type BlockOffsetRange = {
+  end: number;
+  endExclusive: number;
+  start: number;
+};
+
+type BlockPlacement = {
+  childIds: string[];
+  parentId: string | null;
+  siblingIndex: number;
+};
+
+function createLineStartOffsets(source: string) {
+  const offsets = [0];
+
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\n") {
+      offsets.push(index + 1);
     }
+  }
 
-    const candidate = candidateBlocks[candidateIndex];
-    const best = candidateBlocks[bestIndex];
-    const candidateTextPenalty = candidate.rawText === previousBlock.rawText ? 0 : 1;
-    const bestTextPenalty = best.rawText === previousBlock.rawText ? 0 : 1;
+  return offsets;
+}
 
-    if (candidateTextPenalty !== bestTextPenalty) {
-      return candidateTextPenalty < bestTextPenalty ? candidateIndex : bestIndex;
+function createBlockOffsetRange(
+  block: CtnEditableBlock,
+  source: string,
+  lineStartOffsets: readonly number[],
+): BlockOffsetRange {
+  const start = lineStartOffsets[block.lineNumber - 1] ?? source.length;
+  const lineAfterBlockStart = lineStartOffsets[block.lexicalEndLineNumber];
+  const endExclusive = lineAfterBlockStart ?? source.length;
+  const end = lineAfterBlockStart === undefined
+    ? source.length
+    : Math.max(start, lineAfterBlockStart - 1);
+
+  return { end, endExclusive, start };
+}
+
+function isBlockDeletedByEdit(
+  range: BlockOffsetRange,
+  edits: readonly CtnTextEdit[],
+) {
+  return edits.some(
+    (edit) =>
+      edit.insertedText.length === 0 &&
+      edit.from <= range.start &&
+      edit.to >= range.endExclusive &&
+      edit.to > edit.from,
+  );
+}
+
+function findBlockRangeIndexAtOffset(
+  ranges: readonly BlockOffsetRange[],
+  offset: number,
+) {
+  let low = 0;
+  let high = ranges.length - 1;
+
+  while (low <= high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const range = ranges[middle];
+
+    if (!range) {
+      return -1;
     }
+    if (offset < range.start) {
+      high = middle - 1;
+    } else if (offset > range.end) {
+      low = middle + 1;
+    } else {
+      return middle;
+    }
+  }
 
-    return Math.abs(candidateIndex - previousIndex) <
-      Math.abs(bestIndex - previousIndex)
-      ? candidateIndex
-      : bestIndex;
-  }, -1);
+  return -1;
 }
 
 function assignExistingBlockIds({
   candidateDocument,
-  editableSource,
+  change,
   previousDocument,
+  previousEditableDocument,
+  previousEditableSource,
 }: {
-  candidateDocument: CtnDocument;
-    editableSource: ReturnType<typeof createCtnEditableSource>;
-  previousDocument: CtnDocument;
+  candidateDocument: CtnEditableDocument;
+  change: CtnEditableSourceChange;
+  previousDocument: CtnCanonicalDocument;
+  previousEditableDocument: CtnEditableDocument;
+  previousEditableSource: string;
 }) {
-  const assignedIds = new Map<CtnBlock, string>();
-  const assignedCandidateIndexes = new Set<number>();
-  const assignedExistingIds = new Set<string>();
-  const previousBlockById = new Map(
-    previousDocument.blocks.map((block) => [block.id, block]),
-  );
-  const candidatesByMetadataId = new Map<string, number[]>();
-
-  candidateDocument.blocks.forEach((block, index) => {
-    const metadata = editableSource.metadataByLineNumber.get(block.lineNumber);
-
-    if (!metadata || !previousBlockById.has(metadata.id)) {
-      return;
-    }
-
-    const candidates = candidatesByMetadataId.get(metadata.id) ?? [];
-    candidates.push(index);
-    candidatesByMetadataId.set(metadata.id, candidates);
-  });
-
-  previousDocument.blocks.forEach((previousBlock, previousIndex) => {
-    const candidates = candidatesByMetadataId.get(previousBlock.id) ?? [];
-    const candidateIndex = findNearestCandidateIndex({
-      candidates: candidates.filter(
-        (index) => !assignedCandidateIndexes.has(index),
-      ),
-      candidateBlocks: candidateDocument.blocks,
-      previousBlock,
-      previousIndex,
-    });
-
-    if (candidateIndex < 0) {
-      return;
-    }
-
-    assignedCandidateIndexes.add(candidateIndex);
-    assignedIds.set(candidateDocument.blocks[candidateIndex], previousBlock.id);
-    assignedExistingIds.add(previousBlock.id);
-  });
-
-  const fallbackCandidatesByRawText = new Map<
-    string,
-    { cursor: number; indexes: number[] }
-  >();
-
-  candidateDocument.blocks.forEach((candidate, index) => {
-    const metadata = editableSource.metadataByLineNumber.get(
-      candidate.lineNumber,
-    );
-
-    if (assignedCandidateIndexes.has(index) || metadata) {
-      return;
-    }
-
-    const candidates = fallbackCandidatesByRawText.get(candidate.rawText) ?? {
-      cursor: 0,
-      indexes: [],
-    };
-    candidates.indexes.push(index);
-    fallbackCandidatesByRawText.set(candidate.rawText, candidates);
-  });
-
-  previousDocument.blocks.forEach((previousBlock) => {
-    if (assignedExistingIds.has(previousBlock.id)) {
-      return;
-    }
-
-    const candidates = fallbackCandidatesByRawText.get(previousBlock.rawText);
-
-    while (
-      candidates &&
-      assignedCandidateIndexes.has(candidates.indexes[candidates.cursor])
-    ) {
-      candidates.cursor += 1;
-    }
-
-    const candidateIndex = candidates?.indexes[candidates.cursor] ?? -1;
-
-    if (candidateIndex < 0) {
-      return;
-    }
-
-    if (candidates) {
-      candidates.cursor += 1;
-    }
-    assignedCandidateIndexes.add(candidateIndex);
-    assignedIds.set(candidateDocument.blocks[candidateIndex], previousBlock.id);
-    assignedExistingIds.add(previousBlock.id);
-  });
-
-  const assignChangedBlocksByOrder = (titleBlocks: boolean) => {
-    const previousBlocks = previousDocument.blocks.filter((block) =>
-      !assignedExistingIds.has(block.id) &&
-      (block.type === "title") === titleBlocks
-    );
-    const candidateEntries = candidateDocument.blocks.flatMap((block, index) =>
-      !assignedCandidateIndexes.has(index) &&
-      (block.type === "title") === titleBlocks
-        ? [{ block, index }]
-        : []
-    );
-    const pairCount = Math.min(previousBlocks.length, candidateEntries.length);
-
-    for (let index = 0; index < pairCount; index += 1) {
-      const previousBlock = previousBlocks[index];
-      const candidate = candidateEntries[index];
-
-      assignedCandidateIndexes.add(candidate.index);
-      assignedExistingIds.add(previousBlock.id);
-      assignedIds.set(candidate.block, previousBlock.id);
-    }
-  };
-
-  assignChangedBlocksByOrder(true);
-  assignChangedBlocksByOrder(false);
-
-  return assignedIds;
-}
-
-function createUniqueBlockId(
-  createId: () => string,
-  usedIds: Set<string>,
-) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const id = createId();
-
-    if (!isCtnBlockId(id)) {
-      throw new Error(`Invalid generated CTN block id: ${id}`);
-    }
-
-    if (!usedIds.has(id)) {
-      usedIds.add(id);
-      return id;
-    }
+  if (previousDocument.blocks.length !== previousEditableDocument.blocks.length) {
+    throw new Error("Canonical and editable CTN block projections diverged.");
   }
 
-  throw new Error("Unable to generate a unique CTN block id.");
+  const previousLineStarts = createLineStartOffsets(previousEditableSource);
+  const candidateLineStarts = createLineStartOffsets(change.source);
+  const candidateRanges = candidateDocument.blocks.map((block) =>
+    createBlockOffsetRange(block, change.source, candidateLineStarts)
+  );
+  const assignedIds = new Map<CtnEditableBlock, string>();
+
+  previousEditableDocument.blocks.forEach((previousBlock, previousIndex) => {
+    const previousRange = createBlockOffsetRange(
+      previousBlock,
+      previousEditableSource,
+      previousLineStarts,
+    );
+
+    if (isBlockDeletedByEdit(previousRange, change.edits)) {
+      return;
+    }
+
+    const anchorOffset = previousRange.start + previousBlock.textStartColumn - 1;
+    const mappedAnchorOffset = mapCtnTextOffset(anchorOffset, change.edits);
+    const candidateIndex = findBlockRangeIndexAtOffset(
+      candidateRanges,
+      mappedAnchorOffset,
+    );
+
+    if (candidateIndex < 0) {
+      return;
+    }
+
+    const candidate = candidateDocument.blocks[candidateIndex];
+
+    if (!assignedIds.has(candidate)) {
+      assignedIds.set(candidate, previousDocument.blocks[previousIndex].id);
+    }
+  });
+
+  return assignedIds;
 }
 
 function assignNewBlockIds({
   assignedIds,
   candidateDocument,
-  createId,
-  reservedIds,
+  allocateId,
 }: {
-  assignedIds: Map<CtnBlock, string>;
-  candidateDocument: CtnDocument;
-  createId: () => string;
-  reservedIds: ReadonlySet<string>;
+  assignedIds: Map<CtnEditableBlock, string>;
+  candidateDocument: CtnEditableDocument;
+  allocateId: () => string;
 }) {
-  const usedIds = new Set(reservedIds);
-
-  assignedIds.forEach((id) => usedIds.add(id));
   candidateDocument.blocks.forEach((block) => {
     if (!assignedIds.has(block)) {
-      assignedIds.set(block, createUniqueBlockId(createId, usedIds));
+      assignedIds.set(block, allocateId());
     }
   });
 }
 
-function createParentIdMap(
-  document: CtnDocument,
-  resolveId: (block: CtnBlock) => string,
-) {
-  const parentIdById = new Map<string, string | null>();
+function createCanonicalPlacements(document: CtnCanonicalDocument) {
+  const placements = new Map<string, BlockPlacement>();
+  const pending: Array<{
+    block: CtnCanonicalBlock;
+    parentId: string | null;
+    siblingIndex: number;
+  }> = document.roots
+    .map((block, siblingIndex) => ({
+      block,
+      parentId: null,
+      siblingIndex,
+    }))
+    .reverse();
 
-  const visit = (block: CtnBlock, parentId: string | null) => {
-    const id = resolveId(block);
-    parentIdById.set(id, parentId);
-    block.children.forEach((child) => visit(child, id));
-  };
+  while (pending.length > 0) {
+    const entry = pending.pop();
 
-  document.roots.forEach((root) => visit(root, null));
-  return parentIdById;
-}
-
-function findStableOrderIds(
-  previousDocument: CtnDocument,
-  candidateDocument: CtnDocument,
-  assignedIds: ReadonlyMap<CtnBlock, string>,
-) {
-  const previousIndexById = new Map(
-    previousDocument.blocks.map((block, index) => [block.id, index]),
-  );
-  const sequence = candidateDocument.blocks.flatMap((block) => {
-    const id = assignedIds.get(block);
-    const previousIndex = id ? previousIndexById.get(id) : undefined;
-
-    return id && previousIndex !== undefined ? [{ id, previousIndex }] : [];
-  });
-  const tails: number[] = [];
-  const tailSequenceIndexes: number[] = [];
-  const precedingSequenceIndexes = new Array<number>(sequence.length).fill(-1);
-
-  sequence.forEach((entry, sequenceIndex) => {
-    let low = 0;
-    let high = tails.length;
-
-    while (low < high) {
-      const middle = Math.floor((low + high) / 2);
-
-      if (tails[middle] < entry.previousIndex) {
-        low = middle + 1;
-      } else {
-        high = middle;
-      }
+    if (!entry) {
+      continue;
     }
 
-    if (low > 0) {
-      precedingSequenceIndexes[sequenceIndex] = tailSequenceIndexes[low - 1];
+    placements.set(entry.block.id, {
+      childIds: entry.block.children.map((child) => child.id),
+      parentId: entry.parentId,
+      siblingIndex: entry.siblingIndex,
+    });
+
+    for (let index = entry.block.children.length - 1; index >= 0; index -= 1) {
+      pending.push({
+        block: entry.block.children[index],
+        parentId: entry.block.id,
+        siblingIndex: index,
+      });
     }
-    tails[low] = entry.previousIndex;
-    tailSequenceIndexes[low] = sequenceIndex;
-  });
-
-  const stableIds = new Set<string>();
-  let sequenceIndex = tailSequenceIndexes[tails.length - 1] ?? -1;
-
-  while (sequenceIndex >= 0) {
-    stableIds.add(sequence[sequenceIndex].id);
-    sequenceIndex = precedingSequenceIndexes[sequenceIndex];
   }
 
-  return stableIds;
+  return placements;
+}
+
+function createEditablePlacements(
+  document: CtnEditableDocument,
+  assignedIds: ReadonlyMap<CtnEditableBlock, string>,
+) {
+  const placements = new Map<string, BlockPlacement>();
+  const pending = document.roots
+    .map((block, siblingIndex) => ({
+      block,
+      parentId: null as string | null,
+      siblingIndex,
+    }))
+    .reverse();
+
+  while (pending.length > 0) {
+    const entry = pending.pop();
+
+    if (!entry) {
+      continue;
+    }
+
+    const id = assignedIds.get(entry.block);
+
+    if (!id) {
+      throw new Error("CTN block metadata reconciliation left a block unassigned.");
+    }
+
+    placements.set(id, {
+      childIds: entry.block.children.map((child) => {
+        const childId = assignedIds.get(child);
+
+        if (!childId) {
+          throw new Error("CTN child block metadata was not assigned.");
+        }
+
+        return childId;
+      }),
+      parentId: entry.parentId,
+      siblingIndex: entry.siblingIndex,
+    });
+
+    for (let index = entry.block.children.length - 1; index >= 0; index -= 1) {
+      pending.push({
+        block: entry.block.children[index],
+        parentId: id,
+        siblingIndex: index,
+      });
+    }
+  }
+
+  return placements;
+}
+
+function equalIds(left: readonly string[], right: readonly string[]) {
+  return left.length === right.length &&
+    left.every((id, index) => id === right[index]);
+}
+
+function hasCandidateBlockChanged({
+  block,
+  candidatePlacements,
+  id,
+  previousBlockById,
+  previousPlacements,
+}: {
+  block: CtnEditableBlock;
+  candidatePlacements: ReadonlyMap<string, BlockPlacement>;
+  id: string;
+  previousBlockById: ReadonlyMap<string, CtnCanonicalBlock>;
+  previousPlacements: ReadonlyMap<string, BlockPlacement>;
+}) {
+  const previousBlock = previousBlockById.get(id);
+  const previousPlacement = previousPlacements.get(id);
+  const candidatePlacement = candidatePlacements.get(id);
+
+  return !previousBlock ||
+    previousBlock.contentFingerprint !== block.contentFingerprint ||
+    previousBlock.indentText !== block.indentText ||
+    previousPlacement?.parentId !== candidatePlacement?.parentId ||
+    previousPlacement?.siblingIndex !== candidatePlacement?.siblingIndex ||
+    !equalIds(
+      previousPlacement?.childIds ?? [],
+      candidatePlacement?.childIds ?? [],
+    );
+}
+
+function hasCanonicalStructureChanged({
+  assignedIds,
+  candidateDocument,
+  previousDocument,
+}: {
+  assignedIds: ReadonlyMap<CtnEditableBlock, string>;
+  candidateDocument: CtnEditableDocument;
+  previousDocument: CtnCanonicalDocument;
+}) {
+  if (candidateDocument.blocks.length !== previousDocument.blocks.length) {
+    return true;
+  }
+
+  const previousBlockById = new Map(
+    previousDocument.blocks.map((block) => [block.id, block]),
+  );
+  const previousPlacements = createCanonicalPlacements(previousDocument);
+  const candidatePlacements = createEditablePlacements(
+    candidateDocument,
+    assignedIds,
+  );
+
+  return candidateDocument.blocks.some((block) => {
+    const id = assignedIds.get(block);
+
+    if (!id) {
+      throw new Error("CTN block metadata reconciliation left a block unassigned.");
+    }
+
+    return hasCandidateBlockChanged({
+      block,
+      candidatePlacements,
+      id,
+      previousBlockById,
+      previousPlacements,
+    });
+  });
 }
 
 function createMetadataByCandidateBlock({
@@ -289,29 +351,26 @@ function createMetadataByCandidateBlock({
   candidateDocument,
   previousDocument,
   timestamp,
+  touchTitle,
 }: {
-  assignedIds: ReadonlyMap<CtnBlock, string>;
-  candidateDocument: CtnDocument;
-  previousDocument: CtnDocument;
+  assignedIds: ReadonlyMap<CtnEditableBlock, string>;
+  candidateDocument: CtnEditableDocument;
+  previousDocument: CtnCanonicalDocument;
   timestamp: string;
+  touchTitle: boolean;
 }) {
   const previousBlockById = new Map(
     previousDocument.blocks.map((block) => [block.id, block]),
   );
-  const previousParentIdById = createParentIdMap(
-    previousDocument,
-    (block) => block.id,
-  );
-  const candidateParentIdById = createParentIdMap(
-    candidateDocument,
-    (block) => assignedIds.get(block) ?? block.id,
-  );
-  const stableOrderIds = findStableOrderIds(
-    previousDocument,
+  const previousPlacements = createCanonicalPlacements(previousDocument);
+  const candidatePlacements = createEditablePlacements(
     candidateDocument,
     assignedIds,
   );
-  const metadataByBlock = new Map<CtnBlock, CtnBlockMetadataRecord>();
+  const metadataByBlock = new Map<
+    CtnEditableBlock,
+    CtnBlockMetadataRecord
+  >();
 
   candidateDocument.blocks.forEach((block) => {
     const id = assignedIds.get(block);
@@ -321,16 +380,20 @@ function createMetadataByCandidateBlock({
     }
 
     const previousBlock = previousBlockById.get(id);
-    const changed = previousBlock
-      ? previousBlock.rawText !== block.rawText ||
-        previousParentIdById.get(id) !== candidateParentIdById.get(id) ||
-        !stableOrderIds.has(id)
-      : true;
+    const changed = block.type === "title"
+      ? touchTitle
+      : hasCandidateBlockChanged({
+          block,
+          candidatePlacements,
+          id,
+          previousBlockById,
+          previousPlacements,
+        });
 
     metadataByBlock.set(block, {
       createdAt: previousBlock?.metadata.createdAt ?? timestamp,
       id,
-      indentText: block.indentText,
+      indentText: block.type === "title" ? "" : block.indentText,
       updatedAt: changed
         ? timestamp
         : previousBlock?.metadata.updatedAt ?? timestamp,
@@ -342,8 +405,8 @@ function createMetadataByCandidateBlock({
 
 function insertCanonicalMetadataLines(
   source: string,
-  document: CtnDocument,
-  metadataByBlock: ReadonlyMap<CtnBlock, CtnBlockMetadataRecord>,
+  document: CtnEditableDocument,
+  metadataByBlock: ReadonlyMap<CtnEditableBlock, CtnBlockMetadataRecord>,
 ) {
   const lines = source.split("\n");
 
@@ -367,45 +430,127 @@ function insertCanonicalMetadataLines(
 
 export function reconcileCtnSourceBlockMetadata(
   previousSource: string,
-  nextSource: string,
+  change: CtnEditableSourceChange,
   syntaxProfile: CtnSyntaxProfile,
   {
-    createId = () => globalThis.crypto.randomUUID(),
-    reservedIds = new Set<string>(),
+    createId,
+    reservedIds,
     timestamp,
   }: ReconcileCtnSourceBlockMetadataOptions,
 ) {
-  if (previousSource === nextSource) {
+  const previousDocument = parseCtnCanonicalDocument(
+    previousSource,
+    syntaxProfile,
+  );
+  const previousEditableSource = createCtnEditableSourceFromDocument(
+    previousSource,
+    previousDocument,
+  ).source;
+
+  assertCtnEditableSourceChange(previousEditableSource, change);
+
+  if (previousEditableSource === change.source) {
     return previousSource;
   }
 
-  const previousDocument = parseCtnDocument(previousSource, syntaxProfile);
-  const editableSource = createCtnEditableSource(nextSource, syntaxProfile);
-  const candidateDocument = parseCtnSourceWithSyntheticMetadata(
-    editableSource.source,
+  const previousEditableDocument = parseCtnEditableDocument(
+    previousEditableSource,
+    syntaxProfile,
+  );
+  const candidateDocument = parseCtnEditableDocument(
+    change.source,
     syntaxProfile,
   );
   const assignedIds = assignExistingBlockIds({
     candidateDocument,
-    editableSource,
+    change,
     previousDocument,
+    previousEditableDocument,
+    previousEditableSource,
   });
+  const idAllocator = createCtnBlockIdAllocator(createId, reservedIds);
+
+  previousDocument.blocks.forEach((block) => idAllocator.reserve(block.id));
+  assignedIds.forEach((id) => idAllocator.reserve(id));
 
   assignNewBlockIds({
     assignedIds,
+    allocateId: idAllocator.allocate,
     candidateDocument,
-    createId,
-    reservedIds,
   });
 
-  return insertCanonicalMetadataLines(
-    editableSource.source,
+  const canonicalSource = insertCanonicalMetadataLines(
+    change.source,
     candidateDocument,
     createMetadataByCandidateBlock({
       assignedIds,
       candidateDocument,
       previousDocument,
       timestamp,
+      touchTitle: true,
     }),
   );
+
+  parseCtnCanonicalDocument(canonicalSource, syntaxProfile);
+  return canonicalSource;
+}
+
+export function recanonicalizeCtnSourceBlockMetadata(
+  previousSource: string,
+  previousSyntaxProfile: CtnSyntaxProfile,
+  nextSyntaxProfile: CtnSyntaxProfile,
+  {
+    allocateId,
+    timestamp,
+  }: RecanonicalizeCtnSourceBlockMetadataOptions,
+) {
+  const previousDocument = parseCtnCanonicalDocument(
+    previousSource,
+    previousSyntaxProfile,
+  );
+  const editableSource = createCtnEditableSourceFromDocument(
+    previousSource,
+    previousDocument,
+  ).source;
+  const previousEditableDocument = parseCtnEditableDocument(
+    editableSource,
+    previousSyntaxProfile,
+  );
+  const candidateDocument = parseCtnEditableDocument(
+    editableSource,
+    nextSyntaxProfile,
+  );
+  const change = { edits: [], source: editableSource };
+  const assignedIds = assignExistingBlockIds({
+    candidateDocument,
+    change,
+    previousDocument,
+    previousEditableDocument,
+    previousEditableSource: editableSource,
+  });
+
+  assignNewBlockIds({
+    assignedIds,
+    allocateId,
+    candidateDocument,
+  });
+
+  const canonicalSource = insertCanonicalMetadataLines(
+    editableSource,
+    candidateDocument,
+    createMetadataByCandidateBlock({
+      assignedIds,
+      candidateDocument,
+      previousDocument,
+      timestamp,
+      touchTitle: hasCanonicalStructureChanged({
+        assignedIds,
+        candidateDocument,
+        previousDocument,
+      }),
+    }),
+  );
+
+  parseCtnCanonicalDocument(canonicalSource, nextSyntaxProfile);
+  return canonicalSource;
 }

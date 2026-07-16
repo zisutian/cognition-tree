@@ -9,6 +9,7 @@ function ActiveSyntaxActivity({
   const view = useSyntaxActivity(
     application.syntax,
     application.navigation.syntaxFocusRequest,
+    application.navigation.consumeSyntaxFocusRequest,
   );
 
   return renderActivity(({ onCollapseDetail }) =>

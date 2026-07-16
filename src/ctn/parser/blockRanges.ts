@@ -1,24 +1,55 @@
-import type { CtnBlock } from "./types";
+import type { CtnMultilineRange } from "./types";
 
-export function findClosingMultilineFenceLineNumber(
-  lines: string[],
-  startIndex: number,
+type CtnBlockRange = {
+  level: number;
+  lexicalEndLineNumber: number;
+  subtreeEndLineNumber: number;
+  type: string;
+};
+
+export function isClosingMultilineFence(
+  line: string,
+  indentText: string,
   fenceMarker: string,
-): number {
-  for (let index = startIndex; index < lines.length; index += 1) {
-    if (lines[index].trim().startsWith(fenceMarker)) {
-      return index + 1;
+) {
+  if (!fenceMarker || !line.startsWith(`${indentText}${fenceMarker}`)) {
+    return false;
+  }
+
+  return /^[ \t]*$/.test(line.slice(indentText.length + fenceMarker.length));
+}
+
+export function findMultilineRange(
+  lines: readonly string[],
+  openerLineIndex: number,
+  indentText: string,
+  fenceMarker: string,
+): CtnMultilineRange {
+  for (let index = openerLineIndex + 1; index < lines.length; index += 1) {
+    if (isClosingMultilineFence(lines[index], indentText, fenceMarker)) {
+      return {
+        closingFenceLineNumber: index + 1,
+        contentEndLineNumber: index,
+        contentStartLineNumber: openerLineIndex + 2,
+        status: "closed",
+      };
     }
   }
 
-  return lines.length;
+  return {
+    closingFenceLineNumber: null,
+    contentEndLineNumber: lines.length,
+    contentStartLineNumber: openerLineIndex + 2,
+    status: "unterminated",
+  };
 }
 
-export function assignBlockEndLineNumbers(
-  blocks: CtnBlock[],
+export function assignBlockSubtreeEndLineNumbers<TBlock extends CtnBlockRange>(
+  blocks: TBlock[],
   totalLineCount: number,
+  getSourceStartLineNumber: (block: TBlock) => number,
 ) {
-  const openBlocks: CtnBlock[] = [];
+  const openBlocks: TBlock[] = [];
 
   for (const block of blocks) {
     if (block.type === "title") {
@@ -32,9 +63,9 @@ export function assignBlockEndLineNumbers(
       const completedBlock = openBlocks.pop();
 
       if (completedBlock) {
-        completedBlock.endLineNumber = Math.max(
-          completedBlock.endLineNumber,
-          block.metadataLineNumber - 1,
+        completedBlock.subtreeEndLineNumber = Math.max(
+          completedBlock.lexicalEndLineNumber,
+          getSourceStartLineNumber(block) - 1,
         );
       }
     }
@@ -43,6 +74,9 @@ export function assignBlockEndLineNumbers(
   }
 
   for (const block of openBlocks) {
-    block.endLineNumber = Math.max(block.endLineNumber, totalLineCount);
+    block.subtreeEndLineNumber = Math.max(
+      block.lexicalEndLineNumber,
+      totalLineCount,
+    );
   }
 }

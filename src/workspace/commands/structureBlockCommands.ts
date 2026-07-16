@@ -1,14 +1,15 @@
-import type { CtnBlock } from "../../ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../ctn/parser/types";
 import {
   moveCtnBlockWithinText,
   moveCtnBlockText,
   type CtnBlockTextTargetPosition,
 } from "../../ctn/parser/blockTextEdit";
-import {
-  inferNoteTitle,
-  type NoteId,
-  type NoteRecord,
+import type {
+  NoteId,
+  WorkspaceNote,
 } from "../model/workspaceData";
+import { replaceWorkspaceNoteSources } from "../model/workspaceData";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
 export type WorkspaceStructureBlockTargetPositionRequest =
@@ -83,21 +84,23 @@ export type MoveWorkspaceStructureBlockWithinNoteResult =
     };
 
 type ParsedStructureBlockNote = {
-  blocks: CtnBlock[];
-  note: NoteRecord;
+  blocks: CtnCanonicalBlock[];
+  note: WorkspaceNote;
+  profile: CtnSyntaxProfile;
 };
 
 type WorkspaceStructureBlockMoveIndex = {
   getParsedNote(noteId: NoteId): {
     document: {
-      blocks: CtnBlock[];
+      blocks: CtnCanonicalBlock[];
     };
-    note: NoteRecord | null;
+    note: WorkspaceNote;
+    profile: CtnSyntaxProfile;
   } | null;
 };
 
 function findWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
-  return workspace.noteById.get(noteId) ?? null;
+  return workspace.noteEntryById.get(noteId)?.projectedNote ?? null;
 }
 
 function createFailure(
@@ -132,28 +135,29 @@ function createNoteBlockFailureFromBlockFailure(
   }
 }
 
-function isMovableStructureBlock(block: CtnBlock) {
+function isMovableStructureBlock(block: CtnCanonicalBlock) {
   return block.type !== "title";
 }
 
 function resolveStructureBlockNote(
   index: WorkspaceStructureBlockMoveIndex,
-  note: NoteRecord,
+  note: WorkspaceNote,
 ): ParsedStructureBlockNote | MoveWorkspaceStructureBlockBetweenNotesFailureResult {
   const parsedNote = index.getParsedNote(note.id);
 
-  if (!parsedNote || !parsedNote.note) {
+  if (!parsedNote) {
     return createFailure("parsed-note-missing");
   }
 
   return {
     blocks: parsedNote.document.blocks.filter(isMovableStructureBlock),
     note: parsedNote.note,
+    profile: parsedNote.profile,
   };
 }
 
 function resolveTargetPosition(
-  targetBlocks: CtnBlock[],
+  targetBlocks: CtnCanonicalBlock[],
   targetPositionRequest: WorkspaceStructureBlockTargetPositionRequest,
 ): CtnBlockTextTargetPosition | MoveWorkspaceStructureBlockBetweenNotesFailureResult {
   if (targetPositionRequest.kind === "end") {
@@ -175,13 +179,13 @@ function resolveTargetPosition(
 }
 
 function isTargetInsideSourceBlock(
-  sourceBlock: CtnBlock,
+  sourceBlock: CtnCanonicalBlock,
   targetPosition: CtnBlockTextTargetPosition,
 ) {
   return (
     targetPosition.kind !== "end" &&
     targetPosition.block.lineNumber >= sourceBlock.lineNumber &&
-    targetPosition.block.lineNumber <= sourceBlock.endLineNumber
+    targetPosition.block.lineNumber <= sourceBlock.subtreeEndLineNumber
   );
 }
 
@@ -268,6 +272,7 @@ export function moveWorkspaceStructureBlockBetweenNotes(
   const result = moveCtnBlockText({
     sourceBlock: moveInput.sourceBlock,
     sourceText: moveInput.sourceParsed.note.source,
+    syntaxProfile: moveInput.sourceParsed.profile,
     targetPosition: moveInput.targetPosition,
     targetText: moveInput.targetParsed.note.source,
     updatedAt: timestamp,
@@ -275,39 +280,22 @@ export function moveWorkspaceStructureBlockBetweenNotes(
 
   const sourceNoteId = moveInput.sourceParsed.note.id;
   const targetNoteId = moveInput.targetParsed.note.id;
-  const sourceNoteIndex = workspace.noteIndexById.get(sourceNoteId);
-  const targetNoteIndex = workspace.noteIndexById.get(targetNoteId);
+  const sourceNoteIndex = workspace.noteEntryById.get(sourceNoteId)?.noteIndex;
+  const targetNoteIndex = workspace.noteEntryById.get(targetNoteId)?.noteIndex;
 
   if (sourceNoteIndex === undefined || targetNoteIndex === undefined) {
     return createFailure("missing-note");
   }
 
-  const notes = [...workspace.data.notes];
-  const sourceNote = notes[sourceNoteIndex];
-  const targetNote = notes[targetNoteIndex];
-
-  notes[sourceNoteIndex] = {
-    ...sourceNote,
-    source: result.nextSourceText,
-    title: inferNoteTitle(result.nextSourceText),
-    updatedAt: timestamp,
-  };
-  notes[targetNoteIndex] = {
-    ...targetNote,
-    source: result.nextTargetText,
-    title: inferNoteTitle(result.nextTargetText),
-    updatedAt: timestamp,
-  };
+  const nextWorkspace = replaceWorkspaceNoteSources(workspace.data, [
+    { noteId: sourceNoteId, source: result.nextSourceText },
+    { noteId: targetNoteId, source: result.nextTargetText },
+  ]);
 
   return {
     status: "moved",
     targetNoteId,
-    workspaceData: {
-      id: workspace.data.id,
-      name: workspace.data.name,
-      notes,
-      tree: workspace.data.tree,
-    },
+    workspaceData: nextWorkspace,
   };
 }
 
@@ -350,7 +338,7 @@ export function moveWorkspaceStructureBlockWithinNote(
     return createNoteBlockFailure("target-inside-source");
   }
 
-  const noteIndex = workspace.noteIndexById.get(note.id);
+  const noteIndex = workspace.noteEntryById.get(note.id)?.noteIndex;
 
   if (noteIndex === undefined) {
     return createNoteBlockFailure("missing-note");
@@ -359,26 +347,17 @@ export function moveWorkspaceStructureBlockWithinNote(
   const result = moveCtnBlockWithinText({
     sourceBlock,
     sourceText: note.source,
+    syntaxProfile: parsedNote.profile,
     targetPosition,
     updatedAt: timestamp,
   });
-  const notes = [...workspace.data.notes];
-
-  notes[noteIndex] = {
-    ...note,
-    source: result.nextText,
-    title: inferNoteTitle(result.nextText),
-    updatedAt: timestamp,
-  };
+  const nextWorkspace = replaceWorkspaceNoteSources(workspace.data, [
+    { noteId: note.id, source: result.nextText },
+  ]);
 
   return {
     noteId: note.id,
     status: "moved",
-    workspaceData: {
-      id: workspace.data.id,
-      name: workspace.data.name,
-      notes,
-      tree: workspace.data.tree,
-    },
+    workspaceData: nextWorkspace,
   };
 }

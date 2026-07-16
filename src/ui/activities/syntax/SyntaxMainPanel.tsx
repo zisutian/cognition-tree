@@ -1,6 +1,6 @@
 import type { SyntaxViewModel } from "../../../application/workspace/activities/syntax/syntaxViewModel";
 import { Plus } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { syntaxFieldIds } from "../../../application/workspace/projection/viewSyntaxFields";
 import {
   Button,
@@ -20,11 +20,15 @@ import {
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
   const feedback = useFeedback();
+  const consumedFocusRequestIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const fieldId = syntax.focusTarget?.fieldId;
 
-    if (!fieldId) {
+    if (
+      !fieldId ||
+      consumedFocusRequestIdRef.current === syntax.focusTarget?.requestId
+    ) {
       return;
     }
 
@@ -39,9 +43,15 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
     );
     const target = field ?? fallback;
 
-    target?.scrollIntoView({ block: "nearest" });
-    target?.focus({ preventScroll: true });
-  }, [syntax.focusTarget?.requestId]);
+    if (!target || !syntax.focusTarget) {
+      return;
+    }
+
+    target.scrollIntoView({ block: "nearest" });
+    target.focus({ preventScroll: true });
+    consumedFocusRequestIdRef.current = syntax.focusTarget.requestId;
+    syntax.onConsumeFocusTarget(syntax.focusTarget.requestId);
+  }, [syntax.focusTarget?.requestId, syntax.onConsumeFocusTarget]);
 
   return (
     <Panel

@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { WorkspaceRepository } from "../../../storage/repository/workspaceRepository";
 import type { SessionCommands } from "./sessionCommands";
 import {
   createWorkspaceSessionController,
-  type WorkspaceSessionConflictState,
   type WorkspaceSessionControllerState,
   type WorkspaceSessionReadyState,
 } from "./workspaceSessionController";
-type ActiveSessionState =
-  | WorkspaceSessionConflictState
-  | WorkspaceSessionReadyState;
+
+const browserSessionCommandDependencies = {
+  createBlockId: () => globalThis.crypto.randomUUID(),
+  createFolderId: () => `folder-${globalThis.crypto.randomUUID()}`,
+  createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
+  now: () => new Date().toISOString(),
+};
+type ActiveSessionState = WorkspaceSessionReadyState;
 
 export type ActiveSession = ActiveSessionState & {
   commands: SessionCommands;
@@ -62,8 +66,15 @@ export function useSession({
 }: {
   repository: WorkspaceRepository;
 }): Session {
+  const lifecycleEpochs = useRef(
+    new WeakMap<ReturnType<typeof createWorkspaceSessionController>, number>(),
+  );
   const controller = useMemo(
-    () => createWorkspaceSessionController({ repository }),
+    () =>
+      createWorkspaceSessionController({
+        commandDependencies: browserSessionCommandDependencies,
+        repository,
+      }),
     [repository],
   );
   const state = useSyncExternalStore(
@@ -73,8 +84,44 @@ export function useSession({
   );
 
   useEffect(() => {
+    const epoch = (lifecycleEpochs.current.get(controller) ?? 0) + 1;
+
+    lifecycleEpochs.current.set(controller, epoch);
     controller.start();
-    return controller.dispose;
+    return () => {
+      // React StrictMode immediately replays passive effects in development.
+      // Defer terminal disposal by one microtask so the replay can acquire a
+      // newer lifecycle epoch. A real unmount or controller replacement has no
+      // matching epoch and therefore still disposes deterministically.
+      queueMicrotask(() => {
+        if (lifecycleEpochs.current.get(controller) === epoch) {
+          lifecycleEpochs.current.delete(controller);
+          controller.dispose();
+        }
+      });
+    };
+  }, [controller]);
+
+  useEffect(() => {
+    const flushLocal = () => {
+      void controller.flushPendingChanges().catch(() => undefined);
+    };
+    const flushWhenHidden = () => {
+      if (globalThis.document?.visibilityState === "hidden") {
+        flushLocal();
+      }
+    };
+
+    globalThis.addEventListener("pagehide", flushLocal);
+    globalThis.document?.addEventListener("visibilitychange", flushWhenHidden);
+
+    return () => {
+      globalThis.removeEventListener("pagehide", flushLocal);
+      globalThis.document?.removeEventListener(
+        "visibilitychange",
+        flushWhenHidden,
+      );
+    };
   }, [controller]);
 
   return useMemo(

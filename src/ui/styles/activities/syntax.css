@@ -207,10 +207,8 @@
 }
 
 .syntax-dropdown-menu {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + var(--ui-gap-tight));
-  right: 0;
+  position: fixed;
+  z-index: var(--ui-z-overlay);
   display: grid;
   gap: var(--ui-gap);
   padding: var(--ui-gap);
@@ -226,10 +224,7 @@
 }
 
 .syntax-role-menu {
-  right: auto;
-  left: 50%;
   width: calc(var(--ui-control-height) * 4.5);
-  transform: translateX(-50%);
 }
 
 .syntax-role-list {

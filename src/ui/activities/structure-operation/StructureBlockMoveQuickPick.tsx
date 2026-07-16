@@ -89,9 +89,13 @@ export function StructureBlockMoveQuickPick({
           (candidate) => candidate.id === selectedOption.id,
         );
 
-        if (option && sourceLineNumber !== null) {
-          runAction(() => onMove(String(sourceLineNumber), option.position));
-        }
+        runAction(() => {
+          if (!option || sourceLineNumber === null) {
+            throw new Error("无法移动结构块：所选目标已失效。");
+          }
+
+          onMove(String(sourceLineNumber), option.position);
+        });
 
         onClose();
       }}

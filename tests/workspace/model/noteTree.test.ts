@@ -10,29 +10,19 @@ import {
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
 } from "../../../src/workspace/model/noteTree/mutations";
-import {
-  createNoteTreeFolderNode,
-} from "../../../src/workspace/model/noteTree/create";
-import {
-  moveNoteTreeNode,
-} from "../../../src/workspace/model/noteTree/move";
+import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
+import { moveNoteTreeNode } from "../../../src/workspace/model/noteTree/move";
+
+function nodeIdentity(node: NoteTreeNode) {
+  return node.kind === "folder" ? node.folderId : node.noteId;
+}
 
 function createNestedTree(): NoteTreeNode[] {
   return [
+    { kind: "note", noteId: "note-root" },
     {
-      id: "tree-note-root",
-      kind: "note",
-      noteId: "note-root",
-    },
-    {
-      children: [
-        {
-          id: "tree-note-child",
-          kind: "note",
-          noteId: "note-child",
-        },
-      ],
-      id: "folder-project",
+      children: [{ kind: "note", noteId: "note-child" }],
+      folderId: "folder-project",
       kind: "folder",
       title: "项目",
     },
@@ -40,62 +30,42 @@ function createNestedTree(): NoteTreeNode[] {
 }
 
 describe("note tree operations", () => {
-  it("adds newly created notes to the top level", () => {
+  it("adds source-only note references at the root or in a folder", () => {
     const workspace = createInitialWorkspaceData();
-    const tree = appendNoteToWorkspaceTree(workspace.tree, "note-new", null);
-
-    expect(tree).toEqual([
+    const rootTree = appendNoteToWorkspaceTree(workspace.tree, "note-root", null);
+    const nestedTree: NoteTreeNode[] = [
       {
-        id: "tree-note-new",
-        kind: "note",
-        noteId: "note-new",
-      },
-    ]);
-  });
-
-  it("adds newly created notes to a selected folder", () => {
-    const tree: NoteTreeNode[] = [
-      {
-        id: "folder-research",
-        kind: "folder",
-        title: "研究",
         children: [
           {
-            id: "folder-research-child",
+            children: [],
+            folderId: "folder-child",
             kind: "folder",
             title: "子目录",
-            children: [],
           },
         ],
+        folderId: "folder-research",
+        kind: "folder",
+        title: "研究",
       },
     ];
 
+    expect(rootTree).toEqual([{ kind: "note", noteId: "note-root" }]);
     expect(
-      appendNoteToWorkspaceTree(tree, "note-new", "folder-research-child"),
+      appendNoteToWorkspaceTree(nestedTree, "note-new", "folder-child"),
     ).toEqual([
-      {
-        id: "folder-research",
-        kind: "folder",
-        title: "研究",
+      expect.objectContaining({
         children: [
-          {
-            id: "folder-research-child",
-            kind: "folder",
-            title: "子目录",
-            children: [
-              {
-                id: "tree-note-new",
-                kind: "note",
-                noteId: "note-new",
-              },
-            ],
-          },
+          expect.objectContaining({
+            children: [{ kind: "note", noteId: "note-new" }],
+            folderId: "folder-child",
+          }),
         ],
-      },
+        folderId: "folder-research",
+      }),
     ]);
   });
 
-  it("removes notes from repository tree nodes", () => {
+  it("removes notes and folders with their nested nodes", () => {
     const tree = appendNoteToWorkspaceTree(
       appendNoteToWorkspaceTree([], "note-first", null),
       "note-second",
@@ -103,54 +73,28 @@ describe("note tree operations", () => {
     );
 
     expect(removeNoteFromWorkspaceTree(tree, "note-first")).toEqual([
-      {
-        id: "tree-note-second",
-        kind: "note",
-        noteId: "note-second",
-      },
+      { kind: "note", noteId: "note-second" },
     ]);
+    expect(removeFolderFromWorkspaceTree(createNestedTree(), "folder-project"))
+      .toEqual([{ kind: "note", noteId: "note-root" }]);
   });
 
-  it("adds and renames folders within the repository tree", () => {
+  it("adds and renames folders without derived node identities", () => {
     const tree = appendFolderToWorkspaceTree(
       appendNoteToWorkspaceTree([], "note-first", null),
       createNoteTreeFolderNode("folder-research", "研究"),
       null,
     );
 
-    expect(tree.map((node) => node.id)).toEqual([
-      "tree-note-first",
-      "folder-research",
-    ]);
-
-    const renamedTree = renameFolderInWorkspaceTree(
-      tree,
-      "folder-research",
-      "资料",
-    );
-
-    expect(renamedTree[1]).toMatchObject({
-      id: "folder-research",
-      title: "资料",
-    });
-  });
-
-  it("removes folders and their nested nodes", () => {
-    const tree = createNestedTree();
-
-    expect(removeFolderFromWorkspaceTree(tree, "folder-project")).toEqual([
-      {
-        id: "tree-note-root",
-        kind: "note",
-        noteId: "note-root",
-      },
-    ]);
+    expect(tree.map(nodeIdentity)).toEqual(["note-first", "folder-research"]);
+    expect(
+      renameFolderInWorkspaceTree(tree, "folder-research", "资料")[1],
+    ).toMatchObject({ folderId: "folder-research", title: "资料" });
   });
 
   it("rejects missing target folders when appending tree nodes", () => {
-    expect(() =>
-      appendNoteToWorkspaceTree([], "note-new", "missing"),
-    ).toThrow("Workspace folder does not exist");
+    expect(() => appendNoteToWorkspaceTree([], "note-new", "missing"))
+      .toThrow("Workspace folder does not exist");
     expect(() =>
       appendFolderToWorkspaceTree(
         [],
@@ -160,37 +104,16 @@ describe("note tree operations", () => {
     ).toThrow("Workspace folder does not exist");
   });
 
-  it("preserves persisted sibling order for mixed folders and notes", () => {
-    const tree = appendFolderToWorkspaceTree(
-      appendNoteToWorkspaceTree([], "note-first", null),
-      createNoteTreeFolderNode("folder-a", "A"),
-      null,
-    );
-
-    expect(tree.map((node) => node.id)).toEqual([
-      "tree-note-first",
-      "folder-a",
-    ]);
-  });
-
-  it("moves mixed sibling folders and notes before or after targets", () => {
+  it("preserves sibling order and moves mixed node kinds before or after", () => {
     const tree: NoteTreeNode[] = [
+      { kind: "note", noteId: "note-first" },
       {
-        id: "tree-note-first",
-        kind: "note",
-        noteId: "note-first",
-      },
-      {
-        id: "folder-a",
+        children: [],
+        folderId: "folder-a",
         kind: "folder",
         title: "A",
-        children: [],
       },
-      {
-        id: "tree-note-second",
-        kind: "note",
-        noteId: "note-second",
-      },
+      { kind: "note", noteId: "note-second" },
     ];
     const folderFirst = moveNoteTreeNode(tree, {
       destination: {
@@ -207,31 +130,27 @@ describe("note tree operations", () => {
       source: { kind: "note", noteId: "note-second" },
     });
 
-    expect(noteAfterFolder.map((node) => node.id)).toEqual([
+    expect(noteAfterFolder.map(nodeIdentity)).toEqual([
       "folder-a",
-      "tree-note-second",
-      "tree-note-first",
+      "note-second",
+      "note-first",
     ]);
   });
 
   it("moves notes and folders across folders", () => {
     const tree: NoteTreeNode[] = [
+      { kind: "note", noteId: "note-root" },
       {
-        id: "tree-note-root",
-        kind: "note",
-        noteId: "note-root",
-      },
-      {
-        id: "folder-target",
+        children: [],
+        folderId: "folder-target",
         kind: "folder",
         title: "Target",
-        children: [],
       },
       {
-        id: "folder-source",
+        children: [],
+        folderId: "folder-source",
         kind: "folder",
         title: "Source",
-        children: [],
       },
     ];
     const noteInsideFolder = moveNoteTreeNode(tree, {
@@ -243,37 +162,33 @@ describe("note tree operations", () => {
       source: { folderId: "folder-source", kind: "folder" },
     });
 
-    expect(folderInsideFolder).toMatchObject([
+    expect(folderInsideFolder).toEqual([
       {
         children: [
-          { id: "tree-note-root", kind: "note" },
-          { id: "folder-source", kind: "folder" },
+          { kind: "note", noteId: "note-root" },
+          {
+            children: [],
+            folderId: "folder-source",
+            kind: "folder",
+            title: "Source",
+          },
         ],
-        id: "folder-target",
+        folderId: "folder-target",
         kind: "folder",
+        title: "Target",
       },
     ]);
   });
 
-  it("rejects invalid tree move requests", () => {
+  it("rejects self-descendant and missing-node moves", () => {
     const tree: NoteTreeNode[] = [
       {
-        id: "folder-child",
+        children: [{ kind: "note", noteId: "note-child" }],
+        folderId: "folder-child",
         kind: "folder",
         title: "Child",
-        children: [
-          {
-            id: "tree-note-child",
-            kind: "note",
-            noteId: "note-child",
-          },
-        ],
       },
-      {
-        id: "tree-note-root",
-        kind: "note",
-        noteId: "note-root",
-      },
+      { kind: "note", noteId: "note-root" },
     ];
 
     expect(() =>
@@ -305,14 +220,8 @@ describe("note tree operations", () => {
   it("moves a nested node to the root destination", () => {
     const tree: NoteTreeNode[] = [
       {
-        children: [
-          {
-            id: "tree-note-child",
-            kind: "note",
-            noteId: "note-child",
-          },
-        ],
-        id: "folder-parent",
+        children: [{ kind: "note", noteId: "note-child" }],
+        folderId: "folder-parent",
         kind: "folder",
         title: "Parent",
       },
@@ -324,8 +233,8 @@ describe("note tree operations", () => {
         source: { kind: "note", noteId: "note-child" },
       }),
     ).toEqual([
-      expect.objectContaining({ children: [] }),
-      { id: "tree-note-child", kind: "note", noteId: "note-child" },
+      expect.objectContaining({ children: [], folderId: "folder-parent" }),
+      { kind: "note", noteId: "note-child" },
     ]);
   });
 });

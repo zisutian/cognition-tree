@@ -1,5 +1,5 @@
 import {
-  createCtnEditableSource,
+  createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
 } from "../../../ctn/metadata/editableSource";
 import type {
@@ -49,9 +49,9 @@ export type UiWorkbenchDiagnostics = {
 };
 
 function createEditableLineProjector(parsedNote: ParsedWorkspaceNote) {
-  const editableSource = createCtnEditableSource(
+  const editableSource = createCtnEditableSourceFromDocument(
     parsedNote.source,
-    parsedNote.profile,
+    parsedNote.document,
   );
 
   return (lineNumber: number) =>
@@ -61,10 +61,6 @@ function createEditableLineProjector(parsedNote: ParsedWorkspaceNote) {
 export function createUiDocumentDiagnostics(
   parsedNote: ParsedWorkspaceNote,
 ): UiWorkbenchDiagnostic[] {
-  if (!parsedNote.note) {
-    return [];
-  }
-
   const note = parsedNote.note;
   const projectLineNumber = createEditableLineProjector(parsedNote);
 
@@ -92,8 +88,11 @@ export function createUiReferenceDiagnostics(
   parsedNotesById: ReadonlyMap<NoteId, ParsedWorkspaceNote>,
 ): UiWorkbenchDiagnostic[] {
   const lineProjectorByNoteId = new Map<NoteId, (lineNumber: number) => number>();
-
-  return graph.unresolvedReferences.map((reference) => {
+  const createDiagnostic = (
+    reference: (typeof graph.unresolvedReferences)[number],
+    kind: "ambiguous" | "unresolved",
+    candidateCount = 0,
+  ): UiWorkbenchDiagnostic => {
     const parsedNote = parsedNotesById.get(reference.sourceNoteId);
     let projectLineNumber = lineProjectorByNoteId.get(reference.sourceNoteId);
 
@@ -105,14 +104,16 @@ export function createUiReferenceDiagnostics(
     const lineNumber = projectLineNumber
       ? projectLineNumber(reference.lineNumber)
       : reference.lineNumber;
-    const sourceTitle = parsedNote?.note?.title ?? reference.sourceNoteId;
+    const sourceTitle = parsedNote?.note.title ?? reference.sourceNoteId;
     const occurrenceLabel = reference.count > 1 ? `（${reference.count} 处）` : "";
+    const ambiguousLabel = `全局引用“${reference.targetText}”匹配 ${candidateCount} 篇同名笔记${occurrenceLabel}，请选择具体目标。`;
+    const unresolvedLabel = `无法解析全局引用“${reference.targetText}”${occurrenceLabel}。`;
 
     return {
-      code: "unresolved-global-reference",
-      id: `reference:${reference.sourceNoteId}:${reference.targetText}`,
+      code: `${kind}-global-reference`,
+      id: `reference:${kind}:${reference.sourceNoteId}:${reference.targetText}`,
       locationLabel: `${sourceTitle} · L${lineNumber}`,
-      message: `无法解析全局引用“${reference.targetText}”${occurrenceLabel}。`,
+      message: kind === "ambiguous" ? ambiguousLabel : unresolvedLabel,
       severity: "warning",
       source: "reference",
       target: {
@@ -121,7 +122,16 @@ export function createUiReferenceDiagnostics(
         noteId: reference.sourceNoteId,
       },
     };
-  });
+  };
+
+  return [
+    ...graph.unresolvedReferences.map((reference) =>
+      createDiagnostic(reference, "unresolved"),
+    ),
+    ...graph.ambiguousReferences.map((reference) =>
+      createDiagnostic(reference, "ambiguous", reference.candidateNoteIds.length),
+    ),
+  ];
 }
 
 export function createUiSyntaxDiagnostics(

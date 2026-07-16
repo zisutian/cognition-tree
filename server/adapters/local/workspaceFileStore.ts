@@ -1,63 +1,123 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import {
+  UnsupportedRepositoryVersionError,
+  WorkspaceRepositoryContractError,
+} from "../../../contracts/workspace-repository/contractValue.ts";
+import {
   parseWorkspaceRepositoryCommit,
+  parseWorkspaceRepositoryContent,
 } from "../../../contracts/workspace-repository/parseRepository.ts";
-import type {
-  RepositorySyntaxSourceDto,
-  WorkspaceRepositoryCommitDto,
-  WorkspaceRepositoryContentDto,
-  WorkspaceRepositoryCommitResultDto,
-  WorkspaceRepositorySnapshotDto,
+import {
+  repositorySyntaxFileName,
+  workspaceRepositorySchemaVersion,
+  type RepositoryRevisionDto,
+  type WorkspaceRepositoryCommitDto,
+  type WorkspaceRepositoryCommitResultDto,
+  type WorkspaceRepositoryContentDto,
+  type WorkspaceRepositorySnapshotDto,
 } from "../../../contracts/workspace-repository/types.ts";
-import { repositorySyntaxFileName } from "../../../contracts/workspace-repository/types.ts";
-import { removeAtomicWriteTemporaryFiles } from "./atomicWrite.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 import {
-  WorkspaceCommitTransaction,
-  type WorkspaceCommitPhase,
-} from "./workspaceCommitTransaction.ts";
+  parseRepositoryMetadata,
+  type RepositoryMetadata,
+} from "../../repository/repositoryMetadata.ts";
 import {
-  createEmptyRepositoryWorkspace,
   createRepositoryNoteFileName,
-  createWorkspaceManifest,
-  loadWorkspaceFromManifest,
+  loadWorkspaceFromSnapshot,
   notesDirName,
+  repositoryMetadataFileName,
+  snapshotsDirName,
   syntaxDirName,
   workspaceFileName,
+  WorkspacePayloadValidationError,
 } from "../../repository/workspaceRepositoryLayout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
-import { WorkspaceRevisionConflictError } from "../../repository/repositoryStore.ts";
+import {
+  RepositoryCorruptError,
+  WorkspaceRevisionConflictError,
+} from "../../repository/repositoryStore.ts";
+import {
+  writeImmutableSnapshot,
+  workspaceCommitPhases,
+  type WorkspaceCommitPhase,
+} from "./immutableSnapshotCommit.ts";
+import {
+  removeAtomicWriteTemporaryFiles,
+  writeJsonAtomically,
+} from "./atomicWrite.ts";
+import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 
 type WorkspaceFileStoreOptions = {
-  onWorkspaceCommitPhase?: (
-    phase: WorkspaceCommitPhase,
-  ) => Promise<void> | void;
+  onWorkspaceCommitPhase?: (phase: WorkspaceCommitPhase) => Promise<void> | void;
 };
 
 async function readJson(filePath: string): Promise<unknown> {
-  return JSON.parse(await readFile(filePath, "utf8"));
+  try {
+    return JSON.parse(await readFile(filePath, "utf8"));
+  } catch (error) {
+    if (hasFileSystemErrorCode(error, "ENOENT")) {
+      throw error;
+    }
+    throw new RepositoryCorruptError("Repository JSON is invalid");
+  }
+}
+
+function mapStorageFailure(error: unknown): never {
+  if (
+    error instanceof RepositoryCorruptError ||
+    error instanceof UnsupportedRepositoryVersionError
+  ) {
+    throw error;
+  }
+  if (
+    error instanceof WorkspaceRepositoryContractError ||
+    error instanceof WorkspacePayloadValidationError
+  ) {
+    throw new RepositoryCorruptError("Repository content is invalid");
+  }
+  if (hasFileSystemErrorCode(error, "ENOENT")) {
+    throw new RepositoryCorruptError("Repository snapshot is incomplete");
+  }
+  throw error;
+}
+
+export async function createWorkspaceFileRepository({
+  content: inputContent,
+  label,
+  rootDir: inputRootDir,
+}: {
+  content: WorkspaceRepositoryContentDto;
+  label: string;
+  rootDir: string;
+}) {
+  const rootDir = path.resolve(inputRootDir);
+  const content = parseWorkspaceRepositoryContent(inputContent);
+  const revision = createWorkspaceRepositoryRevision(content);
+
+  await mkdir(path.join(rootDir, snapshotsDirName), { recursive: true });
+  await writeImmutableSnapshot({ content, revision, rootDir });
+  await writeJsonAtomically(path.join(rootDir, repositoryMetadataFileName), {
+    currentRevision: revision,
+    label,
+    schemaVersion: workspaceRepositorySchemaVersion,
+  });
+  return revision;
 }
 
 export class WorkspaceFileStore {
-  #rootDir: string;
-  #operationQueue: Promise<void> = Promise.resolve();
   #initializePromise: Promise<void> | null = null;
-  #workspaceCommitTransaction: WorkspaceCommitTransaction;
+  #onWorkspaceCommitPhase: NonNullable<WorkspaceFileStoreOptions["onWorkspaceCommitPhase"]>;
+  #operationQueue: Promise<void> = Promise.resolve();
+  #rootDir: string;
 
   constructor(
     rootDir: string,
-    {
-      onWorkspaceCommitPhase = async () => {},
-    }: WorkspaceFileStoreOptions = {},
+    { onWorkspaceCommitPhase = async () => {} }: WorkspaceFileStoreOptions = {},
   ) {
     this.#rootDir = path.resolve(rootDir);
-    this.#workspaceCommitTransaction = new WorkspaceCommitTransaction(
-      this.#rootDir,
-      { onCommitPhase: onWorkspaceCommitPhase },
-    );
+    this.#onWorkspaceCommitPhase = onWorkspaceCommitPhase;
   }
 
   async initialize() {
@@ -73,159 +133,173 @@ export class WorkspaceFileStore {
     }
   }
 
-  get repositoryPath() {
-    return this.#rootDir;
-  }
-
   async loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
     return this.#enqueueOperation(() => this.#loadSnapshot());
   }
 
-  async commitSnapshot(
-    value: unknown,
-  ): Promise<WorkspaceRepositoryCommitResultDto> {
+  async commitSnapshot(value: unknown): Promise<WorkspaceRepositoryCommitResultDto> {
     const commit = parseWorkspaceRepositoryCommit(value);
-    const { baseRevision, syntaxSourceFile, workspace } = commit;
-
-    return this.#enqueueOperation(() =>
-      this.#commitSnapshot({ baseRevision, syntaxSourceFile, workspace }),
-    );
+    return this.#enqueueOperation(() => this.#commitSnapshot(commit));
   }
 
   async #initialize() {
-    await mkdir(this.#rootDir, { recursive: true });
-    await removeAtomicWriteTemporaryFiles(this.#rootDir);
-    await this.#workspaceCommitTransaction.recover();
-    await mkdir(this.#notesDir, { recursive: true });
-    await mkdir(this.#syntaxDir, { recursive: true });
-  }
-
-  async #readWorkspace() {
-    let manifest: unknown;
-
     try {
-      manifest = await readJson(this.#manifestPath);
+      const metadata = await this.#readMetadata();
+
+      await this.#readContent(metadata.currentRevision);
+      await removeAtomicWriteTemporaryFiles(this.#rootDir);
+      await this.#cleanupUnreferencedSnapshots(metadata.currentRevision);
     } catch (error) {
       if (hasFileSystemErrorCode(error, "ENOENT")) {
-        return createEmptyRepositoryWorkspace();
-      }
-
-      throw error;
-    }
-
-    return loadWorkspaceFromManifest(manifest, async (noteId) => {
-      const fileName = createRepositoryNoteFileName(noteId);
-
-      try {
-        return await readFile(path.join(this.#notesDir, fileName), "utf8");
-      } catch (error) {
-        if (hasFileSystemErrorCode(error, "ENOENT")) {
-          throw new Error(`Missing note source file: notes/${fileName}`);
+        try {
+          await readFile(path.join(this.#rootDir, workspaceFileName), "utf8");
+          throw new UnsupportedRepositoryVersionError("$.schemaVersion", 2);
+        } catch (legacyError) {
+          if (legacyError instanceof UnsupportedRepositoryVersionError) {
+            throw legacyError;
+          }
+          throw new RepositoryCorruptError("Repository head is missing");
         }
-
-        throw error;
       }
-    });
-  }
-
-  async #readSnapshotContent(): Promise<WorkspaceRepositoryContentDto> {
-    return {
-      syntaxSourceFile: await this.#readSyntaxSourceFile(),
-      workspace: await this.#readWorkspace(),
-    };
+      mapStorageFailure(error);
+    }
   }
 
   async #loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
     await this.initialize();
+    try {
+      const metadata = await this.#readMetadata();
+      const content = await this.#readContent(metadata.currentRevision);
 
-    const content = await this.#readSnapshotContent();
-
-    return {
-      ...content,
-      repositoryPath: this.#rootDir,
-      revision: createWorkspaceRepositoryRevision(content),
-    };
+      return { content, revision: metadata.currentRevision };
+    } catch (error) {
+      mapStorageFailure(error);
+    }
   }
 
-  async #commitSnapshot({
-    baseRevision,
-    syntaxSourceFile,
-    workspace,
-  }: WorkspaceRepositoryCommitDto): Promise<WorkspaceRepositoryCommitResultDto> {
+  async #commitSnapshot(
+    commit: WorkspaceRepositoryCommitDto,
+  ): Promise<WorkspaceRepositoryCommitResultDto> {
     await this.initialize();
-
-    const currentContent = await this.#readSnapshotContent();
-    const currentRevision = createWorkspaceRepositoryRevision(currentContent);
-
-    if (currentRevision !== baseRevision) {
-      throw new WorkspaceRevisionConflictError(currentRevision);
-    }
-
-    const manifest = createWorkspaceManifest(workspace);
+    let metadata: RepositoryMetadata;
 
     try {
-      await this.#workspaceCommitTransaction.commit({
-        manifest,
-        noteFiles: workspace.notes.map((note) => ({
-          relativePath: createRepositoryNoteFileName(note.id),
-          source: note.source,
-        })),
-        syntaxSource: syntaxSourceFile?.source ?? null,
+      metadata = await this.#readMetadata();
+    } catch (error) {
+      mapStorageFailure(error);
+    }
+
+    if (metadata.currentRevision !== commit.baseRevision) {
+      throw new WorkspaceRevisionConflictError(metadata.currentRevision);
+    }
+
+    // Validate the current generation before publishing from its revision.
+    await this.#readContent(metadata.currentRevision);
+    const revision = createWorkspaceRepositoryRevision(commit.content);
+
+    if (revision === metadata.currentRevision) {
+      return { revision };
+    }
+
+    try {
+      await writeImmutableSnapshot({
+        content: commit.content,
+        onPhase: this.#onWorkspaceCommitPhase,
+        revision,
+        rootDir: this.#rootDir,
       });
+      await writeJsonAtomically(this.#metadataPath, {
+        currentRevision: revision,
+        label: metadata.label,
+        schemaVersion: workspaceRepositorySchemaVersion,
+      });
+      // The durable head replacement above is the sole commit point. Cleanup and
+      // observability callbacks must never turn an already committed write into a
+      // reported failure; startup will remove anything left behind.
+      await Promise.resolve()
+        .then(() => this.#onWorkspaceCommitPhase(workspaceCommitPhases.headCommitted))
+        .catch(() => undefined);
+      const cleaned = await this.#cleanupUnreferencedSnapshots(revision)
+        .then(() => true, () => false);
+
+      if (cleaned) {
+        await Promise.resolve()
+          .then(() => this.#onWorkspaceCommitPhase(workspaceCommitPhases.cleanupCompleted))
+          .catch(() => undefined);
+      }
+      return { revision };
     } catch (error) {
       this.#initializePromise = null;
-      throw error;
-    }
-
-    return {
-      revision: createWorkspaceRepositoryRevision({
-        syntaxSourceFile,
-        workspace,
-      }),
-    };
-  }
-
-  async #readSyntaxSourceFile(): Promise<RepositorySyntaxSourceDto | null> {
-    let source: string;
-
-    try {
-      source = await readFile(
-        path.join(this.#syntaxDir, repositorySyntaxFileName),
-        "utf8",
-      );
-    } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) {
-        return null;
+      if (hasFileSystemErrorCode(error, "ENOSPC") || hasFileSystemErrorCode(error, "EDQUOT")) {
+        throw error;
       }
-
       throw error;
     }
-
-    return {
-      fileName: repositorySyntaxFileName,
-      source,
-    };
   }
 
-  get #manifestPath() {
-    return path.join(this.#rootDir, workspaceFileName);
+  async #readMetadata(): Promise<RepositoryMetadata> {
+    return parseRepositoryMetadata(await readJson(this.#metadataPath));
   }
 
-  get #notesDir() {
-    return path.join(this.#rootDir, notesDirName);
+  async #readContent(revision: RepositoryRevisionDto): Promise<WorkspaceRepositoryContentDto> {
+    try {
+      const snapshotDir = path.join(this.#snapshotsDir, revision);
+      const workspace = await loadWorkspaceFromSnapshot(
+        await readJson(path.join(snapshotDir, workspaceFileName)),
+        async (noteId) => readFile(
+          path.join(snapshotDir, notesDirName, createRepositoryNoteFileName(noteId)),
+          "utf8",
+        ),
+      );
+      const syntaxSource = await readFile(
+        path.join(snapshotDir, syntaxDirName, repositorySyntaxFileName),
+        "utf8",
+      ).catch((error: unknown) => {
+        if (hasFileSystemErrorCode(error, "ENOENT")) {
+          return null;
+        }
+        throw error;
+      });
+      const content = parseWorkspaceRepositoryContent({
+        schemaVersion: workspaceRepositorySchemaVersion,
+        syntaxSource,
+        workspace,
+      });
+      const actualRevision = createWorkspaceRepositoryRevision(content);
+
+      if (actualRevision !== revision) {
+        throw new RepositoryCorruptError("Repository snapshot hash does not match its revision");
+      }
+      return content;
+    } catch (error) {
+      mapStorageFailure(error);
+    }
   }
 
-  get #syntaxDir() {
-    return path.join(this.#rootDir, syntaxDirName);
+  async #cleanupUnreferencedSnapshots(currentRevision: RepositoryRevisionDto) {
+    const entries = await readdir(this.#snapshotsDir, { withFileTypes: true });
+
+    await Promise.all(entries.map(async (entry) => {
+      if (entry.name !== currentRevision) {
+        await rm(path.join(this.#snapshotsDir, entry.name), {
+          force: true,
+          recursive: true,
+        });
+      }
+    }));
+  }
+
+  get #metadataPath() {
+    return path.join(this.#rootDir, repositoryMetadataFileName);
+  }
+
+  get #snapshotsDir() {
+    return path.join(this.#rootDir, snapshotsDirName);
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>): Promise<Result> {
     const result = this.#operationQueue.then(operation);
-
-    this.#operationQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
+    this.#operationQueue = result.then(() => undefined, () => undefined);
     return result;
   }
 }

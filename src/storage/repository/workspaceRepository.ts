@@ -1,65 +1,119 @@
-import type { WorkspaceData } from "../../workspace/model/workspaceData";
-import {
-  repositorySyntaxFileName,
-  type RepositorySyntaxSourceDto,
+import type {
+  LocalDraftRevisionDto,
+  RepositoryRevisionDto,
+  WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types";
 
-export type WorkspaceRepositoryContent = {
-  syntaxSourceFile: RepositorySyntaxSourceDto | null;
-  workspace: WorkspaceData;
+export type WorkspaceRepositoryContent = WorkspaceRepositoryContentDto;
+export type WorkspaceRepositoryContentValidator = (
+  content: WorkspaceRepositoryContent,
+) => void;
+export type LocalDraftRevision = LocalDraftRevisionDto;
+export type RepositoryRevision = RepositoryRevisionDto;
+
+export type RemoteWorkspaceSnapshot = {
+  content: WorkspaceRepositoryContent;
+  revision: RepositoryRevision;
 };
 
-export function createWorkspaceRepositorySyntaxSourceFile(
-  source: string,
-): RepositorySyntaxSourceDto {
-  return {
-    fileName: repositorySyntaxFileName,
-    source,
-  };
-}
-
-type WorkspaceRepositorySnapshotBase = WorkspaceRepositoryContent & {
-  repositoryPath: string;
-  revision: string;
+export type RemoteWorkspaceCommit = {
+  baseRevision: RepositoryRevision;
+  content: WorkspaceRepositoryContent;
 };
 
-export type WorkspaceRepositorySnapshot = WorkspaceRepositorySnapshotBase &
-  (
-    | { availability: "offline" | "online" }
-    | { availability: "conflict"; currentRevision: string }
-  );
-
-export type WorkspaceRepositoryCommit = WorkspaceRepositoryContent & {
-  baseRevision: string;
+export type RemoteCommitResult = {
+  revision: RepositoryRevision;
 };
 
-export type WorkspaceRepositoryCommitResult = {
-  availability: "offline" | "online";
-  revision: string;
+export type WorkspaceRepositoryBackend = {
+  commitRemoteSnapshot(
+    commit: RemoteWorkspaceCommit,
+  ): Promise<RemoteCommitResult>;
+  loadRemoteSnapshot(): Promise<RemoteWorkspaceSnapshot>;
 };
 
-export class WorkspaceRepositoryConflictError extends Error {
-  currentRevision: string;
+export type WorkspaceRepositorySnapshot = {
+  content: WorkspaceRepositoryContent;
+  localRevision: LocalDraftRevision;
+  pendingChanges: boolean;
+  remoteRevision: RepositoryRevision | null;
+};
 
-  constructor(currentRevision: string) {
+type WorkspaceRepositorySyncResultBase = {
+  localRevision: LocalDraftRevision;
+  remoteRevision: RepositoryRevision | null;
+};
+
+export type WorkspaceRepositorySyncResult =
+  | (WorkspaceRepositorySyncResultBase & {
+      pendingChanges: boolean;
+      status: "synced";
+    })
+  | (WorkspaceRepositorySyncResultBase & {
+      pendingChanges: boolean;
+      status: "offline";
+    })
+  | (WorkspaceRepositorySyncResultBase & {
+      remoteRevision: RepositoryRevision;
+      status: "conflict";
+    })
+  | (WorkspaceRepositorySyncResultBase & {
+      message: string;
+      status: "sync-error";
+    });
+
+export type WorkspaceRepository = {
+  label: string;
+  locationLabel: string;
+  discardPendingSnapshotAndReload(): Promise<WorkspaceRepositorySnapshot>;
+  loadSnapshot(): Promise<WorkspaceRepositorySnapshot>;
+  stageSnapshot(input: {
+    content: WorkspaceRepositoryContent;
+    expectedLocalRevision: LocalDraftRevision;
+  }): Promise<{ localRevision: LocalDraftRevision }>;
+  subscribeReconnect(listener: () => void): () => void;
+  synchronizePendingSnapshot(): Promise<WorkspaceRepositorySyncResult>;
+};
+
+export class WorkspaceRepositoryBackendConflictError extends Error {
+  currentRevision: RepositoryRevision;
+
+  constructor(currentRevision: RepositoryRevision) {
     super("Repository content changed outside the current session");
-    this.name = "WorkspaceRepositoryConflictError";
+    this.name = "WorkspaceRepositoryBackendConflictError";
     this.currentRevision = currentRevision;
   }
 }
 
-export type WorkspaceRepository = {
-  label: string;
-  commitSnapshot: (
-    commit: WorkspaceRepositoryCommit,
-  ) => Promise<WorkspaceRepositoryCommitResult>;
-  discardPendingCommit: () => Promise<void>;
-  loadSnapshot: () => Promise<WorkspaceRepositorySnapshot>;
-};
+export class WorkspaceRepositoryLocalConflictError extends Error {
+  currentRevision: LocalDraftRevision;
+
+  constructor(currentRevision: LocalDraftRevision) {
+    super("Repository local draft changed outside the current operation");
+    this.name = "WorkspaceRepositoryLocalConflictError";
+    this.currentRevision = currentRevision;
+  }
+}
 
 export class WorkspaceRepositoryUnavailableError extends Error {
   constructor(message = "Repository is unavailable") {
     super(message);
     this.name = "WorkspaceRepositoryUnavailableError";
   }
+}
+
+export class WorkspaceRepositoryRemoteError extends Error {
+  retryable: boolean;
+
+  constructor(message: string, { retryable = false } = {}) {
+    super(message);
+    this.name = "WorkspaceRepositoryRemoteError";
+    this.retryable = retryable;
+  }
+}
+
+export function createLocalDraftRevision(
+  createId: () => string,
+): LocalDraftRevision {
+  return `draft:${createId()}` as LocalDraftRevision;
 }

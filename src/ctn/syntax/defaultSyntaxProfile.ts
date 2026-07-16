@@ -33,6 +33,14 @@ export const defaultCtnSyntaxProfile = {
       tone: "green",
     },
     {
+      marker: "?",
+      type: "question",
+      label: "疑问",
+      role: "normal",
+      textColor: "amber",
+      tone: "amber",
+    },
+    {
       marker: ">",
       type: "personal-understanding",
       label: "理解",

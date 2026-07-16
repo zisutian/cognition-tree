@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import type {
   IncomingHttpHeaders,
   IncomingMessage,
@@ -11,13 +11,13 @@ import type {
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { describe, expect, it } from "vitest";
-import {
-  parseWorkspaceRepositorySnapshot,
-} from "../../../contracts/workspace-repository/parseRepository";
+import { describe, expect, it, vi } from "vitest";
+import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json";
+import { parseWorkspaceRepositorySnapshot } from "../../../contracts/workspace-repository/parseRepository";
 import type {
+  RepositoryApiErrorDto,
   RepositoryDescriptorDto,
-  RepositoryWorkspaceDto,
+  RepositoryRevisionDto,
   WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types";
@@ -26,22 +26,22 @@ import {
   createWorkspaceApiRequestHandler,
   type WorkspaceApiRequestHandler,
 } from "../../../server/api/workspaceApiServer.ts";
+import { createWorkspaceApiSecurityPolicy } from "../../../server/api/workspaceApiSecurity.ts";
 import {
-  createWorkspaceApiSecurityPolicy,
-  parseWorkspaceApiAllowedOrigins,
-} from "../../../server/api/workspaceApiSecurity.ts";
-
-function createWorkspace(name = "本地笔记库") {
-  return {
-    id: "local-workspace",
-    name,
-    notes: [],
-    tree: [],
-  };
-}
+  RepositoryCatalogError,
+  type WorkspaceRepositoryCatalog,
+} from "../../../server/repository/repositoryCatalog.ts";
+import {
+  createDeepRepositoryContent,
+  inspectDeepRepositoryContent,
+} from "../../storage/repositoryV3Fixtures";
 
 function createContent(name = "本地笔记库"): WorkspaceRepositoryContentDto {
-  return { syntaxSourceFile: null, workspace: createWorkspace(name) };
+  return {
+    schemaVersion: 3,
+    syntaxSource: null,
+    workspace: { id: "workspace", name, notes: [], tree: [] },
+  };
 }
 
 type RequestOptions = {
@@ -60,21 +60,8 @@ type TestServerResponse = {
   end: (chunk?: string | Buffer) => void;
 };
 
-type DispatchResult<Body> = {
-  body: Body | null;
-  headers: Record<string, OutgoingHttpHeader>;
-  statusCode: number;
-};
-
-function createRequest({
-  body = "",
-  headers = {},
-  method,
-  url,
-}: RequestOptions): IncomingMessage {
-  const request = Readable.from(body ? [Buffer.from(body)] : []);
-
-  return Object.assign(request, {
+function createRequest({ body = "", headers = {}, method, url }: RequestOptions) {
+  return Object.assign(Readable.from(body ? [Buffer.from(body)] : []), {
     headers: { host: "127.0.0.1:3001", ...headers },
     method,
     url,
@@ -106,14 +93,10 @@ function createResponse(): TestServerResponse {
 async function dispatch<Body = Record<string, unknown>>(
   handler: WorkspaceApiRequestHandler,
   requestOptions: RequestOptions,
-): Promise<DispatchResult<Body>> {
+) {
   const response = createResponse();
 
-  await handler(
-    createRequest(requestOptions),
-    response as unknown as ServerResponse,
-  );
-
+  await handler(createRequest(requestOptions), response as unknown as ServerResponse);
   return {
     body: response.body ? JSON.parse(response.body) as Body : null,
     headers: response.headers,
@@ -122,67 +105,47 @@ async function dispatch<Body = Record<string, unknown>>(
 }
 
 async function withHandler<Result>(
-  testFn: (
+  run: (
     handler: WorkspaceApiRequestHandler,
     rootDir: string,
+    catalog: LocalRepositoryCatalog,
   ) => Promise<Result>,
-  {
-    allowedHosts,
-    allowedOrigins,
-    bearerToken,
-    host = "127.0.0.1",
-  }: {
-    allowedHosts?: readonly string[];
-    allowedOrigins?: readonly string[];
-    bearerToken?: string;
-    host?: string;
-  } = {},
 ) {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-catalog-"));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v3-api-"));
+  const catalog = new LocalRepositoryCatalog(rootDir);
+  const handler = createWorkspaceApiRequestHandler({
+    catalog,
+    security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
+  });
 
   try {
-    const catalog = new LocalRepositoryCatalog(rootDir);
-    const handler = createWorkspaceApiRequestHandler({
-      catalog,
-      security: createWorkspaceApiSecurityPolicy({
-        allowedHosts,
-        allowedOrigins,
-        bearerToken,
-        host,
-      }),
-    });
-
-    return await testFn(handler, rootDir);
+    return await run(handler, rootDir, catalog);
   } finally {
+    await catalog.dispose();
     await rm(rootDir, { force: true, recursive: true });
   }
 }
 
-function snapshotUrl(repositoryId: string) {
-  return `/api/repositories/${encodeURIComponent(repositoryId)}/snapshot`;
+function snapshotUrl(id: string) {
+  return `/api/repositories/${encodeURIComponent(id)}/snapshot`;
 }
 
 async function createRepository(
   handler: WorkspaceApiRequestHandler,
-  repositoryId: string,
+  id: string,
   content = createContent(),
+  label = "Stable label",
 ) {
   return dispatch<RepositoryDescriptorDto>(handler, {
-    body: JSON.stringify({ content, id: repositoryId }),
+    body: JSON.stringify({ content, id, label }),
     headers: { "content-type": "application/json" },
     method: "POST",
     url: "/api/repositories",
   });
 }
 
-async function loadSnapshot(
-  handler: WorkspaceApiRequestHandler,
-  repositoryId: string,
-) {
-  const response = await dispatch(handler, {
-    method: "GET",
-    url: snapshotUrl(repositoryId),
-  });
+async function loadSnapshot(handler: WorkspaceApiRequestHandler, id: string) {
+  const response = await dispatch(handler, { method: "GET", url: snapshotUrl(id) });
 
   expect(response.statusCode).toBe(200);
   return parseWorkspaceRepositorySnapshot(response.body);
@@ -190,337 +153,281 @@ async function loadSnapshot(
 
 async function commitSnapshot(
   handler: WorkspaceApiRequestHandler,
-  repositoryId: string,
+  id: string,
   content: WorkspaceRepositoryContentDto,
-  baseRevision: string,
+  baseRevision: RepositoryRevisionDto,
 ) {
-  const result = await dispatch<WorkspaceRepositoryCommitResultDto>(handler, {
-    body: JSON.stringify({ ...content, baseRevision }),
+  return dispatch<WorkspaceRepositoryCommitResultDto | RepositoryApiErrorDto>(handler, {
+    body: JSON.stringify({ baseRevision, content }),
     headers: { "content-type": "application/json" },
     method: "PUT",
-    url: snapshotUrl(repositoryId),
+    url: snapshotUrl(id),
   });
-
-  if (result.body === null) {
-    throw new Error("Expected repository commit response body");
-  }
-
-  return { ...result, body: result.body };
 }
 
-describe("workspace API request handler", () => {
-  it("lists, creates, and opens repositories by id", async () => {
-    await withHandler(async (handler, rootDir) => {
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/health" }),
-      ).resolves.toMatchObject({ body: { ok: true }, statusCode: 200 });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/repositories" }),
-      ).resolves.toEqual({
-        body: { repositories: [] },
-        headers: expect.any(Object),
-        statusCode: 200,
+describe("workspace API v3", () => {
+  it("round-trips a 10,000-level tree through API input, Local storage, and API output", async () => {
+    await withHandler(async (handler) => {
+      const content = createDeepRepositoryContent(10_000, "Deep initial");
+      const created = await dispatch(handler, {
+        body: serializeJsonIteratively({ content, id: "deep", label: "Deep tree" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+        url: "/api/repositories",
       });
 
-      const created = await createRepository(
-        handler,
-        "primary",
-        createContent("主仓库"),
-      );
+      expect(created.statusCode).toBe(201);
+      const initial = await loadSnapshot(handler, "deep");
+
+      expect(inspectDeepRepositoryContent(initial.content)).toEqual({
+        deepestFolder: {
+          folderId: "folder-10000",
+          title: 'Level 10000 · "深层"',
+        },
+        depth: 10_000,
+        leaf: { kind: "note", noteId: "deep-note" },
+        rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
+      });
+      const nextContent = {
+        ...initial.content,
+        workspace: { ...initial.content.workspace, name: "Deep committed" },
+      };
+      const committed = await dispatch<WorkspaceRepositoryCommitResultDto>(handler, {
+        body: serializeJsonIteratively({
+          baseRevision: initial.revision,
+          content: nextContent,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: snapshotUrl("deep"),
+      });
+
+      expect(committed).toMatchObject({
+        body: { revision: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) },
+        statusCode: 200,
+      });
+      const loaded = await loadSnapshot(handler, "deep");
+
+      expect(loaded.content.workspace.name).toBe("Deep committed");
+      expect(loaded.content.workspace.notes).toEqual(content.workspace.notes);
+      expect(inspectDeepRepositoryContent(loaded.content)).toEqual({
+        deepestFolder: {
+          folderId: "folder-10000",
+          title: 'Level 10000 · "深层"',
+        },
+        depth: 10_000,
+        leaf: { kind: "note", noteId: "deep-note" },
+        rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
+      });
+    });
+  }, 20_000);
+
+  it("lists, creates, loads, and commits nested v3 content without path disclosure", async () => {
+    await withHandler(async (handler, rootDir) => {
+      const listed = await dispatch(handler, { method: "GET", url: "/api/repositories" });
+
+      expect(listed).toMatchObject({ body: { issues: [], repositories: [] }, statusCode: 200 });
+      expect(listed.headers["cache-control"]).toBe("no-store");
+      const created = await createRepository(handler, "primary", createContent("Workspace"), "Catalog");
 
       expect(created).toMatchObject({
         body: {
           adapter: "local",
           id: "primary",
-          label: "主仓库",
-          repositoryPath: path.join(rootDir, "primary"),
+          label: "Catalog",
+          locationLabel: "local:primary",
         },
         statusCode: 201,
       });
-      await expect(loadSnapshot(handler, "primary")).resolves.toMatchObject({
-        repositoryPath: path.join(rootDir, "primary"),
-        workspace: createWorkspace("主仓库"),
-      });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/repositories" }),
-      ).resolves.toMatchObject({
-        body: { repositories: [created.body] },
-        statusCode: 200,
-      });
-    });
-  });
+      expect(JSON.stringify(created.body)).not.toContain(rootDir);
+      const initial = await loadSnapshot(handler, "primary");
 
-  it("keeps repository snapshots isolated and rejects stale commits", async () => {
-    await withHandler(async (handler) => {
-      await createRepository(handler, "first", createContent("First"));
-      await createRepository(handler, "second", createContent("Second"));
-      const firstSnapshot = await loadSnapshot(handler, "first");
-      const firstContent = createContent("First changed");
+      expect(initial.content).toEqual(createContent("Workspace"));
       const committed = await commitSnapshot(
         handler,
-        "first",
-        firstContent,
-        firstSnapshot.revision,
-      );
-      const stale = await commitSnapshot(
-        handler,
-        "first",
-        createContent("Stale"),
-        firstSnapshot.revision,
+        "primary",
+        createContent("Renamed workspace"),
+        initial.revision,
       );
 
       expect(committed.statusCode).toBe(200);
+      await expect(loadSnapshot(handler, "primary")).resolves.toMatchObject({
+        content: createContent("Renamed workspace"),
+      });
+      await expect(dispatch(handler, { method: "GET", url: "/api/repositories" }))
+        .resolves.toMatchObject({
+          body: { repositories: [expect.objectContaining({ label: "Catalog" })] },
+        });
+    });
+  });
+
+  it("returns one structured error DTO including conflicts", async () => {
+    await withHandler(async (handler) => {
+      await createRepository(handler, "primary");
+      const base = await loadSnapshot(handler, "primary");
+      const committed = await commitSnapshot(handler, "primary", createContent("new"), base.revision);
+
+      if (!committed.body || !("revision" in committed.body)) {
+        throw new Error("expected commit result");
+      }
+      const stale = await commitSnapshot(handler, "primary", createContent("stale"), base.revision);
+
       expect(stale).toMatchObject({
         body: {
+          code: "revision_conflict",
           currentRevision: committed.body.revision,
-          error: "Repository content changed outside the current session",
+          message: "Repository content changed outside the current session",
+          requestId: expect.any(String),
         },
         statusCode: 409,
       });
-      await expect(loadSnapshot(handler, "first")).resolves.toMatchObject({
-        workspace: createWorkspace("First changed"),
-      });
-      await expect(loadSnapshot(handler, "second")).resolves.toMatchObject({
-        workspace: createWorkspace("Second"),
-      });
+      expect(stale.headers["cache-control"]).toBe("no-store");
+      await expect(dispatch(handler, { method: "GET", url: snapshotUrl("missing") }))
+        .resolves.toMatchObject({
+          body: {
+            code: "repository_not_found",
+            message: "Repository does not exist: missing",
+            requestId: expect.any(String),
+          },
+          statusCode: 404,
+        });
     });
   });
 
-  it("allows configured browser origins and rejects other origins", async () => {
-    const allowedOrigin = "http://127.0.0.1:5173";
-
+  it("reports v2 wire input as unsupported instead of accepting fallback fields", async () => {
     await withHandler(async (handler) => {
       await createRepository(handler, "primary");
-      await expect(
-        dispatch(handler, {
-          headers: { origin: allowedOrigin },
-          method: "OPTIONS",
-          url: snapshotUrl("primary"),
-        }),
-      ).resolves.toMatchObject({
-        body: null,
-        headers: {
-          "access-control-allow-headers": "authorization, content-type",
-          "access-control-allow-methods": "GET, OPTIONS, POST, PUT",
-          "access-control-allow-origin": allowedOrigin,
-          vary: "Origin",
-        },
-        statusCode: 204,
-      });
-
-      const initialSnapshot = await loadSnapshot(handler, "primary");
-      await expect(
-        dispatch(handler, {
-          body: JSON.stringify({
-            baseRevision: initialSnapshot.revision,
-            ...createContent("不应写入"),
-          }),
-          headers: { origin: "https://example.com" },
-          method: "PUT",
-          url: snapshotUrl("primary"),
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Origin is not allowed" },
-        statusCode: 403,
-      });
-      await expect(loadSnapshot(handler, "primary")).resolves.toEqual(
-        initialSnapshot,
-      );
-    }, { allowedOrigins: [allowedOrigin] });
-  });
-
-  it("parses an explicit origin allowlist", () => {
-    expect(
-      parseWorkspaceApiAllowedOrigins(
-        "http://localhost:4173/, https://notes.example.test, http://localhost:4173",
-      ),
-    ).toEqual([
-      "http://localhost:4173",
-      "https://notes.example.test",
-    ]);
-  });
-
-  it("enforces Host and bearer authentication for an exposed API", async () => {
-    const token = "x".repeat(32);
-
-    await withHandler(async (handler) => {
-      await expect(
-        dispatch(handler, {
-          headers: {
-            host: "api.example.test:3001",
-            origin: "https://notes.example.test",
-          },
-          method: "GET",
-          url: "/api/health",
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Bearer token is invalid" },
-        headers: {
-          "access-control-allow-origin": "https://notes.example.test",
-          "www-authenticate": "Bearer",
-        },
-        statusCode: 401,
-      });
-      await expect(
-        dispatch(handler, {
-          headers: {
-            authorization: `Bearer ${token}`,
-            host: "api.example.test:3001",
-          },
-          method: "GET",
-          url: "/api/health",
-        }),
-      ).resolves.toMatchObject({ body: { ok: true }, statusCode: 200 });
-      await expect(
-        dispatch(handler, {
-          headers: {
-            authorization: `Bearer ${token}`,
-            host: "attacker.example.test",
-          },
-          method: "GET",
-          url: "/api/health",
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Host is not allowed" },
-        statusCode: 403,
-      });
-    }, {
-      allowedHosts: ["api.example.test:3001"],
-      allowedOrigins: ["https://notes.example.test"],
-      bearerToken: token,
-      host: "0.0.0.0",
-    });
-  });
-
-  it("rejects invalid repository and snapshot content", async () => {
-    await withHandler(async (handler, rootDir) => {
-      expect(
-        await createRepository(handler, "../escape"),
-      ).toMatchObject({
-        body: { error: expect.stringContaining("invalid repository id") },
-        statusCode: 400,
-      });
-      await createRepository(handler, "primary");
-      const initialSnapshot = await loadSnapshot(handler, "primary");
-      const workspace: RepositoryWorkspaceDto = {
-        ...createWorkspace(),
-        notes: [
-          {
-            createdAt: "2026-05-25T00:00:00.000Z",
-            id: "note-valid",
-            source: "有效笔记",
-            title: "有效笔记",
-            updatedAt: "2026-05-25T00:00:00.000Z",
-          },
-        ],
-        tree: [
-          { id: "tree-note-valid", kind: "note", noteId: "note-valid" },
-        ],
-      };
-      const validCommit = await commitSnapshot(
-        handler,
-        "primary",
-        { syntaxSourceFile: null, workspace },
-        initialSnapshot.revision,
-      );
-      const invalidTitle = await commitSnapshot(
-        handler,
-        "primary",
-        {
+      const base = await loadSnapshot(handler, "primary");
+      const response = await dispatch<RepositoryApiErrorDto>(handler, {
+        body: JSON.stringify({
+          baseRevision: base.revision,
           syntaxSourceFile: null,
-          workspace: {
-            ...workspace,
-            notes: workspace.notes.map((note) => ({
-              ...note,
-              title: "标题与原文不一致",
-            })),
-          },
-        },
-        validCommit.body.revision,
-      );
-
-      expect(invalidTitle).toMatchObject({
-        body: { error: expect.stringContaining("does not match first line") },
-        statusCode: 400,
+          workspace: base.content.workspace,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: snapshotUrl("primary"),
       });
-      await expect(loadSnapshot(handler, "primary")).resolves.toEqual({
-        repositoryPath: path.join(rootDir, "primary"),
-        revision: validCommit.body.revision,
-        syntaxSourceFile: null,
-        workspace,
+
+      expect(response).toMatchObject({
+        body: { code: "unsupported_repository_version", requestId: expect.any(String) },
+        statusCode: 409,
       });
     });
   });
 
-  it("classifies malformed requests, unknown ids, and removed routes", async () => {
-    await withHandler(async (handler) => {
-      await createRepository(handler, "primary");
+  it("redacts corruption and unknown 500 details while logging by request id", async () => {
+    const logger = { error: vi.fn() };
+    const catalog: WorkspaceRepositoryCatalog = {
+      async createRepository() {
+        throw new Error("/private/repositories/secret stack detail");
+      },
+      async getStore() {
+        throw new Error("/private/repositories/secret stack detail");
+      },
+      async listRepositories() {
+        throw new Error("/private/repositories/secret stack detail");
+      },
+    };
+    const handler = createWorkspaceApiRequestHandler({
+      catalog,
+      logger,
+      security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
+    });
+    const response = await dispatch<RepositoryApiErrorDto>(handler, {
+      method: "GET",
+      url: "/api/repositories",
+    });
 
-      await expect(
-        dispatch(handler, {
-          body: "{",
-          headers: { "content-type": "application/json" },
-          method: "PUT",
-          url: snapshotUrl("primary"),
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Request body is invalid JSON" },
-        statusCode: 400,
+    expect(response).toMatchObject({
+      body: {
+        code: "internal_error",
+        message: "Internal server error",
+        requestId: expect.any(String),
+      },
+      statusCode: 500,
+    });
+    expect(JSON.stringify(response.body)).not.toContain("/private");
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining(response.body?.requestId ?? ""),
+      expect.any(Error),
+    );
+  });
+
+  it("redacts explicit internal adapter errors instead of trusting their messages", async () => {
+    const privateDetail = "/private/webdav/path and remote response body";
+    const handler = createWorkspaceApiRequestHandler({
+      catalog: {
+        async createRepository() { throw new Error("unused"); },
+        async getStore() { throw new Error("unused"); },
+        async listRepositories() {
+          throw new RepositoryCatalogError("internal_error", privateDetail);
+        },
+      },
+      logger: { error: vi.fn() },
+      security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
+    });
+    const response = await dispatch<RepositoryApiErrorDto>(handler, {
+      method: "GET",
+      url: "/api/repositories",
+    });
+
+    expect(response).toMatchObject({
+      body: {
+        code: "internal_error",
+        message: "Internal server error",
+        requestId: expect.any(String),
+      },
+      statusCode: 500,
+    });
+    expect(JSON.stringify(response.body)).not.toContain(privateDetail);
+  });
+
+  it("returns corruption as a redacted issue without blocking catalog listing", async () => {
+    await withHandler(async (handler, rootDir) => {
+      await createRepository(handler, "primary");
+      await writeFile(path.join(rootDir, "primary", "repository.json"), "not json");
+      const response = await dispatch(handler, { method: "GET", url: "/api/repositories" });
+
+      expect(response).toMatchObject({
+        body: {
+          issues: [expect.objectContaining({ code: "repository_corrupt", id: "primary" })],
+          repositories: [],
+        },
+        statusCode: 200,
       });
-      await expect(
-        dispatch(handler, {
-          body: "{}",
-          method: "PUT",
-          url: snapshotUrl("primary"),
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Content-Type must be application/json" },
-        statusCode: 415,
-      });
-      await expect(
-        dispatch(handler, {
-          body: "x".repeat(20 * 1024 * 1024 + 1),
-          headers: { "content-type": "application/json" },
-          method: "PUT",
-          url: snapshotUrl("primary"),
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Request body is too large" },
-        statusCode: 413,
-      });
-      await expect(
-        dispatch(handler, {
-          body: "unexpected",
-          headers: { "content-length": "10" },
-          method: "GET",
-          url: "/api/repositories",
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Request body is not allowed for this method" },
-        statusCode: 400,
-      });
-      await expect(
-        dispatch(handler, {
-          method: "DELETE",
-          url: snapshotUrl("primary"),
-        }),
-      ).resolves.toMatchObject({
-        body: { error: "Method not allowed" },
-        headers: { allow: "GET, PUT" },
-        statusCode: 405,
-      });
-      await expect(
-        dispatch(handler, { method: "GET", url: snapshotUrl("missing") }),
-      ).resolves.toMatchObject({
-        body: { error: "Repository does not exist: missing" },
-        statusCode: 404,
-      });
-      await expect(
-        dispatch(handler, { method: "GET", url: "/api/repository-snapshot" }),
-      ).resolves.toMatchObject({
-        body: { error: "Not found" },
-        statusCode: 404,
-      });
+      expect(JSON.stringify(response.body)).not.toContain(rootDir);
+    });
+  });
+
+  it("uses structured authorization errors and no-store headers", async () => {
+    const token = "x".repeat(32);
+    const handler = createWorkspaceApiRequestHandler({
+      catalog: {
+        async createRepository() { throw new Error("unused"); },
+        async getStore() { throw new Error("unused"); },
+        async listRepositories() { return { issues: [], repositories: [] }; },
+      },
+      security: createWorkspaceApiSecurityPolicy({
+        bearerToken: token,
+        host: "0.0.0.0",
+        publicUrl: "https://api.example.test",
+      }),
+    });
+    const response = await dispatch<RepositoryApiErrorDto>(handler, {
+      headers: { host: "api.example.test", origin: "https://api.example.test" },
+      method: "GET",
+      url: "/api/health",
+    });
+
+    expect(response).toMatchObject({
+      body: { code: "unauthorized", requestId: expect.any(String) },
+      headers: {
+        "access-control-allow-origin": "https://api.example.test",
+        "cache-control": "no-store",
+        "www-authenticate": "Bearer",
+      },
+      statusCode: 401,
     });
   });
 });

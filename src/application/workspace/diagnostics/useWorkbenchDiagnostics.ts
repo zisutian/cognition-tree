@@ -1,75 +1,53 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type {
   SyntaxProfileDraft,
   SyntaxProfileDraftBuildResult,
 } from "../../../ctn/syntax/profileDraft";
-import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
-import type { WorkspaceParseIndexCache } from "../../../workspace/indexes/workspaceParseIndex";
+import type { WorkspaceAnalysis } from "../analysis/workspaceAnalysis";
 import {
   createUiSyntaxDiagnostics,
+  createUiWorkbenchDiagnostics,
+  type UiWorkbenchDiagnostic,
   type UiWorkbenchDiagnostics,
 } from "../projection/viewDiagnostics";
-import { useWorkspaceParseIndex } from "../runtime/useWorkspaceParseIndex";
-import { createWorkbenchDiagnosticPlan } from "./workbenchDiagnosticPlan";
-import { startWorkspaceDiagnosticCollection } from "./workspaceDiagnosticCollection";
 
-type DiagnosticState = {
-  token: object;
-  view: UiWorkbenchDiagnostics;
-};
+export function selectWorkbenchDiagnostics({
+  analysisDiagnostics,
+  isSyntaxConfigured,
+  syntaxDiagnostics,
+}: {
+  analysisDiagnostics: UiWorkbenchDiagnostics;
+  isSyntaxConfigured: boolean;
+  syntaxDiagnostics: UiWorkbenchDiagnostic[];
+}) {
+  if (syntaxDiagnostics.length > 0) {
+    return createUiWorkbenchDiagnostics(syntaxDiagnostics, "ready");
+  }
+
+  return isSyntaxConfigured
+    ? analysisDiagnostics
+    : createUiWorkbenchDiagnostics([], "ready");
+}
 
 export function useWorkbenchDiagnostics({
-  effectiveContext,
+  analysis,
   isSyntaxConfigured,
-  parseIndexCache,
   syntaxDraft,
   syntaxDraftResult,
 }: {
-  effectiveContext: WorkspaceContext | null;
+  analysis: WorkspaceAnalysis;
   isSyntaxConfigured: boolean;
-  parseIndexCache: WorkspaceParseIndexCache;
   syntaxDraft: SyntaxProfileDraft;
   syntaxDraftResult: SyntaxProfileDraftBuildResult;
 }) {
-  const index = useWorkspaceParseIndex(
-    parseIndexCache,
-    isSyntaxConfigured ? effectiveContext : null,
-  );
   const syntaxDiagnostics = useMemo(
     () => createUiSyntaxDiagnostics(syntaxDraft, syntaxDraftResult),
     [syntaxDraft, syntaxDraftResult],
   );
-  const token = useMemo(
-    () => ({}),
-    [index, isSyntaxConfigured, syntaxDiagnostics],
-  );
-  const plan = useMemo(() => {
-    return createWorkbenchDiagnosticPlan({
-      canCollectWorkspace: isSyntaxConfigured && Boolean(index),
-      syntaxDiagnostics,
-    });
-  }, [index, isSyntaxConfigured, syntaxDiagnostics]);
-  const [state, setState] = useState<DiagnosticState>({
-    token,
-    view: plan.initialView,
+
+  return selectWorkbenchDiagnostics({
+    analysisDiagnostics: analysis.diagnostics,
+    isSyntaxConfigured,
+    syntaxDiagnostics,
   });
-
-  useEffect(() => {
-    setState({ token, view: plan.initialView });
-
-    if (!plan.collectWorkspace || !index) {
-      return;
-    }
-
-    return startWorkspaceDiagnosticCollection({
-      index,
-      onUpdate(view) {
-        setState((current) =>
-          current.token === token ? { token, view } : current,
-        );
-      },
-    });
-  }, [index, plan, token]);
-
-  return state.token === token ? state.view : plan.initialView;
 }

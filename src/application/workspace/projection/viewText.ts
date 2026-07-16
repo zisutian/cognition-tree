@@ -1,4 +1,4 @@
-import type { CtnBlock } from "../../../ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
 
 export type UiSyntaxTone = string;
 
@@ -22,22 +22,8 @@ export type UiTextDisplay = {
   textColor: UiSyntaxTone;
 };
 
-function getNodeTextStartIndex(node: CtnBlock) {
-  let textStart = node.indentText.length;
-
-  if (node.marker) {
-    const markerStart = node.rawText.indexOf(node.marker, textStart);
-
-    if (markerStart >= 0) {
-      textStart = markerStart + node.marker.length;
-    }
-  }
-
-  while (textStart < node.rawText.length && /\s/.test(node.rawText[textStart])) {
-    textStart += 1;
-  }
-
-  return textStart;
+function getNodeTextStartIndex(node: CtnCanonicalBlock) {
+  return Math.max(0, node.textStartColumn - 1);
 }
 
 function clampOffset(offset: number, textLength: number) {
@@ -54,7 +40,7 @@ function getInlineDisplayText(sourceText: string, parsedText: string) {
   return parsedTextStart >= 0 ? parsedText : sourceText;
 }
 
-export function createUiTextSegments(node: CtnBlock): UiTextSegment[] {
+export function createUiTextSegments(node: CtnCanonicalBlock): UiTextSegment[] {
   const textStartColumn = getNodeTextStartIndex(node) + 1;
   const spans = [...node.inlineSpans].sort(
     (left, right) =>
@@ -115,7 +101,7 @@ export function getUiTextDisplayText(segments: UiTextSegment[]) {
   return segments.map((segment) => segment.text).join("");
 }
 
-export function createUiTextDisplay(node: CtnBlock): UiTextDisplay {
+export function createUiTextDisplay(node: CtnCanonicalBlock): UiTextDisplay {
   const segments = createUiTextSegments(node);
 
   return {

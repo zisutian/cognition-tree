@@ -221,6 +221,30 @@ describe("UI design contract", () => {
     expect(editorStyle).toContain("var(--ctn-editor-font-size)");
   });
 
+  it("keeps editor state backgrounds in an explicit visual priority order", () => {
+    const editorStyle = readStyle("editor/CtnEditor.css");
+    const toneIndex = editorStyle.indexOf(
+      ".source-editor .ctn-line:not(.ctn-tone-default)",
+    );
+    const activeLineIndex = editorStyle.indexOf(
+      ".source-editor .cm-line.cm-activeLine",
+    );
+    const activeCodeIndex = editorStyle.indexOf(
+      ".source-editor .cm-line.ctn-active-code-block",
+    );
+    const diagnosticIndex = editorStyle.indexOf(
+      ".source-editor .cm-line.ctn-line-diagnostic",
+    );
+
+    expect(toneIndex).toBeGreaterThanOrEqual(0);
+    expect(activeLineIndex).toBeGreaterThan(toneIndex);
+    expect(activeCodeIndex).toBeGreaterThan(activeLineIndex);
+    expect(diagnosticIndex).toBeGreaterThan(activeCodeIndex);
+    expect(editorStyle).toMatch(
+      /\.cm-selectionBackground,[\s\S]*background:\s*var\(--color-selected\)\s*!important/,
+    );
+  });
+
   it("keeps the collapsed detail responsive behavior in the frame layer", () => {
     const frame = readStyle("ui/styles/frame/frame.css");
     const responsiveStart = frame.indexOf("@media (max-width: 1120px)");
@@ -254,6 +278,151 @@ describe("UI design contract", () => {
     expect(cardPatterns.filter((pattern) => pattern.test(primitives))).toEqual(
       [],
     );
+  });
+
+  it("keeps shared tree depth, virtualization and drag states in one contract", () => {
+    const tree = readStyle("ui/styles/shared/tree.css");
+
+    expect(tree).toContain(".ui-virtual-tree-row");
+    expect(tree).toContain("--ui-directory-depth");
+    expect(tree).toContain(".ui-tree-row-frame.is-delete-pending");
+    expect(tree).toContain(".ui-structure-tree .ui-structure-tree");
+    expect(tree).toContain("padding-left: 0");
+    expect(tree).toContain("border-left: 0");
+    expect(tree).toContain("--ui-structure-indent-width: 14px");
+    expect(tree).toContain("var(--ui-structure-depth)");
+    expect(tree).toContain("var(--ui-structure-indent-width)");
+    expect(tree).toContain("grid-template-columns:\n    max-content");
+    expect(tree).toContain(".ui-structure-tree-item.is-selected-subtree");
+    expect(tree).toContain(".ui-tree-row-frame.is-drop-target::before");
+    expect(tree).toContain(".ui-tree-row-frame.is-drop-before::before");
+    expect(tree).toContain("background: var(--color-selected)");
+    expect(tree).not.toContain(
+      "box-shadow: inset 0 0 0 var(--ui-border-width) var(--color-border-strong)",
+    );
+    expect(tree).not.toContain("color-accent");
+    expect(tree).not.toContain(
+      "minmax(calc(var(--ui-control-height) * 2), max-content)",
+    );
+  });
+
+  it("keeps row-style primitives flat without changing panel titles", () => {
+    const primitives = readStyle("ui/styles/shared/primitives.css");
+
+    expect(primitives).not.toContain(".ui-panel-detail .ui-panel-header h2");
+    expect(primitives).toContain(".ui-symbol-slot");
+    expect(primitives).toContain("width: var(--ui-symbol-size)");
+    expect(primitives).toContain(".ui-toggle-button.is-active");
+    expect(primitives).toContain("color: var(--color-fg-strong)");
+    expect(primitives).toContain(".detail-summary-strip");
+    expect(primitives).toContain(".detail-primary-row");
+    expect(primitives).toContain(".detail-divider");
+    expect(primitives).toContain(".detail-line-row");
+    expect(primitives).not.toMatch(
+      /\.detail-line-row[\s\S]*?border: var\(--ui-border-width\) solid var\(--color-border/,
+    );
+  });
+
+  it("keeps structure operation alignment and drag feedback neutral", () => {
+    const structureOperation = readStyle(
+      "ui/styles/activities/structure-operation.css",
+    );
+    const dropStyleStart = structureOperation.indexOf(
+      ".structure-operation-drop-target.is-active",
+    );
+    const dropStyleSource = structureOperation.slice(dropStyleStart);
+    const columnStyleStart = structureOperation.indexOf(
+      ".structure-operation-column",
+    );
+    const columnStyleEnd = structureOperation.indexOf(
+      ".structure-operation-drop-target",
+    );
+    const columnStyleSource = structureOperation.slice(
+      columnStyleStart,
+      columnStyleEnd,
+    );
+    const swapStyleStart = structureOperation.indexOf(
+      ".structure-operation-pair-swap",
+    );
+    const swapStyleEnd = structureOperation.indexOf(
+      ".structure-operation-column",
+      swapStyleStart,
+    );
+    const swapStyleSource = structureOperation.slice(
+      swapStyleStart,
+      swapStyleEnd,
+    );
+
+    expect(dropStyleStart).toBeGreaterThanOrEqual(0);
+    expect(dropStyleSource).toContain("background: var(--color-selected)");
+    expect(dropStyleSource).toContain("border-color: var(--color-border-strong)");
+    expect(dropStyleSource).toContain("height: 8px");
+    expect(dropStyleSource).toContain(
+      ".structure-operation-target-node.is-drop-above::before",
+    );
+    expect(dropStyleSource).toContain(
+      ".structure-operation-target-node.is-drop-below::after",
+    );
+    expect(dropStyleSource).not.toContain("color-accent");
+    expect(dropStyleSource).not.toContain("box-shadow");
+    expect(columnStyleSource).toContain("align-content: start");
+    expect(swapStyleSource).not.toContain("transform");
+    expect(structureOperation).toContain(
+      ".structure-operation-column > .ui-section-title",
+    );
+    expect(structureOperation).toContain("min-height: var(--ui-icon-size)");
+  });
+
+  it("keeps syntax controls and grouped layout behind shared tokens", () => {
+    const primitives = readStyle("ui/styles/shared/primitives.css");
+    const syntax = readStyle("ui/styles/activities/syntax.css");
+    const blockText = readStyle("ui/styles/shared/blockText.css");
+
+    expect(primitives).toContain(".ui-input");
+    expect(primitives).toContain(
+      "border: var(--ui-border-width) solid transparent",
+    );
+    expect(syntax).not.toContain(".syntax-setting-line input");
+    expect(syntax).not.toContain(".syntax-rule-row input");
+    expect(syntax).not.toMatch(
+      /\.syntax-rule-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
+    );
+    expect(syntax).not.toMatch(
+      /\.syntax-tone-tile\.is-selected,[\s\S]*?border-color: var\(--color-accent\)/,
+    );
+    expect(blockText).toMatch(
+      /\.ctn-tone-green \{[\s\S]*?--ctn-tone-background: var\(--ctn-tone-green-soft\)/,
+    );
+    expect(blockText).toContain("--ctn-tone-background: color-mix(");
+    expect(syntax).not.toContain("border-left-color: var(--ctn-tone");
+    expect(syntax).not.toContain(
+      "border-left: calc(var(--ui-border-width) * 2) solid transparent",
+    );
+    expect(syntax).toContain(
+      "minmax(calc(var(--ui-control-height) * 2), max-content)",
+    );
+    expect(syntax).toContain(".syntax-settings-stack");
+    expect(syntax).toContain(".syntax-settings-group");
+    expect(syntax).toContain(".syntax-setting-line");
+    expect(syntax).toContain(".syntax-rule-row");
+    expect(syntax).toContain(".syntax-pair-fields");
+    expect(syntax).toContain("--syntax-rule-row-width");
+    expect(syntax).toContain("width: min(100%, var(--syntax-rule-row-width))");
+    expect(syntax).toContain("calc(var(--ui-control-height) * 12)");
+    expect(syntax).not.toContain("calc(var(--ui-control-height) * 26)");
+    expect(syntax).toContain(".syntax-tone-button.is-compact");
+    expect(syntax).toContain(".syntax-dropdown-menu");
+    expect(syntax).toContain(".syntax-role-menu");
+    expect(syntax).toContain(".syntax-role-list");
+    expect(syntax).toContain(".syntax-role-option");
+    expect(syntax).toContain("justify-content: center");
+    expect(syntax).not.toContain(".syntax-settings-table");
+    expect(syntax).not.toContain(".syntax-setting-row");
+    expect(syntax).not.toContain(".syntax-config-strip");
+    expect(syntax).not.toContain(".syntax-config-item");
+    expect(syntax).not.toContain(".syntax-block-row");
+    expect(syntax).not.toContain(".syntax-inline-row");
+    expect(syntax).not.toContain(".syntax-tone-fields");
   });
 
   it("keeps workbench interactions out of native browser dialogs", () => {

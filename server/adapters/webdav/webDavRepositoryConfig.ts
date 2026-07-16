@@ -2,7 +2,10 @@
 
 import { isRepositoryId } from "../../../contracts/workspace-repository/parseCatalog.ts";
 import type { WorkspaceRepositoryRegistration } from "../../repository/repositoryCatalog.ts";
-import { createWebDavTransport } from "./webDavTransport.ts";
+import {
+  createWebDavTransport,
+  probeWebDavCapabilities,
+} from "./webDavTransport.ts";
 import { WebDavWorkspaceStore } from "./webDavWorkspaceStore.ts";
 
 export type WebDavRepositoryConfig = {
@@ -81,6 +84,10 @@ function parseConfig(value: unknown, index: number): WebDavRepositoryConfig {
     ? url.pathname
     : `${url.pathname}/`;
 
+  if (username !== undefined && url.protocol !== "https:") {
+    throw new Error(`Authenticated WebDAV repository requires HTTPS: ${id}`);
+  }
+
   return {
     id,
     label,
@@ -119,11 +126,11 @@ export function parseWebDavRepositoryConfigs(source: string | undefined) {
   return configs;
 }
 
-export function createWebDavRepositoryRegistrations(
+export async function createWebDavRepositoryRegistrations(
   configs: WebDavRepositoryConfig[],
   { fetch: fetchFn }: { fetch?: typeof fetch } = {},
-): WorkspaceRepositoryRegistration[] {
-  return configs.map((config) => {
+): Promise<WorkspaceRepositoryRegistration[]> {
+  return Promise.all(configs.map(async (config) => {
     const transport = createWebDavTransport({
       fetch: fetchFn,
       password: config.password,
@@ -131,17 +138,22 @@ export function createWebDavRepositoryRegistrations(
       username: config.username,
     });
 
+    await probeWebDavCapabilities(transport);
+    const store = new WebDavWorkspaceStore({
+      initialWorkspaceId: config.id,
+      initialWorkspaceName: config.label,
+      transport,
+    });
+
+    await store.initialize();
     return {
       descriptor: {
         adapter: "webdav",
         id: config.id,
         label: config.label,
-        repositoryPath: config.url,
+        locationLabel: `webdav:${config.id}`,
       },
-      store: new WebDavWorkspaceStore({
-        repositoryPath: config.url,
-        transport,
-      }),
+      store,
     };
-  });
+  }));
 }

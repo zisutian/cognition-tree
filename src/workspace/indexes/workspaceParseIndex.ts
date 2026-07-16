@@ -3,11 +3,11 @@ import {
   ctnGlobalReferenceType,
   normalizeCtnReferenceText,
 } from "../../ctn/parser/inlineReferences";
-import { parseCtnDocument } from "../../ctn/parser/parseCtnDocument";
-import type { CtnDocument } from "../../ctn/parser/types";
+import { parseCtnCanonicalDocument } from "../../ctn/parser/parseCtnDocument";
+import type { CtnCanonicalDocument } from "../../ctn/parser/types";
 import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
-import type { NoteId, NoteRecord } from "../model/workspaceData";
+import type { NoteId, WorkspaceNote } from "../model/workspaceData";
 import type { WorkspaceStructureIndex } from "./workspaceStructureIndex";
 
 type WorkspaceParseIndexSource = {
@@ -16,20 +16,14 @@ type WorkspaceParseIndexSource = {
 };
 
 export type ParsedWorkspaceNoteCacheEntry = {
-  document: CtnDocument;
+  document: CtnCanonicalDocument;
   source: string;
   syntaxProfileKey: string;
 };
 
-const emptyCtnDocument: CtnDocument = {
-  blocks: [],
-  diagnostics: [],
-  roots: [],
-};
-
 export type ParsedWorkspaceNote = {
-  document: CtnDocument;
-  note: NoteRecord | null;
+  document: CtnCanonicalDocument;
+  note: WorkspaceNote;
   profile: CtnSyntaxProfile;
   source: string;
 };
@@ -62,18 +56,26 @@ export type UnresolvedNoteReference = {
   targetText: string;
 };
 
+export type AmbiguousNoteReference = UnresolvedNoteReference & {
+  candidateNoteIds: NoteId[];
+};
+
 export type NoteReferenceGraph = {
+  ambiguousReferences: AmbiguousNoteReference[];
   edges: NoteReferenceGraphEdge[];
   nodes: NoteReferenceGraphNode[];
+  revision: number;
   unresolvedReferences: UnresolvedNoteReference[];
 };
+
+let nextReferenceGraphRevision = 1;
 
 export type WorkspaceParseIndex = {
   createScan(): WorkspaceParseScan;
   parseCache: WorkspaceParseCache;
   getParsedNote(noteId: NoteId): ParsedWorkspaceNote | null;
-  readonly referenceGraph: NoteReferenceGraph;
   syntaxProfile: CtnSyntaxProfile;
+  titleIndex: ReadonlyMap<string, readonly WorkspaceNote[]>;
 };
 
 export type WorkspaceParseScan = {
@@ -87,7 +89,7 @@ export type WorkspaceParseIndexCache = {
 };
 
 function createParsedWorkspaceNote(
-  note: NoteRecord,
+  note: WorkspaceNote,
   syntaxProfile: CtnSyntaxProfile,
   syntaxProfileKey: string,
   previousCacheEntry: ParsedWorkspaceNoteCacheEntry | undefined,
@@ -96,7 +98,7 @@ function createParsedWorkspaceNote(
     previousCacheEntry?.source === note.source &&
     previousCacheEntry.syntaxProfileKey === syntaxProfileKey
       ? previousCacheEntry.document
-      : parseCtnDocument(note.source, syntaxProfile);
+      : parseCtnCanonicalDocument(note.source, syntaxProfile);
 
   return {
     document,
@@ -118,7 +120,7 @@ function createParseCacheEntry(
 }
 
 function canReuseParseCacheEntry(
-  note: NoteRecord,
+  note: WorkspaceNote,
   syntaxProfileKey: string,
   cacheEntry: ParsedWorkspaceNoteCacheEntry | undefined,
 ) {
@@ -128,19 +130,8 @@ function canReuseParseCacheEntry(
   );
 }
 
-export function createEmptyParsedWorkspaceNote(
-  syntaxProfile: CtnSyntaxProfile,
-): ParsedWorkspaceNote {
-  return {
-    document: emptyCtnDocument,
-    note: null,
-    profile: syntaxProfile,
-    source: "",
-  };
-}
-
-function createTitleIndex(notes: NoteRecord[]) {
-  const titleIndex = new Map<string, NoteRecord[]>();
+function createTitleIndex(notes: WorkspaceNote[]) {
+  const titleIndex = new Map<string, WorkspaceNote[]>();
 
   for (const note of notes) {
     const normalizedTitle = normalizeCtnReferenceText(note.title);
@@ -178,7 +169,7 @@ const referenceGraphCacheByIndex = new WeakMap<
 >();
 
 function createReferenceGraphNoteSnapshot(
-  notes: NoteRecord[],
+  notes: WorkspaceNote[],
 ): ReferenceGraphNoteSnapshot[] {
   return notes.map((note) => ({
     id: note.id,
@@ -189,7 +180,7 @@ function createReferenceGraphNoteSnapshot(
 
 function canReuseReferenceGraph(
   cacheEntry: ReferenceGraphCacheEntry | null,
-  notes: NoteRecord[],
+  notes: WorkspaceNote[],
   syntaxProfileKey: string,
 ): boolean {
   if (
@@ -215,18 +206,17 @@ function canReuseReferenceGraph(
   });
 }
 
-function createWorkspaceNoteReferenceGraphBuilder(notes: NoteRecord[]) {
-  const titleIndex = createTitleIndex(notes);
+function createWorkspaceNoteReferenceGraphBuilder(
+  notes: WorkspaceNote[],
+  titleIndex: ReadonlyMap<string, readonly WorkspaceNote[]>,
+) {
   const referencesIn = new Map<NoteId, number>();
   const referencesOut = new Map<NoteId, number>();
   const edgeCounts = new Map<string, NoteReferenceGraphEdge>();
+  const ambiguousCounts = new Map<string, AmbiguousNoteReference>();
   const unresolvedCounts = new Map<string, UnresolvedNoteReference>();
 
   const addParsedNote = (parsedNote: ParsedWorkspaceNote) => {
-    if (!parsedNote.note) {
-      return;
-    }
-
     for (const reference of collectCtnInlineReferences(
       parsedNote.document,
       ctnGlobalReferenceType,
@@ -256,20 +246,37 @@ function createWorkspaceNoteReferenceGraphBuilder(notes: NoteRecord[]) {
         continue;
       }
 
-      for (const targetNote of targetNotes) {
-        const edgeKey = `${parsedNote.note.id}->${targetNote.id}->${targetText}`;
-        const current = edgeCounts.get(edgeKey);
+      if (targetNotes.length > 1) {
+        const ambiguousKey = `${parsedNote.note.id}->${targetText}`;
+        const current = ambiguousCounts.get(ambiguousKey);
 
-        edgeCounts.set(edgeKey, {
+        ambiguousCounts.set(ambiguousKey, {
+          candidateNoteIds: targetNotes.map((note) => note.id),
           count: (current?.count ?? 0) + 1,
-          id: edgeKey,
+          lineNumber: Math.min(
+            current?.lineNumber ?? reference.lineNumber,
+            reference.lineNumber,
+          ),
           sourceNoteId: parsedNote.note.id,
-          targetNoteId: targetNote.id,
-          targetTitle: targetText,
+          targetText,
         });
         incrementCounter(referencesOut, parsedNote.note.id);
-        incrementCounter(referencesIn, targetNote.id);
+        continue;
       }
+
+      const targetNote = targetNotes[0];
+      const edgeKey = `${parsedNote.note.id}->${targetNote.id}->${targetText}`;
+      const current = edgeCounts.get(edgeKey);
+
+      edgeCounts.set(edgeKey, {
+        count: (current?.count ?? 0) + 1,
+        id: edgeKey,
+        sourceNoteId: parsedNote.note.id,
+        targetNoteId: targetNote.id,
+        targetTitle: targetText,
+      });
+      incrementCounter(referencesOut, parsedNote.note.id);
+      incrementCounter(referencesIn, targetNote.id);
     }
   };
 
@@ -277,6 +284,7 @@ function createWorkspaceNoteReferenceGraphBuilder(notes: NoteRecord[]) {
     addParsedNote,
     complete(): NoteReferenceGraph {
       return {
+        ambiguousReferences: [...ambiguousCounts.values()],
         edges: [...edgeCounts.values()],
         nodes: notes.map((note) => {
           const noteReferencesIn = referencesIn.get(note.id) ?? 0;
@@ -290,6 +298,7 @@ function createWorkspaceNoteReferenceGraphBuilder(notes: NoteRecord[]) {
             title: note.title,
           };
         }),
+        revision: nextReferenceGraphRevision++,
         unresolvedReferences: [...unresolvedCounts.values()],
       };
     },
@@ -303,7 +312,16 @@ export function createWorkspaceParseIndex(
   const syntaxProfileKey = createCtnSyntaxParseProfileKey(
     source.syntaxProfile,
   );
-  const notes = source.workspace.data.notes;
+  const notes = source.workspace.data.notes.map((note) => {
+    const entry = source.workspace.noteEntryById.get(note.id);
+
+    if (!entry) {
+      throw new Error(`Workspace note is missing from tree: ${note.id}`);
+    }
+
+    return entry.projectedNote;
+  });
+  const titleIndex = createTitleIndex(notes);
   const parseCacheEntries = new Map<NoteId, ParsedWorkspaceNoteCacheEntry>(
     notes.flatMap(
       (note): [NoteId, ParsedWorkspaceNoteCacheEntry][] => {
@@ -326,15 +344,13 @@ export function createWorkspaceParseIndex(
     ? referenceGraphCacheByIndex.get(previousIndex) ?? null
     : null;
   let referenceGraph: NoteReferenceGraph | null = null;
-  const resolveParsedNote = (note: NoteRecord): ParsedWorkspaceNote => {
+  const resolveParsedNote = (note: WorkspaceNote): ParsedWorkspaceNote => {
     const currentCacheEntry = parseCacheEntries.get(note.id);
-    const previousCacheEntry =
-      currentCacheEntry ?? previousIndex?.parseCache.entriesById.get(note.id);
     const parsedNote = createParsedWorkspaceNote(
       note,
       source.syntaxProfile,
       syntaxProfileKey,
-      previousCacheEntry,
+      currentCacheEntry,
     );
 
     parseCacheEntries.set(
@@ -372,7 +388,7 @@ export function createWorkspaceParseIndex(
     const reusableReferenceGraph = getReusableReferenceGraph();
     const graphBuilder = reusableReferenceGraph
       ? null
-      : createWorkspaceNoteReferenceGraphBuilder(notes);
+      : createWorkspaceNoteReferenceGraphBuilder(notes, titleIndex);
     const scannedNoteIds = new Set<NoteId>();
 
     return {
@@ -387,7 +403,7 @@ export function createWorkspaceParseIndex(
       },
       noteIds: notes.map((note) => note.id),
       scanNote(noteId) {
-        const note = source.workspace.noteById.get(noteId);
+        const note = source.workspace.noteEntryById.get(noteId)?.projectedNote;
 
         if (!note) {
           return null;
@@ -412,21 +428,12 @@ export function createWorkspaceParseIndex(
       syntaxProfileKey,
     },
     getParsedNote(noteId) {
-      const note = source.workspace.noteById.get(noteId);
+      const note = source.workspace.noteEntryById.get(noteId)?.projectedNote;
 
       return note ? resolveParsedNote(note) : null;
     },
-    get referenceGraph() {
-      if (!referenceGraph) {
-        const scan = createScan();
-
-        scan.noteIds.forEach((noteId) => scan.scanNote(noteId));
-        referenceGraph = scan.complete();
-      }
-
-      return referenceGraph;
-    },
     syntaxProfile: source.syntaxProfile,
+    titleIndex,
   };
 
   return index;

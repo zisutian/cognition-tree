@@ -1,32 +1,30 @@
-import {
-  forceCenter,
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-  type Simulation,
-} from "d3-force";
+import type { Simulation } from "d3-force";
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent,
   type PointerEvent,
   type WheelEvent,
 } from "react";
 import type { UiNoteId } from "../../../application/workspace/projection/viewTree";
 import {
-  createDrawableReferenceGraphEdges,
   findReferenceGraphNodeAtPoint,
   type PositionedReferenceGraphNode,
   type VisibleReferenceGraph,
 } from "./referenceGraphView";
-import { drawGraph } from "./referenceGraphCanvasDrawing";
+import {
+  drawGraph,
+  readReferenceGraphCanvasTheme,
+  type ReferenceGraphCanvasTheme,
+} from "./referenceGraphCanvasDrawing";
 import {
   clampScale,
-  createInitialNode,
-  createReferenceGraphSimulationKey,
   defaultCanvasSize,
+  getNextGraphKeyboardNode,
+  releaseGraphSimulationNode,
   toGraphPoint,
   updateGraphNodePointerMovement,
   type GraphSimulationLink,
@@ -34,11 +32,20 @@ import {
   type GraphNodePointerMovement,
   type GraphTransform,
 } from "./referenceGraphCanvasModel";
+import {
+  consumeReferenceGraphResetSignal,
+  getReferenceGraphController,
+} from "./referenceGraphController";
+import {
+  createReferenceGraphSimulation,
+  resizeReferenceGraphSimulation,
+} from "./referenceGraphSimulation";
 
 type ReferenceGraphCanvasProps = {
   graph: VisibleReferenceGraph;
   resetSignal: number;
   selectedNoteId: UiNoteId | null;
+  topologyRevision: string;
   onSelectNote: (noteId: UiNoteId) => void;
 };
 
@@ -61,6 +68,7 @@ export function ReferenceGraphCanvas({
   graph,
   resetSignal,
   selectedNoteId,
+  topologyRevision,
   onSelectNote,
 }: ReferenceGraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -69,23 +77,35 @@ export function ReferenceGraphCanvas({
     GraphSimulationLink
   > | null>(null);
   const nodesRef = useRef<GraphSimulationNode[]>([]);
+  const nodeByIdRef = useRef<Map<string, GraphSimulationNode>>(new Map());
   const linksRef = useRef<GraphSimulationLink[]>([]);
-  const transformRef = useRef<GraphTransform>({ scale: 1, x: 0, y: 0 });
+  const themeRef = useRef<ReferenceGraphCanvasTheme | null>(null);
   const dragStateRef = useRef<GraphDragState | null>(null);
   const hoveredNoteIdRef = useRef<string | null>(null);
+  const keyboardNoteIdRef = useRef<string | null>(null);
   const selectedNoteIdRef = useRef<UiNoteId | null>(selectedNoteId);
+  const redrawFrameRef = useRef<number | null>(null);
+  const handledResetSignalRef = useRef(resetSignal);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
-  const graphKey = useMemo(
-    () => createReferenceGraphSimulationKey(graph),
-    [graph],
+  const [announcement, setAnnouncement] = useState("");
+  const announcementId = useId();
+  const controller = useMemo(
+    () => getReferenceGraphController(topologyRevision),
+    [topologyRevision],
   );
+  const controllerRef = useRef(controller);
+  const canvasSizeRef = useRef(canvasSize);
+  const transformRef = useRef<GraphTransform>(controller.transform);
 
+  controllerRef.current = controller;
+  canvasSizeRef.current = canvasSize;
   selectedNoteIdRef.current = selectedNoteId;
 
-  const redraw = () => {
+  const redrawNow = () => {
     const canvas = canvasRef.current;
+    const theme = themeRef.current;
 
-    if (!canvas) {
+    if (!canvas || !theme) {
       return;
     }
 
@@ -93,11 +113,77 @@ export function ReferenceGraphCanvas({
       canvas,
       hoveredNoteId: hoveredNoteIdRef.current,
       links: linksRef.current,
+      nodeById: nodeByIdRef.current,
       nodes: nodesRef.current,
-      selectedNoteId: selectedNoteIdRef.current,
+      selectedNoteId:
+        keyboardNoteIdRef.current ?? selectedNoteIdRef.current,
+      theme,
       transform: transformRef.current,
     });
   };
+  const requestRedraw = () => {
+    if (redrawFrameRef.current !== null) {
+      return;
+    }
+
+    redrawFrameRef.current = window.requestAnimationFrame(() => {
+      redrawFrameRef.current = null;
+      redrawNow();
+    });
+  };
+  const finishPointerInteraction = (
+    pointerId?: number,
+    canvas?: HTMLCanvasElement,
+    releaseCapture = true,
+  ) => {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || (pointerId !== undefined && dragState.pointerId !== pointerId)) {
+      return;
+    }
+
+    if (dragState.kind === "node") {
+      releaseGraphSimulationNode(dragState.node);
+    }
+
+    simulationRef.current?.alphaTarget(0);
+    dragStateRef.current = null;
+
+    if (
+      releaseCapture &&
+      canvas &&
+      canvas.hasPointerCapture(dragState.pointerId)
+    ) {
+      canvas.releasePointerCapture(dragState.pointerId);
+    }
+
+    requestRedraw();
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    if (!canvas) {
+      return undefined;
+    }
+
+    const updateTheme = () => {
+      themeRef.current = readReferenceGraphCanvasTheme(canvas);
+      requestRedraw();
+    };
+
+    updateTheme();
+    const observer = typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(updateTheme);
+
+    observer?.observe(document.documentElement, {
+      attributeFilter: ["class", "data-theme", "style"],
+      attributes: true,
+    });
+
+    return () => observer?.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -113,10 +199,16 @@ export function ReferenceGraphCanvas({
         return;
       }
 
-      setCanvasSize({
+      const nextSize = {
         height: Math.max(320, entry.contentRect.height),
         width: Math.max(480, entry.contentRect.width),
-      });
+      };
+
+      setCanvasSize((current) =>
+        current.height === nextSize.height && current.width === nextSize.width
+          ? current
+          : nextSize,
+      );
     });
 
     resizeObserver.observe(canvas);
@@ -125,27 +217,28 @@ export function ReferenceGraphCanvas({
   }, []);
 
   useEffect(() => {
-    transformRef.current = { scale: 1, x: 0, y: 0 };
-    redraw();
-  }, [resetSignal]);
+    if (!consumeReferenceGraphResetSignal(handledResetSignalRef, resetSignal)) {
+      return;
+    }
+
+    controller.resetTransform();
+    transformRef.current = controller.transform;
+    requestRedraw();
+  }, [controller, resetSignal]);
 
   useEffect(() => {
-    simulationRef.current?.stop();
-
-    const nodes = graph.nodes.map((node, index) =>
-      createInitialNode(
-        node,
-        index,
-        graph.nodes.length,
-        canvasSize.width,
-        canvasSize.height,
-      ),
+    transformRef.current = controller.transform;
+    const size = canvasSizeRef.current;
+    const nodes = controller.createNodes(
+      graph.nodes,
+      size.width,
+      size.height,
     );
-    const nodeIds = new Set(nodes.map((node) => node.id));
-    const links = createDrawableReferenceGraphEdges(graph.edges)
+    const nodeById = new Map(nodes.map((node) => [node.id, node]));
+    const links = graph.edges
       .filter(
         (edge) =>
-          nodeIds.has(edge.sourceNoteId) && nodeIds.has(edge.targetNoteId),
+          nodeById.has(edge.sourceNoteId) && nodeById.has(edge.targetNoteId),
       )
       .map((edge) => ({
         ...edge,
@@ -154,43 +247,58 @@ export function ReferenceGraphCanvas({
       }));
 
     nodesRef.current = nodes;
+    nodeByIdRef.current = nodeById;
     linksRef.current = links;
 
     if (nodes.length === 0) {
-      redraw();
+      requestRedraw();
       return undefined;
     }
 
-    const simulation = forceSimulation<GraphSimulationNode, GraphSimulationLink>(
+    const simulation = createReferenceGraphSimulation({
+      height: size.height,
+      links,
       nodes,
-    )
-      .force(
-        "link",
-        forceLink<GraphSimulationNode, GraphSimulationLink>(links)
-          .id((node) => node.id)
-          .distance((edge) => Math.max(76, 152 - Math.min(edge.count, 8) * 7))
-          .strength(0.34),
-      )
-      .force("charge", forceManyBody<GraphSimulationNode>().strength(-260))
-      .force("center", forceCenter(canvasSize.width / 2, canvasSize.height / 2))
-      .force(
-        "collide",
-        forceCollide<GraphSimulationNode>().radius((node) => node.radius + 12),
-      )
-      .alpha(0.9)
-      .alphaDecay(0.045)
-      .on("tick", redraw);
+      width: size.width,
+      onTick: requestRedraw,
+    });
 
     simulationRef.current = simulation;
 
     return () => {
-      simulation.stop();
+      finishPointerInteraction();
+      controller.capturePositions(nodes);
+      simulation.alphaTarget(0).stop();
+
+      if (simulationRef.current === simulation) {
+        simulationRef.current = null;
+      }
+
+      if (redrawFrameRef.current !== null) {
+        window.cancelAnimationFrame(redrawFrameRef.current);
+        redrawFrameRef.current = null;
+      }
     };
-  }, [canvasSize.height, canvasSize.width, graphKey]);
+  }, [topologyRevision]);
+
+  useEffect(() => {
+    const simulation = simulationRef.current;
+
+    if (simulation) {
+      resizeReferenceGraphSimulation(
+        simulation,
+        canvasSize.width,
+        canvasSize.height,
+      );
+    }
+
+    requestRedraw();
+  }, [canvasSize.height, canvasSize.width]);
 
   useEffect(() => {
     selectedNoteIdRef.current = selectedNoteId;
-    redraw();
+    keyboardNoteIdRef.current = selectedNoteId;
+    requestRedraw();
   }, [selectedNoteId]);
 
   const handleWheel = (event: WheelEvent<HTMLCanvasElement>) => {
@@ -205,13 +313,15 @@ export function ReferenceGraphCanvas({
     );
     const graphX = (pointerX - current.x) / current.scale;
     const graphY = (pointerY - current.y) / current.scale;
-
-    transformRef.current = {
+    const nextTransform = {
       scale: nextScale,
       x: pointerX - graphX * nextScale,
       y: pointerY - graphY * nextScale,
     };
-    redraw();
+
+    transformRef.current = nextTransform;
+    controllerRef.current.transform = nextTransform;
+    requestRedraw();
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -230,17 +340,14 @@ export function ReferenceGraphCanvas({
       y: graphPoint.y,
     });
 
-    event.currentTarget.setPointerCapture(event.pointerId);
-
     if (hitNode) {
-      const simulationNode = nodesRef.current.find(
-        (node) => node.id === hitNode.id,
-      );
+      const simulationNode = nodeByIdRef.current.get(hitNode.id);
 
       if (!simulationNode) {
         return;
       }
 
+      event.currentTarget.setPointerCapture(event.pointerId);
       dragStateRef.current = {
         kind: "node",
         movement: {
@@ -254,6 +361,7 @@ export function ReferenceGraphCanvas({
       return;
     }
 
+    event.currentTarget.setPointerCapture(event.pointerId);
     dragStateRef.current = {
       kind: "pan",
       pointerId: event.pointerId,
@@ -291,14 +399,17 @@ export function ReferenceGraphCanvas({
         dragStateRef.current = { ...dragState, movement };
         dragState.node.fx = graphPoint.x;
         dragState.node.fy = graphPoint.y;
-        redraw();
+        requestRedraw();
       } else {
-        transformRef.current = {
+        const nextTransform = {
           ...dragState.startTransform,
           x: dragState.startTransform.x + event.clientX - dragState.startClientX,
           y: dragState.startTransform.y + event.clientY - dragState.startClientY,
         };
-        redraw();
+
+        transformRef.current = nextTransform;
+        controllerRef.current.transform = nextTransform;
+        requestRedraw();
       }
 
       return;
@@ -314,12 +425,11 @@ export function ReferenceGraphCanvas({
       x: graphPoint.x,
       y: graphPoint.y,
     });
-
     const nextHoveredNoteId = hitNode?.id ?? null;
 
     if (hoveredNoteIdRef.current !== nextHoveredNoteId) {
       hoveredNoteIdRef.current = nextHoveredNoteId;
-      redraw();
+      requestRedraw();
     }
   };
 
@@ -341,37 +451,89 @@ export function ReferenceGraphCanvas({
         graphPoint,
       );
 
-      if (movement.dragStarted) {
-        dragState.node.fx = null;
-        dragState.node.fy = null;
-        simulationRef.current?.alphaTarget(0);
-      } else {
+      if (!movement.dragStarted) {
+        keyboardNoteIdRef.current = null;
         selectedNoteIdRef.current = dragState.node.id;
-        redraw();
+        setAnnouncement(`已打开 ${dragState.node.title}`);
         onSelectNote(dragState.node.id);
       }
     }
 
-    dragStateRef.current = null;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    redraw();
+    finishPointerInteraction(event.pointerId, event.currentTarget);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLCanvasElement>) => {
+    if (
+      event.key === "ArrowDown" ||
+      event.key === "ArrowRight" ||
+      event.key === "ArrowUp" ||
+      event.key === "ArrowLeft"
+    ) {
+      event.preventDefault();
+      const direction =
+        event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
+      const nextNode = getNextGraphKeyboardNode(
+        graph.nodes,
+        keyboardNoteIdRef.current ?? selectedNoteIdRef.current,
+        direction,
+      );
+
+      if (nextNode) {
+        keyboardNoteIdRef.current = nextNode.id;
+        setAnnouncement(`已选择 ${nextNode.title}，按 Enter 打开`);
+        requestRedraw();
+      }
+
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const targetId = keyboardNoteIdRef.current ?? selectedNoteIdRef.current;
+      const target = targetId ? nodeByIdRef.current.get(targetId) : undefined;
+
+      if (target) {
+        event.preventDefault();
+        selectedNoteIdRef.current = target.id;
+        setAnnouncement(`已打开 ${target.title}`);
+        onSelectNote(target.id);
+        requestRedraw();
+      }
+    }
   };
 
   return (
-    <canvas
-      aria-label="笔记引用力导向图"
-      className="graph-force-canvas"
-      ref={canvasRef}
-      role="img"
-      tabIndex={0}
-      onPointerDown={handlePointerDown}
-      onPointerLeave={() => {
-        hoveredNoteIdRef.current = null;
-        redraw();
-      }}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onWheel={handleWheel}
-    />
+    <>
+      <canvas
+        aria-describedby={announcementId}
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter"
+        aria-label="笔记引用力导向图"
+        className="graph-force-canvas"
+        ref={canvasRef}
+        role="application"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onLostPointerCapture={(event) =>
+          finishPointerInteraction(event.pointerId, event.currentTarget, false)
+        }
+        onPointerCancel={(event) =>
+          finishPointerInteraction(event.pointerId, event.currentTarget)
+        }
+        onPointerDown={handlePointerDown}
+        onPointerLeave={() => {
+          hoveredNoteIdRef.current = null;
+          requestRedraw();
+        }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onWheel={handleWheel}
+      />
+      <span
+        aria-live="polite"
+        className="ui-visually-hidden"
+        id={announcementId}
+      >
+        {announcement}
+      </span>
+    </>
   );
 }

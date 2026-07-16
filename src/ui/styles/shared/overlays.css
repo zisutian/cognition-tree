@@ -1,7 +1,7 @@
 .ui-overlay-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--ui-z-overlay);
   display: grid;
   place-items: center;
   padding: var(--ui-panel-padding);
@@ -106,7 +106,7 @@
 
 .ui-context-menu {
   position: fixed;
-  z-index: 110;
+  z-index: var(--ui-z-overlay);
   display: grid;
   min-width: 140px;
   padding: var(--ui-gap-tight);
@@ -131,7 +131,7 @@
   position: fixed;
   right: var(--ui-panel-padding);
   bottom: var(--ui-panel-padding);
-  z-index: 120;
+  z-index: var(--ui-z-notification);
   display: grid;
   gap: var(--ui-gap-tight);
   width: min(360px, calc(100vw - var(--ui-panel-padding) * 2));

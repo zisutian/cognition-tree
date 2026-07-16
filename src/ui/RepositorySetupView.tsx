@@ -47,7 +47,7 @@ export function RepositorySetupView({
                 disabled={creating}
                 maxLength={64}
                 onChange={(event) => setRepositoryId(event.target.value)}
-                pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+                pattern="[A-Za-z0-9][-A-Za-z0-9._]{0,63}"
                 required
                 value={repositoryId}
               />

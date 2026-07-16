@@ -1,35 +1,49 @@
 import {
+  isCtnBlockMetadataDirectiveText,
   parseCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
 } from "../metadata/blockMetadata";
 import type { CtnSyntaxProfile } from "../syntax/types";
 import {
-  assignBlockEndLineNumbers,
-  findClosingMultilineFenceLineNumber,
+  assignBlockSubtreeEndLineNumbers,
+  findMultilineRange,
 } from "./blockRanges";
 import { createDiagnostic } from "./diagnostics";
 import { analyzeIndent } from "./indent";
 import { parseInlineSpans } from "./inlineSpans";
 import { parseMarker, sortMarkerRules } from "./lineMarkers";
 import type {
-  CtnBlock,
+  CtnCanonicalBlock,
+  CtnCanonicalDocument,
   CtnDiagnostic,
-  CtnDocument,
+  CtnEditableBlock,
+  CtnEditableDocument,
+  CtnMultilineRange,
 } from "./types";
 
-type BlockMetadataPolicy = "required" | "synthetic";
-
-type CtnSourceBlock = {
+type CtnSourceBlock<TIdentity extends object> = {
   contentIndex: number;
+  identity: TIdentity;
   indentText: string;
   line: string;
   lineNumber: number;
-  metadata: CtnBlockMetadataRecord;
-  metadataLineNumber: number;
   nextIndex: number;
+  sourceStartLineNumber: number;
 };
 
-const syntheticMetadataTimestamp = "1970-01-01T00:00:00.000Z";
+type ReadCtnSourceBlock<TIdentity extends object> = (
+  lines: string[],
+  index: number,
+) => CtnSourceBlock<TIdentity>;
+
+type CanonicalBlockIdentity = {
+  id: string;
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+  };
+  metadataLineNumber: number;
+};
 
 export class CtnDocumentMetadataError extends Error {
   lineNumber: number;
@@ -41,60 +55,81 @@ export class CtnDocumentMetadataError extends Error {
   }
 }
 
-function createSyntheticBlockId(lineNumber: number) {
-  return `00000000-0000-0000-0000-${String(lineNumber).padStart(12, "0")}`;
+function readEditableSourceBlock(
+  lines: string[],
+  index: number,
+): CtnSourceBlock<Record<never, never>> {
+  const line = lines[index] ?? "";
+  const lineNumber = index + 1;
+
+  return {
+    contentIndex: index,
+    identity: {},
+    indentText: line.match(/^\s*/)?.[0] ?? "",
+    line,
+    lineNumber,
+    nextIndex: index + 1,
+    sourceStartLineNumber: lineNumber,
+  };
 }
 
-function readSourceBlock({
-  index,
-  lines,
-  metadataPolicy,
-}: {
-  index: number;
-  lines: string[];
-  metadataPolicy: BlockMetadataPolicy;
-}): CtnSourceBlock {
-  if (metadataPolicy === "synthetic") {
-    const line = lines[index] ?? "";
-    const lineNumber = index + 1;
-    const indentText = line.match(/^\s*/)?.[0] ?? "";
-
-    return {
-      contentIndex: index,
-      indentText,
-      line,
-      lineNumber,
-      metadata: {
-        createdAt: syntheticMetadataTimestamp,
-        id: createSyntheticBlockId(lineNumber),
-        indentText,
-        updatedAt: syntheticMetadataTimestamp,
-      },
-      metadataLineNumber: lineNumber,
-      nextIndex: index + 1,
-    };
-  }
-
-  const metadataLine = lines[index] ?? "";
-  const metadataLineNumber = index + 1;
+function readCanonicalMetadata(
+  line: string,
+  lineNumber: number,
+): CtnBlockMetadataRecord {
   let metadata: CtnBlockMetadataRecord | null;
 
   try {
-    metadata = parseCtnBlockMetadataLine(metadataLine);
+    metadata = parseCtnBlockMetadataLine(line);
   } catch (error) {
     throw new CtnDocumentMetadataError(
-      metadataLineNumber,
+      lineNumber,
       error instanceof Error ? error.message : "invalid directive",
     );
   }
 
   if (!metadata) {
     throw new CtnDocumentMetadataError(
-      metadataLineNumber,
+      lineNumber,
       "expected @ctn-block directive",
     );
   }
 
+  return metadata;
+}
+
+export function readCtnCanonicalTitleHeader(source: string) {
+  const lines = source.split("\n");
+  const metadata = readCanonicalMetadata(lines[0] ?? "", 1);
+
+  if (lines.length < 2) {
+    throw new CtnDocumentMetadataError(
+      1,
+      "metadata directive has no block source line",
+    );
+  }
+  if (metadata.indentText !== "") {
+    throw new CtnDocumentMetadataError(
+      1,
+      "title metadata cannot be indented",
+    );
+  }
+
+  return {
+    metadata,
+    title: lines[1],
+  };
+}
+
+function readCanonicalSourceBlock(
+  lines: string[],
+  index: number,
+): CtnSourceBlock<CanonicalBlockIdentity> {
+  const metadataLineNumber = index + 1;
+  const metadata = readCanonicalMetadata(
+    lines[index] ?? "",
+    metadataLineNumber,
+  );
   const contentIndex = index + 1;
   const line = lines[contentIndex];
 
@@ -107,7 +142,13 @@ function readSourceBlock({
 
   const indentText = line.match(/^\s*/)?.[0] ?? "";
 
-  if (indentText !== metadata.indentText) {
+  if (metadataLineNumber === 1 && metadata.indentText !== "") {
+    throw new CtnDocumentMetadataError(
+      metadataLineNumber,
+      "title metadata cannot be indented",
+    );
+  }
+  if (metadataLineNumber !== 1 && indentText !== metadata.indentText) {
     throw new CtnDocumentMetadataError(
       metadataLineNumber,
       "metadata indentation does not match its block source line",
@@ -116,37 +157,58 @@ function readSourceBlock({
 
   return {
     contentIndex,
+    identity: {
+      id: metadata.id,
+      metadata: {
+        createdAt: metadata.createdAt,
+        updatedAt: metadata.updatedAt,
+      },
+      metadataLineNumber,
+    },
     indentText,
     line,
     lineNumber: contentIndex + 1,
-    metadata,
-    metadataLineNumber,
     nextIndex: contentIndex + 1,
+    sourceStartLineNumber: metadataLineNumber,
   };
 }
 
-function createTitleBlock({
+function createReservedDirectiveDiagnostic(
+  lineNumber: number,
+  indentText: string,
+) {
+  return createDiagnostic(
+    "reserved-directive",
+    "error",
+    lineNumber,
+    indentText.length + 1,
+    "@ctn-block 是保留指令，不能作为普通块语法使用。",
+  );
+}
+
+function createTitleBlock<TBlock extends CtnEditableBlock>({
   markerRules,
   sourceBlock,
   syntaxProfile,
 }: {
   markerRules: ReturnType<typeof sortMarkerRules>;
-  sourceBlock: CtnSourceBlock;
+  sourceBlock: CtnSourceBlock<object>;
   syntaxProfile: CtnSyntaxProfile;
-}): CtnBlock {
-  const {
-    indentText,
-    line,
-    lineNumber,
-    metadata,
-    metadataLineNumber,
-  } = sourceBlock;
+}): TBlock {
+  const { identity, indentText, line, lineNumber } = sourceBlock;
   const trimmed = line.trim();
   const indent = analyzeIndent(indentText, lineNumber);
   const parsedMarker = trimmed
     ? parseMarker(trimmed, lineNumber, indentText.length, markerRules)
     : null;
   const diagnostics: CtnDiagnostic[] = [...indent.diagnostics];
+  const isReservedDirective = isCtnBlockMetadataDirectiveText(trimmed);
+
+  if (isReservedDirective) {
+    diagnostics.push(
+      createReservedDirectiveDiagnostic(lineNumber, indentText),
+    );
+  }
 
   if (!trimmed) {
     diagnostics.push(
@@ -183,111 +245,126 @@ function createTitleBlock({
   const textStartColumn = indentText.length + 1;
 
   return {
+    ...identity,
     children: [],
+    contentFingerprint: line,
     diagnostics,
-    endLineNumber: lineNumber,
-    id: metadata.id,
     indentText,
-    inlineSpans: trimmed
-      ? parseInlineSpans(
-          trimmed,
-          lineNumber,
-          textStartColumn,
-          syntaxProfile.inlineRules,
-        )
-      : [],
+    inlineSpans:
+      trimmed && !isReservedDirective
+        ? parseInlineSpans(
+            trimmed,
+            lineNumber,
+            textStartColumn,
+            syntaxProfile.inlineRules,
+          )
+        : [],
     label: syntaxProfile.titleRule.label,
     level: 0,
+    lexicalEndLineNumber: lineNumber,
     lineNumber,
     marker: null,
-    metadata: {
-      createdAt: metadata.createdAt,
-      updatedAt: metadata.updatedAt,
-    },
-    metadataLineNumber,
+    multilineRange: null,
     rawText: line,
     role: "normal",
+    subtreeEndLineNumber: lineNumber,
     text: trimmed,
     textColor: syntaxProfile.titleRule.textColor,
+    textStartColumn,
     tone: syntaxProfile.titleRule.tone,
     type: syntaxProfile.titleRule.type,
-  };
+  } as unknown as TBlock;
 }
 
-function parseDocument(
+function getMultilineLexicalEndLineNumber(
+  multilineRange: CtnMultilineRange,
+) {
+  return multilineRange.closingFenceLineNumber ?? multilineRange.contentEndLineNumber;
+}
+
+function parseDocument<TBlock extends CtnEditableBlock>(
   source: string,
   syntaxProfile: CtnSyntaxProfile,
-  metadataPolicy: BlockMetadataPolicy,
-): CtnDocument {
+  readSourceBlock: ReadCtnSourceBlock<object>,
+): {
+  blocks: TBlock[];
+  diagnostics: CtnDiagnostic[];
+  roots: TBlock[];
+} {
   const lines = source.split("\n");
-  const roots: CtnBlock[] = [];
-  const blocks: CtnBlock[] = [];
+  const roots: TBlock[] = [];
+  const blocks: TBlock[] = [];
   const diagnostics: CtnDiagnostic[] = [];
-  const stack: Array<{ level: number; node: CtnBlock }> = [];
+  const stack: Array<{ level: number; node: TBlock }> = [];
   const markerRules = sortMarkerRules(syntaxProfile.markerRules);
-  const titleSourceBlock = readSourceBlock({
-    index: 0,
-    lines,
-    metadataPolicy,
-  });
-  const titleBlock = createTitleBlock({
+  const sourceStartLineNumberByBlock = new Map<TBlock, number>();
+  const titleSourceBlock = readSourceBlock(lines, 0);
+  const titleBlock = createTitleBlock<TBlock>({
     markerRules,
     sourceBlock: titleSourceBlock,
     syntaxProfile,
   });
-  const blockIds = new Set([titleBlock.id]);
 
   roots.push(titleBlock);
   blocks.push(titleBlock);
   diagnostics.push(...titleBlock.diagnostics);
+  sourceStartLineNumberByBlock.set(
+    titleBlock,
+    titleSourceBlock.sourceStartLineNumber,
+  );
   let index = titleSourceBlock.nextIndex;
 
   while (index < lines.length) {
-    const candidateLine = lines[index];
-
-    if (!candidateLine.trim()) {
+    if (!(lines[index] ?? "").trim()) {
       index += 1;
       continue;
     }
 
-    const sourceBlock = readSourceBlock({ index, lines, metadataPolicy });
+    const sourceBlock = readSourceBlock(lines, index);
     const {
       contentIndex,
+      identity,
       indentText,
       line,
       lineNumber,
-      metadata,
-      metadataLineNumber,
+      sourceStartLineNumber,
     } = sourceBlock;
     const trimmed = line.trim();
 
     if (!trimmed) {
       throw new CtnDocumentMetadataError(
-        metadataLineNumber,
+        sourceStartLineNumber,
         "metadata directive must precede a non-empty block source line",
       );
     }
 
-    if (blockIds.has(metadata.id)) {
-      throw new CtnDocumentMetadataError(
-        metadataLineNumber,
-        `duplicate block id ${metadata.id}`,
-      );
-    }
-
-    blockIds.add(metadata.id);
-
     const indent = analyzeIndent(indentText, lineNumber);
-    const parsedMarker = parseMarker(
-      trimmed,
-      lineNumber,
-      indentText.length,
-      markerRules,
-    );
+    const isReservedDirective = isCtnBlockMetadataDirectiveText(trimmed);
+    const parsedMarker = isReservedDirective
+      ? {
+          diagnostics: [
+            createReservedDirectiveDiagnostic(lineNumber, indentText),
+          ],
+          label: "保留指令",
+          marker: null,
+          role: "normal" as const,
+          text: trimmed,
+          textColor: "default" as const,
+          textStartColumn: indentText.length + 1,
+          tone: "default" as const,
+          type: "text",
+        }
+      : parseMarker(
+          trimmed,
+          lineNumber,
+          indentText.length,
+          markerRules,
+        );
     const isUnmarkedLine =
       parsedMarker.marker === null && parsedMarker.type === "concept";
     const isTopLevelConcept = indentText.length === 0 && isUnmarkedLine;
-    const isUnknownIndentedSyntax = indentText.length > 0 && isUnmarkedLine;
+    const isUnknownIndentedSyntax =
+      !isReservedDirective && indentText.length > 0 && isUnmarkedLine;
     const nodeDiagnostics = [
       ...indent.diagnostics,
       ...parsedMarker.diagnostics,
@@ -305,21 +382,43 @@ function parseDocument(
       );
     }
 
-    const node: CtnBlock = {
+    const multilineRange =
+      parsedMarker.role === "multiline" && parsedMarker.marker !== null
+        ? findMultilineRange(
+            lines,
+            contentIndex,
+            indentText,
+            parsedMarker.marker,
+          )
+        : null;
+    const lexicalEndLineNumber = multilineRange
+      ? getMultilineLexicalEndLineNumber(multilineRange)
+      : lineNumber;
+
+    if (multilineRange?.status === "unterminated") {
+      nodeDiagnostics.push(
+        createDiagnostic(
+          "unterminated-multiline-block",
+          "error",
+          lineNumber,
+          indentText.length + 1,
+          `多行块缺少同缩进的 ${parsedMarker.marker} 结束行。`,
+        ),
+      );
+    }
+
+    const node = {
+      ...identity,
       children: [],
+      contentFingerprint: lines
+        .slice(contentIndex, lexicalEndLineNumber)
+        .join("\n"),
       diagnostics: nodeDiagnostics,
-      endLineNumber:
-        parsedMarker.role === "multiline"
-          ? findClosingMultilineFenceLineNumber(
-              lines,
-              contentIndex + 1,
-              parsedMarker.marker ?? "",
-            )
-          : lineNumber,
-      id: metadata.id,
       indentText,
       inlineSpans:
-        parsedMarker.role === "multiline" || isUnknownIndentedSyntax
+        parsedMarker.role === "multiline" ||
+        isUnknownIndentedSyntax ||
+        isReservedDirective
           ? []
           : parseInlineSpans(
               parsedMarker.text,
@@ -327,34 +426,37 @@ function parseDocument(
               parsedMarker.textStartColumn,
               syntaxProfile.inlineRules,
             ),
-      label: isUnknownIndentedSyntax
-        ? "未知语法"
-        : isTopLevelConcept
-          ? syntaxProfile.conceptRule.label
-          : parsedMarker.label,
+      label: isReservedDirective
+        ? parsedMarker.label
+        : isUnknownIndentedSyntax
+          ? "未知语法"
+          : isTopLevelConcept
+            ? syntaxProfile.conceptRule.label
+            : parsedMarker.label,
       level: indent.level,
+      lexicalEndLineNumber,
       lineNumber,
       marker: parsedMarker.marker,
-      metadata: {
-        createdAt: metadata.createdAt,
-        updatedAt: metadata.updatedAt,
-      },
-      metadataLineNumber,
+      multilineRange,
       rawText: line,
       role: parsedMarker.role,
+      subtreeEndLineNumber: lexicalEndLineNumber,
       text: parsedMarker.text,
       textColor: isTopLevelConcept
         ? syntaxProfile.conceptRule.textColor
         : parsedMarker.textColor,
+      textStartColumn: parsedMarker.textStartColumn,
       tone: isTopLevelConcept
         ? syntaxProfile.conceptRule.tone
         : parsedMarker.tone,
-      type: isUnknownIndentedSyntax
+      type: isReservedDirective
         ? "text"
-        : isTopLevelConcept
-          ? syntaxProfile.conceptRule.type
-          : parsedMarker.type,
-    };
+        : isUnknownIndentedSyntax
+          ? "text"
+          : isTopLevelConcept
+            ? syntaxProfile.conceptRule.type
+            : parsedMarker.type,
+    } as unknown as TBlock;
 
     while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
       stack.pop();
@@ -386,35 +488,66 @@ function parseDocument(
     }
 
     if (parent) {
-      parent.children.push(node);
+      (parent.children as TBlock[]).push(node);
     } else {
       roots.push(node);
     }
 
     blocks.push(node);
     diagnostics.push(...node.diagnostics);
+    sourceStartLineNumberByBlock.set(node, sourceStartLineNumber);
     stack.push({ level: node.level, node });
 
-    index = node.role === "multiline"
-      ? node.endLineNumber
+    index = multilineRange
+      ? multilineRange.closingFenceLineNumber ?? lines.length
       : sourceBlock.nextIndex;
   }
 
-  assignBlockEndLineNumbers(blocks, lines.length);
+  assignBlockSubtreeEndLineNumbers(
+    blocks,
+    lines.length,
+    (block) => sourceStartLineNumberByBlock.get(block) ?? block.lineNumber,
+  );
 
   return { roots, blocks, diagnostics };
 }
 
-export function parseCtnDocument(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-): CtnDocument {
-  return parseDocument(source, syntaxProfile, "required");
+function assertUniqueCanonicalBlockIds(document: CtnCanonicalDocument) {
+  const blockIds = new Set<string>();
+
+  for (const block of document.blocks) {
+    if (blockIds.has(block.id)) {
+      throw new CtnDocumentMetadataError(
+        block.metadataLineNumber,
+        `duplicate block id ${block.id}`,
+      );
+    }
+
+    blockIds.add(block.id);
+  }
 }
 
-export function parseCtnSourceWithSyntheticMetadata(
+export function parseCtnEditableDocument(
   source: string,
   syntaxProfile: CtnSyntaxProfile,
-): CtnDocument {
-  return parseDocument(source, syntaxProfile, "synthetic");
+): CtnEditableDocument {
+  return parseDocument<CtnEditableBlock>(
+    source,
+    syntaxProfile,
+    readEditableSourceBlock,
+  );
+}
+
+export function parseCtnCanonicalDocument(
+  source: string,
+  syntaxProfile: CtnSyntaxProfile,
+): CtnCanonicalDocument {
+  const document = parseDocument<CtnCanonicalBlock>(
+    source,
+    syntaxProfile,
+    readCanonicalSourceBlock,
+  );
+
+  assertUniqueCanonicalBlockIds(document);
+  return document;
 }

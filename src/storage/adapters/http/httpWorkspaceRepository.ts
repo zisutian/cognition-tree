@@ -1,51 +1,47 @@
 import {
-  type WorkspaceRepository,
-} from "../../repository/workspaceRepository";
-import {
+  parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositorySnapshot,
 } from "../../../../contracts/workspace-repository/parseRepository";
+import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
+import type { WorkspaceRepositoryBackend } from "../../repository/workspaceRepository";
 import {
   requestRepositoryJson,
   type HttpRepositoryTransportOptions,
 } from "./httpRepositoryTransport";
 
 type HttpWorkspaceRepositoryOptions = HttpRepositoryTransportOptions & {
-  label?: string;
   repositoryId: string;
 };
 
-export function createHttpWorkspaceRepository({
+export function createHttpWorkspaceRepositoryBackend({
   baseUrl = "http://127.0.0.1:3001",
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
-  label,
   repositoryId,
   token,
-}: HttpWorkspaceRepositoryOptions): WorkspaceRepository {
+}: HttpWorkspaceRepositoryOptions): WorkspaceRepositoryBackend {
   const endpoint = `/api/repositories/${encodeURIComponent(repositoryId)}/snapshot`;
 
   return {
-    label: label ?? repositoryId,
-    async commitSnapshot(commit) {
-      const result = parseWorkspaceRepositoryCommitResult(
+    async commitRemoteSnapshot(commit) {
+      const outbound = parseWorkspaceRepositoryCommit(commit);
+
+      return parseWorkspaceRepositoryCommitResult(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
           endpoint,
           {
-            body: JSON.stringify(commit),
+            body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },
             method: "PUT",
           },
           token,
         ),
       );
-
-      return { ...result, availability: "online" };
     },
-    async discardPendingCommit() {},
-    async loadSnapshot() {
-      const snapshot = parseWorkspaceRepositorySnapshot(
+    async loadRemoteSnapshot() {
+      return parseWorkspaceRepositorySnapshot(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
@@ -54,8 +50,6 @@ export function createHttpWorkspaceRepository({
           token,
         ),
       );
-
-      return { ...snapshot, availability: "online" };
     },
   };
 }

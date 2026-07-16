@@ -1,7 +1,20 @@
 import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData";
 import type { NoteTreeFolderNode } from "./types";
 import { createNoteTreeNoteNode } from "./create";
-import { findFolderNode } from "./query";
+import {
+  findNoteTreeNodePath,
+  insertNoteTreeNodeAtPath,
+  removeNoteTreeNodeAtPath,
+  readNoteTreeNodeAtPath,
+  replaceNoteTreeNodeAtPath,
+} from "./pathEditor";
+
+function findFolderPath(tree: readonly NoteTreeNode[], folderId: FolderId) {
+  return findNoteTreeNodePath(
+    tree,
+    (node) => node.kind === "folder" && node.folderId === folderId,
+  );
+}
 
 export function appendNoteToWorkspaceTree(
   tree: NoteTreeNode[],
@@ -12,39 +25,17 @@ export function appendNoteToWorkspaceTree(
     return [...tree, createNoteTreeNoteNode(noteId)];
   }
 
-  if (!findFolderNode(tree, parentFolderId)) {
+  const parentPath = findFolderPath(tree, parentFolderId);
+
+  if (!parentPath) {
     throw new Error(`Workspace folder does not exist: ${parentFolderId}`);
   }
 
-  return appendNoteToWorkspaceTreeUnchecked(tree, noteId, parentFolderId);
-}
-
-function appendNoteToWorkspaceTreeUnchecked(
-  tree: NoteTreeNode[],
-  noteId: NoteId,
-  folderId: FolderId,
-): NoteTreeNode[] {
-  return tree.map((node) => {
-    if (node.kind !== "folder") {
-      return node;
-    }
-
-    if (node.id !== folderId) {
-      return {
-        ...node,
-        children: appendNoteToWorkspaceTreeUnchecked(
-          node.children,
-          noteId,
-          folderId,
-        ),
-      };
-    }
-
-    return {
-      ...node,
-      children: [...node.children, createNoteTreeNoteNode(noteId)],
-    };
-  });
+  return insertNoteTreeNodeAtPath(
+    tree,
+    parentPath,
+    createNoteTreeNoteNode(noteId),
+  );
 }
 
 export function appendFolderToWorkspaceTree(
@@ -56,39 +47,13 @@ export function appendFolderToWorkspaceTree(
     return [...tree, folder];
   }
 
-  if (!findFolderNode(tree, parentFolderId)) {
+  const parentPath = findFolderPath(tree, parentFolderId);
+
+  if (!parentPath) {
     throw new Error(`Workspace folder does not exist: ${parentFolderId}`);
   }
 
-  return appendFolderToWorkspaceTreeUnchecked(tree, folder, parentFolderId);
-}
-
-function appendFolderToWorkspaceTreeUnchecked(
-  tree: NoteTreeNode[],
-  folder: NoteTreeFolderNode,
-  parentFolderId: FolderId,
-): NoteTreeNode[] {
-  return tree.map((node) => {
-    if (node.kind !== "folder") {
-      return node;
-    }
-
-    if (node.id !== parentFolderId) {
-      return {
-        ...node,
-        children: appendFolderToWorkspaceTreeUnchecked(
-          node.children,
-          folder,
-          parentFolderId,
-        ),
-      };
-    }
-
-    return {
-      ...node,
-      children: [...node.children, folder],
-    };
-  });
+  return insertNoteTreeNodeAtPath(tree, parentPath, folder);
 }
 
 export function renameFolderInWorkspaceTree(
@@ -96,55 +61,38 @@ export function renameFolderInWorkspaceTree(
   folderId: FolderId,
   title: string,
 ): NoteTreeNode[] {
-  return tree.map((node) => {
-    if (node.kind !== "folder") {
-      return node;
-    }
+  const path = findFolderPath(tree, folderId);
 
-    return {
-      ...node,
-      title: node.id === folderId ? title : node.title,
-      children: renameFolderInWorkspaceTree(node.children, folderId, title),
-    };
-  });
+  if (!path) {
+    throw new Error(`Workspace folder does not exist: ${folderId}`);
+  }
+
+  const node = readNoteTreeNodeAtPath(tree, path);
+
+  if (node.kind !== "folder") {
+    throw new Error(`Workspace tree node is not a folder: ${folderId}`);
+  }
+
+  return replaceNoteTreeNodeAtPath(tree, path, { ...node, title });
 }
 
 export function removeNoteFromWorkspaceTree(
   tree: NoteTreeNode[],
   noteId: NoteId,
 ): NoteTreeNode[] {
-  return tree.flatMap((node): NoteTreeNode[] => {
-    if (node.kind === "note") {
-      return node.noteId === noteId ? [] : [node];
-    }
+  const path = findNoteTreeNodePath(
+    tree,
+    (node) => node.kind === "note" && node.noteId === noteId,
+  );
 
-    return [
-      {
-        ...node,
-        children: removeNoteFromWorkspaceTree(node.children, noteId),
-      },
-    ];
-  });
+  return path ? removeNoteTreeNodeAtPath(tree, path).tree : tree;
 }
 
 export function removeFolderFromWorkspaceTree(
   tree: NoteTreeNode[],
   folderId: FolderId,
 ): NoteTreeNode[] {
-  return tree.flatMap((node): NoteTreeNode[] => {
-    if (node.kind !== "folder") {
-      return [node];
-    }
+  const path = findFolderPath(tree, folderId);
 
-    if (node.id === folderId) {
-      return [];
-    }
-
-    return [
-      {
-        ...node,
-        children: removeFolderFromWorkspaceTree(node.children, folderId),
-      },
-    ];
-  });
+  return path ? removeNoteTreeNodeAtPath(tree, path).tree : tree;
 }

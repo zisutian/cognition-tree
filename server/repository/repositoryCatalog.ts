@@ -2,6 +2,7 @@
 
 import type { parseCreateRepository } from "../../contracts/workspace-repository/parseCatalog.ts";
 import type {
+  RepositoryApiErrorCodeDto,
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
 } from "../../contracts/workspace-repository/types.ts";
@@ -21,11 +22,11 @@ export type WorkspaceRepositoryRegistration = {
 };
 
 export class RepositoryCatalogError extends Error {
-  statusCode: number;
+  code: RepositoryApiErrorCodeDto;
 
-  constructor(statusCode: number, message: string) {
+  constructor(code: RepositoryApiErrorCodeDto, message: string) {
     super(message);
     this.name = "RepositoryCatalogError";
-    this.statusCode = statusCode;
+    this.code = code;
   }
 }

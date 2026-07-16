@@ -13,7 +13,7 @@ import {
   type LazyActivityId,
 } from "../activities/activityRegistry";
 import type { RenderWorkspaceActivity } from "../activities/activityController";
-import { SyntaxPersistenceNotification } from "./SyntaxPersistenceNotification";
+import { WorkspacePersistenceNotification } from "./WorkspacePersistenceNotification";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
 
 function ActivityLoadingView({
@@ -75,8 +75,8 @@ export function WorkspaceWorkbench({
 
   return (
     <FeedbackProvider>
-      <SyntaxPersistenceNotification
-        event={application.syntax.persistenceError}
+      <WorkspacePersistenceNotification
+        persistence={application.repository.persistence}
       />
       <WorkbenchProblemsController
         application={application}

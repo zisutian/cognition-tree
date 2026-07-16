@@ -3,7 +3,7 @@ import {
   ctnGlobalReferenceType,
   ctnLocalReferenceType,
 } from "../ctn/parser/inlineReferences";
-import type { CtnDocument } from "../ctn/parser/types";
+import type { CtnEditableDocument } from "../ctn/parser/types";
 import type { CtnEditorParsePlugin } from "./ctnDecorations";
 
 export type CtnEditorReferenceTarget = {
@@ -13,7 +13,7 @@ export type CtnEditorReferenceTarget = {
 };
 
 export function findCtnReferenceAtPosition(
-  document: CtnDocument,
+  document: CtnEditableDocument,
   lineNumber: number,
   column: number,
 ): CtnEditorReferenceTarget | null {

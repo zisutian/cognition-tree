@@ -4,7 +4,6 @@ import {
   normalizeCtnReferenceText,
 } from "../../ctn/parser/inlineReferences";
 import type { WorkspaceParseIndex } from "../indexes/workspaceParseIndex";
-import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 import type { NoteId } from "../model/workspaceData";
 
 export type WorkspaceReferenceNavigationTarget = {
@@ -24,12 +23,10 @@ export function resolveWorkspaceReferenceNavigation({
   activeNoteId,
   index,
   target,
-  workspace,
 }: {
   activeNoteId: NoteId;
   index: WorkspaceParseIndex;
   target: WorkspaceReferenceNavigationTarget;
-  workspace: WorkspaceStructureIndex;
 }): WorkspaceReferenceNavigationDestination[] {
   const normalizedTarget = normalizeCtnReferenceText(target.text);
 
@@ -38,11 +35,7 @@ export function resolveWorkspaceReferenceNavigation({
   }
 
   if (target.type === ctnGlobalReferenceType) {
-    return workspace.data.notes
-      .filter(
-        (note) =>
-          normalizeCtnReferenceText(note.title) === normalizedTarget,
-      )
+    return [...(index.titleIndex.get(normalizedTarget) ?? [])]
       .map((note) => ({
         description: "笔记",
         id: `note:${note.id}`,

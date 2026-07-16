@@ -12,16 +12,19 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
-import type { CtnBlock, CtnDocument } from "../ctn/parser/types";
+import type {
+  CtnEditableBlock,
+  CtnEditableDocument,
+} from "../ctn/parser/types";
 import type { CtnEditorParsePlugin } from "./ctnDecorations";
 
 function findMultilineBlockAtLine(
-  document: CtnDocument,
+  document: CtnEditableDocument,
   lineNumber: number,
 ) {
   let low = 0;
   let high = document.blocks.length - 1;
-  let candidate: CtnBlock | null = null;
+  let candidate: CtnEditableBlock | null = null;
 
   while (low <= high) {
     const middle = Math.floor((low + high) / 2);
@@ -36,13 +39,20 @@ function findMultilineBlockAtLine(
   }
 
   return candidate?.role === "multiline" &&
-    lineNumber <= candidate.endLineNumber
+    lineNumber <= candidate.lexicalEndLineNumber
     ? candidate
     : null;
 }
 
-function isMultilineContentLine(block: CtnBlock, lineNumber: number) {
-  return lineNumber > block.lineNumber && lineNumber < block.endLineNumber;
+function isMultilineContentLine(
+  block: CtnEditableBlock,
+  lineNumber: number,
+) {
+  return Boolean(
+    block.multilineRange &&
+    lineNumber >= block.multilineRange.contentStartLineNumber &&
+    lineNumber <= block.multilineRange.contentEndLineNumber,
+  );
 }
 
 function getLeadingWhitespace(text: string) {
@@ -80,7 +90,7 @@ function getOutdentLength(text: string, tabSize: number) {
 
 export function createCtnCodeBlockEnterTransaction(
   state: EditorState,
-  document: CtnDocument,
+  document: CtnEditableDocument,
 ): TransactionSpec | null {
   if (
     state.selection.ranges.length !== 1 ||
@@ -93,7 +103,10 @@ export function createCtnCodeBlockEnterTransaction(
   const line = state.doc.lineAt(cursor);
   const block = findMultilineBlockAtLine(document, line.number);
 
-  if (!block || line.number === block.endLineNumber) {
+  if (
+    !block ||
+    block.multilineRange?.closingFenceLineNumber === line.number
+  ) {
     return null;
   }
 
@@ -110,7 +123,7 @@ export function createCtnCodeBlockEnterTransaction(
 
 export function createCtnCodeBlockIndentChanges(
   state: EditorState,
-  document: CtnDocument,
+  document: CtnEditableDocument,
   direction: "indent" | "outdent",
 ): ChangeSpec[] | null {
   if (state.selection.ranges.length !== 1) {
@@ -173,7 +186,7 @@ function createActiveCodeBlockDecorations(
 
   const decorations = [];
   const endLineNumber = Math.min(
-    block.endLineNumber,
+    block.lexicalEndLineNumber,
     view.state.doc.lines,
   );
 

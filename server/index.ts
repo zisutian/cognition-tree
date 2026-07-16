@@ -6,8 +6,6 @@ import {
 } from "./api/workspaceApiServer.ts";
 import {
   createWorkspaceApiSecurityPolicy,
-  parseWorkspaceApiAllowedHosts,
-  parseWorkspaceApiAllowedOrigins,
 } from "./api/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
@@ -21,20 +19,14 @@ const port = Number(process.env.CTN_API_PORT ?? "3001");
 const repositoryRoot =
   process.env.CTN_REPOSITORY_ROOT ??
   path.join(process.cwd(), ".cognition-tree", "repositories");
-const allowedOrigins = parseWorkspaceApiAllowedOrigins(
-  process.env.CTN_API_ALLOWED_ORIGINS,
-);
 const security = createWorkspaceApiSecurityPolicy({
-  allowedHosts: parseWorkspaceApiAllowedHosts(
-    process.env.CTN_API_ALLOWED_HOSTS,
-  ),
-  allowedOrigins,
   bearerToken: process.env.CTN_API_TOKEN,
   host,
+  publicUrl: process.env.CTN_PUBLIC_URL,
 });
 
 const localCatalog = new LocalRepositoryCatalog(repositoryRoot);
-const webDavRegistrations = createWebDavRepositoryRegistrations(
+const webDavRegistrations = await createWebDavRepositoryRegistrations(
   parseWebDavRepositoryConfigs(process.env.CTN_WEBDAV_REPOSITORIES),
 );
 const catalog = new CompositeRepositoryCatalog(
@@ -45,6 +37,32 @@ const catalog = new CompositeRepositoryCatalog(
 await catalog.initialize();
 
 const server = createWorkspaceApiServer({ catalog, security });
+
+let shuttingDown = false;
+const shutdown = async () => {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+    server.closeIdleConnections();
+  });
+  await localCatalog.dispose();
+};
+
+process.once("SIGINT", () => {
+  void shutdown().catch((error: unknown) => {
+    console.error("Failed to shut down Cognition Tree API", error);
+    process.exitCode = 1;
+  });
+});
+process.once("SIGTERM", () => {
+  void shutdown().catch((error: unknown) => {
+    console.error("Failed to shut down Cognition Tree API", error);
+    process.exitCode = 1;
+  });
+});
 
 server.listen(port, host, () => {
   console.log(`Cognition Tree API listening on http://${host}:${port}`);

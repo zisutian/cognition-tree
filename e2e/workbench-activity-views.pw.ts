@@ -6,6 +6,7 @@ import {
   test,
   type APIRequestContext,
 } from "@playwright/test";
+import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace-repository/types";
 import { readGraphCanvasNodes } from "./support/graphCanvas";
 import {
   e2eApiBaseUrl,
@@ -17,6 +18,7 @@ import {
 } from "./support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
+const invalidSyntaxRepositoryId = "workbench-invalid-syntax-view";
 const visualizationRepositoryId = "workbench-visualization-view";
 
 test.describe("syntax and visualization activity flows", () => {
@@ -25,6 +27,7 @@ test.describe("syntax and visualization activity flows", () => {
   test.beforeAll(async () => {
     api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
     await seedWorkbenchRepository(api, syntaxRepositoryId);
+    await seedWorkbenchRepository(api, invalidSyntaxRepositoryId);
     await seedWorkbenchRepository(api, visualizationRepositoryId);
   });
 
@@ -44,15 +47,74 @@ test.describe("syntax and visualization activity flows", () => {
     await syntaxName.fill("浏览器回归语法");
     await titleTonePicker.click();
     await expect(page.getByRole("dialog", { name: "首行标题背景色" })).toBeVisible();
-    await page.getByRole("button", { name: "gray", exact: true }).click();
+    await page.getByRole("button", { name: "灰色", exact: true }).click();
     await expect(titleTonePicker).toHaveAttribute(
       "aria-label",
-      "首行标题背景色: gray",
+      "首行标题背景色: 灰色",
     );
 
     await getActivityButton(page, "笔记").click();
     await getActivityButton(page, "语法").click();
     await expect(syntaxName).toHaveValue("浏览器回归语法");
+  });
+
+  test("keeps the last valid syntax active while an invalid draft remains visible", async ({
+    page,
+  }) => {
+    const beforeResponse = await api.get(
+      `/api/repositories/${invalidSyntaxRepositoryId}/snapshot`,
+    );
+    const beforeSnapshot = (await beforeResponse.json()) as
+      WorkspaceRepositorySnapshotDto;
+    const persistedSyntaxSource = beforeSnapshot.content.syntaxSource;
+    const beforeNoteSource = beforeSnapshot.content.workspace.notes.find(
+      ({ id }) => id === "note-alpha",
+    )?.source ?? "";
+    const beforeMetadataCount =
+      beforeNoteSource.match(/^\s*@ctn-block /gm)?.length ?? 0;
+
+    await openWorkbench(page, invalidSyntaxRepositoryId);
+    await getActivityButton(page, "语法").click();
+
+    const syntaxName = page.getByRole("textbox", { name: "语法名称" });
+
+    await syntaxName.fill("");
+    await expect(syntaxName).toHaveValue("");
+
+    await getActivityButton(page, "笔记").click();
+    await page.locator(".app-context").getByTitle("Alpha").click();
+
+    const editor = page.locator(".source-editor");
+
+    await expect(editor).toHaveAttribute("data-editor-mode", "ctn");
+    await expect(editor).not.toContainText("@ctn-block");
+    await editor.locator(".cm-content").click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("? last-valid-question");
+
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/repositories/${invalidSyntaxRepositoryId}/snapshot`,
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const source = snapshot.content.workspace.notes.find(
+        ({ id }) => id === "note-alpha",
+      )?.source ?? "";
+
+      return {
+        metadataCount: source.match(/^\s*@ctn-block /gm)?.length ?? 0,
+        persistedSyntaxSource: snapshot.content.syntaxSource,
+        questionVisible: source.includes("? last-valid-question"),
+      };
+    }).toEqual({
+      metadataCount: beforeMetadataCount + 1,
+      persistedSyntaxSource,
+      questionVisible: true,
+    });
+
+    await getActivityButton(page, "语法").click();
+    await expect(syntaxName).toHaveValue("");
   });
 
   test("switches graph selection without shrinking the canvas", async ({
@@ -61,7 +123,9 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, visualizationRepositoryId);
     await getActivityButton(page, "引用图谱").click();
 
-    const canvas = page.getByRole("img", { name: "笔记引用力导向图" });
+    const canvas = page.getByRole("application", {
+      name: "笔记引用力导向图",
+    });
 
     await expect(canvas).toBeVisible();
     const initialBox = await canvas.boundingBox();

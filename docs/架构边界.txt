@@ -9,7 +9,7 @@ app：
 
 application：
 
-    workspace 应用层，管理 session、共享选择、统一导航、语法运行时、全局诊断收集，并按 activity 管理页面状态和 UI 投影。选择与导航是独立职责，诊断收集策略、调度和投影相互分离。
+    workspace 应用层，管理 session、共享选择、统一导航、语法运行时和 UI 投影。WorkspaceAnalysis 是唯一全仓解析入口，一轮分批扫描同时发布 parsed notes、标题索引、诊断和引用图谱。
 
 ui：
 
@@ -25,7 +25,7 @@ ctn：
 
 storage：
 
-    前端持久化边界。repository 定义端口、缓存数据和离线恢复策略；browser 与 HTTP adapter 实现外部读写；runtime 是唯一组合 adapter 的位置。catalog 负责列出、创建和按 id 打开仓库；repository 以带仓库位置和 revision 的快照读取 workspace 数据与仓库语法 source，并提交完整内容新版本。
+    前端持久化边界。repository 将 raw remote backend 与 application 使用的 local-first repository 分开，定义 local draft CAS、远端同步结果、缓存数据和离线恢复策略；browser 与 HTTP adapter 实现外部读写；runtime 是唯一组合 adapter 的位置。catalog 负责列出、创建和按 id 打开仓库，只暴露不会泄漏绝对路径的 location label。
 
 editor：
 
@@ -33,7 +33,7 @@ editor：
 
 server：
 
-    仓库执行端。repository 定义 store/catalog 端口及共享 manifest、路径、revision 规则；catalog 组合可用仓库；api 负责 HTTP 与请求安全；local 和 WebDAV adapter 负责具体 I/O；index 是唯一组合根。
+    仓库执行端。repository 定义 store/catalog 端口、v3 内容与 revision 规则；catalog 组合健康仓库和单仓问题；api 负责 HTTP、统一错误与请求安全；local adapter 管理不可变 snapshot 和独占 writer，WebDAV adapter 管理 generation、lease 与 ETag CAS；index 是唯一组合根。
 
 contracts：
 
@@ -58,11 +58,11 @@ contracts：
 
 3. 数据流
 
-    server 将 repository id 解析为配置 catalog 中的仓库 adapter，再生成包含仓库位置、workspace、syntax source 和 revision 的完整快照，并以事务提交完整新版本。
+    server 将 repository id 解析为 catalog 中的仓库 adapter，读取显式 content 与 sha256 revision；Local 以 head 的 durable atomic replace 发布不可变 snapshot，WebDAV 以 current pointer 的 ETag CAS 发布不可变 generation。
     contracts 在 storage 和 server 边界解析同一 repository wire shape。
-    storage 将仓库快照和提交结果接入前端 repository 端口，过期 revision 不覆盖当前仓库；离线缓存、恢复提交和远端冲突判定都停留在 repository adapter 内。
-    application 维护 session、单一保存队列、共享 runtime 和 activity 状态，消费 repository 提供的 online、offline 或 conflict 状态，并按当前 activity 生成局部 view model。
-    application 将持久化 CTN 投影为不含保留元数据行的可编辑文本，复用 workspace parse index 分批汇总全仓库诊断，并把诊断、结构定位和引用跳转映射到编辑行或稳定语法字段。
+    storage 在 IndexedDB transaction 中先以 draft revision CAS stage 最新本地 content，再由 backend 对远端 sha256 revision 提交。offline、conflict 与 sync-error 是显式同步结果，远端 409 不进入 application。
+    application 维护 ready session 内的单一持久化状态与保存 worker。workspace command 同步更新内存，随后立即 stage 本地 draft，500ms debounce 后同步远端；仓库切换只等待本地持久化。
+    application 将 canonical CTN 投影为 editable source，通过唯一 WorkspaceAnalysis 分批解析一次，并把诊断、结构定位、标题候选和引用图谱映射到 activity view model。
     app activity adapter 将局部 view model 交给 ui 生成 activity slots；全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递，并通过 application 导航请求触发定位。
     editor 接收可编辑文本和语法展示数据，为当前编辑状态生成 CodeMirror 装饰、诊断提示和引用交互；editor 不负责保存或解释块元数据。
     workspace 和 ctn 负责结构、语义和派生数据的确定性计算。

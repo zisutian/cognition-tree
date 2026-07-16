@@ -7,23 +7,11 @@ import type {
 import { Popover } from "../../shared/Popover";
 import { isCustomTone } from "../../shared/tonePresentation";
 
-const toneLabels: Record<string, string> = {
-  amber: "琥珀",
-  blue: "蓝色",
-  cyan: "青色",
-  gray: "灰色",
-  green: "绿色",
-  indigo: "靛蓝",
-  pink: "粉色",
-  red: "红色",
-  teal: "青绿",
-  violet: "紫色",
-};
-
 const defaultCustomTone = "#397c72";
 
 type TonePickerProps = {
   ariaLabel: string;
+  customToneLabel: string;
   fieldId?: string;
   options: UiSyntaxToneOption[];
   showLabel?: boolean;
@@ -31,20 +19,22 @@ type TonePickerProps = {
   onChange: (tone: UiSyntaxTone) => void;
 };
 
-function getToneLabel(tone: UiSyntaxTone, options: UiSyntaxToneOption[]) {
+function getToneLabel(
+  tone: UiSyntaxTone,
+  options: UiSyntaxToneOption[],
+  customToneLabel: string,
+) {
   if (isCustomTone(tone)) {
-    return "自定义";
+    return customToneLabel;
   }
 
-  if (tone === "default") {
-    return "默认";
+  const option = options.find((candidate) => candidate.value === tone);
+
+  if (!option) {
+    throw new Error(`Missing projected syntax tone label: ${tone}`);
   }
 
-  return (
-    options.find((option) => option.value === tone)?.label ??
-    toneLabels[tone] ??
-    tone
-  );
+  return option.label;
 }
 
 export function getToneSwatchClass(tone: UiSyntaxTone) {
@@ -63,6 +53,7 @@ export function getToneSwatchStyle(
 
 export function TonePicker({
   ariaLabel,
+  customToneLabel,
   fieldId,
   options,
   showLabel = true,
@@ -87,7 +78,7 @@ export function TonePicker({
           aria-controls={panelId}
           aria-expanded={isOpen}
           aria-haspopup="dialog"
-          aria-label={`${ariaLabel}: ${getToneLabel(value, options)}`}
+          aria-label={`${ariaLabel}: ${getToneLabel(value, options, customToneLabel)}`}
           className={showLabel ? "syntax-tone-button" : "syntax-tone-button is-compact"}
           data-syntax-field-id={fieldId}
           onClick={toggle}
@@ -101,7 +92,9 @@ export function TonePicker({
           >
             <span />
           </span>
-          {showLabel ? <span>{getToneLabel(value, options)}</span> : null}
+          {showLabel ? (
+            <span>{getToneLabel(value, options, customToneLabel)}</span>
+          ) : null}
           <ChevronDown aria-hidden="true" size={13} strokeWidth={2} />
         </button>
       )}
@@ -117,7 +110,7 @@ export function TonePicker({
 
               return (
                 <button
-                  aria-label={getToneLabel(option.value, options)}
+                  aria-label={option.label}
                   className={
                     value === option.value
                       ? "syntax-tone-tile is-selected"
@@ -125,7 +118,7 @@ export function TonePicker({
                   }
                   key={option.value}
                   onClick={selectOption}
-                  title={getToneLabel(option.value, options)}
+                  title={option.label}
                   type="button"
                 >
                   <span
@@ -162,7 +155,7 @@ export function TonePicker({
               >
                 <span />
               </span>
-              自定义
+              {customToneLabel}
             </button>
             <input
               aria-label="自定义颜色"

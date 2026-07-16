@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+export const workspaceRepositorySchemaVersion = 3 as const;
 export const repositorySyntaxFileName = "workspace.toml";
 
+export type RepositoryRevisionDto = `sha256:${string}`;
+export type LocalDraftRevisionDto = `draft:${string}`;
+
 export type RepositoryNoteDto = {
-  createdAt: string;
   id: string;
   source: string;
-  title: string;
-  updatedAt: string;
 };
 
 export type RepositoryTreeNodeDto =
   | {
       children: RepositoryTreeNodeDto[];
-      id: string;
+      folderId: string;
       kind: "folder";
       title: string;
     }
   | {
-      id: string;
       kind: "note";
       noteId: string;
     };
@@ -30,27 +30,24 @@ export type RepositoryWorkspaceDto = {
   tree: RepositoryTreeNodeDto[];
 };
 
-export type RepositorySyntaxSourceDto = {
-  fileName: typeof repositorySyntaxFileName;
-  source: string;
-};
-
 export type WorkspaceRepositoryContentDto = {
-  syntaxSourceFile: RepositorySyntaxSourceDto | null;
+  schemaVersion: typeof workspaceRepositorySchemaVersion;
+  syntaxSource: string | null;
   workspace: RepositoryWorkspaceDto;
 };
 
-export type WorkspaceRepositorySnapshotDto = WorkspaceRepositoryContentDto & {
-  repositoryPath: string;
-  revision: string;
+export type WorkspaceRepositorySnapshotDto = {
+  content: WorkspaceRepositoryContentDto;
+  revision: RepositoryRevisionDto;
 };
 
-export type WorkspaceRepositoryCommitDto = WorkspaceRepositoryContentDto & {
-  baseRevision: string;
+export type WorkspaceRepositoryCommitDto = {
+  baseRevision: RepositoryRevisionDto;
+  content: WorkspaceRepositoryContentDto;
 };
 
 export type WorkspaceRepositoryCommitResultDto = {
-  revision: string;
+  revision: RepositoryRevisionDto;
 };
 
 export type RepositoryAdapterKindDto = "browser" | "local" | "webdav";
@@ -59,14 +56,48 @@ export type RepositoryDescriptorDto = {
   adapter: RepositoryAdapterKindDto;
   id: string;
   label: string;
-  repositoryPath: string;
+  locationLabel: string;
+};
+
+export type RepositoryApiErrorCodeDto =
+  | "invalid_request"
+  | "repository_not_found"
+  | "unsupported_repository_version"
+  | "revision_conflict"
+  | "repository_busy"
+  | "repository_corrupt"
+  | "adapter_unavailable"
+  | "insufficient_storage"
+  | "unauthorized"
+  | "internal_error";
+
+export type RepositoryCatalogIssueDto = {
+  code: Extract<
+    RepositoryApiErrorCodeDto,
+    | "adapter_unavailable"
+    | "repository_busy"
+    | "repository_corrupt"
+    | "unsupported_repository_version"
+  >;
+  id: string;
+  locationLabel: string;
+  message: string;
 };
 
 export type RepositoryCatalogDto = {
+  issues: RepositoryCatalogIssueDto[];
   repositories: RepositoryDescriptorDto[];
 };
 
 export type CreateRepositoryDto = {
   content: WorkspaceRepositoryContentDto;
   id: string;
+  label: string;
+};
+
+export type RepositoryApiErrorDto = {
+  code: RepositoryApiErrorCodeDto;
+  currentRevision?: RepositoryRevisionDto;
+  message: string;
+  requestId: string;
 };

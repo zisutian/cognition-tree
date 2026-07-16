@@ -1,80 +1,50 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+import { resolveWorkspaceReferenceNavigation } from "../../../src/workspace/queries/workspaceReferenceNavigation";
 import {
-  createWorkspaceParseIndex,
-} from "../../../src/workspace/indexes/workspaceParseIndex";
-import {
-  createWorkspaceStructureIndex,
-} from "../../../src/workspace/indexes/workspaceStructureIndex";
-import {
-  createInitialWorkspaceData,
-  createNoteRecord,
-} from "../../../src/workspace/model/workspaceData";
-import {
-  resolveWorkspaceReferenceNavigation,
-} from "../../../src/workspace/queries/workspaceReferenceNavigation";
-import {
-  addTestCtnBlockMetadata,
-} from "../../ctn/metadata/sourceMetadataFixture";
+  createCanonicalTestNote,
+  createWorkspaceDataWithNotes,
+} from "../workspaceTestFixture";
 
-const timestamp = "2026-07-15T00:00:00.000Z";
-
-function createWorkspace() {
+function createIndex() {
   const notes = [
-    createNoteRecord(
+    createCanonicalTestNote(
       "source",
-      addTestCtnBlockMetadata(
-        "Source\nConcept\n\t: Concept\n\t- Other",
-        defaultCtnSyntaxProfile,
-      ),
-      timestamp,
+      "Source\nConcept\n\t: Concept\n\t- Other",
     ),
-    createNoteRecord(
-      "target-a",
-      addTestCtnBlockMetadata("Target", defaultCtnSyntaxProfile, 100),
-      timestamp,
-    ),
-    createNoteRecord(
-      "target-b",
-      addTestCtnBlockMetadata("  Target  ", defaultCtnSyntaxProfile, 200),
-      timestamp,
-    ),
+    createCanonicalTestNote("target-a", "Target", { idOffset: 100 }),
+    createCanonicalTestNote("target-b", "Target  ", { idOffset: 200 }),
   ];
-  const workspace = createWorkspaceStructureIndex({
-    ...createInitialWorkspaceData(),
-    notes,
-  });
+  const workspace = createWorkspaceStructureIndex(
+    createWorkspaceDataWithNotes(notes),
+  );
 
-  return {
-    index: createWorkspaceParseIndex({
-      syntaxProfile: defaultCtnSyntaxProfile,
-      workspace,
-    }),
+  return createWorkspaceParseIndex({
+    syntaxProfile: defaultCtnSyntaxProfile,
     workspace,
-  };
+  });
 }
 
 describe("workspace reference navigation", () => {
-  it("resolves every globally matching note title", () => {
-    const { index, workspace } = createWorkspace();
+  it("lists every candidate for an ambiguous normalized note title", () => {
+    const index = createIndex();
 
     expect(
       resolveWorkspaceReferenceNavigation({
         activeNoteId: "source",
         index,
         target: { text: "  Target ", type: "global-reference" },
-        workspace,
       }).map(({ noteId }) => noteId),
     ).toEqual(["target-a", "target-b"]);
   });
 
   it("resolves matching blocks only inside the active note", () => {
-    const { index, workspace } = createWorkspace();
     const destinations = resolveWorkspaceReferenceNavigation({
       activeNoteId: "source",
-      index,
+      index: createIndex(),
       target: { text: "Concept", type: "local-reference" },
-      workspace,
     });
 
     expect(destinations).toHaveLength(2);
@@ -89,13 +59,12 @@ describe("workspace reference navigation", () => {
   });
 
   it("rejects unknown reference types and partial matches", () => {
-    const { index, workspace } = createWorkspace();
+    const index = createIndex();
     const resolve = (text: string, type: string) =>
       resolveWorkspaceReferenceNavigation({
         activeNoteId: "source",
         index,
         target: { text, type },
-        workspace,
       });
 
     expect(resolve("Tar", "global-reference")).toEqual([]);

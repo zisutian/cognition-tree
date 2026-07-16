@@ -1,4 +1,4 @@
-import type { CtnDocument } from "./types";
+import type { CtnEditableDocument } from "./types";
 
 export const ctnGlobalReferenceType = "global-reference";
 export const ctnLocalReferenceType = "local-reference";
@@ -14,7 +14,7 @@ export function normalizeCtnReferenceText(text: string) {
 }
 
 export function collectCtnInlineReferences(
-  document: CtnDocument,
+  document: Pick<CtnEditableDocument, "blocks">,
   type: string,
 ): CtnInlineReference[] {
   return document.blocks.flatMap((block) =>

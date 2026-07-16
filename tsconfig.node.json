@@ -16,9 +16,5 @@
     "scripts/**/*.ts",
     "vite.config.ts"
   ],
-  "exclude": [
-    "scripts/benchmarkWorkspaceCapacity.ts",
-    "scripts/migrateRepositoryV2.ts",
-    "scripts/repository-v2/**/*.ts"
-  ]
+  "exclude": ["scripts/benchmarkWorkspaceCapacity.ts"]
 }

@@ -14,12 +14,14 @@ import { TonePicker } from "./TonePicker";
 import { SyntaxRolePicker } from "./SyntaxRolePicker";
 
 function SyntaxToneCells({
+  customToneLabel,
   label,
   options,
   textColor,
   tone,
   onChange,
 }: {
+  customToneLabel: string;
   label: string;
   options: SyntaxViewModel["toneOptions"];
   textColor: UiSyntaxTone;
@@ -30,6 +32,7 @@ function SyntaxToneCells({
     <>
       <TonePicker
         ariaLabel={`${label}背景色`}
+        customToneLabel={customToneLabel}
         options={options}
         showLabel={false}
         value={tone}
@@ -37,6 +40,7 @@ function SyntaxToneCells({
       />
       <TonePicker
         ariaLabel={`${label}文字色`}
+        customToneLabel={customToneLabel}
         options={options}
         showLabel={false}
         value={textColor}
@@ -103,6 +107,7 @@ export function TitleAndConceptRows({
         <span className="syntax-readonly">首行</span>
         <span className="syntax-readonly">标题</span>
         <SyntaxToneCells
+          customToneLabel={syntax.customToneLabel}
           label="首行标题"
           options={syntax.toneOptions}
           textColor={syntax.draft.titleRule.textColor}
@@ -120,6 +125,7 @@ export function TitleAndConceptRows({
         <span className="syntax-readonly">顶格</span>
         <span className="syntax-readonly">概念</span>
         <SyntaxToneCells
+          customToneLabel={syntax.customToneLabel}
           label="顶格概念"
           options={syntax.toneOptions}
           textColor={syntax.draft.conceptRule.textColor}
@@ -191,6 +197,7 @@ export function MarkerRuleRows({
           />
           <TonePicker
             ariaLabel={`${rule.label}背景色`}
+            customToneLabel={syntax.customToneLabel}
             fieldId={createSyntaxRuleFieldId("marker", rule.id, "tone")}
             options={syntax.toneOptions}
             showLabel={false}
@@ -201,6 +208,7 @@ export function MarkerRuleRows({
           />
           <TonePicker
             ariaLabel={`${rule.label}文字色`}
+            customToneLabel={syntax.customToneLabel}
             fieldId={createSyntaxRuleFieldId("marker", rule.id, "textColor")}
             options={syntax.toneOptions}
             showLabel={false}
@@ -318,6 +326,7 @@ function InlineRuleRow({
       </span>
       <TonePicker
         ariaLabel={`${rule.label}背景色`}
+        customToneLabel={syntax.customToneLabel}
         fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
         options={syntax.toneOptions}
         showLabel={false}
@@ -326,6 +335,7 @@ function InlineRuleRow({
       />
       <TonePicker
         ariaLabel={`${rule.label}文字色`}
+        customToneLabel={syntax.customToneLabel}
         fieldId={createSyntaxRuleFieldId("inline", rule.id, "textColor")}
         options={syntax.toneOptions}
         showLabel={false}

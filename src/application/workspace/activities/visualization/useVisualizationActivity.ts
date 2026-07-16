@@ -1,11 +1,7 @@
 import { useMemo } from "react";
-import {
-  findWorkspaceNote,
-  getWorkspaceNoteReferenceGraph,
-} from "../../../../workspace/queries/workspaceQueries";
+import { findWorkspaceNote } from "../../../../workspace/queries/workspaceQueries";
 import { createUiReferenceGraphView } from "../../projection/viewGraph";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
-import { useWorkspaceParseIndex } from "../../runtime/useWorkspaceParseIndex";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
 import type {
   VisualizationFilterController,
@@ -13,8 +9,10 @@ import type {
 } from "./visualizationViewModel";
 
 const emptyReferenceGraphView = createUiReferenceGraphView({
+  ambiguousReferences: [],
   edges: [],
   nodes: [],
+  revision: 0,
   unresolvedReferences: [],
 });
 
@@ -27,15 +25,11 @@ export function useVisualizationActivity({
   runtime: WorkspaceRuntime;
   selection: WorkspaceSelection;
 }): VisualizationViewModel {
-  const index = useWorkspaceParseIndex(
-    runtime.parseIndexCache,
-    runtime.effectiveContext,
-  );
   const graph = useMemo(
-    () => index
-      ? createUiReferenceGraphView(getWorkspaceNoteReferenceGraph(index))
+    () => runtime.analysis.index
+      ? createUiReferenceGraphView(runtime.analysis.referenceGraph)
       : emptyReferenceGraphView,
-    [index],
+    [runtime.analysis.index, runtime.analysis.referenceGraph],
   );
   const activeNote = selection.activeNoteId
     ? findWorkspaceNote(runtime.workspace, selection.activeNoteId)

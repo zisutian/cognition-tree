@@ -7,6 +7,7 @@ import type { SyntaxViewModel } from "./syntaxViewModel";
 export function useSyntaxActivity(
   syntax: SyntaxRuntime,
   focusTarget: SyntaxViewModel["focusTarget"],
+  onConsumeFocusTarget: SyntaxViewModel["onConsumeFocusTarget"],
 ): SyntaxViewModel {
   const view = useMemo(
     () => createUiSyntaxView({
@@ -31,5 +32,6 @@ export function useSyntaxActivity(
     ...draftActions,
     createConfiguration: syntax.createDefaultSyntax,
     isConfigured: syntax.isConfigured,
+    onConsumeFocusTarget,
   };
 }

@@ -1,200 +1,138 @@
 import { describe, expect, it } from "vitest";
-import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
+import { UnsupportedRepositoryVersionError } from "../../contracts/workspace-repository/contractValue";
+import { parseRepositoryApiError } from "../../contracts/workspace-repository/parseApiError";
+import {
+  parseCreateRepository,
+  parseRepositoryCatalog,
+} from "../../contracts/workspace-repository/parseCatalog";
 import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
 } from "../../contracts/workspace-repository/parseRepository";
-import {
-  parseCreateRepository,
-  parseRepositoryCatalog,
-} from "../../contracts/workspace-repository/parseCatalog";
+import type { WorkspaceRepositoryContentDto } from "../../contracts/workspace-repository/types";
 
-describe("workspace repository contract", () => {
-  it("parses repository catalogs and creation requests strictly", () => {
-    const workspace = createInitialWorkspaceData();
-    const descriptor = {
-      adapter: "local",
-      id: "primary.repo",
+const revision = `sha256:${"a".repeat(64)}` as const;
+
+function createContent(): WorkspaceRepositoryContentDto {
+  return {
+    schemaVersion: 3,
+    syntaxSource: null,
+    workspace: {
+      id: "workspace",
+      name: "Notes",
+      notes: [{ id: "note-a", source: "@ctn-block malformed\n" }],
+      tree: [
+        {
+          children: [{ kind: "note", noteId: "note-a" }],
+          folderId: "folder-a",
+          kind: "folder",
+          title: "Folder",
+        },
+      ],
+    },
+  };
+}
+
+describe("workspace repository v3 contract", () => {
+  it("parses the only supported v3 wire shapes", () => {
+    const content = createContent();
+
+    expect(parseWorkspaceRepositoryContent(content)).toEqual(content);
+    expect(parseWorkspaceRepositorySnapshot({ content, revision })).toEqual({ content, revision });
+    expect(parseWorkspaceRepositoryCommit({ baseRevision: revision, content })).toEqual({
+      baseRevision: revision,
+      content,
+    });
+    expect(parseWorkspaceRepositoryCommitResult({ revision })).toEqual({ revision });
+    expect(parseCreateRepository({ content, id: "primary", label: "Primary" })).toEqual({
+      content,
+      id: "primary",
       label: "Primary",
-      repositoryPath: "/repositories/primary.repo",
-    };
-
-    expect(parseRepositoryCatalog({ repositories: [descriptor] })).toEqual({
-      repositories: [descriptor],
     });
-    expect(
-      parseCreateRepository({
-        content: { syntaxSourceFile: null, workspace },
-        id: "primary.repo",
-      }),
-    ).toEqual({
-      content: { syntaxSourceFile: null, workspace },
-      id: "primary.repo",
+    expect(parseWorkspaceRepositoryCommit({
+      baseRevision: revision,
+      content: { ...content, syntaxSource: "" },
+    })).toEqual({
+      baseRevision: revision,
+      content: { ...content, syntaxSource: "" },
     });
-    expect(() =>
-      parseRepositoryCatalog({
-        repositories: [descriptor, descriptor],
-      }),
-    ).toThrow("duplicate repository id");
-    expect(() =>
-      parseCreateRepository({
-        content: { syntaxSourceFile: null, workspace },
-        id: "../outside",
-      }),
-    ).toThrow("invalid repository id");
   });
 
-  it("parses repository snapshots, content, and commit results", () => {
-    const workspace = createInitialWorkspaceData();
-    const syntaxSourceFile = {
-      fileName: "workspace.toml",
-      source: 'name = "默认 CTN 语法"\n',
-    };
+  it("rejects v2 and derived persistence fields without compatibility", () => {
+    const content = createContent();
 
-    expect(
-      parseWorkspaceRepositorySnapshot({
-        repositoryPath: "/data/repository",
-        revision: "revision-1",
-        syntaxSourceFile,
-        workspace,
-      }),
-    ).toEqual({
-      repositoryPath: "/data/repository",
-      revision: "revision-1",
-      syntaxSourceFile,
-      workspace,
-    });
-    expect(
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile: null,
-        workspace,
-      }),
-    ).toEqual({ syntaxSourceFile: null, workspace });
-    expect(
-      parseWorkspaceRepositoryCommitResult({ revision: "revision-2" }),
-    ).toEqual({ revision: "revision-2" });
-  });
-
-  it("rejects null, runtime, unsupported, and inconsistent workspace data", () => {
-    expect(() =>
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile: null,
-        workspace: null,
-      }),
-    ).toThrow("expected object");
-    expect(() =>
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile: null,
-        workspace: {
-          ...createInitialWorkspaceData(),
-          activeNoteId: null,
-        },
-      }),
-    ).toThrow("unsupported field");
-    expect(() =>
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile: null,
-        workspace: {
-          ...createInitialWorkspaceData(),
-          notes: [
-            {
-              createdAt: "2026-07-04T00:00:00.000Z",
-              id: "note-title-mismatch",
-              source: "首行标题",
-              title: "错误标题",
-              updatedAt: "2026-07-04T00:00:00.000Z",
-            },
-          ],
-          tree: [
-            {
-              id: "tree-note-title-mismatch",
-              kind: "note",
-              noteId: "note-title-mismatch",
-            },
-          ],
-        },
-      }),
-    ).toThrow("title does not match first line");
-  });
-
-  it("rejects invalid repository and syntax transport shapes", () => {
-    const workspace = createInitialWorkspaceData();
-
-    expect(() =>
-      parseWorkspaceRepositorySnapshot({
-        repositoryPath: "/data/repository",
-        revision: "",
-        syntaxSourceFile: null,
-        workspace,
-      }),
-    ).toThrow("expected non-empty string");
-    expect(() =>
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile: {
-          fileName: "workspace.toml",
-          profile: {},
-          source: 'name = "默认 CTN 语法"\n',
-        },
-        workspace,
-      }),
-    ).toThrow("unsupported field");
-    expect(() =>
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile: {
-          fileName: "other.toml",
-          source: 'name = "默认 CTN 语法"\n',
-        },
-        workspace,
-      }),
-    ).toThrow("expected workspace.toml");
-    expect(() =>
-      parseWorkspaceRepositoryCommitResult({
-        extra: true,
-        revision: "revision-2",
-      }),
-    ).toThrow("unsupported field");
-  });
-
-  it("keeps syntax semantics outside the transport parser", () => {
-    const workspace = createInitialWorkspaceData();
-    const syntaxSourceFile = {
-      fileName: "workspace.toml",
-      source: 'name = "broken"\n',
-    };
-
-    expect(
-      parseWorkspaceRepositoryContent({
-        syntaxSourceFile,
-        workspace,
-      }),
-    ).toEqual({ syntaxSourceFile, workspace });
-  });
-
-  it("validates commit-only fields and syntax source constraints", () => {
-    const workspace = createInitialWorkspaceData();
-
-    expect(
-      parseWorkspaceRepositoryCommit({
-        baseRevision: "revision-1",
-        syntaxSourceFile: null,
-        workspace,
-      }),
-    ).toEqual({
-      baseRevision: "revision-1",
+    expect(() => parseWorkspaceRepositoryContent({
       syntaxSourceFile: null,
-      workspace,
+      workspace: content.workspace,
+    })).toThrow(UnsupportedRepositoryVersionError);
+    expect(() => parseWorkspaceRepositorySnapshot({
+      repositoryPath: "/secret/path",
+      revision,
+      syntaxSourceFile: null,
+      workspace: content.workspace,
+    })).toThrow(UnsupportedRepositoryVersionError);
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      workspace: {
+        ...content.workspace,
+        notes: [{
+          createdAt: "2026-01-01T00:00:00Z",
+          id: "note-a",
+          source: "A",
+          title: "A",
+          updatedAt: "2026-01-01T00:00:00Z",
+        }],
+      },
+    })).toThrow("unsupported field");
+  });
+
+  it("requires exact tree identity, placement, and sha256 revisions", () => {
+    const content = createContent();
+
+    expect(() => parseWorkspaceRepositorySnapshot({ content, revision: "old-revision" }))
+      .toThrow("expected sha256 revision");
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      workspace: {
+        ...content.workspace,
+        tree: [{ id: "legacy-folder", kind: "folder", title: "x", children: [] }],
+      },
+    })).toThrow("unsupported field");
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      workspace: { ...content.workspace, tree: [] },
+    })).toThrow("missing note placement");
+  });
+
+  it("parses healthy catalog entries, isolated issues, and structured errors", () => {
+    const catalog = {
+      issues: [{
+        code: "repository_corrupt",
+        id: "broken",
+        locationLabel: "local:broken",
+        message: "Repository metadata is invalid",
+      }],
+      repositories: [{
+        adapter: "local",
+        id: "primary",
+        label: "Primary",
+        locationLabel: "local:primary",
+      }],
+    } as const;
+
+    expect(parseRepositoryCatalog(catalog)).toEqual(catalog);
+    expect(parseRepositoryApiError({
+      code: "revision_conflict",
+      currentRevision: revision,
+      message: "changed",
+      requestId: "request-1",
+    })).toEqual({
+      code: "revision_conflict",
+      currentRevision: revision,
+      message: "changed",
+      requestId: "request-1",
     });
-    expect(() =>
-      parseWorkspaceRepositoryCommit({
-        baseRevision: "revision-1",
-        syntaxSourceFile: {
-          fileName: "workspace.toml",
-          source: "   ",
-        },
-        workspace,
-      }),
-    ).toThrow("expected non-empty syntax source");
   });
 });

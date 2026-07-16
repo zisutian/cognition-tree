@@ -93,17 +93,8 @@
   background: var(--color-selected) !important;
 }
 
-.source-editor .cm-activeLine,
 .source-editor .cm-activeLineGutter {
   background: var(--color-hover);
-}
-
-.source-editor .ctn-line-root-concept {
-  background: var(--color-accent-subtle);
-}
-
-.source-editor .ctn-line-diagnostic {
-  background: var(--color-error-soft);
 }
 
 .source-editor .ctn-marker,
@@ -127,13 +118,33 @@
   background: var(--ctn-tone-background, transparent);
 }
 
-.source-editor .ctn-active-code-block {
+.source-editor .cm-line.ctn-line-root-concept {
+  background: color-mix(
+    in srgb,
+    var(--color-accent-subtle) 72%,
+    var(--ctn-tone-background, transparent)
+  );
+}
+
+.source-editor .cm-line.cm-activeLine {
+  background: color-mix(
+    in srgb,
+    var(--color-hover) 76%,
+    var(--ctn-tone-background, transparent)
+  );
+}
+
+.source-editor .cm-line.ctn-active-code-block {
   background: color-mix(
     in srgb,
     var(--color-selected) 64%,
     var(--ctn-tone-background, transparent)
   );
   font-family: var(--font-code);
+}
+
+.source-editor .cm-line.ctn-line-diagnostic {
+  background: var(--color-error-soft);
 }
 
 .source-editor .ctn-marker,

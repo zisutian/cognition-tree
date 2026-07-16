@@ -1,18 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../src/ctn/parser/parseCtnDocument";
 import {
-  moveCtnBlockWithinText,
-  moveCtnBlockText,
+  moveCtnBlockWithinText as moveCtnBlockWithinTextImplementation,
+  moveCtnBlockText as moveCtnBlockTextImplementation,
+  type MoveCtnBlockTextInput,
+  type MoveCtnBlockWithinTextInput,
 } from "../../../src/ctn/parser/blockTextEdit";
-import type { CtnBlock } from "../../../src/ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../../src/ctn/parser/types";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import {
   addTestCtnBlockMetadata,
   stripTestCtnBlockMetadata,
 } from "../metadata/sourceMetadataFixture";
 
-function parseBlocks(source: string): CtnBlock[] {
-  return parseCtnDocument(source, defaultCtnSyntaxProfile).blocks;
+const movedTimestamp = "2026-07-15T02:00:00.000Z";
+
+function moveCtnBlockText(
+  input: Omit<MoveCtnBlockTextInput, "syntaxProfile" | "updatedAt"> &
+    Partial<Pick<MoveCtnBlockTextInput, "updatedAt">>,
+) {
+  return moveCtnBlockTextImplementation({
+    ...input,
+    syntaxProfile: defaultCtnSyntaxProfile,
+    updatedAt: input.updatedAt ?? movedTimestamp,
+  });
+}
+
+function moveCtnBlockWithinText(
+  input: Omit<MoveCtnBlockWithinTextInput, "syntaxProfile" | "updatedAt"> &
+    Partial<Pick<MoveCtnBlockWithinTextInput, "updatedAt">>,
+) {
+  return moveCtnBlockWithinTextImplementation({
+    ...input,
+    syntaxProfile: defaultCtnSyntaxProfile,
+    updatedAt: input.updatedAt ?? movedTimestamp,
+  });
+}
+
+function parseBlocks(source: string): CtnCanonicalBlock[] {
+  return parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile).blocks;
 }
 
 function findBlock(source: string, lineNumber: number) {
@@ -68,7 +94,7 @@ describe("ctn block text edit", () => {
       status: "moved",
     });
 
-    const movedRoot = parseCtnDocument(
+    const movedRoot = parseCtnCanonicalDocument(
       result.nextTargetText,
       defaultCtnSyntaxProfile,
     ).blocks.find((block) => block.id === sourceBlocks[2].id);
@@ -76,10 +102,20 @@ describe("ctn block text edit", () => {
     expect(movedRoot).toMatchObject({
       id: sourceBlocks[2].id,
       indentText: "\t",
-      metadata: sourceBlocks[2].metadata,
+      metadata: {
+        createdAt: sourceBlocks[2].metadata.createdAt,
+        updatedAt: movedTimestamp,
+      },
     });
     expect(result.nextTargetText.split("\n")[movedRoot!.metadataLineNumber - 1])
       .toMatch(/^\t@ctn-block /);
+
+    expect(parseBlocks(result.nextSourceText).slice(0, 2).map(
+      (block) => block.metadata.updatedAt,
+    )).toEqual([movedTimestamp, movedTimestamp]);
+    expect(parseBlocks(result.nextTargetText).slice(0, 2).map(
+      (block) => block.metadata.updatedAt,
+    )).toEqual([movedTimestamp, movedTimestamp]);
   });
 
   it("moves a subtree above a target block as a sibling", () => {
@@ -140,22 +176,27 @@ describe("ctn block text edit", () => {
     });
   });
 
-  it("moves a root block to empty target text", () => {
+  it("moves a root block to the end of another canonical document", () => {
     const sourceText = addTestCtnBlockMetadata(
       "Source Title\nRoot\n\t: Definition",
     );
     const sourceBlocks = parseBlocks(sourceText);
+    const targetText = addTestCtnBlockMetadata(
+      "Target Title",
+      defaultCtnSyntaxProfile,
+      100,
+    );
 
     expect(stripMoveResult(
       moveCtnBlockText({
         sourceBlock: sourceBlocks[1],
         sourceText,
         targetPosition: { kind: "end" },
-        targetText: "",
+        targetText,
       }),
     )).toEqual({
       nextSourceText: "Source Title",
-      nextTargetText: "Root\n\t: Definition",
+      nextTargetText: "Target Title\nRoot\n\t: Definition",
       status: "moved",
     });
   });
@@ -187,17 +228,47 @@ describe("ctn block text edit", () => {
       "Source Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```",
     );
     const sourceBlocks = parseBlocks(sourceText);
+    const targetText = addTestCtnBlockMetadata(
+      "Target Title",
+      defaultCtnSyntaxProfile,
+      100,
+    );
 
     expect(stripMoveResult(
       moveCtnBlockText({
         sourceBlock: sourceBlocks[2],
         sourceText,
         targetPosition: { kind: "end" },
-        targetText: "",
+        targetText,
       }),
     )).toEqual({
       nextSourceText: "Source Title\nRoot",
-      nextTargetText: "```ts\n\tconst value = 1;\n```",
+      nextTargetText: "Target Title\n```ts\n\tconst value = 1;\n```",
+      status: "moved",
+    });
+  });
+
+  it("does not trim multiline body lines that lack the opener indentation", () => {
+    const sourceText = addTestCtnBlockMetadata(
+      "Source Title\nRoot\n\t```ts\nconst value = 1;\n\t\tconst nested = 2;\n\t```",
+    );
+    const sourceBlocks = parseBlocks(sourceText);
+    const targetText = addTestCtnBlockMetadata(
+      "Target Title",
+      defaultCtnSyntaxProfile,
+      100,
+    );
+
+    expect(stripMoveResult(
+      moveCtnBlockText({
+        sourceBlock: sourceBlocks[2],
+        sourceText,
+        targetPosition: { kind: "end" },
+        targetText,
+      }),
+    )).toEqual({
+      nextSourceText: "Source Title\nRoot",
+      nextTargetText: "Target Title\n```ts\nconst value = 1;\n\tconst nested = 2;\n```",
       status: "moved",
     });
   });
@@ -216,6 +287,28 @@ describe("ctn block text edit", () => {
     )).toEqual({
       nextText: "Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
       status: "moved",
+    });
+  });
+
+  it("does not touch an unchanged descendant when its parent is reordered at the same level", () => {
+    const sourceText = addTestCtnBlockMetadata(
+      "Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    );
+    const before = parseBlocks(sourceText);
+    const childBefore = before.find((block) => block.text === "Component");
+    const result = moveCtnBlockWithinText({
+      sourceBlock: findBlock(sourceText, 2),
+      sourceText,
+      targetPosition: { kind: "end" },
+    });
+    const after = parseBlocks(result.nextText);
+    const movedRoot = after.find((block) => block.text === "Root");
+    const unchangedChild = after.find((block) => block.text === "Component");
+
+    expect(movedRoot?.metadata.updatedAt).toBe(movedTimestamp);
+    expect(unchangedChild).toMatchObject({
+      id: childBefore?.id,
+      metadata: { updatedAt: childBefore?.metadata.updatedAt },
     });
   });
 

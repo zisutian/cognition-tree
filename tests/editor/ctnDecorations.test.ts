@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CtnBlock } from "../../src/ctn/parser/types";
+import type { CtnEditableBlock } from "../../src/ctn/parser/types";
 import {
   getBlockLineDecorationClass,
   getBlockLineDecorationStyle,
@@ -12,27 +12,27 @@ import {
   shouldDecorateMarker,
 } from "../../src/editor/ctnDecorations";
 
-function createBlock(overrides: Partial<CtnBlock>): CtnBlock {
+function createBlock(
+  overrides: Partial<CtnEditableBlock>,
+): CtnEditableBlock {
   return {
     children: [],
+    contentFingerprint: ": Definition",
     diagnostics: [],
-    endLineNumber: 1,
-    id: "block-1",
     indentText: "",
     inlineSpans: [],
     label: "定义",
     level: 0,
+    lexicalEndLineNumber: 1,
     lineNumber: 1,
     marker: ":",
-    metadata: {
-      createdAt: "2026-07-15T00:00:00.000Z",
-      updatedAt: "2026-07-15T00:00:00.000Z",
-    },
-    metadataLineNumber: 1,
+    multilineRange: null,
     role: "normal",
     rawText: ": Definition",
+    subtreeEndLineNumber: 1,
     text: "Definition",
     textColor: "green",
+    textStartColumn: 3,
     tone: "green",
     type: "definition",
     ...overrides,
@@ -102,7 +102,13 @@ describe("ctn editor decorations", () => {
               severity: "warning",
             },
           ],
-          endLineNumber: 3,
+          lexicalEndLineNumber: 3,
+          multilineRange: {
+            closingFenceLineNumber: 3,
+            contentEndLineNumber: 2,
+            contentStartLineNumber: 2,
+            status: "closed",
+          },
           role: "multiline",
           tone: "gray",
           type: "multiline-block",
@@ -174,8 +180,14 @@ describe("ctn editor decorations", () => {
 
   it("applies text color classes across multiline block marks", () => {
     const block = createBlock({
-      endLineNumber: 4,
+      lexicalEndLineNumber: 4,
       lineNumber: 1,
+      multilineRange: {
+        closingFenceLineNumber: 4,
+        contentEndLineNumber: 3,
+        contentStartLineNumber: 2,
+        status: "closed",
+      },
       role: "multiline",
       textColor: "green",
       tone: "gray",
@@ -196,8 +208,14 @@ describe("ctn editor decorations", () => {
 
   it("applies custom text color styles across multiline block marks", () => {
     const block = createBlock({
-      endLineNumber: 3,
+      lexicalEndLineNumber: 3,
       lineNumber: 1,
+      multilineRange: {
+        closingFenceLineNumber: 3,
+        contentEndLineNumber: 2,
+        contentStartLineNumber: 2,
+        status: "closed",
+      },
       role: "multiline",
       textColor: "#cc8844",
       type: "multiline-block",

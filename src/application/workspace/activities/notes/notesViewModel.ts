@@ -8,6 +8,7 @@ import type {
 } from "../../projection/viewTree";
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
 import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
+import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
 
 export type NotesViewModel = {
   activeNote: {
@@ -27,6 +28,7 @@ export type NotesViewModel = {
     selectNote: (noteId: UiNoteId) => void;
   };
   editor: UiEditorView & {
+    onConsumeFocusTarget: (requestId: number) => void;
     onActiveLineChange: (lineNumber: number) => void;
   };
   outline: {
@@ -41,5 +43,5 @@ export type NotesViewModel = {
       type: string;
     }) => WorkspaceReferenceNavigationDestination[];
   };
-  updateSource: (source: string) => void;
+  updateSource: (change: CtnEditableSourceChange) => void;
 };

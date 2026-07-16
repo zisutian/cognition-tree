@@ -1,6 +1,6 @@
 import type {
-  NoteRecord,
   NoteTreeNode,
+  WorkspaceNote,
 } from "../../../workspace/model/workspaceData";
 
 export type UiFolderId = string;
@@ -69,65 +69,109 @@ export type UiTreeMoveRequest = {
   source: UiTreeNodeReference;
 };
 
-function createNoteMap(notes: Pick<NoteRecord, "id" | "title">[]) {
+function createNoteMap(notes: Pick<WorkspaceNote, "id" | "title">[]) {
   return new Map(notes.map((note) => [note.id, note]));
 }
 
+type PendingProjection = {
+  node: NoteTreeNode;
+  parentFolderId: string | null;
+  visited: boolean;
+};
+
 function createUiNoteTreeNodes({
-  folderId,
   noteMap,
   nodes,
-  visitedNodeIds = new Set<string>(),
 }: {
-  folderId: string | null;
-  noteMap: Map<string, Pick<NoteRecord, "id" | "title">>;
+  noteMap: Map<string, Pick<WorkspaceNote, "id" | "title">>;
   nodes: NoteTreeNode[];
-  visitedNodeIds?: Set<string>;
 }): UiTreeNode[] {
-  return nodes.flatMap<UiTreeNode>((node) => {
-    if (visitedNodeIds.has(node.id)) {
-      return [];
+  const projectedByNode = new Map<NoteTreeNode, UiTreeNode>();
+  const pending: PendingProjection[] = [];
+
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    pending.push({
+      node: nodes[index],
+      parentFolderId: null,
+      visited: false,
+    });
+  }
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+
+    if (!current) {
+      continue;
     }
 
-    visitedNodeIds.add(node.id);
+    if (current.node.kind === "note") {
+      const note = noteMap.get(current.node.noteId);
 
-    if (node.kind === "note") {
-      const note = noteMap.get(node.noteId);
+      if (!note) {
+        throw new Error(
+          `Workspace tree references unknown note: ${current.node.noteId}`,
+        );
+      }
 
-      return note
-        ? [
-            {
-              canDrag: true,
-              folderId,
-              id: node.id,
-              kind: "note" as const,
-              noteId: note.id,
-              parentFolderId: folderId,
-              title: note.title,
-            },
-          ]
-        : [];
+      projectedByNode.set(current.node, {
+        canDrag: true,
+        folderId: current.parentFolderId,
+        id: `note:${current.node.noteId}`,
+        kind: "note",
+        noteId: current.node.noteId,
+        parentFolderId: current.parentFolderId,
+        title: note.title,
+      });
+      continue;
     }
 
-    const children = createUiNoteTreeNodes({
-      folderId: node.id,
-      noteMap,
-      nodes: node.children,
-      visitedNodeIds,
+    if (!current.visited) {
+      pending.push({ ...current, visited: true });
+
+      for (
+        let index = current.node.children.length - 1;
+        index >= 0;
+        index -= 1
+      ) {
+        pending.push({
+          node: current.node.children[index],
+          parentFolderId: current.node.folderId,
+          visited: false,
+        });
+      }
+      continue;
+    }
+
+    const children = current.node.children.map((child) => {
+      const projected = projectedByNode.get(child);
+
+      if (!projected) {
+        throw new Error("Workspace tree projection is incomplete.");
+      }
+
+      return projected;
     });
 
-    return [
-      {
-        canDrag: true,
-        childCount: node.children.length,
-        children,
-        folderId: node.id,
-        id: node.id,
-        kind: "folder" as const,
-        parentFolderId: folderId,
-        title: node.title,
-      },
-    ];
+    projectedByNode.set(current.node, {
+      canDrag: true,
+      childCount: children.length,
+      children,
+      folderId: current.node.folderId,
+      id: `folder:${current.node.folderId}`,
+      kind: "folder",
+      parentFolderId: current.parentFolderId,
+      title: current.node.title,
+    });
+  }
+
+  return nodes.map((node) => {
+    const projected = projectedByNode.get(node);
+
+    if (!projected) {
+      throw new Error("Workspace tree projection is incomplete.");
+    }
+
+    return projected;
   });
 }
 
@@ -135,13 +179,12 @@ export function createUiNoteTree({
   notes,
   tree,
 }: {
-  notes: Pick<NoteRecord, "id" | "title">[];
+  notes: Pick<WorkspaceNote, "id" | "title">[];
   tree: NoteTreeNode[];
 }): UiTreeNode[] {
   const noteMap = createNoteMap(notes);
 
   return createUiNoteTreeNodes({
-    folderId: null,
     noteMap,
     nodes: tree,
   });

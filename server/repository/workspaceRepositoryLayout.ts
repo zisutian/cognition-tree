@@ -1,21 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { inferRepositoryNoteTitle } from "../../contracts/workspace-repository/noteSource.ts";
-import type {
-  RepositoryNoteDto,
-  RepositoryWorkspaceDto,
-  WorkspaceRepositoryContentDto,
-} from "../../contracts/workspace-repository/types.ts";
 import {
-  isSafeWorkspaceNoteId,
-  parseWorkspaceManifest,
-  workspaceManifestSchemaVersion,
-  type WorkspaceManifest,
-} from "./workspaceManifest.ts";
+  WorkspaceRepositoryContractError,
+} from "../../contracts/workspace-repository/contractValue.ts";
+import { serializeJsonIteratively } from "../../contracts/workspace-repository/json.ts";
+import {
+  isRepositoryNoteId,
+  parseRepositoryTree,
+} from "../../contracts/workspace-repository/parseWorkspace.ts";
+import {
+  repositorySyntaxFileName,
+  workspaceRepositorySchemaVersion,
+  type RepositoryTreeNodeDto,
+  type RepositoryWorkspaceDto,
+  type WorkspaceRepositoryContentDto,
+} from "../../contracts/workspace-repository/types.ts";
 
+export const repositoryMetadataFileName = "repository.json";
+export const snapshotsDirName = "snapshots";
 export const workspaceFileName = "workspace.json";
 export const notesDirName = "notes";
 export const syntaxDirName = "syntax";
+
+const workspaceFields = new Set(["id", "name", "tree"]);
 
 export class WorkspacePayloadValidationError extends Error {
   constructor(message: string) {
@@ -24,103 +31,129 @@ export class WorkspacePayloadValidationError extends Error {
   }
 }
 
-function failPayloadValidation(message: string): never {
-  throw new WorkspacePayloadValidationError(message);
-}
-
 export function createRepositoryNoteFileName(noteId: string) {
-  if (!isSafeWorkspaceNoteId(noteId)) {
-    failPayloadValidation(`Unsafe note id: ${noteId}`);
+  if (!isRepositoryNoteId(noteId)) {
+    throw new WorkspacePayloadValidationError(`Unsafe note id: ${noteId}`);
   }
 
   return `${noteId}.ctn`;
 }
 
-export function createEmptyRepositoryWorkspace(): RepositoryWorkspaceDto {
+export function createEmptyRepositoryContent(
+  workspaceId = "local-workspace",
+  workspaceName = "本地笔记库",
+): WorkspaceRepositoryContentDto {
   return {
-    id: "local-workspace",
-    name: "本地笔记库",
-    notes: [],
-    tree: [],
+    schemaVersion: workspaceRepositorySchemaVersion,
+    syntaxSource: null,
+    workspace: {
+      id: workspaceId,
+      name: workspaceName,
+      notes: [],
+      tree: [],
+    },
   };
 }
 
-function assertNoteTitleMatchesSource(note: RepositoryNoteDto) {
-  if (note.title !== inferRepositoryNoteTitle(note.source)) {
-    failPayloadValidation(
-      `Workspace note title does not match first line: ${note.id}`,
-    );
+export function createWorkspaceSnapshotFileSet(
+  content: WorkspaceRepositoryContentDto,
+) {
+  const files = new Map<string, string>();
+  const workspaceFile = {
+    id: content.workspace.id,
+    name: content.workspace.name,
+    tree: content.workspace.tree,
+  };
+
+  files.set(
+    workspaceFileName,
+    `${serializeJsonIteratively(workspaceFile)}\n`,
+  );
+  for (const note of [...content.workspace.notes].sort((left, right) =>
+    left.id.localeCompare(right.id)
+  )) {
+    files.set(`${notesDirName}/${createRepositoryNoteFileName(note.id)}`, note.source);
   }
+  if (content.syntaxSource !== null) {
+    files.set(`${syntaxDirName}/${repositorySyntaxFileName}`, content.syntaxSource);
+  }
+
+  return files;
 }
 
-export function createWorkspaceManifest(
-  workspace: RepositoryWorkspaceDto,
-): WorkspaceManifest {
-  workspace.notes.forEach(assertNoteTitleMatchesSource);
+function parseWorkspaceFile(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new WorkspaceRepositoryContractError("$", "expected object");
+  }
+  const workspace = value as Record<string, unknown>;
+
+  for (const key of Object.keys(workspace)) {
+    if (!workspaceFields.has(key)) {
+      throw new WorkspaceRepositoryContractError(`$.${key}`, "unsupported field");
+    }
+  }
+  for (const field of workspaceFields) {
+    if (!(field in workspace)) {
+      throw new WorkspaceRepositoryContractError(`$.${field}`, "missing field");
+    }
+  }
+  if (typeof workspace.id !== "string" || workspace.id.length === 0) {
+    throw new WorkspaceRepositoryContractError("$.id", "expected non-empty string");
+  }
+  if (typeof workspace.name !== "string" || workspace.name.length === 0) {
+    throw new WorkspaceRepositoryContractError("$.name", "expected non-empty string");
+  }
+  if (!Array.isArray(workspace.tree)) {
+    throw new WorkspaceRepositoryContractError("$.tree", "expected array");
+  }
 
   return {
     id: workspace.id,
     name: workspace.name,
-    notes: workspace.notes.map((note) => ({
-      createdAt: note.createdAt,
-      id: note.id,
-      title: note.title,
-      updatedAt: note.updatedAt,
-    })),
-    schemaVersion: workspaceManifestSchemaVersion,
     tree: workspace.tree,
   };
 }
 
-export function createWorkspaceRepositoryFileSet(
-  content: WorkspaceRepositoryContentDto,
-) {
-  const manifest = createWorkspaceManifest(content.workspace);
-  const files = new Map<string, string>([
-    [workspaceFileName, `${JSON.stringify(manifest, null, 2)}\n`],
-  ]);
+function collectNoteIdsFromTree(value: unknown[]): Set<string> {
+  const ids = new Set<string>();
+  const pending: unknown[] = [...value];
 
-  content.workspace.notes.forEach((note) => {
-    files.set(
-      `${notesDirName}/${createRepositoryNoteFileName(note.id)}`,
-      note.source,
-    );
-  });
+  while (pending.length > 0) {
+    const node = pending.pop();
 
-  if (content.syntaxSourceFile) {
-    files.set(
-      `${syntaxDirName}/${content.syntaxSourceFile.fileName}`,
-      content.syntaxSourceFile.source,
-    );
+    if (typeof node !== "object" || node === null || Array.isArray(node)) {
+      continue;
+    }
+    const record = node as Record<string, unknown>;
+
+    if (record.kind === "note" && typeof record.noteId === "string") {
+      ids.add(record.noteId);
+    } else if (record.kind === "folder" && Array.isArray(record.children)) {
+      pending.push(...record.children);
+    }
   }
 
-  return { files, manifest };
+  return ids;
 }
 
-export async function loadWorkspaceFromManifest(
+export async function loadWorkspaceFromSnapshot(
   value: unknown,
   readNoteSource: (noteId: string) => Promise<string>,
 ): Promise<RepositoryWorkspaceDto> {
-  const manifest = parseWorkspaceManifest(value);
+  const workspaceFile = parseWorkspaceFile(value);
+  const noteIds = collectNoteIdsFromTree(workspaceFile.tree);
+  const tree = parseRepositoryTree(workspaceFile.tree, "$.tree", noteIds);
   const notes = await Promise.all(
-    manifest.notes.map(async (note) => {
-      const source = await readNoteSource(note.id);
-      const sourceTitle = inferRepositoryNoteTitle(source);
-
-      if (note.title !== sourceTitle) {
-        throw new WorkspacePayloadValidationError(
-          `Workspace note title does not match first line: ${note.id}`,
-        );
-      }
-
-      return { ...note, source };
-    }),
+    [...noteIds].sort((left, right) => left.localeCompare(right)).map(async (id) => ({
+      id,
+      source: await readNoteSource(id),
+    })),
   );
 
   return {
-    id: manifest.id,
-    name: manifest.name,
+    id: workspaceFile.id,
+    name: workspaceFile.name,
     notes,
-    tree: manifest.tree,
+    tree: tree as RepositoryTreeNodeDto[],
   };
 }

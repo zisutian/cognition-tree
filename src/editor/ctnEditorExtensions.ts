@@ -11,12 +11,7 @@ import {
   indentOnInput,
   indentUnit,
 } from "@codemirror/language";
-import {
-  Annotation,
-  Compartment,
-  EditorState,
-  type Extension,
-} from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -29,6 +24,7 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import type { CtnSyntaxProfile } from "../ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../ctn/metadata/textEdits";
 import { createCtnParseDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 import {
@@ -37,10 +33,10 @@ import {
 } from "./ctnReferenceNavigation";
 import { createCtnCodeBlockEditingExtensions } from "./ctnCodeBlockEditing";
 import { createEditorCompositionChange } from "./editorCompositionChange";
+import { ctnExternalValueSync } from "./editorValueSync";
 
 export const ctnTabSizeCompartment = new Compartment();
 export const ctnParsingCompartment = new Compartment();
-export const ctnExternalValueSync = Annotation.define<boolean>();
 
 export function createCtnIndentUnit() {
   return "\t";
@@ -60,7 +56,7 @@ export function getCtnEditorActiveLineNumber(state: EditorState) {
 
 export function createCtnEditorExtensions(
   onChangeRef: {
-    current: (value: string) => void;
+    current: (change: CtnEditableSourceChange) => void;
   },
   syntaxProfileRef: {
     current: CtnSyntaxProfile;
@@ -119,9 +115,10 @@ export function createCtnEditorExtensions(
 
       if (update.docChanged) {
         compositionChange.handleDocumentChange({
+          changes: update.changes,
           isComposing: update.view.composing,
           isExternal: isExternalValueSync,
-          value: update.state.doc.toString(),
+          source: update.state.doc.toString(),
         });
       }
 

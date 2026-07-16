@@ -15,7 +15,8 @@ describe("workspace context syntax profile", () => {
     ).toMatchObject({
       syntaxProfile: { name: "默认 CTN 语法" },
       workspace: {
-        folderCount: 0,
+        folderEntryById: new Map(),
+        noteEntryById: new Map(),
       },
     });
   });

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  initializeCtnRawSourceBlockMetadata,
+  initializeCtnSourceBlockMetadata,
+} from "../../../src/ctn/metadata/sourceMetadata";
+import { createCtnEditableSource } from "../../../src/ctn/metadata/editableSource";
+import {
   CtnDocumentMetadataError,
-  parseCtnDocument,
+  parseCtnCanonicalDocument,
 } from "../../../src/ctn/parser/parseCtnDocument";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import {
@@ -15,7 +20,7 @@ describe("CTN source block metadata", () => {
     const source = addTestCtnBlockMetadata(
       "Title\nRoot\n\t: Child\n\t\t- Leaf",
     );
-    const document = parseCtnDocument(source, defaultCtnSyntaxProfile);
+    const document = parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile);
 
     expect(source.split("\n")).toEqual([
       expect.stringMatching(/^@ctn-block id=/),
@@ -74,7 +79,7 @@ describe("CTN source block metadata", () => {
 
   it("rejects missing, misindented, and duplicate metadata", () => {
     expect(() =>
-      parseCtnDocument("Title\nRoot", defaultCtnSyntaxProfile),
+      parseCtnCanonicalDocument("Title\nRoot", defaultCtnSyntaxProfile),
     ).toThrow(CtnDocumentMetadataError);
 
     const source = addTestCtnBlockMetadata("Title\nRoot\n\t: Child");
@@ -87,9 +92,76 @@ describe("CTN source block metadata", () => {
       `id=${createTestBlockId(2)}`,
     );
 
-    expect(() => parseCtnDocument(misindented, defaultCtnSyntaxProfile))
+    expect(() => parseCtnCanonicalDocument(misindented, defaultCtnSyntaxProfile))
       .toThrow("metadata indentation does not match");
-    expect(() => parseCtnDocument(duplicate, defaultCtnSyntaxProfile))
+    expect(() => parseCtnCanonicalDocument(duplicate, defaultCtnSyntaxProfile))
       .toThrow(`duplicate block id ${createTestBlockId(2)}`);
+  });
+
+  it("requires explicit allocation and never reuses a reserved workspace id", () => {
+    let nextId = 1;
+    const source = initializeCtnSourceBlockMetadata(
+      "Title",
+      defaultCtnSyntaxProfile,
+      {
+        createdAt: testBlockTimestamp,
+        createId: () => createTestBlockId(nextId++),
+        reservedIds: new Set([createTestBlockId(1)]),
+        updatedAt: testBlockTimestamp,
+      },
+    );
+
+    expect(parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile).blocks[0].id)
+      .toBe(createTestBlockId(2));
+    expect(() => initializeCtnSourceBlockMetadata(
+      "Title",
+      defaultCtnSyntaxProfile,
+      {
+        createdAt: testBlockTimestamp,
+        createId: () => createTestBlockId(3),
+        reservedIds: new Set(["invalid"]),
+        updatedAt: testBlockTimestamp,
+      },
+    )).toThrow("Invalid reserved CTN block id");
+  });
+
+  it("canonicalizes an opaque raw body while preserving title metadata", () => {
+    const rawDirective = `@ctn-block id=${createTestBlockId(999)} created=${testBlockTimestamp} updated=${testBlockTimestamp}`;
+    const rawSource = `${addTestCtnBlockMetadata("Title")}\nRoot\n${rawDirective}`;
+    const conversionTimestamp = "2026-07-16T00:00:00.000Z";
+    let nextId = 100;
+    const canonicalSource = initializeCtnRawSourceBlockMetadata(
+      rawSource,
+      defaultCtnSyntaxProfile,
+      {
+        allocateId: () => createTestBlockId(++nextId),
+        timestamp: conversionTimestamp,
+      },
+    );
+    const document = parseCtnCanonicalDocument(
+      canonicalSource,
+      defaultCtnSyntaxProfile,
+    );
+
+    expect(createCtnEditableSource(
+      canonicalSource,
+      defaultCtnSyntaxProfile,
+    ).source).toBe(`Title\nRoot\n${rawDirective}`);
+    expect(document.blocks.map((block) => block.id)).toEqual([
+      createTestBlockId(1),
+      createTestBlockId(101),
+      createTestBlockId(102),
+    ]);
+    expect(document.blocks[0]?.metadata).toEqual({
+      createdAt: testBlockTimestamp,
+      updatedAt: conversionTimestamp,
+    });
+    expect(document.blocks.slice(1).map((block) => block.metadata)).toEqual([
+      { createdAt: conversionTimestamp, updatedAt: conversionTimestamp },
+      { createdAt: conversionTimestamp, updatedAt: conversionTimestamp },
+    ]);
+    expect(document.blocks[2]?.diagnostics.map(({ code }) => code)).toContain(
+      "reserved-directive",
+    );
   });
 });

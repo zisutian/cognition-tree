@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { randomUUID } from "node:crypto";
 import http from "node:http";
 import type {
   IncomingMessage,
@@ -7,9 +8,15 @@ import type {
   ServerResponse,
 } from "node:http";
 import {
+  UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
 } from "../../contracts/workspace-repository/contractValue.ts";
+import { serializeJsonIteratively } from "../../contracts/workspace-repository/json.ts";
 import { parseCreateRepository } from "../../contracts/workspace-repository/parseCatalog.ts";
+import type {
+  RepositoryApiErrorCodeDto,
+  RepositoryApiErrorDto,
+} from "../../contracts/workspace-repository/types.ts";
 import {
   RepositoryAdapterError,
   WorkspaceRevisionConflictError,
@@ -28,6 +35,19 @@ import {
 const allowedMethods = "GET, OPTIONS, POST, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
 
+const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {
+  adapter_unavailable: 503,
+  insufficient_storage: 507,
+  internal_error: 500,
+  invalid_request: 400,
+  repository_busy: 423,
+  repository_corrupt: 500,
+  repository_not_found: 404,
+  revision_conflict: 409,
+  unauthorized: 401,
+  unsupported_repository_version: 409,
+};
+
 type WorkspaceApiRoute =
   | { kind: "health"; methods: readonly string[] }
   | { kind: "repositories"; methods: readonly string[] }
@@ -44,26 +64,26 @@ export type WorkspaceApiRequestHandler = (
 
 type WorkspaceApiOptions = {
   catalog: WorkspaceRepositoryCatalog;
+  logger?: Pick<Console, "error">;
   security: WorkspaceApiSecurityPolicy;
 };
 
 class WorkspaceApiRequestError extends Error {
+  code: RepositoryApiErrorCodeDto;
+  currentRevision?: RepositoryApiErrorDto["currentRevision"];
   statusCode: number;
 
-  constructor(statusCode: number, message: string) {
+  constructor(
+    code: RepositoryApiErrorCodeDto,
+    message: string,
+    statusCode = statusByCode[code],
+    currentRevision?: RepositoryApiErrorDto["currentRevision"],
+  ) {
     super(message);
     this.name = "WorkspaceApiRequestError";
-    this.statusCode = statusCode;
-  }
-}
-
-class WorkspaceApiConflictError extends WorkspaceApiRequestError {
-  currentRevision: string;
-
-  constructor(currentRevision: string) {
-    super(409, "Repository content changed outside the current session");
-    this.name = "WorkspaceApiConflictError";
+    this.code = code;
     this.currentRevision = currentRevision;
+    this.statusCode = statusCode;
   }
 }
 
@@ -71,7 +91,6 @@ function resolveRoute(pathname: string): WorkspaceApiRoute | null {
   if (pathname === "/api/health") {
     return { kind: "health", methods: ["GET"] };
   }
-
   if (pathname === "/api/repositories") {
     return { kind: "repositories", methods: ["GET", "POST"] };
   }
@@ -82,33 +101,30 @@ function resolveRoute(pathname: string): WorkspaceApiRoute | null {
     return null;
   }
 
-  let repositoryId: string;
-
   try {
-    repositoryId = decodeURIComponent(match[1]);
+    return {
+      kind: "repository-snapshot",
+      methods: ["GET", "PUT"],
+      repositoryId: decodeURIComponent(match[1] ?? ""),
+    };
   } catch {
-    throw new WorkspaceApiRequestError(400, "Invalid repository id encoding");
+    throw new WorkspaceApiRequestError("invalid_request", "Invalid repository id encoding");
   }
-
-  return {
-    kind: "repository-snapshot",
-    methods: ["GET", "PUT"],
-    repositoryId,
-  };
 }
 
 function getRequestHeader(request: IncomingMessage, name: string) {
   const value = request.headers[name.toLowerCase()];
-
   return Array.isArray(value) ? value[0] : value;
 }
 
-function createCorsHeaders(origin: string | null): OutgoingHttpHeaders {
+function createResponseHeaders(origin: string | null, requestId: string): OutgoingHttpHeaders {
   return {
     "Access-Control-Allow-Headers": "authorization, content-type",
     "Access-Control-Allow-Methods": allowedMethods,
     ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
+    "Cache-Control": "no-store",
     Vary: "Origin",
+    "X-Request-Id": requestId,
   };
 }
 
@@ -122,24 +138,28 @@ function sendJson(
     ...headers,
     "Content-Type": "application/json; charset=utf-8",
   });
-  response.end(JSON.stringify(body));
+  response.end(serializeJsonIteratively(body));
 }
 
-function sendNoContent(
-  response: ServerResponse,
-  headers: OutgoingHttpHeaders,
-) {
+function sendNoContent(response: ServerResponse, headers: OutgoingHttpHeaders) {
   response.writeHead(204, headers);
   response.end();
 }
 
 function sendError(
   response: ServerResponse,
-  statusCode: number,
-  message: string,
+  error: WorkspaceApiRequestError,
+  requestId: string,
   headers: OutgoingHttpHeaders,
 ) {
-  sendJson(response, statusCode, { error: message }, headers);
+  const body: RepositoryApiErrorDto = {
+    code: error.code,
+    ...(error.currentRevision ? { currentRevision: error.currentRevision } : {}),
+    message: error.message,
+    requestId,
+  };
+
+  sendJson(response, error.statusCode, body, headers);
 }
 
 function assertRequestHasNoBody(request: IncomingMessage) {
@@ -148,7 +168,7 @@ function assertRequestHasNoBody(request: IncomingMessage) {
 
   if ((contentLength && contentLength !== "0") || transferEncoding) {
     throw new WorkspaceApiRequestError(
-      400,
+      "invalid_request",
       "Request body is not allowed for this method",
     );
   }
@@ -156,24 +176,23 @@ function assertRequestHasNoBody(request: IncomingMessage) {
 
 async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   const contentType = getRequestHeader(request, "content-type")
-    ?.split(";", 1)[0]
-    ?.trim()
-    .toLowerCase();
+    ?.split(";", 1)[0]?.trim().toLowerCase();
 
   if (contentType !== "application/json") {
     throw new WorkspaceApiRequestError(
-      415,
+      "invalid_request",
       "Content-Type must be application/json",
+      415,
     );
   }
 
   const contentLength = getRequestHeader(request, "content-length");
 
   if (contentLength && !/^\d+$/.test(contentLength)) {
-    throw new WorkspaceApiRequestError(400, "Content-Length is invalid");
+    throw new WorkspaceApiRequestError("invalid_request", "Content-Length is invalid");
   }
   if (contentLength && Number(contentLength) > maxBodyBytes) {
-    throw new WorkspaceApiRequestError(413, "Request body is too large");
+    throw new WorkspaceApiRequestError("invalid_request", "Request body is too large", 413);
   }
 
   const chunks: Buffer[] = [];
@@ -183,86 +202,102 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
 
     size += buffer.length;
-
     if (size > maxBodyBytes) {
-      throw new WorkspaceApiRequestError(413, "Request body is too large");
+      throw new WorkspaceApiRequestError("invalid_request", "Request body is too large", 413);
     }
-
     chunks.push(buffer);
   }
 
   const body = Buffer.concat(chunks).toString("utf8").trim();
 
   if (!body) {
-    throw new WorkspaceApiRequestError(400, "Request body is empty");
+    throw new WorkspaceApiRequestError("invalid_request", "Request body is empty");
   }
-
   try {
     return JSON.parse(body);
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new WorkspaceApiRequestError(400, "Request body is invalid JSON");
+      throw new WorkspaceApiRequestError("invalid_request", "Request body is invalid JSON");
     }
-
     throw error;
   }
 }
 
-function mapRepositoryCommitError(error: unknown): unknown {
-  if (error instanceof RepositoryAdapterError) {
-    return new WorkspaceApiRequestError(error.statusCode, error.message);
+function mapRepositoryError(error: unknown): WorkspaceApiRequestError {
+  if (error instanceof WorkspaceApiRequestError) {
+    return error;
   }
-
-  if (error instanceof RepositoryCatalogError) {
-    return new WorkspaceApiRequestError(error.statusCode, error.message);
-  }
-
   if (error instanceof WorkspaceRevisionConflictError) {
-    return new WorkspaceApiConflictError(error.currentRevision);
+    return new WorkspaceApiRequestError(
+      "revision_conflict",
+      "Repository content changed outside the current session",
+      409,
+      error.currentRevision,
+    );
   }
+  if (error instanceof UnsupportedRepositoryVersionError) {
+    return new WorkspaceApiRequestError(
+      "unsupported_repository_version",
+      "Repository version is not supported",
+    );
+  }
+  if (error instanceof RepositoryAdapterError) {
+    const message = error.code === "repository_corrupt"
+      ? "Repository data is corrupt"
+      : error.code === "internal_error"
+        ? "Internal server error"
+        : error.message;
 
+    return new WorkspaceApiRequestError(error.code, message, error.statusCode);
+  }
+  if (error instanceof RepositoryCatalogError) {
+    const message = error.code === "repository_corrupt"
+      ? "Repository data is corrupt"
+      : error.code === "internal_error"
+        ? "Internal server error"
+        : error.message;
+
+    return new WorkspaceApiRequestError(error.code, message);
+  }
   if (
     error instanceof WorkspaceRepositoryContractError ||
     error instanceof WorkspacePayloadValidationError
   ) {
-    return new WorkspaceApiRequestError(400, error.message);
+    return new WorkspaceApiRequestError("invalid_request", error.message);
   }
-
-  return error;
+  if (error instanceof Error && "code" in error &&
+      (error.code === "ENOSPC" || error.code === "EDQUOT")) {
+    return new WorkspaceApiRequestError("insufficient_storage", "Repository storage is full");
+  }
+  return new WorkspaceApiRequestError("internal_error", "Internal server error");
 }
 
 export function createWorkspaceApiRequestHandler({
   catalog,
+  logger = console,
   security,
 }: WorkspaceApiOptions): WorkspaceApiRequestHandler {
   return async (request, response) => {
-    let responseHeaders = createCorsHeaders(null);
+    const requestId = randomUUID();
+    let responseHeaders = createResponseHeaders(null, requestId);
 
     try {
       const { allowedOrigin } = authorizeWorkspaceApiRequest(request, security);
 
-      responseHeaders = createCorsHeaders(allowedOrigin);
-
+      responseHeaders = createResponseHeaders(allowedOrigin, requestId);
       const url = new URL(request.url ?? "/", "http://localhost");
       const route = resolveRoute(url.pathname);
 
       if (!route) {
-        throw new WorkspaceApiRequestError(404, "Not found");
+        throw new WorkspaceApiRequestError("invalid_request", "Not found", 404);
       }
-
       if (request.method === "OPTIONS") {
         sendNoContent(response, responseHeaders);
         return;
       }
-
       if (!request.method || !route.methods.includes(request.method)) {
-        sendError(response, 405, "Method not allowed", {
-          ...responseHeaders,
-          Allow: route.methods.join(", "),
-        });
-        return;
+        throw new WorkspaceApiRequestError("invalid_request", "Method not allowed", 405);
       }
-
       if (request.method === "GET") {
         assertRequestHasNoBody(request);
       }
@@ -271,100 +306,61 @@ export function createWorkspaceApiRequestHandler({
         sendJson(response, 200, { ok: true }, responseHeaders);
         return;
       }
-
       if (route.kind === "repositories") {
-        try {
-          if (request.method === "GET") {
-            sendJson(
-              response,
-              200,
-              await catalog.listRepositories(),
-              responseHeaders,
-            );
-            return;
-          }
-
-          const body = parseCreateRepository(await readJsonBody(request));
-
-          sendJson(
-            response,
-            201,
-            await catalog.createRepository(body),
-            responseHeaders,
-          );
-        } catch (error) {
-          throw mapRepositoryCommitError(error);
+        if (request.method === "GET") {
+          sendJson(response, 200, await catalog.listRepositories(), responseHeaders);
+          return;
         }
+
+        const body = parseCreateRepository(await readJsonBody(request));
+
+        sendJson(response, 201, await catalog.createRepository(body), responseHeaders);
         return;
       }
 
-      try {
-        const store = await catalog.getStore(route.repositoryId);
+      const store = await catalog.getStore(route.repositoryId);
 
-        if (request.method === "GET") {
-          sendJson(response, 200, await store.loadSnapshot(), responseHeaders);
-        } else {
-          const body = await readJsonBody(request);
-
-          sendJson(
-            response,
-            200,
-            await store.commitSnapshot(body),
-            responseHeaders,
-          );
-        }
-      } catch (error) {
-        throw mapRepositoryCommitError(error);
-      }
-      return;
-    } catch (error) {
-      if (
-        error instanceof WorkspaceApiSecurityError &&
-        error.allowedOrigin
-      ) {
-        responseHeaders = createCorsHeaders(error.allowedOrigin);
-      }
-
-      const statusCode = error instanceof WorkspaceApiRequestError ||
-          error instanceof WorkspaceApiSecurityError
-        ? error.statusCode
-        : 500;
-      const message = error instanceof Error ? error.message : "Unknown error";
-
-      if (
-        error instanceof WorkspaceApiSecurityError &&
-        statusCode === 401
-      ) {
-        responseHeaders = {
-          ...responseHeaders,
-          "WWW-Authenticate": "Bearer",
-        };
-      }
-
-      if (error instanceof WorkspaceApiConflictError) {
+      if (request.method === "GET") {
+        sendJson(response, 200, await store.loadSnapshot(), responseHeaders);
+      } else {
         sendJson(
           response,
-          statusCode,
-          {
-            currentRevision: error.currentRevision,
-            error: message,
-          },
+          200,
+          await store.commitSnapshot(await readJsonBody(request)),
           responseHeaders,
         );
-      } else {
-        sendError(response, statusCode, message, responseHeaders);
       }
+    } catch (error) {
+      if (error instanceof WorkspaceApiSecurityError && error.allowedOrigin) {
+        responseHeaders = createResponseHeaders(error.allowedOrigin, requestId);
+      }
+
+      const mapped = error instanceof WorkspaceApiSecurityError
+        ? new WorkspaceApiRequestError(
+            error.statusCode === 401 || error.statusCode === 403
+              ? "unauthorized"
+              : "invalid_request",
+            error.message,
+            error.statusCode,
+          )
+        : mapRepositoryError(error);
+
+      if (mapped.statusCode >= 500) {
+        logger.error(`[${requestId}] workspace API request failed`, error);
+      }
+      if (mapped.code === "unauthorized" && mapped.statusCode === 401) {
+        responseHeaders = { ...responseHeaders, "WWW-Authenticate": "Bearer" };
+      }
+      if (mapped.statusCode === 405) {
+        responseHeaders = { ...responseHeaders, Allow: allowedMethods };
+      }
+      sendError(response, mapped, requestId, responseHeaders);
     }
   };
 }
 
-export function createWorkspaceApiServer({
-  catalog,
-  security,
-}: WorkspaceApiOptions) {
-  const server = http.createServer(
-    createWorkspaceApiRequestHandler({ catalog, security }),
-  );
+export function createWorkspaceApiServer(options: WorkspaceApiOptions) {
+  const server = http.createServer(createWorkspaceApiRequestHandler(options));
 
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 5_000;

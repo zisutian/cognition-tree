@@ -9,23 +9,44 @@ import {
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
 } from "../../src/application/workspace/session/workspaceSessionController";
-import { createHttpWorkspaceRepository } from "../../src/storage/adapters/http/httpWorkspaceRepository";
-import {
-  createHttpWorkspaceRepositoryCatalog,
-} from "../../src/storage/adapters/http/httpWorkspaceRepositoryCatalog";
+import { createHttpWorkspaceRepositoryBackend } from "../../src/storage/adapters/http/httpWorkspaceRepository";
+import { createHttpWorkspaceRepositoryCatalog } from "../../src/storage/adapters/http/httpWorkspaceRepositoryCatalog";
+import { validateWorkspaceRepositoryContent } from "../../src/storage/runtime/workspaceRepositoryContentValidation";
+import type {
+  WorkspaceRepository,
+} from "../../src/storage/repository/workspaceRepository";
+import type {
+  WorkspaceRepositoryCatalog,
+  WorkspaceRepositoryDescriptor,
+} from "../../src/storage/repository/workspaceRepositoryCatalog";
 import { createWorkspaceApiServer } from "../../server/api/workspaceApiServer.ts";
 import { createWorkspaceApiSecurityPolicy } from "../../server/api/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
-import { stripTestCtnBlockMetadata } from "../ctn/metadata/sourceMetadataFixture";
+import { createCtnEditableSource } from "../../src/ctn/metadata/editableSource";
+import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
+import { replaceEditableSource } from "../application/workspace/session/workspaceSessionTestFixture";
 
 type TestRepositoryServer = {
   baseUrl: string;
+  catalog: LocalRepositoryCatalog;
   close: () => Promise<void>;
   rootDir: string;
-  token?: string;
 };
 
+const commandDependencies = {
+  createBlockId: (() => {
+    let id = 0;
+    return () =>
+      `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`;
+  })(),
+  createFolderId: () => "folder-integration",
+  createNoteId: (() => {
+    let id = 0;
+    return () => `note-integration-${++id}`;
+  })(),
+  now: () => "2026-07-16T00:00:00.000Z",
+};
 const openControllers: WorkspaceSessionController[] = [];
 const openServers: TestRepositoryServer[] = [];
 
@@ -78,7 +99,6 @@ async function startRepositoryServer(
   const server = createWorkspaceApiServer({
     catalog,
     security: createWorkspaceApiSecurityPolicy({
-      allowedOrigins: [],
       bearerToken: token,
       host: "127.0.0.1",
     }),
@@ -86,8 +106,8 @@ async function startRepositoryServer(
   const baseUrl = await listen(server);
   const testServer = {
     baseUrl,
+    catalog,
     rootDir,
-    token,
     close: () => new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) {
@@ -103,17 +123,10 @@ async function startRepositoryServer(
   return testServer;
 }
 
-function startController(
-  baseUrl: string,
-  repositoryId: string,
-  token?: string,
-) {
+function startController(repository: WorkspaceRepository) {
   const controller = createWorkspaceSessionController({
-    repository: createHttpWorkspaceRepository({
-      baseUrl,
-      repositoryId,
-      token,
-    }),
+    commandDependencies,
+    repository,
   });
 
   openControllers.push(controller);
@@ -122,19 +135,49 @@ function startController(
 }
 
 async function createRepository(
-  baseUrl: string,
+  catalog: WorkspaceRepositoryCatalog,
   repositoryId: string,
-  token?: string,
 ) {
-  const catalog = createHttpWorkspaceRepositoryCatalog({ baseUrl, token });
-
-  await catalog.createRepository({
+  return catalog.createRepository({
     content: {
-      syntaxSourceFile: null,
+      schemaVersion: 3,
+      syntaxSource: null,
       workspace: createInitialWorkspaceData(),
     },
     id: repositoryId,
+    label: `Repository ${repositoryId}`,
   });
+}
+
+async function waitUntilSaved(controller: WorkspaceSessionController) {
+  return waitForState(
+    controller,
+    (state) =>
+      state.status === "ready" && state.persistence.status === "saved",
+  );
+}
+
+function updateNote(
+  controller: WorkspaceSessionController,
+  noteId: string,
+  source: string,
+) {
+  const state = controller.getState();
+
+  if (state.status !== "ready") {
+    throw new Error("session is not ready");
+  }
+
+  const note = state.workspace.noteEntryById.get(noteId)?.note;
+
+  if (!note) {
+    throw new Error(`note does not exist: ${noteId}`);
+  }
+
+  controller.commands.updateNoteSource(
+    noteId,
+    replaceEditableSource(note.source, source),
+  );
 }
 
 afterEach(async () => {
@@ -142,29 +185,36 @@ afterEach(async () => {
 
   for (const server of openServers.splice(0)) {
     await server.close();
+    await server.catalog.dispose();
     await rm(server.rootDir, { force: true, recursive: true });
   }
 });
 
 describe("workspace persistence integration", () => {
-  it("persists workspace and syntax through HTTP and reloads a new session", async () => {
+  it("persists repository v3 content and syntax through HTTP, then reloads a new local-first session", async () => {
     const server = await startRepositoryServer();
-    await createRepository(server.baseUrl, "integration");
-    const firstController = startController(server.baseUrl, "integration");
+    const clientCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
+      validateContent: validateWorkspaceRepositoryContent,
+    });
+    const descriptor = await createRepository(clientCatalog, "integration");
+    const firstController = startController(
+      clientCatalog.openRepository(descriptor),
+    );
 
     await waitForState(firstController, (state) => state.status === "ready");
     await firstController.useDefaultWorkspaceSyntax();
 
     const noteId = firstController.commands.createNote(null);
 
-    firstController.commands.updateNoteSource(
-      noteId,
-      "集成测试笔记\n\t: 已写入磁盘",
-    );
+    updateNote(firstController, noteId, "集成测试笔记\n\t: 已写入磁盘");
     await firstController.flushPendingChanges();
+    await waitUntilSaved(firstController);
     firstController.dispose();
 
-    const secondController = startController(server.baseUrl, "integration");
+    const secondController = startController(
+      clientCatalog.openRepository(descriptor),
+    );
     const reloadedState = await waitForState(
       secondController,
       (state) => state.status === "ready",
@@ -176,64 +226,71 @@ describe("workspace persistence integration", () => {
       return;
     }
 
-    expect(reloadedState.workspace.data.notes).toEqual([
-      expect.objectContaining({
-        id: noteId,
-        title: "集成测试笔记",
-      }),
-    ]);
+    const note = reloadedState.workspace.noteEntryById.get(noteId);
+
+    expect(note?.projectedNote.title).toBe("集成测试笔记");
     expect(
-      stripTestCtnBlockMetadata(
-        reloadedState.workspace.data.notes[0].source,
-      ),
+      createCtnEditableSource(
+        note?.note.source ?? "",
+        defaultCtnSyntaxProfile,
+      ).source,
     ).toBe("集成测试笔记\n\t: 已写入磁盘");
     expect(reloadedState.workspaceSyntax?.source).toBe(
       reloadedState.defaultWorkspaceSyntax.source,
     );
-    expect(reloadedState.repositoryPath).toBe(
-      path.join(server.rootDir, "integration"),
-    );
+    expect(reloadedState.locationLabel).toBe("local:integration");
   });
 
-  it("retains local content on conflict and reloads remote after discard", async () => {
+  it("retains the latest local content on conflict and atomically reloads remote on discard", async () => {
     const server = await startRepositoryServer();
-    await createRepository(server.baseUrl, "conflict");
-    const controller = startController(server.baseUrl, "conflict");
+    const clientCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
+      validateContent: validateWorkspaceRepositoryContent,
+    });
+    const descriptor = await createRepository(clientCatalog, "conflict");
+    const controller = startController(clientCatalog.openRepository(descriptor));
 
     await waitForState(controller, (state) => state.status === "ready");
 
-    const externalRepository = createHttpWorkspaceRepository({
+    const externalRepository = createHttpWorkspaceRepositoryBackend({
       baseUrl: server.baseUrl,
       repositoryId: "conflict",
     });
-    const externalSnapshot = await externalRepository.loadSnapshot();
+    const externalSnapshot = await externalRepository.loadRemoteSnapshot();
 
-    await externalRepository.commitSnapshot({
+    await externalRepository.commitRemoteSnapshot({
       baseRevision: externalSnapshot.revision,
-      syntaxSourceFile: externalSnapshot.syntaxSourceFile,
-      workspace: {
-        ...externalSnapshot.workspace,
-        name: "外部修改后的仓库",
+      content: {
+        ...externalSnapshot.content,
+        workspace: {
+          ...externalSnapshot.content.workspace,
+          name: "外部修改后的仓库",
+        },
       },
     });
 
+    await controller.useDefaultWorkspaceSyntax();
     const localNoteId = controller.commands.createNote(null);
 
-    await expect(controller.flushPendingChanges()).rejects.toThrow(
-      "Repository content changed outside the current session",
+    updateNote(controller, localNoteId, "本地最终内容");
+    await controller.flushPendingChanges();
+    const conflictState = await waitForState(
+      controller,
+      (state) =>
+        state.status === "ready" && state.persistence.status === "conflict",
     );
 
-    const conflictState = controller.getState();
+    expect(conflictState).toMatchObject({
+      persistence: { status: "conflict" },
+      status: "ready",
+    });
+    expect(
+      conflictState.status === "ready"
+        ? conflictState.workspace.noteEntryById.has(localNoteId)
+        : false,
+    ).toBe(true);
 
-    expect(conflictState.status).toBe("conflict");
-
-    if (conflictState.status !== "conflict") {
-      return;
-    }
-
-    expect(conflictState.workspace.noteById.has(localNoteId)).toBe(true);
     await controller.discardPendingChangesAndReload();
-
     const reloadedState = controller.getState();
 
     expect(reloadedState.status).toBe("ready");
@@ -243,27 +300,91 @@ describe("workspace persistence integration", () => {
     }
 
     expect(reloadedState.workspace.data.name).toBe("外部修改后的仓库");
-    expect(reloadedState.workspace.noteById.has(localNoteId)).toBe(false);
+    expect(reloadedState.workspace.noteEntryById.has(localNoteId)).toBe(false);
+    expect(reloadedState.persistence).toEqual({ status: "saved" });
   });
 
-  it("authenticates a real session through HTTP before touching the file store", async () => {
+  it("flushes the local stage before an immediate repository switch and restores it on reopen", async () => {
+    const server = await startRepositoryServer();
+    const clientCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
+      validateContent: validateWorkspaceRepositoryContent,
+    });
+    const firstDescriptor = await createRepository(clientCatalog, "first");
+    const secondDescriptor = await createRepository(clientCatalog, "second");
+    const firstController = startController(
+      clientCatalog.openRepository(firstDescriptor),
+    );
+
+    await waitForState(firstController, (state) => state.status === "ready");
+    await firstController.useDefaultWorkspaceSyntax();
+    const noteId = firstController.commands.createNote(null);
+
+    updateNote(firstController, noteId, "切换前最后输入");
+    await firstController.flushPendingChanges();
+    firstController.dispose();
+
+    const secondController = startController(
+      clientCatalog.openRepository(secondDescriptor),
+    );
+
+    await waitForState(secondController, (state) => state.status === "ready");
+    secondController.dispose();
+
+    const reopenedController = startController(
+      clientCatalog.openRepository(firstDescriptor),
+    );
+    const reopened = await waitForState(
+      reopenedController,
+      (state) => state.status === "ready",
+    );
+
+    expect(reopened.status).toBe("ready");
+
+    if (reopened.status !== "ready") {
+      return;
+    }
+
+    const source = reopened.workspace.noteEntryById.get(noteId)?.note.source ?? "";
+
+    expect(
+      createCtnEditableSource(source, defaultCtnSyntaxProfile).source,
+    ).toBe("切换前最后输入");
+    expect(reopened.persistence.status).toBe("pending-sync");
+  });
+
+  it("authenticates a local-first HTTP session before touching repository content", async () => {
     const token = "integration-token-with-at-least-32-characters";
     const server = await startRepositoryServer(token);
+    const unauthorizedCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
+      validateContent: validateWorkspaceRepositoryContent,
+    });
 
     await expect(
-      createRepository(server.baseUrl, "unauthorized"),
+      createRepository(unauthorizedCatalog, "unauthorized"),
     ).rejects.toThrow("Bearer token is invalid");
-    await createRepository(server.baseUrl, "authenticated", token);
-    const controller = startController(
-      server.baseUrl,
-      "authenticated",
+
+    const authenticatedCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: server.baseUrl,
       token,
+      validateContent: validateWorkspaceRepositoryContent,
+    });
+    const descriptor: WorkspaceRepositoryDescriptor = await createRepository(
+      authenticatedCatalog,
+      "authenticated",
+    );
+    const controller = startController(
+      authenticatedCatalog.openRepository(descriptor),
     );
     const ready = await waitForState(
       controller,
       (state) => state.status === "ready",
     );
 
-    expect(ready).toMatchObject({ status: "ready" });
+    expect(ready).toMatchObject({
+      locationLabel: "local:authenticated",
+      status: "ready",
+    });
   });
 });

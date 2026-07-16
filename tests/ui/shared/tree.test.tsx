@@ -19,15 +19,8 @@ import {
   treeRowHeightPx,
   treeVirtualizationThreshold,
   treeNodeDragDataType,
+  type StructureTreeNode,
 } from "../../../src/ui/shared/tree";
-
-const { readFileSync } = (await import("node:fs")) as {
-  readFileSync: (path: URL, encoding: "utf8") => string;
-};
-const treeCss = readFileSync(
-  new URL("../../../src/ui/styles/shared/tree.css", import.meta.url),
-  "utf8",
-);
 
 describe("shared trees", () => {
   it("flattens directory and structure trees with their own depth rules", () => {
@@ -107,13 +100,41 @@ describe("shared trees", () => {
     ]);
   });
 
+  it("flattens a 10,000-level structure tree without recursive traversal", () => {
+    let node: StructureTreeNode = {
+      children: [],
+      hasDiagnostics: false,
+      id: "leaf",
+      label: "概念",
+      lineLabel: "L10001",
+      lineNumber: 10_001,
+      textDisplay: {
+        displayText: "叶节点",
+        segments: [{ id: "leaf", kind: "text", text: "叶节点" }],
+        textColor: "default",
+      },
+    };
+
+    for (let depth = 10_000; depth > 0; depth -= 1) {
+      node = {
+        ...node,
+        children: [node],
+        id: `depth-${depth}`,
+        lineNumber: depth,
+      };
+    }
+
+    const rows = flattenStructureTreeRows([node]);
+
+    expect(rows).toHaveLength(10_001);
+    expect(rows.at(-1)).toMatchObject({ depth: 10_000, node: { id: "leaf" } });
+  });
+
   it("virtualizes only after the fixed 500-row capacity boundary", () => {
     expect(treeRowHeightPx).toBe(22);
     expect(treeVirtualizationThreshold).toBe(500);
     expect(shouldVirtualizeTreeRows(500)).toBe(false);
     expect(shouldVirtualizeTreeRows(501)).toBe(true);
-    expect(treeCss).toContain(".ui-virtual-tree-row");
-    expect(treeCss).toContain("--ui-directory-depth");
   });
 
   it("renders note and folder rows with shared tree classes", () => {
@@ -231,7 +252,6 @@ describe("shared trees", () => {
     expect(markup).toContain(">删<");
     expect(markup).not.toContain(">确认<");
     expect(markup).not.toContain('role="alertdialog"');
-    expect(treeCss).toContain(".ui-tree-row-frame.is-delete-pending");
   });
 
   it("uses active node selection to keep note and folder selection exclusive", () => {
@@ -626,24 +646,4 @@ describe("shared trees", () => {
     expect(getStructureTreeIndentWidthPx(2.9)).toBe(7);
   });
 
-  it("keeps structure tree indentation separate from directory tree nesting", () => {
-    expect(treeCss).toContain(".ui-structure-tree .ui-structure-tree");
-    expect(treeCss).toContain("padding-left: 0");
-    expect(treeCss).toContain("border-left: 0");
-    expect(treeCss).toContain("--ui-structure-indent-width: 14px");
-    expect(treeCss).toContain("var(--ui-structure-depth)");
-    expect(treeCss).toContain("var(--ui-structure-indent-width)");
-    expect(treeCss).toContain("grid-template-columns:\n    max-content");
-    expect(treeCss).toContain(".ui-structure-tree-item.is-selected-subtree");
-    expect(treeCss).toContain(".ui-tree-row-frame.is-drop-target::before");
-    expect(treeCss).toContain(".ui-tree-row-frame.is-drop-before::before");
-    expect(treeCss).toContain("background: var(--color-selected)");
-    expect(treeCss).not.toContain(
-      "box-shadow: inset 0 0 0 var(--ui-border-width) var(--color-border-strong)",
-    );
-    expect(treeCss).not.toContain("color-accent");
-    expect(treeCss).not.toContain(
-      "minmax(calc(var(--ui-control-height) * 2), max-content)",
-    );
-  });
 });

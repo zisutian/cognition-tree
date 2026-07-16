@@ -3,12 +3,9 @@ import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
 } from "../../../src/workspace/model/noteTree/mutations";
-import {
-  createNoteTreeFolderNode,
-} from "../../../src/workspace/model/noteTree/create";
+import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
-  createNoteRecord,
   type NoteRecord,
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
@@ -19,30 +16,20 @@ import {
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
   getParsedWorkspaceNote,
-  getWorkspaceNoteReferenceGraph,
   getWorkspaceTree,
   hasWorkspaceNote,
   listWorkspaceNotes,
 } from "../../../src/workspace/queries/workspaceQueries";
-import { addTestCtnBlockMetadata } from "../../ctn/metadata/sourceMetadataFixture";
-
-const timestamp = "2026-07-04T00:00:00.000Z";
-
-function createParsedNoteRecord(
-  id: string,
-  source: string,
-  idOffset = 0,
-) {
-  return createNoteRecord(
-    id,
-    addTestCtnBlockMetadata(source, defaultCtnSyntaxProfile, idOffset),
-    timestamp,
-  );
-}
+import {
+  createCanonicalTestNote,
+  createWorkspaceDataWithNotes,
+} from "../workspaceTestFixture";
 
 function createWorkspace(): WorkspaceData {
-  const sourceNote = createNoteRecord("note-source", "源笔记", timestamp);
-  const targetNote = createNoteRecord("note-target", "目标笔记", timestamp);
+  const sourceNote = createCanonicalTestNote("note-source", "源笔记");
+  const targetNote = createCanonicalTestNote("note-target", "目标笔记", {
+    idOffset: 100,
+  });
   const workspace = createInitialWorkspaceData();
   const treeWithFolder = appendFolderToWorkspaceTree(
     workspace.tree,
@@ -66,19 +53,14 @@ function indexWorkspace(workspace: WorkspaceData) {
 }
 
 function createParseIndex(notes: NoteRecord[]) {
-  const workspace = indexWorkspace({
-    ...createInitialWorkspaceData(),
-    notes,
-  });
-
   return createWorkspaceParseIndex({
     syntaxProfile: defaultCtnSyntaxProfile,
-    workspace,
+    workspace: indexWorkspace(createWorkspaceDataWithNotes(notes)),
   });
 }
 
 describe("workspace queries", () => {
-  it("reads notes through workspace-level query names", () => {
+  it("reads derived notes through workspace-level query names", () => {
     const workspaceData = createWorkspace();
     const workspace = indexWorkspace(workspaceData);
 
@@ -88,6 +70,7 @@ describe("workspace queries", () => {
     ]);
     expect(getWorkspaceTree(workspace)).toBe(workspaceData.tree);
     expect(findWorkspaceNote(workspace, "note-source")).toMatchObject({
+      id: "note-source",
       title: "源笔记",
     });
     expect(hasWorkspaceNote(workspace, "missing-note")).toBe(false);
@@ -96,123 +79,26 @@ describe("workspace queries", () => {
   it("resolves note placement from the workspace tree", () => {
     const workspace = indexWorkspace(createWorkspace());
 
-    expect(
-      findWorkspaceFolderIdContainingNote(workspace, "note-target"),
-    ).toBe("folder-project");
+    expect(findWorkspaceFolderIdContainingNote(workspace, "note-target")).toBe(
+      "folder-project",
+    );
+    expect(findWorkspaceFolderIdContainingNote(workspace, "note-source")).toBeNull();
   });
 
-  it("reads parsed notes from the workspace index", () => {
-    const note = createParsedNoteRecord(
+  it("reads parsed notes and returns null for missing selection", () => {
+    const note = createCanonicalTestNote(
       "note-first",
-      "标题\n概念\n    : 定义",
+      "标题\n概念\n\t: 定义",
     );
     const index = createParseIndex([note]);
-    const result = getParsedWorkspaceNote(index, note.id);
 
-    expect(result.document.blocks.map((block) => block.label)).toEqual([
-      "标题",
-      "顶格概念",
-      "定义",
-    ]);
-  });
-
-  it("returns an empty parsed note for missing note ids", () => {
-    const index = createParseIndex([]);
-    const result = getParsedWorkspaceNote(index, null);
-
-    expect(result).toMatchObject({
-      document: { blocks: [], diagnostics: [], roots: [] },
-      source: "",
-    });
-  });
-
-  it("reads note reference graph data from the workspace index", () => {
-    const source = createParsedNoteRecord(
-      "note-source",
-      "Source [[Target]]",
-    );
-    const target = createParsedNoteRecord("note-target", "Target", 100);
-    const isolated = createParsedNoteRecord("note-isolated", "Isolated", 200);
     expect(
-      getWorkspaceNoteReferenceGraph(
-        createParseIndex([source, target, isolated]),
+      getParsedWorkspaceNote(index, note.id)?.document.blocks.map(
+        (block) => block.label,
       ),
-    ).toMatchObject({
-      edges: [
-        {
-          count: 1,
-          sourceNoteId: "note-source",
-          targetNoteId: "note-target",
-          targetTitle: "Target",
-        },
-      ],
-      nodes: [
-        {
-          id: "note-source",
-          isolated: false,
-          referencesOut: 1,
-        },
-        {
-          id: "note-target",
-          isolated: false,
-          referencesIn: 1,
-        },
-        {
-          id: "note-isolated",
-          isolated: true,
-        },
-      ],
-      unresolvedReferences: [],
-    });
+    ).toEqual(["标题", "顶格概念", "定义"]);
+    expect(getParsedWorkspaceNote(index, null)).toBeNull();
+    expect(getParsedWorkspaceNote(index, "missing-note")).toBeNull();
   });
 
-  it("keeps unresolved global references visible in the reference graph", () => {
-    const source = createParsedNoteRecord(
-      "note-source",
-      "Source [[Missing Note]] and [[Missing Note]]",
-    );
-    expect(
-      getWorkspaceNoteReferenceGraph(createParseIndex([source])),
-    ).toMatchObject({
-      edges: [],
-      nodes: [
-        {
-          id: "note-source",
-          isolated: false,
-          referencesOut: 2,
-        },
-      ],
-      unresolvedReferences: [
-        {
-          count: 2,
-          lineNumber: 2,
-          sourceNoteId: "note-source",
-          targetText: "Missing Note",
-        },
-      ],
-    });
-  });
-
-  it("ignores global-reference text inside multiline blocks", () => {
-    const source = createParsedNoteRecord(
-      "note-source",
-      "Source\n    ```txt\n    [[Target]]\n    ```",
-    );
-    const target = createParsedNoteRecord("note-target", "Target", 100);
-    expect(
-      getWorkspaceNoteReferenceGraph(createParseIndex([source, target])),
-    ).toMatchObject({
-      edges: [],
-      nodes: [
-        {
-          id: "note-source",
-          isolated: true,
-        },
-        {
-          id: "note-target",
-          isolated: true,
-        },
-      ],
-    });
-  });
 });

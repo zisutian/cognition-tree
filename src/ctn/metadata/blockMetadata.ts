@@ -20,6 +20,10 @@ export class CtnBlockMetadataSyntaxError extends Error {
 const blockIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const metadataLinePattern = /^([ \t]*)@ctn-block id=([^\s]+) created=([^\s]+) updated=([^\s]+)$/;
 
+export function isCtnBlockMetadataDirectiveText(value: string) {
+  return /^@ctn-block(?:\s|$)/.test(value.trimStart());
+}
+
 export function isCtnBlockId(value: string) {
   return blockIdPattern.test(value);
 }
@@ -54,10 +58,21 @@ function assertMetadataRecord(record: CtnBlockMetadataRecord) {
   }
 }
 
+function createMetadataRecord(
+  match: RegExpExecArray,
+): CtnBlockMetadataRecord {
+  return {
+    createdAt: match[3],
+    id: match[2],
+    indentText: match[1],
+    updatedAt: match[4],
+  };
+}
+
 export function parseCtnBlockMetadataLine(
   line: string,
 ): CtnBlockMetadataRecord | null {
-  if (!line.trimStart().startsWith(ctnBlockMetadataDirective)) {
+  if (!isCtnBlockMetadataDirectiveText(line)) {
     return null;
   }
 
@@ -67,12 +82,7 @@ export function parseCtnBlockMetadataLine(
     throw new CtnBlockMetadataSyntaxError("Invalid CTN block metadata line.");
   }
 
-  const record: CtnBlockMetadataRecord = {
-    createdAt: match[3],
-    id: match[2],
-    indentText: match[1],
-    updatedAt: match[4],
-  };
+  const record = createMetadataRecord(match);
 
   assertMetadataRecord(record);
   return record;

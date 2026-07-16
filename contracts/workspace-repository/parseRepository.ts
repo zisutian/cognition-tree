@@ -2,90 +2,55 @@
 
 import {
   assertExactContractFields,
-  failContract,
   readContractObject,
   readContractString,
   readRequiredContractString,
+  UnsupportedRepositoryVersionError,
 } from "./contractValue.ts";
+import { parseRepositoryRevision } from "./revision.ts";
 import { parseRepositoryWorkspace } from "./parseWorkspace.ts";
 import {
-  repositorySyntaxFileName,
-  type RepositorySyntaxSourceDto,
+  workspaceRepositorySchemaVersion,
   type WorkspaceRepositoryCommitDto,
   type WorkspaceRepositoryCommitResultDto,
   type WorkspaceRepositoryContentDto,
   type WorkspaceRepositorySnapshotDto,
 } from "./types.ts";
 
-const contentFields = ["syntaxSourceFile", "workspace"] as const;
-const snapshotFields = [
-  "repositoryPath",
-  "revision",
-  "syntaxSourceFile",
-  "workspace",
-] as const;
-const commitFields = [
-  "baseRevision",
-  "syntaxSourceFile",
-  "workspace",
-] as const;
+const contentFields = ["schemaVersion", "syntaxSource", "workspace"] as const;
+const snapshotFields = ["content", "revision"] as const;
+const commitFields = ["baseRevision", "content"] as const;
 const commitResultFields = ["revision"] as const;
-const syntaxSourceFields = ["fileName", "source"] as const;
 
-function parseSyntaxSource(
+function parseContentAtPath(
   value: unknown,
   path: string,
-): RepositorySyntaxSourceDto | null {
-  if (value === null) {
-    return null;
-  }
+): WorkspaceRepositoryContentDto {
+  const content = readContractObject(value, path);
 
-  const syntaxSource = readContractObject(value, path);
-
-  assertExactContractFields(syntaxSource, syntaxSourceFields, path);
-
-  const fileName = readRequiredContractString(
-    syntaxSource,
-    "fileName",
-    path,
-  );
-
-  if (fileName !== repositorySyntaxFileName) {
-    failContract(
-      `${path}.fileName`,
-      `expected ${repositorySyntaxFileName}`,
+  if (content.schemaVersion !== workspaceRepositorySchemaVersion) {
+    throw new UnsupportedRepositoryVersionError(
+      `${path}.schemaVersion`,
+      content.schemaVersion,
     );
   }
 
-  return {
-    fileName,
-    source: readContractString(syntaxSource, "source", path),
-  };
-}
+  assertExactContractFields(content, contentFields, path);
+  const syntaxSource = content.syntaxSource === null
+    ? null
+    : readContractString(content, "syntaxSource", path);
 
-function parseContentFields(
-  value: Record<string, unknown>,
-  path: string,
-): WorkspaceRepositoryContentDto {
   return {
-    syntaxSourceFile: parseSyntaxSource(
-      value.syntaxSourceFile,
-      `${path}.syntaxSourceFile`,
-    ),
-    workspace: parseRepositoryWorkspace(
-      value.workspace,
-      `${path}.workspace`,
-    ),
+    schemaVersion: workspaceRepositorySchemaVersion,
+    syntaxSource,
+    workspace: parseRepositoryWorkspace(content.workspace, `${path}.workspace`),
   };
 }
 
 export function parseWorkspaceRepositoryContent(
   value: unknown,
 ): WorkspaceRepositoryContentDto {
-  const content = readContractObject(value, "$");
-
-  assertExactContractFields(content, contentFields, "$");
-  return parseContentFields(content, "$");
+  return parseContentAtPath(value, "$");
 }
 
 export function parseWorkspaceRepositorySnapshot(
@@ -93,16 +58,17 @@ export function parseWorkspaceRepositorySnapshot(
 ): WorkspaceRepositorySnapshotDto {
   const snapshot = readContractObject(value, "$");
 
-  assertExactContractFields(snapshot, snapshotFields, "$");
+  if (!("content" in snapshot) && ("workspace" in snapshot || "syntaxSourceFile" in snapshot)) {
+    throw new UnsupportedRepositoryVersionError("$.content.schemaVersion", undefined);
+  }
 
+  assertExactContractFields(snapshot, snapshotFields, "$");
   return {
-    ...parseContentFields(snapshot, "$"),
-    repositoryPath: readRequiredContractString(
-      snapshot,
-      "repositoryPath",
-      "$",
+    content: parseContentAtPath(snapshot.content, "$.content"),
+    revision: parseRepositoryRevision(
+      readRequiredContractString(snapshot, "revision", "$"),
+      "$.revision",
     ),
-    revision: readRequiredContractString(snapshot, "revision", "$"),
   };
 }
 
@@ -111,22 +77,19 @@ export function parseWorkspaceRepositoryCommit(
 ): WorkspaceRepositoryCommitDto {
   const commit = readContractObject(value, "$");
 
-  assertExactContractFields(commit, commitFields, "$");
-  const content = parseContentFields(commit, "$");
-
-  if (
-    content.syntaxSourceFile !== null &&
-    content.syntaxSourceFile.source.trim().length === 0
-  ) {
-    failContract(
-      "$.syntaxSourceFile.source",
-      "expected non-empty syntax source",
-    );
+  if (!("content" in commit) && ("workspace" in commit || "syntaxSourceFile" in commit)) {
+    throw new UnsupportedRepositoryVersionError("$.content.schemaVersion", undefined);
   }
 
+  assertExactContractFields(commit, commitFields, "$");
+  const content = parseContentAtPath(commit.content, "$.content");
+
   return {
-    ...content,
-    baseRevision: readRequiredContractString(commit, "baseRevision", "$"),
+    baseRevision: parseRepositoryRevision(
+      readRequiredContractString(commit, "baseRevision", "$"),
+      "$.baseRevision",
+    ),
+    content,
   };
 }
 
@@ -137,6 +100,9 @@ export function parseWorkspaceRepositoryCommitResult(
 
   assertExactContractFields(result, commitResultFields, "$");
   return {
-    revision: readRequiredContractString(result, "revision", "$"),
+    revision: parseRepositoryRevision(
+      readRequiredContractString(result, "revision", "$"),
+      "$.revision",
+    ),
   };
 }

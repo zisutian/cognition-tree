@@ -1,134 +1,167 @@
 import {
-  WorkspaceRepositoryConflictError,
-  type WorkspaceRepository,
-  type WorkspaceRepositoryContent,
-} from "../../repository/workspaceRepository";
-import {
-  parseWorkspaceRepositoryContent,
-} from "../../../../contracts/workspace-repository/parseRepository";
-import {
   isRepositoryId,
-  parseRepositoryCatalog,
+  parseCreateRepository,
 } from "../../../../contracts/workspace-repository/parseCatalog";
-import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision";
+import { parseWorkspaceRepositoryContent } from "../../../../contracts/workspace-repository/parseRepository";
+import type { RepositoryDescriptorDto } from "../../../../contracts/workspace-repository/types";
 import type { WorkspaceRepositoryCatalog } from "../../repository/workspaceRepositoryCatalog";
+import type {
+  WorkspaceRepository,
+  WorkspaceRepositoryContentValidator,
+} from "../../repository/workspaceRepository";
+import { createLocalDraftRevision } from "../../repository/workspaceRepository";
+import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision";
+import {
+  createBrowserRepositoryClientCache,
+  type BrowserRepositoryClientCache,
+} from "./browserRepositoryClientCache";
 
-const repositoryCatalogStorageKey = "cognition-tree.repositories";
+const browserCatalogIdentity = "browser:v3";
 
-function getStorage() {
-  if (!globalThis.localStorage) {
-    throw new Error("Browser local storage is unavailable");
-  }
-
-  return globalThis.localStorage;
+function createRepositoryIdentity(repositoryId: string) {
+  return `browser:v3:${repositoryId}`;
 }
 
-function createRepositoryStorageKey(repositoryId: string) {
-  return `${repositoryCatalogStorageKey}.${repositoryId}`;
-}
-
-function loadStoredContent(repositoryId: string): WorkspaceRepositoryContent {
-  const storedContent = getStorage().getItem(
-    createRepositoryStorageKey(repositoryId),
-  );
-
-  if (!storedContent) {
-    throw new Error(`Browser repository does not exist: ${repositoryId}`);
-  }
-
-  return parseWorkspaceRepositoryContent(JSON.parse(storedContent));
-}
-
-function loadStoredCatalog() {
-  const source = getStorage().getItem(repositoryCatalogStorageKey);
-
-  return source
-    ? parseRepositoryCatalog(JSON.parse(source)).repositories
-    : [];
-}
-
-function saveStoredCatalog(
-  repositories: ReturnType<typeof loadStoredCatalog>,
+function toSnapshot(
+  state: NonNullable<
+    Awaited<ReturnType<BrowserRepositoryClientCache["snapshots"]["load"]>>
+  >,
 ) {
-  getStorage().setItem(
-    repositoryCatalogStorageKey,
-    JSON.stringify({ repositories }),
-  );
+  return {
+    content: state.content,
+    localRevision: state.localRevision,
+    pendingChanges: state.pendingBaseRevision !== null,
+    remoteRevision: state.remoteRevision,
+  };
 }
 
 function createBrowserWorkspaceRepository(
-  repositoryId: string,
-  label: string,
+  cache: BrowserRepositoryClientCache,
+  descriptor: RepositoryDescriptorDto,
+  validateContent: WorkspaceRepositoryContentValidator,
 ): WorkspaceRepository {
-  const storageKey = createRepositoryStorageKey(repositoryId);
-  const loadSnapshot: WorkspaceRepository["loadSnapshot"] = async () => {
-    const content = loadStoredContent(repositoryId);
+  const identity = createRepositoryIdentity(descriptor.id);
+  const nextLocalRevision = () =>
+    createLocalDraftRevision(() => globalThis.crypto.randomUUID());
+  const loadState = async () => {
+    const state = await cache.snapshots.load(identity);
 
-    return {
-      ...content,
-      availability: "online",
-      repositoryPath: `localStorage:${storageKey}`,
-      revision: await createWorkspaceRepositoryRevision(content),
-    };
+    if (!state) {
+      throw new Error(`Browser repository does not exist: ${descriptor.id}`);
+    }
+
+    const content = parseWorkspaceRepositoryContent(state.content);
+
+    validateContent(content);
+    return { ...state, content };
+  };
+  const synchronize = async () => {
+    const state = await loadState();
+
+    if (!state.pendingBaseRevision) {
+      return state;
+    }
+
+    const revision = await createWorkspaceRepositoryRevision(state.content);
+
+    return cache.snapshots.completeSync({
+      committedRemoteRevision: revision,
+      expectedLocalRevision: state.localRevision,
+      identity,
+    });
   };
 
   return {
-    label,
-    async commitSnapshot({
-      baseRevision,
-      syntaxSourceFile,
-      workspace,
-    }) {
-      const currentSnapshot = await loadSnapshot();
+    label: descriptor.label,
+    locationLabel: descriptor.locationLabel,
+    async discardPendingSnapshotAndReload() {
+      return toSnapshot(await synchronize());
+    },
+    async loadSnapshot() {
+      return toSnapshot(await loadState());
+    },
+    async stageSnapshot({ content, expectedLocalRevision }) {
+      const outbound = parseWorkspaceRepositoryContent(content);
 
-      if (currentSnapshot.revision !== baseRevision) {
-        throw new WorkspaceRepositoryConflictError(currentSnapshot.revision);
-      }
+      validateContent(outbound);
+      const staged = await cache.snapshots.stage({
+        content: outbound,
+        expectedLocalRevision,
+        identity,
+        localRevision: nextLocalRevision(),
+      });
+      const revision = await createWorkspaceRepositoryRevision(outbound);
+      const saved = await cache.snapshots.completeSync({
+        committedRemoteRevision: revision,
+        expectedLocalRevision: staged.localRevision,
+        identity,
+      });
 
-      const content = { syntaxSourceFile, workspace };
-
-      getStorage().setItem(storageKey, JSON.stringify(content));
+      return { localRevision: saved.localRevision };
+    },
+    subscribeReconnect: () => () => undefined,
+    async synchronizePendingSnapshot() {
+      const state = await synchronize();
 
       return {
-        availability: "online",
-        revision: await createWorkspaceRepositoryRevision(content),
+        localRevision: state.localRevision,
+        pendingChanges: false,
+        remoteRevision: state.remoteRevision,
+        status: "synced",
       };
     },
-    async discardPendingCommit() {},
-    loadSnapshot,
   };
 }
 
-export function createBrowserWorkspaceRepositoryCatalog(): WorkspaceRepositoryCatalog {
+export function createBrowserWorkspaceRepositoryCatalog({
+  cache = createBrowserRepositoryClientCache(),
+  validateContent,
+}: {
+  cache?: BrowserRepositoryClientCache;
+  validateContent: WorkspaceRepositoryContentValidator;
+}): WorkspaceRepositoryCatalog {
   return {
     async createRepository(input) {
       if (!isRepositoryId(input.id)) {
         throw new Error(`Invalid browser repository id: ${input.id}`);
       }
 
-      const repositories = loadStoredCatalog();
+      const outbound = parseCreateRepository(input);
 
-      if (repositories.some((repository) => repository.id === input.id)) {
-        throw new Error(`Browser repository already exists: ${input.id}`);
-      }
+      validateContent(outbound.content);
 
-      const descriptor = {
-        adapter: "browser" as const,
-        id: input.id,
-        label: input.content.workspace.name,
-        repositoryPath: `localStorage:${createRepositoryStorageKey(input.id)}`,
+      const descriptor: RepositoryDescriptorDto = {
+        adapter: "browser",
+        id: outbound.id,
+        label: outbound.label,
+        locationLabel: `浏览器 · ${outbound.id}`,
       };
-
-      getStorage().setItem(
-        createRepositoryStorageKey(input.id),
-        JSON.stringify(input.content),
+      const remoteRevision = await createWorkspaceRepositoryRevision(
+        outbound.content,
       );
-      saveStoredCatalog([...repositories, descriptor]);
+
+      await cache.createRepositoryAtomically({
+        catalogIdentity: browserCatalogIdentity,
+        content: outbound.content,
+        descriptor,
+        localRevision: createLocalDraftRevision(() =>
+          globalThis.crypto.randomUUID()
+        ),
+        remoteRevision,
+        repositoryIdentity: createRepositoryIdentity(outbound.id),
+      });
       return descriptor;
     },
     label: "浏览器本地存储",
     async listRepositories() {
-      return loadStoredCatalog();
+      const catalog = await cache.catalogs.load(browserCatalogIdentity);
+
+      return catalog
+        ? {
+            issues: catalog.issues,
+            repositories: catalog.repositories,
+          }
+        : { issues: [], repositories: [] };
     },
     openRepository(descriptor) {
       if (descriptor.adapter !== "browser") {
@@ -138,8 +171,9 @@ export function createBrowserWorkspaceRepositoryCatalog(): WorkspaceRepositoryCa
       }
 
       return createBrowserWorkspaceRepository(
-        descriptor.id,
-        descriptor.label,
+        cache,
+        descriptor,
+        validateContent,
       );
     },
   };

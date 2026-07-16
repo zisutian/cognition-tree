@@ -24,6 +24,7 @@ export function SyntaxRolePicker({
 
   return (
     <Popover
+      align="center"
       ariaLabel={ariaLabel}
       className="syntax-role-picker"
       panelClassName="syntax-dropdown-menu syntax-role-menu"

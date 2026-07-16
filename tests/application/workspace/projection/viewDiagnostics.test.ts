@@ -23,23 +23,21 @@ import {
 } from "../../../../src/workspace/model/workspaceData";
 import { addTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
 
-const timestamp = "2026-07-15T00:00:00.000Z";
-
 function createIndex(sources: Array<{ id: string; source: string; title: string }>) {
-  const notes = sources.map(({ id, source, title }, index) => ({
-    ...createNoteRecord(id, addTestCtnBlockMetadata(
+  const notes = sources.map(({ id, source }, index) =>
+    createNoteRecord(id, addTestCtnBlockMetadata(
       source,
       defaultCtnSyntaxProfile,
       index * 100,
-    ), timestamp),
-    title,
-  }));
+    ))
+  );
 
   return createWorkspaceParseIndex({
     syntaxProfile: defaultCtnSyntaxProfile,
     workspace: createWorkspaceStructureIndex({
       ...createInitialWorkspaceData(),
       notes,
+      tree: notes.map((note) => ({ kind: "note" as const, noteId: note.id })),
     }),
   });
 }
@@ -47,7 +45,7 @@ function createIndex(sources: Array<{ id: string; source: string; title: string 
 describe("workbench diagnostic projection", () => {
   it("keeps parser facts while projecting canonical lines to editor lines", () => {
     const index = createIndex([
-      { id: "note-a", source: "Alpha\n\t? Unknown", title: "Alpha" },
+      { id: "note-a", source: "Alpha\n\t! Unknown", title: "Alpha" },
     ]);
     const parsedNote = index.getParsedNote("note-a");
 

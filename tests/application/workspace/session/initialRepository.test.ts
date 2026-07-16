@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../../src/ctn/parser/parseCtnDocument";
 import { parseWorkspaceSyntax } from "../../../../src/workspace/context/workspaceSyntax";
+import { readWorkspaceNoteHeader } from "../../../../src/workspace/model/workspaceData";
 import { createInitialRepositoryContent } from "../../../../src/application/workspace/session/initialRepository";
 
 describe("initial repository", () => {
-  it("creates one valid metadata-backed note with repository syntax", () => {
+  it("creates one source-only canonical note in repository v3", () => {
     const timestamp = "2026-07-15T00:00:00.000Z";
     const content = createInitialRepositoryContent({
       createBlockId: () => "00000000-0000-4000-8000-000000000001",
@@ -13,17 +14,21 @@ describe("initial repository", () => {
       repositoryId: "knowledge",
       timestamp,
     });
-    const syntax = parseWorkspaceSyntax(content.syntaxSourceFile.source);
+    const syntax = parseWorkspaceSyntax(content.syntaxSource);
     const note = content.workspace.notes[0];
-    const document = parseCtnDocument(note.source, syntax.profile);
+    const document = parseCtnCanonicalDocument(note.source, syntax.profile);
 
-    expect(content.workspace).toMatchObject({
-      id: "workspace-knowledge",
-      name: "知识库",
+    expect(content).toMatchObject({
+      schemaVersion: 3,
+      workspace: {
+        id: "workspace-knowledge",
+        name: "知识库",
+        tree: [{ kind: "note", noteId: "note-initial" }],
+      },
     });
-    expect(note).toMatchObject({
+    expect(Object.keys(note).sort()).toEqual(["id", "source"]);
+    expect(readWorkspaceNoteHeader(note)).toEqual({
       createdAt: timestamp,
-      id: "note-initial",
       title: "未命名笔记",
       updatedAt: timestamp,
     });
@@ -31,5 +36,17 @@ describe("initial repository", () => {
       id: "00000000-0000-4000-8000-000000000001",
       metadata: { createdAt: timestamp, updatedAt: timestamp },
     });
+  });
+
+  it("rejects an empty repository name instead of applying a hidden default", () => {
+    expect(() =>
+      createInitialRepositoryContent({
+        createBlockId: () => "unused",
+        createNoteId: () => "unused",
+        name: "   ",
+        repositoryId: "knowledge",
+        timestamp: "2026-07-15T00:00:00.000Z",
+      })
+    ).toThrow("Repository name is required");
   });
 });

@@ -12,20 +12,27 @@ import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex
 import {
   initializeCtnSourceBlockMetadata,
   replaceCtnSourceTitle,
+  touchCtnSourceTitleMetadata,
 } from "../../ctn/metadata/sourceMetadata";
 import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
+import {
+  assertCtnEditableSourceChange,
+  type CtnEditableSourceChange,
+} from "../../ctn/metadata/textEdits";
+import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import {
   createNoteRecord,
+  createCanonicalNoteSource,
   defaultNoteTitle,
-  inferNoteTitle,
+  replaceWorkspaceNoteSources,
   type FolderId,
   type NoteId,
   type WorkspaceData,
 } from "../model/workspaceData";
 
 function hasWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
-  return workspace.noteById.has(noteId);
+  return workspace.noteEntryById.has(noteId);
 }
 
 function assertWorkspaceNoteExists(
@@ -41,7 +48,7 @@ function assertWorkspaceFolderExists(
   workspace: WorkspaceStructureIndex,
   folderId: FolderId,
 ) {
-  if (!workspace.folderById.has(folderId)) {
+  if (!workspace.folderEntryById.has(folderId)) {
     throw new Error(`Workspace folder does not exist: ${folderId}`);
   }
 }
@@ -59,7 +66,7 @@ function assertWorkspaceFolderIdAvailable(
   workspace: WorkspaceStructureIndex,
   folderId: FolderId,
 ) {
-  if (workspace.folderById.has(folderId)) {
+  if (workspace.folderEntryById.has(folderId)) {
     throw new Error(`Workspace folder already exists: ${folderId}`);
   }
 }
@@ -69,15 +76,17 @@ export function createWorkspaceNote(
   {
     parentFolderId,
     noteId,
+    reservedBlockIds,
     timestamp,
     syntaxProfile,
     createBlockId,
   }: {
-    createBlockId?: () => string;
+    createBlockId: () => string;
     parentFolderId: FolderId | null;
     noteId: NoteId;
     syntaxProfile: CtnSyntaxProfile | null;
     timestamp: string;
+    reservedBlockIds: ReadonlySet<string>;
   },
 ): WorkspaceData {
   assertWorkspaceNoteIdAvailable(workspace, noteId);
@@ -90,10 +99,18 @@ export function createWorkspaceNote(
     ? initializeCtnSourceBlockMetadata(defaultNoteTitle, syntaxProfile, {
         createdAt: timestamp,
         createId: createBlockId,
+        reservedIds: reservedBlockIds,
         updatedAt: timestamp,
       })
-    : defaultNoteTitle;
-  const note = createNoteRecord(noteId, source, timestamp);
+    : createCanonicalNoteSource({
+        blockId: createCtnBlockIdAllocator(
+          createBlockId,
+          reservedBlockIds,
+        ).allocate(),
+        timestamp,
+        title: defaultNoteTitle,
+      });
+  const note = createNoteRecord(noteId, source);
 
   return {
     ...workspace.data,
@@ -165,35 +182,18 @@ export function renameWorkspaceNote(
   title: string,
   timestamp: string,
 ): WorkspaceData {
-  const nextTitle = title.trim();
-
-  if (!nextTitle) {
-    throw new Error("Workspace note title is required.");
-  }
-
   assertWorkspaceNoteExists(workspace, noteId);
 
-  const noteIndex = workspace.noteIndexById.get(noteId);
+  const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
 
   if (noteIndex === undefined) {
     throw new Error(`Workspace note does not exist: ${noteId}`);
   }
 
-  const notes = [...workspace.data.notes];
-  const note = notes[noteIndex];
-  const source = replaceCtnSourceTitle(note.source, nextTitle, timestamp);
+  const note = workspace.data.notes[noteIndex];
+  const source = replaceCtnSourceTitle(note.source, title, timestamp);
 
-  notes[noteIndex] = {
-    ...note,
-    source,
-    title: inferNoteTitle(source),
-    updatedAt: timestamp,
-  };
-
-  return {
-    ...workspace.data,
-    notes,
-  };
+  return replaceWorkspaceNoteSources(workspace.data, [{ noteId, source }]);
 }
 
 export function deleteWorkspaceNote(
@@ -217,7 +217,29 @@ export function deleteWorkspaceFolder(
 ): WorkspaceData {
   assertWorkspaceFolderExists(workspace, folderId);
 
-  const removedNoteIds = new Set(workspace.noteIdsByFolderId.get(folderId));
+  const folder = workspace.folderEntryById.get(folderId)?.node;
+
+  if (!folder) {
+    throw new Error(`Workspace folder does not exist: ${folderId}`);
+  }
+
+  const removedNoteIds = new Set<NoteId>();
+  const pending = [...folder.children];
+
+  while (pending.length > 0) {
+    const node = pending.pop();
+
+    if (!node) {
+      continue;
+    }
+
+    if (node.kind === "note") {
+      removedNoteIds.add(node.noteId);
+      continue;
+    }
+
+    pending.push(...node.children);
+  }
   const notes = workspace.data.notes.filter(
     (note) => !removedNoteIds.has(note.id),
   );
@@ -242,37 +264,60 @@ export function moveWorkspaceTreeNode(
 export function updateWorkspaceNoteSource(
   workspace: WorkspaceStructureIndex,
   noteId: NoteId,
-  source: string,
+  change: CtnEditableSourceChange,
   timestamp: string,
-  syntaxProfile: CtnSyntaxProfile | null,
-  createBlockId?: () => string,
+  syntaxProfile: CtnSyntaxProfile,
+  createBlockId: () => string,
+  reservedBlockIds: ReadonlySet<string>,
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
 
-  const noteIndex = workspace.noteIndexById.get(noteId);
+  const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
 
   if (noteIndex === undefined) {
     throw new Error(`Workspace note does not exist: ${noteId}`);
   }
 
-  const notes = [...workspace.data.notes];
-  const note = notes[noteIndex];
-  const nextSource = syntaxProfile
-    ? reconcileCtnSourceBlockMetadata(note.source, source, syntaxProfile, {
-        createId: createBlockId,
-        timestamp,
-      })
-    : source;
+  const note = workspace.data.notes[noteIndex];
+  const nextSource = reconcileCtnSourceBlockMetadata(
+    note.source,
+    change,
+    syntaxProfile,
+    {
+      createId: createBlockId,
+      reservedIds: reservedBlockIds,
+      timestamp,
+    },
+  );
 
-  notes[noteIndex] = {
-    ...note,
-    source: nextSource,
-    title: inferNoteTitle(nextSource),
-    updatedAt: timestamp,
-  };
+  return replaceWorkspaceNoteSources(workspace.data, [
+    { noteId, source: nextSource },
+  ]);
+}
 
-  return {
-    ...workspace.data,
-    notes,
-  };
+export function updateWorkspaceRawNoteSource(
+  workspace: WorkspaceStructureIndex,
+  noteId: NoteId,
+  change: CtnEditableSourceChange,
+  timestamp: string,
+): WorkspaceData {
+  assertWorkspaceNoteExists(workspace, noteId);
+
+  const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
+
+  if (noteIndex === undefined) {
+    throw new Error(`Workspace note does not exist: ${noteId}`);
+  }
+
+  const note = workspace.data.notes[noteIndex];
+
+  assertCtnEditableSourceChange(note.source, change);
+  if (note.source === change.source) {
+    return workspace.data;
+  }
+
+  return replaceWorkspaceNoteSources(workspace.data, [{
+    noteId,
+    source: touchCtnSourceTitleMetadata(change.source, timestamp),
+  }]);
 }

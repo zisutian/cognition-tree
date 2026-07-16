@@ -6,7 +6,10 @@ import {
   test,
   type APIRequestContext,
 } from "@playwright/test";
-import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace-repository/types";
+import type {
+  WorkspaceRepositoryCommitDto,
+  WorkspaceRepositorySnapshotDto,
+} from "../contracts/workspace-repository/types";
 import { appResizeKeyboardStep } from "../src/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,
@@ -67,6 +70,91 @@ test.describe.serial("repository and capacity flows", () => {
     );
   });
 
+  test("keeps exactly one live session through StrictMode mount and keyed repository switches", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const onlineListeners = new Set<EventListenerOrEventListenerObject>();
+      const originalAddEventListener = EventTarget.prototype.addEventListener;
+      const originalRemoveEventListener =
+        EventTarget.prototype.removeEventListener;
+      let additions = 0;
+      let removals = 0;
+
+      EventTarget.prototype.addEventListener = function (
+        type,
+        listener,
+        options,
+      ) {
+        if (this === window && type === "online" && listener) {
+          if (!onlineListeners.has(listener)) {
+            additions += 1;
+            onlineListeners.add(listener);
+          }
+        }
+        originalAddEventListener.call(this, type, listener, options);
+      };
+      EventTarget.prototype.removeEventListener = function (
+        type,
+        listener,
+        options,
+      ) {
+        if (
+          this === window &&
+          type === "online" &&
+          listener &&
+          onlineListeners.delete(listener)
+        ) {
+          removals += 1;
+        }
+        originalRemoveEventListener.call(this, type, listener, options);
+      };
+      Object.assign(window, {
+        __ctnReadSessionReconnectProbe: () => ({
+          active: onlineListeners.size,
+          additions,
+          removals,
+        }),
+      });
+    });
+    const readProbe = () =>
+      page.evaluate(() =>
+        (
+          window as unknown as Window & {
+            __ctnReadSessionReconnectProbe: () => {
+              active: number;
+              additions: number;
+              removals: number;
+            };
+          }
+        ).__ctnReadSessionReconnectProbe(),
+      );
+
+    await openWorkbench(page, repositoryId);
+    await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
+    await expect.poll(async () => (await readProbe()).active).toBe(1);
+
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption(rawRepositoryId);
+    await expect(page.locator(".app-context").getByTitle("原始笔记"))
+      .toBeVisible();
+    await expect.poll(async () => (await readProbe()).active).toBe(1);
+    await expect
+      .poll(async () => (await readProbe()).additions)
+      .toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(async () => (await readProbe()).removals)
+      .toBeGreaterThanOrEqual(1);
+
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption(repositoryId);
+    await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
+    await expect.poll(async () => (await readProbe()).active).toBe(1);
+    await expect
+      .poll(async () => (await readProbe()).removals)
+      .toBeGreaterThanOrEqual(2);
+  });
+
   test("edits repositories without syntax in raw mode", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "设置").click();
@@ -95,7 +183,7 @@ test.describe.serial("repository and capacity flows", () => {
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
 
-      return snapshot.workspace.notes[0]?.source.endsWith(" raw") ?? false;
+      return snapshot.content.workspace.notes[0]?.source.endsWith(" raw") ?? false;
     }).toBe(true);
 
     await getActivityButton(page, "结构操作").click();
@@ -106,7 +194,37 @@ test.describe.serial("repository and capacity flows", () => {
     await expect(page.getByRole("button", { name: "创建配置" })).toBeVisible();
   });
 
-  test("keeps pending edits across an offline page reload and syncs on recovery", async ({
+  test("finishes the local stage before an immediate repository switch", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+
+    const editor = page.locator(".source-editor .cm-content");
+
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" immediate-switch-local");
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption(rawRepositoryId);
+    await expect(page.locator(".app-context").getByTitle("原始笔记"))
+      .toBeVisible();
+
+    await getActivityButton(page, "设置").click();
+    await page.getByLabel("当前仓库").selectOption(repositoryId);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "immediate-switch-local",
+    );
+
+    await page.reload();
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "immediate-switch-local",
+    );
+  });
+
+  test("keeps pending edits across reload and automatically syncs on recovery", async ({
     page,
   }) => {
     await openWorkbench(page, repositoryId);
@@ -129,7 +247,7 @@ test.describe.serial("repository and capacity flows", () => {
     await expect(page.getByText("离线，等待同步", { exact: true })).toBeVisible();
 
     await page.unroute("**/api/**");
-    await page.getByRole("button", { name: "刷新" }).click();
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
     await expect(page.getByText("离线，等待同步", { exact: true })).toBeHidden();
     await expect.poll(async () => {
       const response = await api.get(
@@ -137,9 +255,74 @@ test.describe.serial("repository and capacity flows", () => {
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
 
-      return snapshot.workspace.notes.find(({ id }) => id === "note-alpha")
+      return snapshot.content.workspace.notes.find(({ id }) => id === "note-alpha")
         ?.source.includes("offline-pending") ?? false;
     }).toBe(true);
+  });
+
+  test("continues staging the latest local edit after a remote conflict", async ({
+    page,
+  }) => {
+    await openWorkbench(page, repositoryId);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+
+    const snapshotResponse = await api.get(
+      `/api/repositories/${repositoryId}/snapshot`,
+    );
+    const snapshot = (await snapshotResponse.json()) as
+      WorkspaceRepositorySnapshotDto;
+    const remoteCommit = {
+      baseRevision: snapshot.revision,
+      content: {
+        ...snapshot.content,
+        workspace: {
+          ...snapshot.content.workspace,
+          name: `${snapshot.content.workspace.name} · remote-conflict`,
+        },
+      },
+    } satisfies WorkspaceRepositoryCommitDto;
+    const commitResponse = await api.put(
+      `/api/repositories/${repositoryId}/snapshot`,
+      { data: remoteCommit },
+    );
+
+    expect(commitResponse.ok()).toBe(true);
+
+    const editor = page.locator(".source-editor .cm-content");
+
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" conflict-local-first");
+    await getActivityButton(page, "设置").click();
+    await expect(page.getByText("仓库内容已更改", { exact: true })).toBeVisible();
+
+    await getActivityButton(page, "笔记").click();
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" conflict-local-latest");
+    await getActivityButton(page, "设置").click();
+    await expect(page.getByText("仓库内容已更改", { exact: true })).toBeVisible();
+
+    await page.reload();
+    await getActivityButton(page, "笔记").click();
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "conflict-local-first conflict-local-latest",
+    );
+    await getActivityButton(page, "设置").click();
+    await expect(page.getByText("仓库内容已更改", { exact: true })).toBeVisible();
+
+    const remoteResponse = await api.get(
+      `/api/repositories/${repositoryId}/snapshot`,
+    );
+    const remoteSnapshot = (await remoteResponse.json()) as
+      WorkspaceRepositorySnapshotDto;
+    const remoteSource = remoteSnapshot.content.workspace.notes.find(
+      ({ id }) => id === "note-alpha",
+    )?.source ?? "";
+
+    expect(remoteSource).not.toContain("conflict-local-first");
+    expect(remoteSource).not.toContain("conflict-local-latest");
   });
 
   test("virtualizes large directory and structure trees", async ({ page }) => {

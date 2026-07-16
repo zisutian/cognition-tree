@@ -1,52 +1,42 @@
 import { parseRepositoryCatalog } from "../../../contracts/workspace-repository/parseCatalog";
-import type { WorkspaceRepositoryDescriptor } from "./workspaceRepositoryCatalog";
+import type { RepositoryCatalogDto } from "../../../contracts/workspace-repository/types";
 
-export type WorkspaceRepositoryCatalogCacheState = {
-  repositories: WorkspaceRepositoryDescriptor[];
-  version: 1;
+export type WorkspaceRepositoryCatalogCacheState = RepositoryCatalogDto & {
+  version: 3;
 };
 
 export type WorkspaceRepositoryCatalogCache = {
-  load: (
-    catalogIdentity: string,
-  ) => Promise<WorkspaceRepositoryCatalogCacheState | null>;
-  remove: (catalogIdentity: string) => Promise<void>;
-  save: (
-    catalogIdentity: string,
+  load(identity: string): Promise<WorkspaceRepositoryCatalogCacheState | null>;
+  remove(identity: string): Promise<void>;
+  save(
+    identity: string,
     state: WorkspaceRepositoryCatalogCacheState,
-  ) => Promise<void>;
+  ): Promise<void>;
 };
-
-function readObject(value: unknown) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("Invalid repository catalog cache state");
-  }
-
-  return value as Record<string, unknown>;
-}
 
 export function parseWorkspaceRepositoryCatalogCacheState(
   value: unknown,
 ): WorkspaceRepositoryCatalogCacheState {
-  const state = readObject(value);
-  const fields = Object.keys(state).sort();
-
-  if (
-    fields.length !== 2 ||
-    fields[0] !== "repositories" ||
-    fields[1] !== "version"
-  ) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Invalid repository catalog cache state");
   }
-  if (state.version !== 1) {
+
+  const record = value as Record<string, unknown>;
+  const fields = Object.keys(record).sort();
+
+  if (
+    fields.join(",") !== "issues,repositories,version" ||
+    record.version !== 3
+  ) {
     throw new Error("Unsupported repository catalog cache version");
   }
 
   return {
-    repositories: parseRepositoryCatalog({
-      repositories: state.repositories,
-    }).repositories,
-    version: 1,
+    ...parseRepositoryCatalog({
+      issues: record.issues,
+      repositories: record.repositories,
+    }),
+    version: 3,
   };
 }
 
@@ -54,16 +44,16 @@ export function createMemoryWorkspaceRepositoryCatalogCache(): WorkspaceReposito
   const states = new Map<string, WorkspaceRepositoryCatalogCacheState>();
 
   return {
-    async load(catalogIdentity) {
-      const state = states.get(catalogIdentity);
+    async load(identity) {
+      const state = states.get(identity);
 
       return state ? structuredClone(state) : null;
     },
-    async remove(catalogIdentity) {
-      states.delete(catalogIdentity);
+    async remove(identity) {
+      states.delete(identity);
     },
-    async save(catalogIdentity, state) {
-      states.set(catalogIdentity, structuredClone(state));
+    async save(identity, state) {
+      states.set(identity, structuredClone(state));
     },
   };
 }

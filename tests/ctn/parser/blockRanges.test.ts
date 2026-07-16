@@ -1,33 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { assignBlockEndLineNumbers } from "../../../src/ctn/parser/blockRanges";
-import type { CtnBlock } from "../../../src/ctn/parser/types";
+import {
+  assignBlockSubtreeEndLineNumbers,
+  findMultilineRange,
+} from "../../../src/ctn/parser/blockRanges";
+
+type TestBlock = {
+  level: number;
+  lexicalEndLineNumber: number;
+  lineNumber: number;
+  subtreeEndLineNumber: number;
+  type: string;
+};
 
 function createBlock(
   lineNumber: number,
   level: number,
   type = "concept",
-): CtnBlock {
+): TestBlock {
   return {
-    children: [],
-    diagnostics: [],
-    endLineNumber: lineNumber,
-    id: `block-${lineNumber}`,
-    indentText: "",
-    inlineSpans: [],
-    label: type,
     level,
+    lexicalEndLineNumber: lineNumber,
     lineNumber,
-    marker: null,
-    metadata: {
-      createdAt: "2026-07-15T00:00:00.000Z",
-      updatedAt: "2026-07-15T00:00:00.000Z",
-    },
-    metadataLineNumber: lineNumber,
-    rawText: type,
-    role: "normal",
-    text: type,
-    textColor: "default",
-    tone: "default",
+    subtreeEndLineNumber: lineNumber,
     type,
   };
 }
@@ -43,9 +37,9 @@ describe("block ranges", () => {
       createBlock(6, 0),
     ];
 
-    assignBlockEndLineNumbers(blocks, 8);
+    assignBlockSubtreeEndLineNumbers(blocks, 8, (block) => block.lineNumber);
 
-    expect(blocks.map((block) => block.endLineNumber)).toEqual([
+    expect(blocks.map((block) => block.subtreeEndLineNumber)).toEqual([
       1,
       5,
       4,
@@ -55,15 +49,47 @@ describe("block ranges", () => {
     ]);
   });
 
-  it("preserves an explicit multiline end beyond the structural boundary", () => {
+  it("preserves an explicit multiline lexical end beyond the structural boundary", () => {
     const multilineBlock = createBlock(2, 0, "multiline-block");
     const nextBlock = createBlock(4, 0);
 
-    multilineBlock.endLineNumber = 5;
-    assignBlockEndLineNumbers([multilineBlock, nextBlock], 6);
+    multilineBlock.lexicalEndLineNumber = 5;
+    multilineBlock.subtreeEndLineNumber = 5;
+    assignBlockSubtreeEndLineNumbers(
+      [multilineBlock, nextBlock],
+      6,
+      (block) => block.lineNumber,
+    );
 
-    expect(multilineBlock.endLineNumber).toBe(5);
-    expect(nextBlock.endLineNumber).toBe(6);
+    expect(multilineBlock.lexicalEndLineNumber).toBe(5);
+    expect(multilineBlock.subtreeEndLineNumber).toBe(5);
+    expect(nextBlock.subtreeEndLineNumber).toBe(6);
+  });
+
+  it("requires an exact marker, exact indentation, and only trailing whitespace", () => {
+    const lines = [
+      "\t```ts",
+      "\t````",
+      "\t``` extra",
+      "\t\t```",
+      "\t```  ",
+    ];
+
+    expect(findMultilineRange(lines, 0, "\t", "```")).toEqual({
+      closingFenceLineNumber: 5,
+      contentEndLineNumber: 4,
+      contentStartLineNumber: 2,
+      status: "closed",
+    });
+  });
+
+  it("returns an unterminated range through EOF", () => {
+    expect(findMultilineRange(["```ts", "body"], 0, "", "```")).toEqual({
+      closingFenceLineNumber: null,
+      contentEndLineNumber: 2,
+      contentStartLineNumber: 2,
+      status: "unterminated",
+    });
   });
 
   it("handles large deep trees without rescanning every descendant", () => {
@@ -75,9 +101,13 @@ describe("block ranges", () => {
       ),
     ];
 
-    assignBlockEndLineNumbers(blocks, blocks.length);
+    assignBlockSubtreeEndLineNumbers(
+      blocks,
+      blocks.length,
+      (block) => block.lineNumber,
+    );
 
-    expect(blocks[1].endLineNumber).toBe(blocks.length);
-    expect(blocks.at(-1)?.endLineNumber).toBe(blocks.length);
+    expect(blocks[1].subtreeEndLineNumber).toBe(blocks.length);
+    expect(blocks.at(-1)?.subtreeEndLineNumber).toBe(blocks.length);
   });
 });

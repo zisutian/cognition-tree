@@ -5,7 +5,9 @@ import { ContextMenu } from "../../../src/ui/shared/ContextMenu";
 import {
   FeedbackProvider,
   getErrorMessage,
+  runFeedbackAction,
 } from "../../../src/ui/shared/FeedbackProvider";
+import { resolveOverlayCoordinates } from "../../../src/ui/shared/Overlay";
 import { QuickPick } from "../../../src/ui/shared/QuickPick";
 
 describe("shared overlays", () => {
@@ -40,6 +42,8 @@ describe("shared overlays", () => {
     );
 
     expect(markup).toContain('role="dialog"');
+    expect(markup).toContain('role="combobox"');
+    expect(markup).toContain('aria-controls=');
     expect(markup).toContain('role="listbox"');
     expect(markup).toContain('role="option"');
     expect(markup).toContain("根目录");
@@ -74,5 +78,51 @@ describe("shared overlays", () => {
     expect(getErrorMessage("连接失败")).toBe("连接失败");
     expect(markup).toContain("工作台");
     expect(markup).not.toContain("ui-notification-region");
+  });
+
+  it("reports both synchronous throws and asynchronous rejections", async () => {
+    const errors: unknown[] = [];
+
+    expect(
+      runFeedbackAction(() => {
+        throw new Error("同步失败");
+      }, (error) => errors.push(error)),
+    ).toBeUndefined();
+    await expect(
+      runFeedbackAction(
+        () => Promise.reject(new Error("异步失败")),
+        (error) => errors.push(error),
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(errors.map(getErrorMessage)).toEqual(["同步失败", "异步失败"]);
+  });
+
+  it("clamps point and anchored overlays into the viewport", () => {
+    expect(
+      resolveOverlayCoordinates({
+        panelHeight: 80,
+        panelWidth: 120,
+        point: { x: 395, y: 295 },
+        viewportHeight: 300,
+        viewportWidth: 400,
+      }),
+    ).toEqual({ left: 272, top: 212 });
+    expect(
+      resolveOverlayCoordinates({
+        align: "end",
+        anchorRect: {
+          bottom: 290,
+          left: 350,
+          right: 390,
+          top: 270,
+          width: 40,
+        },
+        panelHeight: 100,
+        panelWidth: 160,
+        viewportHeight: 300,
+        viewportWidth: 400,
+      }),
+    ).toEqual({ left: 230, top: 166 });
   });
 });

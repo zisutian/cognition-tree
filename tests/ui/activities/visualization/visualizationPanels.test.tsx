@@ -2,9 +2,38 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { VisualizationDetailPanel } from "../../../../src/ui/activities/visualization/VisualizationDetailPanel";
 import { VisualizationPanel } from "../../../../src/ui/activities/visualization/VisualizationPanel";
+import { ReferenceGraphCanvas } from "../../../../src/ui/activities/visualization/ReferenceGraphCanvas";
 import { createView } from "../../viewFactory";
 
 describe("visualization panels", () => {
+  it("exposes keyboard graph navigation and live selection status", () => {
+    const markup = renderToStaticMarkup(
+      <ReferenceGraphCanvas
+        graph={{
+          edges: [],
+          nodes: [
+            {
+              id: "note-a",
+              isolated: true,
+              referencesIn: 0,
+              referencesOut: 0,
+              radius: 4,
+              title: "Alpha",
+            },
+          ],
+        }}
+        resetSignal={0}
+        selectedNoteId={null}
+        topologyRevision="revision-1"
+        onSelectNote={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('role="application"');
+    expect(markup).toContain('aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Enter"');
+    expect(markup).toContain('aria-live="polite"');
+  });
+
   it("keeps main graph controls free of header metrics and visible search label", () => {
     const markup = renderToStaticMarkup(
       <VisualizationPanel view={createView().visualization} />,
@@ -41,6 +70,36 @@ describe("visualization panels", () => {
           query: "",
         },
         graph: {
+          adjacencyByNoteId: new Map([
+            ["note-source", new Set(["note-target"])],
+            ["note-target", new Set(["note-source", "note-other"])],
+            ["note-other", new Set(["note-target"])],
+          ]),
+          detailsByNoteId: new Map([
+            [
+              "note-target",
+              {
+                incomingEdges: [
+                  {
+                    count: 2,
+                    id: "edge-in",
+                    sourceNoteId: "note-source",
+                    targetNoteId: "note-target",
+                    targetTitle: "Target note",
+                  },
+                ],
+                outgoingEdges: [
+                  {
+                    count: 1,
+                    id: "edge-out",
+                    sourceNoteId: "note-target",
+                    targetNoteId: "note-other",
+                    targetTitle: "Other note",
+                  },
+                ],
+              },
+            ],
+          ]),
           edges: [
             {
               count: 2,
@@ -90,6 +149,7 @@ describe("visualization panels", () => {
               title: "Other note",
             },
           ],
+          revision: 2,
           stats: {
             edgeCount: 2,
             isolatedCount: 0,

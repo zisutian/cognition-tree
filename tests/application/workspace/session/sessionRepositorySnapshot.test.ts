@@ -1,101 +1,113 @@
 import { describe, expect, it } from "vitest";
-import {
-  createWorkspaceRepositorySyntaxSourceFile,
-  type WorkspaceRepository,
-} from "../../../../src/storage/repository/workspaceRepository";
-import {
-  createInitialWorkspaceData,
-  createNoteRecord,
-} from "../../../../src/workspace/model/workspaceData";
-import { createDefaultWorkspaceSyntaxSource } from "../../../../src/workspace/context/workspaceSyntax";
+import type { WorkspaceRepository } from "../../../../src/storage/repository/workspaceRepository";
+import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
 import { loadWorkspaceSessionSnapshot } from "../../../../src/application/workspace/session/sessionRepositorySnapshot";
+import {
+  createContent,
+  createSnapshot,
+  draftRevision,
+  remoteRevision,
+} from "./workspaceSessionTestFixture";
 
 function createRepository(
   snapshot: Awaited<ReturnType<WorkspaceRepository["loadSnapshot"]>>,
 ): WorkspaceRepository {
   return {
-    commitSnapshot: async () => ({ availability: "online", revision: "unused" }),
-    discardPendingCommit: async () => undefined,
+    discardPendingSnapshotAndReload: async () => snapshot,
     label: "test repository",
     loadSnapshot: async () => snapshot,
+    locationLabel: "test location",
+    stageSnapshot: async () => ({ localRevision: snapshot.localRevision }),
+    subscribeReconnect: () => () => undefined,
+    synchronizePendingSnapshot: async () => ({
+      localRevision: snapshot.localRevision,
+      pendingChanges: snapshot.pendingChanges,
+      remoteRevision: snapshot.remoteRevision,
+      status: "synced",
+    }),
   };
 }
 
 describe("loadWorkspaceSessionSnapshot", () => {
-  it("loads one repository snapshot and resolves its syntax profile", async () => {
-    const workspace = createInitialWorkspaceData();
-    const source = createDefaultWorkspaceSyntaxSource();
-    const syntaxSourceFile = createWorkspaceRepositorySyntaxSourceFile(source);
+  it("loads one v3 content snapshot and resolves its syntax profile", async () => {
+    const snapshot = createSnapshot();
 
     await expect(
-      loadWorkspaceSessionSnapshot(
-        createRepository({
-          availability: "online",
-          repositoryPath: "/repository",
-          revision: "revision-1",
-          syntaxSourceFile,
-          workspace,
-        }),
-      ),
+      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
     ).resolves.toMatchObject({
-      repositoryPath: "/repository",
-      revision: "revision-1",
-      syntaxSourceFile,
-      workspaceData: workspace,
+      content: snapshot.content,
+      localRevision: draftRevision("initial"),
+      pendingChanges: false,
+      remoteRevision: remoteRevision("a"),
       workspaceSyntax: {
-        source,
+        source: snapshot.content.syntaxSource,
       },
     });
   });
 
   it("keeps an unconfigured repository syntax explicit", async () => {
-    const workspace = createInitialWorkspaceData();
+    const snapshot = createSnapshot({
+      content: {
+        schemaVersion: 3,
+        syntaxSource: null,
+        workspace: createInitialWorkspaceData(),
+      },
+      remoteRevision: null,
+    });
 
     await expect(
-      loadWorkspaceSessionSnapshot(
-        createRepository({
-          availability: "online",
-          repositoryPath: "/repository",
-          revision: "revision-empty-syntax",
-          syntaxSourceFile: null,
-          workspace,
-        }),
-      ),
+      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
     ).resolves.toEqual({
-      availability: "online",
-      currentRevision: null,
-      repositoryPath: "/repository",
-      revision: "revision-empty-syntax",
-      syntaxSourceFile: null,
-      workspaceData: workspace,
+      ...snapshot,
       workspaceSyntax: null,
     });
   });
 
-  it("rejects configured repositories whose notes lack block metadata", async () => {
-    const workspace = {
-      ...createInitialWorkspaceData(),
-      notes: [
-        createNoteRecord(
-          "note-raw",
-          "Raw title",
-          "2026-07-15T00:00:00.000Z",
-        ),
-      ],
-    };
+  it("loads invalid note text as diagnostics when canonical metadata remains valid", async () => {
+    const snapshot = createSnapshot({
+      content: createContent(
+        "可修复工作区",
+        "标题\n\t``` 未闭合\n\t正文",
+      ),
+    });
 
     await expect(
-      loadWorkspaceSessionSnapshot(
-        createRepository({
-          availability: "online",
-          repositoryPath: "/repository",
-          revision: "revision-invalid-metadata",
-          syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
-            createDefaultWorkspaceSyntaxSource(),
-          ),
-          workspace,
-        }),
-      ),
+      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
+    ).resolves.toMatchObject({ content: snapshot.content });
+  });
+
+  it("rejects only a malformed canonical metadata structure", async () => {
+    const content = createContent();
+    const snapshot = createSnapshot({
+      content: {
+        ...content,
+        workspace: {
+          ...content.workspace,
+          notes: [{ id: "note-1", source: "Raw title" }],
+        },
+      },
+    });
+
+    await expect(
+      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
+    ).rejects.toThrow("expected @ctn-block directive");
+  });
+
+  it("still rejects a damaged title header when syntax is not configured", async () => {
+    const content = createContent();
+    const snapshot = createSnapshot({
+      content: {
+        ...content,
+        syntaxSource: null,
+        workspace: {
+          ...content.workspace,
+          notes: [{ id: "note-1", source: "Raw title\nopaque body" }],
+        },
+      },
+    });
+
+    await expect(
+      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
     ).rejects.toThrow("expected @ctn-block directive");
   });
 });

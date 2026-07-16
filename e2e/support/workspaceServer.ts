@@ -7,7 +7,6 @@ import {
 } from "../../server/api/workspaceApiServer.ts";
 import {
   createWorkspaceApiSecurityPolicy,
-  parseWorkspaceApiAllowedOrigins,
 } from "../../server/api/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 
@@ -17,13 +16,12 @@ const repositoryDir = path.resolve(
   process.env.CTN_E2E_REPOSITORY_DIR ??
     path.join(".cognition-tree", "e2e-repository"),
 );
-const allowedOrigins = parseWorkspaceApiAllowedOrigins(
-  process.env.CTN_API_ALLOWED_ORIGINS,
-);
-const security = createWorkspaceApiSecurityPolicy({
-  allowedOrigins,
-  host,
-});
+const security = {
+  ...createWorkspaceApiSecurityPolicy({ host }),
+  allowedOrigins: [
+    process.env.CTN_E2E_WEB_ORIGIN ?? "http://127.0.0.1:4174",
+  ],
+};
 
 await rm(repositoryDir, { force: true, recursive: true });
 
@@ -37,9 +35,10 @@ server.listen(port, host, () => {
   console.log(`Cognition Tree E2E API listening on http://${host}:${port}`);
 });
 
-function closeServer() {
-  server.close(() => process.exit(0));
+async function closeServer() {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await catalog.dispose();
 }
 
-process.once("SIGINT", closeServer);
-process.once("SIGTERM", closeServer);
+process.once("SIGINT", () => void closeServer());
+process.once("SIGTERM", () => void closeServer());

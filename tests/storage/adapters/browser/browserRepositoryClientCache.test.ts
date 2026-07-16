@@ -1,0 +1,408 @@
+import {
+  IDBDatabase as FakeIDBDatabase,
+  IDBFactory,
+  IDBObjectStore,
+  IDBTransaction,
+} from "fake-indexeddb";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type {
+  RepositoryDescriptorDto,
+  WorkspaceRepositoryContentDto,
+} from "../../../../contracts/workspace-repository/types";
+import { createIndexedDbRepositoryClientCache } from "../../../../src/storage/adapters/browser/browserRepositoryClientCache";
+import { WorkspaceRepositoryLocalConflictError } from "../../../../src/storage/repository/workspaceRepository";
+import {
+  draftA,
+  draftB,
+  draftC,
+  revisionA,
+  revisionB,
+} from "../../repositoryV3Fixtures";
+
+const databaseName = "cognition-tree.repository-cache";
+const catalogStoreName = "repository-catalogs-v3";
+const stateStoreName = "repository-states-v3";
+const noteStoreName = "repository-notes-v3";
+const repositoryIdentity = "browser:primary";
+const catalogIdentity = "browser";
+
+const descriptor: RepositoryDescriptorDto = {
+  adapter: "browser",
+  id: "primary",
+  label: "Primary",
+  locationLabel: "浏览器 · primary",
+};
+
+function requestResult<Result>(request: IDBRequest<Result>) {
+  return new Promise<Result>((resolve, reject) => {
+    request.addEventListener("success", () => resolve(request.result));
+    request.addEventListener("error", () => reject(request.error));
+  });
+}
+
+function transactionComplete(transaction: IDBTransaction) {
+  return new Promise<void>((resolve, reject) => {
+    transaction.addEventListener("complete", () => resolve());
+    transaction.addEventListener("abort", () => reject(transaction.error));
+    transaction.addEventListener("error", () => reject(transaction.error));
+  });
+}
+
+async function openDatabase(
+  indexedDb: IDBFactory,
+  version?: number,
+  upgrade?: (database: IDBDatabase) => void,
+) {
+  const request = version === undefined
+    ? indexedDb.open(databaseName)
+    : indexedDb.open(databaseName, version);
+
+  if (upgrade) {
+    request.addEventListener("upgradeneeded", () => upgrade(request.result));
+  }
+
+  return requestResult(request);
+}
+
+function createContent(
+  notes: Array<{ id: string; source: string }> = [
+    { id: "note-a", source: "@ctn-block title title-a\nA" },
+  ],
+): WorkspaceRepositoryContentDto {
+  return {
+    schemaVersion: 3,
+    syntaxSource: null,
+    workspace: {
+      id: "workspace",
+      name: "Workspace",
+      notes,
+      tree: notes.map(({ id }) => ({ kind: "note" as const, noteId: id })),
+    },
+  };
+}
+
+async function createRepository(
+  indexedDb: IDBFactory,
+  content = createContent(),
+) {
+  const cache = createIndexedDbRepositoryClientCache(indexedDb);
+
+  await cache.createRepositoryAtomically({
+    catalogIdentity,
+    content,
+    descriptor,
+    localRevision: draftA,
+    remoteRevision: revisionA,
+    repositoryIdentity,
+  });
+
+  return cache;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("IndexedDB repository client cache", () => {
+  it("drops every legacy object store during the v3 upgrade without reading old content", async () => {
+    const indexedDb = new IDBFactory();
+    const legacyDatabase = await openDatabase(indexedDb, 2, (database) => {
+      database.createObjectStore("repository-catalogs-v2");
+      database.createObjectStore("repository-snapshots-v2");
+      database.createObjectStore("unrelated-legacy-store");
+    });
+    const legacyTransaction = legacyDatabase.transaction(
+      [
+        "repository-catalogs-v2",
+        "repository-snapshots-v2",
+        "unrelated-legacy-store",
+      ],
+      "readwrite",
+    );
+    const legacyCompletion = transactionComplete(legacyTransaction);
+
+    legacyTransaction.objectStore("repository-catalogs-v2").put(
+      { repositories: [descriptor], version: 2 },
+      catalogIdentity,
+    );
+    legacyTransaction.objectStore("repository-snapshots-v2").put(
+      { workspace: { id: "legacy" } },
+      repositoryIdentity,
+    );
+    legacyTransaction.objectStore("unrelated-legacy-store").put("legacy", "key");
+    await legacyCompletion;
+    legacyDatabase.close();
+
+    const cache = createIndexedDbRepositoryClientCache(indexedDb);
+
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toBeNull();
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+
+    const upgradedDatabase = await openDatabase(indexedDb);
+
+    expect([...upgradedDatabase.objectStoreNames]).toEqual([
+      catalogStoreName,
+      noteStoreName,
+      stateStoreName,
+    ]);
+    upgradedDatabase.close();
+  });
+
+  it("creates descriptor, repository state, and note sources in one transaction", async () => {
+    const indexedDb = new IDBFactory();
+    const content = createContent([
+      { id: "note-a", source: "@ctn-block title title-a\nA" },
+      { id: "note-b", source: "@ctn-block title title-b\nB" },
+    ]);
+    const cache = await createRepository(indexedDb, content);
+
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toEqual({
+      issues: [],
+      repositories: [descriptor],
+      version: 3,
+    });
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toEqual({
+      content,
+      localRevision: draftA,
+      pendingBaseRevision: null,
+      remoteRevision: revisionA,
+    });
+
+    const database = await openDatabase(indexedDb);
+    const transaction = database.transaction(
+      [catalogStoreName, stateStoreName, noteStoreName],
+      "readonly",
+    );
+    const completion = transactionComplete(transaction);
+    const catalog = await requestResult(
+      transaction.objectStore(catalogStoreName).get(catalogIdentity),
+    );
+    const state = await requestResult(
+      transaction.objectStore(stateStoreName).get(repositoryIdentity),
+    );
+    const notes = await requestResult(
+      transaction.objectStore(noteStoreName).getAll(),
+    );
+
+    await completion;
+    expect(catalog).toMatchObject({ repositories: [descriptor], version: 3 });
+    expect(state).toMatchObject({
+      identity: repositoryIdentity,
+      localRevision: draftA,
+      noteIds: ["note-a", "note-b"],
+      schemaVersion: 3,
+    });
+    expect(notes).toEqual([
+      { id: "note-a", identity: repositoryIdentity, source: content.workspace.notes[0]?.source },
+      { id: "note-b", identity: repositoryIdentity, source: content.workspace.notes[1]?.source },
+    ]);
+    database.close();
+  });
+
+  it("rejects invalid outbound content without mutating normalized stores", async () => {
+    const indexedDb = new IDBFactory();
+    const cache = createIndexedDbRepositoryClientCache(indexedDb);
+    const invalidCreate = createContent();
+
+    Object.assign(invalidCreate.workspace.notes[0]!, {
+      title: "derived field must not persist",
+    });
+    await expect(cache.createRepositoryAtomically({
+      catalogIdentity,
+      content: invalidCreate,
+      descriptor,
+      localRevision: draftA,
+      remoteRevision: revisionA,
+      repositoryIdentity,
+    })).rejects.toThrow("unsupported field");
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toBeNull();
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+
+    await cache.createRepositoryAtomically({
+      catalogIdentity,
+      content: createContent(),
+      descriptor,
+      localRevision: draftA,
+      remoteRevision: revisionA,
+      repositoryIdentity,
+    });
+    const unsafeStage = createContent([
+      { id: "../escape", source: "unsafe" },
+    ]);
+
+    await expect(cache.snapshots.stage({
+      content: unsafeStage,
+      expectedLocalRevision: draftA,
+      identity: repositoryIdentity,
+      localRevision: draftB,
+    })).rejects.toThrow("invalid repository note id");
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toMatchObject({
+      content: { workspace: { name: "Workspace" } },
+      localRevision: draftA,
+      pendingBaseRevision: null,
+    });
+  });
+
+  it("rolls back catalog, state, and notes when the create transaction aborts", async () => {
+    const indexedDb = new IDBFactory();
+    const cache = createIndexedDbRepositoryClientCache(indexedDb);
+    const transactionSpy = vi.spyOn(IDBTransaction.prototype, "abort");
+    const originalTransaction = FakeIDBDatabase.prototype.transaction;
+
+    vi.spyOn(FakeIDBDatabase.prototype, "transaction").mockImplementation(function (
+      this: IDBDatabase,
+      storeNames: string | Iterable<string>,
+      mode?: IDBTransactionMode,
+      options?: IDBTransactionOptions,
+    ) {
+      const transaction = originalTransaction.call(this, storeNames, mode, options);
+      const names = typeof storeNames === "string" ? [storeNames] : [...storeNames];
+
+      if (names.length === 3 && names.includes(catalogStoreName)) {
+        queueMicrotask(() => transaction.abort());
+      }
+
+      return transaction;
+    });
+
+    await expect(
+      cache.createRepositoryAtomically({
+        catalogIdentity,
+        content: createContent(),
+        descriptor,
+        localRevision: draftA,
+        remoteRevision: revisionA,
+        repositoryIdentity,
+      }),
+    ).rejects.toThrow();
+    expect(transactionSpy).toHaveBeenCalledTimes(1);
+
+    vi.restoreAllMocks();
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toBeNull();
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+  });
+
+  it("lets only one cache instance stage a shared local revision", async () => {
+    const indexedDb = new IDBFactory();
+    const firstCache = await createRepository(indexedDb);
+    const secondCache = createIndexedDbRepositoryClientCache(indexedDb);
+    const firstLoaded = await firstCache.snapshots.load(repositoryIdentity);
+    const secondLoaded = await secondCache.snapshots.load(repositoryIdentity);
+
+    expect(firstLoaded?.localRevision).toBe(draftA);
+    expect(secondLoaded?.localRevision).toBe(draftA);
+
+    const results = await Promise.allSettled([
+      firstCache.snapshots.stage({
+        content: createContent([
+          { id: "note-a", source: "@ctn-block title title-a\nFirst" },
+        ]),
+        expectedLocalRevision: draftA,
+        identity: repositoryIdentity,
+        localRevision: draftB,
+      }),
+      secondCache.snapshots.stage({
+        content: createContent([
+          { id: "note-a", source: "@ctn-block title title-a\nSecond" },
+        ]),
+        expectedLocalRevision: draftA,
+        identity: repositoryIdentity,
+        localRevision: draftC,
+      }),
+    ]);
+
+    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find(({ status }) => status === "rejected");
+
+    expect(rejected).toMatchObject({
+      reason: expect.any(WorkspaceRepositoryLocalConflictError),
+      status: "rejected",
+    });
+
+    const stored = await firstCache.snapshots.load(repositoryIdentity);
+
+    expect([draftB, draftC]).toContain(stored?.localRevision);
+    expect(stored?.content.workspace.notes[0]?.source).toMatch(/First|Second/);
+  });
+
+  it("does not let a stale discard replace a newer cross-tab stage", async () => {
+    const indexedDb = new IDBFactory();
+    const firstCache = await createRepository(indexedDb);
+    const secondCache = createIndexedDbRepositoryClientCache(indexedDb);
+    const newestContent = createContent([
+      { id: "note-a", source: "@ctn-block title title-a\nNewest tab content" },
+    ]);
+
+    await firstCache.snapshots.stage({
+      content: newestContent,
+      expectedLocalRevision: draftA,
+      identity: repositoryIdentity,
+      localRevision: draftB,
+    });
+    await expect(secondCache.snapshots.replaceFromRemote({
+      expectedLocalRevision: draftA,
+      identity: repositoryIdentity,
+      localRevision: draftC,
+      snapshot: {
+        content: createContent([
+          { id: "note-a", source: "@ctn-block title title-a\nRemote replacement" },
+        ]),
+        revision: revisionB,
+      },
+    })).rejects.toBeInstanceOf(WorkspaceRepositoryLocalConflictError);
+    await expect(firstCache.snapshots.load(repositoryIdentity)).resolves.toMatchObject({
+      content: newestContent,
+      localRevision: draftB,
+      pendingBaseRevision: revisionA,
+    });
+  });
+
+  it("writes only changed and added notes while preserving and deleting the right records", async () => {
+    const indexedDb = new IDBFactory();
+    const initial = createContent([
+      { id: "note-a", source: "@ctn-block title title-a\nA" },
+      { id: "note-b", source: "@ctn-block title title-b\nB" },
+      { id: "note-c", source: "@ctn-block title title-c\nC" },
+    ]);
+    const cache = await createRepository(indexedDb, initial);
+    const putSpy = vi.spyOn(IDBObjectStore.prototype, "put");
+    const deleteSpy = vi.spyOn(IDBObjectStore.prototype, "delete");
+    const next = createContent([
+      initial.workspace.notes[0]!,
+      { id: "note-b", source: "@ctn-block title title-b\nB changed" },
+      { id: "note-d", source: "@ctn-block title title-d\nD" },
+    ]);
+
+    await cache.snapshots.stage({
+      content: next,
+      expectedLocalRevision: draftA,
+      identity: repositoryIdentity,
+      localRevision: draftB,
+    });
+
+    const writtenNoteIds = putSpy.mock.calls
+      .map(([value]) => value as { id?: string })
+      .flatMap(({ id }) => id ? [id] : []);
+    const deletedKeys = deleteSpy.mock.calls.map(([key]) => key);
+
+    expect(writtenNoteIds).toEqual(["note-b", "note-d"]);
+    expect(deletedKeys).toEqual([[repositoryIdentity, "note-c"]]);
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toEqual({
+      content: next,
+      localRevision: draftB,
+      pendingBaseRevision: revisionA,
+      remoteRevision: revisionA,
+    });
+
+    await cache.snapshots.completeSync({
+      committedRemoteRevision: revisionB,
+      expectedLocalRevision: draftB,
+      identity: repositoryIdentity,
+    });
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toMatchObject({
+      content: next,
+      pendingBaseRevision: null,
+      remoteRevision: revisionB,
+    });
+  });
+});

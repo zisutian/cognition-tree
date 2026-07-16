@@ -10,13 +10,14 @@
     后端：Node HTTP API、本地文件与 WebDAV repository adapter。
     存储：默认在 .cognition-tree/repositories 下管理本地仓库，可由服务端配置远端仓库。
 
-每个仓库由稳定的 repository id 标识，数据文件按仓库结构生成和读取：
+每个仓库由稳定的 repository id 标识。本地文件仓库以不可变快照保存内容：
 
-    workspace.json
-    notes/*.ctn
-    syntax/workspace.toml
+    repository.json
+    snapshots/<sha256-revision>/workspace.json
+    snapshots/<sha256-revision>/notes/*.ctn
+    snapshots/<sha256-revision>/syntax/workspace.toml
 
-`workspace.json` 使用 schema version 2。笔记稳定写入 `notes/<noteId>.ctn`，目录关系只由 manifest tree 表达；每个 CTN 块前保存同缩进的 `@ctn-block` 元数据行。该保留行只存在于持久化原文中，编辑区只显示可编辑内容；笔记自身时间和当前块时间在笔记详情中分别查看。
+`repository.json` 保存 schema version 3、稳定的 catalog label 和当前 revision。快照中的 `workspace.json` 只保存 workspace 身份与目录树；笔记 DTO 只保存稳定 id 和 `.ctn` source。笔记标题与时间从 source 开头的 canonical 标题元数据推导，文件夹以 `folderId` 标识，笔记树节点不重复保存派生 id。每个 canonical CTN 块前保存同缩进的 `@ctn-block` 元数据行；编辑区中的同名普通文本保持可见并产生诊断。
 
 前端也可以切换到浏览器存储模式，用于不连接本机后端的界面验证。
 
@@ -59,21 +60,18 @@
     pnpm test
     pnpm test:e2e
     pnpm build
+    pnpm verify:webdav:live
     git diff --check
 
 固定生成 1000 篇笔记、10 万块并测量索引、投影、完整快照和文件写盘：
 
     pnpm benchmark:capacity
 
+`pnpm verify:webdav:live` 会启动 loopback TCP 上的文件系统 WebDAV 服务，执行条件请求、双 writer fencing、断线恢复、交错读写和超过 60 秒的 lease 续租验证，因此耗时至少一分钟。
+
 后端脚本语法检查：
 
     pnpm exec tsc -p tsconfig.server.json --noEmit
-
-将未版本化仓库一次性迁移到 repository v2：
-
-    pnpm repository:migrate-v2 -- /absolute/path/to/repository
-
-迁移前应停止使用目标仓库的后端。命令先在仓库同级目录保留完整 v1 备份，再生成并校验临时 v2 仓库，最后通过目录重命名切换；运行时不读取 v1 manifest。
 
 本地提交钩子会运行暂存 diff 检查、TypeScript 检查和架构边界测试。提交信息使用 `type(scope): subject` 格式。
 
@@ -89,8 +87,7 @@
     CTN_API_HOST=127.0.0.1
     CTN_API_PORT=3001
     CTN_REPOSITORY_ROOT=.cognition-tree/repositories
-    CTN_API_ALLOWED_HOSTS=
-    CTN_API_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+    CTN_PUBLIC_URL=
     CTN_API_TOKEN=
     CTN_WEBDAV_REPOSITORIES=[]
 
@@ -100,13 +97,13 @@
     VITE_CTN_API_TOKEN=
     VITE_CTN_STORAGE_MODE=browser
 
-loopback HTTP 后端默认只接受 loopback Host 和本机开发前端 Origin。绑定到非 loopback 地址时必须配置至少 32 字符的 `CTN_API_TOKEN`；绑定到 `0.0.0.0` 或 `::` 时还必须配置 `CTN_API_ALLOWED_HOSTS`。前端通过 `VITE_CTN_API_TOKEN` 发送同一 bearer token。使用其它前端地址时，通过 `CTN_API_ALLOWED_ORIGINS` 显式加入对应 Origin。
+loopback HTTP 后端只接受 loopback Host 和本机开发前端 Origin。非 loopback 部署必须同时配置至少 32 字符的 `CTN_API_TOKEN` 和 HTTPS `CTN_PUBLIC_URL`；Host、Origin 与 CORS 策略由该公开 URL 推导。前端通过 `VITE_CTN_API_TOKEN` 发送同一 bearer token。
 
 后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
 
-`CTN_WEBDAV_REPOSITORIES` 是服务端 JSON 数组，每项包含 `id`、`label`、`url`，以及可选的成对 `username`、`password`。WebDAV 作为独立 repository adapter 直接读写远端文件；本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。
+`CTN_WEBDAV_REPOSITORIES` 是服务端 JSON 数组，每项包含 `id`、`label`、`url`，以及可选的成对 `username`、`password`；带凭据时 URL 必须使用 HTTPS。WebDAV adapter 将内容写入不可变 `.ctn-generations/<token>/`，以 60 秒可续租 writer lease 和 current pointer 的 ETag CAS 发布 revision。缺少 ETag 或条件请求能力的服务在注册时被拒绝。本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。
 
-HTTP repository 的最近确认快照与待同步提交保存在浏览器 IndexedDB。网络不可用时，已有缓存的仓库仍可编辑；恢复连接后，远端 revision 未变化则自动同步，已变化则保留本地内容并要求显式丢弃或后续解决冲突。
+HTTP repository 的本地 draft、已知远端 revision、catalog 与逐笔记 source 保存在 normalized IndexedDB v3 stores。一次编辑先以 local revision CAS 原子 stage 改变的笔记和状态，再异步同步远端；网络恢复会立即触发同步。远端 revision 已变化时继续保留并允许更新本地 pending 内容，直到显式丢弃或解决冲突。旧 browser storage 与旧 cache 不参与读取。
 
 ## 代码结构
 

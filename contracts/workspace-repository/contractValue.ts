@@ -12,6 +12,16 @@ export class WorkspaceRepositoryContractError extends Error {
   }
 }
 
+export class UnsupportedRepositoryVersionError extends WorkspaceRepositoryContractError {
+  receivedVersion: unknown;
+
+  constructor(path: string, receivedVersion: unknown) {
+    super(path, "unsupported repository version");
+    this.name = "UnsupportedRepositoryVersionError";
+    this.receivedVersion = receivedVersion;
+  }
+}
+
 export function failContract(path: string, message: string): never {
   throw new WorkspaceRepositoryContractError(path, message);
 }

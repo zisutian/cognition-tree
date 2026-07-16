@@ -1,17 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  appendFolderToWorkspaceTree,
-  appendNoteToWorkspaceTree,
-} from "../../../src/workspace/model/noteTree/mutations";
-import {
-  createNoteTreeFolderNode,
-} from "../../../src/workspace/model/noteTree/create";
-import {
-  createInitialWorkspaceData,
-  createNoteRecord,
-  type WorkspaceData,
-} from "../../../src/workspace/model/workspaceData";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+import { parseCtnCanonicalDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import {
   createWorkspaceFolder,
   createWorkspaceNote,
@@ -20,21 +9,40 @@ import {
   moveWorkspaceTreeNode,
   renameWorkspaceFolder,
   renameWorkspaceNote,
+  updateWorkspaceRawNoteSource,
   updateWorkspaceNoteSource,
 } from "../../../src/workspace/commands/workspaceCommands";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { collectWorkspaceBlockIds } from "../../../src/workspace/context/workspaceBlockMetadata";
+import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
 import {
-  addTestCtnBlockMetadata,
-  createTestBlockId,
-  stripTestCtnBlockMetadata,
-} from "../../ctn/metadata/sourceMetadataFixture";
-import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
+  appendFolderToWorkspaceTree,
+  appendNoteToWorkspaceTree,
+} from "../../../src/workspace/model/noteTree/mutations";
+import {
+  createInitialWorkspaceData,
+  readWorkspaceNoteHeader,
+  type NoteRecord,
+  type NoteTreeNode,
+  type WorkspaceData,
+} from "../../../src/workspace/model/workspaceData";
+import {
+  createCanonicalTestNote,
+  createWorkspaceTestBlockId,
+  readEditableTestSource,
+} from "../workspaceTestFixture";
 
-const timestamp = "2026-06-08T00:00:00.000Z";
+const timestamp = "2026-07-16T00:00:00.000Z";
+const nextTimestamp = "2026-07-16T01:00:00.000Z";
 
 function createWorkspaceWithNotes(): WorkspaceData {
-  const firstNote = createNoteRecord("note-first", "第一篇", timestamp);
-  const secondNote = createNoteRecord("note-second", "第二篇", timestamp);
+  const firstNote = createCanonicalTestNote("note-first", "第一篇", {
+    timestamp,
+  });
+  const secondNote = createCanonicalTestNote("note-second", "第二篇", {
+    idOffset: 100,
+    timestamp,
+  });
   const workspace = createInitialWorkspaceData();
 
   return {
@@ -53,41 +61,56 @@ function indexWorkspace(workspace: WorkspaceData) {
 }
 
 function findFolderIdContainingNote(workspace: WorkspaceData, noteId: string) {
-  return indexWorkspace(workspace).noteFolderIdById.get(noteId) ?? null;
+  return indexWorkspace(workspace).noteEntryById.get(noteId)?.parentFolderId ?? null;
 }
 
-describe("workspace actions", () => {
-  it("creates notes in the target folder", () => {
+function sourceChange(note: NoteRecord, source: string) {
+  const previous = readEditableTestSource(note.source);
+
+  return {
+    edits: [{ from: 0, insertedText: source, to: previous.length }],
+    source,
+  };
+}
+
+function nodeIdentity(node: NoteTreeNode) {
+  return node.kind === "folder" ? node.folderId : node.noteId;
+}
+
+describe("workspace commands", () => {
+  it("creates a canonical source-only note in the target folder", () => {
     const workspace = {
       ...createInitialWorkspaceData(),
       tree: appendFolderToWorkspaceTree(
-        createInitialWorkspaceData().tree,
+        [],
         createNoteTreeFolderNode("folder-target", "目标"),
         null,
       ),
     };
     const nextWorkspace = createWorkspaceNote(indexWorkspace(workspace), {
+      createBlockId: () => createWorkspaceTestBlockId(500),
       noteId: "note-new",
       parentFolderId: "folder-target",
-      createBlockId: () => createTestBlockId(1),
+      reservedBlockIds: new Set(),
       syntaxProfile: defaultCtnSyntaxProfile,
       timestamp,
     });
 
-    expect(nextWorkspace.notes[0]).toMatchObject({
+    expect(nextWorkspace.notes[0]).toEqual({
       id: "note-new",
       source: expect.stringContaining("@ctn-block id="),
-      title: "未命名笔记",
     });
-    expect(stripTestCtnBlockMetadata(nextWorkspace.notes[0].source)).toBe(
-      "未命名笔记",
-    );
+    expect(readWorkspaceNoteHeader(nextWorkspace.notes[0])).toEqual({
+      createdAt: timestamp,
+      title: "未命名笔记",
+      updatedAt: timestamp,
+    });
     expect(findFolderIdContainingNote(nextWorkspace, "note-new")).toBe(
       "folder-target",
     );
   });
 
-  it("deletes notes without owning active note selection", () => {
+  it("deletes notes without owning active-note selection", () => {
     const workspace = createWorkspaceWithNotes();
     const nextWorkspace = deleteWorkspaceNote(
       indexWorkspace(workspace),
@@ -95,12 +118,12 @@ describe("workspace actions", () => {
     );
 
     expect(nextWorkspace.notes.map((note) => note.id)).toEqual(["note-first"]);
-    expect(
-      findFolderIdContainingNote(nextWorkspace, "note-second"),
-    ).toBeNull();
+    expect(nextWorkspace.tree).toEqual([
+      { kind: "note", noteId: "note-first" },
+    ]);
   });
 
-  it("creates, renames, deletes folders and removes nested notes", () => {
+  it("creates, renames and deletes folders with all nested notes", () => {
     const workspace = createWorkspaceWithNotes();
     const withFolder = createWorkspaceFolder(indexWorkspace(workspace), {
       folderId: "folder-target",
@@ -121,113 +144,176 @@ describe("workspace actions", () => {
       "folder-target",
     );
 
-    expect(JSON.stringify(renamed.tree)).toContain("资料");
+    expect(indexWorkspace(renamed).folderEntryById.get("folder-target")?.node.title)
+      .toBe("资料");
     expect(findFolderIdContainingNote(moved, "note-second")).toBe(
       "folder-target",
     );
     expect(deleted.notes.map((note) => note.id)).toEqual(["note-first"]);
-    expect(
-      findFolderIdContainingNote(deleted, "note-second"),
-    ).toBeNull();
+    expect(deleted.tree).toEqual([{ kind: "note", noteId: "note-first" }]);
   });
 
-  it("updates note source by explicit note id", () => {
-    const workspace = createWorkspaceWithNotes();
-    const updatedSourceWorkspace = updateWorkspaceNoteSource(
-      indexWorkspace(workspace),
-      "note-first",
-      "新标题\n\t: 定义",
-      "2026-06-08T01:00:00.000Z",
-      null,
-    );
-
-    expect(updatedSourceWorkspace.notes[0]).toMatchObject({
-      source: "新标题\n\t: 定义",
-      title: "新标题",
-      updatedAt: "2026-06-08T01:00:00.000Z",
+  it("reconciles explicit editable ranges and allocates only new block ids", () => {
+    const base = createCanonicalTestNote("note-first", "标题\n概念", {
+      timestamp,
     });
-  });
-
-  it("reconciles persistent block metadata while updating configured notes", () => {
-    const source = addTestCtnBlockMetadata("标题\n概念");
     const workspace = {
-      ...createWorkspaceWithNotes(),
-      notes: [createNoteRecord("note-first", source, timestamp)],
+      ...createInitialWorkspaceData(),
+      notes: [base],
+      tree: [{ kind: "note" as const, noteId: base.id }],
     };
+    const previousEditable = readEditableTestSource(base.source);
+    const insertedText = "\n\t: 新定义";
     const updated = updateWorkspaceNoteSource(
       indexWorkspace(workspace),
-      "note-first",
-      `${source}\n\t: 新定义`,
-      "2026-06-08T01:00:00.000Z",
+      base.id,
+      {
+        edits: [
+          {
+            from: previousEditable.length,
+            insertedText,
+            to: previousEditable.length,
+          },
+        ],
+        source: previousEditable + insertedText,
+      },
+      nextTimestamp,
       defaultCtnSyntaxProfile,
-      () => createTestBlockId(100),
+      () => createWorkspaceTestBlockId(500),
+      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
     );
-    const parsed = parseCtnDocument(
+    const parsed = parseCtnCanonicalDocument(
       updated.notes[0].source,
       defaultCtnSyntaxProfile,
     );
 
-    expect(stripTestCtnBlockMetadata(updated.notes[0].source)).toBe(
+    expect(readEditableTestSource(updated.notes[0].source)).toBe(
       "标题\n概念\n\t: 新定义",
     );
     expect(parsed.blocks.map((block) => block.id)).toEqual([
-      createTestBlockId(1),
-      createTestBlockId(2),
-      createTestBlockId(100),
+      createWorkspaceTestBlockId(1),
+      createWorkspaceTestBlockId(2),
+      createWorkspaceTestBlockId(500),
+    ]);
+    expect(readWorkspaceNoteHeader(updated.notes[0]).updatedAt).toBe(
+      nextTimestamp,
+    );
+  });
+
+  it("treats a whole-source replacement as delete plus new blocks", () => {
+    const workspace = createWorkspaceWithNotes();
+    const note = workspace.notes[0];
+    const updated = updateWorkspaceNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      sourceChange(note, "新标题\n\t: 定义"),
+      nextTimestamp,
+      defaultCtnSyntaxProfile,
+      (() => {
+        let id = 800;
+        return () => createWorkspaceTestBlockId(++id);
+      })(),
+      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
+    );
+
+    expect(readEditableTestSource(updated.notes[0].source)).toBe(
+      "新标题\n\t: 定义",
+    );
+    expect(readWorkspaceNoteHeader(updated.notes[0])).toMatchObject({
+      title: "新标题",
+      updatedAt: nextTimestamp,
+    });
+  });
+
+  it("updates syntax-free raw source while preserving the canonical title header", () => {
+    const workspace = createWorkspaceWithNotes();
+    const note = workspace.notes[0];
+    const insertedText = " raw";
+    const updated = updateWorkspaceRawNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      {
+        edits: [{
+          from: note.source.length,
+          insertedText,
+          to: note.source.length,
+        }],
+        source: note.source + insertedText,
+      },
+      nextTimestamp,
+    );
+
+    expect(updated.notes[0].source).toMatch(/^@ctn-block id=/);
+    expect(updated.notes[0].source).toContain("updated=2026-07-16T01:00:00.000Z");
+    expect(updated.notes[0].source).toBe(`${note.source}${insertedText}`.replace(
+      /updated=[^\s]+/,
+      `updated=${nextTimestamp}`,
+    ));
+    expect(readWorkspaceNoteHeader(updated.notes[0])).toMatchObject({
+      title: "第一篇 raw",
+      updatedAt: nextTimestamp,
+    });
+  });
+
+  it("renames the canonical title and permits an empty diagnostic title", () => {
+    const workspace = createWorkspaceWithNotes();
+    const renamed = renameWorkspaceNote(
+      indexWorkspace(workspace),
+      "note-first",
+      "新标题",
+      nextTimestamp,
+    );
+    const empty = renameWorkspaceNote(
+      indexWorkspace(renamed),
+      "note-first",
+      "",
+      "2026-07-16T02:00:00.000Z",
+    );
+
+    expect(readWorkspaceNoteHeader(renamed.notes[0])).toMatchObject({
+      title: "新标题",
+      updatedAt: nextTimestamp,
+    });
+    expect(readWorkspaceNoteHeader(empty.notes[0])).toMatchObject({
+      title: "",
+      updatedAt: "2026-07-16T02:00:00.000Z",
+    });
+    expect(
+      parseCtnCanonicalDocument(
+        empty.notes[0].source,
+        defaultCtnSyntaxProfile,
+      ).diagnostics,
+    ).toEqual([
+      expect.objectContaining({ code: "title-line-invalid", severity: "error" }),
     ]);
   });
 
-  it("renames notes by updating the fixed title line", () => {
-    const workspace = updateWorkspaceNoteSource(
-      indexWorkspace(createWorkspaceWithNotes()),
-      "note-first",
-      "旧标题\n\t: 定义",
-      "2026-06-08T01:00:00.000Z",
-      null,
-    );
-    const renamed = renameWorkspaceNote(
+  it("persists an indented title as a content diagnostic without indenting canonical metadata", () => {
+    const workspace = createWorkspaceWithNotes();
+    const note = workspace.notes[0];
+    const updated = updateWorkspaceNoteSource(
       indexWorkspace(workspace),
-      "note-first",
-      "  新标题  ",
-      "2026-06-08T02:00:00.000Z",
+      note.id,
+      sourceChange(note, "\tIndented title\n概念"),
+      nextTimestamp,
+      defaultCtnSyntaxProfile,
+      () => createWorkspaceTestBlockId(900),
+      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
+    );
+    const header = readWorkspaceNoteHeader(updated.notes[0]);
+    const parsed = parseCtnCanonicalDocument(
+      updated.notes[0].source,
+      defaultCtnSyntaxProfile,
     );
 
-    expect(renamed.notes[0]).toMatchObject({
-      source: "新标题\n\t: 定义",
-      title: "新标题",
-      updatedAt: "2026-06-08T02:00:00.000Z",
-    });
+    expect(updated.notes[0].source).toMatch(/^@ctn-block /);
+    expect(header.title).toBe("\tIndented title");
+    expect(parsed.diagnostics).toEqual([
+      expect.objectContaining({ code: "title-line-invalid" }),
+    ]);
   });
 
-  it("renames notes with blank source by writing the title line", () => {
-    const workspace = {
-      ...createInitialWorkspaceData(),
-      notes: [
-        {
-          createdAt: timestamp,
-          id: "note-new",
-          source: "",
-          title: "",
-          updatedAt: timestamp,
-        },
-      ],
-      tree: appendNoteToWorkspaceTree([], "note-new", null),
-    };
-    const renamed = renameWorkspaceNote(
-      indexWorkspace(workspace),
-      "note-new",
-      "新笔记",
-      "2026-06-08T02:00:00.000Z",
-    );
-
-    expect(renamed.notes[0]).toMatchObject({
-      source: "新笔记",
-      title: "新笔记",
-      updatedAt: "2026-06-08T02:00:00.000Z",
-    });
-  });
-
-  it("moves sidebar tree nodes within or across folders", () => {
+  it("moves sidebar tree nodes without a derived note-node id", () => {
     const workspace = createWorkspaceWithNotes();
     const movedBeforeNote = moveWorkspaceTreeNode(indexWorkspace(workspace), {
       destination: {
@@ -245,22 +331,25 @@ describe("workspace actions", () => {
       destination: { folderId: "folder-target", kind: "inside" },
       source: { kind: "note", noteId: "note-first" },
     });
-    expect(movedInsideFolder.tree.map((node) => node.id)).toEqual([
-      "tree-note-second",
+
+    expect(movedInsideFolder.tree.map(nodeIdentity)).toEqual([
+      "note-second",
       "folder-target",
     ]);
-    expect(
-      findFolderIdContainingNote(movedInsideFolder, "note-first"),
-    ).toBe("folder-target");
+    expect(findFolderIdContainingNote(movedInsideFolder, "note-first")).toBe(
+      "folder-target",
+    );
   });
 
-  it("rejects invalid workspace command input", () => {
+  it("rejects missing identities and invalid folder input", () => {
     const workspace = createWorkspaceWithNotes();
 
     expect(() =>
       createWorkspaceNote(indexWorkspace(workspace), {
+        createBlockId: () => createWorkspaceTestBlockId(900),
         noteId: "note-new",
         parentFolderId: "missing-folder",
+        reservedBlockIds: collectWorkspaceBlockIds(workspace, null),
         syntaxProfile: null,
         timestamp,
       }),
@@ -285,34 +374,16 @@ describe("workspace actions", () => {
     expect(() =>
       renameWorkspaceNote(
         indexWorkspace(workspace),
-        "note-first",
-        "   ",
-        timestamp,
-      ),
-    ).toThrow("Workspace note title is required");
-    expect(() =>
-      renameWorkspaceNote(
-        indexWorkspace(workspace),
         "missing-note",
         "新标题",
         timestamp,
       ),
     ).toThrow("Workspace note does not exist");
-    expect(() =>
-      deleteWorkspaceNote(indexWorkspace(workspace), "missing-note"),
-    ).toThrow("Workspace note does not exist");
+    expect(() => deleteWorkspaceNote(indexWorkspace(workspace), "missing-note"))
+      .toThrow("Workspace note does not exist");
     expect(() =>
       deleteWorkspaceFolder(indexWorkspace(workspace), "missing-folder"),
     ).toThrow("Workspace folder does not exist");
-    expect(() =>
-      updateWorkspaceNoteSource(
-        indexWorkspace(workspace),
-        "missing-note",
-        "内容",
-        timestamp,
-        null,
-      ),
-    ).toThrow("Workspace note does not exist");
     expect(() =>
       moveWorkspaceTreeNode(indexWorkspace(workspace), {
         destination: {

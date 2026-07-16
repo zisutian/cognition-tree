@@ -1,23 +1,20 @@
-import { createWorkspaceRepositorySyntaxSourceFile } from "../../../storage/repository/workspaceRepository";
 import { createWorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
-import {
-  createInitialWorkspaceData,
-} from "../../../workspace/model/workspaceData";
+import { createInitialWorkspaceData } from "../../../workspace/model/workspaceData";
 import { createWorkspaceNote } from "../../../workspace/commands/workspaceCommands";
 import { createDefaultWorkspaceSyntax } from "../../../workspace/context/workspaceSyntax";
 
 export function createInitialRepositoryContent({
   createBlockId,
-  createNoteId = () => `note-${globalThis.crypto.randomUUID()}`,
+  createNoteId,
   name,
   repositoryId,
-  timestamp = new Date().toISOString(),
+  timestamp,
 }: {
-  createBlockId?: () => string;
-  createNoteId?: () => string;
+  createBlockId: () => string;
+  createNoteId: () => string;
   name: string;
   repositoryId: string;
-  timestamp?: string;
+  timestamp: string;
 }) {
   const workspaceName = name.trim();
 
@@ -37,13 +34,15 @@ export function createInitialRepositoryContent({
       createBlockId,
       noteId: createNoteId(),
       parentFolderId: null,
+      reservedBlockIds: new Set(),
       syntaxProfile: syntax.profile,
       timestamp,
     },
   );
 
   return {
-    syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(syntax.source),
+    schemaVersion: 3 as const,
+    syntaxSource: syntax.source,
     workspace,
   };
 }

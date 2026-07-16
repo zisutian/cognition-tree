@@ -59,5 +59,18 @@ describe("WebDAV repository configuration", () => {
         ]),
       ),
     ).toThrow("Unsupported");
+    expect(() =>
+      parseWebDavRepositoryConfigs(
+        JSON.stringify([
+          {
+            id: "insecure",
+            label: "Insecure",
+            password: "secret",
+            url: "http://dav.test",
+            username: "alice",
+          },
+        ]),
+      ),
+    ).toThrow("requires HTTPS");
   });
 });

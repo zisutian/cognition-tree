@@ -4,6 +4,10 @@ import type {
   NoteTreeNodeLocation,
   NoteTreeNodeReference,
 } from "./types";
+import {
+  findNoteTreeNodePath,
+  readNoteTreeNodeAtPath,
+} from "./pathEditor";
 
 export function getNoteTreeNodeReferenceId(
   reference: NoteTreeNodeReference,
@@ -16,59 +20,45 @@ export function isMatchingNoteTreeNode(
   reference: NoteTreeNodeReference,
 ) {
   return reference.kind === "folder"
-    ? node.kind === "folder" && node.id === reference.folderId
+    ? node.kind === "folder" && node.folderId === reference.folderId
     : node.kind === "note" && node.noteId === reference.noteId;
 }
 
 export function findNoteTreeNodeLocation(
   tree: NoteTreeNode[],
   reference: NoteTreeNodeReference,
-  parentFolderId: FolderId | null = null,
 ): NoteTreeNodeLocation | null {
-  for (const [index, node] of tree.entries()) {
-    if (isMatchingNoteTreeNode(node, reference)) {
-      return {
-        index,
-        node,
-        parentFolderId,
-      };
-    }
+  const path = findNoteTreeNodePath(tree, (node) =>
+    isMatchingNoteTreeNode(node, reference),
+  );
 
-    if (node.kind === "folder") {
-      const childLocation = findNoteTreeNodeLocation(
-        node.children,
-        reference,
-        node.id,
-      );
-
-      if (childLocation) {
-        return childLocation;
-      }
-    }
+  if (!path) {
+    return null;
   }
 
-  return null;
+  const parentPath = path.slice(0, -1);
+  const parentNode =
+    parentPath.length > 0
+      ? readNoteTreeNodeAtPath(tree, parentPath)
+      : null;
+
+  return {
+    index: path[path.length - 1],
+    node: readNoteTreeNodeAtPath(tree, path),
+    parentFolderId:
+      parentNode?.kind === "folder" ? parentNode.folderId : null,
+  };
 }
 
 export function findFolderNode(
   tree: NoteTreeNode[],
   folderId: FolderId,
 ): NoteTreeFolderNode | null {
-  for (const node of tree) {
-    if (node.kind !== "folder") {
-      continue;
-    }
+  const path = findNoteTreeNodePath(
+    tree,
+    (node) => node.kind === "folder" && node.folderId === folderId,
+  );
+  const node = path ? readNoteTreeNodeAtPath(tree, path) : null;
 
-    if (node.id === folderId) {
-      return node;
-    }
-
-    const childFolder = findFolderNode(node.children, folderId);
-
-    if (childFolder) {
-      return childFolder;
-    }
-  }
-
-  return null;
+  return node?.kind === "folder" ? node : null;
 }

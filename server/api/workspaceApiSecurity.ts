@@ -116,12 +116,6 @@ function isLoopbackHost(host: string) {
   return false;
 }
 
-function isWildcardHost(host: string) {
-  const hostname = normalizeHostname(host);
-
-  return hostname === "0.0.0.0" || hostname === "::";
-}
-
 function normalizeAllowedOrigin(value: string) {
   const origin = new URL(value).origin;
 
@@ -176,64 +170,56 @@ function assertAllowedHost(
   }
 }
 
-export function parseWorkspaceApiAllowedHosts(value: string | undefined) {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const hosts = value.split(",").map((item) => item.trim()).filter(Boolean);
-
-  return [...new Set(hosts.map((host) => parseHostPattern(host).source))];
-}
-
-export function parseWorkspaceApiAllowedOrigins(value: string | undefined) {
-  const values = value === undefined
-    ? defaultWorkspaceApiAllowedOrigins
-    : value.split(",").map((item) => item.trim()).filter(Boolean);
-
-  return [...new Set(values.map(normalizeAllowedOrigin))];
-}
-
 export function createWorkspaceApiSecurityPolicy({
-  allowedHosts,
-  allowedOrigins = defaultWorkspaceApiAllowedOrigins,
   bearerToken,
   host,
+  publicUrl,
 }: {
-  allowedHosts?: readonly string[];
-  allowedOrigins?: readonly string[];
   bearerToken?: string;
   host: string;
+  publicUrl?: string;
 }): WorkspaceApiSecurityPolicy {
   const loopback = isLoopbackHost(host);
   const requiresBearerToken = !loopback || Boolean(bearerToken);
 
-  if (!loopback && !bearerToken) {
-    throw new Error("CTN_API_TOKEN is required for a non-loopback API host");
+  if (!loopback && (!bearerToken || !publicUrl)) {
+    throw new Error(
+      "CTN_API_TOKEN and CTN_PUBLIC_URL are required for a non-loopback API host",
+    );
   }
   if (bearerToken !== undefined && bearerToken.length < 32) {
     throw new Error("CTN_API_TOKEN must contain at least 32 characters");
   }
-  if (isWildcardHost(host) && (!allowedHosts || allowedHosts.length === 0)) {
-    throw new Error(
-      "CTN_API_ALLOWED_HOSTS is required for a wildcard API host",
-    );
+  let publicOrigin: string | null = null;
+  let publicHost: string | null = null;
+
+  if (publicUrl) {
+    const url = new URL(publicUrl);
+
+    if (url.protocol !== "https:" || url.username || url.password ||
+        url.pathname !== "/" || url.search || url.hash) {
+      throw new Error("CTN_PUBLIC_URL must be an HTTPS origin");
+    }
+    publicOrigin = url.origin;
+    publicHost = url.host;
+  }
+  if (!loopback && (!publicOrigin || !publicHost)) {
+    throw new Error("CTN_PUBLIC_URL must be configured for a non-loopback API host");
   }
 
-  const resolvedHosts = allowedHosts ?? (
-    loopback ? ["127.0.0.1", "localhost", "[::1]"] : [host]
-  );
-
-  if (resolvedHosts.length === 0) {
-    throw new Error("At least one API Host must be allowed");
-  }
+  const resolvedHosts = publicHost
+    ? [publicHost]
+    : ["127.0.0.1", "localhost", "[::1]"];
+  const resolvedOrigins = publicOrigin
+    ? [publicOrigin]
+    : [...defaultWorkspaceApiAllowedOrigins];
 
   return {
     allowedHosts: [
       ...new Set(resolvedHosts.map((value) => parseHostPattern(value).source)),
     ],
     allowedOrigins: [
-      ...new Set(allowedOrigins.map(normalizeAllowedOrigin)),
+      ...new Set(resolvedOrigins.map(normalizeAllowedOrigin)),
     ],
     bearerTokenDigest: bearerToken ? digestToken(bearerToken) : null,
     requiresBearerToken,

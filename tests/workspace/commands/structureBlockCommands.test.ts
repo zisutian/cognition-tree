@@ -8,7 +8,7 @@ import {
 } from "../../../src/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
-  createNoteRecord,
+  readWorkspaceNoteHeader,
   type WorkspaceData,
 } from "../../../src/workspace/model/workspaceData";
 import {
@@ -18,30 +18,24 @@ import {
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
-import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../src/ctn/parser/parseCtnDocument";
 import {
-  addTestCtnBlockMetadata,
-  stripTestCtnBlockMetadata,
-} from "../../ctn/metadata/sourceMetadataFixture";
+  createCanonicalTestNote,
+  readEditableTestSource,
+} from "../workspaceTestFixture";
 
 const timestamp = "2026-06-08T00:00:00.000Z";
 
 function createStructureOperationWorkspace(): WorkspaceData {
-  const sourceNote = createNoteRecord(
+  const sourceNote = createCanonicalTestNote(
     "note-source",
-    addTestCtnBlockMetadata(
-      "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
-    ),
-    timestamp,
+    "Source Title\nRoot\n\t: Definition\n\t\t- Component\nSibling",
+    { timestamp },
   );
-  const targetNote = createNoteRecord(
+  const targetNote = createCanonicalTestNote(
     "note-target",
-    addTestCtnBlockMetadata(
-      "Target Title\nTarget\n\t> Understanding",
-      defaultCtnSyntaxProfile,
-      100,
-    ),
-    timestamp,
+    "Target Title\nTarget\n\t> Understanding",
+    { idOffset: 100, timestamp },
   );
   const workspace = createInitialWorkspaceData();
   const treeWithFolder = appendFolderToWorkspaceTree(
@@ -92,7 +86,7 @@ function expectNoteSource(
   noteId: string,
   source: string,
 ) {
-  expect(stripTestCtnBlockMetadata(getNote(workspace, noteId).source)).toBe(
+  expect(readEditableTestSource(getNote(workspace, noteId).source)).toBe(
     source,
   );
 }
@@ -146,7 +140,7 @@ describe("workspace structure block moves", () => {
       "note-target",
       "Target",
     );
-    const sourceDocument = parseCtnDocument(
+    const sourceDocument = parseCtnCanonicalDocument(
       getNote(workspace, "note-source").source,
       defaultCtnSyntaxProfile,
     );
@@ -164,7 +158,7 @@ describe("workspace structure block moves", () => {
         .filter(
           (block) =>
             block.metadataLineNumber > movedRoot.metadataLineNumber &&
-            block.lineNumber <= movedRoot.endLineNumber,
+            block.lineNumber <= movedRoot.subtreeEndLineNumber,
         )
         .map((block) => block.id),
     ]);
@@ -194,15 +188,15 @@ describe("workspace structure block moves", () => {
       "note-target",
       "Target Title\nTarget\n\t> Understanding\n\t: Definition\n\t\t- Component",
     );
-    expect(getNote(result.workspaceData, "note-source")).toMatchObject({
+    expect(readWorkspaceNoteHeader(getNote(result.workspaceData, "note-source"))).toMatchObject({
       title: "Source Title",
       updatedAt: "2026-06-08T01:00:00.000Z",
     });
-    expect(getNote(result.workspaceData, "note-target")).toMatchObject({
+    expect(readWorkspaceNoteHeader(getNote(result.workspaceData, "note-target"))).toMatchObject({
       title: "Target Title",
       updatedAt: "2026-06-08T01:00:00.000Z",
     });
-    const movedBlocks = parseCtnDocument(
+    const movedBlocks = parseCtnCanonicalDocument(
       getNote(result.workspaceData, "note-target").source,
       defaultCtnSyntaxProfile,
     ).blocks.filter((block) => movedBlockIds.has(block.id));
@@ -215,9 +209,9 @@ describe("workspace structure block moves", () => {
       "2026-06-08T01:00:00.000Z",
     ]);
     expect(
-      createWorkspaceStructureIndex(result.workspaceData).noteFolderIdById.get(
+      createWorkspaceStructureIndex(result.workspaceData).noteEntryById.get(
         "note-target",
-      ),
+      )?.parentFolderId,
     ).toBe("folder-target");
   });
 
@@ -257,16 +251,17 @@ describe("workspace structure block moves", () => {
       ...baseWorkspace,
       notes: [
         ...baseWorkspace.notes,
-        createNoteRecord(
+        createCanonicalTestNote(
           "note-unrelated",
-          addTestCtnBlockMetadata(
-            "Unrelated",
-            defaultCtnSyntaxProfile,
-            200,
-          ),
-          timestamp,
+          "Unrelated",
+          { idOffset: 200, timestamp },
         ),
       ],
+      tree: appendNoteToWorkspaceTree(
+        baseWorkspace.tree,
+        "note-unrelated",
+        null,
+      ),
     };
     const workspaceIndex = createWorkspaceStructureIndex(workspace);
     const index = createWorkspaceParseIndex({
@@ -485,7 +480,7 @@ describe("workspace note block structure move", () => {
       "note-source",
       "Source Title\nSibling\nRoot\n\t: Definition\n\t\t- Component",
     );
-    expect(getNote(result.workspaceData, "note-source")).toMatchObject({
+    expect(readWorkspaceNoteHeader(getNote(result.workspaceData, "note-source"))).toMatchObject({
       title: "Source Title",
       updatedAt: "2026-06-08T01:00:00.000Z",
     });

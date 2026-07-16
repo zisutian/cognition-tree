@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
@@ -19,15 +19,6 @@ type UseSyntaxRuntimeOptions = {
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
   workspace: WorkspaceStructureIndex | null;
 };
-
-export type SyntaxPersistenceErrorEvent = {
-  id: number;
-  message: string;
-};
-
-function getErrorMessage(error: unknown, fallbackMessage: string) {
-  return error instanceof Error ? error.message : fallbackMessage;
-}
 
 export function resolveSyntaxDraftAfterPersistence({
   currentDraft,
@@ -54,6 +45,49 @@ export function resolveSyntaxDraftAfterPersistence({
     : currentDraft;
 }
 
+export function isCurrentSyntaxPersistenceCompletion({
+  active,
+  completedSource,
+  completedVersion,
+  currentSource,
+  currentVersion,
+}: {
+  active: boolean;
+  completedSource: string;
+  completedVersion: number;
+  currentSource: string | null;
+  currentVersion: number;
+}) {
+  return active &&
+    completedVersion === currentVersion &&
+    completedSource === currentSource;
+}
+
+export function startSyntaxDraftPersistence({
+  draft,
+  lastPersistedSource,
+  persist,
+}: {
+  draft: SyntaxProfileDraft;
+  lastPersistedSource: string;
+  persist: (source: string) => Promise<void>;
+}) {
+  const result = buildSyntaxProfileDraft(draft);
+  const source = result.profile
+    ? formatSyntaxProfileToml(result.profile)
+    : null;
+
+  if (!source || source === lastPersistedSource) {
+    return { completion: null, source };
+  }
+
+  try {
+    return { completion: Promise.resolve(persist(source)), source };
+  } catch (error) {
+    return { completion: Promise.reject(error), source };
+  }
+}
+
 export function useSyntaxRuntime({
   createDefaultSyntax,
   isConfigured,
@@ -65,12 +99,11 @@ export function useSyntaxRuntime({
   const [syntaxDraft, setSyntaxDraft] = useState(() =>
     createSyntaxProfileDraft(syntaxProfile),
   );
-  const [persistenceError, setPersistenceError] =
-    useState<SyntaxPersistenceErrorEvent | null>(null);
   const draftEditVersionRef = useRef(0);
   const lastPersistedSyntaxSourceRef = useRef("");
-  const nextPersistenceErrorIdRef = useRef(1);
+  const latestDraftSourceRef = useRef<string | null>(null);
   const updateWorkspaceSyntaxSourceRef = useRef(updateWorkspaceSyntaxSource);
+  const persistenceActiveRef = useRef(false);
   const syntaxDraftResult = useMemo(
     () => buildSyntaxProfileDraft(syntaxDraft),
     [syntaxDraft],
@@ -82,12 +115,17 @@ export function useSyntaxRuntime({
         : null,
     [syntaxDraftResult.profile],
   );
+  latestDraftSourceRef.current = syntaxDraftSource;
+  updateWorkspaceSyntaxSourceRef.current = updateWorkspaceSyntaxSource;
   const effectiveContext = useMemo(
     () =>
-      workspace && syntaxDraftResult.profile
-        ? attachWorkspaceSyntaxProfile(workspace, syntaxDraftResult.profile)
+      workspace
+        ? attachWorkspaceSyntaxProfile(
+            workspace,
+            syntaxDraftResult.profile ?? syntaxProfile,
+          )
         : null,
-    [syntaxDraftResult.profile, workspace],
+    [syntaxDraftResult.profile, syntaxProfile, workspace],
   );
 
   useEffect(() => {
@@ -105,53 +143,48 @@ export function useSyntaxRuntime({
   }, [syntaxProfile, syntaxSource]);
 
   useEffect(() => {
-    updateWorkspaceSyntaxSourceRef.current = updateWorkspaceSyntaxSource;
-  }, [updateWorkspaceSyntaxSource]);
-
-  useEffect(() => {
-    if (
-      draftEditVersionRef.current === 0 ||
-      !syntaxDraftSource ||
-      syntaxDraftSource === lastPersistedSyntaxSourceRef.current
-    ) {
-      return;
-    }
-
-    const source = syntaxDraftSource;
-    let isActive = true;
-
-    void updateWorkspaceSyntaxSourceRef.current(source)
-      .then(() => {
-        if (isActive) {
-          lastPersistedSyntaxSourceRef.current = source;
-          setPersistenceError(null);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isActive) {
-          setPersistenceError({
-            id: nextPersistenceErrorIdRef.current,
-            message: getErrorMessage(error, "仓库语法自动保存失败。"),
-          });
-          nextPersistenceErrorIdRef.current += 1;
-        }
-      });
+    persistenceActiveRef.current = true;
 
     return () => {
-      isActive = false;
+      persistenceActiveRef.current = false;
     };
-  }, [syntaxDraftSource]);
+  }, []);
 
-  const updateSyntaxDraft = (nextDraft: SyntaxProfileDraft) => {
+  const updateSyntaxDraft = useCallback((nextDraft: SyntaxProfileDraft) => {
     draftEditVersionRef.current += 1;
+    const version = draftEditVersionRef.current;
+    const persistence = startSyntaxDraftPersistence({
+      draft: nextDraft,
+      lastPersistedSource: lastPersistedSyntaxSourceRef.current,
+      persist: (source) => updateWorkspaceSyntaxSourceRef.current(source),
+    });
+
+    latestDraftSourceRef.current = persistence.source;
     setSyntaxDraft(nextDraft);
-  };
+
+    if (persistence.completion && persistence.source) {
+      const source = persistence.source;
+
+      void persistence.completion
+        .then(() => {
+          if (isCurrentSyntaxPersistenceCompletion({
+            active: persistenceActiveRef.current,
+            completedSource: source,
+            completedVersion: version,
+            currentSource: latestDraftSourceRef.current,
+            currentVersion: draftEditVersionRef.current,
+          })) {
+            lastPersistedSyntaxSourceRef.current = source;
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, []);
 
   return {
     createDefaultSyntax,
     effectiveContext,
     isConfigured,
-    persistenceError,
     syntaxDraft,
     syntaxDraftResult,
     updateSyntaxDraft,

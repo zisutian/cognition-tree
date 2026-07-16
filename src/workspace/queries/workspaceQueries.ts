@@ -1,6 +1,4 @@
 import {
-  createEmptyParsedWorkspaceNote,
-  type NoteReferenceGraph,
   type ParsedWorkspaceNote,
   type WorkspaceParseIndex,
 } from "../indexes/workspaceParseIndex";
@@ -8,14 +6,22 @@ import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex
 import {
   type FolderId,
   type NoteId,
-  type NoteRecord,
   type NoteTreeNode,
+  type WorkspaceNote,
 } from "../model/workspaceData";
 
 export function listWorkspaceNotes(
   workspace: WorkspaceStructureIndex,
-): NoteRecord[] {
-  return workspace.data.notes;
+): WorkspaceNote[] {
+  return workspace.data.notes.map((note) => {
+    const entry = workspace.noteEntryById.get(note.id);
+
+    if (!entry) {
+      throw new Error(`Workspace note is missing from tree: ${note.id}`);
+    }
+
+    return entry.projectedNote;
+  });
 }
 
 export function getWorkspaceTree(
@@ -28,7 +34,7 @@ export function findWorkspaceNote(
   workspace: WorkspaceStructureIndex,
   noteId: NoteId,
 ) {
-  return workspace.noteById.get(noteId) ?? null;
+  return workspace.noteEntryById.get(noteId)?.projectedNote ?? null;
 }
 
 export function hasWorkspaceNote(
@@ -42,32 +48,45 @@ export function findWorkspaceFolderIdContainingNote(
   workspace: WorkspaceStructureIndex,
   noteId: NoteId,
 ) {
-  return workspace.noteFolderIdById.get(noteId) ?? null;
+  return workspace.noteEntryById.get(noteId)?.parentFolderId ?? null;
 }
 
 export function collectWorkspaceNoteIdsInFolder(
   workspace: WorkspaceStructureIndex,
   folderId: FolderId,
 ) {
-  return workspace.noteIdsByFolderId.get(folderId) ?? [];
+  const folder = workspace.folderEntryById.get(folderId)?.node;
+
+  if (!folder) {
+    return [];
+  }
+
+  const noteIds: NoteId[] = [];
+  const pending = [...folder.children].reverse();
+
+  while (pending.length > 0) {
+    const node = pending.pop();
+
+    if (!node) {
+      continue;
+    }
+
+    if (node.kind === "note") {
+      noteIds.push(node.noteId);
+      continue;
+    }
+
+    for (let index = node.children.length - 1; index >= 0; index -= 1) {
+      pending.push(node.children[index]);
+    }
+  }
+
+  return noteIds;
 }
 
 export function getParsedWorkspaceNote(
   index: WorkspaceParseIndex,
   noteId: NoteId | null,
-): ParsedWorkspaceNote {
-  if (!noteId) {
-    return createEmptyParsedWorkspaceNote(index.syntaxProfile);
-  }
-
-  return (
-    index.getParsedNote(noteId) ??
-    createEmptyParsedWorkspaceNote(index.syntaxProfile)
-  );
-}
-
-export function getWorkspaceNoteReferenceGraph(
-  index: WorkspaceParseIndex,
-): NoteReferenceGraph {
-  return index.referenceGraph;
+): ParsedWorkspaceNote | null {
+  return noteId ? index.getParsedNote(noteId) : null;
 }

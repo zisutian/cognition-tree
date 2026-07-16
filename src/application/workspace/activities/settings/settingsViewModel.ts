@@ -1,24 +1,24 @@
-import type { WorkspaceSessionSaveStatus } from "../../session/workspaceSessionSaveQueue";
 import type { WorkspaceRepositoryDescriptor } from "../../../../storage/repository/workspaceRepositoryCatalog";
+import type { WorkspacePersistenceState } from "../../session/workspaceSessionSaveQueue";
 
-const saveStatusLabels: Record<WorkspaceSessionSaveStatus, string> = {
+const persistenceLabels: Record<WorkspacePersistenceState["status"], string> = {
+  conflict: "仓库内容已更改",
   error: "保存失败",
-  idle: "等待保存",
-  pending: "等待保存",
+  offline: "离线，等待同步",
+  "pending-sync": "等待远端同步",
   saved: "已保存",
-  saving: "保存中",
+  "saving-local": "正在保存本地副本",
+  syncing: "正在同步",
 };
 
 type SettingsActivitySource = {
   activeRepositoryId: string;
-  availability: "conflict" | "offline" | "online";
   createRepository: (input: { id: string; name: string }) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
+  locationLabel: string;
+  persistence: WorkspacePersistenceState;
   reload: () => Promise<void>;
   repositories: WorkspaceRepositoryDescriptor[];
-  repositoryPath: string;
-  saveStatus: WorkspaceSessionSaveStatus;
-  status: "conflict" | "ready";
   storageLabel: string;
   selectRepository: (repositoryId: string) => Promise<void>;
 };
@@ -28,10 +28,10 @@ export type SettingsViewModel = {
   createRepository: (input: { id: string; name: string }) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
+  locationLabel: string;
   reload: () => Promise<void>;
   repositories: WorkspaceRepositoryDescriptor[];
-  repositoryPath: string;
-  saveStatusLabel: string;
+  persistenceStatusLabel: string;
   storageLabel: string;
   selectRepository: (repositoryId: string) => Promise<void>;
 };
@@ -39,21 +39,15 @@ export type SettingsViewModel = {
 export function createSettingsViewModel(
   source: SettingsActivitySource,
 ): SettingsViewModel {
-  const hasSaveConflict = source.status === "conflict";
-
   return {
     activeRepositoryId: source.activeRepositoryId,
     createRepository: source.createRepository,
     discardPendingChangesAndReload: source.discardPendingChangesAndReload,
-    hasSaveConflict,
+    hasSaveConflict: source.persistence.status === "conflict",
+    locationLabel: source.locationLabel,
     reload: source.reload,
     repositories: source.repositories,
-    repositoryPath: source.repositoryPath,
-    saveStatusLabel: hasSaveConflict
-      ? "仓库内容已更改"
-      : source.availability === "offline"
-        ? "离线，等待同步"
-        : saveStatusLabels[source.saveStatus],
+    persistenceStatusLabel: persistenceLabels[source.persistence.status],
     storageLabel: source.storageLabel,
     selectRepository: source.selectRepository,
   };

@@ -5,12 +5,10 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import {
-  parseCtnSourceWithSyntheticMetadata,
-} from "../ctn/parser/parseCtnDocument";
+import { parseCtnEditableDocument } from "../ctn/parser/parseCtnDocument";
 import type {
-  CtnBlock,
-  CtnDocument,
+  CtnEditableBlock,
+  CtnEditableDocument,
   CtnInlineSpan,
 } from "../ctn/parser/types";
 import { createCtnSyntaxParseProfileKey } from "../ctn/syntax/profileKey";
@@ -22,11 +20,11 @@ import {
 } from "./ctnTonePresentation";
 import type { CtnSyntaxProfile } from "../ctn/syntax/types";
 
-function isRootConceptBlock(block: CtnBlock) {
+function isRootConceptBlock(block: CtnEditableBlock) {
   return block.level === 0 && block.marker === null;
 }
 
-function getBlockTextClass(block: CtnBlock) {
+function getBlockTextClass(block: CtnEditableBlock) {
   const textColorClass = getCtnEditorTextColorClassName(block.textColor);
 
   if (isRootConceptBlock(block)) {
@@ -36,41 +34,27 @@ function getBlockTextClass(block: CtnBlock) {
   return `ctn-block-text ${textColorClass}`;
 }
 
-function getBlockTextStart(lineText: string, block: CtnBlock) {
-  let textStart = block.indentText.length;
-
-  if (block.marker) {
-    const markerStart = lineText.indexOf(block.marker);
-
-    if (markerStart >= 0) {
-      textStart = markerStart + block.marker.length;
-    }
-  }
-
-  while (textStart < lineText.length && /\s/.test(lineText[textStart])) {
-    textStart += 1;
-  }
-
-  return textStart;
+function getBlockTextStart(block: CtnEditableBlock) {
+  return Math.max(0, block.textStartColumn - 1);
 }
 
 function getLineTextStart(lineText: string) {
   return lineText.match(/^\s*/)?.[0].length ?? 0;
 }
 
-export function shouldDecorateMarker(block: CtnBlock) {
+export function shouldDecorateMarker(block: CtnEditableBlock) {
   return (
     block.marker !== null &&
     !block.diagnostics.some((diagnostic) => diagnostic.code === "unknown-marker")
   );
 }
 
-export function getMarkerDecorationClass(block: CtnBlock) {
+export function getMarkerDecorationClass(block: CtnEditableBlock) {
   return `ctn-marker ${getCtnEditorTextColorClassName(block.textColor)}`;
 }
 
 export function getBlockLineDecorationClass(
-  block: CtnBlock,
+  block: CtnEditableBlock,
   lineNumber = block.lineNumber,
 ) {
   const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.tone)];
@@ -87,7 +71,7 @@ export function getBlockLineDecorationClass(
   return lineClasses.join(" ");
 }
 
-export function getBlockLineDecorationStyle(block: CtnBlock) {
+export function getBlockLineDecorationStyle(block: CtnEditableBlock) {
   return getCtnEditorToneStyle(block.tone);
 }
 
@@ -95,12 +79,12 @@ export function getInlineDecorationClass(span: CtnInlineSpan) {
   return `ctn-inline ${getCtnEditorToneClassName(span.tone)} ${getCtnEditorTextColorClassName(span.textColor)}`;
 }
 
-export function getMarkerDecorationStyle(block: CtnBlock) {
+export function getMarkerDecorationStyle(block: CtnEditableBlock) {
   return getCtnEditorTextColorStyle(block.textColor);
 }
 
 export function getMultilineMarkDecorationClass(
-  block: CtnBlock,
+  block: CtnEditableBlock,
   lineNumber: number,
 ) {
   const classes = [
@@ -112,14 +96,14 @@ export function getMultilineMarkDecorationClass(
     classes.push("ctn-multiline-block-start");
   }
 
-  if (lineNumber === block.endLineNumber) {
+  if (lineNumber === block.multilineRange?.closingFenceLineNumber) {
     classes.push("ctn-multiline-block-end");
   }
 
   return classes.join(" ");
 }
 
-export function getMultilineMarkDecorationStyle(block: CtnBlock) {
+export function getMultilineMarkDecorationStyle(block: CtnEditableBlock) {
   return getCtnEditorTextColorStyle(block.textColor);
 }
 
@@ -132,21 +116,24 @@ export function getInlineDecorationStyle(span: CtnInlineSpan) {
     .join(" ");
 }
 
-function getBlockTextDecorationStyle(block: CtnBlock) {
+function getBlockTextDecorationStyle(block: CtnEditableBlock) {
   return getCtnEditorTextColorStyle(block.textColor);
 }
 
 function buildCtnDecorations(
   view: EditorView,
-  parsedDocument: CtnDocument,
+  parsedDocument: CtnEditableDocument,
 ): DecorationSet {
   const decorations = [];
 
   for (const block of parsedDocument.blocks) {
-    if (block.role === "multiline" && block.endLineNumber > block.lineNumber) {
+    if (
+      block.role === "multiline" &&
+      block.lexicalEndLineNumber > block.lineNumber
+    ) {
       for (
         let lineNumber = block.lineNumber;
-        lineNumber <= block.endLineNumber;
+        lineNumber <= block.lexicalEndLineNumber;
         lineNumber += 1
       ) {
         const multilineLine = view.state.doc.line(lineNumber);
@@ -204,7 +191,7 @@ function buildCtnDecorations(
     const blockTextClass = getBlockTextClass(block);
 
     if (blockTextClass) {
-      const textStart = getBlockTextStart(line.text, block);
+      const textStart = getBlockTextStart(block);
       if (textStart < line.text.length) {
         const blockTextStyle = getBlockTextDecorationStyle(block);
 
@@ -267,7 +254,7 @@ function buildCtnDecorations(
 
 export type CtnEditorParsePluginValue = {
   decorations: DecorationSet;
-  document: CtnDocument;
+  document: CtnEditableDocument;
   profileKey: string;
 };
 
@@ -277,7 +264,7 @@ function parseEditorDocument(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
 ) {
-  return parseCtnSourceWithSyntheticMetadata(
+  return parseCtnEditableDocument(
     view.state.doc.toString(),
     syntaxProfile,
   );
@@ -289,7 +276,7 @@ export function createCtnParseDecorationPlugin(syntaxProfileRef: {
   return ViewPlugin.fromClass(
     class implements CtnEditorParsePluginValue {
       decorations: DecorationSet;
-      document: CtnDocument;
+      document: CtnEditableDocument;
       profileKey: string;
 
       constructor(view: EditorView) {

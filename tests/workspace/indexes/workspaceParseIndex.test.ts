@@ -1,31 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
-import {
-  createInitialWorkspaceData,
-  createNoteRecord,
-  type NoteRecord,
-} from "../../../src/workspace/model/workspaceData";
+import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
+import type { NoteRecord } from "../../../src/workspace/model/workspaceData";
 import {
   createWorkspaceParseIndex,
   createWorkspaceParseIndexCache,
 } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
-import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
-import { addTestCtnBlockMetadata } from "../../ctn/metadata/sourceMetadataFixture";
-
-const timestamp = "2026-07-04T00:00:00.000Z";
-
-function createParsedNoteRecord(
-  id: string,
-  source: string,
-  idOffset = 0,
-) {
-  return createNoteRecord(
-    id,
-    addTestCtnBlockMetadata(source, defaultCtnSyntaxProfile, idOffset),
-    timestamp,
-  );
-}
+import {
+  createCanonicalTestNote,
+  createCanonicalTestSource,
+  createWorkspaceDataWithNotes,
+} from "../workspaceTestFixture";
 
 function createParseIndexSource(
   notes: NoteRecord[],
@@ -33,185 +19,274 @@ function createParseIndexSource(
 ) {
   return {
     syntaxProfile,
-    workspace: createWorkspaceStructureIndex({
-      ...createInitialWorkspaceData(),
-      notes,
-    }),
+    workspace: createWorkspaceStructureIndex(createWorkspaceDataWithNotes(notes)),
   };
+}
+
+function scanReferenceGraph(index: ReturnType<typeof createWorkspaceParseIndex>) {
+  const scan = index.createScan();
+
+  scan.noteIds.forEach((noteId) => scan.scanNote(noteId));
+  return scan.complete();
 }
 
 describe("createWorkspaceParseIndex", () => {
   it("parses notes only when a parsed note is requested", () => {
-    const note = createParsedNoteRecord(
-      "note-source",
-      "Source [[Target]]",
-    );
-    const source = createParseIndexSource([note]);
-    const index = createWorkspaceParseIndex(source);
+    const note = createCanonicalTestNote("note-source", "Source [[Target]]");
+    const index = createWorkspaceParseIndex(createParseIndexSource([note]));
 
     expect(index.parseCache.entriesById.size).toBe(0);
-    expect(index.getParsedNote("note-source")?.document.blocks).toHaveLength(1);
+    expect(index.getParsedNote(note.id)?.document.blocks).toHaveLength(1);
     expect(index.parseCache.entriesById.size).toBe(1);
     expect(index.getParsedNote("missing-note")).toBeNull();
   });
 
-  it("builds reference graph data on demand", () => {
-    const source = createParsedNoteRecord(
+  it("builds the reference graph once on demand", () => {
+    const source = createCanonicalTestNote(
       "note-source",
       "Source [[Target]]",
     );
-    const target = createParsedNoteRecord("note-target", "Target", 100);
+    const target = createCanonicalTestNote("note-target", "Target", {
+      idOffset: 100,
+    });
     const index = createWorkspaceParseIndex(
       createParseIndexSource([source, target]),
     );
 
     expect(index.parseCache.entriesById.size).toBe(0);
-    expect(index.referenceGraph.edges).toEqual([
+    const graph = scanReferenceGraph(index);
+
+    expect(graph.edges).toEqual([
       expect.objectContaining({
-        sourceNoteId: "note-source",
-        targetNoteId: "note-target",
+        count: 1,
+        sourceNoteId: source.id,
+        targetNoteId: target.id,
       }),
     ]);
     expect(index.parseCache.entriesById.size).toBe(2);
   });
 
-  it("resolves a reference to every note with the same normalized title", () => {
-    const source = createParsedNoteRecord(
+  it("reports duplicate-title references as ambiguous without an arbitrary edge", () => {
+    const source = createCanonicalTestNote(
       "note-source",
-      "Source [[Target]]",
+      "Source [[Target]] and [[Target]]",
     );
-    const firstTarget = createParsedNoteRecord("note-target-a", "Target", 100);
-    const secondTarget = createParsedNoteRecord(
+    const firstTarget = createCanonicalTestNote("note-target-a", "Target", {
+      idOffset: 100,
+    });
+    const secondTarget = createCanonicalTestNote(
       "note-target-b",
-      "  Target  ",
-      200,
+      "Target  ",
+      { idOffset: 200 },
     );
-    const index = createWorkspaceParseIndex(
-      createParseIndexSource([source, firstTarget, secondTarget]),
+    const graph = scanReferenceGraph(
+      createWorkspaceParseIndex(
+        createParseIndexSource([source, firstTarget, secondTarget]),
+      ),
     );
 
-    expect(
-      index.referenceGraph.edges.map((edge) => edge.targetNoteId),
-    ).toEqual(["note-target-a", "note-target-b"]);
+    expect(graph.edges).toEqual([]);
+    expect(graph.ambiguousReferences).toEqual([
+      expect.objectContaining({
+        candidateNoteIds: [firstTarget.id, secondTarget.id],
+        count: 2,
+        sourceNoteId: source.id,
+        targetText: "Target",
+      }),
+    ]);
+    expect(graph.nodes.find((node) => node.id === source.id)).toMatchObject({
+      isolated: false,
+      referencesOut: 2,
+    });
   });
 
-  it("reuses parsed documents for unchanged note sources", () => {
-    const source = createParsedNoteRecord("note-source", "Source");
-    const target = createParsedNoteRecord("note-target", "Target", 100);
-    const firstParseSource = createParseIndexSource([source, target]);
-    const firstIndex = createWorkspaceParseIndex(firstParseSource);
-    const firstParsedSource = firstIndex.getParsedNote("note-source");
-    const firstTarget = firstIndex.getParsedNote("note-target");
+  it("keeps explicit self references as self-loop edges and statistics", () => {
+    const note = createCanonicalTestNote(
+      "note-self",
+      "Self\nConcept [[Self]]",
+    );
+    const graph = scanReferenceGraph(
+      createWorkspaceParseIndex(createParseIndexSource([note])),
+    );
+
+    expect(graph.edges).toEqual([
+      expect.objectContaining({
+        count: 1,
+        sourceNoteId: note.id,
+        targetNoteId: note.id,
+      }),
+    ]);
+    expect(graph.nodes).toEqual([
+      expect.objectContaining({
+        id: note.id,
+        isolated: false,
+        referencesIn: 1,
+        referencesOut: 1,
+      }),
+    ]);
+  });
+
+  it("keeps unresolved references visible but ignores multiline bodies", () => {
+    const source = createCanonicalTestNote(
+      "note-source",
+      "Source\nConcept [[Missing]] and [[Missing]]\n\t```txt\n\t[[Target]]\n\t```",
+    );
+    const target = createCanonicalTestNote("note-target", "Target", {
+      idOffset: 100,
+    });
+    const graph = scanReferenceGraph(
+      createWorkspaceParseIndex(createParseIndexSource([source, target])),
+    );
+
+    expect(graph.edges).toEqual([]);
+    expect(graph.unresolvedReferences).toEqual([
+      expect.objectContaining({
+        count: 2,
+        sourceNoteId: source.id,
+        targetText: "Missing",
+      }),
+    ]);
+    expect(graph.nodes.find((node) => node.id === target.id)).toMatchObject({
+      isolated: true,
+    });
+  });
+
+  it("reuses only current parsed documents whose source and profile match", () => {
+    const source = createCanonicalTestNote("note-source", "Source");
+    const target = createCanonicalTestNote("note-target", "Target", {
+      idOffset: 100,
+    });
+    const firstIndex = createWorkspaceParseIndex(
+      createParseIndexSource([source, target]),
+    );
+    const firstParsedSource = firstIndex.getParsedNote(source.id);
+    const firstParsedTarget = firstIndex.getParsedNote(target.id);
+    const changedTarget = {
+      ...target,
+      source: createCanonicalTestSource("Target\n\t: Changed", {
+        idOffset: 100,
+      }),
+    };
     const secondIndex = createWorkspaceParseIndex(
-      createParseIndexSource([
-        source,
-        {
-          ...target,
-          source: addTestCtnBlockMetadata(
-            "Target\n\t: Changed",
-            defaultCtnSyntaxProfile,
-            100,
-          ),
-        },
-      ]),
+      createParseIndexSource([source, changedTarget]),
       firstIndex,
     );
-    const secondSource = secondIndex.getParsedNote("note-source");
-    const secondTarget = secondIndex.getParsedNote("note-target");
 
-    expect(secondSource?.document).toBe(firstParsedSource?.document);
-    expect(secondTarget?.document).not.toBe(firstTarget?.document);
-  });
-
-  it("keeps parse reuse inside the workspace index cache", () => {
-    const note = createParsedNoteRecord("note-source", "Source");
-    const cache = createWorkspaceParseIndexCache();
-    const firstIndex = cache.resolve(createParseIndexSource([note]));
-    const firstParsedNote = firstIndex.getParsedNote("note-source");
-    const secondIndex = cache.resolve(
-      createParseIndexSource([
-        {
-          ...note,
-          title: "Renamed Source",
-        },
-      ]),
+    expect(secondIndex.getParsedNote(source.id)?.document).toBe(
+      firstParsedSource?.document,
     );
-    const secondParsedNote = secondIndex.getParsedNote("note-source");
-
-    expect(secondParsedNote?.document).toBe(firstParsedNote?.document);
+    expect(secondIndex.getParsedNote(target.id)?.document).not.toBe(
+      firstParsedTarget?.document,
+    );
   });
 
-  it("returns one index instance for the same workspace and syntax profile", () => {
+  it("keeps parse reuse inside the cache and returns one index for one source", () => {
+    const note = createCanonicalTestNote("note-source", "Source");
     const cache = createWorkspaceParseIndexCache();
-    const source = createParseIndexSource([
-      createParsedNoteRecord("note-source", "Source"),
-    ]);
+    const source = createParseIndexSource([note]);
+    const firstIndex = cache.resolve(source);
+    const firstParsedNote = firstIndex.getParsedNote(note.id);
 
-    expect(cache.resolve(source)).toBe(cache.resolve(source));
+    expect(cache.resolve(source)).toBe(firstIndex);
+
+    const copiedSource = createParseIndexSource([{ ...note }]);
+    const secondIndex = cache.resolve(copiedSource);
+
+    expect(secondIndex.getParsedNote(note.id)?.document).toBe(
+      firstParsedNote?.document,
+    );
   });
 
   it("supports incremental full-workspace scans", () => {
-    const source = createParsedNoteRecord(
+    const source = createCanonicalTestNote(
       "note-source",
       "Source\n\t: [[Missing]]",
     );
-    const target = createParsedNoteRecord("note-target", "Target", 100);
+    const target = createCanonicalTestNote("note-target", "Target", {
+      idOffset: 100,
+    });
     const index = createWorkspaceParseIndex(
       createParseIndexSource([source, target]),
     );
     const scan = index.createScan();
 
-    expect(scan.noteIds).toEqual(["note-source", "note-target"]);
-    expect(scan.scanNote("note-source")?.note?.id).toBe("note-source");
+    expect(scan.noteIds).toEqual([source.id, target.id]);
+    expect(scan.scanNote(source.id)?.note.id).toBe(source.id);
     expect(() => scan.complete()).toThrow("Workspace parse scan is incomplete");
-    scan.scanNote("note-target");
+    scan.scanNote(target.id);
     expect(scan.complete().unresolvedReferences).toEqual([
       expect.objectContaining({
         count: 1,
         lineNumber: 4,
-        sourceNoteId: "note-source",
+        sourceNoteId: source.id,
         targetText: "Missing",
       }),
     ]);
   });
 
-  it("reuses reference graph data for unchanged note graph inputs", () => {
-    const source = createParsedNoteRecord(
+  it("reuses reference graph data only when all graph inputs are unchanged", () => {
+    const source = createCanonicalTestNote(
       "note-source",
       "Source [[Target]]",
     );
-    const target = createParsedNoteRecord("note-target", "Target", 100);
+    const target = createCanonicalTestNote("note-target", "Target", {
+      idOffset: 100,
+    });
     const firstIndex = createWorkspaceParseIndex(
       createParseIndexSource([source, target]),
     );
-    const firstGraph = firstIndex.referenceGraph;
+    const firstGraph = scanReferenceGraph(firstIndex);
     const secondIndex = createWorkspaceParseIndex(
       createParseIndexSource([{ ...source }, { ...target }]),
       firstIndex,
     );
 
-    expect(secondIndex.referenceGraph).toBe(firstGraph);
+    expect(scanReferenceGraph(secondIndex)).toBe(firstGraph);
   });
 
-  it("reparses unchanged note sources when the parse profile changes", () => {
-    const note = createParsedNoteRecord("note-source", "Source");
+  it("reparses unchanged sources when the parse profile changes", () => {
+    const note = createCanonicalTestNote("note-source", "Source");
     const firstIndex = createWorkspaceParseIndex(createParseIndexSource([note]));
-    const firstParsedNote = firstIndex.getParsedNote("note-source");
+    const firstParsedNote = firstIndex.getParsedNote(note.id);
     const secondIndex = createWorkspaceParseIndex(
-      createParseIndexSource(
-        [note],
-        {
-          ...defaultCtnSyntaxProfile,
-          conceptRule: {
-            ...defaultCtnSyntaxProfile.conceptRule,
-            label: "概念",
-          },
+      createParseIndexSource([note], {
+        ...defaultCtnSyntaxProfile,
+        conceptRule: {
+          ...defaultCtnSyntaxProfile.conceptRule,
+          label: "概念",
         },
-      ),
+      }),
       firstIndex,
     );
-    const secondParsedNote = secondIndex.getParsedNote("note-source");
 
-    expect(secondParsedNote?.document).not.toBe(firstParsedNote?.document);
+    expect(secondIndex.getParsedNote(note.id)?.document).not.toBe(
+      firstParsedNote?.document,
+    );
+  });
+
+  it("does not retain removed cache entries across 1,000 generations", () => {
+    let previous = createWorkspaceParseIndex(
+      createParseIndexSource([
+        createCanonicalTestNote("note-0", "Generation 0"),
+      ]),
+    );
+    previous.getParsedNote("note-0");
+
+    for (let generation = 1; generation <= 1_000; generation += 1) {
+      const note = createCanonicalTestNote(
+        `note-${generation}`,
+        `Generation ${generation}`,
+        { idOffset: generation * 10 },
+      );
+      const current = createWorkspaceParseIndex(
+        createParseIndexSource([note]),
+        previous,
+      );
+      current.getParsedNote(note.id);
+      previous = current;
+    }
+
+    expect([...previous.parseCache.entriesById.keys()]).toEqual(["note-1000"]);
+    expect(Object.keys(previous)).not.toContain("previousIndex");
   });
 });

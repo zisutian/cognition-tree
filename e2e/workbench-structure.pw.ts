@@ -74,15 +74,29 @@ test.describe("directory and structure operation flows", () => {
 
     await noteContext.getByTitle("Gamma").click({ button: "right" });
     const directoryMenu = page.getByRole("menu", { name: "目录操作" });
+    const moveMenuItem = directoryMenu.getByRole("menuitem", {
+      name: "移动到…",
+    });
 
     await expect(directoryMenu.getByRole("menuitem")).toHaveCount(1);
     await expect(directoryMenu).not.toContainText("删除");
+    await expect(moveMenuItem).toBeFocused();
+    await moveMenuItem.press("Escape");
+    await expect(directoryMenu).toBeHidden();
+    await expect(noteContext.getByTitle("Gamma")).toBeFocused();
+
+    await noteContext.getByTitle("Gamma").click({ button: "right" });
     await directoryMenu.getByRole("menuitem", { name: "移动到…" }).click();
 
     const moveQuickPick = page.getByRole("dialog", { name: "移动到" });
+    const moveSearch = moveQuickPick.getByRole("combobox", { name: "移动到" });
 
-    await moveQuickPick.getByRole("textbox", { name: "移动到" }).fill("资料");
-    await moveQuickPick.getByRole("option", { name: /资料/ }).click();
+    await expect(moveSearch).toBeFocused();
+    await moveSearch.fill("资料");
+    await moveSearch.press("ArrowDown");
+    await expect(moveQuickPick.getByRole("option", { name: /资料/ }))
+      .toHaveAttribute("aria-selected", "true");
+    await moveSearch.press("Enter");
     await expect(
       folder.locator("xpath=ancestor::li[1]").getByTitle("Gamma"),
     ).toBeVisible();
@@ -103,16 +117,26 @@ test.describe("directory and structure operation flows", () => {
     await expect(rootUnnamedNote).toBeVisible();
     await expect(rootUnnamedNote.locator("xpath=../../.."))
       .toHaveClass(/ui-directory-tree-surface/);
-    await rootUnnamedNote.getByRole("button", { name: "删" }).click();
+    const deleteNoteButton = rootUnnamedNote.getByRole("button", { name: "删" });
+
+    await deleteNoteButton.click();
 
     const deleteDialog = page.getByRole("alertdialog", { name: "删除笔记" });
+    const cancelDeleteButton = deleteDialog.getByRole("button", { name: "取消" });
+    const confirmDeleteButton = deleteDialog.getByRole("button", { name: "删除" });
 
     await expect(deleteDialog).toBeVisible();
-    await deleteDialog.getByRole("button", { name: "取消" }).click();
+    await expect(cancelDeleteButton).toBeFocused();
+    await cancelDeleteButton.press("Shift+Tab");
+    await expect(confirmDeleteButton).toBeFocused();
+    await confirmDeleteButton.press("Tab");
+    await expect(cancelDeleteButton).toBeFocused();
+    await cancelDeleteButton.click();
     await expect(rootUnnamedNote).toBeVisible();
+    await expect(deleteNoteButton).toBeFocused();
 
-    await rootUnnamedNote.getByRole("button", { name: "删" }).click();
-    await deleteDialog.getByRole("button", { name: "删除" }).click();
+    await deleteNoteButton.click();
+    await confirmDeleteButton.click();
     await expect(rootUnnamedNote).toBeHidden();
 
     await contextResize.focus();
@@ -200,7 +224,7 @@ test.describe("directory and structure operation flows", () => {
         `/api/repositories/${interactionRepositoryId}/snapshot`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const targetSource = snapshot.workspace.notes.find(
+      const targetSource = snapshot.content.workspace.notes.find(
         ({ id }) => id === "interaction-target",
       )?.source ?? "";
       const editableLines = targetSource
@@ -237,7 +261,7 @@ test.describe("directory and structure operation flows", () => {
         `/api/repositories/${interactionRepositoryId}/snapshot`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const targetSource = snapshot.workspace.notes.find(
+      const targetSource = snapshot.content.workspace.notes.find(
         ({ id }) => id === "interaction-target",
       )?.source ?? "";
       const editableLines = targetSource

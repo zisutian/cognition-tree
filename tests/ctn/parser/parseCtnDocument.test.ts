@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import {
+  parseCtnCanonicalDocument,
+  parseCtnEditableDocument,
+} from "../../../src/ctn/parser/parseCtnDocument";
 import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
 import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
 import { addTestCtnBlockMetadata } from "../metadata/sourceMetadataFixture";
@@ -8,19 +11,19 @@ function parseTestCtnDocument(
   source: string,
   syntaxProfile: CtnSyntaxProfile = defaultCtnSyntaxProfile,
 ) {
-  return parseCtnDocument(
+  return parseCtnCanonicalDocument(
     addTestCtnBlockMetadata(source, syntaxProfile),
     syntaxProfile,
   );
 }
 
-describe("parseCtnDocument", () => {
+describe("parseCtnCanonicalDocument", () => {
   it("parses the fixed first line as the document title block", () => {
     const document = parseTestCtnDocument("Document Title\nRoot");
 
     expect(document.diagnostics).toHaveLength(0);
     expect(document.roots[0]).toMatchObject({
-      endLineNumber: 2,
+      subtreeEndLineNumber: 2,
       label: "标题",
       level: 0,
       lineNumber: 2,
@@ -62,14 +65,15 @@ Root
 	: Definition
 	> Understanding
 		- Component
-	\`\`\` ts`);
+	\`\`\` ts
+	\`\`\``);
     const root = document.roots[1];
 
     expect(document.roots).toHaveLength(2);
     expect(document.blocks).toHaveLength(6);
     expect(document.diagnostics).toHaveLength(0);
     expect(root).toMatchObject({
-      endLineNumber: 12,
+      subtreeEndLineNumber: 13,
       label: "顶格概念",
       level: 0,
       lineNumber: 4,
@@ -91,7 +95,8 @@ Root
       type: "component",
     });
     expect(root.children[2]).toMatchObject({
-      endLineNumber: 12,
+      lexicalEndLineNumber: 13,
+      subtreeEndLineNumber: 13,
       label: "多行块",
       lineNumber: 12,
       marker: "```",
@@ -112,17 +117,17 @@ Sibling
 
     expect(
       document.blocks.map((block) => ({
-        endLineNumber: block.endLineNumber,
+        subtreeEndLineNumber: block.subtreeEndLineNumber,
         lineNumber: block.lineNumber,
         text: block.text,
       })),
     ).toEqual([
-      { endLineNumber: 2, lineNumber: 2, text: "Document Title" },
-      { endLineNumber: 9, lineNumber: 4, text: "Root" },
-      { endLineNumber: 7, lineNumber: 6, text: "Definition" },
-      { endLineNumber: 9, lineNumber: 9, text: "Component" },
-      { endLineNumber: 13, lineNumber: 11, text: "Sibling" },
-      { endLineNumber: 13, lineNumber: 13, text: "Understanding" },
+      { subtreeEndLineNumber: 2, lineNumber: 2, text: "Document Title" },
+      { subtreeEndLineNumber: 9, lineNumber: 4, text: "Root" },
+      { subtreeEndLineNumber: 7, lineNumber: 6, text: "Definition" },
+      { subtreeEndLineNumber: 9, lineNumber: 9, text: "Component" },
+      { subtreeEndLineNumber: 13, lineNumber: 11, text: "Sibling" },
+      { subtreeEndLineNumber: 13, lineNumber: 13, text: "Understanding" },
     ]);
   });
 
@@ -187,21 +192,97 @@ Root
     ]);
     expect(root.children[0]).toMatchObject({
       children: [],
-      endLineNumber: 9,
+      lexicalEndLineNumber: 9,
       inlineSpans: [],
       lineNumber: 6,
       marker: "```",
       type: "multiline-block",
     });
     expect(root.children[1]).toMatchObject({
-      endLineNumber: 11,
+      subtreeEndLineNumber: 11,
       lineNumber: 11,
       text: "After",
       type: "definition",
     });
   });
 
-  it("reports invalid line-start symbols instead of parsing aliases", () => {
+  it("uses exact multiline fences and exposes lexical and content ranges", () => {
+    const document = parseTestCtnDocument([
+      "Document Title",
+      "Root",
+      "\t```ts",
+      "\tbody",
+      "\t\t```",
+      "\t``` extra",
+      "\t```  ",
+      "\t: After",
+    ].join("\n"));
+    const multiline = document.blocks[2];
+
+    expect(multiline).toMatchObject({
+      contentFingerprint: "\t```ts\n\tbody\n\t\t```\n\t``` extra\n\t```  ",
+      lexicalEndLineNumber: 10,
+      multilineRange: {
+        closingFenceLineNumber: 10,
+        contentEndLineNumber: 9,
+        contentStartLineNumber: 7,
+        status: "closed",
+      },
+      subtreeEndLineNumber: 10,
+    });
+    expect(document.blocks[3]).toMatchObject({
+      lineNumber: 12,
+      text: "After",
+    });
+  });
+
+  it("recovers an unterminated multiline block through EOF", () => {
+    const document = parseTestCtnDocument(`Document Title
+Root
+	\`\`\`ts
+	body`);
+    const multiline = document.blocks[2];
+
+    expect(document.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "unterminated-multiline-block",
+    ]);
+    expect(multiline).toMatchObject({
+      contentFingerprint: "\t```ts\n\tbody",
+      lexicalEndLineNumber: 7,
+      multilineRange: {
+        closingFenceLineNumber: null,
+        contentEndLineNumber: 7,
+        contentStartLineNumber: 7,
+        status: "unterminated",
+      },
+      subtreeEndLineNumber: 7,
+    });
+  });
+
+  it("keeps reserved directives visible in editable and canonical documents", () => {
+    const editableSource = "Title\n@ctn-block id=broken\nRoot";
+    const editable = parseCtnEditableDocument(
+      editableSource,
+      defaultCtnSyntaxProfile,
+    );
+    const canonical = parseTestCtnDocument(editableSource);
+
+    expect(editable.blocks.map((block) => block.rawText)).toEqual([
+      "Title",
+      "@ctn-block id=broken",
+      "Root",
+    ]);
+    expect(editable.diagnostics.map((diagnostic) => diagnostic.code)).toEqual([
+      "reserved-directive",
+    ]);
+    expect(canonical.blocks[1]).toMatchObject({
+      rawText: "@ctn-block id=broken",
+      text: "@ctn-block id=broken",
+      type: "text",
+    });
+  });
+
+  it("parses the default question rule and reports other invalid symbols", () => {
     const document = parseTestCtnDocument(`Document Title
 # Root
 	= Definition
@@ -213,7 +294,6 @@ Root
       "unknown-marker",
       "unknown-marker",
       "unknown-marker",
-      "unknown-marker",
     ]);
     expect(root).toMatchObject({
       label: "未知符号",
@@ -222,11 +302,14 @@ Root
       text: "Root",
       type: "text",
     });
-    expect(root.children.map((node) => node.marker)).toEqual([
-      "=",
-      "?",
-      "+",
-    ]);
+    expect(root.children.map((node) => node.marker)).toEqual(["=", "?", "+"]);
+    expect(root.children[1]).toMatchObject({
+      label: "疑问",
+      text: "Question",
+      textColor: "amber",
+      tone: "amber",
+      type: "question",
+    });
   });
 
   it("reports removed profile markers instead of treating them as concepts", () => {
@@ -332,7 +415,7 @@ plain text
 
   it("reports indented unmarked lines without concept or inline semantics", () => {
     const document = parseTestCtnDocument(
-      "Document Title\nRoot\n\t?内容 [[Target]]\n\tPlain child",
+      "Document Title\nRoot\n\tPlain [[Target]]\n\tAnother child",
     );
     const children = document.roots[1].children;
 
@@ -345,14 +428,14 @@ plain text
       inlineSpans: [],
       label: "未知语法",
       marker: null,
-      text: "?内容 [[Target]]",
+      text: "Plain [[Target]]",
       type: "text",
     });
     expect(children[1]).toMatchObject({
       inlineSpans: [],
       label: "未知语法",
       marker: null,
-      text: "Plain child",
+      text: "Another child",
       type: "text",
     });
   });
@@ -457,7 +540,7 @@ Root
       "risk",
     ]);
     expect(document.roots[1].children[0]).toMatchObject({
-      endLineNumber: 8,
+      lexicalEndLineNumber: 8,
       inlineSpans: [],
       role: "multiline",
       text: "js",

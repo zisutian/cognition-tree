@@ -1,69 +1,91 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSettingsViewModel } from "../../../../../src/application/workspace/activities/settings/settingsViewModel";
+import type { WorkspacePersistenceState } from "../../../../../src/application/workspace/session/workspaceSessionSaveQueue";
+import { remoteRevision } from "../../session/workspaceSessionTestFixture";
 
 function createSource(
-  overrides: Partial<Parameters<typeof createSettingsViewModel>[0]> = {},
+  persistence: WorkspacePersistenceState = { status: "saved" },
 ): Parameters<typeof createSettingsViewModel>[0] {
   return {
     activeRepositoryId: "primary",
-    availability: "online",
     createRepository: vi.fn(async () => undefined),
     discardPendingChangesAndReload: vi.fn(async () => undefined),
+    locationLabel: "本机仓库 / primary",
+    persistence,
     reload: vi.fn(async () => undefined),
     repositories: [
       {
         adapter: "local",
         id: "primary",
         label: "Primary",
-        repositoryPath: "/workspace",
+        locationLabel: "本机仓库 / primary",
       },
     ],
-    repositoryPath: "/workspace",
-    saveStatus: "saved",
-    status: "ready",
     storageLabel: "本地仓库",
     selectRepository: vi.fn(async () => undefined),
-    ...overrides,
   };
 }
 
 describe("settings view model", () => {
-  it("projects repository state into settings display values", () => {
-    const source = createSource({ saveStatus: "saving" });
+  it.each([
+    [{ status: "saved" }, "已保存"],
+    [{ status: "saving-local" }, "正在保存本地副本"],
+    [{ status: "pending-sync" }, "等待远端同步"],
+    [{ status: "syncing" }, "正在同步"],
+    [{ pendingChanges: true, status: "offline" }, "离线，等待同步"],
+    [
+      { remoteRevision: remoteRevision("b"), status: "conflict" },
+      "仓库内容已更改",
+    ],
+    [
+      {
+        localCopySafe: false,
+        message: "local failed",
+        phase: "local",
+        status: "error",
+      },
+      "保存失败",
+    ],
+  ] satisfies Array<[WorkspacePersistenceState, string]>) (
+    "maps $0 to its single persistence label",
+    (persistence, label) => {
+      expect(createSettingsViewModel(createSource(persistence))).toMatchObject({
+        persistenceStatusLabel: label,
+      });
+    },
+  );
+
+  it("projects a non-sensitive location label and conflict actions", () => {
+    const source = createSource({
+      remoteRevision: remoteRevision("c"),
+      status: "conflict",
+    });
 
     expect(createSettingsViewModel(source)).toEqual({
       activeRepositoryId: "primary",
       createRepository: source.createRepository,
       discardPendingChangesAndReload: source.discardPendingChangesAndReload,
-      hasSaveConflict: false,
+      hasSaveConflict: true,
+      locationLabel: "本机仓库 / primary",
       reload: source.reload,
       repositories: source.repositories,
-      repositoryPath: "/workspace",
-      saveStatusLabel: "保存中",
+      persistenceStatusLabel: "仓库内容已更改",
       storageLabel: "本地仓库",
       selectRepository: source.selectRepository,
     });
   });
 
-  it("gives repository conflicts precedence over queue status", () => {
-    expect(
-      createSettingsViewModel(
-        createSource({ saveStatus: "error", status: "conflict" }),
-      ),
-    ).toMatchObject({
-      hasSaveConflict: true,
-      saveStatusLabel: "仓库内容已更改",
-    });
-  });
+  it("cannot let offline state overwrite a local persistence error", () => {
+    const localError: WorkspacePersistenceState = {
+      localCopySafe: false,
+      message: "IndexedDB is full",
+      phase: "local",
+      status: "error",
+    };
 
-  it("reports offline commits as pending synchronization", () => {
-    expect(
-      createSettingsViewModel(
-        createSource({ availability: "offline", saveStatus: "saved" }),
-      ),
-    ).toMatchObject({
+    expect(createSettingsViewModel(createSource(localError))).toMatchObject({
       hasSaveConflict: false,
-      saveStatusLabel: "离线，等待同步",
+      persistenceStatusLabel: "保存失败",
     });
   });
 });

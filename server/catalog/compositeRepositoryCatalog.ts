@@ -25,7 +25,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
     registrations.forEach((registration) => {
       if (this.#registrations.has(registration.descriptor.id)) {
         throw new RepositoryCatalogError(
-          500,
+          "internal_error",
           `Duplicate configured repository id: ${registration.descriptor.id}`,
         );
       }
@@ -38,11 +38,11 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
     await this.#localCatalog.initialize();
     const localRepositories = await this.#localCatalog.listRepositories();
 
-    localRepositories.repositories.forEach((descriptor) => {
-      if (this.#registrations.has(descriptor.id)) {
+    [...localRepositories.repositories, ...localRepositories.issues].forEach((entry) => {
+      if (this.#registrations.has(entry.id)) {
         throw new RepositoryCatalogError(
-          500,
-          `Configured repository id collides with local repository: ${descriptor.id}`,
+          "internal_error",
+          `Configured repository id collides with local repository: ${entry.id}`,
         );
       }
     });
@@ -51,7 +51,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
   async createRepository(request: CreateRepositoryDto) {
     if (this.#registrations.has(request.id)) {
       throw new RepositoryCatalogError(
-        409,
+        "invalid_request",
         `Repository already exists: ${request.id}`,
       );
     }
@@ -69,6 +69,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
     const localCatalog = await this.#localCatalog.listRepositories();
 
     return {
+      issues: localCatalog.issues,
       repositories: [
         ...localCatalog.repositories,
         ...[...this.#registrations.values()].map(

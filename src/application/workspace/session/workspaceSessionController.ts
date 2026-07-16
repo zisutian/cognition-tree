@@ -1,8 +1,9 @@
-import {
-  createWorkspaceRepositorySyntaxSourceFile,
-  WorkspaceRepositoryConflictError,
-  type WorkspaceRepository,
-  type WorkspaceRepositoryContent,
+import type {
+  LocalDraftRevision,
+  RepositoryRevision,
+  WorkspaceRepository,
+  WorkspaceRepositoryContent,
+  WorkspaceRepositorySnapshot,
 } from "../../../storage/repository/workspaceRepository";
 import {
   attachWorkspaceSyntaxProfile,
@@ -18,9 +19,11 @@ import {
   type WorkspaceStructureIndex,
 } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceData } from "../../../workspace/model/workspaceData";
-import { initializeWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
+import { validateWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
+import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../workspace/context/workspaceSyntaxMetadata";
 import {
   createSessionCommands,
+  type SessionCommandDependencies,
   type SessionCommands,
 } from "./sessionCommands";
 import {
@@ -29,58 +32,38 @@ import {
 } from "./sessionRepositorySnapshot";
 import {
   createWorkspaceSessionSaveQueue,
+  type WorkspacePersistenceState,
   type WorkspaceSessionSaveQueue,
-  type WorkspaceSessionSaveStatus,
 } from "./workspaceSessionSaveQueue";
 
-type WorkspaceSessionAvailableStateBase = {
+export type WorkspaceSessionReadyState = {
   context: WorkspaceContext | null;
   defaultWorkspaceSyntax: WorkspaceSyntax;
-  errorMessage: string;
-  repositoryPath: string;
-  saveStatus: WorkspaceSessionSaveStatus;
+  locationLabel: string;
+  persistence: WorkspacePersistenceState;
+  status: "ready";
   storageLabel: string;
   workspace: WorkspaceStructureIndex;
   workspaceSyntax: WorkspaceSyntax | null;
 };
 
-export type WorkspaceSessionReadyState =
-  WorkspaceSessionAvailableStateBase & {
-    availability: "offline" | "online";
-    status: "ready";
-  };
-
-export type WorkspaceSessionConflictState =
-  WorkspaceSessionAvailableStateBase & {
-    availability: "conflict";
-    currentRevision: string;
-    status: "conflict";
-  };
-
 export type WorkspaceSessionControllerState =
-  | {
-      status: "loading";
-      storageLabel: string;
-    }
+  | { status: "loading"; storageLabel: string }
   | {
       errorMessage: string;
       status: "failed";
       storageLabel: string;
     }
-  | WorkspaceSessionConflictState
   | WorkspaceSessionReadyState;
 
 type LoadedWorkspaceSession = {
-  availability: "conflict" | "offline" | "online";
+  content: WorkspaceRepositoryContent;
   context: WorkspaceContext | null;
-  currentRevision: string | null;
   generation: number;
-  latestWorkspaceSyntax: WorkspaceSyntax | null;
-  repositoryPath: string;
-  revision: string;
-  syntaxSourceFile: WorkspaceRepositoryContent["syntaxSourceFile"];
+  localRevision: LocalDraftRevision;
+  pendingChanges: boolean;
+  remoteRevision: RepositoryRevision | null;
   workspace: WorkspaceStructureIndex;
-  workspaceData: WorkspaceData;
   workspaceSyntax: WorkspaceSyntax | null;
 };
 
@@ -115,331 +98,251 @@ function createLoadedWorkspaceSession({
   generation: number;
   snapshot: WorkspaceSessionSnapshot;
 }): LoadedWorkspaceSession {
-  const workspace = createWorkspaceStructureIndex(snapshot.workspaceData);
+  const workspace = createWorkspaceStructureIndex(snapshot.content.workspace);
 
   return {
-    availability: snapshot.availability,
+    content: snapshot.content,
     context: snapshot.workspaceSyntax
-      ? attachWorkspaceSyntaxProfile(
-          workspace,
-          snapshot.workspaceSyntax.profile,
-        )
+      ? attachWorkspaceSyntaxProfile(workspace, snapshot.workspaceSyntax.profile)
       : null,
     generation,
-    currentRevision: snapshot.currentRevision,
-    latestWorkspaceSyntax: snapshot.workspaceSyntax,
-    repositoryPath: snapshot.repositoryPath,
-    revision: snapshot.revision,
-    syntaxSourceFile: snapshot.syntaxSourceFile,
+    localRevision: snapshot.localRevision,
+    pendingChanges: snapshot.pendingChanges,
+    remoteRevision: snapshot.remoteRevision,
     workspace,
-    workspaceData: snapshot.workspaceData,
     workspaceSyntax: snapshot.workspaceSyntax,
   };
 }
 
+function toRepositorySnapshot(
+  session: LoadedWorkspaceSession,
+): WorkspaceRepositorySnapshot {
+  return {
+    content: session.content,
+    localRevision: session.localRevision,
+    pendingChanges: session.pendingChanges,
+    remoteRevision: session.remoteRevision,
+  };
+}
+
 export function createWorkspaceSessionController({
+  commandDependencies,
   repository,
 }: {
+  commandDependencies: SessionCommandDependencies;
   repository: WorkspaceRepository;
 }): WorkspaceSessionController {
   const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
   const listeners = new Set<() => void>();
+  let disposed = false;
   let generation = 0;
-  let transitionVersion = 0;
-  let isStarted = false;
   let loadedSession: LoadedWorkspaceSession | null = null;
   let saveQueue: WorkspaceSessionSaveQueue | null = null;
+  let transitionVersion = 0;
   let state: WorkspaceSessionControllerState = {
     status: "loading",
     storageLabel: repository.label,
   };
 
   const publish = (nextState: WorkspaceSessionControllerState) => {
+    if (disposed) {
+      return;
+    }
+
     state = nextState;
     listeners.forEach((listener) => listener());
   };
-  const requireAvailableSession = () => {
-    if (
-      !loadedSession ||
-      (state.status !== "ready" && state.status !== "conflict")
-    ) {
+  const requireReadySession = () => {
+    if (!loadedSession || state.status !== "ready") {
       throw new WorkspaceSessionUnavailableError();
     }
 
     return loadedSession;
   };
-  const createAvailableState = ({
-    currentRevision,
-    errorMessage,
-    saveStatus,
-    status,
-  }: {
-    currentRevision?: string;
-    errorMessage: string;
-    saveStatus: WorkspaceSessionSaveStatus;
-    status: "conflict" | "ready";
-  }): WorkspaceSessionConflictState | WorkspaceSessionReadyState => {
-    if (!loadedSession) {
+  const publishReady = (persistence: WorkspacePersistenceState) => {
+    const session = loadedSession;
+
+    if (!session) {
       throw new WorkspaceSessionUnavailableError();
     }
 
-    const availableState = {
-      context: loadedSession.context,
+    publish({
+      context: session.context,
       defaultWorkspaceSyntax,
-      errorMessage,
-      repositoryPath: loadedSession.repositoryPath,
-      saveStatus,
+      locationLabel: repository.locationLabel,
+      persistence,
+      status: "ready",
       storageLabel: repository.label,
-      workspace: loadedSession.workspace,
-      workspaceSyntax: loadedSession.workspaceSyntax,
-    };
-
-    return status === "conflict"
-      ? {
-          ...availableState,
-          availability: "conflict" as const,
-          currentRevision:
-            currentRevision ??
-            loadedSession.currentRevision ??
-            loadedSession.revision,
-          status,
-        }
-      : {
-          ...availableState,
-          availability:
-            loadedSession.availability === "offline" ? "offline" : "online",
-          status,
-        };
+      workspace: session.workspace,
+      workspaceSyntax: session.workspaceSyntax,
+    });
   };
-  const publishCurrentAvailableState = ({
-    currentRevision,
-    errorMessage = "",
-    saveStatus = "idle",
-    status = "ready",
-  }: {
-    currentRevision?: string;
-    errorMessage?: string;
-    saveStatus?: WorkspaceSessionSaveStatus;
-    status?: "conflict" | "ready";
-  } = {}) => {
-    publish(
-      createAvailableState({
-        currentRevision,
-        errorMessage,
-        saveStatus,
-        status,
-      }),
-    );
-  };
-  const updateLoadedWorkspace = (workspaceData: WorkspaceData) => {
-    const session = requireAvailableSession();
-    const availableState = state;
-
-    if (
-      availableState.status !== "ready" &&
-      availableState.status !== "conflict"
-    ) {
-      throw new WorkspaceSessionUnavailableError();
-    }
-
-    const workspace = createWorkspaceStructureIndex(workspaceData);
+  const getCurrentPersistence = (): WorkspacePersistenceState =>
+    state.status === "ready" ? state.persistence : { status: "saved" };
+  const updateLoadedContent = (
+    content: WorkspaceRepositoryContent,
+    workspaceSyntax: WorkspaceSyntax | null,
+  ) => {
+    const session = requireReadySession();
+    const workspace = createWorkspaceStructureIndex(content.workspace);
 
     loadedSession = {
       ...session,
-      context: session.workspaceSyntax
-        ? attachWorkspaceSyntaxProfile(
-            workspace,
-            session.workspaceSyntax.profile,
-          )
+      content,
+      context: workspaceSyntax
+        ? attachWorkspaceSyntaxProfile(workspace, workspaceSyntax.profile)
         : null,
+      pendingChanges: true,
       workspace,
-      workspaceData,
+      workspaceSyntax,
     };
-
-    publishCurrentAvailableState({
-      currentRevision:
-        availableState.status === "conflict"
-          ? availableState.currentRevision
-          : undefined,
-      errorMessage: availableState.errorMessage,
-      saveStatus: availableState.saveStatus,
-      status: availableState.status,
-    });
+    publishReady(getCurrentPersistence());
   };
-  const commitWorkspaceData = (workspaceData: WorkspaceData) => {
-    updateLoadedWorkspace(workspaceData);
-
-    if (!saveQueue || !loadedSession) {
+  const enqueueCurrentContent = () => {
+    if (!loadedSession || !saveQueue) {
       throw new WorkspaceSessionUnavailableError();
     }
 
-    saveQueue.enqueue({
-      syntaxSourceFile: loadedSession.syntaxSourceFile,
-      workspace: loadedSession.workspaceData,
-    });
+    saveQueue.enqueue(loadedSession.content);
+  };
+  const commitWorkspaceData = (workspaceData: WorkspaceData) => {
+    const session = requireReadySession();
+    const content = { ...session.content, workspace: workspaceData };
+
+    updateLoadedContent(content, session.workspaceSyntax);
+    enqueueCurrentContent();
   };
   const commands = createSessionCommands({
     commitDataSnapshot: commitWorkspaceData,
-    getSyntaxProfile: () =>
-      requireAvailableSession().workspaceSyntax?.profile ?? null,
-    getWorkspace: () => requireAvailableSession().workspace,
+    dependencies: commandDependencies,
+    getSyntaxProfile: () => requireReadySession().workspaceSyntax?.profile ?? null,
+    getWorkspace: () => requireReadySession().workspace,
   });
 
-  const handleSaveError = (
-    error: unknown,
+  const installSaveQueue = (
     expectedGeneration: number,
+    initialPersistenceState?: WorkspacePersistenceState,
   ) => {
-    if (
-      loadedSession?.generation !== expectedGeneration ||
-      (state.status !== "ready" && state.status !== "conflict")
-    ) {
-      return;
+    const session = loadedSession;
+
+    if (!session || session.generation !== expectedGeneration) {
+      throw new WorkspaceSessionUnavailableError();
     }
 
-    if (error instanceof WorkspaceRepositoryConflictError) {
-      loadedSession = {
-        ...loadedSession,
-        availability: "conflict",
-        currentRevision: error.currentRevision,
-      };
-      publishCurrentAvailableState({
-        currentRevision: error.currentRevision,
-        errorMessage: "仓库内容已在其它位置更改，本地修改尚未同步。",
-        saveStatus: "error",
-        status: "conflict",
-      });
-      return;
-    }
+    saveQueue?.dispose();
+    saveQueue = createWorkspaceSessionSaveQueue({
+      initialPersistenceState,
+      initialSnapshot: toRepositorySnapshot(session),
+      onLocalStaged(content, localRevision) {
+        if (loadedSession?.generation !== expectedGeneration) {
+          return;
+        }
 
-    publishCurrentAvailableState({
-      errorMessage: getErrorMessage(error, "工作区自动保存失败。"),
-      saveStatus: "error",
-      status: state.status,
+        loadedSession = {
+          ...loadedSession,
+          // A newer command can publish another in-memory snapshot while this
+          // local transaction is in flight. Its revision must advance the CAS
+          // base, but the older staged content must never replace that newer
+          // desired snapshot (notably a newer syntax profile).
+          content: loadedSession.content === content
+            ? content
+            : loadedSession.content,
+          localRevision,
+          pendingChanges: true,
+        };
+      },
+      onPersistenceChange(persistence) {
+        if (loadedSession?.generation !== expectedGeneration) {
+          return;
+        }
+
+        loadedSession = {
+          ...loadedSession,
+          pendingChanges:
+            persistence.status === "saved"
+              ? false
+              : persistence.status === "offline"
+                ? persistence.pendingChanges
+                : loadedSession.pendingChanges,
+        };
+        publishReady(persistence);
+      },
+      onRemoteRevision(remoteRevision) {
+        if (loadedSession?.generation === expectedGeneration) {
+          loadedSession = { ...loadedSession, remoteRevision };
+        }
+      },
+      repository,
     });
   };
-  const createSaveQueue = (expectedGeneration: number) =>
-    createWorkspaceSessionSaveQueue({
-      onContentSaved(content) {
-        if (
-          loadedSession?.generation !== expectedGeneration ||
-          (state.status !== "ready" && state.status !== "conflict")
-        ) {
-          return;
-        }
 
-        if (
-          loadedSession.latestWorkspaceSyntax?.source ===
-          content.syntaxSourceFile?.source
-        ) {
-          const workspaceSyntax = loadedSession.latestWorkspaceSyntax;
+  const installSnapshot = (
+    snapshot: WorkspaceSessionSnapshot,
+    initialPersistenceState?: WorkspacePersistenceState,
+  ) => {
+    generation += 1;
+    loadedSession = createLoadedWorkspaceSession({ generation, snapshot });
+    installSaveQueue(generation, initialPersistenceState);
+  };
 
-          loadedSession = {
-            ...loadedSession,
-            context: workspaceSyntax
-              ? attachWorkspaceSyntaxProfile(
-                  loadedSession.workspace,
-                  workspaceSyntax.profile,
-                )
-              : null,
-            workspaceSyntax,
-          };
-          publishCurrentAvailableState({
-            currentRevision:
-              state.status === "conflict" ? state.currentRevision : undefined,
-            errorMessage: state.errorMessage,
-            saveStatus: state.saveStatus,
-            status: state.status,
-          });
-        }
-      },
-      onError(error) {
-        handleSaveError(error, expectedGeneration);
-      },
-      onStatusChange(saveStatus) {
-        if (
-          loadedSession?.generation !== expectedGeneration ||
-          (state.status !== "ready" && state.status !== "conflict")
-        ) {
-          return;
-        }
+  const loadForTransition = async ({
+    preserveReadyState,
+  }: {
+    preserveReadyState: boolean;
+  }) => {
+    const expectedTransition = ++transitionVersion;
+    const previousState = state;
+    let localFlushFailed = false;
 
-        if (saveStatus === "saved") {
-          publishCurrentAvailableState({ saveStatus, status: "ready" });
-          return;
-        }
-
-        publishCurrentAvailableState({
-          currentRevision:
-            state.status === "conflict" ? state.currentRevision : undefined,
-          errorMessage: state.errorMessage,
-          saveStatus,
-          status: state.status,
-        });
-      },
-      async save(content) {
-        const session = loadedSession;
-
-        if (!session || session.generation !== expectedGeneration) {
-          throw new WorkspaceSessionUnavailableError();
-        }
-
-        const result = await repository.commitSnapshot({
-          ...content,
-          baseRevision: session.revision,
-        });
-
-        if (loadedSession?.generation === expectedGeneration) {
-          loadedSession.availability = result.availability;
-          loadedSession.currentRevision = null;
-          loadedSession.revision = result.revision;
-        }
-      },
-    });
-
-  const loadForTransition = async (expectedTransitionVersion: number) => {
-    const nextGeneration = generation + 1;
-
-    generation = nextGeneration;
-    saveQueue?.dispose();
-    saveQueue = null;
-    loadedSession = null;
-    publish({ status: "loading", storageLabel: repository.label });
+    if (!preserveReadyState) {
+      publish({ status: "loading", storageLabel: repository.label });
+    }
 
     try {
-      const snapshot = await loadWorkspaceSessionSnapshot(repository);
+      let snapshot = await loadWorkspaceSessionSnapshot(repository);
 
-      if (
-        !isStarted ||
-        transitionVersion !== expectedTransitionVersion ||
-        generation !== nextGeneration
-      ) {
+      if (preserveReadyState) {
+        // The ready session remains editable while reload is reading
+        // IndexedDB. Stabilize on a snapshot whose local CAS revision matches
+        // every edit staged during that read; otherwise installing the stale
+        // snapshot would detach the next command from the durable revision.
+        while (!disposed && expectedTransition === transitionVersion) {
+          try {
+            await saveQueue?.flushLocal();
+          } catch (error) {
+            localFlushFailed = true;
+            throw error;
+          }
+
+          if (!saveQueue || snapshot.localRevision === saveQueue.getLocalRevision()) {
+            break;
+          }
+          snapshot = await loadWorkspaceSessionSnapshot(repository);
+        }
+      }
+
+      if (disposed || expectedTransition !== transitionVersion) {
         return;
       }
 
-      loadedSession = createLoadedWorkspaceSession({
-        generation: nextGeneration,
-        snapshot,
-      });
-      saveQueue = createSaveQueue(nextGeneration);
-      publishCurrentAvailableState(
-        snapshot.availability === "conflict"
-          ? {
-              currentRevision: snapshot.currentRevision ?? undefined,
-              errorMessage: "仓库内容已在其它位置更改，本地修改尚未同步。",
-              saveStatus: "error",
-              status: "conflict",
-            }
-          : { status: "ready" },
-      );
+      installSnapshot(snapshot);
     } catch (error) {
-      if (
-        !isStarted ||
-        transitionVersion !== expectedTransitionVersion ||
-        generation !== nextGeneration
-      ) {
+      if (disposed || expectedTransition !== transitionVersion) {
         return;
       }
 
+      if (preserveReadyState && previousState.status === "ready") {
+        // Loading never hid the ready session. Keep its latest in-memory
+        // content and persistence state, including edits made during reload.
+        if (localFlushFailed) {
+          throw error;
+        }
+        return;
+      }
+
+      loadedSession = null;
+      saveQueue?.dispose();
+      saveQueue = null;
       publish({
         errorMessage: getErrorMessage(error, "工作区加载失败。"),
         status: "failed",
@@ -447,111 +350,106 @@ export function createWorkspaceSessionController({
       });
     }
   };
-  const reload = async () => {
-    const expectedTransitionVersion = transitionVersion + 1;
-    const previousSession = loadedSession;
-    const previousQueue = saveQueue;
 
-    transitionVersion = expectedTransitionVersion;
-    publish({ status: "loading", storageLabel: repository.label });
-
-    if (previousSession && previousQueue) {
-      try {
-        await previousQueue.flush();
-      } catch (error) {
-        if (
-          isStarted &&
-          transitionVersion === expectedTransitionVersion &&
-          loadedSession?.generation === previousSession.generation
-        ) {
-          publishCurrentAvailableState();
-          handleSaveError(error, previousSession.generation);
-        }
-        return;
-      }
-    }
-
-    if (isStarted && transitionVersion === expectedTransitionVersion) {
-      await loadForTransition(expectedTransitionVersion);
-    }
-  };
-  const discardPendingChangesAndReload = async () => {
-    const expectedTransitionVersion = transitionVersion + 1;
-    const previousQueue = saveQueue;
-
-    transitionVersion = expectedTransitionVersion;
-    publish({ status: "loading", storageLabel: repository.label });
-
-    if (previousQueue) {
-      await previousQueue.discardPendingChanges();
-    }
-    await repository.discardPendingCommit();
-
-    if (isStarted && transitionVersion === expectedTransitionVersion) {
-      await loadForTransition(expectedTransitionVersion);
-    }
-  };
-  const updateWorkspaceSyntaxSource = async (source: string) => {
-    const session = requireAvailableSession();
+  const updateWorkspaceSyntaxSource = (source: string) => {
     const workspaceSyntax = parseWorkspaceSyntax(source);
-    const syntaxSourceFile = createWorkspaceRepositorySyntaxSourceFile(
-      workspaceSyntax.source,
+    const session = requireReadySession();
+    const workspaceData = reconcileWorkspaceSyntaxBlockMetadata(
+      session.content.workspace,
+      session.workspaceSyntax?.profile ?? null,
+      workspaceSyntax.profile,
+      {
+        createBlockId: commandDependencies.createBlockId,
+        timestamp: commandDependencies.now(),
+      },
     );
-    const workspaceData = session.syntaxSourceFile
-      ? session.workspaceData
-      : initializeWorkspaceBlockMetadata(
-          session.workspaceData,
-          workspaceSyntax.profile,
-        );
 
-    if (workspaceData !== session.workspaceData) {
-      updateLoadedWorkspace(workspaceData);
-    }
-
-    const currentSession = requireAvailableSession();
-
-    loadedSession = {
-      ...currentSession,
-      latestWorkspaceSyntax: workspaceSyntax,
-      syntaxSourceFile,
-    };
-
-    if (!saveQueue) {
-      throw new WorkspaceSessionUnavailableError();
-    }
-
-    await saveQueue.enqueueAndWait({
-      syntaxSourceFile,
-      workspace: workspaceData,
-    });
+    updateLoadedContent(
+      {
+        ...session.content,
+        syntaxSource: source,
+        workspace: workspaceData,
+      },
+      workspaceSyntax,
+    );
+    enqueueCurrentContent();
+    return saveQueue!.flushLocal();
   };
 
   return {
     commands,
-    discardPendingChangesAndReload,
+    async discardPendingChangesAndReload() {
+      requireReadySession();
+      const previousState = state;
+      let discardPrepared = false;
+
+      try {
+        await saveQueue?.prepareForDiscard();
+        discardPrepared = true;
+        const snapshot = await repository.discardPendingSnapshotAndReload();
+        const workspaceSyntax = snapshot.content.syntaxSource === null
+          ? null
+          : parseWorkspaceSyntax(snapshot.content.syntaxSource);
+
+        validateWorkspaceBlockMetadata(
+          snapshot.content.workspace,
+          workspaceSyntax?.profile ?? null,
+        );
+
+        installSnapshot({ ...snapshot, workspaceSyntax });
+      } catch (error) {
+        const currentSession = loadedSession;
+
+        if (currentSession && previousState.status === "ready") {
+          const persistence = state.status === "ready"
+            ? state.persistence
+            : previousState.persistence;
+
+          // `prepareForDiscard` may have staged a newer desired snapshot before
+          // the remote read failed. Keep that latest local revision/content and
+          // only replace the disposed queue; rebuilding from the pre-flush
+          // snapshot would reintroduce a stale local CAS revision.
+          if (discardPrepared) {
+            installSaveQueue(currentSession.generation, persistence);
+          }
+          publishReady(persistence);
+        }
+
+        throw error;
+      }
+    },
     dispose() {
-      isStarted = false;
+      disposed = true;
       transitionVersion += 1;
-      generation += 1;
       saveQueue?.dispose();
-      saveQueue = null;
-      loadedSession = null;
+      listeners.clear();
     },
     async flushPendingChanges() {
-      await saveQueue?.flush();
+      requireReadySession();
+      await saveQueue?.flushLocal();
     },
     getState() {
       return state;
     },
-    reload,
-    start() {
-      if (isStarted) {
-        return;
+    async reload() {
+      const preserveReadyState = state.status === "ready";
+
+      // A command publishes its in-memory result before the asynchronous local
+      // stage completes. Loading a replacement snapshot during that window
+      // would install the older local revision, then ignore the old queue's
+      // eventual completion because its generation is stale. Flush first so
+      // reload observes both the latest content and its matching local CAS
+      // revision.
+      if (preserveReadyState) {
+        await saveQueue?.flushLocal();
       }
 
-      isStarted = true;
-      transitionVersion += 1;
-      void loadForTransition(transitionVersion);
+      await loadForTransition({ preserveReadyState });
+    },
+    start() {
+      if (!disposed && !loadedSession) {
+        void loadForTransition({ preserveReadyState: false });
+      }
     },
     subscribe(listener) {
       listeners.add(listener);

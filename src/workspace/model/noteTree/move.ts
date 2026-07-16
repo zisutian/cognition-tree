@@ -1,162 +1,27 @@
-import {
-  type FolderId,
-  type NoteTreeNode,
-} from "../workspaceData";
+import type { NoteTreeNode } from "../workspaceData";
 import type {
-  NoteTreeFolderNode,
   NoteTreeMoveDestination,
   NoteTreeMoveRequest,
   NoteTreeNodeReference,
 } from "./types";
 import {
-  findNoteTreeNodeLocation,
+  findNoteTreeNodePath,
+  insertNoteTreeNodeAtPath,
+  readNoteTreeNodeAtPath,
+  removeNoteTreeNodeAtPath,
+} from "./pathEditor";
+import {
   getNoteTreeNodeReferenceId,
   isMatchingNoteTreeNode,
 } from "./query";
 
-function isFolderNodeDescendantReference(
-  node: NoteTreeFolderNode,
+function findReferencePath(
+  tree: readonly NoteTreeNode[],
   reference: NoteTreeNodeReference,
-): boolean {
-  return node.children.some((child) => {
-    if (isMatchingNoteTreeNode(child, reference)) {
-      return true;
-    }
-
-    return child.kind === "folder"
-      ? isFolderNodeDescendantReference(child, reference)
-      : false;
-  });
-}
-
-function removeNoteTreeNode(
-  tree: NoteTreeNode[],
-  reference: NoteTreeNodeReference,
-): {
-  removedNode: NoteTreeNode | null;
-  tree: NoteTreeNode[];
-} {
-  let removedNode: NoteTreeNode | null = null;
-  const nextTree = tree.flatMap((node): NoteTreeNode[] => {
-    if (isMatchingNoteTreeNode(node, reference)) {
-      removedNode = node;
-      return [];
-    }
-
-    if (node.kind !== "folder") {
-      return [node];
-    }
-
-    const result = removeNoteTreeNode(node.children, reference);
-
-    if (result.removedNode) {
-      removedNode = result.removedNode;
-    }
-
-    return [
-      {
-        ...node,
-        children: result.tree,
-      },
-    ];
-  });
-
-  return {
-    removedNode,
-    tree: nextTree,
-  };
-}
-
-function insertNoteTreeNodeAtSiblingTarget({
-  placement,
-  sourceNode,
-  targetIndex,
-  tree,
-}: {
-  placement: "after" | "before";
-  sourceNode: NoteTreeNode;
-  targetIndex: number;
-  tree: NoteTreeNode[];
-}) {
-  const insertionIndex = placement === "before" ? targetIndex : targetIndex + 1;
-
-  return [
-    ...tree.slice(0, insertionIndex),
-    sourceNode,
-    ...tree.slice(insertionIndex),
-  ];
-}
-
-function insertNoteTreeNodeInFolder({
-  folderId,
-  sourceNode,
-  tree,
-}: {
-  folderId: FolderId;
-  sourceNode: NoteTreeNode;
-  tree: NoteTreeNode[];
-}): NoteTreeNode[] {
-  return tree.map((node) => {
-    if (node.kind !== "folder") {
-      return node;
-    }
-
-    if (node.id === folderId) {
-      return {
-        ...node,
-        children: [...node.children, sourceNode],
-      };
-    }
-
-    return {
-      ...node,
-      children: insertNoteTreeNodeInFolder({
-        folderId,
-        sourceNode,
-        tree: node.children,
-      }),
-    };
-  });
-}
-
-function insertNoteTreeNodeNearTarget({
-  placement,
-  sourceNode,
-  target,
-  targetIndex,
-  tree,
-}: {
-  placement: "after" | "before";
-  sourceNode: NoteTreeNode;
-  target: NoteTreeNodeReference;
-  targetIndex: number;
-  tree: NoteTreeNode[];
-}): NoteTreeNode[] {
-  if (tree.some((node) => isMatchingNoteTreeNode(node, target))) {
-    return insertNoteTreeNodeAtSiblingTarget({
-      placement,
-      sourceNode,
-      targetIndex,
-      tree,
-    });
-  }
-
-  return tree.map((node) => {
-    if (node.kind !== "folder") {
-      return node;
-    }
-
-    return {
-      ...node,
-      children: insertNoteTreeNodeNearTarget({
-        placement,
-        sourceNode,
-        target,
-        targetIndex,
-        tree: node.children,
-      }),
-    };
-  });
+) {
+  return findNoteTreeNodePath(tree, (node) =>
+    isMatchingNoteTreeNode(node, reference),
+  );
 }
 
 function getDestinationReference(
@@ -171,87 +36,95 @@ function getDestinationReference(
     : destination.target;
 }
 
-export function moveNoteTreeNode(
-  tree: NoteTreeNode[],
-  request: NoteTreeMoveRequest,
-): NoteTreeNode[] {
-  const sourceLocation = findNoteTreeNodeLocation(tree, request.source);
-  const destinationReference = getDestinationReference(request.destination);
+function isStrictDescendantPath(
+  ancestor: readonly number[],
+  candidate: readonly number[],
+) {
+  return (
+    candidate.length > ancestor.length &&
+    ancestor.every((segment, index) => candidate[index] === segment)
+  );
+}
 
-  if (!sourceLocation) {
+function requireReferencePath(
+  tree: readonly NoteTreeNode[],
+  reference: NoteTreeNodeReference,
+) {
+  const path = findReferencePath(tree, reference);
+
+  if (!path) {
     throw new Error(
       `Workspace tree node does not exist: ${getNoteTreeNodeReferenceId(
-        request.source,
+        reference,
       )}`,
     );
   }
 
+  return path;
+}
+
+export function moveNoteTreeNode(
+  tree: NoteTreeNode[],
+  request: NoteTreeMoveRequest,
+): NoteTreeNode[] {
+  const sourcePath = requireReferencePath(tree, request.source);
+  const sourceNode = readNoteTreeNodeAtPath(tree, sourcePath);
+  const destinationReference = getDestinationReference(request.destination);
+  const destinationPath = destinationReference
+    ? requireReferencePath(tree, destinationReference)
+    : null;
+
   if (
     destinationReference &&
-    isMatchingNoteTreeNode(sourceLocation.node, destinationReference)
+    isMatchingNoteTreeNode(sourceNode, destinationReference)
   ) {
     throw new Error("Workspace tree node cannot be moved onto itself.");
   }
 
   if (
-    destinationReference &&
-    sourceLocation.node.kind === "folder" &&
-    isFolderNodeDescendantReference(sourceLocation.node, destinationReference)
+    sourceNode.kind === "folder" &&
+    destinationPath &&
+    isStrictDescendantPath(sourcePath, destinationPath)
   ) {
     throw new Error("Workspace folder cannot be moved into itself.");
   }
 
-  if (
-    destinationReference &&
-    !findNoteTreeNodeLocation(tree, destinationReference)
-  ) {
-    throw new Error(
-      `Workspace tree node does not exist: ${getNoteTreeNodeReferenceId(
-        destinationReference,
-      )}`,
-    );
-  }
-
-  const removed = removeNoteTreeNode(tree, request.source);
-
-  if (!removed.removedNode) {
-    throw new Error(
-      `Workspace tree node does not exist: ${getNoteTreeNodeReferenceId(
-        request.source,
-      )}`,
-    );
-  }
+  const removed = removeNoteTreeNodeAtPath(tree, sourcePath);
 
   if (request.destination.kind === "root") {
-    return [...removed.tree, removed.removedNode];
+    return insertNoteTreeNodeAtPath(removed.tree, [], removed.node);
   }
 
   if (request.destination.kind === "inside") {
-    return insertNoteTreeNodeInFolder({
+    const folderReference = {
       folderId: request.destination.folderId,
-      sourceNode: removed.removedNode,
-      tree: removed.tree,
-    });
+      kind: "folder" as const,
+    };
+    const folderPath = requireReferencePath(removed.tree, folderReference);
+    const folder = readNoteTreeNodeAtPath(removed.tree, folderPath);
+
+    if (folder.kind !== "folder") {
+      throw new Error(
+        `Workspace tree node is not a folder: ${request.destination.folderId}`,
+      );
+    }
+
+    return insertNoteTreeNodeAtPath(removed.tree, folderPath, removed.node);
   }
 
-  const nextTargetLocation = findNoteTreeNodeLocation(
+  const targetPath = requireReferencePath(
     removed.tree,
     request.destination.target,
   );
+  const targetIndex = targetPath[targetPath.length - 1];
+  const parentPath = targetPath.slice(0, -1);
+  const insertionIndex =
+    request.destination.kind === "before" ? targetIndex : targetIndex + 1;
 
-  if (!nextTargetLocation) {
-    throw new Error(
-      `Workspace tree node does not exist: ${getNoteTreeNodeReferenceId(
-        request.destination.target,
-      )}`,
-    );
-  }
-
-  return insertNoteTreeNodeNearTarget({
-    placement: request.destination.kind,
-    sourceNode: removed.removedNode,
-    target: request.destination.target,
-    targetIndex: nextTargetLocation.index,
-    tree: removed.tree,
-  });
+  return insertNoteTreeNodeAtPath(
+    removed.tree,
+    parentPath,
+    removed.node,
+    insertionIndex,
+  );
 }

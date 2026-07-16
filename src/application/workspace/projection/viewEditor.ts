@@ -1,4 +1,4 @@
-import type { CtnDocument } from "../../../ctn/parser/types";
+import type { CtnCanonicalDocument } from "../../../ctn/parser/types";
 import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 
 export type UiEditorFocusTarget = {
@@ -26,7 +26,7 @@ export function createUiEditorView({
   syntaxProfile,
   errorMessage,
 }: {
-  document: CtnDocument | null;
+  document: CtnCanonicalDocument | null;
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
   syntaxProfile: CtnSyntaxProfile;

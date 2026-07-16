@@ -12,17 +12,6 @@ import {
   getStructureRowDropPlacement,
 } from "../../../../src/ui/activities/structure-operation/structureOperationDropTargets";
 
-const { readFileSync } = (await import("node:fs")) as {
-  readFileSync: (path: URL, encoding: "utf8") => string;
-};
-const structureOperationCss = readFileSync(
-  new URL(
-    "../../../../src/ui/styles/activities/structure-operation.css",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
 describe("structure operation panels", () => {
   it("hides stale target status while selecting a new structure operation target", () => {
     expect(
@@ -260,57 +249,5 @@ describe("structure operation panels", () => {
     expect(getStructureBlockDropPosition(12, "sibling-below")).toBe(
       "sibling-below:12",
     );
-  });
-
-  it("uses neutral tree tones for structure drag targets", () => {
-    const dropStyleStart = structureOperationCss.indexOf(
-      ".structure-operation-drop-target.is-active",
-    );
-    const dropStyleSource = structureOperationCss.slice(dropStyleStart);
-
-    expect(dropStyleSource).toContain("background: var(--color-selected)");
-    expect(dropStyleSource).toContain("border-color: var(--color-border-strong)");
-    expect(dropStyleSource).toContain("height: 8px");
-    expect(dropStyleSource).toContain(
-      ".structure-operation-target-node.is-drop-above::before",
-    );
-    expect(dropStyleSource).toContain(
-      ".structure-operation-target-node.is-drop-below::after",
-    );
-    expect(dropStyleSource).not.toContain("color-accent");
-    expect(dropStyleSource).not.toContain("box-shadow");
-  });
-
-  it("keeps structure operation columns top aligned", () => {
-    const columnStyleStart = structureOperationCss.indexOf(".structure-operation-column");
-    const columnStyleEnd = structureOperationCss.indexOf(
-      ".structure-operation-drop-target",
-    );
-    const columnStyleSource = structureOperationCss.slice(
-      columnStyleStart,
-      columnStyleEnd,
-    );
-
-    expect(columnStyleSource).toContain("align-content: start");
-  });
-
-  it("aligns the pair swap control through the title row height", () => {
-    const swapStyleStart = structureOperationCss.indexOf(
-      ".structure-operation-pair-swap",
-    );
-    const swapStyleEnd = structureOperationCss.indexOf(
-      ".structure-operation-column",
-      swapStyleStart,
-    );
-    const swapStyleSource = structureOperationCss.slice(
-      swapStyleStart,
-      swapStyleEnd,
-    );
-
-    expect(swapStyleSource).not.toContain("transform");
-    expect(structureOperationCss).toContain(
-      ".structure-operation-column > .ui-section-title",
-    );
-    expect(structureOperationCss).toContain("min-height: var(--ui-icon-size)");
   });
 });

@@ -3,89 +3,125 @@ import type {
   NoteId,
   NoteRecord,
   NoteTreeNode,
+  WorkspaceNote,
+  WorkspaceNoteHeader,
   WorkspaceData,
 } from "../model/workspaceData";
+import { readWorkspaceNoteHeader } from "../model/workspaceData";
 import type { NoteTreeFolderNode } from "../model/noteTree/types";
+
+export type WorkspaceTreePath = {
+  readonly index: number;
+  readonly parent: WorkspaceTreePath | null;
+};
+
+export type WorkspaceNoteEntry = {
+  header: WorkspaceNoteHeader;
+  note: NoteRecord;
+  noteIndex: number;
+  parentFolderId: FolderId | null;
+  path: WorkspaceTreePath;
+  projectedNote: WorkspaceNote;
+};
+
+export type WorkspaceFolderEntry = {
+  node: NoteTreeFolderNode;
+  parentFolderId: FolderId | null;
+  path: WorkspaceTreePath;
+};
 
 export type WorkspaceStructureIndex = {
   data: WorkspaceData;
-  folderById: Map<FolderId, NoteTreeFolderNode>;
-  folderCount: number;
-  noteById: Map<NoteId, NoteRecord>;
-  noteFolderIdById: Map<NoteId, FolderId>;
-  noteIdsByFolderId: Map<FolderId, NoteId[]>;
-  noteIndexById: Map<NoteId, number>;
+  folderEntryById: ReadonlyMap<FolderId, WorkspaceFolderEntry>;
+  noteEntryById: ReadonlyMap<NoteId, WorkspaceNoteEntry>;
 };
 
-function createNoteById(notes: NoteRecord[]) {
-  return new Map(notes.map((note) => [note.id, note]));
-}
-
-function createNoteIndexById(notes: NoteRecord[]) {
-  return new Map(notes.map((note, index) => [note.id, index]));
-}
-
-function indexNoteTreeNodes({
-  folderById,
-  node,
-  noteFolderIdById,
-  noteIdsByFolderId,
-  parentFolderId,
-}: {
-  folderById: Map<FolderId, NoteTreeFolderNode>;
+type PendingTreeNode = {
   node: NoteTreeNode;
-  noteFolderIdById: Map<NoteId, FolderId>;
-  noteIdsByFolderId: Map<FolderId, NoteId[]>;
   parentFolderId: FolderId | null;
-}): NoteId[] {
-  if (node.kind === "note") {
-    if (parentFolderId) {
-      noteFolderIdById.set(node.noteId, parentFolderId);
-    }
-
-    return [node.noteId];
-  }
-
-  folderById.set(node.id, node);
-
-  const noteIds = node.children.flatMap((child) =>
-    indexNoteTreeNodes({
-      folderById,
-      node: child,
-      noteFolderIdById,
-      noteIdsByFolderId,
-      parentFolderId: node.id,
-    }),
-  );
-
-  noteIdsByFolderId.set(node.id, noteIds);
-  return noteIds;
-}
+  path: WorkspaceTreePath;
+};
 
 export function createWorkspaceStructureIndex(
   data: WorkspaceData,
 ): WorkspaceStructureIndex {
-  const folderById = new Map<FolderId, NoteTreeFolderNode>();
-  const noteFolderIdById = new Map<NoteId, FolderId>();
-  const noteIdsByFolderId = new Map<FolderId, NoteId[]>();
+  const notesById = new Map<
+    NoteId,
+    { header: WorkspaceNoteHeader; note: NoteRecord; noteIndex: number }
+  >();
 
-  data.tree.forEach((node) =>
-    indexNoteTreeNodes({
-      folderById,
-      node,
-      noteFolderIdById,
-      noteIdsByFolderId,
+  data.notes.forEach((note, noteIndex) => {
+    if (notesById.has(note.id)) {
+      throw new Error(`Duplicate workspace note id: ${note.id}`);
+    }
+
+    notesById.set(note.id, {
+      header: readWorkspaceNoteHeader(note),
+      note,
+      noteIndex,
+    });
+  });
+
+  const folderEntryById = new Map<FolderId, WorkspaceFolderEntry>();
+  const noteEntryById = new Map<NoteId, WorkspaceNoteEntry>();
+  const pending: PendingTreeNode[] = [];
+
+  for (let index = data.tree.length - 1; index >= 0; index -= 1) {
+    pending.push({
+      node: data.tree[index],
       parentFolderId: null,
-    }),
-  );
+      path: { index, parent: null },
+    });
+  }
 
-  return {
-    data,
-    folderById,
-    folderCount: folderById.size,
-    noteById: createNoteById(data.notes),
-    noteFolderIdById,
-    noteIdsByFolderId,
-    noteIndexById: createNoteIndexById(data.notes),
-  };
+  while (pending.length > 0) {
+    const current = pending.pop();
+
+    if (!current) {
+      continue;
+    }
+
+    const { node, parentFolderId, path } = current;
+
+    if (node.kind === "note") {
+      const noteEntry = notesById.get(node.noteId);
+
+      if (!noteEntry) {
+        throw new Error(`Workspace tree references unknown note: ${node.noteId}`);
+      }
+      if (noteEntryById.has(node.noteId)) {
+        throw new Error(`Workspace tree places note more than once: ${node.noteId}`);
+      }
+
+      noteEntryById.set(node.noteId, {
+        ...noteEntry,
+        parentFolderId,
+        path,
+        projectedNote: { ...noteEntry.note, ...noteEntry.header },
+      });
+      continue;
+    }
+
+    if (folderEntryById.has(node.folderId)) {
+      throw new Error(`Duplicate workspace folder id: ${node.folderId}`);
+    }
+
+    folderEntryById.set(node.folderId, { node, parentFolderId, path });
+
+    for (let index = node.children.length - 1; index >= 0; index -= 1) {
+      pending.push({
+        node: node.children[index],
+        parentFolderId: node.folderId,
+        path: { index, parent: path },
+      });
+    }
+  }
+
+  for (const noteId of notesById.keys()) {
+    if (!noteEntryById.has(noteId)) {
+      throw new Error(`Workspace note is missing from tree: ${noteId}`);
+    }
+  }
+
+  return { data, folderEntryById, noteEntryById };
 }

@@ -12,7 +12,6 @@ import {
 import { createUiEditorView } from "../../projection/viewEditor";
 import { createUiNoteTree } from "../../projection/viewTree";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
-import { useWorkspaceParseIndex } from "../../runtime/useWorkspaceParseIndex";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
 import type { WorkspaceNavigation } from "../../navigation/useWorkspaceNavigation";
 import type { NotesViewModel } from "./notesViewModel";
@@ -20,7 +19,7 @@ import {
   resolveWorkspaceReferenceNavigation,
 } from "../../../../workspace/queries/workspaceReferenceNavigation";
 import {
-  createCtnEditableSource,
+  createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
   type CtnEditableSource,
 } from "../../../../ctn/metadata/editableSource";
@@ -41,14 +40,13 @@ export function useNotesActivity({
     noteId: string;
   } | null>(null);
   const {
+    analysis,
     commands,
     defaultSyntaxProfile,
-    effectiveContext,
     effectiveWorkspace,
-    parseIndexCache,
     workspace,
   } = runtime;
-  const index = useWorkspaceParseIndex(parseIndexCache, effectiveContext);
+  const index = analysis.index;
   const activeNote = selection.activeNoteId
     ? findWorkspaceNote(workspace, selection.activeNoteId)
     : null;
@@ -57,14 +55,24 @@ export function useNotesActivity({
     ? findWorkspaceNote(effectiveWorkspace, selection.activeNoteId)
     : null;
   const parsedNote = useMemo(
-    () => index
-      ? getParsedWorkspaceNote(index, effectiveActiveNote?.id ?? null)
-      : null,
-    [effectiveActiveNote, index],
+    () => {
+      const noteId = effectiveActiveNote?.id;
+
+      if (!index || !noteId) {
+        return null;
+      }
+
+      return analysis.parsedNotesById.get(noteId) ??
+        getParsedWorkspaceNote(index, noteId);
+    },
+    [analysis.parsedNotesById, effectiveActiveNote, index],
   );
   const editableSource = useMemo(
     () => parsedNote
-      ? createCtnEditableSource(parsedNote.source, parsedNote.profile)
+      ? createCtnEditableSourceFromDocument(
+          parsedNote.source,
+          parsedNote.document,
+        )
       : null,
     [parsedNote],
   );
@@ -84,15 +92,16 @@ export function useNotesActivity({
     let targetEditableSource = editableSourceByNoteId.get(noteId);
 
     if (!targetEditableSource) {
-      const targetNote = getParsedWorkspaceNote(index, noteId);
+      const targetNote = analysis.parsedNotesById.get(noteId) ??
+        getParsedWorkspaceNote(index, noteId);
 
       if (!targetNote) {
         return lineNumber;
       }
 
-      targetEditableSource = createCtnEditableSource(
+      targetEditableSource = createCtnEditableSourceFromDocument(
         targetNote.source,
-        targetNote.profile,
+        targetNote.document,
       );
       editableSourceByNoteId.set(noteId, targetEditableSource);
     }
@@ -193,6 +202,7 @@ export function useNotesActivity({
     editor: {
       ...editor,
       onActiveLineChange: updateActiveEditorLine,
+      onConsumeFocusTarget: navigation.consumeNoteFocusRequest,
     },
     outline: {
       activeBlock,
@@ -219,14 +229,13 @@ export function useNotesActivity({
               activeNoteId: selection.activeNoteId,
               index,
               target,
-              workspace,
             })
           : [];
       },
     },
-    updateSource(source) {
+    updateSource(change) {
       if (selection.activeNoteId) {
-        commands.updateNoteSource(selection.activeNoteId, source);
+        commands.updateNoteSource(selection.activeNoteId, change);
       }
     },
   };

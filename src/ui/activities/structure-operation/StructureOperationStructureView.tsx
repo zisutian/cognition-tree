@@ -9,6 +9,7 @@ import {
   type ContextMenuPosition,
 } from "../../shared/ContextMenu";
 import { Section } from "../../shared/primitives";
+import { useFeedback } from "../../shared/FeedbackProvider";
 import {
   findBlockByLineNumber,
   useSelectedBlockLines,
@@ -26,6 +27,7 @@ export function StructureOperationStructureView({
 }: {
   view: StructureOperationActivityViewModel;
 }) {
+  const { runAction } = useFeedback();
   const [selectedLineNumber, setSelectedLineNumber] = useState("");
   const [draggingLineNumber, setDraggingLineNumber] = useState<string | null>(
     null,
@@ -75,7 +77,7 @@ export function StructureOperationStructureView({
     setSelectedLineNumber(lineNumberValue);
   };
   const dropLine = (lineNumber: string, position: string) => {
-    view.onMoveStructureBlockWithinNote(lineNumber, position);
+    runAction(() => view.onMoveStructureBlockWithinNote(lineNumber, position));
     setSelectedLineNumber("");
     finishDrag();
   };

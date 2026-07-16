@@ -1,23 +1,17 @@
-import type {
-  WorkspaceRepositoryContent,
-  WorkspaceRepositorySnapshot,
-} from "./workspaceRepository";
 import { serializeWorkspaceRepositoryRevisionContent } from "../../../contracts/workspace-repository/revision";
-
-type RevisionContent = Pick<
-  WorkspaceRepositorySnapshot,
-  "syntaxSourceFile" | "workspace"
-> | WorkspaceRepositoryContent;
+import type { RepositoryRevisionDto } from "../../../contracts/workspace-repository/types";
+import type { WorkspaceRepositoryContent } from "./workspaceRepository";
 
 export async function createWorkspaceRepositoryRevision(
-  content: RevisionContent,
-) {
+  content: WorkspaceRepositoryContent,
+): Promise<RepositoryRevisionDto> {
   const bytes = new TextEncoder().encode(
     serializeWorkspaceRepositoryRevisionContent(content),
   );
   const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-
-  return Array.from(new Uint8Array(digest), (byte) =>
+  const hex = Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
+
+  return `sha256:${hex}`;
 }

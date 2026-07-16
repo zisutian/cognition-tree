@@ -1,10 +1,10 @@
+import type { CtnBlockMetadata } from "../metadata/blockMetadata";
 import type {
   CtnBlockType,
   CtnInlineSpanType,
   CtnRuleRole,
   CtnSyntaxTone,
 } from "../syntax/types";
-import type { CtnBlockMetadata } from "../metadata/blockMetadata";
 
 export type CtnInlineSpan = {
   id: string;
@@ -22,10 +22,12 @@ export type CtnDiagnosticSeverity = "warning" | "error";
 
 export type CtnDiagnosticCode =
   | "indent-level-jump"
+  | "reserved-directive"
   | "space-indent"
   | "title-line-invalid"
   | "unknown-marker"
-  | "unknown-syntax";
+  | "unknown-syntax"
+  | "unterminated-multiline-block";
 
 export type CtnDiagnostic = {
   id: string;
@@ -36,29 +38,67 @@ export type CtnDiagnostic = {
   message: string;
 };
 
-export type CtnBlock = {
+export type CtnClosedMultilineRange = {
+  closingFenceLineNumber: number;
+  contentEndLineNumber: number;
+  contentStartLineNumber: number;
+  status: "closed";
+};
+
+export type CtnUnterminatedMultilineRange = {
+  closingFenceLineNumber: null;
+  contentEndLineNumber: number;
+  contentStartLineNumber: number;
+  status: "unterminated";
+};
+
+export type CtnMultilineRange =
+  | CtnClosedMultilineRange
+  | CtnUnterminatedMultilineRange;
+
+type CtnBlockFields = {
+  /** Exact source owned by this block, excluding canonical metadata. */
+  contentFingerprint: string;
+  diagnostics: CtnDiagnostic[];
+  indentText: string;
+  inlineSpans: CtnInlineSpan[];
+  label: string;
+  level: number;
+  /** Last line lexically owned by this block (including a multiline body). */
+  lexicalEndLineNumber: number;
+  lineNumber: number;
+  marker: string | null;
+  multilineRange: CtnMultilineRange | null;
+  rawText: string;
+  role: CtnRuleRole;
+  /** Last line owned by the complete structural subtree. */
+  subtreeEndLineNumber: number;
+  text: string;
+  textColor: CtnSyntaxTone;
+  textStartColumn: number;
+  tone: CtnSyntaxTone;
+  type: CtnBlockType;
+};
+
+export type CtnEditableBlock = CtnBlockFields & {
+  children: CtnEditableBlock[];
+};
+
+export type CtnCanonicalBlock = CtnBlockFields & {
+  children: CtnCanonicalBlock[];
   id: string;
   metadata: CtnBlockMetadata;
   metadataLineNumber: number;
-  lineNumber: number;
-  endLineNumber: number;
-  level: number;
-  indentText: string;
-  marker: string | null;
-  type: CtnBlockType;
-  role: CtnRuleRole;
-  textColor: CtnSyntaxTone;
-  tone: CtnSyntaxTone;
-  label: string;
-  text: string;
-  rawText: string;
-  inlineSpans: CtnInlineSpan[];
-  diagnostics: CtnDiagnostic[];
-  children: CtnBlock[];
 };
 
-export type CtnDocument = {
-  roots: CtnBlock[];
-  blocks: CtnBlock[];
+export type CtnEditableDocument = {
+  blocks: CtnEditableBlock[];
   diagnostics: CtnDiagnostic[];
+  roots: CtnEditableBlock[];
+};
+
+export type CtnCanonicalDocument = {
+  blocks: CtnCanonicalBlock[];
+  diagnostics: CtnDiagnostic[];
+  roots: CtnCanonicalBlock[];
 };

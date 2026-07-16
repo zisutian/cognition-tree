@@ -59,8 +59,20 @@ export function useWorkspaceNavigation({
     },
     [nextRequestId],
   );
+  const consumeNoteFocusRequest = useCallback((requestId: number) => {
+    setNoteFocusRequest((current) =>
+      current?.requestId === requestId ? null : current,
+    );
+  }, []);
+  const consumeSyntaxFocusRequest = useCallback((requestId: number) => {
+    setSyntaxFocusRequest((current) =>
+      current?.requestId === requestId ? null : current,
+    );
+  }, []);
 
   return {
+    consumeNoteFocusRequest,
+    consumeSyntaxFocusRequest,
     focusActiveNoteLine,
     noteFocusRequest,
     openNoteLine,

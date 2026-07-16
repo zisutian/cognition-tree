@@ -1,17 +1,30 @@
-import { describe, expect, it } from "vitest";
-import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
-import { createHttpWorkspaceRepository } from "../../../../src/storage/adapters/http/httpWorkspaceRepository";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue";
+import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
+import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace-repository/parseRepository";
+import { createHttpWorkspaceRepositoryBackend } from "../../../../src/storage/adapters/http/httpWorkspaceRepository";
 import {
-  createWorkspaceRepositorySyntaxSourceFile,
-  WorkspaceRepositoryConflictError,
+  createHttpRepositoryCacheIdentity,
+  repositoryRequestTimeoutMs,
+} from "../../../../src/storage/adapters/http/httpRepositoryTransport";
+import {
+  WorkspaceRepositoryBackendConflictError,
+  WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-  type WorkspaceRepositoryCommit,
 } from "../../../../src/storage/repository/workspaceRepository";
+import {
+  createDeepRepositoryContent,
+  createRepositoryContent,
+  inspectDeepRepositoryContent,
+  revisionA,
+  revisionB,
+} from "../../repositoryV3Fixtures";
 
 type FetchCall = {
   body?: BodyInit | null;
-  headers?: HeadersInit;
+  headers: Headers;
   method: string;
+  signal?: AbortSignal | null;
   url: string;
 };
 
@@ -22,179 +35,321 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-describe("createHttpWorkspaceRepository", () => {
-  it("loads the aggregate repository snapshot", async () => {
-    const workspace = createInitialWorkspaceData();
+function apiError(
+  code: string,
+  message: string,
+  requestId = "request-1",
+  extra: Record<string, unknown> = {},
+) {
+  return { code, message, requestId, ...extra };
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("HTTP workspace repository backend", () => {
+  it("round-trips a 10,000-level tree through response and request wire encoding", async () => {
+    const content = createDeepRepositoryContent(10_000);
+    let receivedCommit: ReturnType<typeof parseWorkspaceRepositoryCommit> | null = null;
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: async (_input, init) => {
+        if ((init?.method ?? "GET") === "GET") {
+          return new Response(serializeJsonIteratively({
+            content,
+            revision: revisionA,
+          }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        if (typeof init?.body !== "string") {
+          throw new Error("Expected the deep commit to use a JSON string body.");
+        }
+        receivedCommit = parseWorkspaceRepositoryCommit(JSON.parse(init.body));
+        return jsonResponse({ revision: revisionB });
+      },
+      repositoryId: "deep",
+    });
+    const loaded = await backend.loadRemoteSnapshot();
+
+    expect(loaded.revision).toBe(revisionA);
+    expect(inspectDeepRepositoryContent(loaded.content)).toEqual({
+      deepestFolder: {
+        folderId: "folder-10000",
+        title: 'Level 10000 · "深层"',
+      },
+      depth: 10_000,
+      leaf: { kind: "note", noteId: "deep-note" },
+      rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
+    });
+    await expect(backend.commitRemoteSnapshot({
+      baseRevision: loaded.revision,
+      content: loaded.content,
+    })).resolves.toEqual({ revision: revisionB });
+    expect(receivedCommit).not.toBeNull();
+    expect(inspectDeepRepositoryContent(receivedCommit!.content)).toEqual({
+      deepestFolder: {
+        folderId: "folder-10000",
+        title: 'Level 10000 · "深层"',
+      },
+      depth: 10_000,
+      leaf: { kind: "note", noteId: "deep-note" },
+      rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
+    });
+    expect(receivedCommit!.content.workspace.notes).toEqual(content.workspace.notes);
+  });
+
+  it("loads an explicit v3 content snapshot", async () => {
     const snapshot = {
-      repositoryPath: "/data/repository",
-      revision: "revision-1",
-      syntaxSourceFile: null,
-      workspace,
+      content: createRepositoryContent("Remote"),
+      revision: revisionA,
     };
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
         body: init?.body,
-        headers: init?.headers,
+        headers: new Headers(init?.headers),
         method: init?.method ?? "GET",
+        signal: init?.signal,
         url: String(input),
       });
-
       return jsonResponse(snapshot);
     };
-    const repository = createHttpWorkspaceRepository({
+    const backend = createHttpWorkspaceRepositoryBackend({
       baseUrl: "http://api.test/base/",
       fetch: fetchMock,
       repositoryId: "primary",
     });
 
-    await expect(repository.loadSnapshot()).resolves.toEqual({
-      ...snapshot,
-      availability: "online",
+    await expect(backend.loadRemoteSnapshot()).resolves.toEqual(snapshot);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      method: "GET",
+      url: "http://api.test/base/api/repositories/primary/snapshot",
     });
-    expect(repository.label).toBe("primary");
-    expect(calls.map((call) => call.url)).toEqual([
-      "http://api.test/base/api/repositories/primary/snapshot",
-    ]);
   });
 
-  it("commits workspace and syntax as one request", async () => {
-    const workspace = createInitialWorkspaceData();
-    const commit: WorkspaceRepositoryCommit = {
-      baseRevision: "revision-1",
-      syntaxSourceFile: createWorkspaceRepositorySyntaxSourceFile(
-        'name = "custom"\n',
-      ),
-      workspace,
+  it("commits baseRevision and content as one request", async () => {
+    const commit = {
+      baseRevision: revisionA,
+      content: createRepositoryContent("Committed"),
     };
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
         body: init?.body,
-        headers: init?.headers,
+        headers: new Headers(init?.headers),
         method: init?.method ?? "GET",
+        signal: init?.signal,
         url: String(input),
       });
-
-      return jsonResponse({ revision: "revision-2" });
+      return jsonResponse({ revision: revisionB });
     };
-    const repository = createHttpWorkspaceRepository({
+    const backend = createHttpWorkspaceRepositoryBackend({
       baseUrl: "http://api.test",
       fetch: fetchMock,
-      repositoryId: "primary",
-    });
-
-    await expect(repository.commitSnapshot(commit)).resolves.toEqual({
-      availability: "online",
-      revision: "revision-2",
-    });
-    expect(calls).toEqual([
-      {
-        body: JSON.stringify(commit),
-        headers: { "Content-Type": "application/json" },
-        method: "PUT",
-        url: "http://api.test/api/repositories/primary/snapshot",
-      },
-    ]);
-  });
-
-  it("maps stale revisions to the repository conflict error", async () => {
-    const fetchMock: typeof fetch = async () =>
-      jsonResponse(
-        {
-          currentRevision: "revision-current",
-          error: "content changed",
-        },
-        409,
-      );
-    const repository = createHttpWorkspaceRepository({
-      fetch: fetchMock,
-      repositoryId: "primary",
-    });
-    const commit = {
-      baseRevision: "revision-stale",
-      syntaxSourceFile: null,
-      workspace: createInitialWorkspaceData(),
-    };
-
-    try {
-      await repository.commitSnapshot(commit);
-      throw new Error("commit should fail");
-    } catch (error) {
-      expect(error).toBeInstanceOf(WorkspaceRepositoryConflictError);
-      expect((error as WorkspaceRepositoryConflictError).currentRevision).toBe(
-        "revision-current",
-      );
-    }
-  });
-
-  it("reports server errors", async () => {
-    const fetchMock: typeof fetch = async () =>
-      jsonResponse({ error: "backend failed" }, 500);
-    const repository = createHttpWorkspaceRepository({
-      fetch: fetchMock,
-      repositoryId: "primary",
-    });
-
-    await expect(repository.loadSnapshot()).rejects.toThrow("backend failed");
-  });
-
-  it("rejects unsupported snapshot fields", async () => {
-    const fetchMock: typeof fetch = async () =>
-      jsonResponse({
-        repositoryPath: "/data/repository",
-        revision: "revision-1",
-        syntaxSourceFile: null,
-        unexpected: true,
-        workspace: createInitialWorkspaceData(),
-      });
-    const repository = createHttpWorkspaceRepository({
-      fetch: fetchMock,
-      repositoryId: "primary",
-    });
-
-    await expect(repository.loadSnapshot()).rejects.toThrow(
-      "unsupported field",
-    );
-  });
-
-  it("adds the configured bearer token to repository requests", async () => {
-    let authorization: string | null = null;
-    const repository = createHttpWorkspaceRepository({
-      fetch: async (_input, init) => {
-        authorization = new Headers(init?.headers).get("Authorization");
-        return jsonResponse({
-          repositoryPath: "/repository",
-          revision: "revision-1",
-          syntaxSourceFile: null,
-          workspace: createInitialWorkspaceData(),
-        });
-      },
       repositoryId: "primary",
       token: "client-token",
     });
 
-    await repository.loadSnapshot();
-    expect(authorization).toBe("Bearer client-token");
+    await expect(backend.commitRemoteSnapshot(commit)).resolves.toEqual({
+      revision: revisionB,
+    });
+    expect(calls[0]?.body).toBe(JSON.stringify(commit));
+    expect(calls[0]?.method).toBe("PUT");
+    expect(calls[0]?.headers.get("Content-Type")).toBe("application/json");
+    expect(calls[0]?.headers.get("Authorization")).toBe(
+      "Bearer client-token",
+    );
   });
 
-  it("classifies network and transient server failures as unavailable", async () => {
-    const networkRepository = createHttpWorkspaceRepository({
-      fetch: async () => {
-        throw new TypeError("network failed");
+  it("rejects invalid outbound exact content and unsafe note paths before fetch", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: fetchMock,
+      repositoryId: "primary",
+    });
+    const exactContent = createRepositoryContent();
+
+    Object.assign(exactContent.workspace.notes[0]!, {
+      title: "derived field must not cross the wire",
+    });
+    await expect(backend.commitRemoteSnapshot({
+      baseRevision: revisionA,
+      content: exactContent,
+    })).rejects.toThrow("unsupported field");
+
+    const unsafeContent = createRepositoryContent();
+
+    unsafeContent.workspace.notes = [{ id: "../escape", source: "unsafe" }];
+    unsafeContent.workspace.tree = [{ kind: "note", noteId: "../escape" }];
+    await expect(backend.commitRemoteSnapshot({
+      baseRevision: revisionA,
+      content: unsafeContent,
+    })).rejects.toThrow("invalid repository note id");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("maps only structured revision conflicts to the backend conflict type", async () => {
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: async () =>
+        jsonResponse(
+          apiError("revision_conflict", "content changed", "request-2", {
+            currentRevision: revisionB,
+          }),
+          409,
+        ),
+      repositoryId: "primary",
+    });
+
+    await expect(
+      backend.commitRemoteSnapshot({
+        baseRevision: revisionA,
+        content: createRepositoryContent(),
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<WorkspaceRepositoryBackendConflictError>>({
+        currentRevision: revisionB,
+      }),
+    );
+  });
+
+  it("classifies retryable and terminal structured errors without retrying", async () => {
+    const transientFetch = vi.fn(async () =>
+      jsonResponse(apiError("adapter_unavailable", "temporarily offline"), 503),
+    );
+    const terminalFetch = vi.fn(async () =>
+      jsonResponse(apiError("repository_corrupt", "repository is corrupt"), 500),
+    );
+    const transient = createHttpWorkspaceRepositoryBackend({
+      fetch: transientFetch,
+      repositoryId: "primary",
+    });
+    const terminal = createHttpWorkspaceRepositoryBackend({
+      fetch: terminalFetch,
+      repositoryId: "primary",
+    });
+
+    await expect(transient.loadRemoteSnapshot()).rejects.toEqual(
+      expect.objectContaining<Partial<WorkspaceRepositoryRemoteError>>({
+        message: "temporarily offline",
+        retryable: true,
+      }),
+    );
+    await expect(terminal.loadRemoteSnapshot()).rejects.toEqual(
+      expect.objectContaining<Partial<WorkspaceRepositoryRemoteError>>({
+        message: "repository is corrupt",
+        retryable: false,
+      }),
+    );
+    expect(transientFetch).toHaveBeenCalledTimes(1);
+    expect(terminalFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps retryable HTTP status semantics when a gateway returns invalid JSON", async () => {
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: async () => new Response("bad gateway", { status: 503 }),
+      repositoryId: "primary",
+    });
+
+    await expect(backend.loadRemoteSnapshot()).rejects.toEqual(
+      expect.objectContaining<Partial<WorkspaceRepositoryRemoteError>>({
+        retryable: true,
+      }),
+    );
+  });
+
+  it("rejects v2 aggregate snapshots instead of reading compatibility fields", async () => {
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: async () =>
+        jsonResponse({
+          repositoryPath: "/private/repository",
+          revision: revisionA,
+          syntaxSourceFile: null,
+          workspace: { id: "old" },
+        }),
+      repositoryId: "primary",
+    });
+
+    await expect(backend.loadRemoteSnapshot()).rejects.toBeInstanceOf(
+      UnsupportedRepositoryVersionError,
+    );
+  });
+
+  it("aborts every request after the fixed 30 second timeout", async () => {
+    vi.useFakeTimers();
+    let observedSignal: AbortSignal | undefined;
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: async (_input, init) => {
+        observedSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          observedSignal?.addEventListener("abort", () =>
+            reject(observedSignal?.reason),
+          );
+        });
       },
       repositoryId: "primary",
     });
-    const unavailableRepository = createHttpWorkspaceRepository({
-      fetch: async () => jsonResponse({ error: "temporarily offline" }, 503),
+    const request = backend.loadRemoteSnapshot();
+    const rejection = expect(request).rejects.toBeInstanceOf(
+      WorkspaceRepositoryUnavailableError,
+    );
+
+    await vi.advanceTimersByTimeAsync(repositoryRequestTimeoutMs);
+
+    await rejection;
+    expect(observedSignal?.aborted).toBe(true);
+  });
+
+  it("keeps the timeout active while consuming a stalled response body", async () => {
+    vi.useFakeTimers();
+    let observedSignal: AbortSignal | undefined;
+    const backend = createHttpWorkspaceRepositoryBackend({
+      fetch: async (_input, init) => {
+        observedSignal = init?.signal ?? undefined;
+        return {
+          json: () => new Promise((_resolve, reject) => {
+            observedSignal?.addEventListener("abort", () =>
+              reject(observedSignal?.reason),
+            );
+          }),
+          ok: true,
+          status: 200,
+        } as Response;
+      },
       repositoryId: "primary",
     });
+    const request = backend.loadRemoteSnapshot();
+    const rejection = expect(request).rejects.toBeInstanceOf(
+      WorkspaceRepositoryUnavailableError,
+    );
 
-    await expect(networkRepository.loadSnapshot()).rejects.toBeInstanceOf(
-      WorkspaceRepositoryUnavailableError,
-    );
-    await expect(unavailableRepository.loadSnapshot()).rejects.toBeInstanceOf(
-      WorkspaceRepositoryUnavailableError,
-    );
+    await vi.advanceTimersByTimeAsync(repositoryRequestTimeoutMs);
+
+    await rejection;
+    expect(observedSignal?.aborted).toBe(true);
+  });
+
+  it("keys local cache identity by origin, repository id, and token digest", async () => {
+    const first = await createHttpRepositoryCacheIdentity({
+      baseUrl: "https://api.test/path-a",
+      repositoryId: "primary",
+      token: "token-a",
+    });
+    const sameOrigin = await createHttpRepositoryCacheIdentity({
+      baseUrl: "https://api.test/path-b",
+      repositoryId: "primary",
+      token: "token-a",
+    });
+    const anotherToken = await createHttpRepositoryCacheIdentity({
+      baseUrl: "https://api.test/path-a",
+      repositoryId: "primary",
+      token: "token-b",
+    });
+
+    expect(first).toBe(sameOrigin);
+    expect(first).not.toBe(anotherToken);
+    expect(first).not.toContain("token-a");
   });
 });

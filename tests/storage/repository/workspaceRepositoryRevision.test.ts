@@ -1,46 +1,60 @@
 import { describe, expect, it } from "vitest";
+import type { WorkspaceRepositoryContentDto } from "../../../contracts/workspace-repository/types";
 import { createWorkspaceRepositoryRevision } from "../../../src/storage/repository/workspaceRepositoryRevision";
 
+function createContent(): WorkspaceRepositoryContentDto {
+  return {
+    schemaVersion: 3,
+    syntaxSource: null,
+    workspace: {
+      id: "workspace",
+      name: "Notes",
+      notes: [
+        { id: "note-b", source: "B" },
+        { id: "note-a", source: "A" },
+      ],
+      tree: [
+        { kind: "note", noteId: "note-b" },
+        { kind: "note", noteId: "note-a" },
+      ],
+    },
+  };
+}
+
 describe("createWorkspaceRepositoryRevision", () => {
-  it("ignores object field insertion order but preserves array order", async () => {
-    const first = {
-      syntaxSourceFile: null,
-      workspace: {
-        id: "workspace",
-        name: "notes",
-        notes: [],
-        tree: [],
-      },
-    };
-    const reordered = {
-      workspace: {
-        tree: [],
-        notes: [],
-        name: "notes",
-        id: "workspace",
-      },
-      syntaxSourceFile: null,
-    };
-    const changed = {
-      syntaxSourceFile: null,
+  it("produces a strict lowercase sha256 remote revision", async () => {
+    await expect(createWorkspaceRepositoryRevision(createContent())).resolves.toMatch(
+      /^sha256:[0-9a-f]{64}$/,
+    );
+  });
+
+  it("sorts notes by id for canonical encoding", async () => {
+    const first = createContent();
+    const reorderedNotes: WorkspaceRepositoryContentDto = {
+      ...first,
       workspace: {
         ...first.workspace,
-        tree: [
-          {
-            id: "folder-a",
-            kind: "folder" as const,
-            title: "A",
-            children: [],
-          },
-        ],
+        notes: [...first.workspace.notes].reverse(),
       },
     };
 
     await expect(createWorkspaceRepositoryRevision(first)).resolves.toBe(
-      await createWorkspaceRepositoryRevision(reordered),
+      await createWorkspaceRepositoryRevision(reorderedNotes),
     );
-    await expect(createWorkspaceRepositoryRevision(changed)).resolves.not.toBe(
-      await createWorkspaceRepositoryRevision(first),
+  });
+
+  it("preserves user tree order in canonical encoding", async () => {
+    const first = createContent();
+    const reorderedTree: WorkspaceRepositoryContentDto = {
+      ...first,
+      workspace: {
+        ...first.workspace,
+        tree: [...first.workspace.tree].reverse(),
+      },
+    };
+
+    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
+      await createWorkspaceRepositoryRevision(reorderedTree),
     );
   });
 });

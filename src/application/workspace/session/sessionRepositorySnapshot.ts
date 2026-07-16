@@ -2,20 +2,13 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,
 } from "../../../storage/repository/workspaceRepository";
-import type { WorkspaceData } from "../../../workspace/model/workspaceData";
 import {
   resolveWorkspaceSyntax,
   type WorkspaceSyntax,
 } from "../../../workspace/context/workspaceSyntax";
 import { validateWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
 
-export type WorkspaceSessionSnapshot = {
-  availability: WorkspaceRepositorySnapshot["availability"];
-  currentRevision: string | null;
-  repositoryPath: string;
-  revision: string;
-  syntaxSourceFile: WorkspaceRepositorySnapshot["syntaxSourceFile"];
-  workspaceData: WorkspaceData;
+export type WorkspaceSessionSnapshot = WorkspaceRepositorySnapshot & {
   workspaceSyntax: WorkspaceSyntax | null;
 };
 
@@ -24,25 +17,13 @@ export async function loadWorkspaceSessionSnapshot(
 ): Promise<WorkspaceSessionSnapshot> {
   const repositorySnapshot = await repository.loadSnapshot();
   const workspaceSyntax = resolveWorkspaceSyntax(
-    repositorySnapshot.syntaxSourceFile?.source ?? null,
+    repositorySnapshot.content.syntaxSource,
   );
 
-  if (workspaceSyntax) {
-    validateWorkspaceBlockMetadata(
-      repositorySnapshot.workspace,
-      workspaceSyntax.profile,
-    );
-  }
+  validateWorkspaceBlockMetadata(
+    repositorySnapshot.content.workspace,
+    workspaceSyntax?.profile ?? null,
+  );
 
-  return {
-    availability: repositorySnapshot.availability,
-    currentRevision: repositorySnapshot.availability === "conflict"
-      ? repositorySnapshot.currentRevision
-      : null,
-    repositoryPath: repositorySnapshot.repositoryPath,
-    revision: repositorySnapshot.revision,
-    syntaxSourceFile: repositorySnapshot.syntaxSourceFile,
-    workspaceData: repositorySnapshot.workspace,
-    workspaceSyntax,
-  };
+  return { ...repositorySnapshot, workspaceSyntax };
 }

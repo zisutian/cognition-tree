@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { StructureOperationActivityViewModel } from "../../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import { Button, Section } from "../../shared/primitives";
+import { useFeedback } from "../../shared/FeedbackProvider";
 import {
   ContextMenu,
   type ContextMenuPosition,
@@ -33,6 +34,7 @@ export function StructureOperationPairView({
 }: {
   view: StructureOperationActivityViewModel;
 }) {
+  const { runAction } = useFeedback();
   const [sourceLineNumber, setSourceLineNumber] = useState("");
   const [draggingLineNumber, setDraggingLineNumber] = useState<string | null>(
     null,
@@ -85,7 +87,9 @@ export function StructureOperationPairView({
   };
   const dropLine = (lineNumber: string, position: string) => {
     setSourceLineNumber(lineNumber);
-    view.onMoveStructureBlockBetweenNotes(lineNumber, position);
+    runAction(() =>
+      view.onMoveStructureBlockBetweenNotes(lineNumber, position)
+    );
     finishDrag();
   };
   const openMoveContext = (

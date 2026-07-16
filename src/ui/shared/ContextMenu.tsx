@@ -1,10 +1,5 @@
-import { createPortal } from "react-dom";
-import {
-  useEffect,
-  useRef,
-  type CSSProperties,
-  type KeyboardEvent,
-} from "react";
+import { useRef, type KeyboardEvent } from "react";
+import { Overlay } from "./Overlay";
 
 export type ContextMenuItem = {
   disabled?: boolean;
@@ -29,37 +24,7 @@ export function ContextMenu({
   position: ContextMenuPosition | null;
   onClose: () => void;
 }) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!position) {
-      return undefined;
-    }
-
-    menuRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node &&
-        !menuRef.current?.contains(event.target)
-      ) {
-        onClose();
-      }
-    };
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose, position]);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   if (!position) {
     return null;
@@ -70,10 +35,8 @@ export function ContextMenu({
       return;
     }
 
-    const items = Array.from(
-      menuRef.current?.querySelectorAll<HTMLButtonElement>(
-        "button:not(:disabled)",
-      ) ?? [],
+    const items = itemRefs.current.filter(
+      (item): item is HTMLButtonElement => Boolean(item && !item.disabled),
     );
 
     if (items.length === 0) {
@@ -82,22 +45,23 @@ export function ContextMenu({
 
     const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
     const direction = event.key === "ArrowDown" ? 1 : -1;
-    const nextIndex =
-      (Math.max(currentIndex, 0) + direction + items.length) % items.length;
+    const nextIndex = currentIndex < 0
+      ? direction > 0 ? 0 : items.length - 1
+      : (currentIndex + direction + items.length) % items.length;
 
     event.preventDefault();
     items[nextIndex]?.focus();
   };
-  const menu = (
-    <div
-      aria-label={ariaLabel}
+  return (
+    <Overlay
+      ariaLabel={ariaLabel}
       className="ui-context-menu"
-      ref={menuRef}
       role="menu"
-      style={{ left: position.x, top: position.y } as CSSProperties}
+      position={{ kind: "point", ...position }}
+      onDismiss={onClose}
       onKeyDown={moveFocus}
     >
-      {items.map((item) => (
+      {items.map((item, index) => (
         <button
           disabled={item.disabled}
           key={item.id}
@@ -105,14 +69,15 @@ export function ContextMenu({
             item.onSelect();
             onClose();
           }}
+          ref={(element) => {
+            itemRefs.current[index] = element;
+          }}
           role="menuitem"
           type="button"
         >
           {item.label}
         </button>
       ))}
-    </div>
+    </Overlay>
   );
-
-  return typeof document === "undefined" ? menu : createPortal(menu, document.body);
 }

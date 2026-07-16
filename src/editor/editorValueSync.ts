@@ -1,3 +1,7 @@
+import { Annotation, Transaction, type TransactionSpec } from "@codemirror/state";
+
+export const ctnExternalValueSync = Annotation.define<boolean>();
+
 export type EditorValueSyncChange = {
   from: number;
   insert: string;
@@ -35,5 +39,24 @@ export function createEditorValueSyncChange(
     from,
     insert: nextValue.slice(from, nextSuffixIndex),
     to: currentSuffixIndex,
+  };
+}
+
+export function createEditorValueSyncTransaction(
+  currentValue: string,
+  nextValue: string,
+): TransactionSpec | null {
+  const change = createEditorValueSyncChange(currentValue, nextValue);
+
+  if (!change) {
+    return null;
+  }
+
+  return {
+    annotations: [
+      ctnExternalValueSync.of(true),
+      Transaction.addToHistory.of(false),
+    ],
+    changes: change,
   };
 }

@@ -1,4 +1,6 @@
 import type {
+  RepositoryCatalogDto,
+  RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
 } from "../../../contracts/workspace-repository/types";
 import type {
@@ -7,19 +9,21 @@ import type {
 } from "./workspaceRepository";
 
 export type WorkspaceRepositoryDescriptor = RepositoryDescriptorDto;
+export type WorkspaceRepositoryCatalogIssue = RepositoryCatalogIssueDto;
 
 export type CreateWorkspaceRepositoryInput = {
   content: WorkspaceRepositoryContent;
   id: string;
+  label: string;
 };
 
 export type WorkspaceRepositoryCatalog = {
-  createRepository: (
+  createRepository(
     input: CreateWorkspaceRepositoryInput,
-  ) => Promise<WorkspaceRepositoryDescriptor>;
+  ): Promise<WorkspaceRepositoryDescriptor>;
   label: string;
-  listRepositories: () => Promise<WorkspaceRepositoryDescriptor[]>;
-  openRepository: (
+  listRepositories(): Promise<RepositoryCatalogDto>;
+  openRepository(
     descriptor: WorkspaceRepositoryDescriptor,
-  ) => WorkspaceRepository;
+  ): WorkspaceRepository;
 };

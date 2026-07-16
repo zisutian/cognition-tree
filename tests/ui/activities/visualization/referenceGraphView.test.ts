@@ -1,30 +1,45 @@
 import { describe, expect, it } from "vitest";
 import type { UiReferenceGraphView } from "../../../../src/application/workspace/projection/viewGraph";
 import {
-  createDrawableReferenceGraphEdges,
   createVisibleReferenceGraph,
   findReferenceGraphNodeAtPoint,
   getReferenceGraphNodeRadius,
 } from "../../../../src/ui/activities/visualization/referenceGraphView";
-import { createReferenceGraphSimulationKey } from "../../../../src/ui/activities/visualization/referenceGraphCanvasModel";
+
+const graphEdges = [
+  {
+    count: 2,
+    id: "note-a->note-b",
+    sourceNoteId: "note-a",
+    targetNoteId: "note-b",
+    targetTitle: "Beta",
+  },
+  {
+    count: 1,
+    id: "note-b->note-c",
+    sourceNoteId: "note-b",
+    targetNoteId: "note-c",
+    targetTitle: "Gamma",
+  },
+];
 
 const graph: UiReferenceGraphView = {
-  edges: [
-    {
-      count: 2,
-      id: "note-a->note-b",
-      sourceNoteId: "note-a",
-      targetNoteId: "note-b",
-      targetTitle: "Beta",
-    },
-    {
-      count: 1,
-      id: "note-b->note-c",
-      sourceNoteId: "note-b",
-      targetNoteId: "note-c",
-      targetTitle: "Gamma",
-    },
-  ],
+  adjacencyByNoteId: new Map([
+    ["note-a", new Set(["note-b"])],
+    ["note-b", new Set(["note-a", "note-c"])],
+    ["note-c", new Set(["note-b"])],
+    ["note-d", new Set()],
+  ]),
+  detailsByNoteId: new Map([
+    ["note-a", { incomingEdges: [], outgoingEdges: [graphEdges[0]!] }],
+    [
+      "note-b",
+      { incomingEdges: [graphEdges[0]!], outgoingEdges: [graphEdges[1]!] },
+    ],
+    ["note-c", { incomingEdges: [graphEdges[1]!], outgoingEdges: [] }],
+    ["note-d", { incomingEdges: [], outgoingEdges: [] }],
+  ]),
+  edges: graphEdges,
   mostReferencedNodes: [],
   nodes: [
     {
@@ -56,6 +71,7 @@ const graph: UiReferenceGraphView = {
       title: "Delta",
     },
   ],
+  revision: 1,
   stats: {
     edgeCount: 2,
     isolatedCount: 1,
@@ -144,20 +160,41 @@ describe("reference graph view helpers", () => {
     expect(visibleGraph.edges).toEqual([]);
   });
 
-  it("keeps self references out of drawable canvas edges", () => {
-    const drawableEdges = createDrawableReferenceGraphEdges([
-      ...graph.edges,
+  it("keeps self references as explicit visible edges", () => {
+    const selfEdge = {
+      count: 1,
+      id: "note-a->note-a",
+      sourceNoteId: "note-a",
+      targetNoteId: "note-a",
+      targetTitle: "Alpha",
+    };
+    const visibleGraph = createVisibleReferenceGraph(
       {
-        count: 1,
-        id: "note-a->note-a",
-        sourceNoteId: "note-a",
-        targetNoteId: "note-a",
-        targetTitle: "Alpha",
+        ...graph,
+        detailsByNoteId: new Map([
+          ...graph.detailsByNoteId,
+          [
+            "note-a",
+            {
+              incomingEdges: [selfEdge],
+              outgoingEdges: [graphEdges[0]!, selfEdge],
+            },
+          ],
+        ]),
+        edges: [...graph.edges, selfEdge],
       },
-    ]);
+      {
+        activeNoteId: "note-a",
+        hideIsolated: false,
+        localDepth: 1,
+        mode: "global",
+        query: "",
+      },
+    );
 
-    expect(drawableEdges.map((edge) => edge.id)).toEqual([
+    expect(visibleGraph.edges.map((edge) => edge.id)).toEqual([
       "note-a->note-b",
+      "note-a->note-a",
       "note-b->note-c",
     ]);
   });
@@ -194,32 +231,4 @@ describe("reference graph view helpers", () => {
     expect(node?.id).toBe("note-b");
   });
 
-  it("includes visible node and edge data in the canvas simulation key", () => {
-    const visibleGraph = createVisibleReferenceGraph(graph, {
-      activeNoteId: "note-a",
-      hideIsolated: false,
-      localDepth: 1,
-      mode: "global",
-      query: "",
-    });
-    const renamedGraph = {
-      ...visibleGraph,
-      nodes: visibleGraph.nodes.map((node) =>
-        node.id === "note-a" ? { ...node, title: "Renamed Alpha" } : node,
-      ),
-    };
-    const recountedGraph = {
-      ...visibleGraph,
-      edges: visibleGraph.edges.map((edge) =>
-        edge.id === "note-a->note-b" ? { ...edge, count: 9 } : edge,
-      ),
-    };
-
-    expect(createReferenceGraphSimulationKey(renamedGraph)).not.toBe(
-      createReferenceGraphSimulationKey(visibleGraph),
-    );
-    expect(createReferenceGraphSimulationKey(recountedGraph)).not.toBe(
-      createReferenceGraphSimulationKey(visibleGraph),
-    );
-  });
 });

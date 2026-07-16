@@ -53,7 +53,11 @@ export function SettingsPanel({
           <>
             {view.hasSaveConflict ? (
               <Button
-                onClick={() => void view.discardPendingChangesAndReload()}
+                onClick={() => {
+                  void feedback.runAction(
+                    view.discardPendingChangesAndReload,
+                  );
+                }}
                 type="button"
                 variant="secondary"
               >
@@ -61,7 +65,13 @@ export function SettingsPanel({
                 放弃本地修改并重新加载
               </Button>
             ) : null}
-            <Button onClick={() => void view.reload()} type="button" variant="secondary">
+            <Button
+              onClick={() => {
+                void feedback.runAction(view.reload);
+              }}
+              type="button"
+              variant="secondary"
+            >
               <RefreshCw aria-hidden="true" size={13} />
               刷新
             </Button>
@@ -96,11 +106,11 @@ export function SettingsPanel({
             </div>
             <div>
               <dt>状态</dt>
-              <dd>{view.saveStatusLabel}</dd>
+              <dd>{view.persistenceStatusLabel}</dd>
             </div>
             <div>
               <dt>路径</dt>
-              <dd>{view.repositoryPath || "加载中"}</dd>
+              <dd>{view.locationLabel}</dd>
             </div>
           </dl>
           <form className="settings-create-repository" onSubmit={handleCreate}>
@@ -111,7 +121,7 @@ export function SettingsPanel({
               disabled={creating}
               maxLength={64}
               onChange={(event) => setRepositoryId(event.target.value)}
-              pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,63}"
+              pattern="[A-Za-z0-9][-A-Za-z0-9._]{0,63}"
               placeholder="仓库 ID"
               required
               value={repositoryId}

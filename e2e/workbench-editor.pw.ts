@@ -73,6 +73,29 @@ test.describe.serial("editor workbench flows", () => {
     await page.getByRole("button", { name: "关闭通知" }).click();
   });
 
+  test("keeps undo history isolated when switching notes", async ({ page }) => {
+    await openWorkbench(page, repositoryId);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+
+    const editorContent = page.locator(".source-editor .cm-content");
+
+    await editorContent.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.type(" alpha-only-edit");
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "alpha-only-edit",
+    );
+
+    await page.locator(".app-context").getByTitle("Beta").click();
+    await editorContent.click();
+    await page.keyboard.press("Control+Z");
+
+    await expect(page.getByLabel("笔记编辑")).toContainText("Beta");
+    await expect(page.getByLabel("笔记编辑")).not.toContainText(
+      "alpha-only-edit",
+    );
+  });
+
   test("edits multiline blocks without applying CTN structural indentation", async ({
     page,
   }) => {
@@ -108,7 +131,7 @@ test.describe.serial("editor workbench flows", () => {
         `/api/repositories/${repositoryId}/snapshot`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const source = snapshot.workspace.notes.find(
+      const source = snapshot.content.workspace.notes.find(
         ({ id }) => id === "note-gamma",
       )?.source ?? "";
 
@@ -194,7 +217,7 @@ test.describe.serial("editor workbench flows", () => {
     );
     const beforeSnapshot = (await beforeResponse.json()) as
       WorkspaceRepositorySnapshotDto;
-    const beforeSource = beforeSnapshot.workspace.notes.find(
+    const beforeSource = beforeSnapshot.content.workspace.notes.find(
       (note) => note.id === "note-alpha",
     )?.source ?? "";
     const beforeMetadataCount =
@@ -225,7 +248,7 @@ test.describe.serial("editor workbench flows", () => {
         `/api/repositories/${repositoryId}/snapshot`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const source = snapshot.workspace.notes.find(
+      const source = snapshot.content.workspace.notes.find(
         (note) => note.id === "note-alpha",
       )?.source ?? "";
 

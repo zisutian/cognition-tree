@@ -2,29 +2,29 @@ import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { CtnSyntaxProfile } from "../ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../ctn/metadata/textEdits";
 import {
   createCtnEditorExtensions,
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
-  ctnExternalValueSync,
   ctnParsingCompartment,
   ctnTabSizeCompartment,
   getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
-import { createEditorValueSyncChange } from "./editorValueSync";
+import { createEditorValueSyncTransaction } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
 import "./CtnEditor.css";
 
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
 
 type CtnEditorProps = {
-  documentKey: string;
   focusTarget: CtnEditorFocusTarget | null;
   mode?: "ctn" | "raw";
   syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
   onActiveLineChange: (lineNumber: number) => void;
-  onChange: (value: string) => void;
+  onChange: (change: CtnEditableSourceChange) => void;
+  onConsumeFocusTarget: (requestId: number) => void;
   onOpenReference?: (target: CtnEditorReferenceTarget) => void;
 };
 
@@ -34,13 +34,13 @@ export type CtnEditorFocusTarget = {
 };
 
 export function CtnEditor({
-  documentKey,
   focusTarget,
   mode = "ctn",
   syntaxProfile,
   value,
   onActiveLineChange,
   onChange,
+  onConsumeFocusTarget,
   onOpenReference,
 }: CtnEditorProps) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
@@ -51,6 +51,7 @@ export function CtnEditor({
   const onOpenReferenceRef = useRef(onOpenReference);
   const syntaxProfileRef = useRef(syntaxProfile);
   const tabDisplayWidthRef = useRef(syntaxProfile.tabDisplayWidth);
+  const consumedFocusRequestIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     onActiveLineChangeRef.current = onActiveLineChange;
@@ -105,6 +106,7 @@ export function CtnEditor({
     });
 
     editorViewRef.current = view;
+    onActiveLineChangeRef.current(getCtnEditorActiveLineNumber(view.state));
 
     return () => {
       view.destroy();
@@ -119,19 +121,16 @@ export function CtnEditor({
       return;
     }
 
-    const change = createEditorValueSyncChange(
+    const transaction = createEditorValueSyncTransaction(
       view.state.doc.toString(),
       value,
     );
 
-    if (!change) {
+    if (!transaction) {
       return;
     }
 
-    view.dispatch({
-      annotations: ctnExternalValueSync.of(true),
-      changes: change,
-    });
+    view.dispatch(transaction);
   }, [value]);
 
   useEffect(() => {
@@ -155,7 +154,11 @@ export function CtnEditor({
   useEffect(() => {
     const view = editorViewRef.current;
 
-    if (!view || !focusTarget) {
+    if (
+      !view ||
+      !focusTarget ||
+      consumedFocusRequestIdRef.current === focusTarget.requestId
+    ) {
       return;
     }
 
@@ -170,19 +173,9 @@ export function CtnEditor({
       effects: EditorView.scrollIntoView(line.from, { y: "center" }),
     });
     view.focus();
-  }, [focusTarget]);
-
-  useEffect(() => {
-    const view = editorViewRef.current;
-
-    if (!view) {
-      return;
-    }
-
-    onActiveLineChangeRef.current(
-      getCtnEditorActiveLineNumber(view.state),
-    );
-  }, [documentKey]);
+    consumedFocusRequestIdRef.current = focusTarget.requestId;
+    onConsumeFocusTarget(focusTarget.requestId);
+  }, [focusTarget, onConsumeFocusTarget]);
 
   return (
     <div

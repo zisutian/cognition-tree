@@ -1,203 +1,133 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
+import { UnsupportedRepositoryVersionError } from "../../../contracts/workspace-repository/contractValue.ts";
 import { parseWorkspaceRepositoryCommit } from "../../../contracts/workspace-repository/parseRepository.ts";
-import {
-  repositorySyntaxFileName,
-  type WorkspaceRepositoryContentDto,
-  type WorkspaceRepositorySnapshotDto,
+import type {
+  WorkspaceRepositorySnapshotDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import {
   RepositoryAdapterError,
+  RepositoryCorruptError,
   WorkspaceRevisionConflictError,
   type WorkspaceRepositoryStore,
 } from "../../repository/repositoryStore.ts";
 import {
-  createEmptyRepositoryWorkspace,
-  createRepositoryNoteFileName,
-  createWorkspaceRepositoryFileSet,
-  loadWorkspaceFromManifest,
-  notesDirName,
-  syntaxDirName,
+  createEmptyRepositoryContent,
   workspaceFileName,
 } from "../../repository/workspaceRepositoryLayout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
 import {
+  createWebDavPointer,
+  parseWebDavPointer,
+  requireWebDavEtag,
+  requireWebDavPointerResource,
+  stringifyWebDavControlFile,
+  webDavCurrentPath,
+  webDavGenerationsPath,
+  webDavLockPath,
+} from "./webDavControlFiles.ts";
+import { WebDavGenerationStore } from "./webDavGenerationStore.ts";
+import {
+  defaultWebDavLockLeaseMs,
+  defaultWebDavLockRenewMs,
+  WebDavRepositoryBusyError,
+  WebDavWriterLeaseCoordinator,
+} from "./webDavWriterLease.ts";
+import {
+  WebDavCapabilityError,
   WebDavRequestError,
-  type WebDavTextResource,
   type WebDavTransport,
 } from "./webDavTransport.ts";
 
-const lockPath = ".ctn-lock.json";
-const journalPath = ".ctn-journal.json";
-const transactionVersion = 1;
-const defaultLockLeaseMs = 60_000;
+export {
+  webDavCurrentPath,
+  webDavGenerationsPath,
+  webDavLockPath,
+} from "./webDavControlFiles.ts";
+export { WebDavRepositoryBusyError } from "./webDavWriterLease.ts";
 
 export const webDavCommitPhases = {
-  locked: "locked",
-  staged: "staged",
-  journaled: "journaled",
-  filesApplied: "files-applied",
-  manifestApplied: "manifest-applied",
-  validated: "validated",
+  leaseAcquired: "lease-acquired",
+  generationUploaded: "generation-uploaded",
+  generationValidated: "generation-validated",
+  pointerCommitted: "pointer-committed",
   cleaned: "cleaned",
 } as const;
 
 export type WebDavCommitPhase =
   (typeof webDavCommitPhases)[keyof typeof webDavCommitPhases];
 
-type WebDavLock = {
-  acquiredAt: string;
-  stagingDir: string;
-  token: string;
-  version: typeof transactionVersion;
-};
-
-type WebDavJournal = {
-  hasSyntax: boolean;
-  lockToken: string;
-  previousNoteIds: string[];
-  stagingDir: string;
-  targetNoteIds: string[];
-  targetRevision: string;
-  version: typeof transactionVersion;
-};
-
-type WebDavWorkspaceStoreOptions = {
+export type WebDavWorkspaceStoreOptions = {
   createId?: () => string;
+  initialWorkspaceId?: string;
+  initialWorkspaceName?: string;
   lockLeaseMs?: number;
+  lockRenewMs?: number;
   now?: () => number;
   onCommitPhase?: (phase: WebDavCommitPhase) => Promise<void> | void;
-  repositoryPath: string;
   transport: WebDavTransport;
 };
 
-function stringifyControlFile(value: unknown) {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
-
-function parseObject(source: string, label: string) {
-  let value: unknown;
-
-  try {
-    value = JSON.parse(source);
-  } catch {
-    throw new Error(`Invalid WebDAV ${label}`);
-  }
-
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`Invalid WebDAV ${label}`);
-  }
-
-  return value as Record<string, unknown>;
-}
-
-function readStringArray(value: unknown, label: string) {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    throw new Error(`Invalid WebDAV ${label}`);
-  }
-
-  return value as string[];
-}
-
-function parseLock(resource: WebDavTextResource): WebDavLock {
-  const value = parseObject(resource.source, "lock");
-
-  if (
-    value.version !== transactionVersion ||
-    typeof value.acquiredAt !== "string" ||
-    !Number.isFinite(Date.parse(value.acquiredAt)) ||
-    typeof value.stagingDir !== "string" ||
-    !value.stagingDir.startsWith(".ctn-stage-") ||
-    typeof value.token !== "string" ||
-    value.token.length === 0
-  ) {
-    throw new Error("Invalid WebDAV lock");
-  }
-
-  return {
-    acquiredAt: value.acquiredAt,
-    stagingDir: value.stagingDir,
-    token: value.token,
-    version: transactionVersion,
-  };
-}
-
-function parseJournal(resource: WebDavTextResource): WebDavJournal {
-  const value = parseObject(resource.source, "journal");
-
-  if (
-    value.version !== transactionVersion ||
-    typeof value.hasSyntax !== "boolean" ||
-    typeof value.lockToken !== "string" ||
-    typeof value.stagingDir !== "string" ||
-    !value.stagingDir.startsWith(".ctn-stage-") ||
-    typeof value.targetRevision !== "string" ||
-    value.targetRevision.length === 0
-  ) {
-    throw new Error("Invalid WebDAV journal");
-  }
-
-  return {
-    hasSyntax: value.hasSyntax,
-    lockToken: value.lockToken,
-    previousNoteIds: readStringArray(
-      value.previousNoteIds,
-      "journal previous note ids",
-    ),
-    stagingDir: value.stagingDir,
-    targetNoteIds: readStringArray(
-      value.targetNoteIds,
-      "journal target note ids",
-    ),
-    targetRevision: value.targetRevision,
-    version: transactionVersion,
-  };
-}
-
-export class WebDavRepositoryBusyError extends RepositoryAdapterError {
-  constructor() {
-    super(423, "WebDAV repository is locked by another operation");
-    this.name = "WebDavRepositoryBusyError";
-  }
-}
-
-function isExpectedStoreError(error: unknown) {
-  return error instanceof RepositoryAdapterError ||
-    error instanceof WorkspaceRevisionConflictError;
-}
-
 export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
-  #createId: () => string;
-  #lockLeaseMs: number;
-  #now: () => number;
-  #onCommitPhase: NonNullable<WebDavWorkspaceStoreOptions["onCommitPhase"]>;
+  readonly #createId: () => string;
+  readonly #generationStore: WebDavGenerationStore;
+  readonly #initialWorkspaceId: string;
+  readonly #initialWorkspaceName: string;
+  #initializePromise: Promise<void> | null = null;
+  readonly #leaseCoordinator: WebDavWriterLeaseCoordinator;
+  readonly #now: () => number;
+  readonly #onCommitPhase: NonNullable<WebDavWorkspaceStoreOptions["onCommitPhase"]>;
   #operationQueue: Promise<void> = Promise.resolve();
-  #recoverableTokens = new Set<string>();
-  #repositoryPath: string;
-  #transport: WebDavTransport;
+  readonly #transport: WebDavTransport;
 
   constructor({
     createId = randomUUID,
-    lockLeaseMs = defaultLockLeaseMs,
+    initialWorkspaceId = "webdav-workspace",
+    initialWorkspaceName = "远端笔记库",
+    lockLeaseMs = defaultWebDavLockLeaseMs,
+    lockRenewMs = defaultWebDavLockRenewMs,
     now = Date.now,
     onCommitPhase = async () => {},
-    repositoryPath,
     transport,
   }: WebDavWorkspaceStoreOptions) {
     this.#createId = createId;
-    this.#lockLeaseMs = lockLeaseMs;
+    this.#initialWorkspaceId = initialWorkspaceId;
+    this.#initialWorkspaceName = initialWorkspaceName;
     this.#now = now;
     this.#onCommitPhase = onCommitPhase;
-    this.#repositoryPath = repositoryPath;
     this.#transport = transport;
+    this.#leaseCoordinator = new WebDavWriterLeaseCoordinator({
+      createId,
+      leaseMs: lockLeaseMs,
+      now,
+      renewMs: lockRenewMs,
+      transport,
+    });
+    this.#generationStore = new WebDavGenerationStore({
+      leaseCoordinator: this.#leaseCoordinator,
+      now,
+      transport,
+    });
+  }
+
+  async initialize() {
+    if (!this.#initializePromise) {
+      this.#initializePromise = this.#ensureInitialized();
+    }
+    try {
+      await this.#initializePromise;
+    } catch (error) {
+      this.#initializePromise = null;
+      throw this.#mapFailure(error);
+    }
   }
 
   async loadSnapshot() {
     return this.#enqueueOperation(async () => {
+      await this.initialize();
       try {
-        await this.#recover();
-        return await this.#loadSnapshot();
+        return await this.#loadConsistentSnapshot();
       } catch (error) {
         throw this.#mapFailure(error);
       }
@@ -208,8 +138,8 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     const commit = parseWorkspaceRepositoryCommit(value);
 
     return this.#enqueueOperation(async () => {
+      await this.initialize();
       try {
-        await this.#recover();
         return await this.#commitSnapshot(commit);
       } catch (error) {
         throw this.#mapFailure(error);
@@ -217,302 +147,204 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     });
   }
 
+  async #ensureInitialized() {
+    const pointer = await this.#transport.readText(webDavCurrentPath);
+
+    if (pointer) {
+      await this.#generationStore.read(parseWebDavPointer(pointer));
+      return;
+    }
+    if (await this.#transport.readText(workspaceFileName)) {
+      throw new UnsupportedRepositoryVersionError("$.schemaVersion", 2);
+    }
+
+    const lease = await this.#leaseCoordinator.acquire();
+
+    try {
+      const concurrentlyPublished = await this.#transport.readText(webDavCurrentPath);
+
+      if (concurrentlyPublished) {
+        await this.#generationStore.read(parseWebDavPointer(concurrentlyPublished));
+        return;
+      }
+      if (await this.#transport.readText(workspaceFileName)) {
+        throw new UnsupportedRepositoryVersionError("$.schemaVersion", 2);
+      }
+      const unmanagedEntries = (await this.#transport.listCollection(""))
+        .filter((entry) => entry.path !== webDavLockPath);
+
+      if (unmanagedEntries.length > 0) {
+        throw new RepositoryCorruptError(
+          "WebDAV target is not empty and has no v3 current pointer",
+        );
+      }
+      await this.#transport.createCollection(webDavGenerationsPath);
+      const content = createEmptyRepositoryContent(
+        this.#initialWorkspaceId,
+        this.#initialWorkspaceName,
+      );
+      const revision = createWorkspaceRepositoryRevision(content);
+      const generation = this.#createId();
+
+      await this.#generationStore.upload(generation, content, lease);
+      await this.#generationStore.validate(generation, revision);
+      await this.#leaseCoordinator.assertHeld(lease);
+      const etag = await this.#transport.writeText(
+        webDavCurrentPath,
+        stringifyWebDavControlFile(
+          createWebDavPointer(generation, revision, this.#now()),
+        ),
+        { ifNoneMatch: "*" },
+      );
+
+      if (!etag) {
+        throw new WebDavCapabilityError("WebDAV current pointer PUT returned no ETag");
+      }
+    } finally {
+      await this.#leaseCoordinator.release(lease);
+    }
+  }
+
   async #commitSnapshot(
     commit: ReturnType<typeof parseWorkspaceRepositoryCommit>,
   ) {
-    const token = this.#createId();
-    const stagingDir = `.ctn-stage-${token}`;
-    const lock: WebDavLock = {
-      acquiredAt: new Date(this.#now()).toISOString(),
-      stagingDir,
-      token,
-      version: transactionVersion,
-    };
-    let journalWritten = false;
-
-    await this.#acquireLock(lock);
+    const lease = await this.#leaseCoordinator.acquire();
+    let generation: string | null = null;
+    let pointerPublished = false;
 
     try {
-      await this.#onCommitPhase(webDavCommitPhases.locked);
-      const currentContent = await this.#readContent();
-      const currentRevision = createWorkspaceRepositoryRevision(currentContent);
+      await this.#onCommitPhase(webDavCommitPhases.leaseAcquired);
+      const pointerResource = await requireWebDavPointerResource(this.#transport);
+      const pointer = parseWebDavPointer(pointerResource);
+      await this.#generationStore.read(pointer);
 
-      if (currentRevision !== commit.baseRevision) {
-        throw new WorkspaceRevisionConflictError(currentRevision);
+      if (pointer.revision !== commit.baseRevision) {
+        throw new WorkspaceRevisionConflictError(pointer.revision);
+      }
+      const revision = createWorkspaceRepositoryRevision(commit.content);
+
+      if (revision === pointer.revision) {
+        return { revision };
       }
 
-      const targetContent = {
-        syntaxSourceFile: commit.syntaxSourceFile,
-        workspace: commit.workspace,
-      };
-      const targetRevision = createWorkspaceRepositoryRevision(targetContent);
-      const journal: WebDavJournal = {
-        hasSyntax: commit.syntaxSourceFile !== null,
-        lockToken: token,
-        previousNoteIds: currentContent.workspace.notes.map((note) => note.id),
-        stagingDir,
-        targetNoteIds: commit.workspace.notes.map((note) => note.id),
-        targetRevision,
-        version: transactionVersion,
-      };
+      generation = this.#createId();
+      await this.#generationStore.upload(generation, commit.content, lease);
+      await this.#onCommitPhase(webDavCommitPhases.generationUploaded);
+      await this.#generationStore.validate(generation, revision);
+      await this.#onCommitPhase(webDavCommitPhases.generationValidated);
+      await this.#leaseCoordinator.renew(lease);
+      await this.#leaseCoordinator.assertHeld(lease);
 
-      await this.#stageContent(stagingDir, targetContent);
-      await this.#onCommitPhase(webDavCommitPhases.staged);
-      await this.#transport.writeText(
-        journalPath,
-        stringifyControlFile(journal),
-        { ifNoneMatch: "*" },
-      );
-      journalWritten = true;
-      await this.#onCommitPhase(webDavCommitPhases.journaled);
-      await this.#applyJournal(journal);
-      await this.#validateRevision(targetRevision);
-      await this.#onCommitPhase(webDavCommitPhases.validated);
-      await this.#cleanupTransaction(lock);
-      await this.#onCommitPhase(webDavCommitPhases.cleaned);
-      return { revision: targetRevision };
-    } catch (error) {
-      if (journalWritten) {
-        this.#recoverableTokens.add(token);
-      } else {
-        await this.#removeTransactionArtifacts(lock);
-      }
+      try {
+        const etag = await this.#transport.writeText(
+          webDavCurrentPath,
+          stringifyWebDavControlFile(
+            createWebDavPointer(generation, revision, this.#now()),
+          ),
+          { ifMatch: requireWebDavEtag(pointerResource, "current pointer") },
+        );
 
-      throw error;
-    }
-  }
-
-  async #acquireLock(lock: WebDavLock) {
-    try {
-      await this.#transport.writeText(
-        lockPath,
-        stringifyControlFile(lock),
-        { ifNoneMatch: "*" },
-      );
-    } catch (error) {
-      if (!(error instanceof WebDavRequestError) || error.statusCode !== 412) {
+        if (!etag) {
+          throw new WebDavCapabilityError("WebDAV current pointer PUT returned no ETag");
+        }
+      } catch (error) {
+        if (error instanceof WebDavRequestError && error.statusCode === 412) {
+          const current = await requireWebDavPointerResource(this.#transport);
+          throw new WorkspaceRevisionConflictError(
+            parseWebDavPointer(current).revision,
+          );
+        }
         throw error;
       }
 
-      await this.#recover();
-      await this.#transport.writeText(
-        lockPath,
-        stringifyControlFile(lock),
-        { ifNoneMatch: "*" },
-      );
+      pointerPublished = true;
+      // Pointer CAS is the final commit point. Post-commit maintenance cannot
+      // truthfully report the already-published content as a failed commit.
+      await Promise.resolve()
+        .then(() => this.#onCommitPhase(webDavCommitPhases.pointerCommitted))
+        .catch(() => undefined);
+      const cleaned = await this.#generationStore
+        .garbageCollect(generation, lease)
+        .then(() => true, () => false);
+
+      if (cleaned) {
+        await Promise.resolve()
+          .then(() => this.#onCommitPhase(webDavCommitPhases.cleaned))
+          .catch(() => undefined);
+      }
+      return { revision };
+    } catch (error) {
+      const mustStopImmediately =
+        error instanceof WebDavRepositoryBusyError ||
+        error instanceof WorkspaceRevisionConflictError;
+
+      if (generation && !pointerPublished && !mustStopImmediately) {
+        await this.#transport
+          .remove(`${webDavGenerationsPath}/${generation}`)
+          .catch(() => false);
+      }
+      throw error;
+    } finally {
+      await this.#leaseCoordinator.release(lease);
     }
   }
 
-  async #stageContent(
-    stagingDir: string,
-    content: WorkspaceRepositoryContentDto,
-  ) {
-    const { files } = createWorkspaceRepositoryFileSet(content);
+  async #loadConsistentSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const firstResource = await requireWebDavPointerResource(this.#transport);
+      const first = parseWebDavPointer(firstResource);
+      const content = await this.#generationStore.read(first);
+      const secondResource = await requireWebDavPointerResource(this.#transport);
 
-    await this.#transport.createCollection(stagingDir);
-    await this.#transport.createCollection(`${stagingDir}/${notesDirName}`);
-    await this.#transport.createCollection(`${stagingDir}/${syntaxDirName}`);
-
-    for (const [relativePath, source] of files) {
-      await this.#transport.writeText(`${stagingDir}/${relativePath}`, source);
-    }
-  }
-
-  async #applyJournal(journal: WebDavJournal) {
-    await this.#transport.createCollection(notesDirName);
-    await this.#transport.createCollection(syntaxDirName);
-
-    for (const noteId of journal.targetNoteIds) {
-      const fileName = createRepositoryNoteFileName(noteId);
-
-      await this.#transport.move(
-        `${journal.stagingDir}/${notesDirName}/${fileName}`,
-        `${notesDirName}/${fileName}`,
-      );
-    }
-
-    const targetNoteIds = new Set(journal.targetNoteIds);
-
-    for (const noteId of journal.previousNoteIds) {
-      if (!targetNoteIds.has(noteId)) {
-        await this.#transport.remove(
-          `${notesDirName}/${createRepositoryNoteFileName(noteId)}`,
-        );
+      if (
+        requireWebDavEtag(firstResource, "current pointer") ===
+        requireWebDavEtag(secondResource, "current pointer")
+      ) {
+        return { content, revision: first.revision };
       }
     }
 
-    const syntaxPath = `${syntaxDirName}/${repositorySyntaxFileName}`;
-
-    if (journal.hasSyntax) {
-      await this.#transport.move(
-        `${journal.stagingDir}/${syntaxPath}`,
-        syntaxPath,
-      );
-    } else {
-      await this.#transport.remove(syntaxPath);
-    }
-
-    await this.#onCommitPhase(webDavCommitPhases.filesApplied);
-    await this.#transport.move(
-      `${journal.stagingDir}/${workspaceFileName}`,
-      workspaceFileName,
-    );
-    await this.#onCommitPhase(webDavCommitPhases.manifestApplied);
-  }
-
-  async #loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
-    const content = await this.#readContent();
-
-    return {
-      ...content,
-      repositoryPath: this.#repositoryPath,
-      revision: createWorkspaceRepositoryRevision(content),
-    };
-  }
-
-  async #readContent(): Promise<WorkspaceRepositoryContentDto> {
-    const manifestResource = await this.#transport.readText(workspaceFileName);
-
-    if (!manifestResource) {
-      return {
-        syntaxSourceFile: null,
-        workspace: createEmptyRepositoryWorkspace(),
-      };
-    }
-
-    const manifest = parseObject(manifestResource.source, "workspace manifest");
-    const workspace = await loadWorkspaceFromManifest(
-      manifest,
-      async (noteId) => {
-        const relativePath = `${notesDirName}/${createRepositoryNoteFileName(noteId)}`;
-        const resource = await this.#transport.readText(relativePath);
-
-        if (!resource) {
-          throw new Error(`Missing note source file: ${relativePath}`);
-        }
-
-        return resource.source;
-      },
-    );
-    const syntaxResource = await this.#transport.readText(
-      `${syntaxDirName}/${repositorySyntaxFileName}`,
-    );
-
-    return {
-      syntaxSourceFile: syntaxResource
-        ? { fileName: repositorySyntaxFileName, source: syntaxResource.source }
-        : null,
-      workspace,
-    };
-  }
-
-  async #recover() {
-    const journalResource = await this.#transport.readText(journalPath);
-    const lockResource = await this.#transport.readText(lockPath);
-
-    if (!journalResource) {
-      if (lockResource) {
-        const lock = parseLock(lockResource);
-
-        if (!this.#canRecoverLock(lock)) {
-          throw new WebDavRepositoryBusyError();
-        }
-
-        await this.#removeTransactionArtifacts(lock, lockResource.etag);
-      }
-      return;
-    }
-
-    const journal = parseJournal(journalResource);
-    const lock = lockResource ? parseLock(lockResource) : null;
-
-    if (
-      lock &&
-      lock.token !== journal.lockToken &&
-      !this.#canRecoverLock(lock)
-    ) {
-      throw new WebDavRepositoryBusyError();
-    }
-
-    if (lock && !this.#canRecoverLock(lock)) {
-      throw new WebDavRepositoryBusyError();
-    }
-
-    await this.#applyJournal(journal);
-    await this.#validateRevision(journal.targetRevision);
-    await this.#transport.remove(journalPath, {
-      ifMatch: journalResource.etag ?? undefined,
-    });
-    await this.#transport.remove(journal.stagingDir);
-
-    if (lockResource) {
-      await this.#transport.remove(lockPath, {
-        ifMatch: lockResource.etag ?? undefined,
-      });
-    }
-    this.#recoverableTokens.delete(journal.lockToken);
-  }
-
-  #canRecoverLock(lock: WebDavLock) {
-    return this.#recoverableTokens.has(lock.token) ||
-      this.#now() - Date.parse(lock.acquiredAt) >= this.#lockLeaseMs;
-  }
-
-  async #validateRevision(expectedRevision: string) {
-    const content = await this.#readContent();
-    const actualRevision = createWorkspaceRepositoryRevision(content);
-
-    if (actualRevision !== expectedRevision) {
-      throw new Error(
-        `WebDAV transaction validation failed: expected ${expectedRevision}, received ${actualRevision}`,
-      );
-    }
-  }
-
-  async #cleanupTransaction(lock: WebDavLock) {
-    await this.#transport.remove(journalPath);
-    await this.#transport.remove(lock.stagingDir);
-    await this.#transport.remove(lockPath);
-    this.#recoverableTokens.delete(lock.token);
-  }
-
-  async #removeTransactionArtifacts(lock: WebDavLock, lockEtag?: string | null) {
-    await this.#transport.remove(lock.stagingDir);
-    await this.#transport.remove(lockPath, {
-      ifMatch: lockEtag ?? undefined,
-    });
-    this.#recoverableTokens.delete(lock.token);
+    throw new WebDavRepositoryBusyError();
   }
 
   #mapFailure(error: unknown) {
-    if (isExpectedStoreError(error)) {
+    if (
+      error instanceof RepositoryAdapterError ||
+      error instanceof WorkspaceRevisionConflictError ||
+      error instanceof UnsupportedRepositoryVersionError
+    ) {
       return error;
     }
-
-    if (error instanceof WebDavRequestError) {
+    if (error instanceof WebDavCapabilityError) {
       return new RepositoryAdapterError(
-        error.statusCode === 401 || error.statusCode === 403 ? 502 : 503,
+        "adapter_unavailable",
+        "WebDAV capabilities are insufficient",
+      );
+    }
+    if (error instanceof WebDavRequestError) {
+      if (error.statusCode === 507) {
+        return new RepositoryAdapterError(
+          "insufficient_storage",
+          "WebDAV storage is full",
+        );
+      }
+      return new RepositoryAdapterError(
+        "adapter_unavailable",
         "WebDAV repository request failed",
       );
     }
-
     if (error instanceof TypeError) {
       return new RepositoryAdapterError(
-        503,
+        "adapter_unavailable",
         "WebDAV repository is unavailable",
       );
     }
-
     return error;
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>) {
     const result = this.#operationQueue.then(operation);
-
-    this.#operationQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
+    this.#operationQueue = result.then(() => undefined, () => undefined);
     return result;
   }
 }

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../../src/ctn/parser/parseCtnDocument";
 import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
 import {
   createSyntaxProfileDraft,
 } from "../../../../src/ctn/syntax/profileDraft";
-import type { CtnBlock } from "../../../../src/ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../../../src/ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
@@ -15,6 +15,7 @@ import {
 import {
   createInitialWorkspaceData,
   createNoteRecord,
+  readWorkspaceNoteHeader,
 } from "../../../../src/workspace/model/workspaceData";
 import {
   createUiBlockNode,
@@ -45,7 +46,7 @@ import {
 const timestamp = "2026-07-04T00:00:00.000Z";
 
 function parseFirstRoot(source: string) {
-  const document = parseCtnDocument(
+  const document = parseCtnCanonicalDocument(
     addTestCtnBlockMetadata(source),
     defaultCtnSyntaxProfile,
   );
@@ -54,8 +55,14 @@ function parseFirstRoot(source: string) {
 }
 
 function createWorkspace() {
-  const sourceNote = createNoteRecord("note-source", "源笔记", timestamp);
-  const targetNote = createNoteRecord("note-target", "目标笔记", timestamp);
+  const sourceNote = createNoteRecord(
+    "note-source",
+    addTestCtnBlockMetadata("源笔记"),
+  );
+  const targetNote = createNoteRecord(
+    "note-target",
+    addTestCtnBlockMetadata("目标笔记", defaultCtnSyntaxProfile, 100),
+  );
   const workspace = createInitialWorkspaceData();
   const treeWithSourceNote = appendNoteToWorkspaceTree(
     workspace.tree,
@@ -82,19 +89,22 @@ function createWorkspace() {
 function createBlock(
   id: string,
   lineNumber: number,
-  children: CtnBlock[] = [],
-): CtnBlock {
+  children: CtnCanonicalBlock[] = [],
+): CtnCanonicalBlock {
   const lastChild = children[children.length - 1];
+  const subtreeEndLineNumber =
+    lastChild?.subtreeEndLineNumber ?? lineNumber;
 
   return {
     children,
+    contentFingerprint: `- Block ${id}`,
     diagnostics: [],
-    endLineNumber: lastChild?.endLineNumber ?? lineNumber,
     id,
     indentText: "",
     inlineSpans: [],
     label: "组分",
     level: 0,
+    lexicalEndLineNumber: lineNumber,
     lineNumber,
     marker: "-",
     metadata: {
@@ -102,10 +112,13 @@ function createBlock(
       updatedAt: timestamp,
     },
     metadataLineNumber: lineNumber,
+    multilineRange: null,
     rawText: `- Block ${id}`,
     role: "normal",
+    subtreeEndLineNumber,
     text: `Block ${id}`,
     textColor: "green",
+    textStartColumn: 3,
     tone: "green",
     type: "item",
   };
@@ -132,7 +145,10 @@ describe("workspace view projection", () => {
     const source = addTestCtnBlockMetadata(
       "Title\nRoot\n\t? Unknown",
     );
-    const document = parseCtnDocument(source, defaultCtnSyntaxProfile);
+    const document = parseCtnCanonicalDocument(
+      source,
+      defaultCtnSyntaxProfile,
+    );
     const editableSource = createCtnEditableSource(
       source,
       defaultCtnSyntaxProfile,
@@ -209,7 +225,10 @@ describe("workspace view projection", () => {
   it("prepares note trees for UI rendering", () => {
     const workspace = createWorkspace();
     const noteTree = createUiNoteTree({
-      notes: workspace.notes,
+      notes: workspace.notes.map((note) => ({
+        id: note.id,
+        ...readWorkspaceNoteHeader(note),
+      })),
       tree: workspace.tree,
     });
 
@@ -248,8 +267,15 @@ describe("workspace view projection", () => {
     const root = createBlock("root", 2, [child]);
     const multiline = {
       ...createBlock("multiline", 4),
-      endLineNumber: 7,
+      lexicalEndLineNumber: 7,
+      multilineRange: {
+        closingFenceLineNumber: 7,
+        contentEndLineNumber: 6,
+        contentStartLineNumber: 5,
+        status: "closed" as const,
+      },
       role: "multiline" as const,
+      subtreeEndLineNumber: 7,
     };
     const outline = createUiOutlineNodes([root, multiline]);
 
@@ -290,6 +316,14 @@ describe("workspace view projection", () => {
       label: "全局概念引用",
       open: "[[",
     });
+    expect(view.customToneLabel).toBe("自定义");
+    expect(view.toneOptions).toEqual(
+      expect.arrayContaining([
+        { label: "绿色", value: "green" },
+        { label: "琥珀", value: "amber" },
+        { label: "灰色", value: "gray" },
+      ]),
+    );
     expect(view.focusTarget).toBeNull();
   });
 });

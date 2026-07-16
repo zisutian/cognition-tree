@@ -9,5 +9,7 @@ export function resolveFolderSelection(
     return null;
   }
 
-  return workspace.folderById.get(preferredFolderId)?.id ?? null;
+  return workspace.folderEntryById.has(preferredFolderId)
+    ? preferredFolderId
+    : null;
 }

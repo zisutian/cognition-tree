@@ -1,538 +1,404 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { RepositoryWorkspaceDto } from "../../../../contracts/workspace-repository/types";
+import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace-repository/contractValue";
+import type {
+  RepositoryTreeNodeDto,
+  WorkspaceRepositoryContentDto,
+} from "../../../../contracts/workspace-repository/types";
+import { LocalRepositoryCatalog } from "../../../../server/adapters/local/localRepositoryCatalog.ts";
 import {
   workspaceCommitPhases,
   type WorkspaceCommitPhase,
-} from "../../../../server/adapters/local/workspaceCommitTransaction.ts";
+} from "../../../../server/adapters/local/immutableSnapshotCommit.ts";
 import {
+  createWorkspaceFileRepository,
   WorkspaceFileStore,
 } from "../../../../server/adapters/local/workspaceFileStore.ts";
-import { WorkspaceRevisionConflictError } from "../../../../server/repository/repositoryStore.ts";
 import {
-  workspaceManifestSchemaVersion,
-  type WorkspaceManifest,
-} from "../../../../server/repository/workspaceManifest.ts";
+  RepositoryCorruptError,
+} from "../../../../server/repository/repositoryStore.ts";
 
-function createWorkspace(): RepositoryWorkspaceDto {
+function createContent(name = "本地笔记库"): WorkspaceRepositoryContentDto {
   return {
-    id: "local-workspace",
-    name: "本地笔记库",
-    notes: [
-      {
-        id: "note-test",
-        title: "测试笔记",
-        source: "测试笔记\n\t: 文件保存",
-        createdAt: "2026-05-25T00:00:00.000Z",
-        updatedAt: "2026-05-25T00:00:00.000Z",
-      },
-    ],
-    tree: [
-      {
-        children: [
-          {
-            id: "tree-note-test",
-            kind: "note",
-            noteId: "note-test",
-          },
-        ],
-        id: "folder-docs",
-        kind: "folder",
-        title: "资料",
-      },
-    ],
+    schemaVersion: 3,
+    syntaxSource: 'name = "test"\n',
+    workspace: {
+      id: "workspace",
+      name,
+      notes: [{ id: "note-test", source: `${name}\n\t: 内容` }],
+      tree: [
+        {
+          children: [{ kind: "note", noteId: "note-test" }],
+          folderId: "folder-docs",
+          kind: "folder",
+          title: "资料",
+        },
+      ],
+    },
   };
 }
 
-function clone<Value>(value: Value): Value {
-  return JSON.parse(JSON.stringify(value)) as Value;
-}
+function createDeepTreeContent(depth: number): WorkspaceRepositoryContentDto {
+  let node: RepositoryTreeNodeDto = { kind: "note", noteId: "deep-note" };
 
-function createRenamedWorkspace() {
-  const workspace = createWorkspace();
-  const note = workspace.notes[0];
-
-  note.title = "重命名笔记";
-  note.source = "重命名笔记\n\t: 新文件保存";
-  note.updatedAt = "2026-05-26T00:00:00.000Z";
-
-  return workspace;
-}
-
-function createManifest(): WorkspaceManifest {
-  const workspace = createWorkspace();
+  for (let index = depth; index > 0; index -= 1) {
+    node = {
+      children: [node],
+      folderId: `folder-${index}`,
+      kind: "folder",
+      title: `level ${index}`,
+    };
+  }
 
   return {
-    id: workspace.id,
-    name: workspace.name,
-    notes: workspace.notes.map((note) => ({
-      createdAt: note.createdAt,
-      id: note.id,
-      title: note.title,
-      updatedAt: note.updatedAt,
-    })),
-    schemaVersion: workspaceManifestSchemaVersion,
-    tree: workspace.tree,
+    schemaVersion: 3,
+    syntaxSource: null,
+    workspace: {
+      id: "deep-workspace",
+      name: "deep tree",
+      notes: [{ id: "deep-note", source: "deep source" }],
+      tree: [node],
+    },
   };
 }
 
-async function writeWorkspaceManifest(
-  rootDir: string,
-  manifest: unknown,
-) {
-  await writeFile(
-    path.join(rootDir, "workspace.json"),
-    `${JSON.stringify(manifest, null, 2)}\n`,
-    "utf8",
-  );
-}
-
-async function withTempStore<Result>(
-  testFn: (store: WorkspaceFileStore, rootDir: string) => Promise<Result>,
-) {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-file-store-"));
+async function withTempDir<Result>(run: (rootDir: string) => Promise<Result>) {
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v3-local-"));
 
   try {
-    return await testFn(new WorkspaceFileStore(rootDir), rootDir);
+    return await run(rootDir);
   } finally {
     await rm(rootDir, { force: true, recursive: true });
   }
 }
 
-async function commitContent(
-  store: WorkspaceFileStore,
-  {
-    baseRevision,
-    syntaxSource = null,
-    workspace = createWorkspace(),
-  }: {
-    baseRevision?: string;
-    syntaxSource?: string | null;
-    workspace?: RepositoryWorkspaceDto;
-  } = {},
-) {
-  const revision = baseRevision ?? (await store.loadSnapshot()).revision;
+async function runCrashChild(rootDir: string, phase: WorkspaceCommitPhase) {
+  const childPath = fileURLToPath(new URL("./localCommitCrashChild.ts", import.meta.url));
+  const child = spawn(process.execPath, [
+    "--import",
+    "tsx",
+    childPath,
+    rootDir,
+    phase,
+  ], { stdio: ["ignore", "pipe", "pipe"] });
+  let stderr = "";
 
-  return store.commitSnapshot({
-    baseRevision: revision,
-    syntaxSourceFile: syntaxSource === null
-      ? null
-      : { fileName: "workspace.toml", source: syntaxSource },
-    workspace,
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  return new Promise<void>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (signal === "SIGKILL") {
+        resolve();
+        return;
+      }
+      reject(new Error(`Crash child exited with code ${code}: ${stderr}`));
+    });
   });
 }
 
-const originalSyntaxSource = `name = "原始语法"
-tabDisplayWidth = 4
-`;
-const updatedSyntaxSource = `name = "更新语法"
-tabDisplayWidth = 8
-`;
+async function runCatalogProbeChild(rootDir: string) {
+  const childPath = fileURLToPath(new URL("./localCatalogProbeChild.ts", import.meta.url));
+  const child = spawn(process.execPath, ["--import", "tsx", childPath, rootDir], {
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
 
-describe("WorkspaceFileStore", () => {
-  it("commits notes, manifest, and syntax as one repository snapshot", async () => {
-    await withTempStore(async (store, rootDir) => {
-      const workspace = createWorkspace();
-      const initialSnapshot = await store.loadSnapshot();
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => { stdout += chunk; });
+  child.stderr.on("data", (chunk: string) => { stderr += chunk; });
 
-      expect(initialSnapshot).toMatchObject({
-        syntaxSourceFile: null,
+  return new Promise<{ code: number | null; stderr: string; stdout: string }>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve({ code, stderr, stdout }));
+  });
+}
+
+describe("WorkspaceFileStore v3", () => {
+  it("publishes immutable snapshots through the durable repository head", async () => {
+    await withTempDir(async (rootDir) => {
+      const initial = createContent();
+
+      await createWorkspaceFileRepository({ content: initial, label: "Stable label", rootDir });
+      const store = new WorkspaceFileStore(rootDir);
+      const snapshot = await store.loadSnapshot();
+
+      expect(snapshot).toEqual({ content: initial, revision: snapshot.revision });
+      expect(snapshot.revision).toMatch(/^sha256:[0-9a-f]{64}$/);
+      const metadata = JSON.parse(await readFile(path.join(rootDir, "repository.json"), "utf8"));
+
+      expect(metadata).toEqual({
+        currentRevision: snapshot.revision,
+        label: "Stable label",
+        schemaVersion: 3,
+      });
+      expect(await readFile(
+        path.join(rootDir, "snapshots", snapshot.revision, "notes", "note-test.ctn"),
+        "utf8",
+      )).toBe(initial.workspace.notes[0]?.source);
+
+      const next = createContent("renamed workspace");
+      const committed = await store.commitSnapshot({
+        baseRevision: snapshot.revision,
+        content: next,
+      });
+
+      expect(await store.loadSnapshot()).toEqual({ content: next, revision: committed.revision });
+      expect(await readdir(path.join(rootDir, "snapshots"))).toEqual([committed.revision]);
+      expect(JSON.parse(await readFile(path.join(rootDir, "repository.json"), "utf8")).label)
+        .toBe("Stable label");
+    });
+  });
+
+  it("commits and loads a 10,000-level tree without recursive JSON encoding", async () => {
+    await withTempDir(async (rootDir) => {
+      await createWorkspaceFileRepository({
+        content: createDeepTreeContent(10_000),
+        label: "Deep tree",
+        rootDir,
+      });
+      const snapshot = await new WorkspaceFileStore(rootDir).loadSnapshot();
+      let current = snapshot.content.workspace.tree[0];
+      let depth = 0;
+
+      while (current?.kind === "folder") {
+        depth += 1;
+        current = current.children[0];
+      }
+
+      expect(depth).toBe(10_000);
+      expect(current).toEqual({ kind: "note", noteId: "deep-note" });
+    });
+  });
+
+  it("rejects stale commits and detects tampered or incomplete snapshots", async () => {
+    await withTempDir(async (rootDir) => {
+      await createWorkspaceFileRepository({ content: createContent(), label: "Test", rootDir });
+      const store = new WorkspaceFileStore(rootDir);
+      const base = await store.loadSnapshot();
+      const committed = await store.commitSnapshot({
+        baseRevision: base.revision,
+        content: createContent("new"),
+      });
+
+      await expect(store.commitSnapshot({
+        baseRevision: base.revision,
+        content: createContent("stale"),
+      })).rejects.toMatchObject({
+        currentRevision: committed.revision,
+      });
+      await writeFile(
+        path.join(rootDir, "snapshots", committed.revision, "notes", "note-test.ctn"),
+        "tampered",
+      );
+      await expect(new WorkspaceFileStore(rootDir).loadSnapshot())
+        .rejects.toBeInstanceOf(RepositoryCorruptError);
+    });
+  });
+
+  it("classifies invalid persisted layout as corruption but invalid inbound content as a request error", async () => {
+    await withTempDir(async (rootDir) => {
+      await createWorkspaceFileRepository({ content: createContent(), label: "Test", rootDir });
+      const store = new WorkspaceFileStore(rootDir);
+      const base = await store.loadSnapshot();
+      const invalidContent: WorkspaceRepositoryContentDto = {
+        ...createContent("invalid inbound"),
         workspace: {
-          id: "local-workspace",
-          notes: [],
+          ...createContent("invalid inbound").workspace,
+          notes: [{ id: "../escape", source: "invalid inbound" }],
+          tree: [{ kind: "note", noteId: "../escape" }],
+        },
+      };
+
+      await expect(store.commitSnapshot({
+        baseRevision: base.revision,
+        content: invalidContent,
+      })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
+
+      await writeFile(
+        path.join(rootDir, "snapshots", base.revision, "workspace.json"),
+        JSON.stringify({
+          id: "workspace",
+          name: "tampered",
+          tree: [{ kind: "note", noteId: "../escape" }],
+        }),
+      );
+      await expect(new WorkspaceFileStore(rootDir).loadSnapshot())
+        .rejects.toBeInstanceOf(RepositoryCorruptError);
+    });
+  });
+
+  it("keeps classifying repository metadata damage as corruption after initialization", async () => {
+    await withTempDir(async (rootDir) => {
+      await createWorkspaceFileRepository({ content: createContent(), label: "Test", rootDir });
+      const store = new WorkspaceFileStore(rootDir);
+
+      await store.loadSnapshot();
+      await writeFile(path.join(rootDir, "repository.json"), JSON.stringify({
+        currentRevision: "not-a-revision",
+        label: "Test",
+        schemaVersion: 3,
+      }));
+      await expect(store.loadSnapshot()).rejects.toBeInstanceOf(RepositoryCorruptError);
+    });
+  });
+
+  it("never creates an empty repository during ordinary load", async () => {
+    await withTempDir(async (rootDir) => {
+      await expect(new WorkspaceFileStore(rootDir).loadSnapshot())
+        .rejects.toBeInstanceOf(RepositoryCorruptError);
+      expect(await readdir(rootDir)).toEqual([]);
+    });
+  });
+
+  it("recovers a force-killed writer at every snapshot phase as a complete old or new snapshot", async () => {
+    const phases = Object.values(workspaceCommitPhases);
+
+    for (const interruptedPhase of phases) {
+      await withTempDir(async (rootDir) => {
+        const oldContent = createContent("old");
+
+        await createWorkspaceFileRepository({ content: oldContent, label: "Test", rootDir });
+        await runCrashChild(rootDir, interruptedPhase);
+        const recovered = await new WorkspaceFileStore(rootDir).loadSnapshot();
+        const expected = interruptedPhase === workspaceCommitPhases.headCommitted ||
+            interruptedPhase === workspaceCommitPhases.cleanupCompleted
+          ? createContent("new")
+          : oldContent;
+
+        expect(recovered.content).toEqual(expected);
+      });
+    }
+  }, 20_000);
+
+  it("does not report failure after the durable head has already committed", async () => {
+    await withTempDir(async (rootDir) => {
+      await createWorkspaceFileRepository({ content: createContent("old"), label: "Test", rootDir });
+      const store = new WorkspaceFileStore(rootDir, {
+        onWorkspaceCommitPhase(phase) {
+          if (phase === workspaceCommitPhases.headCommitted) {
+            throw new Error("post-commit observer failed");
+          }
         },
       });
+      const base = await store.loadSnapshot();
+      const content = createContent("new");
+      const committed = await store.commitSnapshot({ baseRevision: base.revision, content });
 
-      const commit = await commitContent(store, {
-        baseRevision: initialSnapshot.revision,
-        syntaxSource: originalSyntaxSource,
-        workspace,
-      });
-
-      expect(
-        await readFile(
-          path.join(rootDir, "notes", "note-test.ctn"),
-          "utf8",
-        ),
-      ).toBe("测试笔记\n\t: 文件保存");
-      await expect(
-        readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
-      ).resolves.toBe(originalSyntaxSource);
-      await expect(
-        readFile(path.join(rootDir, "workspace.json"), "utf8").then(JSON.parse),
-      ).resolves.toEqual(createManifest());
       await expect(store.loadSnapshot()).resolves.toEqual({
-        repositoryPath: rootDir,
-        revision: commit.revision,
-        syntaxSourceFile: {
-          fileName: "workspace.toml",
-          source: originalSyntaxSource,
-        },
-        workspace,
+        content,
+        revision: committed.revision,
       });
     });
   });
+});
 
-  it("stores syntax source without parsing it and removes it with a null snapshot value", async () => {
-    await withTempStore(async (store, rootDir) => {
-      const source = 'name = "broken"\n';
-
-      await commitContent(store, { syntaxSource: source });
-      await expect(store.loadSnapshot()).resolves.toMatchObject({
-        syntaxSourceFile: { fileName: "workspace.toml", source },
-      });
-
-      await commitContent(store, { syntaxSource: null });
-      await expect(store.loadSnapshot()).resolves.toMatchObject({
-        syntaxSourceFile: null,
-      });
-      await expect(
-        readFile(path.join(rootDir, "syntax", "workspace.toml"), "utf8"),
-      ).rejects.toThrow("ENOENT");
-    });
-  });
-
-  it("rejects invalid workspace manifest DTOs", async () => {
-    const cases: Array<[
-      string,
-      (manifest: WorkspaceManifest) => void,
-    ]> = [
-      ["unsupported field", (manifest) => {
-        (manifest as WorkspaceManifest & { extra?: boolean }).extra = true;
-      }],
-      ["missing field", (manifest) => {
-        delete (manifest as Partial<WorkspaceManifest>).notes;
-      }],
-      ["expected array", (manifest) => {
-        (manifest as unknown as { notes: unknown }).notes = {};
-      }],
-      ["unsupported field", (manifest) => {
-        (manifest.notes[0] as WorkspaceManifest["notes"][number] & {
-          extra?: boolean;
-        }).extra = true;
-      }],
-      ["duplicate note id", (manifest) => { manifest.notes.push(clone(manifest.notes[0])); }],
-      ["expected 2", (manifest) => {
-        (manifest as { schemaVersion: number }).schemaVersion = 1;
-      }],
-      ["unsafe note id", (manifest) => {
-        manifest.notes[0].id = "../note-test";
-        const root = manifest.tree[0];
-
-        if (root.kind !== "folder" || root.children[0].kind !== "note") {
-          throw new Error("Expected folder fixture");
-        }
-
-        root.children[0].noteId = "../note-test";
-      }],
-      ["duplicate tree node id", (manifest) => { manifest.tree.push(clone(manifest.tree[0])); }],
-      ["unknown note note-missing", (manifest) => {
-        const root = manifest.tree[0];
-
-        if (root.kind !== "folder" || root.children[0].kind !== "note") {
-          throw new Error("Expected folder fixture");
-        }
-
-        root.children[0].noteId = "note-missing";
-      }],
-    ];
-
-    for (const [message, mutate] of cases) {
-      await withTempStore(async (store, rootDir) => {
-        const manifest = createManifest();
-
-        mutate(manifest);
-        await writeWorkspaceManifest(rootDir, manifest);
-
-        await expect(store.loadSnapshot()).rejects.toThrow(message);
-      });
-    }
-  });
-
-  it("rejects missing and title-divergent note files", async () => {
-    await withTempStore(async (store, rootDir) => {
-      await commitContent(store);
-      await rm(path.join(rootDir, "notes", "note-test.ctn"));
-
-      await expect(store.loadSnapshot()).rejects.toThrow(
-        "Missing note source file: notes/note-test.ctn",
+describe("LocalRepositoryCatalog v3", () => {
+  it("removes abandoned catalog-create staging directories after taking the writer lock", async () => {
+    await withTempDir(async (rootDir) => {
+      const staleStaging = path.join(
+        rootDir,
+        ".create-primary-00000000-0000-4000-8000-000000000001",
       );
-    });
+      const unrelated = path.join(rootDir, ".create-user-content");
 
-    await withTempStore(async (store, rootDir) => {
-      await commitContent(store);
-      await writeFile(
-        path.join(rootDir, "notes", "note-test.ctn"),
-        "错误标题\n\t: 文件保存",
-        "utf8",
-      );
+      await mkdir(staleStaging, { recursive: true });
+      await mkdir(unrelated, { recursive: true });
+      const catalog = new LocalRepositoryCatalog(rootDir);
 
-      await expect(store.loadSnapshot()).rejects.toThrow(
-        "Workspace note title does not match first line: note-test",
-      );
+      try {
+        await catalog.initialize();
+        expect(await readdir(rootDir)).toContain(".create-user-content");
+        expect(await readdir(rootDir)).not.toContain(path.basename(staleStaging));
+      } finally {
+        await catalog.dispose();
+      }
     });
   });
 
-  it("rejects invalid aggregate commit payloads without writing a manifest", async () => {
-    const cases: Array<[
-      string,
-      (workspace: RepositoryWorkspaceDto) => void,
-    ]> = [
-      ["unsupported field", (workspace) => {
-        (workspace as RepositoryWorkspaceDto & {
-          activeNoteId?: string;
-        }).activeNoteId = "note-missing";
-      }],
-      ["unsupported field", (workspace) => {
-        (workspace.notes[0] as RepositoryWorkspaceDto["notes"][number] & {
-          fileName?: string;
-        }).fileName = "custom.ctn";
-      }],
-      ["title does not match first line", (workspace) => { workspace.notes[0].title = "错误标题"; }],
-      ["Unsafe note id", (workspace) => {
-        workspace.notes[0].id = "../note-test";
-        const root = workspace.tree[0];
+  it("holds one root writer lock and exposes no absolute paths", async () => {
+    await withTempDir(async (rootDir) => {
+      const first = new LocalRepositoryCatalog(rootDir);
+      const second = new LocalRepositoryCatalog(rootDir);
 
-        if (root.kind !== "folder" || root.children[0].kind !== "note") {
-          throw new Error("Expected folder fixture");
-        }
+      try {
+        await first.initialize();
+        await expect(second.initialize()).rejects.toMatchObject({ code: "repository_busy" });
+        const descriptor = await first.createRepository({
+          content: createContent(),
+          id: "primary",
+          label: "Catalog label",
+        });
 
-        root.children[0].noteId = "../note-test";
-      }],
-    ];
-
-    for (const [message, mutate] of cases) {
-      await withTempStore(async (store, rootDir) => {
-        const workspace = createWorkspace();
-
-        mutate(workspace);
-
-        await expect(commitContent(store, { workspace })).rejects.toThrow(message);
-        await expect(
-          readFile(path.join(rootDir, "workspace.json"), "utf8"),
-        ).rejects.toThrow("ENOENT");
-      });
-    }
+        expect(descriptor).toEqual({
+          adapter: "local",
+          id: "primary",
+          label: "Catalog label",
+          locationLabel: "local:primary",
+        });
+        expect(JSON.stringify(descriptor)).not.toContain(rootDir);
+        await first.dispose();
+        await expect(second.initialize()).resolves.toBeUndefined();
+      } finally {
+        await first.dispose();
+        await second.dispose();
+      }
+    });
   });
 
-  it("derives stable note files only from note ids", async () => {
-    await withTempStore(async (store, rootDir) => {
-      const workspace = createWorkspace();
-      const root = workspace.tree[0];
+  it("rejects a writer in a separate process while the root lock is held", async () => {
+    await withTempDir(async (rootDir) => {
+      const owner = new LocalRepositoryCatalog(rootDir);
 
-      if (root.kind !== "folder") {
-        throw new Error("Expected folder fixture");
+      try {
+        await owner.initialize();
+        const contender = await runCatalogProbeChild(rootDir);
+
+        expect(contender).toMatchObject({
+          code: 42,
+        });
+      } finally {
+        await owner.dispose();
       }
 
-      root.title = ".";
-      workspace.notes[0].title = "同名/笔记";
-      workspace.notes[0].source = "同名/笔记\n\t: 第一篇";
-      workspace.notes.push({
-        ...workspace.notes[0],
-        id: "note-second",
-        source: "同名/笔记\n\t: 第二篇",
+      await expect(runCatalogProbeChild(rootDir)).resolves.toMatchObject({
+        code: 0,
       });
-      root.children.push({
-        id: "tree-note-second",
-        kind: "note",
-        noteId: "note-second",
-      });
-
-      await commitContent(store, { workspace });
-
-      await expect(
-        readdir(path.join(rootDir, "notes")).then((entries) => entries.sort()),
-      ).resolves.toEqual(["note-second.ctn", "note-test.ctn"]);
-      await expect(store.loadSnapshot()).resolves.toMatchObject({ workspace });
-
-      const renamedWorkspace = clone(workspace);
-
-      renamedWorkspace.notes[0].title = "重命名后";
-      renamedWorkspace.notes[0].source = "重命名后\n\t: 第一篇";
-      renamedWorkspace.tree = [
-        root.children[0],
-        {
-          ...root,
-          children: [root.children[1]],
-          title: "移动后的目录",
-        },
-      ];
-
-      await commitContent(store, { workspace: renamedWorkspace });
-      await expect(
-        readdir(path.join(rootDir, "notes")).then((entries) => entries.sort()),
-      ).resolves.toEqual(["note-second.ctn", "note-test.ctn"]);
     });
-  });
+  }, 10_000);
 
-  it("serializes concurrent commits and rejects the stale base revision", async () => {
-    await withTempStore(async (store) => {
-      const baseRevision = (await store.loadSnapshot()).revision;
-      const first = createWorkspace();
-      const stale = createRenamedWorkspace();
+  it("isolates corrupt and legacy repositories from healthy catalog entries", async () => {
+    await withTempDir(async (rootDir) => {
+      const catalog = new LocalRepositoryCatalog(rootDir);
 
-      const [firstResult, staleResult] = await Promise.allSettled([
-        commitContent(store, { baseRevision, workspace: first }),
-        commitContent(store, { baseRevision, workspace: stale }),
-      ]);
+      try {
+        await catalog.initialize();
+        await catalog.createRepository({ content: createContent(), id: "good", label: "Good" });
+        await mkdir(path.join(rootDir, "broken"));
+        await mkdir(path.join(rootDir, "legacy"));
+        await writeFile(path.join(rootDir, "legacy", "workspace.json"), "{}\n");
 
-      expect(firstResult.status).toBe("fulfilled");
-      expect(staleResult.status).toBe("rejected");
-
-      if (staleResult.status === "rejected") {
-        expect(staleResult.reason).toBeInstanceOf(WorkspaceRevisionConflictError);
+        await expect(catalog.listRepositories()).resolves.toEqual({
+          issues: [
+            expect.objectContaining({ code: "repository_corrupt", id: "broken" }),
+            expect.objectContaining({ code: "unsupported_repository_version", id: "legacy" }),
+          ],
+          repositories: [expect.objectContaining({ id: "good", label: "Good" })],
+        });
+      } finally {
+        await catalog.dispose();
       }
-
-      await expect(store.loadSnapshot()).resolves.toMatchObject({ workspace: first });
-    });
-  });
-
-  it("detects valid external edits to note and syntax content", async () => {
-    await withTempStore(async (store, rootDir) => {
-      await commitContent(store, { syntaxSource: originalSyntaxSource });
-      const staleSnapshot = await store.loadSnapshot();
-
-      await writeFile(
-        path.join(rootDir, "notes", "note-test.ctn"),
-        "测试笔记\n\t: 外部修改",
-        "utf8",
-      );
-      const noteEditedSnapshot = await store.loadSnapshot();
-
-      expect(noteEditedSnapshot.revision).not.toBe(staleSnapshot.revision);
-      await expect(
-        commitContent(store, {
-          baseRevision: staleSnapshot.revision,
-          syntaxSource: originalSyntaxSource,
-          workspace: createRenamedWorkspace(),
-        }),
-      ).rejects.toMatchObject({
-        currentRevision: noteEditedSnapshot.revision,
-        name: "WorkspaceRevisionConflictError",
-      });
-
-      await writeFile(
-        path.join(rootDir, "syntax", "workspace.toml"),
-        updatedSyntaxSource,
-        "utf8",
-      );
-      const syntaxEditedSnapshot = await store.loadSnapshot();
-
-      expect(syntaxEditedSnapshot.revision).not.toBe(noteEditedSnapshot.revision);
-      await expect(
-        commitContent(store, {
-          baseRevision: noteEditedSnapshot.revision,
-          syntaxSource: originalSyntaxSource,
-          workspace: noteEditedSnapshot.workspace,
-        }),
-      ).rejects.toMatchObject({
-        currentRevision: syntaxEditedSnapshot.revision,
-      });
-    });
-  });
-
-  it("recovers workspace and syntax atomically around every commit phase", async () => {
-    const oldPhases = new Set<WorkspaceCommitPhase>([
-      workspaceCommitPhases.prepared,
-      workspaceCommitPhases.previousNotesMoved,
-      workspaceCommitPhases.previousSyntaxMoved,
-      workspaceCommitPhases.notesCommitted,
-      workspaceCommitPhases.syntaxCommitted,
-      workspaceCommitPhases.manifestCommitted,
-    ]);
-
-    for (const phase of Object.values(workspaceCommitPhases)) {
-      await withTempStore(async (initialStore, rootDir) => {
-        await commitContent(initialStore, {
-          syntaxSource: originalSyntaxSource,
-          workspace: createWorkspace(),
-        });
-        const baseRevision = (await initialStore.loadSnapshot()).revision;
-        const interruptedStore = new WorkspaceFileStore(rootDir, {
-          onWorkspaceCommitPhase(currentPhase) {
-            if (currentPhase === phase) {
-              throw new Error(`Interrupted at ${phase}`);
-            }
-          },
-        });
-
-        await expect(
-          commitContent(interruptedStore, {
-            baseRevision,
-            syntaxSource: updatedSyntaxSource,
-            workspace: createRenamedWorkspace(),
-          }),
-        ).rejects.toThrow(`Interrupted at ${phase}`);
-
-        const recoveredSnapshot = await new WorkspaceFileStore(rootDir).loadSnapshot();
-        const shouldRollback = oldPhases.has(phase);
-        const expectedWorkspace = shouldRollback
-          ? createWorkspace()
-          : createRenamedWorkspace();
-        const expectedSyntax = shouldRollback
-          ? originalSyntaxSource
-          : updatedSyntaxSource;
-
-        expect(recoveredSnapshot).toMatchObject({
-          syntaxSourceFile: {
-            fileName: "workspace.toml",
-            source: expectedSyntax,
-          },
-          workspace: expectedWorkspace,
-        });
-        await expect(
-          readFile(path.join(rootDir, ".workspace-transaction.json"), "utf8"),
-        ).rejects.toThrow("ENOENT");
-        await expect(
-          readFile(
-            path.join(rootDir, "notes", "note-test.ctn"),
-            "utf8",
-          ),
-        ).resolves.toBe(expectedWorkspace.notes[0].source);
-      });
-    }
-  });
-
-  it("removes orphan transactions and atomic-write temporary files", async () => {
-    await withTempStore(async (store, rootDir) => {
-      const temporaryFileName =
-        "workspace.json.123.00000000-0000-4000-8000-000000000000.tmp";
-      const nestedTemporaryFileName =
-        "note.ctn.123.00000000-0000-4000-8000-000000000001.tmp";
-      const transactionDir = path.join(rootDir, ".workspace-transaction");
-
-      await mkdir(path.join(rootDir, "notes"), { recursive: true });
-      await mkdir(transactionDir, { recursive: true });
-      await writeFile(path.join(rootDir, temporaryFileName), "temporary", "utf8");
-      await writeFile(
-        path.join(rootDir, "notes", nestedTemporaryFileName),
-        "temporary",
-        "utf8",
-      );
-      await writeFile(path.join(transactionDir, "orphan.ctn"), "orphan", "utf8");
-
-      await store.initialize();
-
-      await expect(
-        readFile(path.join(rootDir, temporaryFileName), "utf8"),
-      ).rejects.toThrow("ENOENT");
-      await expect(
-        readFile(path.join(rootDir, "notes", nestedTemporaryFileName), "utf8"),
-      ).rejects.toThrow("ENOENT");
-      await expect(
-        readFile(path.join(transactionDir, "orphan.ctn"), "utf8"),
-      ).rejects.toThrow("ENOENT");
     });
   });
 });

@@ -195,13 +195,14 @@ export function NoteEditorPanel({
         }
       />
       <CtnEditor
-        documentKey={view.activeNote.id}
+        key={view.activeNote.id}
         focusTarget={view.editor.focusTarget}
         mode={view.editor.mode}
         syntaxProfile={view.editor.syntaxProfile}
         value={view.editor.documentText}
         onActiveLineChange={view.editor.onActiveLineChange}
         onChange={view.updateSource}
+        onConsumeFocusTarget={view.editor.onConsumeFocusTarget}
         onOpenReference={referenceNavigation.openReference}
       />
       {referenceNavigation.picker}

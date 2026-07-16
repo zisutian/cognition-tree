@@ -5,4 +5,5 @@ export type SyntaxViewModel = UiSyntaxView &
   ReturnType<typeof createSyntaxDraftActions> & {
     createConfiguration: () => Promise<void>;
     isConfigured: boolean;
+    onConsumeFocusTarget: (requestId: number) => void;
   };

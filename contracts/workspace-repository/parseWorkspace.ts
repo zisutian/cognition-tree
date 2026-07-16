@@ -13,110 +13,127 @@ import type {
   RepositoryTreeNodeDto,
   RepositoryWorkspaceDto,
 } from "./types.ts";
-import { inferRepositoryNoteTitle } from "./noteSource.ts";
 
 const workspaceFields = ["id", "name", "notes", "tree"] as const;
-const noteFields = [
-  "createdAt",
-  "id",
-  "source",
-  "title",
-  "updatedAt",
-] as const;
-const folderFields = ["children", "id", "kind", "title"] as const;
-const noteNodeFields = ["id", "kind", "noteId"] as const;
+const noteFields = ["id", "source"] as const;
+const folderFields = ["children", "folderId", "kind", "title"] as const;
+const noteNodeFields = ["kind", "noteId"] as const;
+
+/**
+ * A repository note id is also the immutable snapshot file stem. Keep this
+ * rule in the wire contract so browser, HTTP, Local, and WebDAV reject the
+ * same content before any adapter-specific write begins.
+ */
+export function isRepositoryNoteId(value: string) {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+}
 
 function parseRepositoryNote(value: unknown, path: string): RepositoryNoteDto {
   const note = readContractObject(value, path);
 
   assertExactContractFields(note, noteFields, path);
+  const id = readRequiredContractString(note, "id", path);
 
-  const parsedNote = {
-    createdAt: readRequiredContractString(note, "createdAt", path),
-    id: readRequiredContractString(note, "id", path),
-    source: readContractString(note, "source", path),
-    title: readRequiredContractString(note, "title", path),
-    updatedAt: readRequiredContractString(note, "updatedAt", path),
-  };
-
-  if (parsedNote.title !== inferRepositoryNoteTitle(parsedNote.source)) {
-    failContract(`${path}.title`, "title does not match first line");
+  if (!isRepositoryNoteId(id)) {
+    failContract(`${path}.id`, "invalid repository note id");
   }
 
-  return parsedNote;
+  return {
+    id,
+    source: readContractString(note, "source", path),
+  };
 }
 
 type TreeParseState = {
+  folderIds: Set<string>;
   noteIds: ReadonlySet<string>;
   placedNoteIds: Set<string>;
-  treeNodeIds: Set<string>;
 };
 
-function parseTreeNode(
-  value: unknown,
-  path: string,
-  state: TreeParseState,
-): RepositoryTreeNodeDto {
-  const node = readContractObject(value, path);
-  const kind = readRequiredContractString(node, "kind", path);
-  const id = readRequiredContractString(node, "id", path);
+type PendingTreeNode = {
+  destination: RepositoryTreeNodeDto[];
+  path: string;
+  value: unknown;
+};
 
-  if (state.treeNodeIds.has(id)) {
-    failContract(`${path}.id`, `duplicate tree node id ${id}`);
-  }
-
-  state.treeNodeIds.add(id);
-
-  if (kind === "folder") {
-    assertExactContractFields(node, folderFields, path);
-    const children = readContractArray(node, "children", path);
-
-    return {
-      children: children.map((child, index) =>
-        parseTreeNode(child, `${path}.children[${index}]`, state),
-      ),
-      id,
-      kind,
-      title: readRequiredContractString(node, "title", path),
-    };
-  }
-
-  if (kind === "note") {
-    assertExactContractFields(node, noteNodeFields, path);
-    const noteId = readRequiredContractString(node, "noteId", path);
-
-    if (!state.noteIds.has(noteId)) {
-      failContract(`${path}.noteId`, `unknown note ${noteId}`);
-    }
-
-    if (state.placedNoteIds.has(noteId)) {
-      failContract(`${path}.noteId`, `duplicate note placement ${noteId}`);
-    }
-
-    state.placedNoteIds.add(noteId);
-    return { id, kind, noteId };
-  }
-
-  failContract(`${path}.kind`, `unsupported node kind ${kind}`);
-}
-
+/** Iterative by design: repository data may contain very deep valid trees. */
 export function parseRepositoryTree(
   value: unknown,
   path: string,
   noteIds: ReadonlySet<string>,
-) {
+): RepositoryTreeNodeDto[] {
   if (!Array.isArray(value)) {
     failContract(path, "expected array");
   }
 
+  const result: RepositoryTreeNodeDto[] = [];
   const state: TreeParseState = {
+    folderIds: new Set(),
     noteIds,
     placedNoteIds: new Set(),
-    treeNodeIds: new Set(),
   };
-  const tree = value.map((node, index) =>
-    parseTreeNode(node, `${path}[${index}]`, state),
-  );
+  const pending: PendingTreeNode[] = [];
+
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    pending.push({ destination: result, path: `${path}[${index}]`, value: value[index] });
+  }
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+
+    if (!current) {
+      break;
+    }
+
+    const node = readContractObject(current.value, current.path);
+    const kind = readRequiredContractString(node, "kind", current.path);
+
+    if (kind === "folder") {
+      assertExactContractFields(node, folderFields, current.path);
+      const folderId = readRequiredContractString(node, "folderId", current.path);
+
+      if (state.folderIds.has(folderId)) {
+        failContract(`${current.path}.folderId`, `duplicate folder id ${folderId}`);
+      }
+      state.folderIds.add(folderId);
+
+      const childrenValue = readContractArray(node, "children", current.path);
+      const children: RepositoryTreeNodeDto[] = [];
+      current.destination.push({
+        children,
+        folderId,
+        kind: "folder",
+        title: readRequiredContractString(node, "title", current.path),
+      });
+
+      for (let index = childrenValue.length - 1; index >= 0; index -= 1) {
+        pending.push({
+          destination: children,
+          path: `${current.path}.children[${index}]`,
+          value: childrenValue[index],
+        });
+      }
+      continue;
+    }
+
+    if (kind === "note") {
+      assertExactContractFields(node, noteNodeFields, current.path);
+      const noteId = readRequiredContractString(node, "noteId", current.path);
+
+      if (!state.noteIds.has(noteId)) {
+        failContract(`${current.path}.noteId`, `unknown note ${noteId}`);
+      }
+      if (state.placedNoteIds.has(noteId)) {
+        failContract(`${current.path}.noteId`, `duplicate note placement ${noteId}`);
+      }
+
+      state.placedNoteIds.add(noteId);
+      current.destination.push({ kind: "note", noteId });
+      continue;
+    }
+
+    failContract(`${current.path}.kind`, `unsupported node kind ${kind}`);
+  }
 
   for (const noteId of noteIds) {
     if (!state.placedNoteIds.has(noteId)) {
@@ -124,7 +141,7 @@ export function parseRepositoryTree(
     }
   }
 
-  return tree;
+  return result;
 }
 
 export function parseRepositoryWorkspace(
@@ -141,10 +158,7 @@ export function parseRepositoryWorkspace(
     const parsedNote = parseRepositoryNote(note, `${path}.notes[${index}]`);
 
     if (noteIds.has(parsedNote.id)) {
-      failContract(
-        `${path}.notes[${index}].id`,
-        `duplicate note id ${parsedNote.id}`,
-      );
+      failContract(`${path}.notes[${index}].id`, `duplicate note id ${parsedNote.id}`);
     }
 
     noteIds.add(parsedNote.id);

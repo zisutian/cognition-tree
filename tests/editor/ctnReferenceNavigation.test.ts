@@ -1,20 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnDocument } from "../../src/ctn/parser/parseCtnDocument";
+import { parseCtnEditableDocument } from "../../src/ctn/parser/parseCtnDocument";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import {
   findCtnReferenceAtPosition,
 } from "../../src/editor/ctnReferenceNavigation";
-import {
-  addTestCtnBlockMetadata,
-} from "../ctn/metadata/sourceMetadataFixture";
-
 describe("CTN editor reference navigation", () => {
   it("finds local and global references by source position", () => {
-    const document = parseCtnDocument(
-      addTestCtnBlockMetadata(
-        "Title\n\t: <Local> and [[Global]]",
-        defaultCtnSyntaxProfile,
-      ),
+    const document = parseCtnEditableDocument(
+      "Title\n\t: <Local> and [[Global]]",
       defaultCtnSyntaxProfile,
     );
     const block = document.blocks[1];
@@ -37,11 +30,8 @@ describe("CTN editor reference navigation", () => {
   });
 
   it("ignores non-reference spans and positions outside a span", () => {
-    const document = parseCtnDocument(
-      addTestCtnBlockMetadata(
-        "Title\n\t: `code` and text",
-        defaultCtnSyntaxProfile,
-      ),
+    const document = parseCtnEditableDocument(
+      "Title\n\t: `code` and text",
       defaultCtnSyntaxProfile,
     );
     const block = document.blocks[1];

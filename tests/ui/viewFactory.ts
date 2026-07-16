@@ -60,6 +60,7 @@ export function createView(
         },
         syntaxProfile: defaultCtnSyntaxProfile,
         onActiveLineChange: () => undefined,
+        onConsumeFocusTarget: () => undefined,
       },
       outline: {
         activeBlock: null,
@@ -83,11 +84,11 @@ export function createView(
           adapter: "local",
           id: "primary",
           label: "Primary",
-          repositoryPath: "/workspace",
+          locationLabel: "本地仓库",
         },
       ],
-      repositoryPath: "/workspace",
-      saveStatusLabel: "已保存",
+      locationLabel: "本地仓库 · primary",
+      persistenceStatusLabel: "已保存",
       storageLabel: "本地",
       selectRepository: async () => undefined,
     },
@@ -157,6 +158,7 @@ export function createView(
       },
       createConfiguration: async () => undefined,
       isConfigured: true,
+      onConsumeFocusTarget: () => undefined,
       protectedInlineRuleIds: [],
     },
     visualization: {
@@ -168,9 +170,12 @@ export function createView(
         query: "",
       },
       graph: {
+        adjacencyByNoteId: new Map(),
+        detailsByNoteId: new Map(),
         edges: [],
         mostReferencedNodes: [],
         nodes: [],
+        revision: 0,
         stats: {
           edgeCount: 0,
           isolatedCount: 0,

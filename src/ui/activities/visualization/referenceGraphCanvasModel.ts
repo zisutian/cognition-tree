@@ -86,30 +86,28 @@ export function createInitialNode(
   };
 }
 
-export function createReferenceGraphSimulationKey({
-  edges,
-  nodes,
-}: {
-  edges: VisibleReferenceGraphEdge[];
-  nodes: VisibleReferenceGraphNode[];
-}) {
-  return JSON.stringify({
-    edges: edges.map((edge) => [
-      edge.id,
-      edge.sourceNoteId,
-      edge.targetNoteId,
-      edge.targetTitle,
-      edge.count,
-    ]),
-    nodes: nodes.map((node) => [
-      node.id,
-      node.title,
-      node.isolated,
-      node.referencesIn,
-      node.referencesOut,
-      node.radius,
-    ]),
-  });
+export function releaseGraphSimulationNode(node: GraphSimulationNode) {
+  node.fx = null;
+  node.fy = null;
+}
+
+export function getNextGraphKeyboardNode(
+  nodes: VisibleReferenceGraphNode[],
+  currentNodeId: string | null,
+  direction: -1 | 1,
+) {
+  if (nodes.length === 0) {
+    return null;
+  }
+
+  const currentIndex = currentNodeId
+    ? nodes.findIndex((node) => node.id === currentNodeId)
+    : -1;
+  const nextIndex = currentIndex < 0
+    ? direction > 0 ? 0 : nodes.length - 1
+    : (currentIndex + direction + nodes.length) % nodes.length;
+
+  return nodes[nextIndex] ?? null;
 }
 
 export function resolveLinkedNodeId(

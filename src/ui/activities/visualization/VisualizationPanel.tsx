@@ -30,8 +30,20 @@ export function VisualizationPanel({
         mode,
         query,
       }),
-    [hideIsolated, localDepth, mode, query, visualization],
+    [
+      hideIsolated,
+      localDepth,
+      mode,
+      query,
+      visualization.activeNoteId,
+      visualization.graph,
+    ],
   );
+  const topologyRevision = `${visualization.graph.revision}:${
+    mode === "local" ? visualization.activeNoteId ?? "none" : "global"
+  }:${mode}:${localDepth}:${
+    hideIsolated ? 1 : 0
+  }:${query}`;
   const emptyMessage = getEmptyGraphMessage({
     graphNodeCount: visualization.graph.nodes.length,
     hasActiveNote: Boolean(visualization.activeNoteId),
@@ -61,6 +73,7 @@ export function VisualizationPanel({
               graph={visibleGraph}
               resetSignal={resetSignal}
               selectedNoteId={visualization.activeNoteId}
+              topologyRevision={topologyRevision}
               onSelectNote={visualization.onSelectNote}
             />
           ) : (

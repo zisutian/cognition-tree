@@ -50,7 +50,7 @@ test.describe.serial("workbench diagnostics", () => {
     await problemsHeader.click();
 
     const rows = problems.locator(".problems-row");
-    const documentProblem = rows.filter({ hasText: "未知行首符号 ?" });
+    const documentProblem = rows.filter({ hasText: "未知行首符号 !" });
     const referenceProblem = rows.filter({ hasText: "无法解析全局引用“Missing”" });
 
     await expect(rows).toHaveCount(2);
@@ -62,13 +62,13 @@ test.describe.serial("workbench diagnostics", () => {
       }),
     ).toBeVisible();
     await expect(page.locator(".source-editor .cm-activeLine")).toContainText(
-      "? Unknown",
+      "! Unknown",
     );
 
     await page.locator(".source-editor .cm-line").first().click();
     await documentProblem.click();
     await expect(page.locator(".source-editor .cm-activeLine")).toContainText(
-      "? Unknown",
+      "! Unknown",
     );
 
     await referenceProblem.click();
@@ -126,7 +126,7 @@ test.describe.serial("workbench diagnostics", () => {
       .toBeLessThanOrEqual(640);
   });
 
-  test("reports syntax persistence failure once outside the problems list", async ({
+  test("reports syntax save failure once through global persistence feedback", async ({
     page,
   }) => {
     await openWorkbench(page, repositoryId);
@@ -138,7 +138,11 @@ test.describe.serial("workbench diagnostics", () => {
       async (route) => {
         if (route.request().method() === "PUT") {
           await route.fulfill({
-            body: JSON.stringify({ error: "syntax persistence failed" }),
+            body: JSON.stringify({
+              code: "internal_error",
+              message: "syntax persistence failed",
+              requestId: "e2e-syntax-persistence-failure",
+            }),
             contentType: "application/json",
             status: 500,
           });

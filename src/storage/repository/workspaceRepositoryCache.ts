@@ -2,123 +2,177 @@ import {
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
 } from "../../../contracts/workspace-repository/parseRepository";
+import { parseRepositoryRevision } from "../../../contracts/workspace-repository/revision";
 import type {
+  LocalDraftRevision,
+  RemoteWorkspaceSnapshot,
+  RepositoryRevision,
   WorkspaceRepositoryContent,
 } from "./workspaceRepository";
+import { WorkspaceRepositoryLocalConflictError } from "./workspaceRepository";
 
-export type ConfirmedWorkspaceRepositorySnapshot =
-  WorkspaceRepositoryContent & {
-    repositoryPath: string;
-    revision: string;
-  };
-
-export type PendingWorkspaceRepositoryCommit = {
-  baseRevision: string;
+export type WorkspaceRepositoryLocalState = {
   content: WorkspaceRepositoryContent;
-  localRevision: string;
-  repositoryPath: string;
-};
-
-export type WorkspaceRepositoryCacheState = {
-  confirmed: ConfirmedWorkspaceRepositorySnapshot | null;
-  pending: PendingWorkspaceRepositoryCommit | null;
-  version: 1;
+  localRevision: LocalDraftRevision;
+  pendingBaseRevision: RepositoryRevision | null;
+  remoteRevision: RepositoryRevision | null;
 };
 
 export type WorkspaceRepositoryCache = {
-  load: (
-    repositoryIdentity: string,
-  ) => Promise<WorkspaceRepositoryCacheState | null>;
-  remove: (repositoryIdentity: string) => Promise<void>;
-  save: (
-    repositoryIdentity: string,
-    state: WorkspaceRepositoryCacheState,
-  ) => Promise<void>;
+  completeSync(input: {
+    committedRemoteRevision: RepositoryRevision;
+    expectedLocalRevision: LocalDraftRevision;
+    identity: string;
+  }): Promise<WorkspaceRepositoryLocalState>;
+  create(input: {
+    identity: string;
+    localRevision: LocalDraftRevision;
+    snapshot: RemoteWorkspaceSnapshot;
+  }): Promise<WorkspaceRepositoryLocalState>;
+  load(identity: string): Promise<WorkspaceRepositoryLocalState | null>;
+  recordConflict(input: {
+    currentRemoteRevision: RepositoryRevision;
+    identity: string;
+  }): Promise<WorkspaceRepositoryLocalState>;
+  remove(identity: string): Promise<void>;
+  replaceFromRemote(input: {
+    expectedLocalRevision: LocalDraftRevision;
+    identity: string;
+    localRevision: LocalDraftRevision;
+    snapshot: RemoteWorkspaceSnapshot;
+  }): Promise<WorkspaceRepositoryLocalState>;
+  stage(input: {
+    content: WorkspaceRepositoryContent;
+    expectedLocalRevision: LocalDraftRevision;
+    identity: string;
+    localRevision: LocalDraftRevision;
+  }): Promise<WorkspaceRepositoryLocalState>;
 };
 
-function readObject(value: unknown, label: string) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`Invalid repository cache ${label}`);
-  }
-
-  return value as Record<string, unknown>;
+function cloneState(state: WorkspaceRepositoryLocalState) {
+  return structuredClone(state);
 }
 
-function assertFields(
-  value: Record<string, unknown>,
-  fields: readonly string[],
-  label: string,
+function requireState(
+  states: Map<string, WorkspaceRepositoryLocalState>,
+  identity: string,
 ) {
-  const actual = Object.keys(value).sort();
-  const expected = [...fields].sort();
+  const state = states.get(identity);
 
-  if (
-    actual.length !== expected.length ||
-    actual.some((field, index) => field !== expected[index])
-  ) {
-    throw new Error(`Invalid repository cache ${label}`);
-  }
-}
-
-export function parseWorkspaceRepositoryCacheState(
-  value: unknown,
-): WorkspaceRepositoryCacheState {
-  const state = readObject(value, "state");
-
-  assertFields(state, ["confirmed", "pending", "version"], "state");
-  if (state.version !== 1) {
-    throw new Error("Unsupported repository cache version");
+  if (!state) {
+    throw new Error(`Local repository state does not exist: ${identity}`);
   }
 
-  const confirmed = state.confirmed === null
-    ? null
-    : parseWorkspaceRepositorySnapshot(state.confirmed);
-  let pending: PendingWorkspaceRepositoryCommit | null = null;
-
-  if (state.pending !== null) {
-    const pendingValue = readObject(state.pending, "pending commit");
-
-    assertFields(
-      pendingValue,
-      ["baseRevision", "content", "localRevision", "repositoryPath"],
-      "pending commit",
-    );
-    if (
-      typeof pendingValue.baseRevision !== "string" ||
-      pendingValue.baseRevision.length === 0 ||
-      typeof pendingValue.localRevision !== "string" ||
-      pendingValue.localRevision.length === 0 ||
-      typeof pendingValue.repositoryPath !== "string" ||
-      pendingValue.repositoryPath.length === 0
-    ) {
-      throw new Error("Invalid repository cache pending commit");
-    }
-
-    pending = {
-      baseRevision: pendingValue.baseRevision,
-      content: parseWorkspaceRepositoryContent(pendingValue.content),
-      localRevision: pendingValue.localRevision,
-      repositoryPath: pendingValue.repositoryPath,
-    };
-  }
-
-  return { confirmed, pending, version: 1 };
+  return state;
 }
 
 export function createMemoryWorkspaceRepositoryCache(): WorkspaceRepositoryCache {
-  const states = new Map<string, WorkspaceRepositoryCacheState>();
+  const states = new Map<string, WorkspaceRepositoryLocalState>();
 
   return {
-    async load(repositoryIdentity) {
-      const state = states.get(repositoryIdentity);
+    async completeSync({
+      committedRemoteRevision,
+      expectedLocalRevision,
+      identity,
+    }) {
+      const parsedRemoteRevision = parseRepositoryRevision(
+        committedRemoteRevision,
+      );
+      const current = requireState(states, identity);
+      const unchanged = current.localRevision === expectedLocalRevision;
+      const next = {
+        ...current,
+        pendingBaseRevision: unchanged ? null : parsedRemoteRevision,
+        remoteRevision: parsedRemoteRevision,
+      };
 
-      return state ? structuredClone(state) : null;
+      states.set(identity, next);
+      return cloneState(next);
     },
-    async remove(repositoryIdentity) {
-      states.delete(repositoryIdentity);
+    async create({ identity, localRevision, snapshot }) {
+      const parsedSnapshot = parseWorkspaceRepositorySnapshot(snapshot);
+
+      if (states.has(identity)) {
+        throw new Error(`Local repository state already exists: ${identity}`);
+      }
+
+      const state = {
+        content: parsedSnapshot.content,
+        localRevision,
+        pendingBaseRevision: null,
+        remoteRevision: parsedSnapshot.revision,
+      };
+
+      states.set(identity, cloneState(state));
+      return cloneState(state);
     },
-    async save(repositoryIdentity, state) {
-      states.set(repositoryIdentity, structuredClone(state));
+    async load(identity) {
+      const state = states.get(identity);
+
+      return state ? cloneState(state) : null;
+    },
+    async recordConflict({ currentRemoteRevision, identity }) {
+      const current = requireState(states, identity);
+      const next = {
+        ...current,
+        remoteRevision: parseRepositoryRevision(currentRemoteRevision),
+      };
+
+      states.set(identity, next);
+      return cloneState(next);
+    },
+    async remove(identity) {
+      states.delete(identity);
+    },
+    async replaceFromRemote({
+      expectedLocalRevision,
+      identity,
+      localRevision,
+      snapshot,
+    }) {
+      const parsedSnapshot = parseWorkspaceRepositorySnapshot(snapshot);
+      const current = requireState(states, identity);
+
+      if (current.localRevision !== expectedLocalRevision) {
+        throw new WorkspaceRepositoryLocalConflictError(current.localRevision);
+      }
+
+      const state = {
+        content: parsedSnapshot.content,
+        localRevision,
+        pendingBaseRevision: null,
+        remoteRevision: parsedSnapshot.revision,
+      };
+
+      states.set(identity, cloneState(state));
+      return cloneState(state);
+    },
+    async stage({
+      content,
+      expectedLocalRevision,
+      identity,
+      localRevision,
+    }) {
+      const parsedContent = parseWorkspaceRepositoryContent(content);
+      const current = requireState(states, identity);
+
+      if (current.localRevision !== expectedLocalRevision) {
+        throw new WorkspaceRepositoryLocalConflictError(current.localRevision);
+      }
+      if (!current.pendingBaseRevision && !current.remoteRevision) {
+        throw new Error("Cannot stage a repository without a known remote base.");
+      }
+
+      const next = {
+        ...current,
+        content: parsedContent,
+        localRevision,
+        pendingBaseRevision:
+          current.pendingBaseRevision ?? current.remoteRevision,
+      };
+
+      states.set(identity, cloneState(next));
+      return cloneState(next);
     },
   };
 }

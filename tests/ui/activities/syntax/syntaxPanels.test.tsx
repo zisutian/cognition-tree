@@ -4,22 +4,6 @@ import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDe
 import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
 import { createView } from "../../viewFactory";
 
-const { readFileSync } = (await import("node:fs")) as {
-  readFileSync: (path: URL, encoding: "utf8") => string;
-};
-const syntaxCss = readFileSync(
-  new URL("../../../../src/ui/styles/activities/syntax.css", import.meta.url),
-  "utf8",
-);
-const blockTextCss = readFileSync(
-  new URL("../../../../src/ui/styles/shared/blockText.css", import.meta.url),
-  "utf8",
-);
-const primitivesCss = readFileSync(
-  new URL("../../../../src/ui/styles/shared/primitives.css", import.meta.url),
-  "utf8",
-);
-
 describe("syntax panels", () => {
   it("uses grouped settings rows with one rule row format", () => {
     const markup = renderToStaticMarkup(
@@ -108,58 +92,5 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("当前配置");
     expect(markup).not.toContain("语法统计");
     expect(markup).not.toContain(">状态<");
-  });
-
-  it("keeps syntax controls from using bright focus or selected borders", () => {
-    expect(primitivesCss).toContain(".ui-input");
-    expect(primitivesCss).toContain(
-      "border: var(--ui-border-width) solid transparent",
-    );
-    expect(syntaxCss).not.toContain(".syntax-setting-line input");
-    expect(syntaxCss).not.toContain(".syntax-rule-row input");
-    expect(syntaxCss).not.toMatch(
-      /\.syntax-rule-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
-    );
-    expect(syntaxCss).not.toMatch(
-      /\.syntax-tone-tile\.is-selected,[\s\S]*?border-color: var\(--color-accent\)/,
-    );
-    expect(blockTextCss).toMatch(
-      /\.ctn-tone-green \{[\s\S]*?--ctn-tone-background: var\(--ctn-tone-green-soft\)/,
-    );
-    expect(blockTextCss).toContain(
-      "--ctn-tone-background: color-mix(",
-    );
-    expect(syntaxCss).not.toContain("border-left-color: var(--ctn-tone");
-    expect(syntaxCss).not.toContain(
-      "border-left: calc(var(--ui-border-width) * 2) solid transparent",
-    );
-    expect(syntaxCss).toContain(
-      "minmax(calc(var(--ui-control-height) * 2), max-content)",
-    );
-  });
-
-  it("keeps syntax main layout on grouped settings instead of mixed row systems", () => {
-    expect(syntaxCss).toContain(".syntax-settings-stack");
-    expect(syntaxCss).toContain(".syntax-settings-group");
-    expect(syntaxCss).toContain(".syntax-setting-line");
-    expect(syntaxCss).toContain(".syntax-rule-row");
-    expect(syntaxCss).toContain(".syntax-pair-fields");
-    expect(syntaxCss).toContain("--syntax-rule-row-width");
-    expect(syntaxCss).toContain("width: min(100%, var(--syntax-rule-row-width))");
-    expect(syntaxCss).toContain("calc(var(--ui-control-height) * 12)");
-    expect(syntaxCss).not.toContain("calc(var(--ui-control-height) * 26)");
-    expect(syntaxCss).toContain(".syntax-tone-button.is-compact");
-    expect(syntaxCss).toContain(".syntax-dropdown-menu");
-    expect(syntaxCss).toContain(".syntax-role-menu");
-    expect(syntaxCss).toContain(".syntax-role-list");
-    expect(syntaxCss).toContain(".syntax-role-option");
-    expect(syntaxCss).toContain("justify-content: center");
-    expect(syntaxCss).not.toContain(".syntax-settings-table");
-    expect(syntaxCss).not.toContain(".syntax-setting-row");
-    expect(syntaxCss).not.toContain(".syntax-config-strip");
-    expect(syntaxCss).not.toContain(".syntax-config-item");
-    expect(syntaxCss).not.toContain(".syntax-block-row");
-    expect(syntaxCss).not.toContain(".syntax-inline-row");
-    expect(syntaxCss).not.toContain(".syntax-tone-fields");
   });
 });

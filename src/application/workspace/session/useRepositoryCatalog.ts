@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ActiveRepositorySelection } from "../../../storage/repository/activeRepositorySelection";
 import type {
   WorkspaceRepositoryCatalog,
+  WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "../../../storage/repository/workspaceRepositoryCatalog";
 import { createInitialRepositoryContent } from "./initialRepository";
@@ -11,6 +12,7 @@ type RepositoryCatalogState =
   | { errorMessage: string; status: "failed" }
   | {
       activeRepositoryId: string | null;
+      issues: WorkspaceRepositoryCatalogIssue[];
       repositories: WorkspaceRepositoryDescriptor[];
       status: "ready";
     };
@@ -31,7 +33,7 @@ export function useRepositoryCatalog(
     setState({ status: "loading" });
 
     try {
-      const repositories = await catalog.listRepositories();
+      const { issues, repositories } = await catalog.listRepositories();
       const storedRepositoryId = activeRepositorySelection.load();
       const activeRepositoryId = repositories.some(
         (repository) => repository.id === storedRepositoryId,
@@ -43,7 +45,7 @@ export function useRepositoryCatalog(
         activeRepositorySelection.save(activeRepositoryId);
       }
 
-      setState({ activeRepositoryId, repositories, status: "ready" });
+      setState({ activeRepositoryId, issues, repositories, status: "ready" });
     } catch (error) {
       setState({ errorMessage: getErrorMessage(error), status: "failed" });
     }
@@ -76,10 +78,14 @@ export function useRepositoryCatalog(
   }) => {
     const descriptor = await catalog.createRepository({
       content: createInitialRepositoryContent({
+        createBlockId: () => globalThis.crypto.randomUUID(),
+        createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
         name,
         repositoryId: id,
+        timestamp: new Date().toISOString(),
       }),
       id,
+      label: name,
     });
 
     activeRepositorySelection.save(descriptor.id);

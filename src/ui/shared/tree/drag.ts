@@ -59,22 +59,39 @@ function folderContainsReference(
   node: Extract<TreeNode, { kind: "folder" }>,
   reference: TreeNodeReference,
 ): boolean {
-  return node.children.some((child) => {
+  const pending = [...node.children];
+
+  while (pending.length > 0) {
+    const child = pending.pop();
+
+    if (!child) {
+      continue;
+    }
+
     const childReference = getTreeNodeReference(child);
 
-    return (
-      isSameTreeNodeReference(childReference, reference) ||
-      (child.kind === "folder" && folderContainsReference(child, reference))
-    );
-  });
+    if (isSameTreeNodeReference(childReference, reference)) {
+      return true;
+    }
+
+    if (child.kind === "folder") {
+      pending.push(...child.children);
+    }
+  }
+
+  return false;
 }
 
 function findFolderNode(
   nodes: TreeNode[],
   folderId: string,
 ): Extract<TreeNode, { kind: "folder" }> | null {
-  for (const node of nodes) {
-    if (node.kind !== "folder") {
+  const pending = [...nodes];
+
+  while (pending.length > 0) {
+    const node = pending.pop();
+
+    if (!node || node.kind !== "folder") {
       continue;
     }
 
@@ -82,11 +99,7 @@ function findFolderNode(
       return node;
     }
 
-    const nested = findFolderNode(node.children, folderId);
-
-    if (nested) {
-      return nested;
-    }
+    pending.push(...node.children);
   }
 
   return null;
@@ -96,14 +109,16 @@ export function readTreeNodeDragPayload(value: string): TreeNodeReference | null
   try {
     const parsed = JSON.parse(value) as unknown;
 
-    if (!parsed || typeof parsed !== "object") {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return null;
     }
 
     const candidate = parsed as Record<string, unknown>;
+    const fields = Object.keys(candidate).sort();
     const hasValidParent =
       candidate.parentFolderId === null ||
-      typeof candidate.parentFolderId === "string";
+      (typeof candidate.parentFolderId === "string" &&
+        candidate.parentFolderId.length > 0);
 
     if (!hasValidParent) {
       return null;
@@ -111,6 +126,7 @@ export function readTreeNodeDragPayload(value: string): TreeNodeReference | null
 
     if (
       candidate.kind === "folder" &&
+      fields.join(",") === "folderId,kind,parentFolderId" &&
       typeof candidate.folderId === "string" &&
       candidate.folderId.length > 0
     ) {
@@ -122,6 +138,7 @@ export function readTreeNodeDragPayload(value: string): TreeNodeReference | null
     }
 
     return candidate.kind === "note" &&
+      fields.join(",") === "kind,noteId,parentFolderId" &&
       typeof candidate.noteId === "string" &&
       candidate.noteId.length > 0
       ? {

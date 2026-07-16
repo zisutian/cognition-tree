@@ -7,7 +7,7 @@ import type { WorkspaceRepositoryContentDto } from "../../contracts/workspace-re
 export function createWorkspaceRepositoryRevision(
   content: WorkspaceRepositoryContentDto,
 ) {
-  return createHash("sha256")
+  return `sha256:${createHash("sha256")
     .update(serializeWorkspaceRepositoryRevisionContent(content))
-    .digest("hex");
+    .digest("hex")}` as const;
 }

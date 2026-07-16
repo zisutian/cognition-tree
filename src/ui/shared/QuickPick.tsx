@@ -1,10 +1,12 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
 } from "react";
+import { Overlay } from "./Overlay";
 import { cx } from "./primitives";
 
 export type QuickPickOption = {
@@ -31,9 +33,10 @@ export function QuickPick({
   onClose: () => void;
   onSelect: (option: QuickPickOption) => void;
 }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const listboxId = useId();
   const visibleOptions = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase();
 
@@ -51,7 +54,7 @@ export function QuickPick({
       return;
     }
 
-    setActiveIndex(0);
+    setActiveIndex(null);
     setQuery("");
     inputRef.current?.focus();
   }, [open]);
@@ -61,7 +64,7 @@ export function QuickPick({
   }
 
   const selectActiveOption = () => {
-    const option = visibleOptions[activeIndex];
+    const option = activeIndex === null ? undefined : visibleOptions[activeIndex];
 
     if (option && !option.disabled) {
       onSelect(option);
@@ -87,43 +90,60 @@ export function QuickPick({
     event.preventDefault();
     setActiveIndex((current) => {
       if (visibleOptions.length === 0) {
-        return 0;
+        return null;
       }
 
-      return event.key === "ArrowDown"
-        ? (current + 1) % visibleOptions.length
-        : (current - 1 + visibleOptions.length) % visibleOptions.length;
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      let next = current === null
+        ? direction > 0 ? 0 : visibleOptions.length - 1
+        : (current + direction + visibleOptions.length) % visibleOptions.length;
+
+      for (let visited = 0; visited < visibleOptions.length; visited += 1) {
+        if (!visibleOptions[next]?.disabled) {
+          return next;
+        }
+
+        next = (next + direction + visibleOptions.length) % visibleOptions.length;
+      }
+
+      return null;
     });
   };
+  const activeOption =
+    activeIndex === null ? undefined : visibleOptions[activeIndex];
+  const activeDescendant = activeOption && activeIndex !== null
+    ? `${listboxId}-option-${activeIndex}`
+    : undefined;
 
   return (
-    <div
-      className="ui-overlay-backdrop ui-quick-pick-backdrop"
-      onPointerDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+    <Overlay
+      ariaLabel={ariaLabel}
+      backdropClassName="ui-overlay-backdrop ui-quick-pick-backdrop"
+      className="ui-quick-pick"
+      initialFocusRef={inputRef}
+      modal
+      role="dialog"
+      trapFocus
+      onDismiss={onClose}
+      onKeyDown={handleKeyDown}
     >
-      <div
+      <input
+        aria-activedescendant={activeDescendant}
+        aria-autocomplete="list"
+        aria-controls={listboxId}
+        aria-expanded="true"
         aria-label={ariaLabel}
-        aria-modal="true"
-        className="ui-quick-pick"
-        role="dialog"
-        onKeyDown={handleKeyDown}
-      >
-        <input
-          aria-label={ariaLabel}
-          className="ui-input"
-          placeholder={placeholder}
-          ref={inputRef}
-          value={query}
-          onChange={(event) => {
-            setActiveIndex(0);
-            setQuery(event.target.value);
-          }}
-        />
-        <div className="ui-quick-pick-options" role="listbox">
+        className="ui-input"
+        placeholder={placeholder}
+        ref={inputRef}
+        role="combobox"
+        value={query}
+        onChange={(event) => {
+          setActiveIndex(null);
+          setQuery(event.target.value);
+        }}
+      />
+      <div className="ui-quick-pick-options" id={listboxId} role="listbox">
           {visibleOptions.length > 0 ? (
             visibleOptions.map((option, index) => (
               <button
@@ -133,10 +153,12 @@ export function QuickPick({
                   index === activeIndex && "is-active",
                 )}
                 disabled={option.disabled}
+                id={`${listboxId}-option-${index}`}
                 key={option.id}
                 onClick={() => onSelect(option)}
                 onPointerMove={() => setActiveIndex(index)}
                 role="option"
+                tabIndex={-1}
                 type="button"
               >
                 <span>{option.label}</span>
@@ -146,8 +168,7 @@ export function QuickPick({
           ) : (
             <p className="ui-quick-pick-empty">{emptyMessage}</p>
           )}
-        </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

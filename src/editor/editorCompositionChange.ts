@@ -1,55 +1,101 @@
+import { type ChangeSet } from "@codemirror/state";
+import type {
+  CtnEditableSourceChange,
+  CtnTextEdit,
+} from "../ctn/metadata/textEdits";
+
 type EditorCompositionChangeOptions = {
-  onChange: (value: string) => void;
+  onChange: (change: CtnEditableSourceChange) => void;
   schedule?: (callback: () => void) => void;
 };
 
 export type EditorDocumentChange = {
+  changes: ChangeSet;
   isComposing: boolean;
   isExternal: boolean;
-  value: string;
+  source: string;
 };
+
+export function createCtnTextEdits(changes: ChangeSet): CtnTextEdit[] {
+  const edits: CtnTextEdit[] = [];
+
+  changes.iterChanges((from, to, _fromAfter, _toAfter, inserted) => {
+    edits.push({
+      from,
+      insertedText: inserted.toString(),
+      to,
+    });
+  });
+
+  return edits;
+}
 
 export function createEditorCompositionChange({
   onChange,
   schedule = queueMicrotask,
 }: EditorCompositionChangeOptions) {
-  let hasPendingCompositionChange = false;
-  let lastEmittedValue: string | null = null;
+  let pendingCompositionChanges: ChangeSet | null = null;
+  let lastEmittedSource: string | null = null;
+  let compositionGeneration = 0;
 
-  const emit = (value: string) => {
-    if (value === lastEmittedValue) {
+  const emit = (source: string, changes: ChangeSet) => {
+    if (source === lastEmittedSource) {
       return;
     }
 
-    lastEmittedValue = value;
-    onChange(value);
+    lastEmittedSource = source;
+    onChange({ edits: createCtnTextEdits(changes), source });
   };
 
   return {
-    handleCompositionEnd(readValue: () => string) {
-      if (!hasPendingCompositionChange) {
+    handleCompositionEnd(readSource: () => string) {
+      if (!pendingCompositionChanges) {
         return;
       }
 
-      hasPendingCompositionChange = false;
-      schedule(() => emit(readValue()));
+      const scheduledGeneration = compositionGeneration;
+      schedule(() => {
+        if (
+          scheduledGeneration === compositionGeneration &&
+          pendingCompositionChanges
+        ) {
+          const changes = pendingCompositionChanges;
+
+          pendingCompositionChanges = null;
+          emit(readSource(), changes);
+        }
+      });
     },
     handleDocumentChange({
+      changes,
       isComposing,
       isExternal,
-      value,
+      source,
     }: EditorDocumentChange) {
       if (isExternal) {
+        pendingCompositionChanges = null;
+        compositionGeneration += 1;
+        lastEmittedSource = source;
         return;
       }
 
       if (isComposing) {
-        hasPendingCompositionChange = true;
+        pendingCompositionChanges = pendingCompositionChanges
+          ? pendingCompositionChanges.compose(changes)
+          : changes;
         return;
       }
 
-      hasPendingCompositionChange = false;
-      emit(value);
+      if (pendingCompositionChanges) {
+        const composedChanges = pendingCompositionChanges.compose(changes);
+
+        pendingCompositionChanges = null;
+        compositionGeneration += 1;
+        emit(source, composedChanges);
+        return;
+      }
+
+      emit(source, changes);
     },
   };
 }

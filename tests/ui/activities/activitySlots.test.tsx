@@ -143,7 +143,9 @@ describe("activity slots", () => {
   it("renders placeholders and settings without a directory context", () => {
     expect(renderSlot(slots("search").main)).toContain("搜索功能待接入");
     expect(renderSlot(slots("data").main)).toContain("数据功能待接入");
-    expect(renderSlot(slots("settings").main)).toContain("/workspace");
+    expect(renderSlot(slots("settings").main)).toContain(
+      "本地仓库 · primary",
+    );
   });
 
   it("shows repository conflict recovery only when local changes are blocked", () => {
@@ -155,7 +157,7 @@ describe("activity slots", () => {
           settings: {
             ...baseView.settings,
             hasSaveConflict: true,
-            saveStatusLabel: "仓库内容已更改",
+            persistenceStatusLabel: "仓库内容已更改",
           },
         }),
       ).main,

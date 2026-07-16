@@ -7,6 +7,7 @@ import {
   moveWorkspaceTreeNode as moveWorkspaceTreeNodeAction,
   renameWorkspaceFolder as renameWorkspaceFolderAction,
   renameWorkspaceNote as renameWorkspaceNoteAction,
+  updateWorkspaceRawNoteSource as updateWorkspaceRawNoteSourceAction,
   updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
 } from "../../../workspace/commands/workspaceCommands";
 import {
@@ -23,6 +24,8 @@ import type {
   WorkspaceData,
 } from "../../../workspace/model/workspaceData";
 import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
+import { collectWorkspaceBlockIds } from "../../../workspace/context/workspaceBlockMetadata";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
 type CreateWorkspaceFolderCommand = Parameters<
@@ -76,33 +79,35 @@ export type SessionCommands = {
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
   renameNote: (noteId: NoteId, title: string) => void;
-  updateNoteSource: (noteId: NoteId, source: string) => void;
+  updateNoteSource: (noteId: NoteId, change: CtnEditableSourceChange) => void;
 };
 
-function createFolderId() {
-  return `folder-${globalThis.crypto.randomUUID()}`;
-}
-
-function createNoteId() {
-  return `note-${globalThis.crypto.randomUUID()}`;
-}
-
-function createTimestamp() {
-  return new Date().toISOString();
-}
+export type SessionCommandDependencies = {
+  createBlockId: () => string;
+  createFolderId: () => FolderId;
+  createNoteId: () => NoteId;
+  now: () => string;
+};
 
 export function createSessionCommands({
   commitDataSnapshot,
+  dependencies,
   getSyntaxProfile,
   getWorkspace,
 }: {
   commitDataSnapshot: (workspaceData: WorkspaceData) => void;
+  dependencies: SessionCommandDependencies;
   getSyntaxProfile: () => CtnSyntaxProfile | null;
   getWorkspace: () => WorkspaceStructureIndex;
 }): SessionCommands {
+  const collectReservedBlockIds = (
+    workspace: WorkspaceStructureIndex,
+    syntaxProfile: CtnSyntaxProfile | null,
+  ) => collectWorkspaceBlockIds(workspace.data, syntaxProfile);
+
   return {
     createFolder(parentFolderId, title) {
-      const folderId = createFolderId();
+      const folderId = dependencies.createFolderId();
       const workspace = getWorkspace();
 
       commitDataSnapshot(
@@ -115,15 +120,18 @@ export function createSessionCommands({
       return folderId;
     },
     createNote(parentFolderId) {
-      const noteId = createNoteId();
+      const noteId = dependencies.createNoteId();
       const workspace = getWorkspace();
+      const syntaxProfile = getSyntaxProfile();
 
       commitDataSnapshot(
         createWorkspaceNoteAction(workspace, {
+          createBlockId: dependencies.createBlockId,
           noteId,
           parentFolderId,
-          syntaxProfile: getSyntaxProfile(),
-          timestamp: createTimestamp(),
+          reservedBlockIds: collectReservedBlockIds(workspace, syntaxProfile),
+          syntaxProfile,
+          timestamp: dependencies.now(),
         }),
       );
       return noteId;
@@ -141,7 +149,7 @@ export function createSessionCommands({
         getWorkspace(),
         index,
         request,
-        createTimestamp(),
+        dependencies.now(),
       );
 
       if (result.status !== "moved") {
@@ -163,7 +171,7 @@ export function createSessionCommands({
         getWorkspace(),
         index,
         request,
-        createTimestamp(),
+        dependencies.now(),
       );
 
       if (result.status !== "moved") {
@@ -196,18 +204,35 @@ export function createSessionCommands({
           getWorkspace(),
           noteId,
           title,
-          createTimestamp(),
+          dependencies.now(),
         ),
       );
     },
-    updateNoteSource(noteId, source) {
+    updateNoteSource(noteId, change) {
+      const workspace = getWorkspace();
+      const syntaxProfile = getSyntaxProfile();
+
+      if (!syntaxProfile) {
+        commitDataSnapshot(
+          updateWorkspaceRawNoteSourceAction(
+            workspace,
+            noteId,
+            change,
+            dependencies.now(),
+          ),
+        );
+        return;
+      }
+
       commitDataSnapshot(
         updateWorkspaceNoteSourceAction(
-          getWorkspace(),
+          workspace,
           noteId,
-          source,
-          createTimestamp(),
-          getSyntaxProfile(),
+          change,
+          dependencies.now(),
+          syntaxProfile,
+          dependencies.createBlockId,
+          collectReservedBlockIds(workspace, syntaxProfile),
         ),
       );
     },

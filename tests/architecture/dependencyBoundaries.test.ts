@@ -204,6 +204,23 @@ describe("dependency boundaries", () => {
     );
   });
 
+  it("keeps portal and global overlay behavior in the shared overlay owner", () => {
+    const portalOwners = listSourceFiles("ui").filter((filePath) =>
+      (sourceModules[filePath] ?? "").includes("createPortal"),
+    );
+    const globalOverlayListenerOwners = listSourceFiles("ui/shared").filter(
+      (filePath) =>
+        /(?:document|window)\.addEventListener\(\s*"(?:focusin|keydown|pointerdown)"/.test(
+          sourceModules[filePath] ?? "",
+        ),
+    );
+
+    expect(portalOwners).toEqual(["../../src/ui/shared/Overlay.tsx"]);
+    expect(globalOverlayListenerOwners).toEqual([
+      "../../src/ui/shared/Overlay.tsx",
+    ]);
+  });
+
   it("keeps workbench layout preferences out of application view models", () => {
     const settingsViewModel =
       sourceModules[

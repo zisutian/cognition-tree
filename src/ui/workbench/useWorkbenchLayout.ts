@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   appContextDefaultWidth,
   appDetailDefaultWidth,
@@ -40,37 +40,19 @@ export function useWorkbenchLayout(repositoryId: string) {
     loadRepositoryProblemsLayout(repositoryId),
   );
   const [focusMode, setFocusMode] = useState(false);
-  const loadedRepositoryIdRef = useRef(repositoryId);
-  const repositoryChanged = loadedRepositoryIdRef.current !== repositoryId;
   const contextResizeValue = contextWidth ?? appContextDefaultWidth;
   const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
   const problemsResizeValue = problemsLayout.height;
 
   useEffect(() => {
-    if (!repositoryChanged) {
-      return;
-    }
-
-    loadedRepositoryIdRef.current = repositoryId;
-    setContextWidth(loadRepositoryContextWidth(repositoryId));
-    setContextCollapsed(false);
-    setDetailCollapsed(false);
-    setDetailWidth(null);
-    setProblemsLayout(loadRepositoryProblemsLayout(repositoryId));
-    setFocusMode(false);
-  }, [repositoryChanged, repositoryId]);
-
-  useEffect(() => {
-    if (!repositoryChanged && contextWidth !== null) {
+    if (contextWidth !== null) {
       saveRepositoryContextWidth(repositoryId, contextWidth);
     }
-  }, [contextWidth, repositoryChanged, repositoryId]);
+  }, [contextWidth, repositoryId]);
 
   useEffect(() => {
-    if (!repositoryChanged) {
-      saveRepositoryProblemsLayout(repositoryId, problemsLayout);
-    }
-  }, [problemsLayout, repositoryChanged, repositoryId]);
+    saveRepositoryProblemsLayout(repositoryId, problemsLayout);
+  }, [problemsLayout, repositoryId]);
 
   const panelResize = useWorkbenchPanelResize({
     context: {

@@ -4,6 +4,7 @@ import { createBrowserWorkspaceRepositoryCatalog } from "../adapters/browser/bro
 import { createHttpWorkspaceRepositoryCatalog } from "../adapters/http/httpWorkspaceRepositoryCatalog";
 import type { ActiveRepositorySelection } from "../repository/activeRepositorySelection";
 import type { WorkspaceRepositoryCatalog } from "../repository/workspaceRepositoryCatalog";
+import { validateWorkspaceRepositoryContent } from "./workspaceRepositoryContentValidation";
 
 export type WorkspaceRepositoryRuntime = {
   activeRepositorySelection: ActiveRepositorySelection;
@@ -14,11 +15,14 @@ export function createWorkspaceRepositoryRuntime(): WorkspaceRepositoryRuntime {
   return {
     activeRepositorySelection: createBrowserActiveRepositorySelection(),
     catalog: import.meta.env.VITE_CTN_STORAGE_MODE === "browser"
-      ? createBrowserWorkspaceRepositoryCatalog()
+      ? createBrowserWorkspaceRepositoryCatalog({
+          validateContent: validateWorkspaceRepositoryContent,
+        })
       : createHttpWorkspaceRepositoryCatalog({
           baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
           cache: createBrowserRepositoryClientCache(),
           token: import.meta.env.VITE_CTN_API_TOKEN,
+          validateContent: validateWorkspaceRepositoryContent,
         }),
   };
 }
