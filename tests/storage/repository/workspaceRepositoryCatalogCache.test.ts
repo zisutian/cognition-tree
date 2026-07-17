@@ -8,24 +8,27 @@ const descriptor = {
   adapter: "webdav" as const,
   id: "remote",
   label: "Stable catalog label",
-  locationLabel: "WebDAV · remote",
+  location: {
+    type: "webdav" as const,
+    url: "https://dav.example.test/notes/",
+  },
 };
 const issue = {
   adapter: "local" as const,
   code: "repository_corrupt" as const,
   id: "broken",
-  locationLabel: "Local · broken",
+  location: null,
   message: "Repository head is invalid",
   status: "fault" as const,
 };
 
 describe("workspace repository catalog cache", () => {
-  it("strictly parses v3 descriptors and per-repository issues", () => {
+  it("strictly parses v4 descriptors and per-repository issues", () => {
     const state = {
       creatableAdapters: ["local" as const, "webdav" as const],
       issues: [issue],
       repositories: [descriptor],
-      version: 3 as const,
+      version: 4 as const,
     };
 
     expect(parseWorkspaceRepositoryCatalogCacheState(state)).toEqual(state);
@@ -36,17 +39,28 @@ describe("workspace repository catalog cache", () => {
       }),
     ).toThrow("Unsupported repository catalog cache version");
     expect(() =>
-      parseWorkspaceRepositoryCatalogCacheState({ ...state, version: 2 }),
+      parseWorkspaceRepositoryCatalogCacheState({ ...state, version: 3 }),
     ).toThrow("Unsupported repository catalog cache version");
+    expect(() =>
+      parseWorkspaceRepositoryCatalogCacheState({
+        ...state,
+        repositories: [{
+          adapter: "webdav",
+          id: "legacy",
+          label: "Legacy",
+          locationLabel: "WebDAV · legacy",
+        }],
+      }),
+    ).toThrow("unsupported field");
   });
 
-  it("isolates cached labels, location labels, and issues from mutation", async () => {
+  it("isolates cached labels, structured locations, and issues from mutation", async () => {
     const cache = createMemoryWorkspaceRepositoryCatalogCache();
     const state = {
       creatableAdapters: ["local" as const, "webdav" as const],
       issues: [{ ...issue }],
       repositories: [{ ...descriptor }],
-      version: 3 as const,
+      version: 4 as const,
     };
 
     await cache.save("catalog", state);
@@ -57,7 +71,7 @@ describe("workspace repository catalog cache", () => {
       creatableAdapters: ["local", "webdav"],
       issues: [issue],
       repositories: [descriptor],
-      version: 3,
+      version: 4,
     });
   });
 });

@@ -7,12 +7,12 @@ const repositoryRoot = path.resolve(
   fileURLToPath(new URL("../..", import.meta.url)),
 );
 
-function runServerWithLegacyWebDavConfiguration() {
+function runServerWithEnvironment(environment: Record<string, string>) {
   const child = spawn(process.execPath, ["server/index.ts"], {
     cwd: repositoryRoot,
     env: {
       ...process.env,
-      CTN_WEBDAV_REPOSITORIES: "[]",
+      ...environment,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -33,11 +33,24 @@ function runServerWithLegacyWebDavConfiguration() {
 
 describe("server startup configuration", () => {
   it("fails closed when the removed static WebDAV registry variable is present", async () => {
-    const result = await runServerWithLegacyWebDavConfiguration();
+    const result = await runServerWithEnvironment({
+      CTN_WEBDAV_REPOSITORIES: "[]",
+    });
 
     expect(result.code).not.toBe(0);
     expect(result.stderr).toContain(
       "CTN_WEBDAV_REPOSITORIES is unsupported",
+    );
+  });
+
+  it("fails closed when the display-only host repository root is relative", async () => {
+    const result = await runServerWithEnvironment({
+      CTN_REPOSITORY_HOST_ROOT: "relative/repositories",
+    });
+
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain(
+      "CTN_REPOSITORY_HOST_ROOT must be an absolute path",
     );
   });
 });

@@ -1,15 +1,17 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
-} from "../metadata/blockMetadata";
-import type { CtnSyntaxProfile } from "../syntax/types";
-import { isClosingMultilineFence } from "./blockRanges";
-import { parseMarker, sortMarkerRules } from "./lineMarkers";
-import { parseCtnCanonicalDocument } from "./parseCtnDocument";
+} from "../metadata/blockMetadata.ts";
+import type { CtnSyntaxProfile } from "../syntax/types.ts";
+import { isClosingMultilineFence } from "./blockRanges.ts";
+import { parseMarker, sortMarkerRules } from "./lineMarkers.ts";
+import { parseCtnCanonicalDocument } from "./parseCtnDocument.ts";
 import type {
   CtnCanonicalBlock,
   CtnCanonicalDocument,
-} from "./types";
+} from "./types.ts";
 
 type BlockLineRange = {
   endLineNumber: number;

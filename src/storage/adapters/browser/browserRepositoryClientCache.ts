@@ -21,11 +21,11 @@ import {
   type WorkspaceRepositoryCatalogCache,
 } from "../../repository/workspaceRepositoryCatalogCache";
 
-const databaseName = "cognition-tree.repository-cache";
-const databaseVersion = 3;
-const catalogStoreName = "repository-catalogs-v3";
-const stateStoreName = "repository-states-v3";
-const noteStoreName = "repository-notes-v3";
+export const browserRepositoryDatabaseName = "cognition-tree.repository-cache";
+const databaseVersion = 4;
+const catalogStoreName = "repository-catalogs-v4";
+const stateStoreName = "repository-states-v4";
+const noteStoreName = "repository-notes-v4";
 const noteIdentityIndexName = "by-repository-identity";
 
 export type BrowserRepositoryClientCache = RepositoryClientCache & {
@@ -85,7 +85,10 @@ function transactionComplete(transaction: IDBTransaction) {
 }
 
 function openDatabase(indexedDb: IDBFactory) {
-  const request = indexedDb.open(databaseName, databaseVersion);
+  const request = indexedDb.open(
+    browserRepositoryDatabaseName,
+    databaseVersion,
+  );
 
   request.addEventListener("upgradeneeded", () => {
     const database = request.result;
@@ -533,7 +536,7 @@ export function createIndexedDbRepositoryClientCache(
             creatableAdapters: ["browser" as const],
             issues: [],
             repositories: [],
-            version: 3 as const,
+            version: 4 as const,
           }
         : parseWorkspaceRepositoryCatalogCacheState(catalogValue);
       const existingState = await readState(transaction, repositoryIdentity);
@@ -566,7 +569,7 @@ export function createIndexedDbRepositoryClientCache(
           repositories: [...catalog.repositories, parsedDescriptor].sort(
             (left, right) => left.id.localeCompare(right.id),
           ),
-          version: 3,
+          version: 4,
         },
         catalogIdentity,
       );

@@ -39,7 +39,7 @@ import {
 export type WorkspaceSessionReadyState = {
   context: WorkspaceContext | null;
   defaultWorkspaceSyntax: WorkspaceSyntax;
-  locationLabel: string;
+  location: WorkspaceRepository["location"];
   persistence: WorkspacePersistenceState;
   status: "ready";
   storageLabel: string;
@@ -57,6 +57,7 @@ export type WorkspaceSessionControllerState =
   | WorkspaceSessionReadyState;
 
 type LoadedWorkspaceSession = {
+  conflictRevision: RepositoryRevision | null;
   content: WorkspaceRepositoryContent;
   context: WorkspaceContext | null;
   generation: number;
@@ -102,6 +103,7 @@ function createLoadedWorkspaceSession({
   const workspace = createWorkspaceStructureIndex(snapshot.content.workspace);
 
   return {
+    conflictRevision: snapshot.conflictRevision,
     content: snapshot.content,
     context: snapshot.workspaceSyntax
       ? attachWorkspaceSyntaxProfile(workspace, snapshot.workspaceSyntax.profile)
@@ -119,6 +121,7 @@ function toRepositorySnapshot(
   session: LoadedWorkspaceSession,
 ): WorkspaceRepositorySnapshot {
   return {
+    conflictRevision: session.conflictRevision,
     content: session.content,
     localRevision: session.localRevision,
     pendingChanges: session.pendingChanges,
@@ -175,7 +178,7 @@ export function createWorkspaceSessionController({
     publish({
       context: session.context,
       defaultWorkspaceSyntax,
-      locationLabel: repository.locationLabel,
+      location: repository.location,
       persistence,
       status: "ready",
       storageLabel: repository.label,
@@ -264,6 +267,12 @@ export function createWorkspaceSessionController({
 
         loadedSession = {
           ...loadedSession,
+          conflictRevision:
+            persistence.status === "conflict"
+              ? persistence.remoteRevision
+              : persistence.status === "saved"
+                ? null
+                : loadedSession.conflictRevision,
           pendingChanges:
             persistence.status === "saved"
               ? false
@@ -288,7 +297,16 @@ export function createWorkspaceSessionController({
   ) => {
     generation += 1;
     loadedSession = createLoadedWorkspaceSession({ generation, snapshot });
-    installSaveQueue(generation, initialPersistenceState);
+    installSaveQueue(
+      generation,
+      initialPersistenceState ??
+        (snapshot.conflictRevision
+          ? {
+              remoteRevision: snapshot.conflictRevision,
+              status: "conflict",
+            }
+          : undefined),
+    );
   };
 
   const loadForTransition = async ({
@@ -298,31 +316,35 @@ export function createWorkspaceSessionController({
   }) => {
     const expectedTransition = ++transitionVersion;
     const previousState = state;
-    let localFlushFailed = false;
-
     if (!preserveReadyState) {
       publish({ status: "loading", storageLabel: repository.label });
     }
 
     try {
+      let queueRevisionBeforeLoad = preserveReadyState
+        ? saveQueue?.getLocalRevision() ?? null
+        : null;
       let snapshot = await loadWorkspaceSessionSnapshot(repository);
 
       if (preserveReadyState) {
-        // The ready session remains editable while reload is reading
-        // IndexedDB. Stabilize on a snapshot whose local CAS revision matches
-        // every edit staged during that read; otherwise installing the stale
-        // snapshot would detach the next command from the durable revision.
+        // The ready session remains editable while reload is reading the
+        // repository and local cache. Stabilize across every edit staged
+        // during that read; otherwise installing the stale snapshot would
+        // detach the next command from the durable revision.
         while (!disposed && expectedTransition === transitionVersion) {
-          try {
-            await saveQueue?.flushLocal();
-          } catch (error) {
-            localFlushFailed = true;
-            throw error;
-          }
+          await saveQueue?.flushLocal();
 
-          if (!saveQueue || snapshot.localRevision === saveQueue.getLocalRevision()) {
+          const queueRevisionAfterFlush = saveQueue?.getLocalRevision() ?? null;
+
+          // A remote-first Local scan is allowed to replace a clean cache and
+          // therefore allocate a new local revision of its own. Only reload
+          // when the *old save queue* advanced while the scan was in flight;
+          // comparing the remote replacement revision with that old queue
+          // would otherwise loop forever and leave the ready UI stale.
+          if (queueRevisionAfterFlush === queueRevisionBeforeLoad) {
             break;
           }
+          queueRevisionBeforeLoad = queueRevisionAfterFlush;
           snapshot = await loadWorkspaceSessionSnapshot(repository);
         }
       }
@@ -340,10 +362,9 @@ export function createWorkspaceSessionController({
       if (preserveReadyState && previousState.status === "ready") {
         // Loading never hid the ready session. Keep its latest in-memory
         // content and persistence state, including edits made during reload.
-        if (localFlushFailed) {
-          throw error;
-        }
-        return;
+        // Reject the action as well, so the settings feedback boundary can
+        // report that the explicit rescan did not succeed.
+        throw error;
       }
 
       loadedSession = null;

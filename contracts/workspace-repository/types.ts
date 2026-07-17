@@ -52,6 +52,21 @@ export type WorkspaceRepositoryCommitResultDto = {
 
 export type RepositoryAdapterKindDto = "browser" | "local" | "webdav";
 
+export type RepositoryLocationDto =
+  | {
+      hostPath: string | null;
+      serverPath: string;
+      type: "local";
+    }
+  | {
+      type: "webdav";
+      url: string;
+    }
+  | {
+      databaseName: string;
+      type: "browser";
+    };
+
 export type RepositoryAuthenticationDto =
   | { type: "none" }
   | { password: string; type: "basic"; username: string };
@@ -60,7 +75,7 @@ export type RepositoryDescriptorDto = {
   adapter: RepositoryAdapterKindDto;
   id: string;
   label: string;
-  locationLabel: string;
+  location: RepositoryLocationDto;
 };
 
 export type RepositoryApiErrorCodeDto =
@@ -85,7 +100,7 @@ export type RepositoryCatalogIssueDto = {
     | "unsupported_repository_version"
   >;
   id: string;
-  locationLabel: string;
+  location: RepositoryLocationDto | null;
   message: string;
   status: "deleting" | "fault";
 };

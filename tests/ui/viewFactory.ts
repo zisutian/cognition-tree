@@ -1,5 +1,5 @@
-import { createSyntaxProfileDraft } from "../../src/ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
+import { createSyntaxProfileDraft } from "../../ctn/syntax/profileDraft";
+import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
 import type { SettingsViewModel } from "../../src/application/workspace/activities/settings/settingsViewModel";
@@ -95,10 +95,18 @@ export function createView(
           displayLabel: "Primary · 本地",
           id: "primary",
           label: "Primary",
-          locationLabel: "本地仓库",
+          location: {
+            hostPath: null,
+            serverPath: "/data/repositories/primary",
+            type: "local",
+          },
+          locationRows: [{
+            copyValue: "/data/repositories/primary",
+            label: "服务端路径",
+            value: "/data/repositories/primary",
+          }],
         },
       ],
-      locationLabel: "本地仓库 · primary",
       operation: "idle",
       persistenceStatusLabel: "已保存",
       storageLabel: "本地",

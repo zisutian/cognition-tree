@@ -14,6 +14,7 @@ import type {
 import { appResizeKeyboardStep } from "../src/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,
+  editExternalLocalNote,
   seedLargeTreeRepository,
   seedRawRepository,
   seedWorkbenchRepository,
@@ -26,6 +27,7 @@ import {
 const repositoryId = "repository-flows";
 const rawRepositoryId = "repository-raw";
 const largeRepositoryId = "repository-large";
+const externalRepositoryId = "repository-external";
 
 test.describe.serial("repository and capacity flows", () => {
   let api: APIRequestContext;
@@ -33,6 +35,7 @@ test.describe.serial("repository and capacity flows", () => {
   test.beforeAll(async () => {
     api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
     await seedWorkbenchRepository(api, repositoryId);
+    await seedWorkbenchRepository(api, externalRepositoryId);
     await seedRawRepository(api, rawRepositoryId);
     await seedLargeTreeRepository(api, largeRepositoryId);
   });
@@ -53,6 +56,7 @@ test.describe.serial("repository and capacity flows", () => {
     await contextResize.focus();
     await contextResize.press("ArrowRight");
     await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "添加仓库" }).click();
     const createForm = page.locator(".settings-create-repository");
 
     await createForm.getByRole("textbox", { name: "名称" }).fill("第二仓库");
@@ -165,6 +169,98 @@ test.describe.serial("repository and capacity flows", () => {
     await expect
       .poll(async () => (await readProbe()).removals)
       .toBeGreaterThanOrEqual(2);
+  });
+
+  test("rescans an externally edited Local note from the visible working tree", async ({
+    page,
+  }) => {
+    await openWorkbench(page, externalRepositoryId);
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).not.toContainText(
+      "外部文件修改已载入",
+    );
+
+    await editExternalLocalNote(
+      externalRepositoryId,
+      "Alpha",
+      (source) => `${source}\n\t- 外部文件修改已载入`,
+    );
+
+    await getActivityButton(page, "设置").click();
+    const rescanResponse = page.waitForResponse((response) =>
+      response.request().method() === "GET" &&
+      response.url().endsWith(
+        `/api/repositories/${externalRepositoryId}/snapshot`,
+      )
+    );
+
+    await page.getByRole("button", { name: "重新扫描文件" }).click();
+    const response = await rescanResponse;
+
+    expect(response.ok(), await response.text()).toBe(true);
+    await getActivityButton(page, "笔记").click();
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "外部文件修改已载入",
+    );
+  });
+
+  test("updates structured Local paths when switching repositories", async ({
+    page,
+  }) => {
+    const catalogResponse = await api.get("/api/repositories");
+    const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
+    const externalRepository = catalog.repositories.find(
+      ({ id }) => id === externalRepositoryId,
+    );
+    const rawRepository = catalog.repositories.find(
+      ({ id }) => id === rawRepositoryId,
+    );
+
+    expect(catalogResponse.ok()).toBe(true);
+    expect(externalRepository?.location.type).toBe("local");
+    expect(rawRepository?.location.type).toBe("local");
+    if (
+      externalRepository?.location.type !== "local" ||
+      rawRepository?.location.type !== "local" ||
+      externalRepository.location.hostPath === null ||
+      rawRepository.location.hostPath === null
+    ) {
+      throw new Error(
+        "E2E repositories must expose Local server and host locations",
+      );
+    }
+    const locationRow = (label: string) =>
+      page.getByText(label, { exact: true }).locator("..");
+
+    await openWorkbench(page, externalRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await expect(locationRow("服务端路径").getByText(
+      externalRepository.location.serverPath,
+      { exact: true },
+    )).toBeVisible();
+    await expect(locationRow("主机路径").getByText(
+      externalRepository.location.hostPath,
+      { exact: true },
+    )).toBeVisible();
+
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(rawRepositoryId);
+    await expect(page.locator(".app-context").getByTitle("原始笔记"))
+      .toBeVisible();
+    await getActivityButton(page, "设置").click();
+    await expect(locationRow("服务端路径").getByText(
+      rawRepository.location.serverPath,
+      { exact: true },
+    )).toBeVisible();
+    await expect(locationRow("主机路径").getByText(
+      rawRepository.location.hostPath,
+      { exact: true },
+    )).toBeVisible();
+    await expect(locationRow("服务端路径").getByText(
+      externalRepository.location.serverPath,
+      { exact: true },
+    )).toHaveCount(0);
   });
 
   test("edits repositories without syntax in raw mode", async ({ page }) => {
@@ -389,8 +485,12 @@ test.describe.serial("repository and capacity flows", () => {
   }) => {
     const catalogResponse = await api.get("/api/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
+    const remainingRepository = catalog.repositories.find(
+      ({ id }) => id === largeRepositoryId,
+    );
 
     expect(catalogResponse.ok()).toBe(true);
+    expect(remainingRepository).toBeDefined();
     for (const repository of catalog.repositories) {
       if (repository.id === largeRepositoryId) {
         continue;
@@ -404,11 +504,14 @@ test.describe.serial("repository and capacity flows", () => {
 
     await openWorkbench(page, largeRepositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "删除当前仓库" }).click();
+    await page.getByRole("button", { name: "删除仓库", exact: true }).click();
 
     const dialog = page.getByRole("alertdialog", { name: "删除仓库" });
 
     await expect(dialog).toBeVisible();
+    await dialog.getByRole("textbox", {
+      name: "永久删除前请输入仓库名称",
+    }).fill(remainingRepository?.label ?? "");
     await dialog.getByRole("button", { name: "永久删除" }).click();
     await expect(page.getByRole("main").getByLabel("创建仓库")).toBeVisible();
     await expect(page.getByLabel("当前仓库", { exact: true })).toHaveCount(0);

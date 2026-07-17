@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -29,9 +30,9 @@ import { WebDavWorkspaceStore } from "../server/adapters/webdav/webDavWorkspaceS
 import { createWorkspaceRepositoryRevision } from "../server/repository/workspaceRepositoryRevision.ts";
 import { createUiOutlineNodes } from "../src/application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../src/application/workspace/projection/viewTree.ts";
-import { formatCtnBlockMetadataLine } from "../src/ctn/metadata/blockMetadata.ts";
-import { createCtnEditableSource } from "../src/ctn/metadata/editableSource.ts";
-import { defaultCtnSyntaxProfile } from "../src/ctn/syntax/defaultSyntaxProfile.ts";
+import { formatCtnBlockMetadataLine } from "../ctn/metadata/blockMetadata.ts";
+import { createCtnEditableSource } from "../ctn/metadata/editableSource.ts";
+import { defaultCtnSyntaxProfile } from "../ctn/syntax/defaultSyntaxProfile.ts";
 import { createIndexedDbRepositoryClientCache } from "../src/storage/adapters/browser/browserRepositoryClientCache.ts";
 import { createHttpWorkspaceRepositoryBackend } from "../src/storage/adapters/http/httpWorkspaceRepository.ts";
 import { WorkspaceRepositoryLocalConflictError } from "../src/storage/repository/workspaceRepository.ts";
@@ -449,7 +450,10 @@ await measure("repository.indexedDb.seed", () =>
       adapter: "browser",
       id: "capacity",
       label: "Capacity Benchmark",
-      locationLabel: "浏览器 · capacity",
+      location: {
+        databaseName: "cognition-tree.repository-cache",
+        type: "browser",
+      },
     },
     localRevision: firstDraftRevision,
     remoteRevision: revision,
@@ -627,9 +631,15 @@ try {
       },
     },
     label: "Capacity Benchmark",
+    repositoryId: path.basename(repositoryDirectory),
     rootDir: repositoryDirectory,
   });
-  const store = new WorkspaceFileStore(repositoryDirectory);
+  const store = new WorkspaceFileStore(repositoryDirectory, {
+    createBlockId: randomUUID,
+    createFolderId: () => `folder-${randomUUID()}`,
+    createNoteId: () => `note-${randomUUID()}`,
+    now: () => new Date().toISOString(),
+  });
   const emptySnapshot = await store.loadSnapshot();
 
   await measure("repository.files.commit", () =>

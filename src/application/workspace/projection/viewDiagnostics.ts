@@ -1,11 +1,11 @@
 import {
   createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
-} from "../../../ctn/metadata/editableSource";
+} from "../../../../ctn/metadata/editableSource";
 import type {
   SyntaxProfileDraft,
   SyntaxProfileDraftBuildResult,
-} from "../../../ctn/syntax/profileDraft";
+} from "../../../../ctn/syntax/profileDraft";
 import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,

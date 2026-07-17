@@ -1,14 +1,16 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   parseCtnCanonicalDocument,
   parseCtnEditableDocument,
   readCtnCanonicalTitleHeader,
-} from "../parser/parseCtnDocument";
-import type { CtnEditableDocument } from "../parser/types";
-import type { CtnSyntaxProfile } from "../syntax/types";
+} from "../parser/parseCtnDocument.ts";
+import type { CtnEditableDocument } from "../parser/types.ts";
+import type { CtnSyntaxProfile } from "../syntax/types.ts";
 import {
   formatCtnBlockMetadataLine,
-} from "./blockMetadata";
-import { createCtnBlockIdAllocator } from "./blockIdAllocator";
+} from "./blockMetadata.ts";
+import { createCtnBlockIdAllocator } from "./blockIdAllocator.ts";
 
 export type InitializeCtnSourceBlockMetadataOptions = {
   createId: () => string;

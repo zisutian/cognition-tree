@@ -10,6 +10,7 @@ import type {
 import {
   createLocalDraftRevision,
   WorkspaceRepositoryBackendConflictError,
+  WorkspaceRepositoryLocalConflictError,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
 } from "./workspaceRepository";
@@ -19,7 +20,8 @@ type LocalFirstWorkspaceRepositoryOptions = {
   cache: WorkspaceRepositoryCache;
   createDraftId: () => string;
   label: string;
-  locationLabel: string;
+  location: WorkspaceRepository["location"];
+  refreshRemoteOnLoad?: boolean;
   repositoryIdentity: string | Promise<string>;
   subscribeReconnect?: (listener: () => void) => () => void;
   validateContent: WorkspaceRepositoryContentValidator;
@@ -29,6 +31,12 @@ function toSnapshot(
   state: Awaited<ReturnType<WorkspaceRepositoryCache["load"]>> & {},
 ): WorkspaceRepositorySnapshot {
   return {
+    conflictRevision:
+      state.pendingBaseRevision !== null &&
+      state.remoteRevision !== null &&
+      state.pendingBaseRevision !== state.remoteRevision
+        ? state.remoteRevision
+        : null,
     content: state.content,
     localRevision: state.localRevision,
     pendingChanges: state.pendingBaseRevision !== null,
@@ -40,11 +48,17 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Repository synchronization failed";
 }
 
-function isOfflineError(error: unknown) {
+function isRetryableRemoteError(error: unknown) {
   return (
     error instanceof WorkspaceRepositoryUnavailableError ||
     (error instanceof WorkspaceRepositoryRemoteError && error.retryable)
   );
+}
+
+function canUseCachedSnapshot(error: unknown) {
+  return isRetryableRemoteError(error) &&
+    !(error instanceof WorkspaceRepositoryRemoteError &&
+      error.code === "repository_busy");
 }
 
 export function createLocalFirstWorkspaceRepository({
@@ -52,23 +66,93 @@ export function createLocalFirstWorkspaceRepository({
   cache,
   createDraftId,
   label,
-  locationLabel,
+  location,
+  refreshRemoteOnLoad = false,
   repositoryIdentity,
   subscribeReconnect = () => () => undefined,
   validateContent,
 }: LocalFirstWorkspaceRepositoryOptions): WorkspaceRepository {
-  let initialLoad: Promise<WorkspaceRepositorySnapshot> | null = null;
+  let activeLoad: Promise<WorkspaceRepositorySnapshot> | null = null;
   let activeSync: Promise<WorkspaceRepositorySyncResult> | null = null;
+  let initialized = false;
   const resolveIdentity = () => Promise.resolve(repositoryIdentity);
   const nextLocalRevision = () => createLocalDraftRevision(createDraftId);
 
-  const loadSnapshot = async () => {
+  const reconcileRemoteSnapshot = async (
+    identity: string,
+    remote: Awaited<ReturnType<WorkspaceRepositoryBackend["loadRemoteSnapshot"]>>,
+  ) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const current = await cache.load(identity);
+
+      if (!current) {
+        throw new Error(
+          "Local repository state disappeared during remote refresh.",
+        );
+      }
+
+      validateContent(current.content);
+      if (current.pendingBaseRevision) {
+        const refreshed = current.remoteRevision === remote.revision
+          ? current
+          : await cache.recordConflict({
+              currentRemoteRevision: remote.revision,
+              identity,
+            });
+
+        return toSnapshot(refreshed);
+      }
+
+      if (current.remoteRevision === remote.revision) {
+        return toSnapshot(current);
+      }
+
+      try {
+        return toSnapshot(
+          await cache.replaceFromRemote({
+            expectedLocalRevision: current.localRevision,
+            identity,
+            localRevision: nextLocalRevision(),
+            snapshot: remote,
+          }),
+        );
+      } catch (error) {
+        if (!(error instanceof WorkspaceRepositoryLocalConflictError)) {
+          throw error;
+        }
+      }
+    }
+
+    throw new WorkspaceRepositoryRemoteError(
+      "Local repository state kept changing during remote refresh.",
+      { code: "repository_busy", retryable: true },
+    );
+  };
+
+  const runExplicitLoad = async () => {
     const identity = await resolveIdentity();
     const local = await cache.load(identity);
 
     if (local) {
       validateContent(local.content);
-      return toSnapshot(local);
+      if (!refreshRemoteOnLoad) {
+        return toSnapshot(local);
+      }
+
+      let remote;
+
+      try {
+        remote = await backend.loadRemoteSnapshot();
+      } catch (error) {
+        if (canUseCachedSnapshot(error)) {
+          return toSnapshot(await cache.load(identity) ?? local);
+        }
+
+        throw error;
+      }
+
+      validateContent(remote.content);
+      return reconcileRemoteSnapshot(identity, remote);
     }
 
     const remote = await backend.loadRemoteSnapshot();
@@ -95,16 +179,24 @@ export function createLocalFirstWorkspaceRepository({
     }
   };
 
-  const ensureLoaded = () => {
-    initialLoad ??= loadSnapshot().finally(() => {
-      initialLoad = null;
+  const loadSnapshot = () => {
+    activeLoad ??= runExplicitLoad().then((snapshot) => {
+      initialized = true;
+      return snapshot;
+    }).finally(() => {
+      activeLoad = null;
     });
-    return initialLoad;
+    return activeLoad;
+  };
+  const ensureInitialized = async () => {
+    if (!initialized) {
+      await loadSnapshot();
+    }
   };
 
   const synchronize = async (): Promise<WorkspaceRepositorySyncResult> => {
     const identity = await resolveIdentity();
-    await ensureLoaded();
+    await ensureInitialized();
     const local = await cache.load(identity);
 
     if (!local) {
@@ -157,7 +249,7 @@ export function createLocalFirstWorkspaceRepository({
         throw error;
       }
 
-      if (isOfflineError(error)) {
+      if (isRetryableRemoteError(error)) {
         return {
           localRevision: current.localRevision,
           pendingChanges: current.pendingBaseRevision !== null,
@@ -177,10 +269,10 @@ export function createLocalFirstWorkspaceRepository({
 
   return {
     label,
-    locationLabel,
+    location,
     async discardPendingSnapshotAndReload() {
       const identity = await resolveIdentity();
-      await ensureLoaded();
+      await ensureInitialized();
       const current = await cache.load(identity);
 
       if (!current) {
@@ -199,10 +291,10 @@ export function createLocalFirstWorkspaceRepository({
 
       return toSnapshot(replaced);
     },
-    loadSnapshot: ensureLoaded,
+    loadSnapshot,
     async stageSnapshot({ content, expectedLocalRevision }) {
       validateContent(content);
-      await ensureLoaded();
+      await ensureInitialized();
       const identity = await resolveIdentity();
       const state = await cache.stage({
         content,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contractModules,
+  ctnModules,
   findDependencyCycles,
   getSourceRoot,
   listInternalSourceImports,
@@ -12,13 +13,13 @@ import {
   readSourceImports,
   serverModules,
   sourceModules,
+  workspaceModules,
 } from "./sourceGraph";
 
 const allowedRootImports = new Map(
   Object.entries({
     app: ["app", "application", "editor", "storage", "ui"],
     application: ["application", "ctn", "storage", "workspace"],
-    ctn: ["ctn"],
     editor: ["ctn", "editor"],
     storage: ["storage", "workspace"],
     ui: ["application", "editor", "ui"],
@@ -95,6 +96,86 @@ describe("dependency boundaries", () => {
     expect(listSourceDependencyCycles()).toEqual([]);
   });
 
+  it("keeps the shared CTN core pure, acyclic, and uniquely owned", () => {
+    const blockedCtnImports = [
+      /^node:/,
+      /^react$/,
+      /^react\//,
+      /(?:^|\/)contracts\//,
+      /(?:^|\/)server\//,
+      /(?:^|\/)src\//,
+    ];
+    const purityViolations = Object.keys(ctnModules).flatMap((filePath) =>
+      readModuleImports(ctnModules, filePath)
+        .filter((importPath) =>
+          blockedCtnImports.some((pattern) => pattern.test(importPath)),
+        )
+        .map((importPath) => formatImport(filePath, importPath)),
+    );
+    const ctnPrefix = "../../ctn/";
+    const graph = new Map(
+      Object.keys(ctnModules).map((filePath) => [
+        filePath,
+        readInternalModuleImports(ctnModules, filePath, ctnPrefix).map(
+          ({ targetPath }) => targetPath,
+        ),
+      ]),
+    );
+    const allowedSourceConsumers = new Set([
+      "application",
+      "editor",
+      "workspace",
+    ]);
+    const sourceConsumerViolations = Object.keys(sourceModules).flatMap(
+      (filePath) => {
+        const sourceRoot = getSourceRoot(filePath);
+
+        return readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          ctnPrefix,
+        )
+          .filter(() => !allowedSourceConsumers.has(sourceRoot))
+          .map(({ importPath }) => formatImport(filePath, importPath));
+      },
+    );
+    const serverConsumerViolations = Object.keys(serverModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          ctnPrefix,
+        )
+          .filter(
+            () => !filePath.startsWith("../../server/adapters/local/"),
+          )
+          .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const contractConsumerViolations = Object.keys(contractModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          ctnPrefix,
+        ).map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const tomlParserOwners = Object.keys(ctnModules)
+      .filter((filePath) =>
+        readModuleImports(ctnModules, filePath).includes("smol-toml"),
+      );
+
+    expect([
+      ...purityViolations,
+      ...sourceConsumerViolations,
+      ...serverConsumerViolations,
+      ...contractConsumerViolations,
+    ]).toEqual([]);
+    expect(findDependencyCycles(graph)).toEqual([]);
+    expect(tomlParserOwners).toEqual([
+      "../../ctn/syntax/profileTomlParser.ts",
+    ]);
+  });
+
   it("keeps application activity state behind local activity boundaries", () => {
     const activityPrefix = "../../src/application/workspace/activities/";
     const siblingViolations = listSourceFiles(
@@ -169,7 +250,7 @@ describe("dependency boundaries", () => {
           ({ targetPath }) =>
             targetPath.startsWith("../../src/application/") ||
             targetPath.startsWith("../../src/workspace/") ||
-            targetPath.startsWith("../../src/ctn/") ||
+            targetPath.startsWith("../../ctn/") ||
             targetPath.startsWith(activityPrefix),
         )
         .map(({ importPath }) => formatImport(filePath, importPath)),

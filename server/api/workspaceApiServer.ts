@@ -299,10 +299,21 @@ function redactLogText(source: string, sensitiveValues: readonly string[]) {
       (current, value) => current.split(value).join("[redacted]"),
       source,
     );
+  const repositoryId = String.raw`repository-[a-z0-9]+(?:-[a-z0-9]+)*`;
+  const quotedRepositoryPath = new RegExp(
+    String.raw`([\"'\x60])((?:[A-Za-z]:[\\/]|/)(?:[^\"'\x60\r\n]*[\\/])?${repositoryId}(?:[\\/][^\"'\x60\r\n]*)?)\1`,
+    "gi",
+  );
+  const unquotedRepositoryPath = new RegExp(
+    String.raw`(?:[A-Za-z]:[\\/]|/)(?:[^\s\"'\x60\r\n]*[\\/])?${repositoryId}(?:[\\/][^\s\"'\x60\r\n]*)?`,
+    "gi",
+  );
 
   return withoutKnownSecrets
     .replace(/\bBasic\s+[A-Za-z0-9+/=]+/gi, "Basic [redacted]")
-    .replace(/(https?:\/\/)[^\s/@]+@/gi, "$1[redacted]@");
+    .replace(/(https?:\/\/)[^\s/@]+@/gi, "$1[redacted]@")
+    .replace(quotedRepositoryPath, "$1[repository-path]$1")
+    .replace(unquotedRepositoryPath, "[repository-path]");
 }
 
 function createSafeLogError(

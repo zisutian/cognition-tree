@@ -18,17 +18,18 @@ import type {
 import { createLocalDraftRevision } from "../../repository/workspaceRepository";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision";
 import {
+  browserRepositoryDatabaseName,
   createBrowserRepositoryClientCache,
   type BrowserRepositoryClientCache,
 } from "./browserRepositoryClientCache";
 
-const browserCatalogIdentity = "browser:v3";
+const browserCatalogIdentity = "browser:v4";
 const browserCreatableAdapters = ["browser"] as const;
 const maximumRepositoryIdAttempts = 100;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function createRepositoryIdentity(repositoryId: string) {
-  return `browser:v3:${repositoryId}`;
+  return `browser:v4:${repositoryId}`;
 }
 
 function parseBrowserCreateRepository(value: unknown) {
@@ -76,6 +77,12 @@ function toSnapshot(
   >,
 ) {
   return {
+    conflictRevision:
+      state.pendingBaseRevision !== null &&
+      state.remoteRevision !== null &&
+      state.pendingBaseRevision !== state.remoteRevision
+        ? state.remoteRevision
+        : null,
     content: state.content,
     localRevision: state.localRevision,
     pendingChanges: state.pendingBaseRevision !== null,
@@ -121,7 +128,7 @@ function createBrowserWorkspaceRepository(
 
   return {
     label: descriptor.label,
-    locationLabel: descriptor.locationLabel,
+    location: descriptor.location,
     async discardPendingSnapshotAndReload() {
       return toSnapshot(await synchronize());
     },
@@ -191,7 +198,10 @@ export function createBrowserWorkspaceRepositoryCatalog({
           adapter: "browser",
           id: repositoryId,
           label: outbound.label,
-          locationLabel: `浏览器 · ${repositoryId}`,
+          location: {
+            databaseName: browserRepositoryDatabaseName,
+            type: "browser",
+          },
         };
 
         try {

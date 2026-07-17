@@ -9,6 +9,7 @@ import { createRepositoryContent } from "../../repositoryV3Fixtures";
 const uuidA = "00000000-0000-4000-8000-000000000001";
 const uuidB = "00000000-0000-4000-8000-000000000002";
 const repositoryIdA = `repository-${uuidA}`;
+const databaseName = "cognition-tree.repository-cache";
 
 function createCatalog(
   cache: BrowserRepositoryClientCache,
@@ -58,7 +59,7 @@ function createMemoryBrowserCache(): BrowserRepositoryClientCache {
             ...(existing?.repositories ?? []),
             descriptor,
           ].sort((left, right) => left.id.localeCompare(right.id)),
-          version: 3,
+          version: 4,
         });
       } catch (error) {
         await cache.snapshots.remove(repositoryIdentity);
@@ -69,7 +70,7 @@ function createMemoryBrowserCache(): BrowserRepositoryClientCache {
 }
 
 describe("browser workspace repository catalog", () => {
-  it("creates v3 repository state and catalog metadata through one atomic port", async () => {
+  it("creates repository state and v4 catalog metadata through one atomic port", async () => {
     const cache = createMemoryBrowserCache();
     const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
     const catalog = createCatalog(cache);
@@ -84,7 +85,7 @@ describe("browser workspace repository catalog", () => {
       adapter: "browser",
       id: repositoryIdA,
       label: "Stable label",
-      locationLabel: `浏览器 · ${repositoryIdA}`,
+      location: { databaseName, type: "browser" },
     });
     await expect(catalog.listRepositories()).resolves.toEqual({
       creatableAdapters: ["browser"],
@@ -163,18 +164,18 @@ describe("browser workspace repository catalog", () => {
 
   it("allocates ids inside the catalog and retries health/issue collisions", async () => {
     const cache = createMemoryBrowserCache();
-    await cache.catalogs.save("browser:v3", {
+    await cache.catalogs.save("browser:v4", {
       creatableAdapters: ["browser"],
       issues: [{
         adapter: "browser",
         code: "repository_corrupt",
         id: repositoryIdA,
-        locationLabel: `浏览器 · ${repositoryIdA}`,
+        location: { databaseName, type: "browser" },
         message: "broken",
         status: "fault",
       }],
       repositories: [],
-      version: 3,
+      version: 4,
     });
     const catalog = createCatalog(cache, [uuidA, uuidB]);
     const descriptor = await catalog.createRepository({
@@ -191,7 +192,7 @@ describe("browser workspace repository catalog", () => {
         adapter: "browser",
         code: "repository_corrupt",
         id: repositoryIdA,
-        locationLabel: `浏览器 · ${repositoryIdA}`,
+        location: { databaseName, type: "browser" },
         message: "broken",
         status: "fault",
       }],
@@ -202,16 +203,16 @@ describe("browser workspace repository catalog", () => {
 
   it("stops auto-id collision retries after the fixed attempt limit", async () => {
     const cache = createMemoryBrowserCache();
-    await cache.catalogs.save("browser:v3", {
+    await cache.catalogs.save("browser:v4", {
       creatableAdapters: ["browser"],
       issues: [],
       repositories: [{
         adapter: "browser",
         id: repositoryIdA,
         label: "Existing",
-        locationLabel: `浏览器 · ${repositoryIdA}`,
+        location: { databaseName, type: "browser" },
       }],
-      version: 3,
+      version: 4,
     });
     const createRepositoryUuid = vi.fn(() => uuidA);
     const catalog = createBrowserWorkspaceRepositoryCatalog({

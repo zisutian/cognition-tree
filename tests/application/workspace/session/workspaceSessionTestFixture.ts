@@ -9,10 +9,10 @@ import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
 } from "../../../../src/storage/repository/workspaceRepository";
-import type { CtnEditableSourceChange } from "../../../../src/ctn/metadata/textEdits";
-import { createCtnEditableSource } from "../../../../src/ctn/metadata/editableSource";
-import { initializeCtnSourceBlockMetadata } from "../../../../src/ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
+import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
+import { createCtnEditableSource } from "../../../../ctn/metadata/editableSource";
+import { initializeCtnSourceBlockMetadata } from "../../../../ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
 
 export const initialTimestamp = "2026-07-15T00:00:00.000Z";
 
@@ -62,12 +62,14 @@ export function createContent(
 }
 
 export function createSnapshot({
+  conflictRevision = null,
   content = createContent(),
   localRevision = draftRevision("initial"),
   pendingChanges = false,
   remoteRevision: revision = remoteRevision("a"),
 }: Partial<WorkspaceRepositorySnapshot> = {}): WorkspaceRepositorySnapshot {
   return {
+    conflictRevision,
     content,
     localRevision,
     pendingChanges,

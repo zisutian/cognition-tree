@@ -16,8 +16,6 @@ import {
   type WorkspaceRepositoryContentDto,
 } from "../../contracts/workspace-repository/types.ts";
 
-export const repositoryMetadataFileName = "repository.json";
-export const snapshotsDirName = "snapshots";
 export const workspaceFileName = "workspace.json";
 export const notesDirName = "notes";
 export const syntaxDirName = "syntax";

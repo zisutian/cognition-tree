@@ -1,22 +1,39 @@
 import { describe, expect, it } from "vitest";
 import {
+  ctnModules,
+  ctnPathToRelative,
   listSourceFiles,
+  serverModules,
   sourceModules,
   sourcePathToRelative,
 } from "./sourceGraph";
 
 describe("semantic source ownership", () => {
   it("keeps canonical metadata interpretation inside the CTN parser", () => {
-    const consumers = Object.entries(sourceModules)
+    const consumers = Object.entries(ctnModules)
       .filter(([, source]) => /\bparseCtnBlockMetadataLine\s*\(/.test(source))
-      .map(([filePath]) => sourcePathToRelative(filePath))
+      .map(([filePath]) => ctnPathToRelative(filePath))
       .filter(
         (filePath) =>
-          filePath !== "ctn/metadata/blockMetadata.ts" &&
-          !filePath.startsWith("ctn/parser/"),
+          filePath !== "metadata/blockMetadata.ts" &&
+          !filePath.startsWith("parser/"),
       );
+    const sourceInterpreters = Object.entries(sourceModules)
+      .filter(([, source]) => /\bparseCtnBlockMetadataLine\s*\(/.test(source))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+    const serverInterpreters = Object.entries(serverModules)
+      .filter(([, source]) =>
+        /\b(?:metadataLinePattern|parseCtnBlockMetadataLine)\b|@ctn-block\s+id=/.test(
+          source,
+        ),
+      )
+      .map(([filePath]) => filePath.replace("../../server/", ""));
 
-    expect(consumers).toEqual([]);
+    expect([
+      ...consumers,
+      ...sourceInterpreters,
+      ...serverInterpreters,
+    ]).toEqual([]);
   });
 
   it("keeps full-workspace parse scans owned by application analysis", () => {
@@ -56,9 +73,20 @@ describe("semantic source ownership", () => {
   });
 
   it("rejects compatibility and legacy repository branches", () => {
-    const violations = Object.entries(sourceModules)
-      .filter(([, source]) => /\b(?:legacy|migrate-v2|schemaVersion\s*:\s*2)\b/i.test(source))
-      .map(([filePath]) => sourcePathToRelative(filePath));
+    const violations = [
+      ...Object.entries(sourceModules).map(([filePath, source]) => ({
+        filePath: sourcePathToRelative(filePath),
+        source,
+      })),
+      ...Object.entries(ctnModules).map(([filePath, source]) => ({
+        filePath: `ctn/${ctnPathToRelative(filePath)}`,
+        source,
+      })),
+    ]
+      .filter(({ source }) =>
+        /\b(?:legacy|migrate-v2|schemaVersion\s*:\s*2)\b/i.test(source),
+      )
+      .map(({ filePath }) => filePath);
 
     expect(violations).toEqual([]);
   });

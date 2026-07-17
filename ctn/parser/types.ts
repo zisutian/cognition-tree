@@ -1,10 +1,12 @@
-import type { CtnBlockMetadata } from "../metadata/blockMetadata";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { CtnBlockMetadata } from "../metadata/blockMetadata.ts";
 import type {
   CtnBlockType,
   CtnInlineSpanType,
   CtnRuleRole,
   CtnSyntaxTone,
-} from "../syntax/types";
+} from "../syntax/types.ts";
 
 export type CtnInlineSpan = {
   id: string;

@@ -245,6 +245,29 @@ describe("UI design contract", () => {
     );
   });
 
+  it("keeps structured repository locations complete and selectable", () => {
+    const settingsStyle = readStyle("ui/styles/activities/settings.css");
+    const valueRuleStart = settingsStyle.indexOf(".settings-location-value {");
+    const textRuleStart = settingsStyle.indexOf(
+      ".settings-location-value > span {",
+    );
+    const valueRule = settingsStyle.slice(valueRuleStart, textRuleStart);
+    const textRule = settingsStyle.slice(
+      textRuleStart,
+      settingsStyle.indexOf("}", textRuleStart) + 1,
+    );
+
+    expect(valueRuleStart).toBeGreaterThanOrEqual(0);
+    expect(textRuleStart).toBeGreaterThan(valueRuleStart);
+    expect(valueRule).toContain("overflow: visible");
+    expect(valueRule).toContain("text-overflow: clip");
+    expect(valueRule).toContain("white-space: normal");
+    expect(textRule).toContain("font-family: var(--font-code)");
+    expect(textRule).toContain("overflow-wrap: anywhere");
+    expect(textRule).toContain("user-select: text");
+    expect(textRule).toContain("white-space: pre-wrap");
+  });
+
   it("keeps the collapsed detail responsive behavior in the frame layer", () => {
     const frame = readStyle("ui/styles/frame/frame.css");
     const responsiveStart = frame.indexOf("@media (max-width: 1120px)");

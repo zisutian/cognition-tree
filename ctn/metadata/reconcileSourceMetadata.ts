@@ -1,26 +1,28 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   parseCtnCanonicalDocument,
   parseCtnEditableDocument,
-} from "../parser/parseCtnDocument";
+} from "../parser/parseCtnDocument.ts";
 import type {
   CtnCanonicalBlock,
   CtnCanonicalDocument,
   CtnEditableBlock,
   CtnEditableDocument,
-} from "../parser/types";
-import type { CtnSyntaxProfile } from "../syntax/types";
+} from "../parser/types.ts";
+import type { CtnSyntaxProfile } from "../syntax/types.ts";
 import {
   formatCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
-} from "./blockMetadata";
-import { createCtnBlockIdAllocator } from "./blockIdAllocator";
-import { createCtnEditableSourceFromDocument } from "./editableSource";
+} from "./blockMetadata.ts";
+import { createCtnBlockIdAllocator } from "./blockIdAllocator.ts";
+import { createCtnEditableSourceFromDocument } from "./editableSource.ts";
 import {
   assertCtnEditableSourceChange,
   mapCtnTextOffset,
   type CtnEditableSourceChange,
   type CtnTextEdit,
-} from "./textEdits";
+} from "./textEdits.ts";
 
 export type ReconcileCtnSourceBlockMetadataOptions = {
   createId: () => string;

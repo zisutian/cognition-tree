@@ -1,4 +1,6 @@
-import type { CtnSyntaxProfile } from "./types";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { CtnSyntaxProfile } from "./types.ts";
 
 export const defaultCtnSyntaxProfile = {
   name: "默认 CTN 语法",

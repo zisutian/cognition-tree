@@ -271,7 +271,7 @@ function createDescriptor(config: WebDavConnectionConfig): RepositoryDescriptorD
     adapter: "webdav",
     id: config.id,
     label: config.label,
-    locationLabel: `webdav:${config.id}`,
+    location: { type: "webdav", url: config.url },
   };
 }
 
@@ -672,7 +672,7 @@ export class WebDavConnectionRegistry {
           adapter: "webdav",
           code: "repository_corrupt",
           id: repositoryId,
-          locationLabel: `webdav:${repositoryId}`,
+          location: null,
           message: "WebDAV connection configuration is invalid",
           status: "fault",
         });
@@ -766,7 +766,7 @@ export class WebDavConnectionRegistry {
       adapter: "webdav",
       code: "repository_busy",
       id: config.id,
-      locationLabel: `webdav:${config.id}`,
+      location: { type: "webdav", url: config.url },
       message: "WebDAV managed data deletion is still being completed",
       status: "deleting",
     });

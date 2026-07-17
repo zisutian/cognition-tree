@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace-repository/types.ts";
+import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile.ts";
+import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml.ts";
 import {
   WorkspaceFileStore,
 } from "../../../../server/adapters/local/workspaceFileStore.ts";
 import type {
   WorkspaceCommitPhase,
-} from "../../../../server/adapters/local/immutableSnapshotCommit.ts";
+} from "../../../../server/adapters/local/workingTreeTransaction.ts";
 
 const [, , rootDir, interruptedPhase] = process.argv;
 
@@ -15,13 +17,22 @@ if (!rootDir || !interruptedPhase) {
 }
 
 function createContent(name: string): WorkspaceRepositoryContentDto {
+  const timestamp = "2026-07-16T00:00:00.000Z";
   return {
     schemaVersion: 3,
-    syntaxSource: 'name = "test"\n',
+    syntaxSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
     workspace: {
       id: "workspace",
       name,
-      notes: [{ id: "note-test", source: `${name}\n\t: 内容` }],
+      notes: [{
+        id: "note-test",
+        source: [
+          `@ctn-block id=00000000-0000-4000-8000-000000000001 created=${timestamp} updated=${timestamp}`,
+          name,
+          `\t@ctn-block id=00000000-0000-4000-8000-000000000002 created=${timestamp} updated=${timestamp}`,
+          "\t: 内容",
+        ].join("\n"),
+      }],
       tree: [{
         children: [{ kind: "note", noteId: "note-test" }],
         folderId: "folder-docs",
@@ -33,6 +44,10 @@ function createContent(name: string): WorkspaceRepositoryContentDto {
 }
 
 const store = new WorkspaceFileStore(rootDir, {
+  createBlockId: () => "00000000-0000-4000-8000-000000000100",
+  createFolderId: () => "folder-00000000-0000-4000-8000-000000000100",
+  createNoteId: () => "note-00000000-0000-4000-8000-000000000100",
+  now: () => "2026-07-16T01:00:00.000Z",
   onWorkspaceCommitPhase(phase: WorkspaceCommitPhase) {
     if (phase === interruptedPhase) {
       process.kill(process.pid, "SIGKILL");

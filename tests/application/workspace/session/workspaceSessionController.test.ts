@@ -12,14 +12,14 @@ import {
   type WorkspaceSessionControllerState,
 } from "../../../../src/application/workspace/session/workspaceSessionController";
 import { workspaceSessionSaveDelayMs } from "../../../../src/application/workspace/session/workspaceSessionSaveQueue";
-import { createCtnEditableSource } from "../../../../src/ctn/metadata/editableSource";
+import { createCtnEditableSource } from "../../../../ctn/metadata/editableSource";
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../../../../src/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
-import { formatSyntaxProfileToml } from "../../../../src/ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../src/ctn/syntax/types";
+} from "../../../../ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
+import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
 import { createCanonicalNoteSource } from "../../../../src/workspace/model/workspaceData";
 import { createDefaultWorkspaceSyntax } from "../../../../src/workspace/context/workspaceSyntax";
 import { WorkspaceBlockMetadataError } from "../../../../src/workspace/context/workspaceBlockMetadata";
@@ -94,6 +94,8 @@ function createRepositoryHarness({
 
       snapshot = {
         ...snapshot,
+        conflictRevision:
+          result.status === "conflict" ? result.remoteRevision : null,
         localRevision: result.localRevision,
         pendingChanges: result.status === "synced"
           ? result.pendingChanges
@@ -107,7 +109,7 @@ function createRepositoryHarness({
     discardPendingSnapshotAndReload: () => discard(),
     label: "test repository",
     loadSnapshot: () => load(),
-    locationLabel: "repository / test",
+    location: { databaseName: "test", type: "browser" },
     async stageSnapshot({ content, expectedLocalRevision }) {
       if (expectedLocalRevision !== snapshot.localRevision) {
         throw new Error("local revision mismatch");
@@ -239,6 +241,57 @@ describe("workspace session controller", () => {
 
     load.resolve(createSnapshot());
     await waitForState(controller, (state) => state.status === "ready");
+    controller.dispose();
+  });
+
+  it("opens a refreshed pending Local draft directly in ready conflict state", async () => {
+    const conflictRevision = remoteRevision("c");
+    const harness = createRepositoryHarness({
+      initialSnapshot: createSnapshot({
+        conflictRevision,
+        content: createContent("Local draft"),
+        pendingChanges: true,
+        remoteRevision: conflictRevision,
+      }),
+    });
+    const controller = createController(harness.repository);
+
+    controller.start();
+    const state = await waitForState(
+      controller,
+      (candidate) => candidate.status === "ready",
+    );
+
+    expect(state).toMatchObject({
+      location: { databaseName: "test", type: "browser" },
+      persistence: { remoteRevision: conflictRevision, status: "conflict" },
+      status: "ready",
+    });
+    expect(harness.synchronize).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("installs a clean remote-first reload with its newly allocated local revision", async () => {
+    const harness = createRepositoryHarness();
+    const controller = createController(harness.repository);
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "ready");
+    harness.setLoad(async () => createSnapshot({
+      content: createContent("Externally refreshed workspace"),
+      localRevision: draftRevision("remote-refresh"),
+      remoteRevision: remoteRevision("c"),
+    }));
+
+    await controller.reload();
+    const state = controller.getState();
+
+    expect(state).toMatchObject({
+      status: "ready",
+      workspace: {
+        data: { name: "Externally refreshed workspace" },
+      },
+    });
     controller.dispose();
   });
 
@@ -552,7 +605,7 @@ describe("workspace session controller", () => {
     harness.setLoad(async () => {
       throw new Error("temporary load failure");
     });
-    await controller.reload();
+    await expect(controller.reload()).rejects.toThrow("temporary load failure");
     expect(controller.getState()).toMatchObject({
       persistence: { remoteRevision: conflictRevision, status: "conflict" },
       status: "ready",

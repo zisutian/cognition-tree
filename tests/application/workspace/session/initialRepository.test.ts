@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../../ctn/parser/parseCtnDocument";
 import { parseWorkspaceSyntax } from "../../../../src/workspace/context/workspaceSyntax";
 import { readWorkspaceNoteHeader } from "../../../../src/workspace/model/workspaceData";
 import { createInitialRepositoryContent } from "../../../../src/application/workspace/session/initialRepository";

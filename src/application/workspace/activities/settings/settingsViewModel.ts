@@ -31,15 +31,60 @@ export type RepositoryAdapterOption = {
   value: RepositoryAdapterKind;
 };
 
+export type RepositoryLocationRow = {
+  copyValue: string;
+  label: string;
+  value: string;
+};
+
 export type RepositoryOption = WorkspaceRepositoryDescriptor & {
   adapterLabel: string;
   displayLabel: string;
+  locationRows: RepositoryLocationRow[];
 };
 
 export type RepositoryIssueView = WorkspaceRepositoryCatalogIssue & {
   adapterLabel: string;
   displayLabel: string;
+  locationRows: RepositoryLocationRow[];
 };
+
+export function projectRepositoryLocation(
+  location: WorkspaceRepositoryDescriptor["location"] | null,
+): RepositoryLocationRow[] {
+  if (!location) {
+    return [];
+  }
+  switch (location.type) {
+    case "local":
+      return [
+        ...(location.hostPath
+          ? [{
+              copyValue: location.hostPath,
+              label: "主机路径",
+              value: location.hostPath,
+            }]
+          : []),
+        {
+          copyValue: location.serverPath,
+          label: "服务端路径",
+          value: location.serverPath,
+        },
+      ];
+    case "webdav":
+      return [{
+        copyValue: location.url,
+        label: "WebDAV 地址",
+        value: location.url,
+      }];
+    case "browser":
+      return [{
+        copyValue: location.databaseName,
+        label: "浏览器数据库",
+        value: location.databaseName,
+      }];
+  }
+}
 
 export function projectRepositoryAdapterOptions(
   adapters: RepositoryAdapterKind[],
@@ -60,6 +105,7 @@ export function projectRepositoryOptions(
       ...repository,
       adapterLabel,
       displayLabel: `${repository.label} · ${adapterLabel}`,
+      locationRows: projectRepositoryLocation(repository.location),
     };
   });
 }
@@ -74,6 +120,7 @@ export function projectRepositoryIssues(
       ...issue,
       adapterLabel,
       displayLabel: `${issue.id} · ${adapterLabel}`,
+      locationRows: projectRepositoryLocation(issue.location),
     };
   });
 }
@@ -125,7 +172,6 @@ type SettingsActivitySource = {
   deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   issues: WorkspaceRepositoryCatalogIssue[];
-  locationLabel: string;
   operation: RepositoryCatalogOperation;
   persistence: WorkspacePersistenceState;
   reload: () => Promise<void>;
@@ -145,7 +191,6 @@ export type SettingsViewModel = {
   discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
   issues: RepositoryIssueView[];
-  locationLabel: string;
   operation: RepositoryCatalogOperation;
   persistenceStatusLabel: string;
   reload: () => Promise<void>;
@@ -172,7 +217,6 @@ export function createSettingsViewModel(
     discardPendingChangesAndReload: source.discardPendingChangesAndReload,
     hasSaveConflict: source.persistence.status === "conflict",
     issues: projectRepositoryIssues(source.issues),
-    locationLabel: source.locationLabel,
     operation: source.operation,
     persistenceStatusLabel: persistenceLabels[source.persistence.status],
     reload: source.reload,

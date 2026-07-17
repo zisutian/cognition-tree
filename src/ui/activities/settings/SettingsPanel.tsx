@@ -1,4 +1,4 @@
-import { RefreshCw, Trash2, Undo2 } from "lucide-react";
+import { Copy, Plus, RefreshCw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
 import type { DeleteRepositoryRequest } from "../../../application/workspace/session/useRepositoryCatalog";
 import type {
@@ -27,6 +27,17 @@ type PendingIssueDeletion = {
   mode: DeleteRepositoryRequest["mode"];
 };
 
+export async function copyRepositoryLocation(
+  value: string,
+  clipboard: Pick<Clipboard, "writeText"> | undefined =
+    globalThis.navigator?.clipboard,
+) {
+  if (!clipboard) {
+    throw new Error("当前环境不支持复制到剪贴板。");
+  }
+  await clipboard.writeText(value);
+}
+
 export function SettingsPanel({
   view,
   workbench,
@@ -36,6 +47,7 @@ export function SettingsPanel({
 }) {
   const feedback = useFeedback();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [createFormOpen, setCreateFormOpen] = useState(false);
   const [pendingIssueDeletion, setPendingIssueDeletion] =
     useState<PendingIssueDeletion | null>(null);
   const busy = view.operation !== "idle";
@@ -45,6 +57,10 @@ export function SettingsPanel({
   const adapterGroups = [...new Set(
     view.repositories.map(({ adapter }) => adapter),
   )];
+  const copyLocation = async (label: string, value: string) => {
+    await copyRepositoryLocation(value);
+    feedback.notify(`${label}已复制。`);
+  };
 
   return (
     <Panel className="settings-panel" aria-label="设置">
@@ -76,7 +92,7 @@ export function SettingsPanel({
               variant="secondary"
             >
               <RefreshCw aria-hidden="true" size={13} />
-              刷新
+              重新扫描文件
             </Button>
           </>
         }
@@ -116,18 +132,22 @@ export function SettingsPanel({
               })}
             </select>
             <Button
-              aria-label="删除当前仓库"
-              className="ui-button-danger"
-              disabled={busy || view.deletionBlocked || !activeRepository}
-              onClick={() => setDeleteDialogOpen(true)}
-              title={view.deletionBlocked ? view.deletionWarning : "删除当前仓库"}
+              aria-controls="settings-create-repository"
+              aria-expanded={createFormOpen}
+              disabled={busy || view.creatableAdapters.length === 0}
+              onClick={() => setCreateFormOpen((open) => !open)}
               type="button"
-              variant="icon"
+              variant="secondary"
             >
-              <Trash2 aria-hidden="true" size={14} />
+              <Plus aria-hidden="true" size={13} />
+              {createFormOpen ? "取消添加" : "添加仓库"}
             </Button>
           </div>
           <dl className="settings-grid">
+            <div>
+              <dt>名称</dt>
+              <dd>{activeRepository?.label ?? view.activeRepositoryLabel}</dd>
+            </div>
             <div>
               <dt>仓库 ID</dt>
               <dd>{view.activeRepositoryId}</dd>
@@ -140,23 +160,47 @@ export function SettingsPanel({
               <dt>状态</dt>
               <dd>{view.persistenceStatusLabel}</dd>
             </div>
-            <div>
-              <dt>位置</dt>
-              <dd>{view.locationLabel}</dd>
-            </div>
+            {activeRepository?.locationRows.map((row) => (
+              <div key={row.label}>
+                <dt>{row.label}</dt>
+                <dd className="settings-location-value">
+                  <span title={row.value}>{row.value}</span>
+                  <Button
+                    aria-label={`复制${row.label}`}
+                    disabled={busy}
+                    onClick={() => {
+                      void feedback.runAction(() => copyLocation(
+                        row.label,
+                        row.copyValue,
+                      ));
+                    }}
+                    title={`复制${row.label}`}
+                    type="button"
+                    variant="icon"
+                  >
+                    <Copy aria-hidden="true" size={13} />
+                  </Button>
+                </dd>
+              </div>
+            ))}
           </dl>
-          {view.deletionBlocked ? (
-            <p className="settings-repository-warning" role="alert">
-              {view.deletionWarning}
-            </p>
+          {createFormOpen ? (
+            <div
+              className="settings-create-repository-region"
+              id="settings-create-repository"
+            >
+              <RepositoryCreateForm
+                adapters={view.creatableAdapters}
+                className="settings-create-repository"
+                disabled={busy}
+                onCreate={async (input) => {
+                  await view.createRepository(input);
+                  setCreateFormOpen(false);
+                }}
+                onError={feedback.notifyError}
+              />
+            </div>
           ) : null}
-          <RepositoryCreateForm
-            adapters={view.creatableAdapters}
-            className="settings-create-repository"
-            disabled={busy}
-            onCreate={view.createRepository}
-            onError={feedback.notifyError}
-          />
         </Section>
         {view.issues.length > 0 ? (
           <Section title="仓库问题">
@@ -166,7 +210,26 @@ export function SettingsPanel({
                   <div>
                     <strong>{issue.displayLabel}</strong>
                     <span>{issue.message}</span>
-                    <span>{issue.locationLabel}</span>
+                    {issue.locationRows.map((row) => (
+                      <span className="settings-issue-location" key={row.label}>
+                        {row.label}：{row.value}
+                        <Button
+                          aria-label={`复制${row.label}`}
+                          disabled={busy}
+                          onClick={() => {
+                            void feedback.runAction(() => copyLocation(
+                              row.label,
+                              row.copyValue,
+                            ));
+                          }}
+                          title={`复制${row.label}`}
+                          type="button"
+                          variant="icon"
+                        >
+                          <Copy aria-hidden="true" size={12} />
+                        </Button>
+                      </span>
+                    ))}
                   </div>
                   <div className="ui-actions">
                     {issue.status === "deleting" ? (
@@ -224,6 +287,34 @@ export function SettingsPanel({
               value={workbench.contextWidth}
             />
             <span>px</span>
+          </div>
+        </Section>
+        <Section className="settings-danger-zone" title="危险区">
+          <div className="settings-danger-zone-content">
+            <div>
+              <strong>删除当前仓库</strong>
+              <p>
+                {activeRepository?.adapter === "webdav"
+                  ? "删除远端托管数据后无法恢复；也可以只移除本机连接。"
+                  : "删除托管数据后无法恢复。"}
+              </p>
+              {view.deletionWarning ? (
+                <p className="settings-repository-warning" role="alert">
+                  {view.deletionWarning}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              className="ui-button-danger"
+              disabled={busy || view.deletionBlocked || !activeRepository}
+              onClick={() => setDeleteDialogOpen(true)}
+              title={view.deletionBlocked ? view.deletionWarning : "删除当前仓库"}
+              type="button"
+              variant="secondary"
+            >
+              <Trash2 aria-hidden="true" size={13} />
+              删除仓库
+            </Button>
           </div>
         </Section>
       </PanelBody>

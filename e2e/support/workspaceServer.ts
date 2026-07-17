@@ -24,6 +24,7 @@ const serverStateDir = path.resolve(
   process.env.CTN_E2E_SERVER_STATE_DIR ??
     path.join(".cognition-tree", "e2e-server-state"),
 );
+const repositoryHostRoot = process.env.CTN_E2E_REPOSITORY_HOST_ROOT ?? null;
 const security = {
   ...createWorkspaceApiSecurityPolicy({ host }),
   allowedOrigins: [
@@ -36,7 +37,9 @@ await Promise.all([
   rm(serverStateDir, { force: true, recursive: true }),
 ]);
 
-const localCatalog = new LocalRepositoryCatalog(repositoryDir);
+const localCatalog = new LocalRepositoryCatalog(repositoryDir, {
+  hostRoot: repositoryHostRoot,
+});
 const webDavRegistry = new WebDavConnectionRegistry({
   stateDirectory: serverStateDir,
 });

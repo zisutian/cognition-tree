@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../../src/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
+import { parseCtnCanonicalDocument } from "../../../../ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
 import {
   createSyntaxProfileDraft,
-} from "../../../../src/ctn/syntax/profileDraft";
-import type { CtnCanonicalBlock } from "../../../../src/ctn/parser/types";
+} from "../../../../ctn/syntax/profileDraft";
+import type { CtnCanonicalBlock } from "../../../../ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
@@ -31,7 +31,7 @@ import { createUiEditorView } from "../../../../src/application/workspace/projec
 import {
   createCtnEditableSource,
   getCtnEditableLineNumber,
-} from "../../../../src/ctn/metadata/editableSource";
+} from "../../../../ctn/metadata/editableSource";
 import {
   createUiTextSegments,
   getUiTextDisplayText,

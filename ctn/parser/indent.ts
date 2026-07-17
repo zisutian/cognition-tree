@@ -1,5 +1,7 @@
-import { createDiagnostic } from "./diagnostics";
-import type { CtnDiagnostic } from "./types";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { createDiagnostic } from "./diagnostics.ts";
+import type { CtnDiagnostic } from "./types.ts";
 
 export function analyzeIndent(
   indentText: string,

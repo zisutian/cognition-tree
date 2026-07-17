@@ -20,6 +20,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["contracts", "src", "tests"],
+  "include": ["contracts", "ctn", "src", "tests"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -75,7 +75,9 @@ export function RepositorySetupView({
                   <div>
                     <strong>{issue.displayLabel}</strong>
                     <span>{issue.message}</span>
-                    <span>{issue.locationLabel}</span>
+                    {issue.locationRows.map((row) => (
+                      <span key={row.label}>{row.label}：{row.value}</span>
+                    ))}
                   </div>
                   <div className="ui-actions">
                     {issue.status === "deleting" ? (

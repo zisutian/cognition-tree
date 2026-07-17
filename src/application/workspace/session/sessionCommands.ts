@@ -23,8 +23,8 @@ import type {
   NoteId,
   WorkspaceData,
 } from "../../../workspace/model/workspaceData";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
-import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
+import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
 import { collectWorkspaceBlockIds } from "../../../workspace/context/workspaceBlockMetadata";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];

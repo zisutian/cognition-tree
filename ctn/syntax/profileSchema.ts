@@ -1,12 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   configurableSyntaxTones,
   isConfigurableSyntaxTone,
-} from "./tones";
+} from "./tones.ts";
 import type {
   CtnInlineRule,
   CtnRuleRole,
   CtnSyntaxProfile,
-} from "./types";
+} from "./types.ts";
 
 export const syntaxProfileSchema = {
   label: {

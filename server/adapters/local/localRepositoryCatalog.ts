@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, readdir, realpath, rename, rm } from "node:fs/promises";
+import { lstat, mkdir, readdir, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../contracts/workspace-repository/parseCatalog.ts";
@@ -16,21 +16,22 @@ import type {
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import {
-  parseRepositoryMetadata,
-} from "../../repository/repositoryMetadata.ts";
-import {
   RepositoryCatalogError,
 } from "../../repository/repositoryCatalog.ts";
-import {
-  repositoryMetadataFileName,
-  workspaceFileName,
-} from "../../repository/workspaceRepositoryLayout.ts";
+import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
 import { fsyncDirectory } from "./atomicWrite.ts";
 import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,
 } from "./workspaceFileStore.ts";
+import {
+  localControlDirectoryName,
+  localRepositoryMetadataFileName,
+  assertLocalRepositoryContainsOnlyManagedData,
+  parseLocalRepositoryMetadata,
+  readLocalJson,
+} from "./localWorkingTree.ts";
 
 const writerLockFileName = ".ctn-writer.lock";
 const catalogCreateStagingPattern =
@@ -49,6 +50,7 @@ export type LocalRepositoryDeletionPhase =
 
 type LocalRepositoryCatalogOptions = {
   createStore?: (rootDir: string) => WorkspaceFileStore;
+  hostRoot?: string | null;
   onRepositoryDeletionPhase?: (
     phase: LocalRepositoryDeletionPhase,
   ) => Promise<void> | void;
@@ -72,13 +74,10 @@ async function pathExists(filePath: string) {
   }
 }
 
-async function readJson(filePath: string): Promise<unknown> {
-  return JSON.parse(await readFile(filePath, "utf8"));
-}
-
 export class LocalRepositoryCatalog {
   #createStore: NonNullable<LocalRepositoryCatalogOptions["createStore"]>;
   #initializePromise: Promise<void> | null = null;
+  #hostRoot: string | null;
   #lockCompromised = false;
   #onRepositoryDeletionPhase: NonNullable<
     LocalRepositoryCatalogOptions["onRepositoryDeletionPhase"]
@@ -91,11 +90,24 @@ export class LocalRepositoryCatalog {
   constructor(
     rootDir: string,
     {
-      createStore = (repositoryRoot) => new WorkspaceFileStore(repositoryRoot),
+      createStore = (repositoryRoot) => new WorkspaceFileStore(repositoryRoot, {
+        createBlockId: randomUUID,
+        createFolderId: () => `folder-${randomUUID().toLowerCase()}`,
+        createNoteId: () => `note-${randomUUID().toLowerCase()}`,
+        now: () => new Date().toISOString(),
+      }),
+      hostRoot = null,
       onRepositoryDeletionPhase = async () => {},
     }: LocalRepositoryCatalogOptions = {},
   ) {
     this.#createStore = createStore;
+    if (hostRoot !== null && !path.isAbsolute(hostRoot)) {
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Local repository host root must be an absolute path",
+      );
+    }
+    this.#hostRoot = hostRoot === null ? null : path.normalize(hostRoot);
     this.#onRepositoryDeletionPhase = onRepositoryDeletionPhase;
     this.#rootDir = path.resolve(rootDir);
   }
@@ -144,9 +156,38 @@ export class LocalRepositoryCatalog {
 
       for (const repositoryId of repositoryIds) {
         try {
-          const metadata = parseRepositoryMetadata(await readJson(
-            path.join(this.#resolveRepositoryPath(repositoryId), repositoryMetadataFileName),
+          const repositoryPath = this.#resolveRepositoryPath(repositoryId);
+          const repositoryStats = await lstat(repositoryPath);
+          if (!repositoryStats.isDirectory() || repositoryStats.isSymbolicLink()) {
+            throw new WorkspaceRepositoryContractError(
+              "$.layoutVersion",
+              "Local repository root is invalid",
+            );
+          }
+          const controlPath = path.join(
+            repositoryPath,
+            localControlDirectoryName,
+          );
+          const controlStats = await lstat(controlPath);
+          if (!controlStats.isDirectory() || controlStats.isSymbolicLink()) {
+            throw new WorkspaceRepositoryContractError(
+              "$.layoutVersion",
+              "Local control directory is invalid",
+            );
+          }
+          const metadata = parseLocalRepositoryMetadata(await readLocalJson(
+            path.join(
+              controlPath,
+              localRepositoryMetadataFileName,
+            ),
           ));
+
+          if (metadata.repositoryId !== repositoryId) {
+            throw new WorkspaceRepositoryContractError(
+              "$.repositoryId",
+              "repository identity does not match its directory",
+            );
+          }
 
           repositories.push(this.#createDescriptor(repositoryId, metadata.label));
         } catch (error) {
@@ -156,7 +197,7 @@ export class LocalRepositoryCatalog {
             adapter: "local",
             code,
             id: repositoryId,
-            locationLabel: this.#createLocationLabel(repositoryId),
+            location: this.#createLocation(repositoryId),
             message: code === "unsupported_repository_version"
               ? "Repository version is not supported"
               : "Repository metadata is invalid",
@@ -190,6 +231,7 @@ export class LocalRepositoryCatalog {
         await createWorkspaceFileRepository({
           content: request.content,
           label: request.label,
+          repositoryId: request.id,
           rootDir: stagingPath,
         });
         await rename(stagingPath, repositoryPath);
@@ -250,6 +292,8 @@ export class LocalRepositoryCatalog {
           "Repository escapes the configured root",
         );
       }
+
+      await assertLocalRepositoryContainsOnlyManagedData(canonicalPath);
 
       const tombstonePath = path.join(
         this.#rootDir,
@@ -425,13 +469,20 @@ export class LocalRepositoryCatalog {
       return "unsupported_repository_version";
     }
     if (hasFileSystemErrorCode(error, "ENOENT")) {
-      const legacyManifest = path.join(this.#resolveRepositoryPath(repositoryId), workspaceFileName);
+      const repositoryPath = this.#resolveRepositoryPath(repositoryId);
+      const legacyCandidates = [
+        path.join(repositoryPath, "repository.json"),
+        path.join(repositoryPath, "workspace.json"),
+        path.join(repositoryPath, "snapshots"),
+      ];
 
-      return await pathExists(legacyManifest)
+      return (await Promise.all(legacyCandidates.map(pathExists))).some(Boolean)
         ? "unsupported_repository_version"
         : "repository_corrupt";
     }
-    if (error instanceof SyntaxError || error instanceof WorkspaceRepositoryContractError) {
+    if (error instanceof RepositoryCorruptError ||
+        error instanceof SyntaxError ||
+        error instanceof WorkspaceRepositoryContractError) {
       return "repository_corrupt";
     }
     return "adapter_unavailable";
@@ -442,12 +493,18 @@ export class LocalRepositoryCatalog {
       adapter: "local",
       id: repositoryId,
       label,
-      locationLabel: this.#createLocationLabel(repositoryId),
+      location: this.#createLocation(repositoryId),
     };
   }
 
-  #createLocationLabel(repositoryId: string) {
-    return `local:${repositoryId}`;
+  #createLocation(repositoryId: string) {
+    return {
+      hostPath: this.#hostRoot === null
+        ? null
+        : path.join(this.#hostRoot, repositoryId),
+      serverPath: this.#resolveRepositoryPath(repositoryId),
+      type: "local" as const,
+    };
   }
 
   #resolveRepositoryPath(repositoryId: string) {

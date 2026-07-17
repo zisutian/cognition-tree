@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type {
   CtnCustomSyntaxTone,
   CtnPresetSyntaxTone,
-} from "./types";
+} from "./types.ts";
 
 export const configurableSyntaxTones: CtnPresetSyntaxTone[] = [
   "green",

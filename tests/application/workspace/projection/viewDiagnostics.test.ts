@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
-} from "../../../../src/ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../../../src/ctn/syntax/defaultSyntaxProfile";
+} from "../../../../ctn/syntax/profileDraft";
+import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
 import {
   createUiDocumentDiagnostics,
   createUiReferenceDiagnostics,

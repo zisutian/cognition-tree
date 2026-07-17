@@ -1,4 +1,6 @@
-import type { CtnMultilineRange } from "./types";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { CtnMultilineRange } from "./types.ts";
 
 type CtnBlockRange = {
   level: number;

@@ -86,6 +86,7 @@ function createRepository(
   validateContent: Parameters<
     typeof createLocalFirstWorkspaceRepository
   >[0]["validateContent"] = () => undefined,
+  refreshRemoteOnLoad = false,
 ) {
   let draftSequence = 0;
 
@@ -97,7 +98,8 @@ function createRepository(
       createDraftId: () =>
         `00000000-0000-4000-8000-${String(++draftSequence).padStart(12, "0")}`,
       label: "Remote catalog label",
-      locationLabel: "Remote · primary",
+      location: { type: "webdav", url: "https://dav.test/primary/" },
+      refreshRemoteOnLoad,
       repositoryIdentity: "https://api.test#primary#token-digest",
       validateContent,
     }),
@@ -122,6 +124,112 @@ describe("local-first workspace repository", () => {
     expect(first.localRevision).toMatch(/^draft:/);
     expect(cached).toEqual(first);
     expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes clean Local cache state from the remote working tree on every load", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(
+      remote,
+      undefined,
+      () => undefined,
+      true,
+    );
+    const initial = await repository.loadSnapshot();
+
+    remote.setRemote(createRepositoryContent("External disk edit"), revisionC);
+    const refreshed = await repository.loadSnapshot();
+
+    expect(refreshed).toMatchObject({
+      conflictRevision: null,
+      content: { workspace: { name: "External disk edit" } },
+      pendingChanges: false,
+      remoteRevision: revisionC,
+    });
+    expect(refreshed.localRevision).not.toBe(initial.localRevision);
+  });
+
+  it("keeps a pending Local draft and publishes conflict when disk changed", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(
+      remote,
+      undefined,
+      () => undefined,
+      true,
+    );
+    const initial = await repository.loadSnapshot();
+    const staged = await repository.stageSnapshot({
+      content: createRepositoryContent("Local draft"),
+      expectedLocalRevision: initial.localRevision,
+    });
+
+    remote.setRemote(createRepositoryContent("External disk edit"), revisionC);
+    const refreshed = await repository.loadSnapshot();
+
+    expect(refreshed).toMatchObject({
+      conflictRevision: revisionC,
+      content: { workspace: { name: "Local draft" } },
+      localRevision: staged.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionC,
+    });
+  });
+
+  it("does not rescan a Local working tree as an internal precondition of stage", async () => {
+    const remote = createRemoteBackend();
+    const load = vi.spyOn(remote.backend, "loadRemoteSnapshot");
+    const { repository } = createRepository(
+      remote,
+      undefined,
+      () => undefined,
+      true,
+    );
+    const initial = await repository.loadSnapshot();
+
+    remote.setRemote(createRepositoryContent("External disk edit"), revisionC);
+    const staged = await repository.stageSnapshot({
+      content: createRepositoryContent("Local draft"),
+      expectedLocalRevision: initial.localRevision,
+    });
+
+    expect(staged.localRevision).not.toBe(initial.localRevision);
+    expect(load).toHaveBeenCalledTimes(1);
+    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
+      localRevision: staged.localRevision,
+      remoteRevision: revisionC,
+      status: "conflict",
+    });
+  });
+
+  it("opens the durable Local draft while the server is offline", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(
+      remote,
+      undefined,
+      () => undefined,
+      true,
+    );
+    const initial = await repository.loadSnapshot();
+
+    remote.setUnavailable(true);
+    await expect(repository.loadSnapshot()).resolves.toEqual(initial);
+  });
+
+  it("does not hide a stable-scan repository_busy failure behind the cache", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(
+      remote,
+      undefined,
+      () => undefined,
+      true,
+    );
+    await repository.loadSnapshot();
+    const busy = new WorkspaceRepositoryRemoteError("working tree changed", {
+      code: "repository_busy",
+      retryable: true,
+    });
+
+    vi.spyOn(remote.backend, "loadRemoteSnapshot").mockRejectedValueOnce(busy);
+    await expect(repository.loadSnapshot()).rejects.toBe(busy);
   });
 
   it("preserves the local storage failure when initialization did not race", async () => {
@@ -229,7 +337,7 @@ describe("local-first workspace repository", () => {
       createDraftId: () =>
         `00000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
       label: "Remote",
-      locationLabel: "Remote · primary",
+      location: { type: "webdav", url: "https://dav.test/primary/" },
       repositoryIdentity: "primary",
       validateContent: () => undefined,
     });
@@ -278,6 +386,17 @@ describe("local-first workspace repository", () => {
     });
 
     remote.setUnavailable(false);
+    remote.setRemoteError(new WorkspaceRepositoryRemoteError("busy", {
+      code: "repository_busy",
+      retryable: true,
+    }));
+    await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
+      localRevision: staged.localRevision,
+      pendingChanges: true,
+      remoteRevision: revisionA,
+      status: "offline",
+    });
+
     remote.setRemoteError(new WorkspaceRepositoryRemoteError("bad request"));
     await expect(repository.synchronizePendingSnapshot()).resolves.toEqual({
       localRevision: staged.localRevision,
@@ -425,7 +544,7 @@ describe("local-first workspace repository", () => {
       cache: createMemoryWorkspaceRepositoryCache(),
       createDraftId: () => "00000000-0000-4000-8000-000000000001",
       label: "Remote",
-      locationLabel: "Remote · primary",
+      location: { type: "webdav", url: "https://dav.test/primary/" },
       repositoryIdentity: "primary",
       subscribeReconnect(listener) {
         subscription.reconnect = listener;

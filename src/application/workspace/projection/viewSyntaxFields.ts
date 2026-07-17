@@ -1,4 +1,4 @@
-import type { SyntaxProfileDraft } from "../../../ctn/syntax/profileDraft";
+import type { SyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
 
 export type UiSyntaxFieldId = string;
 

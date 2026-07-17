@@ -20,9 +20,9 @@ const folderFields = ["children", "folderId", "kind", "title"] as const;
 const noteNodeFields = ["kind", "noteId"] as const;
 
 /**
- * A repository note id is also the immutable snapshot file stem. Keep this
- * rule in the wire contract so browser, HTTP, Local, and WebDAV reject the
- * same content before any adapter-specific write begins.
+ * A repository note id is also used as an adapter-owned metadata key. Keep
+ * this rule in the wire contract so Browser, HTTP, Local, and WebDAV reject
+ * the same content before any adapter-specific write begins.
  */
 export function isRepositoryNoteId(value: string) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);

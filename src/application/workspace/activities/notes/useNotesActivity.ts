@@ -22,7 +22,7 @@ import {
   createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
   type CtnEditableSource,
-} from "../../../../ctn/metadata/editableSource";
+} from "../../../../../ctn/metadata/editableSource";
 
 export function useNotesActivity({
   errorMessage,

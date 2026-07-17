@@ -1,13 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type {
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
-} from "./types";
+} from "./types.ts";
 import {
   syntaxProfileSchema,
   validateSyntaxProfile,
   type SyntaxProfileSchemaDiagnosticCode,
-} from "./profileSchema";
+} from "./profileSchema.ts";
 
 export type SyntaxProfileDraftMarkerRule = {
   id: string;

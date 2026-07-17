@@ -36,7 +36,6 @@ import {
 } from "../../../server/repository/repositoryCatalog.ts";
 import {
   createDeepRepositoryContent,
-  inspectDeepRepositoryContent,
 } from "../../storage/repositoryV3Fixtures";
 
 function createContent(name = "本地笔记库"): WorkspaceRepositoryContentDto {
@@ -184,10 +183,10 @@ async function commitSnapshot(
 }
 
 describe("workspace API v3", () => {
-  it("round-trips a 10,000-level tree through API input, Local storage, and API output", async () => {
+  it("rejects a 10,000-level Local tree before publishing a partial repository", async () => {
     await withHandler(async (handler) => {
       const content = createDeepRepositoryContent(10_000, "Deep initial");
-      const created = await dispatch<RepositoryDescriptorDto>(handler, {
+      const created = await dispatch<RepositoryApiErrorDto>(handler, {
         body: serializeJsonIteratively({
           adapter: "local",
           content,
@@ -198,59 +197,24 @@ describe("workspace API v3", () => {
         url: "/api/repositories",
       });
 
-      expect(created.statusCode).toBe(201);
-      const repositoryId = created.body?.id;
-
-      expect(repositoryId).toMatch(/^repository-[0-9a-f-]{36}$/);
-      if (!repositoryId) {
-        throw new Error("expected generated repository id");
-      }
-      const initial = await loadSnapshot(handler, repositoryId);
-
-      expect(inspectDeepRepositoryContent(initial.content)).toEqual({
-        deepestFolder: {
-          folderId: "folder-10000",
-          title: 'Level 10000 · "深层"',
+      expect(created).toMatchObject({
+        body: {
+          code: "invalid_request",
+          requestId: expect.any(String),
         },
-        depth: 10_000,
-        leaf: { kind: "note", noteId: "deep-note" },
-        rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
+        statusCode: 400,
       });
-      const nextContent = {
-        ...initial.content,
-        workspace: { ...initial.content.workspace, name: "Deep committed" },
-      };
-      const committed = await dispatch<WorkspaceRepositoryCommitResultDto>(handler, {
-        body: serializeJsonIteratively({
-          baseRevision: initial.revision,
-          content: nextContent,
-        }),
-        headers: { "content-type": "application/json" },
-        method: "PUT",
-        url: snapshotUrl(repositoryId),
-      });
-
-      expect(committed).toMatchObject({
-        body: { revision: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) },
+      await expect(dispatch<RepositoryCatalogDto>(handler, {
+        method: "GET",
+        url: "/api/repositories",
+      })).resolves.toMatchObject({
+        body: { issues: [], repositories: [] },
         statusCode: 200,
-      });
-      const loaded = await loadSnapshot(handler, repositoryId);
-
-      expect(loaded.content.workspace.name).toBe("Deep committed");
-      expect(loaded.content.workspace.notes).toEqual(content.workspace.notes);
-      expect(inspectDeepRepositoryContent(loaded.content)).toEqual({
-        deepestFolder: {
-          folderId: "folder-10000",
-          title: 'Level 10000 · "深层"',
-        },
-        depth: 10_000,
-        leaf: { kind: "note", noteId: "deep-note" },
-        rootFolder: { folderId: "folder-1", title: 'Level 1 · "深层"' },
       });
     });
   }, 20_000);
 
-  it("lists, creates, loads, and commits nested v3 content without path disclosure", async () => {
+  it("lists, creates, loads, and commits nested v3 content with a structured Local location", async () => {
     await withHandler(async (handler, rootDir) => {
       const listed = await dispatch(handler, { method: "GET", url: "/api/repositories" });
 
@@ -275,14 +239,22 @@ describe("workspace API v3", () => {
           adapter: "local",
           id: expect.stringMatching(/^repository-[0-9a-f-]{36}$/),
           label: "Catalog",
-          locationLabel: expect.stringMatching(/^local:repository-/),
+          location: {
+            hostPath: null,
+            serverPath: expect.stringContaining(rootDir),
+            type: "local",
+          },
         },
         statusCode: 201,
       });
       if (!repositoryId) {
         throw new Error("expected generated repository id");
       }
-      expect(JSON.stringify(created.body)).not.toContain(rootDir);
+      expect(created.body?.location).toEqual({
+        hostPath: null,
+        serverPath: path.join(rootDir, repositoryId),
+        type: "local",
+      });
       const initial = await loadSnapshot(handler, repositoryId);
 
       expect(initial.content).toEqual(createContent("Workspace"));
@@ -521,18 +493,20 @@ describe("workspace API v3", () => {
 
   it("redacts corruption and unknown 500 details while logging by request id", async () => {
     const logger = { error: vi.fn() };
+    const repositoryPath =
+      "/private/repositories/repository-01234567-89ab-4cde-8f01-23456789abcd/.ctn/index.json";
     const catalog: WorkspaceRepositoryCatalog = {
       async createRepository() {
-        throw new Error("/private/repositories/secret stack detail");
+        throw new Error(`Could not read '${repositoryPath}'`);
       },
       async deleteRepository() {
-        throw new Error("/private/repositories/secret stack detail");
+        throw new Error(`Could not read '${repositoryPath}'`);
       },
       async getStore() {
-        throw new Error("/private/repositories/secret stack detail");
+        throw new Error(`Could not read '${repositoryPath}'`);
       },
       async listRepositories() {
-        throw new Error("/private/repositories/secret stack detail");
+        throw new Error(`Could not read '${repositoryPath}'`);
       },
     };
     const handler = createWorkspaceApiRequestHandler({
@@ -558,6 +532,11 @@ describe("workspace API v3", () => {
       expect.stringContaining(response.body?.requestId ?? ""),
       expect.any(Error),
     );
+    const loggedError = logger.error.mock.calls[0]?.[1] as Error;
+
+    expect(loggedError.message).toContain("[repository-path]");
+    expect(loggedError.message).not.toContain(repositoryPath);
+    expect(loggedError.stack).not.toContain(repositoryPath);
   });
 
   it("redacts explicit internal adapter errors instead of trusting their messages", async () => {
@@ -642,7 +621,7 @@ describe("workspace API v3", () => {
         throw new Error("expected generated repository id");
       }
       await writeFile(
-        path.join(rootDir, repositoryId, "repository.json"),
+        path.join(rootDir, repositoryId, ".ctn", "repository.json"),
         "not json",
       );
       const response = await dispatch(handler, { method: "GET", url: "/api/repositories" });
@@ -653,13 +632,17 @@ describe("workspace API v3", () => {
             adapter: "local",
             code: "repository_corrupt",
             id: repositoryId,
+            location: {
+              hostPath: null,
+              serverPath: path.join(rootDir, repositoryId),
+              type: "local",
+            },
             status: "fault",
           })],
           repositories: [],
         },
         statusCode: 200,
       });
-      expect(JSON.stringify(response.body)).not.toContain(rootDir);
     });
   });
 

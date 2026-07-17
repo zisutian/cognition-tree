@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../src/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import {
   createWorkspaceFolder,
   createWorkspaceNote,

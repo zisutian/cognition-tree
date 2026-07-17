@@ -24,7 +24,14 @@
   display: grid;
   max-width: 560px;
   gap: var(--ui-gap);
+}
+
+.settings-create-repository-region {
+  max-width: 560px;
   margin-top: var(--ui-gap);
+  padding: var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
 }
 
 .settings-create-repository label {
@@ -71,6 +78,15 @@
   color: var(--color-fg-muted);
 }
 
+.settings-issue-location {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  font-family: var(--font-code);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .repository-delete-dialog {
   width: min(520px, calc(100vw - calc(var(--ui-panel-padding) * 2)));
 }
@@ -111,4 +127,50 @@
   color: var(--color-fg);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settings-location-value {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.settings-location-value > span {
+  min-width: 0;
+  font-family: var(--font-code);
+  overflow-wrap: anywhere;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.settings-location-value > .ui-button,
+.settings-issue-location > .ui-button {
+  flex: 0 0 auto;
+}
+
+.settings-danger-zone {
+  padding: var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-error-soft);
+  border-radius: var(--ui-radius);
+}
+
+.settings-danger-zone-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+}
+
+.settings-danger-zone-content strong {
+  font-size: var(--ui-body-font-size);
+}
+
+.settings-danger-zone-content p {
+  margin: var(--ui-gap-tight) 0 0;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
 }

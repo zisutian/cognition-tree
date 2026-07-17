@@ -1,8 +1,8 @@
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../../ctn/parser/parseCtnDocument";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+} from "../../../ctn/parser/parseCtnDocument";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import type { WorkspaceData } from "../model/workspaceData";
 
 export class WorkspaceBlockMetadataError extends Error {

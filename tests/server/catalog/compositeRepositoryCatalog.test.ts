@@ -15,6 +15,10 @@ import type { WorkspaceRepositoryStore } from "../../../server/repository/reposi
 const revision = `sha256:${"a".repeat(64)}` as const;
 const firstUuid = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
 const secondUuid = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const remoteLocation = {
+  type: "webdav" as const,
+  url: "https://dav.example.test/notes/",
+};
 
 function createContent(name: string): WorkspaceRepositoryContentDto {
   return {
@@ -52,7 +56,7 @@ function createRegistry({
       adapter: "webdav",
       id: input.id,
       label: input.label,
-      locationLabel: `webdav:${input.id}`,
+      location: { type: "webdav", url: input.url },
     };
 
     currentRepositories.push(descriptor);
@@ -166,7 +170,7 @@ describe("composite repository catalog", () => {
             adapter: "webdav",
             id: "repository-remote",
             label: "Remote",
-            locationLabel: "webdav:repository-remote",
+            location: remoteLocation,
           },
         ].sort((left, right) => left.id.localeCompare(right.id)),
       });
@@ -179,7 +183,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         id: "repository-remote",
         label: "Remote",
-        locationLabel: "webdav:repository-remote",
+        location: remoteLocation,
       }],
     });
   });
@@ -199,7 +203,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         id: `repository-${firstUuid.toLowerCase()}`,
         label: "NAS",
-        locationLabel: `webdav:repository-${firstUuid.toLowerCase()}`,
+        location: remoteLocation,
       });
       expect(registry.register).toHaveBeenCalledWith({
         authentication: { type: "none" },
@@ -228,7 +232,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         code: "repository_corrupt",
         id: `repository-${firstUuid.toLowerCase()}`,
-        locationLabel: `webdav:repository-${firstUuid.toLowerCase()}`,
+        location: null,
         message: "bad registry entry",
         status: "fault",
       }],
@@ -261,7 +265,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         id: "repository-same",
         label: "Remote",
-        locationLabel: "webdav:repository-same",
+        location: remoteLocation,
       }],
     });
   });
@@ -288,7 +292,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         id: "repository-remote",
         label: "Remote",
-        locationLabel: "webdav:repository-remote",
+        location: remoteLocation,
       }],
     });
   });
@@ -304,7 +308,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         id: "repository-remote",
         label: "Remote",
-        locationLabel: "webdav:repository-remote",
+        location: remoteLocation,
       }],
     });
 
@@ -318,7 +322,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         code: "repository_busy",
         id: "repository-deleting",
-        locationLabel: "webdav:repository-deleting",
+        location: remoteLocation,
         message: "deleting",
         status: "deleting",
       }],
@@ -344,7 +348,7 @@ describe("composite repository catalog", () => {
         adapter: "webdav",
         code: "repository_corrupt",
         id: "repository-fault",
-        locationLabel: "webdav:repository-fault",
+        location: null,
         message: "bad config",
         status: "fault",
       }],

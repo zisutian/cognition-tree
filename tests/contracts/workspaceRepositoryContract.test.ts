@@ -128,7 +128,7 @@ describe("workspace repository v3 contract", () => {
         adapter: "local",
         code: "repository_corrupt",
         id: "broken",
-        locationLabel: "local:broken",
+        location: null,
         message: "Repository metadata is invalid",
         status: "fault",
       }],
@@ -136,7 +136,11 @@ describe("workspace repository v3 contract", () => {
         adapter: "local",
         id: "primary",
         label: "Primary",
-        locationLabel: "local:primary",
+        location: {
+          hostPath: "/home/user/repositories/primary",
+          serverPath: "/data/repositories/primary",
+          type: "local",
+        },
       }],
     } as const;
 
@@ -158,6 +162,70 @@ describe("workspace repository v3 contract", () => {
       message: "changed",
       requestId: "request-1",
     });
+  });
+
+  it("requires exact structured locations matching their adapters", () => {
+    const base = {
+      id: "primary",
+      label: "Primary",
+    };
+
+    expect(() => parseRepositoryCatalog({
+      creatableAdapters: [],
+      issues: [],
+      repositories: [{
+        adapter: "local",
+        ...base,
+        location: { type: "webdav", url: "https://dav.example.test/" },
+      }],
+    })).toThrow("does not match adapter local");
+    expect(() => parseRepositoryCatalog({
+      creatableAdapters: [],
+      issues: [],
+      repositories: [{
+        adapter: "browser",
+        ...base,
+        location: {
+          databaseName: "cognition-tree.repository-cache",
+          legacyLabel: "Browser",
+          type: "browser",
+        },
+      }],
+    })).toThrow("unsupported field");
+    expect(() => parseRepositoryCatalog({
+      creatableAdapters: [],
+      issues: [],
+      repositories: [{
+        adapter: "local",
+        ...base,
+        location: {
+          hostPath: null,
+          serverPath: "relative/repository",
+          type: "local",
+        },
+      }],
+    })).toThrow("expected an absolute path");
+    expect(() => parseRepositoryCatalog({
+      creatableAdapters: [],
+      issues: [],
+      repositories: [{
+        adapter: "webdav",
+        ...base,
+        location: {
+          type: "webdav",
+          url: "https://user:secret@dav.example.test/?token=secret",
+        },
+      }],
+    })).toThrow("without credentials");
+    expect(() => parseRepositoryCatalog({
+      creatableAdapters: [],
+      issues: [],
+      repositories: [{
+        adapter: "local",
+        ...base,
+        locationLabel: "legacy location",
+      }],
+    })).toThrow("unsupported field");
   });
 
   it("rejects manual ids, invalid create variants, and invalid deletion results", () => {

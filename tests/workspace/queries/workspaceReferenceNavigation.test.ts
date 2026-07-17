@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
 import { resolveWorkspaceReferenceNavigation } from "../../../src/workspace/queries/workspaceReferenceNavigation";

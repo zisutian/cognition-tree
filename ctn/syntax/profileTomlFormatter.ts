@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { syntaxProfileSchema } from "./profileSchema";
-import type { CtnSyntaxProfile } from "./types";
+import { syntaxProfileSchema } from "./profileSchema.ts";
+import type { CtnSyntaxProfile } from "./types.ts";
 
 function formatTomlString(value: string): string {
   return JSON.stringify(value);

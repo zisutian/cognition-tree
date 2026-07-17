@@ -287,7 +287,7 @@ export function useRepositoryCatalog(
               adapter: deletedEntry.adapter,
               code: "repository_busy" as const,
               id: deletedEntry.id,
-              locationLabel: deletedEntry.locationLabel,
+              location: deletedEntry.location,
               message: "WebDAV managed data deletion is still being completed",
               status: "deleting" as const,
             }

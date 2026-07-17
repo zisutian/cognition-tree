@@ -23,8 +23,8 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import type { CtnSyntaxProfile } from "../ctn/syntax/types";
-import type { CtnEditableSourceChange } from "../ctn/metadata/textEdits";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../../ctn/metadata/textEdits";
 import { createCtnParseDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 import {

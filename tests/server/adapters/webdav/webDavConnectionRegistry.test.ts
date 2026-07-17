@@ -122,6 +122,10 @@ describe("WebDAV connection registry", () => {
         expect((await lstat(connectionsDirectory)).mode & 0o777).toBe(0o700);
         expect((await lstat(configPath)).mode & 0o777).toBe(0o600);
         expect(configSource).toContain("server-only-secret");
+        expect(descriptor.location).toEqual({
+          type: "webdav",
+          url: "https://dav.example.test/root/",
+        });
         expect(JSON.stringify(descriptor)).not.toContain("server-only-secret");
         expect(JSON.stringify(await registry.listEntries()))
           .not.toContain("server-only-secret");
@@ -213,7 +217,7 @@ describe("WebDAV connection registry", () => {
             adapter: "webdav",
             code: "repository_corrupt",
             id: "repository-broken",
-            locationLabel: "webdav:repository-broken",
+            location: null,
             message: "WebDAV connection configuration is invalid",
             status: "fault",
           }],
@@ -221,7 +225,10 @@ describe("WebDAV connection registry", () => {
             adapter: "webdav",
             id: "repository-healthy",
             label: "Healthy",
-            locationLabel: "webdav:repository-healthy",
+            location: {
+              type: "webdav",
+              url: "https://healthy.example.test/root/",
+            },
           }],
         });
         expect(transportFactoryCalls).toBe(0);

@@ -15,10 +15,10 @@ import {
   moveWorkspaceStructureBlockBetweenNotes,
   moveWorkspaceStructureBlockWithinNote,
 } from "../../../src/workspace/commands/structureBlockCommands";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
-import { parseCtnCanonicalDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
 import {
   createCanonicalTestNote,
   readEditableTestSource,

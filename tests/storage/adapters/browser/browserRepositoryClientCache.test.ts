@@ -20,9 +20,9 @@ import {
 } from "../../repositoryV3Fixtures";
 
 const databaseName = "cognition-tree.repository-cache";
-const catalogStoreName = "repository-catalogs-v3";
-const stateStoreName = "repository-states-v3";
-const noteStoreName = "repository-notes-v3";
+const catalogStoreName = "repository-catalogs-v4";
+const stateStoreName = "repository-states-v4";
+const noteStoreName = "repository-notes-v4";
 const repositoryIdentity = "browser:primary";
 const catalogIdentity = "browser";
 
@@ -30,7 +30,10 @@ const descriptor: RepositoryDescriptorDto = {
   adapter: "browser",
   id: "primary",
   label: "Primary",
-  locationLabel: "浏览器 · primary",
+  location: {
+    databaseName,
+    type: "browser",
+  },
 };
 
 function requestResult<Result>(request: IDBRequest<Result>) {
@@ -104,31 +107,44 @@ afterEach(() => {
 });
 
 describe("IndexedDB repository client cache", () => {
-  it("drops every legacy object store during the v3 upgrade without reading old content", async () => {
+  it("drops every v3 object store during the v4 upgrade without reading old content", async () => {
     const indexedDb = new IDBFactory();
-    const legacyDatabase = await openDatabase(indexedDb, 2, (database) => {
-      database.createObjectStore("repository-catalogs-v2");
-      database.createObjectStore("repository-snapshots-v2");
+    const legacyDatabase = await openDatabase(indexedDb, 3, (database) => {
+      database.createObjectStore("repository-catalogs-v3");
+      database.createObjectStore("repository-states-v3");
+      database.createObjectStore("repository-notes-v3");
       database.createObjectStore("unrelated-legacy-store");
     });
     const legacyTransaction = legacyDatabase.transaction(
       [
-        "repository-catalogs-v2",
-        "repository-snapshots-v2",
+        "repository-catalogs-v3",
+        "repository-states-v3",
+        "repository-notes-v3",
         "unrelated-legacy-store",
       ],
       "readwrite",
     );
     const legacyCompletion = transactionComplete(legacyTransaction);
 
-    legacyTransaction.objectStore("repository-catalogs-v2").put(
-      { repositories: [descriptor], version: 2 },
+    legacyTransaction.objectStore("repository-catalogs-v3").put(
+      {
+        creatableAdapters: ["browser"],
+        issues: [],
+        repositories: [{
+          adapter: "browser",
+          id: descriptor.id,
+          label: descriptor.label,
+          locationLabel: "legacy browser label",
+        }],
+        version: 3,
+      },
       catalogIdentity,
     );
-    legacyTransaction.objectStore("repository-snapshots-v2").put(
-      { workspace: { id: "legacy" } },
+    legacyTransaction.objectStore("repository-states-v3").put(
+      { identity: repositoryIdentity, workspace: { id: "legacy" } },
       repositoryIdentity,
     );
+    legacyTransaction.objectStore("repository-notes-v3").put("legacy", "key");
     legacyTransaction.objectStore("unrelated-legacy-store").put("legacy", "key");
     await legacyCompletion;
     legacyDatabase.close();
@@ -160,7 +176,7 @@ describe("IndexedDB repository client cache", () => {
       creatableAdapters: ["browser"],
       issues: [],
       repositories: [descriptor],
-      version: 3,
+      version: 4,
     });
     await expect(cache.snapshots.load(repositoryIdentity)).resolves.toEqual({
       content,
@@ -186,7 +202,7 @@ describe("IndexedDB repository client cache", () => {
     );
 
     await completion;
-    expect(catalog).toMatchObject({ repositories: [descriptor], version: 3 });
+    expect(catalog).toMatchObject({ repositories: [descriptor], version: 4 });
     expect(state).toMatchObject({
       identity: repositoryIdentity,
       localRevision: draftA,
@@ -300,7 +316,7 @@ describe("IndexedDB repository client cache", () => {
       creatableAdapters: ["browser"],
       issues: [],
       repositories: [],
-      version: 3,
+      version: 4,
     });
     await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
 

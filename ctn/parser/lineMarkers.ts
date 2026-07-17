@@ -1,13 +1,15 @@
-import { createDiagnostic } from "./diagnostics";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { createDiagnostic } from "./diagnostics.ts";
 import type {
   CtnDiagnostic,
-} from "./types";
+} from "./types.ts";
 import type {
   CtnBlockType,
   CtnMarkerRule,
   CtnRuleRole,
   CtnSyntaxTone,
-} from "../syntax/types";
+} from "../syntax/types.ts";
 
 export type ParsedLineMarker = {
   diagnostics: CtnDiagnostic[];

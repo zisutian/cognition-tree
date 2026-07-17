@@ -8,7 +8,7 @@ import type {
 } from "../../projection/viewTree";
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
 import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
-import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
+import type { CtnEditableSourceChange } from "../../../../../ctn/metadata/textEdits";
 
 export type NotesViewModel = {
   activeNote: {

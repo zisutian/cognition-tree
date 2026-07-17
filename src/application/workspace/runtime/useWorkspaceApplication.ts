@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceNote } from "../../../workspace/model/workspaceData";
 import { listWorkspaceNotes } from "../../../workspace/queries/workspaceQueries";
@@ -99,7 +99,7 @@ export function useWorkspaceApplication(
   const repository = {
     ...repositoryManagement,
     discardPendingChangesAndReload: session.discardPendingChangesAndReload,
-    locationLabel: session.locationLabel,
+    location: session.location,
     persistence,
     reload: session.reload,
     storageLabel: session.storageLabel,

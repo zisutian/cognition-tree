@@ -1,5 +1,7 @@
 import type {
   LocalDraftRevisionDto,
+  RepositoryApiErrorCodeDto,
+  RepositoryLocationDto,
   RepositoryRevisionDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types";
@@ -33,6 +35,7 @@ export type WorkspaceRepositoryBackend = {
 };
 
 export type WorkspaceRepositorySnapshot = {
+  conflictRevision: RepositoryRevision | null;
   content: WorkspaceRepositoryContent;
   localRevision: LocalDraftRevision;
   pendingChanges: boolean;
@@ -64,7 +67,7 @@ export type WorkspaceRepositorySyncResult =
 
 export type WorkspaceRepository = {
   label: string;
-  locationLabel: string;
+  location: RepositoryLocationDto;
   discardPendingSnapshotAndReload(): Promise<WorkspaceRepositorySnapshot>;
   loadSnapshot(): Promise<WorkspaceRepositorySnapshot>;
   stageSnapshot(input: {
@@ -103,11 +106,22 @@ export class WorkspaceRepositoryUnavailableError extends Error {
 }
 
 export class WorkspaceRepositoryRemoteError extends Error {
+  code: RepositoryApiErrorCodeDto | null;
   retryable: boolean;
 
-  constructor(message: string, { retryable = false } = {}) {
+  constructor(
+    message: string,
+    {
+      code = null,
+      retryable = false,
+    }: {
+      code?: RepositoryApiErrorCodeDto | null;
+      retryable?: boolean;
+    } = {},
+  ) {
     super(message);
     this.name = "WorkspaceRepositoryRemoteError";
+    this.code = code;
     this.retryable = retryable;
   }
 }

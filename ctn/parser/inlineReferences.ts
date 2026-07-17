@@ -1,4 +1,6 @@
-import type { CtnEditableDocument } from "./types";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { CtnEditableDocument } from "./types.ts";
 
 export const ctnGlobalReferenceType = "global-reference";
 export const ctnLocalReferenceType = "local-reference";

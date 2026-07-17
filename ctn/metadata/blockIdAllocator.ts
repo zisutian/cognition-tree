@@ -1,4 +1,6 @@
-import { isCtnBlockId } from "./blockMetadata";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { isCtnBlockId } from "./blockMetadata.ts";
 
 export type CtnBlockIdAllocator = {
   allocate(): string;

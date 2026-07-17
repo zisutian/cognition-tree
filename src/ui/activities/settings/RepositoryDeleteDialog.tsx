@@ -34,7 +34,7 @@ export function canDeleteManagedRepositoryData(
   repository: RepositoryOption,
   confirmation: string,
 ) {
-  return repository.adapter !== "webdav" || confirmation === repository.label;
+  return confirmation === repository.label;
 }
 
 export function getRepositoryDeletionChoices(
@@ -61,7 +61,7 @@ export function getRepositoryDeletionChoices(
         {
           label: "永久删除",
           mode: "delete-managed-data",
-          requiresLabelConfirmation: false,
+          requiresLabelConfirmation: true,
         },
       ];
 }
@@ -124,18 +124,20 @@ function RepositoryDeleteDialogContent({
         </p>
         {warning ? <p className="repository-delete-warning">{warning}</p> : null}
       </div>
-      {isWebDav ? (
-        <label className="repository-delete-confirmation">
-          <span>删除远端数据前请输入仓库名称</span>
-          <input
-            autoComplete="off"
-            className="ui-input"
-            disabled={busy}
-            onChange={(event) => setConfirmation(event.target.value)}
-            value={confirmation}
-          />
-        </label>
-      ) : null}
+      <label className="repository-delete-confirmation">
+        <span>
+          {isWebDav
+            ? "删除远端数据前请输入仓库名称"
+            : "永久删除前请输入仓库名称"}
+        </span>
+        <input
+          autoComplete="off"
+          className="ui-input"
+          disabled={busy}
+          onChange={(event) => setConfirmation(event.target.value)}
+          value={confirmation}
+        />
+      </label>
       {errorMessage ? (
         <p className="repository-create-error" role="alert">
           {errorMessage}

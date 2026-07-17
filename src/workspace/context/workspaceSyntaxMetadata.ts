@@ -1,7 +1,7 @@
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
-import { recanonicalizeCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
-import { initializeCtnRawSourceBlockMetadata } from "../../ctn/metadata/sourceMetadata";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator";
+import { recanonicalizeCtnSourceBlockMetadata } from "../../../ctn/metadata/reconcileSourceMetadata";
+import { initializeCtnRawSourceBlockMetadata } from "../../../ctn/metadata/sourceMetadata";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import {
   replaceWorkspaceNoteSources,
   type WorkspaceData,

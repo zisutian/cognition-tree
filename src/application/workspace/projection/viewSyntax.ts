@@ -1,6 +1,6 @@
-import { syntaxProfileSchema } from "../../../ctn/syntax/profileSchema";
-import type { CtnRuleRole } from "../../../ctn/syntax/types";
-import type { SyntaxProfileDraft } from "../../../ctn/syntax/profileDraft";
+import { syntaxProfileSchema } from "../../../../ctn/syntax/profileSchema";
+import type { CtnRuleRole } from "../../../../ctn/syntax/types";
+import type { SyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
 import type { UiSyntaxTone } from "./viewText";
 import type { UiSyntaxFieldId } from "./viewSyntaxFields";
 

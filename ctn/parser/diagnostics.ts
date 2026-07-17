@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type {
   CtnDiagnostic,
   CtnDiagnosticCode,
   CtnDiagnosticSeverity,
-} from "./types";
+} from "./types.ts";
 
 export function createDiagnostic(
   code: CtnDiagnosticCode,

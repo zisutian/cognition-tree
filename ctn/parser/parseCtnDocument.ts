@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import {
   isCtnBlockMetadataDirectiveText,
   parseCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
-} from "../metadata/blockMetadata";
-import type { CtnSyntaxProfile } from "../syntax/types";
+} from "../metadata/blockMetadata.ts";
+import type { CtnSyntaxProfile } from "../syntax/types.ts";
 import {
   assignBlockSubtreeEndLineNumbers,
   findMultilineRange,
-} from "./blockRanges";
-import { createDiagnostic } from "./diagnostics";
-import { analyzeIndent } from "./indent";
-import { parseInlineSpans } from "./inlineSpans";
-import { parseMarker, sortMarkerRules } from "./lineMarkers";
+} from "./blockRanges.ts";
+import { createDiagnostic } from "./diagnostics.ts";
+import { analyzeIndent } from "./indent.ts";
+import { parseInlineSpans } from "./inlineSpans.ts";
+import { parseMarker, sortMarkerRules } from "./lineMarkers.ts";
 import type {
   CtnCanonicalBlock,
   CtnCanonicalDocument,
@@ -19,7 +21,7 @@ import type {
   CtnEditableBlock,
   CtnEditableDocument,
   CtnMultilineRange,
-} from "./types";
+} from "./types.ts";
 
 type CtnSourceBlock<TIdentity extends object> = {
   contentIndex: number;

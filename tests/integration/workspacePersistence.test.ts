@@ -24,8 +24,8 @@ import { createWorkspaceApiSecurityPolicy } from "../../server/api/workspaceApiS
 import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
-import { createCtnEditableSource } from "../../src/ctn/metadata/editableSource";
-import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
+import { createCtnEditableSource } from "../../ctn/metadata/editableSource";
+import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import { replaceEditableSource } from "../application/workspace/session/workspaceSessionTestFixture";
 
 type TestRepositoryServer = {
@@ -262,7 +262,7 @@ describe("workspace persistence integration", () => {
     expect(reloadedState.workspaceSyntax?.source).toBe(
       reloadedState.defaultWorkspaceSyntax.source,
     );
-    expect(reloadedState.locationLabel).toBe(descriptor.locationLabel);
+    expect(reloadedState.location).toEqual(descriptor.location);
   });
 
   it("retains the latest local content on conflict and atomically reloads remote on discard", async () => {
@@ -407,7 +407,7 @@ describe("workspace persistence integration", () => {
     );
 
     expect(ready).toMatchObject({
-      locationLabel: descriptor.locationLabel,
+      location: descriptor.location,
       status: "ready",
     });
   });

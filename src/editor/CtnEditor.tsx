@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { CtnSyntaxProfile } from "../ctn/syntax/types";
-import type { CtnEditableSourceChange } from "../ctn/metadata/textEdits";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../../ctn/metadata/textEdits";
 import {
   createCtnEditorExtensions,
   createCtnParsingExtensions,

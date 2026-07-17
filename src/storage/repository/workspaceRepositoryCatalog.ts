@@ -7,6 +7,7 @@ import type {
   RepositoryDescriptorDto,
   RepositoryDeletionModeDto,
   RepositoryDeletionResultDto,
+  RepositoryLocationDto,
 } from "../../../contracts/workspace-repository/types";
 import type {
   WorkspaceRepository,
@@ -17,6 +18,7 @@ export type WorkspaceRepositoryDescriptor = RepositoryDescriptorDto;
 export type WorkspaceRepositoryCatalogIssue = RepositoryCatalogIssueDto;
 export type RepositoryAdapterKind = RepositoryAdapterKindDto;
 export type RepositoryAuthentication = RepositoryAuthenticationDto;
+export type RepositoryLocation = RepositoryLocationDto;
 export type RepositoryDeletionMode = RepositoryDeletionModeDto;
 export type RepositoryDeletionResult = RepositoryDeletionResultDto;
 export type WorkspaceRepositoryCatalogData = RepositoryCatalogDto;

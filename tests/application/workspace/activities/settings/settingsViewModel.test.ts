@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSettingsViewModel } from "../../../../../src/application/workspace/activities/settings/settingsViewModel";
+import {
+  createSettingsViewModel,
+  projectRepositoryLocation,
+} from "../../../../../src/application/workspace/activities/settings/settingsViewModel";
 import type { WorkspacePersistenceState } from "../../../../../src/application/workspace/session/workspaceSessionSaveQueue";
 import { remoteRevision } from "../../session/workspaceSessionTestFixture";
 
@@ -13,7 +16,6 @@ function createSource(
     deleteRepository: vi.fn(async () => undefined),
     discardPendingChangesAndReload: vi.fn(async () => undefined),
     issues: [],
-    locationLabel: "本机仓库 / primary",
     operation: "idle",
     persistence,
     reload: vi.fn(async () => undefined),
@@ -22,7 +24,11 @@ function createSource(
         adapter: "local",
         id: "primary",
         label: "Primary",
-        locationLabel: "本机仓库 / primary",
+        location: {
+          hostPath: "/home/zisu/notes/primary",
+          serverPath: "/data/repositories/primary",
+          type: "local",
+        },
       },
     ],
     storageLabel: "本地仓库",
@@ -31,6 +37,26 @@ function createSource(
 }
 
 describe("settings view model", () => {
+  it("projects each repository location without hiding copyable values", () => {
+    expect(projectRepositoryLocation({
+      type: "webdav",
+      url: "https://dav.example.test/notes/",
+    })).toEqual([{
+      copyValue: "https://dav.example.test/notes/",
+      label: "WebDAV 地址",
+      value: "https://dav.example.test/notes/",
+    }]);
+    expect(projectRepositoryLocation({
+      databaseName: "cognition-tree-v3",
+      type: "browser",
+    })).toEqual([{
+      copyValue: "cognition-tree-v3",
+      label: "浏览器数据库",
+      value: "cognition-tree-v3",
+    }]);
+    expect(projectRepositoryLocation(null)).toEqual([]);
+  });
+
   it.each([
     [{ status: "saved" }, "已保存"],
     [{ status: "saving-local" }, "正在保存本地副本"],
@@ -59,7 +85,7 @@ describe("settings view model", () => {
     },
   );
 
-  it("projects a non-sensitive location label and conflict actions", () => {
+  it("projects structured repository locations and conflict actions", () => {
     const source = createSource({
       remoteRevision: remoteRevision("c"),
       status: "conflict",
@@ -79,7 +105,6 @@ describe("settings view model", () => {
       discardPendingChangesAndReload: source.discardPendingChangesAndReload,
       hasSaveConflict: true,
       issues: [],
-      locationLabel: "本机仓库 / primary",
       operation: "idle",
       reload: source.reload,
       repositories: [
@@ -89,7 +114,23 @@ describe("settings view model", () => {
           displayLabel: "Primary · 本地",
           id: "primary",
           label: "Primary",
-          locationLabel: "本机仓库 / primary",
+          location: {
+            hostPath: "/home/zisu/notes/primary",
+            serverPath: "/data/repositories/primary",
+            type: "local",
+          },
+          locationRows: [
+            {
+              copyValue: "/home/zisu/notes/primary",
+              label: "主机路径",
+              value: "/home/zisu/notes/primary",
+            },
+            {
+              copyValue: "/data/repositories/primary",
+              label: "服务端路径",
+              value: "/data/repositories/primary",
+            },
+          ],
         },
       ],
       persistenceStatusLabel: "仓库内容已更改",

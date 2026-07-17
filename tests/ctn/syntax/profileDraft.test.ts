@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
-} from "../../../src/ctn/syntax/profileToml";
+} from "../../../ctn/syntax/profileToml";
 import {
   buildSyntaxProfileDraft,
   createEmptyInlineRuleDraft,
@@ -12,7 +12,7 @@ import {
   createNextMarkerRuleDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../../src/ctn/syntax/profileDraft";
+} from "../../../ctn/syntax/profileDraft";
 
 describe("syntax profile draft", () => {
   it("builds the default syntax profile from a controlled draft", () => {

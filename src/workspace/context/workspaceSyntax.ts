@@ -1,9 +1,9 @@
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
-} from "../../ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+} from "../../../ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 
 export type WorkspaceSyntax = {
   profile: CtnSyntaxProfile;

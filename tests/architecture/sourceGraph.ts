@@ -21,6 +21,12 @@ export const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
   query: "?raw",
 }) as SourceModules;
 
+export const ctnModules = import.meta.glob("../../ctn/**/*.ts", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as SourceModules;
+
 export const serverModules = import.meta.glob("../../server/**/*.ts", {
   eager: true,
   import: "default",
@@ -32,6 +38,17 @@ export const contractModules = import.meta.glob("../../contracts/**/*.ts", {
   import: "default",
   query: "?raw",
 }) as SourceModules;
+
+export const workspaceModules = {
+  ...contractModules,
+  ...ctnModules,
+  ...serverModules,
+  ...sourceModules,
+};
+
+export function ctnPathToRelative(filePath: string) {
+  return filePath.replace("../../ctn/", "");
+}
 
 export function sourcePathToRelative(filePath: string) {
   return filePath.replace("../../src/", "");

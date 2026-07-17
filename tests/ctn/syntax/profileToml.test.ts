@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
-} from "../../../src/ctn/syntax/profileToml";
+} from "../../../ctn/syntax/profileToml";
 
 describe("syntax profile TOML", () => {
   it("parses a valid syntax profile", () => {

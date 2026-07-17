@@ -3,9 +3,9 @@ import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../../ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../../ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+} from "../../../../ctn/syntax/profileDraft";
+import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
 import {
   attachWorkspaceSyntaxProfile,
 } from "../../../workspace/context/workspaceContext";

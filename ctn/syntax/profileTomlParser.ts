@@ -9,13 +9,13 @@ import type {
   CtnSyntaxProfile,
   CtnSyntaxTone,
   CtnTitleRule,
-} from "./types";
+} from "./types.ts";
 import {
   validateSyntaxProfile,
   validateSyntaxProfileName,
   validateSyntaxTabDisplayWidth,
   type SyntaxProfileSchemaDiagnostic,
-} from "./profileSchema";
+} from "./profileSchema.ts";
 
 export type SyntaxProfileTomlDiagnosticCode =
   | "toml-parse-error"

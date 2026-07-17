@@ -13,14 +13,14 @@ import {
   initializeCtnSourceBlockMetadata,
   replaceCtnSourceTitle,
   touchCtnSourceTitleMetadata,
-} from "../../ctn/metadata/sourceMetadata";
-import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
+} from "../../../ctn/metadata/sourceMetadata";
+import { reconcileCtnSourceBlockMetadata } from "../../../ctn/metadata/reconcileSourceMetadata";
 import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
-} from "../../ctn/metadata/textEdits";
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+} from "../../../ctn/metadata/textEdits";
+import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import {
   createNoteRecord,
   createCanonicalNoteSource,

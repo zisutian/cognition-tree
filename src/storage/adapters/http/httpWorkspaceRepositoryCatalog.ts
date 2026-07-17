@@ -64,7 +64,7 @@ export function createHttpWorkspaceRepositoryCatalog({
     try {
       await cache.catalogs.save(await catalogIdentity, {
         ...catalog,
-        version: 3,
+        version: 4,
       });
     } catch {
       // The remote catalog is authoritative; cache failure is reported only
@@ -215,7 +215,8 @@ export function createHttpWorkspaceRepositoryCatalog({
         cache: cache.snapshots,
         createDraftId: () => globalThis.crypto.randomUUID(),
         label: descriptor.label,
-        locationLabel: descriptor.locationLabel,
+        location: descriptor.location,
+        refreshRemoteOnLoad: descriptor.adapter === "local",
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
           repositoryId: descriptor.id,

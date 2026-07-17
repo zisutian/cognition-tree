@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type {
   SyntaxProfileDraft,
   SyntaxProfileDraftBuildResult,
-} from "../../../ctn/syntax/profileDraft";
+} from "../../../../ctn/syntax/profileDraft";
 import type { WorkspaceAnalysis } from "../analysis/workspaceAnalysis";
 import {
   createUiSyntaxDiagnostics,

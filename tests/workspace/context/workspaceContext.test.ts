@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../src/ctn/syntax/types";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import { createInitialWorkspaceData } from "../../../src/workspace/model/workspaceData";
 import { attachWorkspaceSyntaxProfile } from "../../../src/workspace/context/workspaceContext";
 import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";

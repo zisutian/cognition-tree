@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { parseCtnEditableDocument } from "../../src/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
+import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import {
   createCtnCodeBlockEnterTransaction,
   createCtnCodeBlockIndentChanges,

@@ -70,7 +70,10 @@ async function assertSuccessfulResponse(response: Response) {
     apiError.code === "repository_busy" ||
     apiError.code === "adapter_unavailable";
 
-  throw new WorkspaceRepositoryRemoteError(apiError.message, { retryable });
+  throw new WorkspaceRepositoryRemoteError(apiError.message, {
+    code: apiError.code,
+    retryable,
+  });
 }
 
 export async function createHttpRepositoryCacheIdentity({

@@ -45,12 +45,15 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
     CTN_API_HOST
     CTN_API_PORT
     CTN_REPOSITORY_ROOT
+    CTN_REPOSITORY_HOST_ROOT
     CTN_SERVER_STATE_DIR
     CTN_WEBDAV_PRIVATE_TARGETS
     CTN_PUBLIC_URL
     CTN_API_TOKEN
 
 后端提供 health、repository catalog 和按 repository id 访问的 snapshot API。`GET /api/repositories` 列出仓库与单仓问题，`POST /api/repositories` 创建 Local 仓库或注册 WebDAV 连接，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库，`DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接；base revision 过期时返回 409，且不覆盖已发布内容。所有仓库 ID 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；新建内容中的 workspace ID 独立生成为 `workspace-<uuid>`。repository id 只映射到 catalog 管理的对象，不接受前端指定的文件路径。
+
+catalog 的仓库位置是 adapter 对应的结构化数据。Local 位置包含 realpath 后的 `serverPath` 和可选 `hostPath`；WebDAV 位置包含不带凭据的规范化 URL；Browser 位置包含实际 IndexedDB 数据库名。Local 的 `hostPath` 由 `CTN_REPOSITORY_HOST_ROOT` 与 repository id 组合得到。该环境变量未设置时 `hostPath` 为 null；设置时必须是绝对路径，且只用于界面展示，不参与文件读写、删除、权限判断或路径校验。catalog API 面向已授权的单用户前端公开这些路径，API 错误、未知 500 和服务日志不携带单仓路径或凭据。catalog issue 无法安全确定位置时使用 null。
 
 HTTP 模式在设置页中动态注册和切换 Local/WebDAV 仓库。WebDAV 表单包含稳定名称、URL、无认证或 Basic 认证；Browser 存储模式只显示 Browser adapter，不从浏览器直接连接 WebDAV。仓库切换不复制、上传或合并 Local 与 WebDAV 内容。
 
@@ -110,28 +113,52 @@ HTTP 模式连接服务端管理的 Local 与 WebDAV 仓库。浏览器存储模
 
 `VITE_CTN_API_TOKEN` 会由浏览器作为 Authorization bearer 发送，只用于 API 请求；它不写入 repository catalog、workspace、IndexedDB cache 或日志。作为前端构建变量，它对使用该浏览器构建的人可见，因此安全边界仍是单用户部署和受控前端环境。
 
-HTTP 模式会在 IndexedDB v3 中按 API origin、repository id 和 token digest 隔离缓存，以 normalized stores 保存 catalog、repository state 和逐笔记 source。编辑事务同时执行 expected local revision CAS、笔记增删改与 state 更新。连接中断后，已有缓存的仓库可以在页面刷新后继续打开和编辑；连接恢复会立即尝试同步。如果远端 revision 已变化，则保留并继续接受本地 pending 内容。设置页的“放弃本地修改”只有在成功读取远端后才原子清除 pending。
+HTTP 模式会在 IndexedDB v4 中按 API origin、repository id 和 token digest 隔离缓存，以 normalized stores 保存 catalog、repository state 和逐笔记 source。编辑事务同时执行 expected local revision CAS、笔记增删改与 state 更新。连接中断后，已有缓存的仓库可以在页面刷新后继续打开和编辑；连接恢复会立即尝试同步。如果远端 revision 已变化，则保留并继续接受本地 pending 内容。设置页的“放弃本地修改”只有在成功读取远端后才原子清除 pending。
 
 
 4. 数据文件
 
 本地文件仓库包含：
 
-    repository.json
-    snapshots/<sha256-revision>/workspace.json
-    snapshots/<sha256-revision>/notes/*.ctn
-    snapshots/<sha256-revision>/syntax/workspace.toml
+    .ctn/
+      repository.json
+      index.json
+      workspace.toml
+      note-metadata/
+        <note-id>.json
+      transactions/
+        <transaction-id>/
+          manifest.json
+          staged/
+          backup/
+    根笔记.ctn
+    项目/
+      设计.ctn
+      记录.ctn
 
-`repository.json` 使用 schema version 3，保存稳定 catalog label 和当前 revision。revision 指向不可变 snapshot；`workspace.json` 保存 workspace 身份和目录树，笔记 source 写入 `notes/<noteId>.ctn`，可选仓库语法写入 `syntax/workspace.toml`。提交先完整写入并 fsync staging snapshot，再原子发布 snapshot 和 head；repository root 由单个 server writer 持有进程级锁。
+Local 仓库使用 layout version 1。可见目录是目录树的权威表示：文件夹对应同名磁盘目录，笔记对应 `<标题>.ctn`。可见笔记只保存编辑器正文，不保存 `@ctn-block` 元数据；文件名去掉最后一个 `.ctn` 后与首行标题一致。仓库根部的 `.ctn/` 是保留目录，保存 repository/workspace 身份、稳定 catalog label、当前 revision、扁平路径和同级顺序索引、仓库语法、note/block ID、时间、上一版 editable source、行锚点和事务记录。Local adapter 将可见正文与 sidecar 重建为 schema version 3 canonical content。
 
-canonical 笔记 source 始终以标题块元数据行和标题内容行开头。每个 CTN 块的同缩进 `@ctn-block` 元数据包含稳定块 ID、创建时间和更新时间；编辑区显示 editable source，普通文本中的同名行不会被静默删除。笔记标题可以为空并产生诊断，只有 canonical 元数据结构损坏时拒绝加载。
+Local 文件名和文件夹名按 NFC 规范化，在同一父目录内使用大小写无关的共享冲突域。名称拒绝 `/`、`\`、控制字符、`.`、`..`、尾随空格或点以及平台保留名。空标题和其他非法标题可以暂存在浏览器 IndexedDB draft 中，但 Local 同步会进入明确错误状态，并且在修正前不改写 working tree。不同目录可以存在同标题笔记。普通文本中的 `@ctn-block` 保持可见并产生 reserved-directive 诊断；未知标记、未闭合多行块等正文问题仍作为可修复诊断加载。
+
+Local adapter 在首次加载、同步提交和设置页的“重新扫描文件”操作中迭代扫描真实目录，不运行 watcher 或 SSE。扫描使用文件 `stat -> read -> stat` 和目录前后校验；不稳定时完整重试一次，仍变化则返回 `repository_busy`。外部新增、编辑、删除、重命名和移动在这些扫描点进入 workspace；同路径、唯一 inode 和唯一旧 source hash 或子树 signature 依次用于身份协调，无法证明同一对象时按删除加新建处理。文件名或首行标题单独变化时协调另一侧；两者分别变化为不同值时拒绝覆盖。
+
+同级手工顺序由 `.ctn/index.json` 保存，外部新增或跨父级移动的对象按确定性名称顺序追加到目标末尾。非 `.ctn` 普通文件属于 unmanaged 内容，不投影、不修改、不删除；包含 unmanaged 文件或 symlink 的目录不能作为整体由界面删除。revision 是 canonical workspace content 的 SHA-256，路径、标题、顺序和正文参与计算，mtime、inode 和内部缓存不参与。
+
+Local 提交在 `.ctn/transactions/<transaction-id>/` 中使用 WAL。稳定扫描和 base revision、路径、冲突校验通过后，manifest、staged、backup、目标 sidecar 和 index 均 durable 写入并 fsync；随后幂等应用可见文件与隐藏元数据，重新扫描验证 target revision，最后原子替换并 fsync `.ctn/repository.json`。head 替换是唯一 commit point。恢复时只补全可证明的旧版本或新版本，不覆盖无法识别的外部修改。repository root 仍由单个 server writer 持有进程级独占锁。
 
 没有语法的仓库仍可在笔记活动中以原始模式编辑 `.ctn` 文本；结构操作和引用图谱保持不可用。语法只在语法活动中显式创建，打开仓库不会自动生成默认配置。
 
-旧 Local manifest、browser storage、HTTP cache 和 WebDAV control file 不读取、不转换，也不自动备份；发现旧格式时报告 `unsupported_repository_version`。空仓库只由 catalog create 创建，普通 load 不会隐式补齐缺失内容。
+旧 snapshot Local 布局、旧 Local manifest、browser storage、HTTP cache 和 WebDAV control file 不读取、不转换，也不自动备份；发现旧格式时报告 `unsupported_repository_version`。空仓库只由 catalog create 创建，普通 load 不会隐式补齐缺失内容。WebDAV 继续使用不可变 generation、writer lease 和 ETag CAS；Browser 继续使用 IndexedDB。
 
 
-5. 验证命令
+5. 容器路径约定
+
+未来容器部署使用稳定的挂载约定：Local catalog root 挂载到 `/data/repositories`，server state 挂载到 `/data/server`。每个 Local 仓库必须整体挂载，包含根部 `.ctn/`；只挂载可见 `.ctn` 笔记和目录不足以恢复仓库身份、顺序、块元数据与事务状态。容器内 `CTN_REPOSITORY_ROOT` 对应 `/data/repositories`，`CTN_SERVER_STATE_DIR` 对应 `/data/server`，宿主机展示路径可通过绝对的 `CTN_REPOSITORY_HOST_ROOT` 提供。
+
+当前项目不包含 Dockerfile、容器镜像或 Compose 配置。这些路径只定义后续容器化时的持久化边界，不改变当前本机启动方式。
+
+
+6. 验证命令
 
 TypeScript：
 
@@ -169,8 +196,8 @@ diff 空白检查：
     pnpm server:start
 
 
-6. 双端使用
+7. 双端使用
 
 Linux 作为主要开发、测试和后端运行环境。Windows 可通过浏览器访问同一个本机后端服务，用于检查界面、输入法、路径展示和数据互通。
 
-两端代码仓库可以分别存在。笔记数据以 HTTP catalog 当前仓库指向的 Local snapshot 或 WebDAV generation 为准。项目目录使用普通英文路径，仓库文件使用 LF。
+两端代码仓库可以分别存在。笔记数据以 HTTP catalog 当前仓库指向的 Local working tree 或 WebDAV generation 为准。项目目录使用普通英文路径，仓库文件使用 LF。

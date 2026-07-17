@@ -1,7 +1,9 @@
-import { parseCtnCanonicalDocument } from "../parser/parseCtnDocument";
-import type { CtnCanonicalDocument } from "../parser/types";
-import type { CtnSyntaxProfile } from "../syntax/types";
-import type { CtnBlockMetadataRecord } from "./blockMetadata";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { parseCtnCanonicalDocument } from "../parser/parseCtnDocument.ts";
+import type { CtnCanonicalDocument } from "../parser/types.ts";
+import type { CtnSyntaxProfile } from "../syntax/types.ts";
+import type { CtnBlockMetadataRecord } from "./blockMetadata.ts";
 
 export type CtnEditableSource = {
   editableLineNumberByCanonicalLineNumber: ReadonlyMap<number, number>;

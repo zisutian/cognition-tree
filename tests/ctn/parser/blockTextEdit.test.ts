@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../src/ctn/parser/parseCtnDocument";
+import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
 import {
   moveCtnBlockWithinText as moveCtnBlockWithinTextImplementation,
   moveCtnBlockText as moveCtnBlockTextImplementation,
   type MoveCtnBlockTextInput,
   type MoveCtnBlockWithinTextInput,
-} from "../../../src/ctn/parser/blockTextEdit";
-import type { CtnCanonicalBlock } from "../../../src/ctn/parser/types";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+} from "../../../ctn/parser/blockTextEdit";
+import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import {
   addTestCtnBlockMetadata,
   stripTestCtnBlockMetadata,

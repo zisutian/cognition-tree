@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignBlockSubtreeEndLineNumbers,
   findMultilineRange,
-} from "../../../src/ctn/parser/blockRanges";
+} from "../../../ctn/parser/blockRanges";
 
 type TestBlock = {
   level: number;

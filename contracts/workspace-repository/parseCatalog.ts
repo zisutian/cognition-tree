@@ -18,17 +18,21 @@ import type {
   RepositoryDescriptorDto,
   RepositoryDeletionModeDto,
   RepositoryDeletionResultDto,
+  RepositoryLocationDto,
 } from "./types.ts";
 
-const descriptorFields = ["adapter", "id", "label", "locationLabel"] as const;
+const descriptorFields = ["adapter", "id", "label", "location"] as const;
 const issueFields = [
   "adapter",
   "code",
   "id",
-  "locationLabel",
+  "location",
   "message",
   "status",
 ] as const;
+const localLocationFields = ["hostPath", "serverPath", "type"] as const;
+const webDavLocationFields = ["type", "url"] as const;
+const browserLocationFields = ["databaseName", "type"] as const;
 const catalogFields = ["creatableAdapters", "issues", "repositories"] as const;
 const createLocalRepositoryFields = ["adapter", "content", "label"] as const;
 const createWebDavRepositoryFields = [
@@ -93,6 +97,108 @@ function readAdapter(
   return adapter as RepositoryAdapterKindDto;
 }
 
+function parseRepositoryLocation(
+  value: unknown,
+  path: string,
+): RepositoryLocationDto {
+  const location = readContractObject(value, path);
+  const type = readRequiredContractString(location, "type", path);
+
+  if (type === "local") {
+    assertExactContractFields(location, localLocationFields, path);
+    const hostPath = location.hostPath;
+    const serverPath = readRequiredContractString(location, "serverPath", path);
+    const isAbsolutePath = (candidate: string) =>
+      !candidate.includes("\0") &&
+      (/^\//.test(candidate) || /^[A-Za-z]:[\\/]/.test(candidate) || /^\\\\/.test(candidate));
+
+    if (
+      hostPath !== null &&
+      (typeof hostPath !== "string" || !isAbsolutePath(hostPath))
+    ) {
+      failContract(`${path}.hostPath`, "expected null or an absolute path");
+    }
+    if (!isAbsolutePath(serverPath)) {
+      failContract(`${path}.serverPath`, "expected an absolute path");
+    }
+    return {
+      hostPath,
+      serverPath,
+      type,
+    };
+  }
+  if (type === "webdav") {
+    assertExactContractFields(location, webDavLocationFields, path);
+    const source = readRequiredContractString(location, "url", path);
+    let url: URL;
+
+    try {
+      url = new URL(source);
+    } catch {
+      failContract(`${path}.url`, "expected an absolute WebDAV URL");
+    }
+    if (
+      (url.protocol !== "http:" && url.protocol !== "https:") ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.search !== "" ||
+      url.hash !== "" ||
+      url.toString() !== source
+    ) {
+      failContract(
+        `${path}.url`,
+        "expected a canonical WebDAV URL without credentials, query, or fragment",
+      );
+    }
+    return {
+      type,
+      url: source,
+    };
+  }
+  if (type === "browser") {
+    assertExactContractFields(location, browserLocationFields, path);
+    return {
+      databaseName: readRequiredContractString(location, "databaseName", path),
+      type,
+    };
+  }
+
+  failContract(`${path}.type`, `unsupported location type ${type}`);
+}
+
+function readRepositoryLocation(
+  value: Record<string, unknown>,
+  adapter: RepositoryAdapterKindDto,
+  path: string,
+): RepositoryLocationDto;
+function readRepositoryLocation(
+  value: Record<string, unknown>,
+  adapter: RepositoryAdapterKindDto,
+  path: string,
+  options: { nullable: true },
+): RepositoryLocationDto | null;
+function readRepositoryLocation(
+  value: Record<string, unknown>,
+  adapter: RepositoryAdapterKindDto,
+  path: string,
+  { nullable = false }: { nullable?: boolean } = {},
+): RepositoryLocationDto | null {
+  const locationValue = value.location;
+
+  if (nullable && locationValue === null) {
+    return null;
+  }
+  const location = parseRepositoryLocation(locationValue, `${path}.location`);
+
+  if (location.type !== adapter) {
+    failContract(
+      `${path}.location.type`,
+      `location type ${location.type} does not match adapter ${adapter}`,
+    );
+  }
+  return location;
+}
+
 export function parseRepositoryDescriptor(
   value: unknown,
   path = "$",
@@ -106,7 +212,7 @@ export function parseRepositoryDescriptor(
     adapter,
     id: readRepositoryId(descriptor, path),
     label: readRequiredContractString(descriptor, "label", path),
-    locationLabel: readRequiredContractString(descriptor, "locationLabel", path),
+    location: readRepositoryLocation(descriptor, adapter, path),
   };
 }
 
@@ -131,11 +237,13 @@ function parseCatalogIssue(
     failContract(`${path}.status`, `unsupported catalog issue status ${status}`);
   }
 
+  const adapter = readAdapter(issue, "adapter", path);
+
   return {
-    adapter: readAdapter(issue, "adapter", path),
+    adapter,
     code: code as RepositoryCatalogIssueDto["code"],
     id: readRepositoryId(issue, path),
-    locationLabel: readRequiredContractString(issue, "locationLabel", path),
+    location: readRepositoryLocation(issue, adapter, path, { nullable: true }),
     message: readRequiredContractString(issue, "message", path),
     status: status as RepositoryCatalogIssueDto["status"],
   };

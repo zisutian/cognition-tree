@@ -5,20 +5,20 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import { parseCtnEditableDocument } from "../ctn/parser/parseCtnDocument";
+import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
 import type {
   CtnEditableBlock,
   CtnEditableDocument,
   CtnInlineSpan,
-} from "../ctn/parser/types";
-import { createCtnSyntaxParseProfileKey } from "../ctn/syntax/profileKey";
+} from "../../ctn/parser/types";
+import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
 import {
   getCtnEditorTextColorClassName,
   getCtnEditorTextColorStyle,
   getCtnEditorToneClassName,
   getCtnEditorToneStyle,
 } from "./ctnTonePresentation";
-import type { CtnSyntaxProfile } from "../ctn/syntax/types";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 
 function isRootConceptBlock(block: CtnEditableBlock) {
   return block.level === 0 && block.marker === null;

@@ -1,5 +1,7 @@
-import type { CtnInlineRule } from "../syntax/types";
-import type { CtnInlineSpan } from "./types";
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { CtnInlineRule } from "../syntax/types.ts";
+import type { CtnInlineSpan } from "./types.ts";
 
 function createInlineSpan(
   rule: CtnInlineRule,

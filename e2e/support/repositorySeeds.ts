@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { readFile, readdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
 import {
   workspaceRepositorySchemaVersion,
@@ -7,18 +9,76 @@ import {
   type RepositoryTreeNodeDto,
 } from "../../contracts/workspace-repository/types";
 import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog";
-import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
-import { initializeCtnSourceBlockMetadata } from "../../src/ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { initializeCtnSourceBlockMetadata } from "../../ctn/metadata/sourceMetadata";
 import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
-} from "../../src/ctn/metadata/blockMetadata";
+} from "../../ctn/metadata/blockMetadata";
 import { createDefaultWorkspaceSyntaxSource } from "../../src/workspace/context/workspaceSyntax";
 
 export const e2eApiBaseUrl = "http://127.0.0.1:3317";
 export const e2eTimestamp = "2026-01-01T00:00:00.000Z";
 export const e2eAlphaFirstBlockTimestamp = "2026-01-02T00:00:00.000Z";
 export const e2eAlphaSecondBlockTimestamp = "2026-01-03T00:00:00.000Z";
+
+const e2eRepositoryRoot = path.resolve(
+  process.env.CTN_E2E_REPOSITORY_DIR ??
+    path.join(".cognition-tree", "e2e-repository"),
+);
+
+function assertExternalNoteTarget(repositoryId: string, noteTitle: string) {
+  if (
+    !/^repository-[a-z0-9-]+$/.test(repositoryId) ||
+    noteTitle.length === 0 ||
+    noteTitle.includes("/") ||
+    noteTitle.includes("\\") ||
+    noteTitle === "." ||
+    noteTitle === ".."
+  ) {
+    throw new Error("Invalid E2E Local note target");
+  }
+}
+
+export async function editExternalLocalNote(
+  repositoryId: string,
+  noteTitle: string,
+  edit: (source: string) => string,
+) {
+  assertExternalNoteTarget(repositoryId, noteTitle);
+  const repositoryPath = path.join(e2eRepositoryRoot, repositoryId);
+  const candidates: string[] = [];
+  const pending = [repositoryPath];
+
+  while (pending.length > 0) {
+    const directory = pending.pop();
+
+    if (!directory) {
+      break;
+    }
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (entry.isSymbolicLink() || entry.name === ".ctn") {
+        continue;
+      }
+      const entryPath = path.join(directory, entry.name);
+
+      if (entry.isDirectory()) {
+        pending.push(entryPath);
+      } else if (entry.isFile() && entry.name === `${noteTitle}.ctn`) {
+        candidates.push(entryPath);
+      }
+    }
+  }
+  if (candidates.length !== 1) {
+    throw new Error(
+      `Expected one visible ${noteTitle}.ctn file, found ${candidates.length}`,
+    );
+  }
+  const notePath = candidates[0];
+  const previousSource = await readFile(notePath, "utf8");
+
+  await writeFile(notePath, edit(previousSource), "utf8");
+}
 
 type SeedNote = RepositoryNoteDto;
 type SeedTreeNode = RepositoryTreeNodeDto;

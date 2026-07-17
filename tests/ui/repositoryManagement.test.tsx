@@ -14,7 +14,10 @@ import {
   getRepositoryDeletionChoices,
   RepositoryDeleteDialog,
 } from "../../src/ui/activities/settings/RepositoryDeleteDialog";
-import { SettingsPanel } from "../../src/ui/activities/settings/SettingsPanel";
+import {
+  copyRepositoryLocation,
+  SettingsPanel,
+} from "../../src/ui/activities/settings/SettingsPanel";
 import { FeedbackProvider } from "../../src/ui/shared/FeedbackProvider";
 import type { RepositoryOption } from "../../src/application/workspace/activities/settings/settingsViewModel";
 import { createView } from "./viewFactory";
@@ -25,7 +28,23 @@ const localRepository: RepositoryOption = {
   displayLabel: "本地笔记 · 本地",
   id: "repository-local",
   label: "本地笔记",
-  locationLabel: "本地仓库",
+  location: {
+    hostPath: "/home/zisu/notes/local",
+    serverPath: "/data/repositories/local",
+    type: "local",
+  },
+  locationRows: [
+    {
+      copyValue: "/home/zisu/notes/local",
+      label: "主机路径",
+      value: "/home/zisu/notes/local",
+    },
+    {
+      copyValue: "/data/repositories/local",
+      label: "服务端路径",
+      value: "/data/repositories/local",
+    },
+  ],
 };
 
 const webDavRepository: RepositoryOption = {
@@ -34,7 +53,15 @@ const webDavRepository: RepositoryOption = {
   displayLabel: "远端笔记 · WebDAV",
   id: "repository-webdav",
   label: "远端笔记",
-  locationLabel: "WebDAV · dav.example",
+  location: {
+    type: "webdav",
+    url: "https://dav.example/notes/",
+  },
+  locationRows: [{
+    copyValue: "https://dav.example/notes/",
+    label: "WebDAV 地址",
+    value: "https://dav.example/notes/",
+  }],
 };
 
 describe("repository creation form", () => {
@@ -157,12 +184,16 @@ describe("repository deletion dialog", () => {
       {
         label: "永久删除",
         mode: "delete-managed-data",
-        requiresLabelConfirmation: false,
+        requiresLabelConfirmation: true,
       },
     ]);
+    expect(canDeleteManagedRepositoryData(localRepository, "本地笔记")).toBe(true);
+    expect(canDeleteManagedRepositoryData(localRepository, "本地笔记 ")).toBe(false);
     expect(markup).toContain("永久删除");
     expect(markup).not.toContain("仅移除连接");
     expect(markup).not.toContain("删除远端数据前请输入仓库名称");
+    expect(markup).toContain("永久删除前请输入仓库名称");
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>永久删除<\/button>/);
   });
 
   it("reopens the same WebDAV repository with an empty confirmation state", () => {
@@ -205,6 +236,21 @@ describe("repository deletion dialog", () => {
 });
 
 describe("repository setup and settings semantics", () => {
+  it("copies the exact structured location value", async () => {
+    const values: string[] = [];
+
+    await copyRepositoryLocation("/home/zisu/notes/local", {
+      async writeText(value) {
+        values.push(value);
+      },
+    });
+
+    expect(values).toEqual(["/home/zisu/notes/local"]);
+    await expect(copyRepositoryLocation("ignored", undefined)).rejects.toThrow(
+      "不支持复制到剪贴板",
+    );
+  });
+
   it("shows catalog issues in Setup without restoring a manual ID field", () => {
     const markup = renderToStaticMarkup(
       <RepositorySetupView
@@ -217,7 +263,8 @@ describe("repository setup and settings semantics", () => {
             code: "repository_corrupt",
             displayLabel: "repository-broken · WebDAV",
             id: "repository-broken",
-            locationLabel: "WebDAV 连接",
+            location: null,
+            locationRows: [],
             message: "连接配置损坏。",
             status: "fault",
           },
@@ -229,6 +276,7 @@ describe("repository setup and settings semantics", () => {
     );
 
     expect(markup).toContain('aria-label="创建仓库"');
+    expect(markup).toContain('class="repository-create-form repository-setup-form"');
     expect(markup).toContain("本机仓库");
     expect(markup).toContain("仓库问题");
     expect(markup).toContain("repository-broken · WebDAV");
@@ -264,6 +312,15 @@ describe("repository setup and settings semantics", () => {
     expect(markup).toContain("仓库 ID");
     expect(markup).toContain(localRepository.id);
     expect(markup).not.toContain("新仓库 ID");
-    expect(markup).toContain('aria-label="仓库存储类型"');
+    expect(markup).not.toContain('aria-label="仓库存储类型"');
+    expect(markup).toContain("重新扫描文件");
+    expect(markup).toContain("添加仓库");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).not.toContain("settings-create-repository-region");
+    expect(markup).toContain("主机路径");
+    expect(markup).toContain("/home/zisu/notes/local");
+    expect(markup).toContain('aria-label="复制主机路径"');
+    expect(markup).toContain("危险区");
+    expect(markup).toContain("删除仓库");
   });
 });

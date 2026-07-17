@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   createCtnEditableSource,
   getCtnEditableLineNumber,
-} from "../../../src/ctn/metadata/editableSource";
-import { defaultCtnSyntaxProfile } from "../../../src/ctn/syntax/defaultSyntaxProfile";
+} from "../../../ctn/metadata/editableSource";
+import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import { addTestCtnBlockMetadata } from "./sourceMetadataFixture";
 
 describe("CTN editable source", () => {

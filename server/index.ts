@@ -23,6 +23,12 @@ const port = Number(process.env.CTN_API_PORT ?? "3001");
 const repositoryRoot =
   process.env.CTN_REPOSITORY_ROOT ??
   path.join(process.cwd(), ".cognition-tree", "repositories");
+const repositoryHostRootValue = process.env.CTN_REPOSITORY_HOST_ROOT?.trim();
+const repositoryHostRoot = repositoryHostRootValue ? repositoryHostRootValue : null;
+
+if (repositoryHostRoot !== null && !path.isAbsolute(repositoryHostRoot)) {
+  throw new Error("CTN_REPOSITORY_HOST_ROOT must be an absolute path");
+}
 const serverStateDirectory =
   process.env.CTN_SERVER_STATE_DIR ??
   path.join(process.cwd(), ".cognition-tree", "server");
@@ -32,7 +38,9 @@ const security = createWorkspaceApiSecurityPolicy({
   publicUrl: process.env.CTN_PUBLIC_URL,
 });
 
-const localCatalog = new LocalRepositoryCatalog(repositoryRoot);
+const localCatalog = new LocalRepositoryCatalog(repositoryRoot, {
+  hostRoot: repositoryHostRoot,
+});
 const webDavRegistry = new WebDavConnectionRegistry({
   privateTargetPolicy: parseWebDavPrivateTargets(
     process.env.CTN_WEBDAV_PRIVATE_TARGETS,

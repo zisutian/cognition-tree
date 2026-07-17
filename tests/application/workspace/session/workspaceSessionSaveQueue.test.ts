@@ -44,7 +44,7 @@ function createQueueHarness({
     discardPendingSnapshotAndReload: async () => createSnapshot(),
     label: "test repository",
     loadSnapshot: async () => createSnapshot(),
-    locationLabel: "test location",
+    location: { databaseName: "test", type: "browser" },
     async stageSnapshot(input) {
       if (stage) {
         return stage(input);

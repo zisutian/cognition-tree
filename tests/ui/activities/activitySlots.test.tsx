@@ -144,7 +144,7 @@ describe("activity slots", () => {
     expect(renderSlot(slots("search").main)).toContain("搜索功能待接入");
     expect(renderSlot(slots("data").main)).toContain("数据功能待接入");
     expect(renderSlot(slots("settings").main)).toContain(
-      "本地仓库 · primary",
+      "/data/repositories/primary",
     );
   });
 

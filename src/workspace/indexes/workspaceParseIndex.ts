@@ -2,11 +2,11 @@ import {
   collectCtnInlineReferences,
   ctnGlobalReferenceType,
   normalizeCtnReferenceText,
-} from "../../ctn/parser/inlineReferences";
-import { parseCtnCanonicalDocument } from "../../ctn/parser/parseCtnDocument";
-import type { CtnCanonicalDocument } from "../../ctn/parser/types";
-import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+} from "../../../ctn/parser/inlineReferences";
+import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
+import type { CtnCanonicalDocument } from "../../../ctn/parser/types";
+import { createCtnSyntaxParseProfileKey } from "../../../ctn/syntax/profileKey";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import type { NoteId, WorkspaceNote } from "../model/workspaceData";
 import type { WorkspaceStructureIndex } from "./workspaceStructureIndex";
 

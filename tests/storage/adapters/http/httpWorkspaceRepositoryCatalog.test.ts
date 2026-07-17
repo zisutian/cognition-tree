@@ -5,6 +5,7 @@ import { createHttpRepositoryCacheIdentity } from "../../../../src/storage/adapt
 import {
   createRepositoryContent,
   revisionA,
+  revisionC,
 } from "../../repositoryV3Fixtures";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -18,13 +19,17 @@ const descriptor = {
   adapter: "local" as const,
   id: "primary",
   label: "Stable label",
-  locationLabel: "Local · primary",
+  location: {
+    hostPath: "/home/user/repositories/primary",
+    serverPath: "/data/repositories/primary",
+    type: "local" as const,
+  },
 };
 const issue = {
   adapter: "local" as const,
   code: "repository_corrupt" as const,
   id: "broken",
-  locationLabel: "Local · broken",
+  location: null,
   message: "Repository head is invalid",
   status: "fault" as const,
 };
@@ -122,10 +127,53 @@ describe("HTTP workspace repository catalog", () => {
       remoteRevision: revisionA,
     });
     expect(repository.label).toBe("Stable label");
-    expect(repository.locationLabel).toBe("Local · primary");
+    expect(repository.location).toEqual(descriptor.location);
     expect(requestedUrls).toEqual([
       "http://api.test/api/repositories/primary/snapshot",
     ]);
+  });
+
+  it("refreshes Local working trees on load without making WebDAV cache-first reads remote-first", async () => {
+    const createCatalog = (adapter: "local" | "webdav") => {
+      let loadCount = 0;
+      const catalog = createHttpWorkspaceRepositoryCatalog({
+        baseUrl: "http://api.test",
+        fetch: async () => {
+          loadCount += 1;
+          return jsonResponse({
+            content: createRepositoryContent(`Remote ${loadCount}`),
+            revision: loadCount === 1 ? revisionA : revisionC,
+          });
+        },
+        validateContent,
+      });
+      const repository = catalog.openRepository(adapter === "local"
+        ? descriptor
+        : {
+            adapter: "webdav",
+            id: "remote",
+            label: "Remote",
+            location: {
+              type: "webdav",
+              url: "https://dav.example.test/notes/",
+            },
+          });
+
+      return { getLoadCount: () => loadCount, repository };
+    };
+    const local = createCatalog("local");
+    const webDav = createCatalog("webdav");
+
+    await local.repository.loadSnapshot();
+    await expect(local.repository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Remote 2" } },
+    });
+    await webDav.repository.loadSnapshot();
+    await expect(webDav.repository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Remote 1" } },
+    });
+    expect(local.getLoadCount()).toBe(2);
+    expect(webDav.getLoadCount()).toBe(1);
   });
 
   it("reuses the complete cached catalog only for offline failures", async () => {
@@ -194,7 +242,10 @@ describe("HTTP workspace repository catalog", () => {
       adapter: "webdav" as const,
       id: "remote",
       label: "Remote",
-      locationLabel: "WebDAV · dav.example.test",
+      location: {
+        type: "webdav" as const,
+        url: "https://dav.example.test/notes/",
+      },
     };
     let body = "";
     const catalog = createHttpWorkspaceRepositoryCatalog({
