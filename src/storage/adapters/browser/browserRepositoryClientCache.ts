@@ -529,7 +529,12 @@ export function createIndexedDbRepositoryClientCache(
         transaction.objectStore(catalogStoreName).get(catalogIdentity),
       );
       const catalog = catalogValue === undefined
-        ? { issues: [], repositories: [], version: 3 as const }
+        ? {
+            creatableAdapters: ["browser" as const],
+            issues: [],
+            repositories: [],
+            version: 3 as const,
+          }
         : parseWorkspaceRepositoryCatalogCacheState(catalogValue);
       const existingState = await readState(transaction, repositoryIdentity);
 
@@ -537,7 +542,8 @@ export function createIndexedDbRepositoryClientCache(
         existingState ||
         catalog.repositories.some((repository) =>
           repository.id === parsedDescriptor.id
-        )
+        ) ||
+        catalog.issues.some((issue) => issue.id === parsedDescriptor.id)
       ) {
         transaction.abort();
         await completion.catch(() => undefined);
@@ -555,6 +561,7 @@ export function createIndexedDbRepositoryClientCache(
 
       transaction.objectStore(catalogStoreName).put(
         {
+          creatableAdapters: ["browser"],
           issues: catalog.issues,
           repositories: [...catalog.repositories, parsedDescriptor].sort(
             (left, right) => left.id.localeCompare(right.id),
@@ -572,6 +579,46 @@ export function createIndexedDbRepositoryClientCache(
         [],
         parsedContent,
       );
+      await completion;
+    },
+    async deleteRepositoryAtomically({
+      catalogIdentity,
+      repositoryId,
+      repositoryIdentity,
+    }) {
+      const db = await database;
+      const transaction = db.transaction(
+        [catalogStoreName, stateStoreName, noteStoreName],
+        "readwrite",
+      );
+      const completion = transactionComplete(transaction);
+      const catalogValue = await requestResult(
+        transaction.objectStore(catalogStoreName).get(catalogIdentity),
+      );
+
+      if (catalogValue !== undefined) {
+        const catalog = parseWorkspaceRepositoryCatalogCacheState(catalogValue);
+
+        transaction.objectStore(catalogStoreName).put(
+          {
+            ...catalog,
+            issues: catalog.issues.filter(({ id }) => id !== repositoryId),
+            repositories: catalog.repositories.filter(
+              ({ id }) => id !== repositoryId,
+            ),
+          },
+          catalogIdentity,
+        );
+      }
+
+      transaction.objectStore(stateStoreName).delete(repositoryIdentity);
+      const keys = await requestResult(
+        transaction
+          .objectStore(noteStoreName)
+          .index(noteIdentityIndexName)
+          .getAllKeys(repositoryIdentity),
+      );
+      keys.forEach((key) => transaction.objectStore(noteStoreName).delete(key));
       await completion;
     },
     snapshots: createIndexedDbRepositoryCache(database),

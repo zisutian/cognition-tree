@@ -14,6 +14,7 @@ import {
   WebDavWorkspaceStore,
   webDavCommitPhases,
   webDavCurrentPath,
+  webDavGenerationsPath,
   webDavLockPath,
 } from "../../../../server/adapters/webdav/webDavWorkspaceStore.ts";
 import {
@@ -50,6 +51,7 @@ function createStore(
   options: Partial<ConstructorParameters<typeof WebDavWorkspaceStore>[0]> = {},
 ) {
   return new WebDavWorkspaceStore({
+    allowEmptyTargetInitialization: true,
     createId: idSequence("id"),
     transport,
     ...options,
@@ -554,5 +556,94 @@ describe("WebDAV generation store v3", () => {
       .rejects.toBeInstanceOf(RepositoryCorruptError);
     expect(transport.source("unrelated.txt")).toBe("do not overwrite");
     expect(transport.has(webDavCurrentPath)).toBe(false);
+  });
+
+  it("publishes a deletion tombstone and removes only managed generations", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const store = createStore(transport);
+    const snapshot = await store.loadSnapshot();
+
+    await transport.writeText("user-owned.txt", "preserve", {
+      ifNoneMatch: "*",
+    });
+    const result = await store.deleteManagedData("deletion-token");
+
+    expect(result).toEqual({
+      deletionToken: "deletion-token",
+      status: "deleting",
+    });
+    expect(JSON.parse(transport.source(webDavCurrentPath) ?? "null"))
+      .toEqual({
+        deletedAt: expect.any(String),
+        deletionToken: "deletion-token",
+        revision: snapshot.revision,
+        schemaVersion: 3,
+        status: "deleted",
+      });
+    expect(transport.has(webDavGenerationsPath)).toBe(true);
+    expect(transport.source("user-owned.txt")).toBe("preserve");
+    expect(transport.has(webDavLockPath)).toBe(false);
+    await expect(store.loadSnapshot()).rejects.toMatchObject({
+      code: "repository_not_found",
+    });
+    await expect(store.retryManagedDataDeletion("deletion-token"))
+      .resolves.toEqual({
+        deletionToken: "deletion-token",
+        status: "deleted",
+      });
+    expect(transport.has(webDavGenerationsPath)).toBe(false);
+  });
+
+  it("resumes cleanup only with the deletion token that published the tombstone", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const store = createStore(transport);
+
+    await store.loadSnapshot();
+    transport.beforeRemove = (relativePath) => {
+      if (relativePath === webDavGenerationsPath) {
+        throw new WebDavRequestError("DELETE", relativePath, 503);
+      }
+    };
+
+    await expect(store.deleteManagedData("owner-token")).resolves.toEqual({
+      deletionToken: "owner-token",
+      status: "deleting",
+    });
+    await expect(store.retryManagedDataDeletion("other-token"))
+      .rejects.toBeInstanceOf(WebDavRepositoryBusyError);
+
+    transport.beforeRemove = null;
+    await expect(store.retryManagedDataDeletion("owner-token")).resolves.toEqual({
+      deletionToken: "owner-token",
+      status: "deleted",
+    });
+    expect(transport.has(webDavGenerationsPath)).toBe(false);
+  });
+
+  it("uses current-pointer CAS as the deletion commit point", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const store = createStore(transport);
+
+    await store.loadSnapshot();
+    transport.beforeWrite = async (relativePath) => {
+      if (relativePath !== webDavCurrentPath) {
+        return;
+      }
+      transport.beforeWrite = null;
+      const current = await transport.readText(webDavCurrentPath);
+
+      if (!current?.etag) {
+        throw new Error("missing current pointer");
+      }
+      await transport.writeText(webDavCurrentPath, current.source, {
+        ifMatch: current.etag,
+      });
+    };
+
+    await expect(store.deleteManagedData("stale-delete"))
+      .rejects.toBeInstanceOf(WorkspaceRevisionConflictError);
+    expect(JSON.parse(transport.source(webDavCurrentPath) ?? "null"))
+      .not.toHaveProperty("status");
+    expect(transport.has(webDavGenerationsPath)).toBe(true);
   });
 });

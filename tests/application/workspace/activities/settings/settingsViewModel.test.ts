@@ -8,9 +8,13 @@ function createSource(
 ): Parameters<typeof createSettingsViewModel>[0] {
   return {
     activeRepositoryId: "primary",
+    creatableAdapters: ["local", "webdav"],
     createRepository: vi.fn(async () => undefined),
+    deleteRepository: vi.fn(async () => undefined),
     discardPendingChangesAndReload: vi.fn(async () => undefined),
+    issues: [],
     locationLabel: "本机仓库 / primary",
+    operation: "idle",
     persistence,
     reload: vi.fn(async () => undefined),
     repositories: [
@@ -63,14 +67,33 @@ describe("settings view model", () => {
 
     expect(createSettingsViewModel(source)).toEqual({
       activeRepositoryId: "primary",
+      activeRepositoryLabel: "Primary",
+      creatableAdapters: [
+        { label: "本地", value: "local" },
+        { label: "WebDAV", value: "webdav" },
+      ],
       createRepository: source.createRepository,
+      deleteRepository: source.deleteRepository,
+      deletionBlocked: false,
+      deletionWarning: "存在同步冲突；删除会永久丢弃当前本地修改。",
       discardPendingChangesAndReload: source.discardPendingChangesAndReload,
       hasSaveConflict: true,
+      issues: [],
       locationLabel: "本机仓库 / primary",
+      operation: "idle",
       reload: source.reload,
-      repositories: source.repositories,
+      repositories: [
+        {
+          adapter: "local",
+          adapterLabel: "本地",
+          displayLabel: "Primary · 本地",
+          id: "primary",
+          label: "Primary",
+          locationLabel: "本机仓库 / primary",
+        },
+      ],
       persistenceStatusLabel: "仓库内容已更改",
-      storageLabel: "本地仓库",
+      storageLabel: "本地",
       selectRepository: source.selectRepository,
     });
   });
@@ -84,6 +107,8 @@ describe("settings view model", () => {
     };
 
     expect(createSettingsViewModel(createSource(localError))).toMatchObject({
+      deletionBlocked: true,
+      deletionWarning: "本地副本尚未安全保存，当前不能删除仓库。",
       hasSaveConflict: false,
       persistenceStatusLabel: "保存失败",
     });

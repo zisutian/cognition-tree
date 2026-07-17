@@ -44,11 +44,74 @@ describe("WebDAV HTTP transport", () => {
     })).toThrow("require HTTPS");
   });
 
+  it("rejects URL credentials, query strings, and fragments", () => {
+    expect(() => createWebDavTransport({
+      url: "https://alice:secret@dav.example.test/root",
+    })).toThrow("must not be embedded");
+    expect(() => createWebDavTransport({
+      url: "https://dav.example.test/root?token=secret",
+    })).toThrow("query or fragment");
+    expect(() => createWebDavTransport({
+      url: "https://dav.example.test/root#redirect",
+    })).toThrow("query or fragment");
+  });
+
+  it("never follows redirects or forwards authorization to their target", async () => {
+    const requests: Array<{ authorization: string | null; redirect: RequestRedirect | undefined }> = [];
+    const transport = createWebDavTransport({
+      fetch: async (_input, init) => {
+        requests.push({
+          authorization: new Headers(init?.headers).get("authorization"),
+          redirect: init?.redirect,
+        });
+        return new Response(null, {
+          headers: { Location: "https://attacker.example.test/steal" },
+          status: 302,
+        });
+      },
+      password: "secret",
+      url: "https://dav.example.test/root",
+      username: "alice",
+    });
+
+    await expect(transport.readText("resource.txt")).rejects.toMatchObject({
+      statusCode: 302,
+    });
+    expect(requests).toEqual([{
+      authorization: `Basic ${Buffer.from("alice:secret").toString("base64")}`,
+      redirect: "error",
+    }]);
+  });
+
+  it("bounds response bodies even when Content-Length is absent", async () => {
+    const transport = createWebDavTransport({
+      fetch: async () => new Response("123456"),
+      maxResponseBytes: 5,
+      url: "https://dav.example.test/root",
+    });
+
+    await expect(transport.readText("oversized.txt")).rejects.toMatchObject({
+      statusCode: 413,
+    });
+  });
+
   it("aborts every request at its fixed timeout", async () => {
     const transport = createWebDavTransport({
       fetch: async (_input, init) => new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
       }),
+      requestTimeoutMs: 5,
+      url: "https://dav.example.test/root",
+    });
+
+    await expect(transport.readText("resource.txt")).rejects.toMatchObject({
+      statusCode: 408,
+    });
+  });
+
+  it("applies the same deadline while DNS resolution is still pending", async () => {
+    const transport = createWebDavTransport({
+      lookup: async () => new Promise(() => {}),
       requestTimeoutMs: 5,
       url: "https://dav.example.test/root",
     });

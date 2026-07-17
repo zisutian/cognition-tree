@@ -5,7 +5,7 @@ import type { Dirent } from "node:fs";
 import { open, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 
 const atomicTemporaryFilePattern =
   /\.\d+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/i;

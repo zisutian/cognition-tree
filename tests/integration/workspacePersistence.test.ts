@@ -22,6 +22,7 @@ import type {
 import { createWorkspaceApiServer } from "../../server/api/workspaceApiServer.ts";
 import { createWorkspaceApiSecurityPolicy } from "../../server/api/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
+import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
 import { createCtnEditableSource } from "../../src/ctn/metadata/editableSource";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
@@ -29,7 +30,7 @@ import { replaceEditableSource } from "../application/workspace/session/workspac
 
 type TestRepositoryServer = {
   baseUrl: string;
-  catalog: LocalRepositoryCatalog;
+  catalog: CompositeRepositoryCatalog;
   close: () => Promise<void>;
   rootDir: string;
 };
@@ -49,6 +50,7 @@ const commandDependencies = {
 };
 const openControllers: WorkspaceSessionController[] = [];
 const openServers: TestRepositoryServer[] = [];
+let nextWorkspaceId = 0;
 
 function waitForState(
   controller: WorkspaceSessionController,
@@ -92,7 +94,23 @@ async function startRepositoryServer(
   const rootDir = await mkdtemp(
     path.join(os.tmpdir(), "cognition-tree-integration-"),
   );
-  const catalog = new LocalRepositoryCatalog(rootDir);
+  const localCatalog = new LocalRepositoryCatalog(rootDir);
+  let nextRepositoryId = 0;
+  const webDavRegistry: ConstructorParameters<typeof CompositeRepositoryCatalog>[1] = {
+    async deleteManagedData() { return { status: "deleted" }; },
+    async dispose() {},
+    async getStore() { throw new Error("missing WebDAV store"); },
+    hasEntry() { return false; },
+    async initialize() {},
+    async listEntries() { return { issues: [], repositories: [] }; },
+    async register() { throw new Error("WebDAV registration is not used here"); },
+    async removeConnection() { return false; },
+    async retryDeletion() { return { status: "deleted" }; },
+  };
+  const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry, {
+    createId: () =>
+      `00000000-0000-4000-8000-${String(++nextRepositoryId).padStart(12, "0")}`,
+  });
 
   await catalog.initialize();
 
@@ -136,16 +154,22 @@ function startController(repository: WorkspaceRepository) {
 
 async function createRepository(
   catalog: WorkspaceRepositoryCatalog,
-  repositoryId: string,
+  label: string,
 ) {
+  const workspace = createInitialWorkspaceData();
+
   return catalog.createRepository({
+    adapter: "local",
     content: {
       schemaVersion: 3,
       syntaxSource: null,
-      workspace: createInitialWorkspaceData(),
+      workspace: {
+        ...workspace,
+        id: `workspace-00000000-0000-4000-8000-${String(++nextWorkspaceId)
+          .padStart(12, "0")}`,
+      },
     },
-    id: repositoryId,
-    label: `Repository ${repositoryId}`,
+    label: `Repository ${label}`,
   });
 }
 
@@ -238,7 +262,7 @@ describe("workspace persistence integration", () => {
     expect(reloadedState.workspaceSyntax?.source).toBe(
       reloadedState.defaultWorkspaceSyntax.source,
     );
-    expect(reloadedState.locationLabel).toBe("local:integration");
+    expect(reloadedState.locationLabel).toBe(descriptor.locationLabel);
   });
 
   it("retains the latest local content on conflict and atomically reloads remote on discard", async () => {
@@ -254,7 +278,7 @@ describe("workspace persistence integration", () => {
 
     const externalRepository = createHttpWorkspaceRepositoryBackend({
       baseUrl: server.baseUrl,
-      repositoryId: "conflict",
+      repositoryId: descriptor.id,
     });
     const externalSnapshot = await externalRepository.loadRemoteSnapshot();
 
@@ -383,7 +407,7 @@ describe("workspace persistence integration", () => {
     );
 
     expect(ready).toMatchObject({
-      locationLabel: "local:authenticated",
+      locationLabel: descriptor.locationLabel,
       status: "ready",
     });
   });

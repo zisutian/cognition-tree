@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue.ts";
 import { RepositoryCorruptError } from "../../../../server/repository/repositoryStore.ts";
 import {
+  createWebDavDeletionTombstone,
   createWebDavLease,
   createWebDavPointer,
+  parseWebDavCurrent,
   parseWebDavLease,
   parseWebDavPointer,
   stringifyWebDavControlFile,
@@ -22,6 +24,27 @@ describe("WebDAV v3 control files", () => {
 
     expect(source.endsWith("\n")).toBe(true);
     expect(parseWebDavPointer({ etag: '"pointer"', source })).toEqual(pointer);
+  });
+
+  it("round-trips a deletion tombstone and rejects it as an active pointer", () => {
+    const tombstone = createWebDavDeletionTombstone(
+      "deletion-1",
+      revision,
+      Date.parse("2026-07-16T00:02:00.000Z"),
+    );
+    const resource = {
+      etag: '"deleted"',
+      source: stringifyWebDavControlFile(tombstone),
+    };
+
+    expect(parseWebDavCurrent(resource)).toEqual(tombstone);
+    expect(() => parseWebDavPointer(resource)).toThrowError(
+      expect.objectContaining({ code: "repository_not_found" }),
+    );
+    expect(() => parseWebDavCurrent({
+      ...resource,
+      source: JSON.stringify({ ...tombstone, cleanupComplete: true }),
+    })).toThrow(RepositoryCorruptError);
   });
 
   it("rejects legacy versions and unowned pointer fields", () => {

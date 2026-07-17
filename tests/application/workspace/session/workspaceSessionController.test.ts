@@ -973,4 +973,49 @@ describe("workspace session controller", () => {
     });
     controller.dispose();
   });
+
+  it("quiesces commands for repository removal and can resume after deletion fails", async () => {
+    const harness = createRepositoryHarness();
+    const controller = createController(harness.repository);
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "ready");
+    updateNote(controller, "标题\n删除前的本地修改");
+
+    const preparation = await controller.prepareForRepositoryRemoval();
+
+    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
+      "删除前的本地修改",
+    );
+    expect(() => updateNote(controller, "标题\n删除期间不得编辑")).toThrow(
+      WorkspaceSessionUnavailableError,
+    );
+
+    preparation.resume();
+    updateNote(controller, "标题\n删除失败后继续编辑");
+    await controller.flushPendingChanges();
+
+    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
+      "删除失败后继续编辑",
+    );
+    controller.dispose();
+  });
+
+  it("keeps the session usable when repository removal cannot stage locally", async () => {
+    const harness = createRepositoryHarness();
+    const controller = createController(harness.repository);
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "ready");
+    harness.repository.stageSnapshot = async () => {
+      throw new Error("local stage failed");
+    };
+    updateNote(controller, "标题\n尚未落盘");
+
+    await expect(controller.prepareForRepositoryRemoval()).rejects.toThrow(
+      "local stage failed",
+    );
+    expect(() => updateNote(controller, "标题\n仍然可编辑")).not.toThrow();
+    controller.dispose();
+  });
 });

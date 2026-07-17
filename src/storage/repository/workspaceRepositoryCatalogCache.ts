@@ -25,7 +25,7 @@ export function parseWorkspaceRepositoryCatalogCacheState(
   const fields = Object.keys(record).sort();
 
   if (
-    fields.join(",") !== "issues,repositories,version" ||
+    fields.join(",") !== "creatableAdapters,issues,repositories,version" ||
     record.version !== 3
   ) {
     throw new Error("Unsupported repository catalog cache version");
@@ -33,6 +33,7 @@ export function parseWorkspaceRepositoryCatalogCacheState(
 
   return {
     ...parseRepositoryCatalog({
+      creatableAdapters: record.creatableAdapters,
       issues: record.issues,
       repositories: record.repositories,
     }),

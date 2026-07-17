@@ -13,6 +13,7 @@ export class InMemoryWebDavTransport implements WebDavTransport {
   activeWrites = 0;
   beforeList: ((path: string) => Promise<void> | void) | null = null;
   beforeRead: ((path: string) => Promise<void> | void) | null = null;
+  beforeRemove: ((path: string) => Promise<void> | void) | null = null;
   beforeWrite: ((path: string) => Promise<void> | void) | null = null;
   maxActiveWrites = 0;
 
@@ -43,6 +44,7 @@ export class InMemoryWebDavTransport implements WebDavTransport {
   }
 
   async remove(relativePath: string, conditions: { ifMatch?: string } = {}) {
+    await this.beforeRemove?.(relativePath);
     const resource = this.#resources.get(relativePath);
 
     if (resource) {

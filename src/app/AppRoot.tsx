@@ -6,6 +6,10 @@ import {
 import { useWorkspaceApplication } from "../application/workspace/runtime/useWorkspaceApplication";
 import { createWorkspaceRepositoryRuntime } from "../storage/runtime/workspaceRepositoryRuntime";
 import { useRepositoryCatalog } from "../application/workspace/session/useRepositoryCatalog";
+import type {
+  CreateRepositoryRequest,
+  DeleteRepositoryRequest,
+} from "../application/workspace/session/useRepositoryCatalog";
 import type { ActivityId } from "../ui/activityTypes";
 import { RepositorySetupView } from "../ui/RepositorySetupView";
 import { SessionStateView } from "../ui/SessionStateView";
@@ -13,6 +17,10 @@ import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 import type {
   WorkspaceRepository,
 } from "../storage/repository/workspaceRepository";
+import {
+  projectRepositoryAdapterOptions,
+  projectRepositoryIssues,
+} from "../application/workspace/activities/settings/settingsViewModel";
 
 type RepositoryCatalogRuntime = ReturnType<typeof useRepositoryCatalog>;
 
@@ -71,21 +79,42 @@ function RepositoryWorkspaceApp({
 
   const selectRepository = async (repositoryId: string) => {
     await session.flushPendingChanges();
-    catalog.selectRepository(repositoryId);
+    await catalog.selectRepository(repositoryId);
   };
-  const createRepository = async (input: { id: string; name: string }) => {
+  const createRepository = async (input: CreateRepositoryRequest) => {
     await session.flushPendingChanges();
     await catalog.createRepository(input);
   };
+  const deleteRepository = async (input: DeleteRepositoryRequest) => {
+    if (input.id !== catalog.activeDescriptor?.id) {
+      await catalog.deleteRepository(input);
+      return;
+    }
+
+    const prepared = await session.prepareForRepositoryRemoval();
+
+    try {
+      await catalog.deleteRepository(input);
+    } catch (error) {
+      prepared.resume();
+      throw error;
+    }
+  };
+  const readyCatalog = catalog.state.status === "ready"
+    ? catalog.state
+    : null;
 
   return (
     <ActiveWorkspaceApp
       activeActivityId={activeActivityId}
       repositoryManagement={{
         activeRepositoryId: catalog.activeDescriptor?.id ?? "",
+        creatableAdapters: readyCatalog?.creatableAdapters ?? [],
         createRepository,
-        repositories:
-          catalog.state.status === "ready" ? catalog.state.repositories : [],
+        deleteRepository,
+        issues: readyCatalog?.issues ?? [],
+        operation: readyCatalog?.operation ?? "idle",
+        repositories: readyCatalog?.repositories ?? [],
         selectRepository,
       }}
       session={session}
@@ -125,12 +154,20 @@ export function AppRoot() {
   }
 
   if (!catalog.repository) {
+    const readyCatalog = catalog.state;
+
     return (
       <RepositorySetupView
+        adapters={projectRepositoryAdapterOptions(
+          readyCatalog.creatableAdapters,
+        )}
         catalogLabel={catalog.catalogLabel}
+        issues={projectRepositoryIssues(readyCatalog.issues)}
+        operation={readyCatalog.operation}
         onCreate={async (input) => {
           await catalog.createRepository(input);
         }}
+        onDelete={catalog.deleteRepository}
       />
     );
   }

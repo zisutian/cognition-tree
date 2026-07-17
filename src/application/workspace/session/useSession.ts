@@ -19,6 +19,7 @@ export type ActiveSession = ActiveSessionState & {
   commands: SessionCommands;
   discardPendingChangesAndReload: () => Promise<void>;
   flushPendingChanges: () => Promise<void>;
+  prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
   reload: () => Promise<void>;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
   useDefaultWorkspaceSyntax: () => Promise<void>;
@@ -55,6 +56,7 @@ function createSession(
     discardPendingChangesAndReload:
       controller.discardPendingChangesAndReload,
     flushPendingChanges: controller.flushPendingChanges,
+    prepareForRepositoryRemoval: controller.prepareForRepositoryRemoval,
     reload: controller.reload,
     updateWorkspaceSyntaxSource: controller.updateWorkspaceSyntaxSource,
     useDefaultWorkspaceSyntax: controller.useDefaultWorkspaceSyntax,

@@ -6,14 +6,14 @@ import { createDefaultWorkspaceSyntax } from "../../../workspace/context/workspa
 export function createInitialRepositoryContent({
   createBlockId,
   createNoteId,
+  createWorkspaceId,
   name,
-  repositoryId,
   timestamp,
 }: {
   createBlockId: () => string;
   createNoteId: () => string;
+  createWorkspaceId: () => string;
   name: string;
-  repositoryId: string;
   timestamp: string;
 }) {
   const workspaceName = name.trim();
@@ -25,7 +25,7 @@ export function createInitialRepositoryContent({
   const syntax = createDefaultWorkspaceSyntax();
   const emptyWorkspace = {
     ...createInitialWorkspaceData(),
-    id: `workspace-${repositoryId}`,
+    id: createWorkspaceId(),
     name: workspaceName,
   };
   const workspace = createWorkspaceNote(

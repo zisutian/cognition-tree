@@ -1,6 +1,12 @@
 import {
+  assertExactContractFields,
+  failContract,
+  readContractObject,
+  readRequiredContractString,
+} from "../../../../contracts/workspace-repository/contractValue";
+import {
   isRepositoryId,
-  parseCreateRepository,
+  parseRepositoryDeletionMode,
 } from "../../../../contracts/workspace-repository/parseCatalog";
 import { parseWorkspaceRepositoryContent } from "../../../../contracts/workspace-repository/parseRepository";
 import type { RepositoryDescriptorDto } from "../../../../contracts/workspace-repository/types";
@@ -17,9 +23,51 @@ import {
 } from "./browserRepositoryClientCache";
 
 const browserCatalogIdentity = "browser:v3";
+const browserCreatableAdapters = ["browser"] as const;
+const maximumRepositoryIdAttempts = 100;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function createRepositoryIdentity(repositoryId: string) {
   return `browser:v3:${repositoryId}`;
+}
+
+function parseBrowserCreateRepository(value: unknown) {
+  const input = readContractObject(value, "$");
+
+  assertExactContractFields(input, ["adapter", "content", "label"], "$");
+  const adapter = readRequiredContractString(input, "adapter", "$");
+
+  if (adapter !== "browser") {
+    failContract("$.adapter", `unsupported create adapter ${adapter}`);
+  }
+
+  return {
+    adapter,
+    content: parseWorkspaceRepositoryContent(input.content),
+    label: readRequiredContractString(input, "label", "$"),
+  } as const;
+}
+
+function createBrowserRepositoryId(createRepositoryUuid: () => string) {
+  const uuid = createRepositoryUuid().toLowerCase();
+
+  if (!uuidPattern.test(uuid)) {
+    throw new Error("Repository id allocator returned an invalid UUID");
+  }
+
+  return `repository-${uuid}`;
+}
+
+function catalogContainsId(
+  catalog: Awaited<
+    ReturnType<BrowserRepositoryClientCache["catalogs"]["load"]>
+  >,
+  repositoryId: string,
+) {
+  return Boolean(
+    catalog?.repositories.some(({ id }) => id === repositoryId) ||
+      catalog?.issues.some(({ id }) => id === repositoryId),
+  );
 }
 
 function toSnapshot(
@@ -115,42 +163,75 @@ function createBrowserWorkspaceRepository(
 
 export function createBrowserWorkspaceRepositoryCatalog({
   cache = createBrowserRepositoryClientCache(),
+  createRepositoryUuid = () => globalThis.crypto.randomUUID(),
   validateContent,
 }: {
   cache?: BrowserRepositoryClientCache;
+  createRepositoryUuid?: () => string;
   validateContent: WorkspaceRepositoryContentValidator;
 }): WorkspaceRepositoryCatalog {
   return {
     async createRepository(input) {
-      if (!isRepositoryId(input.id)) {
-        throw new Error(`Invalid browser repository id: ${input.id}`);
-      }
-
-      const outbound = parseCreateRepository(input);
+      const outbound = parseBrowserCreateRepository(input);
 
       validateContent(outbound.content);
-
-      const descriptor: RepositoryDescriptorDto = {
-        adapter: "browser",
-        id: outbound.id,
-        label: outbound.label,
-        locationLabel: `浏览器 · ${outbound.id}`,
-      };
       const remoteRevision = await createWorkspaceRepositoryRevision(
         outbound.content,
       );
 
-      await cache.createRepositoryAtomically({
+      for (let attempt = 0; attempt < maximumRepositoryIdAttempts; attempt += 1) {
+        const repositoryId = createBrowserRepositoryId(createRepositoryUuid);
+        const catalog = await cache.catalogs.load(browserCatalogIdentity);
+
+        if (catalogContainsId(catalog, repositoryId)) {
+          continue;
+        }
+
+        const descriptor: RepositoryDescriptorDto = {
+          adapter: "browser",
+          id: repositoryId,
+          label: outbound.label,
+          locationLabel: `浏览器 · ${repositoryId}`,
+        };
+
+        try {
+          await cache.createRepositoryAtomically({
+            catalogIdentity: browserCatalogIdentity,
+            content: outbound.content,
+            descriptor,
+            localRevision: createLocalDraftRevision(() =>
+              globalThis.crypto.randomUUID()
+            ),
+            remoteRevision,
+            repositoryIdentity: createRepositoryIdentity(repositoryId),
+          });
+          return descriptor;
+        } catch (error) {
+          const latest = await cache.catalogs.load(browserCatalogIdentity);
+
+          if (catalogContainsId(latest, repositoryId)) {
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      throw new Error("Unable to allocate a unique browser repository id");
+    },
+    async deleteRepository({ id, mode }) {
+      if (!isRepositoryId(id)) {
+        throw new Error(`Invalid browser repository id: ${id}`);
+      }
+      if (parseRepositoryDeletionMode(mode) !== "delete-managed-data") {
+        throw new Error("Browser repositories only support managed-data deletion");
+      }
+
+      await cache.deleteRepositoryAtomically({
         catalogIdentity: browserCatalogIdentity,
-        content: outbound.content,
-        descriptor,
-        localRevision: createLocalDraftRevision(() =>
-          globalThis.crypto.randomUUID()
-        ),
-        remoteRevision,
-        repositoryIdentity: createRepositoryIdentity(outbound.id),
+        repositoryId: id,
+        repositoryIdentity: createRepositoryIdentity(id),
       });
-      return descriptor;
+      return { status: "deleted" };
     },
     label: "浏览器本地存储",
     async listRepositories() {
@@ -158,10 +239,15 @@ export function createBrowserWorkspaceRepositoryCatalog({
 
       return catalog
         ? {
+            creatableAdapters: [...browserCreatableAdapters],
             issues: catalog.issues,
             repositories: catalog.repositories,
           }
-        : { issues: [], repositories: [] };
+        : {
+            creatableAdapters: [...browserCreatableAdapters],
+            issues: [],
+            repositories: [],
+          };
     },
     openRepository(descriptor) {
       if (descriptor.adapter !== "browser") {

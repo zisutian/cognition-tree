@@ -9,16 +9,23 @@ import {
 } from "./api/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
-import {
-  createWebDavRepositoryRegistrations,
-  parseWebDavRepositoryConfigs,
-} from "./adapters/webdav/webDavRepositoryConfig.ts";
+import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
+import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
+
+if (process.env.CTN_WEBDAV_REPOSITORIES !== undefined) {
+  throw new Error(
+    "CTN_WEBDAV_REPOSITORIES is unsupported; manage WebDAV connections in Settings",
+  );
+}
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3001");
 const repositoryRoot =
   process.env.CTN_REPOSITORY_ROOT ??
   path.join(process.cwd(), ".cognition-tree", "repositories");
+const serverStateDirectory =
+  process.env.CTN_SERVER_STATE_DIR ??
+  path.join(process.cwd(), ".cognition-tree", "server");
 const security = createWorkspaceApiSecurityPolicy({
   bearerToken: process.env.CTN_API_TOKEN,
   host,
@@ -26,12 +33,15 @@ const security = createWorkspaceApiSecurityPolicy({
 });
 
 const localCatalog = new LocalRepositoryCatalog(repositoryRoot);
-const webDavRegistrations = await createWebDavRepositoryRegistrations(
-  parseWebDavRepositoryConfigs(process.env.CTN_WEBDAV_REPOSITORIES),
-);
+const webDavRegistry = new WebDavConnectionRegistry({
+  privateTargetPolicy: parseWebDavPrivateTargets(
+    process.env.CTN_WEBDAV_PRIVATE_TARGETS,
+  ),
+  stateDirectory: serverStateDirectory,
+});
 const catalog = new CompositeRepositoryCatalog(
   localCatalog,
-  webDavRegistrations,
+  webDavRegistry,
 );
 
 await catalog.initialize();
@@ -48,7 +58,7 @@ const shutdown = async () => {
     server.close((error) => error ? reject(error) : resolve());
     server.closeIdleConnections();
   });
-  await localCatalog.dispose();
+  await catalog.dispose();
 };
 
 process.once("SIGINT", () => {
@@ -67,7 +77,7 @@ process.once("SIGTERM", () => {
 server.listen(port, host, () => {
   console.log(`Cognition Tree API listening on http://${host}:${port}`);
   console.log(`Local repository root: ${localCatalog.rootPath}`);
-  console.log(`Configured WebDAV repositories: ${webDavRegistrations.length}`);
+  console.log(`WebDAV server state: ${serverStateDirectory}`);
   console.log(`Allowed hosts: ${security.allowedHosts.join(", ")}`);
   console.log(`Allowed origins: ${security.allowedOrigins.join(", ") || "none"}`);
   console.log(

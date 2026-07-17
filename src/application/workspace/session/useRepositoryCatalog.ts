@@ -1,24 +1,100 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ActiveRepositorySelection } from "../../../storage/repository/activeRepositorySelection";
 import type {
+  RepositoryAdapterKind,
+  RepositoryAuthentication,
+  RepositoryDeletionMode,
+  RepositoryDeletionResult,
   WorkspaceRepositoryCatalog,
+  WorkspaceRepositoryCatalogData,
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "../../../storage/repository/workspaceRepositoryCatalog";
 import { createInitialRepositoryContent } from "./initialRepository";
 
+export type CreateRepositoryRequest =
+  | {
+      adapter: "browser" | "local";
+      name: string;
+    }
+  | {
+      adapter: "webdav";
+      authentication: RepositoryAuthentication;
+      name: string;
+      url: string;
+    };
+
+export type DeleteRepositoryRequest = {
+  id: string;
+  mode: RepositoryDeletionMode;
+};
+
+export type RepositoryCatalogOperation =
+  | "creating"
+  | "deleting"
+  | "idle"
+  | "switching";
+
+type ReadyRepositoryCatalogState = {
+  activeRepositoryId: string | null;
+  creatableAdapters: RepositoryAdapterKind[];
+  issues: WorkspaceRepositoryCatalogIssue[];
+  operation: RepositoryCatalogOperation;
+  repositories: WorkspaceRepositoryDescriptor[];
+  status: "ready";
+};
+
 type RepositoryCatalogState =
   | { status: "loading" }
   | { errorMessage: string; status: "failed" }
-  | {
-      activeRepositoryId: string | null;
-      issues: WorkspaceRepositoryCatalogIssue[];
-      repositories: WorkspaceRepositoryDescriptor[];
-      status: "ready";
-    };
+  | ReadyRepositoryCatalogState;
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Repository catalog failed.";
+}
+
+function createInitialContent(name: string) {
+  return createInitialRepositoryContent({
+    createBlockId: () => globalThis.crypto.randomUUID(),
+    createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
+    createWorkspaceId: () => `workspace-${globalThis.crypto.randomUUID()}`,
+    name,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function selectAfterDeletion(
+  previousRepositories: WorkspaceRepositoryDescriptor[],
+  nextRepositories: WorkspaceRepositoryDescriptor[],
+  deletedId: string,
+) {
+  const nextIds = new Set(nextRepositories.map(({ id }) => id));
+  const deletedIndex = previousRepositories.findIndex(({ id }) => id === deletedId);
+
+  if (deletedIndex >= 0) {
+    for (let index = deletedIndex + 1; index < previousRepositories.length; index += 1) {
+      const id = previousRepositories[index]?.id;
+
+      if (id && nextIds.has(id)) {
+        return id;
+      }
+    }
+    for (let index = deletedIndex - 1; index >= 0; index -= 1) {
+      const id = previousRepositories[index]?.id;
+
+      if (id && nextIds.has(id)) {
+        return id;
+      }
+    }
+  }
+
+  return nextRepositories[0]?.id ?? null;
 }
 
 export function useRepositoryCatalog(
@@ -28,82 +104,220 @@ export function useRepositoryCatalog(
   const [state, setState] = useState<RepositoryCatalogState>({
     status: "loading",
   });
+  const stateRef = useRef(state);
+  const operationRef = useRef<RepositoryCatalogOperation>("idle");
 
-  const reload = useCallback(async () => {
-    setState({ status: "loading" });
-
-    try {
-      const { issues, repositories } = await catalog.listRepositories();
-      const storedRepositoryId = activeRepositorySelection.load();
-      const activeRepositoryId = repositories.some(
-        (repository) => repository.id === storedRepositoryId,
-      )
-        ? storedRepositoryId
-        : repositories[0]?.id ?? null;
-
-      if (activeRepositoryId) {
-        activeRepositorySelection.save(activeRepositoryId);
-      }
-
-      setState({ activeRepositoryId, issues, repositories, status: "ready" });
-    } catch (error) {
-      setState({ errorMessage: getErrorMessage(error), status: "failed" });
+  const publish = useCallback((next: RepositoryCatalogState) => {
+    stateRef.current = next;
+    operationRef.current = next.status === "ready" ? next.operation : "idle";
+    setState(next);
+  }, []);
+  const persistActiveRepository = useCallback((repositoryId: string | null) => {
+    if (repositoryId) {
+      activeRepositorySelection.save(repositoryId);
+    } else {
+      activeRepositorySelection.clear();
     }
-  }, [activeRepositorySelection, catalog]);
+  }, [activeRepositorySelection]);
+  const publishCatalog = useCallback((
+    nextCatalog: WorkspaceRepositoryCatalogData,
+    preferredRepositoryId?: string | null,
+  ) => {
+    const current = stateRef.current;
+    const storedRepositoryId = preferredRepositoryId === undefined
+      ? activeRepositorySelection.load()
+      : preferredRepositoryId;
+    const activeRepositoryId = nextCatalog.repositories.some(
+      ({ id }) => id === storedRepositoryId,
+    )
+      ? storedRepositoryId
+      : nextCatalog.repositories[0]?.id ?? null;
+
+    persistActiveRepository(activeRepositoryId);
+    publish({
+      activeRepositoryId,
+      creatableAdapters: nextCatalog.creatableAdapters,
+      issues: nextCatalog.issues,
+      operation: current.status === "ready" ? current.operation : "idle",
+      repositories: nextCatalog.repositories,
+      status: "ready",
+    });
+  }, [activeRepositorySelection, persistActiveRepository, publish]);
+  const reload = useCallback(async () => {
+    const previous = stateRef.current;
+
+    if (previous.status !== "ready") {
+      publish({ status: "loading" });
+    }
+    try {
+      publishCatalog(await catalog.listRepositories());
+    } catch (error) {
+      if (previous.status === "ready") {
+        // Publish a fresh ready state so a deleting-issue poll schedules its
+        // next attempt even when this catalog refresh failed unchanged.
+        publish({ ...previous });
+        throw error;
+      }
+      publish({ errorMessage: getErrorMessage(error), status: "failed" });
+    }
+  }, [catalog, publish, publishCatalog]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const selectRepository = useCallback((repositoryId: string) => {
+  useEffect(() => {
     if (
       state.status !== "ready" ||
-      !state.repositories.some(
-        (repository) => repository.id === repositoryId,
-      )
+      !state.issues.some(({ status }) => status === "deleting")
     ) {
-      throw new Error(`Repository does not exist: ${repositoryId}`);
+      return undefined;
     }
 
-    activeRepositorySelection.save(repositoryId);
-    setState({ ...state, activeRepositoryId: repositoryId });
-  }, [activeRepositorySelection, state]);
+    const timer = globalThis.setTimeout(() => {
+      void reload().catch(() => undefined);
+    }, 1_000);
 
-  const createRepository = useCallback(async ({
-    id,
-    name,
-  }: {
-    id: string;
-    name: string;
-  }) => {
-    const descriptor = await catalog.createRepository({
-      content: createInitialRepositoryContent({
-        createBlockId: () => globalThis.crypto.randomUUID(),
-        createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
-        name,
-        repositoryId: id,
-        timestamp: new Date().toISOString(),
-      }),
-      id,
-      label: name,
-    });
+    return () => globalThis.clearTimeout(timer);
+  }, [reload, state]);
 
-    activeRepositorySelection.save(descriptor.id);
-    setState((current) => {
-      if (current.status !== "ready") {
-        return current;
+  const beginOperation = useCallback((operation: Exclude<RepositoryCatalogOperation, "idle">) => {
+    const current = stateRef.current;
+
+    if (current.status !== "ready") {
+      throw new Error("Repository catalog is not ready.");
+    }
+    if (operationRef.current !== "idle") {
+      throw new Error("Another repository operation is already running.");
+    }
+
+    publish({ ...current, operation });
+    return current;
+  }, [publish]);
+  const finishOperation = useCallback(() => {
+    const current = stateRef.current;
+
+    if (current.status === "ready" && current.operation !== "idle") {
+      publish({ ...current, operation: "idle" });
+    }
+  }, [publish]);
+
+  const selectRepository = useCallback(async (repositoryId: string) => {
+    const current = beginOperation("switching");
+
+    try {
+      if (!current.repositories.some(({ id }) => id === repositoryId)) {
+        throw new Error(`Repository does not exist: ${repositoryId}`);
       }
+      persistActiveRepository(repositoryId);
+      publish({ ...current, activeRepositoryId: repositoryId, operation: "idle" });
+    } catch (error) {
+      finishOperation();
+      throw error;
+    }
+  }, [beginOperation, finishOperation, persistActiveRepository, publish]);
 
-      return {
-        ...current,
+  const createRepository = useCallback(async (input: CreateRepositoryRequest) => {
+    const current = beginOperation("creating");
+
+    try {
+      if (!current.creatableAdapters.includes(input.adapter)) {
+        throw new Error(`Repository adapter is unavailable: ${input.adapter}`);
+      }
+      const label = input.name.trim();
+
+      if (!label) {
+        throw new Error("仓库名称不能为空。");
+      }
+      const content = createInitialContent(label);
+      const descriptor = await catalog.createRepository(
+        input.adapter === "webdav"
+          ? {
+              adapter: "webdav",
+              authentication: input.authentication,
+              initialContent: content,
+              label,
+              url: input.url.trim(),
+            }
+          : {
+              adapter: input.adapter,
+              content,
+              label,
+            },
+      );
+      const latest = stateRef.current;
+      const ready = latest.status === "ready" ? latest : current;
+      const repositories = [
+        ...ready.repositories.filter(({ id }) => id !== descriptor.id),
+        descriptor,
+      ].sort((left, right) => left.id.localeCompare(right.id));
+
+      persistActiveRepository(descriptor.id);
+      publish({
+        ...ready,
         activeRepositoryId: descriptor.id,
-        repositories: [...current.repositories, descriptor].sort(
-          (left, right) => left.id.localeCompare(right.id),
-        ),
-      };
-    });
-    return descriptor;
-  }, [activeRepositorySelection, catalog]);
+        issues: ready.issues.filter(({ id }) => id !== descriptor.id),
+        operation: "idle",
+        repositories,
+      });
+      return descriptor;
+    } catch (error) {
+      finishOperation();
+      throw error;
+    }
+  }, [beginOperation, catalog, finishOperation, persistActiveRepository, publish]);
+
+  const deleteRepository = useCallback(async (
+    input: DeleteRepositoryRequest,
+  ): Promise<RepositoryDeletionResult> => {
+    const previous = beginOperation("deleting");
+
+    try {
+      const result = await catalog.deleteRepository(input);
+      let nextCatalog: WorkspaceRepositoryCatalogData;
+
+      try {
+        nextCatalog = await catalog.listRepositories();
+      } catch {
+        const deletedEntry = previous.repositories.find(
+          ({ id }) => id === input.id,
+        );
+        const deletingIssue = result.status === "deleting" && deletedEntry
+          ? {
+              adapter: deletedEntry.adapter,
+              code: "repository_busy" as const,
+              id: deletedEntry.id,
+              locationLabel: deletedEntry.locationLabel,
+              message: "WebDAV managed data deletion is still being completed",
+              status: "deleting" as const,
+            }
+          : null;
+
+        nextCatalog = {
+          creatableAdapters: previous.creatableAdapters,
+          issues: [
+            ...previous.issues.filter(({ id }) => id !== input.id),
+            ...(deletingIssue ? [deletingIssue] : []),
+          ],
+          repositories: previous.repositories.filter(({ id }) => id !== input.id),
+        };
+      }
+      const preferredRepositoryId = previous.activeRepositoryId === input.id
+        ? selectAfterDeletion(
+            previous.repositories,
+            nextCatalog.repositories,
+            input.id,
+          )
+        : previous.activeRepositoryId;
+
+      publishCatalog(nextCatalog, preferredRepositoryId);
+      finishOperation();
+      return result;
+    } catch (error) {
+      publish({ ...previous, operation: "idle" });
+      throw error;
+    }
+  }, [beginOperation, catalog, finishOperation, publish, publishCatalog]);
 
   const activeDescriptor = state.status === "ready"
     ? state.repositories.find(
@@ -119,6 +333,7 @@ export function useRepositoryCatalog(
     activeDescriptor,
     catalogLabel: catalog.label,
     createRepository,
+    deleteRepository,
     reload,
     repository,
     selectRepository,

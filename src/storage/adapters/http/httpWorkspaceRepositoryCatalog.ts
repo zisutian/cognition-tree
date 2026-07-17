@@ -1,6 +1,9 @@
 import {
+  isRepositoryId,
   parseCreateRepository,
   parseRepositoryCatalog,
+  parseRepositoryDeletionMode,
+  parseRepositoryDeletionResult,
   parseRepositoryDescriptor,
 } from "../../../../contracts/workspace-repository/parseCatalog";
 import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
@@ -80,7 +83,11 @@ export function createHttpWorkspaceRepositoryCatalog({
     async createRepository(input) {
       const outbound = parseCreateRepository(input);
 
-      validateContent(outbound.content);
+      validateContent(
+        outbound.adapter === "local"
+          ? outbound.content
+          : outbound.initialContent,
+      );
       const descriptor = parseRepositoryDescriptor(
         await requestRepositoryJson(
           fetchFn,
@@ -101,14 +108,42 @@ export function createHttpWorkspaceRepositoryCatalog({
       ].sort((left, right) => left.id.localeCompare(right.id));
 
       await saveCatalogBestEffort({
+        creatableAdapters: cached?.creatableAdapters ?? [],
         issues: cached?.issues.filter(({ id }) => id !== descriptor.id) ?? [],
         repositories,
       });
       return descriptor;
     },
+    async deleteRepository({ id, mode }) {
+      if (!isRepositoryId(id)) {
+        throw new Error(`Invalid repository id: ${id}`);
+      }
+      const deletionMode = parseRepositoryDeletionMode(mode);
+      const result = parseRepositoryDeletionResult(
+        await requestRepositoryJson(
+          fetchFn,
+          baseUrl,
+          `/api/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
+          { method: "DELETE" },
+          token,
+        ),
+      );
+
+      await cache.deleteRepositoryAtomically({
+        catalogIdentity: await catalogIdentity,
+        repositoryId: id,
+        repositoryIdentity: await createHttpRepositoryCacheIdentity({
+          baseUrl,
+          repositoryId: id,
+          token,
+        }),
+      });
+      return result;
+    },
     label: "HTTP 后端",
     async listRepositories() {
       try {
+        const previous = await loadCatalogBestEffort();
         const catalog = parseRepositoryCatalog(
           await requestRepositoryJson(
             fetchFn,
@@ -120,6 +155,30 @@ export function createHttpWorkspaceRepositoryCatalog({
         );
 
         await saveCatalogBestEffort(catalog);
+        const currentIds = new Set([
+          ...catalog.repositories.map(({ id }) => id),
+          ...catalog.issues.map(({ id }) => id),
+        ]);
+        const removedIds = new Set([
+          ...(previous?.repositories ?? []).map(({ id }) => id),
+          ...(previous?.issues ?? []).map(({ id }) => id),
+        ].filter((id) => !currentIds.has(id)));
+
+        await Promise.all(
+          [...removedIds].map(async (repositoryId) => {
+            try {
+              await cache.snapshots.remove(
+                await createHttpRepositoryCacheIdentity({
+                  baseUrl,
+                  repositoryId,
+                  token,
+                }),
+              );
+            } catch {
+              // Catalog authority must not be hidden by orphan-cache cleanup.
+            }
+          }),
+        );
         return catalog;
       } catch (error) {
         if (!isOfflineError(error)) {
@@ -133,6 +192,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         }
 
         return {
+          creatableAdapters: cached.creatableAdapters,
           issues: cached.issues,
           repositories: cached.repositories,
         };

@@ -7,6 +7,7 @@ import {
   type APIRequestContext,
 } from "@playwright/test";
 import type {
+  RepositoryCatalogDto,
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace-repository/types";
@@ -52,9 +53,10 @@ test.describe.serial("repository and capacity flows", () => {
     await contextResize.focus();
     await contextResize.press("ArrowRight");
     await getActivityButton(page, "设置").click();
-    await page.getByRole("textbox", { name: "新仓库 ID" }).fill("second");
-    await page.getByRole("textbox", { name: "新仓库名称" }).fill("第二仓库");
-    await page.getByRole("button", { name: "创建仓库" }).click();
+    const createForm = page.locator(".settings-create-repository");
+
+    await createForm.getByRole("textbox", { name: "名称" }).fill("第二仓库");
+    await createForm.getByRole("button", { name: "创建仓库" }).click();
 
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(page.locator(".app-context").getByTitle("未命名笔记"))
@@ -62,7 +64,15 @@ test.describe.serial("repository and capacity flows", () => {
     await expect(contextResize).toHaveAttribute("aria-valuenow", "280");
 
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(repositoryId);
+    const repositorySelect = page.getByLabel("当前仓库", { exact: true });
+    const createdRepositoryId = await repositorySelect.inputValue();
+
+    expect(createdRepositoryId).toMatch(
+      /^repository-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+    await expect(repositorySelect.locator("option:checked"))
+      .toHaveText("第二仓库 · 本地");
+    await repositorySelect.selectOption(repositoryId);
     await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
@@ -135,7 +145,8 @@ test.describe.serial("repository and capacity flows", () => {
     await expect.poll(async () => (await readProbe()).active).toBe(1);
 
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(rawRepositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(rawRepositoryId);
     await expect(page.locator(".app-context").getByTitle("原始笔记"))
       .toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(1);
@@ -147,7 +158,8 @@ test.describe.serial("repository and capacity flows", () => {
       .toBeGreaterThanOrEqual(1);
 
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(repositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(repositoryId);
     await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(1);
     await expect
@@ -158,7 +170,8 @@ test.describe.serial("repository and capacity flows", () => {
   test("edits repositories without syntax in raw mode", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(rawRepositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(rawRepositoryId);
 
     const editor = page.locator(".source-editor");
 
@@ -206,12 +219,14 @@ test.describe.serial("repository and capacity flows", () => {
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" immediate-switch-local");
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(rawRepositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(rawRepositoryId);
     await expect(page.locator(".app-context").getByTitle("原始笔记"))
       .toBeVisible();
 
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(repositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "immediate-switch-local",
@@ -328,7 +343,8 @@ test.describe.serial("repository and capacity flows", () => {
   test("virtualizes large directory and structure trees", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(largeRepositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(largeRepositoryId);
 
     const context = page.locator(".activity-context-content");
     const directoryTree = context.locator(
@@ -366,5 +382,35 @@ test.describe.serial("repository and capacity flows", () => {
       element.scrollTop = element.scrollHeight;
     });
     await expect(structureTree.getByTitle("组分: Block 599")).toBeVisible();
+  });
+
+  test("enters repository setup after deleting the final repository", async ({
+    page,
+  }) => {
+    const catalogResponse = await api.get("/api/repositories");
+    const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
+
+    expect(catalogResponse.ok()).toBe(true);
+    for (const repository of catalog.repositories) {
+      if (repository.id === largeRepositoryId) {
+        continue;
+      }
+      const deleteResponse = await api.delete(
+        `/api/repositories/${encodeURIComponent(repository.id)}?mode=delete-managed-data`,
+      );
+
+      expect(deleteResponse.ok()).toBe(true);
+    }
+
+    await openWorkbench(page, largeRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "删除当前仓库" }).click();
+
+    const dialog = page.getByRole("alertdialog", { name: "删除仓库" });
+
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "永久删除" }).click();
+    await expect(page.getByRole("main").getByLabel("创建仓库")).toBeVisible();
+    await expect(page.getByLabel("当前仓库", { exact: true })).toHaveCount(0);
   });
 });

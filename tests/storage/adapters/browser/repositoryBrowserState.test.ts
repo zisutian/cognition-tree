@@ -37,6 +37,8 @@ describe("repository browser state", () => {
     expect(selection.load()).toBeNull();
     selection.save("second");
     expect(selection.load()).toBe("second");
+    selection.clear();
+    expect(selection.load()).toBeNull();
   });
 
   it("keeps context widths isolated and clamped by repository id", () => {

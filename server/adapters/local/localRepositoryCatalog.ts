@@ -10,10 +10,10 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../../contracts/workspace-repository/contractValue.ts";
 import type {
-  CreateRepositoryDto,
   RepositoryCatalogDto,
   RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
+  WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import {
   parseRepositoryMetadata,
@@ -26,7 +26,7 @@ import {
   workspaceFileName,
 } from "../../repository/workspaceRepositoryLayout.ts";
 import { fsyncDirectory } from "./atomicWrite.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,
@@ -35,6 +35,30 @@ import {
 const writerLockFileName = ".ctn-writer.lock";
 const catalogCreateStagingPattern =
   /^\.create-.+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const repositoryDeletionTombstonePattern =
+  /^\.delete-.+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const localRepositoryDeletionPhases = {
+  cleanupCompleted: "cleanup-completed",
+  deletionCommitted: "deletion-committed",
+  tombstoneRenamed: "tombstone-renamed",
+} as const;
+
+export type LocalRepositoryDeletionPhase =
+  typeof localRepositoryDeletionPhases[keyof typeof localRepositoryDeletionPhases];
+
+type LocalRepositoryCatalogOptions = {
+  createStore?: (rootDir: string) => WorkspaceFileStore;
+  onRepositoryDeletionPhase?: (
+    phase: LocalRepositoryDeletionPhase,
+  ) => Promise<void> | void;
+};
+
+export type CreateLocalRepositoryWithId = {
+  content: WorkspaceRepositoryContentDto;
+  id: string;
+  label: string;
+};
 
 async function pathExists(filePath: string) {
   try {
@@ -53,14 +77,26 @@ async function readJson(filePath: string): Promise<unknown> {
 }
 
 export class LocalRepositoryCatalog {
+  #createStore: NonNullable<LocalRepositoryCatalogOptions["createStore"]>;
   #initializePromise: Promise<void> | null = null;
   #lockCompromised = false;
+  #onRepositoryDeletionPhase: NonNullable<
+    LocalRepositoryCatalogOptions["onRepositoryDeletionPhase"]
+  >;
   #operationQueue: Promise<void> = Promise.resolve();
   #releaseWriterLock: (() => Promise<void>) | null = null;
   #rootDir: string;
   #storesById = new Map<string, WorkspaceFileStore>();
 
-  constructor(rootDir: string) {
+  constructor(
+    rootDir: string,
+    {
+      createStore = (repositoryRoot) => new WorkspaceFileStore(repositoryRoot),
+      onRepositoryDeletionPhase = async () => {},
+    }: LocalRepositoryCatalogOptions = {},
+  ) {
+    this.#createStore = createStore;
+    this.#onRepositoryDeletionPhase = onRepositoryDeletionPhase;
     this.#rootDir = path.resolve(rootDir);
   }
 
@@ -78,13 +114,20 @@ export class LocalRepositoryCatalog {
   }
 
   async dispose() {
-    const release = this.#releaseWriterLock;
+    return this.#enqueueOperation(async () => {
+      const stores = [...this.#storesById.values()];
+      const storeDrains = stores.map((store) => store.closeForDeletion());
 
-    this.#releaseWriterLock = null;
-    this.#initializePromise = null;
-    if (release) {
-      await release();
-    }
+      await Promise.all(storeDrains);
+      this.#storesById.clear();
+      const release = this.#releaseWriterLock;
+
+      this.#releaseWriterLock = null;
+      this.#initializePromise = null;
+      if (release) {
+        await release();
+      }
+    });
   }
 
   async listRepositories(): Promise<RepositoryCatalogDto> {
@@ -110,21 +153,25 @@ export class LocalRepositoryCatalog {
           const code = await this.#classifyCatalogIssue(repositoryId, error);
 
           issues.push({
+            adapter: "local",
             code,
             id: repositoryId,
             locationLabel: this.#createLocationLabel(repositoryId),
             message: code === "unsupported_repository_version"
               ? "Repository version is not supported"
               : "Repository metadata is invalid",
+            status: "fault",
           });
         }
       }
 
-      return { issues, repositories };
+      return { creatableAdapters: ["local"], issues, repositories };
     });
   }
 
-  async createRepository(request: CreateRepositoryDto): Promise<RepositoryDescriptorDto> {
+  async createRepositoryWithId(
+    request: CreateLocalRepositoryWithId,
+  ): Promise<RepositoryDescriptorDto> {
     return this.#enqueueOperation(async () => {
       await this.initialize();
       this.#assertWriterLock();
@@ -152,9 +199,112 @@ export class LocalRepositoryCatalog {
         throw error;
       }
 
-      const store = new WorkspaceFileStore(repositoryPath);
+      const store = this.#createStore(repositoryPath);
       this.#storesById.set(request.id, store);
       return this.#createDescriptor(request.id, request.label);
+    });
+  }
+
+  async deleteRepository(repositoryId: string): Promise<void> {
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      this.#assertWriterLock();
+      const repositoryPath = this.#resolveRepositoryPath(repositoryId);
+      const store = this.#storesById.get(repositoryId);
+
+      if (store) {
+        await store.closeForDeletion();
+        this.#storesById.delete(repositoryId);
+      }
+
+      const stats = await lstat(repositoryPath).catch((error: unknown) => {
+        if (hasFileSystemErrorCode(error, "ENOENT")) {
+          return null;
+        }
+        throw error;
+      });
+
+      if (!stats) {
+        return;
+      }
+      if (!stats.isDirectory() || stats.isSymbolicLink()) {
+        throw new RepositoryCatalogError(
+          "invalid_request",
+          "Repository is not a real directory",
+        );
+      }
+
+      const canonicalPath = await realpath(repositoryPath).catch((error: unknown) => {
+        if (hasFileSystemErrorCode(error, "ENOENT")) {
+          return null;
+        }
+        throw error;
+      });
+
+      if (!canonicalPath) {
+        return;
+      }
+      if (path.dirname(canonicalPath) !== this.#rootDir) {
+        throw new RepositoryCatalogError(
+          "invalid_request",
+          "Repository escapes the configured root",
+        );
+      }
+
+      const tombstonePath = path.join(
+        this.#rootDir,
+        `.delete-${repositoryId}-${randomUUID()}`,
+      );
+
+      try {
+        await rename(repositoryPath, tombstonePath);
+      } catch (error) {
+        if (hasFileSystemErrorCode(error, "ENOENT")) {
+          return;
+        }
+        throw error;
+      }
+
+      try {
+        await this.#onRepositoryDeletionPhase(
+          localRepositoryDeletionPhases.tombstoneRenamed,
+        );
+        await fsyncDirectory(this.#rootDir);
+      } catch (error) {
+        try {
+          await rename(tombstonePath, repositoryPath);
+          await fsyncDirectory(this.#rootDir);
+        } catch (rollbackError) {
+          const combined = new Error(
+            "Repository deletion failed and could not be rolled back",
+          ) as Error & { failures?: unknown[] };
+
+          combined.failures = [error, rollbackError];
+          throw combined;
+        }
+        throw error;
+      }
+
+      await Promise.resolve()
+        .then(() => this.#onRepositoryDeletionPhase(
+          localRepositoryDeletionPhases.deletionCommitted,
+        ))
+        .catch(() => undefined);
+
+      // The durable rename above is the deletion commit point. Physical cleanup
+      // is recoverable startup work and must not turn a committed deletion into
+      // a reported failure.
+      const cleaned = await rm(tombstonePath, { force: true, recursive: true })
+        .then(() => true, () => false);
+
+      if (cleaned) {
+        await fsyncDirectory(this.#rootDir).catch(() => undefined);
+        await Promise.resolve()
+          .then(() => this.#onRepositoryDeletionPhase(
+            localRepositoryDeletionPhases.cleanupCompleted,
+          ))
+          .catch(() => undefined);
+      }
     });
   }
 
@@ -192,7 +342,7 @@ export class LocalRepositoryCatalog {
       return existing;
     }
 
-    const store = new WorkspaceFileStore(canonicalPath);
+    const store = this.#createStore(canonicalPath);
 
     await store.initialize();
     this.#storesById.set(repositoryId, store);
@@ -223,10 +373,16 @@ export class LocalRepositoryCatalog {
         (entry) =>
           entry.isDirectory() && catalogCreateStagingPattern.test(entry.name),
       );
+      const deletionTombstones = entries.filter(
+        (entry) =>
+          entry.isDirectory() &&
+          !entry.isSymbolicLink() &&
+          repositoryDeletionTombstonePattern.test(entry.name),
+      );
 
-      if (staleCreateDirectories.length > 0) {
+      if (staleCreateDirectories.length > 0 || deletionTombstones.length > 0) {
         await Promise.all(
-          staleCreateDirectories.map((entry) =>
+          [...staleCreateDirectories, ...deletionTombstones].map((entry) =>
             rm(path.join(this.#rootDir, entry.name), {
               force: true,
               recursive: true,

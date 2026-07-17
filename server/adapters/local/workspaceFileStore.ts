@@ -35,6 +35,7 @@ import {
 } from "../../repository/workspaceRepositoryLayout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
 import {
+  RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
 } from "../../repository/repositoryStore.ts";
@@ -47,7 +48,7 @@ import {
   removeAtomicWriteTemporaryFiles,
   writeJsonAtomically,
 } from "./atomicWrite.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 
 type WorkspaceFileStoreOptions = {
   onWorkspaceCommitPhase?: (phase: WorkspaceCommitPhase) => Promise<void> | void;
@@ -107,6 +108,8 @@ export async function createWorkspaceFileRepository({
 }
 
 export class WorkspaceFileStore {
+  #acceptingOperations = true;
+  #closeForDeletionPromise: Promise<void> | null = null;
   #initializePromise: Promise<void> | null = null;
   #onWorkspaceCommitPhase: NonNullable<WorkspaceFileStoreOptions["onWorkspaceCommitPhase"]>;
   #operationQueue: Promise<void> = Promise.resolve();
@@ -134,12 +137,23 @@ export class WorkspaceFileStore {
   }
 
   async loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(() => this.#loadSnapshot());
   }
 
   async commitSnapshot(value: unknown): Promise<WorkspaceRepositoryCommitResultDto> {
+    this.#assertAcceptingOperations();
     const commit = parseWorkspaceRepositoryCommit(value);
     return this.#enqueueOperation(() => this.#commitSnapshot(commit));
+  }
+
+  closeForDeletion(): Promise<void> {
+    if (!this.#closeForDeletionPromise) {
+      this.#acceptingOperations = false;
+      this.#closeForDeletionPromise = this.#operationQueue.then(() => undefined);
+    }
+
+    return this.#closeForDeletionPromise;
   }
 
   async #initialize() {
@@ -295,6 +309,15 @@ export class WorkspaceFileStore {
 
   get #snapshotsDir() {
     return path.join(this.#rootDir, snapshotsDirName);
+  }
+
+  #assertAcceptingOperations() {
+    if (!this.#acceptingOperations) {
+      throw new RepositoryAdapterError(
+        "repository_not_found",
+        "Repository is being deleted",
+      );
+    }
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>): Promise<Result> {

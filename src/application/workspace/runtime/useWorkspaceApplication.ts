@@ -9,14 +9,27 @@ import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
 import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
-import type { WorkspaceRepositoryDescriptor } from "../../../storage/repository/workspaceRepositoryCatalog";
+import type {
+  RepositoryAdapterKind,
+  WorkspaceRepositoryCatalogIssue,
+  WorkspaceRepositoryDescriptor,
+} from "../../../storage/repository/workspaceRepositoryCatalog";
 import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
 import type { WorkspaceAnalysis } from "../analysis/workspaceAnalysis";
 import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
+import type {
+  CreateRepositoryRequest,
+  DeleteRepositoryRequest,
+  RepositoryCatalogOperation,
+} from "../session/useRepositoryCatalog";
 
 export type WorkspaceRepositoryManagement = {
   activeRepositoryId: string;
-  createRepository: (input: { id: string; name: string }) => Promise<void>;
+  creatableAdapters: RepositoryAdapterKind[];
+  createRepository: (input: CreateRepositoryRequest) => Promise<void>;
+  deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
+  issues: WorkspaceRepositoryCatalogIssue[];
+  operation: RepositoryCatalogOperation;
   repositories: WorkspaceRepositoryDescriptor[];
   selectRepository: (repositoryId: string) => Promise<void>;
 };

@@ -17,7 +17,7 @@ import {
   fsyncDirectory,
   writeFileDurably,
 } from "./atomicWrite.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 
 export const workspaceCommitPhases = {
   stagingCreated: "staging-created",

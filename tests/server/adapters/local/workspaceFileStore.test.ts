@@ -2,7 +2,16 @@
 
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -11,7 +20,10 @@ import type {
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace-repository/types";
-import { LocalRepositoryCatalog } from "../../../../server/adapters/local/localRepositoryCatalog.ts";
+import {
+  localRepositoryDeletionPhases,
+  LocalRepositoryCatalog,
+} from "../../../../server/adapters/local/localRepositoryCatalog.ts";
 import {
   workspaceCommitPhases,
   type WorkspaceCommitPhase,
@@ -302,18 +314,65 @@ describe("WorkspaceFileStore v3", () => {
       });
     });
   });
+
+  it("stops accepting operations before draining an in-flight commit for deletion", async () => {
+    await withTempDir(async (rootDir) => {
+      await createWorkspaceFileRepository({ content: createContent("old"), label: "Test", rootDir });
+      let releaseCommit!: () => void;
+      let signalCommitStarted!: () => void;
+      const commitStarted = new Promise<void>((resolve) => { signalCommitStarted = resolve; });
+      const commitReleased = new Promise<void>((resolve) => { releaseCommit = resolve; });
+      const store = new WorkspaceFileStore(rootDir, {
+        async onWorkspaceCommitPhase(phase) {
+          if (phase === workspaceCommitPhases.stagingCreated) {
+            signalCommitStarted();
+            await commitReleased;
+          }
+        },
+      });
+      const base = await store.loadSnapshot();
+      const commit = store.commitSnapshot({
+        baseRevision: base.revision,
+        content: createContent("new"),
+      });
+
+      await commitStarted;
+      let deletionReady = false;
+      const deletion = store.closeForDeletion().then(() => { deletionReady = true; });
+
+      await expect(store.loadSnapshot()).rejects.toMatchObject({
+        code: "repository_not_found",
+      });
+      await Promise.resolve();
+      expect(deletionReady).toBe(false);
+
+      releaseCommit();
+      await expect(commit).resolves.toMatchObject({ revision: expect.any(String) });
+      await deletion;
+      expect(deletionReady).toBe(true);
+      await expect(store.commitSnapshot({
+        baseRevision: base.revision,
+        content: createContent("newer"),
+      })).rejects.toMatchObject({ code: "repository_not_found" });
+    });
+  });
 });
 
 describe("LocalRepositoryCatalog v3", () => {
-  it("removes abandoned catalog-create staging directories after taking the writer lock", async () => {
+  it("removes abandoned create staging and deletion tombstone directories after locking", async () => {
     await withTempDir(async (rootDir) => {
       const staleStaging = path.join(
         rootDir,
         ".create-primary-00000000-0000-4000-8000-000000000001",
       );
+      const staleDeletion = path.join(
+        rootDir,
+        ".delete-primary-00000000-0000-4000-8000-000000000002",
+      );
       const unrelated = path.join(rootDir, ".create-user-content");
 
       await mkdir(staleStaging, { recursive: true });
+      await mkdir(staleDeletion, { recursive: true });
       await mkdir(unrelated, { recursive: true });
       const catalog = new LocalRepositoryCatalog(rootDir);
 
@@ -321,6 +380,7 @@ describe("LocalRepositoryCatalog v3", () => {
         await catalog.initialize();
         expect(await readdir(rootDir)).toContain(".create-user-content");
         expect(await readdir(rootDir)).not.toContain(path.basename(staleStaging));
+        expect(await readdir(rootDir)).not.toContain(path.basename(staleDeletion));
       } finally {
         await catalog.dispose();
       }
@@ -335,7 +395,7 @@ describe("LocalRepositoryCatalog v3", () => {
       try {
         await first.initialize();
         await expect(second.initialize()).rejects.toMatchObject({ code: "repository_busy" });
-        const descriptor = await first.createRepository({
+        const descriptor = await first.createRepositoryWithId({
           content: createContent(),
           id: "primary",
           label: "Catalog label",
@@ -384,12 +444,13 @@ describe("LocalRepositoryCatalog v3", () => {
 
       try {
         await catalog.initialize();
-        await catalog.createRepository({ content: createContent(), id: "good", label: "Good" });
+        await catalog.createRepositoryWithId({ content: createContent(), id: "good", label: "Good" });
         await mkdir(path.join(rootDir, "broken"));
         await mkdir(path.join(rootDir, "legacy"));
         await writeFile(path.join(rootDir, "legacy", "workspace.json"), "{}\n");
 
         await expect(catalog.listRepositories()).resolves.toEqual({
+          creatableAdapters: ["local"],
           issues: [
             expect.objectContaining({ code: "repository_corrupt", id: "broken" }),
             expect.objectContaining({ code: "unsupported_repository_version", id: "legacy" }),
@@ -398,6 +459,155 @@ describe("LocalRepositoryCatalog v3", () => {
         });
       } finally {
         await catalog.dispose();
+      }
+    });
+  });
+
+  it("deletes healthy and corrupt repositories idempotently", async () => {
+    await withTempDir(async (rootDir) => {
+      const catalog = new LocalRepositoryCatalog(rootDir);
+
+      try {
+        await catalog.createRepositoryWithId({ content: createContent(), id: "good", label: "Good" });
+        const staleStore = await catalog.getStore("good");
+
+        await mkdir(path.join(rootDir, "broken"));
+        await expect(catalog.listRepositories()).resolves.toMatchObject({
+          issues: [expect.objectContaining({ id: "broken" })],
+          repositories: [expect.objectContaining({ id: "good" })],
+        });
+
+        await catalog.deleteRepository("good");
+        await catalog.deleteRepository("good");
+        await catalog.deleteRepository("broken");
+
+        await expect(staleStore.loadSnapshot()).rejects.toMatchObject({
+          code: "repository_not_found",
+        });
+        await expect(catalog.listRepositories()).resolves.toEqual({
+          creatableAdapters: ["local"],
+          issues: [],
+          repositories: [],
+        });
+        await expect(lstat(path.join(rootDir, "good"))).rejects.toMatchObject({ code: "ENOENT" });
+        await expect(lstat(path.join(rootDir, "broken"))).rejects.toMatchObject({ code: "ENOENT" });
+        expect((await readdir(rootDir)).some((entry) => entry.startsWith(".delete-"))).toBe(false);
+      } finally {
+        await catalog.dispose();
+      }
+    });
+  });
+
+  it("drains an in-flight commit before the catalog renames the repository", async () => {
+    await withTempDir(async (rootDir) => {
+      let releaseCommit!: () => void;
+      let signalCommitStarted!: () => void;
+      const commitStarted = new Promise<void>((resolve) => { signalCommitStarted = resolve; });
+      const commitReleased = new Promise<void>((resolve) => { releaseCommit = resolve; });
+      const catalog = new LocalRepositoryCatalog(rootDir, {
+        createStore: (repositoryRoot) => new WorkspaceFileStore(repositoryRoot, {
+          async onWorkspaceCommitPhase(phase) {
+            if (phase === workspaceCommitPhases.stagingCreated) {
+              signalCommitStarted();
+              await commitReleased;
+            }
+          },
+        }),
+      });
+
+      try {
+        await catalog.createRepositoryWithId({
+          content: createContent("old"),
+          id: "primary",
+          label: "Primary",
+        });
+        const store = await catalog.getStore("primary");
+        const base = await store.loadSnapshot();
+        const commit = store.commitSnapshot({
+          baseRevision: base.revision,
+          content: createContent("new"),
+        });
+
+        await commitStarted;
+        let deletionFinished = false;
+        const deletion = catalog.deleteRepository("primary")
+          .then(() => { deletionFinished = true; });
+
+        await Promise.resolve();
+        expect(deletionFinished).toBe(false);
+        expect(await lstat(path.join(rootDir, "primary"))).toMatchObject({});
+
+        releaseCommit();
+        await commit;
+        await deletion;
+        expect(deletionFinished).toBe(true);
+        await expect(lstat(path.join(rootDir, "primary"))).rejects.toMatchObject({ code: "ENOENT" });
+      } finally {
+        releaseCommit?.();
+        await catalog.dispose();
+      }
+    });
+  });
+
+  it("reopens the repository after a deletion failure before the durable commit point", async () => {
+    await withTempDir(async (rootDir) => {
+      let failDeletion = true;
+      const catalog = new LocalRepositoryCatalog(rootDir, {
+        onRepositoryDeletionPhase(phase) {
+          if (phase === localRepositoryDeletionPhases.tombstoneRenamed && failDeletion) {
+            failDeletion = false;
+            throw new Error("injected pre-commit deletion failure");
+          }
+        },
+      });
+
+      try {
+        await catalog.createRepositoryWithId({
+          content: createContent(),
+          id: "primary",
+          label: "Primary",
+        });
+        const staleStore = await catalog.getStore("primary");
+
+        await expect(catalog.deleteRepository("primary"))
+          .rejects.toThrow("injected pre-commit deletion failure");
+        await expect(staleStore.loadSnapshot()).rejects.toMatchObject({
+          code: "repository_not_found",
+        });
+
+        const reopenedStore = await catalog.getStore("primary");
+
+        await expect(reopenedStore.loadSnapshot()).resolves.toMatchObject({
+          content: createContent(),
+        });
+        expect((await readdir(rootDir)).some((entry) => entry.startsWith(".delete-"))).toBe(false);
+        await expect(catalog.deleteRepository("primary")).resolves.toBeUndefined();
+      } finally {
+        await catalog.dispose();
+      }
+    });
+  });
+
+  it("rejects symlink and path-escape deletion without touching outside data", async () => {
+    await withTempDir(async (rootDir) => {
+      const outsideDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v3-local-outside-"));
+      const catalog = new LocalRepositoryCatalog(rootDir);
+
+      try {
+        await writeFile(path.join(outsideDir, "keep.txt"), "keep");
+        await symlink(outsideDir, path.join(rootDir, "linked"), "dir");
+
+        await expect(catalog.deleteRepository("linked")).rejects.toMatchObject({
+          code: "invalid_request",
+        });
+        await expect(catalog.deleteRepository("../outside")).rejects.toMatchObject({
+          code: "invalid_request",
+        });
+        await expect(readFile(path.join(outsideDir, "keep.txt"), "utf8")).resolves.toBe("keep");
+        expect((await lstat(path.join(rootDir, "linked"))).isSymbolicLink()).toBe(true);
+      } finally {
+        await catalog.dispose();
+        await rm(outsideDir, { force: true, recursive: true });
       }
     });
   });

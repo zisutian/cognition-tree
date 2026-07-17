@@ -3,10 +3,10 @@
 import type { APIRequestContext } from "@playwright/test";
 import {
   workspaceRepositorySchemaVersion,
-  type CreateRepositoryDto,
   type RepositoryNoteDto,
   type RepositoryTreeNodeDto,
 } from "../../contracts/workspace-repository/types";
+import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog";
 import { defaultCtnSyntaxProfile } from "../../src/ctn/syntax/defaultSyntaxProfile";
 import { initializeCtnSourceBlockMetadata } from "../../src/ctn/metadata/sourceMetadata";
 import {
@@ -93,8 +93,8 @@ async function createRepository({
     },
     id,
     label: workspaceName,
-  } satisfies CreateRepositoryDto;
-  const response = await api.post("/api/repositories", {
+  } satisfies CreateLocalRepositoryWithId;
+  const response = await api.post("/__e2e/local-repositories", {
     data,
   });
 
@@ -103,14 +103,10 @@ async function createRepository({
     let repositoryAlreadyExists = false;
 
     try {
-      const error = JSON.parse(responseText) as {
-        code?: unknown;
-        message?: unknown;
-      };
+      const error = JSON.parse(responseText) as { message?: unknown };
 
       repositoryAlreadyExists =
         response.status() === 400 &&
-        error.code === "invalid_request" &&
         error.message === `Repository already exists: ${id}`;
     } catch {
       // A malformed error is reported below with the original response body.

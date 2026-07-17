@@ -4,8 +4,7 @@
   margin: 0;
 }
 
-.settings-control-row,
-.settings-create-repository {
+.settings-control-row {
   display: grid;
   align-items: center;
   gap: var(--ui-gap);
@@ -22,8 +21,65 @@
 }
 
 .settings-create-repository {
-  grid-template-columns: minmax(120px, 180px) minmax(160px, 240px) var(--ui-icon-size);
+  display: grid;
+  max-width: 560px;
+  gap: var(--ui-gap);
   margin-top: var(--ui-gap);
+}
+
+.settings-create-repository label {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-gap);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.settings-repository-warning,
+.repository-delete-warning {
+  margin: var(--ui-gap-tight) 0 0;
+  color: var(--color-warning);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.settings-repository-issues {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.settings-repository-issue {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+  padding: var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
+}
+
+.settings-repository-issue > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: var(--ui-gap-tight);
+  font-size: var(--ui-micro-font-size);
+}
+
+.settings-repository-issue span {
+  overflow-wrap: anywhere;
+  color: var(--color-fg-muted);
+}
+
+.repository-delete-dialog {
+  width: min(520px, calc(100vw - calc(var(--ui-panel-padding) * 2)));
+}
+
+.repository-delete-confirmation {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
 }
 
 .settings-width-input {

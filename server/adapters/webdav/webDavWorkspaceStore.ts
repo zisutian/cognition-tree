@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { UnsupportedRepositoryVersionError } from "../../../contracts/workspace-repository/contractValue.ts";
 import { parseWorkspaceRepositoryCommit } from "../../../contracts/workspace-repository/parseRepository.ts";
 import type {
+  WorkspaceRepositoryContentDto,
   WorkspaceRepositorySnapshotDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import {
@@ -19,6 +20,8 @@ import {
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
 import {
   createWebDavPointer,
+  createWebDavDeletionTombstone,
+  parseWebDavCurrent,
   parseWebDavPointer,
   requireWebDavEtag,
   requireWebDavPointerResource,
@@ -29,6 +32,7 @@ import {
 } from "./webDavControlFiles.ts";
 import { WebDavGenerationStore } from "./webDavGenerationStore.ts";
 import {
+  type ActiveWebDavLease,
   defaultWebDavLockLeaseMs,
   defaultWebDavLockRenewMs,
   WebDavRepositoryBusyError,
@@ -59,7 +63,9 @@ export type WebDavCommitPhase =
   (typeof webDavCommitPhases)[keyof typeof webDavCommitPhases];
 
 export type WebDavWorkspaceStoreOptions = {
+  allowEmptyTargetInitialization: boolean;
   createId?: () => string;
+  initialContent?: WorkspaceRepositoryContentDto;
   initialWorkspaceId?: string;
   initialWorkspaceName?: string;
   lockLeaseMs?: number;
@@ -69,9 +75,18 @@ export type WebDavWorkspaceStoreOptions = {
   transport: WebDavTransport;
 };
 
+export type WebDavManagedDataDeletionResult = {
+  deletionToken: string;
+  status: "deleted" | "deleting";
+};
+
 export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
+  #acceptingOperations = true;
+  readonly #allowEmptyTargetInitialization: boolean;
+  #closeForDeletionPromise: Promise<void> | null = null;
   readonly #createId: () => string;
   readonly #generationStore: WebDavGenerationStore;
+  readonly #initialContent: WorkspaceRepositoryContentDto | null;
   readonly #initialWorkspaceId: string;
   readonly #initialWorkspaceName: string;
   #initializePromise: Promise<void> | null = null;
@@ -82,7 +97,9 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   readonly #transport: WebDavTransport;
 
   constructor({
+    allowEmptyTargetInitialization,
     createId = randomUUID,
+    initialContent,
     initialWorkspaceId = "webdav-workspace",
     initialWorkspaceName = "远端笔记库",
     lockLeaseMs = defaultWebDavLockLeaseMs,
@@ -91,7 +108,9 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     onCommitPhase = async () => {},
     transport,
   }: WebDavWorkspaceStoreOptions) {
+    this.#allowEmptyTargetInitialization = allowEmptyTargetInitialization;
     this.#createId = createId;
+    this.#initialContent = initialContent ?? null;
     this.#initialWorkspaceId = initialWorkspaceId;
     this.#initialWorkspaceName = initialWorkspaceName;
     this.#now = now;
@@ -124,6 +143,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   }
 
   async loadSnapshot() {
+    this.#assertAcceptingOperations();
     return this.#enqueueOperation(async () => {
       await this.initialize();
       try {
@@ -135,6 +155,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   }
 
   async commitSnapshot(value: unknown) {
+    this.#assertAcceptingOperations();
     const commit = parseWorkspaceRepositoryCommit(value);
 
     return this.#enqueueOperation(async () => {
@@ -147,6 +168,43 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     });
   }
 
+  deleteManagedData(
+    deletionToken = this.#createId(),
+  ): Promise<WebDavManagedDataDeletionResult> {
+    return this.#enqueueManagedDataDeletion(deletionToken, false);
+  }
+
+  retryManagedDataDeletion(
+    deletionToken: string,
+  ): Promise<WebDavManagedDataDeletionResult> {
+    return this.#enqueueManagedDataDeletion(deletionToken, true);
+  }
+
+  #enqueueManagedDataDeletion(
+    deletionToken: string,
+    cleanupAfterPublish: boolean,
+  ): Promise<WebDavManagedDataDeletionResult> {
+    return this.#enqueueOperation(async () => {
+      try {
+        return await this.#deleteManagedData(
+          deletionToken,
+          cleanupAfterPublish,
+        );
+      } catch (error) {
+        throw this.#mapFailure(error);
+      }
+    });
+  }
+
+  closeForDeletion(): Promise<void> {
+    if (!this.#closeForDeletionPromise) {
+      this.#acceptingOperations = false;
+      this.#closeForDeletionPromise = this.#operationQueue.then(() => undefined);
+    }
+
+    return this.#closeForDeletionPromise;
+  }
+
   async #ensureInitialized() {
     const pointer = await this.#transport.readText(webDavCurrentPath);
 
@@ -156,6 +214,9 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     }
     if (await this.#transport.readText(workspaceFileName)) {
       throw new UnsupportedRepositoryVersionError("$.schemaVersion", 2);
+    }
+    if (!this.#allowEmptyTargetInitialization) {
+      throw new RepositoryCorruptError("WebDAV current pointer is missing");
     }
 
     const lease = await this.#leaseCoordinator.acquire();
@@ -179,7 +240,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
         );
       }
       await this.#transport.createCollection(webDavGenerationsPath);
-      const content = createEmptyRepositoryContent(
+      const content = this.#initialContent ?? createEmptyRepositoryContent(
         this.#initialWorkspaceId,
         this.#initialWorkspaceName,
       );
@@ -203,6 +264,140 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     } finally {
       await this.#leaseCoordinator.release(lease);
     }
+  }
+
+  async #deleteManagedData(
+    deletionToken: string,
+    cleanupAfterPublish: boolean,
+  ): Promise<WebDavManagedDataDeletionResult> {
+    if (deletionToken.length === 0) {
+      throw new RepositoryAdapterError(
+        "invalid_request",
+        "WebDAV deletion token must not be empty",
+      );
+    }
+
+    const lease = await this.#leaseCoordinator.acquire();
+
+    try {
+      const pointerResource = await requireWebDavPointerResource(this.#transport);
+      const current = parseWebDavCurrent(pointerResource);
+
+      if ("status" in current) {
+        if (current.deletionToken !== deletionToken) {
+          throw new WebDavRepositoryBusyError();
+        }
+        return cleanupAfterPublish
+          ? await this.#cleanupDeletedGenerations(deletionToken, lease)
+          : { deletionToken, status: "deleting" };
+      }
+
+      await this.#generationStore.read(current);
+      await this.#leaseCoordinator.renew(lease);
+      await this.#leaseCoordinator.assertHeld(lease);
+
+      try {
+        const etag = await this.#transport.writeText(
+          webDavCurrentPath,
+          stringifyWebDavControlFile(createWebDavDeletionTombstone(
+            deletionToken,
+            current.revision,
+            this.#now(),
+          )),
+          { ifMatch: requireWebDavEtag(pointerResource, "current pointer") },
+        );
+
+        if (!etag) {
+          throw new WebDavCapabilityError(
+            "WebDAV deletion tombstone PUT returned no ETag",
+          );
+        }
+      } catch (error) {
+        return await this.#resolveFailedDeletionCas(
+          deletionToken,
+          error,
+          cleanupAfterPublish,
+          lease,
+          pointerResource.etag,
+        );
+      }
+
+      return cleanupAfterPublish
+        ? await this.#cleanupDeletedGenerations(deletionToken, lease)
+        : { deletionToken, status: "deleting" };
+    } finally {
+      await this.#leaseCoordinator.release(lease);
+    }
+  }
+
+  async #resolveFailedDeletionCas(
+    deletionToken: string,
+    error: unknown,
+    cleanupAfterPublish: boolean,
+    lease: ActiveWebDavLease,
+    previousPointerEtag: string | null,
+  ): Promise<WebDavManagedDataDeletionResult> {
+    let currentResource;
+    let current;
+
+    try {
+      currentResource = await requireWebDavPointerResource(this.#transport);
+      current = parseWebDavCurrent(currentResource);
+    } catch {
+      if (this.#isAmbiguousDeletionCasFailure(error)) {
+        return { deletionToken, status: "deleting" };
+      }
+      throw error;
+    }
+
+    if ("status" in current) {
+      if (current.deletionToken !== deletionToken) {
+        throw new WebDavRepositoryBusyError();
+      }
+      return cleanupAfterPublish
+        ? this.#cleanupDeletedGenerations(deletionToken, lease)
+        : { deletionToken, status: "deleting" };
+    }
+    if (
+      (error instanceof WebDavRequestError && error.statusCode === 412) ||
+      currentResource.etag !== previousPointerEtag
+    ) {
+      throw new WorkspaceRevisionConflictError(current.revision);
+    }
+    if (this.#isAmbiguousDeletionCasFailure(error)) {
+      return { deletionToken, status: "deleting" };
+    }
+    throw error;
+  }
+
+  #isAmbiguousDeletionCasFailure(error: unknown) {
+    return !(error instanceof WebDavRequestError) ||
+      error.statusCode === 408 ||
+      error.statusCode >= 500;
+  }
+
+  async #cleanupDeletedGenerations(
+    deletionToken: string,
+    lease: ActiveWebDavLease,
+  ): Promise<WebDavManagedDataDeletionResult> {
+    const cleaned = await Promise.resolve()
+      .then(async () => {
+        await this.#leaseCoordinator.assertHeld(lease);
+        const currentResource = await requireWebDavPointerResource(this.#transport);
+        const current = parseWebDavCurrent(currentResource);
+
+        if (!("status" in current) || current.deletionToken !== deletionToken) {
+          throw new WebDavRepositoryBusyError();
+        }
+        await this.#transport.remove(webDavGenerationsPath);
+        return true;
+      })
+      .catch(() => false);
+
+    return {
+      deletionToken,
+      status: cleaned ? "deleted" : "deleting",
+    };
   }
 
   async #commitSnapshot(
@@ -340,6 +535,15 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       );
     }
     return error;
+  }
+
+  #assertAcceptingOperations() {
+    if (!this.#acceptingOperations) {
+      throw new RepositoryAdapterError(
+        "repository_not_found",
+        "WebDAV repository connection is closing",
+      );
+    }
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>) {

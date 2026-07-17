@@ -10,8 +10,8 @@ describe("initial repository", () => {
     const content = createInitialRepositoryContent({
       createBlockId: () => "00000000-0000-4000-8000-000000000001",
       createNoteId: () => "note-initial",
+      createWorkspaceId: () => "workspace-independent",
       name: "知识库",
-      repositoryId: "knowledge",
       timestamp,
     });
     const syntax = parseWorkspaceSyntax(content.syntaxSource);
@@ -21,7 +21,7 @@ describe("initial repository", () => {
     expect(content).toMatchObject({
       schemaVersion: 3,
       workspace: {
-        id: "workspace-knowledge",
+        id: "workspace-independent",
         name: "知识库",
         tree: [{ kind: "note", noteId: "note-initial" }],
       },
@@ -43,8 +43,8 @@ describe("initial repository", () => {
       createInitialRepositoryContent({
         createBlockId: () => "unused",
         createNoteId: () => "unused",
+        createWorkspaceId: () => "unused",
         name: "   ",
-        repositoryId: "knowledge",
         timestamp: "2026-07-15T00:00:00.000Z",
       })
     ).toThrow("Repository name is required");

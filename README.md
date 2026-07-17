@@ -1,6 +1,6 @@
 # 认知树
 
-认知树是本地优先的可配置语法结构化笔记应用。它以 `.ctn` 原文、缩进层级、仓库语法和引用关系组织知识，面向概念记录、结构整理和本地文件仓库管理。
+认知树是本地优先的可配置语法结构化笔记应用。它以 `.ctn` 原文、缩进层级、仓库语法和引用关系组织知识，面向概念记录、结构整理和个人仓库管理。
 
 ## 当前运行形态
 
@@ -8,7 +8,7 @@
 
     前端：React、Vite、CodeMirror、Canvas 引用图谱。
     后端：Node HTTP API、本地文件与 WebDAV repository adapter。
-    存储：默认在 .cognition-tree/repositories 下管理本地仓库，可由服务端配置远端仓库。
+    存储：默认在 .cognition-tree/repositories 下管理本地仓库，并在 .cognition-tree/server 下保存服务端状态和 WebDAV 连接配置。
 
 每个仓库由稳定的 repository id 标识。本地文件仓库以不可变快照保存内容：
 
@@ -31,7 +31,7 @@
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
     引用图谱：查看笔记级引用关系和局部图谱。
     问题：在工作台底部统一检查全仓库解析错误、语法错误和未解析引用，并跳转到对应笔记行或语法字段。
-    设置：创建和切换仓库，查看仓库位置与保存状态，并调整按仓库保存的工作台布局。
+    设置：创建、切换和删除 Local/WebDAV 仓库，查看自动生成的仓库 ID、位置与保存状态，并调整按仓库保存的工作台布局。
     离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
@@ -87,9 +87,10 @@
     CTN_API_HOST=127.0.0.1
     CTN_API_PORT=3001
     CTN_REPOSITORY_ROOT=.cognition-tree/repositories
+    CTN_SERVER_STATE_DIR=.cognition-tree/server
+    CTN_WEBDAV_PRIVATE_TARGETS=
     CTN_PUBLIC_URL=
     CTN_API_TOKEN=
-    CTN_WEBDAV_REPOSITORIES=[]
 
 前端环境变量：
 
@@ -99,9 +100,19 @@
 
 loopback HTTP 后端只接受 loopback Host 和本机开发前端 Origin。非 loopback 部署必须同时配置至少 32 字符的 `CTN_API_TOKEN` 和 HTTPS `CTN_PUBLIC_URL`；Host、Origin 与 CORS 策略由该公开 URL 推导。前端通过 `VITE_CTN_API_TOKEN` 发送同一 bearer token。
 
-后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
+部署模型是单用户个人服务。bearer token、WebDAV 凭据和 lease/CAS 处理同一使用者的受控客户端与多个实例，不建立用户、角色或共享权限模型。
 
-`CTN_WEBDAV_REPOSITORIES` 是服务端 JSON 数组，每项包含 `id`、`label`、`url`，以及可选的成对 `username`、`password`；带凭据时 URL 必须使用 HTTPS。WebDAV adapter 将内容写入不可变 `.ctn-generations/<token>/`，以 60 秒可续租 writer lease 和 current pointer 的 ETag CAS 发布 revision。缺少 ETag 或条件请求能力的服务在注册时被拒绝。本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。
+后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库，通过 `DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。repository id 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；workspace 使用独立的 `workspace-<uuid>`。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
+
+HTTP 模式的设置页可以动态添加和切换 Local/WebDAV 仓库。WebDAV 连接由名称、URL 和无认证或 Basic 认证组成；初次添加时探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE 能力。完全空的目标初始化为 v3 仓库，已有 v3 内容保持为远端事实，非空且不受管理的目标及旧版本目标不会被接管。本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。Browser 模式只创建和切换 Browser 仓库。
+
+WebDAV 连接文件位于 `CTN_SERVER_STATE_DIR/webdav-connections/`。状态目录权限为 `0700`，包含认证信息的配置文件权限为 `0600`；密码不进入 API 响应、日志或 IndexedDB。Basic 认证只用于 HTTPS URL，URL 不包含 userinfo、query 或 fragment，WebDAV 请求不跟随重定向。
+
+WebDAV 网络目标默认限于 global-unicast 地址。`CTN_WEBDAV_PRIVATE_TARGETS` 以逗号或空白分隔精确 origin 和 CIDR，例如 `https://nas.example:5006,192.168.1.0/24,fd00::/8`；匹配项允许私网、loopback、ULA 或 CGNAT 目标。link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址始终被拒绝。每次请求重新解析目标地址并将连接固定到已验证地址。
+
+Local 和 Browser 仓库只提供“删除托管数据”。WebDAV 仓库同时提供“仅移除连接”和“删除远端数据”：前者保留远端文件，后者以 current pointer 的 ETag CAS 发布永久 deletion tombstone，再清理 `.ctn-generations/`，并保留目标中的无关文件。清理未完成时 catalog 显示 `deleting` 问题并继续恢复；tombstone 阻止同一目标被当作空仓库重新初始化。
+
+旧的 `CTN_WEBDAV_REPOSITORIES` 静态配置入口已移除；环境中仍存在该变量时后端拒绝启动。
 
 HTTP repository 的本地 draft、已知远端 revision、catalog 与逐笔记 source 保存在 normalized IndexedDB v3 stores。一次编辑先以 local revision CAS 原子 stage 改变的笔记和状态，再异步同步远端；网络恢复会立即触发同步。远端 revision 已变化时继续保留并允许更新本地 pending 内容，直到显式丢弃或解决冲突。旧 browser storage 与旧 cache 不参与读取。
 

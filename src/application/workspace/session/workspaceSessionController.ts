@@ -74,6 +74,7 @@ export type WorkspaceSessionController = {
   flushPendingChanges: () => Promise<void>;
   getState: () => WorkspaceSessionControllerState;
   reload: () => Promise<void>;
+  prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
   start: () => void;
   subscribe: (listener: () => void) => () => void;
   updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
@@ -138,6 +139,7 @@ export function createWorkspaceSessionController({
   let generation = 0;
   let loadedSession: LoadedWorkspaceSession | null = null;
   let saveQueue: WorkspaceSessionSaveQueue | null = null;
+  let repositoryRemovalPrepared = false;
   let transitionVersion = 0;
   let state: WorkspaceSessionControllerState = {
     status: "loading",
@@ -153,7 +155,11 @@ export function createWorkspaceSessionController({
     listeners.forEach((listener) => listener());
   };
   const requireReadySession = () => {
-    if (!loadedSession || state.status !== "ready") {
+    if (
+      !loadedSession ||
+      state.status !== "ready" ||
+      repositoryRemovalPrepared
+    ) {
       throw new WorkspaceSessionUnavailableError();
     }
 
@@ -445,6 +451,38 @@ export function createWorkspaceSessionController({
       }
 
       await loadForTransition({ preserveReadyState });
+    },
+    async prepareForRepositoryRemoval() {
+      const session = requireReadySession();
+
+      repositoryRemovalPrepared = true;
+      try {
+        await saveQueue?.prepareForDiscard();
+      } catch (error) {
+        repositoryRemovalPrepared = false;
+        throw error;
+      }
+
+      let resumed = false;
+
+      return {
+        resume() {
+          if (resumed || disposed || !repositoryRemovalPrepared) {
+            return;
+          }
+          resumed = true;
+          repositoryRemovalPrepared = false;
+          const currentSession = loadedSession;
+
+          if (!currentSession || currentSession.generation !== session.generation) {
+            return;
+          }
+          const persistence = getCurrentPersistence();
+
+          installSaveQueue(currentSession.generation, persistence);
+          publishReady(persistence);
+        },
+      };
     },
     start() {
       if (!disposed && !loadedSession) {

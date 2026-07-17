@@ -12,11 +12,14 @@ import {
   createWebDavTransport,
   probeWebDavCapabilities,
 } from "../../../../server/adapters/webdav/webDavTransport.ts";
+import { WebDavConnectionRegistry } from "../../../../server/adapters/webdav/webDavConnectionRegistry.ts";
+import { parseWebDavPrivateTargets } from "../../../../server/adapters/webdav/webDavTargetPolicy.ts";
 import {
   WebDavRepositoryBusyError,
   WebDavWorkspaceStore,
   webDavCommitPhases,
   webDavCurrentPath,
+  webDavGenerationsPath,
   webDavLockPath,
 } from "../../../../server/adapters/webdav/webDavWorkspaceStore.ts";
 import { FileBackedWebDavServer } from "./fileBackedWebDavServer.ts";
@@ -47,16 +50,30 @@ function idSequence(prefix: string) {
   return () => `${prefix}-${++index}`;
 }
 
+const livePrivateTargetPolicy = parseWebDavPrivateTargets("127.0.0.1/32");
+
+function createLiveTransport(
+  service: FileBackedWebDavServer,
+  requestTimeoutMs = 30_000,
+) {
+  return createWebDavTransport({
+    privateTargetPolicy: livePrivateTargetPolicy,
+    requestTimeoutMs,
+    url: service.url,
+  });
+}
+
 function createStore(
   service: FileBackedWebDavServer,
   prefix: string,
   options: Partial<ConstructorParameters<typeof WebDavWorkspaceStore>[0]> = {},
 ) {
   return new WebDavWorkspaceStore({
+    allowEmptyTargetInitialization: true,
     createId: idSequence(prefix),
     initialWorkspaceId: "live-webdav-workspace",
     initialWorkspaceName: "Live WebDAV",
-    transport: createWebDavTransport({ requestTimeoutMs: 2_000, url: service.url }),
+    transport: createLiveTransport(service, 2_000),
     ...options,
   });
 }
@@ -77,7 +94,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v3 live loopback service", () => {
   });
 
   it("exercises real conditional requests and persists a consistent generation on disk", async () => {
-    const transport = createWebDavTransport({ url: service.url });
+    const transport = createLiveTransport(service);
 
     await expect(probeWebDavCapabilities(transport)).resolves.toBeUndefined();
     const store = createStore(service, "persistent");
@@ -151,7 +168,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v3 live loopback service", () => {
     const reader = createStore(service, "interleave-reader");
 
     await reader.initialize();
-    const transport = createWebDavTransport({ url: service.url });
+    const transport = createLiveTransport(service);
     const pointerResource = await transport.readText(webDavCurrentPath);
     const pointer = JSON.parse(pointerResource?.source ?? "null") as { generation: string };
     const paused = service.pauseNextRequest(
@@ -201,6 +218,102 @@ describe.skipIf(!runLiveWebDav)("WebDAV v3 live loopback service", () => {
       revision: committed.revision,
     });
   });
+
+  it("dynamically registers, restarts offline, removes only the connection, and publishes a deletion tombstone", async () => {
+    const stateDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "cognition-tree-webdav-registry-live-"),
+    );
+    const port = Number(new URL(service.url).port);
+    const original = createContent("dynamic-original");
+    const createRegistry = (prefix: string) => new WebDavConnectionRegistry({
+      createId: idSequence(prefix),
+      privateTargetPolicy: livePrivateTargetPolicy,
+      stateDirectory,
+    });
+    let registry = createRegistry("dynamic-first");
+
+    try {
+      const descriptor = await registry.register({
+        authentication: { type: "none" },
+        id: "repository-live-dynamic",
+        initialContent: original,
+        label: "Live dynamic",
+        url: service.url,
+      });
+
+      expect(descriptor).toMatchObject({
+        adapter: "webdav",
+        id: "repository-live-dynamic",
+        label: "Live dynamic",
+      });
+      await expect(
+        registry.getStore(descriptor.id).then((store) => store.loadSnapshot()),
+      ).resolves.toMatchObject({ content: original });
+
+      await service.stop();
+      await registry.dispose();
+      registry = createRegistry("dynamic-offline");
+      await expect(registry.listEntries()).resolves.toMatchObject({
+        repositories: [{ id: descriptor.id }],
+      });
+      await expect(
+        registry.getStore(descriptor.id).then((store) => store.loadSnapshot()),
+      ).rejects.toMatchObject({ code: "adapter_unavailable" });
+
+      await service.start(port);
+      await expect(
+        registry.getStore(descriptor.id).then((store) => store.loadSnapshot()),
+      ).resolves.toMatchObject({ content: original });
+      await expect(registry.removeConnection(descriptor.id)).resolves.toBe(true);
+      expect(await createLiveTransport(service).readText(webDavCurrentPath))
+        .not.toBeNull();
+
+      const reconnected = await registry.register({
+        authentication: { type: "none" },
+        id: "repository-live-reconnected",
+        initialContent: createContent("must-not-replace"),
+        label: "Live reconnected",
+        url: service.url,
+      });
+
+      await expect(
+        registry.getStore(reconnected.id).then((store) => store.loadSnapshot()),
+      ).resolves.toMatchObject({ content: original });
+      await createLiveTransport(service).writeText(
+        "user-owned.txt",
+        "preserve",
+        { ifNoneMatch: "*" },
+      );
+      const pending = await registry.deleteManagedData(reconnected.id);
+
+      expect(pending.status).toBe("deleting");
+      expect(JSON.parse(
+        (await createLiveTransport(service).readText(webDavCurrentPath))
+          ?.source ?? "null",
+      )).toMatchObject({
+        deletionToken: pending.deletionToken,
+        status: "deleted",
+      });
+      expect(await createLiveTransport(service).readText("user-owned.txt"))
+        .toMatchObject({ source: "preserve" });
+      await expect(registry.retryDeletion(reconnected.id)).resolves.toMatchObject({
+        status: "deleted",
+      });
+      await expect(registry.listEntries()).resolves.toEqual({
+        issues: [],
+        repositories: [],
+      });
+      expect(
+        (await createLiveTransport(service).listCollection(""))
+          .some(({ path: entryPath }) => entryPath === webDavGenerationsPath),
+      ).toBe(false);
+      expect(await createLiveTransport(service).readText("user-owned.txt"))
+        .toMatchObject({ source: "preserve" });
+    } finally {
+      await registry.dispose();
+      await rm(stateDirectory, { force: true, recursive: true });
+    }
+  }, 20_000);
 
   it("renews the production 60 second lease during a commit that remains active for over a minute", async () => {
     let markUploaded!: () => void;

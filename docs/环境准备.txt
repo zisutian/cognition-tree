@@ -36,22 +36,43 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
 
     .cognition-tree/repositories
 
+默认服务端状态目录：
+
+    .cognition-tree/server
+
 后端环境变量：
 
     CTN_API_HOST
     CTN_API_PORT
     CTN_REPOSITORY_ROOT
+    CTN_SERVER_STATE_DIR
+    CTN_WEBDAV_PRIVATE_TARGETS
     CTN_PUBLIC_URL
     CTN_API_TOKEN
-    CTN_WEBDAV_REPOSITORIES
 
-后端提供 health、repository catalog 和按 repository id 访问的 snapshot API。`GET /api/repositories` 列出仓库，`POST /api/repositories` 创建仓库，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库；base revision 过期时返回 409，且不覆盖磁盘内容。repository id 只映射到配置根目录的直接子目录，路径规范化和真实目录检查由 server 执行。
+后端提供 health、repository catalog 和按 repository id 访问的 snapshot API。`GET /api/repositories` 列出仓库与单仓问题，`POST /api/repositories` 创建 Local 仓库或注册 WebDAV 连接，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库，`DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接；base revision 过期时返回 409，且不覆盖已发布内容。所有仓库 ID 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；新建内容中的 workspace ID 独立生成为 `workspace-<uuid>`。repository id 只映射到 catalog 管理的对象，不接受前端指定的文件路径。
 
-WebDAV 仓库通过服务端 JSON 配置，例如：
+HTTP 模式在设置页中动态注册和切换 Local/WebDAV 仓库。WebDAV 表单包含稳定名称、URL、无认证或 Basic 认证；Browser 存储模式只显示 Browser adapter，不从浏览器直接连接 WebDAV。仓库切换不复制、上传或合并 Local 与 WebDAV 内容。
 
-    CTN_WEBDAV_REPOSITORIES='[{"id":"remote","label":"远端仓库","url":"https://dav.example/notes/","username":"user","password":"secret"}]'
+WebDAV registry 位于服务端状态目录：
 
-地址与凭据只由 server 读取，不写入仓库文件或前端设置。带凭据的 WebDAV 地址必须使用 HTTPS。WebDAV adapter 在 `.ctn-generations/<token>/` 中写入不可变 generation，以 `.ctn-lock.json` 的 60 秒 writer lease 协调写入，并通过 `.ctn-current.json` 的 ETag CAS 发布 generation。服务注册会探测 ETag、If-Match、If-None-Match、PROPFIND、MKCOL、PUT、GET 和 DELETE；能力不足时拒绝使用。本地仓库与 WebDAV 仓库之间不传输或合并内容。
+    <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
+
+状态目录及连接目录权限为 `0700`，连接配置和原子写临时文件权限为 `0600`。每个 schema version 1 配置独立保存 repository ID、稳定 label、规范化 URL、认证方式和 `active` 或 `deleting-remote` 状态。Basic 密码只存在于服务端连接文件和请求 Authorization header，不进入 repository 内容、API 响应、日志、浏览器设置或 IndexedDB。服务启动只加载 registry，不访问 WebDAV 网络；离线连接仍出现在 catalog 中，已有 IndexedDB 副本仍可打开。损坏的单个连接文件形成可清理的 WebDAV 问题，registry 根目录、锁和权限异常会使后端启动失败。
+
+初次添加连接执行完整能力探测，包括 ETag、If-Match、If-None-Match、PROPFIND、MKCOL、PUT、GET 和 DELETE。完全空的目标使用表单生成的初始 v3 内容初始化；已有合法 v3 内容保持为远端事实；v2、非空 unmanaged target 和 deletion tombstone 不会被初始化。WebDAV adapter 在 `.ctn-generations/<token>/` 中写入不可变 generation，以 `.ctn-lock.json` 的 60 秒 writer lease 协调写入，并通过 `.ctn-current.json` 的 ETag CAS 发布 generation。同一 server state 中一个规范化 WebDAV URL 只对应一个连接。
+
+带 Basic 认证的 WebDAV URL 使用 HTTPS。URL 不包含 userinfo、query 或 fragment；请求拒绝 3xx，不读取代理环境变量，使用 30 秒完整 deadline，并把单次响应限制在 20 MiB。生产请求在每次访问前重新解析全部 A/AAAA 地址，混合允许与禁止地址的结果整体拒绝；实际 socket 固定到已验证地址，同时保留原 hostname 的 Host、SNI 和证书校验。
+
+WebDAV 目标地址默认限于 global-unicast。`CTN_WEBDAV_PRIVATE_TARGETS` 接受由逗号或空白分隔的精确 origin 与 CIDR：
+
+    CTN_WEBDAV_PRIVATE_TARGETS='https://nas.example:5006,192.168.1.0/24 fd00::/8'
+
+精确 origin 只包含 `http` 或 `https` scheme、host 和显式或默认 port，path 为 `/`，且不包含 userinfo、query 或 fragment。CIDR 同时支持 IPv4 与 IPv6。匹配项授权私网、loopback、ULA 和 CGNAT 地址；link-local、metadata、unspecified、multicast、broadcast、文档网段和 reserved 地址不受该白名单覆盖。
+
+Local 和 Browser adapter 只接受 `delete-managed-data`。WebDAV 的 `remove-connection` 排空当前 store 后删除本地连接配置并保留全部远端内容；`delete-managed-data` 先将连接持久化为 `deleting-remote`，再取得 writer lease，以旧 current ETag 的 CAS 发布包含 deletion token、时间和原 revision 的永久 tombstone。CAS 之后只清理 `.ctn-generations/`，目标中的无关文件和 `.ctn-current.json` tombstone 保留。清理暂未完成时 API 返回 `202 {"status":"deleting"}`，catalog 显示 deleting issue，并按固定退避或重启恢复继续清理。移除 deleting issue 的本地连接配置会停止跟踪，远端可能保留不可达 generations。
+
+旧的 `CTN_WEBDAV_REPOSITORIES` 静态配置入口不参与读取或迁移；环境中定义该变量时后端启动失败。
 
 真实 WebDAV 协议验收命令为 `pnpm verify:webdav:live`。该命令在 loopback TCP 端口启动文件系统落盘的 WebDAV 服务，通过生产 HTTP transport 验证条件请求、不可变 generation、两个 writer 的 lease fencing、断线重连、提交与读取交错一致性，以及默认 60 秒 lease 下持续超过一分钟的提交和续租；因此执行时间至少为一分钟。日常 `pnpm test` 保留快速单元回归，但不执行这项长时 live 验证。
 
@@ -85,7 +106,7 @@ WebDAV 仓库通过服务端 JSON 配置，例如：
 
     VITE_CTN_STORAGE_MODE=browser pnpm dev
 
-HTTP 模式用于真实本地文件仓库。浏览器存储模式提供同样的多仓库 catalog 语义，用于界面和交互验证。每个浏览器独立保存当前 repository id。
+HTTP 模式连接服务端管理的 Local 与 WebDAV 仓库。浏览器存储模式提供同样的多仓库 catalog 语义，用于界面和交互验证。每个浏览器独立保存当前 repository id。
 
 `VITE_CTN_API_TOKEN` 会由浏览器作为 Authorization bearer 发送，只用于 API 请求；它不写入 repository catalog、workspace、IndexedDB cache 或日志。作为前端构建变量，它对使用该浏览器构建的人可见，因此安全边界仍是单用户部署和受控前端环境。
 
@@ -152,4 +173,4 @@ diff 空白检查：
 
 Linux 作为主要开发、测试和后端运行环境。Windows 可通过浏览器访问同一个本机后端服务，用于检查界面、输入法、路径展示和数据互通。
 
-两端代码仓库可以分别存在。笔记数据以 HTTP 后端指向的仓库路径为准。项目目录使用普通英文路径，仓库文件使用 LF。
+两端代码仓库可以分别存在。笔记数据以 HTTP catalog 当前仓库指向的 Local snapshot 或 WebDAV generation 为准。项目目录使用普通英文路径，仓库文件使用 LF。

@@ -10,7 +10,10 @@ import {
   workspaceRepositorySchemaVersion,
   type RepositoryRevisionDto,
 } from "../../../contracts/workspace-repository/types.ts";
-import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
+import {
+  RepositoryAdapterError,
+  RepositoryCorruptError,
+} from "../../repository/repositoryStore.ts";
 import {
   WebDavCapabilityError,
   type WebDavTextResource,
@@ -27,6 +30,16 @@ export type WebDavPointer = {
   revision: RepositoryRevisionDto;
   schemaVersion: typeof workspaceRepositorySchemaVersion;
 };
+
+export type WebDavDeletionTombstone = {
+  deletedAt: string;
+  deletionToken: string;
+  revision: RepositoryRevisionDto;
+  schemaVersion: typeof workspaceRepositorySchemaVersion;
+  status: "deleted";
+};
+
+export type WebDavCurrent = WebDavPointer | WebDavDeletionTombstone;
 
 export type WebDavLease = {
   expiresAt: string;
@@ -67,11 +80,44 @@ function assertExactFields(
   }
 }
 
-export function parseWebDavPointer(resource: WebDavTextResource): WebDavPointer {
+export function parseWebDavCurrent(resource: WebDavTextResource): WebDavCurrent {
   const value = parseObject(resource.source, "current pointer");
 
   if (value.schemaVersion !== workspaceRepositorySchemaVersion) {
     throw new UnsupportedRepositoryVersionError("$.schemaVersion", value.schemaVersion);
+  }
+  if (value.status === "deleted") {
+    assertExactFields(
+      value,
+      ["deletedAt", "deletionToken", "revision", "schemaVersion", "status"],
+      "deletion tombstone",
+    );
+    if (
+      typeof value.deletedAt !== "string" ||
+      !Number.isFinite(Date.parse(value.deletedAt)) ||
+      typeof value.deletionToken !== "string" ||
+      value.deletionToken.length === 0 ||
+      typeof value.revision !== "string"
+    ) {
+      throw new RepositoryCorruptError("WebDAV deletion tombstone is invalid");
+    }
+
+    try {
+      return {
+        deletedAt: value.deletedAt,
+        deletionToken: value.deletionToken,
+        revision: parseRepositoryRevision(value.revision, "$.revision"),
+        schemaVersion: workspaceRepositorySchemaVersion,
+        status: "deleted",
+      };
+    } catch (error) {
+      if (error instanceof WorkspaceRepositoryContractError) {
+        throw new RepositoryCorruptError(
+          "WebDAV deletion tombstone has invalid revision",
+        );
+      }
+      throw error;
+    }
   }
   assertExactFields(
     value,
@@ -109,6 +155,18 @@ export function parseWebDavPointer(resource: WebDavTextResource): WebDavPointer 
   }
 }
 
+export function parseWebDavPointer(resource: WebDavTextResource): WebDavPointer {
+  const current = parseWebDavCurrent(resource);
+
+  if ("status" in current) {
+    throw new RepositoryAdapterError(
+      "repository_not_found",
+      "WebDAV repository was deleted",
+    );
+  }
+  return current;
+}
+
 export function parseWebDavLease(resource: WebDavTextResource): WebDavLease {
   const value = parseObject(resource.source, "writer lease");
 
@@ -142,6 +200,23 @@ export function createWebDavPointer(
     publishedAt: new Date(now).toISOString(),
     revision,
     schemaVersion: workspaceRepositorySchemaVersion,
+  };
+}
+
+export function createWebDavDeletionTombstone(
+  deletionToken: string,
+  revision: RepositoryRevisionDto,
+  now: number,
+): WebDavDeletionTombstone {
+  if (deletionToken.length === 0) {
+    throw new Error("WebDAV deletion token must not be empty");
+  }
+  return {
+    deletedAt: new Date(now).toISOString(),
+    deletionToken,
+    revision,
+    schemaVersion: workspaceRepositorySchemaVersion,
+    status: "deleted",
   };
 }
 

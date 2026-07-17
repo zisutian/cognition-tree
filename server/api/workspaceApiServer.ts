@@ -12,7 +12,10 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../contracts/workspace-repository/contractValue.ts";
 import { serializeJsonIteratively } from "../../contracts/workspace-repository/json.ts";
-import { parseCreateRepository } from "../../contracts/workspace-repository/parseCatalog.ts";
+import {
+  parseCreateRepository,
+  parseRepositoryDeletionMode,
+} from "../../contracts/workspace-repository/parseCatalog.ts";
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryApiErrorDto,
@@ -32,7 +35,7 @@ import {
   type WorkspaceApiSecurityPolicy,
 } from "./workspaceApiSecurity.ts";
 
-const allowedMethods = "GET, OPTIONS, POST, PUT";
+const allowedMethods = "DELETE, GET, OPTIONS, POST, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
 
 const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {
@@ -51,6 +54,11 @@ const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {
 type WorkspaceApiRoute =
   | { kind: "health"; methods: readonly string[] }
   | { kind: "repositories"; methods: readonly string[] }
+  | {
+      kind: "repository";
+      methods: readonly string[];
+      repositoryId: string;
+    }
   | {
       kind: "repository-snapshot";
       methods: readonly string[];
@@ -97,19 +105,31 @@ function resolveRoute(pathname: string): WorkspaceApiRoute | null {
 
   const match = /^\/api\/repositories\/([^/]+)\/snapshot$/.exec(pathname);
 
-  if (!match) {
-    return null;
+  if (match) {
+    try {
+      return {
+        kind: "repository-snapshot",
+        methods: ["GET", "PUT"],
+        repositoryId: decodeURIComponent(match[1] ?? ""),
+      };
+    } catch {
+      throw new WorkspaceApiRequestError("invalid_request", "Invalid repository id encoding");
+    }
   }
+  const repositoryMatch = /^\/api\/repositories\/([^/]+)$/.exec(pathname);
 
-  try {
-    return {
-      kind: "repository-snapshot",
-      methods: ["GET", "PUT"],
-      repositoryId: decodeURIComponent(match[1] ?? ""),
-    };
-  } catch {
-    throw new WorkspaceApiRequestError("invalid_request", "Invalid repository id encoding");
+  if (repositoryMatch) {
+    try {
+      return {
+        kind: "repository",
+        methods: ["DELETE"],
+        repositoryId: decodeURIComponent(repositoryMatch[1] ?? ""),
+      };
+    } catch {
+      throw new WorkspaceApiRequestError("invalid_request", "Invalid repository id encoding");
+    }
   }
+  return null;
 }
 
 function getRequestHeader(request: IncomingMessage, name: string) {
@@ -272,6 +292,36 @@ function mapRepositoryError(error: unknown): WorkspaceApiRequestError {
   return new WorkspaceApiRequestError("internal_error", "Internal server error");
 }
 
+function redactLogText(source: string, sensitiveValues: readonly string[]) {
+  const withoutKnownSecrets = sensitiveValues
+    .filter((value) => value.length > 0)
+    .reduce(
+      (current, value) => current.split(value).join("[redacted]"),
+      source,
+    );
+
+  return withoutKnownSecrets
+    .replace(/\bBasic\s+[A-Za-z0-9+/=]+/gi, "Basic [redacted]")
+    .replace(/(https?:\/\/)[^\s/@]+@/gi, "$1[redacted]@");
+}
+
+function createSafeLogError(
+  error: unknown,
+  sensitiveValues: readonly string[],
+) {
+  if (!(error instanceof Error)) {
+    return new Error(redactLogText(String(error), sensitiveValues));
+  }
+
+  const safe = new Error(redactLogText(error.message, sensitiveValues));
+
+  safe.name = error.name;
+  if (error.stack) {
+    safe.stack = redactLogText(error.stack, sensitiveValues);
+  }
+  return safe;
+}
+
 export function createWorkspaceApiRequestHandler({
   catalog,
   logger = console,
@@ -279,6 +329,7 @@ export function createWorkspaceApiRequestHandler({
 }: WorkspaceApiOptions): WorkspaceApiRequestHandler {
   return async (request, response) => {
     const requestId = randomUUID();
+    const sensitiveLogValues: string[] = [];
     let responseHeaders = createResponseHeaders(null, requestId);
 
     try {
@@ -298,8 +349,15 @@ export function createWorkspaceApiRequestHandler({
       if (!request.method || !route.methods.includes(request.method)) {
         throw new WorkspaceApiRequestError("invalid_request", "Method not allowed", 405);
       }
-      if (request.method === "GET") {
+      if (request.method === "GET" || request.method === "DELETE") {
         assertRequestHasNoBody(request);
+      }
+
+      if (route.kind !== "repository" && url.search !== "") {
+        throw new WorkspaceApiRequestError(
+          "invalid_request",
+          "Query parameters are not allowed for this route",
+        );
       }
 
       if (route.kind === "health") {
@@ -314,7 +372,41 @@ export function createWorkspaceApiRequestHandler({
 
         const body = parseCreateRepository(await readJsonBody(request));
 
+        if (
+          body.adapter === "webdav" &&
+          body.authentication.type === "basic"
+        ) {
+          sensitiveLogValues.push(body.authentication.password);
+        }
+
         sendJson(response, 201, await catalog.createRepository(body), responseHeaders);
+        return;
+      }
+      if (route.kind === "repository") {
+        const keys = [...url.searchParams.keys()];
+        const modes = url.searchParams.getAll("mode");
+
+        if (
+          keys.length !== 1 ||
+          keys[0] !== "mode" ||
+          modes.length !== 1
+        ) {
+          throw new WorkspaceApiRequestError(
+            "invalid_request",
+            "DELETE requires exactly one mode query parameter",
+          );
+        }
+        const result = await catalog.deleteRepository(
+          route.repositoryId,
+          parseRepositoryDeletionMode(modes[0]),
+        );
+
+        sendJson(
+          response,
+          result.status === "deleting" ? 202 : 200,
+          result,
+          responseHeaders,
+        );
         return;
       }
 
@@ -346,7 +438,10 @@ export function createWorkspaceApiRequestHandler({
         : mapRepositoryError(error);
 
       if (mapped.statusCode >= 500) {
-        logger.error(`[${requestId}] workspace API request failed`, error);
+        logger.error(
+          `[${requestId}] workspace API request failed`,
+          createSafeLogError(error, sensitiveLogValues),
+        );
       }
       if (mapped.code === "unauthorized" && mapped.statusCode === 401) {
         responseHeaders = { ...responseHeaders, "WWW-Authenticate": "Bearer" };

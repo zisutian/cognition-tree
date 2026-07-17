@@ -157,6 +157,7 @@ describe("IndexedDB repository client cache", () => {
     const cache = await createRepository(indexedDb, content);
 
     await expect(cache.catalogs.load(catalogIdentity)).resolves.toEqual({
+      creatableAdapters: ["browser"],
       issues: [],
       repositories: [descriptor],
       version: 3,
@@ -280,6 +281,107 @@ describe("IndexedDB repository client cache", () => {
     vi.restoreAllMocks();
     await expect(cache.catalogs.load(catalogIdentity)).resolves.toBeNull();
     await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+  });
+
+  it("deletes catalog metadata, state, and notes in one transaction", async () => {
+    const indexedDb = new IDBFactory();
+    const cache = await createRepository(indexedDb, createContent([
+      { id: "note-a", source: "A" },
+      { id: "note-b", source: "B" },
+    ]));
+
+    await cache.deleteRepositoryAtomically({
+      catalogIdentity,
+      repositoryId: descriptor.id,
+      repositoryIdentity,
+    });
+
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toEqual({
+      creatableAdapters: ["browser"],
+      issues: [],
+      repositories: [],
+      version: 3,
+    });
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+
+    const database = await openDatabase(indexedDb);
+    const transaction = database.transaction(noteStoreName, "readonly");
+    const completion = transactionComplete(transaction);
+    const notes = await requestResult(
+      transaction.objectStore(noteStoreName).getAll(),
+    );
+
+    await completion;
+    expect(notes).toEqual([]);
+    database.close();
+  });
+
+  it("rolls back all three stores when an atomic delete aborts", async () => {
+    const indexedDb = new IDBFactory();
+    const content = createContent([{ id: "note-a", source: "preserved" }]);
+    const cache = await createRepository(indexedDb, content);
+    const originalTransaction = FakeIDBDatabase.prototype.transaction;
+
+    vi.spyOn(FakeIDBDatabase.prototype, "transaction").mockImplementation(function (
+      this: IDBDatabase,
+      storeNames: string | Iterable<string>,
+      mode?: IDBTransactionMode,
+      options?: IDBTransactionOptions,
+    ) {
+      const transaction = originalTransaction.call(this, storeNames, mode, options);
+      const names = typeof storeNames === "string" ? [storeNames] : [...storeNames];
+
+      if (names.length === 3 && names.includes(catalogStoreName)) {
+        queueMicrotask(() => transaction.abort());
+      }
+
+      return transaction;
+    });
+
+    await expect(cache.deleteRepositoryAtomically({
+      catalogIdentity,
+      repositoryId: descriptor.id,
+      repositoryIdentity,
+    })).rejects.toThrow();
+
+    vi.restoreAllMocks();
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toMatchObject({
+      repositories: [descriptor],
+    });
+    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toMatchObject({
+      content,
+    });
+  });
+
+  it("serializes delete with a cross-tab stage so deleted state cannot reappear", async () => {
+    const indexedDb = new IDBFactory();
+    const firstCache = await createRepository(indexedDb);
+    const secondCache = createIndexedDbRepositoryClientCache(indexedDb);
+    const results = await Promise.allSettled([
+      firstCache.snapshots.stage({
+        content: createContent([{ id: "note-a", source: "changed" }]),
+        expectedLocalRevision: draftA,
+        identity: repositoryIdentity,
+        localRevision: draftB,
+      }),
+      secondCache.deleteRepositoryAtomically({
+        catalogIdentity,
+        repositoryId: descriptor.id,
+        repositoryIdentity,
+      }),
+    ]);
+
+    expect(results[1]).toMatchObject({ status: "fulfilled" });
+    await expect(firstCache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+    await expect(firstCache.catalogs.load(catalogIdentity)).resolves.toMatchObject({
+      repositories: [],
+    });
+    await expect(firstCache.snapshots.stage({
+      content: createContent(),
+      expectedLocalRevision: draftB,
+      identity: repositoryIdentity,
+      localRevision: draftC,
+    })).rejects.toThrow("does not exist");
   });
 
   it("lets only one cache instance stage a shared local revision", async () => {

@@ -198,7 +198,8 @@ test.describe("directory and structure operation flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库").selectOption(interactionRepositoryId);
+    await page.getByLabel("当前仓库", { exact: true })
+      .selectOption(interactionRepositoryId);
     await getActivityButton(page, "结构操作").click();
 
     const columns = page.locator(".structure-operation-column");

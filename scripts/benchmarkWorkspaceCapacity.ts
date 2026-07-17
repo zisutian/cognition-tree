@@ -578,6 +578,7 @@ assertRepositoryContentEqual(httpSnapshot.content, editedContent, "HTTP commit")
 const webDavTransport = new BenchmarkWebDavTransport();
 let nextWebDavId = 0;
 const webDavStore = new WebDavWorkspaceStore({
+  allowEmptyTargetInitialization: true,
   createId: () => `capacity-generation-${++nextWebDavId}`,
   initialWorkspaceId: "capacity-webdav",
   initialWorkspaceName: "Capacity WebDAV",

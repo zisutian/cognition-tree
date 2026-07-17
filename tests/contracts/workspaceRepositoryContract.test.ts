@@ -4,6 +4,8 @@ import { parseRepositoryApiError } from "../../contracts/workspace-repository/pa
 import {
   parseCreateRepository,
   parseRepositoryCatalog,
+  parseRepositoryDeletionMode,
+  parseRepositoryDeletionResult,
 } from "../../contracts/workspace-repository/parseCatalog";
 import {
   parseWorkspaceRepositoryCommit,
@@ -46,10 +48,23 @@ describe("workspace repository v3 contract", () => {
       content,
     });
     expect(parseWorkspaceRepositoryCommitResult({ revision })).toEqual({ revision });
-    expect(parseCreateRepository({ content, id: "primary", label: "Primary" })).toEqual({
+    expect(parseCreateRepository({ adapter: "local", content, label: "Primary" })).toEqual({
+      adapter: "local",
       content,
-      id: "primary",
       label: "Primary",
+    });
+    expect(parseCreateRepository({
+      adapter: "webdav",
+      authentication: { type: "basic", username: "writer", password: "secret" },
+      initialContent: content,
+      label: "Remote",
+      url: "https://dav.example.test/notes",
+    })).toEqual({
+      adapter: "webdav",
+      authentication: { type: "basic", username: "writer", password: "secret" },
+      initialContent: content,
+      label: "Remote",
+      url: "https://dav.example.test/notes",
     });
     expect(parseWorkspaceRepositoryCommit({
       baseRevision: revision,
@@ -108,11 +123,14 @@ describe("workspace repository v3 contract", () => {
 
   it("parses healthy catalog entries, isolated issues, and structured errors", () => {
     const catalog = {
+      creatableAdapters: ["local", "webdav"],
       issues: [{
+        adapter: "local",
         code: "repository_corrupt",
         id: "broken",
         locationLabel: "local:broken",
         message: "Repository metadata is invalid",
+        status: "fault",
       }],
       repositories: [{
         adapter: "local",
@@ -123,6 +141,12 @@ describe("workspace repository v3 contract", () => {
     } as const;
 
     expect(parseRepositoryCatalog(catalog)).toEqual(catalog);
+    expect(parseRepositoryDeletionMode("delete-managed-data")).toBe(
+      "delete-managed-data",
+    );
+    expect(parseRepositoryDeletionResult({ status: "deleting" })).toEqual({
+      status: "deleting",
+    });
     expect(parseRepositoryApiError({
       code: "revision_conflict",
       currentRevision: revision,
@@ -134,5 +158,32 @@ describe("workspace repository v3 contract", () => {
       message: "changed",
       requestId: "request-1",
     });
+  });
+
+  it("rejects manual ids, invalid create variants, and invalid deletion results", () => {
+    const content = createContent();
+
+    expect(() => parseCreateRepository({
+      adapter: "local",
+      content,
+      id: "manual-id",
+      label: "Primary",
+    })).toThrow("unsupported field");
+    expect(() => parseCreateRepository({
+      adapter: "webdav",
+      authentication: { type: "none", password: "must-not-cross" },
+      initialContent: content,
+      label: "Remote",
+      url: "https://dav.example.test/notes",
+    })).toThrow("unsupported field");
+    expect(() => parseCreateRepository({
+      adapter: "browser",
+      content,
+      label: "Browser",
+    })).toThrow("unsupported create adapter");
+    expect(() => parseRepositoryDeletionMode("delete-everything"))
+      .toThrow("unsupported repository deletion mode");
+    expect(() => parseRepositoryDeletionResult({ status: "finished" }))
+      .toThrow("unsupported repository deletion status");
   });
 });

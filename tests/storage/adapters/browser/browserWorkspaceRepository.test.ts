@@ -6,6 +6,23 @@ import { createMemoryRepositoryClientCache } from "../../../../src/storage/repos
 import { WorkspaceRepositoryLocalConflictError } from "../../../../src/storage/repository/workspaceRepository";
 import { createRepositoryContent } from "../../repositoryV3Fixtures";
 
+const uuidA = "00000000-0000-4000-8000-000000000001";
+const uuidB = "00000000-0000-4000-8000-000000000002";
+const repositoryIdA = `repository-${uuidA}`;
+
+function createCatalog(
+  cache: BrowserRepositoryClientCache,
+  uuids = [uuidA],
+) {
+  let index = 0;
+
+  return createBrowserWorkspaceRepositoryCatalog({
+    cache,
+    createRepositoryUuid: () => uuids[index++] ?? uuids.at(-1)!,
+    validateContent: () => undefined,
+  });
+}
+
 function createMemoryBrowserCache(): BrowserRepositoryClientCache {
   const cache = createMemoryRepositoryClientCache();
 
@@ -21,7 +38,10 @@ function createMemoryBrowserCache(): BrowserRepositoryClientCache {
     }) {
       const existing = await cache.catalogs.load(catalogIdentity);
 
-      if (existing?.repositories.some(({ id }) => id === descriptor.id)) {
+      if (
+        existing?.repositories.some(({ id }) => id === descriptor.id) ||
+        existing?.issues.some(({ id }) => id === descriptor.id)
+      ) {
         throw new Error(`Browser repository already exists: ${descriptor.id}`);
       }
 
@@ -32,6 +52,7 @@ function createMemoryBrowserCache(): BrowserRepositoryClientCache {
       });
       try {
         await cache.catalogs.save(catalogIdentity, {
+          creatableAdapters: ["browser"],
           issues: existing?.issues ?? [],
           repositories: [
             ...(existing?.repositories ?? []),
@@ -48,26 +69,25 @@ function createMemoryBrowserCache(): BrowserRepositoryClientCache {
 }
 
 describe("browser workspace repository catalog", () => {
-  const validateContent = () => undefined;
-
   it("creates v3 repository state and catalog metadata through one atomic port", async () => {
     const cache = createMemoryBrowserCache();
     const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const catalog = createCatalog(cache);
     const content = createRepositoryContent("Browser workspace");
     const descriptor = await catalog.createRepository({
+      adapter: "browser",
       content,
-      id: "primary",
       label: "Stable label",
     });
 
     expect(descriptor).toEqual({
       adapter: "browser",
-      id: "primary",
+      id: repositoryIdA,
       label: "Stable label",
-      locationLabel: "浏览器 · primary",
+      locationLabel: `浏览器 · ${repositoryIdA}`,
     });
     await expect(catalog.listRepositories()).resolves.toEqual({
+      creatableAdapters: ["browser"],
       issues: [],
       repositories: [descriptor],
     });
@@ -85,10 +105,10 @@ describe("browser workspace repository catalog", () => {
 
   it("lets only one tab stage a shared local draft revision", async () => {
     const cache = createMemoryBrowserCache();
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
+      adapter: "browser",
       content: createRepositoryContent("Initial"),
-      id: "shared",
       label: "Shared",
     });
     const firstTab = catalog.openRepository(descriptor);
@@ -114,10 +134,10 @@ describe("browser workspace repository catalog", () => {
 
   it("persists only the latest v3 content and computes a sha256 saved revision", async () => {
     const cache = createMemoryBrowserCache();
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
+      adapter: "browser",
       content: createRepositoryContent("Initial"),
-      id: "primary",
       label: "Primary",
     });
     const repository = catalog.openRepository(descriptor);
@@ -141,42 +161,71 @@ describe("browser workspace repository catalog", () => {
     });
   });
 
-  it("rejects duplicates and invalid ids without changing the catalog", async () => {
+  it("allocates ids inside the catalog and retries health/issue collisions", async () => {
     const cache = createMemoryBrowserCache();
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
-    await catalog.createRepository({
+    await cache.catalogs.save("browser:v3", {
+      creatableAdapters: ["browser"],
+      issues: [{
+        adapter: "browser",
+        code: "repository_corrupt",
+        id: repositoryIdA,
+        locationLabel: `浏览器 · ${repositoryIdA}`,
+        message: "broken",
+        status: "fault",
+      }],
+      repositories: [],
+      version: 3,
+    });
+    const catalog = createCatalog(cache, [uuidA, uuidB]);
+    const descriptor = await catalog.createRepository({
+      adapter: "browser",
       content: createRepositoryContent("A"),
-      id: "same",
       label: "A",
     });
 
-    await expect(
-      catalog.createRepository({
-        content: createRepositoryContent("B"),
-        id: "same",
-        label: "B",
-      }),
-    ).rejects.toThrow("already exists");
-    await expect(
-      catalog.createRepository({
-        content: createRepositoryContent("Invalid"),
-        id: "../invalid",
-        label: "Invalid",
-      }),
-    ).rejects.toThrow("Invalid browser repository id");
+    expect(descriptor.id).toBe(`repository-${uuidB}`);
 
     const catalogState: RepositoryCatalogDto = {
-      issues: [],
-      repositories: [
-        {
-          adapter: "browser",
-          id: "same",
-          label: "A",
-          locationLabel: "浏览器 · same",
-        },
-      ],
+      creatableAdapters: ["browser"],
+      issues: [{
+        adapter: "browser",
+        code: "repository_corrupt",
+        id: repositoryIdA,
+        locationLabel: `浏览器 · ${repositoryIdA}`,
+        message: "broken",
+        status: "fault",
+      }],
+      repositories: [descriptor],
     };
     await expect(catalog.listRepositories()).resolves.toEqual(catalogState);
+  });
+
+  it("stops auto-id collision retries after the fixed attempt limit", async () => {
+    const cache = createMemoryBrowserCache();
+    await cache.catalogs.save("browser:v3", {
+      creatableAdapters: ["browser"],
+      issues: [],
+      repositories: [{
+        adapter: "browser",
+        id: repositoryIdA,
+        label: "Existing",
+        locationLabel: `浏览器 · ${repositoryIdA}`,
+      }],
+      version: 3,
+    });
+    const createRepositoryUuid = vi.fn(() => uuidA);
+    const catalog = createBrowserWorkspaceRepositoryCatalog({
+      cache,
+      createRepositoryUuid,
+      validateContent: () => undefined,
+    });
+
+    await expect(catalog.createRepository({
+      adapter: "browser",
+      content: createRepositoryContent(),
+      label: "Never created",
+    })).rejects.toThrow("Unable to allocate");
+    expect(createRepositoryUuid).toHaveBeenCalledTimes(100);
   });
 
   it("does not publish partial catalog state when atomic creation fails", async () => {
@@ -184,16 +233,17 @@ describe("browser workspace repository catalog", () => {
     cache.createRepositoryAtomically = vi.fn(async () => {
       throw new DOMException("quota exceeded", "QuotaExceededError");
     });
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const catalog = createCatalog(cache);
 
     await expect(
       catalog.createRepository({
+        adapter: "browser",
         content: createRepositoryContent(),
-        id: "primary",
         label: "Primary",
       }),
     ).rejects.toThrow("quota exceeded");
     await expect(catalog.listRepositories()).resolves.toEqual({
+      creatableAdapters: ["browser"],
       issues: [],
       repositories: [],
     });
@@ -202,19 +252,20 @@ describe("browser workspace repository catalog", () => {
   it("rejects invalid exact create content before the atomic cache port", async () => {
     const cache = createMemoryBrowserCache();
     const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const catalog = createCatalog(cache);
     const content = createRepositoryContent();
 
     Object.assign(content.workspace.notes[0]!, {
       title: "derived field must not persist",
     });
     await expect(catalog.createRepository({
+      adapter: "browser",
       content,
-      id: "invalid",
       label: "Invalid",
     })).rejects.toThrow("unsupported field");
     expect(atomicCreate).not.toHaveBeenCalled();
     await expect(catalog.listRepositories()).resolves.toEqual({
+      creatableAdapters: ["browser"],
       issues: [],
       repositories: [],
     });
@@ -222,10 +273,10 @@ describe("browser workspace repository catalog", () => {
 
   it("rejects unsafe note ids before stage and preserves the prior draft", async () => {
     const cache = createMemoryBrowserCache();
-    const catalog = createBrowserWorkspaceRepositoryCatalog({ cache, validateContent });
+    const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
+      adapter: "browser",
       content: createRepositoryContent("Initial"),
-      id: "primary",
       label: "Primary",
     });
     const repository = catalog.openRepository(descriptor);
@@ -239,5 +290,37 @@ describe("browser workspace repository catalog", () => {
       expectedLocalRevision: before.localRevision,
     })).rejects.toThrow("invalid repository note id");
     await expect(repository.loadSnapshot()).resolves.toEqual(before);
+  });
+
+  it("deletes browser content and catalog metadata idempotently", async () => {
+    const cache = createMemoryBrowserCache();
+    const atomicDelete = vi.spyOn(cache, "deleteRepositoryAtomically");
+    const catalog = createCatalog(cache);
+    const descriptor = await catalog.createRepository({
+      adapter: "browser",
+      content: createRepositoryContent(),
+      label: "Primary",
+    });
+
+    await expect(catalog.deleteRepository({
+      id: descriptor.id,
+      mode: "delete-managed-data",
+    })).resolves.toEqual({ status: "deleted" });
+    await expect(catalog.deleteRepository({
+      id: descriptor.id,
+      mode: "delete-managed-data",
+    })).resolves.toEqual({ status: "deleted" });
+    expect(atomicDelete).toHaveBeenCalledTimes(2);
+    await expect(catalog.listRepositories()).resolves.toEqual({
+      creatableAdapters: ["browser"],
+      issues: [],
+      repositories: [],
+    });
+    await expect(catalog.openRepository(descriptor).loadSnapshot())
+      .rejects.toThrow("does not exist");
+    await expect(catalog.deleteRepository({
+      id: descriptor.id,
+      mode: "remove-connection",
+    })).rejects.toThrow("only support managed-data deletion");
   });
 });

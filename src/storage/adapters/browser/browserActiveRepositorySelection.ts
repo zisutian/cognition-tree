@@ -8,6 +8,13 @@ function getStorage() {
 
 export function createBrowserActiveRepositorySelection(): ActiveRepositorySelection {
   return {
+    clear() {
+      try {
+        getStorage()?.removeItem(activeRepositoryStorageKey);
+      } catch {
+        // Repository selection can remain in memory when storage is unavailable.
+      }
+    },
     load() {
       try {
         return getStorage()?.getItem(activeRepositoryStorageKey) ?? null;

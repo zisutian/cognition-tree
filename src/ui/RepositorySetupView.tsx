@@ -1,4 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
+import type {
+  RepositoryAdapterOption,
+  RepositoryIssueView,
+} from "../application/workspace/activities/settings/settingsViewModel";
+import type {
+  CreateRepositoryRequest,
+  DeleteRepositoryRequest,
+  RepositoryCatalogOperation,
+} from "../application/workspace/session/useRepositoryCatalog";
+import { RepositoryCreateForm } from "./RepositoryCreateForm";
+import { ConfirmDialog } from "./shared/ConfirmDialog";
 import {
   Button,
   Panel,
@@ -7,29 +18,36 @@ import {
 } from "./shared/primitives";
 
 export function RepositorySetupView({
+  adapters,
   catalogLabel,
+  issues,
+  operation,
   onCreate,
+  onDelete,
 }: {
+  adapters: RepositoryAdapterOption[];
   catalogLabel: string;
-  onCreate: (input: { id: string; name: string }) => Promise<void>;
+  issues: RepositoryIssueView[];
+  operation: RepositoryCatalogOperation;
+  onCreate: (input: CreateRepositoryRequest) => Promise<void>;
+  onDelete: (input: DeleteRepositoryRequest) => Promise<unknown>;
 }) {
-  const [repositoryId, setRepositoryId] = useState("default");
-  const [name, setName] = useState("本地笔记库");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [pendingDeletion, setPendingDeletion] = useState<{
+    issue: RepositoryIssueView;
+    mode: DeleteRepositoryRequest["mode"];
+  } | null>(null);
+  const busy = operation !== "idle";
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setCreating(true);
-    setErrorMessage("");
-
+  const runDelete = async (input: DeleteRepositoryRequest) => {
+    setActionError("");
     try {
-      await onCreate({ id: repositoryId.trim(), name: name.trim() });
+      await onDelete(input);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "创建仓库失败。",
+      setActionError(
+        error instanceof Error ? error.message : "清理仓库条目失败。",
       );
-      setCreating(false);
+      throw error;
     }
   };
 
@@ -37,47 +55,92 @@ export function RepositorySetupView({
     <main className="session-state-frame">
       <Panel aria-label="创建仓库" className="repository-setup-panel">
         <PanelHeader title="创建仓库" />
-        <PanelBody>
-          <form className="repository-setup-form" onSubmit={handleSubmit}>
-            <label>
-              <span>仓库 ID</span>
-              <input
-                autoComplete="off"
-                className="ui-input"
-                disabled={creating}
-                maxLength={64}
-                onChange={(event) => setRepositoryId(event.target.value)}
-                pattern="[A-Za-z0-9][-A-Za-z0-9._]{0,63}"
-                required
-                value={repositoryId}
-              />
-            </label>
-            <label>
-              <span>名称</span>
-              <input
-                autoComplete="off"
-                className="ui-input"
-                disabled={creating}
-                maxLength={80}
-                onChange={(event) => setName(event.target.value)}
-                required
-                value={name}
-              />
-            </label>
-            <div className="repository-setup-meta">{catalogLabel}</div>
-            {errorMessage ? (
-              <p className="repository-setup-error" role="alert">
-                {errorMessage}
-              </p>
-            ) : null}
-            <div className="ui-actions">
-              <Button disabled={creating} type="submit" variant="primary">
-                {creating ? "创建中" : "创建"}
-              </Button>
-            </div>
-          </form>
+        <PanelBody scroll>
+          <div className="repository-setup-meta">{catalogLabel}</div>
+          <RepositoryCreateForm
+            adapters={adapters}
+            className="repository-setup-form"
+            disabled={busy}
+            initialName="本地笔记库"
+            onCreate={onCreate}
+          />
+          {issues.length > 0 ? (
+            <section
+              aria-labelledby="repository-setup-issues-title"
+              className="repository-setup-issues"
+            >
+              <h3 id="repository-setup-issues-title">仓库问题</h3>
+              {issues.map((issue) => (
+                <article className="repository-setup-issue" key={issue.id}>
+                  <div>
+                    <strong>{issue.displayLabel}</strong>
+                    <span>{issue.message}</span>
+                    <span>{issue.locationLabel}</span>
+                  </div>
+                  <div className="ui-actions">
+                    {issue.status === "deleting" ? (
+                      <Button
+                        disabled={busy}
+                        onClick={() => {
+                          void runDelete({
+                            id: issue.id,
+                            mode: "delete-managed-data",
+                          }).catch(() => undefined);
+                        }}
+                        type="button"
+                        variant="secondary"
+                      >
+                        重试清理
+                      </Button>
+                    ) : null}
+                    <Button
+                      className="ui-button-danger"
+                      disabled={busy}
+                      onClick={() => setPendingDeletion({
+                        issue,
+                        mode: issue.adapter === "webdav"
+                          ? "remove-connection"
+                          : "delete-managed-data",
+                      })}
+                      type="button"
+                      variant="secondary"
+                    >
+                      {issue.status === "deleting" ? "停止跟踪" : "清理"}
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : null}
+          {actionError ? (
+            <p className="repository-setup-error" role="alert">
+              {actionError}
+            </p>
+          ) : null}
         </PanelBody>
       </Panel>
+      <ConfirmDialog
+        confirmLabel={pendingDeletion?.issue.status === "deleting"
+          ? "停止跟踪"
+          : "清理"}
+        description={pendingDeletion?.issue.status === "deleting"
+          ? "停止跟踪会保留远端删除标记，并可能留下尚未清理的 generations。"
+          : `将删除故障仓库条目 ${pendingDeletion?.issue.id ?? ""}。`}
+        open={pendingDeletion !== null}
+        title="清理仓库问题"
+        onCancel={() => setPendingDeletion(null)}
+        onConfirm={() => {
+          const pending = pendingDeletion;
+
+          if (!pending) {
+            return;
+          }
+          void runDelete({
+            id: pending.issue.id,
+            mode: pending.mode,
+          }).then(() => setPendingDeletion(null)).catch(() => undefined);
+        }}
+      />
     </main>
   );
 }
