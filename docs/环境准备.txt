@@ -118,7 +118,7 @@ HTTP 系统仓库保存在：
     <CTN_SERVER_STATE_DIR>/system-repositories/system-journal.json
     <CTN_SERVER_STATE_DIR>/system-repositories/system-todo.json
 
-系统仓库目录权限为 `0700`，内容文件和原子写临时文件权限为 `0600`。缺失文件只 provision 一次空内容；不受支持或损坏的现有文件保持原样并形成仓库问题，不会自动覆盖。Browser 模式使用独立的 `cognition-tree.system-repositories` IndexedDB，并按 purpose 隔离远端事实与 local-first draft。日记内容在 HTTP 与 Browser 的 load、stage 和 commit 边界使用同一 Journal v1 语义 validator，固定创建时间标题或 canonical metadata 被篡改时拒绝写入并保留原内容。
+系统仓库目录权限为 `0700`，内容文件和原子写临时文件权限为 `0600`。缺失文件只 provision 一次空内容；不受支持或损坏的现有文件保持原样并形成仓库问题，不会自动覆盖。Browser 模式使用独立的 `cognition-tree.system-repositories` IndexedDB，并按 purpose 隔离远端事实与 local-first draft。日记和代办内容在 HTTP 与 Browser 的 load、stage 和 commit 边界分别使用 Journal v1 与 Todo v1 语义 validator；前后 revision transition 同时保护固定创建身份、时间单调性和领域状态，校验失败时拒绝写入并保留原内容。显式放弃本地 pending 只验证远端内容本身，允许回到权威远端 revision。
 
 HTTP 模式会在 IndexedDB v4 中按 API origin、repository id 和 token digest 隔离缓存，以 normalized stores 保存 catalog、repository state 和逐笔记 source。编辑事务同时执行 expected local revision CAS、笔记增删改与 state 更新。连接中断后，已有缓存的仓库可以在页面刷新后继续打开和编辑；连接恢复会立即尝试同步。如果远端 revision 已变化，则保留并继续接受本地 pending 内容。仓库活动的“放弃本地修改”只有在成功读取远端后才原子清除 pending。
 
@@ -181,7 +181,7 @@ TypeScript：
 
     pnpm test:e2e
 
-端到端测试使用独立的 3317 API 和 4174 前端端口，按编辑、目录与结构操作、语法与图谱、全局诊断、仓库与容量流程分别造数；不复用日常开发仓库。
+端到端测试使用独立的 3317 API 和 4174 前端端口，按编辑、目录与结构操作、语法与图谱、全局诊断、仓库与容量、日记和代办流程分别造数；不复用日常开发仓库。
 
 构建：
 

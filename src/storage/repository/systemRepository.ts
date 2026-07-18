@@ -16,6 +16,11 @@ import {
   validateJournalContent,
   validateJournalContentTransition,
 } from "../../../journal/model/journalContent";
+import {
+  TodoContentValidationError,
+  validateTodoContent,
+  validateTodoContentTransition,
+} from "../../../todo/model/todoContent";
 import type {
   VersionedRepository,
   VersionedRepositoryBackend,
@@ -116,7 +121,14 @@ export function validateSystemRepositoryContent(
       throw error;
     }
   }
-  return content;
+  try {
+    return validateTodoContent(content);
+  } catch (error) {
+    if (error instanceof TodoContentValidationError) {
+      throw new SystemRepositoryContentValidationError(error.message, error);
+    }
+    throw error;
+  }
 }
 
 export function validateSystemRepositoryTransition(
@@ -138,6 +150,19 @@ export function validateSystemRepositoryTransition(
       return validateJournalContentTransition(previous, next);
     } catch (error) {
       if (error instanceof JournalContentValidationError) {
+        throw new SystemRepositoryTransitionValidationError(
+          error.message,
+          error,
+        );
+      }
+      throw error;
+    }
+  }
+  if (previous.purpose === "system-todo" && next.purpose === "system-todo") {
+    try {
+      return validateTodoContentTransition(previous, next);
+    } catch (error) {
+      if (error instanceof TodoContentValidationError) {
         throw new SystemRepositoryTransitionValidationError(
           error.message,
           error,

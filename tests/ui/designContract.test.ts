@@ -273,12 +273,15 @@ describe("UI design contract", () => {
 
   it("keeps repository management aligned with the flat list visual grammar", () => {
     const repositoryStyle = readStyle("ui/styles/activities/repository.css");
-    const repositoryRowStart = repositoryStyle.indexOf(
-      ".repository-row {",
+    const compactContextStyle = readStyle(
+      "ui/styles/shared/compactContextList.css",
     );
-    const repositoryRow = repositoryStyle.slice(
-      repositoryRowStart,
-      repositoryStyle.indexOf("}", repositoryRowStart) + 1,
+    const compactRowStart = compactContextStyle.indexOf(
+      ".ui-compact-context-row {",
+    );
+    const compactRow = compactContextStyle.slice(
+      compactRowStart,
+      compactContextStyle.indexOf("}", compactRowStart) + 1,
     );
     const issueStart = repositoryStyle.indexOf(
       ".repository-issue-row {",
@@ -288,10 +291,12 @@ describe("UI design contract", () => {
       repositoryStyle.indexOf("}", issueStart) + 1,
     );
 
-    expect(repositoryRowStart).toBeGreaterThanOrEqual(0);
+    expect(compactRowStart).toBeGreaterThanOrEqual(0);
     expect(issueStart).toBeGreaterThanOrEqual(0);
-    expect(repositoryRow).toContain("var(--ui-symbol-size)");
-    expect(repositoryRow).toContain("minmax(0, 1fr)");
+    expect(compactRow).toContain("var(--ui-symbol-size)");
+    expect(compactRow).toContain("minmax(0, 1fr)");
+    expect(repositoryStyle).not.toContain(".repository-inline-rename");
+    expect(repositoryStyle).not.toContain(".repository-group-title");
     expect(repositoryStyle).toContain("width: min(100%, 880px)");
     expect(repositoryStyle).toContain("@media (max-width: 720px)");
     expect(issueRule).not.toContain("border:");

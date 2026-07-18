@@ -12,10 +12,13 @@ import type {
   JournalViewModel,
 } from "../../../application/journal";
 import { CtnEditor } from "../../../editor/CtnEditor";
+import {
+  CompactContextGroup,
+  CompactContextRow,
+} from "../../shared/CompactContextList";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
 import {
   Button,
-  cx,
   EmptyState,
   Panel,
   PanelBody,
@@ -113,44 +116,34 @@ export function JournalContext({ view }: JournalViewProps) {
       {view.groups.length > 0 ? (
         <div className="journal-month-groups">
           {view.groups.map((group) => (
-            <section aria-labelledby={`journal-month-${group.key}`} key={group.key}>
-              <h3 id={`journal-month-${group.key}`}>{group.label}</h3>
-              <ul aria-label={`${group.label}日记`} className="ui-tree">
-                {group.entries.map((entry) => (
-                  <li
-                    className={cx(
-                      "ui-tree-row-frame journal-entry-row",
-                      entry.isActive && "is-selected",
-                    )}
-                    key={entry.id}
-                  >
+            <CompactContextGroup
+              headingId={`journal-month-${group.key}`}
+              key={group.key}
+              label={group.label}
+              listAriaLabel={`${group.label}日记`}
+            >
+              {group.entries.map((entry) => (
+                <CompactContextRow
+                  actions={
                     <button
-                      aria-current={entry.isActive ? "page" : undefined}
-                      className={cx(
-                        "ui-tree-row journal-entry-select",
-                        entry.isActive && "is-selected",
-                      )}
-                      onClick={() => view.selectEntry(entry.id)}
-                      title={entry.title}
+                      aria-label={`删除日记 ${entry.title}`}
+                      onClick={() => setPendingDelete(entry)}
+                      title="删除日记"
                       type="button"
                     >
-                      <CalendarDays aria-hidden="true" />
-                      <span className="ui-tree-text">{entry.title}</span>
+                      <Trash2 aria-hidden="true" size={13} />
                     </button>
-                    <span className="ui-tree-actions">
-                      <button
-                        aria-label={`删除日记 ${entry.title}`}
-                        onClick={() => setPendingDelete(entry)}
-                        title="删除日记"
-                        type="button"
-                      >
-                        <Trash2 aria-hidden="true" size={13} />
-                      </button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+                  }
+                  icon={<CalendarDays aria-hidden="true" />}
+                  key={entry.id}
+                  label={entry.title}
+                  rowClassName="journal-entry-select"
+                  selected={entry.isActive}
+                  title={entry.title}
+                  onSelect={() => view.selectEntry(entry.id)}
+                />
+              ))}
+            </CompactContextGroup>
           ))}
         </div>
       ) : (

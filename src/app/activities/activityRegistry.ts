@@ -31,6 +31,13 @@ export const workspaceActivityControllers: ReadonlyArray<{
     })),
   },
   {
+    activityId: "todo",
+    Controller: lazy(async () => ({
+      default: (await import("./TodoActivityController"))
+        .TodoActivityController,
+    })),
+  },
+  {
     activityId: "structure-operation",
     Controller: lazy(async () => ({
       default: (await import("./StructureOperationActivityController"))

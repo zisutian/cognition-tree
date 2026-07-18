@@ -6,4 +6,5 @@
 @import "./shared/tree.css";
 @import "./shared/blockText.css";
 @import "./shared/context.css";
+@import "./shared/compactContextList.css";
 @import "./shared/overlays.css";

@@ -15,6 +15,8 @@ import {
   readSourceImports,
   serverModules,
   sourceModules,
+  todoModules,
+  todoPathToRelative,
   workspaceModules,
 } from "./sourceGraph";
 
@@ -264,6 +266,82 @@ describe("dependency boundaries", () => {
       ]);
   });
 
+  it("keeps Todo a pure shared domain with explicit consumers", () => {
+    const todoPrefix = "../../todo/";
+    const blockedImports = [
+      /^node:/,
+      /^react$/,
+      /^react\//,
+      /(?:^|\/)contracts\//,
+      /(?:^|\/)ctn\//,
+      /(?:^|\/)journal\//,
+      /(?:^|\/)server\//,
+      /(?:^|\/)src\//,
+      /(?:^|\/)workspace\//,
+    ];
+    const purityViolations = Object.keys(todoModules).flatMap((filePath) =>
+      readModuleImports(todoModules, filePath)
+        .filter((importPath) =>
+          blockedImports.some((pattern) => pattern.test(importPath)),
+        )
+        .map((importPath) => formatImport(filePath, importPath))
+    );
+    const graph = new Map(
+      Object.keys(todoModules).map((filePath) => [
+        filePath,
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          todoPrefix,
+        ).map(({ targetPath }) => targetPath),
+      ]),
+    );
+    const allowedSourceConsumers = new Set(["application", "storage"]);
+    const sourceConsumerViolations = Object.keys(sourceModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          todoPrefix,
+        )
+          .filter(() => !allowedSourceConsumers.has(getSourceRoot(filePath)))
+          .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const serverConsumerViolations = Object.keys(serverModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          todoPrefix,
+        )
+          .filter(
+            () => filePath !== "../../server/repository/systemRepositoryStore.ts",
+          )
+          .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const contractConsumerViolations = Object.keys(contractModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          todoPrefix,
+        ).map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+
+    expect([
+      ...purityViolations,
+      ...sourceConsumerViolations,
+      ...serverConsumerViolations,
+      ...contractConsumerViolations,
+    ]).toEqual([]);
+    expect(findDependencyCycles(graph)).toEqual([]);
+    expect(Object.keys(todoModules).map(todoPathToRelative).sort()).toEqual([
+      "commands/todoCommands.ts",
+      "model/todoContent.ts",
+      "queries/todoQueries.ts",
+    ]);
+  });
+
   it("keeps application activity state behind local activity boundaries", () => {
     const activityPrefix = "../../src/application/workspace/activities/";
     const siblingViolations = listSourceFiles(
@@ -349,6 +427,31 @@ describe("dependency boundaries", () => {
       ...sharedViolations,
       ...frameViolations,
     ]).toEqual([]);
+  });
+
+  it("keeps compact context row structure shared across list-based activities", () => {
+    const compactContextListTarget =
+      "../../src/ui/shared/CompactContextList";
+    const requiredConsumers = [
+      "../../src/ui/activities/journal/JournalPanels.tsx",
+      "../../src/ui/activities/repository/RepositoryPanel.tsx",
+      "../../src/ui/activities/syntax/SyntaxContext.tsx",
+    ];
+    const missingConsumers = requiredConsumers.filter((filePath) =>
+      !readSourceImports(filePath).some(
+        ({ targetPath }) => targetPath === compactContextListTarget,
+      )
+    );
+    const inlineRenameMarkupOwners = listSourceFiles("ui").filter((filePath) =>
+      (sourceModules[filePath] ?? "").includes(
+        "ui-compact-context-inline-rename",
+      ),
+    );
+
+    expect(missingConsumers).toEqual([]);
+    expect(inlineRenameMarkupOwners).toEqual([
+      "../../src/ui/shared/CompactContextList.tsx",
+    ]);
   });
 
   it("keeps global workbench composition out of activity controllers", () => {

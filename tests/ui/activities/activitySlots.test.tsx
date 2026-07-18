@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   Archive,
   CalendarDays,
+  ListChecks,
 } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { workspaceActivityControllers } from "../../../src/app/activities/activityRegistry";
@@ -12,6 +13,7 @@ import { createRepositoryActivitySlots } from "../../../src/ui/activities/reposi
 import { createSettingsActivitySlots } from "../../../src/ui/activities/settings/SettingsActivitySlots";
 import { createStructureOperationActivitySlots } from "../../../src/ui/activities/structure-operation/StructureOperationActivitySlots";
 import { createSyntaxActivitySlots } from "../../../src/ui/activities/syntax/SyntaxActivitySlots";
+import { createTodoActivitySlots } from "../../../src/ui/activities/todo/TodoActivitySlots";
 import { createVisualizationActivitySlots } from "../../../src/ui/activities/visualization/VisualizationActivitySlots";
 import {
   activityItems,
@@ -57,6 +59,8 @@ function slotsWithView(
         onToggleFocusMode: controls.onToggleFocusMode,
         view: view.journal,
       });
+    case "todo":
+      return createTodoActivitySlots({ view: view.todo });
     case "structure-operation":
       return createStructureOperationActivitySlots({
         onConfigureSyntax: controls.onConfigureSyntax,
@@ -101,6 +105,9 @@ describe("activity slots", () => {
     expect(slots("journal").context?.title).toBe("日记");
     expect(slots("journal").detail).not.toBeNull();
 
+    expect(slots("todo").context?.title).toBe("代办");
+    expect(slots("todo").detail).toBeNull();
+
     expect(slots("structure-operation").context?.title).toBe("结构操作");
     expect(slots("structure-operation").detail).toBeNull();
 
@@ -122,6 +129,7 @@ describe("activity slots", () => {
     expect(primaryActivityItems.map((item) => item.id)).toEqual([
       "notes",
       "journal",
+      "todo",
       "structure-operation",
       "visualization",
       "syntax",
@@ -135,6 +143,7 @@ describe("activity slots", () => {
     expect(activityItems.map((item) => item.id)).toEqual([
       "notes",
       "journal",
+      "todo",
       "structure-operation",
       "visualization",
       "syntax",
@@ -149,6 +158,12 @@ describe("activity slots", () => {
     expect(
       activityItems.find((item) => item.id === "journal")?.icon,
     ).toBe(CalendarDays);
+    expect(
+      activityItems.find((item) => item.id === "todo")?.label,
+    ).toBe("代办");
+    expect(
+      activityItems.find((item) => item.id === "todo")?.icon,
+    ).toBe(ListChecks);
     expect(
       activityItems.find((item) => item.id === "structure-operation")?.label,
     ).toBe("结构操作");
@@ -166,6 +181,7 @@ describe("activity slots", () => {
     ).toEqual([
       "notes",
       "journal",
+      "todo",
       "structure-operation",
       "visualization",
       "syntax",
@@ -223,13 +239,13 @@ describe("activity slots", () => {
     expect(renderSlot(slots("search").main)).toContain("搜索功能待接入");
     expect(renderSlot(slots("data").main)).toContain("数据功能待接入");
     expect(renderSlot(slots("repository").context?.content)).toContain(
-      'class="ui-tree repository-list"',
+      "ui-compact-context-list repository-list",
     );
     expect(renderSlot(slots("repository").context?.content)).toContain(
       'aria-current="page"',
     );
     expect(renderSlot(slots("syntax").context?.content)).toContain(
-      'class="ui-tree syntax-file-list"',
+      "ui-compact-context-list syntax-file-list",
     );
     expect(renderSlot(slots("syntax").context?.content)).toContain(
       'data-syntax-file-id="syntax-default"',

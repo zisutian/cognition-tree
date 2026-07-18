@@ -17,24 +17,6 @@
   scrollbar-width: thin;
 }
 
-.journal-month-groups section {
-  display: grid;
-  gap: var(--ui-border-width);
-}
-
-.journal-month-groups h3 {
-  margin: 0;
-  padding: var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-  line-height: var(--ui-micro-line-height);
-}
-
-.journal-entry-select {
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
 .journal-persistence-state {
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);

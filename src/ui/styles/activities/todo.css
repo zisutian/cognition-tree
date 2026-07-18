@@ -1,0 +1,126 @@
+.todo-context {
+  overflow: hidden;
+}
+
+.todo-collection-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.todo-collection-count {
+  min-width: calc(var(--ui-symbol-size) * 2);
+  text-align: right;
+}
+
+.todo-drag-handle {
+  color: var(--color-fg-subtle);
+  cursor: grab;
+  touch-action: none;
+}
+
+.todo-drag-handle:active {
+  cursor: grabbing;
+}
+
+.todo-drag-handle[aria-pressed="true"] {
+  color: var(--color-accent);
+  background: var(--color-selected);
+}
+
+.todo-checklist-panel {
+  border-right: var(--ui-border-width) solid var(--color-border);
+}
+
+.todo-persistence-state {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.todo-checklist-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-gap);
+}
+
+.todo-new-item-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+}
+
+.todo-item-list {
+  gap: var(--ui-gap-tight);
+}
+
+.todo-item-row {
+  grid-template-columns:
+    var(--ui-control-height)
+    var(--ui-control-height)
+    minmax(0, 1fr)
+    auto;
+  min-height: var(--ui-control-height);
+  border: var(--ui-border-width) solid var(--color-border);
+  background: var(--color-panel);
+}
+
+.todo-item-row:hover,
+.todo-item-row:focus-within {
+  border-color: var(--color-border-strong);
+  background: var(--color-hover);
+}
+
+.todo-item-row > .todo-drag-handle {
+  align-self: stretch;
+  min-height: var(--ui-control-height);
+}
+
+.todo-item-checkbox {
+  justify-self: center;
+  width: var(--ui-symbol-size);
+  height: var(--ui-symbol-size);
+  accent-color: var(--color-accent);
+}
+
+.todo-item-text {
+  min-width: 0;
+  padding: var(--ui-gap-tight) 0;
+  overflow: hidden;
+  color: var(--color-fg);
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-item-row.is-completed .todo-item-text {
+  color: var(--color-fg-muted);
+  text-decoration: line-through;
+}
+
+.todo-item-edit-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.todo-item-actions {
+  align-self: stretch;
+}
+
+.todo-empty-items {
+  display: grid;
+  justify-items: center;
+  gap: var(--ui-gap-tight);
+  padding: calc(var(--ui-gap) * 3) var(--ui-gap);
+  color: var(--color-fg-muted);
+}
+
+.todo-empty-items p {
+  margin: 0;
+  font-size: var(--ui-body-font-size);
+}

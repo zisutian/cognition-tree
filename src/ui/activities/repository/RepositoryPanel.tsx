@@ -23,6 +23,11 @@ import {
   requiresManualLocalDeletion,
 } from "../../../application/workspace/activities/repository/repositoryViewModel";
 import { RepositoryCreateForm } from "../../RepositoryCreateForm";
+import {
+  CompactContextGroup,
+  CompactContextRow,
+  CompactContextStaticRow,
+} from "../../shared/CompactContextList";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
 import {
   Button,
@@ -159,80 +164,51 @@ export function RepositoryContext({
           issues[0]?.adapterLabel ?? adapter;
 
         return (
-          <section className="repository-group" key={adapter}>
-            <p className="repository-group-title">
-              <span>{adapterLabel}</span>
-              <span>{repositories.length + issues.length}</span>
-            </p>
-            <ul className="ui-tree repository-list">
+          <CompactContextGroup
+            className="repository-group"
+            count={repositories.length + issues.length}
+            headingId={`repository-group-${adapter}`}
+            key={adapter}
+            label={adapterLabel}
+            listClassName="repository-list"
+          >
               {repositories.map((repository) => {
                 const active = repository.id === view.activeRepositoryId;
                 const renaming = renamingRepositoryId === repository.id;
 
                 return (
-                  <li
-                    className={cx(
-                      "ui-tree-row-frame repository-row-frame",
-                      active && "is-selected",
-                    )}
-                    key={repository.id}
-                  >
-                    {renaming ? (
-                      <form
-                        className="repository-inline-rename"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void finishRename(repository).catch(
-                            feedback.notifyError,
-                          );
-                        }}
-                      >
-                        <RepositoryAdapterIcon adapter={repository.adapter} />
-                        <input
-                          aria-label={`重命名仓库 ${repository.label}`}
-                          autoFocus
-                          className="ui-input ui-input-tree"
-                          disabled={busy}
-                          onBlur={() => setRenamingRepositoryId(null)}
-                          onChange={(event) => setRenameValue(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Escape") {
-                              event.preventDefault();
-                              setRenamingRepositoryId(null);
-                            }
-                          }}
-                          value={renameValue}
-                        />
-                      </form>
-                    ) : (
-                    <button
-                      aria-current={active ? "page" : undefined}
-                      className={cx(
-                        "ui-tree-row repository-row",
-                        active && "is-selected",
-                      )}
-                      data-repository-id={repository.id}
-                      disabled={busy}
-                      onClick={() => {
-                        if (!active) {
-                          void view.selectRepository(repository.id).catch(
-                            feedback.notifyError,
-                          );
-                        }
-                      }}
-                      onDoubleClick={() => beginRename(repository)}
-                      onKeyDown={(event) => {
-                        if (event.key === "F2") {
-                          event.preventDefault();
-                          beginRename(repository);
-                        }
-                      }}
-                      title={repository.displayLabel}
-                      type="button"
-                    >
+                  <CompactContextRow
+                    buttonProps={{
+                      "data-repository-id": repository.id,
+                    }}
+                    disabled={busy}
+                    icon={
                       <RepositoryAdapterIcon adapter={repository.adapter} />
-                      <span className="ui-tree-text">{repository.label}</span>
-                      {active ? (
+                    }
+                    inlineRename={renaming
+                      ? {
+                          ariaLabel: `重命名仓库 ${repository.label}`,
+                          disabled: busy,
+                          onBlur: () => setRenamingRepositoryId(null),
+                          onCancel: () => setRenamingRepositoryId(null),
+                          onChange: setRenameValue,
+                          onSubmit: () => {
+                            void finishRename(repository).catch(
+                              feedback.notifyError,
+                            );
+                          },
+                          value: renameValue,
+                        }
+                      : undefined}
+                    key={repository.id}
+                    label={repository.label}
+                    onBeginRename={() => beginRename(repository)}
+                    rowClassName="repository-row"
+                    selected={active}
+                    title={repository.displayLabel}
+                    trailing={
+                      <>
+                        {active ? (
                         <span className="ui-tree-meta">
                           {view.persistenceStatusLabel}
                         </span>
@@ -245,9 +221,16 @@ export function RepositoryContext({
                           名称冲突
                         </span>
                       ) : null}
-                    </button>
-                    )}
-                  </li>
+                      </>
+                    }
+                    onSelect={() => {
+                      if (!active) {
+                        void view.selectRepository(repository.id).catch(
+                          feedback.notifyError,
+                        );
+                      }
+                    }}
+                  />
                 );
               })}
               {issues.map((issue) => {
@@ -255,20 +238,18 @@ export function RepositoryContext({
                 const manualDeletion = requiresManualLocalDeletion(issue);
 
                 return (
-                  <li
-                    className="ui-tree-row-frame repository-row-frame repository-issue-row-frame"
+                  <CompactContextStaticRow
+                    compact={false}
+                    contentClassName={cx(
+                      "repository-issue-row",
+                      issue.status === "deleting" && "is-deleting",
+                    )}
+                    contentProps={{
+                      "aria-label": issue.displayLabel,
+                      "data-repository-issue-id": issue.id,
+                    }}
                     key={issue.id}
                   >
-                    <div
-                      aria-label={issue.displayLabel}
-                      className={cx(
-                        "repository-issue-row",
-                        issue.status === "deleting" && "is-deleting",
-                      )}
-                      data-repository-issue-id={issue.id}
-                      role="group"
-                      tabIndex={-1}
-                    >
                       <AlertTriangle aria-hidden="true" size={13} />
                       <div className="repository-issue-details">
                         <strong title={issue.displayLabel}>{issue.id}</strong>
@@ -345,33 +326,29 @@ export function RepositoryContext({
                           </span>
                         ) : null}
                       </div>
-                    </div>
-                  </li>
+                  </CompactContextStaticRow>
                 );
               })}
-            </ul>
-          </section>
+          </CompactContextGroup>
         );
       })}
-      <section className="repository-group repository-system-group">
-        <p className="repository-group-title">
-          <span>内置</span>
-          <span>{view.systemRepositories.length + view.systemIssues.length}</span>
-        </p>
-        <ul className="ui-tree repository-list">
+      <CompactContextGroup
+        className="repository-group repository-system-group"
+        count={view.systemRepositories.length + view.systemIssues.length}
+        headingId="repository-group-system"
+        label="内置"
+        listClassName="repository-list"
+      >
           {view.systemRepositories.map((repository) => (
-            <li
-              className="ui-tree-row-frame repository-row-frame"
+            <CompactContextStaticRow
+              contentClassName="repository-row repository-system-row"
+              contentProps={{
+                "aria-label": `${repository.label}，内置受保护仓库`,
+                "data-system-repository-id": repository.id,
+                title: repository.locationRows[0]?.value,
+              }}
               key={repository.id}
             >
-              <div
-                aria-label={`${repository.label}，内置受保护仓库`}
-                className="ui-tree-row repository-row repository-system-row"
-                data-system-repository-id={repository.id}
-                role="group"
-                tabIndex={-1}
-                title={repository.locationRows[0]?.value}
-              >
                 {repository.hasProblem ? (
                   <AlertTriangle aria-hidden="true" size={13} />
                 ) : (
@@ -404,21 +381,18 @@ export function RepositoryContext({
                     {row.label}：{row.value}
                   </span>
                 ))}
-              </div>
-            </li>
+            </CompactContextStaticRow>
           ))}
           {view.systemIssues.map((issue) => (
-            <li
-              className="ui-tree-row-frame repository-row-frame repository-issue-row-frame"
+            <CompactContextStaticRow
+              compact={false}
+              contentClassName="repository-issue-row"
+              contentProps={{
+                "aria-label": `${issue.displayLabel}，${issue.message}`,
+                "data-system-repository-id": issue.id,
+              }}
               key={issue.id}
             >
-              <div
-                aria-label={`${issue.displayLabel}，${issue.message}`}
-                className="repository-issue-row"
-                data-system-repository-id={issue.id}
-                role="group"
-                tabIndex={-1}
-              >
                 <AlertTriangle aria-hidden="true" size={13} />
                 <div className="repository-issue-details">
                   <strong>{issue.label}</strong>
@@ -458,11 +432,9 @@ export function RepositoryContext({
                     </Button>
                   </span>
                 </div>
-              </div>
-            </li>
+            </CompactContextStaticRow>
           ))}
-        </ul>
-      </section>
+      </CompactContextGroup>
       {view.catalogStatus === "loading" ? (
         <p className="context-empty">正在载入普通仓库列表。</p>
       ) : null}

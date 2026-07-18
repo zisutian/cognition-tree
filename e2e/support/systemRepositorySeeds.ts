@@ -4,17 +4,28 @@ import type { APIRequestContext } from "@playwright/test";
 import type {
   JournalRepositoryContentDto,
   SystemRepositorySnapshotDto,
+  TodoRepositoryContentDto,
 } from "../../contracts/system-repository/types";
 import { createJournalEntry } from "../../journal/commands/journalCommands";
 import type { JournalContent } from "../../journal/model/journalContent";
 
 const journalSnapshotEndpoint =
   "/api/system-repositories/system-journal/snapshot";
+const todoSnapshotEndpoint =
+  "/api/system-repositories/system-todo/snapshot";
 
 export function createEmptyJournalSeed(): JournalRepositoryContentDto {
   return {
     entries: [],
     purpose: "system-journal",
+    schemaVersion: 1,
+  };
+}
+
+export function createEmptyTodoSeed(): TodoRepositoryContentDto {
+  return {
+    collections: [],
+    purpose: "system-todo",
     schemaVersion: 1,
   };
 }
@@ -81,4 +92,48 @@ export async function resetJournalRepository(
   }
 
   throw new Error("Failed to reset the Journal system repository after CAS retries.");
+}
+
+export async function readTodoSnapshot(api: APIRequestContext) {
+  const response = await api.get(todoSnapshotEndpoint);
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to read the Todo system repository: ${response.status()} ${
+        await response.text()
+      }`,
+    );
+  }
+
+  return await response.json() as SystemRepositorySnapshotDto & {
+    content: TodoRepositoryContentDto;
+  };
+}
+
+export async function resetTodoRepository(
+  api: APIRequestContext,
+  content: TodoRepositoryContentDto = createEmptyTodoSeed(),
+) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const current = await readTodoSnapshot(api);
+    const response = await api.put(todoSnapshotEndpoint, {
+      data: {
+        baseRevision: current.revision,
+        content,
+      },
+    });
+
+    if (response.ok()) {
+      return;
+    }
+    if (response.status() !== 409) {
+      throw new Error(
+        `Failed to reset the Todo system repository: ${response.status()} ${
+          await response.text()
+        }`,
+      );
+    }
+  }
+
+  throw new Error("Failed to reset the Todo system repository after CAS retries.");
 }

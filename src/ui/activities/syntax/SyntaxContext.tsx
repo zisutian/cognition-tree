@@ -5,8 +5,12 @@ import type {
   SyntaxViewModel,
 } from "../../../application/workspace/activities/syntax/syntaxViewModel";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
+import {
+  CompactContextList,
+  CompactContextRow,
+} from "../../shared/CompactContextList";
 import { useFeedback } from "../../shared/FeedbackProvider";
-import { Button, cx } from "../../shared/primitives";
+import { Button } from "../../shared/primitives";
 
 export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   const feedback = useFeedback();
@@ -39,49 +43,15 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
           <Plus aria-hidden="true" size={14} />
         </Button>
       </div>
-      <ul className="ui-tree syntax-file-list">
+      <CompactContextList className="syntax-file-list">
         {view.files.map((file) => {
           const switchingBlocked = busy ||
             (view.hasDraftErrors && !file.isActive);
           const deletingBlocked = catalogMutationBlocked;
 
           return (
-            <li
-              className={cx(
-                "ui-tree-row-frame syntax-file-row-frame",
-                file.isActive && "is-selected",
-                file.hasErrors && "has-diagnostics",
-              )}
-              key={file.id}
-            >
-              <button
-                aria-current={file.isActive ? "page" : undefined}
-                className={cx(
-                  "ui-tree-row syntax-file-row",
-                  file.isActive && "is-selected",
-                )}
-                data-syntax-file-id={file.id}
-                disabled={switchingBlocked}
-                onClick={() => {
-                  if (!file.isActive) {
-                    void runOperation(() => view.selectFile(file.id));
-                  }
-                }}
-                title={file.name}
-                type="button"
-              >
-                <FileCode2 aria-hidden="true" size={13} />
-                <span className="ui-tree-text">{file.name}</span>
-                {file.hasErrors ? (
-                  <span className="ui-tree-meta syntax-file-error">
-                    <AlertTriangle aria-hidden="true" size={12} />
-                    错误
-                  </span>
-                ) : file.isActive ? (
-                  <span className="ui-tree-meta">启用</span>
-                ) : null}
-              </button>
-              <span className="ui-tree-actions">
+            <CompactContextRow
+              actions={
                 <button
                   aria-label={`删除语法 ${file.name}`}
                   disabled={deletingBlocked}
@@ -93,11 +63,37 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                 >
                   删
                 </button>
-              </span>
-            </li>
+              }
+              buttonProps={{
+                "data-syntax-file-id": file.id,
+              }}
+              className={file.hasErrors ? "has-diagnostics" : undefined}
+              disabled={switchingBlocked}
+              icon={<FileCode2 aria-hidden="true" size={13} />}
+              key={file.id}
+              label={file.name}
+              rowClassName="syntax-file-row"
+              selected={file.isActive}
+              title={file.name}
+              trailing={
+                file.hasErrors ? (
+                  <span className="ui-tree-meta syntax-file-error">
+                    <AlertTriangle aria-hidden="true" size={12} />
+                    错误
+                  </span>
+                ) : file.isActive ? (
+                  <span className="ui-tree-meta">启用</span>
+                ) : null
+              }
+              onSelect={() => {
+                if (!file.isActive) {
+                  void runOperation(() => view.selectFile(file.id));
+                }
+              }}
+            />
           );
         })}
-      </ul>
+      </CompactContextList>
       {view.files.length === 0 ? (
         <p className="context-empty">没有语法文件。</p>
       ) : null}

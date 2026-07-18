@@ -27,6 +27,11 @@ import {
   validateJournalContent,
   validateJournalContentTransition,
 } from "../../journal/model/journalContent.ts";
+import {
+  TodoContentValidationError,
+  validateTodoContent,
+  validateTodoContentTransition,
+} from "../../todo/model/todoContent.ts";
 import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 import {
   RepositoryAdapterError,
@@ -86,6 +91,16 @@ export function validateSystemRepositoryContent(
       throw error;
     }
   }
+  if (content.purpose === "system-todo") {
+    try {
+      validateTodoContent(content);
+    } catch (error) {
+      if (error instanceof TodoContentValidationError) {
+        throw new SystemRepositoryContentValidationError(error.message, error);
+      }
+      throw error;
+    }
+  }
 }
 
 export function validateSystemRepositoryTransition(
@@ -107,6 +122,19 @@ export function validateSystemRepositoryTransition(
       validateJournalContentTransition(previous, next);
     } catch (error) {
       if (error instanceof JournalContentValidationError) {
+        throw new SystemRepositoryTransitionValidationError(
+          error.message,
+          error,
+        );
+      }
+      throw error;
+    }
+  }
+  if (previous.purpose === "system-todo" && next.purpose === "system-todo") {
+    try {
+      validateTodoContentTransition(previous, next);
+    } catch (error) {
+      if (error instanceof TodoContentValidationError) {
         throw new SystemRepositoryTransitionValidationError(
           error.message,
           error,

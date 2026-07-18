@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 export type ActivityId =
   | "notes"
   | "journal"
+  | "todo"
   | "structure-operation"
   | "visualization"
   | "syntax"

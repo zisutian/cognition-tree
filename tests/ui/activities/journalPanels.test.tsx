@@ -56,6 +56,8 @@ describe("Journal panels", () => {
     expect(markup.indexOf(activeEntry.title)).toBeLessThan(
       markup.indexOf(olderJanuaryEntry.title),
     );
+    expect(markup).toContain("ui-compact-context-group-title");
+    expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain(`aria-label="删除日记 ${activeEntry.title}"`);
   });

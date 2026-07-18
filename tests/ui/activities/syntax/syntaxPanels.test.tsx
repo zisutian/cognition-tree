@@ -33,6 +33,8 @@ describe("syntax panels", () => {
     );
 
     expect(markup).toContain('aria-label="新建语法"');
+    expect(markup).toContain("ui-compact-context-list");
+    expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain('data-syntax-file-id="syntax-primary"');
     expect(markup).toContain('data-syntax-file-id="syntax-secondary"');
     expect(markup).toContain('aria-current="page"');

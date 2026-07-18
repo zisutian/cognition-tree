@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import {
+  resolveTodoRetry,
+  TodoActivityController,
+} from "../../../src/app/activities/TodoActivityController";
+import type { WorkbenchApplication } from "../../../src/application/workbench/workbenchApplication";
+import { createView } from "../../ui/viewFactory";
+
+const controls = {
+  contextWidth: 280,
+  focusMode: false,
+  onCollapseDetail: () => undefined,
+  onConfigureSyntax: () => undefined,
+  onContextWidthChange: () => undefined,
+  onToggleFocusMode: () => undefined,
+};
+
+function createApplicationWithoutWorkspace(): WorkbenchApplication {
+  return {
+    journal: { status: "loading" },
+    repository: {} as WorkbenchApplication["repository"],
+    todo: {
+      reload: async () => undefined,
+      status: "ready",
+      view: createView().todo,
+    },
+    workspace: { status: "absent" },
+  };
+}
+
+describe("TodoActivityController", () => {
+  it("renders Todo independently when no ordinary repository exists", () => {
+    const application = createApplicationWithoutWorkspace();
+    const rendered = TodoActivityController({
+      active: true,
+      application,
+      onActiveActivityChange: () => undefined,
+      renderActivity: (createSlots) => {
+        const slots = createSlots(controls);
+
+        expect(slots.detail).toBeNull();
+        return (
+          <>
+            {slots.context?.content}
+            {slots.main}
+          </>
+        );
+      },
+    });
+    const markup = renderToStaticMarkup(<>{rendered}</>);
+
+    expect(application.workspace.status).toBe("absent");
+    expect(markup).toContain("事项集合");
+    expect(markup).toContain('aria-label="代办清单"');
+    expect(markup).toContain("已完成但保持原位");
+    expect(markup).not.toContain("前往仓库");
+  });
+
+  it("does not mount Todo slots while another activity is active", () => {
+    const rendered = TodoActivityController({
+      active: false,
+      application: createApplicationWithoutWorkspace(),
+      onActiveActivityChange: () => undefined,
+      renderActivity: () => {
+        throw new Error("inactive Todo must not render");
+      },
+    });
+
+    expect(rendered).toBeNull();
+  });
+
+  it("retries a faulted Todo descriptor through the system catalog", async () => {
+    const retryRepository = vi.fn(async () => undefined);
+    const reload = vi.fn(async () => undefined);
+    const retry = resolveTodoRetry(
+      { reload: vi.fn(async () => undefined), status: "unavailable" },
+      {
+        catalog: {
+          catalogLabel: "内置仓库",
+          reload,
+          retryRepository,
+          state: {
+            issues: [{
+              code: "repository_corrupt",
+              id: "system-todo",
+              location: null,
+              message: "代办仓库损坏。",
+              status: "fault",
+            }],
+            repositories: [],
+            retryingPurpose: null,
+            status: "ready",
+          },
+        },
+        repositories: {},
+        sessions: {} as WorkbenchApplication["repository"]["systems"]["sessions"],
+      },
+    );
+
+    await retry?.();
+
+    expect(retryRepository).toHaveBeenCalledWith("system-todo");
+    expect(reload).not.toHaveBeenCalled();
+  });
+});

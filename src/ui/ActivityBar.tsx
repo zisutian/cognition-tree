@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Database,
   FileText,
+  ListChecks,
   MoveRight,
   Network,
   Search,
@@ -17,6 +18,7 @@ import type {
 export const primaryActivityItems: ActivityItem[] = [
   { id: "notes", label: "笔记", icon: FileText },
   { id: "journal", label: "日记", icon: CalendarDays },
+  { id: "todo", label: "代办", icon: ListChecks },
   { id: "structure-operation", label: "结构操作", icon: MoveRight },
   { id: "visualization", label: "引用图谱", icon: Network },
   { id: "syntax", label: "语法", icon: Braces },

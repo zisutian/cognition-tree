@@ -2,44 +2,7 @@
   gap: calc(var(--ui-gap) * 2);
 }
 
-.repository-group {
-  display: grid;
-  gap: var(--ui-gap-tight);
-}
-
-.repository-group-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ui-gap);
-  margin: 0;
-  padding: 0 var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  font-weight: var(--ui-micro-strong-weight);
-  line-height: var(--ui-micro-line-height);
-}
-
-.repository-group-title span:last-child {
-  color: var(--color-fg-subtle);
-  font-variant-numeric: var(--ui-numeric-font-variant);
-  font-weight: var(--ui-micro-weight);
-}
-
-.repository-list {
-  gap: var(--ui-border-width);
-}
-
-.repository-row {
-  grid-template-columns:
-    var(--ui-symbol-size)
-    minmax(0, 1fr)
-    auto
-    auto;
-}
-
 .repository-row:disabled {
-  color: var(--color-fg-disabled);
   cursor: wait;
 }
 
@@ -53,16 +16,6 @@
   color: var(--color-error);
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
-}
-
-.repository-inline-rename {
-  display: grid;
-  grid-template-columns: var(--ui-symbol-size) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  width: 100%;
-  min-height: var(--ui-tree-row-height);
-  padding: 0 var(--ui-gap-tight);
 }
 
 .repository-system-row {

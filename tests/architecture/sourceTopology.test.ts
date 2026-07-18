@@ -8,6 +8,8 @@ import {
   serverModules,
   sourceModules,
   sourcePathToRelative,
+  todoModules,
+  todoPathToRelative,
 } from "./sourceGraph";
 
 describe("semantic source ownership", () => {
@@ -86,6 +88,10 @@ describe("semantic source ownership", () => {
       })),
       ...Object.entries(journalModules).map(([filePath, source]) => ({
         filePath: `journal/${journalPathToRelative(filePath)}`,
+        source,
+      })),
+      ...Object.entries(todoModules).map(([filePath, source]) => ({
+        filePath: `todo/${todoPathToRelative(filePath)}`,
         source,
       })),
     ]

@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { ButtonHTMLAttributes, ReactElement } from "react";
+import { Children } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import {
+  CompactContextGroup,
+  CompactContextList,
+  CompactContextRow,
+  CompactContextStaticRow,
+} from "../../../src/ui/shared/CompactContextList";
+
+describe("compact context lists", () => {
+  it("shares group, selected-row, icon, metadata, and action structure", () => {
+    const markup = renderToStaticMarkup(
+      <CompactContextGroup
+        count={2}
+        headingId="context-group-primary"
+        label="主要"
+        listAriaLabel="主要项目"
+      >
+        <CompactContextRow
+          actions={<button type="button">删</button>}
+          buttonProps={{ "data-item-id": "item-1" }}
+          icon={<span aria-hidden="true">I</span>}
+          label="当前项目"
+          selected
+          trailing={<span className="ui-tree-meta">启用</span>}
+          onSelect={() => undefined}
+        />
+      </CompactContextGroup>,
+    );
+
+    expect(markup).toContain('aria-labelledby="context-group-primary"');
+    expect(markup).toContain('aria-label="主要项目"');
+    expect(markup).toContain("ui-compact-context-group-title");
+    expect(markup).toContain("ui-compact-context-list");
+    expect(markup).toContain("ui-compact-context-row-frame is-selected");
+    expect(markup).toContain('aria-current="page"');
+    expect(markup).toContain('data-item-id="item-1"');
+    expect(markup).toContain("当前项目");
+    expect(markup).toContain("ui-tree-actions");
+  });
+
+  it("owns inline rename markup while leaving value and validation controlled", () => {
+    const markup = renderToStaticMarkup(
+      <CompactContextList>
+        <CompactContextRow
+          actions={<button type="button">不应显示</button>}
+          icon={<span aria-hidden="true">I</span>}
+          inlineRename={{
+            ariaLabel: "重命名集合 当前集合",
+            inputProps: {
+              "aria-describedby": "rename-error",
+              "aria-invalid": true,
+            },
+            onCancel: () => undefined,
+            onChange: () => undefined,
+            onSubmit: () => undefined,
+            value: "当前集合",
+          }}
+          label="当前集合"
+          onSelect={() => undefined}
+        />
+      </CompactContextList>,
+    );
+
+    expect(markup).toContain("ui-compact-context-row-frame is-editing");
+    expect(markup).toContain("ui-compact-context-inline-rename");
+    expect(markup).toContain('aria-label="重命名集合 当前集合"');
+    expect(markup).toContain('aria-invalid="true"');
+    expect(markup).toContain('aria-describedby="rename-error"');
+    expect(markup).not.toContain("不应显示");
+  });
+
+  it("starts inline rename from F2 and keeps static rows non-selectable", () => {
+    const onBeginRename = vi.fn();
+    const element = CompactContextRow({
+      icon: <span aria-hidden="true">I</span>,
+      label: "项目",
+      onBeginRename,
+      onSelect: () => undefined,
+    });
+    const button = Children.toArray(element.props.children)[0] as ReactElement<
+      ButtonHTMLAttributes<HTMLButtonElement>
+    >;
+    const preventDefault = vi.fn();
+
+    button.props.onKeyDown?.({
+      defaultPrevented: false,
+      key: "F2",
+      preventDefault,
+    } as never);
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(onBeginRename).toHaveBeenCalledOnce();
+
+    const staticMarkup = renderToStaticMarkup(
+      <CompactContextStaticRow
+        contentProps={{ "data-system-id": "system-journal" }}
+      >
+        <span>日记</span>
+      </CompactContextStaticRow>,
+    );
+
+    expect(staticMarkup).toContain('role="group"');
+    expect(staticMarkup).toContain('tabindex="-1"');
+    expect(staticMarkup).toContain('data-system-id="system-journal"');
+    expect(staticMarkup).not.toContain("<button");
+  });
+});

@@ -2,6 +2,7 @@ import { createSyntaxProfileDraft } from "../../ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import { journalCtnSyntaxProfileV1 } from "../../journal/syntax/journalSyntaxV1";
 import type { JournalViewModel } from "../../src/application/journal";
+import type { TodoViewModel } from "../../src/application/todo";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
 import type { RepositoryViewModel } from "../../src/application/workspace/activities/repository/repositoryViewModel";
@@ -17,6 +18,7 @@ export type TestActivityViews = {
   shell: WorkspaceShell;
   structureOperation: StructureOperationActivityViewModel;
   syntax: SyntaxViewModel;
+  todo: TodoViewModel;
   visualization: VisualizationViewModel;
 };
 
@@ -260,6 +262,67 @@ export function createView(
       onConsumeFocusTarget: () => undefined,
       protectedInlineRuleIds: [],
       selectFile: async () => undefined,
+    },
+    todo: {
+      activeCollection: {
+        createdAt: "2026-07-18T01:00:00.000Z",
+        id: "todo-collection-00000000-0000-4000-8000-000000000001",
+        name: "今天",
+        updatedAt: "2026-07-18T04:00:00.000Z",
+      },
+      collections: [
+        {
+          completedItemCount: 1,
+          createdAt: "2026-07-18T01:00:00.000Z",
+          id: "todo-collection-00000000-0000-4000-8000-000000000001",
+          isActive: true,
+          itemCount: 2,
+          name: "今天",
+          updatedAt: "2026-07-18T04:00:00.000Z",
+        },
+        {
+          completedItemCount: 0,
+          createdAt: "2026-07-18T05:00:00.000Z",
+          id: "todo-collection-00000000-0000-4000-8000-000000000002",
+          isActive: false,
+          itemCount: 0,
+          name: "稍后",
+          updatedAt: "2026-07-18T05:00:00.000Z",
+        },
+      ],
+      createCollection: () =>
+        "todo-collection-00000000-0000-4000-8000-000000000002",
+      createItem: () =>
+        "todo-item-00000000-0000-4000-8000-000000000002",
+      deleteCollection: () =>
+        "todo-collection-00000000-0000-4000-8000-000000000002",
+      deleteItem: () => undefined,
+      items: [
+        {
+          completed: true,
+          completedAt: "2026-07-18T04:00:00.000Z",
+          createdAt: "2026-07-18T02:00:00.000Z",
+          id: "todo-item-00000000-0000-4000-8000-000000000001",
+          text: "已完成但保持原位",
+          updatedAt: "2026-07-18T04:00:00.000Z",
+        },
+        {
+          completed: false,
+          completedAt: null,
+          createdAt: "2026-07-18T03:00:00.000Z",
+          id: "todo-item-00000000-0000-4000-8000-000000000002",
+          text: "未完成",
+          updatedAt: "2026-07-18T03:00:00.000Z",
+        },
+      ],
+      moveCollection: () => undefined,
+      moveItem: () => undefined,
+      persistence: { status: "saved" },
+      persistenceErrorMessage: "",
+      renameCollection: () => undefined,
+      selectCollection: () => undefined,
+      toggleItem: () => undefined,
+      updateItemText: () => undefined,
     },
     visualization: {
       activeNoteId: "note-source",

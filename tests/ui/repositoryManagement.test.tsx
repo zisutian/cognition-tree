@@ -277,7 +277,8 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain("repository-group-title");
+    expect(markup).toContain("ui-compact-context-group-title");
+    expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain("repository-list");
     expect(markup.indexOf(">本地</span>")).toBeLessThan(
       markup.indexOf(">WebDAV</span>"),
@@ -400,6 +401,7 @@ describe("repository setup and management semantics", () => {
     expect(contextMarkup).toContain('data-repository-issue-id="webdav-broken"');
     expect(contextMarkup).toContain('data-repository-issue-id="webdav-deleting"');
     expect(contextMarkup).toContain('data-repository-issue-id="local-broken"');
+    expect(contextMarkup).toContain("ui-compact-context-static-row");
     expect(contextMarkup.match(/tabindex="-1"/g)).toHaveLength(3);
     expect(contextMarkup).toContain(">移除连接<");
     expect(contextMarkup).toContain(">重试清理<");

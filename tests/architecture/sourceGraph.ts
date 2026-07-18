@@ -33,6 +33,12 @@ export const journalModules = import.meta.glob("../../journal/**/*.ts", {
   query: "?raw",
 }) as SourceModules;
 
+export const todoModules = import.meta.glob("../../todo/**/*.ts", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as SourceModules;
+
 export const serverModules = import.meta.glob("../../server/**/*.ts", {
   eager: true,
   import: "default",
@@ -51,6 +57,7 @@ export const workspaceModules = {
   ...journalModules,
   ...serverModules,
   ...sourceModules,
+  ...todoModules,
 };
 
 export function ctnPathToRelative(filePath: string) {
@@ -59,6 +66,10 @@ export function ctnPathToRelative(filePath: string) {
 
 export function journalPathToRelative(filePath: string) {
   return filePath.replace("../../journal/", "");
+}
+
+export function todoPathToRelative(filePath: string) {
+  return filePath.replace("../../todo/", "");
 }
 
 export function sourcePathToRelative(filePath: string) {

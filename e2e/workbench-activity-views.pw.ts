@@ -86,7 +86,7 @@ test.describe("syntax and visualization activity flows", () => {
 
     const editor = page.locator(".source-editor");
 
-    await expect(editor).toHaveAttribute("data-editor-mode", "ctn");
+    await expect(editor).toHaveAttribute("data-editor-mode", "document");
     await expect(editor).not.toContainText("@ctn-block");
     await editor.locator(".cm-content").click();
     await page.keyboard.press("Control+End");

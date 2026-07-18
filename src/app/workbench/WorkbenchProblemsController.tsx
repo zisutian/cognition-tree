@@ -37,7 +37,7 @@ type WorkbenchProblemOpenContext = {
 };
 
 export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
-  return activeActivityId !== "settings";
+  return activeActivityId !== "settings" && activeActivityId !== "todo";
 }
 
 export function selectWorkbenchProblems({

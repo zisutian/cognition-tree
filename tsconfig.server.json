@@ -18,6 +18,7 @@
     "contracts/**/*.ts",
     "ctn/**/*.ts",
     "journal/**/*.ts",
-    "server/**/*.ts"
+    "server/**/*.ts",
+    "todo/**/*.ts"
   ]
 }
