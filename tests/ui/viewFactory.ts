@@ -2,7 +2,7 @@ import { createSyntaxProfileDraft } from "../../ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
-import type { SettingsViewModel } from "../../src/application/workspace/activities/settings/settingsViewModel";
+import type { RepositoryViewModel } from "../../src/application/workspace/activities/repository/repositoryViewModel";
 import type { StructureOperationActivityViewModel } from "../../src/application/workspace/activities/structure-operation/structureOperationViewModel";
 import type { SyntaxViewModel } from "../../src/application/workspace/activities/syntax/syntaxViewModel";
 import type { VisualizationViewModel } from "../../src/application/workspace/activities/visualization/visualizationViewModel";
@@ -10,7 +10,7 @@ import type { WorkspaceShell } from "../../src/application/workspace/runtime/use
 
 export type TestActivityViews = {
   notes: NotesViewModel;
-  settings: SettingsViewModel;
+  repository: RepositoryViewModel;
   shell: WorkspaceShell;
   structureOperation: StructureOperationActivityViewModel;
   syntax: SyntaxViewModel;
@@ -73,7 +73,7 @@ export function createView(
       },
       updateSource: () => undefined,
     },
-    settings: {
+    repository: {
       activeRepositoryId: "primary",
       activeRepositoryLabel: "Primary",
       creatableAdapters: [

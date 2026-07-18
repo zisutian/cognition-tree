@@ -45,6 +45,13 @@ export const workspaceActivityControllers: ReadonlyArray<{
     })),
   },
   {
+    activityId: "repository",
+    Controller: lazy(async () => ({
+      default: (await import("./RepositoryActivityController"))
+        .RepositoryActivityController,
+    })),
+  },
+  {
     activityId: "settings",
     Controller: lazy(async () => ({
       default: (await import("./SettingsActivityController"))

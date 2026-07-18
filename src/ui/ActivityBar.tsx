@@ -1,4 +1,5 @@
 import {
+  Archive,
   Braces,
   Database,
   FileText,
@@ -19,6 +20,7 @@ export const activityItems: ActivityItem[] = [
   { id: "syntax", label: "语法", icon: Braces },
   { id: "search", label: "搜索", icon: Search },
   { id: "data", label: "数据", icon: Database },
+  { id: "repository", label: "仓库", icon: Archive },
   { id: "settings", label: "设置", icon: Settings },
 ];
 

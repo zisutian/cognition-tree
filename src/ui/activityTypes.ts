@@ -8,6 +8,7 @@ export type ActivityId =
   | "syntax"
   | "search"
   | "data"
+  | "repository"
   | "settings";
 
 export type ActivityItem = {

@@ -4,11 +4,11 @@ import type {
   RepositoryAdapterOption,
   RepositoryIssueActionView,
   RepositoryIssueView,
-} from "../application/workspace/activities/settings/settingsViewModel";
+} from "../application/workspace/activities/repository/repositoryViewModel";
 import {
   projectRepositoryIssueActions,
   requiresManualLocalDeletion,
-} from "../application/workspace/activities/settings/settingsViewModel";
+} from "../application/workspace/activities/repository/repositoryViewModel";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,

@@ -20,11 +20,11 @@ export function getActivityButton(page: Page, name: string) {
     .getByRole("button", { name, exact: true });
 }
 
-export function getSettingsRepositoryButton(
+export function getRepositoryButton(
   page: Page,
   repositoryId: string,
 ) {
   return page.locator(
-    `.settings-repository-row[data-repository-id="${repositoryId}"]`,
+    `[data-repository-id="${repositoryId}"]`,
   );
 }

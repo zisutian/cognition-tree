@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isWorkbenchProblemsShortcut } from "../../../src/ui/problems/useProblemsShortcut";
+import {
+  isWorkbenchProblemsShortcut,
+  shouldHandleWorkbenchProblemsShortcut,
+} from "../../../src/ui/problems/useProblemsShortcut";
 
 function createKeys(overrides: Partial<KeyboardEvent> = {}) {
   return {
@@ -19,5 +22,10 @@ describe("workbench problems shortcut", () => {
     expect(isWorkbenchProblemsShortcut(createKeys({ shiftKey: false }))).toBe(false);
     expect(isWorkbenchProblemsShortcut(createKeys({ altKey: true }))).toBe(false);
     expect(isWorkbenchProblemsShortcut(createKeys({ metaKey: true }))).toBe(false);
+  });
+
+  it("does not handle the shortcut while the problems panel is unavailable", () => {
+    expect(shouldHandleWorkbenchProblemsShortcut(true, createKeys())).toBe(true);
+    expect(shouldHandleWorkbenchProblemsShortcut(false, createKeys())).toBe(false);
   });
 });

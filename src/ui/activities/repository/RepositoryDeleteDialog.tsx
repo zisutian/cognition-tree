@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from "react";
-import type { RepositoryOption } from "../../../application/workspace/activities/settings/settingsViewModel";
+import type { RepositoryOption } from "../../../application/workspace/activities/repository/repositoryViewModel";
 import type { DeleteRepositoryRequest } from "../../../application/workspace/session/useRepositoryCatalog";
 import { Overlay } from "../../shared/Overlay";
 import { Button } from "../../shared/primitives";

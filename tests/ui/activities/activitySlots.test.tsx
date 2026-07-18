@@ -1,7 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { Archive } from "lucide-react";
 import { describe, expect, it } from "vitest";
+import { workspaceActivityControllers } from "../../../src/app/activities/activityRegistry";
 import { createNotesActivitySlots } from "../../../src/ui/activities/notes/NotesActivitySlots";
 import { createPlaceholderActivitySlots } from "../../../src/ui/activities/PlaceholderActivitySlots";
+import { createRepositoryActivitySlots } from "../../../src/ui/activities/repository/RepositoryActivitySlots";
 import { createSettingsActivitySlots } from "../../../src/ui/activities/settings/SettingsActivitySlots";
 import { createStructureOperationActivitySlots } from "../../../src/ui/activities/structure-operation/StructureOperationActivitySlots";
 import { createSyntaxActivitySlots } from "../../../src/ui/activities/syntax/SyntaxActivitySlots";
@@ -56,11 +59,14 @@ function slotsWithView(
         shell: view.shell,
         view: view.visualization,
       });
-    case "settings":
-      return createSettingsActivitySlots({
+    case "repository":
+      return createRepositoryActivitySlots({
         onConsumeRepositoryIssueFocusRequest: () => undefined,
         repositoryIssueFocusRequest: null,
-        view: view.settings,
+        view: view.repository,
+      });
+    case "settings":
+      return createSettingsActivitySlots({
         workbench: {
           contextWidth: controls.contextWidth,
           onContextWidthChange: controls.onContextWidthChange,
@@ -88,7 +94,9 @@ describe("activity slots", () => {
 
     expect(slots("search").context).toBeNull();
     expect(slots("data").context).toBeNull();
-    expect(slots("settings").context?.title).toBe("仓库");
+    expect(slots("repository").context?.title).toBe("仓库");
+    expect(slots("repository").detail).toBeNull();
+    expect(slots("settings").context?.title).toBe("设置");
     expect(slots("settings").detail).toBeNull();
   });
 
@@ -100,6 +108,7 @@ describe("activity slots", () => {
       "syntax",
       "search",
       "data",
+      "repository",
       "settings",
     ]);
     expect(
@@ -108,6 +117,22 @@ describe("activity slots", () => {
     expect(
       activityItems.find((item) => item.id === "visualization")?.label,
     ).toBe("引用图谱");
+    expect(
+      activityItems.find((item) => item.id === "repository")?.label,
+    ).toBe("仓库");
+    expect(
+      activityItems.find((item) => item.id === "repository")?.icon,
+    ).toBe(Archive);
+    expect(
+      workspaceActivityControllers.map(({ activityId }) => activityId),
+    ).toEqual([
+      "notes",
+      "structure-operation",
+      "visualization",
+      "syntax",
+      "repository",
+      "settings",
+    ]);
   });
 
   it("keeps raw notes editable and gates parsed activities without syntax", () => {
@@ -143,28 +168,30 @@ describe("activity slots", () => {
     ).toContain("结构操作不可用");
   });
 
-  it("renders placeholders and a repository-list settings context", () => {
+  it("renders placeholders and separate repository and settings contexts", () => {
     expect(renderSlot(slots("search").main)).toContain("搜索功能待接入");
     expect(renderSlot(slots("data").main)).toContain("数据功能待接入");
-    expect(renderSlot(slots("settings").context?.content)).toContain(
-      'class="ui-tree settings-repository-list"',
+    expect(renderSlot(slots("repository").context?.content)).toContain(
+      'class="ui-tree repository-list"',
     );
-    expect(renderSlot(slots("settings").context?.content)).toContain(
+    expect(renderSlot(slots("repository").context?.content)).toContain(
       'aria-current="page"',
     );
-    expect(renderSlot(slots("settings").main)).toContain(
+    expect(renderSlot(slots("repository").main)).toContain(
       "/data/repositories/primary",
     );
+    expect(renderSlot(slots("settings").context?.content)).toContain("界面");
+    expect(renderSlot(slots("settings").main)).toContain("左侧栏宽度");
   });
 
   it("shows repository conflict recovery only when local changes are blocked", () => {
     const baseView = createView();
     const conflictMarkup = renderSlot(
       slotsWithView(
-        "settings",
+        "repository",
         createView({
-          settings: {
-            ...baseView.settings,
+          repository: {
+            ...baseView.repository,
             hasSaveConflict: true,
             persistenceStatusLabel: "仓库内容已更改",
           },
@@ -174,7 +201,7 @@ describe("activity slots", () => {
 
     expect(conflictMarkup).toContain("仓库内容已更改");
     expect(conflictMarkup).toContain("放弃本地修改并重新加载");
-    expect(renderSlot(slots("settings").main)).not.toContain(
+    expect(renderSlot(slots("repository").main)).not.toContain(
       "放弃本地修改并重新加载",
     );
   });

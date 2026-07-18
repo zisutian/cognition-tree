@@ -21,6 +21,10 @@ type WorkbenchProblemOpenContext = {
   onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
+export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
+  return activeActivityId !== "settings";
+}
+
 export function selectWorkbenchProblems({
   activeActivityId,
   diagnostics,
@@ -32,7 +36,7 @@ export function selectWorkbenchProblems({
 }): UiWorkbenchProblems {
   return createUiWorkbenchProblems(
     diagnostics,
-    activeActivityId === "settings" ? repositoryIssues : [],
+    activeActivityId === "repository" ? repositoryIssues : [],
   );
 }
 
@@ -51,7 +55,7 @@ export function openWorkbenchProblem(
     context.onActiveActivityChange("syntax");
   } else {
     context.navigation.openRepositoryIssue(problem.target.issueId);
-    context.onActiveActivityChange("settings");
+    context.onActiveActivityChange("repository");
   }
 
   context.expandPanels();
@@ -69,7 +73,7 @@ export function WorkbenchProblemsController({
     WorkspaceApplication,
     "diagnostics" | "navigation" | "repository"
   >;
-  children: (problemsSlot: ReactNode) => ReactNode;
+  children: (problemsSlot: ReactNode | null) => ReactNode;
   onActiveActivityChange: (activityId: ActivityId) => void;
   workbench: WorkbenchController;
 }) {
@@ -85,14 +89,21 @@ export function WorkbenchProblemsController({
       onActiveActivityChange,
     });
 
-  useWorkbenchProblemsShortcut(workbench.toggleProblems);
+  const problemsEnabled = hasWorkbenchProblemsPanel(activeActivityId);
+
+  useWorkbenchProblemsShortcut({
+    enabled: problemsEnabled,
+    onToggle: workbench.toggleProblems,
+  });
 
   return children(
-    <ProblemsPanel
-      expanded={workbench.layout.problemsExpanded}
-      onOpen={openProblem}
-      onToggle={workbench.toggleProblems}
-      view={problems}
-    />,
+    problemsEnabled ? (
+      <ProblemsPanel
+        expanded={workbench.layout.problemsExpanded}
+        onOpen={openProblem}
+        onToggle={workbench.toggleProblems}
+        view={problems}
+      />
+    ) : null,
   );
 }

@@ -13,7 +13,7 @@ import {
 } from "./support/repositorySeeds";
 import {
   getActivityButton,
-  getSettingsRepositoryButton,
+  getRepositoryButton,
   openWorkbench,
 } from "./support/workbenchPage";
 
@@ -37,8 +37,8 @@ test.describe.serial("workbench diagnostics", () => {
     page,
   }) => {
     await openWorkbench(page, repositoryId);
-    await getActivityButton(page, "设置").click();
-    await getSettingsRepositoryButton(page, diagnosticsRepositoryId).click();
+    await getActivityButton(page, "仓库").click();
+    await getRepositoryButton(page, diagnosticsRepositoryId).click();
 
     const frame = page.locator(".app-frame");
     const problems = page.locator(".problems-panel");
@@ -107,11 +107,35 @@ test.describe.serial("workbench diagnostics", () => {
     await problemsResize.press("ArrowUp");
     await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
 
-    await getActivityButton(page, "设置").click();
-    await getSettingsRepositoryButton(page, repositoryId).click();
+    await getActivityButton(page, "仓库").click();
+    await getRepositoryButton(page, repositoryId).click();
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
+    await getActivityButton(page, "仓库").click();
+    await getRepositoryButton(page, diagnosticsRepositoryId).click();
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
+    await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
+
     await getActivityButton(page, "设置").click();
-    await getSettingsRepositoryButton(page, diagnosticsRepositoryId).click();
+    const settingsContext = page.locator(".settings-context");
+    const settingsPanel = page.locator(".settings-panel");
+
+    const settingsRow = settingsContext.locator(".settings-row");
+
+    await expect(settingsRow).toHaveCount(1);
+    await expect(settingsRow).toHaveText("界面");
+    await expect(settingsRow).toHaveAttribute("aria-current", "page");
+    await expect(settingsContext.getByRole("button")).toHaveCount(0);
+    await expect(settingsPanel.getByRole("heading", { name: "界面" }))
+      .toBeVisible();
+    await expect(
+      settingsPanel.getByRole("spinbutton", { name: "左侧栏宽度" }),
+    ).toBeVisible();
+    await expect(settingsPanel.locator("input")).toHaveCount(1);
+    await expect(page.locator(".app-problems")).toHaveCount(0);
+
+    await page.keyboard.press("Control+Shift+M");
+    await expect(page.locator(".app-problems")).toHaveCount(0);
+    await getActivityButton(page, "笔记").click();
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
     await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
 
@@ -131,8 +155,8 @@ test.describe.serial("workbench diagnostics", () => {
     page,
   }) => {
     await openWorkbench(page, repositoryId);
-    await getActivityButton(page, "设置").click();
-    await getSettingsRepositoryButton(page, diagnosticsRepositoryId).click();
+    await getActivityButton(page, "仓库").click();
+    await getRepositoryButton(page, diagnosticsRepositoryId).click();
     await getActivityButton(page, "语法").click();
     await page.route(
       `**/api/repositories/${diagnosticsRepositoryId}/snapshot`,

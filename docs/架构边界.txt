@@ -68,6 +68,6 @@ contracts：
     Local adapter 只在首次加载、同步提交和显式重新扫描时识别外部修改，不建立 watcher 或 SSE。扫描以路径、唯一 inode、唯一旧 source hash 或子树 signature 协调身份；外部正文变化形成确定性 text edits，再交给 CTN canonical metadata reconcile。无法证明同一对象时按删除加新建处理。
     Local 与 Browser 删除以原子提交点移除托管内容。Local 删除和目录操作保护非 `.ctn` unmanaged 文件与 symlink；WebDAV 的 remove-connection 只移除本地 registry 与 cache；delete-managed-data 以 current ETag CAS 发布永久 tombstone，随后异步清理托管 generation，catalog 以 deleting issue 表达未完成清理。
     application 将 canonical CTN 投影为 editable source，通过唯一 WorkspaceAnalysis 分批解析一次，并把诊断、结构定位、标题候选和引用图谱映射到 activity view model。
-    app activity adapter 将局部 view model 交给 ui 生成 activity slots；全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递。app/workbench 在设置活动中把 workspace diagnostics 与 repository catalog issue 合并为全局问题视图，并通过 application 导航请求定位设置上下文；仓库清理、重试和移除连接仍由设置上下文发起。
+    app activity adapter 将局部 view model 交给 ui 生成 activity slots；仓库 activity 承载 catalog 列表、当前仓库信息和管理操作，设置 activity 只承载工作台界面偏好。全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递。app/workbench 在仓库活动中把 workspace diagnostics 与 repository catalog issue 合并为全局问题视图，并通过 application 导航请求定位仓库上下文；仓库清理、重试和移除连接由仓库上下文发起。设置活动不挂载全局问题面板。
     editor 接收可编辑文本和语法展示数据，为当前编辑状态生成 CodeMirror 装饰、诊断提示和引用交互；editor 不负责保存或解释块元数据。
     workspace 和 ctn 负责结构、语义和派生数据的确定性计算。

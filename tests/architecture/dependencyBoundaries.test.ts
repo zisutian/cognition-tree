@@ -303,12 +303,14 @@ describe("dependency boundaries", () => {
   });
 
   it("keeps workbench layout preferences out of application view models", () => {
-    const settingsViewModel =
+    const repositoryViewModel =
       sourceModules[
-        "../../src/application/workspace/activities/settings/settingsViewModel.ts"
+        "../../src/application/workspace/activities/repository/repositoryViewModel.ts"
       ] ?? "";
 
-    expect(settingsViewModel).not.toMatch(/\b(?:contextWidth|setContextWidth)\b/);
+    expect(repositoryViewModel).not.toMatch(
+      /\b(?:contextWidth|setContextWidth)\b/,
+    );
   });
 
   it("keeps UI, storage, and application projections on their public inputs", () => {

@@ -20,7 +20,7 @@ import type {
 import {
   projectRepositoryAdapterOptions,
   projectRepositoryIssues,
-} from "../application/workspace/activities/settings/settingsViewModel";
+} from "../application/workspace/activities/repository/repositoryViewModel";
 
 type RepositoryCatalogRuntime = ReturnType<typeof useRepositoryCatalog>;
 

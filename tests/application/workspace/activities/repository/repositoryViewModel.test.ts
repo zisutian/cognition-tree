@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createSettingsViewModel,
+  createRepositoryViewModel,
   projectRepositoryIssueActions,
   projectRepositoryIssues,
   projectRepositoryLocation,
   requiresManualLocalDeletion,
-} from "../../../../../src/application/workspace/activities/settings/settingsViewModel";
+} from "../../../../../src/application/workspace/activities/repository/repositoryViewModel";
 import type { WorkspacePersistenceState } from "../../../../../src/application/workspace/session/workspaceSessionSaveQueue";
 import { remoteRevision } from "../../session/workspaceSessionTestFixture";
 
 function createSource(
   persistence: WorkspacePersistenceState = { status: "saved" },
-): Parameters<typeof createSettingsViewModel>[0] {
+): Parameters<typeof createRepositoryViewModel>[0] {
   return {
     activeRepositoryId: "primary",
     creatableAdapters: ["local", "webdav"],
@@ -40,7 +40,7 @@ function createSource(
   };
 }
 
-describe("settings view model", () => {
+describe("repository view model", () => {
   it("projects each repository location without hiding copyable values", () => {
     expect(projectRepositoryLocation({
       type: "webdav",
@@ -165,7 +165,7 @@ describe("settings view model", () => {
   ] satisfies Array<[WorkspacePersistenceState, string]>) (
     "maps $0 to its single persistence label",
     (persistence, label) => {
-      expect(createSettingsViewModel(createSource(persistence))).toMatchObject({
+      expect(createRepositoryViewModel(createSource(persistence))).toMatchObject({
         persistenceStatusLabel: label,
       });
     },
@@ -177,7 +177,7 @@ describe("settings view model", () => {
       status: "conflict",
     });
 
-    expect(createSettingsViewModel(source)).toEqual({
+    expect(createRepositoryViewModel(source)).toEqual({
       activeRepositoryId: "primary",
       activeRepositoryLabel: "Primary",
       creatableAdapters: [
@@ -234,7 +234,7 @@ describe("settings view model", () => {
       status: "error",
     };
 
-    expect(createSettingsViewModel(createSource(localError))).toMatchObject({
+    expect(createRepositoryViewModel(createSource(localError))).toMatchObject({
       deletionBlocked: true,
       deletionWarning: "本地副本尚未安全保存，当前不能删除仓库。",
       hasSaveConflict: false,

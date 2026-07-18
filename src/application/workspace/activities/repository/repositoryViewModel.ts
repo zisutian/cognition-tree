@@ -217,7 +217,7 @@ function projectDeletionState(persistence: WorkspacePersistenceState) {
   }
 }
 
-type SettingsActivitySource = {
+type RepositoryActivitySource = {
   activeRepositoryId: string;
   creatableAdapters: RepositoryAdapterKind[];
   createRepository: (input: CreateRepositoryRequest) => Promise<void>;
@@ -233,7 +233,7 @@ type SettingsActivitySource = {
   selectRepository: (repositoryId: string) => Promise<void>;
 };
 
-export type SettingsViewModel = {
+export type RepositoryViewModel = {
   activeRepositoryId: string;
   activeRepositoryLabel: string;
   createRepository: (input: CreateRepositoryRequest) => Promise<void>;
@@ -253,9 +253,9 @@ export type SettingsViewModel = {
   storageLabel: string;
 };
 
-export function createSettingsViewModel(
-  source: SettingsActivitySource,
-): SettingsViewModel {
+export function createRepositoryViewModel(
+  source: RepositoryActivitySource,
+): RepositoryViewModel {
   const repositories = projectRepositoryOptions(source.repositories);
   const active = repositories.find(({ id }) => id === source.activeRepositoryId);
   const deletion = projectDeletionState(source.persistence);

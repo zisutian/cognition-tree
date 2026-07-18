@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { RepositoryAdapterOption } from "../application/workspace/activities/settings/settingsViewModel";
+import type { RepositoryAdapterOption } from "../application/workspace/activities/repository/repositoryViewModel";
 import type { CreateRepositoryRequest } from "../application/workspace/session/useRepositoryCatalog";
 import { Button, SegmentedControl, cx } from "./shared/primitives";
 

@@ -46,6 +46,7 @@ describe("UI design contract", () => {
     ).toEqual(
       expect.arrayContaining([
         "ui/styles/activities/notes.css",
+        "ui/styles/activities/repository.css",
         "ui/styles/activities/settings.css",
         "ui/styles/activities/structure-operation.css",
         "ui/styles/activities/syntax.css",
@@ -214,7 +215,7 @@ describe("UI design contract", () => {
     const editorStyle = readStyle("editor/CtnEditor.css");
 
     expect(sharedStyles).not.toMatch(
-      /\.(?:graph|settings|structure-operation|syntax)-/,
+      /\.(?:graph|repository|settings|structure-operation|syntax)-/,
     );
     expect(activityStyles).not.toContain(".source-editor");
     expect(editorStyle).toContain(".source-editor");
@@ -246,15 +247,17 @@ describe("UI design contract", () => {
   });
 
   it("keeps structured repository locations complete and selectable", () => {
-    const settingsStyle = readStyle("ui/styles/activities/settings.css");
-    const valueRuleStart = settingsStyle.indexOf(".settings-location-value {");
-    const textRuleStart = settingsStyle.indexOf(
-      ".settings-location-value > span {",
+    const repositoryStyle = readStyle("ui/styles/activities/repository.css");
+    const valueRuleStart = repositoryStyle.indexOf(
+      ".repository-location-value {",
     );
-    const valueRule = settingsStyle.slice(valueRuleStart, textRuleStart);
-    const textRule = settingsStyle.slice(
+    const textRuleStart = repositoryStyle.indexOf(
+      ".repository-location-value > span {",
+    );
+    const valueRule = repositoryStyle.slice(valueRuleStart, textRuleStart);
+    const textRule = repositoryStyle.slice(
       textRuleStart,
-      settingsStyle.indexOf("}", textRuleStart) + 1,
+      repositoryStyle.indexOf("}", textRuleStart) + 1,
     );
 
     expect(valueRuleStart).toBeGreaterThanOrEqual(0);
@@ -268,31 +271,33 @@ describe("UI design contract", () => {
     expect(textRule).toContain("white-space: pre-wrap");
   });
 
-  it("keeps settings aligned with the flat repository-list visual grammar", () => {
-    const settingsStyle = readStyle("ui/styles/activities/settings.css");
-    const repositoryRowStart = settingsStyle.indexOf(
-      ".settings-repository-row {",
+  it("keeps repository management aligned with the flat list visual grammar", () => {
+    const repositoryStyle = readStyle("ui/styles/activities/repository.css");
+    const repositoryRowStart = repositoryStyle.indexOf(
+      ".repository-row {",
     );
-    const repositoryRow = settingsStyle.slice(
+    const repositoryRow = repositoryStyle.slice(
       repositoryRowStart,
-      settingsStyle.indexOf("}", repositoryRowStart) + 1,
+      repositoryStyle.indexOf("}", repositoryRowStart) + 1,
     );
-    const issueStart = settingsStyle.indexOf(
-      ".settings-repository-issue-row {",
+    const issueStart = repositoryStyle.indexOf(
+      ".repository-issue-row {",
     );
-    const issueRule = settingsStyle.slice(
+    const issueRule = repositoryStyle.slice(
       issueStart,
-      settingsStyle.indexOf("}", issueStart) + 1,
+      repositoryStyle.indexOf("}", issueStart) + 1,
     );
 
     expect(repositoryRowStart).toBeGreaterThanOrEqual(0);
     expect(issueStart).toBeGreaterThanOrEqual(0);
     expect(repositoryRow).toContain("var(--ui-symbol-size)");
     expect(repositoryRow).toContain("minmax(0, 1fr)");
-    expect(settingsStyle).toContain("width: min(100%, 880px)");
-    expect(settingsStyle).toContain("@media (max-width: 720px)");
+    expect(repositoryStyle).toContain("width: min(100%, 880px)");
+    expect(repositoryStyle).toContain("@media (max-width: 720px)");
     expect(issueRule).not.toContain("border:");
-    expect(settingsStyle).not.toMatch(/\.settings-danger-zone\s*\{[^}]*border:/s);
+    expect(repositoryStyle).not.toMatch(
+      /\.repository-danger-zone\s*\{[^}]*border:/s,
+    );
   });
 
   it("keeps the collapsed detail responsive behavior in the frame layer", () => {

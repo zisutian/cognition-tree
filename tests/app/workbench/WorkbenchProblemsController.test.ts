@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  hasWorkbenchProblemsPanel,
   openWorkbenchProblem,
   selectWorkbenchProblems,
 } from "../../../src/app/workbench/WorkbenchProblemsController";
@@ -30,11 +31,17 @@ const repositoryIssue: WorkspaceRepositoryCatalogIssue = {
 };
 
 describe("WorkbenchProblemsController", () => {
-  it("includes repository problems only for settings and retains diagnostics there", () => {
+  it("omits the global problems panel only from Settings", () => {
+    expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
+    expect(hasWorkbenchProblemsPanel("repository")).toBe(true);
+    expect(hasWorkbenchProblemsPanel("notes")).toBe(true);
+  });
+
+  it("includes repository problems only for repositories and retains diagnostics there", () => {
     const diagnostics = createUiWorkbenchDiagnostics([diagnostic], "ready");
 
     expect(selectWorkbenchProblems({
-      activeActivityId: "settings",
+      activeActivityId: "repository",
       diagnostics,
       repositoryIssues: [repositoryIssue],
     })).toMatchObject({
@@ -46,7 +53,7 @@ describe("WorkbenchProblemsController", () => {
       warningCount: 1,
     });
     expect(selectWorkbenchProblems({
-      activeActivityId: "notes",
+      activeActivityId: "settings",
       diagnostics,
       repositoryIssues: [repositoryIssue],
     })).toEqual({
@@ -57,7 +64,7 @@ describe("WorkbenchProblemsController", () => {
     });
   });
 
-  it("requests the matching repository issue before opening Settings", () => {
+  it("requests the matching repository issue before opening Repositories", () => {
     const onActiveActivityChange = vi.fn();
     const openRepositoryIssue = vi.fn();
     const expandPanels = vi.fn();
@@ -81,7 +88,7 @@ describe("WorkbenchProblemsController", () => {
       onActiveActivityChange,
     });
 
-    expect(onActiveActivityChange).toHaveBeenCalledWith("settings");
+    expect(onActiveActivityChange).toHaveBeenCalledWith("repository");
     expect(openRepositoryIssue).toHaveBeenCalledWith("broken");
     expect(openRepositoryIssue.mock.invocationCallOrder[0]).toBeLessThan(
       onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,

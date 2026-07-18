@@ -13,17 +13,17 @@ import {
   canDeleteManagedRepositoryData,
   getRepositoryDeletionChoices,
   RepositoryDeleteDialog,
-} from "../../src/ui/activities/settings/RepositoryDeleteDialog";
+} from "../../src/ui/activities/repository/RepositoryDeleteDialog";
 import {
   copyRepositoryLocation,
-  SettingsPanel,
-  SettingsRepositoryContext,
-} from "../../src/ui/activities/settings/SettingsPanel";
+  RepositoryContext,
+  RepositoryPanel,
+} from "../../src/ui/activities/repository/RepositoryPanel";
 import { FeedbackProvider } from "../../src/ui/shared/FeedbackProvider";
 import {
   projectRepositoryIssues,
   type RepositoryOption,
-} from "../../src/application/workspace/activities/settings/settingsViewModel";
+} from "../../src/application/workspace/activities/repository/repositoryViewModel";
 import { createView } from "./viewFactory";
 
 const localRepository: RepositoryOption = {
@@ -239,7 +239,7 @@ describe("repository deletion dialog", () => {
   });
 });
 
-describe("repository setup and settings semantics", () => {
+describe("repository setup and management semantics", () => {
   it("copies the exact structured location value", async () => {
     const values: string[] = [];
 
@@ -328,7 +328,7 @@ describe("repository setup and settings semantics", () => {
   });
 
   it("uses a grouped repository context and keeps generated IDs read-only", () => {
-    const baseView = createView().settings;
+    const baseView = createView().repository;
     const view = {
       ...baseView,
       activeRepositoryId: localRepository.id,
@@ -337,23 +337,19 @@ describe("repository setup and settings semantics", () => {
     };
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
-        <SettingsRepositoryContext
+        <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
           view={view}
         />
-        <SettingsPanel
+        <RepositoryPanel
           view={view}
-          workbench={{
-            contextWidth: 280,
-            onContextWidthChange: () => undefined,
-          }}
         />
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain("settings-repository-group-title");
-    expect(markup).toContain("settings-repository-list");
+    expect(markup).toContain("repository-group-title");
+    expect(markup).toContain("repository-list");
     expect(markup.indexOf(">本地</span>")).toBeLessThan(
       markup.indexOf(">WebDAV</span>"),
     );
@@ -368,7 +364,9 @@ describe("repository setup and settings semantics", () => {
     expect(markup).toContain('aria-label="重新扫描文件"');
     expect(markup).toContain('aria-label="添加仓库"');
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).not.toContain("settings-create-repository-region");
+    expect(markup).not.toContain(
+      'class="ui-section repository-create-region"',
+    );
     expect(markup).toContain("主机路径");
     expect(markup).toContain("/home/zisu/notes/local");
     expect(markup).toContain('aria-label="复制主机路径"');
@@ -377,7 +375,7 @@ describe("repository setup and settings semantics", () => {
   });
 
   it("renders repository issues only in the grouped context with focus targets and actions", () => {
-    const baseView = createView().settings;
+    const baseView = createView().repository;
     const issues = projectRepositoryIssues([
       {
         adapter: "webdav",
@@ -407,7 +405,7 @@ describe("repository setup and settings semantics", () => {
     const view = { ...baseView, issues };
     const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <SettingsRepositoryContext
+        <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
           view={view}
@@ -416,12 +414,8 @@ describe("repository setup and settings semantics", () => {
     );
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
-        <SettingsPanel
+        <RepositoryPanel
           view={view}
-          workbench={{
-            contextWidth: 280,
-            onContextWidthChange: () => undefined,
-          }}
         />
       </FeedbackProvider>,
     );

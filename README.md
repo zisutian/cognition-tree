@@ -23,7 +23,7 @@
       设计.ctn
       记录.ctn
 
-可见 `.ctn` 文件只保存编辑器正文，文件名去掉扩展名后与首行标题一致。稳定 note/block ID、时间、上一版正文、目录顺序、仓库语法和写入事务位于仓库根部的保留目录 `.ctn/`；同名普通文本中的 `@ctn-block` 保持可见并产生诊断。Local adapter 在首次加载、同步提交和设置页的“重新扫描文件”操作中扫描真实目录，不使用文件 watcher。非 `.ctn` 普通文件视为 unmanaged，不进入笔记树，也不会被仓库操作改写或删除。
+可见 `.ctn` 文件只保存编辑器正文，文件名去掉扩展名后与首行标题一致。稳定 note/block ID、时间、上一版正文、目录顺序、仓库语法和写入事务位于仓库根部的保留目录 `.ctn/`；同名普通文本中的 `@ctn-block` 保持可见并产生诊断。Local adapter 在首次加载、同步提交和仓库活动的“重新扫描文件”操作中扫描真实目录，不使用文件 watcher。非 `.ctn` 普通文件视为 unmanaged，不进入笔记树，也不会被仓库操作改写或删除。
 
 Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与索引先经过完整校验并 durable 写入事务目录，最后原子替换 `.ctn/repository.json` 作为唯一 commit point。旧 snapshot Local 布局不迁移，读取时报告 `unsupported_repository_version`。WebDAV 继续使用不可变 generation、writer lease 和 ETag CAS；Browser 继续使用 IndexedDB。
 
@@ -38,8 +38,9 @@ Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与�
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
     引用图谱：查看笔记级引用关系和局部图谱。
-    问题：在工作台底部统一检查全仓库解析错误、语法错误和未解析引用，并跳转到对应笔记行或语法字段。
-    设置：创建、切换和删除 Local/WebDAV 仓库，查看自动生成的仓库 ID、结构化位置与保存状态，重新扫描外部文件修改，并调整按仓库保存的工作台布局。
+    问题：在工作台底部统一检查全仓库解析错误、语法错误和未解析引用，并跳转到对应笔记行或语法字段；仓库活动同时显示 catalog 问题。
+    仓库：创建、切换和删除 Local/WebDAV 仓库，查看自动生成的仓库 ID、结构化位置与保存状态，并重新扫描外部文件修改。
+    设置：在“界面”页调整按仓库保存的工作台左侧栏宽度；该活动不显示底部问题栏。
     离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
@@ -113,7 +114,7 @@ loopback HTTP 后端只接受 loopback Host 和本机开发前端 Origin。非 l
 
 后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库，通过 `DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。repository id 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；workspace 使用独立的 `workspace-<uuid>`。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
 
-HTTP 模式的设置页可以动态添加和切换 Local/WebDAV 仓库。仓库位置使用结构化数据：Local 显示 realpath 后的服务端路径，并可同时显示由 `CTN_REPOSITORY_HOST_ROOT` 映射的宿主机路径；WebDAV 显示不含凭据的规范化 URL；Browser 显示实际 IndexedDB 数据库名。绝对路径只向已授权的单用户 catalog 前端公开，API 错误、未知 500 和日志不包含单仓路径或凭据。`CTN_REPOSITORY_HOST_ROOT` 必须是绝对路径，只参与展示，不参与读写、删除或权限判断。
+HTTP 模式的仓库活动可以动态添加和切换 Local/WebDAV 仓库。仓库位置使用结构化数据：Local 显示 realpath 后的服务端路径，并可同时显示由 `CTN_REPOSITORY_HOST_ROOT` 映射的宿主机路径；WebDAV 显示不含凭据的规范化 URL；Browser 显示实际 IndexedDB 数据库名。绝对路径只向已授权的单用户 catalog 前端公开，API 错误、未知 500 和日志不包含单仓路径或凭据。`CTN_REPOSITORY_HOST_ROOT` 必须是绝对路径，只参与展示，不参与读写、删除或权限判断。
 
 WebDAV 连接由名称、URL 和无认证或 Basic 认证组成；初次添加时探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE 能力。完全空的目标初始化为 v3 仓库，已有 v3 内容保持为远端事实，非空且不受管理的目标及旧版本目标不会被接管。本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。Browser 模式只创建和切换 Browser 仓库。
 
