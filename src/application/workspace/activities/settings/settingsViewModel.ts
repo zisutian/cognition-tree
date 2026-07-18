@@ -9,6 +9,15 @@ import type {
   RepositoryCatalogOperation,
 } from "../../session/useRepositoryCatalog";
 import type { WorkspacePersistenceState } from "../../session/workspaceSessionSaveQueue";
+import {
+  projectRepositoryIssueMessage,
+  repositoryAdapterLabels,
+  requiresManualLocalDeletion,
+} from "../../projection/viewRepositoryIssues";
+export {
+  repositoryAdapterLabels,
+  requiresManualLocalDeletion,
+} from "../../projection/viewRepositoryIssues";
 
 const persistenceLabels: Record<WorkspacePersistenceState["status"], string> = {
   conflict: "仓库内容已更改",
@@ -18,12 +27,6 @@ const persistenceLabels: Record<WorkspacePersistenceState["status"], string> = {
   saved: "已保存",
   "saving-local": "正在保存本地副本",
   syncing: "正在同步",
-};
-
-export const repositoryAdapterLabels: Record<RepositoryAdapterKind, string> = {
-  browser: "浏览器",
-  local: "本地",
-  webdav: "WebDAV",
 };
 
 export type RepositoryAdapterOption = {
@@ -48,6 +51,52 @@ export type RepositoryIssueView = WorkspaceRepositoryCatalogIssue & {
   displayLabel: string;
   locationRows: RepositoryLocationRow[];
 };
+
+export type RepositoryIssueActionView = {
+  confirmation: string | null;
+  label: string;
+  mode: DeleteRepositoryRequest["mode"];
+};
+
+export function projectRepositoryIssueActions(
+  issue: Pick<
+    WorkspaceRepositoryCatalogIssue,
+    "adapter" | "code" | "id" | "status"
+  >,
+): RepositoryIssueActionView[] {
+  if (requiresManualLocalDeletion(issue)) {
+    return [];
+  }
+  if (issue.status === "deleting") {
+    return [
+      {
+        confirmation: null,
+        label: "重试清理",
+        mode: "delete-managed-data",
+      },
+      ...(issue.adapter === "webdav"
+        ? [{
+            confirmation:
+              "停止跟踪会保留远端删除标记，并可能留下尚未清理的 generations。",
+            label: "停止跟踪",
+            mode: "remove-connection" as const,
+          }]
+        : []),
+    ];
+  }
+  if (issue.adapter === "webdav") {
+    return [{
+      confirmation: `将移除故障 WebDAV 连接 ${issue.id}；远端数据不会被删除。`,
+      label: "移除连接",
+      mode: "remove-connection",
+    }];
+  }
+  return [{
+    confirmation: `将删除故障仓库条目 ${issue.id}。`,
+    label: "清理",
+    mode: "delete-managed-data",
+  }];
+}
 
 export function projectRepositoryLocation(
   location: WorkspaceRepositoryDescriptor["location"] | null,
@@ -115,12 +164,15 @@ export function projectRepositoryIssues(
 ): RepositoryIssueView[] {
   return issues.map((issue) => {
     const adapterLabel = repositoryAdapterLabels[issue.adapter];
+    const locationRows = projectRepositoryLocation(issue.location);
+    const manualLocalDeletion = requiresManualLocalDeletion(issue);
 
     return {
       ...issue,
       adapterLabel,
       displayLabel: `${issue.id} · ${adapterLabel}`,
-      locationRows: projectRepositoryLocation(issue.location),
+      locationRows: manualLocalDeletion ? locationRows.slice(0, 1) : locationRows,
+      message: projectRepositoryIssueMessage(issue),
     };
   });
 }
@@ -174,6 +226,7 @@ type SettingsActivitySource = {
   issues: WorkspaceRepositoryCatalogIssue[];
   operation: RepositoryCatalogOperation;
   persistence: WorkspacePersistenceState;
+  refreshRepositories: () => Promise<void>;
   reload: () => Promise<void>;
   repositories: WorkspaceRepositoryDescriptor[];
   storageLabel: string;
@@ -193,6 +246,7 @@ export type SettingsViewModel = {
   issues: RepositoryIssueView[];
   operation: RepositoryCatalogOperation;
   persistenceStatusLabel: string;
+  refreshRepositories: () => Promise<void>;
   reload: () => Promise<void>;
   repositories: RepositoryOption[];
   selectRepository: (repositoryId: string) => Promise<void>;
@@ -219,6 +273,7 @@ export function createSettingsViewModel(
     issues: projectRepositoryIssues(source.issues),
     operation: source.operation,
     persistenceStatusLabel: persistenceLabels[source.persistence.status],
+    refreshRepositories: source.refreshRepositories,
     reload: source.reload,
     repositories,
     selectRepository: source.selectRepository,

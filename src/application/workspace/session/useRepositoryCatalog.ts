@@ -69,6 +69,50 @@ function createInitialContent(name: string) {
   });
 }
 
+function repositoryLocationsEqual(
+  left: WorkspaceRepositoryDescriptor["location"],
+  right: WorkspaceRepositoryDescriptor["location"],
+) {
+  if (left.type !== right.type) {
+    return false;
+  }
+  switch (left.type) {
+    case "local":
+      return right.type === "local" &&
+        left.hostPath === right.hostPath &&
+        left.serverPath === right.serverPath;
+    case "webdav":
+      return right.type === "webdav" && left.url === right.url;
+    case "browser":
+      return right.type === "browser" &&
+        left.databaseName === right.databaseName;
+  }
+}
+
+export function reuseUnchangedRepositoryDescriptors(
+  previous: WorkspaceRepositoryDescriptor[],
+  next: WorkspaceRepositoryDescriptor[],
+) {
+  const previousById = new Map(
+    previous.map((descriptor) => [descriptor.id, descriptor]),
+  );
+
+  return next.map((descriptor) => {
+    const existing = previousById.get(descriptor.id);
+
+    if (
+      existing &&
+      existing.adapter === descriptor.adapter &&
+      existing.label === descriptor.label &&
+      repositoryLocationsEqual(existing.location, descriptor.location)
+    ) {
+      return existing;
+    }
+
+    return descriptor;
+  });
+}
+
 function selectAfterDeletion(
   previousRepositories: WorkspaceRepositoryDescriptor[],
   nextRepositories: WorkspaceRepositoryDescriptor[],
@@ -124,14 +168,20 @@ export function useRepositoryCatalog(
     preferredRepositoryId?: string | null,
   ) => {
     const current = stateRef.current;
+    const repositories = current.status === "ready"
+      ? reuseUnchangedRepositoryDescriptors(
+          current.repositories,
+          nextCatalog.repositories,
+        )
+      : nextCatalog.repositories;
     const storedRepositoryId = preferredRepositoryId === undefined
       ? activeRepositorySelection.load()
       : preferredRepositoryId;
-    const activeRepositoryId = nextCatalog.repositories.some(
+    const activeRepositoryId = repositories.some(
       ({ id }) => id === storedRepositoryId,
     )
       ? storedRepositoryId
-      : nextCatalog.repositories[0]?.id ?? null;
+      : repositories[0]?.id ?? null;
 
     persistActiveRepository(activeRepositoryId);
     publish({
@@ -139,7 +189,7 @@ export function useRepositoryCatalog(
       creatableAdapters: nextCatalog.creatableAdapters,
       issues: nextCatalog.issues,
       operation: current.status === "ready" ? current.operation : "idle",
-      repositories: nextCatalog.repositories,
+      repositories,
       status: "ready",
     });
   }, [activeRepositorySelection, persistActiveRepository, publish]);

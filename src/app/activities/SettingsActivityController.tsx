@@ -12,6 +12,10 @@ export function SettingsActivityController({
   return active
     ? renderActivity(({ contextWidth, onContextWidthChange }) =>
         createSettingsActivitySlots({
+          onConsumeRepositoryIssueFocusRequest:
+            application.navigation.consumeRepositoryIssueFocusRequest,
+          repositoryIssueFocusRequest:
+            application.navigation.repositoryIssueFocusRequest,
           view,
           workbench: { contextWidth, onContextWidthChange },
         }),

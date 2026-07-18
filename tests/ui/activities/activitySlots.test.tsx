@@ -58,6 +58,8 @@ function slotsWithView(
       });
     case "settings":
       return createSettingsActivitySlots({
+        onConsumeRepositoryIssueFocusRequest: () => undefined,
+        repositoryIssueFocusRequest: null,
         view: view.settings,
         workbench: {
           contextWidth: controls.contextWidth,

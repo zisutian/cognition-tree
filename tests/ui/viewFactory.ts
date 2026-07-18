@@ -87,6 +87,7 @@ export function createView(
       discardPendingChangesAndReload: async () => undefined,
       hasSaveConflict: false,
       issues: [],
+      refreshRepositories: async () => undefined,
       reload: async () => undefined,
       repositories: [
         {

@@ -85,6 +85,10 @@ function RepositoryWorkspaceApp({
     await session.flushPendingChanges();
     await catalog.createRepository(input);
   };
+  const refreshRepositories = async () => {
+    await session.flushPendingChanges();
+    await catalog.reload();
+  };
   const deleteRepository = async (input: DeleteRepositoryRequest) => {
     if (input.id !== catalog.activeDescriptor?.id) {
       await catalog.deleteRepository(input);
@@ -114,6 +118,7 @@ function RepositoryWorkspaceApp({
         deleteRepository,
         issues: readyCatalog?.issues ?? [],
         operation: readyCatalog?.operation ?? "idle",
+        refreshRepositories,
         repositories: readyCatalog?.repositories ?? [],
         selectRepository,
       }}
@@ -168,6 +173,7 @@ export function AppRoot() {
           await catalog.createRepository(input);
         }}
         onDelete={catalog.deleteRepository}
+        onRefresh={catalog.reload}
       />
     );
   }

@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Cloud,
   Copy,
   Database,
@@ -8,12 +9,17 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { useState } from "react";
-import type { DeleteRepositoryRequest } from "../../../application/workspace/session/useRepositoryCatalog";
+import { useEffect, useRef, useState } from "react";
 import type {
+  RepositoryIssueActionView,
   RepositoryIssueView,
   RepositoryOption,
   SettingsViewModel,
+} from "../../../application/workspace/activities/settings/settingsViewModel";
+import type { WorkspaceRepositoryIssueFocusRequest } from "../../../application/workspace/navigation/useWorkspaceNavigation";
+import {
+  projectRepositoryIssueActions,
+  requiresManualLocalDeletion,
 } from "../../../application/workspace/activities/settings/settingsViewModel";
 import { RepositoryCreateForm } from "../../RepositoryCreateForm";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
@@ -33,9 +39,9 @@ export type SettingsWorkbenchPreferences = {
   onContextWidthChange: (width: number) => void;
 };
 
-type PendingIssueDeletion = {
+type PendingIssueAction = {
+  action: RepositoryIssueActionView;
   issue: RepositoryIssueView;
-  mode: DeleteRepositoryRequest["mode"];
 };
 
 function RepositoryAdapterIcon({
@@ -64,29 +70,78 @@ export async function copyRepositoryLocation(
 }
 
 export function SettingsRepositoryContext({
+  focusRequest,
+  onConsumeFocusRequest,
   view,
 }: {
+  focusRequest: WorkspaceRepositoryIssueFocusRequest | null;
+  onConsumeFocusRequest: (requestId: number) => void;
   view: SettingsViewModel;
 }) {
   const feedback = useFeedback();
-  const busy = view.operation !== "idle";
-  const adapterGroups = [...new Set(
-    view.repositories.map(({ adapter }) => adapter),
-  )];
+  const contextRef = useRef<HTMLDivElement | null>(null);
+  const [pendingIssueAction, setPendingIssueAction] =
+    useState<PendingIssueAction | null>(null);
+  const [refreshingRepositories, setRefreshingRepositories] = useState(false);
+  const busy = view.operation !== "idle" || refreshingRepositories;
+  const adapterGroups = (["local", "webdav", "browser"] as const).filter(
+    (adapter) =>
+      view.repositories.some((repository) => repository.adapter === adapter) ||
+      view.issues.some((issue) => issue.adapter === adapter),
+  );
+  const copyLocation = async (label: string, value: string) => {
+    await copyRepositoryLocation(value);
+    feedback.notify(`${label}已复制。`);
+  };
+  const refreshRepositories = async () => {
+    setRefreshingRepositories(true);
+    try {
+      await view.refreshRepositories();
+      feedback.notify("仓库列表已重新检查。");
+    } finally {
+      setRefreshingRepositories(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+    const target = Array.from(
+      contextRef.current?.querySelectorAll<HTMLElement>(
+        "[data-repository-issue-id]",
+      ) ?? [],
+    ).find(
+      (element) =>
+        element.dataset.repositoryIssueId === focusRequest.issueId,
+    );
+
+    if (!target) {
+      return;
+    }
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: "nearest" });
+    onConsumeFocusRequest(focusRequest.requestId);
+  }, [focusRequest, onConsumeFocusRequest, view.issues]);
 
   return (
-    <div className="activity-context-content settings-repository-context">
+    <div
+      className="activity-context-content settings-repository-context"
+      ref={contextRef}
+    >
       {adapterGroups.map((adapter) => {
         const repositories = view.repositories.filter(
           (repository) => repository.adapter === adapter,
         );
-        const adapterLabel = repositories[0]?.adapterLabel ?? adapter;
+        const issues = view.issues.filter((issue) => issue.adapter === adapter);
+        const adapterLabel = repositories[0]?.adapterLabel ??
+          issues[0]?.adapterLabel ?? adapter;
 
         return (
           <section className="settings-repository-group" key={adapter}>
             <p className="settings-repository-group-title">
               <span>{adapterLabel}</span>
-              <span>{repositories.length}</span>
+              <span>{repositories.length + issues.length}</span>
             </p>
             <ul className="ui-tree settings-repository-list">
               {repositories.map((repository) => {
@@ -129,13 +184,133 @@ export function SettingsRepositoryContext({
                   </li>
                 );
               })}
+              {issues.map((issue) => {
+                const actions = projectRepositoryIssueActions(issue);
+                const manualDeletion = requiresManualLocalDeletion(issue);
+
+                return (
+                  <li
+                    className="ui-tree-row-frame settings-repository-row-frame settings-repository-issue-row-frame"
+                    key={issue.id}
+                  >
+                    <div
+                      aria-label={issue.displayLabel}
+                      className={cx(
+                        "settings-repository-issue-row",
+                        issue.status === "deleting" && "is-deleting",
+                      )}
+                      data-repository-issue-id={issue.id}
+                      role="group"
+                      tabIndex={-1}
+                    >
+                      <AlertTriangle aria-hidden="true" size={13} />
+                      <div className="settings-repository-issue-details">
+                        <strong title={issue.displayLabel}>{issue.id}</strong>
+                        <span>{issue.message}</span>
+                        {issue.locationRows.map((row) => (
+                          <span
+                            className="settings-repository-issue-location"
+                            key={row.label}
+                          >
+                            <span title={row.value}>
+                              {row.label}：{row.value}
+                            </span>
+                            <Button
+                              aria-label={`复制${row.label}`}
+                              disabled={busy}
+                              onClick={() => {
+                                void feedback.runAction(() => copyLocation(
+                                  row.label,
+                                  row.copyValue,
+                                ));
+                              }}
+                              title={`复制${row.label}`}
+                              type="button"
+                              variant="icon"
+                            >
+                              <Copy aria-hidden="true" size={12} />
+                            </Button>
+                          </span>
+                        ))}
+                        {manualDeletion ? (
+                          <span className="settings-repository-manual-removal">
+                            请在文件系统中手工删除上述目录。
+                          </span>
+                        ) : null}
+                        {manualDeletion || actions.length > 0 ? (
+                          <span className="settings-repository-issue-actions">
+                            {manualDeletion ? (
+                              <Button
+                                disabled={busy}
+                                onClick={() => {
+                                  void feedback.runAction(refreshRepositories);
+                                }}
+                                type="button"
+                                variant="secondary"
+                              >
+                                重新检查
+                              </Button>
+                            ) : null}
+                            {actions.map((action) => (
+                              <Button
+                                className={action.confirmation
+                                  ? "ui-button-danger"
+                                  : undefined}
+                                disabled={busy}
+                                key={`${action.mode}-${action.label}`}
+                                onClick={() => {
+                                  if (action.confirmation) {
+                                    setPendingIssueAction({ action, issue });
+                                    return;
+                                  }
+                                  void feedback.runAction(() =>
+                                    view.deleteRepository({
+                                      id: issue.id,
+                                      mode: action.mode,
+                                    })
+                                  );
+                                }}
+                                type="button"
+                                variant="secondary"
+                              >
+                                {action.label}
+                              </Button>
+                            ))}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         );
       })}
-      {view.repositories.length === 0 ? (
+      {view.repositories.length === 0 && view.issues.length === 0 ? (
         <p className="context-empty">没有可用仓库。</p>
       ) : null}
+      <ConfirmDialog
+        confirmLabel={pendingIssueAction?.action.label}
+        description={pendingIssueAction?.action.confirmation ?? ""}
+        open={pendingIssueAction !== null}
+        title="处理仓库问题"
+        onCancel={() => setPendingIssueAction(null)}
+        onConfirm={() => {
+          const pending = pendingIssueAction;
+
+          if (!pending) {
+            return;
+          }
+          void feedback.runAction(async () => {
+            await view.deleteRepository({
+              id: pending.issue.id,
+              mode: pending.action.mode,
+            });
+            setPendingIssueAction(null);
+          });
+        }}
+      />
     </div>
   );
 }
@@ -150,8 +325,6 @@ export function SettingsPanel({
   const feedback = useFeedback();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createFormOpen, setCreateFormOpen] = useState(false);
-  const [pendingIssueDeletion, setPendingIssueDeletion] =
-    useState<PendingIssueDeletion | null>(null);
   const busy = view.operation !== "idle";
   const activeRepository = view.repositories.find(
     ({ id }) => id === view.activeRepositoryId,
@@ -281,74 +454,6 @@ export function SettingsPanel({
               </div>
             </Section>
           ) : null}
-          {view.issues.length > 0 ? (
-            <Section className="settings-section" title="仓库问题">
-              <div className="settings-repository-issues">
-                {view.issues.map((issue) => (
-                  <article className="settings-repository-issue" key={issue.id}>
-                    <div>
-                      <strong>{issue.displayLabel}</strong>
-                      <span>{issue.message}</span>
-                      {issue.locationRows.map((row) => (
-                        <span
-                          className="settings-issue-location"
-                          key={row.label}
-                        >
-                          {row.label}：{row.value}
-                          <Button
-                            aria-label={`复制${row.label}`}
-                            disabled={busy}
-                            onClick={() => {
-                              void feedback.runAction(() => copyLocation(
-                                row.label,
-                                row.copyValue,
-                              ));
-                            }}
-                            title={`复制${row.label}`}
-                            type="button"
-                            variant="icon"
-                          >
-                            <Copy aria-hidden="true" size={12} />
-                          </Button>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="ui-actions">
-                      {issue.status === "deleting" ? (
-                        <Button
-                          disabled={busy}
-                          onClick={() => {
-                            void feedback.runAction(() => view.deleteRepository({
-                              id: issue.id,
-                              mode: "delete-managed-data",
-                            }));
-                          }}
-                          type="button"
-                          variant="secondary"
-                        >
-                          重试清理
-                        </Button>
-                      ) : null}
-                      <Button
-                        className="ui-button-danger"
-                        disabled={busy}
-                        onClick={() => setPendingIssueDeletion({
-                          issue,
-                          mode: issue.adapter === "webdav"
-                            ? "remove-connection"
-                            : "delete-managed-data",
-                        })}
-                        type="button"
-                        variant="secondary"
-                      >
-                        {issue.status === "deleting" ? "停止跟踪" : "清理"}
-                      </Button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </Section>
-          ) : null}
           <Section className="settings-section" title="工作台">
             <div className="settings-form-row">
               <label htmlFor="settings-context-width">左侧栏宽度</label>
@@ -414,31 +519,6 @@ export function SettingsPanel({
           id: view.activeRepositoryId,
           mode,
         })}
-      />
-      <ConfirmDialog
-        confirmLabel={pendingIssueDeletion?.issue.status === "deleting"
-          ? "停止跟踪"
-          : "清理"}
-        description={pendingIssueDeletion?.issue.status === "deleting"
-          ? "停止跟踪会保留远端删除标记，并可能留下尚未清理的 generations。"
-          : `将删除故障仓库条目 ${pendingIssueDeletion?.issue.id ?? ""}。`}
-        open={pendingIssueDeletion !== null}
-        title="清理仓库问题"
-        onCancel={() => setPendingIssueDeletion(null)}
-        onConfirm={() => {
-          const pending = pendingIssueDeletion;
-
-          if (!pending) {
-            return;
-          }
-          void feedback.runAction(async () => {
-            await view.deleteRepository({
-              id: pending.issue.id,
-              mode: pending.mode,
-            });
-            setPendingIssueDeletion(null);
-          });
-        }}
       />
     </Panel>
   );

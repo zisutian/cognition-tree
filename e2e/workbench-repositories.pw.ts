@@ -15,8 +15,10 @@ import { appResizeKeyboardStep } from "../src/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,
   editExternalLocalNote,
+  removeE2ELocalRepository,
   seedLargeTreeRepository,
   seedRawRepository,
+  seedUnsupportedLocalSnapshotRepository,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
 import {
@@ -29,6 +31,7 @@ const repositoryId = "repository-flows";
 const rawRepositoryId = "repository-raw";
 const largeRepositoryId = "repository-large";
 const externalRepositoryId = "repository-external";
+const unsupportedRepositoryId = "default";
 
 test.describe.serial("repository and capacity flows", () => {
   let api: APIRequestContext;
@@ -507,6 +510,78 @@ test.describe.serial("repository and capacity flows", () => {
     await expect(structureTree.getByTitle("组分: Block 599")).toBeVisible();
   });
 
+  test("shows unsupported Local repositories only in Settings and requires manual removal", async ({
+    page,
+  }) => {
+    let unsupportedDeleteRequests = 0;
+
+    page.on("request", (request) => {
+      if (
+        request.method() === "DELETE" &&
+        new URL(request.url()).pathname.endsWith(
+          `/repositories/${unsupportedRepositoryId}`,
+        )
+      ) {
+        unsupportedDeleteRequests += 1;
+      }
+    });
+    await seedUnsupportedLocalSnapshotRepository(unsupportedRepositoryId);
+
+    try {
+      await openWorkbench(page, repositoryId);
+      const problems = page.locator(".problems-panel");
+      const problemsHeader = problems.locator(".problems-panel-header");
+
+      if (await problemsHeader.getAttribute("aria-expanded") === "false") {
+        await problemsHeader.click();
+      }
+      await expect(problems).not.toContainText(
+        "仓库格式不受支持，需要手工删除该目录。",
+      );
+
+      await getActivityButton(page, "设置").click();
+      const repositoryProblem = problems.locator(".problems-row").filter({
+        hasText: "仓库格式不受支持，需要手工删除该目录。",
+      });
+      const issueRow = page.locator(
+        `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
+      );
+
+      await expect(repositoryProblem).toBeVisible();
+      await repositoryProblem.click();
+      await expect(issueRow).toBeFocused();
+      await expect(issueRow).toContainText("请在文件系统中手工删除上述目录。");
+      await expect(issueRow).toContainText(
+        `/host/e2e-repositories/${unsupportedRepositoryId}`,
+      );
+      await expect(issueRow).not.toContainText(
+        `.cognition-tree/e2e-repository/${unsupportedRepositoryId}`,
+      );
+      await expect(
+        issueRow.getByRole("button", { name: "清理", exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        issueRow.getByRole("button", { name: "复制主机路径", exact: true }),
+      ).toBeVisible();
+
+      await getActivityButton(page, "笔记").click();
+      await expect(problems).not.toContainText(
+        "仓库格式不受支持，需要手工删除该目录。",
+      );
+      await getActivityButton(page, "设置").click();
+      await expect(issueRow).toBeVisible();
+      await expect(issueRow).not.toBeFocused();
+
+      await removeE2ELocalRepository(unsupportedRepositoryId);
+      await issueRow.getByRole("button", { name: "重新检查" }).click();
+      await expect(issueRow).toHaveCount(0);
+      await expect(repositoryProblem).toHaveCount(0);
+      expect(unsupportedDeleteRequests).toBe(0);
+    } finally {
+      await removeE2ELocalRepository(unsupportedRepositoryId);
+    }
+  });
+
   test("enters repository setup after deleting the final repository", async ({
     page,
   }) => {
@@ -529,18 +604,38 @@ test.describe.serial("repository and capacity flows", () => {
       expect(deleteResponse.ok()).toBe(true);
     }
 
-    await openWorkbench(page, largeRepositoryId);
-    await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "删除仓库", exact: true }).click();
+    await seedUnsupportedLocalSnapshotRepository(unsupportedRepositoryId);
 
-    const dialog = page.getByRole("alertdialog", { name: "删除仓库" });
+    try {
+      await openWorkbench(page, largeRepositoryId);
+      await getActivityButton(page, "设置").click();
+      await page.getByRole("button", { name: "删除仓库", exact: true }).click();
 
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("textbox", {
-      name: "永久删除前请输入仓库名称",
-    }).fill(remainingRepository?.label ?? "");
-    await dialog.getByRole("button", { name: "永久删除" }).click();
-    await expect(page.getByRole("main").getByLabel("创建仓库")).toBeVisible();
-    await expect(page.locator(".settings-repository-list")).toHaveCount(0);
+      const dialog = page.getByRole("alertdialog", { name: "删除仓库" });
+
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("textbox", {
+        name: "永久删除前请输入仓库名称",
+      }).fill(remainingRepository?.label ?? "");
+      await dialog.getByRole("button", { name: "永久删除" }).click();
+      const setup = page.getByRole("main").getByLabel("创建仓库");
+
+      await expect(setup).toBeVisible();
+      await expect(page.locator(".settings-repository-list")).toHaveCount(0);
+      await expect(setup).toContainText(
+        "仓库格式不受支持，需要手工删除该目录。",
+      );
+      await expect(
+        setup.getByRole("button", { name: "重新检查" }),
+      ).toBeVisible();
+
+      await removeE2ELocalRepository(unsupportedRepositoryId);
+      await setup.getByRole("button", { name: "重新检查" }).click();
+      await expect(setup).not.toContainText(
+        "仓库格式不受支持，需要手工删除该目录。",
+      );
+    } finally {
+      await removeE2ELocalRepository(unsupportedRepositoryId);
+    }
   });
 });

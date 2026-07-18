@@ -20,7 +20,10 @@ import {
   SettingsRepositoryContext,
 } from "../../src/ui/activities/settings/SettingsPanel";
 import { FeedbackProvider } from "../../src/ui/shared/FeedbackProvider";
-import type { RepositoryOption } from "../../src/application/workspace/activities/settings/settingsViewModel";
+import {
+  projectRepositoryIssues,
+  type RepositoryOption,
+} from "../../src/application/workspace/activities/settings/settingsViewModel";
 import { createView } from "./viewFactory";
 
 const localRepository: RepositoryOption = {
@@ -273,6 +276,7 @@ describe("repository setup and settings semantics", () => {
         operation="idle"
         onCreate={async () => undefined}
         onDelete={async () => ({ status: "deleted" })}
+        onRefresh={async () => undefined}
       />,
     );
 
@@ -282,9 +286,45 @@ describe("repository setup and settings semantics", () => {
     expect(markup).toContain("仓库问题");
     expect(markup).toContain("repository-broken · WebDAV");
     expect(markup).toContain("连接配置损坏。");
-    expect(markup).toContain(">清理<");
+    expect(markup).toContain(">移除连接<");
     expect(markup).not.toContain("仓库 ID");
     expect(markup).not.toContain('aria-label="仓库存储类型"');
+  });
+
+  it("requires manual file-system deletion for an unsupported Local repository", () => {
+    const issues = projectRepositoryIssues([{
+      adapter: "local",
+      code: "unsupported_repository_version",
+      id: "default",
+      location: {
+        hostPath: "/home/zisu/notes/default",
+        serverPath: "/data/repositories/default",
+        type: "local",
+      },
+      message: "Repository version is not supported",
+      status: "fault",
+    }]);
+    const markup = renderToStaticMarkup(
+      <RepositorySetupView
+        adapters={[{ label: "本地", value: "local" }]}
+        catalogLabel="本机仓库"
+        issues={issues}
+        operation="idle"
+        onCreate={async () => undefined}
+        onDelete={async () => ({ status: "deleted" })}
+        onRefresh={async () => undefined}
+      />,
+    );
+
+    expect(markup).toContain("仓库格式不受支持，需要手工删除该目录。");
+    expect(markup).toContain("请在文件系统中手工删除上述目录。");
+    expect(markup).toContain("主机路径：/home/zisu/notes/default");
+    expect(markup).toContain('aria-label="复制主机路径"');
+    expect(markup).toContain(">重新检查<");
+    expect(markup).not.toContain("/data/repositories/default");
+    expect(markup).not.toContain(">清理<");
+    expect(markup).not.toContain(">重试清理<");
+    expect(markup).not.toContain(">移除连接<");
   });
 
   it("uses a grouped repository context and keeps generated IDs read-only", () => {
@@ -297,7 +337,11 @@ describe("repository setup and settings semantics", () => {
     };
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
-        <SettingsRepositoryContext view={view} />
+        <SettingsRepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          view={view}
+        />
         <SettingsPanel
           view={view}
           workbench={{
@@ -310,6 +354,9 @@ describe("repository setup and settings semantics", () => {
 
     expect(markup).toContain("settings-repository-group-title");
     expect(markup).toContain("settings-repository-list");
+    expect(markup.indexOf(">本地</span>")).toBeLessThan(
+      markup.indexOf(">WebDAV</span>"),
+    );
     expect(markup).toContain('aria-current="page"');
     expect(markup).not.toContain("<select");
     expect(markup).toContain("本地笔记 · 本地");
@@ -327,5 +374,68 @@ describe("repository setup and settings semantics", () => {
     expect(markup).toContain('aria-label="复制主机路径"');
     expect(markup).toContain("危险区");
     expect(markup).toContain("删除仓库");
+  });
+
+  it("renders repository issues only in the grouped context with focus targets and actions", () => {
+    const baseView = createView().settings;
+    const issues = projectRepositoryIssues([
+      {
+        adapter: "webdav",
+        code: "repository_corrupt",
+        id: "webdav-broken",
+        location: null,
+        message: "连接配置损坏。",
+        status: "fault",
+      },
+      {
+        adapter: "webdav",
+        code: "repository_busy",
+        id: "webdav-deleting",
+        location: null,
+        message: "正在删除。",
+        status: "deleting",
+      },
+      {
+        adapter: "local",
+        code: "repository_corrupt",
+        id: "local-broken",
+        location: null,
+        message: "仓库元数据损坏。",
+        status: "fault",
+      },
+    ]);
+    const view = { ...baseView, issues };
+    const contextMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <SettingsRepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const panelMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <SettingsPanel
+          view={view}
+          workbench={{
+            contextWidth: 280,
+            onContextWidthChange: () => undefined,
+          }}
+        />
+      </FeedbackProvider>,
+    );
+
+    expect(contextMarkup).toContain('data-repository-issue-id="webdav-broken"');
+    expect(contextMarkup).toContain('data-repository-issue-id="webdav-deleting"');
+    expect(contextMarkup).toContain('data-repository-issue-id="local-broken"');
+    expect(contextMarkup.match(/tabindex="-1"/g)).toHaveLength(3);
+    expect(contextMarkup).toContain(">移除连接<");
+    expect(contextMarkup).toContain(">重试清理<");
+    expect(contextMarkup).toContain(">停止跟踪<");
+    expect(contextMarkup).toContain(">清理<");
+    expect(panelMarkup).not.toContain("仓库问题");
+    expect(panelMarkup).not.toContain("webdav-broken");
+    expect(panelMarkup).not.toContain("local-broken");
   });
 });

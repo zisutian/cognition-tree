@@ -79,6 +79,7 @@ export function WorkspaceWorkbench({
         persistence={application.repository.persistence}
       />
       <WorkbenchProblemsController
+        activeActivityId={activeActivityId}
         application={application}
         onActiveActivityChange={onActiveActivityChange}
         workbench={workbench}

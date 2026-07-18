@@ -13,6 +13,11 @@ export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {
 
 export type WorkspaceSyntaxFocusRequest = UiSyntaxFocusTarget;
 
+export type WorkspaceRepositoryIssueFocusRequest = {
+  issueId: string;
+  requestId: number;
+};
+
 export function useWorkspaceNavigation({
   selection,
   workspace,
@@ -25,6 +30,8 @@ export function useWorkspaceNavigation({
     useState<WorkspaceNoteFocusRequest | null>(null);
   const [syntaxFocusRequest, setSyntaxFocusRequest] =
     useState<WorkspaceSyntaxFocusRequest | null>(null);
+  const [repositoryIssueFocusRequest, setRepositoryIssueFocusRequest] =
+    useState<WorkspaceRepositoryIssueFocusRequest | null>(null);
   const nextRequestId = useCallback(() => {
     const requestId = nextRequestIdRef.current;
     nextRequestIdRef.current += 1;
@@ -59,6 +66,12 @@ export function useWorkspaceNavigation({
     },
     [nextRequestId],
   );
+  const openRepositoryIssue = useCallback(
+    (issueId: string) => {
+      setRepositoryIssueFocusRequest({ issueId, requestId: nextRequestId() });
+    },
+    [nextRequestId],
+  );
   const consumeNoteFocusRequest = useCallback((requestId: number) => {
     setNoteFocusRequest((current) =>
       current?.requestId === requestId ? null : current,
@@ -69,14 +82,22 @@ export function useWorkspaceNavigation({
       current?.requestId === requestId ? null : current,
     );
   }, []);
+  const consumeRepositoryIssueFocusRequest = useCallback((requestId: number) => {
+    setRepositoryIssueFocusRequest((current) =>
+      current?.requestId === requestId ? null : current,
+    );
+  }, []);
 
   return {
     consumeNoteFocusRequest,
+    consumeRepositoryIssueFocusRequest,
     consumeSyntaxFocusRequest,
     focusActiveNoteLine,
     noteFocusRequest,
     openNoteLine,
+    openRepositoryIssue,
     openSyntaxField,
+    repositoryIssueFocusRequest,
     syntaxFocusRequest,
   };
 }

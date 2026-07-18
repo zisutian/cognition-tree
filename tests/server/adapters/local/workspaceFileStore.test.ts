@@ -922,6 +922,42 @@ describe("LocalRepositoryCatalog v3", () => {
     });
   });
 
+  it("refuses to delete the removed snapshot layout and preserves its contents", async () => {
+    await withTempDir(async (rootDir) => {
+      const repositoryPath = path.join(rootDir, "default");
+      const revision = `sha256:${"a".repeat(64)}`;
+      const snapshotPath = path.join(repositoryPath, "snapshots", revision);
+      const metadataSource = JSON.stringify({
+        currentRevision: revision,
+        label: "Default",
+        schemaVersion: 3,
+      });
+      const workspaceSource = JSON.stringify({
+        id: "legacy-workspace",
+        name: "Legacy workspace",
+      });
+      const catalog = new LocalRepositoryCatalog(rootDir);
+
+      try {
+        await mkdir(snapshotPath, { recursive: true });
+        await writeFile(path.join(repositoryPath, "repository.json"), metadataSource);
+        await writeFile(path.join(snapshotPath, "workspace.json"), workspaceSource);
+
+        await expect(catalog.deleteRepository("default")).rejects.toMatchObject({
+          code: "invalid_request",
+        });
+
+        expect((await lstat(repositoryPath)).isDirectory()).toBe(true);
+        await expect(readFile(path.join(repositoryPath, "repository.json"), "utf8"))
+          .resolves.toBe(metadataSource);
+        await expect(readFile(path.join(snapshotPath, "workspace.json"), "utf8"))
+          .resolves.toBe(workspaceSource);
+      } finally {
+        await catalog.dispose();
+      }
+    });
+  });
+
   it("drains an in-flight commit before the catalog renames the repository", async () => {
     await withTempDir(async (rootDir) => {
       let releaseCommit!: () => void;

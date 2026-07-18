@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
+import { isRepositoryId } from "../../contracts/workspace-repository/parseCatalog";
 import {
   workspaceRepositorySchemaVersion,
   type RepositoryNoteDto,
@@ -26,6 +27,50 @@ const e2eRepositoryRoot = path.resolve(
   process.env.CTN_E2E_REPOSITORY_DIR ??
     path.join(".cognition-tree", "e2e-repository"),
 );
+
+function resolveE2ERepositoryPath(repositoryId: string) {
+  if (!isRepositoryId(repositoryId)) {
+    throw new Error(`Invalid E2E repository id: ${repositoryId}`);
+  }
+
+  return path.join(e2eRepositoryRoot, repositoryId);
+}
+
+export async function seedUnsupportedLocalSnapshotRepository(
+  repositoryId: string,
+) {
+  const repositoryPath = resolveE2ERepositoryPath(repositoryId);
+  const revision = `sha256:${"a".repeat(64)}`;
+  const snapshotPath = path.join(repositoryPath, "snapshots", revision);
+
+  await rm(repositoryPath, { force: true, recursive: true });
+  await mkdir(snapshotPath, { recursive: true });
+  await Promise.all([
+    writeFile(
+      path.join(repositoryPath, "repository.json"),
+      JSON.stringify({
+        currentRevision: revision,
+        label: "Default",
+        schemaVersion: workspaceRepositorySchemaVersion,
+      }),
+    ),
+    writeFile(
+      path.join(snapshotPath, "workspace.json"),
+      JSON.stringify({
+        id: "unsupported-workspace",
+        name: "Unsupported workspace",
+        tree: [],
+      }),
+    ),
+  ]);
+}
+
+export async function removeE2ELocalRepository(repositoryId: string) {
+  await rm(resolveE2ERepositoryPath(repositoryId), {
+    force: true,
+    recursive: true,
+  });
+}
 
 function assertExternalNoteTarget(repositoryId: string, noteTitle: string) {
   if (

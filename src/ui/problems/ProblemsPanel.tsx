@@ -7,17 +7,18 @@ import {
 } from "lucide-react";
 import { useRef, type CSSProperties } from "react";
 import type {
-  UiWorkbenchDiagnostic,
-  UiWorkbenchDiagnostics,
-} from "../../application/workspace/projection/viewDiagnostics";
+  UiWorkbenchProblem,
+  UiWorkbenchProblems,
+} from "../../application/workspace/projection/viewProblems";
 import { SymbolSlot, cx } from "../shared/primitives";
 
 export const problemsRowHeightPx = 22;
 export const problemsVirtualizationThreshold = 500;
 
-const sourceLabels: Record<UiWorkbenchDiagnostic["source"], string> = {
+const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   document: "笔记",
   reference: "引用",
+  repository: "仓库",
   syntax: "语法",
 };
 
@@ -26,22 +27,22 @@ export function shouldVirtualizeProblems(diagnosticCount: number) {
 }
 
 function ProblemRow({
-  diagnostic,
+  problem,
   onOpen,
   style,
 }: {
-  diagnostic: UiWorkbenchDiagnostic;
-  onOpen: (diagnostic: UiWorkbenchDiagnostic) => void;
+  problem: UiWorkbenchProblem;
+  onOpen: (problem: UiWorkbenchProblem) => void;
   style?: CSSProperties;
 }) {
-  const isError = diagnostic.severity === "error";
+  const isError = problem.severity === "error";
 
   return (
     <li className="problems-list-item" style={style}>
       <button
         className="problems-row"
-        onClick={() => onOpen(diagnostic)}
-        title={`${diagnostic.message} · ${diagnostic.locationLabel}`}
+        onClick={() => onOpen(problem)}
+        title={`${problem.message} · ${problem.locationLabel}`}
         type="button"
       >
         <SymbolSlot
@@ -55,9 +56,9 @@ function ProblemRow({
             <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
           )}
         </SymbolSlot>
-        <span className="problems-row-message">{diagnostic.message}</span>
+        <span className="problems-row-message">{problem.message}</span>
         <span className="problems-row-meta">
-          {sourceLabels[diagnostic.source]} · {diagnostic.locationLabel}
+          {sourceLabels[problem.source]} · {problem.locationLabel}
         </span>
       </button>
     </li>
@@ -65,18 +66,18 @@ function ProblemRow({
 }
 
 function ProblemsList({
-  diagnostics,
+  problems,
   onOpen,
 }: {
-  diagnostics: UiWorkbenchDiagnostic[];
-  onOpen: (diagnostic: UiWorkbenchDiagnostic) => void;
+  problems: UiWorkbenchProblem[];
+  onOpen: (problem: UiWorkbenchProblem) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const virtual = shouldVirtualizeProblems(diagnostics.length);
+  const virtual = shouldVirtualizeProblems(problems.length);
   const virtualizer = useVirtualizer({
-    count: virtual ? diagnostics.length : 0,
+    count: virtual ? problems.length : 0,
     estimateSize: () => problemsRowHeightPx,
-    getItemKey: (index) => diagnostics[index]?.id ?? index,
+    getItemKey: (index) => problems[index]?.id ?? index,
     getScrollElement: () => scrollRef.current,
     overscan: 12,
   });
@@ -85,11 +86,11 @@ function ProblemsList({
     return (
       <div className="problems-list-scroll ui-scroll-surface">
         <ul aria-label="问题列表" className="problems-list">
-          {diagnostics.map((diagnostic) => (
+          {problems.map((problem) => (
             <ProblemRow
-              diagnostic={diagnostic}
-              key={diagnostic.id}
+              key={problem.id}
               onOpen={onOpen}
+              problem={problem}
             />
           ))}
         </ul>
@@ -100,7 +101,7 @@ function ProblemsList({
   return (
     <div
       className="problems-list-scroll ui-scroll-surface"
-      data-virtual-row-count={diagnostics.length}
+      data-virtual-row-count={problems.length}
       ref={scrollRef}
     >
       <ul
@@ -109,13 +110,13 @@ function ProblemsList({
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
-          const diagnostic = diagnostics[virtualRow.index];
+          const problem = problems[virtualRow.index];
 
-          return diagnostic ? (
+          return problem ? (
             <ProblemRow
-              diagnostic={diagnostic}
               key={virtualRow.key}
               onOpen={onOpen}
+              problem={problem}
               style={{
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
@@ -135,8 +136,8 @@ export function ProblemsPanel({
   onToggle,
 }: {
   expanded: boolean;
-  view: UiWorkbenchDiagnostics;
-  onOpen: (diagnostic: UiWorkbenchDiagnostic) => void;
+  view: UiWorkbenchProblems;
+  onOpen: (problem: UiWorkbenchProblem) => void;
   onToggle: () => void;
 }) {
   const toggleLabel = expanded ? "折叠问题面板" : "展开问题面板";
@@ -172,8 +173,8 @@ export function ProblemsPanel({
       </button>
       {expanded ? (
         <div className="problems-panel-body">
-          {view.diagnostics.length > 0 ? (
-            <ProblemsList diagnostics={view.diagnostics} onOpen={onOpen} />
+          {view.problems.length > 0 ? (
+            <ProblemsList onOpen={onOpen} problems={view.problems} />
           ) : (
             <p className="problems-empty">
               {view.status === "collecting" ? "正在检查…" : "没有问题。"}

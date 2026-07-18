@@ -277,13 +277,16 @@ describe("UI design contract", () => {
       repositoryRowStart,
       settingsStyle.indexOf("}", repositoryRowStart) + 1,
     );
-    const issueStart = settingsStyle.indexOf(".settings-repository-issue {");
+    const issueStart = settingsStyle.indexOf(
+      ".settings-repository-issue-row {",
+    );
     const issueRule = settingsStyle.slice(
       issueStart,
       settingsStyle.indexOf("}", issueStart) + 1,
     );
 
     expect(repositoryRowStart).toBeGreaterThanOrEqual(0);
+    expect(issueStart).toBeGreaterThanOrEqual(0);
     expect(repositoryRow).toContain("var(--ui-symbol-size)");
     expect(repositoryRow).toContain("minmax(0, 1fr)");
     expect(settingsStyle).toContain("width: min(100%, 880px)");

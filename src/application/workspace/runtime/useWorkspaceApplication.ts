@@ -30,6 +30,7 @@ export type WorkspaceRepositoryManagement = {
   deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
   issues: WorkspaceRepositoryCatalogIssue[];
   operation: RepositoryCatalogOperation;
+  refreshRepositories: () => Promise<void>;
   repositories: WorkspaceRepositoryDescriptor[];
   selectRepository: (repositoryId: string) => Promise<void>;
 };
