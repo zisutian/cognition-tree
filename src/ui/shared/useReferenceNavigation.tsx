@@ -1,16 +1,26 @@
-import { useState } from "react";
-import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
-import type { CtnEditorReferenceTarget } from "../../../editor/ctnReferenceNavigation";
-import { useFeedback } from "../../shared/FeedbackProvider";
-import { QuickPick } from "../../shared/QuickPick";
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-export function useReferenceNavigation(
-  navigation: NotesViewModel["referenceNavigation"],
+import { useState } from "react";
+import type { CtnEditorReferenceTarget } from "../../editor/ctnReferenceNavigation";
+import { useFeedback } from "./FeedbackProvider";
+import { QuickPick } from "./QuickPick";
+
+type ReferenceDestination = {
+  description: string;
+  id: string;
+  label: string;
+};
+
+type ReferenceNavigation<Destination extends ReferenceDestination> = {
+  navigate: (destination: Destination) => void;
+  resolve: (target: CtnEditorReferenceTarget) => Destination[];
+};
+
+export function useReferenceNavigation<Destination extends ReferenceDestination>(
+  navigation: ReferenceNavigation<Destination>,
 ) {
   const feedback = useFeedback();
-  const [destinations, setDestinations] = useState<
-    ReturnType<typeof navigation.resolve>
-  >([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const close = () => setDestinations([]);
   const openReference = (target: CtnEditorReferenceTarget) => {
     const resolved = navigation.resolve(target);

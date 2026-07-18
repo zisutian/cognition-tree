@@ -12,6 +12,10 @@ import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog
 import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
 import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
 import { SystemRepositoryCatalog } from "./repository/systemRepositoryCatalog.ts";
+import {
+  validateSystemRepositoryContent,
+  validateSystemRepositoryTransition,
+} from "./repository/systemRepositoryStore.ts";
 
 if (process.env.CTN_WEBDAV_REPOSITORIES !== undefined) {
   throw new Error(
@@ -52,7 +56,10 @@ const catalog = new CompositeRepositoryCatalog(
   localCatalog,
   webDavRegistry,
 );
-const systemCatalog = new SystemRepositoryCatalog(serverStateDirectory);
+const systemCatalog = new SystemRepositoryCatalog(serverStateDirectory, {
+  validateContent: validateSystemRepositoryContent,
+  validateTransition: validateSystemRepositoryTransition,
+});
 
 await catalog.initialize();
 await systemCatalog.initialize();

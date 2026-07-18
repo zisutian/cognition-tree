@@ -1,0 +1,84 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type { APIRequestContext } from "@playwright/test";
+import type {
+  JournalRepositoryContentDto,
+  SystemRepositorySnapshotDto,
+} from "../../contracts/system-repository/types";
+import { createJournalEntry } from "../../journal/commands/journalCommands";
+import type { JournalContent } from "../../journal/model/journalContent";
+
+const journalSnapshotEndpoint =
+  "/api/system-repositories/system-journal/snapshot";
+
+export function createEmptyJournalSeed(): JournalRepositoryContentDto {
+  return {
+    entries: [],
+    purpose: "system-journal",
+    schemaVersion: 1,
+  };
+}
+
+export function createJournalSeed({
+  createdAt = "2020-02-03T04:05:06.000Z",
+  timezoneOffsetMinutes = 480,
+}: {
+  createdAt?: string;
+  timezoneOffsetMinutes?: number;
+} = {}): JournalRepositoryContentDto {
+  const result = createJournalEntry(
+    createEmptyJournalSeed() as JournalContent,
+    {
+      createBlockId: () => "00000000-0000-4000-8000-000000900001",
+      createdAt,
+      entryId: "journal-entry-00000000-0000-4000-8000-000000900001",
+      timezoneOffsetMinutes,
+    },
+  );
+
+  return result.content;
+}
+
+export async function readJournalSnapshot(api: APIRequestContext) {
+  const response = await api.get(journalSnapshotEndpoint);
+
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to read the Journal system repository: ${response.status()} ${
+        await response.text()
+      }`,
+    );
+  }
+
+  return await response.json() as SystemRepositorySnapshotDto & {
+    content: JournalRepositoryContentDto;
+  };
+}
+
+export async function resetJournalRepository(
+  api: APIRequestContext,
+  content: JournalRepositoryContentDto = createEmptyJournalSeed(),
+) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const current = await readJournalSnapshot(api);
+    const response = await api.put(journalSnapshotEndpoint, {
+      data: {
+        baseRevision: current.revision,
+        content,
+      },
+    });
+
+    if (response.ok()) {
+      return;
+    }
+    if (response.status() !== 409) {
+      throw new Error(
+        `Failed to reset the Journal system repository: ${response.status()} ${
+          await response.text()
+        }`,
+      );
+    }
+  }
+
+  throw new Error("Failed to reset the Journal system repository after CAS retries.");
+}

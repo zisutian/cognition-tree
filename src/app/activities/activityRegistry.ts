@@ -24,6 +24,13 @@ export const workspaceActivityControllers: ReadonlyArray<{
     })),
   },
   {
+    activityId: "journal",
+    Controller: lazy(async () => ({
+      default: (await import("./JournalActivityController"))
+        .JournalActivityController,
+    })),
+  },
+  {
     activityId: "structure-operation",
     Controller: lazy(async () => ({
       default: (await import("./StructureOperationActivityController"))

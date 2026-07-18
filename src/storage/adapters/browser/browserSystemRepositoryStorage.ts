@@ -17,9 +17,12 @@ import type {
   SystemLocalDraftRevision,
   SystemRepositoryBackend,
   SystemRepositoryContent,
+  SystemRepositoryContentValidator,
   SystemRepositoryPurpose,
   SystemRepositoryRevision,
+  SystemRepositoryTransitionValidator,
 } from "../../repository/systemRepository";
+import { SystemRepositoryValidationError } from "../../repository/systemRepository";
 import { createSystemRepositoryRevision } from "../../repository/systemRepositoryRevision";
 import {
   SystemRepositoryContractError,
@@ -107,7 +110,10 @@ function parseNullableRevision(value: unknown) {
   return value === null ? null : parseSystemRepositoryRevision(value);
 }
 
-function parseLocalState(value: unknown) {
+function parseLocalState(
+  value: unknown,
+  validateContent: SystemRepositoryContentValidator,
+) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Invalid IndexedDB system repository local state");
   }
@@ -116,8 +122,11 @@ function parseLocalState(value: unknown) {
   if (typeof state.identity !== "string" || !isLocalRevision(state.localRevision)) {
     throw new Error("Invalid IndexedDB system repository local state");
   }
+  const content = parseSystemRepositoryContent(state.content);
+
+  validateContent(content);
   return {
-    content: parseSystemRepositoryContent(state.content),
+    content,
     localRevision: state.localRevision,
     pendingBaseRevision: parseNullableRevision(state.pendingBaseRevision),
     remoteRevision: parseNullableRevision(state.remoteRevision),
@@ -127,6 +136,7 @@ function parseLocalState(value: unknown) {
 function parseRemoteState(
   value: unknown,
   purpose: SystemRepositoryPurpose,
+  validateContent: SystemRepositoryContentValidator,
 ) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Invalid IndexedDB browser system repository state");
@@ -136,18 +146,25 @@ function parseRemoteState(
   if (state.purpose !== purpose) {
     throw new Error("Browser system repository purpose mismatch");
   }
-  return parseSystemRepositorySnapshot({
+  const snapshot = parseSystemRepositorySnapshot({
     content: state.content,
     revision: state.revision,
   }, purpose);
+
+  validateContent(snapshot.content);
+  return snapshot;
 }
 
-function createIndexedDbCache(database: Promise<IDBDatabase>): SystemCache {
+function createIndexedDbCache(
+  database: Promise<IDBDatabase>,
+  validateContent: SystemRepositoryContentValidator,
+  validateTransition: SystemRepositoryTransitionValidator,
+): SystemCache {
   const readState = async (transaction: IDBTransaction, identity: string) => {
     const value = await requestResult(
       transaction.objectStore(localStateStoreName).get(identity),
     );
-    return value === undefined ? null : parseLocalState(value);
+    return value === undefined ? null : parseLocalState(value, validateContent);
   };
 
   return {
@@ -181,6 +198,8 @@ function createIndexedDbCache(database: Promise<IDBDatabase>): SystemCache {
     },
     async create({ identity, localRevision, snapshot }) {
       const parsed = parseSystemRepositorySnapshot(snapshot);
+
+      validateContent(parsed.content);
       const db = await database;
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
@@ -245,6 +264,8 @@ function createIndexedDbCache(database: Promise<IDBDatabase>): SystemCache {
       snapshot,
     }) {
       const parsed = parseSystemRepositorySnapshot(snapshot);
+
+      validateContent(parsed.content);
       const db = await database;
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
@@ -274,6 +295,8 @@ function createIndexedDbCache(database: Promise<IDBDatabase>): SystemCache {
     },
     async stage({ content, expectedLocalRevision, identity, localRevision }) {
       const parsedContent = parseSystemRepositoryContent(content);
+
+      validateContent(parsedContent);
       const db = await database;
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
@@ -293,6 +316,13 @@ function createIndexedDbCache(database: Promise<IDBDatabase>): SystemCache {
         transaction.abort();
         await completion.catch(() => undefined);
         throw new Error("Cannot stage a system repository without a remote base");
+      }
+      try {
+        validateTransition(current.content, parsedContent);
+      } catch (error) {
+        transaction.abort();
+        await completion.catch(() => undefined);
+        throw error;
       }
       const next = {
         ...current,
@@ -330,16 +360,27 @@ export type BrowserSystemRepositoryStorage = {
   } | {
     status: "ready";
   }>;
+  validateContent: SystemRepositoryContentValidator;
+  validateTransition: SystemRepositoryTransitionValidator;
 };
 
 export function createBrowserSystemRepositoryStorage(
   indexedDb: IDBFactory,
+  {
+    validateContent,
+    validateTransition,
+  }: {
+    validateContent: SystemRepositoryContentValidator;
+    validateTransition: SystemRepositoryTransitionValidator;
+  },
 ): BrowserSystemRepositoryStorage {
   const database = openDatabase(indexedDb);
 
   void database.catch(() => undefined);
   const emptySnapshot = async (purpose: SystemRepositoryPurpose) => {
     const content = createEmptySystemRepositoryContent(purpose);
+
+    validateContent(content);
     return {
       content,
       revision: await createSystemRepositoryRevision(content),
@@ -357,7 +398,7 @@ export function createBrowserSystemRepositoryStorage(
       value = { ...fallback, purpose };
       store.add(value);
     }
-    const snapshot = parseRemoteState(value, purpose);
+    const snapshot = parseRemoteState(value, purpose, validateContent);
     await completion;
     const canonicalRevision = await createSystemRepositoryRevision(
       snapshot.content,
@@ -373,7 +414,11 @@ export function createBrowserSystemRepositoryStorage(
   };
 
   return {
-    cache: createIndexedDbCache(database),
+    cache: createIndexedDbCache(
+      database,
+      validateContent,
+      validateTransition,
+    ),
     catalogCache: {
       async load(identity) {
         const db = await database;
@@ -400,6 +445,8 @@ export function createBrowserSystemRepositoryStorage(
       return {
         async commitRemoteSnapshot(commit) {
           const content = parseSystemRepositoryContent(commit.content, purpose);
+
+          validateContent(content);
           const baseRevision = parseSystemRepositoryRevision(commit.baseRevision);
           const revision = await createSystemRepositoryRevision(content);
 
@@ -427,7 +474,11 @@ export function createBrowserSystemRepositoryStorage(
                 `Browser system repository does not exist: ${purpose}`,
               );
             }
-            const current = parseRemoteState(value, purpose);
+            const current = parseRemoteState(
+              value,
+              purpose,
+              validateContent,
+            );
             if (
               current.revision !== validated.revision ||
               JSON.stringify(current.content) !==
@@ -436,6 +487,13 @@ export function createBrowserSystemRepositoryStorage(
               transaction.abort();
               await completion.catch(() => undefined);
               continue;
+            }
+            try {
+              validateTransition(current.content, content);
+            } catch (error) {
+              transaction.abort();
+              await completion.catch(() => undefined);
+              throw error;
             }
             store.put({ content, purpose, revision });
             await completion;
@@ -456,7 +514,8 @@ export function createBrowserSystemRepositoryStorage(
         return {
           code: error instanceof UnsupportedSystemRepositoryVersionError
             ? "unsupported_repository_version"
-            : error instanceof SystemRepositoryContractError
+            : error instanceof SystemRepositoryContractError ||
+                error instanceof SystemRepositoryValidationError
             ? "repository_corrupt"
             : "adapter_unavailable",
           error,
@@ -464,5 +523,7 @@ export function createBrowserSystemRepositoryStorage(
         };
       }
     },
+    validateContent,
+    validateTransition,
   };
 }

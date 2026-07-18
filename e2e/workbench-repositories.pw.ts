@@ -446,7 +446,10 @@ test.describe.serial("repository and capacity flows", () => {
     ).toBeVisible();
 
     await page.reload();
-    await getActivityButton(page, "笔记").click();
+    await expect(getActivityButton(page, "笔记")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     await page.locator(".app-context").getByTitle("Alpha").click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "conflict-local-first conflict-local-latest",

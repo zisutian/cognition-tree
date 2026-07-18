@@ -1,15 +1,21 @@
-import type { WorkspaceRepositoryCatalogIssue } from "../../../storage/repository/workspaceRepositoryCatalog";
-import type { WorkspaceRepositoryDescriptor } from "../../../storage/repository/workspaceRepositoryCatalog";
-import type { SystemRepositoryIssue } from "../../../storage/repository/systemRepository";
-import type { SystemRepositoryRuntimeIssue } from "../../repository/projectSystemRepositoryIssues";
+import type {
+  JournalDiagnostic,
+  JournalDiagnostics,
+} from "../journal/journalDiagnostics";
+import type { SystemRepositoryRuntimeIssue } from "../repository/projectSystemRepositoryIssues";
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
-} from "./viewDiagnostics";
+} from "../workspace/projection/viewDiagnostics";
 import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,
-} from "./viewRepositoryIssues";
+} from "../workspace/projection/viewRepositoryIssues";
+import type { SystemRepositoryIssue } from "../../storage/repository/systemRepository";
+import type {
+  WorkspaceRepositoryCatalogIssue,
+  WorkspaceRepositoryDescriptor,
+} from "../../storage/repository/workspaceRepositoryCatalog";
 
 export type UiWorkbenchRepositoryProblem = {
   code:
@@ -35,13 +41,19 @@ export type UiWorkbenchRepositoryProblem = {
 
 export type UiWorkbenchProblem =
   | UiWorkbenchDiagnostic
+  | JournalDiagnostic
   | UiWorkbenchRepositoryProblem;
 
 export type UiWorkbenchProblems = {
   errorCount: number;
   problems: UiWorkbenchProblem[];
-  status: UiWorkbenchDiagnostics["status"];
+  status: UiWorkbenchDiagnostics["status"] | JournalDiagnostics["status"];
   warningCount: number;
+};
+
+export type WorkbenchDiagnostics = {
+  diagnostics: Array<UiWorkbenchDiagnostic | JournalDiagnostic>;
+  status: UiWorkbenchProblems["status"];
 };
 
 function compareProblems(
@@ -88,7 +100,8 @@ export function projectUiRepositoryNameConflictProblems(
       ? [{
           code: "repository-name-conflict" as const,
           id: `repository-name-conflict:${repository.id}`,
-          locationLabel: `${repositoryAdapterLabels[repository.adapter]} · ${repository.label}`,
+          locationLabel:
+            `${repositoryAdapterLabels[repository.adapter]} · ${repository.label}`,
           message: "仓库名称与其他仓库或内置仓库冲突，请重命名。",
           severity: "error" as const,
           source: "repository" as const,
@@ -123,12 +136,12 @@ export function projectUiSystemRepositoryProblems(
 }
 
 export function createUiWorkbenchProblems(
-  diagnostics: UiWorkbenchDiagnostics,
+  diagnostics: WorkbenchDiagnostics,
   repositoryIssues: WorkspaceRepositoryCatalogIssue[] = [],
   repositories: WorkspaceRepositoryDescriptor[] = [],
   systemIssues: SystemRepositoryRuntimeIssue[] = [],
 ): UiWorkbenchProblems {
-  const problems = [
+  const problems: UiWorkbenchProblem[] = [
     ...diagnostics.diagnostics,
     ...projectUiRepositoryProblems(repositoryIssues),
     ...projectUiRepositoryNameConflictProblems(repositories),
@@ -139,6 +152,7 @@ export function createUiWorkbenchProblems(
     errorCount: problems.filter(({ severity }) => severity === "error").length,
     problems,
     status: diagnostics.status,
-    warningCount: problems.filter(({ severity }) => severity === "warning").length,
+    warningCount: problems.filter(({ severity }) => severity === "warning")
+      .length,
   };
 }

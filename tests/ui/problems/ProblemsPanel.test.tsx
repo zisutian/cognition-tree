@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { UiWorkbenchDiagnostic } from "../../../src/application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchRepositoryProblem } from "../../../src/application/workspace/projection/viewProblems";
+import type { UiWorkbenchRepositoryProblem } from "../../../src/application/problems/workbenchProblems";
+import type { JournalDiagnostic } from "../../../src/application/journal";
 import {
   ProblemsPanel,
   problemsVirtualizationThreshold,
@@ -26,6 +27,20 @@ const repositoryProblem: UiWorkbenchRepositoryProblem = {
   severity: "error",
   source: "repository",
   target: { issueId: "broken", kind: "repository-issue" },
+};
+
+const journalProblem: JournalDiagnostic = {
+  code: "unresolved-journal-reference",
+  id: "journal:reference:unresolved:journal-entry-00000000-0000-4000-8000-000000000001:missing",
+  locationLabel: "2026-01-02 11:04:05 · L2",
+  message: "无法解析日记引用“missing”。",
+  severity: "warning",
+  source: "reference",
+  target: {
+    entryId: "journal-entry-00000000-0000-4000-8000-000000000001",
+    kind: "journal-entry-line",
+    lineNumber: 2,
+  },
 };
 
 describe("ProblemsPanel", () => {
@@ -91,6 +106,30 @@ describe("ProblemsPanel", () => {
 
     expect(markup).toContain("仓库元数据损坏。");
     expect(markup).toContain("仓库 · 本地 · broken");
+  });
+
+  it("labels Journal diagnostics without treating them as workspace references", () => {
+    const markup = renderToStaticMarkup(
+      <ProblemsPanel
+        expanded
+        onOpen={() => undefined}
+        onToggle={() => undefined}
+        view={{
+          errorCount: 0,
+          problems: [journalProblem],
+          status: "ready",
+          warningCount: 1,
+        }}
+      />,
+    );
+
+    expect(markup).toContain("无法解析日记引用");
+    expect(markup).toContain(
+      "日记引用 · 2026-01-02 11:04:05 · L2",
+    );
+    expect(markup).not.toContain(
+      '<span class="problems-row-meta">引用 · 2026-01-02 11:04:05 · L2',
+    );
   });
 
   it("uses the existing virtual collection only above 500 rows", () => {

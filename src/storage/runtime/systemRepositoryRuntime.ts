@@ -4,13 +4,25 @@ import { createBrowserSystemRepositoryCatalog } from "../adapters/browser/browse
 import { createBrowserSystemRepositoryStorage } from "../adapters/browser/browserSystemRepositoryStorage";
 import { createHttpSystemRepositoryCatalog } from "../adapters/http/httpSystemRepositoryCatalog";
 import type { SystemRepositoryRuntime } from "../repository/systemRepository";
+import {
+  validateSystemRepositoryContent,
+  validateSystemRepositoryTransition,
+} from "../repository/systemRepository";
 
 export function createSystemRepositoryRuntime(): SystemRepositoryRuntime {
   if (import.meta.env.VITE_CTN_STORAGE_MODE === "browser") {
-    return { catalog: createBrowserSystemRepositoryCatalog() };
+    return {
+      catalog: createBrowserSystemRepositoryCatalog({
+        validateContent: validateSystemRepositoryContent,
+        validateTransition: validateSystemRepositoryTransition,
+      }),
+    };
   }
   const persistentStorage = globalThis.indexedDB
-    ? createBrowserSystemRepositoryStorage(globalThis.indexedDB)
+    ? createBrowserSystemRepositoryStorage(globalThis.indexedDB, {
+        validateContent: validateSystemRepositoryContent,
+        validateTransition: validateSystemRepositoryTransition,
+      })
     : null;
 
   return {
@@ -19,6 +31,8 @@ export function createSystemRepositoryRuntime(): SystemRepositoryRuntime {
       cache: persistentStorage?.cache,
       catalogCache: persistentStorage?.catalogCache,
       token: import.meta.env.VITE_CTN_API_TOKEN,
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
     }),
   };
 }

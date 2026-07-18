@@ -34,9 +34,11 @@ import {
 import { createCtnCodeBlockEditingExtensions } from "./ctnCodeBlockEditing";
 import { createEditorCompositionChange } from "./editorCompositionChange";
 import { ctnExternalValueSync } from "./editorValueSync";
+import type { CtnEditorContentMode } from "./ctnEditorContentMode";
 
 export const ctnTabSizeCompartment = new Compartment();
 export const ctnParsingCompartment = new Compartment();
+export const ctnContentAttributesCompartment = new Compartment();
 
 export function createCtnIndentUnit() {
   return "\t";
@@ -67,7 +69,7 @@ export function createCtnEditorExtensions(
   onActiveLineChangeRef: {
     current: (lineNumber: number) => void;
   },
-  mode: "ctn" | "raw" = "ctn",
+  contentMode: CtnEditorContentMode,
 ): Extension[] {
   const compositionChange = createEditorCompositionChange({
     onChange: (value) => onChangeRef.current(value),
@@ -95,13 +97,12 @@ export function createCtnEditorExtensions(
       createCtnParsingExtensions(
         syntaxProfileRef,
         onOpenReferenceRef,
-        mode,
+        contentMode,
       ),
     ),
-    EditorView.contentAttributes.of({
-      "aria-label": "CTN 原文",
-      spellcheck: "false",
-    }),
+    ctnContentAttributesCompartment.of(
+      createCtnContentAttributesExtension(contentMode),
+    ),
     EditorView.domEventHandlers({
       compositionend(_event, view) {
         compositionChange.handleCompositionEnd(() => view.state.doc.toString());
@@ -136,13 +137,16 @@ export function createCtnParsingExtensions(
   onOpenReferenceRef: {
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
   },
-  mode: "ctn" | "raw",
+  contentMode: CtnEditorContentMode,
 ): Extension[] {
-  if (mode === "raw") {
+  if (contentMode.kind === "raw") {
     return [];
   }
 
-  const parseDecorationPlugin = createCtnParseDecorationPlugin(syntaxProfileRef);
+  const parseDecorationPlugin = createCtnParseDecorationPlugin(
+    syntaxProfileRef,
+    contentMode,
+  );
 
   return [
     parseDecorationPlugin,
@@ -153,4 +157,13 @@ export function createCtnParsingExtensions(
     ),
     ...createCtnCodeBlockEditingExtensions(parseDecorationPlugin),
   ];
+}
+
+export function createCtnContentAttributesExtension(
+  contentMode: CtnEditorContentMode,
+) {
+  return EditorView.contentAttributes.of({
+    "aria-label": contentMode.kind === "body" ? "CTN 正文" : "CTN 原文",
+    spellcheck: "false",
+  });
 }

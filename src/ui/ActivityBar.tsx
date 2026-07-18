@@ -1,6 +1,7 @@
 import {
   Archive,
   Braces,
+  CalendarDays,
   Database,
   FileText,
   MoveRight,
@@ -13,15 +14,24 @@ import type {
   ActivityItem,
 } from "./activityTypes";
 
-export const activityItems: ActivityItem[] = [
+export const primaryActivityItems: ActivityItem[] = [
   { id: "notes", label: "笔记", icon: FileText },
+  { id: "journal", label: "日记", icon: CalendarDays },
   { id: "structure-operation", label: "结构操作", icon: MoveRight },
   { id: "visualization", label: "引用图谱", icon: Network },
   { id: "syntax", label: "语法", icon: Braces },
   { id: "search", label: "搜索", icon: Search },
+];
+
+export const utilityActivityItems: ActivityItem[] = [
   { id: "data", label: "数据", icon: Database },
   { id: "repository", label: "仓库", icon: Archive },
   { id: "settings", label: "设置", icon: Settings },
+];
+
+export const activityItems: ActivityItem[] = [
+  ...primaryActivityItems,
+  ...utilityActivityItems,
 ];
 
 export function ActivityBar({
@@ -34,7 +44,7 @@ export function ActivityBar({
   return (
     <nav className="activity-bar" aria-label="工作区功能">
       <div className="activity-group">
-        {activityItems.slice(0, 5).map((item) => {
+        {primaryActivityItems.map((item) => {
           const Icon = item.icon;
 
           return (
@@ -53,7 +63,7 @@ export function ActivityBar({
         })}
       </div>
       <div className="activity-group activity-group-bottom">
-        {activityItems.slice(5).map((item) => {
+        {utilityActivityItems.map((item) => {
           const Icon = item.icon;
 
           return (

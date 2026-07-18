@@ -8,6 +8,7 @@ import {
   type VersionedRepository,
   type VersionedRepositoryBackend,
   type VersionedRepositoryContentValidator,
+  type VersionedRepositoryTransitionValidator,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
 } from "./versionedRepository";
@@ -29,6 +30,7 @@ type LocalFirstVersionedRepositoryOptions<
   repositoryIdentity: string | Promise<string>;
   subscribeReconnect?: (listener: () => void) => () => void;
   validateContent: VersionedRepositoryContentValidator<Content>;
+  validateTransition?: VersionedRepositoryTransitionValidator<Content>;
 };
 
 function getErrorMessage(error: unknown) {
@@ -67,6 +69,7 @@ export function createLocalFirstVersionedRepository<
   repositoryIdentity,
   subscribeReconnect = () => () => undefined,
   validateContent,
+  validateTransition,
 }: LocalFirstVersionedRepositoryOptions<
   Content,
   Revision,
@@ -120,6 +123,7 @@ export function createLocalFirstVersionedRepository<
         return toSnapshot(current);
       }
       try {
+        validateTransition?.(current.content, remote.content);
         return toSnapshot(await cache.replaceFromRemote({
           expectedLocalRevision: current.localRevision,
           identity,
@@ -280,10 +284,20 @@ export function createLocalFirstVersionedRepository<
     async stageSnapshot({ content, expectedLocalRevision }) {
       validateContent(content);
       await ensureInitialized();
+      const identity = await resolveIdentity();
+      const current = await cache.load(identity);
+
+      if (!current) {
+        throw new Error(
+          "Local repository state disappeared before staging.",
+        );
+      }
+      validateContent(current.content);
+      validateTransition?.(current.content, content);
       const state = await cache.stage({
         content,
         expectedLocalRevision,
-        identity: await resolveIdentity(),
+        identity,
         localRevision: createLocalRevision(),
       });
       return { localRevision: state.localRevision };

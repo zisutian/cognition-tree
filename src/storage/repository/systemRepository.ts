@@ -11,11 +11,17 @@ import type {
   SystemRepositoryRevisionDto,
 } from "../../../contracts/system-repository/types";
 import { parseSystemRepositoryContent as parseSystemRepositoryContentContract } from "../../../contracts/system-repository/parseRepository";
+import {
+  JournalContentValidationError,
+  validateJournalContent,
+  validateJournalContentTransition,
+} from "../../../journal/model/journalContent";
 import type {
   VersionedRepository,
   VersionedRepositoryBackend,
   VersionedRepositoryContentValidator,
   VersionedRepositorySnapshot,
+  VersionedRepositoryTransitionValidator,
 } from "./versionedRepository";
 
 export type SystemRepositoryPurpose = SystemRepositoryPurposeDto;
@@ -29,6 +35,8 @@ export type SystemRepositoryRetryResult = SystemRepositoryRetryResultDto;
 export type SystemLocalDraftRevision = `draft:${string}`;
 export type SystemRepositoryContentValidator =
   VersionedRepositoryContentValidator<SystemRepositoryContent>;
+export type SystemRepositoryTransitionValidator =
+  VersionedRepositoryTransitionValidator<SystemRepositoryContent>;
 export type SystemRepositoryBackend = VersionedRepositoryBackend<
   SystemRepositoryContent,
   SystemRepositoryRevision
@@ -64,6 +72,81 @@ export function parseSystemRepositoryContent(
   expectedPurpose?: SystemRepositoryPurpose,
 ) {
   return parseSystemRepositoryContentContract(value, expectedPurpose);
+}
+
+export class SystemRepositoryValidationError extends Error {
+  cause: unknown;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = "SystemRepositoryValidationError";
+    this.cause = cause;
+  }
+}
+
+export class SystemRepositoryContentValidationError
+  extends SystemRepositoryValidationError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = "SystemRepositoryContentValidationError";
+  }
+}
+
+export class SystemRepositoryTransitionValidationError
+  extends SystemRepositoryValidationError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = "SystemRepositoryTransitionValidationError";
+  }
+}
+
+export function validateSystemRepositoryContent(
+  value: unknown,
+  expectedPurpose?: SystemRepositoryPurpose,
+): SystemRepositoryContent {
+  const content = parseSystemRepositoryContentContract(value, expectedPurpose);
+
+  if (content.purpose === "system-journal") {
+    try {
+      return validateJournalContent(content);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new SystemRepositoryContentValidationError(error.message, error);
+      }
+      throw error;
+    }
+  }
+  return content;
+}
+
+export function validateSystemRepositoryTransition(
+  previousValue: unknown,
+  nextValue: unknown,
+  expectedPurpose?: SystemRepositoryPurpose,
+): SystemRepositoryContent {
+  const previous = validateSystemRepositoryContent(
+    previousValue,
+    expectedPurpose,
+  );
+  const next = validateSystemRepositoryContent(nextValue, previous.purpose);
+
+  if (
+    previous.purpose === "system-journal" &&
+    next.purpose === "system-journal"
+  ) {
+    try {
+      return validateJournalContentTransition(previous, next);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new SystemRepositoryTransitionValidationError(
+          error.message,
+          error,
+        );
+      }
+      throw error;
+    }
+  }
+  return next;
 }
 
 export type SystemRepositoryRuntime = {

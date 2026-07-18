@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
+import { readCtnCanonicalTitleHeader } from "../../../ctn/parser/parseCtnDocument";
+import {
+  formatJournalEntryTitle,
+  getJournalCreationTimezoneOffsetMinutes,
+  validateJournalContent,
+  validateJournalContentTransition,
+} from "../../../journal/model/journalContent";
+import { describe, expect, it } from "vitest";
+import {
+  appendJournalTestEntry,
+  createEmptyJournalContent,
+  tamperJournalTestBodyBlockTime,
+  tamperJournalTestEntryCreation,
+  updateJournalTestBody,
+} from "../journalTestFixture";
+
+describe("journal content", () => {
+  it("formats immutable titles with the creation-time ISO offset direction", () => {
+    expect(
+      formatJournalEntryTitle("2026-07-18T00:00:01.250Z", 480),
+    ).toBe("2026-07-18 08:00:01");
+    expect(
+      formatJournalEntryTitle("2026-03-01T02:30:00.000Z", -300),
+    ).toBe("2026-02-28 21:30:00");
+
+    const date = new Date("2026-07-18T00:00:00.000Z");
+    const original = date.getTimezoneOffset;
+
+    date.getTimezoneOffset = () => -480;
+    expect(getJournalCreationTimezoneOffsetMinutes(date)).toBe(480);
+    date.getTimezoneOffset = original;
+  });
+
+  it("accepts canonical entries and rejects a changed title", () => {
+    const content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.250Z",
+      entryIndex: 1,
+    });
+
+    expect(validateJournalContent(content)).toBe(content);
+    const entry = content.entries[0];
+    const tampered = {
+      ...content,
+      entries: [{
+        ...entry,
+        source: replaceCtnSourceTitle(
+          entry.source,
+          "可修改标题",
+          entry.createdAt,
+        ),
+      }],
+    };
+
+    expect(() => validateJournalContent(tampered)).toThrow(
+      /title must remain 2026-07-18 08:00:01/,
+    );
+  });
+
+  it("rejects title metadata changes even when the visible title is restored", () => {
+    const content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const entry = content.entries[0];
+    const header = readCtnCanonicalTitleHeader(entry.source);
+    const tampered = {
+      ...content,
+      entries: [{
+        ...entry,
+        source: replaceCtnSourceTitle(
+          entry.source,
+          header.title,
+          "2026-07-18T00:05:00.000Z",
+        ),
+      }],
+    };
+
+    expect(() => validateJournalContent(tampered)).toThrow(
+      /title metadata is immutable/,
+    );
+  });
+
+  it("rejects duplicate entry and CTN block identities", () => {
+    const one = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const duplicateEntry = {
+      ...one,
+      entries: [...one.entries, one.entries[0]],
+    };
+
+    expect(() => validateJournalContent(duplicateEntry)).toThrow(
+      /Duplicate journal entry id/,
+    );
+
+    const two = appendJournalTestEntry(one, {
+      blockIdStart: 2,
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 2,
+    });
+    const duplicateBlock = {
+      ...two,
+      entries: [
+        two.entries[0],
+        { ...two.entries[1], source: two.entries[0].source },
+      ],
+    };
+
+    expect(() => validateJournalContent(duplicateBlock)).toThrow(
+      /Duplicate CTN block id/,
+    );
+  });
+
+  it("keeps surviving entry creation identity immutable across snapshots", () => {
+    const empty = createEmptyJournalContent();
+    const created = appendJournalTestEntry(empty, {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const edited = updateJournalTestBody(created, {
+      body: "正文",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+    const tampered = tamperJournalTestEntryCreation(created, {
+      createdAt: "2026-08-19T10:11:12.000Z",
+      entryIndex: 1,
+      timezoneOffsetMinutes: -300,
+    });
+
+    expect(validateJournalContent(tampered)).toBe(tampered);
+    expect(validateJournalContentTransition(empty, created)).toBe(created);
+    expect(validateJournalContentTransition(created, edited)).toBe(edited);
+    expect(validateJournalContentTransition(created, empty)).toBe(empty);
+    expect(() => validateJournalContentTransition(edited, created)).toThrow(
+      /updatedAt cannot move backwards/,
+    );
+    expect(() => validateJournalContentTransition(created, tampered)).toThrow(
+      /createdAt is immutable/,
+    );
+  });
+
+  it("keeps every CTN block inside its entry lifetime", () => {
+    const created = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const edited = updateJournalTestBody(created, {
+      body: "正文",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+    const createdTooEarly = tamperJournalTestBodyBlockTime(edited, {
+      createdAt: "2026-07-17T23:59:59.000Z",
+      entryIndex: 1,
+    });
+    const updatedTooLate = tamperJournalTestBodyBlockTime(edited, {
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:01.000Z",
+    });
+
+    expect(() => validateJournalContent(createdTooEarly)).toThrow(
+      /created before the entry/,
+    );
+    expect(() => validateJournalContent(updatedTooLate)).toThrow(
+      /updated after the entry/,
+    );
+  });
+
+  it("keeps surviving block creation time immutable and update time monotonic", () => {
+    const created = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const firstEdit = updateJournalTestBody(created, {
+      body: "正文",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+    const secondEdit = updateJournalTestBody(firstEdit, {
+      body: "新正文",
+      entryIndex: 1,
+      previousBody: "正文",
+      updatedAt: "2026-07-18T00:06:00.000Z",
+    });
+    const changedCreatedAt = tamperJournalTestBodyBlockTime(firstEdit, {
+      createdAt: "2026-07-18T00:04:00.000Z",
+      entryIndex: 1,
+    });
+    const rolledBackUpdatedAt = tamperJournalTestBodyBlockTime(secondEdit, {
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+
+    expect(validateJournalContent(changedCreatedAt)).toBe(changedCreatedAt);
+    expect(validateJournalContent(rolledBackUpdatedAt)).toBe(
+      rolledBackUpdatedAt,
+    );
+    expect(() =>
+      validateJournalContentTransition(firstEdit, changedCreatedAt)
+    ).toThrow(/block .* createdAt is immutable/);
+    expect(() =>
+      validateJournalContentTransition(secondEdit, rolledBackUpdatedAt)
+    ).toThrow(/block .* updatedAt cannot move backwards/);
+  });
+});

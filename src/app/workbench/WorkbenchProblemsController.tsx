@@ -1,4 +1,8 @@
 import type { ReactNode } from "react";
+import type {
+  JournalDiagnostics,
+  JournalViewModel,
+} from "../../application/journal";
 import type { WorkbenchApplication } from "../../application/workbench/workbenchApplication";
 import type { RepositoryNavigation } from "../../application/repository/useRepositoryNavigation";
 import {
@@ -11,7 +15,7 @@ import {
   createUiWorkbenchProblems,
   type UiWorkbenchProblem,
   type UiWorkbenchProblems,
-} from "../../application/workspace/projection/viewProblems";
+} from "../../application/problems/workbenchProblems";
 import type { WorkspaceRepositoryCatalogIssue } from "../../storage/repository/workspaceRepositoryCatalog";
 import type { WorkspaceRepositoryDescriptor } from "../../storage/repository/workspaceRepositoryCatalog";
 import type { ActivityId } from "../../ui/activityTypes";
@@ -26,6 +30,9 @@ type WorkbenchProblemOpenContext = {
     WorkspaceApplication["navigation"],
     "openNoteLine" | "openSyntaxField"
   > | null;
+  journalNavigation?: {
+    openEntryLine: JournalViewModel["navigation"]["openEntryLine"];
+  } | null;
   onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
@@ -36,18 +43,29 @@ export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
 export function selectWorkbenchProblems({
   activeActivityId,
   diagnostics,
+  journalDiagnostics,
   repositoryIssues,
   repositories,
   systemIssues,
 }: {
   activeActivityId: ActivityId;
   diagnostics: UiWorkbenchDiagnostics;
+  journalDiagnostics?: JournalDiagnostics;
   repositoryIssues: WorkspaceRepositoryCatalogIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
   systemIssues: SystemRepositoryRuntimeIssue[];
 }): UiWorkbenchProblems {
+  const scopedDiagnostics = activeActivityId === "journal"
+    ? journalDiagnostics ?? {
+        diagnostics: [],
+        errorCount: 0,
+        status: "ready" as const,
+        warningCount: 0,
+      }
+    : diagnostics;
+
   return createUiWorkbenchProblems(
-    diagnostics,
+    scopedDiagnostics,
     activeActivityId === "repository" ? repositoryIssues : [],
     activeActivityId === "repository" ? repositories : [],
     activeActivityId === "repository" ? systemIssues : [],
@@ -70,6 +88,12 @@ export function openWorkbenchProblem(
       problem.target.fieldId,
     );
     context.onActiveActivityChange("syntax");
+  } else if (problem.target.kind === "journal-entry-line") {
+    context.journalNavigation?.openEntryLine(
+      problem.target.entryId,
+      problem.target.lineNumber,
+    );
+    context.onActiveActivityChange("journal");
   } else if (problem.target.kind === "repository-issue") {
     context.repositoryNavigation.focusOrdinaryIssue(problem.target.issueId);
     context.onActiveActivityChange("repository");
@@ -116,6 +140,9 @@ export function WorkbenchProblemsController({
   const workspace = application.workspace.status === "ready"
     ? application.workspace.application
     : null;
+  const journal = application.journal.status === "ready"
+    ? application.journal.view
+    : null;
   const problems = selectWorkbenchProblems({
     activeActivityId,
     diagnostics: workspace?.diagnostics ?? {
@@ -124,6 +151,7 @@ export function WorkbenchProblemsController({
       status: "ready",
       warningCount: 0,
     },
+    journalDiagnostics: journal?.diagnostics,
     repositories: ordinaryCatalog?.repositories ?? [],
     repositoryIssues: ordinaryCatalog?.issues ?? [],
     systemIssues,
@@ -131,6 +159,7 @@ export function WorkbenchProblemsController({
   const openProblem = (problem: UiWorkbenchProblem) =>
     openWorkbenchProblem(problem, {
       expandPanels: workbench.expandPanels,
+      journalNavigation: journal?.navigation ?? null,
       repositoryNavigation: application.repository.navigation,
       workspaceNavigation: workspace?.navigation ?? null,
       onActiveActivityChange,

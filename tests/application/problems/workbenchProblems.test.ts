@@ -4,16 +4,16 @@ import {
   projectUiRepositoryNameConflictProblems,
   projectUiRepositoryProblems,
   projectUiSystemRepositoryProblems,
-} from "../../../../src/application/workspace/projection/viewProblems";
+} from "../../../src/application/problems/workbenchProblems";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
-} from "../../../../src/application/workspace/projection/viewDiagnostics";
-import type { SystemRepositoryIssue } from "../../../../src/storage/repository/systemRepository";
+} from "../../../src/application/workspace/projection/viewDiagnostics";
+import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "../../../../src/storage/repository/workspaceRepositoryCatalog";
+} from "../../../src/storage/repository/workspaceRepositoryCatalog";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",

@@ -8,7 +8,9 @@ import {
 import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
 import type {
   SystemRepositoryBackend,
+  SystemRepositoryContentValidator,
   SystemRepositoryPurpose,
+  SystemRepositoryTransitionValidator,
 } from "../../repository/systemRepository";
 import {
   requestRepositoryJson,
@@ -17,6 +19,8 @@ import {
 
 type HttpSystemRepositoryOptions = HttpRepositoryTransportOptions & {
   purpose: SystemRepositoryPurpose;
+  validateContent: SystemRepositoryContentValidator;
+  validateTransition: SystemRepositoryTransitionValidator;
 };
 
 export function createHttpSystemRepositoryBackend({
@@ -24,15 +28,25 @@ export function createHttpSystemRepositoryBackend({
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   purpose,
   token,
+  validateContent,
+  validateTransition,
 }: HttpSystemRepositoryOptions): SystemRepositoryBackend {
   const endpoint =
     `/api/system-repositories/${encodeURIComponent(purpose)}/snapshot`;
+  let knownSnapshot: Awaited<
+    ReturnType<SystemRepositoryBackend["loadRemoteSnapshot"]>
+  > | null = null;
 
   return {
     async commitRemoteSnapshot(commit) {
       const outbound = parseSystemRepositoryCommit(commit, purpose);
 
-      return parseSystemRepositoryCommitResult(
+      validateContent(outbound.content);
+      if (knownSnapshot?.revision === outbound.baseRevision) {
+        validateTransition(knownSnapshot.content, outbound.content);
+      }
+
+      const result = parseSystemRepositoryCommitResult(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
@@ -45,9 +59,15 @@ export function createHttpSystemRepositoryBackend({
           token,
         ),
       );
+
+      knownSnapshot = {
+        content: structuredClone(outbound.content),
+        revision: result.revision,
+      };
+      return result;
     },
     async loadRemoteSnapshot() {
-      return parseSystemRepositorySnapshot(
+      const snapshot = parseSystemRepositorySnapshot(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
@@ -57,6 +77,10 @@ export function createHttpSystemRepositoryBackend({
         ),
         purpose,
       );
+
+      validateContent(snapshot.content);
+      knownSnapshot = structuredClone(snapshot);
+      return snapshot;
     },
   };
 }

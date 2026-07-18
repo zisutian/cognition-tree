@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ctnModules,
   ctnPathToRelative,
+  journalModules,
+  journalPathToRelative,
   listSourceFiles,
   serverModules,
   sourceModules,
@@ -80,6 +82,10 @@ describe("semantic source ownership", () => {
       })),
       ...Object.entries(ctnModules).map(([filePath, source]) => ({
         filePath: `ctn/${ctnPathToRelative(filePath)}`,
+        source,
+      })),
+      ...Object.entries(journalModules).map(([filePath, source]) => ({
+        filePath: `journal/${journalPathToRelative(filePath)}`,
         source,
       })),
     ]

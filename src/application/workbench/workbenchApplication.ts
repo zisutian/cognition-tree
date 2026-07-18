@@ -1,3 +1,4 @@
+import type { JournalApplication } from "../journal/journalApplication";
 import type { RepositoryApplication } from "../repository/repositoryApplication";
 import type { WorkspaceApplication } from "../workspace/runtime/useWorkspaceApplication";
 
@@ -13,6 +14,7 @@ export type WorkbenchWorkspaceState =
   | { application: WorkspaceApplication; status: "ready" };
 
 export type WorkbenchApplication = {
+  journal: JournalApplication;
   repository: RepositoryApplication;
   workspace: WorkbenchWorkspaceState;
 };

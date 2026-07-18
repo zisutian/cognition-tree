@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
+import { parseCtnEditableBody } from "../../ctn/parser/parseCtnBody";
 import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import {
   findCtnReferenceAtPosition,
@@ -46,5 +47,29 @@ describe("CTN editor reference navigation", () => {
     expect(
       findCtnReferenceAtPosition(document, block.lineNumber, 999),
     ).toBeNull();
+  });
+
+  it("uses body-only line numbers when the fixed title is hidden", () => {
+    const document = parseCtnEditableBody(
+      "Root\n\t: <Local> and [[Global]]",
+      "2026-07-18 14:35:00",
+      defaultCtnSyntaxProfile,
+    );
+    const block = document.blocks[1];
+    const global = block.inlineSpans[1];
+
+    expect(block.lineNumber).toBe(2);
+    expect(global.lineNumber).toBe(2);
+    expect(
+      findCtnReferenceAtPosition(
+        document,
+        2,
+        global.startColumn,
+      ),
+    ).toMatchObject({
+      lineNumber: 2,
+      text: "Global",
+      type: "global-reference",
+    });
   });
 });

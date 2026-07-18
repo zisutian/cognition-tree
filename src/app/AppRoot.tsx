@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+import {
+  createBrowserJournalApplicationServices,
+  useJournalApplication,
+  type JournalApplication,
+} from "../application/journal";
 import type { RepositoryApplication } from "../application/repository/repositoryApplication";
 import { useRepositoryNavigation } from "../application/repository/useRepositoryNavigation";
 import { useSystemRepositoryCatalog } from "../application/repository/useSystemRepositoryCatalog";
@@ -104,6 +109,7 @@ function createRepositoryApplication({
 function ReadyWorkspaceWorkbench({
   activeActivityId,
   catalog,
+  journal,
   navigation,
   onActiveActivityChange,
   session,
@@ -113,6 +119,7 @@ function ReadyWorkspaceWorkbench({
 }: {
   activeActivityId: ActivityId;
   catalog: RepositoryCatalogApplication;
+  journal: JournalApplication;
   navigation: ReturnType<typeof useRepositoryNavigation>;
   onActiveActivityChange: (activityId: ActivityId) => void;
   session: ActiveSession;
@@ -171,6 +178,7 @@ function ReadyWorkspaceWorkbench({
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
       application={{
+        journal,
         repository,
         workspace: { application: workspace, status: "ready" },
       }}
@@ -182,6 +190,7 @@ function ReadyWorkspaceWorkbench({
 function RepositoryWorkspaceApp({
   activeActivityId,
   catalog,
+  journal,
   navigation,
   onActiveActivityChange,
   systemRepositories,
@@ -190,6 +199,7 @@ function RepositoryWorkspaceApp({
 }: {
   activeActivityId: ActivityId;
   catalog: RepositoryCatalogApplication;
+  journal: JournalApplication;
   navigation: ReturnType<typeof useRepositoryNavigation>;
   onActiveActivityChange: (activityId: ActivityId) => void;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
@@ -208,6 +218,7 @@ function RepositoryWorkspaceApp({
       <ReadyWorkspaceWorkbench
         activeActivityId={activeActivityId}
         catalog={catalog}
+        journal={journal}
         navigation={navigation}
         onActiveActivityChange={onActiveActivityChange}
         session={session}
@@ -239,7 +250,11 @@ function RepositoryWorkspaceApp({
   return (
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
-      application={{ repository: repositoryApplication, workspace: sessionState }}
+      application={{
+        journal,
+        repository: repositoryApplication,
+        workspace: sessionState,
+      }}
       onActiveActivityChange={onActiveActivityChange}
     />
   );
@@ -248,6 +263,7 @@ function RepositoryWorkspaceApp({
 function EmptyWorkspaceApp({
   activeActivityId,
   catalog,
+  journal,
   navigation,
   onActiveActivityChange,
   systemRepositories,
@@ -256,6 +272,7 @@ function EmptyWorkspaceApp({
 }: {
   activeActivityId: ActivityId;
   catalog: RepositoryCatalogApplication;
+  journal: JournalApplication;
   navigation: ReturnType<typeof useRepositoryNavigation>;
   onActiveActivityChange: (activityId: ActivityId) => void;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
@@ -284,7 +301,7 @@ function EmptyWorkspaceApp({
   return (
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
-      application={{ repository, workspace }}
+      application={{ journal, repository, workspace }}
       onActiveActivityChange={onActiveActivityChange}
     />
   );
@@ -327,6 +344,14 @@ export function AppRoot() {
     purpose: "system-todo",
     repository: todoRepository,
   });
+  const journalServices = useMemo(
+    () => createBrowserJournalApplicationServices(),
+    [],
+  );
+  const journal = useJournalApplication({
+    services: journalServices,
+    session: journalSession,
+  });
   const systemRepositories = useMemo(
     () => ({
       ...(journalRepository ? { "system-journal": journalRepository } : {}),
@@ -344,6 +369,7 @@ export function AppRoot() {
   const common = {
     activeActivityId,
     catalog,
+    journal,
     navigation,
     onActiveActivityChange: setActiveActivityId,
     systemRepositories,

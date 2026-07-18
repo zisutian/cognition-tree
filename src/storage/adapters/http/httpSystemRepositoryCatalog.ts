@@ -16,7 +16,9 @@ import {
   type SystemRepository,
   type SystemRepositoryCatalog,
   type SystemRepositoryCatalogData,
+  type SystemRepositoryContentValidator,
   type SystemRepositoryPurpose,
+  type SystemRepositoryTransitionValidator,
 } from "../../repository/systemRepository";
 import {
   createMemoryVersionedRepositoryCache,
@@ -70,12 +72,24 @@ function createMemoryCatalogCache(): SystemRepositoryCatalogCache {
   };
 }
 
-function createMemorySystemCache(): SystemCache {
+function createMemorySystemCache(
+  validateContent: SystemRepositoryContentValidator,
+): SystemCache {
   return createMemoryVersionedRepositoryCache({
     codec: {
-      parseContent: parseSystemRepositoryContent,
+      parseContent(value) {
+        const content = parseSystemRepositoryContent(value);
+
+        validateContent(content);
+        return content;
+      },
       parseRevision: parseSystemRepositoryRevision,
-      parseSnapshot: parseSystemRepositorySnapshot,
+      parseSnapshot(value) {
+        const snapshot = parseSystemRepositorySnapshot(value);
+
+        validateContent(snapshot.content);
+        return snapshot;
+      },
     },
   });
 }
@@ -95,14 +109,19 @@ function subscribeBrowserReconnect(listener: () => void) {
 
 export function createHttpSystemRepositoryCatalog({
   baseUrl = "http://127.0.0.1:3001",
-  cache = createMemorySystemCache(),
+  cache: providedCache,
   catalogCache = createMemoryCatalogCache(),
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
+  validateContent,
+  validateTransition,
 }: HttpRepositoryTransportOptions & {
   cache?: SystemCache;
   catalogCache?: SystemRepositoryCatalogCache;
-} = {}): SystemRepositoryCatalog {
+  validateContent: SystemRepositoryContentValidator;
+  validateTransition: SystemRepositoryTransitionValidator;
+}): SystemRepositoryCatalog {
+  const cache = providedCache ?? createMemorySystemCache(validateContent);
   const repositoryByPurpose = new Map<SystemRepositoryPurpose, SystemRepository>();
   const catalogIdentity = createHttpRepositoryCacheIdentity({
     baseUrl,
@@ -149,12 +168,33 @@ export function createHttpSystemRepositoryCatalog({
       if (existing) {
         return existing;
       }
+      const validateRepositoryContent: SystemRepositoryContentValidator = (
+        content,
+      ) => {
+        const parsedContent = parseSystemRepositoryContent(content, parsed.id);
+
+        validateContent(parsedContent);
+      };
+      const validateRepositoryTransition: SystemRepositoryTransitionValidator = (
+        previous,
+        next,
+      ) => {
+        const previousContent = parseSystemRepositoryContent(
+          previous,
+          parsed.id,
+        );
+        const nextContent = parseSystemRepositoryContent(next, parsed.id);
+
+        validateTransition(previousContent, nextContent);
+      };
       const repository = createLocalFirstVersionedRepository({
         backend: createHttpSystemRepositoryBackend({
           baseUrl,
           fetch: fetchFn,
           purpose: parsed.id,
           token,
+          validateContent: validateRepositoryContent,
+          validateTransition: validateRepositoryTransition,
         }),
         cache,
         createLocalRevision: () =>
@@ -170,9 +210,8 @@ export function createHttpSystemRepositoryCatalog({
           token,
         }),
         subscribeReconnect: subscribeBrowserReconnect,
-        validateContent: (content) => {
-          parseSystemRepositoryContent(content, parsed.id);
-        },
+        validateContent: validateRepositoryContent,
+        validateTransition: validateRepositoryTransition,
       });
 
       repositoryByPurpose.set(parsed.id, repository);

@@ -41,14 +41,21 @@ describe("ctn editor extensions", () => {
       createCtnParsingExtensions(
         syntaxProfileRef,
         onOpenReferenceRef,
-        "raw",
+        { kind: "raw" },
       ),
     ).toEqual([]);
     expect(
       createCtnParsingExtensions(
         syntaxProfileRef,
         onOpenReferenceRef,
-        "ctn",
+        { kind: "document" },
+      ),
+    ).toHaveLength(5);
+    expect(
+      createCtnParsingExtensions(
+        syntaxProfileRef,
+        onOpenReferenceRef,
+        { kind: "body", title: "2026-07-18 14:35:00" },
       ),
     ).toHaveLength(5);
   });

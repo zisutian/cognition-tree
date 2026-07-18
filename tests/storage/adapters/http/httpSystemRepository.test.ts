@@ -1,10 +1,61 @@
 import { IDBFactory } from "fake-indexeddb";
 import { describe, expect, it, vi } from "vitest";
-import { createBrowserSystemRepositoryCatalog } from "../../../../src/storage/adapters/browser/browserSystemRepository";
-import { createBrowserSystemRepositoryStorage } from "../../../../src/storage/adapters/browser/browserSystemRepositoryStorage";
-import { createHttpSystemRepositoryBackend } from "../../../../src/storage/adapters/http/httpSystemRepository";
-import { createHttpSystemRepositoryCatalog } from "../../../../src/storage/adapters/http/httpSystemRepositoryCatalog";
-import type { SystemRepositoryRevision } from "../../../../src/storage/repository/systemRepository";
+import { createBrowserSystemRepositoryCatalog as createBrowserSystemRepositoryCatalogAdapter } from "../../../../src/storage/adapters/browser/browserSystemRepository";
+import { createBrowserSystemRepositoryStorage as createBrowserSystemRepositoryStorageAdapter } from "../../../../src/storage/adapters/browser/browserSystemRepositoryStorage";
+import { createHttpSystemRepositoryBackend as createHttpSystemRepositoryBackendAdapter } from "../../../../src/storage/adapters/http/httpSystemRepository";
+import { createHttpSystemRepositoryCatalog as createHttpSystemRepositoryCatalogAdapter } from "../../../../src/storage/adapters/http/httpSystemRepositoryCatalog";
+import {
+  type SystemRepositoryRevision,
+  validateSystemRepositoryContent,
+  validateSystemRepositoryTransition,
+} from "../../../../src/storage/repository/systemRepository";
+import {
+  appendJournalTestEntry,
+  createEmptyJournalContent,
+  tamperJournalTestEntryCreation,
+  updateJournalTestBody,
+} from "../../../journal/journalTestFixture";
+
+function createBrowserSystemRepositoryStorage(indexedDb: IDBFactory) {
+  return createBrowserSystemRepositoryStorageAdapter(indexedDb, {
+    validateContent: validateSystemRepositoryContent,
+    validateTransition: validateSystemRepositoryTransition,
+  });
+}
+
+function createBrowserSystemRepositoryCatalog(
+  options: {
+    storage: ReturnType<typeof createBrowserSystemRepositoryStorage>;
+  },
+) {
+  return createBrowserSystemRepositoryCatalogAdapter(options);
+}
+
+function createHttpSystemRepositoryBackend(
+  options: Omit<
+    Parameters<typeof createHttpSystemRepositoryBackendAdapter>[0],
+    "validateContent" | "validateTransition"
+  >,
+) {
+  return createHttpSystemRepositoryBackendAdapter({
+    ...options,
+    validateContent: validateSystemRepositoryContent,
+    validateTransition: validateSystemRepositoryTransition,
+  });
+}
+
+function createHttpSystemRepositoryCatalog(
+  options: Omit<
+    Parameters<typeof createHttpSystemRepositoryCatalogAdapter>[0],
+    "validateContent" | "validateTransition"
+  >,
+) {
+  return createHttpSystemRepositoryCatalogAdapter({
+    ...options,
+    validateContent: validateSystemRepositoryContent,
+    validateTransition: validateSystemRepositoryTransition,
+  });
+}
 
 const revisionA = `sha256:${"a".repeat(64)}` as SystemRepositoryRevision;
 const revisionB = `sha256:${"b".repeat(64)}` as SystemRepositoryRevision;
@@ -140,6 +191,76 @@ describe("HTTP system repositories", () => {
       method: "POST",
       url: "https://api.test/root/api/system-repositories/system-journal/retry",
     });
+  });
+
+  it("rejects coordinated creation tampering while allowing body edit and explicit discard", async () => {
+    const valid = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const tampered = tamperJournalTestEntryCreation(valid, {
+      createdAt: "2026-08-19T10:11:12.000Z",
+      entryIndex: 1,
+      timezoneOffsetMinutes: -300,
+    });
+    const commitFetch = vi.fn<typeof fetch>(async (_input, init) =>
+      init?.method === "PUT"
+        ? jsonResponse({ revision: revisionB })
+        : jsonResponse({ content: valid, revision: revisionA })
+    );
+    const backend = createHttpSystemRepositoryBackend({
+      baseUrl: "https://api.test",
+      fetch: commitFetch,
+      purpose: "system-journal",
+    });
+
+    await backend.loadRemoteSnapshot();
+    await expect(backend.commitRemoteSnapshot({
+      baseRevision: revisionA,
+      content: tampered,
+    })).rejects.toThrow(/createdAt is immutable/);
+    expect(commitFetch).toHaveBeenCalledTimes(1);
+
+    const catalog = createHttpSystemRepositoryCatalog({
+      baseUrl: "https://api.test",
+      fetch: async (input) => String(input).endsWith("/snapshot")
+        ? jsonResponse({ content: valid, revision: revisionA })
+        : jsonResponse(serverCatalog()),
+    });
+    const projection = await catalog.listRepositories();
+    const repository = catalog.openRepository(projection.repositories[0]!);
+    const before = await repository.loadSnapshot();
+
+    await expect(repository.stageSnapshot({
+      content: tampered,
+      expectedLocalRevision: before.localRevision,
+    })).rejects.toThrow(/createdAt is immutable/);
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: valid,
+      localRevision: before.localRevision,
+      pendingChanges: false,
+    });
+    const edited = updateJournalTestBody(valid, {
+      body: "正文",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+    const staged = await repository.stageSnapshot({
+      content: edited,
+      expectedLocalRevision: before.localRevision,
+    });
+
+    await expect(repository.loadSnapshot()).resolves.toMatchObject({
+      content: edited,
+      localRevision: staged.localRevision,
+      pendingChanges: true,
+    });
+    await expect(repository.discardPendingSnapshotAndReload()).resolves
+      .toMatchObject({
+        content: valid,
+        pendingChanges: false,
+        remoteRevision: revisionA,
+      });
   });
 
   it("restores both catalog descriptors and snapshots while offline", async () => {

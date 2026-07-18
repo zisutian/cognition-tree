@@ -6,6 +6,17 @@ import {
   createBrowserSystemRepositoryStorage,
 } from "../../../../src/storage/adapters/browser/browserSystemRepositoryStorage";
 import { VersionedRepositoryBackendConflictError } from "../../../../src/storage/repository/versionedRepository";
+import {
+  validateSystemRepositoryContent,
+  validateSystemRepositoryTransition,
+} from "../../../../src/storage/repository/systemRepository";
+import {
+  appendJournalTestEntry,
+  createEmptyJournalContent,
+  tamperJournalTestBodyBlockTime,
+  tamperJournalTestEntryCreation,
+  updateJournalTestBody,
+} from "../../../journal/journalTestFixture";
 
 const remoteStoreName = "browser-remotes-v1";
 
@@ -31,8 +42,13 @@ async function openDatabase(indexedDb: IDBFactory) {
 describe("browser system repositories", () => {
   it("provisions both protected repositories once and keeps repository objects stable", async () => {
     const indexedDb = new IDBFactory();
-    const storage = createBrowserSystemRepositoryStorage(indexedDb);
-    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+    const storage = createBrowserSystemRepositoryStorage(indexedDb, {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
+    const catalog = createBrowserSystemRepositoryCatalog({
+      storage,
+    });
     const first = await catalog.listRepositories();
     const second = await catalog.listRepositories();
 
@@ -84,7 +100,10 @@ describe("browser system repositories", () => {
   });
 
   it("uses CAS for Browser commits", async () => {
-    const storage = createBrowserSystemRepositoryStorage(new IDBFactory());
+    const storage = createBrowserSystemRepositoryStorage(new IDBFactory(), {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
     const firstBackend = storage.createBackend("system-todo");
     const secondBackend = storage.createBackend("system-todo");
     const initial = await firstBackend.loadRemoteSnapshot();
@@ -109,10 +128,96 @@ describe("browser system repositories", () => {
     })).rejects.toBeInstanceOf(VersionedRepositoryBackendConflictError);
   });
 
+  it("rejects coordinated creation and body-time tampering without changing Browser remote content", async () => {
+    const indexedDb = new IDBFactory();
+    const storage = createBrowserSystemRepositoryStorage(indexedDb, {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
+    const backend = storage.createBackend("system-journal");
+    const initial = await backend.loadRemoteSnapshot();
+    const valid = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const committed = await backend.commitRemoteSnapshot({
+      baseRevision: initial.revision,
+      content: valid,
+    });
+    const database = await openDatabase(indexedDb);
+    const beforeRead = database.transaction(remoteStoreName, "readonly");
+    const beforeCompletion = transactionComplete(beforeRead);
+    const before = await requestResult(
+      beforeRead.objectStore(remoteStoreName).get("system-journal"),
+    );
+
+    await beforeCompletion;
+    const tampered = tamperJournalTestEntryCreation(valid, {
+      createdAt: "2026-08-19T10:11:12.000Z",
+      entryIndex: 1,
+      timezoneOffsetMinutes: -300,
+    });
+
+    await expect(backend.commitRemoteSnapshot({
+      baseRevision: committed.revision,
+      content: tampered,
+    })).rejects.toThrow(/createdAt is immutable/);
+    const afterRead = database.transaction(remoteStoreName, "readonly");
+    const afterCompletion = transactionComplete(afterRead);
+    const after = await requestResult(
+      afterRead.objectStore(remoteStoreName).get("system-journal"),
+    );
+
+    await afterCompletion;
+    expect(after).toEqual(before);
+    const edited = updateJournalTestBody(valid, {
+      body: "正文",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+    const editedCommit = await backend.commitRemoteSnapshot({
+      baseRevision: committed.revision,
+      content: edited,
+    });
+    const lateBlock = tamperJournalTestBodyBlockTime(edited, {
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:01.000Z",
+    });
+    const beforeLateRead = database.transaction(remoteStoreName, "readonly");
+    const beforeLateCompletion = transactionComplete(beforeLateRead);
+    const beforeLate = await requestResult(
+      beforeLateRead.objectStore(remoteStoreName).get("system-journal"),
+    );
+
+    await beforeLateCompletion;
+    await expect(backend.commitRemoteSnapshot({
+      baseRevision: editedCommit.revision,
+      content: lateBlock,
+    })).rejects.toThrow(/updated after the entry/);
+    const afterLateRead = database.transaction(remoteStoreName, "readonly");
+    const afterLateCompletion = transactionComplete(afterLateRead);
+    const afterLate = await requestResult(
+      afterLateRead.objectStore(remoteStoreName).get("system-journal"),
+    );
+
+    await afterLateCompletion;
+    expect(afterLate).toEqual(beforeLate);
+    await expect(backend.loadRemoteSnapshot()).resolves.toMatchObject({
+      content: edited,
+      revision: editedCommit.revision,
+    });
+    database.close();
+  });
+
   it("retains corrupt persistent content and reports retry as fault", async () => {
     const indexedDb = new IDBFactory();
-    const storage = createBrowserSystemRepositoryStorage(indexedDb);
-    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+    const storage = createBrowserSystemRepositoryStorage(indexedDb, {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
+    const catalog = createBrowserSystemRepositoryCatalog({
+      storage,
+    });
 
     await catalog.listRepositories();
     const database = await openDatabase(indexedDb);
@@ -158,8 +263,13 @@ describe("browser system repositories", () => {
 
   it("retains valid-shaped content whose stored revision is not canonical", async () => {
     const indexedDb = new IDBFactory();
-    const storage = createBrowserSystemRepositoryStorage(indexedDb);
-    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+    const storage = createBrowserSystemRepositoryStorage(indexedDb, {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
+    const catalog = createBrowserSystemRepositoryCatalog({
+      storage,
+    });
 
     await catalog.listRepositories();
     const database = await openDatabase(indexedDb);
@@ -194,7 +304,10 @@ describe("browser system repositories", () => {
   });
 
   it("does not hide ready repositories when catalog cache saving fails", async () => {
-    const storage = createBrowserSystemRepositoryStorage(new IDBFactory());
+    const storage = createBrowserSystemRepositoryStorage(new IDBFactory(), {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
     const catalog = createBrowserSystemRepositoryCatalog({
       storage: {
         ...storage,
@@ -217,7 +330,10 @@ describe("browser system repositories", () => {
   });
 
   it("projects adapter faults instead of throwing when IndexedDB is absent", async () => {
-    const catalog = createBrowserSystemRepositoryCatalog();
+    const catalog = createBrowserSystemRepositoryCatalog({
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
     const originalIndexedDb = globalThis.indexedDB;
 
     Object.defineProperty(globalThis, "indexedDB", {
@@ -251,8 +367,13 @@ describe("browser system repositories", () => {
         return request;
       },
     } as unknown as IDBFactory;
-    const storage = createBrowserSystemRepositoryStorage(indexedDb);
-    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+    const storage = createBrowserSystemRepositoryStorage(indexedDb, {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    });
+    const catalog = createBrowserSystemRepositoryCatalog({
+      storage,
+    });
 
     await expect(catalog.listRepositories()).resolves.toMatchObject({
       issues: [

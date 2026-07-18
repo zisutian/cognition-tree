@@ -21,7 +21,7 @@ import {
   TreeMoveQuickPick,
   type TreeNode,
 } from "../../shared/tree";
-import { useReferenceNavigation } from "./useReferenceNavigation";
+import { useReferenceNavigation } from "../../shared/useReferenceNavigation";
 import { NoteTimeDetails } from "./NoteTimeDetails";
 
 type NotesContextProps = {
@@ -196,8 +196,10 @@ export function NoteEditorPanel({
       />
       <CtnEditor
         key={view.activeNote.id}
+        contentMode={view.editor.mode === "raw"
+          ? { kind: "raw" }
+          : { kind: "document" }}
         focusTarget={view.editor.focusTarget}
-        mode={view.editor.mode}
         syntaxProfile={view.editor.syntaxProfile}
         value={view.editor.documentText}
         onActiveLineChange={view.editor.onActiveLineChange}

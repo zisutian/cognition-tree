@@ -5,7 +5,6 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
 import type {
   CtnEditableBlock,
   CtnEditableDocument,
@@ -19,6 +18,10 @@ import {
   getCtnEditorToneStyle,
 } from "./ctnTonePresentation";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import {
+  parseCtnEditorContent,
+  type CtnEditorParsedContentMode,
+} from "./ctnEditorContentMode";
 
 function isRootConceptBlock(block: CtnEditableBlock) {
   return block.level === 0 && block.marker === null;
@@ -263,16 +266,19 @@ export type CtnEditorParsePlugin = ViewPlugin<CtnEditorParsePluginValue>;
 function parseEditorDocument(
   view: EditorView,
   syntaxProfile: CtnSyntaxProfile,
+  contentMode: CtnEditorParsedContentMode,
 ) {
-  return parseCtnEditableDocument(
+  return parseCtnEditorContent(
     view.state.doc.toString(),
     syntaxProfile,
+    contentMode,
   );
 }
 
-export function createCtnParseDecorationPlugin(syntaxProfileRef: {
-  current: CtnSyntaxProfile;
-}): CtnEditorParsePlugin {
+export function createCtnParseDecorationPlugin(
+  syntaxProfileRef: { current: CtnSyntaxProfile },
+  contentMode: CtnEditorParsedContentMode,
+): CtnEditorParsePlugin {
   return ViewPlugin.fromClass(
     class implements CtnEditorParsePluginValue {
       decorations: DecorationSet;
@@ -283,7 +289,11 @@ export function createCtnParseDecorationPlugin(syntaxProfileRef: {
         this.profileKey = createCtnSyntaxParseProfileKey(
           syntaxProfileRef.current,
         );
-        this.document = parseEditorDocument(view, syntaxProfileRef.current);
+        this.document = parseEditorDocument(
+          view,
+          syntaxProfileRef.current,
+          contentMode,
+        );
         this.decorations = buildCtnDecorations(view, this.document);
       }
 
@@ -298,6 +308,7 @@ export function createCtnParseDecorationPlugin(syntaxProfileRef: {
           this.document = parseEditorDocument(
             update.view,
             syntaxProfileRef.current,
+            contentMode,
           );
           this.decorations = buildCtnDecorations(update.view, this.document);
         }

@@ -32,12 +32,21 @@ import { createWorkspaceApiSecurityPolicy } from "../../../server/api/workspaceA
 import { CompositeRepositoryCatalog } from "../../../server/catalog/compositeRepositoryCatalog.ts";
 import { SystemRepositoryCatalog } from "../../../server/repository/systemRepositoryCatalog.ts";
 import {
+  validateSystemRepositoryContent,
+  validateSystemRepositoryTransition,
+} from "../../../server/repository/systemRepositoryStore.ts";
+import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
 } from "../../../server/repository/repositoryCatalog.ts";
 import {
   createDeepRepositoryContent,
 } from "../../storage/repositoryV3Fixtures";
+import {
+  appendJournalTestEntry,
+  createEmptyJournalContent,
+  tamperJournalTestEntryCreation,
+} from "../../journal/journalTestFixture";
 
 function createContent(name = "本地笔记库"): WorkspaceRepositoryContentDto {
   return {
@@ -135,6 +144,10 @@ async function withHandler<Result>(
   });
   const systemCatalog = new SystemRepositoryCatalog(
     path.join(rootDir, ".system-state"),
+    {
+      validateContent: validateSystemRepositoryContent,
+      validateTransition: validateSystemRepositoryTransition,
+    },
   );
   const handler = createWorkspaceApiRequestHandler({
     catalog,
@@ -212,17 +225,10 @@ describe("workspace API v4", () => {
         revision: string;
       }>(handler, { method: "GET", url: snapshotUrl });
       if (!loaded.body) throw new Error("System repository snapshot is missing");
-      const content = {
-        entries: [{
-          createdAt: "2026-07-18T01:00:00.000Z",
-          id: "journal-entry-00000000-0000-4000-8000-000000000001",
-          source: "Journal body",
-          timezoneOffsetMinutes: -480,
-          updatedAt: "2026-07-18T01:00:00.000Z",
-        }],
-        purpose: "system-journal",
-        schemaVersion: 1,
-      };
+      const content = appendJournalTestEntry(createEmptyJournalContent(), {
+        createdAt: "2026-07-18T01:00:00.000Z",
+        entryIndex: 1,
+      });
       const committed = await dispatch<{ revision: string }>(handler, {
         body: JSON.stringify({
           baseRevision: loaded.body.revision,
@@ -234,6 +240,31 @@ describe("workspace API v4", () => {
       });
       if (!committed.body) throw new Error("System repository commit is missing");
       expect(committed.statusCode).toBe(200);
+      const tampered = tamperJournalTestEntryCreation(content, {
+        createdAt: "2026-08-19T10:11:12.000Z",
+        entryIndex: 1,
+        timezoneOffsetMinutes: -300,
+      });
+
+      await expect(dispatch(handler, {
+        body: JSON.stringify({
+          baseRevision: committed.body.revision,
+          content: tampered,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: snapshotUrl,
+      })).resolves.toMatchObject({
+        body: { code: "invalid_request" },
+        statusCode: 400,
+      });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: snapshotUrl,
+      })).resolves.toMatchObject({
+        body: { content, revision: committed.body.revision },
+        statusCode: 200,
+      });
       await expect(dispatch(handler, {
         body: JSON.stringify({
           baseRevision: loaded.body.revision,

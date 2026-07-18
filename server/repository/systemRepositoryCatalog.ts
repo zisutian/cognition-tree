@@ -27,7 +27,10 @@ import {
 } from "./repositoryStore.ts";
 import {
   FileSystemSystemRepositoryStore,
+  SystemRepositoryValidationError,
+  type SystemRepositoryContentValidator,
   type SystemRepositoryStore,
+  type SystemRepositoryTransitionValidator,
 } from "./systemRepositoryStore.ts";
 
 const systemRepositoryDirectoryName = "system-repositories";
@@ -42,7 +45,11 @@ type SystemRepositoryCatalogOptions = {
   createStore?: (
     filePath: string,
     purpose: SystemRepositoryPurposeDto,
+    validateContent: SystemRepositoryContentValidator,
+    validateTransition: SystemRepositoryTransitionValidator,
   ) => SystemRepositoryStore;
+  validateContent: SystemRepositoryContentValidator;
+  validateTransition: SystemRepositoryTransitionValidator;
 };
 
 async function fsyncDirectory(directory: string) {
@@ -56,6 +63,8 @@ async function fsyncDirectory(directory: string) {
 
 export class SystemRepositoryCatalog {
   readonly #createStore: NonNullable<SystemRepositoryCatalogOptions["createStore"]>;
+  readonly #validateContent: SystemRepositoryContentValidator;
+  readonly #validateTransition: SystemRepositoryTransitionValidator;
   #initialized = false;
   #operationQueue: Promise<void> = Promise.resolve();
   readonly #stateByPurpose = new Map<SystemRepositoryPurposeDto, SystemRepositoryState>();
@@ -65,9 +74,21 @@ export class SystemRepositoryCatalog {
   constructor(
     stateDirectory: string,
     {
-      createStore = (filePath, purpose) =>
-        new FileSystemSystemRepositoryStore(filePath, purpose),
-    }: SystemRepositoryCatalogOptions = {},
+      createStore = (
+        filePath,
+        purpose,
+        validateContent,
+        validateTransition,
+      ) =>
+        new FileSystemSystemRepositoryStore(
+          filePath,
+          purpose,
+          validateContent,
+          validateTransition,
+        ),
+      validateContent,
+      validateTransition,
+    }: SystemRepositoryCatalogOptions,
   ) {
     this.#stateDirectory = path.resolve(stateDirectory);
     this.#systemDirectory = path.join(
@@ -75,6 +96,8 @@ export class SystemRepositoryCatalog {
       systemRepositoryDirectoryName,
     );
     this.#createStore = createStore;
+    this.#validateContent = validateContent;
+    this.#validateTransition = validateTransition;
   }
 
   initialize() {
@@ -183,7 +206,12 @@ export class SystemRepositoryCatalog {
           "System repository file permissions or type are invalid",
         );
       }
-      const store = this.#createStore(filePath, purpose);
+      const store = this.#createStore(
+        filePath,
+        purpose,
+        this.#validateContent,
+        this.#validateTransition,
+      );
       await store.loadSnapshot();
       this.#stateByPurpose.set(purpose, {
         descriptor: {
@@ -228,6 +256,9 @@ export class SystemRepositoryCatalog {
   }
 
   async #provision(filePath: string, purpose: SystemRepositoryPurposeDto) {
+    const content = createEmptySystemRepositoryContent(purpose);
+
+    this.#validateContent(content);
     let handle;
     try {
       handle = await open(
@@ -237,7 +268,7 @@ export class SystemRepositoryCatalog {
       );
       await handle.writeFile(
         `${serializeJsonIteratively(
-          createEmptySystemRepositoryContent(purpose),
+          content,
           { indent: 2 },
         )}\n`,
         "utf8",
@@ -261,6 +292,7 @@ export class SystemRepositoryCatalog {
     const code = error instanceof UnsupportedSystemRepositoryVersionError
       ? "unsupported_repository_version"
       : error instanceof SystemRepositoryContractError ||
+          error instanceof SystemRepositoryValidationError ||
           error instanceof RepositoryCorruptError ||
           error instanceof SyntaxError
         ? "repository_corrupt"

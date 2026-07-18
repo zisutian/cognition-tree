@@ -8,7 +8,8 @@ import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
 } from "../../../src/application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchRepositoryProblem } from "../../../src/application/workspace/projection/viewProblems";
+import type { UiWorkbenchRepositoryProblem } from "../../../src/application/problems/workbenchProblems";
+import type { JournalDiagnostic } from "../../../src/application/journal";
 import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
 import type { WorkspaceRepositoryCatalogIssue } from "../../../src/storage/repository/workspaceRepositoryCatalog";
 
@@ -39,11 +40,66 @@ const systemIssue: SystemRepositoryIssue = {
   status: "fault",
 };
 
+const journalDiagnostic: JournalDiagnostic = {
+  code: "unknown-syntax",
+  id: "journal:document:journal-entry-00000000-0000-4000-8000-000000000001:unknown-syntax",
+  locationLabel: "2026-01-02 11:04:05 · L3:C1",
+  message: "日记正文存在未知语法。",
+  severity: "error",
+  source: "document",
+  target: {
+    entryId: "journal-entry-00000000-0000-4000-8000-000000000001",
+    kind: "journal-entry-line",
+    lineNumber: 3,
+  },
+};
+
 describe("WorkbenchProblemsController", () => {
   it("omits the global problems panel only from Settings", () => {
     expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
+    expect(hasWorkbenchProblemsPanel("journal")).toBe(true);
     expect(hasWorkbenchProblemsPanel("repository")).toBe(true);
     expect(hasWorkbenchProblemsPanel("notes")).toBe(true);
+  });
+
+  it("shows only Journal diagnostics in Journal and excludes them elsewhere", () => {
+    const diagnostics = createUiWorkbenchDiagnostics([diagnostic], "ready");
+    const journalDiagnostics = {
+      diagnostics: [journalDiagnostic],
+      errorCount: 1,
+      status: "ready" as const,
+      warningCount: 0,
+    };
+
+    expect(selectWorkbenchProblems({
+      activeActivityId: "journal",
+      diagnostics,
+      journalDiagnostics,
+      repositories: [],
+      repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
+    })).toEqual({
+      errorCount: 1,
+      problems: [journalDiagnostic],
+      status: "ready",
+      warningCount: 0,
+    });
+    expect(selectWorkbenchProblems({
+      activeActivityId: "notes",
+      diagnostics,
+      journalDiagnostics,
+      repositories: [],
+      repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
+    }).problems).toEqual([diagnostic]);
+    expect(selectWorkbenchProblems({
+      activeActivityId: "repository",
+      diagnostics,
+      journalDiagnostics,
+      repositories: [],
+      repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
+    }).problems).not.toContain(journalDiagnostic);
   });
 
   it("includes repository problems only for repositories and retains diagnostics there", () => {
@@ -169,6 +225,36 @@ describe("WorkbenchProblemsController", () => {
     );
     expect(onActiveActivityChange).toHaveBeenCalledWith("syntax");
     expect(openSyntaxField.mock.invocationCallOrder[0]).toBeLessThan(
+      onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(expandPanels).toHaveBeenCalledOnce();
+  });
+
+  it("selects the Journal entry and body line before opening Journal", () => {
+    const expandPanels = vi.fn();
+    const onActiveActivityChange = vi.fn();
+    const openEntryLine = vi.fn();
+
+    openWorkbenchProblem(journalDiagnostic, {
+      expandPanels,
+      journalNavigation: { openEntryLine },
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      workspaceNavigation: null,
+      onActiveActivityChange,
+    });
+
+    expect(openEntryLine).toHaveBeenCalledWith(
+      journalDiagnostic.target.entryId,
+      journalDiagnostic.target.lineNumber,
+    );
+    expect(onActiveActivityChange).toHaveBeenCalledWith("journal");
+    expect(openEntryLine.mock.invocationCallOrder[0]).toBeLessThan(
       onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,
     );
     expect(expandPanels).toHaveBeenCalledOnce();

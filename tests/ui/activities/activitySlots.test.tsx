@@ -1,15 +1,23 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { Archive } from "lucide-react";
+import {
+  Archive,
+  CalendarDays,
+} from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { workspaceActivityControllers } from "../../../src/app/activities/activityRegistry";
 import { createNotesActivitySlots } from "../../../src/ui/activities/notes/NotesActivitySlots";
+import { createJournalActivitySlots } from "../../../src/ui/activities/journal/JournalActivitySlots";
 import { createPlaceholderActivitySlots } from "../../../src/ui/activities/PlaceholderActivitySlots";
 import { createRepositoryActivitySlots } from "../../../src/ui/activities/repository/RepositoryActivitySlots";
 import { createSettingsActivitySlots } from "../../../src/ui/activities/settings/SettingsActivitySlots";
 import { createStructureOperationActivitySlots } from "../../../src/ui/activities/structure-operation/StructureOperationActivitySlots";
 import { createSyntaxActivitySlots } from "../../../src/ui/activities/syntax/SyntaxActivitySlots";
 import { createVisualizationActivitySlots } from "../../../src/ui/activities/visualization/VisualizationActivitySlots";
-import { activityItems } from "../../../src/ui/ActivityBar";
+import {
+  activityItems,
+  primaryActivityItems,
+  utilityActivityItems,
+} from "../../../src/ui/ActivityBar";
 import type { ActivityId } from "../../../src/ui/activityTypes";
 import { createView, type TestActivityViews } from "../viewFactory";
 
@@ -41,6 +49,13 @@ function slotsWithView(
         onCollapseDetail: controls.onCollapseDetail,
         onToggleFocusMode: controls.onToggleFocusMode,
         view: view.notes,
+      });
+    case "journal":
+      return createJournalActivitySlots({
+        focusMode: controls.focusMode,
+        onCollapseDetail: controls.onCollapseDetail,
+        onToggleFocusMode: controls.onToggleFocusMode,
+        view: view.journal,
       });
     case "structure-operation":
       return createStructureOperationActivitySlots({
@@ -83,6 +98,9 @@ describe("activity slots", () => {
     expect(slots("notes").context?.title).toBe("笔记");
     expect(slots("notes").detail).not.toBeNull();
 
+    expect(slots("journal").context?.title).toBe("日记");
+    expect(slots("journal").detail).not.toBeNull();
+
     expect(slots("structure-operation").context?.title).toBe("结构操作");
     expect(slots("structure-operation").detail).toBeNull();
 
@@ -100,9 +118,23 @@ describe("activity slots", () => {
     expect(slots("settings").detail).toBeNull();
   });
 
-  it("uses structure operation label in the activity bar", () => {
+  it("keeps the exact primary and utility activity order", () => {
+    expect(primaryActivityItems.map((item) => item.id)).toEqual([
+      "notes",
+      "journal",
+      "structure-operation",
+      "visualization",
+      "syntax",
+      "search",
+    ]);
+    expect(utilityActivityItems.map((item) => item.id)).toEqual([
+      "data",
+      "repository",
+      "settings",
+    ]);
     expect(activityItems.map((item) => item.id)).toEqual([
       "notes",
+      "journal",
       "structure-operation",
       "visualization",
       "syntax",
@@ -111,6 +143,12 @@ describe("activity slots", () => {
       "repository",
       "settings",
     ]);
+    expect(
+      activityItems.find((item) => item.id === "journal")?.label,
+    ).toBe("日记");
+    expect(
+      activityItems.find((item) => item.id === "journal")?.icon,
+    ).toBe(CalendarDays);
     expect(
       activityItems.find((item) => item.id === "structure-operation")?.label,
     ).toBe("结构操作");
@@ -127,12 +165,25 @@ describe("activity slots", () => {
       workspaceActivityControllers.map(({ activityId }) => activityId),
     ).toEqual([
       "notes",
+      "journal",
       "structure-operation",
       "visualization",
       "syntax",
       "repository",
       "settings",
     ]);
+  });
+
+  it("renders the fixed-title Journal list and body editor", () => {
+    const context = renderSlot(slots("journal").context?.content);
+    const main = renderSlot(slots("journal").main);
+
+    expect(context).toContain("2026 年 1 月");
+    expect(context).toContain("2026-01-02 11:04:05");
+    expect(context).toContain('aria-current="page"');
+    expect(context).not.toContain("重命名");
+    expect(main).toContain('data-editor-mode="body"');
+    expect(main).toContain("2026-01-02 11:04:05");
   });
 
   it("keeps raw notes editable and gates parsed activities without syntax", () => {

@@ -34,6 +34,7 @@ Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与�
 ## 当前能力
 
     笔记：创建、编辑、删除、重命名和移动笔记。
+    日记：在独立内置仓库中手动创建一天多条的 CTN 日记；固定标题来自创建瞬间，列表按月份和创建时间倒序，正文、结构详情、仓内引用和日记诊断彼此独立于普通仓库。
     目录：创建、重命名、删除和移动文件夹。
     编辑器：编辑 CTN 可编辑内容，以 Tab 表达结构层级；多行块内使用独立的代码缩进键位，并可进入保留活动栏的专注模式。
     仓库语法：创建和管理多份仓库级语法文件，并用列表中当前启用的语法解析笔记。
@@ -143,6 +144,7 @@ HTTP repository 的本地 draft、已知远端 revision、catalog 与逐笔记 s
     src/ui/           workbench 布局、activity slots、问题面板、共享组件和样式
     src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
     ctn/              前端与 Local server 共享的纯 CTN parser、metadata reconcile 和 syntax profile 核心
+    journal/          前后端共享的日记内容约束、固定语法、命令、查询与仓内解析索引
     src/storage/      repository 端口、浏览器/HTTP adapter 和运行时组合
     src/editor/       CodeMirror 编辑器适配
     contracts/        前后端共享的普通仓库与系统仓库 wire contract

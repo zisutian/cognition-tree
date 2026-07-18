@@ -1,6 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
+import { parseCtnEditableBody } from "../../ctn/parser/parseCtnBody";
 import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
 import {
   createCtnCodeBlockEnterTransaction,
@@ -109,6 +110,41 @@ describe("CTN code block editing", () => {
     expect(transaction).not.toBeNull();
     expect(state.update(transaction!).state.doc.toString()).toBe(
       `${source}\n\t\t`,
+    );
+  });
+
+  it("edits multiline blocks using body-only editor line numbers", () => {
+    const source = "Root\n\t```ts\n\t\tconst value = 1;\n\t```";
+    const document = parseCtnEditableBody(
+      source,
+      "2026-07-18 14:35:00",
+      defaultCtnSyntaxProfile,
+    );
+    const state = EditorState.create({
+      doc: source,
+      extensions: [EditorState.tabSize.of(4)],
+    });
+    const multiline = document.blocks.find(
+      (block) => block.role === "multiline",
+    )!;
+    const codeLine = state.doc.line(3);
+    const selected = state.update({
+      selection: { anchor: codeLine.to },
+    }).state;
+    const transaction = createCtnCodeBlockEnterTransaction(
+      selected,
+      document,
+    );
+
+    expect(multiline.lineNumber).toBe(2);
+    expect(multiline.multilineRange).toMatchObject({
+      closingFenceLineNumber: 4,
+      contentEndLineNumber: 3,
+      contentStartLineNumber: 3,
+    });
+    expect(transaction).not.toBeNull();
+    expect(selected.update(transaction!).state.doc.toString()).toContain(
+      "\t\tconst value = 1;\n\t\t\n\t```",
     );
   });
 });

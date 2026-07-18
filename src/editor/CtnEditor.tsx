@@ -4,22 +4,26 @@ import { EditorView } from "@codemirror/view";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../ctn/metadata/textEdits";
 import {
+  createCtnContentAttributesExtension,
   createCtnEditorExtensions,
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
+  ctnContentAttributesCompartment,
   ctnParsingCompartment,
   ctnTabSizeCompartment,
   getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
+import type { CtnEditorContentMode } from "./ctnEditorContentMode";
 import { createEditorValueSyncTransaction } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
 import "./CtnEditor.css";
 
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
+export type { CtnEditorContentMode } from "./ctnEditorContentMode";
 
 type CtnEditorProps = {
+  contentMode: CtnEditorContentMode;
   focusTarget: CtnEditorFocusTarget | null;
-  mode?: "ctn" | "raw";
   syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
   onActiveLineChange: (lineNumber: number) => void;
@@ -34,8 +38,8 @@ export type CtnEditorFocusTarget = {
 };
 
 export function CtnEditor({
+  contentMode,
   focusTarget,
-  mode = "ctn",
   syntaxProfile,
   value,
   onActiveLineChange,
@@ -100,7 +104,7 @@ export function CtnEditor({
           syntaxProfileRef,
           onOpenReferenceRef,
           onActiveLineChangeRef,
-          mode,
+          contentMode,
         ),
       }),
     });
@@ -114,6 +118,9 @@ export function CtnEditor({
       consumedFocusRequestIdRef.current = null;
     };
   }, []);
+
+  const contentModeKind = contentMode.kind;
+  const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
 
   useEffect(() => {
     const view = editorViewRef.current;
@@ -146,11 +153,16 @@ export function CtnEditor({
         createCtnParsingExtensions(
           syntaxProfileRef,
           onOpenReferenceRef,
-          mode,
+          contentMode,
         ),
       ),
     });
-  }, [mode]);
+    view.dispatch({
+      effects: ctnContentAttributesCompartment.reconfigure(
+        createCtnContentAttributesExtension(contentMode),
+      ),
+    });
+  }, [bodyTitle, contentModeKind]);
 
   useEffect(() => {
     const view = editorViewRef.current;
@@ -181,7 +193,7 @@ export function CtnEditor({
   return (
     <div
       className="source-editor"
-      data-editor-mode={mode}
+      data-editor-mode={contentMode.kind}
       ref={editorHostRef}
     />
   );

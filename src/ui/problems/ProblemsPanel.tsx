@@ -9,7 +9,7 @@ import { useRef, type CSSProperties } from "react";
 import type {
   UiWorkbenchProblem,
   UiWorkbenchProblems,
-} from "../../application/workspace/projection/viewProblems";
+} from "../../application/problems/workbenchProblems";
 import { SymbolSlot, cx } from "../shared/primitives";
 
 export const problemsRowHeightPx = 22;
@@ -21,6 +21,13 @@ const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   repository: "仓库",
   syntax: "语法",
 };
+
+function getProblemSourceLabel(problem: UiWorkbenchProblem) {
+  if (problem.target.kind === "journal-entry-line") {
+    return problem.source === "reference" ? "日记引用" : "日记";
+  }
+  return sourceLabels[problem.source];
+}
 
 export function shouldVirtualizeProblems(diagnosticCount: number) {
   return diagnosticCount > problemsVirtualizationThreshold;
@@ -58,7 +65,7 @@ function ProblemRow({
         </SymbolSlot>
         <span className="problems-row-message">{problem.message}</span>
         <span className="problems-row-meta">
-          {sourceLabels[problem.source]} · {problem.locationLabel}
+          {getProblemSourceLabel(problem)} · {problem.locationLabel}
         </span>
       </button>
     </li>

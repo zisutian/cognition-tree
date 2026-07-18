@@ -1,5 +1,7 @@
 import { createSyntaxProfileDraft } from "../../ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { journalCtnSyntaxProfileV1 } from "../../journal/syntax/journalSyntaxV1";
+import type { JournalViewModel } from "../../src/application/journal";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
 import type { RepositoryViewModel } from "../../src/application/workspace/activities/repository/repositoryViewModel";
@@ -9,6 +11,7 @@ import type { VisualizationViewModel } from "../../src/application/workspace/act
 import type { WorkspaceShell } from "../../src/application/workspace/runtime/useWorkspaceApplication";
 
 export type TestActivityViews = {
+  journal: JournalViewModel;
   notes: NotesViewModel;
   repository: RepositoryViewModel;
   shell: WorkspaceShell;
@@ -26,6 +29,60 @@ export function createView(
   });
 
   return {
+    journal: {
+      activeEntry: {
+        createdAt: "2026-01-02T03:04:05.000Z",
+        id: "journal-entry-00000000-0000-4000-8000-000000000001",
+        title: "2026-01-02 11:04:05",
+        updatedAt: "2026-01-02T03:05:00.000Z",
+      },
+      createEntry: () =>
+        "journal-entry-00000000-0000-4000-8000-000000000002",
+      deleteEntry: () => undefined,
+      diagnostics: {
+        diagnostics: [],
+        errorCount: 0,
+        status: "ready",
+        warningCount: 0,
+      },
+      editor: {
+        contentMode: { kind: "body", title: "2026-01-02 11:04:05" },
+        documentText: "",
+        errorMessage: "",
+        focusTarget: null,
+        onActiveLineChange: () => undefined,
+        onConsumeFocusTarget: () => undefined,
+        stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
+        syntaxProfile: journalCtnSyntaxProfileV1,
+        updateBody: () => undefined,
+      },
+      groups: [{
+        entries: [{
+          createdAt: "2026-01-02T03:04:05.000Z",
+          id: "journal-entry-00000000-0000-4000-8000-000000000001",
+          isActive: true,
+          title: "2026-01-02 11:04:05",
+          updatedAt: "2026-01-02T03:05:00.000Z",
+        }],
+        key: "2026-01",
+        label: "2026 年 1 月",
+      }],
+      navigation: {
+        focusRequest: null,
+        openEntryLine: () => undefined,
+      },
+      outline: {
+        activeBlock: null,
+        nodes: [],
+        onSelectLine: () => undefined,
+      },
+      persistence: { status: "saved" },
+      referenceNavigation: {
+        navigate: () => undefined,
+        resolve: () => [],
+      },
+      selectEntry: () => undefined,
+    },
     notes: {
       activeNote: {
         createdAt: "2026-01-01T00:00:00.000Z",

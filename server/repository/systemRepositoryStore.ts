@@ -22,6 +22,11 @@ import type {
   SystemRepositoryRevisionDto,
   SystemRepositorySnapshotDto,
 } from "../../contracts/system-repository/types.ts";
+import {
+  JournalContentValidationError,
+  validateJournalContent,
+  validateJournalContentTransition,
+} from "../../journal/model/journalContent.ts";
 import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 import {
   RepositoryAdapterError,
@@ -32,6 +37,96 @@ export type SystemRepositoryStore = {
   commitSnapshot(value: unknown): Promise<SystemRepositoryCommitResultDto>;
   loadSnapshot(): Promise<SystemRepositorySnapshotDto>;
 };
+
+export type SystemRepositoryContentValidator = (
+  content: SystemRepositoryContentDto,
+) => void;
+
+export type SystemRepositoryTransitionValidator = (
+  previous: SystemRepositoryContentDto,
+  next: SystemRepositoryContentDto,
+) => void;
+
+export class SystemRepositoryValidationError extends Error {
+  cause: unknown;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = "SystemRepositoryValidationError";
+    this.cause = cause;
+  }
+}
+
+export class SystemRepositoryContentValidationError
+  extends SystemRepositoryValidationError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = "SystemRepositoryContentValidationError";
+  }
+}
+
+export class SystemRepositoryTransitionValidationError
+  extends SystemRepositoryValidationError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+    this.name = "SystemRepositoryTransitionValidationError";
+  }
+}
+
+export function validateSystemRepositoryContent(
+  content: SystemRepositoryContentDto,
+) {
+  if (content.purpose === "system-journal") {
+    try {
+      validateJournalContent(content);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new SystemRepositoryContentValidationError(error.message, error);
+      }
+      throw error;
+    }
+  }
+}
+
+export function validateSystemRepositoryTransition(
+  previous: SystemRepositoryContentDto,
+  next: SystemRepositoryContentDto,
+) {
+  validateSystemRepositoryContent(previous);
+  validateSystemRepositoryContent(next);
+  if (previous.purpose !== next.purpose) {
+    throw new SystemRepositoryTransitionValidationError(
+      "System repository purpose is immutable.",
+    );
+  }
+  if (
+    previous.purpose === "system-journal" &&
+    next.purpose === "system-journal"
+  ) {
+    try {
+      validateJournalContentTransition(previous, next);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new SystemRepositoryTransitionValidationError(
+          error.message,
+          error,
+        );
+      }
+      throw error;
+    }
+  }
+}
+
+function validateCommitBoundary(operation: () => void) {
+  try {
+    operation();
+  } catch (error) {
+    if (error instanceof SystemRepositoryValidationError) {
+      throw new SystemRepositoryContractError("$.content", error.message);
+    }
+    throw error;
+  }
+}
 
 export class SystemRepositoryRevisionConflictError extends Error {
   currentRevision: SystemRepositoryRevisionDto;
@@ -63,11 +158,20 @@ async function fsyncDirectory(directory: string) {
 export class FileSystemSystemRepositoryStore implements SystemRepositoryStore {
   readonly #filePath: string;
   readonly #purpose: SystemRepositoryPurposeDto;
+  readonly #validateContent: SystemRepositoryContentValidator;
+  readonly #validateTransition: SystemRepositoryTransitionValidator;
   #operationQueue: Promise<void> = Promise.resolve();
 
-  constructor(filePath: string, purpose: SystemRepositoryPurposeDto) {
+  constructor(
+    filePath: string,
+    purpose: SystemRepositoryPurposeDto,
+    validateContent: SystemRepositoryContentValidator,
+    validateTransition: SystemRepositoryTransitionValidator,
+  ) {
     this.#filePath = path.resolve(filePath);
     this.#purpose = purpose;
+    this.#validateContent = validateContent;
+    this.#validateTransition = validateTransition;
   }
 
   loadSnapshot() {
@@ -76,6 +180,8 @@ export class FileSystemSystemRepositoryStore implements SystemRepositoryStore {
 
   commitSnapshot(value: unknown) {
     const commit = parseSystemRepositoryCommit(value, this.#purpose);
+
+    validateCommitBoundary(() => this.#validateContent(commit.content));
     return this.#enqueueOperation(async () => {
       let release: (() => Promise<void>) | null = null;
       try {
@@ -99,6 +205,9 @@ export class FileSystemSystemRepositoryStore implements SystemRepositoryStore {
         if (current.revision !== commit.baseRevision) {
           throw new SystemRepositoryRevisionConflictError(current.revision);
         }
+        validateCommitBoundary(() =>
+          this.#validateTransition(current.content, commit.content)
+        );
         const revision = createSystemRepositoryRevision(commit.content);
         if (revision === current.revision) return { revision };
         await this.#writeContent(commit.content);
@@ -132,11 +241,15 @@ export class FileSystemSystemRepositoryStore implements SystemRepositoryStore {
       let content: SystemRepositoryContentDto;
       try {
         content = parseSystemRepositoryContent(value, this.#purpose);
+        this.#validateContent(content);
       } catch (error) {
         if (error instanceof UnsupportedSystemRepositoryVersionError) {
           throw error;
         }
-        if (error instanceof SystemRepositoryContractError) {
+        if (
+          error instanceof SystemRepositoryContractError ||
+          error instanceof SystemRepositoryValidationError
+        ) {
           throw new RepositoryCorruptError(
             "System repository content is invalid",
           );

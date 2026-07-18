@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { createJournalParseIndex } from "../../../journal/indexes/journalParseIndex";
+import { describe, expect, it } from "vitest";
+import {
+  appendJournalTestEntry,
+  createEmptyJournalContent,
+  journalEntryId,
+  updateJournalTestBody,
+} from "../journalTestFixture";
+
+describe("journal parse index", () => {
+  it("resolves global references only against journal entry titles", () => {
+    let content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-17T12:00:00.000Z",
+      entryIndex: 1,
+      timezoneOffsetMinutes: 480,
+    });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 2,
+      createdAt: "2026-07-18T00:00:00.000Z",
+      entryIndex: 2,
+      timezoneOffsetMinutes: 480,
+    });
+    content = updateJournalTestBody(content, {
+      body: "- [[2026-07-17 20:00:00]]\n- [[普通仓库同名笔记]]",
+      entryIndex: 2,
+      updatedAt: "2026-07-18T00:10:00.000Z",
+    });
+
+    const index = createJournalParseIndex(content);
+
+    expect(index.referenceGraph.edges).toEqual([
+      expect.objectContaining({
+        count: 1,
+        sourceEntryId: journalEntryId(2),
+        targetEntryId: journalEntryId(1),
+      }),
+    ]);
+    expect(index.referenceGraph.unresolvedReferences).toEqual([
+      expect.objectContaining({
+        sourceEntryId: journalEntryId(2),
+        targetText: "普通仓库同名笔记",
+      }),
+    ]);
+  });
+
+  it("reports duplicate timestamp titles as ambiguous instead of rejecting them", () => {
+    let content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.100Z",
+      entryIndex: 1,
+    });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 2,
+      createdAt: "2026-07-18T00:00:01.900Z",
+      entryIndex: 2,
+    });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 3,
+      createdAt: "2026-07-18T00:00:03.000Z",
+      entryIndex: 3,
+    });
+    content = updateJournalTestBody(content, {
+      body: "- [[2026-07-18 08:00:01]]",
+      entryIndex: 3,
+      updatedAt: "2026-07-18T00:10:00.000Z",
+    });
+
+    const graph = createJournalParseIndex(content).referenceGraph;
+
+    expect(graph.edges).toEqual([]);
+    expect(graph.ambiguousReferences).toEqual([
+      expect.objectContaining({
+        candidateEntryIds: [journalEntryId(1), journalEntryId(2)],
+        sourceEntryId: journalEntryId(3),
+      }),
+    ]);
+  });
+
+  it("reuses unchanged parsed documents without retaining deleted entries", () => {
+    let content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 2,
+      createdAt: "2026-07-18T00:00:02.000Z",
+      entryIndex: 2,
+    });
+    const first = createJournalParseIndex(content);
+    const nextContent = { ...content, entries: [content.entries[1]] };
+    const second = createJournalParseIndex(nextContent, first);
+
+    expect(second.getParsedEntry(journalEntryId(2))?.document).toBe(
+      first.getParsedEntry(journalEntryId(2))?.document,
+    );
+    expect(second.getParsedEntry(journalEntryId(1))).toBeNull();
+    expect(second.parseCache.has(journalEntryId(1))).toBe(false);
+  });
+});

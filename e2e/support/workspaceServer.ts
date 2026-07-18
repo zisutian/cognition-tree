@@ -13,6 +13,10 @@ import { LocalRepositoryCatalog } from "../../server/adapters/local/localReposit
 import { WebDavConnectionRegistry } from "../../server/adapters/webdav/webDavConnectionRegistry.ts";
 import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
 import { SystemRepositoryCatalog } from "../../server/repository/systemRepositoryCatalog.ts";
+import {
+  validateSystemRepositoryContent,
+  validateSystemRepositoryTransition,
+} from "../../server/repository/systemRepositoryStore.ts";
 import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
@@ -45,7 +49,10 @@ const webDavRegistry = new WebDavConnectionRegistry({
   stateDirectory: serverStateDir,
 });
 const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
-const systemCatalog = new SystemRepositoryCatalog(serverStateDir);
+const systemCatalog = new SystemRepositoryCatalog(serverStateDir, {
+  validateContent: validateSystemRepositoryContent,
+  validateTransition: validateSystemRepositoryTransition,
+});
 
 await catalog.initialize();
 await systemCatalog.initialize();

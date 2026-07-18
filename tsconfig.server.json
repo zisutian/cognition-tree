@@ -14,5 +14,10 @@
     "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true
   },
-  "include": ["contracts/**/*.ts", "ctn/**/*.ts", "server/**/*.ts"]
+  "include": [
+    "contracts/**/*.ts",
+    "ctn/**/*.ts",
+    "journal/**/*.ts",
+    "server/**/*.ts"
+  ]
 }

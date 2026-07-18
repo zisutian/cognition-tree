@@ -4,6 +4,8 @@ import {
   ctnModules,
   findDependencyCycles,
   getSourceRoot,
+  journalModules,
+  journalPathToRelative,
   listInternalSourceImports,
   listSourceDependencyCycles,
   listSourceFiles,
@@ -177,6 +179,89 @@ describe("dependency boundaries", () => {
     expect(tomlParserOwners).toEqual([
       "../../ctn/syntax/profileTomlParser.ts",
     ]);
+  });
+
+  it("keeps Journal a pure shared domain with explicit consumers", () => {
+    const journalPrefix = "../../journal/";
+    const blockedImports = [
+      /^node:/,
+      /^react$/,
+      /^react\//,
+      /(?:^|\/)contracts\//,
+      /(?:^|\/)server\//,
+      /(?:^|\/)src\//,
+    ];
+    const purityViolations = Object.keys(journalModules).flatMap((filePath) =>
+      readModuleImports(journalModules, filePath)
+        .filter((importPath) =>
+          blockedImports.some((pattern) => pattern.test(importPath)),
+        )
+        .map((importPath) => formatImport(filePath, importPath))
+    );
+    const graph = new Map(
+      Object.keys(journalModules).map((filePath) => [
+        filePath,
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          journalPrefix,
+        ).map(({ targetPath }) => targetPath),
+      ]),
+    );
+    const allowedSourceConsumers = new Set(["application", "storage"]);
+    const sourceConsumerViolations = Object.keys(sourceModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          journalPrefix,
+        )
+          .filter(() => !allowedSourceConsumers.has(getSourceRoot(filePath)))
+          .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const serverConsumerViolations = Object.keys(serverModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          journalPrefix,
+        )
+          .filter(
+            () =>
+              !filePath.startsWith("../../server/repository/") &&
+              filePath !== "../../server/index.ts",
+          )
+          .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const contractConsumerViolations = Object.keys(contractModules).flatMap(
+      (filePath) =>
+        readInternalModuleImports(
+          workspaceModules,
+          filePath,
+          journalPrefix,
+        ).map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const fixedSyntaxSource = journalModules[
+      "../../journal/syntax/journalSyntaxV1.ts"
+    ] ?? "";
+
+    expect([
+      ...purityViolations,
+      ...sourceConsumerViolations,
+      ...serverConsumerViolations,
+      ...contractConsumerViolations,
+    ]).toEqual([]);
+    expect(findDependencyCycles(graph)).toEqual([]);
+    expect(fixedSyntaxSource).not.toMatch(/defaultCtnSyntaxProfile/);
+    expect(Object.keys(journalModules).map(journalPathToRelative).sort())
+      .toEqual([
+        "commands/journalCommands.ts",
+        "indexes/journalParseIndex.ts",
+        "model/journalContent.ts",
+        "queries/journalQueries.ts",
+        "queries/journalReferenceNavigation.ts",
+        "syntax/journalSyntaxV1.ts",
+      ]);
   });
 
   it("keeps application activity state behind local activity boundaries", () => {

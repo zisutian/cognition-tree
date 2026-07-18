@@ -11,9 +11,11 @@ import {
   type SystemRepository,
   type SystemRepositoryCatalog,
   type SystemRepositoryCatalogData,
+  type SystemRepositoryContentValidator,
   type SystemRepositoryDescriptor,
   type SystemRepositoryIssue,
   type SystemRepositoryPurpose,
+  type SystemRepositoryTransitionValidator,
   systemRepositoryPurposes,
 } from "../../repository/systemRepository";
 import { createVersionedLocalDraftRevision } from "../../repository/versionedRepository";
@@ -55,14 +57,36 @@ function createIssue(
   };
 }
 
-export function createBrowserSystemRepositoryCatalog({
-  storage: initialStorage,
-}: {
-  storage?: BrowserSystemRepositoryStorage;
-} = {}): SystemRepositoryCatalog {
+type BrowserSystemRepositoryCatalogOptions =
+  | {
+      storage: BrowserSystemRepositoryStorage;
+      validateContent?: never;
+      validateTransition?: never;
+    }
+  | {
+      storage?: undefined;
+      validateContent: SystemRepositoryContentValidator;
+      validateTransition: SystemRepositoryTransitionValidator;
+    };
+
+export function createBrowserSystemRepositoryCatalog(
+  options: BrowserSystemRepositoryCatalogOptions,
+): SystemRepositoryCatalog {
+  const initialStorage = options.storage;
+  const validateContent = initialStorage?.validateContent ??
+    options.validateContent;
+  const validateTransition = initialStorage?.validateTransition ??
+    options.validateTransition;
+
+  if (!validateContent || !validateTransition) {
+    throw new Error("System repository validators are required");
+  }
   let storage = initialStorage;
   const resolveStorage = () => {
-    storage ??= createBrowserSystemRepositoryStorage(globalThis.indexedDB);
+    storage ??= createBrowserSystemRepositoryStorage(globalThis.indexedDB, {
+      validateContent,
+      validateTransition,
+    });
     return storage;
   };
   const repositoryByPurpose = new Map<SystemRepositoryPurpose, SystemRepository>();
@@ -86,7 +110,18 @@ export function createBrowserSystemRepositoryCatalog({
       location: parsed.location,
       repositoryIdentity: `browser-system:${parsed.id}`,
       validateContent: (content) => {
-        parseSystemRepositoryContent(content, parsed.id);
+        const parsedContent = parseSystemRepositoryContent(content, parsed.id);
+
+        resolveStorage().validateContent(parsedContent);
+      },
+      validateTransition: (previous, next) => {
+        const previousContent = parseSystemRepositoryContent(
+          previous,
+          parsed.id,
+        );
+        const nextContent = parseSystemRepositoryContent(next, parsed.id);
+
+        resolveStorage().validateTransition(previousContent, nextContent);
       },
     });
 
