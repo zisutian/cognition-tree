@@ -1,3 +1,27 @@
+.syntax-context {
+  gap: var(--ui-gap-tight);
+}
+
+.syntax-file-list {
+  gap: var(--ui-border-width);
+}
+
+.syntax-file-row {
+  grid-template-columns: var(--ui-symbol-size) minmax(0, 1fr) auto;
+}
+
+.syntax-file-row:disabled {
+  color: var(--color-fg-disabled);
+  cursor: not-allowed;
+}
+
+.syntax-file-error {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ui-gap-tight) / 2);
+  color: var(--color-error);
+}
+
 .syntax-settings-stack {
   --syntax-rule-row-width: calc(
     var(--ui-control-height) * 15.5 + var(--ui-icon-size) +
@@ -102,6 +126,15 @@
 .syntax-number-control {
   width: calc(var(--ui-control-height) * 3);
   font-variant-numeric: var(--ui-numeric-font-variant);
+}
+
+.syntax-name-error {
+  margin: 0;
+  padding-left: calc(
+    var(--ui-control-height) * 4 + var(--ui-gap-tight)
+  );
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
 }
 
 .syntax-pair-fields {

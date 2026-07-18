@@ -61,8 +61,12 @@ export function useWorkspaceNavigation({
     [openNoteLine, selection.activeNoteId],
   );
   const openSyntaxField = useCallback(
-    (fieldId: UiSyntaxFieldId) => {
-      setSyntaxFocusRequest({ fieldId, requestId: nextRequestId() });
+    (syntaxFileId: string, fieldId: UiSyntaxFieldId) => {
+      setSyntaxFocusRequest({
+        fieldId,
+        requestId: nextRequestId(),
+        syntaxFileId,
+      });
     },
     [nextRequestId],
   );

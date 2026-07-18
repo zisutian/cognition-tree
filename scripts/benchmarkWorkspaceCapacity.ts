@@ -52,6 +52,8 @@ const blocksPerNote = 100;
 const notesPerFolder = 10;
 const timestamp = "2026-01-01T00:00:00.000Z";
 const indexedDbRepositoryIdentity = "benchmark:capacity";
+const benchmarkSyntaxFileId =
+  "syntax-00000000-0000-4000-8000-000000000001";
 const firstDraftRevision =
   "draft:00000000-0000-4000-8000-000000000001" as LocalDraftRevisionDto;
 const secondDraftRevision =
@@ -240,7 +242,7 @@ function assertRepositoryContentEqual(
   label: string,
 ) {
   assert.equal(actual.schemaVersion, expected.schemaVersion, `${label}: schema`);
-  assert.equal(actual.syntaxSource, expected.syntaxSource, `${label}: syntax`);
+  assert.deepEqual(actual.syntax, expected.syntax, `${label}: syntax`);
   assert.equal(actual.workspace.id, expected.workspace.id, `${label}: workspace id`);
   assert.equal(
     actual.workspace.name,
@@ -419,8 +421,14 @@ const editedWorkspace = await measure(
   },
 );
 const content: WorkspaceRepositoryContentDto = {
-  schemaVersion: 3,
-  syntaxSource: createDefaultWorkspaceSyntaxSource(),
+  schemaVersion: 4,
+  syntax: {
+    activeFileId: benchmarkSyntaxFileId,
+    files: [{
+      id: benchmarkSyntaxFileId,
+      source: createDefaultWorkspaceSyntaxSource(),
+    }],
+  },
   workspace,
 };
 const editedContent: WorkspaceRepositoryContentDto = {
@@ -468,7 +476,7 @@ FakeIDBObjectStore.prototype.put = function (
   value: unknown,
   key?: IDBValidKey,
 ) {
-  if (this.name === "repository-notes-v3") {
+  if (this.name === "repository-notes-v4") {
     const note = value as { id?: unknown };
 
     if (typeof note.id === "string") {
@@ -621,8 +629,8 @@ const repositoryDirectory = await mkdtemp(
 try {
   await createWorkspaceFileRepository({
     content: {
-      schemaVersion: 3,
-      syntaxSource: null,
+      schemaVersion: 4,
+      syntax: { activeFileId: null, files: [] },
       workspace: {
         id: "capacity-empty",
         name: "Capacity Empty",

@@ -12,13 +12,14 @@ export type WorkspaceSessionSnapshot = WorkspaceRepositorySnapshot & {
   workspaceSyntax: WorkspaceSyntax | null;
 };
 
-export async function loadWorkspaceSessionSnapshot(
-  repository: WorkspaceRepository,
-): Promise<WorkspaceSessionSnapshot> {
-  const repositorySnapshot = await repository.loadSnapshot();
-  const workspaceSyntax = resolveWorkspaceSyntax(
-    repositorySnapshot.content.syntaxSource,
-  );
+export function resolveWorkspaceSessionSnapshot(
+  repositorySnapshot: WorkspaceRepositorySnapshot,
+): WorkspaceSessionSnapshot {
+  const { syntax } = repositorySnapshot.content;
+  const activeSyntaxFile = syntax.activeFileId === null
+    ? null
+    : syntax.files.find(({ id }) => id === syntax.activeFileId) ?? null;
+  const workspaceSyntax = resolveWorkspaceSyntax(activeSyntaxFile?.source ?? null);
 
   validateWorkspaceBlockMetadata(
     repositorySnapshot.content.workspace,
@@ -26,4 +27,10 @@ export async function loadWorkspaceSessionSnapshot(
   );
 
   return { ...repositorySnapshot, workspaceSyntax };
+}
+
+export async function loadWorkspaceSessionSnapshot(
+  repository: WorkspaceRepository,
+): Promise<WorkspaceSessionSnapshot> {
+  return resolveWorkspaceSessionSnapshot(await repository.loadSnapshot());
 }

@@ -165,6 +165,7 @@ export function createView(
     },
     syntax: {
       ...syntax,
+      activeFileId: "syntax-default",
       actions: {
         addInlineRule: () => undefined,
         addMarkerRule: () => undefined,
@@ -177,10 +178,20 @@ export function createView(
         updateTabDisplayWidth: () => undefined,
         updateTitleRule: () => undefined,
       },
-      createConfiguration: async () => undefined,
+      createFile: async () => undefined,
+      deleteFile: async () => undefined,
+      files: [{
+        hasErrors: false,
+        id: "syntax-default",
+        isActive: true,
+        name: defaultCtnSyntaxProfile.name,
+      }],
+      hasDraftErrors: false,
       isConfigured: true,
+      nameConflictMessage: "",
       onConsumeFocusTarget: () => undefined,
       protectedInlineRuleIds: [],
+      selectFile: async () => undefined,
     },
     visualization: {
       activeNoteId: "note-source",

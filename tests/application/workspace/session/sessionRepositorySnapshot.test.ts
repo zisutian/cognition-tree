@@ -29,7 +29,7 @@ function createRepository(
 }
 
 describe("loadWorkspaceSessionSnapshot", () => {
-  it("loads one v3 content snapshot and resolves its syntax profile", async () => {
+  it("loads one v4 content snapshot and resolves its active syntax profile", async () => {
     const snapshot = createSnapshot();
 
     await expect(
@@ -40,7 +40,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
       pendingChanges: false,
       remoteRevision: remoteRevision("a"),
       workspaceSyntax: {
-        source: snapshot.content.syntaxSource,
+        source: snapshot.content.syntax.files[0]?.source,
       },
     });
   });
@@ -48,8 +48,8 @@ describe("loadWorkspaceSessionSnapshot", () => {
   it("keeps an unconfigured repository syntax explicit", async () => {
     const snapshot = createSnapshot({
       content: {
-        schemaVersion: 3,
-        syntaxSource: null,
+        schemaVersion: 4,
+        syntax: { activeFileId: null, files: [] },
         workspace: createInitialWorkspaceData(),
       },
       remoteRevision: null,
@@ -98,7 +98,7 @@ describe("loadWorkspaceSessionSnapshot", () => {
     const snapshot = createSnapshot({
       content: {
         ...content,
-        syntaxSource: null,
+        syntax: { activeFileId: null, files: [] },
         workspace: {
           ...content.workspace,
           notes: [{ id: "note-1", source: "Raw title\nopaque body" }],

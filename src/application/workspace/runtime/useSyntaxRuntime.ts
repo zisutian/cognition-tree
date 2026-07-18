@@ -10,15 +10,44 @@ import {
   attachWorkspaceSyntaxProfile,
 } from "../../../workspace/context/workspaceContext";
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
+import { normalizeWorkspaceSyntaxProfileName } from "../../../storage/repository/workspaceRepository";
 
 type UseSyntaxRuntimeOptions = {
-  createDefaultSyntax: () => Promise<void>;
-  isConfigured: boolean;
+  activeFileId: string | null;
+  createSyntaxFile: () => Promise<void>;
+  deleteSyntaxFile: (fileId: string) => Promise<void>;
+  files: Array<{ id: string; name: string; source: string }>;
+  selectSyntaxFile: (fileId: string) => Promise<void>;
   syntaxProfile: CtnSyntaxProfile;
   syntaxSource: string;
-  updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
+  updateActiveSyntaxFileSource: (source: string) => Promise<void>;
   workspace: WorkspaceStructureIndex | null;
 };
+
+export function findSyntaxCatalogNameConflict({
+  activeFileId,
+  candidateName,
+  files,
+}: {
+  activeFileId: string | null;
+  candidateName: string;
+  files: Array<{ id: string; name: string }>;
+}) {
+  if (activeFileId === null) {
+    return "";
+  }
+
+  const candidateKey = normalizeWorkspaceSyntaxProfileName(candidateName);
+  const conflict = files.find(
+    ({ id, name }) =>
+      id !== activeFileId &&
+      normalizeWorkspaceSyntaxProfileName(name) === candidateKey,
+  );
+
+  return conflict
+    ? `语法名称“${candidateName.trim()}”与“${conflict.name}”重名。`
+    : "";
+}
 
 export function resolveSyntaxDraftAfterPersistence({
   currentDraft,
@@ -47,18 +76,23 @@ export function resolveSyntaxDraftAfterPersistence({
 
 export function isCurrentSyntaxPersistenceCompletion({
   active,
+  completedFileId,
   completedSource,
   completedVersion,
+  currentFileId,
   currentSource,
   currentVersion,
 }: {
   active: boolean;
+  completedFileId?: string | null;
   completedSource: string;
   completedVersion: number;
+  currentFileId?: string | null;
   currentSource: string | null;
   currentVersion: number;
 }) {
   return active &&
+    completedFileId === currentFileId &&
     completedVersion === currentVersion &&
     completedSource === currentSource;
 }
@@ -88,12 +122,71 @@ export function startSyntaxDraftPersistence({
   }
 }
 
+export function startSyntaxFileDraftPersistence({
+  activeFileId,
+  draft,
+  files,
+  lastPersistedSource,
+  persist,
+}: {
+  activeFileId: string | null;
+  draft: SyntaxProfileDraft;
+  files: Array<{ id: string; name: string }>;
+  lastPersistedSource: string;
+  persist: (source: string) => Promise<void>;
+}) {
+  const result = buildSyntaxProfileDraft(draft);
+  const catalogNameConflictMessage = result.profile
+    ? findSyntaxCatalogNameConflict({
+        activeFileId,
+        candidateName: result.profile.name,
+        files,
+      })
+    : "";
+
+  if (activeFileId === null || catalogNameConflictMessage) {
+    return {
+      catalogNameConflictMessage,
+      completion: null,
+      source: null,
+    };
+  }
+
+  return {
+    catalogNameConflictMessage,
+    ...startSyntaxDraftPersistence({ draft, lastPersistedSource, persist }),
+  };
+}
+
+export function startSyntaxCatalogMutation({
+  draftIsValid,
+  mutate,
+}: {
+  draftIsValid: boolean;
+  mutate: () => Promise<void>;
+}) {
+  if (!draftIsValid) {
+    return Promise.reject(
+      new Error("请先修复或撤销当前语法文件中的无效更改。"),
+    );
+  }
+
+  try {
+    return Promise.resolve(mutate());
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
 export function useSyntaxRuntime({
-  createDefaultSyntax,
-  isConfigured,
+  activeFileId,
+  createSyntaxFile,
+  deleteSyntaxFile,
+  files,
+  selectSyntaxFile,
   syntaxProfile,
   syntaxSource,
-  updateWorkspaceSyntaxSource,
+  updateActiveSyntaxFileSource,
   workspace,
 }: UseSyntaxRuntimeOptions) {
   const [syntaxDraft, setSyntaxDraft] = useState(() =>
@@ -102,11 +195,24 @@ export function useSyntaxRuntime({
   const draftEditVersionRef = useRef(0);
   const lastPersistedSyntaxSourceRef = useRef("");
   const latestDraftSourceRef = useRef<string | null>(null);
-  const updateWorkspaceSyntaxSourceRef = useRef(updateWorkspaceSyntaxSource);
+  const activeFileIdRef = useRef(activeFileId);
+  const filesRef = useRef(files);
+  const lastActiveFileIdRef = useRef(activeFileId);
+  const updateActiveSyntaxFileSourceRef = useRef(updateActiveSyntaxFileSource);
   const persistenceActiveRef = useRef(false);
   const syntaxDraftResult = useMemo(
     () => buildSyntaxProfileDraft(syntaxDraft),
     [syntaxDraft],
+  );
+  const catalogNameConflictMessage = useMemo(
+    () => syntaxDraftResult.profile
+      ? findSyntaxCatalogNameConflict({
+          activeFileId,
+          candidateName: syntaxDraftResult.profile.name,
+          files,
+        })
+      : "",
+    [activeFileId, files, syntaxDraftResult.profile],
   );
   const syntaxDraftSource = useMemo(
     () =>
@@ -116,7 +222,9 @@ export function useSyntaxRuntime({
     [syntaxDraftResult.profile],
   );
   latestDraftSourceRef.current = syntaxDraftSource;
-  updateWorkspaceSyntaxSourceRef.current = updateWorkspaceSyntaxSource;
+  activeFileIdRef.current = activeFileId;
+  filesRef.current = files;
+  updateActiveSyntaxFileSourceRef.current = updateActiveSyntaxFileSource;
   const effectiveContext = useMemo(
     () =>
       workspace
@@ -131,6 +239,12 @@ export function useSyntaxRuntime({
   useEffect(() => {
     const previousPersistedSource = lastPersistedSyntaxSourceRef.current;
 
+    if (lastActiveFileIdRef.current !== activeFileId) {
+      draftEditVersionRef.current += 1;
+      lastActiveFileIdRef.current = activeFileId;
+      latestDraftSourceRef.current = syntaxSource;
+    }
+
     lastPersistedSyntaxSourceRef.current = syntaxSource;
     setSyntaxDraft((currentDraft) =>
       resolveSyntaxDraftAfterPersistence({
@@ -140,7 +254,7 @@ export function useSyntaxRuntime({
         syntaxSource,
       }),
     );
-  }, [syntaxProfile, syntaxSource]);
+  }, [activeFileId, syntaxProfile, syntaxSource]);
 
   useEffect(() => {
     persistenceActiveRef.current = true;
@@ -153,10 +267,13 @@ export function useSyntaxRuntime({
   const updateSyntaxDraft = useCallback((nextDraft: SyntaxProfileDraft) => {
     draftEditVersionRef.current += 1;
     const version = draftEditVersionRef.current;
-    const persistence = startSyntaxDraftPersistence({
+    const completedFileId = activeFileIdRef.current;
+    const persistence = startSyntaxFileDraftPersistence({
+      activeFileId: completedFileId,
       draft: nextDraft,
+      files: filesRef.current,
       lastPersistedSource: lastPersistedSyntaxSourceRef.current,
-      persist: (source) => updateWorkspaceSyntaxSourceRef.current(source),
+      persist: (source) => updateActiveSyntaxFileSourceRef.current(source),
     });
 
     latestDraftSourceRef.current = persistence.source;
@@ -169,8 +286,10 @@ export function useSyntaxRuntime({
         .then(() => {
           if (isCurrentSyntaxPersistenceCompletion({
             active: persistenceActiveRef.current,
+            completedFileId,
             completedSource: source,
             completedVersion: version,
+            currentFileId: activeFileIdRef.current,
             currentSource: latestDraftSourceRef.current,
             currentVersion: draftEditVersionRef.current,
           })) {
@@ -181,10 +300,36 @@ export function useSyntaxRuntime({
     }
   }, []);
 
+  const requireValidDraft = useCallback(
+    (mutation: () => Promise<void>) => startSyntaxCatalogMutation({
+      draftIsValid:
+        syntaxDraftResult.profile !== null && !catalogNameConflictMessage,
+      mutate: mutation,
+    }),
+    [catalogNameConflictMessage, syntaxDraftResult.profile],
+  );
+  const createFile = useCallback(
+    () => requireValidDraft(createSyntaxFile),
+    [createSyntaxFile, requireValidDraft],
+  );
+  const deleteFile = useCallback(
+    (fileId: string) => requireValidDraft(() => deleteSyntaxFile(fileId)),
+    [deleteSyntaxFile, requireValidDraft],
+  );
+  const selectFile = useCallback(
+    (fileId: string) => requireValidDraft(() => selectSyntaxFile(fileId)),
+    [requireValidDraft, selectSyntaxFile],
+  );
+
   return {
-    createDefaultSyntax,
+    activeFileId,
+    catalogNameConflictMessage,
+    createSyntaxFile: createFile,
+    deleteSyntaxFile: deleteFile,
     effectiveContext,
-    isConfigured,
+    files,
+    isConfigured: activeFileId !== null,
+    selectSyntaxFile: selectFile,
     syntaxDraft,
     syntaxDraftResult,
     updateSyntaxDraft,

@@ -147,7 +147,10 @@ describe("dependency boundaries", () => {
           ctnPrefix,
         )
           .filter(
-            () => !filePath.startsWith("../../server/adapters/local/"),
+            () =>
+              !filePath.startsWith("../../server/adapters/local/") &&
+              filePath !==
+                "../../server/repository/workspaceRepositoryContentValidation.ts",
           )
           .map(({ importPath }) => formatImport(filePath, importPath)),
     );

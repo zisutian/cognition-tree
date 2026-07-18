@@ -20,12 +20,17 @@ import type {
   WorkspaceRepositoryContentDto,
   WorkspaceRepositorySnapshotDto,
 } from "../../../contracts/workspace-repository/types.ts";
+import { repositorySyntaxIndexFileName } from "../../../contracts/workspace-repository/types.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
 } from "../../repository/repositoryStore.ts";
 import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
+import {
+  createRepositorySyntaxFileName,
+  loadSyntaxFromSnapshot,
+} from "../../repository/workspaceRepositoryLayout.ts";
 import {
   fsyncDirectory,
   removeAtomicWriteTemporaryFiles,
@@ -41,8 +46,8 @@ import {
   localIndexFileName,
   localNoteMetadataDirectoryName,
   localRepositoryMetadataFileName,
+  localSyntaxDirectoryName,
   localTransactionsDirectoryName,
-  localWorkspaceSyntaxFileName,
   parseLocalNoteMetadata,
   parseLocalRepositoryIndex,
   parseLocalRepositoryMetadata,
@@ -238,6 +243,7 @@ export class WorkspaceFileStore {
       const controlPath = path.join(this.#rootDir, localControlDirectoryName);
       await ensureSafeDirectory(controlPath);
       await ensureSafeDirectory(path.join(controlPath, localNoteMetadataDirectoryName));
+      await ensureSafeDirectory(path.join(controlPath, localSyntaxDirectoryName));
       await ensureSafeDirectory(path.join(controlPath, localTransactionsDirectoryName));
       await recoverLocalWorkingTreeTransactions(this.#rootDir);
       await removeAtomicWriteTemporaryFiles(this.#rootDir);
@@ -330,12 +336,7 @@ export class WorkspaceFileStore {
     if (metadata.repositoryId !== path.basename(this.#rootDir)) {
       throw new RepositoryCorruptError("Local repository identity does not match its directory");
     }
-    const syntaxSource = await readLocalControlText(
-      path.join(this.#rootDir, localControlDirectoryName, localWorkspaceSyntaxFileName),
-    ).catch((error: unknown) => {
-      if (hasFileSystemErrorCode(error, "ENOENT")) return null;
-      throw error;
-    });
+    const syntax = await this.#readSyntax();
     const projection = await createLocalProjectionFromWorkingTree({
       createBlockId: this.#createBlockId,
       createFolderId: this.#createFolderId,
@@ -344,7 +345,7 @@ export class WorkspaceFileStore {
       metadata,
       readNoteMetadata: (noteId) => this.#readNoteMetadata(noteId),
       rootDir: this.#rootDir,
-      syntaxSource,
+      syntax,
       timestamp: this.#now(),
     });
     const observedAfter = await captureLocalManagedWorkingTreeState(this.#rootDir);
@@ -393,6 +394,34 @@ export class WorkspaceFileStore {
     ));
   }
 
+  async #readSyntax() {
+    const syntaxDirectory = path.join(
+      this.#rootDir,
+      localControlDirectoryName,
+      localSyntaxDirectoryName,
+    );
+    const syntax = await loadSyntaxFromSnapshot(
+      await readLocalJson(path.join(syntaxDirectory, repositorySyntaxIndexFileName)),
+      (syntaxFileId) => readLocalControlText(
+        path.join(syntaxDirectory, createRepositorySyntaxFileName(syntaxFileId)),
+      ),
+    );
+    const expected = new Set([
+      repositorySyntaxIndexFileName,
+      ...syntax.files.map((file) => createRepositorySyntaxFileName(file.id)),
+    ]);
+    const entries = await readdir(syntaxDirectory, { withFileTypes: true });
+    if (
+      entries.length !== expected.size ||
+      entries.some((entry) =>
+        !expected.has(entry.name) || !entry.isFile() || entry.isSymbolicLink()
+      )
+    ) {
+      throw new RepositoryCorruptError("Local syntax directory contains an unknown entry");
+    }
+    return syntax;
+  }
+
   async #readNoteMetadata(noteId: string): Promise<LocalNoteMetadata | null> {
     const filePath = path.join(
       this.#rootDir,
@@ -408,10 +437,31 @@ export class WorkspaceFileStore {
   }
 
   async #hasLegacyLayout() {
+    const metadataValue = await readLocalJson(path.join(
+      this.#rootDir,
+      localControlDirectoryName,
+      localRepositoryMetadataFileName,
+    )).catch((error: unknown) => {
+      if (hasFileSystemErrorCode(error, "ENOENT")) return null;
+      throw error;
+    });
+    if (
+      typeof metadataValue === "object" &&
+      metadataValue !== null &&
+      !Array.isArray(metadataValue) &&
+      (metadataValue as Record<string, unknown>).schemaVersion === 3
+    ) {
+      return true;
+    }
     const legacyCandidates = [
       path.join(this.#rootDir, "repository.json"),
       path.join(this.#rootDir, "snapshots"),
       path.join(this.#rootDir, "workspace.json"),
+      path.join(
+        this.#rootDir,
+        localControlDirectoryName,
+        "workspace.toml",
+      ),
     ];
     for (const candidate of legacyCandidates) {
       if (await lstat(candidate).then(() => true, (error: unknown) => {
@@ -428,8 +478,8 @@ export class WorkspaceFileStore {
       localIndexFileName,
       localNoteMetadataDirectoryName,
       localRepositoryMetadataFileName,
+      localSyntaxDirectoryName,
       localTransactionsDirectoryName,
-      localWorkspaceSyntaxFileName,
     ]);
     const entries = await readdir(controlPath, { withFileTypes: true });
     for (const entry of entries) {
@@ -444,6 +494,15 @@ export class WorkspaceFileStore {
     for (const entry of metadataEntries) {
       if (!entry.isFile() || entry.isSymbolicLink() || !entry.name.endsWith(".json")) {
         throw new RepositoryCorruptError("Local note metadata directory is invalid");
+      }
+    }
+    const syntaxEntries = await readdir(
+      path.join(controlPath, localSyntaxDirectoryName),
+      { withFileTypes: true },
+    );
+    for (const entry of syntaxEntries) {
+      if (!entry.isFile() || entry.isSymbolicLink()) {
+        throw new RepositoryCorruptError("Local syntax directory is invalid");
       }
     }
   }

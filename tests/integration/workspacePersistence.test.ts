@@ -46,6 +46,11 @@ const commandDependencies = {
     let id = 0;
     return () => `note-integration-${++id}`;
   })(),
+  createSyntaxFileId: (() => {
+    let id = 0;
+    return () =>
+      `syntax-00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`;
+  })(),
   now: () => "2026-07-16T00:00:00.000Z",
 };
 const openControllers: WorkspaceSessionController[] = [];
@@ -161,8 +166,8 @@ async function createRepository(
   return catalog.createRepository({
     adapter: "local",
     content: {
-      schemaVersion: 3,
-      syntaxSource: null,
+      schemaVersion: 4,
+      syntax: { activeFileId: null, files: [] },
       workspace: {
         ...workspace,
         id: `workspace-00000000-0000-4000-8000-${String(++nextWorkspaceId)
@@ -215,7 +220,7 @@ afterEach(async () => {
 });
 
 describe("workspace persistence integration", () => {
-  it("persists repository v3 content and syntax through HTTP, then reloads a new local-first session", async () => {
+  it("persists repository v4 content and syntax through HTTP, then reloads a new local-first session", async () => {
     const server = await startRepositoryServer();
     const clientCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
@@ -227,7 +232,7 @@ describe("workspace persistence integration", () => {
     );
 
     await waitForState(firstController, (state) => state.status === "ready");
-    await firstController.useDefaultWorkspaceSyntax();
+    await firstController.createSyntaxFile();
 
     const noteId = firstController.commands.createNote(null);
 
@@ -293,7 +298,7 @@ describe("workspace persistence integration", () => {
       },
     });
 
-    await controller.useDefaultWorkspaceSyntax();
+    await controller.createSyntaxFile();
     const localNoteId = controller.commands.createNote(null);
 
     updateNote(controller, localNoteId, "本地最终内容");
@@ -341,7 +346,7 @@ describe("workspace persistence integration", () => {
     );
 
     await waitForState(firstController, (state) => state.status === "ready");
-    await firstController.useDefaultWorkspaceSyntax();
+    await firstController.createSyntaxFile();
     const noteId = firstController.commands.createNote(null);
 
     updateNote(firstController, noteId, "切换前最后输入");

@@ -34,10 +34,12 @@ import {
 } from "../../../contracts/workspace-repository/revision.ts";
 import type {
   RepositoryRevisionDto,
+  RepositorySyntaxCatalogDto,
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import {
+  repositorySyntaxIndexFileName,
   workspaceRepositorySchemaVersion,
 } from "../../../contracts/workspace-repository/types.ts";
 import {
@@ -45,6 +47,7 @@ import {
   RepositoryCorruptError,
 } from "../../repository/repositoryStore.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
+import { validateWorkspaceRepositorySyntax } from "../../repository/workspaceRepositoryContentValidation.ts";
 import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 
 export const localControlDirectoryName = ".ctn";
@@ -52,8 +55,8 @@ export const localIndexFileName = "index.json";
 export const localLayoutVersion = 1 as const;
 export const localNoteMetadataDirectoryName = "note-metadata";
 export const localRepositoryMetadataFileName = "repository.json";
+export const localSyntaxDirectoryName = "syntax";
 export const localTransactionsDirectoryName = "transactions";
-export const localWorkspaceSyntaxFileName = "workspace.toml";
 
 const localIndexFields = new Set(["entries", "layoutVersion"]);
 const localIndexEntryCommonFields = new Set([
@@ -654,6 +657,7 @@ export function createLocalProjectionFromContent({
   repositoryId: string;
   rootDir: string;
 }): LocalWorkingTreeProjection {
+  const { activeSource: syntaxSource } = validateWorkspaceRepositorySyntax(content.syntax);
   const noteById = new Map(content.workspace.notes.map((note) => [note.id, note]));
   const previousByIdentity = new Map(
     (previousIndex?.entries ?? []).map((entry) => [
@@ -710,7 +714,7 @@ export function createLocalProjectionFromContent({
     if (!note) {
       throw new WorkspaceRepositoryContractError("$.workspace.tree", "missing Local note");
     }
-    const sidecar = projectCanonicalNoteSource(note.id, note.source, content.syntaxSource);
+    const sidecar = projectCanonicalNoteSource(note.id, note.source, syntaxSource);
     const title = validateLocalNoteTitle(
       titleFromEditableSource(sidecar.editableSource),
       "$.workspace.notes.title",
@@ -738,10 +742,17 @@ export function createLocalProjectionFromContent({
       jsonSource(sidecar),
     );
   }
-  if (content.syntaxSource !== null) {
+  files.set(
+    `${localControlDirectoryName}/${localSyntaxDirectoryName}/${repositorySyntaxIndexFileName}`,
+    jsonSource({
+      activeFileId: content.syntax.activeFileId,
+      files: content.syntax.files.map((file) => file.id),
+    }),
+  );
+  for (const file of content.syntax.files) {
     files.set(
-      `${localControlDirectoryName}/${localWorkspaceSyntaxFileName}`,
-      content.syntaxSource,
+      `${localControlDirectoryName}/${localSyntaxDirectoryName}/${file.id}.toml`,
+      file.source,
     );
   }
   const revision = createWorkspaceRepositoryRevision(content);
@@ -980,7 +991,7 @@ export async function createLocalProjectionFromWorkingTree({
   metadata,
   readNoteMetadata,
   rootDir,
-  syntaxSource,
+  syntax,
   timestamp,
 }: {
   createBlockId: () => string;
@@ -990,9 +1001,10 @@ export async function createLocalProjectionFromWorkingTree({
   metadata: LocalRepositoryMetadata;
   readNoteMetadata: (noteId: string) => Promise<LocalNoteMetadata | null>;
   rootDir: string;
-  syntaxSource: string | null;
+  syntax: RepositorySyntaxCatalogDto;
   timestamp: string;
 }): Promise<LocalWorkingTreeProjection> {
+  const { activeSource: syntaxSource } = validateWorkspaceRepositorySyntax(syntax);
   const physical = await scanPhysicalWorkingTree(rootDir);
   const { byPreviousIdentity, unmatched } = createIdentityMatcher(previousIndex, physical);
   const previousByPhysical = new Map<PhysicalEntry, LocalIndexEntry>();
@@ -1212,7 +1224,7 @@ export async function createLocalProjectionFromWorkingTree({
     .sort((left, right) => left.id.localeCompare(right.id));
   const content: WorkspaceRepositoryContentDto = {
     schemaVersion: workspaceRepositorySchemaVersion,
-    syntaxSource,
+    syntax,
     workspace: {
       id: metadata.workspace.id,
       name: metadata.workspace.name,
@@ -1239,8 +1251,18 @@ export async function createLocalProjectionFromWorkingTree({
       );
     }
   }
-  if (syntaxSource !== null) {
-    files.set(`${localControlDirectoryName}/${localWorkspaceSyntaxFileName}`, syntaxSource);
+  files.set(
+    `${localControlDirectoryName}/${localSyntaxDirectoryName}/${repositorySyntaxIndexFileName}`,
+    jsonSource({
+      activeFileId: syntax.activeFileId,
+      files: syntax.files.map((file) => file.id),
+    }),
+  );
+  for (const file of syntax.files) {
+    files.set(
+      `${localControlDirectoryName}/${localSyntaxDirectoryName}/${file.id}.toml`,
+      file.source,
+    );
   }
   files.set(`${localControlDirectoryName}/${localIndexFileName}`, jsonSource(index));
   files.set(`${localControlDirectoryName}/${localRepositoryMetadataFileName}`, jsonSource(nextMetadata));
@@ -1292,9 +1314,8 @@ export async function assertLocalRepositoryContainsOnlyManagedData(rootDir: stri
     const controlFiles = new Set([
       localIndexFileName,
       localRepositoryMetadataFileName,
-      localWorkspaceSyntaxFileName,
     ]);
-    const atomicTemporaryPattern = /^(?:index\.json|repository\.json|workspace\.toml)\.\d+\.[0-9a-f-]{36}\.tmp$/i;
+    const atomicTemporaryPattern = /^(?:index\.json|repository\.json)\.\d+\.[0-9a-f-]{36}\.tmp$/i;
     for (const entry of controlEntries) {
       const entryPath = path.join(controlRoot, entry.name);
       if (entry.name === localNoteMetadataDirectoryName) {
@@ -1306,6 +1327,16 @@ export async function assertLocalRepositoryContainsOnlyManagedData(rootDir: stri
                 /^[A-Za-z0-9][A-Za-z0-9._-]*\.json\.\d+\.[0-9a-f-]{36}\.tmp$/i.test(sidecar.name)
               )) reject();
           await assertRegular(path.join(entryPath, sidecar.name));
+        }
+      } else if (entry.name === localSyntaxDirectoryName) {
+        if (!entry.isDirectory() || entry.isSymbolicLink()) reject();
+        const syntaxFilePattern = /^(?:index\.json|syntax-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.toml)$/;
+        const syntaxTemporaryPattern = /^(?:index\.json|syntax-[0-9a-f-]+\.toml)\.\d+\.[0-9a-f-]{36}\.tmp$/i;
+        for (const syntaxFile of await readdir(entryPath, { withFileTypes: true })) {
+          if (!syntaxFile.isFile() || syntaxFile.isSymbolicLink() ||
+              !(syntaxFilePattern.test(syntaxFile.name) ||
+                syntaxTemporaryPattern.test(syntaxFile.name))) reject();
+          await assertRegular(path.join(entryPath, syntaxFile.name));
         }
       } else if (entry.name === localTransactionsDirectoryName) {
         if (!entry.isDirectory() || entry.isSymbolicLink()) reject();

@@ -33,8 +33,14 @@ function createContent(name: string, noteCount = 3): WorkspaceRepositoryContentD
   }));
 
   return {
-    schemaVersion: 3,
-    syntaxSource: 'name = "live-webdav"\n',
+    schemaVersion: 4,
+    syntax: {
+      activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
+      files: [{
+        id: "syntax-00000000-0000-4000-8000-000000000001",
+        source: 'name = "live-webdav"\n',
+      }],
+    },
     workspace: {
       id: "live-webdav-workspace",
       name,
@@ -78,7 +84,7 @@ function createStore(
   });
 }
 
-describe.skipIf(!runLiveWebDav)("WebDAV v3 live loopback service", () => {
+describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
   let rootPath: string;
   let service: FileBackedWebDavServer;
 

@@ -22,8 +22,8 @@ const remoteLocation = {
 
 function createContent(name: string): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: { id: "workspace", name, notes: [], tree: [] },
   };
 }

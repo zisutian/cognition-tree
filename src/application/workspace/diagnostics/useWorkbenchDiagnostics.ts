@@ -30,19 +30,35 @@ export function selectWorkbenchDiagnostics({
 }
 
 export function useWorkbenchDiagnostics({
+  activeSyntaxFileId,
   analysis,
   isSyntaxConfigured,
+  syntaxCatalogNameConflictMessage,
   syntaxDraft,
   syntaxDraftResult,
 }: {
+  activeSyntaxFileId: string | null;
   analysis: WorkspaceAnalysis;
   isSyntaxConfigured: boolean;
+  syntaxCatalogNameConflictMessage: string;
   syntaxDraft: SyntaxProfileDraft;
   syntaxDraftResult: SyntaxProfileDraftBuildResult;
 }) {
   const syntaxDiagnostics = useMemo(
-    () => createUiSyntaxDiagnostics(syntaxDraft, syntaxDraftResult),
-    [syntaxDraft, syntaxDraftResult],
+    () => activeSyntaxFileId
+      ? createUiSyntaxDiagnostics(
+          syntaxDraft,
+          syntaxDraftResult,
+          activeSyntaxFileId,
+          syntaxCatalogNameConflictMessage,
+        )
+      : [],
+    [
+      activeSyntaxFileId,
+      syntaxCatalogNameConflictMessage,
+      syntaxDraft,
+      syntaxDraftResult,
+    ],
   );
 
   return selectWorkbenchDiagnostics({

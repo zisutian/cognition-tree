@@ -303,7 +303,7 @@ test.describe.serial("repository and capacity flows", () => {
     await getActivityButton(page, "引用图谱").click();
     await expect(page.getByText("引用图谱不可用", { exact: true })).toBeVisible();
     await getActivityButton(page, "语法").click();
-    await expect(page.getByRole("button", { name: "创建配置" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "新建语法" }).first()).toBeVisible();
   });
 
   test("finishes the local stage before an immediate repository switch", async ({

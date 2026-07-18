@@ -11,6 +11,7 @@ import type {
 } from "../../../../contracts/workspace-repository/types";
 import { createIndexedDbRepositoryClientCache } from "../../../../src/storage/adapters/browser/browserRepositoryClientCache";
 import { WorkspaceRepositoryLocalConflictError } from "../../../../src/storage/repository/workspaceRepository";
+import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue";
 import {
   draftA,
   draftB,
@@ -73,8 +74,8 @@ function createContent(
   ],
 ): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: "workspace",
       name: "Workspace",
@@ -207,12 +208,49 @@ describe("IndexedDB repository client cache", () => {
       identity: repositoryIdentity,
       localRevision: draftA,
       noteIds: ["note-a", "note-b"],
-      schemaVersion: 3,
+      schemaVersion: 4,
+      syntax: { activeFileId: null, files: [] },
     });
     expect(notes).toEqual([
       { id: "note-a", identity: repositoryIdentity, source: content.workspace.notes[0]?.source },
       { id: "note-b", identity: repositoryIdentity, source: content.workspace.notes[1]?.source },
     ]);
+    database.close();
+  });
+
+  it("reports an existing v3 repository state as unsupported without rewriting it", async () => {
+    const indexedDb = new IDBFactory();
+    const cache = createIndexedDbRepositoryClientCache(indexedDb);
+
+    await expect(cache.snapshots.load("missing")).resolves.toBeNull();
+    const database = await openDatabase(indexedDb);
+    const legacyState = {
+      identity: repositoryIdentity,
+      localRevision: draftA,
+      noteIds: [],
+      pendingBaseRevision: null,
+      remoteRevision: revisionA,
+      schemaVersion: 3,
+      syntaxSource: null,
+      workspace: { id: "legacy", name: "Legacy", tree: [] },
+    };
+    const write = database.transaction(stateStoreName, "readwrite");
+    const writeCompletion = transactionComplete(write);
+
+    write.objectStore(stateStoreName).put(legacyState);
+    await writeCompletion;
+    await expect(cache.snapshots.load(repositoryIdentity)).rejects.toBeInstanceOf(
+      UnsupportedRepositoryVersionError,
+    );
+
+    const read = database.transaction(stateStoreName, "readonly");
+    const readCompletion = transactionComplete(read);
+    const retained = await requestResult(
+      read.objectStore(stateStoreName).get(repositoryIdentity),
+    );
+
+    await readCompletion;
+    expect(retained).toEqual(legacyState);
     database.close();
   });
 

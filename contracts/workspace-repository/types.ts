@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export const workspaceRepositorySchemaVersion = 3 as const;
-export const repositorySyntaxFileName = "workspace.toml";
+export const workspaceRepositorySchemaVersion = 4 as const;
+export const repositorySyntaxIndexFileName = "index.json";
 
 export type RepositoryRevisionDto = `sha256:${string}`;
 export type LocalDraftRevisionDto = `draft:${string}`;
@@ -30,9 +30,19 @@ export type RepositoryWorkspaceDto = {
   tree: RepositoryTreeNodeDto[];
 };
 
+export type RepositorySyntaxFileDto = {
+  id: string;
+  source: string;
+};
+
+export type RepositorySyntaxCatalogDto = {
+  activeFileId: string | null;
+  files: RepositorySyntaxFileDto[];
+};
+
 export type WorkspaceRepositoryContentDto = {
   schemaVersion: typeof workspaceRepositorySchemaVersion;
-  syntaxSource: string | null;
+  syntax: RepositorySyntaxCatalogDto;
   workspace: RepositoryWorkspaceDto;
 };
 

@@ -19,8 +19,8 @@ const revision = `sha256:${"a".repeat(64)}` as const;
 
 function createContent(): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: "workspace",
       name: "Notes",
@@ -37,8 +37,8 @@ function createContent(): WorkspaceRepositoryContentDto {
   };
 }
 
-describe("workspace repository v3 contract", () => {
-  it("parses the only supported v3 wire shapes", () => {
+describe("workspace repository v4 contract", () => {
+  it("parses the only supported v4 wire shapes", () => {
     const content = createContent();
 
     expect(parseWorkspaceRepositoryContent(content)).toEqual(content);
@@ -66,17 +66,16 @@ describe("workspace repository v3 contract", () => {
       label: "Remote",
       url: "https://dav.example.test/notes",
     });
-    expect(parseWorkspaceRepositoryCommit({
-      baseRevision: revision,
-      content: { ...content, syntaxSource: "" },
-    })).toEqual({
-      baseRevision: revision,
-      content: { ...content, syntaxSource: "" },
-    });
   });
 
-  it("rejects v2 and derived persistence fields without compatibility", () => {
+  it("rejects v3 and derived persistence fields without compatibility", () => {
     const content = createContent();
+
+    expect(() => parseWorkspaceRepositoryContent({
+      schemaVersion: 3,
+      syntaxSource: null,
+      workspace: content.workspace,
+    })).toThrow(UnsupportedRepositoryVersionError);
 
     expect(() => parseWorkspaceRepositoryContent({
       syntaxSourceFile: null,
@@ -101,6 +100,43 @@ describe("workspace repository v3 contract", () => {
         }],
       },
     })).toThrow("unsupported field");
+  });
+
+  it("requires canonical syntax ids, unique files, and an existing active file", () => {
+    const content = createContent();
+    const syntaxId = "syntax-00000000-0000-4000-8000-000000000001";
+    const syntaxFile = { id: syntaxId, source: "any wire source" };
+
+    expect(parseWorkspaceRepositoryContent({
+      ...content,
+      syntax: { activeFileId: syntaxId, files: [syntaxFile] },
+    }).syntax).toEqual({ activeFileId: syntaxId, files: [syntaxFile] });
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      syntax: { activeFileId: "syntax-invalid", files: [syntaxFile] },
+    })).toThrow("invalid repository syntax file id");
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      syntax: { activeFileId: syntaxId, files: [syntaxFile, syntaxFile] },
+    })).toThrow("duplicate syntax file id");
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      syntax: { activeFileId: null, files: [syntaxFile] },
+    })).toThrow("must identify an active syntax file");
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      syntax: { activeFileId: syntaxId, files: [] },
+    })).toThrow("must be null when syntax files are empty");
+    expect(() => parseWorkspaceRepositoryContent({
+      ...content,
+      syntax: {
+        activeFileId: "syntax-00000000-0000-4000-8000-00000000000A",
+        files: [{
+          id: "syntax-00000000-0000-4000-8000-00000000000A",
+          source: "source",
+        }],
+      },
+    })).toThrow("invalid repository syntax file id");
   });
 
   it("requires exact tree identity, placement, and sha256 revisions", () => {

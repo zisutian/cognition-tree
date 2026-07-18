@@ -44,6 +44,22 @@ import {
 const initialTimestamp = "2026-07-16T00:00:00.000Z";
 const changedTimestamp = "2026-07-16T01:00:00.000Z";
 const syntaxSource = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+const secondarySyntaxSource = formatSyntaxProfileToml({
+  ...defaultCtnSyntaxProfile,
+  name: "Local Secondary",
+});
+const syntaxFileId = "syntax-00000000-0000-4000-8000-000000000001";
+const secondarySyntaxFileId = "syntax-00000000-0000-4000-8000-000000000002";
+
+function createSyntaxCatalog() {
+  return {
+    activeFileId: syntaxFileId,
+    files: [
+      { id: syntaxFileId, source: syntaxSource },
+      { id: secondarySyntaxFileId, source: secondarySyntaxSource },
+    ],
+  };
+}
 
 function blockId(index: number) {
   return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
@@ -60,8 +76,8 @@ function canonicalSource(title: string, body = "\t: 内容", idOffset = 0) {
 
 function createContent(name = "本地笔记库"): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource,
+    schemaVersion: 4,
+    syntax: createSyntaxCatalog(),
     workspace: {
       id: "workspace",
       name,
@@ -91,8 +107,8 @@ function createDeepTreeContent(depth: number): WorkspaceRepositoryContentDto {
   }
 
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: "deep-workspace",
       name: "deep tree",
@@ -212,9 +228,23 @@ describe("WorkspaceFileStore Local working tree", () => {
         label: "Stable label",
         layoutVersion: 1,
         repositoryId: path.basename(rootDir),
-        schemaVersion: 3,
+        schemaVersion: 4,
         workspace: { id: "workspace", name: "本地笔记库" },
       });
+      await expect(readFile(
+        path.join(rootDir, ".ctn", "syntax", "index.json"),
+        "utf8",
+      )).resolves.toContain(
+        `"files": [\n    "${syntaxFileId}",\n    "${secondarySyntaxFileId}"\n  ]`,
+      );
+      await expect(readFile(
+        path.join(rootDir, ".ctn", "syntax", `${syntaxFileId}.toml`),
+        "utf8",
+      )).resolves.toBe(syntaxSource);
+      await expect(readFile(
+        path.join(rootDir, ".ctn", "syntax", `${secondarySyntaxFileId}.toml`),
+        "utf8",
+      )).resolves.toBe(secondarySyntaxSource);
       const sidecarSource = await readFile(
         path.join(rootDir, ".ctn", "note-metadata", "note-test.json"),
         "utf8",
@@ -238,8 +268,8 @@ describe("WorkspaceFileStore Local working tree", () => {
   it("keeps canonical-looking body directives visible in a syntax-free repository", async () => {
     await withTempDir(async (rootDir) => {
       const content: WorkspaceRepositoryContentDto = {
-        schemaVersion: 3,
-        syntaxSource: null,
+        schemaVersion: 4,
+        syntax: { activeFileId: null, files: [] },
         workspace: {
           id: "workspace-raw",
           name: "Raw",
@@ -375,8 +405,8 @@ describe("WorkspaceFileStore Local working tree", () => {
   it("preserves order within the same folder and appends external moves and additions deterministically", async () => {
     await withTempDir(async (rootDir) => {
       const content: WorkspaceRepositoryContentDto = {
-        schemaVersion: 3,
-        syntaxSource,
+        schemaVersion: 4,
+        syntax: createSyntaxCatalog(),
         workspace: {
           id: "workspace",
           name: "Order",
@@ -437,8 +467,8 @@ describe("WorkspaceFileStore Local working tree", () => {
   it("does not rewrite an unchanged visible note or its sidecar", async () => {
     await withTempDir(async (rootDir) => {
       const content: WorkspaceRepositoryContentDto = {
-        schemaVersion: 3,
-        syntaxSource,
+        schemaVersion: 4,
+        syntax: createSyntaxCatalog(),
         workspace: {
           id: "workspace",
           name: "Incremental",
@@ -602,6 +632,44 @@ describe("WorkspaceFileStore Local working tree", () => {
     });
   });
 
+  it("validates inactive syntax files, normalized names, and persisted sources", async () => {
+    await withTempDir(async (rootDir) => {
+      await createFileRepository(rootDir);
+      const store = createStore(rootDir);
+      const base = await store.loadSnapshot();
+      const invalidInactive = createContent("invalid inactive");
+
+      invalidInactive.syntax.files[1] = {
+        id: secondarySyntaxFileId,
+        source: 'name = "broken"\n',
+      };
+      await expect(store.commitSnapshot({
+        baseRevision: base.revision,
+        content: invalidInactive,
+      })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
+
+      const duplicateName = createContent("duplicate names");
+      duplicateName.syntax.files[1] = {
+        id: secondarySyntaxFileId,
+        source: formatSyntaxProfileToml({
+          ...defaultCtnSyntaxProfile,
+          name: `  ${defaultCtnSyntaxProfile.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
+        }),
+      };
+      await expect(store.commitSnapshot({
+        baseRevision: base.revision,
+        content: duplicateName,
+      })).rejects.toThrow("duplicate syntax profile name");
+
+      await writeFile(
+        path.join(rootDir, ".ctn", "syntax", `${secondarySyntaxFileId}.toml`),
+        'name = "broken"\n',
+      );
+      await expect(createStore(rootDir).loadSnapshot())
+        .rejects.toBeInstanceOf(RepositoryCorruptError);
+    });
+  });
+
   it("rejects the removed snapshot layout and never creates data during ordinary load", async () => {
     await withTempDir(async (rootDir) => {
       await writeFile(path.join(rootDir, "repository.json"), "{}\n");
@@ -614,6 +682,80 @@ describe("WorkspaceFileStore Local working tree", () => {
       await expect(createStore(rootDir).loadSnapshot())
         .rejects.toBeInstanceOf(RepositoryCorruptError);
       expect(await readdir(rootDir)).toEqual([]);
+    });
+  });
+
+  it("rejects the v3 Local control layout without changing its files", async () => {
+    await withTempDir(async (rootDir) => {
+      const controlDir = path.join(rootDir, ".ctn");
+      const legacySyntax = 'name = "legacy"\n';
+
+      await mkdir(path.join(controlDir, "note-metadata"), { recursive: true });
+      await mkdir(path.join(controlDir, "transactions"));
+      await writeFile(path.join(controlDir, "workspace.toml"), legacySyntax);
+      await writeFile(path.join(controlDir, "index.json"), "{}\n");
+      await writeFile(path.join(controlDir, "repository.json"), "{}\n");
+
+      await expect(createStore(rootDir).loadSnapshot()).rejects.toMatchObject({
+        name: "UnsupportedRepositoryVersionError",
+      });
+      await expect(readFile(path.join(controlDir, "workspace.toml"), "utf8"))
+        .resolves.toBe(legacySyntax);
+      await expect(readdir(controlDir)).resolves.toEqual([
+        "index.json",
+        "note-metadata",
+        "repository.json",
+        "transactions",
+        "workspace.toml",
+      ]);
+    });
+  });
+
+  it("rejects a syntax-free v3 Local layout and preserves its complete tree", async () => {
+    await withTempDir(async (rootDir) => {
+      const controlDir = path.join(rootDir, ".ctn");
+      const noteSource = "Raw note\nbody\n";
+      const indexSource = '{"entries":[],"layoutVersion":1}\n';
+      const metadataSource = JSON.stringify({
+        currentRevision: `sha256:${"a".repeat(64)}`,
+        label: "Raw v3",
+        layoutVersion: 1,
+        repositoryId: path.basename(rootDir),
+        schemaVersion: 3,
+        workspace: { id: "raw-v3", name: "Raw v3" },
+      });
+      const sidecarSource = '{"legacy":"preserve"}\n';
+
+      await mkdir(path.join(controlDir, "note-metadata"), { recursive: true });
+      await mkdir(path.join(controlDir, "transactions"));
+      await writeFile(path.join(rootDir, "Raw note.ctn"), noteSource);
+      await writeFile(path.join(controlDir, "index.json"), indexSource);
+      await writeFile(path.join(controlDir, "repository.json"), metadataSource);
+      await writeFile(
+        path.join(controlDir, "note-metadata", "note-raw.json"),
+        sidecarSource,
+      );
+
+      await expect(createStore(rootDir).loadSnapshot()).rejects.toMatchObject({
+        name: "UnsupportedRepositoryVersionError",
+      });
+      await expect(readdir(rootDir)).resolves.toEqual([".ctn", "Raw note.ctn"]);
+      await expect(readdir(controlDir)).resolves.toEqual([
+        "index.json",
+        "note-metadata",
+        "repository.json",
+        "transactions",
+      ]);
+      await expect(readFile(path.join(rootDir, "Raw note.ctn"), "utf8"))
+        .resolves.toBe(noteSource);
+      await expect(readFile(path.join(controlDir, "index.json"), "utf8"))
+        .resolves.toBe(indexSource);
+      await expect(readFile(path.join(controlDir, "repository.json"), "utf8"))
+        .resolves.toBe(metadataSource);
+      await expect(readFile(
+        path.join(controlDir, "note-metadata", "note-raw.json"),
+        "utf8",
+      )).resolves.toBe(sidecarSource);
     });
   });
 

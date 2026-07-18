@@ -51,7 +51,10 @@ export function openWorkbenchProblem(
     );
     context.onActiveActivityChange("notes");
   } else if (problem.target.kind === "syntax-field") {
-    context.navigation.openSyntaxField(problem.target.fieldId);
+    context.navigation.openSyntaxField(
+      problem.target.syntaxFileId,
+      problem.target.fieldId,
+    );
     context.onActiveActivityChange("syntax");
   } else {
     context.navigation.openRepositoryIssue(problem.target.issueId);

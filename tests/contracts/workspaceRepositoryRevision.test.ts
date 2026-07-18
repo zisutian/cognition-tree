@@ -27,8 +27,20 @@ describe("workspace repository revision content", () => {
 
   it("sorts notes by id while preserving tree order", () => {
     const serialized = serializeWorkspaceRepositoryRevisionContent({
-      schemaVersion: 3,
-      syntaxSource: null,
+      schemaVersion: 4,
+      syntax: {
+        activeFileId: "syntax-00000000-0000-4000-8000-000000000002",
+        files: [
+          {
+            id: "syntax-00000000-0000-4000-8000-000000000002",
+            source: "Second",
+          },
+          {
+            id: "syntax-00000000-0000-4000-8000-000000000001",
+            source: "First",
+          },
+        ],
+      },
       workspace: {
         id: "workspace",
         name: "notes",
@@ -44,7 +56,7 @@ describe("workspace repository revision content", () => {
     });
 
     expect(serialized).toBe(
-      '{"schemaVersion":3,"syntaxSource":null,"workspace":{"id":"workspace","name":"notes","notes":[{"id":"a","source":"A"},{"id":"z","source":"Z"}],"tree":[{"kind":"note","noteId":"z"},{"kind":"note","noteId":"a"}]}}',
+      '{"schemaVersion":4,"syntax":{"activeFileId":"syntax-00000000-0000-4000-8000-000000000002","files":[{"id":"syntax-00000000-0000-4000-8000-000000000002","source":"Second"},{"id":"syntax-00000000-0000-4000-8000-000000000001","source":"First"}]},"workspace":{"id":"workspace","name":"notes","notes":[{"id":"a","source":"A"},{"id":"z","source":"Z"}],"tree":[{"kind":"note","noteId":"z"},{"kind":"note","noteId":"a"}]}}',
     );
   });
 
@@ -61,8 +73,8 @@ describe("workspace repository revision content", () => {
     }
 
     const content: WorkspaceRepositoryContentDto = {
-      schemaVersion: 3,
-      syntaxSource: null,
+      schemaVersion: 4,
+      syntax: { activeFileId: null, files: [] },
       workspace: {
         id: "deep-workspace",
         name: "deep tree",

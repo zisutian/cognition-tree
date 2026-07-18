@@ -86,7 +86,7 @@ describe("activity slots", () => {
     expect(slots("structure-operation").context?.title).toBe("结构操作");
     expect(slots("structure-operation").detail).toBeNull();
 
-    expect(slots("syntax").context).toBeNull();
+    expect(slots("syntax").context?.title).toBe("语法");
     expect(slots("syntax").detail).not.toBeNull();
 
     expect(slots("visualization").context).toBeNull();
@@ -176,6 +176,12 @@ describe("activity slots", () => {
     );
     expect(renderSlot(slots("repository").context?.content)).toContain(
       'aria-current="page"',
+    );
+    expect(renderSlot(slots("syntax").context?.content)).toContain(
+      'class="ui-tree syntax-file-list"',
+    );
+    expect(renderSlot(slots("syntax").context?.content)).toContain(
+      'data-syntax-file-id="syntax-default"',
     );
     expect(renderSlot(slots("repository").main)).toContain(
       "/data/repositories/primary",

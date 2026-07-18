@@ -63,6 +63,7 @@ function createInitialContent(name: string) {
   return createInitialRepositoryContent({
     createBlockId: () => globalThis.crypto.randomUUID(),
     createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
+    createSyntaxFileId: () => `syntax-${globalThis.crypto.randomUUID()}`,
     createWorkspaceId: () => `workspace-${globalThis.crypto.randomUUID()}`,
     name,
     timestamp: new Date().toISOString(),

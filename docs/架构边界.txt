@@ -33,7 +33,7 @@ editor：
 
 server：
 
-    仓库执行端。repository 定义 store/catalog 端口、v3 内容、revision 与删除结果；catalog 组合健康仓库和带 adapter、lifecycle 状态的单仓问题，统一分配 repository ID；api 负责 HTTP、统一错误与请求安全；local adapter 管理可见 working tree、隐藏 `.ctn/` 内部事实、稳定扫描、身份协调、WAL、独占 writer 和原子删除；WebDAV adapter 管理安全连接 registry、目标网络边界、不可变 generation、lease、ETag CAS 与 deletion tombstone；index 是唯一组合根。
+    仓库执行端。repository 定义 store/catalog 端口、v4 内容、syntax catalog 语义校验、revision 与删除结果；catalog 组合健康仓库和带 adapter、lifecycle 状态的单仓问题，统一分配 repository ID；api 负责 HTTP、统一错误与请求安全；local adapter 管理可见 working tree、隐藏 `.ctn/` 内部事实、稳定扫描、身份协调、WAL、独占 writer 和原子删除；WebDAV adapter 管理安全连接 registry、目标网络边界、不可变 generation、lease、ETag CAS 与 deletion tombstone；index 是唯一组合根。
 
 contracts：
 
@@ -49,6 +49,7 @@ contracts：
     storage -> workspace、contracts
     editor -> ctn
     server -> contracts、Node HTTP、文件系统
+    server/repository/workspaceRepositoryContentValidation -> ctn
     server/adapters/local -> ctn
 
     storage/repository 不依赖 storage/adapters 或 storage/runtime。
@@ -59,7 +60,7 @@ contracts：
 
 3. 数据流
 
-    server 将 repository id 解析为 catalog 中的仓库 adapter，读取显式 content 与 sha256 revision；Local 从真实目录、可见 `.ctn` 正文和隐藏 sidecar 重建 canonical content，以 `.ctn/repository.json` head 的 durable atomic replace 发布 WAL target；WebDAV 以 current pointer 的 ETag CAS 发布不可变 generation。WebDAV registry 在本地安全状态中保存动态连接，启动时只加载连接描述，实际网络访问由对应 store 延迟执行。
+    server 将 repository id 解析为 catalog 中的仓库 adapter，读取显式 content 与 sha256 revision；repository validator 对 syntax catalog 中每份 TOML 和规范化名称唯一性作统一语义校验；Local 从真实目录、可见 `.ctn` 正文、隐藏 sidecar 与 `.ctn/syntax/` 重建 canonical content，以 `.ctn/repository.json` head 的 durable atomic replace 发布 WAL target；WebDAV generation 保存同构 syntax catalog，并以 current pointer 的 ETag CAS 发布。WebDAV registry 在本地安全状态中保存动态连接，启动时只加载连接描述，实际网络访问由对应 store 延迟执行。
     contracts 在 storage 和 server 边界解析同一 repository wire shape。
     storage 在 IndexedDB transaction 中先以 draft revision CAS stage 最新本地 content，再由 backend 对远端 sha256 revision 提交。offline、conflict 与 sync-error 是显式同步结果，远端 409 不进入 application。
     HTTP Local 在首次加载和手动 reload 时优先扫描服务端 working tree；没有 pending draft 时安装磁盘 revision，存在 pending 且磁盘 revision 变化时保留 draft 并形成 ready session 内的 conflict。同步提交也先扫描磁盘并校验 base revision。

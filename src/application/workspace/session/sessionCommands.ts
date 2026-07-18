@@ -86,6 +86,7 @@ export type SessionCommandDependencies = {
   createBlockId: () => string;
   createFolderId: () => FolderId;
   createNoteId: () => NoteId;
+  createSyntaxFileId: () => string;
   now: () => string;
 };
 

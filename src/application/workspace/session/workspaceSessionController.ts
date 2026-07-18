@@ -6,6 +6,11 @@ import type {
   WorkspaceRepositorySnapshot,
 } from "../../../storage/repository/workspaceRepository";
 import {
+  isWorkspaceSyntaxFileId,
+  normalizeWorkspaceSyntaxProfileName,
+} from "../../../storage/repository/workspaceRepository";
+import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
+import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
 } from "../../../workspace/context/workspaceContext";
@@ -19,7 +24,6 @@ import {
   type WorkspaceStructureIndex,
 } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceData } from "../../../workspace/model/workspaceData";
-import { validateWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
 import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../workspace/context/workspaceSyntaxMetadata";
 import {
   createSessionCommands,
@@ -28,6 +32,7 @@ import {
 } from "./sessionCommands";
 import {
   loadWorkspaceSessionSnapshot,
+  resolveWorkspaceSessionSnapshot,
   type WorkspaceSessionSnapshot,
 } from "./sessionRepositorySnapshot";
 import {
@@ -43,6 +48,7 @@ export type WorkspaceSessionReadyState = {
   persistence: WorkspacePersistenceState;
   status: "ready";
   storageLabel: string;
+  syntaxCatalog: WorkspaceSyntaxCatalog;
   workspace: WorkspaceStructureIndex;
   workspaceSyntax: WorkspaceSyntax | null;
 };
@@ -70,16 +76,18 @@ type LoadedWorkspaceSession = {
 
 export type WorkspaceSessionController = {
   commands: SessionCommands;
+  createSyntaxFile: () => Promise<void>;
+  deleteSyntaxFile: (fileId: string) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   dispose: () => void;
   flushPendingChanges: () => Promise<void>;
   getState: () => WorkspaceSessionControllerState;
   reload: () => Promise<void>;
   prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
+  selectSyntaxFile: (fileId: string) => Promise<void>;
   start: () => void;
   subscribe: (listener: () => void) => () => void;
-  updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  useDefaultWorkspaceSyntax: () => Promise<void>;
+  updateActiveSyntaxFileSource: (source: string) => Promise<void>;
 };
 
 export class WorkspaceSessionUnavailableError extends Error {
@@ -91,6 +99,70 @@ export class WorkspaceSessionUnavailableError extends Error {
 
 function getErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
+}
+
+type WorkspaceSyntaxCatalog = WorkspaceRepositoryContent["syntax"];
+
+function resolveSyntaxCatalog(catalog: WorkspaceSyntaxCatalog) {
+  const fileIds = new Set<string>();
+  for (const { id } of catalog.files) {
+    if (!isWorkspaceSyntaxFileId(id)) {
+      throw new Error(`Invalid workspace syntax file id: ${id}`);
+    }
+    if (fileIds.has(id)) {
+      throw new Error(`Duplicate workspace syntax file id: ${id}`);
+    }
+    fileIds.add(id);
+  }
+  if (
+    (catalog.files.length === 0 && catalog.activeFileId !== null) ||
+    (catalog.files.length > 0 &&
+      (catalog.activeFileId === null || !fileIds.has(catalog.activeFileId)))
+  ) {
+    throw new Error("Workspace syntax catalog has an invalid active file");
+  }
+
+  const syntaxById = new Map(
+    catalog.files.map((file) => [file.id, parseWorkspaceSyntax(file.source)]),
+  );
+  const names = new Set<string>();
+
+  for (const syntax of syntaxById.values()) {
+    const name = normalizeWorkspaceSyntaxProfileName(syntax.profile.name);
+
+    if (names.has(name)) {
+      throw new Error(`Duplicate workspace syntax profile name: ${syntax.profile.name}`);
+    }
+    names.add(name);
+  }
+
+  return {
+    catalog,
+    workspaceSyntax: catalog.activeFileId === null
+      ? null
+      : syntaxById.get(catalog.activeFileId) ?? null,
+  };
+}
+
+function createSyntaxCopySource(
+  catalog: WorkspaceSyntaxCatalog,
+  template: WorkspaceSyntax,
+) {
+  const existingNames = new Set(
+    catalog.files.map(({ source }) =>
+      normalizeWorkspaceSyntaxProfileName(parseWorkspaceSyntax(source).profile.name)
+    ),
+  );
+  const copyName = `${template.profile.name} 副本`;
+  let candidate = copyName;
+  let suffix = 2;
+
+  while (existingNames.has(normalizeWorkspaceSyntaxProfileName(candidate))) {
+    candidate = `${copyName} ${suffix}`;
+    suffix += 1;
+  }
+
+  return formatSyntaxProfileToml({ ...template.profile, name: candidate });
 }
 
 function createLoadedWorkspaceSession({
@@ -182,6 +254,7 @@ export function createWorkspaceSessionController({
       persistence,
       status: "ready",
       storageLabel: repository.label,
+      syntaxCatalog: session.content.syntax,
       workspace: session.workspace,
       workspaceSyntax: session.workspaceSyntax,
     });
@@ -378,13 +451,13 @@ export function createWorkspaceSessionController({
     }
   };
 
-  const updateWorkspaceSyntaxSource = (source: string) => {
-    const workspaceSyntax = parseWorkspaceSyntax(source);
+  const commitSyntaxCatalog = (syntax: WorkspaceSyntaxCatalog) => {
     const session = requireReadySession();
+    const resolved = resolveSyntaxCatalog(syntax);
     const workspaceData = reconcileWorkspaceSyntaxBlockMetadata(
       session.content.workspace,
       session.workspaceSyntax?.profile ?? null,
-      workspaceSyntax.profile,
+      resolved.workspaceSyntax?.profile ?? null,
       {
         createBlockId: commandDependencies.createBlockId,
         timestamp: commandDependencies.now(),
@@ -394,13 +467,80 @@ export function createWorkspaceSessionController({
     updateLoadedContent(
       {
         ...session.content,
-        syntaxSource: source,
+        syntax: resolved.catalog,
         workspace: workspaceData,
       },
-      workspaceSyntax,
+      resolved.workspaceSyntax,
     );
     enqueueCurrentContent();
     return saveQueue!.flushLocal();
+  };
+
+  const createSyntaxFile = () => {
+    const session = requireReadySession();
+    const fileId = commandDependencies.createSyntaxFileId();
+
+    if (session.content.syntax.files.some(({ id }) => id === fileId)) {
+      throw new Error(`Workspace syntax file already exists: ${fileId}`);
+    }
+
+    const source = session.workspaceSyntax
+      ? createSyntaxCopySource(session.content.syntax, session.workspaceSyntax)
+      : defaultWorkspaceSyntax.source;
+
+    return commitSyntaxCatalog({
+      activeFileId: fileId,
+      files: [...session.content.syntax.files, { id: fileId, source }],
+    });
+  };
+
+  const selectSyntaxFile = (fileId: string) => {
+    const session = requireReadySession();
+
+    if (!session.content.syntax.files.some(({ id }) => id === fileId)) {
+      throw new Error(`Workspace syntax file does not exist: ${fileId}`);
+    }
+    if (session.content.syntax.activeFileId === fileId) {
+      return Promise.resolve();
+    }
+
+    return commitSyntaxCatalog({ ...session.content.syntax, activeFileId: fileId });
+  };
+
+  const deleteSyntaxFile = (fileId: string) => {
+    const session = requireReadySession();
+    const fileIndex = session.content.syntax.files.findIndex(
+      ({ id }) => id === fileId,
+    );
+
+    if (fileIndex < 0) {
+      throw new Error(`Workspace syntax file does not exist: ${fileId}`);
+    }
+
+    const files = session.content.syntax.files.filter(({ id }) => id !== fileId);
+    const activeFileId = session.content.syntax.activeFileId === fileId
+      ? session.content.syntax.files[fileIndex + 1]?.id ??
+        session.content.syntax.files[fileIndex - 1]?.id ??
+        null
+      : session.content.syntax.activeFileId;
+
+    return commitSyntaxCatalog({ activeFileId, files });
+  };
+
+  const updateActiveSyntaxFileSource = (source: string) => {
+    const session = requireReadySession();
+    const activeFileId = session.content.syntax.activeFileId;
+
+    if (activeFileId === null) {
+      throw new Error("Workspace does not have an active syntax file");
+    }
+
+    return commitSyntaxCatalog({
+      ...session.content.syntax,
+      files: session.content.syntax.files.map((file) =>
+        file.id === activeFileId ? { ...file, source } : file
+      ),
+    });
   };
 
   return {
@@ -413,17 +553,11 @@ export function createWorkspaceSessionController({
       try {
         await saveQueue?.prepareForDiscard();
         discardPrepared = true;
-        const snapshot = await repository.discardPendingSnapshotAndReload();
-        const workspaceSyntax = snapshot.content.syntaxSource === null
-          ? null
-          : parseWorkspaceSyntax(snapshot.content.syntaxSource);
-
-        validateWorkspaceBlockMetadata(
-          snapshot.content.workspace,
-          workspaceSyntax?.profile ?? null,
+        const snapshot = resolveWorkspaceSessionSnapshot(
+          await repository.discardPendingSnapshotAndReload(),
         );
 
-        installSnapshot({ ...snapshot, workspaceSyntax });
+        installSnapshot(snapshot);
       } catch (error) {
         const currentSession = loadedSession;
 
@@ -514,9 +648,9 @@ export function createWorkspaceSessionController({
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    updateWorkspaceSyntaxSource,
-    useDefaultWorkspaceSyntax() {
-      return updateWorkspaceSyntaxSource(defaultWorkspaceSyntax.source);
-    },
+    createSyntaxFile,
+    deleteSyntaxFile,
+    selectSyntaxFile,
+    updateActiveSyntaxFileSource,
   };
 }

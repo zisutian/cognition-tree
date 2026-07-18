@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { syntaxFieldIds } from "../../../application/workspace/projection/viewSyntaxFields";
 import {
   Button,
+  EmptyState,
   Panel,
   PanelBody,
   PanelHeader,
@@ -21,6 +22,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
   const feedback = useFeedback();
   const consumedFocusRequestIdRef = useRef<number | null>(null);
+  const activeFile = syntax.files.find(({ isActive }) => isActive) ?? null;
 
   useEffect(() => {
     const fieldId = syntax.focusTarget?.fieldId;
@@ -53,6 +55,29 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
     syntax.onConsumeFocusTarget(syntax.focusTarget.requestId);
   }, [syntax.focusTarget?.requestId, syntax.onConsumeFocusTarget]);
 
+  if (!syntax.isConfigured || !activeFile) {
+    return (
+      <Panel className="syntax-panel" aria-label="语法配置">
+        <EmptyState
+          action={
+            <Button
+              onClick={() => {
+                void syntax.createFile().catch(feedback.notifyError);
+              }}
+              type="button"
+              variant="primary"
+            >
+              <Plus aria-hidden="true" size={13} />
+              新建语法
+            </Button>
+          }
+          description="从左侧列表创建语法文件。"
+          title="没有语法文件"
+        />
+      </Panel>
+    );
+  }
+
   return (
     <Panel
       className="syntax-panel"
@@ -61,21 +86,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
       tabIndex={-1}
     >
       <PanelHeader
-        title="语法配置"
-        actions={
-          syntax.isConfigured ? null : (
-            <Button
-              onClick={() => {
-                void syntax.createConfiguration().catch(feedback.notifyError);
-              }}
-              type="button"
-              variant="secondary"
-            >
-              <Plus aria-hidden="true" size={13} />
-              创建配置
-            </Button>
-          )
-        }
+        title={activeFile.name}
       />
       <PanelBody scroll>
         <div className="syntax-settings-stack" aria-label="语法设置">
@@ -83,6 +94,10 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             <label className="syntax-setting-line">
               <span className="syntax-setting-label">名称</span>
               <input
+                aria-describedby={syntax.nameConflictMessage
+                  ? "syntax-name-conflict"
+                  : undefined}
+                aria-invalid={syntax.nameConflictMessage ? true : undefined}
                 aria-label="语法名称"
                 className="ui-input syntax-name-control"
                 data-syntax-field-id={syntaxFieldIds.profileName}
@@ -93,6 +108,14 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
                 }
               />
             </label>
+            {syntax.nameConflictMessage ? (
+              <p
+                className="ui-error syntax-name-error"
+                id="syntax-name-conflict"
+              >
+                {syntax.nameConflictMessage}
+              </p>
+            ) : null}
             <label className="syntax-setting-line">
               <span className="syntax-setting-label">缩进宽度</span>
               <input

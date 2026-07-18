@@ -68,6 +68,7 @@ export type UiSyntaxProfileDraft = {
 export type UiSyntaxFocusTarget = {
   fieldId: UiSyntaxFieldId;
   requestId: number;
+  syntaxFileId: string;
 };
 
 export type UiSyntaxConstraints = {

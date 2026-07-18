@@ -30,8 +30,8 @@ import {
   localIndexFileName,
   localNoteMetadataDirectoryName,
   localRepositoryMetadataFileName,
+  localSyntaxDirectoryName,
   localTransactionsDirectoryName,
-  localWorkspaceSyntaxFileName,
   parseLocalRepositoryMetadata,
   readLocalJson,
   type LocalManagedFileSet,
@@ -402,7 +402,6 @@ async function collectManagedFiles(rootDir: string) {
   const controlFiles = [
     `${localControlDirectoryName}/${localIndexFileName}`,
     `${localControlDirectoryName}/${localRepositoryMetadataFileName}`,
-    `${localControlDirectoryName}/${localWorkspaceSyntaxFileName}`,
   ];
   for (const relativePath of controlFiles) {
     if (await pathType(path.join(rootDir, ...relativePath.split("/"))) === "file") {
@@ -417,6 +416,22 @@ async function collectManagedFiles(rootDir: string) {
   for (const entry of metadataEntries) {
     if (entry.isFile() && !entry.isSymbolicLink() && entry.name.endsWith(".json")) {
       files.add(`${localControlDirectoryName}/${localNoteMetadataDirectoryName}/${entry.name}`);
+    }
+  }
+  const syntaxDirectory = path.join(
+    rootDir,
+    localControlDirectoryName,
+    localSyntaxDirectoryName,
+  );
+  const syntaxEntries = await readdir(syntaxDirectory, { withFileTypes: true }).catch(
+    (error: unknown) => {
+      if (hasFileSystemErrorCode(error, "ENOENT")) return [];
+      throw error;
+    },
+  );
+  for (const entry of syntaxEntries) {
+    if (entry.isFile() && !entry.isSymbolicLink()) {
+      files.add(`${localControlDirectoryName}/${localSyntaxDirectoryName}/${entry.name}`);
     }
   }
   return { directories, files };

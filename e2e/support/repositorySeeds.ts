@@ -28,6 +28,9 @@ const e2eRepositoryRoot = path.resolve(
     path.join(".cognition-tree", "e2e-repository"),
 );
 
+const e2eDefaultSyntaxFileId =
+  "syntax-00000000-0000-4000-8000-000000000001";
+
 function resolveE2ERepositoryPath(repositoryId: string) {
   if (!isRepositoryId(repositoryId)) {
     throw new Error(`Invalid E2E repository id: ${repositoryId}`);
@@ -51,7 +54,7 @@ export async function seedUnsupportedLocalSnapshotRepository(
       JSON.stringify({
         currentRevision: revision,
         label: "Default",
-        schemaVersion: workspaceRepositorySchemaVersion,
+        schemaVersion: 3,
       }),
     ),
     writeFile(
@@ -186,9 +189,15 @@ async function createRepository({
   const data = {
     content: {
       schemaVersion: workspaceRepositorySchemaVersion,
-      syntaxSource: syntaxConfigured
-        ? createDefaultWorkspaceSyntaxSource()
-        : null,
+      syntax: syntaxConfigured
+        ? {
+            activeFileId: e2eDefaultSyntaxFileId,
+            files: [{
+              id: e2eDefaultSyntaxFileId,
+              source: createDefaultWorkspaceSyntaxSource(),
+            }],
+          }
+        : { activeFileId: null, files: [] },
       workspace: {
         id: `${id}-workspace`,
         name: workspaceName,

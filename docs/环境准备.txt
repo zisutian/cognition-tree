@@ -123,7 +123,9 @@ HTTP 模式会在 IndexedDB v4 中按 API origin、repository id 和 token diges
     .ctn/
       repository.json
       index.json
-      workspace.toml
+      syntax/
+        index.json
+        syntax-<uuid>.toml
       note-metadata/
         <note-id>.json
       transactions/
@@ -136,7 +138,7 @@ HTTP 模式会在 IndexedDB v4 中按 API origin、repository id 和 token diges
       设计.ctn
       记录.ctn
 
-Local 仓库使用 layout version 1。可见目录是目录树的权威表示：文件夹对应同名磁盘目录，笔记对应 `<标题>.ctn`。可见笔记只保存编辑器正文，不保存 `@ctn-block` 元数据；文件名去掉最后一个 `.ctn` 后与首行标题一致。仓库根部的 `.ctn/` 是保留目录，保存 repository/workspace 身份、稳定 catalog label、当前 revision、扁平路径和同级顺序索引、仓库语法、note/block ID、时间、上一版 editable source、行锚点和事务记录。Local adapter 将可见正文与 sidecar 重建为 schema version 3 canonical content。
+Local 仓库使用 layout version 1。可见目录是目录树的权威表示：文件夹对应同名磁盘目录，笔记对应 `<标题>.ctn`。可见笔记只保存编辑器正文，不保存 `@ctn-block` 元数据；文件名去掉最后一个 `.ctn` 后与首行标题一致。仓库根部的 `.ctn/` 是保留目录，保存 repository/workspace 身份、稳定 catalog label、当前 revision、扁平路径和同级顺序索引、仓库语法、note/block ID、时间、上一版 editable source、行锚点和事务记录。Local adapter 将可见正文、sidecar 和 syntax catalog 重建为 schema version 4 canonical content；`syntax/index.json` 保存当前启用项与文件顺序，每个稳定 syntax id 对应一份 TOML 原文。
 
 Local 文件名和文件夹名按 NFC 规范化，在同一父目录内使用大小写无关的共享冲突域。名称拒绝 `/`、`\`、控制字符、`.`、`..`、尾随空格或点以及平台保留名。空标题和其他非法标题可以暂存在浏览器 IndexedDB draft 中，但 Local 同步会进入明确错误状态，并且在修正前不改写 working tree。不同目录可以存在同标题笔记。普通文本中的 `@ctn-block` 保持可见并产生 reserved-directive 诊断；未知标记、未闭合多行块等正文问题仍作为可修复诊断加载。
 

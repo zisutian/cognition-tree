@@ -19,8 +19,20 @@ if (!rootDir || !interruptedPhase) {
 function createContent(name: string): WorkspaceRepositoryContentDto {
   const timestamp = "2026-07-16T00:00:00.000Z";
   return {
-    schemaVersion: 3,
-    syntaxSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+    schemaVersion: 4,
+    syntax: {
+      activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
+      files: [{
+        id: "syntax-00000000-0000-4000-8000-000000000001",
+        source: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+      }, {
+        id: "syntax-00000000-0000-4000-8000-000000000002",
+        source: formatSyntaxProfileToml({
+          ...defaultCtnSyntaxProfile,
+          name: "Local Secondary",
+        }),
+      }],
+    },
     workspace: {
       id: "workspace",
       name,

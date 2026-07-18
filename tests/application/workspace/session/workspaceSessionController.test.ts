@@ -21,7 +21,6 @@ import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxPro
 import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
 import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
 import { createCanonicalNoteSource } from "../../../../src/workspace/model/workspaceData";
-import { createDefaultWorkspaceSyntax } from "../../../../src/workspace/context/workspaceSyntax";
 import { WorkspaceBlockMetadataError } from "../../../../src/workspace/context/workspaceBlockMetadata";
 import {
   createSnapshot,
@@ -163,6 +162,8 @@ function createController(
         `00000000-0000-4000-8000-${String(++blockId).padStart(12, "0")}`,
       createFolderId: () => "folder-created",
       createNoteId: () => "note-created",
+      createSyntaxFileId: () =>
+        "syntax-00000000-0000-4000-8000-000000000002",
       now: () => "2026-07-16T00:00:00.000Z",
       ...commandDependencyOverrides,
     },
@@ -299,7 +300,10 @@ describe("workspace session controller", () => {
     const configuredContent = createSnapshot().content;
     const harness = createRepositoryHarness({
       initialSnapshot: createSnapshot({
-        content: { ...configuredContent, syntaxSource: null },
+        content: {
+          ...configuredContent,
+          syntax: { activeFileId: null, files: [] },
+        },
       }),
     });
     let generatedBlockId = 0;
@@ -346,7 +350,7 @@ describe("workspace session controller", () => {
     const configuredContent = createSnapshot().content;
     const rawContent: WorkspaceRepositoryContent = {
       ...configuredContent,
-      syntaxSource: null,
+      syntax: { activeFileId: null, files: [] },
       workspace: {
         ...configuredContent.workspace,
         notes: [
@@ -375,29 +379,7 @@ describe("workspace session controller", () => {
 
     controller.start();
     await waitForState(controller, (state) => state.status === "ready");
-    const initialState = controller.getState();
-    const initialSource = initialState.status === "ready"
-      ? initialState.workspace.noteEntryById.get("note-1")?.note.source
-      : null;
-
-    expect(() => controller.updateWorkspaceSyntaxSource("name ="))
-      .toThrow("Invalid workspace syntax source");
-    expect(controller.getState()).toMatchObject({
-      status: "ready",
-      workspaceSyntax: null,
-    });
-    const stateAfterInvalidSyntax = controller.getState();
-
-    expect(
-      stateAfterInvalidSyntax.status === "ready"
-        ? stateAfterInvalidSyntax.workspace.noteEntryById.get("note-1")?.note.source
-        : null,
-    ).toBe(initialSource);
-    expect(harness.stagedContents).toEqual([]);
-
-    const syntaxSave = controller.updateWorkspaceSyntaxSource(
-      createDefaultWorkspaceSyntax().source,
-    );
+    const syntaxSave = controller.createSyntaxFile();
     const configuredState = controller.getState();
 
     if (configuredState.status !== "ready") {
@@ -648,7 +630,7 @@ describe("workspace session controller", () => {
     const configuredContent = createContent();
     const rawContent: WorkspaceRepositoryContent = {
       ...configuredContent,
-      syntaxSource: null,
+      syntax: { activeFileId: null, files: [] },
     };
     const harness = createRepositoryHarness({
       initialSnapshot: createSnapshot({ content: rawContent }),
@@ -858,7 +840,7 @@ describe("workspace session controller", () => {
       'label = "定义"',
       'label = "即时定义"',
     );
-    const localSave = controller.updateWorkspaceSyntaxSource(changedSource);
+    const localSave = controller.updateActiveSyntaxFileSource(changedSource);
     const updated = controller.getState();
 
     expect(updated.status).toBe("ready");
@@ -871,11 +853,74 @@ describe("workspace session controller", () => {
     ).toBe("即时定义");
     await localSave;
 
-    expect(() => controller.updateWorkspaceSyntaxSource("name ="))
+    expect(() => controller.updateActiveSyntaxFileSource("name ="))
       .toThrow("Invalid workspace syntax source");
     expect(controller.getState()).toMatchObject({
       status: "ready",
       workspaceSyntax: { source: changedSource },
+    });
+    controller.dispose();
+  });
+
+  it("creates, selects, and deletes syntax files atomically before entering raw mode", async () => {
+    const harness = createRepositoryHarness();
+    const controller = createController(harness.repository);
+
+    controller.start();
+    const initial = await waitForState(
+      controller,
+      (state) => state.status === "ready",
+    );
+
+    if (initial.status !== "ready") {
+      throw new Error("syntax fixture did not load");
+    }
+    const originalFileId = initial.syntaxCatalog.activeFileId;
+
+    await controller.createSyntaxFile();
+    const created = controller.getState();
+
+    if (created.status !== "ready" || !originalFileId) {
+      throw new Error("syntax copy was not published");
+    }
+    const copyFileId = created.syntaxCatalog.activeFileId;
+
+    expect(created.syntaxCatalog.files).toHaveLength(2);
+    expect(created.workspaceSyntax?.profile.name).toBe("默认 CTN 语法 副本");
+    expect(copyFileId).not.toBe(originalFileId);
+
+    const stagedBeforeDuplicate = harness.stagedContents.length;
+    const originalSource = created.syntaxCatalog.files.find(
+      ({ id }) => id === originalFileId,
+    )!.source;
+
+    expect(() => controller.updateActiveSyntaxFileSource(originalSource))
+      .toThrow(/duplicate workspace syntax profile name/i);
+    expect(harness.stagedContents).toHaveLength(stagedBeforeDuplicate);
+
+    await controller.selectSyntaxFile(originalFileId);
+    expect(controller.getState()).toMatchObject({
+      status: "ready",
+      syntaxCatalog: { activeFileId: originalFileId },
+    });
+
+    await controller.deleteSyntaxFile(originalFileId);
+    expect(controller.getState()).toMatchObject({
+      status: "ready",
+      syntaxCatalog: { activeFileId: copyFileId },
+    });
+
+    await controller.deleteSyntaxFile(copyFileId!);
+    const raw = controller.getState();
+
+    expect(raw).toMatchObject({
+      status: "ready",
+      syntaxCatalog: { activeFileId: null, files: [] },
+      workspaceSyntax: null,
+    });
+    expect(harness.getLocalContent().syntax).toEqual({
+      activeFileId: null,
+      files: [],
     });
     controller.dispose();
   });
@@ -920,10 +965,10 @@ describe("workspace session controller", () => {
       'label = "定义"',
       'label = "第二版定义"',
     );
-    const firstSave = controller.updateWorkspaceSyntaxSource(firstSource);
+    const firstSave = controller.updateActiveSyntaxFileSource(firstSource);
 
     await firstStageStarted.promise;
-    const secondSave = controller.updateWorkspaceSyntaxSource(secondSource);
+    const secondSave = controller.updateActiveSyntaxFileSource(secondSource);
 
     releaseFirstStage.resolve();
     await secondStageStarted.promise;
@@ -933,7 +978,10 @@ describe("workspace session controller", () => {
     await Promise.all([firstSave, secondSave]);
     await controller.flushPendingChanges();
 
-    expect(harness.getLocalContent().syntaxSource).toBe(secondSource);
+    const activeSyntaxFile = harness.getLocalContent().syntax.files.find(
+      ({ id }) => id === harness.getLocalContent().syntax.activeFileId,
+    );
+    expect(activeSyntaxFile?.source).toBe(secondSource);
     expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
       "第二版语法 stage 期间的编辑",
     );
@@ -951,7 +999,7 @@ describe("workspace session controller", () => {
 
     controller.start();
     await waitForState(controller, (state) => state.status === "ready");
-    const syntaxSave = controller.updateWorkspaceSyntaxSource(
+    const syntaxSave = controller.updateActiveSyntaxFileSource(
       formatSyntaxProfileToml(questionMultilineSyntaxProfile),
     );
     const configuredState = controller.getState();

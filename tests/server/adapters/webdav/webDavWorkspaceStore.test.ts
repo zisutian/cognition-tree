@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile.ts";
+import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
@@ -23,6 +25,14 @@ import {
 } from "../../../storage/repositoryV3Fixtures";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport";
 
+const primarySyntaxId = "syntax-00000000-0000-4000-8000-000000000001";
+const secondarySyntaxId = "syntax-00000000-0000-4000-8000-000000000002";
+const primarySyntaxSource = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+const secondarySyntaxSource = formatSyntaxProfileToml({
+  ...defaultCtnSyntaxProfile,
+  name: "WebDAV Secondary",
+});
+
 function createContent(name: string, noteCount = 1): WorkspaceRepositoryContentDto {
   const notes = Array.from({ length: noteCount }, (_, index) => ({
     id: `note-${index}`,
@@ -30,8 +40,14 @@ function createContent(name: string, noteCount = 1): WorkspaceRepositoryContentD
   }));
 
   return {
-    schemaVersion: 3,
-    syntaxSource: 'name = "test"\n',
+    schemaVersion: 4,
+    syntax: {
+      activeFileId: secondarySyntaxId,
+      files: [
+        { id: primarySyntaxId, source: primarySyntaxSource },
+        { id: secondarySyntaxId, source: secondarySyntaxSource },
+      ],
+    },
     workspace: {
       id: "workspace-webdav",
       name,
@@ -58,7 +74,7 @@ function createStore(
   });
 }
 
-describe("WebDAV generation store v3", () => {
+describe("WebDAV generation store v4", () => {
   it("commits, validates, and loads a 10,000-level immutable generation", async () => {
     const transport = new InMemoryWebDavTransport();
     const store = createStore(transport);
@@ -94,10 +110,16 @@ describe("WebDAV generation store v3", () => {
     await expect(store.loadSnapshot()).resolves.toEqual({ content, revision: result.revision });
     const pointer = JSON.parse(transport.source(webDavCurrentPath) ?? "null");
 
-    expect(pointer).toMatchObject({ revision: result.revision, schemaVersion: 3 });
+    expect(pointer).toMatchObject({ revision: result.revision, schemaVersion: 4 });
     expect(transport.has(`.ctn-generations/${pointer.generation}/workspace.json`)).toBe(true);
     expect(transport.has(`.ctn-generations/${pointer.generation}/notes/note-0.ctn`)).toBe(true);
-    expect(transport.has(`.ctn-generations/${pointer.generation}/syntax/workspace.toml`)).toBe(true);
+    expect(transport.has(`.ctn-generations/${pointer.generation}/syntax/index.json`)).toBe(true);
+    expect(transport.has(
+      `.ctn-generations/${pointer.generation}/syntax/${primarySyntaxId}.toml`,
+    )).toBe(true);
+    expect(transport.has(
+      `.ctn-generations/${pointer.generation}/syntax/${secondarySyntaxId}.toml`,
+    )).toBe(true);
     expect(transport.has(webDavLockPath)).toBe(false);
   });
 
@@ -378,8 +400,8 @@ describe("WebDAV generation store v3", () => {
     const store = createStore(transport);
     const base = await store.loadSnapshot();
     const invalidContent: WorkspaceRepositoryContentDto = {
-      schemaVersion: 3,
-      syntaxSource: null,
+      schemaVersion: 4,
+      syntax: { activeFileId: null, files: [] },
       workspace: {
         id: "workspace-webdav",
         name: "invalid inbound",
@@ -408,6 +430,55 @@ describe("WebDAV generation store v3", () => {
     await expect(store.loadSnapshot()).rejects.toBeInstanceOf(RepositoryCorruptError);
   });
 
+  it("rejects every invalid syntax source and normalized duplicate profile name", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const store = createStore(transport);
+    const base = await store.loadSnapshot();
+    const invalidInactive = createContent("invalid inactive syntax");
+
+    invalidInactive.syntax.files[0] = {
+      id: primarySyntaxId,
+      source: 'name = "broken"\n',
+    };
+    await expect(store.commitSnapshot({
+      baseRevision: base.revision,
+      content: invalidInactive,
+    })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
+
+    const duplicateName = createContent("duplicate syntax name");
+    duplicateName.syntax.files[1] = {
+      id: secondarySyntaxId,
+      source: formatSyntaxProfileToml({
+        ...defaultCtnSyntaxProfile,
+        name: `  ${defaultCtnSyntaxProfile.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
+      }),
+    };
+    await expect(store.commitSnapshot({
+      baseRevision: base.revision,
+      content: duplicateName,
+    })).rejects.toThrow("duplicate syntax profile name");
+  });
+
+  it("classifies an invalid inactive persisted syntax file as corruption", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const store = createStore(transport);
+
+    const base = await store.loadSnapshot();
+    await store.commitSnapshot({
+      baseRevision: base.revision,
+      content: createContent("persisted invalid syntax"),
+    });
+    const pointer = JSON.parse(transport.source(webDavCurrentPath) ?? "null") as {
+      generation: string;
+    };
+    await transport.writeText(
+      `.ctn-generations/${pointer.generation}/syntax/${primarySyntaxId}.toml`,
+      'name = "broken"\n',
+    );
+
+    await expect(store.loadSnapshot()).rejects.toBeInstanceOf(RepositoryCorruptError);
+  });
+
   it("classifies an invalid persisted pointer revision as corruption", async () => {
     const transport = new InMemoryWebDavTransport();
     const store = createStore(transport);
@@ -433,7 +504,7 @@ describe("WebDAV generation store v3", () => {
 
     await transport.writeText(webDavLockPath, JSON.stringify({
       expiresAt: new Date(now - 1).toISOString(),
-      schemaVersion: 3,
+      schemaVersion: 4,
       token: "expired",
     }), { ifNoneMatch: "*" });
     await expect(store.commitSnapshot({
@@ -507,7 +578,7 @@ describe("WebDAV generation store v3", () => {
       await transport.remove(webDavLockPath);
       await transport.writeText(webDavLockPath, JSON.stringify({
         expiresAt: new Date(now + 60_000).toISOString(),
-        schemaVersion: 3,
+        schemaVersion: 4,
         token: "takeover",
       }), { ifNoneMatch: "*" });
     };
@@ -548,6 +619,32 @@ describe("WebDAV generation store v3", () => {
       .rejects.toBeInstanceOf(UnsupportedRepositoryVersionError);
   });
 
+  it("rejects a v3 current pointer without changing remote content", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const legacyPointer = JSON.stringify({
+      generation: "legacy-generation",
+      publishedAt: "2026-07-16T00:00:00.000Z",
+      revision: `sha256:${"a".repeat(64)}`,
+      schemaVersion: 3,
+    });
+
+    await transport.writeText(webDavCurrentPath, legacyPointer, { ifNoneMatch: "*" });
+    await transport.createCollection(webDavGenerationsPath);
+    await transport.createCollection(`${webDavGenerationsPath}/legacy-generation`);
+    await transport.writeText(
+      `${webDavGenerationsPath}/legacy-generation/user-owned.txt`,
+      "preserve",
+      { ifNoneMatch: "*" },
+    );
+
+    await expect(createStore(transport).loadSnapshot())
+      .rejects.toBeInstanceOf(UnsupportedRepositoryVersionError);
+    expect(transport.source(webDavCurrentPath)).toBe(legacyPointer);
+    expect(transport.source(
+      `${webDavGenerationsPath}/legacy-generation/user-owned.txt`,
+    )).toBe("preserve");
+  });
+
   it("refuses to initialize a non-empty unmanaged WebDAV target", async () => {
     const transport = new InMemoryWebDavTransport();
 
@@ -577,7 +674,7 @@ describe("WebDAV generation store v3", () => {
         deletedAt: expect.any(String),
         deletionToken: "deletion-token",
         revision: snapshot.revision,
-        schemaVersion: 3,
+        schemaVersion: 4,
         status: "deleted",
       });
     expect(transport.has(webDavGenerationsPath)).toBe(true);

@@ -7,8 +7,8 @@ import {
 
 const syntaxDiagnostic: UiWorkbenchDiagnostic = {
   code: "required",
-  id: "syntax:required:$.name",
-  locationLabel: "仓库语法 · 语法名称",
+  id: "syntax:syntax-main:required:$.name",
+  locationLabel: "主要语法 · 语法名称",
   message: "语法名称不能为空。",
   severity: "error",
   source: "syntax",
@@ -16,6 +16,7 @@ const syntaxDiagnostic: UiWorkbenchDiagnostic = {
     fieldId: "syntax-profile-name",
     kind: "syntax-field",
     path: "$.name",
+    syntaxFileId: "syntax-main",
   },
 };
 

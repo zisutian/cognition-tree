@@ -11,8 +11,8 @@ import {
   revisionA,
 } from "../repositoryV3Fixtures";
 
-describe("repository v3 wire contract", () => {
-  it("accepts the source-only content and explicit content snapshot shape", () => {
+describe("repository v4 wire contract", () => {
+  it("accepts the syntax catalog content and explicit content snapshot shape", () => {
     const content = createRepositoryContent();
 
     expect(parseWorkspaceRepositoryContent(content)).toEqual(content);
@@ -39,6 +39,30 @@ describe("repository v3 wire contract", () => {
         baseRevision: revisionA,
         syntaxSourceFile: null,
         workspace: { id: "legacy" },
+      }),
+    ).toThrow(UnsupportedRepositoryVersionError);
+  });
+
+  it("rejects v3 content without compatibility reading", () => {
+    const legacyContent = {
+      schemaVersion: 3,
+      syntaxSource: null,
+      workspace: createRepositoryContent().workspace,
+    };
+
+    expect(() => parseWorkspaceRepositoryContent(legacyContent)).toThrow(
+      UnsupportedRepositoryVersionError,
+    );
+    expect(() =>
+      parseWorkspaceRepositorySnapshot({
+        content: legacyContent,
+        revision: revisionA,
+      }),
+    ).toThrow(UnsupportedRepositoryVersionError);
+    expect(() =>
+      parseWorkspaceRepositoryCommit({
+        baseRevision: revisionA,
+        content: legacyContent,
       }),
     ).toThrow(UnsupportedRepositoryVersionError);
   });

@@ -3,11 +3,11 @@
 import {
   assertExactContractFields,
   readContractObject,
-  readContractString,
   readRequiredContractString,
   UnsupportedRepositoryVersionError,
 } from "./contractValue.ts";
 import { parseRepositoryRevision } from "./revision.ts";
+import { parseRepositorySyntaxCatalog } from "./parseSyntax.ts";
 import { parseRepositoryWorkspace } from "./parseWorkspace.ts";
 import {
   workspaceRepositorySchemaVersion,
@@ -17,7 +17,7 @@ import {
   type WorkspaceRepositorySnapshotDto,
 } from "./types.ts";
 
-const contentFields = ["schemaVersion", "syntaxSource", "workspace"] as const;
+const contentFields = ["schemaVersion", "syntax", "workspace"] as const;
 const snapshotFields = ["content", "revision"] as const;
 const commitFields = ["baseRevision", "content"] as const;
 const commitResultFields = ["revision"] as const;
@@ -36,13 +36,9 @@ function parseContentAtPath(
   }
 
   assertExactContractFields(content, contentFields, path);
-  const syntaxSource = content.syntaxSource === null
-    ? null
-    : readContractString(content, "syntaxSource", path);
-
   return {
     schemaVersion: workspaceRepositorySchemaVersion,
-    syntaxSource,
+    syntax: parseRepositorySyntaxCatalog(content.syntax, `${path}.syntax`),
     workspace: parseRepositoryWorkspace(content.workspace, `${path}.workspace`),
   };
 }

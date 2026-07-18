@@ -66,7 +66,7 @@ test.describe("syntax and visualization activity flows", () => {
     );
     const beforeSnapshot = (await beforeResponse.json()) as
       WorkspaceRepositorySnapshotDto;
-    const persistedSyntaxSource = beforeSnapshot.content.syntaxSource;
+    const persistedSyntax = beforeSnapshot.content.syntax;
     const beforeNoteSource = beforeSnapshot.content.workspace.notes.find(
       ({ id }) => id === "note-alpha",
     )?.source ?? "";
@@ -104,12 +104,12 @@ test.describe("syntax and visualization activity flows", () => {
 
       return {
         metadataCount: source.match(/^\s*@ctn-block /gm)?.length ?? 0,
-        persistedSyntaxSource: snapshot.content.syntaxSource,
+        persistedSyntax: snapshot.content.syntax,
         questionVisible: source.includes("? last-valid-question"),
       };
     }).toEqual({
       metadataCount: beforeMetadataCount + 1,
-      persistedSyntaxSource,
+      persistedSyntax,
       questionVisible: true,
     });
 

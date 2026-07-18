@@ -9,9 +9,14 @@ import {
   parseRepositoryTree,
 } from "../../contracts/workspace-repository/parseWorkspace.ts";
 import {
-  repositorySyntaxFileName,
+  isRepositorySyntaxFileId,
+  parseRepositorySyntaxCatalog,
+} from "../../contracts/workspace-repository/parseSyntax.ts";
+import {
+  repositorySyntaxIndexFileName,
   workspaceRepositorySchemaVersion,
   type RepositoryTreeNodeDto,
+  type RepositorySyntaxCatalogDto,
   type RepositoryWorkspaceDto,
   type WorkspaceRepositoryContentDto,
 } from "../../contracts/workspace-repository/types.ts";
@@ -37,13 +42,21 @@ export function createRepositoryNoteFileName(noteId: string) {
   return `${noteId}.ctn`;
 }
 
+export function createRepositorySyntaxFileName(syntaxFileId: string) {
+  if (!isRepositorySyntaxFileId(syntaxFileId)) {
+    throw new WorkspacePayloadValidationError(`Unsafe syntax file id: ${syntaxFileId}`);
+  }
+
+  return `${syntaxFileId}.toml`;
+}
+
 export function createEmptyRepositoryContent(
   workspaceId = "local-workspace",
   workspaceName = "本地笔记库",
 ): WorkspaceRepositoryContentDto {
   return {
     schemaVersion: workspaceRepositorySchemaVersion,
-    syntaxSource: null,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: workspaceId,
       name: workspaceName,
@@ -72,11 +85,56 @@ export function createWorkspaceSnapshotFileSet(
   )) {
     files.set(`${notesDirName}/${createRepositoryNoteFileName(note.id)}`, note.source);
   }
-  if (content.syntaxSource !== null) {
-    files.set(`${syntaxDirName}/${repositorySyntaxFileName}`, content.syntaxSource);
+  files.set(
+    `${syntaxDirName}/${repositorySyntaxIndexFileName}`,
+    `${serializeJsonIteratively({
+      activeFileId: content.syntax.activeFileId,
+      files: content.syntax.files.map((file) => file.id),
+    })}\n`,
+  );
+  for (const file of content.syntax.files) {
+    files.set(`${syntaxDirName}/${createRepositorySyntaxFileName(file.id)}`, file.source);
   }
 
   return files;
+}
+
+export async function loadSyntaxFromSnapshot(
+  value: unknown,
+  readSyntaxSource: (syntaxFileId: string) => Promise<string>,
+): Promise<RepositorySyntaxCatalogDto> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new WorkspaceRepositoryContractError("$", "expected object");
+  }
+  const index = value as Record<string, unknown>;
+  const fields = new Set(["activeFileId", "files"]);
+  for (const key of Object.keys(index)) {
+    if (!fields.has(key)) {
+      throw new WorkspaceRepositoryContractError(`$.${key}`, "unsupported field");
+    }
+  }
+  for (const field of fields) {
+    if (!(field in index)) {
+      throw new WorkspaceRepositoryContractError(`$.${field}`, "missing field");
+    }
+  }
+  if (!Array.isArray(index.files)) {
+    throw new WorkspaceRepositoryContractError("$.files", "expected array");
+  }
+  const files = await Promise.all(index.files.map(async (id, fileIndex) => {
+    if (typeof id !== "string" || !isRepositorySyntaxFileId(id)) {
+      throw new WorkspaceRepositoryContractError(
+        `$.files[${fileIndex}]`,
+        "invalid repository syntax file id",
+      );
+    }
+    return { id, source: await readSyntaxSource(id) };
+  }));
+
+  return parseRepositorySyntaxCatalog({
+    activeFileId: index.activeFileId,
+    files,
+  });
 }
 
 function parseWorkspaceFile(value: unknown) {

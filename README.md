@@ -15,7 +15,9 @@
     .ctn/
       repository.json
       index.json
-      workspace.toml
+      syntax/
+        index.json
+        syntax-<uuid>.toml
       note-metadata/<note-id>.json
       transactions/<transaction-id>/...
     根笔记.ctn
@@ -34,7 +36,7 @@ Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与�
     笔记：创建、编辑、删除、重命名和移动笔记。
     目录：创建、重命名、删除和移动文件夹。
     编辑器：编辑 CTN 可编辑内容，以 Tab 表达结构层级；多行块内使用独立的代码缩进键位，并可进入保留活动栏的专注模式。
-    仓库语法：编辑仓库级语法配置，并用当前配置解析笔记。
+    仓库语法：创建和管理多份仓库级语法文件，并用列表中当前启用的语法解析笔记。
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
     引用图谱：查看笔记级引用关系和局部图谱。

@@ -111,6 +111,7 @@ describe("workbench diagnostic projection", () => {
     const diagnostics = createUiSyntaxDiagnostics(
       invalidDraft,
       buildSyntaxProfileDraft(invalidDraft),
+      "syntax-main",
     );
 
     expect(diagnostics).toEqual([
@@ -122,6 +123,31 @@ describe("workbench diagnostic projection", () => {
           fieldId: createSyntaxRuleFieldId("marker", markerRule.id, "label"),
           kind: "syntax-field",
           path: "markers[0].label",
+          syntaxFileId: "syntax-main",
+        },
+      }),
+    ]);
+  });
+
+  it("maps syntax catalog name conflicts to the active profile name", () => {
+    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    const message = "语法名称已被其他文件使用。";
+    const diagnostics = createUiSyntaxDiagnostics(
+      draft,
+      buildSyntaxProfileDraft(draft),
+      "syntax-main",
+      message,
+    );
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        code: "duplicate-syntax-profile-name",
+        message,
+        target: {
+          fieldId: "syntax-profile-name",
+          kind: "syntax-field",
+          path: "$.name",
+          syntaxFileId: "syntax-main",
         },
       }),
     ]);

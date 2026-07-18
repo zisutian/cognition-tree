@@ -24,8 +24,8 @@ export function createRepositoryContent(
   noteSource = "@ctn-block title title\nTitle",
 ): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: "workspace",
       name,
@@ -54,8 +54,8 @@ export function createDeepRepositoryContent(
   }
 
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: "deep-workspace",
       name,

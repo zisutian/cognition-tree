@@ -15,6 +15,8 @@ import { initializeCtnSourceBlockMetadata } from "../../../../ctn/metadata/sourc
 import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
 
 export const initialTimestamp = "2026-07-15T00:00:00.000Z";
+export const initialSyntaxFileId =
+  "syntax-00000000-0000-4000-8000-000000000001";
 
 export function draftRevision(value: string): LocalDraftRevision {
   return `draft:${value}` as LocalDraftRevision;
@@ -52,8 +54,11 @@ export function createContent(
   const syntax = createDefaultWorkspaceSyntax();
 
   return {
-    schemaVersion: 3,
-    syntaxSource: syntax.source,
+    schemaVersion: 4,
+    syntax: {
+      activeFileId: initialSyntaxFileId,
+      files: [{ id: initialSyntaxFileId, source: syntax.source }],
+    },
     workspace: {
       ...createWorkspace(source),
       name,

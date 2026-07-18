@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceNote } from "../../../workspace/model/workspaceData";
+import { parseWorkspaceSyntax } from "../../../workspace/context/workspaceSyntax";
 import { listWorkspaceNotes } from "../../../workspace/queries/workspaceQueries";
 import type { SessionCommands } from "../session/sessionCommands";
 import type { ActiveSession } from "../session/useSession";
@@ -55,23 +56,36 @@ export function useWorkspaceApplication(
 ) {
   const {
     commands,
+    createSyntaxFile,
+    deleteSyntaxFile,
     defaultWorkspaceSyntax,
     persistence,
-    updateWorkspaceSyntaxSource,
-    useDefaultWorkspaceSyntax,
+    selectSyntaxFile,
+    syntaxCatalog,
+    updateActiveSyntaxFileSource,
     workspace,
     workspaceSyntax,
     context,
   } = session;
   const selection = useWorkspaceSelection({ commands, workspace });
+  const syntaxFiles = useMemo(
+    () => syntaxCatalog.files.map((file) => ({
+      ...file,
+      name: parseWorkspaceSyntax(file.source).profile.name,
+    })),
+    [syntaxCatalog.files],
+  );
   const syntax = useSyntaxRuntime({
+    activeFileId: syntaxCatalog.activeFileId,
+    createSyntaxFile,
+    deleteSyntaxFile,
+    files: syntaxFiles,
+    selectSyntaxFile,
     syntaxProfile:
       workspaceSyntax?.profile ?? defaultWorkspaceSyntax.profile,
     syntaxSource:
       workspaceSyntax?.source ?? defaultWorkspaceSyntax.source,
-    createDefaultSyntax: useDefaultWorkspaceSyntax,
-    isConfigured: Boolean(workspaceSyntax),
-    updateWorkspaceSyntaxSource,
+    updateActiveSyntaxFileSource,
     workspace: context?.workspace ?? null,
   });
   const effectiveWorkspace = syntax.effectiveContext?.workspace ?? null;
@@ -87,10 +101,12 @@ export function useWorkspaceApplication(
   });
   const navigation = useWorkspaceNavigation({ selection, workspace });
   const diagnostics = useWorkbenchDiagnostics({
+    activeSyntaxFileId: syntax.activeFileId,
     analysis,
     isSyntaxConfigured: syntax.isConfigured,
     syntaxDraft: syntax.syntaxDraft,
     syntaxDraftResult: syntax.syntaxDraftResult,
+    syntaxCatalogNameConflictMessage: syntax.catalogNameConflictMessage,
   });
   const shell: WorkspaceShell = {
     errorMessage:

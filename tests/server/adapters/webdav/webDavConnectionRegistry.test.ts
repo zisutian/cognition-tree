@@ -38,8 +38,8 @@ import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport.ts";
 
 function createContent(name: string): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: {
       id: `workspace-${name.toLowerCase().split(" ").join("-")}`,
       name,
@@ -291,7 +291,7 @@ describe("WebDAV connection registry", () => {
     });
   });
 
-  it("connects to existing v3 content and rejects duplicate canonical URLs", async () => {
+  it("connects to existing v4 content and rejects duplicate canonical URLs", async () => {
     await withTemporaryState(async ({ stateDirectory }) => {
       const transport = new InMemoryWebDavTransport();
       const registry = new WebDavConnectionRegistry({
@@ -682,7 +682,7 @@ describe("WebDAV connection registry", () => {
       expect(JSON.parse(transport.source(webDavCurrentPath) ?? "null"))
         .toMatchObject({
           deletionToken: pending.deletionToken,
-          schemaVersion: 3,
+          schemaVersion: 4,
           status: "deleted",
         });
       expect(transport.has(webDavGenerationsPath)).toBe(true);

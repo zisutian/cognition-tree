@@ -11,18 +11,21 @@ const browserSessionCommandDependencies = {
   createBlockId: () => globalThis.crypto.randomUUID(),
   createFolderId: () => `folder-${globalThis.crypto.randomUUID()}`,
   createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
+  createSyntaxFileId: () => `syntax-${globalThis.crypto.randomUUID()}`,
   now: () => new Date().toISOString(),
 };
 type ActiveSessionState = WorkspaceSessionReadyState;
 
 export type ActiveSession = ActiveSessionState & {
   commands: SessionCommands;
+  createSyntaxFile: () => Promise<void>;
+  deleteSyntaxFile: (fileId: string) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   flushPendingChanges: () => Promise<void>;
   prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
   reload: () => Promise<void>;
-  updateWorkspaceSyntaxSource: (source: string) => Promise<void>;
-  useDefaultWorkspaceSyntax: () => Promise<void>;
+  selectSyntaxFile: (fileId: string) => Promise<void>;
+  updateActiveSyntaxFileSource: (source: string) => Promise<void>;
 };
 
 export type Session =
@@ -53,13 +56,15 @@ function createSession(
   return {
     ...state,
     commands: controller.commands,
+    createSyntaxFile: controller.createSyntaxFile,
+    deleteSyntaxFile: controller.deleteSyntaxFile,
     discardPendingChangesAndReload:
       controller.discardPendingChangesAndReload,
     flushPendingChanges: controller.flushPendingChanges,
     prepareForRepositoryRemoval: controller.prepareForRepositoryRemoval,
     reload: controller.reload,
-    updateWorkspaceSyntaxSource: controller.updateWorkspaceSyntaxSource,
-    useDefaultWorkspaceSyntax: controller.useDefaultWorkspaceSyntax,
+    selectSyntaxFile: controller.selectSyntaxFile,
+    updateActiveSyntaxFileSource: controller.updateActiveSyntaxFileSource,
   };
 }
 

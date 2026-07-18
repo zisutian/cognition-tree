@@ -236,7 +236,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
 
       if (unmanagedEntries.length > 0) {
         throw new RepositoryCorruptError(
-          "WebDAV target is not empty and has no v3 current pointer",
+          "WebDAV target is not empty and has no v4 current pointer",
         );
       }
       await this.#transport.createCollection(webDavGenerationsPath);

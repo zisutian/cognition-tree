@@ -24,7 +24,7 @@ describe("validateWorkspaceRepositoryContent", () => {
     expect(() =>
       validateWorkspaceRepositoryContent({
         ...content,
-        syntaxSource: null,
+        syntax: { activeFileId: null, files: [] },
         workspace: {
           ...content.workspace,
           notes: [
@@ -50,6 +50,39 @@ describe("validateWorkspaceRepositoryContent", () => {
         },
       }),
     ).toThrow("expected @ctn-block directive");
+  });
+
+  it("rejects invalid and duplicate inactive syntax files", () => {
+    const content = createContent();
+    const active = content.syntax.files[0]!;
+
+    expect(() => validateWorkspaceRepositoryContent({
+      ...content,
+      syntax: {
+        ...content.syntax,
+        files: [
+          active,
+          {
+            id: "syntax-00000000-0000-4000-8000-000000000002",
+            source: "name =",
+          },
+        ],
+      },
+    })).toThrow("Invalid workspace syntax source");
+
+    expect(() => validateWorkspaceRepositoryContent({
+      ...content,
+      syntax: {
+        ...content.syntax,
+        files: [
+          active,
+          {
+            id: "syntax-00000000-0000-4000-8000-000000000002",
+            source: active.source,
+          },
+        ],
+      },
+    })).toThrow("Duplicate repository syntax profile name");
   });
 
   it("rejects invalid repository tree facts", () => {

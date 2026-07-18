@@ -2,7 +2,7 @@
 
 import { WorkspaceRepositoryContractError } from "../../../contracts/workspace-repository/contractValue.ts";
 import {
-  repositorySyntaxFileName,
+  repositorySyntaxIndexFileName,
   workspaceRepositorySchemaVersion,
   type RepositoryRevisionDto,
   type WorkspaceRepositoryContentDto,
@@ -10,7 +10,9 @@ import {
 import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
 import {
   createRepositoryNoteFileName,
+  createRepositorySyntaxFileName,
   createWorkspaceSnapshotFileSet,
+  loadSyntaxFromSnapshot,
   loadWorkspaceFromSnapshot,
   notesDirName,
   syntaxDirName,
@@ -18,6 +20,7 @@ import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspaceRepositoryLayout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
+import { validateWorkspaceRepositorySyntax } from "../../repository/workspaceRepositoryContentValidation.ts";
 import {
   webDavGenerationsPath,
   type WebDavPointer,
@@ -100,14 +103,30 @@ export class WebDavGenerationStore {
           return resource.source;
         },
       );
-      const syntaxResource = await this.#transport.readText(
-        `${generationPath}/${syntaxDirName}/${repositorySyntaxFileName}`,
+      const syntaxIndexResource = await this.#transport.readText(
+        `${generationPath}/${syntaxDirName}/${repositorySyntaxIndexFileName}`,
+      );
+      if (!syntaxIndexResource) {
+        throw new RepositoryCorruptError("WebDAV generation is missing syntax/index.json");
+      }
+      const syntax = await loadSyntaxFromSnapshot(
+        JSON.parse(syntaxIndexResource.source) as unknown,
+        async (syntaxFileId) => {
+          const resource = await this.#transport.readText(
+            `${generationPath}/${syntaxDirName}/${createRepositorySyntaxFileName(syntaxFileId)}`,
+          );
+          if (!resource) {
+            throw new RepositoryCorruptError("WebDAV generation is missing a syntax source");
+          }
+          return resource.source;
+        },
       );
       const content: WorkspaceRepositoryContentDto = {
         schemaVersion: workspaceRepositorySchemaVersion,
-        syntaxSource: syntaxResource?.source ?? null,
+        syntax,
         workspace,
       };
+      validateWorkspaceRepositorySyntax(content.syntax);
       const revision = createWorkspaceRepositoryRevision(content);
 
       if (expectedRevision && revision !== expectedRevision) {
@@ -137,6 +156,8 @@ export class WebDavGenerationStore {
     lease: ActiveWebDavLease,
   ) {
     const generationPath = `${webDavGenerationsPath}/${generation}`;
+
+    validateWorkspaceRepositorySyntax(content.syntax);
 
     this.#leaseCoordinator.assertLocallyActive(lease);
     await this.#transport.createCollection(webDavGenerationsPath);

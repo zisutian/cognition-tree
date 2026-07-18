@@ -3,9 +3,12 @@ import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxPro
 import { createSyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
 import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
 import {
+  findSyntaxCatalogNameConflict,
   isCurrentSyntaxPersistenceCompletion,
   resolveSyntaxDraftAfterPersistence,
+  startSyntaxCatalogMutation,
   startSyntaxDraftPersistence,
+  startSyntaxFileDraftPersistence,
 } from "../../../../src/application/workspace/runtime/useSyntaxRuntime";
 
 const renamedSyntaxProfile = {
@@ -65,6 +68,75 @@ describe("startSyntaxDraftPersistence", () => {
   });
 });
 
+describe("startSyntaxCatalogMutation", () => {
+  it("rejects catalog mutations while the active draft is invalid", async () => {
+    const mutate = vi.fn(() => Promise.resolve());
+
+    await expect(startSyntaxCatalogMutation({
+      draftIsValid: false,
+      mutate,
+    })).rejects.toThrow("请先修复或撤销");
+    expect(mutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("syntax catalog name conflicts", () => {
+  it("normalizes NFKC, case, and whitespace before persistence and catalog mutation", async () => {
+    const persist = vi.fn(() => Promise.resolve());
+    const mutate = vi.fn(() => Promise.resolve());
+    const files = [
+      { id: "syntax-active", name: "Current" },
+      { id: "syntax-other", name: "Ａｌｐｈａ" },
+    ];
+    const conflictingDraft = createSyntaxProfileDraft({
+      ...defaultCtnSyntaxProfile,
+      name: "  ALPHA  ",
+    });
+
+    expect(findSyntaxCatalogNameConflict({
+      activeFileId: "syntax-active",
+      candidateName: "  ALPHA  ",
+      files,
+    })).toContain("重名");
+    const blockedPersistence = startSyntaxFileDraftPersistence({
+      activeFileId: "syntax-active",
+      draft: conflictingDraft,
+      files,
+      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+      persist,
+    });
+
+    expect(blockedPersistence.catalogNameConflictMessage).toContain("重名");
+    expect(blockedPersistence.completion).toBeNull();
+    expect(persist).not.toHaveBeenCalled();
+    await expect(startSyntaxCatalogMutation({
+      draftIsValid: !blockedPersistence.catalogNameConflictMessage,
+      mutate,
+    })).rejects.toThrow("请先修复或撤销");
+    expect(mutate).not.toHaveBeenCalled();
+
+    const fixedPersistence = startSyntaxFileDraftPersistence({
+      activeFileId: "syntax-active",
+      draft: createSyntaxProfileDraft({
+        ...defaultCtnSyntaxProfile,
+        name: "Beta",
+      }),
+      files,
+      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+      persist,
+    });
+
+    expect(fixedPersistence.catalogNameConflictMessage).toBe("");
+    await expect(fixedPersistence.completion).resolves.toBeUndefined();
+    expect(persist).toHaveBeenCalledTimes(1);
+    await expect(startSyntaxCatalogMutation({
+      draftIsValid: true,
+      mutate,
+    })).resolves.toBeUndefined();
+    expect(mutate).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("resolveSyntaxDraftAfterPersistence", () => {
   it("keeps a draft that already matches the persisted source", () => {
     const currentDraft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
@@ -108,6 +180,17 @@ describe("resolveSyntaxDraftAfterPersistence", () => {
         currentVersion: 2,
       }),
     ).toBe(true);
+    expect(
+      isCurrentSyntaxPersistenceCompletion({
+        active: true,
+        completedFileId: "syntax-a",
+        completedSource: "version-2",
+        completedVersion: 2,
+        currentFileId: "syntax-b",
+        currentSource: "version-2",
+        currentVersion: 2,
+      }),
+    ).toBe(false);
   });
 
   it("updates a clean draft when an external persisted profile changes", () => {

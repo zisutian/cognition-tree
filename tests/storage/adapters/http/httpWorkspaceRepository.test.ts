@@ -100,7 +100,7 @@ describe("HTTP workspace repository backend", () => {
     expect(receivedCommit!.content.workspace.notes).toEqual(content.workspace.notes);
   });
 
-  it("loads an explicit v3 content snapshot", async () => {
+  it("loads an explicit v4 content snapshot", async () => {
     const snapshot = {
       content: createRepositoryContent("Remote"),
       revision: revisionA,
@@ -260,14 +260,16 @@ describe("HTTP workspace repository backend", () => {
     );
   });
 
-  it("rejects v2 aggregate snapshots instead of reading compatibility fields", async () => {
+  it("rejects v3 snapshots instead of reading compatibility content", async () => {
     const backend = createHttpWorkspaceRepositoryBackend({
       fetch: async () =>
         jsonResponse({
-          repositoryPath: "/private/repository",
+          content: {
+            schemaVersion: 3,
+            syntaxSource: null,
+            workspace: { id: "old", name: "Old", notes: [], tree: [] },
+          },
           revision: revisionA,
-          syntaxSourceFile: null,
-          workspace: { id: "old" },
         }),
       repositoryId: "primary",
     });

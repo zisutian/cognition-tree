@@ -95,4 +95,44 @@ describe("WorkbenchProblemsController", () => {
     );
     expect(expandPanels).toHaveBeenCalledOnce();
   });
+
+  it("activates the diagnostic syntax file before opening its field", () => {
+    const onActiveActivityChange = vi.fn();
+    const openSyntaxField = vi.fn();
+    const expandPanels = vi.fn();
+    const problem: UiWorkbenchDiagnostic = {
+      code: "required",
+      id: "syntax:syntax-secondary:required:$.name",
+      locationLabel: "备用语法 · 语法名称",
+      message: "语法名称不能为空。",
+      severity: "error",
+      source: "syntax",
+      target: {
+        fieldId: "syntax-profile-name",
+        kind: "syntax-field",
+        path: "$.name",
+        syntaxFileId: "syntax-secondary",
+      },
+    };
+
+    openWorkbenchProblem(problem, {
+      expandPanels,
+      navigation: {
+        openNoteLine: vi.fn(),
+        openRepositoryIssue: vi.fn(),
+        openSyntaxField,
+      },
+      onActiveActivityChange,
+    });
+
+    expect(openSyntaxField).toHaveBeenCalledWith(
+      "syntax-secondary",
+      "syntax-profile-name",
+    );
+    expect(onActiveActivityChange).toHaveBeenCalledWith("syntax");
+    expect(openSyntaxField.mock.invocationCallOrder[0]).toBeLessThan(
+      onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(expandPanels).toHaveBeenCalledOnce();
+  });
 });

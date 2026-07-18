@@ -5,6 +5,10 @@ import type {
   RepositoryRevisionDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types";
+import {
+  isRepositorySyntaxFileId,
+  normalizeRepositorySyntaxProfileName,
+} from "../../../contracts/workspace-repository/parseSyntax";
 
 export type WorkspaceRepositoryContent = WorkspaceRepositoryContentDto;
 export type WorkspaceRepositoryContentValidator = (
@@ -12,6 +16,19 @@ export type WorkspaceRepositoryContentValidator = (
 ) => void;
 export type LocalDraftRevision = LocalDraftRevisionDto;
 export type RepositoryRevision = RepositoryRevisionDto;
+
+/**
+ * Storage-owned normalization shared by repository admission and the
+ * application draft boundary. Application code must not consume wire-contract
+ * helpers directly.
+ */
+export function normalizeWorkspaceSyntaxProfileName(value: string) {
+  return normalizeRepositorySyntaxProfileName(value);
+}
+
+export function isWorkspaceSyntaxFileId(value: string) {
+  return isRepositorySyntaxFileId(value);
+}
 
 export type RemoteWorkspaceSnapshot = {
   content: WorkspaceRepositoryContent;

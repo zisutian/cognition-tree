@@ -5,21 +5,26 @@ import { readWorkspaceNoteHeader } from "../../../../src/workspace/model/workspa
 import { createInitialRepositoryContent } from "../../../../src/application/workspace/session/initialRepository";
 
 describe("initial repository", () => {
-  it("creates one source-only canonical note in repository v3", () => {
+  it("creates one source-only canonical note in repository v4", () => {
     const timestamp = "2026-07-15T00:00:00.000Z";
     const content = createInitialRepositoryContent({
       createBlockId: () => "00000000-0000-4000-8000-000000000001",
       createNoteId: () => "note-initial",
+      createSyntaxFileId: () =>
+        "syntax-00000000-0000-4000-8000-000000000001",
       createWorkspaceId: () => "workspace-independent",
       name: "知识库",
       timestamp,
     });
-    const syntax = parseWorkspaceSyntax(content.syntaxSource);
+    const syntax = parseWorkspaceSyntax(content.syntax.files[0]!.source);
     const note = content.workspace.notes[0];
     const document = parseCtnCanonicalDocument(note.source, syntax.profile);
 
     expect(content).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
+      syntax: {
+        activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
+      },
       workspace: {
         id: "workspace-independent",
         name: "知识库",
@@ -43,6 +48,7 @@ describe("initial repository", () => {
       createInitialRepositoryContent({
         createBlockId: () => "unused",
         createNoteId: () => "unused",
+        createSyntaxFileId: () => "unused",
         createWorkspaceId: () => "unused",
         name: "   ",
         timestamp: "2026-07-15T00:00:00.000Z",

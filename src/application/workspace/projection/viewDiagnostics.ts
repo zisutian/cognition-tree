@@ -29,6 +29,7 @@ export type UiWorkbenchDiagnosticTarget =
       fieldId: UiSyntaxFieldId;
       kind: "syntax-field";
       path: string;
+      syntaxFileId: string;
     };
 
 export type UiWorkbenchDiagnostic = {
@@ -137,24 +138,54 @@ export function createUiReferenceDiagnostics(
 export function createUiSyntaxDiagnostics(
   draft: SyntaxProfileDraft,
   draftResult: SyntaxProfileDraftBuildResult,
+  syntaxFileId: string,
+  catalogNameConflictMessage = "",
 ): UiWorkbenchDiagnostic[] {
-  return draftResult.diagnostics.map((diagnostic) => {
-    const location = resolveUiSyntaxDiagnosticLocation(draft, diagnostic.path);
+  const schemaDiagnostics: UiWorkbenchDiagnostic[] =
+    draftResult.diagnostics.map((diagnostic) => {
+      const location = resolveUiSyntaxDiagnosticLocation(
+        draft,
+        diagnostic.path,
+      );
+      const syntaxName = draft.name.trim() || "未命名语法";
 
-    return {
-      code: diagnostic.code,
-      id: `syntax:${diagnostic.code}:${diagnostic.path}`,
-      locationLabel: `仓库语法 · ${location.label}`,
-      message: diagnostic.message,
-      severity: "error",
-      source: "syntax",
-      target: {
-        fieldId: location.fieldId,
-        kind: "syntax-field",
-        path: diagnostic.path,
-      },
-    };
-  });
+      return {
+        code: diagnostic.code,
+        id: `syntax:${syntaxFileId}:${diagnostic.code}:${diagnostic.path}`,
+        locationLabel: `${syntaxName} · ${location.label}`,
+        message: diagnostic.message,
+        severity: "error",
+        source: "syntax",
+        target: {
+          fieldId: location.fieldId,
+          kind: "syntax-field",
+          path: diagnostic.path,
+          syntaxFileId,
+        },
+      };
+    });
+
+  if (!catalogNameConflictMessage) {
+    return schemaDiagnostics;
+  }
+
+  const syntaxName = draft.name.trim() || "未命名语法";
+  const conflictDiagnostic: UiWorkbenchDiagnostic = {
+    code: "duplicate-syntax-profile-name",
+    id: `syntax:${syntaxFileId}:duplicate-syntax-profile-name:$.name`,
+    locationLabel: `${syntaxName} · 语法名称`,
+    message: catalogNameConflictMessage,
+    severity: "error",
+    source: "syntax",
+    target: {
+      fieldId: "syntax-profile-name",
+      kind: "syntax-field",
+      path: "$.name",
+      syntaxFileId,
+    },
+  };
+
+  return [...schemaDiagnostics, conflictDiagnostic];
 }
 
 function compareDiagnostics(

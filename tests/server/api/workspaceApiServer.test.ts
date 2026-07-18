@@ -40,8 +40,8 @@ import {
 
 function createContent(name = "本地笔记库"): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: { activeFileId: null, files: [] },
     workspace: { id: "workspace", name, notes: [], tree: [] },
   };
 }
@@ -113,7 +113,7 @@ async function withHandler<Result>(
     catalog: CompositeRepositoryCatalog,
   ) => Promise<Result>,
 ) {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v3-api-"));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v4-api-"));
   const localCatalog = new LocalRepositoryCatalog(rootDir);
   let nextId = 0;
   const webDavRegistry: ConstructorParameters<typeof CompositeRepositoryCatalog>[1] = {
@@ -182,7 +182,7 @@ async function commitSnapshot(
   });
 }
 
-describe("workspace API v3", () => {
+describe("workspace API v4", () => {
   it("rejects a 10,000-level Local tree before publishing a partial repository", async () => {
     await withHandler(async (handler) => {
       const content = createDeepRepositoryContent(10_000, "Deep initial");
@@ -214,7 +214,7 @@ describe("workspace API v3", () => {
     });
   }, 20_000);
 
-  it("lists, creates, loads, and commits nested v3 content with a structured Local location", async () => {
+  it("lists, creates, loads, and commits nested v4 content with a structured Local location", async () => {
     await withHandler(async (handler, rootDir) => {
       const listed = await dispatch(handler, { method: "GET", url: "/api/repositories" });
 
@@ -488,6 +488,40 @@ describe("workspace API v3", () => {
         body: { code: "unsupported_repository_version", requestId: expect.any(String) },
         statusCode: 409,
       });
+    });
+  });
+
+  it("rejects v3 content without overwriting the current v4 snapshot", async () => {
+    await withHandler(async (handler) => {
+      const created = await createRepository(handler);
+      const repositoryId = created.body?.id;
+
+      if (!repositoryId) {
+        throw new Error("expected generated repository id");
+      }
+      const before = await loadSnapshot(handler, repositoryId);
+      const response = await dispatch<RepositoryApiErrorDto>(handler, {
+        body: JSON.stringify({
+          baseRevision: before.revision,
+          content: {
+            schemaVersion: 3,
+            syntaxSource: null,
+            workspace: before.content.workspace,
+          },
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: snapshotUrl(repositoryId),
+      });
+
+      expect(response).toMatchObject({
+        body: {
+          code: "unsupported_repository_version",
+          requestId: expect.any(String),
+        },
+        statusCode: 409,
+      });
+      await expect(loadSnapshot(handler, repositoryId)).resolves.toEqual(before);
     });
   });
 

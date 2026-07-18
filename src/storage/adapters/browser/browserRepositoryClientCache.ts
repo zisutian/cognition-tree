@@ -1,4 +1,5 @@
 import { parseRepositoryDescriptor } from "../../../../contracts/workspace-repository/parseCatalog";
+import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue";
 import {
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
@@ -45,8 +46,8 @@ type IndexedRepositoryState = {
   noteIds: string[];
   pendingBaseRevision: RepositoryRevisionDto | null;
   remoteRevision: RepositoryRevisionDto | null;
-  schemaVersion: 3;
-  syntaxSource: string | null;
+  schemaVersion: 4;
+  syntax: WorkspaceRepositoryContentDto["syntax"];
   workspace: Pick<WorkspaceRepositoryContentDto["workspace"], "id" | "name" | "tree">;
 };
 
@@ -124,6 +125,13 @@ function parseIndexedState(value: unknown): IndexedRepositoryState {
 
   const state = value as Partial<IndexedRepositoryState>;
 
+  if (state.schemaVersion !== 4) {
+    throw new UnsupportedRepositoryVersionError(
+      "$.schemaVersion",
+      state.schemaVersion,
+    );
+  }
+
   if (
     typeof state.identity !== "string" ||
     !isLocalRevision(state.localRevision) ||
@@ -132,8 +140,8 @@ function parseIndexedState(value: unknown): IndexedRepositoryState {
     (state.pendingBaseRevision !== null &&
       !isRemoteRevision(state.pendingBaseRevision)) ||
     (state.remoteRevision !== null && !isRemoteRevision(state.remoteRevision)) ||
-    state.schemaVersion !== 3 ||
-    (state.syntaxSource !== null && typeof state.syntaxSource !== "string") ||
+    !state.syntax ||
+    typeof state.syntax !== "object" ||
     !state.workspace ||
     typeof state.workspace !== "object"
   ) {
@@ -155,8 +163,8 @@ function toIndexedState(
     noteIds: state.content.workspace.notes.map((note) => note.id),
     pendingBaseRevision: state.pendingBaseRevision,
     remoteRevision: state.remoteRevision,
-    schemaVersion: 3,
-    syntaxSource: state.content.syntaxSource,
+    schemaVersion: 4,
+    syntax: state.content.syntax,
     workspace: {
       id: state.content.workspace.id,
       name: state.content.workspace.name,
@@ -171,8 +179,8 @@ function toLocalState(
 ): WorkspaceRepositoryLocalState {
   const noteById = new Map(notes.map((note) => [note.id, note]));
   const content = parseWorkspaceRepositoryContent({
-    schemaVersion: 3,
-    syntaxSource: state.syntaxSource,
+    schemaVersion: 4,
+    syntax: state.syntax,
     workspace: {
       ...state.workspace,
       notes: state.noteIds.map((id) => {

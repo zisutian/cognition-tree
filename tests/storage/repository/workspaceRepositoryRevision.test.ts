@@ -4,8 +4,20 @@ import { createWorkspaceRepositoryRevision } from "../../../src/storage/reposito
 
 function createContent(): WorkspaceRepositoryContentDto {
   return {
-    schemaVersion: 3,
-    syntaxSource: null,
+    schemaVersion: 4,
+    syntax: {
+      activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
+      files: [
+        {
+          id: "syntax-00000000-0000-4000-8000-000000000001",
+          source: 'name = "First"\n',
+        },
+        {
+          id: "syntax-00000000-0000-4000-8000-000000000002",
+          source: 'name = "Second"\n',
+        },
+      ],
+    },
     workspace: {
       id: "workspace",
       name: "Notes",
@@ -55,6 +67,45 @@ describe("createWorkspaceRepositoryRevision", () => {
 
     await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
       await createWorkspaceRepositoryRevision(reorderedTree),
+    );
+  });
+
+  it("preserves syntax file order in canonical encoding", async () => {
+    const first = createContent();
+    const reorderedSyntax: WorkspaceRepositoryContentDto = {
+      ...first,
+      syntax: { ...first.syntax, files: [...first.syntax.files].reverse() },
+    };
+
+    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
+      await createWorkspaceRepositoryRevision(reorderedSyntax),
+    );
+  });
+
+  it("includes the active syntax file and every syntax source", async () => {
+    const first = createContent();
+    const switched: WorkspaceRepositoryContentDto = {
+      ...first,
+      syntax: {
+        ...first.syntax,
+        activeFileId: first.syntax.files[1]?.id ?? null,
+      },
+    };
+    const edited: WorkspaceRepositoryContentDto = {
+      ...first,
+      syntax: {
+        ...first.syntax,
+        files: first.syntax.files.map((file, index) =>
+          index === 1 ? { ...file, source: `${file.source}# edited\n` } : file
+        ),
+      },
+    };
+
+    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
+      await createWorkspaceRepositoryRevision(switched),
+    );
+    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
+      await createWorkspaceRepositoryRevision(edited),
     );
   });
 });
