@@ -86,7 +86,8 @@ describe("activity slots", () => {
 
     expect(slots("search").context).toBeNull();
     expect(slots("data").context).toBeNull();
-    expect(slots("settings").context).toBeNull();
+    expect(slots("settings").context?.title).toBe("仓库");
+    expect(slots("settings").detail).toBeNull();
   });
 
   it("uses structure operation label in the activity bar", () => {
@@ -140,9 +141,15 @@ describe("activity slots", () => {
     ).toContain("结构操作不可用");
   });
 
-  it("renders placeholders and settings without a directory context", () => {
+  it("renders placeholders and a repository-list settings context", () => {
     expect(renderSlot(slots("search").main)).toContain("搜索功能待接入");
     expect(renderSlot(slots("data").main)).toContain("数据功能待接入");
+    expect(renderSlot(slots("settings").context?.content)).toContain(
+      'class="ui-tree settings-repository-list"',
+    );
+    expect(renderSlot(slots("settings").context?.content)).toContain(
+      'aria-current="page"',
+    );
     expect(renderSlot(slots("settings").main)).toContain(
       "/data/repositories/primary",
     );

@@ -17,6 +17,7 @@ import {
 import {
   copyRepositoryLocation,
   SettingsPanel,
+  SettingsRepositoryContext,
 } from "../../src/ui/activities/settings/SettingsPanel";
 import { FeedbackProvider } from "../../src/ui/shared/FeedbackProvider";
 import type { RepositoryOption } from "../../src/application/workspace/activities/settings/settingsViewModel";
@@ -286,17 +287,19 @@ describe("repository setup and settings semantics", () => {
     expect(markup).not.toContain('aria-label="仓库存储类型"');
   });
 
-  it("groups Settings repositories by adapter and keeps generated IDs read-only", () => {
+  it("uses a grouped repository context and keeps generated IDs read-only", () => {
     const baseView = createView().settings;
+    const view = {
+      ...baseView,
+      activeRepositoryId: localRepository.id,
+      activeRepositoryLabel: localRepository.label,
+      repositories: [localRepository, webDavRepository],
+    };
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
+        <SettingsRepositoryContext view={view} />
         <SettingsPanel
-          view={{
-            ...baseView,
-            activeRepositoryId: localRepository.id,
-            activeRepositoryLabel: localRepository.label,
-            repositories: [localRepository, webDavRepository],
-          }}
+          view={view}
           workbench={{
             contextWidth: 280,
             onContextWidthChange: () => undefined,
@@ -305,16 +308,18 @@ describe("repository setup and settings semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain('<optgroup label="本地">');
-    expect(markup).toContain('<optgroup label="WebDAV">');
+    expect(markup).toContain("settings-repository-group-title");
+    expect(markup).toContain("settings-repository-list");
+    expect(markup).toContain('aria-current="page"');
+    expect(markup).not.toContain("<select");
     expect(markup).toContain("本地笔记 · 本地");
     expect(markup).toContain("远端笔记 · WebDAV");
     expect(markup).toContain("仓库 ID");
     expect(markup).toContain(localRepository.id);
     expect(markup).not.toContain("新仓库 ID");
     expect(markup).not.toContain('aria-label="仓库存储类型"');
-    expect(markup).toContain("重新扫描文件");
-    expect(markup).toContain("添加仓库");
+    expect(markup).toContain('aria-label="重新扫描文件"');
+    expect(markup).toContain('aria-label="添加仓库"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).not.toContain("settings-create-repository-region");
     expect(markup).toContain("主机路径");

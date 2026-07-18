@@ -268,6 +268,30 @@ describe("UI design contract", () => {
     expect(textRule).toContain("white-space: pre-wrap");
   });
 
+  it("keeps settings aligned with the flat repository-list visual grammar", () => {
+    const settingsStyle = readStyle("ui/styles/activities/settings.css");
+    const repositoryRowStart = settingsStyle.indexOf(
+      ".settings-repository-row {",
+    );
+    const repositoryRow = settingsStyle.slice(
+      repositoryRowStart,
+      settingsStyle.indexOf("}", repositoryRowStart) + 1,
+    );
+    const issueStart = settingsStyle.indexOf(".settings-repository-issue {");
+    const issueRule = settingsStyle.slice(
+      issueStart,
+      settingsStyle.indexOf("}", issueStart) + 1,
+    );
+
+    expect(repositoryRowStart).toBeGreaterThanOrEqual(0);
+    expect(repositoryRow).toContain("var(--ui-symbol-size)");
+    expect(repositoryRow).toContain("minmax(0, 1fr)");
+    expect(settingsStyle).toContain("width: min(100%, 880px)");
+    expect(settingsStyle).toContain("@media (max-width: 720px)");
+    expect(issueRule).not.toContain("border:");
+    expect(settingsStyle).not.toMatch(/\.settings-danger-zone\s*\{[^}]*border:/s);
+  });
+
   it("keeps the collapsed detail responsive behavior in the frame layer", () => {
     const frame = readStyle("ui/styles/frame/frame.css");
     const responsiveStart = frame.indexOf("@media (max-width: 1120px)");

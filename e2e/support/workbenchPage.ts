@@ -19,3 +19,12 @@ export function getActivityButton(page: Page, name: string) {
     .getByRole("navigation", { name: "工作区功能" })
     .getByRole("button", { name, exact: true });
 }
+
+export function getSettingsRepositoryButton(
+  page: Page,
+  repositoryId: string,
+) {
+  return page.locator(
+    `.settings-repository-row[data-repository-id="${repositoryId}"]`,
+  );
+}

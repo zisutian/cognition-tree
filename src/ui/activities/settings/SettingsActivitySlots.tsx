@@ -3,6 +3,7 @@ import "../../styles/activities/settings.css";
 import type { ActivitySlots } from "../../activityTypes";
 import {
   SettingsPanel,
+  SettingsRepositoryContext,
   type SettingsWorkbenchPreferences,
 } from "./SettingsPanel";
 
@@ -14,7 +15,10 @@ export function createSettingsActivitySlots({
   workbench: SettingsWorkbenchPreferences;
 }): ActivitySlots {
   return {
-    context: null,
+    context: {
+      content: <SettingsRepositoryContext view={view} />,
+      title: "仓库",
+    },
     detail: null,
     main: <SettingsPanel view={view} workbench={workbench} />,
   };

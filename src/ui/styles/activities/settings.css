@@ -1,37 +1,158 @@
-.settings-grid {
+.settings-repository-context {
+  gap: calc(var(--ui-gap) * 2);
+}
+
+.settings-repository-group {
   display: grid;
   gap: var(--ui-gap-tight);
+}
+
+.settings-repository-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+  margin: 0;
+  padding: 0 var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
+  line-height: var(--ui-micro-line-height);
+}
+
+.settings-repository-group-title span:last-child {
+  color: var(--color-fg-subtle);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+  font-weight: var(--ui-micro-weight);
+}
+
+.settings-repository-list {
+  gap: var(--ui-border-width);
+}
+
+.settings-repository-row {
+  grid-template-columns:
+    var(--ui-symbol-size)
+    minmax(0, 1fr)
+    auto;
+}
+
+.settings-repository-row:disabled {
+  color: var(--color-fg-disabled);
+  cursor: wait;
+}
+
+.settings-repository-row .ui-tree-meta {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-content-column {
+  display: grid;
+  gap: calc(var(--ui-gap) * 2);
+  width: min(100%, 880px);
+  padding-bottom: var(--ui-panel-padding);
+}
+
+.settings-section,
+.settings-create-repository-region {
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.settings-content-column > :first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-summary-list,
+.settings-location-list {
+  display: grid;
+  gap: var(--ui-border-width);
   margin: 0;
 }
 
-.settings-control-row {
+.settings-summary-list > div,
+.settings-location-row {
   display: grid;
-  align-items: center;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: start;
   gap: var(--ui-gap);
+  min-height: var(--ui-control-height);
+  padding: calc(var(--ui-gap-tight) / 2) var(--ui-gap-tight);
+  border-radius: var(--ui-radius);
 }
 
-.settings-control-row {
-  grid-template-columns: 96px minmax(0, 280px) auto;
+.settings-summary-list > div:hover,
+.settings-location-row:hover,
+.settings-repository-issue:hover {
+  background: var(--color-hover);
 }
 
-.settings-control-row > label,
-.settings-control-row > span {
+.settings-summary-list dt,
+.settings-summary-list dd,
+.settings-row-label {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
+.settings-summary-list dt,
+.settings-row-label {
   color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
+}
+
+.settings-summary-list dd {
+  color: var(--color-fg);
+}
+
+.settings-identity-value {
+  font-family: var(--font-code);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.settings-location-value {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.settings-location-value > span {
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-code);
+  font-size: var(--ui-code-font-size);
+  line-height: var(--ui-code-line-height);
+  overflow-wrap: anywhere;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.settings-location-value > .ui-button,
+.settings-issue-location > .ui-button {
+  flex: 0 0 auto;
+}
+
+.settings-location-row .settings-location-value > .ui-button {
+  opacity: 0;
+}
+
+.settings-location-row:hover .settings-location-value > .ui-button,
+.settings-location-row:focus-within .settings-location-value > .ui-button {
+  opacity: 1;
 }
 
 .settings-create-repository {
   display: grid;
-  max-width: 560px;
+  max-width: 640px;
   gap: var(--ui-gap);
-}
-
-.settings-create-repository-region {
-  max-width: 560px;
-  margin-top: var(--ui-gap);
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-border);
-  border-radius: var(--ui-radius);
 }
 
 .settings-create-repository label {
@@ -53,23 +174,23 @@
 
 .settings-repository-issues {
   display: grid;
-  gap: var(--ui-gap-tight);
+  gap: var(--ui-border-width);
 }
 
 .settings-repository-issue {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: var(--ui-gap);
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-border);
+  min-height: var(--ui-tree-row-height);
+  padding: var(--ui-gap-tight);
   border-radius: var(--ui-radius);
 }
 
 .settings-repository-issue > div:first-child {
   display: grid;
   min-width: 0;
-  gap: var(--ui-gap-tight);
+  gap: calc(var(--ui-gap-tight) / 2);
   font-size: var(--ui-micro-font-size);
 }
 
@@ -87,13 +208,17 @@
   user-select: text;
 }
 
-.repository-delete-dialog {
-  width: min(520px, calc(100vw - calc(var(--ui-panel-padding) * 2)));
+.settings-form-row {
+  display: grid;
+  grid-template-columns: 96px 88px auto;
+  align-items: center;
+  gap: var(--ui-gap);
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap-tight);
 }
 
-.repository-delete-confirmation {
-  display: grid;
-  gap: var(--ui-gap-tight);
+.settings-form-row > label,
+.settings-form-row > span {
   color: var(--color-fg-muted);
   font-size: var(--ui-control-font-size);
 }
@@ -102,66 +227,12 @@
   width: 88px;
 }
 
-.settings-grid > div {
-  display: grid;
-  grid-template-columns:
-    calc(var(--ui-control-height) * 3)
-    minmax(0, 1fr);
-  gap: var(--ui-gap);
-}
-
-.settings-grid dt,
-.settings-grid dd {
-  margin: 0;
-  min-width: 0;
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
-}
-
-.settings-grid dt {
-  color: var(--color-fg-muted);
-}
-
-.settings-grid dd {
-  overflow: hidden;
-  color: var(--color-fg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-location-value {
-  display: flex;
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.settings-location-value > span {
-  min-width: 0;
-  font-family: var(--font-code);
-  overflow-wrap: anywhere;
-  user-select: text;
-  white-space: pre-wrap;
-}
-
-.settings-location-value > .ui-button,
-.settings-issue-location > .ui-button {
-  flex: 0 0 auto;
-}
-
-.settings-danger-zone {
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-error-soft);
-  border-radius: var(--ui-radius);
-}
-
 .settings-danger-zone-content {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: var(--ui-gap);
+  padding: 0 var(--ui-gap-tight);
 }
 
 .settings-danger-zone-content strong {
@@ -173,4 +244,36 @@
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
+}
+
+.repository-delete-dialog {
+  width: min(520px, calc(100vw - calc(var(--ui-panel-padding) * 2)));
+}
+
+.repository-delete-confirmation {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+@media (max-width: 720px) {
+  .settings-summary-list > div,
+  .settings-location-row,
+  .settings-create-repository label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-repository-issue,
+  .settings-danger-zone-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-form-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .settings-form-row > label {
+    grid-column: 1 / -1;
+  }
 }

@@ -13,6 +13,7 @@ import {
 } from "./support/repositorySeeds";
 import {
   getActivityButton,
+  getSettingsRepositoryButton,
   openWorkbench,
 } from "./support/workbenchPage";
 
@@ -37,8 +38,7 @@ test.describe.serial("workbench diagnostics", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库", { exact: true })
-      .selectOption(diagnosticsRepositoryId);
+    await getSettingsRepositoryButton(page, diagnosticsRepositoryId).click();
 
     const frame = page.locator(".app-frame");
     const problems = page.locator(".problems-panel");
@@ -108,12 +108,10 @@ test.describe.serial("workbench diagnostics", () => {
     await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
 
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库", { exact: true })
-      .selectOption(repositoryId);
+    await getSettingsRepositoryButton(page, repositoryId).click();
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库", { exact: true })
-      .selectOption(diagnosticsRepositoryId);
+    await getSettingsRepositoryButton(page, diagnosticsRepositoryId).click();
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
     await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
 
@@ -134,8 +132,7 @@ test.describe.serial("workbench diagnostics", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "设置").click();
-    await page.getByLabel("当前仓库", { exact: true })
-      .selectOption(diagnosticsRepositoryId);
+    await getSettingsRepositoryButton(page, diagnosticsRepositoryId).click();
     await getActivityButton(page, "语法").click();
     await page.route(
       `**/api/repositories/${diagnosticsRepositoryId}/snapshot`,
