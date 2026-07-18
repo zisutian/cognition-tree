@@ -86,6 +86,11 @@ export type RepositoryDescriptorDto = {
   id: string;
   label: string;
   location: RepositoryLocationDto;
+  nameConflict: boolean;
+};
+
+export type RenameRepositoryDto = {
+  label: string;
 };
 
 export type RepositoryApiErrorCodeDto =

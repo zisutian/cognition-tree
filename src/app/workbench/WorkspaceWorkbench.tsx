@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState } from "react";
-import type { WorkspaceApplication } from "../../application/workspace/runtime/useWorkspaceApplication";
+import type { WorkbenchApplication } from "../../application/workbench/workbenchApplication";
 import { activityItems } from "../../ui/ActivityBar";
 import AppView from "../../ui/AppView";
 import { PlaceholderPanel } from "../../ui/activities/PlaceholderPanel";
@@ -7,6 +7,7 @@ import type { ActivityId } from "../../ui/activityTypes";
 import { FeedbackProvider } from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchLayout } from "../../ui/workbench/useWorkbenchLayout";
 import { PlaceholderActivityController } from "../activities/PlaceholderActivityController";
+import { WorkspaceUnavailableActivityController } from "../activities/WorkspaceUnavailableActivityController";
 import {
   isLazyActivityId,
   workspaceActivityControllers,
@@ -44,11 +45,11 @@ export function WorkspaceWorkbench({
   onActiveActivityChange,
 }: {
   activeActivityId: ActivityId;
-  application: WorkspaceApplication;
+  application: WorkbenchApplication;
   onActiveActivityChange: (activityId: ActivityId) => void;
 }) {
   const workbench = useWorkbenchLayout(
-    application.repository.activeRepositoryId,
+    application.repository.activeDescriptor?.id ?? "workbench-global",
   );
   const [retainedActivityIds, setRetainedActivityIds] = useState(
     () =>
@@ -75,9 +76,11 @@ export function WorkspaceWorkbench({
 
   return (
     <FeedbackProvider>
-      <WorkspacePersistenceNotification
-        persistence={application.repository.persistence}
-      />
+      {application.repository.session.status === "ready" ? (
+        <WorkspacePersistenceNotification
+          persistence={application.repository.session.persistence}
+        />
+      ) : null}
       <WorkbenchProblemsController
         activeActivityId={activeActivityId}
         application={application}
@@ -96,7 +99,11 @@ export function WorkspaceWorkbench({
               workbench={workbench}
             />
           );
-          const controllerProps = { application, renderActivity };
+          const controllerProps = {
+            application,
+            onActiveActivityChange,
+            renderActivity,
+          };
 
           return (
             <>
@@ -119,7 +126,14 @@ export function WorkspaceWorkbench({
                   </Suspense>
                 ) : null;
               })}
-              {activeActivityId === "search" || activeActivityId === "data" ? (
+              {activeActivityId === "search" &&
+                  application.workspace.status !== "ready" ? (
+                <WorkspaceUnavailableActivityController
+                  onOpenRepository={() => onActiveActivityChange("repository")}
+                  renderActivity={renderActivity}
+                  workspace={application.workspace}
+                />
+              ) : activeActivityId === "search" || activeActivityId === "data" ? (
                 <PlaceholderActivityController
                   activityId={activeActivityId}
                   renderActivity={renderActivity}

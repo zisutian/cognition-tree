@@ -6,37 +6,129 @@ import {
   projectRepositoryLocation,
   requiresManualLocalDeletion,
 } from "../../../../../src/application/workspace/activities/repository/repositoryViewModel";
+import type { RepositoryApplication } from "../../../../../src/application/repository/repositoryApplication";
 import type { WorkspacePersistenceState } from "../../../../../src/application/workspace/session/workspaceSessionSaveQueue";
 import { remoteRevision } from "../../session/workspaceSessionTestFixture";
 
 function createSource(
   persistence: WorkspacePersistenceState = { status: "saved" },
-): Parameters<typeof createRepositoryViewModel>[0] {
+): RepositoryApplication {
+  const descriptor = {
+    adapter: "local" as const,
+    id: "primary",
+    label: "Primary",
+    location: {
+      hostPath: "/home/zisu/notes/primary",
+      serverPath: "/data/repositories/primary",
+      type: "local" as const,
+    },
+    nameConflict: false,
+  };
+  const reloadSystemRepository = vi.fn(async () => undefined);
+
   return {
-    activeRepositoryId: "primary",
-    creatableAdapters: ["local", "webdav"],
+    activeDescriptor: descriptor,
+    catalogLabel: "普通仓库",
+    catalogState: {
+      activeRepositoryId: descriptor.id,
+      creatableAdapters: ["local", "webdav"],
+      issues: [],
+      operation: "idle",
+      repositories: [descriptor],
+      status: "ready",
+    },
     createRepository: vi.fn(async () => undefined),
     deleteRepository: vi.fn(async () => undefined),
-    discardPendingChangesAndReload: vi.fn(async () => undefined),
-    issues: [],
-    operation: "idle",
-    persistence,
+    navigation: {
+      consumeFocusRequest: vi.fn(),
+      focusOrdinaryIssue: vi.fn(),
+      focusOrdinaryRepository: vi.fn(),
+      focusRequest: null,
+      focusSystemRepository: vi.fn(),
+    },
     refreshRepositories: vi.fn(async () => undefined),
-    reload: vi.fn(async () => undefined),
-    repositories: [
-      {
-        adapter: "local",
-        id: "primary",
-        label: "Primary",
-        location: {
-          hostPath: "/home/zisu/notes/primary",
-          serverPath: "/data/repositories/primary",
-          type: "local",
+    renameRepository: vi.fn(async () => undefined),
+    session: {
+      discardPendingChangesAndReload: vi.fn(async () => undefined),
+      persistence,
+      reload: vi.fn(async () => undefined),
+      status: "ready",
+      storageLabel: "本地仓库",
+    },
+    selectRepository: vi.fn(async () => undefined),
+    systems: {
+      catalog: {
+        catalogLabel: "内置仓库",
+        reload: vi.fn(async () => undefined),
+        retryRepository: vi.fn(async () => undefined),
+        state: {
+          issues: [],
+          repositories: [
+            {
+              id: "system-journal",
+              label: "日记",
+              location: {
+                serverPath: "/state/system-journal.json",
+                type: "server",
+              },
+              protected: true,
+            },
+            {
+              id: "system-todo",
+              label: "代办",
+              location: {
+                serverPath: "/state/system-todo.json",
+                type: "server",
+              },
+              protected: true,
+            },
+          ],
+          retryingPurpose: null,
+          status: "ready",
         },
       },
-    ],
-    storageLabel: "本地仓库",
-    selectRepository: vi.fn(async () => undefined),
+      repositories: {},
+      sessions: {
+        "system-journal": {
+          discardPendingChangesAndReload: vi.fn(async () => undefined),
+          flushPendingChanges: vi.fn(async () => undefined),
+          reload: reloadSystemRepository,
+          repository: null,
+          requestSync: vi.fn(),
+          state: {
+            content: {
+              entries: [],
+              purpose: "system-journal",
+              schemaVersion: 1,
+            },
+            persistence: { status: "saved" },
+            purpose: "system-journal",
+            snapshot: {
+              conflictRevision: null,
+              content: {
+                entries: [],
+                purpose: "system-journal",
+                schemaVersion: 1,
+              },
+              localRevision: "draft:journal",
+              pendingChanges: false,
+              remoteRevision: "sha256:journal",
+            },
+            status: "ready",
+          },
+          updateContent: vi.fn(),
+        },
+        "system-todo": {
+          discardPendingChangesAndReload: vi.fn(async () => undefined),
+          flushPendingChanges: vi.fn(async () => undefined),
+          reload: reloadSystemRepository,
+          repository: null,
+          requestSync: vi.fn(),
+          state: { purpose: "system-todo", status: "loading" },
+          updateContent: vi.fn(),
+        },
+      },
+    },
   };
 }
 
@@ -176,24 +268,22 @@ describe("repository view model", () => {
       remoteRevision: remoteRevision("c"),
       status: "conflict",
     });
+    const view = createRepositoryViewModel(source);
 
-    expect(createRepositoryViewModel(source)).toEqual({
+    expect(view).toMatchObject({
       activeRepositoryId: "primary",
       activeRepositoryLabel: "Primary",
+      catalogErrorMessage: "",
+      catalogStatus: "ready",
       creatableAdapters: [
         { label: "本地", value: "local" },
         { label: "WebDAV", value: "webdav" },
       ],
-      createRepository: source.createRepository,
-      deleteRepository: source.deleteRepository,
       deletionBlocked: false,
       deletionWarning: "存在同步冲突；删除会永久丢弃当前本地修改。",
-      discardPendingChangesAndReload: source.discardPendingChangesAndReload,
       hasSaveConflict: true,
       issues: [],
       operation: "idle",
-      refreshRepositories: source.refreshRepositories,
-      reload: source.reload,
       repositories: [
         {
           adapter: "local",
@@ -218,12 +308,151 @@ describe("repository view model", () => {
               value: "/data/repositories/primary",
             },
           ],
+          nameConflict: false,
         },
       ],
       persistenceStatusLabel: "仓库内容已更改",
       storageLabel: "本地",
-      selectRepository: source.selectRepository,
+      systemCatalogErrorMessage: "",
+      systemCatalogStatus: "ready",
+      systemIssues: [],
+      systemRepositories: [
+        expect.objectContaining({
+          id: "system-journal",
+          label: "日记",
+          locationRows: [{
+            copyValue: "/state/system-journal.json",
+            label: "服务端路径",
+            value: "/state/system-journal.json",
+          }],
+          protected: true,
+          sessionStatus: "ready",
+        }),
+        expect.objectContaining({
+          id: "system-todo",
+          label: "代办",
+          protected: true,
+          sessionStatus: "loading",
+          statusLabel: "正在载入",
+        }),
+      ],
+      retryingSystemPurpose: null,
     });
+    expect(view.createRepository).toBe(source.createRepository);
+    expect(view.deleteRepository).toBe(source.deleteRepository);
+    expect(view.refreshRepositories).toBe(source.refreshRepositories);
+    expect(view.renameRepository).toBe(source.renameRepository);
+    expect(view.selectRepository).toBe(source.selectRepository);
+  });
+
+  it("keeps ordinary creation and protected recovery available without an active ordinary repository", () => {
+    const source = createSource();
+
+    source.activeDescriptor = null;
+    if (source.catalogState.status !== "ready") {
+      throw new Error("Expected ready catalog fixture.");
+    }
+    source.catalogState = {
+      ...source.catalogState,
+      activeRepositoryId: null,
+      repositories: [],
+    };
+    source.session = { status: "absent" };
+    if (source.systems.catalog.state.status !== "ready") {
+      throw new Error("Expected ready system catalog fixture.");
+    }
+    source.systems.catalog.state = {
+      ...source.systems.catalog.state,
+      issues: [{
+        code: "repository_corrupt",
+        id: "system-journal",
+        location: {
+          serverPath: "/state/system-journal.json",
+          type: "server",
+        },
+        message: "日记仓库损坏。",
+        status: "fault",
+      }],
+      repositories: source.systems.catalog.state.repositories.filter(
+        ({ id }) => id !== "system-journal",
+      ),
+    };
+
+    const view = createRepositoryViewModel(source);
+
+    expect(view).toMatchObject({
+      activeRepositoryId: null,
+      activeRepositoryLabel: "尚未选择普通仓库",
+      catalogStatus: "ready",
+      deletionBlocked: false,
+      persistenceStatusLabel: "未挂载",
+      repositories: [],
+      systemIssues: [expect.objectContaining({
+        displayLabel: "日记 · 内置仓库",
+        id: "system-journal",
+        label: "日记",
+      })],
+    });
+    expect(view.creatableAdapters).toEqual([
+      { label: "本地", value: "local" },
+      { label: "WebDAV", value: "webdav" },
+    ]);
+    expect(view.retrySystemRepository).toBe(
+      source.systems.catalog.retryRepository,
+    );
+  });
+
+  it("does not report conflicted or failed system persistence as available", async () => {
+    const source = createSource();
+    const journal = source.systems.sessions["system-journal"];
+
+    if (journal.state.status !== "ready") {
+      throw new Error("Expected ready journal fixture.");
+    }
+    journal.state = {
+      ...journal.state,
+      persistence: {
+        remoteRevision: "sha256:remote-journal",
+        status: "conflict",
+      },
+    };
+    let view = createRepositoryViewModel(source);
+    let projectedJournal = view.systemRepositories.find(
+      ({ id }) => id === "system-journal",
+    );
+
+    expect(projectedJournal).toMatchObject({
+      hasProblem: true,
+      statusLabel: "同步冲突",
+      recoveryAction: {
+        label: "放弃本地修改并重新加载",
+      },
+    });
+    await projectedJournal?.recoveryAction?.run();
+    expect(journal.discardPendingChangesAndReload).toHaveBeenCalledOnce();
+
+    journal.state = {
+      ...journal.state,
+      persistence: {
+        localCopySafe: true,
+        message: "remote sync failed",
+        phase: "sync",
+        status: "error",
+      },
+    };
+    view = createRepositoryViewModel(source);
+    projectedJournal = view.systemRepositories.find(
+      ({ id }) => id === "system-journal",
+    );
+
+    expect(projectedJournal).toMatchObject({
+      errorMessage: "remote sync failed",
+      hasProblem: true,
+      statusLabel: "同步失败",
+      recoveryAction: { label: "重试同步" },
+    });
+    await projectedJournal?.recoveryAction?.run();
+    expect(journal.requestSync).toHaveBeenCalledOnce();
   });
 
   it("cannot let offline state overwrite a local persistence error", () => {

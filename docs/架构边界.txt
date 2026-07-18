@@ -9,7 +9,7 @@ app：
 
 application：
 
-    workspace 应用层，管理 session、共享选择、统一导航、语法运行时和 UI 投影。WorkspaceAnalysis 是唯一全仓解析入口，一轮分批扫描同时发布 parsed notes、标题索引、诊断和引用图谱。
+    应用层。workspace 管理普通仓库 session、共享选择、统一导航、语法运行时和 UI 投影；repository 管理普通 catalog、两个系统仓库 session 及仓库问题；workbench 组合可空普通 workspace 与始终独立存在的 repository application。WorkspaceAnalysis 是唯一普通仓库全仓解析入口，一轮分批扫描同时发布 parsed notes、标题索引、诊断和引用图谱。
 
 ui：
 
@@ -25,7 +25,7 @@ ctn：
 
 storage：
 
-    前端持久化边界。repository 将 raw remote backend 与 application 使用的 local-first repository 分开，定义 local draft CAS、远端同步结果、缓存数据和离线恢复策略；browser 与 HTTP adapter 实现外部读写；runtime 是唯一组合 adapter 的位置。catalog 发布可创建 adapter，负责列出、创建、删除和按 id 打开仓库，并以 adapter 对应的结构化 location 表达 Local server/host path、WebDAV URL 或 Browser database name；Browser 删除与本地缓存清理保持单事务原子性。
+    前端持久化边界。repository 的通用 versioned repository 将 raw remote backend 与 application 使用的 local-first repository 分开，定义 local draft CAS、远端同步结果、缓存数据和离线恢复策略；普通 Workspace 与系统仓库以各自 codec、validator 和 DTO 适配该机制。browser 与 HTTP adapter 实现外部读写；runtime 是唯一组合 adapter 的位置。普通 catalog 发布可创建 adapter，负责列出、创建、重命名、删除和按 id 打开仓库；系统 catalog 固定发布日记与代办，只允许 list、open 和 retry。两类 catalog 均以 adapter 对应的结构化 location 表达存储位置。
 
 editor：
 
@@ -33,11 +33,11 @@ editor：
 
 server：
 
-    仓库执行端。repository 定义 store/catalog 端口、v4 内容、syntax catalog 语义校验、revision 与删除结果；catalog 组合健康仓库和带 adapter、lifecycle 状态的单仓问题，统一分配 repository ID；api 负责 HTTP、统一错误与请求安全；local adapter 管理可见 working tree、隐藏 `.ctn/` 内部事实、稳定扫描、身份协调、WAL、独占 writer 和原子删除；WebDAV adapter 管理安全连接 registry、目标网络边界、不可变 generation、lease、ETag CAS 与 deletion tombstone；index 是唯一组合根。
+    仓库执行端。repository 定义普通 store/catalog 端口、v4 内容、syntax catalog 语义校验、revision 与删除结果，并定义两个固定 purpose 的系统仓库文件 store、CAS 和受保护 catalog；catalog 组合健康普通仓库和带 adapter、lifecycle 状态的单仓问题，统一分配 repository ID 与名称冲突投影；api 负责 HTTP、统一错误与请求安全；local adapter 管理可见 working tree、隐藏 `.ctn/` 内部事实、稳定扫描、身份协调、WAL、独占 writer 和原子删除；WebDAV adapter 管理安全连接 registry、目标网络边界、不可变 generation、lease、ETag CAS 与 deletion tombstone；index 是唯一组合根。
 
 contracts：
 
-    前后端中立的 wire contract，负责 repository 请求、快照、结构化 location 和提交结果的运行时解析，并要求 descriptor adapter 与 location type 一致。
+    前后端中立的 wire contract，分别负责普通仓库与系统仓库的 catalog、请求、快照、结构化 location 和提交结果运行时解析。系统仓库 contract 固定 purpose、受保护 descriptor 及 Journal/Todo v1 的精确 wire shape，不包含删除、重命名或创建请求。
 
 
 2. 依赖方向
@@ -61,14 +61,14 @@ contracts：
 3. 数据流
 
     server 将 repository id 解析为 catalog 中的仓库 adapter，读取显式 content 与 sha256 revision；repository validator 对 syntax catalog 中每份 TOML 和规范化名称唯一性作统一语义校验；Local 从真实目录、可见 `.ctn` 正文、隐藏 sidecar 与 `.ctn/syntax/` 重建 canonical content，以 `.ctn/repository.json` head 的 durable atomic replace 发布 WAL target；WebDAV generation 保存同构 syntax catalog，并以 current pointer 的 ETag CAS 发布。WebDAV registry 在本地安全状态中保存动态连接，启动时只加载连接描述，实际网络访问由对应 store 延迟执行。
-    contracts 在 storage 和 server 边界解析同一 repository wire shape。
+    contracts 在 storage 和 server 边界分别解析同一普通仓库或系统仓库 wire shape。
     storage 在 IndexedDB transaction 中先以 draft revision CAS stage 最新本地 content，再由 backend 对远端 sha256 revision 提交。offline、conflict 与 sync-error 是显式同步结果，远端 409 不进入 application。
     HTTP Local 在首次加载和手动 reload 时优先扫描服务端 working tree；没有 pending draft 时安装磁盘 revision，存在 pending 且磁盘 revision 变化时保留 draft 并形成 ready session 内的 conflict。同步提交也先扫描磁盘并校验 base revision。
-    application 维护 ready session 内的单一持久化状态与保存 worker。workspace command 同步更新内存，随后立即 stage 本地 draft，500ms debounce 后同步远端；仓库切换只等待本地持久化。
+    application/repository 的通用保存队列维护每个 ready session 的独立持久化状态与保存 worker。普通 workspace command 和系统仓库领域 mutation 同步更新各自内存，随后立即 stage 本地 draft，500ms debounce 后同步远端；普通仓库切换只等待其本地持久化，不停止或重建系统 session。
     application 在删除当前仓库前冻结 workspace command、排空 local stage 并等待已开始的同步；删除失败时恢复原 ready session 与保存队列。catalog mutation 成功后清理对应 descriptor、issue 和本地 cache。
     Local adapter 只在首次加载、同步提交和显式重新扫描时识别外部修改，不建立 watcher 或 SSE。扫描以路径、唯一 inode、唯一旧 source hash 或子树 signature 协调身份；外部正文变化形成确定性 text edits，再交给 CTN canonical metadata reconcile。无法证明同一对象时按删除加新建处理。
     Local 与 Browser 删除以原子提交点移除托管内容。Local 删除和目录操作保护非 `.ctn` unmanaged 文件与 symlink；WebDAV 的 remove-connection 只移除本地 registry 与 cache；delete-managed-data 以 current ETag CAS 发布永久 tombstone，随后异步清理托管 generation，catalog 以 deleting issue 表达未完成清理。
     application 将 canonical CTN 投影为 editable source，通过唯一 WorkspaceAnalysis 分批解析一次，并把诊断、结构定位、标题候选和引用图谱映射到 activity view model。
-    app activity adapter 将局部 view model 交给 ui 生成 activity slots；仓库 activity 承载 catalog 列表、当前仓库信息和管理操作，设置 activity 只承载工作台界面偏好。全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递。app/workbench 在仓库活动中把 workspace diagnostics 与 repository catalog issue 合并为全局问题视图，并通过 application 导航请求定位仓库上下文；仓库清理、重试和移除连接由仓库上下文发起。设置活动不挂载全局问题面板。
+    app 根同时装配可空普通 workspace、普通 catalog 和两个固定系统 session；普通仓库缺失或挂载失败时仍渲染完整 Workbench。activity adapter 将局部 view model 交给 ui 生成 activity slots；仓库 activity 承载普通与内置 catalog 列表、当前普通仓库信息和管理操作，设置 activity 只承载工作台界面偏好。全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递。app/workbench 在仓库活动中把 workspace diagnostics、普通 catalog issue、名称冲突和系统仓库问题合并为全局问题视图，并通过 application 导航请求定位仓库上下文；仓库清理、重试和移除连接由仓库上下文发起。设置活动不挂载全局问题面板。
     editor 接收可编辑文本和语法展示数据，为当前编辑状态生成 CodeMirror 装饰、诊断提示和引用交互；editor 不负责保存或解释块元数据。
     workspace 和 ctn 负责结构、语义和派生数据的确定性计算。

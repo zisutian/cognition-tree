@@ -111,6 +111,7 @@ export function CtnEditor({
     return () => {
       view.destroy();
       editorViewRef.current = null;
+      consumedFocusRequestIdRef.current = null;
     };
   }, []);
 

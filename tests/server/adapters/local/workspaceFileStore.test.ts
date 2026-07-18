@@ -265,6 +265,31 @@ describe("WorkspaceFileStore Local working tree", () => {
     });
   });
 
+  it("serializes label rename with content commit without changing the content revision", async () => {
+    await withTempDir(async (rootDir) => {
+      await createFileRepository(rootDir, createContent("before"), "Before label");
+      const store = createStore(rootDir);
+      const base = await store.loadSnapshot();
+      const next = createContent("after");
+      const [committed] = await Promise.all([
+        store.commitSnapshot({ baseRevision: base.revision, content: next }),
+        store.renameLabel("After label"),
+      ]);
+      const loaded = await store.loadSnapshot();
+      const metadata = JSON.parse(await readFile(
+        path.join(rootDir, ".ctn", "repository.json"),
+        "utf8",
+      ));
+
+      expect(loaded).toEqual({ content: next, revision: committed.revision });
+      expect(metadata).toMatchObject({
+        currentRevision: committed.revision,
+        label: "After label",
+        workspace: { id: next.workspace.id, name: next.workspace.name },
+      });
+    });
+  });
+
   it("keeps canonical-looking body directives visible in a syntax-free repository", async () => {
     await withTempDir(async (rootDir) => {
       const content: WorkspaceRepositoryContentDto = {
@@ -930,6 +955,7 @@ describe("LocalRepositoryCatalog v3", () => {
             serverPath: path.join(rootDir, "primary"),
             type: "local",
           },
+          nameConflict: false,
         });
         await first.dispose();
         await expect(second.initialize()).resolves.toBeUndefined();

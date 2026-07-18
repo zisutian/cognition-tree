@@ -462,6 +462,7 @@ await measure("repository.indexedDb.seed", () =>
         databaseName: "cognition-tree.repository-cache",
         type: "browser",
       },
+      nameConflict: false,
     },
     localRevision: firstDraftRevision,
     remoteRevision: revision,

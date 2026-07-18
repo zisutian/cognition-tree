@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { parseCreateRepository } from "../../contracts/workspace-repository/parseCatalog.ts";
+import type { parseRenameRepository } from "../../contracts/workspace-repository/parseCatalog.ts";
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryCatalogDto,
@@ -20,6 +21,10 @@ export type WorkspaceRepositoryCatalog = {
   ) => Promise<RepositoryDeletionResultDto>;
   getStore: (repositoryId: string) => Promise<WorkspaceRepositoryStore>;
   listRepositories: () => Promise<RepositoryCatalogDto>;
+  renameRepository: (
+    repositoryId: string,
+    value: ReturnType<typeof parseRenameRepository>,
+  ) => Promise<RepositoryDescriptorDto>;
 };
 
 export class RepositoryCatalogError extends Error {

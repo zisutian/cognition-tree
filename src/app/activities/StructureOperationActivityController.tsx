@@ -1,13 +1,17 @@
 import { useStructureOperationActivity } from "../../application/workspace/activities/structure-operation/useStructureOperationActivity";
 import { useStructureOperationState } from "../../application/workspace/activities/structure-operation/useStructureOperationState";
 import { createStructureOperationActivitySlots } from "../../ui/activities/structure-operation/StructureOperationActivitySlots";
+import type { WorkspaceApplication } from "../../application/workspace/runtime/useWorkspaceApplication";
 import type { WorkspaceActivityControllerProps } from "./activityController";
+import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 
 function ActiveStructureOperationActivity({
   application,
   renderActivity,
   state,
-}: Omit<WorkspaceActivityControllerProps, "active"> & {
+}: {
+  application: WorkspaceApplication;
+  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
   state: ReturnType<typeof useStructureOperationState>;
 }) {
   const view = useStructureOperationActivity({
@@ -25,22 +29,49 @@ function ActiveStructureOperationActivity({
   );
 }
 
-export function StructureOperationActivityController({
-  active,
+function ReadyStructureOperationActivity({
   application,
-  ...props
-}: WorkspaceActivityControllerProps) {
+  renderActivity,
+}: {
+  application: WorkspaceApplication;
+  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
+}) {
   const state = useStructureOperationState({
     activeNoteId: application.selection.activeNoteId,
     notes: application.runtime.effectiveNotes,
     workspace: application.runtime.effectiveWorkspace,
   });
 
-  return active ? (
+  return (
     <ActiveStructureOperationActivity
-      {...props}
       application={application}
+      renderActivity={renderActivity}
       state={state}
     />
-  ) : null;
+  );
+}
+
+export function StructureOperationActivityController({
+  active,
+  application,
+  onActiveActivityChange,
+  renderActivity,
+}: WorkspaceActivityControllerProps) {
+  if (!active) {
+    return null;
+  }
+  if (application.workspace.status !== "ready") {
+    return renderWorkspaceUnavailableActivity({
+      onOpenRepository: () => onActiveActivityChange("repository"),
+      renderActivity,
+      workspace: application.workspace,
+    });
+  }
+
+  return (
+    <ReadyStructureOperationActivity
+      application={application.workspace.application}
+      renderActivity={renderActivity}
+    />
+  );
 }

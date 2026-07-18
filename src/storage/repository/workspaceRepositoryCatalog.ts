@@ -8,6 +8,7 @@ import type {
   RepositoryDeletionModeDto,
   RepositoryDeletionResultDto,
   RepositoryLocationDto,
+  RenameRepositoryDto,
 } from "../../../contracts/workspace-repository/types";
 import type {
   WorkspaceRepository,
@@ -48,4 +49,8 @@ export type WorkspaceRepositoryCatalog = {
   openRepository(
     descriptor: WorkspaceRepositoryDescriptor,
   ): WorkspaceRepository;
+  renameRepository(input: {
+    id: string;
+    label: RenameRepositoryDto["label"];
+  }): Promise<WorkspaceRepositoryDescriptor>;
 };

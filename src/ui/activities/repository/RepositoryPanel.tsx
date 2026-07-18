@@ -4,6 +4,7 @@ import {
   Copy,
   Database,
   HardDrive,
+  LockKeyhole,
   Plus,
   RefreshCw,
   Trash2,
@@ -16,7 +17,7 @@ import type {
   RepositoryOption,
   RepositoryViewModel,
 } from "../../../application/workspace/activities/repository/repositoryViewModel";
-import type { WorkspaceRepositoryIssueFocusRequest } from "../../../application/workspace/navigation/useWorkspaceNavigation";
+import type { RepositoryFocusRequest } from "../../../application/repository/useRepositoryNavigation";
 import {
   projectRepositoryIssueActions,
   requiresManualLocalDeletion,
@@ -69,7 +70,7 @@ export function RepositoryContext({
   onConsumeFocusRequest,
   view,
 }: {
-  focusRequest: WorkspaceRepositoryIssueFocusRequest | null;
+  focusRequest: RepositoryFocusRequest | null;
   onConsumeFocusRequest: (requestId: number) => void;
   view: RepositoryViewModel;
 }) {
@@ -78,6 +79,9 @@ export function RepositoryContext({
   const [pendingIssueAction, setPendingIssueAction] =
     useState<PendingIssueAction | null>(null);
   const [refreshingRepositories, setRefreshingRepositories] = useState(false);
+  const [renamingRepositoryId, setRenamingRepositoryId] =
+    useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const busy = view.operation !== "idle" || refreshingRepositories;
   const adapterGroups = (["local", "webdav", "browser"] as const).filter(
     (adapter) =>
@@ -102,14 +106,14 @@ export function RepositoryContext({
     if (!focusRequest) {
       return;
     }
+    const dataKey = focusRequest.kind === "ordinary-issue"
+      ? "repositoryIssueId"
+      : focusRequest.kind === "ordinary-repository"
+        ? "repositoryId"
+        : "systemRepositoryId";
     const target = Array.from(
-      contextRef.current?.querySelectorAll<HTMLElement>(
-        "[data-repository-issue-id]",
-      ) ?? [],
-    ).find(
-      (element) =>
-        element.dataset.repositoryIssueId === focusRequest.issueId,
-    );
+      contextRef.current?.querySelectorAll<HTMLElement>("[data-repository-issue-id], [data-repository-id], [data-system-repository-id]") ?? [],
+    ).find((element) => element.dataset[dataKey] === focusRequest.id);
 
     if (!target) {
       return;
@@ -117,7 +121,29 @@ export function RepositoryContext({
     target.focus({ preventScroll: true });
     target.scrollIntoView({ block: "nearest" });
     onConsumeFocusRequest(focusRequest.requestId);
-  }, [focusRequest, onConsumeFocusRequest, view.issues]);
+  }, [
+    focusRequest,
+    onConsumeFocusRequest,
+    view.issues,
+    view.repositories,
+    view.systemIssues,
+    view.systemRepositories,
+  ]);
+
+  const beginRename = (repository: RepositoryOption) => {
+    setRenamingRepositoryId(repository.id);
+    setRenameValue(repository.label);
+  };
+  const finishRename = async (repository: RepositoryOption) => {
+    const name = renameValue.trim();
+
+    if (!name || name === repository.label) {
+      setRenamingRepositoryId(null);
+      return;
+    }
+    await view.renameRepository({ id: repository.id, name });
+    setRenamingRepositoryId(null);
+  };
 
   return (
     <div
@@ -141,6 +167,7 @@ export function RepositoryContext({
             <ul className="ui-tree repository-list">
               {repositories.map((repository) => {
                 const active = repository.id === view.activeRepositoryId;
+                const renaming = renamingRepositoryId === repository.id;
 
                 return (
                   <li
@@ -150,6 +177,34 @@ export function RepositoryContext({
                     )}
                     key={repository.id}
                   >
+                    {renaming ? (
+                      <form
+                        className="repository-inline-rename"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void finishRename(repository).catch(
+                            feedback.notifyError,
+                          );
+                        }}
+                      >
+                        <RepositoryAdapterIcon adapter={repository.adapter} />
+                        <input
+                          aria-label={`重命名仓库 ${repository.label}`}
+                          autoFocus
+                          className="ui-input ui-input-tree"
+                          disabled={busy}
+                          onBlur={() => setRenamingRepositoryId(null)}
+                          onChange={(event) => setRenameValue(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setRenamingRepositoryId(null);
+                            }
+                          }}
+                          value={renameValue}
+                        />
+                      </form>
+                    ) : (
                     <button
                       aria-current={active ? "page" : undefined}
                       className={cx(
@@ -165,6 +220,13 @@ export function RepositoryContext({
                           );
                         }
                       }}
+                      onDoubleClick={() => beginRename(repository)}
+                      onKeyDown={(event) => {
+                        if (event.key === "F2") {
+                          event.preventDefault();
+                          beginRename(repository);
+                        }
+                      }}
                       title={repository.displayLabel}
                       type="button"
                     >
@@ -175,7 +237,16 @@ export function RepositoryContext({
                           {view.persistenceStatusLabel}
                         </span>
                       ) : null}
+                      {repository.nameConflict ? (
+                        <span
+                          className="repository-name-conflict"
+                          title="仓库名称与其他仓库或内置仓库冲突"
+                        >
+                          名称冲突
+                        </span>
+                      ) : null}
                     </button>
+                    )}
                   </li>
                 );
               })}
@@ -282,8 +353,144 @@ export function RepositoryContext({
           </section>
         );
       })}
-      {view.repositories.length === 0 && view.issues.length === 0 ? (
-        <p className="context-empty">没有可用仓库。</p>
+      <section className="repository-group repository-system-group">
+        <p className="repository-group-title">
+          <span>内置</span>
+          <span>{view.systemRepositories.length + view.systemIssues.length}</span>
+        </p>
+        <ul className="ui-tree repository-list">
+          {view.systemRepositories.map((repository) => (
+            <li
+              className="ui-tree-row-frame repository-row-frame"
+              key={repository.id}
+            >
+              <div
+                aria-label={`${repository.label}，内置受保护仓库`}
+                className="ui-tree-row repository-row repository-system-row"
+                data-system-repository-id={repository.id}
+                role="group"
+                tabIndex={-1}
+                title={repository.locationRows[0]?.value}
+              >
+                {repository.hasProblem ? (
+                  <AlertTriangle aria-hidden="true" size={13} />
+                ) : (
+                  <LockKeyhole aria-hidden="true" size={13} />
+                )}
+                <span className="ui-tree-text">{repository.label}</span>
+                <span className="ui-tree-meta">
+                  {repository.statusLabel} · 受保护
+                </span>
+                {repository.recoveryAction ? (
+                  <Button
+                    aria-label={`${repository.recoveryAction.label}${repository.label}`}
+                    disabled={busy}
+                    onClick={() => {
+                      void feedback.runAction(repository.recoveryAction!.run);
+                    }}
+                    title={repository.errorMessage}
+                    type="button"
+                    variant="icon"
+                  >
+                    <RefreshCw aria-hidden="true" size={12} />
+                  </Button>
+                ) : null}
+                {repository.locationRows.map((row) => (
+                  <span
+                    className="repository-system-location"
+                    key={row.label}
+                    title={row.value}
+                  >
+                    {row.label}：{row.value}
+                  </span>
+                ))}
+              </div>
+            </li>
+          ))}
+          {view.systemIssues.map((issue) => (
+            <li
+              className="ui-tree-row-frame repository-row-frame repository-issue-row-frame"
+              key={issue.id}
+            >
+              <div
+                aria-label={`${issue.displayLabel}，${issue.message}`}
+                className="repository-issue-row"
+                data-system-repository-id={issue.id}
+                role="group"
+                tabIndex={-1}
+              >
+                <AlertTriangle aria-hidden="true" size={13} />
+                <div className="repository-issue-details">
+                  <strong>{issue.label}</strong>
+                  <span>{issue.message}</span>
+                  {issue.locationRows.map((row) => (
+                    <span className="repository-issue-location" key={row.label}>
+                      <span title={row.value}>{row.label}：{row.value}</span>
+                      <Button
+                        aria-label={`复制${issue.label}${row.label}`}
+                        disabled={busy}
+                        onClick={() => {
+                          void feedback.runAction(() => copyLocation(
+                            row.label,
+                            row.copyValue,
+                          ));
+                        }}
+                        type="button"
+                        variant="icon"
+                      >
+                        <Copy aria-hidden="true" size={12} />
+                      </Button>
+                    </span>
+                  ))}
+                  <span className="repository-issue-actions">
+                    <Button
+                      disabled={busy ||
+                        view.retryingSystemPurpose !== null}
+                      onClick={() => {
+                        void feedback.runAction(() =>
+                          view.retrySystemRepository(issue.id)
+                        );
+                      }}
+                      type="button"
+                      variant="secondary"
+                    >
+                      重试
+                    </Button>
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {view.catalogStatus === "loading" ? (
+        <p className="context-empty">正在载入普通仓库列表。</p>
+      ) : null}
+      {view.catalogErrorMessage ? (
+        <p className="context-empty" role="alert">
+          {view.catalogErrorMessage}
+        </p>
+      ) : null}
+      {view.systemCatalogStatus === "loading" ? (
+        <p className="context-empty">正在载入内置仓库。</p>
+      ) : null}
+      {view.systemCatalogErrorMessage ? (
+        <div className="context-empty repository-catalog-fault">
+          <p role="alert">{view.systemCatalogErrorMessage}</p>
+          <Button
+            disabled={busy}
+            onClick={() => {
+              void feedback.runAction(view.reloadSystemCatalog);
+            }}
+            type="button"
+            variant="secondary"
+          >
+            重试内置仓库
+          </Button>
+        </div>
+      ) : null}
+      {view.repositories.length === 0 ? (
+        <p className="context-empty">没有普通仓库。</p>
       ) : null}
       <ConfirmDialog
         confirmLabel={pendingIssueAction?.action.label}
@@ -362,12 +569,12 @@ export function RepositoryPanel({
               </Button>
             ) : null}
             <Button
-              aria-label="重新扫描文件"
+              aria-label={activeRepository ? "重新扫描文件" : "重新检查仓库"}
               disabled={busy}
               onClick={() => {
                 void feedback.runAction(view.reload);
               }}
-              title="重新扫描文件"
+              title={activeRepository ? "重新扫描文件" : "重新检查仓库"}
               type="button"
               variant="icon"
             >
@@ -396,6 +603,21 @@ export function RepositoryPanel({
               />
             </Section>
           ) : null}
+          {view.catalogErrorMessage ? (
+            <Section className="repository-section" title="普通仓库不可用">
+              <p className="repository-warning" role="alert">
+                {view.catalogErrorMessage}
+              </p>
+              <Button
+                onClick={() => void feedback.runAction(view.refreshRepositories)}
+                type="button"
+                variant="secondary"
+              >
+                重试
+              </Button>
+            </Section>
+          ) : null}
+          {activeRepository ? (
           <Section className="repository-section" title="当前仓库">
             <dl className="repository-summary-list">
               <div>
@@ -418,6 +640,19 @@ export function RepositoryPanel({
               </div>
             </dl>
           </Section>
+          ) : (
+            <Section className="repository-section" title="普通仓库">
+              <p>尚未挂载普通仓库；日记、代办和设置仍可独立使用。</p>
+              <Button
+                disabled={busy || view.creatableAdapters.length === 0}
+                onClick={() => setCreateFormOpen(true)}
+                type="button"
+                variant="primary"
+              >
+                创建普通仓库
+              </Button>
+            </Section>
+          )}
           {activeRepository && activeRepository.locationRows.length > 0 ? (
             <Section className="repository-section" title="位置">
               <div className="repository-location-list">
@@ -447,6 +682,7 @@ export function RepositoryPanel({
               </div>
             </Section>
           ) : null}
+          {activeRepository ? (
           <Section
             className="repository-section repository-danger-zone"
             title="危险区"
@@ -480,16 +716,22 @@ export function RepositoryPanel({
               </Button>
             </div>
           </Section>
+          ) : null}
         </div>
       </PanelBody>
       <RepositoryDeleteDialog
         repository={deleteDialogOpen ? activeRepository : null}
         warning={view.deletionWarning}
         onClose={() => setDeleteDialogOpen(false)}
-        onDelete={(mode) => view.deleteRepository({
-          id: view.activeRepositoryId,
-          mode,
-        })}
+        onDelete={(mode) => {
+          if (!view.activeRepositoryId) {
+            throw new Error("没有可删除的当前仓库。");
+          }
+          return view.deleteRepository({
+            id: view.activeRepositoryId,
+            mode,
+          });
+        }}
       />
     </Panel>
   );

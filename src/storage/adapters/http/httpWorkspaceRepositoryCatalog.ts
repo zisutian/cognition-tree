@@ -5,6 +5,7 @@ import {
   parseRepositoryDeletionMode,
   parseRepositoryDeletionResult,
   parseRepositoryDescriptor,
+  parseRenameRepository,
 } from "../../../../contracts/workspace-repository/parseCatalog";
 import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
 import { createHttpWorkspaceRepositoryBackend } from "./httpWorkspaceRepository";
@@ -225,6 +226,37 @@ export function createHttpWorkspaceRepositoryCatalog({
         subscribeReconnect: subscribeBrowserReconnect,
         validateContent,
       });
+    },
+    async renameRepository({ id, label }) {
+      if (!isRepositoryId(id)) {
+        throw new Error(`Invalid repository id: ${id}`);
+      }
+      const outbound = parseRenameRepository({ label });
+      const descriptor = parseRepositoryDescriptor(
+        await requestRepositoryJson(
+          fetchFn,
+          baseUrl,
+          `/api/repositories/${encodeURIComponent(id)}`,
+          {
+            body: serializeJsonIteratively(outbound),
+            headers: { "Content-Type": "application/json" },
+            method: "PATCH",
+          },
+          token,
+        ),
+      );
+
+      try {
+        await cache.renameRepositoryAtomically({
+          catalogIdentity: await catalogIdentity,
+          label: descriptor.label,
+          repositoryId: id,
+        });
+      } catch {
+        // The remote catalog is authoritative; an absent or unavailable local
+        // projection must not turn a successful rename into a client failure.
+      }
+      return descriptor;
     },
   };
 }

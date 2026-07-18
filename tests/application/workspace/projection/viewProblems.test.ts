@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   createUiWorkbenchProblems,
+  projectUiRepositoryNameConflictProblems,
   projectUiRepositoryProblems,
+  projectUiSystemRepositoryProblems,
 } from "../../../../src/application/workspace/projection/viewProblems";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
 } from "../../../../src/application/workspace/projection/viewDiagnostics";
-import type { WorkspaceRepositoryCatalogIssue } from "../../../../src/storage/repository/workspaceRepositoryCatalog";
+import type { SystemRepositoryIssue } from "../../../../src/storage/repository/systemRepository";
+import type {
+  WorkspaceRepositoryCatalogIssue,
+  WorkspaceRepositoryDescriptor,
+} from "../../../../src/storage/repository/workspaceRepositoryCatalog";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",
@@ -37,6 +43,26 @@ const issues: WorkspaceRepositoryCatalogIssue[] = [
     status: "deleting",
   },
 ];
+
+const repositories: WorkspaceRepositoryDescriptor[] = [{
+  adapter: "local",
+  id: "conflicted",
+  label: "日记",
+  location: {
+    hostPath: null,
+    serverPath: "/data/repositories/conflicted",
+    type: "local",
+  },
+  nameConflict: true,
+}];
+
+const systemIssues: SystemRepositoryIssue[] = [{
+  code: "repository_corrupt",
+  id: "system-journal",
+  location: { serverPath: "/state/system-journal.json", type: "server" },
+  message: "日记仓库损坏。",
+  status: "fault",
+}];
 
 describe("workbench problem projection", () => {
   it("maps fault issues to errors and deleting issues to warnings", () => {
@@ -79,16 +105,48 @@ describe("workbench problem projection", () => {
     ]);
   });
 
+  it("projects ordinary name conflicts and protected system faults with distinct focus targets", () => {
+    expect(projectUiRepositoryNameConflictProblems(repositories)).toEqual([
+      expect.objectContaining({
+        id: "repository-name-conflict:conflicted",
+        locationLabel: "本地 · 日记",
+        severity: "error",
+        target: {
+          kind: "repository-name-conflict",
+          repositoryId: "conflicted",
+        },
+      }),
+    ]);
+    expect(projectUiSystemRepositoryProblems(systemIssues)).toEqual([
+      expect.objectContaining({
+        id: "system-repository:system-journal",
+        locationLabel: "内置 · 日记",
+        severity: "error",
+        target: {
+          kind: "system-repository-issue",
+          purpose: "system-journal",
+        },
+      }),
+    ]);
+  });
+
   it("merges repository problems without mutating or replacing diagnostics", () => {
     const diagnostics = createUiWorkbenchDiagnostics(
       [diagnostic],
       "collecting",
     );
 
-    expect(createUiWorkbenchProblems(diagnostics, issues)).toEqual({
-      errorCount: 1,
+    expect(createUiWorkbenchProblems(
+      diagnostics,
+      issues,
+      repositories,
+      systemIssues,
+    )).toEqual({
+      errorCount: 3,
       problems: [
+        expect.objectContaining({ id: "repository-name-conflict:conflicted" }),
         expect.objectContaining({ id: "repository:aaa" }),
+        expect.objectContaining({ id: "system-repository:system-journal" }),
         expect.objectContaining({ id: "repository:bbb" }),
         diagnostic,
       ],

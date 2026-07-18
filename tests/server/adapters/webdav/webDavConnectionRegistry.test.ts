@@ -140,6 +140,56 @@ describe("WebDAV connection registry", () => {
     });
   });
 
+  it("renames only local connection metadata without rebuilding or mutating the remote store", async () => {
+    await withTemporaryState(async ({ stateDirectory }) => {
+      const transport = new InMemoryWebDavTransport();
+      const registry = new WebDavConnectionRegistry({
+        stateDirectory,
+        transportFactory: () => transport,
+      });
+      const content = createContent("Remote content");
+
+      try {
+        await registry.register({
+          authentication: { type: "none" },
+          id: "repository-rename",
+          initialContent: content,
+          label: "Before",
+          url: "https://dav.example.test/rename",
+        });
+        const store = await registry.getStore("repository-rename");
+        const snapshotBefore = await store.loadSnapshot();
+        const remoteBefore = transport.listPaths().map((remotePath) => [
+          remotePath,
+          transport.source(remotePath),
+        ]);
+
+        await expect(registry.renameConnection("repository-rename", "After"))
+          .resolves.toMatchObject({
+            id: "repository-rename",
+            label: "After",
+            nameConflict: false,
+          });
+        expect(await registry.getStore("repository-rename")).toBe(store);
+        await expect(store.loadSnapshot()).resolves.toEqual(snapshotBefore);
+        expect(transport.listPaths().map((remotePath) => [
+          remotePath,
+          transport.source(remotePath),
+        ])).toEqual(remoteBefore);
+        expect(parseWebDavConnectionConfig(await readFile(
+          path.join(
+            stateDirectory,
+            "webdav-connections",
+            "repository-rename.json",
+          ),
+          "utf8",
+        ))).toMatchObject({ label: "After", status: "active" });
+      } finally {
+        await registry.dispose();
+      }
+    });
+  });
+
   it("probes before publishing a config and keeps a failed registration absent", async () => {
     await withTemporaryState(async ({ stateDirectory }) => {
       const memory = new InMemoryWebDavTransport();
@@ -229,6 +279,7 @@ describe("WebDAV connection registry", () => {
               type: "webdav",
               url: "https://healthy.example.test/root/",
             },
+            nameConflict: false,
           }],
         });
         expect(transportFactoryCalls).toBe(0);

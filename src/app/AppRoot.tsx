@@ -1,82 +1,126 @@
 import { useMemo, useState } from "react";
+import type { RepositoryApplication } from "../application/repository/repositoryApplication";
+import { useRepositoryNavigation } from "../application/repository/useRepositoryNavigation";
+import { useSystemRepositoryCatalog } from "../application/repository/useSystemRepositoryCatalog";
+import { useSystemRepositorySession } from "../application/repository/useSystemRepositorySession";
+import { useWorkspaceApplication } from "../application/workspace/runtime/useWorkspaceApplication";
+import {
+  useRepositoryCatalog,
+  type CreateRepositoryRequest,
+  type DeleteRepositoryRequest,
+  type RenameRepositoryRequest,
+} from "../application/workspace/session/useRepositoryCatalog";
 import {
   useSession,
   type ActiveSession,
 } from "../application/workspace/session/useSession";
-import { useWorkspaceApplication } from "../application/workspace/runtime/useWorkspaceApplication";
+import type {
+  SystemRepositoryCatalog,
+  SystemRepositoryDescriptor,
+  SystemRepositoryPurpose,
+} from "../storage/repository/systemRepository";
+import { createSystemRepositoryRuntime } from "../storage/runtime/systemRepositoryRuntime";
 import { createWorkspaceRepositoryRuntime } from "../storage/runtime/workspaceRepositoryRuntime";
-import { useRepositoryCatalog } from "../application/workspace/session/useRepositoryCatalog";
-import type {
-  CreateRepositoryRequest,
-  DeleteRepositoryRequest,
-} from "../application/workspace/session/useRepositoryCatalog";
 import type { ActivityId } from "../ui/activityTypes";
-import { RepositorySetupView } from "../ui/RepositorySetupView";
-import { SessionStateView } from "../ui/SessionStateView";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
-import type {
-  WorkspaceRepository,
-} from "../storage/repository/workspaceRepository";
-import {
-  projectRepositoryAdapterOptions,
-  projectRepositoryIssues,
-} from "../application/workspace/activities/repository/repositoryViewModel";
 
-type RepositoryCatalogRuntime = ReturnType<typeof useRepositoryCatalog>;
+type RepositoryCatalogApplication = ReturnType<typeof useRepositoryCatalog>;
+type SystemCatalogApplication = ReturnType<typeof useSystemRepositoryCatalog>;
 
-function ActiveWorkspaceApp({
-  activeActivityId,
-  repositoryManagement,
-  session,
-  onActiveActivityChange,
-}: {
-  activeActivityId: ActivityId;
-  repositoryManagement: Parameters<typeof useWorkspaceApplication>[1];
-  session: ActiveSession;
-  onActiveActivityChange: (activityId: ActivityId) => void;
-}) {
-  const application = useWorkspaceApplication(session, repositoryManagement);
-
-  return (
-    <WorkspaceWorkbench
-      activeActivityId={activeActivityId}
-      application={application}
-      onActiveActivityChange={onActiveActivityChange}
-    />
-  );
+function findSystemDescriptor(
+  systems: SystemCatalogApplication,
+  purpose: SystemRepositoryPurpose,
+) {
+  return systems.state.status === "ready"
+    ? systems.state.repositories.find(({ id }) => id === purpose) ?? null
+    : null;
 }
 
-function RepositoryWorkspaceApp({
+function createSystemConnectionKey(
+  descriptor: SystemRepositoryDescriptor | null,
+) {
+  return descriptor
+    ? JSON.stringify({ id: descriptor.id, location: descriptor.location })
+    : "";
+}
+
+function openSystemRepository(
+  catalog: SystemRepositoryCatalog,
+  descriptor: SystemRepositoryDescriptor | null,
+) {
+  return descriptor ? catalog.openRepository(descriptor) : null;
+}
+
+function createRepositoryApplication({
   catalog,
-  repository,
+  createRepository = async (input) => {
+    await catalog.createRepository(input);
+  },
+  deleteRepository = async (input) => {
+    await catalog.deleteRepository(input);
+  },
+  navigation,
+  refreshRepositories = catalog.reload,
+  renameRepository = async (input) => {
+    await catalog.renameRepository(input);
+  },
+  selectRepository = catalog.selectRepository,
+  session,
+  systemRepositories,
+  systemSessions,
+  systems,
 }: {
-  catalog: RepositoryCatalogRuntime;
-  repository: WorkspaceRepository;
+  catalog: RepositoryCatalogApplication;
+  createRepository?: (input: CreateRepositoryRequest) => Promise<void>;
+  deleteRepository?: (input: DeleteRepositoryRequest) => Promise<void>;
+  navigation: ReturnType<typeof useRepositoryNavigation>;
+  refreshRepositories?: () => Promise<void>;
+  renameRepository?: (input: RenameRepositoryRequest) => Promise<void>;
+  selectRepository?: (repositoryId: string) => Promise<void>;
+  session: RepositoryApplication["session"];
+  systemRepositories: RepositoryApplication["systems"]["repositories"];
+  systemSessions: RepositoryApplication["systems"]["sessions"];
+  systems: SystemCatalogApplication;
+}): RepositoryApplication {
+  return {
+    activeDescriptor: catalog.activeDescriptor,
+    catalogLabel: catalog.catalogLabel,
+    catalogState: catalog.state,
+    createRepository,
+    deleteRepository,
+    navigation,
+    refreshRepositories,
+    renameRepository,
+    selectRepository,
+    session,
+    systems: {
+      catalog: systems,
+      repositories: systemRepositories,
+      sessions: systemSessions,
+    },
+  };
+}
+
+function ReadyWorkspaceWorkbench({
+  activeActivityId,
+  catalog,
+  navigation,
+  onActiveActivityChange,
+  session,
+  systemRepositories,
+  systemSessions,
+  systems,
+}: {
+  activeActivityId: ActivityId;
+  catalog: RepositoryCatalogApplication;
+  navigation: ReturnType<typeof useRepositoryNavigation>;
+  onActiveActivityChange: (activityId: ActivityId) => void;
+  session: ActiveSession;
+  systemRepositories: RepositoryApplication["systems"]["repositories"];
+  systemSessions: RepositoryApplication["systems"]["sessions"];
+  systems: SystemCatalogApplication;
 }) {
-  const session = useSession({ repository });
-  const [activeActivityId, setActiveActivityId] =
-    useState<ActivityId>("notes");
-
-  if (session.status === "loading") {
-    return (
-      <SessionStateView
-        status="loading"
-        storageLabel={session.storageLabel}
-      />
-    );
-  }
-
-  if (session.status === "failed") {
-    return (
-      <SessionStateView
-        errorMessage={session.errorMessage}
-        status="failed"
-        storageLabel={session.storageLabel}
-        onRetry={() => void session.retry()}
-      />
-    );
-  }
-
+  const workspace = useWorkspaceApplication(session);
   const selectRepository = async (repositoryId: string) => {
     await session.flushPendingChanges();
     await catalog.selectRepository(repositoryId);
@@ -104,26 +148,144 @@ function RepositoryWorkspaceApp({
       throw error;
     }
   };
-  const readyCatalog = catalog.state.status === "ready"
-    ? catalog.state
-    : null;
+  const repository = createRepositoryApplication({
+    catalog,
+    createRepository,
+    deleteRepository,
+    navigation,
+    refreshRepositories,
+    session: {
+      discardPendingChangesAndReload: session.discardPendingChangesAndReload,
+      persistence: session.persistence,
+      reload: session.reload,
+      status: "ready",
+      storageLabel: session.storageLabel,
+    },
+    selectRepository,
+    systemRepositories,
+    systemSessions,
+    systems,
+  });
 
   return (
-    <ActiveWorkspaceApp
+    <WorkspaceWorkbench
       activeActivityId={activeActivityId}
-      repositoryManagement={{
-        activeRepositoryId: catalog.activeDescriptor?.id ?? "",
-        creatableAdapters: readyCatalog?.creatableAdapters ?? [],
-        createRepository,
-        deleteRepository,
-        issues: readyCatalog?.issues ?? [],
-        operation: readyCatalog?.operation ?? "idle",
-        refreshRepositories,
-        repositories: readyCatalog?.repositories ?? [],
-        selectRepository,
+      application={{
+        repository,
+        workspace: { application: workspace, status: "ready" },
       }}
-      session={session}
-      onActiveActivityChange={setActiveActivityId}
+      onActiveActivityChange={onActiveActivityChange}
+    />
+  );
+}
+
+function RepositoryWorkspaceApp({
+  activeActivityId,
+  catalog,
+  navigation,
+  onActiveActivityChange,
+  systemRepositories,
+  systemSessions,
+  systems,
+}: {
+  activeActivityId: ActivityId;
+  catalog: RepositoryCatalogApplication;
+  navigation: ReturnType<typeof useRepositoryNavigation>;
+  onActiveActivityChange: (activityId: ActivityId) => void;
+  systemRepositories: RepositoryApplication["systems"]["repositories"];
+  systemSessions: RepositoryApplication["systems"]["sessions"];
+  systems: SystemCatalogApplication;
+}) {
+  const repository = catalog.repository;
+
+  if (!repository) {
+    throw new Error("Active repository disappeared before session mount.");
+  }
+  const session = useSession({ repository });
+
+  if (session.status === "ready") {
+    return (
+      <ReadyWorkspaceWorkbench
+        activeActivityId={activeActivityId}
+        catalog={catalog}
+        navigation={navigation}
+        onActiveActivityChange={onActiveActivityChange}
+        session={session}
+        systemRepositories={systemRepositories}
+        systemSessions={systemSessions}
+        systems={systems}
+      />
+    );
+  }
+
+  const sessionState: RepositoryApplication["session"] =
+    session.status === "loading"
+      ? session
+      : {
+          errorMessage: session.errorMessage,
+          retry: session.retry,
+          status: "failed",
+          storageLabel: session.storageLabel,
+        };
+  const repositoryApplication = createRepositoryApplication({
+    catalog,
+    navigation,
+    session: sessionState,
+    systemRepositories,
+    systemSessions,
+    systems,
+  });
+
+  return (
+    <WorkspaceWorkbench
+      activeActivityId={activeActivityId}
+      application={{ repository: repositoryApplication, workspace: sessionState }}
+      onActiveActivityChange={onActiveActivityChange}
+    />
+  );
+}
+
+function EmptyWorkspaceApp({
+  activeActivityId,
+  catalog,
+  navigation,
+  onActiveActivityChange,
+  systemRepositories,
+  systemSessions,
+  systems,
+}: {
+  activeActivityId: ActivityId;
+  catalog: RepositoryCatalogApplication;
+  navigation: ReturnType<typeof useRepositoryNavigation>;
+  onActiveActivityChange: (activityId: ActivityId) => void;
+  systemRepositories: RepositoryApplication["systems"]["repositories"];
+  systemSessions: RepositoryApplication["systems"]["sessions"];
+  systems: SystemCatalogApplication;
+}) {
+  const repository = createRepositoryApplication({
+    catalog,
+    navigation,
+    session: { status: "absent" },
+    systemRepositories,
+    systemSessions,
+    systems,
+  });
+  const workspace = catalog.state.status === "loading"
+    ? { status: "loading" as const, storageLabel: catalog.catalogLabel }
+    : catalog.state.status === "failed"
+      ? {
+          errorMessage: catalog.state.errorMessage,
+          retry: catalog.reload,
+          status: "failed" as const,
+          storageLabel: catalog.catalogLabel,
+        }
+      : { status: "absent" as const };
+
+  return (
+    <WorkspaceWorkbench
+      activeActivityId={activeActivityId}
+      application={{ repository, workspace }}
+      onActiveActivityChange={onActiveActivityChange}
     />
   );
 }
@@ -133,56 +295,68 @@ export function AppRoot() {
     () => createWorkspaceRepositoryRuntime(),
     [],
   );
+  const systemRuntime = useMemo(() => createSystemRepositoryRuntime(), []);
   const catalog = useRepositoryCatalog(
     repositoryRuntime.catalog,
     repositoryRuntime.activeRepositorySelection,
   );
+  const systems = useSystemRepositoryCatalog(systemRuntime.catalog);
+  const navigation = useRepositoryNavigation();
+  const [activeActivityId, setActiveActivityId] =
+    useState<ActivityId>("notes");
+  const journalDescriptor = findSystemDescriptor(systems, "system-journal");
+  const todoDescriptor = findSystemDescriptor(systems, "system-todo");
+  const journalConnectionKey = createSystemConnectionKey(journalDescriptor);
+  const todoConnectionKey = createSystemConnectionKey(todoDescriptor);
+  const journalRepository = useMemo(
+    () => openSystemRepository(systemRuntime.catalog, journalDescriptor),
+    // Descriptor identity is deliberately reduced to storage connection data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [journalConnectionKey, systemRuntime.catalog],
+  );
+  const todoRepository = useMemo(
+    () => openSystemRepository(systemRuntime.catalog, todoDescriptor),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [systemRuntime.catalog, todoConnectionKey],
+  );
+  const journalSession = useSystemRepositorySession({
+    purpose: "system-journal",
+    repository: journalRepository,
+  });
+  const todoSession = useSystemRepositorySession({
+    purpose: "system-todo",
+    repository: todoRepository,
+  });
+  const systemRepositories = useMemo(
+    () => ({
+      ...(journalRepository ? { "system-journal": journalRepository } : {}),
+      ...(todoRepository ? { "system-todo": todoRepository } : {}),
+    }),
+    [journalRepository, todoRepository],
+  );
+  const systemSessions = useMemo(
+    () => ({
+      "system-journal": journalSession,
+      "system-todo": todoSession,
+    }),
+    [journalSession, todoSession],
+  );
+  const common = {
+    activeActivityId,
+    catalog,
+    navigation,
+    onActiveActivityChange: setActiveActivityId,
+    systemRepositories,
+    systemSessions,
+    systems,
+  };
 
-  if (catalog.state.status === "loading") {
-    return (
-      <SessionStateView
-        status="loading"
-        storageLabel={catalog.catalogLabel}
-      />
-    );
-  }
-
-  if (catalog.state.status === "failed") {
-    return (
-      <SessionStateView
-        errorMessage={catalog.state.errorMessage}
-        onRetry={() => void catalog.reload()}
-        status="failed"
-        storageLabel={catalog.catalogLabel}
-      />
-    );
-  }
-
-  if (!catalog.repository) {
-    const readyCatalog = catalog.state;
-
-    return (
-      <RepositorySetupView
-        adapters={projectRepositoryAdapterOptions(
-          readyCatalog.creatableAdapters,
-        )}
-        catalogLabel={catalog.catalogLabel}
-        issues={projectRepositoryIssues(readyCatalog.issues)}
-        operation={readyCatalog.operation}
-        onCreate={async (input) => {
-          await catalog.createRepository(input);
-        }}
-        onDelete={catalog.deleteRepository}
-        onRefresh={catalog.reload}
-      />
-    );
-  }
-
-  return (
+  return catalog.repository ? (
     <RepositoryWorkspaceApp
-      catalog={catalog}
+      {...common}
       key={catalog.activeDescriptor?.id}
-      repository={catalog.repository}
     />
+  ) : (
+    <EmptyWorkspaceApp {...common} />
   );
 }

@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../contracts/workspace-repository/contractValue";
 import { parseRepositoryApiError } from "../../contracts/workspace-repository/parseApiError";
 import {
+  normalizeRepositoryLabel,
   parseCreateRepository,
   parseRepositoryCatalog,
   parseRepositoryDeletionMode,
   parseRepositoryDeletionResult,
+  parseRenameRepository,
 } from "../../contracts/workspace-repository/parseCatalog";
 import {
   parseWorkspaceRepositoryCommit,
@@ -66,6 +68,10 @@ describe("workspace repository v4 contract", () => {
       label: "Remote",
       url: "https://dav.example.test/notes",
     });
+    expect(parseRenameRepository({ label: "  Renamed  " })).toEqual({
+      label: "Renamed",
+    });
+    expect(normalizeRepositoryLabel("  ＲＥＭＯＴＥ  ")).toBe("remote");
   });
 
   it("rejects v3 and derived persistence fields without compatibility", () => {
@@ -177,6 +183,7 @@ describe("workspace repository v4 contract", () => {
           serverPath: "/data/repositories/primary",
           type: "local",
         },
+        nameConflict: false,
       }],
     } as const;
 
@@ -204,6 +211,7 @@ describe("workspace repository v4 contract", () => {
     const base = {
       id: "primary",
       label: "Primary",
+      nameConflict: false,
     };
 
     expect(() => parseRepositoryCatalog({
@@ -289,5 +297,9 @@ describe("workspace repository v4 contract", () => {
       .toThrow("unsupported repository deletion mode");
     expect(() => parseRepositoryDeletionResult({ status: "finished" }))
       .toThrow("unsupported repository deletion status");
+    expect(() => parseRenameRepository({ label: "   " }))
+      .toThrow("expected non-empty repository label");
+    expect(() => parseRenameRepository({ label: "Primary", extra: true }))
+      .toThrow("unsupported field");
   });
 });

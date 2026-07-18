@@ -9,6 +9,7 @@ import {
   type UiWorkbenchDiagnostic,
 } from "../../../src/application/workspace/projection/viewDiagnostics";
 import type { UiWorkbenchRepositoryProblem } from "../../../src/application/workspace/projection/viewProblems";
+import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
 import type { WorkspaceRepositoryCatalogIssue } from "../../../src/storage/repository/workspaceRepositoryCatalog";
 
 const diagnostic: UiWorkbenchDiagnostic = {
@@ -30,6 +31,14 @@ const repositoryIssue: WorkspaceRepositoryCatalogIssue = {
   status: "fault",
 };
 
+const systemIssue: SystemRepositoryIssue = {
+  code: "repository_corrupt",
+  id: "system-journal",
+  location: { serverPath: "/state/system-journal.json", type: "server" },
+  message: "日记仓库损坏。",
+  status: "fault",
+};
+
 describe("WorkbenchProblemsController", () => {
   it("omits the global problems panel only from Settings", () => {
     expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
@@ -43,11 +52,14 @@ describe("WorkbenchProblemsController", () => {
     expect(selectWorkbenchProblems({
       activeActivityId: "repository",
       diagnostics,
+      repositories: [],
       repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
     })).toMatchObject({
-      errorCount: 1,
+      errorCount: 2,
       problems: [
         expect.objectContaining({ id: "repository:broken" }),
+        expect.objectContaining({ id: "system-repository:system-journal" }),
         diagnostic,
       ],
       warningCount: 1,
@@ -55,7 +67,21 @@ describe("WorkbenchProblemsController", () => {
     expect(selectWorkbenchProblems({
       activeActivityId: "settings",
       diagnostics,
+      repositories: [],
       repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
+    })).toEqual({
+      errorCount: 0,
+      problems: [diagnostic],
+      status: "ready",
+      warningCount: 1,
+    });
+    expect(selectWorkbenchProblems({
+      activeActivityId: "notes",
+      diagnostics,
+      repositories: [],
+      repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
     })).toEqual({
       errorCount: 0,
       problems: [diagnostic],
@@ -66,7 +92,7 @@ describe("WorkbenchProblemsController", () => {
 
   it("requests the matching repository issue before opening Repositories", () => {
     const onActiveActivityChange = vi.fn();
-    const openRepositoryIssue = vi.fn();
+    const focusOrdinaryIssue = vi.fn();
     const expandPanels = vi.fn();
     const problem: UiWorkbenchRepositoryProblem = {
       code: repositoryIssue.code,
@@ -80,17 +106,23 @@ describe("WorkbenchProblemsController", () => {
 
     openWorkbenchProblem(problem, {
       expandPanels,
-      navigation: {
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue,
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      workspaceNavigation: {
         openNoteLine: vi.fn(),
-        openRepositoryIssue,
         openSyntaxField: vi.fn(),
       },
       onActiveActivityChange,
     });
 
     expect(onActiveActivityChange).toHaveBeenCalledWith("repository");
-    expect(openRepositoryIssue).toHaveBeenCalledWith("broken");
-    expect(openRepositoryIssue.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(focusOrdinaryIssue).toHaveBeenCalledWith("broken");
+    expect(focusOrdinaryIssue.mock.invocationCallOrder[0]).toBeLessThan(
       onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,
     );
     expect(expandPanels).toHaveBeenCalledOnce();
@@ -117,9 +149,15 @@ describe("WorkbenchProblemsController", () => {
 
     openWorkbenchProblem(problem, {
       expandPanels,
-      navigation: {
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      workspaceNavigation: {
         openNoteLine: vi.fn(),
-        openRepositoryIssue: vi.fn(),
         openSyntaxField,
       },
       onActiveActivityChange,
@@ -134,5 +172,53 @@ describe("WorkbenchProblemsController", () => {
       onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,
     );
     expect(expandPanels).toHaveBeenCalledOnce();
+  });
+
+  it("focuses the conflicted ordinary row or protected system row before opening Repositories", () => {
+    const onActiveActivityChange = vi.fn();
+    const focusOrdinaryRepository = vi.fn();
+    const focusSystemRepository = vi.fn();
+    const context = {
+      expandPanels: vi.fn(),
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository,
+        focusRequest: null,
+        focusSystemRepository,
+      },
+      workspaceNavigation: null,
+      onActiveActivityChange,
+    };
+
+    openWorkbenchProblem({
+      code: "repository-name-conflict",
+      id: "repository-name-conflict:primary",
+      locationLabel: "本地 · 日记",
+      message: "仓库名称冲突。",
+      severity: "error",
+      source: "repository",
+      target: {
+        kind: "repository-name-conflict",
+        repositoryId: "primary",
+      },
+    }, context);
+    openWorkbenchProblem({
+      code: systemIssue.code,
+      id: "system-repository:system-journal",
+      locationLabel: "内置 · 日记",
+      message: systemIssue.message,
+      severity: "error",
+      source: "repository",
+      target: {
+        kind: "system-repository-issue",
+        purpose: "system-journal",
+      },
+    }, context);
+
+    expect(focusOrdinaryRepository).toHaveBeenCalledWith("primary");
+    expect(focusSystemRepository).toHaveBeenCalledWith("system-journal");
+    expect(onActiveActivityChange).toHaveBeenNthCalledWith(1, "repository");
+    expect(onActiveActivityChange).toHaveBeenNthCalledWith(2, "repository");
   });
 });

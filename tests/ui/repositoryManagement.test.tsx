@@ -8,7 +8,6 @@ import {
   RepositoryCreateForm,
   repositoryPasswordInputAttributes,
 } from "../../src/ui/RepositoryCreateForm";
-import { RepositorySetupView } from "../../src/ui/RepositorySetupView";
 import {
   canDeleteManagedRepositoryData,
   getRepositoryDeletionChoices,
@@ -49,6 +48,7 @@ const localRepository: RepositoryOption = {
       value: "/data/repositories/local",
     },
   ],
+  nameConflict: false,
 };
 
 const webDavRepository: RepositoryOption = {
@@ -66,6 +66,7 @@ const webDavRepository: RepositoryOption = {
     label: "WebDAV 地址",
     value: "https://dav.example/notes/",
   }],
+  nameConflict: false,
 };
 
 describe("repository creation form", () => {
@@ -255,78 +256,6 @@ describe("repository setup and management semantics", () => {
     );
   });
 
-  it("shows catalog issues in Setup without restoring a manual ID field", () => {
-    const markup = renderToStaticMarkup(
-      <RepositorySetupView
-        adapters={[{ label: "本地", value: "local" }]}
-        catalogLabel="本机仓库"
-        issues={[
-          {
-            adapter: "webdav",
-            adapterLabel: "WebDAV",
-            code: "repository_corrupt",
-            displayLabel: "repository-broken · WebDAV",
-            id: "repository-broken",
-            location: null,
-            locationRows: [],
-            message: "连接配置损坏。",
-            status: "fault",
-          },
-        ]}
-        operation="idle"
-        onCreate={async () => undefined}
-        onDelete={async () => ({ status: "deleted" })}
-        onRefresh={async () => undefined}
-      />,
-    );
-
-    expect(markup).toContain('aria-label="创建仓库"');
-    expect(markup).toContain('class="repository-create-form repository-setup-form"');
-    expect(markup).toContain("本机仓库");
-    expect(markup).toContain("仓库问题");
-    expect(markup).toContain("repository-broken · WebDAV");
-    expect(markup).toContain("连接配置损坏。");
-    expect(markup).toContain(">移除连接<");
-    expect(markup).not.toContain("仓库 ID");
-    expect(markup).not.toContain('aria-label="仓库存储类型"');
-  });
-
-  it("requires manual file-system deletion for an unsupported Local repository", () => {
-    const issues = projectRepositoryIssues([{
-      adapter: "local",
-      code: "unsupported_repository_version",
-      id: "default",
-      location: {
-        hostPath: "/home/zisu/notes/default",
-        serverPath: "/data/repositories/default",
-        type: "local",
-      },
-      message: "Repository version is not supported",
-      status: "fault",
-    }]);
-    const markup = renderToStaticMarkup(
-      <RepositorySetupView
-        adapters={[{ label: "本地", value: "local" }]}
-        catalogLabel="本机仓库"
-        issues={issues}
-        operation="idle"
-        onCreate={async () => undefined}
-        onDelete={async () => ({ status: "deleted" })}
-        onRefresh={async () => undefined}
-      />,
-    );
-
-    expect(markup).toContain("仓库格式不受支持，需要手工删除该目录。");
-    expect(markup).toContain("请在文件系统中手工删除上述目录。");
-    expect(markup).toContain("主机路径：/home/zisu/notes/default");
-    expect(markup).toContain('aria-label="复制主机路径"');
-    expect(markup).toContain(">重新检查<");
-    expect(markup).not.toContain("/data/repositories/default");
-    expect(markup).not.toContain(">清理<");
-    expect(markup).not.toContain(">重试清理<");
-    expect(markup).not.toContain(">移除连接<");
-  });
-
   it("uses a grouped repository context and keeps generated IDs read-only", () => {
     const baseView = createView().repository;
     const view = {
@@ -372,6 +301,54 @@ describe("repository setup and management semantics", () => {
     expect(markup).toContain('aria-label="复制主机路径"');
     expect(markup).toContain("危险区");
     expect(markup).toContain("删除仓库");
+  });
+
+  it("creates the first ordinary repository and handles manual Local recovery inside the full Repository activity", () => {
+    const baseView = createView().repository;
+    const view = {
+      ...baseView,
+      activeRepositoryId: null,
+      activeRepositoryLabel: "尚未选择普通仓库",
+      issues: projectRepositoryIssues([{
+        adapter: "local",
+        code: "unsupported_repository_version",
+        id: "default",
+        location: {
+          hostPath: "/home/zisu/notes/default",
+          serverPath: "/data/repositories/default",
+          type: "local",
+        },
+        message: "Repository version is not supported",
+        status: "fault",
+      }]),
+      persistenceStatusLabel: "未挂载",
+      repositories: [],
+    };
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          view={view}
+        />
+        <RepositoryPanel view={view} />
+      </FeedbackProvider>,
+    );
+
+    expect(markup).toContain("没有普通仓库。");
+    expect(markup).toContain("尚未挂载普通仓库");
+    expect(markup).toContain(">创建普通仓库<");
+    expect(markup).toContain('aria-label="添加仓库"');
+    expect(markup).toContain("仓库格式不受支持，需要手工删除该目录。");
+    expect(markup).toContain("请在文件系统中手工删除上述目录。");
+    expect(markup).toContain("主机路径：/home/zisu/notes/default");
+    expect(markup).toContain('aria-label="复制主机路径"');
+    expect(markup).toContain(">重新检查<");
+    expect(markup).not.toContain("/data/repositories/default");
+    expect(markup).not.toContain(">清理<");
+    expect(markup).not.toContain(">重试清理<");
+    expect(markup).not.toContain(">移除连接<");
+    expect(markup).not.toContain("危险区");
   });
 
   it("renders repository issues only in the grouped context with focus targets and actions", () => {
@@ -431,5 +408,98 @@ describe("repository setup and management semantics", () => {
     expect(panelMarkup).not.toContain("仓库问题");
     expect(panelMarkup).not.toContain("webdav-broken");
     expect(panelMarkup).not.toContain("local-broken");
+  });
+
+  it("shows protected system repositories, independent faults, visible locations, and recovery only", () => {
+    const baseView = createView().repository;
+    const view = {
+      ...baseView,
+      repositories: [{ ...localRepository, nameConflict: true }],
+      systemIssues: [{
+        code: "repository_corrupt" as const,
+        displayLabel: "代办 · 内置仓库",
+        id: "system-todo" as const,
+        label: "代办" as const,
+        location: {
+          databaseName: "cognition-tree-system-todo",
+          type: "browser" as const,
+        },
+        locationRows: [{
+          copyValue: "cognition-tree-system-todo",
+          label: "浏览器数据库",
+          value: "cognition-tree-system-todo",
+        }],
+        message: "代办仓库损坏。",
+        status: "fault" as const,
+      }],
+      systemRepositories: [{
+        errorMessage: "日记仓库存在同步冲突。",
+        hasProblem: true,
+        id: "system-journal" as const,
+        label: "日记" as const,
+        location: {
+          serverPath: "/state/system-journal.json",
+          type: "server" as const,
+        },
+        locationRows: [{
+          copyValue: "/state/system-journal.json",
+          label: "服务端路径",
+          value: "/state/system-journal.json",
+        }],
+        protected: true as const,
+        recoveryAction: {
+          label: "放弃本地修改并重新加载",
+          run: async () => undefined,
+        },
+        reload: async () => undefined,
+        sessionStatus: "ready" as const,
+        statusLabel: "同步冲突",
+      }],
+    };
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+
+    expect(markup).toContain(">内置</span>");
+    expect(markup).toContain("日记");
+    expect(markup).toContain("同步冲突 · 受保护");
+    expect(markup).toContain("服务端路径：/state/system-journal.json");
+    expect(markup).toContain(
+      'aria-label="放弃本地修改并重新加载日记"',
+    );
+    expect(markup).toContain('data-system-repository-id="system-journal"');
+    expect(markup).toContain('data-system-repository-id="system-todo"');
+    expect(markup).toContain("浏览器数据库：cognition-tree-system-todo");
+    expect(markup).toContain(">重试<");
+    expect(markup).toContain("名称冲突");
+    expect(markup).not.toContain("删除日记");
+    expect(markup).not.toContain("重命名日记");
+  });
+
+  it("offers an independent retry when the system catalog fails", () => {
+    const view = {
+      ...createView().repository,
+      systemCatalogErrorMessage: "内置仓库目录不可用。",
+      systemCatalogStatus: "failed" as const,
+    };
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("内置仓库目录不可用。");
+    expect(markup).toContain(">重试内置仓库<");
   });
 });

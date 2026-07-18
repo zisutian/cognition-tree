@@ -272,6 +272,7 @@ function createDescriptor(config: WebDavConnectionConfig): RepositoryDescriptorD
     id: config.id,
     label: config.label,
     location: { type: "webdav", url: config.url },
+    nameConflict: false,
   };
 }
 
@@ -464,6 +465,29 @@ export class WebDavConnectionRegistry {
       this.#issuesById.delete(repositoryId);
       this.#storesById.delete(repositoryId);
       return removed;
+    });
+  }
+
+  async renameConnection(repositoryId: string, label: string) {
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      this.#assertLock();
+      const current = this.#configsById.get(repositoryId);
+
+      if (!current || current.status !== "active") {
+        throw new RepositoryCatalogError(
+          "repository_not_found",
+          `WebDAV repository does not exist: ${repositoryId}`,
+        );
+      }
+      const renamed = parseWebDavConnectionConfig(JSON.stringify({
+        ...current,
+        label,
+      }));
+
+      await writeConfigAtomically(this.#connectionPath(repositoryId), renamed);
+      this.#configsById.set(repositoryId, renamed);
+      return createDescriptor(renamed);
     });
   }
 

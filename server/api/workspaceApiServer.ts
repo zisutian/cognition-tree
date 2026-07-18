@@ -11,10 +11,15 @@ import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
 } from "../../contracts/workspace-repository/contractValue.ts";
+import {
+  SystemRepositoryContractError,
+  UnsupportedSystemRepositoryVersionError,
+} from "../../contracts/system-repository/contractValue.ts";
 import { serializeJsonIteratively } from "../../contracts/workspace-repository/json.ts";
 import {
   parseCreateRepository,
   parseRepositoryDeletionMode,
+  parseRenameRepository,
 } from "../../contracts/workspace-repository/parseCatalog.ts";
 import type {
   RepositoryApiErrorCodeDto,
@@ -24,6 +29,14 @@ import {
   RepositoryAdapterError,
   WorkspaceRevisionConflictError,
 } from "../repository/repositoryStore.ts";
+import {
+  SystemRepositoryRevisionConflictError,
+  type SystemRepositoryStore,
+} from "../repository/systemRepositoryStore.ts";
+import type {
+  SystemRepositoryCatalogDto,
+  SystemRepositoryRetryResultDto,
+} from "../../contracts/system-repository/types.ts";
 import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
@@ -35,7 +48,7 @@ import {
   type WorkspaceApiSecurityPolicy,
 } from "./workspaceApiSecurity.ts";
 
-const allowedMethods = "DELETE, GET, OPTIONS, POST, PUT";
+const allowedMethods = "DELETE, GET, OPTIONS, PATCH, POST, PUT";
 const maxBodyBytes = 20 * 1024 * 1024;
 
 const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {
@@ -54,6 +67,17 @@ const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {
 type WorkspaceApiRoute =
   | { kind: "health"; methods: readonly string[] }
   | { kind: "repositories"; methods: readonly string[] }
+  | { kind: "system-repositories"; methods: readonly string[] }
+  | {
+      kind: "system-repository-retry";
+      methods: readonly string[];
+      purpose: string;
+    }
+  | {
+      kind: "system-repository-snapshot";
+      methods: readonly string[];
+      purpose: string;
+    }
   | {
       kind: "repository";
       methods: readonly string[];
@@ -74,6 +98,11 @@ type WorkspaceApiOptions = {
   catalog: WorkspaceRepositoryCatalog;
   logger?: Pick<Console, "error">;
   security: WorkspaceApiSecurityPolicy;
+  systemCatalog?: {
+    getStore(purpose: unknown): Promise<SystemRepositoryStore>;
+    listRepositories(): Promise<SystemRepositoryCatalogDto>;
+    retry(purpose: unknown): Promise<SystemRepositoryRetryResultDto>;
+  };
 };
 
 class WorkspaceApiRequestError extends Error {
@@ -102,6 +131,41 @@ function resolveRoute(pathname: string): WorkspaceApiRoute | null {
   if (pathname === "/api/repositories") {
     return { kind: "repositories", methods: ["GET", "POST"] };
   }
+  if (pathname === "/api/system-repositories") {
+    return { kind: "system-repositories", methods: ["GET"] };
+  }
+  const systemSnapshotMatch =
+    /^\/api\/system-repositories\/([^/]+)\/snapshot$/.exec(pathname);
+  if (systemSnapshotMatch) {
+    try {
+      return {
+        kind: "system-repository-snapshot",
+        methods: ["GET", "PUT"],
+        purpose: decodeURIComponent(systemSnapshotMatch[1] ?? ""),
+      };
+    } catch {
+      throw new WorkspaceApiRequestError(
+        "invalid_request",
+        "Invalid system repository purpose encoding",
+      );
+    }
+  }
+  const systemRetryMatch =
+    /^\/api\/system-repositories\/([^/]+)\/retry$/.exec(pathname);
+  if (systemRetryMatch) {
+    try {
+      return {
+        kind: "system-repository-retry",
+        methods: ["POST"],
+        purpose: decodeURIComponent(systemRetryMatch[1] ?? ""),
+      };
+    } catch {
+      throw new WorkspaceApiRequestError(
+        "invalid_request",
+        "Invalid system repository purpose encoding",
+      );
+    }
+  }
 
   const match = /^\/api\/repositories\/([^/]+)\/snapshot$/.exec(pathname);
 
@@ -122,7 +186,7 @@ function resolveRoute(pathname: string): WorkspaceApiRoute | null {
     try {
       return {
         kind: "repository",
-        methods: ["DELETE"],
+        methods: ["DELETE", "PATCH"],
         repositoryId: decodeURIComponent(repositoryMatch[1] ?? ""),
       };
     } catch {
@@ -255,10 +319,24 @@ function mapRepositoryError(error: unknown): WorkspaceApiRequestError {
       error.currentRevision,
     );
   }
+  if (error instanceof SystemRepositoryRevisionConflictError) {
+    return new WorkspaceApiRequestError(
+      "revision_conflict",
+      "System repository content changed outside the current session",
+      409,
+      error.currentRevision,
+    );
+  }
   if (error instanceof UnsupportedRepositoryVersionError) {
     return new WorkspaceApiRequestError(
       "unsupported_repository_version",
       "Repository version is not supported",
+    );
+  }
+  if (error instanceof UnsupportedSystemRepositoryVersionError) {
+    return new WorkspaceApiRequestError(
+      "unsupported_repository_version",
+      "System repository version is not supported",
     );
   }
   if (error instanceof RepositoryAdapterError) {
@@ -281,6 +359,7 @@ function mapRepositoryError(error: unknown): WorkspaceApiRequestError {
   }
   if (
     error instanceof WorkspaceRepositoryContractError ||
+    error instanceof SystemRepositoryContractError ||
     error instanceof WorkspacePayloadValidationError
   ) {
     return new WorkspaceApiRequestError("invalid_request", error.message);
@@ -337,6 +416,7 @@ export function createWorkspaceApiRequestHandler({
   catalog,
   logger = console,
   security,
+  systemCatalog,
 }: WorkspaceApiOptions): WorkspaceApiRequestHandler {
   return async (request, response) => {
     const requestId = randomUUID();
@@ -361,6 +441,9 @@ export function createWorkspaceApiRequestHandler({
         throw new WorkspaceApiRequestError("invalid_request", "Method not allowed", 405);
       }
       if (request.method === "GET" || request.method === "DELETE") {
+        assertRequestHasNoBody(request);
+      }
+      if (route.kind === "system-repository-retry") {
         assertRequestHasNoBody(request);
       }
 
@@ -393,7 +476,75 @@ export function createWorkspaceApiRequestHandler({
         sendJson(response, 201, await catalog.createRepository(body), responseHeaders);
         return;
       }
+      if (route.kind === "system-repositories") {
+        if (!systemCatalog) {
+          throw new WorkspaceApiRequestError(
+            "adapter_unavailable",
+            "System repository catalog is unavailable",
+          );
+        }
+        sendJson(
+          response,
+          200,
+          await systemCatalog.listRepositories(),
+          responseHeaders,
+        );
+        return;
+      }
+      if (route.kind === "system-repository-retry") {
+        if (!systemCatalog) {
+          throw new WorkspaceApiRequestError(
+            "adapter_unavailable",
+            "System repository catalog is unavailable",
+          );
+        }
+        sendJson(
+          response,
+          200,
+          await systemCatalog.retry(route.purpose),
+          responseHeaders,
+        );
+        return;
+      }
+      if (route.kind === "system-repository-snapshot") {
+        if (!systemCatalog) {
+          throw new WorkspaceApiRequestError(
+            "adapter_unavailable",
+            "System repository catalog is unavailable",
+          );
+        }
+        const store = await systemCatalog.getStore(route.purpose);
+        if (request.method === "GET") {
+          sendJson(response, 200, await store.loadSnapshot(), responseHeaders);
+        } else {
+          sendJson(
+            response,
+            200,
+            await store.commitSnapshot(await readJsonBody(request)),
+            responseHeaders,
+          );
+        }
+        return;
+      }
       if (route.kind === "repository") {
+        if (request.method === "PATCH") {
+          if (url.search !== "") {
+            throw new WorkspaceApiRequestError(
+              "invalid_request",
+              "Query parameters are not allowed for repository rename",
+            );
+          }
+          sendJson(
+            response,
+            200,
+            await catalog.renameRepository(
+              route.repositoryId,
+              parseRenameRepository(await readJsonBody(request)),
+            ),
+            responseHeaders,
+          );
+          return;
+        }
         const keys = [...url.searchParams.keys()];
         const modes = url.searchParams.getAll("mode");
 

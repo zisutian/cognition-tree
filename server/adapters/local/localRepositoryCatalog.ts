@@ -356,6 +356,17 @@ export class LocalRepositoryCatalog {
     return this.#enqueueOperation(() => this.#getStore(repositoryId));
   }
 
+  async renameRepository(repositoryId: string, label: string) {
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      this.#assertWriterLock();
+      const store = await this.#getStore(repositoryId);
+
+      await store.renameLabel(label);
+      return this.#createDescriptor(repositoryId, label);
+    });
+  }
+
   async #getStore(repositoryId: string) {
     await this.initialize();
     this.#assertWriterLock();
@@ -494,6 +505,7 @@ export class LocalRepositoryCatalog {
       id: repositoryId,
       label,
       location: this.#createLocation(repositoryId),
+      nameConflict: false,
     };
   }
 

@@ -12,6 +12,7 @@ const descriptor = {
     type: "webdav" as const,
     url: "https://dav.example.test/notes/",
   },
+  nameConflict: false,
 };
 const issue = {
   adapter: "local" as const,
@@ -52,6 +53,19 @@ describe("workspace repository catalog cache", () => {
         }],
       }),
     ).toThrow("unsupported field");
+  });
+
+  it("supplements persisted v4 descriptors that predate conflict projection", () => {
+    const { nameConflict: _nameConflict, ...persistedDescriptor } = descriptor;
+
+    expect(parseWorkspaceRepositoryCatalogCacheState({
+      creatableAdapters: ["webdav"],
+      issues: [],
+      repositories: [persistedDescriptor],
+      version: 4,
+    })).toMatchObject({
+      repositories: [{ ...descriptor, nameConflict: false }],
+    });
   });
 
   it("isolates cached labels, structured locations, and issues from mutation", async () => {

@@ -18,6 +18,10 @@ import type {
 import { createLocalDraftRevision } from "../../repository/workspaceRepository";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision";
 import {
+  parseAvailableWorkspaceRepositoryLabel,
+  projectWorkspaceRepositoryNameConflicts,
+} from "../../repository/repositoryLabelPolicy";
+import {
   browserRepositoryDatabaseName,
   createBrowserRepositoryClientCache,
   type BrowserRepositoryClientCache,
@@ -197,11 +201,15 @@ export function createBrowserWorkspaceRepositoryCatalog({
         const descriptor: RepositoryDescriptorDto = {
           adapter: "browser",
           id: repositoryId,
-          label: outbound.label,
+          label: parseAvailableWorkspaceRepositoryLabel(
+            outbound.label,
+            catalog?.repositories ?? [],
+          ),
           location: {
             databaseName: browserRepositoryDatabaseName,
             type: "browser",
           },
+          nameConflict: false,
         };
 
         try {
@@ -248,11 +256,11 @@ export function createBrowserWorkspaceRepositoryCatalog({
       const catalog = await cache.catalogs.load(browserCatalogIdentity);
 
       return catalog
-        ? {
+        ? projectWorkspaceRepositoryNameConflicts({
             creatableAdapters: [...browserCreatableAdapters],
             issues: catalog.issues,
             repositories: catalog.repositories,
-          }
+          })
         : {
             creatableAdapters: [...browserCreatableAdapters],
             issues: [],
@@ -271,6 +279,31 @@ export function createBrowserWorkspaceRepositoryCatalog({
         descriptor,
         validateContent,
       );
+    },
+    async renameRepository({ id, label }) {
+      if (!isRepositoryId(id)) {
+        throw new Error(`Invalid browser repository id: ${id}`);
+      }
+      const catalog = await cache.catalogs.load(browserCatalogIdentity);
+      const descriptor = catalog?.repositories.find((repository) =>
+        repository.id === id
+      );
+
+      if (!catalog || !descriptor) {
+        throw new Error(`Browser repository does not exist: ${id}`);
+      }
+      const parsedLabel = parseAvailableWorkspaceRepositoryLabel(
+        label,
+        catalog.repositories,
+        id,
+      );
+
+      await cache.renameRepositoryAtomically({
+        catalogIdentity: browserCatalogIdentity,
+        label: parsedLabel,
+        repositoryId: id,
+      });
+      return { ...descriptor, label: parsedLabel, nameConflict: false };
     },
   };
 }

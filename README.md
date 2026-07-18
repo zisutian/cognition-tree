@@ -8,7 +8,7 @@
 
     前端：React、Vite、CodeMirror、Canvas 引用图谱。
     后端：Node HTTP API、本地文件与 WebDAV repository adapter。
-    存储：默认在 .cognition-tree/repositories 下管理本地仓库，并在 .cognition-tree/server 下保存服务端状态和 WebDAV 连接配置。
+    存储：默认在 .cognition-tree/repositories 下管理普通本地仓库，并在 .cognition-tree/server 下保存服务端状态、WebDAV 连接配置以及受保护的日记和代办系统仓库。
 
 每个仓库由稳定的 repository id 标识。Local 仓库的可见目录就是工作区目录，文件夹对应磁盘目录，笔记对应以标题命名的 `.ctn` 文件：
 
@@ -41,11 +41,13 @@ Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与�
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
     引用图谱：查看笔记级引用关系和局部图谱。
     问题：在工作台底部统一检查全仓库解析错误、语法错误和未解析引用，并跳转到对应笔记行或语法字段；仓库活动同时显示 catalog 问题。
-    仓库：创建、切换和删除 Local/WebDAV 仓库，查看自动生成的仓库 ID、结构化位置与保存状态，并重新扫描外部文件修改。
+    仓库：创建、重命名、切换和删除 Local/WebDAV 仓库，查看自动生成的仓库 ID、结构化位置与保存状态，并重新扫描外部文件修改；日记和代办作为全局唯一、不可删除和不可重命名的内置仓库独立保存。
     设置：在“界面”页调整按仓库保存的工作台左侧栏宽度；该活动不显示底部问题栏。
     离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
+
+没有健康普通仓库时仍挂载完整工作台。普通笔记活动显示前往仓库的创建入口，仓库、内置仓库状态和设置保持可用。
 
 ## 开发命令
 
@@ -114,11 +116,13 @@ loopback HTTP 后端只接受 loopback Host 和本机开发前端 Origin。非 l
 
 部署模型是单用户个人服务。bearer token、WebDAV 凭据和 lease/CAS 处理同一使用者的受控客户端与多个实例，不建立用户、角色或共享权限模型。
 
-后端通过 `/api/repositories` 列出和创建仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库，通过 `DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。repository id 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；workspace 使用独立的 `workspace-<uuid>`。浏览器分别保存当前选择的 repository id；切换仓库不会复制内容。
+后端通过 `/api/repositories` 列出和创建普通仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库，通过 `PATCH /api/repositories/<repositoryId>` 修改 catalog label，并通过 `DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。repository id 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；workspace 使用独立的 `workspace-<uuid>`。浏览器分别保存当前选择的 repository id；切换或重命名仓库不会复制内容，也不会重建活动 session。
+
+`GET /api/system-repositories` 固定列出 `system-journal` 和 `system-todo`；对应 snapshot endpoint 只提供 load、CAS commit 和 retry，不提供 create、delete 或 rename。HTTP 模式将其保存在 `CTN_SERVER_STATE_DIR/system-repositories/`，Browser 模式使用独立 IndexedDB。损坏内容保留原值并形成可重试问题，不会被空仓自动覆盖。
 
 HTTP 模式的仓库活动可以动态添加和切换 Local/WebDAV 仓库。仓库位置使用结构化数据：Local 显示 realpath 后的服务端路径，并可同时显示由 `CTN_REPOSITORY_HOST_ROOT` 映射的宿主机路径；WebDAV 显示不含凭据的规范化 URL；Browser 显示实际 IndexedDB 数据库名。绝对路径只向已授权的单用户 catalog 前端公开，API 错误、未知 500 和日志不包含单仓路径或凭据。`CTN_REPOSITORY_HOST_ROOT` 必须是绝对路径，只参与展示，不参与读写、删除或权限判断。
 
-WebDAV 连接由名称、URL 和无认证或 Basic 认证组成；初次添加时探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE 能力。完全空的目标初始化为 v3 仓库，已有 v3 内容保持为远端事实，非空且不受管理的目标及旧版本目标不会被接管。本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。Browser 模式只创建和切换 Browser 仓库。
+WebDAV 连接由名称、URL 和无认证或 Basic 认证组成；初次添加时探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE 能力。完全空的目标初始化为 v4 仓库，已有 v4 内容保持为远端事实，非空且不受管理的目标及旧版本目标不会被接管。本地仓库与 WebDAV 仓库之间没有上传、下载或合并操作。Browser 模式只创建和切换 Browser 普通仓库。
 
 WebDAV 连接文件位于 `CTN_SERVER_STATE_DIR/webdav-connections/`。状态目录权限为 `0700`，包含认证信息的配置文件权限为 `0600`；密码不进入 API 响应、日志或 IndexedDB。Basic 认证只用于 HTTPS URL，URL 不包含 userinfo、query 或 fragment，WebDAV 请求不跟随重定向。
 
@@ -135,14 +139,14 @@ HTTP repository 的本地 draft、已知远端 revision、catalog 与逐笔记 s
 ## 代码结构
 
     src/app/          应用组合根、workbench 装配和 activity adapter
-    src/application/  workspace session、runtime、选择、导航、诊断和 activity 投影
+    src/application/  普通 workspace、repository/system session、workbench 状态、选择、导航、诊断和 activity 投影
     src/ui/           workbench 布局、activity slots、问题面板、共享组件和样式
     src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
     ctn/              前端与 Local server 共享的纯 CTN parser、metadata reconcile 和 syntax profile 核心
     src/storage/      repository 端口、浏览器/HTTP adapter 和运行时组合
     src/editor/       CodeMirror 编辑器适配
-    contracts/        前后端共享的 repository wire contract
-    server/           repository 规则、catalog、HTTP API 和本地/WebDAV adapter
+    contracts/        前后端共享的普通仓库与系统仓库 wire contract
+    server/           普通/系统 repository 规则、catalog、HTTP API 和本地/WebDAV adapter
     tests/            按源码职责镜像的单元、UI 和架构测试
     e2e/              按编辑、结构、活动视图、诊断和仓库流程拆分的浏览器测试及 fixtures
 

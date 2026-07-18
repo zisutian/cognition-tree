@@ -1,0 +1,265 @@
+import { IDBFactory } from "fake-indexeddb";
+import { describe, expect, it } from "vitest";
+import { createBrowserSystemRepositoryCatalog } from "../../../../src/storage/adapters/browser/browserSystemRepository";
+import {
+  browserSystemRepositoryDatabaseName,
+  createBrowserSystemRepositoryStorage,
+} from "../../../../src/storage/adapters/browser/browserSystemRepositoryStorage";
+import { VersionedRepositoryBackendConflictError } from "../../../../src/storage/repository/versionedRepository";
+
+const remoteStoreName = "browser-remotes-v1";
+
+function requestResult<Result>(request: IDBRequest<Result>) {
+  return new Promise<Result>((resolve, reject) => {
+    request.addEventListener("success", () => resolve(request.result));
+    request.addEventListener("error", () => reject(request.error));
+  });
+}
+
+function transactionComplete(transaction: IDBTransaction) {
+  return new Promise<void>((resolve, reject) => {
+    transaction.addEventListener("complete", () => resolve());
+    transaction.addEventListener("abort", () => reject(transaction.error));
+    transaction.addEventListener("error", () => reject(transaction.error));
+  });
+}
+
+async function openDatabase(indexedDb: IDBFactory) {
+  return requestResult(indexedDb.open(browserSystemRepositoryDatabaseName));
+}
+
+describe("browser system repositories", () => {
+  it("provisions both protected repositories once and keeps repository objects stable", async () => {
+    const indexedDb = new IDBFactory();
+    const storage = createBrowserSystemRepositoryStorage(indexedDb);
+    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+    const first = await catalog.listRepositories();
+    const second = await catalog.listRepositories();
+
+    expect(first).toEqual(second);
+    expect(first.issues).toEqual([]);
+    expect(first.repositories.map(({ id, label, protected: isProtected }) => ({
+      id,
+      isProtected,
+      label,
+    }))).toEqual([
+      { id: "system-journal", isProtected: true, label: "日记" },
+      { id: "system-todo", isProtected: true, label: "代办" },
+    ]);
+    expect("createRepository" in catalog).toBe(false);
+    expect("deleteRepository" in catalog).toBe(false);
+    expect("renameRepository" in catalog).toBe(false);
+
+    const journalDescriptor = first.repositories[0]!;
+    const journal = catalog.openRepository(journalDescriptor);
+
+    expect(catalog.openRepository(journalDescriptor)).toBe(journal);
+    await expect(journal.loadSnapshot()).resolves.toMatchObject({
+      content: {
+        entries: [],
+        purpose: "system-journal",
+        schemaVersion: 1,
+      },
+      pendingChanges: false,
+    });
+    await expect(catalog.openRepository(first.repositories[1]!).loadSnapshot())
+      .resolves.toMatchObject({
+        content: {
+          collections: [],
+          purpose: "system-todo",
+          schemaVersion: 1,
+        },
+      });
+
+    const database = await openDatabase(indexedDb);
+    const transaction = database.transaction(remoteStoreName, "readonly");
+    const completion = transactionComplete(transaction);
+    const remotes = await requestResult(
+      transaction.objectStore(remoteStoreName).getAll(),
+    );
+
+    await completion;
+    expect(remotes).toHaveLength(2);
+    database.close();
+  });
+
+  it("uses CAS for Browser commits", async () => {
+    const storage = createBrowserSystemRepositoryStorage(new IDBFactory());
+    const firstBackend = storage.createBackend("system-todo");
+    const secondBackend = storage.createBackend("system-todo");
+    const initial = await firstBackend.loadRemoteSnapshot();
+
+    await firstBackend.commitRemoteSnapshot({
+      baseRevision: initial.revision,
+      content: {
+        collections: [{
+          createdAt: "2026-07-18T00:00:00.000Z",
+          id: "todo-collection-00000000-0000-4000-8000-000000000001",
+          items: [],
+          name: "Changed",
+          updatedAt: "2026-07-18T00:00:00.000Z",
+        }],
+        purpose: "system-todo",
+        schemaVersion: 1,
+      },
+    });
+    await expect(secondBackend.commitRemoteSnapshot({
+      baseRevision: initial.revision,
+      content: initial.content,
+    })).rejects.toBeInstanceOf(VersionedRepositoryBackendConflictError);
+  });
+
+  it("retains corrupt persistent content and reports retry as fault", async () => {
+    const indexedDb = new IDBFactory();
+    const storage = createBrowserSystemRepositoryStorage(indexedDb);
+    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+
+    await catalog.listRepositories();
+    const database = await openDatabase(indexedDb);
+    const corrupt = {
+      content: {
+        entries: [],
+        purpose: "system-journal",
+        schemaVersion: 99,
+      },
+      purpose: "system-journal",
+      revision: `sha256:${"a".repeat(64)}`,
+    };
+    const write = database.transaction(remoteStoreName, "readwrite");
+    const writeCompletion = transactionComplete(write);
+
+    write.objectStore(remoteStoreName).put(corrupt);
+    await writeCompletion;
+
+    const projection = await catalog.listRepositories();
+
+    expect(projection.repositories.map(({ id }) => id)).toEqual([
+      "system-todo",
+    ]);
+    expect(projection.issues).toMatchObject([{
+      code: "unsupported_repository_version",
+      id: "system-journal",
+      status: "fault",
+    }]);
+    await expect(catalog.retryRepository("system-journal")).resolves.toEqual({
+      status: "fault",
+    });
+
+    const read = database.transaction(remoteStoreName, "readonly");
+    const readCompletion = transactionComplete(read);
+    const retained = await requestResult(
+      read.objectStore(remoteStoreName).get("system-journal"),
+    );
+
+    await readCompletion;
+    expect(retained).toEqual(corrupt);
+    database.close();
+  });
+
+  it("retains valid-shaped content whose stored revision is not canonical", async () => {
+    const indexedDb = new IDBFactory();
+    const storage = createBrowserSystemRepositoryStorage(indexedDb);
+    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+
+    await catalog.listRepositories();
+    const database = await openDatabase(indexedDb);
+    const mismatched = {
+      content: {
+        collections: [],
+        purpose: "system-todo",
+        schemaVersion: 1,
+      },
+      purpose: "system-todo",
+      revision: `sha256:${"f".repeat(64)}`,
+    };
+    const write = database.transaction(remoteStoreName, "readwrite");
+    const writeCompletion = transactionComplete(write);
+
+    write.objectStore(remoteStoreName).put(mismatched);
+    await writeCompletion;
+
+    await expect(catalog.listRepositories()).resolves.toMatchObject({
+      issues: [{ code: "repository_corrupt", id: "system-todo" }],
+      repositories: [{ id: "system-journal" }],
+    });
+    const read = database.transaction(remoteStoreName, "readonly");
+    const readCompletion = transactionComplete(read);
+    const retained = await requestResult(
+      read.objectStore(remoteStoreName).get("system-todo"),
+    );
+
+    await readCompletion;
+    expect(retained).toEqual(mismatched);
+    database.close();
+  });
+
+  it("does not hide ready repositories when catalog cache saving fails", async () => {
+    const storage = createBrowserSystemRepositoryStorage(new IDBFactory());
+    const catalog = createBrowserSystemRepositoryCatalog({
+      storage: {
+        ...storage,
+        catalogCache: {
+          ...storage.catalogCache,
+          async save() {
+            throw new Error("catalog quota exceeded");
+          },
+        },
+      },
+    });
+
+    await expect(catalog.listRepositories()).resolves.toMatchObject({
+      issues: [],
+      repositories: [
+        { id: "system-journal" },
+        { id: "system-todo" },
+      ],
+    });
+  });
+
+  it("projects adapter faults instead of throwing when IndexedDB is absent", async () => {
+    const catalog = createBrowserSystemRepositoryCatalog();
+    const originalIndexedDb = globalThis.indexedDB;
+
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      await expect(catalog.listRepositories()).resolves.toMatchObject({
+        issues: [
+          { code: "adapter_unavailable", id: "system-journal" },
+          { code: "adapter_unavailable", id: "system-todo" },
+        ],
+        repositories: [],
+      });
+    } finally {
+      Object.defineProperty(globalThis, "indexedDB", {
+        configurable: true,
+        value: originalIndexedDb,
+      });
+    }
+  });
+
+  it("classifies asynchronous IndexedDB open failures as adapter faults", async () => {
+    const request = new EventTarget() as IDBOpenDBRequest;
+    const openError = new Error("IndexedDB open rejected");
+
+    Object.defineProperty(request, "error", { get: () => openError });
+    const indexedDb = {
+      open() {
+        queueMicrotask(() => request.dispatchEvent(new Event("error")));
+        return request;
+      },
+    } as unknown as IDBFactory;
+    const storage = createBrowserSystemRepositoryStorage(indexedDb);
+    const catalog = createBrowserSystemRepositoryCatalog({ storage });
+
+    await expect(catalog.listRepositories()).resolves.toMatchObject({
+      issues: [
+        { code: "adapter_unavailable", id: "system-journal" },
+        { code: "adapter_unavailable", id: "system-todo" },
+      ],
+      repositories: [],
+    });
+  });
+});

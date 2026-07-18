@@ -18,6 +18,10 @@ import type {
 } from "../../repository/workspaceRepositoryCache";
 import { WorkspaceRepositoryLocalConflictError } from "../../repository/workspaceRepository";
 import {
+  parseAvailableWorkspaceRepositoryLabel,
+  projectWorkspaceRepositoryNameConflicts,
+} from "../../repository/repositoryLabelPolicy";
+import {
   parseWorkspaceRepositoryCatalogCacheState,
   type WorkspaceRepositoryCatalogCache,
 } from "../../repository/workspaceRepositoryCatalogCache";
@@ -563,6 +567,12 @@ export function createIndexedDbRepositoryClientCache(
         );
       }
 
+      const label = parseAvailableWorkspaceRepositoryLabel(
+        parsedDescriptor.label,
+        catalog.repositories,
+      );
+      const nextDescriptor = { ...parsedDescriptor, label };
+
       const state: WorkspaceRepositoryLocalState = {
         content: parsedContent,
         localRevision,
@@ -570,15 +580,16 @@ export function createIndexedDbRepositoryClientCache(
         remoteRevision: parsedRemoteRevision,
       };
 
-      transaction.objectStore(catalogStoreName).put(
-        {
+      const projectedCatalog = projectWorkspaceRepositoryNameConflicts({
           creatableAdapters: ["browser"],
           issues: catalog.issues,
-          repositories: [...catalog.repositories, parsedDescriptor].sort(
+          repositories: [...catalog.repositories, nextDescriptor].sort(
             (left, right) => left.id.localeCompare(right.id),
           ),
-          version: 4,
-        },
+        });
+
+      transaction.objectStore(catalogStoreName).put(
+        { ...projectedCatalog, version: 4 },
         catalogIdentity,
       );
       transaction
@@ -610,14 +621,16 @@ export function createIndexedDbRepositoryClientCache(
       if (catalogValue !== undefined) {
         const catalog = parseWorkspaceRepositoryCatalogCacheState(catalogValue);
 
-        transaction.objectStore(catalogStoreName).put(
-          {
-            ...catalog,
+        const projectedCatalog = projectWorkspaceRepositoryNameConflicts({
+            creatableAdapters: catalog.creatableAdapters,
             issues: catalog.issues.filter(({ id }) => id !== repositoryId),
             repositories: catalog.repositories.filter(
               ({ id }) => id !== repositoryId,
             ),
-          },
+          });
+
+        transaction.objectStore(catalogStoreName).put(
+          { ...projectedCatalog, version: 4 },
           catalogIdentity,
         );
       }
@@ -630,6 +643,51 @@ export function createIndexedDbRepositoryClientCache(
           .getAllKeys(repositoryIdentity),
       );
       keys.forEach((key) => transaction.objectStore(noteStoreName).delete(key));
+      await completion;
+    },
+    async renameRepositoryAtomically({
+      catalogIdentity,
+      label,
+      repositoryId,
+    }) {
+      const db = await database;
+      const transaction = db.transaction(catalogStoreName, "readwrite");
+      const completion = transactionComplete(transaction);
+      const store = transaction.objectStore(catalogStoreName);
+      const catalogValue = await requestResult(store.get(catalogIdentity));
+
+      if (catalogValue === undefined) {
+        transaction.abort();
+        await completion.catch(() => undefined);
+        throw new Error(`Repository catalog does not exist: ${catalogIdentity}`);
+      }
+      const catalog = parseWorkspaceRepositoryCatalogCacheState(catalogValue);
+      const descriptor = catalog.repositories.find(({ id }) =>
+        id === repositoryId
+      );
+
+      if (!descriptor) {
+        transaction.abort();
+        await completion.catch(() => undefined);
+        throw new Error(`Browser repository does not exist: ${repositoryId}`);
+      }
+      const parsedLabel = parseAvailableWorkspaceRepositoryLabel(
+        label,
+        catalog.repositories,
+        repositoryId,
+      );
+
+      const projectedCatalog = projectWorkspaceRepositoryNameConflicts({
+        creatableAdapters: catalog.creatableAdapters,
+        issues: catalog.issues,
+        repositories: catalog.repositories.map((repository) =>
+          repository.id === repositoryId
+            ? { ...repository, label: parsedLabel, nameConflict: false }
+            : repository
+        ),
+      });
+
+      store.put({ ...projectedCatalog, version: 4 }, catalogIdentity);
       await completion;
     },
     snapshots: createIndexedDbRepositoryCache(database),

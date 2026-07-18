@@ -35,13 +35,19 @@ export type DeleteRepositoryRequest = {
   mode: RepositoryDeletionMode;
 };
 
+export type RenameRepositoryRequest = {
+  id: string;
+  name: string;
+};
+
 export type RepositoryCatalogOperation =
   | "creating"
   | "deleting"
   | "idle"
+  | "renaming"
   | "switching";
 
-type ReadyRepositoryCatalogState = {
+export type ReadyRepositoryCatalogState = {
   activeRepositoryId: string | null;
   creatableAdapters: RepositoryAdapterKind[];
   issues: WorkspaceRepositoryCatalogIssue[];
@@ -50,7 +56,7 @@ type ReadyRepositoryCatalogState = {
   status: "ready";
 };
 
-type RepositoryCatalogState =
+export type RepositoryCatalogState =
   | { status: "loading" }
   | { errorMessage: string; status: "failed" }
   | ReadyRepositoryCatalogState;
@@ -90,6 +96,18 @@ function repositoryLocationsEqual(
   }
 }
 
+export function createRepositoryConnectionKey(
+  descriptor: WorkspaceRepositoryDescriptor | null,
+) {
+  return descriptor
+    ? JSON.stringify({
+        adapter: descriptor.adapter,
+        id: descriptor.id,
+        location: descriptor.location,
+      })
+    : "";
+}
+
 export function reuseUnchangedRepositoryDescriptors(
   previous: WorkspaceRepositoryDescriptor[],
   next: WorkspaceRepositoryDescriptor[],
@@ -105,6 +123,7 @@ export function reuseUnchangedRepositoryDescriptors(
       existing &&
       existing.adapter === descriptor.adapter &&
       existing.label === descriptor.label &&
+      existing.nameConflict === descriptor.nameConflict &&
       repositoryLocationsEqual(existing.location, descriptor.location)
     ) {
       return existing;
@@ -369,15 +388,45 @@ export function useRepositoryCatalog(
       throw error;
     }
   }, [beginOperation, catalog, finishOperation, publish, publishCatalog]);
+  const renameRepository = useCallback(async (
+    input: RenameRepositoryRequest,
+  ) => {
+    const previous = beginOperation("renaming");
+    const label = input.name.trim();
+
+    try {
+      if (!label) {
+        throw new Error("仓库名称不能为空。");
+      }
+      if (!previous.repositories.some(({ id }) => id === input.id)) {
+        throw new Error(`Repository does not exist: ${input.id}`);
+      }
+      await catalog.renameRepository({
+        id: input.id,
+        label,
+      });
+      const nextCatalog = await catalog.listRepositories();
+
+      publishCatalog(nextCatalog, previous.activeRepositoryId);
+    } catch (error) {
+      publish({ ...previous, operation: "idle" });
+      throw error;
+    }
+  }, [beginOperation, catalog, publish, publishCatalog]);
 
   const activeDescriptor = state.status === "ready"
     ? state.repositories.find(
         (repository) => repository.id === state.activeRepositoryId,
       ) ?? null
     : null;
+  const activeRepositoryConnection = createRepositoryConnectionKey(
+    activeDescriptor,
+  );
   const repository = useMemo(
     () => activeDescriptor ? catalog.openRepository(activeDescriptor) : null,
-    [activeDescriptor, catalog],
+    // A label-only catalog mutation must not rebuild the active session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeRepositoryConnection, catalog],
   );
 
   return {
@@ -386,6 +435,7 @@ export function useRepositoryCatalog(
     createRepository,
     deleteRepository,
     reload,
+    renameRepository,
     repository,
     selectRepository,
     state,

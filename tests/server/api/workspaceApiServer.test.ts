@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import type {
   IncomingHttpHeaders,
   IncomingMessage,
@@ -30,6 +30,7 @@ import {
 } from "../../../server/api/workspaceApiServer.ts";
 import { createWorkspaceApiSecurityPolicy } from "../../../server/api/workspaceApiSecurity.ts";
 import { CompositeRepositoryCatalog } from "../../../server/catalog/compositeRepositoryCatalog.ts";
+import { SystemRepositoryCatalog } from "../../../server/repository/systemRepositoryCatalog.ts";
 import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
@@ -124,6 +125,7 @@ async function withHandler<Result>(
     async initialize() {},
     async listEntries() { return { issues: [], repositories: [] }; },
     async register() { throw new Error("WebDAV registration is not used here"); },
+    async renameConnection() { throw new Error("WebDAV rename is not used here"); },
     async removeConnection() { return false; },
     async retryDeletion() { return { status: "deleted" }; },
   };
@@ -131,9 +133,13 @@ async function withHandler<Result>(
     createId: () =>
       `00000000-0000-4000-8000-${String(++nextId).padStart(12, "0")}`,
   });
+  const systemCatalog = new SystemRepositoryCatalog(
+    path.join(rootDir, ".system-state"),
+  );
   const handler = createWorkspaceApiRequestHandler({
     catalog,
     security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
+    systemCatalog,
   });
 
   try {
@@ -183,6 +189,122 @@ async function commitSnapshot(
 }
 
 describe("workspace API v4", () => {
+  it("serves protected system catalogs and snapshot CAS without mutation endpoints", async () => {
+    await withHandler(async (handler) => {
+      const catalogResponse = await dispatch(handler, {
+        method: "GET",
+        url: "/api/system-repositories",
+      });
+      expect(catalogResponse).toMatchObject({
+        body: {
+          issues: [],
+          repositories: [
+            { id: "system-journal", label: "日记", protected: true },
+            { id: "system-todo", label: "代办", protected: true },
+          ],
+        },
+        statusCode: 200,
+      });
+
+      const snapshotUrl = "/api/system-repositories/system-journal/snapshot";
+      const loaded = await dispatch<{
+        content: unknown;
+        revision: string;
+      }>(handler, { method: "GET", url: snapshotUrl });
+      if (!loaded.body) throw new Error("System repository snapshot is missing");
+      const content = {
+        entries: [{
+          createdAt: "2026-07-18T01:00:00.000Z",
+          id: "journal-entry-00000000-0000-4000-8000-000000000001",
+          source: "Journal body",
+          timezoneOffsetMinutes: -480,
+          updatedAt: "2026-07-18T01:00:00.000Z",
+        }],
+        purpose: "system-journal",
+        schemaVersion: 1,
+      };
+      const committed = await dispatch<{ revision: string }>(handler, {
+        body: JSON.stringify({
+          baseRevision: loaded.body.revision,
+          content,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: snapshotUrl,
+      });
+      if (!committed.body) throw new Error("System repository commit is missing");
+      expect(committed.statusCode).toBe(200);
+      await expect(dispatch(handler, {
+        body: JSON.stringify({
+          baseRevision: loaded.body.revision,
+          content: { ...content, entries: [] },
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: snapshotUrl,
+      })).resolves.toMatchObject({
+        body: { code: "revision_conflict", currentRevision: committed.body.revision },
+        statusCode: 409,
+      });
+      await expect(dispatch(handler, {
+        method: "DELETE",
+        url: snapshotUrl,
+      })).resolves.toMatchObject({ statusCode: 405 });
+      await expect(dispatch(handler, {
+        body: "{}",
+        headers: { "content-length": "2", "content-type": "application/json" },
+        method: "POST",
+        url: "/api/system-repositories/system-journal/retry",
+      })).resolves.toMatchObject({ statusCode: 400 });
+      await expect(dispatch(handler, {
+        method: "POST",
+        url: "/api/system-repositories",
+      })).resolves.toMatchObject({ statusCode: 405 });
+    });
+  });
+
+  it("projects corrupt system files and retries only safe repair or provisioning", async () => {
+    await withHandler(async (handler, rootDir) => {
+      const journalPath = path.join(
+        rootDir,
+        ".system-state",
+        "system-repositories",
+        "system-journal.json",
+      );
+      const corruptSource = "{broken\n";
+
+      await dispatch(handler, { method: "GET", url: "/api/system-repositories" });
+      await writeFile(journalPath, corruptSource);
+      const listed = await dispatch(handler, {
+        method: "GET",
+        url: "/api/system-repositories",
+      });
+      expect(listed).toMatchObject({
+        body: { issues: [{ id: "system-journal", status: "fault" }] },
+        statusCode: 200,
+      });
+      expect(await readFile(journalPath, "utf8")).toBe(corruptSource);
+      await expect(dispatch(handler, {
+        method: "POST",
+        url: "/api/system-repositories/system-journal/retry",
+      })).resolves.toMatchObject({ body: { status: "fault" }, statusCode: 200 });
+
+      await writeFile(journalPath, JSON.stringify({
+        entries: [],
+        purpose: "system-journal",
+        schemaVersion: 1,
+      }));
+      await expect(dispatch(handler, {
+        method: "POST",
+        url: "/api/system-repositories/system-journal/retry",
+      })).resolves.toMatchObject({ body: { status: "ready" }, statusCode: 200 });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: "/api/system-repositories/not-system/snapshot",
+      })).resolves.toMatchObject({ statusCode: 400 });
+    });
+  });
+
   it("rejects a 10,000-level Local tree before publishing a partial repository", async () => {
     await withHandler(async (handler) => {
       const content = createDeepRepositoryContent(10_000, "Deep initial");
@@ -273,6 +395,46 @@ describe("workspace API v4", () => {
         .resolves.toMatchObject({
           body: { repositories: [expect.objectContaining({ label: "Catalog" })] },
         });
+    });
+  });
+
+  it("renames only the ordinary catalog label and rejects duplicate or reserved names", async () => {
+    await withHandler(async (handler) => {
+      const created = await createRepository(handler, createContent("Content name"), "Before");
+      const repositoryId = created.body?.id;
+
+      if (!repositoryId) throw new Error("expected generated repository id");
+      const before = await loadSnapshot(handler, repositoryId);
+      const renamed = await dispatch<RepositoryDescriptorDto>(handler, {
+        body: JSON.stringify({ label: "  After  " }),
+        headers: { "content-type": "application/json" },
+        method: "PATCH",
+        url: `/api/repositories/${encodeURIComponent(repositoryId)}`,
+      });
+
+      expect(renamed).toMatchObject({
+        body: { id: repositoryId, label: "After", nameConflict: false },
+        statusCode: 200,
+      });
+      await expect(loadSnapshot(handler, repositoryId)).resolves.toEqual(before);
+      await expect(dispatch(handler, { method: "GET", url: "/api/repositories" }))
+        .resolves.toMatchObject({
+          body: { repositories: [expect.objectContaining({ label: "After" })] },
+        });
+
+      await createRepository(handler, createContent("Other content"), "Remote");
+      for (const label of ["ＲＥＭＯＴＥ", "日记"]) {
+        await expect(dispatch(handler, {
+          body: JSON.stringify({ label }),
+          headers: { "content-type": "application/json" },
+          method: "PATCH",
+          url: `/api/repositories/${encodeURIComponent(repositoryId)}`,
+        })).resolves.toMatchObject({
+          body: { code: "invalid_request" },
+          statusCode: 400,
+        });
+      }
+      await expect(loadSnapshot(handler, repositoryId)).resolves.toEqual(before);
     });
   });
 
@@ -395,6 +557,7 @@ describe("workspace API v4", () => {
           repositories: [],
         };
       },
+      async renameRepository() { throw new Error("unused"); },
     };
     const handler = createWorkspaceApiRequestHandler({
       catalog,
@@ -542,6 +705,9 @@ describe("workspace API v4", () => {
       async listRepositories() {
         throw new Error(`Could not read '${repositoryPath}'`);
       },
+      async renameRepository() {
+        throw new Error(`Could not read '${repositoryPath}'`);
+      },
     };
     const handler = createWorkspaceApiRequestHandler({
       catalog,
@@ -583,6 +749,7 @@ describe("workspace API v4", () => {
         async listRepositories() {
           throw new RepositoryCatalogError("internal_error", privateDetail);
         },
+        async renameRepository() { throw new Error("unused"); },
       },
       logger: { error: vi.fn() },
       security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
@@ -614,6 +781,7 @@ describe("workspace API v4", () => {
         async deleteRepository() { throw new Error("unused"); },
         async getStore() { throw new Error("unused"); },
         async listRepositories() { throw new Error("unused"); },
+        async renameRepository() { throw new Error("unused"); },
       },
       logger,
       security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
@@ -694,6 +862,7 @@ describe("workspace API v4", () => {
             repositories: [],
           } as RepositoryCatalogDto;
         },
+        async renameRepository() { throw new Error("unused"); },
       },
       security: createWorkspaceApiSecurityPolicy({
         bearerToken: token,

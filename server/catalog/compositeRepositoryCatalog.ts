@@ -2,12 +2,14 @@
 
 import { randomUUID } from "node:crypto";
 import { isRepositoryId } from "../../contracts/workspace-repository/parseCatalog.ts";
+import { normalizeRepositoryLabel } from "../../contracts/workspace-repository/parseCatalog.ts";
 import type {
   CreateRepositoryDto,
   RepositoryCatalogDto,
   RepositoryDeletionModeDto,
   RepositoryDeletionResultDto,
   RepositoryDescriptorDto,
+  RenameRepositoryDto,
   WorkspaceRepositoryContentDto,
 } from "../../contracts/workspace-repository/types.ts";
 import {
@@ -27,6 +29,7 @@ type LocalCatalogPort = {
   getStore(repositoryId: string): Promise<WorkspaceRepositoryStore>;
   initialize(): Promise<void>;
   listRepositories(): Promise<RepositoryCatalogDto>;
+  renameRepository(repositoryId: string, label: string): Promise<RepositoryDescriptorDto>;
 };
 
 type WebDavRegistryPort = {
@@ -46,6 +49,7 @@ type WebDavRegistryPort = {
     url: string;
   }): Promise<RepositoryDescriptorDto>;
   removeConnection(repositoryId: string): Promise<boolean>;
+  renameConnection(repositoryId: string, label: string): Promise<RepositoryDescriptorDto>;
   retryDeletion(repositoryId: string): Promise<{
     status: "deleted" | "deleting";
   }>;
@@ -57,6 +61,10 @@ type CompositeRepositoryCatalogOptions = {
 
 const maximumIdAllocationAttempts = 100;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const reservedRepositoryLabelKeys = new Set([
+  normalizeRepositoryLabel("日记"),
+  normalizeRepositoryLabel("代办"),
+]);
 
 export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
   readonly #createId: () => string;
@@ -114,20 +122,21 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
   async createRepository(request: CreateRepositoryDto) {
     return this.#enqueueOperation(async () => {
       await this.initialize();
+      const label = await this.#assertAvailableLabel(request.label);
       const repositoryId = await this.#allocateRepositoryId();
 
       if (request.adapter === "local") {
         return this.#localCatalog.createRepositoryWithId({
           content: request.content,
           id: repositoryId,
-          label: request.label,
+          label,
         });
       }
       return this.#webDavRegistry.register({
         authentication: request.authentication,
         id: repositoryId,
         initialContent: request.initialContent,
-        label: request.label,
+        label,
         url: request.url,
       });
     });
@@ -197,6 +206,41 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
     });
   }
 
+  async renameRepository(
+    repositoryId: string,
+    request: RenameRepositoryDto,
+  ) {
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      if (!isRepositoryId(repositoryId)) {
+        throw new RepositoryCatalogError(
+          "invalid_request",
+          `Invalid repository id: ${repositoryId}`,
+        );
+      }
+      const catalog = await this.#listRepositories();
+      const repository = catalog.repositories.find(({ id }) => id === repositoryId);
+      if (!repository) {
+        throw new RepositoryCatalogError(
+          "repository_not_found",
+          `Repository does not exist: ${repositoryId}`,
+        );
+      }
+      const label = await this.#assertAvailableLabel(request.label, repositoryId);
+      const renamed = repository.adapter === "local"
+        ? await this.#localCatalog.renameRepository(repositoryId, label)
+        : repository.adapter === "webdav"
+          ? await this.#webDavRegistry.renameConnection(repositoryId, label)
+          : (() => {
+              throw new RepositoryCatalogError(
+                "invalid_request",
+                "Browser repositories are not managed by the HTTP server",
+              );
+            })();
+      return { ...renamed, nameConflict: false };
+    });
+  }
+
   async listRepositories() {
     return this.#enqueueOperation(async () => {
       await this.initialize();
@@ -234,13 +278,56 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
       this.#webDavRegistry.listEntries(),
     ]);
 
+    const repositories = [...local.repositories, ...webdav.repositories]
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const countsByLabel = new Map<string, number>();
+    for (const repository of repositories) {
+      const key = normalizeRepositoryLabel(repository.label);
+      countsByLabel.set(key, (countsByLabel.get(key) ?? 0) + 1);
+    }
+
     return {
       creatableAdapters: ["local", "webdav"],
       issues: [...local.issues, ...webdav.issues]
         .sort((left, right) => left.id.localeCompare(right.id)),
-      repositories: [...local.repositories, ...webdav.repositories]
-        .sort((left, right) => left.id.localeCompare(right.id)),
+      repositories: repositories.map((repository) => {
+        const key = normalizeRepositoryLabel(repository.label);
+        return {
+          ...repository,
+          nameConflict:
+            reservedRepositoryLabelKeys.has(key) ||
+            (countsByLabel.get(key) ?? 0) > 1,
+        };
+      }),
     };
+  }
+
+  async #assertAvailableLabel(labelValue: string, excludedId?: string) {
+    const label = labelValue.trim();
+    const key = normalizeRepositoryLabel(label);
+    if (key.length === 0) {
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Repository label must not be empty",
+      );
+    }
+    if (reservedRepositoryLabelKeys.has(key)) {
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Repository label is reserved for a system repository",
+      );
+    }
+    const catalog = await this.#listRepositories();
+    if (catalog.repositories.some((repository) =>
+      repository.id !== excludedId &&
+      normalizeRepositoryLabel(repository.label) === key
+    )) {
+      throw new RepositoryCatalogError(
+        "invalid_request",
+        "Repository label is already in use",
+      );
+    }
+    return label;
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>) {

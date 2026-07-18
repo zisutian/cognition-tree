@@ -1,4 +1,10 @@
 import type { ReactNode } from "react";
+import type { WorkbenchApplication } from "../../application/workbench/workbenchApplication";
+import type { RepositoryNavigation } from "../../application/repository/useRepositoryNavigation";
+import {
+  projectSystemRepositoryRuntimeIssues,
+  type SystemRepositoryRuntimeIssue,
+} from "../../application/repository/projectSystemRepositoryIssues";
 import type { WorkspaceApplication } from "../../application/workspace/runtime/useWorkspaceApplication";
 import type { UiWorkbenchDiagnostics } from "../../application/workspace/projection/viewDiagnostics";
 import {
@@ -7,6 +13,7 @@ import {
   type UiWorkbenchProblems,
 } from "../../application/workspace/projection/viewProblems";
 import type { WorkspaceRepositoryCatalogIssue } from "../../storage/repository/workspaceRepositoryCatalog";
+import type { WorkspaceRepositoryDescriptor } from "../../storage/repository/workspaceRepositoryCatalog";
 import type { ActivityId } from "../../ui/activityTypes";
 import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
 import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShortcut";
@@ -14,10 +21,11 @@ import type { WorkbenchController } from "../../ui/workbench/useWorkbenchLayout"
 
 type WorkbenchProblemOpenContext = {
   expandPanels: () => void;
-  navigation: Pick<
+  repositoryNavigation: RepositoryNavigation;
+  workspaceNavigation: Pick<
     WorkspaceApplication["navigation"],
-    "openNoteLine" | "openRepositoryIssue" | "openSyntaxField"
-  >;
+    "openNoteLine" | "openSyntaxField"
+  > | null;
   onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
@@ -29,14 +37,20 @@ export function selectWorkbenchProblems({
   activeActivityId,
   diagnostics,
   repositoryIssues,
+  repositories,
+  systemIssues,
 }: {
   activeActivityId: ActivityId;
   diagnostics: UiWorkbenchDiagnostics;
   repositoryIssues: WorkspaceRepositoryCatalogIssue[];
+  repositories: WorkspaceRepositoryDescriptor[];
+  systemIssues: SystemRepositoryRuntimeIssue[];
 }): UiWorkbenchProblems {
   return createUiWorkbenchProblems(
     diagnostics,
     activeActivityId === "repository" ? repositoryIssues : [],
+    activeActivityId === "repository" ? repositories : [],
+    activeActivityId === "repository" ? systemIssues : [],
   );
 }
 
@@ -45,19 +59,27 @@ export function openWorkbenchProblem(
   context: WorkbenchProblemOpenContext,
 ) {
   if (problem.target.kind === "note-line") {
-    context.navigation.openNoteLine(
+    context.workspaceNavigation?.openNoteLine(
       problem.target.noteId,
       problem.target.lineNumber,
     );
     context.onActiveActivityChange("notes");
   } else if (problem.target.kind === "syntax-field") {
-    context.navigation.openSyntaxField(
+    context.workspaceNavigation?.openSyntaxField(
       problem.target.syntaxFileId,
       problem.target.fieldId,
     );
     context.onActiveActivityChange("syntax");
+  } else if (problem.target.kind === "repository-issue") {
+    context.repositoryNavigation.focusOrdinaryIssue(problem.target.issueId);
+    context.onActiveActivityChange("repository");
+  } else if (problem.target.kind === "repository-name-conflict") {
+    context.repositoryNavigation.focusOrdinaryRepository(
+      problem.target.repositoryId,
+    );
+    context.onActiveActivityChange("repository");
   } else {
-    context.navigation.openRepositoryIssue(problem.target.issueId);
+    context.repositoryNavigation.focusSystemRepository(problem.target.purpose);
     context.onActiveActivityChange("repository");
   }
 
@@ -72,23 +94,45 @@ export function WorkbenchProblemsController({
   workbench,
 }: {
   activeActivityId: ActivityId;
-  application: Pick<
-    WorkspaceApplication,
-    "diagnostics" | "navigation" | "repository"
-  >;
+  application: WorkbenchApplication;
   children: (problemsSlot: ReactNode | null) => ReactNode;
   onActiveActivityChange: (activityId: ActivityId) => void;
   workbench: WorkbenchController;
 }) {
+  const ordinaryCatalog = application.repository.catalogState.status === "ready"
+    ? application.repository.catalogState
+    : null;
+  const systemCatalog =
+    application.repository.systems.catalog.state.status === "ready"
+      ? application.repository.systems.catalog.state
+      : null;
+  const systemIssues = systemCatalog
+    ? projectSystemRepositoryRuntimeIssues({
+        issues: systemCatalog.issues,
+        repositories: systemCatalog.repositories,
+        sessions: application.repository.systems.sessions,
+      })
+    : [];
+  const workspace = application.workspace.status === "ready"
+    ? application.workspace.application
+    : null;
   const problems = selectWorkbenchProblems({
     activeActivityId,
-    diagnostics: application.diagnostics,
-    repositoryIssues: application.repository.issues,
+    diagnostics: workspace?.diagnostics ?? {
+      diagnostics: [],
+      errorCount: 0,
+      status: "ready",
+      warningCount: 0,
+    },
+    repositories: ordinaryCatalog?.repositories ?? [],
+    repositoryIssues: ordinaryCatalog?.issues ?? [],
+    systemIssues,
   });
   const openProblem = (problem: UiWorkbenchProblem) =>
     openWorkbenchProblem(problem, {
       expandPanels: workbench.expandPanels,
-      navigation: application.navigation,
+      repositoryNavigation: application.repository.navigation,
+      workspaceNavigation: workspace?.navigation ?? null,
       onActiveActivityChange,
     });
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { reuseUnchangedRepositoryDescriptors } from "../../../../src/application/workspace/session/useRepositoryCatalog";
+import {
+  createRepositoryConnectionKey,
+  reuseUnchangedRepositoryDescriptors,
+} from "../../../../src/application/workspace/session/useRepositoryCatalog";
 import type { WorkspaceRepositoryDescriptor } from "../../../../src/storage/repository/workspaceRepositoryCatalog";
 
 const descriptor: WorkspaceRepositoryDescriptor = {
@@ -11,6 +14,7 @@ const descriptor: WorkspaceRepositoryDescriptor = {
     serverPath: "/data/primary",
     type: "local",
   },
+  nameConflict: false,
 };
 
 describe("repository catalog descriptor identity", () => {
@@ -35,5 +39,25 @@ describe("repository catalog descriptor identity", () => {
     );
 
     expect(published).toBe(changed);
+  });
+
+  it("keeps label and conflict projection out of the active connection key", () => {
+    expect(createRepositoryConnectionKey({
+      ...descriptor,
+      label: "Renamed",
+      nameConflict: true,
+    })).toBe(createRepositoryConnectionKey(descriptor));
+    expect(createRepositoryConnectionKey({
+      ...descriptor,
+      id: "another",
+    })).not.toBe(createRepositoryConnectionKey(descriptor));
+    expect(createRepositoryConnectionKey({
+      ...descriptor,
+      location: {
+        hostPath: "/host/primary",
+        serverPath: "/data/moved",
+        type: "local",
+      },
+    })).not.toBe(createRepositoryConnectionKey(descriptor));
   });
 });

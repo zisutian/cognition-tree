@@ -1,0 +1,18 @@
+import type { RepositoryApplication } from "../repository/repositoryApplication";
+import type { WorkspaceApplication } from "../workspace/runtime/useWorkspaceApplication";
+
+export type WorkbenchWorkspaceState =
+  | { status: "absent" }
+  | { status: "loading"; storageLabel: string }
+  | {
+      errorMessage: string;
+      retry: () => Promise<void>;
+      status: "failed";
+      storageLabel: string;
+    }
+  | { application: WorkspaceApplication; status: "ready" };
+
+export type WorkbenchApplication = {
+  repository: RepositoryApplication;
+  workspace: WorkbenchWorkspaceState;
+};

@@ -14,6 +14,7 @@ import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryContent,
 } from "../../../contracts/workspace-repository/parseRepository.ts";
+import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json.ts";
 import type {
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryCommitResultDto,
@@ -227,6 +228,26 @@ export class WorkspaceFileStore {
     this.#assertAcceptingOperations();
     const commit = parseWorkspaceRepositoryCommit(value);
     return this.#enqueueOperation(() => this.#commitSnapshot(commit));
+  }
+
+  async renameLabel(label: string) {
+    this.#assertAcceptingOperations();
+    if (label.trim().length === 0) {
+      throw new WorkspaceRepositoryContractError("$.label", "expected non-empty label");
+    }
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      const metadata = await this.#readMetadata();
+      if (metadata.label === label) return;
+      await writeFileAtomically(
+        path.join(
+          this.#rootDir,
+          localControlDirectoryName,
+          localRepositoryMetadataFileName,
+        ),
+        `${serializeJsonIteratively({ ...metadata, label }, { indent: 2 })}\n`,
+      );
+    });
   }
 
   closeForDeletion(): Promise<void> {

@@ -12,6 +12,7 @@ import {
 import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "../../server/adapters/webdav/webDavConnectionRegistry.ts";
 import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
+import { SystemRepositoryCatalog } from "../../server/repository/systemRepositoryCatalog.ts";
 import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
@@ -44,12 +45,15 @@ const webDavRegistry = new WebDavConnectionRegistry({
   stateDirectory: serverStateDir,
 });
 const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
+const systemCatalog = new SystemRepositoryCatalog(serverStateDir);
 
 await catalog.initialize();
+await systemCatalog.initialize();
 
 const workspaceApiHandler = createWorkspaceApiRequestHandler({
   catalog,
   security,
+  systemCatalog,
 });
 
 async function readSeedRequest(request: IncomingMessage) {

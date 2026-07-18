@@ -86,6 +86,7 @@ describe("browser workspace repository catalog", () => {
       id: repositoryIdA,
       label: "Stable label",
       location: { databaseName, type: "browser" },
+      nameConflict: false,
     });
     await expect(catalog.listRepositories()).resolves.toEqual({
       creatableAdapters: ["browser"],
@@ -211,6 +212,7 @@ describe("browser workspace repository catalog", () => {
         id: repositoryIdA,
         label: "Existing",
         location: { databaseName, type: "browser" },
+        nameConflict: false,
       }],
       version: 4,
     });
@@ -291,6 +293,43 @@ describe("browser workspace repository catalog", () => {
       expectedLocalRevision: before.localRevision,
     })).rejects.toThrow("invalid repository note id");
     await expect(repository.loadSnapshot()).resolves.toEqual(before);
+  });
+
+  it("renames only the catalog label and enforces normalized global names", async () => {
+    const cache = createMemoryBrowserCache();
+    const catalog = createCatalog(cache, [uuidA, uuidB]);
+    const first = await catalog.createRepository({
+      adapter: "browser",
+      content: createRepositoryContent("Content stays independent"),
+      label: "Primary",
+    });
+    const second = await catalog.createRepository({
+      adapter: "browser",
+      content: createRepositoryContent("Second"),
+      label: "Second",
+    });
+    const before = await catalog.openRepository(first).loadSnapshot();
+
+    await expect(catalog.renameRepository({
+      id: first.id,
+      label: "  Renamed  ",
+    })).resolves.toMatchObject({ label: "Renamed", nameConflict: false });
+    await expect(catalog.renameRepository({
+      id: first.id,
+      label: "ＳＥＣＯＮＤ",
+    })).rejects.toThrow("already exists");
+    await expect(catalog.renameRepository({
+      id: first.id,
+      label: "日记",
+    })).rejects.toThrow("reserved");
+    await expect(catalog.listRepositories()).resolves.toMatchObject({
+      repositories: [
+        { id: first.id, label: "Renamed", nameConflict: false },
+        { id: second.id, label: "Second", nameConflict: false },
+      ],
+    });
+    await expect(catalog.openRepository({ ...first, label: "Renamed" })
+      .loadSnapshot()).resolves.toMatchObject({ content: before.content });
   });
 
   it("deletes browser content and catalog metadata idempotently", async () => {

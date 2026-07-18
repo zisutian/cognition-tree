@@ -57,6 +57,7 @@ function createRegistry({
       id: input.id,
       label: input.label,
       location: { type: "webdav", url: input.url },
+      nameConflict: false,
     };
 
     currentRepositories.push(descriptor);
@@ -85,6 +86,19 @@ function createRegistry({
   const retryDeletion = vi.fn<RegistryPort["retryDeletion"]>(async () => ({
     status: "deleted" as const,
   }));
+  const renameConnection = vi.fn<RegistryPort["renameConnection"]>(async (
+    id,
+    label,
+  ) => {
+    const index = currentRepositories.findIndex((entry) => entry.id === id);
+    const current = currentRepositories[index];
+    if (!current) {
+      throw new RepositoryCatalogError("repository_not_found", `missing ${id}`);
+    }
+    const renamed = { ...current, label, nameConflict: false };
+    currentRepositories[index] = renamed;
+    return renamed;
+  });
   const registry: RegistryPort = {
     deleteManagedData,
     async dispose() {},
@@ -108,6 +122,7 @@ function createRegistry({
       };
     },
     register,
+    renameConnection,
     removeConnection,
     retryDeletion,
   };
@@ -119,6 +134,7 @@ function createRegistry({
     deleteManagedData,
     register,
     registry,
+    renameConnection,
     removeConnection,
     retryDeletion,
   };
@@ -171,6 +187,7 @@ describe("composite repository catalog", () => {
             id: "repository-remote",
             label: "Remote",
             location: remoteLocation,
+            nameConflict: false,
           },
         ].sort((left, right) => left.id.localeCompare(right.id)),
       });
@@ -184,6 +201,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
+        nameConflict: false,
       }],
     });
   });
@@ -204,6 +222,7 @@ describe("composite repository catalog", () => {
         id: `repository-${firstUuid.toLowerCase()}`,
         label: "NAS",
         location: remoteLocation,
+        nameConflict: false,
       });
       expect(registry.register).toHaveBeenCalledWith({
         authentication: { type: "none" },
@@ -255,6 +274,102 @@ describe("composite repository catalog", () => {
     }, { createId });
   });
 
+  it("enforces normalized unique labels and protected system names", async () => {
+    await withCatalog(async (catalog) => {
+      await expect(catalog.createRepository({
+        adapter: "local",
+        content: createContent("Reserved"),
+        label: "  日记  ",
+      })).rejects.toMatchObject({ code: "invalid_request" });
+      await expect(catalog.createRepository({
+        adapter: "local",
+        content: createContent("Duplicate"),
+        label: "  rＥＭＯＴＥ  ",
+      })).rejects.toMatchObject({ code: "invalid_request" });
+    }, {
+      createId: () => firstUuid,
+      repositories: [{
+        adapter: "webdav",
+        id: "repository-remote",
+        label: "Remote",
+        location: remoteLocation,
+        nameConflict: false,
+      }],
+    });
+  });
+
+  it("renames healthy repositories without allowing cross-adapter conflicts", async () => {
+    await withCatalog(async (catalog, _rootDir, registry) => {
+      const local = await catalog.createRepository({
+        adapter: "local",
+        content: createContent("Local workspace name"),
+        label: "Local",
+      });
+      const before = await (await catalog.getStore(local.id)).loadSnapshot();
+
+      await expect(catalog.renameRepository(local.id, { label: "  Renamed  " }))
+        .resolves.toMatchObject({
+          id: local.id,
+          label: "Renamed",
+          nameConflict: false,
+        });
+      await expect((await catalog.getStore(local.id)).loadSnapshot()).resolves.toEqual(before);
+      await expect(catalog.renameRepository(local.id, { label: "ＲＥＭＯＴＥ" }))
+        .rejects.toMatchObject({ code: "invalid_request" });
+      await expect(catalog.renameRepository("repository-remote", { label: "NAS" }))
+        .resolves.toMatchObject({ label: "NAS", nameConflict: false });
+      expect(registry.renameConnection).toHaveBeenCalledWith(
+        "repository-remote",
+        "NAS",
+      );
+    }, {
+      createId: () => firstUuid,
+      repositories: [{
+        adapter: "webdav",
+        id: "repository-remote",
+        label: "Remote",
+        location: remoteLocation,
+        nameConflict: false,
+      }],
+    });
+  });
+
+  it("keeps existing duplicate and reserved labels readable while flagging conflicts", async () => {
+    await withCatalog(async (catalog) => {
+      await expect(catalog.listRepositories()).resolves.toMatchObject({
+        repositories: [
+          { id: "repository-a", nameConflict: true },
+          { id: "repository-b", nameConflict: true },
+          { id: "repository-journal", nameConflict: true },
+        ],
+      });
+    }, {
+      repositories: [
+        {
+          adapter: "webdav",
+          id: "repository-a",
+          label: "Same",
+          location: { type: "webdav", url: "https://dav.example.test/a/" },
+          nameConflict: false,
+        },
+        {
+          adapter: "webdav",
+          id: "repository-b",
+          label: "ＳＡＭＥ",
+          location: { type: "webdav", url: "https://dav.example.test/b/" },
+          nameConflict: false,
+        },
+        {
+          adapter: "webdav",
+          id: "repository-journal",
+          label: "日记",
+          location: { type: "webdav", url: "https://dav.example.test/journal/" },
+          nameConflict: false,
+        },
+      ],
+    });
+  });
+
   it("rejects duplicate IDs discovered across catalog owners", async () => {
     await withCatalog(async (catalog, rootDir) => {
       await mkdir(path.join(rootDir, "repository-same"));
@@ -266,6 +381,7 @@ describe("composite repository catalog", () => {
         id: "repository-same",
         label: "Remote",
         location: remoteLocation,
+        nameConflict: false,
       }],
     });
   });
@@ -293,6 +409,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
+        nameConflict: false,
       }],
     });
   });
@@ -309,6 +426,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
+        nameConflict: false,
       }],
     });
 

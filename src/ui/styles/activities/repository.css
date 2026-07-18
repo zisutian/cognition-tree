@@ -34,6 +34,7 @@
   grid-template-columns:
     var(--ui-symbol-size)
     minmax(0, 1fr)
+    auto
     auto;
 }
 
@@ -46,6 +47,51 @@
   max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.repository-name-conflict {
+  color: var(--color-error);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.repository-inline-rename {
+  display: grid;
+  grid-template-columns: var(--ui-symbol-size) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  width: 100%;
+  min-height: var(--ui-tree-row-height);
+  padding: 0 var(--ui-gap-tight);
+}
+
+.repository-system-row {
+  cursor: default;
+}
+
+.repository-system-row:focus {
+  background: var(--color-selected);
+  box-shadow: inset calc(var(--ui-border-width) * 2) 0 0 var(--color-accent);
+}
+
+.repository-system-location {
+  grid-column: 2 / -1;
+  min-width: 0;
+  color: var(--color-fg-subtle);
+  font-family: var(--font-code);
+  font-size: var(--ui-micro-font-size);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.repository-catalog-fault {
+  display: grid;
+  justify-items: start;
+  gap: var(--ui-gap-tight);
+}
+
+.repository-catalog-fault > p {
+  margin: 0;
 }
 
 .repository-issue-row {

@@ -91,7 +91,7 @@ test.describe.serial("repository and capacity flows", () => {
     );
   });
 
-  test("keeps exactly one live session through StrictMode mount and keyed repository switches", async ({
+  test("keeps one ordinary and two system sessions through StrictMode and repository switches", async ({
     page,
   }) => {
     await page.addInitScript(() => {
@@ -153,27 +153,32 @@ test.describe.serial("repository and capacity flows", () => {
 
     await openWorkbench(page, repositoryId);
     await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
-    await expect.poll(async () => (await readProbe()).active).toBe(1);
+    await expect.poll(async () => (await readProbe()).active).toBe(3);
+    const initialProbe = await readProbe();
 
     await getActivityButton(page, "仓库").click();
     await getRepositoryButton(page, rawRepositoryId).click();
     await expect(page.locator(".app-context").getByTitle("原始笔记"))
       .toBeVisible();
-    await expect.poll(async () => (await readProbe()).active).toBe(1);
+    await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
       .poll(async () => (await readProbe()).additions)
-      .toBeGreaterThanOrEqual(2);
+      .toBeGreaterThan(initialProbe.additions);
     await expect
       .poll(async () => (await readProbe()).removals)
-      .toBeGreaterThanOrEqual(1);
+      .toBeGreaterThan(initialProbe.removals);
+    const afterFirstSwitch = await readProbe();
 
     await getActivityButton(page, "仓库").click();
     await getRepositoryButton(page, repositoryId).click();
     await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
-    await expect.poll(async () => (await readProbe()).active).toBe(1);
+    await expect.poll(async () => (await readProbe()).active).toBe(3);
+    await expect
+      .poll(async () => (await readProbe()).additions)
+      .toBeGreaterThan(afterFirstSwitch.additions);
     await expect
       .poll(async () => (await readProbe()).removals)
-      .toBeGreaterThanOrEqual(2);
+      .toBeGreaterThan(afterFirstSwitch.removals);
   });
 
   test("rescans an externally edited Local note from the visible working tree", async ({
@@ -582,7 +587,7 @@ test.describe.serial("repository and capacity flows", () => {
     }
   });
 
-  test("enters repository setup after deleting the final repository", async ({
+  test("keeps the full workbench after deleting the final ordinary repository", async ({
     page,
   }) => {
     const catalogResponse = await api.get("/api/repositories");
@@ -618,22 +623,35 @@ test.describe.serial("repository and capacity flows", () => {
         name: "永久删除前请输入仓库名称",
       }).fill(remainingRepository?.label ?? "");
       await dialog.getByRole("button", { name: "永久删除" }).click();
-      const setup = page.getByRole("main").getByLabel("创建仓库");
+      const repositoryPanel = page.getByRole("region", { name: "仓库" });
+      const issueRow = page.locator(
+        `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
+      );
 
-      await expect(setup).toBeVisible();
-      await expect(page.locator(".repository-list")).toHaveCount(0);
-      await expect(setup).toContainText(
+      await expect(repositoryPanel).toBeVisible();
+      await expect(repositoryPanel).toContainText("尚未挂载普通仓库");
+      await expect(
+        repositoryPanel.getByRole("button", { name: "创建普通仓库" }),
+      ).toBeVisible();
+      await expect(issueRow).toContainText(
         "仓库格式不受支持，需要手工删除该目录。",
       );
       await expect(
-        setup.getByRole("button", { name: "重新检查" }),
+        issueRow.getByRole("button", { name: "重新检查" }),
       ).toBeVisible();
 
+      await getActivityButton(page, "笔记").click();
+      const unavailable = page.getByLabel("尚未创建笔记仓库");
+
+      await expect(unavailable).toBeVisible();
+      await expect(
+        unavailable.getByRole("button", { name: "前往仓库" }),
+      ).toBeVisible();
+      await getActivityButton(page, "仓库").click();
+
       await removeE2ELocalRepository(unsupportedRepositoryId);
-      await setup.getByRole("button", { name: "重新检查" }).click();
-      await expect(setup).not.toContainText(
-        "仓库格式不受支持，需要手工删除该目录。",
-      );
+      await issueRow.getByRole("button", { name: "重新检查" }).click();
+      await expect(issueRow).toHaveCount(0);
     } finally {
       await removeE2ELocalRepository(unsupportedRepositoryId);
     }

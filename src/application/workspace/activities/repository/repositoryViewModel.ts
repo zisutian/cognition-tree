@@ -4,6 +4,13 @@ import type {
   WorkspaceRepositoryDescriptor,
 } from "../../../../storage/repository/workspaceRepositoryCatalog";
 import type {
+  SystemRepositoryDescriptor,
+  SystemRepositoryIssue,
+  SystemRepositoryLocation,
+  SystemRepositoryPurpose,
+} from "../../../../storage/repository/systemRepository";
+import type { RepositoryApplication } from "../../../repository/repositoryApplication";
+import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RepositoryCatalogOperation,
@@ -43,6 +50,25 @@ export type RepositoryLocationRow = {
 export type RepositoryOption = WorkspaceRepositoryDescriptor & {
   adapterLabel: string;
   displayLabel: string;
+  locationRows: RepositoryLocationRow[];
+};
+
+export type SystemRepositoryOption = SystemRepositoryDescriptor & {
+  errorMessage: string;
+  hasProblem: boolean;
+  locationRows: RepositoryLocationRow[];
+  reload: () => Promise<void>;
+  recoveryAction: {
+    label: string;
+    run: () => Promise<void>;
+  } | null;
+  sessionStatus: "failed" | "loading" | "ready" | "unavailable";
+  statusLabel: string;
+};
+
+export type SystemRepositoryIssueView = SystemRepositoryIssue & {
+  displayLabel: string;
+  label: "日记" | "代办";
   locationRows: RepositoryLocationRow[];
 };
 
@@ -135,6 +161,29 @@ export function projectRepositoryLocation(
   }
 }
 
+export function projectSystemRepositoryLocation(
+  location: SystemRepositoryLocation | null,
+): RepositoryLocationRow[] {
+  if (!location) {
+    return [];
+  }
+  return location.type === "server"
+    ? [{
+        copyValue: location.serverPath,
+        label: "服务端路径",
+        value: location.serverPath,
+      }]
+    : [{
+        copyValue: location.databaseName,
+        label: "浏览器数据库",
+        value: location.databaseName,
+      }];
+}
+
+function systemRepositoryLabel(purpose: SystemRepositoryPurpose) {
+  return purpose === "system-journal" ? "日记" as const : "代办" as const;
+}
+
 export function projectRepositoryAdapterOptions(
   adapters: RepositoryAdapterKind[],
 ): RepositoryAdapterOption[] {
@@ -217,25 +266,11 @@ function projectDeletionState(persistence: WorkspacePersistenceState) {
   }
 }
 
-type RepositoryActivitySource = {
-  activeRepositoryId: string;
-  creatableAdapters: RepositoryAdapterKind[];
-  createRepository: (input: CreateRepositoryRequest) => Promise<void>;
-  deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
-  discardPendingChangesAndReload: () => Promise<void>;
-  issues: WorkspaceRepositoryCatalogIssue[];
-  operation: RepositoryCatalogOperation;
-  persistence: WorkspacePersistenceState;
-  refreshRepositories: () => Promise<void>;
-  reload: () => Promise<void>;
-  repositories: WorkspaceRepositoryDescriptor[];
-  storageLabel: string;
-  selectRepository: (repositoryId: string) => Promise<void>;
-};
-
 export type RepositoryViewModel = {
-  activeRepositoryId: string;
+  activeRepositoryId: string | null;
   activeRepositoryLabel: string;
+  catalogErrorMessage: string;
+  catalogStatus: "failed" | "loading" | "ready";
   createRepository: (input: CreateRepositoryRequest) => Promise<void>;
   creatableAdapters: RepositoryAdapterOption[];
   deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
@@ -247,36 +282,170 @@ export type RepositoryViewModel = {
   operation: RepositoryCatalogOperation;
   persistenceStatusLabel: string;
   refreshRepositories: () => Promise<void>;
+  reloadSystemCatalog: () => Promise<void>;
+  renameRepository: (input: { id: string; name: string }) => Promise<void>;
   reload: () => Promise<void>;
   repositories: RepositoryOption[];
   selectRepository: (repositoryId: string) => Promise<void>;
   storageLabel: string;
+  systemCatalogErrorMessage: string;
+  systemCatalogStatus: "failed" | "loading" | "ready";
+  systemIssues: SystemRepositoryIssueView[];
+  systemRepositories: SystemRepositoryOption[];
+  retrySystemRepository: (purpose: SystemRepositoryPurpose) => Promise<void>;
+  retryingSystemPurpose: SystemRepositoryPurpose | null;
 };
 
 export function createRepositoryViewModel(
-  source: RepositoryActivitySource,
+  source: RepositoryApplication,
 ): RepositoryViewModel {
-  const repositories = projectRepositoryOptions(source.repositories);
-  const active = repositories.find(({ id }) => id === source.activeRepositoryId);
-  const deletion = projectDeletionState(source.persistence);
+  const catalog = source.catalogState.status === "ready"
+    ? source.catalogState
+    : null;
+  const systems = source.systems.catalog.state.status === "ready"
+    ? source.systems.catalog.state
+    : null;
+  const repositories = projectRepositoryOptions(catalog?.repositories ?? []);
+  const activeRepositoryId = source.activeDescriptor?.id ?? null;
+  const active = repositories.find(({ id }) => id === activeRepositoryId);
+  const persistence = source.session.status === "ready"
+    ? source.session.persistence
+    : null;
+  const deletion = persistence
+    ? projectDeletionState(persistence)
+    : { blocked: activeRepositoryId !== null, warning: activeRepositoryId
+        ? "仓库尚未完成挂载，当前不能安全删除。"
+        : "" };
+  const sessionStatusLabel = source.session.status === "ready"
+    ? persistenceLabels[source.session.persistence.status]
+    : source.session.status === "loading"
+      ? "正在载入"
+      : source.session.status === "failed"
+        ? "挂载失败"
+        : "未挂载";
+  const systemRepositories = (systems?.repositories ?? []).map(
+    (repository): SystemRepositoryOption => {
+      const session = source.systems.sessions[repository.id];
+      const sessionStatus = session.state.status;
+      const persistence = sessionStatus === "ready"
+        ? session.state.persistence
+        : null;
+      const hasProblem = sessionStatus === "failed" ||
+        persistence?.status === "conflict" ||
+        persistence?.status === "error";
+      const errorMessage = sessionStatus === "failed"
+        ? session.state.errorMessage
+        : persistence?.status === "conflict"
+          ? "内置仓库存在同步冲突，请放弃本地修改并重新加载。"
+          : persistence?.status === "error"
+            ? persistence.message
+            : "";
+      const statusLabel = sessionStatus === "loading"
+        ? "正在载入"
+        : sessionStatus === "failed"
+          ? "挂载失败"
+          : sessionStatus === "unavailable"
+            ? "不可用"
+            : persistence?.status === "saved"
+              ? "已保存"
+              : persistence?.status === "saving-local"
+                ? "正在保存本地副本"
+                : persistence?.status === "pending-sync"
+                  ? "等待同步"
+                  : persistence?.status === "syncing"
+                    ? "正在同步"
+                    : persistence?.status === "offline"
+                      ? persistence.pendingChanges
+                        ? "离线，等待同步"
+                        : "离线"
+                      : persistence?.status === "conflict"
+                        ? "同步冲突"
+                        : persistence?.status === "error"
+                          ? persistence.phase === "local"
+                            ? "保存失败"
+                            : "同步失败"
+                          : "不可用";
+      const recoveryAction = sessionStatus === "failed"
+        ? { label: "重试挂载", run: session.reload }
+        : persistence?.status === "conflict"
+          ? {
+              label: "放弃本地修改并重新加载",
+              run: session.discardPendingChangesAndReload,
+            }
+          : persistence?.status === "error"
+            ? persistence.phase === "sync"
+              ? {
+                  label: "重试同步",
+                  run: async () => session.requestSync(),
+                }
+              : { label: "重新加载", run: session.reload }
+            : null;
+
+      return {
+        ...repository,
+        errorMessage,
+        hasProblem,
+        locationRows: projectSystemRepositoryLocation(repository.location),
+        reload: session.reload,
+        recoveryAction,
+        sessionStatus,
+        statusLabel,
+      };
+    },
+  );
+  const systemIssues = (systems?.issues ?? []).map(
+    (issue): SystemRepositoryIssueView => {
+      const label = systemRepositoryLabel(issue.id);
+
+      return {
+        ...issue,
+        displayLabel: `${label} · 内置仓库`,
+        label,
+        locationRows: projectSystemRepositoryLocation(issue.location),
+      };
+    },
+  );
 
   return {
-    activeRepositoryId: source.activeRepositoryId,
-    activeRepositoryLabel: active?.label ?? source.activeRepositoryId,
+    activeRepositoryId,
+    activeRepositoryLabel: active?.label ?? "尚未选择普通仓库",
+    catalogErrorMessage: source.catalogState.status === "failed"
+      ? source.catalogState.errorMessage
+      : "",
+    catalogStatus: source.catalogState.status,
     createRepository: source.createRepository,
-    creatableAdapters: projectRepositoryAdapterOptions(source.creatableAdapters),
+    creatableAdapters: projectRepositoryAdapterOptions(
+      catalog?.creatableAdapters ?? [],
+    ),
     deleteRepository: source.deleteRepository,
     deletionBlocked: deletion.blocked,
     deletionWarning: deletion.warning,
-    discardPendingChangesAndReload: source.discardPendingChangesAndReload,
-    hasSaveConflict: source.persistence.status === "conflict",
-    issues: projectRepositoryIssues(source.issues),
-    operation: source.operation,
-    persistenceStatusLabel: persistenceLabels[source.persistence.status],
+    discardPendingChangesAndReload: source.session.status === "ready"
+      ? source.session.discardPendingChangesAndReload
+      : async () => {},
+    hasSaveConflict: persistence?.status === "conflict",
+    issues: projectRepositoryIssues(catalog?.issues ?? []),
+    operation: catalog?.operation ?? "idle",
+    persistenceStatusLabel: sessionStatusLabel,
     refreshRepositories: source.refreshRepositories,
-    reload: source.reload,
+    reloadSystemCatalog: source.systems.catalog.reload,
+    renameRepository: source.renameRepository,
+    reload: source.session.status === "ready"
+      ? source.session.reload
+      : source.session.status === "failed"
+        ? source.session.retry
+        : source.refreshRepositories,
     repositories,
     selectRepository: source.selectRepository,
-    storageLabel: active?.adapterLabel ?? source.storageLabel,
+    storageLabel: active?.adapterLabel ?? source.catalogLabel,
+    systemCatalogErrorMessage:
+      source.systems.catalog.state.status === "failed"
+        ? source.systems.catalog.state.errorMessage
+        : "",
+    systemCatalogStatus: source.systems.catalog.state.status,
+    systemIssues,
+    systemRepositories,
+    retrySystemRepository: source.systems.catalog.retryRepository,
+    retryingSystemPurpose: systems?.retryingPurpose ?? null,
   };
 }

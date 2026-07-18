@@ -10,31 +10,9 @@ import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
 import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
-import type {
-  RepositoryAdapterKind,
-  WorkspaceRepositoryCatalogIssue,
-  WorkspaceRepositoryDescriptor,
-} from "../../../storage/repository/workspaceRepositoryCatalog";
 import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
 import type { WorkspaceAnalysis } from "../analysis/workspaceAnalysis";
 import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
-import type {
-  CreateRepositoryRequest,
-  DeleteRepositoryRequest,
-  RepositoryCatalogOperation,
-} from "../session/useRepositoryCatalog";
-
-export type WorkspaceRepositoryManagement = {
-  activeRepositoryId: string;
-  creatableAdapters: RepositoryAdapterKind[];
-  createRepository: (input: CreateRepositoryRequest) => Promise<void>;
-  deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
-  issues: WorkspaceRepositoryCatalogIssue[];
-  operation: RepositoryCatalogOperation;
-  refreshRepositories: () => Promise<void>;
-  repositories: WorkspaceRepositoryDescriptor[];
-  selectRepository: (repositoryId: string) => Promise<void>;
-};
 
 export type WorkspaceShell = {
   errorMessage: string;
@@ -52,7 +30,6 @@ export type WorkspaceRuntime = {
 
 export function useWorkspaceApplication(
   session: ActiveSession,
-  repositoryManagement: WorkspaceRepositoryManagement,
 ) {
   const {
     commands,
@@ -113,14 +90,6 @@ export function useWorkspaceApplication(
       persistence.status === "error" ? persistence.message : "",
     hasConfiguredSyntax: Boolean(workspaceSyntax && syntax.effectiveContext),
   };
-  const repository = {
-    ...repositoryManagement,
-    discardPendingChangesAndReload: session.discardPendingChangesAndReload,
-    location: session.location,
-    persistence,
-    reload: session.reload,
-    storageLabel: session.storageLabel,
-  };
   const runtime: WorkspaceRuntime = {
     analysis,
     commands,
@@ -134,7 +103,6 @@ export function useWorkspaceApplication(
     diagnostics,
     navigation,
     runtime,
-    repository,
     selection,
     shell,
     syntax,

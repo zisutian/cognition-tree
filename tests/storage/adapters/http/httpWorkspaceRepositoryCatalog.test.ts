@@ -24,6 +24,7 @@ const descriptor = {
     serverPath: "/data/repositories/primary",
     type: "local" as const,
   },
+  nameConflict: false,
 };
 const issue = {
   adapter: "local" as const,
@@ -85,6 +86,46 @@ describe("HTTP workspace repository catalog", () => {
         url: "http://api.test/base/api/repositories",
       },
     ]);
+  });
+
+  it("renames only catalog metadata through PATCH and refreshes the cache", async () => {
+    const cache = createMemoryRepositoryClientCache();
+    const calls: Array<{ body?: BodyInit | null; method: string; url: string }> = [];
+    const renamed = { ...descriptor, label: "Renamed" };
+    const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test/base",
+      cache,
+      fetch: async (input, init) => {
+        calls.push({
+          body: init?.body,
+          method: init?.method ?? "GET",
+          url: String(input),
+        });
+        return init?.method === "PATCH"
+          ? jsonResponse(renamed)
+          : jsonResponse(remoteCatalog);
+      },
+      validateContent,
+    });
+
+    await catalog.listRepositories();
+    await expect(catalog.renameRepository({
+      id: descriptor.id,
+      label: "  Renamed  ",
+    })).resolves.toEqual(renamed);
+    const catalogIdentity = await createHttpRepositoryCacheIdentity({
+      baseUrl: "http://api.test/base",
+      repositoryId: "__catalog__",
+    });
+
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toMatchObject({
+      repositories: [renamed],
+    });
+    expect(calls[1]).toEqual({
+      body: JSON.stringify({ label: "Renamed" }),
+      method: "PATCH",
+      url: "http://api.test/base/api/repositories/primary",
+    });
   });
 
   it("does not send an invalid exact create DTO", async () => {
@@ -157,6 +198,7 @@ describe("HTTP workspace repository catalog", () => {
               type: "webdav",
               url: "https://dav.example.test/notes/",
             },
+            nameConflict: false,
           });
 
       return { getLoadCount: () => loadCount, repository };
@@ -246,6 +288,7 @@ describe("HTTP workspace repository catalog", () => {
         type: "webdav" as const,
         url: "https://dav.example.test/notes/",
       },
+      nameConflict: false,
     };
     let body = "";
     const catalog = createHttpWorkspaceRepositoryCatalog({

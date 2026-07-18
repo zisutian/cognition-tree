@@ -19,9 +19,16 @@ import type {
   RepositoryDeletionModeDto,
   RepositoryDeletionResultDto,
   RepositoryLocationDto,
+  RenameRepositoryDto,
 } from "./types.ts";
 
-const descriptorFields = ["adapter", "id", "label", "location"] as const;
+const descriptorFields = [
+  "adapter",
+  "id",
+  "label",
+  "location",
+  "nameConflict",
+] as const;
 const issueFields = [
   "adapter",
   "code",
@@ -45,6 +52,7 @@ const createWebDavRepositoryFields = [
 const authenticationNoneFields = ["type"] as const;
 const authenticationBasicFields = ["password", "type", "username"] as const;
 const deletionResultFields = ["status"] as const;
+const renameRepositoryFields = ["label"] as const;
 const adapterKinds = new Set<RepositoryAdapterKindDto>([
   "browser",
   "local",
@@ -71,6 +79,10 @@ const deletionStatuses = new Set<RepositoryDeletionResultDto["status"]>([
 
 export function isRepositoryId(value: string) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
+}
+
+export function normalizeRepositoryLabel(value: string) {
+  return value.trim().normalize("NFKC").toLocaleLowerCase("en-US");
 }
 
 function readRepositoryId(value: Record<string, unknown>, path: string) {
@@ -207,13 +219,27 @@ export function parseRepositoryDescriptor(
 
   assertExactContractFields(descriptor, descriptorFields, path);
   const adapter = readAdapter(descriptor, "adapter", path);
+  if (typeof descriptor.nameConflict !== "boolean") {
+    failContract(`${path}.nameConflict`, "expected boolean");
+  }
 
   return {
     adapter,
     id: readRepositoryId(descriptor, path),
     label: readRequiredContractString(descriptor, "label", path),
     location: readRepositoryLocation(descriptor, adapter, path),
+    nameConflict: descriptor.nameConflict,
   };
+}
+
+export function parseRenameRepository(value: unknown): RenameRepositoryDto {
+  const request = readContractObject(value, "$"),
+    label = readRequiredContractString(request, "label", "$");
+  assertExactContractFields(request, renameRepositoryFields, "$");
+  if (normalizeRepositoryLabel(label).length === 0) {
+    failContract("$.label", "expected non-empty repository label");
+  }
+  return { label: label.trim() };
 }
 
 function parseCatalogIssue(

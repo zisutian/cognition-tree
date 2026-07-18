@@ -1,4 +1,7 @@
 import type { WorkspaceRepositoryCatalogIssue } from "../../../storage/repository/workspaceRepositoryCatalog";
+import type { WorkspaceRepositoryDescriptor } from "../../../storage/repository/workspaceRepositoryCatalog";
+import type { SystemRepositoryIssue } from "../../../storage/repository/systemRepository";
+import type { SystemRepositoryRuntimeIssue } from "../../repository/projectSystemRepositoryIssues";
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
@@ -9,7 +12,10 @@ import {
 } from "./viewRepositoryIssues";
 
 export type UiWorkbenchRepositoryProblem = {
-  code: WorkspaceRepositoryCatalogIssue["code"];
+  code:
+    | SystemRepositoryRuntimeIssue["code"]
+    | WorkspaceRepositoryCatalogIssue["code"]
+    | "repository-name-conflict";
   id: string;
   locationLabel: string;
   message: string;
@@ -18,6 +24,12 @@ export type UiWorkbenchRepositoryProblem = {
   target: {
     issueId: string;
     kind: "repository-issue";
+  } | {
+    kind: "repository-name-conflict";
+    repositoryId: string;
+  } | {
+    kind: "system-repository-issue";
+    purpose: SystemRepositoryIssue["id"];
   };
 };
 
@@ -68,13 +80,59 @@ export function projectUiRepositoryProblems(
   }));
 }
 
+export function projectUiRepositoryNameConflictProblems(
+  repositories: WorkspaceRepositoryDescriptor[],
+): UiWorkbenchRepositoryProblem[] {
+  return repositories.flatMap((repository) =>
+    repository.nameConflict
+      ? [{
+          code: "repository-name-conflict" as const,
+          id: `repository-name-conflict:${repository.id}`,
+          locationLabel: `${repositoryAdapterLabels[repository.adapter]} · ${repository.label}`,
+          message: "仓库名称与其他仓库或内置仓库冲突，请重命名。",
+          severity: "error" as const,
+          source: "repository" as const,
+          target: {
+            kind: "repository-name-conflict" as const,
+            repositoryId: repository.id,
+          },
+        }]
+      : []
+  );
+}
+
+export function projectUiSystemRepositoryProblems(
+  issues: SystemRepositoryRuntimeIssue[],
+): UiWorkbenchRepositoryProblem[] {
+  return issues.map((issue) => {
+    const label = issue.id === "system-journal" ? "日记" : "代办";
+
+    return {
+      code: issue.code,
+      id: `system-repository:${issue.id}`,
+      locationLabel: `内置 · ${label}`,
+      message: issue.message,
+      severity: "error",
+      source: "repository",
+      target: {
+        kind: "system-repository-issue",
+        purpose: issue.id,
+      },
+    };
+  });
+}
+
 export function createUiWorkbenchProblems(
   diagnostics: UiWorkbenchDiagnostics,
   repositoryIssues: WorkspaceRepositoryCatalogIssue[] = [],
+  repositories: WorkspaceRepositoryDescriptor[] = [],
+  systemIssues: SystemRepositoryRuntimeIssue[] = [],
 ): UiWorkbenchProblems {
   const problems = [
     ...diagnostics.diagnostics,
     ...projectUiRepositoryProblems(repositoryIssues),
+    ...projectUiRepositoryNameConflictProblems(repositories),
+    ...projectUiSystemRepositoryProblems(systemIssues),
   ].sort(compareProblems);
 
   return {

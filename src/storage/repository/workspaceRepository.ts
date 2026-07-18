@@ -9,11 +9,25 @@ import {
   isRepositorySyntaxFileId,
   normalizeRepositorySyntaxProfileName,
 } from "../../../contracts/workspace-repository/parseSyntax";
+import {
+  createVersionedLocalDraftRevision,
+  VersionedRepositoryBackendConflictError,
+  VersionedRepositoryLocalConflictError,
+  VersionedRepositoryRemoteError,
+  VersionedRepositoryUnavailableError,
+  type VersionedCommitResult,
+  type VersionedRemoteCommit,
+  type VersionedRemoteSnapshot,
+  type VersionedRepository,
+  type VersionedRepositoryBackend,
+  type VersionedRepositoryContentValidator,
+  type VersionedRepositorySnapshot,
+  type VersionedRepositorySyncResult,
+} from "./versionedRepository";
 
 export type WorkspaceRepositoryContent = WorkspaceRepositoryContentDto;
-export type WorkspaceRepositoryContentValidator = (
-  content: WorkspaceRepositoryContent,
-) => void;
+export type WorkspaceRepositoryContentValidator =
+  VersionedRepositoryContentValidator<WorkspaceRepositoryContent>;
 export type LocalDraftRevision = LocalDraftRevisionDto;
 export type RepositoryRevision = RepositoryRevisionDto;
 
@@ -30,102 +44,62 @@ export function isWorkspaceSyntaxFileId(value: string) {
   return isRepositorySyntaxFileId(value);
 }
 
-export type RemoteWorkspaceSnapshot = {
-  content: WorkspaceRepositoryContent;
-  revision: RepositoryRevision;
-};
+export type RemoteWorkspaceSnapshot = VersionedRemoteSnapshot<
+  WorkspaceRepositoryContent,
+  RepositoryRevision
+>;
+export type RemoteWorkspaceCommit = VersionedRemoteCommit<
+  WorkspaceRepositoryContent,
+  RepositoryRevision
+>;
+export type RemoteCommitResult = VersionedCommitResult<RepositoryRevision>;
+export type WorkspaceRepositoryBackend = VersionedRepositoryBackend<
+  WorkspaceRepositoryContent,
+  RepositoryRevision
+>;
+export type WorkspaceRepositorySnapshot = VersionedRepositorySnapshot<
+  WorkspaceRepositoryContent,
+  RepositoryRevision,
+  LocalDraftRevision
+>;
+export type WorkspaceRepositorySyncResult = VersionedRepositorySyncResult<
+  RepositoryRevision,
+  LocalDraftRevision
+>;
+export type WorkspaceRepository = VersionedRepository<
+  WorkspaceRepositoryContent,
+  RepositoryRevision,
+  LocalDraftRevision,
+  RepositoryLocationDto
+>;
 
-export type RemoteWorkspaceCommit = {
-  baseRevision: RepositoryRevision;
-  content: WorkspaceRepositoryContent;
-};
-
-export type RemoteCommitResult = {
-  revision: RepositoryRevision;
-};
-
-export type WorkspaceRepositoryBackend = {
-  commitRemoteSnapshot(
-    commit: RemoteWorkspaceCommit,
-  ): Promise<RemoteCommitResult>;
-  loadRemoteSnapshot(): Promise<RemoteWorkspaceSnapshot>;
-};
-
-export type WorkspaceRepositorySnapshot = {
-  conflictRevision: RepositoryRevision | null;
-  content: WorkspaceRepositoryContent;
-  localRevision: LocalDraftRevision;
-  pendingChanges: boolean;
-  remoteRevision: RepositoryRevision | null;
-};
-
-type WorkspaceRepositorySyncResultBase = {
-  localRevision: LocalDraftRevision;
-  remoteRevision: RepositoryRevision | null;
-};
-
-export type WorkspaceRepositorySyncResult =
-  | (WorkspaceRepositorySyncResultBase & {
-      pendingChanges: boolean;
-      status: "synced";
-    })
-  | (WorkspaceRepositorySyncResultBase & {
-      pendingChanges: boolean;
-      status: "offline";
-    })
-  | (WorkspaceRepositorySyncResultBase & {
-      remoteRevision: RepositoryRevision;
-      status: "conflict";
-    })
-  | (WorkspaceRepositorySyncResultBase & {
-      message: string;
-      status: "sync-error";
-    });
-
-export type WorkspaceRepository = {
-  label: string;
-  location: RepositoryLocationDto;
-  discardPendingSnapshotAndReload(): Promise<WorkspaceRepositorySnapshot>;
-  loadSnapshot(): Promise<WorkspaceRepositorySnapshot>;
-  stageSnapshot(input: {
-    content: WorkspaceRepositoryContent;
-    expectedLocalRevision: LocalDraftRevision;
-  }): Promise<{ localRevision: LocalDraftRevision }>;
-  subscribeReconnect(listener: () => void): () => void;
-  synchronizePendingSnapshot(): Promise<WorkspaceRepositorySyncResult>;
-};
-
-export class WorkspaceRepositoryBackendConflictError extends Error {
-  currentRevision: RepositoryRevision;
+export class WorkspaceRepositoryBackendConflictError
+  extends VersionedRepositoryBackendConflictError<RepositoryRevision> {
 
   constructor(currentRevision: RepositoryRevision) {
-    super("Repository content changed outside the current session");
+    super(currentRevision);
     this.name = "WorkspaceRepositoryBackendConflictError";
-    this.currentRevision = currentRevision;
   }
 }
 
-export class WorkspaceRepositoryLocalConflictError extends Error {
-  currentRevision: LocalDraftRevision;
-
+export class WorkspaceRepositoryLocalConflictError
+  extends VersionedRepositoryLocalConflictError<LocalDraftRevision> {
   constructor(currentRevision: LocalDraftRevision) {
-    super("Repository local draft changed outside the current operation");
+    super(currentRevision);
     this.name = "WorkspaceRepositoryLocalConflictError";
-    this.currentRevision = currentRevision;
   }
 }
 
-export class WorkspaceRepositoryUnavailableError extends Error {
+export class WorkspaceRepositoryUnavailableError
+  extends VersionedRepositoryUnavailableError {
   constructor(message = "Repository is unavailable") {
     super(message);
     this.name = "WorkspaceRepositoryUnavailableError";
   }
 }
 
-export class WorkspaceRepositoryRemoteError extends Error {
-  code: RepositoryApiErrorCodeDto | null;
-  retryable: boolean;
-
+export class WorkspaceRepositoryRemoteError
+  extends VersionedRepositoryRemoteError<RepositoryApiErrorCodeDto> {
   constructor(
     message: string,
     {
@@ -136,15 +110,13 @@ export class WorkspaceRepositoryRemoteError extends Error {
       retryable?: boolean;
     } = {},
   ) {
-    super(message);
+    super(message, { code, retryable });
     this.name = "WorkspaceRepositoryRemoteError";
-    this.code = code;
-    this.retryable = retryable;
   }
 }
 
 export function createLocalDraftRevision(
   createId: () => string,
 ): LocalDraftRevision {
-  return `draft:${createId()}` as LocalDraftRevision;
+  return createVersionedLocalDraftRevision<LocalDraftRevision>(createId);
 }

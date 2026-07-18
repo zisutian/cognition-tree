@@ -6,6 +6,7 @@ import {
   createMemoryWorkspaceRepositoryCache,
   type WorkspaceRepositoryCache,
 } from "./workspaceRepositoryCache";
+import { projectWorkspaceRepositoryNameConflicts } from "./repositoryLabelPolicy";
 
 export type RepositoryClientCache = {
   catalogs: WorkspaceRepositoryCatalogCache;
@@ -13,6 +14,11 @@ export type RepositoryClientCache = {
     catalogIdentity: string;
     repositoryId: string;
     repositoryIdentity: string;
+  }): Promise<void>;
+  renameRepositoryAtomically(input: {
+    catalogIdentity: string;
+    label: string;
+    repositoryId: string;
   }): Promise<void>;
   snapshots: WorkspaceRepositoryCache;
 };
@@ -36,12 +42,44 @@ export function createMemoryRepositoryClientCache(): RepositoryClientCache {
       }
 
       await catalogs.save(catalogIdentity, {
-        ...catalog,
-        issues: catalog.issues.filter(({ id }) => id !== repositoryId),
-        repositories: catalog.repositories.filter(
-          ({ id }) => id !== repositoryId,
+        ...projectWorkspaceRepositoryNameConflicts({
+          creatableAdapters: catalog.creatableAdapters,
+          issues: catalog.issues.filter(({ id }) => id !== repositoryId),
+          repositories: catalog.repositories.filter(
+            ({ id }) => id !== repositoryId,
+          ),
+        }),
+        version: 4,
+      });
+    },
+    async renameRepositoryAtomically({
+      catalogIdentity,
+      label,
+      repositoryId,
+    }) {
+      const catalog = await catalogs.load(catalogIdentity);
+
+      if (!catalog) {
+        throw new Error(`Repository catalog does not exist: ${catalogIdentity}`);
+      }
+      const descriptor = catalog.repositories.find(({ id }) =>
+        id === repositoryId
+      );
+
+      if (!descriptor) {
+        throw new Error(`Repository does not exist: ${repositoryId}`);
+      }
+      const projected = projectWorkspaceRepositoryNameConflicts({
+        creatableAdapters: catalog.creatableAdapters,
+        issues: catalog.issues,
+        repositories: catalog.repositories.map((repository) =>
+          repository.id === repositoryId
+            ? { ...repository, label }
+            : repository
         ),
       });
+
+      await catalogs.save(catalogIdentity, { ...projected, version: 4 });
     },
     snapshots,
   };

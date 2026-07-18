@@ -61,8 +61,8 @@ function slotsWithView(
       });
     case "repository":
       return createRepositoryActivitySlots({
-        onConsumeRepositoryIssueFocusRequest: () => undefined,
-        repositoryIssueFocusRequest: null,
+        focusRequest: null,
+        onConsumeFocusRequest: () => undefined,
         view: view.repository,
       });
     case "settings":

@@ -35,6 +35,7 @@ const descriptor: RepositoryDescriptorDto = {
     databaseName,
     type: "browser",
   },
+  nameConflict: false,
 };
 
 function requestResult<Result>(request: IDBRequest<Result>) {
@@ -368,6 +369,33 @@ describe("IndexedDB repository client cache", () => {
     await completion;
     expect(notes).toEqual([]);
     database.close();
+  });
+
+  it("atomically clears both sides of an existing label conflict on rename", async () => {
+    const indexedDb = new IDBFactory();
+    const cache = createIndexedDbRepositoryClientCache(indexedDb);
+
+    await cache.catalogs.save(catalogIdentity, {
+      creatableAdapters: ["browser"],
+      issues: [],
+      repositories: [
+        { ...descriptor, id: "first", nameConflict: true },
+        { ...descriptor, id: "second", nameConflict: true },
+      ],
+      version: 4,
+    });
+    await cache.renameRepositoryAtomically({
+      catalogIdentity,
+      label: "Renamed",
+      repositoryId: "second",
+    });
+
+    await expect(cache.catalogs.load(catalogIdentity)).resolves.toMatchObject({
+      repositories: [
+        { id: "first", label: "Primary", nameConflict: false },
+        { id: "second", label: "Renamed", nameConflict: false },
+      ],
+    });
   });
 
   it("rolls back all three stores when an atomic delete aborts", async () => {

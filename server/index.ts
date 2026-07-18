@@ -11,6 +11,7 @@ import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.
 import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
 import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
+import { SystemRepositoryCatalog } from "./repository/systemRepositoryCatalog.ts";
 
 if (process.env.CTN_WEBDAV_REPOSITORIES !== undefined) {
   throw new Error(
@@ -51,10 +52,12 @@ const catalog = new CompositeRepositoryCatalog(
   localCatalog,
   webDavRegistry,
 );
+const systemCatalog = new SystemRepositoryCatalog(serverStateDirectory);
 
 await catalog.initialize();
+await systemCatalog.initialize();
 
-const server = createWorkspaceApiServer({ catalog, security });
+const server = createWorkspaceApiServer({ catalog, security, systemCatalog });
 
 let shuttingDown = false;
 const shutdown = async () => {

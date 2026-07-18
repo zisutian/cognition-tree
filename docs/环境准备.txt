@@ -51,7 +51,7 @@ package.json 固定的包管理器为 `pnpm@11.1.3`。
     CTN_PUBLIC_URL
     CTN_API_TOKEN
 
-后端提供 health、repository catalog 和按 repository id 访问的 snapshot API。`GET /api/repositories` 列出仓库与单仓问题，`POST /api/repositories` 创建 Local 仓库或注册 WebDAV 连接，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库，`DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接；base revision 过期时返回 409，且不覆盖已发布内容。所有仓库 ID 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；新建内容中的 workspace ID 独立生成为 `workspace-<uuid>`。repository id 只映射到 catalog 管理的对象，不接受前端指定的文件路径。
+后端提供 health、普通 repository catalog、系统 repository catalog 和 snapshot API。`GET /api/repositories` 列出普通仓库与单仓问题，`POST /api/repositories` 创建 Local 仓库或注册 WebDAV 连接，`PATCH /api/repositories/<repositoryId>` 只修改 catalog label，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定仓库，`DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。`GET /api/system-repositories` 固定列出日记和代办，`GET/PUT /api/system-repositories/<purpose>/snapshot` 读写对应系统仓，`POST /api/system-repositories/<purpose>/retry` 重新检查故障；系统 endpoint 不提供 create、delete 或 rename。base revision 过期时返回 409，且不覆盖已发布内容。所有普通仓库 ID 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；新建内容中的 workspace ID 独立生成为 `workspace-<uuid>`。repository id 只映射到 catalog 管理的对象，不接受前端指定的文件路径。
 
 catalog 的仓库位置是 adapter 对应的结构化数据。Local 位置包含 realpath 后的 `serverPath` 和可选 `hostPath`；WebDAV 位置包含不带凭据的规范化 URL；Browser 位置包含实际 IndexedDB 数据库名。Local 的 `hostPath` 由 `CTN_REPOSITORY_HOST_ROOT` 与 repository id 组合得到。该环境变量未设置时 `hostPath` 为 null；设置时必须是绝对路径，且只用于界面展示，不参与文件读写、删除、权限判断或路径校验。catalog API 面向已授权的单用户前端公开这些路径，API 错误、未知 500 和服务日志不携带单仓路径或凭据。catalog issue 无法安全确定位置时使用 null。
 
@@ -63,7 +63,7 @@ WebDAV registry 位于服务端状态目录：
 
 状态目录及连接目录权限为 `0700`，连接配置和原子写临时文件权限为 `0600`。每个 schema version 1 配置独立保存 repository ID、稳定 label、规范化 URL、认证方式和 `active` 或 `deleting-remote` 状态。Basic 密码只存在于服务端连接文件和请求 Authorization header，不进入 repository 内容、API 响应、日志、浏览器设置或 IndexedDB。服务启动只加载 registry，不访问 WebDAV 网络；离线连接仍出现在 catalog 中，已有 IndexedDB 副本仍可打开。损坏的单个连接文件形成可清理的 WebDAV 问题，registry 根目录、锁和权限异常会使后端启动失败。
 
-初次添加连接执行完整能力探测，包括 ETag、If-Match、If-None-Match、PROPFIND、MKCOL、PUT、GET 和 DELETE。完全空的目标使用表单生成的初始 v3 内容初始化；已有合法 v3 内容保持为远端事实；v2、非空 unmanaged target 和 deletion tombstone 不会被初始化。WebDAV adapter 在 `.ctn-generations/<token>/` 中写入不可变 generation，以 `.ctn-lock.json` 的 60 秒 writer lease 协调写入，并通过 `.ctn-current.json` 的 ETag CAS 发布 generation。同一 server state 中一个规范化 WebDAV URL 只对应一个连接。
+初次添加连接执行完整能力探测，包括 ETag、If-Match、If-None-Match、PROPFIND、MKCOL、PUT、GET 和 DELETE。完全空的目标使用表单生成的初始 v4 内容初始化；已有合法 v4 内容保持为远端事实；旧版本、非空 unmanaged target 和 deletion tombstone 不会被初始化。WebDAV adapter 在 `.ctn-generations/<token>/` 中写入不可变 generation，以 `.ctn-lock.json` 的 60 秒 writer lease 协调写入，并通过 `.ctn-current.json` 的 ETag CAS 发布 generation。同一 server state 中一个规范化 WebDAV URL 只对应一个连接。
 
 带 Basic 认证的 WebDAV URL 使用 HTTPS。URL 不包含 userinfo、query 或 fragment；请求拒绝 3xx，不读取代理环境变量，使用 30 秒完整 deadline，并把单次响应限制在 20 MiB。生产请求在每次访问前重新解析全部 A/AAAA 地址，混合允许与禁止地址的结果整体拒绝；实际 socket 固定到已验证地址，同时保留原 hostname 的 Host、SNI 和证书校验。
 
@@ -112,6 +112,13 @@ Local 和 Browser adapter 只接受 `delete-managed-data`。WebDAV 的 `remove-c
 HTTP 模式连接服务端管理的 Local 与 WebDAV 仓库。浏览器存储模式提供同样的多仓库 catalog 语义，用于界面和交互验证。每个浏览器独立保存当前 repository id。
 
 `VITE_CTN_API_TOKEN` 会由浏览器作为 Authorization bearer 发送，只用于 API 请求；它不写入 repository catalog、workspace、IndexedDB cache 或日志。作为前端构建变量，它对使用该浏览器构建的人可见，因此安全边界仍是单用户部署和受控前端环境。
+
+HTTP 系统仓库保存在：
+
+    <CTN_SERVER_STATE_DIR>/system-repositories/system-journal.json
+    <CTN_SERVER_STATE_DIR>/system-repositories/system-todo.json
+
+系统仓库目录权限为 `0700`，内容文件和原子写临时文件权限为 `0600`。缺失文件只 provision 一次空内容；不受支持或损坏的现有文件保持原样并形成仓库问题，不会自动覆盖。Browser 模式使用独立的 `cognition-tree.system-repositories` IndexedDB，并按 purpose 隔离远端事实与 local-first draft。
 
 HTTP 模式会在 IndexedDB v4 中按 API origin、repository id 和 token digest 隔离缓存，以 normalized stores 保存 catalog、repository state 和逐笔记 source。编辑事务同时执行 expected local revision CAS、笔记增删改与 state 更新。连接中断后，已有缓存的仓库可以在页面刷新后继续打开和编辑；连接恢复会立即尝试同步。如果远端 revision 已变化，则保留并继续接受本地 pending 内容。仓库活动的“放弃本地修改”只有在成功读取远端后才原子清除 pending。
 

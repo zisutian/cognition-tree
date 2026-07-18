@@ -1,5 +1,5 @@
 import type { RepositoryViewModel } from "../../../application/workspace/activities/repository/repositoryViewModel";
-import type { WorkspaceRepositoryIssueFocusRequest } from "../../../application/workspace/navigation/useWorkspaceNavigation";
+import type { RepositoryFocusRequest } from "../../../application/repository/useRepositoryNavigation";
 import "../../styles/activities/repository.css";
 import type { ActivitySlots } from "../../activityTypes";
 import {
@@ -8,20 +8,20 @@ import {
 } from "./RepositoryPanel";
 
 export function createRepositoryActivitySlots({
-  onConsumeRepositoryIssueFocusRequest,
-  repositoryIssueFocusRequest,
+  focusRequest,
+  onConsumeFocusRequest,
   view,
 }: {
-  onConsumeRepositoryIssueFocusRequest: (requestId: number) => void;
-  repositoryIssueFocusRequest: WorkspaceRepositoryIssueFocusRequest | null;
+  focusRequest: RepositoryFocusRequest | null;
+  onConsumeFocusRequest: (requestId: number) => void;
   view: RepositoryViewModel;
 }): ActivitySlots {
   return {
     context: {
       content: (
         <RepositoryContext
-          focusRequest={repositoryIssueFocusRequest}
-          onConsumeFocusRequest={onConsumeRepositoryIssueFocusRequest}
+          focusRequest={focusRequest}
+          onConsumeFocusRequest={onConsumeFocusRequest}
           view={view}
         />
       ),

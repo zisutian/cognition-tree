@@ -109,6 +109,7 @@ async function startRepositoryServer(
     async initialize() {},
     async listEntries() { return { issues: [], repositories: [] }; },
     async register() { throw new Error("WebDAV registration is not used here"); },
+    async renameConnection() { throw new Error("WebDAV rename is not used here"); },
     async removeConnection() { return false; },
     async retryDeletion() { return { status: "deleted" }; },
   };
