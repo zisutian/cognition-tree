@@ -12,6 +12,7 @@ import type { UiWorkbenchRepositoryProblem } from "../../../src/application/prob
 import type { JournalDiagnostic } from "../../../src/application/journal";
 import type { TodoDiagnostic } from "../../../src/application/todo";
 import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
+import type { WorkspaceRepositoryRuntimeIssue } from "../../../src/application/repository/projectWorkspaceRepositoryIssues";
 import type { WorkspaceRepositoryCatalogIssue } from "../../../src/storage/repository/workspaceRepositoryCatalog";
 
 const diagnostic: UiWorkbenchDiagnostic = {
@@ -40,6 +41,22 @@ const systemIssue: SystemRepositoryIssue = {
   message: "日记仓库损坏。",
   status: "fault",
 };
+
+const repositoryRuntimeIssues: WorkspaceRepositoryRuntimeIssue[] = [
+  {
+    code: "repository_catalog_failed",
+    kind: "catalog",
+    message: "普通仓库目录不可用。",
+  },
+  {
+    adapter: "local",
+    code: "session_load_failed",
+    kind: "repository",
+    message: "无法载入主要笔记。",
+    repositoryId: "primary",
+    repositoryLabel: "主要笔记",
+  },
+];
 
 const journalDiagnostic: JournalDiagnostic = {
   code: "unknown-syntax",
@@ -214,6 +231,7 @@ describe("WorkbenchProblemsController", () => {
       onActiveActivityChange,
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
@@ -274,6 +292,34 @@ describe("WorkbenchProblemsController", () => {
     });
   });
 
+  it("includes ordinary runtime failures only in Repository Problems", () => {
+    const diagnostics = createUiWorkbenchDiagnostics([], "ready");
+
+    expect(selectWorkbenchProblems({
+      activeActivityId: "repository",
+      diagnostics,
+      repositories: [],
+      repositoryIssues: [],
+      repositoryRuntimeIssues,
+      systemIssues: [],
+    })).toMatchObject({
+      errorCount: 2,
+      problems: [
+        expect.objectContaining({ target: { kind: "repository-runtime", repositoryId: "primary" } }),
+        expect.objectContaining({ target: { kind: "repository-catalog" } }),
+      ],
+      warningCount: 0,
+    });
+    expect(selectWorkbenchProblems({
+      activeActivityId: "notes",
+      diagnostics,
+      repositories: [],
+      repositoryIssues: [],
+      repositoryRuntimeIssues,
+      systemIssues: [],
+    }).problems).toEqual([]);
+  });
+
   it("requests the matching repository issue before opening Repositories", () => {
     const onActiveActivityChange = vi.fn();
     const focusOrdinaryIssue = vi.fn();
@@ -292,6 +338,7 @@ describe("WorkbenchProblemsController", () => {
       expandPanels,
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue,
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
@@ -311,6 +358,52 @@ describe("WorkbenchProblemsController", () => {
       onActiveActivityChange.mock.invocationCallOrder[0] ?? 0,
     );
     expect(expandPanels).toHaveBeenCalledOnce();
+  });
+
+  it("focuses an ordinary failed session or the catalog recovery detail", () => {
+    const onActiveActivityChange = vi.fn();
+    const focusCatalog = vi.fn();
+    const focusOrdinaryRepository = vi.fn();
+    const context = {
+      expandPanels: vi.fn(),
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusCatalog,
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository,
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      workspaceNavigation: null,
+      onActiveActivityChange,
+    };
+    const runtimeProblem: UiWorkbenchRepositoryProblem = {
+      code: "session_load_failed",
+      id: "repository-runtime:primary",
+      locationLabel: "本地 · 主要笔记",
+      message: "无法载入主要笔记。",
+      severity: "error",
+      source: "repository",
+      target: { kind: "repository-runtime", repositoryId: "primary" },
+    };
+    const catalogProblem: UiWorkbenchRepositoryProblem = {
+      code: "repository_catalog_failed",
+      id: "repository-runtime:catalog",
+      locationLabel: "普通仓库 · 目录",
+      message: "普通仓库目录不可用。",
+      severity: "error",
+      source: "repository",
+      target: { kind: "repository-catalog" },
+    };
+
+    openWorkbenchProblem(runtimeProblem, context);
+    openWorkbenchProblem(catalogProblem, context);
+
+    expect(focusOrdinaryRepository).toHaveBeenCalledWith("primary");
+    expect(focusCatalog).toHaveBeenCalledOnce();
+    expect(onActiveActivityChange).toHaveBeenNthCalledWith(1, "repository");
+    expect(onActiveActivityChange).toHaveBeenNthCalledWith(2, "repository");
+    expect(context.expandPanels).toHaveBeenCalledTimes(2);
   });
 
   it("activates the diagnostic syntax file before opening its field", () => {
@@ -336,6 +429,7 @@ describe("WorkbenchProblemsController", () => {
       expandPanels,
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
@@ -370,6 +464,7 @@ describe("WorkbenchProblemsController", () => {
       journalNavigation: { openEntryLine },
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
@@ -399,6 +494,7 @@ describe("WorkbenchProblemsController", () => {
       expandPanels,
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
@@ -428,6 +524,7 @@ describe("WorkbenchProblemsController", () => {
       expandPanels: vi.fn(),
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
@@ -467,6 +564,7 @@ describe("WorkbenchProblemsController", () => {
       expandPanels: vi.fn(),
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository,
         focusRequest: null,

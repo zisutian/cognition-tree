@@ -10,8 +10,21 @@ export type SystemRepositoryRuntimeIssue = Omit<SystemRepositoryIssue, "code"> &
     | SystemRepositoryIssue["code"]
     | "repository_conflict"
     | "repository_persistence_error"
-    | "session_load_failed";
+    | "session_load_failed"
+    | "system_repository_catalog_failed";
 };
+
+export function projectSystemRepositoryCatalogFailure(
+  errorMessage: string,
+): SystemRepositoryRuntimeIssue {
+  return {
+    code: "system_repository_catalog_failed",
+    id: "system-journal",
+    location: null,
+    message: errorMessage,
+    status: "fault",
+  };
+}
 
 export function projectSystemRepositoryRuntimeIssues({
   issues,

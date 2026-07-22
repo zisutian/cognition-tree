@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 export type RepositoryFocusTarget =
+  | { kind: "catalog" }
   | { id: string; kind: "ordinary-issue" }
   | { id: string; kind: "ordinary-repository" }
   | { id: string; kind: "system-repository" };
@@ -27,6 +28,7 @@ export function useRepositoryNavigation() {
 
   return {
     consumeFocusRequest,
+    focusCatalog: () => focus({ kind: "catalog" }),
     focusOrdinaryIssue: (id: string) =>
       focus({ id, kind: "ordinary-issue" }),
     focusOrdinaryRepository: (id: string) =>

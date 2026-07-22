@@ -1,4 +1,7 @@
-import type { RepositoryViewModel } from "../../../application/workspace/activities/repository/repositoryViewModel";
+import type {
+  RepositorySelection,
+  RepositoryViewModel,
+} from "../../../application/workspace/activities/repository/repositoryViewModel";
 import type { RepositoryFocusRequest } from "../../../application/repository/useRepositoryNavigation";
 import "../../styles/activities/repository.css";
 import type { ActivitySlots } from "../../activityTypes";
@@ -10,10 +13,14 @@ import {
 export function createRepositoryActivitySlots({
   focusRequest,
   onConsumeFocusRequest,
+  onSelectionChange,
+  selection,
   view,
 }: {
   focusRequest: RepositoryFocusRequest | null;
   onConsumeFocusRequest: (requestId: number) => void;
+  onSelectionChange?: (selection: RepositorySelection) => void;
+  selection?: RepositorySelection;
   view: RepositoryViewModel;
 }): ActivitySlots {
   return {
@@ -22,12 +29,19 @@ export function createRepositoryActivitySlots({
         <RepositoryContext
           focusRequest={focusRequest}
           onConsumeFocusRequest={onConsumeFocusRequest}
+          onSelectionChange={onSelectionChange}
+          selection={selection}
           view={view}
         />
       ),
       title: "仓库",
     },
     detail: null,
-    main: <RepositoryPanel view={view} />,
+    main: (
+      <RepositoryPanel
+        selection={selection}
+        view={view}
+      />
+    ),
   };
 }

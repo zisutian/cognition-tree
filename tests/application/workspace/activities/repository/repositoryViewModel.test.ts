@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  createDefaultRepositorySelection,
   createRepositoryViewModel,
+  projectRepositoryFocusSelection,
   projectRepositoryIssueActions,
   projectRepositoryIssues,
+  projectRepositoryLabelIssueMessage,
   projectRepositoryLocation,
+  repositorySelectionExists,
   requiresManualLocalDeletion,
 } from "../../../../../src/application/workspace/activities/repository/repositoryViewModel";
 import type { RepositoryApplication } from "../../../../../src/application/repository/repositoryApplication";
@@ -43,6 +47,7 @@ function createSource(
     deleteRepository: vi.fn(async () => undefined),
     navigation: {
       consumeFocusRequest: vi.fn(),
+      focusCatalog: vi.fn(),
       focusOrdinaryIssue: vi.fn(),
       focusOrdinaryRepository: vi.fn(),
       focusRequest: null,
@@ -127,6 +132,54 @@ function createSource(
 }
 
 describe("repository view model", () => {
+  it.each([
+    ["conflict", "仓库名称与其他仓库冲突，请在左侧重命名。"],
+    ["reserved", "仓库名称由内置仓库保留，请在左侧重命名。"],
+    ["nonportable", "仓库名称包含不可移植字符，请在左侧重命名。"],
+    [null, ""],
+  ] as const)(
+    "projects the %s repository label issue precisely",
+    (issue, message) => {
+      expect(projectRepositoryLabelIssueMessage(issue)).toBe(message);
+    },
+  );
+
+  it("projects Problems focus targets into the same master-detail selection", () => {
+    const view = createRepositoryViewModel(createSource());
+
+    expect(projectRepositoryFocusSelection({
+      kind: "catalog",
+    })).toEqual({ kind: "create" });
+    expect(projectRepositoryFocusSelection({
+      id: "broken",
+      kind: "ordinary-issue",
+    })).toEqual({ id: "broken", kind: "ordinary-issue" });
+    expect(projectRepositoryFocusSelection({
+      id: "primary",
+      kind: "ordinary-repository",
+    })).toEqual({ id: "primary", kind: "ordinary-repository" });
+    expect(projectRepositoryFocusSelection({
+      id: "system-todo",
+      kind: "system-repository",
+    })).toEqual({ id: "system-todo", kind: "system-repository" });
+    expect(createDefaultRepositorySelection(view)).toEqual({
+      id: "primary",
+      kind: "ordinary-repository",
+    });
+    expect(createDefaultRepositorySelection({
+      activeRepositoryId: null,
+      repositories: [],
+    })).toEqual({ kind: "create" });
+    expect(repositorySelectionExists(
+      { id: "primary", kind: "ordinary-repository" },
+      view,
+    )).toBe(true);
+    expect(repositorySelectionExists(
+      { id: "missing", kind: "ordinary-repository" },
+      view,
+    )).toBe(false);
+  });
+
   it("projects each repository location without hiding copyable values", () => {
     expect(projectRepositoryLocation({
       type: "webdav",
@@ -267,6 +320,11 @@ describe("repository view model", () => {
     expect(view).toMatchObject({
       activeRepositoryId: "primary",
       activeRepositoryLabel: "Primary",
+      activeSessionErrorMessage:
+        "普通仓库存在同步冲突，请放弃本地修改并重新加载。",
+      activeSessionRecoveryAction: {
+        label: "放弃本地修改并重新加载",
+      },
       catalogErrorMessage: "",
       catalogStatus: "ready",
       creatableAdapters: [
@@ -337,6 +395,69 @@ describe("repository view model", () => {
     expect(view.refreshRepositories).toBe(source.refreshRepositories);
     expect(view.renameRepository).toBe(source.renameRepository);
     expect(view.selectRepository).toBe(source.selectRepository);
+  });
+
+  it("preserves an ordinary session load failure and its retry action", async () => {
+    const source = createSource();
+    const retry = vi.fn(async () => undefined);
+
+    source.session = {
+      errorMessage: "无法读取仓库索引。",
+      retry,
+      status: "failed",
+      storageLabel: "本地仓库",
+    };
+    const view = createRepositoryViewModel(source);
+
+    expect(view).toMatchObject({
+      activeSessionErrorMessage: "无法读取仓库索引。",
+      activeSessionRecoveryAction: { label: "重试挂载" },
+      persistenceStatusLabel: "挂载失败",
+    });
+    await view.activeSessionRecoveryAction?.run();
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("preserves an ordinary catalog failure for the create recovery detail", () => {
+    const source = createSource();
+
+    source.activeDescriptor = null;
+    source.catalogState = {
+      errorMessage: "无法读取普通仓库目录。",
+      status: "failed",
+    };
+    source.session = { status: "absent" };
+
+    expect(createRepositoryViewModel(source)).toMatchObject({
+      activeRepositoryId: null,
+      activeSessionErrorMessage: "",
+      activeSessionRecoveryAction: null,
+      catalogErrorMessage: "无法读取普通仓库目录。",
+      catalogStatus: "failed",
+      creatableAdapters: [],
+      repositories: [],
+    });
+  });
+
+  it("preserves an ordinary persistence error and reload recovery", async () => {
+    const source = createSource({
+      localCopySafe: false,
+      message: "浏览器存储空间不足。",
+      phase: "local",
+      status: "error",
+    });
+    const view = createRepositoryViewModel(source);
+
+    expect(view).toMatchObject({
+      activeSessionErrorMessage: "浏览器存储空间不足。",
+      activeSessionRecoveryAction: { label: "重新加载" },
+      persistenceStatusLabel: "保存失败",
+    });
+    await view.activeSessionRecoveryAction?.run();
+    if (source.session.status !== "ready") {
+      throw new Error("Expected a ready ordinary session fixture.");
+    }
+    expect(source.session.reload).toHaveBeenCalledOnce();
   });
 
   it("keeps ordinary creation and protected recovery available without an active ordinary repository", () => {

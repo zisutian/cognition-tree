@@ -34,22 +34,22 @@ Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与�
 ## 当前能力
 
     笔记：创建、编辑、删除、重命名和移动笔记。
-    日记：在独立内置仓库中手动创建一天多条的 CTN 日记；固定标题来自创建瞬间，列表按月份和创建时间倒序，正文、结构详情、仓内引用和日记诊断彼此独立于普通仓库。
-    代办：在独立内置仓库中维护有序事项集合和有序 checklist；集合与任务支持增删改、拖动排序和键盘排序，完成项保持原位置并显示划线状态。
+    日记：在独立内置仓库中手动创建一天多条 CTN 日记；固定标题为 `YYYY-MM-DD-0001` 形式的当日递增序号，列表按月份和创建时间倒序，并支持仓内引用与 `[[仓库名:笔记名]]` 跨普通仓库引用。
+    代办：在独立内置仓库中把每个事项集合保存为一篇层级 CTN；受保护的 `todo-item` 规则默认使用 `[]`，编辑器和详情结构树共享 completion sidecar 中的勾选状态。
     目录：创建、重命名、删除和移动文件夹。
     编辑器：编辑 CTN 可编辑内容，以 Tab 表达结构层级；多行块内使用独立的代码缩进键位，并可进入保留活动栏的专注模式。
-    仓库语法：创建和管理多份仓库级语法文件，并用列表中当前启用的语法解析笔记。
+    仓库语法：语法活动分为固定的日记、代办系统语法和普通笔记库语法；普通仓库可管理多份语法文件，打开编辑与实际启用是两个独立动作。
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
     引用图谱：查看笔记级引用关系和局部图谱。
-    问题：普通活动显示普通仓库诊断，日记活动只显示日记诊断，仓库活动追加普通与系统 catalog 问题；代办和设置不挂载问题面板。
-    仓库：创建、重命名、切换和删除 Local/WebDAV 仓库，查看自动生成的仓库 ID、结构化位置与保存状态，并重新扫描外部文件修改；日记和代办作为全局唯一、不可删除和不可重命名的内置仓库独立保存。
+    问题：普通活动显示普通 workspace 诊断；仓库活动追加普通与系统仓库及名称问题；日记显示正文、语法、仓内和跨仓引用诊断；代办显示语法与 CTN 诊断；设置不挂载问题面板。
+    仓库：以紧凑 master-detail 创建、重命名、选择、切换和删除 Local/WebDAV/Browser 仓库；左侧只显示极简状态和选中行操作，位置、复制、重扫、故障处理与危险操作集中在右侧。日记和代办是全局唯一、不可删除且不可重命名的内置仓库。
     设置：在“界面”页调整按仓库保存的工作台左侧栏宽度；该活动不显示底部问题栏。
     离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
 搜索和数据活动保留入口，当前作为后续能力的占位页面。
 
-没有健康普通仓库时仍挂载完整工作台。笔记、结构操作、引用图谱和语法活动显示前往仓库的创建入口，日记、代办、仓库和设置保持可用。
+没有健康普通仓库时仍挂载完整工作台。笔记、结构操作和引用图谱显示前往仓库的创建入口；语法活动仍可编辑日记与代办系统语法，并在“笔记库语法”分组提示创建普通仓库。日记、代办、仓库和设置始终可用。
 
 ## 开发命令
 
@@ -120,7 +120,9 @@ loopback HTTP 后端只接受 loopback Host 和本机开发前端 Origin。非 l
 
 后端通过 `/api/repositories` 列出和创建普通仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库，通过 `PATCH /api/repositories/<repositoryId>` 修改 catalog label，并通过 `DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。repository id 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；workspace 使用独立的 `workspace-<uuid>`。浏览器分别保存当前选择的 repository id；切换或重命名仓库不会复制内容，也不会重建活动 session。
 
-`GET /api/system-repositories` 固定列出 `system-journal` 和 `system-todo`；对应 snapshot endpoint 只提供 load 和 CAS commit，独立 retry endpoint 用于重新加载故障仓库，系统仓库不提供 create、delete 或 rename。HTTP 模式将其保存在 `CTN_SERVER_STATE_DIR/system-repositories/`，Browser 模式使用独立 IndexedDB。Journal 与 Todo 分别在 wire contract 之后执行领域内容校验，并在前向更新时执行 revision transition 校验；损坏内容保留原值并形成可重试问题，不会被空仓自动覆盖。
+`GET /api/system-repositories` 固定列出 `system-journal` 和 `system-todo`；对应 snapshot endpoint 只提供 load 和 CAS commit，独立 retry endpoint 用于重新加载故障仓库，系统仓库不提供 create、delete 或 rename。HTTP 模式将其保存在 `CTN_SERVER_STATE_DIR/system-repositories/`，Browser 模式使用独立 IndexedDB。Journal 与 Todo 使用各自的 v2 wire contract 和按 purpose 隔离的 storage epoch；发现缺失或旧 v1 epoch 时直接清除该 purpose 的旧 content、local-first draft/cache 并 provision 空 v2，不读取、迁移、备份或提示旧格式。当前 v2 的损坏内容和未知未来 epoch 则保留原值并形成可重试问题，且不会阻断另一个系统仓库。
+
+普通笔记标题、文件夹名、仓库名和 Todo 集合名使用统一可移植名称规则：存储前执行 `trim → NFC → 连续 ASCII 空格折叠`，只允许 Unicode 字母、组合标记、数字、内部普通空格、`-` 和 `_`；唯一性与引用键使用 `NFKC → en-US lowercase`。既有不合规名称保持可读并形成诊断，必须手工重命名，不自动改写。
 
 HTTP 模式的仓库活动可以动态添加和切换 Local/WebDAV 仓库。仓库位置使用结构化数据：Local 显示 realpath 后的服务端路径，并可同时显示由 `CTN_REPOSITORY_HOST_ROOT` 映射的宿主机路径；WebDAV 显示不含凭据的规范化 URL；Browser 显示实际 IndexedDB 数据库名。绝对路径只向已授权的单用户 catalog 前端公开，API 错误、未知 500 和日志不包含单仓路径或凭据。`CTN_REPOSITORY_HOST_ROOT` 必须是绝对路径，只参与展示，不参与读写、删除或权限判断。
 
@@ -145,8 +147,9 @@ HTTP repository 的本地 draft、已知远端 revision、catalog 与逐笔记 s
     src/ui/           workbench 布局、activity slots、问题面板、共享组件和样式
     src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
     ctn/              前端与 Local server 共享的纯 CTN parser、metadata reconcile 和 syntax profile 核心
-    journal/          前后端共享的日记内容约束、固定语法、命令、查询与仓内解析索引
-    todo/             前后端共享的代办内容约束、集合与任务命令及有序选择查询
+    journal/          前后端共享的日记 v2 内容约束、可配置语法、命令、查询与仓内解析索引
+    todo/             前后端共享的代办 v2 CTN 内容约束、completion sidecar、命令、查询与解析索引
+    portable-name/    普通笔记、文件夹、仓库和 Todo 集合共享的纯可移植名称规则
     src/storage/      repository 端口、浏览器/HTTP adapter 和运行时组合
     src/editor/       CodeMirror 编辑器适配
     contracts/        前后端共享的普通仓库与系统仓库 wire contract

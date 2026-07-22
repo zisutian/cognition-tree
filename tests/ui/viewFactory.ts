@@ -150,6 +150,8 @@ export function createView(
     repository: {
       activeRepositoryId: "primary",
       activeRepositoryLabel: "Primary",
+      activeSessionErrorMessage: "",
+      activeSessionRecoveryAction: null,
       catalogErrorMessage: "",
       catalogStatus: "ready",
       creatableAdapters: [

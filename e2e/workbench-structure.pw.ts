@@ -15,7 +15,7 @@ import {
 } from "./support/repositorySeeds";
 import {
   getActivityButton,
-  getRepositoryButton,
+  openRepositoryFromContext,
   openWorkbench,
 } from "./support/workbenchPage";
 
@@ -199,7 +199,7 @@ test.describe("directory and structure operation flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, interactionRepositoryId).click();
+    await openRepositoryFromContext(page, interactionRepositoryId);
     await getActivityButton(page, "结构操作").click();
 
     const columns = page.locator(".structure-operation-column");

@@ -13,7 +13,7 @@ import {
 } from "./support/repositorySeeds";
 import {
   getActivityButton,
-  getRepositoryButton,
+  openRepositoryFromContext,
   openWorkbench,
 } from "./support/workbenchPage";
 
@@ -38,7 +38,8 @@ test.describe.serial("workbench diagnostics", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, diagnosticsRepositoryId).click();
+    await openRepositoryFromContext(page, diagnosticsRepositoryId);
+    await getActivityButton(page, "笔记").click();
 
     const frame = page.locator(".app-frame");
     const problems = page.locator(".problems-panel");
@@ -110,10 +111,9 @@ test.describe.serial("workbench diagnostics", () => {
     await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
 
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, repositoryId).click();
+    await openRepositoryFromContext(page, repositoryId);
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
-    await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, diagnosticsRepositoryId).click();
+    await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
     await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
 
@@ -158,7 +158,7 @@ test.describe.serial("workbench diagnostics", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, diagnosticsRepositoryId).click();
+    await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await getActivityButton(page, "语法").click();
     await page.route(
       `**/api/repositories/${diagnosticsRepositoryId}/snapshot`,

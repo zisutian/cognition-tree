@@ -4,7 +4,9 @@ import {
   projectUiRepositoryLabelProblems,
   projectUiRepositoryProblems,
   projectUiSystemRepositoryProblems,
+  projectUiWorkspaceRepositoryRuntimeProblems,
 } from "../../../src/application/problems/workbenchProblems";
+import type { WorkspaceRepositoryRuntimeIssue } from "../../../src/application/repository/projectWorkspaceRepositoryIssues";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
@@ -63,6 +65,22 @@ const systemIssues: SystemRepositoryIssue[] = [{
   message: "日记仓库损坏。",
   status: "fault",
 }];
+
+const runtimeIssues: WorkspaceRepositoryRuntimeIssue[] = [
+  {
+    code: "repository_catalog_failed",
+    kind: "catalog",
+    message: "普通仓库目录不可用。",
+  },
+  {
+    adapter: "local",
+    code: "session_load_failed",
+    kind: "repository",
+    message: "仓库内容载入失败。",
+    repositoryId: "conflicted",
+    repositoryLabel: "日记",
+  },
+];
 
 describe("workbench problem projection", () => {
   it("maps fault issues to errors and deleting issues to warnings", () => {
@@ -131,6 +149,48 @@ describe("workbench problem projection", () => {
         },
       }),
     ]);
+    expect(projectUiSystemRepositoryProblems([{
+      code: "system_repository_catalog_failed",
+      id: "system-journal",
+      location: null,
+      message: "内置仓库目录不可用。",
+      status: "fault",
+    }])).toEqual([
+      expect.objectContaining({
+        id: "system-repository:catalog",
+        locationLabel: "内置仓库 · 目录",
+        target: {
+          kind: "system-repository-issue",
+          purpose: "system-journal",
+        },
+      }),
+    ]);
+  });
+
+  it("projects ordinary catalog and session failures to recoverable Repository targets", () => {
+    expect(projectUiWorkspaceRepositoryRuntimeProblems(runtimeIssues)).toEqual([
+      {
+        code: "repository_catalog_failed",
+        id: "repository-runtime:catalog",
+        locationLabel: "普通仓库 · 目录",
+        message: "普通仓库目录不可用。",
+        severity: "error",
+        source: "repository",
+        target: { kind: "repository-catalog" },
+      },
+      {
+        code: "session_load_failed",
+        id: "repository-runtime:conflicted",
+        locationLabel: "本地 · 日记",
+        message: "仓库内容载入失败。",
+        severity: "error",
+        source: "repository",
+        target: {
+          kind: "repository-runtime",
+          repositoryId: "conflicted",
+        },
+      },
+    ]);
   });
 
   it("merges repository problems without mutating or replacing diagnostics", () => {
@@ -144,12 +204,15 @@ describe("workbench problem projection", () => {
       issues,
       repositories,
       systemIssues,
+      runtimeIssues,
     )).toEqual({
-      errorCount: 3,
+      errorCount: 5,
       problems: [
         expect.objectContaining({ id: "repository-label-conflict:conflicted" }),
+        expect.objectContaining({ id: "repository-runtime:conflicted" }),
         expect.objectContaining({ id: "repository:aaa" }),
         expect.objectContaining({ id: "system-repository:system-journal" }),
+        expect.objectContaining({ id: "repository-runtime:catalog" }),
         expect.objectContaining({ id: "repository:bbb" }),
         diagnostic,
       ],

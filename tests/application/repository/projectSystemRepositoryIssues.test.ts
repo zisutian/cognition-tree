@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { projectSystemRepositoryRuntimeIssues } from "../../../src/application/repository/projectSystemRepositoryIssues";
+import {
+  projectSystemRepositoryCatalogFailure,
+  projectSystemRepositoryRuntimeIssues,
+} from "../../../src/application/repository/projectSystemRepositoryIssues";
 import type { SystemRepositorySession } from "../../../src/application/repository/useSystemRepositorySession";
 import { createEmptySystemRepositoryContent } from "../../../contracts/system-repository/parseRepository";
 
 type SessionState = Pick<SystemRepositorySession, "state">;
 
 describe("system repository runtime issue projection", () => {
+  it("preserves a failed system catalog as one retryable repository problem", () => {
+    expect(projectSystemRepositoryCatalogFailure(
+      "无法读取内置仓库目录。",
+    )).toEqual({
+      code: "system_repository_catalog_failed",
+      id: "system-journal",
+      location: null,
+      message: "无法读取内置仓库目录。",
+      status: "fault",
+    });
+  });
+
   it("adds independent session failures and does not duplicate catalog faults", () => {
     const sessions: Record<"system-journal" | "system-todo", SessionState> = {
       "system-journal": {

@@ -10,9 +10,14 @@ import type {
 import type { WorkbenchApplication } from "../../application/workbench/workbenchApplication";
 import type { RepositoryNavigation } from "../../application/repository/useRepositoryNavigation";
 import {
+  projectSystemRepositoryCatalogFailure,
   projectSystemRepositoryRuntimeIssues,
   type SystemRepositoryRuntimeIssue,
 } from "../../application/repository/projectSystemRepositoryIssues";
+import {
+  projectWorkspaceRepositoryRuntimeIssues,
+  type WorkspaceRepositoryRuntimeIssue,
+} from "../../application/repository/projectWorkspaceRepositoryIssues";
 import type { WorkspaceApplication } from "../../application/workspace/runtime/useWorkspaceApplication";
 import type { UiWorkbenchDiagnostics } from "../../application/workspace/projection/viewDiagnostics";
 import {
@@ -62,6 +67,7 @@ export function selectWorkbenchProblems({
   syntaxDiagnostics,
   todoDiagnostics,
   repositoryIssues,
+  repositoryRuntimeIssues = [],
   repositories,
   systemIssues,
 }: {
@@ -71,6 +77,7 @@ export function selectWorkbenchProblems({
   syntaxDiagnostics?: WorkbenchDiagnostics;
   todoDiagnostics?: TodoDiagnostics;
   repositoryIssues: WorkspaceRepositoryCatalogIssue[];
+  repositoryRuntimeIssues?: WorkspaceRepositoryRuntimeIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
   systemIssues: SystemRepositoryRuntimeIssue[];
 }): UiWorkbenchProblems {
@@ -93,6 +100,7 @@ export function selectWorkbenchProblems({
     activeActivityId === "repository" ? repositoryIssues : [],
     activeActivityId === "repository" ? repositories : [],
     activeActivityId === "repository" ? systemIssues : [],
+    activeActivityId === "repository" ? repositoryRuntimeIssues : [],
   );
 }
 
@@ -150,7 +158,15 @@ export function openWorkbenchProblem(
   } else if (problem.target.kind === "repository-issue") {
     context.repositoryNavigation.focusOrdinaryIssue(problem.target.issueId);
     context.onActiveActivityChange("repository");
-  } else {
+  } else if (problem.target.kind === "repository-runtime") {
+    context.repositoryNavigation.focusOrdinaryRepository(
+      problem.target.repositoryId,
+    );
+    context.onActiveActivityChange("repository");
+  } else if (problem.target.kind === "repository-catalog") {
+    context.repositoryNavigation.focusCatalog();
+    context.onActiveActivityChange("repository");
+  } else if (problem.target.kind === "system-repository-issue") {
     context.repositoryNavigation.focusSystemRepository(problem.target.purpose);
     context.onActiveActivityChange("repository");
   }
@@ -191,7 +207,14 @@ export function WorkbenchProblemsController({
         repositories: systemCatalog.repositories,
         sessions: application.repository.systems.sessions,
       })
-    : [];
+    : application.repository.systems.catalog.state.status === "failed"
+      ? [projectSystemRepositoryCatalogFailure(
+          application.repository.systems.catalog.state.errorMessage,
+        )]
+      : [];
+  const repositoryRuntimeIssues = projectWorkspaceRepositoryRuntimeIssues(
+    application.repository,
+  );
   const workspace = application.workspace.status === "ready"
     ? application.workspace.application
     : null;
@@ -214,6 +237,7 @@ export function WorkbenchProblemsController({
     todoDiagnostics: todo?.diagnostics,
     repositories: ordinaryCatalog?.repositories ?? [],
     repositoryIssues: ordinaryCatalog?.issues ?? [],
+    repositoryRuntimeIssues,
     systemIssues,
   });
   const openProblem = (problem: UiWorkbenchProblem) =>

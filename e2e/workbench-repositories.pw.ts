@@ -23,7 +23,7 @@ import {
 } from "./support/repositorySeeds";
 import {
   getActivityButton,
-  getRepositoryButton,
+  openRepositoryFromContext,
   openWorkbench,
 } from "./support/workbenchPage";
 
@@ -60,12 +60,19 @@ test.describe.serial("repository and capacity flows", () => {
     await contextResize.focus();
     await contextResize.press("ArrowRight");
     await getActivityButton(page, "仓库").click();
-    await page.getByRole("button", { name: "添加仓库" }).click();
+    await page.getByRole("button", { name: "新建仓库" }).click();
     const createForm = page.locator(".repository-create");
 
     await createForm.getByRole("textbox", { name: "名称" }).fill("第二仓库");
     await createForm.getByRole("button", { name: "创建仓库" }).click();
 
+    await expect(getActivityButton(page, "仓库")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.getByRole("heading", { name: "第二仓库" }))
+      .toBeVisible();
+    await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(page.locator(".app-context").getByTitle("未命名笔记"))
       .toBeVisible();
@@ -83,7 +90,12 @@ test.describe.serial("repository and capacity flows", () => {
       /^repository-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
     await expect(activeRepository).toHaveAttribute("title", "第二仓库 · 本地");
-    await getRepositoryButton(page, repositoryId).click();
+    await openRepositoryFromContext(page, repositoryId);
+    await expect(getActivityButton(page, "仓库")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await getActivityButton(page, "笔记").click();
     await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
@@ -157,7 +169,8 @@ test.describe.serial("repository and capacity flows", () => {
     const initialProbe = await readProbe();
 
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, rawRepositoryId).click();
+    await openRepositoryFromContext(page, rawRepositoryId);
+    await getActivityButton(page, "笔记").click();
     await expect(page.locator(".app-context").getByTitle("原始笔记"))
       .toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
@@ -170,7 +183,8 @@ test.describe.serial("repository and capacity flows", () => {
     const afterFirstSwitch = await readProbe();
 
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, repositoryId).click();
+    await openRepositoryFromContext(page, repositoryId);
+    await getActivityButton(page, "笔记").click();
     await expect(page.locator(".app-context").getByTitle("Alpha")).toBeVisible();
     await expect.poll(async () => (await readProbe()).active).toBe(3);
     await expect
@@ -254,10 +268,7 @@ test.describe.serial("repository and capacity flows", () => {
       { exact: true },
     )).toBeVisible();
 
-    await getRepositoryButton(page, rawRepositoryId).click();
-    await expect(page.locator(".app-context").getByTitle("原始笔记"))
-      .toBeVisible();
-    await getActivityButton(page, "仓库").click();
+    await openRepositoryFromContext(page, rawRepositoryId);
     await expect(locationRow("服务端路径").getByText(
       rawRepository.location.serverPath,
       { exact: true },
@@ -270,12 +281,16 @@ test.describe.serial("repository and capacity flows", () => {
       externalRepository.location.serverPath,
       { exact: true },
     )).toHaveCount(0);
+    await getActivityButton(page, "笔记").click();
+    await expect(page.locator(".app-context").getByTitle("原始笔记"))
+      .toBeVisible();
   });
 
   test("edits repositories without syntax in raw mode", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, rawRepositoryId).click();
+    await openRepositoryFromContext(page, rawRepositoryId);
+    await getActivityButton(page, "笔记").click();
 
     const editor = page.locator(".source-editor");
 
@@ -308,7 +323,9 @@ test.describe.serial("repository and capacity flows", () => {
     await getActivityButton(page, "引用图谱").click();
     await expect(page.getByText("引用图谱不可用", { exact: true })).toBeVisible();
     await getActivityButton(page, "语法").click();
-    await expect(page.getByRole("button", { name: "新建语法" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "新建笔记库语法" }).first(),
+    ).toBeVisible();
   });
 
   test("finishes the local stage before an immediate repository switch", async ({
@@ -323,12 +340,14 @@ test.describe.serial("repository and capacity flows", () => {
     await page.keyboard.press("Control+End");
     await page.keyboard.type(" immediate-switch-local");
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, rawRepositoryId).click();
+    await openRepositoryFromContext(page, rawRepositoryId);
+    await getActivityButton(page, "笔记").click();
     await expect(page.locator(".app-context").getByTitle("原始笔记"))
       .toBeVisible();
 
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, repositoryId).click();
+    await openRepositoryFromContext(page, repositoryId);
+    await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("Alpha").click();
     await expect(page.getByLabel("笔记编辑")).toContainText(
       "immediate-switch-local",
@@ -478,7 +497,8 @@ test.describe.serial("repository and capacity flows", () => {
   test("virtualizes large directory and structure trees", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
-    await getRepositoryButton(page, largeRepositoryId).click();
+    await openRepositoryFromContext(page, largeRepositoryId);
+    await getActivityButton(page, "笔记").click();
 
     const context = page.locator(".activity-context-content");
     const directoryTree = context.locator(
@@ -554,22 +574,29 @@ test.describe.serial("repository and capacity flows", () => {
       const issueRow = page.locator(
         `[data-repository-issue-id="${unsupportedRepositoryId}"]`,
       );
+      const repositoryPanel = page.getByRole("region", { name: "仓库" });
 
       await expect(repositoryProblem).toBeVisible();
       await repositoryProblem.click();
       await expect(issueRow).toBeFocused();
-      await expect(issueRow).toContainText("请在文件系统中手工删除上述目录。");
-      await expect(issueRow).toContainText(
+      await expect(issueRow).toContainText("故障");
+      await expect(repositoryPanel).toContainText(
+        "请在文件系统中手工删除上述目录。",
+      );
+      await expect(repositoryPanel).toContainText(
         `/host/e2e-repositories/${unsupportedRepositoryId}`,
       );
-      await expect(issueRow).not.toContainText(
+      await expect(repositoryPanel).not.toContainText(
         `.cognition-tree/e2e-repository/${unsupportedRepositoryId}`,
       );
       await expect(
-        issueRow.getByRole("button", { name: "清理", exact: true }),
+        repositoryPanel.getByRole("button", { name: "清理", exact: true }),
       ).toHaveCount(0);
       await expect(
-        issueRow.getByRole("button", { name: "复制主机路径", exact: true }),
+        repositoryPanel.getByRole("button", {
+          name: "复制主机路径",
+          exact: true,
+        }),
       ).toBeVisible();
 
       await getActivityButton(page, "笔记").click();
@@ -581,7 +608,7 @@ test.describe.serial("repository and capacity flows", () => {
       await expect(issueRow).not.toBeFocused();
 
       await removeE2ELocalRepository(unsupportedRepositoryId);
-      await issueRow.getByRole("button", { name: "重新检查" }).click();
+      await repositoryPanel.getByRole("button", { name: "重新检查" }).click();
       await expect(issueRow).toHaveCount(0);
       await expect(repositoryProblem).toHaveCount(0);
       expect(unsupportedDeleteRequests).toBe(0);
@@ -632,15 +659,15 @@ test.describe.serial("repository and capacity flows", () => {
       );
 
       await expect(repositoryPanel).toBeVisible();
-      await expect(repositoryPanel).toContainText("尚未挂载普通仓库");
       await expect(
-        repositoryPanel.getByRole("button", { name: "创建普通仓库" }),
+        repositoryPanel.getByText("新建普通仓库", { exact: true }),
       ).toBeVisible();
-      await expect(issueRow).toContainText(
+      await issueRow.click();
+      await expect(repositoryPanel).toContainText(
         "仓库格式不受支持，需要手工删除该目录。",
       );
       await expect(
-        issueRow.getByRole("button", { name: "重新检查" }),
+        repositoryPanel.getByRole("button", { name: "重新检查" }),
       ).toBeVisible();
 
       await getActivityButton(page, "笔记").click();
@@ -653,7 +680,7 @@ test.describe.serial("repository and capacity flows", () => {
       await getActivityButton(page, "仓库").click();
 
       await removeE2ELocalRepository(unsupportedRepositoryId);
-      await issueRow.getByRole("button", { name: "重新检查" }).click();
+      await repositoryPanel.getByRole("button", { name: "重新检查" }).click();
       await expect(issueRow).toHaveCount(0);
     } finally {
       await removeE2ELocalRepository(unsupportedRepositoryId);

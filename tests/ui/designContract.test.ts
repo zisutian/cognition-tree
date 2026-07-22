@@ -283,23 +283,14 @@ describe("UI design contract", () => {
       compactRowStart,
       compactContextStyle.indexOf("}", compactRowStart) + 1,
     );
-    const issueStart = repositoryStyle.indexOf(
-      ".repository-issue-row {",
-    );
-    const issueRule = repositoryStyle.slice(
-      issueStart,
-      repositoryStyle.indexOf("}", issueStart) + 1,
-    );
-
     expect(compactRowStart).toBeGreaterThanOrEqual(0);
-    expect(issueStart).toBeGreaterThanOrEqual(0);
     expect(compactRow).toContain("var(--ui-symbol-size)");
     expect(compactRow).toContain("minmax(0, 1fr)");
     expect(repositoryStyle).not.toContain(".repository-inline-rename");
     expect(repositoryStyle).not.toContain(".repository-group-title");
-    expect(repositoryStyle).toContain("width: min(100%, 880px)");
+    expect(repositoryStyle).not.toContain(".repository-issue-row {");
+    expect(repositoryStyle).toContain("width: min(100%, 720px)");
     expect(repositoryStyle).toContain("@media (max-width: 720px)");
-    expect(issueRule).not.toContain("border:");
     expect(repositoryStyle).not.toMatch(
       /\.repository-danger-zone\s*\{[^}]*border:/s,
     );

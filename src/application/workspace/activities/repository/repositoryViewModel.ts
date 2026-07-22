@@ -9,6 +9,7 @@ import type {
   SystemRepositoryLocation,
   SystemRepositoryPurpose,
 } from "../../../../storage/repository/systemRepository";
+export type { SystemRepositoryPurpose } from "../../../../storage/repository/systemRepository";
 import type { RepositoryApplication } from "../../../repository/repositoryApplication";
 import type {
   CreateRepositoryRequest,
@@ -83,6 +84,68 @@ export type RepositoryIssueActionView = {
   label: string;
   mode: DeleteRepositoryRequest["mode"];
 };
+
+export type RepositorySelection =
+  | { kind: "create" }
+  | { id: string; kind: "ordinary-issue" }
+  | { id: string; kind: "ordinary-repository" }
+  | { id: SystemRepositoryPurpose; kind: "system-repository" };
+
+export function createDefaultRepositorySelection(
+  view: Pick<
+    RepositoryViewModel,
+    "activeRepositoryId" | "repositories"
+  >,
+): RepositorySelection {
+  const active = view.activeRepositoryId && view.repositories.some(
+    ({ id }) => id === view.activeRepositoryId,
+  )
+    ? view.activeRepositoryId
+    : null;
+
+  if (active) return { id: active, kind: "ordinary-repository" };
+  const firstRepository = view.repositories[0];
+
+  return firstRepository
+    ? { id: firstRepository.id, kind: "ordinary-repository" }
+    : { kind: "create" };
+}
+
+export function repositorySelectionExists(
+  selection: RepositorySelection,
+  view: Pick<
+    RepositoryViewModel,
+    "issues" | "repositories"
+  >,
+) {
+  switch (selection.kind) {
+    case "create":
+    case "system-repository":
+      return true;
+    case "ordinary-issue":
+      return view.issues.some(({ id }) => id === selection.id);
+    case "ordinary-repository":
+      return view.repositories.some(({ id }) => id === selection.id);
+  }
+}
+
+export function projectRepositoryFocusSelection(
+  target:
+    | { kind: "catalog" }
+    | { id: string; kind: "ordinary-issue" | "ordinary-repository" }
+    | { id: string; kind: "system-repository" },
+): RepositorySelection {
+  if (target.kind === "catalog") {
+    return { kind: "create" };
+  }
+  if (target.kind === "system-repository") {
+    return {
+      id: target.id as SystemRepositoryPurpose,
+      kind: "system-repository",
+    };
+  }
+  return { id: target.id, kind: target.kind };
+}
 
 export function projectRepositoryIssueActions(
   issue: Pick<
@@ -208,6 +271,21 @@ export function projectRepositoryOptions(
   });
 }
 
+export function projectRepositoryLabelIssueMessage(
+  issue: WorkspaceRepositoryDescriptor["labelIssue"],
+) {
+  switch (issue) {
+    case "conflict":
+      return "仓库名称与其他仓库冲突，请在左侧重命名。";
+    case "reserved":
+      return "仓库名称由内置仓库保留，请在左侧重命名。";
+    case "nonportable":
+      return "仓库名称包含不可移植字符，请在左侧重命名。";
+    case null:
+      return "";
+  }
+}
+
 export function projectRepositoryIssues(
   issues: WorkspaceRepositoryCatalogIssue[],
 ): RepositoryIssueView[] {
@@ -269,6 +347,11 @@ function projectDeletionState(persistence: WorkspacePersistenceState) {
 export type RepositoryViewModel = {
   activeRepositoryId: string | null;
   activeRepositoryLabel: string;
+  activeSessionErrorMessage: string;
+  activeSessionRecoveryAction: {
+    label: string;
+    run: () => Promise<void>;
+  } | null;
   catalogErrorMessage: string;
   catalogStatus: "failed" | "loading" | "ready";
   createRepository: (input: CreateRepositoryRequest) => Promise<void>;
@@ -323,6 +406,23 @@ export function createRepositoryViewModel(
       : source.session.status === "failed"
         ? "挂载失败"
         : "未挂载";
+  const activeSessionErrorMessage = source.session.status === "failed"
+    ? source.session.errorMessage
+    : persistence?.status === "conflict"
+      ? "普通仓库存在同步冲突，请放弃本地修改并重新加载。"
+      : persistence?.status === "error"
+        ? persistence.message
+        : "";
+  const activeSessionRecoveryAction = source.session.status === "failed"
+    ? { label: "重试挂载", run: source.session.retry }
+    : source.session.status === "ready" && persistence?.status === "conflict"
+      ? {
+          label: "放弃本地修改并重新加载",
+          run: source.session.discardPendingChangesAndReload,
+        }
+      : source.session.status === "ready" && persistence?.status === "error"
+        ? { label: "重新加载", run: source.session.reload }
+        : null;
   const systemRepositories = (systems?.repositories ?? []).map(
     (repository): SystemRepositoryOption => {
       const session = source.systems.sessions[repository.id];
@@ -409,6 +509,8 @@ export function createRepositoryViewModel(
   return {
     activeRepositoryId,
     activeRepositoryLabel: active?.label ?? "尚未选择普通仓库",
+    activeSessionErrorMessage,
+    activeSessionRecoveryAction,
     catalogErrorMessage: source.catalogState.status === "failed"
       ? source.catalogState.errorMessage
       : "",

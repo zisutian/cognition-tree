@@ -28,3 +28,16 @@ export function getRepositoryButton(
     `[data-repository-id="${repositoryId}"]`,
   );
 }
+
+export async function openRepositoryFromContext(
+  page: Page,
+  repositoryId: string,
+) {
+  const row = getRepositoryButton(page, repositoryId);
+
+  await row.click();
+  await row.locator("..").getByRole("button", {
+    name: /^打开仓库 /,
+  }).click();
+  await expect(row).toContainText("当前");
+}

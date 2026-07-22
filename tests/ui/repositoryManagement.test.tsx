@@ -256,7 +256,7 @@ describe("repository setup and management semantics", () => {
     );
   });
 
-  it("uses a grouped repository context and keeps generated IDs read-only", () => {
+  it("orders compact rows and renders actions only for the selected repository", () => {
     const baseView = createView().repository;
     const view = {
       ...baseView,
@@ -269,9 +269,17 @@ describe("repository setup and management semantics", () => {
         <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
+          selection={{
+            id: webDavRepository.id,
+            kind: "ordinary-repository",
+          }}
           view={view}
         />
         <RepositoryPanel
+          selection={{
+            id: webDavRepository.id,
+            kind: "ordinary-repository",
+          }}
           view={view}
         />
       </FeedbackProvider>,
@@ -280,31 +288,34 @@ describe("repository setup and management semantics", () => {
     expect(markup).toContain("ui-compact-context-group-title");
     expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain("repository-list");
+    expect(markup.indexOf(">内置</span>")).toBeLessThan(
+      markup.indexOf(">新建仓库</span>"),
+    );
+    expect(markup.indexOf(">新建仓库</span>")).toBeLessThan(
+      markup.indexOf(">本地</span>"),
+    );
     expect(markup.indexOf(">本地</span>")).toBeLessThan(
       markup.indexOf(">WebDAV</span>"),
     );
     expect(markup).toContain('aria-current="page"');
-    expect(markup).not.toContain("<select");
     expect(markup).toContain("本地笔记 · 本地");
     expect(markup).toContain("远端笔记 · WebDAV");
     expect(markup).toContain("仓库 ID");
-    expect(markup).toContain(localRepository.id);
+    expect(markup).toContain(webDavRepository.id);
     expect(markup).not.toContain("新仓库 ID");
-    expect(markup).not.toContain('aria-label="仓库存储类型"');
-    expect(markup).toContain('aria-label="重新扫描文件"');
-    expect(markup).toContain('aria-label="添加仓库"');
-    expect(markup).toContain('aria-expanded="false"');
-    expect(markup).not.toContain(
-      'class="ui-section repository-create-region"',
-    );
-    expect(markup).toContain("主机路径");
-    expect(markup).toContain("/home/zisu/notes/local");
-    expect(markup).toContain('aria-label="复制主机路径"');
+    expect(markup).toContain('aria-label="重命名仓库 远端笔记"');
+    expect(markup).toContain('aria-label="打开仓库 远端笔记"');
+    expect(markup).not.toContain('aria-label="重命名仓库 本地笔记"');
+    expect(markup).toContain(">当前</span>");
+    expect(markup).toContain("未打开");
+    expect(markup).toContain("WebDAV 地址");
+    expect(markup).toContain('aria-label="复制WebDAV 地址"');
+    expect(markup).not.toContain(">打开此仓库<");
     expect(markup).toContain("危险区");
     expect(markup).toContain("删除仓库");
   });
 
-  it("creates the first ordinary repository and handles manual Local recovery inside the full Repository activity", () => {
+  it("keeps creation and manual Local recovery as selectable right-side details", () => {
     const baseView = createView().repository;
     const view = {
       ...baseView,
@@ -325,34 +336,79 @@ describe("repository setup and management semantics", () => {
       persistenceStatusLabel: "未挂载",
       repositories: [],
     };
-    const markup = renderToStaticMarkup(
+    const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
+          selection={{ id: "default", kind: "ordinary-issue" }}
           view={view}
         />
-        <RepositoryPanel view={view} />
+      </FeedbackProvider>,
+    );
+    const issueMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{ id: "default", kind: "ordinary-issue" }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const createMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel selection={{ kind: "create" }} view={view} />
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain("没有普通仓库。");
-    expect(markup).toContain("尚未挂载普通仓库");
-    expect(markup).toContain(">创建普通仓库<");
-    expect(markup).toContain('aria-label="添加仓库"');
-    expect(markup).toContain("仓库格式不受支持，需要手工删除该目录。");
-    expect(markup).toContain("请在文件系统中手工删除上述目录。");
-    expect(markup).toContain("主机路径：/home/zisu/notes/default");
-    expect(markup).toContain('aria-label="复制主机路径"');
-    expect(markup).toContain(">重新检查<");
-    expect(markup).not.toContain("/data/repositories/default");
-    expect(markup).not.toContain(">清理<");
-    expect(markup).not.toContain(">重试清理<");
-    expect(markup).not.toContain(">移除连接<");
-    expect(markup).not.toContain("危险区");
+    expect(contextMarkup).toContain(">新建仓库</span>");
+    expect(contextMarkup).toContain('data-repository-catalog="true"');
+    expect(contextMarkup).toContain('data-repository-issue-id="default"');
+    expect(contextMarkup).not.toContain("手工删除");
+    expect(contextMarkup).not.toContain("主机路径");
+    expect(issueMarkup).toContain("仓库格式不受支持，需要手工删除该目录。");
+    expect(issueMarkup).toContain("请在文件系统中手工删除上述目录。");
+    expect(issueMarkup).toContain("/home/zisu/notes/default");
+    expect(issueMarkup).toContain('aria-label="复制主机路径"');
+    expect(issueMarkup).toContain(">重新检查<");
+    expect(issueMarkup).not.toContain("/data/repositories/default");
+    expect(issueMarkup).not.toContain(">清理<");
+    expect(issueMarkup).not.toContain("危险区");
+    expect(createMarkup).toContain("新建普通仓库");
+    expect(createMarkup).toContain('aria-label="仓库存储类型"');
+    expect(createMarkup).toContain('type="submit"');
   });
 
-  it("renders repository issues only in the grouped context with focus targets and actions", () => {
+  it("shows ordinary catalog recovery only in the selected create detail", () => {
+    const view = {
+      ...createView().repository,
+      catalogErrorMessage: "无法读取普通仓库目录。",
+      catalogStatus: "failed" as const,
+      creatableAdapters: [],
+      repositories: [],
+    };
+    const contextMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          selection={{ kind: "create" }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const detailMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel selection={{ kind: "create" }} view={view} />
+      </FeedbackProvider>,
+    );
+
+    expect(contextMarkup).toContain('data-repository-catalog="true"');
+    expect(contextMarkup).not.toContain("无法读取普通仓库目录。");
+    expect(detailMarkup).toContain("无法读取普通仓库目录。");
+    expect(detailMarkup).toContain(">重试普通仓库<");
+  });
+
+  it("keeps issue rows compact and moves every cleanup action to the selected detail", () => {
     const baseView = createView().repository;
     const issues = projectRepositoryIssues([
       {
@@ -386,6 +442,7 @@ describe("repository setup and management semantics", () => {
         <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
+          selection={{ id: "webdav-deleting", kind: "ordinary-issue" }}
           view={view}
         />
       </FeedbackProvider>,
@@ -393,6 +450,7 @@ describe("repository setup and management semantics", () => {
     const panelMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
+          selection={{ id: "webdav-deleting", kind: "ordinary-issue" }}
           view={view}
         />
       </FeedbackProvider>,
@@ -401,18 +459,18 @@ describe("repository setup and management semantics", () => {
     expect(contextMarkup).toContain('data-repository-issue-id="webdav-broken"');
     expect(contextMarkup).toContain('data-repository-issue-id="webdav-deleting"');
     expect(contextMarkup).toContain('data-repository-issue-id="local-broken"');
-    expect(contextMarkup).toContain("ui-compact-context-static-row");
-    expect(contextMarkup.match(/tabindex="-1"/g)).toHaveLength(3);
-    expect(contextMarkup).toContain(">移除连接<");
-    expect(contextMarkup).toContain(">重试清理<");
-    expect(contextMarkup).toContain(">停止跟踪<");
-    expect(contextMarkup).toContain(">清理<");
-    expect(panelMarkup).not.toContain("仓库问题");
+    expect(contextMarkup).not.toContain(">移除连接<");
+    expect(contextMarkup).not.toContain(">重试清理<");
+    expect(contextMarkup).not.toContain(">停止跟踪<");
+    expect(contextMarkup).not.toContain(">清理<");
+    expect(panelMarkup).toContain("webdav-deleting");
+    expect(panelMarkup).toContain(">重试清理<");
+    expect(panelMarkup).toContain(">停止跟踪<");
     expect(panelMarkup).not.toContain("webdav-broken");
     expect(panelMarkup).not.toContain("local-broken");
   });
 
-  it("shows protected system repositories, independent faults, visible locations, and recovery only", () => {
+  it("keeps protected system rows minimal and shows location and recovery in the detail", () => {
     const baseView = createView().repository;
     const view = {
       ...baseView,
@@ -458,39 +516,63 @@ describe("repository setup and management semantics", () => {
         statusLabel: "同步冲突",
       }],
     };
-    const markup = renderToStaticMarkup(
+    const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryContext
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
+          selection={{
+            id: "system-journal",
+            kind: "system-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const journalMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{
+            id: "system-journal",
+            kind: "system-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const todoMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{ id: "system-todo", kind: "system-repository" }}
           view={view}
         />
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain(">内置</span>");
-    expect(markup).toContain("日记");
-    expect(markup).toContain("同步冲突 · 受保护");
-    expect(markup).toContain("服务端路径：/state/system-journal.json");
-    expect(markup).toContain(
-      'aria-label="放弃本地修改并重新加载日记"',
-    );
-    expect(markup).toContain('data-system-repository-id="system-journal"');
-    expect(markup).toContain('data-system-repository-id="system-todo"');
-    expect(markup).toContain("浏览器数据库：cognition-tree-system-todo");
-    expect(markup).toContain(">重试<");
-    expect(markup).toContain("名称冲突");
-    expect(markup).not.toContain("删除日记");
-    expect(markup).not.toContain("重命名日记");
+    expect(contextMarkup).toContain(">内置</span>");
+    expect(contextMarkup).toContain('data-system-repository-id="system-journal"');
+    expect(contextMarkup).toContain('data-system-repository-id="system-todo"');
+    expect(contextMarkup).toContain("同步冲突");
+    expect(contextMarkup).not.toContain("/state/system-journal.json");
+    expect(contextMarkup).not.toContain("cognition-tree-system-todo");
+    expect(contextMarkup).not.toContain("放弃本地修改并重新加载");
+    expect(journalMarkup).toContain("内置受保护仓库");
+    expect(journalMarkup).toContain("/state/system-journal.json");
+    expect(journalMarkup).toContain("放弃本地修改并重新加载");
+    expect(todoMarkup).toContain("代办仓库损坏。");
+    expect(todoMarkup).toContain("cognition-tree-system-todo");
+    expect(todoMarkup).toContain(">重试<");
+    expect(journalMarkup).not.toContain("删除仓库");
+    expect(journalMarkup).not.toContain("重命名仓库");
   });
 
-  it("offers an independent retry when the system catalog fails", () => {
+  it("offers system catalog retry only in the selected system detail", () => {
     const view = {
       ...createView().repository,
       systemCatalogErrorMessage: "内置仓库目录不可用。",
       systemCatalogStatus: "failed" as const,
     };
-    const markup = renderToStaticMarkup(
+    const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryContext
           focusRequest={null}
@@ -499,9 +581,111 @@ describe("repository setup and management semantics", () => {
         />
       </FeedbackProvider>,
     );
+    const panelMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{
+            id: "system-journal",
+            kind: "system-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
 
-    expect(markup).toContain('role="alert"');
-    expect(markup).toContain("内置仓库目录不可用。");
-    expect(markup).toContain(">重试内置仓库<");
+    expect(contextMarkup).not.toContain('role="alert"');
+    expect(contextMarkup).not.toContain("内置仓库目录不可用。");
+    expect(contextMarkup).not.toContain(">重试内置仓库<");
+    expect(contextMarkup.match(/>故障<\/span>/g)).toHaveLength(2);
+    expect(contextMarkup.match(/has-diagnostics/g)).toHaveLength(2);
+    expect(contextMarkup).toContain('aria-label="日记仓库存在问题"');
+    expect(contextMarkup).toContain('aria-label="代办仓库存在问题"');
+    expect(panelMarkup).toContain("内置仓库目录不可用。");
+    expect(panelMarkup).toContain(">重试内置仓库<");
+  });
+
+  it.each([
+    ["conflict", "仓库名称与其他仓库冲突，请在左侧重命名。"],
+    ["reserved", "仓库名称由内置仓库保留，请在左侧重命名。"],
+    ["nonportable", "仓库名称包含不可移植字符，请在左侧重命名。"],
+  ] as const)("shows the %s repository label issue in the selected detail", (
+    labelIssue,
+    message,
+  ) => {
+    const view = {
+      ...createView().repository,
+      repositories: [{ ...localRepository, labelIssue }],
+    };
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+
+    expect(markup).toContain(message);
+  });
+
+  it("keeps ordinary runtime failures compact on the left and recoverable on the right", () => {
+    const view = {
+      ...createView().repository,
+      activeRepositoryId: localRepository.id,
+      activeRepositoryLabel: localRepository.label,
+      activeSessionErrorMessage: "无法读取仓库索引。",
+      activeSessionRecoveryAction: {
+        label: "重试挂载",
+        run: async () => undefined,
+      },
+      persistenceStatusLabel: "挂载失败",
+      repositories: [localRepository, webDavRepository],
+    };
+    const contextMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryContext
+          focusRequest={null}
+          onConsumeFocusRequest={() => undefined}
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const activeMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{
+            id: localRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const inactiveMarkup = renderToStaticMarkup(
+      <FeedbackProvider>
+        <RepositoryPanel
+          selection={{
+            id: webDavRepository.id,
+            kind: "ordinary-repository",
+          }}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+
+    expect(contextMarkup).toContain('aria-label="仓库运行状态存在问题"');
+    expect(contextMarkup).not.toContain("无法读取仓库索引。");
+    expect(activeMarkup).toContain("无法读取仓库索引。");
+    expect(activeMarkup).toContain(">重试挂载<");
+    expect(activeMarkup).not.toContain(">重新扫描文件<");
+    expect(inactiveMarkup).not.toContain("无法读取仓库索引。");
+    expect(inactiveMarkup).toContain(">重新检查仓库<");
   });
 });

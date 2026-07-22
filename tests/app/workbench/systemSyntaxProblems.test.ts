@@ -50,6 +50,7 @@ describe("system syntax problems", () => {
       onActiveActivityChange,
       repositoryNavigation: {
         consumeFocusRequest: vi.fn(),
+        focusCatalog: vi.fn(),
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,

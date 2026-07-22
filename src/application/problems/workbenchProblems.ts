@@ -7,6 +7,7 @@ import type {
   TodoDiagnostics,
 } from "../todo/todoDiagnostics";
 import type { SystemRepositoryRuntimeIssue } from "../repository/projectSystemRepositoryIssues";
+import type { WorkspaceRepositoryRuntimeIssue } from "../repository/projectWorkspaceRepositoryIssues";
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
@@ -24,6 +25,7 @@ import type {
 export type UiWorkbenchRepositoryProblem = {
   code:
     | SystemRepositoryRuntimeIssue["code"]
+    | WorkspaceRepositoryRuntimeIssue["code"]
     | WorkspaceRepositoryCatalogIssue["code"]
     | `repository-name-${NonNullable<WorkspaceRepositoryDescriptor["labelIssue"]>}`;
   id: string;
@@ -38,6 +40,11 @@ export type UiWorkbenchRepositoryProblem = {
     entity: "repository";
     kind: "portable-name";
     owner: "repository";
+    repositoryId: string;
+  } | {
+    kind: "repository-catalog";
+  } | {
+    kind: "repository-runtime";
     repositoryId: string;
   } | {
     kind: "system-repository-issue";
@@ -135,11 +142,14 @@ export function projectUiSystemRepositoryProblems(
 ): UiWorkbenchRepositoryProblem[] {
   return issues.map((issue) => {
     const label = issue.id === "system-journal" ? "日记" : "代办";
+    const catalogFailure = issue.code === "system_repository_catalog_failed";
 
     return {
       code: issue.code,
-      id: `system-repository:${issue.id}`,
-      locationLabel: `内置 · ${label}`,
+      id: catalogFailure
+        ? "system-repository:catalog"
+        : `system-repository:${issue.id}`,
+      locationLabel: catalogFailure ? "内置仓库 · 目录" : `内置 · ${label}`,
       message: issue.message,
       severity: "error",
       source: "repository",
@@ -151,16 +161,48 @@ export function projectUiSystemRepositoryProblems(
   });
 }
 
+export function projectUiWorkspaceRepositoryRuntimeProblems(
+  issues: WorkspaceRepositoryRuntimeIssue[],
+): UiWorkbenchRepositoryProblem[] {
+  return issues.map((issue) =>
+    issue.kind === "catalog"
+      ? {
+          code: issue.code,
+          id: "repository-runtime:catalog",
+          locationLabel: "普通仓库 · 目录",
+          message: issue.message,
+          severity: "error",
+          source: "repository",
+          target: { kind: "repository-catalog" },
+        }
+      : {
+          code: issue.code,
+          id: `repository-runtime:${issue.repositoryId}`,
+          locationLabel:
+            `${repositoryAdapterLabels[issue.adapter]} · ${issue.repositoryLabel}`,
+          message: issue.message,
+          severity: "error",
+          source: "repository",
+          target: {
+            kind: "repository-runtime",
+            repositoryId: issue.repositoryId,
+          },
+        }
+  );
+}
+
 export function createUiWorkbenchProblems(
   diagnostics: WorkbenchDiagnostics,
   repositoryIssues: WorkspaceRepositoryCatalogIssue[] = [],
   repositories: WorkspaceRepositoryDescriptor[] = [],
   systemIssues: SystemRepositoryRuntimeIssue[] = [],
+  repositoryRuntimeIssues: WorkspaceRepositoryRuntimeIssue[] = [],
 ): UiWorkbenchProblems {
   const problems: UiWorkbenchProblem[] = [
     ...diagnostics.diagnostics,
     ...projectUiRepositoryProblems(repositoryIssues),
     ...projectUiRepositoryLabelProblems(repositories),
+    ...projectUiWorkspaceRepositoryRuntimeProblems(repositoryRuntimeIssues),
     ...projectUiSystemRepositoryProblems(systemIssues),
   ].sort(compareProblems);
 
