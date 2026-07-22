@@ -78,8 +78,14 @@ Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation �
 
 HTTP 内置数据：
 
-    <CTN_SERVER_STATE_DIR>/built-ins/journal/
-    <CTN_SERVER_STATE_DIR>/built-ins/todo/
+    <CTN_REPOSITORY_ROOT>/.built-ins/journal/
+    <CTN_REPOSITORY_ROOT>/.built-ins/todo/
+
+物理共用 CTN_REPOSITORY_ROOT 不改变领域边界：.built-ins 是保留的基础设施
+子树，不进入普通 Local catalog；Journal、Todo 仍使用各自的 contract、
+versioned store、session 和 API，也不获得普通仓库的创建、删除、重命名、
+切换或 WebDAV 能力。旧 CTN_SERVER_STATE_DIR/built-ins 只做原样路径迁移，
+不执行内容读取或 schema 转换；新路径已存在时不得合并或覆盖。
 
 Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两者分别维护 remote、draft/cache、epoch、lock 和原子临时文件；一个领域的清理或故障不得影响另一个。当前版本中的损坏内容与未知未来版本保留原样，不自动覆盖。
 

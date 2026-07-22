@@ -607,7 +607,7 @@ test.describe.serial("repository and capacity flows", () => {
         `/host/e2e-repositories/${unsupportedRepositoryId}`,
       );
       await expect(repositoryPanel).not.toContainText(
-        `.cognition-tree/e2e-repository/${unsupportedRepositoryId}`,
+        `test-results/e2e-runtime/repositories/${unsupportedRepositoryId}`,
       );
       await expect(
         repositoryPanel.getByRole("button", { name: "清理", exact: true }),

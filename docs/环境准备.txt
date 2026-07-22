@@ -99,10 +99,15 @@ Local 普通仓库：
 
 可见目录和 .ctn 正文是权威工作树；.ctn/ 保存稳定身份、顺序、语法、sidecar 与 WAL。文件系统只在加载、提交和手动重新扫描时读取，不运行 watcher。非 .ctn 文件属于 unmanaged 数据，不投影、不改写、不删除。
 
-HTTP 内置数据：
+HTTP 内容根目录：
 
-    <CTN_SERVER_STATE_DIR>/built-ins/journal/
-    <CTN_SERVER_STATE_DIR>/built-ins/todo/
+    <CTN_REPOSITORY_ROOT>/<repository-id>/
+    <CTN_REPOSITORY_ROOT>/.built-ins/journal/
+    <CTN_REPOSITORY_ROOT>/.built-ins/todo/
+
+.built-ins 是保留基础设施目录，Local catalog 不会将它解释为普通仓库。
+服务首次使用新布局时，将旧 <CTN_SERVER_STATE_DIR>/built-ins/ 原样迁入，
+不解析或转换 Journal/Todo content；已存在的新目录永远不会被旧目录覆盖。
 
 Browser 内置数据分别使用 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两个领域的 content、epoch、draft/cache 和同步队列相互隔离。
 
@@ -110,7 +115,8 @@ WebDAV 连接配置保存在：
 
     <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
 
-状态目录权限为 0700，含凭据或内容的文件权限为 0600。密码不进入 API 响应、日志、普通仓库内容或 IndexedDB。
+内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
+0600。密码不进入 API 响应、日志、普通仓库内容或 IndexedDB。
 
 
 5. Repository 行为
@@ -155,8 +161,8 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
 
 未来容器路径约定：
 
-    /data/repositories  -> CTN_REPOSITORY_ROOT
-    /data/server        -> CTN_SERVER_STATE_DIR
+    /data/repositories  -> CTN_REPOSITORY_ROOT（普通仓库与内置数据）
+    /data/server        -> CTN_SERVER_STATE_DIR（WebDAV 连接状态）
 
 Local 仓库必须整体挂载，包含根部 .ctn/。当前项目不提供 Dockerfile、镜像或 Compose。
 

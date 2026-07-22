@@ -52,7 +52,9 @@ const catalog = new CompositeRepositoryCatalog(
   localCatalog,
   webDavRegistry,
 );
-const builtInCatalog = new BuiltInCatalog(serverStateDirectory);
+const builtInCatalog = new BuiltInCatalog(repositoryRoot, {
+  legacyStateDirectory: serverStateDirectory,
+});
 
 await catalog.initialize();
 await builtInCatalog.initialize();
@@ -88,6 +90,7 @@ process.once("SIGTERM", () => {
 server.listen(port, host, () => {
   console.log(`Cognition Tree API listening on http://${host}:${port}`);
   console.log(`Local repository root: ${localCatalog.rootPath}`);
+  console.log(`Built-in data root: ${path.join(localCatalog.rootPath, ".built-ins")}`);
   console.log(`WebDAV server state: ${serverStateDirectory}`);
   console.log(`Allowed hosts: ${security.allowedHosts.join(", ")}`);
   console.log(`Allowed origins: ${security.allowedOrigins.join(", ") || "none"}`);

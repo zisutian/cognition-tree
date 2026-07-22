@@ -902,6 +902,25 @@ describe("WorkspaceFileStore Local working tree", () => {
 });
 
 describe("LocalRepositoryCatalog v3", () => {
+  it("ignores the reserved built-in data directory", async () => {
+    await withTempDir(async (rootDir) => {
+      await mkdir(path.join(rootDir, ".built-ins", "journal"), {
+        recursive: true,
+      });
+      const catalog = new LocalRepositoryCatalog(rootDir);
+
+      try {
+        await expect(catalog.listRepositories()).resolves.toEqual({
+          creatableAdapters: ["local"],
+          issues: [],
+          repositories: [],
+        });
+      } finally {
+        await catalog.dispose();
+      }
+    });
+  });
+
   it("removes abandoned create staging and deletion tombstone directories after locking", async () => {
     await withTempDir(async (rootDir) => {
       const staleStaging = path.join(

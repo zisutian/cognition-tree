@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
   chmod,
+  cp,
   lstat,
   mkdir,
   open,
@@ -44,7 +45,7 @@ import {
 } from "./todoContentStore.ts";
 import type { VersionedContentStore } from "./versionedContentStore.ts";
 
-const builtInsDirectoryName = "built-ins";
+const builtInsDirectoryName = ".built-ins";
 const contentFileName = "content.json";
 const epochFileName = "storage.epoch";
 
@@ -66,6 +67,7 @@ type BuiltInState =
 
 export type BuiltInCatalogOptions = {
   journalDefinition?: BuiltInDefinition<JournalContentDto>;
+  legacyStateDirectory?: string | null;
   todoDefinition?: BuiltInDefinition<TodoContentDto>;
 };
 
@@ -96,25 +98,34 @@ async function fsyncDirectory(directory: string) {
 }
 
 export class BuiltInCatalog {
-  readonly #builtInsDirectory: string;
+  #builtInsDirectory: string;
   readonly #definitions: readonly AnyBuiltInDefinition[];
   #initialized = false;
+  readonly #legacyBuiltInsDirectory: string | null;
+  readonly #legacyStateDirectory: string | null;
   #operationQueue: Promise<void> = Promise.resolve();
+  #repositoryRootDirectory: string;
   readonly #stateById = new Map<BuiltInIdDto, BuiltInState>();
-  readonly #stateDirectory: string;
 
   constructor(
-    stateDirectory: string,
+    repositoryRootDirectory: string,
     {
       journalDefinition = defaultJournalDefinition,
+      legacyStateDirectory = null,
       todoDefinition = defaultTodoDefinition,
     }: BuiltInCatalogOptions = {},
   ) {
-    this.#stateDirectory = path.resolve(stateDirectory);
+    this.#repositoryRootDirectory = path.resolve(repositoryRootDirectory);
     this.#builtInsDirectory = path.join(
-      this.#stateDirectory,
+      this.#repositoryRootDirectory,
       builtInsDirectoryName,
     );
+    this.#legacyStateDirectory = legacyStateDirectory === null
+      ? null
+      : path.resolve(legacyStateDirectory);
+    this.#legacyBuiltInsDirectory = this.#legacyStateDirectory === null
+      ? null
+      : path.join(this.#legacyStateDirectory, "built-ins");
     this.#definitions = [journalDefinition, todoDefinition];
   }
 
@@ -191,7 +202,8 @@ export class BuiltInCatalog {
 
   async #refreshAll(provision: boolean) {
     try {
-      await this.#ensureDirectory(this.#stateDirectory, provision);
+      await this.#ensureRepositoryRoot(provision);
+      await this.#relocateLegacyBuiltIns(provision);
       await this.#ensureDirectory(this.#builtInsDirectory, provision);
     } catch (error) {
       for (const definition of this.#definitions) {
@@ -214,7 +226,6 @@ export class BuiltInCatalog {
     const contentPath = path.join(directory, contentFileName);
 
     try {
-      await this.#ensureDirectory(this.#stateDirectory, provision);
       await this.#ensureDirectory(this.#builtInsDirectory, provision);
       await this.#ensureDirectory(directory, provision);
       const canonicalDirectory = await realpath(directory);
@@ -288,6 +299,95 @@ export class BuiltInCatalog {
     }
   }
 
+  async #ensureRepositoryRoot(create: boolean) {
+    let stats = await lstat(this.#repositoryRootDirectory).catch(
+      (error: unknown) => {
+        if (hasFileSystemErrorCode(error, "ENOENT")) return null;
+        throw error;
+      },
+    );
+
+    if (!stats) {
+      if (!create) {
+        throw new RepositoryCorruptError("Repository root directory is missing");
+      }
+      await mkdir(this.#repositoryRootDirectory, { recursive: true });
+      stats = await lstat(this.#repositoryRootDirectory);
+    }
+    if (!stats.isDirectory()) {
+      throw new RepositoryCorruptError("Repository root is not a directory");
+    }
+    this.#repositoryRootDirectory = await realpath(
+      this.#repositoryRootDirectory,
+    );
+    this.#builtInsDirectory = path.join(
+      this.#repositoryRootDirectory,
+      builtInsDirectoryName,
+    );
+  }
+
+  async #relocateLegacyBuiltIns(provision: boolean) {
+    const legacyDirectory = this.#legacyBuiltInsDirectory;
+
+    if (
+      !provision ||
+      legacyDirectory === null ||
+      path.resolve(legacyDirectory) === path.resolve(this.#builtInsDirectory)
+    ) {
+      return;
+    }
+    const legacyStats = await lstat(legacyDirectory).catch((error: unknown) => {
+      if (hasFileSystemErrorCode(error, "ENOENT")) return null;
+      throw error;
+    });
+
+    if (!legacyStats) return;
+    if (!legacyStats.isDirectory() || legacyStats.isSymbolicLink()) {
+      throw new RepositoryCorruptError(
+        "Legacy built-in data path is not a real directory",
+      );
+    }
+    const targetStats = await lstat(this.#builtInsDirectory).catch(
+      (error: unknown) => {
+        if (hasFileSystemErrorCode(error, "ENOENT")) return null;
+        throw error;
+      },
+    );
+
+    // A published target is authoritative. Never merge or overwrite two
+    // independently writable copies of Journal/Todo data.
+    if (targetStats) return;
+
+    try {
+      await rename(legacyDirectory, this.#builtInsDirectory);
+      await fsyncDirectory(this.#repositoryRootDirectory);
+      await fsyncDirectory(path.dirname(legacyDirectory));
+      return;
+    } catch (error) {
+      if (!hasFileSystemErrorCode(error, "EXDEV")) throw error;
+    }
+
+    const stagingDirectory = path.join(
+      this.#repositoryRootDirectory,
+      `..built-ins-migration-${process.pid}-${randomUUID()}`,
+    );
+
+    try {
+      await cp(legacyDirectory, stagingDirectory, {
+        dereference: false,
+        errorOnExist: true,
+        force: false,
+        recursive: true,
+      });
+      await rename(stagingDirectory, this.#builtInsDirectory);
+      await fsyncDirectory(this.#repositoryRootDirectory);
+      await rm(legacyDirectory, { force: true, recursive: true });
+      await fsyncDirectory(path.dirname(legacyDirectory));
+    } finally {
+      await rm(stagingDirectory, { force: true, recursive: true });
+    }
+  }
+
   async #ensureEpoch(
     definition: AnyBuiltInDefinition,
     contentPath: string,
@@ -316,7 +416,11 @@ export class BuiltInCatalog {
   }
 
   async #deleteOldSystemFiles(oldPurpose: string) {
-    const oldDirectory = path.join(this.#stateDirectory, "system-repositories");
+    if (this.#legacyStateDirectory === null) return;
+    const oldDirectory = path.join(
+      this.#legacyStateDirectory,
+      "system-repositories",
+    );
 
     for (const suffix of [".json", ".epoch", ".json.lock"] as const) {
       await rm(path.join(oldDirectory, `${oldPurpose}${suffix}`), {

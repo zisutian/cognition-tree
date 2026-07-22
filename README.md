@@ -79,10 +79,15 @@ Local 仓库的可见目录是权威工作树：
 
 可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。Local 在加载、提交和手动“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
 
-HTTP 内置数据分别保存在：
+HTTP 模式下，普通仓库与内置数据共用一个内容根目录，但保持独立
+contract、session 和 API：
 
-    <CTN_SERVER_STATE_DIR>/built-ins/journal/
-    <CTN_SERVER_STATE_DIR>/built-ins/todo/
+    <CTN_REPOSITORY_ROOT>/.built-ins/journal/
+    <CTN_REPOSITORY_ROOT>/.built-ins/todo/
+
+`.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
+Workspace。旧 `<CTN_SERVER_STATE_DIR>/built-ins/` 会在首次启动时原样迁入；
+`CTN_SERVER_STATE_DIR` 只保留 WebDAV 连接等服务状态。
 
 Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3 contract；旧格式不读取、不迁移。
 

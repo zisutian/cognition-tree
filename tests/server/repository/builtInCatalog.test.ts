@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  rename,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -52,14 +53,20 @@ function openBuiltInStore<Content>(
   return catalog.getStore(id) as Promise<VersionedContentStore<Content>>;
 }
 
+function createBuiltInCatalog(repositoryRoot: string) {
+  return new BuiltInCatalog(repositoryRoot, {
+    legacyStateDirectory: repositoryRoot,
+  });
+}
+
 describe("filesystem built-in data catalog", () => {
   it("provisions protected Journal and Todo data in isolated private directories", async () => {
     await withStateDirectory(async (stateDirectory) => {
-      const catalog = new BuiltInCatalog(stateDirectory);
+      const catalog = createBuiltInCatalog(stateDirectory);
 
       await catalog.initialize();
       const listed = await catalog.listBuiltIns();
-      const builtInsDirectory = path.join(stateDirectory, "built-ins");
+      const builtInsDirectory = path.join(stateDirectory, ".built-ins");
 
       expect(listed).toEqual({
         issues: [],
@@ -109,7 +116,7 @@ describe("filesystem built-in data catalog", () => {
 
   it("persists each domain independently and enforces compare-and-swap", async () => {
     await withStateDirectory(async (stateDirectory) => {
-      const catalog = new BuiltInCatalog(stateDirectory);
+      const catalog = createBuiltInCatalog(stateDirectory);
 
       await catalog.initialize();
       const journalStore = await openBuiltInStore<JournalContentDto>(
@@ -137,7 +144,7 @@ describe("filesystem built-in data catalog", () => {
         content: todoContent,
       });
 
-      const reopened = new BuiltInCatalog(stateDirectory);
+      const reopened = createBuiltInCatalog(stateDirectory);
 
       await reopened.initialize();
       await expect((await openBuiltInStore<JournalContentDto>(
@@ -153,7 +160,7 @@ describe("filesystem built-in data catalog", () => {
 
       const contentPath = path.join(
         stateDirectory,
-        "built-ins",
+        ".built-ins",
         "todo",
         "content.json",
       );
@@ -186,9 +193,75 @@ describe("filesystem built-in data catalog", () => {
     });
   });
 
+  it("relocates current built-in data from server state into the repository root", async () => {
+    await withStateDirectory(async (temporaryRoot) => {
+      const legacyStateDirectory = path.join(temporaryRoot, "server");
+      const sourceRepositoryRoot = path.join(temporaryRoot, "old-repositories");
+      const repositoryRoot = path.join(temporaryRoot, "repositories");
+
+      await mkdir(legacyStateDirectory, { mode: 0o700 });
+      await mkdir(sourceRepositoryRoot, { mode: 0o775 });
+      await mkdir(repositoryRoot, { mode: 0o775 });
+      const source = new BuiltInCatalog(sourceRepositoryRoot, {
+        legacyStateDirectory,
+      });
+
+      await source.initialize();
+      const journalStore = await openBuiltInStore<JournalContentDto>(
+        source,
+        "journal",
+      );
+      const base = await journalStore.loadSnapshot();
+      const journalContent = appendJournalTestEntry(
+        createEmptyJournalContent(),
+        { createdAt: "2026-07-18T00:00:01.000Z", entryIndex: 1 },
+      );
+
+      await journalStore.commitSnapshot({
+        baseRevision: base.revision,
+        content: journalContent,
+      });
+      const legacyBuiltIns = path.join(legacyStateDirectory, "built-ins");
+
+      await rename(
+        path.join(sourceRepositoryRoot, ".built-ins"),
+        legacyBuiltIns,
+      );
+      const migrated = new BuiltInCatalog(repositoryRoot, {
+        legacyStateDirectory,
+      });
+
+      await migrated.initialize();
+      await expect((await openBuiltInStore<JournalContentDto>(
+        migrated,
+        "journal",
+      )).loadSnapshot()).resolves.toMatchObject({ content: journalContent });
+      await expect(lstat(legacyBuiltIns)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(migrated.listBuiltIns()).resolves.toMatchObject({
+        repositories: [
+          {
+            id: "journal",
+            location: {
+              serverPath: path.join(
+                repositoryRoot,
+                ".built-ins",
+                "journal",
+                "content.json",
+              ),
+            },
+          },
+          { id: "todo" },
+        ],
+      });
+      expect((await lstat(repositoryRoot)).mode & 0o777).toBe(0o775);
+      expect((await lstat(path.join(repositoryRoot, ".built-ins"))).mode & 0o777)
+        .toBe(0o700);
+    });
+  });
+
   it("silently deletes legacy v2 files per domain and leaves current peer data intact", async () => {
     await withStateDirectory(async (stateDirectory) => {
-      const catalog = new BuiltInCatalog(stateDirectory);
+      const catalog = createBuiltInCatalog(stateDirectory);
 
       await catalog.initialize();
       const todoStore = await openBuiltInStore<TodoContentDto>(catalog, "todo");
@@ -214,12 +287,12 @@ describe("filesystem built-in data catalog", () => {
         "2\n",
         { mode: 0o600 },
       );
-      const journalDirectory = path.join(stateDirectory, "built-ins", "journal");
+      const journalDirectory = path.join(stateDirectory, ".built-ins", "journal");
 
       await writeFile(path.join(journalDirectory, "storage.epoch"), "2\n", {
         mode: 0o600,
       });
-      const reopened = new BuiltInCatalog(stateDirectory);
+      const reopened = createBuiltInCatalog(stateDirectory);
 
       await reopened.initialize();
       await expect(readFile(
@@ -237,7 +310,7 @@ describe("filesystem built-in data catalog", () => {
       )).loadSnapshot()).resolves
         .toMatchObject({ content: todoContent });
 
-      const repeated = new BuiltInCatalog(stateDirectory);
+      const repeated = createBuiltInCatalog(stateDirectory);
 
       await repeated.initialize();
       await expect((await openBuiltInStore<TodoContentDto>(
@@ -250,16 +323,16 @@ describe("filesystem built-in data catalog", () => {
 
   it("preserves corrupt current content and future epochs without affecting the peer", async () => {
     await withStateDirectory(async (stateDirectory) => {
-      const catalog = new BuiltInCatalog(stateDirectory);
+      const catalog = createBuiltInCatalog(stateDirectory);
 
       await catalog.initialize();
       const journalContentPath = path.join(
         stateDirectory,
-        "built-ins",
+        ".built-ins",
         "journal",
         "content.json",
       );
-      const todoDirectory = path.join(stateDirectory, "built-ins", "todo");
+      const todoDirectory = path.join(stateDirectory, ".built-ins", "todo");
       const todoContentPath = path.join(todoDirectory, "content.json");
       const todoBefore = await readFile(todoContentPath, "utf8");
       const corrupt = "{not-json\n";
@@ -268,7 +341,7 @@ describe("filesystem built-in data catalog", () => {
       await writeFile(path.join(todoDirectory, "storage.epoch"), "4\n", {
         mode: 0o600,
       });
-      const reopened = new BuiltInCatalog(stateDirectory);
+      const reopened = createBuiltInCatalog(stateDirectory);
 
       await reopened.initialize();
       await expect(reopened.listBuiltIns()).resolves.toMatchObject({
