@@ -7,6 +7,7 @@ import {
   useJournalApplication,
   type JournalApplication,
   type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceSnapshot,
 } from "../application/journal";
 import {
   createBrowserTodoApplicationServices,
@@ -43,6 +44,22 @@ type SystemCatalogApplication = ReturnType<typeof useSystemRepositoryCatalog>;
 type PendingWorkspaceNoteDestination = JournalWorkspaceNoteDestination & {
   requestId: number;
 };
+type JournalWorkspaceReferenceSnapshotState = {
+  generation: number;
+  snapshot: JournalWorkspaceReferenceSnapshot | null;
+};
+
+function createJournalCatalogGeneration(
+  state: RepositoryCatalogApplication["state"],
+) {
+  return state.status === "ready"
+    ? JSON.stringify(state.repositories.map(({ id, label, labelIssue }) => [
+        id,
+        label,
+        labelIssue,
+      ]))
+    : state.status;
+}
 
 function findSystemDescriptor(
   systems: SystemCatalogApplication,
@@ -260,6 +277,7 @@ function RepositoryWorkspaceApp({
   navigation,
   onConsumeWorkspaceNoteDestination,
   onActiveActivityChange,
+  onWorkspaceReferenceSnapshotChange,
   systemRepositories,
   systemSessions,
   systems,
@@ -272,6 +290,9 @@ function RepositoryWorkspaceApp({
   navigation: ReturnType<typeof useRepositoryNavigation>;
   onConsumeWorkspaceNoteDestination: (requestId: number) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
+  onWorkspaceReferenceSnapshotChange: (
+    snapshot: JournalWorkspaceReferenceSnapshot | null,
+  ) => void;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
   systemSessions: RepositoryApplication["systems"]["sessions"];
   systems: SystemCatalogApplication;
@@ -283,6 +304,25 @@ function RepositoryWorkspaceApp({
     throw new Error("Active repository disappeared before session mount.");
   }
   const session = useSession({ repository });
+  const referenceWorkspace = session.status === "ready"
+    ? session.workspace.data
+    : null;
+  const activeRepositoryId = catalog.activeDescriptor?.id ?? null;
+
+  useEffect(() => {
+    onWorkspaceReferenceSnapshotChange(
+      activeRepositoryId && referenceWorkspace
+        ? {
+            repositoryId: activeRepositoryId,
+            workspace: referenceWorkspace,
+          }
+        : null,
+    );
+  }, [
+    activeRepositoryId,
+    onWorkspaceReferenceSnapshotChange,
+    referenceWorkspace,
+  ]);
 
   if (session.status === "ready") {
     return (
@@ -343,6 +383,7 @@ function EmptyWorkspaceApp({
   navigation,
   onConsumeWorkspaceNoteDestination: _onConsumeWorkspaceNoteDestination,
   onActiveActivityChange,
+  onWorkspaceReferenceSnapshotChange,
   systemRepositories,
   systemSessions,
   systems,
@@ -355,12 +396,19 @@ function EmptyWorkspaceApp({
   navigation: ReturnType<typeof useRepositoryNavigation>;
   onConsumeWorkspaceNoteDestination: (requestId: number) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
+  onWorkspaceReferenceSnapshotChange: (
+    snapshot: JournalWorkspaceReferenceSnapshot | null,
+  ) => void;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
   systemSessions: RepositoryApplication["systems"]["sessions"];
   systems: SystemCatalogApplication;
   workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
 }) {
   const handlingWorkspaceRequestRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    onWorkspaceReferenceSnapshotChange(null);
+  }, [onWorkspaceReferenceSnapshotChange]);
 
   useEffect(() => {
     const destination = workspaceNoteDestination;
@@ -433,6 +481,11 @@ export function AppRoot() {
     useState<PendingWorkspaceNoteDestination | null>(null);
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
+  const [journalWorkspaceReferenceSnapshot, setJournalWorkspaceReferenceSnapshot] =
+    useState<JournalWorkspaceReferenceSnapshotState>({
+      generation: 0,
+      snapshot: null,
+    });
   const journalDescriptor = findSystemDescriptor(systems, "system-journal");
   const todoDescriptor = findSystemDescriptor(systems, "system-todo");
   const journalConnectionKey = createSystemConnectionKey(journalDescriptor);
@@ -460,9 +513,35 @@ export function AppRoot() {
     () => createBrowserJournalApplicationServices(),
     [],
   );
+  const updateJournalWorkspaceReferenceSnapshot = useCallback((
+    snapshot: JournalWorkspaceReferenceSnapshot | null,
+  ) => {
+    setJournalWorkspaceReferenceSnapshot((current) => {
+      if (current.snapshot === null || snapshot === null) {
+        if (current.snapshot === snapshot) {
+          return current;
+        }
+      } else if (
+        current.snapshot.repositoryId === snapshot.repositoryId &&
+        current.snapshot.workspace === snapshot.workspace
+      ) {
+        return current;
+      }
+      return {
+        generation: current.generation + 1,
+        snapshot,
+      };
+    });
+  }, []);
+  const journalCatalogGeneration = createJournalCatalogGeneration(
+    catalog.state,
+  );
   const journalReferenceResolver = useMemo(
-    () => createJournalWorkspaceReferenceResolver(repositoryRuntime.catalog),
-    [repositoryRuntime.catalog],
+    () => createJournalWorkspaceReferenceResolver(
+      repositoryRuntime.catalog,
+      { workspaceSnapshot: journalWorkspaceReferenceSnapshot.snapshot },
+    ),
+    [journalWorkspaceReferenceSnapshot.snapshot, repositoryRuntime.catalog],
   );
   const openWorkspaceNote = useCallback(
     (destination: JournalWorkspaceNoteDestination) => {
@@ -480,6 +559,8 @@ export function AppRoot() {
   }, []);
   const journal = useJournalApplication({
     openWorkspaceNote,
+    referenceResolutionGeneration:
+      `${journalCatalogGeneration}:${journalWorkspaceReferenceSnapshot.generation}`,
     referenceResolver: journalReferenceResolver,
     services: journalServices,
     session: journalSession,
@@ -514,6 +595,8 @@ export function AppRoot() {
     navigation,
     onConsumeWorkspaceNoteDestination: consumeWorkspaceNoteDestination,
     onActiveActivityChange: setActiveActivityId,
+    onWorkspaceReferenceSnapshotChange:
+      updateJournalWorkspaceReferenceSnapshot,
     systemRepositories,
     systemSessions,
     systems,

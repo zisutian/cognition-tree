@@ -40,9 +40,11 @@ export {
   findJournalWorkspaceReferenceResolution,
   routeJournalWorkspaceNoteDestination,
   routeJournalWorkspaceNoteDestinationWithoutSession,
+  startJournalWorkspaceReferenceResolution,
   type JournalWorkspaceNoteDestination,
   type JournalWorkspaceReferenceFaultCode,
   type JournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceResolutionState,
   type JournalWorkspaceReferenceResolver,
+  type JournalWorkspaceReferenceSnapshot,
 } from "./journalWorkspaceReferences";

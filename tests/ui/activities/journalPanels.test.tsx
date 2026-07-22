@@ -10,8 +10,10 @@ import {
   JournalDeleteConfirmation,
   JournalDetailPanel,
   JournalEditorPanel,
+  submitJournalEntryCreation,
 } from "../../../src/ui/activities/journal/JournalPanels";
 import { createView } from "../viewFactory";
+import { runFeedbackAction } from "../../../src/ui/shared/FeedbackProvider";
 
 const olderJanuaryEntry = {
   createdAt: "2026-01-02T02:04:05.000Z",
@@ -30,6 +32,24 @@ const decemberEntry = {
 };
 
 describe("Journal panels", () => {
+  it("reports the daily creation limit through Feedback", () => {
+    const error = new Error(
+      "Journal date 2026-07-18 has reached the daily limit of 9999 entries.",
+    );
+    const createEntry = vi.fn(() => {
+      throw error;
+    });
+    const notifyError = vi.fn();
+
+    submitJournalEntryCreation({
+      createEntry,
+      runAction: (action) => runFeedbackAction(action, notifyError),
+    });
+
+    expect(createEntry).toHaveBeenCalledOnce();
+    expect(notifyError).toHaveBeenCalledWith(error);
+  });
+
   it("renders month groups and entries in the view-model order", () => {
     const base = createView().journal;
     const activeEntry = base.groups[0].entries[0];

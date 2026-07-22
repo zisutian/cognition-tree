@@ -31,10 +31,11 @@ import {
   type JournalActiveBodyPosition,
   type JournalFocusRequest,
 } from "./journalViewModel";
-import type {
-  JournalWorkspaceNoteDestination,
-  JournalWorkspaceReferenceResolver,
-  JournalWorkspaceReferenceResolutionState,
+import {
+  startJournalWorkspaceReferenceResolution,
+  type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceResolver,
+  type JournalWorkspaceReferenceResolutionState,
 } from "./journalWorkspaceReferences";
 
 type ParsedJournalState = {
@@ -65,11 +66,13 @@ function getEditorErrorMessage(
 
 export function useJournalApplication({
   openWorkspaceNote,
+  referenceResolutionGeneration,
   referenceResolver,
   services,
   session,
 }: {
   openWorkspaceNote?: (destination: JournalWorkspaceNoteDestination) => void;
+  referenceResolutionGeneration?: number | string;
   referenceResolver?: JournalWorkspaceReferenceResolver | null;
   services: JournalApplicationServices;
   session: JournalSystemRepositorySession;
@@ -119,26 +122,16 @@ export function useJournalApplication({
   useEffect(() => {
     const references = parsed?.index.referenceGraph.workspaceReferences ?? [];
 
-    if (references.length === 0) {
-      setWorkspaceReferences({ resolutions: [], status: "ready" });
-      return;
-    }
-    if (!referenceResolver) {
-      setWorkspaceReferences({ status: "idle" });
-      return;
-    }
-    let cancelled = false;
-
-    setWorkspaceReferences({ status: "loading" });
-    void referenceResolver.resolve(references).then((resolutions) => {
-      if (!cancelled) {
-        setWorkspaceReferences({ resolutions, status: "ready" });
-      }
+    return startJournalWorkspaceReferenceResolution({
+      publish: setWorkspaceReferences,
+      references,
+      resolver: referenceResolver ?? null,
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [parsed?.index.referenceGraph.workspaceReferences, referenceResolver]);
+  }, [
+    parsed?.index.referenceGraph.workspaceReferences,
+    referenceResolutionGeneration,
+    referenceResolver,
+  ]);
 
   useEffect(() => {
     if (parsed && requestedEntryId !== activeEntryId) {

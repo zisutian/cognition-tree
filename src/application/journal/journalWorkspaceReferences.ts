@@ -5,8 +5,10 @@ import {
   getPortableNameIssue,
 } from "../../../portable-name/portableName";
 import type { JournalWorkspaceReference } from "../../../journal/indexes/journalParseIndex";
-import { readWorkspaceNoteHeader } from "../../workspace/model/workspaceData";
-import type { WorkspaceRepositorySnapshot } from "../../storage/repository/workspaceRepository";
+import {
+  readWorkspaceNoteHeader,
+  type WorkspaceData,
+} from "../../workspace/model/workspaceData";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
@@ -54,6 +56,45 @@ export type JournalWorkspaceReferenceResolver = {
     references: readonly JournalWorkspaceReference[],
   ): Promise<JournalWorkspaceReferenceResolution[]>;
 };
+
+export type JournalWorkspaceReferenceSnapshot = {
+  repositoryId: string;
+  workspace: WorkspaceData;
+};
+
+export type JournalWorkspaceReferenceResolutionPublisher = (
+  state: JournalWorkspaceReferenceResolutionState,
+) => void;
+
+export function startJournalWorkspaceReferenceResolution({
+  publish,
+  references,
+  resolver,
+}: {
+  publish: JournalWorkspaceReferenceResolutionPublisher;
+  references: readonly JournalWorkspaceReference[];
+  resolver: JournalWorkspaceReferenceResolver | null;
+}) {
+  if (references.length === 0) {
+    publish({ resolutions: [], status: "ready" });
+    return () => undefined;
+  }
+  if (!resolver) {
+    publish({ status: "idle" });
+    return () => undefined;
+  }
+  let cancelled = false;
+
+  publish({ status: "loading" });
+  void resolver.resolve(references).then((resolutions) => {
+    if (!cancelled) {
+      publish({ resolutions, status: "ready" });
+    }
+  });
+  return () => {
+    cancelled = true;
+  };
+}
 
 export async function routeJournalWorkspaceNoteDestination({
   activeRepositoryId,
@@ -125,6 +166,11 @@ export function createJournalWorkspaceReferenceResolver(
     WorkspaceRepositoryCatalog,
     "listRepositories" | "openRepository"
   >,
+  {
+    workspaceSnapshot = null,
+  }: {
+    workspaceSnapshot?: JournalWorkspaceReferenceSnapshot | null;
+  } = {},
 ): JournalWorkspaceReferenceResolver {
   return {
     async resolve(references) {
@@ -154,19 +200,27 @@ export function createJournalWorkspaceReferenceResolver(
           descriptorById.set(match.id, match);
         }
       }
-      const snapshotByRepositoryId = new Map<
+      const workspaceByRepositoryId = new Map<
         string,
-        WorkspaceRepositorySnapshot | Error
+        WorkspaceData | Error
       >();
 
       await Promise.all([...descriptorById.values()].map(async (descriptor) => {
-        try {
-          snapshotByRepositoryId.set(
+        if (workspaceSnapshot?.repositoryId === descriptor.id) {
+          workspaceByRepositoryId.set(
             descriptor.id,
-            await catalog.openRepository(descriptor).loadSnapshot(),
+            workspaceSnapshot.workspace,
+          );
+          return;
+        }
+        try {
+          workspaceByRepositoryId.set(
+            descriptor.id,
+            (await catalog.openRepository(descriptor).loadSnapshot())
+              .content.workspace,
           );
         } catch (error) {
-          snapshotByRepositoryId.set(
+          workspaceByRepositoryId.set(
             descriptor.id,
             error instanceof Error ? error : new Error("unknown repository error"),
           );
@@ -177,9 +231,9 @@ export function createJournalWorkspaceReferenceResolver(
         if ("status" in match) {
           return match;
         }
-        const snapshot = snapshotByRepositoryId.get(match.id);
+        const workspace = workspaceByRepositoryId.get(match.id);
 
-        if (!snapshot || snapshot instanceof Error) {
+        if (!workspace || workspace instanceof Error) {
           return createFault(
             reference,
             "repository-unreadable",
@@ -187,7 +241,7 @@ export function createJournalWorkspaceReferenceResolver(
           );
         }
         const noteKey = createPortableNameKey(reference.noteName);
-        const notes = snapshot.content.workspace.notes.filter((note) => {
+        const notes = workspace.notes.filter((note) => {
           try {
             const title = readWorkspaceNoteHeader(note).title;
 

@@ -17,6 +17,7 @@ import {
   CompactContextRow,
 } from "../../shared/CompactContextList";
 import { ConfirmDialog } from "../../shared/ConfirmDialog";
+import { useFeedback } from "../../shared/FeedbackProvider";
 import {
   Button,
   EmptyState,
@@ -30,6 +31,18 @@ import { useReferenceNavigation } from "../../shared/useReferenceNavigation";
 type JournalViewProps = {
   view: JournalViewModel;
 };
+
+export function submitJournalEntryCreation({
+  createEntry,
+  runAction,
+}: {
+  createEntry: JournalViewModel["createEntry"];
+  runAction: (action: () => void) => unknown;
+}) {
+  return runAction(() => {
+    createEntry();
+  });
+}
 
 export function JournalDeleteConfirmation({
   pendingEntry,
@@ -97,6 +110,7 @@ function persistenceLabel(view: JournalViewModel) {
 }
 
 export function JournalContext({ view }: JournalViewProps) {
+  const feedback = useFeedback();
   const [pendingDelete, setPendingDelete] =
     useState<JournalEntryListItem | null>(null);
 
@@ -105,7 +119,10 @@ export function JournalContext({ view }: JournalViewProps) {
       <div className="context-toolbar">
         <Button
           aria-label="新建日记"
-          onClick={view.createEntry}
+          onClick={() => submitJournalEntryCreation({
+            createEntry: view.createEntry,
+            runAction: feedback.runAction,
+          })}
           title="新建日记"
           type="button"
           variant="icon"
@@ -166,6 +183,7 @@ export function JournalEditorPanel({
   focusMode: boolean;
   onToggleFocusMode: () => void;
 }) {
+  const feedback = useFeedback();
   const referenceNavigation = useReferenceNavigation(view.referenceNavigation);
 
   if (!view.activeEntry) {
@@ -174,7 +192,10 @@ export function JournalEditorPanel({
         <EmptyState
           action={
             <Button
-              onClick={view.createEntry}
+              onClick={() => submitJournalEntryCreation({
+                createEntry: view.createEntry,
+                runAction: feedback.runAction,
+              })}
               type="button"
               variant="primary"
             >
