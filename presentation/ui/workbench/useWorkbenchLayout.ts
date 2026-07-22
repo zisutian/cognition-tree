@@ -30,6 +30,7 @@ export type WorkbenchLayout = WorkbenchPanelResizeController & {
 };
 
 export function useWorkbenchLayout(repositoryId: string) {
+  const [layoutRepositoryId, setLayoutRepositoryId] = useState(repositoryId);
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [contextWidth, setContextWidth] = useState<number | null>(() =>
@@ -40,19 +41,25 @@ export function useWorkbenchLayout(repositoryId: string) {
     loadRepositoryProblemsLayout(repositoryId),
   );
   const [focusMode, setFocusMode] = useState(false);
+
+  if (layoutRepositoryId !== repositoryId) {
+    setLayoutRepositoryId(repositoryId);
+    setContextWidth(loadRepositoryContextWidth(repositoryId));
+    setProblemsLayout(loadRepositoryProblemsLayout(repositoryId));
+  }
   const contextResizeValue = contextWidth ?? appContextDefaultWidth;
   const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
   const problemsResizeValue = problemsLayout.height;
 
   useEffect(() => {
     if (contextWidth !== null) {
-      saveRepositoryContextWidth(repositoryId, contextWidth);
+      saveRepositoryContextWidth(layoutRepositoryId, contextWidth);
     }
-  }, [contextWidth, repositoryId]);
+  }, [contextWidth, layoutRepositoryId]);
 
   useEffect(() => {
-    saveRepositoryProblemsLayout(repositoryId, problemsLayout);
-  }, [problemsLayout, repositoryId]);
+    saveRepositoryProblemsLayout(layoutRepositoryId, problemsLayout);
+  }, [layoutRepositoryId, problemsLayout]);
 
   const panelResize = useWorkbenchPanelResize({
     context: {
