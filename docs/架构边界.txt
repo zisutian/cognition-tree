@@ -18,7 +18,7 @@ core/
 
 application/
 
-    框架无关的用例、端口、session controller、read model、问题投影和 Workbench coordinator。跨领域流程只能由 application/workbench 协调。
+    框架无关的用例、端口、session controller、read model、问题投影、Workbench coordinator 和 feedback controller。跨领域流程只能由 application/workbench 协调。
 
 infrastructure/
 
@@ -118,11 +118,15 @@ Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序�
 
 Problems 所有权：
 
-    普通活动 -> Workspace
-    Repository -> Workspace、普通仓库、内置数据、名称
-    Journal -> Journal 文档、语法、仓内与跨仓引用
-    Todo -> Todo 语法与 CTN
-    Syntax -> 当前 owner profile，并附加该 owner 内容诊断
+    普通活动 -> Workspace diagnostics、普通仓库运行故障、来源 Activity 操作错误
+    Repository -> Workspace、普通仓库、内置数据、名称、运行故障、来源 Activity 操作错误
+    Journal -> Journal 文档、语法、仓内与跨仓引用、Journal 运行故障、来源 Activity 操作错误
+    Todo -> Todo 语法与 CTN、Todo 运行故障、来源 Activity 操作错误
+    Syntax -> 当前 owner profile，并附加该 owner 内容诊断、运行故障和来源 Activity 操作错误
     Settings -> 不挂载
+
+application/workbench 的 WorkbenchFeedbackController 提供 subscribe、getSnapshot、reportInfo、reportError、dismiss，以及作用域清理和生命周期释放，不依赖 React。Presentation binding 在操作开始时捕获 ActivityId；异步完成后仍写回原 Activity。相同 Activity 与消息的错误合并，每个 Activity 最多保留 20 条，页面刷新后清空。
+
+Presentation shell 统一合并 diagnostics、可恢复运行故障和操作错误。状态故障随 session 恢复自动消失；操作错误只在关闭、普通仓库作用域失效或刷新时消失。短暂反馈覆盖五秒后恢复领域非稳定持久化状态，稳定状态不产生文字；反馈和错误不得使用通知浮层或标题区重复投影。
 
 编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，不能由页面位置或 CSS 推断。

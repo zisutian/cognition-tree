@@ -95,14 +95,16 @@ ActivityBar 主区为“笔记、日记、代办、结构操作、引用图谱�
 
 Problems 按 Activity 投影：
 
-    普通活动：当前 Workspace diagnostics。
-    Repository：Workspace diagnostics、普通仓库问题、内置数据问题和名称问题。
-    Journal：正文、系统语法、仓内引用和跨普通仓库引用诊断。
-    Todo：系统语法、CTN 和缺少任务标记诊断。
-    Syntax：当前编辑 owner 的 profile 诊断，并附加该 owner 的内容诊断。
+    普通活动：当前 Workspace diagnostics、普通仓库运行故障和来源 Activity 操作错误。
+    Repository：Workspace diagnostics、普通仓库问题、内置数据问题、名称问题、运行故障和来源 Activity 操作错误。
+    Journal：正文、系统语法、仓内引用、跨普通仓库引用诊断、日记运行故障和来源 Activity 操作错误。
+    Todo：系统语法、CTN、缺少任务标记诊断、代办运行故障和来源 Activity 操作错误。
+    Syntax：当前编辑 owner 的 profile 诊断，并附加该 owner 的内容诊断、运行故障和来源 Activity 操作错误。
     Settings：完全不挂载 Problems。
 
-问题行只定位内容或仓库详情，不执行破坏性操作。Todo 详情树使用统一选中态、诊断和完成划线表达状态。
+问题行只定位内容、来源 Activity 或仓库详情，不执行破坏性操作；操作错误可独立关闭。保存成功不显示“已保存”，非稳定保存状态和五秒短暂反馈只显示在 24px 底栏右侧，不使用标题文字或通知浮层。
+
+Notes、Journal、Todo、Syntax 和 Repository 的行操作只在选中项显示，固定使用“开/用、改、删”的顺序。重命名、删除和仓库危险操作都原地确认；切换选择取消未提交状态，不使用确认弹窗。Todo 详情树使用统一选中态、诊断和完成划线表达状态。
 
 
 8. 当前边界
