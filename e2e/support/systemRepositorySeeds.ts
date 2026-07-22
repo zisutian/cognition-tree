@@ -8,6 +8,8 @@ import type {
 } from "../../contracts/system-repository/types";
 import { createJournalEntry } from "../../journal/commands/journalCommands";
 import { createEmptyJournalContent } from "../../journal/model/journalContent";
+import { validateTodoContent } from "../../todo/model/todoContent";
+import { defaultTodoSyntaxSourceV2 } from "../../todo/syntax/todoSyntax";
 
 const journalSnapshotEndpoint =
   "/api/system-repositories/system-journal/snapshot";
@@ -19,11 +21,12 @@ export function createEmptyJournalSeed(): JournalRepositoryContentDto {
 }
 
 export function createEmptyTodoSeed(): TodoRepositoryContentDto {
-  return {
+  return validateTodoContent({
     collections: [],
     purpose: "system-todo",
-    schemaVersion: 1,
-  };
+    schemaVersion: 2,
+    syntaxSource: defaultTodoSyntaxSourceV2,
+  });
 }
 
 export function createJournalSeed({

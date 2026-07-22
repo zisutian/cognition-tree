@@ -14,12 +14,21 @@ import {
   validateSystemRepositoryContent,
   validateSystemRepositoryTransition,
 } from "../../../../src/storage/repository/systemRepository";
-import { toggleTodoItem } from "../../../../todo/commands/todoCommands";
-import { validateTodoContent } from "../../../../todo/model/todoContent";
+import {
+  toggleTodoBlock,
+  updateTodoCollectionBody,
+} from "../../../../todo/commands/todoCommands";
+import {
+  createTodoCollectionBodyProjection,
+  validateTodoContent,
+} from "../../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../../todo/syntax/todoSyntax";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,
   createEmptyTodoContent,
+  todoBlockId,
+  todoCollectionId,
   todoTimestamp,
 } from "../../../todo/todoTestFixture";
 
@@ -71,15 +80,21 @@ function editTodoContent(
   updatedAt = todoTimestamp(3),
 ) {
   const collection = content.collections[0]!;
+  const projection = createTodoCollectionBodyProjection(
+    collection,
+    requireTodoSyntaxProfile(content.syntaxSource),
+  );
+  const from = projection.source.indexOf("任务 1");
 
-  return {
-    ...content,
-    collections: [{
-      ...collection,
-      updatedAt,
-      items: [{ ...collection.items[0]!, text: "更新", updatedAt }],
-    }],
-  };
+  return updateTodoCollectionBody(content, {
+    change: {
+      edits: [{ from, insertedText: "更新", to: from + "任务 1".length }],
+      source: projection.source.replace("任务 1", "更新"),
+    },
+    collectionId: todoCollectionId(1),
+    createBlockId: () => todoBlockId(99),
+    updatedAt,
+  });
 }
 
 describe("Browser Todo system repository", () => {
@@ -89,12 +104,10 @@ describe("Browser Todo system repository", () => {
     const backend = storage.createBackend("system-todo");
     const initialRemote = await backend.loadRemoteSnapshot();
     const incomplete = createTodoContent();
-    const collection = incomplete.collections[0]!;
-    const item = collection.items[0]!;
-    const completed = toggleTodoItem(incomplete, {
-      collectionId: collection.id,
-      itemId: item.id,
-      updatedAt: todoTimestamp(3),
+    const completed = toggleTodoBlock(incomplete, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(3),
     });
 
     await backend.commitRemoteSnapshot({
@@ -119,10 +132,10 @@ describe("Browser Todo system repository", () => {
         const todo = validateTodoContent(current);
         const currentCollection = todo.collections[0]!;
 
-        return toggleTodoItem(todo, {
+        return toggleTodoBlock(todo, {
+          blockId: todoBlockId(1),
           collectionId: currentCollection.id,
-          itemId: currentCollection.items[0]!.id,
-          updatedAt,
+          completedAt: updatedAt,
         });
       });
     };
@@ -149,12 +162,11 @@ describe("Browser Todo system repository", () => {
 
       expect(remote.content.purpose).toBe("system-todo");
       expect(remote.content.purpose === "system-todo"
-        ? remote.content.collections[0]?.items[0]
-        : null).toMatchObject({
-          completed: true,
+        ? remote.content.collections[0]?.completions
+        : null).toEqual([{
+          blockId: todoBlockId(1),
           completedAt: todoTimestamp(5),
-          updatedAt: todoTimestamp(5),
-        });
+        }]);
     } finally {
       controller.stop();
     }
@@ -174,7 +186,10 @@ describe("Browser Todo system repository", () => {
       ...valid,
       collections: [{
         ...valid.collections[0]!,
-        createdAt: todoTimestamp(0),
+        source: valid.collections[0]!.source.replace(
+          `id=${todoBlockId(10_001)} created=${todoTimestamp(1)}`,
+          `id=${todoBlockId(10_001)} created=${todoTimestamp(0)}`,
+        ),
       }],
     };
     const database = await openDatabase(indexedDb);
@@ -223,12 +238,10 @@ describe("Browser Todo system repository", () => {
       ...valid,
       collections: [{
         ...valid.collections[0]!,
-        items: [{
-          ...valid.collections[0]!.items[0]!,
-          createdAt: todoTimestamp(3),
-          updatedAt: todoTimestamp(3),
-        }],
-        updatedAt: todoTimestamp(3),
+        source: valid.collections[0]!.source.replace(
+          `id=${todoBlockId(1)} created=${todoTimestamp(2)} updated=${todoTimestamp(2)}`,
+          `id=${todoBlockId(1)} created=${todoTimestamp(3)} updated=${todoTimestamp(3)}`,
+        ),
       }],
     };
 
@@ -289,7 +302,10 @@ describe("Browser Todo system repository", () => {
       ...createTodoContent(),
       collections: [{
         ...createTodoContent().collections[0]!,
-        name: " 未裁剪 ",
+        completions: [{
+          blockId: todoBlockId(99),
+          completedAt: todoTimestamp(3),
+        }],
       }],
     };
     const remoteRead = database.transaction(remoteStoreName, "readonly");
@@ -329,7 +345,9 @@ describe("Browser Todo system repository", () => {
 
     localWrite.objectStore(localStoreName).put(corruptLocal);
     await localWriteCompletion;
-    await expect(repository.loadSnapshot()).rejects.toThrow(/name must be trimmed/);
+    await expect(repository.loadSnapshot()).rejects.toThrow(
+      /does not identify a source block/,
+    );
     const retainedLocalRead = database.transaction(localStoreName, "readonly");
     const retainedLocalCompletion = transactionComplete(retainedLocalRead);
     const retainedLocal = await requestResult(

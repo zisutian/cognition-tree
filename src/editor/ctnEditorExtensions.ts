@@ -35,6 +35,7 @@ import { createCtnCodeBlockEditingExtensions } from "./ctnCodeBlockEditing";
 import { createEditorCompositionChange } from "./editorCompositionChange";
 import { ctnExternalValueSync } from "./editorValueSync";
 import type { CtnEditorContentMode } from "./ctnEditorContentMode";
+import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
 
 export const ctnTabSizeCompartment = new Compartment();
 export const ctnParsingCompartment = new Compartment();
@@ -70,6 +71,12 @@ export function createCtnEditorExtensions(
     current: (lineNumber: number) => void;
   },
   contentMode: CtnEditorContentMode,
+  checkableBlocksRef?: {
+    current: readonly CtnEditorCheckableBlock[];
+  },
+  onToggleCheckableBlockRef?: {
+    current: ((blockId: string) => void) | undefined;
+  },
 ): Extension[] {
   const compositionChange = createEditorCompositionChange({
     onChange: (value) => onChangeRef.current(value),
@@ -98,6 +105,8 @@ export function createCtnEditorExtensions(
         syntaxProfileRef,
         onOpenReferenceRef,
         contentMode,
+        checkableBlocksRef,
+        onToggleCheckableBlockRef,
       ),
     ),
     ctnContentAttributesCompartment.of(
@@ -138,6 +147,12 @@ export function createCtnParsingExtensions(
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
   },
   contentMode: CtnEditorContentMode,
+  checkableBlocksRef?: {
+    current: readonly CtnEditorCheckableBlock[];
+  },
+  onToggleCheckableBlockRef?: {
+    current: ((blockId: string) => void) | undefined;
+  },
 ): Extension[] {
   if (contentMode.kind === "raw") {
     return [];
@@ -146,6 +161,8 @@ export function createCtnParsingExtensions(
   const parseDecorationPlugin = createCtnParseDecorationPlugin(
     syntaxProfileRef,
     contentMode,
+    checkableBlocksRef,
+    onToggleCheckableBlockRef,
   );
 
   return [

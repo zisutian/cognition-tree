@@ -1,54 +1,59 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  createCtnEditableSourceFromDocument,
+  getCtnEditableLineNumber,
+} from "../../ctn/metadata/editableSource.ts";
+import { isCtnBlockId } from "../../ctn/metadata/blockMetadata.ts";
+import {
+  parseCtnCanonicalDocument,
+  readCtnCanonicalTitleHeader,
+} from "../../ctn/parser/parseCtnDocument.ts";
+import type {
+  CtnCanonicalBlock,
+  CtnCanonicalDocument,
+} from "../../ctn/parser/types.ts";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
 import { getPortableNameIssue } from "../../portable-name/portableName.ts";
+import { requireTodoSyntaxProfile } from "../syntax/todoSyntax.ts";
 
 export const todoRepositoryPurpose = "system-todo" as const;
-export const todoRepositorySchemaVersion = 1 as const;
+export const todoRepositorySchemaVersion = 2 as const;
+export const todoItemSemanticType = "todo-item";
 
 export type TodoCollectionId = `todo-collection-${string}`;
-export type TodoItemId = `todo-item-${string}`;
 
-export type TodoItem = {
-  id: TodoItemId;
-  text: string;
-  completed: boolean;
-  createdAt: string;
-  updatedAt: string;
-  completedAt: string | null;
+export type TodoCompletion = {
+  blockId: string;
+  completedAt: string;
 };
 
 export type TodoCollection = {
   id: TodoCollectionId;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  items: TodoItem[];
+  source: string;
+  completions: TodoCompletion[];
 };
 
 export type TodoContent = {
   purpose: typeof todoRepositoryPurpose;
   schemaVersion: typeof todoRepositorySchemaVersion;
+  syntaxSource: string;
   collections: TodoCollection[];
 };
 
-/** Shape accepted after the runtime-neutral system wire parser has run. */
-export type TodoItemValue = Omit<TodoItem, "id"> & { id: string };
-
-/** Shape accepted after the runtime-neutral system wire parser has run. */
-export type TodoCollectionValue = Omit<TodoCollection, "id" | "items"> & {
-  id: string;
-  items: TodoItemValue[];
-};
-
-/** Shape accepted after the runtime-neutral system wire parser has run. */
+export type TodoCollectionValue = Omit<TodoCollection, "id"> & { id: string };
 export type TodoContentValue = Omit<TodoContent, "collections"> & {
   collections: TodoCollectionValue[];
 };
 
+export type ParsedTodoCollection = {
+  collection: TodoCollection;
+  document: CtnCanonicalDocument;
+  name: string;
+};
+
 const collectionIdPattern =
   /^todo-collection-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const itemIdPattern =
-  /^todo-item-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export class TodoContentValidationError extends Error {
   constructor(message: string) {
@@ -59,10 +64,6 @@ export class TodoContentValidationError extends Error {
 
 export function isTodoCollectionId(value: string): value is TodoCollectionId {
   return collectionIdPattern.test(value);
-}
-
-export function isTodoItemId(value: string): value is TodoItemId {
-  return itemIdPattern.test(value);
 }
 
 function readCanonicalTimestamp(value: string, label: string) {
@@ -79,54 +80,71 @@ function readCanonicalTimestamp(value: string, label: string) {
   return milliseconds;
 }
 
-function validateTodoItem(item: TodoItemValue) {
-  if (!isTodoItemId(item.id)) {
-    throw new TodoContentValidationError(`Invalid todo item id: ${item.id}`);
-  }
-  if (item.text.trim().length === 0) {
+export function parseTodoCollection(
+  value: TodoCollectionValue,
+  syntaxProfile: CtnSyntaxProfile,
+): ParsedTodoCollection {
+  if (!isTodoCollectionId(value.id)) {
     throw new TodoContentValidationError(
-      `Todo item ${item.id} text must not be empty.`,
+      `Invalid todo collection id: ${value.id}`,
     );
   }
 
-  const createdAt = readCanonicalTimestamp(
-    item.createdAt,
-    `Todo item ${item.id} createdAt`,
-  );
-  const updatedAt = readCanonicalTimestamp(
-    item.updatedAt,
-    `Todo item ${item.id} updatedAt`,
-  );
+  let document: CtnCanonicalDocument;
+  let name: string;
 
-  if (updatedAt < createdAt) {
+  try {
+    const header = readCtnCanonicalTitleHeader(value.source);
+
+    name = header.title;
+    document = parseCtnCanonicalDocument(value.source, syntaxProfile);
+  } catch (error) {
     throw new TodoContentValidationError(
-      `Todo item ${item.id} updatedAt is before createdAt.`,
+      `Todo collection ${value.id} has invalid canonical CTN source: ${
+        error instanceof Error ? error.message : "unknown CTN error"
+      }`,
     );
   }
-  if ((item.completedAt !== null) !== item.completed) {
-    throw new TodoContentValidationError(
-      `Todo item ${item.id} completed and completedAt must describe the same state.`,
-    );
-  }
-  if (item.completedAt !== null) {
+
+  const blockById = new Map(document.blocks.map((block) => [block.id, block]));
+  const completionIds = new Set<string>();
+
+  for (const completion of value.completions) {
+    if (!isCtnBlockId(completion.blockId)) {
+      throw new TodoContentValidationError(
+        `Invalid todo completion block id: ${completion.blockId}`,
+      );
+    }
+    if (completionIds.has(completion.blockId)) {
+      throw new TodoContentValidationError(
+        `Duplicate todo completion block id: ${completion.blockId}`,
+      );
+    }
+    completionIds.add(completion.blockId);
+    const block = blockById.get(completion.blockId);
+
+    if (!block) {
+      throw new TodoContentValidationError(
+        `Todo completion ${completion.blockId} does not identify a source block.`,
+      );
+    }
     const completedAt = readCanonicalTimestamp(
-      item.completedAt,
-      `Todo item ${item.id} completedAt`,
+      completion.completedAt,
+      `Todo completion ${completion.blockId} completedAt`,
     );
 
-    if (completedAt < createdAt) {
+    if (completedAt < Date.parse(block.metadata.createdAt)) {
       throw new TodoContentValidationError(
-        `Todo item ${item.id} completedAt is before createdAt.`,
-      );
-    }
-    if (completedAt > updatedAt) {
-      throw new TodoContentValidationError(
-        `Todo item ${item.id} completedAt is after updatedAt.`,
+        `Todo completion ${completion.blockId} predates its block.`,
       );
     }
   }
 
-  return updatedAt;
+  return {
+    collection: value as TodoCollection,
+    document,
+    name,
+  };
 }
 
 export function validateTodoContent(content: TodoContentValue): TodoContent {
@@ -141,189 +159,179 @@ export function validateTodoContent(content: TodoContentValue): TodoContent {
     );
   }
 
+  let syntaxProfile: CtnSyntaxProfile;
+
+  try {
+    syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
+  } catch (error) {
+    throw new TodoContentValidationError(
+      `Todo syntax is invalid: ${
+        error instanceof Error ? error.message : "unknown syntax error"
+      }`,
+    );
+  }
+
   const collectionIds = new Set<TodoCollectionId>();
-  const itemIds = new Set<TodoItemId>();
+  const blockOwners = new Map<string, TodoCollectionId>();
 
   for (const collection of content.collections) {
-    if (!isTodoCollectionId(collection.id)) {
-      throw new TodoContentValidationError(
-        `Invalid todo collection id: ${collection.id}`,
-      );
-    }
-    if (collectionIds.has(collection.id)) {
-      throw new TodoContentValidationError(
-        `Duplicate todo collection id: ${collection.id}`,
-      );
-    }
-    collectionIds.add(collection.id);
+    const parsed = parseTodoCollection(collection, syntaxProfile);
 
-    const nameIssue = getPortableNameIssue(collection.name);
-
-    if (nameIssue === "empty") {
+    if (collectionIds.has(parsed.collection.id)) {
       throw new TodoContentValidationError(
-        `Todo collection ${collection.id} name must not be empty.`,
+        `Duplicate todo collection id: ${parsed.collection.id}`,
       );
     }
-    if (nameIssue === "noncanonical") {
-      throw new TodoContentValidationError(
-        `Todo collection ${collection.id} name must be canonical.`,
-      );
-    }
-    if (nameIssue === "unsupported-character") {
-      throw new TodoContentValidationError(
-        `Todo collection ${collection.id} name contains unsupported characters.`,
-      );
-    }
-    const createdAt = readCanonicalTimestamp(
-      collection.createdAt,
-      `Todo collection ${collection.id} createdAt`,
-    );
-    const updatedAt = readCanonicalTimestamp(
-      collection.updatedAt,
-      `Todo collection ${collection.id} updatedAt`,
-    );
+    collectionIds.add(parsed.collection.id);
 
-    if (updatedAt < createdAt) {
-      throw new TodoContentValidationError(
-        `Todo collection ${collection.id} updatedAt is before createdAt.`,
-      );
-    }
+    for (const block of parsed.document.blocks) {
+      const owner = blockOwners.get(block.id);
 
-    for (const item of collection.items) {
-      const itemUpdatedAt = validateTodoItem(item);
-      const itemCreatedAt = Date.parse(item.createdAt);
-
-      if (itemIds.has(item.id as TodoItemId)) {
+      if (owner) {
         throw new TodoContentValidationError(
-          `Duplicate todo item id: ${item.id}`,
+          `Todo block id ${block.id} is shared by ${owner} and ${collection.id}.`,
         );
       }
-      itemIds.add(item.id as TodoItemId);
-      if (itemCreatedAt < createdAt) {
-        throw new TodoContentValidationError(
-          `Todo item ${item.id} was created before collection ${collection.id}.`,
-        );
-      }
-      if (itemUpdatedAt > updatedAt) {
-        throw new TodoContentValidationError(
-          `Todo collection ${collection.id} updatedAt is before item ${item.id} updatedAt.`,
-        );
-      }
+      blockOwners.set(block.id, parsed.collection.id);
     }
   }
 
   return content as TodoContent;
 }
 
-type LocatedTodoItem = {
+type LocatedBlock = {
+  block: CtnCanonicalBlock;
   collectionId: TodoCollectionId;
-  item: TodoItem;
 };
 
-function collectTodoItems(content: TodoContent) {
-  const items = new Map<TodoItemId, LocatedTodoItem>();
+function collectLocatedBlocks(content: TodoContent, profile: CtnSyntaxProfile) {
+  const blocks = new Map<string, LocatedBlock>();
 
   for (const collection of content.collections) {
-    for (const item of collection.items) {
-      items.set(item.id, { collectionId: collection.id, item });
+    const parsed = parseTodoCollection(collection, profile);
+
+    for (const block of parsed.document.blocks) {
+      blocks.set(block.id, { block, collectionId: collection.id });
     }
   }
-  return items;
+  return blocks;
 }
 
-/**
- * Validates facts whose immutability or ordering can only be proven by
- * comparing two repository generations. Collections and items may be added,
- * removed, or reordered, but a surviving identity keeps its creation facts
- * and an item cannot change its owning collection.
- */
 export function validateTodoContentTransition(
   previousValue: TodoContentValue,
   nextValue: TodoContentValue,
 ): TodoContent {
   const previous = validateTodoContent(previousValue);
   const next = validateTodoContent(nextValue);
+  const previousProfile = requireTodoSyntaxProfile(previous.syntaxSource);
+  const nextProfile = requireTodoSyntaxProfile(next.syntaxSource);
   const previousCollections = new Map(
     previous.collections.map((collection) => [collection.id, collection]),
   );
-  const nextCollections = new Map(
-    next.collections.map((collection) => [collection.id, collection]),
-  );
-  const previousItems = collectTodoItems(previous);
-  const nextItems = collectTodoItems(next);
+  const previousBlocks = collectLocatedBlocks(previous, previousProfile);
+  const nextBlocks = collectLocatedBlocks(next, nextProfile);
 
-  for (const previousCollection of previous.collections) {
-    const nextCollection = nextCollections.get(previousCollection.id);
+  for (const nextCollection of next.collections) {
+    const previousCollection = previousCollections.get(nextCollection.id);
 
-    if (!nextCollection) continue;
-    if (previousCollection.createdAt !== nextCollection.createdAt) {
+    if (!previousCollection) continue;
+    const previousTitle = readCtnCanonicalTitleHeader(previousCollection.source);
+    const nextTitle = readCtnCanonicalTitleHeader(nextCollection.source);
+
+    if (previousTitle.metadata.id !== nextTitle.metadata.id) {
       throw new TodoContentValidationError(
-        `Todo collection ${previousCollection.id} createdAt is immutable.`,
+        `Todo collection ${nextCollection.id} title block id is immutable.`,
       );
     }
-    if (
-      Date.parse(nextCollection.updatedAt) <
-        Date.parse(previousCollection.updatedAt)
-    ) {
+    if (previousTitle.metadata.createdAt !== nextTitle.metadata.createdAt) {
       throw new TodoContentValidationError(
-        `Todo collection ${previousCollection.id} updatedAt cannot move backwards.`,
+        `Todo collection ${nextCollection.id} createdAt is immutable.`,
       );
     }
   }
 
-  for (const [itemId, previousLocation] of previousItems) {
-    const nextLocation = nextItems.get(itemId);
+  for (const [blockId, previousLocation] of previousBlocks) {
+    const nextLocation = nextBlocks.get(blockId);
 
     if (!nextLocation) continue;
     if (previousLocation.collectionId !== nextLocation.collectionId) {
       throw new TodoContentValidationError(
-        `Todo item ${itemId} cannot move to another collection.`,
+        `Todo block ${blockId} cannot move to another collection.`,
       );
     }
-    const previousItem = previousLocation.item;
-    const nextItem = nextLocation.item;
-
-    if (previousItem.createdAt !== nextItem.createdAt) {
-      throw new TodoContentValidationError(
-        `Todo item ${itemId} createdAt is immutable.`,
-      );
-    }
-    if (Date.parse(nextItem.updatedAt) < Date.parse(previousItem.updatedAt)) {
-      throw new TodoContentValidationError(
-        `Todo item ${itemId} updatedAt cannot move backwards.`,
-      );
-    }
-    // Snapshot pairs may coalesce a completion plus later edits, or skip an
-    // intermediate reopen before recompletion. They therefore cannot prove
-    // completedAt immutability. A changed completion timestamp must still be
-    // no earlier than the last observed item update.
     if (
-      nextItem.completed &&
-      previousItem.completedAt !== nextItem.completedAt &&
-      Date.parse(nextItem.completedAt!) < Date.parse(previousItem.updatedAt)
+      previousLocation.block.metadata.createdAt !==
+        nextLocation.block.metadata.createdAt
     ) {
       throw new TodoContentValidationError(
-        `Todo item ${itemId} completedAt cannot predate the completion transition.`,
+        `Todo block ${blockId} createdAt is immutable.`,
       );
     }
-  }
-
-  for (const [itemId, nextLocation] of nextItems) {
-    if (previousItems.has(itemId)) continue;
-    const previousCollection = previousCollections.get(
-      nextLocation.collectionId,
-    );
-
     if (
-      previousCollection &&
-      Date.parse(nextLocation.item.createdAt) <
-        Date.parse(previousCollection.updatedAt)
+      Date.parse(nextLocation.block.metadata.updatedAt) <
+        Date.parse(previousLocation.block.metadata.updatedAt)
     ) {
       throw new TodoContentValidationError(
-        `Todo item ${itemId} was created before its collection's latest update.`,
+        `Todo block ${blockId} updatedAt cannot move backwards.`,
       );
     }
   }
 
   return next;
+}
+
+export function createTodoCollectionBodyProjection(
+  collection: TodoCollectionValue,
+  syntaxProfile: CtnSyntaxProfile,
+) {
+  const parsed = parseTodoCollection(collection, syntaxProfile);
+  const editable = createCtnEditableSourceFromDocument(
+    parsed.collection.source,
+    parsed.document,
+  );
+  const prefix = `${parsed.name}\n`;
+  const source = editable.source === parsed.name
+    ? ""
+    : editable.source.startsWith(prefix)
+      ? editable.source.slice(prefix.length)
+      : (() => {
+          throw new TodoContentValidationError(
+            `Todo collection ${collection.id} has an invalid editable title.`,
+          );
+        })();
+
+  return {
+    document: parsed.document,
+    editableSource: editable.source,
+    name: parsed.name,
+    source,
+    projectCanonicalLineNumber(canonicalLineNumber: number) {
+      return Math.max(
+        1,
+        getCtnEditableLineNumber(editable, canonicalLineNumber) - 1,
+      );
+    },
+  };
+}
+
+export function collectTodoBlockIds(
+  content: TodoContentValue,
+  syntaxProfile: CtnSyntaxProfile,
+) {
+  const ids = new Set<string>();
+
+  for (const collection of content.collections) {
+    for (const block of parseTodoCollection(collection, syntaxProfile).document
+      .blocks) {
+      ids.add(block.id);
+    }
+  }
+  return ids;
+}
+
+export function getTodoCollectionNameIssue(
+  collection: TodoCollectionValue,
+  syntaxProfile: CtnSyntaxProfile,
+) {
+  return getPortableNameIssue(parseTodoCollection(collection, syntaxProfile).name);
 }

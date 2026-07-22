@@ -32,6 +32,11 @@ describe("syntax profile schema", () => {
     };
     const markerOnlyProfile: CtnSyntaxProfile = {
       ...createProfile(),
+      markerRules: [{
+        ...createProfile().markerRules[0],
+        role: "normal",
+        type: syntaxProfileSchema.requiredTypes.todoItem,
+      }],
       topLevelUnmarkedRule: null,
     };
 

@@ -25,26 +25,21 @@ export type JournalRepositoryContentDto = {
   entries: JournalEntryDto[];
 };
 
-export type TodoItemDto = {
-  id: string;
-  text: string;
-  completed: boolean;
-  createdAt: string;
-  updatedAt: string;
-  completedAt: string | null;
+export type TodoCompletionDto = {
+  blockId: string;
+  completedAt: string;
 };
 
 export type TodoCollectionDto = {
   id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  items: TodoItemDto[];
+  source: string;
+  completions: TodoCompletionDto[];
 };
 
 export type TodoRepositoryContentDto = {
   purpose: "system-todo";
-  schemaVersion: 1;
+  schemaVersion: 2;
+  syntaxSource: string;
   collections: TodoCollectionDto[];
 };
 

@@ -106,6 +106,20 @@
   font-weight: var(--ctn-editor-strong-weight);
 }
 
+.source-editor .ctn-todo-checkbox {
+  width: var(--ui-symbol-size);
+  height: var(--ui-symbol-size);
+  margin: 0 calc(var(--ui-gap-tight) / 2) 0 0;
+  vertical-align: -0.12em;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.source-editor .ctn-line:has(.ctn-todo-checkbox:checked) .ctn-block-text {
+  color: var(--color-fg-muted);
+  text-decoration: line-through;
+}
+
 .source-editor .ctn-block-text {
   border-radius: var(--ui-radius);
 }

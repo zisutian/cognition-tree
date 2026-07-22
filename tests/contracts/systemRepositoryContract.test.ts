@@ -3,8 +3,8 @@ import { SystemRepositoryContractError } from "../../contracts/system-repository
 import {
   createEmptySystemRepositoryContent,
   isJournalEntryId,
+  isTodoBlockId,
   isTodoCollectionId,
-  isTodoItemId,
   parseSystemRepositoryCommit,
   parseSystemRepositoryContent,
   parseSystemRepositorySnapshot,
@@ -14,34 +14,31 @@ import {
   parseSystemRepositoryRetryResult,
 } from "../../contracts/system-repository/parseCatalog.ts";
 import { serializeSystemRepositoryRevisionContent } from "../../contracts/system-repository/revision.ts";
-import { defaultJournalSyntaxSourceV2 as contractJournalSyntaxSource } from "../../contracts/system-repository/defaultContent.ts";
+import {
+  defaultJournalSyntaxSourceV2 as contractJournalSyntaxSource,
+  defaultTodoSyntaxSourceV2 as contractTodoSyntaxSource,
+} from "../../contracts/system-repository/defaultContent.ts";
 import { defaultJournalSyntaxSourceV2 as domainJournalSyntaxSource } from "../../journal/syntax/journalSyntax.ts";
+import { defaultTodoSyntaxSourceV2 as domainTodoSyntaxSource } from "../../todo/syntax/todoSyntax.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const createdAt = "2026-07-18T01:00:00.000Z";
 const updatedAt = "2026-07-18T02:00:00.000Z";
 const journalId = "journal-entry-00000000-0000-4000-8000-000000000001";
 const collectionId = "todo-collection-00000000-0000-4000-8000-000000000001";
-const itemId = "todo-item-00000000-0000-4000-8000-000000000001";
+const blockId = "00000000-0000-4000-8000-000000000001";
+const titleBlockId = "00000000-0000-4000-8000-000000010001";
 
 function createTodoContent() {
   return {
     collections: [{
-      createdAt,
+      completions: [{ blockId, completedAt: updatedAt }],
       id: collectionId,
-      items: [{
-        completed: true,
-        completedAt: updatedAt,
-        createdAt,
-        id: itemId,
-        text: "完成服务端 contract",
-        updatedAt,
-      }],
-      name: "实现",
-      updatedAt,
+      source: `@ctn-block id=${titleBlockId} created=${createdAt} updated=${createdAt}\n实现\n@ctn-block id=${blockId} created=${createdAt} updated=${updatedAt}\n[] 完成服务端 contract`,
     }],
     purpose: "system-todo" as const,
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
+    syntaxSource: contractTodoSyntaxSource,
   };
 }
 
@@ -78,11 +75,17 @@ describe("system repository contract", () => {
         syntaxSource: contractJournalSyntaxSource,
       });
     expect(createEmptySystemRepositoryContent("system-todo"))
-      .toEqual({ collections: [], purpose: "system-todo", schemaVersion: 1 });
+      .toEqual({
+        collections: [],
+        purpose: "system-todo",
+        schemaVersion: 2,
+        syntaxSource: contractTodoSyntaxSource,
+      });
   });
 
   it("keeps Journal provision defaults aligned without a domain-to-contract dependency", () => {
     expect(contractJournalSyntaxSource).toBe(domainJournalSyntaxSource);
+    expect(contractTodoSyntaxSource).toBe(domainTodoSyntaxSource);
     expect(() => parseSystemRepositoryContent({
       entries: [],
       purpose: "system-journal",
@@ -93,38 +96,41 @@ describe("system repository contract", () => {
   it("exports the exact stable id guards", () => {
     expect(isJournalEntryId(journalId)).toBe(true);
     expect(isTodoCollectionId(collectionId)).toBe(true);
-    expect(isTodoItemId(itemId)).toBe(true);
+    expect(isTodoBlockId(blockId)).toBe(true);
     expect(isJournalEntryId(journalId.toUpperCase())).toBe(false);
     expect(isTodoCollectionId("collection-00000000-0000-4000-8000-000000000001"))
       .toBe(false);
   });
 
-  it("rejects duplicate ids, invalid time facts, empty text, and purpose mismatch", () => {
+  it("rejects duplicate ids, invalid completion facts, and purpose mismatch", () => {
     const todo = createTodoContent();
     expect(() => parseSystemRepositoryContent({
       ...todo,
       collections: [todo.collections[0], todo.collections[0]],
-    })).toThrow("duplicate todo item id");
+    })).toThrow("duplicate todo collection id");
     expect(() => parseSystemRepositoryContent({
       ...todo,
       collections: [{
         ...todo.collections[0],
-        items: [{ ...todo.collections[0]!.items[0], text: "   " }],
+        completions: [
+          todo.collections[0]!.completions[0],
+          todo.collections[0]!.completions[0],
+        ],
       }],
-    })).toThrow("expected non-empty text");
+    })).toThrow("duplicate todo completion block id");
     expect(() => parseSystemRepositoryContent({
       ...todo,
       collections: [{
         ...todo.collections[0],
-        items: [{
-          ...todo.collections[0]!.items[0],
-          completed: false,
-        }],
+        completions: [{ blockId: `todo-item-${blockId}`, completedAt: updatedAt }],
       }],
-    })).toThrow("completed and completedAt");
+    })).toThrow("invalid todo block id");
     expect(() => parseSystemRepositoryContent({
       ...todo,
-      collections: [{ ...todo.collections[0], updatedAt: "2026-07-17" }],
+      collections: [{
+        ...todo.collections[0],
+        completions: [{ blockId, completedAt: "2026-07-17" }],
+      }],
     })).toThrow("expected canonical timestamp");
     expect(() => parseSystemRepositoryContent(
       createEmptySystemRepositoryContent("system-journal"),
@@ -161,7 +167,7 @@ describe("system repository contract", () => {
 
   it("canonicalizes object keys without sorting content arrays", () => {
     expect(serializeSystemRepositoryRevisionContent(createTodoContent())).toContain(
-      `"id":"${collectionId}","items":[{"completed":true`,
+      `"completions":[{"blockId":"${blockId}","completedAt":"${updatedAt}"}],"id":"${collectionId}"`,
     );
     expect(() => parseSystemRepositoryContent({
       ...createTodoContent(),

@@ -16,12 +16,14 @@ import {
 import type { CtnEditorContentMode } from "./ctnEditorContentMode";
 import { createEditorValueSyncTransaction } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
+import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
 import "./CtnEditor.css";
 
 export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
 export type { CtnEditorContentMode } from "./ctnEditorContentMode";
 
 type CtnEditorProps = {
+  checkableBlocks?: readonly CtnEditorCheckableBlock[];
   contentMode: CtnEditorContentMode;
   focusTarget: CtnEditorFocusTarget | null;
   syntaxProfile: CtnEditorSyntaxProfile;
@@ -30,7 +32,10 @@ type CtnEditorProps = {
   onChange: (change: CtnEditableSourceChange) => void;
   onConsumeFocusTarget: (requestId: number) => void;
   onOpenReference?: (target: CtnEditorReferenceTarget) => void;
+  onToggleCheckableBlock?: (blockId: string) => void;
 };
+
+export type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
 
 export type CtnEditorFocusTarget = {
   lineNumber: number;
@@ -38,6 +43,7 @@ export type CtnEditorFocusTarget = {
 };
 
 export function CtnEditor({
+  checkableBlocks = [],
   contentMode,
   focusTarget,
   syntaxProfile,
@@ -46,6 +52,7 @@ export function CtnEditor({
   onChange,
   onConsumeFocusTarget,
   onOpenReference,
+  onToggleCheckableBlock,
 }: CtnEditorProps) {
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
@@ -53,6 +60,8 @@ export function CtnEditor({
   const onActiveLineChangeRef = useRef(onActiveLineChange);
   const onChangeRef = useRef(onChange);
   const onOpenReferenceRef = useRef(onOpenReference);
+  const checkableBlocksRef = useRef(checkableBlocks);
+  const onToggleCheckableBlockRef = useRef(onToggleCheckableBlock);
   const syntaxProfileRef = useRef(syntaxProfile);
   const tabDisplayWidthRef = useRef(syntaxProfile.tabDisplayWidth);
   const consumedFocusRequestIdRef = useRef<number | null>(null);
@@ -68,6 +77,14 @@ export function CtnEditor({
   useEffect(() => {
     onOpenReferenceRef.current = onOpenReference;
   }, [onOpenReference]);
+
+  useEffect(() => {
+    checkableBlocksRef.current = checkableBlocks;
+  }, [checkableBlocks]);
+
+  useEffect(() => {
+    onToggleCheckableBlockRef.current = onToggleCheckableBlock;
+  }, [onToggleCheckableBlock]);
 
   useEffect(() => {
     syntaxProfileRef.current = syntaxProfile;
@@ -105,6 +122,8 @@ export function CtnEditor({
           onOpenReferenceRef,
           onActiveLineChangeRef,
           contentMode,
+          checkableBlocksRef,
+          onToggleCheckableBlockRef,
         ),
       }),
     });
@@ -121,6 +140,11 @@ export function CtnEditor({
 
   const contentModeKind = contentMode.kind;
   const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
+  const checkableBlocksKey = checkableBlocks
+    .map(({ blockId, checked, lineNumber }) =>
+      `${lineNumber}:${blockId}:${checked ? "1" : "0"}`
+    )
+    .join("|");
 
   useEffect(() => {
     const view = editorViewRef.current;
@@ -154,6 +178,8 @@ export function CtnEditor({
           syntaxProfileRef,
           onOpenReferenceRef,
           contentMode,
+          checkableBlocksRef,
+          onToggleCheckableBlockRef,
         ),
       ),
     });
@@ -162,7 +188,7 @@ export function CtnEditor({
         createCtnContentAttributesExtension(contentMode),
       ),
     });
-  }, [bodyTitle, contentModeKind]);
+  }, [bodyTitle, checkableBlocksKey, contentModeKind]);
 
   useEffect(() => {
     const view = editorViewRef.current;

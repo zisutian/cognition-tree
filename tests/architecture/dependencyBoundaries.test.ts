@@ -300,7 +300,6 @@ describe("dependency boundaries", () => {
       /^react$/,
       /^react\//,
       /(?:^|\/)contracts\//,
-      /(?:^|\/)ctn\//,
       /(?:^|\/)journal\//,
       /(?:^|\/)server\//,
       /(?:^|\/)src\//,
@@ -364,8 +363,10 @@ describe("dependency boundaries", () => {
     expect(findDependencyCycles(graph)).toEqual([]);
     expect(Object.keys(todoModules).map(todoPathToRelative).sort()).toEqual([
       "commands/todoCommands.ts",
+      "indexes/todoParseIndex.ts",
       "model/todoContent.ts",
       "queries/todoQueries.ts",
+      "syntax/todoSyntax.ts",
     ]);
   });
 

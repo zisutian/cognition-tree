@@ -24,6 +24,7 @@ export const syntaxProfileSchema = {
     concept: "concept",
     globalReference: "global-reference",
     title: "title",
+    todoItem: "todo-item",
   },
   roles: ["normal", "multiline"] as const satisfies readonly CtnRuleRole[],
   semanticId: {
@@ -218,6 +219,7 @@ export function validateSyntaxProfile(
     syntaxProfileSchema.requiredTypes.concept,
     syntaxProfileSchema.requiredTypes.body,
     syntaxProfileSchema.requiredTypes.globalReference,
+    syntaxProfileSchema.requiredTypes.todoItem,
   ]);
 
   const registerSemanticId = (type: string, path: string) => {
@@ -375,7 +377,11 @@ export function validateSyntaxProfile(
       );
     }
 
-    if (reservedTypes.has(rule.type)) {
+    if (
+      reservedTypes.has(rule.type) &&
+      !(policy.scope === "todo" &&
+        rule.type === syntaxProfileSchema.requiredTypes.todoItem)
+    ) {
       diagnostics.push(
         createDiagnostic(
           "reserved-semantic-id",
@@ -412,6 +418,30 @@ export function validateSyntaxProfile(
         "至少需要一个行首规则。",
       ),
     );
+  }
+
+  if (policy.scope === "todo") {
+    const todoRules = profile.markerRules.filter(
+      ({ type }) => type === syntaxProfileSchema.requiredTypes.todoItem,
+    );
+
+    if (todoRules.length !== 1) {
+      diagnostics.push(
+        createDiagnostic(
+          "missing-required-rule",
+          "markers.todo-item",
+          "代办规则不能删除，且必须保持唯一。",
+        ),
+      );
+    } else if (todoRules[0].role !== "normal") {
+      diagnostics.push(
+        createDiagnostic(
+          "invalid-role",
+          `markers[${profile.markerRules.indexOf(todoRules[0])}].role`,
+          "代办规则角色固定为 normal。",
+        ),
+      );
+    }
   }
 
   profile.inlineRules.forEach((rule, index) => {

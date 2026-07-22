@@ -29,6 +29,13 @@ import {
   tamperJournalTestEntryCreation,
   updateJournalTestBody,
 } from "../../journal/journalTestFixture.ts";
+import { renameTodoCollection } from "../../../todo/commands/todoCommands.ts";
+import {
+  appendTodoTestCollection,
+  createEmptyTodoContent,
+  todoCollectionId,
+  todoTimestamp,
+} from "../../todo/todoTestFixture.ts";
 
 function createCatalog(stateDirectory: string) {
   return new SystemRepositoryCatalog(stateDirectory, {
@@ -106,17 +113,11 @@ describe("filesystem system repository catalog", () => {
       await catalog.initialize();
       const store = await catalog.getStore("system-todo");
       const base = await store.loadSnapshot();
-      const content = {
-        collections: [{
-          createdAt: "2026-07-18T01:00:00.000Z",
-          id: "todo-collection-00000000-0000-4000-8000-000000000001",
-          items: [],
-          name: "服务端",
-          updatedAt: "2026-07-18T01:00:00.000Z",
-        }],
-        purpose: "system-todo" as const,
-        schemaVersion: 1 as const,
-      };
+      const content = appendTodoTestCollection(createEmptyTodoContent(), {
+        collectionIndex: 1,
+        createdAt: todoTimestamp(1),
+        name: "服务端",
+      });
       const committed = await store.commitSnapshot({
         baseRevision: base.revision,
         content,
@@ -135,10 +136,11 @@ describe("filesystem system repository catalog", () => {
       const second = createStore(filePath, "system-todo");
       const concurrentBase = await first.loadSnapshot();
       const firstContent = { ...content, collections: [] };
-      const secondContent = {
-        ...content,
-        collections: [{ ...content.collections[0]!, name: "另一个提交" }],
-      };
+      const secondContent = renameTodoCollection(content, {
+        collectionId: todoCollectionId(1),
+        name: "另一个提交",
+        updatedAt: todoTimestamp(2),
+      });
       const results = await Promise.allSettled([
         first.commitSnapshot({
           baseRevision: concurrentBase.revision,
@@ -234,6 +236,11 @@ describe("filesystem system repository catalog", () => {
 
       await mkdir(systemDirectory, { mode: 0o700 });
       await writeFile(journalPath, corruptSource, { mode: 0o600 });
+      await writeFile(
+        path.join(systemDirectory, "system-journal.epoch"),
+        "2\n",
+        { mode: 0o600 },
+      );
       const catalog = createCatalog(stateDirectory);
       await catalog.initialize();
 
@@ -263,7 +270,7 @@ describe("filesystem system repository catalog", () => {
     });
   });
 
-  it("maps persisted contract violations to corruption while preserving version errors", async () => {
+  it("preserves current-epoch future/old versions and maps shape violations to corruption", async () => {
     await withStateDirectory(async (stateDirectory) => {
       const catalog = createCatalog(stateDirectory);
       await catalog.initialize();
@@ -280,7 +287,7 @@ describe("filesystem system repository catalog", () => {
         schemaVersion: 1,
       }));
       await expect(store.loadSnapshot()).rejects.toBeInstanceOf(
-        RepositoryCorruptError,
+        UnsupportedSystemRepositoryVersionError,
       );
 
       await writeFile(journalPath, JSON.stringify({
@@ -289,7 +296,7 @@ describe("filesystem system repository catalog", () => {
         schemaVersion: 2,
       }));
       await expect(store.loadSnapshot()).rejects.toBeInstanceOf(
-        UnsupportedSystemRepositoryVersionError,
+        RepositoryCorruptError,
       );
     });
   });

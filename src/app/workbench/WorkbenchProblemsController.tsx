@@ -3,6 +3,10 @@ import type {
   JournalDiagnostics,
   JournalViewModel,
 } from "../../application/journal";
+import type {
+  TodoDiagnostics,
+  TodoViewModel,
+} from "../../application/todo";
 import type { WorkbenchApplication } from "../../application/workbench/workbenchApplication";
 import type { RepositoryNavigation } from "../../application/repository/useRepositoryNavigation";
 import {
@@ -33,17 +37,21 @@ type WorkbenchProblemOpenContext = {
   journalNavigation?: {
     openEntryLine: JournalViewModel["navigation"]["openEntryLine"];
   } | null;
+  todoNavigation?: {
+    openCollectionLine: TodoViewModel["navigation"]["openCollectionLine"];
+  } | null;
   onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
 export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
-  return activeActivityId !== "settings" && activeActivityId !== "todo";
+  return activeActivityId !== "settings";
 }
 
 export function selectWorkbenchProblems({
   activeActivityId,
   diagnostics,
   journalDiagnostics,
+  todoDiagnostics,
   repositoryIssues,
   repositories,
   systemIssues,
@@ -51,18 +59,22 @@ export function selectWorkbenchProblems({
   activeActivityId: ActivityId;
   diagnostics: UiWorkbenchDiagnostics;
   journalDiagnostics?: JournalDiagnostics;
+  todoDiagnostics?: TodoDiagnostics;
   repositoryIssues: WorkspaceRepositoryCatalogIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
   systemIssues: SystemRepositoryRuntimeIssue[];
 }): UiWorkbenchProblems {
+  const emptyDiagnostics = {
+    diagnostics: [],
+    errorCount: 0,
+    status: "ready" as const,
+    warningCount: 0,
+  };
   const scopedDiagnostics = activeActivityId === "journal"
-    ? journalDiagnostics ?? {
-        diagnostics: [],
-        errorCount: 0,
-        status: "ready" as const,
-        warningCount: 0,
-      }
-    : diagnostics;
+    ? journalDiagnostics ?? emptyDiagnostics
+    : activeActivityId === "todo"
+      ? todoDiagnostics ?? emptyDiagnostics
+      : diagnostics;
 
   return createUiWorkbenchProblems(
     scopedDiagnostics,
@@ -94,6 +106,12 @@ export function openWorkbenchProblem(
       problem.target.lineNumber,
     );
     context.onActiveActivityChange("journal");
+  } else if (problem.target.kind === "todo-collection-line") {
+    context.todoNavigation?.openCollectionLine(
+      problem.target.collectionId,
+      problem.target.lineNumber,
+    );
+    context.onActiveActivityChange("todo");
   } else if (problem.target.kind === "repository-issue") {
     context.repositoryNavigation.focusOrdinaryIssue(problem.target.issueId);
     context.onActiveActivityChange("repository");
@@ -143,6 +161,9 @@ export function WorkbenchProblemsController({
   const journal = application.journal.status === "ready"
     ? application.journal.view
     : null;
+  const todo = application.todo.status === "ready"
+    ? application.todo.view
+    : null;
   const problems = selectWorkbenchProblems({
     activeActivityId,
     diagnostics: workspace?.diagnostics ?? {
@@ -152,6 +173,7 @@ export function WorkbenchProblemsController({
       warningCount: 0,
     },
     journalDiagnostics: journal?.diagnostics,
+    todoDiagnostics: todo?.diagnostics,
     repositories: ordinaryCatalog?.repositories ?? [],
     repositoryIssues: ordinaryCatalog?.issues ?? [],
     systemIssues,
@@ -160,6 +182,7 @@ export function WorkbenchProblemsController({
     openWorkbenchProblem(problem, {
       expandPanels: workbench.expandPanels,
       journalNavigation: journal?.navigation ?? null,
+      todoNavigation: todo?.navigation ?? null,
       repositoryNavigation: application.repository.navigation,
       workspaceNavigation: workspace?.navigation ?? null,
       onActiveActivityChange,

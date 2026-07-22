@@ -9,7 +9,10 @@ import {
   readSystemString,
   UnsupportedSystemRepositoryVersionError,
 } from "./contractValue.ts";
-import { defaultJournalSyntaxSourceV2 } from "./defaultContent.ts";
+import {
+  defaultJournalSyntaxSourceV2,
+  defaultTodoSyntaxSourceV2,
+} from "./defaultContent.ts";
 import type {
   JournalDailyCounterDto,
   JournalEntryDto,
@@ -20,7 +23,7 @@ import type {
   SystemRepositoryRevisionDto,
   SystemRepositorySnapshotDto,
   TodoCollectionDto,
-  TodoItemDto,
+  TodoCompletionDto,
 } from "./types.ts";
 
 const journalFields = [
@@ -39,16 +42,14 @@ const journalEntryFields = [
   "timezoneOffsetMinutes",
   "updatedAt",
 ] as const;
-const todoFields = ["collections", "purpose", "schemaVersion"] as const;
-const collectionFields = ["createdAt", "id", "items", "name", "updatedAt"] as const;
-const itemFields = [
-  "completed",
-  "completedAt",
-  "createdAt",
-  "id",
-  "text",
-  "updatedAt",
+const todoFields = [
+  "collections",
+  "purpose",
+  "schemaVersion",
+  "syntaxSource",
 ] as const;
+const collectionFields = ["completions", "id", "source"] as const;
+const completionFields = ["blockId", "completedAt"] as const;
 const snapshotFields = ["content", "revision"] as const;
 const commitFields = ["baseRevision", "content"] as const;
 const commitResultFields = ["revision"] as const;
@@ -56,7 +57,7 @@ const revisionPattern = /^sha256:[0-9a-f]{64}$/;
 const uuidSuffix = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const journalEntryIdPattern = new RegExp(`^journal-entry-${uuidSuffix}$`);
 const todoCollectionIdPattern = new RegExp(`^todo-collection-${uuidSuffix}$`);
-const todoItemIdPattern = new RegExp(`^todo-item-${uuidSuffix}$`);
+const todoBlockIdPattern = new RegExp(`^${uuidSuffix}$`);
 const journalDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isJournalEntryId(value: string) {
@@ -67,8 +68,8 @@ export function isTodoCollectionId(value: string) {
   return todoCollectionIdPattern.test(value);
 }
 
-export function isTodoItemId(value: string) {
-  return todoItemIdPattern.test(value);
+export function isTodoBlockId(value: string) {
+  return todoBlockIdPattern.test(value);
 }
 
 export function isSystemRepositoryPurpose(
@@ -189,68 +190,58 @@ function parseJournalDailyCounter(
   };
 }
 
-function parseTodoItem(value: unknown, path: string): TodoItemDto {
-  const item = readSystemObject(value, path);
-  assertExactSystemFields(item, itemFields, path);
-  if (typeof item.completed !== "boolean") {
-    failSystemContract(`${path}.completed`, "expected boolean");
+function parseTodoCompletion(
+  value: unknown,
+  path: string,
+): TodoCompletionDto {
+  const completion = readSystemObject(value, path);
+  assertExactSystemFields(completion, completionFields, path);
+  const blockId = readRequiredSystemString(completion, "blockId", path);
+
+  if (!todoBlockIdPattern.test(blockId)) {
+    failSystemContract(`${path}.blockId`, "invalid todo block id");
   }
-  const completedAt = item.completedAt === null
-    ? null
-    : readTimestamp(item, "completedAt", path);
-  const text = readSystemString(item, "text", path);
-  if (text.trim().length === 0) {
-    failSystemContract(`${path}.text`, "expected non-empty text");
-  }
-  if ((item.completed === true) !== (completedAt !== null)) {
-    failSystemContract(
-      `${path}.completedAt`,
-      "completed and completedAt must describe the same state",
-    );
-  }
-  const parsed = {
-    id: readPrefixedId(item, path, todoItemIdPattern, "todo item"),
-    text,
-    completed: item.completed,
-    createdAt: readTimestamp(item, "createdAt", path),
-    updatedAt: readTimestamp(item, "updatedAt", path),
-    completedAt,
+  return {
+    blockId,
+    completedAt: readTimestamp(completion, "completedAt", path),
   };
-  assertNotBefore(parsed.updatedAt, parsed.createdAt, `${path}.updatedAt`);
-  if (parsed.completedAt !== null) {
-    assertNotBefore(parsed.completedAt, parsed.createdAt, `${path}.completedAt`);
-  }
-  return parsed;
 }
 
 function parseTodoCollection(
   value: unknown,
   path: string,
-  itemIds: Set<string>,
 ): TodoCollectionDto {
   const collection = readSystemObject(value, path);
   assertExactSystemFields(collection, collectionFields, path);
-  const items = readSystemArray(collection, "items", path).map((value, index) => {
-    const item = parseTodoItem(value, `${path}.items[${index}]`);
-    if (itemIds.has(item.id)) {
-      failSystemContract(`${path}.items[${index}].id`, `duplicate todo item id ${item.id}`);
-    }
-    itemIds.add(item.id);
-    return item;
-  });
-  const name = readRequiredSystemString(collection, "name", path);
-  if (name.trim().length === 0) {
-    failSystemContract(`${path}.name`, "expected non-empty name");
-  }
-  const parsed = {
-    id: readPrefixedId(collection, path, todoCollectionIdPattern, "todo collection"),
-    name,
-    createdAt: readTimestamp(collection, "createdAt", path),
-    updatedAt: readTimestamp(collection, "updatedAt", path),
-    items,
+  const completionIds = new Set<string>();
+  const completions = readSystemArray(collection, "completions", path).map(
+    (value, index) => {
+      const completion = parseTodoCompletion(
+        value,
+        `${path}.completions[${index}]`,
+      );
+
+      if (completionIds.has(completion.blockId)) {
+        failSystemContract(
+          `${path}.completions[${index}].blockId`,
+          `duplicate todo completion block id ${completion.blockId}`,
+        );
+      }
+      completionIds.add(completion.blockId);
+      return completion;
+    },
+  );
+
+  return {
+    completions,
+    id: readPrefixedId(
+      collection,
+      path,
+      todoCollectionIdPattern,
+      "todo collection",
+    ),
+    source: readSystemString(collection, "source", path),
   };
-  assertNotBefore(parsed.updatedAt, parsed.createdAt, `${path}.updatedAt`);
-  return parsed;
 }
 
 export function parseSystemRepositoryContent(
@@ -304,7 +295,7 @@ export function parseSystemRepositoryContent(
       syntaxSource: readSystemString(content, "syntaxSource", "$"),
     };
   }
-  if (content.schemaVersion !== 1) {
+  if (content.schemaVersion !== 2) {
     throw new UnsupportedSystemRepositoryVersionError(
       "$.schemaVersion",
       content.schemaVersion,
@@ -312,13 +303,11 @@ export function parseSystemRepositoryContent(
   }
   assertExactSystemFields(content, todoFields, "$");
   const collectionIds = new Set<string>();
-  const itemIds = new Set<string>();
   const collections = readSystemArray(content, "collections", "$").map(
     (value, index) => {
       const collection = parseTodoCollection(
         value,
         `$.collections[${index}]`,
-        itemIds,
       );
       if (collectionIds.has(collection.id)) {
         failSystemContract(
@@ -330,7 +319,12 @@ export function parseSystemRepositoryContent(
       return collection;
     },
   );
-  return { collections, purpose, schemaVersion: 1 };
+  return {
+    collections,
+    purpose,
+    schemaVersion: 2,
+    syntaxSource: readSystemString(content, "syntaxSource", "$"),
+  };
 }
 
 export function parseSystemRepositorySnapshot(
@@ -376,5 +370,10 @@ export function createEmptySystemRepositoryContent(
         schemaVersion: 2,
         syntaxSource: defaultJournalSyntaxSourceV2,
       }
-    : { collections: [], purpose, schemaVersion: 1 };
+    : {
+        collections: [],
+        purpose,
+        schemaVersion: 2,
+        syntaxSource: defaultTodoSyntaxSourceV2,
+      };
 }

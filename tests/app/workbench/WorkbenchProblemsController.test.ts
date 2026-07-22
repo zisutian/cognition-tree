@@ -55,9 +55,9 @@ const journalDiagnostic: JournalDiagnostic = {
 };
 
 describe("WorkbenchProblemsController", () => {
-  it("omits the global problems panel from Todo and Settings", () => {
+  it("omits the global problems panel only from Settings", () => {
     expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
-    expect(hasWorkbenchProblemsPanel("todo")).toBe(false);
+    expect(hasWorkbenchProblemsPanel("todo")).toBe(true);
     expect(hasWorkbenchProblemsPanel("journal")).toBe(true);
     expect(hasWorkbenchProblemsPanel("repository")).toBe(true);
     expect(hasWorkbenchProblemsPanel("notes")).toBe(true);

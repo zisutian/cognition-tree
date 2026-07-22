@@ -1,273 +1,256 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
+import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
 import {
-  createTodoCollection,
-  createTodoItem,
   deleteTodoCollection,
-  deleteTodoItem,
+  moveTodoBlock,
   moveTodoCollection,
-  moveTodoItem,
   renameTodoCollection,
-  toggleTodoItem,
-  updateTodoItemText,
+  toggleTodoBlock,
+  updateTodoCollectionBody,
+  updateTodoSyntaxSource,
 } from "../../../todo/commands/todoCommands";
-import { validateTodoContent } from "../../../todo/model/todoContent";
+import {
+  createTodoCollectionBodyProjection,
+  parseTodoCollection,
+  validateTodoContent,
+} from "../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,
   createEmptyTodoContent,
+  todoBlockId,
   todoCollectionId,
-  todoItemId,
   todoTimestamp,
 } from "../todoTestFixture";
 
-function createCollectionWithTwoItems() {
+function collectionWithTasks() {
   let content = appendTodoTestCollection(createEmptyTodoContent(), {
     collectionIndex: 1,
     createdAt: todoTimestamp(1),
+    name: "工作",
   });
   content = appendTodoTestItem(content, {
     collectionIndex: 1,
     createdAt: todoTimestamp(2),
     itemIndex: 1,
+    text: "父任务",
   });
-  content = appendTodoTestItem(content, {
+  return appendTodoTestItem(content, {
     collectionIndex: 1,
     createdAt: todoTimestamp(3),
     itemIndex: 2,
+    level: 1,
+    text: "子任务",
   });
-  return content;
 }
 
-describe("todo commands", () => {
-  it("appends collections and normalizes inline names without mutating input", () => {
-    const empty = createEmptyTodoContent();
-    const created = createTodoCollection(empty, {
-      collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(1),
-      name: "  工作  集合  ",
-    });
-    const renamed = renameTodoCollection(created.content, {
-      collectionId: created.collectionId,
-      name: "  个人  集合  ",
-      updatedAt: todoTimestamp(2),
-    });
-
-    expect(empty.collections).toEqual([]);
-    expect(created.content.collections[0]).toEqual({
-      createdAt: todoTimestamp(1),
-      id: todoCollectionId(1),
-      items: [],
-      name: "工作 集合",
-      updatedAt: todoTimestamp(1),
-    });
-    expect(renamed.collections[0]?.name).toBe("个人 集合");
-    expect(renamed.collections[0]?.updatedAt).toBe(todoTimestamp(2));
-    expect(renameTodoCollection(renamed, {
-      collectionId: todoCollectionId(1),
-      name: "  个人  集合 ",
-      updatedAt: todoTimestamp(1),
-    })).toBe(renamed);
-    expect(() => createTodoCollection(empty, {
-      collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(1),
-      name: "   ",
-    })).toThrow(/name must not be empty/);
-    expect(() => createTodoCollection(empty, {
-      collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(1),
-      name: "工作/个人",
-    })).toThrow(/unsupported characters/);
-  });
-
-  it("creates and edits items while preserving the user's exact non-empty text", () => {
+describe("Todo CTN commands", () => {
+  it("creates canonical collections and renames only the title", () => {
     const content = appendTodoTestCollection(createEmptyTodoContent(), {
       collectionIndex: 1,
       createdAt: todoTimestamp(1),
+      name: "  工作  集合  ",
     });
-    const created = createTodoItem(content, {
+    const source = content.collections[0]!.source;
+    const renamed = renameTodoCollection(content, {
       collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(2),
-      itemId: todoItemId(1),
-      text: "  保留输入  ",
-    });
-    const updated = updateTodoItemText(created.content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      text: " 修改后仍保留 ",
-      updatedAt: todoTimestamp(3),
-    });
-
-    expect(created.content.collections[0]?.items[0]).toEqual({
-      completed: false,
-      completedAt: null,
-      createdAt: todoTimestamp(2),
-      id: todoItemId(1),
-      text: "  保留输入  ",
+      name: "个人集合",
       updatedAt: todoTimestamp(2),
     });
-    expect(updated.collections[0]?.items[0]?.text).toBe(" 修改后仍保留 ");
-    expect(updated.collections[0]?.updatedAt).toBe(todoTimestamp(3));
-    expect(updateTodoItemText(updated, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      text: " 修改后仍保留 ",
-      updatedAt: todoTimestamp(2),
-    })).toBe(updated);
-    expect(() => updateTodoItemText(updated, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      text: " \t ",
-      updatedAt: todoTimestamp(4),
-    })).toThrow(/text must not be empty/);
+    const profile = requireTodoSyntaxProfile(renamed.syntaxSource);
+
+    expect(parseTodoCollection(content.collections[0]!, profile).name).toBe(
+      "工作 集合",
+    );
+    expect(parseTodoCollection(renamed.collections[0]!, profile).name).toBe(
+      "个人集合",
+    );
+    expect(renamed.collections[0]!.source).not.toBe(source);
+    expect(() => appendTodoTestCollection(createEmptyTodoContent(), {
+      collectionIndex: 1,
+      name: "非法/名称",
+    })).toThrow(/unsupported characters/i);
   });
 
-  it("toggles completion in place and records one consistent completion fact", () => {
-    const content = createCollectionWithTwoItems();
-    const completed = toggleTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      updatedAt: todoTimestamp(4),
-    });
-    const reopened = toggleTodoItem(completed, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      updatedAt: todoTimestamp(5),
+  it("rejects normalized and case-insensitive collection name conflicts", () => {
+    const first = appendTodoTestCollection(createEmptyTodoContent(), {
+      collectionIndex: 1,
+      name: "Résumé",
     });
 
-    expect(completed.collections[0]?.items.map(({ id }) => id)).toEqual([
-      todoItemId(1),
-      todoItemId(2),
-    ]);
-    expect(completed.collections[0]?.items[0]).toEqual(
-      expect.objectContaining({
-        completed: true,
-        completedAt: todoTimestamp(4),
-        updatedAt: todoTimestamp(4),
-      }),
-    );
-    expect(reopened.collections[0]?.items[0]).toEqual(
-      expect.objectContaining({
-        completed: false,
-        completedAt: null,
-        updatedAt: todoTimestamp(5),
-      }),
-    );
-    validateTodoContent(reopened);
-  });
-
-  it("reorders collections and items by stable id without rewriting item facts", () => {
-    let content = createCollectionWithTwoItems();
-    content = appendTodoTestCollection(content, {
+    expect(() => appendTodoTestCollection(first, {
       collectionIndex: 2,
-      createdAt: todoTimestamp(4),
+      name: "RÉSUMÉ",
+    })).toThrow(/name already exists/i);
+    const second = appendTodoTestCollection(first, {
+      collectionIndex: 2,
+      name: "私人",
     });
-    const movedCollections = moveTodoCollection(content, {
+
+    expect(() => renameTodoCollection(second, {
+      collectionId: todoCollectionId(2),
+      name: "RÉSUMÉ",
+      updatedAt: todoTimestamp(4),
+    })).toThrow(/name already exists/i);
+  });
+
+  it("uses indentation as task hierarchy and preserves block ids while editing", () => {
+    const content = collectionWithTasks();
+    const profile = requireTodoSyntaxProfile(content.syntaxSource);
+    const before = parseTodoCollection(content.collections[0]!, profile);
+    const projection = createTodoCollectionBodyProjection(
+      content.collections[0]!,
+      profile,
+    );
+    const source = projection.source.replace("父任务", "父任务已修改");
+    const edited = updateTodoCollectionBody(content, {
+      change: {
+        edits: [{
+          from: projection.source.indexOf("父任务"),
+          insertedText: "父任务已修改",
+          to: projection.source.indexOf("父任务") + "父任务".length,
+        }],
+        source,
+      },
       collectionId: todoCollectionId(1),
-      toIndex: 1,
+      createBlockId: () => todoBlockId(99),
+      updatedAt: todoTimestamp(4),
     });
-    const beforeItems = movedCollections.collections[1]!.items;
-    const movedItems = moveTodoItem(movedCollections, {
+    const after = parseTodoCollection(edited.collections[0]!, profile);
+
+    expect(before.document.blocks.slice(1).map(({ id }) => id)).toEqual([
+      todoBlockId(1),
+      todoBlockId(2),
+    ]);
+    expect(after.document.blocks.slice(1).map(({ id }) => id)).toEqual([
+      todoBlockId(1),
+      todoBlockId(2),
+    ]);
+    expect(after.document.blocks.find(({ id }) => id === todoBlockId(2))?.level)
+      .toBe(1);
+  });
+
+  it("keeps completion in a sidecar and toggles parent and child independently", () => {
+    const content = collectionWithTasks();
+    const source = content.collections[0]!.source;
+    const parentDone = toggleTodoBlock(content, {
+      blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      toIndex: 1,
+      completedAt: todoTimestamp(4),
+    });
+    const bothDone = toggleTodoBlock(parentDone, {
+      blockId: todoBlockId(2),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(5),
+    });
+    const childOnly = toggleTodoBlock(bothDone, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(6),
+    });
+
+    expect(parentDone.collections[0]!.source).toBe(source);
+    expect(bothDone.collections[0]!.completions.map(({ blockId }) => blockId))
+      .toEqual([todoBlockId(1), todoBlockId(2)]);
+    expect(childOnly.collections[0]!.completions).toEqual([
+      { blockId: todoBlockId(2), completedAt: todoTimestamp(5) },
+    ]);
+  });
+
+  it("cleans completion only when its source block is actually deleted", () => {
+    const content = toggleTodoBlock(collectionWithTasks(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(4),
+    });
+    const changedMarkerSource = content.syntaxSource.replace(
+      'marker = "[]"',
+      'marker = "[ ]"',
+    );
+    const changedSyntax = updateTodoSyntaxSource(content, changedMarkerSource);
+
+    expect(changedSyntax.collections[0]!.completions).toEqual(
+      content.collections[0]!.completions,
+    );
+    expect(validateTodoContent(changedSyntax)).toBe(changedSyntax);
+
+    const profile = requireTodoSyntaxProfile(changedSyntax.syntaxSource);
+    const projection = createTodoCollectionBodyProjection(
+      changedSyntax.collections[0]!,
+      profile,
+    );
+    const deleted = updateTodoCollectionBody(changedSyntax, {
+      change: {
+        edits: [{ from: 0, insertedText: "", to: projection.source.length }],
+        source: "",
+      },
+      collectionId: todoCollectionId(1),
+      createBlockId: () => todoBlockId(99),
       updatedAt: todoTimestamp(5),
     });
 
-    expect(movedCollections.collections.map(({ id }) => id)).toEqual([
+    expect(deleted.collections[0]!.completions).toEqual([]);
+  });
+
+  it("moves a task subtree within one collection without losing completion", () => {
+    const content = toggleTodoBlock(collectionWithTasks(), {
+      blockId: todoBlockId(2),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(4),
+    });
+    const moved = moveTodoBlock(content, {
+      blockId: todoBlockId(2),
+      collectionId: todoCollectionId(1),
+      target: { kind: "above", targetBlockId: todoBlockId(1) },
+      updatedAt: todoTimestamp(5),
+    });
+    const parsed = parseTodoCollection(
+      moved.collections[0]!,
+      requireTodoSyntaxProfile(moved.syntaxSource),
+    );
+
+    expect(parsed.document.blocks.slice(1).map(({ id, level }) => ({ id, level })))
+      .toEqual([
+        { id: todoBlockId(2), level: 0 },
+        { id: todoBlockId(1), level: 0 },
+      ]);
+    expect(moved.collections[0]!.completions).toEqual(
+      content.collections[0]!.completions,
+    );
+  });
+
+  it("keeps collection order explicit and accepts readable old invalid names", () => {
+    let content = collectionWithTasks();
+    content = appendTodoTestCollection(content, { collectionIndex: 2 });
+    const moved = moveTodoCollection(content, {
+      collectionId: todoCollectionId(2),
+      toIndex: 0,
+    });
+    const oldInvalid = {
+      ...moved,
+      collections: moved.collections.map((collection) =>
+        collection.id === todoCollectionId(1)
+          ? {
+              ...collection,
+              source: replaceCtnSourceTitle(
+                collection.source,
+                "旧/名称",
+                todoTimestamp(6),
+              ),
+            }
+          : collection
+      ),
+    };
+
+    expect(moved.collections.map(({ id }) => id)).toEqual([
       todoCollectionId(2),
       todoCollectionId(1),
     ]);
-    expect(movedItems.collections[1]?.items.map(({ id }) => id)).toEqual([
-      todoItemId(2),
-      todoItemId(1),
-    ]);
-    expect(movedItems.collections[1]?.items[1]).toBe(beforeItems[0]);
-    expect(movedItems.collections[1]?.updatedAt).toBe(todoTimestamp(5));
-    expect(moveTodoCollection(movedCollections, {
-      collectionId: todoCollectionId(1),
-      toIndex: 1,
-    })).toBe(movedCollections);
-    expect(() => moveTodoItem(movedItems, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      toIndex: 2,
-      updatedAt: todoTimestamp(6),
-    })).toThrow(/out of bounds/);
-  });
-
-  it("deletes only the requested item or collection", () => {
-    const content = createCollectionWithTwoItems();
-    const withoutItem = deleteTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      updatedAt: todoTimestamp(4),
-    });
-    const withoutCollection = deleteTodoCollection(
-      withoutItem,
-      todoCollectionId(1),
-    );
-
-    expect(withoutItem.collections[0]?.items.map(({ id }) => id)).toEqual([
-      todoItemId(2),
-    ]);
-    expect(withoutItem.collections[0]?.updatedAt).toBe(todoTimestamp(4));
-    expect(withoutCollection.collections).toEqual([]);
-    expect(content.collections[0]?.items).toHaveLength(2);
-    expect(() => deleteTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(9),
-      updatedAt: todoTimestamp(4),
-    })).toThrow(/does not exist/);
-  });
-
-  it("rejects duplicate identities and every timestamped mutation that moves time backwards", () => {
-    const content = createCollectionWithTwoItems();
-
-    expect(() => createTodoCollection(content, {
-      collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(4),
-      name: "重复",
-    })).toThrow(/already exists/);
-    expect(() => createTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(4),
-      itemId: todoItemId(1),
-      text: "重复",
-    })).toThrow(/already exists/);
-    expect(() => renameTodoCollection(content, {
-      collectionId: todoCollectionId(1),
-      name: "更早",
-      updatedAt: todoTimestamp(2),
-    })).toThrow(/cannot move backwards/);
-    expect(() => createTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      createdAt: todoTimestamp(2),
-      itemId: todoItemId(3),
-      text: "更早",
-    })).toThrow(/cannot move backwards/);
-    expect(() => updateTodoItemText(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      text: "更早",
-      updatedAt: todoTimestamp(2),
-    })).toThrow(/cannot move backwards/);
-    expect(() => toggleTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      updatedAt: todoTimestamp(2),
-    })).toThrow(/cannot move backwards/);
-    expect(() => deleteTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      updatedAt: todoTimestamp(2),
-    })).toThrow(/cannot move backwards/);
-    expect(() => moveTodoItem(content, {
-      collectionId: todoCollectionId(1),
-      itemId: todoItemId(1),
-      toIndex: 1,
-      updatedAt: todoTimestamp(2),
-    })).toThrow(/cannot move backwards/);
+    expect(validateTodoContent(oldInvalid)).toBe(oldInvalid);
+    expect(deleteTodoCollection(oldInvalid, todoCollectionId(2)).collections)
+      .toHaveLength(1);
   });
 });

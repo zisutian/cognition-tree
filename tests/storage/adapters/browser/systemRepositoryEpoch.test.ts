@@ -14,6 +14,7 @@ import {
   createEmptyJournalContent,
   updateJournalTestBody,
 } from "../../../journal/journalTestFixture";
+import { createEmptyTodoContent } from "../../../todo/todoTestFixture";
 
 const remoteStoreName = "browser-remotes-v1";
 const epochStoreName = "storage-epochs-v1";
@@ -21,11 +22,12 @@ const epochStoreName = "storage-epochs-v1";
 function createStorage(
   indexedDb: IDBFactory,
   journalEpoch = 1,
+  todoEpoch = 1,
 ) {
   return createBrowserSystemRepositoryStorage(indexedDb, {
     expectedEpochByPurpose: {
       "system-journal": journalEpoch,
-      "system-todo": 1,
+      "system-todo": todoEpoch,
     },
     validateContent: validateSystemRepositoryContent,
     validateTransition: validateSystemRepositoryTransition,
@@ -63,6 +65,81 @@ async function readRemote(indexedDb: IDBFactory, purpose: string) {
 }
 
 describe("browser system repository storage epochs", () => {
+  it("atomically discards Todo v1 remote and local-first data at epoch 2", async () => {
+    const indexedDb = new IDBFactory();
+    const original = createStorage(indexedDb);
+    const journalBefore = await original.createBackend("system-journal")
+      .loadRemoteSnapshot();
+
+    await original.createBackend("system-todo").loadRemoteSnapshot();
+    const originalCatalog = createBrowserSystemRepositoryCatalog({
+      storage: original,
+    });
+
+    await original.catalogCache.save(
+      "todo-v1-catalog",
+      await originalCatalog.listRepositories(),
+    );
+    const oldContent = {
+      collections: [{
+        createdAt: "2026-07-18T01:00:00.000Z",
+        id: "todo-collection-00000000-0000-4000-8000-000000000001",
+        items: [{ text: "永久丢弃的 v1 任务" }],
+        name: "旧集合",
+        updatedAt: "2026-07-18T01:00:00.000Z",
+      }],
+      purpose: "system-todo",
+      schemaVersion: 1,
+    };
+    const revision = `sha256:${"a".repeat(64)}`;
+    const browserIdentity = "browser-system:system-todo";
+    const httpIdentity = "https://example.test#system:system-todo#v1";
+    const database = await requestResult(
+      indexedDb.open(browserSystemRepositoryDatabaseName),
+    );
+    const transaction = database.transaction(
+      [remoteStoreName, "local-states-v1"],
+      "readwrite",
+    );
+    const completion = transactionComplete(transaction);
+
+    transaction.objectStore(remoteStoreName).put({
+      content: oldContent,
+      purpose: "system-todo",
+      revision,
+    });
+    for (const [identity, suffix] of [
+      [browserIdentity, "1"],
+      [httpIdentity, "2"],
+    ] as const) {
+      transaction.objectStore("local-states-v1").put({
+        content: oldContent,
+        identity,
+        localRevision:
+          `draft:00000000-0000-4000-8000-00000000000${suffix}`,
+        pendingBaseRevision: revision,
+        remoteRevision: revision,
+      });
+    }
+    await completion;
+    database.close();
+
+    const bumped = createStorage(indexedDb, 1, 2);
+    const reset = await bumped.createBackend("system-todo")
+      .loadRemoteSnapshot();
+
+    expect(reset.content).toEqual(createEmptyTodoContent());
+    await expect(bumped.cache.load(browserIdentity)).resolves.toBeNull();
+    await expect(bumped.cache.load(httpIdentity)).resolves.toBeNull();
+    await expect(bumped.catalogCache.load("todo-v1-catalog")).resolves.toBeNull();
+    await expect(bumped.createBackend("system-journal").loadRemoteSnapshot())
+      .resolves.toEqual(journalBefore);
+    await expect(readRemote(indexedDb, "system-todo")).resolves.toMatchObject({
+      content: createEmptyTodoContent(),
+      purpose: "system-todo",
+    });
+  });
+
   it("atomically resets only the bumped purpose and clears its drafts and catalogs", async () => {
     const indexedDb = new IDBFactory();
     const original = createStorage(indexedDb);

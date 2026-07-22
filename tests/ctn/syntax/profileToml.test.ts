@@ -162,6 +162,11 @@ textColor = "red"
     );
     const todoProfile: CtnSyntaxProfile = {
       ...defaultCtnSyntaxProfile,
+      markerRules: [{
+        ...defaultCtnSyntaxProfile.markerRules[0],
+        role: "normal",
+        type: "todo-item",
+      }],
       topLevelUnmarkedRule: null,
     };
     const todoSource = formatSyntaxProfileToml(

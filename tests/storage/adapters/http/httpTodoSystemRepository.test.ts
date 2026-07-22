@@ -8,9 +8,17 @@ import {
   validateSystemRepositoryTransition,
 } from "../../../../src/storage/repository/systemRepository";
 import {
+  toggleTodoBlock,
+  updateTodoCollectionBody,
+} from "../../../../todo/commands/todoCommands";
+import { createTodoCollectionBodyProjection } from "../../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../../todo/syntax/todoSyntax";
+import {
   appendTodoTestCollection,
   appendTodoTestItem,
   createEmptyTodoContent,
+  todoBlockId,
+  todoCollectionId,
   todoTimestamp,
 } from "../../../todo/todoTestFixture";
 
@@ -60,7 +68,10 @@ describe("HTTP Todo system repository", () => {
       ...valid,
       collections: [{
         ...valid.collections[0]!,
-        createdAt: todoTimestamp(0),
+        source: valid.collections[0]!.source.replace(
+          `id=${todoBlockId(10_001)} created=${todoTimestamp(1)}`,
+          `id=${todoBlockId(10_001)} created=${todoTimestamp(0)}`,
+        ),
       }],
     };
 
@@ -75,21 +86,29 @@ describe("HTTP Todo system repository", () => {
   it("accepts a debounced completion followed by a later text edit", async () => {
     const valid = createTodoContent();
     const collection = valid.collections[0]!;
-    const item = collection.items[0]!;
-    const coalesced = {
-      ...valid,
-      collections: [{
-        ...collection,
-        updatedAt: todoTimestamp(5),
-        items: [{
-          ...item,
-          completed: true,
-          completedAt: "2026-07-18T03:30:00.000Z",
-          text: "完成后编辑",
-          updatedAt: todoTimestamp(5),
+    const completed = toggleTodoBlock(valid, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completedAt: "2026-07-18T03:30:00.000Z",
+    });
+    const projection = createTodoCollectionBodyProjection(
+      collection,
+      requireTodoSyntaxProfile(valid.syntaxSource),
+    );
+    const from = projection.source.indexOf("任务 1");
+    const coalesced = updateTodoCollectionBody(completed, {
+      change: {
+        edits: [{
+          from,
+          insertedText: "完成后编辑",
+          to: from + "任务 1".length,
         }],
-      }],
-    };
+        source: projection.source.replace("任务 1", "完成后编辑"),
+      },
+      collectionId: todoCollectionId(1),
+      createBlockId: () => todoBlockId(99),
+      updatedAt: todoTimestamp(5),
+    });
     const fetch = vi.fn<typeof globalThis.fetch>(async (_input, init) =>
       init?.method === "PUT"
         ? jsonResponse({ revision: revisionB })

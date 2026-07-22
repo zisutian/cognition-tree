@@ -17,6 +17,10 @@ import {
   tamperJournalTestEntryCreation,
   updateJournalTestBody,
 } from "../../../journal/journalTestFixture";
+import {
+  appendTodoTestCollection,
+  createEmptyTodoContent,
+} from "../../../todo/todoTestFixture";
 
 const remoteStoreName = "browser-remotes-v1";
 
@@ -72,9 +76,11 @@ describe("browser system repositories", () => {
     expect(catalog.openRepository(journalDescriptor)).toBe(journal);
     await expect(journal.loadSnapshot()).resolves.toMatchObject({
       content: {
+        dailyCounters: [],
         entries: [],
         purpose: "system-journal",
-        schemaVersion: 1,
+        schemaVersion: 2,
+        syntaxSource: expect.any(String),
       },
       pendingChanges: false,
     });
@@ -83,7 +89,8 @@ describe("browser system repositories", () => {
         content: {
           collections: [],
           purpose: "system-todo",
-          schemaVersion: 1,
+          schemaVersion: 2,
+          syntaxSource: expect.any(String),
         },
       });
 
@@ -110,17 +117,10 @@ describe("browser system repositories", () => {
 
     await firstBackend.commitRemoteSnapshot({
       baseRevision: initial.revision,
-      content: {
-        collections: [{
-          createdAt: "2026-07-18T00:00:00.000Z",
-          id: "todo-collection-00000000-0000-4000-8000-000000000001",
-          items: [],
-          name: "Changed",
-          updatedAt: "2026-07-18T00:00:00.000Z",
-        }],
-        purpose: "system-todo",
-        schemaVersion: 1,
-      },
+      content: appendTodoTestCollection(createEmptyTodoContent(), {
+        collectionIndex: 1,
+        name: "Changed",
+      }),
     });
     await expect(secondBackend.commitRemoteSnapshot({
       baseRevision: initial.revision,
@@ -277,7 +277,8 @@ describe("browser system repositories", () => {
       content: {
         collections: [],
         purpose: "system-todo",
-        schemaVersion: 1,
+        schemaVersion: 2,
+        syntaxSource: createEmptyTodoContent().syntaxSource,
       },
       purpose: "system-todo",
       revision: `sha256:${"f".repeat(64)}`,

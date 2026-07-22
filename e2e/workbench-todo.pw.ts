@@ -9,6 +9,11 @@ import {
 } from "@playwright/test";
 import type { TodoRepositoryContentDto } from "../contracts/system-repository/types";
 import {
+  parseCtnCanonicalDocument,
+  readCtnCanonicalTitleHeader,
+} from "../ctn/parser/parseCtnDocument";
+import { requireTodoSyntaxProfile } from "../todo/syntax/todoSyntax";
+import {
   e2eApiBaseUrl,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
@@ -34,16 +39,6 @@ async function createCollection(context: Locator, name: string) {
   await input.fill(name);
   await input.press("Enter");
   await expect(context.getByTitle(name, { exact: true })).toBeVisible();
-}
-
-async function createItem(panel: Locator, collectionName: string, text: string) {
-  const input = panel.getByRole("textbox", {
-    name: `在 ${collectionName} 中新建代办`,
-  });
-
-  await input.fill(text);
-  await input.press("Enter");
-  await expect(panel.getByTitle(text, { exact: true })).toBeVisible();
 }
 
 async function waitForTodoContent(
@@ -77,7 +72,7 @@ test.describe.serial("Todo activity flows", () => {
     await api.dispose();
   });
 
-  test("persists ordered collections and flat checklist mutations without Problems", async ({
+  test("persists ordered CTN collections, hierarchy, completion sidecars, and Problems", async ({
     page,
   }) => {
     await resetTodoRepository(api);
@@ -93,18 +88,21 @@ test.describe.serial("Todo activity flows", () => {
 
     await getActivityButton(page, "代办").click();
     const context = page.locator(".todo-context");
-    const panel = page.getByRole("region", { name: "代办清单" });
+    const panel = page.getByRole("region", { name: "代办编辑" });
+    const detail = page.getByRole("region", { name: "代办结构" });
     await expect(context).toBeVisible();
     await expect(panel).toBeVisible();
-    await expect(page.locator(".app-problems")).toHaveCount(0);
-    await expect(page.locator(".app-detail")).toHaveCount(0);
+    await expect(page.locator(".app-problems")).toHaveCount(1);
     await page.keyboard.press("Control+Shift+M");
-    await expect(page.locator(".app-problems")).toHaveCount(0);
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
+    await page.keyboard.press("Control+Shift+M");
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     await createCollection(context, "今天");
     await createCollection(context, "稍后");
     await createCollection(context, "归档");
 
+    await context.getByTitle("稍后", { exact: true }).click();
     await context.getByTitle("稍后", { exact: true }).press("F2");
     const renameInput = context.getByRole("textbox", {
       name: "重命名事项集合 稍后",
@@ -124,17 +122,8 @@ test.describe.serial("Todo activity flows", () => {
     await planSortHandle.dragTo(todayRow);
     await expect(collectionRows(context).locator(".ui-tree-text"))
       .toHaveText(["计划", "今天", "归档"]);
-    await planSortHandle.press("Enter");
-    await expect(planSortHandle).toHaveAttribute("aria-pressed", "true");
-    await planSortHandle.press("ArrowDown");
-    await expect(collectionRows(context).locator(".ui-tree-text"))
-      .toHaveText(["今天", "计划", "归档"]);
-    await planSortHandle.press("ArrowUp");
-    await expect(collectionRows(context).locator(".ui-tree-text"))
-      .toHaveText(["计划", "今天", "归档"]);
-    await planSortHandle.press("Escape");
-    await expect(planSortHandle).toHaveAttribute("aria-pressed", "false");
 
+    await context.getByTitle("归档", { exact: true }).click();
     await context.getByRole("button", { name: "删除事项集合 归档" }).click();
     const deleteCollectionDialog = page.getByRole("alertdialog", {
       name: "删除事项集合",
@@ -147,74 +136,48 @@ test.describe.serial("Todo activity flows", () => {
     await expect(context.getByTitle("归档", { exact: true })).toHaveCount(0);
 
     await context.getByTitle("今天", { exact: true }).click();
-    await createItem(panel, "今天", "第一项");
-    await createItem(panel, "今天", "第二项");
-    await createItem(panel, "今天", "临时项");
+    const editor = panel.locator(".source-editor .cm-content");
 
-    await panel.getByRole("button", { name: "编辑代办 第二项" }).click();
-    const itemEdit = panel.getByRole("textbox", { name: "编辑代办 第二项" });
-
-    await itemEdit.fill("第二项已修改");
-    await itemEdit.press("Enter");
+    await editor.click();
+    await page.keyboard.insertText("[] 第一项\n\t[] 第二项已修改");
+    await expect(detail.getByRole("treeitem")).toHaveCount(2);
+    await expect(
+      detail.getByRole("checkbox", { name: "标记完成 第一项" }),
+    ).toBeVisible();
     await panel.getByRole("checkbox", { name: "标记完成 第一项" }).check();
-
-    const itemList = panel.getByRole("list", { name: "今天代办" });
-    const secondRow = itemList.locator("[data-todo-item-id]").filter({
-      hasText: "第二项已修改",
-    });
-    const firstRow = itemList.locator("[data-todo-item-id]").filter({
-      hasText: "第一项",
-    });
-
-    const secondSortHandle = secondRow.getByRole("button", {
-      name: /调整代办顺序 第二项已修改$/,
-    });
-
-    await secondSortHandle.dragTo(firstRow);
-    await expect(itemList.locator(".todo-item-text"))
-      .toHaveText(["第二项已修改", "第一项", "临时项"]);
-    await secondSortHandle.press("Enter");
-    await expect(secondSortHandle).toHaveAttribute("aria-pressed", "true");
-    await secondSortHandle.press("ArrowDown");
-    await expect(itemList.locator(".todo-item-text"))
-      .toHaveText(["第一项", "第二项已修改", "临时项"]);
-    await secondSortHandle.press("ArrowUp");
-    await expect(itemList.locator(".todo-item-text"))
-      .toHaveText(["第二项已修改", "第一项", "临时项"]);
-    await secondSortHandle.press("Escape");
-    await expect(secondSortHandle).toHaveAttribute("aria-pressed", "false");
-    await panel.getByRole("button", { name: "删除代办 临时项" }).click();
-    await expect(itemList.locator(".todo-item-text"))
-      .toHaveText(["第二项已修改", "第一项"]);
-    await expect(firstRow).toHaveClass(/is-completed/);
+    await expect(
+      detail.getByRole("checkbox", { name: "标记未完成 第一项" }),
+    ).toBeChecked();
 
     await waitForTodoContent(api, (content) => {
       const [plan, today] = content.collections;
+      if (!plan || !today) return false;
+      const profile = requireTodoSyntaxProfile(content.syntaxSource);
+      const blocks = parseCtnCanonicalDocument(today.source, profile).blocks;
+      const first = blocks.find(({ text }) => text === "第一项");
+      const second = blocks.find(({ text }) => text === "第二项已修改");
 
       return content.collections.length === 2 &&
-        plan?.name === "计划" &&
-        today?.name === "今天" &&
-        today.items.length === 2 &&
-        today.items[0]?.text === "第二项已修改" &&
-        today.items[1]?.text === "第一项" &&
-        today.items[1]?.completed === true;
+        readCtnCanonicalTitleHeader(plan.source).title === "计划" &&
+        readCtnCanonicalTitleHeader(today.source).title === "今天" &&
+        first?.level === 0 &&
+        second?.level === 1 &&
+        today.completions.some(({ blockId }) => blockId === first?.id);
     });
 
     await page.reload();
     await getActivityButton(page, "代办").click();
     const reloadedContext = page.locator(".todo-context");
-    const reloadedPanel = page.getByRole("region", { name: "代办清单" });
+    const reloadedPanel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(collectionRows(reloadedContext).locator(".ui-tree-text"))
       .toHaveText(["计划", "今天"]);
     await reloadedContext.getByTitle("今天", { exact: true }).click();
+    await expect(reloadedPanel.locator(".source-editor"))
+      .toContainText("第二项已修改");
     await expect(
-      reloadedPanel.getByRole("list", { name: "今天代办" })
-        .locator(".todo-item-text"),
-    ).toHaveText(["第二项已修改", "第一项"]);
-    await expect(
-      reloadedPanel.locator("[data-todo-item-id]").filter({ hasText: "第一项" }),
-    ).toHaveClass(/is-completed/);
+      reloadedPanel.getByRole("checkbox", { name: "标记未完成 第一项" }),
+    ).toBeChecked();
 
     await getActivityButton(page, "笔记").click();
     await expect(page.locator(".problems-panel-header"))
@@ -246,13 +209,14 @@ test.describe.serial("Todo activity flows", () => {
     await getActivityButton(page, "代办").click();
 
     const context = page.locator(".todo-context");
-    const panel = page.getByRole("region", { name: "代办清单" });
+    const panel = page.getByRole("region", { name: "代办编辑" });
 
     await expect(panel).toContainText("还没有事项集合");
     await createCollection(context, "无普通仓库");
-    await createItem(panel, "无普通仓库", "仍可保存");
+    await panel.locator(".source-editor .cm-content").click();
+    await page.keyboard.insertText("[] 仍可保存");
     await waitForTodoContent(api, (content) =>
-      content.collections[0]?.items[0]?.text === "仍可保存"
+      content.collections[0]?.source.includes("[] 仍可保存") === true
     );
   });
 });

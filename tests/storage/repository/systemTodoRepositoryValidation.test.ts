@@ -8,9 +8,19 @@ import {
   validateSystemRepositoryTransition,
 } from "../../../src/storage/repository/systemRepository";
 import {
+  toggleTodoBlock,
+  updateTodoCollectionBody,
+} from "../../../todo/commands/todoCommands";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
+import {
   appendTodoTestCollection,
   appendTodoTestItem,
   createEmptyTodoContent,
+  todoBlockId,
+  todoCollectionId,
   todoTimestamp,
 } from "../../todo/todoTestFixture";
 
@@ -33,7 +43,13 @@ describe("system Todo repository validation", () => {
     const content = createTodoContent();
     const invalid = {
       ...content,
-      collections: [{ ...content.collections[0]!, name: " 未裁剪 " }],
+      collections: [{
+        ...content.collections[0]!,
+        completions: [{
+          blockId: todoBlockId(99),
+          completedAt: todoTimestamp(3),
+        }],
+      }],
     };
 
     expect(validateSystemRepositoryContent(content, "system-todo")).toEqual(
@@ -43,37 +59,39 @@ describe("system Todo repository validation", () => {
       validateSystemRepositoryContent(invalid, "system-todo")
     ).toThrow(SystemRepositoryContentValidationError);
     expect(() => validateSystemRepositoryContent(invalid, "system-todo"))
-      .toThrow(/name must be trimmed/);
+      .toThrow(/does not identify a source block/);
   });
 
   it("wraps Todo transition violations without changing valid forward content", () => {
     const previous = createTodoContent();
     const collection = previous.collections[0]!;
-    const item = collection.items[0]!;
-    const next = {
-      ...previous,
-      collections: [{
-        ...collection,
-        updatedAt: todoTimestamp(3),
-        items: [{ ...item, text: "更新", updatedAt: todoTimestamp(3) }],
-      }],
-    };
-    const rollback = {
-      ...next,
-      collections: [{
-        ...next.collections[0]!,
-        updatedAt: todoTimestamp(2),
-        items: [{ ...next.collections[0]!.items[0]!, updatedAt: todoTimestamp(2) }],
-      }],
-    };
+    const projection = createTodoCollectionBodyProjection(
+      collection,
+      requireTodoSyntaxProfile(previous.syntaxSource),
+    );
+    const from = projection.source.indexOf("任务 1");
+    const next = updateTodoCollectionBody(previous, {
+      change: {
+        edits: [{ from, insertedText: "更新", to: from + "任务 1".length }],
+        source: projection.source.replace("任务 1", "更新"),
+      },
+      collectionId: todoCollectionId(1),
+      createBlockId: () => todoBlockId(99),
+      updatedAt: todoTimestamp(3),
+    });
+    const completed = toggleTodoBlock(next, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(4),
+    });
 
     expect(validateSystemRepositoryTransition(previous, next, "system-todo"))
       .toEqual(next);
     expect(() =>
-      validateSystemRepositoryTransition(next, rollback, "system-todo")
+      validateSystemRepositoryTransition(completed, previous, "system-todo")
     ).toThrow(SystemRepositoryTransitionValidationError);
     expect(() =>
-      validateSystemRepositoryTransition(next, rollback, "system-todo")
+      validateSystemRepositoryTransition(completed, previous, "system-todo")
     ).toThrow(/updatedAt cannot move backwards/);
   });
 });

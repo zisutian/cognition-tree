@@ -2,6 +2,7 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
+  WidgetType,
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
@@ -22,6 +23,47 @@ import {
   parseCtnEditorContent,
   type CtnEditorParsedContentMode,
 } from "./ctnEditorContentMode";
+import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
+
+export class CtnCheckboxWidget extends WidgetType {
+  constructor(
+    readonly item: CtnEditorCheckableBlock,
+    readonly onToggleRef: {
+      current: ((blockId: string) => void) | undefined;
+    },
+  ) {
+    super();
+  }
+
+  eq(other: CtnCheckboxWidget) {
+    return this.item.blockId === other.item.blockId &&
+      this.item.checked === other.item.checked &&
+      this.item.label === other.item.label;
+  }
+
+  toDOM() {
+    const checkbox = document.createElement("input");
+
+    checkbox.type = "checkbox";
+    checkbox.checked = this.item.checked;
+    checkbox.className = "ctn-todo-checkbox";
+    checkbox.setAttribute(
+      "aria-label",
+      `${this.item.checked ? "标记未完成" : "标记完成"} ${this.item.label}`,
+    );
+    checkbox.addEventListener("mousedown", (event) => event.stopPropagation());
+    checkbox.addEventListener("change", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.onToggleRef.current?.(this.item.blockId);
+    });
+    return checkbox;
+  }
+
+  ignoreEvent() {
+    return true;
+  }
+}
 
 function isConceptBlock(block: CtnEditableBlock) {
   return block.type === "concept";
@@ -126,8 +168,15 @@ function getBlockTextDecorationStyle(block: CtnEditableBlock) {
 function buildCtnDecorations(
   view: EditorView,
   parsedDocument: CtnEditableDocument,
+  checkableBlocks: readonly CtnEditorCheckableBlock[] = [],
+  onToggleCheckableBlockRef: {
+    current: ((blockId: string) => void) | undefined;
+  } = { current: undefined },
 ): DecorationSet {
   const decorations = [];
+  const checkableByLineNumber = new Map(
+    checkableBlocks.map((item) => [item.lineNumber, item]),
+  );
 
   for (const block of parsedDocument.blocks) {
     if (
@@ -216,19 +265,31 @@ function buildCtnDecorations(
         const markerStart = line.text.indexOf(marker);
 
         if (markerStart >= 0) {
-          decorations.push(
-            Decoration.mark({
-              attributes: {
-                class: getMarkerDecorationClass(block),
-                ...(getMarkerDecorationStyle(block)
-                  ? { style: getMarkerDecorationStyle(block) }
-                  : {}),
-              },
-            }).range(
-              line.from + markerStart,
-              line.from + markerStart + marker.length,
-            ),
-          );
+          const checkable = block.type === "todo-item"
+            ? checkableByLineNumber.get(block.lineNumber)
+            : undefined;
+
+          decorations.push(checkable
+            ? Decoration.replace({
+                widget: new CtnCheckboxWidget(
+                  checkable,
+                  onToggleCheckableBlockRef,
+                ),
+              }).range(
+                line.from + markerStart,
+                line.from + markerStart + marker.length,
+              )
+            : Decoration.mark({
+                attributes: {
+                  class: getMarkerDecorationClass(block),
+                  ...(getMarkerDecorationStyle(block)
+                    ? { style: getMarkerDecorationStyle(block) }
+                    : {}),
+                },
+              }).range(
+                line.from + markerStart,
+                line.from + markerStart + marker.length,
+              ));
         }
       }
     }
@@ -256,6 +317,7 @@ function buildCtnDecorations(
 }
 
 export type CtnEditorParsePluginValue = {
+  checkableBlocksKey: string;
   decorations: DecorationSet;
   document: CtnEditableDocument;
   profileKey: string;
@@ -278,14 +340,28 @@ function parseEditorDocument(
 export function createCtnParseDecorationPlugin(
   syntaxProfileRef: { current: CtnSyntaxProfile },
   contentMode: CtnEditorParsedContentMode,
+  checkableBlocksRef: {
+    current: readonly CtnEditorCheckableBlock[];
+  } = { current: [] },
+  onToggleCheckableBlockRef: {
+    current: ((blockId: string) => void) | undefined;
+  } = { current: undefined },
 ): CtnEditorParsePlugin {
+  const createCheckableBlocksKey = () => checkableBlocksRef.current
+    .map(({ blockId, checked, lineNumber }) =>
+      `${lineNumber}:${blockId}:${checked ? "1" : "0"}`
+    )
+    .join("|");
+
   return ViewPlugin.fromClass(
     class implements CtnEditorParsePluginValue {
+      checkableBlocksKey: string;
       decorations: DecorationSet;
       document: CtnEditableDocument;
       profileKey: string;
 
       constructor(view: EditorView) {
+        this.checkableBlocksKey = createCheckableBlocksKey();
         this.profileKey = createCtnSyntaxParseProfileKey(
           syntaxProfileRef.current,
         );
@@ -294,23 +370,39 @@ export function createCtnParseDecorationPlugin(
           syntaxProfileRef.current,
           contentMode,
         );
-        this.decorations = buildCtnDecorations(view, this.document);
+        this.decorations = buildCtnDecorations(
+          view,
+          this.document,
+          checkableBlocksRef.current,
+          onToggleCheckableBlockRef,
+        );
       }
 
       update(update: ViewUpdate) {
         const nextProfileKey = createCtnSyntaxParseProfileKey(
           syntaxProfileRef.current,
         );
+        const nextCheckableBlocksKey = createCheckableBlocksKey();
 
-        if (update.docChanged || nextProfileKey !== this.profileKey) {
+        if (
+          update.docChanged ||
+          nextProfileKey !== this.profileKey ||
+          nextCheckableBlocksKey !== this.checkableBlocksKey
+        ) {
           this.profileKey = nextProfileKey;
+          this.checkableBlocksKey = nextCheckableBlocksKey;
 
           this.document = parseEditorDocument(
             update.view,
             syntaxProfileRef.current,
             contentMode,
           );
-          this.decorations = buildCtnDecorations(update.view, this.document);
+          this.decorations = buildCtnDecorations(
+            update.view,
+            this.document,
+            checkableBlocksRef.current,
+            onToggleCheckableBlockRef,
+          );
         }
       }
     },

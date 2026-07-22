@@ -60,7 +60,12 @@ function slotsWithView(
         view: view.journal,
       });
     case "todo":
-      return createTodoActivitySlots({ view: view.todo });
+      return createTodoActivitySlots({
+        focusMode: controls.focusMode,
+        onCollapseDetail: controls.onCollapseDetail,
+        onToggleFocusMode: controls.onToggleFocusMode,
+        view: view.todo,
+      });
     case "structure-operation":
       return createStructureOperationActivitySlots({
         onConfigureSyntax: controls.onConfigureSyntax,
@@ -106,7 +111,7 @@ describe("activity slots", () => {
     expect(slots("journal").detail).not.toBeNull();
 
     expect(slots("todo").context?.title).toBe("代办");
-    expect(slots("todo").detail).toBeNull();
+    expect(slots("todo").detail).not.toBeNull();
 
     expect(slots("structure-operation").context?.title).toBe("结构操作");
     expect(slots("structure-operation").detail).toBeNull();
@@ -195,11 +200,11 @@ describe("activity slots", () => {
     const main = renderSlot(slots("journal").main);
 
     expect(context).toContain("2026 年 1 月");
-    expect(context).toContain("2026-01-02 11:04:05");
+    expect(context).toContain("2026-01-02-0001");
     expect(context).toContain('aria-current="page"');
     expect(context).not.toContain("重命名");
     expect(main).toContain('data-editor-mode="body"');
-    expect(main).toContain("2026-01-02 11:04:05");
+    expect(main).toContain("2026-01-02-0001");
   });
 
   it("keeps raw notes editable and gates parsed activities without syntax", () => {

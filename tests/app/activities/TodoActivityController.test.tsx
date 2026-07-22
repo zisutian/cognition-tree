@@ -41,11 +41,12 @@ describe("TodoActivityController", () => {
       renderActivity: (createSlots) => {
         const slots = createSlots(controls);
 
-        expect(slots.detail).toBeNull();
+        expect(slots.detail).not.toBeNull();
         return (
           <>
             {slots.context?.content}
             {slots.main}
+            {slots.detail}
           </>
         );
       },
@@ -54,7 +55,8 @@ describe("TodoActivityController", () => {
 
     expect(application.workspace.status).toBe("absent");
     expect(markup).toContain("事项集合");
-    expect(markup).toContain('aria-label="代办清单"');
+    expect(markup).toContain('aria-label="代办编辑"');
+    expect(markup).toContain('aria-label="代办结构"');
     expect(markup).toContain("已完成但保持原位");
     expect(markup).not.toContain("前往仓库");
   });

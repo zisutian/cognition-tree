@@ -4,10 +4,16 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import {
+  createTodoParseIndex,
+  type TodoParseIndex,
+} from "../../../todo/indexes/todoParseIndex";
 import type {
   TodoCollectionId,
+  TodoContent,
 } from "../../../todo/model/todoContent";
 import { resolveTodoCollectionSelection } from "../../../todo/queries/todoQueries";
 import {
@@ -20,32 +26,32 @@ import {
 } from "./todoApplication";
 import {
   createTodoViewModel,
+  type TodoActiveBodyPosition,
+  type TodoFocusRequest,
   type TodoViewModel,
 } from "./todoViewModel";
 
 export type TodoApplication =
-  | {
-      reload: () => Promise<void>;
-      status: "unavailable";
-    }
-  | {
-      status: "loading";
-    }
-  | {
-      errorMessage: string;
-      reload: () => Promise<void>;
-      status: "failed";
-    }
-  | {
-      reload: () => Promise<void>;
-      status: "ready";
-      view: TodoViewModel;
-    };
+  | { reload: () => Promise<void>; status: "unavailable" }
+  | { status: "loading" }
+  | { errorMessage: string; reload: () => Promise<void>; status: "failed" }
+  | { reload: () => Promise<void>; status: "ready"; view: TodoViewModel };
+
+type ParsedTodoState = {
+  content: TodoContent;
+  index: TodoParseIndex;
+};
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "The todo content could not be loaded.";
+}
+
+function normalizeLineNumber(lineNumber: number) {
+  return Number.isFinite(lineNumber)
+    ? Math.max(1, Math.floor(lineNumber))
+    : 1;
 }
 
 export function useTodoApplication({
@@ -57,36 +63,73 @@ export function useTodoApplication({
 }): TodoApplication {
   const [requestedCollectionId, setRequestedCollectionId] =
     useState<TodoCollectionId | null>(null);
+  const [focusRequest, setFocusRequest] = useState<TodoFocusRequest | null>(null);
+  const [activeBodyPosition, setActiveBodyPosition] =
+    useState<TodoActiveBodyPosition | null>(null);
+  const nextFocusRequestIdRef = useRef(1);
+  const previousIndexRef = useRef<TodoParseIndex | null>(null);
   const sessionContent = session.state.status === "ready"
     ? session.state.content
     : null;
   const parsedResult = useMemo(() => {
-    if (!sessionContent) {
-      return { content: null, errorMessage: "" };
-    }
+    if (!sessionContent) return { parsed: null, errorMessage: "" };
     try {
+      const content = requireTodoContent(sessionContent);
+
       return {
-        content: requireTodoContent(sessionContent),
         errorMessage: "",
+        parsed: {
+          content,
+          index: createTodoParseIndex(content, previousIndexRef.current),
+        } satisfies ParsedTodoState,
       };
     } catch (error) {
-      return { content: null, errorMessage: getErrorMessage(error) };
+      return { parsed: null, errorMessage: getErrorMessage(error) };
     }
   }, [sessionContent]);
-  const content = parsedResult.content;
-  const activeCollectionId = content
-    ? resolveTodoCollectionSelection(content, requestedCollectionId)
+  const parsed = parsedResult.parsed;
+  const activeCollectionId = parsed
+    ? resolveTodoCollectionSelection(parsed.content, requestedCollectionId)
     : null;
 
   useEffect(() => {
-    if (content && requestedCollectionId !== activeCollectionId) {
+    if (parsed) previousIndexRef.current = parsed.index;
+  }, [parsed]);
+
+  useEffect(() => {
+    if (parsed && requestedCollectionId !== activeCollectionId) {
       setRequestedCollectionId(activeCollectionId);
     }
-  }, [activeCollectionId, content, requestedCollectionId]);
+  }, [activeCollectionId, parsed, requestedCollectionId]);
 
-  const onCollectionCreated = useCallback((collectionId: TodoCollectionId) => {
+  useEffect(() => {
+    if (
+      focusRequest &&
+      (!parsed || !parsed.content.collections.some(
+        ({ id }) => id === focusRequest.collectionId,
+      ))
+    ) {
+      setFocusRequest(null);
+    }
+  }, [focusRequest, parsed]);
+
+  const issueFocusRequest = useCallback((
+    collectionId: TodoCollectionId,
+    lineNumber: number,
+  ) => {
+    const request: TodoFocusRequest = {
+      collectionId,
+      lineNumber: normalizeLineNumber(lineNumber),
+      requestId: nextFocusRequestIdRef.current++,
+    };
+
     setRequestedCollectionId(collectionId);
+    setActiveBodyPosition({ collectionId, lineNumber: request.lineNumber });
+    setFocusRequest(request);
   }, []);
+  const onCollectionCreated = useCallback((collectionId: TodoCollectionId) => {
+    issueFocusRequest(collectionId, 1);
+  }, [issueFocusRequest]);
   const onCollectionDeleted = useCallback(
     (result: TodoDeleteCollectionMutationResult) => {
       setRequestedCollectionId((current) =>
@@ -94,6 +137,12 @@ export function useTodoApplication({
           ...result,
           requestedCollectionId: current,
         })
+      );
+      setFocusRequest((current) =>
+        current?.collectionId === result.deletedCollectionId ? null : current
+      );
+      setActiveBodyPosition((current) =>
+        current?.collectionId === result.deletedCollectionId ? null : current
       );
     },
     [],
@@ -108,28 +157,68 @@ export function useTodoApplication({
     [onCollectionCreated, onCollectionDeleted, services, session],
   );
   const selectCollection = useCallback((collectionId: TodoCollectionId) => {
-    if (!content?.collections.some(({ id }) => id === collectionId)) {
+    if (!parsed?.content.collections.some(({ id }) => id === collectionId)) {
       return;
     }
     setRequestedCollectionId(collectionId);
-  }, [content]);
+    setFocusRequest(null);
+    setActiveBodyPosition(null);
+  }, [parsed]);
+  const openCollectionLine = useCallback((
+    collectionId: TodoCollectionId,
+    lineNumber: number,
+  ) => {
+    if (parsed?.content.collections.some(({ id }) => id === collectionId)) {
+      issueFocusRequest(collectionId, lineNumber);
+    }
+  }, [issueFocusRequest, parsed]);
+  const consumeFocusRequest = useCallback((requestId: number) => {
+    setFocusRequest((current) =>
+      current?.requestId === requestId ? null : current
+    );
+  }, []);
+  const updateActiveBodyLine = useCallback((lineNumber: number) => {
+    if (!activeCollectionId) {
+      setActiveBodyPosition(null);
+      return;
+    }
+    const normalized = normalizeLineNumber(lineNumber);
+
+    setActiveBodyPosition((current) =>
+      current?.collectionId === activeCollectionId &&
+        current.lineNumber === normalized
+        ? current
+        : { collectionId: activeCollectionId, lineNumber: normalized }
+    );
+  }, [activeCollectionId]);
   const readyState = session.state.status === "ready" ? session.state : null;
   const view = useMemo(() =>
-    content && readyState
+    parsed && readyState
       ? createTodoViewModel({
+          activeBodyPosition,
           activeCollectionId,
-          content,
+          consumeFocusRequest,
+          content: parsed.content,
+          focusRequest,
+          index: parsed.index,
           ...mutations,
+          openCollectionLine,
           persistence: readyState.persistence,
           selectCollection,
+          updateActiveBodyLine,
         })
       : null,
     [
+      activeBodyPosition,
       activeCollectionId,
-      content,
+      consumeFocusRequest,
+      focusRequest,
       mutations,
+      openCollectionLine,
+      parsed,
       readyState,
       selectCollection,
+      updateActiveBodyLine,
     ],
   );
 
@@ -145,14 +234,13 @@ export function useTodoApplication({
         status: "failed",
       };
     case "ready":
-      if (!view) {
-        return {
-          errorMessage:
-            parsedResult.errorMessage || "The todo content is unavailable.",
-          reload: session.reload,
-          status: "failed",
-        };
-      }
-      return { reload: session.reload, status: "ready", view };
+      return view
+        ? { reload: session.reload, status: "ready", view }
+        : {
+            errorMessage:
+              parsedResult.errorMessage || "The todo content is unavailable.",
+            reload: session.reload,
+            status: "failed",
+          };
   }
 }

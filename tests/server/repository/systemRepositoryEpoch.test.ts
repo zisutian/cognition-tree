@@ -19,6 +19,7 @@ import {
   appendJournalTestEntry,
   createEmptyJournalContent,
 } from "../../journal/journalTestFixture.ts";
+import { createEmptyTodoContent } from "../../todo/todoTestFixture.ts";
 
 const initialEpochs = {
   "system-journal": 1,
@@ -51,6 +52,41 @@ async function withStateDirectory(
 }
 
 describe("filesystem system repository storage epochs", () => {
+  it("discards Todo v1 bytes at epoch 2 without parsing or preserving them", async () => {
+    await withStateDirectory(async (stateDirectory) => {
+      const original = createCatalog(stateDirectory);
+
+      await original.initialize();
+      const systemDirectory = path.join(stateDirectory, "system-repositories");
+      const todoPath = path.join(systemDirectory, "system-todo.json");
+      const journalPath = path.join(systemDirectory, "system-journal.json");
+      const journalBefore = await readFile(journalPath, "utf8");
+      const oldSource = `${JSON.stringify({
+        collections: [{ items: [{ text: "永久丢弃的 v1 任务" }] }],
+        purpose: "system-todo",
+        schemaVersion: 1,
+      })}\n`;
+
+      await writeFile(todoPath, oldSource, { mode: 0o600 });
+      const bumped = createCatalog(stateDirectory, {
+        "system-journal": 1,
+        "system-todo": 2,
+      });
+
+      await bumped.initialize();
+      await expect((await bumped.getStore("system-todo")).loadSnapshot())
+        .resolves.toMatchObject({ content: createEmptyTodoContent() });
+      await expect(readFile(todoPath, "utf8")).resolves.not.toContain(
+        "永久丢弃的 v1 任务",
+      );
+      await expect(readFile(
+        path.join(systemDirectory, "system-todo.epoch"),
+        "utf8",
+      )).resolves.toBe("2\n");
+      await expect(readFile(journalPath, "utf8")).resolves.toBe(journalBefore);
+    });
+  });
+
   it("replaces only an old purpose and makes repeated initialization idempotent", async () => {
     await withStateDirectory(async (stateDirectory) => {
       const original = createCatalog(stateDirectory);

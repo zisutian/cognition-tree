@@ -2,6 +2,10 @@ import type {
   JournalDiagnostic,
   JournalDiagnostics,
 } from "../journal/journalDiagnostics";
+import type {
+  TodoDiagnostic,
+  TodoDiagnostics,
+} from "../todo/todoDiagnostics";
 import type { SystemRepositoryRuntimeIssue } from "../repository/projectSystemRepositoryIssues";
 import type {
   UiWorkbenchDiagnostic,
@@ -42,17 +46,21 @@ export type UiWorkbenchRepositoryProblem = {
 export type UiWorkbenchProblem =
   | UiWorkbenchDiagnostic
   | JournalDiagnostic
+  | TodoDiagnostic
   | UiWorkbenchRepositoryProblem;
 
 export type UiWorkbenchProblems = {
   errorCount: number;
   problems: UiWorkbenchProblem[];
-  status: UiWorkbenchDiagnostics["status"] | JournalDiagnostics["status"];
+  status:
+    | UiWorkbenchDiagnostics["status"]
+    | JournalDiagnostics["status"]
+    | TodoDiagnostics["status"];
   warningCount: number;
 };
 
 export type WorkbenchDiagnostics = {
-  diagnostics: Array<UiWorkbenchDiagnostic | JournalDiagnostic>;
+  diagnostics: Array<UiWorkbenchDiagnostic | JournalDiagnostic | TodoDiagnostic>;
   status: UiWorkbenchProblems["status"];
 };
 

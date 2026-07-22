@@ -6,6 +6,10 @@ import {
 } from "../../journal/syntax/journalSyntax";
 import type { JournalViewModel } from "../../src/application/journal";
 import type { TodoViewModel } from "../../src/application/todo";
+import {
+  defaultTodoCtnSyntaxProfileV2,
+  defaultTodoSyntaxSourceV2,
+} from "../../todo/syntax/todoSyntax";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
 import type { RepositoryViewModel } from "../../src/application/workspace/activities/repository/repositoryViewModel";
@@ -300,37 +304,93 @@ export function createView(
       ],
       createCollection: () =>
         "todo-collection-00000000-0000-4000-8000-000000000002",
-      createItem: () =>
-        "todo-item-00000000-0000-4000-8000-000000000002",
       deleteCollection: () =>
         "todo-collection-00000000-0000-4000-8000-000000000002",
-      deleteItem: () => undefined,
-      items: [
-        {
-          completed: true,
-          completedAt: "2026-07-18T04:00:00.000Z",
-          createdAt: "2026-07-18T02:00:00.000Z",
-          id: "todo-item-00000000-0000-4000-8000-000000000001",
-          text: "已完成但保持原位",
-          updatedAt: "2026-07-18T04:00:00.000Z",
-        },
-        {
-          completed: false,
-          completedAt: null,
-          createdAt: "2026-07-18T03:00:00.000Z",
-          id: "todo-item-00000000-0000-4000-8000-000000000002",
-          text: "未完成",
-          updatedAt: "2026-07-18T03:00:00.000Z",
-        },
-      ],
+      diagnostics: {
+        diagnostics: [],
+        errorCount: 0,
+        status: "ready",
+        warningCount: 0,
+      },
+      editor: {
+        checkableBlocks: [
+          {
+            blockId: "00000000-0000-4000-8000-000000000001",
+            checked: true,
+            label: "已完成但保持原位",
+            lineNumber: 1,
+          },
+          {
+            blockId: "00000000-0000-4000-8000-000000000002",
+            checked: false,
+            label: "未完成",
+            lineNumber: 2,
+          },
+        ],
+        contentMode: { kind: "body", title: "今天" },
+        documentText: "[] 已完成但保持原位\n\t[] 未完成",
+        focusTarget: null,
+        onActiveLineChange: () => undefined,
+        onConsumeFocusTarget: () => undefined,
+        syntaxProfile: defaultTodoCtnSyntaxProfileV2,
+        updateBody: () => undefined,
+      },
+      moveBlock: () => undefined,
       moveCollection: () => undefined,
-      moveItem: () => undefined,
+      navigation: {
+        focusRequest: null,
+        openCollectionLine: () => undefined,
+      },
+      outline: {
+        activeBlock: null,
+        nodes: [
+          {
+            children: [],
+            completed: true,
+            completedAt: "2026-07-18T04:00:00.000Z",
+            endLineNumber: 1,
+            hasDiagnostics: false,
+            id: "00000000-0000-4000-8000-000000000001",
+            label: "代办",
+            level: 0,
+            lineNumber: 1,
+            metadata: {
+              createdAt: "2026-07-18T02:00:00.000Z",
+              updatedAt: "2026-07-18T04:00:00.000Z",
+            },
+            text: "已完成但保持原位",
+          },
+          {
+            children: [],
+            completed: false,
+            completedAt: null,
+            endLineNumber: 2,
+            hasDiagnostics: false,
+            id: "00000000-0000-4000-8000-000000000002",
+            label: "代办",
+            level: 0,
+            lineNumber: 2,
+            metadata: {
+              createdAt: "2026-07-18T03:00:00.000Z",
+              updatedAt: "2026-07-18T03:00:00.000Z",
+            },
+            text: "未完成",
+          },
+        ],
+        onSelectLine: () => undefined,
+      },
       persistence: { status: "saved" },
       persistenceErrorMessage: "",
       renameCollection: () => undefined,
       selectCollection: () => undefined,
-      toggleItem: () => undefined,
-      updateItemText: () => undefined,
+      syntax: {
+        profile: defaultTodoCtnSyntaxProfileV2,
+        source: defaultTodoSyntaxSourceV2,
+        updateSource: () => undefined,
+      },
+      toggleBlock: () => undefined,
+      updateCollectionBody: () => undefined,
+      updateSyntaxSource: () => undefined,
     },
     visualization: {
       activeNoteId: "note-source",

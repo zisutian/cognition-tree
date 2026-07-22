@@ -320,11 +320,7 @@ describe("workspace API v4", () => {
         url: "/api/system-repositories/system-journal/retry",
       })).resolves.toMatchObject({ body: { status: "fault" }, statusCode: 200 });
 
-      await writeFile(journalPath, JSON.stringify({
-        entries: [],
-        purpose: "system-journal",
-        schemaVersion: 1,
-      }));
+      await writeFile(journalPath, JSON.stringify(createEmptyJournalContent()));
       await expect(dispatch(handler, {
         method: "POST",
         url: "/api/system-repositories/system-journal/retry",

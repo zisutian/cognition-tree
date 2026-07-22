@@ -1,12 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  TodoCollectionId,
-  TodoContent,
-  TodoItemId,
+import type { CtnBlockMetadata } from "../../../ctn/metadata/blockMetadata";
+import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
+import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import type { TodoParseIndex } from "../../../todo/indexes/todoParseIndex";
+import {
+  createTodoCollectionBodyProjection,
+  todoItemSemanticType,
+  type TodoCollectionId,
+  type TodoContent,
 } from "../../../todo/model/todoContent";
 import type { SystemRepositoryPersistenceState } from "../repository/systemRepositorySessionController";
 import type { TodoMutationActions } from "./todoApplication";
+import {
+  createTodoDiagnostics,
+  type TodoDiagnostics,
+} from "./todoDiagnostics";
+
+export type TodoFocusRequest = {
+  collectionId: TodoCollectionId;
+  lineNumber: number;
+  requestId: number;
+};
+
+export type TodoActiveBodyPosition = {
+  collectionId: TodoCollectionId;
+  lineNumber: number;
+};
 
 export type TodoCollectionListItem = {
   completedItemCount: number;
@@ -18,13 +39,18 @@ export type TodoCollectionListItem = {
   updatedAt: string;
 };
 
-export type TodoItemView = {
+export type TodoBlockView = {
+  children: TodoBlockView[];
   completed: boolean;
   completedAt: string | null;
-  createdAt: string;
-  id: TodoItemId;
+  endLineNumber: number;
+  hasDiagnostics: boolean;
+  id: string;
+  label: string;
+  level: number;
+  lineNumber: number;
+  metadata: CtnBlockMetadata;
   text: string;
-  updatedAt: string;
 };
 
 export type TodoActiveCollectionView = {
@@ -37,83 +63,238 @@ export type TodoActiveCollectionView = {
 export type TodoViewModel = TodoMutationActions & {
   activeCollection: TodoActiveCollectionView | null;
   collections: TodoCollectionListItem[];
-  items: TodoItemView[];
+  diagnostics: TodoDiagnostics;
+  editor: {
+    checkableBlocks: Array<{
+      blockId: string;
+      checked: boolean;
+      label: string;
+      lineNumber: number;
+    }>;
+    contentMode: { kind: "body"; title: string };
+    documentText: string;
+    focusTarget: { lineNumber: number; requestId: number } | null;
+    onActiveLineChange: (lineNumber: number) => void;
+    onConsumeFocusTarget: (requestId: number) => void;
+    syntaxProfile: CtnSyntaxProfile;
+    updateBody: (change: CtnEditableSourceChange) => void;
+  };
+  navigation: {
+    focusRequest: TodoFocusRequest | null;
+    openCollectionLine: (
+      collectionId: TodoCollectionId,
+      lineNumber: number,
+    ) => void;
+  };
+  outline: {
+    activeBlock: TodoBlockView | null;
+    nodes: TodoBlockView[];
+    onSelectLine: (lineNumber: number) => void;
+  };
   persistence: SystemRepositoryPersistenceState;
   persistenceErrorMessage: string;
   selectCollection: (collectionId: TodoCollectionId) => void;
+  syntax: {
+    profile: CtnSyntaxProfile;
+    source: string;
+    updateSource: (source: string) => void;
+  };
 };
 
 type TodoViewModelInput = TodoMutationActions & {
+  activeBodyPosition: TodoActiveBodyPosition | null;
   activeCollectionId: TodoCollectionId | null;
+  consumeFocusRequest: (requestId: number) => void;
   content: TodoContent;
+  focusRequest: TodoFocusRequest | null;
+  index: TodoParseIndex;
+  openCollectionLine: (
+    collectionId: TodoCollectionId,
+    lineNumber: number,
+  ) => void;
   persistence: SystemRepositoryPersistenceState;
   selectCollection: (collectionId: TodoCollectionId) => void;
+  updateActiveBodyLine: (lineNumber: number) => void;
 };
 
 export function getTodoPersistenceErrorMessage(
   persistence: SystemRepositoryPersistenceState,
 ) {
-  if (persistence.status === "error") {
-    return persistence.message;
-  }
+  if (persistence.status === "error") return persistence.message;
   if (persistence.status === "conflict") {
     return "代办存在同步冲突，请前往仓库处理。";
   }
   return "";
 }
 
-export function createTodoViewModel({
-  activeCollectionId,
-  content,
-  createCollection,
-  createItem,
-  deleteCollection,
-  deleteItem,
-  moveCollection,
-  moveItem,
-  persistence,
-  renameCollection,
-  selectCollection,
-  toggleItem,
-  updateItemText,
-}: TodoViewModelInput): TodoViewModel {
-  const activeCollection = activeCollectionId
-    ? content.collections.find(({ id }) => id === activeCollectionId) ?? null
+function createTodoBlockNodes({
+  blocks,
+  completionById,
+  projectLineNumber,
+}: {
+  blocks: CtnCanonicalBlock[];
+  completionById: ReadonlyMap<string, string>;
+  projectLineNumber: (lineNumber: number) => number;
+}): TodoBlockView[] {
+  const visit = (block: CtnCanonicalBlock): TodoBlockView[] => {
+    const children = block.children.flatMap(visit);
+
+    if (block.type !== todoItemSemanticType) return children;
+    const completedAt = completionById.get(block.id) ?? null;
+    const view: TodoBlockView = {
+      children,
+      completed: completedAt !== null,
+      completedAt,
+      endLineNumber: projectLineNumber(block.subtreeEndLineNumber),
+      hasDiagnostics: block.diagnostics.length > 0,
+      id: block.id,
+      label: block.label,
+      level: block.level,
+      lineNumber: projectLineNumber(block.lineNumber),
+      metadata: block.metadata,
+      text: block.text,
+    };
+
+    return [view];
+  };
+
+  return blocks.flatMap(visit);
+}
+
+function findBlockAtLine(nodes: TodoBlockView[], lineNumber: number) {
+  let match: TodoBlockView | null = null;
+  const pending = [...nodes].reverse();
+
+  while (pending.length > 0) {
+    const node = pending.pop();
+
+    if (!node || lineNumber < node.lineNumber || lineNumber > node.endLineNumber) {
+      continue;
+    }
+    match = node;
+    pending.push(...[...node.children].reverse());
+  }
+  return match;
+}
+
+export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
+  const {
+    activeBodyPosition,
+    activeCollectionId,
+    consumeFocusRequest,
+    content,
+    focusRequest,
+    index,
+    openCollectionLine,
+    persistence,
+    selectCollection,
+    updateActiveBodyLine,
+    ...actions
+  } = input;
+  const activeParsed = activeCollectionId
+    ? index.getParsedCollection(activeCollectionId)
+    : null;
+  const activeProjection = activeParsed
+    ? createTodoCollectionBodyProjection(
+        activeParsed.collection,
+        index.syntaxProfile,
+      )
+    : null;
+  const completionById = new Map(
+    activeParsed?.collection.completions.map(({ blockId, completedAt }) => [
+      blockId,
+      completedAt,
+    ]) ?? [],
+  );
+  const projectLineNumber = (lineNumber: number) =>
+    activeProjection?.projectCanonicalLineNumber(lineNumber) ?? lineNumber;
+  const bodyRoots = activeParsed?.document.roots.filter(
+    ({ type }) => type !== index.syntaxProfile.titleRule.type,
+  ) ?? [];
+  const outlineNodes = createTodoBlockNodes({
+    blocks: bodyRoots,
+    completionById,
+    projectLineNumber,
+  });
+  const activeLine = activeBodyPosition?.collectionId === activeCollectionId
+    ? activeBodyPosition.lineNumber
     : null;
 
   return {
-    activeCollection: activeCollection
+    ...actions,
+    activeCollection: activeParsed
       ? {
-          createdAt: activeCollection.createdAt,
-          id: activeCollection.id,
-          name: activeCollection.name,
-          updatedAt: activeCollection.updatedAt,
+          createdAt: activeParsed.document.blocks[0]!.metadata.createdAt,
+          id: activeParsed.collection.id,
+          name: activeParsed.name,
+          updatedAt: activeParsed.document.blocks[0]!.metadata.updatedAt,
         }
       : null,
-    collections: content.collections.map((collection) => ({
-      completedItemCount: collection.items.filter(({ completed }) => completed)
-        .length,
-      createdAt: collection.createdAt,
-      id: collection.id,
-      isActive: collection.id === activeCollectionId,
-      itemCount: collection.items.length,
-      name: collection.name,
-      updatedAt: collection.updatedAt,
-    })),
-    createCollection,
-    createItem,
-    deleteCollection,
-    deleteItem,
-    items: activeCollection
-      ? activeCollection.items.map((item) => ({ ...item }))
-      : [],
-    moveCollection,
-    moveItem,
+    collections: index.collections.map((parsed) => {
+      const itemIds = new Set(
+        parsed.document.blocks
+          .filter(({ type }) => type === todoItemSemanticType)
+          .map(({ id }) => id),
+      );
+
+      return {
+        completedItemCount: parsed.collection.completions.filter(({ blockId }) =>
+          itemIds.has(blockId)
+        ).length,
+        createdAt: parsed.document.blocks[0]!.metadata.createdAt,
+        id: parsed.collection.id,
+        isActive: parsed.collection.id === activeCollectionId,
+        itemCount: itemIds.size,
+        name: parsed.name,
+        updatedAt: parsed.document.blocks[0]!.metadata.updatedAt,
+      };
+    }),
+    diagnostics: createTodoDiagnostics(index),
+    editor: {
+      checkableBlocks: activeParsed?.document.blocks
+        .filter(({ type }) => type === todoItemSemanticType)
+        .map((block) => ({
+          blockId: block.id,
+          checked: completionById.has(block.id),
+          label: block.text,
+          lineNumber: projectLineNumber(block.lineNumber),
+        })) ?? [],
+      contentMode: { kind: "body", title: activeParsed?.name ?? "" },
+      documentText: activeProjection?.source ?? "",
+      focusTarget: focusRequest?.collectionId === activeCollectionId
+        ? {
+            lineNumber: focusRequest.lineNumber,
+            requestId: focusRequest.requestId,
+          }
+        : null,
+      onActiveLineChange: updateActiveBodyLine,
+      onConsumeFocusTarget: consumeFocusRequest,
+      syntaxProfile: index.syntaxProfile,
+      updateBody(change) {
+        if (activeCollectionId) {
+          actions.updateCollectionBody(activeCollectionId, change);
+        }
+      },
+    },
+    navigation: { focusRequest, openCollectionLine },
+    outline: {
+      activeBlock: activeLine === null
+        ? null
+        : findBlockAtLine(outlineNodes, activeLine),
+      nodes: outlineNodes,
+      onSelectLine(lineNumber) {
+        if (activeCollectionId) {
+          openCollectionLine(activeCollectionId, lineNumber);
+        }
+      },
+    },
     persistence,
     persistenceErrorMessage: getTodoPersistenceErrorMessage(persistence),
-    renameCollection,
     selectCollection,
-    toggleItem,
-    updateItemText,
+    syntax: {
+      profile: index.syntaxProfile,
+      source: content.syntaxSource,
+      updateSource: actions.updateSyntaxSource,
+    },
   };
 }

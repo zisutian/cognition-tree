@@ -1,22 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
+import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
 import {
   createTodoCollection,
-  createTodoItem,
   deleteTodoCollection,
-  deleteTodoItem,
+  moveTodoBlock,
   moveTodoCollection,
-  moveTodoItem,
   renameTodoCollection,
-  toggleTodoItem,
-  updateTodoItemText,
+  toggleTodoBlock,
+  updateTodoCollectionBody,
+  updateTodoSyntaxSource,
+  type TodoBlockMoveTarget,
 } from "../../../todo/commands/todoCommands";
 import {
   validateTodoContent,
   type TodoCollectionId,
   type TodoContent,
-  type TodoItemId,
 } from "../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
 import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,
@@ -25,8 +27,8 @@ import type { SystemRepositoryContent } from "../../storage/repository/systemRep
 import type { SystemRepositorySession } from "../repository/useSystemRepositorySession";
 
 export type TodoApplicationServices = {
+  createBlockId: () => string;
   createCollectionId: () => TodoCollectionId;
-  createItemId: () => TodoItemId;
   now: () => Date;
 };
 
@@ -43,22 +45,20 @@ export type TodoDeleteCollectionMutationResult = {
 
 export type TodoMutationActions = {
   createCollection(name: string): TodoCollectionId;
-  createItem(collectionId: TodoCollectionId, text: string): TodoItemId;
   deleteCollection(collectionId: TodoCollectionId): TodoCollectionId | null;
-  deleteItem(collectionId: TodoCollectionId, itemId: TodoItemId): void;
+  moveBlock(
+    collectionId: TodoCollectionId,
+    blockId: string,
+    target: TodoBlockMoveTarget,
+  ): void;
   moveCollection(collectionId: TodoCollectionId, toIndex: number): void;
-  moveItem(
-    collectionId: TodoCollectionId,
-    itemId: TodoItemId,
-    toIndex: number,
-  ): void;
   renameCollection(collectionId: TodoCollectionId, name: string): void;
-  toggleItem(collectionId: TodoCollectionId, itemId: TodoItemId): void;
-  updateItemText(
+  toggleBlock(collectionId: TodoCollectionId, blockId: string): void;
+  updateCollectionBody(
     collectionId: TodoCollectionId,
-    itemId: TodoItemId,
-    text: string,
+    change: CtnEditableSourceChange,
   ): void;
+  updateSyntaxSource(source: string): void;
 };
 
 function readBrowserRandomUuid() {
@@ -70,9 +70,8 @@ function readBrowserRandomUuid() {
 
 export function createBrowserTodoApplicationServices(): TodoApplicationServices {
   return {
-    createCollectionId: () =>
-      `todo-collection-${readBrowserRandomUuid()}`,
-    createItemId: () => `todo-item-${readBrowserRandomUuid()}`,
+    createBlockId: readBrowserRandomUuid,
+    createCollectionId: () => `todo-collection-${readBrowserRandomUuid()}`,
     now: () => new Date(),
   };
 }
@@ -83,7 +82,7 @@ export function requireTodoContent(
   if (content.purpose !== "system-todo") {
     throw new Error("The todo application received non-todo content.");
   }
-  return validateTodoContent(content);
+  return validateTodoContent(content as unknown as TodoContent);
 }
 
 function readNow(services: TodoApplicationServices) {
@@ -95,24 +94,34 @@ function readNow(services: TodoApplicationServices) {
   return now.toISOString();
 }
 
-function monotonicTimestamp(requested: string, current: string) {
-  return Date.parse(requested) < Date.parse(current) ? current : requested;
-}
+function monotonicTimestamp(requested: string, content: TodoContent) {
+  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
+  let latest = requested;
 
-function latestTodoTimestamp(content: TodoContent, fallback: string) {
-  return content.collections.reduce(
-    (latest, { updatedAt }) => monotonicTimestamp(updatedAt, latest),
-    fallback,
-  );
-}
+  for (const collection of content.collections) {
+    const document = parseCtnCanonicalDocument(collection.source, syntaxProfile);
 
-function requireCollection(content: TodoContent, collectionId: TodoCollectionId) {
-  const collection = content.collections.find(({ id }) => id === collectionId);
-
-  if (!collection) {
-    throw new Error(`Todo collection does not exist: ${collectionId}`);
+    for (const block of document.blocks) {
+      if (Date.parse(block.metadata.updatedAt) > Date.parse(latest)) {
+        latest = block.metadata.updatedAt;
+      }
+    }
+    for (const completion of collection.completions) {
+      if (Date.parse(completion.completedAt) > Date.parse(latest)) {
+        latest = completion.completedAt;
+      }
+    }
   }
-  return collection;
+  return latest;
+}
+
+function updateTodoSession(
+  session: Pick<TodoSystemRepositorySession, "updateContent">,
+  update: (content: TodoContent) => TodoContent,
+) {
+  session.updateContent((current) =>
+    update(requireTodoContent(current)) as unknown as SystemRepositoryContent
+  );
 }
 
 export function createTodoMutationActions({
@@ -126,17 +135,19 @@ export function createTodoMutationActions({
   services: TodoApplicationServices;
   session: Pick<TodoSystemRepositorySession, "updateContent">;
 }): TodoMutationActions {
+  const timestamp = (content: TodoContent) =>
+    monotonicTimestamp(readNow(services), content);
+
   return {
     createCollection(name) {
-      const requestedCreatedAt = readNow(services);
       const collectionId = services.createCollectionId();
       let createdCollectionId: TodoCollectionId | null = null;
 
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
+      updateTodoSession(session, (content) => {
         const result = createTodoCollection(content, {
           collectionId,
-          createdAt: latestTodoTimestamp(content, requestedCreatedAt),
+          createBlockId: services.createBlockId,
+          createdAt: timestamp(content),
           name,
         });
 
@@ -149,37 +160,10 @@ export function createTodoMutationActions({
       onCollectionCreated(createdCollectionId);
       return createdCollectionId;
     },
-    createItem(collectionId, text) {
-      const requestedCreatedAt = readNow(services);
-      const itemId = services.createItemId();
-      let createdItemId: TodoItemId | null = null;
-
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
-        const collection = requireCollection(content, collectionId);
-        const result = createTodoItem(content, {
-          collectionId,
-          createdAt: monotonicTimestamp(
-            requestedCreatedAt,
-            collection.updatedAt,
-          ),
-          itemId,
-          text,
-        });
-
-        createdItemId = result.itemId;
-        return result.content;
-      });
-      if (!createdItemId) {
-        throw new Error("The todo session did not apply the item creation.");
-      }
-      return createdItemId;
-    },
     deleteCollection(collectionId) {
       const outcome: { value?: TodoDeleteCollectionMutationResult } = {};
 
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
+      updateTodoSession(session, (content) => {
         const nextSelection = resolveTodoCollectionSelectionAfterDelete(
           content,
           collectionId,
@@ -200,100 +184,53 @@ export function createTodoMutationActions({
       onCollectionDeleted(result);
       return result.nextSelection;
     },
-    deleteItem(collectionId, itemId) {
-      const requestedUpdatedAt = readNow(services);
-
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
-        const collection = requireCollection(content, collectionId);
-
-        return deleteTodoItem(content, {
+    moveBlock(collectionId, blockId, target) {
+      updateTodoSession(session, (content) =>
+        moveTodoBlock(content, {
+          blockId,
           collectionId,
-          itemId,
-          updatedAt: monotonicTimestamp(
-            requestedUpdatedAt,
-            collection.updatedAt,
-          ),
-        });
-      });
-    },
-    moveCollection(collectionId, toIndex) {
-      session.updateContent((current) =>
-        moveTodoCollection(requireTodoContent(current), {
-          collectionId,
-          toIndex,
+          target,
+          updatedAt: timestamp(content),
         })
       );
     },
-    moveItem(collectionId, itemId, toIndex) {
-      const requestedUpdatedAt = readNow(services);
-
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
-        const collection = requireCollection(content, collectionId);
-
-        return moveTodoItem(content, {
-          collectionId,
-          itemId,
-          toIndex,
-          updatedAt: monotonicTimestamp(
-            requestedUpdatedAt,
-            collection.updatedAt,
-          ),
-        });
-      });
+    moveCollection(collectionId, toIndex) {
+      updateTodoSession(session, (content) =>
+        moveTodoCollection(content, { collectionId, toIndex })
+      );
     },
     renameCollection(collectionId, name) {
-      const requestedUpdatedAt = readNow(services);
-
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
-        const collection = requireCollection(content, collectionId);
-
-        return renameTodoCollection(content, {
+      updateTodoSession(session, (content) =>
+        renameTodoCollection(content, {
           collectionId,
           name,
-          updatedAt: monotonicTimestamp(
-            requestedUpdatedAt,
-            collection.updatedAt,
-          ),
-        });
-      });
+          updatedAt: timestamp(content),
+        })
+      );
     },
-    toggleItem(collectionId, itemId) {
-      const requestedUpdatedAt = readNow(services);
-
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
-        const collection = requireCollection(content, collectionId);
-
-        return toggleTodoItem(content, {
+    toggleBlock(collectionId, blockId) {
+      updateTodoSession(session, (content) =>
+        toggleTodoBlock(content, {
+          blockId,
           collectionId,
-          itemId,
-          updatedAt: monotonicTimestamp(
-            requestedUpdatedAt,
-            collection.updatedAt,
-          ),
-        });
-      });
+          completedAt: timestamp(content),
+        })
+      );
     },
-    updateItemText(collectionId, itemId, text) {
-      const requestedUpdatedAt = readNow(services);
-
-      session.updateContent((current) => {
-        const content = requireTodoContent(current);
-        const collection = requireCollection(content, collectionId);
-
-        return updateTodoItemText(content, {
+    updateCollectionBody(collectionId, change) {
+      updateTodoSession(session, (content) =>
+        updateTodoCollectionBody(content, {
+          change,
           collectionId,
-          itemId,
-          text,
-          updatedAt: monotonicTimestamp(
-            requestedUpdatedAt,
-            collection.updatedAt,
-          ),
-        });
-      });
+          createBlockId: services.createBlockId,
+          updatedAt: timestamp(content),
+        })
+      );
+    },
+    updateSyntaxSource(source) {
+      updateTodoSession(session, (content) =>
+        updateTodoSyntaxSource(content, source)
+      );
     },
   };
 }

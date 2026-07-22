@@ -113,5 +113,12 @@ export function TodoActivityController({
     );
   }
 
-  return renderActivity(() => createTodoActivitySlots({ view: todo.view }));
+  return renderActivity((controls) =>
+    createTodoActivitySlots({
+      focusMode: controls.focusMode,
+      onCollapseDetail: controls.onCollapseDetail,
+      onToggleFocusMode: controls.onToggleFocusMode,
+      view: todo.view,
+    })
+  );
 }

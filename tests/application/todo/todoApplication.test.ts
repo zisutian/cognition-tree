@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
+import { createTodoCollectionBodyProjection } from "../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
 import type {
   TodoCollectionId,
   TodoContent,
-  TodoItemId,
 } from "../../../todo/model/todoContent";
 import {
   createBrowserTodoApplicationServices,
@@ -15,71 +16,59 @@ import {
   type TodoDeleteCollectionMutationResult,
 } from "../../../src/application/todo/todoApplication";
 import type { SystemRepositoryContent } from "../../../src/storage/repository/systemRepository";
-
-function collectionId(index: number): TodoCollectionId {
-  return `todo-collection-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
-}
-
-function itemId(index: number): TodoItemId {
-  return `todo-item-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
-}
-
-function createEmptyContent(): TodoContent {
-  return {
-    collections: [],
-    purpose: "system-todo",
-    schemaVersion: 1,
-  };
-}
+import {
+  createEmptyTodoContent,
+  todoBlockId,
+  todoCollectionId,
+} from "../../todo/todoTestFixture";
 
 function createServices({
+  blockIds,
   collectionIds,
-  itemIds,
   timestamps,
 }: {
+  blockIds: string[];
   collectionIds: TodoCollectionId[];
-  itemIds: TodoItemId[];
   timestamps: string[];
 }) {
+  let blockIndex = 0;
   let collectionIndex = 0;
-  let itemIndex = 0;
   let timestampIndex = 0;
 
   return {
-    createCollectionId: () => {
-      const id = collectionIds[collectionIndex++];
-
-      if (!id) throw new Error("Missing test todo collection id.");
+    createBlockId: () => {
+      const id = blockIds[blockIndex++];
+      if (!id) throw new Error("Missing test Todo block id.");
       return id;
     },
-    createItemId: () => {
-      const id = itemIds[itemIndex++];
-
-      if (!id) throw new Error("Missing test todo item id.");
+    createCollectionId: () => {
+      const id = collectionIds[collectionIndex++];
+      if (!id) throw new Error("Missing test Todo collection id.");
       return id;
     },
     now: () => {
       const timestamp = timestamps[timestampIndex++];
-
-      if (!timestamp) throw new Error("Missing test todo timestamp.");
+      if (!timestamp) throw new Error("Missing test Todo timestamp.");
       return new Date(timestamp);
     },
   } satisfies TodoApplicationServices;
 }
 
 function createFunctionalSession(initial: TodoContent) {
-  let content: SystemRepositoryContent = initial;
+  let content = initial;
   const visibleStates: string[] = [];
 
   return {
     get content() {
-      return requireTodoContent(content);
+      return content;
     },
     session: {
       updateContent(
         update: (current: SystemRepositoryContent) => SystemRepositoryContent,
       ) {
-        content = update(content);
+        content = update(
+          content as unknown as SystemRepositoryContent,
+        ) as unknown as TodoContent;
         visibleStates.push(JSON.stringify(content));
       },
     },
@@ -87,25 +76,44 @@ function createFunctionalSession(initial: TodoContent) {
   };
 }
 
-describe("todo application mutations", () => {
-  it("uses functional session updates so consecutive collection and item operations cannot lose data", () => {
-    const harness = createFunctionalSession(createEmptyContent());
-    const createdCollections: TodoCollectionId[] = [];
+function appendTask(
+  content: TodoContent,
+  actions: ReturnType<typeof createTodoMutationActions>,
+  collectionId: TodoCollectionId,
+  text: string,
+) {
+  const collection = content.collections.find(({ id }) => id === collectionId)!;
+  const projection = createTodoCollectionBodyProjection(
+    collection,
+    requireTodoSyntaxProfile(content.syntaxSource),
+  );
+  const insertedText = `${projection.source ? "\n" : ""}[] ${text}`;
+
+  actions.updateCollectionBody(collectionId, {
+    edits: [{
+      from: projection.source.length,
+      insertedText,
+      to: projection.source.length,
+    }],
+    source: `${projection.source}${insertedText}`,
+  });
+}
+
+describe("Todo application mutations", () => {
+  it("uses functional updates for CTN editing, completion, rename, and ordering", () => {
+    const harness = createFunctionalSession(createEmptyTodoContent());
     const actions = createTodoMutationActions({
-      onCollectionCreated: (id) => createdCollections.push(id),
+      onCollectionCreated: () => undefined,
       onCollectionDeleted: () => undefined,
       services: createServices({
-        collectionIds: [collectionId(1), collectionId(2)],
-        itemIds: [itemId(1), itemId(2)],
+        blockIds: [todoBlockId(101), todoBlockId(102), todoBlockId(1)],
+        collectionIds: [todoCollectionId(1), todoCollectionId(2)],
         timestamps: [
           "2026-07-18T01:00:00.000Z",
           "2026-07-18T02:00:00.000Z",
           "2026-07-18T03:00:00.000Z",
           "2026-07-18T04:00:00.000Z",
           "2026-07-18T05:00:00.000Z",
-          "2026-07-18T06:00:00.000Z",
-          "2026-07-18T07:00:00.000Z",
-          "2026-07-18T08:00:00.000Z",
         ],
       }),
       session: harness.session,
@@ -113,88 +121,38 @@ describe("todo application mutations", () => {
 
     actions.createCollection("收集箱");
     actions.createCollection("稍后");
-    actions.createItem(collectionId(1), "第一项");
-    actions.createItem(collectionId(1), "第二项");
-    actions.updateItemText(collectionId(1), itemId(1), "第一项已修改");
-    actions.toggleItem(collectionId(1), itemId(2));
-    actions.moveItem(collectionId(1), itemId(2), 0);
-    actions.renameCollection(collectionId(2), "计划");
-    actions.moveCollection(collectionId(2), 0);
+    appendTask(harness.content, actions, todoCollectionId(1), "第一项");
+    actions.toggleBlock(todoCollectionId(1), todoBlockId(1));
+    actions.renameCollection(todoCollectionId(2), "计划");
+    actions.moveCollection(todoCollectionId(2), 0);
 
-    expect(createdCollections).toEqual([collectionId(1), collectionId(2)]);
-    expect(harness.visibleStates).toHaveLength(9);
-    expect(harness.content.collections.map(({ id, name }) => ({ id, name })))
-      .toEqual([
-        { id: collectionId(2), name: "计划" },
-        { id: collectionId(1), name: "收集箱" },
-      ]);
-    expect(harness.content.collections[1]?.items.map((item) => ({
-      completed: item.completed,
-      id: item.id,
-      text: item.text,
-    }))).toEqual([
-      { completed: true, id: itemId(2), text: "第二项" },
-      { completed: false, id: itemId(1), text: "第一项已修改" },
+    expect(harness.visibleStates).toHaveLength(6);
+    expect(harness.content.collections.map(({ id }) => id)).toEqual([
+      todoCollectionId(2),
+      todoCollectionId(1),
+    ]);
+    expect(harness.content.collections[1]!.source).toContain("[] 第一项");
+    expect(harness.content.collections[1]!.completions).toEqual([
+      { blockId: todoBlockId(1), completedAt: "2026-07-18T04:00:00.000Z" },
     ]);
   });
 
-  it("selects a created collection and resolves the following then previous neighbor after deletion", () => {
-    const harness = createFunctionalSession(createEmptyContent());
-    let requestedCollectionId: TodoCollectionId | null = null;
-    const deleteResults: TodoDeleteCollectionMutationResult[] = [];
+  it("selects created collections and the adjacent collection after deletion", () => {
+    const harness = createFunctionalSession(createEmptyTodoContent());
+    let requested: TodoCollectionId | null = null;
     const actions = createTodoMutationActions({
       onCollectionCreated: (id) => {
-        requestedCollectionId = id;
+        requested = id;
       },
-      onCollectionDeleted: (result) => {
-        deleteResults.push(result);
-        requestedCollectionId = resolveRequestedTodoSelectionAfterDelete({
+      onCollectionDeleted: (result: TodoDeleteCollectionMutationResult) => {
+        requested = resolveRequestedTodoSelectionAfterDelete({
           ...result,
-          requestedCollectionId,
+          requestedCollectionId: requested,
         });
       },
       services: createServices({
-        collectionIds: [collectionId(1), collectionId(2), collectionId(3)],
-        itemIds: [],
-        timestamps: [
-          "2026-07-18T01:00:00.000Z",
-          "2026-07-18T02:00:00.000Z",
-          "2026-07-18T03:00:00.000Z",
-        ],
-      }),
-      session: harness.session,
-    });
-
-    actions.createCollection("一");
-    actions.createCollection("二");
-    actions.createCollection("三");
-    expect(requestedCollectionId).toBe(collectionId(3));
-
-    requestedCollectionId = collectionId(2);
-    expect(actions.deleteCollection(collectionId(2))).toBe(collectionId(3));
-    expect(requestedCollectionId).toBe(collectionId(3));
-
-    expect(actions.deleteCollection(collectionId(3))).toBe(collectionId(1));
-    expect(requestedCollectionId).toBe(collectionId(1));
-    expect(deleteResults).toHaveLength(2);
-  });
-
-  it("keeps another requested collection stable when a non-selected one is deleted", () => {
-    const harness = createFunctionalSession(createEmptyContent());
-    let requestedCollectionId: TodoCollectionId | null = null;
-    const actions = createTodoMutationActions({
-      onCollectionCreated: (id) => {
-        requestedCollectionId = id;
-      },
-      onCollectionDeleted: (result) => {
-        requestedCollectionId = resolveRequestedTodoSelectionAfterDelete({
-          ...result,
-          requestedCollectionId,
-        });
-      },
-      services: createServices({
-        collectionIds: [collectionId(1), collectionId(2)],
-        itemIds: [],
+        blockIds: [todoBlockId(101), todoBlockId(102)],
+        collectionIds: [todoCollectionId(1), todoCollectionId(2)],
         timestamps: [
           "2026-07-18T01:00:00.000Z",
           "2026-07-18T02:00:00.000Z",
@@ -205,129 +163,52 @@ describe("todo application mutations", () => {
 
     actions.createCollection("一");
     actions.createCollection("二");
-    requestedCollectionId = collectionId(2);
-    actions.deleteCollection(collectionId(1));
-
-    expect(requestedCollectionId).toBe(collectionId(2));
+    requested = todoCollectionId(1);
+    expect(actions.deleteCollection(todoCollectionId(1))).toBe(
+      todoCollectionId(2),
+    );
+    expect(requested).toBe(todoCollectionId(2));
   });
 
-  it("clamps all timestamped mutations when the browser clock moves backwards", () => {
-    const harness = createFunctionalSession(createEmptyContent());
+  it("clamps generated timestamps against canonical block history", () => {
+    const harness = createFunctionalSession(createEmptyTodoContent());
     const actions = createTodoMutationActions({
       onCollectionCreated: () => undefined,
       onCollectionDeleted: () => undefined,
       services: createServices({
-        collectionIds: [collectionId(1), collectionId(2)],
-        itemIds: [itemId(1), itemId(2)],
+        blockIds: [todoBlockId(101), todoBlockId(1)],
+        collectionIds: [todoCollectionId(1)],
         timestamps: [
           "2026-07-18T10:00:00.000Z",
           "2026-07-18T05:00:00.000Z",
           "2026-07-18T04:00:00.000Z",
-          "2026-07-18T03:00:00.000Z",
-          "2026-07-18T02:00:00.000Z",
-          "2026-07-18T01:00:00.000Z",
-          "2026-07-18T00:00:00.000Z",
-          "2026-07-17T23:00:00.000Z",
         ],
       }),
       session: harness.session,
     });
 
     actions.createCollection("一");
-    actions.renameCollection(collectionId(1), "已重命名");
-    actions.createItem(collectionId(1), "第一项");
-    actions.updateItemText(collectionId(1), itemId(1), "已修改");
-    actions.toggleItem(collectionId(1), itemId(1));
-    actions.createItem(collectionId(1), "第二项");
-    actions.moveItem(collectionId(1), itemId(2), 0);
-    actions.createCollection("二");
+    appendTask(harness.content, actions, todoCollectionId(1), "任务");
+    actions.toggleBlock(todoCollectionId(1), todoBlockId(1));
 
-    const [first, second] = harness.content.collections;
-
-    expect(first?.createdAt).toBe("2026-07-18T10:00:00.000Z");
-    expect(first?.updatedAt).toBe("2026-07-18T10:00:00.000Z");
-    expect(first?.items.map(({ completedAt, createdAt, updatedAt }) => ({
-      completedAt,
-      createdAt,
-      updatedAt,
-    }))).toEqual([
-      {
-        completedAt: null,
-        createdAt: "2026-07-18T10:00:00.000Z",
-        updatedAt: "2026-07-18T10:00:00.000Z",
-      },
-      {
-        completedAt: "2026-07-18T10:00:00.000Z",
-        createdAt: "2026-07-18T10:00:00.000Z",
-        updatedAt: "2026-07-18T10:00:00.000Z",
-      },
-    ]);
-    expect(second?.createdAt).toBe("2026-07-18T10:00:00.000Z");
-  });
-
-  it("deletes items through a functional update and preserves the remaining order", () => {
-    const harness = createFunctionalSession(createEmptyContent());
-    const actions = createTodoMutationActions({
-      onCollectionCreated: () => undefined,
-      onCollectionDeleted: () => undefined,
-      services: createServices({
-        collectionIds: [collectionId(1)],
-        itemIds: [itemId(1), itemId(2)],
-        timestamps: [
-          "2026-07-18T01:00:00.000Z",
-          "2026-07-18T02:00:00.000Z",
-          "2026-07-18T03:00:00.000Z",
-          "2026-07-18T04:00:00.000Z",
-        ],
-      }),
-      session: harness.session,
-    });
-
-    actions.createCollection("集合");
-    actions.createItem(collectionId(1), "保留");
-    actions.createItem(collectionId(1), "删除");
-    actions.deleteItem(collectionId(1), itemId(2));
-
-    expect(harness.content.collections[0]?.items.map(({ id }) => id)).toEqual([
-      itemId(1),
-    ]);
-    expect(harness.content.collections[0]?.updatedAt).toBe(
-      "2026-07-18T04:00:00.000Z",
+    expect(harness.content.collections[0]!.completions[0]!.completedAt).toBe(
+      "2026-07-18T10:00:00.000Z",
     );
   });
 
-  it("rejects non-todo system content and invalid application clocks", () => {
+  it("rejects non-Todo content and provides prefixed browser ids", () => {
     expect(() => requireTodoContent({
       dailyCounters: [],
       entries: [],
       purpose: "system-journal",
       schemaVersion: 2,
-      syntaxSource: "invalid on purpose",
+      syntaxSource: "",
     })).toThrow("received non-todo content");
 
-    const actions = createTodoMutationActions({
-      onCollectionCreated: () => undefined,
-      onCollectionDeleted: () => undefined,
-      services: {
-        createCollectionId: () => collectionId(1),
-        createItemId: () => itemId(1),
-        now: () => new Date(Number.NaN),
-      },
-      session: createFunctionalSession(createEmptyContent()).session,
-    });
-
-    expect(() => actions.createCollection("集合")).toThrow(
-      "time source returned an invalid date",
-    );
-  });
-
-  it("provides browser UUID and clock services with the Todo prefixes", () => {
     const services = createBrowserTodoApplicationServices();
 
-    expect(services.createCollectionId()).toMatch(
-      /^todo-collection-[0-9a-f-]{36}$/,
-    );
-    expect(services.createItemId()).toMatch(/^todo-item-[0-9a-f-]{36}$/);
+    expect(services.createCollectionId()).toMatch(/^todo-collection-[0-9a-f-]{36}$/);
+    expect(services.createBlockId()).toMatch(/^[0-9a-f-]{36}$/);
     expect(services.now()).toBeInstanceOf(Date);
   });
 });

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CtnEditableBlock } from "../../ctn/parser/types";
 import {
+  CtnCheckboxWidget,
   getBlockLineDecorationClass,
   getBlockLineDecorationStyle,
   getInlineDecorationStyle,
@@ -40,6 +41,60 @@ function createBlock(
 }
 
 describe("ctn editor decorations", () => {
+  it("routes checkbox changes to the current Todo callback and ignores editor events", () => {
+    class FakeCheckbox extends EventTarget {
+      checked = false;
+      className = "";
+      type = "";
+      readonly attributes = new Map<string, string>();
+
+      setAttribute(name: string, value: string) {
+        this.attributes.set(name, value);
+      }
+    }
+
+    const checkbox = new FakeCheckbox();
+    const originalDocument = globalThis.document;
+    const onToggle = vi.fn();
+
+    Object.defineProperty(globalThis, "document", {
+      configurable: true,
+      value: { createElement: () => checkbox },
+    });
+    try {
+      const widget = new CtnCheckboxWidget(
+        {
+          blockId: "00000000-0000-4000-8000-000000000001",
+          checked: true,
+          label: "完成测试",
+          lineNumber: 1,
+        },
+        { current: onToggle },
+      );
+      const dom = widget.toDOM();
+
+      expect(dom).toBe(checkbox);
+      expect(checkbox.checked).toBe(true);
+      expect(checkbox.attributes.get("aria-label")).toBe("标记未完成 完成测试");
+      expect(widget.ignoreEvent()).toBe(true);
+
+      checkbox.dispatchEvent(new Event("change", { cancelable: true }));
+
+      expect(onToggle).toHaveBeenCalledWith(
+        "00000000-0000-4000-8000-000000000001",
+      );
+    } finally {
+      if (originalDocument) {
+        Object.defineProperty(globalThis, "document", {
+          configurable: true,
+          value: originalDocument,
+        });
+      } else {
+        Reflect.deleteProperty(globalThis, "document");
+      }
+    }
+  });
+
   it("decorates known markers", () => {
     expect(shouldDecorateMarker(createBlock({ marker: ":" }))).toBe(true);
   });

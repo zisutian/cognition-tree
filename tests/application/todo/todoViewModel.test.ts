@@ -1,155 +1,228 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
+import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
 import {
-  createTodoCollection,
-  createTodoItem,
-  toggleTodoItem,
+  toggleTodoBlock,
+  updateTodoCollectionBody,
 } from "../../../todo/commands/todoCommands";
-import type {
-  TodoCollectionId,
-  TodoContent,
-  TodoItemId,
+import { createTodoParseIndex } from "../../../todo/indexes/todoParseIndex";
+import {
+  createTodoCollectionBodyProjection,
+  type TodoContent,
 } from "../../../todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
 import {
   createTodoViewModel,
   getTodoPersistenceErrorMessage,
 } from "../../../src/application/todo/todoViewModel";
 import type { TodoMutationActions } from "../../../src/application/todo/todoApplication";
-
-const collectionOne =
-  "todo-collection-00000000-0000-4000-8000-000000000001" as TodoCollectionId;
-const collectionTwo =
-  "todo-collection-00000000-0000-4000-8000-000000000002" as TodoCollectionId;
-const itemOne =
-  "todo-item-00000000-0000-4000-8000-000000000001" as TodoItemId;
-const itemTwo =
-  "todo-item-00000000-0000-4000-8000-000000000002" as TodoItemId;
+import {
+  appendTodoTestCollection,
+  appendTodoTestItem,
+  createEmptyTodoContent,
+  todoBlockId,
+  todoCollectionId,
+  todoTimestamp,
+} from "../../todo/todoTestFixture";
 
 function createContent() {
-  let content: TodoContent = {
-    collections: [],
-    purpose: "system-todo",
-    schemaVersion: 1,
-  };
-  content = createTodoCollection(content, {
-    collectionId: collectionOne,
-    createdAt: "2026-07-18T01:00:00.000Z",
+  let content = appendTodoTestCollection(createEmptyTodoContent(), {
+    collectionIndex: 1,
+    createdAt: todoTimestamp(1),
     name: "第一组",
-  }).content;
-  content = createTodoItem(content, {
-    collectionId: collectionOne,
-    createdAt: "2026-07-18T02:00:00.000Z",
-    itemId: itemOne,
-    text: "已完成但保持原位",
-  }).content;
-  content = createTodoItem(content, {
-    collectionId: collectionOne,
-    createdAt: "2026-07-18T03:00:00.000Z",
-    itemId: itemTwo,
-    text: "未完成",
-  }).content;
-  content = toggleTodoItem(content, {
-    collectionId: collectionOne,
-    itemId: itemOne,
-    updatedAt: "2026-07-18T04:00:00.000Z",
   });
-  return createTodoCollection(content, {
-    collectionId: collectionTwo,
-    createdAt: "2026-07-18T05:00:00.000Z",
+  content = appendTodoTestItem(content, {
+    collectionIndex: 1,
+    createdAt: todoTimestamp(2),
+    itemIndex: 1,
+    text: "已完成但保持原位",
+  });
+  content = appendTodoTestItem(content, {
+    collectionIndex: 1,
+    createdAt: todoTimestamp(3),
+    itemIndex: 2,
+    level: 1,
+    text: "子任务",
+  });
+  content = toggleTodoBlock(content, {
+    blockId: todoBlockId(1),
+    collectionId: todoCollectionId(1),
+    completedAt: todoTimestamp(4),
+  });
+  return appendTodoTestCollection(content, {
+    collectionIndex: 2,
+    createdAt: todoTimestamp(5),
     name: "第二组",
-  }).content;
+  });
 }
 
-function createActions() {
+function createActions(): TodoMutationActions {
   return {
-    createCollection: vi.fn(() => collectionTwo),
-    createItem: vi.fn(() => itemTwo),
-    deleteCollection: vi.fn(() => collectionOne),
-    deleteItem: vi.fn(),
+    createCollection: vi.fn(() => todoCollectionId(2)),
+    deleteCollection: vi.fn(() => todoCollectionId(1)),
+    moveBlock: vi.fn(),
     moveCollection: vi.fn(),
-    moveItem: vi.fn(),
     renameCollection: vi.fn(),
-    toggleItem: vi.fn(),
-    updateItemText: vi.fn(),
-  } satisfies TodoMutationActions;
+    toggleBlock: vi.fn(),
+    updateCollectionBody: vi.fn(),
+    updateSyntaxSource: vi.fn(),
+  };
 }
 
-describe("todo view model", () => {
-  it("projects stored collection and item order without moving completed items", () => {
-    const content = createContent();
-    const actions = createActions();
-    const selectCollection = vi.fn();
-    const view = createTodoViewModel({
-      activeCollectionId: collectionOne,
-      content,
-      ...actions,
-      persistence: { status: "saved" },
-      selectCollection,
-    });
+function createView(content: TodoContent, activeCollectionId = todoCollectionId(1)) {
+  const actions = createActions();
+  const selectCollection = vi.fn();
+  const openCollectionLine = vi.fn();
+  const view = createTodoViewModel({
+    activeBodyPosition: { collectionId: activeCollectionId, lineNumber: 2 },
+    activeCollectionId,
+    consumeFocusRequest: vi.fn(),
+    content,
+    focusRequest: null,
+    index: createTodoParseIndex(content),
+    ...actions,
+    openCollectionLine,
+    persistence: { status: "saved" },
+    selectCollection,
+    updateActiveBodyLine: vi.fn(),
+  });
+
+  return { actions, openCollectionLine, selectCollection, view };
+}
+
+describe("Todo CTN view model", () => {
+  it("projects source order, nested structure, and sidecar completion", () => {
+    const { view } = createView(createContent());
 
     expect(view.collections).toEqual([
       expect.objectContaining({
         completedItemCount: 1,
-        id: collectionOne,
+        id: todoCollectionId(1),
         isActive: true,
         itemCount: 2,
         name: "第一组",
       }),
       expect.objectContaining({
         completedItemCount: 0,
-        id: collectionTwo,
+        id: todoCollectionId(2),
         isActive: false,
         itemCount: 0,
         name: "第二组",
       }),
     ]);
-    expect(view.activeCollection).toMatchObject({
-      id: collectionOne,
-      name: "第一组",
-    });
-    expect(view.items.map(({ completed, id, text }) => ({
-      completed,
-      id,
-      text,
-    }))).toEqual([
-      {
-        completed: true,
-        id: itemOne,
-        text: "已完成但保持原位",
-      },
-      { completed: false, id: itemTwo, text: "未完成" },
+    expect(view.editor.documentText).toBe(
+      "[] 已完成但保持原位\n\t[] 子任务",
+    );
+    expect(view.editor.checkableBlocks).toEqual([
+      expect.objectContaining({ blockId: todoBlockId(1), checked: true }),
+      expect.objectContaining({ blockId: todoBlockId(2), checked: false }),
     ]);
-    expect(view.persistenceErrorMessage).toBe("");
-
-    view.selectCollection(collectionTwo);
-    view.createItem(collectionOne, "新任务");
-    view.moveItem(collectionOne, itemTwo, 0);
-    expect(selectCollection).toHaveBeenCalledWith(collectionTwo);
-    expect(actions.createItem).toHaveBeenCalledWith(collectionOne, "新任务");
-    expect(actions.moveItem).toHaveBeenCalledWith(collectionOne, itemTwo, 0);
-  });
-
-  it("projects an empty Todo repository without inventing a collection", () => {
-    const actions = createActions();
-    const view = createTodoViewModel({
-      activeCollectionId: null,
-      content: {
-        collections: [],
-        purpose: "system-todo",
-        schemaVersion: 1,
-      },
-      ...actions,
-      persistence: { status: "saved" },
-      selectCollection: vi.fn(),
+    expect(view.outline.nodes[0]).toMatchObject({
+      completed: true,
+      id: todoBlockId(1),
+      text: "已完成但保持原位",
+      children: [{ id: todoBlockId(2), completed: false, text: "子任务" }],
     });
-
-    expect(view.activeCollection).toBeNull();
-    expect(view.collections).toEqual([]);
-    expect(view.items).toEqual([]);
+    expect(view.outline.activeBlock?.id).toBe(todoBlockId(2));
+    expect(view.diagnostics.diagnostics).toEqual([]);
   });
 
-  it("shows persistence failures and conflicts without inventing Todo diagnostics", () => {
+  it("routes editor, completion, structure, syntax, and navigation actions", () => {
+    const { actions, openCollectionLine, selectCollection, view } = createView(
+      createContent(),
+    );
+    const change = { edits: [], source: view.editor.documentText };
+
+    view.selectCollection(todoCollectionId(2));
+    view.editor.updateBody(change);
+    view.toggleBlock(todoCollectionId(1), todoBlockId(1));
+    view.moveBlock(todoCollectionId(1), todoBlockId(2), {
+      kind: "above",
+      targetBlockId: todoBlockId(1),
+    });
+    view.syntax.updateSource("source");
+    view.outline.onSelectLine(2);
+
+    expect(selectCollection).toHaveBeenCalledWith(todoCollectionId(2));
+    expect(actions.updateCollectionBody).toHaveBeenCalledWith(
+      todoCollectionId(1),
+      change,
+    );
+    expect(actions.toggleBlock).toHaveBeenCalledWith(
+      todoCollectionId(1),
+      todoBlockId(1),
+    );
+    expect(actions.moveBlock).toHaveBeenCalled();
+    expect(actions.updateSyntaxSource).toHaveBeenCalledWith("source");
+    expect(openCollectionLine).toHaveBeenCalledWith(todoCollectionId(1), 2);
+  });
+
+  it("reports missing markers without hiding recognized descendants", () => {
+    let content = appendTodoTestCollection(createEmptyTodoContent(), {
+      collectionIndex: 1,
+    });
+    content = appendTodoTestItem(content, {
+      collectionIndex: 1,
+      createdAt: todoTimestamp(2),
+      itemIndex: 1,
+      text: "合法子任务",
+    });
+    const collection = content.collections[0]!;
+    const projection = createTodoCollectionBodyProjection(
+      collection,
+      requireTodoSyntaxProfile(content.syntaxSource),
+    );
+    const malformed = updateTodoCollectionBody(content, {
+      change: {
+        edits: [{
+          from: 0,
+          insertedText: "缺少符号\n\t[] 合法子任务",
+          to: projection.source.length,
+        }],
+        source: "缺少符号\n\t[] 合法子任务",
+      },
+      collectionId: todoCollectionId(1),
+      createBlockId: () => todoBlockId(99),
+      updatedAt: todoTimestamp(3),
+    });
+    const { view } = createView(malformed);
+
+    expect(view.diagnostics.diagnostics).toEqual([
+      expect.objectContaining({ code: "missing-todo-marker" }),
+    ]);
+    expect(view.outline.nodes).toEqual([
+      expect.objectContaining({ text: "合法子任务" }),
+    ]);
+  });
+
+  it("projects every pre-existing normalized collection name conflict", () => {
+    const content = createContent();
+    const conflicted = {
+      ...content,
+      collections: content.collections.map((collection) =>
+        collection.id === todoCollectionId(2)
+          ? {
+              ...collection,
+              source: replaceCtnSourceTitle(
+                collection.source,
+                "第一组",
+                todoTimestamp(6),
+              ),
+            }
+          : collection
+      ),
+    };
+    const { view } = createView(conflicted);
+
+    expect(
+      view.diagnostics.diagnostics.filter(
+        ({ code }) => code === "todo-collection-name-conflict",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("shows persistence failures and conflicts", () => {
     expect(getTodoPersistenceErrorMessage({
       localCopySafe: true,
       message: "本地保存失败",
@@ -160,6 +233,5 @@ describe("todo view model", () => {
       remoteRevision: `sha256:${"a".repeat(64)}`,
       status: "conflict",
     })).toBe("代办存在同步冲突，请前往仓库处理。");
-    expect(getTodoPersistenceErrorMessage({ status: "pending-sync" })).toBe("");
   });
 });

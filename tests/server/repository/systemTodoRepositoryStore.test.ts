@@ -14,6 +14,7 @@ import {
   appendTodoTestCollection,
   appendTodoTestItem,
   createEmptyTodoContent,
+  todoBlockId,
   todoTimestamp,
 } from "../../todo/todoTestFixture.ts";
 
@@ -75,7 +76,10 @@ describe("filesystem Todo system repository", () => {
         ...valid,
         collections: [{
           ...valid.collections[0]!,
-          createdAt: todoTimestamp(0),
+          source: valid.collections[0]!.source.replace(
+            `id=${todoBlockId(10_001)} created=${todoTimestamp(1)}`,
+            `id=${todoBlockId(10_001)} created=${todoTimestamp(0)}`,
+          ),
         }],
       };
 
@@ -105,7 +109,13 @@ describe("filesystem Todo system repository", () => {
       const valid = createTodoContent();
       const invalid = {
         ...valid,
-        collections: [{ ...valid.collections[0]!, name: " 未裁剪 " }],
+        collections: [{
+          ...valid.collections[0]!,
+          completions: [{
+            blockId: todoBlockId(99),
+            completedAt: todoTimestamp(3),
+          }],
+        }],
       };
       const invalidSource = `${JSON.stringify(invalid)}\n`;
 
