@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
   chmod,
-  cp,
   lstat,
   mkdir,
   open,
@@ -54,7 +53,6 @@ type BuiltInDefinition<Content> = {
   createStore(filePath: string): VersionedContentStore<Content>;
   epoch: number;
   id: BuiltInIdDto;
-  oldPurpose: "system-journal" | "system-todo";
 };
 
 type AnyBuiltInDefinition =
@@ -67,7 +65,6 @@ type BuiltInState =
 
 export type BuiltInCatalogOptions = {
   journalDefinition?: BuiltInDefinition<JournalContentDto>;
-  legacyStateDirectory?: string | null;
   todoDefinition?: BuiltInDefinition<TodoContentDto>;
 };
 
@@ -76,7 +73,6 @@ const defaultJournalDefinition: BuiltInDefinition<JournalContentDto> = {
   createStore: createFileSystemJournalContentStore,
   epoch: journalStorageEpoch,
   id: "journal",
-  oldPurpose: "system-journal",
 };
 
 const defaultTodoDefinition: BuiltInDefinition<TodoContentDto> = {
@@ -84,7 +80,6 @@ const defaultTodoDefinition: BuiltInDefinition<TodoContentDto> = {
   createStore: createFileSystemTodoContentStore,
   epoch: todoStorageEpoch,
   id: "todo",
-  oldPurpose: "system-todo",
 };
 
 async function fsyncDirectory(directory: string) {
@@ -101,8 +96,6 @@ export class BuiltInCatalog {
   #builtInsDirectory: string;
   readonly #definitions: readonly AnyBuiltInDefinition[];
   #initialized = false;
-  readonly #legacyBuiltInsDirectory: string | null;
-  readonly #legacyStateDirectory: string | null;
   #operationQueue: Promise<void> = Promise.resolve();
   #repositoryRootDirectory: string;
   readonly #stateById = new Map<BuiltInIdDto, BuiltInState>();
@@ -111,7 +104,6 @@ export class BuiltInCatalog {
     repositoryRootDirectory: string,
     {
       journalDefinition = defaultJournalDefinition,
-      legacyStateDirectory = null,
       todoDefinition = defaultTodoDefinition,
     }: BuiltInCatalogOptions = {},
   ) {
@@ -120,12 +112,6 @@ export class BuiltInCatalog {
       this.#repositoryRootDirectory,
       builtInsDirectoryName,
     );
-    this.#legacyStateDirectory = legacyStateDirectory === null
-      ? null
-      : path.resolve(legacyStateDirectory);
-    this.#legacyBuiltInsDirectory = this.#legacyStateDirectory === null
-      ? null
-      : path.join(this.#legacyStateDirectory, "built-ins");
     this.#definitions = [journalDefinition, todoDefinition];
   }
 
@@ -203,7 +189,6 @@ export class BuiltInCatalog {
   async #refreshAll(provision: boolean) {
     try {
       await this.#ensureRepositoryRoot(provision);
-      await this.#relocateLegacyBuiltIns(provision);
       await this.#ensureDirectory(this.#builtInsDirectory, provision);
     } catch (error) {
       for (const definition of this.#definitions) {
@@ -326,68 +311,6 @@ export class BuiltInCatalog {
     );
   }
 
-  async #relocateLegacyBuiltIns(provision: boolean) {
-    const legacyDirectory = this.#legacyBuiltInsDirectory;
-
-    if (
-      !provision ||
-      legacyDirectory === null ||
-      path.resolve(legacyDirectory) === path.resolve(this.#builtInsDirectory)
-    ) {
-      return;
-    }
-    const legacyStats = await lstat(legacyDirectory).catch((error: unknown) => {
-      if (hasFileSystemErrorCode(error, "ENOENT")) return null;
-      throw error;
-    });
-
-    if (!legacyStats) return;
-    if (!legacyStats.isDirectory() || legacyStats.isSymbolicLink()) {
-      throw new RepositoryCorruptError(
-        "Legacy built-in data path is not a real directory",
-      );
-    }
-    const targetStats = await lstat(this.#builtInsDirectory).catch(
-      (error: unknown) => {
-        if (hasFileSystemErrorCode(error, "ENOENT")) return null;
-        throw error;
-      },
-    );
-
-    // A published target is authoritative. Never merge or overwrite two
-    // independently writable copies of Journal/Todo data.
-    if (targetStats) return;
-
-    try {
-      await rename(legacyDirectory, this.#builtInsDirectory);
-      await fsyncDirectory(this.#repositoryRootDirectory);
-      await fsyncDirectory(path.dirname(legacyDirectory));
-      return;
-    } catch (error) {
-      if (!hasFileSystemErrorCode(error, "EXDEV")) throw error;
-    }
-
-    const stagingDirectory = path.join(
-      this.#repositoryRootDirectory,
-      `..built-ins-migration-${process.pid}-${randomUUID()}`,
-    );
-
-    try {
-      await cp(legacyDirectory, stagingDirectory, {
-        dereference: false,
-        errorOnExist: true,
-        force: false,
-        recursive: true,
-      });
-      await rename(stagingDirectory, this.#builtInsDirectory);
-      await fsyncDirectory(this.#repositoryRootDirectory);
-      await rm(legacyDirectory, { force: true, recursive: true });
-      await fsyncDirectory(path.dirname(legacyDirectory));
-    } finally {
-      await rm(stagingDirectory, { force: true, recursive: true });
-    }
-  }
-
   async #ensureEpoch(
     definition: AnyBuiltInDefinition,
     contentPath: string,
@@ -407,27 +330,11 @@ export class BuiltInCatalog {
     if (!provision) {
       throw new RepositoryCorruptError("Built-in storage epoch does not match");
     }
-    await this.#deleteOldSystemFiles(definition.oldPurpose);
     await this.#replaceFileAtomically(
       contentPath,
       `${serializeJsonIteratively(definition.createEmptyContent(), { indent: 2 })}\n`,
     );
     await this.#replaceFileAtomically(epochPath, `${definition.epoch}\n`);
-  }
-
-  async #deleteOldSystemFiles(oldPurpose: string) {
-    if (this.#legacyStateDirectory === null) return;
-    const oldDirectory = path.join(
-      this.#legacyStateDirectory,
-      "system-repositories",
-    );
-
-    for (const suffix of [".json", ".epoch", ".json.lock"] as const) {
-      await rm(path.join(oldDirectory, `${oldPurpose}${suffix}`), {
-        force: true,
-        recursive: suffix === ".json.lock",
-      });
-    }
   }
 
   async #readEpoch(epochPath: string): Promise<number | null> {

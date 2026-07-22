@@ -54,9 +54,7 @@ function openBuiltInStore<Content>(
 }
 
 function createBuiltInCatalog(repositoryRoot: string) {
-  return new BuiltInCatalog(repositoryRoot, {
-    legacyStateDirectory: repositoryRoot,
-  });
+  return new BuiltInCatalog(repositoryRoot);
 }
 
 describe("filesystem built-in data catalog", () => {
@@ -193,18 +191,16 @@ describe("filesystem built-in data catalog", () => {
     });
   });
 
-  it("relocates current built-in data from server state into the repository root", async () => {
+  it("ignores a retired external built-in data directory", async () => {
     await withStateDirectory(async (temporaryRoot) => {
-      const legacyStateDirectory = path.join(temporaryRoot, "server");
+      const retiredStateDirectory = path.join(temporaryRoot, "server");
       const sourceRepositoryRoot = path.join(temporaryRoot, "old-repositories");
       const repositoryRoot = path.join(temporaryRoot, "repositories");
 
-      await mkdir(legacyStateDirectory, { mode: 0o700 });
+      await mkdir(retiredStateDirectory, { mode: 0o700 });
       await mkdir(sourceRepositoryRoot, { mode: 0o775 });
       await mkdir(repositoryRoot, { mode: 0o775 });
-      const source = new BuiltInCatalog(sourceRepositoryRoot, {
-        legacyStateDirectory,
-      });
+      const source = new BuiltInCatalog(sourceRepositoryRoot);
 
       await source.initialize();
       const journalStore = await openBuiltInStore<JournalContentDto>(
@@ -221,23 +217,23 @@ describe("filesystem built-in data catalog", () => {
         baseRevision: base.revision,
         content: journalContent,
       });
-      const legacyBuiltIns = path.join(legacyStateDirectory, "built-ins");
+      const retiredBuiltIns = path.join(retiredStateDirectory, "built-ins");
 
       await rename(
         path.join(sourceRepositoryRoot, ".built-ins"),
-        legacyBuiltIns,
+        retiredBuiltIns,
       );
-      const migrated = new BuiltInCatalog(repositoryRoot, {
-        legacyStateDirectory,
-      });
+      const current = new BuiltInCatalog(repositoryRoot);
 
-      await migrated.initialize();
+      await current.initialize();
       await expect((await openBuiltInStore<JournalContentDto>(
-        migrated,
+        current,
         "journal",
-      )).loadSnapshot()).resolves.toMatchObject({ content: journalContent });
-      await expect(lstat(legacyBuiltIns)).rejects.toMatchObject({ code: "ENOENT" });
-      await expect(migrated.listBuiltIns()).resolves.toMatchObject({
+      )).loadSnapshot()).resolves.toMatchObject({
+        content: createEmptyJournalContent(),
+      });
+      expect((await lstat(retiredBuiltIns)).isDirectory()).toBe(true);
+      await expect(current.listBuiltIns()).resolves.toMatchObject({
         repositories: [
           {
             id: "journal",
@@ -259,7 +255,7 @@ describe("filesystem built-in data catalog", () => {
     });
   });
 
-  it("silently deletes legacy v2 files per domain and leaves current peer data intact", async () => {
+  it("re-provisions a lower current epoch without touching retired files or peer data", async () => {
     await withStateDirectory(async (stateDirectory) => {
       const catalog = createBuiltInCatalog(stateDirectory);
 
@@ -274,17 +270,14 @@ describe("filesystem built-in data catalog", () => {
         baseRevision: todoBase.revision,
         content: todoContent,
       });
-      const legacyDirectory = path.join(stateDirectory, "system-repositories");
+      const retiredDirectory = path.join(stateDirectory, "system-repositories");
+      const retiredSource =
+        '{"purpose":"system-journal","schemaVersion":2,"secret":"ignored"}\n';
 
-      await mkdir(legacyDirectory, { mode: 0o700 });
+      await mkdir(retiredDirectory, { mode: 0o700 });
       await writeFile(
-        path.join(legacyDirectory, "system-journal.json"),
-        '{"purpose":"system-journal","schemaVersion":2,"secret":"discard"}\n',
-        { mode: 0o600 },
-      );
-      await writeFile(
-        path.join(legacyDirectory, "system-journal.epoch"),
-        "2\n",
+        path.join(retiredDirectory, "system-journal.json"),
+        retiredSource,
         { mode: 0o600 },
       );
       const journalDirectory = path.join(stateDirectory, ".built-ins", "journal");
@@ -296,9 +289,9 @@ describe("filesystem built-in data catalog", () => {
 
       await reopened.initialize();
       await expect(readFile(
-        path.join(legacyDirectory, "system-journal.json"),
+        path.join(retiredDirectory, "system-journal.json"),
         "utf8",
-      )).rejects.toMatchObject({ code: "ENOENT" });
+      )).resolves.toBe(retiredSource);
       await expect((await openBuiltInStore<JournalContentDto>(
         reopened,
         "journal",

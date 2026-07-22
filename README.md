@@ -86,8 +86,7 @@ contract、session 和 API：
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
-Workspace。旧 `<CTN_SERVER_STATE_DIR>/built-ins/` 会在首次启动时原样迁入；
-`CTN_SERVER_STATE_DIR` 只保留 WebDAV 连接等服务状态。
+Workspace。`CTN_SERVER_STATE_DIR` 只保留 WebDAV 连接等服务状态。
 
 Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3 contract；旧格式不读取、不迁移。
 

@@ -138,9 +138,7 @@ async function withHandler<Result>(
     createId: () =>
       `00000000-0000-4000-8000-${String(++nextId).padStart(12, "0")}`,
   });
-  const builtInCatalog = new BuiltInCatalog(rootDir, {
-    legacyStateDirectory: path.join(rootDir, ".system-state"),
-  });
+  const builtInCatalog = new BuiltInCatalog(rootDir);
   const handler = createWorkspaceApiRequestHandler({
     catalog,
     security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),

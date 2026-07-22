@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { IDBFactory } from "fake-indexeddb";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   browserJournalDatabaseName,
   browserTodoDatabaseName,
@@ -51,7 +51,7 @@ async function openCurrentDatabase(indexedDb: IDBFactory, name: string) {
   return requestResult(request);
 }
 
-async function seedLegacyDatabase(indexedDb: IDBFactory) {
+async function seedRetiredDatabase(indexedDb: IDBFactory) {
   const request = indexedDb.open(legacyDatabaseName, 2);
 
   request.addEventListener("upgradeneeded", () => {
@@ -227,12 +227,18 @@ describe("Browser built-in data repositories", () => {
     })).rejects.toThrow(/createdAt is immutable/);
   });
 
-  it("removes only the matching legacy v2 records during first provision", async () => {
+  it("does not open or alter the retired shared database", async () => {
     const indexedDb = new IDBFactory();
 
-    await seedLegacyDatabase(indexedDb);
+    await seedRetiredDatabase(indexedDb);
+    const open = vi.spyOn(indexedDb, "open");
+
     await expect(createBrowserJournalStorage(indexedDb).inspect()).resolves
       .toEqual({ status: "ready" });
+    expect(open.mock.calls.map(([databaseName]) => databaseName)).toEqual([
+      browserJournalDatabaseName,
+    ]);
+    open.mockRestore();
     const database = await requestResult(indexedDb.open(legacyDatabaseName, 2));
     const transaction = database.transaction([
       "browser-remotes-v1",
@@ -250,19 +256,47 @@ describe("Browser built-in data repositories", () => {
 
     await completion;
     database.close();
-    expect(remotes).toEqual([
-      expect.objectContaining({ purpose: "system-todo" }),
-    ]);
-    expect(locals).toEqual([
-      expect.objectContaining({ identity: "browser-system:system-todo" }),
-    ]);
-    expect(epochs).toEqual([
-      expect.objectContaining({ purpose: "system-todo" }),
-    ]);
+    expect(remotes).toHaveLength(2);
+    expect(locals).toHaveLength(2);
+    expect(epochs).toHaveLength(2);
     expect(catalog).toEqual({
-      issues: [{ id: "system-todo" }],
-      repositories: [{ id: "system-todo" }],
+      issues: [{ id: "system-journal" }, { id: "system-todo" }],
+      repositories: [{ id: "system-journal" }, { id: "system-todo" }],
     });
+  });
+
+  it("re-provisions only the current domain when its epoch is lower", async () => {
+    const indexedDb = new IDBFactory();
+    const oldJournal = createBrowserJournalStorage(indexedDb, 2);
+    const journalBase = await oldJournal.backend.loadRemoteSnapshot();
+    const journalContent = appendJournalTestEntry(
+      createEmptyJournalContent(),
+      { createdAt: "2026-07-18T00:00:01.000Z", entryIndex: 1 },
+    );
+
+    await oldJournal.backend.commitRemoteSnapshot({
+      baseRevision: journalBase.revision,
+      content: journalContent,
+    });
+    const todo = createBrowserTodoStorage(indexedDb);
+    const todoBase = await todo.backend.loadRemoteSnapshot();
+    const todoContent = appendTodoTestCollection(createEmptyTodoContent(), {
+      collectionIndex: 1,
+      createdAt: todoTimestamp(1),
+      name: "必须保留",
+    });
+
+    await todo.backend.commitRemoteSnapshot({
+      baseRevision: todoBase.revision,
+      content: todoContent,
+    });
+
+    const currentJournal = createBrowserJournalStorage(indexedDb);
+
+    await expect(currentJournal.backend.loadRemoteSnapshot()).resolves
+      .toMatchObject({ content: createEmptyJournalContent() });
+    await expect(todo.backend.loadRemoteSnapshot()).resolves
+      .toMatchObject({ content: todoContent });
   });
 
   it("preserves corrupt current content and a future epoch exactly", async () => {

@@ -106,8 +106,6 @@ HTTP 内容根目录：
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
 .built-ins 是保留基础设施目录，Local catalog 不会将它解释为普通仓库。
-服务首次使用新布局时，将旧 <CTN_SERVER_STATE_DIR>/built-ins/ 原样迁入，
-不解析或转换 Journal/Todo content；已存在的新目录永远不会被旧目录覆盖。
 
 Browser 内置数据分别使用 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两个领域的 content、epoch、draft/cache 和同步队列相互隔离。
 

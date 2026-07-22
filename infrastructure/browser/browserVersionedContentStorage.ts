@@ -101,7 +101,6 @@ export function createBrowserVersionedContentStorage<
   Content,
   Revision extends `sha256:${string}`,
 >({
-  clearPreviousData = async () => undefined,
   codec,
   createEmptyContent,
   databaseName,
@@ -111,7 +110,6 @@ export function createBrowserVersionedContentStorage<
   validateContent,
   validateTransition,
 }: {
-  clearPreviousData?: () => Promise<void>;
   codec: VersionedRepositoryCodec<Content, Revision>;
   createEmptyContent(): Content;
   databaseName: string;
@@ -161,7 +159,6 @@ export function createBrowserVersionedContentStorage<
         initialEpoch,
       );
     }
-    await clearPreviousData();
     const fallback = await emptySnapshot();
     const transaction = database.transaction(
       [metaStoreName, remoteStoreName, localStoreName],

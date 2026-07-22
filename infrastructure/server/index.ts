@@ -52,9 +52,7 @@ const catalog = new CompositeRepositoryCatalog(
   localCatalog,
   webDavRegistry,
 );
-const builtInCatalog = new BuiltInCatalog(repositoryRoot, {
-  legacyStateDirectory: serverStateDirectory,
-});
+const builtInCatalog = new BuiltInCatalog(repositoryRoot);
 
 await catalog.initialize();
 await builtInCatalog.initialize();

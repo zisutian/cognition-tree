@@ -91,7 +91,7 @@ describe("semantic source ownership", () => {
     expect(Object.keys(legacySourceModules)).toEqual([]);
   });
 
-  it("keeps v2 knowledge confined to destructive per-domain epoch cleanup", () => {
+  it("contains no retired built-in v2 cleanup knowledge", () => {
     const v2Owners = Object.entries({
       ...sourceModules,
       ...contractModules,
@@ -99,9 +99,6 @@ describe("semantic source ownership", () => {
       .filter(([, source]) => /(?:schemaVersion\s*:\s*2|system-journal|system-todo)/.test(source))
       .map(([filePath]) => sourcePathToRelative(filePath));
 
-    expect(v2Owners).toEqual([
-      "infrastructure/browser/browserBuiltInRepositories.ts",
-      "infrastructure/server/repository/builtInCatalog.ts",
-    ]);
+    expect(v2Owners).toEqual([]);
   });
 });

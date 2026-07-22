@@ -45,9 +45,7 @@ const webDavRegistry = new WebDavConnectionRegistry({
   stateDirectory: serverStateDir,
 });
 const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
-const builtInCatalog = new BuiltInCatalog(repositoryDir, {
-  legacyStateDirectory: serverStateDir,
-});
+const builtInCatalog = new BuiltInCatalog(repositoryDir);
 
 await catalog.initialize();
 await builtInCatalog.initialize();
