@@ -307,24 +307,19 @@ export function NoteEditorPanel({
       <PanelHeader
         title={activeNote.title}
         actions={
-          <>
-            {view.editor.errorMessage ? (
-              <span className="ui-error">{view.editor.errorMessage}</span>
-            ) : null}
-            <Button
-              aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-              onClick={onToggleFocusMode}
-              title={focusMode ? "退出专注模式" : "进入专注模式"}
-              type="button"
-              variant="icon"
-            >
-              {focusMode ? (
-                <Minimize2 aria-hidden="true" size={14} />
-              ) : (
-                <Maximize2 aria-hidden="true" size={14} />
-              )}
-            </Button>
-          </>
+          <Button
+            aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+            onClick={onToggleFocusMode}
+            title={focusMode ? "退出专注模式" : "进入专注模式"}
+            type="button"
+            variant="icon"
+          >
+            {focusMode ? (
+              <Minimize2 aria-hidden="true" size={14} />
+            ) : (
+              <Maximize2 aria-hidden="true" size={14} />
+            )}
+          </Button>
         }
       />
       <CtnEditor

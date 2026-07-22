@@ -13,7 +13,10 @@ export type WorkspaceActivityControllerProps = {
   application: WorkbenchApplication;
   onActiveActivityChange: (activityId: import("../../ui/activityTypes").ActivityId) => void;
   onSyntaxLeaveBlockedChange?: (blocked: boolean) => void;
-  onSyntaxProblemsChange?: (diagnostics: WorkbenchDiagnostics | null) => void;
+  onSyntaxProblemsChange?: (
+    diagnostics: WorkbenchDiagnostics | null,
+    owner: "journal" | "todo" | "workspace",
+  ) => void;
   renderActivity: RenderWorkspaceActivity;
   systemSyntaxFocusRequest?: Extract<
     UiSyntaxFocusTarget,

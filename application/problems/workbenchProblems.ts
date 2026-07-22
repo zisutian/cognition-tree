@@ -21,6 +21,21 @@ import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
 } from "../repository/workspaceRepositoryCatalog";
+import type { WorkbenchFeedbackError } from "../workbench/workbenchFeedbackController";
+
+export type UiWorkbenchOperationalProblem = {
+  code: "operation_failed";
+  id: string;
+  locationLabel: string;
+  message: string;
+  severity: "error";
+  source: "operation";
+  target: {
+    feedbackId: string;
+    kind: "operational-error";
+    sourceScope: string;
+  };
+};
 
 export type UiWorkbenchRepositoryProblem = {
   code:
@@ -58,7 +73,8 @@ export type UiWorkbenchProblem =
   | UiWorkbenchDiagnostic
   | JournalDiagnostic
   | TodoDiagnostic
-  | UiWorkbenchRepositoryProblem;
+  | UiWorkbenchRepositoryProblem
+  | UiWorkbenchOperationalProblem;
 
 export type UiWorkbenchProblems = {
   errorCount: number;
@@ -201,12 +217,32 @@ export function projectUiWorkspaceRepositoryRuntimeProblems(
   );
 }
 
+export function projectUiOperationalProblems<Scope extends string>(
+  errors: readonly WorkbenchFeedbackError<Scope>[],
+  getScopeLabel: (scope: Scope) => string = (scope) => scope,
+): UiWorkbenchOperationalProblem[] {
+  return errors.map((error) => ({
+    code: "operation_failed",
+    id: `operation:${error.id}`,
+    locationLabel: getScopeLabel(error.scope),
+    message: error.message,
+    severity: "error",
+    source: "operation",
+    target: {
+      feedbackId: error.id,
+      kind: "operational-error",
+      sourceScope: error.scope,
+    },
+  }));
+}
+
 export function createUiWorkbenchProblems(
   diagnostics: WorkbenchDiagnostics,
   repositoryIssues: WorkspaceRepositoryCatalogIssue[] = [],
   repositories: WorkspaceRepositoryDescriptor[] = [],
   builtInIssues: BuiltInRuntimeIssue[] = [],
   repositoryRuntimeIssues: WorkspaceRepositoryRuntimeIssue[] = [],
+  operationalProblems: UiWorkbenchOperationalProblem[] = [],
 ): UiWorkbenchProblems {
   const problems: UiWorkbenchProblem[] = [
     ...diagnostics.diagnostics,
@@ -214,6 +250,7 @@ export function createUiWorkbenchProblems(
     ...projectUiRepositoryLabelProblems(repositories),
     ...projectUiWorkspaceRepositoryRuntimeProblems(repositoryRuntimeIssues),
     ...projectUiBuiltInProblems(builtInIssues),
+    ...operationalProblems,
   ].sort(compareProblems);
 
   return {

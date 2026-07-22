@@ -18,7 +18,6 @@ export {
 } from "./todoDiagnostics";
 export {
   createTodoViewModel,
-  getTodoPersistenceErrorMessage,
   type TodoActiveCollectionView,
   type TodoActiveBodyPosition,
   type TodoBlockView,

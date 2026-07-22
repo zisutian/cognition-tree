@@ -1,4 +1,3 @@
-import { X } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -7,8 +6,14 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
+import {
+  createWorkbenchFeedbackController,
+  type WorkbenchFeedbackController,
+} from "../../../application/workbench/workbenchFeedbackController";
+import type { ActivityId } from "../activityTypes";
 
 type FeedbackActions = {
   notify: (message: string) => void;
@@ -21,11 +26,8 @@ type RunFeedbackAction = {
   <Result>(action: () => Result): Result | undefined;
 };
 
-type Notification = {
-  id: number;
-  message: string;
-  tone: "error" | "info";
-};
+export type WorkbenchActivityFeedbackController =
+  WorkbenchFeedbackController<ActivityId>;
 
 const unboundFeedbackActions: FeedbackActions = {
   notify(message) {
@@ -40,8 +42,8 @@ const unboundFeedbackActions: FeedbackActions = {
 };
 
 const FeedbackContext = createContext<FeedbackActions>(unboundFeedbackActions);
-const infoNotificationDurationMs = 5_000;
-const maximumNotificationCount = 5;
+const FeedbackControllerContext =
+  createContext<WorkbenchActivityFeedbackController | null>(null);
 
 export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -85,103 +87,107 @@ export function runFeedbackAction<Result>(
   }
 }
 
-function FeedbackNotification({
-  notification,
-  onDismiss,
-}: {
-  notification: Notification;
-  onDismiss: (notificationId: number) => void;
-}) {
-  useEffect(() => {
-    if (notification.tone !== "info") {
-      return undefined;
-    }
-
-    const timer = window.setTimeout(
-      () => onDismiss(notification.id),
-      infoNotificationDurationMs,
-    );
-
-    return () => window.clearTimeout(timer);
-  }, [notification.id, notification.tone, onDismiss]);
-
-  return (
-    <div
-      className={`ui-notification ui-notification-${notification.tone}`}
-      role={notification.tone === "error" ? "alert" : "status"}
-    >
-      <span>{notification.message}</span>
-      <button
-        aria-label="关闭通知"
-        onClick={() => onDismiss(notification.id)}
-        title="关闭通知"
-        type="button"
-      >
-        <X aria-hidden="true" size={13} />
-      </button>
-    </div>
+export function runActivityFeedbackAction<Result>(
+  controller: WorkbenchActivityFeedbackController,
+  sourceActivityId: ActivityId,
+  action: () => Promise<Result>,
+): Promise<Result | undefined>;
+export function runActivityFeedbackAction<Result>(
+  controller: WorkbenchActivityFeedbackController,
+  sourceActivityId: ActivityId,
+  action: () => Result,
+): Result | undefined;
+export function runActivityFeedbackAction<Result>(
+  controller: WorkbenchActivityFeedbackController,
+  sourceActivityId: ActivityId,
+  action: () => Result | Promise<Result>,
+) {
+  return runFeedbackAction(
+    action,
+    (error) => controller.reportError(
+      sourceActivityId,
+      getErrorMessage(error),
+    ),
   );
 }
 
-export function FeedbackProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const nextNotificationIdRef = useRef(1);
-  const dismiss = useCallback((notificationId: number) => {
-    setNotifications((current) =>
-      current.filter((notification) => notification.id !== notificationId),
-    );
-  }, []);
-  const addNotification = useCallback(
-    (message: string, tone: Notification["tone"]) => {
-      const notification = {
-        id: nextNotificationIdRef.current,
-        message,
-        tone,
-      };
-
-      nextNotificationIdRef.current += 1;
-      setNotifications((current) =>
-        [...current, notification].slice(-maximumNotificationCount),
-      );
-    },
-    [],
+export function FeedbackProvider({
+  activeActivityId = "notes",
+  children,
+  controller,
+}: {
+  activeActivityId?: ActivityId;
+  children: ReactNode;
+  controller?: WorkbenchActivityFeedbackController;
+}) {
+  const [fallbackController] = useState(
+    () => createWorkbenchFeedbackController<ActivityId>(),
   );
+  const resolvedController = controller ?? fallbackController;
+  const activeActivityIdRef = useRef(activeActivityId);
+
+  activeActivityIdRef.current = activeActivityId;
+
+  useEffect(() => {
+    if (controller) return undefined;
+    return () => fallbackController.dispose();
+  }, [controller, fallbackController]);
+
   const notify = useCallback(
-    (message: string) => addNotification(message, "info"),
-    [addNotification],
+    (message: string) => resolvedController.reportInfo(
+      activeActivityIdRef.current,
+      message,
+    ),
+    [resolvedController],
   );
   const notifyError = useCallback(
-    (error: unknown) => addNotification(getErrorMessage(error), "error"),
-    [addNotification],
+    (error: unknown) => resolvedController.reportError(
+      activeActivityIdRef.current,
+      getErrorMessage(error),
+    ),
+    [resolvedController],
   );
   const actions = useMemo<FeedbackActions>(
     () => ({
       notify,
       notifyError,
-      runAction: ((action: () => unknown) =>
-        runFeedbackAction(action, notifyError)) as RunFeedbackAction,
+      runAction: ((action: () => unknown) => {
+        const sourceActivityId = activeActivityIdRef.current;
+
+        return runActivityFeedbackAction(
+          resolvedController,
+          sourceActivityId,
+          action,
+        );
+      }) as RunFeedbackAction,
     }),
-    [notify, notifyError],
+    [notify, notifyError, resolvedController],
   );
 
   return (
-    <FeedbackContext.Provider value={actions}>
-      {children}
-      {notifications.length > 0 ? (
-        <div aria-label="通知" className="ui-notification-region">
-          {notifications.map((notification) => (
-            <FeedbackNotification
-              key={notification.id}
-              notification={notification}
-              onDismiss={dismiss}
-            />
-          ))}
-        </div>
-      ) : null}
-    </FeedbackContext.Provider>
+    <FeedbackControllerContext.Provider value={resolvedController}>
+      <FeedbackContext.Provider value={actions}>
+        {children}
+      </FeedbackContext.Provider>
+    </FeedbackControllerContext.Provider>
   );
 }
 
 export function useFeedback() {
   return useContext(FeedbackContext);
+}
+
+export function useWorkbenchFeedback() {
+  const controller = useContext(FeedbackControllerContext);
+
+  if (!controller) {
+    throw new Error("Workbench feedback is not available outside its provider.");
+  }
+  const snapshot = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
+  );
+
+  return { controller, snapshot };
 }

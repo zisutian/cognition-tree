@@ -92,7 +92,6 @@ export type TodoViewModel = TodoMutationActions & {
     onSelectLine: (lineNumber: number) => void;
   };
   persistence: TodoPersistenceState;
-  persistenceErrorMessage: string;
   selectCollection: (collectionId: TodoCollectionId) => void;
   syntax: {
     profile: CtnSyntaxProfile;
@@ -116,16 +115,6 @@ type TodoViewModelInput = TodoMutationActions & {
   selectCollection: (collectionId: TodoCollectionId) => void;
   updateActiveBodyLine: (lineNumber: number) => void;
 };
-
-export function getTodoPersistenceErrorMessage(
-  persistence: TodoPersistenceState,
-) {
-  if (persistence.status === "error") return persistence.message;
-  if (persistence.status === "conflict") {
-    return "代办存在同步冲突，请前往仓库处理。";
-  }
-  return "";
-}
 
 function createTodoBlockNodes({
   blocks,
@@ -289,7 +278,6 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
       },
     },
     persistence,
-    persistenceErrorMessage: getTodoPersistenceErrorMessage(persistence),
     selectCollection,
     syntax: {
       profile: index.syntaxProfile,

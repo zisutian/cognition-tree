@@ -12,7 +12,6 @@ function ActiveNotesActivity({
   renderActivity: WorkspaceActivityControllerProps["renderActivity"];
 }) {
   const view = useNotesActivity({
-    errorMessage: application.shell.errorMessage,
     navigation: application.navigation,
     runtime: application.runtime,
     selection: application.selection,

@@ -62,18 +62,6 @@ function getCollectionDropPlacement(event: DragEvent<HTMLLIElement>) {
   });
 }
 
-function persistenceLabel(view: TodoViewModel) {
-  switch (view.persistence.status) {
-    case "saved": return "已保存";
-    case "saving-local": return "正在保存";
-    case "pending-sync": return "等待同步";
-    case "syncing": return "正在同步";
-    case "offline": return "离线";
-    case "conflict": return "同步冲突";
-    case "error": return "保存失败";
-  }
-}
-
 export function TodoContext({ view }: TodoViewProps) {
   const feedback = useFeedback();
   const [creating, setCreating] = useState(false);
@@ -98,6 +86,7 @@ export function TodoContext({ view }: TodoViewProps) {
   const submitCreate = () => {
     if (!createValue.trim()) {
       setCreateErrorMessage("名称不能为空。");
+      feedback.notifyError(new Error("事项集合名称不能为空。"));
       return;
     }
     const created = feedback.runAction(() => {
@@ -119,6 +108,7 @@ export function TodoContext({ view }: TodoViewProps) {
     if (!draft) return;
     if (!draft.value.trim()) {
       setEditing({ ...draft, errorMessage: "名称不能为空。" });
+      feedback.notifyError(new Error("事项集合名称不能为空。"));
       return;
     }
     if (
@@ -384,22 +374,17 @@ export function TodoEditorPanel({
     <Panel aria-label="代办编辑" className="todo-editor-panel">
       <PanelHeader
         actions={
-          <>
-            <span className={view.persistenceErrorMessage ? "ui-error" : "todo-persistence-state"}>
-              {view.persistenceErrorMessage || persistenceLabel(view)}
-            </span>
-            <Button
-              aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-              onClick={onToggleFocusMode}
-              title={focusMode ? "退出专注模式" : "进入专注模式"}
-              type="button"
-              variant="icon"
-            >
-              {focusMode
-                ? <Minimize2 aria-hidden="true" size={14} />
-                : <Maximize2 aria-hidden="true" size={14} />}
-            </Button>
-          </>
+          <Button
+            aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+            onClick={onToggleFocusMode}
+            title={focusMode ? "退出专注模式" : "进入专注模式"}
+            type="button"
+            variant="icon"
+          >
+            {focusMode
+              ? <Minimize2 aria-hidden="true" size={14} />
+              : <Maximize2 aria-hidden="true" size={14} />}
+          </Button>
         }
         title={view.activeCollection.name}
       />

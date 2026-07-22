@@ -7,11 +7,26 @@ import {
   EmptyState,
   Panel,
 } from "../../ui/shared/primitives";
+import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 
 type TodoBuiltInsApplication = WorkspaceActivityControllerProps[
   "application"
 ]["repository"]["builtIns"];
+
+function TodoRetryButton({ retry }: { retry: () => Promise<void> }) {
+  const feedback = useFeedback();
+
+  return (
+    <Button
+      onClick={() => void feedback.runAction(retry)}
+      type="button"
+      variant="secondary"
+    >
+      重试
+    </Button>
+  );
+}
 
 export function resolveTodoRetry(
   todo: Exclude<TodoApplication, { status: "ready" }>,
@@ -68,13 +83,7 @@ function renderUnavailableTodo(
           action={
             <>
               {retry ? (
-                <Button
-                  onClick={() => void retry()}
-                  type="button"
-                  variant="secondary"
-                >
-                  重试
-                </Button>
+                <TodoRetryButton retry={retry} />
               ) : null}
               <Button
                 onClick={() => onActiveActivityChange("repository")}

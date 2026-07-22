@@ -12,10 +12,7 @@ import {
   type TodoContent,
 } from "../../../core/todo/model/todoContent";
 import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
-import {
-  createTodoViewModel,
-  getTodoPersistenceErrorMessage,
-} from "../../../application/todo/todoViewModel";
+import { createTodoViewModel } from "../../../application/todo/todoViewModel";
 import type { TodoMutationActions } from "../../../application/todo/todoApplication";
 import {
   appendTodoTestCollection,
@@ -230,18 +227,5 @@ describe("Todo CTN view model", () => {
         }),
       }),
     ]));
-  });
-
-  it("shows persistence failures and conflicts", () => {
-    expect(getTodoPersistenceErrorMessage({
-      localCopySafe: true,
-      message: "本地保存失败",
-      phase: "local",
-      status: "error",
-    })).toBe("本地保存失败");
-    expect(getTodoPersistenceErrorMessage({
-      remoteRevision: `sha256:${"a".repeat(64)}`,
-      status: "conflict",
-    })).toBe("代办存在同步冲突，请前往仓库处理。");
   });
 });

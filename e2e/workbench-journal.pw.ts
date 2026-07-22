@@ -166,8 +166,8 @@ test.describe.serial("Journal activity flows", () => {
           : false,
       };
     }).toEqual({ hasBody: true, titlePreserved: true });
-    await expect(editorPanel.locator(".journal-persistence-state"))
-      .toHaveText("已保存");
+    await expect(editorPanel).not.toContainText("已保存");
+    await expect(page.locator(".problems-panel-status")).toHaveCount(0);
 
     await page.reload();
     await expect(

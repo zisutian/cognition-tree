@@ -79,18 +79,18 @@ test.describe.serial("workbench diagnostics", () => {
     );
 
     await getActivityButton(page, "语法").click();
-    const syntaxName = page.getByRole("textbox", { name: "语法名称" });
+    const indentWidth = page.getByRole("spinbutton", { name: "缩进宽度" });
 
-    await syntaxName.fill("");
+    await indentWidth.fill("");
     // The selected file is also active, so Syntax keeps workspace document
     // and reference diagnostics alongside the draft profile error.
     await expect(rows).toHaveCount(3);
-    const syntaxProblem = rows.filter({ hasText: "语法名称不能为空" });
+    const syntaxProblem = rows.filter({ hasText: "Tab 显示宽度" });
 
     await expect(syntaxProblem).toBeVisible();
     await syntaxProblem.click();
-    await expect(syntaxName).toBeFocused();
-    await syntaxName.fill("问题面板回归语法");
+    await expect(indentWidth).toBeFocused();
+    await indentWidth.fill("4");
     await expect(problems.locator(".problems-panel-status")).toHaveCount(0);
     await expect(rows).toHaveCount(2);
 
@@ -180,22 +180,33 @@ test.describe.serial("workbench diagnostics", () => {
       },
     );
 
-    await page
-      .getByRole("textbox", { name: "语法名称" })
-      .fill("无法保存的语法");
+    await page.getByRole("button", { name: /^重命名语法 / }).click();
+    const syntaxName = page.getByRole("textbox", { name: /^重命名语法 / });
 
-    const notification = page.locator(".ui-notification-error");
+    await syntaxName.fill("无法保存的语法");
+    await syntaxName.press("Enter");
 
-    await expect(notification).toHaveCount(1);
-    const message = await notification.textContent();
+    const persistenceProblem = page
+      .locator(".problems-row-frame")
+      .filter({ hasText: "syntax persistence failed" });
+    const problemsHeader = page.locator(".problems-panel-header");
 
-    expect(message).not.toBeNull();
+    await expect(page.locator(".ui-notification-error")).toHaveCount(0);
+    await expect(page.locator(".problems-panel-status")).toHaveCount(0);
+    await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
+    await problemsHeader.click();
+    await expect(persistenceProblem).toHaveCount(1);
     await getActivityButton(page, "笔记").click();
-    await getActivityButton(page, "语法").click();
-    await expect(notification).toHaveCount(1);
-    await expect(page.locator(".problems-panel")).not.toContainText(
-      message ?? "syntax persistence failed",
+    await expect(persistenceProblem).toHaveCount(1);
+    await expect(page.locator(".problems-panel-status")).toContainText(
+      "保存失败",
     );
+    await getActivityButton(page, "语法").click();
+    await expect(persistenceProblem).toHaveCount(1);
+    await expect(page.locator(".problems-panel-status")).toHaveCount(0);
+    await expect(
+      persistenceProblem.getByRole("button", { name: /^关闭操作错误/ }),
+    ).toHaveCount(0);
     await expect(page.locator(".syntax-panel .ui-status")).toHaveCount(0);
   });
 });

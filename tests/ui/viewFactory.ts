@@ -57,7 +57,6 @@ export function createView(
       editor: {
         contentMode: { kind: "body", title: "2026-01-02-0001" },
         documentText: "",
-        errorMessage: "",
         focusTarget: null,
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
@@ -130,7 +129,6 @@ export function createView(
       },
       editor: {
         documentText: "当前笔记",
-        errorMessage: "",
         focusTarget: null,
         mode: "ctn",
         stats: {
@@ -210,7 +208,6 @@ export function createView(
       selectRepository: async () => undefined,
     },
     shell: {
-      errorMessage: "",
       hasConfiguredSyntax: true,
     },
     structureOperation: {
@@ -425,7 +422,6 @@ export function createView(
         onSelectLine: () => undefined,
       },
       persistence: { status: "saved" },
-      persistenceErrorMessage: "",
       renameCollection: () => undefined,
       selectCollection: () => undefined,
       syntax: {

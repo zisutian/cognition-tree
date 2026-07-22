@@ -30,12 +30,6 @@
   width: 100%;
 }
 
-.journal-persistence-state {
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
-}
-
 .journal-time-details {
   display: grid;
   gap: var(--ui-gap-tight);

@@ -2,13 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 import {
   hasWorkbenchProblemsPanel,
   openWorkbenchProblem,
+  projectPersistenceStatus,
   selectWorkbenchProblems,
 } from "../../../presentation/shell/workbench/WorkbenchProblemsController";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
 } from "../../../application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchRepositoryProblem } from "../../../application/problems/workbenchProblems";
+import type {
+  UiWorkbenchOperationalProblem,
+  UiWorkbenchRepositoryProblem,
+} from "../../../application/problems/workbenchProblems";
 import type { JournalDiagnostic } from "../../../application/journal";
 import type { TodoDiagnostic } from "../../../application/todo";
 import type { BuiltInRuntimeIssue } from "../../../application/repository/projectBuiltInIssues";
@@ -136,6 +140,22 @@ const systemSyntaxDiagnostic: UiWorkbenchDiagnostic = {
 };
 
 describe("WorkbenchProblemsController", () => {
+  it("projects only non-stable persistence states into the bottom status", () => {
+    expect(projectPersistenceStatus("笔记", { status: "saved" })).toBe("");
+    expect(projectPersistenceStatus("日记", { status: "saving-local" }))
+      .toBe("日记 · 正在保存");
+    expect(projectPersistenceStatus("代办", { status: "pending-sync" }))
+      .toBe("代办 · 等待同步");
+    expect(projectPersistenceStatus("笔记", {
+      pendingChanges: true,
+      status: "offline",
+    })).toBe("笔记 · 离线");
+    expect(projectPersistenceStatus("笔记", {
+      remoteRevision: "remote-revision",
+      status: "conflict",
+    })).toBe("笔记 · 同步冲突");
+  });
+
   it("omits the global problems panel only from Settings", () => {
     expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
     expect(hasWorkbenchProblemsPanel("todo")).toBe(true);
@@ -165,7 +185,7 @@ describe("WorkbenchProblemsController", () => {
     });
   });
 
-  it("shows only Journal diagnostics in Journal and excludes them elsewhere", () => {
+  it("shows Journal diagnostics with its built-in runtime issue", () => {
     const diagnostics = createUiWorkbenchDiagnostics([diagnostic], "ready");
     const journalDiagnostics = {
       diagnostics: [journalDiagnostic],
@@ -182,8 +202,11 @@ describe("WorkbenchProblemsController", () => {
       repositoryIssues: [repositoryIssue],
       builtInIssues: [builtInIssue],
     })).toEqual({
-      errorCount: 1,
-      problems: [journalDiagnostic],
+      errorCount: 2,
+      problems: [
+        journalDiagnostic,
+        expect.objectContaining({ id: "built-in:journal" }),
+      ],
       status: "ready",
       warningCount: 0,
     });
@@ -217,10 +240,14 @@ describe("WorkbenchProblemsController", () => {
         diagnostics: [systemSyntaxDiagnostic],
         status: "ready",
       },
-      builtInIssues: [],
+      builtInIssues: [builtInIssue],
+      syntaxOwner: "journal",
     })).toEqual({
-      errorCount: 1,
-      problems: [systemSyntaxDiagnostic],
+      errorCount: 2,
+      problems: [
+        expect.objectContaining({ id: "built-in:journal" }),
+        systemSyntaxDiagnostic,
+      ],
       status: "ready",
       warningCount: 0,
     });
@@ -296,7 +323,7 @@ describe("WorkbenchProblemsController", () => {
     });
   });
 
-  it("includes ordinary runtime failures only in Repository Problems", () => {
+  it("includes ordinary runtime failures in Repository and workspace Problems", () => {
     const diagnostics = createUiWorkbenchDiagnostics([], "ready");
 
     expect(selectWorkbenchProblems({
@@ -321,7 +348,55 @@ describe("WorkbenchProblemsController", () => {
       repositoryIssues: [],
       repositoryRuntimeIssues,
       builtInIssues: [],
-    }).problems).toEqual([]);
+    })).toMatchObject({
+      errorCount: 2,
+      problems: [
+        expect.objectContaining({ target: { kind: "repository-runtime", repositoryId: "primary" } }),
+        expect.objectContaining({ target: { kind: "repository-catalog" } }),
+      ],
+    });
+  });
+
+  it("keeps operational errors in their source Activity and navigates there", () => {
+    const operationalProblem: UiWorkbenchOperationalProblem = {
+      code: "operation_failed",
+      id: "operation:feedback-error-1",
+      locationLabel: "代办",
+      message: "删除集合失败。",
+      severity: "error",
+      source: "operation",
+      target: {
+        feedbackId: "feedback-error-1",
+        kind: "operational-error",
+        sourceScope: "todo",
+      },
+    };
+    const todoProblems = selectWorkbenchProblems({
+      activeActivityId: "todo",
+      builtInIssues: [],
+      diagnostics: createUiWorkbenchDiagnostics([], "ready"),
+      operationalProblems: [operationalProblem],
+      repositories: [],
+      repositoryIssues: [],
+    });
+
+    expect(todoProblems.problems).toEqual([operationalProblem]);
+    const onActiveActivityChange = vi.fn();
+    openWorkbenchProblem(operationalProblem, {
+      expandPanels: vi.fn(),
+      onActiveActivityChange,
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusBuiltIn: vi.fn(),
+        focusCatalog: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+      },
+      workspaceNavigation: null,
+    });
+
+    expect(onActiveActivityChange).toHaveBeenCalledWith("todo");
   });
 
   it("requests the matching repository issue before opening Repositories", () => {

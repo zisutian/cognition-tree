@@ -16,7 +16,6 @@ import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
 import { createUiWorkspacePortableNameDiagnostics } from "../../../../../application/workspace/projection/viewDiagnostics";
 
 export type WorkspaceShell = {
-  errorMessage: string;
   hasConfiguredSyntax: boolean;
 };
 
@@ -38,7 +37,6 @@ export function useWorkspaceApplication(
     createSyntaxFile,
     deleteSyntaxFile,
     defaultWorkspaceSyntax,
-    persistence,
     syntaxCatalog,
     updateSyntaxFileSource,
     workspace,
@@ -93,8 +91,6 @@ export function useWorkspaceApplication(
     syntaxCatalogNameConflictMessage: syntax.catalogNameConflictMessage,
   });
   const shell: WorkspaceShell = {
-    errorMessage:
-      persistence.status === "error" ? persistence.message : "",
     hasConfiguredSyntax: Boolean(workspaceSyntax && syntax.effectiveContext),
   };
   const runtime: WorkspaceRuntime = {

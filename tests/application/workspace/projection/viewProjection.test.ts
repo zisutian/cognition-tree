@@ -129,7 +129,6 @@ describe("workspace view projection", () => {
     const view = createUiEditorView({
       document: null,
       documentText: "缩进?内容",
-      errorMessage: "",
       focusTarget: null,
       syntaxProfile: defaultCtnSyntaxProfile,
     });
@@ -158,7 +157,6 @@ describe("workspace view projection", () => {
     const view = createUiEditorView({
       document,
       documentText: editableSource.source,
-      errorMessage: "",
       focusTarget: null,
       syntaxProfile: defaultCtnSyntaxProfile,
     });

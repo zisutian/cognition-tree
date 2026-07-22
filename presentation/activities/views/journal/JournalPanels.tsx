@@ -62,25 +62,6 @@ function formatTimestamp(timestamp: string) {
     : timestampFormatter.format(date);
 }
 
-function persistenceLabel(view: JournalViewModel) {
-  switch (view.persistence.status) {
-    case "saved":
-      return "已保存";
-    case "saving-local":
-      return "正在保存";
-    case "pending-sync":
-      return "等待同步";
-    case "syncing":
-      return "正在同步";
-    case "offline":
-      return "离线";
-    case "conflict":
-      return "同步冲突";
-    case "error":
-      return "保存失败";
-  }
-}
-
 export function JournalContext({ view }: JournalViewProps) {
   const feedback = useFeedback();
   const [pendingDelete, setPendingDelete] =
@@ -248,28 +229,19 @@ export function JournalEditorPanel({
     <Panel aria-label="日记编辑" className="journal-editor-panel">
       <PanelHeader
         actions={
-          <>
-            {view.editor.errorMessage ? (
-              <span className="ui-error">{view.editor.errorMessage}</span>
+          <Button
+            aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
+            onClick={onToggleFocusMode}
+            title={focusMode ? "退出专注模式" : "进入专注模式"}
+            type="button"
+            variant="icon"
+          >
+            {focusMode ? (
+              <Minimize2 aria-hidden="true" size={14} />
             ) : (
-              <span className="journal-persistence-state">
-                {persistenceLabel(view)}
-              </span>
+              <Maximize2 aria-hidden="true" size={14} />
             )}
-            <Button
-              aria-label={focusMode ? "退出专注模式" : "进入专注模式"}
-              onClick={onToggleFocusMode}
-              title={focusMode ? "退出专注模式" : "进入专注模式"}
-              type="button"
-              variant="icon"
-            >
-              {focusMode ? (
-                <Minimize2 aria-hidden="true" size={14} />
-              ) : (
-                <Maximize2 aria-hidden="true" size={14} />
-              )}
-            </Button>
-          </>
+          </Button>
         }
         title={view.activeEntry.title}
       />

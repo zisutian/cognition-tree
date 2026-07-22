@@ -113,7 +113,6 @@ export type JournalViewModel = {
       title: string;
     };
     documentText: string;
-    errorMessage: string;
     focusTarget: {
       lineNumber: number;
       requestId: number;
@@ -166,7 +165,6 @@ type JournalViewModelInput = {
   activeBodyPosition: JournalActiveBodyPosition | null;
   activeEntryId: JournalEntryId | null;
   content: JournalContent;
-  editorErrorMessage: string;
   expandedCalendarKeys: ReadonlySet<string>;
   focusRequest: JournalFocusRequest | null;
   index: JournalParseIndex;
@@ -374,7 +372,6 @@ export function createJournalViewModel({
   content,
   createEntry,
   deleteEntry,
-  editorErrorMessage,
   expandedCalendarKeys,
   focusRequest,
   index,
@@ -431,7 +428,6 @@ export function createJournalViewModel({
         title: activeParsed?.title ?? "",
       },
       documentText: activeProjection?.source ?? "",
-      errorMessage: editorErrorMessage,
       focusTarget:
         focusRequest?.entryId === activeEntryId
           ? {

@@ -1,4 +1,5 @@
 import type { WorkbenchWorkspaceState } from "../workbenchApplication";
+import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import { Button, EmptyState, Panel } from "../../ui/shared/primitives";
 
 export function WorkspaceUnavailablePanel({
@@ -8,6 +9,7 @@ export function WorkspaceUnavailablePanel({
   onOpenRepository: () => void;
   workspace: Exclude<WorkbenchWorkspaceState, { status: "ready" }>;
 }) {
+  const feedback = useFeedback();
   const title = workspace.status === "loading"
     ? "正在载入笔记仓库"
     : workspace.status === "failed"
@@ -26,7 +28,7 @@ export function WorkspaceUnavailablePanel({
           <>
             {workspace.status === "failed" ? (
               <Button
-                onClick={() => void workspace.retry()}
+                onClick={() => void feedback.runAction(workspace.retry)}
                 type="button"
                 variant="secondary"
               >

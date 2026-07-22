@@ -22,14 +22,19 @@ import type { WorkspaceApplication } from "../../activities/bindings/workspace/r
 import type { UiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
 import {
   createUiWorkbenchProblems,
+  projectUiOperationalProblems,
   type WorkbenchDiagnostics,
+  type UiWorkbenchOperationalProblem,
   type UiWorkbenchProblem,
   type UiWorkbenchProblems,
 } from "../../../application/problems/workbenchProblems";
+import type { VersionedRepositoryPersistenceState } from "../../../application/repository/versionedRepositorySaveQueue";
 import type { WorkspaceRepositoryCatalogIssue } from "../../../application/repository/workspaceRepositoryCatalog";
 import type { WorkspaceRepositoryDescriptor } from "../../../application/repository/workspaceRepositoryCatalog";
 import type { ActivityId } from "../../ui/activityTypes";
+import { activityItems } from "../../ui/ActivityBar";
 import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
+import { useWorkbenchFeedback } from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShortcut";
 import type { WorkbenchController } from "../../ui/workbench/useWorkbenchLayout";
 
@@ -56,6 +61,72 @@ type WorkbenchProblemOpenContext = {
   onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
+export type SyntaxProblemOwner = "journal" | "todo" | "workspace";
+
+export function projectPersistenceStatus(
+  label: "代办" | "日记" | "笔记",
+  persistence: VersionedRepositoryPersistenceState<string>,
+) {
+  switch (persistence.status) {
+    case "saved":
+      return "";
+    case "saving-local":
+      return `${label} · 正在保存`;
+    case "pending-sync":
+      return `${label} · 等待同步`;
+    case "syncing":
+      return `${label} · 正在同步`;
+    case "offline":
+      return `${label} · 离线`;
+    case "conflict":
+      return `${label} · 同步冲突`;
+    case "error":
+      return `${label} · 保存失败`;
+  }
+}
+
+export function selectWorkbenchPersistenceStatus(
+  activeActivityId: ActivityId,
+  application: WorkbenchApplication,
+) {
+  if (activeActivityId === "notes") {
+    if (application.repository.session.status === "ready") {
+      return projectPersistenceStatus(
+        "笔记",
+        application.repository.session.persistence,
+      );
+    }
+    return application.repository.session.status === "loading"
+      ? "笔记 · 正在载入"
+      : application.repository.session.status === "failed"
+        ? "笔记 · 载入失败"
+        : "";
+  }
+  if (activeActivityId === "journal") {
+    return application.journal.status === "ready"
+      ? projectPersistenceStatus("日记", application.journal.view.persistence)
+      : application.journal.status === "loading"
+        ? "日记 · 正在载入"
+        : application.journal.status === "failed"
+          ? "日记 · 载入失败"
+          : "";
+  }
+  if (activeActivityId === "todo") {
+    return application.todo.status === "ready"
+      ? projectPersistenceStatus("代办", application.todo.view.persistence)
+      : application.todo.status === "loading"
+        ? "代办 · 正在载入"
+        : application.todo.status === "failed"
+          ? "代办 · 载入失败"
+          : "";
+  }
+  return "";
+}
+
+function isActivityId(value: string): value is ActivityId {
+  return activityItems.some(({ id }) => id === value);
+}
+
 export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
   return activeActivityId !== "settings";
 }
@@ -70,6 +141,8 @@ export function selectWorkbenchProblems({
   repositoryRuntimeIssues = [],
   repositories,
   builtInIssues,
+  operationalProblems = [],
+  syntaxOwner = "workspace",
 }: {
   activeActivityId: ActivityId;
   diagnostics: UiWorkbenchDiagnostics;
@@ -80,6 +153,8 @@ export function selectWorkbenchProblems({
   repositoryRuntimeIssues?: WorkspaceRepositoryRuntimeIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
   builtInIssues: BuiltInRuntimeIssue[];
+  operationalProblems?: UiWorkbenchOperationalProblem[];
+  syntaxOwner?: SyntaxProblemOwner;
 }): UiWorkbenchProblems {
   const emptyDiagnostics = {
     diagnostics: [],
@@ -95,12 +170,30 @@ export function selectWorkbenchProblems({
         ? syntaxDiagnostics ?? emptyDiagnostics
         : diagnostics;
 
+  const scopedBuiltInIssues = activeActivityId === "repository"
+    ? builtInIssues
+    : activeActivityId === "journal" ||
+        (activeActivityId === "syntax" && syntaxOwner === "journal")
+      ? builtInIssues.filter((issue) => issue.kind === "catalog" ||
+        issue.id === "journal")
+      : activeActivityId === "todo" ||
+          (activeActivityId === "syntax" && syntaxOwner === "todo")
+        ? builtInIssues.filter((issue) => issue.kind === "catalog" ||
+          issue.id === "todo")
+        : [];
+  const scopedRepositoryRuntimeIssues = activeActivityId === "repository" ||
+      (!(["journal", "todo"] as ActivityId[]).includes(activeActivityId) &&
+        (activeActivityId !== "syntax" || syntaxOwner === "workspace"))
+    ? repositoryRuntimeIssues
+    : [];
+
   return createUiWorkbenchProblems(
     scopedDiagnostics,
     activeActivityId === "repository" ? repositoryIssues : [],
     activeActivityId === "repository" ? repositories : [],
-    activeActivityId === "repository" ? builtInIssues : [],
-    activeActivityId === "repository" ? repositoryRuntimeIssues : [],
+    scopedBuiltInIssues,
+    scopedRepositoryRuntimeIssues,
+    operationalProblems,
   );
 }
 
@@ -172,6 +265,11 @@ export function openWorkbenchProblem(
   } else if (problem.target.kind === "built-in-catalog") {
     context.repositoryNavigation.focusCatalog();
     context.onActiveActivityChange("repository");
+  } else if (
+    problem.target.kind === "operational-error" &&
+    isActivityId(problem.target.sourceScope)
+  ) {
+    context.onActiveActivityChange(problem.target.sourceScope);
   }
 
   context.expandPanels();
@@ -184,6 +282,7 @@ export function WorkbenchProblemsController({
   onOpenSystemSyntax,
   onActiveActivityChange,
   syntaxDiagnostics,
+  syntaxOwner = "workspace",
   workbench,
 }: {
   activeActivityId: ActivityId;
@@ -195,8 +294,10 @@ export function WorkbenchProblemsController({
   ) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
   syntaxDiagnostics: WorkbenchDiagnostics | null;
+  syntaxOwner?: SyntaxProblemOwner;
   workbench: WorkbenchController;
 }) {
+  const feedback = useWorkbenchFeedback();
   const ordinaryCatalog = application.repository.catalogState.status === "ready"
     ? application.repository.catalogState
     : null;
@@ -242,6 +343,13 @@ export function WorkbenchProblemsController({
     repositoryIssues: ordinaryCatalog?.issues ?? [],
     repositoryRuntimeIssues,
     builtInIssues,
+    operationalProblems: projectUiOperationalProblems(
+      feedback.snapshot.errors.filter(
+        ({ scope }) => scope === activeActivityId,
+      ),
+      (scope) => activityItems.find(({ id }) => id === scope)?.label ?? scope,
+    ),
+    syntaxOwner,
   });
   const openProblem = (problem: UiWorkbenchProblem) =>
     openWorkbenchProblem(problem, {
@@ -260,6 +368,12 @@ export function WorkbenchProblemsController({
     });
 
   const problemsEnabled = hasWorkbenchProblemsPanel(activeActivityId);
+  const transientStatus = feedback.snapshot.transient?.scope === activeActivityId
+    ? feedback.snapshot.transient.message
+    : "";
+  const statusMessage = transientStatus ||
+    selectWorkbenchPersistenceStatus(activeActivityId, application) ||
+    (problems.status === "collecting" ? "正在检查…" : "");
 
   useWorkbenchProblemsShortcut({
     enabled: problemsEnabled,
@@ -270,8 +384,14 @@ export function WorkbenchProblemsController({
     problemsEnabled ? (
       <ProblemsPanel
         expanded={workbench.layout.problemsExpanded}
+        onDismiss={(problem) => {
+          if (problem.target.kind === "operational-error") {
+            feedback.controller.dismiss(problem.target.feedbackId);
+          }
+        }}
         onOpen={openProblem}
         onToggle={workbench.toggleProblems}
+        statusMessage={statusMessage}
         view={problems}
       />
     ) : null,

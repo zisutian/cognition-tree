@@ -39,7 +39,7 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "语法").click();
 
-    const syntaxName = page.getByRole("textbox", { name: "语法名称" });
+    const syntaxName = page.getByLabel("语法名称");
     const titleTonePicker = page.getByRole("button", {
       name: /^首行标题背景色:/,
     });
@@ -53,7 +53,11 @@ test.describe("syntax and visualization activity flows", () => {
       (element) => getComputedStyle(element).userSelect,
     )).not.toBe("none");
 
-    await syntaxName.fill("浏览器回归语法");
+    await page.getByRole("button", { name: /^重命名语法 / }).click();
+    const renameInput = page.getByRole("textbox", { name: /^重命名语法 / });
+
+    await renameInput.fill("浏览器回归语法");
+    await renameInput.press("Enter");
     await titleTonePicker.click();
     await expect(page.getByRole("dialog", { name: "首行标题背景色" })).toBeVisible();
     await page.getByRole("button", { name: "灰色", exact: true }).click();
@@ -64,7 +68,7 @@ test.describe("syntax and visualization activity flows", () => {
 
     await getActivityButton(page, "笔记").click();
     await getActivityButton(page, "语法").click();
-    await expect(syntaxName).toHaveValue("浏览器回归语法");
+    await expect(syntaxName).toHaveText("浏览器回归语法");
   });
 
   test("separates system configurations from workspace selection and activation", async ({
@@ -81,13 +85,17 @@ test.describe("syntax and visualization activity flows", () => {
     ).toHaveCount(0);
 
     await page.locator('[data-syntax-owner="journal"]').click();
-    await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();
+    await expect(page.getByLabel("语法名称")).toHaveText("日记");
+    await expect(page.getByRole("button", { name: /^重命名语法 / }))
+      .toHaveCount(0);
     await expect(page.getByText("顶格正文", { exact: true })).toBeVisible();
     await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
     await expect(page.getByText("首行标题示例", { exact: true })).toHaveCount(0);
 
     await page.locator('[data-syntax-owner="todo"]').click();
-    await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();
+    await expect(page.getByLabel("语法名称")).toHaveText("代办");
+    await expect(page.getByRole("button", { name: /^重命名语法 / }))
+      .toHaveCount(0);
     await expect(page.getByRole("button", { name: /^角色:/ }).first())
       .toBeDisabled();
     await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
@@ -129,15 +137,15 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, invalidSyntaxRepositoryId);
     await getActivityButton(page, "语法").click();
 
-    const syntaxName = page.getByRole("textbox", { name: "语法名称" });
+    const indentWidth = page.getByRole("spinbutton", { name: "缩进宽度" });
 
-    await syntaxName.fill("");
-    await expect(syntaxName).toHaveValue("");
+    await indentWidth.fill("");
+    await expect(indentWidth).toHaveValue("");
 
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("语法配置")).toBeVisible();
     await page.getByRole("button", { name: "撤销无效更改" }).click();
-    await expect(syntaxName).not.toHaveValue("");
+    await expect(indentWidth).toHaveValue("4");
     await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("Alpha").click();
 
@@ -171,7 +179,7 @@ test.describe("syntax and visualization activity flows", () => {
     });
 
     await getActivityButton(page, "语法").click();
-    await expect(syntaxName).not.toHaveValue("");
+    await expect(indentWidth).toHaveValue("4");
   });
 
   test("switches graph selection without shrinking the canvas", async ({

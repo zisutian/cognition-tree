@@ -4,8 +4,11 @@ import { ContextMenu } from "../../../presentation/ui/shared/ContextMenu";
 import {
   FeedbackProvider,
   getErrorMessage,
+  runActivityFeedbackAction,
   runFeedbackAction,
 } from "../../../presentation/ui/shared/FeedbackProvider";
+import { createWorkbenchFeedbackController } from
+  "../../../application/workbench/workbenchFeedbackController";
 import { resolveOverlayCoordinates } from "../../../presentation/ui/shared/Overlay";
 import { QuickPick } from "../../../presentation/ui/shared/QuickPick";
 
@@ -49,7 +52,7 @@ describe("shared overlays", () => {
     expect(markup).not.toContain("删除");
   });
 
-  it("normalizes notification errors without changing child rendering", () => {
+  it("normalizes feedback errors without rendering an overlay", () => {
     const markup = renderToStaticMarkup(
       <FeedbackProvider>
         <span>工作台</span>
@@ -78,6 +81,28 @@ describe("shared overlays", () => {
     ).resolves.toBeUndefined();
 
     expect(errors.map(getErrorMessage)).toEqual(["同步失败", "异步失败"]);
+  });
+
+  it("keeps an asynchronous error in the Activity that started it", async () => {
+    const controller = createWorkbenchFeedbackController<"notes" | "todo">({
+      schedule: () => () => undefined,
+    });
+    let rejectAction: (error: Error) => void = () => undefined;
+    const action = runActivityFeedbackAction(
+      controller,
+      "notes",
+      () => new Promise<void>((_resolve, reject) => {
+        rejectAction = reject;
+      }),
+    );
+
+    controller.reportInfo("todo", "已切换到代办");
+    rejectAction(new Error("延迟保存失败"));
+    await action;
+
+    expect(controller.getSnapshot().errors).toEqual([
+      expect.objectContaining({ message: "延迟保存失败", scope: "notes" }),
+    ]);
   });
 
   it("clamps point and anchored overlays into the viewport", () => {

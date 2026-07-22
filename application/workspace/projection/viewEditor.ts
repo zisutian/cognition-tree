@@ -16,7 +16,6 @@ export type UiEditorView = {
     totalBlocks: number;
   };
   syntaxProfile: CtnSyntaxProfile;
-  errorMessage: string;
 };
 
 export function createUiEditorView({
@@ -24,13 +23,11 @@ export function createUiEditorView({
   documentText,
   focusTarget,
   syntaxProfile,
-  errorMessage,
 }: {
   document: CtnCanonicalDocument | null;
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
   syntaxProfile: CtnSyntaxProfile;
-  errorMessage: string;
 }): UiEditorView {
   return {
     documentText,
@@ -42,6 +39,5 @@ export function createUiEditorView({
       totalBlocks: document?.blocks.length ?? 0,
     },
     syntaxProfile,
-    errorMessage,
   };
 }

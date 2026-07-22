@@ -1,7 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { UiWorkbenchDiagnostic } from "../../../application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchRepositoryProblem } from "../../../application/problems/workbenchProblems";
+import type {
+  UiWorkbenchOperationalProblem,
+  UiWorkbenchRepositoryProblem,
+} from "../../../application/problems/workbenchProblems";
 import type { JournalDiagnostic } from "../../../application/journal";
 import {
   ProblemsPanel,
@@ -43,6 +46,20 @@ const journalProblem: JournalDiagnostic = {
   },
 };
 
+const operationalProblem: UiWorkbenchOperationalProblem = {
+  code: "operation_failed",
+  id: "operation:feedback-error-1",
+  locationLabel: "代办",
+  message: "删除集合失败。",
+  severity: "error",
+  source: "operation",
+  target: {
+    feedbackId: "feedback-error-1",
+    kind: "operational-error",
+    sourceScope: "todo",
+  },
+};
+
 describe("ProblemsPanel", () => {
   it("renders a compact collapsed summary without mounting the list", () => {
     const markup = renderToStaticMarkup(
@@ -50,6 +67,7 @@ describe("ProblemsPanel", () => {
         expanded={false}
         onOpen={() => undefined}
         onToggle={() => undefined}
+        statusMessage="正在检查…"
         view={{
           errorCount: 1,
           problems: [diagnostic],
@@ -63,7 +81,7 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain("正在检查");
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain(
-      'aria-label="展开问题面板，1 个错误，2 个警告，正在检查"',
+      'aria-label="展开问题面板，1 个错误，2 个警告，正在检查…"',
     );
     expect(markup).not.toContain('aria-label="问题列表"');
   });
@@ -106,6 +124,29 @@ describe("ProblemsPanel", () => {
 
     expect(markup).toContain("仓库元数据损坏。");
     expect(markup).toContain("仓库 · 本地 · broken");
+  });
+
+  it("renders a dismissible operational error and a fixed header status", () => {
+    const markup = renderToStaticMarkup(
+      <ProblemsPanel
+        expanded
+        onDismiss={() => undefined}
+        onOpen={() => undefined}
+        onToggle={() => undefined}
+        statusMessage="代办 · 正在保存"
+        view={{
+          errorCount: 1,
+          problems: [operationalProblem],
+          status: "ready",
+          warningCount: 0,
+        }}
+      />,
+    );
+
+    expect(markup).toContain('aria-live="polite"');
+    expect(markup).toContain("代办 · 正在保存");
+    expect(markup).toContain("操作 · 代办");
+    expect(markup).toContain("关闭操作错误：删除集合失败。");
   });
 
   it("labels Journal diagnostics without treating them as workspace references", () => {

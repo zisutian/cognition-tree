@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { WorkbenchDiagnostics } from "../../../application/problems/workbenchProblems";
 import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
 import type { WorkbenchApplication } from "../../activities/workbenchApplication";
@@ -6,7 +6,10 @@ import { activityItems } from "../../ui/ActivityBar";
 import AppView from "../../ui/AppView";
 import { PlaceholderPanel } from "../../activities/views/PlaceholderPanel";
 import type { ActivityId } from "../../ui/activityTypes";
-import { FeedbackProvider } from "../../ui/shared/FeedbackProvider";
+import {
+  FeedbackProvider,
+  type WorkbenchActivityFeedbackController,
+} from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchLayout } from "../../ui/workbench/useWorkbenchLayout";
 import { PlaceholderActivityController } from "../../activities/controllers/PlaceholderActivityController";
 import { WorkspaceUnavailableActivityController } from "../../activities/controllers/WorkspaceUnavailableActivityController";
@@ -16,7 +19,6 @@ import {
   type LazyActivityId,
 } from "../../activities/controllers/activityRegistry";
 import type { RenderWorkspaceActivity } from "../../activities/controllers/activityController";
-import { WorkspacePersistenceNotification } from "./WorkspacePersistenceNotification";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
 import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard";
 
@@ -45,10 +47,12 @@ function ActivityLoadingView({
 export function WorkspaceWorkbench({
   activeActivityId,
   application,
+  feedbackController,
   onActiveActivityChange,
 }: {
   activeActivityId: ActivityId;
   application: WorkbenchApplication;
+  feedbackController: WorkbenchActivityFeedbackController;
   onActiveActivityChange: (activityId: ActivityId) => void;
 }) {
   const workbench = useWorkbenchLayout(
@@ -63,6 +67,9 @@ export function WorkspaceWorkbench({
   const [syntaxLeaveBlocked, setSyntaxLeaveBlocked] = useState(false);
   const [syntaxProblems, setSyntaxProblems] =
     useState<WorkbenchDiagnostics | null>(null);
+  const [syntaxProblemOwner, setSyntaxProblemOwner] = useState<
+    "journal" | "todo" | "workspace"
+  >("workspace");
   const [systemSyntaxFocusRequest, setSystemSyntaxFocusRequest] = useState<
     Extract<UiSyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null
   >(null);
@@ -92,6 +99,13 @@ export function WorkspaceWorkbench({
     }
     onActiveActivityChange(activityId);
   };
+  const updateSyntaxProblems = useCallback((
+    diagnostics: WorkbenchDiagnostics | null,
+    owner: "journal" | "todo" | "workspace",
+  ) => {
+    setSyntaxProblems(diagnostics);
+    setSyntaxProblemOwner(owner);
+  }, []);
 
   useEffect(() => {
     if (!isLazyActivityId(activeActivityId)) {
@@ -110,18 +124,17 @@ export function WorkspaceWorkbench({
   }, [activeActivityId]);
 
   return (
-    <FeedbackProvider>
-      {application.repository.session.status === "ready" ? (
-        <WorkspacePersistenceNotification
-          persistence={application.repository.session.persistence}
-        />
-      ) : null}
+    <FeedbackProvider
+      activeActivityId={activeActivityId}
+      controller={feedbackController}
+    >
       <WorkbenchProblemsController
         activeActivityId={activeActivityId}
         application={application}
         onOpenSystemSyntax={openSystemSyntax}
         onActiveActivityChange={requestActivityChange}
         syntaxDiagnostics={syntaxProblems}
+        syntaxOwner={syntaxProblemOwner}
         workbench={workbench}
       >
         {(problemsSlot) => {
@@ -142,7 +155,7 @@ export function WorkspaceWorkbench({
             onConsumeSystemSyntaxFocusRequest:
               consumeSystemSyntaxFocusRequest,
             onSyntaxLeaveBlockedChange: setSyntaxLeaveBlocked,
-            onSyntaxProblemsChange: setSyntaxProblems,
+            onSyntaxProblemsChange: updateSyntaxProblems,
             renderActivity,
             systemSyntaxFocusRequest,
           };

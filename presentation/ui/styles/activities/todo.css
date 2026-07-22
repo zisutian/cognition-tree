@@ -14,12 +14,6 @@
   border-right: var(--ui-border-width) solid var(--color-border);
 }
 
-.todo-persistence-state {
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
-}
-
 .todo-structure-row {
   cursor: default;
 }

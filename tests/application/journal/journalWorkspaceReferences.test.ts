@@ -333,4 +333,29 @@ describe("journal workspace reference resolver", () => {
       },
     ]);
   });
+
+  it("projects unexpected resolver rejection as a Journal reference fault", async () => {
+    const states: JournalWorkspaceReferenceResolutionState[] = [];
+
+    startJournalWorkspaceReferenceResolution({
+      publish: (state) => states.push(state),
+      references: [reference()],
+      resolver: {
+        resolve: () => Promise.reject(new Error("catalog unavailable")),
+      },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(states).toEqual([
+      { status: "loading" },
+      {
+        resolutions: [expect.objectContaining({
+          code: "repository-unreadable",
+          status: "fault",
+        })],
+        status: "ready",
+      },
+    ]);
+  });
 });

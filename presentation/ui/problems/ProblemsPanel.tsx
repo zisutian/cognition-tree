@@ -18,6 +18,7 @@ export const problemsVirtualizationThreshold = 500;
 const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   document: "笔记",
   name: "名称",
+  operation: "操作",
   reference: "引用",
   repository: "仓库",
   syntax: "语法",
@@ -55,50 +56,66 @@ export function shouldVirtualizeProblems(diagnosticCount: number) {
 }
 
 function ProblemRow({
+  onDismiss,
   problem,
   onOpen,
   style,
 }: {
   problem: UiWorkbenchProblem;
   onOpen: (problem: UiWorkbenchProblem) => void;
+  onDismiss: (problem: UiWorkbenchProblem) => void;
   style?: CSSProperties;
 }) {
   const isError = problem.severity === "error";
 
   return (
     <li className="problems-list-item" style={style}>
-      <button
-        className="problems-row"
-        onClick={() => onOpen(problem)}
-        title={`${problem.message} · ${problem.locationLabel}`}
-        type="button"
-      >
-        <SymbolSlot
-          aria-label={isError ? "错误" : "警告"}
-          className="problems-row-marker"
-          tone={isError ? "danger" : "warning"}
+      <div className="problems-row-frame">
+        <button
+          className="problems-row"
+          onClick={() => onOpen(problem)}
+          title={`${problem.message} · ${problem.locationLabel}`}
+          type="button"
         >
-          {isError ? (
-            <CircleX aria-hidden="true" size={13} strokeWidth={2} />
-          ) : (
-            <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
-          )}
-        </SymbolSlot>
-        <span className="problems-row-message">{problem.message}</span>
-        <span className="problems-row-meta">
-          {getProblemSourceLabel(problem)} · {problem.locationLabel}
-        </span>
-      </button>
+          <SymbolSlot
+            aria-label={isError ? "错误" : "警告"}
+            className="problems-row-marker"
+            tone={isError ? "danger" : "warning"}
+          >
+            {isError ? (
+              <CircleX aria-hidden="true" size={13} strokeWidth={2} />
+            ) : (
+              <TriangleAlert aria-hidden="true" size={13} strokeWidth={2} />
+            )}
+          </SymbolSlot>
+          <span className="problems-row-message">{problem.message}</span>
+          <span className="problems-row-meta">
+            {getProblemSourceLabel(problem)} · {problem.locationLabel}
+          </span>
+        </button>
+        {problem.target.kind === "operational-error" ? (
+          <button
+            aria-label={`关闭操作错误：${problem.message}`}
+            className="problems-row-dismiss"
+            onClick={() => onDismiss(problem)}
+            type="button"
+          >
+            关闭
+          </button>
+        ) : null}
+      </div>
     </li>
   );
 }
 
 function ProblemsList({
+  onDismiss,
   problems,
   onOpen,
 }: {
   problems: UiWorkbenchProblem[];
   onOpen: (problem: UiWorkbenchProblem) => void;
+  onDismiss: (problem: UiWorkbenchProblem) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const virtual = shouldVirtualizeProblems(problems.length);
@@ -117,6 +134,7 @@ function ProblemsList({
           {problems.map((problem) => (
             <ProblemRow
               key={problem.id}
+              onDismiss={onDismiss}
               onOpen={onOpen}
               problem={problem}
             />
@@ -143,6 +161,7 @@ function ProblemsList({
           return problem ? (
             <ProblemRow
               key={virtualRow.key}
+              onDismiss={onDismiss}
               onOpen={onOpen}
               problem={problem}
               style={{
@@ -160,16 +179,20 @@ function ProblemsList({
 export function ProblemsPanel({
   expanded,
   view,
+  onDismiss = () => undefined,
   onOpen,
   onToggle,
+  statusMessage = "",
 }: {
   expanded: boolean;
   view: UiWorkbenchProblems;
+  onDismiss?: (problem: UiWorkbenchProblem) => void;
   onOpen: (problem: UiWorkbenchProblem) => void;
   onToggle: () => void;
+  statusMessage?: string;
 }) {
   const toggleLabel = expanded ? "折叠问题面板" : "展开问题面板";
-  const statusLabel = view.status === "collecting" ? "，正在检查" : "";
+  const statusLabel = statusMessage ? `，${statusMessage}` : "";
 
   return (
     <section className={cx("problems-panel", expanded && "is-expanded")}>
@@ -195,14 +218,20 @@ export function ProblemsPanel({
           <TriangleAlert aria-hidden="true" size={12} />
           {view.warningCount}
         </span>
-        {view.status === "collecting" ? (
-          <span className="problems-panel-status">正在检查…</span>
+        {statusMessage ? (
+          <span aria-live="polite" className="problems-panel-status">
+            {statusMessage}
+          </span>
         ) : null}
       </button>
       {expanded ? (
         <div className="problems-panel-body">
           {view.problems.length > 0 ? (
-            <ProblemsList onOpen={onOpen} problems={view.problems} />
+            <ProblemsList
+              onDismiss={onDismiss}
+              onOpen={onOpen}
+              problems={view.problems}
+            />
           ) : (
             <p className="problems-empty">
               {view.status === "collecting" ? "正在检查…" : "没有问题。"}

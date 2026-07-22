@@ -5,11 +5,26 @@ import {
   EmptyState,
   Panel,
 } from "../../ui/shared/primitives";
+import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 
 type JournalBuiltInsApplication = WorkspaceActivityControllerProps[
   "application"
 ]["repository"]["builtIns"];
+
+function JournalRetryButton({ retry }: { retry: () => Promise<void> }) {
+  const feedback = useFeedback();
+
+  return (
+    <Button
+      onClick={() => void feedback.runAction(retry)}
+      type="button"
+      variant="secondary"
+    >
+      重试
+    </Button>
+  );
+}
 
 export function resolveJournalRetry(
   journal: Exclude<JournalApplication, { status: "ready" }>,
@@ -66,13 +81,7 @@ function renderUnavailableJournal(
           action={
             <>
               {retry ? (
-                <Button
-                  onClick={() => void retry()}
-                  type="button"
-                  variant="secondary"
-                >
-                  重试
-                </Button>
+                <JournalRetryButton retry={retry} />
               ) : null}
               <Button
                 onClick={() => onActiveActivityChange("repository")}

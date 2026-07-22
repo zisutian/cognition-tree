@@ -95,6 +95,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
         ...renamingFile,
         errorMessage: "语法名称不能为空。",
       });
+      feedback.notifyError(new Error("语法名称不能为空。"));
       return;
     }
     const file = view.files.find(({ id }) => id === renamingFile.id);

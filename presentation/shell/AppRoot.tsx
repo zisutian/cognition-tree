@@ -1,4 +1,8 @@
 import {
+  createWorkbenchFeedbackController,
+  type WorkbenchFeedbackController,
+} from "../../application/workbench/workbenchFeedbackController";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -56,6 +60,7 @@ import type { ActivityId } from "../ui/activityTypes";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 
 type RepositoryCatalogApplication = ReturnType<typeof useRepositoryCatalog>;
+type ActivityFeedbackController = WorkbenchFeedbackController<ActivityId>;
 type JournalWorkspaceReferenceSnapshotState = {
   generation: number;
   snapshot: JournalWorkspaceReferenceSnapshot | null;
@@ -63,6 +68,7 @@ type JournalWorkspaceReferenceSnapshotState = {
 
 function ReadyWorkspaceWorkbench({
   activeActivityId,
+  feedbackController,
   builtIns,
   builtInSessions,
   catalog,
@@ -75,6 +81,7 @@ function ReadyWorkspaceWorkbench({
   workspaceNoteDestination,
 }: {
   activeActivityId: ActivityId;
+  feedbackController: ActivityFeedbackController;
   builtIns: BuiltInCatalogApplication;
   builtInSessions: RepositoryApplication["builtIns"]["sessions"];
   catalog: RepositoryCatalogApplication;
@@ -113,7 +120,11 @@ function ReadyWorkspaceWorkbench({
           onActiveActivityChange("notes");
           onConsumeWorkspaceNoteDestination(destination.requestId);
         }
-      } catch {
+      } catch (error) {
+        feedbackController.reportError(
+          "journal",
+          error instanceof Error ? error.message : "无法打开日记引用目标。",
+        );
         // Keep the one-shot destination pending. A later session/catalog retry
         // can resume navigation without losing the user's original click.
       } finally {
@@ -130,6 +141,7 @@ function ReadyWorkspaceWorkbench({
     onActiveActivityChange,
     onConsumeWorkspaceNoteDestination,
     session,
+    feedbackController,
     workspace.navigation,
     workspaceNoteDestination,
   ]);
@@ -181,6 +193,7 @@ function ReadyWorkspaceWorkbench({
   return (
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
+      feedbackController={feedbackController}
       application={{
         journal,
         repository,
@@ -194,6 +207,7 @@ function ReadyWorkspaceWorkbench({
 
 function RepositoryWorkspaceApp({
   activeActivityId,
+  feedbackController,
   builtIns,
   builtInSessions,
   catalog,
@@ -206,6 +220,7 @@ function RepositoryWorkspaceApp({
   workspaceNoteDestination,
 }: {
   activeActivityId: ActivityId;
+  feedbackController: ActivityFeedbackController;
   builtIns: BuiltInCatalogApplication;
   builtInSessions: RepositoryApplication["builtIns"]["sessions"];
   catalog: RepositoryCatalogApplication;
@@ -249,6 +264,7 @@ function RepositoryWorkspaceApp({
     return (
       <ReadyWorkspaceWorkbench
         activeActivityId={activeActivityId}
+        feedbackController={feedbackController}
         builtIns={builtIns}
         builtInSessions={builtInSessions}
         catalog={catalog}
@@ -283,6 +299,7 @@ function RepositoryWorkspaceApp({
   return (
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
+      feedbackController={feedbackController}
       application={{
         journal,
         repository: repositoryApplication,
@@ -296,6 +313,7 @@ function RepositoryWorkspaceApp({
 
 function EmptyWorkspaceApp({
   activeActivityId,
+  feedbackController,
   builtIns,
   builtInSessions,
   catalog,
@@ -308,6 +326,7 @@ function EmptyWorkspaceApp({
   workspaceNoteDestination,
 }: {
   activeActivityId: ActivityId;
+  feedbackController: ActivityFeedbackController;
   builtIns: BuiltInCatalogApplication;
   builtInSessions: RepositoryApplication["builtIns"]["sessions"];
   catalog: RepositoryCatalogApplication;
@@ -344,7 +363,11 @@ function EmptyWorkspaceApp({
     void routeJournalWorkspaceNoteDestinationWithoutSession(
       destination,
       catalog.selectRepository,
-    ).catch(() => {
+    ).catch((error: unknown) => {
+      feedbackController.reportError(
+        "journal",
+        error instanceof Error ? error.message : "无法打开日记引用目标。",
+      );
       if (mounted) {
         handlingWorkspaceRequestRef.current = null;
       }
@@ -352,7 +375,7 @@ function EmptyWorkspaceApp({
     return () => {
       mounted = false;
     };
-  }, [catalog, workspaceNoteDestination]);
+  }, [catalog, feedbackController, workspaceNoteDestination]);
   const repository = createRepositoryApplication({
     builtIns,
     builtInSessions,
@@ -374,6 +397,7 @@ function EmptyWorkspaceApp({
   return (
     <WorkspaceWorkbench
       activeActivityId={activeActivityId}
+      feedbackController={feedbackController}
       application={{ journal, repository, todo, workspace }}
       onActiveActivityChange={onActiveActivityChange}
     />
@@ -381,6 +405,10 @@ function EmptyWorkspaceApp({
 }
 
 export function AppRoot() {
+  const feedbackController = useMemo(
+    () => createWorkbenchFeedbackController<ActivityId>(),
+    [],
+  );
   const repositoryRuntime = useMemo(
     () => createWorkspaceRepositoryRuntime(),
     [],
@@ -403,6 +431,9 @@ export function AppRoot() {
   );
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
+  const previousFeedbackRepositoryIdRef = useRef<string | null | undefined>(
+    undefined,
+  );
   const [journalWorkspaceReferenceSnapshot, setJournalWorkspaceReferenceSnapshot] =
     useState<JournalWorkspaceReferenceSnapshotState>({
       generation: 0,
@@ -491,11 +522,36 @@ export function AppRoot() {
     }),
     [journalSession, todoSession],
   );
+  useEffect(() => {
+    const repositoryId = catalog.activeDescriptor?.id ?? null;
+    const previousRepositoryId = previousFeedbackRepositoryIdRef.current;
+
+    previousFeedbackRepositoryIdRef.current = repositoryId;
+    if (
+      previousRepositoryId === undefined ||
+      previousRepositoryId === repositoryId
+    ) {
+      return;
+    }
+    ([
+      "notes",
+      "structure-operation",
+      "visualization",
+      "syntax",
+      "search",
+      "data",
+    ] as const).forEach((activityId) =>
+      feedbackController.dismissScope(activityId)
+    );
+  }, [catalog.activeDescriptor?.id, feedbackController]);
+
+  useEffect(() => () => feedbackController.dispose(), [feedbackController]);
   const common = {
     activeActivityId,
     builtIns,
     builtInSessions,
     catalog,
+    feedbackController,
     journal,
     todo,
     navigation,

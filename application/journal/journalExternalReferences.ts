@@ -71,6 +71,17 @@ export function startJournalWorkspaceReferenceResolution({
   publish({ status: "loading" });
   void resolver.resolve(references).then((resolutions) => {
     if (!cancelled) publish({ resolutions, status: "ready" });
+  }).catch(() => {
+    if (cancelled) return;
+    publish({
+      resolutions: references.map((reference) => ({
+        code: "repository-unreadable",
+        message: `无法读取普通仓库，暂时不能解析“${reference.targetText}”。`,
+        reference,
+        status: "fault",
+      })),
+      status: "ready",
+    });
   });
   return () => {
     cancelled = true;

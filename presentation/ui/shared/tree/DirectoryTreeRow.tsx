@@ -132,6 +132,9 @@ export function DirectoryTreeRow({
     const nextTitle = editingNode?.title.trim() ?? "";
 
     if (!nextTitle) {
+      runAction(() => {
+        throw new Error("名称不能为空。");
+      });
       setEditingNode((current) => current?.key === nodeKey
         ? { ...current, errorMessage: "名称不能为空。" }
         : current);

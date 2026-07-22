@@ -71,21 +71,6 @@ function getErrorMessage(error: unknown) {
     : "The journal content could not be loaded.";
 }
 
-function getEditorErrorMessage(
-  persistence: Extract<
-    JournalRepositorySession["state"],
-    { status: "ready" }
-  >["persistence"],
-) {
-  if (persistence.status === "error") {
-    return persistence.message;
-  }
-  if (persistence.status === "conflict") {
-    return "日记存在同步冲突，请前往仓库处理。";
-  }
-  return "";
-}
-
 export function useJournalApplication({
   openWorkspaceNote,
   referenceResolutionGeneration,
@@ -286,7 +271,6 @@ export function useJournalApplication({
           content: parsed.content,
           createEntry: mutations.createEntry,
           deleteEntry: mutations.deleteEntry,
-          editorErrorMessage: getEditorErrorMessage(readyState.persistence),
           expandedCalendarKeys,
           focusRequest,
           index: parsed.index,

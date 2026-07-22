@@ -40,7 +40,6 @@ describe("journal view model", () => {
       content,
       createEntry: () => journalEntryId(9),
       deleteEntry: vi.fn(),
-      editorErrorMessage: "",
       expandedCalendarKeys: new Set([
         "year:2026",
         "month:2026-07",
@@ -122,7 +121,6 @@ describe("journal view model", () => {
       content,
       createEntry: () => journalEntryId(9),
       deleteEntry: vi.fn(),
-      editorErrorMessage: "",
       expandedCalendarKeys: new Set(),
       focusRequest: null,
       index: createJournalParseIndex(content),
@@ -160,7 +158,6 @@ describe("journal view model", () => {
       content,
       createEntry: () => journalEntryId(1),
       deleteEntry: vi.fn(),
-      editorErrorMessage: "",
       expandedCalendarKeys: new Set(),
       focusRequest: null,
       index: createJournalParseIndex(content),

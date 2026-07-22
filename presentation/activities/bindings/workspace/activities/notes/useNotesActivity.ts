@@ -25,12 +25,10 @@ import {
 } from "../../../../../../core/ctn/metadata/editableSource";
 
 export function useNotesActivity({
-  errorMessage,
   navigation,
   runtime,
   selection,
 }: {
-  errorMessage: string;
   navigation: WorkspaceNavigation;
   runtime: WorkspaceRuntime;
   selection: WorkspaceSelection;
@@ -123,7 +121,6 @@ export function useNotesActivity({
     () => createUiEditorView({
       document: parsedNote?.document ?? null,
       documentText: editableSource?.source ?? activeNote?.source ?? "",
-      errorMessage,
       focusTarget,
       syntaxProfile: parsedNote?.profile ?? defaultSyntaxProfile,
     }),
@@ -131,7 +128,6 @@ export function useNotesActivity({
       activeNote,
       defaultSyntaxProfile,
       editableSource,
-      errorMessage,
       focusTarget,
       parsedNote,
     ],
