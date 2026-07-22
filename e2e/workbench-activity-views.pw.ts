@@ -21,6 +21,42 @@ const syntaxRepositoryId = "workbench-syntax-view";
 const invalidSyntaxRepositoryId = "workbench-invalid-syntax-view";
 const visualizationRepositoryId = "workbench-visualization-view";
 
+async function readGraphSpan(
+  canvas: Parameters<typeof readGraphCanvasNodes>[0],
+) {
+  const samples = await readGraphCanvasNodes(canvas);
+
+  if (samples.length < 2) {
+    return 0;
+  }
+
+  const xs = samples.map(({ x }) => x);
+  const ys = samples.map(({ y }) => y);
+
+  return Math.hypot(
+    Math.max(...xs) - Math.min(...xs),
+    Math.max(...ys) - Math.min(...ys),
+  );
+}
+
+async function waitForStableGraphSpan(
+  canvas: Parameters<typeof readGraphCanvasNodes>[0],
+) {
+  let previousSpan: number | null = null;
+
+  await expect.poll(async () => {
+    const span = await readGraphSpan(canvas);
+    const difference = previousSpan === null || span === 0
+      ? Number.POSITIVE_INFINITY
+      : Math.abs(span - previousSpan);
+
+    previousSpan = span;
+    return difference;
+  }, { timeout: 10_000 }).toBeLessThan(0.5);
+
+  return readGraphSpan(canvas);
+}
+
 test.describe("syntax and visualization activity flows", () => {
   let api: APIRequestContext;
 
@@ -214,7 +250,8 @@ test.describe("syntax and visualization activity flows", () => {
     expect(initialBox).not.toBeNull();
 
     await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
-      .toBeGreaterThanOrEqual(2);
+      .toBe(3);
+    await waitForStableGraphSpan(canvas);
     let nodeSamples = await readGraphCanvasNodes(canvas);
     const firstNode = nodeSamples[0];
     const secondNode = nodeSamples.at(-1);
@@ -276,35 +313,9 @@ test.describe("syntax and visualization activity flows", () => {
       name: "笔记引用力导向图",
     });
     const reset = page.getByRole("button", { name: "重置图谱视图" });
-    const readSpan = async () => {
-      const samples = await readGraphCanvasNodes(canvas);
-
-      if (samples.length < 2) {
-        return 0;
-      }
-
-      const xs = samples.map(({ x }) => x);
-      const ys = samples.map(({ y }) => y);
-
-      return Math.hypot(
-        Math.max(...xs) - Math.min(...xs),
-        Math.max(...ys) - Math.min(...ys),
-      );
-    };
-    let previousSpan: number | null = null;
-
-    await expect.poll(async () => {
-      const span = await readSpan();
-      const difference = previousSpan === null || span === 0
-        ? Number.POSITIVE_INFINITY
-        : Math.abs(span - previousSpan);
-
-      previousSpan = span;
-      return difference;
-    }, { timeout: 10_000 }).toBeLessThan(0.5);
 
     const initialBox = await canvas.boundingBox();
-    const initialSpan = await readSpan();
+    const initialSpan = await waitForStableGraphSpan(canvas);
 
     expect(initialBox).not.toBeNull();
     expect(initialSpan).toBeGreaterThan(0);
@@ -314,11 +325,65 @@ test.describe("syntax and visualization activity flows", () => {
     }
 
     const finalBox = await canvas.boundingBox();
-    const finalSpan = await readSpan();
+    const finalSpan = await readGraphSpan(canvas);
 
     expect(finalBox?.width).toBeCloseTo(initialBox?.width ?? 0, 0);
     expect(finalBox?.height).toBeCloseTo(initialBox?.height ?? 0, 0);
     expect(finalSpan).toBeCloseTo(initialSpan, 0);
+  });
+
+  test("restores cached layouts without contracting across graph filters", async ({
+    page,
+  }) => {
+    await openWorkbench(page, visualizationRepositoryId);
+    await getActivityButton(page, "引用图谱").click();
+
+    const canvas = page.getByRole("application", {
+      name: "笔记引用力导向图",
+    });
+    const globalMode = page.getByRole("button", { name: "全库", exact: true });
+    const localMode = page.getByRole("button", { name: "局部", exact: true });
+    const hideIsolated = page.getByRole("button", { name: "隐藏孤立点" });
+    const initialSpan = await waitForStableGraphSpan(canvas);
+    const initialBox = await canvas.boundingBox();
+
+    expect(initialBox).not.toBeNull();
+
+    for (let index = 0; index < 4; index += 1) {
+      await localMode.click();
+      await expect(localMode).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+        .toBe(2);
+      await page.waitForTimeout(120);
+      await globalMode.click();
+      await expect(globalMode).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+        .toBe(3);
+      await page.waitForTimeout(180);
+    }
+
+    const afterModeSwitches = await readGraphSpan(canvas);
+
+    expect(afterModeSwitches).toBeCloseTo(initialSpan, 0);
+
+    for (let index = 0; index < 4; index += 1) {
+      await hideIsolated.click();
+      await expect(hideIsolated).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+        .toBe(2);
+      await page.waitForTimeout(120);
+      await hideIsolated.click();
+      await expect(hideIsolated).toHaveAttribute("aria-pressed", "false");
+      await expect.poll(async () => (await readGraphCanvasNodes(canvas)).length)
+        .toBe(3);
+      await page.waitForTimeout(180);
+    }
+
+    expect(await readGraphSpan(canvas)).toBeCloseTo(afterModeSwitches, 0);
+    const finalBox = await canvas.boundingBox();
+
+    expect(finalBox?.width).toBeCloseTo(initialBox?.width ?? 0, 0);
+    expect(finalBox?.height).toBeCloseTo(initialBox?.height ?? 0, 0);
   });
 
   test("adjusts Obsidian-style graph display and force settings for the page session", async ({

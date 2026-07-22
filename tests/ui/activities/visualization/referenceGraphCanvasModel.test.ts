@@ -155,6 +155,55 @@ describe("reference graph canvas pointer movement", () => {
       y: 99,
     });
     expect(controller.transform).toEqual({ scale: 1.5, x: 20, y: 30 });
+    expect(controller.hasCachedLayout(nodes, "default")).toBe(true);
+    expect(controller.hasCachedLayout(nodes, "different-forces")).toBe(false);
+  });
+
+  it("recenters cached positions for a changed canvas without changing their span", () => {
+    const controller = new ReferenceGraphController();
+    const visibleNodes = [
+      {
+        id: "note-a",
+        isolated: false,
+        referencesIn: 0,
+        referencesOut: 1,
+        radius: 5,
+        title: "Alpha",
+      },
+      {
+        id: "note-b",
+        isolated: false,
+        referencesIn: 1,
+        referencesOut: 0,
+        radius: 5,
+        title: "Beta",
+      },
+    ];
+    const nodes = controller.createNodes(visibleNodes, 400, 300);
+
+    nodes[0]!.x = 100;
+    nodes[0]!.y = 100;
+    nodes[1]!.x = 220;
+    nodes[1]!.y = 180;
+    controller.capturePositions(
+      nodes,
+      "forces",
+      { height: 300, width: 400 },
+      0.42,
+    );
+
+    const restored = controller.createNodes(visibleNodes, 800, 600);
+
+    expect(restored.map(({ x, y }) => ({ x, y }))).toEqual([
+      { x: 300, y: 250 },
+      { x: 420, y: 330 },
+    ]);
+    expect(Math.hypot(
+      restored[1]!.x - restored[0]!.x,
+      restored[1]!.y - restored[0]!.y,
+    )).toBe(Math.hypot(120, 80));
+    expect(controller.hasCachedLayout(visibleNodes, "forces")).toBe(true);
+    expect(controller.getCachedLayoutAlpha(visibleNodes, "forces")).toBe(0.42);
   });
 
   it("restores the same controller after leaving and reopening a topology", () => {
@@ -201,10 +250,71 @@ describe("reference graph canvas pointer movement", () => {
       onTick: () => undefined,
     });
 
-    expect(resizeReferenceGraphSimulation(simulation, 800, 600)).toBe(
+    simulation.stop().alpha(0.08);
+    expect(resizeReferenceGraphSimulation(
       simulation,
-    );
+      nodes,
+      { height: 300, width: 400 },
+      { height: 600, width: 800 },
+    )).toBe(simulation);
     expect(simulation.force("center")).toBeDefined();
+    expect(nodes[0]).toMatchObject({ x: 210, y: 160 });
+    expect(simulation.alpha()).toBe(0.08);
+    simulation.stop();
+  });
+
+  it("keeps a settled restored layout stopped until an explicit interaction", () => {
+    const nodes = [
+      {
+        id: "note-a",
+        isolated: true,
+        referencesIn: 0,
+        referencesOut: 0,
+        radius: 3,
+        title: "Alpha",
+        x: 10,
+        y: 10,
+      },
+    ];
+    const simulation = createReferenceGraphSimulation({
+      height: 300,
+      initialAlpha: 0,
+      links: [],
+      nodes,
+      settings: { ...defaultReferenceGraphSettings.forces },
+      width: 400,
+      onTick: () => undefined,
+    });
+
+    expect(simulation.alpha()).toBe(0);
+    expect(nodes[0]).toMatchObject({ x: 10, y: 10 });
+    simulation.stop();
+  });
+
+  it("resumes an interrupted cached layout at its previous temperature", () => {
+    const nodes = [
+      {
+        id: "note-a",
+        isolated: true,
+        referencesIn: 0,
+        referencesOut: 0,
+        radius: 3,
+        title: "Alpha",
+        x: 10,
+        y: 10,
+      },
+    ];
+    const simulation = createReferenceGraphSimulation({
+      height: 300,
+      initialAlpha: 0.42,
+      links: [],
+      nodes,
+      settings: { ...defaultReferenceGraphSettings.forces },
+      width: 400,
+      onTick: () => undefined,
+    });
+
+    expect(simulation.alpha()).toBe(0.42);
     simulation.stop();
   });
 

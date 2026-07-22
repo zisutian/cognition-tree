@@ -42,9 +42,10 @@ import {
   resizeReferenceGraphSimulation,
   updateReferenceGraphSimulationForces,
 } from "./referenceGraphSimulation";
-import type {
-  GraphDisplaySettings,
-  GraphForceSettings,
+import {
+  getReferenceGraphForceSettingsKey,
+  type GraphDisplaySettings,
+  type GraphForceSettings,
 } from "./referenceGraphSettings";
 
 type ReferenceGraphCanvasProps = {
@@ -81,6 +82,7 @@ export function ReferenceGraphCanvas({
   topologyRevision,
   onSelectNote,
 }: ReferenceGraphCanvasProps) {
+  const forceSettingsKey = getReferenceGraphForceSettingsKey(forceSettings);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const simulationRef = useRef<Simulation<
     GraphSimulationNode,
@@ -98,6 +100,8 @@ export function ReferenceGraphCanvas({
   const redrawFrameRef = useRef<number | null>(null);
   const handledResetSignalRef = useRef(resetSignal);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
+  const appliedForceSettingsKeyRef = useRef(forceSettingsKey);
+  const simulationSizeRef = useRef(canvasSize);
   const [announcement, setAnnouncement] = useState("");
   const announcementId = useId();
   const controller = useMemo(
@@ -246,6 +250,11 @@ export function ReferenceGraphCanvas({
   useEffect(() => {
     transformRef.current = controller.transform;
     const size = canvasSizeRef.current;
+    // Preserve both coordinates and energy across filters and StrictMode replay.
+    const cachedLayoutAlpha = controller.getCachedLayoutAlpha(
+      graph.nodes,
+      forceSettingsKey,
+    );
     const nodes = controller.createNodes(
       graph.nodes,
       size.width,
@@ -274,6 +283,7 @@ export function ReferenceGraphCanvas({
 
     const simulation = createReferenceGraphSimulation({
       height: size.height,
+      initialAlpha: cachedLayoutAlpha ?? 0.9,
       links,
       nodes,
       width: size.width,
@@ -282,10 +292,18 @@ export function ReferenceGraphCanvas({
     });
 
     simulationRef.current = simulation;
+    appliedForceSettingsKeyRef.current = forceSettingsKey;
+    simulationSizeRef.current = size;
+    requestRedraw();
 
     return () => {
       finishPointerInteraction();
-      controller.capturePositions(nodes);
+      controller.capturePositions(
+        nodes,
+        appliedForceSettingsKeyRef.current,
+        simulationSizeRef.current,
+        simulation.alpha(),
+      );
       simulation.alphaTarget(0).stop();
 
       if (simulationRef.current === simulation) {
@@ -301,23 +319,30 @@ export function ReferenceGraphCanvas({
 
   useEffect(() => {
     const simulation = simulationRef.current;
+    const previousSize = simulationSizeRef.current;
+    const sizeChanged =
+      previousSize.height !== canvasSize.height ||
+      previousSize.width !== canvasSize.width;
 
-    if (simulation) {
+    if (simulation && sizeChanged) {
       resizeReferenceGraphSimulation(
         simulation,
-        canvasSize.width,
-        canvasSize.height,
+        nodesRef.current,
+        previousSize,
+        canvasSize,
       );
     }
 
+    simulationSizeRef.current = canvasSize;
     requestRedraw();
   }, [canvasSize.height, canvasSize.width]);
 
   useEffect(() => {
     const simulation = simulationRef.current;
 
-    if (simulation) {
+    if (simulation && appliedForceSettingsKeyRef.current !== forceSettingsKey) {
       updateReferenceGraphSimulationForces(simulation, forceSettings);
+      appliedForceSettingsKeyRef.current = forceSettingsKey;
     }
   }, [
     forceSettings.centerStrength,
@@ -434,7 +459,12 @@ export function ReferenceGraphCanvas({
         if (!dragState.movement.dragStarted) {
           dragState.node.fx = dragState.node.x;
           dragState.node.fy = dragState.node.y;
-          simulationRef.current?.alphaTarget(0.18).restart();
+          const simulation = simulationRef.current;
+
+          simulation
+            ?.alpha(Math.max(simulation.alpha(), 0.18))
+            .alphaTarget(0.18)
+            .restart();
         }
 
         dragStateRef.current = { ...dragState, movement };

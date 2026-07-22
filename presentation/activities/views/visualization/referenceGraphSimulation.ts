@@ -17,6 +17,7 @@ import type { GraphForceSettings } from "./referenceGraphSettings";
 
 export function createReferenceGraphSimulation({
   height,
+  initialAlpha = 0.9,
   links,
   nodes,
   width,
@@ -24,6 +25,7 @@ export function createReferenceGraphSimulation({
   onTick,
 }: {
   height: number;
+  initialAlpha?: number;
   links: GraphSimulationLink[];
   nodes: GraphSimulationNode[];
   width: number;
@@ -34,7 +36,9 @@ export function createReferenceGraphSimulation({
     (link) => link.sourceNoteId !== link.targetNoteId,
   );
 
-  return forceSimulation<GraphSimulationNode, GraphSimulationLink>(nodes)
+  const simulation = forceSimulation<GraphSimulationNode, GraphSimulationLink>(
+    nodes,
+  )
     .force(
       "link",
       forceLink<GraphSimulationNode, GraphSimulationLink>(layoutLinks)
@@ -54,9 +58,15 @@ export function createReferenceGraphSimulation({
       "collide",
       forceCollide<GraphSimulationNode>().radius((node) => node.radius + 12),
     )
-    .alpha(0.9)
+    .alpha(initialAlpha)
     .alphaDecay(0.045)
     .on("tick", onTick);
+
+  if (initialAlpha <= simulation.alphaMin()) {
+    simulation.stop();
+  }
+
+  return simulation;
 }
 
 export function updateReferenceGraphSimulationForces(
@@ -83,15 +93,31 @@ export function updateReferenceGraphSimulationForces(
 
 export function resizeReferenceGraphSimulation(
   simulation: Simulation<GraphSimulationNode, GraphSimulationLink>,
-  width: number,
-  height: number,
+  nodes: GraphSimulationNode[],
+  previousSize: { height: number; width: number },
+  nextSize: { height: number; width: number },
 ) {
   const center = simulation.force("center") as
     | ForceCenter<GraphSimulationNode>
     | undefined;
 
-  center?.x(width / 2).y(height / 2);
-  simulation.alpha(Math.max(simulation.alpha(), 0.2)).restart();
+  const offsetX = (nextSize.width - previousSize.width) / 2;
+  const offsetY = (nextSize.height - previousSize.height) / 2;
+
+  for (const node of nodes) {
+    node.x += offsetX;
+    node.y += offsetY;
+
+    if (typeof node.fx === "number") {
+      node.fx += offsetX;
+    }
+
+    if (typeof node.fy === "number") {
+      node.fy += offsetY;
+    }
+  }
+
+  center?.x(nextSize.width / 2).y(nextSize.height / 2);
 
   return simulation;
 }

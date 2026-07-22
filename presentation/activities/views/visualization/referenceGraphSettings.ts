@@ -50,3 +50,14 @@ export function setReferenceGraphSessionSettings(
 ) {
   sessionSettings = settings;
 }
+
+export function getReferenceGraphForceSettingsKey(
+  settings: GraphForceSettings,
+) {
+  return [
+    settings.centerStrength,
+    settings.linkDistance,
+    settings.linkStrength,
+    settings.repulsion,
+  ].join(":");
+}

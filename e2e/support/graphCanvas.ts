@@ -70,7 +70,15 @@ export async function readGraphCanvasNodes(
     };
     const matchesNodeColor = (pixelIndex: number) =>
       nodeColors.some((color) => matchesColor(pixelIndex, color, 250));
-    const components: Array<{ count: number; x: number; y: number }> = [];
+    const components: Array<{
+      count: number;
+      maxX: number;
+      maxY: number;
+      minX: number;
+      minY: number;
+      x: number;
+      y: number;
+    }> = [];
 
     for (let index = 0; index < width * height; index += 1) {
       if (visited[index] || !matchesNodeColor(index)) {
@@ -81,6 +89,10 @@ export async function readGraphCanvasNodes(
       let count = 0;
       let sumX = 0;
       let sumY = 0;
+      let minX = width;
+      let maxX = 0;
+      let minY = height;
+      let maxY = 0;
 
       visited[index] = 1;
       while (pending.length > 0) {
@@ -91,6 +103,10 @@ export async function readGraphCanvasNodes(
         count += 1;
         sumX += x;
         sumY += y;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
 
         const neighbors = [
           x > 0 ? current - 1 : -1,
@@ -111,8 +127,26 @@ export async function readGraphCanvasNodes(
         });
       }
 
-      if (count >= 40) {
-        components.push({ count, x: sumX / count, y: sumY / count });
+      const componentWidth = maxX - minX + 1;
+      const componentHeight = maxY - minY + 1;
+      const fillRatio = count / (componentWidth * componentHeight);
+
+      if (
+        count >= 16 &&
+        componentWidth >= 4 &&
+        componentHeight >= 4 &&
+        Math.abs(componentWidth - componentHeight) <= 3 &&
+        fillRatio >= 0.5
+      ) {
+        components.push({
+          count,
+          maxX,
+          maxY,
+          minX,
+          minY,
+          x: sumX / count,
+          y: sumY / count,
+        });
       }
     }
 
