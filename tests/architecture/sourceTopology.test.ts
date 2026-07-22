@@ -159,4 +159,38 @@ describe("semantic source ownership", () => {
       "infrastructure/server/adapters/webdav/webDavConnectionPersistence.ts",
     ]);
   });
+
+  it("keeps API routing, transport, errors, and domain handlers separated", () => {
+    const ownersOf = (functionName: string) => Object.entries(
+      infrastructureModules,
+    )
+      .filter(([, source]) => new RegExp(
+        `function\\s+${functionName}\\s*\\(`,
+      ).test(source))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(ownersOf("resolveWorkspaceApiRoute")).toEqual([
+      "infrastructure/server/api/workspaceApiRoutes.ts",
+    ]);
+    expect(ownersOf("readWorkspaceApiJsonBody")).toEqual([
+      "infrastructure/server/api/workspaceApiTransport.ts",
+    ]);
+    expect(ownersOf("mapWorkspaceApiError")).toEqual([
+      "infrastructure/server/api/workspaceApiErrors.ts",
+    ]);
+    expect(ownersOf("handleBuiltInApiRoute")).toEqual([
+      "infrastructure/server/api/builtInApiHandlers.ts",
+    ]);
+    expect(ownersOf("handleWorkspaceRepositoryApiRoute")).toEqual([
+      "infrastructure/server/api/workspaceRepositoryApiHandlers.ts",
+    ]);
+
+    const server = infrastructureModules[
+      "../../infrastructure/server/api/workspaceApiServer.ts"
+    ] ?? "";
+
+    expect(server).not.toMatch(
+      /parseCreateRepository|parseRenameRepository|for await \(const chunk/,
+    );
+  });
 });
