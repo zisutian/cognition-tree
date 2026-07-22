@@ -1,6 +1,6 @@
-import type { CtnSyntaxProfileValidationPolicy } from "../../../../core/ctn/syntax/profileSchema";
-import type { UiSyntaxView } from "../../projection/viewSyntax";
-import type { UiWorkbenchDiagnostic } from "../../projection/viewDiagnostics";
+import type { CtnSyntaxProfileValidationPolicy } from "../../core/ctn/syntax/profileSchema";
+import type { UiSyntaxView } from "../workspace/projection/viewSyntax";
+import type { UiWorkbenchDiagnostic } from "../workspace/projection/viewDiagnostics";
 import type { createSyntaxDraftActions } from "./syntaxDraftActions";
 
 export type SyntaxSystemOwner = "journal" | "todo";

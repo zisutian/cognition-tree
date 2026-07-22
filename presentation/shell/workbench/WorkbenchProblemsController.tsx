@@ -32,7 +32,10 @@ import type { VersionedRepositoryPersistenceState } from "../../../application/r
 import type { WorkspaceRepositoryCatalogIssue } from "../../../application/repository/workspaceRepositoryCatalog";
 import type { WorkspaceRepositoryDescriptor } from "../../../application/repository/workspaceRepositoryCatalog";
 import type { ActivityId } from "../../ui/activityTypes";
-import { activityItems } from "../../ui/ActivityBar";
+import {
+  getActivityLabel,
+  isActivityId,
+} from "../../ui/activityCatalog";
 import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
 import { useWorkbenchFeedback } from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShortcut";
@@ -121,10 +124,6 @@ export function selectWorkbenchPersistenceStatus(
           : "";
   }
   return "";
-}
-
-function isActivityId(value: string): value is ActivityId {
-  return activityItems.some(({ id }) => id === value);
 }
 
 export function hasWorkbenchProblemsPanel(activeActivityId: ActivityId) {
@@ -347,7 +346,7 @@ export function WorkbenchProblemsController({
       feedback.snapshot.errors.filter(
         ({ scope }) => scope === activeActivityId,
       ),
-      (scope) => activityItems.find(({ id }) => id === scope)?.label ?? scope,
+      (scope) => isActivityId(scope) ? getActivityLabel(scope) : scope,
     ),
     syntaxOwner,
   });

@@ -3,7 +3,7 @@ import {
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositorySnapshot,
 } from "../../contracts/workspace/parseRepository";
-import { serializeJsonIteratively } from "../../contracts/workspace/json";
+import { serializeJsonIteratively } from "../../contracts/common/json";
 import type { WorkspaceRepositoryBackend } from "../../application/repository/workspaceRepository";
 import {
   requestRepositoryJson,

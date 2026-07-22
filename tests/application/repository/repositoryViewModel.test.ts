@@ -9,10 +9,10 @@ import {
   projectRepositoryLocation,
   repositorySelectionExists,
   requiresManualLocalDeletion,
-} from "../../../../../application/workspace/activities/repository/repositoryViewModel";
-import type { RepositoryApplication } from "../../../../../application/repository/repositoryApplication";
-import type { WorkspacePersistenceState } from "../../../../../application/workspace/session/workspaceSessionSaveQueue";
-import { remoteRevision } from "../../session/workspaceSessionTestFixture";
+} from "../../../application/repository/repositoryViewModel";
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
+import type { WorkspacePersistenceState } from "../../../application/workspace/session/workspaceSessionSaveQueue";
+import { remoteRevision } from "../workspace/session/workspaceSessionTestFixture";
 
 function createSource(
   persistence: WorkspacePersistenceState = { status: "saved" },

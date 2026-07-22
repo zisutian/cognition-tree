@@ -4,15 +4,15 @@ import {
   type LazyExoticComponent,
 } from "react";
 import type { ActivityId } from "../../ui/activityTypes";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 
 export type LazyActivityId = Exclude<ActivityId, "data" | "search">;
 
 type LazyActivityController = LazyExoticComponent<
-  ComponentType<WorkspaceActivityControllerProps>
+  ComponentType<ActivityControllerProps>
 >;
 
-export const workspaceActivityControllers: ReadonlyArray<{
+export const activityControllers: ReadonlyArray<{
   activityId: LazyActivityId;
   Controller: LazyActivityController;
 }> = [
@@ -77,7 +77,7 @@ export const workspaceActivityControllers: ReadonlyArray<{
 export function isLazyActivityId(
   activityId: ActivityId,
 ): activityId is LazyActivityId {
-  return workspaceActivityControllers.some(
+  return activityControllers.some(
     (controller) => controller.activityId === activityId,
   );
 }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createSyntaxFileViews } from "../../../../../application/workspace/activities/syntax/syntaxViewModel";
+import { createSyntaxFileViews } from "../../../application/syntax/syntaxViewModel";
 import {
   getSyntaxFocusFileIdToSelect,
   projectSyntaxFocusTargetForSelectedFile,
-} from "../../../../../presentation/activities/bindings/workspace/activities/syntax/useSyntaxActivity";
+} from "../../../presentation/activities/bindings/syntax/useSyntaxActivity";
 
 describe("syntax activity view model", () => {
   it("projects active, selected, and draft error state independently", () => {

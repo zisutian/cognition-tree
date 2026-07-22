@@ -1,7 +1,7 @@
 import { useNotesActivity } from "../bindings/workspace/activities/notes/useNotesActivity";
 import { createNotesActivitySlots } from "../views/notes/NotesActivitySlots";
 import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 
 function ActiveNotesActivity({
@@ -9,7 +9,7 @@ function ActiveNotesActivity({
   renderActivity,
 }: {
   application: WorkspaceApplication;
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
+  renderActivity: ActivityControllerProps["renderActivity"];
 }) {
   const view = useNotesActivity({
     navigation: application.navigation,
@@ -32,7 +32,7 @@ export function NotesActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   if (!active) {
     return null;
   }

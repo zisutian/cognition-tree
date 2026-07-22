@@ -8,9 +8,9 @@ import {
   Panel,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 
-type TodoBuiltInsApplication = WorkspaceActivityControllerProps[
+type TodoBuiltInsApplication = ActivityControllerProps[
   "application"
 ]["repository"]["builtIns"];
 
@@ -52,10 +52,10 @@ export function resolveTodoRetry(
 
 function renderUnavailableTodo(
   todo: Exclude<TodoApplication, { status: "ready" }>,
-  application: WorkspaceActivityControllerProps["application"],
+  application: ActivityControllerProps["application"],
   onActiveActivityChange:
-    WorkspaceActivityControllerProps["onActiveActivityChange"],
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"],
+    ActivityControllerProps["onActiveActivityChange"],
+  renderActivity: ActivityControllerProps["renderActivity"],
 ) {
   const builtInCatalog = application.repository.builtIns.catalog.state;
   const title = todo.status === "loading"
@@ -107,7 +107,7 @@ export function TodoActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   const todo = application.todo;
 
   if (!active) {

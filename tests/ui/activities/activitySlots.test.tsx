@@ -5,7 +5,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { describe, expect, it } from "vitest";
-import { workspaceActivityControllers } from "../../../presentation/activities/controllers/activityRegistry";
+import { activityControllers } from "../../../presentation/activities/controllers/activityRegistry";
 import { createNotesActivitySlots } from "../../../presentation/activities/views/notes/NotesActivitySlots";
 import { createJournalActivitySlots } from "../../../presentation/activities/views/journal/JournalActivitySlots";
 import { createPlaceholderActivitySlots } from "../../../presentation/activities/views/PlaceholderActivitySlots";
@@ -19,7 +19,7 @@ import {
   activityItems,
   primaryActivityItems,
   utilityActivityItems,
-} from "../../../presentation/ui/ActivityBar";
+} from "../../../presentation/ui/activityCatalog";
 import type { ActivityId } from "../../../presentation/ui/activityTypes";
 import { createView, type TestActivityViews } from "../viewFactory";
 
@@ -182,7 +182,7 @@ describe("activity slots", () => {
       activityItems.find((item) => item.id === "repository")?.icon,
     ).toBe(Archive);
     expect(
-      workspaceActivityControllers.map(({ activityId }) => activityId),
+      activityControllers.map(({ activityId }) => activityId),
     ).toEqual([
       "notes",
       "journal",

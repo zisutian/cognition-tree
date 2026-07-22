@@ -1,12 +1,12 @@
 import { createPlaceholderActivitySlots } from "../views/PlaceholderActivitySlots";
-import type { RenderWorkspaceActivity } from "./activityController";
+import type { RenderActivity } from "./activityController";
 
 export function PlaceholderActivityController({
   activityId,
   renderActivity,
 }: {
   activityId: "data" | "search";
-  renderActivity: RenderWorkspaceActivity;
+  renderActivity: RenderActivity;
 }) {
   return renderActivity(() => createPlaceholderActivitySlots(activityId));
 }

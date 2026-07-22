@@ -173,6 +173,39 @@ describe("dependency boundaries", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps cross-domain activities out of the Workspace feature tree", () => {
+    const misplaced = Object.keys(applicationModules).filter((filePath) =>
+      filePath.startsWith("../../application/workspace/activities/repository/") ||
+      filePath.startsWith("../../application/workspace/activities/syntax/")
+    );
+
+    expect(misplaced).toEqual([]);
+    expect(Object.keys(applicationModules)).toContain(
+      "../../application/repository/repositoryViewModel.ts",
+    );
+    expect(Object.keys(applicationModules)).toContain(
+      "../../application/syntax/syntaxViewModel.ts",
+    );
+  });
+
+  it("keeps common wire utilities independent from domain contracts", () => {
+    const violations = Object.keys(contractModules)
+      .filter((filePath) => filePath.startsWith("../../contracts/common/"))
+      .flatMap((filePath) =>
+        readInternalModuleImports(
+          contractModules,
+          filePath,
+          "../../contracts/",
+        )
+          .filter(({ targetPath }) =>
+            !targetPath.startsWith("../../contracts/common/")
+          )
+          .map(({ importPath }) => formatImport(filePath, importPath))
+      );
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps shared CTN and portable naming pure and uniquely owned", () => {
     const externalCtnParsers = Object.keys(coreModules).filter((filePath) =>
       !filePath.startsWith("../../core/ctn/") &&

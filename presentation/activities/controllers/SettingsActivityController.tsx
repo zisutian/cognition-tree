@@ -1,10 +1,10 @@
 import { createSettingsActivitySlots } from "../views/settings/SettingsActivitySlots";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 
 export function SettingsActivityController({
   active,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   return active
     ? renderActivity(({ contextWidth, onContextWidthChange }) =>
         createSettingsActivitySlots({

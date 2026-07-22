@@ -3,7 +3,7 @@
 import {
   WorkspaceRepositoryContractError,
 } from "../../../contracts/workspace/contractValue.ts";
-import { serializeJsonIteratively } from "../../../contracts/workspace/json.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   isRepositoryNoteId,
   parseRepositoryTree,

@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import type {
   SyntaxFileView,
   SyntaxViewModel,
-} from "../../../../application/workspace/activities/syntax/syntaxViewModel";
+} from "../../../../application/syntax/syntaxViewModel";
 import { syntaxFieldIds } from
   "../../../../application/workspace/projection/viewSyntaxFields";
 import {

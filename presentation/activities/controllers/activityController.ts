@@ -4,11 +4,11 @@ import type { UiSyntaxFocusTarget } from "../../../application/workspace/project
 import type { CreateActivitySlots } from "../../ui/activityTypes";
 import type { ReactNode } from "react";
 
-export type RenderWorkspaceActivity = (
+export type RenderActivity = (
   createActivitySlots: CreateActivitySlots,
 ) => ReactNode;
 
-export type WorkspaceActivityControllerProps = {
+export type ActivityControllerProps = {
   active: boolean;
   application: WorkbenchApplication;
   onActiveActivityChange: (activityId: import("../../ui/activityTypes").ActivityId) => void;
@@ -17,7 +17,7 @@ export type WorkspaceActivityControllerProps = {
     diagnostics: WorkbenchDiagnostics | null,
     owner: "journal" | "todo" | "workspace",
   ) => void;
-  renderActivity: RenderWorkspaceActivity;
+  renderActivity: RenderActivity;
   systemSyntaxFocusRequest?: Extract<
     UiSyntaxFocusTarget,
     { systemOwner: "journal" | "todo" }

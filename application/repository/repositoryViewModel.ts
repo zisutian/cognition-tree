@@ -2,30 +2,30 @@ import type {
   RepositoryAdapterKind,
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "../../../repository/workspaceRepositoryCatalog";
+} from "./workspaceRepositoryCatalog";
 import type {
   BuiltInDescriptor,
   BuiltInId,
   BuiltInIssue,
   BuiltInLocation,
-} from "../../../repository/builtInRepository";
-export type { BuiltInId } from "../../../repository/builtInRepository";
-import type { RepositoryApplication } from "../../../repository/repositoryApplication";
+} from "./builtInRepository";
+export type { BuiltInId } from "./builtInRepository";
+import type { RepositoryApplication } from "./repositoryApplication";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RepositoryCatalogOperation,
-} from "../../../repository/repositoryCatalog";
-import type { WorkspacePersistenceState } from "../../session/workspaceSessionSaveQueue";
+} from "./repositoryCatalog";
+import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionSaveQueue";
 import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,
   requiresManualLocalDeletion,
-} from "../../projection/viewRepositoryIssues";
+} from "../workspace/projection/viewRepositoryIssues";
 export {
   repositoryAdapterLabels,
   requiresManualLocalDeletion,
-} from "../../projection/viewRepositoryIssues";
+} from "../workspace/projection/viewRepositoryIssues";
 
 const persistenceLabels: Record<WorkspacePersistenceState["status"], string> = {
   conflict: "仓库内容已更改",

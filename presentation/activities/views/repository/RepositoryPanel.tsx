@@ -28,7 +28,7 @@ import {
   type BuiltInId,
   type BuiltInIssueView,
   type BuiltInOption,
-} from "../../../../application/workspace/activities/repository/repositoryViewModel";
+} from "../../../../application/repository/repositoryViewModel";
 import { RepositoryCreateForm } from "../../../ui/RepositoryCreateForm";
 import {
   CompactContextGroup,

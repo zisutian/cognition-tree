@@ -12,9 +12,9 @@ import {
 } from "../../core/todo/syntax/todoSyntax";
 import { createUiSyntaxView } from "../../application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../application/workspace/activities/notes/notesViewModel";
-import type { RepositoryViewModel } from "../../application/workspace/activities/repository/repositoryViewModel";
+import type { RepositoryViewModel } from "../../application/repository/repositoryViewModel";
 import type { StructureOperationActivityViewModel } from "../../application/workspace/activities/structure-operation/structureOperationViewModel";
-import type { SyntaxViewModel } from "../../application/workspace/activities/syntax/syntaxViewModel";
+import type { SyntaxViewModel } from "../../application/syntax/syntaxViewModel";
 import type { VisualizationViewModel } from "../../application/workspace/activities/visualization/visualizationViewModel";
 import type { WorkspaceShell } from "../../presentation/activities/bindings/workspace/runtime/useWorkspaceApplication";
 

@@ -2,7 +2,7 @@ import { useVisualizationActivity } from "../bindings/workspace/activities/visua
 import { useVisualizationFilter } from "../bindings/workspace/activities/visualization/useVisualizationFilter";
 import { createVisualizationActivitySlots } from "../views/visualization/VisualizationActivitySlots";
 import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 
 function ActiveVisualizationActivity({
@@ -12,7 +12,7 @@ function ActiveVisualizationActivity({
 }: {
   application: WorkspaceApplication;
   filter: ReturnType<typeof useVisualizationFilter>;
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
+  renderActivity: ActivityControllerProps["renderActivity"];
 }) {
   const view = useVisualizationActivity({
     filter,
@@ -35,7 +35,7 @@ function ReadyVisualizationActivity({
   renderActivity,
 }: {
   application: WorkspaceApplication;
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
+  renderActivity: ActivityControllerProps["renderActivity"];
 }) {
   const filter = useVisualizationFilter();
 
@@ -53,7 +53,7 @@ export function VisualizationActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   if (!active) {
     return null;
   }

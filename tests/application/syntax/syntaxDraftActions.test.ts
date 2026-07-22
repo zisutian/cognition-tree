@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSyntaxProfileDraft } from "../../../../../core/ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../../../../core/ctn/syntax/defaultSyntaxProfile";
-import { defaultJournalCtnSyntaxProfileV3 } from "../../../../../core/journal/syntax/journalSyntax";
-import { createSyntaxDraftActions } from "../../../../../application/workspace/activities/syntax/syntaxDraftActions";
-import { defaultTodoCtnSyntaxProfileV3 } from "../../../../../core/todo/syntax/todoSyntax";
+import { createSyntaxProfileDraft } from "../../../core/ctn/syntax/profileDraft";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultJournalCtnSyntaxProfileV3 } from "../../../core/journal/syntax/journalSyntax";
+import { createSyntaxDraftActions } from "../../../application/syntax/syntaxDraftActions";
+import { defaultTodoCtnSyntaxProfileV3 } from "../../../core/todo/syntax/todoSyntax";
 
 describe("syntax draft actions", () => {
   it("keeps ordinary custom semantic ids editable", () => {

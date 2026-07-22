@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { serializeJsonIteratively } from "../../../contracts/workspace/json";
+import { serializeJsonIteratively } from "../../../contracts/common/json";
 import { parseWorkspaceRepositorySnapshot } from "../../../contracts/workspace/parseRepository";
 import type {
   RepositoryApiErrorDto,

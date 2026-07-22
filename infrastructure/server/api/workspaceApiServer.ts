@@ -15,7 +15,7 @@ import {
   UnsupportedWireVersionError,
   WireContractError,
 } from "../../../contracts/common/contractValue.ts";
-import { serializeJsonIteratively } from "../../../contracts/workspace/json.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   parseCreateRepository,
   parseRepositoryDeletionMode,

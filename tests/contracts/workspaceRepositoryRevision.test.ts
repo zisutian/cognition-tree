@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serializeJsonIteratively } from "../../contracts/workspace/json";
+import { serializeJsonIteratively } from "../../contracts/common/json";
 import { parseWorkspaceRepositoryContent } from "../../contracts/workspace/parseRepository";
 import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision";
 import type {

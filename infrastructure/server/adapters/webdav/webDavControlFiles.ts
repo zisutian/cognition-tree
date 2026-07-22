@@ -4,7 +4,7 @@ import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
 } from "../../../../contracts/workspace/contractValue.ts";
-import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { parseRepositoryRevision } from "../../../../contracts/workspace/revision.ts";
 import {
   workspaceRepositorySchemaVersion,

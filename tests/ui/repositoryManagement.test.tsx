@@ -21,7 +21,7 @@ import { FeedbackProvider } from "../../presentation/ui/shared/FeedbackProvider"
 import {
   projectRepositoryIssues,
   type RepositoryOption,
-} from "../../application/workspace/activities/repository/repositoryViewModel";
+} from "../../application/repository/repositoryViewModel";
 import { createView } from "./viewFactory";
 
 const localRepository: RepositoryOption = {

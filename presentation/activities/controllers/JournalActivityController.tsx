@@ -6,9 +6,9 @@ import {
   Panel,
 } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 
-type JournalBuiltInsApplication = WorkspaceActivityControllerProps[
+type JournalBuiltInsApplication = ActivityControllerProps[
   "application"
 ]["repository"]["builtIns"];
 
@@ -50,10 +50,10 @@ export function resolveJournalRetry(
 
 function renderUnavailableJournal(
   journal: Exclude<JournalApplication, { status: "ready" }>,
-  application: WorkspaceActivityControllerProps["application"],
+  application: ActivityControllerProps["application"],
   onActiveActivityChange:
-    WorkspaceActivityControllerProps["onActiveActivityChange"],
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"],
+    ActivityControllerProps["onActiveActivityChange"],
+  renderActivity: ActivityControllerProps["renderActivity"],
 ) {
   const builtInCatalog = application.repository.builtIns.catalog.state;
   const title = journal.status === "loading"
@@ -105,7 +105,7 @@ export function JournalActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   const journal = application.journal;
 
   if (!active) {

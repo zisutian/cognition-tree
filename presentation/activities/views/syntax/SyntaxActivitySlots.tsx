@@ -1,4 +1,4 @@
-import type { SyntaxViewModel } from "../../../../application/workspace/activities/syntax/syntaxViewModel";
+import type { SyntaxViewModel } from "../../../../application/syntax/syntaxViewModel";
 import "../../../ui/styles/activities/syntax.css";
 import type { ActivitySlots } from "../../../ui/activityTypes";
 import { SyntaxContext } from "./SyntaxContext";

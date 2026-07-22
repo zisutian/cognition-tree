@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { WorkbenchDiagnostics } from "../../../application/problems/workbenchProblems";
 import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
 import type { WorkbenchApplication } from "../../activities/workbenchApplication";
-import { activityItems } from "../../ui/ActivityBar";
+import { activityItems } from "../../ui/activityCatalog";
 import AppView from "../../ui/AppView";
 import { PlaceholderPanel } from "../../activities/views/PlaceholderPanel";
 import type { ActivityId } from "../../ui/activityTypes";
@@ -15,10 +15,10 @@ import { PlaceholderActivityController } from "../../activities/controllers/Plac
 import { WorkspaceUnavailableActivityController } from "../../activities/controllers/WorkspaceUnavailableActivityController";
 import {
   isLazyActivityId,
-  workspaceActivityControllers,
+  activityControllers,
   type LazyActivityId,
 } from "../../activities/controllers/activityRegistry";
-import type { RenderWorkspaceActivity } from "../../activities/controllers/activityController";
+import type { RenderActivity } from "../../activities/controllers/activityController";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
 import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard";
 
@@ -27,7 +27,7 @@ function ActivityLoadingView({
   renderActivity,
 }: {
   activeActivityId: LazyActivityId;
-  renderActivity: RenderWorkspaceActivity;
+  renderActivity: RenderActivity;
 }) {
   const label =
     activityItems.find((item) => item.id === activeActivityId)?.label ?? "活动";
@@ -138,7 +138,7 @@ export function WorkspaceWorkbench({
         workbench={workbench}
       >
         {(problemsSlot) => {
-          const renderActivity: RenderWorkspaceActivity = (
+          const renderActivity: RenderActivity = (
             createActivitySlots,
           ) => (
             <AppView
@@ -162,7 +162,7 @@ export function WorkspaceWorkbench({
 
           return (
             <>
-              {workspaceActivityControllers.map(({ activityId, Controller }) => {
+              {activityControllers.map(({ activityId, Controller }) => {
                 const active = activeActivityId === activityId;
 
                 return active || retainedActivityIds.has(activityId) ? (

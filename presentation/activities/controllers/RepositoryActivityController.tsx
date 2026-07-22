@@ -5,15 +5,15 @@ import {
   projectRepositoryFocusSelection,
   repositorySelectionExists,
   type RepositorySelection,
-} from "../../../application/workspace/activities/repository/repositoryViewModel";
+} from "../../../application/repository/repositoryViewModel";
 import { createRepositoryActivitySlots } from "../views/repository/RepositoryActivitySlots";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 
 export function RepositoryActivityController({
   active,
   application,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   const view = createRepositoryViewModel(application.repository);
   const [selection, setSelection] = useState<RepositorySelection>(() =>
     createDefaultRepositorySelection(view)

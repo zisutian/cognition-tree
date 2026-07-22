@@ -5,7 +5,7 @@ import type {
   RepositoryRevisionDto,
   WorkspaceRepositoryContentDto,
 } from "./types.ts";
-import { serializeJsonIteratively } from "./json.ts";
+import { serializeJsonIteratively } from "../common/json.ts";
 
 const repositoryRevisionPattern = /^sha256:[0-9a-f]{64}$/;
 

@@ -7,14 +7,14 @@ import {
   type SyntaxProfileDraftMarkerRule,
   type SyntaxProfileDraftTitleRule,
   type SyntaxProfileDraftTopLevelUnmarkedRule,
-} from "../../../../core/ctn/syntax/profileDraft";
-import { normalizeSyntaxTabDisplayWidthInput } from "../../../../core/ctn/syntax/profileSchema";
+} from "../../core/ctn/syntax/profileDraft";
+import { normalizeSyntaxTabDisplayWidthInput } from "../../core/ctn/syntax/profileSchema";
 import type {
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxProfileDraftMarkerRule,
   UiSyntaxProfileDraftTitleRule,
   UiSyntaxProfileDraftTopLevelUnmarkedRule,
-} from "../../projection/viewSyntax";
+} from "../workspace/projection/viewSyntax";
 
 export function createSyntaxDraftActions({
   nameEditable = true,

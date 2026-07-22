@@ -2,7 +2,7 @@ import { useStructureOperationActivity } from "../bindings/workspace/activities/
 import { useStructureOperationState } from "../bindings/workspace/activities/structure-operation/useStructureOperationState";
 import { createStructureOperationActivitySlots } from "../views/structure-operation/StructureOperationActivitySlots";
 import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 
 function ActiveStructureOperationActivity({
@@ -11,7 +11,7 @@ function ActiveStructureOperationActivity({
   state,
 }: {
   application: WorkspaceApplication;
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
+  renderActivity: ActivityControllerProps["renderActivity"];
   state: ReturnType<typeof useStructureOperationState>;
 }) {
   const view = useStructureOperationActivity({
@@ -36,7 +36,7 @@ function ReadyStructureOperationActivity({
 }: {
   active: boolean;
   application: WorkspaceApplication;
-  renderActivity: WorkspaceActivityControllerProps["renderActivity"];
+  renderActivity: ActivityControllerProps["renderActivity"];
 }) {
   const state = useStructureOperationState({
     activeNoteId: application.selection.activeNoteId,
@@ -62,7 +62,7 @@ export function StructureOperationActivityController({
   application,
   onActiveActivityChange,
   renderActivity,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   if (application.workspace.status !== "ready") {
     if (!active) {
       return null;

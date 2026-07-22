@@ -1,4 +1,4 @@
-import type { SyntaxViewModel } from "../../../../application/workspace/activities/syntax/syntaxViewModel";
+import type { SyntaxViewModel } from "../../../../application/syntax/syntaxViewModel";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { syntaxFieldIds } from "../../../../application/workspace/projection/viewSyntaxFields";

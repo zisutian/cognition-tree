@@ -14,7 +14,7 @@ import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryContent,
 } from "../../../../contracts/workspace/parseRepository.ts";
-import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import type {
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryCommitResultDto,

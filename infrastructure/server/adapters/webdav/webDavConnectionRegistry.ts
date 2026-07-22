@@ -16,7 +16,7 @@ import path from "node:path";
 import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../../contracts/workspace/parseCatalog.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
-import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
+import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import type {
   RepositoryAuthenticationDto,
   RepositoryCatalogIssueDto,

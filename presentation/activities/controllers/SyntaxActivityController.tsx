@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useSyntaxActivity } from "../bindings/workspace/activities/syntax/useSyntaxActivity";
+import { useSyntaxActivity } from "../bindings/syntax/useSyntaxActivity";
 import { createSyntaxActivityDiagnostics } from "../../../application/problems/syntaxActivityDiagnostics";
 import { createSyntaxActivitySlots } from "../views/syntax/SyntaxActivitySlots";
-import type { WorkspaceActivityControllerProps } from "./activityController";
+import type { ActivityControllerProps } from "./activityController";
 
 export function SyntaxActivityController({
   active,
@@ -12,7 +12,7 @@ export function SyntaxActivityController({
   onSyntaxProblemsChange = () => undefined,
   renderActivity,
   systemSyntaxFocusRequest,
-}: WorkspaceActivityControllerProps) {
+}: ActivityControllerProps) {
   const workspace = application.workspace.status === "ready"
     ? application.workspace.application
     : null;

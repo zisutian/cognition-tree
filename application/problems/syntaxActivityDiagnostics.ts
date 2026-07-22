@@ -1,6 +1,6 @@
 import type { JournalDiagnostics } from "../journal/journalDiagnostics";
 import type { TodoDiagnostics } from "../todo/todoDiagnostics";
-import type { SyntaxTarget } from "../workspace/activities/syntax/syntaxViewModel";
+import type { SyntaxTarget } from "../syntax/syntaxViewModel";
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,

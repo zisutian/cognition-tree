@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DeleteRepositoryRequest } from "../../../../application/repository/repositoryCatalog";
-import type { RepositoryOption } from "../../../../application/workspace/activities/repository/repositoryViewModel";
+import type { RepositoryOption } from "../../../../application/repository/repositoryViewModel";
 import { Button } from "../../../ui/shared/primitives";
 
 export function canDeleteManagedRepositoryData(

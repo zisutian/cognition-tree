@@ -1,6 +1,6 @@
 import type { WorkbenchWorkspaceState } from "../workbenchApplication";
 import { WorkspaceUnavailablePanel } from "../views/WorkspaceUnavailablePanel";
-import type { RenderWorkspaceActivity } from "./activityController";
+import type { RenderActivity } from "./activityController";
 
 export function renderWorkspaceUnavailableActivity({
   onOpenRepository,
@@ -8,7 +8,7 @@ export function renderWorkspaceUnavailableActivity({
   workspace,
 }: {
   onOpenRepository: () => void;
-  renderActivity: RenderWorkspaceActivity;
+  renderActivity: RenderActivity;
   workspace: Exclude<WorkbenchWorkspaceState, { status: "ready" }>;
 }) {
   return renderActivity(() => ({

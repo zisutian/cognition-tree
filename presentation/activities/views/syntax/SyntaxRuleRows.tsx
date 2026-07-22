@@ -1,6 +1,6 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import type { SyntaxViewModel } from "../../../../application/workspace/activities/syntax/syntaxViewModel";
+import type { SyntaxViewModel } from "../../../../application/syntax/syntaxViewModel";
 import type {
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxTone,
