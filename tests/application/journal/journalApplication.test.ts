@@ -5,7 +5,10 @@ import type {
   JournalContent,
   JournalEntryId,
 } from "../../../core/journal/model/journalContent";
-import { createEmptyJournalContent } from "../../../core/journal/model/journalContent";
+import {
+  createEmptyJournalContent,
+  listJournalEntries,
+} from "../../../core/journal/model/journalContent";
 import {
   consumeJournalFocusRequest,
   createJournalFocusRequest,
@@ -76,7 +79,9 @@ function createFunctionalSession(initial: JournalContent) {
         update: (current: SystemRepositoryContent) => SystemRepositoryContent,
       ) {
         content = update(content);
-        visibleEntryCounts.push(requireJournalContent(content).entries.length);
+        visibleEntryCounts.push(listJournalEntries(
+          requireJournalContent(content),
+        ).length);
       },
     },
     visibleEntryCounts,
@@ -123,12 +128,12 @@ describe("journal application mutations", () => {
 
     expect(created).toEqual([entryId(1), entryId(2)]);
     expect(harness.visibleEntryCounts).toEqual([1, 2, 2, 2]);
-    expect(harness.content.entries.map(({ id }) => id)).toEqual([
+    expect(listJournalEntries(harness.content).map(({ id }) => id)).toEqual([
       entryId(1),
       entryId(2),
     ]);
-    expect(harness.content.entries[0]?.source).toContain("第一条正文");
-    expect(harness.content.entries[1]?.source).toContain("第二条正文");
+    expect(listJournalEntries(harness.content)[0]?.source).toContain("第一条正文");
+    expect(listJournalEntries(harness.content)[1]?.source).toContain("第二条正文");
   });
 
   it("selects a created entry and chooses next then previous around deletion", () => {
@@ -169,7 +174,7 @@ describe("journal application mutations", () => {
     expect(actions.deleteEntry(entryId(1))).toBe(entryId(3));
     expect(requestedEntryId).toBe(entryId(3));
     expect(deleteResults).toHaveLength(2);
-    expect(harness.content.entries.map(({ id }) => id)).toEqual([
+    expect(listJournalEntries(harness.content).map(({ id }) => id)).toEqual([
       entryId(3),
     ]);
   });
@@ -237,7 +242,7 @@ describe("journal application mutations", () => {
     actions.createEntry();
     actions.updateEntryBody(entryId(1), sourceChange("", "正文"));
 
-    expect(harness.content.entries[0]?.updatedAt).toBe(
+    expect(listJournalEntries(harness.content)[0]?.updatedAt).toBe(
       "2026-07-18T00:10:00.000Z",
     );
   });

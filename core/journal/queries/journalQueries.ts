@@ -2,6 +2,7 @@
 
 import {
   formatJournalEntryTitle,
+  listJournalEntries,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
@@ -13,20 +14,75 @@ export type JournalMonthGroup = {
   label: string;
 };
 
-function compareEntryPositions(
-  left: { entry: JournalEntry; index: number },
-  right: { entry: JournalEntry; index: number },
-) {
-  const timeOrder = Date.parse(right.entry.createdAt) -
-    Date.parse(left.entry.createdAt);
+export type JournalCalendarDay = {
+  date: string;
+  entries: JournalEntry[];
+  key: string;
+  label: string;
+};
 
-  return timeOrder || right.index - left.index;
+export type JournalCalendarMonth = {
+  days: JournalCalendarDay[];
+  key: string;
+  label: string;
+};
+
+export type JournalCalendarYear = {
+  key: string;
+  label: string;
+  months: JournalCalendarMonth[];
+};
+
+function compareEntryPositions(
+  left: JournalEntry,
+  right: JournalEntry,
+) {
+  const timeOrder = Date.parse(right.createdAt) - Date.parse(left.createdAt);
+
+  return timeOrder || right.sequence - left.sequence ||
+    right.id.localeCompare(left.id);
 }
 export function listJournalEntriesNewestFirst(content: JournalContent) {
-  return content.entries
-    .map((entry, index) => ({ entry, index }))
-    .sort(compareEntryPositions)
-    .map(({ entry }) => entry);
+  return listJournalEntries(content)
+    .slice()
+    .sort(compareEntryPositions);
+}
+
+export function createJournalCalendar(
+  content: JournalContent,
+): JournalCalendarYear[] {
+  const yearByKey = new Map<string, Map<string, JournalCalendarDay[]>>();
+
+  for (const day of [...content.days].reverse()) {
+    if (day.entries.length === 0) continue;
+    const [year, month, numericDay] = day.date.split("-");
+    const monthKey = `${year}-${month}`;
+    const monthByKey = yearByKey.get(year) ?? new Map();
+    const days = monthByKey.get(monthKey) ?? [];
+
+    days.push({
+      date: day.date,
+      entries: [...day.entries].sort(compareEntryPositions),
+      key: day.date,
+      label: `${Number(numericDay)} 日`,
+    });
+    monthByKey.set(monthKey, days);
+    yearByKey.set(year, monthByKey);
+  }
+
+  return [...yearByKey.entries()]
+    .sort(([left], [right]) => right.localeCompare(left))
+    .map(([year, monthByKey]) => ({
+      key: year,
+      label: `${year} 年`,
+      months: [...monthByKey.entries()]
+        .sort(([left], [right]) => right.localeCompare(left))
+        .map(([key, days]) => ({
+          days,
+          key,
+          label: `${Number(key.slice(5))} 月`,
+        })),
+    }));
 }
 
 export function getJournalEntryMonthKey(entry: JournalEntry) {
@@ -72,7 +128,7 @@ export function resolveJournalSelection(
 ) {
   if (
     requestedEntryId &&
-    content.entries.some(({ id }) => id === requestedEntryId)
+    listJournalEntries(content).some(({ id }) => id === requestedEntryId)
   ) {
     return requestedEntryId;
   }

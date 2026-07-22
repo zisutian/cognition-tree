@@ -6,6 +6,8 @@ import {
   appendJournalTestEntry,
   createEmptyJournalContent,
   journalEntryId,
+  journalEntries,
+  replaceJournalTestEntries,
   updateJournalTestBody,
 } from "../journalTestFixture";
 
@@ -90,7 +92,10 @@ describe("journal parse index", () => {
       entryIndex: 2,
     });
     const first = createJournalParseIndex(content);
-    const nextContent = { ...content, entries: [content.entries[1]] };
+    const nextContent = replaceJournalTestEntries(
+      content,
+      [journalEntries(content)[1]],
+    );
     const second = createJournalParseIndex(nextContent, first);
 
     expect(second.getParsedEntry(journalEntryId(2))?.document).toBe(

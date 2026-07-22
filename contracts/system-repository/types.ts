@@ -19,17 +19,17 @@ export type JournalEntryDto = {
   source: string;
 };
 
-export type JournalDailyCounterDto = {
+export type JournalDayDto = {
   date: string;
+  entries: JournalEntryDto[];
   lastIssuedSequence: number;
 };
 
 export type JournalRepositoryContentDto = {
   purpose: "system-journal";
-  schemaVersion: 2;
+  schemaVersion: 3;
   syntaxSource: string;
-  dailyCounters: JournalDailyCounterDto[];
-  entries: JournalEntryDto[];
+  days: JournalDayDto[];
 };
 
 export type TodoCompletionDto = {

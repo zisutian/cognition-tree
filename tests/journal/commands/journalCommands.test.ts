@@ -18,6 +18,7 @@ import {
   appendJournalTestEntry,
   createEmptyJournalContent,
   journalBlockId,
+  journalEntries,
   journalEntryId,
   updateJournalTestBody,
 } from "../journalTestFixture";
@@ -35,17 +36,17 @@ describe("journal commands", () => {
       timezoneOffsetMinutes: 480,
     }).content;
 
-    expect(second.entries).toHaveLength(2);
-    expect(second.entries.map(({ source }) =>
+    expect(journalEntries(second)).toHaveLength(2);
+    expect(journalEntries(second).map(({ source }) =>
       readCtnCanonicalTitleHeader(source).title
     )).toEqual([
       "2026-07-18-0001",
       "2026-07-18-0002",
     ]);
-    expect(second.dailyCounters).toEqual([{
+    expect(second.days).toEqual([expect.objectContaining({
       date: "2026-07-18",
       lastIssuedSequence: 2,
-    }]);
+    })]);
     validateJournalContent(second);
   });
 
@@ -54,13 +55,15 @@ describe("journal commands", () => {
       createdAt: "2026-07-18T00:00:01.000Z",
       entryIndex: 1,
     });
-    const beforeHeader = readCtnCanonicalTitleHeader(content.entries[0].source);
+    const beforeHeader = readCtnCanonicalTitleHeader(
+      journalEntries(content)[0].source,
+    );
     const updated = updateJournalTestBody(content, {
       body: "今日\n\t- 完成正文",
       entryIndex: 1,
       updatedAt: "2026-07-18T01:00:00.000Z",
     });
-    const entry = updated.entries[0];
+    const entry = journalEntries(updated)[0];
     const afterHeader = readCtnCanonicalTitleHeader(entry.source);
     const document = parseCtnCanonicalDocument(
       entry.source,
@@ -93,7 +96,7 @@ describe("journal commands", () => {
       updatedAt: "2026-07-18T00:10:00.000Z",
     });
     const before = parseCtnCanonicalDocument(
-      first.entries[0].source,
+      journalEntries(first)[0].source,
       requireJournalSyntaxProfile(first.syntaxSource),
     );
     const secondBody = "- alpha changed\n- beta";
@@ -107,7 +110,7 @@ describe("journal commands", () => {
       updatedAt: "2026-07-18T00:20:00.000Z",
     });
     const after = parseCtnCanonicalDocument(
-      second.entries[0].source,
+      journalEntries(second)[0].source,
       requireJournalSyntaxProfile(second.syntaxSource),
     );
 
@@ -133,7 +136,7 @@ describe("journal commands", () => {
       updatedAt: "2026-07-18T00:10:00.000Z",
     });
     const before = parseCtnCanonicalDocument(
-      first.entries[0].source,
+      journalEntries(first)[0].source,
       requireJournalSyntaxProfile(first.syntaxSource),
     );
     const second = updateJournalEntryBody(first, {
@@ -150,7 +153,7 @@ describe("journal commands", () => {
       updatedAt: "2026-07-18T00:20:00.000Z",
     });
     const after = parseCtnCanonicalDocument(
-      second.entries[0].source,
+      journalEntries(second)[0].source,
       requireJournalSyntaxProfile(second.syntaxSource),
     );
 
@@ -185,7 +188,7 @@ describe("journal commands", () => {
       entryIndex: 2,
     });
 
-    expect(deleteJournalEntry(second, journalEntryId(1)).entries.map(
+    expect(journalEntries(deleteJournalEntry(second, journalEntryId(1))).map(
       ({ id }) => id,
     )).toEqual([journalEntryId(2)]);
     expect(() => deleteJournalEntry(second, journalEntryId(9))).toThrow(
@@ -199,6 +202,12 @@ describe("journal commands", () => {
       entryIndex: 1,
     });
     const deleted = deleteJournalEntry(created, journalEntryId(1));
+
+    expect(deleted.days).toEqual([{
+      date: "2026-07-18",
+      entries: [],
+      lastIssuedSequence: 1,
+    }]);
     const recreated = createJournalEntry(deleted, {
       createBlockId: () => journalBlockId(2),
       createdAt: "2026-07-18T00:00:02.000Z",
@@ -206,14 +215,14 @@ describe("journal commands", () => {
       timezoneOffsetMinutes: 480,
     }).content;
 
-    expect(readCtnCanonicalTitleHeader(recreated.entries[0].source).title)
+    expect(readCtnCanonicalTitleHeader(journalEntries(recreated)[0].source).title)
       .toBe("2026-07-18-0002");
     expect(() => createJournalEntry({
       ...recreated,
-      dailyCounters: [{
-        date: "2026-07-18",
+      days: recreated.days.map((day) => ({
+        ...day,
         lastIssuedSequence: 9_999,
-      }],
+      })),
     }, {
       createBlockId: () => journalBlockId(3),
       createdAt: "2026-07-18T00:00:03.000Z",

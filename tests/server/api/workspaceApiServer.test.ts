@@ -268,7 +268,7 @@ describe("workspace API v4", () => {
       await expect(dispatch(handler, {
         body: JSON.stringify({
           baseRevision: loaded.body.revision,
-          content: { ...content, entries: [] },
+          content,
         }),
         headers: { "content-type": "application/json" },
         method: "PUT",

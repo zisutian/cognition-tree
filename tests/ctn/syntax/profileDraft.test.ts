@@ -14,7 +14,7 @@ import {
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
 } from "../../../core/ctn/syntax/profileDraft";
-import { defaultJournalCtnSyntaxProfileV2 } from "../../../core/journal/syntax/journalSyntax";
+import { defaultJournalCtnSyntaxProfileV3 } from "../../../core/journal/syntax/journalSyntax";
 import { defaultTodoCtnSyntaxProfileV2 } from "../../../core/todo/syntax/todoSyntax";
 
 describe("syntax profile draft", () => {
@@ -28,7 +28,7 @@ describe("syntax profile draft", () => {
 
   it("builds neutral Journal and marker-only Todo drafts with owner policies", () => {
     const journalDraft = createSyntaxProfileDraft(
-      defaultJournalCtnSyntaxProfileV2,
+      defaultJournalCtnSyntaxProfileV3,
     );
     const todoDraft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV2);
 
@@ -38,7 +38,7 @@ describe("syntax profile draft", () => {
       syntaxProfileValidationPolicies.journal,
     )).toEqual({
       diagnostics: [],
-      profile: defaultJournalCtnSyntaxProfileV2,
+      profile: defaultJournalCtnSyntaxProfileV3,
     });
     expect(todoDraft.topLevelUnmarkedRule).toBeNull();
     expect(buildSyntaxProfileDraft(

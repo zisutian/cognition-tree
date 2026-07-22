@@ -76,10 +76,9 @@ describe("browser system repositories", () => {
     expect(catalog.openRepository(journalDescriptor)).toBe(journal);
     await expect(journal.loadSnapshot()).resolves.toMatchObject({
       content: {
-        dailyCounters: [],
-        entries: [],
+        days: [],
         purpose: "system-journal",
-        schemaVersion: 2,
+        schemaVersion: 3,
         syntaxSource: expect.any(String),
       },
       pendingChanges: false,

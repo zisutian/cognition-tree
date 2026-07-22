@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 
-.journal-month-groups {
+.journal-calendar-scroll {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -15,6 +15,19 @@
   overflow: auto;
   scrollbar-color: var(--color-border-strong) transparent;
   scrollbar-width: thin;
+}
+
+.journal-calendar-tree,
+.journal-calendar-branch {
+  min-width: 0;
+}
+
+.journal-calendar-branch > .ui-tree {
+  padding-left: var(--ui-tree-indent);
+}
+
+.journal-calendar-toggle {
+  width: 100%;
 }
 
 .journal-persistence-state {

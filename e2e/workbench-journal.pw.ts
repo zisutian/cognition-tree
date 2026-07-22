@@ -34,10 +34,22 @@ function entryTitle(entry: JournalEntryDto) {
   );
 }
 
-function monthLabel(entry: JournalEntryDto) {
-  const [year, numericMonth] = entryTitle(entry).slice(0, 7).split("-");
+function entryDate(entry: JournalEntryDto) {
+  return entryTitle(entry).slice(0, 10);
+}
 
-  return `${year} 年 ${Number(numericMonth)} 月`;
+function yearLabel(entry: JournalEntryDto) {
+  return `${entryDate(entry).slice(0, 4)} 年`;
+}
+
+function dayEntryListLabel(entry: JournalEntryDto) {
+  return `${entryDate(entry)}日记条目`;
+}
+
+function journalEntries(
+  content: Awaited<ReturnType<typeof readJournalSnapshot>>["content"],
+) {
+  return content.days.flatMap((day) => day.entries);
 }
 
 async function waitForJournalEntryCount(
@@ -49,7 +61,7 @@ async function waitForJournalEntryCount(
   await expect.poll(async () => {
     const snapshot = await readJournalSnapshot(api);
 
-    entries = snapshot.content.entries;
+    entries = journalEntries(snapshot.content);
     return entries.length;
   }).toBe(expectedCount);
 
@@ -106,9 +118,9 @@ test.describe.serial("Journal activity flows", () => {
     const secondCreated = entries[2];
     const firstTitle = entryTitle(firstCreated);
     const secondTitle = entryTitle(secondCreated);
-    const currentMonthLabel = monthLabel(secondCreated);
-    const oldEntry = oldContent.entries[0];
-    const oldMonthLabel = monthLabel(oldEntry);
+    const currentYearLabel = yearLabel(secondCreated);
+    const oldEntry = journalEntries(oldContent)[0];
+    const oldYearLabel = yearLabel(oldEntry);
 
     expect(secondTitle).not.toBe(firstTitle);
     await expect(
@@ -118,15 +130,12 @@ test.describe.serial("Journal activity flows", () => {
     await expect(editor).not.toContainText(secondTitle);
     await expect(editorPanel.locator("input")).toHaveCount(0);
 
-    const monthHeadings = context.locator(".journal-month-groups h3");
+    const yearRows = context.locator(".journal-calendar-tree > li > button");
 
-    await expect(monthHeadings).toHaveText([
-      currentMonthLabel,
-      oldMonthLabel,
-    ]);
+    await expect(yearRows).toHaveText([currentYearLabel, oldYearLabel]);
     await expect(
       context
-        .getByRole("list", { name: `${currentMonthLabel}日记` })
+        .getByRole("list", { name: dayEntryListLabel(secondCreated) })
         .locator(".journal-entry-select"),
     ).toHaveText([secondTitle, firstTitle]);
 
@@ -144,7 +153,7 @@ test.describe.serial("Journal activity flows", () => {
     await expect(detail.getByLabel("日记统计")).toContainText("2块");
     await expect.poll(async () => {
       const snapshot = await readJournalSnapshot(api);
-      const saved = snapshot.content.entries.find(
+      const saved = journalEntries(snapshot.content).find(
         ({ id }) => id === secondCreated.id,
       );
 

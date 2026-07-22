@@ -50,33 +50,60 @@ describe("Journal panels", () => {
     expect(notifyError).toHaveBeenCalledWith(error);
   });
 
-  it("renders month groups and entries in the view-model order", () => {
+  it("renders the expanded calendar tree and entries in view-model order", () => {
     const base = createView().journal;
-    const activeEntry = base.groups[0].entries[0];
+    const activeEntry = base.calendar.years[0].months[0].days[0].entries[0];
     const view = {
       ...base,
-      groups: [
-        {
-          entries: [activeEntry, olderJanuaryEntry],
-          key: "2026-01",
-          label: "2026 年 1 月",
-        },
-        {
-          entries: [decemberEntry],
-          key: "2025-12",
-          label: "2025 年 12 月",
-        },
-      ],
+      calendar: {
+        ...base.calendar,
+        years: [
+          {
+            expanded: true,
+            key: "2026",
+            label: "2026 年",
+            months: [{
+              days: [{
+                date: "2026-01-02",
+                entries: [activeEntry, olderJanuaryEntry],
+                expanded: true,
+                key: "2026-01-02",
+                label: "2 日",
+              }],
+              expanded: true,
+              key: "2026-01",
+              label: "1 月",
+            }],
+          },
+          {
+            expanded: true,
+            key: "2025",
+            label: "2025 年",
+            months: [{
+              days: [{
+                date: "2025-12-31",
+                entries: [decemberEntry],
+                expanded: true,
+                key: "2025-12-31",
+                label: "31 日",
+              }],
+              expanded: true,
+              key: "2025-12",
+              label: "12 月",
+            }],
+          },
+        ],
+      },
     };
     const markup = renderToStaticMarkup(<JournalContext view={view} />);
 
-    expect(markup.indexOf("2026 年 1 月")).toBeLessThan(
-      markup.indexOf("2025 年 12 月"),
+    expect(markup.indexOf("2026 年")).toBeLessThan(
+      markup.indexOf("2025 年"),
     );
     expect(markup.indexOf(activeEntry.title)).toBeLessThan(
       markup.indexOf(olderJanuaryEntry.title),
     );
-    expect(markup).toContain("ui-compact-context-group-title");
+    expect(markup).toContain("journal-calendar-toggle");
     expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain(`aria-label="删除日记 ${activeEntry.title}"`);
@@ -101,7 +128,8 @@ describe("Journal panels", () => {
   });
 
   it("requires an explicit confirmation before deleting an entry", () => {
-    const entry = createView().journal.groups[0].entries[0];
+    const entry = createView().journal.calendar.years[0].months[0].days[0]
+      .entries[0];
     const onCancel = vi.fn();
     const onDelete = vi.fn();
     const confirmation = JournalDeleteConfirmation({

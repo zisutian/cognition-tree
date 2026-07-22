@@ -15,7 +15,7 @@ export const journalSyntaxProfileName = "日记";
 // Kept runtime-neutral and mirrored by the system wire contract's provisioner.
 // A contract test locks the two literals together without coupling this pure
 // domain to contracts or storage.
-export const defaultJournalSyntaxSourceV2 = `name = "日记"
+export const defaultJournalSyntaxSourceV3 = `name = "日记"
 tabDisplayWidth = 4
 
 [title]
@@ -160,10 +160,10 @@ export function requireJournalSyntaxProfile(source: string) {
   return parsed.profile;
 }
 
-const defaultParsed = parseJournalSyntaxSource(defaultJournalSyntaxSourceV2);
+const defaultParsed = parseJournalSyntaxSource(defaultJournalSyntaxSourceV3);
 
 if (!defaultParsed.profile) {
   throw new Error("The built-in Journal syntax source is invalid.");
 }
 
-export const defaultJournalCtnSyntaxProfileV2 = defaultParsed.profile;
+export const defaultJournalCtnSyntaxProfileV3 = defaultParsed.profile;

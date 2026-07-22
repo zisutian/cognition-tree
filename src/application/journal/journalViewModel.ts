@@ -14,7 +14,7 @@ import {
   type JournalEntryId,
 } from "../../../core/journal/model/journalContent";
 import {
-  groupJournalEntriesByMonth,
+  createJournalCalendar,
 } from "../../../core/journal/queries/journalQueries";
 import {
   resolveJournalReferenceNavigation,
@@ -83,10 +83,26 @@ export type JournalEntryListItem = {
   updatedAt: string;
 };
 
-export type JournalMonthGroupView = {
+export type JournalCalendarDayView = {
+  date: string;
   entries: JournalEntryListItem[];
+  expanded: boolean;
   key: string;
   label: string;
+};
+
+export type JournalCalendarMonthView = {
+  days: JournalCalendarDayView[];
+  expanded: boolean;
+  key: string;
+  label: string;
+};
+
+export type JournalCalendarYearView = {
+  expanded: boolean;
+  key: string;
+  label: string;
+  months: JournalCalendarMonthView[];
 };
 
 export type JournalViewModel = {
@@ -120,7 +136,10 @@ export type JournalViewModel = {
     syntaxProfile: CtnSyntaxProfile;
     updateBody: (change: CtnEditableSourceChange) => void;
   };
-  groups: JournalMonthGroupView[];
+  calendar: {
+    toggle: (key: string) => void;
+    years: JournalCalendarYearView[];
+  };
   navigation: {
     focusRequest: JournalFocusRequest | null;
     openEntryLine: (entryId: JournalEntryId, lineNumber: number) => void;
@@ -156,6 +175,7 @@ type JournalViewModelInput = {
   activeEntryId: JournalEntryId | null;
   content: JournalContent;
   editorErrorMessage: string;
+  expandedCalendarKeys: ReadonlySet<string>;
   focusRequest: JournalFocusRequest | null;
   index: JournalParseIndex;
   persistence: SystemRepositoryPersistenceState;
@@ -171,6 +191,7 @@ type JournalViewModelInput = {
     change: CtnEditableSourceChange,
   ) => void;
   updateSyntaxSource?: (source: string) => void;
+  toggleCalendarKey: (key: string) => void;
   workspaceReferences?: JournalWorkspaceReferenceResolutionState;
 };
 
@@ -362,12 +383,14 @@ export function createJournalViewModel({
   createEntry,
   deleteEntry,
   editorErrorMessage,
+  expandedCalendarKeys,
   focusRequest,
   index,
   openEntryLine,
   openWorkspaceNote = () => undefined,
   persistence,
   selectEntry,
+  toggleCalendarKey,
   updateActiveBodyLine,
   updateEntryBody,
   updateSyntaxSource = () => undefined,
@@ -438,24 +461,39 @@ export function createJournalViewModel({
         }
       },
     },
-    groups: groupJournalEntriesByMonth(content).map((group) => ({
-      entries: group.entries.map((entry) => {
-        const parsed = index.getParsedEntry(entry.id);
+    calendar: {
+      toggle: toggleCalendarKey,
+      years: createJournalCalendar(content).map((year) => ({
+        expanded: expandedCalendarKeys.has(`year:${year.key}`),
+        key: year.key,
+        label: year.label,
+        months: year.months.map((month) => ({
+          days: month.days.map((day) => ({
+            date: day.date,
+            entries: day.entries.map((entry) => {
+              const parsed = index.getParsedEntry(entry.id);
 
-        if (!parsed) {
-          throw new Error(`Journal parse index is missing ${entry.id}.`);
-        }
-        return {
-          createdAt: entry.createdAt,
-          id: entry.id,
-          isActive: entry.id === activeEntryId,
-          title: parsed.title,
-          updatedAt: entry.updatedAt,
-        };
-      }),
-      key: group.key,
-      label: group.label,
-    })),
+              if (!parsed) {
+                throw new Error(`Journal parse index is missing ${entry.id}.`);
+              }
+              return {
+                createdAt: entry.createdAt,
+                id: entry.id,
+                isActive: entry.id === activeEntryId,
+                title: parsed.title,
+                updatedAt: entry.updatedAt,
+              };
+            }),
+            expanded: expandedCalendarKeys.has(`day:${day.key}`),
+            key: day.key,
+            label: day.label,
+          })),
+          expanded: expandedCalendarKeys.has(`month:${month.key}`),
+          key: month.key,
+          label: month.label,
+        })),
+      })),
+    },
     navigation: {
       focusRequest,
       openEntryLine,

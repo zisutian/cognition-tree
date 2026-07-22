@@ -71,16 +71,24 @@ export async function resetJournalRepository(
 ) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const current = await readJournalSnapshot(api);
-    const dailyCounters = new Map(
-      content.dailyCounters.map((counter) => [counter.date, counter]),
+    const days = new Map(
+      content.days.map((day) => [day.date, structuredClone(day)]),
     );
 
-    for (const counter of current.content.dailyCounters) {
-      const requested = dailyCounters.get(counter.date);
+    for (const currentDay of current.content.days) {
+      const requested = days.get(currentDay.date);
 
-      if (!requested ||
-          requested.lastIssuedSequence < counter.lastIssuedSequence) {
-        dailyCounters.set(counter.date, counter);
+      if (requested) {
+        requested.lastIssuedSequence = Math.max(
+          requested.lastIssuedSequence,
+          currentDay.lastIssuedSequence,
+        );
+      } else {
+        days.set(currentDay.date, {
+          date: currentDay.date,
+          entries: [],
+          lastIssuedSequence: currentDay.lastIssuedSequence,
+        });
       }
     }
 
@@ -89,7 +97,7 @@ export async function resetJournalRepository(
         baseRevision: current.revision,
         content: {
           ...content,
-          dailyCounters: [...dailyCounters.values()].sort((left, right) =>
+          days: [...days.values()].sort((left, right) =>
             left.date.localeCompare(right.date)
           ),
         },

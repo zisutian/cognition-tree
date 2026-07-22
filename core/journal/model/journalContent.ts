@@ -11,18 +11,19 @@ import {
   readCtnCanonicalTitleHeader,
 } from "../../ctn/parser/parseCtnDocument.ts";
 import {
-  defaultJournalSyntaxSourceV2,
+  defaultJournalSyntaxSourceV3,
   parseJournalSyntaxSource,
 } from "../syntax/journalSyntax.ts";
 
 export const journalRepositoryPurpose = "system-journal" as const;
-export const journalRepositorySchemaVersion = 2 as const;
+export const journalRepositorySchemaVersion = 3 as const;
 export const journalMaximumDailySequence = 9_999;
 
 export type JournalEntryId = `journal-entry-${string}`;
 
-export type JournalDailyCounter = {
+export type JournalDay = {
   date: string;
+  entries: JournalEntry[];
   lastIssuedSequence: number;
 };
 
@@ -42,12 +43,15 @@ export type JournalContent = {
   purpose: typeof journalRepositoryPurpose;
   schemaVersion: typeof journalRepositorySchemaVersion;
   syntaxSource: string;
-  dailyCounters: JournalDailyCounter[];
-  entries: JournalEntry[];
+  days: JournalDay[];
 };
 
-export type JournalContentValue = Omit<JournalContent, "entries"> & {
+export type JournalDayValue = Omit<JournalDay, "entries"> & {
   entries: JournalEntryValue[];
+};
+
+export type JournalContentValue = Omit<JournalContent, "days"> & {
+  days: JournalDayValue[];
 };
 
 export type ParsedJournalEntry = {
@@ -100,6 +104,34 @@ function assertJournalDate(value: string, label: string) {
 
 export function isJournalEntryId(value: string): value is JournalEntryId {
   return entryIdPattern.test(value);
+}
+
+export function listJournalEntries(content: JournalContent): JournalEntry[];
+export function listJournalEntries(
+  content: JournalContentValue,
+): JournalEntryValue[];
+export function listJournalEntries(content: JournalContentValue) {
+  return content.days.flatMap((day) => day.entries);
+}
+
+export function findJournalEntry(
+  content: JournalContent,
+  entryId: JournalEntryId,
+): JournalEntry | null;
+export function findJournalEntry(
+  content: JournalContentValue,
+  entryId: JournalEntryId,
+): JournalEntryValue | null;
+export function findJournalEntry(
+  content: JournalContentValue,
+  entryId: JournalEntryId,
+) {
+  for (const day of content.days) {
+    const entry = day.entries.find(({ id }) => id === entryId);
+
+    if (entry) return entry;
+  }
+  return null;
 }
 
 export function getJournalCreationTimezoneOffsetMinutes(date: Date) {
@@ -260,7 +292,7 @@ export function collectJournalBlockIds(
 ) {
   const ownerByBlockId = new Map<string, JournalEntryId>();
 
-  for (const entry of content.entries) {
+  for (const entry of listJournalEntries(content)) {
     const parsed = parseJournalEntry(entry, syntaxProfile);
 
     for (const block of parsed.document.blocks) {
@@ -280,11 +312,10 @@ export function collectJournalBlockIds(
 
 export function createEmptyJournalContent(): JournalContent {
   return {
-    dailyCounters: [],
-    entries: [],
+    days: [],
     purpose: journalRepositoryPurpose,
     schemaVersion: journalRepositorySchemaVersion,
-    syntaxSource: defaultJournalSyntaxSourceV2,
+    syntaxSource: defaultJournalSyntaxSourceV3,
   };
 }
 
@@ -309,60 +340,76 @@ export function validateJournalContent(
     );
   }
 
-  const counterByDate = new Map<string, number>();
-
-  for (const counter of content.dailyCounters) {
-    assertJournalDate(counter.date, "Journal daily counter date");
-    assertJournalSequence(
-      counter.lastIssuedSequence,
-      `Journal daily counter ${counter.date}`,
-    );
-    if (counterByDate.has(counter.date)) {
-      throw new JournalContentValidationError(
-        `Duplicate journal daily counter: ${counter.date}`,
-      );
-    }
-    counterByDate.set(counter.date, counter.lastIssuedSequence);
-  }
-
+  const dates = new Set<string>();
+  let previousDate: string | null = null;
   const entryIds = new Set<JournalEntryId>();
   const issuedTitles = new Set<string>();
 
-  for (const entry of content.entries) {
-    if (!isJournalEntryId(entry.id)) {
+  for (const day of content.days) {
+    assertJournalDate(day.date, "Journal day date");
+    assertJournalSequence(
+      day.lastIssuedSequence,
+      `Journal day ${day.date}`,
+    );
+    if (dates.has(day.date)) {
       throw new JournalContentValidationError(
-        `Invalid journal entry id: ${entry.id}`,
+        `Duplicate journal day: ${day.date}`,
       );
     }
-    if (entryIds.has(entry.id)) {
+    if (previousDate !== null && previousDate.localeCompare(day.date) >= 0) {
       throw new JournalContentValidationError(
-        `Duplicate journal entry id: ${entry.id}`,
+        "Journal days must be stored in ascending date order.",
       );
     }
-    entryIds.add(entry.id);
-    const date = formatJournalEntryDate(
-      entry.createdAt,
-      entry.timezoneOffsetMinutes,
-    );
-    const title = formatJournalEntryTitle(
-      entry.createdAt,
-      entry.timezoneOffsetMinutes,
-      entry.sequence,
-    );
-    const lastIssuedSequence = counterByDate.get(date);
+    dates.add(day.date);
+    previousDate = day.date;
+    let previousSequence = 0;
 
-    if (lastIssuedSequence === undefined ||
-        lastIssuedSequence < entry.sequence) {
-      throw new JournalContentValidationError(
-        `Journal entry ${entry.id} is not covered by daily counter ${date}.`,
+    for (const entry of day.entries) {
+      if (!isJournalEntryId(entry.id)) {
+        throw new JournalContentValidationError(
+          `Invalid journal entry id: ${entry.id}`,
+        );
+      }
+      if (entryIds.has(entry.id)) {
+        throw new JournalContentValidationError(
+          `Duplicate journal entry id: ${entry.id}`,
+        );
+      }
+      entryIds.add(entry.id);
+      const date = formatJournalEntryDate(
+        entry.createdAt,
+        entry.timezoneOffsetMinutes,
       );
-    }
-    if (issuedTitles.has(title)) {
-      throw new JournalContentValidationError(
-        `Duplicate journal daily sequence: ${title}`,
+      const title = formatJournalEntryTitle(
+        entry.createdAt,
+        entry.timezoneOffsetMinutes,
+        entry.sequence,
       );
+
+      if (date !== day.date) {
+        throw new JournalContentValidationError(
+          `Journal entry ${entry.id} belongs to ${date}, not ${day.date}.`,
+        );
+      }
+      if (entry.sequence <= previousSequence) {
+        throw new JournalContentValidationError(
+          `Journal day ${day.date} entries must be stored by ascending sequence.`,
+        );
+      }
+      if (entry.sequence > day.lastIssuedSequence) {
+        throw new JournalContentValidationError(
+          `Journal entry ${entry.id} exceeds day counter ${day.date}.`,
+        );
+      }
+      if (issuedTitles.has(title)) {
+        throw new JournalContentValidationError(
+          `Duplicate journal daily sequence: ${title}`,
+        );
+      }
+      previousSequence = entry.sequence;
+      issuedTitles.add(title);
     }
-    issuedTitles.add(title);
   }
   collectJournalBlockIds(content, syntaxResult.profile);
   return content as JournalContent;
@@ -397,23 +444,22 @@ export function validateJournalContentTransition(
   const next = validateJournalContent(nextValue);
   const previousProfile = parseJournalSyntaxSource(previous.syntaxSource).profile!;
   const nextProfile = parseJournalSyntaxSource(next.syntaxSource).profile!;
-  const nextById = new Map(next.entries.map((entry) => [entry.id, entry]));
-  const nextCounterByDate = new Map(
-    next.dailyCounters.map((counter) => [counter.date, counter.lastIssuedSequence]),
+  const nextById = new Map(
+    listJournalEntries(next).map((entry) => [entry.id, entry]),
   );
+  const nextDayByDate = new Map(next.days.map((day) => [day.date, day]));
 
-  for (const previousCounter of previous.dailyCounters) {
-    const nextSequence = nextCounterByDate.get(previousCounter.date);
+  for (const previousDay of previous.days) {
+    const nextDay = nextDayByDate.get(previousDay.date);
 
-    if (nextSequence === undefined ||
-        nextSequence < previousCounter.lastIssuedSequence) {
+    if (!nextDay || nextDay.lastIssuedSequence < previousDay.lastIssuedSequence) {
       throw new JournalContentValidationError(
-        `Journal daily counter ${previousCounter.date} cannot be removed or move backwards.`,
+        `Journal day ${previousDay.date} cannot be removed or move backwards.`,
       );
     }
   }
 
-  for (const previousEntry of previous.entries) {
+  for (const previousEntry of listJournalEntries(previous)) {
     const nextEntry = nextById.get(previousEntry.id);
 
     if (!nextEntry) continue;

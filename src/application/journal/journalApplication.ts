@@ -9,6 +9,7 @@ import {
 } from "../../../core/journal/commands/journalCommands";
 import {
   getJournalCreationTimezoneOffsetMinutes,
+  findJournalEntry,
   validateJournalContent,
   type JournalContent,
   type JournalEntryId,
@@ -188,7 +189,7 @@ export function createJournalMutationActions({
 
       session.updateContent((current) => {
         const content = requireJournalMutationContent(current);
-        const entry = content.entries.find(({ id }) => id === entryId);
+        const entry = findJournalEntry(content, entryId);
 
         if (!entry) {
           throw new Error(`Journal entry does not exist: ${entryId}`);

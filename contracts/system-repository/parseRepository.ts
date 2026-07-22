@@ -10,11 +10,11 @@ import {
   UnsupportedSystemRepositoryVersionError,
 } from "./contractValue.ts";
 import {
-  defaultJournalSyntaxSourceV2,
+  defaultJournalSyntaxSourceV3,
   defaultTodoSyntaxSourceV2,
 } from "./defaultContent.ts";
 import type {
-  JournalDailyCounterDto,
+  JournalDayDto,
   JournalEntryDto,
   SystemRepositoryCommitDto,
   SystemRepositoryCommitResultDto,
@@ -27,13 +27,12 @@ import type {
 } from "./types.ts";
 
 const journalFields = [
-  "dailyCounters",
-  "entries",
+  "days",
   "purpose",
   "schemaVersion",
   "syntaxSource",
 ] as const;
-const journalDailyCounterFields = ["date", "lastIssuedSequence"] as const;
+const journalDayFields = ["date", "entries", "lastIssuedSequence"] as const;
 const journalEntryFields = [
   "createdAt",
   "id",
@@ -169,22 +168,36 @@ function readJournalSequence(value: unknown, path: string) {
   return value as number;
 }
 
-function parseJournalDailyCounter(
+function parseJournalDay(
   value: unknown,
   path: string,
-): JournalDailyCounterDto {
-  const counter = readSystemObject(value, path);
-  assertExactSystemFields(counter, journalDailyCounterFields, path);
-  const date = readRequiredSystemString(counter, "date", path);
+): JournalDayDto {
+  const day = readSystemObject(value, path);
+  assertExactSystemFields(day, journalDayFields, path);
+  const date = readRequiredSystemString(day, "date", path);
 
   if (!journalDatePattern.test(date) ||
       new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) !== date) {
     failSystemContract(`${path}.date`, "expected canonical YYYY-MM-DD date");
   }
+  const ids = new Set<string>();
+  const entries = readSystemArray(day, "entries", path).map((value, index) => {
+    const entry = parseJournalEntry(value, `${path}.entries[${index}]`);
+
+    if (ids.has(entry.id)) {
+      failSystemContract(
+        `${path}.entries[${index}].id`,
+        `duplicate journal entry id ${entry.id}`,
+      );
+    }
+    ids.add(entry.id);
+    return entry;
+  });
   return {
     date,
+    entries,
     lastIssuedSequence: readJournalSequence(
-      counter.lastIssuedSequence,
+      day.lastIssuedSequence,
       `${path}.lastIssuedSequence`,
     ),
   };
@@ -254,7 +267,7 @@ export function parseSystemRepositoryContent(
     failSystemContract("$.purpose", `expected ${expectedPurpose}`);
   }
   if (purpose === "system-journal") {
-    if (content.schemaVersion !== 2) {
+    if (content.schemaVersion !== 3) {
       throw new UnsupportedSystemRepositoryVersionError(
         "$.schemaVersion",
         content.schemaVersion,
@@ -262,36 +275,36 @@ export function parseSystemRepositoryContent(
     }
     assertExactSystemFields(content, journalFields, "$");
     const dates = new Set<string>();
-    const dailyCounters = readSystemArray(content, "dailyCounters", "$").map(
+    const ids = new Set<string>();
+    const days = readSystemArray(content, "days", "$").map(
       (value, index) => {
-        const counter = parseJournalDailyCounter(
+        const day = parseJournalDay(
           value,
-          `$.dailyCounters[${index}]`,
+          `$.days[${index}]`,
         );
-        if (dates.has(counter.date)) {
+        if (dates.has(day.date)) {
           failSystemContract(
-            `$.dailyCounters[${index}].date`,
-            `duplicate journal counter date ${counter.date}`,
+            `$.days[${index}].date`,
+            `duplicate journal day ${day.date}`,
           );
         }
-        dates.add(counter.date);
-        return counter;
+        for (const entry of day.entries) {
+          if (ids.has(entry.id)) {
+            failSystemContract(
+              `$.days[${index}].entries`,
+              `duplicate journal entry id ${entry.id}`,
+            );
+          }
+          ids.add(entry.id);
+        }
+        dates.add(day.date);
+        return day;
       },
     );
-    const ids = new Set<string>();
-    const entries = readSystemArray(content, "entries", "$").map((value, index) => {
-      const entry = parseJournalEntry(value, `$.entries[${index}]`);
-      if (ids.has(entry.id)) {
-        failSystemContract(`$.entries[${index}].id`, `duplicate journal entry id ${entry.id}`);
-      }
-      ids.add(entry.id);
-      return entry;
-    });
     return {
-      dailyCounters,
-      entries,
+      days,
       purpose,
-      schemaVersion: 2,
+      schemaVersion: 3,
       syntaxSource: readSystemString(content, "syntaxSource", "$"),
     };
   }
@@ -364,11 +377,10 @@ export function createEmptySystemRepositoryContent(
 ): SystemRepositoryContentDto {
   return purpose === "system-journal"
     ? {
-        dailyCounters: [],
-        entries: [],
+        days: [],
         purpose,
-        schemaVersion: 2,
-        syntaxSource: defaultJournalSyntaxSourceV2,
+        schemaVersion: 3,
+        syntaxSource: defaultJournalSyntaxSourceV3,
       }
     : {
         collections: [],

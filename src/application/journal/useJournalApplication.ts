@@ -8,12 +8,17 @@ import {
   useState,
 } from "react";
 import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
-import type {
-  JournalContent,
-  JournalEntryId,
+import {
+  findJournalEntry,
+  formatJournalEntryDate,
+  listJournalEntries,
+  type JournalContent,
+  type JournalEntryId,
 } from "../../../core/journal/model/journalContent";
+import type {
+  JournalParseIndex,
+} from "../../../core/journal/indexes/journalParseIndex";
 import { resolveJournalSelection } from "../../../core/journal/queries/journalQueries";
-import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import {
   consumeJournalFocusRequest,
   createJournalFocusRequest,
@@ -42,6 +47,24 @@ type ParsedJournalState = {
   content: JournalContent;
   index: JournalParseIndex;
 };
+
+function journalCalendarPathKeys(
+  content: JournalContent,
+  entryId: JournalEntryId,
+) {
+  const entry = findJournalEntry(content, entryId);
+
+  if (!entry) return [];
+  const date = formatJournalEntryDate(
+    entry.createdAt,
+    entry.timezoneOffsetMinutes,
+  );
+  return [
+    `year:${date.slice(0, 4)}`,
+    `month:${date.slice(0, 7)}`,
+    `day:${date}`,
+  ];
+}
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error
@@ -83,6 +106,8 @@ export function useJournalApplication({
     useState<JournalFocusRequest | null>(null);
   const [activeBodyPosition, setActiveBodyPosition] =
     useState<JournalActiveBodyPosition | null>(null);
+  const [expandedCalendarKeys, setExpandedCalendarKeys] =
+    useState<Set<string>>(() => new Set());
   const nextFocusRequestIdRef = useRef(1);
   const previousIndexRef = useRef<JournalParseIndex | null>(null);
   const [workspaceReferences, setWorkspaceReferences] =
@@ -140,10 +165,22 @@ export function useJournalApplication({
   }, [activeEntryId, parsed, requestedEntryId]);
 
   useEffect(() => {
+    if (!parsed || !activeEntryId) return;
+    const pathKeys = journalCalendarPathKeys(parsed.content, activeEntryId);
+
+    setExpandedCalendarKeys((current) => {
+      if (pathKeys.every((key) => current.has(key))) return current;
+      return new Set([...current, ...pathKeys]);
+    });
+  }, [activeEntryId, parsed]);
+
+  useEffect(() => {
     if (
       focusRequest &&
       (!parsed ||
-        !parsed.content.entries.some(({ id }) => id === focusRequest.entryId))
+        !listJournalEntries(parsed.content).some(
+          ({ id }) => id === focusRequest.entryId,
+        ))
     ) {
       setFocusRequest(null);
     }
@@ -196,7 +233,7 @@ export function useJournalApplication({
     [onCreated, onDeleted, services, session],
   );
   const selectEntry = useCallback((entryId: JournalEntryId) => {
-    if (!parsed?.content.entries.some(({ id }) => id === entryId)) {
+    if (!parsed || !listJournalEntries(parsed.content).some(({ id }) => id === entryId)) {
       return;
     }
     setRequestedEntryId(entryId);
@@ -207,7 +244,7 @@ export function useJournalApplication({
     entryId: JournalEntryId,
     lineNumber: number,
   ) => {
-    if (!parsed?.content.entries.some(({ id }) => id === entryId)) {
+    if (!parsed || !listJournalEntries(parsed.content).some(({ id }) => id === entryId)) {
       return;
     }
     issueFocusRequest(entryId, lineNumber);
@@ -231,6 +268,15 @@ export function useJournalApplication({
         : { entryId: activeEntryId, lineNumber: normalizedLineNumber }
     );
   }, [activeEntryId]);
+  const toggleCalendarKey = useCallback((key: string) => {
+    setExpandedCalendarKeys((current) => {
+      const next = new Set(current);
+
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
   const readyState = session.state.status === "ready" ? session.state : null;
   const view = useMemo(() =>
     parsed && readyState
@@ -242,12 +288,14 @@ export function useJournalApplication({
           createEntry: mutations.createEntry,
           deleteEntry: mutations.deleteEntry,
           editorErrorMessage: getEditorErrorMessage(readyState.persistence),
+          expandedCalendarKeys,
           focusRequest,
           index: parsed.index,
           openEntryLine,
           openWorkspaceNote,
           persistence: readyState.persistence,
           selectEntry,
+          toggleCalendarKey,
           updateActiveBodyLine,
           updateEntryBody: mutations.updateEntryBody,
           updateSyntaxSource: mutations.updateSyntaxSource,
@@ -258,6 +306,7 @@ export function useJournalApplication({
       activeBodyPosition,
       activeEntryId,
       consumeFocusRequest,
+      expandedCalendarKeys,
       focusRequest,
       mutations,
       openEntryLine,
@@ -265,6 +314,7 @@ export function useJournalApplication({
       parsed,
       readyState,
       selectEntry,
+      toggleCalendarKey,
       updateActiveBodyLine,
       workspaceReferences,
     ],

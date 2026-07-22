@@ -13,6 +13,8 @@ import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,
   createEmptyJournalContent,
+  journalEntries,
+  replaceJournalTestEntries,
   tamperJournalTestBodyBlockTime,
   tamperJournalTestEntryCreation,
   updateJournalTestBody,
@@ -42,18 +44,15 @@ describe("journal content", () => {
     });
 
     expect(validateJournalContent(content)).toBe(content);
-    const entry = content.entries[0];
-    const tampered = {
-      ...content,
-      entries: [{
+    const entry = journalEntries(content)[0];
+    const tampered = replaceJournalTestEntries(content, [{
         ...entry,
         source: replaceCtnSourceTitle(
           entry.source,
           "可修改标题",
           entry.createdAt,
         ),
-      }],
-    };
+      }]);
 
     expect(() => validateJournalContent(tampered)).toThrow(
       /title must remain 2026-07-18-0001/,
@@ -65,19 +64,16 @@ describe("journal content", () => {
       createdAt: "2026-07-18T00:00:01.000Z",
       entryIndex: 1,
     });
-    const entry = content.entries[0];
+    const entry = journalEntries(content)[0];
     const header = readCtnCanonicalTitleHeader(entry.source);
-    const tampered = {
-      ...content,
-      entries: [{
+    const tampered = replaceJournalTestEntries(content, [{
         ...entry,
         source: replaceCtnSourceTitle(
           entry.source,
           header.title,
           "2026-07-18T00:05:00.000Z",
         ),
-      }],
-    };
+      }]);
 
     expect(() => validateJournalContent(tampered)).toThrow(
       /title metadata is immutable/,
@@ -89,10 +85,11 @@ describe("journal content", () => {
       createdAt: "2026-07-18T00:00:01.000Z",
       entryIndex: 1,
     });
-    const duplicateEntry = {
-      ...one,
-      entries: [...one.entries, one.entries[0]],
-    };
+    const oneEntries = journalEntries(one);
+    const duplicateEntry = replaceJournalTestEntries(
+      one,
+      [...oneEntries, oneEntries[0]],
+    );
 
     expect(() => validateJournalContent(duplicateEntry)).toThrow(
       /Duplicate journal entry id/,
@@ -103,13 +100,11 @@ describe("journal content", () => {
       createdAt: "2026-07-18T00:00:01.000Z",
       entryIndex: 2,
     });
-    const duplicateBlock = {
-      ...two,
-      entries: [
-        two.entries[0],
-        { ...two.entries[1], source: two.entries[0].source },
-      ],
-    };
+    const twoEntries = journalEntries(two);
+    const duplicateBlock = replaceJournalTestEntries(two, [
+      twoEntries[0],
+      { ...twoEntries[1], source: twoEntries[0].source },
+    ]);
 
     expect(() => validateJournalContent(duplicateBlock)).toThrow(
       /title must remain 2026-07-18-0002/,
@@ -127,7 +122,7 @@ describe("journal content", () => {
       entryIndex: 1,
       updatedAt: "2026-07-18T00:05:00.000Z",
     });
-    const deleted = deleteJournalEntry(created, created.entries[0].id);
+    const deleted = deleteJournalEntry(created, journalEntries(created)[0].id);
     const tampered = tamperJournalTestEntryCreation(created, {
       createdAt: "2026-08-19T10:11:12.000Z",
       entryIndex: 1,
@@ -139,7 +134,7 @@ describe("journal content", () => {
     expect(validateJournalContentTransition(created, edited)).toBe(edited);
     expect(validateJournalContentTransition(created, deleted)).toBe(deleted);
     expect(() => validateJournalContentTransition(created, empty)).toThrow(
-      /daily counter .* cannot be removed/,
+      /day .* cannot be removed/,
     );
     expect(() => validateJournalContentTransition(edited, created)).toThrow(
       /updatedAt cannot move backwards/,
@@ -147,6 +142,30 @@ describe("journal content", () => {
     expect(() => validateJournalContentTransition(created, tampered)).toThrow(
       /createdAt is immutable/,
     );
+  });
+
+  it("requires canonical day and entry ordering with matching creation dates", () => {
+    let content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 2,
+      createdAt: "2026-08-18T00:00:01.000Z",
+      entryIndex: 2,
+    });
+
+    expect(() => validateJournalContent({
+      ...content,
+      days: [...content.days].reverse(),
+    })).toThrow(/ascending date order/);
+    expect(() => validateJournalContent({
+      ...content,
+      days: [{
+        ...content.days[0],
+        entries: [content.days[1].entries[0]],
+      }, content.days[1]],
+    })).toThrow(/belongs to .* not/);
   });
 
   it("keeps every CTN block inside its entry lifetime", () => {

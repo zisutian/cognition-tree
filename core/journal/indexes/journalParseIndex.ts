@@ -14,6 +14,7 @@ import {
 } from "../../naming/portableName.ts";
 import {
   formatJournalEntryTitle,
+  listJournalEntries,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
@@ -250,7 +251,7 @@ export function createJournalParseIndex(
 ): JournalParseIndex {
   const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
   const parseCache = new Map<JournalEntryId, JournalParseCacheEntry>();
-  const entries = content.entries.map((entry): ParsedJournalIndexEntry => {
+  const entries = listJournalEntries(content).map((entry): ParsedJournalIndexEntry => {
     const cached = previousIndex?.parseCache.get(entry.id);
     const document = cached?.source === entry.source &&
         cached.syntaxSource === content.syntaxSource

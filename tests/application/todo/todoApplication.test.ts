@@ -198,10 +198,9 @@ describe("Todo application mutations", () => {
 
   it("rejects non-Todo content and provides prefixed browser ids", () => {
     expect(() => requireTodoContent({
-      dailyCounters: [],
-      entries: [],
+      days: [],
       purpose: "system-journal",
-      schemaVersion: 2,
+      schemaVersion: 3,
       syntaxSource: "",
     })).toThrow("received non-todo content");
 

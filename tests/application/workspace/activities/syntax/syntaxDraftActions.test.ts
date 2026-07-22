@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSyntaxProfileDraft } from "../../../../../core/ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../../../../core/ctn/syntax/defaultSyntaxProfile";
-import { defaultJournalCtnSyntaxProfileV2 } from "../../../../../core/journal/syntax/journalSyntax";
+import { defaultJournalCtnSyntaxProfileV3 } from "../../../../../core/journal/syntax/journalSyntax";
 import { createSyntaxDraftActions } from "../../../../../src/application/workspace/activities/syntax/syntaxDraftActions";
 import { defaultTodoCtnSyntaxProfileV2 } from "../../../../../core/todo/syntax/todoSyntax";
 
@@ -54,7 +54,7 @@ describe("syntax draft actions", () => {
   });
 
   it("locks the Journal name and reference trigger while keeping presentation editable", () => {
-    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV2);
+    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV3);
     const rule = draft.inlineRules.find(
       ({ type }) => type === "global-reference",
     )!;

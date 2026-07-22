@@ -15,10 +15,10 @@ import {
 } from "../../contracts/system-repository/parseCatalog.ts";
 import { serializeSystemRepositoryRevisionContent } from "../../contracts/system-repository/revision.ts";
 import {
-  defaultJournalSyntaxSourceV2 as contractJournalSyntaxSource,
+  defaultJournalSyntaxSourceV3 as contractJournalSyntaxSource,
   defaultTodoSyntaxSourceV2 as contractTodoSyntaxSource,
 } from "../../contracts/system-repository/defaultContent.ts";
-import { defaultJournalSyntaxSourceV2 as domainJournalSyntaxSource } from "../../core/journal/syntax/journalSyntax.ts";
+import { defaultJournalSyntaxSourceV3 as domainJournalSyntaxSource } from "../../core/journal/syntax/journalSyntax.ts";
 import { defaultTodoSyntaxSourceV2 as domainTodoSyntaxSource } from "../../core/todo/syntax/todoSyntax.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
@@ -45,17 +45,20 @@ function createTodoContent() {
 describe("system repository contract", () => {
   it("parses strict Journal and Todo content while preserving array order", () => {
     const journal = {
-      dailyCounters: [{ date: "2026-07-17", lastIssuedSequence: 1 }],
-      entries: [{
-        createdAt,
-        id: journalId,
-        sequence: 1,
-        source: "Journal source",
-        timezoneOffsetMinutes: -480,
-        updatedAt,
+      days: [{
+        date: "2026-07-17",
+        entries: [{
+          createdAt,
+          id: journalId,
+          sequence: 1,
+          source: "Journal source",
+          timezoneOffsetMinutes: -480,
+          updatedAt,
+        }],
+        lastIssuedSequence: 1,
       }],
       purpose: "system-journal" as const,
-      schemaVersion: 2 as const,
+      schemaVersion: 3 as const,
       syntaxSource: contractJournalSyntaxSource,
     };
     const todo = createTodoContent();
@@ -68,10 +71,9 @@ describe("system repository contract", () => {
       .toEqual({ baseRevision: revision, content: todo });
     expect(createEmptySystemRepositoryContent("system-journal"))
       .toEqual({
-        dailyCounters: [],
-        entries: [],
+        days: [],
         purpose: "system-journal",
-        schemaVersion: 2,
+        schemaVersion: 3,
         syntaxSource: contractJournalSyntaxSource,
       });
     expect(createEmptySystemRepositoryContent("system-todo"))
@@ -87,7 +89,7 @@ describe("system repository contract", () => {
     expect(contractJournalSyntaxSource).toBe(domainJournalSyntaxSource);
     expect(contractTodoSyntaxSource).toBe(domainTodoSyntaxSource);
     expect(() => parseSystemRepositoryContent({
-      entries: [],
+      days: [],
       purpose: "system-journal",
       schemaVersion: 1,
     })).toThrow(/unsupported system repository version/);

@@ -15,12 +15,14 @@ import {
 } from "../../core/journal/commands/journalCommands";
 import type {
   JournalContent,
+  JournalEntry,
   JournalEntryId,
 } from "../../core/journal/model/journalContent";
 import {
   createEmptyJournalContent as createDomainEmptyJournalContent,
   formatJournalEntryDate,
   formatJournalEntryTitle,
+  listJournalEntries,
 } from "../../core/journal/model/journalContent";
 import { requireJournalSyntaxProfile } from "../../core/journal/syntax/journalSyntax";
 
@@ -34,6 +36,45 @@ export function journalBlockId(index: number) {
 
 export function createEmptyJournalContent(): JournalContent {
   return createDomainEmptyJournalContent();
+}
+
+export function journalEntries(content: JournalContent) {
+  return listJournalEntries(content);
+}
+
+export function replaceJournalTestEntries(
+  content: JournalContent,
+  entries: JournalEntry[],
+) {
+  return {
+    ...content,
+    days: content.days.map((day) => ({
+      ...day,
+      entries: entries.filter((entry) =>
+        formatJournalEntryDate(
+          entry.createdAt,
+          entry.timezoneOffsetMinutes,
+        ) === day.date
+      ),
+    })),
+  };
+}
+
+function findJournalTestEntryPosition(
+  content: JournalContent,
+  entryId: JournalEntryId,
+) {
+  const dayIndex = content.days.findIndex((day) =>
+    day.entries.some(({ id }) => id === entryId)
+  );
+
+  if (dayIndex < 0) {
+    throw new Error(`Journal test entry does not exist: ${entryId}`);
+  }
+  const entryIndex = content.days[dayIndex].entries.findIndex(
+    ({ id }) => id === entryId,
+  );
+  return { dayIndex, entryIndex };
 }
 
 export function appendJournalTestEntry(
@@ -104,14 +145,11 @@ export function tamperJournalTestEntryCreation(
   },
 ) {
   const entryId = journalEntryId(entryIndex);
-  const entryIndexInContent = content.entries.findIndex(
-    ({ id }) => id === entryId,
+  const { dayIndex, entryIndex: positionEntryIndex } = findJournalTestEntryPosition(
+    content,
+    entryId,
   );
-
-  if (entryIndexInContent < 0) {
-    throw new Error(`Journal test entry does not exist: ${entryId}`);
-  }
-  const entry = content.entries[entryIndexInContent];
+  const entry = content.days[dayIndex].entries[positionEntryIndex];
   const header = readCtnCanonicalTitleHeader(entry.source);
   const lines = entry.source.split("\n");
 
@@ -126,9 +164,7 @@ export function tamperJournalTestEntryCreation(
     timezoneOffsetMinutes,
     entry.sequence,
   );
-  const entries = [...content.entries];
-
-  entries[entryIndexInContent] = {
+  const tamperedEntry = {
     ...entry,
     createdAt,
     source: lines.join("\n"),
@@ -136,26 +172,35 @@ export function tamperJournalTestEntryCreation(
     updatedAt: createdAt,
   };
   const date = formatJournalEntryDate(createdAt, timezoneOffsetMinutes);
-  const dailyCounters = content.dailyCounters.some(
-      (counter) => counter.date === date,
-    )
-    ? content.dailyCounters.map((counter) =>
-        counter.date === date
-          ? {
-              ...counter,
-              lastIssuedSequence: Math.max(
-                counter.lastIssuedSequence,
-                entry.sequence,
-              ),
-            }
-          : counter
-      )
-    : [
-        ...content.dailyCounters,
-        { date, lastIssuedSequence: entry.sequence },
-      ];
+  const days = content.days.map((day, index) =>
+    index === dayIndex
+      ? {
+          ...day,
+          entries: day.entries.filter(({ id }) => id !== entryId),
+        }
+      : day
+  );
+  const targetDay = days.find((day) => day.date === date);
 
-  return { ...content, dailyCounters, entries };
+  if (targetDay) {
+    targetDay.entries = [...targetDay.entries, tamperedEntry].sort(
+      (left, right) => left.sequence - right.sequence,
+    );
+    targetDay.lastIssuedSequence = Math.max(
+      targetDay.lastIssuedSequence,
+      entry.sequence,
+    );
+  } else {
+    days.push({
+      date,
+      entries: [tamperedEntry],
+      lastIssuedSequence: entry.sequence,
+    });
+  }
+
+  return { ...content, days: days.sort((left, right) =>
+    left.date.localeCompare(right.date)
+  ) };
 }
 
 export function tamperJournalTestBodyBlockTime(
@@ -173,14 +218,11 @@ export function tamperJournalTestBodyBlockTime(
   },
 ) {
   const entryId = journalEntryId(entryIndex);
-  const entryIndexInContent = content.entries.findIndex(
-    ({ id }) => id === entryId,
+  const { dayIndex, entryIndex: positionEntryIndex } = findJournalTestEntryPosition(
+    content,
+    entryId,
   );
-
-  if (entryIndexInContent < 0) {
-    throw new Error(`Journal test entry does not exist: ${entryId}`);
-  }
-  const entry = content.entries[entryIndexInContent];
+  const entry = content.days[dayIndex].entries[positionEntryIndex];
   const document = parseCtnCanonicalDocument(
     entry.source,
     requireJournalSyntaxProfile(content.syntaxSource),
@@ -202,8 +244,11 @@ export function tamperJournalTestBodyBlockTime(
     createdAt: createdAt ?? metadata.createdAt,
     updatedAt: updatedAt ?? metadata.updatedAt,
   });
-  const entries = [...content.entries];
+  const entries = [...content.days[dayIndex].entries];
 
-  entries[entryIndexInContent] = { ...entry, source: lines.join("\n") };
-  return { ...content, entries };
+  entries[positionEntryIndex] = { ...entry, source: lines.join("\n") };
+  const days = [...content.days];
+
+  days[dayIndex] = { ...days[dayIndex], entries };
+  return { ...content, days };
 }

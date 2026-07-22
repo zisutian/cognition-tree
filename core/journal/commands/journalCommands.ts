@@ -13,10 +13,12 @@ import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.t
 import {
   collectJournalBlockIds,
   createJournalEntryBodyProjection,
+  findJournalEntry,
   formatJournalEntryDate,
   formatJournalEntryTitle,
   journalMaximumDailySequence,
   isJournalEntryId,
+  listJournalEntries,
   validateJournalContent,
   type JournalContent,
   type JournalEntryId,
@@ -37,17 +39,26 @@ export type UpdateJournalEntryBodyInput = {
   updatedAt: string;
 };
 
-function findEntryIndex(content: JournalContent, entryId: JournalEntryId) {
-  const index = content.entries.findIndex((entry) => entry.id === entryId);
+function findEntryPosition(content: JournalContent, entryId: JournalEntryId) {
+  const dayIndex = content.days.findIndex((day) =>
+    day.entries.some((entry) => entry.id === entryId)
+  );
 
-  if (index < 0) {
+  if (dayIndex < 0) {
     throw new Error(`Journal entry does not exist: ${entryId}`);
   }
-  return index;
+  const entryIndex = content.days[dayIndex].entries.findIndex(
+    (entry) => entry.id === entryId,
+  );
+  return { dayIndex, entryIndex };
 }
 
 function getEditableBodySource(content: JournalContent, entryId: JournalEntryId) {
-  const entry = content.entries[findEntryIndex(content, entryId)];
+  const entry = findJournalEntry(content, entryId);
+
+  if (!entry) {
+    throw new Error(`Journal entry does not exist: ${entryId}`);
+  }
   const projection = createJournalEntryBodyProjection(
     entry,
     requireJournalSyntaxProfile(content.syntaxSource),
@@ -69,7 +80,7 @@ export function createJournalEntry(
   if (!isJournalEntryId(input.entryId)) {
     throw new Error(`Invalid journal entry id: ${input.entryId}`);
   }
-  if (content.entries.some(({ id }) => id === input.entryId)) {
+  if (listJournalEntries(content).some(({ id }) => id === input.entryId)) {
     throw new Error(`Journal entry already exists: ${input.entryId}`);
   }
 
@@ -77,9 +88,8 @@ export function createJournalEntry(
     input.createdAt,
     input.timezoneOffsetMinutes,
   );
-  const lastIssuedSequence = content.dailyCounters.find(
-    (counter) => counter.date === date,
-  )?.lastIssuedSequence ?? 0;
+  const existingDay = content.days.find((day) => day.date === date);
+  const lastIssuedSequence = existingDay?.lastIssuedSequence ?? 0;
 
   if (lastIssuedSequence >= journalMaximumDailySequence) {
     throw new Error(
@@ -105,26 +115,36 @@ export function createJournalEntry(
   );
   const next: JournalContent = {
     ...content,
-    dailyCounters: content.dailyCounters.some(
-        (counter) => counter.date === date,
-      )
-      ? content.dailyCounters.map((counter) =>
-          counter.date === date
-            ? { ...counter, lastIssuedSequence: sequence }
-            : counter
+    days: (existingDay
+      ? content.days.map((day) =>
+          day.date === date
+            ? {
+                ...day,
+                entries: [...day.entries, {
+                  createdAt: input.createdAt,
+                  id: input.entryId,
+                  sequence,
+                  source,
+                  timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+                  updatedAt: input.createdAt,
+                }],
+                lastIssuedSequence: sequence,
+              }
+            : day
         )
-      : [...content.dailyCounters, { date, lastIssuedSequence: sequence }],
-    entries: [
-      ...content.entries,
-      {
-        createdAt: input.createdAt,
-        id: input.entryId,
-        sequence,
-        source,
-        timezoneOffsetMinutes: input.timezoneOffsetMinutes,
-        updatedAt: input.createdAt,
-      },
-    ],
+      : [...content.days, {
+          date,
+          entries: [{
+            createdAt: input.createdAt,
+            id: input.entryId,
+            sequence,
+            source,
+            timezoneOffsetMinutes: input.timezoneOffsetMinutes,
+            updatedAt: input.createdAt,
+          }],
+          lastIssuedSequence: sequence,
+        }]
+    ).sort((left, right) => left.date.localeCompare(right.date)),
   };
 
   validateJournalContent(next);
@@ -136,7 +156,7 @@ export function updateJournalEntryBody(
   input: UpdateJournalEntryBodyInput,
 ) {
   validateJournalContent(content);
-  const entryIndex = findEntryIndex(content, input.entryId);
+  const { dayIndex, entryIndex } = findEntryPosition(content, input.entryId);
   const current = getEditableBodySource(content, input.entryId);
   const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
 
@@ -182,14 +202,17 @@ export function updateJournalEntryBody(
     current.parsed.title,
     previousTitleMetadata.updatedAt,
   );
-  const entries = [...content.entries];
+  const entries = [...content.days[dayIndex].entries];
 
   entries[entryIndex] = {
     ...current.entry,
     source: sourceWithImmutableTitle,
     updatedAt: input.updatedAt,
   };
-  const next = { ...content, entries };
+  const days = [...content.days];
+
+  days[dayIndex] = { ...days[dayIndex], entries };
+  const next = { ...content, days };
 
   validateJournalContent(next);
   return next;
@@ -214,11 +237,14 @@ export function deleteJournalEntry(
   entryId: JournalEntryId,
 ) {
   validateJournalContent(content);
-  const entryIndex = findEntryIndex(content, entryId);
-  const entries = [...content.entries];
+  const { dayIndex, entryIndex } = findEntryPosition(content, entryId);
+  const entries = [...content.days[dayIndex].entries];
 
   entries.splice(entryIndex, 1);
-  const next = { ...content, entries };
+  const days = [...content.days];
+
+  days[dayIndex] = { ...days[dayIndex], entries };
+  const next = { ...content, days };
 
   validateJournalContent(next);
   return next;

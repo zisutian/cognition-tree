@@ -238,7 +238,7 @@ describe("filesystem system repository catalog", () => {
       await writeFile(journalPath, corruptSource, { mode: 0o600 });
       await writeFile(
         path.join(systemDirectory, "system-journal.epoch"),
-        "2\n",
+        "3\n",
         { mode: 0o600 },
       );
       const catalog = createCatalog(stateDirectory);
@@ -270,7 +270,7 @@ describe("filesystem system repository catalog", () => {
     });
   });
 
-  it("preserves current-epoch future/old versions and maps shape violations to corruption", async () => {
+  it("preserves current-epoch unsupported versions and maps shape violations to corruption", async () => {
     await withStateDirectory(async (stateDirectory) => {
       const catalog = createCatalog(stateDirectory);
       await catalog.initialize();
@@ -291,9 +291,18 @@ describe("filesystem system repository catalog", () => {
       );
 
       await writeFile(journalPath, JSON.stringify({
-        entries: [],
+        days: [],
         purpose: "system-journal",
         schemaVersion: 2,
+      }));
+      await expect(store.loadSnapshot()).rejects.toBeInstanceOf(
+        UnsupportedSystemRepositoryVersionError,
+      );
+
+      await writeFile(journalPath, JSON.stringify({
+        days: [],
+        purpose: "system-journal",
+        schemaVersion: 3,
       }));
       await expect(store.loadSnapshot()).rejects.toBeInstanceOf(
         RepositoryCorruptError,

@@ -41,6 +41,12 @@ describe("journal view model", () => {
       createEntry: () => journalEntryId(9),
       deleteEntry: vi.fn(),
       editorErrorMessage: "",
+      expandedCalendarKeys: new Set([
+        "year:2026",
+        "month:2026-07",
+        "day:2026-07-17",
+        "day:2026-07-18",
+      ]),
       focusRequest: {
         entryId: journalEntryId(2),
         lineNumber: 2,
@@ -50,17 +56,24 @@ describe("journal view model", () => {
       openEntryLine,
       persistence: { status: "saved" },
       selectEntry: vi.fn(),
+      toggleCalendarKey: vi.fn(),
       updateActiveBodyLine: vi.fn(),
       updateEntryBody,
     });
 
-    expect(view.groups).toHaveLength(1);
-    expect(view.groups[0]?.entries.map(({ id, isActive }) => ({
-      id,
-      isActive,
+    expect(view.calendar.years).toHaveLength(1);
+    expect(view.calendar.years[0]?.months[0]?.days.map((day) => ({
+      entries: day.entries.map(({ id, isActive }) => ({ id, isActive })),
+      key: day.key,
     }))).toEqual([
-      { id: journalEntryId(2), isActive: true },
-      { id: journalEntryId(1), isActive: false },
+      {
+        entries: [{ id: journalEntryId(2), isActive: true }],
+        key: "2026-07-18",
+      },
+      {
+        entries: [{ id: journalEntryId(1), isActive: false }],
+        key: "2026-07-17",
+      },
     ]);
     expect(view.activeEntry).toMatchObject({
       id: journalEntryId(2),
@@ -119,11 +132,13 @@ describe("journal view model", () => {
       createEntry: () => journalEntryId(9),
       deleteEntry: vi.fn(),
       editorErrorMessage: "",
+      expandedCalendarKeys: new Set(),
       focusRequest: null,
       index: createJournalParseIndex(content),
       openEntryLine,
       persistence: { status: "saved" },
       selectEntry: vi.fn(),
+      toggleCalendarKey: vi.fn(),
       updateActiveBodyLine: vi.fn(),
       updateEntryBody: vi.fn(),
     });
@@ -155,17 +170,19 @@ describe("journal view model", () => {
       createEntry: () => journalEntryId(1),
       deleteEntry: vi.fn(),
       editorErrorMessage: "",
+      expandedCalendarKeys: new Set(),
       focusRequest: null,
       index: createJournalParseIndex(content),
       openEntryLine: vi.fn(),
       persistence: { status: "saved" },
       selectEntry: vi.fn(),
+      toggleCalendarKey: vi.fn(),
       updateActiveBodyLine: vi.fn(),
       updateEntryBody: vi.fn(),
     });
 
     expect(view.activeEntry).toBeNull();
-    expect(view.groups).toEqual([]);
+    expect(view.calendar.years).toEqual([]);
     expect(view.outline.nodes).toEqual([]);
     expect(view.editor.documentText).toBe("");
     expect(view.editor.stats).toEqual({

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /**
- * The initial Journal syntax is part of the v2 wire contract. It deliberately
+ * The initial Journal syntax is part of the v3 wire contract. It deliberately
  * lives beside that contract so storage can provision an empty repository
  * without importing the Journal domain or CTN parser.
  */
-export const defaultJournalSyntaxSourceV2 = `name = "日记"
+export const defaultJournalSyntaxSourceV3 = `name = "日记"
 tabDisplayWidth = 4
 
 [title]

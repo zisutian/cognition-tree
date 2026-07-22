@@ -14,7 +14,7 @@ export const initialSystemRepositoryStorageEpochByPurpose = {
 
 /** Epoch expected by the current production contracts. */
 export const currentSystemRepositoryStorageEpochByPurpose = {
-  "system-journal": 2,
+  "system-journal": 3,
   "system-todo": 2,
 } as const satisfies SystemRepositoryStorageEpochByPurpose;
 

@@ -2,6 +2,7 @@
 
 import {
   groupJournalEntriesByMonth,
+  createJournalCalendar,
   listJournalEntriesNewestFirst,
   resolveJournalSelection,
   resolveJournalSelectionAfterDelete,
@@ -11,6 +12,8 @@ import {
   appendJournalTestEntry,
   createEmptyJournalContent,
   journalEntryId,
+  journalEntries,
+  replaceJournalTestEntries,
 } from "../journalTestFixture";
 
 describe("journal queries", () => {
@@ -45,7 +48,7 @@ describe("journal queries", () => {
     ]);
   });
 
-  it("uses append position as the stable tie-break for equal creation instants", () => {
+  it("uses sequence and id as deterministic tie-breaks", () => {
     let content = appendJournalTestEntry(createEmptyJournalContent(), {
       createdAt: "2026-07-18T00:00:01.000Z",
       entryIndex: 1,
@@ -87,8 +90,30 @@ describe("journal queries", () => {
     expect(resolveJournalSelectionAfterDelete(content, journalEntryId(1)))
       .toBe(journalEntryId(2));
     expect(resolveJournalSelectionAfterDelete(
-      { ...content, entries: [content.entries[0]] },
+      replaceJournalTestEntries(content, [journalEntries(content)[0]]),
       journalEntryId(1),
     )).toBeNull();
+  });
+
+  it("projects a descending year, month, day, and entry calendar", () => {
+    let content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2024-12-31T16:00:00.000Z",
+      entryIndex: 1,
+      timezoneOffsetMinutes: 480,
+    });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 2,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      entryIndex: 2,
+      timezoneOffsetMinutes: 480,
+    });
+
+    expect(createJournalCalendar(content).map((year) => year.key)).toEqual([
+      "2026",
+      "2025",
+    ]);
+    expect(createJournalCalendar(content)[0]?.months[0]?.days.map(
+      (day) => day.key,
+    )).toEqual(["2026-01-01"]);
   });
 });

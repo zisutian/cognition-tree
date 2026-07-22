@@ -6,7 +6,7 @@ import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDe
 import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
 import { createView } from "../../viewFactory";
 import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
-import { defaultJournalCtnSyntaxProfileV2 } from "../../../../core/journal/syntax/journalSyntax";
+import { defaultJournalCtnSyntaxProfileV3 } from "../../../../core/journal/syntax/journalSyntax";
 import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
 
 describe("syntax panels", () => {
@@ -143,7 +143,7 @@ describe("syntax panels", () => {
 
   it("keeps the Journal name and reference trigger visibly protected", () => {
     const base = createView().syntax;
-    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV2);
+    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV3);
     const referenceId = draft.inlineRules.find(
       ({ type }) => type === "global-reference",
     )!.id;

@@ -2,16 +2,16 @@
 
 import { parseCtnEditableDocument } from "../../../core/ctn/parser/parseCtnDocument";
 import {
-  defaultJournalCtnSyntaxProfileV2,
-  defaultJournalSyntaxSourceV2,
+  defaultJournalCtnSyntaxProfileV3,
+  defaultJournalSyntaxSourceV3,
   parseJournalSyntaxSource,
 } from "../../../core/journal/syntax/journalSyntax";
 import { describe, expect, it } from "vitest";
 
 describe("journal CTN syntax", () => {
   it("uses a neutral body rule and the protected reference vocabulary", () => {
-    expect(defaultJournalCtnSyntaxProfileV2.name).toBe("日记");
-    expect(defaultJournalCtnSyntaxProfileV2.topLevelUnmarkedRule).toEqual(
+    expect(defaultJournalCtnSyntaxProfileV3.name).toBe("日记");
+    expect(defaultJournalCtnSyntaxProfileV3.topLevelUnmarkedRule).toEqual(
       expect.objectContaining({
         label: "正文",
         textColor: "default",
@@ -20,7 +20,7 @@ describe("journal CTN syntax", () => {
       }),
     );
     expect(
-      defaultJournalCtnSyntaxProfileV2.inlineRules.find(
+      defaultJournalCtnSyntaxProfileV3.inlineRules.find(
         ({ type }) => type === "global-reference",
       ),
     ).toEqual(expect.objectContaining({
@@ -33,7 +33,7 @@ describe("journal CTN syntax", () => {
   it("parses editable source and rejects changes to protected semantics", () => {
     const document = parseCtnEditableDocument(
       "2026-07-18-0001\n普通正文\n- [[2026-07-17-0001]]",
-      defaultJournalCtnSyntaxProfileV2,
+      defaultJournalCtnSyntaxProfileV3,
     );
 
     expect(document.blocks.map(({ type }) => type)).toEqual([
@@ -48,10 +48,10 @@ describe("journal CTN syntax", () => {
       }),
     ]);
     expect(parseJournalSyntaxSource(
-      defaultJournalSyntaxSourceV2.replace('open = "[["', 'open = "{{"'),
+      defaultJournalSyntaxSourceV3.replace('open = "[["', 'open = "{{"'),
     ).profile).toBeNull();
     expect(parseJournalSyntaxSource(
-      defaultJournalSyntaxSourceV2.replace('name = "日记"', 'name = "别名"'),
+      defaultJournalSyntaxSourceV3.replace('name = "日记"', 'name = "别名"'),
     ).profile).toBeNull();
   });
 });

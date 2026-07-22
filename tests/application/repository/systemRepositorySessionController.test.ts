@@ -37,6 +37,12 @@ function emptyJournal(): SystemRepositoryContent {
   return createEmptySystemRepositoryContent("system-journal");
 }
 
+function journalEntries(
+  content: Extract<SystemRepositoryContent, { purpose: "system-journal" }>,
+) {
+  return content.days.flatMap((day) => day.entries);
+}
+
 function appendJournalEntry(
   current: SystemRepositoryContent,
   index: number,
@@ -46,8 +52,11 @@ function appendJournalEntry(
   }
   return {
     ...current,
-    dailyCounters: [{ date: "2026-07-18", lastIssuedSequence: index }],
-    entries: [...current.entries, journalEntry(index)],
+    days: [{
+      date: "2026-07-18",
+      entries: [...journalEntries(current), journalEntry(index)],
+      lastIssuedSequence: index,
+    }],
   };
 }
 
@@ -107,7 +116,7 @@ describe("system repository session controller", () => {
     controller.subscribe(() => {
       const state = controller.getState();
       if (state.status === "ready" && state.content.purpose === "system-journal") {
-        visibleLengths.push(state.content.entries.length);
+        visibleLengths.push(journalEntries(state.content).length);
       }
     });
     controller.start();
@@ -120,7 +129,7 @@ describe("system repository session controller", () => {
     expect(optimistic.status).toBe("ready");
     expect(optimistic.status === "ready" &&
       optimistic.content.purpose === "system-journal"
-      ? optimistic.content.entries.map(({ source }) => source)
+      ? journalEntries(optimistic.content).map(({ source }) => source)
       : []).toEqual(["entry 1", "entry 2"]);
 
     const flush = controller.flushPendingChanges();
@@ -128,7 +137,7 @@ describe("system repository session controller", () => {
     await flush;
 
     expect(staged.map((content) =>
-      content.purpose === "system-journal" ? content.entries.length : -1
+      content.purpose === "system-journal" ? journalEntries(content).length : -1
     )).toEqual([1, 2]);
     const firstOptimisticIndex = visibleLengths.indexOf(2);
     expect(firstOptimisticIndex).toBeGreaterThanOrEqual(0);
@@ -193,7 +202,7 @@ describe("system repository session controller", () => {
     const state = controller.getState();
     expect(state.status === "ready" &&
       state.content.purpose === "system-journal"
-      ? state.content.entries.length
+      ? journalEntries(state.content).length
       : -1).toBe(1);
     controller.stop();
   });
