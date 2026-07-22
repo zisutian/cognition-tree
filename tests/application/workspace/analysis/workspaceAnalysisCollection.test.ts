@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { startWorkspaceAnalysisCollection } from "../../../../src/application/workspace/analysis/workspaceAnalysisCollection";
 import type { WorkspaceAnalysis } from "../../../../src/application/workspace/analysis/workspaceAnalysis";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
-import { createWorkspaceParseIndex } from "../../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../../src/workspace/indexes/workspaceStructureIndex";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import {
   createInitialWorkspaceData,
   createNoteRecord,
-} from "../../../../src/workspace/model/workspaceData";
+} from "../../../../core/workspace/model/workspaceData";
 import { addTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
 
 function createIndex(sources: Array<{ id: string; source: string }>) {

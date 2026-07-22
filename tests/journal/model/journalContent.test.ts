@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
-import { deleteJournalEntry } from "../../../journal/commands/journalCommands";
-import { readCtnCanonicalTitleHeader } from "../../../ctn/parser/parseCtnDocument";
+import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
+import { deleteJournalEntry } from "../../../core/journal/commands/journalCommands";
+import { readCtnCanonicalTitleHeader } from "../../../core/ctn/parser/parseCtnDocument";
 import {
   formatJournalEntryTitle,
   getJournalCreationTimezoneOffsetMinutes,
   validateJournalContent,
   validateJournalContentTransition,
-} from "../../../journal/model/journalContent";
+} from "../../../core/journal/model/journalContent";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createStructureOperationProjection } from "../../../../../src/application/workspace/activities/structure-operation/structureOperationProjection";
-import { defaultCtnSyntaxProfile } from "../../../../../ctn/syntax/defaultSyntaxProfile";
-import { createWorkspaceParseIndex } from "../../../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../../../src/workspace/indexes/workspaceStructureIndex";
-import { listWorkspaceNotes } from "../../../../../src/workspace/queries/workspaceQueries";
+import { defaultCtnSyntaxProfile } from "../../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
+import { listWorkspaceNotes } from "../../../../../core/workspace/queries/workspaceQueries";
 import {
   createCanonicalTestNote,
 } from "../../../../workspace/workspaceTestFixture";

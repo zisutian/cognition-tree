@@ -29,7 +29,7 @@ import {
   tamperJournalTestEntryCreation,
   updateJournalTestBody,
 } from "../../journal/journalTestFixture.ts";
-import { renameTodoCollection } from "../../../todo/commands/todoCommands.ts";
+import { renameTodoCollection } from "../../../core/todo/commands/todoCommands.ts";
 import {
   appendTodoTestCollection,
   createEmptyTodoContent,

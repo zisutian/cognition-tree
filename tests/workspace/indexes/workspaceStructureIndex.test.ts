@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-} from "../../../src/workspace/model/noteTree/mutations";
-import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
+} from "../../../core/workspace/model/noteTree/mutations";
+import { createNoteTreeFolderNode } from "../../../core/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
   type NoteTreeNode,
-} from "../../../src/workspace/model/workspaceData";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+} from "../../../core/workspace/model/workspaceData";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { createCanonicalTestNote } from "../workspaceTestFixture";
 
 function createWorkspaceData() {

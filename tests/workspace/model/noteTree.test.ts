@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   createInitialWorkspaceData,
   type NoteTreeNode,
-} from "../../../src/workspace/model/workspaceData";
+} from "../../../core/workspace/model/workspaceData";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
-} from "../../../src/workspace/model/noteTree/mutations";
-import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
-import { moveNoteTreeNode } from "../../../src/workspace/model/noteTree/move";
+} from "../../../core/workspace/model/noteTree/mutations";
+import { createNoteTreeFolderNode } from "../../../core/workspace/model/noteTree/create";
+import { moveNoteTreeNode } from "../../../core/workspace/model/noteTree/move";
 
 function nodeIdentity(node: NoteTreeNode) {
   return node.kind === "folder" ? node.folderId : node.noteId;

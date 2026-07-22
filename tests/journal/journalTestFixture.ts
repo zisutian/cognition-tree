@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createMyersTextEdits } from "../../ctn/metadata/myersTextEdits";
+import { createMyersTextEdits } from "../../core/ctn/metadata/myersTextEdits";
 import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
-} from "../../ctn/metadata/blockMetadata";
+} from "../../core/ctn/metadata/blockMetadata";
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../../ctn/parser/parseCtnDocument";
+} from "../../core/ctn/parser/parseCtnDocument";
 import {
   createJournalEntry,
   updateJournalEntryBody,
-} from "../../journal/commands/journalCommands";
+} from "../../core/journal/commands/journalCommands";
 import type {
   JournalContent,
   JournalEntryId,
-} from "../../journal/model/journalContent";
+} from "../../core/journal/model/journalContent";
 import {
   createEmptyJournalContent as createDomainEmptyJournalContent,
   formatJournalEntryDate,
   formatJournalEntryTitle,
-} from "../../journal/model/journalContent";
-import { requireJournalSyntaxProfile } from "../../journal/syntax/journalSyntax";
+} from "../../core/journal/model/journalContent";
+import { requireJournalSyntaxProfile } from "../../core/journal/syntax/journalSyntax";
 
 export function journalEntryId(index: number): JournalEntryId {
   return `journal-entry-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;

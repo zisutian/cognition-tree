@@ -7,13 +7,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { createJournalParseIndex } from "../../../journal/indexes/journalParseIndex";
+import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import type {
   JournalContent,
   JournalEntryId,
-} from "../../../journal/model/journalContent";
-import { resolveJournalSelection } from "../../../journal/queries/journalQueries";
-import type { JournalParseIndex } from "../../../journal/indexes/journalParseIndex";
+} from "../../../core/journal/model/journalContent";
+import { resolveJournalSelection } from "../../../core/journal/queries/journalQueries";
+import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import {
   consumeJournalFocusRequest,
   createJournalFocusRequest,

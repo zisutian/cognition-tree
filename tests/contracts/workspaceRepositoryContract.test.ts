@@ -8,7 +8,7 @@ import {
   parseRepositoryDeletionResult,
   parseRenameRepository,
 } from "../../contracts/workspace-repository/parseCatalog";
-import { createPortableNameKey } from "../../portable-name/portableName";
+import { createPortableNameKey } from "../../core/naming/portableName";
 import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryCommitResult,

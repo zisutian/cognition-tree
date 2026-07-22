@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnBlockMetadata } from "../../../ctn/metadata/blockMetadata";
-import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
-import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
+import type { CtnBlockMetadata } from "../../../core/ctn/metadata/blockMetadata";
+import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
+import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types";
 import type {
   CtnSyntaxProfile,
   CtnSyntaxTone,
-} from "../../../ctn/syntax/types";
-import type { JournalParseIndex } from "../../../journal/indexes/journalParseIndex";
+} from "../../../core/ctn/syntax/types";
+import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import {
   createJournalEntryBodyProjection,
   type JournalContent,
   type JournalEntryId,
-} from "../../../journal/model/journalContent";
+} from "../../../core/journal/model/journalContent";
 import {
   groupJournalEntriesByMonth,
-} from "../../../journal/queries/journalQueries";
+} from "../../../core/journal/queries/journalQueries";
 import {
   resolveJournalReferenceNavigation,
   type JournalReferenceNavigationDestination,
   type JournalReferenceNavigationTarget,
-} from "../../../journal/queries/journalReferenceNavigation";
+} from "../../../core/journal/queries/journalReferenceNavigation";
 import type { SystemRepositoryPersistenceState } from "../repository/systemRepositorySessionController";
 import {
   createJournalDiagnostics,

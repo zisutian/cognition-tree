@@ -10,15 +10,15 @@ import type {
   CtnEditableBlock,
   CtnEditableDocument,
   CtnInlineSpan,
-} from "../../ctn/parser/types";
-import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
+} from "../../core/ctn/parser/types";
+import { createCtnSyntaxParseProfileKey } from "../../core/ctn/syntax/profileKey";
 import {
   getCtnEditorTextColorClassName,
   getCtnEditorTextColorStyle,
   getCtnEditorToneClassName,
   getCtnEditorToneStyle,
 } from "./ctnTonePresentation";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
 import {
   parseCtnEditorContent,
   type CtnEditorParsedContentMode,

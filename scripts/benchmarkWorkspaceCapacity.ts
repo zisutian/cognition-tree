@@ -30,22 +30,22 @@ import { WebDavWorkspaceStore } from "../server/adapters/webdav/webDavWorkspaceS
 import { createWorkspaceRepositoryRevision } from "../server/repository/workspaceRepositoryRevision.ts";
 import { createUiOutlineNodes } from "../src/application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../src/application/workspace/projection/viewTree.ts";
-import { formatCtnBlockMetadataLine } from "../ctn/metadata/blockMetadata.ts";
-import { createCtnEditableSource } from "../ctn/metadata/editableSource.ts";
-import { defaultCtnSyntaxProfile } from "../ctn/syntax/defaultSyntaxProfile.ts";
+import { formatCtnBlockMetadataLine } from "../core/ctn/metadata/blockMetadata.ts";
+import { createCtnEditableSource } from "../core/ctn/metadata/editableSource.ts";
+import { defaultCtnSyntaxProfile } from "../core/ctn/syntax/defaultSyntaxProfile.ts";
 import { createIndexedDbRepositoryClientCache } from "../src/storage/adapters/browser/browserRepositoryClientCache.ts";
 import { createHttpWorkspaceRepositoryBackend } from "../src/storage/adapters/http/httpWorkspaceRepository.ts";
 import { WorkspaceRepositoryLocalConflictError } from "../src/storage/repository/workspaceRepository.ts";
-import { createDefaultWorkspaceSyntaxSource } from "../src/workspace/context/workspaceSyntax.ts";
-import { updateWorkspaceNoteSource } from "../src/workspace/commands/workspaceCommands.ts";
-import { createWorkspaceParseIndex } from "../src/workspace/indexes/workspaceParseIndex.ts";
-import { createWorkspaceStructureIndex } from "../src/workspace/indexes/workspaceStructureIndex.ts";
-import { collectWorkspaceBlockIds } from "../src/workspace/context/workspaceBlockMetadata.ts";
+import { createDefaultWorkspaceSyntaxSource } from "../core/workspace/context/workspaceSyntax.ts";
+import { updateWorkspaceNoteSource } from "../core/workspace/commands/workspaceCommands.ts";
+import { createWorkspaceParseIndex } from "../core/workspace/indexes/workspaceParseIndex.ts";
+import { createWorkspaceStructureIndex } from "../core/workspace/indexes/workspaceStructureIndex.ts";
+import { collectWorkspaceBlockIds } from "../core/workspace/context/workspaceBlockMetadata.ts";
 import type {
   NoteRecord,
   NoteTreeNode,
   WorkspaceData,
-} from "../src/workspace/model/workspaceData.ts";
+} from "../core/workspace/model/workspaceData.ts";
 
 const noteCount = 1_000;
 const blocksPerNote = 100;

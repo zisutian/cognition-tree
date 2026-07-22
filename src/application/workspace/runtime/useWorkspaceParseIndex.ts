@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import type {
   WorkspaceParseIndex,
   WorkspaceParseIndexCache,
-} from "../../../workspace/indexes/workspaceParseIndex";
-import { createWorkspaceParseIndexCache } from "../../../workspace/indexes/workspaceParseIndex";
-import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
+} from "../../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceParseIndexCache } from "../../../../core/workspace/indexes/workspaceParseIndex";
+import type { WorkspaceContext } from "../../../../core/workspace/context/workspaceContext";
 
 export function useWorkspaceParseIndexCache() {
   const [indexCache] = useState(createWorkspaceParseIndexCache);

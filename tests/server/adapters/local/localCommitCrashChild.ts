@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace-repository/types.ts";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile.ts";
-import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml.ts";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile.ts";
+import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
 import {
   WorkspaceFileStore,
 } from "../../../../server/adapters/local/workspaceFileStore.ts";

@@ -1,8 +1,8 @@
 import { parseWorkspaceRepositoryContent } from "../../../contracts/workspace-repository/parseRepository";
 import type { WorkspaceRepositoryContent } from "../repository/workspaceRepository";
-import { resolveWorkspaceSyntax } from "../../workspace/context/workspaceSyntax";
-import { validateWorkspaceBlockMetadata } from "../../workspace/context/workspaceBlockMetadata";
-import { createWorkspaceStructureIndex } from "../../workspace/indexes/workspaceStructureIndex";
+import { resolveWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
+import { validateWorkspaceBlockMetadata } from "../../../core/workspace/context/workspaceBlockMetadata";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { normalizeWorkspaceSyntaxProfileName } from "../repository/workspaceRepository";
 
 /**

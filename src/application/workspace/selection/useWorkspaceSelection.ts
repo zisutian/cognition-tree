@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useReducer } from "react";
-import type { FolderId } from "../../../workspace/model/workspaceData";
+import type { FolderId } from "../../../../core/workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
   findWorkspaceNote,
   listWorkspaceNotes,
-} from "../../../workspace/queries/workspaceQueries";
+} from "../../../../core/workspace/queries/workspaceQueries";
 import type { SessionCommands } from "../session/sessionCommands";
 import type {
   UiDirectoryActiveNode,
@@ -12,7 +12,7 @@ import type {
   UiNoteId,
   UiTreeMoveRequest,
 } from "../projection/viewTree";
-import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import { resolveFolderSelection } from "./resolveFolderSelection";
 import {
   createWorkspaceTreeMoveDestination,

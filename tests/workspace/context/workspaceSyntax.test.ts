@@ -3,7 +3,7 @@ import {
   createDefaultWorkspaceSyntax,
   parseWorkspaceSyntax,
   resolveWorkspaceSyntax,
-} from "../../../src/workspace/context/workspaceSyntax";
+} from "../../../core/workspace/context/workspaceSyntax";
 
 describe("workspace syntax", () => {
   it("creates the default syntax source and profile together", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
-import { parseCtnEditableBody } from "../../ctn/parser/parseCtnBody";
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { parseCtnEditableDocument } from "../../core/ctn/parser/parseCtnDocument";
+import { parseCtnEditableBody } from "../../core/ctn/parser/parseCtnBody";
+import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   findCtnReferenceAtPosition,
 } from "../../src/editor/ctnReferenceNavigation";

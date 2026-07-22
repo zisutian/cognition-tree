@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   normalizeSyntaxTabDisplayWidthInput,
   syntaxProfileSchema,
   syntaxProfileValidationPolicies,
   validateSyntaxProfile,
-} from "../../../ctn/syntax/profileSchema";
+} from "../../../core/ctn/syntax/profileSchema";
 import type {
   CtnRuleRole,
   CtnSyntaxProfile,
-} from "../../../ctn/syntax/types";
+} from "../../../core/ctn/syntax/types";
 
 function createProfile(): CtnSyntaxProfile {
   return structuredClone(defaultCtnSyntaxProfile);

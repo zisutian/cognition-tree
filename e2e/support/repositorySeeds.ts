@@ -10,13 +10,13 @@ import {
   type RepositoryTreeNodeDto,
 } from "../../contracts/workspace-repository/types";
 import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog";
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
-import { initializeCtnSourceBlockMetadata } from "../../ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
 import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
-} from "../../ctn/metadata/blockMetadata";
-import { createDefaultWorkspaceSyntaxSource } from "../../src/workspace/context/workspaceSyntax";
+} from "../../core/ctn/metadata/blockMetadata";
+import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax";
 
 export const e2eApiBaseUrl = "http://127.0.0.1:3317";
 export const e2eTimestamp = "2026-01-01T00:00:00.000Z";

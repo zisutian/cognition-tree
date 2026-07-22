@@ -14,7 +14,7 @@ import type {
   CtnCanonicalDocument,
 } from "../../ctn/parser/types.ts";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
-import { getPortableNameIssue } from "../../portable-name/portableName.ts";
+import { getPortableNameIssue } from "../../naming/portableName.ts";
 import { requireTodoSyntaxProfile } from "../syntax/todoSyntax.ts";
 
 export const todoRepositoryPurpose = "system-todo" as const;

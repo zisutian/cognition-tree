@@ -23,9 +23,9 @@ import { createWorkspaceApiServer } from "../../server/api/workspaceApiServer.ts
 import { createWorkspaceApiSecurityPolicy } from "../../server/api/workspaceApiSecurity.ts";
 import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
-import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
-import { createCtnEditableSource } from "../../ctn/metadata/editableSource";
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
+import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource";
+import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import { replaceEditableSource } from "../application/workspace/session/workspaceSessionTestFixture";
 
 type TestRepositoryServer = {

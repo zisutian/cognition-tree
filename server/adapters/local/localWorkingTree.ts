@@ -4,26 +4,26 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, readdir } from "node:fs/promises";
 import path from "node:path";
-import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator.ts";
+import { createCtnBlockIdAllocator } from "../../../core/ctn/metadata/blockIdAllocator.ts";
 import {
   formatCtnBlockMetadataLine,
   isCtnBlockId,
   isCtnBlockTimestamp,
-} from "../../../ctn/metadata/blockMetadata.ts";
-import { createCtnEditableSourceFromDocument } from "../../../ctn/metadata/editableSource.ts";
-import { createMyersTextEdits } from "../../../ctn/metadata/myersTextEdits.ts";
+} from "../../../core/ctn/metadata/blockMetadata.ts";
+import { createCtnEditableSourceFromDocument } from "../../../core/ctn/metadata/editableSource.ts";
+import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits.ts";
 import {
   reconcileCtnSourceBlockMetadata,
-} from "../../../ctn/metadata/reconcileSourceMetadata.ts";
+} from "../../../core/ctn/metadata/reconcileSourceMetadata.ts";
 import {
   initializeCtnSourceBlockMetadata,
-} from "../../../ctn/metadata/sourceMetadata.ts";
+} from "../../../core/ctn/metadata/sourceMetadata.ts";
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../../../ctn/parser/parseCtnDocument.ts";
-import { parseSyntaxProfileToml } from "../../../ctn/syntax/profileToml.ts";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types.ts";
+} from "../../../core/ctn/parser/parseCtnDocument.ts";
+import { parseSyntaxProfileToml } from "../../../core/ctn/syntax/profileToml.ts";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,

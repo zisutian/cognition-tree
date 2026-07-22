@@ -6,9 +6,9 @@ import {
 } from "react";
 import type { UiStructureOperationView } from "../../projection/viewStructureOperation";
 import type { UiNoteId } from "../../projection/viewTree";
-import type { WorkspaceStructureIndex } from "../../../../workspace/indexes/workspaceStructureIndex";
-import type { NoteRecord } from "../../../../workspace/model/workspaceData";
-import { hasWorkspaceNote } from "../../../../workspace/queries/workspaceQueries";
+import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
+import type { NoteRecord } from "../../../../../core/workspace/model/workspaceData";
+import { hasWorkspaceNote } from "../../../../../core/workspace/queries/workspaceQueries";
 import { resolveDifferentNoteId } from "../../selection/viewSelection";
 import type { StructureOperationPairSelectionPhase } from "./directorySelection";
 

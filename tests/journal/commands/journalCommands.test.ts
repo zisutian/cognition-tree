@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createMyersTextEdits } from "../../../ctn/metadata/myersTextEdits";
+import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits";
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../../../ctn/parser/parseCtnDocument";
+} from "../../../core/ctn/parser/parseCtnDocument";
 import {
   createJournalEntry,
   deleteJournalEntry,
   updateJournalEntryBody,
   updateJournalSyntaxSource,
-} from "../../../journal/commands/journalCommands";
-import { validateJournalContent } from "../../../journal/model/journalContent";
-import { requireJournalSyntaxProfile } from "../../../journal/syntax/journalSyntax";
+} from "../../../core/journal/commands/journalCommands";
+import { validateJournalContent } from "../../../core/journal/model/journalContent";
+import { requireJournalSyntaxProfile } from "../../../core/journal/syntax/journalSyntax";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,

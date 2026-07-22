@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
-import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
-import type { WorkspaceNote } from "../../../workspace/model/workspaceData";
-import { parseWorkspaceSyntax } from "../../../workspace/context/workspaceSyntax";
-import { listWorkspaceNotes } from "../../../workspace/queries/workspaceQueries";
+import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
+import type { WorkspaceNote } from "../../../../core/workspace/model/workspaceData";
+import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
+import { listWorkspaceNotes } from "../../../../core/workspace/queries/workspaceQueries";
 import type { SessionCommands } from "../session/sessionCommands";
 import type { ActiveSession } from "../session/useSession";
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";

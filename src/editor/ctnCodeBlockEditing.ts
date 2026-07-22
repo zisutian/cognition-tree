@@ -15,7 +15,7 @@ import {
 import type {
   CtnEditableBlock,
   CtnEditableDocument,
-} from "../../ctn/parser/types";
+} from "../../core/ctn/parser/types";
 import type { CtnEditorParsePlugin } from "./ctnDecorations";
 
 function findMultilineBlockAtLine(

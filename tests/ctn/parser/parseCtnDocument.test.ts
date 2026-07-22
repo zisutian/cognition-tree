@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   parseCtnCanonicalDocument,
   parseCtnEditableDocument,
-} from "../../../ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+} from "../../../core/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
 import { addTestCtnBlockMetadata } from "../metadata/sourceMetadataFixture";
 
 function parseTestCtnDocument(

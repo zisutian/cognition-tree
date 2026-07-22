@@ -3,12 +3,12 @@
 import {
   createPortableNameKey,
   getPortableNameIssue,
-} from "../../../portable-name/portableName";
-import type { JournalWorkspaceReference } from "../../../journal/indexes/journalParseIndex";
+} from "../../../core/naming/portableName";
+import type { JournalWorkspaceReference } from "../../../core/journal/indexes/journalParseIndex";
 import {
   readWorkspaceNoteHeader,
   type WorkspaceData,
-} from "../../workspace/model/workspaceData";
+} from "../../../core/workspace/model/workspaceData";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,

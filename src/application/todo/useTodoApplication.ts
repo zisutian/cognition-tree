@@ -10,12 +10,12 @@ import {
 import {
   createTodoParseIndex,
   type TodoParseIndex,
-} from "../../../todo/indexes/todoParseIndex";
+} from "../../../core/todo/indexes/todoParseIndex";
 import type {
   TodoCollectionId,
   TodoContent,
-} from "../../../todo/model/todoContent";
-import { resolveTodoCollectionSelection } from "../../../todo/queries/todoQueries";
+} from "../../../core/todo/model/todoContent";
+import { resolveTodoCollectionSelection } from "../../../core/todo/queries/todoQueries";
 import {
   createTodoMutationActions,
   requireTodoContent,

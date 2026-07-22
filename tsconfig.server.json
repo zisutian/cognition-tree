@@ -16,9 +16,9 @@
   },
   "include": [
     "contracts/**/*.ts",
-    "ctn/**/*.ts",
-    "journal/**/*.ts",
-    "server/**/*.ts",
-    "todo/**/*.ts"
+    "core/ctn/**/*.ts",
+    "core/journal/**/*.ts",
+    "core/todo/**/*.ts",
+    "server/**/*.ts"
   ]
 }

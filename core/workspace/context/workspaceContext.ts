@@ -1,5 +1,5 @@
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
-import { validateSyntaxProfile } from "../../../ctn/syntax/profileSchema";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import { validateSyntaxProfile } from "../../ctn/syntax/profileSchema";
 import {
   type WorkspaceStructureIndex,
 } from "../indexes/workspaceStructureIndex";

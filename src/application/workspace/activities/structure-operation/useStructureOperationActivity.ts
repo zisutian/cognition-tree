@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { hasWorkspaceNote } from "../../../../workspace/queries/workspaceQueries";
+import { hasWorkspaceNote } from "../../../../../core/workspace/queries/workspaceQueries";
 import type { UiStructureOperationView } from "../../projection/viewStructureOperation";
 import type { UiNoteId } from "../../projection/viewTree";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";

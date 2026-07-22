@@ -1,4 +1,4 @@
-import type { NoteReferenceGraph } from "../../../workspace/indexes/workspaceParseIndex";
+import type { NoteReferenceGraph } from "../../../../core/workspace/indexes/workspaceParseIndex";
 import type { UiNoteId } from "./viewTree";
 
 export type UiReferenceGraphNode = {

@@ -1,7 +1,7 @@
 import type {
   NoteTreeNode,
   WorkspaceNote,
-} from "../../../workspace/model/workspaceData";
+} from "../../../../core/workspace/model/workspaceData";
 
 export type UiFolderId = string;
 export type UiNoteId = string;

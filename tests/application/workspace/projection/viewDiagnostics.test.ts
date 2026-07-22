@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
-} from "../../../../ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
+} from "../../../../core/ctn/syntax/profileDraft";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   createUiDocumentDiagnostics,
   createUiReferenceDiagnostics,
@@ -16,13 +16,13 @@ import { createSyntaxRuleFieldId } from "../../../../src/application/workspace/p
 import {
   createWorkspaceParseIndex,
   type ParsedWorkspaceNote,
-} from "../../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../../src/workspace/indexes/workspaceStructureIndex";
+} from "../../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import {
   createInitialWorkspaceData,
   createNoteRecord,
-} from "../../../../src/workspace/model/workspaceData";
-import { createNoteTreeFolderNode } from "../../../../src/workspace/model/noteTree/create";
+} from "../../../../core/workspace/model/workspaceData";
+import { createNoteTreeFolderNode } from "../../../../core/workspace/model/noteTree/create";
 import { addTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
 
 function createIndex(sources: Array<{ id: string; source: string; title: string }>) {

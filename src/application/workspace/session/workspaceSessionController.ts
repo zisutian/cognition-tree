@@ -9,22 +9,22 @@ import {
   isWorkspaceSyntaxFileId,
   normalizeWorkspaceSyntaxProfileName,
 } from "../../../storage/repository/workspaceRepository";
-import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
+import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml";
 import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
-} from "../../../workspace/context/workspaceContext";
+} from "../../../../core/workspace/context/workspaceContext";
 import {
   createDefaultWorkspaceSyntax,
   parseWorkspaceSyntax,
   type WorkspaceSyntax,
-} from "../../../workspace/context/workspaceSyntax";
+} from "../../../../core/workspace/context/workspaceSyntax";
 import {
   createWorkspaceStructureIndex,
   type WorkspaceStructureIndex,
-} from "../../../workspace/indexes/workspaceStructureIndex";
-import type { WorkspaceData } from "../../../workspace/model/workspaceData";
-import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../workspace/context/workspaceSyntaxMetadata";
+} from "../../../../core/workspace/indexes/workspaceStructureIndex";
+import type { WorkspaceData } from "../../../../core/workspace/model/workspaceData";
+import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../../core/workspace/context/workspaceSyntaxMetadata";
 import {
   createSessionCommands,
   type SessionCommandDependencies,

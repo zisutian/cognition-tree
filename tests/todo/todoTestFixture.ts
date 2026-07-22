@@ -3,16 +3,16 @@
 import {
   createTodoCollection,
   updateTodoCollectionBody,
-} from "../../todo/commands/todoCommands";
+} from "../../core/todo/commands/todoCommands";
 import {
   createTodoCollectionBodyProjection,
   type TodoCollectionId,
   type TodoContent,
-} from "../../todo/model/todoContent";
+} from "../../core/todo/model/todoContent";
 import {
   defaultTodoCtnSyntaxProfileV2,
   defaultTodoSyntaxSourceV2,
-} from "../../todo/syntax/todoSyntax";
+} from "../../core/todo/syntax/todoSyntax";
 
 export function todoCollectionId(index: number): TodoCollectionId {
   return `todo-collection-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;

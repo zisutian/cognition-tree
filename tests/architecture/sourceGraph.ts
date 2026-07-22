@@ -21,32 +21,27 @@ export const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
   query: "?raw",
 }) as SourceModules;
 
-export const ctnModules = import.meta.glob("../../ctn/**/*.ts", {
+export const coreModules = import.meta.glob("../../core/**/*.ts", {
   eager: true,
   import: "default",
   query: "?raw",
 }) as SourceModules;
 
-export const journalModules = import.meta.glob("../../journal/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
+function selectCoreModules(domain: string) {
+  const prefix = `../../core/${domain}/`;
 
-export const portableNameModules = import.meta.glob(
-  "../../portable-name/**/*.ts",
-  {
-    eager: true,
-    import: "default",
-    query: "?raw",
-  },
-) as SourceModules;
+  return Object.fromEntries(
+    Object.entries(coreModules).filter(([filePath]) =>
+      filePath.startsWith(prefix),
+    ),
+  );
+}
 
-export const todoModules = import.meta.glob("../../todo/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
+export const ctnModules = selectCoreModules("ctn");
+export const journalModules = selectCoreModules("journal");
+export const portableNameModules = selectCoreModules("naming");
+export const todoModules = selectCoreModules("todo");
+export const workspaceDomainModules = selectCoreModules("workspace");
 
 export const serverModules = import.meta.glob("../../server/**/*.ts", {
   eager: true,
@@ -62,28 +57,25 @@ export const contractModules = import.meta.glob("../../contracts/**/*.ts", {
 
 export const workspaceModules = {
   ...contractModules,
-  ...ctnModules,
-  ...journalModules,
-  ...portableNameModules,
+  ...coreModules,
   ...serverModules,
   ...sourceModules,
-  ...todoModules,
 };
 
 export function ctnPathToRelative(filePath: string) {
-  return filePath.replace("../../ctn/", "");
+  return filePath.replace("../../core/ctn/", "");
 }
 
 export function journalPathToRelative(filePath: string) {
-  return filePath.replace("../../journal/", "");
+  return filePath.replace("../../core/journal/", "");
 }
 
 export function portableNamePathToRelative(filePath: string) {
-  return filePath.replace("../../portable-name/", "");
+  return filePath.replace("../../core/naming/", "");
 }
 
 export function todoPathToRelative(filePath: string) {
-  return filePath.replace("../../todo/", "");
+  return filePath.replace("../../core/todo/", "");
 }
 
 export function sourcePathToRelative(filePath: string) {

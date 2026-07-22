@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["ctn/**/*.ts", "scripts/benchmarkWorkspaceCapacity.ts"]
+  "include": ["core/**/*.ts", "scripts/benchmarkWorkspaceCapacity.ts"]
 }

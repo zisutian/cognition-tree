@@ -6,7 +6,7 @@ import {
   type StructureMoveFailureReason,
 } from "../../../../../src/application/workspace/activities/structure-operation/structureOperationWorkflow";
 import type { SessionCommands } from "../../../../../src/application/workspace/session/sessionCommands";
-import type { WorkspaceParseIndex } from "../../../../../src/workspace/indexes/workspaceParseIndex";
+import type { WorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 
 const index = {} as WorkspaceParseIndex;
 

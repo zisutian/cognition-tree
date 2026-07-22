@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
+import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
 import {
   deleteTodoCollection,
   moveTodoBlock,
@@ -10,13 +10,13 @@ import {
   toggleTodoBlock,
   updateTodoCollectionBody,
   updateTodoSyntaxSource,
-} from "../../../todo/commands/todoCommands";
+} from "../../../core/todo/commands/todoCommands";
 import {
   createTodoCollectionBodyProjection,
   parseTodoCollection,
   validateTodoContent,
-} from "../../../todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
+} from "../../../core/todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,

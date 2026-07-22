@@ -1,9 +1,9 @@
-import type { WorkspaceParseIndex } from "../../../../workspace/indexes/workspaceParseIndex";
+import type { WorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 import type {
   MoveWorkspaceStructureBlockBetweenNotesFailureReason,
   MoveWorkspaceStructureBlockWithinNoteFailureReason,
-} from "../../../../workspace/commands/structureBlockCommands";
-import type { NoteId } from "../../../../workspace/model/workspaceData";
+} from "../../../../../core/workspace/commands/structureBlockCommands";
+import type { NoteId } from "../../../../../core/workspace/model/workspaceData";
 import type { SessionCommands } from "../../session/sessionCommands";
 import { parseUiStructureOperationTargetPosition } from "./targetPosition";
 

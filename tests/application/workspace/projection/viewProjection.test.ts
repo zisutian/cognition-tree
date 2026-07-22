@@ -1,22 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../../ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
+import { parseCtnCanonicalDocument } from "../../../../core/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   createSyntaxProfileDraft,
-} from "../../../../ctn/syntax/profileDraft";
-import type { CtnCanonicalBlock } from "../../../../ctn/parser/types";
+} from "../../../../core/ctn/syntax/profileDraft";
+import type { CtnCanonicalBlock } from "../../../../core/ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-} from "../../../../src/workspace/model/noteTree/mutations";
+} from "../../../../core/workspace/model/noteTree/mutations";
 import {
   createNoteTreeFolderNode,
-} from "../../../../src/workspace/model/noteTree/create";
+} from "../../../../core/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
   createNoteRecord,
   readWorkspaceNoteHeader,
-} from "../../../../src/workspace/model/workspaceData";
+} from "../../../../core/workspace/model/workspaceData";
 import {
   createUiBlockNode,
   createUiOutlineNodes,
@@ -31,7 +31,7 @@ import { createUiEditorView } from "../../../../src/application/workspace/projec
 import {
   createCtnEditableSource,
   getCtnEditableLineNumber,
-} from "../../../../ctn/metadata/editableSource";
+} from "../../../../core/ctn/metadata/editableSource";
 import {
   createUiTextSegments,
   getUiTextDisplayText,

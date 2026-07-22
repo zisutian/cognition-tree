@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnEditableBody } from "../../../ctn/parser/parseCtnBody";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import { parseCtnEditableBody } from "../../../core/ctn/parser/parseCtnBody";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
 
 describe("CTN editable body projection", () => {
   it("hides the fixed title and projects every body coordinate", () => {

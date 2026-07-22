@@ -1,18 +1,18 @@
 import {
   createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
-} from "../../../../ctn/metadata/editableSource";
+} from "../../../../core/ctn/metadata/editableSource";
 import type {
   SyntaxProfileDraft,
   SyntaxProfileDraftBuildResult,
-} from "../../../../ctn/syntax/profileDraft";
+} from "../../../../core/ctn/syntax/profileDraft";
 import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,
-} from "../../../workspace/indexes/workspaceParseIndex";
-import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
-import type { NoteId } from "../../../workspace/model/workspaceData";
-import { collectWorkspacePortableNameIssues } from "../../../workspace/queries/workspacePortableNameIssues";
+} from "../../../../core/workspace/indexes/workspaceParseIndex";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
+import type { NoteId } from "../../../../core/workspace/model/workspaceData";
+import { collectWorkspacePortableNameIssues } from "../../../../core/workspace/queries/workspacePortableNameIssues";
 import {
   resolveUiSyntaxDiagnosticLocation,
   type UiSyntaxFieldId,

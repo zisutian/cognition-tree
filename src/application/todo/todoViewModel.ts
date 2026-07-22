@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnBlockMetadata } from "../../../ctn/metadata/blockMetadata";
-import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
-import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
-import type { TodoParseIndex } from "../../../todo/indexes/todoParseIndex";
+import type { CtnBlockMetadata } from "../../../core/ctn/metadata/blockMetadata";
+import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
+import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import type { TodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
 import {
   createTodoCollectionBodyProjection,
   todoItemSemanticType,
   type TodoCollectionId,
   type TodoContent,
-} from "../../../todo/model/todoContent";
+} from "../../../core/todo/model/todoContent";
 import type { SystemRepositoryPersistenceState } from "../repository/systemRepositorySessionController";
 import type { TodoMutationActions } from "./todoApplication";
 import {

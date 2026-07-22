@@ -6,7 +6,7 @@ import {
   createCtnTabSizeExtension,
   getCtnEditorActiveLineNumber,
 } from "../../src/editor/ctnEditorExtensions";
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import ctnEditorExtensionsSource from "../../src/editor/ctnEditorExtensions.ts?raw";
 
 describe("ctn editor extensions", () => {

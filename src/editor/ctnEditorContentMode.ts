@@ -1,7 +1,7 @@
-import type { CtnEditableDocument } from "../../ctn/parser/types";
-import { parseCtnEditableBody } from "../../ctn/parser/parseCtnBody";
-import { parseCtnEditableDocument } from "../../ctn/parser/parseCtnDocument";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import type { CtnEditableDocument } from "../../core/ctn/parser/types";
+import { parseCtnEditableBody } from "../../core/ctn/parser/parseCtnBody";
+import { parseCtnEditableDocument } from "../../core/ctn/parser/parseCtnDocument";
+import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
 
 export type CtnEditorContentMode =
   | { kind: "body"; title: string }

@@ -15,12 +15,12 @@ import {
   JournalContentValidationError,
   validateJournalContent,
   validateJournalContentTransition,
-} from "../../../journal/model/journalContent";
+} from "../../../core/journal/model/journalContent";
 import {
   TodoContentValidationError,
   validateTodoContent,
   validateTodoContentTransition,
-} from "../../../todo/model/todoContent";
+} from "../../../core/todo/model/todoContent";
 import type {
   VersionedRepository,
   VersionedRepositoryBackend,

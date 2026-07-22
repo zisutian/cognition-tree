@@ -4,7 +4,7 @@ import {
   getParsedWorkspaceNote,
   getWorkspaceTree,
   listWorkspaceNotes,
-} from "../../../../workspace/queries/workspaceQueries";
+} from "../../../../../core/workspace/queries/workspaceQueries";
 import {
   createUiOutlineNodes,
   findUiOutlineNodeAtLine,
@@ -17,12 +17,12 @@ import type { WorkspaceNavigation } from "../../navigation/useWorkspaceNavigatio
 import type { NotesViewModel } from "./notesViewModel";
 import {
   resolveWorkspaceReferenceNavigation,
-} from "../../../../workspace/queries/workspaceReferenceNavigation";
+} from "../../../../../core/workspace/queries/workspaceReferenceNavigation";
 import {
   createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
   type CtnEditableSource,
-} from "../../../../../ctn/metadata/editableSource";
+} from "../../../../../core/ctn/metadata/editableSource";
 
 export function useNotesActivity({
   errorMessage,

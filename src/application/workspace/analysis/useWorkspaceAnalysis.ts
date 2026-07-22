@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { WorkspaceContext } from "../../../workspace/context/workspaceContext";
-import type { WorkspaceParseIndexCache } from "../../../workspace/indexes/workspaceParseIndex";
+import type { WorkspaceContext } from "../../../../core/workspace/context/workspaceContext";
+import type { WorkspaceParseIndexCache } from "../../../../core/workspace/indexes/workspaceParseIndex";
 import { createUiWorkbenchDiagnostics } from "../projection/viewDiagnostics";
 import { useWorkspaceParseIndex } from "../runtime/useWorkspaceParseIndex";
 import {

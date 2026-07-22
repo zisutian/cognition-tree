@@ -5,7 +5,7 @@ import {
   isCtnBlockId,
   isCtnBlockTimestamp,
   parseCtnBlockMetadataLine,
-} from "../../../ctn/metadata/blockMetadata";
+} from "../../../core/ctn/metadata/blockMetadata";
 
 const blockId = "00000000-0000-4000-8000-000000000001";
 const createdAt = "2026-07-15T00:00:00.000Z";

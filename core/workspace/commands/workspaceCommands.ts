@@ -13,16 +13,16 @@ import {
   initializeCtnSourceBlockMetadata,
   replaceCtnSourceTitle,
   touchCtnSourceTitleMetadata,
-} from "../../../ctn/metadata/sourceMetadata";
-import { reconcileCtnSourceBlockMetadata } from "../../../ctn/metadata/reconcileSourceMetadata";
+} from "../../ctn/metadata/sourceMetadata";
+import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
 import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
-} from "../../../ctn/metadata/textEdits";
-import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator";
-import { readCtnCanonicalTitleHeader } from "../../../ctn/parser/parseCtnDocument";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
-import { parsePortableName } from "../../../portable-name/portableName";
+} from "../../ctn/metadata/textEdits";
+import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
+import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import { parsePortableName } from "../../naming/portableName";
 import {
   createNoteRecord,
   createCanonicalNoteSource,

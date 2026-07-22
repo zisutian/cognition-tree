@@ -1,5 +1,5 @@
-import type { CtnCanonicalDocument } from "../../../../ctn/parser/types";
-import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
+import type { CtnCanonicalDocument } from "../../../../core/ctn/parser/types";
+import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types";
 
 export type UiEditorFocusTarget = {
   lineNumber: number;

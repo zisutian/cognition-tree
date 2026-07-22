@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createJournalParseIndex } from "../../../journal/indexes/journalParseIndex";
+import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import {
   createJournalDiagnostics,
   createJournalDocumentDiagnostics,

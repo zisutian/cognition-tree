@@ -1,15 +1,15 @@
-import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../ctn/parser/types";
 import {
   moveCtnBlockWithinText,
   moveCtnBlockText,
   type CtnBlockTextTargetPosition,
-} from "../../../ctn/parser/blockTextEdit";
+} from "../../ctn/parser/blockTextEdit";
 import type {
   NoteId,
   WorkspaceNote,
 } from "../model/workspaceData";
 import { replaceWorkspaceNoteSources } from "../model/workspaceData";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
 export type WorkspaceStructureBlockTargetPositionRequest =

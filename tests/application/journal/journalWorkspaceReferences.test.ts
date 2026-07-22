@@ -9,7 +9,7 @@ import {
   type JournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceResolutionState,
 } from "../../../src/application/journal/journalWorkspaceReferences";
-import type { JournalWorkspaceReference } from "../../../journal/indexes/journalParseIndex";
+import type { JournalWorkspaceReference } from "../../../core/journal/indexes/journalParseIndex";
 import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile.ts";
-import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml.ts";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile.ts";
+import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,

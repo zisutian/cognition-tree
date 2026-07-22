@@ -8,8 +8,8 @@ import {
   type Page,
 } from "@playwright/test";
 import type { JournalEntryDto } from "../contracts/system-repository/types";
-import { readCtnCanonicalTitleHeader } from "../ctn/parser/parseCtnDocument";
-import { formatJournalEntryTitle } from "../journal/model/journalContent";
+import { readCtnCanonicalTitleHeader } from "../core/ctn/parser/parseCtnDocument";
+import { formatJournalEntryTitle } from "../core/journal/model/journalContent";
 import {
   e2eApiBaseUrl,
   seedWorkbenchRepository,

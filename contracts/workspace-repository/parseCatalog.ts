@@ -8,7 +8,7 @@ import {
   readRequiredContractString,
 } from "./contractValue.ts";
 import { parseWorkspaceRepositoryContent } from "./parseRepository.ts";
-import { parsePortableName } from "../../portable-name/portableName.ts";
+import { parsePortableName } from "../../core/naming/portableName.ts";
 import type {
   CreateRepositoryDto,
   RepositoryAuthenticationDto,

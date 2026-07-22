@@ -19,6 +19,7 @@ import {
   sourceModules,
   todoModules,
   todoPathToRelative,
+  workspaceDomainModules,
   workspaceModules,
 } from "./sourceGraph";
 
@@ -118,7 +119,7 @@ describe("dependency boundaries", () => {
         )
         .map((importPath) => formatImport(filePath, importPath)),
     );
-    const ctnPrefix = "../../ctn/";
+    const ctnPrefix = "../../core/ctn/";
     const graph = new Map(
       Object.keys(ctnModules).map((filePath) => [
         filePath,
@@ -181,7 +182,7 @@ describe("dependency boundaries", () => {
     ]).toEqual([]);
     expect(findDependencyCycles(graph)).toEqual([]);
     expect(tomlParserOwners).toEqual([
-      "../../ctn/syntax/profileTomlParser.ts",
+      "../../core/ctn/syntax/profileTomlParser.ts",
     ]);
   });
 
@@ -211,7 +212,7 @@ describe("dependency boundaries", () => {
   });
 
   it("keeps Journal a pure shared domain with explicit consumers", () => {
-    const journalPrefix = "../../journal/";
+    const journalPrefix = "../../core/journal/";
     const blockedImports = [
       /^node:/,
       /^react$/,
@@ -271,7 +272,7 @@ describe("dependency boundaries", () => {
         ).map(({ importPath }) => formatImport(filePath, importPath)),
     );
     const fixedSyntaxSource = journalModules[
-      "../../journal/syntax/journalSyntax.ts"
+      "../../core/journal/syntax/journalSyntax.ts"
     ] ?? "";
 
     expect([
@@ -294,7 +295,7 @@ describe("dependency boundaries", () => {
   });
 
   it("keeps Todo a pure shared domain with explicit consumers", () => {
-    const todoPrefix = "../../todo/";
+    const todoPrefix = "../../core/todo/";
     const blockedImports = [
       /^node:/,
       /^react$/,
@@ -370,6 +371,34 @@ describe("dependency boundaries", () => {
     ]);
   });
 
+  it("keeps Workspace, Journal, and Todo as peer domains", () => {
+    const peerPrefixes = [
+      "../../core/workspace/",
+      "../../core/journal/",
+      "../../core/todo/",
+    ];
+    const peerModules = [
+      workspaceDomainModules,
+      journalModules,
+      todoModules,
+    ];
+    const violations = peerModules.flatMap((modules, sourceIndex) =>
+      Object.keys(modules).flatMap((filePath) =>
+        peerPrefixes.flatMap((prefix, targetIndex) =>
+          sourceIndex === targetIndex
+            ? []
+            : readInternalModuleImports(
+                workspaceModules,
+                filePath,
+                prefix,
+              ).map(({ importPath }) => formatImport(filePath, importPath)),
+        ),
+      ),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps application activity state behind local activity boundaries", () => {
     const activityPrefix = "../../src/application/workspace/activities/";
     const siblingViolations = listSourceFiles(
@@ -443,8 +472,8 @@ describe("dependency boundaries", () => {
         .filter(
           ({ targetPath }) =>
             targetPath.startsWith("../../src/application/") ||
-            targetPath.startsWith("../../src/workspace/") ||
-            targetPath.startsWith("../../ctn/") ||
+            targetPath.startsWith("../../core/workspace/") ||
+            targetPath.startsWith("../../core/ctn/") ||
             targetPath.startsWith(activityPrefix),
         )
         .map(({ importPath }) => formatImport(filePath, importPath)),
@@ -551,7 +580,7 @@ describe("dependency boundaries", () => {
     ).flatMap((filePath) =>
       readSourceImports(filePath)
         .filter(({ targetPath }) =>
-          targetPath.startsWith("../../src/workspace/commands/"),
+          targetPath.startsWith("../../core/workspace/commands/"),
         )
         .map(({ importPath }) => formatImport(filePath, importPath)),
     );
@@ -559,7 +588,7 @@ describe("dependency boundaries", () => {
       (filePath) =>
         readSourceImports(filePath)
           .filter(({ targetPath }) =>
-            targetPath.startsWith("../../src/workspace/model/noteTree/"),
+            targetPath.startsWith("../../core/workspace/model/noteTree/"),
           )
           .map(({ importPath }) => formatImport(filePath, importPath)),
     );

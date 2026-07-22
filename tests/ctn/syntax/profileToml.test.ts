@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
-} from "../../../ctn/syntax/profileToml";
-import { syntaxProfileValidationPolicies } from "../../../ctn/syntax/profileSchema";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+} from "../../../core/ctn/syntax/profileToml";
+import { syntaxProfileValidationPolicies } from "../../../core/ctn/syntax/profileSchema";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
 
 describe("syntax profile TOML", () => {
   it("parses a valid syntax profile", () => {

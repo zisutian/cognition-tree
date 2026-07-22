@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseCtnEditableDocument } from "../../../ctn/parser/parseCtnDocument";
+import { parseCtnEditableDocument } from "../../../core/ctn/parser/parseCtnDocument";
 import {
   defaultJournalCtnSyntaxProfileV2,
   defaultJournalSyntaxSourceV2,
   parseJournalSyntaxSource,
-} from "../../../journal/syntax/journalSyntax";
+} from "../../../core/journal/syntax/journalSyntax";
 import { describe, expect, it } from "vitest";
 
 describe("journal CTN syntax", () => {

@@ -2,7 +2,7 @@ import { type ChangeSet } from "@codemirror/state";
 import type {
   CtnEditableSourceChange,
   CtnTextEdit,
-} from "../../ctn/metadata/textEdits";
+} from "../../core/ctn/metadata/textEdits";
 
 type EditorCompositionChangeOptions = {
   onChange: (change: CtnEditableSourceChange) => void;

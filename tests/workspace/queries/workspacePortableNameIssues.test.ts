@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
-import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
-import { collectWorkspacePortableNameIssues } from "../../../src/workspace/queries/workspacePortableNameIssues";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
+import { createNoteTreeFolderNode } from "../../../core/workspace/model/noteTree/create";
+import { collectWorkspacePortableNameIssues } from "../../../core/workspace/queries/workspacePortableNameIssues";
 import {
   createCanonicalTestNote,
   createWorkspaceDataWithNotes,

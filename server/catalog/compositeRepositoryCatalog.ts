@@ -6,7 +6,7 @@ import {
   createPortableNameKey,
   getPortableNameIssue,
   parsePortableName,
-} from "../../portable-name/portableName.ts";
+} from "../../core/naming/portableName.ts";
 import type {
   CreateRepositoryDto,
   RepositoryCatalogDto,

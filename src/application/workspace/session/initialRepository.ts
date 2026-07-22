@@ -1,7 +1,7 @@
-import { createWorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
-import { createInitialWorkspaceData } from "../../../workspace/model/workspaceData";
-import { createWorkspaceNote } from "../../../workspace/commands/workspaceCommands";
-import { createDefaultWorkspaceSyntax } from "../../../workspace/context/workspaceSyntax";
+import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
+import { createInitialWorkspaceData } from "../../../../core/workspace/model/workspaceData";
+import { createWorkspaceNote } from "../../../../core/workspace/commands/workspaceCommands";
+import { createDefaultWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 
 export function createInitialRepositoryContent({
   createBlockId,

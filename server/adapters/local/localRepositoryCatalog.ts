@@ -5,7 +5,7 @@ import { lstat, mkdir, readdir, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../contracts/workspace-repository/parseCatalog.ts";
-import { parsePortableName } from "../../../portable-name/portableName.ts";
+import { parsePortableName } from "../../../core/naming/portableName.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,

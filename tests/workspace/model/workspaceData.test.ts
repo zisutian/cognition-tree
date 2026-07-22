@@ -5,7 +5,7 @@ import {
   readWorkspaceNoteHeader,
   replaceWorkspaceNoteSources,
   WorkspaceNoteHeaderError,
-} from "../../../src/workspace/model/workspaceData";
+} from "../../../core/workspace/model/workspaceData";
 import {
   createCanonicalTestSource,
   workspaceTestTimestamp,

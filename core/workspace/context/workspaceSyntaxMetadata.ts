@@ -1,10 +1,10 @@
-import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator";
-import { formatCtnBlockMetadataLine } from "../../../ctn/metadata/blockMetadata";
-import { createCtnEditableSource } from "../../../ctn/metadata/editableSource";
-import { recanonicalizeCtnSourceBlockMetadata } from "../../../ctn/metadata/reconcileSourceMetadata";
-import { initializeCtnRawSourceBlockMetadata } from "../../../ctn/metadata/sourceMetadata";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
-import { readCtnCanonicalTitleHeader } from "../../../ctn/parser/parseCtnDocument";
+import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
+import { formatCtnBlockMetadataLine } from "../../ctn/metadata/blockMetadata";
+import { createCtnEditableSource } from "../../ctn/metadata/editableSource";
+import { recanonicalizeCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
+import { initializeCtnRawSourceBlockMetadata } from "../../ctn/metadata/sourceMetadata";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument";
 import {
   replaceWorkspaceNoteSources,
   type WorkspaceData,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CtnEditableBlock } from "../../ctn/parser/types";
+import type { CtnEditableBlock } from "../../core/ctn/parser/types";
 import {
   CtnCheckboxWidget,
   getBlockLineDecorationClass,

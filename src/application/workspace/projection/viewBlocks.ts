@@ -1,4 +1,4 @@
-import type { CtnCanonicalBlock } from "../../../../ctn/parser/types";
+import type { CtnCanonicalBlock } from "../../../../core/ctn/parser/types";
 import {
   createUiTextDisplay,
   type UiTextDisplay,

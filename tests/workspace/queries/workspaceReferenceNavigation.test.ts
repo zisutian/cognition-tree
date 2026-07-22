@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
-import { resolveWorkspaceReferenceNavigation } from "../../../src/workspace/queries/workspaceReferenceNavigation";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
+import { resolveWorkspaceReferenceNavigation } from "../../../core/workspace/queries/workspaceReferenceNavigation";
 import {
   createCanonicalTestNote,
   createWorkspaceDataWithNotes,

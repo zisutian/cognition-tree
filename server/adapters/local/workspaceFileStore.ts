@@ -22,7 +22,7 @@ import type {
   WorkspaceRepositorySnapshotDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import { repositorySyntaxIndexFileName } from "../../../contracts/workspace-repository/types.ts";
-import { parsePortableName } from "../../../portable-name/portableName.ts";
+import { parsePortableName } from "../../../core/naming/portableName.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

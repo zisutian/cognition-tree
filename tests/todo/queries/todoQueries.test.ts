@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,
-} from "../../../todo/queries/todoQueries";
+} from "../../../core/todo/queries/todoQueries";
 import {
   appendTodoTestCollection,
   createEmptyTodoContent,

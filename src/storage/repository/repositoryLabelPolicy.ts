@@ -10,7 +10,7 @@ import type {
 import {
   createPortableNameKey,
   getPortableNameIssue,
-} from "../../../portable-name/portableName";
+} from "../../../core/naming/portableName";
 
 const reservedLabelKeys = new Set([
   createPortableNameKey("日记"),

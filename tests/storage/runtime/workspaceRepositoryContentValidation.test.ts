@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateWorkspaceRepositoryContent } from "../../../src/storage/runtime/workspaceRepositoryContentValidation";
-import { createCanonicalNoteSource } from "../../../src/workspace/model/workspaceData";
+import { createCanonicalNoteSource } from "../../../core/workspace/model/workspaceData";
 import { createContent } from "../../application/workspace/session/workspaceSessionTestFixture";
 
 describe("validateWorkspaceRepositoryContent", () => {

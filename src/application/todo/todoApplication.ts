@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
-import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
+import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
+import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
 import {
   createTodoCollection,
   deleteTodoCollection,
@@ -12,17 +12,17 @@ import {
   updateTodoCollectionBody,
   updateTodoSyntaxSource,
   type TodoBlockMoveTarget,
-} from "../../../todo/commands/todoCommands";
+} from "../../../core/todo/commands/todoCommands";
 import {
   validateTodoContent,
   type TodoCollectionId,
   type TodoContent,
-} from "../../../todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
+} from "../../../core/todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,
-} from "../../../todo/queries/todoQueries";
+} from "../../../core/todo/queries/todoQueries";
 import type { SystemRepositoryContent } from "../../storage/repository/systemRepository";
 import type { SystemRepositorySession } from "../repository/useSystemRepositorySession";
 

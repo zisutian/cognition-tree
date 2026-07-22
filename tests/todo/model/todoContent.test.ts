@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
-import { toggleTodoBlock } from "../../../todo/commands/todoCommands";
+import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
+import { toggleTodoBlock } from "../../../core/todo/commands/todoCommands";
 import {
   getTodoCollectionNameIssue,
   isTodoCollectionId,
   parseTodoCollection,
   validateTodoContent,
   validateTodoContentTransition,
-} from "../../../todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
+} from "../../../core/todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,

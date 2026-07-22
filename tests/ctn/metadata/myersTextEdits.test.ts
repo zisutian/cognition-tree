@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createMyersTextEdits } from "../../../ctn/metadata/myersTextEdits";
-import { reconcileCtnSourceBlockMetadata } from "../../../ctn/metadata/reconcileSourceMetadata";
-import { initializeCtnSourceBlockMetadata } from "../../../ctn/metadata/sourceMetadata";
-import { applyCtnTextEdits } from "../../../ctn/metadata/textEdits";
-import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits";
+import { reconcileCtnSourceBlockMetadata } from "../../../core/ctn/metadata/reconcileSourceMetadata";
+import { initializeCtnSourceBlockMetadata } from "../../../core/ctn/metadata/sourceMetadata";
+import { applyCtnTextEdits } from "../../../core/ctn/metadata/textEdits";
+import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
 
 function expectValidEdits(
   previousSource: string,

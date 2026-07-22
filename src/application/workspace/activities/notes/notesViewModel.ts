@@ -7,8 +7,8 @@ import type {
   UiTreeNode,
 } from "../../projection/viewTree";
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
-import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
-import type { CtnEditableSourceChange } from "../../../../../ctn/metadata/textEdits";
+import type { WorkspaceReferenceNavigationDestination } from "../../../../../core/workspace/queries/workspaceReferenceNavigation";
+import type { CtnEditableSourceChange } from "../../../../../core/ctn/metadata/textEdits";
 import type { WorkspaceNoteSourceUpdateResult } from "../../session/sessionCommands";
 
 export type NotesViewModel = {

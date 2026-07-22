@@ -17,12 +17,12 @@ import {
 import {
   toggleTodoBlock,
   updateTodoCollectionBody,
-} from "../../../../todo/commands/todoCommands";
+} from "../../../../core/todo/commands/todoCommands";
 import {
   createTodoCollectionBodyProjection,
   validateTodoContent,
-} from "../../../../todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../../todo/syntax/todoSyntax";
+} from "../../../../core/todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../../core/todo/syntax/todoSyntax";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,

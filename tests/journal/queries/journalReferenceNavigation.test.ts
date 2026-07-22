@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createJournalParseIndex } from "../../../journal/indexes/journalParseIndex";
-import { resolveJournalReferenceNavigation } from "../../../journal/queries/journalReferenceNavigation";
+import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
+import { resolveJournalReferenceNavigation } from "../../../core/journal/queries/journalReferenceNavigation";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,

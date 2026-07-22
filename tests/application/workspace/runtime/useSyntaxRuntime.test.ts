@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
-import { createSyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
+import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml";
 import {
   findSyntaxCatalogNameConflict,
   isCurrentSyntaxPersistenceCompletion,

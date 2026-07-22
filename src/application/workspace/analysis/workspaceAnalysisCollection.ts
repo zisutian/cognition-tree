@@ -1,8 +1,8 @@
 import type {
   ParsedWorkspaceNote,
   WorkspaceParseIndex,
-} from "../../../workspace/indexes/workspaceParseIndex";
-import type { NoteId } from "../../../workspace/model/workspaceData";
+} from "../../../../core/workspace/indexes/workspaceParseIndex";
+import type { NoteId } from "../../../../core/workspace/model/workspaceData";
 import {
   createUiDocumentDiagnostics,
   createUiReferenceDiagnostics,

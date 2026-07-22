@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseSyntaxProfileToml } from "../../ctn/syntax/profileToml.ts";
+import { parseSyntaxProfileToml } from "../../core/ctn/syntax/profileToml.ts";
 import { WorkspaceRepositoryContractError } from "../../contracts/workspace-repository/contractValue.ts";
 import { normalizeRepositorySyntaxProfileName } from "../../contracts/workspace-repository/parseSyntax.ts";
 import type { RepositorySyntaxCatalogDto } from "../../contracts/workspace-repository/types.ts";

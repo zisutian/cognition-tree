@@ -3,7 +3,7 @@
 import {
   getPortableNameIssue,
   type PortableNameIssue,
-} from "../../../portable-name/portableName";
+} from "../../naming/portableName";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
 
 export type WorkspacePortableNameIssue = {

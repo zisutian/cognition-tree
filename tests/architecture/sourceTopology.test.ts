@@ -10,6 +10,7 @@ import {
   sourcePathToRelative,
   todoModules,
   todoPathToRelative,
+  workspaceDomainModules,
 } from "./sourceGraph";
 
 describe("semantic source ownership", () => {
@@ -83,15 +84,19 @@ describe("semantic source ownership", () => {
         source,
       })),
       ...Object.entries(ctnModules).map(([filePath, source]) => ({
-        filePath: `ctn/${ctnPathToRelative(filePath)}`,
+        filePath: `core/ctn/${ctnPathToRelative(filePath)}`,
         source,
       })),
       ...Object.entries(journalModules).map(([filePath, source]) => ({
-        filePath: `journal/${journalPathToRelative(filePath)}`,
+        filePath: `core/journal/${journalPathToRelative(filePath)}`,
         source,
       })),
       ...Object.entries(todoModules).map(([filePath, source]) => ({
-        filePath: `todo/${todoPathToRelative(filePath)}`,
+        filePath: `core/todo/${todoPathToRelative(filePath)}`,
+        source,
+      })),
+      ...Object.entries(workspaceDomainModules).map(([filePath, source]) => ({
+        filePath: filePath.replace("../../", ""),
         source,
       })),
     ]

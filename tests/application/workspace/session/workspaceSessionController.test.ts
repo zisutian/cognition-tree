@@ -12,16 +12,16 @@ import {
   type WorkspaceSessionControllerState,
 } from "../../../../src/application/workspace/session/workspaceSessionController";
 import { workspaceSessionSaveDelayMs } from "../../../../src/application/workspace/session/workspaceSessionSaveQueue";
-import { createCtnEditableSource } from "../../../../ctn/metadata/editableSource";
+import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../../../../ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
-import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
-import { createCanonicalNoteSource } from "../../../../src/workspace/model/workspaceData";
-import { WorkspaceBlockMetadataError } from "../../../../src/workspace/context/workspaceBlockMetadata";
+} from "../../../../core/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types";
+import { createCanonicalNoteSource } from "../../../../core/workspace/model/workspaceData";
+import { WorkspaceBlockMetadataError } from "../../../../core/workspace/context/workspaceBlockMetadata";
 import {
   createSnapshot,
   createContent,

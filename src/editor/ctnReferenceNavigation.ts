@@ -2,8 +2,8 @@ import { EditorView } from "@codemirror/view";
 import {
   ctnGlobalReferenceType,
   ctnLocalReferenceType,
-} from "../../ctn/parser/inlineReferences";
-import type { CtnEditableDocument } from "../../ctn/parser/types";
+} from "../../core/ctn/parser/inlineReferences";
+import type { CtnEditableDocument } from "../../core/ctn/parser/types";
 import type { CtnEditorParsePlugin } from "./ctnDecorations";
 
 export type CtnEditorReferenceTarget = {

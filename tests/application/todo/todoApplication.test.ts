@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { createTodoCollectionBodyProjection } from "../../../todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../todo/syntax/todoSyntax";
+import { createTodoCollectionBodyProjection } from "../../../core/todo/model/todoContent";
+import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import type {
   TodoCollectionId,
   TodoContent,
-} from "../../../todo/model/todoContent";
+} from "../../../core/todo/model/todoContent";
 import {
   createBrowserTodoApplicationServices,
   createTodoMutationActions,

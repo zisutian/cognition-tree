@@ -1,10 +1,10 @@
-import { createCtnEditableSource } from "../../ctn/metadata/editableSource";
-import { initializeCtnSourceBlockMetadata } from "../../ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
-import { createNoteRecord, type NoteRecord } from "../../src/workspace/model/workspaceData";
-import { createInitialWorkspaceData } from "../../src/workspace/model/workspaceData";
-import { createNoteTreeNoteNode } from "../../src/workspace/model/noteTree/create";
+import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource";
+import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
+import { createNoteRecord, type NoteRecord } from "../../core/workspace/model/workspaceData";
+import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
+import { createNoteTreeNoteNode } from "../../core/workspace/model/noteTree/create";
 
 export const workspaceTestTimestamp = "2026-07-16T00:00:00.000Z";
 

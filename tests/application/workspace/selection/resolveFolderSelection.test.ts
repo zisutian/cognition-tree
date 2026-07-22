@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-} from "../../../../src/workspace/model/noteTree/mutations";
+} from "../../../../core/workspace/model/noteTree/mutations";
 import {
   createNoteTreeFolderNode,
-} from "../../../../src/workspace/model/noteTree/create";
+} from "../../../../core/workspace/model/noteTree/create";
 import {
   createCanonicalNoteSource,
   createInitialWorkspaceData,
   createNoteRecord,
-} from "../../../../src/workspace/model/workspaceData";
-import { createWorkspaceStructureIndex } from "../../../../src/workspace/indexes/workspaceStructureIndex";
+} from "../../../../core/workspace/model/workspaceData";
+import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import { resolveFolderSelection } from "../../../../src/application/workspace/selection/resolveFolderSelection";
 
 const timestamp = "2026-07-04T00:00:00.000Z";

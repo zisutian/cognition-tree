@@ -11,8 +11,8 @@ import type { TodoRepositoryContentDto } from "../contracts/system-repository/ty
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
-} from "../ctn/parser/parseCtnDocument";
-import { requireTodoSyntaxProfile } from "../todo/syntax/todoSyntax";
+} from "../core/ctn/parser/parseCtnDocument";
+import { requireTodoSyntaxProfile } from "../core/todo/syntax/todoSyntax";
 import {
   e2eApiBaseUrl,
   seedWorkbenchRepository,

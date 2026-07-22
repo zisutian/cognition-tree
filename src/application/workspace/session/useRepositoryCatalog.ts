@@ -17,7 +17,7 @@ import type {
   WorkspaceRepositoryDescriptor,
 } from "../../../storage/repository/workspaceRepositoryCatalog";
 import { createInitialRepositoryContent } from "./initialRepository";
-import { parsePortableName } from "../../../../portable-name/portableName";
+import { parsePortableName } from "../../../../core/naming/portableName";
 
 export type CreateRepositoryRequest =
   | {

@@ -7,8 +7,8 @@ import {
   type SyntaxProfileDraftMarkerRule,
   type SyntaxProfileDraftTitleRule,
   type SyntaxProfileDraftTopLevelUnmarkedRule,
-} from "../../../../../ctn/syntax/profileDraft";
-import { normalizeSyntaxTabDisplayWidthInput } from "../../../../../ctn/syntax/profileSchema";
+} from "../../../../../core/ctn/syntax/profileDraft";
+import { normalizeSyntaxTabDisplayWidthInput } from "../../../../../core/ctn/syntax/profileSchema";
 import type {
   UiSyntaxProfileDraftInlineRule,
   UiSyntaxProfileDraftMarkerRule,

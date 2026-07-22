@@ -1,15 +1,15 @@
-import { createSyntaxProfileDraft } from "../../ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
+import { createSyntaxProfileDraft } from "../../core/ctn/syntax/profileDraft";
+import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   defaultJournalCtnSyntaxProfileV2,
   defaultJournalSyntaxSourceV2,
-} from "../../journal/syntax/journalSyntax";
+} from "../../core/journal/syntax/journalSyntax";
 import type { JournalViewModel } from "../../src/application/journal";
 import type { TodoViewModel } from "../../src/application/todo";
 import {
   defaultTodoCtnSyntaxProfileV2,
   defaultTodoSyntaxSourceV2,
-} from "../../todo/syntax/todoSyntax";
+} from "../../core/todo/syntax/todoSyntax";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
 import type { RepositoryViewModel } from "../../src/application/workspace/activities/repository/repositoryViewModel";

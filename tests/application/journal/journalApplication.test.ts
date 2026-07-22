@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createMyersTextEdits } from "../../../ctn/metadata/myersTextEdits";
+import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits";
 import type {
   JournalContent,
   JournalEntryId,
-} from "../../../journal/model/journalContent";
-import { createEmptyJournalContent } from "../../../journal/model/journalContent";
+} from "../../../core/journal/model/journalContent";
+import { createEmptyJournalContent } from "../../../core/journal/model/journalContent";
 import {
   consumeJournalFocusRequest,
   createJournalFocusRequest,

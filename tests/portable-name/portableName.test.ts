@@ -7,7 +7,7 @@ import {
   normalizePortableName,
   parsePortableName,
   PortableNameValidationError,
-} from "../../portable-name/portableName";
+} from "../../core/naming/portableName";
 
 describe("portable names", () => {
   it("stores trimmed NFC names with collapsed ASCII spaces", () => {

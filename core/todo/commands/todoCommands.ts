@@ -21,7 +21,7 @@ import type { CtnCanonicalBlock } from "../../ctn/parser/types.ts";
 import {
   createPortableNameKey,
   parsePortableName,
-} from "../../portable-name/portableName.ts";
+} from "../../naming/portableName.ts";
 import {
   collectTodoBlockIds,
   createTodoCollectionBodyProjection,

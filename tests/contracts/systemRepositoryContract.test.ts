@@ -18,8 +18,8 @@ import {
   defaultJournalSyntaxSourceV2 as contractJournalSyntaxSource,
   defaultTodoSyntaxSourceV2 as contractTodoSyntaxSource,
 } from "../../contracts/system-repository/defaultContent.ts";
-import { defaultJournalSyntaxSourceV2 as domainJournalSyntaxSource } from "../../journal/syntax/journalSyntax.ts";
-import { defaultTodoSyntaxSourceV2 as domainTodoSyntaxSource } from "../../todo/syntax/todoSyntax.ts";
+import { defaultJournalSyntaxSourceV2 as domainJournalSyntaxSource } from "../../core/journal/syntax/journalSyntax.ts";
+import { defaultTodoSyntaxSourceV2 as domainTodoSyntaxSource } from "../../core/todo/syntax/todoSyntax.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const createdAt = "2026-07-18T01:00:00.000Z";

@@ -1,18 +1,18 @@
-import { createDefaultWorkspaceSyntax } from "../../../../src/workspace/context/workspaceSyntax";
+import { createDefaultWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
-} from "../../../../src/workspace/model/workspaceData";
+} from "../../../../core/workspace/model/workspaceData";
 import type {
   LocalDraftRevision,
   RepositoryRevision,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
 } from "../../../../src/storage/repository/workspaceRepository";
-import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
-import { createCtnEditableSource } from "../../../../ctn/metadata/editableSource";
-import { initializeCtnSourceBlockMetadata } from "../../../../ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../../../ctn/syntax/defaultSyntaxProfile";
+import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/textEdits";
+import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
+import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
 
 export const initialTimestamp = "2026-07-15T00:00:00.000Z";
 export const initialSyntaxFileId =

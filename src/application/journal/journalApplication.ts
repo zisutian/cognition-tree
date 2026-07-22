@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
+import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
 import {
   createJournalEntry,
   deleteJournalEntry,
   updateJournalEntryBody,
   updateJournalSyntaxSource,
-} from "../../../journal/commands/journalCommands";
+} from "../../../core/journal/commands/journalCommands";
 import {
   getJournalCreationTimezoneOffsetMinutes,
   validateJournalContent,
   type JournalContent,
   type JournalEntryId,
-} from "../../../journal/model/journalContent";
+} from "../../../core/journal/model/journalContent";
 import {
   resolveJournalSelection,
   resolveJournalSelectionAfterDelete,
-} from "../../../journal/queries/journalQueries";
+} from "../../../core/journal/queries/journalQueries";
 import type { SystemRepositoryContent } from "../../storage/repository/systemRepository";
 import type { SystemRepositorySession } from "../repository/useSystemRepositorySession";
 import type {

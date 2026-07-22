@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { findWorkspaceNote } from "../../../../workspace/queries/workspaceQueries";
+import { findWorkspaceNote } from "../../../../../core/workspace/queries/workspaceQueries";
 import { createUiReferenceGraphView } from "../../projection/viewGraph";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";

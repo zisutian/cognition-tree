@@ -1,5 +1,5 @@
-import { isCustomSyntaxTone } from "../../ctn/syntax/tones";
-import type { CtnSyntaxTone } from "../../ctn/syntax/types";
+import { isCustomSyntaxTone } from "../../core/ctn/syntax/tones";
+import type { CtnSyntaxTone } from "../../core/ctn/syntax/types";
 
 export function getCtnEditorToneClassName(tone: CtnSyntaxTone) {
   return isCustomSyntaxTone(tone) ? "ctn-tone-custom" : `ctn-tone-${tone}`;

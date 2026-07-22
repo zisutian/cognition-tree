@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   collectWorkspaceBlockIds,
   validateWorkspaceBlockMetadata,
   WorkspaceBlockMetadataError,
-} from "../../../src/workspace/context/workspaceBlockMetadata";
-import { createInitialWorkspaceData } from "../../../src/workspace/model/workspaceData";
+} from "../../../core/workspace/context/workspaceBlockMetadata";
+import { createInitialWorkspaceData } from "../../../core/workspace/model/workspaceData";
 import {
   createCanonicalTestNote,
   createCanonicalTestSource,

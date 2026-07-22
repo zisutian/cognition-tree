@@ -5,8 +5,8 @@ import { createSyntaxActivitySlots } from "../../../../src/ui/activities/syntax/
 import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDetailPanel";
 import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
 import { createView } from "../../viewFactory";
-import { createSyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
-import { defaultJournalCtnSyntaxProfileV2 } from "../../../../journal/syntax/journalSyntax";
+import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
+import { defaultJournalCtnSyntaxProfileV2 } from "../../../../core/journal/syntax/journalSyntax";
 import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
 
 describe("syntax panels", () => {

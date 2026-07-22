@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
-import { findWorkspaceNote } from "../../../workspace/queries/workspaceQueries";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
+import { findWorkspaceNote } from "../../../../core/workspace/queries/workspaceQueries";
 import type { UiEditorFocusTarget } from "../projection/viewEditor";
 import type { UiSyntaxFocusTarget } from "../projection/viewSyntax";
 import type { UiSyntaxFieldId } from "../projection/viewSyntaxFields";

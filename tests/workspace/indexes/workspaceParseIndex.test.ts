@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
-import type { NoteRecord } from "../../../src/workspace/model/workspaceData";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import type { NoteRecord } from "../../../core/workspace/model/workspaceData";
 import {
   createWorkspaceParseIndex,
   createWorkspaceParseIndexCache,
-} from "../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+} from "../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import {
   createCanonicalTestNote,
   createCanonicalTestSource,

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createCtnEditableSource } from "../../../ctn/metadata/editableSource";
+import { createCtnEditableSource } from "../../../core/ctn/metadata/editableSource";
 import {
   recanonicalizeCtnSourceBlockMetadata,
   reconcileCtnSourceBlockMetadata,
-} from "../../../ctn/metadata/reconcileSourceMetadata";
-import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
-import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+} from "../../../core/ctn/metadata/reconcileSourceMetadata";
+import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
+import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
 import {
   addTestCtnBlockMetadata,
   createTestBlockId,

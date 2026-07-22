@@ -5,7 +5,7 @@ import {
   listJournalEntriesNewestFirst,
   resolveJournalSelection,
   resolveJournalSelectionAfterDelete,
-} from "../../../journal/queries/journalQueries";
+} from "../../../core/journal/queries/journalQueries";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,

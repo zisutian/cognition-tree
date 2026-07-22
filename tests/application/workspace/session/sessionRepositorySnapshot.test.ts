@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRepository } from "../../../../src/storage/repository/workspaceRepository";
-import { createInitialWorkspaceData } from "../../../../src/workspace/model/workspaceData";
+import { createInitialWorkspaceData } from "../../../../core/workspace/model/workspaceData";
 import { loadWorkspaceSessionSnapshot } from "../../../../src/application/workspace/session/sessionRepositorySnapshot";
 import {
   createContent,

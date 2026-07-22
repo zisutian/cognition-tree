@@ -3,14 +3,14 @@ import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../../../ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../../../ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
+} from "../../../../core/ctn/syntax/profileDraft";
+import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types";
 import {
   attachWorkspaceSyntaxProfile,
-} from "../../../workspace/context/workspaceContext";
-import { parseWorkspaceSyntax } from "../../../workspace/context/workspaceSyntax";
-import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
+} from "../../../../core/workspace/context/workspaceContext";
+import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import { normalizeWorkspaceSyntaxProfileName } from "../../../storage/repository/workspaceRepository";
 
 type WorkspaceSyntaxRuntimeFile = {

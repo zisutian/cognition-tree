@@ -1,7 +1,7 @@
-import { createCtnEditableSource } from "../../../ctn/metadata/editableSource";
-import { initializeCtnSourceBlockMetadata } from "../../../ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import { createCtnEditableSource } from "../../../core/ctn/metadata/editableSource";
+import { initializeCtnSourceBlockMetadata } from "../../../core/ctn/metadata/sourceMetadata";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
 
 export const testBlockTimestamp = "2026-07-15T00:00:00.000Z";
 

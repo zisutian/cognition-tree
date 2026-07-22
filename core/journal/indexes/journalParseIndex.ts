@@ -11,7 +11,7 @@ import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
 import {
   createPortableNameKey,
   getPortableNameIssue,
-} from "../../portable-name/portableName.ts";
+} from "../../naming/portableName.ts";
 import {
   formatJournalEntryTitle,
   type JournalContent,

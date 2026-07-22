@@ -26,12 +26,12 @@ import {
   JournalContentValidationError,
   validateJournalContent,
   validateJournalContentTransition,
-} from "../../journal/model/journalContent.ts";
+} from "../../core/journal/model/journalContent.ts";
 import {
   TodoContentValidationError,
   validateTodoContent,
   validateTodoContentTransition,
-} from "../../todo/model/todoContent.ts";
+} from "../../core/todo/model/todoContent.ts";
 import { hasFileSystemErrorCode } from "./fileSystemError.ts";
 import {
   RepositoryAdapterError,

@@ -2,23 +2,23 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-} from "../../../src/workspace/model/noteTree/mutations";
+} from "../../../core/workspace/model/noteTree/mutations";
 import {
   createNoteTreeFolderNode,
-} from "../../../src/workspace/model/noteTree/create";
+} from "../../../core/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
   readWorkspaceNoteHeader,
   type WorkspaceData,
-} from "../../../src/workspace/model/workspaceData";
+} from "../../../core/workspace/model/workspaceData";
 import {
   moveWorkspaceStructureBlockBetweenNotes,
   moveWorkspaceStructureBlockWithinNote,
-} from "../../../src/workspace/commands/structureBlockCommands";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
-import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
+} from "../../../core/workspace/commands/structureBlockCommands";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
+import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
 import {
   createCanonicalTestNote,
   readEditableTestSource,

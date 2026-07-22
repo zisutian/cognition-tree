@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import { syntaxProfileValidationPolicies } from "../../../ctn/syntax/profileSchema";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { syntaxProfileValidationPolicies } from "../../../core/ctn/syntax/profileSchema";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
-} from "../../../ctn/syntax/profileToml";
+} from "../../../core/ctn/syntax/profileToml";
 import {
   buildSyntaxProfileDraft,
   createEmptyInlineRuleDraft,
@@ -13,9 +13,9 @@ import {
   createNextMarkerRuleDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../../ctn/syntax/profileDraft";
-import { defaultJournalCtnSyntaxProfileV2 } from "../../../journal/syntax/journalSyntax";
-import { defaultTodoCtnSyntaxProfileV2 } from "../../../todo/syntax/todoSyntax";
+} from "../../../core/ctn/syntax/profileDraft";
+import { defaultJournalCtnSyntaxProfileV2 } from "../../../core/journal/syntax/journalSyntax";
+import { defaultTodoCtnSyntaxProfileV2 } from "../../../core/todo/syntax/todoSyntax";
 
 describe("syntax profile draft", () => {
   it("builds the default syntax profile from a controlled draft", () => {

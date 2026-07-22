@@ -1,4 +1,4 @@
-import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import {
   createWorkspaceFolder as createWorkspaceFolderAction,
   createWorkspaceNote as createWorkspaceNoteAction,
@@ -9,7 +9,7 @@ import {
   renameWorkspaceNote as renameWorkspaceNoteAction,
   updateWorkspaceRawNoteSource as updateWorkspaceRawNoteSourceAction,
   updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
-} from "../../../workspace/commands/workspaceCommands";
+} from "../../../../core/workspace/commands/workspaceCommands";
 import {
   moveWorkspaceStructureBlockBetweenNotes as moveWorkspaceStructureBlockBetweenNotesAction,
   moveWorkspaceStructureBlockWithinNote as moveWorkspaceStructureBlockWithinNoteAction,
@@ -17,17 +17,17 @@ import {
   type MoveWorkspaceStructureBlockWithinNoteFailureReason,
   type WorkspaceStructureBlockMoveBetweenNotesRequest,
   type WorkspaceStructureBlockMoveWithinNoteRequest,
-} from "../../../workspace/commands/structureBlockCommands";
+} from "../../../../core/workspace/commands/structureBlockCommands";
 import type {
   FolderId,
   NoteId,
   WorkspaceData,
-} from "../../../workspace/model/workspaceData";
-import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
-import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
-import { createCtnEditableSource } from "../../../../ctn/metadata/editableSource";
-import { readCtnCanonicalTitleHeader } from "../../../../ctn/parser/parseCtnDocument";
-import { collectWorkspaceBlockIds } from "../../../workspace/context/workspaceBlockMetadata";
+} from "../../../../core/workspace/model/workspaceData";
+import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types";
+import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/textEdits";
+import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
+import { readCtnCanonicalTitleHeader } from "../../../../core/ctn/parser/parseCtnDocument";
+import { collectWorkspaceBlockIds } from "../../../../core/workspace/context/workspaceBlockMetadata";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
 type CreateWorkspaceFolderCommand = Parameters<

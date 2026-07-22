@@ -6,10 +6,10 @@ import type {
   SystemRepositorySnapshotDto,
   TodoRepositoryContentDto,
 } from "../../contracts/system-repository/types";
-import { createJournalEntry } from "../../journal/commands/journalCommands";
-import { createEmptyJournalContent } from "../../journal/model/journalContent";
-import { validateTodoContent } from "../../todo/model/todoContent";
-import { defaultTodoSyntaxSourceV2 } from "../../todo/syntax/todoSyntax";
+import { createJournalEntry } from "../../core/journal/commands/journalCommands";
+import { createEmptyJournalContent } from "../../core/journal/model/journalContent";
+import { validateTodoContent } from "../../core/todo/model/todoContent";
+import { defaultTodoSyntaxSourceV2 } from "../../core/todo/syntax/todoSyntax";
 
 const journalSnapshotEndpoint =
   "/api/system-repositories/system-journal/snapshot";

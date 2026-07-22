@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   appendFolderToWorkspaceTree,
   appendNoteToWorkspaceTree,
-} from "../../../src/workspace/model/noteTree/mutations";
-import { createNoteTreeFolderNode } from "../../../src/workspace/model/noteTree/create";
+} from "../../../core/workspace/model/noteTree/mutations";
+import { createNoteTreeFolderNode } from "../../../core/workspace/model/noteTree/create";
 import {
   createInitialWorkspaceData,
   type NoteRecord,
   type WorkspaceData,
-} from "../../../src/workspace/model/workspaceData";
-import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
-import { createWorkspaceParseIndex } from "../../../src/workspace/indexes/workspaceParseIndex";
-import { createWorkspaceStructureIndex } from "../../../src/workspace/indexes/workspaceStructureIndex";
+} from "../../../core/workspace/model/workspaceData";
+import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import {
   findWorkspaceFolderIdContainingNote,
   findWorkspaceNote,
@@ -19,7 +19,7 @@ import {
   getWorkspaceTree,
   hasWorkspaceNote,
   listWorkspaceNotes,
-} from "../../../src/workspace/queries/workspaceQueries";
+} from "../../../core/workspace/queries/workspaceQueries";
 import {
   createCanonicalTestNote,
   createWorkspaceDataWithNotes,

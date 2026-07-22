@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { defaultCtnSyntaxProfile } from "../../../../../ctn/syntax/defaultSyntaxProfile";
-import { createSyntaxProfileDraft } from "../../../../../ctn/syntax/profileDraft";
-import { syntaxProfileSchema } from "../../../../../ctn/syntax/profileSchema";
+import { defaultCtnSyntaxProfile } from "../../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createSyntaxProfileDraft } from "../../../../../core/ctn/syntax/profileDraft";
+import { syntaxProfileSchema } from "../../../../../core/ctn/syntax/profileSchema";
 import {
   createUiSystemSyntaxDiagnostics,
   createUiSyntaxDiagnostics,

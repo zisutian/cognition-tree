@@ -5,8 +5,8 @@ import type {
 import {
   resolveWorkspaceSyntax,
   type WorkspaceSyntax,
-} from "../../../workspace/context/workspaceSyntax";
-import { validateWorkspaceBlockMetadata } from "../../../workspace/context/workspaceBlockMetadata";
+} from "../../../../core/workspace/context/workspaceSyntax";
+import { validateWorkspaceBlockMetadata } from "../../../../core/workspace/context/workspaceBlockMetadata";
 
 export type WorkspaceSessionSnapshot = WorkspaceRepositorySnapshot & {
   workspaceSyntax: WorkspaceSyntax | null;

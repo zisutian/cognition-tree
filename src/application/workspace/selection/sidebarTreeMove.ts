@@ -1,4 +1,4 @@
-import type { FolderId } from "../../../workspace/model/workspaceData";
+import type { FolderId } from "../../../../core/workspace/model/workspaceData";
 import type {
   UiTreeMoveDestination,
   UiTreeNodeReference,
