@@ -53,7 +53,7 @@ contracts/
 
 Workspace v4：
 
-    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS；Browser 使用 IndexedDB。旧版本不读取、不迁移。
+    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS；Browser 使用 IndexedDB。
 
 Journal v3：
 
@@ -103,7 +103,7 @@ Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB
 
 每个内容领域拥有独立 session、保存队列和状态。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo。
 
-Workbench coordinator 组合可空 Workspace、普通 catalog、Journal 与 Todo，并独占以下跨领域流程：
+application/workbench/WorkbenchController 提供 start、dispose、subscribe、getSnapshot 和领域命令，组合可空 Workspace、普通 catalog、Journal 与 Todo，并独占以下跨领域流程：
 
     普通仓库切换与一次性导航。
     Journal 的 [[仓库名:笔记名]] 解析。
@@ -112,10 +112,27 @@ Workbench coordinator 组合可空 Workspace、普通 catalog、Journal 与 Todo
 
 Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
 
-AppRoot 只装配依赖并把可订阅 controller/store 绑定到 React。
+application/repository/RepositoryCatalogController 独占 catalog 加载、活动仓库持久化、删除轮询、并发操作保护和 descriptor 复用。Workspace session 只管理生命周期、authoritative state 与保存队列；语法目录的创建、复制命名、启用、删除和 metadata reconcile 由独立 mutation service 计算。
+
+Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 
 
-7. Presentation 与 Problems
+7. Infrastructure 内部边界
+
+    browser/indexedDbPrimitives 统一 request、transaction、upgrade 与 abort 原语；Workspace catalog/cache 与 Journal/Todo 数据库保持各自 owner。
+    server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
+    Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL planner、manifest 和 executor/recovery。
+    WebDAV adapter 分为连接 config codec、配置持久化、registry orchestration、generation store、transport 和 writer lease。
+    API server 分为 route、HTTP transport、错误映射、Workspace handler 与 Built-in handler；主 server 只负责认证、请求生命周期和分派。
+
+这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或现有 HTTP endpoint。
+
+
+8. Presentation 与 Problems
+
+AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session 到 view application 的绑定位于 presentation/shell/bindings；Activity catalog 是 ID、标签与懒加载元数据的唯一 owner。
+
+Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
 
 Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
 

@@ -128,9 +128,7 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
 
 添加 WebDAV 时会探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE。空目标可以初始化为 v4；已有合法 v4 保持为远端事实；非空 unmanaged、旧版本和 tombstone 目标不会被接管。
 
-普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3。旧普通仓库不读取、不迁移。当前版本的损坏内容和未知未来版本保持原样并投影故障，不自动清空。
-
-旧 CTN_WEBDAV_REPOSITORIES 静态配置已移除；环境中仍定义该变量时服务端拒绝启动。
+普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3。当前版本的损坏内容和未知未来版本保持原样并投影故障，不自动清空。
 
 
 6. 验证

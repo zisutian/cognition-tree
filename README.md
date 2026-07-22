@@ -88,7 +88,7 @@ contract、session 和 API：
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
 Workspace。`CTN_SERVER_STATE_DIR` 只保留 WebDAV 连接等服务状态。
 
-Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3 contract；旧格式不读取、不迁移。
+Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。当前内容 contract 为 Workspace v4、Journal v3 与 Todo v3。
 
 ## 源码层次
 
@@ -99,6 +99,8 @@ Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo`
     contracts/        Workspace、Journal、Todo 与 built-ins wire contract
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
+
+`application/workbench/WorkbenchController` 是应用运行期总协调者，持有普通仓库 catalog、动态 Workspace session 与两个内置 session。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。浏览器/HTTP/文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
 
 更具体的约束见：
 

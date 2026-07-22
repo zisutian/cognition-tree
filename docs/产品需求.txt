@@ -84,7 +84,7 @@ Repository Activity 只负责普通仓库 catalog、内置数据 descriptor、�
 
 Local 可见目录与 .ctn 文件是权威工作树；根部 .ctn/ 保存身份、顺序、语法、sidecar 和 WAL。非 .ctn 文件属于 unmanaged 数据，不投影、不改写、不删除。
 
-普通 Workspace 使用 v4。旧普通仓库不读取、不迁移。Journal/Todo v3 使用彼此隔离的 storage、epoch、draft/cache 和同步队列；一个领域的故障或重置不能影响另一个。已进入当前版本后，损坏内容和未知未来版本保持原样并显示可重试故障。
+普通 Workspace 使用 v4。Journal/Todo v3 使用彼此隔离的 storage、epoch、draft/cache 和同步队列；一个领域的故障或重置不能影响另一个。当前版本中的损坏内容和未知未来版本保持原样并显示可重试故障。
 
 本地优先保存先以 local revision CAS 写入 draft，再异步同步远端。offline、conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pending 内容。
 
