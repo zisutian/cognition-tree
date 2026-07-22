@@ -25,6 +25,8 @@ import type {
 } from "../../../workspace/model/workspaceData";
 import type { CtnSyntaxProfile } from "../../../../ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../../../ctn/metadata/textEdits";
+import { createCtnEditableSource } from "../../../../ctn/metadata/editableSource";
+import { readCtnCanonicalTitleHeader } from "../../../../ctn/parser/parseCtnDocument";
 import { collectWorkspaceBlockIds } from "../../../workspace/context/workspaceBlockMetadata";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
@@ -58,6 +60,11 @@ type MoveWorkspaceStructureBlockWithinNoteCommandResult =
       status: "failed";
     };
 
+export type WorkspaceNoteSourceUpdateResult = {
+  authoritativeSource: string;
+  titleNormalized: boolean;
+};
+
 export type SessionCommands = {
   createFolder: (
     parentFolderId: CreateWorkspaceFolderCommand["parentFolderId"],
@@ -79,7 +86,10 @@ export type SessionCommands = {
   moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
   renameNote: (noteId: NoteId, title: string) => void;
-  updateNoteSource: (noteId: NoteId, change: CtnEditableSourceChange) => void;
+  updateNoteSource: (
+    noteId: NoteId,
+    change: CtnEditableSourceChange,
+  ) => WorkspaceNoteSourceUpdateResult;
 };
 
 export type SessionCommandDependencies = {
@@ -214,28 +224,58 @@ export function createSessionCommands({
       const syntaxProfile = getSyntaxProfile();
 
       if (!syntaxProfile) {
-        commitDataSnapshot(
-          updateWorkspaceRawNoteSourceAction(
-            workspace,
-            noteId,
-            change,
-            dependencies.now(),
-          ),
-        );
-        return;
-      }
-
-      commitDataSnapshot(
-        updateWorkspaceNoteSourceAction(
+        const nextWorkspace = updateWorkspaceRawNoteSourceAction(
           workspace,
           noteId,
           change,
           dependencies.now(),
-          syntaxProfile,
-          dependencies.createBlockId,
-          collectReservedBlockIds(workspace, syntaxProfile),
-        ),
+        );
+        const authoritativeSource = nextWorkspace.notes.find(
+          ({ id }) => id === noteId,
+        )?.source;
+
+        if (authoritativeSource === undefined) {
+          throw new Error(`Workspace note does not exist: ${noteId}`);
+        }
+
+        commitDataSnapshot(nextWorkspace);
+        return {
+          authoritativeSource,
+          titleNormalized:
+            readCtnCanonicalTitleHeader(authoritativeSource).title !==
+              readCtnCanonicalTitleHeader(change.source).title,
+        };
+      }
+
+      const nextWorkspace = updateWorkspaceNoteSourceAction(
+        workspace,
+        noteId,
+        change,
+        dependencies.now(),
+        syntaxProfile,
+        dependencies.createBlockId,
+        collectReservedBlockIds(workspace, syntaxProfile),
       );
+      const canonicalSource = nextWorkspace.notes.find(
+        ({ id }) => id === noteId,
+      )?.source;
+
+      if (canonicalSource === undefined) {
+        throw new Error(`Workspace note does not exist: ${noteId}`);
+      }
+
+      commitDataSnapshot(nextWorkspace);
+      const authoritativeSource = createCtnEditableSource(
+        canonicalSource,
+        syntaxProfile,
+      ).source;
+
+      return {
+        authoritativeSource,
+        titleNormalized:
+          authoritativeSource.split("\n", 1)[0] !==
+            change.source.split("\n", 1)[0],
+      };
     },
   };
 }

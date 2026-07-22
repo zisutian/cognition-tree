@@ -220,6 +220,119 @@ afterEach(() => {
 });
 
 describe("workspace session controller", () => {
+  it("returns the canonical configured editor source and preserves it after an invalid title", async () => {
+    const harness = createRepositoryHarness();
+    const controller = createController(harness.repository);
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "ready");
+    const ready = controller.getState();
+
+    if (ready.status !== "ready") {
+      throw new Error("configured workspace did not become ready");
+    }
+    const note = ready.workspace.noteEntryById.get("note-1")?.note;
+
+    if (!note) {
+      throw new Error("configured note fixture is missing");
+    }
+    const result = controller.commands.updateNoteSource(
+      note.id,
+      replaceEditableSource(note.source, "  Cafe\u0301   标题  \n正文"),
+    );
+
+    expect(result).toEqual({
+      authoritativeSource: "Café 标题\n正文",
+      titleNormalized: true,
+    });
+    const normalizedState = controller.getState();
+
+    if (normalizedState.status !== "ready") {
+      throw new Error("configured update was not published");
+    }
+    const normalizedNote = normalizedState.workspace.noteEntryById.get(
+      note.id,
+    )?.note;
+
+    if (!normalizedNote) {
+      throw new Error("normalized note is missing");
+    }
+    expect(() => controller.commands.updateNoteSource(
+      note.id,
+      replaceEditableSource(normalizedNote.source, "bad:title\n正文"),
+    )).toThrow("Workspace note title contains unsupported characters");
+    expect(controller.getState()).toBe(normalizedState);
+    controller.dispose();
+  });
+
+  it("returns the canonical raw source and preserves it after an invalid title", async () => {
+    const configuredContent = createContent();
+    const harness = createRepositoryHarness({
+      initialSnapshot: createSnapshot({
+        content: {
+          ...configuredContent,
+          syntax: { activeFileId: null, files: [] },
+        },
+      }),
+    });
+    const controller = createController(harness.repository);
+
+    controller.start();
+    await waitForState(controller, (state) => state.status === "ready");
+    const ready = controller.getState();
+
+    if (ready.status !== "ready") {
+      throw new Error("raw workspace did not become ready");
+    }
+    const note = ready.workspace.noteEntryById.get("note-1")?.note;
+
+    if (!note) {
+      throw new Error("raw note fixture is missing");
+    }
+    const normalizedSource = note.source.replace(
+      "\n标题\n",
+      "\n  Cafe\u0301   标题  \n",
+    );
+    const result = controller.commands.updateNoteSource(note.id, {
+      edits: [{
+        from: 0,
+        insertedText: normalizedSource,
+        to: note.source.length,
+      }],
+      source: normalizedSource,
+    });
+
+    expect(result.authoritativeSource).toContain("\nCafé 标题\n");
+    expect(result.titleNormalized).toBe(true);
+    const normalizedState = controller.getState();
+
+    if (normalizedState.status !== "ready") {
+      throw new Error("raw update was not published");
+    }
+    const normalizedNote = normalizedState.workspace.noteEntryById.get(
+      note.id,
+    )?.note;
+
+    if (!normalizedNote) {
+      throw new Error("normalized raw note is missing");
+    }
+    const invalidSource = normalizedNote.source.replace(
+      "\nCafé 标题\n",
+      "\nbad:title\n",
+    );
+
+    expect(() => controller.commands.updateNoteSource(note.id, {
+      edits: [{
+        from: 0,
+        insertedText: invalidSource,
+        to: normalizedNote.source.length,
+      }],
+      source: invalidSource,
+    })).toThrow("Workspace note title contains unsupported characters");
+    expect(controller.getState()).toBe(normalizedState);
+    controller.dispose();
+  });
+
   it("does not expose a mutable fallback workspace while loading", async () => {
     const load = createDeferred<WorkspaceRepositorySnapshot>();
     const harness = createRepositoryHarness();

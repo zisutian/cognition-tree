@@ -9,6 +9,7 @@ import type {
 import type { WorkspaceDirectoryMutations } from "../../selection/useWorkspaceSelection";
 import type { WorkspaceReferenceNavigationDestination } from "../../../../workspace/queries/workspaceReferenceNavigation";
 import type { CtnEditableSourceChange } from "../../../../../ctn/metadata/textEdits";
+import type { WorkspaceNoteSourceUpdateResult } from "../../session/sessionCommands";
 
 export type NotesViewModel = {
   activeNote: {
@@ -43,5 +44,7 @@ export type NotesViewModel = {
       type: string;
     }) => WorkspaceReferenceNavigationDestination[];
   };
-  updateSource: (change: CtnEditableSourceChange) => void;
+  updateSource: (
+    change: CtnEditableSourceChange,
+  ) => WorkspaceNoteSourceUpdateResult;
 };

@@ -234,9 +234,11 @@ export function useNotesActivity({
       },
     },
     updateSource(change) {
-      if (selection.activeNoteId) {
-        commands.updateNoteSource(selection.activeNoteId, change);
+      if (!selection.activeNoteId) {
+        throw new Error("当前没有活动笔记。");
       }
+
+      return commands.updateNoteSource(selection.activeNoteId, change);
     },
   };
 }

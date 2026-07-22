@@ -142,7 +142,10 @@ export function createView(
         navigate: () => undefined,
         resolve: () => [],
       },
-      updateSource: () => undefined,
+      updateSource: (change) => ({
+        authoritativeSource: change.source,
+        titleNormalized: false,
+      }),
     },
     repository: {
       activeRepositoryId: "primary",

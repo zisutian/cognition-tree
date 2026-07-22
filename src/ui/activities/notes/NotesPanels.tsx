@@ -49,6 +49,36 @@ export function submitNotesFolderCreation({
   });
 }
 
+export function submitNotesEditorChange({
+  authoritativeSource,
+  change,
+  onNormalized,
+  onSynchronize,
+  runAction,
+  updateSource,
+}: {
+  authoritativeSource: string;
+  change: Parameters<NotesViewModel["updateSource"]>[0];
+  onNormalized: () => void;
+  onSynchronize: (source: string) => void;
+  runAction: (
+    action: () => ReturnType<NotesViewModel["updateSource"]>,
+  ) => ReturnType<NotesViewModel["updateSource"]> | undefined;
+  updateSource: NotesViewModel["updateSource"];
+}) {
+  const result = runAction(() => updateSource(change));
+
+  if (result?.titleNormalized) {
+    onNormalized();
+  }
+
+  if (!result || result.authoritativeSource !== change.source) {
+    onSynchronize(result?.authoritativeSource ?? authoritativeSource);
+  }
+
+  return result;
+}
+
 export function findNotesTreeAncestorFolderIds(
   nodes: NotesViewModel["directory"]["noteTree"],
   activeNode: NotesViewModel["directory"]["activeNode"],
@@ -221,11 +251,29 @@ export function NoteEditorPanel({
   focusMode: boolean;
   onToggleFocusMode: () => void;
 }) {
+  const feedback = useFeedback();
+  const [editorSyncSource, setEditorSyncSource] = useState<{
+    noteId: string;
+    source: string;
+  } | null>(null);
+  const [editorSyncVersion, setEditorSyncVersion] = useState(0);
   const referenceNavigation = useReferenceNavigation(
     view.referenceNavigation,
   );
+  const activeNote = view.activeNote;
 
-  if (!view.activeNote) {
+  useEffect(() => {
+    if (
+      editorSyncSource &&
+      (!activeNote ||
+        editorSyncSource.noteId !== activeNote.id ||
+        editorSyncSource.source === view.editor.documentText)
+    ) {
+      setEditorSyncSource(null);
+    }
+  }, [activeNote, editorSyncSource, view.editor.documentText]);
+
+  if (!activeNote) {
     return (
       <Panel className="note-editor-panel" aria-label="笔记编辑">
         <EmptyState
@@ -244,7 +292,7 @@ export function NoteEditorPanel({
   return (
     <Panel className="note-editor-panel" aria-label="笔记编辑">
       <PanelHeader
-        title={view.activeNote.title}
+        title={activeNote.title}
         actions={
           <>
             {view.editor.errorMessage ? (
@@ -267,15 +315,32 @@ export function NoteEditorPanel({
         }
       />
       <CtnEditor
-        key={view.activeNote.id}
+        key={activeNote.id}
         contentMode={view.editor.mode === "raw"
           ? { kind: "raw" }
           : { kind: "document" }}
         focusTarget={view.editor.focusTarget}
         syntaxProfile={view.editor.syntaxProfile}
-        value={view.editor.documentText}
+        value={editorSyncSource?.noteId === activeNote.id
+          ? editorSyncSource.source
+          : view.editor.documentText}
+        valueSyncVersion={editorSyncVersion}
         onActiveLineChange={view.editor.onActiveLineChange}
-        onChange={view.updateSource}
+        onChange={(change) => {
+          submitNotesEditorChange({
+            authoritativeSource: view.editor.documentText,
+            change,
+            onNormalized: () => feedback.notify(
+              "笔记标题已按可移植名称规则规范化。",
+            ),
+            onSynchronize: (source) => {
+              setEditorSyncSource({ noteId: activeNote.id, source });
+              setEditorSyncVersion((current) => current + 1);
+            },
+            runAction: (action) => feedback.runAction(action),
+            updateSource: view.updateSource,
+          });
+        }}
         onConsumeFocusTarget={view.editor.onConsumeFocusTarget}
         onOpenReference={referenceNavigation.openReference}
       />

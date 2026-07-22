@@ -5,6 +5,7 @@ import {
   NoteEditorPanel,
   NotesContext,
   findNotesTreeAncestorFolderIds,
+  submitNotesEditorChange,
   submitNotesFolderCreation,
 } from "../../../../src/ui/activities/notes/NotesPanels";
 import { NoteTimeDetails } from "../../../../src/ui/activities/notes/NoteTimeDetails";
@@ -71,6 +72,105 @@ describe("notes panels", () => {
     expect(createFolder).toHaveBeenCalledWith("folder-parent", "bad/name");
     expect(notifyError).toHaveBeenCalledWith(error);
     expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      authoritativeSource: "当前标题\n正文",
+      label: "configured",
+      source: "bad:title\n正文",
+    },
+    {
+      authoritativeSource: "当前标题\n@ctn-block id=block-1 created=now updated=now\n正文",
+      label: "raw",
+      source: "bad:title\n@ctn-block id=block-1 created=now updated=now\n正文",
+    },
+  ])("reports and rolls back an invalid colon title in $label mode", ({
+    authoritativeSource,
+    source,
+  }) => {
+    const error = new Error(
+      "Workspace note title contains unsupported characters.",
+    );
+    const notifyError = vi.fn();
+    const onNormalized = vi.fn();
+    const onSynchronize = vi.fn();
+
+    const result = submitNotesEditorChange({
+      authoritativeSource,
+      change: {
+        edits: [{ from: 0, insertedText: source, to: authoritativeSource.length }],
+        source,
+      },
+      onNormalized,
+      onSynchronize,
+      runAction: (action) => runFeedbackAction(action, notifyError),
+      updateSource: () => {
+        throw error;
+      },
+    });
+
+    expect(result).toBeUndefined();
+    expect(notifyError).toHaveBeenCalledWith(error);
+    expect(onNormalized).not.toHaveBeenCalled();
+    expect(onSynchronize).toHaveBeenCalledWith(authoritativeSource);
+  });
+
+  it("synchronizes normalized titles to the authoritative editor source", () => {
+    const source = "  Cafe\u0301   标题  \n正文";
+    const canonicalSource = "Café 标题\n正文";
+    const notify = vi.fn();
+    const onSynchronize = vi.fn();
+
+    const result = submitNotesEditorChange({
+      authoritativeSource: "旧标题\n正文",
+      change: {
+        edits: [{ from: 0, insertedText: source, to: 5 }],
+        source,
+      },
+      onNormalized: () => notify(
+        "笔记标题已按可移植名称规则规范化。",
+      ),
+      onSynchronize,
+      runAction: (action) => action(),
+      updateSource: () => ({
+        authoritativeSource: canonicalSource,
+        titleNormalized: true,
+      }),
+    });
+
+    expect(result).toEqual({
+      authoritativeSource: canonicalSource,
+      titleNormalized: true,
+    });
+    expect(notify).toHaveBeenCalledWith(
+      "笔记标题已按可移植名称规则规范化。",
+    );
+    expect(onSynchronize).toHaveBeenCalledWith(canonicalSource);
+  });
+
+  it("does not force a rollback when the repository accepts the editor text", () => {
+    const source = "旧:标题\n已修改正文";
+    const onNormalized = vi.fn();
+    const onSynchronize = vi.fn();
+
+    submitNotesEditorChange({
+      authoritativeSource: "旧:标题\n正文",
+      change: {
+        edits: [{ from: 5, insertedText: "已修改", to: 5 }],
+        source,
+      },
+      onNormalized,
+      onSynchronize,
+      runAction: (action) => action(),
+      updateSource: () => ({
+        authoritativeSource: source,
+        titleNormalized: false,
+      }),
+    });
+
+    expect(onNormalized).not.toHaveBeenCalled();
+    expect(onSynchronize).not.toHaveBeenCalled();
   });
 
   it("keeps block timestamps in a compact detail view", () => {

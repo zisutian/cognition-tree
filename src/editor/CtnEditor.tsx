@@ -28,6 +28,7 @@ type CtnEditorProps = {
   focusTarget: CtnEditorFocusTarget | null;
   syntaxProfile: CtnEditorSyntaxProfile;
   value: string;
+  valueSyncVersion?: number;
   onActiveLineChange: (lineNumber: number) => void;
   onChange: (change: CtnEditableSourceChange) => void;
   onConsumeFocusTarget: (requestId: number) => void;
@@ -48,6 +49,7 @@ export function CtnEditor({
   focusTarget,
   syntaxProfile,
   value,
+  valueSyncVersion = 0,
   onActiveLineChange,
   onChange,
   onConsumeFocusTarget,
@@ -163,7 +165,7 @@ export function CtnEditor({
     }
 
     view.dispatch(transaction);
-  }, [value]);
+  }, [value, valueSyncVersion]);
 
   useEffect(() => {
     const view = editorViewRef.current;
