@@ -1,214 +1,163 @@
 环境准备
 
 
-1. 基础工具
+1. 工具与启动
 
-当前项目使用 Node.js、pnpm、Vite、Vitest 和 TypeScript。
-
-推荐工具：
+要求：
 
     Node.js 22.x
     pnpm 11.1.3
     Git 2.x
 
-依赖安装：
+安装与 hooks：
 
     pnpm install
-
-本地 Git hooks：
-
     pnpm hooks:install
 
-package.json 固定的包管理器为 `pnpm@11.1.3`。
-
-
-2. 本机后端
-
-启动命令：
+启动：
 
     pnpm server
-
-默认地址：
-
-    http://127.0.0.1:3001
-
-默认仓库根目录：
-
-    .cognition-tree/repositories
-
-默认服务端状态目录：
-
-    .cognition-tree/server
-
-后端环境变量：
-
-    CTN_API_HOST
-    CTN_API_PORT
-    CTN_REPOSITORY_ROOT
-    CTN_REPOSITORY_HOST_ROOT
-    CTN_SERVER_STATE_DIR
-    CTN_WEBDAV_PRIVATE_TARGETS
-    CTN_PUBLIC_URL
-    CTN_API_TOKEN
-
-后端提供 health、普通 repository catalog、内容无关的 built-ins catalog 和三个领域各自的 snapshot API。`GET /api/repositories` 列出普通仓库与单仓问题，`POST /api/repositories` 创建 Local 仓库或注册 WebDAV 连接，`PATCH /api/repositories/<repositoryId>` 只修改 catalog label，`GET/PUT /api/repositories/<repositoryId>/snapshot` 读取或提交指定普通仓库，`DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。`GET /api/built-ins` 只列出 Journal/Todo 的固定 descriptor、位置、保护状态和独立故障；`GET/PUT /api/journal/snapshot` 与 `GET/PUT /api/todo/snapshot` 分别读写两个领域，`POST /api/journal/retry` 与 `POST /api/todo/retry` 独立重试。内置数据不提供 create、delete 或 rename。base revision 过期时返回 409，且不覆盖已发布内容。所有普通仓库 ID 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；新建内容中的 workspace ID 独立生成为 `workspace-<uuid>`。repository id 只映射到 catalog 管理的对象，不接受前端指定的文件路径。
-
-catalog 的仓库位置是 adapter 对应的结构化数据。Local 位置包含 realpath 后的 `serverPath` 和可选 `hostPath`；WebDAV 位置包含不带凭据的规范化 URL；Browser 位置包含实际 IndexedDB 数据库名。Local 的 `hostPath` 由 `CTN_REPOSITORY_HOST_ROOT` 与 repository id 组合得到。该环境变量未设置时 `hostPath` 为 null；设置时必须是绝对路径，且只用于界面展示，不参与文件读写、删除、权限判断或路径校验。catalog API 面向已授权的单用户前端公开这些路径，API 错误、未知 500 和服务日志不携带单仓路径或凭据。catalog issue 无法安全确定位置时使用 null。
-
-HTTP 模式在仓库活动中动态注册和切换 Local/WebDAV 仓库。WebDAV 表单包含稳定名称、URL、无认证或 Basic 认证；Browser 存储模式只显示 Browser adapter，不从浏览器直接连接 WebDAV。仓库切换不复制、上传或合并 Local 与 WebDAV 内容。
-
-WebDAV registry 位于服务端状态目录：
-
-    <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
-
-状态目录及连接目录权限为 `0700`，连接配置和原子写临时文件权限为 `0600`。每个 schema version 1 配置独立保存 repository ID、稳定 label、规范化 URL、认证方式和 `active` 或 `deleting-remote` 状态。Basic 密码只存在于服务端连接文件和请求 Authorization header，不进入 repository 内容、API 响应、日志、浏览器设置或 IndexedDB。服务启动只加载 registry，不访问 WebDAV 网络；离线连接仍出现在 catalog 中，已有 IndexedDB 副本仍可打开。损坏的单个连接文件形成可清理的 WebDAV 问题，registry 根目录、锁和权限异常会使后端启动失败。
-
-初次添加连接执行完整能力探测，包括 ETag、If-Match、If-None-Match、PROPFIND、MKCOL、PUT、GET 和 DELETE。完全空的目标使用表单生成的初始 v4 内容初始化；已有合法 v4 内容保持为远端事实；旧版本、非空 unmanaged target 和 deletion tombstone 不会被初始化。WebDAV adapter 在 `.ctn-generations/<token>/` 中写入不可变 generation，以 `.ctn-lock.json` 的 60 秒 writer lease 协调写入，并通过 `.ctn-current.json` 的 ETag CAS 发布 generation。同一 server state 中一个规范化 WebDAV URL 只对应一个连接。
-
-带 Basic 认证的 WebDAV URL 使用 HTTPS。URL 不包含 userinfo、query 或 fragment；请求拒绝 3xx，不读取代理环境变量，使用 30 秒完整 deadline，并把单次响应限制在 20 MiB。生产请求在每次访问前重新解析全部 A/AAAA 地址，混合允许与禁止地址的结果整体拒绝；实际 socket 固定到已验证地址，同时保留原 hostname 的 Host、SNI 和证书校验。
-
-WebDAV 目标地址默认限于 global-unicast。`CTN_WEBDAV_PRIVATE_TARGETS` 接受由逗号或空白分隔的精确 origin 与 CIDR：
-
-    CTN_WEBDAV_PRIVATE_TARGETS='https://nas.example:5006,192.168.1.0/24 fd00::/8'
-
-精确 origin 只包含 `http` 或 `https` scheme、host 和显式或默认 port，path 为 `/`，且不包含 userinfo、query 或 fragment。CIDR 同时支持 IPv4 与 IPv6。匹配项授权私网、loopback、ULA 和 CGNAT 地址；link-local、metadata、unspecified、multicast、broadcast、文档网段和 reserved 地址不受该白名单覆盖。
-
-Local 和 Browser adapter 只接受 `delete-managed-data`。WebDAV 的 `remove-connection` 排空当前 store 后删除本地连接配置并保留全部远端内容；`delete-managed-data` 先将连接持久化为 `deleting-remote`，再取得 writer lease，以旧 current ETag 的 CAS 发布包含 deletion token、时间和原 revision 的永久 tombstone。CAS 之后只清理 `.ctn-generations/`，目标中的无关文件和 `.ctn-current.json` tombstone 保留。清理暂未完成时 API 返回 `202 {"status":"deleting"}`，catalog 显示 deleting issue，并按固定退避或重启恢复继续清理。移除 deleting issue 的本地连接配置会停止跟踪，远端可能保留不可达 generations。
-
-旧的 `CTN_WEBDAV_REPOSITORIES` 静态配置入口不参与读取或迁移；环境中定义该变量时后端启动失败。
-
-真实 WebDAV 协议验收命令为 `pnpm verify:webdav:live`。该命令在 loopback TCP 端口启动文件系统落盘的 WebDAV 服务，通过生产 HTTP transport 验证条件请求、不可变 generation、两个 writer 的 lease fencing、断线重连、提交与读取交错一致性，以及默认 60 秒 lease 下持续超过一分钟的提交和续租；因此执行时间至少为一分钟。日常 `pnpm test` 保留快速单元回归，但不执行这项长时 live 验证。
-
-浏览器 Origin 默认允许：
-
-    http://127.0.0.1:5173
-    http://localhost:5173
-
-默认 loopback 绑定只接受 `127.0.0.1`、`localhost` 和 `::1` Host，不要求 bearer token。绑定到非 loopback 地址时，必须同时配置至少 32 字符的 `CTN_API_TOKEN` 和 HTTPS `CTN_PUBLIC_URL`；可使用 `openssl rand -hex 32` 生成 token。服务端从公开 URL 推导唯一允许的 Host、Origin 与 CORS 响应，不记录 token，也不把 token 写入仓库。
-
-
-3. 前端开发服务
-
-启动命令：
-
     pnpm dev
 
 默认地址：
 
-    http://127.0.0.1:5173
-
-连接本机后端：
-
-    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001 pnpm dev
-
-连接要求 bearer token 的后端：
-
-    VITE_CTN_API_BASE_URL=http://api.example.test:3001 VITE_CTN_API_TOKEN=<token> pnpm dev
-
-使用浏览器存储：
-
-    VITE_CTN_STORAGE_MODE=browser pnpm dev
-
-HTTP 模式连接服务端管理的 Local 与 WebDAV 仓库。浏览器存储模式提供同样的多仓库 catalog 语义，用于界面和交互验证。每个浏览器独立保存当前 repository id。
-
-`VITE_CTN_API_TOKEN` 会由浏览器作为 Authorization bearer 发送，只用于 API 请求；它不写入 repository catalog、workspace、IndexedDB cache 或日志。作为前端构建变量，它对使用该浏览器构建的人可见，因此安全边界仍是单用户部署和受控前端环境。
-
-HTTP 内置数据分别保存在：
-
-    <CTN_SERVER_STATE_DIR>/built-ins/journal/content.json
-    <CTN_SERVER_STATE_DIR>/built-ins/journal/storage.epoch
-    <CTN_SERVER_STATE_DIR>/built-ins/todo/content.json
-    <CTN_SERVER_STATE_DIR>/built-ins/todo/storage.epoch
-
-目录权限为 `0700`，内容、epoch、lock 和原子写临时文件权限为 `0600`。Journal 与 Todo 使用彼此独立的 v3 contract 和 epoch。首次进入 v3 时，HTTP 只删除对应领域的旧 `system-journal` 或 `system-todo` v2 文件，并幂等写入空 v3 后最后发布新 epoch；Browser 使用互相隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB，在单个领域 transaction 中清除旧 remote、draft/cache、写入空 v3 和发布 epoch。该清理不读取、迁移、备份或显示旧格式问题，一个领域的重置或故障不影响另一个。进入 v3 后，损坏内容或未知未来 epoch 保持原样并形成可重试问题，不会被空数据覆盖。HTTP 与 Browser 的 load、stage 和 commit 边界分别执行 Journal v3 与 Todo v3 语义 validator；前后 revision transition 保护稳定身份、时间、day counter、CTN block identity、syntax 和 completion 状态。显式放弃本地 pending 只验证远端内容本身，允许回到权威远端 revision。
-
-HTTP 模式会在 IndexedDB v4 中按 API origin、repository id 和 token digest 隔离缓存，以 normalized stores 保存 catalog、repository state 和逐笔记 source。编辑事务同时执行 expected local revision CAS、笔记增删改与 state 更新。连接中断后，已有缓存的仓库可以在页面刷新后继续打开和编辑；连接恢复会立即尝试同步。如果远端 revision 已变化，则保留并继续接受本地 pending 内容。仓库活动的“放弃本地修改”只有在成功读取远端后才原子清除 pending。
+    前端 http://127.0.0.1:5173
+    后端 http://127.0.0.1:3001
 
 
-4. 数据文件
+2. 配置
 
-本地文件仓库包含：
+后端环境变量：
 
-    .ctn/
-      repository.json
-      index.json
-      syntax/
+    CTN_API_HOST                 默认 127.0.0.1
+    CTN_API_PORT                 默认 3001
+    CTN_REPOSITORY_ROOT          默认 .cognition-tree/repositories
+    CTN_REPOSITORY_HOST_ROOT     可选，仅用于显示宿主机路径
+    CTN_SERVER_STATE_DIR         默认 .cognition-tree/server
+    CTN_WEBDAV_PRIVATE_TARGETS   可选，允许的私网 origin/CIDR
+    CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
+    CTN_API_TOKEN                非 loopback 部署的 bearer token
+
+前端环境变量：
+
+    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001
+    VITE_CTN_API_TOKEN=
+    VITE_CTN_STORAGE_MODE=browser
+
+HTTP 模式连接 Node 后端；browser 模式使用独立 IndexedDB catalog，适合无后端的界面验证。每个浏览器独立保存当前普通 repository id。
+
+
+3. 安全边界
+
+默认 loopback 服务只接受 loopback Host 和本机开发 Origin，不要求 token。
+
+绑定非 loopback 地址时，必须同时设置：
+
+    至少 32 字符的 CTN_API_TOKEN
+    HTTPS CTN_PUBLIC_URL
+
+服务端从公开 URL 推导允许的 Host、Origin 与 CORS。VITE_CTN_API_TOKEN 会进入前端构建并由浏览器发送，因此只适用于单用户受控客户端。
+
+WebDAV Basic 认证只允许 HTTPS。URL 不允许 userinfo、query 或 fragment；请求不跟随重定向，不读取代理环境变量，并在每次访问前重新解析目标地址。默认只允许 global-unicast。
+
+私网目标通过精确 origin 或 CIDR 显式授权：
+
+    CTN_WEBDAV_PRIVATE_TARGETS='https://nas.example:5006,192.168.1.0/24 fd00::/8'
+
+link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址始终拒绝。
+
+
+4. API 与数据目录
+
+普通仓库：
+
+    GET、POST /api/repositories
+    PATCH、DELETE /api/repositories/<id>
+    GET、PUT /api/repositories/<id>/snapshot
+
+内置数据：
+
+    GET /api/built-ins
+    GET、PUT /api/journal/snapshot
+    POST /api/journal/retry
+    GET、PUT /api/todo/snapshot
+    POST /api/todo/retry
+
+base revision 过期返回 409，不覆盖已发布内容。/api/built-ins 只返回 Journal/Todo 的位置、保护状态和独立故障，不返回内容。
+
+Local 普通仓库：
+
+    <CTN_REPOSITORY_ROOT>/<repository-id>/
+      .ctn/
+        repository.json
         index.json
-        syntax-<uuid>.toml
-      note-metadata/
-        <note-id>.json
-      transactions/
-        <transaction-id>/
-          manifest.json
-          staged/
-          backup/
-    根笔记.ctn
-    项目/
-      设计.ctn
-      记录.ctn
+        syntax/
+        note-metadata/
+        transactions/
+      根笔记.ctn
+      目录/笔记.ctn
 
-Local 仓库使用 layout version 1。可见目录是目录树的权威表示：文件夹对应同名磁盘目录，笔记对应 `<标题>.ctn`。可见笔记只保存编辑器正文，不保存 `@ctn-block` 元数据；文件名去掉最后一个 `.ctn` 后与首行标题一致。仓库根部的 `.ctn/` 是保留目录，保存 repository/workspace 身份、稳定 catalog label、当前 revision、扁平路径和同级顺序索引、仓库语法、note/block ID、时间、上一版 editable source、行锚点和事务记录。Local adapter 将可见正文、sidecar 和 syntax catalog 重建为 schema version 4 canonical content；`syntax/index.json` 保存当前启用项与文件顺序，每个稳定 syntax id 对应一份 TOML 原文。
+可见目录和 .ctn 正文是权威工作树；.ctn/ 保存稳定身份、顺序、语法、sidecar 与 WAL。文件系统只在加载、提交和手动重新扫描时读取，不运行 watcher。非 .ctn 文件属于 unmanaged 数据，不投影、不改写、不删除。
 
-普通笔记标题、文件夹名、仓库名和 Todo 集合名共享严格可移植规则：存储前执行 `trim → NFC → 连续 ASCII 空格折叠`，只允许 Unicode 字母、组合标记、数字、内部普通空格、`-` 和 `_`；唯一性与引用键执行 `NFKC → en-US lowercase`。因此 `/`、`\`、冒号、控制字符、`.`、`..`、尾随点、平台保留字符与其他标点均不合法，且日记的 `[[仓库名:笔记名]]` 可以无歧义分隔。新建和重命名立即拒绝非法名称；编辑器标题变更若不合法会显示反馈并回滚到仓库权威正文，规范化后的合法名称则以 canonical 形式写回。既有非法名称仍可读取并形成 portable-name 诊断，必须手工重命名，不自动改写；仅编辑其正文不会被旧标题阻断。不同目录可以存在同标题笔记。普通文本中的 `@ctn-block` 保持可见并产生 reserved-directive 诊断；未知标记、未闭合多行块等正文问题仍作为可修复诊断加载。
+HTTP 内置数据：
 
-Local adapter 在首次加载、同步提交和仓库活动的“重新扫描文件”操作中迭代扫描真实目录，不运行 watcher 或 SSE。扫描使用文件 `stat -> read -> stat` 和目录前后校验；不稳定时完整重试一次，仍变化则返回 `repository_busy`。外部新增、编辑、删除、重命名和移动在这些扫描点进入 workspace；同路径、唯一 inode 和唯一旧 source hash 或子树 signature 依次用于身份协调，无法证明同一对象时按删除加新建处理。文件名或首行标题单独变化时协调另一侧；两者分别变化为不同值时拒绝覆盖。
+    <CTN_SERVER_STATE_DIR>/built-ins/journal/
+    <CTN_SERVER_STATE_DIR>/built-ins/todo/
 
-同级手工顺序由 `.ctn/index.json` 保存，外部新增或跨父级移动的对象按确定性名称顺序追加到目标末尾。非 `.ctn` 普通文件属于 unmanaged 内容，不投影、不修改、不删除；包含 unmanaged 文件或 symlink 的目录不能作为整体由界面删除。revision 是 canonical workspace content 的 SHA-256，路径、标题、顺序和正文参与计算，mtime、inode 和内部缓存不参与。
+Browser 内置数据分别使用 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两个领域的 content、epoch、draft/cache 和同步队列相互隔离。
 
-Local 提交在 `.ctn/transactions/<transaction-id>/` 中使用 WAL。稳定扫描和 base revision、路径、冲突校验通过后，manifest、staged、backup、目标 sidecar 和 index 均 durable 写入并 fsync；随后幂等应用可见文件与隐藏元数据，重新扫描验证 target revision，最后原子替换并 fsync `.ctn/repository.json`。head 替换是唯一 commit point。恢复时只补全可证明的旧版本或新版本，不覆盖无法识别的外部修改。repository root 仍由单个 server writer 持有进程级独占锁。
+WebDAV 连接配置保存在：
 
-没有语法的仓库仍可在笔记活动中以原始模式编辑 `.ctn` 文本；结构操作和引用图谱保持不可用。语法只在语法活动中显式创建，打开仓库不会自动生成默认配置。
+    <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
 
-旧 snapshot Local 布局、旧 Local manifest、browser storage、HTTP cache 和 WebDAV control file 不读取、不转换，也不自动备份；发现旧格式时报告 `unsupported_repository_version`。空仓库只由 catalog create 创建，普通 load 不会隐式补齐缺失内容。WebDAV 继续使用不可变 generation、writer lease 和 ETag CAS；Browser 继续使用 IndexedDB。
+状态目录权限为 0700，含凭据或内容的文件权限为 0600。密码不进入 API 响应、日志、普通仓库内容或 IndexedDB。
 
 
-5. 容器路径约定
+5. Repository 行为
 
-未来容器部署使用稳定的挂载约定：Local catalog root 挂载到 `/data/repositories`，server state 挂载到 `/data/server`。每个 Local 仓库必须整体挂载，包含根部 `.ctn/`；只挂载可见 `.ctn` 笔记和目录不足以恢复仓库身份、顺序、块元数据与事务状态。容器内 `CTN_REPOSITORY_ROOT` 对应 `/data/repositories`，`CTN_SERVER_STATE_DIR` 对应 `/data/server`，宿主机展示路径可通过绝对的 `CTN_REPOSITORY_HOST_ROOT` 提供。
+Local 与 Browser 只支持删除托管数据。WebDAV 支持：
 
-当前项目不包含 Dockerfile、容器镜像或 Compose 配置。这些路径只定义后续容器化时的持久化边界，不改变当前本机启动方式。
+    remove-connection       删除本地连接，保留远端内容
+    delete-managed-data     发布 deletion tombstone，再清理托管 generations
+
+WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远端删除保留无关文件；清理未完成时 catalog 显示 deleting 并可恢复或停止跟踪。
+
+添加 WebDAV 时会探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE。空目标可以初始化为 v4；已有合法 v4 保持为远端事实；非空 unmanaged、旧版本和 tombstone 目标不会被接管。
+
+普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3。旧普通仓库不读取、不迁移。当前版本的损坏内容和未知未来版本保持原样并投影故障，不自动清空。
+
+旧 CTN_WEBDAV_REPOSITORIES 静态配置已移除；环境中仍定义该变量时服务端拒绝启动。
 
 
-6. 验证命令
-
-TypeScript：
+6. 验证
 
     pnpm check
-
-测试：
-
     pnpm test
-
-浏览器端到端测试：
-
+    pnpm test:architecture
     pnpm test:e2e
-
-端到端测试使用独立的 3317 API 和 4174 前端端口，按编辑、目录与结构操作、语法与图谱、全局诊断、仓库与容量、日记和代办流程分别造数；不复用日常开发仓库。
-
-构建：
-
     pnpm build
-
-diff 空白检查：
-
     git diff --check
 
-架构边界测试：
-
-    pnpm test:architecture
-
-后端 TypeScript 检查：
+后端单独检查与生产构建：
 
     pnpm exec tsc -p tsconfig.server.json --noEmit
-
-后端生产构建与启动：
-
     pnpm server:build
     pnpm server:start
 
+真实 WebDAV 验收：
 
-7. 双端使用
+    pnpm verify:webdav:live
 
-Linux 作为主要开发、测试和后端运行环境。Windows 可通过浏览器访问同一个本机后端服务，用于检查界面、输入法、路径展示和数据互通。
+该命令启动 loopback 文件系统 WebDAV，验证条件请求、双 writer fencing、断线恢复、交错读写和 lease 续租，耗时至少一分钟。
 
-两端代码仓库可以分别存在。笔记数据以 HTTP catalog 当前仓库指向的 Local working tree 或 WebDAV generation 为准。项目目录使用普通英文路径，仓库文件使用 LF。
+
+7. 容器与双端
+
+未来容器路径约定：
+
+    /data/repositories  -> CTN_REPOSITORY_ROOT
+    /data/server        -> CTN_SERVER_STATE_DIR
+
+Local 仓库必须整体挂载，包含根部 .ctn/。当前项目不提供 Dockerfile、镜像或 Compose。
+
+Linux 是主要开发与后端环境。Windows 可通过浏览器访问同一后端检查界面、输入法、路径和数据互通；项目目录建议使用普通英文路径，源码与数据文件使用 LF。

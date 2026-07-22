@@ -1,90 +1,89 @@
 架构边界
 
 
-1. 产品领域
+1. 领域
 
-认知树包含三个平级内容领域：
+    Workspace：零个或多个普通笔记库。
+    Journal：全局唯一的日记库。
+    Todo：全局唯一的代办库。
 
-    Workspace：零个或多个普通笔记库，每个仓库拥有独立内容、语法目录和工作台偏好。
-    Journal：全局唯一的日记库，使用自身语法、日历聚合和诊断。
-    Todo：全局唯一的代办库，使用自身语法、CTN 集合和完成状态 sidecar。
-
-Journal、Todo 和 Workspace 不继承统一文档库模型，也不互相依赖。它们只共享 CTN、可移植名称规则和由基础设施提供的通用 versioned storage。Repository 不是第四个内容领域；它只负责普通仓库 catalog、内置数据 descriptor、存储位置、故障和运维命令。
+三个内容领域互不直接依赖，也不继承统一文档库模型。它们只共享 CTN、可移植名称和值无关的 versioned persistence。Repository 不是内容领域，只管理普通 catalog、内置数据 descriptor、位置、故障和运维。
 
 
 2. 源码层次
 
-core：
+core/
 
-    纯领域代码。core/ctn 提供 canonical/editable 原文解析、结构诊断、metadata reconcile、引用和 syntax profile；core/naming 提供可移植名称值与唯一键；core/workspace、core/journal、core/todo 分别拥有自己的内容、命令、查询和 transition 约束。core 不依赖 React、wire contract、浏览器、Node 或其它外层；三个内容领域互不直接依赖。
+    纯领域代码。core/ctn 提供解析、metadata reconcile、引用与 syntax；core/naming 提供名称值和唯一键；core/workspace、journal、todo 分别拥有自己的内容、命令、查询与 transition。
 
-application：
+application/
 
-    框架无关的用例和端口。application/workspace、journal、todo 各自管理 session controller、选择、命令和 read model；application/repository 管理普通 catalog、内置数据 descriptor/issue 和运维命令；application/problems 组合问题投影；application/workbench 的 coordinator 组合四份独立应用状态、普通仓库切换和 Journal 跨仓导航。application 不依赖 React、contracts、infrastructure 或 presentation；跨内容领域的流程只能由 workbench coordinator 协调。
+    框架无关的用例、端口、session controller、read model、问题投影和 Workbench coordinator。跨领域流程只能由 application/workbench 协调。
 
-infrastructure：
+infrastructure/
 
-    外部系统实现。infrastructure/persistence 提供可注入 codec、content validator、transition validator、revision factory 和 empty-content factory 的 VersionedRepository<Content>、VersionedSession<Content>、local-first cache 与同步队列；infrastructure/browser 和 infrastructure/http 分别实现 IndexedDB 与 HTTP adapter，互不依赖；infrastructure/server 实现 Node API、文件系统 Local/WebDAV adapter、普通 catalog 和 Journal/Todo 独立 store。runtime 文件是组合 adapter 与 application 端口的边界。
+    versioned repository/session、local-first cache、同步队列、IndexedDB、HTTP、Node server、Local 和 WebDAV adapter。
 
-presentation：
+presentation/
 
-    React 与交互适配。presentation/shell 只装配 AppRoot、Workbench、内置数据 session bindings 和活动生命周期；presentation/activities 提供各 Activity Controller、页面及 Workspace activity bindings，且不反向依赖 shell；presentation/editor 适配 CodeMirror；presentation/ui 提供 Frame、问题面板、共享组件和样式。presentation 可以消费 application、core 和 infrastructure 的组合入口，但不被其它层反向引用。
+    React bindings、AppRoot、Activity Controller/View、CodeMirror 与共享 UI。React hooks 只存在于这一层。
 
-contracts：
+contracts/
 
-    前后端中立的 wire 类型和运行时解析。contracts/common 提供 JSON 与 contract value 基础；contracts/workspace、journal、todo、built-ins 分别定义精确 API shape。contracts 不包含业务用例、存储实现或 React；旧的 SystemRepositoryContentDto、purpose content union 和 system-repository endpoint contract 不存在。
+    前后端中立的 wire 类型和运行时解析，按 common、workspace、journal、todo、built-ins 分开。
 
 
-3. 依赖方向
+3. 依赖规则
 
-    core -> core 内共享基础；Workspace、Journal、Todo 互不直接依赖
-    application -> core、application 内端口
-    infrastructure -> core、application 端口、contracts、平台 API
-    presentation -> core、application、infrastructure 组合入口
-    contracts -> 纯 contract 基础；仅可复用单一所有者的纯名称值约束
+    core 不依赖任何外层；Workspace、Journal、Todo 互不直接依赖。
+    application 只依赖 core 和自身端口，不依赖 React、contracts、infrastructure 或 presentation。
+    infrastructure 依赖 core、application 端口、contracts 与平台 API。
+    presentation 可消费 core、application 和基础设施组合入口，但不被其它层反向引用。
+    contracts 只复用纯 contract 基础或单一所有者的纯值约束。
 
-必须同时满足：
+补充约束：
 
-    core 不依赖 application、infrastructure、presentation 或 contracts。
-    application 不依赖 React、contracts、infrastructure 或 presentation。
-    presentation 不被 core、application、contracts 或 infrastructure 导入。
-    presentation/activities 不依赖 presentation/shell 组合根。
+    presentation/activities 不依赖 presentation/shell。
     infrastructure/browser 与 infrastructure/http 互不依赖。
-    infrastructure/server/repository 不依赖 server/api、server/catalog 或 server/adapters。
-    infrastructure/server/adapters/local 与 adapters/webdav 互不依赖。
-    生产依赖图无环；相对 import 使用 NodeNext 可处理的显式路径，不依赖仅 Vite 可解析的别名。
+    Local 与 WebDAV adapter 互不依赖。
+    生产依赖图无环；相对 import 必须能由 NodeNext 处理。
 
 
-4. 内容 contract 与存储
+4. 内容 contract
 
-普通 Workspace 使用 v4 内容 contract。Local 从真实目录、可见 `.ctn` 正文、隐藏 sidecar 与 `.ctn/syntax/` 重建 canonical content，并以 `.ctn/repository.json` 的 durable atomic replace 作为提交点；WebDAV 使用不可变 generation、writer lease 和 ETag CAS；Browser 使用独立 IndexedDB。旧普通仓库版本不读取、不迁移。
+Workspace v4：
 
-Journal v3 精确保存：
+    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS；Browser 使用 IndexedDB。旧版本不读取、不迁移。
 
-    schemaVersion、syntaxSource、days。
-    每个 day 保存 date、lastIssuedSequence 和 entries。
-    每篇 entry 保存稳定 id、createdAt、updatedAt、timezoneOffsetMinutes、sequence 和 canonical source。
+Journal v3：
 
-days 按日期升序、entries 按 sequence 升序 canonical 保存。日期必须与创建时间和创建时区偏移一致。删除最后一篇条目后保留空 day bucket，保证序号不复用；空日期只在 presentation 隐藏。标题固定为 `YYYY-MM-DD-0001`，年、月只由 date 派生，不重复持久化。
+    { schemaVersion, syntaxSource, days }
+    day = { date, lastIssuedSequence, entries }
+    entry = { id, createdAt, updatedAt, timezoneOffsetMinutes, sequence, source }
 
-Todo v3 精确保存：
+days 按日期升序，entries 按 sequence 升序。删除最后一篇仍保留空 day bucket，保证序号不复用。标题固定为 YYYY-MM-DD-0001；UI 只从 date 派生年、月，并直接显示条目，不显示 day 分组。
 
-    schemaVersion、syntaxSource、collections。
-    每个 collection 保存稳定 id、canonical CTN source 和 completions。
-    每项 completion 保存 blockId 与 completedAt。
+Todo v3：
 
-collections 数组顺序是用户顺序。每个集合是一篇独立 CTN 文档，标题就是集合名，缩进形成任务树；完成状态只来自 sidecar，不写入源码。移动或缩进保留 block identity，删除源码块清除孤立 completion。
+    { schemaVersion, syntaxSource, collections }
+    collection = { id, source, completions }
+    completion = { blockId, completedAt }
 
-Journal 与 Todo 各自注入 codec、validator、transition validator、revision factory 和 empty-content factory，复用通用 versioned persistence；基础设施不得用 purpose content union 或按 purpose 的内容类型分支来模拟泛型。两者分别维护 remote、local-first draft/cache、epoch、lock 和原子临时文件，一个领域的重置或故障不得影响另一个。
+collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题是内部固定集合名，缩进形成任务树，完成状态只来自 sidecar。移动与缩进保留 block ID，删除源码块清除孤立 completion。
 
-HTTP 路径固定为 `CTN_SERVER_STATE_DIR/built-ins/journal/` 与 `built-ins/todo/`。Browser 使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。首次进入 v3 时，仅对应领域的明确 legacy cleanup owner 静默删除旧 v2 content、epoch 和 local-first draft/cache，然后 provision 空 v3；不读取、迁移、备份或投影旧格式问题。进入 v3 后，损坏内容和未知未来版本保持原样并形成独立故障，不自动覆盖。
+Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 codec、content validator、transition validator、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
 
 
-5. API 与 Repository 运维
+5. 存储与 API
 
-普通仓库继续通过 `/api/repositories` 管理 catalog，并通过 `/api/repositories/<id>/snapshot` 读写内容。
+HTTP 内置数据：
 
-内置数据 API 为：
+    <CTN_SERVER_STATE_DIR>/built-ins/journal/
+    <CTN_SERVER_STATE_DIR>/built-ins/todo/
+
+Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两者分别维护 remote、draft/cache、epoch、lock 和原子临时文件；一个领域的清理或故障不得影响另一个。当前版本中的损坏内容与未知未来版本保留原样，不自动覆盖。
+
+普通仓库 API 位于 /api/repositories 与 /api/repositories/<id>/snapshot。内置数据 API：
 
     GET /api/built-ins
     GET、PUT /api/journal/snapshot
@@ -92,40 +91,38 @@ HTTP 路径固定为 `CTN_SERVER_STATE_DIR/built-ins/journal/` 与 `built-ins/to
     GET、PUT /api/todo/snapshot
     POST /api/todo/retry
 
-`GET /api/built-ins` 只返回 Journal/Todo 的固定 descriptor、结构化位置、受保护状态和各自故障，不返回内容联合类型。领域 snapshot endpoint 使用相应精确 contract。服务端和 Browser 存储边界都不提供 Journal/Todo 的创建、删除、重命名或切换为普通仓库操作。
-
-Repository Activity 的左侧“内置数据”固定显示日记和代办。选中后，右侧显示存储状态、位置、故障详情、重试和受保护说明；不显示删除、重命名或普通仓库切换操作。底部问题行只负责定位该条目和详情，不执行破坏性动作。
+/api/built-ins 只返回 descriptor、位置、保护状态和故障。服务端与 Browser 存储边界都不提供 Journal/Todo create、delete、rename 或切换为普通仓库。
 
 
-6. Application 协调与数据流
+6. Application 协调
 
-每个内容领域拥有独立 session、保存队列和应用状态。领域命令先同步更新内存，再以 local revision CAS stage 本地 draft，最后异步提交远端；offline、conflict 与 sync-error 是显式结果。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo session。
+每个内容领域拥有独立 session、保存队列和状态。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo。
 
-Workbench coordinator 是唯一跨领域流程所有者：
+Workbench coordinator 组合可空 Workspace、普通 catalog、Journal 与 Todo，并独占以下跨领域流程：
 
-    组合可空 Workspace application、普通 catalog application、Journal application 和 Todo application。
-    协调普通仓库切换及一次性导航 destination。
-    处理 Journal 的 `[[仓库名:笔记名]]`：按需打开命名普通仓库的 local-first snapshot，从 canonical note header 建立标题索引，不创建非活动 Workspace session，也不全量扫描 WebDAV。
-    导航时先排空当前 Workspace session，切换仓库，等待新 session 挂载，再进入 Notes 并选择目标笔记。
+    普通仓库切换与一次性导航。
+    Journal 的 [[仓库名:笔记名]] 解析。
+    按需读取命名普通仓库的 local-first snapshot，只从 canonical note header 建立标题索引。
+    排空当前 Workspace、切换仓库、等待新 session，再进入 Notes 并选择目标笔记。
 
-Journal 领域自身只理解日记内容、仓内引用和外部引用 token，不依赖 Workspace。跨仓边不进入普通仓库引用图谱；仓库或笔记重命名不跨独立 CAS 改写 Journal source。Todo 领域只理解 CTN collection、任务结构和 completion，不依赖 Journal 或 Workspace。
+Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
 
-AppRoot 只负责依赖装配和把可订阅 controller/store 绑定到 React。没有健康普通仓库时仍挂载完整 Workbench：普通活动显示创建入口，Journal、Todo、Repository 和 Settings 保持可用。
+AppRoot 只装配依赖并把可订阅 controller/store 绑定到 React。
 
 
 7. Presentation 与 Problems
 
-Journal 左侧是不可编辑的“年 → 月 → 日 → 条目”树。UI 中各层倒序；同日条目以 createdAt、sequence、ID 确定性倒序。进入活动时选择最新条目并展开路径；新建和问题跳转同样展开目标路径。折叠状态只属于当前页面会话，跨 Activity 保留，刷新后重置，不写入 contract。
+Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
 
-Todo 使用与 Notes 对齐的“集合列表 → CTN 编辑器 → 结构详情”。集合顺序来自 contract；编辑器和结构详情共享 completion sidecar。默认 `todo-item` 使用 `[]`，不使用整行色块，只由语法文字色、活动行、诊断和完成划线强调。
+Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。默认 [] 不使用整行色块；pointer focus 不留下整行背景，键盘焦点使用边界提示。
 
-Problems 按 Activity 投影：
+Problems 所有权：
 
-    普通活动：当前 Workspace diagnostics。
-    Repository：Workspace diagnostics、普通仓库问题、内置数据问题和名称问题。
-    Journal：自身正文、语法、仓内及跨仓引用诊断。
-    Todo：自身语法与 CTN 诊断。
-    Syntax：当前所选语法 owner 的 profile 诊断，并按 owner 附加相应领域诊断。
-    Settings：完全不挂载 Problems。
+    普通活动 -> Workspace
+    Repository -> Workspace、普通仓库、内置数据、名称
+    Journal -> Journal 文档、语法、仓内与跨仓引用
+    Todo -> Todo 语法与 CTN
+    Syntax -> 当前 owner profile，并附加该 owner 内容诊断
+    Settings -> 不挂载
 
-编辑器接收 editable source、scoped semantic role 和语法展示数据，不负责持久化或解释仓库元数据。普通笔记的 `concept`、Journal 的中性 `body` 和 Todo 必须带标记的任务规则由 core/ctn policy 决定，而不是由页面位置或 CSS 猜测。
+编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，不能由页面位置或 CSS 推断。
