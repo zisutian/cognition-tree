@@ -11,7 +11,7 @@ import {
 } from "./contractValue.ts";
 import {
   defaultJournalSyntaxSourceV3,
-  defaultTodoSyntaxSourceV2,
+  defaultTodoSyntaxSourceV3,
 } from "./defaultContent.ts";
 import type {
   JournalDayDto,
@@ -308,7 +308,7 @@ export function parseSystemRepositoryContent(
       syntaxSource: readSystemString(content, "syntaxSource", "$"),
     };
   }
-  if (content.schemaVersion !== 2) {
+  if (content.schemaVersion !== 3) {
     throw new UnsupportedSystemRepositoryVersionError(
       "$.schemaVersion",
       content.schemaVersion,
@@ -335,7 +335,7 @@ export function parseSystemRepositoryContent(
   return {
     collections,
     purpose,
-    schemaVersion: 2,
+    schemaVersion: 3,
     syntaxSource: readSystemString(content, "syntaxSource", "$"),
   };
 }
@@ -385,7 +385,7 @@ export function createEmptySystemRepositoryContent(
     : {
         collections: [],
         purpose,
-        schemaVersion: 2,
-        syntaxSource: defaultTodoSyntaxSourceV2,
+        schemaVersion: 3,
+        syntaxSource: defaultTodoSyntaxSourceV3,
       };
 }

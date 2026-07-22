@@ -88,7 +88,7 @@ describe("browser system repositories", () => {
         content: {
           collections: [],
           purpose: "system-todo",
-          schemaVersion: 2,
+          schemaVersion: 3,
           syntaxSource: expect.any(String),
         },
       });
@@ -276,7 +276,7 @@ describe("browser system repositories", () => {
       content: {
         collections: [],
         purpose: "system-todo",
-        schemaVersion: 2,
+        schemaVersion: 3,
         syntaxSource: createEmptyTodoContent().syntaxSource,
       },
       purpose: "system-todo",

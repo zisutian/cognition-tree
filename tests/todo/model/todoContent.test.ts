@@ -34,7 +34,7 @@ function createValidContent() {
   );
 }
 
-describe("Todo v2 content", () => {
+describe("Todo v3 content", () => {
   it("accepts the exact CTN collection and completion sidecar shape", () => {
     const content = toggleTodoBlock(createValidContent(), {
       blockId: todoBlockId(1),
@@ -53,11 +53,13 @@ describe("Todo v2 content", () => {
         source: expect.stringContaining("[] 任务 1"),
       }],
       purpose: "system-todo",
-      schemaVersion: 2,
+      schemaVersion: 3,
       syntaxSource: expect.stringContaining('type = "todo-item"'),
     });
     expect(isTodoCollectionId(todoCollectionId(1))).toBe(true);
     expect(isTodoCollectionId(todoCollectionId(1).toUpperCase())).toBe(false);
+    expect(requireTodoSyntaxProfile(content.syntaxSource).markerRules[0])
+      .toMatchObject({ marker: "[]", tone: "default", type: "todo-item" });
   });
 
   it("rejects another purpose, version, invalid syntax, and duplicate ids", () => {
@@ -70,7 +72,7 @@ describe("Todo v2 content", () => {
     expect(() => validateTodoContent({
       ...content,
       schemaVersion: 1,
-    } as never)).toThrow(/schema version must be 2/);
+    } as never)).toThrow(/schema version must be 3/);
     expect(() => validateTodoContent({
       ...content,
       syntaxSource: content.syntaxSource.replace('type = "todo-item"', 'type = "task"'),

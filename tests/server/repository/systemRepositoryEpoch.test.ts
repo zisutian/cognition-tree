@@ -52,9 +52,12 @@ async function withStateDirectory(
 }
 
 describe("filesystem system repository storage epochs", () => {
-  it("discards Todo v1 bytes at epoch 2 without parsing or preserving them", async () => {
+  it("discards Todo v2 bytes at epoch 3 without parsing or preserving them", async () => {
     await withStateDirectory(async (stateDirectory) => {
-      const original = createCatalog(stateDirectory);
+      const original = createCatalog(stateDirectory, {
+        "system-journal": 1,
+        "system-todo": 2,
+      });
 
       await original.initialize();
       const systemDirectory = path.join(stateDirectory, "system-repositories");
@@ -62,27 +65,32 @@ describe("filesystem system repository storage epochs", () => {
       const journalPath = path.join(systemDirectory, "system-journal.json");
       const journalBefore = await readFile(journalPath, "utf8");
       const oldSource = `${JSON.stringify({
-        collections: [{ items: [{ text: "永久丢弃的 v1 任务" }] }],
+        collections: [{
+          completions: [],
+          id: "todo-collection-00000000-0000-4000-8000-000000000001",
+          source: "# 旧集合\n[] 永久丢弃的 v2 任务\n",
+        }],
         purpose: "system-todo",
-        schemaVersion: 1,
+        schemaVersion: 2,
+        syntaxSource: "invalid bytes are intentionally not parsed",
       })}\n`;
 
       await writeFile(todoPath, oldSource, { mode: 0o600 });
       const bumped = createCatalog(stateDirectory, {
         "system-journal": 1,
-        "system-todo": 2,
+        "system-todo": 3,
       });
 
       await bumped.initialize();
       await expect((await bumped.getStore("system-todo")).loadSnapshot())
         .resolves.toMatchObject({ content: createEmptyTodoContent() });
       await expect(readFile(todoPath, "utf8")).resolves.not.toContain(
-        "永久丢弃的 v1 任务",
+        "永久丢弃的 v2 任务",
       );
       await expect(readFile(
         path.join(systemDirectory, "system-todo.epoch"),
         "utf8",
-      )).resolves.toBe("2\n");
+      )).resolves.toBe("3\n");
       await expect(readFile(journalPath, "utf8")).resolves.toBe(journalBefore);
     });
   });

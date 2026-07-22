@@ -18,7 +18,7 @@ import { getPortableNameIssue } from "../../naming/portableName.ts";
 import { requireTodoSyntaxProfile } from "../syntax/todoSyntax.ts";
 
 export const todoRepositoryPurpose = "system-todo" as const;
-export const todoRepositorySchemaVersion = 2 as const;
+export const todoRepositorySchemaVersion = 3 as const;
 export const todoItemSemanticType = "todo-item";
 
 export type TodoCollectionId = `todo-collection-${string}`;

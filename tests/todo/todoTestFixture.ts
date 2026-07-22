@@ -10,8 +10,8 @@ import {
   type TodoContent,
 } from "../../core/todo/model/todoContent";
 import {
-  defaultTodoCtnSyntaxProfileV2,
-  defaultTodoSyntaxSourceV2,
+  defaultTodoCtnSyntaxProfileV3,
+  defaultTodoSyntaxSourceV3,
 } from "../../core/todo/syntax/todoSyntax";
 
 export function todoCollectionId(index: number): TodoCollectionId {
@@ -32,8 +32,8 @@ export function createEmptyTodoContent(): TodoContent {
   return {
     collections: [],
     purpose: "system-todo",
-    schemaVersion: 2,
-    syntaxSource: defaultTodoSyntaxSourceV2,
+    schemaVersion: 3,
+    syntaxSource: defaultTodoSyntaxSourceV3,
   };
 }
 
@@ -79,7 +79,7 @@ export function appendTodoTestItem(
   if (!collection) throw new Error(`Missing test Todo collection ${collectionId}`);
   const projection = createTodoCollectionBodyProjection(
     collection,
-    defaultTodoCtnSyntaxProfileV2,
+    defaultTodoCtnSyntaxProfileV3,
   );
   const insertedText = `${projection.source ? "\n" : ""}${"\t".repeat(level)}[] ${text}`;
   const source = `${projection.source}${insertedText}`;

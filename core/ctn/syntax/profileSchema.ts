@@ -364,7 +364,12 @@ export function validateSyntaxProfile(
       ),
       ...validateSemanticId(rule.type, `${path}.type`, "行首语义 ID"),
       ...validateTone(rule.textColor, `${path}.textColor`),
-      ...validateTone(rule.tone, `${path}.tone`),
+      ...validateTone(
+        rule.tone,
+        `${path}.tone`,
+        policy.scope === "todo" &&
+          rule.type === syntaxProfileSchema.requiredTypes.todoItem,
+      ),
     );
 
     if (!syntaxProfileSchema.roles.includes(rule.role)) {

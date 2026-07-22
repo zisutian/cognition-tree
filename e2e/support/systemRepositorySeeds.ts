@@ -9,7 +9,7 @@ import type {
 import { createJournalEntry } from "../../core/journal/commands/journalCommands";
 import { createEmptyJournalContent } from "../../core/journal/model/journalContent";
 import { validateTodoContent } from "../../core/todo/model/todoContent";
-import { defaultTodoSyntaxSourceV2 } from "../../core/todo/syntax/todoSyntax";
+import { defaultTodoSyntaxSourceV3 } from "../../core/todo/syntax/todoSyntax";
 
 const journalSnapshotEndpoint =
   "/api/system-repositories/system-journal/snapshot";
@@ -24,8 +24,8 @@ export function createEmptyTodoSeed(): TodoRepositoryContentDto {
   return validateTodoContent({
     collections: [],
     purpose: "system-todo",
-    schemaVersion: 2,
-    syntaxSource: defaultTodoSyntaxSourceV2,
+    schemaVersion: 3,
+    syntaxSource: defaultTodoSyntaxSourceV3,
   });
 }
 

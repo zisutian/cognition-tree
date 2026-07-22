@@ -15,7 +15,7 @@ import {
   type SyntaxProfileDraft,
 } from "../../../core/ctn/syntax/profileDraft";
 import { defaultJournalCtnSyntaxProfileV3 } from "../../../core/journal/syntax/journalSyntax";
-import { defaultTodoCtnSyntaxProfileV2 } from "../../../core/todo/syntax/todoSyntax";
+import { defaultTodoCtnSyntaxProfileV3 } from "../../../core/todo/syntax/todoSyntax";
 
 describe("syntax profile draft", () => {
   it("builds the default syntax profile from a controlled draft", () => {
@@ -30,7 +30,7 @@ describe("syntax profile draft", () => {
     const journalDraft = createSyntaxProfileDraft(
       defaultJournalCtnSyntaxProfileV3,
     );
-    const todoDraft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV2);
+    const todoDraft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV3);
 
     expect(journalDraft.topLevelUnmarkedRule?.type).toBe("body");
     expect(buildSyntaxProfileDraft(
@@ -46,7 +46,7 @@ describe("syntax profile draft", () => {
       syntaxProfileValidationPolicies.todo,
     )).toEqual({
       diagnostics: [],
-      profile: defaultTodoCtnSyntaxProfileV2,
+      profile: defaultTodoCtnSyntaxProfileV3,
     });
   });
 

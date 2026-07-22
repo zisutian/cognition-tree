@@ -7,8 +7,8 @@ import {
 import type { JournalViewModel } from "../../src/application/journal";
 import type { TodoViewModel } from "../../src/application/todo";
 import {
-  defaultTodoCtnSyntaxProfileV2,
-  defaultTodoSyntaxSourceV2,
+  defaultTodoCtnSyntaxProfileV3,
+  defaultTodoSyntaxSourceV3,
 } from "../../core/todo/syntax/todoSyntax";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
@@ -383,7 +383,7 @@ export function createView(
         focusTarget: null,
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
-        syntaxProfile: defaultTodoCtnSyntaxProfileV2,
+        syntaxProfile: defaultTodoCtnSyntaxProfileV3,
         updateBody: () => undefined,
       },
       moveBlock: () => undefined,
@@ -435,8 +435,8 @@ export function createView(
       renameCollection: () => undefined,
       selectCollection: () => undefined,
       syntax: {
-        profile: defaultTodoCtnSyntaxProfileV2,
-        source: defaultTodoSyntaxSourceV2,
+        profile: defaultTodoCtnSyntaxProfileV3,
+        source: defaultTodoSyntaxSourceV3,
         updateSource: () => undefined,
       },
       toggleBlock: () => undefined,

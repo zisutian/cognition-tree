@@ -65,9 +65,9 @@ async function readRemote(indexedDb: IDBFactory, purpose: string) {
 }
 
 describe("browser system repository storage epochs", () => {
-  it("atomically discards Todo v1 remote and local-first data at epoch 2", async () => {
+  it("atomically discards Todo v2 remote and local-first data at epoch 3", async () => {
     const indexedDb = new IDBFactory();
-    const original = createStorage(indexedDb);
+    const original = createStorage(indexedDb, 1, 2);
     const journalBefore = await original.createBackend("system-journal")
       .loadRemoteSnapshot();
 
@@ -77,23 +77,22 @@ describe("browser system repository storage epochs", () => {
     });
 
     await original.catalogCache.save(
-      "todo-v1-catalog",
+      "todo-v2-catalog",
       await originalCatalog.listRepositories(),
     );
     const oldContent = {
       collections: [{
-        createdAt: "2026-07-18T01:00:00.000Z",
+        completions: [],
         id: "todo-collection-00000000-0000-4000-8000-000000000001",
-        items: [{ text: "永久丢弃的 v1 任务" }],
-        name: "旧集合",
-        updatedAt: "2026-07-18T01:00:00.000Z",
+        source: "# 旧集合\n[] 永久丢弃的 v2 任务\n",
       }],
       purpose: "system-todo",
-      schemaVersion: 1,
+      schemaVersion: 2,
+      syntaxSource: "invalid bytes are intentionally not parsed",
     };
     const revision = `sha256:${"a".repeat(64)}`;
     const browserIdentity = "browser-system:system-todo";
-    const httpIdentity = "https://example.test#system:system-todo#v1";
+    const httpIdentity = "https://example.test#system:system-todo#v2";
     const database = await requestResult(
       indexedDb.open(browserSystemRepositoryDatabaseName),
     );
@@ -124,14 +123,14 @@ describe("browser system repository storage epochs", () => {
     await completion;
     database.close();
 
-    const bumped = createStorage(indexedDb, 1, 2);
+    const bumped = createStorage(indexedDb, 1, 3);
     const reset = await bumped.createBackend("system-todo")
       .loadRemoteSnapshot();
 
     expect(reset.content).toEqual(createEmptyTodoContent());
     await expect(bumped.cache.load(browserIdentity)).resolves.toBeNull();
     await expect(bumped.cache.load(httpIdentity)).resolves.toBeNull();
-    await expect(bumped.catalogCache.load("todo-v1-catalog")).resolves.toBeNull();
+    await expect(bumped.catalogCache.load("todo-v2-catalog")).resolves.toBeNull();
     await expect(bumped.createBackend("system-journal").loadRemoteSnapshot())
       .resolves.toEqual(journalBefore);
     await expect(readRemote(indexedDb, "system-todo")).resolves.toMatchObject({

@@ -45,7 +45,7 @@ export type TodoCollectionDto = {
 
 export type TodoRepositoryContentDto = {
   purpose: "system-todo";
-  schemaVersion: 2;
+  schemaVersion: 3;
   syntaxSource: string;
   collections: TodoCollectionDto[];
 };

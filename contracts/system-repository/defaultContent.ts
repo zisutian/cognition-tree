@@ -79,7 +79,7 @@ tone = "amber"
 textColor = "amber"
 `;
 
-export const defaultTodoSyntaxSourceV2 = `name = "代办"
+export const defaultTodoSyntaxSourceV3 = `name = "代办"
 tabDisplayWidth = 4
 
 [title]
@@ -93,7 +93,7 @@ marker = "[]"
 type = "todo-item"
 label = "代办"
 role = "normal"
-tone = "blue"
+tone = "default"
 textColor = "cyan"
 
 [[inlineRules]]

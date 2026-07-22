@@ -16,10 +16,10 @@ import {
 import { serializeSystemRepositoryRevisionContent } from "../../contracts/system-repository/revision.ts";
 import {
   defaultJournalSyntaxSourceV3 as contractJournalSyntaxSource,
-  defaultTodoSyntaxSourceV2 as contractTodoSyntaxSource,
+  defaultTodoSyntaxSourceV3 as contractTodoSyntaxSource,
 } from "../../contracts/system-repository/defaultContent.ts";
 import { defaultJournalSyntaxSourceV3 as domainJournalSyntaxSource } from "../../core/journal/syntax/journalSyntax.ts";
-import { defaultTodoSyntaxSourceV2 as domainTodoSyntaxSource } from "../../core/todo/syntax/todoSyntax.ts";
+import { defaultTodoSyntaxSourceV3 as domainTodoSyntaxSource } from "../../core/todo/syntax/todoSyntax.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const createdAt = "2026-07-18T01:00:00.000Z";
@@ -37,7 +37,7 @@ function createTodoContent() {
       source: `@ctn-block id=${titleBlockId} created=${createdAt} updated=${createdAt}\n实现\n@ctn-block id=${blockId} created=${createdAt} updated=${updatedAt}\n[] 完成服务端 contract`,
     }],
     purpose: "system-todo" as const,
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     syntaxSource: contractTodoSyntaxSource,
   };
 }
@@ -80,7 +80,7 @@ describe("system repository contract", () => {
       .toEqual({
         collections: [],
         purpose: "system-todo",
-        schemaVersion: 2,
+        schemaVersion: 3,
         syntaxSource: contractTodoSyntaxSource,
       });
   });

@@ -251,7 +251,7 @@ describe("journal application mutations", () => {
     expect(() => requireJournalContent({
       collections: [],
       purpose: "system-todo",
-      schemaVersion: 2,
+      schemaVersion: 3,
       syntaxSource: "",
     })).toThrow("received non-journal content");
   });
