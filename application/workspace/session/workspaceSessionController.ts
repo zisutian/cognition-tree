@@ -6,17 +6,11 @@ import type {
   WorkspaceRepositorySnapshot,
 } from "../../repository/workspaceRepository";
 import {
-  isWorkspaceSyntaxFileId,
-  normalizeWorkspaceSyntaxProfileName,
-} from "../../repository/workspaceRepository";
-import { formatSyntaxProfileToml } from "../../../core/ctn/syntax/profileToml";
-import {
   attachWorkspaceSyntaxProfile,
   type WorkspaceContext,
 } from "../../../core/workspace/context/workspaceContext";
 import {
   createDefaultWorkspaceSyntax,
-  parseWorkspaceSyntax,
   type WorkspaceSyntax,
 } from "../../../core/workspace/context/workspaceSyntax";
 import {
@@ -24,7 +18,7 @@ import {
   type WorkspaceStructureIndex,
 } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceData } from "../../../core/workspace/model/workspaceData";
-import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../core/workspace/context/workspaceSyntaxMetadata";
+import type { WorkspaceSyntaxCatalog } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import {
   createSessionCommands,
   type SessionCommandDependencies,
@@ -41,6 +35,10 @@ import {
   type WorkspaceSessionSaveQueue,
 } from "./workspaceSessionSaveQueue";
 import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
+import {
+  createWorkspaceSyntaxCatalogMutationService,
+  type WorkspaceSyntaxCatalogMutation,
+} from "./workspaceSyntaxCatalogMutationService";
 
 export type WorkspaceSessionReadyState = {
   context: WorkspaceContext | null;
@@ -102,69 +100,6 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
-type WorkspaceSyntaxCatalog = WorkspaceRepositoryContent["syntax"];
-
-function resolveSyntaxCatalog(catalog: WorkspaceSyntaxCatalog) {
-  const fileIds = new Set<string>();
-  for (const { id } of catalog.files) {
-    if (!isWorkspaceSyntaxFileId(id)) {
-      throw new Error(`Invalid workspace syntax file id: ${id}`);
-    }
-    if (fileIds.has(id)) {
-      throw new Error(`Duplicate workspace syntax file id: ${id}`);
-    }
-    fileIds.add(id);
-  }
-  if (
-    (catalog.files.length === 0 && catalog.activeFileId !== null) ||
-    (catalog.activeFileId !== null && !fileIds.has(catalog.activeFileId))
-  ) {
-    throw new Error("Workspace syntax catalog has an invalid active file");
-  }
-
-  const syntaxById = new Map(
-    catalog.files.map((file) => [file.id, parseWorkspaceSyntax(file.source)]),
-  );
-  const names = new Set<string>();
-
-  for (const syntax of syntaxById.values()) {
-    const name = normalizeWorkspaceSyntaxProfileName(syntax.profile.name);
-
-    if (names.has(name)) {
-      throw new Error(`Duplicate workspace syntax profile name: ${syntax.profile.name}`);
-    }
-    names.add(name);
-  }
-
-  return {
-    catalog,
-    workspaceSyntax: catalog.activeFileId === null
-      ? null
-      : syntaxById.get(catalog.activeFileId) ?? null,
-  };
-}
-
-function createSyntaxCopySource(
-  catalog: WorkspaceSyntaxCatalog,
-  template: WorkspaceSyntax,
-) {
-  const existingNames = new Set(
-    catalog.files.map(({ source }) =>
-      normalizeWorkspaceSyntaxProfileName(parseWorkspaceSyntax(source).profile.name)
-    ),
-  );
-  const copyName = `${template.profile.name} 副本`;
-  let candidate = copyName;
-  let suffix = 2;
-
-  while (existingNames.has(normalizeWorkspaceSyntaxProfileName(candidate))) {
-    candidate = `${copyName} ${suffix}`;
-    suffix += 1;
-  }
-
-  return formatSyntaxProfileToml({ ...template.profile, name: candidate });
-}
-
 function createLoadedWorkspaceSession({
   generation,
   snapshot,
@@ -211,6 +146,12 @@ export function createWorkspaceSessionController({
   scheduler: Pick<ApplicationScheduler, "schedule">;
 }): WorkspaceSessionController {
   const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
+  const syntaxMutations = createWorkspaceSyntaxCatalogMutationService({
+    createBlockId: commandDependencies.createBlockId,
+    createSyntaxFileId: commandDependencies.createSyntaxFileId,
+    defaultWorkspaceSyntax,
+    now: commandDependencies.now,
+  });
   const listeners = new Set<() => void>();
   let disposed = false;
   let generation = 0;
@@ -454,26 +395,12 @@ export function createWorkspaceSessionController({
     }
   };
 
-  const commitSyntaxCatalog = (syntax: WorkspaceSyntaxCatalog) => {
-    const session = requireReadySession();
-    const resolved = resolveSyntaxCatalog(syntax);
-    const workspaceData = reconcileWorkspaceSyntaxBlockMetadata(
-      session.content.workspace,
-      session.workspaceSyntax?.profile ?? null,
-      resolved.workspaceSyntax?.profile ?? null,
-      {
-        createBlockId: commandDependencies.createBlockId,
-        timestamp: commandDependencies.now(),
-      },
-    );
-
+  const commitSyntaxMutation = (
+    mutation: WorkspaceSyntaxCatalogMutation,
+  ) => {
     updateLoadedContent(
-      {
-        ...session.content,
-        syntax: resolved.catalog,
-        workspace: workspaceData,
-      },
-      resolved.workspaceSyntax,
+      mutation.content,
+      mutation.workspaceSyntax,
     );
     enqueueCurrentContent();
     return saveQueue!.flushLocal();
@@ -481,80 +408,36 @@ export function createWorkspaceSessionController({
 
   const createSyntaxFile = (templateFileId: string | null) => {
     const session = requireReadySession();
-    const fileId = commandDependencies.createSyntaxFileId();
+    const mutation = syntaxMutations.createFile(
+      session.content,
+      templateFileId,
+    );
+    const completion = commitSyntaxMutation(mutation);
 
-    if (session.content.syntax.files.some(({ id }) => id === fileId)) {
-      throw new Error(`Workspace syntax file already exists: ${fileId}`);
-    }
-
-    const templateFile = templateFileId === null
-      ? null
-      : session.content.syntax.files.find(({ id }) => id === templateFileId);
-
-    if (templateFileId !== null && !templateFile) {
-      throw new Error(`Workspace syntax file does not exist: ${templateFileId}`);
-    }
-    const templateSyntax = templateFile
-      ? parseWorkspaceSyntax(templateFile.source)
-      : session.workspaceSyntax;
-    const source = templateSyntax
-      ? createSyntaxCopySource(session.content.syntax, templateSyntax)
-      : defaultWorkspaceSyntax.source;
-
-    const completion = commitSyntaxCatalog({
-      activeFileId: session.content.syntax.activeFileId,
-      files: [...session.content.syntax.files, { id: fileId, source }],
-    });
-
-    return completion.then(() => fileId);
+    return completion.then(() => mutation.fileId);
   };
 
   const activateSyntaxFile = (fileId: string) => {
     const session = requireReadySession();
+    const mutation = syntaxMutations.activateFile(session.content, fileId);
 
-    if (!session.content.syntax.files.some(({ id }) => id === fileId)) {
-      throw new Error(`Workspace syntax file does not exist: ${fileId}`);
-    }
-    if (session.content.syntax.activeFileId === fileId) {
-      return Promise.resolve();
-    }
-
-    return commitSyntaxCatalog({ ...session.content.syntax, activeFileId: fileId });
+    return mutation ? commitSyntaxMutation(mutation) : Promise.resolve();
   };
 
   const deleteSyntaxFile = (fileId: string) => {
     const session = requireReadySession();
-    const fileIndex = session.content.syntax.files.findIndex(
-      ({ id }) => id === fileId,
+
+    return commitSyntaxMutation(
+      syntaxMutations.deleteFile(session.content, fileId),
     );
-
-    if (fileIndex < 0) {
-      throw new Error(`Workspace syntax file does not exist: ${fileId}`);
-    }
-
-    const files = session.content.syntax.files.filter(({ id }) => id !== fileId);
-    const activeFileId = session.content.syntax.activeFileId === fileId
-      ? session.content.syntax.files[fileIndex + 1]?.id ??
-        session.content.syntax.files[fileIndex - 1]?.id ??
-        null
-      : session.content.syntax.activeFileId;
-
-    return commitSyntaxCatalog({ activeFileId, files });
   };
 
   const updateSyntaxFileSource = (fileId: string, source: string) => {
     const session = requireReadySession();
 
-    if (!session.content.syntax.files.some(({ id }) => id === fileId)) {
-      throw new Error(`Workspace syntax file does not exist: ${fileId}`);
-    }
-
-    return commitSyntaxCatalog({
-      ...session.content.syntax,
-      files: session.content.syntax.files.map((file) =>
-        file.id === fileId ? { ...file, source } : file
-      ),
-    });
+    return commitSyntaxMutation(
+      syntaxMutations.updateFileSource(session.content, fileId, source),
+    );
   };
 
   return {

@@ -221,6 +221,19 @@ describe("dependency boundaries", () => {
     expect(appRoot).not.toMatch(/flushPendingChanges|prepareForRepositoryRemoval/);
   });
 
+  it("keeps syntax catalog mutation rules outside the session lifecycle controller", () => {
+    const controller = applicationModules[
+      "../../application/workspace/session/workspaceSessionController.ts"
+    ];
+
+    expect(Object.keys(applicationModules)).toContain(
+      "../../application/workspace/session/workspaceSyntaxCatalogMutationService.ts",
+    );
+    expect(controller).not.toMatch(
+      /parseWorkspaceSyntax|normalizeWorkspaceSyntaxProfileName|reconcileWorkspaceSyntaxBlockMetadata/,
+    );
+  });
+
   it("keeps common wire utilities independent from domain contracts", () => {
     const violations = Object.keys(contractModules)
       .filter((filePath) => filePath.startsWith("../../contracts/common/"))
