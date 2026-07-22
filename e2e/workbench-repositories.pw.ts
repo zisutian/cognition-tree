@@ -91,6 +91,15 @@ test.describe.serial("repository and capacity flows", () => {
     );
     await expect(activeRepository).toHaveAttribute("title", "第二仓库 · 本地");
     await openRepositoryFromContext(page, repositoryId);
+    const repositoryLabelLefts = await page.locator(
+      ".repository-list [data-repository-id] .ui-tree-text",
+    ).evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().left)
+    );
+
+    expect(
+      Math.max(...repositoryLabelLefts) - Math.min(...repositoryLabelLefts),
+    ).toBeLessThanOrEqual(1);
     await expect(getActivityButton(page, "仓库")).toHaveAttribute(
       "aria-current",
       "page",

@@ -142,22 +142,9 @@
   line-height: var(--ui-micro-line-height);
 }
 
-.syntax-name-control {
-  width: min(100%, calc(var(--ui-control-height) * 12));
-}
-
 .syntax-number-control {
   width: calc(var(--ui-control-height) * 3);
   font-variant-numeric: var(--ui-numeric-font-variant);
-}
-
-.syntax-name-error {
-  margin: 0;
-  padding-left: calc(
-    var(--ui-control-height) * 4 + var(--ui-gap-tight)
-  );
-  font-size: var(--ui-micro-font-size);
-  line-height: var(--ui-micro-line-height);
 }
 
 .syntax-pair-fields {

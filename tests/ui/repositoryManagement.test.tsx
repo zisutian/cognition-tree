@@ -283,7 +283,8 @@ describe("repository setup and management semantics", () => {
     expect(markup).toContain('aria-label="重命名仓库 远端笔记"');
     expect(markup).toContain('aria-label="打开仓库 远端笔记"');
     expect(markup).not.toContain('aria-label="重命名仓库 本地笔记"');
-    expect(markup).toContain(">当前</span>");
+    expect(markup).toContain('aria-label="当前仓库"');
+    expect(markup).not.toContain(">当前</span>");
     expect(markup).toContain("未打开");
     expect(markup).toContain("WebDAV 地址");
     expect(markup).toContain('aria-label="复制WebDAV 地址"');

@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   CalendarDays,
+  Check,
   Cloud,
   Copy,
   Database,
@@ -34,6 +35,7 @@ import {
   CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
+  CompactContextStatusIcon,
 } from "../../../ui/shared/CompactContextList";
 import {
   Button,
@@ -357,7 +359,13 @@ export function RepositoryContext({
                     : undefined}
                   buttonProps={{ "data-repository-id": repository.id }}
                   disabled={busy}
-                  icon={<RepositoryAdapterIcon adapter={repository.adapter} />}
+                  icon={active ? (
+                    <CompactContextStatusIcon label="当前仓库">
+                      <Check aria-hidden="true" size={13} strokeWidth={2.4} />
+                    </CompactContextStatusIcon>
+                  ) : (
+                    <RepositoryAdapterIcon adapter={repository.adapter} />
+                  )}
                   inlineRename={renaming
                     ? {
                         ariaLabel: `重命名仓库 ${repository.label}`,
@@ -388,22 +396,15 @@ export function RepositoryContext({
                   )}
                   selected={selected}
                   title={repository.displayLabel}
-                  trailing={(
-                    <>
-                      {active ? (
-                        <span className="repository-row-status">当前</span>
-                      ) : null}
-                      {repository.labelIssue || hasRuntimeProblem ? (
-                        <AlertTriangle
-                          aria-label={repository.labelIssue
-                            ? "仓库名称存在问题"
-                            : "仓库运行状态存在问题"}
-                          className="repository-row-warning"
-                          size={12}
-                        />
-                      ) : null}
-                    </>
-                  )}
+                  trailing={repository.labelIssue || hasRuntimeProblem ? (
+                    <AlertTriangle
+                      aria-label={repository.labelIssue
+                        ? "仓库名称存在问题"
+                        : "仓库运行状态存在问题"}
+                      className="repository-row-warning"
+                      size={12}
+                    />
+                  ) : undefined}
                 />
               );
             })}

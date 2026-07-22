@@ -39,5 +39,5 @@ export async function openRepositoryFromContext(
   await row.locator("..").getByRole("button", {
     name: /^打开仓库 /,
   }).click();
-  await expect(row).toContainText("当前");
+  await expect(row.getByLabel("当前仓库")).toBeVisible();
 }

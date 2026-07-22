@@ -9,10 +9,9 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { StructureOperationActivityViewModel } from "../../../../application/workspace/activities/structure-operation/structureOperationViewModel";
-import {
-  SegmentedControl,
-  SymbolSlot,
-} from "../../../ui/shared/primitives";
+import { SegmentedControl } from "../../../ui/shared/primitives";
+import { CompactContextStatusIcon } from
+  "../../../ui/shared/CompactContextList";
 import {
   NoteTree,
   TreeMoveQuickPick,
@@ -67,16 +66,11 @@ function StructureOperationDirectoryStatusIcon({
   };
 
   return (
-    <SymbolSlot
-      aria-label={labelByStatus[status]}
-      className="ui-tree-status"
-      title={labelByStatus[status]}
-      tone="strong"
-    >
+    <CompactContextStatusIcon label={labelByStatus[status]}>
       {status === "source" ? <FileOutput {...iconProps} /> : null}
       {status === "target" ? <FileInput {...iconProps} /> : null}
       {status === "structure" ? <GitBranch {...iconProps} /> : null}
-    </SymbolSlot>
+    </CompactContextStatusIcon>
   );
 }
 

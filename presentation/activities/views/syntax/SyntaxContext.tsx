@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Check,
   FileCode2,
   ListChecks,
   NotebookPen,
@@ -10,11 +11,14 @@ import type {
   SyntaxFileView,
   SyntaxViewModel,
 } from "../../../../application/workspace/activities/syntax/syntaxViewModel";
+import { syntaxFieldIds } from
+  "../../../../application/workspace/projection/viewSyntaxFields";
 import {
   CompactContextActionButtons,
   CompactContextGroup,
   CompactContextList,
   CompactContextRow,
+  CompactContextStatusIcon,
 } from "../../../ui/shared/CompactContextList";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
 import { Button } from "../../../ui/shared/primitives";
@@ -242,7 +246,11 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                 pendingDeleteFile?.id === file.id ? "is-delete-pending" : "",
               ].filter(Boolean).join(" ") || undefined}
               disabled={switchingBlocked}
-              icon={<FileCode2 aria-hidden="true" size={13} />}
+              icon={file.isActive ? (
+                <CompactContextStatusIcon label="已启用语法">
+                  <Check aria-hidden="true" size={13} strokeWidth={2.4} />
+                </CompactContextStatusIcon>
+              ) : <FileCode2 aria-hidden="true" size={13} />}
               inlineRename={renamingFile?.id === file.id
                 ? {
                     ariaLabel: `重命名语法 ${file.name}`,
@@ -251,7 +259,9 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                       "aria-invalid": renamingFile.errorMessage
                         ? true
                         : undefined,
+                      "data-syntax-field-id": syntaxFieldIds.profileName,
                       maxLength: view.constraints.profileName.maxLength,
+                      title: renamingFile.errorMessage,
                     },
                     onCancel: () => {
                       setRenamingFile(null);
@@ -275,8 +285,6 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                   <AlertTriangle aria-hidden="true" size={12} />
                   错误
                 </span>
-              ) : file.isActive ? (
-                <span className="ui-tree-meta">启用</span>
               ) : null}
               onSelect={() => {
                 setPendingDeleteFile(null);

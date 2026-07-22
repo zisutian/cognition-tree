@@ -9,22 +9,45 @@ import type {
   MouseEvent,
   ReactNode,
 } from "react";
-import { cx } from "./primitives";
+import { SymbolSlot, cx } from "./primitives";
+
+export function CompactContextStatusIcon({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <SymbolSlot
+      aria-label={label}
+      className="ui-tree-status"
+      title={label}
+      tone="strong"
+    >
+      {children}
+    </SymbolSlot>
+  );
+}
+
+export type CompactContextInlineRenameInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  | "aria-label"
+  | "autoFocus"
+  | "className"
+  | "disabled"
+  | "onBlur"
+  | "onChange"
+  | "onKeyDown"
+  | "value"
+> & {
+  [attribute: `data-${string}`]: string | number | undefined;
+};
 
 export type CompactContextInlineRename = {
   ariaLabel: string;
   disabled?: boolean;
-  inputProps?: Omit<
-    InputHTMLAttributes<HTMLInputElement>,
-    | "aria-label"
-    | "autoFocus"
-    | "className"
-    | "disabled"
-    | "onBlur"
-    | "onChange"
-    | "onKeyDown"
-    | "value"
-  >;
+  inputProps?: CompactContextInlineRenameInputProps;
   onCancel: () => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -327,7 +350,9 @@ export function CompactContextRow({
         >
           {icon}
           <span className="ui-tree-text">{label}</span>
-          {trailing}
+          {trailing ? (
+            <span className="ui-compact-context-trailing">{trailing}</span>
+          ) : null}
         </button>
       )}
       {actions && !inlineRename && selected ? (

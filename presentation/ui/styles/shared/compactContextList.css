@@ -30,8 +30,15 @@
   grid-template-columns:
     var(--ui-symbol-size)
     minmax(0, 1fr)
-    auto
     auto;
+}
+
+.ui-compact-context-trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: calc(var(--ui-gap-tight) / 2);
+  min-width: 0;
 }
 
 .ui-compact-context-row:disabled {

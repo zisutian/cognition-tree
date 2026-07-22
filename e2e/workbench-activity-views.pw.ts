@@ -39,7 +39,9 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "语法").click();
 
-    const syntaxName = page.getByLabel("语法名称");
+    const editableRuleName = page.getByRole("textbox", {
+      name: "名称",
+    }).first();
     const titleTonePicker = page.getByRole("button", {
       name: /^首行标题背景色:/,
     });
@@ -49,7 +51,7 @@ test.describe("syntax and visualization activity flows", () => {
         (element) => getComputedStyle(element).userSelect,
       )
     ).toBe("none");
-    expect(await syntaxName.evaluate(
+    expect(await editableRuleName.evaluate(
       (element) => getComputedStyle(element).userSelect,
     )).not.toBe("none");
 
@@ -68,7 +70,11 @@ test.describe("syntax and visualization activity flows", () => {
 
     await getActivityButton(page, "笔记").click();
     await getActivityButton(page, "语法").click();
-    await expect(syntaxName).toHaveText("浏览器回归语法");
+    await expect(page.getByRole("heading", {
+      name: "浏览器回归语法",
+      exact: true,
+    })).toBeVisible();
+    await expect(page.getByLabel("语法名称")).toHaveCount(0);
   });
 
   test("separates system configurations from workspace selection and activation", async ({
@@ -85,7 +91,8 @@ test.describe("syntax and visualization activity flows", () => {
     ).toHaveCount(0);
 
     await page.locator('[data-syntax-owner="journal"]').click();
-    await expect(page.getByLabel("语法名称")).toHaveText("日记");
+    await expect(page.getByRole("heading", { name: "日记", exact: true }))
+      .toBeVisible();
     await expect(page.getByRole("button", { name: /^重命名语法 / }))
       .toHaveCount(0);
     await expect(page.getByText("顶格正文", { exact: true })).toBeVisible();
@@ -93,7 +100,8 @@ test.describe("syntax and visualization activity flows", () => {
     await expect(page.getByText("首行标题示例", { exact: true })).toHaveCount(0);
 
     await page.locator('[data-syntax-owner="todo"]').click();
-    await expect(page.getByLabel("语法名称")).toHaveText("代办");
+    await expect(page.getByRole("heading", { name: "代办", exact: true }))
+      .toBeVisible();
     await expect(page.getByRole("button", { name: /^重命名语法 / }))
       .toHaveCount(0);
     await expect(page.getByRole("button", { name: /^角色:/ }).first())
@@ -106,6 +114,13 @@ test.describe("syntax and visualization activity flows", () => {
     await workspaceRows.first().click();
     await page.getByRole("button", { name: "新建笔记库语法" }).click();
     await expect(workspaceRows).toHaveCount(2);
+    const labelLefts = await workspaceRows.locator(".ui-tree-text")
+      .evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().left)
+      );
+
+    expect(Math.max(...labelLefts) - Math.min(...labelLefts))
+      .toBeLessThanOrEqual(1);
     const selectedRow = page.locator(
       '[data-syntax-file-id][aria-current="page"]',
     );
@@ -116,7 +131,8 @@ test.describe("syntax and visualization activity flows", () => {
     await expect(enableButton).toBeVisible();
     await enableButton.click();
     await expect(enableButton).toHaveCount(0);
-    await expect(selectedRow).toContainText("启用");
+    await expect(selectedRow.getByLabel("已启用语法")).toBeVisible();
+    await expect(selectedRow).not.toContainText("启用");
   });
 
   test("blocks leaving an invalid syntax draft until it is reverted", async ({

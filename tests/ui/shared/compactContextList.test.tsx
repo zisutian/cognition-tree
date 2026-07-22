@@ -9,6 +9,7 @@ import {
   CompactContextList,
   CompactContextActionButtons,
   CompactContextRow,
+  CompactContextStatusIcon,
   CompactContextStaticRow,
 } from "../../../presentation/ui/shared/CompactContextList";
 
@@ -29,7 +30,11 @@ describe("compact context lists", () => {
             tone: "danger",
           }]} />}
           buttonProps={{ "data-item-id": "item-1" }}
-          icon={<span aria-hidden="true">I</span>}
+          icon={(
+            <CompactContextStatusIcon label="当前项目">
+              <span aria-hidden="true">I</span>
+            </CompactContextStatusIcon>
+          )}
           label="当前项目"
           selected
           trailing={<span className="ui-tree-meta">启用</span>}
@@ -46,6 +51,9 @@ describe("compact context lists", () => {
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain('data-item-id="item-1"');
     expect(markup).toContain("当前项目");
+    expect(markup).toContain('aria-label="当前项目"');
+    expect(markup).toContain("ui-tree-status");
+    expect(markup).toContain("ui-compact-context-trailing");
     expect(markup).toContain("ui-tree-actions");
   });
 

@@ -48,6 +48,7 @@ describe("syntax panels", () => {
     expect(markup).toContain('data-syntax-file-id="syntax-primary"');
     expect(markup).toContain('data-syntax-file-id="syntax-secondary"');
     expect(markup).toContain('aria-current="page"');
+    expect(markup).toContain('aria-label="已启用语法"');
     expect(markup).toContain("主要语法");
     expect(markup).toContain("备用语法");
     expect(markup).toContain("错误");
@@ -83,7 +84,6 @@ describe("syntax panels", () => {
     expect(markup).toContain("syntax-rule-row");
     expect(markup).toContain("syntax-rule-header");
     expect(markup).toContain("syntax-rule-actions");
-    expect(markup).toContain("语法名称");
     expect(markup).toContain("缩进宽度");
     expect(markup).toContain("块规则");
     expect(markup).toContain("行内规则");
@@ -92,7 +92,8 @@ describe("syntax panels", () => {
     expect(markup).toContain("syntax-role-picker");
     expect(markup).toContain("syntax-role-button");
     expect(markup).toContain("新增块规则");
-    expect(markup).toContain('data-syntax-field-id="syntax-profile-name"');
+    expect(markup).not.toContain('aria-label="语法名称"');
+    expect(markup).not.toContain('data-syntax-field-id="syntax-profile-name"');
     expect(markup).toContain('data-syntax-field-id="syntax-tab-display-width"');
     expect(markup).toContain('data-syntax-field-id="syntax-marker-rule-group"');
     expect(markup).toContain('data-syntax-field-id="syntax-inline-rule-group"');
@@ -146,7 +147,8 @@ describe("syntax panels", () => {
     expect(markup).toContain('aria-label="重命名语法 正在编辑"');
     expect(markup).toContain('aria-label="删除语法 正在编辑"');
     expect(markup).not.toContain('aria-label="删除语法 已启用"');
-    expect(markup).toContain("启用");
+    expect(markup).toContain('aria-label="已启用语法"');
+    expect(markup).not.toContain(">启用</span>");
   });
 
   it("keeps the Journal name and reference trigger visibly protected", () => {
@@ -169,9 +171,10 @@ describe("syntax panels", () => {
     );
 
     expect(markup).toContain("顶格正文");
+    expect(markup).toContain("<h2>日记</h2>");
     expect(markup).not.toContain("顶格概念");
     expect(markup).not.toContain("首行标题");
-    expect(markup).toMatch(/<output[^>]*aria-label="语法名称"/);
+    expect(markup).not.toContain('aria-label="语法名称"');
     expect(markup).toMatch(/aria-label="开始"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="结束"[^>]*disabled=""/);
   });
@@ -197,12 +200,13 @@ describe("syntax panels", () => {
     );
 
     expect(markup).toContain("代办背景色: 默认");
+    expect(markup).toContain("<h2>代办</h2>");
     expect(markup).not.toContain("首行标题");
-    expect(markup).toMatch(/<output[^>]*aria-label="语法名称"/);
+    expect(markup).not.toContain('aria-label="语法名称"');
     expect(markup).toMatch(/aria-label="角色: [^"]+"[^>]*disabled=""/);
   });
 
-  it("shows a catalog name conflict at the profile name field", () => {
+  it("keeps catalog name conflicts in the invalid draft recovery state", () => {
     const view = createView().syntax;
     const message = "语法名称“备用语法”已存在。";
     const markup = renderToStaticMarkup(
@@ -215,10 +219,9 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain('aria-describedby="syntax-name-conflict"');
-    expect(markup).toContain('aria-invalid="true"');
-    expect(markup).toContain('id="syntax-name-conflict"');
-    expect(markup).toContain(message);
+    expect(markup).not.toContain('aria-label="语法名称"');
+    expect(markup).not.toContain('id="syntax-name-conflict"');
+    expect(markup).not.toContain(message);
     expect(markup).toContain("撤销无效更改");
     expect(markup).toContain("修复或撤销前不能离开此配置");
   });

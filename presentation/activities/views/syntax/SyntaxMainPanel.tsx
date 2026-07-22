@@ -89,29 +89,6 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
         ) : null}
         <div className="syntax-settings-stack" aria-label="语法设置">
           <SyntaxSettingsGroup title="基础">
-            <div className="syntax-setting-line">
-              <span className="syntax-setting-label">名称</span>
-              <output
-                aria-describedby={syntax.nameConflictMessage
-                  ? "syntax-name-conflict"
-                  : undefined}
-                aria-invalid={syntax.nameConflictMessage ? true : undefined}
-                aria-label="语法名称"
-                className="ui-input syntax-name-control"
-                data-syntax-field-id={syntaxFieldIds.profileName}
-                tabIndex={-1}
-              >
-                {syntax.draft.name}
-              </output>
-            </div>
-            {syntax.nameConflictMessage ? (
-              <p
-                className="ui-error syntax-name-error"
-                id="syntax-name-conflict"
-              >
-                {syntax.nameConflictMessage}
-              </p>
-            ) : null}
             <label className="syntax-setting-line">
               <span className="syntax-setting-label">缩进宽度</span>
               <input

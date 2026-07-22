@@ -147,7 +147,9 @@
   color: var(--color-fg);
   background: var(--color-input);
   font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
+  line-height: calc(
+    var(--ui-control-height) - var(--ui-border-width) * 2
+  );
   outline: none;
 }
 
@@ -161,7 +163,9 @@
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-strong);
   font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  line-height: calc(
+    var(--ui-tree-row-height) - var(--ui-border-width) * 2
+  );
 }
 
 .ui-segmented-control {
