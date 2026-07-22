@@ -4,11 +4,14 @@ import { VisualizationDetailPanel } from "../../../../presentation/activities/vi
 import { VisualizationPanel } from "../../../../presentation/activities/views/visualization/VisualizationPanel";
 import { ReferenceGraphCanvas } from "../../../../presentation/activities/views/visualization/ReferenceGraphCanvas";
 import { createView } from "../../viewFactory";
+import { defaultReferenceGraphSettings } from "../../../../presentation/activities/views/visualization/referenceGraphSettings";
 
 describe("visualization panels", () => {
   it("exposes keyboard graph navigation and live selection status", () => {
     const markup = renderToStaticMarkup(
       <ReferenceGraphCanvas
+        displaySettings={{ ...defaultReferenceGraphSettings.display }}
+        forceSettings={{ ...defaultReferenceGraphSettings.forces }}
         graph={{
           edges: [],
           nodes: [
@@ -48,6 +51,7 @@ describe("visualization panels", () => {
     expect(markup).toContain("aria-pressed=\"false\"");
     expect(markup).toContain("隐藏孤立点");
     expect(markup).toContain("aria-label=\"重置图谱视图\"");
+    expect(markup).toContain("aria-label=\"图谱设置\"");
     expect(markup).toContain("ui-button-icon");
     expect(markup).not.toContain(">搜索<");
     expect(markup).not.toContain("graph-segments");

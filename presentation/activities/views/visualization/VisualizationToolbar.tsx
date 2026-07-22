@@ -8,27 +8,35 @@ import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
 } from "../../../../application/workspace/activities/visualization/visualizationViewModel";
+import type { ReferenceGraphSettings } from "./referenceGraphSettings";
+import { VisualizationGraphSettings } from "./VisualizationGraphSettings";
 
 export function VisualizationToolbar({
   hideIsolated,
   localDepth,
   mode,
   query,
+  settings,
   onHideIsolatedChange,
   onLocalDepthChange,
   onModeChange,
   onQueryChange,
   onReset,
+  onResetSettings,
+  onSettingsChange,
 }: {
   hideIsolated: boolean;
   localDepth: ReferenceGraphLocalDepth;
   mode: ReferenceGraphMode;
   query: string;
+  settings: ReferenceGraphSettings;
   onHideIsolatedChange: (hideIsolated: boolean) => void;
   onLocalDepthChange: (localDepth: ReferenceGraphLocalDepth) => void;
   onModeChange: (mode: ReferenceGraphMode) => void;
   onQueryChange: (query: string) => void;
   onReset: () => void;
+  onResetSettings: () => void;
+  onSettingsChange: (settings: ReferenceGraphSettings) => void;
 }) {
   return (
     <div className="graph-toolbar" aria-label="图谱控制">
@@ -69,6 +77,11 @@ export function VisualizationToolbar({
       >
         <RotateCcw aria-hidden="true" size={14} />
       </Button>
+      <VisualizationGraphSettings
+        settings={settings}
+        onChange={onSettingsChange}
+        onReset={onResetSettings}
+      />
       <div className="graph-search-field">
         <input
           aria-label="搜索笔记标题"

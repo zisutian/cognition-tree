@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { ForceCenter, ForceLink, ForceManyBody } from "d3-force";
 import {
+  createInitialNode,
   getNextGraphKeyboardNode,
   graphNodeDragThreshold,
   releaseGraphSimulationNode,
   updateGraphNodePointerMovement,
   type GraphNodePointerMovement,
+  type GraphSimulationLink,
+  type GraphSimulationNode,
 } from "../../../../presentation/activities/views/visualization/referenceGraphCanvasModel";
 import {
   consumeReferenceGraphResetSignal,
@@ -14,7 +18,11 @@ import {
 import {
   createReferenceGraphSimulation,
   resizeReferenceGraphSimulation,
+  updateReferenceGraphSimulationForces,
 } from "../../../../presentation/activities/views/visualization/referenceGraphSimulation";
+import {
+  defaultReferenceGraphSettings,
+} from "../../../../presentation/activities/views/visualization/referenceGraphSettings";
 
 function createMovement(): GraphNodePointerMovement {
   return {
@@ -25,6 +33,31 @@ function createMovement(): GraphNodePointerMovement {
 }
 
 describe("reference graph canvas pointer movement", () => {
+  it("seeds nodes in a deterministic phyllotaxis scatter instead of one ring", () => {
+    const node = {
+      id: "note-a",
+      isolated: false,
+      referencesIn: 1,
+      referencesOut: 1,
+      radius: 5,
+      title: "Alpha",
+    };
+    const nodes = Array.from({ length: 8 }, (_, index) =>
+      createInitialNode(node, index, 8, 800, 600)
+    );
+    const radii = nodes.map(({ x, y }) =>
+      Math.round(Math.hypot(x - 400, y - 300))
+    );
+
+    expect(nodes[0]).toMatchObject({ x: 400, y: 300 });
+    expect(new Set(radii).size).toBeGreaterThan(3);
+    expect(
+      Array.from({ length: 8 }, (_, index) =>
+        createInitialNode(node, index, 8, 800, 600)
+      ),
+    ).toEqual(nodes);
+  });
+
   it("keeps repeated node clicks below the drag threshold", () => {
     const movement = createMovement();
 
@@ -163,6 +196,7 @@ describe("reference graph canvas pointer movement", () => {
       height: 300,
       links: [],
       nodes,
+      settings: { ...defaultReferenceGraphSettings.forces },
       width: 400,
       onTick: () => undefined,
     });
@@ -171,6 +205,72 @@ describe("reference graph canvas pointer movement", () => {
       simulation,
     );
     expect(simulation.force("center")).toBeDefined();
+    simulation.stop();
+  });
+
+  it("updates force parameters without replacing the simulation", () => {
+    const nodes: GraphSimulationNode[] = [
+      {
+        id: "note-a",
+        isolated: false,
+        referencesIn: 0,
+        referencesOut: 1,
+        radius: 5,
+        title: "Alpha",
+        x: 10,
+        y: 10,
+      },
+      {
+        id: "note-b",
+        isolated: false,
+        referencesIn: 1,
+        referencesOut: 0,
+        radius: 5,
+        title: "Beta",
+        x: 100,
+        y: 10,
+      },
+    ];
+    const links: GraphSimulationLink[] = [
+      {
+        count: 1,
+        id: "note-a->note-b",
+        source: "note-a",
+        sourceNoteId: "note-a",
+        target: "note-b",
+        targetNoteId: "note-b",
+        targetTitle: "Beta",
+      },
+    ];
+    const simulation = createReferenceGraphSimulation({
+      height: 300,
+      links,
+      nodes,
+      settings: { ...defaultReferenceGraphSettings.forces },
+      width: 400,
+      onTick: () => undefined,
+    });
+
+    expect(
+      updateReferenceGraphSimulationForces(simulation, {
+        centerStrength: 0.4,
+        linkDistance: 160,
+        linkStrength: 0.6,
+        repulsion: 420,
+      }),
+    ).toBe(simulation);
+    expect(simulation.alpha()).toBeGreaterThanOrEqual(0.35);
+    const center = simulation.force("center") as ForceCenter<GraphSimulationNode>;
+    const charge = simulation.force("charge") as ForceManyBody<GraphSimulationNode>;
+    const link = simulation.force("link") as ForceLink<
+      GraphSimulationNode,
+      GraphSimulationLink
+    >;
+
+    expect(center.strength()).toBe(0.4);
+    expect(charge.strength()(nodes[0]!, 0, nodes)).toBe(-420);
+    expect(link.distance()(links[0]!, 0, links)).toBe(160);
+    expect(link.strength()(links[0]!, 0, links)).toBe(0.6);
     simulation.stop();
   });
 });

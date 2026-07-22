@@ -36,8 +36,8 @@ export function getReferenceGraphNodeRadius(
   node: Pick<UiReferenceGraphNode, "referencesIn" | "referencesOut">,
 ) {
   return Math.min(
-    14,
-    4 + Math.sqrt(node.referencesIn + node.referencesOut) * 2.4,
+    12,
+    3 + Math.sqrt(node.referencesIn + node.referencesOut) * 2,
   );
 }
 
@@ -122,10 +122,12 @@ export function createVisibleReferenceGraph(
 
 export function findReferenceGraphNodeAtPoint({
   nodes,
+  nodeScale = 1,
   x,
   y,
 }: {
   nodes: PositionedReferenceGraphNode[];
+  nodeScale?: number;
   x: number;
   y: number;
 }) {
@@ -133,7 +135,7 @@ export function findReferenceGraphNodeAtPoint({
     const node = nodes[index];
     const distance = Math.hypot(node.x - x, node.y - y);
 
-    if (distance <= node.radius + 4) {
+    if (distance <= node.radius * nodeScale + 4) {
       return node;
     }
   }

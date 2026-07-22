@@ -17,6 +17,7 @@ import {
 } from "./referenceGraphView";
 import {
   drawGraph,
+  getReferenceGraphFocusNodeIds,
   readReferenceGraphCanvasTheme,
   type ReferenceGraphCanvasTheme,
 } from "./referenceGraphCanvasDrawing";
@@ -39,9 +40,16 @@ import {
 import {
   createReferenceGraphSimulation,
   resizeReferenceGraphSimulation,
+  updateReferenceGraphSimulationForces,
 } from "./referenceGraphSimulation";
+import type {
+  GraphDisplaySettings,
+  GraphForceSettings,
+} from "./referenceGraphSettings";
 
 type ReferenceGraphCanvasProps = {
+  displaySettings: GraphDisplaySettings;
+  forceSettings: GraphForceSettings;
   graph: VisibleReferenceGraph;
   resetSignal: number;
   selectedNoteId: UiNoteId | null;
@@ -65,6 +73,8 @@ type GraphDragState =
     };
 
 export function ReferenceGraphCanvas({
+  displaySettings,
+  forceSettings,
   graph,
   resetSignal,
   selectedNoteId,
@@ -84,6 +94,7 @@ export function ReferenceGraphCanvas({
   const hoveredNoteIdRef = useRef<string | null>(null);
   const keyboardNoteIdRef = useRef<string | null>(null);
   const selectedNoteIdRef = useRef<UiNoteId | null>(selectedNoteId);
+  const displaySettingsRef = useRef(displaySettings);
   const redrawFrameRef = useRef<number | null>(null);
   const handledResetSignalRef = useRef(resetSignal);
   const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
@@ -100,6 +111,7 @@ export function ReferenceGraphCanvas({
   controllerRef.current = controller;
   canvasSizeRef.current = canvasSize;
   selectedNoteIdRef.current = selectedNoteId;
+  displaySettingsRef.current = displaySettings;
 
   const redrawNow = () => {
     const canvas = canvasRef.current;
@@ -111,6 +123,11 @@ export function ReferenceGraphCanvas({
 
     drawGraph({
       canvas,
+      displaySettings: displaySettingsRef.current,
+      focusedNodeIds: getReferenceGraphFocusNodeIds(
+        hoveredNoteIdRef.current,
+        linksRef.current,
+      ),
       hoveredNoteId: hoveredNoteIdRef.current,
       links: linksRef.current,
       nodeById: nodeByIdRef.current,
@@ -223,6 +240,9 @@ export function ReferenceGraphCanvas({
 
     controller.resetTransform();
     transformRef.current = controller.transform;
+    simulationRef.current
+      ?.alpha(Math.max(simulationRef.current.alpha(), 0.35))
+      .restart();
     requestRedraw();
   }, [controller, resetSignal]);
 
@@ -260,6 +280,7 @@ export function ReferenceGraphCanvas({
       links,
       nodes,
       width: size.width,
+      settings: forceSettings,
       onTick: requestRedraw,
     });
 
@@ -294,6 +315,28 @@ export function ReferenceGraphCanvas({
 
     requestRedraw();
   }, [canvasSize.height, canvasSize.width]);
+
+  useEffect(() => {
+    const simulation = simulationRef.current;
+
+    if (simulation) {
+      updateReferenceGraphSimulationForces(simulation, forceSettings);
+    }
+  }, [
+    forceSettings.centerStrength,
+    forceSettings.linkDistance,
+    forceSettings.linkStrength,
+    forceSettings.repulsion,
+  ]);
+
+  useEffect(() => {
+    requestRedraw();
+  }, [
+    displaySettings.labelDensity,
+    displaySettings.linkThickness,
+    displaySettings.nodeScale,
+    displaySettings.showArrows,
+  ]);
 
   useEffect(() => {
     selectedNoteIdRef.current = selectedNoteId;
@@ -336,6 +379,7 @@ export function ReferenceGraphCanvas({
     );
     const hitNode = findReferenceGraphNodeAtPoint({
       nodes: nodesRef.current as PositionedReferenceGraphNode[],
+      nodeScale: displaySettingsRef.current.nodeScale,
       x: graphPoint.x,
       y: graphPoint.y,
     });
@@ -422,6 +466,7 @@ export function ReferenceGraphCanvas({
     );
     const hitNode = findReferenceGraphNodeAtPoint({
       nodes: nodesRef.current as PositionedReferenceGraphNode[],
+      nodeScale: displaySettingsRef.current.nodeScale,
       x: graphPoint.x,
       y: graphPoint.y,
     });

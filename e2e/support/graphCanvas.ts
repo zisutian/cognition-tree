@@ -34,10 +34,18 @@ export async function readGraphCanvasNodes(
       return channels?.length === 3 ? channels : null;
     };
     const style = getComputedStyle(canvas);
-    const fillColor = parseColor(style.getPropertyValue("--color-accent"));
-    const selectedColor = parseColor(style.getPropertyValue("--color-link"));
+    const nodeColors = [
+      "--color-fg-muted",
+      "--color-fg-subtle",
+      "--color-link",
+      "--color-accent",
+    ].map((name) => parseColor(style.getPropertyValue(name)))
+      .filter((color): color is number[] => Boolean(color));
+    const selectedColor = parseColor(
+      style.getPropertyValue("--color-accent"),
+    );
 
-    if (!fillColor || !selectedColor) {
+    if (nodeColors.length === 0 || !selectedColor) {
       return [];
     }
 
@@ -60,10 +68,12 @@ export async function readGraphCanvasNodes(
         data[offset + 2] === color[2] &&
         data[offset + 3] >= minimumAlpha;
     };
+    const matchesNodeColor = (pixelIndex: number) =>
+      nodeColors.some((color) => matchesColor(pixelIndex, color, 250));
     const components: Array<{ count: number; x: number; y: number }> = [];
 
     for (let index = 0; index < width * height; index += 1) {
-      if (visited[index] || !matchesColor(index, fillColor, 250)) {
+      if (visited[index] || !matchesNodeColor(index)) {
         continue;
       }
 
@@ -93,7 +103,7 @@ export async function readGraphCanvasNodes(
           if (
             neighbor >= 0 &&
             !visited[neighbor] &&
-            matchesColor(neighbor, fillColor, 250)
+            matchesNodeColor(neighbor)
           ) {
             visited[neighbor] = 1;
             pending.push(neighbor);

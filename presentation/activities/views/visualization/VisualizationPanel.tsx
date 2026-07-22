@@ -11,6 +11,12 @@ import { getEmptyGraphMessage } from "./graphEmptyState";
 import {
   createVisibleReferenceGraph,
 } from "./referenceGraphView";
+import {
+  createDefaultReferenceGraphSettings,
+  getReferenceGraphSessionSettings,
+  setReferenceGraphSessionSettings,
+  type ReferenceGraphSettings,
+} from "./referenceGraphSettings";
 import { VisualizationToolbar } from "./VisualizationToolbar";
 
 export function VisualizationPanel({
@@ -19,6 +25,9 @@ export function VisualizationPanel({
   view: VisualizationViewModel;
 }) {
   const [resetSignal, setResetSignal] = useState(0);
+  const [graphSettings, setGraphSettings] = useState(
+    getReferenceGraphSessionSettings,
+  );
   const visualization = view;
   const { hideIsolated, localDepth, mode, query } = visualization.filter;
   const visibleGraph = useMemo(
@@ -51,6 +60,10 @@ export function VisualizationPanel({
     mode,
     query,
   });
+  const updateGraphSettings = (settings: ReferenceGraphSettings) => {
+    setReferenceGraphSessionSettings(settings);
+    setGraphSettings(settings);
+  };
 
   return (
     <Panel className="visualization-panel" aria-label="引用图谱">
@@ -61,15 +74,22 @@ export function VisualizationPanel({
           localDepth={localDepth}
           mode={mode}
           query={query}
+          settings={graphSettings}
           onHideIsolatedChange={visualization.setHideIsolated}
           onLocalDepthChange={visualization.setLocalDepth}
           onModeChange={visualization.setMode}
           onQueryChange={visualization.setQuery}
           onReset={() => setResetSignal((current) => current + 1)}
+          onResetSettings={() =>
+            updateGraphSettings(createDefaultReferenceGraphSettings())
+          }
+          onSettingsChange={updateGraphSettings}
         />
         <div className="graph-canvas">
           {visibleGraph.nodes.length > 0 ? (
             <ReferenceGraphCanvas
+              displaySettings={graphSettings.display}
+              forceSettings={graphSettings.forces}
               graph={visibleGraph}
               resetSignal={resetSignal}
               selectedNoteId={visualization.activeNoteId}

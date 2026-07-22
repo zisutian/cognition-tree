@@ -64,11 +64,11 @@ export function updateGraphNodePointerMovement(
 export function createInitialNode(
   node: VisibleReferenceGraphNode,
   index: number,
-  total: number,
+  _total: number,
   width: number,
   height: number,
 ): GraphSimulationNode {
-  if (total <= 1) {
+  if (index === 0) {
     return {
       ...node,
       x: width / 2,
@@ -76,8 +76,13 @@ export function createInitialNode(
     };
   }
 
-  const angle = (Math.PI * 2 * index) / total - Math.PI / 2;
-  const radius = Math.min(width, height) * 0.28;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  const spacing = Math.max(18, Math.min(34, Math.min(width, height) * 0.045));
+  const radius = Math.min(
+    spacing * Math.sqrt(index),
+    Math.min(width, height) * 0.32,
+  );
+  const angle = index * goldenAngle;
 
   return {
     ...node,

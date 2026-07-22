@@ -265,4 +265,70 @@ test.describe("syntax and visualization activity flows", () => {
     expect(finalBox?.width).toBeCloseTo(initialBox?.width ?? 0, 0);
     expect(finalBox?.height).toBeCloseTo(initialBox?.height ?? 0, 0);
   });
+
+  test("adjusts Obsidian-style graph display and force settings for the page session", async ({
+    page,
+  }) => {
+    await openWorkbench(page, visualizationRepositoryId);
+    await getActivityButton(page, "引用图谱").click();
+
+    await expect(page.locator(".graph-canvas")).toHaveCSS(
+      "background-image",
+      "none",
+    );
+    await page.getByRole("button", { name: "图谱设置" }).click();
+
+    const settings = page.getByRole("dialog", { name: "图谱设置" });
+
+    await expect(settings).toBeVisible();
+    await expect(settings.getByRole("slider", { name: "文字密度" }))
+      .toHaveValue("75");
+    await expect(settings.getByRole("slider", { name: "节点大小" }))
+      .toHaveValue("1");
+    await expect(settings.getByRole("slider", { name: "中心力" }))
+      .toHaveValue("0.8");
+    await expect(settings.getByRole("slider", { name: "排斥力" }))
+      .toHaveValue("260");
+    await expect(settings.getByRole("slider", { name: "连接力" }))
+      .toHaveValue("0.35");
+    await expect(settings.getByRole("slider", { name: "连接距离" }))
+      .toHaveValue("110");
+
+    const arrows = settings.getByRole("button", { name: "显示箭头" });
+
+    await expect(arrows).toHaveAttribute("aria-pressed", "false");
+    await arrows.click();
+    await settings.getByRole("slider", { name: "文字密度" }).fill("45");
+    await settings.getByRole("slider", { name: "节点大小" }).fill("1.5");
+    await settings.getByRole("slider", { name: "连接距离" }).fill("160");
+    await page.keyboard.press("Escape");
+    await expect(settings).toHaveCount(0);
+
+    await getActivityButton(page, "笔记").click();
+    await getActivityButton(page, "引用图谱").click();
+    await page.getByRole("button", { name: "图谱设置" }).click();
+
+    const restoredSettings = page.getByRole("dialog", { name: "图谱设置" });
+
+    await expect(restoredSettings.getByRole("button", { name: "显示箭头" }))
+      .toHaveAttribute("aria-pressed", "true");
+    await expect(restoredSettings.getByRole("slider", { name: "文字密度" }))
+      .toHaveValue("45");
+    await expect(restoredSettings.getByRole("slider", { name: "节点大小" }))
+      .toHaveValue("1.5");
+    await expect(restoredSettings.getByRole("slider", { name: "连接距离" }))
+      .toHaveValue("160");
+
+    await restoredSettings.getByRole("button", {
+      name: "恢复默认设置",
+    }).click();
+    await expect(restoredSettings.getByRole("button", { name: "显示箭头" }))
+      .toHaveAttribute("aria-pressed", "false");
+    await expect(restoredSettings.getByRole("slider", { name: "文字密度" }))
+      .toHaveValue("75");
+    await expect(restoredSettings.getByRole("slider", { name: "节点大小" }))
+      .toHaveValue("1");
+    await expect(restoredSettings.getByRole("slider", { name: "连接距离" }))
+      .toHaveValue("110");
+  });
 });
