@@ -127,4 +127,36 @@ describe("semantic source ownership", () => {
       "../../infrastructure/server/repository/fileSystemError.ts",
     );
   });
+
+  it("keeps Local and WebDAV adapter responsibilities in dedicated modules", () => {
+    const ownersOf = (functionName: string) => Object.entries(
+      infrastructureModules,
+    )
+      .filter(([, source]) => new RegExp(
+        `function\\s+${functionName}\\s*\\(`,
+      ).test(source))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(ownersOf("parseLocalRepositoryMetadata")).toEqual([
+      "infrastructure/server/adapters/local/localWorkingTreeCodec.ts",
+    ]);
+    expect(ownersOf("assertLocalRepositoryContainsOnlyManagedData")).toEqual([
+      "infrastructure/server/adapters/local/localManagedDataGuard.ts",
+    ]);
+    expect(ownersOf("scanPhysicalWorkingTreeOnce")).toEqual([
+      "infrastructure/server/adapters/local/localPhysicalWorkingTree.ts",
+    ]);
+    expect(ownersOf("planLocalWorkingTreeTransaction")).toEqual([
+      "infrastructure/server/adapters/local/workingTreeTransactionPlanner.ts",
+    ]);
+    expect(ownersOf("parseLocalTransactionManifest")).toEqual([
+      "infrastructure/server/adapters/local/workingTreeTransactionManifest.ts",
+    ]);
+    expect(ownersOf("parseWebDavConnectionConfig")).toEqual([
+      "infrastructure/server/adapters/webdav/webDavConnectionConfig.ts",
+    ]);
+    expect(ownersOf("loadWebDavConnectionConfigs")).toEqual([
+      "infrastructure/server/adapters/webdav/webDavConnectionPersistence.ts",
+    ]);
+  });
 });

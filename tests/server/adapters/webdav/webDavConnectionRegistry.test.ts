@@ -18,9 +18,9 @@ import type {
 } from "../../../../contracts/workspace/types.ts";
 import {
   WebDavConnectionRegistry,
-  parseWebDavConnectionConfig,
-  webDavRegistryConfigRemovalPhases,
 } from "../../../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
+import { parseWebDavConnectionConfig } from "../../../../infrastructure/server/adapters/webdav/webDavConnectionConfig.ts";
+import { webDavRegistryConfigRemovalPhases } from "../../../../infrastructure/server/adapters/webdav/webDavConnectionPersistence.ts";
 import {
   webDavCurrentPath,
   webDavGenerationsPath,

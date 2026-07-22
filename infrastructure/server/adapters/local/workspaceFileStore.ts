@@ -41,25 +41,29 @@ import {
 import type {
   WorkspaceCommitPhase,
 } from "./workingTreeTransaction.ts";
+import { createLocalProjectionFromContent } from "./localCanonicalProjection.ts";
 import {
-  createLocalProjectionFromContent,
   createLocalProjectionFromWorkingTree,
+  readLocalControlText,
+  readLocalJson,
+} from "./localWorkingTree.ts";
+import {
+  parseLocalNoteMetadata,
+  parseLocalRepositoryIndex,
+  parseLocalRepositoryMetadata,
+} from "./localWorkingTreeCodec.ts";
+import {
   localControlDirectoryName,
   localIndexFileName,
   localNoteMetadataDirectoryName,
   localRepositoryMetadataFileName,
   localSyntaxDirectoryName,
   localTransactionsDirectoryName,
-  parseLocalNoteMetadata,
-  parseLocalRepositoryIndex,
-  parseLocalRepositoryMetadata,
-  readLocalControlText,
-  readLocalJson,
   type LocalNoteMetadata,
   type LocalRepositoryIndex,
   type LocalRepositoryMetadata,
   type LocalWorkingTreeProjection,
-} from "./localWorkingTree.ts";
+} from "./localWorkingTreeLayout.ts";
 import {
   captureLocalManagedWorkingTreeState,
   commitLocalWorkingTreeTransaction,

@@ -26,13 +26,13 @@ import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,
 } from "./workspaceFileStore.ts";
+import { readLocalJson } from "./localWorkingTree.ts";
+import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
+import { assertLocalRepositoryContainsOnlyManagedData } from "./localManagedDataGuard.ts";
 import {
   localControlDirectoryName,
   localRepositoryMetadataFileName,
-  assertLocalRepositoryContainsOnlyManagedData,
-  parseLocalRepositoryMetadata,
-  readLocalJson,
-} from "./localWorkingTree.ts";
+} from "./localWorkingTreeLayout.ts";
 
 const writerLockFileName = ".ctn-writer.lock";
 const catalogCreateStagingPattern =

@@ -5,17 +5,11 @@ import {
   chmod,
   lstat,
   mkdir,
-  readFile,
-  readdir,
   realpath,
-  rename,
-  rm,
 } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
-import { isRepositoryId } from "../../../../contracts/workspace/parseCatalog.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import type {
   RepositoryAuthenticationDto,
   RepositoryCatalogIssueDto,
@@ -26,12 +20,7 @@ import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
 import type { WorkspaceRepositoryStore } from "../../repository/repositoryStore.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
-  fsyncDirectory,
-  replaceFileDurably,
-} from "../../persistence/fileSystemPersistence.ts";
-import {
   createWebDavTransport,
-  normalizeWebDavBaseUrl,
   probeWebDavCapabilities,
   type WebDavTransport,
 } from "./webDavTransport.ts";
@@ -41,43 +30,25 @@ import {
   WebDavWorkspaceStore,
   type WebDavManagedDataDeletionResult,
 } from "./webDavWorkspaceStore.ts";
+import {
+  parseWebDavConnectionConfig,
+  webDavConnectionConfigVersion,
+  type ActiveWebDavConnectionConfig,
+  type DeletingWebDavConnectionConfig,
+  type WebDavConnectionConfig,
+} from "./webDavConnectionConfig.ts";
+import {
+  cleanInterruptedWebDavConnectionFiles,
+  loadWebDavConnectionConfigs,
+  removeWebDavConnectionConfig,
+  webDavConnectionConfigExists,
+  writeWebDavConnectionConfig,
+  type WebDavRegistryConfigRemovalPhase,
+} from "./webDavConnectionPersistence.ts";
 
-const registrySchemaVersion = 1 as const;
 const registryLockFileName = ".ctn-webdav-registry.lock";
 const connectionsDirectoryName = "webdav-connections";
-const temporaryFilePattern = /\.json\.\d+\.[0-9a-f-]+\.tmp$/i;
-const deletionFilePattern = /^\.delete-.+-[0-9a-f-]+$/i;
 const retryDelaysMs = [1_000, 2_000, 5_000, 10_000, 30_000] as const;
-
-export const webDavRegistryConfigRemovalPhases = {
-  beforeRename: "before-rename",
-  cleanupCompleted: "cleanup-completed",
-  renamed: "renamed",
-} as const;
-
-export type WebDavRegistryConfigRemovalPhase =
-  typeof webDavRegistryConfigRemovalPhases[
-    keyof typeof webDavRegistryConfigRemovalPhases
-  ];
-
-type ActiveConnectionConfig = {
-  authentication: RepositoryAuthenticationDto;
-  id: string;
-  label: string;
-  schemaVersion: typeof registrySchemaVersion;
-  status: "active";
-  url: string;
-};
-
-type DeletingConnectionConfig = Omit<ActiveConnectionConfig, "status"> & {
-  deletionToken: string;
-  startedAt: string;
-  status: "deleting-remote";
-};
-
-export type WebDavConnectionConfig =
-  | ActiveConnectionConfig
-  | DeletingConnectionConfig;
 
 export type RegisterWebDavConnectionInput = {
   authentication: RepositoryAuthenticationDto;
@@ -102,144 +73,6 @@ export type WebDavConnectionRegistryOptions = {
   stateDirectory: string;
   transportFactory?: (config: WebDavConnectionConfig) => WebDavTransport;
 };
-
-const activeFields = new Set([
-  "authentication",
-  "id",
-  "label",
-  "schemaVersion",
-  "status",
-  "url",
-]);
-const deletingFields = new Set([
-  ...activeFields,
-  "deletionToken",
-  "startedAt",
-]);
-
-function assertExactFields(
-  value: Record<string, unknown>,
-  expected: ReadonlySet<string>,
-) {
-  if (
-    Object.keys(value).some((field) => !expected.has(field)) ||
-    [...expected].some((field) => !(field in value))
-  ) {
-    throw new Error("WebDAV connection has invalid fields");
-  }
-}
-
-function parseAuthentication(value: unknown): RepositoryAuthenticationDto {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("WebDAV connection authentication is invalid");
-  }
-  const authentication = value as Record<string, unknown>;
-
-  if (authentication.type === "none") {
-    assertExactFields(authentication, new Set(["type"]));
-    return { type: "none" };
-  }
-  if (authentication.type === "basic") {
-    assertExactFields(
-      authentication,
-      new Set(["password", "type", "username"]),
-    );
-    if (
-      typeof authentication.username !== "string" ||
-      authentication.username.length === 0 ||
-      typeof authentication.password !== "string" ||
-      authentication.password.length === 0
-    ) {
-      throw new Error("WebDAV basic authentication is invalid");
-    }
-    return {
-      password: authentication.password,
-      type: "basic",
-      username: authentication.username,
-    };
-  }
-  throw new Error("WebDAV connection authentication is invalid");
-}
-
-export function parseWebDavConnectionConfig(
-  source: string,
-  expectedId?: string,
-): WebDavConnectionConfig {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(source);
-  } catch {
-    throw new Error("WebDAV connection JSON is invalid");
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new Error("WebDAV connection is invalid");
-  }
-  const value = parsed as Record<string, unknown>;
-
-  if (value.schemaVersion !== registrySchemaVersion) {
-    throw new Error("WebDAV connection version is unsupported");
-  }
-  if (value.status !== "active" && value.status !== "deleting-remote") {
-    throw new Error("WebDAV connection status is invalid");
-  }
-  assertExactFields(
-    value,
-    value.status === "active" ? activeFields : deletingFields,
-  );
-  if (
-    typeof value.id !== "string" ||
-    !isRepositoryId(value.id) ||
-    (expectedId !== undefined && value.id !== expectedId) ||
-    typeof value.label !== "string" ||
-    value.label.trim() === "" ||
-    typeof value.url !== "string"
-  ) {
-    throw new Error("WebDAV connection identity is invalid");
-  }
-  const authentication = parseAuthentication(value.authentication);
-  const url = normalizeWebDavBaseUrl(value.url);
-
-  if (authentication.type === "basic" && url.protocol !== "https:") {
-    throw new Error("Authenticated WebDAV connections require HTTPS");
-  }
-  const base = {
-    authentication,
-    id: value.id,
-    label: value.label,
-    schemaVersion: registrySchemaVersion,
-    url: url.toString(),
-  };
-
-  if (value.status === "active") {
-    return { ...base, status: "active" };
-  }
-  if (
-    typeof value.deletionToken !== "string" ||
-    value.deletionToken.length === 0 ||
-    typeof value.startedAt !== "string" ||
-    !Number.isFinite(Date.parse(value.startedAt))
-  ) {
-    throw new Error("WebDAV deletion state is invalid");
-  }
-  return {
-    ...base,
-    deletionToken: value.deletionToken,
-    startedAt: value.startedAt,
-    status: "deleting-remote",
-  };
-}
-
-function stringifyConfig(config: WebDavConnectionConfig) {
-  return `${serializeJsonIteratively(config, { indent: 2 })}\n`;
-}
-
-async function writeConfigAtomically(
-  filePath: string,
-  config: WebDavConnectionConfig,
-) {
-  await replaceFileDurably(filePath, stringifyConfig(config));
-}
 
 function createDescriptor(config: WebDavConnectionConfig): RepositoryDescriptorDto {
   return {
@@ -341,7 +174,7 @@ export class WebDavConnectionRegistry {
         issues: [...this.#issuesById.values()].sort((left, right) =>
           left.id.localeCompare(right.id)),
         repositories: [...this.#configsById.values()]
-          .filter((config): config is ActiveConnectionConfig =>
+          .filter((config): config is ActiveWebDavConnectionConfig =>
             config.status === "active")
           .map(createDescriptor)
           .sort((left, right) => left.id.localeCompare(right.id)),
@@ -376,7 +209,7 @@ export class WebDavConnectionRegistry {
         authentication: input.authentication,
         id: input.id,
         label,
-        schemaVersion: registrySchemaVersion,
+        schemaVersion: webDavConnectionConfigVersion,
         status: "active",
         url: input.url,
       }));
@@ -384,7 +217,10 @@ export class WebDavConnectionRegistry {
       if (
         this.#configsById.has(config.id) ||
         this.#issuesById.has(config.id) ||
-        await this.#pathExists(this.#connectionPath(config.id))
+        await webDavConnectionConfigExists(
+          this.#connectionsDirectory,
+          config.id,
+        )
       ) {
         throw new RepositoryCatalogError(
           "invalid_request",
@@ -411,7 +247,7 @@ export class WebDavConnectionRegistry {
       });
 
       await store.initialize();
-      await writeConfigAtomically(this.#connectionPath(config.id), config);
+      await writeWebDavConnectionConfig(this.#connectionsDirectory, config);
       this.#configsById.set(config.id, config);
       this.#storesById.set(config.id, store);
       return createDescriptor(config);
@@ -462,7 +298,7 @@ export class WebDavConnectionRegistry {
         label: parsedLabel,
       }));
 
-      await writeConfigAtomically(this.#connectionPath(repositoryId), renamed);
+      await writeWebDavConnectionConfig(this.#connectionsDirectory, renamed);
       this.#configsById.set(repositoryId, renamed);
       return createDescriptor(renamed);
     });
@@ -487,14 +323,14 @@ export class WebDavConnectionRegistry {
 
       await store.closeForDeletion();
 
-      const deleting: DeletingConnectionConfig = {
+      const deleting: DeletingWebDavConnectionConfig = {
         ...active,
         deletionToken: this.#createId(),
         startedAt: new Date(this.#now()).toISOString(),
         status: "deleting-remote",
       };
 
-      await writeConfigAtomically(this.#connectionPath(repositoryId), deleting);
+      await writeWebDavConnectionConfig(this.#connectionsDirectory, deleting);
       this.#configsById.set(repositoryId, deleting);
       this.#publishDeletingIssue(deleting);
 
@@ -503,7 +339,7 @@ export class WebDavConnectionRegistry {
 
         return await this.#finishOrScheduleDeletion(deleting, result);
       } catch (error) {
-        await writeConfigAtomically(this.#connectionPath(repositoryId), active);
+        await writeWebDavConnectionConfig(this.#connectionsDirectory, active);
         this.#configsById.set(repositoryId, active);
         this.#issuesById.delete(repositoryId);
         this.#storesById.delete(repositoryId);
@@ -568,10 +404,10 @@ export class WebDavConnectionRegistry {
     }
 
     try {
-      await this.#cleanInterruptedFiles();
+      await cleanInterruptedWebDavConnectionFiles(this.#connectionsDirectory);
       await this.#loadConnections();
       [...this.#configsById.values()]
-        .filter((config): config is DeletingConnectionConfig =>
+        .filter((config): config is DeletingWebDavConnectionConfig =>
           config.status === "deleting-remote")
         .forEach((config) => this.#scheduleRetry(config.id, 0, true));
     } catch (error) {
@@ -606,78 +442,21 @@ export class WebDavConnectionRegistry {
     await chmod(directory, 0o700);
   }
 
-  async #cleanInterruptedFiles() {
-    const entries = await readdir(this.#connectionsDirectory, {
-      withFileTypes: true,
-    });
-    let changed = false;
-
-    for (const entry of entries) {
-      if (
-        (entry.isFile() || entry.isSymbolicLink()) &&
-        (temporaryFilePattern.test(entry.name) || deletionFilePattern.test(entry.name))
-      ) {
-        await rm(path.join(this.#connectionsDirectory, entry.name), {
-          force: true,
-        });
-        changed = true;
-      }
-    }
-    if (changed) {
-      await fsyncDirectory(this.#connectionsDirectory);
-    }
-  }
-
   async #loadConnections() {
+    const { configs, issues } = await loadWebDavConnectionConfigs(
+      this.#connectionsDirectory,
+    );
+
     this.#configsById.clear();
     this.#issuesById.clear();
-    const entries = await readdir(this.#connectionsDirectory, {
-      withFileTypes: true,
+    configs.forEach((config, repositoryId) => {
+      this.#configsById.set(repositoryId, config);
+      if (config.status === "deleting-remote") {
+        this.#publishDeletingIssue(config);
+      }
     });
-    const configEntries = entries
-      .filter((entry) => entry.name.endsWith(".json"))
-      .sort((left, right) => left.name.localeCompare(right.name));
-    const urls = new Set<string>();
-
-    for (const entry of configEntries) {
-      const repositoryId = entry.name.slice(0, -".json".length);
-
-      if (!isRepositoryId(repositoryId)) {
-        throw new Error("WebDAV registry contains an invalid connection file name");
-      }
-      try {
-        if (!entry.isFile() || entry.isSymbolicLink()) {
-          throw new Error("WebDAV connection is not a regular file");
-        }
-        const filePath = this.#connectionPath(repositoryId);
-        const stats = await lstat(filePath);
-
-        if ((stats.mode & 0o077) !== 0) {
-          throw new Error("WebDAV connection permissions are too broad");
-        }
-        const config = parseWebDavConnectionConfig(
-          await readFile(filePath, "utf8"),
-          repositoryId,
-        );
-
-        if (urls.has(config.url)) {
-          throw new Error("Duplicate WebDAV target");
-        }
-        urls.add(config.url);
-        this.#configsById.set(repositoryId, config);
-        if (config.status === "deleting-remote") {
-          this.#publishDeletingIssue(config);
-        }
-      } catch {
-        this.#issuesById.set(repositoryId, {
-          adapter: "webdav",
-          code: "repository_corrupt",
-          id: repositoryId,
-          location: null,
-          message: "WebDAV connection configuration is invalid",
-          status: "fault",
-        });
-      }
+    for (const [repositoryId, issue] of issues) {
+      this.#issuesById.set(repositoryId, issue);
     }
   }
 
@@ -697,7 +476,7 @@ export class WebDavConnectionRegistry {
     return store;
   }
 
-  async #retryDeletion(config: DeletingConnectionConfig) {
+  async #retryDeletion(config: DeletingWebDavConnectionConfig) {
     this.#cancelRetry(config.id);
     const result = await this.#getOrCreateStore(config)
       .retryManagedDataDeletion(config.deletionToken);
@@ -706,7 +485,7 @@ export class WebDavConnectionRegistry {
   }
 
   async #finishOrScheduleDeletion(
-    config: DeletingConnectionConfig,
+    config: DeletingWebDavConnectionConfig,
     result: WebDavManagedDataDeletionResult,
   ) {
     if (result.status === "deleted") {
@@ -762,7 +541,7 @@ export class WebDavConnectionRegistry {
     }
   }
 
-  #publishDeletingIssue(config: DeletingConnectionConfig) {
+  #publishDeletingIssue(config: DeletingWebDavConnectionConfig) {
     this.#issuesById.set(config.id, {
       adapter: "webdav",
       code: "repository_busy",
@@ -774,68 +553,11 @@ export class WebDavConnectionRegistry {
   }
 
   async #removeConfigFile(repositoryId: string) {
-    if (!isRepositoryId(repositoryId)) {
-      throw new RepositoryCatalogError(
-        "invalid_request",
-        `Invalid repository id: ${repositoryId}`,
-      );
-    }
-    const filePath = this.#connectionPath(repositoryId);
-    const deletionPath = path.join(
-      this.#connectionsDirectory,
-      `.delete-${repositoryId}-${randomUUID()}`,
-    );
-
-    try {
-      await this.#onConfigRemovalPhase(
-        webDavRegistryConfigRemovalPhases.beforeRename,
-      );
-      await rename(filePath, deletionPath);
-    } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) {
-        return false;
-      }
-      throw error;
-    }
-    // The rename is the configuration deletion commit point. Every operation
-    // after it is recoverable maintenance and cannot truthfully turn a
-    // committed removal back into an active connection.
-    await Promise.resolve()
-      .then(() => this.#onConfigRemovalPhase(
-        webDavRegistryConfigRemovalPhases.renamed,
-      ))
-      .catch(() => undefined);
-    await fsyncDirectory(this.#connectionsDirectory).catch(() => undefined);
-    await rm(deletionPath, { force: true }).catch(() => undefined);
-    await fsyncDirectory(this.#connectionsDirectory).catch(() => undefined);
-    await Promise.resolve()
-      .then(() => this.#onConfigRemovalPhase(
-        webDavRegistryConfigRemovalPhases.cleanupCompleted,
-      ))
-      .catch(() => undefined);
-    return true;
-  }
-
-  #connectionPath(repositoryId: string) {
-    if (!isRepositoryId(repositoryId)) {
-      throw new RepositoryCatalogError(
-        "invalid_request",
-        `Invalid repository id: ${repositoryId}`,
-      );
-    }
-    return path.join(this.#connectionsDirectory, `${repositoryId}.json`);
-  }
-
-  async #pathExists(filePath: string) {
-    try {
-      await lstat(filePath);
-      return true;
-    } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) {
-        return false;
-      }
-      throw error;
-    }
+    return removeWebDavConnectionConfig({
+      connectionsDirectory: this.#connectionsDirectory,
+      onPhase: this.#onConfigRemovalPhase,
+      repositoryId,
+    });
   }
 
   #assertLock() {

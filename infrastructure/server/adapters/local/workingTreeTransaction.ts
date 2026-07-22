@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
   lstat,
@@ -11,8 +11,6 @@ import {
   rmdir,
 } from "node:fs/promises";
 import path from "node:path";
-import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import { parseRepositoryRevision } from "../../../../contracts/workspace/revision.ts";
 import type { RepositoryRevisionDto } from "../../../../contracts/workspace/types.ts";
 import {
   RepositoryAdapterError,
@@ -25,6 +23,8 @@ import {
   replaceFileDurably,
   writeFileDurably,
 } from "../../persistence/fileSystemPersistence.ts";
+import { readLocalJson } from "./localWorkingTree.ts";
+import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
 import {
   localControlDirectoryName,
   localIndexFileName,
@@ -32,10 +32,19 @@ import {
   localRepositoryMetadataFileName,
   localSyntaxDirectoryName,
   localTransactionsDirectoryName,
-  parseLocalRepositoryMetadata,
-  readLocalJson,
   type LocalManagedFileSet,
-} from "./localWorkingTree.ts";
+} from "./localWorkingTreeLayout.ts";
+import {
+  localManagedContentHash,
+  planLocalWorkingTreeTransaction,
+} from "./workingTreeTransactionPlanner.ts";
+import {
+  isLocalTransactionId,
+  parseLocalTransactionManifest,
+  serializeLocalTransactionManifest,
+  type LocalTransactionFileOperation,
+  type LocalTransactionManifest,
+} from "./workingTreeTransactionManifest.ts";
 
 export type LocalManagedWorkingTreeState = {
   directories: Set<string>;
@@ -52,162 +61,6 @@ export const workspaceCommitPhases = {
 
 export type WorkspaceCommitPhase =
   (typeof workspaceCommitPhases)[keyof typeof workspaceCommitPhases];
-
-type FileOperation = {
-  backupFile: string | null;
-  baseHash: string;
-  path: string;
-  stagedFile: string | null;
-  targetHash: string;
-};
-
-type TransactionManifest = {
-  backupDirectories: string[];
-  baseRevision: RepositoryRevisionDto;
-  operations: FileOperation[];
-  schemaVersion: 1;
-  targetDirectories: string[];
-  targetRevision: RepositoryRevisionDto;
-};
-
-const manifestFields = new Set([
-  "backupDirectories",
-  "baseRevision",
-  "operations",
-  "schemaVersion",
-  "targetDirectories",
-  "targetRevision",
-]);
-const operationFields = new Set([
-  "backupFile",
-  "baseHash",
-  "path",
-  "stagedFile",
-  "targetHash",
-]);
-const transactionPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function jsonSource(value: unknown) {
-  return `${serializeJsonIteratively(value, { indent: 2 })}\n`;
-}
-
-function contentHash(source: string | null) {
-  return source === null
-    ? "absent"
-    : `sha256:${createHash("sha256").update(source).digest("hex")}`;
-}
-
-function isContentHash(value: unknown): value is string {
-  return value === "absent" ||
-    (typeof value === "string" && /^sha256:[0-9a-f]{64}$/.test(value));
-}
-
-function assertSafeRelativePath(value: string, label: string) {
-  if (
-    value.length === 0 ||
-    value.startsWith("/") ||
-    value.includes("\\") ||
-    value.split("/").some((segment) => !segment || segment === "." || segment === "..")
-  ) {
-    throw new RepositoryCorruptError(`${label} is unsafe`);
-  }
-}
-
-function parseManifest(value: unknown): TransactionManifest {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new RepositoryCorruptError("Local transaction manifest is invalid");
-  }
-  const record = value as Record<string, unknown>;
-  if (record.schemaVersion !== 1 ||
-      Object.keys(record).some((key) => !manifestFields.has(key)) ||
-      [...manifestFields].some((key) => !(key in record)) ||
-      typeof record.baseRevision !== "string" ||
-      typeof record.targetRevision !== "string" ||
-      !Array.isArray(record.backupDirectories) ||
-      !Array.isArray(record.operations) ||
-      !Array.isArray(record.targetDirectories)) {
-    throw new RepositoryCorruptError("Local transaction manifest is invalid");
-  }
-  const operations = record.operations.map((value, index): FileOperation => {
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-      throw new RepositoryCorruptError("Local transaction operation is invalid");
-    }
-    const operation = value as Record<string, unknown>;
-    if (Object.keys(operation).some((key) => !operationFields.has(key)) ||
-        [...operationFields].some((key) => !(key in operation)) ||
-        typeof operation.path !== "string" ||
-        !isContentHash(operation.baseHash) ||
-        !isContentHash(operation.targetHash) ||
-        !(operation.backupFile === null || typeof operation.backupFile === "string") ||
-        !(operation.stagedFile === null || typeof operation.stagedFile === "string")) {
-      throw new RepositoryCorruptError(`Local transaction operation ${index} is invalid`);
-    }
-    assertSafeRelativePath(operation.path, `Local transaction operation ${index}`);
-    if (typeof operation.backupFile === "string") {
-      assertSafeRelativePath(operation.backupFile, `Local transaction backup ${index}`);
-      if (!/^backup\/\d{6}$/.test(operation.backupFile)) {
-        throw new RepositoryCorruptError(`Local transaction backup ${index} is invalid`);
-      }
-    }
-    if (typeof operation.stagedFile === "string") {
-      assertSafeRelativePath(operation.stagedFile, `Local transaction staged file ${index}`);
-      if (!/^staged\/\d{6}$/.test(operation.stagedFile)) {
-        throw new RepositoryCorruptError(`Local transaction staged file ${index} is invalid`);
-      }
-    }
-    return {
-      backupFile: operation.backupFile,
-      baseHash: operation.baseHash,
-      path: operation.path,
-      stagedFile: operation.stagedFile,
-      targetHash: operation.targetHash,
-    };
-  });
-  const targetDirectories = record.targetDirectories.map((value, index) => {
-    if (typeof value !== "string") {
-      throw new RepositoryCorruptError(`Local transaction directory ${index} is invalid`);
-    }
-    assertSafeRelativePath(value, `Local transaction directory ${index}`);
-    return value;
-  });
-  const backupDirectories = record.backupDirectories.map((value, index) => {
-    if (typeof value !== "string") {
-      throw new RepositoryCorruptError(`Local transaction backup directory ${index} is invalid`);
-    }
-    assertSafeRelativePath(value, `Local transaction backup directory ${index}`);
-    return value;
-  });
-  const operationPaths = operations.map((operation) => operation.path);
-  const backupFiles = operations.flatMap((operation) =>
-    operation.backupFile === null ? [] : [operation.backupFile]
-  );
-  const stagedFiles = operations.flatMap((operation) =>
-    operation.stagedFile === null ? [] : [operation.stagedFile]
-  );
-  if (new Set(operationPaths).size !== operationPaths.length ||
-      new Set(backupFiles).size !== backupFiles.length ||
-      new Set(stagedFiles).size !== stagedFiles.length ||
-      new Set(targetDirectories).size !== targetDirectories.length ||
-      new Set(backupDirectories).size !== backupDirectories.length) {
-    throw new RepositoryCorruptError("Local transaction manifest contains duplicate paths");
-  }
-  let baseRevision: RepositoryRevisionDto;
-  let targetRevision: RepositoryRevisionDto;
-  try {
-    baseRevision = parseRepositoryRevision(record.baseRevision);
-    targetRevision = parseRepositoryRevision(record.targetRevision);
-  } catch {
-    throw new RepositoryCorruptError("Local transaction revisions are invalid");
-  }
-  return {
-    backupDirectories,
-    baseRevision,
-    operations,
-    schemaVersion: 1,
-    targetDirectories,
-    targetRevision,
-  };
-}
 
 async function pathType(filePath: string) {
   const stats = await lstat(filePath).catch((error: unknown) => {
@@ -511,13 +364,13 @@ async function ensureDirectory(rootDir: string, relativePath: string) {
 async function applyFile(
   transactionDir: string,
   rootDir: string,
-  operation: FileOperation,
+  operation: LocalTransactionFileOperation,
   direction: "backup" | "staged",
 ) {
   const sourceRelativePath = direction === "backup" ? operation.backupFile : operation.stagedFile;
   const targetPath = path.join(rootDir, ...operation.path.split("/"));
   const currentSource = await readManagedFile(rootDir, operation.path);
-  const currentHash = contentHash(currentSource);
+  const currentHash = localManagedContentHash(currentSource);
   if (currentHash !== operation.baseHash && currentHash !== operation.targetHash) {
     throw new RepositoryCorruptError(
       "Local transaction found an externally modified managed file",
@@ -538,7 +391,7 @@ async function applyFile(
   const expectedSourceHash = direction === "backup"
     ? operation.baseHash
     : operation.targetHash;
-  if (contentHash(source) !== expectedSourceHash) {
+  if (localManagedContentHash(source) !== expectedSourceHash) {
     throw new RepositoryCorruptError("Local transaction payload hash is invalid");
   }
   const type = await pathType(targetPath);
@@ -568,7 +421,7 @@ async function removeObsoleteDirectories(
 async function applyTransaction(
   transactionDir: string,
   rootDir: string,
-  manifest: TransactionManifest,
+  manifest: LocalTransactionManifest,
   direction: "backup" | "staged",
 ) {
   const desiredDirectories = direction === "staged"
@@ -598,7 +451,7 @@ async function applyTransaction(
 async function applyTransactionBody(
   transactionDir: string,
   rootDir: string,
-  manifest: TransactionManifest,
+  manifest: LocalTransactionManifest,
 ) {
   const headPath = `${localControlDirectoryName}/${localRepositoryMetadataFileName}`;
   for (const operation of manifest.operations) {
@@ -611,7 +464,7 @@ async function applyTransactionBody(
 async function applyTransactionHead(
   transactionDir: string,
   rootDir: string,
-  manifest: TransactionManifest,
+  manifest: LocalTransactionManifest,
 ) {
   const headPath = `${localControlDirectoryName}/${localRepositoryMetadataFileName}`;
   const headOperation = manifest.operations.find((operation) => operation.path === headPath);
@@ -630,7 +483,7 @@ async function readHeadRevision(rootDir: string) {
 
 async function assertTransactionPayloadLayout(
   transactionDir: string,
-  manifest: TransactionManifest,
+  manifest: LocalTransactionManifest,
 ) {
   const rootEntries = await readdir(transactionDir, { withFileTypes: true });
   const expectedRootEntries = new Set(["backup", "manifest.json", "staged"]);
@@ -681,7 +534,7 @@ export async function recoverLocalWorkingTreeTransactions(rootDir: string) {
     if (!entry.isDirectory() || entry.isSymbolicLink()) {
       throw new RepositoryCorruptError("Local transaction directory contains an invalid entry");
     }
-    if (!transactionPattern.test(entry.name)) {
+    if (!isLocalTransactionId(entry.name)) {
       throw new RepositoryCorruptError("Local transaction directory contains an unknown entry");
     }
     const transactionDir = path.join(transactionsDir, entry.name);
@@ -698,7 +551,7 @@ export async function recoverLocalWorkingTreeTransactions(rootDir: string) {
       await rm(transactionDir, { force: true, recursive: true });
       continue;
     }
-    const manifest = parseManifest(manifestValue);
+    const manifest = parseLocalTransactionManifest(manifestValue);
     await assertTransactionPayloadLayout(transactionDir, manifest);
     const headRevision = await readHeadRevision(rootDir);
     if (headRevision === manifest.baseRevision) {
@@ -718,34 +571,29 @@ async function prepareOperations(
   currentState: LocalManagedWorkingTreeState,
   targetFiles: LocalManagedFileSet,
 ) {
-  const allPaths = new Set([...currentState.files.keys(), ...targetFiles.keys()]);
-  const operations: FileOperation[] = [];
-  let operationIndex = 0;
-  for (const relativePath of [...allPaths].sort()) {
-    const current = currentState.files.get(relativePath) ?? null;
-    const target = targetFiles.get(relativePath) ?? null;
-    if (current === target) continue;
-    const stem = String(operationIndex).padStart(6, "0");
-    const backupFile = current === null ? null : `backup/${stem}`;
-    const stagedFile = target === null ? null : `staged/${stem}`;
-    if (current !== null && backupFile) {
-      await writeFileDurably(path.join(transactionDir, backupFile), current);
+  const plan = planLocalWorkingTreeTransaction(currentState, targetFiles);
+
+  for (const operation of plan.operations) {
+    if (operation.currentContent !== null && operation.backupFile) {
+      await writeFileDurably(
+        path.join(transactionDir, operation.backupFile),
+        operation.currentContent,
+      );
     }
-    if (target !== null && stagedFile) {
-      await writeFileDurably(path.join(transactionDir, stagedFile), target);
+    if (operation.targetContent !== null && operation.stagedFile) {
+      await writeFileDurably(
+        path.join(transactionDir, operation.stagedFile),
+        operation.targetContent,
+      );
     }
-    operations.push({
-      backupFile,
-      baseHash: contentHash(current),
-      path: relativePath,
-      stagedFile,
-      targetHash: contentHash(target),
-    });
-    operationIndex += 1;
   }
   return {
-    backupDirectories: [...currentState.directories].sort(),
-    operations,
+    backupDirectories: plan.backupDirectories,
+    operations: plan.operations.map(({
+      currentContent: _currentContent,
+      targetContent: _targetContent,
+      ...operation
+    }): LocalTransactionFileOperation => operation),
   };
 }
 
@@ -834,7 +682,7 @@ export async function commitLocalWorkingTreeTransaction({
   await mkdir(path.join(transactionDir, "backup"), { recursive: true, mode: 0o700 });
   await mkdir(path.join(transactionDir, "staged"), { recursive: true, mode: 0o700 });
   await onPhase(workspaceCommitPhases.stagingCreated);
-  let manifest: TransactionManifest | null = null;
+  let manifest: LocalTransactionManifest | null = null;
   let bodyApplyStarted = false;
   try {
     const currentHead = await readHeadRevision(rootDir);
@@ -866,7 +714,10 @@ export async function commitLocalWorkingTreeTransaction({
       targetDirectories: [...targetDirectories],
       targetRevision,
     };
-    await writeFileDurably(path.join(transactionDir, "manifest.json"), jsonSource(manifest));
+    await writeFileDurably(
+      path.join(transactionDir, "manifest.json"),
+      serializeLocalTransactionManifest(manifest),
+    );
     await fsyncDirectory(path.join(transactionDir, "backup"));
     await fsyncDirectory(path.join(transactionDir, "staged"));
     await fsyncDirectory(transactionDir);
