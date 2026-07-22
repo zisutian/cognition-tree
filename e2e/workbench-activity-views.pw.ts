@@ -75,6 +75,10 @@ test.describe("syntax and visualization activity flows", () => {
 
     await expect(page.getByRole("heading", { name: "系统语法" })).toBeVisible();
     await expect(page.getByText("笔记库语法", { exact: true })).toBeVisible();
+    await expect(page.locator("#syntax-system-heading > span")).toHaveCount(1);
+    await expect(
+      page.locator(".syntax-workspace-group-header > .ui-tree-meta"),
+    ).toHaveCount(0);
 
     await page.locator('[data-syntax-owner="journal"]').click();
     await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();

@@ -41,9 +41,14 @@ describe("Todo panels", () => {
     expect(markup).toContain('aria-label="新建事项集合"');
     expect(markup).toContain('aria-label="重命名事项集合 今天"');
     expect(markup).toContain('aria-label="删除事项集合 今天"');
-    expect(markup).toContain('aria-label="调整事项集合顺序 今天"');
     expect(markup).toContain('draggable="true"');
-    expect(markup).toContain(">1/2<");
+    expect(markup).not.toContain('aria-label="调整事项集合顺序 今天"');
+    expect(markup).not.toContain("todo-drag-handle");
+    expect(markup).toContain(
+      '<h3 class="ui-compact-context-group-title" id="todo-collections-heading"><span>事项集合</span></h3>',
+    );
+    expect(markup).not.toContain("todo-collection-count");
+    expect(markup).not.toContain(">1/2<");
     expect(markup).not.toContain('aria-label="重命名事项集合 稍后"');
     expect(markup).not.toContain('aria-label="删除事项集合 稍后"');
   });
@@ -56,15 +61,26 @@ describe("Todo panels", () => {
       />,
     );
 
-    expect(markup.indexOf(">已完成但保持原位</button>")).toBeLessThan(
-      markup.indexOf(">未完成</button>"),
+    expect(markup.indexOf(">已完成但保持原位</span>")).toBeLessThan(
+      markup.indexOf(">未完成</span>"),
     );
-    expect(markup).toContain("todo-structure-item is-completed");
+    expect(markup).toContain(
+      "ui-tree ui-structure-tree todo-structure-tree",
+    );
+    expect(markup).toContain(
+      "ui-tree-row ui-structure-tree-row todo-structure-row",
+    );
+    expect(markup).toContain(
+      "ui-structure-tree-item todo-structure-item is-completed",
+    );
     expect(markup).toContain('type="checkbox" checked=""');
     expect(markup).toContain('aria-label="标记未完成 已完成但保持原位"');
     expect(markup).toContain('aria-label="标记完成 未完成"');
     expect(markup).toContain('role="treeitem"');
-    expect(markup).toContain('draggable="true"');
+    expect(markup).toContain('<span class="ui-tree-meta">L1</span>');
+    expect(markup).toContain('<span class="ui-tree-meta">L2</span>');
+    expect(markup).not.toContain('draggable="true"');
+    expect(markup).not.toContain("todo-structure-grip");
   });
 
   it("mounts the CTN body editor and shows an empty collection entry point", () => {

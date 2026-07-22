@@ -52,6 +52,12 @@ describe("syntax panels", () => {
     expect(markup).toContain("备用语法");
     expect(markup).toContain("错误");
     expect(markup).toContain("has-diagnostics");
+    expect(markup).toContain(
+      '<h3 class="ui-compact-context-group-title" id="syntax-system-heading"><span>系统语法</span></h3>',
+    );
+    expect(markup).toMatch(
+      /<div class="syntax-workspace-group-header"><span>笔记库语法<\/span><button/,
+    );
     expect(markup).toMatch(/aria-label="新建笔记库语法"[^>]*disabled=""/);
     expect(markup).toMatch(
       /data-syntax-file-id="syntax-secondary"[^>]*disabled=""/,

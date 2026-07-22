@@ -37,7 +37,6 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   return (
     <div className="activity-context-content syntax-context">
       <CompactContextGroup
-        count={view.systemConfigurations.length}
         headingId="syntax-system-heading"
         label="系统语法"
         listAriaLabel="系统语法"
@@ -76,7 +75,6 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
 
       <div className="syntax-workspace-group-header">
         <span>笔记库语法</span>
-        <span className="ui-tree-meta">{view.files.length}</span>
         <Button
           aria-label="新建笔记库语法"
           disabled={mutationBlocked || !view.workspaceAvailable}

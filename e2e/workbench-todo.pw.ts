@@ -92,6 +92,9 @@ test.describe.serial("Todo activity flows", () => {
     const detail = page.getByRole("region", { name: "代办结构" });
     await expect(context).toBeVisible();
     await expect(panel).toBeVisible();
+    await expect(context.locator("#todo-collections-heading > span"))
+      .toHaveCount(1);
+    await expect(context.locator(".todo-collection-count")).toHaveCount(0);
     await expect(page.locator(".app-problems")).toHaveCount(1);
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
@@ -115,11 +118,9 @@ test.describe.serial("Todo activity flows", () => {
     const planRow = collectionRows(context).filter({ hasText: "计划" });
     const todayRow = collectionRows(context).filter({ hasText: "今天" });
 
-    const planSortHandle = planRow.getByRole("button", {
-      name: /调整事项集合顺序 计划$/,
+    await planRow.locator(".ui-compact-context-row").dragTo(todayRow, {
+      targetPosition: { x: 12, y: 1 },
     });
-
-    await planSortHandle.dragTo(todayRow);
     await expect(collectionRows(context).locator(".ui-tree-text"))
       .toHaveText(["计划", "今天", "归档"]);
 
@@ -141,6 +142,10 @@ test.describe.serial("Todo activity flows", () => {
     await editor.click();
     await page.keyboard.insertText("[] 第一项\n\t[] 第二项已修改");
     await expect(detail.getByRole("treeitem")).toHaveCount(2);
+    await expect(detail.locator(".ui-structure-tree").first()).toBeVisible();
+    await expect(detail.locator('[role="treeitem"][draggable="true"]'))
+      .toHaveCount(0);
+    await expect(detail.locator(".todo-structure-grip")).toHaveCount(0);
     await expect(
       detail.getByRole("checkbox", { name: "标记完成 第一项" }),
     ).toBeVisible();
@@ -160,10 +165,8 @@ test.describe.serial("Todo activity flows", () => {
       "background-color",
       "rgba(0, 0, 0, 0)",
     );
-    await expect(firstDetailRow).toHaveCSS(
-      "background-color",
-      "rgba(0, 0, 0, 0)",
-    );
+    await expect(firstDetailRow).toHaveClass(/is-selected/);
+    await expect(firstDetailRow.locator(".ui-tree-meta")).toHaveText("L1");
 
     await waitForTodoContent(api, (content) => {
       const [plan, today] = content.collections;

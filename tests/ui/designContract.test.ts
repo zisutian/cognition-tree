@@ -502,9 +502,14 @@ describe("UI design contract", () => {
     expect(rule).not.toContain("syntax-role-button");
   });
 
-  it("does not keep Todo detail rows highlighted after pointer activation", () => {
+  it("extends the shared structure tree without Todo-specific row geometry", () => {
     const todo = readStyle("ui/styles/activities/todo.css");
 
+    expect(todo).not.toContain(".todo-collection-count");
+    expect(todo).not.toContain(".todo-drag-handle");
+    expect(todo).not.toContain(".todo-structure-tree {");
+    expect(todo).not.toContain(".todo-structure-grip");
+    expect(todo).not.toContain("grid-template-columns");
     expect(todo).not.toContain(".todo-structure-row:focus-within");
     expect(todo).toContain(".todo-structure-row:has(:focus-visible)");
     expect(todo).toMatch(

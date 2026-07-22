@@ -10,22 +10,6 @@
   scrollbar-width: thin;
 }
 
-.todo-collection-count {
-  min-width: calc(var(--ui-symbol-size) * 2);
-  text-align: right;
-}
-
-.todo-drag-handle,
-.todo-structure-grip {
-  color: var(--color-fg-subtle);
-  cursor: grab;
-}
-
-.todo-drag-handle:active,
-.todo-structure-item:active > .todo-structure-row .todo-structure-grip {
-  cursor: grabbing;
-}
-
 .todo-editor-panel {
   border-right: var(--ui-border-width) solid var(--color-border);
 }
@@ -36,42 +20,12 @@
   line-height: var(--ui-micro-line-height);
 }
 
-.todo-structure-tree {
-  display: grid;
-  gap: calc(var(--ui-gap-tight) / 2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.todo-structure-tree .todo-structure-tree {
-  margin-left: calc(var(--ui-control-height) - var(--ui-gap-tight));
-  padding-left: var(--ui-gap-tight);
-  border-left: var(--ui-border-width) solid var(--color-border);
-}
-
-.todo-structure-item {
-  min-width: 0;
-}
-
 .todo-structure-row {
-  display: grid;
-  grid-template-columns: var(--ui-symbol-size) var(--ui-symbol-size) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap-tight);
-  border: var(--ui-border-width) solid transparent;
-  border-radius: var(--ui-radius);
-}
-
-.todo-structure-row:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-hover);
+  cursor: default;
 }
 
 .todo-structure-row:has(:focus-visible) {
-  border-color: var(--color-border-strong);
+  background: var(--color-selected);
 }
 
 .todo-structure-row input {
@@ -79,26 +33,29 @@
   height: var(--ui-symbol-size);
   margin: 0;
   accent-color: var(--color-accent);
+  cursor: pointer;
 }
 
 .todo-structure-label {
+  display: block;
+  width: 100%;
   min-width: 0;
-  padding: var(--ui-gap-tight) 0;
+  padding: 0;
   overflow: hidden;
-  color: var(--color-fg);
+  color: inherit;
   background: transparent;
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
+  font: inherit;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.todo-structure-item.is-completed > .todo-structure-row .todo-structure-label {
+.todo-structure-label:focus-visible {
+  outline: none;
+}
+
+.todo-structure-item.is-completed > .todo-structure-row .block-text {
   color: var(--color-fg-muted);
   text-decoration: line-through;
-}
-
-.todo-structure-item.has-diagnostics > .todo-structure-row {
-  background: var(--color-error-soft);
 }

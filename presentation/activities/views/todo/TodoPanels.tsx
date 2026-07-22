@@ -2,7 +2,6 @@
 
 import {
   ChevronRight,
-  GripVertical,
   ListChecks,
   Maximize2,
   Minimize2,
@@ -28,6 +27,12 @@ import {
 import { ConfirmDialog } from "../../../ui/shared/ConfirmDialog";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
 import {
+  getListReorderIndex,
+  getListRowDropPlacement,
+  type ListRowDropPlacement,
+} from "../../../ui/shared/listDrag";
+import { getStructureTreeRowStyle } from "../../../ui/shared/tree";
+import {
   Button,
   EmptyState,
   Panel,
@@ -38,9 +43,22 @@ import {
 
 type TodoViewProps = { view: TodoViewModel };
 type CollectionDraft = { id: TodoCollectionListItem["id"]; value: string };
+type CollectionDragState = {
+  placement: ListRowDropPlacement | null;
+  sourceId: TodoCollectionListItem["id"];
+  targetId: TodoCollectionListItem["id"] | null;
+};
 
 const collectionDragType = "application/x-cognition-tree-todo-collection";
-const blockDragType = "application/x-cognition-tree-todo-block";
+
+function getCollectionDropPlacement(event: DragEvent<HTMLLIElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+
+  return getListRowDropPlacement({
+    offsetY: event.clientY - rect.top,
+    rowHeight: rect.height,
+  });
+}
 
 export function createTodoInlineEditBlurGuard() {
   let ignoreNextBlur = false;
@@ -112,7 +130,7 @@ export function TodoContext({ view }: TodoViewProps) {
   const [editing, setEditing] = useState<CollectionDraft | null>(null);
   const [pendingDelete, setPendingDelete] =
     useState<TodoCollectionListItem | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<CollectionDragState | null>(null);
 
   useEffect(() => {
     if (editing && !view.collections.some(({ id }) => id === editing.id)) {
@@ -162,7 +180,6 @@ export function TodoContext({ view }: TodoViewProps) {
       </div>
       <div className="todo-collection-scroll">
         <CompactContextGroup
-          count={view.collections.length}
           headingId="todo-collections-heading"
           label="事项集合"
           listAriaLabel="事项集合"
@@ -173,22 +190,6 @@ export function TodoContext({ view }: TodoViewProps) {
                 ? null
                 : (
                   <>
-                    <button
-                      aria-label={`调整事项集合顺序 ${collection.name}`}
-                      className="todo-drag-handle"
-                      draggable
-                      onDragEnd={() => setDraggingId(null)}
-                      onDragStart={(event) => {
-                        event.stopPropagation();
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData(collectionDragType, collection.id);
-                        setDraggingId(collection.id);
-                      }}
-                      title="拖动排序"
-                      type="button"
-                    >
-                      <GripVertical aria-hidden="true" size={13} />
-                    </button>
                     <button
                       aria-label={`重命名事项集合 ${collection.name}`}
                       onClick={() => {
@@ -210,7 +211,30 @@ export function TodoContext({ view }: TodoViewProps) {
                     </button>
                   </>
                 )}
-              className={draggingId === collection.id ? "is-dragging" : undefined}
+              buttonProps={{
+                draggable: editing?.id !== collection.id,
+                onDragEnd: () => setDragState(null),
+                onDragStart: (event) => {
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData(
+                    collectionDragType,
+                    collection.id,
+                  );
+                  event.dataTransfer.setData("text/plain", collection.id);
+                  setDragState({
+                    placement: null,
+                    sourceId: collection.id,
+                    targetId: null,
+                  });
+                },
+              }}
+              className={cx(
+                dragState?.sourceId === collection.id && "is-dragging",
+                dragState?.targetId === collection.id && "is-drop-target",
+                dragState?.targetId === collection.id &&
+                  dragState.placement &&
+                  `is-drop-${dragState.placement}`,
+              )}
               icon={<ListChecks aria-hidden="true" size={13} />}
               inlineRename={editing?.id === collection.id
                 ? {
@@ -237,32 +261,62 @@ export function TodoContext({ view }: TodoViewProps) {
               onSelect={() => view.selectCollection(collection.id)}
               rowProps={{
                 "data-todo-collection-id": collection.id,
-                onDragOver: (event) => {
-                  if (draggingId && draggingId !== collection.id) {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
+                onDragLeave: (event) => {
+                  const nextTarget = event.relatedTarget;
+
+                  if (
+                    nextTarget instanceof Node &&
+                    event.currentTarget.contains(nextTarget)
+                  ) {
+                    return;
                   }
+
+                  setDragState((current) =>
+                    current?.targetId === collection.id
+                      ? { ...current, placement: null, targetId: null }
+                      : current
+                  );
+                },
+                onDragOver: (event) => {
+                  if (!dragState || dragState.sourceId === collection.id) return;
+
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setDragState({
+                    ...dragState,
+                    placement: getCollectionDropPlacement(event),
+                    targetId: collection.id,
+                  });
                 },
                 onDrop: (event) => {
                   event.preventDefault();
-                  const sourceId = event.dataTransfer.getData(collectionDragType);
+                  const sourceId = (
+                    event.dataTransfer.getData(collectionDragType) ||
+                    event.dataTransfer.getData("text/plain") ||
+                    dragState?.sourceId ||
+                    ""
+                  ) as TodoCollectionListItem["id"];
+                  const sourceIndex = view.collections.findIndex(
+                    ({ id }) => id === sourceId,
+                  );
 
-                  if (sourceId && sourceId !== collection.id) {
+                  if (sourceIndex >= 0 && sourceId !== collection.id) {
+                    const toIndex = getListReorderIndex({
+                      placement: getCollectionDropPlacement(event),
+                      sourceIndex,
+                      targetIndex: index,
+                    });
+
                     feedback.runAction(() => view.moveCollection(
-                      sourceId as TodoCollectionListItem["id"],
-                      index,
+                      sourceId,
+                      toIndex,
                     ));
                   }
-                  setDraggingId(null);
+                  setDragState(null);
                 },
               }}
               selected={collection.isActive}
               title={collection.name}
-              trailing={
-                <span className="ui-tree-meta todo-collection-count">
-                  {collection.completedItemCount}/{collection.itemCount}
-                </span>
-              }
             />
           ))}
           {creating ? (
@@ -363,90 +417,87 @@ export function TodoEditorPanel({
   );
 }
 
-function resolveBlockDropKind(event: DragEvent<HTMLLIElement>) {
-  const rect = event.currentTarget.getBoundingClientRect();
-  const ratio = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
-
-  return ratio < 0.25 ? "above" : ratio > 0.75 ? "below" : "inside";
-}
-
 function TodoStructureNodes({
   collectionId,
+  depth,
   nodes,
+  selectedLineNumber,
   view,
 }: {
   collectionId: TodoCollectionListItem["id"];
+  depth: number;
   nodes: TodoBlockView[];
+  selectedLineNumber: number | null;
   view: TodoViewModel;
 }) {
   const feedback = useFeedback();
 
   return (
-    <ul className="todo-structure-tree" role="tree">
-      {nodes.map((node) => (
-        <li
-          aria-level={node.level + 1}
-          className={cx(
-            "todo-structure-item",
-            node.completed && "is-completed",
-            node.hasDiagnostics && "has-diagnostics",
-          )}
-          draggable
-          key={node.id}
-          onDragOver={(event) => {
-            const sourceId = event.dataTransfer.getData(blockDragType);
-            if (sourceId && sourceId !== node.id) {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-            }
-          }}
-          onDragStart={(event) => {
-            event.stopPropagation();
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData(blockDragType, node.id);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const sourceId = event.dataTransfer.getData(blockDragType);
+    <ul
+      className="ui-tree ui-structure-tree todo-structure-tree"
+      role={depth === 0 ? "tree" : "group"}
+    >
+      {nodes.map((node) => {
+        const selected = selectedLineNumber === node.lineNumber;
 
-            if (sourceId && sourceId !== node.id) {
-              feedback.runAction(() => view.moveBlock(collectionId, sourceId, {
-                kind: resolveBlockDropKind(event),
-                targetBlockId: node.id,
-              }));
-            }
-          }}
-          role="treeitem"
-        >
-          <div className="todo-structure-row">
-            <GripVertical aria-hidden="true" className="todo-structure-grip" size={13} />
-            <input
-              aria-label={`${node.completed ? "标记未完成" : "标记完成"} ${node.text}`}
-              checked={node.completed}
-              onChange={() => feedback.runAction(() =>
-                view.toggleBlock(collectionId, node.id)
+        return (
+          <li
+            aria-expanded={node.children.length > 0 ? true : undefined}
+            aria-level={depth + 1}
+            aria-selected={selected}
+            className={cx(
+              "ui-structure-tree-item",
+              "todo-structure-item",
+              node.completed && "is-completed",
+            )}
+            key={node.id}
+            role="treeitem"
+          >
+            <div
+              className={cx(
+                "ui-tree-row",
+                "ui-structure-tree-row",
+                "todo-structure-row",
+                selected && "is-selected",
+                node.hasDiagnostics && "has-diagnostics",
               )}
-              type="checkbox"
-            />
-            <button
-              className="todo-structure-label"
-              onClick={() => view.outline.onSelectLine(node.lineNumber)}
-              title={`${node.label} · L${node.lineNumber}`}
-              type="button"
+              style={getStructureTreeRowStyle({
+                depth,
+                indentUnitCount: view.editor.syntaxProfile.tabDisplayWidth,
+              })}
             >
-              {node.text}
-            </button>
-          </div>
-          {node.children.length > 0 ? (
-            <TodoStructureNodes
-              collectionId={collectionId}
-              nodes={node.children}
-              view={view}
-            />
-          ) : null}
-        </li>
-      ))}
+              <span className="ui-structure-prefix">
+                <input
+                  aria-label={`${node.completed ? "标记未完成" : "标记完成"} ${node.text}`}
+                  checked={node.completed}
+                  onChange={() => feedback.runAction(() =>
+                    view.toggleBlock(collectionId, node.id)
+                  )}
+                  type="checkbox"
+                />
+              </span>
+              <button
+                className="todo-structure-label"
+                onClick={() => view.outline.onSelectLine(node.lineNumber)}
+                title={`${node.label}: ${node.text} · L${node.lineNumber}`}
+                type="button"
+              >
+                <span className="block-text">{node.text}</span>
+              </button>
+              <span className="ui-tree-meta">L{node.lineNumber}</span>
+            </div>
+            {node.children.length > 0 ? (
+              <TodoStructureNodes
+                collectionId={collectionId}
+                depth={depth + 1}
+                nodes={node.children}
+                selectedLineNumber={selectedLineNumber}
+                view={view}
+              />
+            ) : null}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -477,7 +528,9 @@ export function TodoDetailPanel({
         {view.outline.nodes.length > 0 ? (
           <TodoStructureNodes
             collectionId={view.activeCollection.id}
+            depth={0}
             nodes={view.outline.nodes}
+            selectedLineNumber={view.outline.activeBlock?.lineNumber ?? null}
             view={view}
           />
         ) : (

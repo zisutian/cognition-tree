@@ -1,3 +1,4 @@
+import { getListRowDropPlacement } from "../listDrag";
 import type {
   TreeDragState,
   TreeMoveDestination,
@@ -208,7 +209,7 @@ export function createTreeRowDropDestination({
   }
 
   return {
-    kind: ratio < 0.5 ? "before" : "after",
+    kind: getListRowDropPlacement({ offsetY, rowHeight }),
     target,
   };
 }

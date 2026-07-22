@@ -114,7 +114,7 @@ AppRoot 只装配依赖并把可订阅 controller/store 绑定到 React。
 
 Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
 
-Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。默认 [] 不使用整行色块；pointer focus 不留下整行背景，键盘焦点使用边界提示。
+Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，只以 checkbox 执行任务状态变更，不暴露任务拖动。
 
 Problems 所有权：
 
