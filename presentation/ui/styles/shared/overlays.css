@@ -8,7 +8,6 @@
   background: var(--color-overlay);
 }
 
-.ui-dialog,
 .ui-quick-pick,
 .ui-context-menu,
 .ui-notification {
@@ -16,37 +15,6 @@
   border-radius: var(--ui-radius);
   background: var(--color-panel-strong);
   box-shadow: var(--shadow-float);
-}
-
-.ui-dialog {
-  display: grid;
-  gap: var(--ui-gap);
-  width: min(420px, 100%);
-  padding: var(--ui-panel-padding);
-}
-
-.ui-dialog h2,
-.ui-dialog p {
-  margin: 0;
-}
-
-.ui-dialog h2 {
-  color: var(--color-fg-strong);
-  font-size: var(--ui-body-font-size);
-  line-height: var(--ui-body-line-height);
-  font-weight: var(--ui-title-weight);
-}
-
-.ui-dialog p {
-  color: var(--color-fg-muted);
-  font-size: var(--ui-control-font-size);
-  line-height: var(--ui-control-line-height);
-}
-
-.ui-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--ui-gap-tight);
 }
 
 .ui-button-danger {

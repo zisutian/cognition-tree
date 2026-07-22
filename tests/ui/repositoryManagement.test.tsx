@@ -1,4 +1,3 @@
-import { isValidElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -11,8 +10,8 @@ import {
 import {
   canDeleteManagedRepositoryData,
   getRepositoryDeletionChoices,
-  RepositoryDeleteDialog,
-} from "../../presentation/activities/views/repository/RepositoryDeleteDialog";
+  RepositoryDeleteConfirmation,
+} from "../../presentation/activities/views/repository/RepositoryDeleteConfirmation";
 import {
   copyRepositoryLocation,
   RepositoryContext,
@@ -141,14 +140,14 @@ describe("repository creation form", () => {
   });
 });
 
-describe("repository deletion dialog", () => {
+describe("repository inline deletion confirmation", () => {
   it("offers both WebDAV deletion modes and requires an exact label for remote deletion", () => {
     const markup = renderToStaticMarkup(
-      <RepositoryDeleteDialog
+      <RepositoryDeleteConfirmation
         repository={webDavRepository}
         warning="仍有内容等待同步。"
-        onClose={() => undefined}
-        onDelete={async () => undefined}
+        onCancel={() => undefined}
+        onDelete={async () => true}
       />,
     );
 
@@ -167,7 +166,8 @@ describe("repository deletion dialog", () => {
     expect(canDeleteManagedRepositoryData(webDavRepository, "远端笔记")).toBe(true);
     expect(canDeleteManagedRepositoryData(webDavRepository, " 远端笔记")).toBe(false);
     expect(canDeleteManagedRepositoryData(webDavRepository, "远端笔记 ")).toBe(false);
-    expect(markup).toContain('role="alertdialog"');
+    expect(markup).toContain('role="group"');
+    expect(markup).not.toContain('role="alertdialog"');
     expect(markup).toContain("仅移除连接");
     expect(markup).toContain("删除远端数据");
     expect(markup).toContain("删除远端数据前请输入仓库名称");
@@ -177,11 +177,11 @@ describe("repository deletion dialog", () => {
 
   it("uses only managed-data deletion for Local repositories", () => {
     const markup = renderToStaticMarkup(
-      <RepositoryDeleteDialog
+      <RepositoryDeleteConfirmation
         repository={localRepository}
         warning=""
-        onClose={() => undefined}
-        onDelete={async () => undefined}
+        onCancel={() => undefined}
+        onDelete={async () => true}
       />,
     );
 
@@ -201,42 +201,19 @@ describe("repository deletion dialog", () => {
     expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>永久删除<\/button>/);
   });
 
-  it("reopens the same WebDAV repository with an empty confirmation state", () => {
-    const props = {
-      repository: webDavRepository,
-      warning: "",
-      onClose: () => undefined,
-      onDelete: async () => undefined,
-    };
-    const firstDialogContent = RepositoryDeleteDialog(props);
-
-    expect(isValidElement(firstDialogContent)).toBe(true);
-    expect(firstDialogContent?.key).toBe(webDavRepository.id);
-    expect(RepositoryDeleteDialog({ ...props, repository: null })).toBeNull();
-    const reopenedDialogContent = RepositoryDeleteDialog(props);
-
-    expect(isValidElement(reopenedDialogContent)).toBe(true);
-    expect(reopenedDialogContent?.key).toBe(webDavRepository.id);
-    expect(reopenedDialogContent?.type).toBe(firstDialogContent?.type);
-
-    const renderDialog = (repository: RepositoryOption | null) =>
+  it("starts every inline confirmation with an empty exact-name field", () => {
+    const renderConfirmation = (repository: RepositoryOption) =>
       renderToStaticMarkup(
-        <RepositoryDeleteDialog
+        <RepositoryDeleteConfirmation
           repository={repository}
           warning=""
-          onClose={() => undefined}
-          onDelete={async () => undefined}
+          onCancel={() => undefined}
+          onDelete={async () => true}
         />,
       );
 
-    const firstOpen = renderDialog(webDavRepository);
-
-    expect(renderDialog(null)).toBe("");
-    const reopened = renderDialog(webDavRepository);
-
-    expect(firstOpen).toContain('value=""');
-    expect(reopened).toContain('value=""');
-    expect(reopened).toMatch(/<button[^>]*disabled=""[^>]*>删除远端数据<\/button>/);
+    expect(renderConfirmation(webDavRepository)).toContain('value=""');
+    expect(renderConfirmation(localRepository)).toContain('value=""');
   });
 });
 

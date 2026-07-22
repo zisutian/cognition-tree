@@ -35,7 +35,6 @@ import {
   CompactContextList,
   CompactContextRow,
 } from "../../../ui/shared/CompactContextList";
-import { ConfirmDialog } from "../../../ui/shared/ConfirmDialog";
 import {
   Button,
   EmptyState,
@@ -46,7 +45,7 @@ import {
   cx,
 } from "../../../ui/shared/primitives";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
-import { RepositoryDeleteDialog } from "./RepositoryDeleteDialog";
+import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation";
 
 type PendingIssueAction = {
   action: RepositoryIssueActionView;
@@ -146,6 +145,7 @@ export function RepositoryContext({
   const [renameValue, setRenameValue] = useState("");
   const currentSelection = selection ?? createDefaultRepositorySelection(view);
   const busy = view.operation !== "idle";
+
   const adapterGroups = (["local", "webdav", "browser"] as const).filter(
     (adapter) =>
       view.repositories.some((repository) => repository.adapter === adapter) ||
@@ -635,6 +635,22 @@ export function RepositoryPanel({
   const currentSelection = selection ?? createDefaultRepositorySelection(view);
   const target = selectedRepositoryTarget(currentSelection, view);
   const busy = view.operation !== "idle";
+  useEffect(() => {
+    if (
+      deleteRepository &&
+      (currentSelection.kind !== "ordinary-repository" ||
+        currentSelection.id !== deleteRepository.id)
+    ) {
+      setDeleteRepository(null);
+    }
+    if (
+      pendingIssueAction &&
+      (currentSelection.kind !== "ordinary-issue" ||
+        currentSelection.id !== pendingIssueAction.issue.id)
+    ) {
+      setPendingIssueAction(null);
+    }
+  }, [currentSelection, deleteRepository, pendingIssueAction]);
   const copyLocation = (label: string, value: string) => {
     void feedback.runAction(async () => {
       await copyRepositoryLocation(value);
@@ -648,6 +664,22 @@ export function RepositoryPanel({
       : target.kind === "ordinary-issue"
         ? target.issue?.id ?? "仓库问题"
         : builtInLabel(target.id);
+  const confirmIssueAction = async () => {
+    const pending = pendingIssueAction;
+
+    if (!pending) return;
+    const completed = await feedback.runAction(async () => {
+      await view.deleteRepository({
+        id: pending.issue.id,
+        mode: pending.action.mode,
+      });
+      return true;
+    });
+
+    if (completed === true) {
+      setPendingIssueAction(null);
+    }
+  };
 
   return (
     <Panel className="repository-panel" aria-label="仓库">
@@ -772,7 +804,11 @@ export function RepositoryPanel({
                 className="repository-section repository-danger-zone"
                 title="危险区"
               >
-                <div className="repository-danger-zone-content">
+                <div className={cx(
+                  "repository-danger-zone-content",
+                  deleteRepository?.id === target.repository.id &&
+                    "is-confirming",
+                )}>
                   <div>
                     <strong>删除仓库</strong>
                     <p>
@@ -780,26 +816,46 @@ export function RepositoryPanel({
                         ? "可以只移除本机连接；删除远端托管数据后无法恢复。"
                         : "删除托管数据后无法恢复。"}
                     </p>
-                    {target.repository.id === view.activeRepositoryId &&
+                    {deleteRepository?.id !== target.repository.id &&
+                        target.repository.id === view.activeRepositoryId &&
                         view.deletionWarning ? (
                       <p className="repository-warning" role="alert">
                         {view.deletionWarning}
                       </p>
                     ) : null}
                   </div>
-                  <Button
-                    className="ui-button-danger"
-                    disabled={busy || (
-                      target.repository.id === view.activeRepositoryId &&
-                      view.deletionBlocked
-                    )}
-                    onClick={() => setDeleteRepository(target.repository)}
-                    type="button"
-                    variant="secondary"
-                  >
-                    <Trash2 aria-hidden="true" size={13} />
-                    删除仓库
-                  </Button>
+                  {deleteRepository?.id === target.repository.id ? (
+                    <RepositoryDeleteConfirmation
+                      key={target.repository.id}
+                      repository={target.repository}
+                      warning={target.repository.id === view.activeRepositoryId
+                        ? view.deletionWarning
+                        : ""}
+                      onCancel={() => setDeleteRepository(null)}
+                      onDelete={async (mode) =>
+                        await feedback.runAction(async () => {
+                          await view.deleteRepository({
+                            id: target.repository!.id,
+                            mode,
+                          });
+                          return true;
+                        }) === true}
+                    />
+                  ) : (
+                    <Button
+                      className="ui-button-danger"
+                      disabled={busy || (
+                        target.repository.id === view.activeRepositoryId &&
+                        view.deletionBlocked
+                      )}
+                      onClick={() => setDeleteRepository(target.repository)}
+                      type="button"
+                      variant="secondary"
+                    >
+                      <Trash2 aria-hidden="true" size={13} />
+                      删除仓库
+                    </Button>
+                  )}
                 </div>
               </Section>
             </>
@@ -888,6 +944,34 @@ export function RepositoryPanel({
                       </Button>
                     ))}
                   </div>
+                  {pendingIssueAction?.issue.id === target.issue.id ? (
+                    <div
+                      aria-label={`确认${pendingIssueAction.action.label}`}
+                      className="repository-inline-confirmation repository-issue-confirmation"
+                      role="group"
+                    >
+                      <p>{pendingIssueAction.action.confirmation}</p>
+                      <div className="repository-inline-confirmation-actions">
+                        <Button
+                          className="ui-button-danger"
+                          disabled={busy}
+                          onClick={() => void confirmIssueAction()}
+                          type="button"
+                          variant="secondary"
+                        >
+                          确认
+                        </Button>
+                        <Button
+                          disabled={busy}
+                          onClick={() => setPendingIssueAction(null)}
+                          type="button"
+                          variant="secondary"
+                        >
+                          取消
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </Section>
               </>
             );
@@ -913,38 +997,6 @@ export function RepositoryPanel({
           ) : null}
         </div>
       </PanelBody>
-      <RepositoryDeleteDialog
-        repository={deleteRepository}
-        warning={deleteRepository?.id === view.activeRepositoryId
-          ? view.deletionWarning
-          : ""}
-        onClose={() => setDeleteRepository(null)}
-        onDelete={(mode) => {
-          if (!deleteRepository) {
-            throw new Error("没有可删除的仓库。");
-          }
-          return view.deleteRepository({ id: deleteRepository.id, mode });
-        }}
-      />
-      <ConfirmDialog
-        confirmLabel={pendingIssueAction?.action.label}
-        description={pendingIssueAction?.action.confirmation ?? ""}
-        open={pendingIssueAction !== null}
-        title="处理仓库问题"
-        onCancel={() => setPendingIssueAction(null)}
-        onConfirm={() => {
-          const pending = pendingIssueAction;
-
-          if (!pending) return;
-          void feedback.runAction(async () => {
-            await view.deleteRepository({
-              id: pending.issue.id,
-              mode: pending.action.mode,
-            });
-            setPendingIssueAction(null);
-          });
-        }}
-      />
     </Panel>
   );
 }

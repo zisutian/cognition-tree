@@ -646,13 +646,15 @@ test.describe.serial("repository and capacity flows", () => {
       await getActivityButton(page, "仓库").click();
       await page.getByRole("button", { name: "删除仓库", exact: true }).click();
 
-      const dialog = page.getByRole("alertdialog", { name: "删除仓库" });
+      const confirmation = page.getByRole("group", {
+        name: `确认删除仓库 ${remainingRepository?.label ?? ""}`,
+      });
 
-      await expect(dialog).toBeVisible();
-      await dialog.getByRole("textbox", {
+      await expect(confirmation).toBeVisible();
+      await confirmation.getByRole("textbox", {
         name: "永久删除前请输入仓库名称",
       }).fill(remainingRepository?.label ?? "");
-      await dialog.getByRole("button", { name: "永久删除" }).click();
+      await confirmation.getByRole("button", { name: "永久删除" }).click();
       const repositoryPanel = page.getByRole("region", { name: "仓库" });
       const issueRow = page.locator(
         `[data-repository-issue-id="${unsupportedRepositoryId}"]`,

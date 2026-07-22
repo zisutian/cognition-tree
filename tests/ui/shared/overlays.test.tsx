@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ConfirmDialog } from "../../../presentation/ui/shared/ConfirmDialog";
 import { ContextMenu } from "../../../presentation/ui/shared/ContextMenu";
 import {
   FeedbackProvider,
@@ -11,23 +10,6 @@ import { resolveOverlayCoordinates } from "../../../presentation/ui/shared/Overl
 import { QuickPick } from "../../../presentation/ui/shared/QuickPick";
 
 describe("shared overlays", () => {
-  it("renders destructive confirmation as an alert dialog", () => {
-    const markup = renderToStaticMarkup(
-      <ConfirmDialog
-        description="此操作无法撤销。"
-        open
-        title="删除笔记"
-        onCancel={() => undefined}
-        onConfirm={() => undefined}
-      />,
-    );
-
-    expect(markup).toContain('role="alertdialog"');
-    expect(markup).toContain('aria-modal="true"');
-    expect(markup).toContain("删除笔记");
-    expect(markup).toContain("此操作无法撤销。");
-  });
-
   it("renders quick pick options with searchable dialog semantics", () => {
     const markup = renderToStaticMarkup(
       <QuickPick

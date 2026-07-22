@@ -202,15 +202,48 @@
   line-height: var(--ui-micro-line-height);
 }
 
-.repository-delete-dialog {
-  width: min(520px, calc(100vw - calc(var(--ui-panel-padding) * 2)));
+.repository-danger-zone-content.is-confirming {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.repository-delete-confirmation {
+.repository-inline-confirmation {
   display: grid;
   gap: var(--ui-gap-tight);
+  padding: var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-border-strong);
+  border-radius: var(--ui-radius);
+  background: var(--color-panel);
   color: var(--color-fg-muted);
   font-size: var(--ui-control-font-size);
+}
+
+.repository-delete-choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--ui-gap);
+}
+
+.repository-delete-choice + .repository-delete-choice {
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.repository-delete-confirmation-field {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+}
+
+.repository-inline-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ui-gap-tight);
+}
+
+.repository-issue-confirmation {
+  margin-top: var(--ui-gap);
 }
 
 @media (max-width: 720px) {
@@ -222,5 +255,13 @@
 
   .repository-danger-zone-content {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .repository-delete-choice {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .repository-inline-confirmation-actions {
+    justify-content: flex-start;
   }
 }

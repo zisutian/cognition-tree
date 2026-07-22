@@ -118,23 +118,21 @@ test.describe("directory and structure operation flows", () => {
     await expect(rootUnnamedNote).toBeVisible();
     await expect(rootUnnamedNote.locator("xpath=../../.."))
       .toHaveClass(/ui-directory-tree-surface/);
-    const deleteNoteButton = rootUnnamedNote.getByRole("button", { name: "删" });
+    const deleteNoteButton = rootUnnamedNote.getByRole("button", {
+      name: "删除笔记 未命名笔记",
+    });
 
     await deleteNoteButton.click();
+    const cancelDeleteButton = rootUnnamedNote.getByRole("button", {
+      name: "取消删除笔记 未命名笔记",
+    });
+    const confirmDeleteButton = rootUnnamedNote.getByRole("button", {
+      name: "确认删除笔记 未命名笔记",
+    });
 
-    const deleteDialog = page.getByRole("alertdialog", { name: "删除笔记" });
-    const cancelDeleteButton = deleteDialog.getByRole("button", { name: "取消" });
-    const confirmDeleteButton = deleteDialog.getByRole("button", { name: "删除" });
-
-    await expect(deleteDialog).toBeVisible();
-    await expect(cancelDeleteButton).toBeFocused();
-    await cancelDeleteButton.press("Shift+Tab");
-    await expect(confirmDeleteButton).toBeFocused();
-    await confirmDeleteButton.press("Tab");
-    await expect(cancelDeleteButton).toBeFocused();
+    await expect(confirmDeleteButton).toBeVisible();
     await cancelDeleteButton.click();
     await expect(rootUnnamedNote).toBeVisible();
-    await expect(deleteNoteButton).toBeFocused();
 
     await deleteNoteButton.click();
     await confirmDeleteButton.click();

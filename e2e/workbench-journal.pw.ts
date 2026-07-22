@@ -183,13 +183,16 @@ test.describe.serial("Journal activity flows", () => {
     await page
       .getByRole("button", { name: `删除日记 ${secondTitle}`, exact: true })
       .click();
-    const deleteDialog = page.getByRole("alertdialog", { name: "删除日记" });
+    const journalRow = page.locator(".journal-entry-select").filter({
+      hasText: secondTitle,
+    }).locator("..");
 
-    await expect(deleteDialog).toContainText(secondTitle);
-    await expect(deleteDialog.getByRole("button", { name: "取消" }))
-      .toBeFocused();
-    await deleteDialog
-      .getByRole("button", { name: "删除日记", exact: true })
+    await expect(journalRow.getByRole("button", {
+      name: `取消删除日记 ${secondTitle}`,
+    })).toBeVisible();
+    await journalRow.getByRole("button", {
+      name: `确认删除日记 ${secondTitle}`,
+    })
       .click();
     await expect(
       page

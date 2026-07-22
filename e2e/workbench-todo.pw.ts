@@ -126,13 +126,14 @@ test.describe.serial("Todo activity flows", () => {
 
     await context.getByTitle("归档", { exact: true }).click();
     await context.getByRole("button", { name: "删除事项集合 归档" }).click();
-    const deleteCollectionDialog = page.getByRole("alertdialog", {
-      name: "删除事项集合",
-    });
+    const archiveRow = collectionRows(context).filter({ hasText: "归档" });
 
-    await expect(deleteCollectionDialog).toContainText("归档");
-    await deleteCollectionDialog
-      .getByRole("button", { name: "删除集合" })
+    await expect(archiveRow.getByRole("button", {
+      name: "取消删除事项集合 归档",
+    })).toBeVisible();
+    await archiveRow.getByRole("button", {
+      name: "确认删除事项集合 归档",
+    })
       .click();
     await expect(context.getByTitle("归档", { exact: true })).toHaveCount(0);
 
