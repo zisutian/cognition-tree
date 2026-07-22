@@ -6,14 +6,22 @@ export type SystemRepositoryRevisionDto = `sha256:${string}`;
 export type JournalEntryDto = {
   id: string;
   createdAt: string;
+  sequence: number;
   timezoneOffsetMinutes: number;
   updatedAt: string;
   source: string;
 };
 
+export type JournalDailyCounterDto = {
+  date: string;
+  lastIssuedSequence: number;
+};
+
 export type JournalRepositoryContentDto = {
   purpose: "system-journal";
-  schemaVersion: 1;
+  schemaVersion: 2;
+  syntaxSource: string;
+  dailyCounters: JournalDailyCounterDto[];
   entries: JournalEntryDto[];
 };
 

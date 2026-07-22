@@ -1,8 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createBrowserJournalApplicationServices,
+  createJournalWorkspaceReferenceResolver,
+  routeJournalWorkspaceNoteDestination,
+  routeJournalWorkspaceNoteDestinationWithoutSession,
   useJournalApplication,
   type JournalApplication,
+  type JournalWorkspaceNoteDestination,
 } from "../application/journal";
 import {
   createBrowserTodoApplicationServices,
@@ -36,6 +40,9 @@ import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 
 type RepositoryCatalogApplication = ReturnType<typeof useRepositoryCatalog>;
 type SystemCatalogApplication = ReturnType<typeof useSystemRepositoryCatalog>;
+type PendingWorkspaceNoteDestination = JournalWorkspaceNoteDestination & {
+  requestId: number;
+};
 
 function findSystemDescriptor(
   systems: SystemCatalogApplication,
@@ -117,8 +124,10 @@ function ReadyWorkspaceWorkbench({
   journal,
   todo,
   navigation,
+  onConsumeWorkspaceNoteDestination,
   onActiveActivityChange,
   session,
+  workspaceNoteDestination,
   systemRepositories,
   systemSessions,
   systems,
@@ -128,13 +137,61 @@ function ReadyWorkspaceWorkbench({
   journal: JournalApplication;
   todo: TodoApplication;
   navigation: ReturnType<typeof useRepositoryNavigation>;
+  onConsumeWorkspaceNoteDestination: (requestId: number) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
   session: ActiveSession;
+  workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
   systemSessions: RepositoryApplication["systems"]["sessions"];
   systems: SystemCatalogApplication;
 }) {
   const workspace = useWorkspaceApplication(session);
+  const handlingWorkspaceRequestRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const destination = workspaceNoteDestination;
+
+    if (!destination ||
+        handlingWorkspaceRequestRef.current === destination.requestId) {
+      return;
+    }
+    handlingWorkspaceRequestRef.current = destination.requestId;
+    let mounted = true;
+
+    void (async () => {
+      try {
+        const outcome = await routeJournalWorkspaceNoteDestination({
+          activeRepositoryId: catalog.activeDescriptor?.id ?? null,
+          destination,
+          flushCurrentSession: session.flushPendingChanges,
+          openNoteLine: workspace.navigation.openNoteLine,
+          selectRepository: catalog.selectRepository,
+        });
+
+        if (outcome === "opened" && mounted) {
+          onActiveActivityChange("notes");
+          onConsumeWorkspaceNoteDestination(destination.requestId);
+        }
+      } catch {
+        // Keep the one-shot destination pending. A later session/catalog retry
+        // can resume navigation without losing the user's original click.
+      } finally {
+        if (mounted) {
+          handlingWorkspaceRequestRef.current = null;
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [
+    catalog,
+    onActiveActivityChange,
+    onConsumeWorkspaceNoteDestination,
+    session,
+    workspace.navigation,
+    workspaceNoteDestination,
+  ]);
   const selectRepository = async (repositoryId: string) => {
     await session.flushPendingChanges();
     await catalog.selectRepository(repositoryId);
@@ -201,20 +258,24 @@ function RepositoryWorkspaceApp({
   journal,
   todo,
   navigation,
+  onConsumeWorkspaceNoteDestination,
   onActiveActivityChange,
   systemRepositories,
   systemSessions,
   systems,
+  workspaceNoteDestination,
 }: {
   activeActivityId: ActivityId;
   catalog: RepositoryCatalogApplication;
   journal: JournalApplication;
   todo: TodoApplication;
   navigation: ReturnType<typeof useRepositoryNavigation>;
+  onConsumeWorkspaceNoteDestination: (requestId: number) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
   systemSessions: RepositoryApplication["systems"]["sessions"];
   systems: SystemCatalogApplication;
+  workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
 }) {
   const repository = catalog.repository;
 
@@ -231,11 +292,13 @@ function RepositoryWorkspaceApp({
         journal={journal}
         todo={todo}
         navigation={navigation}
+        onConsumeWorkspaceNoteDestination={onConsumeWorkspaceNoteDestination}
         onActiveActivityChange={onActiveActivityChange}
         session={session}
         systemRepositories={systemRepositories}
         systemSessions={systemSessions}
         systems={systems}
+        workspaceNoteDestination={workspaceNoteDestination}
       />
     );
   }
@@ -278,21 +341,53 @@ function EmptyWorkspaceApp({
   journal,
   todo,
   navigation,
+  onConsumeWorkspaceNoteDestination: _onConsumeWorkspaceNoteDestination,
   onActiveActivityChange,
   systemRepositories,
   systemSessions,
   systems,
+  workspaceNoteDestination,
 }: {
   activeActivityId: ActivityId;
   catalog: RepositoryCatalogApplication;
   journal: JournalApplication;
   todo: TodoApplication;
   navigation: ReturnType<typeof useRepositoryNavigation>;
+  onConsumeWorkspaceNoteDestination: (requestId: number) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
   systemRepositories: RepositoryApplication["systems"]["repositories"];
   systemSessions: RepositoryApplication["systems"]["sessions"];
   systems: SystemCatalogApplication;
+  workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
 }) {
+  const handlingWorkspaceRequestRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const destination = workspaceNoteDestination;
+
+    if (!destination ||
+        handlingWorkspaceRequestRef.current === destination.requestId ||
+        catalog.state.status !== "ready" ||
+        !catalog.state.repositories.some(
+          ({ id }) => id === destination.repositoryId,
+        )) {
+      return;
+    }
+    handlingWorkspaceRequestRef.current = destination.requestId;
+    let mounted = true;
+
+    void routeJournalWorkspaceNoteDestinationWithoutSession(
+      destination,
+      catalog.selectRepository,
+    ).catch(() => {
+      if (mounted) {
+        handlingWorkspaceRequestRef.current = null;
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [catalog, workspaceNoteDestination]);
   const repository = createRepositoryApplication({
     catalog,
     navigation,
@@ -333,6 +428,9 @@ export function AppRoot() {
   );
   const systems = useSystemRepositoryCatalog(systemRuntime.catalog);
   const navigation = useRepositoryNavigation();
+  const nextWorkspaceNoteRequestIdRef = useRef(1);
+  const [workspaceNoteDestination, setWorkspaceNoteDestination] =
+    useState<PendingWorkspaceNoteDestination | null>(null);
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
   const journalDescriptor = findSystemDescriptor(systems, "system-journal");
@@ -362,7 +460,27 @@ export function AppRoot() {
     () => createBrowserJournalApplicationServices(),
     [],
   );
+  const journalReferenceResolver = useMemo(
+    () => createJournalWorkspaceReferenceResolver(repositoryRuntime.catalog),
+    [repositoryRuntime.catalog],
+  );
+  const openWorkspaceNote = useCallback(
+    (destination: JournalWorkspaceNoteDestination) => {
+      const requestId = nextWorkspaceNoteRequestIdRef.current;
+
+      nextWorkspaceNoteRequestIdRef.current += 1;
+      setWorkspaceNoteDestination({ ...destination, requestId });
+    },
+    [],
+  );
+  const consumeWorkspaceNoteDestination = useCallback((requestId: number) => {
+    setWorkspaceNoteDestination((current) =>
+      current?.requestId === requestId ? null : current
+    );
+  }, []);
   const journal = useJournalApplication({
+    openWorkspaceNote,
+    referenceResolver: journalReferenceResolver,
     services: journalServices,
     session: journalSession,
   });
@@ -394,10 +512,12 @@ export function AppRoot() {
     journal,
     todo,
     navigation,
+    onConsumeWorkspaceNoteDestination: consumeWorkspaceNoteDestination,
     onActiveActivityChange: setActiveActivityId,
     systemRepositories,
     systemSessions,
     systems,
+    workspaceNoteDestination,
   };
 
   return catalog.repository ? (

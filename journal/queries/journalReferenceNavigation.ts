@@ -10,7 +10,6 @@ import {
   createJournalEntryBodyProjection,
   type JournalEntryId,
 } from "../model/journalContent.ts";
-import { journalCtnSyntaxProfileV1 } from "../syntax/journalSyntaxV1.ts";
 
 export type JournalReferenceNavigationTarget = {
   text: string;
@@ -35,7 +34,7 @@ function projectCanonicalLineToBodyLine(
   if (!parsed) {
     return 1;
   }
-  return createJournalEntryBodyProjection(parsed.entry)
+  return createJournalEntryBodyProjection(parsed.entry, index.syntaxProfile)
     .projectCanonicalLineNumber(canonicalLineNumber);
 }
 
@@ -74,7 +73,7 @@ export function resolveJournalReferenceNavigation({
   return parsed?.document.blocks
     .filter(
       (block) =>
-        block.type !== journalCtnSyntaxProfileV1.titleRule.type &&
+        block.type !== index.syntaxProfile.titleRule.type &&
         normalizeCtnReferenceText(block.text) === normalizedTarget,
     )
     .map((block) => ({

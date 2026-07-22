@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { projectSystemRepositoryRuntimeIssues } from "../../../src/application/repository/projectSystemRepositoryIssues";
 import type { SystemRepositorySession } from "../../../src/application/repository/useSystemRepositorySession";
+import { createEmptySystemRepositoryContent } from "../../../contracts/system-repository/parseRepository";
 
 type SessionState = Pick<SystemRepositorySession, "state">;
 
@@ -69,9 +70,7 @@ describe("system repository runtime issue projection", () => {
         { status: "ready" }
       >["persistence"],
     ): Extract<SystemRepositorySession["state"], { status: "ready" }> => {
-      const content = purpose === "system-journal"
-        ? { entries: [], purpose, schemaVersion: 1 as const }
-        : { collections: [], purpose, schemaVersion: 1 as const };
+      const content = createEmptySystemRepositoryContent(purpose);
 
       return {
         content,

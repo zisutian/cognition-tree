@@ -17,7 +17,7 @@ const olderJanuaryEntry = {
   createdAt: "2026-01-02T02:04:05.000Z",
   id: "journal-entry-00000000-0000-4000-8000-000000000002" as const,
   isActive: false,
-  title: "2026-01-02 10:04:05",
+  title: "2026-01-02-0002",
   updatedAt: "2026-01-02T02:04:05.000Z",
 };
 
@@ -25,7 +25,7 @@ const decemberEntry = {
   createdAt: "2025-12-31T15:04:05.000Z",
   id: "journal-entry-00000000-0000-4000-8000-000000000003" as const,
   isActive: false,
-  title: "2025-12-31 23:04:05",
+  title: "2025-12-31-0001",
   updatedAt: "2025-12-31T15:04:05.000Z",
 };
 

@@ -5,6 +5,7 @@ import type {
   JournalContent,
   JournalEntryId,
 } from "../../../journal/model/journalContent";
+import { createEmptyJournalContent } from "../../../journal/model/journalContent";
 import {
   consumeJournalFocusRequest,
   createJournalFocusRequest,
@@ -27,11 +28,7 @@ function blockId(index: number) {
 }
 
 function createEmptyContent(): JournalContent {
-  return {
-    entries: [],
-    purpose: "system-journal",
-    schemaVersion: 1,
-  };
+  return createEmptyJournalContent();
 }
 
 function createServices({

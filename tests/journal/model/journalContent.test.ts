@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
+import { deleteJournalEntry } from "../../../journal/commands/journalCommands";
 import { readCtnCanonicalTitleHeader } from "../../../ctn/parser/parseCtnDocument";
 import {
   formatJournalEntryTitle,
@@ -20,11 +21,11 @@ import {
 describe("journal content", () => {
   it("formats immutable titles with the creation-time ISO offset direction", () => {
     expect(
-      formatJournalEntryTitle("2026-07-18T00:00:01.250Z", 480),
-    ).toBe("2026-07-18 08:00:01");
+      formatJournalEntryTitle("2026-07-18T00:00:01.250Z", 480, 1),
+    ).toBe("2026-07-18-0001");
     expect(
-      formatJournalEntryTitle("2026-03-01T02:30:00.000Z", -300),
-    ).toBe("2026-02-28 21:30:00");
+      formatJournalEntryTitle("2026-03-01T02:30:00.000Z", -300, 12),
+    ).toBe("2026-02-28-0012");
 
     const date = new Date("2026-07-18T00:00:00.000Z");
     const original = date.getTimezoneOffset;
@@ -55,7 +56,7 @@ describe("journal content", () => {
     };
 
     expect(() => validateJournalContent(tampered)).toThrow(
-      /title must remain 2026-07-18 08:00:01/,
+      /title must remain 2026-07-18-0001/,
     );
   });
 
@@ -111,7 +112,7 @@ describe("journal content", () => {
     };
 
     expect(() => validateJournalContent(duplicateBlock)).toThrow(
-      /Duplicate CTN block id/,
+      /title must remain 2026-07-18-0002/,
     );
   });
 
@@ -126,6 +127,7 @@ describe("journal content", () => {
       entryIndex: 1,
       updatedAt: "2026-07-18T00:05:00.000Z",
     });
+    const deleted = deleteJournalEntry(created, created.entries[0].id);
     const tampered = tamperJournalTestEntryCreation(created, {
       createdAt: "2026-08-19T10:11:12.000Z",
       entryIndex: 1,
@@ -135,7 +137,10 @@ describe("journal content", () => {
     expect(validateJournalContent(tampered)).toBe(tampered);
     expect(validateJournalContentTransition(empty, created)).toBe(created);
     expect(validateJournalContentTransition(created, edited)).toBe(edited);
-    expect(validateJournalContentTransition(created, empty)).toBe(empty);
+    expect(validateJournalContentTransition(created, deleted)).toBe(deleted);
+    expect(() => validateJournalContentTransition(created, empty)).toThrow(
+      /daily counter .* cannot be removed/,
+    );
     expect(() => validateJournalContentTransition(edited, created)).toThrow(
       /updatedAt cannot move backwards/,
     );

@@ -31,6 +31,11 @@ import {
   type JournalActiveBodyPosition,
   type JournalFocusRequest,
 } from "./journalViewModel";
+import type {
+  JournalWorkspaceNoteDestination,
+  JournalWorkspaceReferenceResolver,
+  JournalWorkspaceReferenceResolutionState,
+} from "./journalWorkspaceReferences";
 
 type ParsedJournalState = {
   content: JournalContent;
@@ -59,9 +64,13 @@ function getEditorErrorMessage(
 }
 
 export function useJournalApplication({
+  openWorkspaceNote,
+  referenceResolver,
   services,
   session,
 }: {
+  openWorkspaceNote?: (destination: JournalWorkspaceNoteDestination) => void;
+  referenceResolver?: JournalWorkspaceReferenceResolver | null;
   services: JournalApplicationServices;
   session: JournalSystemRepositorySession;
 }): JournalApplication {
@@ -73,6 +82,8 @@ export function useJournalApplication({
     useState<JournalActiveBodyPosition | null>(null);
   const nextFocusRequestIdRef = useRef(1);
   const previousIndexRef = useRef<JournalParseIndex | null>(null);
+  const [workspaceReferences, setWorkspaceReferences] =
+    useState<JournalWorkspaceReferenceResolutionState>({ status: "idle" });
   const sessionContent = session.state.status === "ready"
     ? session.state.content
     : null;
@@ -104,6 +115,30 @@ export function useJournalApplication({
       previousIndexRef.current = parsed.index;
     }
   }, [parsed]);
+
+  useEffect(() => {
+    const references = parsed?.index.referenceGraph.workspaceReferences ?? [];
+
+    if (references.length === 0) {
+      setWorkspaceReferences({ resolutions: [], status: "ready" });
+      return;
+    }
+    if (!referenceResolver) {
+      setWorkspaceReferences({ status: "idle" });
+      return;
+    }
+    let cancelled = false;
+
+    setWorkspaceReferences({ status: "loading" });
+    void referenceResolver.resolve(references).then((resolutions) => {
+      if (!cancelled) {
+        setWorkspaceReferences({ resolutions, status: "ready" });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [parsed?.index.referenceGraph.workspaceReferences, referenceResolver]);
 
   useEffect(() => {
     if (parsed && requestedEntryId !== activeEntryId) {
@@ -217,10 +252,13 @@ export function useJournalApplication({
           focusRequest,
           index: parsed.index,
           openEntryLine,
+          openWorkspaceNote,
           persistence: readyState.persistence,
           selectEntry,
           updateActiveBodyLine,
           updateEntryBody: mutations.updateEntryBody,
+          updateSyntaxSource: mutations.updateSyntaxSource,
+          workspaceReferences,
         })
       : null,
     [
@@ -230,10 +268,12 @@ export function useJournalApplication({
       focusRequest,
       mutations,
       openEntryLine,
+      openWorkspaceNote,
       parsed,
       readyState,
       selectEntry,
       updateActiveBodyLine,
+      workspaceReferences,
     ],
   );
 

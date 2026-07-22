@@ -298,9 +298,11 @@ describe("todo application mutations", () => {
 
   it("rejects non-todo system content and invalid application clocks", () => {
     expect(() => requireTodoContent({
+      dailyCounters: [],
       entries: [],
       purpose: "system-journal",
-      schemaVersion: 1,
+      schemaVersion: 2,
+      syntaxSource: "invalid on purpose",
     })).toThrow("received non-todo content");
 
     const actions = createTodoMutationActions({

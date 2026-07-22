@@ -9,6 +9,7 @@ import {
 import type { RepositoryApplication } from "../../../../../src/application/repository/repositoryApplication";
 import type { WorkspacePersistenceState } from "../../../../../src/application/workspace/session/workspaceSessionSaveQueue";
 import { remoteRevision } from "../../session/workspaceSessionTestFixture";
+import { createEmptySystemRepositoryContent } from "../../../../../contracts/system-repository/parseRepository";
 
 function createSource(
   persistence: WorkspacePersistenceState = { status: "saved" },
@@ -25,6 +26,7 @@ function createSource(
     labelIssue: null,
   };
   const reloadSystemRepository = vi.fn(async () => undefined);
+  const journalContent = createEmptySystemRepositoryContent("system-journal");
 
   return {
     activeDescriptor: descriptor,
@@ -96,20 +98,12 @@ function createSource(
           repository: null,
           requestSync: vi.fn(),
           state: {
-            content: {
-              entries: [],
-              purpose: "system-journal",
-              schemaVersion: 1,
-            },
+            content: journalContent,
             persistence: { status: "saved" },
             purpose: "system-journal",
             snapshot: {
               conflictRevision: null,
-              content: {
-                entries: [],
-                purpose: "system-journal",
-                schemaVersion: 1,
-              },
+              content: journalContent,
               localRevision: "draft:journal",
               pendingChanges: false,
               remoteRevision: "sha256:journal",

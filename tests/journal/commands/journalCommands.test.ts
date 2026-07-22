@@ -9,9 +9,10 @@ import {
   createJournalEntry,
   deleteJournalEntry,
   updateJournalEntryBody,
+  updateJournalSyntaxSource,
 } from "../../../journal/commands/journalCommands";
 import { validateJournalContent } from "../../../journal/model/journalContent";
-import { journalCtnSyntaxProfileV1 } from "../../../journal/syntax/journalSyntaxV1";
+import { requireJournalSyntaxProfile } from "../../../journal/syntax/journalSyntax";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,
@@ -22,7 +23,7 @@ import {
 } from "../journalTestFixture";
 
 describe("journal commands", () => {
-  it("allows multiple manually created entries with the same derived title", () => {
+  it("issues stable daily sequence titles without reusing a timestamp title", () => {
     const first = appendJournalTestEntry(createEmptyJournalContent(), {
       createdAt: "2026-07-18T00:00:01.100Z",
       entryIndex: 1,
@@ -38,9 +39,13 @@ describe("journal commands", () => {
     expect(second.entries.map(({ source }) =>
       readCtnCanonicalTitleHeader(source).title
     )).toEqual([
-      "2026-07-18 08:00:01",
-      "2026-07-18 08:00:01",
+      "2026-07-18-0001",
+      "2026-07-18-0002",
     ]);
+    expect(second.dailyCounters).toEqual([{
+      date: "2026-07-18",
+      lastIssuedSequence: 2,
+    }]);
     validateJournalContent(second);
   });
 
@@ -59,13 +64,13 @@ describe("journal commands", () => {
     const afterHeader = readCtnCanonicalTitleHeader(entry.source);
     const document = parseCtnCanonicalDocument(
       entry.source,
-      journalCtnSyntaxProfileV1,
+      requireJournalSyntaxProfile(updated.syntaxSource),
     );
 
     expect(afterHeader).toEqual(beforeHeader);
     expect(entry.updatedAt).toBe("2026-07-18T01:00:00.000Z");
     expect(document.blocks.map(({ text }) => text)).toEqual([
-      "2026-07-18 08:00:01",
+      "2026-07-18-0001",
       "今日",
       "完成正文",
     ]);
@@ -89,7 +94,7 @@ describe("journal commands", () => {
     });
     const before = parseCtnCanonicalDocument(
       first.entries[0].source,
-      journalCtnSyntaxProfileV1,
+      requireJournalSyntaxProfile(first.syntaxSource),
     );
     const secondBody = "- alpha changed\n- beta";
     const second = updateJournalEntryBody(first, {
@@ -103,7 +108,7 @@ describe("journal commands", () => {
     });
     const after = parseCtnCanonicalDocument(
       second.entries[0].source,
-      journalCtnSyntaxProfileV1,
+      requireJournalSyntaxProfile(second.syntaxSource),
     );
 
     expect(after.blocks[2]?.id).toBe(before.blocks[2]?.id);
@@ -129,7 +134,7 @@ describe("journal commands", () => {
     });
     const before = parseCtnCanonicalDocument(
       first.entries[0].source,
-      journalCtnSyntaxProfileV1,
+      requireJournalSyntaxProfile(first.syntaxSource),
     );
     const second = updateJournalEntryBody(first, {
       change: {
@@ -146,7 +151,7 @@ describe("journal commands", () => {
     });
     const after = parseCtnCanonicalDocument(
       second.entries[0].source,
-      journalCtnSyntaxProfileV1,
+      requireJournalSyntaxProfile(second.syntaxSource),
     );
 
     expect(after.blocks[1]?.id).toBe(before.blocks[2]?.id);
@@ -186,5 +191,48 @@ describe("journal commands", () => {
     expect(() => deleteJournalEntry(second, journalEntryId(9))).toThrow(
       /does not exist/,
     );
+  });
+
+  it("never reuses a deleted sequence and rejects the 10000th daily entry", () => {
+    const created = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const deleted = deleteJournalEntry(created, journalEntryId(1));
+    const recreated = createJournalEntry(deleted, {
+      createBlockId: () => journalBlockId(2),
+      createdAt: "2026-07-18T00:00:02.000Z",
+      entryId: journalEntryId(2),
+      timezoneOffsetMinutes: 480,
+    }).content;
+
+    expect(readCtnCanonicalTitleHeader(recreated.entries[0].source).title)
+      .toBe("2026-07-18-0002");
+    expect(() => createJournalEntry({
+      ...recreated,
+      dailyCounters: [{
+        date: "2026-07-18",
+        lastIssuedSequence: 9_999,
+      }],
+    }, {
+      createBlockId: () => journalBlockId(3),
+      createdAt: "2026-07-18T00:00:03.000Z",
+      entryId: journalEntryId(3),
+      timezoneOffsetMinutes: 480,
+    })).toThrow(/daily limit/);
+  });
+
+  it("persists valid Journal syntax edits and rejects protected rule changes", () => {
+    const content = createEmptyJournalContent();
+    const updated = updateJournalSyntaxSource(
+      content,
+      content.syntaxSource.replace('label = "正文"', 'label = "日记正文"'),
+    );
+
+    expect(updated.syntaxSource).toContain('label = "日记正文"');
+    expect(() => updateJournalSyntaxSource(
+      updated,
+      updated.syntaxSource.replace('open = "[["', 'open = "{{"'),
+    )).toThrow(/\[\[\.\.\.\]/);
   });
 });

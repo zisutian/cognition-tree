@@ -5,9 +5,13 @@ import {
   createJournalEntryBodyProjection,
   type JournalEntryId,
 } from "../../../journal/model/journalContent";
+import type { JournalWorkspaceReferenceResolutionState } from "./journalWorkspaceReferences";
 
 export type JournalDiagnosticSeverity = "error" | "warning";
-export type JournalDiagnosticSource = "document" | "reference";
+export type JournalDiagnosticSource =
+  | "document"
+  | "reference"
+  | "workspace-reference";
 
 export type JournalDiagnostic = {
   code: string;
@@ -58,7 +62,10 @@ function createBodyLineProjector(
   if (!parsed) {
     return (lineNumber: number) => Math.max(1, Math.floor(lineNumber));
   }
-  const projection = createJournalEntryBodyProjection(parsed.entry);
+  const projection = createJournalEntryBodyProjection(
+    parsed.entry,
+    index.syntaxProfile,
+  );
 
   return (lineNumber: number) =>
     projection.projectCanonicalLineNumber(lineNumber);
@@ -142,16 +149,72 @@ export function createJournalReferenceDiagnostics(
         reference.candidateEntryIds.length,
       )
     ),
+    ...index.referenceGraph.invalidWorkspaceReferences.map((reference) => {
+      const parsed = index.getParsedEntry(reference.sourceEntryId);
+      const lineNumber = createBodyLineProjector(
+        index,
+        reference.sourceEntryId,
+      )(reference.lineNumber);
+
+      return {
+        code: "invalid-workspace-journal-reference",
+        id:
+          `journal:reference:invalid-workspace:${reference.sourceEntryId}:${reference.targetText}`,
+        locationLabel:
+          `${parsed?.title ?? reference.sourceEntryId} · L${lineNumber}`,
+        message: `跨仓日记引用“${reference.targetText}”必须使用“仓库名:笔记名”，且两部分均为可移植名称。`,
+        severity: "warning" as const,
+        source: "reference" as const,
+        target: {
+          entryId: reference.sourceEntryId,
+          kind: "journal-entry-line" as const,
+          lineNumber,
+        },
+      };
+    }),
   ];
 }
 
 export function createJournalDiagnostics(
   index: JournalParseIndex,
+  workspaceReferences: JournalWorkspaceReferenceResolutionState = {
+    status: "idle",
+  },
 ): JournalDiagnostics {
+  const workspaceDiagnostics: JournalDiagnostic[] =
+    workspaceReferences.status === "ready"
+      ? workspaceReferences.resolutions.flatMap((resolution) => {
+          if (resolution.status === "resolved") return [];
+          const lineNumber = createBodyLineProjector(
+            index,
+            resolution.reference.sourceEntryId,
+          )(resolution.reference.lineNumber);
+          const parsed = index.getParsedEntry(
+            resolution.reference.sourceEntryId,
+          );
+
+          return [{
+            code: resolution.code,
+            id:
+              `journal:workspace-reference:${resolution.code}:${resolution.reference.sourceEntryId}:${resolution.reference.targetText}`,
+            locationLabel:
+              `${parsed?.title ?? resolution.reference.sourceEntryId} · L${lineNumber}`,
+            message: resolution.message,
+            severity: "warning" as const,
+            source: "workspace-reference" as const,
+            target: {
+              entryId: resolution.reference.sourceEntryId,
+              kind: "journal-entry-line" as const,
+              lineNumber,
+            },
+          }];
+        })
+      : [];
   const diagnostics = [...new Map(
     [
       ...createJournalDocumentDiagnostics(index),
       ...createJournalReferenceDiagnostics(index),
+      ...workspaceDiagnostics,
     ].map((diagnostic) => [diagnostic.id, diagnostic]),
   ).values()].sort(compareJournalDiagnostics);
 

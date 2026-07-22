@@ -21,7 +21,7 @@ function createViewContent() {
     entryIndex: 2,
   });
   return updateJournalTestBody(content, {
-    body: "概念\n\t- 子项 [[2026-07-17 20:00:00]]",
+    body: "正文\n\t- 子项 [[2026-07-17-0001]]",
     createBlockIdStart: 10,
     entryIndex: 2,
     updatedAt: "2026-07-18T00:10:00.000Z",
@@ -64,16 +64,16 @@ describe("journal view model", () => {
     ]);
     expect(view.activeEntry).toMatchObject({
       id: journalEntryId(2),
-      title: "2026-07-18 08:00:00",
+      title: "2026-07-18-0001",
     });
     expect(view.editor.documentText).toBe(
-      "概念\n\t- 子项 [[2026-07-17 20:00:00]]",
+      "正文\n\t- 子项 [[2026-07-17-0001]]",
     );
     expect(view.editor.contentMode).toEqual({
       kind: "body",
-      title: "2026-07-18 08:00:00",
+      title: "2026-07-18-0001",
     });
-    expect(view.editor.documentText).not.toContain("2026-07-18 08:00:00");
+    expect(view.editor.documentText).not.toContain("2026-07-18-0001");
     expect(view.editor.focusTarget).toEqual({
       lineNumber: 2,
       requestId: 4,
@@ -102,7 +102,7 @@ describe("journal view model", () => {
 
     const change = {
       edits: [{ from: 0, insertedText: "更新", to: 2 }],
-      source: "更新\n\t- 子项 [[2026-07-17 20:00:00]]",
+      source: "更新\n\t- 子项 [[2026-07-17-0001]]",
     };
     view.editor.updateBody(change);
     expect(updateEntryBody).toHaveBeenCalledWith(journalEntryId(2), change);
@@ -129,7 +129,7 @@ describe("journal view model", () => {
     });
 
     const destinations = view.referenceNavigation.resolve({
-      text: "2026-07-17 20:00:00",
+      text: "2026-07-17-0001",
       type: "global-reference",
     });
 
@@ -137,7 +137,7 @@ describe("journal view model", () => {
       description: "创建 2026-07-17T12:00:00.000Z · 000001",
       entryId: journalEntryId(1),
       id: `journal-entry:${journalEntryId(1)}`,
-      label: "2026-07-17 20:00:00",
+      label: "2026-07-17-0001",
       lineNumber: 1,
     }]);
     view.referenceNavigation.navigate(destinations[0]);

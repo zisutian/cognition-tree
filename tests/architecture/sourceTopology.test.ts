@@ -96,7 +96,7 @@ describe("semantic source ownership", () => {
       })),
     ]
       .filter(({ source }) =>
-        /\b(?:legacy|migrate-v2|schemaVersion\s*:\s*2)\b/i.test(source),
+        /\b(?:legacy|migrate-v2)\b/i.test(source),
       )
       .map(({ filePath }) => filePath);
 

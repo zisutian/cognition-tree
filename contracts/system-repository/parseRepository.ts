@@ -9,7 +9,9 @@ import {
   readSystemString,
   UnsupportedSystemRepositoryVersionError,
 } from "./contractValue.ts";
+import { defaultJournalSyntaxSourceV2 } from "./defaultContent.ts";
 import type {
+  JournalDailyCounterDto,
   JournalEntryDto,
   SystemRepositoryCommitDto,
   SystemRepositoryCommitResultDto,
@@ -21,10 +23,18 @@ import type {
   TodoItemDto,
 } from "./types.ts";
 
-const journalFields = ["entries", "purpose", "schemaVersion"] as const;
+const journalFields = [
+  "dailyCounters",
+  "entries",
+  "purpose",
+  "schemaVersion",
+  "syntaxSource",
+] as const;
+const journalDailyCounterFields = ["date", "lastIssuedSequence"] as const;
 const journalEntryFields = [
   "createdAt",
   "id",
+  "sequence",
   "source",
   "timezoneOffsetMinutes",
   "updatedAt",
@@ -47,6 +57,7 @@ const uuidSuffix = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 const journalEntryIdPattern = new RegExp(`^journal-entry-${uuidSuffix}$`);
 const todoCollectionIdPattern = new RegExp(`^todo-collection-${uuidSuffix}$`);
 const todoItemIdPattern = new RegExp(`^todo-item-${uuidSuffix}$`);
+const journalDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isJournalEntryId(value: string) {
   return journalEntryIdPattern.test(value);
@@ -140,12 +151,42 @@ function parseJournalEntry(value: unknown, path: string): JournalEntryDto {
   const parsed = {
     id: readPrefixedId(entry, path, journalEntryIdPattern, "journal entry"),
     createdAt: readTimestamp(entry, "createdAt", path),
+    sequence: readJournalSequence(entry.sequence, `${path}.sequence`),
     timezoneOffsetMinutes: timezoneOffsetMinutes as number,
     updatedAt: readTimestamp(entry, "updatedAt", path),
     source: readSystemString(entry, "source", path),
   };
   assertNotBefore(parsed.updatedAt, parsed.createdAt, `${path}.updatedAt`);
   return parsed;
+}
+
+function readJournalSequence(value: unknown, path: string) {
+  if (!Number.isSafeInteger(value) || (value as number) < 1 ||
+      (value as number) > 9_999) {
+    failSystemContract(path, "expected an integer between 1 and 9999");
+  }
+  return value as number;
+}
+
+function parseJournalDailyCounter(
+  value: unknown,
+  path: string,
+): JournalDailyCounterDto {
+  const counter = readSystemObject(value, path);
+  assertExactSystemFields(counter, journalDailyCounterFields, path);
+  const date = readRequiredSystemString(counter, "date", path);
+
+  if (!journalDatePattern.test(date) ||
+      new Date(`${date}T00:00:00.000Z`).toISOString().slice(0, 10) !== date) {
+    failSystemContract(`${path}.date`, "expected canonical YYYY-MM-DD date");
+  }
+  return {
+    date,
+    lastIssuedSequence: readJournalSequence(
+      counter.lastIssuedSequence,
+      `${path}.lastIssuedSequence`,
+    ),
+  };
 }
 
 function parseTodoItem(value: unknown, path: string): TodoItemDto {
@@ -221,14 +262,31 @@ export function parseSystemRepositoryContent(
   if (expectedPurpose !== undefined && purpose !== expectedPurpose) {
     failSystemContract("$.purpose", `expected ${expectedPurpose}`);
   }
-  if (content.schemaVersion !== 1) {
-    throw new UnsupportedSystemRepositoryVersionError(
-      "$.schemaVersion",
-      content.schemaVersion,
-    );
-  }
   if (purpose === "system-journal") {
+    if (content.schemaVersion !== 2) {
+      throw new UnsupportedSystemRepositoryVersionError(
+        "$.schemaVersion",
+        content.schemaVersion,
+      );
+    }
     assertExactSystemFields(content, journalFields, "$");
+    const dates = new Set<string>();
+    const dailyCounters = readSystemArray(content, "dailyCounters", "$").map(
+      (value, index) => {
+        const counter = parseJournalDailyCounter(
+          value,
+          `$.dailyCounters[${index}]`,
+        );
+        if (dates.has(counter.date)) {
+          failSystemContract(
+            `$.dailyCounters[${index}].date`,
+            `duplicate journal counter date ${counter.date}`,
+          );
+        }
+        dates.add(counter.date);
+        return counter;
+      },
+    );
     const ids = new Set<string>();
     const entries = readSystemArray(content, "entries", "$").map((value, index) => {
       const entry = parseJournalEntry(value, `$.entries[${index}]`);
@@ -238,7 +296,19 @@ export function parseSystemRepositoryContent(
       ids.add(entry.id);
       return entry;
     });
-    return { entries, purpose, schemaVersion: 1 };
+    return {
+      dailyCounters,
+      entries,
+      purpose,
+      schemaVersion: 2,
+      syntaxSource: readSystemString(content, "syntaxSource", "$"),
+    };
+  }
+  if (content.schemaVersion !== 1) {
+    throw new UnsupportedSystemRepositoryVersionError(
+      "$.schemaVersion",
+      content.schemaVersion,
+    );
   }
   assertExactSystemFields(content, todoFields, "$");
   const collectionIds = new Set<string>();
@@ -299,6 +369,12 @@ export function createEmptySystemRepositoryContent(
   purpose: SystemRepositoryPurposeDto,
 ): SystemRepositoryContentDto {
   return purpose === "system-journal"
-    ? { entries: [], purpose, schemaVersion: 1 }
+    ? {
+        dailyCounters: [],
+        entries: [],
+        purpose,
+        schemaVersion: 2,
+        syntaxSource: defaultJournalSyntaxSourceV2,
+      }
     : { collections: [], purpose, schemaVersion: 1 };
 }

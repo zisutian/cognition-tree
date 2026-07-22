@@ -33,6 +33,7 @@ export function getJournalEntryMonthKey(entry: JournalEntry) {
   return formatJournalEntryTitle(
     entry.createdAt,
     entry.timezoneOffsetMinutes,
+    entry.sequence,
   ).slice(0, 7);
 }
 

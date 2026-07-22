@@ -26,17 +26,17 @@ describe("journal reference navigation", () => {
     expect(resolveJournalReferenceNavigation({
       activeEntryId: journalEntryId(2),
       index,
-      target: { text: "2026-07-17 20:00:00", type: "global-reference" },
+      target: { text: "2026-07-17-0001", type: "global-reference" },
     })).toEqual([{
       description: "创建 2026-07-17T12:00:00.000Z · 000001",
       entryId: journalEntryId(1),
       id: `journal-entry:${journalEntryId(1)}`,
-      label: "2026-07-17 20:00:00",
+      label: "2026-07-17-0001",
       lineNumber: 1,
     }]);
   });
 
-  it("distinguishes same-second Journal candidates without changing their titles", () => {
+  it("gives same-second entries independent daily sequence destinations", () => {
     let content = appendJournalTestEntry(createEmptyJournalContent(), {
       createdAt: "2026-07-18T00:00:01.100Z",
       entryIndex: 1,
@@ -46,18 +46,18 @@ describe("journal reference navigation", () => {
       createdAt: "2026-07-18T00:00:01.900Z",
       entryIndex: 2,
     });
-    const destinations = resolveJournalReferenceNavigation({
-      activeEntryId: journalEntryId(1),
-      index: createJournalParseIndex(content),
-      target: {
-        text: "2026-07-18 08:00:01",
-        type: "global-reference",
-      },
-    });
+    const index = createJournalParseIndex(content);
+    const destinations = ["2026-07-18-0001", "2026-07-18-0002"].flatMap(
+      (text) => resolveJournalReferenceNavigation({
+        activeEntryId: journalEntryId(1),
+        index,
+        target: { text, type: "global-reference" },
+      }),
+    );
 
     expect(destinations.map(({ label }) => label)).toEqual([
-      "2026-07-18 08:00:01",
-      "2026-07-18 08:00:01",
+      "2026-07-18-0001",
+      "2026-07-18-0002",
     ]);
     expect(new Set(destinations.map(({ description }) => description)).size)
       .toBe(2);
@@ -84,7 +84,7 @@ describe("journal reference navigation", () => {
       index,
       target: { text: "概念", type: "local-reference" },
     })).toEqual([{
-      description: "L1 · 顶格概念",
+      description: "L1 · 正文",
       entryId: journalEntryId(1),
       id: expect.stringContaining(`journal-block:${journalEntryId(1)}:`),
       label: "概念",

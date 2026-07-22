@@ -5,6 +5,7 @@ import {
   createJournalEntry,
   deleteJournalEntry,
   updateJournalEntryBody,
+  updateJournalSyntaxSource,
 } from "../../../journal/commands/journalCommands";
 import {
   getJournalCreationTimezoneOffsetMinutes,
@@ -66,6 +67,7 @@ export type JournalMutationActions = {
     entryId: JournalEntryId,
     change: CtnEditableSourceChange,
   ): void;
+  updateSyntaxSource(source: string): void;
 };
 
 function readBrowserRandomUuid() {
@@ -201,6 +203,14 @@ export function createJournalMutationActions({
           ),
         });
       });
+    },
+    updateSyntaxSource(source) {
+      session.updateContent((current) =>
+        updateJournalSyntaxSource(
+          requireJournalMutationContent(current),
+          source,
+        )
+      );
     },
   };
 }

@@ -6,6 +6,7 @@ import type {
   SystemRepositoryContent,
   SystemRepositoryRevision,
 } from "../../../src/storage/repository/systemRepository";
+import { createEmptySystemRepositoryContent } from "../../../contracts/system-repository/parseRepository";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -25,6 +26,7 @@ function journalEntry(index: number) {
   return {
     createdAt: `2026-07-18T00:00:0${index}.000Z`,
     id: `journal-entry-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    sequence: index,
     source: `entry ${index}`,
     timezoneOffsetMinutes: 480,
     updatedAt: `2026-07-18T00:00:0${index}.000Z`,
@@ -32,7 +34,21 @@ function journalEntry(index: number) {
 }
 
 function emptyJournal(): SystemRepositoryContent {
-  return { entries: [], purpose: "system-journal", schemaVersion: 1 };
+  return createEmptySystemRepositoryContent("system-journal");
+}
+
+function appendJournalEntry(
+  current: SystemRepositoryContent,
+  index: number,
+): SystemRepositoryContent {
+  if (current.purpose !== "system-journal") {
+    throw new Error("unexpected purpose");
+  }
+  return {
+    ...current,
+    dailyCounters: [{ date: "2026-07-18", lastIssuedSequence: index }],
+    entries: [...current.entries, journalEntry(index)],
+  };
 }
 
 async function settleLoad() {
@@ -97,20 +113,8 @@ describe("system repository session controller", () => {
     controller.start();
     await settleLoad();
 
-    controller.updateContent((current) => ({
-      ...current,
-      entries: current.purpose === "system-journal"
-        ? [...current.entries, journalEntry(1)]
-        : [],
-      purpose: "system-journal",
-    }));
-    controller.updateContent((current) => ({
-      ...current,
-      entries: current.purpose === "system-journal"
-        ? [...current.entries, journalEntry(2)]
-        : [],
-      purpose: "system-journal",
-    }));
+    controller.updateContent((current) => appendJournalEntry(current, 1));
+    controller.updateContent((current) => appendJournalEntry(current, 2));
 
     const optimistic = controller.getState();
     expect(optimistic.status).toBe("ready");
@@ -177,11 +181,7 @@ describe("system repository session controller", () => {
 
     controller.start();
     await settleLoad();
-    controller.updateContent((current) => ({
-      ...current,
-      entries: [journalEntry(1)],
-      purpose: "system-journal",
-    }));
+    controller.updateContent((current) => appendJournalEntry(current, 1));
     const reload = controller.reload();
 
     await Promise.resolve();
@@ -254,7 +254,7 @@ describe("system repository session controller", () => {
       if (current.purpose !== "system-journal") {
         throw new Error("unexpected purpose");
       }
-      return { ...current, entries: [...current.entries, journalEntry(index)] };
+      return appendJournalEntry(current, index);
     };
 
     controller.start();

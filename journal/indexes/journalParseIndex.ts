@@ -7,13 +7,18 @@ import {
 } from "../../ctn/parser/inlineReferences.ts";
 import { parseCtnCanonicalDocument } from "../../ctn/parser/parseCtnDocument.ts";
 import type { CtnCanonicalDocument } from "../../ctn/parser/types.ts";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
+import {
+  createPortableNameKey,
+  getPortableNameIssue,
+} from "../../portable-name/portableName.ts";
 import {
   formatJournalEntryTitle,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
 } from "../model/journalContent.ts";
-import { journalCtnSyntaxProfileV1 } from "../syntax/journalSyntaxV1.ts";
+import { requireJournalSyntaxProfile } from "../syntax/journalSyntax.ts";
 
 export type ParsedJournalIndexEntry = {
   document: CtnCanonicalDocument;
@@ -25,6 +30,23 @@ export type ParsedJournalIndexEntry = {
 export type JournalParseCacheEntry = {
   document: CtnCanonicalDocument;
   source: string;
+  syntaxSource: string;
+};
+
+export type JournalWorkspaceReference = {
+  count: number;
+  lineNumber: number;
+  noteName: string;
+  repositoryName: string;
+  sourceEntryId: JournalEntryId;
+  targetText: string;
+};
+
+export type InvalidJournalWorkspaceReference = Omit<
+  JournalWorkspaceReference,
+  "noteName" | "repositoryName"
+> & {
+  reason: "invalid-note-name" | "invalid-repository-name" | "invalid-shape";
 };
 
 export type JournalReferenceGraphNode = {
@@ -59,6 +81,8 @@ export type JournalReferenceGraph = {
   edges: JournalReferenceGraphEdge[];
   nodes: JournalReferenceGraphNode[];
   unresolvedReferences: UnresolvedJournalReference[];
+  invalidWorkspaceReferences: InvalidJournalWorkspaceReference[];
+  workspaceReferences: JournalWorkspaceReference[];
 };
 
 export type JournalParseIndex = {
@@ -67,6 +91,7 @@ export type JournalParseIndex = {
   getParsedEntry(entryId: JournalEntryId): ParsedJournalIndexEntry | null;
   parseCache: ReadonlyMap<JournalEntryId, JournalParseCacheEntry>;
   referenceGraph: JournalReferenceGraph;
+  syntaxProfile: CtnSyntaxProfile;
   titleIndex: ReadonlyMap<string, readonly ParsedJournalIndexEntry[]>;
 };
 
@@ -86,6 +111,11 @@ function createReferenceGraph(
   const edgeCounts = new Map<string, JournalReferenceGraphEdge>();
   const unresolvedCounts = new Map<string, UnresolvedJournalReference>();
   const ambiguousCounts = new Map<string, AmbiguousJournalReference>();
+  const workspaceReferenceCounts = new Map<string, JournalWorkspaceReference>();
+  const invalidWorkspaceReferenceCounts = new Map<
+    string,
+    InvalidJournalWorkspaceReference
+  >();
 
   for (const parsed of entries) {
     for (const reference of collectCtnInlineReferences(
@@ -95,6 +125,53 @@ function createReferenceGraph(
       const targetText = normalizeCtnReferenceText(reference.text);
 
       if (!targetText) {
+        continue;
+      }
+      if (targetText.includes(":")) {
+        const segments = targetText.split(":");
+        const repositoryName = segments[0] ?? "";
+        const noteName = segments[1] ?? "";
+        const reason = segments.length !== 2 || !repositoryName || !noteName
+          ? "invalid-shape"
+          : getPortableNameIssue(repositoryName) !== null
+            ? "invalid-repository-name"
+            : getPortableNameIssue(noteName) !== null
+              ? "invalid-note-name"
+              : null;
+        const key = `${parsed.entry.id}->${targetText}`;
+
+        if (reason !== null) {
+          const current = invalidWorkspaceReferenceCounts.get(key);
+
+          invalidWorkspaceReferenceCounts.set(key, {
+            count: (current?.count ?? 0) + 1,
+            lineNumber: Math.min(
+              current?.lineNumber ?? reference.lineNumber,
+              reference.lineNumber,
+            ),
+            reason,
+            sourceEntryId: parsed.entry.id,
+            targetText,
+          });
+          continue;
+        }
+        const normalizedRepositoryName = createPortableNameKey(repositoryName);
+        const normalizedNoteName = createPortableNameKey(noteName);
+        const workspaceKey =
+          `${parsed.entry.id}->${normalizedRepositoryName}:${normalizedNoteName}`;
+        const current = workspaceReferenceCounts.get(workspaceKey);
+
+        workspaceReferenceCounts.set(workspaceKey, {
+          count: (current?.count ?? 0) + 1,
+          lineNumber: Math.min(
+            current?.lineNumber ?? reference.lineNumber,
+            reference.lineNumber,
+          ),
+          noteName,
+          repositoryName,
+          sourceEntryId: parsed.entry.id,
+          targetText,
+        });
         continue;
       }
       const targets = titleIndex.get(targetText) ?? [];
@@ -162,6 +239,8 @@ function createReferenceGraph(
       };
     }),
     unresolvedReferences: [...unresolvedCounts.values()],
+    invalidWorkspaceReferences: [...invalidWorkspaceReferenceCounts.values()],
+    workspaceReferences: [...workspaceReferenceCounts.values()],
   };
 }
 
@@ -169,18 +248,25 @@ export function createJournalParseIndex(
   content: JournalContent,
   previousIndex?: JournalParseIndex | null,
 ): JournalParseIndex {
+  const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
   const parseCache = new Map<JournalEntryId, JournalParseCacheEntry>();
   const entries = content.entries.map((entry): ParsedJournalIndexEntry => {
     const cached = previousIndex?.parseCache.get(entry.id);
-    const document = cached?.source === entry.source
+    const document = cached?.source === entry.source &&
+        cached.syntaxSource === content.syntaxSource
       ? cached.document
-      : parseCtnCanonicalDocument(entry.source, journalCtnSyntaxProfileV1);
+      : parseCtnCanonicalDocument(entry.source, syntaxProfile);
     const title = formatJournalEntryTitle(
       entry.createdAt,
       entry.timezoneOffsetMinutes,
+      entry.sequence,
     );
 
-    parseCache.set(entry.id, { document, source: entry.source });
+    parseCache.set(entry.id, {
+      document,
+      source: entry.source,
+      syntaxSource: content.syntaxSource,
+    });
     return { document, entry, source: entry.source, title };
   });
   const entryById = new Map(entries.map((entry) => [entry.entry.id, entry]));
@@ -210,6 +296,7 @@ export function createJournalParseIndex(
     },
     parseCache,
     referenceGraph,
+    syntaxProfile,
     titleIndex,
   };
 }

@@ -3,7 +3,10 @@
 import type { CtnBlockMetadata } from "../../../ctn/metadata/blockMetadata";
 import type { CtnEditableSourceChange } from "../../../ctn/metadata/textEdits";
 import type { CtnCanonicalBlock } from "../../../ctn/parser/types";
-import type { CtnSyntaxTone } from "../../../ctn/syntax/types";
+import type {
+  CtnSyntaxProfile,
+  CtnSyntaxTone,
+} from "../../../ctn/syntax/types";
 import type { JournalParseIndex } from "../../../journal/indexes/journalParseIndex";
 import {
   createJournalEntryBodyProjection,
@@ -18,12 +21,16 @@ import {
   type JournalReferenceNavigationDestination,
   type JournalReferenceNavigationTarget,
 } from "../../../journal/queries/journalReferenceNavigation";
-import { journalCtnSyntaxProfileV1 } from "../../../journal/syntax/journalSyntaxV1";
 import type { SystemRepositoryPersistenceState } from "../repository/systemRepositorySessionController";
 import {
   createJournalDiagnostics,
   type JournalDiagnostics,
 } from "./journalDiagnostics";
+import {
+  findJournalWorkspaceReferenceResolution,
+  type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceResolutionState,
+} from "./journalWorkspaceReferences";
 
 export type JournalFocusRequest = {
   entryId: JournalEntryId;
@@ -110,7 +117,7 @@ export type JournalViewModel = {
       rootCount: number;
       totalBlocks: number;
     };
-    syntaxProfile: typeof journalCtnSyntaxProfileV1;
+    syntaxProfile: CtnSyntaxProfile;
     updateBody: (change: CtnEditableSourceChange) => void;
   };
   groups: JournalMonthGroupView[];
@@ -120,11 +127,15 @@ export type JournalViewModel = {
   };
   referenceNavigation: {
     navigate: (
-      destination: JournalReferenceNavigationDestination,
+      destination:
+        | JournalReferenceNavigationDestination
+        | JournalWorkspaceNoteDestination,
     ) => void;
     resolve: (
       target: JournalReferenceNavigationTarget,
-    ) => JournalReferenceNavigationDestination[];
+    ) => Array<
+      JournalReferenceNavigationDestination | JournalWorkspaceNoteDestination
+    >;
   };
   outline: {
     activeBlock: JournalOutlineNode | null;
@@ -133,6 +144,11 @@ export type JournalViewModel = {
   };
   persistence: SystemRepositoryPersistenceState;
   selectEntry: (entryId: JournalEntryId) => void;
+  syntax: {
+    profile: CtnSyntaxProfile;
+    source: string;
+    updateSource: (source: string) => void;
+  };
 };
 
 type JournalViewModelInput = {
@@ -147,12 +163,15 @@ type JournalViewModelInput = {
   deleteEntry: (entryId: JournalEntryId) => void;
   consumeFocusRequest: (requestId: number) => void;
   openEntryLine: (entryId: JournalEntryId, lineNumber: number) => void;
+  openWorkspaceNote?: (destination: JournalWorkspaceNoteDestination) => void;
   selectEntry: (entryId: JournalEntryId) => void;
   updateActiveBodyLine: (lineNumber: number) => void;
   updateEntryBody: (
     entryId: JournalEntryId,
     change: CtnEditableSourceChange,
   ) => void;
+  updateSyntaxSource?: (source: string) => void;
+  workspaceReferences?: JournalWorkspaceReferenceResolutionState;
 };
 
 function clampOffset(offset: number, textLength: number) {
@@ -239,12 +258,13 @@ type PendingOutlineProjection = {
 function createJournalOutlineNodes(
   roots: CtnCanonicalBlock[],
   projectLineNumber: (lineNumber: number) => number,
+  titleType: string,
 ) {
   const projectedByBlock = new Map<CtnCanonicalBlock, JournalOutlineNode>();
   const pending: PendingOutlineProjection[] = [];
 
   for (let index = roots.length - 1; index >= 0; index -= 1) {
-    if (roots[index].type !== journalCtnSyntaxProfileV1.titleRule.type) {
+    if (roots[index].type !== titleType) {
       pending.push({ block: roots[index], visited: false });
     }
   }
@@ -345,16 +365,19 @@ export function createJournalViewModel({
   focusRequest,
   index,
   openEntryLine,
+  openWorkspaceNote = () => undefined,
   persistence,
   selectEntry,
   updateActiveBodyLine,
   updateEntryBody,
+  updateSyntaxSource = () => undefined,
+  workspaceReferences = { status: "idle" },
 }: JournalViewModelInput): JournalViewModel {
   const activeParsed = activeEntryId
     ? index.getParsedEntry(activeEntryId)
     : null;
   const activeProjection = activeParsed
-    ? createJournalEntryBodyProjection(activeParsed.entry)
+    ? createJournalEntryBodyProjection(activeParsed.entry, index.syntaxProfile)
     : null;
   const projectLineNumber = (lineNumber: number) =>
     activeProjection?.projectCanonicalLineNumber(lineNumber) ?? lineNumber;
@@ -362,16 +385,17 @@ export function createJournalViewModel({
     ? createJournalOutlineNodes(
         activeParsed.document.roots,
         projectLineNumber,
+        index.syntaxProfile.titleRule.type,
       )
     : [];
   const activeLineNumber = activeBodyPosition?.entryId === activeEntryId
     ? activeBodyPosition.lineNumber
     : null;
   const bodyBlocks = activeParsed?.document.blocks.filter(
-    ({ type }) => type !== journalCtnSyntaxProfileV1.titleRule.type,
+    ({ type }) => type !== index.syntaxProfile.titleRule.type,
   ) ?? [];
   const bodyRoots = activeParsed?.document.roots.filter(
-    ({ type }) => type !== journalCtnSyntaxProfileV1.titleRule.type,
+    ({ type }) => type !== index.syntaxProfile.titleRule.type,
   ) ?? [];
 
   return {
@@ -385,7 +409,7 @@ export function createJournalViewModel({
       : null,
     createEntry,
     deleteEntry,
-    diagnostics: createJournalDiagnostics(index),
+    diagnostics: createJournalDiagnostics(index, workspaceReferences),
     editor: {
       contentMode: {
         kind: "body",
@@ -407,7 +431,7 @@ export function createJournalViewModel({
         rootCount: bodyRoots.length,
         totalBlocks: bodyBlocks.length,
       },
-      syntaxProfile: journalCtnSyntaxProfileV1,
+      syntaxProfile: index.syntaxProfile,
       updateBody(change) {
         if (activeEntryId) {
           updateEntryBody(activeEntryId, change);
@@ -438,16 +462,29 @@ export function createJournalViewModel({
     },
     referenceNavigation: {
       navigate(destination) {
-        openEntryLine(destination.entryId, destination.lineNumber);
+        if ("repositoryId" in destination) {
+          openWorkspaceNote(destination);
+        } else {
+          openEntryLine(destination.entryId, destination.lineNumber);
+        }
       },
       resolve(target) {
-        return activeEntryId
-          ? resolveJournalReferenceNavigation({
+        if (!activeEntryId) return [];
+        const workspaceResolution = target.type === "global-reference"
+          ? findJournalWorkspaceReferenceResolution(
+              workspaceReferences,
+              activeEntryId,
+              target.text.trim().replace(/\s+/g, " "),
+            )
+          : null;
+
+        return workspaceResolution?.status === "resolved"
+          ? [workspaceResolution.destination]
+          : resolveJournalReferenceNavigation({
               activeEntryId,
               index,
               target,
-            })
-          : [];
+            });
       },
     },
     outline: {
@@ -463,5 +500,10 @@ export function createJournalViewModel({
     },
     persistence,
     selectEntry,
+    syntax: {
+      profile: index.syntaxProfile,
+      source: content.syntaxSource,
+      updateSource: updateSyntaxSource,
+    },
   };
 }

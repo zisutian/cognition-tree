@@ -9,6 +9,12 @@ import {
 import { parseSystemRepositoryCatalog } from "../../../../contracts/system-repository/parseCatalog";
 import type { SystemRepositoryCatalogDto } from "../../../../contracts/system-repository/types";
 import {
+  currentSystemRepositoryStorageEpochByPurpose,
+  initialSystemRepositoryStorageEpochByPurpose,
+  resolveSystemRepositoryStorageEpochs,
+  type SystemRepositoryStorageEpochByPurpose,
+} from "../../../../contracts/system-repository/storageEpoch";
+import {
   VersionedRepositoryBackendConflictError,
   VersionedRepositoryLocalConflictError,
 } from "../../repository/versionedRepository";
@@ -31,10 +37,11 @@ import {
 
 export const browserSystemRepositoryDatabaseName =
   "cognition-tree.system-repositories";
-const databaseVersion = 1;
+const databaseVersion = 2;
 const localStateStoreName = "local-states-v1";
 const remoteStateStoreName = "browser-remotes-v1";
 const catalogStoreName = "catalog-v1";
+const epochStoreName = "storage-epochs-v1";
 
 type SystemCache = VersionedRepositoryCache<
   SystemRepositoryContent,
@@ -54,6 +61,11 @@ type IndexedRemoteState = {
   content: unknown;
   purpose: SystemRepositoryPurpose;
   revision: unknown;
+};
+
+type IndexedEpochState = {
+  epoch: number;
+  purpose: SystemRepositoryPurpose;
 };
 
 function requestResult<Result>(request: IDBRequest<Result>) {
@@ -98,8 +110,69 @@ function openDatabase(indexedDb: IDBFactory) {
     if (!database.objectStoreNames.contains(catalogStoreName)) {
       database.createObjectStore(catalogStoreName);
     }
+    if (!database.objectStoreNames.contains(epochStoreName)) {
+      database.createObjectStore(epochStoreName, { keyPath: "purpose" });
+    }
   });
   return requestResult(request);
+}
+
+function parseStoredEpoch(
+  value: unknown,
+  purpose: SystemRepositoryPurpose,
+): number | null {
+  if (value === undefined) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new SystemRepositoryContractError(
+      "$.storageEpoch",
+      "expected an epoch record",
+    );
+  }
+  const state = value as Partial<IndexedEpochState>;
+  if (
+    state.purpose !== purpose ||
+    !Number.isSafeInteger(state.epoch) ||
+    (state.epoch ?? 0) < 1
+  ) {
+    throw new SystemRepositoryContractError(
+      "$.storageEpoch",
+      "invalid epoch record",
+    );
+  }
+  return state.epoch!;
+}
+
+function localStateBelongsToPurpose(
+  value: unknown,
+  purpose: SystemRepositoryPurpose,
+) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const state = value as Partial<IndexedLocalState>;
+  if (
+    state.content &&
+    typeof state.content === "object" &&
+    !Array.isArray(state.content) &&
+    (state.content as { purpose?: unknown }).purpose === purpose
+  ) {
+    return true;
+  }
+  return typeof state.identity === "string" &&
+    (state.identity === `browser-system:${purpose}` ||
+      state.identity.includes(`#system:${purpose}#`));
+}
+
+function systemRepositoryPurposeFromIdentity(
+  identity: string,
+): SystemRepositoryPurpose {
+  for (const purpose of ["system-journal", "system-todo"] as const) {
+    if (
+      identity === `browser-system:${purpose}` ||
+      identity.includes(`#system:${purpose}#`)
+    ) {
+      return purpose;
+    }
+  }
+  throw new Error(`Invalid system repository cache identity: ${identity}`);
 }
 
 function isLocalRevision(value: unknown): value is SystemLocalDraftRevision {
@@ -156,7 +229,9 @@ function parseRemoteState(
 }
 
 function createIndexedDbCache(
-  database: Promise<IDBDatabase>,
+  databaseForPurpose: (
+    purpose: SystemRepositoryPurpose,
+  ) => Promise<IDBDatabase>,
   validateContent: SystemRepositoryContentValidator,
   validateTransition: SystemRepositoryTransitionValidator,
 ): SystemCache {
@@ -174,7 +249,9 @@ function createIndexedDbCache(
       identity,
     }) {
       const revision = parseSystemRepositoryRevision(committedRemoteRevision);
-      const db = await database;
+      const db = await databaseForPurpose(
+        systemRepositoryPurposeFromIdentity(identity),
+      );
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
       const state = await readState(transaction, identity);
@@ -200,7 +277,7 @@ function createIndexedDbCache(
       const parsed = parseSystemRepositorySnapshot(snapshot);
 
       validateContent(parsed.content);
-      const db = await database;
+      const db = await databaseForPurpose(parsed.content.purpose);
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
       const existing = await readState(transaction, identity);
@@ -223,7 +300,9 @@ function createIndexedDbCache(
       return structuredClone(result);
     },
     async load(identity) {
-      const db = await database;
+      const db = await databaseForPurpose(
+        systemRepositoryPurposeFromIdentity(identity),
+      );
       const transaction = db.transaction(localStateStoreName, "readonly");
       const completion = transactionComplete(transaction);
       const state = await readState(transaction, identity);
@@ -233,7 +312,9 @@ function createIndexedDbCache(
     },
     async recordConflict({ currentRemoteRevision, identity }) {
       const revision = parseSystemRepositoryRevision(currentRemoteRevision);
-      const db = await database;
+      const db = await databaseForPurpose(
+        systemRepositoryPurposeFromIdentity(identity),
+      );
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
       const state = await readState(transaction, identity);
@@ -250,7 +331,9 @@ function createIndexedDbCache(
       return structuredClone(result);
     },
     async remove(identity) {
-      const db = await database;
+      const db = await databaseForPurpose(
+        systemRepositoryPurposeFromIdentity(identity),
+      );
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
 
@@ -266,7 +349,7 @@ function createIndexedDbCache(
       const parsed = parseSystemRepositorySnapshot(snapshot);
 
       validateContent(parsed.content);
-      const db = await database;
+      const db = await databaseForPurpose(parsed.content.purpose);
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
       const current = await readState(transaction, identity);
@@ -297,7 +380,7 @@ function createIndexedDbCache(
       const parsedContent = parseSystemRepositoryContent(content);
 
       validateContent(parsedContent);
-      const db = await database;
+      const db = await databaseForPurpose(parsedContent.purpose);
       const transaction = db.transaction(localStateStoreName, "readwrite");
       const completion = transactionComplete(transaction);
       const current = await readState(transaction, identity);
@@ -367,16 +450,21 @@ export type BrowserSystemRepositoryStorage = {
 export function createBrowserSystemRepositoryStorage(
   indexedDb: IDBFactory,
   {
+    expectedEpochByPurpose = currentSystemRepositoryStorageEpochByPurpose,
     validateContent,
     validateTransition,
   }: {
+    expectedEpochByPurpose?: SystemRepositoryStorageEpochByPurpose;
     validateContent: SystemRepositoryContentValidator;
     validateTransition: SystemRepositoryTransitionValidator;
   },
 ): BrowserSystemRepositoryStorage {
-  const database = openDatabase(indexedDb);
+  const expectedEpochs = resolveSystemRepositoryStorageEpochs(
+    expectedEpochByPurpose,
+  );
+  const openedDatabase = openDatabase(indexedDb);
 
-  void database.catch(() => undefined);
+  void openedDatabase.catch(() => undefined);
   const emptySnapshot = async (purpose: SystemRepositoryPurpose) => {
     const content = createEmptySystemRepositoryContent(purpose);
 
@@ -386,9 +474,98 @@ export function createBrowserSystemRepositoryStorage(
       revision: await createSystemRepositoryRevision(content),
     };
   };
+  const initializePurposeEpoch = async (
+    database: IDBDatabase,
+    purpose: SystemRepositoryPurpose,
+  ) => {
+    const expectedEpoch = expectedEpochs[purpose];
+    const fallback = await emptySnapshot(purpose);
+    const transaction = database.transaction(
+      [
+        epochStoreName,
+        remoteStateStoreName,
+        localStateStoreName,
+        catalogStoreName,
+      ],
+      "readwrite",
+    );
+    const completion = transactionComplete(transaction);
+    const epochStore = transaction.objectStore(epochStoreName);
+    const storedEpoch = parseStoredEpoch(
+      await requestResult(epochStore.get(purpose)),
+      purpose,
+    );
+
+    if (storedEpoch === expectedEpoch) {
+      await completion;
+      return;
+    }
+    if (storedEpoch !== null && storedEpoch > expectedEpoch) {
+      await completion;
+      throw new UnsupportedSystemRepositoryVersionError(
+        "$.storageEpoch",
+        storedEpoch,
+      );
+    }
+    if (
+      storedEpoch === null &&
+      expectedEpoch === initialSystemRepositoryStorageEpochByPurpose[purpose]
+    ) {
+      epochStore.put({ epoch: expectedEpoch, purpose });
+      await completion;
+      return;
+    }
+
+    const localStore = transaction.objectStore(localStateStoreName);
+    const valuesRequest = localStore.getAll();
+    const keysRequest = localStore.getAllKeys();
+    const [values, keys] = await Promise.all([
+      requestResult(valuesRequest),
+      requestResult(keysRequest),
+    ]);
+
+    values.forEach((value, index) => {
+      if (localStateBelongsToPurpose(value, purpose)) {
+        localStore.delete(keys[index]!);
+      }
+    });
+    transaction.objectStore(remoteStateStoreName).put({
+      ...fallback,
+      purpose,
+    });
+    transaction.objectStore(catalogStoreName).clear();
+    epochStore.put({ epoch: expectedEpoch, purpose });
+    await completion;
+  };
+  const initializedDatabaseByPurpose = new Map<
+    SystemRepositoryPurpose,
+    Promise<IDBDatabase>
+  >();
+  const databaseForPurpose = (purpose: SystemRepositoryPurpose) => {
+    const existing = initializedDatabaseByPurpose.get(purpose);
+
+    if (existing) return existing;
+    const initialized = openedDatabase.then(async (database) => {
+      await initializePurposeEpoch(database, purpose);
+      return database;
+    });
+
+    void initialized.catch(() => undefined);
+    initializedDatabaseByPurpose.set(purpose, initialized);
+    return initialized;
+  };
+
+  // Start both independently. A future or corrupt epoch for one purpose must
+  // not make the other purpose's repository unavailable. Catalog cache reads
+  // and writes wait until both attempts settle so an older-purpose reset
+  // cannot clear a freshly saved catalog in the background.
+  const epochInitializationSettled = Promise.allSettled([
+    databaseForPurpose("system-journal"),
+    databaseForPurpose("system-todo"),
+  ]).then(() => undefined);
   const loadRemote = async (purpose: SystemRepositoryPurpose) => {
     const fallback = await emptySnapshot(purpose);
-    const db = await database;
+    const db = await databaseForPurpose(purpose);
     const transaction = db.transaction(remoteStateStoreName, "readwrite");
     const completion = transactionComplete(transaction);
     const store = transaction.objectStore(remoteStateStoreName);
@@ -415,13 +592,14 @@ export function createBrowserSystemRepositoryStorage(
 
   return {
     cache: createIndexedDbCache(
-      database,
+      databaseForPurpose,
       validateContent,
       validateTransition,
     ),
     catalogCache: {
       async load(identity) {
-        const db = await database;
+        await epochInitializationSettled;
+        const db = await openedDatabase;
         const transaction = db.transaction(catalogStoreName, "readonly");
         const completion = transactionComplete(transaction);
         const value = await requestResult(
@@ -433,7 +611,9 @@ export function createBrowserSystemRepositoryStorage(
       },
       async save(identity, catalog) {
         const parsed = parseSystemRepositoryCatalog(catalog);
-        const db = await database;
+
+        await epochInitializationSettled;
+        const db = await openedDatabase;
         const transaction = db.transaction(catalogStoreName, "readwrite");
         const completion = transactionComplete(transaction);
 
@@ -458,7 +638,7 @@ export function createBrowserSystemRepositoryStorage(
                 validated.revision,
               );
             }
-            const db = await database;
+            const db = await databaseForPurpose(purpose);
             const transaction = db.transaction(
               remoteStateStoreName,
               "readwrite",

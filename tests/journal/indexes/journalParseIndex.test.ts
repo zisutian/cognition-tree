@@ -23,7 +23,7 @@ describe("journal parse index", () => {
       timezoneOffsetMinutes: 480,
     });
     content = updateJournalTestBody(content, {
-      body: "- [[2026-07-17 20:00:00]]\n- [[普通仓库同名笔记]]",
+      body: "- [[2026-07-17-0001]]\n- [[普通仓库同名笔记]]",
       entryIndex: 2,
       updatedAt: "2026-07-18T00:10:00.000Z",
     });
@@ -45,7 +45,7 @@ describe("journal parse index", () => {
     ]);
   });
 
-  it("reports duplicate timestamp titles as ambiguous instead of rejecting them", () => {
+  it("separates qualified workspace references from journal references", () => {
     let content = appendJournalTestEntry(createEmptyJournalContent(), {
       createdAt: "2026-07-18T00:00:01.100Z",
       entryIndex: 1,
@@ -61,7 +61,7 @@ describe("journal parse index", () => {
       entryIndex: 3,
     });
     content = updateJournalTestBody(content, {
-      body: "- [[2026-07-18 08:00:01]]",
+      body: "- [[知识库:主题笔记]]",
       entryIndex: 3,
       updatedAt: "2026-07-18T00:10:00.000Z",
     });
@@ -69,9 +69,11 @@ describe("journal parse index", () => {
     const graph = createJournalParseIndex(content).referenceGraph;
 
     expect(graph.edges).toEqual([]);
-    expect(graph.ambiguousReferences).toEqual([
+    expect(graph.ambiguousReferences).toEqual([]);
+    expect(graph.workspaceReferences).toEqual([
       expect.objectContaining({
-        candidateEntryIds: [journalEntryId(1), journalEntryId(2)],
+        noteName: "主题笔记",
+        repositoryName: "知识库",
         sourceEntryId: journalEntryId(3),
       }),
     ]);

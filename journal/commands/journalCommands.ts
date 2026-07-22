@@ -13,13 +13,15 @@ import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.t
 import {
   collectJournalBlockIds,
   createJournalEntryBodyProjection,
+  formatJournalEntryDate,
   formatJournalEntryTitle,
+  journalMaximumDailySequence,
   isJournalEntryId,
   validateJournalContent,
   type JournalContent,
   type JournalEntryId,
 } from "../model/journalContent.ts";
-import { journalCtnSyntaxProfileV1 } from "../syntax/journalSyntaxV1.ts";
+import { requireJournalSyntaxProfile } from "../syntax/journalSyntax.ts";
 
 export type CreateJournalEntryInput = {
   createBlockId: () => string;
@@ -46,7 +48,10 @@ function findEntryIndex(content: JournalContent, entryId: JournalEntryId) {
 
 function getEditableBodySource(content: JournalContent, entryId: JournalEntryId) {
   const entry = content.entries[findEntryIndex(content, entryId)];
-  const projection = createJournalEntryBodyProjection(entry);
+  const projection = createJournalEntryBodyProjection(
+    entry,
+    requireJournalSyntaxProfile(content.syntaxSource),
+  );
 
   return {
     body: projection.source,
@@ -68,27 +73,53 @@ export function createJournalEntry(
     throw new Error(`Journal entry already exists: ${input.entryId}`);
   }
 
-  const title = formatJournalEntryTitle(
+  const date = formatJournalEntryDate(
     input.createdAt,
     input.timezoneOffsetMinutes,
   );
+  const lastIssuedSequence = content.dailyCounters.find(
+    (counter) => counter.date === date,
+  )?.lastIssuedSequence ?? 0;
+
+  if (lastIssuedSequence >= journalMaximumDailySequence) {
+    throw new Error(
+      `Journal date ${date} has reached the daily limit of ${journalMaximumDailySequence} entries.`,
+    );
+  }
+  const sequence = lastIssuedSequence + 1;
+  const title = formatJournalEntryTitle(
+    input.createdAt,
+    input.timezoneOffsetMinutes,
+    sequence,
+  );
+  const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
   const source = initializeCtnSourceBlockMetadata(
     `${title}\n`,
-    journalCtnSyntaxProfileV1,
+    syntaxProfile,
     {
       createdAt: input.createdAt,
       createId: input.createBlockId,
-      reservedIds: collectJournalBlockIds(content),
+      reservedIds: collectJournalBlockIds(content, syntaxProfile),
       updatedAt: input.createdAt,
     },
   );
   const next: JournalContent = {
     ...content,
+    dailyCounters: content.dailyCounters.some(
+        (counter) => counter.date === date,
+      )
+      ? content.dailyCounters.map((counter) =>
+          counter.date === date
+            ? { ...counter, lastIssuedSequence: sequence }
+            : counter
+        )
+      : [...content.dailyCounters, { date, lastIssuedSequence: sequence }],
     entries: [
       ...content.entries,
       {
         createdAt: input.createdAt,
         id: input.entryId,
+        sequence,
         source,
         timezoneOffsetMinutes: input.timezoneOffsetMinutes,
         updatedAt: input.createdAt,
@@ -107,6 +138,7 @@ export function updateJournalEntryBody(
   validateJournalContent(content);
   const entryIndex = findEntryIndex(content, input.entryId);
   const current = getEditableBodySource(content, input.entryId);
+  const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
 
   assertCtnEditableSourceChange(current.body, input.change);
   if (current.body === input.change.source) {
@@ -135,10 +167,10 @@ export function updateJournalEntryBody(
       edits,
       source: nextEditableSource,
     },
-    journalCtnSyntaxProfileV1,
+    syntaxProfile,
     {
       createId: input.createBlockId,
-      reservedIds: collectJournalBlockIds(content),
+      reservedIds: collectJournalBlockIds(content, syntaxProfile),
       timestamp: input.updatedAt,
     },
   );
@@ -158,6 +190,20 @@ export function updateJournalEntryBody(
     updatedAt: input.updatedAt,
   };
   const next = { ...content, entries };
+
+  validateJournalContent(next);
+  return next;
+}
+
+export function updateJournalSyntaxSource(
+  content: JournalContent,
+  syntaxSource: string,
+) {
+  validateJournalContent(content);
+  if (content.syntaxSource === syntaxSource) {
+    return content;
+  }
+  const next = { ...content, syntaxSource };
 
   validateJournalContent(next);
   return next;

@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  currentSystemRepositoryStorageEpochByPurpose,
+  type SystemRepositoryStorageEpochByPurpose,
+} from "../../../contracts/system-repository/storageEpoch";
 import { createBrowserSystemRepositoryCatalog } from "../adapters/browser/browserSystemRepository";
 import { createBrowserSystemRepositoryStorage } from "../adapters/browser/browserSystemRepositoryStorage";
 import { createHttpSystemRepositoryCatalog } from "../adapters/http/httpSystemRepositoryCatalog";
@@ -9,10 +13,14 @@ import {
   validateSystemRepositoryTransition,
 } from "../repository/systemRepository";
 
-export function createSystemRepositoryRuntime(): SystemRepositoryRuntime {
+export function createSystemRepositoryRuntime(
+  expectedEpochByPurpose: SystemRepositoryStorageEpochByPurpose =
+    currentSystemRepositoryStorageEpochByPurpose,
+): SystemRepositoryRuntime {
   if (import.meta.env.VITE_CTN_STORAGE_MODE === "browser") {
     return {
       catalog: createBrowserSystemRepositoryCatalog({
+        expectedEpochByPurpose,
         validateContent: validateSystemRepositoryContent,
         validateTransition: validateSystemRepositoryTransition,
       }),
@@ -20,6 +28,7 @@ export function createSystemRepositoryRuntime(): SystemRepositoryRuntime {
   }
   const persistentStorage = globalThis.indexedDB
     ? createBrowserSystemRepositoryStorage(globalThis.indexedDB, {
+        expectedEpochByPurpose,
         validateContent: validateSystemRepositoryContent,
         validateTransition: validateSystemRepositoryTransition,
       })

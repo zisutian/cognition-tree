@@ -15,6 +15,7 @@ import {
   tamperJournalTestEntryCreation,
   updateJournalTestBody,
 } from "../../../journal/journalTestFixture";
+import { createEmptySystemRepositoryContent } from "../../../../contracts/system-repository/parseRepository";
 
 function createBrowserSystemRepositoryStorage(indexedDb: IDBFactory) {
   return createBrowserSystemRepositoryStorageAdapter(indexedDb, {
@@ -59,11 +60,7 @@ function createHttpSystemRepositoryCatalog(
 
 const revisionA = `sha256:${"a".repeat(64)}` as SystemRepositoryRevision;
 const revisionB = `sha256:${"b".repeat(64)}` as SystemRepositoryRevision;
-const journalContent = {
-  entries: [],
-  purpose: "system-journal" as const,
-  schemaVersion: 1 as const,
-};
+const journalContent = createEmptySystemRepositoryContent("system-journal");
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

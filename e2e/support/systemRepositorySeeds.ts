@@ -7,7 +7,7 @@ import type {
   TodoRepositoryContentDto,
 } from "../../contracts/system-repository/types";
 import { createJournalEntry } from "../../journal/commands/journalCommands";
-import type { JournalContent } from "../../journal/model/journalContent";
+import { createEmptyJournalContent } from "../../journal/model/journalContent";
 
 const journalSnapshotEndpoint =
   "/api/system-repositories/system-journal/snapshot";
@@ -15,11 +15,7 @@ const todoSnapshotEndpoint =
   "/api/system-repositories/system-todo/snapshot";
 
 export function createEmptyJournalSeed(): JournalRepositoryContentDto {
-  return {
-    entries: [],
-    purpose: "system-journal",
-    schemaVersion: 1,
-  };
+  return createEmptyJournalContent();
 }
 
 export function createEmptyTodoSeed(): TodoRepositoryContentDto {
@@ -38,7 +34,7 @@ export function createJournalSeed({
   timezoneOffsetMinutes?: number;
 } = {}): JournalRepositoryContentDto {
   const result = createJournalEntry(
-    createEmptyJournalSeed() as JournalContent,
+    createEmptyJournalContent(),
     {
       createBlockId: () => "00000000-0000-4000-8000-000000900001",
       createdAt,

@@ -1,6 +1,9 @@
 import { createSyntaxProfileDraft } from "../../ctn/syntax/profileDraft";
 import { defaultCtnSyntaxProfile } from "../../ctn/syntax/defaultSyntaxProfile";
-import { journalCtnSyntaxProfileV1 } from "../../journal/syntax/journalSyntaxV1";
+import {
+  defaultJournalCtnSyntaxProfileV2,
+  defaultJournalSyntaxSourceV2,
+} from "../../journal/syntax/journalSyntax";
 import type { JournalViewModel } from "../../src/application/journal";
 import type { TodoViewModel } from "../../src/application/todo";
 import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
@@ -35,7 +38,7 @@ export function createView(
       activeEntry: {
         createdAt: "2026-01-02T03:04:05.000Z",
         id: "journal-entry-00000000-0000-4000-8000-000000000001",
-        title: "2026-01-02 11:04:05",
+        title: "2026-01-02-0001",
         updatedAt: "2026-01-02T03:05:00.000Z",
       },
       createEntry: () =>
@@ -48,14 +51,14 @@ export function createView(
         warningCount: 0,
       },
       editor: {
-        contentMode: { kind: "body", title: "2026-01-02 11:04:05" },
+        contentMode: { kind: "body", title: "2026-01-02-0001" },
         documentText: "",
         errorMessage: "",
         focusTarget: null,
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
         stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
-        syntaxProfile: journalCtnSyntaxProfileV1,
+        syntaxProfile: defaultJournalCtnSyntaxProfileV2,
         updateBody: () => undefined,
       },
       groups: [{
@@ -63,7 +66,7 @@ export function createView(
           createdAt: "2026-01-02T03:04:05.000Z",
           id: "journal-entry-00000000-0000-4000-8000-000000000001",
           isActive: true,
-          title: "2026-01-02 11:04:05",
+          title: "2026-01-02-0001",
           updatedAt: "2026-01-02T03:05:00.000Z",
         }],
         key: "2026-01",
@@ -84,6 +87,11 @@ export function createView(
         resolve: () => [],
       },
       selectEntry: () => undefined,
+      syntax: {
+        profile: defaultJournalCtnSyntaxProfileV2,
+        source: defaultJournalSyntaxSourceV2,
+        updateSource: () => undefined,
+      },
     },
     notes: {
       activeNote: {

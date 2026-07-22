@@ -17,8 +17,12 @@ import type {
   JournalContent,
   JournalEntryId,
 } from "../../journal/model/journalContent";
-import { formatJournalEntryTitle } from "../../journal/model/journalContent";
-import { journalCtnSyntaxProfileV1 } from "../../journal/syntax/journalSyntaxV1";
+import {
+  createEmptyJournalContent as createDomainEmptyJournalContent,
+  formatJournalEntryDate,
+  formatJournalEntryTitle,
+} from "../../journal/model/journalContent";
+import { requireJournalSyntaxProfile } from "../../journal/syntax/journalSyntax";
 
 export function journalEntryId(index: number): JournalEntryId {
   return `journal-entry-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
@@ -29,11 +33,7 @@ export function journalBlockId(index: number) {
 }
 
 export function createEmptyJournalContent(): JournalContent {
-  return {
-    entries: [],
-    purpose: "system-journal",
-    schemaVersion: 1,
-  };
+  return createDomainEmptyJournalContent();
 }
 
 export function appendJournalTestEntry(
@@ -121,7 +121,11 @@ export function tamperJournalTestEntryCreation(
     id: headerBlockId,
     updatedAt: createdAt,
   });
-  lines[1] = formatJournalEntryTitle(createdAt, timezoneOffsetMinutes);
+  lines[1] = formatJournalEntryTitle(
+    createdAt,
+    timezoneOffsetMinutes,
+    entry.sequence,
+  );
   const entries = [...content.entries];
 
   entries[entryIndexInContent] = {
@@ -131,7 +135,27 @@ export function tamperJournalTestEntryCreation(
     timezoneOffsetMinutes,
     updatedAt: createdAt,
   };
-  return { ...content, entries };
+  const date = formatJournalEntryDate(createdAt, timezoneOffsetMinutes);
+  const dailyCounters = content.dailyCounters.some(
+      (counter) => counter.date === date,
+    )
+    ? content.dailyCounters.map((counter) =>
+        counter.date === date
+          ? {
+              ...counter,
+              lastIssuedSequence: Math.max(
+                counter.lastIssuedSequence,
+                entry.sequence,
+              ),
+            }
+          : counter
+      )
+    : [
+        ...content.dailyCounters,
+        { date, lastIssuedSequence: entry.sequence },
+      ];
+
+  return { ...content, dailyCounters, entries };
 }
 
 export function tamperJournalTestBodyBlockTime(
@@ -159,7 +183,7 @@ export function tamperJournalTestBodyBlockTime(
   const entry = content.entries[entryIndexInContent];
   const document = parseCtnCanonicalDocument(
     entry.source,
-    journalCtnSyntaxProfileV1,
+    requireJournalSyntaxProfile(content.syntaxSource),
   );
   const block = document.blocks[blockIndex];
 

@@ -271,7 +271,7 @@ describe("dependency boundaries", () => {
         ).map(({ importPath }) => formatImport(filePath, importPath)),
     );
     const fixedSyntaxSource = journalModules[
-      "../../journal/syntax/journalSyntaxV1.ts"
+      "../../journal/syntax/journalSyntax.ts"
     ] ?? "";
 
     expect([
@@ -289,7 +289,7 @@ describe("dependency boundaries", () => {
         "model/journalContent.ts",
         "queries/journalQueries.ts",
         "queries/journalReferenceNavigation.ts",
-        "syntax/journalSyntaxV1.ts",
+        "syntax/journalSyntax.ts",
       ]);
   });
 

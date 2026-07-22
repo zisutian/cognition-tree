@@ -20,11 +20,16 @@ const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   reference: "引用",
   repository: "仓库",
   syntax: "语法",
+  "workspace-reference": "跨仓引用",
 };
 
 function getProblemSourceLabel(problem: UiWorkbenchProblem) {
   if (problem.target.kind === "journal-entry-line") {
-    return problem.source === "reference" ? "日记引用" : "日记";
+    return problem.source === "reference"
+      ? "日记引用"
+      : problem.source === "workspace-reference"
+        ? "跨仓引用"
+        : "日记";
   }
   return sourceLabels[problem.source];
 }

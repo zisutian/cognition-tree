@@ -1,8 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { chmod, lstat, mkdir, open, realpath } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  open,
+  realpath,
+  rename,
+  rm,
+} from "node:fs/promises";
 import path from "node:path";
+import {
+  currentSystemRepositoryStorageEpochByPurpose,
+  initialSystemRepositoryStorageEpochByPurpose,
+  resolveSystemRepositoryStorageEpochs,
+  type SystemRepositoryStorageEpochByPurpose,
+} from "../../contracts/system-repository/storageEpoch.ts";
 import {
   SystemRepositoryContractError,
   UnsupportedSystemRepositoryVersionError,
@@ -48,6 +63,7 @@ type SystemRepositoryCatalogOptions = {
     validateContent: SystemRepositoryContentValidator,
     validateTransition: SystemRepositoryTransitionValidator,
   ) => SystemRepositoryStore;
+  expectedEpochByPurpose?: SystemRepositoryStorageEpochByPurpose;
   validateContent: SystemRepositoryContentValidator;
   validateTransition: SystemRepositoryTransitionValidator;
 };
@@ -63,6 +79,7 @@ async function fsyncDirectory(directory: string) {
 
 export class SystemRepositoryCatalog {
   readonly #createStore: NonNullable<SystemRepositoryCatalogOptions["createStore"]>;
+  readonly #expectedEpochByPurpose: SystemRepositoryStorageEpochByPurpose;
   readonly #validateContent: SystemRepositoryContentValidator;
   readonly #validateTransition: SystemRepositoryTransitionValidator;
   #initialized = false;
@@ -86,6 +103,7 @@ export class SystemRepositoryCatalog {
           validateContent,
           validateTransition,
         ),
+      expectedEpochByPurpose = currentSystemRepositoryStorageEpochByPurpose,
       validateContent,
       validateTransition,
     }: SystemRepositoryCatalogOptions,
@@ -96,6 +114,9 @@ export class SystemRepositoryCatalog {
       systemRepositoryDirectoryName,
     );
     this.#createStore = createStore;
+    this.#expectedEpochByPurpose = resolveSystemRepositoryStorageEpochs(
+      expectedEpochByPurpose,
+    );
     this.#validateContent = validateContent;
     this.#validateTransition = validateTransition;
   }
@@ -187,7 +208,14 @@ export class SystemRepositoryCatalog {
       return;
     }
     const filePath = path.join(canonicalDirectory, `${purpose}.json`);
+    const epochPath = path.join(canonicalDirectory, `${purpose}.epoch`);
     try {
+      await this.#ensurePurposeEpoch(
+        filePath,
+        epochPath,
+        purpose,
+        provisionMissing,
+      );
       const stats = await lstat(filePath).catch((error: unknown) => {
         if (hasFileSystemErrorCode(error, "ENOENT")) return null;
         throw error;
@@ -281,6 +309,131 @@ export class SystemRepositoryCatalog {
       if (!hasFileSystemErrorCode(error, "EEXIST")) throw error;
     } finally {
       await handle?.close();
+    }
+  }
+
+  async #ensurePurposeEpoch(
+    filePath: string,
+    epochPath: string,
+    purpose: SystemRepositoryPurposeDto,
+    provisionMissing: boolean,
+  ) {
+    const expectedEpoch = this.#expectedEpochByPurpose[purpose];
+    const storedEpoch = await this.#readEpoch(epochPath);
+
+    if (storedEpoch === expectedEpoch) return;
+    if (storedEpoch !== null && storedEpoch > expectedEpoch) {
+      throw new UnsupportedSystemRepositoryVersionError(
+        "$.storageEpoch",
+        storedEpoch,
+      );
+    }
+    if (
+      storedEpoch === null &&
+      expectedEpoch === initialSystemRepositoryStorageEpochByPurpose[purpose]
+    ) {
+      const contentExists = await lstat(filePath).then(
+        () => true,
+        (error: unknown) => {
+          if (hasFileSystemErrorCode(error, "ENOENT")) return false;
+          throw error;
+        },
+      );
+      if (!contentExists) {
+        if (!provisionMissing) {
+          throw new RepositoryCorruptError("System repository file is missing");
+        }
+        await this.#replaceWithEmptyContent(filePath, purpose);
+      }
+      await this.#publishEpoch(epochPath, expectedEpoch);
+      return;
+    }
+    if (!provisionMissing) {
+      throw new RepositoryCorruptError(
+        "System repository storage epoch does not match",
+      );
+    }
+    await this.#replaceWithEmptyContent(filePath, purpose);
+    await this.#publishEpoch(epochPath, expectedEpoch);
+  }
+
+  async #readEpoch(epochPath: string): Promise<number | null> {
+    let handle;
+    try {
+      handle = await open(
+        epochPath,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+      );
+      const stats = await handle.stat();
+      if (!stats.isFile() || (stats.mode & 0o777) !== 0o600) {
+        throw new RepositoryCorruptError(
+          "System repository epoch permissions or type are invalid",
+        );
+      }
+      const source = await handle.readFile("utf8");
+      if (!/^[1-9][0-9]*\n$/.test(source)) {
+        throw new RepositoryCorruptError(
+          "System repository storage epoch is invalid",
+        );
+      }
+      const epoch = Number(source.slice(0, -1));
+      if (!Number.isSafeInteger(epoch)) {
+        throw new RepositoryCorruptError(
+          "System repository storage epoch is invalid",
+        );
+      }
+      return epoch;
+    } catch (error) {
+      if (hasFileSystemErrorCode(error, "ENOENT")) return null;
+      if (hasFileSystemErrorCode(error, "ELOOP")) {
+        throw new RepositoryCorruptError(
+          "System repository epoch is a symbolic link",
+        );
+      }
+      throw error;
+    } finally {
+      await handle?.close();
+    }
+  }
+
+  async #replaceWithEmptyContent(
+    filePath: string,
+    purpose: SystemRepositoryPurposeDto,
+  ) {
+    const content = createEmptySystemRepositoryContent(purpose);
+
+    this.#validateContent(content);
+    await this.#replaceFileAtomically(
+      filePath,
+      `${serializeJsonIteratively(content, { indent: 2 })}\n`,
+    );
+  }
+
+  #publishEpoch(epochPath: string, epoch: number) {
+    return this.#replaceFileAtomically(epochPath, `${epoch}\n`);
+  }
+
+  async #replaceFileAtomically(filePath: string, source: string) {
+    const temporaryPath = path.join(
+      path.dirname(filePath),
+      `.${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
+    );
+    let handle;
+    try {
+      handle = await open(
+        temporaryPath,
+        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+        0o600,
+      );
+      await handle.writeFile(source, "utf8");
+      await handle.sync();
+      await handle.close();
+      handle = undefined;
+      await rename(temporaryPath, filePath);
+      await fsyncDirectory(path.dirname(filePath));
+    } finally {
+      await handle?.close();
+      await rm(temporaryPath, { force: true });
     }
   }
 

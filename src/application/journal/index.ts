@@ -35,3 +35,14 @@ export {
   type JournalViewModel,
 } from "./journalViewModel";
 export { useJournalApplication } from "./useJournalApplication";
+export {
+  createJournalWorkspaceReferenceResolver,
+  findJournalWorkspaceReferenceResolution,
+  routeJournalWorkspaceNoteDestination,
+  routeJournalWorkspaceNoteDestinationWithoutSession,
+  type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceFaultCode,
+  type JournalWorkspaceReferenceResolution,
+  type JournalWorkspaceReferenceResolutionState,
+  type JournalWorkspaceReferenceResolver,
+} from "./journalWorkspaceReferences";

@@ -6,6 +6,7 @@ import {
   systemRepositoryLabel,
 } from "../../../../contracts/system-repository/parseCatalog";
 import { parseSystemRepositoryContent } from "../../../../contracts/system-repository/parseRepository";
+import type { SystemRepositoryStorageEpochByPurpose } from "../../../../contracts/system-repository/storageEpoch";
 import { createLocalFirstVersionedRepository } from "../../repository/resilientVersionedRepository";
 import {
   type SystemRepository,
@@ -65,6 +66,7 @@ type BrowserSystemRepositoryCatalogOptions =
     }
   | {
       storage?: undefined;
+      expectedEpochByPurpose?: SystemRepositoryStorageEpochByPurpose;
       validateContent: SystemRepositoryContentValidator;
       validateTransition: SystemRepositoryTransitionValidator;
     };
@@ -84,6 +86,9 @@ export function createBrowserSystemRepositoryCatalog(
   let storage = initialStorage;
   const resolveStorage = () => {
     storage ??= createBrowserSystemRepositoryStorage(globalThis.indexedDB, {
+      expectedEpochByPurpose: "expectedEpochByPurpose" in options
+        ? options.expectedEpochByPurpose
+        : undefined,
       validateContent,
       validateTransition,
     });

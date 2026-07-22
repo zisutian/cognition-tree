@@ -31,7 +31,7 @@ function createDiagnosticContent() {
   });
   return updateJournalTestBody(content, {
     body:
-      "[未知] 内容\n- [[不存在的日记]]\n- [[2026-07-18 08:00:01]]",
+      "[未知] 内容\n- [[不存在的日记]]\n- [[知识库:坏:名称]]",
     createBlockIdStart: 10,
     entryIndex: 3,
     updatedAt: "2026-07-18T00:10:00.000Z",
@@ -46,7 +46,7 @@ describe("journal diagnostics projection", () => {
     expect(diagnostics).toEqual([
       expect.objectContaining({
         code: "unknown-marker",
-        locationLabel: "2026-07-18 08:00:03 · L1:C1",
+        locationLabel: "2026-07-18-0003 · L1:C1",
         severity: "warning",
         source: "document",
         target: {
@@ -58,14 +58,14 @@ describe("journal diagnostics projection", () => {
     ]);
   });
 
-  it("projects unresolved and ambiguous journal references without workspace targets", () => {
+  it("projects unresolved journal and malformed workspace references", () => {
     const index = createJournalParseIndex(createDiagnosticContent());
     const diagnostics = createJournalReferenceDiagnostics(index);
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
         code: "unresolved-journal-reference",
-        locationLabel: "2026-07-18 08:00:03 · L2",
+        locationLabel: "2026-07-18-0003 · L2",
         message: "无法解析日记引用“不存在的日记”。",
         source: "reference",
         target: {
@@ -75,10 +75,8 @@ describe("journal diagnostics projection", () => {
         },
       }),
       expect.objectContaining({
-        code: "ambiguous-journal-reference",
-        locationLabel: "2026-07-18 08:00:03 · L3",
-        message:
-          "日记引用“2026-07-18 08:00:01”匹配 2 条同名日记，请选择具体目标。",
+        code: "invalid-workspace-journal-reference",
+        locationLabel: "2026-07-18-0003 · L3",
         source: "reference",
         target: {
           entryId: journalEntryId(3),
@@ -106,6 +104,41 @@ describe("journal diagnostics projection", () => {
       { lineNumber: 1, source: "document" },
       { lineNumber: 2, source: "reference" },
       { lineNumber: 3, source: "reference" },
+    ]);
+  });
+
+  it("waits for workspace resolution before projecting qualified faults", () => {
+    let content = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:00.000Z",
+      entryIndex: 1,
+    });
+    content = updateJournalTestBody(content, {
+      body: "- [[知识库:目标笔记]]",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:10:00.000Z",
+    });
+    const index = createJournalParseIndex(content);
+
+    expect(createJournalDiagnostics(index, { status: "loading" }).diagnostics)
+      .toEqual([]);
+    expect(createJournalDiagnostics(index, {
+      resolutions: [{
+        code: "note-not-found",
+        message: "找不到目标笔记",
+        reference: index.referenceGraph.workspaceReferences[0]!,
+        status: "fault",
+      }],
+      status: "ready",
+    }).diagnostics).toEqual([
+      expect.objectContaining({
+        code: "note-not-found",
+        message: "找不到目标笔记",
+        source: "workspace-reference",
+        target: expect.objectContaining({
+          entryId: journalEntryId(1),
+          lineNumber: 1,
+        }),
+      }),
     ]);
   });
 });

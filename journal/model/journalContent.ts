@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { CtnCanonicalDocument } from "../../ctn/parser/types.ts";
+import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
 import {
   createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
@@ -9,16 +10,26 @@ import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../ctn/parser/parseCtnDocument.ts";
-import { journalCtnSyntaxProfileV1 } from "../syntax/journalSyntaxV1.ts";
+import {
+  defaultJournalSyntaxSourceV2,
+  parseJournalSyntaxSource,
+} from "../syntax/journalSyntax.ts";
 
 export const journalRepositoryPurpose = "system-journal" as const;
-export const journalRepositorySchemaVersion = 1 as const;
+export const journalRepositorySchemaVersion = 2 as const;
+export const journalMaximumDailySequence = 9_999;
 
 export type JournalEntryId = `journal-entry-${string}`;
+
+export type JournalDailyCounter = {
+  date: string;
+  lastIssuedSequence: number;
+};
 
 export type JournalEntry = {
   id: JournalEntryId;
   createdAt: string;
+  sequence: number;
   timezoneOffsetMinutes: number;
   updatedAt: string;
   source: string;
@@ -30,6 +41,8 @@ export type JournalEntryValue = Omit<JournalEntry, "id"> & { id: string };
 export type JournalContent = {
   purpose: typeof journalRepositoryPurpose;
   schemaVersion: typeof journalRepositorySchemaVersion;
+  syntaxSource: string;
+  dailyCounters: JournalDailyCounter[];
   entries: JournalEntry[];
 };
 
@@ -45,6 +58,7 @@ export type ParsedJournalEntry = {
 
 const entryIdPattern =
   /^journal-entry-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const journalDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export class JournalContentValidationError extends Error {
   constructor(message: string) {
@@ -66,6 +80,24 @@ function assertCanonicalTimestamp(value: string, label: string) {
   }
 }
 
+function assertJournalSequence(value: number, label: string) {
+  if (!Number.isSafeInteger(value) || value < 1 ||
+      value > journalMaximumDailySequence) {
+    throw new JournalContentValidationError(
+      `${label} must be an integer between 1 and ${journalMaximumDailySequence}.`,
+    );
+  }
+}
+
+function assertJournalDate(value: string, label: string) {
+  if (!journalDatePattern.test(value) ||
+      new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) !== value) {
+    throw new JournalContentValidationError(
+      `${label} must be a canonical YYYY-MM-DD date.`,
+    );
+  }
+}
+
 export function isJournalEntryId(value: string): value is JournalEntryId {
   return entryIdPattern.test(value);
 }
@@ -74,7 +106,7 @@ export function getJournalCreationTimezoneOffsetMinutes(date: Date) {
   return -date.getTimezoneOffset();
 }
 
-export function formatJournalEntryTitle(
+export function formatJournalEntryDate(
   createdAt: string,
   timezoneOffsetMinutes: number,
 ) {
@@ -91,12 +123,25 @@ export function formatJournalEntryTitle(
 
   const localTimestamp =
     Date.parse(createdAt) + timezoneOffsetMinutes * 60_000;
-  const localIso = new Date(localTimestamp).toISOString();
 
-  return `${localIso.slice(0, 10)} ${localIso.slice(11, 19)}`;
+  return new Date(localTimestamp).toISOString().slice(0, 10);
 }
 
-export function parseJournalEntry(entry: JournalEntryValue): ParsedJournalEntry {
+export function formatJournalEntryTitle(
+  createdAt: string,
+  timezoneOffsetMinutes: number,
+  sequence: number,
+) {
+  assertJournalSequence(sequence, "Journal entry sequence");
+  return `${formatJournalEntryDate(createdAt, timezoneOffsetMinutes)}-${String(
+    sequence,
+  ).padStart(4, "0")}`;
+}
+
+export function parseJournalEntry(
+  entry: JournalEntryValue,
+  syntaxProfile: CtnSyntaxProfile,
+): ParsedJournalEntry {
   if (!isJournalEntryId(entry.id)) {
     throw new JournalContentValidationError(
       `Invalid journal entry id: ${entry.id}`,
@@ -104,6 +149,7 @@ export function parseJournalEntry(entry: JournalEntryValue): ParsedJournalEntry 
   }
   assertCanonicalTimestamp(entry.createdAt, `Journal entry ${entry.id} createdAt`);
   assertCanonicalTimestamp(entry.updatedAt, `Journal entry ${entry.id} updatedAt`);
+  assertJournalSequence(entry.sequence, `Journal entry ${entry.id} sequence`);
   if (Date.parse(entry.updatedAt) < Date.parse(entry.createdAt)) {
     throw new JournalContentValidationError(
       `Journal entry ${entry.id} updatedAt is before createdAt.`,
@@ -113,16 +159,14 @@ export function parseJournalEntry(entry: JournalEntryValue): ParsedJournalEntry 
   const expectedTitle = formatJournalEntryTitle(
     entry.createdAt,
     entry.timezoneOffsetMinutes,
+    entry.sequence,
   );
   let document: CtnCanonicalDocument;
   let header: ReturnType<typeof readCtnCanonicalTitleHeader>;
 
   try {
     header = readCtnCanonicalTitleHeader(entry.source);
-    document = parseCtnCanonicalDocument(
-      entry.source,
-      journalCtnSyntaxProfileV1,
-    );
+    document = parseCtnCanonicalDocument(entry.source, syntaxProfile);
   } catch (error) {
     throw new JournalContentValidationError(
       `Journal entry ${entry.id} has invalid canonical CTN source: ${
@@ -174,8 +218,11 @@ export function parseJournalEntry(entry: JournalEntryValue): ParsedJournalEntry 
   return { document, entry: entry as JournalEntry, title: expectedTitle };
 }
 
-export function createJournalEntryBodyProjection(entry: JournalEntryValue) {
-  const parsed = parseJournalEntry(entry);
+export function createJournalEntryBodyProjection(
+  entry: JournalEntryValue,
+  syntaxProfile: CtnSyntaxProfile,
+) {
+  const parsed = parseJournalEntry(entry, syntaxProfile);
   const editable = createCtnEditableSourceFromDocument(
     parsed.entry.source,
     parsed.document,
@@ -207,11 +254,14 @@ export function createJournalEntryBodyProjection(entry: JournalEntryValue) {
   };
 }
 
-export function collectJournalBlockIds(content: JournalContentValue) {
+export function collectJournalBlockIds(
+  content: JournalContentValue,
+  syntaxProfile: CtnSyntaxProfile,
+) {
   const ownerByBlockId = new Map<string, JournalEntryId>();
 
   for (const entry of content.entries) {
-    const parsed = parseJournalEntry(entry);
+    const parsed = parseJournalEntry(entry, syntaxProfile);
 
     for (const block of parsed.document.blocks) {
       const existingOwner = ownerByBlockId.get(block.id);
@@ -228,6 +278,16 @@ export function collectJournalBlockIds(content: JournalContentValue) {
   return new Set(ownerByBlockId.keys());
 }
 
+export function createEmptyJournalContent(): JournalContent {
+  return {
+    dailyCounters: [],
+    entries: [],
+    purpose: journalRepositoryPurpose,
+    schemaVersion: journalRepositorySchemaVersion,
+    syntaxSource: defaultJournalSyntaxSourceV2,
+  };
+}
+
 export function validateJournalContent(
   content: JournalContentValue,
 ): JournalContent {
@@ -241,8 +301,32 @@ export function validateJournalContent(
       `Journal schema version must be ${journalRepositorySchemaVersion}.`,
     );
   }
+  const syntaxResult = parseJournalSyntaxSource(content.syntaxSource);
+
+  if (!syntaxResult.profile) {
+    throw new JournalContentValidationError(
+      `Journal syntax is invalid: ${syntaxResult.diagnostics[0]?.message ?? "unknown syntax error"}`,
+    );
+  }
+
+  const counterByDate = new Map<string, number>();
+
+  for (const counter of content.dailyCounters) {
+    assertJournalDate(counter.date, "Journal daily counter date");
+    assertJournalSequence(
+      counter.lastIssuedSequence,
+      `Journal daily counter ${counter.date}`,
+    );
+    if (counterByDate.has(counter.date)) {
+      throw new JournalContentValidationError(
+        `Duplicate journal daily counter: ${counter.date}`,
+      );
+    }
+    counterByDate.set(counter.date, counter.lastIssuedSequence);
+  }
 
   const entryIds = new Set<JournalEntryId>();
+  const issuedTitles = new Set<string>();
 
   for (const entry of content.entries) {
     if (!isJournalEntryId(entry.id)) {
@@ -256,8 +340,31 @@ export function validateJournalContent(
       );
     }
     entryIds.add(entry.id);
+    const date = formatJournalEntryDate(
+      entry.createdAt,
+      entry.timezoneOffsetMinutes,
+    );
+    const title = formatJournalEntryTitle(
+      entry.createdAt,
+      entry.timezoneOffsetMinutes,
+      entry.sequence,
+    );
+    const lastIssuedSequence = counterByDate.get(date);
+
+    if (lastIssuedSequence === undefined ||
+        lastIssuedSequence < entry.sequence) {
+      throw new JournalContentValidationError(
+        `Journal entry ${entry.id} is not covered by daily counter ${date}.`,
+      );
+    }
+    if (issuedTitles.has(title)) {
+      throw new JournalContentValidationError(
+        `Duplicate journal daily sequence: ${title}`,
+      );
+    }
+    issuedTitles.add(title);
   }
-  collectJournalBlockIds(content);
+  collectJournalBlockIds(content, syntaxResult.profile);
   return content as JournalContent;
 }
 
@@ -281,18 +388,30 @@ function assertJournalTitleHeaderUnchanged(
   }
 }
 
-/**
- * Validates invariants that require both repository generations. Entries may
- * be added or removed, but the creation identity of an entry that survives a
- * transition is permanent.
- */
+/** Validate invariants whose immutability spans repository generations. */
 export function validateJournalContentTransition(
   previousValue: JournalContentValue,
   nextValue: JournalContentValue,
 ): JournalContent {
   const previous = validateJournalContent(previousValue);
   const next = validateJournalContent(nextValue);
+  const previousProfile = parseJournalSyntaxSource(previous.syntaxSource).profile!;
+  const nextProfile = parseJournalSyntaxSource(next.syntaxSource).profile!;
   const nextById = new Map(next.entries.map((entry) => [entry.id, entry]));
+  const nextCounterByDate = new Map(
+    next.dailyCounters.map((counter) => [counter.date, counter.lastIssuedSequence]),
+  );
+
+  for (const previousCounter of previous.dailyCounters) {
+    const nextSequence = nextCounterByDate.get(previousCounter.date);
+
+    if (nextSequence === undefined ||
+        nextSequence < previousCounter.lastIssuedSequence) {
+      throw new JournalContentValidationError(
+        `Journal daily counter ${previousCounter.date} cannot be removed or move backwards.`,
+      );
+    }
+  }
 
   for (const previousEntry of previous.entries) {
     const nextEntry = nextById.get(previousEntry.id);
@@ -301,6 +420,11 @@ export function validateJournalContentTransition(
     if (previousEntry.createdAt !== nextEntry.createdAt) {
       throw new JournalContentValidationError(
         `Journal entry ${previousEntry.id} createdAt is immutable.`,
+      );
+    }
+    if (previousEntry.sequence !== nextEntry.sequence) {
+      throw new JournalContentValidationError(
+        `Journal entry ${previousEntry.id} sequence is immutable.`,
       );
     }
     if (
@@ -317,9 +441,12 @@ export function validateJournalContentTransition(
       );
     }
     assertJournalTitleHeaderUnchanged(previousEntry, nextEntry);
-    const previousDocument = parseJournalEntry(previousEntry).document;
+    const previousDocument = parseJournalEntry(
+      previousEntry,
+      previousProfile,
+    ).document;
     const nextBlocksById = new Map(
-      parseJournalEntry(nextEntry).document.blocks.map((block) => [
+      parseJournalEntry(nextEntry, nextProfile).document.blocks.map((block) => [
         block.id,
         block,
       ]),
