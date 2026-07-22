@@ -8,6 +8,7 @@ import {
   createUiDocumentDiagnostics,
   createUiReferenceDiagnostics,
   createUiSyntaxDiagnostics,
+  createUiWorkspacePortableNameDiagnostics,
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
 } from "../../../../src/application/workspace/projection/viewDiagnostics";
@@ -21,6 +22,7 @@ import {
   createInitialWorkspaceData,
   createNoteRecord,
 } from "../../../../src/workspace/model/workspaceData";
+import { createNoteTreeFolderNode } from "../../../../src/workspace/model/noteTree/create";
 import { addTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
 
 function createIndex(sources: Array<{ id: string; source: string; title: string }>) {
@@ -43,6 +45,45 @@ function createIndex(sources: Array<{ id: string; source: string; title: string 
 }
 
 describe("workbench diagnostic projection", () => {
+  it("projects persisted non-portable note and folder names without rewriting them", () => {
+    const note = createNoteRecord(
+      "note-old",
+      addTestCtnBlockMetadata("旧:标题\n正文", defaultCtnSyntaxProfile),
+    );
+    const folder = {
+      ...createNoteTreeFolderNode("folder-old", "  旧文件夹  "),
+      children: [{ kind: "note" as const, noteId: note.id }],
+    };
+    const workspace = createWorkspaceStructureIndex({
+      ...createInitialWorkspaceData(),
+      notes: [note],
+      tree: [folder],
+    });
+
+    expect(createUiWorkspacePortableNameDiagnostics(workspace)).toEqual([
+      expect.objectContaining({
+        code: "nonportable-workspace-folder-name",
+        source: "name",
+        target: {
+          entity: "folder",
+          folderId: "folder-old",
+          kind: "portable-name",
+          owner: "workspace",
+        },
+      }),
+      expect.objectContaining({
+        code: "nonportable-workspace-note-name",
+        source: "name",
+        target: {
+          entity: "note",
+          kind: "portable-name",
+          noteId: "note-old",
+          owner: "workspace",
+        },
+      }),
+    ]);
+  });
+
   it("keeps parser facts while projecting canonical lines to editor lines", () => {
     const index = createIndex([
       { id: "note-a", source: "Alpha\n\t! Unknown", title: "Alpha" },

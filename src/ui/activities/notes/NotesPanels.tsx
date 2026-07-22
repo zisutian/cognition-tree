@@ -5,7 +5,7 @@ import {
   Minimize2,
   Plus,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
 import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
 import {
@@ -21,6 +21,7 @@ import {
   TreeMoveQuickPick,
   type TreeNode,
 } from "../../shared/tree";
+import { useFeedback } from "../../shared/FeedbackProvider";
 import { useReferenceNavigation } from "../../shared/useReferenceNavigation";
 import { NoteTimeDetails } from "./NoteTimeDetails";
 
@@ -28,7 +29,61 @@ type NotesContextProps = {
   view: NotesViewModel;
 };
 
+export function submitNotesFolderCreation({
+  directory,
+  folderTitle,
+  onCreated,
+  runAction,
+}: {
+  directory: Pick<
+    NotesViewModel["directory"],
+    "activeFolderId" | "createFolder"
+  >;
+  folderTitle: string;
+  onCreated: () => void;
+  runAction: (action: () => void) => unknown;
+}) {
+  runAction(() => {
+    directory.createFolder(directory.activeFolderId, folderTitle);
+    onCreated();
+  });
+}
+
+export function findNotesTreeAncestorFolderIds(
+  nodes: NotesViewModel["directory"]["noteTree"],
+  activeNode: NotesViewModel["directory"]["activeNode"],
+) {
+  if (!activeNode) return [];
+  const pending = nodes.map((node) => ({
+    ancestors: [] as string[],
+    node,
+  })).reverse();
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+
+    if (!current) continue;
+    if (
+      (activeNode.kind === "note" && current.node.kind === "note" &&
+        current.node.noteId === activeNode.noteId) ||
+      (activeNode.kind === "folder" && current.node.kind === "folder" &&
+        current.node.folderId === activeNode.folderId)
+    ) {
+      return current.ancestors;
+    }
+    if (current.node.kind === "folder") {
+      const ancestors = [...current.ancestors, current.node.folderId];
+
+      for (let index = current.node.children.length - 1; index >= 0; index -= 1) {
+        pending.push({ ancestors, node: current.node.children[index] });
+      }
+    }
+  }
+  return [];
+}
+
 export function NotesContext({ view }: NotesContextProps) {
+  const feedback = useFeedback();
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -36,16 +91,33 @@ export function NotesContext({ view }: NotesContextProps) {
   const [folderTitle, setFolderTitle] = useState("新文件夹");
   const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
   const directory = view.directory;
+
+  useEffect(() => {
+    const ancestors = findNotesTreeAncestorFolderIds(
+      directory.noteTree,
+      directory.activeNode,
+    );
+
+    if (ancestors.length === 0) return;
+    setCollapsedFolderIds((current) => {
+      if (!ancestors.some((folderId) => current.has(folderId))) return current;
+      const next = new Set(current);
+
+      ancestors.forEach((folderId) => next.delete(folderId));
+      return next;
+    });
+  }, [directory.activeNode, directory.noteTree]);
+
   const createFolder = () => {
-    const title = folderTitle.trim();
-
-    if (!title) {
-      return;
-    }
-
-    directory.createFolder(directory.activeFolderId, title);
-    setCreatingFolder(false);
-    setFolderTitle("新文件夹");
+    submitNotesFolderCreation({
+      directory,
+      folderTitle,
+      onCreated: () => {
+        setCreatingFolder(false);
+        setFolderTitle("新文件夹");
+      },
+      runAction: (action) => feedback.runAction(action),
+    });
   };
   const renameNode = (node: TreeNode, title: string) => {
     if (node.kind === "folder") {

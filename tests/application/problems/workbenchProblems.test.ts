@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createUiWorkbenchProblems,
-  projectUiRepositoryNameConflictProblems,
+  projectUiRepositoryLabelProblems,
   projectUiRepositoryProblems,
   projectUiSystemRepositoryProblems,
 } from "../../../src/application/problems/workbenchProblems";
@@ -106,13 +106,16 @@ describe("workbench problem projection", () => {
   });
 
   it("projects ordinary name conflicts and protected system faults with distinct focus targets", () => {
-    expect(projectUiRepositoryNameConflictProblems(repositories)).toEqual([
+    expect(projectUiRepositoryLabelProblems(repositories)).toEqual([
       expect.objectContaining({
+        code: "repository-name-conflict",
         id: "repository-label-conflict:conflicted",
         locationLabel: "本地 · 日记",
         severity: "error",
         target: {
-          kind: "repository-name-conflict",
+          entity: "repository",
+          kind: "portable-name",
+          owner: "repository",
           repositoryId: "conflicted",
         },
       }),

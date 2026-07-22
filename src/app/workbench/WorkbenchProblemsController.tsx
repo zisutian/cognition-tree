@@ -33,13 +33,14 @@ type WorkbenchProblemOpenContext = {
   repositoryNavigation: RepositoryNavigation;
   workspaceNavigation: Pick<
     WorkspaceApplication["navigation"],
-    "openNoteLine" | "openSyntaxField"
+    "openNoteLine" | "openPortableName" | "openSyntaxField"
   > | null;
   journalNavigation?: {
     openEntryLine: JournalViewModel["navigation"]["openEntryLine"];
   } | null;
   todoNavigation?: {
     openCollectionLine: TodoViewModel["navigation"]["openCollectionLine"];
+    selectCollection: TodoViewModel["selectCollection"];
   } | null;
   syntaxNavigation?: {
     openSystemSyntax: (
@@ -129,13 +130,25 @@ export function openWorkbenchProblem(
       "fieldId" in problem.target ? problem.target.fieldId : "syntax-root",
     );
     context.onActiveActivityChange("syntax");
+  } else if (problem.target.kind === "portable-name") {
+    if (problem.target.owner === "workspace") {
+      context.workspaceNavigation?.openPortableName(
+        problem.target.entity === "note"
+          ? { entity: "note", noteId: problem.target.noteId }
+          : { entity: "folder", folderId: problem.target.folderId },
+      );
+      context.onActiveActivityChange("notes");
+    } else if (problem.target.owner === "todo") {
+      context.todoNavigation?.selectCollection(problem.target.collectionId);
+      context.onActiveActivityChange("todo");
+    } else {
+      context.repositoryNavigation.focusOrdinaryRepository(
+        problem.target.repositoryId,
+      );
+      context.onActiveActivityChange("repository");
+    }
   } else if (problem.target.kind === "repository-issue") {
     context.repositoryNavigation.focusOrdinaryIssue(problem.target.issueId);
-    context.onActiveActivityChange("repository");
-  } else if (problem.target.kind === "repository-name-conflict") {
-    context.repositoryNavigation.focusOrdinaryRepository(
-      problem.target.repositoryId,
-    );
     context.onActiveActivityChange("repository");
   } else {
     context.repositoryNavigation.focusSystemRepository(problem.target.purpose);
@@ -207,7 +220,12 @@ export function WorkbenchProblemsController({
     openWorkbenchProblem(problem, {
       expandPanels: workbench.expandPanels,
       journalNavigation: journal?.navigation ?? null,
-      todoNavigation: todo?.navigation ?? null,
+      todoNavigation: todo
+        ? {
+            ...todo.navigation,
+            selectCollection: todo.selectCollection,
+          }
+        : null,
       repositoryNavigation: application.repository.navigation,
       syntaxNavigation: { openSystemSyntax: onOpenSystemSyntax },
       workspaceNavigation: workspace?.navigation ?? null,

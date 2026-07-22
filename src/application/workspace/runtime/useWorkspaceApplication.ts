@@ -13,6 +13,7 @@ import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
 import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
 import type { WorkspaceAnalysis } from "../analysis/workspaceAnalysis";
 import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
+import { createUiWorkspacePortableNameDiagnostics } from "../projection/viewDiagnostics";
 
 export type WorkspaceShell = {
   errorMessage: string;
@@ -75,6 +76,10 @@ export function useWorkspaceApplication(
     indexCache: parseIndexCache,
   });
   const navigation = useWorkspaceNavigation({ selection, workspace });
+  const portableNameDiagnostics = useMemo(
+    () => createUiWorkspacePortableNameDiagnostics(workspace),
+    [workspace],
+  );
   const diagnostics = useWorkbenchDiagnostics({
     activeSyntaxFileId:
       syntax.selectedFileId === syntax.activeFileId
@@ -82,6 +87,7 @@ export function useWorkspaceApplication(
         : null,
     analysis,
     isSyntaxConfigured: syntax.isConfigured,
+    portableNameDiagnostics,
     syntaxDraft: syntax.syntaxDraft,
     syntaxDraftResult: syntax.syntaxDraftResult,
     syntaxCatalogNameConflictMessage: syntax.catalogNameConflictMessage,

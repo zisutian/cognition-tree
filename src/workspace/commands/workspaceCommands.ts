@@ -20,6 +20,7 @@ import {
   type CtnEditableSourceChange,
 } from "../../../ctn/metadata/textEdits";
 import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator";
+import { readCtnCanonicalTitleHeader } from "../../../ctn/parser/parseCtnDocument";
 import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 import { parsePortableName } from "../../../portable-name/portableName";
 import {
@@ -70,6 +71,29 @@ function assertWorkspaceFolderIdAvailable(
   if (workspace.folderEntryById.has(folderId)) {
     throw new Error(`Workspace folder already exists: ${folderId}`);
   }
+}
+
+function canonicalizeChangedWorkspaceNoteTitle(
+  previousTitle: string,
+  nextSource: string,
+  timestamp: string,
+) {
+  const nextTitle = readCtnCanonicalTitleHeader(nextSource).title;
+
+  // Existing non-portable titles remain readable and must not prevent body
+  // edits. Only a title mutation enters the stricter portable-name boundary.
+  if (nextTitle === previousTitle) {
+    return nextSource;
+  }
+
+  const canonicalTitle = parsePortableName(
+    nextTitle,
+    "Workspace note title",
+  );
+
+  return canonicalTitle === nextTitle
+    ? nextSource
+    : replaceCtnSourceTitle(nextSource, canonicalTitle, timestamp);
 }
 
 export function createWorkspaceNote(
@@ -266,14 +290,15 @@ export function updateWorkspaceNoteSource(
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
 
-  const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
+  const entry = workspace.noteEntryById.get(noteId);
 
-  if (noteIndex === undefined) {
+  if (!entry) {
     throw new Error(`Workspace note does not exist: ${noteId}`);
   }
 
+  const noteIndex = entry.noteIndex;
   const note = workspace.data.notes[noteIndex];
-  const nextSource = reconcileCtnSourceBlockMetadata(
+  const reconciledSource = reconcileCtnSourceBlockMetadata(
     note.source,
     change,
     syntaxProfile,
@@ -282,6 +307,11 @@ export function updateWorkspaceNoteSource(
       reservedIds: reservedBlockIds,
       timestamp,
     },
+  );
+  const nextSource = canonicalizeChangedWorkspaceNoteTitle(
+    entry.header.title,
+    reconciledSource,
+    timestamp,
   );
 
   return replaceWorkspaceNoteSources(workspace.data, [
@@ -297,12 +327,13 @@ export function updateWorkspaceRawNoteSource(
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
 
-  const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
+  const entry = workspace.noteEntryById.get(noteId);
 
-  if (noteIndex === undefined) {
+  if (!entry) {
     throw new Error(`Workspace note does not exist: ${noteId}`);
   }
 
+  const noteIndex = entry.noteIndex;
   const note = workspace.data.notes[noteIndex];
 
   assertCtnEditableSourceChange(note.source, change);
@@ -310,8 +341,14 @@ export function updateWorkspaceRawNoteSource(
     return workspace.data;
   }
 
+  const nextSource = canonicalizeChangedWorkspaceNoteTitle(
+    entry.header.title,
+    change.source,
+    timestamp,
+  );
+
   return replaceWorkspaceNoteSources(workspace.data, [{
     noteId,
-    source: touchCtnSourceTitleMetadata(change.source, timestamp),
+    source: touchCtnSourceTitleMetadata(nextSource, timestamp),
   }]);
 }

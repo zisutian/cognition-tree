@@ -25,7 +25,7 @@ export type UiWorkbenchRepositoryProblem = {
   code:
     | SystemRepositoryRuntimeIssue["code"]
     | WorkspaceRepositoryCatalogIssue["code"]
-    | "repository-name-conflict";
+    | `repository-name-${NonNullable<WorkspaceRepositoryDescriptor["labelIssue"]>}`;
   id: string;
   locationLabel: string;
   message: string;
@@ -35,7 +35,9 @@ export type UiWorkbenchRepositoryProblem = {
     issueId: string;
     kind: "repository-issue";
   } | {
-    kind: "repository-name-conflict";
+    entity: "repository";
+    kind: "portable-name";
+    owner: "repository";
     repositoryId: string;
   } | {
     kind: "system-repository-issue";
@@ -100,13 +102,13 @@ export function projectUiRepositoryProblems(
   }));
 }
 
-export function projectUiRepositoryNameConflictProblems(
+export function projectUiRepositoryLabelProblems(
   repositories: WorkspaceRepositoryDescriptor[],
 ): UiWorkbenchRepositoryProblem[] {
   return repositories.flatMap((repository) =>
     repository.labelIssue
       ? [{
-          code: "repository-name-conflict" as const,
+          code: `repository-name-${repository.labelIssue}` as const,
           id: `repository-label-${repository.labelIssue}:${repository.id}`,
           locationLabel:
             `${repositoryAdapterLabels[repository.adapter]} · ${repository.label}`,
@@ -118,7 +120,9 @@ export function projectUiRepositoryNameConflictProblems(
           severity: "error" as const,
           source: "repository" as const,
           target: {
-            kind: "repository-name-conflict" as const,
+            entity: "repository" as const,
+            kind: "portable-name" as const,
+            owner: "repository" as const,
             repositoryId: repository.id,
           },
         }]
@@ -156,7 +160,7 @@ export function createUiWorkbenchProblems(
   const problems: UiWorkbenchProblem[] = [
     ...diagnostics.diagnostics,
     ...projectUiRepositoryProblems(repositoryIssues),
-    ...projectUiRepositoryNameConflictProblems(repositories),
+    ...projectUiRepositoryLabelProblems(repositories),
     ...projectUiSystemRepositoryProblems(systemIssues),
   ].sort(compareProblems);
 

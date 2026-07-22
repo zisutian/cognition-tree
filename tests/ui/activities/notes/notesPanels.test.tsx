@@ -1,14 +1,78 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   NoteDetailPanel,
   NoteEditorPanel,
   NotesContext,
+  findNotesTreeAncestorFolderIds,
+  submitNotesFolderCreation,
 } from "../../../../src/ui/activities/notes/NotesPanels";
 import { NoteTimeDetails } from "../../../../src/ui/activities/notes/NoteTimeDetails";
+import { runFeedbackAction } from "../../../../src/ui/shared/FeedbackProvider";
 import { createView } from "../../viewFactory";
 
 describe("notes panels", () => {
+  it("finds every collapsed ancestor needed to reveal a selected name issue", () => {
+    const note = {
+      canDrag: true,
+      folderId: "folder-inner",
+      id: "note:note-old",
+      kind: "note" as const,
+      noteId: "note-old",
+      parentFolderId: "folder-inner",
+      title: "旧:标题",
+    };
+    const inner = {
+      canDrag: true,
+      childCount: 1,
+      children: [note],
+      folderId: "folder-inner",
+      id: "folder:folder-inner",
+      kind: "folder" as const,
+      parentFolderId: "folder-outer",
+      title: "内层",
+    };
+    const outer = {
+      canDrag: true,
+      childCount: 1,
+      children: [inner],
+      folderId: "folder-outer",
+      id: "folder:folder-outer",
+      kind: "folder" as const,
+      parentFolderId: null,
+      title: "外层",
+    };
+
+    expect(findNotesTreeAncestorFolderIds(
+      [outer],
+      { kind: "note", noteId: "note-old" },
+    )).toEqual(["folder-outer", "folder-inner"]);
+    expect(findNotesTreeAncestorFolderIds(
+      [outer],
+      { folderId: "folder-inner", kind: "folder" },
+    )).toEqual(["folder-outer"]);
+  });
+
+  it("reports folder creation errors without closing the creation form", () => {
+    const error = new Error("Workspace folder title contains unsupported characters.");
+    const notifyError = vi.fn();
+    const onCreated = vi.fn();
+    const createFolder = vi.fn(() => {
+      throw error;
+    });
+
+    submitNotesFolderCreation({
+      directory: { activeFolderId: "folder-parent", createFolder },
+      folderTitle: "bad/name",
+      onCreated,
+      runAction: (action) => runFeedbackAction(action, notifyError),
+    });
+
+    expect(createFolder).toHaveBeenCalledWith("folder-parent", "bad/name");
+    expect(notifyError).toHaveBeenCalledWith(error);
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
   it("keeps block timestamps in a compact detail view", () => {
     const markup = renderToStaticMarkup(
       <NoteTimeDetails

@@ -10,13 +10,19 @@ import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,
 } from "../../../workspace/indexes/workspaceParseIndex";
+import type { WorkspaceStructureIndex } from "../../../workspace/indexes/workspaceStructureIndex";
 import type { NoteId } from "../../../workspace/model/workspaceData";
+import { collectWorkspacePortableNameIssues } from "../../../workspace/queries/workspacePortableNameIssues";
 import {
   resolveUiSyntaxDiagnosticLocation,
   type UiSyntaxFieldId,
 } from "./viewSyntaxFields";
 
-export type UiWorkbenchDiagnosticSource = "document" | "reference" | "syntax";
+export type UiWorkbenchDiagnosticSource =
+  | "document"
+  | "name"
+  | "reference"
+  | "syntax";
 export type UiWorkbenchDiagnosticSeverity = "error" | "warning";
 
 export type UiWorkbenchDiagnosticTarget =
@@ -36,6 +42,18 @@ export type UiWorkbenchDiagnosticTarget =
       kind: "system-syntax";
       owner: "journal" | "todo";
       path: string;
+    }
+  | {
+      entity: "folder";
+      folderId: string;
+      kind: "portable-name";
+      owner: "workspace";
+    }
+  | {
+      entity: "note";
+      kind: "portable-name";
+      noteId: NoteId;
+      owner: "workspace";
     };
 
 export type UiWorkbenchDiagnostic = {
@@ -139,6 +157,41 @@ export function createUiReferenceDiagnostics(
       createDiagnostic(reference, "ambiguous", reference.candidateNoteIds.length),
     ),
   ];
+}
+
+export function createUiWorkspacePortableNameDiagnostics(
+  workspace: WorkspaceStructureIndex,
+): UiWorkbenchDiagnostic[] {
+  return collectWorkspacePortableNameIssues(workspace).map((item) => {
+    const entityLabel = item.kind === "note" ? "笔记" : "文件夹";
+    const message = item.issue === "noncanonical"
+      ? `${entityLabel}名称需要规范化，请手工重命名。`
+      : item.issue === "empty"
+        ? `${entityLabel}名称不能为空，请手工重命名。`
+        : `${entityLabel}名称包含不可移植字符，请手工重命名。`;
+
+    return {
+      code: `nonportable-workspace-${item.kind}-name`,
+      id: `portable-name:workspace:${item.kind}:${item.id}`,
+      locationLabel: `${entityLabel} · ${item.name || "（空名称）"}`,
+      message,
+      severity: "error",
+      source: "name",
+      target: item.kind === "note"
+        ? {
+            entity: "note",
+            kind: "portable-name",
+            noteId: item.id,
+            owner: "workspace",
+          }
+        : {
+            entity: "folder",
+            folderId: item.id,
+            kind: "portable-name",
+            owner: "workspace",
+          },
+    };
+  });
 }
 
 export function createUiSyntaxDiagnostics(

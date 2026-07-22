@@ -13,6 +13,10 @@ export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {
 
 export type WorkspaceSyntaxFocusRequest = UiSyntaxFocusTarget;
 
+export type WorkspacePortableNameTarget =
+  | { entity: "folder"; folderId: string }
+  | { entity: "note"; noteId: UiNoteId };
+
 export function useWorkspaceNavigation({
   selection,
   workspace,
@@ -53,6 +57,20 @@ export function useWorkspaceNavigation({
     },
     [openNoteLine, selection.activeNoteId],
   );
+  const openPortableName = useCallback(
+    (target: WorkspacePortableNameTarget) => {
+      if (target.entity === "note") {
+        if (findWorkspaceNote(workspace, target.noteId)) {
+          selection.selectNote(target.noteId);
+        }
+        return;
+      }
+      if (workspace.folderEntryById.has(target.folderId)) {
+        selection.selectFolder(target.folderId);
+      }
+    },
+    [selection.selectFolder, selection.selectNote, workspace],
+  );
   const openSyntaxField = useCallback(
     (syntaxFileId: string, fieldId: UiSyntaxFieldId) => {
       setSyntaxFocusRequest({
@@ -79,6 +97,7 @@ export function useWorkspaceNavigation({
     focusActiveNoteLine,
     noteFocusRequest,
     openNoteLine,
+    openPortableName,
     openSyntaxField,
     syntaxFocusRequest,
   };

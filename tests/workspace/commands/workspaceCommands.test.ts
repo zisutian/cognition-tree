@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCtnCanonicalDocument } from "../../../ctn/parser/parseCtnDocument";
+import { replaceCtnSourceTitle } from "../../../ctn/metadata/sourceMetadata";
 import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
 import {
   createWorkspaceFolder,
@@ -276,7 +277,7 @@ describe("workspace commands", () => {
     )).toThrow("Workspace note title contains unsupported characters");
   });
 
-  it("persists an indented title as a content diagnostic without indenting canonical metadata", () => {
+  it("canonicalizes a changed title before persisting editor source", () => {
     const workspace = createWorkspaceWithNotes();
     const note = workspace.notes[0];
     const updated = updateWorkspaceNoteSource(
@@ -295,10 +296,111 @@ describe("workspace commands", () => {
     );
 
     expect(updated.notes[0].source).toMatch(/^@ctn-block /);
-    expect(header.title).toBe("\tIndented title");
-    expect(parsed.diagnostics).toEqual([
-      expect.objectContaining({ code: "title-line-invalid" }),
-    ]);
+    expect(header.title).toBe("Indented title");
+    expect(parsed.diagnostics).toEqual([]);
+  });
+
+  it("rejects a newly invalid title from configured and raw editors", () => {
+    const workspace = createWorkspaceWithNotes();
+    const note = workspace.notes[0];
+
+    expect(() => updateWorkspaceNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      sourceChange(note, "bad:title\n概念"),
+      nextTimestamp,
+      defaultCtnSyntaxProfile,
+      () => createWorkspaceTestBlockId(900),
+      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
+    )).toThrow("Workspace note title contains unsupported characters");
+
+    const invalidRawSource = replaceCtnSourceTitle(
+      note.source,
+      "bad:title",
+      nextTimestamp,
+    );
+
+    expect(() => updateWorkspaceRawNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      {
+        edits: [{
+          from: 0,
+          insertedText: invalidRawSource,
+          to: note.source.length,
+        }],
+        source: invalidRawSource,
+      },
+      nextTimestamp,
+    )).toThrow("Workspace note title contains unsupported characters");
+  });
+
+  it("canonicalizes a changed raw title with portable Unicode and spacing", () => {
+    const workspace = createWorkspaceWithNotes();
+    const note = workspace.notes[0];
+    const proposedSource = replaceCtnSourceTitle(
+      note.source,
+      "  Cafe\u0301   标题  ",
+      nextTimestamp,
+    );
+    const updated = updateWorkspaceRawNoteSource(
+      indexWorkspace(workspace),
+      note.id,
+      {
+        edits: [{
+          from: 0,
+          insertedText: proposedSource,
+          to: note.source.length,
+        }],
+        source: proposedSource,
+      },
+      nextTimestamp,
+    );
+
+    expect(readWorkspaceNoteHeader(updated.notes[0]).title).toBe("Café 标题");
+  });
+
+  it("allows body edits while preserving an unchanged old invalid title", () => {
+    const validWorkspace = createWorkspaceWithNotes();
+    const invalidNote = createCanonicalTestNote(
+      "note-first",
+      "旧:标题\n概念",
+      { timestamp },
+    );
+    const workspace = {
+      ...validWorkspace,
+      notes: [invalidNote, ...validWorkspace.notes.slice(1)],
+    };
+    const configured = updateWorkspaceNoteSource(
+      indexWorkspace(workspace),
+      invalidNote.id,
+      sourceChange(invalidNote, "旧:标题\n概念已修改"),
+      nextTimestamp,
+      defaultCtnSyntaxProfile,
+      () => createWorkspaceTestBlockId(900),
+      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
+    );
+    const rawSource = `${invalidNote.source}\nraw body`;
+    const raw = updateWorkspaceRawNoteSource(
+      indexWorkspace(workspace),
+      invalidNote.id,
+      {
+        edits: [{
+          from: invalidNote.source.length,
+          insertedText: "\nraw body",
+          to: invalidNote.source.length,
+        }],
+        source: rawSource,
+      },
+      nextTimestamp,
+    );
+
+    expect(readWorkspaceNoteHeader(configured.notes[0]).title).toBe("旧:标题");
+    expect(readEditableTestSource(configured.notes[0].source)).toContain(
+      "概念已修改",
+    );
+    expect(readWorkspaceNoteHeader(raw.notes[0]).title).toBe("旧:标题");
+    expect(raw.notes[0].source).toContain("raw body");
   });
 
   it("moves sidebar tree nodes without a derived note-node id", () => {

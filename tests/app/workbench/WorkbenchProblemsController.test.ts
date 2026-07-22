@@ -10,6 +10,7 @@ import {
 } from "../../../src/application/workspace/projection/viewDiagnostics";
 import type { UiWorkbenchRepositoryProblem } from "../../../src/application/problems/workbenchProblems";
 import type { JournalDiagnostic } from "../../../src/application/journal";
+import type { TodoDiagnostic } from "../../../src/application/todo";
 import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
 import type { WorkspaceRepositoryCatalogIssue } from "../../../src/storage/repository/workspaceRepositoryCatalog";
 
@@ -43,7 +44,7 @@ const systemIssue: SystemRepositoryIssue = {
 const journalDiagnostic: JournalDiagnostic = {
   code: "unknown-syntax",
   id: "journal:document:journal-entry-00000000-0000-4000-8000-000000000001:unknown-syntax",
-  locationLabel: "2026-01-02 11:04:05 · L3:C1",
+  locationLabel: "2026-01-02-0001 · L3:C1",
   message: "日记正文存在未知语法。",
   severity: "error",
   source: "document",
@@ -54,6 +55,65 @@ const journalDiagnostic: JournalDiagnostic = {
   },
 };
 
+const todoDiagnostic: TodoDiagnostic = {
+  code: "missing-todo-marker",
+  id: "todo:document:todo-collection-00000000-0000-4000-8000-000000000001:missing",
+  locationLabel: "收集箱 · L2:C1",
+  message: "代办正文必须使用已配置的代办行首符号。",
+  severity: "error",
+  source: "document",
+  target: {
+    collectionId: "todo-collection-00000000-0000-4000-8000-000000000001",
+    kind: "todo-collection-line",
+    lineNumber: 2,
+  },
+};
+
+const workspaceNameDiagnostic: UiWorkbenchDiagnostic = {
+  code: "nonportable-workspace-note-name",
+  id: "portable-name:workspace:note:note-old",
+  locationLabel: "笔记 · 旧:标题",
+  message: "笔记名称包含不可移植字符，请手工重命名。",
+  severity: "error",
+  source: "name",
+  target: {
+    entity: "note",
+    kind: "portable-name",
+    noteId: "note-old",
+    owner: "workspace",
+  },
+};
+
+const todoNameDiagnostic: TodoDiagnostic = {
+  code: "nonportable-todo-collection-name",
+  id: "todo:name:todo-collection-00000000-0000-4000-8000-000000000001",
+  locationLabel: "旧:集合",
+  message: "事项集合名称包含不可移植字符，请手工重命名。",
+  severity: "error",
+  source: "name",
+  target: {
+    collectionId: "todo-collection-00000000-0000-4000-8000-000000000001",
+    entity: "collection",
+    kind: "portable-name",
+    owner: "todo",
+  },
+};
+
+const systemSyntaxDiagnostic: UiWorkbenchDiagnostic = {
+  code: "required",
+  id: "syntax:journal:required:body.label",
+  locationLabel: "日记语法 · 顶格正文 · 名称",
+  message: "顶格正文名称不能为空。",
+  severity: "error",
+  source: "syntax",
+  target: {
+    fieldId: "syntax-top-level-unmarked-rule",
+    kind: "system-syntax",
+    owner: "journal",
+    path: "body.label",
+  },
+};
+
 describe("WorkbenchProblemsController", () => {
   it("omits the global problems panel only from Settings", () => {
     expect(hasWorkbenchProblemsPanel("settings")).toBe(false);
@@ -61,6 +121,27 @@ describe("WorkbenchProblemsController", () => {
     expect(hasWorkbenchProblemsPanel("journal")).toBe(true);
     expect(hasWorkbenchProblemsPanel("repository")).toBe(true);
     expect(hasWorkbenchProblemsPanel("notes")).toBe(true);
+  });
+
+  it("shows only Todo diagnostics in Todo", () => {
+    expect(selectWorkbenchProblems({
+      activeActivityId: "todo",
+      diagnostics: createUiWorkbenchDiagnostics([diagnostic], "ready"),
+      repositories: [],
+      repositoryIssues: [repositoryIssue],
+      systemIssues: [systemIssue],
+      todoDiagnostics: {
+        diagnostics: [todoDiagnostic],
+        errorCount: 1,
+        status: "ready",
+        warningCount: 0,
+      },
+    })).toEqual({
+      errorCount: 1,
+      problems: [todoDiagnostic],
+      status: "ready",
+      warningCount: 0,
+    });
   });
 
   it("shows only Journal diagnostics in Journal and excludes them elsewhere", () => {
@@ -101,6 +182,52 @@ describe("WorkbenchProblemsController", () => {
       repositoryIssues: [repositoryIssue],
       systemIssues: [systemIssue],
     }).problems).not.toContain(journalDiagnostic);
+  });
+
+  it("uses the selected owner projection in Syntax", () => {
+    const diagnostics = createUiWorkbenchDiagnostics([diagnostic], "ready");
+
+    expect(selectWorkbenchProblems({
+      activeActivityId: "syntax",
+      diagnostics,
+      repositories: [],
+      repositoryIssues: [],
+      syntaxDiagnostics: {
+        diagnostics: [systemSyntaxDiagnostic],
+        status: "ready",
+      },
+      systemIssues: [],
+    })).toEqual({
+      errorCount: 1,
+      problems: [systemSyntaxDiagnostic],
+      status: "ready",
+      warningCount: 0,
+    });
+  });
+
+  it("selects and focuses a system syntax problem before opening Syntax", () => {
+    const openSystemSyntax = vi.fn();
+    const onActiveActivityChange = vi.fn();
+
+    openWorkbenchProblem(systemSyntaxDiagnostic, {
+      expandPanels: vi.fn(),
+      onActiveActivityChange,
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      syntaxNavigation: { openSystemSyntax },
+      workspaceNavigation: null,
+    });
+
+    expect(openSystemSyntax).toHaveBeenCalledWith(
+      "journal",
+      "syntax-top-level-unmarked-rule",
+    );
+    expect(onActiveActivityChange).toHaveBeenCalledWith("syntax");
   });
 
   it("includes repository problems only for repositories and retains diagnostics there", () => {
@@ -172,6 +299,7 @@ describe("WorkbenchProblemsController", () => {
       },
       workspaceNavigation: {
         openNoteLine: vi.fn(),
+        openPortableName: vi.fn(),
         openSyntaxField: vi.fn(),
       },
       onActiveActivityChange,
@@ -215,6 +343,7 @@ describe("WorkbenchProblemsController", () => {
       },
       workspaceNavigation: {
         openNoteLine: vi.fn(),
+        openPortableName: vi.fn(),
         openSyntaxField,
       },
       onActiveActivityChange,
@@ -261,6 +390,75 @@ describe("WorkbenchProblemsController", () => {
     expect(expandPanels).toHaveBeenCalledOnce();
   });
 
+  it("selects the Todo collection and body line before opening Todo", () => {
+    const expandPanels = vi.fn();
+    const onActiveActivityChange = vi.fn();
+    const openCollectionLine = vi.fn();
+
+    openWorkbenchProblem(todoDiagnostic, {
+      expandPanels,
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      todoNavigation: { openCollectionLine, selectCollection: vi.fn() },
+      workspaceNavigation: null,
+      onActiveActivityChange,
+    });
+
+    if (todoDiagnostic.target.kind !== "todo-collection-line") {
+      throw new Error("todo fixture must target a collection line");
+    }
+    expect(openCollectionLine).toHaveBeenCalledWith(
+      todoDiagnostic.target.collectionId,
+      todoDiagnostic.target.lineNumber,
+    );
+    expect(onActiveActivityChange).toHaveBeenCalledWith("todo");
+    expect(expandPanels).toHaveBeenCalledOnce();
+  });
+
+  it("selects portable-name owners before opening their management activity", () => {
+    const onActiveActivityChange = vi.fn();
+    const openPortableName = vi.fn();
+    const selectCollection = vi.fn();
+    const context = {
+      expandPanels: vi.fn(),
+      repositoryNavigation: {
+        consumeFocusRequest: vi.fn(),
+        focusOrdinaryIssue: vi.fn(),
+        focusOrdinaryRepository: vi.fn(),
+        focusRequest: null,
+        focusSystemRepository: vi.fn(),
+      },
+      todoNavigation: {
+        openCollectionLine: vi.fn(),
+        selectCollection,
+      },
+      workspaceNavigation: {
+        openNoteLine: vi.fn(),
+        openPortableName,
+        openSyntaxField: vi.fn(),
+      },
+      onActiveActivityChange,
+    };
+
+    openWorkbenchProblem(workspaceNameDiagnostic, context);
+    openWorkbenchProblem(todoNameDiagnostic, context);
+
+    expect(openPortableName).toHaveBeenCalledWith({
+      entity: "note",
+      noteId: "note-old",
+    });
+    expect(selectCollection).toHaveBeenCalledWith(
+      "todo-collection-00000000-0000-4000-8000-000000000001",
+    );
+    expect(onActiveActivityChange).toHaveBeenNthCalledWith(1, "notes");
+    expect(onActiveActivityChange).toHaveBeenNthCalledWith(2, "todo");
+  });
+
   it("focuses the conflicted ordinary row or protected system row before opening Repositories", () => {
     const onActiveActivityChange = vi.fn();
     const focusOrdinaryRepository = vi.fn();
@@ -286,7 +484,9 @@ describe("WorkbenchProblemsController", () => {
       severity: "error",
       source: "repository",
       target: {
-        kind: "repository-name-conflict",
+        entity: "repository",
+        kind: "portable-name",
+        owner: "repository",
         repositoryId: "primary",
       },
     }, context);

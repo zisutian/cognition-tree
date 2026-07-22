@@ -17,12 +17,19 @@ export type TodoDiagnostic = {
   locationLabel: string;
   message: string;
   severity: "error" | "warning";
-  source: "document" | "syntax";
-  target: {
-    collectionId: TodoCollectionId;
-    kind: "todo-collection-line";
-    lineNumber: number;
-  };
+  source: "document" | "name" | "syntax";
+  target:
+    | {
+        collectionId: TodoCollectionId;
+        kind: "todo-collection-line";
+        lineNumber: number;
+      }
+    | {
+        collectionId: TodoCollectionId;
+        entity: "collection";
+        kind: "portable-name";
+        owner: "todo";
+      };
 };
 
 export type TodoDiagnostics = {
@@ -89,13 +96,16 @@ export function createTodoDiagnostics(index: TodoParseIndex): TodoDiagnostics {
         code: "nonportable-todo-collection-name",
         id: `todo:name:${parsed.collection.id}`,
         locationLabel: parsed.name,
-        message: "事项集合名称包含不可移植字符，请手工重命名。",
+        message: nameIssue === "noncanonical"
+          ? "事项集合名称需要规范化，请手工重命名。"
+          : "事项集合名称包含不可移植字符，请手工重命名。",
         severity: "error",
-        source: "document",
+        source: "name",
         target: {
           collectionId: parsed.collection.id,
-          kind: "todo-collection-line",
-          lineNumber: 1,
+          entity: "collection",
+          kind: "portable-name",
+          owner: "todo",
         },
       });
     }
@@ -106,11 +116,12 @@ export function createTodoDiagnostics(index: TodoParseIndex): TodoDiagnostics {
         locationLabel: parsed.name,
         message: "事项集合名称与另一集合冲突，请手工重命名。",
         severity: "error",
-        source: "document",
+        source: "name",
         target: {
           collectionId: parsed.collection.id,
-          kind: "todo-collection-line",
-          lineNumber: 1,
+          entity: "collection",
+          kind: "portable-name",
+          owner: "todo",
         },
       });
     }

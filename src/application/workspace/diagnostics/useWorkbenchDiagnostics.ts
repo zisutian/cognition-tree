@@ -14,25 +14,37 @@ import {
 export function selectWorkbenchDiagnostics({
   analysisDiagnostics,
   isSyntaxConfigured,
+  portableNameDiagnostics,
   syntaxDiagnostics,
 }: {
   analysisDiagnostics: UiWorkbenchDiagnostics;
   isSyntaxConfigured: boolean;
+  portableNameDiagnostics: UiWorkbenchDiagnostic[];
   syntaxDiagnostics: UiWorkbenchDiagnostic[];
 }) {
   if (syntaxDiagnostics.length > 0) {
-    return createUiWorkbenchDiagnostics(syntaxDiagnostics, "ready");
+    return createUiWorkbenchDiagnostics(
+      [...syntaxDiagnostics, ...portableNameDiagnostics],
+      "ready",
+    );
   }
 
-  return isSyntaxConfigured
+  if (!isSyntaxConfigured) {
+    return createUiWorkbenchDiagnostics(portableNameDiagnostics, "ready");
+  }
+  return portableNameDiagnostics.length === 0
     ? analysisDiagnostics
-    : createUiWorkbenchDiagnostics([], "ready");
+    : createUiWorkbenchDiagnostics(
+        [...analysisDiagnostics.diagnostics, ...portableNameDiagnostics],
+        analysisDiagnostics.status,
+      );
 }
 
 export function useWorkbenchDiagnostics({
   activeSyntaxFileId,
   analysis,
   isSyntaxConfigured,
+  portableNameDiagnostics,
   syntaxCatalogNameConflictMessage,
   syntaxDraft,
   syntaxDraftResult,
@@ -40,6 +52,7 @@ export function useWorkbenchDiagnostics({
   activeSyntaxFileId: string | null;
   analysis: WorkspaceAnalysis;
   isSyntaxConfigured: boolean;
+  portableNameDiagnostics: UiWorkbenchDiagnostic[];
   syntaxCatalogNameConflictMessage: string;
   syntaxDraft: SyntaxProfileDraft;
   syntaxDraftResult: SyntaxProfileDraftBuildResult;
@@ -64,6 +77,7 @@ export function useWorkbenchDiagnostics({
   return selectWorkbenchDiagnostics({
     analysisDiagnostics: analysis.diagnostics,
     isSyntaxConfigured,
+    portableNameDiagnostics,
     syntaxDiagnostics,
   });
 }

@@ -17,6 +17,7 @@ export const problemsVirtualizationThreshold = 500;
 
 const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   document: "笔记",
+  name: "名称",
   reference: "引用",
   repository: "仓库",
   syntax: "语法",
@@ -24,6 +25,15 @@ const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
 };
 
 function getProblemSourceLabel(problem: UiWorkbenchProblem) {
+  if (problem.target.kind === "portable-name") {
+    return problem.target.owner === "todo"
+      ? "代办名称"
+      : problem.target.owner === "repository"
+        ? "仓库名称"
+        : problem.target.entity === "note"
+          ? "笔记名称"
+          : "文件夹名称";
+  }
   if (problem.target.kind === "todo-collection-line") {
     return "代办";
   }

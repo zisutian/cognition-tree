@@ -215,11 +215,21 @@ describe("Todo CTN view model", () => {
     };
     const { view } = createView(conflicted);
 
-    expect(
-      view.diagnostics.diagnostics.filter(
-        ({ code }) => code === "todo-collection-name-conflict",
-      ),
-    ).toHaveLength(2);
+    const nameDiagnostics = view.diagnostics.diagnostics.filter(
+      ({ code }) => code === "todo-collection-name-conflict",
+    );
+
+    expect(nameDiagnostics).toHaveLength(2);
+    expect(nameDiagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        source: "name",
+        target: expect.objectContaining({
+          entity: "collection",
+          kind: "portable-name",
+          owner: "todo",
+        }),
+      }),
+    ]));
   });
 
   it("shows persistence failures and conflicts", () => {
