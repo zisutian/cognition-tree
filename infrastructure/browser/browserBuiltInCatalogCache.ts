@@ -2,38 +2,28 @@
 
 import { parseBuiltInCatalog } from "../../contracts/built-ins/parseBuiltIns";
 import type { BuiltInCatalogCache } from "../persistence/builtInCatalogCache";
+import {
+  openIndexedDatabase,
+  requestResult,
+  transactionComplete,
+} from "./indexedDbPrimitives";
 
 export const browserBuiltInCatalogDatabaseName = "cognition-tree.built-ins";
 const storeName = "catalog-v1";
 
-function requestResult<Result>(request: IDBRequest<Result>) {
-  return new Promise<Result>((resolve, reject) => {
-    request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener("error", () =>
-      reject(request.error ?? new Error("IndexedDB request failed"))
-    );
-  });
-}
-
-function transactionComplete(transaction: IDBTransaction) {
-  return new Promise<void>((resolve, reject) => {
-    transaction.addEventListener("complete", () => resolve());
-    transaction.addEventListener("abort", () => reject(transaction.error));
-    transaction.addEventListener("error", () => reject(transaction.error));
-  });
-}
-
 export function createBrowserBuiltInCatalogCache(
   indexedDb: IDBFactory,
 ): BuiltInCatalogCache {
-  const request = indexedDb.open(browserBuiltInCatalogDatabaseName, 1);
-
-  request.addEventListener("upgradeneeded", () => {
-    if (!request.result.objectStoreNames.contains(storeName)) {
-      request.result.createObjectStore(storeName);
+  const opened = openIndexedDatabase(
+    indexedDb,
+    browserBuiltInCatalogDatabaseName,
+    1,
+    (database) => {
+      if (!database.objectStoreNames.contains(storeName)) {
+        database.createObjectStore(storeName);
+      }
     }
-  });
-  const opened = requestResult(request);
+  );
 
   void opened.catch(() => undefined);
   return {

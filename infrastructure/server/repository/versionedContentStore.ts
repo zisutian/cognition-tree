@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { open, rename, rm } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import type {
@@ -10,7 +9,11 @@ import type {
   VersionedContentCommitResultDto,
   VersionedContentSnapshotDto,
 } from "../../../contracts/common/versionedContent.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
+import {
+  isSecureRegularFile,
+  replaceFileDurably,
+} from "../persistence/fileSystemPersistence.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
@@ -39,15 +42,6 @@ export class VersionedContentRevisionConflictError extends Error {
     super("Versioned content changed outside the current session");
     this.name = "VersionedContentRevisionConflictError";
     this.currentRevision = currentRevision;
-  }
-}
-
-async function fsyncDirectory(directory: string) {
-  const handle = await open(directory, "r");
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
   }
 }
 
@@ -119,7 +113,7 @@ export class FileSystemVersionedContentStore<Content>
         constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
       );
       const stats = await handle.stat();
-      if (!stats.isFile() || (stats.mode & 0o777) !== 0o600) {
+      if (!isSecureRegularFile(stats)) {
         throw new RepositoryCorruptError(
           "Versioned content file permissions or type are invalid",
         );
@@ -158,27 +152,11 @@ export class FileSystemVersionedContentStore<Content>
   }
 
   async #writeContent(content: Content) {
-    const temporaryPath = path.join(
-      path.dirname(this.#filePath),
-      `.${path.basename(this.#filePath)}.${process.pid}.${randomUUID()}.tmp`,
+    await replaceFileDurably(
+      this.#filePath,
+      this.#definition.serializeContent(content),
+      { hiddenTemporaryFile: true },
     );
-    let handle;
-    try {
-      handle = await open(
-        temporaryPath,
-        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
-        0o600,
-      );
-      await handle.writeFile(this.#definition.serializeContent(content), "utf8");
-      await handle.sync();
-      await handle.close();
-      handle = undefined;
-      await rename(temporaryPath, this.#filePath);
-      await fsyncDirectory(path.dirname(this.#filePath));
-    } finally {
-      await handle?.close();
-      await rm(temporaryPath, { force: true });
-    }
   }
 
   #enqueueOperation<Result>(operation: () => Promise<Result>): Promise<Result> {

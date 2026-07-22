@@ -303,9 +303,16 @@ describe("dependency boundaries", () => {
     const allowed = new Map<string, ReadonlySet<string>>([
       ["api", new Set(["api", "repository"])],
       ["catalog", new Set(["catalog", "repository"])],
-      ["repository", new Set(["repository"])],
-      ["adapters/local", new Set(["adapters/local", "repository"])],
-      ["adapters/webdav", new Set(["adapters/webdav", "repository"])],
+      ["persistence", new Set(["persistence"])],
+      ["repository", new Set(["persistence", "repository"])],
+      [
+        "adapters/local",
+        new Set(["adapters/local", "persistence", "repository"]),
+      ],
+      [
+        "adapters/webdav",
+        new Set(["adapters/webdav", "persistence", "repository"]),
+      ],
     ]);
     const violations = Object.keys(serverModules).flatMap((filePath) => {
       if (filePath === `${prefix}index.ts`) return [];

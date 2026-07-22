@@ -14,6 +14,12 @@ import {
 } from "../../application/repository/versionedRepository";
 import type { VersionedRepositoryCache } from "../persistence/versionedRepositoryCache";
 import { createVersionedContentRevision } from "../persistence/versionedContentRevision";
+import {
+  abortTransaction,
+  openIndexedDatabase,
+  requestResult,
+  transactionComplete,
+} from "./indexedDbPrimitives";
 
 const databaseVersion = 1;
 const metaStoreName = "meta-v1";
@@ -30,47 +36,23 @@ type IndexedLocalState = {
   remoteRevision: unknown;
 };
 
-function requestResult<Result>(request: IDBRequest<Result>) {
-  return new Promise<Result>((resolve, reject) => {
-    request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener("error", () =>
-      reject(request.error ?? new Error("IndexedDB request failed"))
-    );
-  });
-}
-
-function transactionComplete(transaction: IDBTransaction) {
-  const completion = new Promise<void>((resolve, reject) => {
-    transaction.addEventListener("complete", () => resolve());
-    transaction.addEventListener("abort", () =>
-      reject(transaction.error ?? new Error("IndexedDB transaction aborted"))
-    );
-    transaction.addEventListener("error", () =>
-      reject(transaction.error ?? new Error("IndexedDB transaction failed"))
-    );
-  });
-
-  void completion.catch(() => undefined);
-  return completion;
-}
-
 function openDatabase(indexedDb: IDBFactory, databaseName: string) {
-  const request = indexedDb.open(databaseName, databaseVersion);
-
-  request.addEventListener("upgradeneeded", () => {
-    const database = request.result;
-
-    if (!database.objectStoreNames.contains(metaStoreName)) {
-      database.createObjectStore(metaStoreName);
-    }
-    if (!database.objectStoreNames.contains(remoteStoreName)) {
-      database.createObjectStore(remoteStoreName);
-    }
-    if (!database.objectStoreNames.contains(localStoreName)) {
-      database.createObjectStore(localStoreName, { keyPath: "identity" });
-    }
-  });
-  return requestResult(request);
+  return openIndexedDatabase(
+    indexedDb,
+    databaseName,
+    databaseVersion,
+    (database) => {
+      if (!database.objectStoreNames.contains(metaStoreName)) {
+        database.createObjectStore(metaStoreName);
+      }
+      if (!database.objectStoreNames.contains(remoteStoreName)) {
+        database.createObjectStore(remoteStoreName);
+      }
+      if (!database.objectStoreNames.contains(localStoreName)) {
+        database.createObjectStore(localStoreName, { keyPath: "identity" });
+      }
+    },
+  );
 }
 
 function isLocalRevision(value: unknown): value is `draft:${string}` {
@@ -251,8 +233,7 @@ export function createBrowserVersionedContentStorage<
       const current = await readLocal(transaction, identity);
 
       if (!current) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local content state does not exist: ${identity}`);
       }
       const next = {
@@ -278,8 +259,7 @@ export function createBrowserVersionedContentStorage<
       const current = await readLocal(transaction, identity);
 
       if (current) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local content state already exists: ${identity}`);
       }
       const state = {
@@ -312,8 +292,7 @@ export function createBrowserVersionedContentStorage<
       const current = await readLocal(transaction, identity);
 
       if (!current) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local content state does not exist: ${identity}`);
       }
       const next = { ...current, identity, remoteRevision: revision };
@@ -346,13 +325,11 @@ export function createBrowserVersionedContentStorage<
       const current = await readLocal(transaction, identity);
 
       if (!current) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local content state does not exist: ${identity}`);
       }
       if (current.localRevision !== expectedLocalRevision) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new VersionedRepositoryLocalConflictError(current.localRevision);
       }
       const state = {
@@ -378,25 +355,21 @@ export function createBrowserVersionedContentStorage<
       const current = await readLocal(transaction, identity);
 
       if (!current) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local content state does not exist: ${identity}`);
       }
       if (current.localRevision !== expectedLocalRevision) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new VersionedRepositoryLocalConflictError(current.localRevision);
       }
       if (!current.pendingBaseRevision && !current.remoteRevision) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error("Cannot stage content without a known remote base");
       }
       try {
         validateTransition(current.content, parsedContent);
       } catch (error) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw error;
       }
       const next = {
@@ -430,22 +403,19 @@ export function createBrowserVersionedContentStorage<
         const value = await requestResult(store.get(remoteKey));
 
         if (value === undefined) {
-          transaction.abort();
-          await completion.catch(() => undefined);
+          await abortTransaction(transaction, completion);
           throw new WireContractError(databaseName, "$.remote", "missing remote content");
         }
         const current = codec.parseSnapshot(value);
         if (current.revision !== baseRevision) {
-          transaction.abort();
-          await completion.catch(() => undefined);
+          await abortTransaction(transaction, completion);
           throw new VersionedRepositoryBackendConflictError(current.revision);
         }
         try {
           validateContent(current.content);
           validateTransition(current.content, content);
         } catch (error) {
-          transaction.abort();
-          await completion.catch(() => undefined);
+          await abortTransaction(transaction, completion);
           throw error;
         }
         store.put({ content, revision }, remoteKey);

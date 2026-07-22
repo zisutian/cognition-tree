@@ -20,8 +20,8 @@ import {
   RepositoryCatalogError,
 } from "../../repository/repositoryCatalog.ts";
 import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
-import { fsyncDirectory } from "./atomicWrite.ts";
-import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
+import { fsyncDirectory } from "../../persistence/fileSystemPersistence.ts";
+import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,

@@ -101,4 +101,30 @@ describe("semantic source ownership", () => {
 
     expect(v2Owners).toEqual([]);
   });
+
+  it("has one owner for browser and filesystem persistence primitives", () => {
+    const indexedDbOwners = Object.entries(infrastructureModules)
+      .filter(([, source]) =>
+        /function (?:requestResult|transactionComplete)\s*</.test(source)
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+    const fileSystemOwners = Object.entries(infrastructureModules)
+      .filter(([, source]) =>
+        /function (?:fsyncDirectory|writeFileDurably)\s*\(/.test(source)
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(indexedDbOwners).toEqual([
+      "infrastructure/browser/indexedDbPrimitives.ts",
+    ]);
+    expect(fileSystemOwners).toEqual([
+      "infrastructure/server/persistence/fileSystemPersistence.ts",
+    ]);
+    expect(Object.keys(infrastructureModules)).not.toContain(
+      "../../infrastructure/server/adapters/local/atomicWrite.ts",
+    );
+    expect(Object.keys(infrastructureModules)).not.toContain(
+      "../../infrastructure/server/repository/fileSystemError.ts",
+    );
+  });
 });

@@ -48,7 +48,7 @@ import {
 } from "../../repository/repositoryStore.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
 import { validateWorkspaceRepositorySyntax } from "../../repository/workspaceRepositoryContentValidation.ts";
-import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 
 export const localControlDirectoryName = ".ctn";
 export const localIndexFileName = "index.json";

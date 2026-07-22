@@ -28,16 +28,16 @@ import {
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
 } from "../../repository/repositoryStore.ts";
-import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   createRepositorySyntaxFileName,
   loadSyntaxFromSnapshot,
 } from "../../repository/workspaceRepositoryLayout.ts";
 import {
   fsyncDirectory,
-  removeAtomicWriteTemporaryFiles,
-  writeFileAtomically,
-} from "./atomicWrite.ts";
+  removeDurableWriteTemporaryFiles,
+  replaceFileDurably,
+} from "../../persistence/fileSystemPersistence.ts";
 import type {
   WorkspaceCommitPhase,
 } from "./workingTreeTransaction.ts";
@@ -139,9 +139,9 @@ async function writeInitialProjection(
     if (relativePath === headPath) continue;
     const filePath = path.join(rootDir, ...relativePath.split("/"));
     await mkdir(path.dirname(filePath), { mode: 0o700, recursive: true });
-    await writeFileAtomically(filePath, source);
+    await replaceFileDurably(filePath, source);
   }
-  await writeFileAtomically(
+  await replaceFileDurably(
     path.join(rootDir, ...headPath.split("/")),
     projection.files.get(headPath) ?? "",
   );
@@ -239,7 +239,7 @@ export class WorkspaceFileStore {
       await this.initialize();
       const metadata = await this.#readMetadata();
       if (metadata.label === parsedLabel) return;
-      await writeFileAtomically(
+      await replaceFileDurably(
         path.join(
           this.#rootDir,
           localControlDirectoryName,
@@ -267,7 +267,7 @@ export class WorkspaceFileStore {
       await ensureSafeDirectory(path.join(controlPath, localSyntaxDirectoryName));
       await ensureSafeDirectory(path.join(controlPath, localTransactionsDirectoryName));
       await recoverLocalWorkingTreeTransactions(this.#rootDir);
-      await removeAtomicWriteTemporaryFiles(this.#rootDir);
+      await removeDurableWriteTemporaryFiles(this.#rootDir);
       await this.#assertControlLayout();
       await this.#scanAndSynchronize();
     } catch (error) {

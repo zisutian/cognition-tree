@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
   chmod,
@@ -8,8 +7,6 @@ import {
   mkdir,
   open,
   realpath,
-  rename,
-  rm,
 } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -31,7 +28,12 @@ import type { JournalContentDto } from "../../../contracts/journal/types.ts";
 import { createEmptyTodoContent } from "../../../contracts/todo/parseTodo.ts";
 import { todoStorageEpoch } from "../../../contracts/todo/storageEpoch.ts";
 import type { TodoContentDto } from "../../../contracts/todo/types.ts";
-import { hasFileSystemErrorCode } from "./fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
+import {
+  isSecureDirectory,
+  isSecureRegularFile,
+  replaceFileDurably,
+} from "../persistence/fileSystemPersistence.ts";
 import {
   createFileSystemJournalContentStore,
 } from "./journalContentStore.ts";
@@ -81,16 +83,6 @@ const defaultTodoDefinition: BuiltInDefinition<TodoContentDto> = {
   epoch: todoStorageEpoch,
   id: "todo",
 };
-
-async function fsyncDirectory(directory: string) {
-  const handle = await open(directory, "r");
-
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-}
 
 export class BuiltInCatalog {
   #builtInsDirectory: string;
@@ -229,9 +221,7 @@ export class BuiltInCatalog {
       });
       if (
         !stats ||
-        !stats.isFile() ||
-        stats.isSymbolicLink() ||
-        (stats.mode & 0o777) !== 0o600
+        !isSecureRegularFile(stats)
       ) {
         throw new RepositoryCorruptError(
           "Built-in content file permissions or type are invalid",
@@ -274,9 +264,7 @@ export class BuiltInCatalog {
       stats = await lstat(directory);
     }
     if (
-      !stats.isDirectory() ||
-      stats.isSymbolicLink() ||
-      (stats.mode & 0o777) !== 0o700
+      !isSecureDirectory(stats)
     ) {
       throw new RepositoryCorruptError(
         "Built-in data directory permissions or type are invalid",
@@ -330,11 +318,14 @@ export class BuiltInCatalog {
     if (!provision) {
       throw new RepositoryCorruptError("Built-in storage epoch does not match");
     }
-    await this.#replaceFileAtomically(
+    await replaceFileDurably(
       contentPath,
       `${serializeJsonIteratively(definition.createEmptyContent(), { indent: 2 })}\n`,
+      { hiddenTemporaryFile: true },
     );
-    await this.#replaceFileAtomically(epochPath, `${definition.epoch}\n`);
+    await replaceFileDurably(epochPath, `${definition.epoch}\n`, {
+      hiddenTemporaryFile: true,
+    });
   }
 
   async #readEpoch(epochPath: string): Promise<number | null> {
@@ -346,7 +337,7 @@ export class BuiltInCatalog {
         constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
       );
       const stats = await handle.stat();
-      if (!stats.isFile() || (stats.mode & 0o777) !== 0o600) {
+      if (!isSecureRegularFile(stats)) {
         throw new RepositoryCorruptError("Built-in storage epoch file is invalid");
       }
       const source = await handle.readFile("utf8");
@@ -366,31 +357,6 @@ export class BuiltInCatalog {
       throw error;
     } finally {
       await handle?.close();
-    }
-  }
-
-  async #replaceFileAtomically(filePath: string, source: string) {
-    const temporaryPath = path.join(
-      path.dirname(filePath),
-      `.${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
-    );
-    let handle;
-
-    try {
-      handle = await open(
-        temporaryPath,
-        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
-        0o600,
-      );
-      await handle.writeFile(source, "utf8");
-      await handle.sync();
-      await handle.close();
-      handle = undefined;
-      await rename(temporaryPath, filePath);
-      await fsyncDirectory(path.dirname(filePath));
-    } finally {
-      await handle?.close();
-      await rm(temporaryPath, { force: true });
     }
   }
 

@@ -5,7 +5,6 @@ import {
   chmod,
   lstat,
   mkdir,
-  open,
   readFile,
   readdir,
   realpath,
@@ -25,7 +24,11 @@ import type {
 } from "../../../../contracts/workspace/types.ts";
 import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
 import type { WorkspaceRepositoryStore } from "../../repository/repositoryStore.ts";
-import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
+import {
+  fsyncDirectory,
+  replaceFileDurably,
+} from "../../persistence/fileSystemPersistence.ts";
 import {
   createWebDavTransport,
   normalizeWebDavBaseUrl,
@@ -231,40 +234,11 @@ function stringifyConfig(config: WebDavConnectionConfig) {
   return `${serializeJsonIteratively(config, { indent: 2 })}\n`;
 }
 
-async function fsyncDirectory(directory: string) {
-  const handle = await open(directory, "r");
-
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-}
-
-async function writeFileDurably(filePath: string, source: string) {
-  const handle = await open(filePath, "wx", 0o600);
-
-  try {
-    await handle.writeFile(source, "utf8");
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-}
-
 async function writeConfigAtomically(
   filePath: string,
   config: WebDavConnectionConfig,
 ) {
-  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
-
-  try {
-    await writeFileDurably(temporaryPath, stringifyConfig(config));
-    await rename(temporaryPath, filePath);
-    await fsyncDirectory(path.dirname(filePath));
-  } finally {
-    await rm(temporaryPath, { force: true });
-  }
+  await replaceFileDurably(filePath, stringifyConfig(config));
 }
 
 function createDescriptor(config: WebDavConnectionConfig): RepositoryDescriptorDto {

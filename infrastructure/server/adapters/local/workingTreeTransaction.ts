@@ -19,12 +19,12 @@ import {
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
 } from "../../repository/repositoryStore.ts";
-import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
+import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   fsyncDirectory,
-  writeFileAtomically,
+  replaceFileDurably,
   writeFileDurably,
-} from "./atomicWrite.ts";
+} from "../../persistence/fileSystemPersistence.ts";
 import {
   localControlDirectoryName,
   localIndexFileName,
@@ -545,7 +545,7 @@ async function applyFile(
   if (type !== null && type !== "file") {
     throw new RepositoryCorruptError("Local transaction target is occupied");
   }
-  await writeFileAtomically(targetPath, source);
+  await replaceFileDurably(targetPath, source);
 }
 
 async function removeObsoleteDirectories(

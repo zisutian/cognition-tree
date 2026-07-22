@@ -25,6 +25,12 @@ import {
   parseWorkspaceRepositoryCatalogCacheState,
   type WorkspaceRepositoryCatalogCache,
 } from "../persistence/workspaceRepositoryCatalogCache";
+import {
+  abortTransaction,
+  openIndexedDatabase,
+  requestResult,
+  transactionComplete,
+} from "./indexedDbPrimitives";
 
 export const browserRepositoryDatabaseName = "cognition-tree.repository-cache";
 const databaseVersion = 4;
@@ -61,57 +67,27 @@ type IndexedRepositoryNote = {
   source: string;
 };
 
-function requestResult<Result>(request: IDBRequest<Result>) {
-  return new Promise<Result>((resolve, reject) => {
-    request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener("error", () =>
-      reject(request.error ?? new Error("IndexedDB request failed")),
-    );
-  });
-}
-
-function transactionComplete(transaction: IDBTransaction) {
-  const completion = new Promise<void>((resolve, reject) => {
-    transaction.addEventListener("complete", () => resolve());
-    transaction.addEventListener("abort", () =>
-      reject(transaction.error ?? new Error("IndexedDB transaction aborted")),
-    );
-    transaction.addEventListener("error", () =>
-      reject(transaction.error ?? new Error("IndexedDB transaction failed")),
-    );
-  });
-
-  // A request can fail before its surrounding operation reaches the final
-  // `await completion`. Observe the transaction immediately so an abort never
-  // escapes as an unhandled rejection; callers still await the original
-  // promise and receive the same failure.
-  void completion.catch(() => undefined);
-  return completion;
-}
-
 function openDatabase(indexedDb: IDBFactory) {
-  const request = indexedDb.open(
+  return openIndexedDatabase(
+    indexedDb,
     browserRepositoryDatabaseName,
     databaseVersion,
+    (database) => {
+      for (const storeName of [...database.objectStoreNames]) {
+        database.deleteObjectStore(storeName);
+      }
+
+      database.createObjectStore(catalogStoreName);
+      database.createObjectStore(stateStoreName, { keyPath: "identity" });
+      const noteStore = database.createObjectStore(noteStoreName, {
+        keyPath: ["identity", "id"],
+      });
+
+      noteStore.createIndex(noteIdentityIndexName, "identity", {
+        unique: false,
+      });
+    },
   );
-
-  request.addEventListener("upgradeneeded", () => {
-    const database = request.result;
-
-    for (const storeName of [...database.objectStoreNames]) {
-      database.deleteObjectStore(storeName);
-    }
-
-    database.createObjectStore(catalogStoreName);
-    database.createObjectStore(stateStoreName, { keyPath: "identity" });
-    const noteStore = database.createObjectStore(noteStoreName, {
-      keyPath: ["identity", "id"],
-    });
-
-    noteStore.createIndex(noteIdentityIndexName, "identity", { unique: false });
-  });
-
-  return requestResult(request);
 }
 
 function isLocalRevision(value: unknown): value is LocalDraftRevisionDto {
@@ -273,8 +249,7 @@ function createIndexedDbRepositoryCache(
       const state = await readState(transaction, identity);
 
       if (!state) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local repository state does not exist: ${identity}`);
       }
 
@@ -300,8 +275,7 @@ function createIndexedDbRepositoryCache(
       const existing = await readState(transaction, identity);
 
       if (existing) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local repository state already exists: ${identity}`);
       }
 
@@ -353,8 +327,7 @@ function createIndexedDbRepositoryCache(
       const state = await readState(transaction, identity);
 
       if (!state) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local repository state does not exist: ${identity}`);
       }
 
@@ -399,13 +372,11 @@ function createIndexedDbRepositoryCache(
       const current = await readState(transaction, identity);
 
       if (!current) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local repository state does not exist: ${identity}`);
       }
       if (current.localRevision !== expectedLocalRevision) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new WorkspaceRepositoryLocalConflictError(current.localRevision);
       }
 
@@ -443,18 +414,15 @@ function createIndexedDbRepositoryCache(
       const state = await readState(transaction, identity);
 
       if (!state) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Local repository state does not exist: ${identity}`);
       }
       if (state.localRevision !== expectedLocalRevision) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new WorkspaceRepositoryLocalConflictError(state.localRevision);
       }
       if (!state.pendingBaseRevision && !state.remoteRevision) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error("Cannot stage a repository without a known remote base.");
       }
 
@@ -560,8 +528,7 @@ export function createIndexedDbRepositoryClientCache(
         ) ||
         catalog.issues.some((issue) => issue.id === parsedDescriptor.id)
       ) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(
           `Browser repository already exists: ${parsedDescriptor.id}`,
         );
@@ -657,8 +624,7 @@ export function createIndexedDbRepositoryClientCache(
       const catalogValue = await requestResult(store.get(catalogIdentity));
 
       if (catalogValue === undefined) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Repository catalog does not exist: ${catalogIdentity}`);
       }
       const catalog = parseWorkspaceRepositoryCatalogCacheState(catalogValue);
@@ -667,8 +633,7 @@ export function createIndexedDbRepositoryClientCache(
       );
 
       if (!descriptor) {
-        transaction.abort();
-        await completion.catch(() => undefined);
+        await abortTransaction(transaction, completion);
         throw new Error(`Browser repository does not exist: ${repositoryId}`);
       }
       const parsedLabel = parseAvailableWorkspaceRepositoryLabel(
