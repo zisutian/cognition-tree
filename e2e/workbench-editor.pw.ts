@@ -73,10 +73,10 @@ test.describe.serial("editor workbench flows", () => {
       .locator(".source-editor .ctn-inline")
       .filter({ hasText: "<Missing>" })
       .click({ modifiers: ["Control"] });
-    await expect(page.getByRole("status")).toContainText(
+    await expect(page.locator(".problems-panel-status")).toContainText(
       "未找到引用目标：Missing",
     );
-    await page.getByRole("button", { name: "关闭通知" }).click();
+    await expect(page.locator(".ui-notification-region")).toHaveCount(0);
   });
 
   test("keeps undo history isolated when switching notes", async ({ page }) => {
