@@ -32,14 +32,14 @@ export function useWorkspaceApplication(
   session: ActiveSession,
 ) {
   const {
+    activateSyntaxFile,
     commands,
     createSyntaxFile,
     deleteSyntaxFile,
     defaultWorkspaceSyntax,
     persistence,
-    selectSyntaxFile,
     syntaxCatalog,
-    updateActiveSyntaxFileSource,
+    updateSyntaxFileSource,
     workspace,
     workspaceSyntax,
     context,
@@ -54,15 +54,13 @@ export function useWorkspaceApplication(
   );
   const syntax = useSyntaxRuntime({
     activeFileId: syntaxCatalog.activeFileId,
+    activateSyntaxFile,
+    activeSyntaxProfile: workspaceSyntax?.profile ?? null,
     createSyntaxFile,
     deleteSyntaxFile,
     files: syntaxFiles,
-    selectSyntaxFile,
-    syntaxProfile:
-      workspaceSyntax?.profile ?? defaultWorkspaceSyntax.profile,
-    syntaxSource:
-      workspaceSyntax?.source ?? defaultWorkspaceSyntax.source,
-    updateActiveSyntaxFileSource,
+    fallbackSyntaxProfile: defaultWorkspaceSyntax.profile,
+    updateSyntaxFileSource,
     workspace: context?.workspace ?? null,
   });
   const effectiveWorkspace = syntax.effectiveContext?.workspace ?? null;
@@ -78,7 +76,10 @@ export function useWorkspaceApplication(
   });
   const navigation = useWorkspaceNavigation({ selection, workspace });
   const diagnostics = useWorkbenchDiagnostics({
-    activeSyntaxFileId: syntax.activeFileId,
+    activeSyntaxFileId:
+      syntax.selectedFileId === syntax.activeFileId
+        ? syntax.activeFileId
+        : null,
     analysis,
     isSyntaxConfigured: syntax.isConfigured,
     syntaxDraft: syntax.syntaxDraft,

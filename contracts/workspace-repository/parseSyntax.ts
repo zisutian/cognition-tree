@@ -71,9 +71,6 @@ export function parseRepositorySyntaxCatalog(
   if (files.length === 0 && activeFileId !== null) {
     failContract(`${path}.activeFileId`, "must be null when syntax files are empty");
   }
-  if (files.length > 0 && activeFileId === null) {
-    failContract(`${path}.activeFileId`, "must identify an active syntax file");
-  }
   if (activeFileId !== null && !fileIds.has(activeFileId)) {
     failContract(`${path}.activeFileId`, `unknown syntax file ${activeFileId}`);
   }

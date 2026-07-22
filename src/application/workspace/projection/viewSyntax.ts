@@ -1,4 +1,5 @@
 import { syntaxProfileSchema } from "../../../../ctn/syntax/profileSchema";
+import type { CtnSyntaxProfileValidationPolicy } from "../../../../ctn/syntax/profileSchema";
 import type { CtnRuleRole } from "../../../../ctn/syntax/types";
 import type { SyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
 import type { UiSyntaxTone } from "./viewText";
@@ -28,7 +29,7 @@ export type UiSyntaxProfileDraftMarkerRule = {
   type: string;
 };
 
-export type UiSyntaxProfileDraftConceptRule = {
+export type UiSyntaxProfileDraftTopLevelUnmarkedRule = {
   id: string;
   label: string;
   textColor: UiSyntaxTone;
@@ -57,19 +58,25 @@ export type UiSyntaxProfileDraftInlineRule = {
 };
 
 export type UiSyntaxProfileDraft = {
-  conceptRule: UiSyntaxProfileDraftConceptRule;
   inlineRules: UiSyntaxProfileDraftInlineRule[];
   markerRules: UiSyntaxProfileDraftMarkerRule[];
   name: string;
   tabDisplayWidth: string;
   titleRule: UiSyntaxProfileDraftTitleRule;
+  topLevelUnmarkedRule: UiSyntaxProfileDraftTopLevelUnmarkedRule | null;
 };
 
-export type UiSyntaxFocusTarget = {
-  fieldId: UiSyntaxFieldId;
-  requestId: number;
-  syntaxFileId: string;
-};
+export type UiSyntaxFocusTarget =
+  | {
+      fieldId: UiSyntaxFieldId;
+      requestId: number;
+      syntaxFileId: string;
+    }
+  | {
+      fieldId: UiSyntaxFieldId;
+      requestId: number;
+      systemOwner: "journal" | "todo";
+    };
 
 export type UiSyntaxConstraints = {
   label: {
@@ -93,6 +100,7 @@ export type UiSyntaxView = {
   draft: UiSyntaxProfileDraft;
   focusTarget: UiSyntaxFocusTarget | null;
   roleOptions: UiSyntaxRoleOption[];
+  rootToneOptions: UiSyntaxToneOption[];
   stats: {
     inlineRuleCount: number;
     lineRuleCount: number;
@@ -148,21 +156,25 @@ function createUiSyntaxProfileDraft(
   draft: SyntaxProfileDraft,
 ): UiSyntaxProfileDraft {
   return {
-    conceptRule: { ...draft.conceptRule },
     inlineRules: draft.inlineRules.map((rule) => ({ ...rule })),
     markerRules: draft.markerRules.map((rule) => ({ ...rule })),
     name: draft.name,
     tabDisplayWidth: draft.tabDisplayWidth,
     titleRule: { ...draft.titleRule },
+    topLevelUnmarkedRule: draft.topLevelUnmarkedRule
+      ? { ...draft.topLevelUnmarkedRule }
+      : null,
   };
 }
 
 export function createUiSyntaxView({
   draft,
   focusTarget = null,
+  policy = { scope: "workspace" },
 }: {
   draft: SyntaxProfileDraft;
   focusTarget?: UiSyntaxFocusTarget | null;
+  policy?: CtnSyntaxProfileValidationPolicy;
 }): UiSyntaxView {
   return {
     constraints: syntaxConstraints,
@@ -170,9 +182,13 @@ export function createUiSyntaxView({
     draft: createUiSyntaxProfileDraft(draft),
     focusTarget,
     roleOptions: syntaxRoleOptions,
+    rootToneOptions: policy.scope === "journal"
+      ? [{ label: "默认", value: "default" }, ...syntaxToneOptions]
+      : syntaxToneOptions,
     stats: {
       inlineRuleCount: draft.inlineRules.length,
-      lineRuleCount: draft.markerRules.length + 2,
+      lineRuleCount:
+        draft.markerRules.length + 1 + (draft.topLevelUnmarkedRule ? 1 : 0),
     },
     toneOptions: syntaxToneOptions,
   };

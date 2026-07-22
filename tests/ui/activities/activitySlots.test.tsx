@@ -250,7 +250,7 @@ describe("activity slots", () => {
       'aria-current="page"',
     );
     expect(renderSlot(slots("syntax").context?.content)).toContain(
-      "ui-compact-context-list syntax-file-list",
+      "ui-compact-context-list syntax-workspace-group",
     );
     expect(renderSlot(slots("syntax").context?.content)).toContain(
       'data-syntax-file-id="syntax-default"',

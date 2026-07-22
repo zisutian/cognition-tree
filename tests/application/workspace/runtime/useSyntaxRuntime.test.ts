@@ -94,12 +94,12 @@ describe("syntax catalog name conflicts", () => {
     });
 
     expect(findSyntaxCatalogNameConflict({
-      activeFileId: "syntax-active",
+      selectedFileId: "syntax-active",
       candidateName: "  ALPHA  ",
       files,
     })).toContain("重名");
     const blockedPersistence = startSyntaxFileDraftPersistence({
-      activeFileId: "syntax-active",
+      selectedFileId: "syntax-active",
       draft: conflictingDraft,
       files,
       lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
@@ -116,7 +116,7 @@ describe("syntax catalog name conflicts", () => {
     expect(mutate).not.toHaveBeenCalled();
 
     const fixedPersistence = startSyntaxFileDraftPersistence({
-      activeFileId: "syntax-active",
+      selectedFileId: "syntax-active",
       draft: createSyntaxProfileDraft({
         ...defaultCtnSyntaxProfile,
         name: "Beta",

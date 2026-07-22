@@ -233,7 +233,8 @@ describe("workspace persistence integration", () => {
     );
 
     await waitForState(firstController, (state) => state.status === "ready");
-    await firstController.createSyntaxFile();
+    const firstSyntaxFileId = await firstController.createSyntaxFile(null);
+    await firstController.activateSyntaxFile(firstSyntaxFileId);
 
     const noteId = firstController.commands.createNote(null);
 
@@ -299,7 +300,8 @@ describe("workspace persistence integration", () => {
       },
     });
 
-    await controller.createSyntaxFile();
+    const syntaxFileId = await controller.createSyntaxFile(null);
+    await controller.activateSyntaxFile(syntaxFileId);
     const localNoteId = controller.commands.createNote(null);
 
     updateNote(controller, localNoteId, "本地最终内容");
@@ -347,7 +349,8 @@ describe("workspace persistence integration", () => {
     );
 
     await waitForState(firstController, (state) => state.status === "ready");
-    await firstController.createSyntaxFile();
+    const firstSyntaxFileId = await firstController.createSyntaxFile(null);
+    await firstController.activateSyntaxFile(firstSyntaxFileId);
     const noteId = firstController.commands.createNote(null);
 
     updateNote(firstController, noteId, "切换前最后输入");

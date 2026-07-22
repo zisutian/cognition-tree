@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createSyntaxFileViews } from "../../../../../src/application/workspace/activities/syntax/syntaxViewModel";
 import {
-  getSyntaxFocusFileIdToActivate,
-  projectSyntaxFocusTargetForActiveFile,
+  getSyntaxFocusFileIdToSelect,
+  projectSyntaxFocusTargetForSelectedFile,
 } from "../../../../../src/application/workspace/activities/syntax/useSyntaxActivity";
 
 describe("syntax activity view model", () => {
-  it("projects active and draft error state onto only the active file", () => {
+  it("projects active, selected, and draft error state independently", () => {
     expect(createSyntaxFileViews({
       activeFileId: "syntax-b",
       files: [
@@ -14,9 +14,23 @@ describe("syntax activity view model", () => {
         { id: "syntax-b", name: "B" },
       ],
       hasDraftErrors: true,
+      selectedFileId: "syntax-a",
+      selectedTarget: { fileId: "syntax-a", kind: "workspace-file" },
     })).toEqual([
-      { hasErrors: false, id: "syntax-a", isActive: false, name: "A" },
-      { hasErrors: true, id: "syntax-b", isActive: true, name: "B" },
+      {
+        hasErrors: true,
+        id: "syntax-a",
+        isActive: false,
+        isSelected: true,
+        name: "A",
+      },
+      {
+        hasErrors: false,
+        id: "syntax-b",
+        isActive: true,
+        isSelected: false,
+        name: "B",
+      },
     ]);
   });
 
@@ -27,19 +41,19 @@ describe("syntax activity view model", () => {
       syntaxFileId: "syntax-b",
     };
 
-    expect(projectSyntaxFocusTargetForActiveFile(
+    expect(projectSyntaxFocusTargetForSelectedFile(
       focusTarget,
       "syntax-a",
     )).toBeNull();
-    expect(getSyntaxFocusFileIdToActivate(
+    expect(getSyntaxFocusFileIdToSelect(
       focusTarget,
       "syntax-a",
     )).toBe("syntax-b");
-    expect(projectSyntaxFocusTargetForActiveFile(
+    expect(projectSyntaxFocusTargetForSelectedFile(
       focusTarget,
       "syntax-b",
     )).toBe(focusTarget);
-    expect(getSyntaxFocusFileIdToActivate(
+    expect(getSyntaxFocusFileIdToSelect(
       focusTarget,
       "syntax-b",
     )).toBeNull();

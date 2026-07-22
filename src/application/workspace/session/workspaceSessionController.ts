@@ -75,8 +75,9 @@ type LoadedWorkspaceSession = {
 };
 
 export type WorkspaceSessionController = {
+  activateSyntaxFile: (fileId: string) => Promise<void>;
   commands: SessionCommands;
-  createSyntaxFile: () => Promise<void>;
+  createSyntaxFile: (templateFileId: string | null) => Promise<string>;
   deleteSyntaxFile: (fileId: string) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   dispose: () => void;
@@ -84,10 +85,9 @@ export type WorkspaceSessionController = {
   getState: () => WorkspaceSessionControllerState;
   reload: () => Promise<void>;
   prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
-  selectSyntaxFile: (fileId: string) => Promise<void>;
   start: () => void;
   subscribe: (listener: () => void) => () => void;
-  updateActiveSyntaxFileSource: (source: string) => Promise<void>;
+  updateSyntaxFileSource: (fileId: string, source: string) => Promise<void>;
 };
 
 export class WorkspaceSessionUnavailableError extends Error {
@@ -116,8 +116,7 @@ function resolveSyntaxCatalog(catalog: WorkspaceSyntaxCatalog) {
   }
   if (
     (catalog.files.length === 0 && catalog.activeFileId !== null) ||
-    (catalog.files.length > 0 &&
-      (catalog.activeFileId === null || !fileIds.has(catalog.activeFileId)))
+    (catalog.activeFileId !== null && !fileIds.has(catalog.activeFileId))
   ) {
     throw new Error("Workspace syntax catalog has an invalid active file");
   }
@@ -476,7 +475,7 @@ export function createWorkspaceSessionController({
     return saveQueue!.flushLocal();
   };
 
-  const createSyntaxFile = () => {
+  const createSyntaxFile = (templateFileId: string | null) => {
     const session = requireReadySession();
     const fileId = commandDependencies.createSyntaxFileId();
 
@@ -484,17 +483,29 @@ export function createWorkspaceSessionController({
       throw new Error(`Workspace syntax file already exists: ${fileId}`);
     }
 
-    const source = session.workspaceSyntax
-      ? createSyntaxCopySource(session.content.syntax, session.workspaceSyntax)
+    const templateFile = templateFileId === null
+      ? null
+      : session.content.syntax.files.find(({ id }) => id === templateFileId);
+
+    if (templateFileId !== null && !templateFile) {
+      throw new Error(`Workspace syntax file does not exist: ${templateFileId}`);
+    }
+    const templateSyntax = templateFile
+      ? parseWorkspaceSyntax(templateFile.source)
+      : session.workspaceSyntax;
+    const source = templateSyntax
+      ? createSyntaxCopySource(session.content.syntax, templateSyntax)
       : defaultWorkspaceSyntax.source;
 
-    return commitSyntaxCatalog({
-      activeFileId: fileId,
+    const completion = commitSyntaxCatalog({
+      activeFileId: session.content.syntax.activeFileId,
       files: [...session.content.syntax.files, { id: fileId, source }],
     });
+
+    return completion.then(() => fileId);
   };
 
-  const selectSyntaxFile = (fileId: string) => {
+  const activateSyntaxFile = (fileId: string) => {
     const session = requireReadySession();
 
     if (!session.content.syntax.files.some(({ id }) => id === fileId)) {
@@ -527,23 +538,23 @@ export function createWorkspaceSessionController({
     return commitSyntaxCatalog({ activeFileId, files });
   };
 
-  const updateActiveSyntaxFileSource = (source: string) => {
+  const updateSyntaxFileSource = (fileId: string, source: string) => {
     const session = requireReadySession();
-    const activeFileId = session.content.syntax.activeFileId;
 
-    if (activeFileId === null) {
-      throw new Error("Workspace does not have an active syntax file");
+    if (!session.content.syntax.files.some(({ id }) => id === fileId)) {
+      throw new Error(`Workspace syntax file does not exist: ${fileId}`);
     }
 
     return commitSyntaxCatalog({
       ...session.content.syntax,
       files: session.content.syntax.files.map((file) =>
-        file.id === activeFileId ? { ...file, source } : file
+        file.id === fileId ? { ...file, source } : file
       ),
     });
   };
 
   return {
+    activateSyntaxFile,
     commands,
     async discardPendingChangesAndReload() {
       requireReadySession();
@@ -650,7 +661,6 @@ export function createWorkspaceSessionController({
     },
     createSyntaxFile,
     deleteSyntaxFile,
-    selectSyntaxFile,
-    updateActiveSyntaxFileSource,
+    updateSyntaxFileSource,
   };
 }

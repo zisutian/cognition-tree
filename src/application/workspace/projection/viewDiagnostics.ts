@@ -30,6 +30,12 @@ export type UiWorkbenchDiagnosticTarget =
       kind: "syntax-field";
       path: string;
       syntaxFileId: string;
+    }
+  | {
+      fieldId: UiSyntaxFieldId;
+      kind: "system-syntax";
+      owner: "journal" | "todo";
+      path: string;
     };
 
 export type UiWorkbenchDiagnostic = {
@@ -186,6 +192,33 @@ export function createUiSyntaxDiagnostics(
   };
 
   return [...schemaDiagnostics, conflictDiagnostic];
+}
+
+export function createUiSystemSyntaxDiagnostics(
+  draft: SyntaxProfileDraft,
+  draftResult: SyntaxProfileDraftBuildResult,
+  owner: "journal" | "todo",
+): UiWorkbenchDiagnostic[] {
+  const ownerLabel = owner === "journal" ? "日记" : "代办";
+
+  return draftResult.diagnostics.map((diagnostic) => {
+    const location = resolveUiSyntaxDiagnosticLocation(draft, diagnostic.path);
+
+    return {
+      code: diagnostic.code,
+      id: `syntax:${owner}:${diagnostic.code}:${diagnostic.path}`,
+      locationLabel: `${ownerLabel}语法 · ${location.label}`,
+      message: diagnostic.message,
+      severity: "error",
+      source: "syntax",
+      target: {
+        fieldId: location.fieldId,
+        kind: "system-syntax",
+        owner,
+        path: diagnostic.path,
+      },
+    };
+  });
 }
 
 function compareDiagnostics(

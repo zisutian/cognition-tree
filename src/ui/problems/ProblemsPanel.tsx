@@ -27,6 +27,9 @@ function getProblemSourceLabel(problem: UiWorkbenchProblem) {
   if (problem.target.kind === "todo-collection-line") {
     return "代办";
   }
+  if (problem.target.kind === "system-syntax") {
+    return "语法";
+  }
   if (problem.target.kind === "journal-entry-line") {
     return problem.source === "reference"
       ? "日记引用"

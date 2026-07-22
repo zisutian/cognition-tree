@@ -2,6 +2,33 @@
   gap: var(--ui-gap-tight);
 }
 
+.syntax-workspace-group-header {
+  display: flex;
+  align-items: center;
+  min-height: var(--ui-tree-row-height);
+  padding: 0 var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
+}
+
+.syntax-workspace-group-header > :first-child {
+  flex: 1;
+}
+
+.syntax-invalid-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+  margin-bottom: var(--ui-gap);
+  padding: var(--ui-gap-tight) var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-error);
+  border-radius: var(--ui-radius);
+  color: var(--color-error);
+  font-size: var(--ui-control-font-size);
+}
+
 .syntax-file-error {
   display: inline-flex;
   align-items: center;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfile";
+import { syntaxProfileValidationPolicies } from "../../../ctn/syntax/profileSchema";
 import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
@@ -13,6 +14,8 @@ import {
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
 } from "../../../ctn/syntax/profileDraft";
+import { defaultJournalCtnSyntaxProfileV2 } from "../../../journal/syntax/journalSyntax";
+import { defaultTodoCtnSyntaxProfileV2 } from "../../../todo/syntax/todoSyntax";
 
 describe("syntax profile draft", () => {
   it("builds the default syntax profile from a controlled draft", () => {
@@ -23,15 +26,32 @@ describe("syntax profile draft", () => {
     expect(result.profile).toEqual(defaultCtnSyntaxProfile);
   });
 
+  it("builds neutral Journal and marker-only Todo drafts with owner policies", () => {
+    const journalDraft = createSyntaxProfileDraft(
+      defaultJournalCtnSyntaxProfileV2,
+    );
+    const todoDraft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV2);
+
+    expect(journalDraft.topLevelUnmarkedRule?.type).toBe("body");
+    expect(buildSyntaxProfileDraft(
+      journalDraft,
+      syntaxProfileValidationPolicies.journal,
+    )).toEqual({
+      diagnostics: [],
+      profile: defaultJournalCtnSyntaxProfileV2,
+    });
+    expect(todoDraft.topLevelUnmarkedRule).toBeNull();
+    expect(buildSyntaxProfileDraft(
+      todoDraft,
+      syntaxProfileValidationPolicies.todo,
+    )).toEqual({
+      diagnostics: [],
+      profile: defaultTodoCtnSyntaxProfileV2,
+    });
+  });
+
   it("formats a valid draft into parseable syntax TOML", () => {
     const draft: SyntaxProfileDraft = {
-      conceptRule: {
-        id: "concept-1",
-        label: "顶格概念",
-        textColor: "cyan",
-        tone: "teal",
-        type: "concept",
-      },
       titleRule: {
         id: "title-1",
         label: "标题",
@@ -96,6 +116,13 @@ describe("syntax profile draft", () => {
       ],
       name: "自定义语法",
       tabDisplayWidth: "4",
+      topLevelUnmarkedRule: {
+        id: "top-level-unmarked-1",
+        label: "顶格概念",
+        textColor: "cyan",
+        tone: "teal",
+        type: "concept",
+      },
     };
     const result = buildSyntaxProfileDraft(draft);
 
@@ -112,8 +139,8 @@ describe("syntax profile draft", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
     draft.name = "";
     draft.tabDisplayWidth = "0";
-    draft.conceptRule = {
-      ...draft.conceptRule,
+    draft.topLevelUnmarkedRule = {
+      ...draft.topLevelUnmarkedRule!,
       textColor: "default",
       tone: "default",
       type: "root-concept",
@@ -227,8 +254,8 @@ describe("syntax profile draft", () => {
 
   it("allows changing the protected top-level concept color", () => {
     const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
-    draft.conceptRule.tone = "pink";
-    draft.conceptRule.textColor = "cyan";
+    draft.topLevelUnmarkedRule!.tone = "pink";
+    draft.topLevelUnmarkedRule!.textColor = "cyan";
     const result = buildSyntaxProfileDraft(draft);
 
     expect(result.diagnostics).toEqual([]);

@@ -81,7 +81,9 @@ test.describe.serial("workbench diagnostics", () => {
     const syntaxName = page.getByRole("textbox", { name: "语法名称" });
 
     await syntaxName.fill("");
-    await expect(rows).toHaveCount(1);
+    // The selected file is also active, so Syntax keeps workspace document
+    // and reference diagnostics alongside the draft profile error.
+    await expect(rows).toHaveCount(3);
     const syntaxProblem = rows.filter({ hasText: "语法名称不能为空" });
 
     await expect(syntaxProblem).toBeVisible();

@@ -91,7 +91,7 @@ function SyntaxRuleSpacer() {
   return <span aria-hidden="true" className="syntax-rule-spacer" />;
 }
 
-export function TitleAndConceptRows({
+export function TitleAndRootRows({
   syntax,
 }: {
   syntax: SyntaxViewModel;
@@ -116,24 +116,28 @@ export function TitleAndConceptRows({
         />
         <SyntaxRuleSpacer />
       </div>
-      <div
-        className="syntax-rule-row"
-        data-syntax-field-id={syntaxFieldIds.conceptRule}
-        tabIndex={-1}
-      >
-        <span className="syntax-readonly">顶格概念</span>
-        <span className="syntax-readonly">顶格</span>
-        <span className="syntax-readonly">概念</span>
-        <SyntaxToneCells
-          customToneLabel={syntax.customToneLabel}
-          label="顶格概念"
-          options={syntax.toneOptions}
-          textColor={syntax.draft.conceptRule.textColor}
-          tone={syntax.draft.conceptRule.tone}
-          onChange={syntax.actions.updateConceptRule}
-        />
-        <SyntaxRuleSpacer />
-      </div>
+      {syntax.draft.topLevelUnmarkedRule && syntax.rootRuleLabel ? (
+        <div
+          className="syntax-rule-row"
+          data-syntax-field-id={syntaxFieldIds.topLevelUnmarkedRule}
+          tabIndex={-1}
+        >
+          <span className="syntax-readonly">{syntax.rootRuleLabel}</span>
+          <span className="syntax-readonly">顶格</span>
+          <span className="syntax-readonly">
+            {syntax.selectedTarget.kind === "journal" ? "正文" : "概念"}
+          </span>
+          <SyntaxToneCells
+            customToneLabel={syntax.customToneLabel}
+            label={syntax.rootRuleLabel}
+            options={syntax.rootToneOptions}
+            textColor={syntax.draft.topLevelUnmarkedRule.textColor}
+            tone={syntax.draft.topLevelUnmarkedRule.tone}
+            onChange={syntax.actions.updateTopLevelUnmarkedRule}
+          />
+          <SyntaxRuleSpacer />
+        </div>
+      ) : null}
     </>
   );
 }
@@ -186,6 +190,7 @@ export function MarkerRuleRows({
           />
           <SyntaxRolePicker
             ariaLabel="角色"
+            disabled={syntax.protectedMarkerRuleIds.includes(rule.id)}
             fieldId={createSyntaxRuleFieldId("marker", rule.id, "role")}
             options={syntax.roleOptions}
             value={rule.role}
@@ -219,6 +224,7 @@ export function MarkerRuleRows({
           />
           <Button
             aria-label="删除块规则"
+            disabled={syntax.protectedMarkerRuleIds.includes(rule.id)}
             onClick={() => syntax.actions.removeMarkerRule(rule.id)}
             type="button"
             variant="icon"
@@ -251,6 +257,9 @@ function InlineRuleRow({
   syntax: SyntaxViewModel;
 }) {
   const isProtected = protectedRuleIds.includes(rule.id);
+  const triggerProtected = syntax.protectedInlineTriggerRuleIds.includes(
+    rule.id,
+  );
 
   return (
     <div
@@ -277,6 +286,7 @@ function InlineRuleRow({
           <input
             aria-label="开始"
             className="ui-input"
+            disabled={triggerProtected}
             data-syntax-field-id={createSyntaxRuleFieldId(
               "inline",
               rule.id,
@@ -291,6 +301,7 @@ function InlineRuleRow({
           <input
             aria-label="结束"
             className="ui-input"
+            disabled={triggerProtected}
             data-syntax-field-id={createSyntaxRuleFieldId(
               "inline",
               rule.id,
@@ -307,6 +318,7 @@ function InlineRuleRow({
         <input
           aria-label="符号"
           className="ui-input"
+          disabled={triggerProtected}
           data-syntax-field-id={createSyntaxRuleFieldId(
             "inline",
             rule.id,

@@ -108,7 +108,7 @@ describe("workspace repository v4 contract", () => {
     })).toThrow("unsupported field");
   });
 
-  it("requires canonical syntax ids, unique files, and an existing active file", () => {
+  it("allows inactive syntax files while requiring a canonical active id", () => {
     const content = createContent();
     const syntaxId = "syntax-00000000-0000-4000-8000-000000000001";
     const syntaxFile = { id: syntaxId, source: "any wire source" };
@@ -125,10 +125,10 @@ describe("workspace repository v4 contract", () => {
       ...content,
       syntax: { activeFileId: syntaxId, files: [syntaxFile, syntaxFile] },
     })).toThrow("duplicate syntax file id");
-    expect(() => parseWorkspaceRepositoryContent({
+    expect(parseWorkspaceRepositoryContent({
       ...content,
       syntax: { activeFileId: null, files: [syntaxFile] },
-    })).toThrow("must identify an active syntax file");
+    }).syntax).toEqual({ activeFileId: null, files: [syntaxFile] });
     expect(() => parseWorkspaceRepositoryContent({
       ...content,
       syntax: { activeFileId: syntaxId, files: [] },

@@ -5,12 +5,14 @@ import { Popover } from "../../shared/Popover";
 
 export function SyntaxRolePicker({
   ariaLabel,
+  disabled = false,
   fieldId,
   options,
   value,
   onChange,
 }: {
   ariaLabel: string;
+  disabled?: boolean;
   fieldId?: string;
   options: SyntaxViewModel["roleOptions"];
   value: UiSyntaxRole;
@@ -37,6 +39,7 @@ export function SyntaxRolePicker({
           aria-label={`${ariaLabel}: ${selectedOption.label}`}
           className="syntax-role-button"
           data-syntax-field-id={fieldId}
+          disabled={disabled}
           onClick={toggle}
           ref={triggerRef}
           type="button"

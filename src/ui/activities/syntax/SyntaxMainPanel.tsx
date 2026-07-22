@@ -1,5 +1,5 @@
 import type { SyntaxViewModel } from "../../../application/workspace/activities/syntax/syntaxViewModel";
-import { Plus } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { syntaxFieldIds } from "../../../application/workspace/projection/viewSyntaxFields";
 import {
@@ -9,20 +9,17 @@ import {
   PanelBody,
   PanelHeader,
 } from "../../shared/primitives";
-import { useFeedback } from "../../shared/FeedbackProvider";
 import {
   InlineRuleRows,
   MarkerRuleRows,
   SyntaxRuleHeader,
   SyntaxSettingsGroup,
-  TitleAndConceptRows,
+  TitleAndRootRows,
 } from "./SyntaxRuleRows";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
-  const feedback = useFeedback();
   const consumedFocusRequestIdRef = useRef<number | null>(null);
-  const activeFile = syntax.files.find(({ isActive }) => isActive) ?? null;
 
   useEffect(() => {
     const fieldId = syntax.focusTarget?.fieldId;
@@ -55,24 +52,12 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
     syntax.onConsumeFocusTarget(syntax.focusTarget.requestId);
   }, [syntax.focusTarget?.requestId, syntax.onConsumeFocusTarget]);
 
-  if (!syntax.isConfigured || !activeFile) {
+  if (!syntax.isSelectedAvailable) {
     return (
       <Panel className="syntax-panel" aria-label="语法配置">
         <EmptyState
-          action={
-            <Button
-              onClick={() => {
-                void syntax.createFile().catch(feedback.notifyError);
-              }}
-              type="button"
-              variant="primary"
-            >
-              <Plus aria-hidden="true" size={13} />
-              新建语法
-            </Button>
-          }
-          description="从左侧列表创建语法文件。"
-          title="没有语法文件"
+          description="请等待对应仓库就绪，或在左侧选择其他语法配置。"
+          title="语法配置暂不可用"
         />
       </Panel>
     );
@@ -86,9 +71,22 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
       tabIndex={-1}
     >
       <PanelHeader
-        title={activeFile.name}
+        title={syntax.draft.name || "未命名语法"}
       />
       <PanelBody scroll>
+        {syntax.hasDraftErrors ? (
+          <div className="syntax-invalid-draft" role="alert">
+            <span>当前更改无效；修复或撤销前不能离开此配置。</span>
+            <Button
+              onClick={syntax.revertInvalidChanges}
+              type="button"
+              variant="secondary"
+            >
+              <RotateCcw aria-hidden="true" size={13} />
+              撤销无效更改
+            </Button>
+          </div>
+        ) : null}
         <div className="syntax-settings-stack" aria-label="语法设置">
           <SyntaxSettingsGroup title="基础">
             <label className="syntax-setting-line">
@@ -101,6 +99,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
                 aria-label="语法名称"
                 className="ui-input syntax-name-control"
                 data-syntax-field-id={syntaxFieldIds.profileName}
+                disabled={!syntax.nameEditable}
                 maxLength={syntax.constraints.profileName.maxLength}
                 value={syntax.draft.name}
                 onChange={(event) =>
@@ -139,7 +138,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             title="块规则"
           >
             <SyntaxRuleHeader />
-            <TitleAndConceptRows syntax={syntax} />
+            <TitleAndRootRows syntax={syntax} />
             <MarkerRuleRows syntax={syntax} />
           </SyntaxSettingsGroup>
           <SyntaxSettingsGroup

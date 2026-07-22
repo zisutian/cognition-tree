@@ -58,7 +58,43 @@ test.describe("syntax and visualization activity flows", () => {
     await expect(syntaxName).toHaveValue("浏览器回归语法");
   });
 
-  test("keeps the last valid syntax active while an invalid draft remains visible", async ({
+  test("separates system configurations from workspace selection and activation", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "语法").click();
+
+    await expect(page.getByRole("heading", { name: "系统语法" })).toBeVisible();
+    await expect(page.getByText("笔记库语法", { exact: true })).toBeVisible();
+
+    await page.locator('[data-syntax-owner="journal"]').click();
+    await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();
+    await expect(page.getByText("顶格正文", { exact: true })).toBeVisible();
+
+    await page.locator('[data-syntax-owner="todo"]').click();
+    await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^角色:/ }).first())
+      .toBeDisabled();
+
+    const workspaceRows = page.locator("[data-syntax-file-id]");
+
+    await workspaceRows.first().click();
+    await page.getByRole("button", { name: "新建笔记库语法" }).click();
+    await expect(workspaceRows).toHaveCount(2);
+    const selectedRow = page.locator(
+      '[data-syntax-file-id][aria-current="page"]',
+    );
+
+    await expect(selectedRow).toBeVisible();
+    const enableButton = page.getByRole("button", { name: /^启用语法 / });
+
+    await expect(enableButton).toBeVisible();
+    await enableButton.click();
+    await expect(enableButton).toHaveCount(0);
+    await expect(selectedRow).toContainText("启用");
+  });
+
+  test("blocks leaving an invalid syntax draft until it is reverted", async ({
     page,
   }) => {
     const beforeResponse = await api.get(
@@ -81,6 +117,10 @@ test.describe("syntax and visualization activity flows", () => {
     await syntaxName.fill("");
     await expect(syntaxName).toHaveValue("");
 
+    await getActivityButton(page, "笔记").click();
+    await expect(page.getByLabel("语法配置")).toBeVisible();
+    await page.getByRole("button", { name: "撤销无效更改" }).click();
+    await expect(syntaxName).not.toHaveValue("");
     await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("Alpha").click();
 
@@ -114,7 +154,7 @@ test.describe("syntax and visualization activity flows", () => {
     });
 
     await getActivityButton(page, "语法").click();
-    await expect(syntaxName).toHaveValue("");
+    await expect(syntaxName).not.toHaveValue("");
   });
 
   test("switches graph selection without shrinking the canvas", async ({

@@ -5,6 +5,9 @@ import { createSyntaxActivitySlots } from "../../../../src/ui/activities/syntax/
 import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDetailPanel";
 import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
 import { createView } from "../../viewFactory";
+import { createSyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
+import { defaultJournalCtnSyntaxProfileV2 } from "../../../../journal/syntax/journalSyntax";
+import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
 
 describe("syntax panels", () => {
   it("lists syntax files with the active and invalid state", () => {
@@ -18,12 +21,14 @@ describe("syntax panels", () => {
               hasErrors: true,
               id: "syntax-primary",
               isActive: true,
+              isSelected: true,
               name: "主要语法",
             },
             {
               hasErrors: false,
               id: "syntax-secondary",
               isActive: false,
+              isSelected: false,
               name: "备用语法",
             },
           ],
@@ -32,7 +37,11 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="新建语法"');
+    expect(markup).toContain('aria-label="新建笔记库语法"');
+    expect(markup).toContain("系统语法");
+    expect(markup).toContain("笔记库语法");
+    expect(markup).toContain("日记");
+    expect(markup).toContain("代办");
     expect(markup).toContain("ui-compact-context-list");
     expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain('data-syntax-file-id="syntax-primary"');
@@ -42,13 +51,13 @@ describe("syntax panels", () => {
     expect(markup).toContain("备用语法");
     expect(markup).toContain("错误");
     expect(markup).toContain("has-diagnostics");
-    expect(markup).toMatch(/aria-label="新建语法"[^>]*disabled=""/);
+    expect(markup).toMatch(/aria-label="新建笔记库语法"[^>]*disabled=""/);
     expect(markup).toMatch(
       /data-syntax-file-id="syntax-secondary"[^>]*disabled=""/,
     );
-    expect(markup).toMatch(
-      /aria-label="删除语法 备用语法"[^>]*disabled=""/,
-    );
+    expect(markup).toMatch(/data-syntax-owner="journal"[^>]*disabled=""/);
+    expect(markup).toMatch(/data-syntax-owner="todo"[^>]*disabled=""/);
+    expect(markup).not.toContain('aria-label="删除语法 备用语法"');
     expect(markup).toMatch(
       /aria-label="删除语法 主要语法"[^>]*disabled=""/,
     );
@@ -95,6 +104,69 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("syntax-inline-header");
   });
 
+  it("renders file actions only on the selected row and separates activation", () => {
+    const view = createView().syntax;
+    const markup = renderToStaticMarkup(
+      <SyntaxContext
+        view={{
+          ...view,
+          activeFileId: "syntax-active",
+          files: [
+            {
+              hasErrors: false,
+              id: "syntax-active",
+              isActive: true,
+              isSelected: false,
+              name: "已启用",
+            },
+            {
+              hasErrors: false,
+              id: "syntax-editing",
+              isActive: false,
+              isSelected: true,
+              name: "正在编辑",
+            },
+          ],
+          selectedTarget: {
+            fileId: "syntax-editing",
+            kind: "workspace-file",
+          },
+        }}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="启用语法 正在编辑"');
+    expect(markup).toContain('aria-label="删除语法 正在编辑"');
+    expect(markup).not.toContain('aria-label="删除语法 已启用"');
+    expect(markup).toContain("启用");
+  });
+
+  it("keeps the Journal name and reference trigger visibly protected", () => {
+    const base = createView().syntax;
+    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV2);
+    const referenceId = draft.inlineRules.find(
+      ({ type }) => type === "global-reference",
+    )!.id;
+    const markup = renderToStaticMarkup(
+      <SyntaxMainPanel
+        view={{
+          ...base,
+          ...createUiSyntaxView({ draft, policy: { scope: "journal" } }),
+          nameEditable: false,
+          protectedInlineTriggerRuleIds: [referenceId],
+          rootRuleLabel: "顶格正文",
+          selectedTarget: { kind: "journal" },
+        }}
+      />,
+    );
+
+    expect(markup).toContain("顶格正文");
+    expect(markup).not.toContain("顶格概念");
+    expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
+    expect(markup).toMatch(/aria-label="开始"[^>]*disabled=""/);
+    expect(markup).toMatch(/aria-label="结束"[^>]*disabled=""/);
+  });
+
   it("shows a catalog name conflict at the profile name field", () => {
     const view = createView().syntax;
     const message = "语法名称“备用语法”已存在。";
@@ -112,15 +184,22 @@ describe("syntax panels", () => {
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain('id="syntax-name-conflict"');
     expect(markup).toContain(message);
+    expect(markup).toContain("撤销无效更改");
+    expect(markup).toContain("修复或撤销前不能离开此配置");
   });
 
-  it("offers file creation and removes the preview when the catalog is empty", () => {
+  it("keeps system syntax available when the workspace catalog is empty", () => {
     const view = createView().syntax;
     const emptyView = {
       ...view,
       activeFileId: null,
       files: [],
-      isConfigured: false,
+      selectedTarget: { kind: "journal" as const },
+      systemConfigurations: view.systemConfigurations.map((item) => ({
+        ...item,
+        isSelected: item.owner === "journal",
+      })),
+      workspaceAvailable: false,
     };
     const markup = renderToStaticMarkup(
       <SyntaxMainPanel view={emptyView} />,
@@ -130,12 +209,11 @@ describe("syntax panels", () => {
       view: emptyView,
     });
 
-    expect(markup).toContain("没有语法文件");
-    expect(markup).toContain("新建语法");
+    expect(markup).toContain("语法设置");
     expect(renderToStaticMarkup(<>{slots.context?.content}</>)).toContain(
-      "没有语法文件。",
+      "当前笔记库没有语法文件。",
     );
-    expect(slots.detail).toBeNull();
+    expect(slots.detail).not.toBeNull();
   });
 
   it("keeps the detail panel focused on syntax preview only", () => {

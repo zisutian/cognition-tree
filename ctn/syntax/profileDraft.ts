@@ -9,6 +9,7 @@ import {
   syntaxProfileSchema,
   syntaxProfileValidationPolicies,
   validateSyntaxProfile,
+  type CtnSyntaxProfileValidationPolicy,
   type SyntaxProfileSchemaDiagnosticCode,
 } from "./profileSchema.ts";
 
@@ -22,7 +23,7 @@ export type SyntaxProfileDraftMarkerRule = {
   type: string;
 };
 
-export type SyntaxProfileDraftConceptRule = {
+export type SyntaxProfileDraftTopLevelUnmarkedRule = {
   id: string;
   label: string;
   textColor: CtnSyntaxTone;
@@ -51,12 +52,12 @@ export type SyntaxProfileDraftInlineRule = {
 };
 
 export type SyntaxProfileDraft = {
-  conceptRule: SyntaxProfileDraftConceptRule;
   inlineRules: SyntaxProfileDraftInlineRule[];
   markerRules: SyntaxProfileDraftMarkerRule[];
   name: string;
   tabDisplayWidth: string;
   titleRule: SyntaxProfileDraftTitleRule;
+  topLevelUnmarkedRule: SyntaxProfileDraftTopLevelUnmarkedRule | null;
 };
 
 export type SyntaxProfileDraftDiagnostic = {
@@ -166,23 +167,7 @@ export function createNextInlineRuleDraft(
 export function createSyntaxProfileDraft(
   profile: CtnSyntaxProfile,
 ): SyntaxProfileDraft {
-  const conceptRule = profile.topLevelUnmarkedRule;
-
-  if (
-    conceptRule === null ||
-    conceptRule.type !== syntaxProfileSchema.requiredTypes.concept
-  ) {
-    throw new Error("A workspace syntax draft requires its concept rule.");
-  }
-
   return {
-    conceptRule: {
-      id: "concept-1",
-      label: conceptRule.label,
-      textColor: conceptRule.textColor,
-      tone: conceptRule.tone,
-      type: conceptRule.type,
-    },
     titleRule: {
       id: "title-1",
       label: profile.titleRule.label,
@@ -214,19 +199,32 @@ export function createSyntaxProfileDraft(
     })),
     name: profile.name,
     tabDisplayWidth: String(profile.tabDisplayWidth),
+    topLevelUnmarkedRule: profile.topLevelUnmarkedRule
+      ? {
+          id: "top-level-unmarked-1",
+          label: profile.topLevelUnmarkedRule.label,
+          textColor: profile.topLevelUnmarkedRule.textColor,
+          tone: profile.topLevelUnmarkedRule.tone,
+          type: profile.topLevelUnmarkedRule.type,
+        }
+      : null,
   };
 }
 
 export function buildSyntaxProfileDraft(
   draft: SyntaxProfileDraft,
+  policy: CtnSyntaxProfileValidationPolicy =
+    syntaxProfileValidationPolicies.workspace,
 ): SyntaxProfileDraftBuildResult {
   const profile: CtnSyntaxProfile = {
-    topLevelUnmarkedRule: {
-      label: draft.conceptRule.label.trim(),
-      textColor: draft.conceptRule.textColor,
-      tone: draft.conceptRule.tone,
-      type: draft.conceptRule.type.trim(),
-    },
+    topLevelUnmarkedRule: draft.topLevelUnmarkedRule
+      ? {
+          label: draft.topLevelUnmarkedRule.label.trim(),
+          textColor: draft.topLevelUnmarkedRule.textColor,
+          tone: draft.topLevelUnmarkedRule.tone,
+          type: draft.topLevelUnmarkedRule.type.trim(),
+        }
+      : null,
     inlineRules: draft.inlineRules.map((rule) =>
       rule.kind === "paired"
         ? {
@@ -266,7 +264,7 @@ export function buildSyntaxProfileDraft(
   };
   const diagnostics = validateSyntaxProfile(
     profile,
-    syntaxProfileValidationPolicies.workspace,
+    policy,
   ).map((diagnostic) => ({ ...diagnostic }));
 
   if (diagnostics.length > 0) {

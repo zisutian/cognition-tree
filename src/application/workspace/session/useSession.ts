@@ -17,15 +17,15 @@ const browserSessionCommandDependencies = {
 type ActiveSessionState = WorkspaceSessionReadyState;
 
 export type ActiveSession = ActiveSessionState & {
+  activateSyntaxFile: (fileId: string) => Promise<void>;
   commands: SessionCommands;
-  createSyntaxFile: () => Promise<void>;
+  createSyntaxFile: (templateFileId: string | null) => Promise<string>;
   deleteSyntaxFile: (fileId: string) => Promise<void>;
   discardPendingChangesAndReload: () => Promise<void>;
   flushPendingChanges: () => Promise<void>;
   prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
   reload: () => Promise<void>;
-  selectSyntaxFile: (fileId: string) => Promise<void>;
-  updateActiveSyntaxFileSource: (source: string) => Promise<void>;
+  updateSyntaxFileSource: (fileId: string, source: string) => Promise<void>;
 };
 
 export type Session =
@@ -55,6 +55,7 @@ function createSession(
 
   return {
     ...state,
+    activateSyntaxFile: controller.activateSyntaxFile,
     commands: controller.commands,
     createSyntaxFile: controller.createSyntaxFile,
     deleteSyntaxFile: controller.deleteSyntaxFile,
@@ -63,8 +64,7 @@ function createSession(
     flushPendingChanges: controller.flushPendingChanges,
     prepareForRepositoryRemoval: controller.prepareForRepositoryRemoval,
     reload: controller.reload,
-    selectSyntaxFile: controller.selectSyntaxFile,
-    updateActiveSyntaxFileSource: controller.updateActiveSyntaxFileSource,
+    updateSyntaxFileSource: controller.updateSyntaxFileSource,
   };
 }
 

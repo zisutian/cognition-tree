@@ -87,12 +87,14 @@ export function SyntaxDetailPanel({
             tone={view.draft.titleRule.tone}
             value="首行标题示例"
           />
-          <SyntaxRenderLine
-            marker="C"
-            textColor={view.draft.conceptRule.textColor}
-            tone={view.draft.conceptRule.tone}
-            value="顶格概念示例"
-          />
+          {view.draft.topLevelUnmarkedRule && view.rootRuleLabel ? (
+            <SyntaxRenderLine
+              marker={view.selectedTarget.kind === "journal" ? "B" : "C"}
+              textColor={view.draft.topLevelUnmarkedRule.textColor}
+              tone={view.draft.topLevelUnmarkedRule.tone}
+              value={`${view.rootRuleLabel}示例`}
+            />
+          ) : null}
           {view.draft.markerRules.map((rule) => (
             <SyntaxRenderLine
               key={rule.id}

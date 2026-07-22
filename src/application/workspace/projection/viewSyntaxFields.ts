@@ -3,13 +3,13 @@ import type { SyntaxProfileDraft } from "../../../../ctn/syntax/profileDraft";
 export type UiSyntaxFieldId = string;
 
 export const syntaxFieldIds = {
-  conceptRule: "syntax-concept-rule",
   inlineRuleGroup: "syntax-inline-rule-group",
   markerRuleGroup: "syntax-marker-rule-group",
   profileName: "syntax-profile-name",
   root: "syntax-root",
   tabDisplayWidth: "syntax-tab-display-width",
   titleRule: "syntax-title-rule",
+  topLevelUnmarkedRule: "syntax-top-level-unmarked-rule",
 } as const satisfies Record<string, UiSyntaxFieldId>;
 
 type SyntaxRuleKind = "inline" | "marker";
@@ -96,15 +96,21 @@ export function resolveUiSyntaxDiagnosticLocation(
     };
   }
 
-  const fixedRuleMatch = /^(title|concept)(?:\.(.+))?$/.exec(normalizedPath);
+  const fixedRuleMatch = /^(title|concept|body)(?:\.(.+))?$/.exec(normalizedPath);
 
   if (fixedRuleMatch) {
     const [, kind, field] = fixedRuleMatch;
-    const label = kind === "title" ? "首行标题" : "顶格概念";
+    const label = kind === "title"
+      ? "首行标题"
+      : kind === "concept"
+        ? "顶格概念"
+        : "顶格正文";
 
     return {
       fieldId:
-        kind === "title" ? syntaxFieldIds.titleRule : syntaxFieldIds.conceptRule,
+        kind === "title"
+          ? syntaxFieldIds.titleRule
+          : syntaxFieldIds.topLevelUnmarkedRule,
       label: field ? `${label} · ${fieldLabels[field] ?? field}` : label,
     };
   }

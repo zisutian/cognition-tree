@@ -17,6 +17,7 @@ import type { WorkspaceApplication } from "../../application/workspace/runtime/u
 import type { UiWorkbenchDiagnostics } from "../../application/workspace/projection/viewDiagnostics";
 import {
   createUiWorkbenchProblems,
+  type WorkbenchDiagnostics,
   type UiWorkbenchProblem,
   type UiWorkbenchProblems,
 } from "../../application/problems/workbenchProblems";
@@ -40,6 +41,12 @@ type WorkbenchProblemOpenContext = {
   todoNavigation?: {
     openCollectionLine: TodoViewModel["navigation"]["openCollectionLine"];
   } | null;
+  syntaxNavigation?: {
+    openSystemSyntax: (
+      owner: "journal" | "todo",
+      fieldId: string,
+    ) => void;
+  };
   onActiveActivityChange: (activityId: ActivityId) => void;
 };
 
@@ -51,6 +58,7 @@ export function selectWorkbenchProblems({
   activeActivityId,
   diagnostics,
   journalDiagnostics,
+  syntaxDiagnostics,
   todoDiagnostics,
   repositoryIssues,
   repositories,
@@ -59,6 +67,7 @@ export function selectWorkbenchProblems({
   activeActivityId: ActivityId;
   diagnostics: UiWorkbenchDiagnostics;
   journalDiagnostics?: JournalDiagnostics;
+  syntaxDiagnostics?: WorkbenchDiagnostics;
   todoDiagnostics?: TodoDiagnostics;
   repositoryIssues: WorkspaceRepositoryCatalogIssue[];
   repositories: WorkspaceRepositoryDescriptor[];
@@ -74,7 +83,9 @@ export function selectWorkbenchProblems({
     ? journalDiagnostics ?? emptyDiagnostics
     : activeActivityId === "todo"
       ? todoDiagnostics ?? emptyDiagnostics
-      : diagnostics;
+      : activeActivityId === "syntax"
+        ? syntaxDiagnostics ?? emptyDiagnostics
+        : diagnostics;
 
   return createUiWorkbenchProblems(
     scopedDiagnostics,
@@ -112,6 +123,12 @@ export function openWorkbenchProblem(
       problem.target.lineNumber,
     );
     context.onActiveActivityChange("todo");
+  } else if (problem.target.kind === "system-syntax") {
+    context.syntaxNavigation?.openSystemSyntax(
+      problem.target.owner,
+      "fieldId" in problem.target ? problem.target.fieldId : "syntax-root",
+    );
+    context.onActiveActivityChange("syntax");
   } else if (problem.target.kind === "repository-issue") {
     context.repositoryNavigation.focusOrdinaryIssue(problem.target.issueId);
     context.onActiveActivityChange("repository");
@@ -132,13 +149,20 @@ export function WorkbenchProblemsController({
   activeActivityId,
   application,
   children,
+  onOpenSystemSyntax,
   onActiveActivityChange,
+  syntaxDiagnostics,
   workbench,
 }: {
   activeActivityId: ActivityId;
   application: WorkbenchApplication;
   children: (problemsSlot: ReactNode | null) => ReactNode;
+  onOpenSystemSyntax: (
+    owner: "journal" | "todo",
+    fieldId: string,
+  ) => void;
   onActiveActivityChange: (activityId: ActivityId) => void;
+  syntaxDiagnostics: WorkbenchDiagnostics | null;
   workbench: WorkbenchController;
 }) {
   const ordinaryCatalog = application.repository.catalogState.status === "ready"
@@ -173,6 +197,7 @@ export function WorkbenchProblemsController({
       warningCount: 0,
     },
     journalDiagnostics: journal?.diagnostics,
+    syntaxDiagnostics: syntaxDiagnostics ?? undefined,
     todoDiagnostics: todo?.diagnostics,
     repositories: ordinaryCatalog?.repositories ?? [],
     repositoryIssues: ordinaryCatalog?.issues ?? [],
@@ -184,6 +209,7 @@ export function WorkbenchProblemsController({
       journalNavigation: journal?.navigation ?? null,
       todoNavigation: todo?.navigation ?? null,
       repositoryNavigation: application.repository.navigation,
+      syntaxNavigation: { openSystemSyntax: onOpenSystemSyntax },
       workspaceNavigation: workspace?.navigation ?? null,
       onActiveActivityChange,
     });

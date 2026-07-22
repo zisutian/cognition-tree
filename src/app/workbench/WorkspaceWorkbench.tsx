@@ -1,4 +1,6 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import type { WorkbenchDiagnostics } from "../../application/problems/workbenchProblems";
+import type { UiSyntaxFocusTarget } from "../../application/workspace/projection/viewSyntax";
 import type { WorkbenchApplication } from "../../application/workbench/workbenchApplication";
 import { activityItems } from "../../ui/ActivityBar";
 import AppView from "../../ui/AppView";
@@ -16,6 +18,7 @@ import {
 import type { RenderWorkspaceActivity } from "../activities/activityController";
 import { WorkspacePersistenceNotification } from "./WorkspacePersistenceNotification";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
+import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard";
 
 function ActivityLoadingView({
   activeActivityId,
@@ -57,6 +60,38 @@ export function WorkspaceWorkbench({
         isLazyActivityId(activeActivityId) ? [activeActivityId] : [],
       ),
   );
+  const [syntaxLeaveBlocked, setSyntaxLeaveBlocked] = useState(false);
+  const [syntaxProblems, setSyntaxProblems] =
+    useState<WorkbenchDiagnostics | null>(null);
+  const [systemSyntaxFocusRequest, setSystemSyntaxFocusRequest] = useState<
+    Extract<UiSyntaxFocusTarget, { systemOwner: "journal" | "todo" }> | null
+  >(null);
+  const nextSystemSyntaxFocusRequestIdRef = useRef(1);
+  const openSystemSyntax = (
+    systemOwner: "journal" | "todo",
+    fieldId: string,
+  ) => {
+    setSystemSyntaxFocusRequest({
+      fieldId,
+      requestId: nextSystemSyntaxFocusRequestIdRef.current++,
+      systemOwner,
+    });
+  };
+  const consumeSystemSyntaxFocusRequest = (requestId: number) => {
+    setSystemSyntaxFocusRequest((current) =>
+      current?.requestId === requestId ? null : current
+    );
+  };
+  const requestActivityChange = (activityId: ActivityId) => {
+    if (!canChangeActivityWithSyntaxDraft({
+      activeActivityId,
+      nextActivityId: activityId,
+      syntaxLeaveBlocked,
+    })) {
+      return;
+    }
+    onActiveActivityChange(activityId);
+  };
 
   useEffect(() => {
     if (!isLazyActivityId(activeActivityId)) {
@@ -84,7 +119,9 @@ export function WorkspaceWorkbench({
       <WorkbenchProblemsController
         activeActivityId={activeActivityId}
         application={application}
-        onActiveActivityChange={onActiveActivityChange}
+        onOpenSystemSyntax={openSystemSyntax}
+        onActiveActivityChange={requestActivityChange}
+        syntaxDiagnostics={syntaxProblems}
         workbench={workbench}
       >
         {(problemsSlot) => {
@@ -94,15 +131,20 @@ export function WorkspaceWorkbench({
             <AppView
               activeActivityId={activeActivityId}
               createActivitySlots={createActivitySlots}
-              onActiveActivityChange={onActiveActivityChange}
+              onActiveActivityChange={requestActivityChange}
               problemsSlot={problemsSlot}
               workbench={workbench}
             />
           );
           const controllerProps = {
             application,
-            onActiveActivityChange,
+            onActiveActivityChange: requestActivityChange,
+            onConsumeSystemSyntaxFocusRequest:
+              consumeSystemSyntaxFocusRequest,
+            onSyntaxLeaveBlockedChange: setSyntaxLeaveBlocked,
+            onSyntaxProblemsChange: setSyntaxProblems,
             renderActivity,
+            systemSyntaxFocusRequest,
           };
 
           return (
