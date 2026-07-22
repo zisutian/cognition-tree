@@ -45,6 +45,7 @@ describe("ctn editor decorations", () => {
     class FakeCheckbox extends EventTarget {
       checked = false;
       className = "";
+      readonly tagName = "INPUT";
       type = "";
       readonly attributes = new Map<string, string>();
 
@@ -78,10 +79,30 @@ describe("ctn editor decorations", () => {
       expect(checkbox.attributes.get("aria-label")).toBe("标记未完成 完成测试");
       expect(widget.ignoreEvent()).toBe(true);
 
-      checkbox.dispatchEvent(new Event("change", { cancelable: true }));
+      expect(
+        checkbox.dispatchEvent(new Event("change", { cancelable: true })),
+      ).toBe(true);
 
       expect(onToggle).toHaveBeenCalledWith(
         "00000000-0000-4000-8000-000000000001",
+      );
+
+      const updatedWidget = new CtnCheckboxWidget(
+        {
+          blockId: "00000000-0000-4000-8000-000000000001",
+          checked: false,
+          label: "更新测试",
+          lineNumber: 1,
+        },
+        { current: onToggle },
+      );
+
+      expect(
+        updatedWidget.updateDOM(checkbox as unknown as HTMLElement),
+      ).toBe(true);
+      expect(checkbox.checked).toBe(false);
+      expect(checkbox.attributes.get("aria-label")).toBe(
+        "标记完成 更新测试",
       );
     } finally {
       if (originalDocument) {

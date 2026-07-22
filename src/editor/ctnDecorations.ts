@@ -41,6 +41,19 @@ export class CtnCheckboxWidget extends WidgetType {
       this.item.label === other.item.label;
   }
 
+  updateDOM(dom: HTMLElement) {
+    if (dom.tagName !== "INPUT") return false;
+
+    const checkbox = dom as HTMLInputElement;
+
+    checkbox.checked = this.item.checked;
+    checkbox.setAttribute(
+      "aria-label",
+      `${this.item.checked ? "标记未完成" : "标记完成"} ${this.item.label}`,
+    );
+    return true;
+  }
+
   toDOM() {
     const checkbox = document.createElement("input");
 
@@ -53,7 +66,6 @@ export class CtnCheckboxWidget extends WidgetType {
     );
     checkbox.addEventListener("mousedown", (event) => event.stopPropagation());
     checkbox.addEventListener("change", (event) => {
-      event.preventDefault();
       event.stopPropagation();
       this.onToggleRef.current?.(this.item.blockId);
     });

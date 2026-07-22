@@ -5,7 +5,7 @@ import {
   Minimize2,
   Plus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CtnEditor } from "../../../editor/CtnEditor";
 import type { NotesViewModel } from "../../../application/workspace/activities/notes/notesViewModel";
 import {
@@ -120,12 +120,25 @@ export function NotesContext({ view }: NotesContextProps) {
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [folderTitle, setFolderTitle] = useState("新文件夹");
   const [moveNode, setMoveNode] = useState<TreeNode | null>(null);
+  const lastActiveNodeIdsRef = useRef<{
+    folder: string | null;
+    note: string | null;
+  }>({ folder: null, note: null });
   const directory = view.directory;
 
   useEffect(() => {
+    const activeNode = directory.activeNode;
+
+    if (!activeNode) return;
+    const activeNodeId = activeNode.kind === "note"
+      ? activeNode.noteId
+      : activeNode.folderId;
+
+    if (lastActiveNodeIdsRef.current[activeNode.kind] === activeNodeId) return;
+    lastActiveNodeIdsRef.current[activeNode.kind] = activeNodeId;
     const ancestors = findNotesTreeAncestorFolderIds(
       directory.noteTree,
-      directory.activeNode,
+      activeNode,
     );
 
     if (ancestors.length === 0) return;

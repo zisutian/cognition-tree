@@ -71,10 +71,28 @@ export async function resetJournalRepository(
 ) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const current = await readJournalSnapshot(api);
+    const dailyCounters = new Map(
+      content.dailyCounters.map((counter) => [counter.date, counter]),
+    );
+
+    for (const counter of current.content.dailyCounters) {
+      const requested = dailyCounters.get(counter.date);
+
+      if (!requested ||
+          requested.lastIssuedSequence < counter.lastIssuedSequence) {
+        dailyCounters.set(counter.date, counter);
+      }
+    }
+
     const response = await api.put(journalSnapshotEndpoint, {
       data: {
         baseRevision: current.revision,
-        content,
+        content: {
+          ...content,
+          dailyCounters: [...dailyCounters.values()].sort((left, right) =>
+            left.date.localeCompare(right.date)
+          ),
+        },
       },
     });
 

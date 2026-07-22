@@ -30,9 +30,11 @@ function ActiveStructureOperationActivity({
 }
 
 function ReadyStructureOperationActivity({
+  active,
   application,
   renderActivity,
 }: {
+  active: boolean;
   application: WorkspaceApplication;
   renderActivity: WorkspaceActivityControllerProps["renderActivity"];
 }) {
@@ -41,6 +43,10 @@ function ReadyStructureOperationActivity({
     notes: application.runtime.effectiveNotes,
     workspace: application.runtime.effectiveWorkspace,
   });
+
+  if (!active) {
+    return null;
+  }
 
   return (
     <ActiveStructureOperationActivity
@@ -57,10 +63,11 @@ export function StructureOperationActivityController({
   onActiveActivityChange,
   renderActivity,
 }: WorkspaceActivityControllerProps) {
-  if (!active) {
-    return null;
-  }
   if (application.workspace.status !== "ready") {
+    if (!active) {
+      return null;
+    }
+
     return renderWorkspaceUnavailableActivity({
       onOpenRepository: () => onActiveActivityChange("repository"),
       renderActivity,
@@ -70,6 +77,7 @@ export function StructureOperationActivityController({
 
   return (
     <ReadyStructureOperationActivity
+      active={active}
       application={application.workspace.application}
       renderActivity={renderActivity}
     />
