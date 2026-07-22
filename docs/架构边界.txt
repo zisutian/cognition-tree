@@ -1,95 +1,131 @@
 架构边界
 
 
-1. 模块职责
+1. 产品领域
 
-app：
+认知树包含三个平级内容领域：
 
-    应用组合根，装配 application、ui、storage 和 editor。activities 只把 application activity 状态适配为 UI slots；workbench 单独组合全局 Frame、问题面板、反馈和 activity 生命周期。
+    Workspace：零个或多个普通笔记库，每个仓库拥有独立内容、语法目录和工作台偏好。
+    Journal：全局唯一的日记库，使用自身语法、日历聚合和诊断。
+    Todo：全局唯一的代办库，使用自身语法、CTN 集合和完成状态 sidecar。
+
+Journal、Todo 和 Workspace 不继承统一文档库模型，也不互相依赖。它们只共享 CTN、可移植名称规则和由基础设施提供的通用 versioned storage。Repository 不是第四个内容领域；它只负责普通仓库 catalog、内置数据 descriptor、存储位置、故障和运维命令。
+
+
+2. 源码层次
+
+core：
+
+    纯领域代码。core/ctn 提供 canonical/editable 原文解析、结构诊断、metadata reconcile、引用和 syntax profile；core/naming 提供可移植名称值与唯一键；core/workspace、core/journal、core/todo 分别拥有自己的内容、命令、查询和 transition 约束。core 不依赖 React、wire contract、浏览器、Node 或其它外层；三个内容领域互不直接依赖。
 
 application：
 
-    应用层。workspace 管理普通仓库 session、共享选择、统一导航、语法运行时和 UI 投影；journal 与 todo 分别消费对应系统 session 并持有独立选择和领域命令；journal workspace-reference resolver 按需读取非活动普通仓库的 local-first snapshot，并通过 AppRoot 一次性 `{ repositoryId, noteId, lineNumber: 1 }` destination 完成跨 session 导航；repository 管理普通 catalog、两个系统仓库 session 及仓库问题；workbench 组合可空普通 workspace、两个系统 application 与始终独立存在的 repository application。WorkspaceAnalysis 是唯一普通仓库全仓解析入口，一轮分批扫描同时发布 parsed notes、标题索引、诊断和引用图谱。
+    框架无关的用例和端口。application/workspace、journal、todo 各自管理 session controller、选择、命令和 read model；application/repository 管理普通 catalog、内置数据 descriptor/issue 和运维命令；application/problems 组合问题投影；application/workbench 的 coordinator 组合四份独立应用状态、普通仓库切换和 Journal 跨仓导航。application 不依赖 React、contracts、infrastructure 或 presentation；跨内容领域的流程只能由 workbench coordinator 协调。
 
-ui：
+infrastructure：
 
-    workbench 界面层，提供活动栏、槽位 Frame、布局控制、全局问题面板、activity 页面、共享组件和样式系统。布局持久化和 resize 交互不进入 application view model。
+    外部系统实现。infrastructure/persistence 提供可注入 codec、content validator、transition validator、revision factory 和 empty-content factory 的 VersionedRepository<Content>、VersionedSession<Content>、local-first cache 与同步队列；infrastructure/browser 和 infrastructure/http 分别实现 IndexedDB 与 HTTP adapter，互不依赖；infrastructure/server 实现 Node API、文件系统 Local/WebDAV adapter、普通 catalog 和 Journal/Todo 独立 store。runtime 文件是组合 adapter 与 application 端口的边界。
 
-workspace：
+presentation：
 
-    workspace 业务核心，承载数据模型、命令、查询、索引和语法上下文。
-
-journal：
-
-    位于仓库顶层的前后端共享纯领域核心，承载 Journal v2 内容与 transition 约束、不可变当日序号标题、daily counters、可配置 syntax source、正文命令、月份与选择查询、独立解析索引和仓内引用。日记把顶格无符号行映射为中性的 `body` 语义，不解释普通仓库 catalog 或跨仓导航；qualified reference 的外部解析由 application 完成。journal 只依赖 ctn，不依赖 src、server、contracts、React 或平台运行时。
-
-todo：
-
-    位于仓库顶层的前后端共享纯领域核心，承载 Todo v2 内容与 transition 约束、可配置 syntax source、有序 CTN collection、completion sidecar、结构查询和领域命令。Todo 通过 ctn 解析任务块及缩进层级，保护 `todo-item` 规则的语义 ID/role，并清理已删除 block 的孤立 completion；不依赖 src、server、contracts、React、workspace、journal 或平台运行时。
-
-ctn：
-
-    位于仓库顶层的前后端共享纯领域核心，承载唯一的 canonical/editable 原文解析、结构诊断、metadata reconcile、引用解析、块文本编辑和 syntax profile。顶格无符号规则是可空且带明确 semantic role 的 scoped policy：普通笔记映射为 `concept`，日记映射为 `body`，Todo 禁止无标记正文。ctn 不依赖 src、server、contracts 或平台运行时；application、workspace、journal、todo、editor 和 Local adapter 均消费同一实现。
-
-portable-name：
-
-    位于仓库顶层的纯领域值模块，负责普通笔记标题、文件夹名、仓库名和 Todo 集合名的存储规范化、合法性与唯一键。模块只实现 `trim → NFC → 连续 ASCII 空格折叠`、Unicode 字母/组合标记/数字/空格/`-`/`_` 白名单，以及 `NFKC → en-US lowercase` 引用键；不依赖 workspace、storage、server、React 或平台文件系统。
-
-storage：
-
-    前端持久化边界。repository 的通用 versioned repository 将 raw remote backend 与 application 使用的 local-first repository 分开，定义 local draft CAS、远端同步结果、缓存数据和离线恢复策略；普通 Workspace 与系统仓库以各自 codec、validator 和 DTO 适配该机制。browser 与 HTTP adapter 实现外部读写；runtime 是唯一组合 adapter 的位置。普通 catalog 发布可创建 adapter，负责列出、创建、重命名、删除和按 id 打开仓库；系统 catalog 固定发布日记与代办，只允许 list、open 和 retry。两类 catalog 均以 adapter 对应的结构化 location 表达存储位置。
-
-editor：
-
-    编辑器技术适配，承载 CodeMirror 组件、扩展、装饰、诊断提示、引用点击识别和多行块键位行为。
-
-server：
-
-    仓库执行端。repository 定义普通 store/catalog 端口、v4 内容、syntax catalog 语义校验、revision 与删除结果，并定义两个固定 purpose 的系统仓库文件 store、CAS 和受保护 catalog；catalog 组合健康普通仓库和带 adapter、lifecycle 状态的单仓问题，统一分配 repository ID 与名称冲突投影；api 负责 HTTP、统一错误与请求安全；local adapter 管理可见 working tree、隐藏 `.ctn/` 内部事实、稳定扫描、身份协调、WAL、独占 writer 和原子删除；WebDAV adapter 管理安全连接 registry、目标网络边界、不可变 generation、lease、ETag CAS 与 deletion tombstone；index 是唯一组合根。
+    React 与交互适配。presentation/shell 只装配 AppRoot、Workbench、内置数据 session bindings 和活动生命周期；presentation/activities 提供各 Activity Controller、页面及 Workspace activity bindings，且不反向依赖 shell；presentation/editor 适配 CodeMirror；presentation/ui 提供 Frame、问题面板、共享组件和样式。presentation 可以消费 application、core 和 infrastructure 的组合入口，但不被其它层反向引用。
 
 contracts：
 
-    前后端中立的 wire contract，分别负责普通仓库与系统仓库的 catalog、请求、快照、结构化 location 和提交结果运行时解析。系统仓库 contract 固定 purpose、受保护 descriptor 及 Journal/Todo v2 的精确 wire shape，不包含删除、重命名或创建请求。普通 descriptor 以 `labelIssue: conflict | reserved | nonportable | null` 投影名称问题。
+    前后端中立的 wire 类型和运行时解析。contracts/common 提供 JSON 与 contract value 基础；contracts/workspace、journal、todo、built-ins 分别定义精确 API shape。contracts 不包含业务用例、存储实现或 React；旧的 SystemRepositoryContentDto、purpose content union 和 system-repository endpoint contract 不存在。
 
 
-2. 依赖方向
+3. 依赖方向
 
-    app -> application、ui、storage、editor
-    ui -> application、editor
-    application -> workspace、ctn、storage、portable-name
-    application -> journal
-    application -> todo
-    workspace -> ctn、portable-name
-    journal -> ctn
-    todo -> ctn、portable-name
-    storage -> workspace、contracts、portable-name
-    storage -> journal
-    storage -> todo
-    editor -> ctn
-    server -> contracts、portable-name、Node HTTP、文件系统
-    server/repository/workspaceRepositoryContentValidation -> ctn
-    server/repository/systemRepositoryStore -> journal
-    server/repository/systemRepositoryStore -> todo
-    server/adapters/local -> ctn
+    core -> core 内共享基础；Workspace、Journal、Todo 互不直接依赖
+    application -> core、application 内端口
+    infrastructure -> core、application 端口、contracts、平台 API
+    presentation -> core、application、infrastructure 组合入口
+    contracts -> 纯 contract 基础；仅可复用单一所有者的纯名称值约束
 
-    storage/repository 不依赖 storage/adapters 或 storage/runtime。
-    storage/adapters/browser 与 storage/adapters/http 互不依赖。
-    server/repository 不依赖 server/api、server/catalog 或 server/adapters。
-    server/adapters/local 与 server/adapters/webdav 互不依赖。
+必须同时满足：
+
+    core 不依赖 application、infrastructure、presentation 或 contracts。
+    application 不依赖 React、contracts、infrastructure 或 presentation。
+    presentation 不被 core、application、contracts 或 infrastructure 导入。
+    presentation/activities 不依赖 presentation/shell 组合根。
+    infrastructure/browser 与 infrastructure/http 互不依赖。
+    infrastructure/server/repository 不依赖 server/api、server/catalog 或 server/adapters。
+    infrastructure/server/adapters/local 与 adapters/webdav 互不依赖。
+    生产依赖图无环；相对 import 使用 NodeNext 可处理的显式路径，不依赖仅 Vite 可解析的别名。
 
 
-3. 数据流
+4. 内容 contract 与存储
 
-    server 将 repository id 解析为 catalog 中的仓库 adapter，读取显式 content 与 sha256 revision；repository validator 对 syntax catalog 中每份 TOML 和规范化名称唯一性作统一语义校验；Local 从真实目录、可见 `.ctn` 正文、隐藏 sidecar 与 `.ctn/syntax/` 重建 canonical content，以 `.ctn/repository.json` head 的 durable atomic replace 发布 WAL target；WebDAV generation 保存同构 syntax catalog，并以 current pointer 的 ETag CAS 发布。WebDAV registry 在本地安全状态中保存动态连接，启动时只加载连接描述，实际网络访问由对应 store 延迟执行。
-    contracts 在 storage 和 server 边界分别解析同一普通仓库或系统仓库 wire shape。
-    system-journal 与 system-todo 在 wire 解析之后分别经过 v2 领域语义 validator。系统存储按 purpose 保存 epoch；发现缺失或旧 v1 epoch 时，只清除该 purpose 的旧 content 与 local-first draft/cache 并 provision 空 v2，Browser 在单个 IndexedDB transaction 内完成，HTTP 幂等替换后最后发布 epoch。该过程不读取、迁移、备份或报告旧格式；已经进入 v2 后的损坏内容和未知未来 epoch 则保留原值并形成故障。首次 load 校验单份 v2 content；已有本地事实的前向 refresh、local stage、Browser remote CAS 和 HTTP file commit 同时校验前后 revision transition。Journal 的 entry/block identity、不可变 sequence、daily counter 单调性和 canonical metadata 保持稳定；Todo 的 collection/block identity、CTN source、syntax 保护和 completion transition 保持一致。校验失败时保留原内容。
-    storage 在 IndexedDB transaction 中先以 draft revision CAS stage 最新本地 content，再由 backend 对远端 sha256 revision 提交。offline、conflict 与 sync-error 是显式同步结果，远端 409 不进入 application。
-    HTTP Local 在首次加载和手动 reload 时优先扫描服务端 working tree；没有 pending draft 时安装磁盘 revision，存在 pending 且磁盘 revision 变化时保留 draft 并形成 ready session 内的 conflict。同步提交也先扫描磁盘并校验 base revision。
-    application/repository 的通用保存队列维护每个 ready session 的独立持久化状态与保存 worker。普通 workspace command 和系统仓库领域 mutation 同步更新各自内存，随后立即 stage 本地 draft，500ms debounce 后同步远端；普通仓库切换只等待其本地持久化，不停止或重建系统 session。
-    application 在删除当前仓库前冻结 workspace command、排空 local stage 并等待已开始的同步；删除失败时恢复原 ready session 与保存队列。catalog mutation 成功后清理对应 descriptor、issue 和本地 cache。
-    Local adapter 只在首次加载、同步提交和显式重新扫描时识别外部修改，不建立 watcher 或 SSE。扫描以路径、唯一 inode、唯一旧 source hash 或子树 signature 协调身份；外部正文变化形成确定性 text edits，再交给 CTN canonical metadata reconcile。无法证明同一对象时按删除加新建处理。
-    Local 与 Browser 删除以原子提交点移除托管内容。Local 删除和目录操作保护非 `.ctn` unmanaged 文件与 symlink；WebDAV 的 remove-connection 只移除本地 registry 与 cache；delete-managed-data 以 current ETag CAS 发布永久 tombstone，随后异步清理托管 generation，catalog 以 deleting issue 表达未完成清理。
-    application 将普通仓库 canonical CTN 投影为 editable source，通过唯一 WorkspaceAnalysis 分批解析一次，并把诊断、结构定位、标题候选和引用图谱映射到 activity view model。Journal application 直接消费独立 system-journal session，以自身 parse index、选择、正文行号投影、仓内引用和 diagnostics 形成日记 view model；qualified reference 解析器只按需打开命名普通仓库的 local-first snapshot，从 canonical note header 建标题索引，不创建非活动 workspace session，也不全量扫描 WebDAV。离线但有缓存时继续使用缓存，loading 期间不提前报告 unresolved；仓库不存在、名称异常、仓库不可读、笔记不存在和同名笔记分别形成 Journal diagnostics。跨仓边不进入普通仓库引用图谱，仓库或笔记重命名也不跨独立 CAS 改写日记 source。目标导航先排空当前普通 session，再切换仓库，等待新 session 挂载后进入 Notes 并选择目标笔记。Todo application 直接消费独立 system-todo session，以 CTN parse index、collection 选择、结构 mutation 和 completion sidecar 形成代办 view model；二者都不进入 WorkspaceAnalysis。
-    app 根同时装配可空普通 workspace、普通 catalog、Journal application、Todo application 和两个固定系统 session；普通仓库缺失或挂载失败时仍渲染完整 Workbench。activity adapter 将局部 view model 交给 ui 生成 activity slots；仓库 activity 使用 UI-only discriminated selection 组合新建、普通仓库、普通仓库故障和系统仓库的 master-detail，设置 activity 只承载工作台界面偏好。全局问题面板由 app/workbench 组合，不进入 activity slots，也不经 activity adapter 传递。普通活动投影 workspace diagnostics；Repository 合并 workspace diagnostics、普通/系统仓库问题和名称问题；Journal 投影自身文档、语法、仓内及跨仓引用诊断；Todo 投影自身语法和 CTN 诊断；Syntax 根据当前编辑 owner 投影 profile diagnostics，并仅在编辑活动普通语法时附加 workspace diagnostics；Settings 不挂载问题面板。仓库问题点击只定位左侧 selection 并在右侧展示详情，破坏性操作不进入问题行。
-    editor 接收可编辑文本、scoped semantic role 和语法展示数据，为当前编辑状态生成 CodeMirror 装饰、诊断提示、引用交互和 Todo checkbox。概念强调只由 `concept` role 触发；日记 `body` 不使用概念装饰；Todo checkbox 与详情结构树都读写 completion sidecar。日记 body mode 只把正文放入 CodeMirror，并以不可编辑的 synthetic title 解析后将所有行号投影回正文。editor 不负责保存或解释块元数据。
-    workspace 和 ctn 负责结构、语义和派生数据的确定性计算。
+普通 Workspace 使用 v4 内容 contract。Local 从真实目录、可见 `.ctn` 正文、隐藏 sidecar 与 `.ctn/syntax/` 重建 canonical content，并以 `.ctn/repository.json` 的 durable atomic replace 作为提交点；WebDAV 使用不可变 generation、writer lease 和 ETag CAS；Browser 使用独立 IndexedDB。旧普通仓库版本不读取、不迁移。
+
+Journal v3 精确保存：
+
+    schemaVersion、syntaxSource、days。
+    每个 day 保存 date、lastIssuedSequence 和 entries。
+    每篇 entry 保存稳定 id、createdAt、updatedAt、timezoneOffsetMinutes、sequence 和 canonical source。
+
+days 按日期升序、entries 按 sequence 升序 canonical 保存。日期必须与创建时间和创建时区偏移一致。删除最后一篇条目后保留空 day bucket，保证序号不复用；空日期只在 presentation 隐藏。标题固定为 `YYYY-MM-DD-0001`，年、月只由 date 派生，不重复持久化。
+
+Todo v3 精确保存：
+
+    schemaVersion、syntaxSource、collections。
+    每个 collection 保存稳定 id、canonical CTN source 和 completions。
+    每项 completion 保存 blockId 与 completedAt。
+
+collections 数组顺序是用户顺序。每个集合是一篇独立 CTN 文档，标题就是集合名，缩进形成任务树；完成状态只来自 sidecar，不写入源码。移动或缩进保留 block identity，删除源码块清除孤立 completion。
+
+Journal 与 Todo 各自注入 codec、validator、transition validator、revision factory 和 empty-content factory，复用通用 versioned persistence；基础设施不得用 purpose content union 或按 purpose 的内容类型分支来模拟泛型。两者分别维护 remote、local-first draft/cache、epoch、lock 和原子临时文件，一个领域的重置或故障不得影响另一个。
+
+HTTP 路径固定为 `CTN_SERVER_STATE_DIR/built-ins/journal/` 与 `built-ins/todo/`。Browser 使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。首次进入 v3 时，仅对应领域的明确 legacy cleanup owner 静默删除旧 v2 content、epoch 和 local-first draft/cache，然后 provision 空 v3；不读取、迁移、备份或投影旧格式问题。进入 v3 后，损坏内容和未知未来版本保持原样并形成独立故障，不自动覆盖。
+
+
+5. API 与 Repository 运维
+
+普通仓库继续通过 `/api/repositories` 管理 catalog，并通过 `/api/repositories/<id>/snapshot` 读写内容。
+
+内置数据 API 为：
+
+    GET /api/built-ins
+    GET、PUT /api/journal/snapshot
+    POST /api/journal/retry
+    GET、PUT /api/todo/snapshot
+    POST /api/todo/retry
+
+`GET /api/built-ins` 只返回 Journal/Todo 的固定 descriptor、结构化位置、受保护状态和各自故障，不返回内容联合类型。领域 snapshot endpoint 使用相应精确 contract。服务端和 Browser 存储边界都不提供 Journal/Todo 的创建、删除、重命名或切换为普通仓库操作。
+
+Repository Activity 的左侧“内置数据”固定显示日记和代办。选中后，右侧显示存储状态、位置、故障详情、重试和受保护说明；不显示删除、重命名或普通仓库切换操作。底部问题行只负责定位该条目和详情，不执行破坏性动作。
+
+
+6. Application 协调与数据流
+
+每个内容领域拥有独立 session、保存队列和应用状态。领域命令先同步更新内存，再以 local revision CAS stage 本地 draft，最后异步提交远端；offline、conflict 与 sync-error 是显式结果。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo session。
+
+Workbench coordinator 是唯一跨领域流程所有者：
+
+    组合可空 Workspace application、普通 catalog application、Journal application 和 Todo application。
+    协调普通仓库切换及一次性导航 destination。
+    处理 Journal 的 `[[仓库名:笔记名]]`：按需打开命名普通仓库的 local-first snapshot，从 canonical note header 建立标题索引，不创建非活动 Workspace session，也不全量扫描 WebDAV。
+    导航时先排空当前 Workspace session，切换仓库，等待新 session 挂载，再进入 Notes 并选择目标笔记。
+
+Journal 领域自身只理解日记内容、仓内引用和外部引用 token，不依赖 Workspace。跨仓边不进入普通仓库引用图谱；仓库或笔记重命名不跨独立 CAS 改写 Journal source。Todo 领域只理解 CTN collection、任务结构和 completion，不依赖 Journal 或 Workspace。
+
+AppRoot 只负责依赖装配和把可订阅 controller/store 绑定到 React。没有健康普通仓库时仍挂载完整 Workbench：普通活动显示创建入口，Journal、Todo、Repository 和 Settings 保持可用。
+
+
+7. Presentation 与 Problems
+
+Journal 左侧是不可编辑的“年 → 月 → 日 → 条目”树。UI 中各层倒序；同日条目以 createdAt、sequence、ID 确定性倒序。进入活动时选择最新条目并展开路径；新建和问题跳转同样展开目标路径。折叠状态只属于当前页面会话，跨 Activity 保留，刷新后重置，不写入 contract。
+
+Todo 使用与 Notes 对齐的“集合列表 → CTN 编辑器 → 结构详情”。集合顺序来自 contract；编辑器和结构详情共享 completion sidecar。默认 `todo-item` 使用 `[]`，不使用整行色块，只由语法文字色、活动行、诊断和完成划线强调。
+
+Problems 按 Activity 投影：
+
+    普通活动：当前 Workspace diagnostics。
+    Repository：Workspace diagnostics、普通仓库问题、内置数据问题和名称问题。
+    Journal：自身正文、语法、仓内及跨仓引用诊断。
+    Todo：自身语法与 CTN 诊断。
+    Syntax：当前所选语法 owner 的 profile 诊断，并按 owner 附加相应领域诊断。
+    Settings：完全不挂载 Problems。
+
+编辑器接收 editable source、scoped semantic role 和语法展示数据，不负责持久化或解释仓库元数据。普通笔记的 `concept`、Journal 的中性 `body` 和 Todo 必须带标记的任务规则由 core/ctn policy 决定，而不是由页面位置或 CSS 猜测。

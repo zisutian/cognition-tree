@@ -39,7 +39,7 @@
 
 长期稳定的代码具有清楚的数据边界、状态来源、副作用位置和错误暴露边界。
 
-workspace 命令承载业务修改。application 管理 session、选择状态、保存流程和视图投影。ui 表达展示结构和用户交互。editor 适配编辑器技术能力。storage 和 server 承载持久化端口与执行。
+core 命令承载业务修改。application 只管理框架无关的 session controller、用例、选择语义、导航、问题投影与 Workbench 协调，不依赖 React、wire contract 或具体存储。presentation 提供 React binding、活动界面、共享 UI 与编辑器适配。infrastructure 实现通用 persistence、Browser/HTTP adapter 和 Node server；contracts 只负责 wire shape 与运行时解析。
 
 派生数据通过明确入口生成。解析、索引、图谱、结构树和 UI 投影各自保留清楚的输入输出。
 

@@ -8,7 +8,7 @@
 
     前端：React、Vite、CodeMirror、Canvas 引用图谱。
     后端：Node HTTP API、本地文件与 WebDAV repository adapter。
-    存储：默认在 .cognition-tree/repositories 下管理普通本地仓库，并在 .cognition-tree/server 下保存服务端状态、WebDAV 连接配置以及受保护的日记和代办系统仓库。
+    存储：默认在 .cognition-tree/repositories 下管理普通本地仓库，并在 .cognition-tree/server 下保存服务端状态、WebDAV 连接配置以及受保护的日记和代办内置数据。
 
 每个仓库由稳定的 repository id 标识。Local 仓库的可见目录就是工作区目录，文件夹对应磁盘目录，笔记对应以标题命名的 `.ctn` 文件：
 
@@ -34,16 +34,16 @@ Local 写入使用 `.ctn/transactions/` 中的 WAL。可见文件、sidecar 与�
 ## 当前能力
 
     笔记：创建、编辑、删除、重命名和移动笔记。
-    日记：在独立内置仓库中手动创建一天多条 CTN 日记；固定标题为 `YYYY-MM-DD-0001` 形式的当日递增序号，列表按月份和创建时间倒序，并支持仓内引用与 `[[仓库名:笔记名]]` 跨普通仓库引用。
-    代办：在独立内置仓库中把每个事项集合保存为一篇层级 CTN；受保护的 `todo-item` 规则默认使用 `[]`，编辑器和详情结构树共享 completion sidecar 中的勾选状态。
+    日记：在全局唯一的 Journal 领域中手动创建一天多条 CTN 日记；固定标题为 `YYYY-MM-DD-0001` 形式的当日递增序号，左侧按年、月、日形成倒序日历树，并支持仓内引用与 `[[仓库名:笔记名]]` 跨普通仓库引用。
+    代办：在全局唯一的 Todo 领域中把每个事项集合保存为一篇层级 CTN；受保护的 `todo-item` 规则默认使用 `[]`，编辑器和详情结构树共享 completion sidecar 中的勾选状态。
     目录：创建、重命名、删除和移动文件夹。
     编辑器：编辑 CTN 可编辑内容，以 Tab 表达结构层级；多行块内使用独立的代码缩进键位，并可进入保留活动栏的专注模式。
     仓库语法：语法活动分为固定的日记、代办系统语法和普通笔记库语法；普通仓库可管理多份语法文件，打开编辑与实际启用是两个独立动作。
     结构操作：在源笔记和目标笔记之间移动结构块，也支持单篇笔记内的结构整理。
     引用导航：通过 Ctrl+点击跳转局部块引用或全局笔记引用，多个目标使用统一选择器。
     引用图谱：查看笔记级引用关系和局部图谱。
-    问题：普通活动显示普通 workspace 诊断；仓库活动追加普通与系统仓库及名称问题；日记显示正文、语法、仓内和跨仓引用诊断；代办显示语法与 CTN 诊断；设置不挂载问题面板。
-    仓库：以紧凑 master-detail 创建、重命名、选择、切换和删除 Local/WebDAV/Browser 仓库；左侧只显示极简状态和选中行操作，位置、复制、重扫、故障处理与危险操作集中在右侧。日记和代办是全局唯一、不可删除且不可重命名的内置仓库。
+    问题：普通活动显示普通 workspace 诊断；仓库活动追加普通仓库、内置数据及名称问题；日记显示正文、语法、仓内和跨仓引用诊断；代办显示语法与 CTN 诊断；设置不挂载问题面板。
+    仓库：以紧凑 master-detail 创建、重命名、选择、切换和删除 Local/WebDAV/Browser 普通仓库；左侧“内置数据”固定显示日记和代办，右侧集中显示其状态、位置、故障、重试和受保护说明，不提供删除、重命名或切换为普通仓库。
     设置：在“界面”页调整按仓库保存的工作台左侧栏宽度；该活动不显示底部问题栏。
     离线编辑：保留最近一次确认快照和待同步提交，连接恢复后自动提交或进入显式冲突状态。
 
@@ -120,7 +120,7 @@ loopback HTTP 后端只接受 loopback Host 和本机开发前端 Origin。非 l
 
 后端通过 `/api/repositories` 列出和创建普通仓库，通过 `/api/repositories/<repositoryId>/snapshot` 读写指定仓库，通过 `PATCH /api/repositories/<repositoryId>` 修改 catalog label，并通过 `DELETE /api/repositories/<repositoryId>?mode=...` 删除托管内容或移除连接。repository id 由 catalog 自动生成，格式为 `repository-<lowercase-uuid>`；workspace 使用独立的 `workspace-<uuid>`。浏览器分别保存当前选择的 repository id；切换或重命名仓库不会复制内容，也不会重建活动 session。
 
-`GET /api/system-repositories` 固定列出 `system-journal` 和 `system-todo`；对应 snapshot endpoint 只提供 load 和 CAS commit，独立 retry endpoint 用于重新加载故障仓库，系统仓库不提供 create、delete 或 rename。HTTP 模式将其保存在 `CTN_SERVER_STATE_DIR/system-repositories/`，Browser 模式使用独立 IndexedDB。Journal 与 Todo 使用各自的 v2 wire contract 和按 purpose 隔离的 storage epoch；发现缺失或旧 v1 epoch 时直接清除该 purpose 的旧 content、local-first draft/cache 并 provision 空 v2，不读取、迁移、备份或提示旧格式。当前 v2 的损坏内容和未知未来 epoch 则保留原值并形成可重试问题，且不会阻断另一个系统仓库。
+`GET /api/built-ins` 只列出 `journal` 和 `todo` 的位置、受保护状态与独立故障；内容分别通过 `GET/PUT /api/journal/snapshot`、`GET/PUT /api/todo/snapshot` 读写，并通过各自的 `POST /retry` 重试。HTTP 模式保存在 `CTN_SERVER_STATE_DIR/built-ins/{journal,todo}/`，Browser 模式使用 `cognition-tree.journal` 与 `cognition-tree.todo` 两个隔离的 IndexedDB。Journal 与 Todo 使用各自的 v3 contract 和 epoch；首次进入 v3 时按领域静默清除旧 v2 content 与 local-first draft/cache，并创建空 v3，一个领域不会影响另一个。已进入 v3 后，损坏内容和未知未来 epoch 保持原样并形成可重试问题。
 
 普通笔记标题、文件夹名、仓库名和 Todo 集合名使用统一可移植名称规则：存储前执行 `trim → NFC → 连续 ASCII 空格折叠`，只允许 Unicode 字母、组合标记、数字、内部普通空格、`-` 和 `_`；唯一性与引用键使用 `NFKC → en-US lowercase`。既有不合规名称保持可读并形成诊断，必须手工重命名，不自动改写。
 
@@ -142,18 +142,11 @@ HTTP repository 的本地 draft、已知远端 revision、catalog 与逐笔记 s
 
 ## 代码结构
 
-    src/app/          应用组合根、workbench 装配和 activity adapter
-    src/application/  普通 workspace、repository/system session、workbench 状态、选择、导航、诊断和 activity 投影
-    src/ui/           workbench 布局、activity slots、问题面板、共享组件和样式
-    src/workspace/    workspace 数据模型、命令、查询、索引和语法上下文
-    ctn/              前端与 Local server 共享的纯 CTN parser、metadata reconcile 和 syntax profile 核心
-    journal/          前后端共享的日记 v2 内容约束、可配置语法、命令、查询与仓内解析索引
-    todo/             前后端共享的代办 v2 CTN 内容约束、completion sidecar、命令、查询与解析索引
-    portable-name/    普通笔记、文件夹、仓库和 Todo 集合共享的纯可移植名称规则
-    src/storage/      repository 端口、浏览器/HTTP adapter 和运行时组合
-    src/editor/       CodeMirror 编辑器适配
-    contracts/        前后端共享的普通仓库与系统仓库 wire contract
-    server/           普通/系统 repository 规则、catalog、HTTP API 和本地/WebDAV adapter
+    core/             CTN、可移植名称以及互不依赖的 Workspace、Journal、Todo 纯领域
+    application/      三个内容领域的用例、repository 端口、Workbench 协调、导航和问题投影
+    infrastructure/   通用 versioned persistence、Browser/HTTP adapter 与 Node server
+    presentation/     React shell、activity controller/view、CodeMirror editor、共享 UI 和样式
+    contracts/        普通仓库、Journal、Todo 与 built-ins 的纯 wire 类型和运行时解析
     tests/            按源码职责镜像的单元、UI 和架构测试
     e2e/              按编辑、结构、活动视图、诊断和仓库流程拆分的浏览器测试及 fixtures
 
