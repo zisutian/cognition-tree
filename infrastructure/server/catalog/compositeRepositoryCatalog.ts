@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import { isRepositoryId } from "../../../contracts/workspace-repository/parseCatalog.ts";
+import { isRepositoryId } from "../../../contracts/workspace/parseCatalog.ts";
 import {
   createPortableNameKey,
   getPortableNameIssue,
@@ -15,7 +15,7 @@ import type {
   RepositoryDescriptorDto,
   RenameRepositoryDto,
   WorkspaceRepositoryContentDto,
-} from "../../../contracts/workspace-repository/types.ts";
+} from "../../../contracts/workspace/types.ts";
 import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,

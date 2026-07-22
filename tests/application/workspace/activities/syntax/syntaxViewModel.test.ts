@@ -3,7 +3,7 @@ import { createSyntaxFileViews } from "../../../../../application/workspace/acti
 import {
   getSyntaxFocusFileIdToSelect,
   projectSyntaxFocusTargetForSelectedFile,
-} from "../../../../../presentation/shell/bindings/application/workspace/activities/syntax/useSyntaxActivity";
+} from "../../../../../presentation/activities/bindings/workspace/activities/syntax/useSyntaxActivity";
 
 describe("syntax activity view model", () => {
   it("projects active, selected, and draft error state independently", () => {

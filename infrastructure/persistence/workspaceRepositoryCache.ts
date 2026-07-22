@@ -1,8 +1,8 @@
 import {
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
-} from "../../contracts/workspace-repository/parseRepository";
-import { parseRepositoryRevision } from "../../contracts/workspace-repository/revision";
+} from "../../contracts/workspace/parseRepository";
+import { parseRepositoryRevision } from "../../contracts/workspace/revision";
 import type {
   LocalDraftRevision,
   RepositoryRevision,

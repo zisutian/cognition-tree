@@ -5,12 +5,12 @@ import {
   useRef,
   useState,
 } from "react";
-import type { ActiveRepositorySelection } from "../../../../../../application/repository/activeRepositorySelection";
+import type { ActiveRepositorySelection } from "../../../../../application/repository/activeRepositorySelection";
 import type {
   RepositoryDeletionResult,
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryCatalogData,
-} from "../../../../../../application/repository/workspaceRepositoryCatalog";
+} from "../../../../../application/repository/workspaceRepositoryCatalog";
 import {
   createRepositoryConnectionKey,
   reuseUnchangedRepositoryDescriptors,
@@ -20,9 +20,9 @@ import {
   type RenameRepositoryRequest,
   type RepositoryCatalogOperation,
   type RepositoryCatalogState,
-} from "../../../../../../application/repository/repositoryCatalog";
-import { createInitialRepositoryContent } from "../../../../../../application/workspace/session/initialRepository";
-import { parsePortableName } from "../../../../../../core/naming/portableName";
+} from "../../../../../application/repository/repositoryCatalog";
+import { createInitialRepositoryContent } from "../../../../../application/workspace/session/initialRepository";
+import { parsePortableName } from "../../../../../core/naming/portableName";
 
 export {
   createRepositoryConnectionKey,
@@ -34,7 +34,7 @@ export type {
   RenameRepositoryRequest,
   RepositoryCatalogOperation,
   RepositoryCatalogState,
-} from "../../../../../../application/repository/repositoryCatalog";
+} from "../../../../../application/repository/repositoryCatalog";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Repository catalog failed.";

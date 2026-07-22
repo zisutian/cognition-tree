@@ -7,14 +7,14 @@ import {
   IDBFactory,
   IDBObjectStore as FakeIDBObjectStore,
 } from "fake-indexeddb";
-import { parseWorkspaceRepositoryCommit } from "../contracts/workspace-repository/parseRepository.ts";
-import { serializeWorkspaceRepositoryRevisionContent } from "../contracts/workspace-repository/revision.ts";
+import { parseWorkspaceRepositoryCommit } from "../contracts/workspace/parseRepository.ts";
+import { serializeWorkspaceRepositoryRevisionContent } from "../contracts/workspace/revision.ts";
 import {
   type LocalDraftRevisionDto,
   type RepositoryRevisionDto,
   type WorkspaceRepositoryCommitDto,
   type WorkspaceRepositoryContentDto,
-} from "../contracts/workspace-repository/types.ts";
+} from "../contracts/workspace/types.ts";
 import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,

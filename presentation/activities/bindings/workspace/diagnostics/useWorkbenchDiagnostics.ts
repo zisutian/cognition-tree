@@ -2,14 +2,14 @@ import { useMemo } from "react";
 import type {
   SyntaxProfileDraft,
   SyntaxProfileDraftBuildResult,
-} from "../../../../../../core/ctn/syntax/profileDraft";
-import type { WorkspaceAnalysis } from "../../../../../../application/workspace/analysis/workspaceAnalysis";
+} from "../../../../../core/ctn/syntax/profileDraft";
+import type { WorkspaceAnalysis } from "../../../../../application/workspace/analysis/workspaceAnalysis";
 import {
   createUiSyntaxDiagnostics,
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
   type UiWorkbenchDiagnostics,
-} from "../../../../../../application/workspace/projection/viewDiagnostics";
+} from "../../../../../application/workspace/projection/viewDiagnostics";
 
 export function selectWorkbenchDiagnostics({
   analysisDiagnostics,

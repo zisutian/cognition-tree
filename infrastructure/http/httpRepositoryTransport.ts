@@ -1,4 +1,4 @@
-import { parseRepositoryApiError } from "../../contracts/workspace-repository/parseApiError";
+import { parseRepositoryApiError } from "../../contracts/workspace/parseApiError";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryRemoteError,

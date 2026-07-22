@@ -3,7 +3,7 @@ import type {
   RepositoryRevisionDto,
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
-} from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/types";
 
 export const revisionA =
   `sha256:${"a".repeat(64)}` as RepositoryRevisionDto;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createRepositoryConnectionKey,
   reuseUnchangedRepositoryDescriptors,
-} from "../../../../presentation/shell/bindings/application/workspace/session/useRepositoryCatalog";
+} from "../../../../presentation/activities/bindings/workspace/session/useRepositoryCatalog";
 import type { WorkspaceRepositoryDescriptor } from "../../../../application/repository/workspaceRepositoryCatalog";
 
 const descriptor: WorkspaceRepositoryDescriptor = {

@@ -3,7 +3,7 @@ import type {
   ReferenceGraphLocalDepth,
   ReferenceGraphMode,
   VisualizationFilterController,
-} from "../../../../../../../application/workspace/activities/visualization/visualizationViewModel";
+} from "../../../../../../application/workspace/activities/visualization/visualizationViewModel";
 
 export function useVisualizationFilter(): VisualizationFilterController {
   const [mode, setMode] = useState<ReferenceGraphMode>("global");

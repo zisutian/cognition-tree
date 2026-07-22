@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { serializeJsonIteratively } from "../../contracts/workspace-repository/json";
-import { parseWorkspaceRepositoryContent } from "../../contracts/workspace-repository/parseRepository";
-import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace-repository/revision";
+import { serializeJsonIteratively } from "../../contracts/workspace/json";
+import { parseWorkspaceRepositoryContent } from "../../contracts/workspace/parseRepository";
+import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision";
 import type {
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
-} from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/types";
 
 describe("workspace repository revision content", () => {
   it("preserves JSON.stringify semantics for plain JSON-compatible values", () => {

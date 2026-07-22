@@ -11,9 +11,9 @@ import {
   rmdir,
 } from "node:fs/promises";
 import path from "node:path";
-import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json.ts";
-import { parseRepositoryRevision } from "../../../../contracts/workspace-repository/revision.ts";
-import type { RepositoryRevisionDto } from "../../../../contracts/workspace-repository/types.ts";
+import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
+import { parseRepositoryRevision } from "../../../../contracts/workspace/revision.ts";
+import type { RepositoryRevisionDto } from "../../../../contracts/workspace/types.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

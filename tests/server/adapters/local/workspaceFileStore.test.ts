@@ -20,11 +20,11 @@ import { describe, expect, it } from "vitest";
 import { parseCtnCanonicalDocument } from "../../../../core/ctn/parser/parseCtnDocument.ts";
 import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile.ts";
 import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
-import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace-repository/contractValue";
+import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/contractValue";
 import type {
   RepositoryTreeNodeDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace-repository/types";
+} from "../../../../contracts/workspace/types";
 import {
   localRepositoryDeletionPhases,
   LocalRepositoryCatalog,

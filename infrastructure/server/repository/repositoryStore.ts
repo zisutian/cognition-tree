@@ -5,7 +5,7 @@ import type {
   RepositoryRevisionDto,
   WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositorySnapshotDto,
-} from "../../../contracts/workspace-repository/types.ts";
+} from "../../../contracts/workspace/types.ts";
 
 export type WorkspaceRepositoryStore = {
   commitSnapshot: (value: unknown) => Promise<WorkspaceRepositoryCommitResultDto>;

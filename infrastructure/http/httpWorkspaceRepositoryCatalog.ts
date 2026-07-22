@@ -6,8 +6,8 @@ import {
   parseRepositoryDeletionResult,
   parseRepositoryDescriptor,
   parseRenameRepository,
-} from "../../contracts/workspace-repository/parseCatalog";
-import { serializeJsonIteratively } from "../../contracts/workspace-repository/json";
+} from "../../contracts/workspace/parseCatalog";
+import { serializeJsonIteratively } from "../../contracts/workspace/json";
 import { createHttpWorkspaceRepositoryBackend } from "./httpWorkspaceRepository";
 import {
   createHttpRepositoryCacheIdentity,

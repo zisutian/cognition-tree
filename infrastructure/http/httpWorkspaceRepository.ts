@@ -2,8 +2,8 @@ import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositorySnapshot,
-} from "../../contracts/workspace-repository/parseRepository";
-import { serializeJsonIteratively } from "../../contracts/workspace-repository/json";
+} from "../../contracts/workspace/parseRepository";
+import { serializeJsonIteratively } from "../../contracts/workspace/json";
 import type { WorkspaceRepositoryBackend } from "../../application/repository/workspaceRepository";
 import {
   requestRepositoryJson,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile.ts";
 import { formatSyntaxProfileToml } from "../../../core/ctn/syntax/profileToml.ts";
-import { WorkspaceRepositoryContractError } from "../../../contracts/workspace-repository/contractValue.ts";
+import { WorkspaceRepositoryContractError } from "../../../contracts/workspace/contractValue.ts";
 import { validateWorkspaceRepositorySyntax } from "../../../infrastructure/server/repository/workspaceRepositoryContentValidation.ts";
 
 const firstId = "syntax-00000000-0000-4000-8000-000000000001";

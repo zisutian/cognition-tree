@@ -14,15 +14,15 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
-import { isRepositoryId } from "../../../../contracts/workspace-repository/parseCatalog.ts";
+import { isRepositoryId } from "../../../../contracts/workspace/parseCatalog.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
-import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json.ts";
+import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
 import type {
   RepositoryAuthenticationDto,
   RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
 import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
 import type { WorkspaceRepositoryStore } from "../../repository/repositoryStore.ts";
 import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";

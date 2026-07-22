@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSyntaxActivity } from "../../shell/bindings/application/workspace/activities/syntax/useSyntaxActivity";
+import { useSyntaxActivity } from "../bindings/workspace/activities/syntax/useSyntaxActivity";
 import { createSyntaxActivityDiagnostics } from "../../../application/problems/syntaxActivityDiagnostics";
 import { createSyntaxActivitySlots } from "../views/syntax/SyntaxActivitySlots";
 import type { WorkspaceActivityControllerProps } from "./activityController";

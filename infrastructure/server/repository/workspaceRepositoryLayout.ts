@@ -2,16 +2,16 @@
 
 import {
   WorkspaceRepositoryContractError,
-} from "../../../contracts/workspace-repository/contractValue.ts";
-import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json.ts";
+} from "../../../contracts/workspace/contractValue.ts";
+import { serializeJsonIteratively } from "../../../contracts/workspace/json.ts";
 import {
   isRepositoryNoteId,
   parseRepositoryTree,
-} from "../../../contracts/workspace-repository/parseWorkspace.ts";
+} from "../../../contracts/workspace/parseWorkspace.ts";
 import {
   isRepositorySyntaxFileId,
   parseRepositorySyntaxCatalog,
-} from "../../../contracts/workspace-repository/parseSyntax.ts";
+} from "../../../contracts/workspace/parseSyntax.ts";
 import {
   repositorySyntaxIndexFileName,
   workspaceRepositorySchemaVersion,
@@ -19,7 +19,7 @@ import {
   type RepositorySyntaxCatalogDto,
   type RepositoryWorkspaceDto,
   type WorkspaceRepositoryContentDto,
-} from "../../../contracts/workspace-repository/types.ts";
+} from "../../../contracts/workspace/types.ts";
 
 export const workspaceFileName = "workspace.json";
 export const notesDirName = "notes";

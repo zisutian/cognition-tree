@@ -1,7 +1,7 @@
-import type { JournalApplication } from "../../../application/journal/journalApplication";
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { TodoApplication } from "../../../application/todo/todoApplicationState";
-import type { WorkspaceApplication } from "../bindings/application/workspace/runtime/useWorkspaceApplication";
+import type { JournalApplication } from "../../application/journal/journalApplication";
+import type { RepositoryApplication } from "../../application/repository/repositoryApplication";
+import type { TodoApplication } from "../../application/todo/todoApplicationState";
+import type { WorkspaceApplication } from "./bindings/workspace/runtime/useWorkspaceApplication";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }

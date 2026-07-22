@@ -3,13 +3,13 @@ import {
   failContract,
   readContractObject,
   readRequiredContractString,
-} from "../../contracts/workspace-repository/contractValue";
+} from "../../contracts/workspace/contractValue";
 import {
   isRepositoryId,
   parseRepositoryDeletionMode,
-} from "../../contracts/workspace-repository/parseCatalog";
-import { parseWorkspaceRepositoryContent } from "../../contracts/workspace-repository/parseRepository";
-import type { RepositoryDescriptorDto } from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/parseCatalog";
+import { parseWorkspaceRepositoryContent } from "../../contracts/workspace/parseRepository";
+import type { RepositoryDescriptorDto } from "../../contracts/workspace/types";
 import type { WorkspaceRepositoryCatalog } from "../../application/repository/workspaceRepositoryCatalog";
 import type {
   WorkspaceRepository,

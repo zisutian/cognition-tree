@@ -1,5 +1,5 @@
-import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace-repository/revision";
-import type { RepositoryRevisionDto } from "../../contracts/workspace-repository/types";
+import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision";
+import type { RepositoryRevisionDto } from "../../contracts/workspace/types";
 import type { WorkspaceRepositoryContent } from "../../application/repository/workspaceRepository";
 
 export async function createWorkspaceRepositoryRevision(

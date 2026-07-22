@@ -1,6 +1,6 @@
-import { useNotesActivity } from "../../shell/bindings/application/workspace/activities/notes/useNotesActivity";
+import { useNotesActivity } from "../bindings/workspace/activities/notes/useNotesActivity";
 import { createNotesActivitySlots } from "../views/notes/NotesActivitySlots";
-import type { WorkspaceApplication } from "../../shell/bindings/application/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 

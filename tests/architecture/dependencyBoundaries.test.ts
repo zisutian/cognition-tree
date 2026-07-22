@@ -287,4 +287,22 @@ describe("dependency boundaries", () => {
     expect(reactOutsidePresentation).toEqual([]);
     expect(Object.keys(presentationModules).length).toBeGreaterThan(0);
   });
+
+  it("keeps activity bindings independent from the shell composition root", () => {
+    const activityModules = Object.keys(presentationModules).filter((filePath) =>
+      filePath.startsWith("../../presentation/activities/")
+    );
+    const shellImports = activityModules.flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetPath }) =>
+          targetPath.startsWith("../../presentation/shell/")
+        )
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+
+    expect(shellImports).toEqual([]);
+    expect(activityModules.some((filePath) =>
+      filePath.startsWith("../../presentation/activities/bindings/")
+    )).toBe(true);
+  });
 });

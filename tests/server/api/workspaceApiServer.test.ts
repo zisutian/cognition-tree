@@ -12,8 +12,8 @@ import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json";
-import { parseWorkspaceRepositorySnapshot } from "../../../contracts/workspace-repository/parseRepository";
+import { serializeJsonIteratively } from "../../../contracts/workspace/json";
+import { parseWorkspaceRepositorySnapshot } from "../../../contracts/workspace/parseRepository";
 import type {
   RepositoryApiErrorDto,
   RepositoryCatalogDto,
@@ -22,7 +22,7 @@ import type {
   RepositoryRevisionDto,
   WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositoryContentDto,
-} from "../../../contracts/workspace-repository/types";
+} from "../../../contracts/workspace/types";
 import { LocalRepositoryCatalog } from "../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import {
   createWorkspaceApiRequestHandler,

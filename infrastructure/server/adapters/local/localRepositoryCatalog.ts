@@ -4,18 +4,18 @@ import { randomUUID } from "node:crypto";
 import { lstat, mkdir, readdir, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
-import { isRepositoryId } from "../../../../contracts/workspace-repository/parseCatalog.ts";
+import { isRepositoryId } from "../../../../contracts/workspace/parseCatalog.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../contracts/workspace-repository/contractValue.ts";
+} from "../../../../contracts/workspace/contractValue.ts";
 import type {
   RepositoryCatalogDto,
   RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
 import {
   RepositoryCatalogError,
 } from "../../repository/repositoryCatalog.ts";

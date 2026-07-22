@@ -1,10 +1,10 @@
 import { useCallback, useRef, useState } from "react";
-import type { WorkspaceStructureIndex } from "../../../../../../core/workspace/indexes/workspaceStructureIndex";
-import { findWorkspaceNote } from "../../../../../../core/workspace/queries/workspaceQueries";
-import type { UiEditorFocusTarget } from "../../../../../../application/workspace/projection/viewEditor";
-import type { UiSyntaxFocusTarget } from "../../../../../../application/workspace/projection/viewSyntax";
-import type { UiSyntaxFieldId } from "../../../../../../application/workspace/projection/viewSyntaxFields";
-import type { UiNoteId } from "../../../../../../application/workspace/projection/viewTree";
+import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
+import { findWorkspaceNote } from "../../../../../core/workspace/queries/workspaceQueries";
+import type { UiEditorFocusTarget } from "../../../../../application/workspace/projection/viewEditor";
+import type { UiSyntaxFocusTarget } from "../../../../../application/workspace/projection/viewSyntax";
+import type { UiSyntaxFieldId } from "../../../../../application/workspace/projection/viewSyntaxFields";
+import type { UiNoteId } from "../../../../../application/workspace/projection/viewTree";
 import type { WorkspaceSelection } from "../selection/useWorkspaceSelection";
 
 export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {

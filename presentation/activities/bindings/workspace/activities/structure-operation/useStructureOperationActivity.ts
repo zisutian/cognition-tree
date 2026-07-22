@@ -1,20 +1,20 @@
 import { useMemo } from "react";
-import { hasWorkspaceNote } from "../../../../../../../core/workspace/queries/workspaceQueries";
-import type { UiStructureOperationView } from "../../../../../../../application/workspace/projection/viewStructureOperation";
-import type { UiNoteId } from "../../../../../../../application/workspace/projection/viewTree";
+import { hasWorkspaceNote } from "../../../../../../core/workspace/queries/workspaceQueries";
+import type { UiStructureOperationView } from "../../../../../../application/workspace/projection/viewStructureOperation";
+import type { UiNoteId } from "../../../../../../application/workspace/projection/viewTree";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
-import { resolveDifferentNoteId } from "../../../../../../../application/workspace/selection/viewSelection";
+import { resolveDifferentNoteId } from "../../../../../../application/workspace/selection/viewSelection";
 import {
   resolveStructureOperationDirectorySelection,
   resolveSwappedStructureOperationPair,
-} from "../../../../../../../application/workspace/activities/structure-operation/directorySelection";
-import { createStructureOperationProjection } from "../../../../../../../application/workspace/activities/structure-operation/structureOperationProjection";
-import type { StructureOperationActivityViewModel } from "../../../../../../../application/workspace/activities/structure-operation/structureOperationViewModel";
+} from "../../../../../../application/workspace/activities/structure-operation/directorySelection";
+import { createStructureOperationProjection } from "../../../../../../application/workspace/activities/structure-operation/structureOperationProjection";
+import type { StructureOperationActivityViewModel } from "../../../../../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import {
   executeStructureBlockMoveBetweenNotes,
   executeStructureBlockMoveWithinNote,
-} from "../../../../../../../application/workspace/activities/structure-operation/structureOperationWorkflow";
+} from "../../../../../../application/workspace/activities/structure-operation/structureOperationWorkflow";
 import type { StructureOperationState } from "./useStructureOperationState";
 
 export function useStructureOperationActivity({

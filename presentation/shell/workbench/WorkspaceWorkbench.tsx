@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import type { WorkbenchDiagnostics } from "../../../application/problems/workbenchProblems";
 import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
-import type { WorkbenchApplication } from "./workbenchApplication";
+import type { WorkbenchApplication } from "../../activities/workbenchApplication";
 import { activityItems } from "../../ui/ActivityBar";
 import AppView from "../../ui/AppView";
 import { PlaceholderPanel } from "../../activities/views/PlaceholderPanel";

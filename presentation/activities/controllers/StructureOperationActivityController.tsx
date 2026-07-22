@@ -1,7 +1,7 @@
-import { useStructureOperationActivity } from "../../shell/bindings/application/workspace/activities/structure-operation/useStructureOperationActivity";
-import { useStructureOperationState } from "../../shell/bindings/application/workspace/activities/structure-operation/useStructureOperationState";
+import { useStructureOperationActivity } from "../bindings/workspace/activities/structure-operation/useStructureOperationActivity";
+import { useStructureOperationState } from "../bindings/workspace/activities/structure-operation/useStructureOperationState";
 import { createStructureOperationActivitySlots } from "../views/structure-operation/StructureOperationActivitySlots";
-import type { WorkspaceApplication } from "../../shell/bindings/application/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 

@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import { findWorkspaceNote } from "../../../../../../../core/workspace/queries/workspaceQueries";
-import { createUiReferenceGraphView } from "../../../../../../../application/workspace/projection/viewGraph";
+import { findWorkspaceNote } from "../../../../../../core/workspace/queries/workspaceQueries";
+import { createUiReferenceGraphView } from "../../../../../../application/workspace/projection/viewGraph";
 import type { WorkspaceRuntime } from "../../runtime/useWorkspaceApplication";
 import type { WorkspaceSelection } from "../../selection/useWorkspaceSelection";
 import type {
   VisualizationFilterController,
   VisualizationViewModel,
-} from "../../../../../../../application/workspace/activities/visualization/visualizationViewModel";
+} from "../../../../../../application/workspace/activities/visualization/visualizationViewModel";
 
 const emptyReferenceGraphView = createUiReferenceGraphView({
   ambiguousReferences: [],

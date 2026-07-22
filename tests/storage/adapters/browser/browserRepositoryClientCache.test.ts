@@ -8,10 +8,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace-repository/types";
+} from "../../../../contracts/workspace/types";
 import { createIndexedDbRepositoryClientCache } from "../../../../infrastructure/browser/browserRepositoryClientCache";
 import { WorkspaceRepositoryLocalConflictError } from "../../../../application/repository/workspaceRepository";
-import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue";
+import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue";
 import {
   draftA,
   draftB,

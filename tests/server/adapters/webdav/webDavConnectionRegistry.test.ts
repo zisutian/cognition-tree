@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import type {
   RepositoryAuthenticationDto,
   WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
 import {
   WebDavConnectionRegistry,
   parseWebDavConnectionConfig,

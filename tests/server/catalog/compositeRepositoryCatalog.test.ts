@@ -6,7 +6,7 @@ import type {
   RepositoryCatalogIssueDto,
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
-} from "../../../contracts/workspace-repository/types";
+} from "../../../contracts/workspace/types";
 import { LocalRepositoryCatalog } from "../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { RepositoryCatalogError } from "../../../infrastructure/server/repository/repositoryCatalog.ts";

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { UnsupportedRepositoryVersionError } from "../../../contracts/workspace-repository/contractValue";
+import { UnsupportedRepositoryVersionError } from "../../../contracts/workspace/contractValue";
 import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
-} from "../../../contracts/workspace-repository/parseRepository";
-import { parseRepositoryRevision } from "../../../contracts/workspace-repository/revision";
+} from "../../../contracts/workspace/parseRepository";
+import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
 import {
   createRepositoryContent,
   revisionA,

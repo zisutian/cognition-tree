@@ -1,16 +1,16 @@
-import { parseRepositoryDescriptor } from "../../contracts/workspace-repository/parseCatalog";
-import { UnsupportedRepositoryVersionError } from "../../contracts/workspace-repository/contractValue";
+import { parseRepositoryDescriptor } from "../../contracts/workspace/parseCatalog";
+import { UnsupportedRepositoryVersionError } from "../../contracts/workspace/contractValue";
 import {
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
-} from "../../contracts/workspace-repository/parseRepository";
-import { parseRepositoryRevision } from "../../contracts/workspace-repository/revision";
+} from "../../contracts/workspace/parseRepository";
+import { parseRepositoryRevision } from "../../contracts/workspace/revision";
 import type {
   LocalDraftRevisionDto,
   RepositoryRevisionDto,
   WorkspaceRepositoryContentDto,
   RepositoryDescriptorDto,
-} from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/types";
 import type { RepositoryClientCache } from "../persistence/repositoryClientCache";
 import type {
   WorkspaceRepositoryCache,

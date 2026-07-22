@@ -1,3 +1,3 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export { serializeJsonIteratively } from "../workspace-repository/json.ts";
+export { serializeJsonIteratively } from "../workspace/json.ts";

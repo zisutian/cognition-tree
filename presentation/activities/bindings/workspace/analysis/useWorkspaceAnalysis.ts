@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type { WorkspaceContext } from "../../../../../../core/workspace/context/workspaceContext";
-import type { WorkspaceParseIndexCache } from "../../../../../../core/workspace/indexes/workspaceParseIndex";
-import { createUiWorkbenchDiagnostics } from "../../../../../../application/workspace/projection/viewDiagnostics";
+import type { WorkspaceContext } from "../../../../../core/workspace/context/workspaceContext";
+import type { WorkspaceParseIndexCache } from "../../../../../core/workspace/indexes/workspaceParseIndex";
+import { createUiWorkbenchDiagnostics } from "../../../../../application/workspace/projection/viewDiagnostics";
 import { useWorkspaceParseIndex } from "../runtime/useWorkspaceParseIndex";
 import {
   createEmptyNoteReferenceGraph,
   type WorkspaceAnalysis,
-} from "../../../../../../application/workspace/analysis/workspaceAnalysis";
-import { startWorkspaceAnalysisCollection } from "../../../../../../application/workspace/analysis/workspaceAnalysisCollection";
+} from "../../../../../application/workspace/analysis/workspaceAnalysis";
+import { startWorkspaceAnalysisCollection } from "../../../../../application/workspace/analysis/workspaceAnalysisCollection";
 
 function createIdleWorkspaceAnalysis(): WorkspaceAnalysis {
   return {

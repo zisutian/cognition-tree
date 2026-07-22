@@ -1,5 +1,5 @@
-import { parseRepositoryCatalog } from "../../contracts/workspace-repository/parseCatalog";
-import type { RepositoryCatalogDto } from "../../contracts/workspace-repository/types";
+import { parseRepositoryCatalog } from "../../contracts/workspace/parseCatalog";
+import type { RepositoryCatalogDto } from "../../contracts/workspace/types";
 
 export type WorkspaceRepositoryCatalogCacheState = RepositoryCatalogDto & {
   version: 4;

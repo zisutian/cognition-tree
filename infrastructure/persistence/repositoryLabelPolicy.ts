@@ -2,11 +2,11 @@
 
 import {
   parseRenameRepository,
-} from "../../contracts/workspace-repository/parseCatalog";
+} from "../../contracts/workspace/parseCatalog";
 import type {
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
-} from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/types";
 import {
   createPortableNameKey,
   getPortableNameIssue,

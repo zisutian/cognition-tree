@@ -9,7 +9,7 @@ import {
   startSyntaxCatalogMutation,
   startSyntaxDraftPersistence,
   startSyntaxFileDraftPersistence,
-} from "../../../../presentation/shell/bindings/application/workspace/runtime/useSyntaxRuntime";
+} from "../../../../presentation/activities/bindings/workspace/runtime/useSyntaxRuntime";
 
 const renamedSyntaxProfile = {
   ...defaultCtnSyntaxProfile,

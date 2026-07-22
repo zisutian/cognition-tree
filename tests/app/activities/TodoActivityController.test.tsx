@@ -6,7 +6,7 @@ import {
   resolveTodoRetry,
   TodoActivityController,
 } from "../../../presentation/activities/controllers/TodoActivityController";
-import type { WorkbenchApplication } from "../../../presentation/shell/workbench/workbenchApplication";
+import type { WorkbenchApplication } from "../../../presentation/activities/workbenchApplication";
 import { createView } from "../../ui/viewFactory";
 
 const controls = {

@@ -1,4 +1,4 @@
-import { parseWorkspaceRepositoryContent } from "../../contracts/workspace-repository/parseRepository";
+import { parseWorkspaceRepositoryContent } from "../../contracts/workspace/parseRepository";
 import type { WorkspaceRepositoryContent } from "../../application/repository/workspaceRepository";
 import { resolveWorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax";
 import { validateWorkspaceBlockMetadata } from "../../core/workspace/context/workspaceBlockMetadata";

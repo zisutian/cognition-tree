@@ -10,7 +10,7 @@ import type {
   RepositoryCatalogDto,
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
-} from "../contracts/workspace-repository/types";
+} from "../contracts/workspace/types";
 import { appResizeKeyboardStep } from "../presentation/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace-repository/contractValue.ts";
+import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/contractValue.ts";
 import {
   repositorySyntaxIndexFileName,
   workspaceRepositorySchemaVersion,
   type RepositoryRevisionDto,
   type WorkspaceRepositoryContentDto,
-} from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
 import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
 import {
   createRepositoryNoteFileName,

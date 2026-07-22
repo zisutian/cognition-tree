@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import type { RepositoryDescriptorDto } from "../../../contracts/workspace-repository/types";
+import type { RepositoryDescriptorDto } from "../../../contracts/workspace/types";
 import {
   parseAvailableWorkspaceRepositoryLabel,
   projectWorkspaceRepositoryLabelIssues,

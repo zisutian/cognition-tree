@@ -1,4 +1,4 @@
-import type { WorkbenchWorkspaceState } from "../../shell/workbench/workbenchApplication";
+import type { WorkbenchWorkspaceState } from "../workbenchApplication";
 import { Button, EmptyState, Panel } from "../../ui/shared/primitives";
 
 export function WorkspaceUnavailablePanel({

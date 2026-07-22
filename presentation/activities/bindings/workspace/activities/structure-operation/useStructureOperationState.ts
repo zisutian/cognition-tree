@@ -4,13 +4,13 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { UiStructureOperationView } from "../../../../../../../application/workspace/projection/viewStructureOperation";
-import type { UiNoteId } from "../../../../../../../application/workspace/projection/viewTree";
-import type { WorkspaceStructureIndex } from "../../../../../../../core/workspace/indexes/workspaceStructureIndex";
-import type { NoteRecord } from "../../../../../../../core/workspace/model/workspaceData";
-import { hasWorkspaceNote } from "../../../../../../../core/workspace/queries/workspaceQueries";
-import { resolveDifferentNoteId } from "../../../../../../../application/workspace/selection/viewSelection";
-import type { StructureOperationPairSelectionPhase } from "../../../../../../../application/workspace/activities/structure-operation/directorySelection";
+import type { UiStructureOperationView } from "../../../../../../application/workspace/projection/viewStructureOperation";
+import type { UiNoteId } from "../../../../../../application/workspace/projection/viewTree";
+import type { WorkspaceStructureIndex } from "../../../../../../core/workspace/indexes/workspaceStructureIndex";
+import type { NoteRecord } from "../../../../../../core/workspace/model/workspaceData";
+import { hasWorkspaceNote } from "../../../../../../core/workspace/queries/workspaceQueries";
+import { resolveDifferentNoteId } from "../../../../../../application/workspace/selection/viewSelection";
+import type { StructureOperationPairSelectionPhase } from "../../../../../../application/workspace/activities/structure-operation/directorySelection";
 
 export type StructureOperationState = {
   mode: UiStructureOperationView["mode"];

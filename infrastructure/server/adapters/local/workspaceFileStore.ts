@@ -9,19 +9,19 @@ import path from "node:path";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../contracts/workspace-repository/contractValue.ts";
+} from "../../../../contracts/workspace/contractValue.ts";
 import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryContent,
-} from "../../../../contracts/workspace-repository/parseRepository.ts";
-import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json.ts";
+} from "../../../../contracts/workspace/parseRepository.ts";
+import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
 import type {
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositoryContentDto,
   WorkspaceRepositorySnapshotDto,
-} from "../../../../contracts/workspace-repository/types.ts";
-import { repositorySyntaxIndexFileName } from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
+import { repositorySyntaxIndexFileName } from "../../../../contracts/workspace/types.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
 import {
   RepositoryAdapterError,

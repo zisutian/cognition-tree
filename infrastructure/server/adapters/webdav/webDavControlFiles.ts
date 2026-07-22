@@ -3,13 +3,13 @@
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../contracts/workspace-repository/contractValue.ts";
-import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json.ts";
-import { parseRepositoryRevision } from "../../../../contracts/workspace-repository/revision.ts";
+} from "../../../../contracts/workspace/contractValue.ts";
+import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
+import { parseRepositoryRevision } from "../../../../contracts/workspace/revision.ts";
 import {
   workspaceRepositorySchemaVersion,
   type RepositoryRevisionDto,
-} from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

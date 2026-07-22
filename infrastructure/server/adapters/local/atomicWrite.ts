@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { open, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json.ts";
+import { serializeJsonIteratively } from "../../../../contracts/workspace/json.ts";
 import { hasFileSystemErrorCode } from "../../repository/fileSystemError.ts";
 
 const atomicTemporaryFilePattern =

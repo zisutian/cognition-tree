@@ -10,21 +10,21 @@ import type {
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../contracts/workspace-repository/contractValue.ts";
+} from "../../../contracts/workspace/contractValue.ts";
 import {
   UnsupportedWireVersionError,
   WireContractError,
 } from "../../../contracts/common/contractValue.ts";
-import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json.ts";
+import { serializeJsonIteratively } from "../../../contracts/workspace/json.ts";
 import {
   parseCreateRepository,
   parseRepositoryDeletionMode,
   parseRenameRepository,
-} from "../../../contracts/workspace-repository/parseCatalog.ts";
+} from "../../../contracts/workspace/parseCatalog.ts";
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryApiErrorDto,
-} from "../../../contracts/workspace-repository/types.ts";
+} from "../../../contracts/workspace/types.ts";
 import {
   RepositoryAdapterError,
   WorkspaceRevisionConflictError,

@@ -60,13 +60,13 @@ describe("semantic source ownership", () => {
     const consumers = Object.entries(sourceModules)
       .filter(
         ([filePath, source]) =>
-          !filePath.endsWith("presentation/shell/bindings/application/workspace/runtime/useWorkspaceParseIndex.ts") &&
+          !filePath.endsWith("presentation/activities/bindings/workspace/runtime/useWorkspaceParseIndex.ts") &&
           /\buseWorkspaceParseIndex\s*\(/.test(source),
       )
       .map(([filePath]) => sourcePathToRelative(filePath));
 
     expect(consumers).toEqual([
-      "presentation/shell/bindings/application/workspace/analysis/useWorkspaceAnalysis.ts",
+      "presentation/activities/bindings/workspace/analysis/useWorkspaceAnalysis.ts",
     ]);
   });
 

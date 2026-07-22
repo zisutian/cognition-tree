@@ -23,16 +23,16 @@ import { useRepositoryNavigation } from "./bindings/application/repository/useRe
 import { useBuiltInCatalog } from "./bindings/session/useBuiltInCatalog";
 import { useJournalSession } from "./bindings/session/useJournalSession";
 import { useTodoSession } from "./bindings/session/useTodoSession";
-import { useWorkspaceApplication } from "./bindings/application/workspace/runtime/useWorkspaceApplication";
+import { useWorkspaceApplication } from "../activities/bindings/workspace/runtime/useWorkspaceApplication";
 import {
   useRepositoryCatalog,
   type CreateRepositoryRequest,
   type DeleteRepositoryRequest,
-} from "./bindings/application/workspace/session/useRepositoryCatalog";
+} from "../activities/bindings/workspace/session/useRepositoryCatalog";
 import {
   useSession,
   type ActiveSession,
-} from "./bindings/application/workspace/session/useSession";
+} from "../activities/bindings/workspace/session/useSession";
 import {
   createBuiltInConnectionKey,
   createJournalCatalogGeneration,

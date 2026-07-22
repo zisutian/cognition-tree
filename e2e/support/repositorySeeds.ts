@@ -3,12 +3,12 @@
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
-import { isRepositoryId } from "../../contracts/workspace-repository/parseCatalog";
+import { isRepositoryId } from "../../contracts/workspace/parseCatalog";
 import {
   workspaceRepositorySchemaVersion,
   type RepositoryNoteDto,
   type RepositoryTreeNodeDto,
-} from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/types";
 import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/adapters/local/localRepositoryCatalog";
 import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";

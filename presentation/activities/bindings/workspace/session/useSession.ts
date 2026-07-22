@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import type { WorkspaceRepository } from "../../../../../../application/repository/workspaceRepository";
-import type { SessionCommands } from "../../../../../../application/workspace/session/sessionCommands";
+import type { WorkspaceRepository } from "../../../../../application/repository/workspaceRepository";
+import type { SessionCommands } from "../../../../../application/workspace/session/sessionCommands";
 import {
   createWorkspaceSessionController,
   type WorkspaceSessionControllerState,
   type WorkspaceSessionReadyState,
-} from "../../../../../../application/workspace/session/workspaceSessionController";
+} from "../../../../../application/workspace/session/workspaceSessionController";
 
 const browserSessionCommandDependencies = {
   createBlockId: () => globalThis.crypto.randomUUID(),

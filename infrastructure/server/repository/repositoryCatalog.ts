@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { parseCreateRepository } from "../../../contracts/workspace-repository/parseCatalog.ts";
-import type { parseRenameRepository } from "../../../contracts/workspace-repository/parseCatalog.ts";
+import type { parseCreateRepository } from "../../../contracts/workspace/parseCatalog.ts";
+import type { parseRenameRepository } from "../../../contracts/workspace/parseCatalog.ts";
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryCatalogDto,
   RepositoryDeletionModeDto,
   RepositoryDeletionResultDto,
   RepositoryDescriptorDto,
-} from "../../../contracts/workspace-repository/types.ts";
+} from "../../../contracts/workspace/types.ts";
 import type { WorkspaceRepositoryStore } from "./repositoryStore.ts";
 
 export type WorkspaceRepositoryCatalog = {

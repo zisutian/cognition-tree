@@ -1,19 +1,19 @@
 import { useMemo } from "react";
-import type { CtnSyntaxProfile } from "../../../../../../core/ctn/syntax/types";
-import type { WorkspaceStructureIndex } from "../../../../../../core/workspace/indexes/workspaceStructureIndex";
-import type { WorkspaceNote } from "../../../../../../core/workspace/model/workspaceData";
-import { parseWorkspaceSyntax } from "../../../../../../core/workspace/context/workspaceSyntax";
-import { listWorkspaceNotes } from "../../../../../../core/workspace/queries/workspaceQueries";
-import type { SessionCommands } from "../../../../../../application/workspace/session/sessionCommands";
+import type { CtnSyntaxProfile } from "../../../../../core/ctn/syntax/types";
+import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
+import type { WorkspaceNote } from "../../../../../core/workspace/model/workspaceData";
+import { parseWorkspaceSyntax } from "../../../../../core/workspace/context/workspaceSyntax";
+import { listWorkspaceNotes } from "../../../../../core/workspace/queries/workspaceQueries";
+import type { SessionCommands } from "../../../../../application/workspace/session/sessionCommands";
 import type { ActiveSession } from "../session/useSession";
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
 import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
 import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
-import type { WorkspaceAnalysis } from "../../../../../../application/workspace/analysis/workspaceAnalysis";
+import type { WorkspaceAnalysis } from "../../../../../application/workspace/analysis/workspaceAnalysis";
 import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
-import { createUiWorkspacePortableNameDiagnostics } from "../../../../../../application/workspace/projection/viewDiagnostics";
+import { createUiWorkspacePortableNameDiagnostics } from "../../../../../application/workspace/projection/viewDiagnostics";
 
 export type WorkspaceShell = {
   errorMessage: string;

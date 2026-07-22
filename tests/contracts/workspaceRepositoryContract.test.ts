@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { UnsupportedRepositoryVersionError } from "../../contracts/workspace-repository/contractValue";
-import { parseRepositoryApiError } from "../../contracts/workspace-repository/parseApiError";
+import { UnsupportedRepositoryVersionError } from "../../contracts/workspace/contractValue";
+import { parseRepositoryApiError } from "../../contracts/workspace/parseApiError";
 import {
   parseCreateRepository,
   parseRepositoryCatalog,
   parseRepositoryDeletionMode,
   parseRepositoryDeletionResult,
   parseRenameRepository,
-} from "../../contracts/workspace-repository/parseCatalog";
+} from "../../contracts/workspace/parseCatalog";
 import { createPortableNameKey } from "../../core/naming/portableName";
 import {
   parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
-} from "../../contracts/workspace-repository/parseRepository";
-import type { WorkspaceRepositoryContentDto } from "../../contracts/workspace-repository/types";
+} from "../../contracts/workspace/parseRepository";
+import type { WorkspaceRepositoryContentDto } from "../../contracts/workspace/types";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 

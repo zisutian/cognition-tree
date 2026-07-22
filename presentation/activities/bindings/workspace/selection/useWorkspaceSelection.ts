@@ -1,34 +1,34 @@
 import { useCallback, useEffect, useReducer } from "react";
-import type { FolderId } from "../../../../../../core/workspace/model/workspaceData";
+import type { FolderId } from "../../../../../core/workspace/model/workspaceData";
 import {
   collectWorkspaceNoteIdsInFolder,
   findWorkspaceNote,
   listWorkspaceNotes,
-} from "../../../../../../core/workspace/queries/workspaceQueries";
-import type { SessionCommands } from "../../../../../../application/workspace/session/sessionCommands";
+} from "../../../../../core/workspace/queries/workspaceQueries";
+import type { SessionCommands } from "../../../../../application/workspace/session/sessionCommands";
 import type {
   UiDirectoryActiveNode,
   UiFolderId,
   UiNoteId,
   UiTreeMoveRequest,
-} from "../../../../../../application/workspace/projection/viewTree";
-import type { WorkspaceSelection } from "../../../../../../application/workspace/selection/workspaceSelection";
-import type { WorkspaceStructureIndex } from "../../../../../../core/workspace/indexes/workspaceStructureIndex";
-import { resolveFolderSelection } from "../../../../../../application/workspace/selection/resolveFolderSelection";
+} from "../../../../../application/workspace/projection/viewTree";
+import type { WorkspaceSelection } from "../../../../../application/workspace/selection/workspaceSelection";
+import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
+import { resolveFolderSelection } from "../../../../../application/workspace/selection/resolveFolderSelection";
 import {
   createWorkspaceTreeMoveDestination,
   createWorkspaceTreeNodeReference,
-} from "../../../../../../application/workspace/selection/sidebarTreeMove";
+} from "../../../../../application/workspace/selection/sidebarTreeMove";
 import {
   resolveActiveNoteId,
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
-} from "../../../../../../application/workspace/selection/viewSelection";
+} from "../../../../../application/workspace/selection/viewSelection";
 
 export type {
   WorkspaceDirectoryMutations,
   WorkspaceSelection,
-} from "../../../../../../application/workspace/selection/workspaceSelection";
+} from "../../../../../application/workspace/selection/workspaceSelection";
 
 type SelectionState = {
   activeNode: UiDirectoryActiveNode | null;

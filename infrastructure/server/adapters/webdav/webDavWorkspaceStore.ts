@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue.ts";
-import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace-repository/parseRepository.ts";
+import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue.ts";
+import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace/parseRepository.ts";
 import type {
   WorkspaceRepositoryContentDto,
   WorkspaceRepositorySnapshotDto,
-} from "../../../../contracts/workspace-repository/types.ts";
+} from "../../../../contracts/workspace/types.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

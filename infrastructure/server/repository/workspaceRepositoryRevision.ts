@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
-import { serializeWorkspaceRepositoryRevisionContent } from "../../../contracts/workspace-repository/revision.ts";
-import type { WorkspaceRepositoryContentDto } from "../../../contracts/workspace-repository/types.ts";
+import { serializeWorkspaceRepositoryRevisionContent } from "../../../contracts/workspace/revision.ts";
+import type { WorkspaceRepositoryContentDto } from "../../../contracts/workspace/types.ts";
 
 export function createWorkspaceRepositoryRevision(
   content: WorkspaceRepositoryContentDto,

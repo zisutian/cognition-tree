@@ -7,7 +7,7 @@ import type {
   TodoDiagnostics,
   TodoViewModel,
 } from "../../../application/todo";
-import type { WorkbenchApplication } from "./workbenchApplication";
+import type { WorkbenchApplication } from "../../activities/workbenchApplication";
 import type { RepositoryNavigation } from "../../../application/repository/repositoryNavigation";
 import {
   projectBuiltInCatalogFailure,
@@ -18,7 +18,7 @@ import {
   projectWorkspaceRepositoryRuntimeIssues,
   type WorkspaceRepositoryRuntimeIssue,
 } from "../../../application/repository/projectWorkspaceRepositoryIssues";
-import type { WorkspaceApplication } from "../bindings/application/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "../../activities/bindings/workspace/runtime/useWorkspaceApplication";
 import type { UiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
 import {
   createUiWorkbenchProblems,

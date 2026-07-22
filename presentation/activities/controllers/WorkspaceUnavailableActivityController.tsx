@@ -1,4 +1,4 @@
-import type { WorkbenchWorkspaceState } from "../../shell/workbench/workbenchApplication";
+import type { WorkbenchWorkspaceState } from "../workbenchApplication";
 import { WorkspaceUnavailablePanel } from "../views/WorkspaceUnavailablePanel";
 import type { RenderWorkspaceActivity } from "./activityController";
 

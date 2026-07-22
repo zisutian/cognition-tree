@@ -4,8 +4,8 @@ import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
-} from "../../../../contracts/workspace-repository/contractValue";
-import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace-repository/types";
+} from "../../../../contracts/workspace/contractValue";
+import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types";
 import { WorkspaceRevisionConflictError } from "../../../../infrastructure/server/repository/repositoryStore.ts";
 import {
   RepositoryCorruptError,

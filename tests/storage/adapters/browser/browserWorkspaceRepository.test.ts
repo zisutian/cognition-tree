@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RepositoryCatalogDto } from "../../../../contracts/workspace-repository/types";
+import type { RepositoryCatalogDto } from "../../../../contracts/workspace/types";
 import type { BrowserRepositoryClientCache } from "../../../../infrastructure/browser/browserRepositoryClientCache";
 import { createBrowserWorkspaceRepositoryCatalog } from "../../../../infrastructure/browser/browserWorkspaceRepository";
 import { createMemoryRepositoryClientCache } from "../../../../infrastructure/persistence/repositoryClientCache";

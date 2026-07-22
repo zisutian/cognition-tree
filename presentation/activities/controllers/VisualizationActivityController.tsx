@@ -1,7 +1,7 @@
-import { useVisualizationActivity } from "../../shell/bindings/application/workspace/activities/visualization/useVisualizationActivity";
-import { useVisualizationFilter } from "../../shell/bindings/application/workspace/activities/visualization/useVisualizationFilter";
+import { useVisualizationActivity } from "../bindings/workspace/activities/visualization/useVisualizationActivity";
+import { useVisualizationFilter } from "../bindings/workspace/activities/visualization/useVisualizationFilter";
 import { createVisualizationActivitySlots } from "../views/visualization/VisualizationActivitySlots";
-import type { WorkspaceApplication } from "../../shell/bindings/application/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
 import type { WorkspaceActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
 

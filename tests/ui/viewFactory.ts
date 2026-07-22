@@ -16,7 +16,7 @@ import type { RepositoryViewModel } from "../../application/workspace/activities
 import type { StructureOperationActivityViewModel } from "../../application/workspace/activities/structure-operation/structureOperationViewModel";
 import type { SyntaxViewModel } from "../../application/workspace/activities/syntax/syntaxViewModel";
 import type { VisualizationViewModel } from "../../application/workspace/activities/visualization/visualizationViewModel";
-import type { WorkspaceShell } from "../../presentation/shell/bindings/application/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceShell } from "../../presentation/activities/bindings/workspace/runtime/useWorkspaceApplication";
 
 export type TestActivityViews = {
   journal: JournalViewModel;

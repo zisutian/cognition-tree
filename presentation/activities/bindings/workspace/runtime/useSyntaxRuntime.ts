@@ -3,15 +3,15 @@ import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../../../../../core/ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../../../../../core/ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../../../core/ctn/syntax/types";
+} from "../../../../../core/ctn/syntax/profileDraft";
+import { formatSyntaxProfileToml } from "../../../../../core/ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../../../core/ctn/syntax/types";
 import {
   attachWorkspaceSyntaxProfile,
-} from "../../../../../../core/workspace/context/workspaceContext";
-import { parseWorkspaceSyntax } from "../../../../../../core/workspace/context/workspaceSyntax";
-import type { WorkspaceStructureIndex } from "../../../../../../core/workspace/indexes/workspaceStructureIndex";
-import { normalizeWorkspaceSyntaxProfileName } from "../../../../../../application/repository/workspaceRepository";
+} from "../../../../../core/workspace/context/workspaceContext";
+import { parseWorkspaceSyntax } from "../../../../../core/workspace/context/workspaceSyntax";
+import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
+import { normalizeWorkspaceSyntaxProfileName } from "../../../../../application/repository/workspaceRepository";
 
 type WorkspaceSyntaxRuntimeFile = {
   id: string;

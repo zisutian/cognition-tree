@@ -1,4 +1,4 @@
-import type { WorkbenchApplication } from "../../shell/workbench/workbenchApplication";
+import type { WorkbenchApplication } from "../workbenchApplication";
 import type { WorkbenchDiagnostics } from "../../../application/problems/workbenchProblems";
 import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
 import type { CreateActivitySlots } from "../../ui/activityTypes";

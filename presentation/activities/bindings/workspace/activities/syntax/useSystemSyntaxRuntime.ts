@@ -3,13 +3,13 @@ import {
   buildSyntaxProfileDraft,
   createSyntaxProfileDraft,
   type SyntaxProfileDraft,
-} from "../../../../../../../core/ctn/syntax/profileDraft";
+} from "../../../../../../core/ctn/syntax/profileDraft";
 import {
   syntaxProfileValidationPolicies,
   type CtnSyntaxProfileValidationPolicy,
-} from "../../../../../../../core/ctn/syntax/profileSchema";
-import { formatSyntaxProfileToml } from "../../../../../../../core/ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../../../../core/ctn/syntax/types";
+} from "../../../../../../core/ctn/syntax/profileSchema";
+import { formatSyntaxProfileToml } from "../../../../../../core/ctn/syntax/profileToml";
+import type { CtnSyntaxProfile } from "../../../../../../core/ctn/syntax/types";
 import { isCurrentSyntaxPersistenceCompletion } from "../../runtime/useSyntaxRuntime";
 
 export type SystemSyntaxOwner = "journal" | "todo";

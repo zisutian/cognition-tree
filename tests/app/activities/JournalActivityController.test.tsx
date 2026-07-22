@@ -4,7 +4,7 @@ import {
   JournalActivityController,
   resolveJournalRetry,
 } from "../../../presentation/activities/controllers/JournalActivityController";
-import type { WorkbenchApplication } from "../../../presentation/shell/workbench/workbenchApplication";
+import type { WorkbenchApplication } from "../../../presentation/activities/workbenchApplication";
 import { createView } from "../../ui/viewFactory";
 
 const controls = {

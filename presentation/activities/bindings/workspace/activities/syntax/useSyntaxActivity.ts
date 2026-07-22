@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { defaultCtnSyntaxProfile } from "../../../../../../../core/ctn/syntax/defaultSyntaxProfile";
-import { createSyntaxProfileDraft } from "../../../../../../../core/ctn/syntax/profileDraft";
-import { syntaxProfileSchema } from "../../../../../../../core/ctn/syntax/profileSchema";
+import { defaultCtnSyntaxProfile } from "../../../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { createSyntaxProfileDraft } from "../../../../../../core/ctn/syntax/profileDraft";
+import { syntaxProfileSchema } from "../../../../../../core/ctn/syntax/profileSchema";
 import {
   createUiSystemSyntaxDiagnostics,
   createUiSyntaxDiagnostics,
-} from "../../../../../../../application/workspace/projection/viewDiagnostics";
-import { createUiSyntaxView } from "../../../../../../../application/workspace/projection/viewSyntax";
+} from "../../../../../../application/workspace/projection/viewDiagnostics";
+import { createUiSyntaxView } from "../../../../../../application/workspace/projection/viewSyntax";
 import type { SyntaxRuntime } from "../../runtime/useSyntaxRuntime";
-import { createSyntaxDraftActions } from "../../../../../../../application/workspace/activities/syntax/syntaxDraftActions";
+import { createSyntaxDraftActions } from "../../../../../../application/workspace/activities/syntax/syntaxDraftActions";
 import {
   createSyntaxFileViews,
   isSameSyntaxTarget,
   type SyntaxTarget,
   type SyntaxViewModel,
-} from "../../../../../../../application/workspace/activities/syntax/syntaxViewModel";
+} from "../../../../../../application/workspace/activities/syntax/syntaxViewModel";
 import {
   useSystemSyntaxRuntime,
   type SystemSyntaxSource,

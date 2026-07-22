@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectWorkbenchDiagnostics } from "../../../../presentation/shell/bindings/application/workspace/diagnostics/useWorkbenchDiagnostics";
+import { selectWorkbenchDiagnostics } from "../../../../presentation/activities/bindings/workspace/diagnostics/useWorkbenchDiagnostics";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
