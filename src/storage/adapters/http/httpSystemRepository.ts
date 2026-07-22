@@ -12,10 +12,8 @@ import type {
   SystemRepositoryPurpose,
   SystemRepositoryTransitionValidator,
 } from "../../repository/systemRepository";
-import {
-  requestRepositoryJson,
-  type HttpRepositoryTransportOptions,
-} from "./httpRepositoryTransport";
+import type { HttpRepositoryTransportOptions } from "./httpRepositoryTransport";
+import { createHttpVersionedContentRepositoryBackend } from "./httpVersionedContentRepository";
 
 type HttpSystemRepositoryOptions = HttpRepositoryTransportOptions & {
   purpose: SystemRepositoryPurpose;
@@ -31,56 +29,22 @@ export function createHttpSystemRepositoryBackend({
   validateContent,
   validateTransition,
 }: HttpSystemRepositoryOptions): SystemRepositoryBackend {
-  const endpoint =
-    `/api/system-repositories/${encodeURIComponent(purpose)}/snapshot`;
-  let knownSnapshot: Awaited<
-    ReturnType<SystemRepositoryBackend["loadRemoteSnapshot"]>
-  > | null = null;
-
-  return {
-    async commitRemoteSnapshot(commit) {
-      const outbound = parseSystemRepositoryCommit(commit, purpose);
-
-      validateContent(outbound.content);
-      if (knownSnapshot?.revision === outbound.baseRevision) {
-        validateTransition(knownSnapshot.content, outbound.content);
-      }
-
-      const result = parseSystemRepositoryCommitResult(
-        await requestRepositoryJson(
-          fetchFn,
-          baseUrl,
-          endpoint,
-          {
-            body: serializeJsonIteratively(outbound),
-            headers: { "Content-Type": "application/json" },
-            method: "PUT",
-          },
-          token,
-        ),
-      );
-
-      knownSnapshot = {
-        content: structuredClone(outbound.content),
-        revision: result.revision,
-      };
-      return result;
+  return createHttpVersionedContentRepositoryBackend({
+    baseUrl,
+    codec: {
+      parseCommit(value) {
+        return parseSystemRepositoryCommit(value, purpose);
+      },
+      parseCommitResult: parseSystemRepositoryCommitResult,
+      parseSnapshot(value) {
+        return parseSystemRepositorySnapshot(value, purpose);
+      },
+      serializeCommit: serializeJsonIteratively,
     },
-    async loadRemoteSnapshot() {
-      const snapshot = parseSystemRepositorySnapshot(
-        await requestRepositoryJson(
-          fetchFn,
-          baseUrl,
-          endpoint,
-          undefined,
-          token,
-        ),
-        purpose,
-      );
-
-      validateContent(snapshot.content);
-      knownSnapshot = structuredClone(snapshot);
-      return snapshot;
-    },
-  };
+    endpoint: `/api/system-repositories/${encodeURIComponent(purpose)}/snapshot`,
+    fetch: fetchFn,
+    token,
+    validateContent,
+    validateTransition,
+  });
 }

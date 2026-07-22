@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type {
+  ContentRevisionDto,
+  VersionedContentCommitDto,
+  VersionedContentCommitResultDto,
+  VersionedContentSnapshotDto,
+} from "../common/versionedContent.ts";
+
 export type SystemRepositoryPurposeDto = "system-journal" | "system-todo";
-export type SystemRepositoryRevisionDto = `sha256:${string}`;
+export type SystemRepositoryRevisionDto = ContentRevisionDto;
 
 export type JournalEntryDto = {
   id: string;
@@ -47,19 +54,14 @@ export type SystemRepositoryContentDto =
   | JournalRepositoryContentDto
   | TodoRepositoryContentDto;
 
-export type SystemRepositorySnapshotDto = {
-  content: SystemRepositoryContentDto;
-  revision: SystemRepositoryRevisionDto;
-};
+export type SystemRepositorySnapshotDto =
+  VersionedContentSnapshotDto<SystemRepositoryContentDto>;
 
-export type SystemRepositoryCommitDto = {
-  baseRevision: SystemRepositoryRevisionDto;
-  content: SystemRepositoryContentDto;
-};
+export type SystemRepositoryCommitDto =
+  VersionedContentCommitDto<SystemRepositoryContentDto>;
 
-export type SystemRepositoryCommitResultDto = {
-  revision: SystemRepositoryRevisionDto;
-};
+export type SystemRepositoryCommitResultDto =
+  VersionedContentCommitResultDto;
 
 export type SystemRepositoryLocationDto =
   | { serverPath: string; type: "server" }
