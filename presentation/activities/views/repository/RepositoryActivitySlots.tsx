@@ -5,10 +5,8 @@ import type {
 import type { RepositoryFocusRequest } from "../../../../application/repository/repositoryNavigation";
 import "../../../ui/styles/activities/repository.css";
 import type { ActivitySlots } from "../../../ui/activityTypes";
-import {
-  RepositoryContext,
-  RepositoryPanel,
-} from "./RepositoryPanel";
+import { RepositoryContext } from "./RepositoryContext";
+import { RepositoryPanel } from "./RepositoryPanel";
 
 export function createRepositoryActivitySlots({
   focusRequest,

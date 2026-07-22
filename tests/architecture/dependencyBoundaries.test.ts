@@ -52,7 +52,7 @@ describe("dependency boundaries", () => {
 
   it("resolves imports across the new repository-root layers", () => {
     const imported = readSourceImports(
-      "../../presentation/shell/AppRoot.tsx",
+      "../../presentation/shell/bindings/application/workbench/useWorkbenchApplicationBindings.ts",
     ).find(({ targetPath }) =>
       targetPath.endsWith("application/workbench/workbenchController.ts"),
     );

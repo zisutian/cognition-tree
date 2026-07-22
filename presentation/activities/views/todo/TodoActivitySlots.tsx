@@ -3,11 +3,9 @@
 import type { TodoViewModel } from "../../../../application/todo";
 import type { ActivitySlots } from "../../../ui/activityTypes";
 import "../../../ui/styles/activities/todo.css";
-import {
-  TodoContext,
-  TodoDetailPanel,
-  TodoEditorPanel,
-} from "./TodoPanels";
+import { TodoContext } from "./TodoContext";
+import { TodoDetailPanel } from "./TodoDetailPanel";
+import { TodoEditorPanel } from "./TodoEditorPanel";
 
 export function createTodoActivitySlots({
   focusMode,

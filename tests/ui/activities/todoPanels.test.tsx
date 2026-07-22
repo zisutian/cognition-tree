@@ -2,11 +2,9 @@
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  TodoContext,
-  TodoDetailPanel,
-  TodoEditorPanel,
-} from "../../../presentation/activities/views/todo/TodoPanels";
+import { TodoContext } from "../../../presentation/activities/views/todo/TodoContext";
+import { TodoDetailPanel } from "../../../presentation/activities/views/todo/TodoDetailPanel";
+import { TodoEditorPanel } from "../../../presentation/activities/views/todo/TodoEditorPanel";
 import { createView } from "../viewFactory";
 
 describe("Todo panels", () => {

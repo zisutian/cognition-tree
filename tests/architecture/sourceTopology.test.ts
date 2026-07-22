@@ -193,4 +193,29 @@ describe("semantic source ownership", () => {
       /parseCreateRepository|parseRenameRepository|for await \(const chunk/,
     );
   });
+
+  it("keeps presentation orchestration behind focused bindings and views", () => {
+    const appRoot = presentationModules[
+      "../../presentation/shell/AppRoot.tsx"
+    ] ?? "";
+    const repositoryPanel = presentationModules[
+      "../../presentation/activities/views/repository/RepositoryPanel.tsx"
+    ] ?? "";
+    const graphCanvas = presentationModules[
+      "../../presentation/activities/views/visualization/ReferenceGraphCanvas.tsx"
+    ] ?? "";
+
+    expect(appRoot).not.toMatch(
+      /useJournalApplication|useTodoApplication|createRepositoryApplication|requestWorkspaceNoteDestination/,
+    );
+    expect(repositoryPanel).not.toMatch(
+      /CompactContextRow|RepositoryDeleteConfirmation/,
+    );
+    expect(graphCanvas).not.toMatch(
+      /ResizeObserver|MutationObserver|createReferenceGraphSimulation|useEffect/,
+    );
+    expect(Object.keys(presentationModules)).not.toContain(
+      "../../presentation/activities/views/todo/TodoPanels.tsx",
+    );
+  });
 });

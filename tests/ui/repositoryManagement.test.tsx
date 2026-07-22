@@ -13,10 +13,10 @@ import {
   RepositoryDeleteConfirmation,
 } from "../../presentation/activities/views/repository/RepositoryDeleteConfirmation";
 import {
-  copyRepositoryLocation,
   RepositoryContext,
-  RepositoryPanel,
-} from "../../presentation/activities/views/repository/RepositoryPanel";
+} from "../../presentation/activities/views/repository/RepositoryContext";
+import { RepositoryPanel } from "../../presentation/activities/views/repository/RepositoryPanel";
+import { copyRepositoryLocation } from "../../presentation/activities/views/repository/repositoryViewHelpers";
 import { FeedbackProvider } from "../../presentation/ui/shared/FeedbackProvider";
 import {
   projectRepositoryIssues,
