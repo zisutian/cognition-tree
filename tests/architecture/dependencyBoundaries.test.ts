@@ -10,6 +10,8 @@ import {
   listSourceDependencyCycles,
   listSourceFiles,
   modulePathToRelative,
+  portableNameModules,
+  portableNamePathToRelative,
   readInternalModuleImports,
   readModuleImports,
   readSourceImports,
@@ -181,6 +183,31 @@ describe("dependency boundaries", () => {
     expect(tomlParserOwners).toEqual([
       "../../ctn/syntax/profileTomlParser.ts",
     ]);
+  });
+
+  it("keeps portable names in one pure shared domain", () => {
+    const blockedImports = [
+      /^node:/,
+      /^react$/,
+      /^react\//,
+      /(?:^|\/)contracts\//,
+      /(?:^|\/)ctn\//,
+      /(?:^|\/)journal\//,
+      /(?:^|\/)server\//,
+      /(?:^|\/)src\//,
+      /(?:^|\/)todo\//,
+    ];
+    const violations = Object.keys(portableNameModules).flatMap((filePath) =>
+      readModuleImports(portableNameModules, filePath)
+        .filter((importPath) =>
+          blockedImports.some((pattern) => pattern.test(importPath)),
+        )
+        .map((importPath) => formatImport(filePath, importPath)),
+    );
+
+    expect(violations).toEqual([]);
+    expect(Object.keys(portableNameModules).map(portableNamePathToRelative))
+      .toEqual(["portableName.ts"]);
   });
 
   it("keeps Journal a pure shared domain with explicit consumers", () => {

@@ -6,7 +6,7 @@ import {
   createMemoryWorkspaceRepositoryCache,
   type WorkspaceRepositoryCache,
 } from "./workspaceRepositoryCache";
-import { projectWorkspaceRepositoryNameConflicts } from "./repositoryLabelPolicy";
+import { projectWorkspaceRepositoryLabelIssues } from "./repositoryLabelPolicy";
 
 export type RepositoryClientCache = {
   catalogs: WorkspaceRepositoryCatalogCache;
@@ -42,7 +42,7 @@ export function createMemoryRepositoryClientCache(): RepositoryClientCache {
       }
 
       await catalogs.save(catalogIdentity, {
-        ...projectWorkspaceRepositoryNameConflicts({
+        ...projectWorkspaceRepositoryLabelIssues({
           creatableAdapters: catalog.creatableAdapters,
           issues: catalog.issues.filter(({ id }) => id !== repositoryId),
           repositories: catalog.repositories.filter(
@@ -69,7 +69,7 @@ export function createMemoryRepositoryClientCache(): RepositoryClientCache {
       if (!descriptor) {
         throw new Error(`Repository does not exist: ${repositoryId}`);
       }
-      const projected = projectWorkspaceRepositoryNameConflicts({
+      const projected = projectWorkspaceRepositoryLabelIssues({
         creatableAdapters: catalog.creatableAdapters,
         issues: catalog.issues,
         repositories: catalog.repositories.map((repository) =>

@@ -48,7 +48,7 @@ const localRepository: RepositoryOption = {
       value: "/data/repositories/local",
     },
   ],
-  nameConflict: false,
+  labelIssue: null,
 };
 
 const webDavRepository: RepositoryOption = {
@@ -66,7 +66,7 @@ const webDavRepository: RepositoryOption = {
     label: "WebDAV 地址",
     value: "https://dav.example/notes/",
   }],
-  nameConflict: false,
+  labelIssue: null,
 };
 
 describe("repository creation form", () => {
@@ -416,7 +416,7 @@ describe("repository setup and management semantics", () => {
     const baseView = createView().repository;
     const view = {
       ...baseView,
-      repositories: [{ ...localRepository, nameConflict: true }],
+      repositories: [{ ...localRepository, labelIssue: "conflict" as const }],
       systemIssues: [{
         code: "repository_corrupt" as const,
         displayLabel: "代办 · 内置仓库",

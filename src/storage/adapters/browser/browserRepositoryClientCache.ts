@@ -19,7 +19,7 @@ import type {
 import { WorkspaceRepositoryLocalConflictError } from "../../repository/workspaceRepository";
 import {
   parseAvailableWorkspaceRepositoryLabel,
-  projectWorkspaceRepositoryNameConflicts,
+  projectWorkspaceRepositoryLabelIssues,
 } from "../../repository/repositoryLabelPolicy";
 import {
   parseWorkspaceRepositoryCatalogCacheState,
@@ -580,7 +580,7 @@ export function createIndexedDbRepositoryClientCache(
         remoteRevision: parsedRemoteRevision,
       };
 
-      const projectedCatalog = projectWorkspaceRepositoryNameConflicts({
+      const projectedCatalog = projectWorkspaceRepositoryLabelIssues({
           creatableAdapters: ["browser"],
           issues: catalog.issues,
           repositories: [...catalog.repositories, nextDescriptor].sort(
@@ -621,7 +621,7 @@ export function createIndexedDbRepositoryClientCache(
       if (catalogValue !== undefined) {
         const catalog = parseWorkspaceRepositoryCatalogCacheState(catalogValue);
 
-        const projectedCatalog = projectWorkspaceRepositoryNameConflicts({
+        const projectedCatalog = projectWorkspaceRepositoryLabelIssues({
             creatableAdapters: catalog.creatableAdapters,
             issues: catalog.issues.filter(({ id }) => id !== repositoryId),
             repositories: catalog.repositories.filter(
@@ -677,12 +677,12 @@ export function createIndexedDbRepositoryClientCache(
         repositoryId,
       );
 
-      const projectedCatalog = projectWorkspaceRepositoryNameConflicts({
+      const projectedCatalog = projectWorkspaceRepositoryLabelIssues({
         creatableAdapters: catalog.creatableAdapters,
         issues: catalog.issues,
         repositories: catalog.repositories.map((repository) =>
           repository.id === repositoryId
-            ? { ...repository, label: parsedLabel, nameConflict: false }
+            ? { ...repository, label: parsedLabel, labelIssue: null }
             : repository
         ),
       });

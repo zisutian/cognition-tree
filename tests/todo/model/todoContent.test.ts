@@ -86,7 +86,11 @@ describe("todo content", () => {
     expect(() => validateTodoContent({
       ...content,
       collections: [{ ...collection, name: " 集合 1 " }],
-    })).toThrow(/name must be trimmed/);
+    })).toThrow(/name must be canonical/);
+    expect(() => validateTodoContent({
+      ...content,
+      collections: [{ ...collection, name: "集合/1" }],
+    })).toThrow(/name contains unsupported characters/);
     expect(() => validateTodoContent({
       ...content,
       collections: [{

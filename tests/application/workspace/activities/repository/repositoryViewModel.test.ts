@@ -22,7 +22,7 @@ function createSource(
       serverPath: "/data/repositories/primary",
       type: "local" as const,
     },
-    nameConflict: false,
+    labelIssue: null,
   };
   const reloadSystemRepository = vi.fn(async () => undefined);
 
@@ -308,7 +308,7 @@ describe("repository view model", () => {
               value: "/data/repositories/primary",
             },
           ],
-          nameConflict: false,
+          labelIssue: null,
         },
       ],
       persistenceStatusLabel: "仓库内容已更改",

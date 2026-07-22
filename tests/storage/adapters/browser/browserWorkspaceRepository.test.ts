@@ -86,7 +86,7 @@ describe("browser workspace repository catalog", () => {
       id: repositoryIdA,
       label: "Stable label",
       location: { databaseName, type: "browser" },
-      nameConflict: false,
+      labelIssue: null,
     });
     await expect(catalog.listRepositories()).resolves.toEqual({
       creatableAdapters: ["browser"],
@@ -212,7 +212,7 @@ describe("browser workspace repository catalog", () => {
         id: repositoryIdA,
         label: "Existing",
         location: { databaseName, type: "browser" },
-        nameConflict: false,
+        labelIssue: null,
       }],
       version: 4,
     });
@@ -313,7 +313,7 @@ describe("browser workspace repository catalog", () => {
     await expect(catalog.renameRepository({
       id: first.id,
       label: "  Renamed  ",
-    })).resolves.toMatchObject({ label: "Renamed", nameConflict: false });
+    })).resolves.toMatchObject({ label: "Renamed", labelIssue: null });
     await expect(catalog.renameRepository({
       id: first.id,
       label: "ＳＥＣＯＮＤ",
@@ -324,8 +324,8 @@ describe("browser workspace repository catalog", () => {
     })).rejects.toThrow("reserved");
     await expect(catalog.listRepositories()).resolves.toMatchObject({
       repositories: [
-        { id: first.id, label: "Renamed", nameConflict: false },
-        { id: second.id, label: "Second", nameConflict: false },
+        { id: first.id, label: "Renamed", labelIssue: null },
+        { id: second.id, label: "Second", labelIssue: null },
       ],
     });
     await expect(catalog.openRepository({ ...first, label: "Renamed" })

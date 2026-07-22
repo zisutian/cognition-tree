@@ -8,6 +8,7 @@ import {
   readRequiredContractString,
 } from "./contractValue.ts";
 import { parseWorkspaceRepositoryContent } from "./parseRepository.ts";
+import { parsePortableName } from "../../portable-name/portableName.ts";
 import type {
   CreateRepositoryDto,
   RepositoryAuthenticationDto,
@@ -26,8 +27,8 @@ const descriptorFields = [
   "adapter",
   "id",
   "label",
+  "labelIssue",
   "location",
-  "nameConflict",
 ] as const;
 const issueFields = [
   "adapter",
@@ -68,6 +69,11 @@ const issueStatuses = new Set<RepositoryCatalogIssueDto["status"]>([
   "deleting",
   "fault",
 ]);
+const labelIssues = new Set<NonNullable<RepositoryDescriptorDto["labelIssue"]>>([
+  "conflict",
+  "nonportable",
+  "reserved",
+]);
 const deletionModes = new Set<RepositoryDeletionModeDto>([
   "delete-managed-data",
   "remove-connection",
@@ -79,10 +85,6 @@ const deletionStatuses = new Set<RepositoryDeletionResultDto["status"]>([
 
 export function isRepositoryId(value: string) {
   return /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
-}
-
-export function normalizeRepositoryLabel(value: string) {
-  return value.trim().normalize("NFKC").toLocaleLowerCase("en-US");
 }
 
 function readRepositoryId(value: Record<string, unknown>, path: string) {
@@ -219,27 +221,42 @@ export function parseRepositoryDescriptor(
 
   assertExactContractFields(descriptor, descriptorFields, path);
   const adapter = readAdapter(descriptor, "adapter", path);
-  if (typeof descriptor.nameConflict !== "boolean") {
-    failContract(`${path}.nameConflict`, "expected boolean");
+  const labelIssue = descriptor.labelIssue;
+  if (
+    labelIssue !== null &&
+    (typeof labelIssue !== "string" ||
+      !labelIssues.has(labelIssue as NonNullable<RepositoryDescriptorDto["labelIssue"]>))
+  ) {
+    failContract(`${path}.labelIssue`, "expected null or a supported label issue");
   }
 
   return {
     adapter,
     id: readRepositoryId(descriptor, path),
     label: readRequiredContractString(descriptor, "label", path),
+    labelIssue: labelIssue as RepositoryDescriptorDto["labelIssue"],
     location: readRepositoryLocation(descriptor, adapter, path),
-    nameConflict: descriptor.nameConflict,
   };
+}
+
+function readPortableRepositoryLabel(
+  value: Record<string, unknown>,
+  path: string,
+) {
+  const label = readRequiredContractString(value, "label", path);
+
+  try {
+    return parsePortableName(label, "Repository label");
+  } catch {
+    failContract(`${path}.label`, "expected a portable repository label");
+  }
 }
 
 export function parseRenameRepository(value: unknown): RenameRepositoryDto {
   const request = readContractObject(value, "$"),
-    label = readRequiredContractString(request, "label", "$");
+    label = readPortableRepositoryLabel(request, "$");
   assertExactContractFields(request, renameRepositoryFields, "$");
-  if (normalizeRepositoryLabel(label).length === 0) {
-    failContract("$.label", "expected non-empty repository label");
-  }
-  return { label: label.trim() };
+  return { label };
 }
 
 function parseCatalogIssue(
@@ -336,7 +353,7 @@ export function parseCreateRepository(value: unknown): CreateRepositoryDto {
     return {
       adapter,
       content: parseWorkspaceRepositoryContent(request.content),
-      label: readRequiredContractString(request, "label", "$"),
+      label: readPortableRepositoryLabel(request, "$"),
     };
   }
   if (adapter === "webdav") {
@@ -345,7 +362,7 @@ export function parseCreateRepository(value: unknown): CreateRepositoryDto {
       adapter,
       authentication: parseRepositoryAuthentication(request.authentication),
       initialContent: parseWorkspaceRepositoryContent(request.initialContent),
-      label: readRequiredContractString(request, "label", "$"),
+      label: readPortableRepositoryLabel(request, "$"),
       url: readRequiredContractString(request, "url", "$"),
     };
   }

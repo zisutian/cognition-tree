@@ -17,6 +17,7 @@ import type {
   WorkspaceRepositoryDescriptor,
 } from "../../../storage/repository/workspaceRepositoryCatalog";
 import { createInitialRepositoryContent } from "./initialRepository";
+import { parsePortableName } from "../../../../portable-name/portableName";
 
 export type CreateRepositoryRequest =
   | {
@@ -123,7 +124,7 @@ export function reuseUnchangedRepositoryDescriptors(
       existing &&
       existing.adapter === descriptor.adapter &&
       existing.label === descriptor.label &&
-      existing.nameConflict === descriptor.nameConflict &&
+      existing.labelIssue === descriptor.labelIssue &&
       repositoryLocationsEqual(existing.location, descriptor.location)
     ) {
       return existing;
@@ -294,11 +295,7 @@ export function useRepositoryCatalog(
       if (!current.creatableAdapters.includes(input.adapter)) {
         throw new Error(`Repository adapter is unavailable: ${input.adapter}`);
       }
-      const label = input.name.trim();
-
-      if (!label) {
-        throw new Error("仓库名称不能为空。");
-      }
+      const label = parsePortableName(input.name, "Repository label");
       const content = createInitialContent(label);
       const descriptor = await catalog.createRepository(
         input.adapter === "webdav"
@@ -392,12 +389,9 @@ export function useRepositoryCatalog(
     input: RenameRepositoryRequest,
   ) => {
     const previous = beginOperation("renaming");
-    const label = input.name.trim();
 
     try {
-      if (!label) {
-        throw new Error("仓库名称不能为空。");
-      }
+      const label = parsePortableName(input.name, "Repository label");
       if (!previous.repositories.some(({ id }) => id === input.id)) {
         throw new Error(`Repository does not exist: ${input.id}`);
       }

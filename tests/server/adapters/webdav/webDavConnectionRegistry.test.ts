@@ -168,7 +168,7 @@ describe("WebDAV connection registry", () => {
           .resolves.toMatchObject({
             id: "repository-rename",
             label: "After",
-            nameConflict: false,
+            labelIssue: null,
           });
         expect(await registry.getStore("repository-rename")).toBe(store);
         await expect(store.loadSnapshot()).resolves.toEqual(snapshotBefore);
@@ -279,7 +279,7 @@ describe("WebDAV connection registry", () => {
               type: "webdav",
               url: "https://healthy.example.test/root/",
             },
-            nameConflict: false,
+            labelIssue: null,
           }],
         });
         expect(transportFactoryCalls).toBe(0);

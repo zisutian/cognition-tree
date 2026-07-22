@@ -46,11 +46,11 @@ describe("todo commands", () => {
     const created = createTodoCollection(empty, {
       collectionId: todoCollectionId(1),
       createdAt: todoTimestamp(1),
-      name: "  工作  ",
+      name: "  工作  集合  ",
     });
     const renamed = renameTodoCollection(created.content, {
       collectionId: created.collectionId,
-      name: "  个人  ",
+      name: "  个人  集合  ",
       updatedAt: todoTimestamp(2),
     });
 
@@ -59,14 +59,14 @@ describe("todo commands", () => {
       createdAt: todoTimestamp(1),
       id: todoCollectionId(1),
       items: [],
-      name: "工作",
+      name: "工作 集合",
       updatedAt: todoTimestamp(1),
     });
-    expect(renamed.collections[0]?.name).toBe("个人");
+    expect(renamed.collections[0]?.name).toBe("个人 集合");
     expect(renamed.collections[0]?.updatedAt).toBe(todoTimestamp(2));
     expect(renameTodoCollection(renamed, {
       collectionId: todoCollectionId(1),
-      name: "  个人 ",
+      name: "  个人  集合 ",
       updatedAt: todoTimestamp(1),
     })).toBe(renamed);
     expect(() => createTodoCollection(empty, {
@@ -74,6 +74,11 @@ describe("todo commands", () => {
       createdAt: todoTimestamp(1),
       name: "   ",
     })).toThrow(/name must not be empty/);
+    expect(() => createTodoCollection(empty, {
+      collectionId: todoCollectionId(1),
+      createdAt: todoTimestamp(1),
+      name: "工作/个人",
+    })).toThrow(/unsupported characters/);
   });
 
   it("creates and edits items while preserving the user's exact non-empty text", () => {

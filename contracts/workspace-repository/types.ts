@@ -85,8 +85,8 @@ export type RepositoryDescriptorDto = {
   adapter: RepositoryAdapterKindDto;
   id: string;
   label: string;
+  labelIssue: "conflict" | "nonportable" | "reserved" | null;
   location: RepositoryLocationDto;
-  nameConflict: boolean;
 };
 
 export type RenameRepositoryDto = {

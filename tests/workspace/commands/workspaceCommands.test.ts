@@ -128,12 +128,12 @@ describe("workspace commands", () => {
     const withFolder = createWorkspaceFolder(indexWorkspace(workspace), {
       folderId: "folder-target",
       parentFolderId: null,
-      title: "  目标  ",
+      title: "  目标  文件夹  ",
     });
     const renamed = renameWorkspaceFolder(
       indexWorkspace(withFolder),
       "folder-target",
-      "资料",
+      "资料  汇总",
     );
     const moved = moveWorkspaceTreeNode(indexWorkspace(renamed), {
       destination: { folderId: "folder-target", kind: "inside" },
@@ -145,7 +145,7 @@ describe("workspace commands", () => {
     );
 
     expect(indexWorkspace(renamed).folderEntryById.get("folder-target")?.node.title)
-      .toBe("资料");
+      .toBe("资料 汇总");
     expect(findFolderIdContainingNote(moved, "note-second")).toBe(
       "folder-target",
     );
@@ -255,37 +255,25 @@ describe("workspace commands", () => {
     });
   });
 
-  it("renames the canonical title and permits an empty diagnostic title", () => {
+  it("renames the canonical title with a portable canonical name", () => {
     const workspace = createWorkspaceWithNotes();
     const renamed = renameWorkspaceNote(
       indexWorkspace(workspace),
       "note-first",
-      "新标题",
+      "  新  标题  ",
       nextTimestamp,
-    );
-    const empty = renameWorkspaceNote(
-      indexWorkspace(renamed),
-      "note-first",
-      "",
-      "2026-07-16T02:00:00.000Z",
     );
 
     expect(readWorkspaceNoteHeader(renamed.notes[0])).toMatchObject({
-      title: "新标题",
+      title: "新 标题",
       updatedAt: nextTimestamp,
     });
-    expect(readWorkspaceNoteHeader(empty.notes[0])).toMatchObject({
-      title: "",
-      updatedAt: "2026-07-16T02:00:00.000Z",
-    });
-    expect(
-      parseCtnCanonicalDocument(
-        empty.notes[0].source,
-        defaultCtnSyntaxProfile,
-      ).diagnostics,
-    ).toEqual([
-      expect.objectContaining({ code: "title-line-invalid", severity: "error" }),
-    ]);
+    expect(() => renameWorkspaceNote(
+      indexWorkspace(renamed),
+      "note-first",
+      "bad:title",
+      "2026-07-16T02:00:00.000Z",
+    )).toThrow("Workspace note title contains unsupported characters");
   });
 
   it("persists an indented title as a content diagnostic without indenting canonical metadata", () => {
@@ -367,7 +355,7 @@ describe("workspace commands", () => {
         parentFolderId: null,
         title: "   ",
       }),
-    ).toThrow("Workspace folder title is required");
+    ).toThrow("Workspace folder title must not be empty");
     expect(() =>
       renameWorkspaceFolder(indexWorkspace(workspace), "missing-folder", "资料"),
     ).toThrow("Workspace folder does not exist");

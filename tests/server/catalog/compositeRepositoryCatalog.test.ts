@@ -57,7 +57,7 @@ function createRegistry({
       id: input.id,
       label: input.label,
       location: { type: "webdav", url: input.url },
-      nameConflict: false,
+      labelIssue: null,
     };
 
     currentRepositories.push(descriptor);
@@ -95,7 +95,7 @@ function createRegistry({
     if (!current) {
       throw new RepositoryCatalogError("repository_not_found", `missing ${id}`);
     }
-    const renamed = { ...current, label, nameConflict: false };
+    const renamed = { ...current, label, labelIssue: null };
     currentRepositories[index] = renamed;
     return renamed;
   });
@@ -187,7 +187,7 @@ describe("composite repository catalog", () => {
             id: "repository-remote",
             label: "Remote",
             location: remoteLocation,
-            nameConflict: false,
+            labelIssue: null,
           },
         ].sort((left, right) => left.id.localeCompare(right.id)),
       });
@@ -201,7 +201,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       }],
     });
   });
@@ -222,7 +222,7 @@ describe("composite repository catalog", () => {
         id: `repository-${firstUuid.toLowerCase()}`,
         label: "NAS",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       });
       expect(registry.register).toHaveBeenCalledWith({
         authentication: { type: "none" },
@@ -293,7 +293,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       }],
     });
   });
@@ -311,13 +311,13 @@ describe("composite repository catalog", () => {
         .resolves.toMatchObject({
           id: local.id,
           label: "Renamed",
-          nameConflict: false,
+          labelIssue: null,
         });
       await expect((await catalog.getStore(local.id)).loadSnapshot()).resolves.toEqual(before);
       await expect(catalog.renameRepository(local.id, { label: "ＲＥＭＯＴＥ" }))
         .rejects.toMatchObject({ code: "invalid_request" });
       await expect(catalog.renameRepository("repository-remote", { label: "NAS" }))
-        .resolves.toMatchObject({ label: "NAS", nameConflict: false });
+        .resolves.toMatchObject({ label: "NAS", labelIssue: null });
       expect(registry.renameConnection).toHaveBeenCalledWith(
         "repository-remote",
         "NAS",
@@ -329,7 +329,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       }],
     });
   });
@@ -338,9 +338,9 @@ describe("composite repository catalog", () => {
     await withCatalog(async (catalog) => {
       await expect(catalog.listRepositories()).resolves.toMatchObject({
         repositories: [
-          { id: "repository-a", nameConflict: true },
-          { id: "repository-b", nameConflict: true },
-          { id: "repository-journal", nameConflict: true },
+          { id: "repository-a", labelIssue: "conflict" },
+          { id: "repository-b", labelIssue: "conflict" },
+          { id: "repository-journal", labelIssue: "reserved" },
         ],
       });
     }, {
@@ -350,21 +350,21 @@ describe("composite repository catalog", () => {
           id: "repository-a",
           label: "Same",
           location: { type: "webdav", url: "https://dav.example.test/a/" },
-          nameConflict: false,
+          labelIssue: null,
         },
         {
           adapter: "webdav",
           id: "repository-b",
           label: "ＳＡＭＥ",
           location: { type: "webdav", url: "https://dav.example.test/b/" },
-          nameConflict: false,
+          labelIssue: null,
         },
         {
           adapter: "webdav",
           id: "repository-journal",
           label: "日记",
           location: { type: "webdav", url: "https://dav.example.test/journal/" },
-          nameConflict: false,
+          labelIssue: null,
         },
       ],
     });
@@ -381,7 +381,7 @@ describe("composite repository catalog", () => {
         id: "repository-same",
         label: "Remote",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       }],
     });
   });
@@ -409,7 +409,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       }],
     });
   });
@@ -426,7 +426,7 @@ describe("composite repository catalog", () => {
         id: "repository-remote",
         label: "Remote",
         location: remoteLocation,
-        nameConflict: false,
+        labelIssue: null,
       }],
     });
 

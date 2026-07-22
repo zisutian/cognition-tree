@@ -444,7 +444,7 @@ describe("workspace API v4", () => {
       });
 
       expect(renamed).toMatchObject({
-        body: { id: repositoryId, label: "After", nameConflict: false },
+        body: { id: repositoryId, label: "After", labelIssue: null },
         statusCode: 200,
       });
       await expect(loadSnapshot(handler, repositoryId)).resolves.toEqual(before);

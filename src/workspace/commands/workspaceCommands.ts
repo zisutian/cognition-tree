@@ -21,6 +21,7 @@ import {
 } from "../../../ctn/metadata/textEdits";
 import { createCtnBlockIdAllocator } from "../../../ctn/metadata/blockIdAllocator";
 import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
+import { parsePortableName } from "../../../portable-name/portableName";
 import {
   createNoteRecord,
   createCanonicalNoteSource,
@@ -135,11 +136,7 @@ export function createWorkspaceFolder(
     title: string;
   },
 ): WorkspaceData {
-  const nextTitle = title.trim();
-
-  if (!nextTitle) {
-    throw new Error("Workspace folder title is required.");
-  }
+  const nextTitle = parsePortableName(title, "Workspace folder title");
 
   assertWorkspaceFolderIdAvailable(workspace, folderId);
 
@@ -162,11 +159,7 @@ export function renameWorkspaceFolder(
   folderId: FolderId,
   title: string,
 ): WorkspaceData {
-  const nextTitle = title.trim();
-
-  if (!nextTitle) {
-    throw new Error("Workspace folder title is required.");
-  }
+  const nextTitle = parsePortableName(title, "Workspace folder title");
 
   assertWorkspaceFolderExists(workspace, folderId);
 
@@ -183,6 +176,7 @@ export function renameWorkspaceNote(
   timestamp: string,
 ): WorkspaceData {
   assertWorkspaceNoteExists(workspace, noteId);
+  const nextTitle = parsePortableName(title, "Workspace note title");
 
   const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
 
@@ -191,7 +185,7 @@ export function renameWorkspaceNote(
   }
 
   const note = workspace.data.notes[noteIndex];
-  const source = replaceCtnSourceTitle(note.source, title, timestamp);
+  const source = replaceCtnSourceTitle(note.source, nextTitle, timestamp);
 
   return replaceWorkspaceNoteSources(workspace.data, [{ noteId, source }]);
 }

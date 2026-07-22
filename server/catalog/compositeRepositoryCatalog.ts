@@ -2,7 +2,11 @@
 
 import { randomUUID } from "node:crypto";
 import { isRepositoryId } from "../../contracts/workspace-repository/parseCatalog.ts";
-import { normalizeRepositoryLabel } from "../../contracts/workspace-repository/parseCatalog.ts";
+import {
+  createPortableNameKey,
+  getPortableNameIssue,
+  parsePortableName,
+} from "../../portable-name/portableName.ts";
 import type {
   CreateRepositoryDto,
   RepositoryCatalogDto,
@@ -62,8 +66,8 @@ type CompositeRepositoryCatalogOptions = {
 const maximumIdAllocationAttempts = 100;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const reservedRepositoryLabelKeys = new Set([
-  normalizeRepositoryLabel("日记"),
-  normalizeRepositoryLabel("代办"),
+  createPortableNameKey("日记"),
+  createPortableNameKey("代办"),
 ]);
 
 export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
@@ -237,7 +241,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
                 "Browser repositories are not managed by the HTTP server",
               );
             })();
-      return { ...renamed, nameConflict: false };
+      return { ...renamed, labelIssue: null };
     });
   }
 
@@ -282,7 +286,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
       .sort((left, right) => left.id.localeCompare(right.id));
     const countsByLabel = new Map<string, number>();
     for (const repository of repositories) {
-      const key = normalizeRepositoryLabel(repository.label);
+      const key = createPortableNameKey(repository.label);
       countsByLabel.set(key, (countsByLabel.get(key) ?? 0) + 1);
     }
 
@@ -291,26 +295,34 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
       issues: [...local.issues, ...webdav.issues]
         .sort((left, right) => left.id.localeCompare(right.id)),
       repositories: repositories.map((repository) => {
-        const key = normalizeRepositoryLabel(repository.label);
+        const key = createPortableNameKey(repository.label);
+        const portableIssue = getPortableNameIssue(repository.label);
         return {
           ...repository,
-          nameConflict:
-            reservedRepositoryLabelKeys.has(key) ||
-            (countsByLabel.get(key) ?? 0) > 1,
+          labelIssue: portableIssue
+            ? "nonportable"
+            : reservedRepositoryLabelKeys.has(key)
+              ? "reserved"
+              : (countsByLabel.get(key) ?? 0) > 1
+                ? "conflict"
+                : null,
         };
       }),
     };
   }
 
   async #assertAvailableLabel(labelValue: string, excludedId?: string) {
-    const label = labelValue.trim();
-    const key = normalizeRepositoryLabel(label);
-    if (key.length === 0) {
+    let label: string;
+
+    try {
+      label = parsePortableName(labelValue, "Repository label");
+    } catch {
       throw new RepositoryCatalogError(
         "invalid_request",
-        "Repository label must not be empty",
+        "Repository label must be portable",
       );
     }
+    const key = createPortableNameKey(label);
     if (reservedRepositoryLabelKeys.has(key)) {
       throw new RepositoryCatalogError(
         "invalid_request",
@@ -320,7 +332,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
     const catalog = await this.#listRepositories();
     if (catalog.repositories.some((repository) =>
       repository.id !== excludedId &&
-      normalizeRepositoryLabel(repository.label) === key
+      createPortableNameKey(repository.label) === key
     )) {
       throw new RepositoryCatalogError(
         "invalid_request",

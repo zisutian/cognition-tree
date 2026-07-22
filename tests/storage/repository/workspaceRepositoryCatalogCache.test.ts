@@ -8,11 +8,11 @@ const descriptor = {
   adapter: "webdav" as const,
   id: "remote",
   label: "Stable catalog label",
+  labelIssue: null,
   location: {
     type: "webdav" as const,
     url: "https://dav.example.test/notes/",
   },
-  nameConflict: false,
 };
 const issue = {
   adapter: "local" as const,
@@ -55,17 +55,15 @@ describe("workspace repository catalog cache", () => {
     ).toThrow("unsupported field");
   });
 
-  it("supplements persisted v4 descriptors that predate conflict projection", () => {
-    const { nameConflict: _nameConflict, ...persistedDescriptor } = descriptor;
+  it("rejects descriptors without the exact label issue projection", () => {
+    const { labelIssue: _labelIssue, ...incompleteDescriptor } = descriptor;
 
-    expect(parseWorkspaceRepositoryCatalogCacheState({
+    expect(() => parseWorkspaceRepositoryCatalogCacheState({
       creatableAdapters: ["webdav"],
       issues: [],
-      repositories: [persistedDescriptor],
+      repositories: [incompleteDescriptor],
       version: 4,
-    })).toMatchObject({
-      repositories: [{ ...descriptor, nameConflict: false }],
-    });
+    })).toThrow("labelIssue: missing field");
   });
 
   it("isolates cached labels, structured locations, and issues from mutation", async () => {

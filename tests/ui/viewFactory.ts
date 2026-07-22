@@ -167,7 +167,7 @@ export function createView(
             label: "服务端路径",
             value: "/data/repositories/primary",
           }],
-          nameConflict: false,
+          labelIssue: null,
         },
       ],
       operation: "idle",

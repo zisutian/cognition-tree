@@ -19,7 +19,7 @@ import { createLocalDraftRevision } from "../../repository/workspaceRepository";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision";
 import {
   parseAvailableWorkspaceRepositoryLabel,
-  projectWorkspaceRepositoryNameConflicts,
+  projectWorkspaceRepositoryLabelIssues,
 } from "../../repository/repositoryLabelPolicy";
 import {
   browserRepositoryDatabaseName,
@@ -205,11 +205,11 @@ export function createBrowserWorkspaceRepositoryCatalog({
             outbound.label,
             catalog?.repositories ?? [],
           ),
+          labelIssue: null,
           location: {
             databaseName: browserRepositoryDatabaseName,
             type: "browser",
           },
-          nameConflict: false,
         };
 
         try {
@@ -256,7 +256,7 @@ export function createBrowserWorkspaceRepositoryCatalog({
       const catalog = await cache.catalogs.load(browserCatalogIdentity);
 
       return catalog
-        ? projectWorkspaceRepositoryNameConflicts({
+        ? projectWorkspaceRepositoryLabelIssues({
             creatableAdapters: [...browserCreatableAdapters],
             issues: catalog.issues,
             repositories: catalog.repositories,
@@ -303,7 +303,7 @@ export function createBrowserWorkspaceRepositoryCatalog({
         label: parsedLabel,
         repositoryId: id,
       });
-      return { ...descriptor, label: parsedLabel, nameConflict: false };
+      return { ...descriptor, label: parsedLabel, labelIssue: null };
     },
   };
 }

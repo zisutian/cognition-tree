@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  normalizeRepositoryLabel,
   parseRenameRepository,
 } from "../../../contracts/workspace-repository/parseCatalog";
 import type {
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
 } from "../../../contracts/workspace-repository/types";
+import {
+  createPortableNameKey,
+  getPortableNameIssue,
+} from "../../../portable-name/portableName";
 
 const reservedLabelKeys = new Set([
-  normalizeRepositoryLabel("日记"),
-  normalizeRepositoryLabel("代办"),
+  createPortableNameKey("日记"),
+  createPortableNameKey("代办"),
 ]);
 
 export function parseAvailableWorkspaceRepositoryLabel(
@@ -20,7 +23,7 @@ export function parseAvailableWorkspaceRepositoryLabel(
   excludedRepositoryId: string | null = null,
 ) {
   const parsed = parseRenameRepository({ label }).label;
-  const key = normalizeRepositoryLabel(parsed);
+  const key = createPortableNameKey(parsed);
 
   if (reservedLabelKeys.has(key)) {
     throw new Error(`Repository name is reserved: ${parsed}`);
@@ -28,7 +31,7 @@ export function parseAvailableWorkspaceRepositoryLabel(
   if (
     repositories.some((repository) =>
       repository.id !== excludedRepositoryId &&
-      normalizeRepositoryLabel(repository.label) === key
+      createPortableNameKey(repository.label) === key
     )
   ) {
     throw new Error(`Repository name already exists: ${parsed}`);
@@ -36,13 +39,13 @@ export function parseAvailableWorkspaceRepositoryLabel(
   return parsed;
 }
 
-export function projectWorkspaceRepositoryNameConflicts(
+export function projectWorkspaceRepositoryLabelIssues(
   catalog: RepositoryCatalogDto,
 ): RepositoryCatalogDto {
   const counts = new Map<string, number>();
 
   for (const repository of catalog.repositories) {
-    const key = normalizeRepositoryLabel(repository.label);
+    const key = createPortableNameKey(repository.label);
 
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
@@ -50,12 +53,18 @@ export function projectWorkspaceRepositoryNameConflicts(
   return {
     ...catalog,
     repositories: catalog.repositories.map((repository) => {
-      const key = normalizeRepositoryLabel(repository.label);
+      const key = createPortableNameKey(repository.label);
+      const portableIssue = getPortableNameIssue(repository.label);
 
       return {
         ...repository,
-        nameConflict:
-          reservedLabelKeys.has(key) || (counts.get(key) ?? 0) > 1,
+        labelIssue: portableIssue
+          ? "nonportable"
+          : reservedLabelKeys.has(key)
+            ? "reserved"
+            : (counts.get(key) ?? 0) > 1
+              ? "conflict"
+              : null,
       };
     }),
   };

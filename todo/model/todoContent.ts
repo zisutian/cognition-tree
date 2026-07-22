@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { getPortableNameIssue } from "../../portable-name/portableName.ts";
+
 export const todoRepositoryPurpose = "system-todo" as const;
 export const todoRepositorySchemaVersion = 1 as const;
 
@@ -155,16 +157,21 @@ export function validateTodoContent(content: TodoContentValue): TodoContent {
     }
     collectionIds.add(collection.id);
 
-    const normalizedName = collection.name.trim();
+    const nameIssue = getPortableNameIssue(collection.name);
 
-    if (normalizedName.length === 0) {
+    if (nameIssue === "empty") {
       throw new TodoContentValidationError(
         `Todo collection ${collection.id} name must not be empty.`,
       );
     }
-    if (collection.name !== normalizedName) {
+    if (nameIssue === "noncanonical") {
       throw new TodoContentValidationError(
-        `Todo collection ${collection.id} name must be trimmed.`,
+        `Todo collection ${collection.id} name must be canonical.`,
+      );
+    }
+    if (nameIssue === "unsupported-character") {
+      throw new TodoContentValidationError(
+        `Todo collection ${collection.id} name contains unsupported characters.`,
       );
     }
     const createdAt = readCanonicalTimestamp(

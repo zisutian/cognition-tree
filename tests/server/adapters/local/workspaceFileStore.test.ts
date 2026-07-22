@@ -955,7 +955,7 @@ describe("LocalRepositoryCatalog v3", () => {
             serverPath: path.join(rootDir, "primary"),
             type: "local",
           },
-          nameConflict: false,
+          labelIssue: null,
         });
         await first.dispose();
         await expect(second.initialize()).resolves.toBeUndefined();

@@ -22,6 +22,7 @@ import type {
   WorkspaceRepositorySnapshotDto,
 } from "../../../contracts/workspace-repository/types.ts";
 import { repositorySyntaxIndexFileName } from "../../../contracts/workspace-repository/types.ts";
+import { parsePortableName } from "../../../portable-name/portableName.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
@@ -161,9 +162,10 @@ export async function createWorkspaceFileRepository({
 }) {
   const rootDir = path.resolve(inputRootDir);
   const content = parseWorkspaceRepositoryContent(inputContent);
+  const parsedLabel = parsePortableName(label, "Repository label");
   const projection = createLocalProjectionFromContent({
     content,
-    label,
+    label: parsedLabel,
     repositoryId,
     rootDir,
   });
@@ -232,20 +234,18 @@ export class WorkspaceFileStore {
 
   async renameLabel(label: string) {
     this.#assertAcceptingOperations();
-    if (label.trim().length === 0) {
-      throw new WorkspaceRepositoryContractError("$.label", "expected non-empty label");
-    }
+    const parsedLabel = parsePortableName(label, "Repository label");
     return this.#enqueueOperation(async () => {
       await this.initialize();
       const metadata = await this.#readMetadata();
-      if (metadata.label === label) return;
+      if (metadata.label === parsedLabel) return;
       await writeFileAtomically(
         path.join(
           this.#rootDir,
           localControlDirectoryName,
           localRepositoryMetadataFileName,
         ),
-        `${serializeJsonIteratively({ ...metadata, label }, { indent: 2 })}\n`,
+        `${serializeJsonIteratively({ ...metadata, label: parsedLabel }, { indent: 2 })}\n`,
       );
     });
   }

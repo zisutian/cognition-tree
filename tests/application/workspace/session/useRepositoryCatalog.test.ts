@@ -14,7 +14,7 @@ const descriptor: WorkspaceRepositoryDescriptor = {
     serverPath: "/data/primary",
     type: "local",
   },
-  nameConflict: false,
+  labelIssue: null,
 };
 
 describe("repository catalog descriptor identity", () => {
@@ -45,7 +45,7 @@ describe("repository catalog descriptor identity", () => {
     expect(createRepositoryConnectionKey({
       ...descriptor,
       label: "Renamed",
-      nameConflict: true,
+      labelIssue: "conflict",
     })).toBe(createRepositoryConnectionKey(descriptor));
     expect(createRepositoryConnectionKey({
       ...descriptor,

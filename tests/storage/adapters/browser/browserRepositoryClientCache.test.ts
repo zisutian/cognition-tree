@@ -35,7 +35,7 @@ const descriptor: RepositoryDescriptorDto = {
     databaseName,
     type: "browser",
   },
-  nameConflict: false,
+  labelIssue: null,
 };
 
 function requestResult<Result>(request: IDBRequest<Result>) {
@@ -379,8 +379,8 @@ describe("IndexedDB repository client cache", () => {
       creatableAdapters: ["browser"],
       issues: [],
       repositories: [
-        { ...descriptor, id: "first", nameConflict: true },
-        { ...descriptor, id: "second", nameConflict: true },
+        { ...descriptor, id: "first", labelIssue: "conflict" },
+        { ...descriptor, id: "second", labelIssue: "conflict" },
       ],
       version: 4,
     });
@@ -392,8 +392,8 @@ describe("IndexedDB repository client cache", () => {
 
     await expect(cache.catalogs.load(catalogIdentity)).resolves.toMatchObject({
       repositories: [
-        { id: "first", label: "Primary", nameConflict: false },
-        { id: "second", label: "Renamed", nameConflict: false },
+        { id: "first", label: "Primary", labelIssue: null },
+        { id: "second", label: "Renamed", labelIssue: null },
       ],
     });
   });

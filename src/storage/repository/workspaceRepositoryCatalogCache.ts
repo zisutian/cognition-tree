@@ -31,21 +31,11 @@ export function parseWorkspaceRepositoryCatalogCacheState(
     throw new Error("Unsupported repository catalog cache version");
   }
 
-  const repositories = Array.isArray(record.repositories)
-    ? record.repositories.map((repository) =>
-        repository && typeof repository === "object" &&
-          !Array.isArray(repository) &&
-          !("nameConflict" in repository)
-          ? { ...repository, nameConflict: false }
-          : repository
-      )
-    : record.repositories;
-
   return {
     ...parseRepositoryCatalog({
       creatableAdapters: record.creatableAdapters,
       issues: record.issues,
-      repositories,
+      repositories: record.repositories,
     }),
     version: 4,
   };

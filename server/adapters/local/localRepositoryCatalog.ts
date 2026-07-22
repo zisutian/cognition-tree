@@ -5,6 +5,7 @@ import { lstat, mkdir, readdir, realpath, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../contracts/workspace-repository/parseCatalog.ts";
+import { parsePortableName } from "../../../portable-name/portableName.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
@@ -216,6 +217,7 @@ export class LocalRepositoryCatalog {
     return this.#enqueueOperation(async () => {
       await this.initialize();
       this.#assertWriterLock();
+      const label = parsePortableName(request.label, "Repository label");
       const repositoryPath = this.#resolveRepositoryPath(request.id);
 
       if (await pathExists(repositoryPath)) {
@@ -230,7 +232,7 @@ export class LocalRepositoryCatalog {
       try {
         await createWorkspaceFileRepository({
           content: request.content,
-          label: request.label,
+          label,
           repositoryId: request.id,
           rootDir: stagingPath,
         });
@@ -243,7 +245,7 @@ export class LocalRepositoryCatalog {
 
       const store = this.#createStore(repositoryPath);
       this.#storesById.set(request.id, store);
-      return this.#createDescriptor(request.id, request.label);
+      return this.#createDescriptor(request.id, label);
     });
   }
 
@@ -360,10 +362,11 @@ export class LocalRepositoryCatalog {
     return this.#enqueueOperation(async () => {
       await this.initialize();
       this.#assertWriterLock();
+      const parsedLabel = parsePortableName(label, "Repository label");
       const store = await this.#getStore(repositoryId);
 
-      await store.renameLabel(label);
-      return this.#createDescriptor(repositoryId, label);
+      await store.renameLabel(parsedLabel);
+      return this.#createDescriptor(repositoryId, parsedLabel);
     });
   }
 
@@ -504,8 +507,8 @@ export class LocalRepositoryCatalog {
       adapter: "local",
       id: repositoryId,
       label,
+      labelIssue: null,
       location: this.#createLocation(repositoryId),
-      nameConflict: false,
     };
   }
 

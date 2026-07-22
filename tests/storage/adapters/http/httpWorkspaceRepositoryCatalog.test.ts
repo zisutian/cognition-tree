@@ -24,7 +24,7 @@ const descriptor = {
     serverPath: "/data/repositories/primary",
     type: "local" as const,
   },
-  nameConflict: false,
+  labelIssue: null,
 };
 const issue = {
   adapter: "local" as const,
@@ -198,7 +198,7 @@ describe("HTTP workspace repository catalog", () => {
               type: "webdav",
               url: "https://dav.example.test/notes/",
             },
-            nameConflict: false,
+            labelIssue: null,
           });
 
       return { getLoadCount: () => loadCount, repository };
@@ -288,7 +288,7 @@ describe("HTTP workspace repository catalog", () => {
         type: "webdav" as const,
         url: "https://dav.example.test/notes/",
       },
-      nameConflict: false,
+      labelIssue: null,
     };
     let body = "";
     const catalog = createHttpWorkspaceRepositoryCatalog({

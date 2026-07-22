@@ -53,7 +53,7 @@ const repositories: WorkspaceRepositoryDescriptor[] = [{
     serverPath: "/data/repositories/conflicted",
     type: "local",
   },
-  nameConflict: true,
+  labelIssue: "conflict",
 }];
 
 const systemIssues: SystemRepositoryIssue[] = [{
@@ -108,7 +108,7 @@ describe("workbench problem projection", () => {
   it("projects ordinary name conflicts and protected system faults with distinct focus targets", () => {
     expect(projectUiRepositoryNameConflictProblems(repositories)).toEqual([
       expect.objectContaining({
-        id: "repository-name-conflict:conflicted",
+        id: "repository-label-conflict:conflicted",
         locationLabel: "本地 · 日记",
         severity: "error",
         target: {
@@ -144,7 +144,7 @@ describe("workbench problem projection", () => {
     )).toEqual({
       errorCount: 3,
       problems: [
-        expect.objectContaining({ id: "repository-name-conflict:conflicted" }),
+        expect.objectContaining({ id: "repository-label-conflict:conflicted" }),
         expect.objectContaining({ id: "repository:aaa" }),
         expect.objectContaining({ id: "system-repository:system-journal" }),
         expect.objectContaining({ id: "repository:bbb" }),

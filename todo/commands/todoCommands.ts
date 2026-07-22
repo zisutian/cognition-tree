@@ -9,6 +9,7 @@ import {
   type TodoContent,
   type TodoItemId,
 } from "../model/todoContent.ts";
+import { parsePortableName } from "../../portable-name/portableName.ts";
 
 export type CreateTodoCollectionInput = {
   collectionId: TodoCollectionId;
@@ -73,12 +74,7 @@ function canonicalTimestampMilliseconds(value: string, label: string) {
 }
 
 function normalizeCollectionName(name: string) {
-  const normalized = name.trim();
-
-  if (normalized.length === 0) {
-    throw new Error("Todo collection name must not be empty.");
-  }
-  return normalized;
+  return parsePortableName(name, "Todo collection name");
 }
 
 function assertItemText(text: string) {

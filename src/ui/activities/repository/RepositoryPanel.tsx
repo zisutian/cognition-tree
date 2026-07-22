@@ -213,12 +213,20 @@ export function RepositoryContext({
                           {view.persistenceStatusLabel}
                         </span>
                       ) : null}
-                      {repository.nameConflict ? (
+                      {repository.labelIssue ? (
                         <span
                           className="repository-name-conflict"
-                          title="仓库名称与其他仓库或内置仓库冲突"
+                          title={repository.labelIssue === "nonportable"
+                            ? "仓库名称包含不可移植字符"
+                            : repository.labelIssue === "reserved"
+                              ? "仓库名称由内置仓库保留"
+                              : "仓库名称与其他仓库冲突"}
                         >
-                          名称冲突
+                          {repository.labelIssue === "nonportable"
+                            ? "名称不可移植"
+                            : repository.labelIssue === "reserved"
+                              ? "名称已保留"
+                              : "名称冲突"}
                         </span>
                       ) : null}
                       </>

@@ -15,6 +15,7 @@ import {
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import { isRepositoryId } from "../../../contracts/workspace-repository/parseCatalog.ts";
+import { parsePortableName } from "../../../portable-name/portableName.ts";
 import { serializeJsonIteratively } from "../../../contracts/workspace-repository/json.ts";
 import type {
   RepositoryAuthenticationDto,
@@ -271,8 +272,8 @@ function createDescriptor(config: WebDavConnectionConfig): RepositoryDescriptorD
     adapter: "webdav",
     id: config.id,
     label: config.label,
+    labelIssue: null,
     location: { type: "webdav", url: config.url },
-    nameConflict: false,
   };
 }
 
@@ -396,10 +397,11 @@ export class WebDavConnectionRegistry {
     return this.#enqueueOperation(async () => {
       await this.initialize();
       this.#assertLock();
+      const label = parsePortableName(input.label, "Repository label");
       const config = parseWebDavConnectionConfig(JSON.stringify({
         authentication: input.authentication,
         id: input.id,
-        label: input.label,
+        label,
         schemaVersion: registrySchemaVersion,
         status: "active",
         url: input.url,
@@ -480,9 +482,10 @@ export class WebDavConnectionRegistry {
           `WebDAV repository does not exist: ${repositoryId}`,
         );
       }
+      const parsedLabel = parsePortableName(label, "Repository label");
       const renamed = parseWebDavConnectionConfig(JSON.stringify({
         ...current,
-        label,
+        label: parsedLabel,
       }));
 
       await writeConfigAtomically(this.#connectionPath(repositoryId), renamed);

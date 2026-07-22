@@ -96,13 +96,17 @@ export function projectUiRepositoryNameConflictProblems(
   repositories: WorkspaceRepositoryDescriptor[],
 ): UiWorkbenchRepositoryProblem[] {
   return repositories.flatMap((repository) =>
-    repository.nameConflict
+    repository.labelIssue
       ? [{
           code: "repository-name-conflict" as const,
-          id: `repository-name-conflict:${repository.id}`,
+          id: `repository-label-${repository.labelIssue}:${repository.id}`,
           locationLabel:
             `${repositoryAdapterLabels[repository.adapter]} · ${repository.label}`,
-          message: "仓库名称与其他仓库或内置仓库冲突，请重命名。",
+          message: repository.labelIssue === "nonportable"
+            ? "仓库名称包含不可移植字符，请重命名。"
+            : repository.labelIssue === "reserved"
+              ? "仓库名称由内置仓库保留，请重命名。"
+              : "仓库名称与其他仓库冲突，请重命名。",
           severity: "error" as const,
           source: "repository" as const,
           target: {
