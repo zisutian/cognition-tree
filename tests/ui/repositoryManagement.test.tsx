@@ -279,6 +279,8 @@ describe("repository setup and management semantics", () => {
     expect(markup).toContain("远端笔记 · WebDAV");
     expect(markup).toContain("仓库 ID");
     expect(markup).toContain(webDavRepository.id);
+    expect(markup).toContain("repository-status-section");
+    expect(markup).not.toContain("<dt>名称</dt>");
     expect(markup).not.toContain("新仓库 ID");
     expect(markup).toContain('aria-label="重命名仓库 远端笔记"');
     expect(markup).toContain('aria-label="打开仓库 远端笔记"');

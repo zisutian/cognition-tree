@@ -72,6 +72,17 @@ test.describe.serial("repository and capacity flows", () => {
     );
     await expect(page.getByRole("heading", { name: "第二仓库" }))
       .toBeVisible();
+    const statusRows = page.locator(".repository-summary-list > div");
+
+    await expect(statusRows).toHaveCount(3);
+    const statusRowHeights = await statusRows.evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().height)
+    );
+
+    expect(Math.max(...statusRowHeights)).toBeLessThanOrEqual(22);
+    await expect(page.locator(".repository-summary-list dt", {
+      hasText: "名称",
+    })).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(page.locator(".app-context").getByTitle("未命名笔记"))

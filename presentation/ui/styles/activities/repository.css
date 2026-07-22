@@ -69,6 +69,10 @@
   border-top: 0;
 }
 
+.repository-status-section {
+  gap: var(--ui-gap-tight);
+}
+
 .repository-summary-list,
 .repository-location-list {
   display: grid;
@@ -76,7 +80,16 @@
   margin: 0;
 }
 
-.repository-summary-list > div,
+.repository-summary-list > div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--ui-gap);
+  min-height: var(--ui-tree-row-height);
+  padding: 0 var(--ui-gap-tight);
+  border-radius: var(--ui-radius);
+}
+
 .repository-location-row {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);

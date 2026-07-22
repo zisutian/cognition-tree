@@ -528,9 +528,11 @@ function BuiltInDetail({
   if (issue) {
     return (
       <>
-        <Section className="repository-section" title="状态">
+        <Section
+          className="repository-section repository-status-section"
+          title="状态"
+        >
           <RepositoryMetadata rows={[
-            { label: "名称", value: issue.label },
             { label: "状态", value: "故障" },
             { label: "数据 ID", value: issue.id },
             { label: "保护", value: "受保护内置数据" },
@@ -584,9 +586,11 @@ function BuiltInDetail({
 
   return (
     <>
-      <Section className="repository-section" title="状态">
+      <Section
+        className="repository-section repository-status-section"
+        title="状态"
+      >
         <RepositoryMetadata rows={[
-          { label: "名称", value: repository.label },
           { label: "状态", value: repository.statusLabel },
           { label: "数据 ID", value: repository.id },
           { label: "保护", value: "受保护内置数据" },
@@ -728,9 +732,11 @@ export function RepositoryPanel({
 
           {target.kind === "ordinary-repository" && target.repository ? (
             <>
-              <Section className="repository-section" title="状态">
+              <Section
+                className="repository-section repository-status-section"
+                title="状态"
+              >
                 <RepositoryMetadata rows={[
-                  { label: "名称", value: target.repository.label },
                   { label: "类型", value: target.repository.adapterLabel },
                   {
                     label: "状态",
@@ -875,9 +881,11 @@ export function RepositoryPanel({
 
             return (
               <>
-                <Section className="repository-section" title="状态">
+                <Section
+                  className="repository-section repository-status-section"
+                  title="状态"
+                >
                   <RepositoryMetadata rows={[
-                    { label: "名称", value: target.issue.id },
                     { label: "类型", value: target.issue.adapterLabel },
                     {
                       label: "状态",
