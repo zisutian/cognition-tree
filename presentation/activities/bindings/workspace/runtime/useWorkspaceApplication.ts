@@ -5,7 +5,7 @@ import type { WorkspaceNote } from "../../../../../core/workspace/model/workspac
 import { parseWorkspaceSyntax } from "../../../../../core/workspace/context/workspaceSyntax";
 import { listWorkspaceNotes } from "../../../../../core/workspace/queries/workspaceQueries";
 import type { SessionCommands } from "../../../../../application/workspace/session/sessionCommands";
-import type { ActiveSession } from "../session/useSession";
+import type { ActiveWorkspaceSession } from "../../../../../application/workspace/session/workspaceSessionApplication";
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
@@ -29,7 +29,7 @@ export type WorkspaceRuntime = {
 };
 
 export function useWorkspaceApplication(
-  session: ActiveSession,
+  session: ActiveWorkspaceSession,
 ) {
   const {
     activateSyntaxFile,

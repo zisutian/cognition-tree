@@ -14,7 +14,6 @@ import type {
   WorkspaceRepositoryDescriptor,
 } from "../repository/workspaceRepositoryCatalog";
 import type {
-  JournalWorkspaceNoteDestination,
   JournalWorkspaceReferenceFaultCode,
   JournalWorkspaceReferenceResolution,
   JournalWorkspaceReferenceResolver,
@@ -24,36 +23,6 @@ export type JournalWorkspaceReferenceSnapshot = {
   repositoryId: string;
   workspace: WorkspaceData;
 };
-
-export async function routeJournalWorkspaceNoteDestination({
-  activeRepositoryId,
-  destination,
-  flushCurrentSession,
-  openNoteLine,
-  selectRepository,
-}: {
-  activeRepositoryId: string | null;
-  destination: JournalWorkspaceNoteDestination;
-  flushCurrentSession: () => Promise<void>;
-  openNoteLine: (noteId: string, lineNumber: number) => void;
-  selectRepository: (repositoryId: string) => Promise<void>;
-}) {
-  if (activeRepositoryId === destination.repositoryId) {
-    openNoteLine(destination.noteId, destination.lineNumber);
-    return "opened" as const;
-  }
-  await flushCurrentSession();
-  await selectRepository(destination.repositoryId);
-  return "switched" as const;
-}
-
-export async function routeJournalWorkspaceNoteDestinationWithoutSession(
-  destination: JournalWorkspaceNoteDestination,
-  selectRepository: (repositoryId: string) => Promise<void>,
-) {
-  await selectRepository(destination.repositoryId);
-  return "switched" as const;
-}
 
 function createFault(
   reference: JournalWorkspaceReference,

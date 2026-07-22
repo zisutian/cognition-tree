@@ -3,8 +3,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createJournalWorkspaceReferenceResolver,
-  routeJournalWorkspaceNoteDestination,
-  routeJournalWorkspaceNoteDestinationWithoutSession,
 } from "../../../application/workbench/journalWorkspaceReferences";
 import {
   startJournalWorkspaceReferenceResolution,
@@ -96,48 +94,6 @@ describe("journal workspace reference resolver", () => {
     expect(openRepository).toHaveBeenCalledTimes(1);
     expect(openRepository).toHaveBeenCalledWith(descriptor);
     expect(opened.loadSnapshot).toHaveBeenCalledTimes(1);
-  });
-
-  it("flushes before switching and opens only after the target session mounts", async () => {
-    const events: string[] = [];
-    const destination = {
-      description: "普通仓库“知识库”",
-      id: "workspace-note:repository-notes:note-1",
-      kind: "workspace-note" as const,
-      label: "知识库:目标笔记",
-      lineNumber: 1 as const,
-      noteId: "note-1",
-      repositoryId: "repository-notes",
-    };
-    const flush = vi.fn(async () => { events.push("flush"); });
-    const select = vi.fn(async () => { events.push("select"); });
-    const open = vi.fn(() => { events.push("open"); });
-
-    await expect(routeJournalWorkspaceNoteDestination({
-      activeRepositoryId: "other",
-      destination,
-      flushCurrentSession: flush,
-      openNoteLine: open,
-      selectRepository: select,
-    })).resolves.toBe("switched");
-    expect(events).toEqual(["flush", "select"]);
-
-    await expect(routeJournalWorkspaceNoteDestination({
-      activeRepositoryId: "repository-notes",
-      destination,
-      flushCurrentSession: flush,
-      openNoteLine: open,
-      selectRepository: select,
-    })).resolves.toBe("opened");
-    expect(events).toEqual(["flush", "select", "open"]);
-
-    const absentSelect = vi.fn(async () => undefined);
-
-    await expect(routeJournalWorkspaceNoteDestinationWithoutSession(
-      destination,
-      absentSelect,
-    )).resolves.toBe("switched");
-    expect(absentSelect).toHaveBeenCalledWith("repository-notes");
   });
 
   it("projects missing, abnormal, unreadable, missing-note and ambiguous-note faults", async () => {

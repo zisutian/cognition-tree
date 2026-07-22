@@ -54,12 +54,12 @@ describe("dependency boundaries", () => {
     const imported = readSourceImports(
       "../../presentation/shell/AppRoot.tsx",
     ).find(({ targetPath }) =>
-      targetPath.endsWith("application/workbench/workbenchCoordinator.ts"),
+      targetPath.endsWith("application/workbench/workbenchController.ts"),
     );
 
     expect(imported).toMatchObject({
       targetRoot: "application",
-      targetPath: "../../application/workbench/workbenchCoordinator.ts",
+      targetPath: "../../application/workbench/workbenchController.ts",
     });
   });
 
@@ -199,6 +199,26 @@ describe("dependency boundaries", () => {
     expect(Object.keys(applicationModules)).toContain(
       "../../application/syntax/syntaxViewModel.ts",
     );
+  });
+
+  it("keeps Workbench orchestration out of the React composition root", () => {
+    const appRoot = presentationModules["../../presentation/shell/AppRoot.tsx"];
+    const retiredModules = [
+      "../../application/workbench/workbenchCoordinator.ts",
+      "../../presentation/activities/bindings/workspace/session/useRepositoryCatalog.ts",
+      "../../presentation/activities/bindings/workspace/session/useSession.ts",
+      "../../presentation/shell/bindings/session/useBuiltInCatalog.ts",
+      "../../presentation/shell/bindings/session/useJournalSession.ts",
+      "../../presentation/shell/bindings/session/useTodoSession.ts",
+    ];
+
+    expect(Object.keys(applicationModules)).toContain(
+      "../../application/workbench/workbenchController.ts",
+    );
+    expect(retiredModules.filter((filePath) => filePath in workspaceModules))
+      .toEqual([]);
+    expect(appRoot).not.toMatch(/createWorkspaceSessionController|createRepositoryCatalogController/);
+    expect(appRoot).not.toMatch(/flushPendingChanges|prepareForRepositoryRemoval/);
   });
 
   it("keeps common wire utilities independent from domain contracts", () => {

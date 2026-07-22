@@ -1,8 +1,4 @@
 import {
-  createWorkbenchFeedbackController,
-  type WorkbenchFeedbackController,
-} from "../../application/workbench/workbenchFeedbackController";
-import {
   useCallback,
   useEffect,
   useMemo,
@@ -10,188 +6,185 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import type { JournalApplication } from "../../application/journal";
+import type { TodoApplication } from "../../application/todo";
 import {
-  type JournalApplication,
-  type JournalWorkspaceNoteDestination,
-} from "../../application/journal";
-import { useJournalApplication } from "./bindings/application/journal/useJournalApplication";
-import {
-  type TodoApplication,
-} from "../../application/todo";
-import { useTodoApplication } from "./bindings/application/todo/useTodoApplication";
-import type { RepositoryApplication } from "../../application/repository/repositoryApplication";
-import type { BuiltInCatalogApplication } from "../../application/repository/builtInCatalogController";
-import { useRepositoryNavigation } from "./bindings/application/repository/useRepositoryNavigation";
-import { useBuiltInCatalog } from "./bindings/session/useBuiltInCatalog";
-import { useJournalSession } from "./bindings/session/useJournalSession";
-import { useTodoSession } from "./bindings/session/useTodoSession";
-import { useWorkspaceApplication } from "../activities/bindings/workspace/runtime/useWorkspaceApplication";
-import {
-  useRepositoryCatalog,
-  type CreateRepositoryRequest,
-  type DeleteRepositoryRequest,
-} from "../activities/bindings/workspace/session/useRepositoryCatalog";
-import {
-  useSession,
-  type ActiveSession,
-} from "../activities/bindings/workspace/session/useSession";
-import {
-  createBuiltInConnectionKey,
-  createJournalCatalogGeneration,
   createRepositoryApplication,
-  createWorkbenchNavigationCoordinator,
-  findBuiltInDescriptor,
-  openJournalRepository,
-  openTodoRepository,
   projectBuiltInSessionSummary,
-  type PendingWorkspaceNoteDestination,
-} from "../../application/workbench/workbenchCoordinator";
+  type BuiltInSessionSummary,
+  type RepositoryApplication,
+  type RepositorySessionState,
+} from "../../application/repository/repositoryApplication";
 import {
-  createJournalWorkspaceReferenceResolver,
-  routeJournalWorkspaceNoteDestination,
-  routeJournalWorkspaceNoteDestinationWithoutSession,
-  type JournalWorkspaceReferenceSnapshot,
-} from "../../application/workbench/journalWorkspaceReferences";
-import { createBuiltInRuntime } from "../../infrastructure/builtInRuntime";
-import { createWorkspaceRepositoryRuntime } from "../../infrastructure/workspaceRepositoryRuntime";
+  createWorkbenchFeedbackController,
+  type WorkbenchFeedbackController,
+} from "../../application/workbench/workbenchFeedbackController";
+import type {
+  WorkbenchController,
+  WorkbenchControllerSnapshot,
+  WorkbenchWorkspaceSession,
+} from "../../application/workbench/workbenchController";
+import {
+  projectWorkspaceSessionApplication,
+  type ActiveWorkspaceSession,
+} from "../../application/workspace/session/workspaceSessionApplication";
 import {
   browserApplicationScheduler,
   createBrowserJournalApplicationServices,
   createBrowserTodoApplicationServices,
 } from "../../infrastructure/browser/browserApplicationServices";
+import { createWorkbenchRuntime } from "../../infrastructure/workbenchRuntime";
+import { useWorkspaceApplication } from "../activities/bindings/workspace/runtime/useWorkspaceApplication";
+import type { WorkbenchApplication } from "../activities/workbenchApplication";
 import type { ActivityId } from "../ui/activityTypes";
+import { useJournalApplication } from "./bindings/application/journal/useJournalApplication";
+import { useRepositoryNavigation } from "./bindings/application/repository/useRepositoryNavigation";
+import { useTodoApplication } from "./bindings/application/todo/useTodoApplication";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 
-type RepositoryCatalogApplication = ReturnType<typeof useRepositoryCatalog>;
 type ActivityFeedbackController = WorkbenchFeedbackController<ActivityId>;
-type JournalWorkspaceReferenceSnapshotState = {
-  generation: number;
-  snapshot: JournalWorkspaceReferenceSnapshot | null;
+
+function projectRepositorySession(
+  workspace: WorkbenchWorkspaceSession,
+): RepositorySessionState {
+  if (workspace.status === "absent") return workspace;
+  if (workspace.status === "loading") {
+    return { status: "loading", storageLabel: workspace.storageLabel };
+  }
+  if (workspace.status === "failed") {
+    return {
+      errorMessage: workspace.errorMessage,
+      retry: workspace.controller.reload,
+      status: "failed",
+      storageLabel: workspace.storageLabel,
+    };
+  }
+  return {
+    discardPendingChangesAndReload:
+      workspace.controller.discardPendingChangesAndReload,
+    persistence: workspace.persistence,
+    reload: workspace.controller.reload,
+    status: "ready",
+    storageLabel: workspace.storageLabel,
+  };
+}
+
+function projectBuiltInSessions(
+  snapshot: WorkbenchControllerSnapshot,
+): Record<"journal" | "todo", BuiltInSessionSummary> {
+  return {
+    journal: projectBuiltInSessionSummary({
+      discardPendingChangesAndReload:
+        snapshot.builtIns.journal.controller.discardPendingChangesAndReload,
+      reload: snapshot.builtIns.journal.controller.reload,
+      requestSync: snapshot.builtIns.journal.controller.requestSync,
+      state: snapshot.builtIns.journal.state,
+    }),
+    todo: projectBuiltInSessionSummary({
+      discardPendingChangesAndReload:
+        snapshot.builtIns.todo.controller.discardPendingChangesAndReload,
+      reload: snapshot.builtIns.todo.controller.reload,
+      requestSync: snapshot.builtIns.todo.controller.requestSync,
+      state: snapshot.builtIns.todo.state,
+    }),
+  };
+}
+
+function createRepositoryProjection(
+  controller: WorkbenchController,
+  snapshot: WorkbenchControllerSnapshot,
+  navigation: ReturnType<typeof useRepositoryNavigation>,
+): RepositoryApplication {
+  return createRepositoryApplication({
+    builtInSessions: projectBuiltInSessions(snapshot),
+    builtIns: snapshot.builtIns.catalog,
+    catalog: {
+      activeDescriptor: snapshot.catalog.activeDescriptor,
+      catalogLabel: snapshot.catalog.catalogLabel,
+      createRepository: controller.createRepository,
+      deleteRepository: controller.deleteRepository,
+      reload: controller.refreshRepositories,
+      renameRepository: controller.renameRepository,
+      selectRepository: controller.selectRepository,
+      state: snapshot.catalog.state,
+    },
+    navigation,
+    session: projectRepositorySession(snapshot.workspace),
+  });
+}
+
+function projectUnavailableWorkspace(
+  controller: WorkbenchController,
+  snapshot: WorkbenchControllerSnapshot,
+): WorkbenchApplication["workspace"] {
+  if (snapshot.workspace.status === "loading") {
+    return {
+      status: "loading",
+      storageLabel: snapshot.workspace.storageLabel,
+    };
+  }
+  if (snapshot.workspace.status === "failed") {
+    return {
+      errorMessage: snapshot.workspace.errorMessage,
+      retry: snapshot.workspace.controller.reload,
+      status: "failed",
+      storageLabel: snapshot.workspace.storageLabel,
+    };
+  }
+  if (snapshot.catalog.state.status === "loading") {
+    return {
+      status: "loading",
+      storageLabel: snapshot.catalog.catalogLabel,
+    };
+  }
+  if (snapshot.catalog.state.status === "failed") {
+    return {
+      errorMessage: snapshot.catalog.state.errorMessage,
+      retry: controller.refreshRepositories,
+      status: "failed",
+      storageLabel: snapshot.catalog.catalogLabel,
+    };
+  }
+  return { status: "absent" };
+}
+
+type ReadyWorkbenchProps = {
+  activeActivityId: ActivityId;
+  controller: WorkbenchController;
+  feedbackController: ActivityFeedbackController;
+  journal: JournalApplication;
+  navigation: ReturnType<typeof useRepositoryNavigation>;
+  onActiveActivityChange: (activityId: ActivityId) => void;
+  session: ActiveWorkspaceSession;
+  snapshot: WorkbenchControllerSnapshot;
+  todo: TodoApplication;
 };
 
-function ReadyWorkspaceWorkbench({
+function ReadyWorkbench({
   activeActivityId,
+  controller,
   feedbackController,
-  builtIns,
-  builtInSessions,
-  catalog,
   journal,
-  todo,
   navigation,
-  onConsumeWorkspaceNoteDestination,
   onActiveActivityChange,
   session,
-  workspaceNoteDestination,
-}: {
-  activeActivityId: ActivityId;
-  feedbackController: ActivityFeedbackController;
-  builtIns: BuiltInCatalogApplication;
-  builtInSessions: RepositoryApplication["builtIns"]["sessions"];
-  catalog: RepositoryCatalogApplication;
-  journal: JournalApplication;
-  todo: TodoApplication;
-  navigation: ReturnType<typeof useRepositoryNavigation>;
-  onConsumeWorkspaceNoteDestination: (requestId: number) => void;
-  onActiveActivityChange: (activityId: ActivityId) => void;
-  session: ActiveSession;
-  workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
-}) {
+  snapshot,
+  todo,
+}: ReadyWorkbenchProps) {
   const workspace = useWorkspaceApplication(session);
-  const handlingWorkspaceRequestRef = useRef<number | null>(null);
+  const focusRequest = snapshot.navigation.status === "ready"
+    ? snapshot.navigation
+    : null;
 
   useEffect(() => {
-    const destination = workspaceNoteDestination;
-
-    if (!destination ||
-        handlingWorkspaceRequestRef.current === destination.requestId) {
-      return;
-    }
-    handlingWorkspaceRequestRef.current = destination.requestId;
-    let mounted = true;
-
-    void (async () => {
-      try {
-        const outcome = await routeJournalWorkspaceNoteDestination({
-          activeRepositoryId: catalog.activeDescriptor?.id ?? null,
-          destination,
-          flushCurrentSession: session.flushPendingChanges,
-          openNoteLine: workspace.navigation.openNoteLine,
-          selectRepository: catalog.selectRepository,
-        });
-
-        if (outcome === "opened" && mounted) {
-          onActiveActivityChange("notes");
-          onConsumeWorkspaceNoteDestination(destination.requestId);
-        }
-      } catch (error) {
-        feedbackController.reportError(
-          "journal",
-          error instanceof Error ? error.message : "无法打开日记引用目标。",
-        );
-        // Keep the one-shot destination pending. A later session/catalog retry
-        // can resume navigation without losing the user's original click.
-      } finally {
-        if (mounted) {
-          handlingWorkspaceRequestRef.current = null;
-        }
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [
-    catalog,
-    onActiveActivityChange,
-    onConsumeWorkspaceNoteDestination,
-    session,
-    feedbackController,
-    workspace.navigation,
-    workspaceNoteDestination,
-  ]);
-  const selectRepository = async (repositoryId: string) => {
-    await session.flushPendingChanges();
-    await catalog.selectRepository(repositoryId);
-  };
-  const createRepository = async (input: CreateRepositoryRequest) => {
-    await session.flushPendingChanges();
-    await catalog.createRepository(input);
-  };
-  const refreshRepositories = async () => {
-    await session.flushPendingChanges();
-    await catalog.reload();
-  };
-  const deleteRepository = async (input: DeleteRepositoryRequest) => {
-    if (input.id !== catalog.activeDescriptor?.id) {
-      await catalog.deleteRepository(input);
-      return;
-    }
-
-    const prepared = await session.prepareForRepositoryRemoval();
-
-    try {
-      await catalog.deleteRepository(input);
-    } catch (error) {
-      prepared.resume();
-      throw error;
-    }
-  };
-  const repository = createRepositoryApplication({
-    builtIns,
-    builtInSessions,
-    catalog,
-    createRepository,
-    deleteRepository,
-    navigation,
-    refreshRepositories,
-    session: {
-      discardPendingChangesAndReload: session.discardPendingChangesAndReload,
-      persistence: session.persistence,
-      reload: session.reload,
-      status: "ready",
-      storageLabel: session.storageLabel,
-    },
-    selectRepository,
-  });
+    if (!focusRequest) return;
+    workspace.navigation.openNoteLine(
+      focusRequest.destination.noteId,
+      focusRequest.destination.lineNumber,
+    );
+    onActiveActivityChange("notes");
+    controller.consumeWorkspaceNoteDestination(focusRequest.requestId);
+  }, [controller, focusRequest, onActiveActivityChange, workspace.navigation]);
 
   return (
     <WorkspaceWorkbench
@@ -199,7 +192,11 @@ function ReadyWorkspaceWorkbench({
       feedbackController={feedbackController}
       application={{
         journal,
-        repository,
+        repository: createRepositoryProjection(
+          controller,
+          snapshot,
+          navigation,
+        ),
         todo,
         workspace: { application: workspace, status: "ready" },
       }}
@@ -208,327 +205,91 @@ function ReadyWorkspaceWorkbench({
   );
 }
 
-function RepositoryWorkspaceApp({
-  activeActivityId,
-  feedbackController,
-  builtIns,
-  builtInSessions,
-  catalog,
-  journal,
-  todo,
-  navigation,
-  onConsumeWorkspaceNoteDestination,
-  onActiveActivityChange,
-  onWorkspaceReferenceSnapshotChange,
-  workspaceNoteDestination,
-}: {
-  activeActivityId: ActivityId;
-  feedbackController: ActivityFeedbackController;
-  builtIns: BuiltInCatalogApplication;
-  builtInSessions: RepositoryApplication["builtIns"]["sessions"];
-  catalog: RepositoryCatalogApplication;
-  journal: JournalApplication;
-  todo: TodoApplication;
-  navigation: ReturnType<typeof useRepositoryNavigation>;
-  onConsumeWorkspaceNoteDestination: (requestId: number) => void;
-  onActiveActivityChange: (activityId: ActivityId) => void;
-  onWorkspaceReferenceSnapshotChange: (
-    snapshot: JournalWorkspaceReferenceSnapshot | null,
-  ) => void;
-  workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
-}) {
-  const repository = catalog.repository;
-
-  if (!repository) {
-    throw new Error("Active repository disappeared before session mount.");
-  }
-  const session = useSession({ repository });
-  const referenceWorkspace = session.status === "ready"
-    ? session.workspace.data
-    : null;
-  const activeRepositoryId = catalog.activeDescriptor?.id ?? null;
-
-  useEffect(() => {
-    onWorkspaceReferenceSnapshotChange(
-      activeRepositoryId && referenceWorkspace
-        ? {
-            repositoryId: activeRepositoryId,
-            workspace: referenceWorkspace,
-          }
-        : null,
-    );
-  }, [
-    activeRepositoryId,
-    onWorkspaceReferenceSnapshotChange,
-    referenceWorkspace,
-  ]);
-
-  if (session.status === "ready") {
-    return (
-      <ReadyWorkspaceWorkbench
-        activeActivityId={activeActivityId}
-        feedbackController={feedbackController}
-        builtIns={builtIns}
-        builtInSessions={builtInSessions}
-        catalog={catalog}
-        journal={journal}
-        todo={todo}
-        navigation={navigation}
-        onConsumeWorkspaceNoteDestination={onConsumeWorkspaceNoteDestination}
-        onActiveActivityChange={onActiveActivityChange}
-        session={session}
-        workspaceNoteDestination={workspaceNoteDestination}
-      />
-    );
-  }
-
-  const sessionState: RepositoryApplication["session"] =
-    session.status === "loading"
-      ? session
-      : {
-          errorMessage: session.errorMessage,
-          retry: session.retry,
-          status: "failed",
-          storageLabel: session.storageLabel,
-        };
-  const repositoryApplication = createRepositoryApplication({
-    builtIns,
-    builtInSessions,
-    catalog,
-    navigation,
-    session: sessionState,
-  });
-
-  return (
-    <WorkspaceWorkbench
-      activeActivityId={activeActivityId}
-      feedbackController={feedbackController}
-      application={{
-        journal,
-        repository: repositoryApplication,
-        todo,
-        workspace: sessionState,
-      }}
-      onActiveActivityChange={onActiveActivityChange}
-    />
-  );
-}
-
-function EmptyWorkspaceApp({
-  activeActivityId,
-  feedbackController,
-  builtIns,
-  builtInSessions,
-  catalog,
-  journal,
-  todo,
-  navigation,
-  onConsumeWorkspaceNoteDestination: _onConsumeWorkspaceNoteDestination,
-  onActiveActivityChange,
-  onWorkspaceReferenceSnapshotChange,
-  workspaceNoteDestination,
-}: {
-  activeActivityId: ActivityId;
-  feedbackController: ActivityFeedbackController;
-  builtIns: BuiltInCatalogApplication;
-  builtInSessions: RepositoryApplication["builtIns"]["sessions"];
-  catalog: RepositoryCatalogApplication;
-  journal: JournalApplication;
-  todo: TodoApplication;
-  navigation: ReturnType<typeof useRepositoryNavigation>;
-  onConsumeWorkspaceNoteDestination: (requestId: number) => void;
-  onActiveActivityChange: (activityId: ActivityId) => void;
-  onWorkspaceReferenceSnapshotChange: (
-    snapshot: JournalWorkspaceReferenceSnapshot | null,
-  ) => void;
-  workspaceNoteDestination: PendingWorkspaceNoteDestination | null;
-}) {
-  const handlingWorkspaceRequestRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    onWorkspaceReferenceSnapshotChange(null);
-  }, [onWorkspaceReferenceSnapshotChange]);
-
-  useEffect(() => {
-    const destination = workspaceNoteDestination;
-
-    if (!destination ||
-        handlingWorkspaceRequestRef.current === destination.requestId ||
-        catalog.state.status !== "ready" ||
-        !catalog.state.repositories.some(
-          ({ id }) => id === destination.repositoryId,
-        )) {
-      return;
-    }
-    handlingWorkspaceRequestRef.current = destination.requestId;
-    let mounted = true;
-
-    void routeJournalWorkspaceNoteDestinationWithoutSession(
-      destination,
-      catalog.selectRepository,
-    ).catch((error: unknown) => {
-      feedbackController.reportError(
-        "journal",
-        error instanceof Error ? error.message : "无法打开日记引用目标。",
-      );
-      if (mounted) {
-        handlingWorkspaceRequestRef.current = null;
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [catalog, feedbackController, workspaceNoteDestination]);
-  const repository = createRepositoryApplication({
-    builtIns,
-    builtInSessions,
-    catalog,
-    navigation,
-    session: { status: "absent" },
-  });
-  const workspace = catalog.state.status === "loading"
-    ? { status: "loading" as const, storageLabel: catalog.catalogLabel }
-    : catalog.state.status === "failed"
-      ? {
-          errorMessage: catalog.state.errorMessage,
-          retry: catalog.reload,
-          status: "failed" as const,
-          storageLabel: catalog.catalogLabel,
-        }
-      : { status: "absent" as const };
-
-  return (
-    <WorkspaceWorkbench
-      activeActivityId={activeActivityId}
-      feedbackController={feedbackController}
-      application={{ journal, repository, todo, workspace }}
-      onActiveActivityChange={onActiveActivityChange}
-    />
-  );
-}
-
 export function AppRoot() {
+  const controller = useMemo(createWorkbenchRuntime, []);
   const feedbackController = useMemo(
     () => createWorkbenchFeedbackController<ActivityId>({
       scheduler: browserApplicationScheduler,
     }),
     [],
   );
-  const repositoryRuntime = useMemo(
-    () => createWorkspaceRepositoryRuntime(),
-    [],
+  const snapshot = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
   );
-  const builtInRuntime = useMemo(() => createBuiltInRuntime(), []);
-  const catalog = useRepositoryCatalog(
-    repositoryRuntime.catalog,
-    repositoryRuntime.activeRepositorySelection,
-  );
-  const builtIns = useBuiltInCatalog(builtInRuntime.catalog);
-  const navigation = useRepositoryNavigation();
-  const workspaceNavigation = useMemo(
-    createWorkbenchNavigationCoordinator,
-    [],
-  );
-  const workspaceNoteDestination = useSyncExternalStore(
-    workspaceNavigation.subscribe,
-    workspaceNavigation.getSnapshot,
-    workspaceNavigation.getSnapshot,
-  );
+  const lifecycleEpochRef = useRef(0);
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
+  const navigation = useRepositoryNavigation();
   const previousFeedbackRepositoryIdRef = useRef<string | null | undefined>(
     undefined,
   );
-  const [journalWorkspaceReferenceSnapshot, setJournalWorkspaceReferenceSnapshot] =
-    useState<JournalWorkspaceReferenceSnapshotState>({
-      generation: 0,
-      snapshot: null,
-    });
-  const journalDescriptor = findBuiltInDescriptor(builtIns, "journal");
-  const todoDescriptor = findBuiltInDescriptor(builtIns, "todo");
-  const journalConnectionKey = createBuiltInConnectionKey(journalDescriptor);
-  const todoConnectionKey = createBuiltInConnectionKey(todoDescriptor);
-  const journalRepository = useMemo(
-    () => openJournalRepository(builtInRuntime.catalog, journalDescriptor),
-    // Descriptor identity is deliberately reduced to storage connection data.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [builtInRuntime.catalog, journalConnectionKey],
-  );
-  const todoRepository = useMemo(
-    () => openTodoRepository(builtInRuntime.catalog, todoDescriptor),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [builtInRuntime.catalog, todoConnectionKey],
-  );
-  const journalSession = useJournalSession(journalRepository);
-  const todoSession = useTodoSession(todoRepository);
+  const reportedNavigationFailureRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const lifecycleEpoch = lifecycleEpochRef.current + 1;
+
+    lifecycleEpochRef.current = lifecycleEpoch;
+    controller.start();
+    return () => {
+      queueMicrotask(() => {
+        if (lifecycleEpochRef.current === lifecycleEpoch) {
+          controller.dispose();
+          feedbackController.dispose();
+        }
+      });
+    };
+  }, [controller, feedbackController]);
+
+  const journalSession = useMemo(() => ({
+    reload: snapshot.builtIns.journal.controller.reload,
+    state: snapshot.builtIns.journal.state,
+    updateContent: snapshot.builtIns.journal.controller.updateContent,
+  }), [snapshot.builtIns.journal]);
+  const todoSession = useMemo(() => ({
+    reload: snapshot.builtIns.todo.controller.reload,
+    state: snapshot.builtIns.todo.state,
+    updateContent: snapshot.builtIns.todo.controller.updateContent,
+  }), [snapshot.builtIns.todo]);
   const journalServices = useMemo(
-    () => createBrowserJournalApplicationServices(),
+    createBrowserJournalApplicationServices,
     [],
   );
-  const updateJournalWorkspaceReferenceSnapshot = useCallback((
-    snapshot: JournalWorkspaceReferenceSnapshot | null,
-  ) => {
-    setJournalWorkspaceReferenceSnapshot((current) => {
-      if (current.snapshot === null || snapshot === null) {
-        if (current.snapshot === snapshot) {
-          return current;
-        }
-      } else if (
-        current.snapshot.repositoryId === snapshot.repositoryId &&
-        current.snapshot.workspace === snapshot.workspace
-      ) {
-        return current;
-      }
-      return {
-        generation: current.generation + 1,
-        snapshot,
-      };
-    });
-  }, []);
-  const journalCatalogGeneration = createJournalCatalogGeneration(
-    catalog.state,
-  );
-  const journalReferenceResolver = useMemo(
-    () => createJournalWorkspaceReferenceResolver(
-      repositoryRuntime.catalog,
-      { workspaceSnapshot: journalWorkspaceReferenceSnapshot.snapshot },
-    ),
-    [journalWorkspaceReferenceSnapshot.snapshot, repositoryRuntime.catalog],
-  );
+  const todoServices = useMemo(createBrowserTodoApplicationServices, []);
   const openWorkspaceNote = useCallback(
-    (destination: JournalWorkspaceNoteDestination) => {
-      workspaceNavigation.request(destination);
+    (destination: Parameters<
+      WorkbenchController["requestWorkspaceNoteDestination"]
+    >[0]) => {
+      controller.requestWorkspaceNoteDestination(destination);
     },
-    [workspaceNavigation],
+    [controller],
   );
-  const consumeWorkspaceNoteDestination = useCallback((requestId: number) => {
-    workspaceNavigation.consume(requestId);
-  }, [workspaceNavigation]);
   const journal = useJournalApplication({
     openWorkspaceNote,
-    referenceResolutionGeneration:
-      `${journalCatalogGeneration}:${journalWorkspaceReferenceSnapshot.generation}`,
-    referenceResolver: journalReferenceResolver,
+    referenceResolutionGeneration: snapshot.referenceResolutionGeneration,
+    referenceResolver: snapshot.journalReferenceResolver,
     services: journalServices,
     session: journalSession,
   });
-  const todoServices = useMemo(
-    () => createBrowserTodoApplicationServices(),
-    [],
-  );
-  const todo = useTodoApplication({
-    services: todoServices,
-    session: todoSession,
-  });
-  const builtInSessions = useMemo(
-    () => ({
-      journal: projectBuiltInSessionSummary(journalSession),
-      todo: projectBuiltInSessionSummary(todoSession),
-    }),
-    [journalSession, todoSession],
-  );
+  const todo = useTodoApplication({ services: todoServices, session: todoSession });
+
   useEffect(() => {
-    const repositoryId = catalog.activeDescriptor?.id ?? null;
+    if (
+      snapshot.navigation.status !== "failed" ||
+      reportedNavigationFailureRef.current === snapshot.navigation.requestId
+    ) {
+      return;
+    }
+    reportedNavigationFailureRef.current = snapshot.navigation.requestId;
+    feedbackController.reportError(
+      "journal",
+      snapshot.navigation.errorMessage,
+    );
+  }, [feedbackController, snapshot.navigation]);
+
+  useEffect(() => {
+    const repositoryId = snapshot.catalog.activeDescriptor?.id ?? null;
     const previousRepositoryId = previousFeedbackRepositoryIdRef.current;
 
     previousFeedbackRepositoryIdRef.current = repositoryId;
@@ -548,31 +309,48 @@ export function AppRoot() {
     ] as const).forEach((activityId) =>
       feedbackController.dismissScope(activityId)
     );
-  }, [catalog.activeDescriptor?.id, feedbackController]);
+  }, [feedbackController, snapshot.catalog.activeDescriptor?.id]);
 
-  useEffect(() => () => feedbackController.dispose(), [feedbackController]);
-  const common = {
-    activeActivityId,
-    builtIns,
-    builtInSessions,
-    catalog,
-    feedbackController,
-    journal,
-    todo,
-    navigation,
-    onConsumeWorkspaceNoteDestination: consumeWorkspaceNoteDestination,
-    onActiveActivityChange: setActiveActivityId,
-    onWorkspaceReferenceSnapshotChange:
-      updateJournalWorkspaceReferenceSnapshot,
-    workspaceNoteDestination,
-  };
+  if (snapshot.workspace.status === "ready") {
+    const session = projectWorkspaceSessionApplication(
+      snapshot.workspace.controller,
+      snapshot.workspace,
+    );
 
-  return catalog.repository ? (
-    <RepositoryWorkspaceApp
-      {...common}
-      key={catalog.activeDescriptor?.id}
+    if (session.status !== "ready") {
+      throw new Error("Ready Workspace projection lost its ready state.");
+    }
+    return (
+      <ReadyWorkbench
+        activeActivityId={activeActivityId}
+        controller={controller}
+        feedbackController={feedbackController}
+        journal={journal}
+        key={snapshot.catalog.activeDescriptor?.id}
+        navigation={navigation}
+        onActiveActivityChange={setActiveActivityId}
+        session={session}
+        snapshot={snapshot}
+        todo={todo}
+      />
+    );
+  }
+
+  return (
+    <WorkspaceWorkbench
+      activeActivityId={activeActivityId}
+      feedbackController={feedbackController}
+      application={{
+        journal,
+        repository: createRepositoryProjection(
+          controller,
+          snapshot,
+          navigation,
+        ),
+        todo,
+        workspace: projectUnavailableWorkspace(controller, snapshot),
+      }}
+      onActiveActivityChange={setActiveActivityId}
     />
-  ) : (
-    <EmptyWorkspaceApp {...common} />
   );
 }
