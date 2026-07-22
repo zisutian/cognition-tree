@@ -480,6 +480,28 @@ describe("UI design contract", () => {
     expect(syntax).not.toContain(".syntax-tone-fields");
   });
 
+  it("prevents selection only on static syntax labels", () => {
+    const syntax = readStyle("ui/styles/activities/syntax.css");
+    const ruleStart = syntax.indexOf(
+      ".syntax-context .ui-compact-context-group-title,",
+    );
+    const rule = syntax.slice(
+      ruleStart,
+      syntax.indexOf("}", ruleStart) + 1,
+    );
+
+    expect(ruleStart).toBeGreaterThanOrEqual(0);
+    expect(rule).toContain(".syntax-workspace-group-header");
+    expect(rule).toContain(".syntax-group-label");
+    expect(rule).toContain(".syntax-setting-label");
+    expect(rule).toContain(".syntax-rule-header");
+    expect(rule).toContain(".syntax-readonly");
+    expect(rule).toContain("user-select: none");
+    expect(rule).not.toContain("input");
+    expect(rule).not.toContain("syntax-tone-button");
+    expect(rule).not.toContain("syntax-role-button");
+  });
+
   it("does not keep Todo detail rows highlighted after pointer activation", () => {
     const todo = readStyle("ui/styles/activities/todo.css");
 

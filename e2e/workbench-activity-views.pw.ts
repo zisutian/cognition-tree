@@ -44,6 +44,15 @@ test.describe("syntax and visualization activity flows", () => {
       name: /^首行标题背景色:/,
     });
 
+    await expect.poll(() =>
+      page.getByText("块规则", { exact: true }).evaluate(
+        (element) => getComputedStyle(element).userSelect,
+      )
+    ).toBe("none");
+    expect(await syntaxName.evaluate(
+      (element) => getComputedStyle(element).userSelect,
+    )).not.toBe("none");
+
     await syntaxName.fill("浏览器回归语法");
     await titleTonePicker.click();
     await expect(page.getByRole("dialog", { name: "首行标题背景色" })).toBeVisible();

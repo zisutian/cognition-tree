@@ -2,6 +2,15 @@
   gap: var(--ui-gap-tight);
 }
 
+.syntax-context .ui-compact-context-group-title,
+.syntax-workspace-group-header,
+.syntax-group-label,
+.syntax-setting-label,
+.syntax-rule-header,
+.syntax-readonly {
+  user-select: none;
+}
+
 .syntax-workspace-group-header {
   display: flex;
   align-items: center;
