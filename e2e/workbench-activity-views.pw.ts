@@ -266,6 +266,61 @@ test.describe("syntax and visualization activity flows", () => {
     expect(finalBox?.height).toBeCloseTo(initialBox?.height ?? 0, 0);
   });
 
+  test("keeps the settled graph stable across repeated viewport resets", async ({
+    page,
+  }) => {
+    await openWorkbench(page, visualizationRepositoryId);
+    await getActivityButton(page, "引用图谱").click();
+
+    const canvas = page.getByRole("application", {
+      name: "笔记引用力导向图",
+    });
+    const reset = page.getByRole("button", { name: "重置图谱视图" });
+    const readSpan = async () => {
+      const samples = await readGraphCanvasNodes(canvas);
+
+      if (samples.length < 2) {
+        return 0;
+      }
+
+      const xs = samples.map(({ x }) => x);
+      const ys = samples.map(({ y }) => y);
+
+      return Math.hypot(
+        Math.max(...xs) - Math.min(...xs),
+        Math.max(...ys) - Math.min(...ys),
+      );
+    };
+    let previousSpan: number | null = null;
+
+    await expect.poll(async () => {
+      const span = await readSpan();
+      const difference = previousSpan === null || span === 0
+        ? Number.POSITIVE_INFINITY
+        : Math.abs(span - previousSpan);
+
+      previousSpan = span;
+      return difference;
+    }, { timeout: 10_000 }).toBeLessThan(0.5);
+
+    const initialBox = await canvas.boundingBox();
+    const initialSpan = await readSpan();
+
+    expect(initialBox).not.toBeNull();
+    expect(initialSpan).toBeGreaterThan(0);
+
+    for (let index = 0; index < 6; index += 1) {
+      await reset.click();
+    }
+
+    const finalBox = await canvas.boundingBox();
+    const finalSpan = await readSpan();
+
+    expect(finalBox?.width).toBeCloseTo(initialBox?.width ?? 0, 0);
+    expect(finalBox?.height).toBeCloseTo(initialBox?.height ?? 0, 0);
+    expect(finalSpan).toBeCloseTo(initialSpan, 0);
+  });
+
   test("adjusts Obsidian-style graph display and force settings for the page session", async ({
     page,
   }) => {
@@ -281,8 +336,36 @@ test.describe("syntax and visualization activity flows", () => {
     const settings = page.getByRole("dialog", { name: "图谱设置" });
 
     await expect(settings).toBeVisible();
+    const settingRows = settings.locator(".graph-settings-row");
+
+    await expect(settingRows).toHaveCount(8);
+    const rowLayout = await settingRows.evaluateAll((rows) => ({
+      gridTemplates: rows.map(
+        (row) => getComputedStyle(row).gridTemplateColumns,
+      ),
+      heights: rows.map((row) => row.getBoundingClientRect().height),
+      labelLefts: rows.map(
+        (row) => row.querySelector(".graph-settings-label")
+          ?.getBoundingClientRect().left ?? 0,
+      ),
+    }));
+
+    expect(new Set(rowLayout.gridTemplates).size).toBe(1);
+    expect(Math.max(...rowLayout.heights) - Math.min(...rowLayout.heights))
+      .toBeLessThanOrEqual(1);
+    expect(Math.max(...rowLayout.labelLefts) - Math.min(...rowLayout.labelLefts))
+      .toBeLessThanOrEqual(1);
     await expect(settings.getByRole("slider", { name: "文字密度" }))
       .toHaveValue("75");
+    expect(
+      await settings.getByRole("slider", { name: "文字密度" }).evaluate(
+        (slider) => ({
+          appearance: getComputedStyle(slider).appearance,
+          progress: getComputedStyle(slider)
+            .getPropertyValue("--graph-range-progress").trim(),
+        }),
+      ),
+    ).toEqual({ appearance: "none", progress: "75%" });
     await expect(settings.getByRole("slider", { name: "节点大小" }))
       .toHaveValue("1");
     await expect(settings.getByRole("slider", { name: "中心力" }))

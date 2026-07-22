@@ -240,9 +240,6 @@ export function ReferenceGraphCanvas({
 
     controller.resetTransform();
     transformRef.current = controller.transform;
-    simulationRef.current
-      ?.alpha(Math.max(simulationRef.current.alpha(), 0.35))
-      .restart();
     requestRedraw();
   }, [controller, resetSignal]);
 

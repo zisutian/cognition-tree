@@ -1,5 +1,5 @@
-import { Settings2 } from "lucide-react";
-import { useId } from "react";
+import { Check, Settings2 } from "lucide-react";
+import { useId, type CSSProperties } from "react";
 import { Popover } from "../../../ui/shared/Popover";
 import {
   Button,
@@ -26,11 +26,14 @@ function GraphRangeSetting({
 }) {
   const inputId = useId();
   const precision = step < 0.1 ? 2 : step < 1 ? 1 : 0;
+  const progress = ((value - minimum) / (maximum - minimum)) * 100;
 
   return (
-    <label className="graph-settings-range" htmlFor={inputId}>
-      <span>{label}</span>
-      <output>{value.toFixed(precision)}{suffix}</output>
+    <label
+      className="graph-settings-row graph-settings-range"
+      htmlFor={inputId}
+    >
+      <span className="graph-settings-label">{label}</span>
       <input
         aria-label={label}
         id={inputId}
@@ -39,9 +42,42 @@ function GraphRangeSetting({
         step={step}
         type="range"
         value={value}
+        style={{
+          "--graph-range-progress": `${progress}%`,
+        } as CSSProperties}
         onChange={(event) => onChange(Number(event.target.value))}
       />
+      <output>{value.toFixed(precision)}{suffix}</output>
     </label>
+  );
+}
+
+function GraphToggleSetting({
+  ariaLabel,
+  label,
+  value,
+  onChange,
+}: {
+  ariaLabel: string;
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="graph-settings-row graph-settings-toggle-row">
+      <span className="graph-settings-label">{label}</span>
+      <ToggleButton
+        aria-label={ariaLabel}
+        className="graph-settings-toggle"
+        onClick={() => onChange(!value)}
+        pressed={value}
+      >
+        <span className="graph-settings-toggle-icon" aria-hidden="true">
+          {value ? <Check size={12} strokeWidth={2.4} /> : null}
+        </span>
+        {value ? "显示" : "隐藏"}
+      </ToggleButton>
+    </div>
   );
 }
 
@@ -93,14 +129,12 @@ export function VisualizationGraphSettings({
         <div className="graph-settings-content">
           <section className="graph-settings-section">
             <h3>显示</h3>
-            <ToggleButton
-              onClick={() =>
-                updateDisplay({ showArrows: !settings.display.showArrows })
-              }
-              pressed={settings.display.showArrows}
-            >
-              显示箭头
-            </ToggleButton>
+            <GraphToggleSetting
+              ariaLabel="显示箭头"
+              label="箭头"
+              value={settings.display.showArrows}
+              onChange={(showArrows) => updateDisplay({ showArrows })}
+            />
             <GraphRangeSetting
               label="文字密度"
               maximum={100}
@@ -115,6 +149,7 @@ export function VisualizationGraphSettings({
               maximum={2}
               minimum={0.5}
               step={0.1}
+              suffix="×"
               value={settings.display.nodeScale}
               onChange={(nodeScale) => updateDisplay({ nodeScale })}
             />
@@ -123,6 +158,7 @@ export function VisualizationGraphSettings({
               maximum={2}
               minimum={0.5}
               step={0.1}
+              suffix="×"
               value={settings.display.linkThickness}
               onChange={(linkThickness) => updateDisplay({ linkThickness })}
             />
@@ -158,7 +194,7 @@ export function VisualizationGraphSettings({
               maximum={220}
               minimum={50}
               step={5}
-              suffix="px"
+              suffix=" px"
               value={settings.forces.linkDistance}
               onChange={(linkDistance) => updateForces({ linkDistance })}
             />
