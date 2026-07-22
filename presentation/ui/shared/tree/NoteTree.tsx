@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { ConfirmDialog } from "../ConfirmDialog";
 import {
   ContextMenu,
   type ContextMenuPosition,
@@ -200,24 +199,6 @@ export function NoteTree(props: NoteTreeProps) {
         onClose={() => {
           setContextMenuNode(null);
           setContextMenuPosition(null);
-        }}
-      />
-      <ConfirmDialog
-        confirmLabel="删除"
-        description={pendingDeleteNode
-          ? `此操作会删除“${pendingDeleteNode.title}”${
-              pendingDeleteNode.kind === "folder" ? "及其全部内容" : ""
-            }。`
-          : ""}
-        open={pendingDeleteNode !== null}
-        title={pendingDeleteNode?.kind === "folder" ? "删除文件夹" : "删除笔记"}
-        onCancel={() => setPendingDeleteNode(null)}
-        onConfirm={() => {
-          if (pendingDeleteNode) {
-            runAction(() => props.onDeleteNode?.(pendingDeleteNode));
-          }
-
-          setPendingDeleteNode(null);
         }}
       />
     </div>

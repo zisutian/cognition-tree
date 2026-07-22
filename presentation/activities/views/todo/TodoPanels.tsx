@@ -5,9 +5,7 @@ import {
   ListChecks,
   Maximize2,
   Minimize2,
-  Pencil,
   Plus,
-  Trash2,
 } from "lucide-react";
 import {
   useEffect,
@@ -22,9 +20,9 @@ import type {
 import { CtnEditor } from "../../../editor/CtnEditor";
 import {
   CompactContextGroup,
+  CompactContextActionButtons,
   CompactContextRow,
 } from "../../../ui/shared/CompactContextList";
-import { ConfirmDialog } from "../../../ui/shared/ConfirmDialog";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
 import {
   getListReorderIndex,
@@ -42,7 +40,11 @@ import {
 } from "../../../ui/shared/primitives";
 
 type TodoViewProps = { view: TodoViewModel };
-type CollectionDraft = { id: TodoCollectionListItem["id"]; value: string };
+type CollectionDraft = {
+  errorMessage?: string;
+  id: TodoCollectionListItem["id"];
+  value: string;
+};
 type CollectionDragState = {
   placement: ListRowDropPlacement | null;
   sourceId: TodoCollectionListItem["id"];
@@ -60,29 +62,6 @@ function getCollectionDropPlacement(event: DragEvent<HTMLLIElement>) {
   });
 }
 
-export function createTodoInlineEditBlurGuard() {
-  let ignoreNextBlur = false;
-
-  return {
-    begin() {
-      ignoreNextBlur = false;
-    },
-    cancel() {
-      ignoreNextBlur = true;
-    },
-    onBlur(submit: () => void) {
-      if (ignoreNextBlur) {
-        ignoreNextBlur = false;
-      } else {
-        submit();
-      }
-    },
-    submit() {
-      ignoreNextBlur = true;
-    },
-  };
-}
-
 function persistenceLabel(view: TodoViewModel) {
   switch (view.persistence.status) {
     case "saved": return "已保存";
@@ -95,38 +74,11 @@ function persistenceLabel(view: TodoViewModel) {
   }
 }
 
-export function TodoCollectionDeleteConfirmation({
-  pendingCollection,
-  onCancel,
-  onDelete,
-}: {
-  pendingCollection: TodoCollectionListItem | null;
-  onCancel: () => void;
-  onDelete: (collectionId: TodoCollectionListItem["id"]) => void;
-}) {
-  return (
-    <ConfirmDialog
-      confirmLabel="删除集合"
-      description={pendingCollection
-        ? `将永久删除事项集合“${pendingCollection.name}”及其中的 ${pendingCollection.itemCount} 条代办。`
-        : ""}
-      open={pendingCollection !== null}
-      title="删除事项集合"
-      onCancel={onCancel}
-      onConfirm={() => {
-        if (pendingCollection) onDelete(pendingCollection.id);
-        onCancel();
-      }}
-    />
-  );
-}
-
 export function TodoContext({ view }: TodoViewProps) {
   const feedback = useFeedback();
-  const [createGuard] = useState(createTodoInlineEditBlurGuard);
-  const [renameGuard] = useState(createTodoInlineEditBlurGuard);
   const [creating, setCreating] = useState(false);
   const [createValue, setCreateValue] = useState("");
+  const [createErrorMessage, setCreateErrorMessage] = useState("");
   const [editing, setEditing] = useState<CollectionDraft | null>(null);
   const [pendingDelete, setPendingDelete] =
     useState<TodoCollectionListItem | null>(null);
@@ -138,25 +90,64 @@ export function TodoContext({ view }: TodoViewProps) {
     }
   }, [editing, view.collections]);
 
+  useEffect(() => {
+    setEditing(null);
+    setPendingDelete(null);
+  }, [view.activeCollection?.id]);
+
   const submitCreate = () => {
     if (!createValue.trim()) {
-      setCreating(false);
-      setCreateValue("");
+      setCreateErrorMessage("名称不能为空。");
       return;
     }
-    const created = feedback.runAction(() => view.createCollection(createValue));
+    const created = feedback.runAction(() => {
+      view.createCollection(createValue);
+      return true;
+    });
 
-    if (created) {
+    if (created === true) {
       setCreating(false);
       setCreateValue("");
+      setCreateErrorMessage("");
+    } else {
+      setCreateErrorMessage("创建失败，请修正后重试。");
     }
   };
   const submitRename = () => {
     const draft = editing;
 
-    setEditing(null);
-    if (draft?.value.trim()) {
-      feedback.runAction(() => view.renameCollection(draft.id, draft.value));
+    if (!draft) return;
+    if (!draft.value.trim()) {
+      setEditing({ ...draft, errorMessage: "名称不能为空。" });
+      return;
+    }
+    if (
+      view.collections.find(({ id }) => id === draft.id)?.name ===
+        draft.value.trim()
+    ) {
+      setEditing(null);
+      return;
+    }
+    const renamed = feedback.runAction(() => {
+      view.renameCollection(draft.id, draft.value);
+      return true;
+    });
+
+    if (renamed === true) {
+      setEditing(null);
+    } else {
+      setEditing({ ...draft, errorMessage: "重命名失败，请修正后重试。" });
+    }
+  };
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const deleted = feedback.runAction(() => {
+      view.deleteCollection(pendingDelete.id);
+      return true;
+    });
+
+    if (deleted === true) {
+      setPendingDelete(null);
     }
   };
 
@@ -167,9 +158,9 @@ export function TodoContext({ view }: TodoViewProps) {
           aria-label="新建事项集合"
           disabled={creating}
           onClick={() => {
-            createGuard.begin();
             setCreating(true);
             setCreateValue("");
+            setCreateErrorMessage("");
           }}
           title="新建事项集合"
           type="button"
@@ -186,31 +177,41 @@ export function TodoContext({ view }: TodoViewProps) {
         >
           {view.collections.map((collection, index) => (
             <CompactContextRow
-              actions={!collection.isActive || editing?.id === collection.id
-                ? null
-                : (
-                  <>
-                    <button
-                      aria-label={`重命名事项集合 ${collection.name}`}
-                      onClick={() => {
-                        renameGuard.begin();
-                        setEditing({ id: collection.id, value: collection.name });
-                      }}
-                      title="重命名"
-                      type="button"
-                    >
-                      <Pencil aria-hidden="true" size={13} />
-                    </button>
-                    <button
-                      aria-label={`删除事项集合 ${collection.name}`}
-                      onClick={() => setPendingDelete(collection)}
-                      title="删除"
-                      type="button"
-                    >
-                      <Trash2 aria-hidden="true" size={13} />
-                    </button>
-                  </>
-                )}
+              actions={collection.isActive && editing?.id !== collection.id
+                ? (
+                  <CompactContextActionButtons
+                    actions={pendingDelete?.id === collection.id
+                      ? undefined
+                      : [
+                          {
+                            ariaLabel: `重命名事项集合 ${collection.name}`,
+                            label: "改",
+                            onSelect: () => {
+                              setEditing({
+                                id: collection.id,
+                                value: collection.name,
+                              });
+                              setPendingDelete(null);
+                            },
+                          },
+                          {
+                            ariaLabel: `删除事项集合 ${collection.name}`,
+                            label: "删",
+                            onSelect: () => setPendingDelete(collection),
+                            tone: "danger",
+                          },
+                        ]}
+                    confirmation={pendingDelete?.id === collection.id
+                      ? {
+                          cancelAriaLabel: `取消删除事项集合 ${collection.name}`,
+                          confirmAriaLabel: `确认删除事项集合 ${collection.name}`,
+                          onCancel: () => setPendingDelete(null),
+                          onConfirm: confirmDelete,
+                        }
+                      : undefined}
+                  />
+                )
+                : undefined}
               buttonProps={{
                 draggable: editing?.id !== collection.id,
                 onDragEnd: () => setDragState(null),
@@ -229,6 +230,7 @@ export function TodoContext({ view }: TodoViewProps) {
                 },
               }}
               className={cx(
+                pendingDelete?.id === collection.id && "is-delete-pending",
                 dragState?.sourceId === collection.id && "is-dragging",
                 dragState?.targetId === collection.id && "is-drop-target",
                 dragState?.targetId === collection.id &&
@@ -239,26 +241,31 @@ export function TodoContext({ view }: TodoViewProps) {
               inlineRename={editing?.id === collection.id
                 ? {
                     ariaLabel: `重命名事项集合 ${collection.name}`,
-                    onBlur: () => renameGuard.onBlur(submitRename),
-                    onCancel: () => {
-                      renameGuard.cancel();
-                      setEditing(null);
+                    inputProps: {
+                      "aria-invalid": editing.errorMessage
+                        ? true
+                        : undefined,
                     },
-                    onChange: (value) => setEditing({ id: collection.id, value }),
-                    onSubmit: () => {
-                      renameGuard.submit();
-                      submitRename();
-                    },
+                    onCancel: () => setEditing(null),
+                    onChange: (value) => setEditing({
+                      id: collection.id,
+                      value,
+                    }),
+                    onSubmit: submitRename,
                     value: editing.value,
                   }
                 : undefined}
               key={collection.id}
               label={collection.name}
               onBeginRename={() => {
-                renameGuard.begin();
                 setEditing({ id: collection.id, value: collection.name });
+                setPendingDelete(null);
               }}
-              onSelect={() => view.selectCollection(collection.id)}
+              onSelect={() => {
+                setEditing(null);
+                setPendingDelete(null);
+                view.selectCollection(collection.id);
+              }}
               rowProps={{
                 "data-todo-collection-id": collection.id,
                 onDragLeave: (event) => {
@@ -324,16 +331,18 @@ export function TodoContext({ view }: TodoViewProps) {
               icon={<ListChecks aria-hidden="true" size={13} />}
               inlineRename={{
                 ariaLabel: "新建事项集合名称",
-                onBlur: () => createGuard.onBlur(submitCreate),
+                inputProps: {
+                  "aria-invalid": createErrorMessage ? true : undefined,
+                },
                 onCancel: () => {
-                  createGuard.cancel();
                   setCreating(false);
+                  setCreateErrorMessage("");
                 },
-                onChange: setCreateValue,
-                onSubmit: () => {
-                  createGuard.submit();
-                  submitCreate();
+                onChange: (value) => {
+                  setCreateValue(value);
+                  setCreateErrorMessage("");
                 },
+                onSubmit: submitCreate,
                 value: createValue,
               }}
               label=""
@@ -345,11 +354,6 @@ export function TodoContext({ view }: TodoViewProps) {
           <p className="context-empty">没有事项集合。</p>
         ) : null}
       </div>
-      <TodoCollectionDeleteConfirmation
-        pendingCollection={pendingDelete}
-        onCancel={() => setPendingDelete(null)}
-        onDelete={(id) => feedback.runAction(() => view.deleteCollection(id))}
-      />
     </div>
   );
 }

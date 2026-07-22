@@ -25,12 +25,76 @@ export type CompactContextInlineRename = {
     | "onKeyDown"
     | "value"
   >;
-  onBlur?: () => void;
   onCancel: () => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
   value: string;
 };
+
+export type CompactContextAction = {
+  ariaLabel: string;
+  disabled?: boolean;
+  label: string;
+  onSelect: () => void;
+  title?: string;
+  tone?: "danger" | "default";
+};
+
+export type CompactContextActionConfirmation = {
+  cancelAriaLabel: string;
+  confirmAriaLabel: string;
+  disabled?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+export function CompactContextActionButtons({
+  actions = [],
+  confirmation,
+}: {
+  actions?: readonly CompactContextAction[];
+  confirmation?: CompactContextActionConfirmation;
+}) {
+  if (confirmation) {
+    return (
+      <>
+        <button
+          aria-label={confirmation.confirmAriaLabel}
+          className="ui-tree-action-confirm"
+          disabled={confirmation.disabled}
+          onClick={confirmation.onConfirm}
+          title="确认"
+          type="button"
+        >
+          确认
+        </button>
+        <button
+          aria-label={confirmation.cancelAriaLabel}
+          disabled={confirmation.disabled}
+          onClick={confirmation.onCancel}
+          title="取消"
+          type="button"
+        >
+          取消
+        </button>
+      </>
+    );
+  }
+
+  return actions.map((action) => (
+    <button
+      aria-label={action.ariaLabel}
+      className={action.tone === "danger" ? "ui-tree-action-danger" : undefined}
+      disabled={action.disabled}
+      key={`${action.label}:${action.ariaLabel}`}
+      onClick={action.onSelect}
+      title={action.title ?? action.label}
+      type="button"
+    >
+      {action.label}
+    </button>
+  ));
+}
 
 export type CompactContextListProps = HTMLAttributes<HTMLUListElement>;
 
@@ -224,7 +288,6 @@ export function CompactContextRow({
             autoFocus
             className="ui-input ui-input-tree"
             disabled={inlineRename.disabled}
-            onBlur={inlineRename.onBlur}
             onChange={(event) => inlineRename.onChange(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -234,6 +297,17 @@ export function CompactContextRow({
             }}
             value={inlineRename.value}
           />
+          <span className="ui-tree-actions">
+            <CompactContextActionButtons
+              confirmation={{
+                cancelAriaLabel: `${inlineRename.ariaLabel}，取消`,
+                confirmAriaLabel: `${inlineRename.ariaLabel}，确定`,
+                disabled: inlineRename.disabled,
+                onCancel: inlineRename.onCancel,
+                onConfirm: inlineRename.onSubmit,
+              }}
+            />
+          </span>
         </form>
       ) : (
         <button
@@ -256,7 +330,7 @@ export function CompactContextRow({
           {trailing}
         </button>
       )}
-      {actions && !inlineRename ? (
+      {actions && !inlineRename && selected ? (
         <span className="ui-tree-actions">{actions}</span>
       ) : null}
     </li>

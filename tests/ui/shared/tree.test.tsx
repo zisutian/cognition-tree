@@ -209,6 +209,7 @@ describe("shared trees", () => {
   it("uses a toggle spacer for empty directory folders", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
+        activeNode={{ kind: "note", noteId: "note-1" }}
         nodes={[
           {
             canDrag: true,
@@ -231,6 +232,7 @@ describe("shared trees", () => {
   it("provides inline rename and delete entry points without inline confirmation", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
+        activeNode={{ kind: "note", noteId: "note-1" }}
         nodes={[
           {
             canDrag: true,

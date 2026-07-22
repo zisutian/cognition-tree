@@ -10,6 +10,7 @@ import type {
 } from "./types";
 
 export type DirectoryTreeEditingNode = {
+  errorMessage?: string;
   key: string;
   title: string;
 };
@@ -20,7 +21,7 @@ export type DirectoryTreeRenderContext = {
   pendingDeleteNode: TreeNode | null;
   props: NoteTreeProps;
   rootNodes: TreeNode[];
-  runAction: (action: () => void) => void;
+  runAction: (action: () => unknown) => unknown;
   setContextMenuNode: Dispatch<SetStateAction<TreeNode | null>>;
   setContextMenuPosition: Dispatch<
     SetStateAction<ContextMenuPosition | null>

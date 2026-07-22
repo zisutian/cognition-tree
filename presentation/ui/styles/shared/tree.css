@@ -238,8 +238,6 @@
   opacity: 0;
 }
 
-.ui-tree-row-frame:hover .ui-tree-actions,
-.ui-tree-row-frame:focus-within .ui-tree-actions,
 .ui-tree-row-frame.is-selected .ui-tree-actions,
 .ui-tree-row-frame.is-editing .ui-tree-actions,
 .ui-tree-row-frame.is-delete-pending .ui-tree-actions {
@@ -247,11 +245,31 @@
 }
 
 .ui-tree-actions button {
+  min-width: calc(var(--ui-control-height) + var(--ui-gap-tight));
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-muted);
   background: transparent;
   font-size: var(--ui-micro-font-size);
   cursor: pointer;
+}
+
+.ui-tree-actions .ui-tree-action-danger,
+.ui-tree-actions .ui-tree-action-confirm {
+  color: var(--color-error);
+}
+
+.ui-compact-context-inline-rename {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-width: 0;
+  padding-left: var(--ui-gap-tight);
+}
+
+.ui-compact-context-inline-rename > svg {
+  width: var(--ui-symbol-size);
+  height: var(--ui-symbol-size);
 }
 
 .ui-tree-actions button:hover {

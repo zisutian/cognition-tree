@@ -5,9 +5,8 @@ import {
   Maximize2,
   Minimize2,
   Plus,
-  Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   JournalEntryListItem,
   JournalViewModel,
@@ -15,9 +14,9 @@ import type {
 import { CtnEditor } from "../../../editor/CtnEditor";
 import {
   CompactContextList,
+  CompactContextActionButtons,
   CompactContextRow,
 } from "../../../ui/shared/CompactContextList";
-import { ConfirmDialog } from "../../../ui/shared/ConfirmDialog";
 import { useFeedback } from "../../../ui/shared/FeedbackProvider";
 import {
   Button,
@@ -43,34 +42,6 @@ export function submitJournalEntryCreation({
   return runAction(() => {
     createEntry();
   });
-}
-
-export function JournalDeleteConfirmation({
-  pendingEntry,
-  onCancel,
-  onDelete,
-}: {
-  pendingEntry: JournalEntryListItem | null;
-  onCancel: () => void;
-  onDelete: (entryId: JournalEntryListItem["id"]) => void;
-}) {
-  return (
-    <ConfirmDialog
-      confirmLabel="删除日记"
-      description={pendingEntry
-        ? `将永久删除日记“${pendingEntry.title}”。`
-        : ""}
-      open={pendingEntry !== null}
-      title="删除日记"
-      onCancel={onCancel}
-      onConfirm={() => {
-        if (pendingEntry) {
-          onDelete(pendingEntry.id);
-        }
-        onCancel();
-      }}
-    />
-  );
 }
 
 const timestampFormatter = new Intl.DateTimeFormat("zh-CN", {
@@ -114,6 +85,24 @@ export function JournalContext({ view }: JournalViewProps) {
   const feedback = useFeedback();
   const [pendingDelete, setPendingDelete] =
     useState<JournalEntryListItem | null>(null);
+
+  useEffect(() => {
+    if (pendingDelete && pendingDelete.id !== view.activeEntry?.id) {
+      setPendingDelete(null);
+    }
+  }, [pendingDelete, view.activeEntry?.id]);
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    const deleted = feedback.runAction(() => {
+      view.deleteEntry(pendingDelete.id);
+      return true;
+    });
+
+    if (deleted === true) {
+      setPendingDelete(null);
+    }
+  };
 
   return (
     <div className="activity-context-content journal-context">
@@ -172,16 +161,29 @@ export function JournalContext({ view }: JournalViewProps) {
                           >
                             {month.entries.map((entry) => (
                               <CompactContextRow
-                                actions={
-                                  <button
-                                    aria-label={`删除日记 ${entry.title}`}
-                                    onClick={() => setPendingDelete(entry)}
-                                    title="删除日记"
-                                    type="button"
-                                  >
-                                    <Trash2 aria-hidden="true" size={13} />
-                                  </button>
-                                }
+                                actions={entry.isActive ? (
+                                  <CompactContextActionButtons
+                                    actions={pendingDelete?.id === entry.id
+                                      ? undefined
+                                      : [{
+                                          ariaLabel: `删除日记 ${entry.title}`,
+                                          label: "删",
+                                          onSelect: () => setPendingDelete(entry),
+                                          tone: "danger",
+                                        }]}
+                                    confirmation={pendingDelete?.id === entry.id
+                                      ? {
+                                          cancelAriaLabel: `取消删除日记 ${entry.title}`,
+                                          confirmAriaLabel: `确认删除日记 ${entry.title}`,
+                                          onCancel: () => setPendingDelete(null),
+                                          onConfirm: confirmDelete,
+                                        }
+                                      : undefined}
+                                  />
+                                ) : undefined}
+                                className={pendingDelete?.id === entry.id
+                                  ? "is-delete-pending"
+                                  : undefined}
                                 icon={<CalendarDays aria-hidden="true" />}
                                 key={entry.id}
                                 label={entry.title}
@@ -204,11 +206,6 @@ export function JournalContext({ view }: JournalViewProps) {
       ) : (
         <p className="context-empty">没有日记。</p>
       )}
-      <JournalDeleteConfirmation
-        pendingEntry={pendingDelete}
-        onCancel={() => setPendingDelete(null)}
-        onDelete={view.deleteEntry}
-      />
     </div>
   );
 }

@@ -1,36 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  TodoCollectionDeleteConfirmation,
   TodoContext,
   TodoDetailPanel,
   TodoEditorPanel,
-  createTodoInlineEditBlurGuard,
 } from "../../../presentation/activities/views/todo/TodoPanels";
 import { createView } from "../viewFactory";
 
 describe("Todo panels", () => {
-  it.each([
-    "collection creation",
-    "collection rename",
-  ])("does not submit %s from the blur caused by Escape", () => {
-    const guard = createTodoInlineEditBlurGuard();
-    const submit = vi.fn();
-
-    guard.begin();
-    guard.cancel();
-    guard.onBlur(submit);
-
-    expect(submit).not.toHaveBeenCalled();
-
-    guard.begin();
-    guard.onBlur(submit);
-
-    expect(submit).toHaveBeenCalledOnce();
-  });
-
   it("renders ordered collections and actions only on the selected row", () => {
     const markup = renderToStaticMarkup(
       <TodoContext view={createView().todo} />,
@@ -110,20 +89,13 @@ describe("Todo panels", () => {
     expect(markup).toContain("新建事项集合");
   });
 
-  it("requires confirmation before deleting a collection and its items", () => {
-    const view = createView().todo;
-    const onDelete = vi.fn();
+  it("starts collection deletion in the selected row without a dialog", () => {
     const markup = renderToStaticMarkup(
-      <TodoCollectionDeleteConfirmation
-        pendingCollection={view.collections[0] ?? null}
-        onCancel={() => undefined}
-        onDelete={onDelete}
-      />,
+      <TodoContext view={createView().todo} />,
     );
 
-    expect(markup).toContain('role="alertdialog"');
-    expect(markup).toContain("永久删除事项集合");
-    expect(markup).toContain("2 条代办");
-    expect(onDelete).not.toHaveBeenCalled();
+    expect(markup).toContain('aria-label="删除事项集合 今天"');
+    expect(markup).toContain(">删<");
+    expect(markup).not.toContain('role="alertdialog"');
   });
 });

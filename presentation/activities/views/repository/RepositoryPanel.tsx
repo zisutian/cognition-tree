@@ -6,7 +6,6 @@ import {
   Database,
   HardDrive,
   ListChecks,
-  Pencil,
   Plus,
   RefreshCw,
   Trash2,
@@ -32,6 +31,7 @@ import {
 import { RepositoryCreateForm } from "../../../ui/RepositoryCreateForm";
 import {
   CompactContextGroup,
+  CompactContextActionButtons,
   CompactContextList,
   CompactContextRow,
 } from "../../../ui/shared/CompactContextList";
@@ -151,6 +151,15 @@ export function RepositoryContext({
       view.repositories.some((repository) => repository.adapter === adapter) ||
       view.issues.some((issue) => issue.adapter === adapter),
   );
+  useEffect(() => {
+    if (
+      renamingRepositoryId &&
+      (currentSelection.kind !== "ordinary-repository" ||
+        currentSelection.id !== renamingRepositoryId)
+    ) {
+      setRenamingRepositoryId(null);
+    }
+  }, [currentSelection, renamingRepositoryId]);
   useEffect(() => {
     if (!focusRequest) return;
     const nextSelection = projectRepositoryFocusSelection(focusRequest);
@@ -322,34 +331,28 @@ export function RepositoryContext({
 
               return (
                 <CompactContextRow
-                  actions={selected
+                  actions={selected && !renaming
                     ? (
-                      <>
-                        <button
-                          aria-label={`重命名仓库 ${repository.label}`}
-                          disabled={busy}
-                          onClick={() => beginRename(repository)}
-                          title="重命名仓库"
-                          type="button"
-                        >
-                          <Pencil aria-hidden="true" size={12} />
-                        </button>
-                        {!active ? (
-                          <button
-                            aria-label={`打开仓库 ${repository.label}`}
-                            disabled={busy}
-                            onClick={() => {
-                              void feedback.runAction(() =>
-                                view.selectRepository(repository.id)
-                              );
-                            }}
-                            title="打开仓库"
-                            type="button"
-                          >
-                            开
-                          </button>
-                        ) : null}
-                      </>
+                      <CompactContextActionButtons actions={[
+                        ...(!active
+                          ? [{
+                              ariaLabel: `打开仓库 ${repository.label}`,
+                              disabled: busy,
+                              label: "开",
+                              onSelect: () => {
+                                void feedback.runAction(() =>
+                                  view.selectRepository(repository.id)
+                                );
+                              },
+                            }]
+                          : []),
+                        {
+                          ariaLabel: `重命名仓库 ${repository.label}`,
+                          disabled: busy,
+                          label: "改",
+                          onSelect: () => beginRename(repository),
+                        },
+                      ]} />
                     )
                     : undefined}
                   buttonProps={{ "data-repository-id": repository.id }}
@@ -359,7 +362,6 @@ export function RepositoryContext({
                     ? {
                         ariaLabel: `重命名仓库 ${repository.label}`,
                         disabled: busy,
-                        onBlur: () => setRenamingRepositoryId(null),
                         onCancel: () => setRenamingRepositoryId(null),
                         onChange: setRenameValue,
                         onSubmit: () => {

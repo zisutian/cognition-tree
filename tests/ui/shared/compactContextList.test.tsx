@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CompactContextGroup,
   CompactContextList,
+  CompactContextActionButtons,
   CompactContextRow,
   CompactContextStaticRow,
 } from "../../../presentation/ui/shared/CompactContextList";
@@ -21,7 +22,12 @@ describe("compact context lists", () => {
         listAriaLabel="主要项目"
       >
         <CompactContextRow
-          actions={<button type="button">删</button>}
+          actions={<CompactContextActionButtons actions={[{
+            ariaLabel: "删除当前项目",
+            label: "删",
+            onSelect: () => undefined,
+            tone: "danger",
+          }]} />}
           buttonProps={{ "data-item-id": "item-1" }}
           icon={<span aria-hidden="true">I</span>}
           label="当前项目"
@@ -71,6 +77,8 @@ describe("compact context lists", () => {
     expect(markup).toContain('aria-label="重命名集合 当前集合"');
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain('aria-describedby="rename-error"');
+    expect(markup).toContain("确定");
+    expect(markup).toContain("取消");
     expect(markup).not.toContain("不应显示");
   });
 

@@ -89,9 +89,9 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
         ) : null}
         <div className="syntax-settings-stack" aria-label="语法设置">
           <SyntaxSettingsGroup title="基础">
-            <label className="syntax-setting-line">
+            <div className="syntax-setting-line">
               <span className="syntax-setting-label">名称</span>
-              <input
+              <output
                 aria-describedby={syntax.nameConflictMessage
                   ? "syntax-name-conflict"
                   : undefined}
@@ -99,14 +99,11 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
                 aria-label="语法名称"
                 className="ui-input syntax-name-control"
                 data-syntax-field-id={syntaxFieldIds.profileName}
-                disabled={!syntax.nameEditable}
-                maxLength={syntax.constraints.profileName.maxLength}
-                value={syntax.draft.name}
-                onChange={(event) =>
-                  syntax.actions.updateName(event.target.value)
-                }
-              />
-            </label>
+                tabIndex={-1}
+              >
+                {syntax.draft.name}
+              </output>
+            </div>
             {syntax.nameConflictMessage ? (
               <p
                 className="ui-error syntax-name-error"

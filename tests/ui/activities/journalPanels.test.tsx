@@ -1,13 +1,7 @@
-import type {
-  ComponentProps,
-  ReactElement,
-} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ConfirmDialog } from "../../../presentation/ui/shared/ConfirmDialog";
 import {
   JournalContext,
-  JournalDeleteConfirmation,
   JournalDetailPanel,
   JournalEditorPanel,
   submitJournalEntryCreation,
@@ -117,31 +111,14 @@ describe("Journal panels", () => {
     expect(editorMarkup).not.toContain('aria-label="重命名日记"');
   });
 
-  it("requires an explicit confirmation before deleting an entry", () => {
-    const entry = createView().journal.calendar.years[0].months[0].entries[0];
-    const onCancel = vi.fn();
-    const onDelete = vi.fn();
-    const confirmation = JournalDeleteConfirmation({
-      pendingEntry: entry,
-      onCancel,
-      onDelete,
-    }) as ReactElement<
-      ComponentProps<typeof ConfirmDialog>,
-      typeof ConfirmDialog
-    >;
-    const markup = renderToStaticMarkup(confirmation);
+  it("offers deletion only on the selected row without a dialog", () => {
+    const view = createView().journal;
+    const activeEntry = view.calendar.years[0].months[0].entries[0];
+    const markup = renderToStaticMarkup(<JournalContext view={view} />);
 
-    expect(confirmation.type).toBe(ConfirmDialog);
-    expect(markup).toContain('role="alertdialog"');
-    expect(markup).toContain(`将永久删除日记“${entry.title}”。`);
-    expect(markup).toContain("删除日记");
-    expect(onDelete).not.toHaveBeenCalled();
-
-    confirmation.props.onConfirm();
-
-    expect(onDelete).toHaveBeenCalledOnce();
-    expect(onDelete).toHaveBeenCalledWith(entry.id);
-    expect(onCancel).toHaveBeenCalledOnce();
+    expect(markup).toContain(`aria-label="删除日记 ${activeEntry.title}"`);
+    expect(markup).toContain(">删<");
+    expect(markup).not.toContain('role="alertdialog"');
   });
 
   it("shows the selected body block timestamps with the entry structure", () => {

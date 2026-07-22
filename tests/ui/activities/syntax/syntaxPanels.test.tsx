@@ -143,6 +143,7 @@ describe("syntax panels", () => {
     );
 
     expect(markup).toContain('aria-label="启用语法 正在编辑"');
+    expect(markup).toContain('aria-label="重命名语法 正在编辑"');
     expect(markup).toContain('aria-label="删除语法 正在编辑"');
     expect(markup).not.toContain('aria-label="删除语法 已启用"');
     expect(markup).toContain("启用");
@@ -170,7 +171,7 @@ describe("syntax panels", () => {
     expect(markup).toContain("顶格正文");
     expect(markup).not.toContain("顶格概念");
     expect(markup).not.toContain("首行标题");
-    expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
+    expect(markup).toMatch(/<output[^>]*aria-label="语法名称"/);
     expect(markup).toMatch(/aria-label="开始"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="结束"[^>]*disabled=""/);
   });
@@ -197,7 +198,7 @@ describe("syntax panels", () => {
 
     expect(markup).toContain("代办背景色: 默认");
     expect(markup).not.toContain("首行标题");
-    expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
+    expect(markup).toMatch(/<output[^>]*aria-label="语法名称"/);
     expect(markup).toMatch(/aria-label="角色: [^"]+"[^>]*disabled=""/);
   });
 
