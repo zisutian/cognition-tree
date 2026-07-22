@@ -2,16 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue";
 import { serializeJsonIteratively } from "../../../../contracts/workspace-repository/json";
 import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace-repository/parseRepository";
-import { createHttpWorkspaceRepositoryBackend } from "../../../../src/storage/adapters/http/httpWorkspaceRepository";
+import { createHttpWorkspaceRepositoryBackend } from "../../../../infrastructure/http/httpWorkspaceRepository";
 import {
   createHttpRepositoryCacheIdentity,
   repositoryRequestTimeoutMs,
-} from "../../../../src/storage/adapters/http/httpRepositoryTransport";
+} from "../../../../infrastructure/http/httpRepositoryTransport";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-} from "../../../../src/storage/repository/workspaceRepository";
+} from "../../../../application/repository/workspaceRepository";
 import {
   createDeepRepositoryContent,
   createRepositoryContent,

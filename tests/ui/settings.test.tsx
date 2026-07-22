@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   SettingsContext,
   SettingsPanel,
-} from "../../src/ui/activities/settings/SettingsPanel";
+} from "../../presentation/activities/views/settings/SettingsPanel";
 
 describe("settings activity", () => {
   it("shows the single Interface context item and only the context width setting", () => {

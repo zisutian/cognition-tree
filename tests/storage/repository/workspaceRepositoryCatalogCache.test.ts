@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createMemoryWorkspaceRepositoryCatalogCache,
   parseWorkspaceRepositoryCatalogCacheState,
-} from "../../../src/storage/repository/workspaceRepositoryCatalogCache";
+} from "../../../infrastructure/persistence/workspaceRepositoryCatalogCache";
 
 const descriptor = {
   adapter: "webdav" as const,

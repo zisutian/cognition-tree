@@ -4,7 +4,7 @@ import {
   getTextColorClassName,
   getToneClassName,
   isCustomTone,
-} from "../../../src/ui/shared/tonePresentation";
+} from "../../../presentation/ui/shared/tonePresentation";
 
 describe("tone presentation", () => {
   it("maps semantic tones to UI classes", () => {

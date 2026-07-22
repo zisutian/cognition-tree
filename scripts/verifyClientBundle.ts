@@ -22,15 +22,18 @@ if (!clientEntry) {
 
 const controllerSources = [
   "NotesActivityController.tsx",
+  "JournalActivityController.tsx",
+  "TodoActivityController.tsx",
   "SettingsActivityController.tsx",
   "StructureOperationActivityController.tsx",
   "SyntaxActivityController.tsx",
   "VisualizationActivityController.tsx",
+  "RepositoryActivityController.tsx",
 ];
 
 const controllerEntries = controllerSources.map((sourceName) => {
   const entry = manifestEntries.find(([sourcePath]) =>
-    sourcePath.endsWith(`/app/activities/${sourceName}`),
+    sourcePath === `presentation/activities/controllers/${sourceName}`,
   );
 
   if (!entry || !entry[1].isDynamicEntry) {

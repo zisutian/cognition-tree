@@ -7,7 +7,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-import type { JournalEntryDto } from "../contracts/system-repository/types";
+import type { JournalEntryDto } from "../contracts/journal/types";
 import { readCtnCanonicalTitleHeader } from "../core/ctn/parser/parseCtnDocument";
 import { formatJournalEntryTitle } from "../core/journal/model/journalContent";
 import {
@@ -18,7 +18,7 @@ import {
   createJournalSeed,
   readJournalSnapshot,
   resetJournalRepository,
-} from "./support/systemRepositorySeeds";
+} from "./support/builtInSeeds";
 import {
   getActivityButton,
   openWorkbench,

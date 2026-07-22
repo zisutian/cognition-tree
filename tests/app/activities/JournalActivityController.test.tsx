@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   JournalActivityController,
   resolveJournalRetry,
-} from "../../../src/app/activities/JournalActivityController";
-import type { WorkbenchApplication } from "../../../src/application/workbench/workbenchApplication";
+} from "../../../presentation/activities/controllers/JournalActivityController";
+import type { WorkbenchApplication } from "../../../presentation/shell/workbench/workbenchApplication";
 import { createView } from "../../ui/viewFactory";
 
 const controls = {
@@ -51,7 +51,9 @@ describe("JournalActivityController", () => {
     const markup = renderToStaticMarkup(<>{rendered}</>);
 
     expect(application.workspace.status).toBe("absent");
-    expect(markup).toContain("2026 年 1 月");
+    expect(markup).toContain("2026 年");
+    expect(markup).toContain("1 月");
+    expect(markup).toContain("2 日");
     expect(markup).toContain('aria-label="日记编辑"');
     expect(markup).toContain('data-editor-mode="body"');
     expect(markup).not.toContain("前往仓库创建");
@@ -71,7 +73,7 @@ describe("JournalActivityController", () => {
   });
 
   it("retries a faulted Journal descriptor instead of reloading an unavailable session", async () => {
-    const retryRepository = vi.fn(async () => undefined);
+    const retryBuiltIn = vi.fn(async () => undefined);
     const reload = vi.fn(async () => undefined);
     const retry = resolveJournalRetry(
       { reload: vi.fn(async () => undefined), status: "unavailable" },
@@ -79,28 +81,27 @@ describe("JournalActivityController", () => {
         catalog: {
           catalogLabel: "内置仓库",
           reload,
-          retryRepository,
+          retry: retryBuiltIn,
           state: {
             issues: [{
               code: "repository_corrupt",
-              id: "system-journal",
+              id: "journal",
               location: null,
               message: "日记仓库损坏。",
               status: "fault",
             }],
             repositories: [],
-            retryingPurpose: null,
+            retryingId: null,
             status: "ready",
           },
         },
-        repositories: {},
-        sessions: {} as WorkbenchApplication["repository"]["systems"]["sessions"],
+        sessions: {} as WorkbenchApplication["repository"]["builtIns"]["sessions"],
       },
     );
 
     await retry?.();
 
-    expect(retryRepository).toHaveBeenCalledWith("system-journal");
+    expect(retryBuiltIn).toHaveBeenCalledWith("journal");
     expect(reload).not.toHaveBeenCalled();
   });
 });

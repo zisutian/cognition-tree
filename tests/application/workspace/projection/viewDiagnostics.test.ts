@@ -11,8 +11,8 @@ import {
   createUiWorkspacePortableNameDiagnostics,
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
-} from "../../../../src/application/workspace/projection/viewDiagnostics";
-import { createSyntaxRuleFieldId } from "../../../../src/application/workspace/projection/viewSyntaxFields";
+} from "../../../../application/workspace/projection/viewDiagnostics";
+import { createSyntaxRuleFieldId } from "../../../../application/workspace/projection/viewSyntaxFields";
 import {
   createWorkspaceParseIndex,
   type ParsedWorkspaceNote,

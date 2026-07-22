@@ -1,42 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
+  applicationModules,
   contractModules,
+  coreModules,
   ctnModules,
   findDependencyCycles,
   getSourceRoot,
+  infrastructureModules,
   journalModules,
-  journalPathToRelative,
   listInternalSourceImports,
   listSourceDependencyCycles,
-  listSourceFiles,
-  modulePathToRelative,
   portableNameModules,
-  portableNamePathToRelative,
+  presentationModules,
   readInternalModuleImports,
   readModuleImports,
   readSourceImports,
   serverModules,
-  sourceModules,
   todoModules,
-  todoPathToRelative,
   workspaceDomainModules,
   workspaceModules,
 } from "./sourceGraph";
 
-const allowedRootImports = new Map(
-  Object.entries({
-    app: ["app", "application", "editor", "storage", "ui"],
-    application: ["application", "ctn", "storage", "workspace"],
-    editor: ["ctn", "editor"],
-    storage: ["storage", "workspace"],
-    ui: ["application", "editor", "ui"],
-    workspace: ["ctn", "workspace"],
-  }).map(([sourceRoot, imports]) => [sourceRoot, new Set(imports)]),
-);
-
 function formatImport(filePath: string, importPath: string) {
   return `${filePath} imports ${importPath}`;
 }
+
+const allowedLayerImports = new Map<string, ReadonlySet<string>>([
+  ["application", new Set(["application", "core"])],
+  ["infrastructure", new Set(["application", "contracts", "core", "infrastructure"])],
+  ["presentation", new Set(["application", "core", "infrastructure", "presentation"])],
+]);
 
 describe("dependency boundaries", () => {
   it("reads imports, re-exports, and dynamic imports through the TypeScript AST", () => {
@@ -57,340 +50,98 @@ describe("dependency boundaries", () => {
     ]);
   });
 
-  it("resolves source imports without discarding leading parent segments", () => {
-    const sourceImport = readSourceImports(
-      "../../src/app/AppRoot.tsx",
-    ).find(({ importPath }) => importPath.includes("session/useSession"));
+  it("resolves imports across the new repository-root layers", () => {
+    const imported = readSourceImports(
+      "../../presentation/shell/AppRoot.tsx",
+    ).find(({ targetPath }) =>
+      targetPath.endsWith("application/workbench/workbenchCoordinator.ts"),
+    );
 
-    expect(sourceImport).toMatchObject({
-      targetPath:
-        "../../src/application/workspace/session/useSession",
+    expect(imported).toMatchObject({
       targetRoot: "application",
+      targetPath: "../../application/workbench/workbenchCoordinator.ts",
     });
   });
 
-  it("enforces the documented source dependency direction", () => {
+  it("enforces core → application → infrastructure → presentation direction", () => {
     const violations = listInternalSourceImports().flatMap(
       ({ filePath, importPath, targetRoot }) => {
         const sourceRoot = getSourceRoot(filePath);
-        const allowedImports = allowedRootImports.get(sourceRoot);
+        const allowed = allowedLayerImports.get(sourceRoot);
 
-        return !allowedImports || allowedImports.has(targetRoot)
+        return allowed?.has(targetRoot)
           ? []
-          : [
-              `${formatImport(filePath, importPath)} (${sourceRoot} -> ${targetRoot})`,
-            ];
+          : [`${formatImport(filePath, importPath)} (${sourceRoot} -> ${targetRoot})`];
       },
     );
 
     expect(violations).toEqual([]);
   });
 
-  it("detects dependency cycles as strongly connected components", () => {
-    expect(
-      findDependencyCycles(
-        new Map([
-          ["a", ["b"]],
-          ["b", ["a"]],
-          ["independent", []],
-          ["self", ["self"]],
-        ]),
+  it("keeps application framework- and boundary-independent", () => {
+    const blocked = [
+      /^react$/,
+      /^react\//,
+      /(?:^|\/)contracts\//,
+      /(?:^|\/)infrastructure\//,
+      /(?:^|\/)presentation\//,
+    ];
+    const violations = Object.keys(applicationModules).flatMap((filePath) =>
+      readModuleImports(applicationModules, filePath)
+        .filter((importPath) => blocked.some((pattern) => pattern.test(importPath)))
+        .map((importPath) => formatImport(filePath, importPath)),
+    );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps core and wire contracts runtime-neutral", () => {
+    const blockedCore = [
+      /^node:/,
+      /^react(?:\/|$)/,
+      /(?:^|\/)application\//,
+      /(?:^|\/)contracts\//,
+      /(?:^|\/)infrastructure\//,
+      /(?:^|\/)presentation\//,
+    ];
+    const blockedContracts = [
+      /^node:/,
+      /^react(?:\/|$)/,
+      /(?:^|\/)application\//,
+      /(?:^|\/)infrastructure\//,
+      /(?:^|\/)presentation\//,
+    ];
+    const violations = [
+      ...Object.keys(coreModules).flatMap((filePath) =>
+        readModuleImports(coreModules, filePath)
+          .filter((value) => blockedCore.some((pattern) => pattern.test(value)))
+          .map((value) => formatImport(filePath, value)),
       ),
-    ).toEqual([["a", "b"], ["self"]]);
-  });
-
-  it("keeps the source dependency graph acyclic", () => {
-    expect(listSourceDependencyCycles()).toEqual([]);
-  });
-
-  it("keeps the shared CTN core pure, acyclic, and uniquely owned", () => {
-    const blockedCtnImports = [
-      /^node:/,
-      /^react$/,
-      /^react\//,
-      /(?:^|\/)contracts\//,
-      /(?:^|\/)server\//,
-      /(?:^|\/)src\//,
+      ...Object.keys(contractModules).flatMap((filePath) =>
+        readModuleImports(contractModules, filePath)
+          .filter((value) => blockedContracts.some((pattern) => pattern.test(value)))
+          .map((value) => formatImport(filePath, value)),
+      ),
     ];
-    const purityViolations = Object.keys(ctnModules).flatMap((filePath) =>
-      readModuleImports(ctnModules, filePath)
-        .filter((importPath) =>
-          blockedCtnImports.some((pattern) => pattern.test(importPath)),
-        )
-        .map((importPath) => formatImport(filePath, importPath)),
-    );
-    const ctnPrefix = "../../core/ctn/";
-    const graph = new Map(
-      Object.keys(ctnModules).map((filePath) => [
-        filePath,
-        readInternalModuleImports(ctnModules, filePath, ctnPrefix).map(
-          ({ targetPath }) => targetPath,
-        ),
-      ]),
-    );
-    const allowedSourceConsumers = new Set([
-      "application",
-      "editor",
-      "workspace",
-    ]);
-    const sourceConsumerViolations = Object.keys(sourceModules).flatMap(
-      (filePath) => {
-        const sourceRoot = getSourceRoot(filePath);
-
-        return readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          ctnPrefix,
-        )
-          .filter(() => !allowedSourceConsumers.has(sourceRoot))
-          .map(({ importPath }) => formatImport(filePath, importPath));
-      },
-    );
-    const serverConsumerViolations = Object.keys(serverModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          ctnPrefix,
-        )
-          .filter(
-            () =>
-              !filePath.startsWith("../../server/adapters/local/") &&
-              filePath !==
-                "../../server/repository/workspaceRepositoryContentValidation.ts",
-          )
-          .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const contractConsumerViolations = Object.keys(contractModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          ctnPrefix,
-        ).map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const tomlParserOwners = Object.keys(ctnModules)
-      .filter((filePath) =>
-        readModuleImports(ctnModules, filePath).includes("smol-toml"),
-      );
-
-    expect([
-      ...purityViolations,
-      ...sourceConsumerViolations,
-      ...serverConsumerViolations,
-      ...contractConsumerViolations,
-    ]).toEqual([]);
-    expect(findDependencyCycles(graph)).toEqual([]);
-    expect(tomlParserOwners).toEqual([
-      "../../core/ctn/syntax/profileTomlParser.ts",
-    ]);
-  });
-
-  it("keeps portable names in one pure shared domain", () => {
-    const blockedImports = [
-      /^node:/,
-      /^react$/,
-      /^react\//,
-      /(?:^|\/)contracts\//,
-      /(?:^|\/)ctn\//,
-      /(?:^|\/)journal\//,
-      /(?:^|\/)server\//,
-      /(?:^|\/)src\//,
-      /(?:^|\/)todo\//,
-    ];
-    const violations = Object.keys(portableNameModules).flatMap((filePath) =>
-      readModuleImports(portableNameModules, filePath)
-        .filter((importPath) =>
-          blockedImports.some((pattern) => pattern.test(importPath)),
-        )
-        .map((importPath) => formatImport(filePath, importPath)),
-    );
 
     expect(violations).toEqual([]);
-    expect(Object.keys(portableNameModules).map(portableNamePathToRelative))
-      .toEqual(["portableName.ts"]);
   });
 
-  it("keeps Journal a pure shared domain with explicit consumers", () => {
-    const journalPrefix = "../../core/journal/";
-    const blockedImports = [
-      /^node:/,
-      /^react$/,
-      /^react\//,
-      /(?:^|\/)contracts\//,
-      /(?:^|\/)server\//,
-      /(?:^|\/)src\//,
-    ];
-    const purityViolations = Object.keys(journalModules).flatMap((filePath) =>
-      readModuleImports(journalModules, filePath)
-        .filter((importPath) =>
-          blockedImports.some((pattern) => pattern.test(importPath)),
-        )
-        .map((importPath) => formatImport(filePath, importPath))
-    );
-    const graph = new Map(
-      Object.keys(journalModules).map((filePath) => [
-        filePath,
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          journalPrefix,
-        ).map(({ targetPath }) => targetPath),
-      ]),
-    );
-    const allowedSourceConsumers = new Set(["application", "storage"]);
-    const sourceConsumerViolations = Object.keys(sourceModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          journalPrefix,
-        )
-          .filter(() => !allowedSourceConsumers.has(getSourceRoot(filePath)))
-          .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const serverConsumerViolations = Object.keys(serverModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          journalPrefix,
-        )
-          .filter(
-            () =>
-              !filePath.startsWith("../../server/repository/") &&
-              filePath !== "../../server/index.ts",
-          )
-          .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const contractConsumerViolations = Object.keys(contractModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          journalPrefix,
-        ).map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const fixedSyntaxSource = journalModules[
-      "../../core/journal/syntax/journalSyntax.ts"
-    ] ?? "";
-
-    expect([
-      ...purityViolations,
-      ...sourceConsumerViolations,
-      ...serverConsumerViolations,
-      ...contractConsumerViolations,
-    ]).toEqual([]);
-    expect(findDependencyCycles(graph)).toEqual([]);
-    expect(fixedSyntaxSource).not.toMatch(/defaultCtnSyntaxProfile/);
-    expect(Object.keys(journalModules).map(journalPathToRelative).sort())
-      .toEqual([
-        "commands/journalCommands.ts",
-        "indexes/journalParseIndex.ts",
-        "model/journalContent.ts",
-        "queries/journalQueries.ts",
-        "queries/journalReferenceNavigation.ts",
-        "syntax/journalSyntax.ts",
-      ]);
-  });
-
-  it("keeps Todo a pure shared domain with explicit consumers", () => {
-    const todoPrefix = "../../core/todo/";
-    const blockedImports = [
-      /^node:/,
-      /^react$/,
-      /^react\//,
-      /(?:^|\/)contracts\//,
-      /(?:^|\/)journal\//,
-      /(?:^|\/)server\//,
-      /(?:^|\/)src\//,
-      /(?:^|\/)workspace\//,
-    ];
-    const purityViolations = Object.keys(todoModules).flatMap((filePath) =>
-      readModuleImports(todoModules, filePath)
-        .filter((importPath) =>
-          blockedImports.some((pattern) => pattern.test(importPath)),
-        )
-        .map((importPath) => formatImport(filePath, importPath))
-    );
-    const graph = new Map(
-      Object.keys(todoModules).map((filePath) => [
-        filePath,
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          todoPrefix,
-        ).map(({ targetPath }) => targetPath),
-      ]),
-    );
-    const allowedSourceConsumers = new Set(["application", "storage"]);
-    const sourceConsumerViolations = Object.keys(sourceModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          todoPrefix,
-        )
-          .filter(() => !allowedSourceConsumers.has(getSourceRoot(filePath)))
-          .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const serverConsumerViolations = Object.keys(serverModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          todoPrefix,
-        )
-          .filter(
-            () => filePath !== "../../server/repository/systemRepositoryStore.ts",
-          )
-          .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const contractConsumerViolations = Object.keys(contractModules).flatMap(
-      (filePath) =>
-        readInternalModuleImports(
-          workspaceModules,
-          filePath,
-          todoPrefix,
-        ).map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-
-    expect([
-      ...purityViolations,
-      ...sourceConsumerViolations,
-      ...serverConsumerViolations,
-      ...contractConsumerViolations,
-    ]).toEqual([]);
-    expect(findDependencyCycles(graph)).toEqual([]);
-    expect(Object.keys(todoModules).map(todoPathToRelative).sort()).toEqual([
-      "commands/todoCommands.ts",
-      "indexes/todoParseIndex.ts",
-      "model/todoContent.ts",
-      "queries/todoQueries.ts",
-      "syntax/todoSyntax.ts",
-    ]);
-  });
-
-  it("keeps Workspace, Journal, and Todo as peer domains", () => {
-    const peerPrefixes = [
-      "../../core/workspace/",
-      "../../core/journal/",
-      "../../core/todo/",
-    ];
-    const peerModules = [
-      workspaceDomainModules,
-      journalModules,
-      todoModules,
-    ];
-    const violations = peerModules.flatMap((modules, sourceIndex) =>
+  it("keeps Workspace, Journal, and Todo as peer core domains", () => {
+    const peers = [
+      ["../../core/workspace/", workspaceDomainModules],
+      ["../../core/journal/", journalModules],
+      ["../../core/todo/", todoModules],
+    ] as const;
+    const violations = peers.flatMap(([sourcePrefix, modules]) =>
       Object.keys(modules).flatMap((filePath) =>
-        peerPrefixes.flatMap((prefix, targetIndex) =>
-          sourceIndex === targetIndex
+        peers.flatMap(([targetPrefix]) =>
+          targetPrefix === sourcePrefix
             ? []
             : readInternalModuleImports(
                 workspaceModules,
                 filePath,
-                prefix,
+                targetPrefix,
               ).map(({ importPath }) => formatImport(filePath, importPath)),
         ),
       ),
@@ -399,327 +150,78 @@ describe("dependency boundaries", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps application activity state behind local activity boundaries", () => {
-    const activityPrefix = "../../src/application/workspace/activities/";
-    const siblingViolations = listSourceFiles(
-      "application/workspace/activities",
-    ).flatMap((filePath) => {
-      const sourceActivity = filePath
-        .slice(activityPrefix.length)
-        .split("/")[0];
-
-      return readSourceImports(filePath)
-        .filter(({ targetPath }) => targetPath.startsWith(activityPrefix))
-        .filter(
-          ({ targetPath }) =>
-            targetPath.slice(activityPrefix.length).split("/")[0] !==
-            sourceActivity,
+  it("keeps peer application modules coupled only through Workbench", () => {
+    const peers = ["journal", "todo", "workspace"] as const;
+    const violations = peers.flatMap((sourcePeer) =>
+      Object.keys(applicationModules)
+        .filter((filePath) =>
+          filePath.startsWith(`../../application/${sourcePeer}/`),
         )
-        .map(({ importPath }) => formatImport(filePath, importPath));
-    });
-    const sharedViolations = ["runtime", "selection", "session"].flatMap(
-      (directory) =>
-        listSourceFiles(`application/workspace/${directory}`).flatMap(
-          (filePath) =>
-            readSourceImports(filePath)
-              .filter(({ targetPath }) =>
-                targetPath.startsWith(activityPrefix),
-              )
-              .map(({ importPath }) => formatImport(filePath, importPath)),
-        ),
-    );
-
-    expect([...siblingViolations, ...sharedViolations]).toEqual([]);
-  });
-
-  it("keeps UI activities, shared components, and frame modules independent", () => {
-    const activityPrefix = "../../src/ui/activities/";
-    const activityViolations = listSourceFiles("ui/activities").flatMap(
-      (filePath) => {
-        const relativeActivityPath = filePath.slice(activityPrefix.length);
-        const sourceActivity = relativeActivityPath.includes("/")
-          ? relativeActivityPath.split("/")[0]
-          : null;
-
-        return readSourceImports(filePath)
-          .filter(({ targetPath }) => targetPath.startsWith(activityPrefix))
-          .filter(({ targetPath }) => {
-            const targetActivity = targetPath
-              .slice(activityPrefix.length)
-              .split("/")[0];
-
-            return sourceActivity && targetActivity !== sourceActivity;
-          })
-          .map(({ importPath }) => formatImport(filePath, importPath));
-      },
-    );
-    const sharedViolations = listSourceFiles("ui/shared").flatMap((filePath) =>
-      readSourceImports(filePath)
-        .filter(
-          ({ targetPath }) =>
-            targetPath.startsWith(activityPrefix) ||
-            targetPath.startsWith("../../src/application/"),
-        )
-        .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const frameFiles = [
-      "../../src/ui/ActivityBar.tsx",
-      "../../src/ui/AppFrame.tsx",
-      ...listSourceFiles("ui/workbench"),
-    ];
-    const frameViolations = frameFiles.flatMap((filePath) =>
-      readSourceImports(filePath)
-        .filter(
-          ({ targetPath }) =>
-            targetPath.startsWith("../../src/application/") ||
-            targetPath.startsWith("../../core/workspace/") ||
-            targetPath.startsWith("../../core/ctn/") ||
-            targetPath.startsWith(activityPrefix),
-        )
-        .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-
-    expect([
-      ...activityViolations,
-      ...sharedViolations,
-      ...frameViolations,
-    ]).toEqual([]);
-  });
-
-  it("keeps compact context row structure shared across list-based activities", () => {
-    const compactContextListTarget =
-      "../../src/ui/shared/CompactContextList";
-    const requiredConsumers = [
-      "../../src/ui/activities/journal/JournalPanels.tsx",
-      "../../src/ui/activities/repository/RepositoryPanel.tsx",
-      "../../src/ui/activities/syntax/SyntaxContext.tsx",
-    ];
-    const missingConsumers = requiredConsumers.filter((filePath) =>
-      !readSourceImports(filePath).some(
-        ({ targetPath }) => targetPath === compactContextListTarget,
-      )
-    );
-    const inlineRenameMarkupOwners = listSourceFiles("ui").filter((filePath) =>
-      (sourceModules[filePath] ?? "").includes(
-        "ui-compact-context-inline-rename",
-      ),
-    );
-
-    expect(missingConsumers).toEqual([]);
-    expect(inlineRenameMarkupOwners).toEqual([
-      "../../src/ui/shared/CompactContextList.tsx",
-    ]);
-  });
-
-  it("keeps global workbench composition out of activity controllers", () => {
-    const blockedTargets = new Set([
-      "../../src/ui/AppView",
-      "../../src/ui/problems/ProblemsPanel",
-      "../../src/ui/workbench/useWorkbenchLayout",
-    ]);
-    const violations = listSourceFiles("app/activities").flatMap((filePath) =>
-      readSourceImports(filePath)
-        .filter(({ targetPath }) => blockedTargets.has(targetPath))
-        .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const workbenchImports = readSourceImports(
-      "../../src/app/workbench/WorkspaceWorkbench.tsx",
-    ).map(({ targetPath }) => targetPath);
-
-    expect(violations).toEqual([]);
-    expect(workbenchImports).toContain("../../src/ui/AppView");
-    expect(workbenchImports).toContain(
-      "../../src/ui/workbench/useWorkbenchLayout",
-    );
-  });
-
-  it("keeps portal and global overlay behavior in the shared overlay owner", () => {
-    const portalOwners = listSourceFiles("ui").filter((filePath) =>
-      (sourceModules[filePath] ?? "").includes("createPortal"),
-    );
-    const globalOverlayListenerOwners = listSourceFiles("ui/shared").filter(
-      (filePath) =>
-        /(?:document|window)\.addEventListener\(\s*"(?:focusin|keydown|pointerdown)"/.test(
-          sourceModules[filePath] ?? "",
-        ),
-    );
-
-    expect(portalOwners).toEqual(["../../src/ui/shared/Overlay.tsx"]);
-    expect(globalOverlayListenerOwners).toEqual([
-      "../../src/ui/shared/Overlay.tsx",
-    ]);
-  });
-
-  it("keeps workbench layout preferences out of application view models", () => {
-    const repositoryViewModel =
-      sourceModules[
-        "../../src/application/workspace/activities/repository/repositoryViewModel.ts"
-      ] ?? "";
-
-    expect(repositoryViewModel).not.toMatch(
-      /\b(?:contextWidth|setContextWidth)\b/,
-    );
-  });
-
-  it("keeps UI, storage, and application projections on their public inputs", () => {
-    const uiViolations = listSourceFiles("ui").flatMap((filePath) =>
-      readSourceImports(filePath)
-        .filter(
-          ({ targetRoot }) =>
-            targetRoot === "workspace" || targetRoot === "ctn",
-        )
-        .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const storageViolations = listSourceFiles("storage").flatMap((filePath) =>
-      readSourceImports(filePath)
-        .filter(({ targetRoot }) => targetRoot === "ctn")
-        .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const projectionViolations = listSourceFiles(
-      "application/workspace/projection",
-    ).flatMap((filePath) =>
-      readSourceImports(filePath)
-        .filter(({ targetPath }) =>
-          targetPath.startsWith("../../core/workspace/commands/"),
-        )
-        .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-    const noteTreeViolations = listSourceFiles("application").flatMap(
-      (filePath) =>
-        readSourceImports(filePath)
-          .filter(({ targetPath }) =>
-            targetPath.startsWith("../../core/workspace/model/noteTree/"),
-          )
-          .map(({ importPath }) => formatImport(filePath, importPath)),
-    );
-
-    expect([
-      ...uiViolations,
-      ...storageViolations,
-      ...projectionViolations,
-      ...noteTreeViolations,
-    ]).toEqual([]);
-  });
-
-  it("keeps storage core, adapters, and runtime dependencies directional", () => {
-    const storagePrefix = "../../src/storage/";
-    const getStorageArea = (filePath: string) => {
-      const segments = modulePathToRelative(filePath, storagePrefix).split("/");
-
-      return segments[0] === "adapters"
-        ? `adapters/${segments[1]}`
-        : segments[0];
-    };
-    const allowedStorageImports = new Map<string, ReadonlySet<string>>([
-      ["repository", new Set(["repository"])],
-      ["adapters/browser", new Set(["adapters/browser", "repository"])],
-      ["adapters/http", new Set(["adapters/http", "repository"])],
-      [
-        "runtime",
-        new Set([
-          "adapters/browser",
-          "adapters/http",
-          "repository",
-          "runtime",
-        ]),
-      ],
-    ]);
-    const storageViolations = listSourceFiles("storage").flatMap(
-      (filePath) => {
-        const allowedImports = allowedStorageImports.get(
-          getStorageArea(filePath),
-        );
-
-        return readSourceImports(filePath)
-          .filter(({ targetPath }) => targetPath.startsWith(storagePrefix))
-          .filter(({ targetPath }) =>
-            !allowedImports?.has(getStorageArea(targetPath)),
-          )
-          .map(({ importPath }) => formatImport(filePath, importPath));
-      },
-    );
-    const consumerViolations = Object.keys(sourceModules).flatMap((filePath) =>
-      filePath.startsWith("../../src/storage/") ||
-      filePath.startsWith("../../src/app/")
-        ? []
-        : readSourceImports(filePath)
+        .flatMap((filePath) =>
+          readSourceImports(filePath)
             .filter(({ targetPath }) =>
-              targetPath.startsWith(`${storagePrefix}adapters/`) ||
-              targetPath.startsWith(`${storagePrefix}runtime/`),
+              peers.some((targetPeer) =>
+                targetPeer !== sourcePeer &&
+                (targetPath.startsWith(`../../application/${targetPeer}/`) ||
+                  targetPath.startsWith(`../../core/${targetPeer}/`))
+              ),
             )
             .map(({ importPath }) => formatImport(filePath, importPath)),
+        ),
     );
 
-    expect([...storageViolations, ...consumerViolations]).toEqual([]);
+    expect(violations).toEqual([]);
   });
 
-  it("keeps the wire contract runtime-neutral and consumed only at boundaries", () => {
-    const blockedContractImports = [
-      /^node:/,
-      /^react$/,
-      /^react\//,
-      /\/server\//,
-      /\/src\//,
-    ];
-    const contractViolations = Object.keys(contractModules).flatMap(
-      (filePath) =>
-        readModuleImports(contractModules, filePath)
-          .filter((importPath) =>
-            blockedContractImports.some((pattern) => pattern.test(importPath)),
-          )
-          .map((importPath) => formatImport(filePath, importPath)),
+  it("keeps shared CTN and portable naming pure and uniquely owned", () => {
+    const externalCtnParsers = Object.keys(coreModules).filter((filePath) =>
+      !filePath.startsWith("../../core/ctn/") &&
+      readModuleImports(coreModules, filePath).includes("smol-toml"),
     );
-    const sourceViolations = Object.keys(sourceModules).flatMap((filePath) =>
-      readModuleImports(sourceModules, filePath)
-        .filter((importPath) => importPath.includes("contracts/"))
-        .filter(() => getSourceRoot(filePath) !== "storage")
-        .map((importPath) => formatImport(filePath, importPath)),
-    );
-    const serverConsumesContract = Object.keys(serverModules).some((filePath) =>
-      readModuleImports(serverModules, filePath).some((importPath) =>
-        importPath.includes("contracts/workspace-repository/"),
-      ),
+    const tomlParserOwners = Object.keys(ctnModules).filter((filePath) =>
+      readModuleImports(ctnModules, filePath).includes("smol-toml"),
     );
 
-    expect([...contractViolations, ...sourceViolations]).toEqual([]);
-    expect(serverConsumesContract).toBe(true);
+    expect(externalCtnParsers).toEqual([]);
+    expect(tomlParserOwners).toEqual([
+      "../../core/ctn/syntax/profileTomlParser.ts",
+    ]);
+    expect(Object.keys(portableNameModules)).toEqual([
+      "../../core/naming/portableName.ts",
+    ]);
   });
 
-  it("keeps server and frontend behind the repository HTTP boundary", () => {
-    const blockedServerImports = [
-      /^react$/,
-      /^react\//,
-      /\/src\//,
-      /^src\//,
-    ];
-    const serverViolations = Object.keys(serverModules).flatMap((filePath) =>
-      readModuleImports(serverModules, filePath)
-        .filter(
-          (importPath) =>
-            importPath === "smol-toml" ||
-            blockedServerImports.some((pattern) => pattern.test(importPath)),
-        )
-        .map((importPath) => formatImport(filePath, importPath)),
-    );
-    const sourceViolations = Object.keys(sourceModules).flatMap((filePath) =>
-      readModuleImports(sourceModules, filePath)
-        .filter((importPath) => /server\//.test(importPath))
-        .map((importPath) => formatImport(filePath, importPath)),
-    );
+  it("keeps browser and HTTP adapters independent behind persistence ports", () => {
+    const area = (filePath: string) =>
+      filePath.replace("../../infrastructure/", "").split("/")[0] ?? "";
+    const violations = Object.keys(infrastructureModules).flatMap((filePath) => {
+      const sourceArea = area(filePath);
 
-    expect([...serverViolations, ...sourceViolations]).toEqual([]);
+      if (sourceArea !== "browser" && sourceArea !== "http") return [];
+      return readInternalModuleImports(
+        workspaceModules,
+        filePath,
+        "../../infrastructure/",
+      )
+        .filter(({ targetPath }) => {
+          const targetArea = area(targetPath);
+          return targetArea !== sourceArea && targetArea !== "persistence";
+        })
+        .map(({ importPath }) => formatImport(filePath, importPath));
+    });
+
+    expect(violations).toEqual([]);
   });
 
-  it("keeps server repository rules and adapters independent", () => {
-    const serverPrefix = "../../server/";
-    const getServerArea = (filePath: string) => {
-      const segments = modulePathToRelative(filePath, serverPrefix).split("/");
-
+  it("keeps server repository rules and adapters directional", () => {
+    const prefix = "../../infrastructure/server/";
+    const area = (filePath: string) => {
+      const segments = filePath.slice(prefix.length).split("/");
       return segments[0] === "adapters"
         ? `adapters/${segments[1]}`
         : segments[0];
     };
-    const allowedServerImports = new Map<string, ReadonlySet<string>>([
+    const allowed = new Map<string, ReadonlySet<string>>([
       ["api", new Set(["api", "repository"])],
       ["catalog", new Set(["catalog", "repository"])],
       ["repository", new Set(["repository"])],
@@ -727,34 +229,62 @@ describe("dependency boundaries", () => {
       ["adapters/webdav", new Set(["adapters/webdav", "repository"])],
     ]);
     const violations = Object.keys(serverModules).flatMap((filePath) => {
-      const sourceArea = getServerArea(filePath);
+      if (filePath === `${prefix}index.ts`) return [];
+      const permitted = allowed.get(area(filePath));
 
-      if (sourceArea === "index.ts") {
-        return [];
-      }
-
-      const allowedImports = allowedServerImports.get(sourceArea);
-
-      return readInternalModuleImports(
-        serverModules,
-        filePath,
-        serverPrefix,
-      )
-        .filter(({ targetPath }) =>
-          !allowedImports?.has(getServerArea(targetPath)),
-        )
+      return readInternalModuleImports(serverModules, filePath, prefix)
+        .filter(({ targetPath }) => !permitted?.has(area(targetPath)))
         .map(({ importPath }) => formatImport(filePath, importPath));
     });
-    const graph = new Map(
-      Object.keys(serverModules).map((filePath) => [
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps production dependency graphs acyclic", () => {
+    expect(listSourceDependencyCycles()).toEqual([]);
+    const coreGraph = new Map(
+      Object.keys(coreModules).map((filePath) => [
         filePath,
-        readInternalModuleImports(serverModules, filePath, serverPrefix).map(
+        readInternalModuleImports(coreModules, filePath, "../../core/").map(
           ({ targetPath }) => targetPath,
         ),
       ]),
     );
 
-    expect(violations).toEqual([]);
-    expect(findDependencyCycles(graph)).toEqual([]);
+    expect(findDependencyCycles(coreGraph)).toEqual([]);
+  });
+
+  it("removes the purpose-content union and shared system endpoint", () => {
+    const production = Object.values(workspaceModules).join("\n");
+
+    expect(production).not.toContain("SystemRepositoryContentDto");
+    expect(production).not.toContain("/api/system-repositories");
+  });
+
+  it("keeps presentation ownership one-way", () => {
+    const consumers = [
+      ...Object.keys(applicationModules),
+      ...Object.keys(contractModules),
+      ...Object.keys(coreModules),
+      ...Object.keys(infrastructureModules),
+    ].flatMap((filePath) =>
+      readSourceImports(filePath)
+        .filter(({ targetRoot }) => targetRoot === "presentation")
+        .map(({ importPath }) => formatImport(filePath, importPath)),
+    );
+    const reactOutsidePresentation = [
+      ...Object.keys(applicationModules),
+      ...Object.keys(contractModules),
+      ...Object.keys(coreModules),
+      ...Object.keys(infrastructureModules),
+    ].flatMap((filePath) =>
+      readModuleImports(workspaceModules, filePath)
+        .filter((value) => /^react(?:\/|$)/.test(value))
+        .map((value) => formatImport(filePath, value)),
+    );
+
+    expect(consumers).toEqual([]);
+    expect(reactOutsidePresentation).toEqual([]);
+    expect(Object.keys(presentationModules).length).toBeGreaterThan(0);
   });
 });

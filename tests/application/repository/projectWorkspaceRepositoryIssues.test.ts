@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { projectWorkspaceRepositoryRuntimeIssues } from "../../../src/application/repository/projectWorkspaceRepositoryIssues";
-import type { RepositoryApplication } from "../../../src/application/repository/repositoryApplication";
+import { projectWorkspaceRepositoryRuntimeIssues } from "../../../application/repository/projectWorkspaceRepositoryIssues";
+import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 
 const descriptor = {
   adapter: "local" as const,

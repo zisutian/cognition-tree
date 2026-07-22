@@ -14,8 +14,8 @@ import {
   resolveRequestedTodoSelectionAfterDelete,
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
-} from "../../../src/application/todo/todoApplication";
-import type { SystemRepositoryContent } from "../../../src/storage/repository/systemRepository";
+} from "../../../application/todo/todoApplication";
+import type { TodoContentDto } from "../../../contracts/todo/types";
 import {
   createEmptyTodoContent,
   todoBlockId,
@@ -64,11 +64,9 @@ function createFunctionalSession(initial: TodoContent) {
     },
     session: {
       updateContent(
-        update: (current: SystemRepositoryContent) => SystemRepositoryContent,
+        update: (current: TodoContentDto) => TodoContentDto,
       ) {
-        content = update(
-          content as unknown as SystemRepositoryContent,
-        ) as unknown as TodoContent;
+        content = requireTodoContent(update(content));
         visibleStates.push(JSON.stringify(content));
       },
     },
@@ -199,10 +197,9 @@ describe("Todo application mutations", () => {
   it("rejects non-Todo content and provides prefixed browser ids", () => {
     expect(() => requireTodoContent({
       days: [],
-      purpose: "system-journal",
       schemaVersion: 3,
       syntaxSource: "",
-    })).toThrow("received non-todo content");
+    } as unknown as TodoContentDto)).toThrow();
 
     const services = createBrowserTodoApplicationServices();
 

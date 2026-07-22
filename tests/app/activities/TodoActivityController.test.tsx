@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   resolveTodoRetry,
   TodoActivityController,
-} from "../../../src/app/activities/TodoActivityController";
-import type { WorkbenchApplication } from "../../../src/application/workbench/workbenchApplication";
+} from "../../../presentation/activities/controllers/TodoActivityController";
+import type { WorkbenchApplication } from "../../../presentation/shell/workbench/workbenchApplication";
 import { createView } from "../../ui/viewFactory";
 
 const controls = {
@@ -75,7 +75,7 @@ describe("TodoActivityController", () => {
   });
 
   it("retries a faulted Todo descriptor through the system catalog", async () => {
-    const retryRepository = vi.fn(async () => undefined);
+    const retryBuiltIn = vi.fn(async () => undefined);
     const reload = vi.fn(async () => undefined);
     const retry = resolveTodoRetry(
       { reload: vi.fn(async () => undefined), status: "unavailable" },
@@ -83,28 +83,27 @@ describe("TodoActivityController", () => {
         catalog: {
           catalogLabel: "内置仓库",
           reload,
-          retryRepository,
+          retry: retryBuiltIn,
           state: {
             issues: [{
               code: "repository_corrupt",
-              id: "system-todo",
+              id: "todo",
               location: null,
               message: "代办仓库损坏。",
               status: "fault",
             }],
             repositories: [],
-            retryingPurpose: null,
+            retryingId: null,
             status: "ready",
           },
         },
-        repositories: {},
-        sessions: {} as WorkbenchApplication["repository"]["systems"]["sessions"],
+        sessions: {} as WorkbenchApplication["repository"]["builtIns"]["sessions"],
       },
     );
 
     await retry?.();
 
-    expect(retryRepository).toHaveBeenCalledWith("system-todo");
+    expect(retryBuiltIn).toHaveBeenCalledWith("todo");
     expect(reload).not.toHaveBeenCalled();
   });
 });

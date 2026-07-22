@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryContentDto } from "../../../contracts/workspace-repository/types";
-import { createWorkspaceRepositoryRevision } from "../../../src/storage/repository/workspaceRepositoryRevision";
+import { createWorkspaceRepositoryRevision } from "../../../infrastructure/persistence/workspaceRepositoryRevision";
 
 function createContent(): WorkspaceRepositoryContentDto {
   return {

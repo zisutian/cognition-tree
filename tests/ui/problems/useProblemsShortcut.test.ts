@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isWorkbenchProblemsShortcut,
   shouldHandleWorkbenchProblemsShortcut,
-} from "../../../src/ui/problems/useProblemsShortcut";
+} from "../../../presentation/ui/problems/useProblemsShortcut";
 
 function createKeys(overrides: Partial<KeyboardEvent> = {}) {
   return {

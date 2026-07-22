@@ -5,19 +5,15 @@ import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import {
   createWorkspaceApiRequestHandler,
-} from "../../server/api/workspaceApiServer.ts";
+} from "../../infrastructure/server/api/workspaceApiServer.ts";
 import {
   createWorkspaceApiSecurityPolicy,
-} from "../../server/api/workspaceApiSecurity.ts";
-import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
-import { WebDavConnectionRegistry } from "../../server/adapters/webdav/webDavConnectionRegistry.ts";
-import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
-import { SystemRepositoryCatalog } from "../../server/repository/systemRepositoryCatalog.ts";
-import {
-  validateSystemRepositoryContent,
-  validateSystemRepositoryTransition,
-} from "../../server/repository/systemRepositoryStore.ts";
-import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog.ts";
+} from "../../infrastructure/server/api/workspaceApiSecurity.ts";
+import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
+import { WebDavConnectionRegistry } from "../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
+import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
+import { BuiltInCatalog } from "../../infrastructure/server/repository/builtInCatalog.ts";
+import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3317");
@@ -49,18 +45,15 @@ const webDavRegistry = new WebDavConnectionRegistry({
   stateDirectory: serverStateDir,
 });
 const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
-const systemCatalog = new SystemRepositoryCatalog(serverStateDir, {
-  validateContent: validateSystemRepositoryContent,
-  validateTransition: validateSystemRepositoryTransition,
-});
+const builtInCatalog = new BuiltInCatalog(serverStateDir);
 
 await catalog.initialize();
-await systemCatalog.initialize();
+await builtInCatalog.initialize();
 
 const workspaceApiHandler = createWorkspaceApiRequestHandler({
   catalog,
   security,
-  systemCatalog,
+  builtInCatalog,
 });
 
 async function readSeedRequest(request: IncomingMessage) {

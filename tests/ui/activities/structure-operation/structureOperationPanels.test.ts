@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   getStructureOperationDirectoryNoteStatus,
-} from "../../../../src/ui/activities/structure-operation/StructureOperationContext";
-import { findBlockByLineNumber } from "../../../../src/ui/activities/structure-operation/structureOperationBlocks";
-import { createStructureBlockMoveOptions } from "../../../../src/ui/activities/structure-operation/StructureBlockMoveQuickPick";
+} from "../../../../presentation/activities/views/structure-operation/StructureOperationContext";
+import { findBlockByLineNumber } from "../../../../presentation/activities/views/structure-operation/structureOperationBlocks";
+import { createStructureBlockMoveOptions } from "../../../../presentation/activities/views/structure-operation/StructureBlockMoveQuickPick";
 import {
   canDropStructureBlockAtEnd,
   canDropStructureBlockOnLine,
   getBlockedStructureDropLineNumbers,
   getStructureBlockDropPosition,
   getStructureRowDropPlacement,
-} from "../../../../src/ui/activities/structure-operation/structureOperationDropTargets";
+} from "../../../../presentation/activities/views/structure-operation/structureOperationDropTargets";
 
 describe("structure operation panels", () => {
   it("hides stale target status while selecting a new structure operation target", () => {

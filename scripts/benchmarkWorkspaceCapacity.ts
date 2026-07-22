@@ -18,24 +18,24 @@ import {
 import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,
-} from "../server/adapters/local/workspaceFileStore.ts";
+} from "../infrastructure/server/adapters/local/workspaceFileStore.ts";
 import {
   WebDavRequestError,
   type WebDavCollectionCreationResult,
   type WebDavCollectionEntry,
   type WebDavTransport,
   type WebDavWriteConditions,
-} from "../server/adapters/webdav/webDavTransport.ts";
-import { WebDavWorkspaceStore } from "../server/adapters/webdav/webDavWorkspaceStore.ts";
-import { createWorkspaceRepositoryRevision } from "../server/repository/workspaceRepositoryRevision.ts";
-import { createUiOutlineNodes } from "../src/application/workspace/projection/viewBlocks.ts";
-import { createUiNoteTree } from "../src/application/workspace/projection/viewTree.ts";
+} from "../infrastructure/server/adapters/webdav/webDavTransport.ts";
+import { WebDavWorkspaceStore } from "../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
+import { createWorkspaceRepositoryRevision } from "../infrastructure/server/repository/workspaceRepositoryRevision.ts";
+import { createUiOutlineNodes } from "../application/workspace/projection/viewBlocks.ts";
+import { createUiNoteTree } from "../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../core/ctn/metadata/blockMetadata.ts";
 import { createCtnEditableSource } from "../core/ctn/metadata/editableSource.ts";
 import { defaultCtnSyntaxProfile } from "../core/ctn/syntax/defaultSyntaxProfile.ts";
-import { createIndexedDbRepositoryClientCache } from "../src/storage/adapters/browser/browserRepositoryClientCache.ts";
-import { createHttpWorkspaceRepositoryBackend } from "../src/storage/adapters/http/httpWorkspaceRepository.ts";
-import { WorkspaceRepositoryLocalConflictError } from "../src/storage/repository/workspaceRepository.ts";
+import { createIndexedDbRepositoryClientCache } from "../infrastructure/browser/browserRepositoryClientCache.ts";
+import { createHttpWorkspaceRepositoryBackend } from "../infrastructure/http/httpWorkspaceRepository.ts";
+import { WorkspaceRepositoryLocalConflictError } from "../application/repository/workspaceRepository.ts";
 import { createDefaultWorkspaceSyntaxSource } from "../core/workspace/context/workspaceSyntax.ts";
 import { updateWorkspaceNoteSource } from "../core/workspace/commands/workspaceCommands.ts";
 import { createWorkspaceParseIndex } from "../core/workspace/indexes/workspaceParseIndex.ts";

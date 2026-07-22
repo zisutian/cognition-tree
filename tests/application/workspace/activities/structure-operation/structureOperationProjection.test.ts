@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStructureOperationProjection } from "../../../../../src/application/workspace/activities/structure-operation/structureOperationProjection";
+import { createStructureOperationProjection } from "../../../../../application/workspace/activities/structure-operation/structureOperationProjection";
 import { defaultCtnSyntaxProfile } from "../../../../../core/ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";

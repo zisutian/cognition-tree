@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { WorkspaceUnavailablePanel } from "../../src/ui/activities/WorkspaceUnavailablePanel";
+import { WorkspaceUnavailablePanel } from "../../presentation/activities/views/WorkspaceUnavailablePanel";
 
 describe("workspace unavailable activity", () => {
   it("keeps a repository entry point when no ordinary repository exists", () => {

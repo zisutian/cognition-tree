@@ -9,7 +9,7 @@ import {
   CompactContextList,
   CompactContextRow,
   CompactContextStaticRow,
-} from "../../../src/ui/shared/CompactContextList";
+} from "../../../presentation/ui/shared/CompactContextList";
 
 describe("compact context lists", () => {
   it("shares group, selected-row, icon, metadata, and action structure", () => {

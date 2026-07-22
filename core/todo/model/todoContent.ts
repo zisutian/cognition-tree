@@ -17,7 +17,6 @@ import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
 import { getPortableNameIssue } from "../../naming/portableName.ts";
 import { requireTodoSyntaxProfile } from "../syntax/todoSyntax.ts";
 
-export const todoRepositoryPurpose = "system-todo" as const;
 export const todoRepositorySchemaVersion = 3 as const;
 export const todoItemSemanticType = "todo-item";
 
@@ -35,7 +34,6 @@ export type TodoCollection = {
 };
 
 export type TodoContent = {
-  purpose: typeof todoRepositoryPurpose;
   schemaVersion: typeof todoRepositorySchemaVersion;
   syntaxSource: string;
   collections: TodoCollection[];
@@ -148,11 +146,6 @@ export function parseTodoCollection(
 }
 
 export function validateTodoContent(content: TodoContentValue): TodoContent {
-  if (content.purpose !== todoRepositoryPurpose) {
-    throw new TodoContentValidationError(
-      `Todo purpose must be ${todoRepositoryPurpose}.`,
-    );
-  }
   if (content.schemaVersion !== todoRepositorySchemaVersion) {
     throw new TodoContentValidationError(
       `Todo schema version must be ${todoRepositorySchemaVersion}.`,

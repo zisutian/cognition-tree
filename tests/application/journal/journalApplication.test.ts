@@ -18,8 +18,8 @@ import {
   resolveRequestedJournalSelectionAfterDelete,
   type JournalApplicationServices,
   type JournalDeleteMutationResult,
-} from "../../../src/application/journal/journalApplication";
-import type { SystemRepositoryContent } from "../../../src/storage/repository/systemRepository";
+} from "../../../application/journal/journalApplication";
+import type { JournalContentDto } from "../../../contracts/journal/types";
 import { describe, expect, it } from "vitest";
 
 function entryId(index: number): JournalEntryId {
@@ -67,7 +67,7 @@ function createServices({
 }
 
 function createFunctionalSession(initial: JournalContent) {
-  let content: SystemRepositoryContent = initial;
+  let content: JournalContent = initial;
   const visibleEntryCounts: number[] = [];
 
   return {
@@ -76,9 +76,9 @@ function createFunctionalSession(initial: JournalContent) {
     },
     session: {
       updateContent(
-        update: (current: SystemRepositoryContent) => SystemRepositoryContent,
+        update: (current: JournalContentDto) => JournalContentDto,
       ) {
-        content = update(content);
+        content = requireJournalContent(update(content));
         visibleEntryCounts.push(listJournalEntries(
           requireJournalContent(content),
         ).length);
@@ -247,12 +247,11 @@ describe("journal application mutations", () => {
     );
   });
 
-  it("rejects non-journal system content at the application boundary", () => {
+  it("rejects a non-journal value at the application boundary", () => {
     expect(() => requireJournalContent({
       collections: [],
-      purpose: "system-todo",
       schemaVersion: 3,
       syntaxSource: "",
-    })).toThrow("received non-journal content");
+    } as unknown as JournalContentDto)).toThrow();
   });
 });

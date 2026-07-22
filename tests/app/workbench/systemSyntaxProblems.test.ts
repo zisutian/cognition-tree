@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   openWorkbenchProblem,
   selectWorkbenchProblems,
-} from "../../../src/app/workbench/WorkbenchProblemsController";
-import { createUiWorkbenchDiagnostics } from "../../../src/application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchDiagnostic } from "../../../src/application/workspace/projection/viewDiagnostics";
+} from "../../../presentation/shell/workbench/WorkbenchProblemsController";
+import { createUiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
+import type { UiWorkbenchDiagnostic } from "../../../application/workspace/projection/viewDiagnostics";
 
 const systemSyntaxDiagnostic: UiWorkbenchDiagnostic = {
   code: "required",
@@ -32,7 +32,7 @@ describe("system syntax problems", () => {
         diagnostics: [systemSyntaxDiagnostic],
         status: "ready",
       },
-      systemIssues: [],
+      builtInIssues: [],
     })).toEqual({
       errorCount: 1,
       problems: [systemSyntaxDiagnostic],
@@ -54,7 +54,7 @@ describe("system syntax problems", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       syntaxNavigation: { openSystemSyntax },
       workspaceNavigation: null,

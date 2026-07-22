@@ -9,7 +9,7 @@ import {
   type RepositoryNoteDto,
   type RepositoryTreeNodeDto,
 } from "../../contracts/workspace-repository/types";
-import type { CreateLocalRepositoryWithId } from "../../server/adapters/local/localRepositoryCatalog";
+import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/adapters/local/localRepositoryCatalog";
 import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
 import {

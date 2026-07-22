@@ -2,7 +2,7 @@
 
 import {
   LocalRepositoryCatalog,
-} from "../../../../server/adapters/local/localRepositoryCatalog.ts";
+} from "../../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 
 const [, , rootDir] = process.argv;
 

@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { serializeJsonIteratively } from "../common/json.ts";
+import type { TodoContentDto } from "./types.ts";
+
+export function serializeTodoRevisionContent(content: TodoContentDto) {
+  return serializeJsonIteratively(content, { sortObjectKeys: true });
+}

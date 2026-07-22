@@ -5,7 +5,7 @@ import {
   createJournalDiagnostics,
   createJournalDocumentDiagnostics,
   createJournalReferenceDiagnostics,
-} from "../../../src/application/journal/journalDiagnostics";
+} from "../../../application/journal/journalDiagnostics";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,

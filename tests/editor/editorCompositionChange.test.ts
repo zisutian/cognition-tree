@@ -1,6 +1,6 @@
 import { ChangeSet, type ChangeSpec } from "@codemirror/state";
 import { describe, expect, it, vi } from "vitest";
-import { createEditorCompositionChange } from "../../src/editor/editorCompositionChange";
+import { createEditorCompositionChange } from "../../presentation/editor/editorCompositionChange";
 
 function documentChange({
   changes,

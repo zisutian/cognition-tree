@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { webDavLockPath } from "../../../../server/adapters/webdav/webDavControlFiles.ts";
+import { webDavLockPath } from "../../../../infrastructure/server/adapters/webdav/webDavControlFiles.ts";
 import {
   WebDavWriterLeaseCoordinator,
-} from "../../../../server/adapters/webdav/webDavWriterLease.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavWriterLease.ts";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport.ts";
 
 describe("WebDAV writer lease coordinator", () => {

@@ -31,7 +31,6 @@ export function todoTimestamp(hour: number) {
 export function createEmptyTodoContent(): TodoContent {
   return {
     collections: [],
-    purpose: "system-todo",
     schemaVersion: 3,
     syntaxSource: defaultTodoSyntaxSourceV3,
   };

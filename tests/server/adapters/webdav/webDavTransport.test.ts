@@ -4,7 +4,7 @@ import {
   probeWebDavCapabilities,
   WebDavCapabilityError,
   type WebDavTransport,
-} from "../../../../server/adapters/webdav/webDavTransport.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport";
 
 describe("WebDAV HTTP transport", () => {

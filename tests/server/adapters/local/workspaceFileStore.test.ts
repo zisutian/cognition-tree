@@ -28,18 +28,18 @@ import type {
 import {
   localRepositoryDeletionPhases,
   LocalRepositoryCatalog,
-} from "../../../../server/adapters/local/localRepositoryCatalog.ts";
+} from "../../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import {
   workspaceCommitPhases,
   type WorkspaceCommitPhase,
-} from "../../../../server/adapters/local/workingTreeTransaction.ts";
+} from "../../../../infrastructure/server/adapters/local/workingTreeTransaction.ts";
 import {
   createWorkspaceFileRepository,
   WorkspaceFileStore,
-} from "../../../../server/adapters/local/workspaceFileStore.ts";
+} from "../../../../infrastructure/server/adapters/local/workspaceFileStore.ts";
 import {
   RepositoryCorruptError,
-} from "../../../../server/repository/repositoryStore.ts";
+} from "../../../../infrastructure/server/repository/repositoryStore.ts";
 
 const initialTimestamp = "2026-07-16T00:00:00.000Z";
 const changedTimestamp = "2026-07-16T01:00:00.000Z";

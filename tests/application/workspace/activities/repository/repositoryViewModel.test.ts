@@ -9,11 +9,10 @@ import {
   projectRepositoryLocation,
   repositorySelectionExists,
   requiresManualLocalDeletion,
-} from "../../../../../src/application/workspace/activities/repository/repositoryViewModel";
-import type { RepositoryApplication } from "../../../../../src/application/repository/repositoryApplication";
-import type { WorkspacePersistenceState } from "../../../../../src/application/workspace/session/workspaceSessionSaveQueue";
+} from "../../../../../application/workspace/activities/repository/repositoryViewModel";
+import type { RepositoryApplication } from "../../../../../application/repository/repositoryApplication";
+import type { WorkspacePersistenceState } from "../../../../../application/workspace/session/workspaceSessionSaveQueue";
 import { remoteRevision } from "../../session/workspaceSessionTestFixture";
-import { createEmptySystemRepositoryContent } from "../../../../../contracts/system-repository/parseRepository";
 
 function createSource(
   persistence: WorkspacePersistenceState = { status: "saved" },
@@ -29,8 +28,7 @@ function createSource(
     },
     labelIssue: null,
   };
-  const reloadSystemRepository = vi.fn(async () => undefined);
-  const journalContent = createEmptySystemRepositoryContent("system-journal");
+  const reloadBuiltIn = vi.fn(async () => undefined);
 
   return {
     activeDescriptor: descriptor,
@@ -51,7 +49,7 @@ function createSource(
       focusOrdinaryIssue: vi.fn(),
       focusOrdinaryRepository: vi.fn(),
       focusRequest: null,
-      focusSystemRepository: vi.fn(),
+      focusBuiltIn: vi.fn(),
     },
     refreshRepositories: vi.fn(async () => undefined),
     renameRepository: vi.fn(async () => undefined),
@@ -63,69 +61,46 @@ function createSource(
       storageLabel: "本地仓库",
     },
     selectRepository: vi.fn(async () => undefined),
-    systems: {
+    builtIns: {
       catalog: {
-        catalogLabel: "内置仓库",
+        catalogLabel: "内置数据",
         reload: vi.fn(async () => undefined),
-        retryRepository: vi.fn(async () => undefined),
+        retry: vi.fn(async () => undefined),
         state: {
           issues: [],
           repositories: [
             {
-              id: "system-journal",
+              id: "journal",
               label: "日记",
               location: {
-                serverPath: "/state/system-journal.json",
+                serverPath: "/state/built-ins/journal/content.json",
                 type: "server",
               },
               protected: true,
             },
             {
-              id: "system-todo",
+              id: "todo",
               label: "代办",
               location: {
-                serverPath: "/state/system-todo.json",
+                serverPath: "/state/built-ins/todo/content.json",
                 type: "server",
               },
               protected: true,
             },
           ],
-          retryingPurpose: null,
+          retryingId: null,
           status: "ready",
         },
       },
-      repositories: {},
       sessions: {
-        "system-journal": {
+        journal: {
           discardPendingChangesAndReload: vi.fn(async () => undefined),
-          flushPendingChanges: vi.fn(async () => undefined),
-          reload: reloadSystemRepository,
-          repository: null,
+          persistence: { status: "saved" },
+          reload: reloadBuiltIn,
           requestSync: vi.fn(),
-          state: {
-            content: journalContent,
-            persistence: { status: "saved" },
-            purpose: "system-journal",
-            snapshot: {
-              conflictRevision: null,
-              content: journalContent,
-              localRevision: "draft:journal",
-              pendingChanges: false,
-              remoteRevision: "sha256:journal",
-            },
-            status: "ready",
-          },
-          updateContent: vi.fn(),
+          status: "ready",
         },
-        "system-todo": {
-          discardPendingChangesAndReload: vi.fn(async () => undefined),
-          flushPendingChanges: vi.fn(async () => undefined),
-          reload: reloadSystemRepository,
-          repository: null,
-          requestSync: vi.fn(),
-          state: { purpose: "system-todo", status: "loading" },
-          updateContent: vi.fn(),
-        },
+        todo: { status: "loading" },
       },
     },
   };
@@ -159,9 +134,9 @@ describe("repository view model", () => {
       kind: "ordinary-repository",
     })).toEqual({ id: "primary", kind: "ordinary-repository" });
     expect(projectRepositoryFocusSelection({
-      id: "system-todo",
-      kind: "system-repository",
-    })).toEqual({ id: "system-todo", kind: "system-repository" });
+      id: "todo",
+      kind: "built-in",
+    })).toEqual({ id: "todo", kind: "built-in" });
     expect(createDefaultRepositorySelection(view)).toEqual({
       id: "primary",
       kind: "ordinary-repository",
@@ -365,30 +340,30 @@ describe("repository view model", () => {
       ],
       persistenceStatusLabel: "仓库内容已更改",
       storageLabel: "本地",
-      systemCatalogErrorMessage: "",
-      systemCatalogStatus: "ready",
-      systemIssues: [],
-      systemRepositories: [
+      builtInCatalogErrorMessage: "",
+      builtInCatalogStatus: "ready",
+      builtInIssues: [],
+      builtIns: [
         expect.objectContaining({
-          id: "system-journal",
+          id: "journal",
           label: "日记",
           locationRows: [{
-            copyValue: "/state/system-journal.json",
+            copyValue: "/state/built-ins/journal/content.json",
             label: "服务端路径",
-            value: "/state/system-journal.json",
+            value: "/state/built-ins/journal/content.json",
           }],
           protected: true,
           sessionStatus: "ready",
         }),
         expect.objectContaining({
-          id: "system-todo",
+          id: "todo",
           label: "代办",
           protected: true,
           sessionStatus: "loading",
           statusLabel: "正在载入",
         }),
       ],
-      retryingSystemPurpose: null,
+      retryingBuiltInId: null,
     });
     expect(view.createRepository).toBe(source.createRepository);
     expect(view.deleteRepository).toBe(source.deleteRepository);
@@ -473,23 +448,23 @@ describe("repository view model", () => {
       repositories: [],
     };
     source.session = { status: "absent" };
-    if (source.systems.catalog.state.status !== "ready") {
-      throw new Error("Expected ready system catalog fixture.");
+    if (source.builtIns.catalog.state.status !== "ready") {
+      throw new Error("Expected ready built-in catalog fixture.");
     }
-    source.systems.catalog.state = {
-      ...source.systems.catalog.state,
+    source.builtIns.catalog.state = {
+      ...source.builtIns.catalog.state,
       issues: [{
         code: "repository_corrupt",
-        id: "system-journal",
+        id: "journal",
         location: {
-          serverPath: "/state/system-journal.json",
+          serverPath: "/state/built-ins/journal/content.json",
           type: "server",
         },
         message: "日记仓库损坏。",
         status: "fault",
       }],
-      repositories: source.systems.catalog.state.repositories.filter(
-        ({ id }) => id !== "system-journal",
+      repositories: source.builtIns.catalog.state.repositories.filter(
+        ({ id }) => id !== "journal",
       ),
     };
 
@@ -502,9 +477,9 @@ describe("repository view model", () => {
       deletionBlocked: false,
       persistenceStatusLabel: "未挂载",
       repositories: [],
-      systemIssues: [expect.objectContaining({
-        displayLabel: "日记 · 内置仓库",
-        id: "system-journal",
+      builtInIssues: [expect.objectContaining({
+        displayLabel: "日记 · 内置数据",
+        id: "journal",
         label: "日记",
       })],
     });
@@ -512,28 +487,25 @@ describe("repository view model", () => {
       { label: "本地", value: "local" },
       { label: "WebDAV", value: "webdav" },
     ]);
-    expect(view.retrySystemRepository).toBe(
-      source.systems.catalog.retryRepository,
+    expect(view.retryBuiltIn).toBe(
+      source.builtIns.catalog.retry,
     );
   });
 
-  it("does not report conflicted or failed system persistence as available", async () => {
+  it("does not report conflicted or failed built-in persistence as available", async () => {
     const source = createSource();
-    const journal = source.systems.sessions["system-journal"];
+    const journal = source.builtIns.sessions["journal"];
 
-    if (journal.state.status !== "ready") {
+    if (journal.status !== "ready") {
       throw new Error("Expected ready journal fixture.");
     }
-    journal.state = {
-      ...journal.state,
-      persistence: {
-        remoteRevision: "sha256:remote-journal",
-        status: "conflict",
-      },
+    journal.persistence = {
+      remoteRevision: "sha256:remote-journal",
+      status: "conflict",
     };
     let view = createRepositoryViewModel(source);
-    let projectedJournal = view.systemRepositories.find(
-      ({ id }) => id === "system-journal",
+    let projectedJournal = view.builtIns.find(
+      ({ id }) => id === "journal",
     );
 
     expect(projectedJournal).toMatchObject({
@@ -546,18 +518,15 @@ describe("repository view model", () => {
     await projectedJournal?.recoveryAction?.run();
     expect(journal.discardPendingChangesAndReload).toHaveBeenCalledOnce();
 
-    journal.state = {
-      ...journal.state,
-      persistence: {
-        localCopySafe: true,
-        message: "remote sync failed",
-        phase: "sync",
-        status: "error",
-      },
+    journal.persistence = {
+      localCopySafe: true,
+      message: "remote sync failed",
+      phase: "sync",
+      status: "error",
     };
     view = createRepositoryViewModel(source);
-    projectedJournal = view.systemRepositories.find(
-      ({ id }) => id === "system-journal",
+    projectedJournal = view.builtIns.find(
+      ({ id }) => id === "journal",
     );
 
     expect(projectedJournal).toMatchObject({

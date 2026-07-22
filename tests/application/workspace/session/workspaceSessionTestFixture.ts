@@ -8,7 +8,7 @@ import type {
   RepositoryRevision,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
-} from "../../../../src/storage/repository/workspaceRepository";
+} from "../../../../application/repository/workspaceRepository";
 import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/textEdits";
 import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
 import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata";

@@ -7,10 +7,10 @@ import type {
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types";
-import { LocalRepositoryCatalog } from "../../../server/adapters/local/localRepositoryCatalog.ts";
-import { CompositeRepositoryCatalog } from "../../../server/catalog/compositeRepositoryCatalog.ts";
-import { RepositoryCatalogError } from "../../../server/repository/repositoryCatalog.ts";
-import type { WorkspaceRepositoryStore } from "../../../server/repository/repositoryStore.ts";
+import { LocalRepositoryCatalog } from "../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
+import { CompositeRepositoryCatalog } from "../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
+import { RepositoryCatalogError } from "../../../infrastructure/server/repository/repositoryCatalog.ts";
+import type { WorkspaceRepositoryStore } from "../../../infrastructure/server/repository/repositoryStore.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const firstUuid = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";

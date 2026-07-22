@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { UiReferenceGraphView } from "../../../../src/application/workspace/projection/viewGraph";
+import type { UiReferenceGraphView } from "../../../../application/workspace/projection/viewGraph";
 import {
   createVisibleReferenceGraph,
   findReferenceGraphNodeAtPoint,
   getReferenceGraphNodeRadius,
-} from "../../../../src/ui/activities/visualization/referenceGraphView";
+} from "../../../../presentation/activities/views/visualization/referenceGraphView";
 
 const graphEdges = [
   {

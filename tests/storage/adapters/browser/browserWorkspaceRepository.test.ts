@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RepositoryCatalogDto } from "../../../../contracts/workspace-repository/types";
-import type { BrowserRepositoryClientCache } from "../../../../src/storage/adapters/browser/browserRepositoryClientCache";
-import { createBrowserWorkspaceRepositoryCatalog } from "../../../../src/storage/adapters/browser/browserWorkspaceRepository";
-import { createMemoryRepositoryClientCache } from "../../../../src/storage/repository/repositoryClientCache";
-import { WorkspaceRepositoryLocalConflictError } from "../../../../src/storage/repository/workspaceRepository";
+import type { BrowserRepositoryClientCache } from "../../../../infrastructure/browser/browserRepositoryClientCache";
+import { createBrowserWorkspaceRepositoryCatalog } from "../../../../infrastructure/browser/browserWorkspaceRepository";
+import { createMemoryRepositoryClientCache } from "../../../../infrastructure/persistence/repositoryClientCache";
+import { WorkspaceRepositoryLocalConflictError } from "../../../../application/repository/workspaceRepository";
 import { createRepositoryContent } from "../../repositoryV3Fixtures";
 
 const uuidA = "00000000-0000-4000-8000-000000000001";

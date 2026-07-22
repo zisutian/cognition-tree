@@ -15,8 +15,8 @@ import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import {
   createTodoViewModel,
   getTodoPersistenceErrorMessage,
-} from "../../../src/application/todo/todoViewModel";
-import type { TodoMutationActions } from "../../../src/application/todo/todoApplication";
+} from "../../../application/todo/todoViewModel";
+import type { TodoMutationActions } from "../../../application/todo/todoApplication";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,

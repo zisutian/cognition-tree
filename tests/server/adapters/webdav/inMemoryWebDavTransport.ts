@@ -1,7 +1,7 @@
 import {
   WebDavRequestError,
   type WebDavTransport,
-} from "../../../../server/adapters/webdav/webDavTransport.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 
 type Resource = { etag: string; modifiedAt: number; source: string };
 

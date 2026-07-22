@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   createRepositoryConnectionKey,
   reuseUnchangedRepositoryDescriptors,
-} from "../../../../src/application/workspace/session/useRepositoryCatalog";
-import type { WorkspaceRepositoryDescriptor } from "../../../../src/storage/repository/workspaceRepositoryCatalog";
+} from "../../../../presentation/shell/bindings/application/workspace/session/useRepositoryCatalog";
+import type { WorkspaceRepositoryDescriptor } from "../../../../application/repository/workspaceRepositoryCatalog";
 
 const descriptor: WorkspaceRepositoryDescriptor = {
   adapter: "local",

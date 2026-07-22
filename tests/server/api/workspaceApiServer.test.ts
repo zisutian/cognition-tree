@@ -23,22 +23,18 @@ import type {
   WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace-repository/types";
-import { LocalRepositoryCatalog } from "../../../server/adapters/local/localRepositoryCatalog.ts";
+import { LocalRepositoryCatalog } from "../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import {
   createWorkspaceApiRequestHandler,
   type WorkspaceApiRequestHandler,
-} from "../../../server/api/workspaceApiServer.ts";
-import { createWorkspaceApiSecurityPolicy } from "../../../server/api/workspaceApiSecurity.ts";
-import { CompositeRepositoryCatalog } from "../../../server/catalog/compositeRepositoryCatalog.ts";
-import { SystemRepositoryCatalog } from "../../../server/repository/systemRepositoryCatalog.ts";
-import {
-  validateSystemRepositoryContent,
-  validateSystemRepositoryTransition,
-} from "../../../server/repository/systemRepositoryStore.ts";
+} from "../../../infrastructure/server/api/workspaceApiServer.ts";
+import { createWorkspaceApiSecurityPolicy } from "../../../infrastructure/server/api/workspaceApiSecurity.ts";
+import { CompositeRepositoryCatalog } from "../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
+import { BuiltInCatalog } from "../../../infrastructure/server/repository/builtInCatalog.ts";
 import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
-} from "../../../server/repository/repositoryCatalog.ts";
+} from "../../../infrastructure/server/repository/repositoryCatalog.ts";
 import {
   createDeepRepositoryContent,
 } from "../../storage/repositoryV3Fixtures";
@@ -142,17 +138,11 @@ async function withHandler<Result>(
     createId: () =>
       `00000000-0000-4000-8000-${String(++nextId).padStart(12, "0")}`,
   });
-  const systemCatalog = new SystemRepositoryCatalog(
-    path.join(rootDir, ".system-state"),
-    {
-      validateContent: validateSystemRepositoryContent,
-      validateTransition: validateSystemRepositoryTransition,
-    },
-  );
+  const builtInCatalog = new BuiltInCatalog(path.join(rootDir, ".system-state"));
   const handler = createWorkspaceApiRequestHandler({
     catalog,
     security: createWorkspaceApiSecurityPolicy({ host: "127.0.0.1" }),
-    systemCatalog,
+    builtInCatalog,
   });
 
   try {
@@ -202,29 +192,29 @@ async function commitSnapshot(
 }
 
 describe("workspace API v4", () => {
-  it("serves protected system catalogs and snapshot CAS without mutation endpoints", async () => {
+  it("serves protected built-in descriptors and typed snapshot CAS", async () => {
     await withHandler(async (handler) => {
       const catalogResponse = await dispatch(handler, {
         method: "GET",
-        url: "/api/system-repositories",
+        url: "/api/built-ins",
       });
       expect(catalogResponse).toMatchObject({
         body: {
           issues: [],
           repositories: [
-            { id: "system-journal", label: "日记", protected: true },
-            { id: "system-todo", label: "代办", protected: true },
+            { id: "journal", label: "日记", protected: true },
+            { id: "todo", label: "代办", protected: true },
           ],
         },
         statusCode: 200,
       });
 
-      const snapshotUrl = "/api/system-repositories/system-journal/snapshot";
+      const snapshotUrl = "/api/journal/snapshot";
       const loaded = await dispatch<{
         content: unknown;
         revision: string;
       }>(handler, { method: "GET", url: snapshotUrl });
-      if (!loaded.body) throw new Error("System repository snapshot is missing");
+      if (!loaded.body) throw new Error("Journal snapshot is missing");
       const content = appendJournalTestEntry(createEmptyJournalContent(), {
         createdAt: "2026-07-18T01:00:00.000Z",
         entryIndex: 1,
@@ -238,7 +228,7 @@ describe("workspace API v4", () => {
         method: "PUT",
         url: snapshotUrl,
       });
-      if (!committed.body) throw new Error("System repository commit is missing");
+      if (!committed.body) throw new Error("Journal commit is missing");
       expect(committed.statusCode).toBe(200);
       const tampered = tamperJournalTestEntryCreation(content, {
         createdAt: "2026-08-19T10:11:12.000Z",
@@ -285,50 +275,51 @@ describe("workspace API v4", () => {
         body: "{}",
         headers: { "content-length": "2", "content-type": "application/json" },
         method: "POST",
-        url: "/api/system-repositories/system-journal/retry",
+        url: "/api/journal/retry",
       })).resolves.toMatchObject({ statusCode: 400 });
       await expect(dispatch(handler, {
         method: "POST",
-        url: "/api/system-repositories",
+        url: "/api/built-ins",
       })).resolves.toMatchObject({ statusCode: 405 });
     });
   });
 
-  it("projects corrupt system files and retries only safe repair or provisioning", async () => {
+  it("projects corrupt built-in data and retries without overwriting it", async () => {
     await withHandler(async (handler, rootDir) => {
       const journalPath = path.join(
         rootDir,
         ".system-state",
-        "system-repositories",
-        "system-journal.json",
+        "built-ins",
+        "journal",
+        "content.json",
       );
       const corruptSource = "{broken\n";
 
-      await dispatch(handler, { method: "GET", url: "/api/system-repositories" });
+      await dispatch(handler, { method: "GET", url: "/api/built-ins" });
       await writeFile(journalPath, corruptSource);
       const listed = await dispatch(handler, {
         method: "GET",
-        url: "/api/system-repositories",
+        url: "/api/built-ins",
       });
       expect(listed).toMatchObject({
-        body: { issues: [{ id: "system-journal", status: "fault" }] },
+        body: { issues: [{ id: "journal", status: "fault" }] },
         statusCode: 200,
       });
       expect(await readFile(journalPath, "utf8")).toBe(corruptSource);
       await expect(dispatch(handler, {
         method: "POST",
-        url: "/api/system-repositories/system-journal/retry",
+        url: "/api/journal/retry",
       })).resolves.toMatchObject({ body: { status: "fault" }, statusCode: 200 });
 
       await writeFile(journalPath, JSON.stringify(createEmptyJournalContent()));
       await expect(dispatch(handler, {
         method: "POST",
-        url: "/api/system-repositories/system-journal/retry",
+        url: "/api/journal/retry",
       })).resolves.toMatchObject({ body: { status: "ready" }, statusCode: 200 });
       await expect(dispatch(handler, {
         method: "GET",
         url: "/api/system-repositories/not-system/snapshot",
-      })).resolves.toMatchObject({ statusCode: 400 });
+      })).resolves.toMatchObject({ statusCode: 404 });
     });
   });
 

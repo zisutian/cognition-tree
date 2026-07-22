@@ -7,22 +7,22 @@ import {
   createRepositoryRequest,
   RepositoryCreateForm,
   repositoryPasswordInputAttributes,
-} from "../../src/ui/RepositoryCreateForm";
+} from "../../presentation/ui/RepositoryCreateForm";
 import {
   canDeleteManagedRepositoryData,
   getRepositoryDeletionChoices,
   RepositoryDeleteDialog,
-} from "../../src/ui/activities/repository/RepositoryDeleteDialog";
+} from "../../presentation/activities/views/repository/RepositoryDeleteDialog";
 import {
   copyRepositoryLocation,
   RepositoryContext,
   RepositoryPanel,
-} from "../../src/ui/activities/repository/RepositoryPanel";
-import { FeedbackProvider } from "../../src/ui/shared/FeedbackProvider";
+} from "../../presentation/activities/views/repository/RepositoryPanel";
+import { FeedbackProvider } from "../../presentation/ui/shared/FeedbackProvider";
 import {
   projectRepositoryIssues,
   type RepositoryOption,
-} from "../../src/application/workspace/activities/repository/repositoryViewModel";
+} from "../../application/workspace/activities/repository/repositoryViewModel";
 import { createView } from "./viewFactory";
 
 const localRepository: RepositoryOption = {
@@ -470,41 +470,41 @@ describe("repository setup and management semantics", () => {
     expect(panelMarkup).not.toContain("local-broken");
   });
 
-  it("keeps protected system rows minimal and shows location and recovery in the detail", () => {
+  it("keeps protected built-in rows minimal and shows location and recovery in the detail", () => {
     const baseView = createView().repository;
     const view = {
       ...baseView,
       repositories: [{ ...localRepository, labelIssue: "conflict" as const }],
-      systemIssues: [{
+      builtInIssues: [{
         code: "repository_corrupt" as const,
-        displayLabel: "代办 · 内置仓库",
-        id: "system-todo" as const,
+        displayLabel: "代办 · 内置数据",
+        id: "todo" as const,
         label: "代办" as const,
         location: {
-          databaseName: "cognition-tree-system-todo",
+          databaseName: "cognition-tree.todo",
           type: "browser" as const,
         },
         locationRows: [{
-          copyValue: "cognition-tree-system-todo",
+          copyValue: "cognition-tree.todo",
           label: "浏览器数据库",
-          value: "cognition-tree-system-todo",
+          value: "cognition-tree.todo",
         }],
-        message: "代办仓库损坏。",
+        message: "代办数据损坏。",
         status: "fault" as const,
       }],
-      systemRepositories: [{
+      builtIns: [{
         errorMessage: "日记仓库存在同步冲突。",
         hasProblem: true,
-        id: "system-journal" as const,
+        id: "journal" as const,
         label: "日记" as const,
         location: {
-          serverPath: "/state/system-journal.json",
+          serverPath: "/state/built-ins/journal/content.json",
           type: "server" as const,
         },
         locationRows: [{
-          copyValue: "/state/system-journal.json",
+          copyValue: "/state/built-ins/journal/content.json",
           label: "服务端路径",
-          value: "/state/system-journal.json",
+          value: "/state/built-ins/journal/content.json",
         }],
         protected: true as const,
         recoveryAction: {
@@ -522,8 +522,8 @@ describe("repository setup and management semantics", () => {
           focusRequest={null}
           onConsumeFocusRequest={() => undefined}
           selection={{
-            id: "system-journal",
-            kind: "system-repository",
+            id: "journal",
+            kind: "built-in",
           }}
           view={view}
         />
@@ -533,8 +533,8 @@ describe("repository setup and management semantics", () => {
       <FeedbackProvider>
         <RepositoryPanel
           selection={{
-            id: "system-journal",
-            kind: "system-repository",
+            id: "journal",
+            kind: "built-in",
           }}
           view={view}
         />
@@ -543,34 +543,34 @@ describe("repository setup and management semantics", () => {
     const todoMarkup = renderToStaticMarkup(
       <FeedbackProvider>
         <RepositoryPanel
-          selection={{ id: "system-todo", kind: "system-repository" }}
+          selection={{ id: "todo", kind: "built-in" }}
           view={view}
         />
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).toContain(">内置</span>");
-    expect(contextMarkup).toContain('data-system-repository-id="system-journal"');
-    expect(contextMarkup).toContain('data-system-repository-id="system-todo"');
+    expect(contextMarkup).toContain(">内置数据</span>");
+    expect(contextMarkup).toContain('data-built-in-id="journal"');
+    expect(contextMarkup).toContain('data-built-in-id="todo"');
     expect(contextMarkup).toContain("同步冲突");
-    expect(contextMarkup).not.toContain("/state/system-journal.json");
-    expect(contextMarkup).not.toContain("cognition-tree-system-todo");
+    expect(contextMarkup).not.toContain("/state/built-ins/journal/content.json");
+    expect(contextMarkup).not.toContain("cognition-tree.todo");
     expect(contextMarkup).not.toContain("放弃本地修改并重新加载");
-    expect(journalMarkup).toContain("内置受保护仓库");
-    expect(journalMarkup).toContain("/state/system-journal.json");
+    expect(journalMarkup).toContain("受保护内置数据");
+    expect(journalMarkup).toContain("/state/built-ins/journal/content.json");
     expect(journalMarkup).toContain("放弃本地修改并重新加载");
-    expect(todoMarkup).toContain("代办仓库损坏。");
-    expect(todoMarkup).toContain("cognition-tree-system-todo");
+    expect(todoMarkup).toContain("代办数据损坏。");
+    expect(todoMarkup).toContain("cognition-tree.todo");
     expect(todoMarkup).toContain(">重试<");
     expect(journalMarkup).not.toContain("删除仓库");
     expect(journalMarkup).not.toContain("重命名仓库");
   });
 
-  it("offers system catalog retry only in the selected system detail", () => {
+  it("offers built-in catalog retry only in the selected built-in detail", () => {
     const view = {
       ...createView().repository,
-      systemCatalogErrorMessage: "内置仓库目录不可用。",
-      systemCatalogStatus: "failed" as const,
+      builtInCatalogErrorMessage: "内置数据目录不可用。",
+      builtInCatalogStatus: "failed" as const,
     };
     const contextMarkup = renderToStaticMarkup(
       <FeedbackProvider>
@@ -585,8 +585,8 @@ describe("repository setup and management semantics", () => {
       <FeedbackProvider>
         <RepositoryPanel
           selection={{
-            id: "system-journal",
-            kind: "system-repository",
+            id: "journal",
+            kind: "built-in",
           }}
           view={view}
         />
@@ -594,14 +594,14 @@ describe("repository setup and management semantics", () => {
     );
 
     expect(contextMarkup).not.toContain('role="alert"');
-    expect(contextMarkup).not.toContain("内置仓库目录不可用。");
-    expect(contextMarkup).not.toContain(">重试内置仓库<");
+    expect(contextMarkup).not.toContain("内置数据目录不可用。");
+    expect(contextMarkup).not.toContain(">重试内置数据<");
     expect(contextMarkup.match(/>故障<\/span>/g)).toHaveLength(2);
     expect(contextMarkup.match(/has-diagnostics/g)).toHaveLength(2);
-    expect(contextMarkup).toContain('aria-label="日记仓库存在问题"');
-    expect(contextMarkup).toContain('aria-label="代办仓库存在问题"');
-    expect(panelMarkup).toContain("内置仓库目录不可用。");
-    expect(panelMarkup).toContain(">重试内置仓库<");
+    expect(contextMarkup).toContain('aria-label="日记数据存在问题"');
+    expect(contextMarkup).toContain('aria-label="代办数据存在问题"');
+    expect(panelMarkup).toContain("内置数据目录不可用。");
+    expect(panelMarkup).toContain(">重试内置数据<");
   });
 
   it.each([

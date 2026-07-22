@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMemoryRepositoryClientCache } from "../../../../src/storage/repository/repositoryClientCache";
-import { createHttpWorkspaceRepositoryCatalog } from "../../../../src/storage/adapters/http/httpWorkspaceRepositoryCatalog";
-import { createHttpRepositoryCacheIdentity } from "../../../../src/storage/adapters/http/httpRepositoryTransport";
+import { createMemoryRepositoryClientCache } from "../../../../infrastructure/persistence/repositoryClientCache";
+import { createHttpWorkspaceRepositoryCatalog } from "../../../../infrastructure/http/httpWorkspaceRepositoryCatalog";
+import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/http/httpRepositoryTransport";
 import {
   createRepositoryContent,
   revisionA,

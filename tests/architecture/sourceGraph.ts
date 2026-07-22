@@ -9,13 +9,15 @@ export type SourceImport = {
   targetRoot: string;
 };
 
-export type InternalModuleImport = {
-  filePath: string;
-  importPath: string;
-  targetPath: string;
-};
+export type InternalModuleImport = Omit<SourceImport, "targetRoot">;
 
-export const sourceModules = import.meta.glob("../../src/**/*.{ts,tsx}", {
+export const applicationModules = import.meta.glob("../../application/**/*.{ts,tsx}", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+}) as SourceModules;
+
+export const contractModules = import.meta.glob("../../contracts/**/*.ts", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -26,6 +28,36 @@ export const coreModules = import.meta.glob("../../core/**/*.ts", {
   import: "default",
   query: "?raw",
 }) as SourceModules;
+
+export const infrastructureModules = import.meta.glob(
+  "../../infrastructure/**/*.ts",
+  { eager: true, import: "default", query: "?raw" },
+) as SourceModules;
+
+export const presentationModules = import.meta.glob(
+  "../../presentation/**/*.{ts,tsx}",
+  { eager: true, import: "default", query: "?raw" },
+) as SourceModules;
+
+export const sourceModules = {
+  ...applicationModules,
+  ...infrastructureModules,
+  ...presentationModules,
+};
+
+export const serverModules = Object.fromEntries(
+  Object.entries(infrastructureModules).filter(([filePath]) =>
+    filePath.startsWith("../../infrastructure/server/"),
+  ),
+);
+
+export const workspaceModules = {
+  ...applicationModules,
+  ...contractModules,
+  ...coreModules,
+  ...infrastructureModules,
+  ...presentationModules,
+};
 
 function selectCoreModules(domain: string) {
   const prefix = `../../core/${domain}/`;
@@ -43,100 +75,28 @@ export const portableNameModules = selectCoreModules("naming");
 export const todoModules = selectCoreModules("todo");
 export const workspaceDomainModules = selectCoreModules("workspace");
 
-export const serverModules = import.meta.glob("../../server/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
-
-export const contractModules = import.meta.glob("../../contracts/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
-
-export const workspaceModules = {
-  ...contractModules,
-  ...coreModules,
-  ...serverModules,
-  ...sourceModules,
-};
-
-export function ctnPathToRelative(filePath: string) {
-  return filePath.replace("../../core/ctn/", "");
-}
-
-export function journalPathToRelative(filePath: string) {
-  return filePath.replace("../../core/journal/", "");
-}
-
-export function portableNamePathToRelative(filePath: string) {
-  return filePath.replace("../../core/naming/", "");
-}
-
-export function todoPathToRelative(filePath: string) {
-  return filePath.replace("../../core/todo/", "");
-}
-
-export function sourcePathToRelative(filePath: string) {
-  return filePath.replace("../../src/", "");
-}
-
 export function modulePathToRelative(filePath: string, prefix: string) {
   return filePath.startsWith(prefix) ? filePath.slice(prefix.length) : filePath;
 }
 
-export function listModuleRootDirectories(
-  modules: SourceModules,
-  prefix: string,
-) {
-  return [
-    ...new Set(
-      Object.keys(modules).flatMap((filePath) => {
-        const relativePath = modulePathToRelative(filePath, prefix);
-        const separatorIndex = relativePath.indexOf("/");
-
-        return separatorIndex === -1
-          ? []
-          : [relativePath.slice(0, separatorIndex)];
-      }),
-    ),
-  ].sort();
+export function ctnPathToRelative(filePath: string) {
+  return modulePathToRelative(filePath, "../../core/ctn/");
 }
 
-export function listModuleRootFiles(
-  modules: SourceModules,
-  prefix: string,
-) {
-  return Object.keys(modules)
-    .map((filePath) => modulePathToRelative(filePath, prefix))
-    .filter((filePath) => !filePath.includes("/"))
-    .sort();
+export function journalPathToRelative(filePath: string) {
+  return modulePathToRelative(filePath, "../../core/journal/");
 }
 
-export function listModuleSubdirectories(
-  modules: SourceModules,
-  prefix: string,
-  directory: string,
-) {
-  const directoryPrefix = `${prefix}${directory}/`;
+export function portableNamePathToRelative(filePath: string) {
+  return modulePathToRelative(filePath, "../../core/naming/");
+}
 
-  return [
-    ...new Set(
-      Object.keys(modules).flatMap((filePath) => {
-        if (!filePath.startsWith(directoryPrefix)) {
-          return [];
-        }
+export function todoPathToRelative(filePath: string) {
+  return modulePathToRelative(filePath, "../../core/todo/");
+}
 
-        const relativePath = filePath.slice(directoryPrefix.length);
-        const separatorIndex = relativePath.indexOf("/");
-
-        return separatorIndex === -1
-          ? []
-          : [relativePath.slice(0, separatorIndex)];
-      }),
-    ),
-  ].sort();
+export function sourcePathToRelative(filePath: string) {
+  return modulePathToRelative(filePath, "../../");
 }
 
 export function getSourceRoot(filePath: string) {
@@ -144,31 +104,11 @@ export function getSourceRoot(filePath: string) {
 }
 
 export function listSourceFiles(directory: string) {
-  const prefix = `../../src/${directory}/`;
+  const prefix = `../../${directory}/`;
 
   return Object.keys(sourceModules)
     .filter((filePath) => filePath.startsWith(prefix))
     .sort();
-}
-
-export function listSourceRootDirectories() {
-  return listModuleRootDirectories(sourceModules, "../../src/");
-}
-
-export function listSourceRootFiles() {
-  return listModuleRootFiles(sourceModules, "../../src/");
-}
-
-export function listSubdirectories(directory: string) {
-  return listModuleSubdirectories(
-    sourceModules,
-    "../../src/",
-    directory,
-  );
-}
-
-export function hasSourceFile(relativePath: string) {
-  return `../../src/${relativePath}` in sourceModules;
 }
 
 function getScriptKind(filePath: string) {
@@ -179,16 +119,14 @@ export function readModuleImports(
   modules: SourceModules,
   filePath: string,
 ): string[] {
-  const source = modules[filePath] ?? "";
   const sourceFile = ts.createSourceFile(
     filePath,
-    source,
+    modules[filePath] ?? "",
     ts.ScriptTarget.Latest,
     true,
     getScriptKind(filePath),
   );
   const imports: string[] = [];
-
   const visit = (node: ts.Node) => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
@@ -211,50 +149,23 @@ export function readModuleImports(
     ) {
       imports.push(node.arguments[0].text);
     }
-
     ts.forEachChild(node, visit);
   };
 
   visit(sourceFile);
-
   return imports;
 }
 
 function normalizePath(segments: string[]) {
-  return segments.reduce<string[]>((normalizedSegments, segment) => {
-    if (!segment || segment === ".") {
-      return normalizedSegments;
-    }
-
+  return segments.reduce<string[]>((normalized, segment) => {
+    if (!segment || segment === ".") return normalized;
     if (segment === "..") {
-      const previousSegment = normalizedSegments.at(-1);
-
-      return previousSegment && previousSegment !== ".."
-        ? normalizedSegments.slice(0, -1)
-        : [...normalizedSegments, segment];
+      return normalized.at(-1) && normalized.at(-1) !== ".."
+        ? normalized.slice(0, -1)
+        : [...normalized, segment];
     }
-
-    normalizedSegments.push(segment);
-    return normalizedSegments;
+    return [...normalized, segment];
   }, []);
-}
-
-function resolveRelativeSourceImport(filePath: string, importPath: string) {
-  if (!importPath.startsWith(".")) {
-    return null;
-  }
-
-  const fileDirectory = filePath.split("/").slice(0, -1);
-  const targetPath = normalizePath([
-    ...fileDirectory,
-    ...importPath.split("/"),
-  ]).join("/");
-
-  return targetPath.startsWith("../../src/") ? targetPath : null;
-}
-
-function resolveSourceFilePath(targetPath: string) {
-  return resolveModuleFilePath(sourceModules, targetPath);
 }
 
 function resolveModuleFilePath(modules: SourceModules, targetPath: string) {
@@ -270,40 +181,27 @@ function resolveModuleFilePath(modules: SourceModules, targetPath: string) {
 export function readInternalModuleImports(
   modules: SourceModules,
   filePath: string,
-  rootPrefix: string,
+  rootPrefix = "../../",
 ): InternalModuleImport[] {
   return readModuleImports(modules, filePath).flatMap((importPath) => {
-    if (!importPath.startsWith(".")) {
-      return [];
-    }
-
-    const targetPath = normalizePath([
+    if (!importPath.startsWith(".")) return [];
+    const unresolved = normalizePath([
       ...filePath.split("/").slice(0, -1),
       ...importPath.split("/"),
     ]).join("/");
-    const targetFilePath = resolveModuleFilePath(modules, targetPath);
+    const targetPath = resolveModuleFilePath(modules, unresolved);
 
-    return targetFilePath?.startsWith(rootPrefix)
-      ? [{ filePath, importPath, targetPath: targetFilePath }]
+    return targetPath?.startsWith(rootPrefix)
+      ? [{ filePath, importPath, targetPath }]
       : [];
   });
 }
 
 export function readSourceImports(filePath: string): SourceImport[] {
-  return readModuleImports(sourceModules, filePath).flatMap((importPath) => {
-    const targetPath = resolveRelativeSourceImport(filePath, importPath);
-
-    return targetPath
-      ? [
-          {
-            filePath,
-            importPath,
-            targetPath,
-            targetRoot: getSourceRoot(targetPath),
-          },
-        ]
-      : [];
-  });
+  return readInternalModuleImports(workspaceModules, filePath).map((entry) => ({
+    ...entry,
+    targetRoot: getSourceRoot(entry.targetPath),
+  }));
 }
 
 export function listInternalSourceImports() {
@@ -319,14 +217,11 @@ export function findDependencyCycles(
   const nodesOnStack = new Set<string>();
   const cycles: string[][] = [];
   let nextIndex = 0;
-
   const visit = (node: string) => {
     indexByNode.set(node, nextIndex);
-    lowLinkByNode.set(node, nextIndex);
-    nextIndex += 1;
+    lowLinkByNode.set(node, nextIndex++);
     stack.push(node);
     nodesOnStack.add(node);
-
     for (const target of graph.get(node) ?? []) {
       if (!indexByNode.has(target)) {
         visit(target);
@@ -341,34 +236,20 @@ export function findDependencyCycles(
         );
       }
     }
-
-    if (lowLinkByNode.get(node) !== indexByNode.get(node)) {
-      return;
-    }
-
+    if (lowLinkByNode.get(node) !== indexByNode.get(node)) return;
     const component: string[] = [];
     let member: string;
-
     do {
       member = stack.pop()!;
       nodesOnStack.delete(member);
       component.push(member);
     } while (member !== node);
-
-    if (
-      component.length > 1 ||
-      (graph.get(node) ?? []).includes(node)
-    ) {
+    if (component.length > 1 || (graph.get(node) ?? []).includes(node)) {
       cycles.push(component.sort());
     }
   };
 
-  for (const node of graph.keys()) {
-    if (!indexByNode.has(node)) {
-      visit(node);
-    }
-  }
-
+  for (const node of graph.keys()) if (!indexByNode.has(node)) visit(node);
   return cycles.sort(([left], [right]) => left.localeCompare(right));
 }
 
@@ -376,11 +257,7 @@ export function listSourceDependencyCycles() {
   const graph = new Map(
     Object.keys(sourceModules).map((filePath) => [
       filePath,
-      readSourceImports(filePath).flatMap(({ targetPath }) => {
-        const targetFilePath = resolveSourceFilePath(targetPath);
-
-        return targetFilePath ? [targetFilePath] : [];
-      }),
+      readSourceImports(filePath).map(({ targetPath }) => targetPath),
     ]),
   );
 

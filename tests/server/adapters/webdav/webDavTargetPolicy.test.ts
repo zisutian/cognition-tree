@@ -3,7 +3,7 @@ import {
   assertWebDavTargetAddress,
   parseWebDavPrivateTargets,
   resolveWebDavTarget,
-} from "../../../../server/adapters/webdav/webDavTargetPolicy.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavTargetPolicy.ts";
 
 const noPrivateTargets = parseWebDavPrivateTargets(undefined);
 

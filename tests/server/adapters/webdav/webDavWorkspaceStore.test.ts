@@ -6,11 +6,11 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../../../contracts/workspace-repository/contractValue";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace-repository/types";
-import { WorkspaceRevisionConflictError } from "../../../../server/repository/repositoryStore.ts";
+import { WorkspaceRevisionConflictError } from "../../../../infrastructure/server/repository/repositoryStore.ts";
 import {
   RepositoryCorruptError,
-} from "../../../../server/repository/repositoryStore.ts";
-import { WebDavRequestError } from "../../../../server/adapters/webdav/webDavTransport.ts";
+} from "../../../../infrastructure/server/repository/repositoryStore.ts";
+import { WebDavRequestError } from "../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import {
   WebDavRepositoryBusyError,
   WebDavWorkspaceStore,
@@ -18,7 +18,7 @@ import {
   webDavCurrentPath,
   webDavGenerationsPath,
   webDavLockPath,
-} from "../../../../server/adapters/webdav/webDavWorkspaceStore.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
 import {
   createDeepRepositoryContent,
   inspectDeepRepositoryContent,

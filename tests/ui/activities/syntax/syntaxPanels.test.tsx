@@ -1,13 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { SyntaxContext } from "../../../../src/ui/activities/syntax/SyntaxContext";
-import { createSyntaxActivitySlots } from "../../../../src/ui/activities/syntax/SyntaxActivitySlots";
-import { SyntaxDetailPanel } from "../../../../src/ui/activities/syntax/SyntaxDetailPanel";
-import { SyntaxMainPanel } from "../../../../src/ui/activities/syntax/SyntaxMainPanel";
+import { SyntaxContext } from "../../../../presentation/activities/views/syntax/SyntaxContext";
+import { createSyntaxActivitySlots } from "../../../../presentation/activities/views/syntax/SyntaxActivitySlots";
+import { SyntaxDetailPanel } from "../../../../presentation/activities/views/syntax/SyntaxDetailPanel";
+import { SyntaxMainPanel } from "../../../../presentation/activities/views/syntax/SyntaxMainPanel";
 import { createView } from "../../viewFactory";
 import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
 import { defaultJournalCtnSyntaxProfileV3 } from "../../../../core/journal/syntax/journalSyntax";
-import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
+import { defaultTodoCtnSyntaxProfileV3 } from "../../../../core/todo/syntax/todoSyntax";
+import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
 
 describe("syntax panels", () => {
   it("lists syntax files with the active and invalid state", () => {
@@ -165,6 +166,31 @@ describe("syntax panels", () => {
     expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="开始"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="结束"[^>]*disabled=""/);
+  });
+
+  it("renders the Todo item without a whole-line background", () => {
+    const base = createView().syntax;
+    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV3);
+    const todoItemId = draft.markerRules.find(
+      ({ type }) => type === "todo-item",
+    )!.id;
+    const markup = renderToStaticMarkup(
+      <SyntaxMainPanel
+        view={{
+          ...base,
+          ...createUiSyntaxView({ draft, policy: { scope: "todo" } }),
+          nameEditable: false,
+          policy: { scope: "todo" },
+          protectedMarkerRuleIds: [todoItemId],
+          rootRuleLabel: null,
+          selectedTarget: { kind: "todo" },
+        }}
+      />,
+    );
+
+    expect(markup).toContain("代办背景色: 默认");
+    expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
+    expect(markup).toMatch(/aria-label="角色: [^"]+"[^>]*disabled=""/);
   });
 
   it("shows a catalog name conflict at the profile name field", () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveStructureOperationDirectorySelection,
   resolveSwappedStructureOperationPair,
-} from "../../../../../src/application/workspace/activities/structure-operation/directorySelection";
+} from "../../../../../application/workspace/activities/structure-operation/directorySelection";
 
 describe("structure operation directory selection", () => {
   it("advances source and target selection as one explicit state machine", () => {

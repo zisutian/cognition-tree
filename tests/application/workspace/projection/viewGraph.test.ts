@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createUiReferenceGraphView } from "../../../../src/application/workspace/projection/viewGraph";
+import { createUiReferenceGraphView } from "../../../../application/workspace/projection/viewGraph";
 
 describe("reference graph projection", () => {
   it("precomputes topology revision, adjacency, details and deterministic ranking", () => {

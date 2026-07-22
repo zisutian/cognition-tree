@@ -4,7 +4,7 @@ import {
   SegmentedControl,
   SymbolSlot,
   ToggleButton,
-} from "../../../src/ui/shared/primitives";
+} from "../../../presentation/ui/shared/primitives";
 
 describe("shared primitives", () => {
   it("renders segmented controls without activity-specific classes", () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseUiStructureOperationTargetPosition,
-} from "../../../../../src/application/workspace/activities/structure-operation/targetPosition";
+} from "../../../../../application/workspace/activities/structure-operation/targetPosition";
 
 describe("structure operation target position adapter", () => {
   it("parses UI target position values into workspace command requests", () => {

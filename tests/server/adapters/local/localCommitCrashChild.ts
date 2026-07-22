@@ -5,10 +5,10 @@ import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSynt
 import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
 import {
   WorkspaceFileStore,
-} from "../../../../server/adapters/local/workspaceFileStore.ts";
+} from "../../../../infrastructure/server/adapters/local/workspaceFileStore.ts";
 import type {
   WorkspaceCommitPhase,
-} from "../../../../server/adapters/local/workingTreeTransaction.ts";
+} from "../../../../infrastructure/server/adapters/local/workingTreeTransaction.ts";
 
 const [, , rootDir, interruptedPhase] = process.argv;
 

@@ -8,21 +8,21 @@ import {
   createWorkspaceSessionController,
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
-} from "../../src/application/workspace/session/workspaceSessionController";
-import { createHttpWorkspaceRepositoryBackend } from "../../src/storage/adapters/http/httpWorkspaceRepository";
-import { createHttpWorkspaceRepositoryCatalog } from "../../src/storage/adapters/http/httpWorkspaceRepositoryCatalog";
-import { validateWorkspaceRepositoryContent } from "../../src/storage/runtime/workspaceRepositoryContentValidation";
+} from "../../application/workspace/session/workspaceSessionController";
+import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/http/httpWorkspaceRepository";
+import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/http/httpWorkspaceRepositoryCatalog";
+import { validateWorkspaceRepositoryContent } from "../../infrastructure/persistence/workspaceRepositoryContentValidation";
 import type {
   WorkspaceRepository,
-} from "../../src/storage/repository/workspaceRepository";
+} from "../../application/repository/workspaceRepository";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
-} from "../../src/storage/repository/workspaceRepositoryCatalog";
-import { createWorkspaceApiServer } from "../../server/api/workspaceApiServer.ts";
-import { createWorkspaceApiSecurityPolicy } from "../../server/api/workspaceApiSecurity.ts";
-import { LocalRepositoryCatalog } from "../../server/adapters/local/localRepositoryCatalog.ts";
-import { CompositeRepositoryCatalog } from "../../server/catalog/compositeRepositoryCatalog.ts";
+} from "../../application/repository/workspaceRepositoryCatalog";
+import { createWorkspaceApiServer } from "../../infrastructure/server/api/workspaceApiServer.ts";
+import { createWorkspaceApiSecurityPolicy } from "../../infrastructure/server/api/workspaceApiSecurity.ts";
+import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
+import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
 import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource";
 import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";

@@ -23,11 +23,11 @@ import {
   findUiOutlineNodeAtLine,
   flattenUiBlockSubtree,
   getUiBlockLineLabel,
-} from "../../../../src/application/workspace/projection/viewBlocks";
+} from "../../../../application/workspace/projection/viewBlocks";
 import {
   createUiNoteTree,
-} from "../../../../src/application/workspace/projection/viewTree";
-import { createUiEditorView } from "../../../../src/application/workspace/projection/viewEditor";
+} from "../../../../application/workspace/projection/viewTree";
+import { createUiEditorView } from "../../../../application/workspace/projection/viewEditor";
 import {
   createCtnEditableSource,
   getCtnEditableLineNumber,
@@ -35,8 +35,8 @@ import {
 import {
   createUiTextSegments,
   getUiTextDisplayText,
-} from "../../../../src/application/workspace/projection/viewText";
-import { createUiSyntaxView } from "../../../../src/application/workspace/projection/viewSyntax";
+} from "../../../../application/workspace/projection/viewText";
+import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
 import {
   addTestCtnBlockMetadata,
   createTestBlockId,

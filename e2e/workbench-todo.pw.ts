@@ -7,7 +7,7 @@ import {
   type APIRequestContext,
   type Locator,
 } from "@playwright/test";
-import type { TodoRepositoryContentDto } from "../contracts/system-repository/types";
+import type { TodoContentDto } from "../contracts/todo/types";
 import {
   parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
@@ -20,7 +20,7 @@ import {
 import {
   readTodoSnapshot,
   resetTodoRepository,
-} from "./support/systemRepositorySeeds";
+} from "./support/builtInSeeds";
 import {
   getActivityButton,
   openWorkbench,
@@ -43,9 +43,9 @@ async function createCollection(context: Locator, name: string) {
 
 async function waitForTodoContent(
   api: APIRequestContext,
-  predicate: (content: TodoRepositoryContentDto) => boolean,
+  predicate: (content: TodoContentDto) => boolean,
 ) {
-  let content: TodoRepositoryContentDto | null = null;
+  let content: TodoContentDto | null = null;
 
   await expect.poll(async () => {
     const nextContent = (await readTodoSnapshot(api)).content;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canChangeActivityWithSyntaxDraft } from "../../../src/app/workbench/syntaxNavigationGuard";
+import { canChangeActivityWithSyntaxDraft } from "../../../presentation/shell/workbench/syntaxNavigationGuard";
 
 describe("syntax navigation guard", () => {
   it("blocks leaving Syntax only while its selected draft is invalid", () => {

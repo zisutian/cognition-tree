@@ -4,7 +4,7 @@ import { parseCtnEditableBody } from "../../core/ctn/parser/parseCtnBody";
 import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import {
   findCtnReferenceAtPosition,
-} from "../../src/editor/ctnReferenceNavigation";
+} from "../../presentation/editor/ctnReferenceNavigation";
 describe("CTN editor reference navigation", () => {
   it("finds local and global references by source position", () => {
     const document = parseCtnEditableDocument(

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { selectWorkbenchDiagnostics } from "../../../../src/application/workspace/diagnostics/useWorkbenchDiagnostics";
+import { selectWorkbenchDiagnostics } from "../../../../presentation/shell/bindings/application/workspace/diagnostics/useWorkbenchDiagnostics";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
-} from "../../../../src/application/workspace/projection/viewDiagnostics";
+} from "../../../../application/workspace/projection/viewDiagnostics";
 
 const syntaxDiagnostic: UiWorkbenchDiagnostic = {
   code: "required",

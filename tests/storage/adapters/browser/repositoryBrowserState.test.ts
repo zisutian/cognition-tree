@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createBrowserActiveRepositorySelection,
-} from "../../../../src/storage/adapters/browser/browserActiveRepositorySelection";
+} from "../../../../infrastructure/browser/browserActiveRepositorySelection";
 import {
   loadRepositoryContextWidth,
   saveRepositoryContextWidth,
-} from "../../../../src/ui/workbench/workbenchLayoutStorage";
+} from "../../../../presentation/ui/workbench/workbenchLayoutStorage";
 
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();

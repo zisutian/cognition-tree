@@ -11,7 +11,7 @@ import {
   getMultilineMarkDecorationClass,
   getMultilineMarkDecorationStyle,
   shouldDecorateMarker,
-} from "../../src/editor/ctnDecorations";
+} from "../../presentation/editor/ctnDecorations";
 
 function createBlock(
   overrides: Partial<CtnEditableBlock>,

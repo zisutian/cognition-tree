@@ -6,7 +6,7 @@ import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProf
 import {
   createCtnCodeBlockEnterTransaction,
   createCtnCodeBlockIndentChanges,
-} from "../../src/editor/ctnCodeBlockEditing";
+} from "../../presentation/editor/ctnCodeBlockEditing";
 function createFixture() {
   const source =
     "Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```\n\t: After";

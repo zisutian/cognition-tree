@@ -12,7 +12,7 @@ import {
   createNoteRecord,
 } from "../../../../core/workspace/model/workspaceData";
 import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
-import { resolveFolderSelection } from "../../../../src/application/workspace/selection/resolveFolderSelection";
+import { resolveFolderSelection } from "../../../../application/workspace/selection/resolveFolderSelection";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
 

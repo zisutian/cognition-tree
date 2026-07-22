@@ -5,22 +5,22 @@ import {
   ListChecks,
 } from "lucide-react";
 import { describe, expect, it } from "vitest";
-import { workspaceActivityControllers } from "../../../src/app/activities/activityRegistry";
-import { createNotesActivitySlots } from "../../../src/ui/activities/notes/NotesActivitySlots";
-import { createJournalActivitySlots } from "../../../src/ui/activities/journal/JournalActivitySlots";
-import { createPlaceholderActivitySlots } from "../../../src/ui/activities/PlaceholderActivitySlots";
-import { createRepositoryActivitySlots } from "../../../src/ui/activities/repository/RepositoryActivitySlots";
-import { createSettingsActivitySlots } from "../../../src/ui/activities/settings/SettingsActivitySlots";
-import { createStructureOperationActivitySlots } from "../../../src/ui/activities/structure-operation/StructureOperationActivitySlots";
-import { createSyntaxActivitySlots } from "../../../src/ui/activities/syntax/SyntaxActivitySlots";
-import { createTodoActivitySlots } from "../../../src/ui/activities/todo/TodoActivitySlots";
-import { createVisualizationActivitySlots } from "../../../src/ui/activities/visualization/VisualizationActivitySlots";
+import { workspaceActivityControllers } from "../../../presentation/activities/controllers/activityRegistry";
+import { createNotesActivitySlots } from "../../../presentation/activities/views/notes/NotesActivitySlots";
+import { createJournalActivitySlots } from "../../../presentation/activities/views/journal/JournalActivitySlots";
+import { createPlaceholderActivitySlots } from "../../../presentation/activities/views/PlaceholderActivitySlots";
+import { createRepositoryActivitySlots } from "../../../presentation/activities/views/repository/RepositoryActivitySlots";
+import { createSettingsActivitySlots } from "../../../presentation/activities/views/settings/SettingsActivitySlots";
+import { createStructureOperationActivitySlots } from "../../../presentation/activities/views/structure-operation/StructureOperationActivitySlots";
+import { createSyntaxActivitySlots } from "../../../presentation/activities/views/syntax/SyntaxActivitySlots";
+import { createTodoActivitySlots } from "../../../presentation/activities/views/todo/TodoActivitySlots";
+import { createVisualizationActivitySlots } from "../../../presentation/activities/views/visualization/VisualizationActivitySlots";
 import {
   activityItems,
   primaryActivityItems,
   utilityActivityItems,
-} from "../../../src/ui/ActivityBar";
-import type { ActivityId } from "../../../src/ui/activityTypes";
+} from "../../../presentation/ui/ActivityBar";
+import type { ActivityId } from "../../../presentation/ui/activityTypes";
 import { createView, type TestActivityViews } from "../viewFactory";
 
 function renderSlot(slot: React.ReactNode) {
@@ -199,7 +199,9 @@ describe("activity slots", () => {
     const context = renderSlot(slots("journal").context?.content);
     const main = renderSlot(slots("journal").main);
 
-    expect(context).toContain("2026 年 1 月");
+    expect(context).toContain("2026 年");
+    expect(context).toContain("1 月");
+    expect(context).toContain("2 日");
     expect(context).toContain("2026-01-02-0001");
     expect(context).toContain('aria-current="page"');
     expect(context).not.toContain("重命名");

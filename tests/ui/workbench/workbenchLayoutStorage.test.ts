@@ -3,7 +3,7 @@ import {
   defaultRepositoryProblemsLayout,
   loadRepositoryProblemsLayout,
   saveRepositoryProblemsLayout,
-} from "../../../src/ui/workbench/workbenchLayoutStorage";
+} from "../../../presentation/ui/workbench/workbenchLayoutStorage";
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();

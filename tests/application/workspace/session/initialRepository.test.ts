@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseCtnCanonicalDocument } from "../../../../core/ctn/parser/parseCtnDocument";
 import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import { readWorkspaceNoteHeader } from "../../../../core/workspace/model/workspaceData";
-import { createInitialRepositoryContent } from "../../../../src/application/workspace/session/initialRepository";
+import { createInitialRepositoryContent } from "../../../../application/workspace/session/initialRepository";
 
 describe("initial repository", () => {
   it("creates one source-only canonical note in repository v4", () => {

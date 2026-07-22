@@ -5,7 +5,7 @@ import {
   authorizeWorkspaceApiRequest,
   createWorkspaceApiSecurityPolicy,
   WorkspaceApiSecurityError,
-} from "../../../server/api/workspaceApiSecurity.ts";
+} from "../../../infrastructure/server/api/workspaceApiSecurity.ts";
 
 function createRequest({
   headers,

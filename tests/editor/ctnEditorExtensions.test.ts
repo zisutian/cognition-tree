@@ -5,9 +5,9 @@ import {
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
   getCtnEditorActiveLineNumber,
-} from "../../src/editor/ctnEditorExtensions";
+} from "../../presentation/editor/ctnEditorExtensions";
 import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
-import ctnEditorExtensionsSource from "../../src/editor/ctnEditorExtensions.ts?raw";
+import ctnEditorExtensionsSource from "../../presentation/editor/ctnEditorExtensions.ts?raw";
 
 describe("ctn editor extensions", () => {
   it("stores editor indentation as tabs", () => {

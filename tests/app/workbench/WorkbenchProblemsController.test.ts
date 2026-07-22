@@ -3,17 +3,17 @@ import {
   hasWorkbenchProblemsPanel,
   openWorkbenchProblem,
   selectWorkbenchProblems,
-} from "../../../src/app/workbench/WorkbenchProblemsController";
+} from "../../../presentation/shell/workbench/WorkbenchProblemsController";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
-} from "../../../src/application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchRepositoryProblem } from "../../../src/application/problems/workbenchProblems";
-import type { JournalDiagnostic } from "../../../src/application/journal";
-import type { TodoDiagnostic } from "../../../src/application/todo";
-import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
-import type { WorkspaceRepositoryRuntimeIssue } from "../../../src/application/repository/projectWorkspaceRepositoryIssues";
-import type { WorkspaceRepositoryCatalogIssue } from "../../../src/storage/repository/workspaceRepositoryCatalog";
+} from "../../../application/workspace/projection/viewDiagnostics";
+import type { UiWorkbenchRepositoryProblem } from "../../../application/problems/workbenchProblems";
+import type { JournalDiagnostic } from "../../../application/journal";
+import type { TodoDiagnostic } from "../../../application/todo";
+import type { BuiltInRuntimeIssue } from "../../../application/repository/projectBuiltInIssues";
+import type { WorkspaceRepositoryRuntimeIssue } from "../../../application/repository/projectWorkspaceRepositoryIssues";
+import type { WorkspaceRepositoryCatalogIssue } from "../../../application/repository/workspaceRepositoryCatalog";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",
@@ -34,10 +34,14 @@ const repositoryIssue: WorkspaceRepositoryCatalogIssue = {
   status: "fault",
 };
 
-const systemIssue: SystemRepositoryIssue = {
+const builtInIssue: BuiltInRuntimeIssue = {
   code: "repository_corrupt",
-  id: "system-journal",
-  location: { serverPath: "/state/system-journal.json", type: "server" },
+  id: "journal",
+  kind: "data",
+  location: {
+    serverPath: "/state/built-ins/journal/content.json",
+    type: "server",
+  },
   message: "日记仓库损坏。",
   status: "fault",
 };
@@ -146,7 +150,7 @@ describe("WorkbenchProblemsController", () => {
       diagnostics: createUiWorkbenchDiagnostics([diagnostic], "ready"),
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
       todoDiagnostics: {
         diagnostics: [todoDiagnostic],
         errorCount: 1,
@@ -176,7 +180,7 @@ describe("WorkbenchProblemsController", () => {
       journalDiagnostics,
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
     })).toEqual({
       errorCount: 1,
       problems: [journalDiagnostic],
@@ -189,7 +193,7 @@ describe("WorkbenchProblemsController", () => {
       journalDiagnostics,
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
     }).problems).toEqual([diagnostic]);
     expect(selectWorkbenchProblems({
       activeActivityId: "repository",
@@ -197,7 +201,7 @@ describe("WorkbenchProblemsController", () => {
       journalDiagnostics,
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
     }).problems).not.toContain(journalDiagnostic);
   });
 
@@ -213,7 +217,7 @@ describe("WorkbenchProblemsController", () => {
         diagnostics: [systemSyntaxDiagnostic],
         status: "ready",
       },
-      systemIssues: [],
+      builtInIssues: [],
     })).toEqual({
       errorCount: 1,
       problems: [systemSyntaxDiagnostic],
@@ -235,7 +239,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       syntaxNavigation: { openSystemSyntax },
       workspaceNavigation: null,
@@ -256,12 +260,12 @@ describe("WorkbenchProblemsController", () => {
       diagnostics,
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
     })).toMatchObject({
       errorCount: 2,
       problems: [
         expect.objectContaining({ id: "repository:broken" }),
-        expect.objectContaining({ id: "system-repository:system-journal" }),
+        expect.objectContaining({ id: "built-in:journal" }),
         diagnostic,
       ],
       warningCount: 1,
@@ -271,7 +275,7 @@ describe("WorkbenchProblemsController", () => {
       diagnostics,
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
     })).toEqual({
       errorCount: 0,
       problems: [diagnostic],
@@ -283,7 +287,7 @@ describe("WorkbenchProblemsController", () => {
       diagnostics,
       repositories: [],
       repositoryIssues: [repositoryIssue],
-      systemIssues: [systemIssue],
+      builtInIssues: [builtInIssue],
     })).toEqual({
       errorCount: 0,
       problems: [diagnostic],
@@ -301,7 +305,7 @@ describe("WorkbenchProblemsController", () => {
       repositories: [],
       repositoryIssues: [],
       repositoryRuntimeIssues,
-      systemIssues: [],
+      builtInIssues: [],
     })).toMatchObject({
       errorCount: 2,
       problems: [
@@ -316,7 +320,7 @@ describe("WorkbenchProblemsController", () => {
       repositories: [],
       repositoryIssues: [],
       repositoryRuntimeIssues,
-      systemIssues: [],
+      builtInIssues: [],
     }).problems).toEqual([]);
   });
 
@@ -342,7 +346,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue,
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       workspaceNavigation: {
         openNoteLine: vi.fn(),
@@ -372,7 +376,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository,
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       workspaceNavigation: null,
       onActiveActivityChange,
@@ -433,7 +437,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       workspaceNavigation: {
         openNoteLine: vi.fn(),
@@ -468,7 +472,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       workspaceNavigation: null,
       onActiveActivityChange,
@@ -498,7 +502,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       todoNavigation: { openCollectionLine, selectCollection: vi.fn() },
       workspaceNavigation: null,
@@ -528,7 +532,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository: vi.fn(),
         focusRequest: null,
-        focusSystemRepository: vi.fn(),
+        focusBuiltIn: vi.fn(),
       },
       todoNavigation: {
         openCollectionLine: vi.fn(),
@@ -559,7 +563,7 @@ describe("WorkbenchProblemsController", () => {
   it("focuses the conflicted ordinary row or protected system row before opening Repositories", () => {
     const onActiveActivityChange = vi.fn();
     const focusOrdinaryRepository = vi.fn();
-    const focusSystemRepository = vi.fn();
+    const focusBuiltIn = vi.fn();
     const context = {
       expandPanels: vi.fn(),
       repositoryNavigation: {
@@ -568,7 +572,7 @@ describe("WorkbenchProblemsController", () => {
         focusOrdinaryIssue: vi.fn(),
         focusOrdinaryRepository,
         focusRequest: null,
-        focusSystemRepository,
+        focusBuiltIn,
       },
       workspaceNavigation: null,
       onActiveActivityChange,
@@ -589,20 +593,20 @@ describe("WorkbenchProblemsController", () => {
       },
     }, context);
     openWorkbenchProblem({
-      code: systemIssue.code,
-      id: "system-repository:system-journal",
-      locationLabel: "内置 · 日记",
-      message: systemIssue.message,
+      code: builtInIssue.code,
+      id: "built-in:journal",
+      locationLabel: "内置数据 · 日记",
+      message: builtInIssue.message,
       severity: "error",
       source: "repository",
       target: {
-        kind: "system-repository-issue",
-        purpose: "system-journal",
+        kind: "built-in-issue",
+        id: "journal",
       },
     }, context);
 
     expect(focusOrdinaryRepository).toHaveBeenCalledWith("primary");
-    expect(focusSystemRepository).toHaveBeenCalledWith("system-journal");
+    expect(focusBuiltIn).toHaveBeenCalledWith("journal");
     expect(onActiveActivityChange).toHaveBeenNthCalledWith(1, "repository");
     expect(onActiveActivityChange).toHaveBeenNthCalledWith(2, "repository");
   });

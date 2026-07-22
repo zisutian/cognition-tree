@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
-import { createJournalViewModel } from "../../../src/application/journal/journalViewModel";
+import { createJournalViewModel } from "../../../application/journal/journalViewModel";
 import { describe, expect, it, vi } from "vitest";
 import {
   appendJournalTestEntry,

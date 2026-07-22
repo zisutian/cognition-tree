@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { JournalDiagnostic } from "../../../../../src/application/journal/journalDiagnostics";
-import type { TodoDiagnostic } from "../../../../../src/application/todo/todoDiagnostics";
-import { createSyntaxActivityDiagnostics } from "../../../../../src/application/workspace/activities/syntax/syntaxProblems";
-import type { UiWorkbenchDiagnostic } from "../../../../../src/application/workspace/projection/viewDiagnostics";
+import type { JournalDiagnostic } from "../../../../../application/journal/journalDiagnostics";
+import type { TodoDiagnostic } from "../../../../../application/todo/todoDiagnostics";
+import { createSyntaxActivityDiagnostics } from "../../../../../application/problems/syntaxActivityDiagnostics";
+import type { UiWorkbenchDiagnostic } from "../../../../../application/workspace/projection/viewDiagnostics";
 
 const profileDiagnostic: UiWorkbenchDiagnostic = {
   code: "required",

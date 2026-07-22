@@ -3,19 +3,19 @@ import {
   createUiWorkbenchProblems,
   projectUiRepositoryLabelProblems,
   projectUiRepositoryProblems,
-  projectUiSystemRepositoryProblems,
+  projectUiBuiltInProblems,
   projectUiWorkspaceRepositoryRuntimeProblems,
-} from "../../../src/application/problems/workbenchProblems";
-import type { WorkspaceRepositoryRuntimeIssue } from "../../../src/application/repository/projectWorkspaceRepositoryIssues";
+} from "../../../application/problems/workbenchProblems";
+import type { WorkspaceRepositoryRuntimeIssue } from "../../../application/repository/projectWorkspaceRepositoryIssues";
+import type { BuiltInRuntimeIssue } from "../../../application/repository/projectBuiltInIssues";
 import {
   createUiWorkbenchDiagnostics,
   type UiWorkbenchDiagnostic,
-} from "../../../src/application/workspace/projection/viewDiagnostics";
-import type { SystemRepositoryIssue } from "../../../src/storage/repository/systemRepository";
+} from "../../../application/workspace/projection/viewDiagnostics";
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "../../../src/storage/repository/workspaceRepositoryCatalog";
+} from "../../../application/repository/workspaceRepositoryCatalog";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",
@@ -58,10 +58,14 @@ const repositories: WorkspaceRepositoryDescriptor[] = [{
   labelIssue: "conflict",
 }];
 
-const systemIssues: SystemRepositoryIssue[] = [{
+const builtInIssues: BuiltInRuntimeIssue[] = [{
   code: "repository_corrupt",
-  id: "system-journal",
-  location: { serverPath: "/state/system-journal.json", type: "server" },
+  id: "journal",
+  kind: "data",
+  location: {
+    serverPath: "/state/built-ins/journal/content.json",
+    type: "server",
+  },
   message: "日记仓库损坏。",
   status: "fault",
 }];
@@ -123,7 +127,7 @@ describe("workbench problem projection", () => {
     ]);
   });
 
-  it("projects ordinary name conflicts and protected system faults with distinct focus targets", () => {
+  it("projects ordinary name conflicts and protected built-in faults with distinct focus targets", () => {
     expect(projectUiRepositoryLabelProblems(repositories)).toEqual([
       expect.objectContaining({
         code: "repository-name-conflict",
@@ -138,30 +142,28 @@ describe("workbench problem projection", () => {
         },
       }),
     ]);
-    expect(projectUiSystemRepositoryProblems(systemIssues)).toEqual([
+    expect(projectUiBuiltInProblems(builtInIssues)).toEqual([
       expect.objectContaining({
-        id: "system-repository:system-journal",
-        locationLabel: "内置 · 日记",
+        id: "built-in:journal",
+        locationLabel: "内置数据 · 日记",
         severity: "error",
         target: {
-          kind: "system-repository-issue",
-          purpose: "system-journal",
+          kind: "built-in-issue",
+          id: "journal",
         },
       }),
     ]);
-    expect(projectUiSystemRepositoryProblems([{
-      code: "system_repository_catalog_failed",
-      id: "system-journal",
-      location: null,
-      message: "内置仓库目录不可用。",
+    expect(projectUiBuiltInProblems([{
+      code: "built_in_catalog_failed",
+      kind: "catalog",
+      message: "内置数据目录不可用。",
       status: "fault",
     }])).toEqual([
       expect.objectContaining({
-        id: "system-repository:catalog",
-        locationLabel: "内置仓库 · 目录",
+        id: "built-in:catalog",
+        locationLabel: "内置数据 · 目录",
         target: {
-          kind: "system-repository-issue",
-          purpose: "system-journal",
+          kind: "built-in-catalog",
         },
       }),
     ]);
@@ -203,7 +205,7 @@ describe("workbench problem projection", () => {
       diagnostics,
       issues,
       repositories,
-      systemIssues,
+      builtInIssues,
       runtimeIssues,
     )).toEqual({
       errorCount: 5,
@@ -211,7 +213,7 @@ describe("workbench problem projection", () => {
         expect.objectContaining({ id: "repository-label-conflict:conflicted" }),
         expect.objectContaining({ id: "repository-runtime:conflicted" }),
         expect.objectContaining({ id: "repository:aaa" }),
-        expect.objectContaining({ id: "system-repository:system-journal" }),
+        expect.objectContaining({ id: "built-in:journal" }),
         expect.objectContaining({ id: "repository-runtime:catalog" }),
         expect.objectContaining({ id: "repository:bbb" }),
         diagnostic,

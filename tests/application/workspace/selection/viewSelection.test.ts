@@ -4,7 +4,7 @@ import {
   resolveActiveNoteIdAfterRemovingNote,
   resolveActiveNoteIdAfterRemovingNotes,
   resolveDifferentNoteId,
-} from "../../../../src/application/workspace/selection/viewSelection";
+} from "../../../../application/workspace/selection/viewSelection";
 
 const notes = [
   { id: "note-first" },

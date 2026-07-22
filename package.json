@@ -12,9 +12,9 @@
   "scripts": {
     "benchmark:capacity": "node --import tsx scripts/benchmarkWorkspaceCapacity.ts",
     "dev": "vite",
-    "server": "node server/index.ts",
+    "server": "node infrastructure/server/index.ts",
     "server:build": "tsc -p tsconfig.server.json",
-    "server:start": "node dist/runtime/server/index.js",
+    "server:start": "node dist/runtime/infrastructure/server/index.js",
     "build": "tsc && vite build && pnpm verify:bundle && pnpm server:build",
     "check": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.e2e.json --noEmit && tsc -p tsconfig.benchmark.json",
     "hooks:install": "git config core.hooksPath .githooks",

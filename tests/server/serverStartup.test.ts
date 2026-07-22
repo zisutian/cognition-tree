@@ -8,7 +8,7 @@ const repositoryRoot = path.resolve(
 );
 
 function runServerWithEnvironment(environment: Record<string, string>) {
-  const child = spawn(process.execPath, ["server/index.ts"], {
+  const child = spawn(process.execPath, ["infrastructure/server/index.ts"], {
     cwd: repositoryRoot,
     env: {
       ...process.env,

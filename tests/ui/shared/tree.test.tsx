@@ -20,7 +20,7 @@ import {
   treeVirtualizationThreshold,
   treeNodeDragDataType,
   type StructureTreeNode,
-} from "../../../src/ui/shared/tree";
+} from "../../../presentation/ui/shared/tree";
 
 describe("shared trees", () => {
   it("flattens directory and structure trees with their own depth rules", () => {

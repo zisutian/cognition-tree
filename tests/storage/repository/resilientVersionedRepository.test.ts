@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLocalFirstVersionedRepository } from "../../../src/storage/repository/resilientVersionedRepository";
-import { createMemoryVersionedRepositoryCache } from "../../../src/storage/repository/versionedRepositoryCache";
+import { createLocalFirstVersionedRepository } from "../../../infrastructure/persistence/resilientVersionedRepository";
+import { createMemoryVersionedRepositoryCache } from "../../../infrastructure/persistence/versionedRepositoryCache";
 import {
   VersionedRepositoryBackendConflictError,
   VersionedRepositoryUnavailableError,
-} from "../../../src/storage/repository/versionedRepository";
+} from "../../../application/repository/versionedRepository";
 
 type Content = { records: Array<{ done: boolean; text: string }> };
 type Revision = `revision:${number}`;

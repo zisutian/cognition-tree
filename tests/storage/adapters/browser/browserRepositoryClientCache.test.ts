@@ -9,8 +9,8 @@ import type {
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace-repository/types";
-import { createIndexedDbRepositoryClientCache } from "../../../../src/storage/adapters/browser/browserRepositoryClientCache";
-import { WorkspaceRepositoryLocalConflictError } from "../../../../src/storage/repository/workspaceRepository";
+import { createIndexedDbRepositoryClientCache } from "../../../../infrastructure/browser/browserRepositoryClientCache";
+import { WorkspaceRepositoryLocalConflictError } from "../../../../application/repository/workspaceRepository";
 import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue";
 import {
   draftA,

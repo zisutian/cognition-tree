@@ -7,7 +7,7 @@ import {
   type APIRequestContext,
 } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace-repository/types";
-import { appResizeKeyboardStep } from "../src/ui/workbench/frameResize";
+import { appResizeKeyboardStep } from "../presentation/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,
   seedInteractionRepository,

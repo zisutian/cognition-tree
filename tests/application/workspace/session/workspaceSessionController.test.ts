@@ -4,14 +4,14 @@ import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
   WorkspaceRepositorySyncResult,
-} from "../../../../src/storage/repository/workspaceRepository";
+} from "../../../../application/repository/workspaceRepository";
 import {
   createWorkspaceSessionController,
   WorkspaceSessionUnavailableError,
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
-} from "../../../../src/application/workspace/session/workspaceSessionController";
-import { workspaceSessionSaveDelayMs } from "../../../../src/application/workspace/session/workspaceSessionSaveQueue";
+} from "../../../../application/workspace/session/workspaceSessionController";
+import { workspaceSessionSaveDelayMs } from "../../../../application/workspace/session/workspaceSessionSaveQueue";
 import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
 import {
   parseCtnCanonicalDocument,

@@ -5,16 +5,18 @@ import {
   createJournalWorkspaceReferenceResolver,
   routeJournalWorkspaceNoteDestination,
   routeJournalWorkspaceNoteDestinationWithoutSession,
+} from "../../../application/workbench/journalWorkspaceReferences";
+import {
   startJournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceResolutionState,
-} from "../../../src/application/journal/journalWorkspaceReferences";
+} from "../../../application/journal/journalExternalReferences";
 import type { JournalWorkspaceReference } from "../../../core/journal/indexes/journalParseIndex";
 import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,
-} from "../../../src/storage/repository/workspaceRepository";
-import type { WorkspaceRepositoryDescriptor } from "../../../src/storage/repository/workspaceRepositoryCatalog";
+} from "../../../application/repository/workspaceRepository";
+import type { WorkspaceRepositoryDescriptor } from "../../../application/repository/workspaceRepositoryCatalog";
 import {
   createContent,
   createSnapshot,

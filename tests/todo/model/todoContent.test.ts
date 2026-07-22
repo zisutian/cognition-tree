@@ -52,7 +52,6 @@ describe("Todo v3 content", () => {
         id: todoCollectionId(1),
         source: expect.stringContaining("[] 任务 1"),
       }],
-      purpose: "system-todo",
       schemaVersion: 3,
       syntaxSource: expect.stringContaining('type = "todo-item"'),
     });
@@ -62,13 +61,9 @@ describe("Todo v3 content", () => {
       .toMatchObject({ marker: "[]", tone: "default", type: "todo-item" });
   });
 
-  it("rejects another purpose, version, invalid syntax, and duplicate ids", () => {
+  it("rejects another version, invalid syntax, and duplicate ids", () => {
     const content = createValidContent();
 
-    expect(() => validateTodoContent({
-      ...content,
-      purpose: "system-journal",
-    } as never)).toThrow(/purpose must be system-todo/);
     expect(() => validateTodoContent({
       ...content,
       schemaVersion: 1,

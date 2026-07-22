@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateWorkspaceRepositoryContent } from "../../../src/storage/runtime/workspaceRepositoryContentValidation";
+import { validateWorkspaceRepositoryContent } from "../../../infrastructure/persistence/workspaceRepositoryContentValidation";
 import { createCanonicalNoteSource } from "../../../core/workspace/model/workspaceData";
 import { createContent } from "../../application/workspace/session/workspaceSessionTestFixture";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace-repository/contractValue.ts";
-import { RepositoryCorruptError } from "../../../../server/repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../../../infrastructure/server/repository/repositoryStore.ts";
 import {
   createWebDavDeletionTombstone,
   createWebDavLease,
@@ -9,7 +9,7 @@ import {
   parseWebDavLease,
   parseWebDavPointer,
   stringifyWebDavControlFile,
-} from "../../../../server/adapters/webdav/webDavControlFiles.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavControlFiles.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 

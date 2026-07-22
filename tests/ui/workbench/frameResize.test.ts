@@ -14,7 +14,7 @@ import {
   getAppContextKeyboardResizeWidth,
   getAppDetailKeyboardResizeWidth,
   getAppProblemsKeyboardResizeHeight,
-} from "../../../src/ui/workbench/frameResize";
+} from "../../../presentation/ui/workbench/frameResize";
 
 describe("frame resize", () => {
   it("clamps context and detail widths", () => {

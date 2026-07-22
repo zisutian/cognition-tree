@@ -20,20 +20,20 @@ import {
   WebDavConnectionRegistry,
   parseWebDavConnectionConfig,
   webDavRegistryConfigRemovalPhases,
-} from "../../../../server/adapters/webdav/webDavConnectionRegistry.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import {
   webDavCurrentPath,
   webDavGenerationsPath,
-} from "../../../../server/adapters/webdav/webDavControlFiles.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavControlFiles.ts";
 import {
   WebDavCapabilityError,
   WebDavRequestError,
   type WebDavTransport,
-} from "../../../../server/adapters/webdav/webDavTransport.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import {
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
-} from "../../../../server/repository/repositoryStore.ts";
+} from "../../../../infrastructure/server/repository/repositoryStore.ts";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport.ts";
 
 function createContent(name: string): WorkspaceRepositoryContentDto {

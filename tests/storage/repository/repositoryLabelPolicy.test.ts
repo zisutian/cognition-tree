@@ -5,7 +5,7 @@ import type { RepositoryDescriptorDto } from "../../../contracts/workspace-repos
 import {
   parseAvailableWorkspaceRepositoryLabel,
   projectWorkspaceRepositoryLabelIssues,
-} from "../../../src/storage/repository/repositoryLabelPolicy";
+} from "../../../infrastructure/persistence/repositoryLabelPolicy";
 
 function descriptor(
   id: string,

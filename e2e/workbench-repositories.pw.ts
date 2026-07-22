@@ -11,7 +11,7 @@ import type {
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace-repository/types";
-import { appResizeKeyboardStep } from "../src/ui/workbench/frameResize";
+import { appResizeKeyboardStep } from "../presentation/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,
   editExternalLocalNote,

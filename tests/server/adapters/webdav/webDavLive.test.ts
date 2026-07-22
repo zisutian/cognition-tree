@@ -7,13 +7,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace-repository/types.ts";
 import {
   RepositoryAdapterError,
-} from "../../../../server/repository/repositoryStore.ts";
+} from "../../../../infrastructure/server/repository/repositoryStore.ts";
 import {
   createWebDavTransport,
   probeWebDavCapabilities,
-} from "../../../../server/adapters/webdav/webDavTransport.ts";
-import { WebDavConnectionRegistry } from "../../../../server/adapters/webdav/webDavConnectionRegistry.ts";
-import { parseWebDavPrivateTargets } from "../../../../server/adapters/webdav/webDavTargetPolicy.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
+import { WebDavConnectionRegistry } from "../../../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
+import { parseWebDavPrivateTargets } from "../../../../infrastructure/server/adapters/webdav/webDavTargetPolicy.ts";
 import {
   WebDavRepositoryBusyError,
   WebDavWorkspaceStore,
@@ -21,7 +21,7 @@ import {
   webDavCurrentPath,
   webDavGenerationsPath,
   webDavLockPath,
-} from "../../../../server/adapters/webdav/webDavWorkspaceStore.ts";
+} from "../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
 import { FileBackedWebDavServer } from "./fileBackedWebDavServer.ts";
 
 const runLiveWebDav = process.env.CTN_RUN_LIVE_WEBDAV === "1";

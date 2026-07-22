@@ -9,7 +9,7 @@ type RawStyleModules = Record<string, string | { default?: string }>;
 type StyleModules = Record<string, string>;
 
 const { readFileSync } = await import("node:fs");
-const rawStyleModules = import.meta.glob("../../src/**/*.css", {
+const rawStyleModules = import.meta.glob("../../presentation/**/*.css", {
   eager: true,
   query: "?inline",
 }) as RawStyleModules;
@@ -21,18 +21,22 @@ const styleModules = Object.fromEntries(
 ) as StyleModules;
 
 function readStyle(relativePath: string) {
-  return styleModules[`../../src/${relativePath}`] ?? "";
+  return styleModules[`../../presentation/${relativePath}`] ?? "";
+}
+
+function stylePathToRelative(filePath: string) {
+  return filePath.replace("../../presentation/", "");
 }
 
 function formatStyleLine(filePath: string, index: number, line: string) {
-  return `${sourcePathToRelative(filePath)}:${index + 1}: ${line.trim()}`;
+  return `${stylePathToRelative(filePath)}:${index + 1}: ${line.trim()}`;
 }
 
 describe("UI design contract", () => {
   it("keeps foundation, frame, shared, and activity styles in explicit layers", () => {
     const uiStylePaths = Object.keys(styleModules)
-      .filter((path) => path.startsWith("../../src/ui/styles/"))
-      .map(sourcePathToRelative);
+      .filter((path) => path.startsWith("../../presentation/ui/styles"))
+      .map(stylePathToRelative);
 
     expect(uiStylePaths).toContain("ui/styles/index.css");
     expect(uiStylePaths).toContain("ui/styles/foundation/theme.css");
@@ -58,7 +62,7 @@ describe("UI design contract", () => {
   it("loads activity styles through their owning activity modules", () => {
     const globalStyleEntry = readStyle("ui/styles/index.css");
     const activityStylePaths = Object.keys(styleModules).filter((path) =>
-      path.startsWith("../../src/ui/styles/activities/"),
+      path.startsWith("../../presentation/ui/styles/activities/"),
     );
     const violations = activityStylePaths.flatMap((stylePath) => {
       const styleName = stylePath.split("/").at(-1)?.replace(".css", "") ?? "";
@@ -69,8 +73,8 @@ describe("UI design contract", () => {
         .map(([filePath]) => sourcePathToRelative(filePath));
       const expectedOwnerPrefix =
         styleName === "placeholder"
-          ? "ui/activities/Placeholder"
-          : `ui/activities/${styleName}/`;
+          ? "presentation/activities/views/Placeholder"
+          : `presentation/activities/views/${styleName}/`;
 
       return owners.length === 1 && owners[0].startsWith(expectedOwnerPrefix)
         ? []
@@ -87,7 +91,7 @@ describe("UI design contract", () => {
       /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.context-panel-header)(?:\s|[.{:#>])/;
     const violations = Object.entries(styleModules)
       .filter(([filePath]) =>
-        filePath.startsWith("../../src/ui/styles/activities/"),
+        filePath.startsWith("../../presentation/ui/styles/activities/"),
       )
       .flatMap(([filePath, source]) =>
         source
@@ -150,8 +154,8 @@ describe("UI design contract", () => {
     const violations = Object.entries(styleModules)
       .filter(
         ([filePath]) =>
-          filePath.startsWith("../../src/ui/styles/") &&
-          !filePath.startsWith("../../src/ui/styles/foundation/"),
+          filePath.startsWith("../../presentation/ui/styles") &&
+          !filePath.startsWith("../../presentation/ui/styles/foundation/"),
       )
       .flatMap(([filePath, source]) =>
         source
@@ -184,7 +188,7 @@ describe("UI design contract", () => {
     const violations = Object.entries(styleModules)
       .filter(
         ([filePath]) =>
-          filePath !== "../../src/ui/styles/foundation/theme.css",
+          filePath !== "../../presentation/ui/styles/foundation/theme.css",
       )
       .flatMap(([filePath, source]) =>
         source
@@ -202,13 +206,13 @@ describe("UI design contract", () => {
   it("keeps editor and activity presentation in their owning styles", () => {
     const sharedStyles = Object.entries(styleModules)
       .filter(([filePath]) =>
-        filePath.startsWith("../../src/ui/styles/shared/"),
+        filePath.startsWith("../../presentation/ui/styles/shared/"),
       )
       .map(([, source]) => source)
       .join("\n");
     const activityStyles = Object.entries(styleModules)
       .filter(([filePath]) =>
-        filePath.startsWith("../../src/ui/styles/activities/"),
+        filePath.startsWith("../../presentation/ui/styles/activities/"),
       )
       .map(([, source]) => source)
       .join("\n");
@@ -477,7 +481,7 @@ describe("UI design contract", () => {
   });
 
   it("keeps workbench interactions out of native browser dialogs", () => {
-    const violations = listSourceFiles("ui")
+    const violations = listSourceFiles("presentation")
       .filter((filePath) =>
         /window\.(?:alert|confirm|prompt)\s*\(/.test(
           sourceModules[filePath] ?? "",

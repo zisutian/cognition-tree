@@ -5,16 +5,16 @@ import {
   releaseGraphSimulationNode,
   updateGraphNodePointerMovement,
   type GraphNodePointerMovement,
-} from "../../../../src/ui/activities/visualization/referenceGraphCanvasModel";
+} from "../../../../presentation/activities/views/visualization/referenceGraphCanvasModel";
 import {
   consumeReferenceGraphResetSignal,
   getReferenceGraphController,
   ReferenceGraphController,
-} from "../../../../src/ui/activities/visualization/referenceGraphController";
+} from "../../../../presentation/activities/views/visualization/referenceGraphController";
 import {
   createReferenceGraphSimulation,
   resizeReferenceGraphSimulation,
-} from "../../../../src/ui/activities/visualization/referenceGraphSimulation";
+} from "../../../../presentation/activities/views/visualization/referenceGraphSimulation";
 
 function createMovement(): GraphNodePointerMovement {
   return {

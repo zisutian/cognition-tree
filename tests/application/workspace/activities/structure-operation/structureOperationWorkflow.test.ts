@@ -4,8 +4,8 @@ import {
   executeStructureBlockMoveWithinNote,
   getStructureMoveFailureMessage,
   type StructureMoveFailureReason,
-} from "../../../../../src/application/workspace/activities/structure-operation/structureOperationWorkflow";
-import type { SessionCommands } from "../../../../../src/application/workspace/session/sessionCommands";
+} from "../../../../../application/workspace/activities/structure-operation/structureOperationWorkflow";
+import type { SessionCommands } from "../../../../../application/workspace/session/sessionCommands";
 import type { WorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 
 const index = {} as WorkspaceParseIndex;

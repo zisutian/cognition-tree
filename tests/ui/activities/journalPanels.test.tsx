@@ -4,16 +4,16 @@ import type {
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ConfirmDialog } from "../../../src/ui/shared/ConfirmDialog";
+import { ConfirmDialog } from "../../../presentation/ui/shared/ConfirmDialog";
 import {
   JournalContext,
   JournalDeleteConfirmation,
   JournalDetailPanel,
   JournalEditorPanel,
   submitJournalEntryCreation,
-} from "../../../src/ui/activities/journal/JournalPanels";
+} from "../../../presentation/activities/views/journal/JournalPanels";
 import { createView } from "../viewFactory";
-import { runFeedbackAction } from "../../../src/ui/shared/FeedbackProvider";
+import { runFeedbackAction } from "../../../presentation/ui/shared/FeedbackProvider";
 
 const olderJanuaryEntry = {
   createdAt: "2026-01-02T02:04:05.000Z",

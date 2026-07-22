@@ -7,9 +7,9 @@ import {
   findNotesTreeAncestorFolderIds,
   submitNotesEditorChange,
   submitNotesFolderCreation,
-} from "../../../../src/ui/activities/notes/NotesPanels";
-import { NoteTimeDetails } from "../../../../src/ui/activities/notes/NoteTimeDetails";
-import { runFeedbackAction } from "../../../../src/ui/shared/FeedbackProvider";
+} from "../../../../presentation/activities/views/notes/NotesPanels";
+import { NoteTimeDetails } from "../../../../presentation/activities/views/notes/NoteTimeDetails";
+import { runFeedbackAction } from "../../../../presentation/ui/shared/FeedbackProvider";
 import { createView } from "../../viewFactory";
 
 describe("notes panels", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLocalFirstWorkspaceRepository } from "../../../src/storage/repository/resilientWorkspaceRepository";
+import { createLocalFirstWorkspaceRepository } from "../../../infrastructure/persistence/resilientWorkspaceRepository";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryLocalConflictError,
@@ -7,8 +7,8 @@ import {
   WorkspaceRepositoryUnavailableError,
   type RemoteWorkspaceCommit,
   type WorkspaceRepositoryBackend,
-} from "../../../src/storage/repository/workspaceRepository";
-import { createMemoryWorkspaceRepositoryCache } from "../../../src/storage/repository/workspaceRepositoryCache";
+} from "../../../application/repository/workspaceRepository";
+import { createMemoryWorkspaceRepositoryCache } from "../../../infrastructure/persistence/workspaceRepositoryCache";
 import {
   createRepositoryContent,
   revisionA,

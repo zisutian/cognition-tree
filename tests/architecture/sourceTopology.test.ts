@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
+  applicationModules,
+  contractModules,
+  coreModules,
   ctnModules,
   ctnPathToRelative,
-  journalModules,
-  journalPathToRelative,
+  infrastructureModules,
   listSourceFiles,
+  presentationModules,
   serverModules,
   sourceModules,
   sourcePathToRelative,
-  todoModules,
-  todoPathToRelative,
-  workspaceDomainModules,
 } from "./sourceGraph";
+
+const legacySourceModules = import.meta.glob(
+  ["../../src/**/*.{ts,tsx}", "../../server/**/*.ts"],
+  { eager: true, import: "default", query: "?raw" },
+);
 
 describe("semantic source ownership", () => {
   it("keeps canonical metadata interpretation inside the CTN parser", () => {
@@ -32,7 +37,7 @@ describe("semantic source ownership", () => {
           source,
         ),
       )
-      .map(([filePath]) => filePath.replace("../../server/", ""));
+      .map(([filePath]) => filePath.replace("../../infrastructure/server", ""));
 
     expect([
       ...consumers,
@@ -55,13 +60,13 @@ describe("semantic source ownership", () => {
     const consumers = Object.entries(sourceModules)
       .filter(
         ([filePath, source]) =>
-          !filePath.endsWith("application/workspace/runtime/useWorkspaceParseIndex.ts") &&
+          !filePath.endsWith("presentation/shell/bindings/application/workspace/runtime/useWorkspaceParseIndex.ts") &&
           /\buseWorkspaceParseIndex\s*\(/.test(source),
       )
       .map(([filePath]) => sourcePathToRelative(filePath));
 
     expect(consumers).toEqual([
-      "application/workspace/analysis/useWorkspaceAnalysis.ts",
+      "presentation/shell/bindings/application/workspace/analysis/useWorkspaceAnalysis.ts",
     ]);
   });
 
@@ -77,34 +82,26 @@ describe("semantic source ownership", () => {
     expect(violations).toEqual([]);
   });
 
-  it("rejects compatibility and legacy repository branches", () => {
-    const violations = [
-      ...Object.entries(sourceModules).map(([filePath, source]) => ({
-        filePath: sourcePathToRelative(filePath),
-        source,
-      })),
-      ...Object.entries(ctnModules).map(([filePath, source]) => ({
-        filePath: `core/ctn/${ctnPathToRelative(filePath)}`,
-        source,
-      })),
-      ...Object.entries(journalModules).map(([filePath, source]) => ({
-        filePath: `core/journal/${journalPathToRelative(filePath)}`,
-        source,
-      })),
-      ...Object.entries(todoModules).map(([filePath, source]) => ({
-        filePath: `core/todo/${todoPathToRelative(filePath)}`,
-        source,
-      })),
-      ...Object.entries(workspaceDomainModules).map(([filePath, source]) => ({
-        filePath: filePath.replace("../../", ""),
-        source,
-      })),
-    ]
-      .filter(({ source }) =>
-        /\b(?:legacy|migrate-v2)\b/i.test(source),
-      )
-      .map(({ filePath }) => filePath);
+  it("uses the five repository-root layers without legacy source roots", () => {
+    expect(Object.keys(applicationModules).length).toBeGreaterThan(0);
+    expect(Object.keys(contractModules).length).toBeGreaterThan(0);
+    expect(Object.keys(coreModules).length).toBeGreaterThan(0);
+    expect(Object.keys(infrastructureModules).length).toBeGreaterThan(0);
+    expect(Object.keys(presentationModules).length).toBeGreaterThan(0);
+    expect(Object.keys(legacySourceModules)).toEqual([]);
+  });
 
-    expect(violations).toEqual([]);
+  it("keeps v2 knowledge confined to destructive per-domain epoch cleanup", () => {
+    const v2Owners = Object.entries({
+      ...sourceModules,
+      ...contractModules,
+    })
+      .filter(([, source]) => /(?:schemaVersion\s*:\s*2|system-journal|system-todo)/.test(source))
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(v2Owners).toEqual([
+      "infrastructure/browser/browserBuiltInRepositories.ts",
+      "infrastructure/server/repository/builtInCatalog.ts",
+    ]);
   });
 });

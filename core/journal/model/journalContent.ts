@@ -15,7 +15,6 @@ import {
   parseJournalSyntaxSource,
 } from "../syntax/journalSyntax.ts";
 
-export const journalRepositoryPurpose = "system-journal" as const;
 export const journalRepositorySchemaVersion = 3 as const;
 export const journalMaximumDailySequence = 9_999;
 
@@ -40,7 +39,6 @@ export type JournalEntry = {
 export type JournalEntryValue = Omit<JournalEntry, "id"> & { id: string };
 
 export type JournalContent = {
-  purpose: typeof journalRepositoryPurpose;
   schemaVersion: typeof journalRepositorySchemaVersion;
   syntaxSource: string;
   days: JournalDay[];
@@ -313,7 +311,6 @@ export function collectJournalBlockIds(
 export function createEmptyJournalContent(): JournalContent {
   return {
     days: [],
-    purpose: journalRepositoryPurpose,
     schemaVersion: journalRepositorySchemaVersion,
     syntaxSource: defaultJournalSyntaxSourceV3,
   };
@@ -322,11 +319,6 @@ export function createEmptyJournalContent(): JournalContent {
 export function validateJournalContent(
   content: JournalContentValue,
 ): JournalContent {
-  if (content.purpose !== journalRepositoryPurpose) {
-    throw new JournalContentValidationError(
-      `Journal purpose must be ${journalRepositoryPurpose}.`,
-    );
-  }
   if (content.schemaVersion !== journalRepositorySchemaVersion) {
     throw new JournalContentValidationError(
       `Journal schema version must be ${journalRepositorySchemaVersion}.`,

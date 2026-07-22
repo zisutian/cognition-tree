@@ -5,7 +5,7 @@ import {
   createEditorValueSyncChange,
   createEditorValueSyncTransaction,
   ctnExternalValueSync,
-} from "../../src/editor/editorValueSync";
+} from "../../presentation/editor/editorValueSync";
 
 describe("createEditorValueSyncChange", () => {
   it("returns no change for an identical controlled value", () => {

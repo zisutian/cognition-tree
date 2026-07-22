@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { VisualizationDetailPanel } from "../../../../src/ui/activities/visualization/VisualizationDetailPanel";
-import { VisualizationPanel } from "../../../../src/ui/activities/visualization/VisualizationPanel";
-import { ReferenceGraphCanvas } from "../../../../src/ui/activities/visualization/ReferenceGraphCanvas";
+import { VisualizationDetailPanel } from "../../../../presentation/activities/views/visualization/VisualizationDetailPanel";
+import { VisualizationPanel } from "../../../../presentation/activities/views/visualization/VisualizationPanel";
+import { ReferenceGraphCanvas } from "../../../../presentation/activities/views/visualization/ReferenceGraphCanvas";
 import { createView } from "../../viewFactory";
 
 describe("visualization panels", () => {

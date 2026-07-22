@@ -4,19 +4,19 @@ import {
   defaultJournalCtnSyntaxProfileV3,
   defaultJournalSyntaxSourceV3,
 } from "../../core/journal/syntax/journalSyntax";
-import type { JournalViewModel } from "../../src/application/journal";
-import type { TodoViewModel } from "../../src/application/todo";
+import type { JournalViewModel } from "../../application/journal";
+import type { TodoViewModel } from "../../application/todo";
 import {
   defaultTodoCtnSyntaxProfileV3,
   defaultTodoSyntaxSourceV3,
 } from "../../core/todo/syntax/todoSyntax";
-import { createUiSyntaxView } from "../../src/application/workspace/projection/viewSyntax";
-import type { NotesViewModel } from "../../src/application/workspace/activities/notes/notesViewModel";
-import type { RepositoryViewModel } from "../../src/application/workspace/activities/repository/repositoryViewModel";
-import type { StructureOperationActivityViewModel } from "../../src/application/workspace/activities/structure-operation/structureOperationViewModel";
-import type { SyntaxViewModel } from "../../src/application/workspace/activities/syntax/syntaxViewModel";
-import type { VisualizationViewModel } from "../../src/application/workspace/activities/visualization/visualizationViewModel";
-import type { WorkspaceShell } from "../../src/application/workspace/runtime/useWorkspaceApplication";
+import { createUiSyntaxView } from "../../application/workspace/projection/viewSyntax";
+import type { NotesViewModel } from "../../application/workspace/activities/notes/notesViewModel";
+import type { RepositoryViewModel } from "../../application/workspace/activities/repository/repositoryViewModel";
+import type { StructureOperationActivityViewModel } from "../../application/workspace/activities/structure-operation/structureOperationViewModel";
+import type { SyntaxViewModel } from "../../application/workspace/activities/syntax/syntaxViewModel";
+import type { VisualizationViewModel } from "../../application/workspace/activities/visualization/visualizationViewModel";
+import type { WorkspaceShell } from "../../presentation/shell/bindings/application/workspace/runtime/useWorkspaceApplication";
 
 export type TestActivityViews = {
   journal: JournalViewModel;
@@ -204,15 +204,15 @@ export function createView(
       ],
       operation: "idle",
       persistenceStatusLabel: "已保存",
-      reloadSystemCatalog: async () => undefined,
+      reloadBuiltInCatalog: async () => undefined,
       renameRepository: async () => undefined,
       storageLabel: "本地",
-      systemCatalogErrorMessage: "",
-      systemCatalogStatus: "ready",
-      systemIssues: [],
-      systemRepositories: [],
-      retrySystemRepository: async () => undefined,
-      retryingSystemPurpose: null,
+      builtInCatalogErrorMessage: "",
+      builtInCatalogStatus: "ready",
+      builtInIssues: [],
+      builtIns: [],
+      retryBuiltIn: async () => undefined,
+      retryingBuiltInId: null,
       selectRepository: async () => undefined,
     },
     shell: {

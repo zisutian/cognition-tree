@@ -3,13 +3,13 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySyncResult,
-} from "../../../../src/storage/repository/workspaceRepository";
+} from "../../../../application/repository/workspaceRepository";
 import {
   createWorkspaceSessionSaveQueue,
   workspaceSessionRetryDelaysMs,
   workspaceSessionSaveDelayMs,
   type WorkspacePersistenceState,
-} from "../../../../src/application/workspace/session/workspaceSessionSaveQueue";
+} from "../../../../application/workspace/session/workspaceSessionSaveQueue";
 import {
   createContent,
   createSnapshot,

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AppFrame } from "../../src/ui/AppFrame";
+import { AppFrame } from "../../presentation/ui/AppFrame";
 
 describe("AppFrame", () => {
   function renderFrame({

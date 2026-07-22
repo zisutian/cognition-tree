@@ -8,7 +8,7 @@ import {
   TodoDetailPanel,
   TodoEditorPanel,
   createTodoInlineEditBlurGuard,
-} from "../../../src/ui/activities/todo/TodoPanels";
+} from "../../../presentation/activities/views/todo/TodoPanels";
 import { createView } from "../viewFactory";
 
 describe("Todo panels", () => {

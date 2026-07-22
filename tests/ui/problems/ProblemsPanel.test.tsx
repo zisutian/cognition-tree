@@ -1,13 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { UiWorkbenchDiagnostic } from "../../../src/application/workspace/projection/viewDiagnostics";
-import type { UiWorkbenchRepositoryProblem } from "../../../src/application/problems/workbenchProblems";
-import type { JournalDiagnostic } from "../../../src/application/journal";
+import type { UiWorkbenchDiagnostic } from "../../../application/workspace/projection/viewDiagnostics";
+import type { UiWorkbenchRepositoryProblem } from "../../../application/problems/workbenchProblems";
+import type { JournalDiagnostic } from "../../../application/journal";
 import {
   ProblemsPanel,
   problemsVirtualizationThreshold,
   shouldVirtualizeProblems,
-} from "../../../src/ui/problems/ProblemsPanel";
+} from "../../../presentation/ui/problems/ProblemsPanel";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",

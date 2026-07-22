@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { startWorkspaceAnalysisCollection } from "../../../../src/application/workspace/analysis/workspaceAnalysisCollection";
-import type { WorkspaceAnalysis } from "../../../../src/application/workspace/analysis/workspaceAnalysis";
+import { startWorkspaceAnalysisCollection } from "../../../../application/workspace/analysis/workspaceAnalysisCollection";
+import type { WorkspaceAnalysis } from "../../../../application/workspace/analysis/workspaceAnalysis";
 import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
 import { createWorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";

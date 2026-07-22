@@ -1,14 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ConfirmDialog } from "../../../src/ui/shared/ConfirmDialog";
-import { ContextMenu } from "../../../src/ui/shared/ContextMenu";
+import { ConfirmDialog } from "../../../presentation/ui/shared/ConfirmDialog";
+import { ContextMenu } from "../../../presentation/ui/shared/ContextMenu";
 import {
   FeedbackProvider,
   getErrorMessage,
   runFeedbackAction,
-} from "../../../src/ui/shared/FeedbackProvider";
-import { resolveOverlayCoordinates } from "../../../src/ui/shared/Overlay";
-import { QuickPick } from "../../../src/ui/shared/QuickPick";
+} from "../../../presentation/ui/shared/FeedbackProvider";
+import { resolveOverlayCoordinates } from "../../../presentation/ui/shared/Overlay";
+import { QuickPick } from "../../../presentation/ui/shared/QuickPick";
 
 describe("shared overlays", () => {
   it("renders destructive confirmation as an alert dialog", () => {
