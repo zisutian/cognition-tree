@@ -20,7 +20,7 @@ export const journalCtnSyntaxProfileV1 = Object.freeze({
     textColor: "cyan",
     tone: "blue",
   }),
-  conceptRule: freezeRule({
+  topLevelUnmarkedRule: freezeRule({
     type: "concept",
     label: "顶格概念",
     textColor: "cyan",

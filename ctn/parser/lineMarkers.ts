@@ -126,13 +126,13 @@ export function parseMarker(
 
   return {
     diagnostics: [],
-    label: "概念",
+    label: "无符号正文",
     marker: null,
     role: "normal",
     text: trimmed,
     textColor: "default",
     textStartColumn: indentWidth + 1,
     tone: "default",
-    type: "concept",
+    type: "text",
   };
 }

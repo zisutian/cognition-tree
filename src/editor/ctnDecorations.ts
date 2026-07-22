@@ -23,15 +23,15 @@ import {
   type CtnEditorParsedContentMode,
 } from "./ctnEditorContentMode";
 
-function isRootConceptBlock(block: CtnEditableBlock) {
-  return block.level === 0 && block.marker === null;
+function isConceptBlock(block: CtnEditableBlock) {
+  return block.type === "concept";
 }
 
 function getBlockTextClass(block: CtnEditableBlock) {
   const textColorClass = getCtnEditorTextColorClassName(block.textColor);
 
-  if (isRootConceptBlock(block)) {
-    return `ctn-block-text ctn-block-text-root-concept ${textColorClass}`;
+  if (isConceptBlock(block)) {
+    return `ctn-block-text ctn-block-text-concept ${textColorClass}`;
   }
 
   return `ctn-block-text ${textColorClass}`;
@@ -63,8 +63,8 @@ export function getBlockLineDecorationClass(
   const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.tone)];
   const isBlockStartLine = lineNumber === block.lineNumber;
 
-  if (isBlockStartLine && isRootConceptBlock(block)) {
-    lineClasses.push("ctn-line-root-concept");
+  if (isBlockStartLine && isConceptBlock(block)) {
+    lineClasses.push("ctn-line-concept");
   }
 
   if (isBlockStartLine && block.diagnostics.length > 0) {

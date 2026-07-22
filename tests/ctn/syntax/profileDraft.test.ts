@@ -232,7 +232,7 @@ describe("syntax profile draft", () => {
     const result = buildSyntaxProfileDraft(draft);
 
     expect(result.diagnostics).toEqual([]);
-    expect(result.profile?.conceptRule).toEqual({
+    expect(result.profile?.topLevelUnmarkedRule).toEqual({
       label: "顶格概念",
       textColor: "cyan",
       tone: "pink",

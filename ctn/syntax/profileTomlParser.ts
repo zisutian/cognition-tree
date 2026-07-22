@@ -2,18 +2,20 @@
 
 import { parse } from "smol-toml";
 import type {
-  CtnConceptRule,
   CtnInlineRule,
   CtnMarkerRule,
   CtnRuleRole,
   CtnSyntaxProfile,
   CtnSyntaxTone,
   CtnTitleRule,
+  CtnTopLevelUnmarkedRule,
 } from "./types.ts";
 import {
   validateSyntaxProfile,
   validateSyntaxProfileName,
   validateSyntaxTabDisplayWidth,
+  syntaxProfileValidationPolicies,
+  type CtnSyntaxProfileValidationPolicy,
   type SyntaxProfileSchemaDiagnostic,
 } from "./profileSchema.ts";
 
@@ -41,16 +43,20 @@ export type ParseSyntaxProfileTomlResult = {
   profile: CtnSyntaxProfile | null;
 };
 
-const rootFields = new Set([
+const commonRootFields = [
   "name",
   "tabDisplayWidth",
   "title",
-  "concept",
   "markers",
   "inlineRules",
-]);
+] as const;
 const titleFields = new Set(["type", "label", "textColor", "tone"]);
-const conceptFields = new Set(["type", "label", "textColor", "tone"]);
+const topLevelUnmarkedRuleFields = new Set([
+  "type",
+  "label",
+  "textColor",
+  "tone",
+]);
 const markerFields = new Set([
   "marker",
   "type",
@@ -274,20 +280,25 @@ function validateMarkers(
   return markerRules;
 }
 
-function validateConcept(
+function validateTopLevelUnmarkedRule(
   value: unknown,
+  path: "body" | "concept",
+  ruleLabel: string,
   diagnostics: SyntaxProfileTomlDiagnostic[],
-): CtnConceptRule | null {
-  const path = "concept";
-
+): CtnTopLevelUnmarkedRule | null {
   if (!isRecord(value)) {
     diagnostics.push(
-      createDiagnostic("missing-field", path, "缺少顶格概念规则。"),
+      createDiagnostic("missing-field", path, `缺少${ruleLabel}规则。`),
     );
     return null;
   }
 
-  validateSupportedFields(value, conceptFields, path, diagnostics);
+  validateSupportedFields(
+    value,
+    topLevelUnmarkedRuleFields,
+    path,
+    diagnostics,
+  );
 
   const type = readRequiredString(value, "type", path, diagnostics);
   const label = readRequiredString(value, "label", path, diagnostics);
@@ -478,6 +489,8 @@ function createTomlSchemaDiagnostic(
 
 export function parseSyntaxProfileToml(
   source: string,
+  policy: CtnSyntaxProfileValidationPolicy =
+    syntaxProfileValidationPolicies.workspace,
 ): ParseSyntaxProfileTomlResult {
   let parsed: unknown;
 
@@ -517,6 +530,18 @@ export function parseSyntaxProfileToml(
     };
   }
 
+  const topLevelUnmarkedField =
+    policy.scope === "workspace"
+      ? "concept"
+      : policy.scope === "journal"
+        ? "body"
+        : null;
+  const rootFields = new Set<string>(commonRootFields);
+
+  if (topLevelUnmarkedField !== null) {
+    rootFields.add(topLevelUnmarkedField);
+  }
+
   validateSupportedFields(parsed, rootFields, "$", diagnostics);
 
   const name = readRequiredString(parsed, "name", "$", diagnostics);
@@ -527,7 +552,15 @@ export function parseSyntaxProfileToml(
     diagnostics,
   );
   const titleRule = validateTitle(parsed.title, diagnostics);
-  const conceptRule = validateConcept(parsed.concept, diagnostics);
+  const topLevelUnmarkedRule =
+    topLevelUnmarkedField === null
+      ? null
+      : validateTopLevelUnmarkedRule(
+          parsed[topLevelUnmarkedField],
+          topLevelUnmarkedField,
+          policy.scope === "workspace" ? "顶格概念" : "顶格正文",
+          diagnostics,
+        );
   const markerRules = validateMarkers(parsed.markers, diagnostics);
   const inlineRules = validateInlineRules(parsed.inlineRules, diagnostics);
 
@@ -535,7 +568,7 @@ export function parseSyntaxProfileToml(
     name === null ||
     tabDisplayWidth === null ||
     titleRule === null ||
-    conceptRule === null ||
+    (topLevelUnmarkedField !== null && topLevelUnmarkedRule === null) ||
     markerRules === null ||
     inlineRules === null
   ) {
@@ -560,16 +593,16 @@ export function parseSyntaxProfileToml(
   }
 
   const profile: CtnSyntaxProfile = {
-    conceptRule,
     inlineRules,
     markerRules,
     name,
     tabDisplayWidth,
     titleRule,
+    topLevelUnmarkedRule,
   };
 
   diagnostics.push(
-    ...validateSyntaxProfile(profile).map(createTomlSchemaDiagnostic),
+    ...validateSyntaxProfile(profile, policy).map(createTomlSchemaDiagnostic),
   );
 
   if (diagnostics.length > 0) {

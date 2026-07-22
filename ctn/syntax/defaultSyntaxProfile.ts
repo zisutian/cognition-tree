@@ -11,7 +11,7 @@ export const defaultCtnSyntaxProfile = {
     textColor: "cyan",
     tone: "blue",
   },
-  conceptRule: {
+  topLevelUnmarkedRule: {
     type: "concept",
     label: "顶格概念",
     textColor: "cyan",

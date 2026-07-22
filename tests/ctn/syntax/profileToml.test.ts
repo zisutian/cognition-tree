@@ -4,6 +4,8 @@ import {
   formatSyntaxProfileToml,
   parseSyntaxProfileToml,
 } from "../../../ctn/syntax/profileToml";
+import { syntaxProfileValidationPolicies } from "../../../ctn/syntax/profileSchema";
+import type { CtnSyntaxProfile } from "../../../ctn/syntax/types";
 
 describe("syntax profile TOML", () => {
   it("parses a valid syntax profile", () => {
@@ -67,7 +69,7 @@ textColor = "red"
 
     expect(result.diagnostics).toEqual([]);
     expect(result.profile).toEqual({
-      conceptRule: {
+      topLevelUnmarkedRule: {
         label: "顶格概念",
         textColor: "cyan",
         tone: "teal",
@@ -131,12 +133,52 @@ textColor = "red"
   });
 
   it("formats the default profile as parseable TOML", () => {
-    const result = parseSyntaxProfileToml(
-      formatSyntaxProfileToml(defaultCtnSyntaxProfile),
-    );
+    const source = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+    const result = parseSyntaxProfileToml(source);
 
+    expect(source).toContain("[concept]");
+    expect(source).not.toContain("[body]");
     expect(result.diagnostics).toEqual([]);
     expect(result.profile).toEqual(defaultCtnSyntaxProfile);
+  });
+
+  it("maps journal body rules and omits unmarked rules for todo profiles", () => {
+    const journalProfile: CtnSyntaxProfile = {
+      ...defaultCtnSyntaxProfile,
+      topLevelUnmarkedRule: {
+        label: "正文",
+        textColor: "default",
+        tone: "default",
+        type: "body",
+      },
+    };
+    const journalSource = formatSyntaxProfileToml(
+      journalProfile,
+      syntaxProfileValidationPolicies.journal,
+    );
+    const journalResult = parseSyntaxProfileToml(
+      journalSource,
+      syntaxProfileValidationPolicies.journal,
+    );
+    const todoProfile: CtnSyntaxProfile = {
+      ...defaultCtnSyntaxProfile,
+      topLevelUnmarkedRule: null,
+    };
+    const todoSource = formatSyntaxProfileToml(
+      todoProfile,
+      syntaxProfileValidationPolicies.todo,
+    );
+    const todoResult = parseSyntaxProfileToml(
+      todoSource,
+      syntaxProfileValidationPolicies.todo,
+    );
+
+    expect(journalSource).toContain("[body]");
+    expect(journalSource).not.toContain("[concept]");
+    expect(journalResult).toEqual({ diagnostics: [], profile: journalProfile });
+    expect(todoSource).not.toContain("[body]");
+    expect(todoSource).not.toContain("[concept]");
+    expect(todoResult).toEqual({ diagnostics: [], profile: todoProfile });
   });
 
   it("applies schema bounds after decoding TOML", () => {

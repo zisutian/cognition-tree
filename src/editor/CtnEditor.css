@@ -110,7 +110,7 @@
   border-radius: var(--ui-radius);
 }
 
-.source-editor .ctn-block-text-root-concept {
+.source-editor .ctn-block-text-concept {
   font-weight: var(--ctn-editor-strong-weight);
 }
 
@@ -118,7 +118,7 @@
   background: var(--ctn-tone-background, transparent);
 }
 
-.source-editor .cm-line.ctn-line-root-concept {
+.source-editor .cm-line.ctn-line-concept {
   background: color-mix(
     in srgb,
     var(--color-accent-subtle) 72%,

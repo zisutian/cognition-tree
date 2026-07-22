@@ -3,6 +3,7 @@ import { defaultCtnSyntaxProfile } from "../../../ctn/syntax/defaultSyntaxProfil
 import {
   normalizeSyntaxTabDisplayWidthInput,
   syntaxProfileSchema,
+  syntaxProfileValidationPolicies,
   validateSyntaxProfile,
 } from "../../../ctn/syntax/profileSchema";
 import type {
@@ -17,6 +18,55 @@ function createProfile(): CtnSyntaxProfile {
 describe("syntax profile schema", () => {
   it("accepts the default profile", () => {
     expect(validateSyntaxProfile(defaultCtnSyntaxProfile)).toEqual([]);
+  });
+
+  it("scopes the nullable top-level unmarked rule by owner", () => {
+    const bodyProfile: CtnSyntaxProfile = {
+      ...createProfile(),
+      topLevelUnmarkedRule: {
+        label: "正文",
+        textColor: "default",
+        tone: "default",
+        type: "body",
+      },
+    };
+    const markerOnlyProfile: CtnSyntaxProfile = {
+      ...createProfile(),
+      topLevelUnmarkedRule: null,
+    };
+
+    expect(
+      validateSyntaxProfile(
+        bodyProfile,
+        syntaxProfileValidationPolicies.journal,
+      ),
+    ).toEqual([]);
+    expect(
+      validateSyntaxProfile(
+        markerOnlyProfile,
+        syntaxProfileValidationPolicies.todo,
+      ),
+    ).toEqual([]);
+    expect(
+      validateSyntaxProfile(
+        markerOnlyProfile,
+        syntaxProfileValidationPolicies.workspace,
+      ),
+    ).toContainEqual({
+      code: "missing-required-rule",
+      message: "缺少顶格概念规则。",
+      path: "concept",
+    });
+    expect(
+      validateSyntaxProfile(
+        createProfile(),
+        syntaxProfileValidationPolicies.todo,
+      ),
+    ).toContainEqual({
+      code: "forbidden-rule",
+      message: "代办语法不允许无行首符号的正文规则。",
+      path: "topLevelUnmarkedRule",
+    });
   });
 
   it("owns text, numeric, role, semantic id, and color constraints", () => {

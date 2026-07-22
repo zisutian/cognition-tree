@@ -7,6 +7,7 @@ import type {
 } from "./types.ts";
 import {
   syntaxProfileSchema,
+  syntaxProfileValidationPolicies,
   validateSyntaxProfile,
   type SyntaxProfileSchemaDiagnosticCode,
 } from "./profileSchema.ts";
@@ -165,13 +166,22 @@ export function createNextInlineRuleDraft(
 export function createSyntaxProfileDraft(
   profile: CtnSyntaxProfile,
 ): SyntaxProfileDraft {
+  const conceptRule = profile.topLevelUnmarkedRule;
+
+  if (
+    conceptRule === null ||
+    conceptRule.type !== syntaxProfileSchema.requiredTypes.concept
+  ) {
+    throw new Error("A workspace syntax draft requires its concept rule.");
+  }
+
   return {
     conceptRule: {
       id: "concept-1",
-      label: profile.conceptRule.label,
-      textColor: profile.conceptRule.textColor,
-      tone: profile.conceptRule.tone,
-      type: profile.conceptRule.type,
+      label: conceptRule.label,
+      textColor: conceptRule.textColor,
+      tone: conceptRule.tone,
+      type: conceptRule.type,
     },
     titleRule: {
       id: "title-1",
@@ -211,7 +221,7 @@ export function buildSyntaxProfileDraft(
   draft: SyntaxProfileDraft,
 ): SyntaxProfileDraftBuildResult {
   const profile: CtnSyntaxProfile = {
-    conceptRule: {
+    topLevelUnmarkedRule: {
       label: draft.conceptRule.label.trim(),
       textColor: draft.conceptRule.textColor,
       tone: draft.conceptRule.tone,
@@ -254,9 +264,10 @@ export function buildSyntaxProfileDraft(
       type: draft.titleRule.type.trim(),
     },
   };
-  const diagnostics = validateSyntaxProfile(profile).map((diagnostic) => ({
-    ...diagnostic,
-  }));
+  const diagnostics = validateSyntaxProfile(
+    profile,
+    syntaxProfileValidationPolicies.workspace,
+  ).map((diagnostic) => ({ ...diagnostic }));
 
   if (diagnostics.length > 0) {
     return {

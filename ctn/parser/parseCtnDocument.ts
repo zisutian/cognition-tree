@@ -362,24 +362,30 @@ function parseDocument<TBlock extends CtnEditableBlock>(
           indentText.length,
           markerRules,
         );
-    const isUnmarkedLine =
-      parsedMarker.marker === null && parsedMarker.type === "concept";
-    const isTopLevelConcept = indentText.length === 0 && isUnmarkedLine;
-    const isUnknownIndentedSyntax =
-      !isReservedDirective && indentText.length > 0 && isUnmarkedLine;
+    const isUnmarkedLine = parsedMarker.marker === null;
+    const appliedTopLevelUnmarkedRule =
+      !isReservedDirective && indentText.length === 0 && isUnmarkedLine
+        ? syntaxProfile.topLevelUnmarkedRule
+        : null;
+    const isUnknownUnmarkedSyntax =
+      !isReservedDirective &&
+      isUnmarkedLine &&
+      (indentText.length > 0 || appliedTopLevelUnmarkedRule === null);
     const nodeDiagnostics = [
       ...indent.diagnostics,
       ...parsedMarker.diagnostics,
     ];
 
-    if (isUnknownIndentedSyntax) {
+    if (isUnknownUnmarkedSyntax) {
       nodeDiagnostics.push(
         createDiagnostic(
           "unknown-syntax",
           "warning",
           lineNumber,
           indentText.length + 1,
-          "缩进行必须使用已配置的行首符号。",
+          indentText.length > 0
+            ? "缩进行必须使用已配置的行首符号。"
+            : "当前语法要求正文行使用已配置的行首符号。",
         ),
       );
     }
@@ -419,7 +425,7 @@ function parseDocument<TBlock extends CtnEditableBlock>(
       indentText,
       inlineSpans:
         parsedMarker.role === "multiline" ||
-        isUnknownIndentedSyntax ||
+        isUnknownUnmarkedSyntax ||
         isReservedDirective
           ? []
           : parseInlineSpans(
@@ -430,10 +436,10 @@ function parseDocument<TBlock extends CtnEditableBlock>(
             ),
       label: isReservedDirective
         ? parsedMarker.label
-        : isUnknownIndentedSyntax
+        : isUnknownUnmarkedSyntax
           ? "未知语法"
-          : isTopLevelConcept
-            ? syntaxProfile.conceptRule.label
+          : appliedTopLevelUnmarkedRule !== null
+            ? appliedTopLevelUnmarkedRule.label
             : parsedMarker.label,
       level: indent.level,
       lexicalEndLineNumber,
@@ -444,19 +450,19 @@ function parseDocument<TBlock extends CtnEditableBlock>(
       role: parsedMarker.role,
       subtreeEndLineNumber: lexicalEndLineNumber,
       text: parsedMarker.text,
-      textColor: isTopLevelConcept
-        ? syntaxProfile.conceptRule.textColor
+      textColor: appliedTopLevelUnmarkedRule !== null
+        ? appliedTopLevelUnmarkedRule.textColor
         : parsedMarker.textColor,
       textStartColumn: parsedMarker.textStartColumn,
-      tone: isTopLevelConcept
-        ? syntaxProfile.conceptRule.tone
+      tone: appliedTopLevelUnmarkedRule !== null
+        ? appliedTopLevelUnmarkedRule.tone
         : parsedMarker.tone,
       type: isReservedDirective
         ? "text"
-        : isUnknownIndentedSyntax
+        : isUnknownUnmarkedSyntax
           ? "text"
-          : isTopLevelConcept
-            ? syntaxProfile.conceptRule.type
+          : appliedTopLevelUnmarkedRule !== null
+            ? appliedTopLevelUnmarkedRule.type
             : parsedMarker.type,
     } as unknown as TBlock;
 

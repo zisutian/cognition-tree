@@ -125,6 +125,19 @@ describe("ctn editor decorations", () => {
     ).toBe("--ctn-tone-color: #4455aa;");
   });
 
+  it("applies concept emphasis by semantic type rather than line shape", () => {
+    expect(
+      getBlockLineDecorationClass(
+        createBlock({ level: 0, marker: null, tone: "blue", type: "body" }),
+      ),
+    ).toBe("ctn-line ctn-tone-blue");
+    expect(
+      getBlockLineDecorationClass(
+        createBlock({ level: 1, marker: ":", tone: "blue", type: "concept" }),
+      ),
+    ).toBe("ctn-line ctn-tone-blue ctn-line-concept");
+  });
+
   it("keeps inline tone and text color separate", () => {
     expect(
       getInlineDecorationClass({

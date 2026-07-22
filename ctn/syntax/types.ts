@@ -34,7 +34,7 @@ export type CtnMarkerRule = {
   tone: CtnSyntaxTone;
 };
 
-export type CtnConceptRule = {
+export type CtnTopLevelUnmarkedRule = {
   type: CtnBlockType;
   label: string;
   textColor: CtnSyntaxTone;
@@ -69,7 +69,7 @@ export type CtnSingleInlineRule = CtnInlineRuleBase & {
 export type CtnInlineRule = CtnPairedInlineRule | CtnSingleInlineRule;
 
 export type CtnSyntaxProfile = {
-  conceptRule: CtnConceptRule;
+  topLevelUnmarkedRule: CtnTopLevelUnmarkedRule | null;
   titleRule: CtnTitleRule;
   name: string;
   tabDisplayWidth: number;

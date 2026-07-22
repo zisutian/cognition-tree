@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { syntaxProfileSchema } from "./profileSchema.ts";
+import {
+  syntaxProfileSchema,
+  syntaxProfileValidationPolicies,
+  type CtnSyntaxProfileValidationPolicy,
+} from "./profileSchema.ts";
 import type { CtnSyntaxProfile } from "./types.ts";
 
 function formatTomlString(value: string): string {
   return JSON.stringify(value);
 }
 
-export function formatSyntaxProfileToml(profile: CtnSyntaxProfile): string {
+export function formatSyntaxProfileToml(
+  profile: CtnSyntaxProfile,
+  policy: CtnSyntaxProfileValidationPolicy =
+    syntaxProfileValidationPolicies.workspace,
+): string {
   const lines = [
     "# CTN 语法配置文件。",
     "# name：界面中显示的人类可读名称。",
@@ -22,15 +30,41 @@ export function formatSyntaxProfileToml(profile: CtnSyntaxProfile): string {
     `label = ${formatTomlString(profile.titleRule.label)}`,
     `tone = ${formatTomlString(profile.titleRule.tone)}`,
     `textColor = ${formatTomlString(profile.titleRule.textColor)}`,
-    "",
-    "# concept：没有行首符号、且位于顶格的概念行规则。",
-    "# type 固定为 concept；label 是界面显示名称。",
-    "# tone 是弱背景颜色；textColor 是字体颜色，视觉优先级高于背景。",
-    "[concept]",
-    `type = ${formatTomlString(profile.conceptRule.type)}`,
-    `label = ${formatTomlString(profile.conceptRule.label)}`,
-    `tone = ${formatTomlString(profile.conceptRule.tone)}`,
-    `textColor = ${formatTomlString(profile.conceptRule.textColor)}`,
+  ];
+
+  if (policy.scope === "todo") {
+    if (profile.topLevelUnmarkedRule !== null) {
+      throw new Error("Todo syntax cannot format a top-level unmarked rule.");
+    }
+  } else {
+    const rule = profile.topLevelUnmarkedRule;
+
+    if (rule === null) {
+      throw new Error(
+        `${policy.scope} syntax requires a top-level unmarked rule.`,
+      );
+    }
+
+    const section = policy.scope === "workspace" ? "concept" : "body";
+    const description =
+      policy.scope === "workspace"
+        ? "没有行首符号、且位于顶格的概念行规则。"
+        : "没有行首符号、且位于顶格的正文行规则。";
+
+    lines.push(
+      "",
+      `# ${section}：${description}`,
+      `# type 固定为 ${rule.type}；label 是界面显示名称。`,
+      "# tone 是弱背景颜色；textColor 是字体颜色，视觉优先级高于背景。",
+      `[${section}]`,
+      `type = ${formatTomlString(rule.type)}`,
+      `label = ${formatTomlString(rule.label)}`,
+      `tone = ${formatTomlString(rule.tone)}`,
+      `textColor = ${formatTomlString(rule.textColor)}`,
+    );
+  }
+
+  lines.push(
     "",
     "# markers：行首块规则。",
     "# marker：缩进之后匹配的字面量行首标记。",
@@ -39,7 +73,7 @@ export function formatSyntaxProfileToml(profile: CtnSyntaxProfile): string {
     '# role：解析行为。"normal" 表示普通块；"multiline" 表示多行块。',
     `# tone：弱背景颜色，可选 ${syntaxProfileSchema.tones.join("、")} 或 #RRGGBB。`,
     "# textColor：字体颜色，和正文可读性直接相关，优先于 tone。",
-  ];
+  );
 
   for (const markerRule of profile.markerRules) {
     lines.push(

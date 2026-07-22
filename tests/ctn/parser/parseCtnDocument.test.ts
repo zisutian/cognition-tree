@@ -377,7 +377,7 @@ plain text
   it("uses the configured concept tone only for top-level unmarked lines", () => {
     const syntaxProfile: CtnSyntaxProfile = {
       ...defaultCtnSyntaxProfile,
-      conceptRule: {
+      topLevelUnmarkedRule: {
         label: "顶格概念",
         textColor: "pink",
         tone: "pink",
@@ -436,6 +436,49 @@ plain text
       label: "未知语法",
       marker: null,
       text: "Another child",
+      type: "text",
+    });
+  });
+
+  it("uses neutral body semantics or rejects top-level unmarked text by profile", () => {
+    const bodyProfile: CtnSyntaxProfile = {
+      ...defaultCtnSyntaxProfile,
+      topLevelUnmarkedRule: {
+        label: "正文",
+        textColor: "default",
+        tone: "default",
+        type: "body",
+      },
+    };
+    const markerOnlyProfile: CtnSyntaxProfile = {
+      ...defaultCtnSyntaxProfile,
+      topLevelUnmarkedRule: null,
+    };
+    const bodyDocument = parseTestCtnDocument(
+      "Document Title\nPlain body",
+      bodyProfile,
+    );
+    const markerOnlyDocument = parseTestCtnDocument(
+      "Document Title\nPlain body",
+      markerOnlyProfile,
+    );
+
+    expect(bodyDocument.diagnostics).toEqual([]);
+    expect(bodyDocument.roots[1]).toMatchObject({
+      label: "正文",
+      marker: null,
+      text: "Plain body",
+      type: "body",
+    });
+    expect(markerOnlyDocument.diagnostics).toHaveLength(1);
+    expect(markerOnlyDocument.diagnostics[0]).toMatchObject({
+      code: "unknown-syntax",
+      message: "当前语法要求正文行使用已配置的行首符号。",
+    });
+    expect(markerOnlyDocument.roots[1]).toMatchObject({
+      label: "未知语法",
+      marker: null,
+      text: "Plain body",
       type: "text",
     });
   });

@@ -20,6 +20,7 @@ export const syntaxProfileSchema = {
     minLength: 1,
   },
   requiredTypes: {
+    body: "body",
     concept: "concept",
     globalReference: "global-reference",
     title: "title",
@@ -40,10 +41,25 @@ export const syntaxProfileSchema = {
   tones: configurableSyntaxTones,
 } as const;
 
+export type CtnSyntaxProfileValidationPolicy =
+  | { scope: "workspace" }
+  | { scope: "journal" }
+  | { scope: "todo" };
+
+export const syntaxProfileValidationPolicies = {
+  journal: { scope: "journal" },
+  todo: { scope: "todo" },
+  workspace: { scope: "workspace" },
+} as const satisfies Record<
+  CtnSyntaxProfileValidationPolicy["scope"],
+  CtnSyntaxProfileValidationPolicy
+>;
+
 export type SyntaxProfileSchemaDiagnosticCode =
   | "duplicate-inline-trigger"
   | "duplicate-marker"
   | "duplicate-semantic-id"
+  | "forbidden-rule"
   | "invalid-fixed-type"
   | "invalid-role"
   | "invalid-semantic-id"
@@ -129,8 +145,10 @@ function isValidSemanticId(value: string) {
 function validateTone(
   value: string,
   path: string,
+  allowDefault = false,
 ): SyntaxProfileSchemaDiagnostic[] {
-  return isConfigurableSyntaxTone(value)
+  return (allowDefault && value === "default") ||
+    isConfigurableSyntaxTone(value)
     ? []
     : [
         createDiagnostic(
@@ -188,6 +206,8 @@ export function normalizeSyntaxTabDisplayWidthInput(value: string) {
 
 export function validateSyntaxProfile(
   profile: CtnSyntaxProfile,
+  policy: CtnSyntaxProfileValidationPolicy =
+    syntaxProfileValidationPolicies.workspace,
 ): SyntaxProfileSchemaDiagnostic[] {
   const diagnostics: SyntaxProfileSchemaDiagnostic[] = [];
   const semanticIds = new Map<string, string>();
@@ -196,6 +216,7 @@ export function validateSyntaxProfile(
   const reservedTypes = new Set<string>([
     syntaxProfileSchema.requiredTypes.title,
     syntaxProfileSchema.requiredTypes.concept,
+    syntaxProfileSchema.requiredTypes.body,
     syntaxProfileSchema.requiredTypes.globalReference,
   ]);
 
@@ -253,33 +274,75 @@ export function validateSyntaxProfile(
 
   registerSemanticId(profile.titleRule.type, "title.type");
 
-  diagnostics.push(
-    ...validateText(
-      profile.conceptRule.label,
-      "concept.label",
-      "顶格概念名称",
-      syntaxProfileSchema.label.maxLength,
-    ),
-    ...validateSemanticId(
-      profile.conceptRule.type,
-      "concept.type",
-      "顶格概念语义 ID",
-    ),
-    ...validateTone(profile.conceptRule.textColor, "concept.textColor"),
-    ...validateTone(profile.conceptRule.tone, "concept.tone"),
-  );
+  const topLevelUnmarkedConstraint = (() => {
+    switch (policy.scope) {
+      case "workspace":
+        return {
+          label: "顶格概念",
+          path: "concept",
+          type: syntaxProfileSchema.requiredTypes.concept,
+        } as const;
+      case "journal":
+        return {
+          label: "顶格正文",
+          path: "body",
+          type: syntaxProfileSchema.requiredTypes.body,
+        } as const;
+      case "todo":
+        return null;
+    }
+  })();
 
-  if (profile.conceptRule.type !== syntaxProfileSchema.requiredTypes.concept) {
+  if (topLevelUnmarkedConstraint === null) {
+    if (profile.topLevelUnmarkedRule !== null) {
+      diagnostics.push(
+        createDiagnostic(
+          "forbidden-rule",
+          "topLevelUnmarkedRule",
+          "代办语法不允许无行首符号的正文规则。",
+        ),
+      );
+    }
+  } else if (profile.topLevelUnmarkedRule === null) {
     diagnostics.push(
       createDiagnostic(
-        "invalid-fixed-type",
-        "concept.type",
-        `顶格概念语义 ID 必须是 ${syntaxProfileSchema.requiredTypes.concept}。`,
+        "missing-required-rule",
+        topLevelUnmarkedConstraint.path,
+        `缺少${topLevelUnmarkedConstraint.label}规则。`,
       ),
     );
-  }
+  } else {
+    const rule = profile.topLevelUnmarkedRule;
+    const { label, path, type } = topLevelUnmarkedConstraint;
 
-  registerSemanticId(profile.conceptRule.type, "concept.type");
+    diagnostics.push(
+      ...validateText(
+        rule.label,
+        `${path}.label`,
+        `${label}名称`,
+        syntaxProfileSchema.label.maxLength,
+      ),
+      ...validateSemanticId(rule.type, `${path}.type`, `${label}语义 ID`),
+      ...validateTone(
+        rule.textColor,
+        `${path}.textColor`,
+        policy.scope === "journal",
+      ),
+      ...validateTone(rule.tone, `${path}.tone`, policy.scope === "journal"),
+    );
+
+    if (rule.type !== type) {
+      diagnostics.push(
+        createDiagnostic(
+          "invalid-fixed-type",
+          `${path}.type`,
+          `${label}语义 ID 必须是 ${type}。`,
+        ),
+      );
+    }
+
+    registerSemanticId(rule.type, `${path}.type`);
+  }
 
   profile.markerRules.forEach((rule, index) => {
     const path = `markers[${index}]`;

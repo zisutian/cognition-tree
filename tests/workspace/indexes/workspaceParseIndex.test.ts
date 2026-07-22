@@ -251,8 +251,8 @@ describe("createWorkspaceParseIndex", () => {
     const secondIndex = createWorkspaceParseIndex(
       createParseIndexSource([note], {
         ...defaultCtnSyntaxProfile,
-        conceptRule: {
-          ...defaultCtnSyntaxProfile.conceptRule,
+        topLevelUnmarkedRule: {
+          ...defaultCtnSyntaxProfile.topLevelUnmarkedRule!,
           label: "概念",
         },
       }),
