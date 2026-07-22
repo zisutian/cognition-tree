@@ -2,7 +2,6 @@
 
 export {
   consumeJournalFocusRequest,
-  createBrowserJournalApplicationServices,
   createJournalFocusRequest,
   createJournalMutationActions,
   normalizeJournalBodyLineNumber,

@@ -30,6 +30,7 @@ import {
   remoteRevision,
   replaceEditableSource,
 } from "./workspaceSessionTestFixture";
+import { testApplicationScheduler } from "../../../support/testApplicationScheduler";
 
 const questionMultilineSyntaxProfile: CtnSyntaxProfile = {
   ...defaultCtnSyntaxProfile,
@@ -168,6 +169,7 @@ function createController(
       ...commandDependencyOverrides,
     },
     repository,
+    scheduler: testApplicationScheduler,
   });
 }
 

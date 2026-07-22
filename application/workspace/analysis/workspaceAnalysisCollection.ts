@@ -13,21 +13,10 @@ import {
   createEmptyNoteReferenceGraph,
   type WorkspaceAnalysis,
 } from "./workspaceAnalysis";
+import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
 
 export const workspaceAnalysisBatchNoteLimit = 25;
 export const workspaceAnalysisBatchTimeLimitMs = 8;
-
-type ScheduleAnalysisBatch = (task: () => void) => () => void;
-
-function scheduleAnalysisBatch(task: () => void) {
-  const timeoutId = globalThis.setTimeout(task, 0);
-
-  return () => globalThis.clearTimeout(timeoutId);
-}
-
-function getCurrentTime() {
-  return globalThis.performance?.now() ?? Date.now();
-}
 
 function createAnalysisSnapshot({
   diagnostics,
@@ -54,14 +43,12 @@ function createAnalysisSnapshot({
 
 export function startWorkspaceAnalysisCollection({
   index,
-  now = getCurrentTime,
   onUpdate,
-  schedule = scheduleAnalysisBatch,
+  scheduler,
 }: {
   index: WorkspaceParseIndex;
-  now?: () => number;
   onUpdate: (analysis: WorkspaceAnalysis) => void;
-  schedule?: ScheduleAnalysisBatch;
+  scheduler: ApplicationScheduler;
 }) {
   const scan = index.createScan();
   const documentDiagnostics: UiWorkbenchDiagnostic[] = [];
@@ -87,14 +74,14 @@ export function startWorkspaceAnalysisCollection({
       return;
     }
 
-    const startedAt = now();
+    const startedAt = scheduler.now();
     let batchNoteCount = 0;
 
     while (
       cursor < scan.noteIds.length &&
       batchNoteCount < workspaceAnalysisBatchNoteLimit &&
       (batchNoteCount === 0 ||
-        now() - startedAt < workspaceAnalysisBatchTimeLimitMs)
+        scheduler.now() - startedAt < workspaceAnalysisBatchTimeLimitMs)
     ) {
       const noteId = scan.noteIds[cursor];
       cursor += 1;
@@ -112,7 +99,7 @@ export function startWorkspaceAnalysisCollection({
 
     if (cursor < scan.noteIds.length) {
       publishCollecting();
-      cancelScheduledBatch = schedule(runBatch);
+      cancelScheduledBatch = scheduler.schedule(runBatch, 0);
       return;
     }
 
@@ -132,7 +119,7 @@ export function startWorkspaceAnalysisCollection({
   };
 
   publishCollecting();
-  cancelScheduledBatch = schedule(runBatch);
+  cancelScheduledBatch = scheduler.schedule(runBatch, 0);
 
   return () => {
     cancelled = true;

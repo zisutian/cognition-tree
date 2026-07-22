@@ -11,13 +11,11 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
-  createBrowserJournalApplicationServices,
   type JournalApplication,
   type JournalWorkspaceNoteDestination,
 } from "../../application/journal";
 import { useJournalApplication } from "./bindings/application/journal/useJournalApplication";
 import {
-  createBrowserTodoApplicationServices,
   type TodoApplication,
 } from "../../application/todo";
 import { useTodoApplication } from "./bindings/application/todo/useTodoApplication";
@@ -56,6 +54,11 @@ import {
 } from "../../application/workbench/journalWorkspaceReferences";
 import { createBuiltInRuntime } from "../../infrastructure/builtInRuntime";
 import { createWorkspaceRepositoryRuntime } from "../../infrastructure/workspaceRepositoryRuntime";
+import {
+  browserApplicationScheduler,
+  createBrowserJournalApplicationServices,
+  createBrowserTodoApplicationServices,
+} from "../../infrastructure/browser/browserApplicationServices";
 import type { ActivityId } from "../ui/activityTypes";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 
@@ -406,7 +409,9 @@ function EmptyWorkspaceApp({
 
 export function AppRoot() {
   const feedbackController = useMemo(
-    () => createWorkbenchFeedbackController<ActivityId>(),
+    () => createWorkbenchFeedbackController<ActivityId>({
+      scheduler: browserApplicationScheduler,
+    }),
     [],
   );
   const repositoryRuntime = useMemo(

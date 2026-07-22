@@ -72,21 +72,6 @@ export type JournalMutationActions = {
   updateSyntaxSource(source: string): void;
 };
 
-function readBrowserRandomUuid() {
-  if (!globalThis.crypto?.randomUUID) {
-    throw new Error("The browser cannot generate journal identifiers.");
-  }
-  return globalThis.crypto.randomUUID();
-}
-
-export function createBrowserJournalApplicationServices(): JournalApplicationServices {
-  return {
-    createBlockId: readBrowserRandomUuid,
-    createEntryId: () => `journal-entry-${readBrowserRandomUuid()}`,
-    now: () => new Date(),
-  };
-}
-
 export function requireJournalContent(
   content: JournalContentValue,
 ): JournalContent {

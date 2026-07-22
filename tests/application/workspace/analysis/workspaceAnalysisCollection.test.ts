@@ -51,16 +51,18 @@ describe("workspace analysis collection", () => {
 
     startWorkspaceAnalysisCollection({
       index,
-      now: () => 0,
       onUpdate(analysis) {
         updates.push({
           parsedCount: analysis.parsedNotesById.size,
           status: analysis.status,
         });
       },
-      schedule(task) {
-        tasks.push(task);
-        return () => undefined;
+      scheduler: {
+        now: () => 0,
+        schedule(task) {
+          tasks.push(task);
+          return () => undefined;
+        },
       },
     });
 
@@ -91,9 +93,12 @@ describe("workspace analysis collection", () => {
       onUpdate(analysis) {
         updates.push(analysis);
       },
-      schedule(task) {
-        tasks.push(task);
-        return () => undefined;
+      scheduler: {
+        now: () => 0,
+        schedule(task) {
+          tasks.push(task);
+          return () => undefined;
+        },
       },
     });
     drainScheduledTasks(tasks);
@@ -137,9 +142,12 @@ describe("workspace analysis collection", () => {
       onUpdate(analysis) {
         statuses.push(analysis.status);
       },
-      schedule(task) {
-        tasks.push(task);
-        return () => undefined;
+      scheduler: {
+        now: () => 0,
+        schedule(task) {
+          tasks.push(task);
+          return () => undefined;
+        },
       },
     });
 
@@ -161,11 +169,13 @@ describe("workspace analysis collection", () => {
 
     startWorkspaceAnalysisCollection({
       index,
-      now: () => times.shift() ?? 12,
       onUpdate: () => undefined,
-      schedule(task) {
-        tasks.push(task);
-        return () => undefined;
+      scheduler: {
+        now: () => times.shift() ?? 12,
+        schedule(task) {
+          tasks.push(task);
+          return () => undefined;
+        },
       },
     });
 

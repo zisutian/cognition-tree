@@ -62,21 +62,6 @@ export type TodoMutationActions = {
   updateSyntaxSource(source: string): void;
 };
 
-function readBrowserRandomUuid() {
-  if (!globalThis.crypto?.randomUUID) {
-    throw new Error("The browser cannot generate todo identifiers.");
-  }
-  return globalThis.crypto.randomUUID();
-}
-
-export function createBrowserTodoApplicationServices(): TodoApplicationServices {
-  return {
-    createBlockId: readBrowserRandomUuid,
-    createCollectionId: () => `todo-collection-${readBrowserRandomUuid()}`,
-    now: () => new Date(),
-  };
-}
-
 export function requireTodoContent(
   content: TodoContentValue,
 ): TodoContent {

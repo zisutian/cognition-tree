@@ -14,6 +14,7 @@ import {
   createVersionedContentSessionController,
   type VersionedContentSessionState,
 } from "../repository/versionedContentSessionController";
+import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type TodoSessionState = VersionedContentSessionState<
   TodoContent,
@@ -25,11 +26,15 @@ export type TodoPersistenceState = Extract<
   { status: "ready" }
 >["persistence"];
 
-export function createTodoSessionController(repository: TodoRepository | null) {
+export function createTodoSessionController(
+  repository: TodoRepository | null,
+  scheduler: Pick<ApplicationScheduler, "schedule">,
+) {
   return createVersionedContentSessionController({
     label: "Todo",
     parseContent: (value) => validateTodoContent(value as TodoContentValue),
     repository,
+    scheduler,
   });
 }
 

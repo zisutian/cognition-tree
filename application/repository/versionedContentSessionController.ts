@@ -9,6 +9,7 @@ import {
   type VersionedRepositoryPersistenceState,
   type VersionedRepositorySaveQueue,
 } from "./versionedRepositorySaveQueue";
+import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type VersionedContentSessionState<
   Content,
@@ -50,6 +51,7 @@ export function createVersionedContentSessionController<
   label,
   parseContent,
   repository,
+  scheduler,
 }: {
   label: string;
   parseContent(value: unknown): Content;
@@ -59,6 +61,7 @@ export function createVersionedContentSessionController<
     LocalRevision,
     Location
   > | null;
+  scheduler: Pick<ApplicationScheduler, "schedule">;
 }): VersionedContentSessionController<Content, Revision, LocalRevision> {
   type Snapshot = VersionedRepositorySnapshot<Content, Revision, LocalRevision>;
   type Persistence = VersionedRepositoryPersistenceState<Revision>;
@@ -155,6 +158,7 @@ export function createVersionedContentSessionController<
         }
       },
       repository: repository!,
+      scheduler,
     });
 
     if (active !== session || generation !== expectedGeneration) {

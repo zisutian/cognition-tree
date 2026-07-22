@@ -85,7 +85,7 @@ describe("shared overlays", () => {
 
   it("keeps an asynchronous error in the Activity that started it", async () => {
     const controller = createWorkbenchFeedbackController<"notes" | "todo">({
-      schedule: () => () => undefined,
+      scheduler: { schedule: () => () => undefined },
     });
     let rejectAction: (error: Error) => void = () => undefined;
     const action = runActivityFeedbackAction(

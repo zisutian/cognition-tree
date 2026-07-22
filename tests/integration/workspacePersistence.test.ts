@@ -27,6 +27,7 @@ import { createInitialWorkspaceData } from "../../core/workspace/model/workspace
 import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource";
 import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
 import { replaceEditableSource } from "../application/workspace/session/workspaceSessionTestFixture";
+import { testApplicationScheduler } from "../support/testApplicationScheduler";
 
 type TestRepositoryServer = {
   baseUrl: string;
@@ -151,6 +152,7 @@ function startController(repository: WorkspaceRepository) {
   const controller = createWorkspaceSessionController({
     commandDependencies,
     repository,
+    scheduler: testApplicationScheduler,
   });
 
   openControllers.push(controller);

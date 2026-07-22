@@ -8,13 +8,13 @@ import type {
   TodoContent,
 } from "../../../core/todo/model/todoContent";
 import {
-  createBrowserTodoApplicationServices,
   createTodoMutationActions,
   requireTodoContent,
   resolveRequestedTodoSelectionAfterDelete,
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
 } from "../../../application/todo/todoApplication";
+import { createBrowserTodoApplicationServices } from "../../../infrastructure/browser/browserApplicationServices";
 import type { TodoContentDto } from "../../../contracts/todo/types";
 import {
   createEmptyTodoContent,

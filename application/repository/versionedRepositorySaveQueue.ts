@@ -4,6 +4,7 @@ import type {
   VersionedRepository,
   VersionedRepositorySnapshot,
 } from "./versionedRepository";
+import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type VersionedRepositoryPersistenceState<Revision extends string> =
   | { status: "saved" }
@@ -48,6 +49,7 @@ export type VersionedRepositorySaveQueueOptions<
   ) => void;
   onRemoteRevision: (revision: Revision | null) => void;
   repository: VersionedRepository<Content, Revision, LocalRevision, Location>;
+  scheduler: Pick<ApplicationScheduler, "schedule">;
 };
 
 export type VersionedRepositorySaveQueue<Content, LocalRevision extends string> = {
@@ -81,6 +83,7 @@ export function createVersionedRepositorySaveQueue<
   onPersistenceChange,
   onRemoteRevision,
   repository,
+  scheduler,
 }: VersionedRepositorySaveQueueOptions<
   Content,
   Revision,
@@ -100,10 +103,10 @@ export function createVersionedRepositorySaveQueue<
   let localWaiters: LocalWaiter[] = [];
   let offline = initialPersistenceState?.status === "offline";
   let remoteRetryIndex = 0;
-  let remoteRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let cancelRemoteRetry: (() => void) | null = null;
   let syncDue = initialSnapshot.pendingChanges;
   let syncTerminalBlocked = initialPersistenceState?.status === "error";
-  let syncTimer: ReturnType<typeof setTimeout> | null = null;
+  let cancelSync: (() => void) | null = null;
   let stagedVersion = 0;
   let version = 0;
 
@@ -119,15 +122,15 @@ export function createVersionedRepositorySaveQueue<
   });
 
   const clearSyncTimer = () => {
-    if (syncTimer) {
-      clearTimeout(syncTimer);
-      syncTimer = null;
+    if (cancelSync) {
+      cancelSync();
+      cancelSync = null;
     }
   };
   const clearRetryTimer = () => {
-    if (remoteRetryTimer) {
-      clearTimeout(remoteRetryTimer);
-      remoteRetryTimer = null;
+    if (cancelRemoteRetry) {
+      cancelRemoteRetry();
+      cancelRemoteRetry = null;
     }
   };
   const settleLocalWaiters = (
@@ -144,7 +147,7 @@ export function createVersionedRepositorySaveQueue<
     ready.forEach(settle);
   };
   const scheduleRetry = () => {
-    if (disposed || conflictRevision || remoteRetryTimer) {
+    if (disposed || conflictRevision || cancelRemoteRetry) {
       return;
     }
 
@@ -153,8 +156,8 @@ export function createVersionedRepositorySaveQueue<
     ];
 
     remoteRetryIndex += 1;
-    remoteRetryTimer = setTimeout(() => {
-      remoteRetryTimer = null;
+    cancelRemoteRetry = scheduler.schedule(() => {
+      cancelRemoteRetry = null;
       syncDue = true;
       void startSync();
     }, delay);
@@ -165,8 +168,8 @@ export function createVersionedRepositorySaveQueue<
     }
 
     clearSyncTimer();
-    syncTimer = setTimeout(() => {
-      syncTimer = null;
+    cancelSync = scheduler.schedule(() => {
+      cancelSync = null;
       syncDue = true;
       void startSync();
     }, versionedRepositorySaveDelayMs);

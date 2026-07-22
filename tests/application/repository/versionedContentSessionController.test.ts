@@ -13,6 +13,7 @@ import {
   createEmptyJournalContent,
   journalEntries,
 } from "../../journal/journalTestFixture";
+import { testApplicationScheduler } from "../../support/testApplicationScheduler";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -90,7 +91,10 @@ describe("versioned Journal session controller", () => {
         };
       },
     };
-    const controller = createJournalSessionController(repository);
+    const controller = createJournalSessionController(
+      repository,
+      testApplicationScheduler,
+    );
     const visibleLengths: number[] = [];
 
     controller.subscribe(() => {
@@ -160,7 +164,10 @@ describe("versioned Journal session controller", () => {
         };
       },
     };
-    const controller = createJournalSessionController(repository);
+    const controller = createJournalSessionController(
+      repository,
+      testApplicationScheduler,
+    );
 
     controller.start();
     await settleLoad();
@@ -228,7 +235,10 @@ describe("versioned Journal session controller", () => {
         };
       },
     };
-    const controller = createJournalSessionController(repository);
+    const controller = createJournalSessionController(
+      repository,
+      testApplicationScheduler,
+    );
     const append = (index: number) => (current: JournalContent) => {
       return appendJournalEntry(current, index);
     };

@@ -6,14 +6,10 @@ import {
   type WorkspaceSessionControllerState,
   type WorkspaceSessionReadyState,
 } from "../../../../../application/workspace/session/workspaceSessionController";
-
-const browserSessionCommandDependencies = {
-  createBlockId: () => globalThis.crypto.randomUUID(),
-  createFolderId: () => `folder-${globalThis.crypto.randomUUID()}`,
-  createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
-  createSyntaxFileId: () => `syntax-${globalThis.crypto.randomUUID()}`,
-  now: () => new Date().toISOString(),
-};
+import {
+  browserApplicationScheduler,
+  browserWorkspaceSessionCommandDependencies,
+} from "../../../../../infrastructure/browser/browserApplicationServices";
 type ActiveSessionState = WorkspaceSessionReadyState;
 
 export type ActiveSession = ActiveSessionState & {
@@ -79,8 +75,9 @@ export function useSession({
   const controller = useMemo(
     () =>
       createWorkspaceSessionController({
-        commandDependencies: browserSessionCommandDependencies,
+        commandDependencies: browserWorkspaceSessionCommandDependencies,
         repository,
+        scheduler: browserApplicationScheduler,
       }),
     [repository],
   );

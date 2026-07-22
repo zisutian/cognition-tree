@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createTodoSessionController } from "../../../../application/todo/todoSessionController";
 import type { TodoRepository } from "../../../../application/repository/builtInRepository";
+import { browserApplicationScheduler } from "../../../../infrastructure/browser/browserApplicationServices";
 
 export function useTodoSession(repository: TodoRepository | null) {
   const controller = useMemo(
-    () => createTodoSessionController(repository),
+    () => createTodoSessionController(repository, browserApplicationScheduler),
     [repository],
   );
   const state = useSyncExternalStore(

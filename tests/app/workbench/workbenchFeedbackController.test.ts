@@ -11,9 +11,11 @@ describe("workbench feedback controller", () => {
   it("publishes the latest transient message and restores after five seconds", () => {
     const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
     const controller = createWorkbenchFeedbackController<"notes" | "todo">({
-      schedule(callback, delayMs) {
-        scheduled.push({ callback, delayMs });
-        return vi.fn();
+      scheduler: {
+        schedule(callback, delayMs) {
+          scheduled.push({ callback, delayMs });
+          return vi.fn();
+        },
       },
     });
 
@@ -36,7 +38,7 @@ describe("workbench feedback controller", () => {
 
   it("deduplicates errors, keeps the latest occurrence, and caps each scope", () => {
     const controller = createWorkbenchFeedbackController<"notes" | "todo">({
-      schedule: () => () => undefined,
+      scheduler: { schedule: () => () => undefined },
     });
     const firstId = controller.reportError("notes", "保存失败");
     const repeatedId = controller.reportError("notes", "保存失败");
@@ -59,7 +61,7 @@ describe("workbench feedback controller", () => {
 
   it("supports subscription, individual dismissal, and scope cleanup", () => {
     const controller = createWorkbenchFeedbackController<"notes" | "todo">({
-      schedule: () => () => undefined,
+      scheduler: { schedule: () => () => undefined },
     });
     const listener = vi.fn();
     const unsubscribe = controller.subscribe(listener);

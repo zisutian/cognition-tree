@@ -8,6 +8,7 @@ import {
   type WorkspaceAnalysis,
 } from "../../../../../application/workspace/analysis/workspaceAnalysis";
 import { startWorkspaceAnalysisCollection } from "../../../../../application/workspace/analysis/workspaceAnalysisCollection";
+import { browserApplicationScheduler } from "../../../../../infrastructure/browser/browserApplicationServices";
 
 function createIdleWorkspaceAnalysis(): WorkspaceAnalysis {
   return {
@@ -77,6 +78,7 @@ export function useWorkspaceAnalysis({
           current.token === token ? { analysis, token } : current,
         );
       },
+      scheduler: browserApplicationScheduler,
     });
   }, [index, initialAnalysis, token]);
 

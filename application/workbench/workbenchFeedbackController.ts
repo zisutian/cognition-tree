@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+
 export type WorkbenchFeedbackError<Scope extends string> = {
   id: string;
   message: string;
@@ -29,29 +31,18 @@ export type WorkbenchFeedbackController<Scope extends string> = {
   subscribe(listener: () => void): () => void;
 };
 
-export type WorkbenchFeedbackScheduler = (
-  callback: () => void,
-  delayMs: number,
-) => () => void;
-
 export const workbenchFeedbackDurationMs = 5_000;
 export const maximumWorkbenchErrorsPerScope = 20;
 
-function defaultScheduler(callback: () => void, delayMs: number) {
-  const timer = setTimeout(callback, delayMs);
-
-  return () => clearTimeout(timer);
-}
-
 export function createWorkbenchFeedbackController<Scope extends string>({
   maximumErrorsPerScope = maximumWorkbenchErrorsPerScope,
-  schedule = defaultScheduler,
+  scheduler,
   transientDurationMs = workbenchFeedbackDurationMs,
 }: {
   maximumErrorsPerScope?: number;
-  schedule?: WorkbenchFeedbackScheduler;
+  scheduler: Pick<ApplicationScheduler, "schedule">;
   transientDurationMs?: number;
-} = {}): WorkbenchFeedbackController<Scope> {
+}): WorkbenchFeedbackController<Scope> {
   if (!Number.isInteger(maximumErrorsPerScope) || maximumErrorsPerScope < 1) {
     throw new Error("Workbench feedback error capacity must be positive.");
   }
@@ -83,7 +74,7 @@ export function createWorkbenchFeedbackController<Scope extends string>({
       ...snapshot,
       transient: { id, message, scope, tone },
     });
-    cancelTransient = schedule(() => {
+    cancelTransient = scheduler.schedule(() => {
       cancelTransient = null;
       if (snapshot.transient?.id === id) {
         publish({ ...snapshot, transient: null });

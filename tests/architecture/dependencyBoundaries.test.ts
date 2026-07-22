@@ -95,6 +95,19 @@ describe("dependency boundaries", () => {
     expect(violations).toEqual([]);
   });
 
+  it("keeps platform globals behind infrastructure adapters", () => {
+    const blocked = [
+      /\bglobalThis\s*\./,
+      /(?:^|[^\w.])(?:setTimeout|clearTimeout|setInterval|clearInterval)\s*\(/m,
+    ];
+    const violations = Object.entries(applicationModules).flatMap(
+      ([filePath, source]) =>
+        blocked.some((pattern) => pattern.test(source)) ? [filePath] : [],
+    );
+
+    expect(violations).toEqual([]);
+  });
+
   it("keeps core and wire contracts runtime-neutral", () => {
     const blockedCore = [
       /^node:/,

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { createJournalSessionController } from "../../../../application/journal/journalSessionController";
 import type { JournalRepository } from "../../../../application/repository/builtInRepository";
+import { browserApplicationScheduler } from "../../../../infrastructure/browser/browserApplicationServices";
 
 export function useJournalSession(repository: JournalRepository | null) {
   const controller = useMemo(
-    () => createJournalSessionController(repository),
+    () => createJournalSessionController(repository, browserApplicationScheduler),
     [repository],
   );
   const state = useSyncExternalStore(

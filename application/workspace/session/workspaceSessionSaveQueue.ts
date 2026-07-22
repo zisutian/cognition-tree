@@ -14,6 +14,7 @@ import {
   type VersionedRepositoryPersistenceState,
   type VersionedRepositorySaveQueue,
 } from "../../repository/versionedRepositorySaveQueue";
+import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
 
 export type WorkspacePersistenceState =
   VersionedRepositoryPersistenceState<RepositoryRevision>;
@@ -28,6 +29,7 @@ type WorkspaceSessionSaveQueueOptions = {
   onPersistenceChange: (state: WorkspacePersistenceState) => void;
   onRemoteRevision: (revision: RepositoryRevision | null) => void;
   repository: WorkspaceRepository;
+  scheduler: Pick<ApplicationScheduler, "schedule">;
 };
 
 export type WorkspaceSessionSaveQueue = VersionedRepositorySaveQueue<

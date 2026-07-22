@@ -16,6 +16,7 @@ import {
   draftRevision,
   remoteRevision,
 } from "./workspaceSessionTestFixture";
+import { testApplicationScheduler } from "../../../support/testApplicationScheduler";
 
 function createDeferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -89,6 +90,7 @@ function createQueueHarness({
       remoteRevisions.push(revision);
     },
     repository,
+    scheduler: testApplicationScheduler,
   });
 
   return {

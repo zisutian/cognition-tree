@@ -21,8 +21,8 @@ import {
   type RepositoryCatalogOperation,
   type RepositoryCatalogState,
 } from "../../../../../application/repository/repositoryCatalog";
-import { createInitialRepositoryContent } from "../../../../../application/workspace/session/initialRepository";
 import { parsePortableName } from "../../../../../core/naming/portableName";
+import { createBrowserInitialWorkspaceContent } from "../../../../../infrastructure/browser/browserApplicationServices";
 
 export {
   createRepositoryConnectionKey,
@@ -38,17 +38,6 @@ export type {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Repository catalog failed.";
-}
-
-function createInitialContent(name: string) {
-  return createInitialRepositoryContent({
-    createBlockId: () => globalThis.crypto.randomUUID(),
-    createNoteId: () => `note-${globalThis.crypto.randomUUID()}`,
-    createSyntaxFileId: () => `syntax-${globalThis.crypto.randomUUID()}`,
-    createWorkspaceId: () => `workspace-${globalThis.crypto.randomUUID()}`,
-    name,
-    timestamp: new Date().toISOString(),
-  });
 }
 
 export function useRepositoryCatalog(
@@ -185,7 +174,7 @@ export function useRepositoryCatalog(
         throw new Error(`Repository adapter is unavailable: ${input.adapter}`);
       }
       const label = parsePortableName(input.name, "Repository label");
-      const content = createInitialContent(label);
+      const content = createBrowserInitialWorkspaceContent(label);
       const descriptor = await catalog.createRepository(
         input.adapter === "webdav"
           ? {

@@ -40,6 +40,7 @@ import {
   type WorkspacePersistenceState,
   type WorkspaceSessionSaveQueue,
 } from "./workspaceSessionSaveQueue";
+import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
 
 export type WorkspaceSessionReadyState = {
   context: WorkspaceContext | null;
@@ -203,9 +204,11 @@ function toRepositorySnapshot(
 export function createWorkspaceSessionController({
   commandDependencies,
   repository,
+  scheduler,
 }: {
   commandDependencies: SessionCommandDependencies;
   repository: WorkspaceRepository;
+  scheduler: Pick<ApplicationScheduler, "schedule">;
 }): WorkspaceSessionController {
   const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
   const listeners = new Set<() => void>();
@@ -360,6 +363,7 @@ export function createWorkspaceSessionController({
         }
       },
       repository,
+      scheduler,
     });
   };
 

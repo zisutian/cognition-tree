@@ -14,6 +14,7 @@ import {
   type WorkbenchFeedbackController,
 } from "../../../application/workbench/workbenchFeedbackController";
 import type { ActivityId } from "../activityTypes";
+import { browserApplicationScheduler } from "../../../infrastructure/browser/browserApplicationServices";
 
 type FeedbackActions = {
   notify: (message: string) => void;
@@ -121,7 +122,9 @@ export function FeedbackProvider({
   controller?: WorkbenchActivityFeedbackController;
 }) {
   const [fallbackController] = useState(
-    () => createWorkbenchFeedbackController<ActivityId>(),
+    () => createWorkbenchFeedbackController<ActivityId>({
+      scheduler: browserApplicationScheduler,
+    }),
   );
   const resolvedController = controller ?? fallbackController;
   const activeActivityIdRef = useRef(activeActivityId);

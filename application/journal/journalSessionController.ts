@@ -14,6 +14,7 @@ import {
   createVersionedContentSessionController,
   type VersionedContentSessionState,
 } from "../repository/versionedContentSessionController";
+import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type JournalSessionState = VersionedContentSessionState<
   JournalContent,
@@ -27,12 +28,14 @@ export type JournalPersistenceState = Extract<
 
 export function createJournalSessionController(
   repository: JournalRepository | null,
+  scheduler: Pick<ApplicationScheduler, "schedule">,
 ) {
   return createVersionedContentSessionController({
     label: "Journal",
     parseContent: (value) =>
       validateJournalContent(value as JournalContentValue),
     repository,
+    scheduler,
   });
 }
 
