@@ -95,7 +95,7 @@ describe("journal queries", () => {
     )).toBeNull();
   });
 
-  it("projects a descending year, month, day, and entry calendar", () => {
+  it("projects a descending year, month, and entry calendar", () => {
     let content = appendJournalTestEntry(createEmptyJournalContent(), {
       createdAt: "2024-12-31T16:00:00.000Z",
       entryIndex: 1,
@@ -107,13 +107,19 @@ describe("journal queries", () => {
       entryIndex: 2,
       timezoneOffsetMinutes: 480,
     });
+    content = appendJournalTestEntry(content, {
+      blockIdStart: 3,
+      createdAt: "2026-01-02T00:00:00.000Z",
+      entryIndex: 3,
+      timezoneOffsetMinutes: 480,
+    });
 
     expect(createJournalCalendar(content).map((year) => year.key)).toEqual([
       "2026",
       "2025",
     ]);
-    expect(createJournalCalendar(content)[0]?.months[0]?.days.map(
-      (day) => day.key,
-    )).toEqual(["2026-01-01"]);
+    expect(createJournalCalendar(content)[0]?.months[0]?.entries.map(
+      (entry) => entry.id,
+    )).toEqual([journalEntryId(3), journalEntryId(2)]);
   });
 });

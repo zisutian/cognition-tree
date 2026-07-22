@@ -148,6 +148,22 @@ test.describe.serial("Todo activity flows", () => {
     await expect(
       detail.getByRole("checkbox", { name: "标记未完成 第一项" }),
     ).toBeChecked();
+    const firstDetailLabel = detail.getByRole("button", {
+      exact: true,
+      name: "第一项",
+    });
+    const firstDetailRow = firstDetailLabel.locator("..");
+
+    await firstDetailLabel.click();
+    await page.mouse.move(0, 0);
+    await expect(firstDetailLabel).toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
+    await expect(firstDetailRow).toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
 
     await waitForTodoContent(api, (content) => {
       const [plan, today] = content.collections;

@@ -117,6 +117,10 @@ export function getBlockLineDecorationClass(
   const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.tone)];
   const isBlockStartLine = lineNumber === block.lineNumber;
 
+  if (isBlockStartLine && block.type === "title") {
+    lineClasses.push("ctn-line-title");
+  }
+
   if (isBlockStartLine && isConceptBlock(block)) {
     lineClasses.push("ctn-line-concept");
   }

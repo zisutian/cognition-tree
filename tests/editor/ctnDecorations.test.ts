@@ -214,6 +214,14 @@ describe("ctn editor decorations", () => {
     ).toBe("ctn-line ctn-tone-blue ctn-line-concept");
   });
 
+  it("marks the semantic title line for strong editor typography", () => {
+    expect(
+      getBlockLineDecorationClass(
+        createBlock({ marker: null, tone: "default", type: "title" }),
+      ),
+    ).toBe("ctn-line ctn-tone-default ctn-line-title");
+  });
+
   it("keeps inline tone and text color separate", () => {
     expect(
       getInlineDecorationClass({

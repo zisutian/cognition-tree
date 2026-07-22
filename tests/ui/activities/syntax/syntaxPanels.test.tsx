@@ -163,6 +163,7 @@ describe("syntax panels", () => {
 
     expect(markup).toContain("顶格正文");
     expect(markup).not.toContain("顶格概念");
+    expect(markup).not.toContain("首行标题");
     expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="开始"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="结束"[^>]*disabled=""/);
@@ -189,6 +190,7 @@ describe("syntax panels", () => {
     );
 
     expect(markup).toContain("代办背景色: 默认");
+    expect(markup).not.toContain("首行标题");
     expect(markup).toMatch(/aria-label="语法名称"[^>]*disabled=""/);
     expect(markup).toMatch(/aria-label="角色: [^"]+"[^>]*disabled=""/);
   });
@@ -279,5 +281,20 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("当前配置");
     expect(markup).not.toContain("语法统计");
     expect(markup).not.toContain(">状态<");
+  });
+
+  it("omits hidden system titles from syntax previews", () => {
+    const base = createView().syntax;
+
+    for (const kind of ["journal", "todo"] as const) {
+      const markup = renderToStaticMarkup(
+        <SyntaxDetailPanel
+          onCollapseDetail={() => undefined}
+          view={{ ...base, selectedTarget: { kind } }}
+        />,
+      );
+
+      expect(markup).not.toContain("首行标题示例");
+    }
   });
 });

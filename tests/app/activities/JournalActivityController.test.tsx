@@ -53,7 +53,8 @@ describe("JournalActivityController", () => {
     expect(application.workspace.status).toBe("absent");
     expect(markup).toContain("2026 年");
     expect(markup).toContain("1 月");
-    expect(markup).toContain("2 日");
+    expect(markup).not.toContain("2 日");
+    expect(markup).toContain("2026-01-02-0001");
     expect(markup).toContain('aria-label="日记编辑"');
     expect(markup).toContain('data-editor-mode="body"');
     expect(markup).not.toContain("前往仓库创建");

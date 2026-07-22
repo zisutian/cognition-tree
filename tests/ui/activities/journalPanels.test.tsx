@@ -52,7 +52,7 @@ describe("Journal panels", () => {
 
   it("renders the expanded calendar tree and entries in view-model order", () => {
     const base = createView().journal;
-    const activeEntry = base.calendar.years[0].months[0].days[0].entries[0];
+    const activeEntry = base.calendar.years[0].months[0].entries[0];
     const view = {
       ...base,
       calendar: {
@@ -63,13 +63,7 @@ describe("Journal panels", () => {
             key: "2026",
             label: "2026 年",
             months: [{
-              days: [{
-                date: "2026-01-02",
-                entries: [activeEntry, olderJanuaryEntry],
-                expanded: true,
-                key: "2026-01-02",
-                label: "2 日",
-              }],
+              entries: [activeEntry, olderJanuaryEntry],
               expanded: true,
               key: "2026-01",
               label: "1 月",
@@ -80,13 +74,7 @@ describe("Journal panels", () => {
             key: "2025",
             label: "2025 年",
             months: [{
-              days: [{
-                date: "2025-12-31",
-                entries: [decemberEntry],
-                expanded: true,
-                key: "2025-12-31",
-                label: "31 日",
-              }],
+              entries: [decemberEntry],
               expanded: true,
               key: "2025-12",
               label: "12 月",
@@ -106,6 +94,8 @@ describe("Journal panels", () => {
     expect(markup).toContain("journal-calendar-toggle");
     expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain('aria-current="page"');
+    expect(markup).not.toContain("2 日");
+    expect(markup).not.toContain("31 日");
     expect(markup).toContain(`aria-label="删除日记 ${activeEntry.title}"`);
   });
 
@@ -128,8 +118,7 @@ describe("Journal panels", () => {
   });
 
   it("requires an explicit confirmation before deleting an entry", () => {
-    const entry = createView().journal.calendar.years[0].months[0].days[0]
-      .entries[0];
+    const entry = createView().journal.calendar.years[0].months[0].entries[0];
     const onCancel = vi.fn();
     const onDelete = vi.fn();
     const confirmation = JournalDeleteConfirmation({

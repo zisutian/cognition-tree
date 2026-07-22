@@ -42,8 +42,8 @@ function yearLabel(entry: JournalEntryDto) {
   return `${entryDate(entry).slice(0, 4)} 年`;
 }
 
-function dayEntryListLabel(entry: JournalEntryDto) {
-  return `${entryDate(entry)}日记条目`;
+function monthEntryListLabel(entry: JournalEntryDto) {
+  return `${entryDate(entry).slice(0, 7)}日记条目`;
 }
 
 function journalEntries(
@@ -135,9 +135,10 @@ test.describe.serial("Journal activity flows", () => {
     await expect(yearRows).toHaveText([currentYearLabel, oldYearLabel]);
     await expect(
       context
-        .getByRole("list", { name: dayEntryListLabel(secondCreated) })
+        .getByRole("list", { name: monthEntryListLabel(secondCreated) })
         .locator(".journal-entry-select"),
     ).toHaveText([secondTitle, firstTitle]);
+    await expect(context.getByText(/^\d+ 日$/)).toHaveCount(0);
 
     const editorContent = editor.locator(".cm-content");
 

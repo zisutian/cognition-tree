@@ -72,18 +72,12 @@ export function createView(
           key: "2026",
           label: "2026 年",
           months: [{
-            days: [{
-              date: "2026-01-02",
-              entries: [{
-                createdAt: "2026-01-02T03:04:05.000Z",
-                id: "journal-entry-00000000-0000-4000-8000-000000000001",
-                isActive: true,
-                title: "2026-01-02-0001",
-                updatedAt: "2026-01-02T03:05:00.000Z",
-              }],
-              expanded: true,
-              key: "2026-01-02",
-              label: "2 日",
+            entries: [{
+              createdAt: "2026-01-02T03:04:05.000Z",
+              id: "journal-entry-00000000-0000-4000-8000-000000000001",
+              isActive: true,
+              title: "2026-01-02-0001",
+              updatedAt: "2026-01-02T03:05:00.000Z",
             }],
             expanded: true,
             key: "2026-01",

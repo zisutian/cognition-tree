@@ -44,8 +44,6 @@ describe("journal view model", () => {
       expandedCalendarKeys: new Set([
         "year:2026",
         "month:2026-07",
-        "day:2026-07-17",
-        "day:2026-07-18",
       ]),
       focusRequest: {
         entryId: journalEntryId(2),
@@ -62,18 +60,11 @@ describe("journal view model", () => {
     });
 
     expect(view.calendar.years).toHaveLength(1);
-    expect(view.calendar.years[0]?.months[0]?.days.map((day) => ({
-      entries: day.entries.map(({ id, isActive }) => ({ id, isActive })),
-      key: day.key,
-    }))).toEqual([
-      {
-        entries: [{ id: journalEntryId(2), isActive: true }],
-        key: "2026-07-18",
-      },
-      {
-        entries: [{ id: journalEntryId(1), isActive: false }],
-        key: "2026-07-17",
-      },
+    expect(view.calendar.years[0]?.months[0]?.entries.map(
+      ({ id, isActive }) => ({ id, isActive }),
+    )).toEqual([
+      { id: journalEntryId(2), isActive: true },
+      { id: journalEntryId(1), isActive: false },
     ]);
     expect(view.activeEntry).toMatchObject({
       id: journalEntryId(2),

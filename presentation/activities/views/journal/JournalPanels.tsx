@@ -167,61 +167,29 @@ export function JournalContext({ view }: JournalViewProps) {
                           <span className="ui-tree-text">{month.label}</span>
                         </button>
                         {month.expanded ? (
-                          <CompactContextList aria-label={`${month.label}日记`}>
-                            {month.days.map((day) => (
-                              <li
-                                className="journal-calendar-branch"
-                                key={day.key}
-                              >
-                                <button
-                                  aria-expanded={day.expanded}
-                                  className="ui-tree-row ui-compact-context-row journal-calendar-toggle"
-                                  type="button"
-                                  onClick={() =>
-                                    view.calendar.toggle(`day:${day.key}`)}
-                                >
-                                  {day.expanded
-                                    ? <ChevronDown aria-hidden="true" />
-                                    : <ChevronRight aria-hidden="true" />}
-                                  <span className="ui-tree-text">
-                                    {day.label}
-                                  </span>
-                                </button>
-                                {day.expanded ? (
-                                  <CompactContextList
-                                    aria-label={`${day.date}日记条目`}
+                          <CompactContextList
+                            aria-label={`${month.key}日记条目`}
+                          >
+                            {month.entries.map((entry) => (
+                              <CompactContextRow
+                                actions={
+                                  <button
+                                    aria-label={`删除日记 ${entry.title}`}
+                                    onClick={() => setPendingDelete(entry)}
+                                    title="删除日记"
+                                    type="button"
                                   >
-                                    {day.entries.map((entry) => (
-                                      <CompactContextRow
-                                        actions={
-                                          <button
-                                            aria-label={`删除日记 ${entry.title}`}
-                                            onClick={() =>
-                                              setPendingDelete(entry)}
-                                            title="删除日记"
-                                            type="button"
-                                          >
-                                            <Trash2
-                                              aria-hidden="true"
-                                              size={13}
-                                            />
-                                          </button>
-                                        }
-                                        icon={
-                                          <CalendarDays aria-hidden="true" />
-                                        }
-                                        key={entry.id}
-                                        label={entry.title}
-                                        rowClassName="journal-entry-select"
-                                        selected={entry.isActive}
-                                        title={entry.title}
-                                        onSelect={() =>
-                                          view.selectEntry(entry.id)}
-                                      />
-                                    ))}
-                                  </CompactContextList>
-                                ) : null}
-                              </li>
+                                    <Trash2 aria-hidden="true" size={13} />
+                                  </button>
+                                }
+                                icon={<CalendarDays aria-hidden="true" />}
+                                key={entry.id}
+                                label={entry.title}
+                                rowClassName="journal-entry-select"
+                                selected={entry.isActive}
+                                title={entry.title}
+                                onSelect={() => view.selectEntry(entry.id)}
+                              />
                             ))}
                           </CompactContextList>
                         ) : null}

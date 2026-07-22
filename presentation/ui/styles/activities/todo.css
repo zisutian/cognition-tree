@@ -65,10 +65,13 @@
   border-radius: var(--ui-radius);
 }
 
-.todo-structure-row:hover,
-.todo-structure-row:focus-within {
+.todo-structure-row:hover {
   border-color: var(--color-border-strong);
   background: var(--color-hover);
+}
+
+.todo-structure-row:has(:focus-visible) {
+  border-color: var(--color-border-strong);
 }
 
 .todo-structure-row input {
@@ -83,6 +86,7 @@
   padding: var(--ui-gap-tight) 0;
   overflow: hidden;
   color: var(--color-fg);
+  background: transparent;
   font-size: var(--ui-body-font-size);
   line-height: var(--ui-body-line-height);
   text-align: left;

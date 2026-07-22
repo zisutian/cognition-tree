@@ -98,24 +98,26 @@ export function TitleAndRootRows({
 }) {
   return (
     <>
-      <div
-        className="syntax-rule-row"
-        data-syntax-field-id={syntaxFieldIds.titleRule}
-        tabIndex={-1}
-      >
-        <span className="syntax-readonly">首行标题</span>
-        <span className="syntax-readonly">首行</span>
-        <span className="syntax-readonly">标题</span>
-        <SyntaxToneCells
-          customToneLabel={syntax.customToneLabel}
-          label="首行标题"
-          options={syntax.toneOptions}
-          textColor={syntax.draft.titleRule.textColor}
-          tone={syntax.draft.titleRule.tone}
-          onChange={syntax.actions.updateTitleRule}
-        />
-        <SyntaxRuleSpacer />
-      </div>
+      {syntax.selectedTarget.kind === "workspace-file" ? (
+        <div
+          className="syntax-rule-row"
+          data-syntax-field-id={syntaxFieldIds.titleRule}
+          tabIndex={-1}
+        >
+          <span className="syntax-readonly">首行标题</span>
+          <span className="syntax-readonly">首行</span>
+          <span className="syntax-readonly">标题</span>
+          <SyntaxToneCells
+            customToneLabel={syntax.customToneLabel}
+            label="首行标题"
+            options={syntax.toneOptions}
+            textColor={syntax.draft.titleRule.textColor}
+            tone={syntax.draft.titleRule.tone}
+            onChange={syntax.actions.updateTitleRule}
+          />
+          <SyntaxRuleSpacer />
+        </div>
+      ) : null}
       {syntax.draft.topLevelUnmarkedRule && syntax.rootRuleLabel ? (
         <div
           className="syntax-rule-row"

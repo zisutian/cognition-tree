@@ -14,15 +14,8 @@ export type JournalMonthGroup = {
   label: string;
 };
 
-export type JournalCalendarDay = {
-  date: string;
-  entries: JournalEntry[];
-  key: string;
-  label: string;
-};
-
 export type JournalCalendarMonth = {
-  days: JournalCalendarDay[];
+  entries: JournalEntry[];
   key: string;
   label: string;
 };
@@ -51,22 +44,17 @@ export function listJournalEntriesNewestFirst(content: JournalContent) {
 export function createJournalCalendar(
   content: JournalContent,
 ): JournalCalendarYear[] {
-  const yearByKey = new Map<string, Map<string, JournalCalendarDay[]>>();
+  const yearByKey = new Map<string, Map<string, JournalEntry[]>>();
 
-  for (const day of [...content.days].reverse()) {
+  for (const day of content.days) {
     if (day.entries.length === 0) continue;
-    const [year, month, numericDay] = day.date.split("-");
+    const [year, month] = day.date.split("-");
     const monthKey = `${year}-${month}`;
     const monthByKey = yearByKey.get(year) ?? new Map();
-    const days = monthByKey.get(monthKey) ?? [];
+    const entries = monthByKey.get(monthKey) ?? [];
 
-    days.push({
-      date: day.date,
-      entries: [...day.entries].sort(compareEntryPositions),
-      key: day.date,
-      label: `${Number(numericDay)} 日`,
-    });
-    monthByKey.set(monthKey, days);
+    entries.push(...day.entries);
+    monthByKey.set(monthKey, entries);
     yearByKey.set(year, monthByKey);
   }
 
@@ -77,8 +65,8 @@ export function createJournalCalendar(
       label: `${year} 年`,
       months: [...monthByKey.entries()]
         .sort(([left], [right]) => right.localeCompare(left))
-        .map(([key, days]) => ({
-          days,
+        .map(([key, entries]) => ({
+          entries: entries.slice().sort(compareEntryPositions),
           key,
           label: `${Number(key.slice(5))} 月`,
         })),

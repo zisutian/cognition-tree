@@ -134,6 +134,10 @@
   font-weight: var(--ctn-editor-strong-weight);
 }
 
+.source-editor .cm-line.ctn-line-title {
+  font-weight: var(--ctn-editor-strong-weight);
+}
+
 .source-editor .ctn-line:not(.ctn-tone-default) {
   background: var(--ctn-tone-background, transparent);
 }

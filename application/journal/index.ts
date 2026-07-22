@@ -28,7 +28,6 @@ export {
   type JournalActiveBodyPosition,
   type JournalEntryListItem,
   type JournalFocusRequest,
-  type JournalCalendarDayView,
   type JournalCalendarMonthView,
   type JournalCalendarYearView,
   type JournalOutlineNode,

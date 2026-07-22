@@ -70,11 +70,15 @@ test.describe("syntax and visualization activity flows", () => {
     await page.locator('[data-syntax-owner="journal"]').click();
     await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();
     await expect(page.getByText("顶格正文", { exact: true })).toBeVisible();
+    await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("首行标题示例", { exact: true })).toHaveCount(0);
 
     await page.locator('[data-syntax-owner="todo"]').click();
     await expect(page.getByRole("textbox", { name: "语法名称" })).toBeDisabled();
     await expect(page.getByRole("button", { name: /^角色:/ }).first())
       .toBeDisabled();
+    await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("首行标题示例", { exact: true })).toHaveCount(0);
 
     const workspaceRows = page.locator("[data-syntax-file-id]");
 

@@ -83,16 +83,8 @@ export type JournalEntryListItem = {
   updatedAt: string;
 };
 
-export type JournalCalendarDayView = {
-  date: string;
-  entries: JournalEntryListItem[];
-  expanded: boolean;
-  key: string;
-  label: string;
-};
-
 export type JournalCalendarMonthView = {
-  days: JournalCalendarDayView[];
+  entries: JournalEntryListItem[];
   expanded: boolean;
   key: string;
   label: string;
@@ -468,26 +460,20 @@ export function createJournalViewModel({
         key: year.key,
         label: year.label,
         months: year.months.map((month) => ({
-          days: month.days.map((day) => ({
-            date: day.date,
-            entries: day.entries.map((entry) => {
-              const parsed = index.getParsedEntry(entry.id);
+          entries: month.entries.map((entry) => {
+            const parsed = index.getParsedEntry(entry.id);
 
-              if (!parsed) {
-                throw new Error(`Journal parse index is missing ${entry.id}.`);
-              }
-              return {
-                createdAt: entry.createdAt,
-                id: entry.id,
-                isActive: entry.id === activeEntryId,
-                title: parsed.title,
-                updatedAt: entry.updatedAt,
-              };
-            }),
-            expanded: expandedCalendarKeys.has(`day:${day.key}`),
-            key: day.key,
-            label: day.label,
-          })),
+            if (!parsed) {
+              throw new Error(`Journal parse index is missing ${entry.id}.`);
+            }
+            return {
+              createdAt: entry.createdAt,
+              id: entry.id,
+              isActive: entry.id === activeEntryId,
+              title: parsed.title,
+              updatedAt: entry.updatedAt,
+            };
+          }),
           expanded: expandedCalendarKeys.has(`month:${month.key}`),
           key: month.key,
           label: month.label,

@@ -480,6 +480,16 @@ describe("UI design contract", () => {
     expect(syntax).not.toContain(".syntax-tone-fields");
   });
 
+  it("does not keep Todo detail rows highlighted after pointer activation", () => {
+    const todo = readStyle("ui/styles/activities/todo.css");
+
+    expect(todo).not.toContain(".todo-structure-row:focus-within");
+    expect(todo).toContain(".todo-structure-row:has(:focus-visible)");
+    expect(todo).toMatch(
+      /\.todo-structure-label \{[\s\S]*?background: transparent;/,
+    );
+  });
+
   it("keeps workbench interactions out of native browser dialogs", () => {
     const violations = listSourceFiles("presentation")
       .filter((filePath) =>

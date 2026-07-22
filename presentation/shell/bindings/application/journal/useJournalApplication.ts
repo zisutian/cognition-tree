@@ -62,7 +62,6 @@ function journalCalendarPathKeys(
   return [
     `year:${date.slice(0, 4)}`,
     `month:${date.slice(0, 7)}`,
-    `day:${date}`,
   ];
 }
 

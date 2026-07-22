@@ -201,7 +201,7 @@ describe("activity slots", () => {
 
     expect(context).toContain("2026 年");
     expect(context).toContain("1 月");
-    expect(context).toContain("2 日");
+    expect(context).not.toContain("2 日");
     expect(context).toContain("2026-01-02-0001");
     expect(context).toContain('aria-current="page"');
     expect(context).not.toContain("重命名");

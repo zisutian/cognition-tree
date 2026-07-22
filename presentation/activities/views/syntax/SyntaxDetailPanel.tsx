@@ -81,12 +81,14 @@ export function SyntaxDetailPanel({
       />
       <PanelBody className="detail-panel-stack" scroll>
         <div aria-label="语法预览内容" className="syntax-render-list">
-          <SyntaxRenderLine
-            marker="T"
-            textColor={view.draft.titleRule.textColor}
-            tone={view.draft.titleRule.tone}
-            value="首行标题示例"
-          />
+          {view.selectedTarget.kind === "workspace-file" ? (
+            <SyntaxRenderLine
+              marker="T"
+              textColor={view.draft.titleRule.textColor}
+              tone={view.draft.titleRule.tone}
+              value="首行标题示例"
+            />
+          ) : null}
           {view.draft.topLevelUnmarkedRule && view.rootRuleLabel ? (
             <SyntaxRenderLine
               marker={view.selectedTarget.kind === "journal" ? "B" : "C"}

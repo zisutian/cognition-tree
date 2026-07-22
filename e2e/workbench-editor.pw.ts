@@ -54,6 +54,12 @@ test.describe.serial("editor workbench flows", () => {
     await expect(frame).not.toHaveClass(/is-focus-mode/);
 
     await page.locator(".app-context").getByTitle("Alpha").click();
+    const titleLine = editorPanel.locator(".ctn-line-title").filter({
+      hasText: "Alpha",
+    });
+
+    await expect(titleLine).toBeVisible();
+    await expect(titleLine).toHaveCSS("font-weight", "700");
     await page
       .locator(".source-editor .ctn-inline")
       .filter({ hasText: "[[Beta]]" })
