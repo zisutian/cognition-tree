@@ -2,12 +2,7 @@
 
 # Node / frontend
 node_modules/
-dist/
-.vite/
-coverage/
-playwright-report/
-test-results/
-*.tsbuildinfo
+.artifacts/
 
 # Local databases and indexes
 *.db

@@ -19,11 +19,11 @@ const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3317");
 const repositoryDir = path.resolve(
   process.env.CTN_E2E_REPOSITORY_DIR ??
-    path.join("test-results", "e2e-runtime", "repositories"),
+    path.join(".artifacts", "test", "e2e-runtime", "repositories"),
 );
 const serverStateDir = path.resolve(
   process.env.CTN_E2E_SERVER_STATE_DIR ??
-    path.join("test-results", "e2e-runtime", "server"),
+    path.join(".artifacts", "test", "e2e-runtime", "server"),
 );
 const repositoryHostRoot = process.env.CTN_E2E_REPOSITORY_HOST_ROOT ?? null;
 const security = {

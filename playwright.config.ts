@@ -7,7 +7,7 @@ const webPort = 4174;
 const apiBaseUrl = `http://${apiHost}:${apiPort}`;
 const webBaseUrl = `http://${webHost}:${webPort}`;
 const repositoryDir = process.env.CTN_E2E_REPOSITORY_DIR ??
-  "test-results/e2e-runtime/repositories";
+  ".artifacts/test/e2e-runtime/repositories";
 const repositoryHostRoot = process.env.CTN_E2E_REPOSITORY_HOST_ROOT ??
   "/host/e2e-repositories";
 
@@ -17,7 +17,7 @@ export default defineConfig({
   },
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: false,
-  outputDir: "test-results/playwright",
+  outputDir: ".artifacts/test/playwright",
   projects: [
     {
       name: "chromium",

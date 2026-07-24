@@ -9,7 +9,10 @@ type ManifestChunk = {
 
 type ClientManifest = Record<string, ManifestChunk>;
 
-const manifestUrl = new URL("../../dist/.vite/manifest.json", import.meta.url);
+const manifestUrl = new URL(
+  "../../.artifacts/build/client/.vite/manifest.json",
+  import.meta.url,
+);
 const manifest = JSON.parse(
   readFileSync(manifestUrl, "utf8"),
 ) as ClientManifest;
@@ -61,7 +64,7 @@ function collectStaticImports(
 }
 
 function getBundleFileUrl(file: string) {
-  return new URL(`../../dist/${file}`, import.meta.url);
+  return new URL(`../../.artifacts/build/client/${file}`, import.meta.url);
 }
 
 const [clientEntryPath] = clientEntry;

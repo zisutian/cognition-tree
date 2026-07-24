@@ -10,7 +10,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "types": ["node", "@playwright/test"],
-    "tsBuildInfoFile": "../../tsconfig.node.tsbuildinfo"
+    "tsBuildInfoFile": "../../.artifacts/cache/typescript/node.tsbuildinfo"
   },
   "include": [
     "../../playwright.config.ts",

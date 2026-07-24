@@ -25,7 +25,7 @@ export const e2eAlphaSecondBlockTimestamp = "2026-01-03T00:00:00.000Z";
 
 const e2eRepositoryRoot = path.resolve(
   process.env.CTN_E2E_REPOSITORY_DIR ??
-    path.join("test-results", "e2e-runtime", "repositories"),
+    path.join(".artifacts", "test", "e2e-runtime", "repositories"),
 );
 
 const e2eDefaultSyntaxFileId =
