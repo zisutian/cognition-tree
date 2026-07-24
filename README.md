@@ -97,10 +97,17 @@ Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo`
     infrastructure/   versioned persistence、Browser/HTTP adapter 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
     contracts/        Workspace、Journal、Todo 与 built-ins wire contract
+    tooling/          构建、Git、基准脚本与专用 TypeScript 配置
+    docs/             产品、架构、工程、环境与界面约定
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
 
 `application/workbench/WorkbenchController` 是应用运行期总协调者，持有普通仓库 catalog、动态 Workspace session 与两个内置 session。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。浏览器/HTTP/文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
+
+构建、测试和工具缓存统一写入可删除的 `.artifacts/`：客户端和服务端位于
+`build/client` 与 `build/server`，Playwright 与 E2E 运行数据位于 `test/`。
+`pnpm clean` 只清除 `.artifacts/`。`.cognition-tree/` 保存本地仓库和服务状态，
+不属于生成产物；`node_modules/` 继续由 pnpm 管理。
 
 更具体的约束见：
 

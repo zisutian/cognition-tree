@@ -140,11 +140,14 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
     pnpm build
     git diff --check
 
-后端单独检查与生产构建：
+后端类型检查包含在 pnpm check 中；生产构建与启动：
 
-    pnpm exec tsc -p tsconfig.server.json --noEmit
     pnpm server:build
     pnpm server:start
+
+pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、服务端到
+.artifacts/build/server。pnpm clean 清除全部可重建的 .artifacts，不会触碰
+.cognition-tree 中的本地仓库与服务状态。
 
 真实 WebDAV 验收：
 

@@ -32,6 +32,9 @@ contracts/
 
     前后端中立的 wire 类型和运行时解析，按 common、workspace、journal、todo、built-ins 分开。
 
+tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
+但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
+
 
 3. 依赖规则
 
