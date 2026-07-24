@@ -28,5 +28,5 @@
     "presentation",
     "tests"
   ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "references": [{ "path": "./tooling/config/tsconfig.node.json" }]
 }

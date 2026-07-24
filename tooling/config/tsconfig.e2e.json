@@ -6,5 +6,5 @@
     "noEmit": true,
     "types": ["node", "@playwright/test"]
   },
-  "include": ["core/ctn/**/*.ts", "e2e/**/*.ts"]
+  "include": ["../../core/ctn/**/*.ts", "../../e2e/**/*.ts"]
 }

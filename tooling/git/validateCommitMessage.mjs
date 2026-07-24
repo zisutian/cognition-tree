@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 const messageFile = process.argv[2];
-const allowedTypes = [
+const commitTypes = [
   "feat",
   "fix",
   "perf",
@@ -13,7 +13,7 @@ const allowedTypes = [
   "ci",
 ];
 const headerPattern = new RegExp(
-  `^(${allowedTypes.join("|")})\\([a-z0-9][a-z0-9-]*\\): .{1,72}$`,
+  `^(${commitTypes.join("|")})\\([a-z0-9][a-z0-9-]*\\): .{1,72}$`,
 );
 
 function fail(message) {
@@ -23,7 +23,7 @@ function fail(message) {
   console.error("");
   console.error("  type(scope): subject");
   console.error("");
-  console.error(`Allowed types: ${allowedTypes.join(", ")}`);
+  console.error(`Allowed types: ${commitTypes.join(", ")}`);
   console.error("Example: refactor(workspace): enforce command boundary");
   process.exit(1);
 }

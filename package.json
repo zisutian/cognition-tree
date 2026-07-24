@@ -10,13 +10,13 @@
   },
   "packageManager": "pnpm@11.1.3",
   "scripts": {
-    "benchmark:capacity": "node --import tsx scripts/benchmarkWorkspaceCapacity.ts",
+    "benchmark:capacity": "node --import tsx tooling/benchmark/workspaceCapacity.ts",
     "dev": "vite",
     "server": "node infrastructure/server/index.ts",
-    "server:build": "tsc -p tsconfig.server.json",
+    "server:build": "tsc -p tooling/config/tsconfig.server.json",
     "server:start": "node dist/runtime/infrastructure/server/index.js",
     "build": "tsc && vite build && pnpm verify:bundle && pnpm server:build",
-    "check": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.e2e.json --noEmit && tsc -p tsconfig.benchmark.json",
+    "check": "tsc --noEmit && tsc -p tooling/config/tsconfig.node.json --noEmit && tsc -p tooling/config/tsconfig.server.json --noEmit && tsc -p tooling/config/tsconfig.e2e.json --noEmit && tsc -p tooling/config/tsconfig.benchmark.json",
     "hooks:install": "git config core.hooksPath .githooks",
     "test": "vitest run",
     "test:architecture": "vitest run tests/architecture tests/ui/designContract.test.ts",
@@ -25,7 +25,7 @@
     "verify:webdav:live": "CTN_RUN_LIVE_WEBDAV=1 vitest run tests/server/adapters/webdav/webDavLive.test.ts --testTimeout=90000",
     "test:watch": "vitest",
     "server:e2e": "node e2e/support/workspaceServer.ts",
-    "verify:bundle": "node scripts/verifyClientBundle.ts",
+    "verify:bundle": "node tooling/build/verifyClientBundle.ts",
     "preview": "vite preview"
   },
   "dependencies": {

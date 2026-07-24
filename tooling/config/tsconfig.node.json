@@ -9,12 +9,13 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["node", "@playwright/test"]
+    "types": ["node", "@playwright/test"],
+    "tsBuildInfoFile": "../../tsconfig.node.tsbuildinfo"
   },
   "include": [
-    "playwright.config.ts",
-    "scripts/**/*.ts",
-    "vite.config.ts"
+    "../../playwright.config.ts",
+    "../build/**/*.ts",
+    "../../vite.config.ts"
   ],
-  "exclude": ["scripts/benchmarkWorkspaceCapacity.ts"]
+  "exclude": ["../benchmark/**/*.ts"]
 }
