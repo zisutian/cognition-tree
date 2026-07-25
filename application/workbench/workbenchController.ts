@@ -37,50 +37,31 @@ import {
 } from "../todo/todoSessionController";
 import type { SessionCommandDependencies } from "../workspace/session/sessionCommands";
 import {
-  createWorkspaceSessionController,
-  type WorkspaceSessionController,
-  type WorkspaceSessionControllerState,
-} from "../workspace/session/workspaceSessionController";
+  createBuiltInSessionSlot,
+  type WorkbenchBuiltInSession,
+} from "./builtInSessionSlot";
 import {
   createJournalWorkspaceReferenceResolver,
   type JournalWorkspaceReferenceSnapshot,
 } from "./journalWorkspaceReferences";
+import {
+  createWorkspaceNoteNavigationController,
+  type WorkbenchNavigationState,
+} from "./workspaceNoteNavigationController";
+import {
+  createWorkspaceSessionSlot,
+  type WorkbenchWorkspaceSession,
+} from "./workspaceSessionSlot";
 
-export type WorkbenchNavigationState =
-  | { status: "idle" }
-  | {
-      destination: JournalWorkspaceNoteDestination;
-      requestId: number;
-      status: "pending" | "ready";
-    }
-  | {
-      destination: JournalWorkspaceNoteDestination;
-      errorMessage: string;
-      requestId: number;
-      status: "failed";
-    };
-
-export type WorkbenchWorkspaceSession =
-  | { status: "absent" }
-  | ({ controller: WorkspaceSessionController } &
-      WorkspaceSessionControllerState);
-
-export type WorkbenchBuiltInSession<Controller, State> = {
-  controller: Controller;
-  state: State;
-};
+export type { WorkbenchNavigationState } from "./workspaceNoteNavigationController";
+export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
+export type { WorkbenchBuiltInSession } from "./builtInSessionSlot";
 
 export type WorkbenchControllerSnapshot = {
   builtIns: {
     catalog: BuiltInCatalogApplication;
-    journal: WorkbenchBuiltInSession<
-      JournalSessionController,
-      ReturnType<JournalSessionController["getState"]>
-    >;
-    todo: WorkbenchBuiltInSession<
-      TodoSessionController,
-      ReturnType<TodoSessionController["getState"]>
-    >;
+    journal: WorkbenchBuiltInSession<JournalSessionController>;
+    todo: WorkbenchBuiltInSession<TodoSessionController>;
   };
   catalog: RepositoryCatalogControllerSnapshot;
   journalReferenceResolver: JournalWorkspaceReferenceResolver;
@@ -122,12 +103,6 @@ type WorkbenchControllerOptions = {
   workspaceCommandDependencies: SessionCommandDependencies;
 };
 
-function builtInConnectionKey(descriptor: BuiltInDescriptor | null) {
-  return descriptor
-    ? JSON.stringify({ id: descriptor.id, location: descriptor.location })
-    : "";
-}
-
 function findBuiltInDescriptor(
   state: ReturnType<BuiltInCatalogController["getState"]>,
   id: BuiltInId,
@@ -135,10 +110,6 @@ function findBuiltInDescriptor(
   return state.status === "ready"
     ? state.repositories.find((descriptor) => descriptor.id === id) ?? null
     : null;
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
 }
 
 export function createWorkbenchController({
@@ -160,33 +131,72 @@ export function createWorkbenchController({
   );
   const listeners = new Set<() => void>();
   let disposed = false;
-  let started = false;
-  let nextNavigationRequestId = 1;
-  let navigation: WorkbenchNavigationState = { status: "idle" };
-  let navigationProcessing = false;
   let referenceResolutionGeneration = 0;
-  let workspaceController: WorkspaceSessionController | null = null;
-  let workspaceRepository = repositoryCatalogController.getSnapshot().repository;
-  let workspaceState: WorkspaceSessionControllerState | null = null;
-  let unsubscribeWorkspace: (() => void) | null = null;
-  let journalConnectionKey = "";
-  let todoConnectionKey = "";
-  let journalController = createJournalSessionController(null, scheduler);
-  let todoController = createTodoSessionController(null, scheduler);
-  let journalState = journalController.getState();
-  let todoState = todoController.getState();
-  let unsubscribeJournal: (() => void) | null = null;
-  let unsubscribeTodo: (() => void) | null = null;
+  let started = false;
   let snapshot: WorkbenchControllerSnapshot;
 
+  const projectBuiltInCatalog = (): BuiltInCatalogApplication => ({
+    catalogLabel: builtInCatalogController.catalogLabel,
+    reload: builtInCatalogController.reload,
+    retry: builtInCatalogController.retry,
+    state: builtInCatalogController.getState(),
+  });
+  const publish = (referencesChanged = false) => {
+    if (disposed) return;
+    if (referencesChanged) referenceResolutionGeneration += 1;
+    snapshot = {
+      builtIns: {
+        catalog: projectBuiltInCatalog(),
+        journal: journalSlot.getSnapshot(),
+        todo: todoSlot.getSnapshot(),
+      },
+      catalog: repositoryCatalogController.getSnapshot(),
+      journalReferenceResolver,
+      navigation: navigationController.getState(),
+      referenceResolutionGeneration,
+      workspace: workspaceSlot.getSnapshot(),
+    };
+    listeners.forEach((listener) => listener());
+  };
+  const workspaceSlot = createWorkspaceSessionSlot({
+    commandDependencies: workspaceCommandDependencies,
+    onChange() {
+      publish(true);
+      navigationController.notifyInputsChanged();
+    },
+    scheduler,
+  });
+  const journalSlot = createBuiltInSessionSlot({
+    createController: (descriptor: BuiltInDescriptor | null) =>
+      createJournalSessionController(
+        descriptor ? builtInCatalog.openJournal(descriptor) : null,
+        scheduler,
+      ),
+    onChange: () => publish(),
+  });
+  const todoSlot = createBuiltInSessionSlot({
+    createController: (descriptor: BuiltInDescriptor | null) =>
+      createTodoSessionController(
+        descriptor ? builtInCatalog.openTodo(descriptor) : null,
+        scheduler,
+      ),
+    onChange: () => publish(),
+  });
+  const navigationController = createWorkspaceNoteNavigationController({
+    getCatalog: repositoryCatalogController.getSnapshot,
+    getWorkspace: workspaceSlot.getSnapshot,
+    onChange: () => publish(),
+    selectRepository: repositoryCatalogController.selectRepository,
+  });
   const currentWorkspaceReferenceSnapshot = ():
     JournalWorkspaceReferenceSnapshot | null => {
     const catalog = repositoryCatalogController.getSnapshot();
+    const workspace = workspaceSlot.getSnapshot();
 
-    return workspaceState?.status === "ready" && catalog.activeDescriptor
+    return workspace.status === "ready" && catalog.activeDescriptor
       ? {
           repositoryId: catalog.activeDescriptor.id,
-          workspace: workspaceState.workspace.data,
+          workspace: workspace.workspace.data,
         }
       : null;
   };
@@ -197,230 +207,55 @@ export function createWorkbenchController({
       }).resolve(references);
     },
   };
-  const projectBuiltInCatalog = (): BuiltInCatalogApplication => ({
-    catalogLabel: builtInCatalogController.catalogLabel,
-    reload: builtInCatalogController.reload,
-    retry: builtInCatalogController.retry,
-    state: builtInCatalogController.getState(),
-  });
-  const projectWorkspace = (): WorkbenchWorkspaceSession =>
-    workspaceController && workspaceState
-      ? { controller: workspaceController, ...workspaceState }
-      : { status: "absent" };
-  const projectSnapshot = (): WorkbenchControllerSnapshot => ({
-    builtIns: {
-      catalog: projectBuiltInCatalog(),
-      journal: { controller: journalController, state: journalState },
-      todo: { controller: todoController, state: todoState },
-    },
-    catalog: repositoryCatalogController.getSnapshot(),
-    journalReferenceResolver,
-    navigation,
-    referenceResolutionGeneration,
-    workspace: projectWorkspace(),
-  });
-  const publish = (referencesChanged = false) => {
-    if (disposed) return;
-    if (referencesChanged) referenceResolutionGeneration += 1;
-    snapshot = projectSnapshot();
-    listeners.forEach((listener) => listener());
-  };
-
-  const installJournalController = (descriptor: BuiltInDescriptor | null) => {
-    const connectionKey = builtInConnectionKey(descriptor);
-
-    if (connectionKey === journalConnectionKey) return;
-    journalConnectionKey = connectionKey;
-    unsubscribeJournal?.();
-    journalController.dispose();
-    journalController = createJournalSessionController(
-      descriptor ? builtInCatalog.openJournal(descriptor) : null,
-      scheduler,
-    );
-    journalState = journalController.getState();
-    unsubscribeJournal = journalController.subscribe(() => {
-      journalState = journalController.getState();
-      publish();
-    });
-    if (started) journalController.start();
-  };
-  const installTodoController = (descriptor: BuiltInDescriptor | null) => {
-    const connectionKey = builtInConnectionKey(descriptor);
-
-    if (connectionKey === todoConnectionKey) return;
-    todoConnectionKey = connectionKey;
-    unsubscribeTodo?.();
-    todoController.dispose();
-    todoController = createTodoSessionController(
-      descriptor ? builtInCatalog.openTodo(descriptor) : null,
-      scheduler,
-    );
-    todoState = todoController.getState();
-    unsubscribeTodo = todoController.subscribe(() => {
-      todoState = todoController.getState();
-      publish();
-    });
-    if (started) todoController.start();
-  };
   const reconcileBuiltInSessions = () => {
     const state = builtInCatalogController.getState();
 
-    installJournalController(findBuiltInDescriptor(state, "journal"));
-    installTodoController(findBuiltInDescriptor(state, "todo"));
+    journalSlot.reconcile(findBuiltInDescriptor(state, "journal"));
+    todoSlot.reconcile(findBuiltInDescriptor(state, "todo"));
   };
-
-  const processNavigation = async () => {
-    if (
-      navigationProcessing ||
-      navigation.status !== "pending" ||
-      disposed
-    ) {
-      return;
-    }
-    const request = navigation;
-    const catalog = repositoryCatalogController.getSnapshot();
-
-    if (catalog.state.status === "loading") return;
-    if (catalog.state.status === "failed") {
-      navigation = {
-        ...request,
-        errorMessage: catalog.state.errorMessage,
-        status: "failed",
-      };
-      publish();
-      return;
-    }
-    if (!catalog.state.repositories.some(({ id }) =>
-      id === request.destination.repositoryId
-    )) {
-      navigation = {
-        ...request,
-        errorMessage: "引用目标仓库不存在。",
-        status: "failed",
-      };
-      publish();
-      return;
-    }
-
-    navigationProcessing = true;
-    try {
-      if (catalog.activeDescriptor?.id !== request.destination.repositoryId) {
-        if (workspaceState?.status === "ready") {
-          await workspaceController!.flushPendingChanges();
-        }
-        await repositoryCatalogController.selectRepository(
-          request.destination.repositoryId,
-        );
-      } else if (workspaceState?.status === "ready") {
-        navigation = { ...request, status: "ready" };
-        publish();
-      } else if (workspaceState?.status === "failed") {
-        navigation = {
-          ...request,
-          errorMessage: workspaceState.errorMessage,
-          status: "failed",
-        };
-        publish();
-      }
-    } catch (error) {
-      if (navigation.requestId === request.requestId) {
-        navigation = {
-          ...request,
-          errorMessage: errorMessage(error, "无法打开日记引用目标。"),
-          status: "failed",
-        };
-        publish();
-      }
-    } finally {
-      navigationProcessing = false;
-      if (
-        navigation.status === "pending" &&
-        (navigation.requestId !== request.requestId ||
-          (repositoryCatalogController.getSnapshot().activeDescriptor?.id ===
-              navigation.destination.repositoryId &&
-            (workspaceState?.status === "ready" ||
-              workspaceState?.status === "failed")))
-      ) {
-        void processNavigation();
-      }
-    }
-  };
-
-  const installWorkspaceController = () => {
-    const repository = repositoryCatalogController.getSnapshot().repository;
-
-    if (repository === workspaceRepository && workspaceController) return;
-    if (repository === workspaceRepository && !repository) return;
-    unsubscribeWorkspace?.();
-    unsubscribeWorkspace = null;
-    workspaceController?.dispose();
-    workspaceController = null;
-    workspaceState = null;
-    workspaceRepository = repository;
-    if (repository) {
-      const controller = createWorkspaceSessionController({
-        commandDependencies: workspaceCommandDependencies,
-        repository,
-        scheduler,
-      });
-
-      workspaceController = controller;
-      workspaceState = controller.getState();
-      unsubscribeWorkspace = controller.subscribe(() => {
-        workspaceState = controller.getState();
-        publish(true);
-        void processNavigation();
-      });
-      if (started) controller.start();
-    }
-  };
-
   const unsubscribeCatalog = repositoryCatalogController.subscribe(() => {
-    installWorkspaceController();
+    workspaceSlot.reconcile(
+      repositoryCatalogController.getSnapshot().repository,
+    );
     publish(true);
-    void processNavigation();
+    navigationController.notifyInputsChanged();
   });
   const unsubscribeBuiltIns = builtInCatalogController.subscribe(() => {
     reconcileBuiltInSessions();
     publish();
   });
 
-  unsubscribeJournal = journalController.subscribe(() => {
-    journalState = journalController.getState();
-    publish();
-  });
-  unsubscribeTodo = todoController.subscribe(() => {
-    todoState = todoController.getState();
-    publish();
-  });
-  snapshot = projectSnapshot();
-
-  const flushReadyWorkspace = async () => {
-    if (workspaceState?.status === "ready") {
-      await workspaceController!.flushPendingChanges();
-    }
+  snapshot = {
+    builtIns: {
+      catalog: projectBuiltInCatalog(),
+      journal: journalSlot.getSnapshot(),
+      todo: todoSlot.getSnapshot(),
+    },
+    catalog: repositoryCatalogController.getSnapshot(),
+    journalReferenceResolver,
+    navigation: navigationController.getState(),
+    referenceResolutionGeneration,
+    workspace: workspaceSlot.getSnapshot(),
   };
 
   return {
-    consumeWorkspaceNoteDestination(requestId) {
-      if (navigation.status !== "idle" && navigation.requestId === requestId) {
-        navigation = { status: "idle" };
-        publish();
-      }
-    },
+    consumeWorkspaceNoteDestination: navigationController.consume,
     async createRepository(input) {
-      await flushReadyWorkspace();
+      await workspaceSlot.flushReady();
       await repositoryCatalogController.createRepository(input);
     },
     async deleteRepository(input) {
-      const activeId = repositoryCatalogController.getSnapshot()
-        .activeDescriptor?.id;
+      const catalog = repositoryCatalogController.getSnapshot();
+      const workspace = workspaceSlot.getSnapshot();
 
-      if (input.id !== activeId || workspaceState?.status !== "ready") {
+      if (
+        input.id !== catalog.activeDescriptor?.id ||
+        workspace.status !== "ready"
+      ) {
         await repositoryCatalogController.deleteRepository(input);
         return;
       }
-      const prepared = await workspaceController!.prepareForRepositoryRemoval();
+      const prepared = await workspace.controller.prepareForRepositoryRemoval();
 
       try {
         await repositoryCatalogController.deleteRepository(input);
@@ -430,9 +265,9 @@ export function createWorkbenchController({
       }
     },
     discardJournalPendingChangesAndReload: () =>
-      journalController.discardPendingChangesAndReload(),
+      journalSlot.getSnapshot().controller.discardPendingChangesAndReload(),
     discardTodoPendingChangesAndReload: () =>
-      todoController.discardPendingChangesAndReload(),
+      todoSlot.getSnapshot().controller.discardPendingChangesAndReload(),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -440,58 +275,41 @@ export function createWorkbenchController({
       builtInCatalogController.stop();
       unsubscribeCatalog();
       unsubscribeBuiltIns();
-      unsubscribeWorkspace?.();
-      unsubscribeJournal?.();
-      unsubscribeTodo?.();
-      workspaceController?.dispose();
-      journalController.dispose();
-      todoController.dispose();
+      navigationController.dispose();
+      workspaceSlot.dispose();
+      journalSlot.dispose();
+      todoSlot.dispose();
       listeners.clear();
     },
     getSnapshot: () => snapshot,
     async refreshRepositories() {
-      await flushReadyWorkspace();
+      await workspaceSlot.flushReady();
       await repositoryCatalogController.reload();
     },
-    reloadJournal: () => journalController.reload(),
-    reloadTodo: () => todoController.reload(),
-    renameRepository: (input) =>
-      repositoryCatalogController.renameRepository(input),
-    requestJournalSync: () => journalController.requestSync(),
-    requestTodoSync: () => todoController.requestSync(),
-    requestWorkspaceNoteDestination(destination) {
-      const requestId = nextNavigationRequestId++;
-
-      navigation = { destination, requestId, status: "pending" };
-      publish();
-      void processNavigation();
-      return requestId;
-    },
-    retryBuiltIn: (id) => builtInCatalogController.retry(id),
-    retryWorkspaceNoteDestination(requestId) {
-      if (navigation.status === "failed" && navigation.requestId === requestId) {
-        navigation = {
-          destination: navigation.destination,
-          requestId,
-          status: "pending",
-        };
-        publish();
-        void processNavigation();
-      }
-    },
+    reloadJournal: () => journalSlot.getSnapshot().controller.reload(),
+    reloadTodo: () => todoSlot.getSnapshot().controller.reload(),
+    renameRepository: repositoryCatalogController.renameRepository,
+    requestJournalSync: () =>
+      journalSlot.getSnapshot().controller.requestSync(),
+    requestTodoSync: () => todoSlot.getSnapshot().controller.requestSync(),
+    requestWorkspaceNoteDestination: navigationController.request,
+    retryBuiltIn: builtInCatalogController.retry,
+    retryWorkspaceNoteDestination: navigationController.retry,
     async selectRepository(repositoryId) {
-      await flushReadyWorkspace();
+      await workspaceSlot.flushReady();
       await repositoryCatalogController.selectRepository(repositoryId);
     },
     start() {
-      if (started || disposed) return;
+      if (disposed || started) return;
       started = true;
       repositoryCatalogController.start();
       builtInCatalogController.start();
-      journalController.start();
-      todoController.start();
-      installWorkspaceController();
-      workspaceController?.start();
+      workspaceSlot.reconcile(
+        repositoryCatalogController.getSnapshot().repository,
+      );
+      workspaceSlot.start();
+      journalSlot.start();
+      todoSlot.start();
     },
     subscribe(listener) {
       listeners.add(listener);
