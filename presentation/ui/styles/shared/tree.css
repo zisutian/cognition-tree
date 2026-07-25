@@ -236,6 +236,7 @@
   gap: calc(var(--ui-gap-tight) / 2);
   padding-right: calc(var(--ui-gap-tight) / 2);
   opacity: 0;
+  white-space: nowrap;
 }
 
 .ui-tree-row-frame.is-selected .ui-tree-actions,
@@ -256,20 +257,6 @@
 .ui-tree-actions .ui-tree-action-danger,
 .ui-tree-actions .ui-tree-action-confirm {
   color: var(--color-error);
-}
-
-.ui-compact-context-inline-rename {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ui-gap-tight);
-  min-width: 0;
-  padding-left: var(--ui-gap-tight);
-}
-
-.ui-compact-context-inline-rename > svg {
-  width: var(--ui-symbol-size);
-  height: var(--ui-symbol-size);
 }
 
 .ui-tree-actions button:hover {

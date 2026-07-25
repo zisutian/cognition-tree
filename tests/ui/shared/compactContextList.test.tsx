@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ButtonHTMLAttributes, ReactElement } from "react";
+import type {
+  ButtonHTMLAttributes,
+  ReactElement,
+  ReactNode,
+} from "react";
 import { Children } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -58,28 +62,39 @@ describe("compact context lists", () => {
   });
 
   it("owns inline rename markup while leaving value and validation controlled", () => {
+    const row = CompactContextRow({
+      actions: <button type="button">不应显示</button>,
+      icon: <span aria-hidden="true">I</span>,
+      inlineRename: {
+        ariaLabel: "重命名集合 当前集合",
+        inputProps: {
+          "aria-describedby": "rename-error",
+          "aria-invalid": true,
+        },
+        onCancel: () => undefined,
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+        value: "当前集合",
+      },
+      label: "当前集合",
+      onSelect: () => undefined,
+    });
+    const form = Children.toArray(row.props.children)[0] as ReactElement<{
+      children: ReactNode;
+      className: string;
+    }>;
+    const formChildren = Children.toArray(form.props.children);
+    const actionGroup = formChildren[2] as ReactElement<{
+      className: string;
+    }>;
     const markup = renderToStaticMarkup(
-      <CompactContextList>
-        <CompactContextRow
-          actions={<button type="button">不应显示</button>}
-          icon={<span aria-hidden="true">I</span>}
-          inlineRename={{
-            ariaLabel: "重命名集合 当前集合",
-            inputProps: {
-              "aria-describedby": "rename-error",
-              "aria-invalid": true,
-            },
-            onCancel: () => undefined,
-            onChange: () => undefined,
-            onSubmit: () => undefined,
-            value: "当前集合",
-          }}
-          label="当前集合"
-          onSelect={() => undefined}
-        />
-      </CompactContextList>,
+      <CompactContextList>{row}</CompactContextList>,
     );
 
+    expect(form.props.className).toBe("ui-compact-context-inline-rename");
+    expect(formChildren).toHaveLength(3);
+    expect((formChildren[1] as ReactElement).type).toBe("input");
+    expect(actionGroup.props.className).toBe("ui-tree-actions");
     expect(markup).toContain("ui-compact-context-row-frame is-editing");
     expect(markup).toContain("ui-compact-context-inline-rename");
     expect(markup).toContain('aria-label="重命名集合 当前集合"');

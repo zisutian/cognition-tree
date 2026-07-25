@@ -58,10 +58,19 @@
 
 .ui-compact-context-inline-rename {
   display: grid;
-  grid-template-columns: var(--ui-symbol-size) minmax(0, 1fr);
+  grid-template-columns:
+    var(--ui-symbol-size)
+    minmax(0, 1fr)
+    max-content;
   align-items: center;
   gap: var(--ui-gap-tight);
   width: 100%;
+  min-width: 0;
   min-height: var(--ui-tree-row-height);
   padding: 0 var(--ui-gap-tight);
+}
+
+.ui-compact-context-inline-rename > svg {
+  width: var(--ui-symbol-size);
+  height: var(--ui-symbol-size);
 }

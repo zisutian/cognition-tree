@@ -300,6 +300,30 @@ describe("UI design contract", () => {
     );
   });
 
+  it("keeps compact inline editing in one shared three-column row", () => {
+    const treeStyle = readStyle("ui/styles/shared/tree.css");
+    const compactContextStyle = readStyle(
+      "ui/styles/shared/compactContextList.css",
+    );
+    const inlineRenameStart = compactContextStyle.indexOf(
+      ".ui-compact-context-inline-rename {",
+    );
+    const inlineRenameRule = compactContextStyle.slice(
+      inlineRenameStart,
+      compactContextStyle.indexOf("}", inlineRenameStart) + 1,
+    );
+
+    expect(inlineRenameStart).toBeGreaterThanOrEqual(0);
+    expect(inlineRenameRule).toContain(
+      "var(--ui-symbol-size)\n    minmax(0, 1fr)\n    max-content",
+    );
+    expect(inlineRenameRule).toContain("min-width: 0");
+    expect(treeStyle).not.toContain(".ui-compact-context-inline-rename");
+    expect(treeStyle).toMatch(
+      /\.ui-tree-actions \{[\s\S]*?white-space: nowrap;/,
+    );
+  });
+
   it("keeps the collapsed detail responsive behavior in the frame layer", () => {
     const frame = readStyle("ui/styles/frame/frame.css");
     const responsiveStart = frame.indexOf("@media (max-width: 1120px)");

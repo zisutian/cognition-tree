@@ -6,6 +6,7 @@ import {
   test,
   type APIRequestContext,
   type Locator,
+  type Page,
 } from "@playwright/test";
 import type { TodoContentDto } from "../contracts/todo/types";
 import {
@@ -32,10 +33,67 @@ function collectionRows(context: Locator) {
   return context.locator("[data-todo-collection-id]");
 }
 
+async function expectInlineEditOnOneRow(input: Locator) {
+  const form = input.locator(
+    "xpath=ancestor::form[contains(@class, 'ui-compact-context-inline-rename')]",
+  );
+  const actions = form.locator(".ui-tree-actions > button");
+
+  await expect(form).toBeVisible();
+  await expect(actions).toHaveCount(2);
+  const geometry = await form.evaluate((element) => {
+    const field = element.querySelector("input");
+    const buttons = [...element.querySelectorAll<HTMLButtonElement>(
+      ".ui-tree-actions > button",
+    )];
+
+    if (!field || buttons.length !== 2) {
+      throw new Error("Inline edit row is incomplete.");
+    }
+    const formRect = element.getBoundingClientRect();
+    const fieldRect = field.getBoundingClientRect();
+    const rowHeight = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--ui-tree-row-height",
+      ),
+    );
+
+    return {
+      actionCenters: buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+
+        return rect.y + rect.height / 2;
+      }),
+      fieldCenter: fieldRect.y + fieldRect.height / 2,
+      formHeight: formRect.height,
+      gridColumnCount: getComputedStyle(element).gridTemplateColumns
+        .trim()
+        .split(/\s+/)
+        .length,
+      rowHeight,
+    };
+  });
+
+  expect(geometry.gridColumnCount).toBe(3);
+  expect(geometry.formHeight).toBeLessThanOrEqual(geometry.rowHeight + 0.5);
+  for (const actionCenter of geometry.actionCenters) {
+    expect(Math.abs(actionCenter - geometry.fieldCenter)).toBeLessThanOrEqual(1);
+  }
+}
+
+async function setContextWidth(page: Page, width: number) {
+  await getActivityButton(page, "设置").click();
+  const input = page.getByRole("spinbutton", { name: "左侧栏宽度" });
+
+  await input.fill(String(width));
+  await expect(input).toHaveValue(String(width));
+}
+
 async function createCollection(context: Locator, name: string) {
   await context.getByRole("button", { name: "新建事项集合" }).click();
   const input = context.getByRole("textbox", { name: "新建事项集合名称" });
 
+  await expectInlineEditOnOneRow(input);
   await input.fill(name);
   await input.press("Enter");
   await expect(context.getByTitle(name, { exact: true })).toBeVisible();
@@ -96,6 +154,9 @@ test.describe.serial("Todo activity flows", () => {
       .toHaveCount(1);
     await expect(context.locator(".todo-collection-count")).toHaveCount(0);
     await expect(page.locator(".app-problems")).toHaveCount(1);
+    await expect(page.getByRole("separator", {
+      name: "调整上下文区宽度",
+    })).toHaveAttribute("aria-valuenow", "280");
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     await page.keyboard.press("Control+Shift+M");
@@ -107,10 +168,31 @@ test.describe.serial("Todo activity flows", () => {
 
     await context.getByTitle("稍后", { exact: true }).click();
     await context.getByTitle("稍后", { exact: true }).press("F2");
-    const renameInput = context.getByRole("textbox", {
+    let renameInput = context.getByRole("textbox", {
       name: "重命名事项集合 稍后",
     });
 
+    await expectInlineEditOnOneRow(renameInput);
+    await renameInput.press("Escape");
+    await setContextWidth(page, 220);
+    await getActivityButton(page, "代办").click();
+    await expect(page.getByRole("separator", {
+      name: "调整上下文区宽度",
+    })).toHaveAttribute("aria-valuenow", "220");
+    await context.getByRole("button", { name: "新建事项集合" }).click();
+    const narrowCreateInput = context.getByRole("textbox", {
+      name: "新建事项集合名称",
+    });
+
+    await expectInlineEditOnOneRow(narrowCreateInput);
+    await context.getByRole("button", {
+      name: "新建事项集合名称，取消",
+    }).click();
+    await context.getByTitle("稍后", { exact: true }).press("F2");
+    renameInput = context.getByRole("textbox", {
+      name: "重命名事项集合 稍后",
+    });
+    await expectInlineEditOnOneRow(renameInput);
     await renameInput.fill("计划");
     await renameInput.press("Enter");
     await expect(context.getByTitle("计划", { exact: true })).toBeVisible();
@@ -199,6 +281,7 @@ test.describe.serial("Todo activity flows", () => {
       reloadedPanel.getByRole("checkbox", { name: "标记未完成 第一项" }),
     ).toBeChecked();
 
+    await setContextWidth(page, 280);
     await getActivityButton(page, "笔记").click();
     await expect(page.locator(".problems-panel-header"))
       .toHaveAttribute("aria-expanded", "true");
