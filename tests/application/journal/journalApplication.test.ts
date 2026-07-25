@@ -75,7 +75,7 @@ function createFunctionalSession(initial: JournalContent) {
       return requireJournalContent(content);
     },
     session: {
-      updateContent(
+      mutate(
         update: (current: JournalContentDto) => JournalContentDto,
       ) {
         content = requireJournalContent(update(content));

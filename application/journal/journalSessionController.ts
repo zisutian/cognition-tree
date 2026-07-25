@@ -11,15 +11,17 @@ import type {
   JournalRepository,
 } from "../repository/builtInRepository";
 import {
-  createVersionedContentSessionController,
-  type VersionedContentSessionState,
-} from "../repository/versionedContentSessionController";
+  createVersionedSessionController,
+  type VersionedSessionState,
+} from "../repository/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
-export type JournalSessionState = VersionedContentSessionState<
+export type JournalSessionState = VersionedSessionState<
+  JournalContent,
   JournalContent,
   JournalRevision,
-  BuiltInLocalDraftRevision
+  BuiltInLocalDraftRevision,
+  JournalRepository["location"]
 >;
 export type JournalPersistenceState = Extract<
   JournalSessionState,
@@ -30,10 +32,11 @@ export function createJournalSessionController(
   repository: JournalRepository | null,
   scheduler: Pick<ApplicationScheduler, "schedule">,
 ) {
-  return createVersionedContentSessionController({
+  return createVersionedSessionController({
     label: "Journal",
     parseContent: (value) =>
       validateJournalContent(value as JournalContentValue),
+    prepareContent: (content) => content,
     repository,
     scheduler,
   });

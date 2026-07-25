@@ -33,9 +33,9 @@ export type TodoApplicationServices = {
 };
 
 export type TodoRepositorySession = {
+  mutate: (update: (current: TodoContent) => TodoContent) => void;
   reload: () => Promise<void>;
   state: TodoSessionState;
-  updateContent: (update: (current: TodoContent) => TodoContent) => void;
 };
 
 export type TodoDeleteCollectionMutationResult = {
@@ -99,10 +99,10 @@ function monotonicTimestamp(requested: string, content: TodoContent) {
 }
 
 function updateTodoSession(
-  session: Pick<TodoRepositorySession, "updateContent">,
+  session: Pick<TodoRepositorySession, "mutate">,
   update: (content: TodoContent) => TodoContent,
 ) {
-  session.updateContent((current) => update(requireTodoContent(current)));
+  session.mutate((current) => update(requireTodoContent(current)));
 }
 
 export function createTodoMutationActions({
@@ -114,7 +114,7 @@ export function createTodoMutationActions({
   onCollectionCreated: (collectionId: TodoCollectionId) => void;
   onCollectionDeleted: (result: TodoDeleteCollectionMutationResult) => void;
   services: TodoApplicationServices;
-  session: Pick<TodoRepositorySession, "updateContent">;
+  session: Pick<TodoRepositorySession, "mutate">;
 }): TodoMutationActions {
   const timestamp = (content: TodoContent) =>
     monotonicTimestamp(readNow(services), content);

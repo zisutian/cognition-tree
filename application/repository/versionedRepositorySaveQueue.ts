@@ -56,6 +56,7 @@ export type VersionedRepositorySaveQueue<Content, LocalRevision extends string> 
   dispose: () => void;
   enqueue: (content: Content) => void;
   flushLocal: () => Promise<void>;
+  hasActiveSync: () => boolean;
   getLocalRevision: () => LocalRevision;
   prepareForDiscard: () => Promise<void>;
   prepareForReload: () => Promise<void>;
@@ -393,6 +394,9 @@ export function createVersionedRepositorySaveQueue<
       void startStage();
     },
     flushLocal,
+    hasActiveSync() {
+      return activeSync !== null;
+    },
     getLocalRevision() {
       return localRevision;
     },

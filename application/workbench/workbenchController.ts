@@ -232,7 +232,7 @@ export function createWorkbenchController({
     if (connectionKey === journalConnectionKey) return;
     journalConnectionKey = connectionKey;
     unsubscribeJournal?.();
-    journalController.stop();
+    journalController.dispose();
     journalController = createJournalSessionController(
       descriptor ? builtInCatalog.openJournal(descriptor) : null,
       scheduler,
@@ -250,7 +250,7 @@ export function createWorkbenchController({
     if (connectionKey === todoConnectionKey) return;
     todoConnectionKey = connectionKey;
     unsubscribeTodo?.();
-    todoController.stop();
+    todoController.dispose();
     todoController = createTodoSessionController(
       descriptor ? builtInCatalog.openTodo(descriptor) : null,
       scheduler,
@@ -444,8 +444,8 @@ export function createWorkbenchController({
       unsubscribeJournal?.();
       unsubscribeTodo?.();
       workspaceController?.dispose();
-      journalController.stop();
-      todoController.stop();
+      journalController.dispose();
+      todoController.dispose();
       listeners.clear();
     },
     getSnapshot: () => snapshot,

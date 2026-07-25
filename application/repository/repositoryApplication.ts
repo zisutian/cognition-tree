@@ -3,7 +3,7 @@ import type {
   ContentRevision,
 } from "./builtInRepository";
 import type { WorkspaceRepositoryDescriptor } from "./workspaceRepositoryCatalog";
-import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionSaveQueue";
+import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionController";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,

@@ -63,7 +63,7 @@ function createFunctionalSession(initial: TodoContent) {
       return content;
     },
     session: {
-      updateContent(
+      mutate(
         update: (current: TodoContentDto) => TodoContentDto,
       ) {
         content = requireTodoContent(update(content));

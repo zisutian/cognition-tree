@@ -32,9 +32,9 @@ export type JournalApplicationServices = {
 };
 
 export type JournalRepositorySession = {
+  mutate: (update: (current: JournalContent) => JournalContent) => void;
   reload: () => Promise<void>;
   state: JournalSessionState;
-  updateContent: (update: (current: JournalContent) => JournalContent) => void;
 };
 
 export type JournalApplication =
@@ -109,7 +109,7 @@ export function createJournalMutationActions({
   onCreated: (entryId: JournalEntryId) => void;
   onDeleted: (result: JournalDeleteMutationResult) => void;
   services: JournalApplicationServices;
-  session: Pick<JournalRepositorySession, "updateContent">;
+  session: Pick<JournalRepositorySession, "mutate">;
 }): JournalMutationActions {
   return {
     createEntry() {
@@ -118,7 +118,7 @@ export function createJournalMutationActions({
       const entryId = services.createEntryId();
       let createdEntryId: JournalEntryId | null = null;
 
-      session.updateContent((current) => {
+      session.mutate((current) => {
         const result = createJournalEntry(
           requireJournalMutationContent(current),
           {
@@ -142,7 +142,7 @@ export function createJournalMutationActions({
     deleteEntry(entryId) {
       const outcome: { value?: JournalDeleteMutationResult } = {};
 
-      session.updateContent((current) => {
+      session.mutate((current) => {
         const content = requireJournalMutationContent(current);
         const nextSelection = resolveJournalSelectionAfterDelete(
           content,
@@ -167,7 +167,7 @@ export function createJournalMutationActions({
     updateEntryBody(entryId, change) {
       const requestedUpdatedAt = readNow(services).toISOString();
 
-      session.updateContent((current) => {
+      session.mutate((current) => {
         const content = requireJournalMutationContent(current);
         const entry = findJournalEntry(content, entryId);
 
@@ -186,7 +186,7 @@ export function createJournalMutationActions({
       });
     },
     updateSyntaxSource(source) {
-      session.updateContent((current) =>
+      session.mutate((current) =>
         updateJournalSyntaxSource(
           requireJournalMutationContent(current),
           source,

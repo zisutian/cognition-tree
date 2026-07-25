@@ -11,15 +11,17 @@ import type {
   TodoRepository,
 } from "../repository/builtInRepository";
 import {
-  createVersionedContentSessionController,
-  type VersionedContentSessionState,
-} from "../repository/versionedContentSessionController";
+  createVersionedSessionController,
+  type VersionedSessionState,
+} from "../repository/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
-export type TodoSessionState = VersionedContentSessionState<
+export type TodoSessionState = VersionedSessionState<
+  TodoContent,
   TodoContent,
   TodoRevision,
-  BuiltInLocalDraftRevision
+  BuiltInLocalDraftRevision,
+  TodoRepository["location"]
 >;
 export type TodoPersistenceState = Extract<
   TodoSessionState,
@@ -30,9 +32,10 @@ export function createTodoSessionController(
   repository: TodoRepository | null,
   scheduler: Pick<ApplicationScheduler, "schedule">,
 ) {
-  return createVersionedContentSessionController({
+  return createVersionedSessionController({
     label: "Todo",
     parseContent: (value) => validateTodoContent(value as TodoContentValue),
+    prepareContent: (content) => content,
     repository,
     scheduler,
   });

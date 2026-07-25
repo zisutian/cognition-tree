@@ -3,20 +3,24 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySyncResult,
-} from "../../../../application/repository/workspaceRepository";
+} from "../../../application/repository/workspaceRepository";
 import {
-  createWorkspaceSessionSaveQueue,
-  workspaceSessionRetryDelaysMs,
-  workspaceSessionSaveDelayMs,
-  type WorkspacePersistenceState,
-} from "../../../../application/workspace/session/workspaceSessionSaveQueue";
+  createVersionedRepositorySaveQueue as createWorkspaceSessionSaveQueue,
+  versionedRepositoryRetryDelaysMs as workspaceSessionRetryDelaysMs,
+  versionedRepositorySaveDelayMs as workspaceSessionSaveDelayMs,
+  type VersionedRepositoryPersistenceState,
+} from "../../../application/repository/versionedRepositorySaveQueue";
 import {
   createContent,
   createSnapshot,
   draftRevision,
   remoteRevision,
-} from "./workspaceSessionTestFixture";
-import { testApplicationScheduler } from "../../../support/testApplicationScheduler";
+} from "../workspace/session/workspaceSessionTestFixture";
+import { testApplicationScheduler } from "../../support/testApplicationScheduler";
+
+type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
+  import("../../../application/repository/workspaceRepository").RepositoryRevision
+>;
 
 function createDeferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;

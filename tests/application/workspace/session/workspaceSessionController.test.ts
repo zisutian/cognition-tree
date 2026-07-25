@@ -11,7 +11,7 @@ import {
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
 } from "../../../../application/workspace/session/workspaceSessionController";
-import { workspaceSessionSaveDelayMs } from "../../../../application/workspace/session/workspaceSessionSaveQueue";
+import { versionedRepositorySaveDelayMs } from "../../../../application/repository/versionedRepositorySaveQueue";
 import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
 import {
   parseCtnCanonicalDocument,
@@ -582,7 +582,7 @@ describe("workspace session controller", () => {
       status: "ready",
     });
 
-    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
     expect(harness.synchronize).toHaveBeenCalledTimes(1);
     expect(controller.getState()).toMatchObject({
       persistence: { status: "saved" },
@@ -607,7 +607,7 @@ describe("workspace session controller", () => {
     await waitForState(controller, (state) => state.status === "ready");
     updateNote(controller, "标题\n触发冲突");
     await controller.flushPendingChanges();
-    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
 
     expect(controller.getState()).toMatchObject({
       persistence: { remoteRevision: conflictRevision, status: "conflict" },
@@ -654,7 +654,7 @@ describe("workspace session controller", () => {
     await waitForState(controller, (state) => state.status === "ready");
     updateNote(controller, "标题\n离线编辑");
     await controller.flushPendingChanges();
-    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
 
     expect(controller.getState()).toMatchObject({
       persistence: { pendingChanges: true, status: "offline" },
@@ -688,7 +688,7 @@ describe("workspace session controller", () => {
     await waitForState(controller, (state) => state.status === "ready");
     updateNote(controller, "标题\n必须保留的本地内容");
     await controller.flushPendingChanges();
-    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
     harness.setDiscard(async () => {
       throw new Error("remote reload failed");
     });

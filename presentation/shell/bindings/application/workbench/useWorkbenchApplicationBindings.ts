@@ -38,14 +38,14 @@ export function useWorkbenchApplicationBindings({
   );
   const reportedNavigationFailureRef = useRef<number | null>(null);
   const journalSession = useMemo(() => ({
+    mutate: snapshot.builtIns.journal.controller.mutate,
     reload: snapshot.builtIns.journal.controller.reload,
     state: snapshot.builtIns.journal.state,
-    updateContent: snapshot.builtIns.journal.controller.updateContent,
   }), [snapshot.builtIns.journal]);
   const todoSession = useMemo(() => ({
+    mutate: snapshot.builtIns.todo.controller.mutate,
     reload: snapshot.builtIns.todo.controller.reload,
     state: snapshot.builtIns.todo.state,
-    updateContent: snapshot.builtIns.todo.controller.updateContent,
   }), [snapshot.builtIns.todo]);
   const journalServices = useMemo(
     createBrowserJournalApplicationServices,

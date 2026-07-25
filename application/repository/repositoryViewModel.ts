@@ -16,7 +16,7 @@ import type {
   DeleteRepositoryRequest,
   RepositoryCatalogOperation,
 } from "./repositoryCatalog";
-import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionSaveQueue";
+import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionController";
 import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,

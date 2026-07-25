@@ -49,7 +49,7 @@ async function settleLoad() {
   await Promise.resolve();
 }
 
-describe("versioned Journal session controller", () => {
+describe("versioned session controller", () => {
   it("keeps functional mutations optimistic while deferred stages serialize", async () => {
     const firstStage = deferred<{ localRevision: BuiltInLocalDraftRevision }>();
     const staged: JournalContent[] = [];
@@ -106,8 +106,8 @@ describe("versioned Journal session controller", () => {
     controller.start();
     await settleLoad();
 
-    controller.updateContent((current) => appendJournalEntry(current, 1));
-    controller.updateContent((current) => appendJournalEntry(current, 2));
+    controller.mutate((current) => appendJournalEntry(current, 1));
+    controller.mutate((current) => appendJournalEntry(current, 2));
 
     const optimistic = controller.getState();
     expect(optimistic.status).toBe("ready");
@@ -123,7 +123,7 @@ describe("versioned Journal session controller", () => {
     const firstOptimisticIndex = visibleLengths.indexOf(2);
     expect(firstOptimisticIndex).toBeGreaterThanOrEqual(0);
     expect(visibleLengths.slice(firstOptimisticIndex)).not.toContain(1);
-    controller.stop();
+    controller.dispose();
   });
 
   it("flushes desired content before a ready-session reload", async () => {
@@ -171,7 +171,7 @@ describe("versioned Journal session controller", () => {
 
     controller.start();
     await settleLoad();
-    controller.updateContent((current) => appendJournalEntry(current, 1));
+    controller.mutate((current) => appendJournalEntry(current, 1));
     const reload = controller.reload();
 
     await Promise.resolve();
@@ -184,7 +184,7 @@ describe("versioned Journal session controller", () => {
     expect(state.status === "ready"
       ? journalEntries(state.content).length
       : -1).toBe(1);
-    controller.stop();
+    controller.dispose();
   });
 
   it("drains an active remote sync before reload installs a new queue", async () => {
@@ -245,11 +245,11 @@ describe("versioned Journal session controller", () => {
 
     controller.start();
     await settleLoad();
-    controller.updateContent(append(1));
+    controller.mutate(append(1));
     await controller.flushPendingChanges();
     controller.requestSync();
     await syncStarted.promise;
-    controller.updateContent(append(2));
+    controller.mutate(append(2));
     await controller.flushPendingChanges();
 
     const reload = controller.reload();
@@ -260,13 +260,13 @@ describe("versioned Journal session controller", () => {
     await reload;
     expect(loadCount).toBe(2);
 
-    controller.updateContent(append(3));
+    controller.mutate(append(3));
     await controller.flushPendingChanges();
     expect(expectedRevisions).toEqual([
       localRevision("0"),
       localRevision("1"),
       localRevision("2"),
     ]);
-    controller.stop();
+    controller.dispose();
   });
 });

@@ -11,7 +11,7 @@ import {
   requiresManualLocalDeletion,
 } from "../../../application/repository/repositoryViewModel";
 import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { WorkspacePersistenceState } from "../../../application/workspace/session/workspaceSessionSaveQueue";
+import type { WorkspacePersistenceState } from "../../../application/workspace/session/workspaceSessionController";
 import { remoteRevision } from "../workspace/session/workspaceSessionTestFixture";
 
 function createSource(
