@@ -77,6 +77,31 @@ export class CtnCheckboxWidget extends WidgetType {
   }
 }
 
+export class CtnRecurrenceMarkerWidget extends WidgetType {
+  constructor(readonly label: string) {
+    super();
+  }
+
+  eq(other: CtnRecurrenceMarkerWidget) {
+    return this.label === other.label;
+  }
+
+  toDOM() {
+    const marker = document.createElement("span");
+
+    marker.className = "ctn-todo-recurrence-marker";
+    marker.setAttribute("aria-label", this.label);
+    marker.setAttribute("role", "img");
+    marker.title = this.label;
+    marker.textContent = "↻";
+    return marker;
+  }
+
+  ignoreEvent() {
+    return true;
+  }
+}
+
 function isConceptBlock(block: CtnEditableBlock) {
   return block.type === "concept";
 }
@@ -285,16 +310,16 @@ function buildCtnDecorations(
             ? checkableByLineNumber.get(block.lineNumber)
             : undefined;
 
+          const markerFrom = line.from + markerStart;
+          const markerTo = markerFrom + marker.length;
+
           decorations.push(checkable
             ? Decoration.replace({
                 widget: new CtnCheckboxWidget(
                   checkable,
                   onToggleCheckableBlockRef,
                 ),
-              }).range(
-                line.from + markerStart,
-                line.from + markerStart + marker.length,
-              )
+              }).range(markerFrom, markerTo)
             : Decoration.mark({
                 attributes: {
                   class: getMarkerDecorationClass(block),
@@ -302,10 +327,17 @@ function buildCtnDecorations(
                     ? { style: getMarkerDecorationStyle(block) }
                     : {}),
                 },
-              }).range(
-                line.from + markerStart,
-                line.from + markerStart + marker.length,
-              ));
+              }).range(markerFrom, markerTo));
+          if (checkable?.recurrenceLabel) {
+            decorations.push(
+              Decoration.widget({
+                side: 1,
+                widget: new CtnRecurrenceMarkerWidget(
+                  checkable.recurrenceLabel,
+                ),
+              }).range(markerTo),
+            );
+          }
         }
       }
     }

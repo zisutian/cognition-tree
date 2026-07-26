@@ -250,6 +250,25 @@ test.describe.serial("Todo activity flows", () => {
     );
     await expect(firstDetailRow).toHaveClass(/is-selected/);
     await expect(firstDetailRow.locator(".ui-tree-meta")).toHaveText("L1");
+    await expect(detail.getByRole("button", {
+      name: "配置周期 第一项",
+    })).toBeVisible();
+    await expect(detail.getByRole("button", {
+      name: "配置周期 第二项已修改",
+    })).toHaveCount(0);
+    await detail.getByRole("button", { name: "配置周期 第一项" }).click();
+    const recurrenceForm = detail.getByRole("form", {
+      name: "配置周期 第一项",
+    });
+
+    await expect(recurrenceForm).toBeVisible();
+    await recurrenceForm.getByRole("spinbutton", { name: "重复间隔" })
+      .fill("2");
+    await recurrenceForm.getByRole("button", { name: "确定" }).click();
+    await expect(recurrenceForm).toHaveCount(0);
+    await expect(panel.getByRole("img", {
+      name: /周期任务，已完成 1\/1/,
+    })).toBeVisible();
 
     await waitForTodoContent(api, (content) => {
       const [plan, today] = content.collections;
@@ -258,13 +277,19 @@ test.describe.serial("Todo activity flows", () => {
       const blocks = parseCtnCanonicalDocument(today.source, profile).blocks;
       const first = blocks.find(({ text }) => text === "第一项");
       const second = blocks.find(({ text }) => text === "第二项已修改");
+      const recurrence = today.recurrences.find(
+        ({ blockId }) => blockId === first?.id,
+      );
 
       return content.collections.length === 2 &&
         readCtnCanonicalTitleHeader(plan.source).title === "计划" &&
         readCtnCanonicalTitleHeader(today.source).title === "今天" &&
         first?.level === 0 &&
         second?.level === 1 &&
-        today.completions.some(({ blockId }) => blockId === first?.id);
+        !today.completions.some(({ blockId }) => blockId === first?.id) &&
+        recurrence?.stages[0]?.rule.kind === "daily" &&
+        recurrence.stages[0].rule.interval === 2 &&
+        recurrence.completions.length === 1;
     });
 
     await page.reload();

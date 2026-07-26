@@ -143,8 +143,8 @@ export function CtnEditor({
   const contentModeKind = contentMode.kind;
   const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
   const checkableBlocksKey = checkableBlocks
-    .map(({ blockId, checked, lineNumber }) =>
-      `${lineNumber}:${blockId}:${checked ? "1" : "0"}`
+    .map(({ blockId, checked, lineNumber, recurrenceLabel }) =>
+      `${lineNumber}:${blockId}:${checked ? "1" : "0"}:${recurrenceLabel ?? ""}`
     )
     .join("|");
 

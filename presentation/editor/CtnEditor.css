@@ -121,6 +121,16 @@
   cursor: pointer;
 }
 
+.source-editor .ctn-todo-recurrence-marker {
+  display: inline-block;
+  margin-right: calc(var(--ui-gap-tight) / 2);
+  color: var(--color-accent);
+  font-size: var(--ui-micro-font-size);
+  line-height: 1;
+  vertical-align: 0.04em;
+  user-select: none;
+}
+
 .source-editor .ctn-line:has(.ctn-todo-checkbox:checked) .ctn-block-text {
   color: var(--color-fg-muted);
   text-decoration: line-through;

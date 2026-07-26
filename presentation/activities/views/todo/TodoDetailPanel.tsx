@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Repeat2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import type {
   TodoBlockView,
   TodoCollectionListItem,
@@ -15,18 +16,23 @@ import {
   cx,
 } from "../../../ui/shared/primitives";
 import { getStructureTreeRowStyle } from "../../../ui/shared/tree";
+import { TodoRecurrenceEditor } from "./TodoRecurrenceEditor";
 
 function TodoStructureNodes({
   collectionId,
   depth,
   nodes,
   selectedLineNumber,
+  recurrenceEditorBlockId,
+  setRecurrenceEditorBlockId,
   view,
 }: {
   collectionId: TodoCollectionListItem["id"];
   depth: number;
   nodes: TodoBlockView[];
   selectedLineNumber: number | null;
+  recurrenceEditorBlockId: string | null;
+  setRecurrenceEditorBlockId: (blockId: string | null) => void;
   view: TodoViewModel;
 }) {
   const feedback = useFeedback();
@@ -38,6 +44,7 @@ function TodoStructureNodes({
     >
       {nodes.map((node) => {
         const selected = selectedLineNumber === node.lineNumber;
+        const editingRecurrence = recurrenceEditorBlockId === node.id;
 
         return (
           <li
@@ -83,14 +90,59 @@ function TodoStructureNodes({
               >
                 <span className="block-text">{node.text}</span>
               </button>
-              <span className="ui-tree-meta">L{node.lineNumber}</span>
+              {selected ? (
+                <span className="ui-tree-meta todo-structure-meta">
+                  <span>L{node.lineNumber}</span>
+                  <Button
+                    aria-label={`配置周期 ${node.text}`}
+                    className={cx(
+                      "todo-recurrence-button",
+                      node.recurrence?.active && "is-active",
+                    )}
+                    onClick={() =>
+                      setRecurrenceEditorBlockId(
+                        editingRecurrence ? null : node.id,
+                      )}
+                    title={node.recurrence?.active
+                      ? `周期任务 · ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
+                          node.recurrence.nextOccurrenceDate
+                            ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
+                            : ""
+                        }`
+                      : "配置周期"}
+                    type="button"
+                    variant="icon"
+                  >
+                    <Repeat2 aria-hidden="true" size={12} />
+                  </Button>
+                </span>
+              ) : (
+                <span className="ui-tree-meta">L{node.lineNumber}</span>
+              )}
             </div>
+            {editingRecurrence ? (
+              <TodoRecurrenceEditor
+                key={`${node.id}:${node.recurrence?.active ? "active" : "plain"}`}
+                node={node}
+                onCancel={() => setRecurrenceEditorBlockId(null)}
+                onConfirm={(rule) => {
+                  if (rule) {
+                    view.setBlockRecurrence(collectionId, node.id, rule);
+                  } else {
+                    view.stopBlockRecurrence(collectionId, node.id);
+                  }
+                  setRecurrenceEditorBlockId(null);
+                }}
+              />
+            ) : null}
             {node.children.length > 0 ? (
               <TodoStructureNodes
                 collectionId={collectionId}
                 depth={depth + 1}
                 nodes={node.children}
+                recurrenceEditorBlockId={recurrenceEditorBlockId}
                 selectedLineNumber={selectedLineNumber}
+                setRecurrenceEditorBlockId={setRecurrenceEditorBlockId}
                 view={view}
               />
             ) : null}
@@ -108,6 +160,16 @@ export function TodoDetailPanel({
   onCollapseDetail: () => void;
   view: TodoViewModel;
 }) {
+  const [recurrenceEditorBlockId, setRecurrenceEditorBlockId] =
+    useState<string | null>(null);
+  const selectedBlockId = view.outline.activeBlock?.id ?? null;
+
+  useEffect(() => {
+    setRecurrenceEditorBlockId((current) =>
+      current === selectedBlockId ? current : null
+    );
+  }, [selectedBlockId]);
+
   if (!view.activeCollection) return null;
 
   return (
@@ -132,7 +194,9 @@ export function TodoDetailPanel({
             collectionId={view.activeCollection.id}
             depth={0}
             nodes={view.outline.nodes}
+            recurrenceEditorBlockId={recurrenceEditorBlockId}
             selectedLineNumber={view.outline.activeBlock?.lineNumber ?? null}
+            setRecurrenceEditorBlockId={setRecurrenceEditorBlockId}
             view={view}
           />
         ) : (

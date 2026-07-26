@@ -5,4 +5,5 @@ export type CtnEditorCheckableBlock = {
   checked: boolean;
   label: string;
   lineNumber: number;
+  recurrenceLabel?: string;
 };

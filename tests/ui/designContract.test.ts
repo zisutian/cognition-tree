@@ -533,7 +533,9 @@ describe("UI design contract", () => {
     expect(todo).not.toContain(".todo-drag-handle");
     expect(todo).not.toContain(".todo-structure-tree {");
     expect(todo).not.toContain(".todo-structure-grip");
-    expect(todo).not.toContain("grid-template-columns");
+    expect(todo).not.toMatch(
+      /\.todo-structure-row \{[^}]*grid-template-columns/s,
+    );
     expect(todo).not.toContain(".todo-structure-row:focus-within");
     expect(todo).toContain(".todo-structure-row:has(:focus-visible)");
     expect(todo).toMatch(

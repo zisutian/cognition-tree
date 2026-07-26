@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { TodoContext } from "../../../presentation/activities/views/todo/TodoContext";
 import { TodoDetailPanel } from "../../../presentation/activities/views/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../presentation/activities/views/todo/TodoEditorPanel";
+import { TodoRecurrenceEditor } from "../../../presentation/activities/views/todo/TodoRecurrenceEditor";
+import { FeedbackProvider } from "../../../presentation/ui/shared/FeedbackProvider";
 import { createView } from "../viewFactory";
 
 describe("Todo panels", () => {
@@ -58,6 +60,54 @@ describe("Todo panels", () => {
     expect(markup).toContain('<span class="ui-tree-meta">L2</span>');
     expect(markup).not.toContain('draggable="true"');
     expect(markup).not.toContain("todo-structure-grip");
+  });
+
+  it("shows recurrence controls only for the selected structure task", () => {
+    const base = createView().todo;
+    const recurringNode = {
+      ...base.outline.nodes[0]!,
+      recurrence: {
+        active: true,
+        completedCount: 3,
+        currentOccurrenceDate: "2026-07-26" as const,
+        nextOccurrenceDate: "2026-07-27" as const,
+        rule: { interval: 1, kind: "daily" as const },
+        totalCount: 4,
+      },
+    };
+    const view = {
+      ...base,
+      outline: {
+        ...base.outline,
+        activeBlock: recurringNode,
+        nodes: [recurringNode, base.outline.nodes[1]!],
+      },
+    };
+    const markup = renderToStaticMarkup(
+      <FeedbackProvider activeActivityId="todo">
+        <TodoDetailPanel
+          onCollapseDetail={() => undefined}
+          view={view}
+        />
+      </FeedbackProvider>,
+    );
+    const editorMarkup = renderToStaticMarkup(
+      <FeedbackProvider activeActivityId="todo">
+        <TodoRecurrenceEditor
+          node={recurringNode}
+          onCancel={() => undefined}
+          onConfirm={() => undefined}
+        />
+      </FeedbackProvider>,
+    );
+
+    expect(markup).toContain('aria-label="配置周期 已完成但保持原位"');
+    expect(markup).toContain("todo-recurrence-button is-active");
+    expect(markup).not.toContain('aria-label="配置周期 未完成"');
+    expect(editorMarkup).toContain("完成 3/4 · 下次 2026-07-27");
+    expect(editorMarkup).toContain('aria-label="周期类型"');
+    expect(editorMarkup).toContain(">确定</button>");
+    expect(editorMarkup).toContain(">取消</button>");
   });
 
   it("mounts the CTN body editor and shows an empty collection entry point", () => {

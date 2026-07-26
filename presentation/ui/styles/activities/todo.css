@@ -53,3 +53,97 @@
   color: var(--color-fg-muted);
   text-decoration: line-through;
 }
+
+.todo-recurrence-button {
+  color: var(--color-fg-muted);
+}
+
+.todo-recurrence-button.is-active {
+  color: var(--color-accent);
+}
+
+.todo-structure-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ui-gap-tight) / 2);
+}
+
+.todo-recurrence-editor {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin:
+    var(--ui-gap-tight)
+    var(--ui-gap-tight)
+    var(--ui-gap)
+    calc(
+      var(--ui-gap-tight) +
+        (var(--ui-structure-depth, 0) + 1) *
+          var(--ui-structure-indent-width, 14px)
+    );
+  padding: var(--ui-gap);
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
+  background: var(--color-editor);
+}
+
+.todo-recurrence-summary,
+.todo-recurrence-error {
+  margin: 0;
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.todo-recurrence-summary {
+  color: var(--color-fg-muted);
+}
+
+.todo-recurrence-error {
+  color: var(--color-error);
+}
+
+.todo-recurrence-field {
+  display: grid;
+  grid-template-columns: max-content minmax(44px, 1fr) max-content;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.todo-recurrence-field .ui-input {
+  width: 100%;
+}
+
+.todo-recurrence-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: calc(var(--ui-gap-tight) / 2);
+}
+
+.todo-recurrence-weekdays label {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  border-radius: var(--ui-radius);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  cursor: pointer;
+}
+
+.todo-recurrence-weekdays input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.todo-recurrence-weekdays label:has(input:checked) {
+  color: var(--color-fg-strong);
+  background: var(--color-selected);
+}
+
+.todo-recurrence-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ui-gap-tight);
+}
