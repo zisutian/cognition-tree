@@ -97,7 +97,7 @@ Root
     expect(root.children[2]).toMatchObject({
       lexicalEndLineNumber: 13,
       subtreeEndLineNumber: 13,
-      label: "多行块",
+      label: "代码块",
       lineNumber: 12,
       marker: "```",
       role: "multiline",

@@ -21,7 +21,7 @@ export const defaultCtnSyntaxProfile = {
     {
       marker: "```",
       type: "multiline-block",
-      label: "多行块",
+      label: "代码块",
       role: "multiline",
       textColor: "green",
       tone: "gray",

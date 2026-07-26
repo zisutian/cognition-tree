@@ -33,7 +33,7 @@ describe("ctn editor extensions", () => {
     expect(ctnEditorExtensionsSource).not.toContain("EditorView.lineWrapping");
   });
 
-  it("omits parsing in raw mode and mounts code cards in parsed modes", () => {
+  it("omits parsing in raw mode and mounts multiline cards in parsed modes", () => {
     const syntaxProfileRef = { current: defaultCtnSyntaxProfile };
     const onOpenReferenceRef = { current: undefined };
 
@@ -50,13 +50,13 @@ describe("ctn editor extensions", () => {
         onOpenReferenceRef,
         { kind: "document" },
       ),
-    ).toHaveLength(9);
+    ).toHaveLength(8);
     expect(
       createCtnParsingExtensions(
         syntaxProfileRef,
         onOpenReferenceRef,
         { kind: "body", title: "2026-07-18 14:35:00" },
       ),
-    ).toHaveLength(9);
+    ).toHaveLength(8);
   });
 });

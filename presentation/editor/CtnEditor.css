@@ -168,7 +168,7 @@
   );
 }
 
-.source-editor .cm-line.ctn-code-card-line {
+.source-editor .cm-line.ctn-multiline-card-line {
   border-right: var(--ui-border-width) solid var(--color-border);
   border-left: var(--ui-border-width) solid var(--color-border);
   background: color-mix(
@@ -179,24 +179,24 @@
   font-family: var(--font-code);
 }
 
-.source-editor .cm-line.ctn-code-card-start {
+.source-editor .cm-line.ctn-multiline-card-start {
   border-top: var(--ui-border-width) solid var(--color-border);
   border-radius: var(--ui-radius) var(--ui-radius) 0 0;
 }
 
-.source-editor .cm-line.ctn-code-card-finish {
+.source-editor .cm-line.ctn-multiline-card-finish {
   border-bottom: var(--ui-border-width) solid var(--color-border);
   border-radius: 0 0 var(--ui-radius) var(--ui-radius);
 }
 
-.source-editor .cm-line.ctn-code-card-start.is-selected,
-.source-editor .cm-line.ctn-code-card-finish.is-selected {
+.source-editor .cm-line.ctn-multiline-card-start.is-selected,
+.source-editor .cm-line.ctn-multiline-card-finish.is-selected {
   border-left-color: var(--color-accent);
 }
 
-.source-editor .ctn-code-card-header {
+.source-editor .ctn-multiline-card-header {
   display: inline-grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
   gap: var(--ui-gap-tight);
   width: 100%;
@@ -213,16 +213,16 @@
   user-select: none;
 }
 
-.source-editor .ctn-code-card-header.is-selected {
+.source-editor .ctn-multiline-card-header.is-selected {
   color: var(--color-fg);
   box-shadow: inset calc(var(--ui-border-width) * 2) 0 0 var(--color-accent);
 }
 
-.source-editor .ctn-code-card-label {
+.source-editor .ctn-multiline-card-label {
   font-weight: var(--ui-micro-strong-weight);
 }
 
-.source-editor .ctn-code-card-identifier {
+.source-editor .ctn-multiline-card-suffix {
   min-width: 0;
   overflow: hidden;
   color: var(--color-fg-subtle);
@@ -231,53 +231,7 @@
   white-space: nowrap;
 }
 
-.source-editor .ctn-code-card-identifier-input {
-  min-width: 0;
-  height: calc(var(--ui-control-height) - calc(var(--ui-border-width) * 4));
-  border: var(--ui-border-width) solid var(--color-border-strong);
-  border-radius: var(--ui-radius);
-  padding: 0 var(--ui-gap-tight);
-  color: var(--color-fg);
-  background: var(--color-editor);
-  font-family: var(--font-code);
-  font-size: var(--ui-micro-font-size);
-  line-height: normal;
-  outline: none;
-}
-
-.source-editor .ctn-code-card-identifier-input:focus {
-  border-color: var(--color-accent);
-}
-
-.source-editor .ctn-code-card-actions {
-  display: inline-flex;
-  align-items: center;
-  justify-self: end;
-  gap: calc(var(--ui-gap-tight) / 2);
-  white-space: nowrap;
-}
-
-.source-editor .ctn-code-card-actions button {
-  min-width: calc(var(--ui-control-height) + var(--ui-gap-tight));
-  min-height: var(--ui-control-height);
-  border-radius: var(--ui-radius);
-  padding: 0 var(--ui-gap-tight);
-  color: var(--color-fg-muted);
-  background: transparent;
-  font-size: var(--ui-micro-font-size);
-  cursor: pointer;
-}
-
-.source-editor .ctn-code-card-actions button:hover {
-  color: var(--color-fg-strong);
-  background: var(--color-hover);
-}
-
-.source-editor .ctn-code-card-actions .ctn-code-card-danger {
-  color: var(--color-error);
-}
-
-.source-editor .ctn-code-card-end {
+.source-editor .ctn-multiline-card-end {
   display: inline-block;
   width: 100%;
   height: calc(var(--ui-gap-tight) / 2);

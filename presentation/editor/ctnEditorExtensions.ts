@@ -31,7 +31,9 @@ import {
   createCtnReferenceNavigationExtension,
   type CtnEditorReferenceTarget,
 } from "./ctnReferenceNavigation";
-import { createCtnCodeBlockEditingExtensions } from "./ctnCodeBlockEditing";
+import {
+  createCtnMultilineEditingExtensions,
+} from "./ctnMultilineEditing";
 import { createEditorCompositionChange } from "./editorCompositionChange";
 import { ctnExternalValueSync } from "./editorValueSync";
 import type { CtnEditorContentMode } from "./ctnEditorContentMode";
@@ -172,7 +174,7 @@ export function createCtnParsingExtensions(
       parseDecorationPlugin,
       onOpenReferenceRef,
     ),
-    ...createCtnCodeBlockEditingExtensions(
+    ...createCtnMultilineEditingExtensions(
       parseDecorationPlugin,
       syntaxProfileRef,
       contentMode,
