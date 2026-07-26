@@ -83,6 +83,19 @@ link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址�
     GET、PUT /api/todo/snapshot
     POST /api/todo/retry
 
+手机窄接口：
+
+    GET /api/mobile/v1/status
+    GET /api/mobile/v1/journal/entries?limit=50&cursor=<entry-id>
+    GET /api/mobile/v1/journal/entries/<id>
+    GET /api/mobile/v1/todo/collections
+    GET /api/mobile/v1/todo/collections/<id>
+    PUT /api/mobile/v1/todo/collections/<id>/tasks/<block-id>/completion
+
+手机接口使用与其余 HTTP API 相同的 Host、Origin 和 bearer 安全策略，所有响应为 no-store。建议受控 Gateway 与 cognition-tree 都监听 loopback，并让 Gateway 从环境变量注入同一个至少 32 字符的 CTN_API_TOKEN。不要通过 Tailscale 直接发布 cognition-tree。
+
+该接口不返回 syntaxSource、canonical source 或完整 snapshot。代办写入只接受 expectedRevision、completed 与 occurrenceDate；它是“设置状态”而非 toggle，冲突返回 409，不自动重放。
+
 base revision 过期返回 409，不覆盖已发布内容。/api/built-ins 只返回 Journal/Todo 的位置、保护状态和独立故障，不返回内容。
 
 Local 普通仓库：
@@ -128,7 +141,7 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
 
 添加 WebDAV 时会探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE。空目标可以初始化为 v4；已有合法 v4 保持为远端事实；非空 unmanaged、旧版本和 tombstone 目标不会被接管。
 
-普通 Workspace 使用 v4，Journal 与 Todo 使用各自 v3。当前版本的损坏内容和未知未来版本保持原样并投影故障，不自动清空。
+普通 Workspace 使用 v4，Journal 使用 v3，Todo 使用 v4。Todo v3 由隔离迁移器原子迁移一次；当前版本的损坏内容和未知未来版本保持原样并投影故障，不自动清空。
 
 
 6. 验证

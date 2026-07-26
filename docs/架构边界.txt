@@ -18,11 +18,11 @@ core/
 
 application/
 
-    框架无关的用例、端口、session controller、read model、问题投影、Workbench coordinator 和 feedback controller。跨领域流程只能由 application/workbench 协调。
+    框架无关的用例、端口、session controller、read model、问题投影、Workbench coordinator 和 feedback controller。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；跨领域流程只能由 application/workbench 协调。
 
 infrastructure/
 
-    versioned repository/session、local-first cache、同步队列、IndexedDB、HTTP、Node server、Local 和 WebDAV adapter。
+    local-first cache 的 Browser/HTTP 适配、IndexedDB、HTTP、Node server、Local 和 WebDAV adapter。CAS 与保存队列策略属于 application/persistence，平台层只实现端口。
 
 presentation/
 
@@ -66,13 +66,18 @@ Journal v3：
 
 days 按日期升序，entries 按 sequence 升序。删除最后一篇仍保留空 day bucket，保证序号不复用。标题固定为 YYYY-MM-DD-0001；UI 只从 date 派生年、月，并直接显示条目，不显示 day 分组。
 
-Todo v3：
+Todo v4：
 
     { schemaVersion, syntaxSource, collections }
-    collection = { id, source, completions }
+    collection = { id, source, completions, recurrences }
     completion = { blockId, completedAt }
+    recurrence = { blockId, stages, completions }
+    stage = { id, startsOn, endsBefore, rule }
+    recurrence completion = { stageId, occurrenceDate, completedAt }
 
-collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题是内部固定集合名，缩进形成任务树，完成状态只来自 sidecar。移动与缩进保留 block ID，删除源码块清除孤立 completion。
+collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题是内部固定集合名，缩进形成任务树，完成状态只来自 sidecar。daily、weekly、monthly 规则只保存本地 YYYY-MM-DD，不保存时区或零点任务；当前状态、下一日期和完成/总数由运行环境本地日期投影。规则修改追加从下一天生效的阶段，停止周期也保留历史。移动与缩进保留 block ID，删除或失去 todo-item 语义的源码块清除孤立 completion 与 recurrence。
+
+Todo v3 reader 只存在于 contracts/todo/migrations。服务端先耐久写入 v4 content 再发布 epoch 4；Browser 在单个 IndexedDB transaction 内迁移 remote、draft/cache 和 epoch。正常 parser 不读取 v3，损坏 v3/v4 与未来版本不自动覆盖。
 
 Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 codec、content validator、transition validator、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
 
@@ -99,14 +104,25 @@ Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB
     GET、PUT /api/todo/snapshot
     POST /api/todo/retry
 
+手机业务投影：
+
+    GET /api/mobile/v1/status
+    GET /api/mobile/v1/journal/entries
+    GET /api/mobile/v1/journal/entries/<id>
+    GET /api/mobile/v1/todo/collections
+    GET /api/mobile/v1/todo/collections/<id>
+    PUT /api/mobile/v1/todo/collections/<id>/tasks/<block-id>/completion
+
+mobile v1 只返回分页日记摘要、单篇 CTN block 投影、事项集合摘要、任务树、周期规则与统计。Todo 写入必须携带 expectedRevision、目标 completed 和 occurrenceDate；过期 revision 或 occurrence 明确返回 409。接口不接受任意 source、syntax 或完整 content，不提供通用代理能力。
+
 /api/built-ins 只返回 descriptor、位置、保护状态和故障。服务端与 Browser 存储边界都不提供 Journal/Todo create、delete、rename 或切换为普通仓库。
 
 
 6. Application 协调
 
-每个内容领域拥有独立 session、保存队列和状态。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo。
+每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的 VersionedSessionController 与保存队列。该控制器负责 ready 内容保持、并发 reload、discard 失败恢复、local-first、CAS、冲突、离线、重试、dispose 和删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 parser、prepareContent 与领域命令。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo。
 
-application/workbench/WorkbenchController 提供 start、dispose、subscribe、getSnapshot 和领域命令，组合可空 Workspace、普通 catalog、Journal 与 Todo，并独占以下跨领域流程：
+application/workbench/WorkbenchController 提供 start、dispose、subscribe、getSnapshot 和领域命令，只组合 RepositoryCatalogController、Workspace session slot、Journal/Todo built-in slot、引用解析与跨仓导航状态机，并独占以下跨领域流程：
 
     普通仓库切换与一次性导航。
     Journal 的 [[仓库名:笔记名]] 解析。
@@ -139,7 +155,7 @@ Repository context、普通仓库详情、故障详情、内置数据详情和�
 
 Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
 
-Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，只以 checkbox 执行任务状态变更，不暴露任务拖动。
+Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，以 checkbox 执行任务状态变更，不暴露任务拖动。只有选中的任务行显示周期图标；配置表单原地展开，编辑器只显示不可交互的周期标记。
 
 Problems 所有权：
 

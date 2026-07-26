@@ -6,7 +6,7 @@
 
 - Workspace：零个或多个普通笔记库，支持目录、编辑、结构整理、引用图谱和多份仓库语法。
 - Journal：全局唯一。手动创建一天多条日记，固定标题为 `YYYY-MM-DD-0001`，左侧按“年 → 月 → 条目”倒序显示；支持仓内引用和 `[[仓库名:笔记名]]`。
-- Todo：全局唯一。每个事项集合是一篇 CTN，`[]` 表示任务，缩进表示父子关系，完成状态保存于独立 sidecar。
+- Todo：全局唯一。每个事项集合是一篇 CTN，`[]` 表示任务，缩进表示父子关系；普通完成与周期阶段、发生日期和完成历史保存于独立 sidecar。
 
 Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的存储位置、故障与重试统一显示在“仓库 → 内置数据”中。
 
@@ -17,6 +17,8 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
 - CTN 编辑、块结构、跨笔记结构移动、引用导航和图谱。
 - 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
 - 本地优先缓存、离线编辑、CAS 同步与显式冲突处理。
+- Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
+- 提供 `/api/mobile/v1` 窄接口，供受控 Gateway 只读投影日记并以 CAS 设置代办完成状态，不暴露完整 snapshot。
 - 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
 
 没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
@@ -88,21 +90,21 @@ contract、session 和 API：
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
 Workspace。`CTN_SERVER_STATE_DIR` 只保留 WebDAV 连接等服务状态。
 
-Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。当前内容 contract 为 Workspace v4、Journal v3 与 Todo v3。
+Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。当前内容 contract 为 Workspace v4、Journal v3 与 Todo v4。Todo v3 只由隔离迁移器一次性补入空周期 sidecar；正常挂载路径只读取 v4。
 
 ## 源码层次
 
     core/             CTN、命名以及互不依赖的 Workspace、Journal、Todo 纯领域
-    application/      用例、端口、会话、Workbench 协调和问题投影
+    application/      用例、端口、通用 versioned session、Workbench 协调和问题投影
     infrastructure/   versioned persistence、Browser/HTTP adapter 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
-    contracts/        Workspace、Journal、Todo 与 built-ins wire contract
+    contracts/        Workspace、Journal、Todo、built-ins 与 mobile wire contract
     tooling/          构建、Git、基准脚本与专用 TypeScript 配置
     docs/             产品、架构、工程、环境与界面约定
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
 
-`application/workbench/WorkbenchController` 是应用运行期总协调者，持有普通仓库 catalog、动态 Workspace session 与两个内置 session。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。浏览器/HTTP/文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
+`application/persistence/VersionedSessionController` 统一三个领域的 local-first、CAS、冲突、重载、丢弃和删除前冻结语义；各领域 controller 只保留自己的校验、投影和命令。`application/workbench/WorkbenchController` 组合普通仓库 catalog、Workspace slot、两个内置 slot 与跨仓导航，不直接实现各 session 生命周期。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。浏览器/HTTP/文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
 
 构建、测试和工具缓存统一写入可删除的 `.artifacts/`：客户端和服务端位于
 `build/client` 与 `build/server`，Playwright 与 E2E 运行数据位于 `test/`。
