@@ -234,8 +234,8 @@ describe("UI design contract", () => {
     const activeLineIndex = editorStyle.indexOf(
       ".source-editor .cm-line.cm-activeLine",
     );
-    const activeCodeIndex = editorStyle.indexOf(
-      ".source-editor .cm-line.ctn-active-code-block",
+    const codeCardIndex = editorStyle.indexOf(
+      ".source-editor .cm-line.ctn-code-card-line",
     );
     const diagnosticIndex = editorStyle.indexOf(
       ".source-editor .cm-line.ctn-line-diagnostic",
@@ -243,8 +243,8 @@ describe("UI design contract", () => {
 
     expect(toneIndex).toBeGreaterThanOrEqual(0);
     expect(activeLineIndex).toBeGreaterThan(toneIndex);
-    expect(activeCodeIndex).toBeGreaterThan(activeLineIndex);
-    expect(diagnosticIndex).toBeGreaterThan(activeCodeIndex);
+    expect(codeCardIndex).toBeGreaterThan(activeLineIndex);
+    expect(diagnosticIndex).toBeGreaterThan(codeCardIndex);
     expect(editorStyle).toMatch(
       /\.cm-selectionBackground,[\s\S]*background:\s*var\(--color-selected\)\s*!important/,
     );

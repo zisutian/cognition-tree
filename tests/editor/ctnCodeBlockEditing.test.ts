@@ -6,6 +6,7 @@ import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProf
 import {
   createCtnCodeBlockEnterTransaction,
   createCtnCodeBlockIndentChanges,
+  createCtnCodeBlockStructuralIndentChanges,
 } from "../../presentation/editor/ctnCodeBlockEditing";
 function createFixture() {
   const source =
@@ -47,7 +48,7 @@ describe("CTN code block editing", () => {
   it("indents and outdents code content without changing its fences", () => {
     const { codeLine, document, state } = createFixture();
     const selected = state.update({
-      selection: { anchor: codeLine.from },
+      selection: { anchor: codeLine.from + "\t\t".length },
     }).state;
     const indentChanges = createCtnCodeBlockIndentChanges(
       selected,
@@ -58,7 +59,7 @@ describe("CTN code block editing", () => {
     const indentedCodeLine = indented.doc.line(codeLine.number);
     const outdentChanges = createCtnCodeBlockIndentChanges(
       indented.update({
-        selection: { anchor: indentedCodeLine.from },
+        selection: { anchor: indentedCodeLine.from + "\t\t".length },
       }).state,
       parseCtnEditableDocument(
         indented.doc.toString(),
@@ -78,6 +79,44 @@ describe("CTN code block editing", () => {
     expect(restored.doc.toString()).toContain("\t```");
   });
 
+  it("does not batch-indent selected code text", () => {
+    const { codeLine, document, state } = createFixture();
+    const selected = state.update({
+      selection: {
+        anchor: codeLine.from + "\t\t".length,
+        head: codeLine.to,
+      },
+    }).state;
+
+    expect(
+      createCtnCodeBlockIndentChanges(selected, document, "indent"),
+    ).toEqual([]);
+    expect(
+      createCtnCodeBlockIndentChanges(selected, document, "outdent"),
+    ).toEqual([]);
+  });
+
+  it("changes the complete multiline block level from its card header", () => {
+    const { document, state } = createFixture();
+    const block = document.blocks.find(({ role }) => role === "multiline")!;
+    const opener = state.doc.line(block.lineNumber);
+    const selected = state.update({
+      selection: { anchor: opener.to },
+    }).state;
+    const changes = createCtnCodeBlockStructuralIndentChanges(
+      selected,
+      document,
+      "indent",
+    );
+    const updated = selected.update({ changes: changes! }).state;
+
+    expect(updated.doc.line(block.lineNumber).text).toBe("\t\t```ts");
+    expect(updated.doc.line(block.lineNumber + 1).text).toBe(
+      "\t\t\tconst value = 1;",
+    );
+    expect(updated.doc.line(block.lineNumber + 2).text).toBe("\t\t```");
+  });
+
   it("leaves normal CTN lines to the structural indentation keymap", () => {
     const { document, state } = createFixture();
     const normalBlock = document.blocks.find((block) => block.text === "After")!;
@@ -94,7 +133,7 @@ describe("CTN code block editing", () => {
     ).toBeNull();
   });
 
-  it("treats the final line of an unterminated multiline block as content", () => {
+  it("keeps editing the final body line of an unterminated multiline block", () => {
     const source = "Title\n\t```ts\n\t\tconst value = 1;";
     const document = parseCtnEditableDocument(
       source,
@@ -110,6 +149,28 @@ describe("CTN code block editing", () => {
     expect(transaction).not.toBeNull();
     expect(state.update(transaction!).state.doc.toString()).toBe(
       `${source}\n\t\t`,
+    );
+  });
+
+  it("auto-closes a recognized multiline opener", () => {
+    const source = "Title\n\t```ts";
+    const document = parseCtnEditableDocument(
+      source,
+      defaultCtnSyntaxProfile,
+    );
+    const state = EditorState.create({
+      doc: source,
+      extensions: [EditorState.tabSize.of(4)],
+      selection: { anchor: source.length },
+    });
+    const transaction = createCtnCodeBlockEnterTransaction(state, document);
+    const updated = state.update(transaction!).state;
+
+    expect(updated.doc.toString()).toBe(
+      "Title\n\t```ts\n\t\t\n\t```",
+    );
+    expect(updated.selection.main.head).toBe(
+      "Title\n\t```ts\n\t\t".length,
     );
   });
 

@@ -102,7 +102,7 @@ test.describe.serial("editor workbench flows", () => {
     );
   });
 
-  test("edits multiline blocks without applying CTN structural indentation", async ({
+  test("edits protected multiline code cards", async ({
     page,
   }) => {
     await openWorkbench(page, repositoryId);
@@ -112,13 +112,19 @@ test.describe.serial("editor workbench flows", () => {
     const codeLine = editor.locator(".cm-line").filter({
       hasText: "const value = 1;",
     });
+    const header = editor.locator(".ctn-code-card-header");
+
+    await expect(header).toContainText("多行块");
+    await expect(header).toContainText("ts");
+    await expect(editor.locator(".cm-line").filter({ hasText: "```" }))
+      .toHaveCount(0);
 
     await codeLine.click();
     await page.keyboard.press("End");
     await page.keyboard.press("Enter");
     await page.keyboard.type("return value;");
     await expect(
-      editor.locator(".ctn-active-code-block").filter({
+      editor.locator(".ctn-code-card-body").filter({
         hasText: "return value;",
       }),
     ).toBeVisible();
@@ -145,6 +151,37 @@ test.describe.serial("editor workbench flows", () => {
         "\t\tconst value = 1;\n\t\treturn value;\n\t```",
       );
     }).toBe(true);
+
+    await header.click();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/repositories/${repositoryId}/snapshot`,
+      );
+      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const source = snapshot.content.workspace.notes.find(
+        ({ id }) => id === "note-gamma",
+      )?.source ?? "";
+
+      return source.includes(
+        "\t```ts\n\t\tconst value = 1;\n\t\treturn value;\n\t```",
+      );
+    }).toBe(true);
+
+    await editor.getByRole("button", { name: "修改代码块标识" }).click();
+    const identifierInput = editor.getByRole("textbox", {
+      name: "代码块标识",
+    });
+
+    await identifierInput.fill("tsx");
+    await identifierInput.press("Enter");
+    await expect(header).toContainText("tsx");
+
+    await header.click();
+    await editor.getByRole("button", { name: "删除代码块" }).click();
+    await editor.getByRole("button", { name: "确认删除代码块" }).click();
+    await expect(header).toHaveCount(0);
   });
 
   test("synchronizes the editor block with outline selection and timestamps", async ({

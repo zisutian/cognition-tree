@@ -172,7 +172,11 @@ export function createCtnParsingExtensions(
       parseDecorationPlugin,
       onOpenReferenceRef,
     ),
-    ...createCtnCodeBlockEditingExtensions(parseDecorationPlugin),
+    ...createCtnCodeBlockEditingExtensions(
+      parseDecorationPlugin,
+      syntaxProfileRef,
+      contentMode,
+    ),
   ];
 }
 
