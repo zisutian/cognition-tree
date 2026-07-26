@@ -25,7 +25,7 @@ import {
   validateTodoRepositoryContent,
   validateTodoRepositoryTransition,
 } from "../persistence/todoRepository";
-import { createVersionedLocalDraftRevision } from "../../application/repository/versionedRepository";
+import { createVersionedLocalDraftRevision } from "../../application/persistence/versionedRepository";
 import type {
   BrowserJournalStorage,
   BrowserTodoStorage,

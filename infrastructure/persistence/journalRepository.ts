@@ -9,7 +9,7 @@ import {
   type JournalContent,
 } from "../../core/journal/model/journalContent";
 import type { JournalRevision } from "../../application/repository/builtInRepository";
-import type { VersionedRepositoryCodec } from "../../application/repository/versionedRepository";
+import type { VersionedRepositoryCodec } from "../../application/persistence/versionedRepository";
 
 export const journalRepositoryCodec: VersionedRepositoryCodec<
   JournalContent,

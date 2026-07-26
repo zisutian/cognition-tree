@@ -9,7 +9,7 @@ import {
   type TodoContent,
 } from "../../core/todo/model/todoContent";
 import type { TodoRevision } from "../../application/repository/builtInRepository";
-import type { VersionedRepositoryCodec } from "../../application/repository/versionedRepository";
+import type { VersionedRepositoryCodec } from "../../application/persistence/versionedRepository";
 
 export const todoRepositoryCodec: VersionedRepositoryCodec<
   TodoContent,

@@ -9,7 +9,7 @@ import {
   versionedRepositoryRetryDelaysMs as workspaceSessionRetryDelaysMs,
   versionedRepositorySaveDelayMs as workspaceSessionSaveDelayMs,
   type VersionedRepositoryPersistenceState,
-} from "../../../application/repository/versionedRepositorySaveQueue";
+} from "../../../application/persistence/versionedRepositorySaveQueue";
 import {
   createContent,
   createSnapshot,

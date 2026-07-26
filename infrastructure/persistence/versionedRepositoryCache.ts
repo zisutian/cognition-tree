@@ -4,7 +4,7 @@ import {
   VersionedRepositoryLocalConflictError,
   type VersionedRemoteSnapshot,
   type VersionedRepositoryCodec,
-} from "../../application/repository/versionedRepository";
+} from "../../application/persistence/versionedRepository";
 
 export type VersionedRepositoryLocalState<
   Content,

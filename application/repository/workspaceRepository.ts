@@ -18,7 +18,7 @@ import {
   type VersionedRepositoryContentValidator,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "./versionedRepository";
+} from "../persistence/versionedRepository";
 
 export type WorkspaceRepositoryContent = {
   schemaVersion: 4;

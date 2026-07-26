@@ -11,7 +11,7 @@ import {
   type VersionedRepositoryTransitionValidator,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "../../application/repository/versionedRepository";
+} from "../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
 
 type LocalFirstVersionedRepositoryOptions<

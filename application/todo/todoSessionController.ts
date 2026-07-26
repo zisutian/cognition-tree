@@ -13,7 +13,7 @@ import type {
 import {
   createVersionedSessionController,
   type VersionedSessionState,
-} from "../repository/versionedSessionController";
+} from "../persistence/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 
 export type TodoSessionState = VersionedSessionState<

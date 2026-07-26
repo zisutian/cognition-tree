@@ -9,7 +9,7 @@ import {
   createBrowserTodoStorage,
 } from "../../../../infrastructure/browser/browserBuiltInRepositories";
 import { createBrowserBuiltInCatalog } from "../../../../infrastructure/browser/browserBuiltInCatalog";
-import { VersionedRepositoryBackendConflictError } from "../../../../application/repository/versionedRepository";
+import { VersionedRepositoryBackendConflictError } from "../../../../application/persistence/versionedRepository";
 import {
   appendJournalTestEntry,
   createEmptyJournalContent,

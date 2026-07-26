@@ -28,7 +28,7 @@ import {
   type UiWorkbenchProblem,
   type UiWorkbenchProblems,
 } from "../../../application/problems/workbenchProblems";
-import type { VersionedRepositoryPersistenceState } from "../../../application/repository/versionedRepositorySaveQueue";
+import type { VersionedRepositoryPersistenceState } from "../../../application/persistence/versionedRepositorySaveQueue";
 import type { WorkspaceRepositoryCatalogIssue } from "../../../application/repository/workspaceRepositoryCatalog";
 import type { WorkspaceRepositoryDescriptor } from "../../../application/repository/workspaceRepositoryCatalog";
 import type { ActivityId } from "../../ui/activityTypes";

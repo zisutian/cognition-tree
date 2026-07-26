@@ -26,7 +26,7 @@ import {
   createVersionedLocalDraftRevision,
   VersionedRepositoryRemoteError,
   VersionedRepositoryUnavailableError,
-} from "../../application/repository/versionedRepository";
+} from "../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "../persistence/versionedRepositoryCache";
 import type { BuiltInCatalogCache } from "../persistence/builtInCatalogCache";
 import { createHttpJournalRepositoryBackend } from "./httpJournalRepository";

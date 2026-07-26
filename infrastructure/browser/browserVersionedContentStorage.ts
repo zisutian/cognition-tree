@@ -11,7 +11,7 @@ import {
   type VersionedRepositoryCodec,
   type VersionedRepositoryContentValidator,
   type VersionedRepositoryTransitionValidator,
-} from "../../application/repository/versionedRepository";
+} from "../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "../persistence/versionedRepositoryCache";
 import { createVersionedContentRevision } from "../persistence/versionedContentRevision";
 import {

@@ -11,7 +11,7 @@ import type {
   RepositoryCatalogState,
 } from "./repositoryCatalog";
 import type { RepositoryNavigation } from "./repositoryNavigation";
-import type { VersionedRepositoryPersistenceState } from "./versionedRepositorySaveQueue";
+import type { VersionedRepositoryPersistenceState } from "../persistence/versionedRepositorySaveQueue";
 import type { BuiltInCatalogApplication } from "./builtInCatalogController";
 
 export type RepositorySessionState =

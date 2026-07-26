@@ -4,7 +4,7 @@ import { createMemoryVersionedRepositoryCache } from "../../../infrastructure/pe
 import {
   VersionedRepositoryBackendConflictError,
   VersionedRepositoryUnavailableError,
-} from "../../../application/repository/versionedRepository";
+} from "../../../application/persistence/versionedRepository";
 
 type Content = { records: Array<{ done: boolean; text: string }> };
 type Revision = `revision:${number}`;

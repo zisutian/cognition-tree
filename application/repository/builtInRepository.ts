@@ -6,7 +6,7 @@ import type {
   VersionedRepository,
   VersionedRepositoryBackend,
   VersionedRepositorySnapshot,
-} from "./versionedRepository";
+} from "../persistence/versionedRepository";
 
 export type ContentRevision = `sha256:${string}`;
 export type BuiltInId = "journal" | "todo";

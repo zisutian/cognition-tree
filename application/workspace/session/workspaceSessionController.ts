@@ -9,10 +9,10 @@ import type {
 import {
   createVersionedSessionController,
   type VersionedSessionState,
-} from "../../repository/versionedSessionController";
+} from "../../persistence/versionedSessionController";
 import type {
   VersionedRepositoryPersistenceState,
-} from "../../repository/versionedRepositorySaveQueue";
+} from "../../persistence/versionedRepositorySaveQueue";
 import {
   createDefaultWorkspaceSyntax,
   type WorkspaceSyntax,

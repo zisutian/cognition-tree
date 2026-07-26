@@ -91,6 +91,24 @@ describe("semantic source ownership", () => {
     expect(Object.keys(legacySourceModules)).toEqual([]);
   });
 
+  it("keeps generic persistence outside repository management", () => {
+    const repositoryFiles = listSourceFiles("application/repository")
+      .map(sourcePathToRelative);
+    const persistenceFiles = listSourceFiles("application/persistence")
+      .map(sourcePathToRelative);
+
+    expect(repositoryFiles).not.toEqual(expect.arrayContaining([
+      "application/repository/versionedRepository.ts",
+      "application/repository/versionedRepositorySaveQueue.ts",
+      "application/repository/versionedSessionController.ts",
+    ]));
+    expect(persistenceFiles).toEqual(expect.arrayContaining([
+      "application/persistence/versionedRepository.ts",
+      "application/persistence/versionedRepositorySaveQueue.ts",
+      "application/persistence/versionedSessionController.ts",
+    ]));
+  });
+
   it("contains no retired built-in v2 cleanup knowledge", () => {
     const v2Owners = Object.entries({
       ...sourceModules,

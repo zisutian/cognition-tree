@@ -11,7 +11,7 @@ import {
   type WorkspaceSessionController,
   type WorkspaceSessionControllerState,
 } from "../../../../application/workspace/session/workspaceSessionController";
-import { versionedRepositorySaveDelayMs } from "../../../../application/repository/versionedRepositorySaveQueue";
+import { versionedRepositorySaveDelayMs } from "../../../../application/persistence/versionedRepositorySaveQueue";
 import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
 import {
   parseCtnCanonicalDocument,

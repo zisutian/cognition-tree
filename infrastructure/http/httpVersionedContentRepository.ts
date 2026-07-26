@@ -4,7 +4,7 @@ import type {
   VersionedRepositoryBackend,
   VersionedRemoteCommit,
   VersionedRemoteSnapshot,
-} from "../../application/repository/versionedRepository";
+} from "../../application/persistence/versionedRepository";
 import {
   requestRepositoryJson,
   type HttpRepositoryTransportOptions,
