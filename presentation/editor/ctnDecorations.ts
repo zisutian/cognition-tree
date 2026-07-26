@@ -396,8 +396,8 @@ export function createCtnParseDecorationPlugin(
   } = { current: undefined },
 ): CtnEditorParsePlugin {
   const createCheckableBlocksKey = () => checkableBlocksRef.current
-    .map(({ blockId, checked, lineNumber }) =>
-      `${lineNumber}:${blockId}:${checked ? "1" : "0"}`
+    .map(({ blockId, checked, lineNumber, recurrenceLabel }) =>
+      `${lineNumber}:${blockId}:${checked ? "1" : "0"}:${recurrenceLabel ?? ""}`
     )
     .join("|");
 

@@ -292,6 +292,24 @@ test.describe.serial("Todo activity flows", () => {
         recurrence.completions.length === 1;
     });
 
+    await detail.getByRole("button", { name: "配置周期 第一项" }).click();
+    await expect(recurrenceForm).toBeVisible();
+    await recurrenceForm.getByRole("button", { name: "停止" }).click();
+    await recurrenceForm.getByRole("button", { name: "确定" }).click();
+    await expect(recurrenceForm).toHaveCount(0);
+    await expect(panel.getByRole("img", { name: /周期任务/ })).toHaveCount(0);
+    await expect(detail.getByRole("button", {
+      name: "配置周期 第一项",
+    })).not.toHaveClass(/is-active/);
+    await waitForTodoContent(api, (content) => {
+      const collection = content.collections.find((candidate) =>
+        readCtnCanonicalTitleHeader(candidate.source).title === "今天"
+      );
+      const recurrence = collection?.recurrences[0];
+
+      return recurrence?.stages.at(-1)?.endsBefore !== null;
+    });
+
     await page.reload();
     await getActivityButton(page, "代办").click();
     const reloadedContext = page.locator(".todo-context");
@@ -305,6 +323,9 @@ test.describe.serial("Todo activity flows", () => {
     await expect(
       reloadedPanel.getByRole("checkbox", { name: "标记未完成 第一项" }),
     ).toBeChecked();
+    await expect(
+      reloadedPanel.getByRole("img", { name: /周期任务/ }),
+    ).toHaveCount(0);
 
     await setContextWidth(page, 280);
     await getActivityButton(page, "笔记").click();

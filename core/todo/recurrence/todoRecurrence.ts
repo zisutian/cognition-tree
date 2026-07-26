@@ -126,6 +126,10 @@ export function isTodoRecurrenceStageId(
   return stageIdPattern.test(value);
 }
 
+export function isTodoRecurrenceEnabled(recurrence: TodoRecurrence) {
+  return recurrence.stages.at(-1)?.endsBefore === null;
+}
+
 export function compareTodoLocalDates(
   left: TodoLocalDate,
   right: TodoLocalDate,

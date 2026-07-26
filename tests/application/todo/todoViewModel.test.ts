@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
 import {
   setTodoBlockRecurrence,
+  stopTodoBlockRecurrence,
   toggleTodoBlock,
   updateTodoCollectionBody,
 } from "../../../core/todo/commands/todoCommands";
@@ -215,6 +216,42 @@ describe("Todo CTN view model", () => {
       checked: false,
       recurrenceLabel: expect.stringContaining("已完成 1/2"),
     });
+  });
+
+  it("removes recurrence presentation immediately after stopping the schedule", () => {
+    const recurring = setTodoBlockRecurrence(createContent(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId:
+        "todo-recurrence-stage-00000000-0000-4000-8000-000000000001",
+      today: "2026-07-18",
+    });
+    const stopped = stopTodoBlockRecurrence(recurring, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      today: "2026-07-18",
+    });
+    const view = createView(
+      stopped,
+      todoCollectionId(1),
+      "2026-07-18",
+    ).view;
+
+    expect(view.outline.nodes[0]).toMatchObject({
+      completed: true,
+      recurrence: {
+        active: false,
+        completedCount: 1,
+        totalCount: 1,
+      },
+    });
+    expect(view.editor.checkableBlocks[0]).toMatchObject({
+      checked: true,
+    });
+    expect(view.editor.checkableBlocks[0]).not.toHaveProperty(
+      "recurrenceLabel",
+    );
   });
 
   it("reports missing markers without hiding recognized descendants", () => {

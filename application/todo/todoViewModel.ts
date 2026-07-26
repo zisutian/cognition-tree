@@ -12,6 +12,7 @@ import {
   type TodoContent,
 } from "../../core/todo/model/todoContent";
 import {
+  isTodoRecurrenceEnabled,
   projectTodoRecurrence,
   type TodoLocalDate,
   type TodoRecurrenceRule,
@@ -131,6 +132,11 @@ type TodoViewModelInput = TodoMutationActions & {
   updateActiveBodyLine: (lineNumber: number) => void;
 };
 
+type TodoProjectedRecurrence = NonNullable<TodoBlockView["recurrence"]> & {
+  completedAt: string | null;
+  occurrenceActive: boolean;
+};
+
 function createTodoBlockNodes({
   blocks,
   completionById,
@@ -142,7 +148,7 @@ function createTodoBlockNodes({
   projectLineNumber: (lineNumber: number) => number;
   recurrenceById: ReadonlyMap<
     string,
-    TodoBlockView["recurrence"] & { completedAt: string | null }
+    TodoProjectedRecurrence
   >;
 }): TodoBlockView[] {
   const visit = (block: CtnCanonicalBlock): TodoBlockView[] => {
@@ -150,7 +156,7 @@ function createTodoBlockNodes({
 
     if (block.type !== todoItemSemanticType) return children;
     const recurrence = recurrenceById.get(block.id) ?? null;
-    const completedAt = recurrence?.active
+    const completedAt = recurrence?.occurrenceActive
       ? recurrence.completedAt
       : completionById.get(block.id) ?? null;
     const view: TodoBlockView = {
@@ -237,7 +243,12 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
 
       return [
         recurrence.blockId,
-        { ...projection, rule },
+        {
+          ...projection,
+          active: isTodoRecurrenceEnabled(recurrence),
+          occurrenceActive: projection.active,
+          rule,
+        },
       ] as const;
     }) ?? [],
   );
@@ -308,18 +319,21 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
 
           return {
             blockId: block.id,
-            checked: recurrence?.active
+            checked: recurrence?.occurrenceActive
               ? recurrence.completedAt !== null
               : completionById.has(block.id),
             label: block.text,
             lineNumber: projectLineNumber(block.lineNumber),
-            recurrenceLabel: recurrence?.active
-              ? `周期任务，已完成 ${recurrence.completedCount}/${recurrence.totalCount}${
-                  recurrence.nextOccurrenceDate
-                    ? `，下次 ${recurrence.nextOccurrenceDate}`
-                    : ""
-                }`
-              : undefined,
+            ...(recurrence?.active
+              ? {
+                  recurrenceLabel:
+                    `周期任务，已完成 ${recurrence.completedCount}/${recurrence.totalCount}${
+                      recurrence.nextOccurrenceDate
+                        ? `，下次 ${recurrence.nextOccurrenceDate}`
+                        : ""
+                    }`,
+                }
+              : {}),
           };
         }) ?? [],
       contentMode: { kind: "body", title: activeParsed?.name ?? "" },
