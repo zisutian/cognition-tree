@@ -344,8 +344,9 @@ export function createVersionedRepositorySaveQueue<
   if (initialPersistenceState) {
     onPersistenceChange(initialPersistenceState);
     if (
-      initialPersistenceState.status === "offline" &&
-      initialPersistenceState.pendingChanges
+      initialPersistenceState.status === "pending-sync" ||
+      (initialPersistenceState.status === "offline" &&
+        initialPersistenceState.pendingChanges)
     ) {
       scheduleDebouncedSync();
     }

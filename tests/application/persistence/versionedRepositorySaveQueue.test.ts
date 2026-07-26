@@ -34,9 +34,13 @@ function createDeferred<Value>() {
 }
 
 function createQueueHarness({
+  initialPersistenceState,
+  initialSnapshot = createSnapshot(),
   stage,
   synchronize,
 }: {
+  initialPersistenceState?: WorkspacePersistenceState;
+  initialSnapshot?: ReturnType<typeof createSnapshot>;
   stage?: WorkspaceRepository["stageSnapshot"];
   synchronize?: WorkspaceRepository["synchronizePendingSnapshot"];
 } = {}) {
@@ -79,7 +83,8 @@ function createQueueHarness({
     },
   };
   const queue = createWorkspaceSessionSaveQueue({
-    initialSnapshot: createSnapshot(),
+    initialPersistenceState,
+    initialSnapshot,
     onLocalStaged(content, revision) {
       if (stage) {
         localContents.push(content);
@@ -310,6 +315,33 @@ describe("workspace session save queue", () => {
     await vi.waitFor(() => {
       expect(synchronize).toHaveBeenCalledTimes(2);
       expect(harness.persistence.at(-1)).toEqual({ status: "saved" });
+    });
+    harness.queue.dispose();
+  });
+
+  it("resumes an explicit pending sync restored after reload", async () => {
+    vi.useFakeTimers();
+    const synchronize = vi.fn(async () => ({
+      localRevision: draftRevision("initial"),
+      pendingChanges: true,
+      remoteRevision: remoteRevision("a"),
+      status: "offline" as const,
+    }));
+    const harness = createQueueHarness({
+      initialPersistenceState: { status: "pending-sync" },
+      initialSnapshot: createSnapshot({ pendingChanges: true }),
+      synchronize,
+    });
+
+    expect(harness.persistence.at(-1)).toEqual({ status: "pending-sync" });
+    expect(synchronize).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
+
+    expect(synchronize).toHaveBeenCalledTimes(1);
+    expect(harness.persistence.at(-1)).toEqual({
+      pendingChanges: true,
+      status: "offline",
     });
     harness.queue.dispose();
   });
