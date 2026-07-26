@@ -7,7 +7,7 @@ import {
   createCtnCodeBlockEnterTransaction,
   createCtnCodeBlockIndentChanges,
   createCtnCodeBlockStructuralIndentChanges,
-} from "../../presentation/editor/ctnCodeBlockEditing";
+} from "../../presentation/editor/ctnCodeBlockCommands";
 function createFixture() {
   const source =
     "Title\nRoot\n\t```ts\n\t\tconst value = 1;\n\t```\n\t: After";
