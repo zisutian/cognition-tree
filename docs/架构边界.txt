@@ -30,7 +30,7 @@ presentation/
 
 contracts/
 
-    前后端中立的 wire 类型和运行时解析，按 common、workspace、journal、todo、built-ins 分开。
+    前后端中立的 wire 类型和运行时解析，按 common、workspace、journal、todo、built-ins、mobile 分开。
 
 tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
 但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
@@ -140,9 +140,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
     browser/indexedDbPrimitives 统一 request、transaction、upgrade 与 abort 原语；Workspace catalog/cache 与 Journal/Todo 数据库保持各自 owner。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
-    Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL planner、manifest 和 executor/recovery。
-    WebDAV adapter 分为连接 config codec、配置持久化、registry orchestration、generation store、transport 和 writer lease。
-    API server 分为 route、HTTP transport、错误映射、Workspace handler 与 Built-in handler；主 server 只负责认证、请求生命周期和分派。
+    Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
+    WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。
+    API server 分为 route、HTTP transport、错误映射、Workspace handler、Built-in handler 和 Mobile handler；Mobile 公共错误/运行时、Journal 只读投影与 Todo CAS 写入各有唯一 owner。主 server 只负责认证、请求生命周期和分派。
 
 这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或现有 HTTP endpoint。
 
@@ -171,3 +171,5 @@ application/workbench 的 WorkbenchFeedbackController 提供 subscribe、getSnap
 Presentation shell 统一合并 diagnostics、可恢复运行故障和操作错误。状态故障随 session 恢复自动消失；操作错误只在关闭、普通仓库作用域失效或刷新时消失。短暂反馈覆盖五秒后恢复领域非稳定持久化状态，稳定状态不产生文字；反馈和错误不得使用通知浮层或标题区重复投影。
 
 编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，不能由页面位置或 CSS 推断。
+
+闭合的 multiline 块由编辑器投影为受保护代码卡片：围栏、结构前缀和结束分隔只参与 canonical source，不进入普通文本选择；正文仍是唯一直接编辑区域。卡片头选择后原地修改标识或确认删除。正文中的 Tab/Shift+Tab 只改变正文缩进；卡片头上的结构缩进由 core/ctn 的 multiline edit 计算一次修改完整围栏范围。未闭合块保持源码编辑与诊断，不能伪装成完整卡片。CodeMirror extension 只负责映射事务、selection 与 widget 生命周期。
