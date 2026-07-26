@@ -35,6 +35,13 @@ import {
   sendWorkspaceApiNoContent,
 } from "./workspaceApiTransport.ts";
 import { handleWorkspaceRepositoryApiRoute } from "./workspaceRepositoryApiHandlers.ts";
+import {
+  handleMobileApiRoute,
+  isMobileApiRoute,
+  MobileApiRequestError,
+  serverMobileApiRuntime,
+  type MobileApiRuntime,
+} from "./mobileApiHandlers.ts";
 
 export type WorkspaceApiRequestHandler = (
   request: IncomingMessage,
@@ -45,6 +52,7 @@ type WorkspaceApiOptions = {
   builtInCatalog?: BuiltInApiCatalog;
   catalog: WorkspaceRepositoryCatalog;
   logger?: Pick<Console, "error">;
+  mobileRuntime?: MobileApiRuntime;
   security: WorkspaceApiSecurityPolicy;
 };
 
@@ -62,6 +70,7 @@ export function createWorkspaceApiRequestHandler({
   builtInCatalog,
   catalog,
   logger = console,
+  mobileRuntime = serverMobileApiRuntime,
   security,
 }: WorkspaceApiOptions): WorkspaceApiRequestHandler {
   return async (request, response) => {
@@ -105,14 +114,26 @@ export function createWorkspaceApiRequestHandler({
       if (route.kind === "built-in-retry") {
         assertWorkspaceApiRequestHasNoBody(request);
       }
-      if (route.kind !== "repository" && url.search !== "") {
+      if (
+        route.kind !== "repository" &&
+        route.kind !== "mobile-journal-entries" &&
+        url.search !== ""
+      ) {
         throw new WorkspaceApiRequestError(
           "invalid_request",
           "Query parameters are not allowed for this route",
         );
       }
       const readJsonBody = () => readWorkspaceApiJsonBody(request);
-      const result = isBuiltInApiRoute(route)
+      const result = isMobileApiRoute(route)
+        ? await handleMobileApiRoute({
+            builtInCatalog,
+            readJsonBody,
+            route,
+            runtime: mobileRuntime,
+            url,
+          })
+        : isBuiltInApiRoute(route)
         ? await handleBuiltInApiRoute({
             builtInCatalog,
             method,
@@ -140,6 +161,15 @@ export function createWorkspaceApiRequestHandler({
           error.allowedOrigin,
           requestId,
         );
+      }
+      if (error instanceof MobileApiRequestError) {
+        sendWorkspaceApiJson(
+          response,
+          error.statusCode,
+          error.toDto(requestId),
+          responseHeaders,
+        );
+        return;
       }
       const mapped = error instanceof WorkspaceApiSecurityError
         ? mapSecurityError(error)

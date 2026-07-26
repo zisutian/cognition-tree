@@ -9,9 +9,15 @@ import type { WorkspaceRepositoryCatalog } from "../repository/repositoryCatalog
 import { WorkspaceApiRequestError } from "./workspaceApiErrors.ts";
 import type { WorkspaceApiRoute } from "./workspaceApiRoutes.ts";
 
-export type WorkspaceRepositoryApiRoute = Exclude<
+export type WorkspaceRepositoryApiRoute = Extract<
   WorkspaceApiRoute,
-  { kind: "built-ins" | "built-in-retry" | "built-in-snapshot" }
+  {
+    kind:
+      | "health"
+      | "repositories"
+      | "repository"
+      | "repository-snapshot";
+  }
 >;
 
 export async function handleWorkspaceRepositoryApiRoute({

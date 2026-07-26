@@ -29,6 +29,25 @@ export type WorkspaceApiRoute =
       kind: "repository-snapshot";
       methods: readonly string[];
       repositoryId: string;
+    }
+  | { kind: "mobile-status"; methods: readonly string[] }
+  | { kind: "mobile-journal-entries"; methods: readonly string[] }
+  | {
+      entryId: string;
+      kind: "mobile-journal-entry";
+      methods: readonly string[];
+    }
+  | { kind: "mobile-todo-collections"; methods: readonly string[] }
+  | {
+      collectionId: string;
+      kind: "mobile-todo-collection";
+      methods: readonly string[];
+    }
+  | {
+      blockId: string;
+      collectionId: string;
+      kind: "mobile-todo-completion";
+      methods: readonly string[];
     };
 
 function decodeRepositoryId(value: string) {
@@ -38,6 +57,17 @@ function decodeRepositoryId(value: string) {
     throw new WorkspaceApiRequestError(
       "invalid_request",
       "Invalid repository id encoding",
+    );
+  }
+}
+
+function decodeMobileId(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    throw new WorkspaceApiRequestError(
+      "invalid_request",
+      "Invalid mobile resource id encoding",
     );
   }
 }
@@ -53,6 +83,47 @@ export function resolveWorkspaceApiRoute(
   }
   if (pathname === "/api/built-ins") {
     return { kind: "built-ins", methods: ["GET"] };
+  }
+  if (pathname === "/api/mobile/v1/status") {
+    return { kind: "mobile-status", methods: ["GET"] };
+  }
+  if (pathname === "/api/mobile/v1/journal/entries") {
+    return { kind: "mobile-journal-entries", methods: ["GET"] };
+  }
+  const mobileJournalEntryMatch =
+    /^\/api\/mobile\/v1\/journal\/entries\/([^/]+)$/.exec(pathname);
+
+  if (mobileJournalEntryMatch) {
+    return {
+      entryId: decodeMobileId(mobileJournalEntryMatch[1] ?? ""),
+      kind: "mobile-journal-entry",
+      methods: ["GET"],
+    };
+  }
+  if (pathname === "/api/mobile/v1/todo/collections") {
+    return { kind: "mobile-todo-collections", methods: ["GET"] };
+  }
+  const mobileTodoCompletionMatch =
+    /^\/api\/mobile\/v1\/todo\/collections\/([^/]+)\/tasks\/([^/]+)\/completion$/
+      .exec(pathname);
+
+  if (mobileTodoCompletionMatch) {
+    return {
+      blockId: decodeMobileId(mobileTodoCompletionMatch[2] ?? ""),
+      collectionId: decodeMobileId(mobileTodoCompletionMatch[1] ?? ""),
+      kind: "mobile-todo-completion",
+      methods: ["PUT"],
+    };
+  }
+  const mobileTodoCollectionMatch =
+    /^\/api\/mobile\/v1\/todo\/collections\/([^/]+)$/.exec(pathname);
+
+  if (mobileTodoCollectionMatch) {
+    return {
+      collectionId: decodeMobileId(mobileTodoCollectionMatch[1] ?? ""),
+      kind: "mobile-todo-collection",
+      methods: ["GET"],
+    };
   }
   const builtInSnapshotMatch = /^\/api\/(journal|todo)\/snapshot$/.exec(
     pathname,
