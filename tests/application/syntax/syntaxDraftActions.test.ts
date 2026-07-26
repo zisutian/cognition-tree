@@ -3,7 +3,7 @@ import { createSyntaxProfileDraft } from "../../../core/ctn/syntax/profileDraft"
 import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
 import { defaultJournalCtnSyntaxProfileV3 } from "../../../core/journal/syntax/journalSyntax";
 import { createSyntaxDraftActions } from "../../../application/syntax/syntaxDraftActions";
-import { defaultTodoCtnSyntaxProfileV3 } from "../../../core/todo/syntax/todoSyntax";
+import { defaultTodoCtnSyntaxProfileV4 } from "../../../core/todo/syntax/todoSyntax";
 
 describe("syntax draft actions", () => {
   it("keeps ordinary custom semantic ids editable", () => {
@@ -25,7 +25,7 @@ describe("syntax draft actions", () => {
   });
 
   it("locks only the Todo item semantic id and role", () => {
-    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV3);
+    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV4);
     const rule = draft.markerRules.find(({ type }) => type === "todo-item")!;
     const update = vi.fn();
     const actions = createSyntaxDraftActions({

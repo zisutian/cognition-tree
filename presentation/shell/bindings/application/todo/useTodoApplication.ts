@@ -62,6 +62,7 @@ export function useTodoApplication({
   const [focusRequest, setFocusRequest] = useState<TodoFocusRequest | null>(null);
   const [activeBodyPosition, setActiveBodyPosition] =
     useState<TodoActiveBodyPosition | null>(null);
+  const [today, setToday] = useState(() => services.localCalendar.today());
   const nextFocusRequestIdRef = useRef(1);
   const previousIndexRef = useRef<TodoParseIndex | null>(null);
   const sessionContent = session.state.status === "ready"
@@ -91,6 +92,13 @@ export function useTodoApplication({
   useEffect(() => {
     if (parsed) previousIndexRef.current = parsed.index;
   }, [parsed]);
+
+  useEffect(() => {
+    const updateToday = () => setToday(services.localCalendar.today());
+
+    updateToday();
+    return services.localCalendar.subscribe(updateToday);
+  }, [services.localCalendar]);
 
   useEffect(() => {
     if (parsed && requestedCollectionId !== activeCollectionId) {
@@ -201,6 +209,7 @@ export function useTodoApplication({
           openCollectionLine,
           persistence: readyState.persistence,
           selectCollection,
+          today,
           updateActiveBodyLine,
         })
       : null,
@@ -214,6 +223,7 @@ export function useTodoApplication({
       parsed,
       readyState,
       selectCollection,
+      today,
       updateActiveBodyLine,
     ],
   );

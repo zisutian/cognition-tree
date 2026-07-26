@@ -7,6 +7,10 @@ import {
   moveTodoBlock,
   moveTodoCollection,
   renameTodoCollection,
+  setTodoBlockCompletion,
+  setTodoBlockRecurrence,
+  stopTodoBlockRecurrence,
+  TodoOccurrenceConflictError,
   toggleTodoBlock,
   updateTodoCollectionBody,
   updateTodoSyntaxSource,
@@ -16,6 +20,7 @@ import {
   parseTodoCollection,
   validateTodoContent,
 } from "../../../core/todo/model/todoContent";
+import { projectTodoRecurrence } from "../../../core/todo/recurrence/todoRecurrence";
 import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import {
   appendTodoTestCollection,
@@ -46,6 +51,12 @@ function collectionWithTasks() {
     text: "子任务",
   });
 }
+
+const recurrenceStageId = (index: number) =>
+  `todo-recurrence-stage-00000000-0000-4000-8000-${String(index).padStart(
+    12,
+    "0",
+  )}` as const;
 
 describe("Todo CTN commands", () => {
   it("creates canonical collections and renames only the title", () => {
@@ -140,16 +151,19 @@ describe("Todo CTN commands", () => {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(4),
+      today: "2026-07-18",
     });
     const bothDone = toggleTodoBlock(parentDone, {
       blockId: todoBlockId(2),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(5),
+      today: "2026-07-18",
     });
     const childOnly = toggleTodoBlock(bothDone, {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(6),
+      today: "2026-07-18",
     });
 
     expect(parentDone.collections[0]!.source).toBe(source);
@@ -160,11 +174,12 @@ describe("Todo CTN commands", () => {
     ]);
   });
 
-  it("cleans completion only when its source block is actually deleted", () => {
+  it("cleans sidecars when a source block loses todo semantics or is deleted", () => {
     const content = toggleTodoBlock(collectionWithTasks(), {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(4),
+      today: "2026-07-18",
     });
     const changedMarkerSource = content.syntaxSource.replace(
       'marker = "[]"',
@@ -172,9 +187,7 @@ describe("Todo CTN commands", () => {
     );
     const changedSyntax = updateTodoSyntaxSource(content, changedMarkerSource);
 
-    expect(changedSyntax.collections[0]!.completions).toEqual(
-      content.collections[0]!.completions,
-    );
+    expect(changedSyntax.collections[0]!.completions).toEqual([]);
     expect(validateTodoContent(changedSyntax)).toBe(changedSyntax);
 
     const profile = requireTodoSyntaxProfile(changedSyntax.syntaxSource);
@@ -200,6 +213,7 @@ describe("Todo CTN commands", () => {
       blockId: todoBlockId(2),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(4),
+      today: "2026-07-18",
     });
     const moved = moveTodoBlock(content, {
       blockId: todoBlockId(2),
@@ -252,5 +266,175 @@ describe("Todo CTN commands", () => {
     expect(validateTodoContent(oldInvalid)).toBe(oldInvalid);
     expect(deleteTodoCollection(oldInvalid, todoCollectionId(2)).collections)
       .toHaveLength(1);
+  });
+
+  it("converts an ordinary completion into the first recurring occurrence", () => {
+    const checked = toggleTodoBlock(collectionWithTasks(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completedAt: todoTimestamp(4),
+      today: "2026-07-18",
+    });
+    const recurring = setTodoBlockRecurrence(checked, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId: recurrenceStageId(1),
+      today: "2026-07-18",
+    });
+    const collection = recurring.collections[0]!;
+
+    expect(collection.completions).toEqual([]);
+    expect(collection.recurrences).toEqual([{
+      blockId: todoBlockId(1),
+      completions: [{
+        completedAt: todoTimestamp(4),
+        occurrenceDate: "2026-07-18",
+        stageId: recurrenceStageId(1),
+      }],
+      stages: [{
+        endsBefore: null,
+        id: recurrenceStageId(1),
+        rule: { interval: 1, kind: "daily" },
+        startsOn: "2026-07-18",
+      }],
+    }]);
+    expect(projectTodoRecurrence(collection.recurrences[0]!, "2026-07-19"))
+      .toMatchObject({
+        completed: false,
+        currentOccurrenceDate: "2026-07-19",
+        totalCount: 2,
+      });
+  });
+
+  it("completes only the latest due occurrence and rejects stale writes", () => {
+    const recurring = setTodoBlockRecurrence(collectionWithTasks(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId: recurrenceStageId(1),
+      today: "2026-07-18",
+    });
+    const completed = setTodoBlockCompletion(recurring, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completed: true,
+      completedAt: "2026-07-21T08:00:00.000Z",
+      occurrenceDate: "2026-07-21",
+      today: "2026-07-21",
+    });
+    const recurrence = completed.collections[0]!.recurrences[0]!;
+
+    expect(recurrence.completions).toEqual([{
+      completedAt: "2026-07-21T08:00:00.000Z",
+      occurrenceDate: "2026-07-21",
+      stageId: recurrenceStageId(1),
+    }]);
+    expect(projectTodoRecurrence(recurrence, "2026-07-21")).toMatchObject({
+      completed: true,
+      completedCount: 1,
+      totalCount: 4,
+    });
+    expect(() => setTodoBlockCompletion(completed, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      completed: false,
+      completedAt: "2026-07-22T08:00:00.000Z",
+      occurrenceDate: "2026-07-21",
+      today: "2026-07-22",
+    })).toThrow(TodoOccurrenceConflictError);
+  });
+
+  it("starts rule changes tomorrow and retains stages when stopped or re-enabled", () => {
+    const initial = setTodoBlockRecurrence(collectionWithTasks(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId: recurrenceStageId(1),
+      today: "2026-07-18",
+    });
+    const changed = setTodoBlockRecurrence(initial, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 2, kind: "weekly", weekdays: [1, 5] },
+      stageId: recurrenceStageId(2),
+      today: "2026-07-20",
+    });
+    const stages = changed.collections[0]!.recurrences[0]!.stages;
+
+    expect(stages).toEqual([
+      expect.objectContaining({
+        endsBefore: "2026-07-21",
+        id: recurrenceStageId(1),
+      }),
+      expect.objectContaining({
+        endsBefore: null,
+        id: recurrenceStageId(2),
+        startsOn: "2026-07-21",
+      }),
+    ]);
+    const revisedPending = setTodoBlockRecurrence(changed, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { dayOfMonth: 31, interval: 1, kind: "monthly" },
+      stageId: recurrenceStageId(3),
+      today: "2026-07-20",
+    });
+
+    expect(revisedPending.collections[0]!.recurrences[0]!.stages).toHaveLength(2);
+    expect(revisedPending.collections[0]!.recurrences[0]!.stages[1]!.id)
+      .toBe(recurrenceStageId(2));
+    const stopped = stopTodoBlockRecurrence(revisedPending, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      today: "2026-07-20",
+    });
+
+    expect(stopped.collections[0]!.recurrences[0]!.stages).toEqual([
+      expect.objectContaining({ endsBefore: "2026-07-21" }),
+    ]);
+    const reenabled = setTodoBlockRecurrence(stopped, {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId: recurrenceStageId(3),
+      today: "2026-07-21",
+    });
+
+    expect(reenabled.collections[0]!.recurrences[0]!.stages).toHaveLength(2);
+    expect(reenabled.collections[0]!.recurrences[0]!.stages[1])
+      .toMatchObject({
+        id: recurrenceStageId(3),
+        startsOn: "2026-07-21",
+      });
+  });
+
+  it("cleans recurrence history when the source block is deleted", () => {
+    const recurring = setTodoBlockRecurrence(collectionWithTasks(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId: recurrenceStageId(1),
+      today: "2026-07-18",
+    });
+    const projection = createTodoCollectionBodyProjection(
+      recurring.collections[0]!,
+      requireTodoSyntaxProfile(recurring.syntaxSource),
+    );
+    const deleted = updateTodoCollectionBody(recurring, {
+      change: {
+        edits: [{
+          from: 0,
+          insertedText: "",
+          to: projection.source.indexOf("\n") + 1,
+        }],
+        source: projection.source.slice(projection.source.indexOf("\n") + 1),
+      },
+      collectionId: todoCollectionId(1),
+      createBlockId: () => todoBlockId(99),
+      updatedAt: todoTimestamp(5),
+    });
+
+    expect(deleted.collections[0]!.recurrences).toEqual([]);
   });
 });

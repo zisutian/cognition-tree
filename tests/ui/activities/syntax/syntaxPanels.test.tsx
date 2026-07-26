@@ -7,7 +7,7 @@ import { SyntaxMainPanel } from "../../../../presentation/activities/views/synta
 import { createView } from "../../viewFactory";
 import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
 import { defaultJournalCtnSyntaxProfileV3 } from "../../../../core/journal/syntax/journalSyntax";
-import { defaultTodoCtnSyntaxProfileV3 } from "../../../../core/todo/syntax/todoSyntax";
+import { defaultTodoCtnSyntaxProfileV4 } from "../../../../core/todo/syntax/todoSyntax";
 import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
 
 describe("syntax panels", () => {
@@ -181,7 +181,7 @@ describe("syntax panels", () => {
 
   it("renders the Todo item without a whole-line background", () => {
     const base = createView().syntax;
-    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV3);
+    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV4);
     const todoItemId = draft.markerRules.find(
       ({ type }) => type === "todo-item",
     )!.id;

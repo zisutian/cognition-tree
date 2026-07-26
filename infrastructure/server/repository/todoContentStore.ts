@@ -36,7 +36,7 @@ function validateWriteBoundary(operation: () => void) {
     operation();
   } catch (error) {
     if (error instanceof TodoContentValidationError) {
-      throw new WireContractError("Todo v3", "$.content", error.message);
+      throw new WireContractError("Todo v4", "$.content", error.message);
     }
     throw error;
   }

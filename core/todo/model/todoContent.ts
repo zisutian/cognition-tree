@@ -15,9 +15,21 @@ import type {
 } from "../../ctn/parser/types.ts";
 import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
 import { getPortableNameIssue } from "../../naming/portableName.ts";
+import {
+  compareTodoLocalDates,
+  isTodoLocalDate,
+  isTodoRecurrenceStageId,
+  isTodoRecurrenceStageOccurrence,
+  validateTodoRecurrenceRule,
+  type TodoRecurrence,
+  type TodoRecurrenceCompletion,
+  type TodoRecurrenceRule,
+  type TodoRecurrenceStage,
+  type TodoRecurrenceStageId,
+} from "../recurrence/todoRecurrence.ts";
 import { requireTodoSyntaxProfile } from "../syntax/todoSyntax.ts";
 
-export const todoRepositorySchemaVersion = 3 as const;
+export const todoRepositorySchemaVersion = 4 as const;
 export const todoItemSemanticType = "todo-item";
 
 export type TodoCollectionId = `todo-collection-${string}`;
@@ -31,6 +43,7 @@ export type TodoCollection = {
   id: TodoCollectionId;
   source: string;
   completions: TodoCompletion[];
+  recurrences: TodoRecurrence[];
 };
 
 export type TodoContent = {
@@ -48,6 +61,14 @@ export type ParsedTodoCollection = {
   collection: TodoCollection;
   document: CtnCanonicalDocument;
   name: string;
+};
+
+export type {
+  TodoRecurrence,
+  TodoRecurrenceCompletion,
+  TodoRecurrenceRule,
+  TodoRecurrenceStage,
+  TodoRecurrenceStageId,
 };
 
 const collectionIdPattern =
@@ -76,6 +97,121 @@ function readCanonicalTimestamp(value: string, label: string) {
     );
   }
   return milliseconds;
+}
+
+function validateTodoRecurrence(
+  recurrence: TodoRecurrence,
+  blockById: ReadonlyMap<string, CtnCanonicalBlock>,
+) {
+  if (!isCtnBlockId(recurrence.blockId)) {
+    throw new TodoContentValidationError(
+      `Invalid todo recurrence block id: ${recurrence.blockId}`,
+    );
+  }
+  const block = blockById.get(recurrence.blockId);
+
+  if (!block || block.type !== todoItemSemanticType) {
+    throw new TodoContentValidationError(
+      `Todo recurrence ${recurrence.blockId} does not identify a todo item.`,
+    );
+  }
+  if (!Array.isArray(recurrence.stages) || recurrence.stages.length === 0) {
+    throw new TodoContentValidationError(
+      `Todo recurrence ${recurrence.blockId} requires at least one stage.`,
+    );
+  }
+  const stagesById = new Map<TodoRecurrenceStageId, TodoRecurrenceStage>();
+  let previous: TodoRecurrenceStage | null = null;
+
+  for (const stage of recurrence.stages) {
+    if (!isTodoRecurrenceStageId(stage.id)) {
+      throw new TodoContentValidationError(
+        `Invalid todo recurrence stage id: ${stage.id}`,
+      );
+    }
+    if (stagesById.has(stage.id)) {
+      throw new TodoContentValidationError(
+        `Duplicate todo recurrence stage id: ${stage.id}`,
+      );
+    }
+    if (!isTodoLocalDate(stage.startsOn)) {
+      throw new TodoContentValidationError(
+        `Todo recurrence stage ${stage.id} has an invalid startsOn date.`,
+      );
+    }
+    if (stage.endsBefore !== null && !isTodoLocalDate(stage.endsBefore)) {
+      throw new TodoContentValidationError(
+        `Todo recurrence stage ${stage.id} has an invalid endsBefore date.`,
+      );
+    }
+    if (
+      stage.endsBefore !== null &&
+      compareTodoLocalDates(stage.endsBefore, stage.startsOn) <= 0
+    ) {
+      throw new TodoContentValidationError(
+        `Todo recurrence stage ${stage.id} must end after it starts.`,
+      );
+    }
+    if (
+      previous &&
+      (compareTodoLocalDates(stage.startsOn, previous.startsOn) <= 0 ||
+        previous.endsBefore === null ||
+        compareTodoLocalDates(previous.endsBefore, stage.startsOn) > 0)
+    ) {
+      throw new TodoContentValidationError(
+        `Todo recurrence stages for ${recurrence.blockId} overlap or are unordered.`,
+      );
+    }
+    try {
+      validateTodoRecurrenceRule(stage.rule);
+    } catch (error) {
+      throw new TodoContentValidationError(
+        `Todo recurrence stage ${stage.id} has an invalid rule: ${
+          error instanceof Error ? error.message : "unknown rule error"
+        }`,
+      );
+    }
+    stagesById.set(stage.id, stage);
+    previous = stage;
+  }
+
+  const completionKeys = new Set<string>();
+
+  for (const completion of recurrence.completions) {
+    const stage = stagesById.get(completion.stageId);
+
+    if (!stage) {
+      throw new TodoContentValidationError(
+        `Todo recurrence completion references an unknown stage: ${completion.stageId}`,
+      );
+    }
+    if (
+      !isTodoLocalDate(completion.occurrenceDate) ||
+      !isTodoRecurrenceStageOccurrence(stage, completion.occurrenceDate)
+    ) {
+      throw new TodoContentValidationError(
+        `Todo recurrence completion has an invalid occurrence: ${completion.occurrenceDate}`,
+      );
+    }
+    const key = `${completion.stageId}:${completion.occurrenceDate}`;
+
+    if (completionKeys.has(key)) {
+      throw new TodoContentValidationError(
+        `Duplicate todo recurrence completion: ${key}`,
+      );
+    }
+    completionKeys.add(key);
+    const completedAt = readCanonicalTimestamp(
+      completion.completedAt,
+      `Todo recurrence completion ${key} completedAt`,
+    );
+
+    if (completedAt < Date.parse(block.metadata.createdAt)) {
+      throw new TodoContentValidationError(
+        `Todo recurrence completion ${key} predates its block.`,
+      );
+    }
+  }
 }
 
 export function parseTodoCollection(
@@ -121,9 +257,9 @@ export function parseTodoCollection(
     completionIds.add(completion.blockId);
     const block = blockById.get(completion.blockId);
 
-    if (!block) {
+    if (!block || block.type !== todoItemSemanticType) {
       throw new TodoContentValidationError(
-        `Todo completion ${completion.blockId} does not identify a source block.`,
+        `Todo completion ${completion.blockId} does not identify a todo item.`,
       );
     }
     const completedAt = readCanonicalTimestamp(
@@ -136,6 +272,18 @@ export function parseTodoCollection(
         `Todo completion ${completion.blockId} predates its block.`,
       );
     }
+  }
+
+  const recurrenceIds = new Set<string>();
+
+  for (const recurrence of value.recurrences) {
+    if (recurrenceIds.has(recurrence.blockId)) {
+      throw new TodoContentValidationError(
+        `Duplicate todo recurrence block id: ${recurrence.blockId}`,
+      );
+    }
+    recurrenceIds.add(recurrence.blockId);
+    validateTodoRecurrence(recurrence, blockById);
   }
 
   return {

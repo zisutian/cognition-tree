@@ -5,6 +5,9 @@ import { createEmptyJournalContent } from "../../contracts/journal/parseJournal"
 import { journalStorageEpoch } from "../../contracts/journal/storageEpoch";
 import type { JournalContentDto, JournalRevisionDto } from "../../contracts/journal/types";
 import { createEmptyTodoContent } from "../../contracts/todo/parseTodo";
+import {
+  prepareTodoV4EpochMigration,
+} from "../../contracts/todo/migrations/todoV3ToV4";
 import { serializeTodoRevisionContent } from "../../contracts/todo/revision";
 import { todoStorageEpoch } from "../../contracts/todo/storageEpoch";
 import type { TodoContentDto, TodoRevisionDto } from "../../contracts/todo/types";
@@ -61,6 +64,10 @@ export function createBrowserTodoStorage(
     databaseName: browserTodoDatabaseName,
     expectedEpoch,
     indexedDb,
+    migration: {
+      fromEpoch: 3,
+      prepareContent: prepareTodoV4EpochMigration,
+    },
     serializeRevisionContent: serializeTodoRevisionContent,
     validateContent: validateTodoRepositoryContent,
     validateTransition: validateTodoRepositoryTransition,

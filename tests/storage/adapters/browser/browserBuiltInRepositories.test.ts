@@ -11,6 +11,12 @@ import {
 import { createBrowserBuiltInCatalog } from "../../../../infrastructure/browser/browserBuiltInCatalog";
 import { VersionedRepositoryBackendConflictError } from "../../../../application/persistence/versionedRepository";
 import {
+  migrateTodoV3Content,
+  serializeTodoV3RevisionContent,
+} from "../../../../contracts/todo/migrations/todoV3ToV4";
+import { serializeTodoRevisionContent } from "../../../../contracts/todo/revision";
+import { createVersionedContentRevision } from "../../../../infrastructure/persistence/versionedContentRevision";
+import {
   appendJournalTestEntry,
   createEmptyJournalContent,
   tamperJournalTestEntryCreation,
@@ -49,6 +55,29 @@ async function openCurrentDatabase(indexedDb: IDBFactory, name: string) {
     request.result.createObjectStore("local-v1", { keyPath: "identity" });
   });
   return requestResult(request);
+}
+
+function createTodoV3Content() {
+  const current = appendTodoTestItem(
+    appendTodoTestCollection(createEmptyTodoContent(), {
+      collectionIndex: 1,
+      createdAt: todoTimestamp(1),
+      name: "浏览器迁移",
+    }),
+    {
+      collectionIndex: 1,
+      createdAt: todoTimestamp(2),
+      itemIndex: 1,
+    },
+  );
+
+  return {
+    ...current,
+    collections: current.collections.map(
+      ({ recurrences: _, ...collection }) => collection,
+    ),
+    schemaVersion: 3 as const,
+  };
 }
 
 async function seedRetiredDatabase(indexedDb: IDBFactory) {
@@ -299,6 +328,178 @@ describe("Browser built-in data repositories", () => {
       .toMatchObject({ content: todoContent });
   });
 
+  it("atomically migrates Todo v3 remote, clean cache, and pending drafts", async () => {
+    const indexedDb = new IDBFactory();
+    const database = await openCurrentDatabase(
+      indexedDb,
+      browserTodoDatabaseName,
+    );
+    const v3 = createTodoV3Content();
+    const oldRevision = await createVersionedContentRevision(
+      serializeTodoV3RevisionContent(v3),
+    );
+    const seed = database.transaction([
+      "meta-v1",
+      "remote-v1",
+      "local-v1",
+    ], "readwrite");
+    const seedCompletion = transactionComplete(seed);
+    const cleanIdentity = "todo-clean";
+    const pendingIdentity = "todo-pending";
+    const conflictIdentity = "todo-conflict";
+
+    seed.objectStore("meta-v1").put(3, "storage-epoch");
+    seed.objectStore("remote-v1").put({
+      content: v3,
+      revision: oldRevision,
+    }, "snapshot");
+    seed.objectStore("local-v1").put({
+      content: v3,
+      identity: cleanIdentity,
+      localRevision: "draft:00000000-0000-4000-8000-000000000001",
+      pendingBaseRevision: null,
+      remoteRevision: oldRevision,
+    });
+    seed.objectStore("local-v1").put({
+      content: v3,
+      identity: pendingIdentity,
+      localRevision: "draft:00000000-0000-4000-8000-000000000002",
+      pendingBaseRevision: oldRevision,
+      remoteRevision: oldRevision,
+    });
+    const unknownBase = `sha256:${"f".repeat(64)}`;
+
+    seed.objectStore("local-v1").put({
+      content: v3,
+      identity: conflictIdentity,
+      localRevision: "draft:00000000-0000-4000-8000-000000000003",
+      pendingBaseRevision: unknownBase,
+      remoteRevision: oldRevision,
+    });
+    await seedCompletion;
+    database.close();
+
+    const storage = createBrowserTodoStorage(indexedDb);
+    const migrated = migrateTodoV3Content(v3);
+    const expectedRevision = await createVersionedContentRevision(
+      serializeTodoRevisionContent(migrated),
+    );
+
+    await expect(storage.backend.loadRemoteSnapshot()).resolves.toEqual({
+      content: migrated,
+      revision: expectedRevision,
+    });
+    await expect(storage.cache.load(cleanIdentity)).resolves.toMatchObject({
+      content: migrated,
+      pendingBaseRevision: null,
+      remoteRevision: expectedRevision,
+    });
+    await expect(storage.cache.load(pendingIdentity)).resolves.toMatchObject({
+      content: migrated,
+      pendingBaseRevision: expectedRevision,
+      remoteRevision: expectedRevision,
+    });
+    await expect(storage.cache.load(conflictIdentity)).resolves.toMatchObject({
+      content: migrated,
+      pendingBaseRevision: unknownBase,
+      remoteRevision: expectedRevision,
+    });
+
+    const reopened = await requestResult(
+      indexedDb.open(browserTodoDatabaseName, 1),
+    );
+    const read = reopened.transaction("meta-v1", "readonly");
+    const readCompletion = transactionComplete(read);
+
+    await expect(requestResult(
+      read.objectStore("meta-v1").get("storage-epoch"),
+    )).resolves.toBe(4);
+    await readCompletion;
+    reopened.close();
+  });
+
+  it("preserves every Todo v3 record when migration validation fails", async () => {
+    const indexedDb = new IDBFactory();
+    const database = await openCurrentDatabase(
+      indexedDb,
+      browserTodoDatabaseName,
+    );
+    const v3 = createTodoV3Content();
+    const invalidRevision = `sha256:${"e".repeat(64)}`;
+    const localState = {
+      content: v3,
+      identity: "todo-retained",
+      localRevision: "draft:00000000-0000-4000-8000-000000000004",
+      pendingBaseRevision: null,
+      remoteRevision: invalidRevision,
+    };
+    const snapshot = { content: v3, revision: invalidRevision };
+    const seed = database.transaction([
+      "meta-v1",
+      "remote-v1",
+      "local-v1",
+    ], "readwrite");
+    const seedCompletion = transactionComplete(seed);
+
+    seed.objectStore("meta-v1").put(3, "storage-epoch");
+    seed.objectStore("remote-v1").put(snapshot, "snapshot");
+    seed.objectStore("local-v1").put(localState);
+    await seedCompletion;
+    database.close();
+
+    await expect(createBrowserTodoStorage(indexedDb).inspect()).resolves
+      .toMatchObject({ code: "repository_corrupt", status: "fault" });
+    const retainedDatabase = await requestResult(
+      indexedDb.open(browserTodoDatabaseName, 1),
+    );
+    const read = retainedDatabase.transaction([
+      "meta-v1",
+      "remote-v1",
+      "local-v1",
+    ], "readonly");
+    const readCompletion = transactionComplete(read);
+    const [epoch, retainedSnapshot, retainedLocal] = await Promise.all([
+      requestResult(read.objectStore("meta-v1").get("storage-epoch")),
+      requestResult(read.objectStore("remote-v1").get("snapshot")),
+      requestResult(read.objectStore("local-v1").get("todo-retained")),
+    ]);
+
+    await readCompletion;
+    expect(epoch).toBe(3);
+    expect(retainedSnapshot).toEqual(snapshot);
+    expect(retainedLocal).toEqual(localState);
+    retainedDatabase.close();
+  });
+
+  it("finishes an interrupted Browser Todo migration from v4 content", async () => {
+    const indexedDb = new IDBFactory();
+    const database = await openCurrentDatabase(
+      indexedDb,
+      browserTodoDatabaseName,
+    );
+    const content = migrateTodoV3Content(createTodoV3Content());
+    const revision = await createVersionedContentRevision(
+      serializeTodoRevisionContent(content),
+    );
+    const seed = database.transaction([
+      "meta-v1",
+      "remote-v1",
+    ], "readwrite");
+    const seedCompletion = transactionComplete(seed);
+
+    seed.objectStore("meta-v1").put(3, "storage-epoch");
+    seed.objectStore("remote-v1").put({ content, revision }, "snapshot");
+    await seedCompletion;
+    database.close();
+
+    const storage = createBrowserTodoStorage(indexedDb);
+
+    await expect(storage.backend.loadRemoteSnapshot()).resolves.toEqual({
+      content,
+      revision,
+    });
+  });
+
   it("preserves corrupt current content and a future epoch exactly", async () => {
     const indexedDb = new IDBFactory();
     const journalStorage = createBrowserJournalStorage(indexedDb);
@@ -341,7 +542,7 @@ describe("Browser built-in data repositories", () => {
       revision: `sha256:${"d".repeat(64)}`,
     };
 
-    todoSeed.objectStore("meta-v1").put(4, "storage-epoch");
+    todoSeed.objectStore("meta-v1").put(5, "storage-epoch");
     todoSeed.objectStore("remote-v1").put(futureSnapshot, "snapshot");
     await todoSeedCompletion;
     todoDatabase.close();
@@ -364,7 +565,7 @@ describe("Browser built-in data repositories", () => {
     ]);
 
     await todoReadCompletion;
-    expect(epoch).toBe(4);
+    expect(epoch).toBe(5);
     expect(snapshot).toEqual(futureSnapshot);
     reopenedTodo.close();
   });

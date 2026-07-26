@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
 import {
+  setTodoBlockRecurrence,
   toggleTodoBlock,
   updateTodoCollectionBody,
 } from "../../../core/todo/commands/todoCommands";
@@ -12,6 +13,7 @@ import {
   type TodoContent,
 } from "../../../core/todo/model/todoContent";
 import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
+import type { TodoLocalDate } from "../../../core/todo/recurrence/todoRecurrence";
 import { createTodoViewModel } from "../../../application/todo/todoViewModel";
 import type { TodoMutationActions } from "../../../application/todo/todoApplication";
 import {
@@ -46,6 +48,7 @@ function createContent() {
     blockId: todoBlockId(1),
     collectionId: todoCollectionId(1),
     completedAt: todoTimestamp(4),
+    today: "2026-07-18",
   });
   return appendTodoTestCollection(content, {
     collectionIndex: 2,
@@ -61,13 +64,20 @@ function createActions(): TodoMutationActions {
     moveBlock: vi.fn(),
     moveCollection: vi.fn(),
     renameCollection: vi.fn(),
+    setBlockCompletion: vi.fn(),
+    setBlockRecurrence: vi.fn(),
+    stopBlockRecurrence: vi.fn(),
     toggleBlock: vi.fn(),
     updateCollectionBody: vi.fn(),
     updateSyntaxSource: vi.fn(),
   };
 }
 
-function createView(content: TodoContent, activeCollectionId = todoCollectionId(1)) {
+function createView(
+  content: TodoContent,
+  activeCollectionId = todoCollectionId(1),
+  today: TodoLocalDate = "2026-07-18",
+) {
   const actions = createActions();
   const selectCollection = vi.fn();
   const openCollectionLine = vi.fn();
@@ -82,6 +92,7 @@ function createView(content: TodoContent, activeCollectionId = todoCollectionId(
     openCollectionLine,
     persistence: { status: "saved" },
     selectCollection,
+    today,
     updateActiveBodyLine: vi.fn(),
   });
 
@@ -153,6 +164,57 @@ describe("Todo CTN view model", () => {
     expect(actions.moveBlock).toHaveBeenCalled();
     expect(actions.updateSyntaxSource).toHaveBeenCalledWith("source");
     expect(openCollectionLine).toHaveBeenCalledWith(todoCollectionId(1), 2);
+  });
+
+  it("reprojects recurring completion and statistics from the local date", () => {
+    const recurring = setTodoBlockRecurrence(createContent(), {
+      blockId: todoBlockId(1),
+      collectionId: todoCollectionId(1),
+      rule: { interval: 1, kind: "daily" },
+      stageId:
+        "todo-recurrence-stage-00000000-0000-4000-8000-000000000001",
+      today: "2026-07-18",
+    });
+    const firstDay = createView(
+      recurring,
+      todoCollectionId(1),
+      "2026-07-18",
+    ).view;
+    const nextDay = createView(
+      recurring,
+      todoCollectionId(1),
+      "2026-07-19",
+    ).view;
+
+    expect(firstDay.outline.nodes[0]).toMatchObject({
+      completed: true,
+      recurrence: {
+        active: true,
+        completedCount: 1,
+        currentOccurrenceDate: "2026-07-18",
+        nextOccurrenceDate: "2026-07-19",
+        totalCount: 1,
+      },
+    });
+    expect(firstDay.editor.checkableBlocks[0]).toMatchObject({
+      checked: true,
+      recurrenceLabel: expect.stringContaining("已完成 1/1"),
+    });
+    expect(nextDay.outline.nodes[0]).toMatchObject({
+      completed: false,
+      recurrence: {
+        active: true,
+        completedCount: 1,
+        currentOccurrenceDate: "2026-07-19",
+        nextOccurrenceDate: "2026-07-20",
+        totalCount: 2,
+      },
+    });
+    expect(nextDay.collections[0]?.completedItemCount).toBe(0);
+    expect(nextDay.editor.checkableBlocks[0]).toMatchObject({
+      checked: false,
+      recurrenceLabel: expect.stringContaining("已完成 1/2"),
+    });
   });
 
   it("reports missing markers without hiding recognized descendants", () => {

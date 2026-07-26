@@ -34,12 +34,13 @@ function createValidContent() {
   );
 }
 
-describe("Todo v3 content", () => {
+describe("Todo v4 content", () => {
   it("accepts the exact CTN collection and completion sidecar shape", () => {
     const content = toggleTodoBlock(createValidContent(), {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(3),
+      today: "2026-07-18",
     });
 
     expect(validateTodoContent(content)).toBe(content);
@@ -50,9 +51,10 @@ describe("Todo v3 content", () => {
           completedAt: todoTimestamp(3),
         }],
         id: todoCollectionId(1),
+        recurrences: [],
         source: expect.stringContaining("[] 任务 1"),
       }],
-      schemaVersion: 3,
+      schemaVersion: 4,
       syntaxSource: expect.stringContaining('type = "todo-item"'),
     });
     expect(isTodoCollectionId(todoCollectionId(1))).toBe(true);
@@ -67,7 +69,7 @@ describe("Todo v3 content", () => {
     expect(() => validateTodoContent({
       ...content,
       schemaVersion: 1,
-    } as never)).toThrow(/schema version must be 3/);
+    } as never)).toThrow(/schema version must be 4/);
     expect(() => validateTodoContent({
       ...content,
       syntaxSource: content.syntaxSource.replace('type = "todo-item"', 'type = "task"'),
@@ -78,11 +80,12 @@ describe("Todo v3 content", () => {
     })).toThrow(/Duplicate todo collection id/);
   });
 
-  it("requires completion ids to remain in source but not currently recognized", () => {
+  it("requires completion ids to remain recognized todo items", () => {
     const completed = toggleTodoBlock(createValidContent(), {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(3),
+      today: "2026-07-18",
     });
     const changedMarker = {
       ...completed,
@@ -92,7 +95,8 @@ describe("Todo v3 content", () => {
       ),
     };
 
-    expect(validateTodoContent(changedMarker)).toBe(changedMarker);
+    expect(() => validateTodoContent(changedMarker))
+      .toThrow(/does not identify a todo item/);
     expect(() => validateTodoContent({
       ...completed,
       collections: [{
@@ -102,7 +106,7 @@ describe("Todo v3 content", () => {
           completedAt: todoTimestamp(3),
         }],
       }],
-    })).toThrow(/does not identify a source block/);
+    })).toThrow(/does not identify a todo item/);
   });
 
   it("keeps existing nonportable names readable and reports them separately", () => {

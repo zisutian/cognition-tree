@@ -8,6 +8,9 @@ import {
   moveTodoBlock,
   moveTodoCollection,
   renameTodoCollection,
+  setTodoBlockCompletion,
+  setTodoBlockRecurrence,
+  stopTodoBlockRecurrence,
   toggleTodoBlock,
   updateTodoCollectionBody,
   updateTodoSyntaxSource,
@@ -19,16 +22,24 @@ import {
   type TodoContent,
   type TodoContentValue,
 } from "../../core/todo/model/todoContent";
+import type {
+  TodoLocalDate,
+  TodoRecurrenceRule,
+  TodoRecurrenceStageId,
+} from "../../core/todo/recurrence/todoRecurrence";
 import { requireTodoSyntaxProfile } from "../../core/todo/syntax/todoSyntax";
 import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,
 } from "../../core/todo/queries/todoQueries";
 import type { TodoSessionState } from "./todoSessionController";
+import type { ApplicationLocalCalendar } from "../runtime/applicationLocalCalendar";
 
 export type TodoApplicationServices = {
   createBlockId: () => string;
   createCollectionId: () => TodoCollectionId;
+  createRecurrenceStageId: () => TodoRecurrenceStageId;
+  localCalendar: ApplicationLocalCalendar;
   now: () => Date;
 };
 
@@ -54,6 +65,18 @@ export type TodoMutationActions = {
   ): void;
   moveCollection(collectionId: TodoCollectionId, toIndex: number): void;
   renameCollection(collectionId: TodoCollectionId, name: string): void;
+  setBlockCompletion(
+    collectionId: TodoCollectionId,
+    blockId: string,
+    completed: boolean,
+    occurrenceDate: TodoLocalDate | null,
+  ): void;
+  setBlockRecurrence(
+    collectionId: TodoCollectionId,
+    blockId: string,
+    rule: TodoRecurrenceRule,
+  ): void;
+  stopBlockRecurrence(collectionId: TodoCollectionId, blockId: string): void;
   toggleBlock(collectionId: TodoCollectionId, blockId: string): void;
   updateCollectionBody(
     collectionId: TodoCollectionId,
@@ -92,6 +115,13 @@ function monotonicTimestamp(requested: string, content: TodoContent) {
     for (const completion of collection.completions) {
       if (Date.parse(completion.completedAt) > Date.parse(latest)) {
         latest = completion.completedAt;
+      }
+    }
+    for (const recurrence of collection.recurrences) {
+      for (const completion of recurrence.completions) {
+        if (Date.parse(completion.completedAt) > Date.parse(latest)) {
+          latest = completion.completedAt;
+        }
       }
     }
   }
@@ -189,12 +219,50 @@ export function createTodoMutationActions({
         })
       );
     },
+    setBlockCompletion(
+      collectionId,
+      blockId,
+      completed,
+      occurrenceDate,
+    ) {
+      updateTodoSession(session, (content) =>
+        setTodoBlockCompletion(content, {
+          blockId,
+          collectionId,
+          completed,
+          completedAt: timestamp(content),
+          occurrenceDate,
+          today: services.localCalendar.today(),
+        })
+      );
+    },
+    setBlockRecurrence(collectionId, blockId, rule) {
+      updateTodoSession(session, (content) =>
+        setTodoBlockRecurrence(content, {
+          blockId,
+          collectionId,
+          rule,
+          stageId: services.createRecurrenceStageId(),
+          today: services.localCalendar.today(),
+        })
+      );
+    },
+    stopBlockRecurrence(collectionId, blockId) {
+      updateTodoSession(session, (content) =>
+        stopTodoBlockRecurrence(content, {
+          blockId,
+          collectionId,
+          today: services.localCalendar.today(),
+        })
+      );
+    },
     toggleBlock(collectionId, blockId) {
       updateTodoSession(session, (content) =>
         toggleTodoBlock(content, {
           blockId,
           collectionId,
           completedAt: timestamp(content),
+          today: services.localCalendar.today(),
         })
       );
     },

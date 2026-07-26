@@ -16,7 +16,7 @@ export const todoSyntaxProfileName = "代办";
 // Kept runtime-neutral and mirrored by the system wire contract's provisioner.
 // A contract test locks the two literals together without coupling this pure
 // domain to contracts or storage.
-export const defaultTodoSyntaxSourceV3 = `name = "代办"
+export const defaultTodoSyntaxSourceV4 = `name = "代办"
 tabDisplayWidth = 4
 
 [title]
@@ -100,10 +100,10 @@ export function requireTodoSyntaxProfile(source: string) {
   return parsed.profile;
 }
 
-const defaultParsed = parseTodoSyntaxSource(defaultTodoSyntaxSourceV3);
+const defaultParsed = parseTodoSyntaxSource(defaultTodoSyntaxSourceV4);
 
 if (!defaultParsed.profile) {
   throw new Error("The built-in Todo syntax source is invalid.");
 }
 
-export const defaultTodoCtnSyntaxProfileV3 = defaultParsed.profile;
+export const defaultTodoCtnSyntaxProfileV4 = defaultParsed.profile;

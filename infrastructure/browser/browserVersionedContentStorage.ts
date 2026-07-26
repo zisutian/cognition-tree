@@ -36,6 +36,14 @@ type IndexedLocalState = {
   remoteRevision: unknown;
 };
 
+export type BrowserVersionedContentEpochMigration<Content> = {
+  fromEpoch: number;
+  prepareContent(value: unknown): {
+    content: Content;
+    sourceRevisionContent: string;
+  };
+};
+
 function openDatabase(indexedDb: IDBFactory, databaseName: string) {
   return openIndexedDatabase(
     indexedDb,
@@ -88,6 +96,7 @@ export function createBrowserVersionedContentStorage<
   databaseName,
   expectedEpoch,
   indexedDb,
+  migration,
   serializeRevisionContent,
   validateContent,
   validateTransition,
@@ -97,6 +106,7 @@ export function createBrowserVersionedContentStorage<
   databaseName: string;
   expectedEpoch: number;
   indexedDb: IDBFactory;
+  migration?: BrowserVersionedContentEpochMigration<Content>;
   serializeRevisionContent(content: Content): string;
   validateContent: VersionedRepositoryContentValidator<Content>;
   validateTransition: VersionedRepositoryTransitionValidator<Content>;
@@ -114,18 +124,160 @@ export function createBrowserVersionedContentStorage<
     validateContent(content);
     return { content, revision: await createRevision(content) };
   };
-  const initialize = openedDatabase.then(async (database) => {
-    const initialTransaction = database.transaction(metaStoreName, "readonly");
-    const initialCompletion = transactionComplete(initialTransaction);
-    const initialEpoch = await requestResult(
-      initialTransaction.objectStore(metaStoreName).get(epochKey),
+  type StoredInitializationState = {
+    epoch: unknown;
+    locals: unknown[];
+    remote: unknown;
+  };
+  const readInitializationState = async (
+    database: IDBDatabase,
+    mode: IDBTransactionMode = "readonly",
+  ) => {
+    const transaction = database.transaction(
+      [metaStoreName, remoteStoreName, localStoreName],
+      mode,
+    );
+    const completion = transactionComplete(transaction);
+    const meta = transaction.objectStore(metaStoreName);
+    const remote = transaction.objectStore(remoteStoreName);
+    const local = transaction.objectStore(localStoreName);
+    const requests = [
+      requestResult(meta.get(epochKey)),
+      requestResult(remote.get(remoteKey)),
+      requestResult(local.getAll()),
+    ] as const;
+    const [epoch, remoteValue, locals] = await Promise.all(requests);
+
+    return {
+      completion,
+      state: { epoch, locals, remote: remoteValue } as StoredInitializationState,
+      transaction,
+    };
+  };
+  const initializationFingerprint = (state: StoredInitializationState) =>
+    JSON.stringify(state);
+  const parseMigrationRemote = (value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new WireContractError(
+        databaseName,
+        "$.remote",
+        "expected remote snapshot",
+      );
+    }
+    const snapshot = value as { content?: unknown; revision?: unknown };
+    const keys = Object.keys(snapshot).sort();
+
+    if (
+      keys.length !== 2 ||
+      keys[0] !== "content" ||
+      keys[1] !== "revision"
+    ) {
+      throw new WireContractError(
+        databaseName,
+        "$.remote",
+        "unexpected remote snapshot fields",
+      );
+    }
+    return {
+      content: snapshot.content,
+      revision: codec.parseRevision(snapshot.revision),
+    };
+  };
+  const parseMigrationLocal = (value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new WireContractError(
+        databaseName,
+        "$.local",
+        "expected local state",
+      );
+    }
+    const state = value as Partial<IndexedLocalState>;
+
+    if (
+      typeof state.identity !== "string" ||
+      !isLocalRevision(state.localRevision)
+    ) {
+      throw new WireContractError(
+        databaseName,
+        "$.local",
+        "invalid local identity",
+      );
+    }
+    return {
+      content: state.content,
+      identity: state.identity,
+      localRevision: state.localRevision,
+      pendingBaseRevision: state.pendingBaseRevision === null
+        ? null
+        : codec.parseRevision(state.pendingBaseRevision),
+      remoteRevision: state.remoteRevision === null
+        ? null
+        : codec.parseRevision(state.remoteRevision),
+    };
+  };
+  const createMigrationPlan = async (state: StoredInitializationState) => {
+    if (!migration) {
+      throw new Error(`Missing ${databaseName} storage migration`);
+    }
+    const remote = parseMigrationRemote(state.remote);
+    const preparedRemote = migration.prepareContent(remote.content);
+
+    validateContent(preparedRemote.content);
+    const sourceRemoteRevision = codec.parseRevision(
+      await createVersionedContentRevision(
+        preparedRemote.sourceRevisionContent,
+      ),
     );
 
-    await initialCompletion;
-    if (initialEpoch === expectedEpoch) return database;
+    if (sourceRemoteRevision !== remote.revision) {
+      throw new WireContractError(
+        databaseName,
+        "$.remote.revision",
+        "revision mismatch",
+      );
+    }
+    const remoteRevision = await createRevision(preparedRemote.content);
+    const locals = state.locals.map((value, index) => {
+      const local = parseMigrationLocal(value);
+      const prepared = migration.prepareContent(local.content);
+
+      validateContent(prepared.content);
+      if (
+        local.pendingBaseRevision === null &&
+        local.remoteRevision !== sourceRemoteRevision &&
+        local.remoteRevision !== remoteRevision
+      ) {
+        throw new WireContractError(
+          databaseName,
+          `$.local[${index}].remoteRevision`,
+          "cannot safely map non-pending local cache",
+        );
+      }
+      const pendingBaseRevision = local.pendingBaseRevision === null
+        ? null
+        : local.pendingBaseRevision === sourceRemoteRevision ||
+            local.pendingBaseRevision === remoteRevision
+          ? remoteRevision
+          : local.pendingBaseRevision;
+
+      return {
+        content: prepared.content,
+        identity: local.identity,
+        localRevision: local.localRevision,
+        pendingBaseRevision,
+        remoteRevision,
+      };
+    });
+
+    return {
+      locals,
+      remote: { content: preparedRemote.content, revision: remoteRevision },
+    };
+  };
+  const validateStoredEpoch = (epoch: unknown) => {
     if (
-      initialEpoch !== undefined &&
-      (!Number.isSafeInteger(initialEpoch) || (initialEpoch as number) < 1)
+      epoch !== undefined &&
+      (!Number.isSafeInteger(epoch) || (epoch as number) < 1)
     ) {
       throw new WireContractError(
         `${databaseName} storage`,
@@ -133,32 +285,58 @@ export function createBrowserVersionedContentStorage<
         "invalid storage epoch",
       );
     }
-    if ((initialEpoch as number | undefined) !== undefined &&
-        (initialEpoch as number) > expectedEpoch) {
+    if (epoch !== undefined && (epoch as number) > expectedEpoch) {
       throw new UnsupportedWireVersionError(
         `${databaseName} storage`,
         "$.storageEpoch",
-        initialEpoch,
+        epoch,
       );
     }
-    const fallback = await emptySnapshot();
-    const transaction = database.transaction(
-      [metaStoreName, remoteStoreName, localStoreName],
-      "readwrite",
-    );
-    const completion = transactionComplete(transaction);
-    const meta = transaction.objectStore(metaStoreName);
-    const currentEpoch = await requestResult(meta.get(epochKey));
+  };
+  const initialize = openedDatabase.then(async (database) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const initial = await readInitializationState(database);
 
-    if (currentEpoch === expectedEpoch) {
-      await completion;
+      await initial.completion;
+      if (initial.state.epoch === expectedEpoch) return database;
+      validateStoredEpoch(initial.state.epoch);
+      const shouldMigrate =
+        migration !== undefined &&
+        initial.state.epoch === migration.fromEpoch;
+      const migrationPlan = shouldMigrate
+        ? await createMigrationPlan(initial.state)
+        : null;
+      const fallback = migrationPlan ? null : await emptySnapshot();
+      const current = await readInitializationState(database, "readwrite");
+
+      if (current.state.epoch === expectedEpoch) {
+        await current.completion;
+        return database;
+      }
+      if (
+        initializationFingerprint(current.state) !==
+          initializationFingerprint(initial.state)
+      ) {
+        await abortTransaction(current.transaction, current.completion);
+        continue;
+      }
+      const meta = current.transaction.objectStore(metaStoreName);
+      const remote = current.transaction.objectStore(remoteStoreName);
+      const local = current.transaction.objectStore(localStoreName);
+
+      if (migrationPlan) {
+        remote.put(migrationPlan.remote, remoteKey);
+        local.clear();
+        for (const state of migrationPlan.locals) local.put(state);
+      } else {
+        local.clear();
+        remote.put(fallback, remoteKey);
+      }
+      meta.put(expectedEpoch, epochKey);
+      await current.completion;
       return database;
     }
-    transaction.objectStore(localStoreName).clear();
-    transaction.objectStore(remoteStoreName).put(fallback, remoteKey);
-    meta.put(expectedEpoch, epochKey);
-    await completion;
-    return database;
+    throw new Error(`${databaseName} storage changed during initialization`);
   });
 
   void initialize.catch(() => undefined);

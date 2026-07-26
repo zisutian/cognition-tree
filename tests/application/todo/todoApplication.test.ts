@@ -33,6 +33,7 @@ function createServices({
 }) {
   let blockIndex = 0;
   let collectionIndex = 0;
+  let recurrenceIndex = 0;
   let timestampIndex = 0;
 
   return {
@@ -45,6 +46,14 @@ function createServices({
       const id = collectionIds[collectionIndex++];
       if (!id) throw new Error("Missing test Todo collection id.");
       return id;
+    },
+    createRecurrenceStageId: () =>
+      `todo-recurrence-stage-00000000-0000-4000-8000-${String(
+        ++recurrenceIndex,
+      ).padStart(12, "0")}`,
+    localCalendar: {
+      subscribe: () => () => undefined,
+      today: () => "2026-07-18",
     },
     now: () => {
       const timestamp = timestamps[timestampIndex++];
@@ -205,6 +214,10 @@ describe("Todo application mutations", () => {
 
     expect(services.createCollectionId()).toMatch(/^todo-collection-[0-9a-f-]{36}$/);
     expect(services.createBlockId()).toMatch(/^[0-9a-f-]{36}$/);
+    expect(services.createRecurrenceStageId()).toMatch(
+      /^todo-recurrence-stage-[0-9a-f-]{36}$/,
+    );
+    expect(services.localCalendar.today()).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
     expect(services.now()).toBeInstanceOf(Date);
   });
 });

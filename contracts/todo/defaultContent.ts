@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export const defaultTodoSyntaxSourceV3 = `name = "代办"
+export const defaultTodoSyntaxSourceV4 = `name = "代办"
 tabDisplayWidth = 4
 
 [title]

@@ -7,8 +7,8 @@ import {
 import type { JournalViewModel } from "../../application/journal";
 import type { TodoViewModel } from "../../application/todo";
 import {
-  defaultTodoCtnSyntaxProfileV3,
-  defaultTodoSyntaxSourceV3,
+  defaultTodoCtnSyntaxProfileV4,
+  defaultTodoSyntaxSourceV4,
 } from "../../core/todo/syntax/todoSyntax";
 import { createUiSyntaxView } from "../../application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../application/workspace/activities/notes/notesViewModel";
@@ -374,7 +374,7 @@ export function createView(
         focusTarget: null,
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
-        syntaxProfile: defaultTodoCtnSyntaxProfileV3,
+        syntaxProfile: defaultTodoCtnSyntaxProfileV4,
         updateBody: () => undefined,
       },
       moveBlock: () => undefined,
@@ -400,6 +400,7 @@ export function createView(
               createdAt: "2026-07-18T02:00:00.000Z",
               updatedAt: "2026-07-18T04:00:00.000Z",
             },
+            recurrence: null,
             text: "已完成但保持原位",
           },
           {
@@ -416,6 +417,7 @@ export function createView(
               createdAt: "2026-07-18T03:00:00.000Z",
               updatedAt: "2026-07-18T03:00:00.000Z",
             },
+            recurrence: null,
             text: "未完成",
           },
         ],
@@ -424,9 +426,12 @@ export function createView(
       persistence: { status: "saved" },
       renameCollection: () => undefined,
       selectCollection: () => undefined,
+      setBlockCompletion: () => undefined,
+      setBlockRecurrence: () => undefined,
+      stopBlockRecurrence: () => undefined,
       syntax: {
-        profile: defaultTodoCtnSyntaxProfileV3,
-        source: defaultTodoSyntaxSourceV3,
+        profile: defaultTodoCtnSyntaxProfileV4,
+        source: defaultTodoSyntaxSourceV4,
         updateSource: () => undefined,
       },
       toggleBlock: () => undefined,

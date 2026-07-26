@@ -34,6 +34,17 @@ import {
   type TodoContent,
 } from "../model/todoContent.ts";
 import {
+  addTodoLocalDays,
+  isTodoRecurrenceStageId,
+  projectTodoRecurrence,
+  requireTodoLocalDate,
+  validateTodoRecurrenceRule,
+  type TodoLocalDate,
+  type TodoRecurrence,
+  type TodoRecurrenceRule,
+  type TodoRecurrenceStageId,
+} from "../recurrence/todoRecurrence.ts";
+import {
   requireTodoSyntaxProfile,
 } from "../syntax/todoSyntax.ts";
 
@@ -66,6 +77,26 @@ export type ToggleTodoBlockInput = {
   blockId: string;
   collectionId: TodoCollectionId;
   completedAt: string;
+  today: TodoLocalDate;
+};
+
+export type SetTodoBlockCompletionInput = ToggleTodoBlockInput & {
+  completed: boolean;
+  occurrenceDate: TodoLocalDate | null;
+};
+
+export type SetTodoBlockRecurrenceInput = {
+  blockId: string;
+  collectionId: TodoCollectionId;
+  rule: TodoRecurrenceRule;
+  stageId: TodoRecurrenceStageId;
+  today: TodoLocalDate;
+};
+
+export type StopTodoBlockRecurrenceInput = {
+  blockId: string;
+  collectionId: TodoCollectionId;
+  today: TodoLocalDate;
 };
 
 export type TodoBlockMoveTarget =
@@ -134,16 +165,23 @@ function moveAt<T>(values: readonly T[], fromIndex: number, toIndex: number) {
   return next;
 }
 
-function cleanTodoCompletions(
+function cleanTodoSidecars(
   collection: TodoCollection,
   syntaxProfile: ReturnType<typeof requireTodoSyntaxProfile>,
 ) {
   const document = parseCtnCanonicalDocument(collection.source, syntaxProfile);
-  const itemIds = new Set(document.blocks.map(({ id }) => id));
+  const itemIds = new Set(
+    document.blocks
+      .filter(({ type }) => type === todoItemSemanticType)
+      .map(({ id }) => id),
+  );
 
   return {
     ...collection,
     completions: collection.completions.filter(({ blockId }) =>
+      itemIds.has(blockId)
+    ),
+    recurrences: collection.recurrences.filter(({ blockId }) =>
       itemIds.has(blockId)
     ),
   };
@@ -192,7 +230,7 @@ export function createTodoCollection(
     ...content,
     collections: [
       ...content.collections,
-      { completions: [], id: input.collectionId, source },
+      { completions: [], id: input.collectionId, recurrences: [], source },
     ],
   };
 
@@ -298,7 +336,7 @@ export function updateTodoCollectionBody(
       timestamp: input.updatedAt,
     },
   );
-  const withSource = cleanTodoCompletions(
+  const withSource = cleanTodoSidecars(
     { ...collection, source },
     syntaxProfile,
   );
@@ -327,16 +365,108 @@ export function toggleTodoBlock(
   validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
+  const recurrence = collection.recurrences.find(
+    ({ blockId }) => blockId === input.blockId,
+  );
+  const recurrenceProjection = recurrence
+    ? projectTodoRecurrence(recurrence, requireTodoLocalDate(input.today))
+    : null;
+  const completed = recurrenceProjection?.active
+    ? recurrenceProjection.completed
+    : collection.completions.some(({ blockId }) => blockId === input.blockId);
+
+  return setTodoBlockCompletion(content, {
+    ...input,
+    completed: !completed,
+    occurrenceDate: recurrenceProjection?.active
+      ? recurrenceProjection.currentOccurrenceDate
+      : null,
+  });
+}
+
+export class TodoOccurrenceConflictError extends Error {
+  readonly currentOccurrenceDate: TodoLocalDate | null;
+
+  constructor(currentOccurrenceDate: TodoLocalDate | null) {
+    super("Todo recurrence occurrence is no longer current.");
+    this.name = "TodoOccurrenceConflictError";
+    this.currentOccurrenceDate = currentOccurrenceDate;
+  }
+}
+
+export function setTodoBlockCompletion(
+  content: TodoContent,
+  input: SetTodoBlockCompletionInput,
+) {
+  validateTodoContent(content);
+  const collectionIndex = findCollectionIndex(content, input.collectionId);
+  const collection = content.collections[collectionIndex];
   const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
   const block = requireTodoItemBlock(collection, syntaxProfile, input.blockId);
+  const today = requireTodoLocalDate(input.today);
+  const recurrenceIndex = collection.recurrences.findIndex(
+    ({ blockId }) => blockId === input.blockId,
+  );
+  const recurrence = recurrenceIndex >= 0
+    ? collection.recurrences[recurrenceIndex]
+    : null;
+  const recurrenceProjection = recurrence
+    ? projectTodoRecurrence(recurrence, today)
+    : null;
+
+  if (recurrence && recurrenceProjection?.active) {
+    if (
+      input.occurrenceDate === null ||
+      input.occurrenceDate !== recurrenceProjection.currentOccurrenceDate ||
+      !recurrenceProjection.currentStage
+    ) {
+      throw new TodoOccurrenceConflictError(
+        recurrenceProjection.currentOccurrenceDate,
+      );
+    }
+    if (input.completed === recurrenceProjection.completed) return content;
+    const completions = [...recurrence.completions];
+    const completionIndex = completions.findIndex((completion) =>
+      completion.stageId === recurrenceProjection.currentStage!.id &&
+      completion.occurrenceDate === input.occurrenceDate
+    );
+
+    if (input.completed) {
+      const completedAt = canonicalTimestamp(
+        input.completedAt,
+        "Todo recurrence completion completedAt",
+      );
+
+      if (completedAt < Date.parse(block.metadata.createdAt)) {
+        throw new Error("Todo completion cannot predate its block.");
+      }
+      completions.push({
+        completedAt: input.completedAt,
+        occurrenceDate: input.occurrenceDate,
+        stageId: recurrenceProjection.currentStage.id,
+      });
+    } else if (completionIndex >= 0) {
+      completions.splice(completionIndex, 1);
+    }
+    const recurrences = [...collection.recurrences];
+
+    recurrences[recurrenceIndex] = { ...recurrence, completions };
+    return replaceCollection(content, collectionIndex, {
+      ...collection,
+      recurrences,
+    });
+  }
+  if (input.occurrenceDate !== null) {
+    throw new TodoOccurrenceConflictError(null);
+  }
   const existingIndex = collection.completions.findIndex(
     ({ blockId }) => blockId === input.blockId,
   );
   const completions = [...collection.completions];
 
-  if (existingIndex >= 0) {
+  if (!input.completed && existingIndex >= 0) {
     completions.splice(existingIndex, 1);
-  } else {
+  } else if (input.completed && existingIndex < 0) {
     const completedAt = canonicalTimestamp(
       input.completedAt,
       "Todo completion completedAt",
@@ -346,11 +476,198 @@ export function toggleTodoBlock(
       throw new Error("Todo completion cannot predate its block.");
     }
     completions.push({ blockId: input.blockId, completedAt: input.completedAt });
+  } else {
+    return content;
   }
 
   return replaceCollection(content, collectionIndex, {
     ...collection,
     completions,
+  });
+}
+
+function assertNewRecurrenceStageId(
+  collection: TodoCollection,
+  stageId: TodoRecurrenceStageId,
+) {
+  if (!isTodoRecurrenceStageId(stageId)) {
+    throw new Error(`Invalid Todo recurrence stage id: ${stageId}`);
+  }
+  if (
+    collection.recurrences.some(({ stages }) =>
+      stages.some(({ id }) => id === stageId)
+    )
+  ) {
+    throw new Error(`Todo recurrence stage already exists: ${stageId}`);
+  }
+}
+
+function rulesEqual(left: TodoRecurrenceRule, right: TodoRecurrenceRule) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function setTodoBlockRecurrence(
+  content: TodoContent,
+  input: SetTodoBlockRecurrenceInput,
+) {
+  validateTodoContent(content);
+  const collectionIndex = findCollectionIndex(content, input.collectionId);
+  const collection = content.collections[collectionIndex];
+  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
+
+  requireTodoItemBlock(collection, syntaxProfile, input.blockId);
+  const today = requireTodoLocalDate(input.today);
+  validateTodoRecurrenceRule(input.rule);
+  const recurrenceIndex = collection.recurrences.findIndex(
+    ({ blockId }) => blockId === input.blockId,
+  );
+  const recurrence = recurrenceIndex >= 0
+    ? collection.recurrences[recurrenceIndex]
+    : null;
+  const ordinaryCompletion = collection.completions.find(
+    ({ blockId }) => blockId === input.blockId,
+  ) ?? null;
+  let nextRecurrence: TodoRecurrence;
+
+  if (!recurrence) {
+    assertNewRecurrenceStageId(collection, input.stageId);
+    nextRecurrence = {
+      blockId: input.blockId,
+      completions: ordinaryCompletion
+        ? [{
+            completedAt: ordinaryCompletion.completedAt,
+            occurrenceDate: today,
+            stageId: input.stageId,
+          }]
+        : [],
+      stages: [{
+        endsBefore: null,
+        id: input.stageId,
+        rule: input.rule,
+        startsOn: today,
+      }],
+    };
+  } else {
+    const projection = projectTodoRecurrence(recurrence, today);
+    const lastStage = recurrence.stages.at(-1)!;
+
+    if (projection.active) {
+      if (
+        lastStage.startsOn !== today &&
+        lastStage.startsOn === addTodoLocalDays(today, 1)
+      ) {
+        if (rulesEqual(lastStage.rule, input.rule)) return content;
+        nextRecurrence = {
+          ...recurrence,
+          stages: [
+            ...recurrence.stages.slice(0, -1),
+            { ...lastStage, rule: input.rule },
+          ],
+        };
+      } else {
+        if (
+          projection.currentStage &&
+          rulesEqual(projection.currentStage.rule, input.rule)
+        ) {
+          return content;
+        }
+        assertNewRecurrenceStageId(collection, input.stageId);
+        const startsOn = addTodoLocalDays(today, 1);
+
+        nextRecurrence = {
+          ...recurrence,
+          stages: [
+            ...recurrence.stages.map((stage) =>
+              stage.id === projection.currentStage?.id
+                ? { ...stage, endsBefore: startsOn }
+                : stage
+            ),
+            {
+              endsBefore: null,
+              id: input.stageId,
+              rule: input.rule,
+              startsOn,
+            },
+          ],
+        };
+      }
+    } else {
+      assertNewRecurrenceStageId(collection, input.stageId);
+      nextRecurrence = {
+        ...recurrence,
+        completions: [
+          ...recurrence.completions,
+          ...(ordinaryCompletion
+            ? [{
+                completedAt: ordinaryCompletion.completedAt,
+                occurrenceDate: today,
+                stageId: input.stageId,
+              }]
+            : []),
+        ],
+        stages: [
+          ...recurrence.stages,
+          {
+            endsBefore: null,
+            id: input.stageId,
+            rule: input.rule,
+            startsOn: today,
+          },
+        ],
+      };
+    }
+  }
+  const recurrences = [...collection.recurrences];
+
+  if (recurrenceIndex >= 0) recurrences[recurrenceIndex] = nextRecurrence;
+  else recurrences.push(nextRecurrence);
+  return replaceCollection(content, collectionIndex, {
+    ...collection,
+    completions: ordinaryCompletion
+      ? collection.completions.filter(({ blockId }) => blockId !== input.blockId)
+      : collection.completions,
+    recurrences,
+  });
+}
+
+export function stopTodoBlockRecurrence(
+  content: TodoContent,
+  input: StopTodoBlockRecurrenceInput,
+) {
+  validateTodoContent(content);
+  const collectionIndex = findCollectionIndex(content, input.collectionId);
+  const collection = content.collections[collectionIndex];
+  const recurrenceIndex = collection.recurrences.findIndex(
+    ({ blockId }) => blockId === input.blockId,
+  );
+
+  if (recurrenceIndex < 0) return content;
+  const today = requireTodoLocalDate(input.today);
+  const recurrence = collection.recurrences[recurrenceIndex];
+  const projection = projectTodoRecurrence(recurrence, today);
+
+  if (!projection.active || !projection.currentStage) return content;
+  const endsBefore = addTodoLocalDays(today, 1);
+  const retainedStages = recurrence.stages
+    .filter(({ startsOn }) => startsOn <= today)
+    .map((stage) =>
+      stage.id === projection.currentStage!.id
+        ? { ...stage, endsBefore }
+        : stage
+    );
+  const retainedStageIds = new Set(retainedStages.map(({ id }) => id));
+  const recurrences = [...collection.recurrences];
+
+  recurrences[recurrenceIndex] = {
+    ...recurrence,
+    completions: recurrence.completions.filter(({ stageId }) =>
+      retainedStageIds.has(stageId)
+    ),
+    stages: retainedStages,
+  };
+  return replaceCollection(content, collectionIndex, {
+    ...collection,
+    recurrences,
   });
 }
 
@@ -425,7 +742,7 @@ export function updateTodoSyntaxSource(
     ...content,
     syntaxSource,
     collections: content.collections.map((collection) =>
-      cleanTodoCompletions(collection, syntaxProfile)
+      cleanTodoSidecars(collection, syntaxProfile)
     ),
   };
 

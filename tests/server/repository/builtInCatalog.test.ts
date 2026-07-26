@@ -15,6 +15,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { JournalContentDto } from "../../../contracts/journal/types.ts";
 import type { TodoContentDto } from "../../../contracts/todo/types.ts";
+import { migrateTodoV3Content } from "../../../contracts/todo/migrations/todoV3ToV4.ts";
 import { renameTodoCollection } from "../../../core/todo/commands/todoCommands.ts";
 import { BuiltInCatalog } from "../../../infrastructure/server/repository/builtInCatalog.ts";
 import { createFileSystemTodoContentStore } from "../../../infrastructure/server/repository/todoContentStore.ts";
@@ -314,6 +315,102 @@ describe("filesystem built-in data catalog", () => {
     });
   });
 
+  it("migrates Todo v3 content before publishing epoch 4", async () => {
+    await withStateDirectory(async (stateDirectory) => {
+      const initial = createBuiltInCatalog(stateDirectory);
+
+      await initial.initialize();
+      const v4 = appendTodoTestCollection(createEmptyTodoContent(), {
+        collectionIndex: 1,
+        createdAt: todoTimestamp(1),
+        name: "迁移保留",
+      });
+      const v3 = {
+        ...v4,
+        collections: v4.collections.map(
+          ({ recurrences: _, ...collection }) => collection,
+        ),
+        schemaVersion: 3 as const,
+      };
+      const todoDirectory = path.join(
+        stateDirectory,
+        ".built-ins",
+        "todo",
+      );
+      const contentPath = path.join(todoDirectory, "content.json");
+      const epochPath = path.join(todoDirectory, "storage.epoch");
+
+      await writeFile(contentPath, `${JSON.stringify(v3)}\n`, { mode: 0o600 });
+      await writeFile(epochPath, "3\n", { mode: 0o600 });
+      const reopened = createBuiltInCatalog(stateDirectory);
+
+      await reopened.initialize();
+      await expect((await openBuiltInStore<TodoContentDto>(
+        reopened,
+        "todo",
+      )).loadSnapshot()).resolves.toMatchObject({
+        content: migrateTodoV3Content(v3),
+      });
+      await expect(readFile(epochPath, "utf8")).resolves.toBe("4\n");
+    });
+  });
+
+  it("finishes an interrupted Todo migration without rewriting v4 content", async () => {
+    await withStateDirectory(async (stateDirectory) => {
+      const initial = createBuiltInCatalog(stateDirectory);
+
+      await initial.initialize();
+      const content = appendTodoTestCollection(createEmptyTodoContent(), {
+        collectionIndex: 1,
+        createdAt: todoTimestamp(1),
+        name: "已经迁移",
+      });
+      const todoDirectory = path.join(
+        stateDirectory,
+        ".built-ins",
+        "todo",
+      );
+      const contentPath = path.join(todoDirectory, "content.json");
+      const epochPath = path.join(todoDirectory, "storage.epoch");
+      const compactSource = JSON.stringify(content);
+
+      await writeFile(contentPath, compactSource, { mode: 0o600 });
+      await writeFile(epochPath, "3\n", { mode: 0o600 });
+      const reopened = createBuiltInCatalog(stateDirectory);
+
+      await reopened.initialize();
+      await expect(readFile(contentPath, "utf8")).resolves.toBe(compactSource);
+      await expect(readFile(epochPath, "utf8")).resolves.toBe("4\n");
+    });
+  });
+
+  it("preserves corrupt Todo v3 content and its old epoch", async () => {
+    await withStateDirectory(async (stateDirectory) => {
+      const initial = createBuiltInCatalog(stateDirectory);
+
+      await initial.initialize();
+      const todoDirectory = path.join(
+        stateDirectory,
+        ".built-ins",
+        "todo",
+      );
+      const contentPath = path.join(todoDirectory, "content.json");
+      const epochPath = path.join(todoDirectory, "storage.epoch");
+      const corrupt = '{"collections":[],"schemaVersion":3,"syntaxSource":1}\n';
+
+      await writeFile(contentPath, corrupt, { mode: 0o600 });
+      await writeFile(epochPath, "3\n", { mode: 0o600 });
+      const reopened = createBuiltInCatalog(stateDirectory);
+
+      await reopened.initialize();
+      await expect(reopened.listBuiltIns()).resolves.toMatchObject({
+        issues: [{ code: "repository_corrupt", id: "todo" }],
+      });
+      await expect(readFile(contentPath, "utf8")).resolves.toBe(corrupt);
+      await expect(readFile(epochPath, "utf8")).resolves.toBe("3\n");
+    });
+  });
+
   it("preserves corrupt current content and future epochs without affecting the peer", async () => {
     await withStateDirectory(async (stateDirectory) => {
       const catalog = createBuiltInCatalog(stateDirectory);
@@ -331,7 +428,7 @@ describe("filesystem built-in data catalog", () => {
       const corrupt = "{not-json\n";
 
       await writeFile(journalContentPath, corrupt, { mode: 0o600 });
-      await writeFile(path.join(todoDirectory, "storage.epoch"), "4\n", {
+      await writeFile(path.join(todoDirectory, "storage.epoch"), "5\n", {
         mode: 0o600,
       });
       const reopened = createBuiltInCatalog(stateDirectory);
@@ -349,7 +446,7 @@ describe("filesystem built-in data catalog", () => {
       await expect(readFile(
         path.join(todoDirectory, "storage.epoch"),
         "utf8",
-      )).resolves.toBe("4\n");
+      )).resolves.toBe("5\n");
     });
   });
 });

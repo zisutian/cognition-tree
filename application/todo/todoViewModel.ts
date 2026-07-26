@@ -11,6 +11,11 @@ import {
   type TodoCollectionId,
   type TodoContent,
 } from "../../core/todo/model/todoContent";
+import {
+  projectTodoRecurrence,
+  type TodoLocalDate,
+  type TodoRecurrenceRule,
+} from "../../core/todo/recurrence/todoRecurrence";
 import type { TodoPersistenceState } from "./todoSessionController";
 import type { TodoMutationActions } from "./todoApplication";
 import {
@@ -50,6 +55,14 @@ export type TodoBlockView = {
   level: number;
   lineNumber: number;
   metadata: CtnBlockMetadata;
+  recurrence: {
+    active: boolean;
+    completedCount: number;
+    currentOccurrenceDate: TodoLocalDate | null;
+    nextOccurrenceDate: TodoLocalDate | null;
+    rule: TodoRecurrenceRule;
+    totalCount: number;
+  } | null;
   text: string;
 };
 
@@ -70,6 +83,7 @@ export type TodoViewModel = TodoMutationActions & {
       checked: boolean;
       label: string;
       lineNumber: number;
+      recurrenceLabel?: string;
     }>;
     contentMode: { kind: "body"; title: string };
     documentText: string;
@@ -113,6 +127,7 @@ type TodoViewModelInput = TodoMutationActions & {
   ) => void;
   persistence: TodoPersistenceState;
   selectCollection: (collectionId: TodoCollectionId) => void;
+  today: TodoLocalDate;
   updateActiveBodyLine: (lineNumber: number) => void;
 };
 
@@ -120,16 +135,24 @@ function createTodoBlockNodes({
   blocks,
   completionById,
   projectLineNumber,
+  recurrenceById,
 }: {
   blocks: CtnCanonicalBlock[];
   completionById: ReadonlyMap<string, string>;
   projectLineNumber: (lineNumber: number) => number;
+  recurrenceById: ReadonlyMap<
+    string,
+    TodoBlockView["recurrence"] & { completedAt: string | null }
+  >;
 }): TodoBlockView[] {
   const visit = (block: CtnCanonicalBlock): TodoBlockView[] => {
     const children = block.children.flatMap(visit);
 
     if (block.type !== todoItemSemanticType) return children;
-    const completedAt = completionById.get(block.id) ?? null;
+    const recurrence = recurrenceById.get(block.id) ?? null;
+    const completedAt = recurrence?.active
+      ? recurrence.completedAt
+      : completionById.get(block.id) ?? null;
     const view: TodoBlockView = {
       children,
       completed: completedAt !== null,
@@ -141,6 +164,16 @@ function createTodoBlockNodes({
       level: block.level,
       lineNumber: projectLineNumber(block.lineNumber),
       metadata: block.metadata,
+      recurrence: recurrence
+        ? {
+            active: recurrence.active,
+            completedCount: recurrence.completedCount,
+            currentOccurrenceDate: recurrence.currentOccurrenceDate,
+            nextOccurrenceDate: recurrence.nextOccurrenceDate,
+            rule: recurrence.rule,
+            totalCount: recurrence.totalCount,
+          }
+        : null,
       text: block.text,
     };
 
@@ -177,6 +210,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     openCollectionLine,
     persistence,
     selectCollection,
+    today,
     updateActiveBodyLine,
     ...actions
   } = input;
@@ -195,6 +229,18 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
       completedAt,
     ]) ?? [],
   );
+  const recurrenceById = new Map(
+    activeParsed?.collection.recurrences.map((recurrence) => {
+      const projection = projectTodoRecurrence(recurrence, today);
+      const rule = projection.currentStage?.rule ??
+        recurrence.stages.at(-1)!.rule;
+
+      return [
+        recurrence.blockId,
+        { ...projection, rule },
+      ] as const;
+    }) ?? [],
+  );
   const projectLineNumber = (lineNumber: number) =>
     activeProjection?.projectCanonicalLineNumber(lineNumber) ?? lineNumber;
   const bodyRoots = activeParsed?.document.roots.filter(
@@ -204,6 +250,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     blocks: bodyRoots,
     completionById,
     projectLineNumber,
+    recurrenceById,
   });
   const activeLine = activeBodyPosition?.collectionId === activeCollectionId
     ? activeBodyPosition.lineNumber
@@ -226,10 +273,24 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
           .map(({ id }) => id),
       );
 
+      const ordinaryCompletedIds = new Set(
+        parsed.collection.completions.map(({ blockId }) => blockId),
+      );
+      const recurrenceProjectionById = new Map(
+        parsed.collection.recurrences.map((recurrence) => [
+          recurrence.blockId,
+          projectTodoRecurrence(recurrence, today),
+        ]),
+      );
+
       return {
-        completedItemCount: parsed.collection.completions.filter(({ blockId }) =>
-          itemIds.has(blockId)
-        ).length,
+        completedItemCount: [...itemIds].filter((blockId) => {
+          const recurrence = recurrenceProjectionById.get(blockId);
+
+          return recurrence?.active
+            ? recurrence.completed
+            : ordinaryCompletedIds.has(blockId);
+        }).length,
         createdAt: parsed.document.blocks[0]!.metadata.createdAt,
         id: parsed.collection.id,
         isActive: parsed.collection.id === activeCollectionId,
@@ -242,12 +303,25 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     editor: {
       checkableBlocks: activeParsed?.document.blocks
         .filter(({ type }) => type === todoItemSemanticType)
-        .map((block) => ({
-          blockId: block.id,
-          checked: completionById.has(block.id),
-          label: block.text,
-          lineNumber: projectLineNumber(block.lineNumber),
-        })) ?? [],
+        .map((block) => {
+          const recurrence = recurrenceById.get(block.id);
+
+          return {
+            blockId: block.id,
+            checked: recurrence?.active
+              ? recurrence.completedAt !== null
+              : completionById.has(block.id),
+            label: block.text,
+            lineNumber: projectLineNumber(block.lineNumber),
+            recurrenceLabel: recurrence?.active
+              ? `周期任务，已完成 ${recurrence.completedCount}/${recurrence.totalCount}${
+                  recurrence.nextOccurrenceDate
+                    ? `，下次 ${recurrence.nextOccurrenceDate}`
+                    : ""
+                }`
+              : undefined,
+          };
+        }) ?? [],
       contentMode: { kind: "body", title: activeParsed?.name ?? "" },
       documentText: activeProjection?.source ?? "",
       focusTarget: focusRequest?.collectionId === activeCollectionId

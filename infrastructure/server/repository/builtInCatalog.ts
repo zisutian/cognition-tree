@@ -26,8 +26,12 @@ import { createEmptyJournalContent } from "../../../contracts/journal/parseJourn
 import { journalStorageEpoch } from "../../../contracts/journal/storageEpoch.ts";
 import type { JournalContentDto } from "../../../contracts/journal/types.ts";
 import { createEmptyTodoContent } from "../../../contracts/todo/parseTodo.ts";
+import {
+  prepareTodoV4EpochMigration,
+} from "../../../contracts/todo/migrations/todoV3ToV4.ts";
 import { todoStorageEpoch } from "../../../contracts/todo/storageEpoch.ts";
 import type { TodoContentDto } from "../../../contracts/todo/types.ts";
+import { validateTodoContent } from "../../../core/todo/model/todoContent.ts";
 import { hasFileSystemErrorCode } from "../persistence/fileSystemError.ts";
 import {
   isSecureDirectory,
@@ -55,6 +59,10 @@ type BuiltInDefinition<Content> = {
   createStore(filePath: string): VersionedContentStore<Content>;
   epoch: number;
   id: BuiltInIdDto;
+  migration?: {
+    fromEpoch: number;
+    prepare(value: unknown): { content: Content; migrated: boolean };
+  };
 };
 
 type AnyBuiltInDefinition =
@@ -82,6 +90,15 @@ const defaultTodoDefinition: BuiltInDefinition<TodoContentDto> = {
   createStore: createFileSystemTodoContentStore,
   epoch: todoStorageEpoch,
   id: "todo",
+  migration: {
+    fromEpoch: 3,
+    prepare(value) {
+      const prepared = prepareTodoV4EpochMigration(value);
+
+      validateTodoContent(prepared.content);
+      return prepared;
+    },
+  },
 };
 
 export class BuiltInCatalog {
@@ -318,6 +335,26 @@ export class BuiltInCatalog {
     if (!provision) {
       throw new RepositoryCorruptError("Built-in storage epoch does not match");
     }
+    if (
+      storedEpoch !== null &&
+      definition.migration?.fromEpoch === storedEpoch
+    ) {
+      const prepared = definition.migration.prepare(
+        await this.#readMigrationContent(contentPath),
+      );
+
+      if (prepared.migrated) {
+        await replaceFileDurably(
+          contentPath,
+          `${serializeJsonIteratively(prepared.content, { indent: 2 })}\n`,
+          { hiddenTemporaryFile: true },
+        );
+      }
+      await replaceFileDurably(epochPath, `${definition.epoch}\n`, {
+        hiddenTemporaryFile: true,
+      });
+      return;
+    }
     await replaceFileDurably(
       contentPath,
       `${serializeJsonIteratively(definition.createEmptyContent(), { indent: 2 })}\n`,
@@ -326,6 +363,43 @@ export class BuiltInCatalog {
     await replaceFileDurably(epochPath, `${definition.epoch}\n`, {
       hiddenTemporaryFile: true,
     });
+  }
+
+  async #readMigrationContent(contentPath: string): Promise<unknown> {
+    let handle;
+
+    try {
+      handle = await open(
+        contentPath,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+      );
+      const stats = await handle.stat();
+
+      if (!isSecureRegularFile(stats)) {
+        throw new RepositoryCorruptError(
+          "Built-in content file permissions or type are invalid",
+        );
+      }
+      const source = await handle.readFile("utf8");
+
+      try {
+        return JSON.parse(source) as unknown;
+      } catch {
+        throw new RepositoryCorruptError("Built-in content JSON is invalid");
+      }
+    } catch (error) {
+      if (hasFileSystemErrorCode(error, "ENOENT")) {
+        throw new RepositoryCorruptError("Built-in content file is missing");
+      }
+      if (hasFileSystemErrorCode(error, "ELOOP")) {
+        throw new RepositoryCorruptError(
+          "Built-in content file is a symbolic link",
+        );
+      }
+      throw error;
+    } finally {
+      await handle?.close();
+    }
   }
 
   async #readEpoch(epochPath: string): Promise<number | null> {
