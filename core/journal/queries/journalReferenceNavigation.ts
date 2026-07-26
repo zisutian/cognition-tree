@@ -34,7 +34,7 @@ function projectCanonicalLineToBodyLine(
   if (!parsed) {
     return 1;
   }
-  return createJournalEntryBodyProjection(parsed.entry, index.syntaxProfile)
+  return createJournalEntryBodyProjection(parsed)
     .projectCanonicalLineNumber(canonicalLineNumber);
 }
 
@@ -70,10 +70,10 @@ export function resolveJournalReferenceNavigation({
 
   const parsed = index.getParsedEntry(activeEntryId);
 
-  return parsed?.document.blocks
+  return parsed?.analysis.document.blocks
     .filter(
       (block) =>
-        block.type !== index.syntaxProfile.titleRule.type &&
+        block.rule.semanticId !== index.syntax.title.semanticId &&
         normalizeCtnReferenceText(block.text) === normalizedTarget,
     )
     .map((block) => ({
@@ -81,7 +81,7 @@ export function resolveJournalReferenceNavigation({
         index,
         activeEntryId,
         block.lineNumber,
-      )} · ${block.label}`,
+      )} · ${block.rule.label}`,
       entryId: activeEntryId,
       id: `journal-block:${activeEntryId}:${block.id}`,
       label: block.text,

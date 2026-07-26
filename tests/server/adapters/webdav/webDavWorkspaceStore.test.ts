@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile.ts";
-import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax.ts";
+import { formatCtnSyntaxV2 } from "../../../../core/ctn/syntax/formatter.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
@@ -27,11 +27,14 @@ import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport";
 
 const primarySyntaxId = "syntax-00000000-0000-4000-8000-000000000001";
 const secondarySyntaxId = "syntax-00000000-0000-4000-8000-000000000002";
-const primarySyntaxSource = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
-const secondarySyntaxSource = formatSyntaxProfileToml({
-  ...defaultCtnSyntaxProfile,
+const primarySyntaxSource = formatCtnSyntaxV2(
+  defaultCtnSyntax.definition,
+  "workspace",
+);
+const secondarySyntaxSource = formatCtnSyntaxV2({
+  ...defaultCtnSyntax.definition,
   name: "WebDAV Secondary",
-});
+}, "workspace");
 
 function createContent(name: string, noteCount = 1): WorkspaceRepositoryContentDto {
   const notes = Array.from({ length: noteCount }, (_, index) => ({
@@ -430,7 +433,7 @@ describe("WebDAV generation store v4", () => {
     await expect(store.loadSnapshot()).rejects.toBeInstanceOf(RepositoryCorruptError);
   });
 
-  it("rejects every invalid syntax source and normalized duplicate profile name", async () => {
+  it("rejects every invalid syntax source and normalized duplicate syntax name", async () => {
     const transport = new InMemoryWebDavTransport();
     const store = createStore(transport);
     const base = await store.loadSnapshot();
@@ -448,15 +451,15 @@ describe("WebDAV generation store v4", () => {
     const duplicateName = createContent("duplicate syntax name");
     duplicateName.syntax.files[1] = {
       id: secondarySyntaxId,
-      source: formatSyntaxProfileToml({
-        ...defaultCtnSyntaxProfile,
-        name: `  ${defaultCtnSyntaxProfile.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
-      }),
+      source: formatCtnSyntaxV2({
+        ...defaultCtnSyntax.definition,
+        name: `  ${defaultCtnSyntax.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
+      }, "workspace"),
     };
     await expect(store.commitSnapshot({
       baseRevision: base.revision,
       content: duplicateName,
-    })).rejects.toThrow("duplicate syntax profile name");
+    })).rejects.toThrow("duplicate syntax name");
   });
 
   it("classifies an invalid inactive persisted syntax file as corruption", async () => {

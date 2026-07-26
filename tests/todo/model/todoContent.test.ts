@@ -4,13 +4,15 @@ import { describe, expect, it } from "vitest";
 import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
 import { toggleTodoBlock } from "../../../core/todo/commands/todoCommands";
 import {
-  getTodoCollectionNameIssue,
+  createTodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex";
+import {
   isTodoCollectionId,
-  parseTodoCollection,
   validateTodoContent,
   validateTodoContentTransition,
 } from "../../../core/todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
+import { requireCtnSyntax } from "../../../core/ctn/syntax/compiler";
+import { getPortableNameIssue } from "../../../core/naming/portableName";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,
@@ -36,12 +38,17 @@ function createValidContent() {
 
 describe("Todo v4 content", () => {
   it("accepts the exact CTN collection and completion sidecar shape", () => {
-    const content = toggleTodoBlock(createValidContent(), {
+    const initial = createValidContent();
+    const content = toggleTodoBlock(
+      initial,
+      createTodoParseIndex(initial),
+      {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(3),
       today: "2026-07-18",
-    });
+      },
+    );
 
     expect(validateTodoContent(content)).toBe(content);
     expect(content).toEqual({
@@ -55,12 +62,16 @@ describe("Todo v4 content", () => {
         source: expect.stringContaining("[] 任务 1"),
       }],
       schemaVersion: 4,
-      syntaxSource: expect.stringContaining('type = "todo-item"'),
+      syntaxSource: expect.stringContaining('semanticId = "todo-item"'),
     });
     expect(isTodoCollectionId(todoCollectionId(1))).toBe(true);
     expect(isTodoCollectionId(todoCollectionId(1).toUpperCase())).toBe(false);
-    expect(requireTodoSyntaxProfile(content.syntaxSource).markerRules[0])
-      .toMatchObject({ marker: "[]", tone: "default", type: "todo-item" });
+    expect(requireCtnSyntax(content.syntaxSource, "todo").blocks[0])
+      .toMatchObject({
+        marker: "[]",
+        semanticId: "todo-item",
+        tone: "default",
+      });
   });
 
   it("rejects another version, invalid syntax, and duplicate ids", () => {
@@ -72,7 +83,10 @@ describe("Todo v4 content", () => {
     } as never)).toThrow(/schema version must be 4/);
     expect(() => validateTodoContent({
       ...content,
-      syntaxSource: content.syntaxSource.replace('type = "todo-item"', 'type = "task"'),
+      syntaxSource: content.syntaxSource.replace(
+        'semanticId = "todo-item"',
+        'semanticId = "task"',
+      ),
     })).toThrow(/syntax is invalid/);
     expect(() => validateTodoContent({
       ...content,
@@ -81,18 +95,23 @@ describe("Todo v4 content", () => {
   });
 
   it("requires completion ids to remain recognized todo items", () => {
-    const completed = toggleTodoBlock(createValidContent(), {
+    const initial = createValidContent();
+    const completed = toggleTodoBlock(
+      initial,
+      createTodoParseIndex(initial),
+      {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       completedAt: todoTimestamp(3),
       today: "2026-07-18",
-    });
+      },
+    );
     const changedMarker = {
       ...completed,
-      syntaxSource: completed.syntaxSource.replace(
-        'marker = "[]"',
-        'marker = "[ ]"',
-      ),
+      collections: [{
+        ...completed.collections[0]!,
+        source: completed.collections[0]!.source.replace("[]", "?"),
+      }],
     };
 
     expect(() => validateTodoContent(changedMarker))
@@ -122,12 +141,11 @@ describe("Todo v4 content", () => {
         ),
       }],
     };
-    const profile = requireTodoSyntaxProfile(invalidName.syntaxSource);
-
     expect(validateTodoContent(invalidName)).toBe(invalidName);
-    expect(parseTodoCollection(invalidName.collections[0]!, profile).name)
-      .toBe("旧/名称");
-    expect(getTodoCollectionNameIssue(invalidName.collections[0]!, profile))
+    const name = createTodoParseIndex(invalidName).collections[0]!.name;
+
+    expect(name).toBe("旧/名称");
+    expect(getPortableNameIssue(name))
       .toBe("unsupported-character");
   });
 

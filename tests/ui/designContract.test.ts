@@ -234,19 +234,69 @@ describe("UI design contract", () => {
     const activeLineIndex = editorStyle.indexOf(
       ".source-editor .cm-line.cm-activeLine",
     );
-    const multilineCardIndex = editorStyle.indexOf(
-      ".source-editor .cm-line.ctn-multiline-card-line",
-    );
     const diagnosticIndex = editorStyle.indexOf(
       ".source-editor .cm-line.ctn-line-diagnostic",
     );
 
     expect(toneIndex).toBeGreaterThanOrEqual(0);
     expect(activeLineIndex).toBeGreaterThan(toneIndex);
-    expect(multilineCardIndex).toBeGreaterThan(activeLineIndex);
-    expect(diagnosticIndex).toBeGreaterThan(multilineCardIndex);
+    expect(diagnosticIndex).toBeGreaterThan(activeLineIndex);
     expect(editorStyle).toMatch(
       /\.cm-selectionBackground,[\s\S]*background:\s*var\(--color-selected\)\s*!important/,
+    );
+  });
+
+  it("keeps multiline source in the ordinary editor surface", () => {
+    const editorStyle = readStyle("editor/CtnEditor.css");
+
+    expect(editorStyle).toMatch(
+      /\.source-editor \.ctn-marker\s*\{[^}]*font-weight:/s,
+    );
+    expect(editorStyle).not.toContain("ctn-multiline-card");
+    expect(editorStyle).not.toContain("ctn-multiline-block-mark");
+    expect(editorStyle).not.toContain("ctn-editor-tab-calibration");
+  });
+
+  it("reserves short left status rails for diagnostics", () => {
+    const editorStyle = readStyle("editor/CtnEditor.css");
+    const treeStyle = readStyle("ui/styles/shared/tree.css");
+    const compactContextStyle = readStyle(
+      "ui/styles/shared/compactContextList.css",
+    );
+    const editorRailStart = editorStyle.indexOf(
+      ".source-editor .cm-line.ctn-line-diagnostic::after",
+    );
+    const treeRailStart = treeStyle.indexOf(
+      ".has-diagnostics::after",
+    );
+    const editorDiagnosticRail = editorStyle.slice(
+      editorRailStart,
+      editorRailStart + 600,
+    );
+    const treeDiagnosticRail = treeStyle.slice(
+      treeRailStart,
+      treeRailStart + 600,
+    );
+
+    expect(editorRailStart).toBeGreaterThanOrEqual(0);
+    expect(treeRailStart).toBeGreaterThanOrEqual(0);
+    expect(editorStyle).not.toContain("ctn-multiline-card");
+    expect(compactContextStyle).not.toMatch(
+      /\.ui-compact-context-static-row:focus\s*\{[^}]*box-shadow:/s,
+    );
+    for (const rail of [editorDiagnosticRail, treeDiagnosticRail]) {
+      expect(rail).toContain("top: var(--ui-border-width)");
+      expect(rail).toContain("bottom: var(--ui-border-width)");
+      expect(rail).toContain(
+        "width: calc(var(--ui-border-width) * 3)",
+      );
+      expect(rail).toContain(
+        "border-radius: 0 var(--ui-radius) var(--ui-radius) 0",
+      );
+      expect(rail).toContain("background: var(--color-error)");
+    }
+    expect(treeStyle).not.toMatch(
+      /\.has-diagnostics\s*\{[^}]*box-shadow:/s,
     );
   });
 
@@ -491,9 +541,9 @@ describe("UI design contract", () => {
     expect(syntax).not.toContain("calc(var(--ui-control-height) * 26)");
     expect(syntax).toContain(".syntax-tone-button.is-compact");
     expect(syntax).toContain(".syntax-dropdown-menu");
-    expect(syntax).toContain(".syntax-role-menu");
-    expect(syntax).toContain(".syntax-role-list");
-    expect(syntax).toContain(".syntax-role-option");
+    expect(syntax).toContain(".syntax-kind-menu");
+    expect(syntax).toContain(".syntax-kind-list");
+    expect(syntax).toContain(".syntax-kind-option");
     expect(syntax).toContain("justify-content: center");
     expect(syntax).not.toContain(".syntax-settings-table");
     expect(syntax).not.toContain(".syntax-setting-row");
@@ -523,7 +573,7 @@ describe("UI design contract", () => {
     expect(rule).toContain("user-select: none");
     expect(rule).not.toContain("input");
     expect(rule).not.toContain("syntax-tone-button");
-    expect(rule).not.toContain("syntax-role-button");
+    expect(rule).not.toContain("syntax-kind-button");
   });
 
   it("extends the shared structure tree without Todo-specific row geometry", () => {

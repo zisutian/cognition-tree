@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
-import { parseCtnCanonicalDocument } from "../../core/ctn/parser/parseCtnDocument";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../core/ctn/analysis/sourceAnalysis";
 import {
   createTodoCollection,
   deleteTodoCollection,
@@ -27,13 +29,19 @@ import type {
   TodoRecurrenceRule,
   TodoRecurrenceStageId,
 } from "../../core/todo/recurrence/todoRecurrence";
-import { requireTodoSyntaxProfile } from "../../core/todo/syntax/todoSyntax";
 import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,
 } from "../../core/todo/queries/todoQueries";
 import type { TodoSessionState } from "./todoSessionController";
 import type { ApplicationLocalCalendar } from "../runtime/applicationLocalCalendar";
+import {
+  createTodoParseIndex,
+  type TodoParseIndex,
+} from "../../core/todo/indexes/todoParseIndex";
+import type {
+  PreparedVersionedContent,
+} from "../persistence/versionedSessionController";
 
 export type TodoApplicationServices = {
   createBlockId: () => string;
@@ -45,6 +53,11 @@ export type TodoApplicationServices = {
 
 export type TodoRepositorySession = {
   mutate: (update: (current: TodoContent) => TodoContent) => void;
+  mutatePrepared: (
+    update: (
+      current: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+    ) => PreparedVersionedContent<TodoContent, TodoParseIndex>,
+  ) => void;
   reload: () => Promise<void>;
   state: TodoSessionState;
 };
@@ -100,39 +113,39 @@ function readNow(services: TodoApplicationServices) {
   return now.toISOString();
 }
 
-function monotonicTimestamp(requested: string, content: TodoContent) {
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
-  let latest = requested;
-
-  for (const collection of content.collections) {
-    const document = parseCtnCanonicalDocument(collection.source, syntaxProfile);
-
-    for (const block of document.blocks) {
-      if (Date.parse(block.metadata.updatedAt) > Date.parse(latest)) {
-        latest = block.metadata.updatedAt;
-      }
-    }
-    for (const completion of collection.completions) {
-      if (Date.parse(completion.completedAt) > Date.parse(latest)) {
-        latest = completion.completedAt;
-      }
-    }
-    for (const recurrence of collection.recurrences) {
-      for (const completion of recurrence.completions) {
-        if (Date.parse(completion.completedAt) > Date.parse(latest)) {
-          latest = completion.completedAt;
-        }
-      }
-    }
-  }
-  return latest;
+function monotonicTimestamp(requested: string, latest: string | null) {
+  return latest !== null && Date.parse(latest) > Date.parse(requested)
+    ? latest
+    : requested;
 }
 
+type TodoPreparedMutation = {
+  analysisOverrides?: ReadonlyMap<
+    TodoCollectionId,
+    CtnCanonicalSourceAnalysis
+  >;
+  content: TodoContent;
+};
+
 function updateTodoSession(
-  session: Pick<TodoRepositorySession, "mutate">,
-  update: (content: TodoContent) => TodoContent,
+  session: Pick<TodoRepositorySession, "mutatePrepared">,
+  update: (
+    content: TodoContent,
+    index: TodoParseIndex,
+  ) => TodoPreparedMutation,
 ) {
-  session.mutate((current) => update(requireTodoContent(current)));
+  session.mutatePrepared(({ content, projection }) => {
+    const result = update(content, projection);
+
+    return {
+      content: result.content,
+      projection: createTodoParseIndex(
+        result.content,
+        projection,
+        result.analysisOverrides,
+      ),
+    };
+  });
 }
 
 export function createTodoMutationActions({
@@ -144,26 +157,31 @@ export function createTodoMutationActions({
   onCollectionCreated: (collectionId: TodoCollectionId) => void;
   onCollectionDeleted: (result: TodoDeleteCollectionMutationResult) => void;
   services: TodoApplicationServices;
-  session: Pick<TodoRepositorySession, "mutate">;
+  session: Pick<TodoRepositorySession, "mutatePrepared">;
 }): TodoMutationActions {
-  const timestamp = (content: TodoContent) =>
-    monotonicTimestamp(readNow(services), content);
+  const timestamp = (index: TodoParseIndex) =>
+    monotonicTimestamp(readNow(services), index.latestTimestamp);
 
   return {
     createCollection(name) {
       const collectionId = services.createCollectionId();
       let createdCollectionId: TodoCollectionId | null = null;
 
-      updateTodoSession(session, (content) => {
-        const result = createTodoCollection(content, {
+      updateTodoSession(session, (content, index) => {
+        const result = createTodoCollection(content, index, {
           collectionId,
           createBlockId: services.createBlockId,
-          createdAt: timestamp(content),
+          createdAt: timestamp(index),
           name,
         });
 
         createdCollectionId = result.collectionId;
-        return result.content;
+        return {
+          analysisOverrides: new Map([
+            [collectionId, result.analysis],
+          ]),
+          content: result.content,
+        };
       });
       if (!createdCollectionId) {
         throw new Error("The todo session did not apply the collection creation.");
@@ -185,7 +203,7 @@ export function createTodoMutationActions({
           deletedCollectionId: collectionId,
           nextSelection,
         };
-        return deleteTodoCollection(content, collectionId);
+        return { content: deleteTodoCollection(content, collectionId) };
       });
       const result = outcome.value;
 
@@ -196,28 +214,33 @@ export function createTodoMutationActions({
       return result.nextSelection;
     },
     moveBlock(collectionId, blockId, target) {
-      updateTodoSession(session, (content) =>
-        moveTodoBlock(content, {
+      updateTodoSession(session, (content, index) => {
+        const result = moveTodoBlock(content, index, {
           blockId,
           collectionId,
           target,
-          updatedAt: timestamp(content),
-        })
-      );
+          updatedAt: timestamp(index),
+        });
+
+        return {
+          analysisOverrides: new Map([[collectionId, result.analysis]]),
+          content: result.content,
+        };
+      });
     },
     moveCollection(collectionId, toIndex) {
-      updateTodoSession(session, (content) =>
-        moveTodoCollection(content, { collectionId, toIndex })
-      );
+      updateTodoSession(session, (content) => ({
+        content: moveTodoCollection(content, { collectionId, toIndex }),
+      }));
     },
     renameCollection(collectionId, name) {
-      updateTodoSession(session, (content) =>
-        renameTodoCollection(content, {
+      updateTodoSession(session, (content, index) => ({
+        content: renameTodoCollection(content, index, {
           collectionId,
           name,
-          updatedAt: timestamp(content),
-        })
-      );
+          updatedAt: timestamp(index),
+        }),
+      }));
     },
     setBlockCompletion(
       collectionId,
@@ -225,61 +248,77 @@ export function createTodoMutationActions({
       completed,
       occurrenceDate,
     ) {
-      updateTodoSession(session, (content) =>
-        setTodoBlockCompletion(content, {
+      updateTodoSession(session, (content, index) => ({
+        content: setTodoBlockCompletion(content, index, {
           blockId,
           collectionId,
           completed,
-          completedAt: timestamp(content),
+          completedAt: timestamp(index),
           occurrenceDate,
           today: services.localCalendar.today(),
-        })
-      );
+        }),
+      }));
     },
     setBlockRecurrence(collectionId, blockId, rule) {
-      updateTodoSession(session, (content) =>
-        setTodoBlockRecurrence(content, {
+      updateTodoSession(session, (content, index) => ({
+        content: setTodoBlockRecurrence(content, index, {
           blockId,
           collectionId,
           rule,
           stageId: services.createRecurrenceStageId(),
           today: services.localCalendar.today(),
-        })
-      );
+        }),
+      }));
     },
     stopBlockRecurrence(collectionId, blockId) {
-      updateTodoSession(session, (content) =>
-        stopTodoBlockRecurrence(content, {
+      updateTodoSession(session, (content) => ({
+        content: stopTodoBlockRecurrence(content, {
           blockId,
           collectionId,
           today: services.localCalendar.today(),
-        })
-      );
+        }),
+      }));
     },
     toggleBlock(collectionId, blockId) {
-      updateTodoSession(session, (content) =>
-        toggleTodoBlock(content, {
+      updateTodoSession(session, (content, index) => ({
+        content: toggleTodoBlock(content, index, {
           blockId,
           collectionId,
-          completedAt: timestamp(content),
+          completedAt: timestamp(index),
           today: services.localCalendar.today(),
-        })
-      );
+        }),
+      }));
     },
     updateCollectionBody(collectionId, change) {
-      updateTodoSession(session, (content) =>
-        updateTodoCollectionBody(content, {
+      updateTodoSession(session, (content, index) => {
+        const result = updateTodoCollectionBody(content, index, {
           change,
           collectionId,
           createBlockId: services.createBlockId,
-          updatedAt: timestamp(content),
-        })
-      );
+          updatedAt: timestamp(index),
+        });
+
+        return {
+          analysisOverrides: new Map([
+            [collectionId, result.analysis],
+          ]),
+          content: result.content,
+        };
+      });
     },
     updateSyntaxSource(source) {
-      updateTodoSession(session, (content) =>
-        updateTodoSyntaxSource(content, source)
-      );
+      updateTodoSession(session, (content, index) => {
+        const result = updateTodoSyntaxSource(content, index, {
+          createBlockId: services.createBlockId,
+          source,
+          updatedAt: timestamp(index),
+        });
+
+        return {
+          analysisOverrides: result.analysisOverrides,
+          content: result.content,
+        };
+      });
     },
   };
 }

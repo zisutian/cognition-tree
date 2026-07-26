@@ -14,12 +14,9 @@ function createInlineSpan(
   const startColumn = textStartColumn + startOffset;
 
   return {
-    id: `${lineNumber}-${startColumn}-${rule.type}`,
-    type: rule.type,
-    label: rule.label,
-    textColor: rule.textColor,
-    tone: rule.tone,
+    id: `${lineNumber}-${startColumn}-${rule.semanticId}`,
     lineNumber,
+    rule,
     startColumn,
     endColumn: textStartColumn + endOffset,
     text,
@@ -33,9 +30,9 @@ type InlineRangeBoundary = {
 
 function collectPairedRuleBoundaries(
   text: string,
-  inlineRules: CtnInlineRule[],
+  inlineMatcher: readonly CtnInlineRule[],
 ): InlineRangeBoundary[] {
-  const pairedRules = inlineRules.filter((rule) => rule.kind === "paired");
+  const pairedRules = inlineMatcher.filter((rule) => rule.kind === "paired");
   const boundaries: InlineRangeBoundary[] = [];
 
   for (let index = 0; index < text.length; index += 1) {
@@ -103,21 +100,14 @@ export function parseInlineSpans(
   text: string,
   lineNumber: number,
   textStartColumn: number,
-  inlineRules: CtnInlineRule[],
+  inlineMatcher: readonly CtnInlineRule[],
 ): CtnInlineSpan[] {
   const spans: CtnInlineSpan[] = [];
   let index = 0;
-  const pairedBoundaries = collectPairedRuleBoundaries(text, inlineRules);
-  const sortedRules = [...inlineRules].sort((left, right) => {
-    const leftLength = left.kind === "paired" ? left.open.length : left.marker.length;
-    const rightLength =
-      right.kind === "paired" ? right.open.length : right.marker.length;
-
-    return rightLength - leftLength;
-  });
+  const pairedBoundaries = collectPairedRuleBoundaries(text, inlineMatcher);
 
   while (index < text.length) {
-    const matchedRule = sortedRules.find((rule) =>
+    const matchedRule = inlineMatcher.find((rule) =>
       rule.kind === "paired"
         ? text.startsWith(rule.open, index)
         : text.startsWith(rule.marker, index),

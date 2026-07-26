@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { formatSyntaxProfileToml } from "../../../core/ctn/syntax/profileToml";
+import { formatCtnSyntaxV2 } from "../../../core/ctn/syntax/formatter";
 import {
   createDefaultWorkspaceSyntax,
   parseWorkspaceSyntax,
@@ -9,12 +9,18 @@ import {
 import { reconcileWorkspaceSyntaxBlockMetadata } from "../../../core/workspace/context/workspaceSyntaxMetadata";
 import {
   isWorkspaceSyntaxFileId,
-  normalizeWorkspaceSyntaxProfileName,
+  normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
 } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import type { WorkspaceRepositoryContent } from "../../repository/workspaceRepository";
+import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../../core/ctn/analysis/sourceAnalysis";
+import type { NoteId } from "../../../core/workspace/model/workspaceData";
 
 export type WorkspaceSyntaxCatalogMutation = {
+  analysisOverrides: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;
   content: WorkspaceRepositoryContent;
   workspaceSyntax: WorkspaceSyntax | null;
 };
@@ -26,18 +32,22 @@ export type CreatedWorkspaceSyntaxFile = WorkspaceSyntaxCatalogMutation & {
 export type WorkspaceSyntaxCatalogMutationService = {
   activateFile(
     content: WorkspaceRepositoryContent,
+    index: WorkspaceParseIndex | null,
     fileId: string,
   ): WorkspaceSyntaxCatalogMutation | null;
   createFile(
     content: WorkspaceRepositoryContent,
+    index: WorkspaceParseIndex | null,
     templateFileId: string | null,
   ): CreatedWorkspaceSyntaxFile;
   deleteFile(
     content: WorkspaceRepositoryContent,
+    index: WorkspaceParseIndex | null,
     fileId: string,
   ): WorkspaceSyntaxCatalogMutation;
   updateFileSource(
     content: WorkspaceRepositoryContent,
+    index: WorkspaceParseIndex | null,
     fileId: string,
     source: string,
   ): WorkspaceSyntaxCatalogMutation;
@@ -75,11 +85,11 @@ function resolveSyntaxCatalog(
   const names = new Set<string>();
 
   for (const syntax of syntaxById.values()) {
-    const name = normalizeWorkspaceSyntaxProfileName(syntax.profile.name);
+    const name = normalizeWorkspaceSyntaxName(syntax.syntax.name);
 
     if (names.has(name)) {
       throw new Error(
-        `Duplicate workspace syntax profile name: ${syntax.profile.name}`,
+        `Duplicate workspace syntax name: ${syntax.syntax.name}`,
       );
     }
     names.add(name);
@@ -99,21 +109,24 @@ function createSyntaxCopySource(
 ) {
   const existingNames = new Set(
     catalog.files.map(({ source }) =>
-      normalizeWorkspaceSyntaxProfileName(
-        parseWorkspaceSyntax(source).profile.name,
+      normalizeWorkspaceSyntaxName(
+        parseWorkspaceSyntax(source).syntax.name,
       )
     ),
   );
-  const copyName = `${template.profile.name} 副本`;
+  const copyName = `${template.syntax.name} 副本`;
   let candidate = copyName;
   let suffix = 2;
 
-  while (existingNames.has(normalizeWorkspaceSyntaxProfileName(candidate))) {
+  while (existingNames.has(normalizeWorkspaceSyntaxName(candidate))) {
     candidate = `${copyName} ${suffix}`;
     suffix += 1;
   }
 
-  return formatSyntaxProfileToml({ ...template.profile, name: candidate });
+  return formatCtnSyntaxV2(
+    { ...template.syntax.definition, name: candidate },
+    "workspace",
+  );
 }
 
 export function createWorkspaceSyntaxCatalogMutationService({
@@ -129,19 +142,37 @@ export function createWorkspaceSyntaxCatalogMutationService({
 }): WorkspaceSyntaxCatalogMutationService {
   const applyCatalog = (
     content: WorkspaceRepositoryContent,
+    index: WorkspaceParseIndex | null,
     catalog: WorkspaceSyntaxCatalog,
   ): WorkspaceSyntaxCatalogMutation => {
     const current = resolveSyntaxCatalog(content.syntax);
     const next = resolveSyntaxCatalog(catalog);
-    const workspace = reconcileWorkspaceSyntaxBlockMetadata(
+    if (
+      (current.workspaceSyntax === null) !== (index === null) ||
+      (
+        current.workspaceSyntax &&
+        index &&
+        current.workspaceSyntax.syntax.analysisKey !== index.syntax.analysisKey
+      )
+    ) {
+      throw new Error(
+        "Workspace analysis index does not match the active syntax.",
+      );
+    }
+    const reconciled = reconcileWorkspaceSyntaxBlockMetadata(
       content.workspace,
-      current.workspaceSyntax?.profile ?? null,
-      next.workspaceSyntax?.profile ?? null,
+      index,
+      next.workspaceSyntax?.syntax ?? null,
       { createBlockId, timestamp: now() },
     );
 
     return {
-      content: { ...content, syntax: next.catalog, workspace },
+      analysisOverrides: reconciled.analysisOverrides,
+      content: {
+        ...content,
+        syntax: next.catalog,
+        workspace: reconciled.workspaceData,
+      },
       workspaceSyntax: next.workspaceSyntax,
     };
   };
@@ -158,16 +189,16 @@ export function createWorkspaceSyntaxCatalogMutationService({
   };
 
   return {
-    activateFile(content, fileId) {
+    activateFile(content, index, fileId) {
       requireFile(content.syntax, fileId);
       if (content.syntax.activeFileId === fileId) return null;
 
-      return applyCatalog(content, {
+      return applyCatalog(content, index, {
         ...content.syntax,
         activeFileId: fileId,
       });
     },
-    createFile(content, templateFileId) {
+    createFile(content, index, templateFileId) {
       const fileId = createSyntaxFileId();
 
       if (content.syntax.files.some(({ id }) => id === fileId)) {
@@ -183,14 +214,14 @@ export function createWorkspaceSyntaxCatalogMutationService({
       const source = templateSyntax
         ? createSyntaxCopySource(content.syntax, templateSyntax)
         : defaultWorkspaceSyntax.source;
-      const mutation = applyCatalog(content, {
+      const mutation = applyCatalog(content, index, {
         activeFileId: content.syntax.activeFileId,
         files: [...content.syntax.files, { id: fileId, source }],
       });
 
       return { ...mutation, fileId };
     },
-    deleteFile(content, fileId) {
+    deleteFile(content, index, fileId) {
       const fileIndex = content.syntax.files.findIndex(
         ({ id }) => id === fileId,
       );
@@ -205,12 +236,12 @@ export function createWorkspaceSyntaxCatalogMutationService({
           null
         : content.syntax.activeFileId;
 
-      return applyCatalog(content, { activeFileId, files });
+      return applyCatalog(content, index, { activeFileId, files });
     },
-    updateFileSource(content, fileId, source) {
+    updateFileSource(content, index, fileId, source) {
       requireFile(content.syntax, fileId);
 
-      return applyCatalog(content, {
+      return applyCatalog(content, index, {
         ...content.syntax,
         files: content.syntax.files.map((file) =>
           file.id === fileId ? { ...file, source } : file

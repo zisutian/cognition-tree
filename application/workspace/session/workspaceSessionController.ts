@@ -19,6 +19,7 @@ import {
 } from "../../../core/workspace/context/workspaceSyntax";
 import type { WorkspaceContext } from "../../../core/workspace/context/workspaceContext";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
+import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import type { WorkspaceSyntaxCatalog } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import {
   createSessionCommands,
@@ -40,6 +41,7 @@ export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
 >;
 
 export type WorkspaceSessionReadyState = {
+  analysisIndex: WorkspaceParseIndex | null;
   context: WorkspaceContext | null;
   defaultWorkspaceSyntax: WorkspaceSyntax;
   location: WorkspaceRepository["location"];
@@ -107,10 +109,19 @@ export function createWorkspaceSessionController({
     defaultWorkspaceSyntax,
     now: commandDependencies.now,
   });
+  let previousAnalysisIndex: WorkspaceParseIndex | null = null;
   const base = createVersionedSessionController({
     label: "Workspace",
     parseContent: (value) => value as WorkspaceRepositoryContent,
-    prepareContent: resolveWorkspaceSessionContent,
+    prepareContent(content) {
+      const projection = resolveWorkspaceSessionContent(
+        content,
+        previousAnalysisIndex,
+      );
+
+      previousAnalysisIndex = projection.analysisIndex;
+      return projection;
+    },
     repository,
     scheduler,
   });
@@ -135,6 +146,7 @@ export function createWorkspaceSessionController({
     switch (state.status) {
       case "ready":
         cachedState = {
+          analysisIndex: state.projection.analysisIndex,
           context: state.projection.context,
           defaultWorkspaceSyntax,
           location: state.location,
@@ -158,22 +170,50 @@ export function createWorkspaceSessionController({
     return cachedState;
   };
   const commands = createSessionCommands({
-    commitDataSnapshot(workspace) {
-      base.mutate((content) => ({ ...content, workspace }));
+    commitDataSnapshot(workspace, analysisOverrides) {
+      base.mutatePrepared(({ content, projection }) => {
+        const nextContent = { ...content, workspace };
+        const nextProjection = resolveWorkspaceSessionContent(
+          nextContent,
+          projection.analysisIndex,
+          analysisOverrides,
+        );
+
+        previousAnalysisIndex = nextProjection.analysisIndex;
+        return { content: nextContent, projection: nextProjection };
+      });
     },
     dependencies: commandDependencies,
-    getSyntaxProfile: () =>
-      requireReady().projection.workspaceSyntax?.profile ?? null,
+    getSyntax: () =>
+      requireReady().projection.workspaceSyntax?.syntax ?? null,
+    getAnalysisIndex: () => requireReady().projection.analysisIndex,
     getWorkspace: () => requireReady().projection.workspace,
   });
   const commitSyntaxMutation = (
     mutation: WorkspaceSyntaxCatalogMutation,
-  ) => base.mutateAndFlush(() => mutation.content);
+  ) => {
+    base.mutatePrepared(({ projection }) => {
+      const nextProjection = resolveWorkspaceSessionContent(
+        mutation.content,
+        projection.analysisIndex,
+        mutation.analysisOverrides,
+      );
+
+      previousAnalysisIndex = nextProjection.analysisIndex;
+      return {
+        content: mutation.content,
+        projection: nextProjection,
+      };
+    });
+    return base.flushPendingChanges();
+  };
 
   return {
     activateSyntaxFile(fileId) {
+      const current = requireReady();
       const mutation = syntaxMutations.activateFile(
-        requireReady().content,
+        current.content,
+        current.projection.analysisIndex,
         fileId,
       );
 
@@ -181,16 +221,23 @@ export function createWorkspaceSessionController({
     },
     commands,
     createSyntaxFile(templateFileId) {
+      const current = requireReady();
       const mutation = syntaxMutations.createFile(
-        requireReady().content,
+        current.content,
+        current.projection.analysisIndex,
         templateFileId,
       );
 
       return commitSyntaxMutation(mutation).then(() => mutation.fileId);
     },
     deleteSyntaxFile(fileId) {
+      const current = requireReady();
       return commitSyntaxMutation(
-        syntaxMutations.deleteFile(requireReady().content, fileId),
+        syntaxMutations.deleteFile(
+          current.content,
+          current.projection.analysisIndex,
+          fileId,
+        ),
       );
     },
     discardPendingChangesAndReload: base.discardPendingChangesAndReload,
@@ -202,9 +249,11 @@ export function createWorkspaceSessionController({
     start: base.start,
     subscribe: base.subscribe,
     updateSyntaxFileSource(fileId, source) {
+      const current = requireReady();
       return commitSyntaxMutation(
         syntaxMutations.updateFileSource(
-          requireReady().content,
+          current.content,
+          current.projection.analysisIndex,
           fileId,
           source,
         ),

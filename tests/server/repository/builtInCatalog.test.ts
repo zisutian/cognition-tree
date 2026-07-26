@@ -17,6 +17,9 @@ import type { JournalContentDto } from "../../../contracts/journal/types.ts";
 import type { TodoContentDto } from "../../../contracts/todo/types.ts";
 import { migrateTodoV3Content } from "../../../contracts/todo/migrations/todoV3ToV4.ts";
 import { renameTodoCollection } from "../../../core/todo/commands/todoCommands.ts";
+import {
+  createTodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex.ts";
 import { BuiltInCatalog } from "../../../infrastructure/server/repository/builtInCatalog.ts";
 import { createFileSystemTodoContentStore } from "../../../infrastructure/server/repository/todoContentStore.ts";
 import {
@@ -166,11 +169,15 @@ describe("filesystem built-in data catalog", () => {
       const first = createFileSystemTodoContentStore(contentPath);
       const second = createFileSystemTodoContentStore(contentPath);
       const concurrentBase = await first.loadSnapshot();
-      const renamed = renameTodoCollection(todoContent, {
+      const renamed = renameTodoCollection(
+        todoContent,
+        createTodoParseIndex(todoContent),
+        {
         collectionId: todoCollectionId(1),
         name: "另一个提交",
         updatedAt: todoTimestamp(2),
-      });
+        },
+      );
       const outcomes = await Promise.allSettled([
         first.commitSnapshot({
           baseRevision: concurrentBase.revision,

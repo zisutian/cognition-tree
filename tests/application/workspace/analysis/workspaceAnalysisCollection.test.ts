@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { startWorkspaceAnalysisCollection } from "../../../../application/workspace/analysis/workspaceAnalysisCollection";
 import type { WorkspaceAnalysis } from "../../../../application/workspace/analysis/workspaceAnalysis";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
 import { createWorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex";
 import {
@@ -16,14 +16,14 @@ function createIndex(sources: Array<{ id: string; source: string }>) {
       id,
       addTestCtnBlockMetadata(
         source,
-        defaultCtnSyntaxProfile,
+        defaultCtnSyntax,
         index * 100,
       ),
     )
   );
 
   return createWorkspaceParseIndex({
-    syntaxProfile: defaultCtnSyntaxProfile,
+    syntax: defaultCtnSyntax,
     workspace: createWorkspaceStructureIndex({
       ...createInitialWorkspaceData(),
       notes,
@@ -68,7 +68,11 @@ describe("workspace analysis collection", () => {
 
     expect(tasks).toHaveLength(1);
     tasks.shift()?.();
-    expect(index.parseCache.entriesById).toHaveLength(25);
+    expect(index.parseCache.entriesById).toHaveLength(26);
+    expect(updates.at(-1)).toEqual({
+      parsedCount: 25,
+      status: "collecting",
+    });
     expect(tasks).toHaveLength(1);
     drainScheduledTasks(tasks);
 
@@ -166,10 +170,13 @@ describe("workspace analysis collection", () => {
     ]);
     const tasks: Array<() => void> = [];
     const times = [0, 1, 9, 10, 11, 12];
+    const parsedCounts: number[] = [];
 
     startWorkspaceAnalysisCollection({
       index,
-      onUpdate: () => undefined,
+      onUpdate(analysis) {
+        parsedCounts.push(analysis.parsedNotesById.size);
+      },
       scheduler: {
         now: () => times.shift() ?? 12,
         schedule(task) {
@@ -181,7 +188,7 @@ describe("workspace analysis collection", () => {
 
     tasks.shift()?.();
 
-    expect(index.parseCache.entriesById).toHaveLength(2);
+    expect(parsedCounts).toEqual([0, 2]);
     expect(tasks).toHaveLength(1);
   });
 });

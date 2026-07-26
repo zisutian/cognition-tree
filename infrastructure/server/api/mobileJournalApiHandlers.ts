@@ -15,18 +15,16 @@ import type {
 } from "../../../core/ctn/parser/types.ts";
 import {
   createJournalEntryBodyProjection,
-  findJournalEntry,
   formatJournalEntryTitle,
   isJournalEntryId,
-  validateJournalContent,
   type JournalEntry,
 } from "../../../core/journal/model/journalContent.ts";
 import {
+  createJournalParseIndex,
+} from "../../../core/journal/indexes/journalParseIndex.ts";
+import {
   listJournalEntriesNewestFirst,
 } from "../../../core/journal/queries/journalQueries.ts";
-import {
-  requireJournalSyntaxProfile,
-} from "../../../core/journal/syntax/journalSyntax.ts";
 import type { BuiltInApiCatalog } from "./builtInApiHandlers.ts";
 import {
   MobileApiRequestError,
@@ -38,11 +36,11 @@ function projectCtnBlock(block: CtnCanonicalBlock): MobileCtnBlockDto {
   return {
     children: block.children.map(projectCtnBlock),
     id: block.id,
-    label: block.label,
+    label: block.rule.label,
     level: block.level,
     lineNumber: block.lineNumber,
     text: block.text,
-    type: block.type,
+    type: block.rule.semanticId,
   };
 }
 
@@ -94,11 +92,10 @@ async function loadJournal(catalog: BuiltInApiCatalog) {
   const snapshot = await catalog.getStore("journal").then((store) =>
     store.loadSnapshot()
   );
-  const content = validateJournalContent(
-    parseJournalContent(snapshot.content),
-  );
+  const content = parseJournalContent(snapshot.content);
+  const index = createJournalParseIndex(content);
 
-  return { content, revision: snapshot.revision };
+  return { content, index, revision: snapshot.revision };
 }
 
 export async function handleMobileJournalApiRoute({
@@ -113,7 +110,7 @@ export async function handleMobileJournalApiRoute({
   body: MobileJournalEntriesPageDto | MobileJournalEntryDto;
   statusCode: number;
 }> {
-  const { content, revision } = await loadJournal(catalog);
+  const { content, index, revision } = await loadJournal(catalog);
 
   if (route.kind === "mobile-journal-entries") {
     const { cursor, limit } = parseJournalQuery(url);
@@ -151,25 +148,27 @@ export async function handleMobileJournalApiRoute({
       { statusCode: 404 },
     );
   }
-  const entry = findJournalEntry(content, route.entryId);
+  const parsed = index.getParsedEntry(route.entryId);
 
-  if (!entry) {
+  if (!parsed) {
     throw new MobileApiRequestError(
       "not_found",
       "Journal entry does not exist",
       { statusCode: 404 },
     );
   }
-  const profile = requireJournalSyntaxProfile(content.syntaxSource);
-  const projection = createJournalEntryBodyProjection(entry, profile);
+  const projection = createJournalEntryBodyProjection(parsed);
 
   return {
     body: {
-      blocks: projection.document.roots
-        .filter(({ type }) => type !== profile.titleRule.type)
+      blocks: projection.analysis.document.roots
+        .filter(
+          (block) =>
+            block.rule.semanticId !== index.syntax.title.semanticId,
+        )
         .map(projectCtnBlock),
       contractVersion: cognitionMobileContractVersion,
-      entry: projectJournalSummary(entry),
+      entry: projectJournalSummary(parsed.entry),
       revision,
     },
     statusCode: 200,

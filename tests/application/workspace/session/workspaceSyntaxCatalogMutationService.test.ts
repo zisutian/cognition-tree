@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import { createWorkspaceSyntaxCatalogMutationService } from "../../../../application/workspace/session/workspaceSyntaxCatalogMutationService";
 import { createContent } from "./workspaceSessionTestFixture";
+import {
+  resolveWorkspaceSessionContent,
+} from "../../../../application/workspace/session/sessionRepositorySnapshot";
 
 const syntaxFileIds = [
   "syntax-00000000-0000-4000-8000-000000000002",
@@ -22,13 +25,25 @@ function createService() {
   });
 }
 
+function analysisIndex(content: ReturnType<typeof createContent>) {
+  return resolveWorkspaceSessionContent(content).analysisIndex;
+}
+
 describe("Workspace syntax catalog mutation service", () => {
   it("creates uniquely named inactive copies without mutating its input", () => {
     const service = createService();
     const content = createContent();
     const activeFileId = content.syntax.activeFileId!;
-    const first = service.createFile(content, activeFileId);
-    const second = service.createFile(first.content, activeFileId);
+    const first = service.createFile(
+      content,
+      analysisIndex(content),
+      activeFileId,
+    );
+    const second = service.createFile(
+      first.content,
+      analysisIndex(first.content),
+      activeFileId,
+    );
 
     expect(content.syntax.files).toHaveLength(1);
     expect(second.content.syntax).toMatchObject({
@@ -38,7 +53,7 @@ describe("Workspace syntax catalog mutation service", () => {
       }],
     });
     expect(second.content.syntax.files.map(({ source }) =>
-      parseWorkspaceSyntax(source).profile.name
+      parseWorkspaceSyntax(source).syntax.name
     )).toEqual([
       "默认 CTN 语法",
       "默认 CTN 语法 副本",
@@ -50,38 +65,68 @@ describe("Workspace syntax catalog mutation service", () => {
     const service = createService();
     const content = createContent();
     const originalFileId = content.syntax.activeFileId!;
-    const first = service.createFile(content, originalFileId);
-    const second = service.createFile(first.content, originalFileId);
-    const activated = service.activateFile(second.content, first.fileId);
+    const first = service.createFile(
+      content,
+      analysisIndex(content),
+      originalFileId,
+    );
+    const second = service.createFile(
+      first.content,
+      analysisIndex(first.content),
+      originalFileId,
+    );
+    const activated = service.activateFile(
+      second.content,
+      analysisIndex(second.content),
+      first.fileId,
+    );
 
     expect(activated?.content.syntax.activeFileId).toBe(first.fileId);
-    expect(service.activateFile(activated!.content, first.fileId)).toBeNull();
+    expect(service.activateFile(
+      activated!.content,
+      analysisIndex(activated!.content),
+      first.fileId,
+    )).toBeNull();
 
-    const deletedActive = service.deleteFile(activated!.content, first.fileId);
+    const deletedActive = service.deleteFile(
+      activated!.content,
+      analysisIndex(activated!.content),
+      first.fileId,
+    );
 
     expect(deletedActive.content.syntax.activeFileId).toBe(second.fileId);
-    const deletedNext = service.deleteFile(deletedActive.content, second.fileId);
+    const deletedNext = service.deleteFile(
+      deletedActive.content,
+      analysisIndex(deletedActive.content),
+      second.fileId,
+    );
 
     expect(deletedNext.content.syntax.activeFileId).toBe(originalFileId);
   });
 
-  it("rejects invalid sources and duplicate profile names before publishing", () => {
+  it("rejects invalid sources and duplicate syntax names before publishing", () => {
     const service = createService();
     const content = createContent();
     const activeFileId = content.syntax.activeFileId!;
-    const created = service.createFile(content, activeFileId);
+    const created = service.createFile(
+      content,
+      analysisIndex(content),
+      activeFileId,
+    );
     const originalSource = content.syntax.files[0]!.source;
 
     expect(() => service.updateFileSource(
       created.content,
+      analysisIndex(created.content),
       created.fileId,
       "name =",
     )).toThrow("Invalid workspace syntax source");
     expect(() => service.updateFileSource(
       created.content,
+      analysisIndex(created.content),
       created.fileId,
       originalSource,
-    )).toThrow(/duplicate workspace syntax profile name/i);
+    )).toThrow(/duplicate workspace syntax name/i);
     expect(created.content.syntax.files).toHaveLength(2);
   });
 });

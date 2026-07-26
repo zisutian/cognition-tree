@@ -1,6 +1,6 @@
 import {
   isWorkspaceSyntaxFileId,
-  normalizeWorkspaceSyntaxProfileName,
+  normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
 } from "../../core/workspace/model/workspaceSyntaxCatalog";
 import type { WorkspaceData } from "../../core/workspace/model/workspaceData";
@@ -49,7 +49,7 @@ export type RepositoryApiErrorCode =
   | "unauthorized"
   | "internal_error";
 
-export { isWorkspaceSyntaxFileId, normalizeWorkspaceSyntaxProfileName };
+export { isWorkspaceSyntaxFileId, normalizeWorkspaceSyntaxName };
 
 export type RemoteWorkspaceSnapshot = VersionedRemoteSnapshot<
   WorkspaceRepositoryContent,

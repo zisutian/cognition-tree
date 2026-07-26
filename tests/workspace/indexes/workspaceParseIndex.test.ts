@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
+import {
+  compileCtnSyntaxDefinition,
+} from "../../../core/ctn/syntax/compiler";
+import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import type { NoteRecord } from "../../../core/workspace/model/workspaceData";
 import {
   createWorkspaceParseIndex,
-  createWorkspaceParseIndexCache,
 } from "../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import {
@@ -15,10 +17,10 @@ import {
 
 function createParseIndexSource(
   notes: NoteRecord[],
-  syntaxProfile: CtnSyntaxProfile = defaultCtnSyntaxProfile,
+  syntax: CtnCompiledSyntax = defaultCtnSyntax,
 ) {
   return {
-    syntaxProfile,
+    syntax,
     workspace: createWorkspaceStructureIndex(createWorkspaceDataWithNotes(notes)),
   };
 }
@@ -31,12 +33,21 @@ function scanReferenceGraph(index: ReturnType<typeof createWorkspaceParseIndex>)
 }
 
 describe("createWorkspaceParseIndex", () => {
-  it("parses notes only when a parsed note is requested", () => {
+  it("owns one analysis per note and returns it without reparsing", () => {
     const note = createCanonicalTestNote("note-source", "Source [[Target]]");
     const index = createWorkspaceParseIndex(createParseIndexSource([note]));
+    const analysis = index.parseCache.entriesById.get(note.id)?.analysis;
 
-    expect(index.parseCache.entriesById.size).toBe(0);
-    expect(index.getParsedNote(note.id)?.document.blocks).toHaveLength(1);
+    expect(index.analysisStats).toEqual({
+      analyzedNoteIds: [note.id],
+      runCount: 1,
+      updatedBlockIdOwnerIds: [note.id],
+    });
+    expect(index.parseCache.entriesById.size).toBe(1);
+    expect(
+      index.getParsedNote(note.id)?.analysis.document.blocks,
+    ).toHaveLength(1);
+    expect(index.getParsedNote(note.id)?.analysis).toBe(analysis);
     expect(index.parseCache.entriesById.size).toBe(1);
     expect(index.getParsedNote("missing-note")).toBeNull();
   });
@@ -53,7 +64,7 @@ describe("createWorkspaceParseIndex", () => {
       createParseIndexSource([source, target]),
     );
 
-    expect(index.parseCache.entriesById.size).toBe(0);
+    expect(index.parseCache.entriesById.size).toBe(2);
     const graph = scanReferenceGraph(index);
 
     expect(graph.edges).toEqual([
@@ -64,6 +75,7 @@ describe("createWorkspaceParseIndex", () => {
       }),
     ]);
     expect(index.parseCache.entriesById.size).toBe(2);
+    expect(scanReferenceGraph(index)).toBe(graph);
   });
 
   it("reports duplicate-title references as ambiguous without an arbitrary edge", () => {
@@ -172,29 +184,39 @@ describe("createWorkspaceParseIndex", () => {
       firstIndex,
     );
 
-    expect(secondIndex.getParsedNote(source.id)?.document).toBe(
-      firstParsedSource?.document,
+    expect(secondIndex.analysisStats).toEqual({
+      analyzedNoteIds: [target.id],
+      runCount: 1,
+      updatedBlockIdOwnerIds: [target.id],
+    });
+    expect(secondIndex.getParsedNote(source.id)?.analysis.document).toBe(
+      firstParsedSource?.analysis.document,
     );
-    expect(secondIndex.getParsedNote(target.id)?.document).not.toBe(
-      firstParsedTarget?.document,
+    expect(secondIndex.getParsedNote(target.id)?.analysis.document).not.toBe(
+      firstParsedTarget?.analysis.document,
     );
+    expect(
+      secondIndex.blockIdRegistry.blockIdsByOwner.get(source.id),
+    ).toBe(firstIndex.blockIdRegistry.blockIdsByOwner.get(source.id));
+    expect(
+      secondIndex.blockIdRegistry.blockIdsByOwner.get(target.id),
+    ).not.toBe(firstIndex.blockIdRegistry.blockIdsByOwner.get(target.id));
   });
 
-  it("keeps parse reuse inside the cache and returns one index for one source", () => {
+  it("reuses unchanged note analyses between successive session indexes", () => {
     const note = createCanonicalTestNote("note-source", "Source");
-    const cache = createWorkspaceParseIndexCache();
     const source = createParseIndexSource([note]);
-    const firstIndex = cache.resolve(source);
+    const firstIndex = createWorkspaceParseIndex(source);
     const firstParsedNote = firstIndex.getParsedNote(note.id);
 
-    expect(cache.resolve(source)).toBe(firstIndex);
-
     const copiedSource = createParseIndexSource([{ ...note }]);
-    const secondIndex = cache.resolve(copiedSource);
+    const secondIndex = createWorkspaceParseIndex(copiedSource, firstIndex);
 
-    expect(secondIndex.getParsedNote(note.id)?.document).toBe(
-      firstParsedNote?.document,
+    expect(secondIndex.getParsedNote(note.id)?.analysis.sourceText).toBe(
+      firstParsedNote?.analysis.sourceText,
     );
+    expect(secondIndex.analysisStats.runCount).toBe(0);
+    expect(secondIndex.blockIdRegistry).toBe(firstIndex.blockIdRegistry);
   });
 
   it("supports incremental full-workspace scans", () => {
@@ -244,24 +266,27 @@ describe("createWorkspaceParseIndex", () => {
     expect(scanReferenceGraph(secondIndex)).toBe(firstGraph);
   });
 
-  it("reparses unchanged sources when the parse profile changes", () => {
+  it("reprojects unchanged sources without parsing when presentation changes", () => {
     const note = createCanonicalTestNote("note-source", "Source");
     const firstIndex = createWorkspaceParseIndex(createParseIndexSource([note]));
     const firstParsedNote = firstIndex.getParsedNote(note.id);
+    const definition = structuredClone(defaultCtnSyntax.definition);
+    definition.root!.label = "概念";
+    const result = compileCtnSyntaxDefinition(definition, "workspace");
+    if (!result.syntax) throw new Error("Invalid presentation test syntax");
     const secondIndex = createWorkspaceParseIndex(
-      createParseIndexSource([note], {
-        ...defaultCtnSyntaxProfile,
-        topLevelUnmarkedRule: {
-          ...defaultCtnSyntaxProfile.topLevelUnmarkedRule!,
-          label: "概念",
-        },
-      }),
+      createParseIndexSource([note], result.syntax),
       firstIndex,
     );
 
-    expect(secondIndex.getParsedNote(note.id)?.document).not.toBe(
-      firstParsedNote?.document,
+    expect(secondIndex.getParsedNote(note.id)?.analysis.sourceText).toBe(
+      firstParsedNote?.analysis.sourceText,
     );
+    expect(
+      secondIndex.getParsedNote(note.id)?.analysis.syntax.root?.label,
+    ).toBe("概念");
+    expect(secondIndex.analysisStats.runCount).toBe(0);
+    expect(secondIndex.blockIdRegistry).toBe(firstIndex.blockIdRegistry);
   });
 
   it("does not retain removed cache entries across 1,000 generations", () => {

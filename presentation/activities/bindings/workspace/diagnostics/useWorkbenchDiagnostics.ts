@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import type {
-  SyntaxProfileDraft,
-  SyntaxProfileDraftBuildResult,
-} from "../../../../../core/ctn/syntax/profileDraft";
+  CtnSyntaxDraft,
+  CtnSyntaxDraftBuildResult,
+} from "../../../../../core/ctn/syntax/draft";
 import type { WorkspaceAnalysis } from "../../../../../application/workspace/analysis/workspaceAnalysis";
 import {
   createUiSyntaxDiagnostics,
@@ -54,8 +54,8 @@ export function useWorkbenchDiagnostics({
   isSyntaxConfigured: boolean;
   portableNameDiagnostics: UiWorkbenchDiagnostic[];
   syntaxCatalogNameConflictMessage: string;
-  syntaxDraft: SyntaxProfileDraft;
-  syntaxDraftResult: SyntaxProfileDraftBuildResult;
+  syntaxDraft: CtnSyntaxDraft;
+  syntaxDraftResult: CtnSyntaxDraftBuildResult;
 }) {
   const syntaxDiagnostics = useMemo(
     () => activeSyntaxFileId

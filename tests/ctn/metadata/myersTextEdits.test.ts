@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { analyzeCtnSource } from "../../../core/ctn/analysis/sourceAnalysis";
 import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits";
 import { reconcileCtnSourceBlockMetadata } from "../../../core/ctn/metadata/reconcileSourceMetadata";
 import { initializeCtnSourceBlockMetadata } from "../../../core/ctn/metadata/sourceMetadata";
 import { applyCtnTextEdits } from "../../../core/ctn/metadata/textEdits";
-import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { readCanonicalTestDocument } from "../analysis/analysisTestHelpers";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 
 function expectValidEdits(
   previousSource: string,
@@ -104,7 +105,7 @@ describe("createMyersTextEdits", () => {
     const previousEditableSource = "Title\n\t- alpha\n\t- beta";
     const previousCanonicalSource = initializeCtnSourceBlockMetadata(
       previousEditableSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       {
         createdAt: "2026-01-01T00:00:00.000Z",
         createId,
@@ -117,23 +118,34 @@ describe("createMyersTextEdits", () => {
       previousEditableSource,
       nextEditableSource,
     );
-    const previousDocument = parseCtnCanonicalDocument(
+    const previousDocument = readCanonicalTestDocument(
       previousCanonicalSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
+    const previousAnalysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: previousCanonicalSource,
+      syntax: defaultCtnSyntax,
+    });
+    const candidateAnalysis = analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: nextEditableSource,
+      syntax: defaultCtnSyntax,
+    });
     const nextCanonicalSource = reconcileCtnSourceBlockMetadata(
-      previousCanonicalSource,
+      previousAnalysis,
+      candidateAnalysis,
       { edits, source: nextEditableSource },
-      defaultCtnSyntaxProfile,
       {
         createId,
         reservedIds: new Set(),
         timestamp: "2026-01-02T00:00:00.000Z",
+        touchTitle: true,
       },
-    );
-    const nextDocument = parseCtnCanonicalDocument(
+    ).source;
+    const nextDocument = readCanonicalTestDocument(
       nextCanonicalSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
 
     expect(nextDocument.blocks[2]?.id).toBe(previousDocument.blocks[2]?.id);

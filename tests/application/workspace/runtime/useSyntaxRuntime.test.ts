@@ -1,30 +1,41 @@
 import { describe, expect, it, vi } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
-import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
+import { createCtnSyntaxDraft } from "../../../../core/ctn/syntax/draft";
+import { formatCtnSyntaxV2 } from "../../../../core/ctn/syntax/formatter";
+import { compileCtnSyntaxDefinition } from "../../../../core/ctn/syntax/compiler";
 import {
   findSyntaxCatalogNameConflict,
-  isCurrentSyntaxPersistenceCompletion,
-  resolveSyntaxDraftAfterPersistence,
   startSyntaxCatalogMutation,
-  startSyntaxDraftPersistence,
-  startSyntaxFileDraftPersistence,
 } from "../../../../presentation/activities/bindings/workspace/runtime/useSyntaxRuntime";
+import {
+  isCurrentSyntaxPersistenceCompletion,
+  resolveCtnSyntaxDraftAfterSourceChange,
+  startCtnSyntaxDraftPersistence,
+} from "../../../../presentation/activities/bindings/syntax/syntaxDraftPersistence";
 
-const renamedSyntaxProfile = {
-  ...defaultCtnSyntaxProfile,
+const renamedResult = compileCtnSyntaxDefinition({
+  ...structuredClone(defaultCtnSyntax.definition),
   name: "重命名语法",
-};
+}, "workspace");
+if (!renamedResult.syntax) throw new Error("Invalid renamed test syntax.");
+const renamedSyntax = renamedResult.syntax;
+
+function formatWorkspaceSyntax(
+  syntax = defaultCtnSyntax,
+) {
+  return formatCtnSyntaxV2(syntax.definition, "workspace");
+}
 
 describe("startSyntaxDraftPersistence", () => {
   it("starts persistence synchronously for a valid changed draft", async () => {
-    const draft = createSyntaxProfileDraft(renamedSyntaxProfile);
-    const expectedSource = formatSyntaxProfileToml(renamedSyntaxProfile);
+    const draft = createCtnSyntaxDraft(renamedSyntax);
+    const expectedSource = formatWorkspaceSyntax(renamedSyntax);
     const persistedSources: string[] = [];
 
-    const persistence = startSyntaxDraftPersistence({
+    const persistence = startCtnSyntaxDraftPersistence({
       draft,
-      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+      lastPersistedSource: formatWorkspaceSyntax(),
+      owner: "workspace",
       persist: (source) => {
         persistedSources.push(source);
         return Promise.resolve();
@@ -39,12 +50,13 @@ describe("startSyntaxDraftPersistence", () => {
   it("does not persist an invalid draft", () => {
     const persist = vi.fn(() => Promise.resolve());
 
-    const persistence = startSyntaxDraftPersistence({
+    const persistence = startCtnSyntaxDraftPersistence({
       draft: {
-        ...createSyntaxProfileDraft(defaultCtnSyntaxProfile),
+        ...createCtnSyntaxDraft(defaultCtnSyntax),
         name: "",
       },
-      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+      lastPersistedSource: formatWorkspaceSyntax(),
+      owner: "workspace",
       persist,
     });
 
@@ -55,9 +67,10 @@ describe("startSyntaxDraftPersistence", () => {
   it("turns a synchronous persistence throw into a rejected completion", async () => {
     const failure = new Error("synchronous failure");
 
-    const persistence = startSyntaxDraftPersistence({
-      draft: createSyntaxProfileDraft(renamedSyntaxProfile),
-      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+    const persistence = startCtnSyntaxDraftPersistence({
+      draft: createCtnSyntaxDraft(renamedSyntax),
+      lastPersistedSource: formatWorkspaceSyntax(),
+      owner: "workspace",
       persist: () => {
         throw failure;
       },
@@ -88,45 +101,52 @@ describe("syntax catalog name conflicts", () => {
       { id: "syntax-active", name: "Current" },
       { id: "syntax-other", name: "Ａｌｐｈａ" },
     ];
-    const conflictingDraft = createSyntaxProfileDraft({
-      ...defaultCtnSyntaxProfile,
+    const conflictingResult = compileCtnSyntaxDefinition({
+      ...structuredClone(defaultCtnSyntax.definition),
       name: "  ALPHA  ",
-    });
+    }, "workspace");
+    if (!conflictingResult.syntax) throw new Error("Invalid conflict syntax.");
+    const conflictingDraft = createCtnSyntaxDraft(conflictingResult.syntax);
 
     expect(findSyntaxCatalogNameConflict({
       selectedFileId: "syntax-active",
       candidateName: "  ALPHA  ",
       files,
     })).toContain("重名");
-    const blockedPersistence = startSyntaxFileDraftPersistence({
+    const conflictMessage = findSyntaxCatalogNameConflict({
       selectedFileId: "syntax-active",
-      draft: conflictingDraft,
+      candidateName: conflictingResult.syntax.name,
       files,
-      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+    });
+    const blockedPersistence = startCtnSyntaxDraftPersistence({
+      canPersist: !conflictMessage,
+      draft: conflictingDraft,
+      lastPersistedSource: formatWorkspaceSyntax(),
+      owner: "workspace",
       persist,
     });
 
-    expect(blockedPersistence.catalogNameConflictMessage).toContain("重名");
+    expect(conflictMessage).toContain("重名");
     expect(blockedPersistence.completion).toBeNull();
     expect(persist).not.toHaveBeenCalled();
     await expect(startSyntaxCatalogMutation({
-      draftIsValid: !blockedPersistence.catalogNameConflictMessage,
+      draftIsValid: !conflictMessage,
       mutate,
     })).rejects.toThrow("请先修复或撤销");
     expect(mutate).not.toHaveBeenCalled();
 
-    const fixedPersistence = startSyntaxFileDraftPersistence({
-      selectedFileId: "syntax-active",
-      draft: createSyntaxProfileDraft({
-        ...defaultCtnSyntaxProfile,
-        name: "Beta",
-      }),
-      files,
-      lastPersistedSource: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+    const fixedPersistence = startCtnSyntaxDraftPersistence({
+      draft: createCtnSyntaxDraft(
+        compileCtnSyntaxDefinition({
+          ...structuredClone(defaultCtnSyntax.definition),
+          name: "Beta",
+        }, "workspace").syntax!,
+      ),
+      lastPersistedSource: formatWorkspaceSyntax(),
+      owner: "workspace",
       persist,
     });
 
-    expect(fixedPersistence.catalogNameConflictMessage).toBe("");
     await expect(fixedPersistence.completion).resolves.toBeUndefined();
     expect(persist).toHaveBeenCalledTimes(1);
     await expect(startSyntaxCatalogMutation({
@@ -139,14 +159,15 @@ describe("syntax catalog name conflicts", () => {
 
 describe("resolveSyntaxDraftAfterPersistence", () => {
   it("keeps a draft that already matches the persisted source", () => {
-    const currentDraft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
-    const syntaxSource = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+    const currentDraft = createCtnSyntaxDraft(defaultCtnSyntax);
+    const syntaxSource = formatWorkspaceSyntax();
 
     expect(
-      resolveSyntaxDraftAfterPersistence({
+      resolveCtnSyntaxDraftAfterSourceChange({
         currentDraft,
+        owner: "workspace",
         previousPersistedSource: syntaxSource,
-        syntaxProfile: defaultCtnSyntaxProfile,
+        syntax: defaultCtnSyntax,
         syntaxSource,
       }),
     ).toBe(currentDraft);
@@ -194,34 +215,32 @@ describe("resolveSyntaxDraftAfterPersistence", () => {
   });
 
   it("updates a clean draft when an external persisted profile changes", () => {
-    const currentDraft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    const currentDraft = createCtnSyntaxDraft(defaultCtnSyntax);
 
     expect(
-      resolveSyntaxDraftAfterPersistence({
+      resolveCtnSyntaxDraftAfterSourceChange({
         currentDraft,
-        previousPersistedSource: formatSyntaxProfileToml(
-          defaultCtnSyntaxProfile,
-        ),
-        syntaxProfile: renamedSyntaxProfile,
-        syntaxSource: formatSyntaxProfileToml(renamedSyntaxProfile),
+        owner: "workspace",
+        previousPersistedSource: formatWorkspaceSyntax(),
+        syntax: renamedSyntax,
+        syntaxSource: formatWorkspaceSyntax(renamedSyntax),
       }).name,
     ).toBe("重命名语法");
   });
 
   it("does not overwrite a diverged invalid draft after persistence", () => {
     const currentDraft = {
-      ...createSyntaxProfileDraft(defaultCtnSyntaxProfile),
+      ...createCtnSyntaxDraft(defaultCtnSyntax),
       name: "",
     };
 
     expect(
-      resolveSyntaxDraftAfterPersistence({
+      resolveCtnSyntaxDraftAfterSourceChange({
         currentDraft,
-        previousPersistedSource: formatSyntaxProfileToml(
-          defaultCtnSyntaxProfile,
-        ),
-        syntaxProfile: renamedSyntaxProfile,
-        syntaxSource: formatSyntaxProfileToml(renamedSyntaxProfile),
+        owner: "workspace",
+        previousPersistedSource: formatWorkspaceSyntax(),
+        syntax: renamedSyntax,
+        syntaxSource: formatWorkspaceSyntax(renamedSyntax),
       }),
     ).toBe(currentDraft);
   });

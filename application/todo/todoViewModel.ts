@@ -3,7 +3,7 @@
 import type { CtnBlockMetadata } from "../../core/ctn/metadata/blockMetadata";
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import type { CtnCanonicalBlock } from "../../core/ctn/parser/types";
-import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex";
 import {
   createTodoCollectionBodyProjection,
@@ -91,7 +91,7 @@ export type TodoViewModel = TodoMutationActions & {
     focusTarget: { lineNumber: number; requestId: number } | null;
     onActiveLineChange: (lineNumber: number) => void;
     onConsumeFocusTarget: (requestId: number) => void;
-    syntaxProfile: CtnSyntaxProfile;
+    syntax: CtnCompiledSyntax;
     updateBody: (change: CtnEditableSourceChange) => void;
   };
   navigation: {
@@ -109,7 +109,7 @@ export type TodoViewModel = TodoMutationActions & {
   persistence: TodoPersistenceState;
   selectCollection: (collectionId: TodoCollectionId) => void;
   syntax: {
-    profile: CtnSyntaxProfile;
+    syntax: CtnCompiledSyntax;
     source: string;
     updateSource: (source: string) => void;
   };
@@ -154,7 +154,7 @@ function createTodoBlockNodes({
   const visit = (block: CtnCanonicalBlock): TodoBlockView[] => {
     const children = block.children.flatMap(visit);
 
-    if (block.type !== todoItemSemanticType) return children;
+    if (block.rule.semanticId !== todoItemSemanticType) return children;
     const recurrence = recurrenceById.get(block.id) ?? null;
     const completedAt = recurrence?.occurrenceActive
       ? recurrence.completedAt
@@ -166,7 +166,7 @@ function createTodoBlockNodes({
       endLineNumber: projectLineNumber(block.subtreeEndLineNumber),
       hasDiagnostics: block.diagnostics.length > 0,
       id: block.id,
-      label: block.label,
+      label: block.rule.label,
       level: block.level,
       lineNumber: projectLineNumber(block.lineNumber),
       metadata: block.metadata,
@@ -224,10 +224,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     ? index.getParsedCollection(activeCollectionId)
     : null;
   const activeProjection = activeParsed
-    ? createTodoCollectionBodyProjection(
-        activeParsed.collection,
-        index.syntaxProfile,
-      )
+    ? createTodoCollectionBodyProjection(activeParsed)
     : null;
   const completionById = new Map(
     activeParsed?.collection.completions.map(({ blockId, completedAt }) => [
@@ -254,8 +251,8 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
   );
   const projectLineNumber = (lineNumber: number) =>
     activeProjection?.projectCanonicalLineNumber(lineNumber) ?? lineNumber;
-  const bodyRoots = activeParsed?.document.roots.filter(
-    ({ type }) => type !== index.syntaxProfile.titleRule.type,
+  const bodyRoots = activeParsed?.analysis.document.roots.filter(
+    (block) => block.rule.semanticId !== index.syntax.title.semanticId,
   ) ?? [];
   const outlineNodes = createTodoBlockNodes({
     blocks: bodyRoots,
@@ -271,16 +268,20 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     ...actions,
     activeCollection: activeParsed
       ? {
-          createdAt: activeParsed.document.blocks[0]!.metadata.createdAt,
+          createdAt:
+            activeParsed.analysis.document.blocks[0]!.metadata.createdAt,
           id: activeParsed.collection.id,
           name: activeParsed.name,
-          updatedAt: activeParsed.document.blocks[0]!.metadata.updatedAt,
+          updatedAt:
+            activeParsed.analysis.document.blocks[0]!.metadata.updatedAt,
         }
       : null,
     collections: index.collections.map((parsed) => {
       const itemIds = new Set(
-        parsed.document.blocks
-          .filter(({ type }) => type === todoItemSemanticType)
+        parsed.analysis.document.blocks
+          .filter(
+            (block) => block.rule.semanticId === todoItemSemanticType,
+          )
           .map(({ id }) => id),
       );
 
@@ -302,18 +303,20 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
             ? recurrence.completed
             : ordinaryCompletedIds.has(blockId);
         }).length,
-        createdAt: parsed.document.blocks[0]!.metadata.createdAt,
+        createdAt: parsed.analysis.document.blocks[0]!.metadata.createdAt,
         id: parsed.collection.id,
         isActive: parsed.collection.id === activeCollectionId,
         itemCount: itemIds.size,
         name: parsed.name,
-        updatedAt: parsed.document.blocks[0]!.metadata.updatedAt,
+        updatedAt: parsed.analysis.document.blocks[0]!.metadata.updatedAt,
       };
     }),
     diagnostics: createTodoDiagnostics(index),
     editor: {
-      checkableBlocks: activeParsed?.document.blocks
-        .filter(({ type }) => type === todoItemSemanticType)
+      checkableBlocks: activeParsed?.analysis.document.blocks
+        .filter(
+          (block) => block.rule.semanticId === todoItemSemanticType,
+        )
         .map((block) => {
           const recurrence = recurrenceById.get(block.id);
 
@@ -346,7 +349,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
         : null,
       onActiveLineChange: updateActiveBodyLine,
       onConsumeFocusTarget: consumeFocusRequest,
-      syntaxProfile: index.syntaxProfile,
+      syntax: index.syntax,
       updateBody(change) {
         if (activeCollectionId) {
           actions.updateCollectionBody(activeCollectionId, change);
@@ -368,7 +371,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     persistence,
     selectCollection,
     syntax: {
-      profile: index.syntaxProfile,
+      syntax: index.syntax,
       source: content.syntaxSource,
       updateSource: actions.updateSyntaxSource,
     },

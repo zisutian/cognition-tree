@@ -11,7 +11,7 @@ import {
 } from "../../../ui/shared/primitives";
 import {
   InlineRuleRows,
-  MarkerRuleRows,
+  BlockRuleRows,
   SyntaxRuleHeader,
   SyntaxSettingsGroup,
   TitleAndRootRows,
@@ -38,7 +38,8 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
       (candidate) => candidate.dataset.syntaxFieldId === fieldId,
     );
     const fallback = [...fields].find(
-      (candidate) => candidate.dataset.syntaxFieldId === syntaxFieldIds.root,
+      (candidate) =>
+        candidate.dataset.syntaxFieldId === syntaxFieldIds.viewRoot,
     );
     const target = field ?? fallback;
 
@@ -67,7 +68,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
     <Panel
       className="syntax-panel"
       aria-label="语法配置"
-      data-syntax-field-id={syntaxFieldIds.root}
+      data-syntax-field-id={syntaxFieldIds.viewRoot}
       tabIndex={-1}
     >
       <PanelHeader
@@ -108,18 +109,18 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             </label>
           </SyntaxSettingsGroup>
           <SyntaxSettingsGroup
-            fieldId={syntaxFieldIds.markerRuleGroup}
+            fieldId={syntaxFieldIds.blockRuleGroup}
             title="块规则"
           >
             <SyntaxRuleHeader />
             <TitleAndRootRows syntax={syntax} />
-            <MarkerRuleRows syntax={syntax} />
+            <BlockRuleRows syntax={syntax} />
           </SyntaxSettingsGroup>
           <SyntaxSettingsGroup
             fieldId={syntaxFieldIds.inlineRuleGroup}
             title="行内规则"
           >
-            <SyntaxRuleHeader />
+            <SyntaxRuleHeader inline />
             <InlineRuleRows syntax={syntax} />
           </SyntaxSettingsGroup>
         </div>

@@ -230,7 +230,7 @@ describe("dependency boundaries", () => {
       "../../application/workspace/session/workspaceSyntaxCatalogMutationService.ts",
     );
     expect(controller).not.toMatch(
-      /parseWorkspaceSyntax|normalizeWorkspaceSyntaxProfileName|reconcileWorkspaceSyntaxBlockMetadata/,
+      /parseWorkspaceSyntax|normalizeWorkspaceSyntaxName|reconcileWorkspaceSyntaxBlockMetadata/,
     );
   });
 
@@ -263,7 +263,7 @@ describe("dependency boundaries", () => {
 
     expect(externalCtnParsers).toEqual([]);
     expect(tomlParserOwners).toEqual([
-      "../../core/ctn/syntax/profileTomlParser.ts",
+      "../../core/ctn/syntax/compiler.ts",
     ]);
     expect(Object.keys(portableNameModules)).toEqual([
       "../../core/naming/portableName.ts",

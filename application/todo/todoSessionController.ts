@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  validateTodoContent,
   type TodoContent,
-  type TodoContentValue,
 } from "../../core/todo/model/todoContent";
 import type {
   BuiltInLocalDraftRevision,
@@ -15,10 +13,14 @@ import {
   type VersionedSessionState,
 } from "../persistence/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+import {
+  createTodoParseIndex,
+  type TodoParseIndex,
+} from "../../core/todo/indexes/todoParseIndex";
 
 export type TodoSessionState = VersionedSessionState<
   TodoContent,
-  TodoContent,
+  TodoParseIndex,
   TodoRevision,
   BuiltInLocalDraftRevision,
   TodoRepository["location"]
@@ -32,10 +34,17 @@ export function createTodoSessionController(
   repository: TodoRepository | null,
   scheduler: Pick<ApplicationScheduler, "schedule">,
 ) {
+  let previousIndex: TodoParseIndex | null = null;
+
   return createVersionedSessionController({
     label: "Todo",
-    parseContent: (value) => validateTodoContent(value as TodoContentValue),
-    prepareContent: (content) => content,
+    parseContent: (value) => value as TodoContent,
+    prepareContent(content) {
+      const index = createTodoParseIndex(content, previousIndex);
+
+      previousIndex = index;
+      return index;
+    },
     repository,
     scheduler,
   });

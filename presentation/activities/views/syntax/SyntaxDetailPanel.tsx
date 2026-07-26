@@ -21,13 +21,13 @@ import {
 function SyntaxRenderLine({
   inline = false,
   marker,
-  textColor,
+  textColor = "default",
   tone,
   value,
 }: {
   inline?: boolean;
   marker: string;
-  textColor: UiSyntaxTone;
+  textColor?: UiSyntaxTone;
   tone: UiSyntaxTone;
   value: string;
 }) {
@@ -38,16 +38,16 @@ function SyntaxRenderLine({
       className={cx(
         "syntax-render-line",
         toneClassName,
+        inline && "is-inline",
       )}
-      style={createToneStyle(tone, textColor)}
+      style={createToneStyle(tone, inline ? "default" : textColor)}
     >
       <span className="syntax-render-marker">{marker}</span>
       <span
         className={cx(
           "syntax-render-text",
-          getTextColorClassName(textColor),
+          !inline && getTextColorClassName(textColor),
           inline && "block-text-inline",
-          inline && toneClassName,
         )}
       >
         {value}
@@ -81,23 +81,24 @@ export function SyntaxDetailPanel({
       />
       <PanelBody className="detail-panel-stack" scroll>
         <div aria-label="语法预览内容" className="syntax-render-list">
-          {view.selectedTarget.kind === "workspace-file" ? (
+          {view.selectedTarget.kind === "workspace-file" &&
+              view.draft.title ? (
             <SyntaxRenderLine
               marker="T"
-              textColor={view.draft.titleRule.textColor}
-              tone={view.draft.titleRule.tone}
+              textColor={view.draft.title.textColor}
+              tone={view.draft.title.tone}
               value="首行标题示例"
             />
           ) : null}
-          {view.draft.topLevelUnmarkedRule && view.rootRuleLabel ? (
+          {view.draft.root && view.rootRuleLabel ? (
             <SyntaxRenderLine
               marker={view.selectedTarget.kind === "journal" ? "B" : "C"}
-              textColor={view.draft.topLevelUnmarkedRule.textColor}
-              tone={view.draft.topLevelUnmarkedRule.tone}
+              textColor={view.draft.root.textColor}
+              tone={view.draft.root.tone}
               value={`${view.rootRuleLabel}示例`}
             />
           ) : null}
-          {view.draft.markerRules.map((rule) => (
+          {view.draft.blocks.map((rule) => (
             <SyntaxRenderLine
               key={rule.id}
               marker={rule.marker || "·"}
@@ -106,12 +107,11 @@ export function SyntaxDetailPanel({
               value={`${rule.label}示例`}
             />
           ))}
-          {view.draft.inlineRules.map((rule) => (
+          {view.draft.inline.map((rule) => (
             <SyntaxRenderLine
               inline
               key={rule.id}
               marker={getInlinePreviewMarker(rule)}
-              textColor={rule.textColor}
               tone={rule.tone}
               value={getInlinePreviewValue(rule)}
             />

@@ -1,42 +1,92 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CtnEditableBlock } from "../../core/ctn/parser/types";
+import type {
+  CtnEditableBlock,
+  CtnInlineSpan,
+  CtnResolvedBlockRule,
+} from "../../core/ctn/parser/types";
 import {
   CtnCheckboxWidget,
   getBlockLineDecorationClass,
   getBlockLineDecorationStyle,
   getInlineDecorationStyle,
   getInlineDecorationClass,
+  getInlineSymbolDecorationClass,
+  getInlineSymbolOffsets,
   getMarkerDecorationStyle,
   getMarkerDecorationClass,
-  getMultilineMarkDecorationClass,
-  getMultilineMarkDecorationStyle,
   shouldDecorateMarker,
 } from "../../presentation/editor/ctnDecorations";
 
-function createBlock(
-  overrides: Partial<CtnEditableBlock>,
-): CtnEditableBlock {
+type BlockOverrides = Omit<Partial<CtnEditableBlock>, "rule"> & {
+  kind?: CtnResolvedBlockRule["kind"];
+  label?: string;
+  rule?: Partial<CtnResolvedBlockRule>;
+  semanticId?: string;
+  textColor?: CtnResolvedBlockRule["textColor"];
+  tone?: CtnResolvedBlockRule["tone"];
+};
+
+function createBlock(overrides: BlockOverrides): CtnEditableBlock {
+  const {
+    kind = "line",
+    label = "定义",
+    rule,
+    semanticId = "definition",
+    textColor = "green",
+    tone = "green",
+    ...blockOverrides
+  } = overrides;
+
   return {
     children: [],
     contentFingerprint: ": Definition",
     diagnostics: [],
     indentText: "",
     inlineSpans: [],
-    label: "定义",
     level: 0,
     lexicalEndLineNumber: 1,
     lineNumber: 1,
     marker: ":",
     multilineRange: null,
-    role: "normal",
     rawText: ": Definition",
+    rule: {
+      kind,
+      label,
+      marker: blockOverrides.marker ?? ":",
+      semanticId,
+      textColor,
+      tone,
+      ...rule,
+    } as CtnResolvedBlockRule,
     subtreeEndLineNumber: 1,
     text: "Definition",
-    textColor: "green",
     textStartColumn: 3,
-    tone: "green",
-    type: "definition",
-    ...overrides,
+    ...blockOverrides,
+  };
+}
+
+function createInline(
+  overrides: {
+    label?: string;
+    semanticId?: string;
+    textColor?: CtnInlineSpan["rule"]["textColor"];
+    tone?: CtnInlineSpan["rule"]["tone"];
+  } = {},
+): CtnInlineSpan {
+  return {
+    endColumn: 8,
+    id: "inline-1",
+    lineNumber: 1,
+    rule: {
+      kind: "single",
+      label: overrides.label ?? "自定义",
+      marker: "|",
+      semanticId: overrides.semanticId ?? "custom-inline",
+      textColor: overrides.textColor ?? "blue",
+      tone: overrides.tone ?? "violet",
+    },
+    startColumn: 1,
+    text: "value",
   };
 }
 
@@ -136,7 +186,7 @@ describe("ctn editor decorations", () => {
           ],
           label: "未知符号",
           marker: ":",
-          type: "text",
+          semanticId: "text",
         }),
       ),
     ).toBe(false);
@@ -148,7 +198,7 @@ describe("ctn editor decorations", () => {
         createBlock({
           textColor: "blue",
           tone: "red",
-          type: "custom-risk",
+          semanticId: "custom-risk",
         }),
       ),
     ).toBe("ctn-marker ctn-text-color-blue");
@@ -158,10 +208,10 @@ describe("ctn editor decorations", () => {
     expect(
       getBlockLineDecorationClass(
         createBlock({
-          role: "multiline",
+          kind: "multiline",
           textColor: "green",
           tone: "gray",
-          type: "multiline-block",
+          semanticId: "multiline-block",
         }),
       ),
     ).toBe("ctn-line ctn-tone-gray");
@@ -185,9 +235,9 @@ describe("ctn editor decorations", () => {
             contentStartLineNumber: 2,
             status: "closed",
           },
-          role: "multiline",
+          kind: "multiline",
           tone: "gray",
-          type: "multiline-block",
+          semanticId: "multiline-block",
         }),
         2,
       ),
@@ -204,12 +254,22 @@ describe("ctn editor decorations", () => {
   it("applies concept emphasis by semantic type rather than line shape", () => {
     expect(
       getBlockLineDecorationClass(
-        createBlock({ level: 0, marker: null, tone: "blue", type: "body" }),
+        createBlock({
+          level: 0,
+          marker: null,
+          semanticId: "body",
+          tone: "blue",
+        }),
       ),
     ).toBe("ctn-line ctn-tone-blue");
     expect(
       getBlockLineDecorationClass(
-        createBlock({ level: 1, marker: ":", tone: "blue", type: "concept" }),
+        createBlock({
+          level: 1,
+          marker: ":",
+          semanticId: "concept",
+          tone: "blue",
+        }),
       ),
     ).toBe("ctn-line ctn-tone-blue ctn-line-concept");
   });
@@ -217,112 +277,70 @@ describe("ctn editor decorations", () => {
   it("marks the semantic title line for strong editor typography", () => {
     expect(
       getBlockLineDecorationClass(
-        createBlock({ marker: null, tone: "default", type: "title" }),
+        createBlock({
+          marker: null,
+          semanticId: "title",
+          tone: "default",
+        }),
       ),
     ).toBe("ctn-line ctn-tone-default ctn-line-title");
   });
 
-  it("keeps inline tone and text color separate", () => {
-    expect(
-      getInlineDecorationClass({
-        endColumn: 8,
-        id: "inline-1",
-        label: "自定义",
-        lineNumber: 1,
-        startColumn: 1,
-        text: "value",
-        textColor: "blue",
-        tone: "violet",
-        type: "custom-inline",
-      }),
-    ).toBe("ctn-inline ctn-tone-violet ctn-text-color-blue");
+  it("uses one inline tone for the underline and syntax symbols", () => {
+    const single = createInline({
+      textColor: "blue",
+      tone: "violet",
+    });
+    const paired: CtnInlineSpan = {
+      ...single,
+      rule: {
+        close: "]]",
+        kind: "paired",
+        label: "引用",
+        open: "[[",
+        semanticId: "global-reference",
+        textColor: "cyan",
+        tone: "blue",
+      },
+    };
+
+    expect(getInlineDecorationClass(single)).toBe(
+      "ctn-inline ctn-tone-violet",
+    );
+    expect(getInlineSymbolDecorationClass(single)).toBe(
+      "ctn-inline-symbol ctn-tone-violet",
+    );
+    expect(getInlineSymbolOffsets(single, "left|right")).toEqual([
+      { from: 4, to: 5 },
+    ]);
+    expect(getInlineSymbolOffsets(paired, "[[Target]]")).toEqual([
+      { from: 0, to: 2 },
+      { from: 8, to: 10 },
+    ]);
+    expect(getInlineSymbolOffsets(paired, "Target")).toEqual([]);
   });
 
-  it("uses custom text color classes and CSS variables for hex colors", () => {
+  it("uses custom color variables without applying inline font color", () => {
     const block = createBlock({
       textColor: "#cc8844",
       tone: "#4455aa",
-      type: "custom-risk",
+      semanticId: "custom-risk",
     });
 
     expect(getMarkerDecorationClass(block)).toBe("ctn-marker ctn-text-color-custom");
     expect(getMarkerDecorationStyle(block)).toBe("--ctn-text-color: #cc8844;");
     expect(
-      getInlineDecorationClass({
-        endColumn: 8,
-        id: "inline-1",
-        label: "自定义",
-        lineNumber: 1,
-        startColumn: 1,
-        text: "value",
+      getInlineDecorationClass(createInline({
         textColor: "#cc8844",
         tone: "#4455aa",
-        type: "custom-inline",
-      }),
-    ).toBe("ctn-inline ctn-tone-custom ctn-text-color-custom");
+      })),
+    ).toBe("ctn-inline ctn-tone-custom");
     expect(
-      getInlineDecorationStyle({
-        endColumn: 8,
-        id: "inline-1",
-        label: "自定义",
-        lineNumber: 1,
-        startColumn: 1,
-        text: "value",
+      getInlineDecorationStyle(createInline({
         textColor: "#cc8844",
         tone: "#4455aa",
-        type: "custom-inline",
-      }),
-    ).toBe("--ctn-tone-color: #4455aa; --ctn-text-color: #cc8844;");
+      })),
+    ).toBe("--ctn-tone-color: #4455aa;");
   });
 
-  it("applies text color classes across multiline block marks", () => {
-    const block = createBlock({
-      lexicalEndLineNumber: 4,
-      lineNumber: 1,
-      multilineRange: {
-        closingFenceLineNumber: 4,
-        contentEndLineNumber: 3,
-        contentStartLineNumber: 2,
-        status: "closed",
-      },
-      role: "multiline",
-      textColor: "green",
-      tone: "gray",
-      type: "multiline-block",
-    });
-
-    expect(getMultilineMarkDecorationClass(block, 1)).toBe(
-      "ctn-multiline-block-mark ctn-text-color-green ctn-multiline-block-start",
-    );
-    expect(getMultilineMarkDecorationClass(block, 2)).toBe(
-      "ctn-multiline-block-mark ctn-text-color-green",
-    );
-    expect(getMultilineMarkDecorationClass(block, 4)).toBe(
-      "ctn-multiline-block-mark ctn-text-color-green ctn-multiline-block-end",
-    );
-    expect(getMultilineMarkDecorationStyle(block)).toBeUndefined();
-  });
-
-  it("applies custom text color styles across multiline block marks", () => {
-    const block = createBlock({
-      lexicalEndLineNumber: 3,
-      lineNumber: 1,
-      multilineRange: {
-        closingFenceLineNumber: 3,
-        contentEndLineNumber: 2,
-        contentStartLineNumber: 2,
-        status: "closed",
-      },
-      role: "multiline",
-      textColor: "#cc8844",
-      type: "multiline-block",
-    });
-
-    expect(getMultilineMarkDecorationClass(block, 2)).toBe(
-      "ctn-multiline-block-mark ctn-text-color-custom",
-    );
-    expect(getMultilineMarkDecorationStyle(block)).toBe(
-      "--ctn-text-color: #cc8844;",
-    );
-  });
 });

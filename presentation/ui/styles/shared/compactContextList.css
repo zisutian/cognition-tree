@@ -52,7 +52,6 @@
 
 .ui-compact-context-static-row:focus {
   background: var(--color-selected);
-  box-shadow: inset calc(var(--ui-border-width) * 2) 0 0 var(--color-accent);
   outline: none;
 }
 

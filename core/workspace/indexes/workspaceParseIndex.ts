@@ -1,36 +1,45 @@
 import {
+  analyzeCtnSource,
+  reprojectCtnAnalysisPresentation,
+  type CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis";
+import {
+  createCtnBlockIdRegistry,
+  updateCtnBlockIdRegistry,
+  type CtnBlockIdRegistry,
+  type CtnBlockIdRegistryChange,
+} from "../../ctn/analysis/blockIdRegistry";
+import {
   collectCtnInlineReferences,
   ctnGlobalReferenceType,
   normalizeCtnReferenceText,
 } from "../../ctn/parser/inlineReferences";
-import { parseCtnCanonicalDocument } from "../../ctn/parser/parseCtnDocument";
-import type { CtnCanonicalDocument } from "../../ctn/parser/types";
-import { createCtnSyntaxParseProfileKey } from "../../ctn/syntax/profileKey";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
 import type { NoteId, WorkspaceNote } from "../model/workspaceData";
 import type { WorkspaceStructureIndex } from "./workspaceStructureIndex";
 
 type WorkspaceParseIndexSource = {
-  syntaxProfile: CtnSyntaxProfile;
+  analysisOverrides?: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;
+  syntax: CtnCompiledSyntax;
   workspace: WorkspaceStructureIndex;
 };
 
 export type ParsedWorkspaceNoteCacheEntry = {
-  document: CtnCanonicalDocument;
+  analysis: CtnCanonicalSourceAnalysis;
   source: string;
-  syntaxProfileKey: string;
+  analysisKey: string;
 };
 
 export type ParsedWorkspaceNote = {
-  document: CtnCanonicalDocument;
+  analysis: CtnCanonicalSourceAnalysis;
   note: WorkspaceNote;
-  profile: CtnSyntaxProfile;
   source: string;
+  syntax: CtnCompiledSyntax;
 };
 
 export type WorkspaceParseCache = {
   entriesById: Map<NoteId, ParsedWorkspaceNoteCacheEntry>;
-  syntaxProfileKey: string;
+  analysisKey: string;
 };
 
 export type NoteReferenceGraphNode = {
@@ -71,10 +80,17 @@ export type NoteReferenceGraph = {
 let nextReferenceGraphRevision = 1;
 
 export type WorkspaceParseIndex = {
+  analysisStats: {
+    analyzedNoteIds: readonly NoteId[];
+    runCount: number;
+    updatedBlockIdOwnerIds: readonly NoteId[];
+  };
+  blockIdRegistry: CtnBlockIdRegistry<NoteId>;
+  blockIds: ReadonlySet<string>;
   createScan(): WorkspaceParseScan;
   parseCache: WorkspaceParseCache;
   getParsedNote(noteId: NoteId): ParsedWorkspaceNote | null;
-  syntaxProfile: CtnSyntaxProfile;
+  syntax: CtnCompiledSyntax;
   titleIndex: ReadonlyMap<string, readonly WorkspaceNote[]>;
 };
 
@@ -84,49 +100,71 @@ export type WorkspaceParseScan = {
   scanNote(noteId: NoteId): ParsedWorkspaceNote | null;
 };
 
-export type WorkspaceParseIndexCache = {
-  resolve(source: WorkspaceParseIndexSource): WorkspaceParseIndex;
-};
-
 function createParsedWorkspaceNote(
   note: WorkspaceNote,
-  syntaxProfile: CtnSyntaxProfile,
-  syntaxProfileKey: string,
+  syntax: CtnCompiledSyntax,
+  analysisKey: string,
   previousCacheEntry: ParsedWorkspaceNoteCacheEntry | undefined,
+  analysisOverride: CtnCanonicalSourceAnalysis | undefined,
+  onAnalyze: () => void,
 ): ParsedWorkspaceNote {
-  const document =
+  let analysis: CtnCanonicalSourceAnalysis;
+
+  if (
+    analysisOverride?.sourceText.source === note.source &&
+    analysisOverride.syntax.analysisKey === syntax.analysisKey
+  ) {
+    analysis = analysisOverride.syntax.presentationKey ===
+        syntax.presentationKey
+      ? analysisOverride
+      : reprojectCtnAnalysisPresentation(analysisOverride, syntax);
+  } else if (
     previousCacheEntry?.source === note.source &&
-    previousCacheEntry.syntaxProfileKey === syntaxProfileKey
-      ? previousCacheEntry.document
-      : parseCtnCanonicalDocument(note.source, syntaxProfile);
+    previousCacheEntry.analysisKey === analysisKey
+  ) {
+    analysis = previousCacheEntry.analysis.syntax.presentationKey ===
+        syntax.presentationKey
+      ? previousCacheEntry.analysis
+      : reprojectCtnAnalysisPresentation(
+          previousCacheEntry.analysis,
+          syntax,
+        );
+  } else {
+    onAnalyze();
+    analysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: note.source,
+      syntax,
+    });
+  }
 
   return {
-    document,
+    analysis,
     note,
-    profile: syntaxProfile,
     source: note.source,
+    syntax,
   };
 }
 
 function createParseCacheEntry(
   parsedNote: ParsedWorkspaceNote,
-  syntaxProfileKey: string,
+  analysisKey: string,
 ): ParsedWorkspaceNoteCacheEntry {
   return {
-    document: parsedNote.document,
+    analysis: parsedNote.analysis,
     source: parsedNote.source,
-    syntaxProfileKey,
+    analysisKey,
   };
 }
 
 function canReuseParseCacheEntry(
   note: WorkspaceNote,
-  syntaxProfileKey: string,
+  analysisKey: string,
   cacheEntry: ParsedWorkspaceNoteCacheEntry | undefined,
 ) {
   return (
     cacheEntry?.source === note.source &&
-    cacheEntry.syntaxProfileKey === syntaxProfileKey
+    cacheEntry.analysisKey === analysisKey
   );
 }
 
@@ -160,7 +198,7 @@ type ReferenceGraphNoteSnapshot = {
 type ReferenceGraphCacheEntry = {
   graph: NoteReferenceGraph;
   notes: ReferenceGraphNoteSnapshot[];
-  syntaxProfileKey: string;
+  analysisKey: string;
 };
 
 const referenceGraphCacheByIndex = new WeakMap<
@@ -181,11 +219,11 @@ function createReferenceGraphNoteSnapshot(
 function canReuseReferenceGraph(
   cacheEntry: ReferenceGraphCacheEntry | null,
   notes: WorkspaceNote[],
-  syntaxProfileKey: string,
+  analysisKey: string,
 ): boolean {
   if (
     !cacheEntry ||
-    cacheEntry.syntaxProfileKey !== syntaxProfileKey ||
+    cacheEntry.analysisKey !== analysisKey ||
     cacheEntry.notes.length !== notes.length
   ) {
     return false;
@@ -218,7 +256,7 @@ function createWorkspaceNoteReferenceGraphBuilder(
 
   const addParsedNote = (parsedNote: ParsedWorkspaceNote) => {
     for (const reference of collectCtnInlineReferences(
-      parsedNote.document,
+      parsedNote.analysis.document,
       ctnGlobalReferenceType,
     )) {
       const targetText = normalizeCtnReferenceText(reference.text);
@@ -309,9 +347,7 @@ export function createWorkspaceParseIndex(
   source: WorkspaceParseIndexSource,
   previousIndex?: WorkspaceParseIndex | null,
 ): WorkspaceParseIndex {
-  const syntaxProfileKey = createCtnSyntaxParseProfileKey(
-    source.syntaxProfile,
-  );
+  const analysisKey = source.syntax.analysisKey;
   const notes = source.workspace.data.notes.map((note) => {
     const entry = source.workspace.noteEntryById.get(note.id);
 
@@ -331,7 +367,7 @@ export function createWorkspaceParseIndex(
 
         if (
           !previousCacheEntry ||
-          !canReuseParseCacheEntry(note, syntaxProfileKey, previousCacheEntry)
+          !canReuseParseCacheEntry(note, analysisKey, previousCacheEntry)
         ) {
           return [];
         }
@@ -343,30 +379,84 @@ export function createWorkspaceParseIndex(
   const previousReferenceGraphCache = previousIndex
     ? referenceGraphCacheByIndex.get(previousIndex) ?? null
     : null;
+  const analyzedNoteIds: NoteId[] = [];
   let referenceGraph: NoteReferenceGraph | null = null;
   const resolveParsedNote = (note: WorkspaceNote): ParsedWorkspaceNote => {
     const currentCacheEntry = parseCacheEntries.get(note.id);
     const parsedNote = createParsedWorkspaceNote(
       note,
-      source.syntaxProfile,
-      syntaxProfileKey,
+      source.syntax,
+      analysisKey,
       currentCacheEntry,
+      source.analysisOverrides?.get(note.id),
+      () => analyzedNoteIds.push(note.id),
     );
 
     parseCacheEntries.set(
       note.id,
-      createParseCacheEntry(parsedNote, syntaxProfileKey),
+      createParseCacheEntry(parsedNote, analysisKey),
     );
 
     return parsedNote;
   };
+  const parsedNotes = notes.map(resolveParsedNote);
+  const parsedNoteById = new Map(
+    parsedNotes.map((parsedNote) => [parsedNote.note.id, parsedNote]),
+  );
+  const canUpdateBlockIdRegistry =
+    previousIndex?.syntax.blockGrammarKey ===
+      source.syntax.blockGrammarKey;
+  const updatedBlockIdOwnerIds: NoteId[] = [];
+  let blockIdRegistry: CtnBlockIdRegistry<NoteId>;
+
+  if (previousIndex && canUpdateBlockIdRegistry) {
+    const currentNoteIds = new Set(notes.map((note) => note.id));
+    const changes: CtnBlockIdRegistryChange<NoteId>[] = [];
+
+    for (const ownerId of previousIndex.blockIdRegistry.blockIdsByOwner.keys()) {
+      if (!currentNoteIds.has(ownerId)) {
+        changes.push({ entry: null, ownerId });
+        updatedBlockIdOwnerIds.push(ownerId);
+      }
+    }
+    for (const parsedNote of parsedNotes) {
+      const previousCacheEntry =
+        previousIndex.parseCache.entriesById.get(parsedNote.note.id);
+
+      if (
+        !previousCacheEntry ||
+        previousCacheEntry.source !== parsedNote.source
+      ) {
+        changes.push({
+          entry: {
+            analysis: parsedNote.analysis,
+            ownerId: parsedNote.note.id,
+          },
+          ownerId: parsedNote.note.id,
+        });
+        updatedBlockIdOwnerIds.push(parsedNote.note.id);
+      }
+    }
+    blockIdRegistry = updateCtnBlockIdRegistry(
+      previousIndex.blockIdRegistry,
+      changes,
+    );
+  } else {
+    updatedBlockIdOwnerIds.push(...parsedNotes.map(({ note }) => note.id));
+    blockIdRegistry = createCtnBlockIdRegistry(
+      parsedNotes.map(({ analysis, note }) => ({
+        analysis,
+        ownerId: note.id,
+      })),
+    );
+  }
   const getReusableReferenceGraph = () => {
     if (
       previousReferenceGraphCache &&
       canReuseReferenceGraph(
         previousReferenceGraphCache,
         notes,
-        syntaxProfileKey,
+        analysisKey,
       )
     ) {
       return previousReferenceGraphCache.graph;
@@ -379,7 +469,7 @@ export function createWorkspaceParseIndex(
     referenceGraphCacheByIndex.set(index, {
       graph: referenceGraph,
       notes: createReferenceGraphNoteSnapshot(notes),
-      syntaxProfileKey,
+      analysisKey,
     });
 
     return referenceGraph;
@@ -403,13 +493,11 @@ export function createWorkspaceParseIndex(
       },
       noteIds: notes.map((note) => note.id),
       scanNote(noteId) {
-        const note = source.workspace.noteEntryById.get(noteId)?.projectedNote;
+        const parsedNote = parsedNoteById.get(noteId);
 
-        if (!note) {
+        if (!parsedNote) {
           return null;
         }
-
-        const parsedNote = resolveParsedNote(note);
 
         if (!scannedNoteIds.has(noteId)) {
           scannedNoteIds.add(noteId);
@@ -422,41 +510,24 @@ export function createWorkspaceParseIndex(
   };
 
   const index: WorkspaceParseIndex = {
+    analysisStats: {
+      analyzedNoteIds,
+      runCount: analyzedNoteIds.length,
+      updatedBlockIdOwnerIds,
+    },
+    blockIdRegistry,
+    blockIds: blockIdRegistry.blockIds,
     createScan,
     parseCache: {
       entriesById: parseCacheEntries,
-      syntaxProfileKey,
+      analysisKey,
     },
     getParsedNote(noteId) {
-      const note = source.workspace.noteEntryById.get(noteId)?.projectedNote;
-
-      return note ? resolveParsedNote(note) : null;
+      return parsedNoteById.get(noteId) ?? null;
     },
-    syntaxProfile: source.syntaxProfile,
+    syntax: source.syntax,
     titleIndex,
   };
 
   return index;
-}
-
-export function createWorkspaceParseIndexCache(): WorkspaceParseIndexCache {
-  let previousIndex: WorkspaceParseIndex | null = null;
-  let previousSource: WorkspaceParseIndexSource | null = null;
-
-  return {
-    resolve(source) {
-      if (
-        previousIndex &&
-        previousSource?.syntaxProfile === source.syntaxProfile &&
-        previousSource.workspace === source.workspace
-      ) {
-        return previousIndex;
-      }
-
-      previousIndex = createWorkspaceParseIndex(source, previousIndex);
-      previousSource = source;
-
-      return previousIndex;
-    },
-  };
 }

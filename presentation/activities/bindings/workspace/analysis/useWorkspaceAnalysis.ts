@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { WorkspaceContext } from "../../../../../core/workspace/context/workspaceContext";
-import type { WorkspaceParseIndexCache } from "../../../../../core/workspace/indexes/workspaceParseIndex";
+import type { WorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 import { createUiWorkbenchDiagnostics } from "../../../../../application/workspace/projection/viewDiagnostics";
-import { useWorkspaceParseIndex } from "../runtime/useWorkspaceParseIndex";
 import {
   createEmptyNoteReferenceGraph,
   type WorkspaceAnalysis,
@@ -40,24 +38,19 @@ type WorkspaceAnalysisState = {
 };
 
 export function useWorkspaceAnalysis({
-  context,
   enabled,
-  indexCache,
+  index,
 }: {
-  context: WorkspaceContext | null;
   enabled: boolean;
-  indexCache: WorkspaceParseIndexCache;
+  index: WorkspaceParseIndex | null;
 }): WorkspaceAnalysis {
-  const index = useWorkspaceParseIndex(
-    indexCache,
-    enabled ? context : null,
-  );
-  const token = useMemo(() => ({}), [index]);
+  const activeIndex = enabled ? index : null;
+  const token = useMemo(() => ({}), [activeIndex]);
   const initialAnalysis = useMemo(
-    () => index
-      ? createCollectingWorkspaceAnalysis(index)
+    () => activeIndex
+      ? createCollectingWorkspaceAnalysis(activeIndex)
       : createIdleWorkspaceAnalysis(),
-    [index],
+    [activeIndex],
   );
   const [state, setState] = useState<WorkspaceAnalysisState>({
     analysis: initialAnalysis,
@@ -67,12 +60,12 @@ export function useWorkspaceAnalysis({
   useEffect(() => {
     setState({ analysis: initialAnalysis, token });
 
-    if (!index) {
+    if (!activeIndex) {
       return;
     }
 
     return startWorkspaceAnalysisCollection({
-      index,
+      index: activeIndex,
       onUpdate(analysis) {
         setState((current) =>
           current.token === token ? { analysis, token } : current,
@@ -80,7 +73,7 @@ export function useWorkspaceAnalysis({
       },
       scheduler: browserApplicationScheduler,
     });
-  }, [index, initialAnalysis, token]);
+  }, [activeIndex, initialAnalysis, token]);
 
   return state.token === token ? state.analysis : initialAnalysis;
 }

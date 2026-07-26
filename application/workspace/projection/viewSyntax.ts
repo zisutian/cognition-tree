@@ -1,69 +1,26 @@
-import { syntaxProfileSchema } from "../../../core/ctn/syntax/profileSchema";
-import type { CtnSyntaxProfileValidationPolicy } from "../../../core/ctn/syntax/profileSchema";
-import type { CtnRuleRole } from "../../../core/ctn/syntax/types";
-import type { SyntaxProfileDraft } from "../../../core/ctn/syntax/profileDraft";
-import type { UiSyntaxTone } from "./viewText";
+import type {
+  CtnSyntaxDraft,
+} from "../../../core/ctn/syntax/draft";
+import {
+  ctnSyntaxSchema,
+} from "../../../core/ctn/syntax/schema";
+import type {
+  CtnBlockKind,
+  CtnSyntaxOwner,
+  CtnSyntaxTone,
+} from "../../../core/ctn/syntax/types";
 import type { UiSyntaxFieldId } from "./viewSyntaxFields";
 
-export type { UiSyntaxTone } from "./viewText";
-
-export type UiSyntaxRole = "normal" | "multiline";
+export type UiSyntaxTone = CtnSyntaxTone;
 
 export type UiSyntaxToneOption = {
   label: string;
   value: UiSyntaxTone;
 };
 
-export type UiSyntaxRoleOption = {
+export type UiSyntaxKindOption = {
   label: string;
-  value: UiSyntaxRole;
-};
-
-export type UiSyntaxProfileDraftMarkerRule = {
-  id: string;
-  label: string;
-  marker: string;
-  role: UiSyntaxRole;
-  textColor: UiSyntaxTone;
-  tone: UiSyntaxTone;
-  type: string;
-};
-
-export type UiSyntaxProfileDraftTopLevelUnmarkedRule = {
-  id: string;
-  label: string;
-  textColor: UiSyntaxTone;
-  tone: UiSyntaxTone;
-  type: string;
-};
-
-export type UiSyntaxProfileDraftTitleRule = {
-  id: string;
-  label: string;
-  textColor: UiSyntaxTone;
-  tone: UiSyntaxTone;
-  type: string;
-};
-
-export type UiSyntaxProfileDraftInlineRule = {
-  close: string;
-  id: string;
-  kind: "paired" | "single";
-  label: string;
-  marker: string;
-  open: string;
-  textColor: UiSyntaxTone;
-  tone: UiSyntaxTone;
-  type: string;
-};
-
-export type UiSyntaxProfileDraft = {
-  inlineRules: UiSyntaxProfileDraftInlineRule[];
-  markerRules: UiSyntaxProfileDraftMarkerRule[];
-  name: string;
-  tabDisplayWidth: string;
-  titleRule: UiSyntaxProfileDraftTitleRule;
-  topLevelUnmarkedRule: UiSyntaxProfileDraftTopLevelUnmarkedRule | null;
+  value: CtnBlockKind;
 };
 
 export type UiSyntaxFocusTarget =
@@ -82,7 +39,7 @@ export type UiSyntaxConstraints = {
   label: {
     maxLength: number;
   };
-  profileName: {
+  name: {
     maxLength: number;
   };
   tabDisplayWidth: {
@@ -90,35 +47,39 @@ export type UiSyntaxConstraints = {
     min: number;
   };
   token: {
-    maxLength: number;
+    maxCodePoints: number;
   };
 };
 
 export type UiSyntaxView = {
+  backgroundToneOptions: UiSyntaxToneOption[];
   constraints: UiSyntaxConstraints;
   customToneLabel: string;
-  draft: UiSyntaxProfileDraft;
+  draft: CtnSyntaxDraft;
   focusTarget: UiSyntaxFocusTarget | null;
-  optionalToneOptions: UiSyntaxToneOption[];
-  roleOptions: UiSyntaxRoleOption[];
-  rootToneOptions: UiSyntaxToneOption[];
+  kindOptions: UiSyntaxKindOption[];
+  owner: CtnSyntaxOwner;
+  rootRuleLabel: string | null;
+  rootTextColorOptions: UiSyntaxToneOption[];
   stats: {
+    blockRuleCount: number;
     inlineRuleCount: number;
-    lineRuleCount: number;
   };
   toneOptions: UiSyntaxToneOption[];
 };
 
-const roleLabels: Record<CtnRuleRole, string> = {
+const kindLabels: Record<CtnBlockKind, string> = {
+  line: "普通块",
   multiline: "多行块",
-  normal: "普通块",
 };
 
-const syntaxRoleOptions: UiSyntaxRoleOption[] = syntaxProfileSchema.roles.map(
-  (value) => ({ label: roleLabels[value], value }),
-);
+const syntaxKindOptions: UiSyntaxKindOption[] =
+  ctnSyntaxSchema.blockKinds.map((value) => ({
+    label: kindLabels[value],
+    value,
+  }));
 
-const toneLabels: Record<(typeof syntaxProfileSchema.tones)[number], string> = {
+const toneLabels: Record<(typeof ctnSyntaxSchema.tones)[number], string> = {
   amber: "琥珀",
   blue: "蓝色",
   cyan: "青色",
@@ -132,70 +93,67 @@ const toneLabels: Record<(typeof syntaxProfileSchema.tones)[number], string> = {
 };
 
 export const syntaxToneOptions: UiSyntaxToneOption[] =
-  syntaxProfileSchema.tones.map((tone) => ({
+  ctnSyntaxSchema.tones.map((tone) => ({
     label: toneLabels[tone],
     value: tone,
   }));
 
-const optionalSyntaxToneOptions: UiSyntaxToneOption[] = [
-  { label: "默认", value: "default" },
+const backgroundSyntaxToneOptions: UiSyntaxToneOption[] = [
+  { label: "编辑器背景", value: "default" },
+  ...syntaxToneOptions,
+];
+
+const defaultTextColorOptions: UiSyntaxToneOption[] = [
+  { label: "编辑器文字", value: "default" },
   ...syntaxToneOptions,
 ];
 
 const syntaxConstraints: UiSyntaxConstraints = {
   label: {
-    maxLength: syntaxProfileSchema.label.maxLength,
+    maxLength: ctnSyntaxSchema.label.maxLength,
   },
-  profileName: {
-    maxLength: syntaxProfileSchema.profileName.maxLength,
+  name: {
+    maxLength: ctnSyntaxSchema.name.maxLength,
   },
   tabDisplayWidth: {
-    max: syntaxProfileSchema.tabDisplayWidth.max,
-    min: syntaxProfileSchema.tabDisplayWidth.min,
+    max: ctnSyntaxSchema.tabDisplayWidth.max,
+    min: ctnSyntaxSchema.tabDisplayWidth.min,
   },
   token: {
-    maxLength: syntaxProfileSchema.token.maxLength,
+    maxCodePoints: ctnSyntaxSchema.token.maxCodePoints,
   },
 };
-
-function createUiSyntaxProfileDraft(
-  draft: SyntaxProfileDraft,
-): UiSyntaxProfileDraft {
-  return {
-    inlineRules: draft.inlineRules.map((rule) => ({ ...rule })),
-    markerRules: draft.markerRules.map((rule) => ({ ...rule })),
-    name: draft.name,
-    tabDisplayWidth: draft.tabDisplayWidth,
-    titleRule: { ...draft.titleRule },
-    topLevelUnmarkedRule: draft.topLevelUnmarkedRule
-      ? { ...draft.topLevelUnmarkedRule }
-      : null,
-  };
-}
 
 export function createUiSyntaxView({
   draft,
   focusTarget = null,
-  policy = { scope: "workspace" },
+  owner = "workspace",
 }: {
-  draft: SyntaxProfileDraft;
+  draft: CtnSyntaxDraft;
   focusTarget?: UiSyntaxFocusTarget | null;
-  policy?: CtnSyntaxProfileValidationPolicy;
+  owner?: CtnSyntaxOwner;
 }): UiSyntaxView {
+  const rootSemanticId = ctnSyntaxSchema.owners[owner].root.semanticId;
+
   return {
+    backgroundToneOptions: backgroundSyntaxToneOptions,
     constraints: syntaxConstraints,
     customToneLabel: "自定义",
-    draft: createUiSyntaxProfileDraft(draft),
+    draft,
     focusTarget,
-    optionalToneOptions: optionalSyntaxToneOptions,
-    roleOptions: syntaxRoleOptions,
-    rootToneOptions: policy.scope === "journal"
-      ? optionalSyntaxToneOptions
+    kindOptions: syntaxKindOptions,
+    owner,
+    rootRuleLabel: rootSemanticId === "concept"
+      ? "顶格概念"
+      : rootSemanticId === "body"
+        ? "顶格正文"
+        : null,
+    rootTextColorOptions: owner === "journal"
+      ? defaultTextColorOptions
       : syntaxToneOptions,
     stats: {
-      inlineRuleCount: draft.inlineRules.length,
-      lineRuleCount:
-        draft.markerRules.length + 1 + (draft.topLevelUnmarkedRule ? 1 : 0),
+      blockRuleCount: draft.blocks.length,
+      inlineRuleCount: draft.inline.length,
     },
     toneOptions: syntaxToneOptions,
   };

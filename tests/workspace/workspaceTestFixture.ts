@@ -1,7 +1,7 @@
-import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource";
+import { analyzeCtnSource } from "../../core/ctn/analysis/sourceAnalysis";
 import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import { createNoteRecord, type NoteRecord } from "../../core/workspace/model/workspaceData";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
 import { createNoteTreeNoteNode } from "../../core/workspace/model/noteTree/create";
@@ -16,17 +16,17 @@ export function createCanonicalTestSource(
   editableSource: string,
   {
     idOffset = 0,
-    syntaxProfile = defaultCtnSyntaxProfile,
+    syntax = defaultCtnSyntax,
     timestamp = workspaceTestTimestamp,
   }: {
     idOffset?: number;
-    syntaxProfile?: CtnSyntaxProfile;
+    syntax?: CtnCompiledSyntax;
     timestamp?: string;
   } = {},
 ) {
   let index = idOffset;
 
-  return initializeCtnSourceBlockMetadata(editableSource, syntaxProfile, {
+  return initializeCtnSourceBlockMetadata(editableSource, syntax, {
     createdAt: timestamp,
     createId: () => createWorkspaceTestBlockId(++index),
     reservedIds: new Set(),
@@ -44,9 +44,13 @@ export function createCanonicalTestNote(
 
 export function readEditableTestSource(
   source: string,
-  syntaxProfile: CtnSyntaxProfile = defaultCtnSyntaxProfile,
+  syntax: CtnCompiledSyntax = defaultCtnSyntax,
 ) {
-  return createCtnEditableSource(source, syntaxProfile).source;
+  return analyzeCtnSource({
+    mode: { kind: "canonical-document" },
+    source,
+    syntax,
+  }).editableProjection.source;
 }
 
 export function createWorkspaceDataWithNotes(notes: NoteRecord[]) {

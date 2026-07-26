@@ -21,7 +21,11 @@ import {
 } from "../../ctn/metadata/textEdits";
 import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
 import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
+import {
+  analyzeCtnSource,
+  type CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis";
 import { parsePortableName } from "../../naming/portableName";
 import {
   createNoteRecord,
@@ -103,13 +107,13 @@ export function createWorkspaceNote(
     noteId,
     reservedBlockIds,
     timestamp,
-    syntaxProfile,
+    syntax,
     createBlockId,
   }: {
     createBlockId: () => string;
     parentFolderId: FolderId | null;
     noteId: NoteId;
-    syntaxProfile: CtnSyntaxProfile | null;
+    syntax: CtnCompiledSyntax | null;
     timestamp: string;
     reservedBlockIds: ReadonlySet<string>;
   },
@@ -120,8 +124,8 @@ export function createWorkspaceNote(
     assertWorkspaceFolderExists(workspace, parentFolderId);
   }
 
-  const source = syntaxProfile
-    ? initializeCtnSourceBlockMetadata(defaultNoteTitle, syntaxProfile, {
+  const source = syntax
+    ? initializeCtnSourceBlockMetadata(defaultNoteTitle, syntax, {
         createdAt: timestamp,
         createId: createBlockId,
         reservedIds: reservedBlockIds,
@@ -282,12 +286,15 @@ export function moveWorkspaceTreeNode(
 export function updateWorkspaceNoteSource(
   workspace: WorkspaceStructureIndex,
   noteId: NoteId,
+  previousAnalysis: CtnCanonicalSourceAnalysis,
   change: CtnEditableSourceChange,
   timestamp: string,
-  syntaxProfile: CtnSyntaxProfile,
   createBlockId: () => string,
   reservedBlockIds: ReadonlySet<string>,
-): WorkspaceData {
+): {
+  analysis: CtnCanonicalSourceAnalysis;
+  workspaceData: WorkspaceData;
+} {
   assertWorkspaceNoteExists(workspace, noteId);
 
   const entry = workspace.noteEntryById.get(noteId);
@@ -298,25 +305,51 @@ export function updateWorkspaceNoteSource(
 
   const noteIndex = entry.noteIndex;
   const note = workspace.data.notes[noteIndex];
-  const reconciledSource = reconcileCtnSourceBlockMetadata(
-    note.source,
+
+  if (
+    previousAnalysis.sourceText.source !== note.source ||
+    previousAnalysis.mode.kind !== "canonical-document"
+  ) {
+    throw new Error(
+      `Workspace note analysis is stale: ${noteId}`,
+    );
+  }
+  const syntax = previousAnalysis.syntax;
+  const candidateAnalysis = analyzeCtnSource({
+    mode: { kind: "editable-document" },
+    source: change.source,
+    syntax,
+  });
+  const reconciled = reconcileCtnSourceBlockMetadata(
+    previousAnalysis,
+    candidateAnalysis,
     change,
-    syntaxProfile,
     {
       createId: createBlockId,
       reservedIds: reservedBlockIds,
       timestamp,
+      touchTitle: true,
     },
   );
   const nextSource = canonicalizeChangedWorkspaceNoteTitle(
     entry.header.title,
-    reconciledSource,
+    reconciled.source,
     timestamp,
   );
+  const analysis = nextSource === reconciled.source
+    ? reconciled.analysis
+    : analyzeCtnSource({
+        mode: { kind: "canonical-document" },
+        source: nextSource,
+        syntax,
+      });
 
-  return replaceWorkspaceNoteSources(workspace.data, [
-    { noteId, source: nextSource },
-  ]);
+  return {
+    analysis,
+    workspaceData: replaceWorkspaceNoteSources(workspace.data, [
+      { noteId, source: nextSource },
+    ]),
+  };
 }
 
 export function updateWorkspaceRawNoteSource(

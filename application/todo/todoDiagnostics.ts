@@ -57,21 +57,18 @@ export function createTodoDiagnostics(index: TodoParseIndex): TodoDiagnostics {
     nameCounts.set(key, (nameCounts.get(key) ?? 0) + 1);
   }
   const diagnostics = index.collections.flatMap((parsed) => {
-    const projection = createTodoCollectionBodyProjection(
-      parsed.collection,
-      index.syntaxProfile,
-    );
-    const projected = parsed.document.diagnostics
+    const projection = createTodoCollectionBodyProjection(parsed);
+    const projected = parsed.analysis.document.diagnostics
       .filter(({ lineNumber }) => lineNumber > 1)
       .map((diagnostic): TodoDiagnostic => {
         const lineNumber = projection.projectCanonicalLineNumber(
           diagnostic.lineNumber,
         );
-        const block = parsed.document.blocks.find(({ diagnostics }) =>
+        const block = parsed.analysis.document.blocks.find(({ diagnostics }) =>
           diagnostics.some(({ id }) => id === diagnostic.id)
         );
         const isMissingMarker = diagnostic.code === "unknown-syntax" &&
-          block?.type !== todoItemSemanticType;
+          block?.rule.semanticId !== todoItemSemanticType;
 
         return {
           code: isMissingMarker ? "missing-todo-marker" : diagnostic.code,

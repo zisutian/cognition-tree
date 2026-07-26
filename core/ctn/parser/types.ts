@@ -2,19 +2,17 @@
 
 import type { CtnBlockMetadata } from "../metadata/blockMetadata.ts";
 import type {
-  CtnBlockType,
-  CtnInlineSpanType,
-  CtnRuleRole,
+  CtnBlockRule,
+  CtnInlineRule,
+  CtnResolvedRootRule,
+  CtnResolvedTitleRule,
   CtnSyntaxTone,
 } from "../syntax/types.ts";
 
 export type CtnInlineSpan = {
   id: string;
-  type: CtnInlineSpanType;
-  label: string;
-  textColor: CtnSyntaxTone;
-  tone: CtnSyntaxTone;
   lineNumber: number;
+  rule: Readonly<CtnInlineRule>;
   startColumn: number;
   endColumn: number;
   text: string;
@@ -58,13 +56,27 @@ export type CtnMultilineRange =
   | CtnClosedMultilineRange
   | CtnUnterminatedMultilineRange;
 
+export type CtnFallbackBlockRule = {
+  kind: "line";
+  label: string;
+  marker: string | null;
+  semanticId: "text";
+  textColor: CtnSyntaxTone;
+  tone: CtnSyntaxTone;
+};
+
+export type CtnResolvedBlockRule =
+  | CtnBlockRule
+  | CtnResolvedRootRule
+  | CtnResolvedTitleRule
+  | CtnFallbackBlockRule;
+
 type CtnBlockFields = {
   /** Exact source owned by this block, excluding canonical metadata. */
   contentFingerprint: string;
   diagnostics: CtnDiagnostic[];
   indentText: string;
   inlineSpans: CtnInlineSpan[];
-  label: string;
   level: number;
   /** Last line lexically owned by this block (including a multiline body). */
   lexicalEndLineNumber: number;
@@ -72,14 +84,11 @@ type CtnBlockFields = {
   marker: string | null;
   multilineRange: CtnMultilineRange | null;
   rawText: string;
-  role: CtnRuleRole;
+  rule: Readonly<CtnResolvedBlockRule>;
   /** Last line owned by the complete structural subtree. */
   subtreeEndLineNumber: number;
   text: string;
-  textColor: CtnSyntaxTone;
   textStartColumn: number;
-  tone: CtnSyntaxTone;
-  type: CtnBlockType;
 };
 
 export type CtnEditableBlock = CtnBlockFields & {

@@ -9,8 +9,10 @@ import type {
   WorkspaceNote,
 } from "../model/workspaceData";
 import { replaceWorkspaceNoteSources } from "../model/workspaceData";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis";
 
 export type WorkspaceStructureBlockTargetPositionRequest =
   | {
@@ -51,6 +53,7 @@ export type MoveWorkspaceStructureBlockBetweenNotesFailureReason =
 
 export type MoveWorkspaceStructureBlockBetweenNotesResult =
   | {
+      analysisOverrides: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;
       status: "moved";
       targetNoteId: NoteId;
       workspaceData: WorkspaceStructureIndex["data"];
@@ -74,6 +77,7 @@ export type MoveWorkspaceStructureBlockWithinNoteFailureReason =
 
 export type MoveWorkspaceStructureBlockWithinNoteResult =
   | {
+      analysisOverrides: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;
       noteId: NoteId;
       status: "moved";
       workspaceData: WorkspaceStructureIndex["data"];
@@ -84,18 +88,15 @@ export type MoveWorkspaceStructureBlockWithinNoteResult =
     };
 
 type ParsedStructureBlockNote = {
+  analysis: CtnCanonicalSourceAnalysis;
   blocks: CtnCanonicalBlock[];
   note: WorkspaceNote;
-  profile: CtnSyntaxProfile;
 };
 
 type WorkspaceStructureBlockMoveIndex = {
   getParsedNote(noteId: NoteId): {
-    document: {
-      blocks: CtnCanonicalBlock[];
-    };
+    analysis: CtnCanonicalSourceAnalysis;
     note: WorkspaceNote;
-    profile: CtnSyntaxProfile;
   } | null;
 };
 
@@ -136,7 +137,7 @@ function createNoteBlockFailureFromBlockFailure(
 }
 
 function isMovableStructureBlock(block: CtnCanonicalBlock) {
-  return block.type !== "title";
+  return block.rule.semanticId !== "title";
 }
 
 function resolveStructureBlockNote(
@@ -150,9 +151,9 @@ function resolveStructureBlockNote(
   }
 
   return {
-    blocks: parsedNote.document.blocks.filter(isMovableStructureBlock),
+    analysis: parsedNote.analysis,
+    blocks: parsedNote.analysis.document.blocks.filter(isMovableStructureBlock),
     note: parsedNote.note,
-    profile: parsedNote.profile,
   };
 }
 
@@ -271,10 +272,9 @@ export function moveWorkspaceStructureBlockBetweenNotes(
 
   const result = moveCtnBlockText({
     sourceBlock: moveInput.sourceBlock,
-    sourceText: moveInput.sourceParsed.note.source,
-    syntaxProfile: moveInput.sourceParsed.profile,
+    sourceAnalysis: moveInput.sourceParsed.analysis,
     targetPosition: moveInput.targetPosition,
-    targetText: moveInput.targetParsed.note.source,
+    targetAnalysis: moveInput.targetParsed.analysis,
     updatedAt: timestamp,
   });
 
@@ -293,6 +293,10 @@ export function moveWorkspaceStructureBlockBetweenNotes(
   ]);
 
   return {
+    analysisOverrides: new Map([
+      [sourceNoteId, result.nextSourceAnalysis],
+      [targetNoteId, result.nextTargetAnalysis],
+    ]),
     status: "moved",
     targetNoteId,
     workspaceData: nextWorkspace,
@@ -345,9 +349,8 @@ export function moveWorkspaceStructureBlockWithinNote(
   }
 
   const result = moveCtnBlockWithinText({
+    analysis: parsedNote.analysis,
     sourceBlock,
-    sourceText: note.source,
-    syntaxProfile: parsedNote.profile,
     targetPosition,
     updatedAt: timestamp,
   });
@@ -356,6 +359,7 @@ export function moveWorkspaceStructureBlockWithinNote(
   ]);
 
   return {
+    analysisOverrides: new Map([[note.id, result.analysis]]),
     noteId: note.id,
     status: "moved",
     workspaceData: nextWorkspace,

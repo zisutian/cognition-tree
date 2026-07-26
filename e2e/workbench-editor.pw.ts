@@ -7,6 +7,8 @@ import {
   type APIRequestContext,
 } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace/types";
+import { defaultCtnSyntax } from "../core/ctn/syntax/defaultSyntax";
+import { formatCtnSyntaxV2 } from "../core/ctn/syntax/formatter";
 import {
   e2eAlphaFirstBlockTimestamp,
   e2eAlphaSecondBlockTimestamp,
@@ -17,13 +19,30 @@ import {
 import { openWorkbench } from "./support/workbenchPage";
 
 const repositoryId = "workbench-editor";
+const multilineRuleLabel = "原文块";
+const editorSyntaxSource = formatCtnSyntaxV2({
+  ...defaultCtnSyntax.definition,
+  blocks: defaultCtnSyntax.definition.blocks.map((rule) =>
+    rule.kind === "multiline"
+      ? {
+          ...rule,
+          label: multilineRuleLabel,
+          textColor: "red",
+          tone: "violet",
+        }
+      : rule
+  ),
+  tabDisplayWidth: 8,
+}, "workspace");
 
 test.describe.serial("editor workbench flows", () => {
   let api: APIRequestContext;
 
   test.beforeAll(async () => {
     api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
-    await seedWorkbenchRepository(api, repositoryId);
+    await seedWorkbenchRepository(api, repositoryId, {
+      syntaxSource: editorSyntaxSource,
+    });
   });
 
   test.afterAll(async () => {
@@ -102,86 +121,74 @@ test.describe.serial("editor workbench flows", () => {
     );
   });
 
-  test("edits protected multiline code cards", async ({
-    page,
-  }) => {
+  test("edits multiline syntax as ordinary colored source", async ({ page }) => {
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Gamma").click();
 
     const editor = page.locator(".source-editor");
-    const codeLine = editor.locator(".cm-line").filter({
+    const lines = editor.locator(".cm-line");
+    const opener = lines.filter({ hasText: "```ts" }).first();
+    const codeLine = lines.filter({
       hasText: "const value = 1;",
     });
-    const header = editor.locator(".ctn-code-card-header");
+    const closer = lines.filter({ hasText: "```" }).last();
 
-    await expect(header).toContainText("多行块");
-    await expect(header).toContainText("ts");
-    await expect(editor.locator(".cm-line").filter({ hasText: "```" }))
+    const readSource = async () => {
+      const response = await api.get(
+        `/api/repositories/${repositoryId}/snapshot`,
+      );
+      const snapshot =
+        (await response.json()) as WorkspaceRepositorySnapshotDto;
+
+      return snapshot.content.workspace.notes.find(
+        ({ id }) => id === "note-gamma",
+      )?.source ?? "";
+    };
+
+    await expect(opener).toBeVisible();
+    await expect(codeLine).toBeVisible();
+    await expect(closer).toBeVisible();
+    await expect(editor.locator(".cm-content")).toHaveCSS("tab-size", "8");
+    await expect(editor.locator('[class*="ctn-multiline-card"]'))
       .toHaveCount(0);
+    await expect(editor).not.toContainText(multilineRuleLabel);
+    await expect(opener).toHaveClass(/ctn-tone-violet/);
+    await expect(codeLine).toHaveClass(/ctn-tone-violet/);
+    await expect(closer).toHaveClass(/ctn-tone-violet/);
+    await expect(opener.locator(".ctn-marker"))
+      .toHaveClass(/ctn-text-color-red/);
+    await expect(codeLine.locator(".ctn-block-text"))
+      .toHaveClass(/ctn-text-color-red/);
+    await expect(closer.locator(".ctn-block-text"))
+      .toHaveClass(/ctn-text-color-red/);
 
+    await opener.click();
+    await page.keyboard.press("End");
+    await page.keyboard.type("x");
     await codeLine.click();
     await page.keyboard.press("End");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type("return value;");
-    await expect(
-      editor.locator(".ctn-code-card-body").filter({
-        hasText: "return value;",
-      }),
-    ).toBeVisible();
+    await page.keyboard.type(" // edited");
+    await closer.click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" ");
+    await expect.poll(readSource).toContain(
+      "\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
+    );
 
-    const insertedLine = editor.locator(".cm-line").filter({
-      hasText: "return value;",
-    });
-
-    await insertedLine.click();
+    await opener.click();
     await page.keyboard.press("Home");
     await page.keyboard.press("Tab");
+    await expect.poll(readSource).toContain(
+      "\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
+    );
     await page.keyboard.press("Shift+Tab");
-
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/repositories/${repositoryId}/snapshot`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const source = snapshot.content.workspace.notes.find(
-        ({ id }) => id === "note-gamma",
-      )?.source ?? "";
-
-      return source.includes(
-        "\t\tconst value = 1;\n\t\treturn value;\n\t```",
-      );
-    }).toBe(true);
-
-    await header.click();
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Shift+Tab");
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/repositories/${repositoryId}/snapshot`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-      const source = snapshot.content.workspace.notes.find(
-        ({ id }) => id === "note-gamma",
-      )?.source ?? "";
-
-      return source.includes(
-        "\t```ts\n\t\tconst value = 1;\n\t\treturn value;\n\t```",
-      );
-    }).toBe(true);
-
-    await editor.getByRole("button", { name: "修改代码块标识" }).click();
-    const identifierInput = editor.getByRole("textbox", {
-      name: "代码块标识",
-    });
-
-    await identifierInput.fill("tsx");
-    await identifierInput.press("Enter");
-    await expect(header).toContainText("tsx");
-
-    await header.click();
-    await editor.getByRole("button", { name: "删除代码块" }).click();
-    await editor.getByRole("button", { name: "确认删除代码块" }).click();
-    await expect(header).toHaveCount(0);
+    await expect.poll(readSource).toContain(
+      "\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
+    );
+    await page.keyboard.press("Control+Z");
+    await expect.poll(readSource).toContain(
+      "\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
+    );
   });
 
   test("synchronizes the editor block with outline selection and timestamps", async ({

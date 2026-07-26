@@ -17,6 +17,6 @@ export function isWorkspaceSyntaxFileId(value: string) {
   return workspaceSyntaxFileIdPattern.test(value);
 }
 
-export function normalizeWorkspaceSyntaxProfileName(value: string) {
+export function normalizeWorkspaceSyntaxName(value: string) {
   return value.trim().normalize("NFKC").toLocaleLowerCase("en-US");
 }

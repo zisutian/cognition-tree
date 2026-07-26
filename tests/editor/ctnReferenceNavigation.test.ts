@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnEditableDocument } from "../../core/ctn/parser/parseCtnDocument";
-import { parseCtnEditableBody } from "../../core/ctn/parser/parseCtnBody";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import {
+  readBodyTestDocument,
+  readEditableTestDocument,
+} from "../ctn/analysis/analysisTestHelpers";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import {
   findCtnReferenceAtPosition,
 } from "../../presentation/editor/ctnReferenceNavigation";
 describe("CTN editor reference navigation", () => {
   it("finds local and global references by source position", () => {
-    const document = parseCtnEditableDocument(
+    const document = readEditableTestDocument(
       "Title\n\t: <Local> and [[Global]]",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
     const block = document.blocks[1];
     const [local, global] = block.inlineSpans;
@@ -31,9 +33,9 @@ describe("CTN editor reference navigation", () => {
   });
 
   it("ignores non-reference spans and positions outside a span", () => {
-    const document = parseCtnEditableDocument(
+    const document = readEditableTestDocument(
       "Title\n\t: `code` and text",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
     const block = document.blocks[1];
 
@@ -50,10 +52,10 @@ describe("CTN editor reference navigation", () => {
   });
 
   it("uses body-only line numbers when the fixed title is hidden", () => {
-    const document = parseCtnEditableBody(
+    const document = readBodyTestDocument(
       "Root\n\t: <Local> and [[Global]]",
       "2026-07-18 14:35:00",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
     const block = document.blocks[1];
     const global = block.inlineSpans[1];

@@ -10,9 +10,12 @@ import type {
   TodoSnapshotDto,
 } from "../../contracts/todo/types";
 import { createJournalEntry } from "../../core/journal/commands/journalCommands";
+import {
+  createJournalParseIndex,
+} from "../../core/journal/indexes/journalParseIndex";
 import { createEmptyJournalContent } from "../../core/journal/model/journalContent";
 import { validateTodoContent } from "../../core/todo/model/todoContent";
-import { defaultTodoSyntaxSourceV4 } from "../../core/todo/syntax/todoSyntax";
+import { defaultTodoSyntaxSource } from "../../core/todo/syntax/defaultTodoSyntax";
 
 const journalSnapshotEndpoint = "/api/journal/snapshot";
 const todoSnapshotEndpoint = "/api/todo/snapshot";
@@ -25,7 +28,7 @@ export function createEmptyTodoSeed(): TodoContentDto {
   return validateTodoContent({
     collections: [],
     schemaVersion: 4,
-    syntaxSource: defaultTodoSyntaxSourceV4,
+    syntaxSource: defaultTodoSyntaxSource,
   });
 }
 
@@ -36,8 +39,10 @@ export function createJournalSeed({
   createdAt?: string;
   timezoneOffsetMinutes?: number;
 } = {}): JournalContentDto {
+  const content = createEmptyJournalContent();
   const result = createJournalEntry(
-    createEmptyJournalContent(),
+    content,
+    createJournalParseIndex(content),
     {
       createBlockId: () => "00000000-0000-4000-8000-000000900001",
       createdAt,

@@ -15,10 +15,12 @@ import {
   moveWorkspaceStructureBlockBetweenNotes,
   moveWorkspaceStructureBlockWithinNote,
 } from "../../../core/workspace/commands/structureBlockCommands";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
+import {
+  readCanonicalTestDocument,
+} from "../../ctn/analysis/analysisTestHelpers";
 import {
   createCanonicalTestNote,
   readEditableTestSource,
@@ -101,7 +103,7 @@ function moveStructureBlockBetweenNotes(
   return moveWorkspaceStructureBlockBetweenNotes(
     workspace,
     createWorkspaceParseIndex({
-      syntaxProfile: defaultCtnSyntaxProfile,
+      syntax: defaultCtnSyntax,
       workspace,
     }),
     request,
@@ -119,7 +121,7 @@ function moveStructureBlock(
   return moveWorkspaceStructureBlockWithinNote(
     workspace,
     createWorkspaceParseIndex({
-      syntaxProfile: defaultCtnSyntaxProfile,
+      syntax: defaultCtnSyntax,
       workspace,
     }),
     request,
@@ -140,9 +142,9 @@ describe("workspace structure block moves", () => {
       "note-target",
       "Target",
     );
-    const sourceDocument = parseCtnCanonicalDocument(
+    const sourceDocument = readCanonicalTestDocument(
       getNote(workspace, "note-source").source,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
     const movedRoot = sourceDocument.blocks.find(
       (block) => block.lineNumber === sourceBlockLineNumber,
@@ -196,9 +198,9 @@ describe("workspace structure block moves", () => {
       title: "Target Title",
       updatedAt: "2026-06-08T01:00:00.000Z",
     });
-    const movedBlocks = parseCtnCanonicalDocument(
+    const movedBlocks = readCanonicalTestDocument(
       getNote(result.workspaceData, "note-target").source,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     ).blocks.filter((block) => movedBlockIds.has(block.id));
 
     expect(movedBlocks).toHaveLength(2);
@@ -265,7 +267,7 @@ describe("workspace structure block moves", () => {
     };
     const workspaceIndex = createWorkspaceStructureIndex(workspace);
     const index = createWorkspaceParseIndex({
-      syntaxProfile: defaultCtnSyntaxProfile,
+      syntax: defaultCtnSyntax,
       workspace: workspaceIndex,
     });
     const requestedNoteIds: string[] = [];
@@ -295,6 +297,7 @@ describe("workspace structure block moves", () => {
     expect([...index.parseCache.entriesById.keys()]).toEqual([
       "note-source",
       "note-target",
+      "note-unrelated",
     ]);
   });
 

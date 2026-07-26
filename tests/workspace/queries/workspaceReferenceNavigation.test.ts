@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { resolveWorkspaceReferenceNavigation } from "../../../core/workspace/queries/workspaceReferenceNavigation";
@@ -22,7 +22,7 @@ function createIndex() {
   );
 
   return createWorkspaceParseIndex({
-    syntaxProfile: defaultCtnSyntaxProfile,
+    syntax: defaultCtnSyntax,
     workspace,
   });
 }

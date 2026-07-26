@@ -249,7 +249,7 @@ export function JournalEditorPanel({
         key={view.activeEntry.id}
         contentMode={view.editor.contentMode}
         focusTarget={view.editor.focusTarget}
-        syntaxProfile={view.editor.syntaxProfile}
+        syntax={view.editor.syntax}
         value={view.editor.documentText}
         onActiveLineChange={view.editor.onActiveLineChange}
         onChange={view.editor.updateBody}
@@ -336,7 +336,7 @@ export function JournalDetailPanel({
         </dl>
         {view.outline.nodes.length > 0 ? (
           <StructureTree
-            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
+            indentUnitCount={view.editor.syntax.tabDisplayWidth}
             nodes={view.outline.nodes}
             selectedLineNumbers={selectedLineNumbers}
             onSelectLine={view.outline.onSelectLine}

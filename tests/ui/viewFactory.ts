@@ -1,15 +1,15 @@
-import { createSyntaxProfileDraft } from "../../core/ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import { createCtnSyntaxDraft } from "../../core/ctn/syntax/draft";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import {
-  defaultJournalCtnSyntaxProfileV3,
-  defaultJournalSyntaxSourceV3,
-} from "../../core/journal/syntax/journalSyntax";
+  defaultJournalSyntax,
+  defaultJournalSyntaxSource,
+} from "../../core/journal/syntax/defaultJournalSyntax";
 import type { JournalViewModel } from "../../application/journal";
 import type { TodoViewModel } from "../../application/todo";
 import {
-  defaultTodoCtnSyntaxProfileV4,
-  defaultTodoSyntaxSourceV4,
-} from "../../core/todo/syntax/todoSyntax";
+  defaultTodoSyntax,
+  defaultTodoSyntaxSource,
+} from "../../core/todo/syntax/defaultTodoSyntax";
 import { createUiSyntaxView } from "../../application/workspace/projection/viewSyntax";
 import type { NotesViewModel } from "../../application/workspace/activities/notes/notesViewModel";
 import type { RepositoryViewModel } from "../../application/repository/repositoryViewModel";
@@ -32,7 +32,7 @@ export type TestActivityViews = {
 export function createView(
   overrides: Partial<TestActivityViews> = {},
 ): TestActivityViews {
-  const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+  const draft = createCtnSyntaxDraft(defaultCtnSyntax);
   const syntax = createUiSyntaxView({
     draft,
   });
@@ -61,7 +61,7 @@ export function createView(
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
         stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
-        syntaxProfile: defaultJournalCtnSyntaxProfileV3,
+        syntax: defaultJournalSyntax,
         updateBody: () => undefined,
       },
       calendar: {
@@ -100,8 +100,8 @@ export function createView(
       },
       selectEntry: () => undefined,
       syntax: {
-        profile: defaultJournalCtnSyntaxProfileV3,
-        source: defaultJournalSyntaxSourceV3,
+        syntax: defaultJournalSyntax,
+        source: defaultJournalSyntaxSource,
         updateSource: () => undefined,
       },
     },
@@ -136,7 +136,7 @@ export function createView(
           rootCount: 1,
           totalBlocks: 1,
         },
-        syntaxProfile: defaultCtnSyntaxProfile,
+        syntax: defaultCtnSyntax,
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
       },
@@ -213,7 +213,7 @@ export function createView(
     structureOperation: {
       deleteFolder: () => undefined,
       deleteNote: () => undefined,
-      indentUnitCount: defaultCtnSyntaxProfile.tabDisplayWidth,
+      indentUnitCount: defaultCtnSyntax.tabDisplayWidth,
       mode: "betweenNotes",
       moveTreeNode: () => undefined,
       noteTree: [
@@ -261,16 +261,16 @@ export function createView(
       activeFileId: "syntax-default",
       activateFile: async () => undefined,
       actions: {
-        addInlineRule: () => undefined,
-        addMarkerRule: () => undefined,
-        removeInlineRule: () => undefined,
-        removeMarkerRule: () => undefined,
-        updateInlineRule: () => undefined,
-        updateMarkerRule: () => undefined,
+        addBlock: () => undefined,
+        addInline: () => undefined,
+        removeBlock: () => undefined,
+        removeInline: () => undefined,
+        updateBlock: () => undefined,
+        updateInline: () => undefined,
         updateName: () => undefined,
+        updateRoot: () => undefined,
         updateTabDisplayWidth: () => undefined,
-        updateTitleRule: () => undefined,
-        updateTopLevelUnmarkedRule: () => undefined,
+        updateTitle: () => undefined,
       },
       createFile: async () => "syntax-copy",
       deleteFile: async () => undefined,
@@ -279,7 +279,7 @@ export function createView(
         id: "syntax-default",
         isActive: true,
         isSelected: true,
-        name: defaultCtnSyntaxProfile.name,
+        name: defaultCtnSyntax.name,
       }],
       hasDraftErrors: false,
       isConfigured: true,
@@ -287,11 +287,14 @@ export function createView(
       nameEditable: true,
       nameConflictMessage: "",
       onConsumeFocusTarget: () => undefined,
-      policy: { scope: "workspace" },
-      profileDiagnostics: [],
-      protectedInlineRuleIds: [],
+      syntaxDiagnostics: [],
+      protectedBlockRuleIds: [],
+      protectedInlineRuleIds: [
+        syntax.draft.inline.find(
+          ({ semanticId }) => semanticId === "global-reference",
+        )!.id,
+      ],
       protectedInlineTriggerRuleIds: [],
-      protectedMarkerRuleIds: [],
       revertInvalidChanges: () => undefined,
       rootRuleLabel: "顶格概念",
       selectedTarget: {
@@ -374,7 +377,7 @@ export function createView(
         focusTarget: null,
         onActiveLineChange: () => undefined,
         onConsumeFocusTarget: () => undefined,
-        syntaxProfile: defaultTodoCtnSyntaxProfileV4,
+        syntax: defaultTodoSyntax,
         updateBody: () => undefined,
       },
       moveBlock: () => undefined,
@@ -430,8 +433,8 @@ export function createView(
       setBlockRecurrence: () => undefined,
       stopBlockRecurrence: () => undefined,
       syntax: {
-        profile: defaultTodoCtnSyntaxProfileV4,
-        source: defaultTodoSyntaxSourceV4,
+        syntax: defaultTodoSyntax,
+        source: defaultTodoSyntaxSource,
         updateSource: () => undefined,
       },
       toggleBlock: () => undefined,

@@ -17,9 +17,11 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../../core/ctn/parser/parseCtnDocument.ts";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile.ts";
-import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
+import {
+  readCanonicalTestDocument,
+} from "../../../ctn/analysis/analysisTestHelpers.ts";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax.ts";
+import { formatCtnSyntaxV2 } from "../../../../core/ctn/syntax/formatter.ts";
 import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/contractValue";
 import type {
   RepositoryTreeNodeDto,
@@ -43,11 +45,14 @@ import {
 
 const initialTimestamp = "2026-07-16T00:00:00.000Z";
 const changedTimestamp = "2026-07-16T01:00:00.000Z";
-const syntaxSource = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
-const secondarySyntaxSource = formatSyntaxProfileToml({
-  ...defaultCtnSyntaxProfile,
+const syntaxSource = formatCtnSyntaxV2(
+  defaultCtnSyntax.definition,
+  "workspace",
+);
+const secondarySyntaxSource = formatCtnSyntaxV2({
+  ...defaultCtnSyntax.definition,
   name: "Local Secondary",
-});
+}, "workspace");
 const syntaxFileId = "syntax-00000000-0000-4000-8000-000000000001";
 const secondarySyntaxFileId = "syntax-00000000-0000-4000-8000-000000000002";
 
@@ -332,9 +337,9 @@ describe("WorkspaceFileStore Local working tree", () => {
       const originalPath = path.join(rootDir, "资料", "本地笔记库.ctn");
       await writeFile(originalPath, "本地笔记库\n\t: 内容已修改\n@ctn-block id=visible");
       const edited = await store.loadSnapshot();
-      const parsed = parseCtnCanonicalDocument(
+      const parsed = readCanonicalTestDocument(
         edited.content.workspace.notes[0]!.source,
-        defaultCtnSyntaxProfile,
+        defaultCtnSyntax,
       );
 
       expect(edited.revision).not.toBe(base.revision);
@@ -415,9 +420,9 @@ describe("WorkspaceFileStore Local working tree", () => {
         "本地笔记库\n\t% 未知标记\n\t```ts\n\t\tconst value = 1;",
       );
       const reloaded = await store.loadSnapshot();
-      const document = parseCtnCanonicalDocument(
+      const document = readCanonicalTestDocument(
         reloaded.content.workspace.notes[0]!.source,
-        defaultCtnSyntaxProfile,
+        defaultCtnSyntax,
       );
       const codes = document.diagnostics.map(({ code }) => code);
 
@@ -676,15 +681,15 @@ describe("WorkspaceFileStore Local working tree", () => {
       const duplicateName = createContent("duplicate names");
       duplicateName.syntax.files[1] = {
         id: secondarySyntaxFileId,
-        source: formatSyntaxProfileToml({
-          ...defaultCtnSyntaxProfile,
-          name: `  ${defaultCtnSyntaxProfile.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
-        }),
+        source: formatCtnSyntaxV2({
+          ...defaultCtnSyntax.definition,
+          name: `  ${defaultCtnSyntax.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
+        }, "workspace"),
       };
       await expect(store.commitSnapshot({
         baseRevision: base.revision,
         content: duplicateName,
-      })).rejects.toThrow("duplicate syntax profile name");
+      })).rejects.toThrow("duplicate syntax name");
 
       await writeFile(
         path.join(rootDir, ".ctn", "syntax", `${secondarySyntaxFileId}.toml`),

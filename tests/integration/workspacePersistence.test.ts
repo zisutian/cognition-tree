@@ -24,8 +24,8 @@ import { createWorkspaceApiSecurityPolicy } from "../../infrastructure/server/ap
 import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
-import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
+import { analyzeCanonicalTestSource } from "../ctn/analysis/analysisTestHelpers";
 import { replaceEditableSource } from "../application/workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../support/testApplicationScheduler";
 
@@ -263,10 +263,10 @@ describe("workspace persistence integration", () => {
 
     expect(note?.projectedNote.title).toBe("集成测试笔记");
     expect(
-      createCtnEditableSource(
+      analyzeCanonicalTestSource(
         note?.note.source ?? "",
-        defaultCtnSyntaxProfile,
-      ).source,
+        defaultCtnSyntax,
+      ).editableProjection.source,
     ).toBe("集成测试笔记\n\t: 已写入磁盘");
     expect(reloadedState.workspaceSyntax?.source).toBe(
       reloadedState.defaultWorkspaceSyntax.source,
@@ -383,7 +383,8 @@ describe("workspace persistence integration", () => {
     const source = reopened.workspace.noteEntryById.get(noteId)?.note.source ?? "";
 
     expect(
-      createCtnEditableSource(source, defaultCtnSyntaxProfile).source,
+      analyzeCanonicalTestSource(source, defaultCtnSyntax)
+        .editableProjection.source,
     ).toBe("切换前最后输入");
     expect(reopened.persistence.status).toBe("pending-sync");
   });

@@ -6,6 +6,7 @@ import type {
 } from "../../../../application/workspace/projection/viewSyntax";
 import { Popover } from "../../../ui/shared/Popover";
 import { isCustomTone } from "../../../ui/shared/tonePresentation";
+import { isCustomSyntaxTone } from "../../../../core/ctn/syntax/tones";
 
 const defaultCustomTone = "#397c72";
 
@@ -161,7 +162,11 @@ export function TonePicker({
               aria-label="自定义颜色"
               type="color"
               value={customTone}
-              onChange={(event) => onChange(event.target.value)}
+              onChange={(event) => {
+                if (isCustomSyntaxTone(event.target.value)) {
+                  onChange(event.target.value);
+                }
+              }}
             />
           </div>
         </>

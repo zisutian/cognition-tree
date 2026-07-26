@@ -1,32 +1,16 @@
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
-import { validateSyntaxProfile } from "../../ctn/syntax/profileSchema";
-import {
-  type WorkspaceStructureIndex,
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
+import type {
+  WorkspaceStructureIndex,
 } from "../indexes/workspaceStructureIndex";
 
 export type WorkspaceContext = {
-  syntaxProfile: CtnSyntaxProfile;
+  syntax: CtnCompiledSyntax;
   workspace: WorkspaceStructureIndex;
 };
 
-function assertValidWorkspaceSyntaxProfile(profile: CtnSyntaxProfile) {
-  const [diagnostic] = validateSyntaxProfile(profile);
-
-  if (diagnostic) {
-    throw new Error(
-      `Invalid workspace syntax profile at ${diagnostic.path}: ${diagnostic.message}`,
-    );
-  }
-}
-
-export function attachWorkspaceSyntaxProfile(
+export function attachWorkspaceSyntax(
   workspace: WorkspaceStructureIndex,
-  syntaxProfile: CtnSyntaxProfile,
+  syntax: CtnCompiledSyntax,
 ): WorkspaceContext {
-  assertValidWorkspaceSyntaxProfile(syntaxProfile);
-
-  return {
-    syntaxProfile,
-    workspace,
-  };
+  return { syntax, workspace };
 }

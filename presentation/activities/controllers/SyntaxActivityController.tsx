@@ -16,16 +16,16 @@ export function SyntaxActivityController({
   const workspace = application.workspace.status === "ready"
     ? application.workspace.application
     : null;
-  const journalSyntax = application.journal.status === "ready"
+  const defaultJournalSyntax = application.journal.status === "ready"
     ? application.journal.view.syntax
     : null;
-  const todoSyntax = application.todo.status === "ready"
+  const defaultTodoSyntax = application.todo.status === "ready"
     ? application.todo.view.syntax
     : null;
   const view = useSyntaxActivity({
     focusTarget:
       systemSyntaxFocusRequest ?? workspace?.navigation.syntaxFocusRequest ?? null,
-    journalSyntax,
+    defaultJournalSyntax,
     onConsumeFocusTarget: (requestId) => {
       if (systemSyntaxFocusRequest?.requestId === requestId) {
         onConsumeSystemSyntaxFocusRequest(requestId);
@@ -33,7 +33,7 @@ export function SyntaxActivityController({
         workspace?.navigation.consumeSyntaxFocusRequest(requestId);
       }
     },
-    todoSyntax,
+    defaultTodoSyntax,
     workspace: workspace?.syntax ?? null,
   });
 
@@ -48,7 +48,7 @@ export function SyntaxActivityController({
       journalDiagnostics: application.journal.status === "ready"
         ? application.journal.view.diagnostics
         : null,
-      profileDiagnostics: view.profileDiagnostics,
+      syntaxDiagnostics: view.syntaxDiagnostics,
       selectedTarget: view.selectedTarget,
       todoDiagnostics: application.todo.status === "ready"
         ? application.todo.view.diagnostics
@@ -66,7 +66,7 @@ export function SyntaxActivityController({
       : null,
     onSyntaxProblemsChange,
     view.activeFileId,
-    view.profileDiagnostics,
+    view.syntaxDiagnostics,
     view.selectedTarget,
     workspace?.runtime.analysis.diagnostics,
   ]);

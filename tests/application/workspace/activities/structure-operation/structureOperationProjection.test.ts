@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createStructureOperationProjection } from "../../../../../application/workspace/activities/structure-operation/structureOperationProjection";
-import { defaultCtnSyntaxProfile } from "../../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax";
 import { createWorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
 import { listWorkspaceNotes } from "../../../../../core/workspace/queries/workspaceQueries";
@@ -41,7 +41,7 @@ function createProjectionSource() {
     ],
   });
   const index = createWorkspaceParseIndex({
-    syntaxProfile: defaultCtnSyntaxProfile,
+    syntax: defaultCtnSyntax,
     workspace,
   });
 

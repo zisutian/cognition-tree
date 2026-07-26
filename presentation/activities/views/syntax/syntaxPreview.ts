@@ -1,10 +1,12 @@
-import type { UiSyntaxProfileDraftInlineRule } from "../../../../application/workspace/projection/viewSyntax";
+import type {
+  CtnSyntaxDraftInline,
+} from "../../../../core/ctn/syntax/draft";
 
-export function getInlinePreviewValue(rule: UiSyntaxProfileDraftInlineRule) {
+export function getInlinePreviewValue(rule: CtnSyntaxDraftInline) {
   return rule.label || "行内规则";
 }
 
-export function getInlinePreviewMarker(rule: UiSyntaxProfileDraftInlineRule) {
+export function getInlinePreviewMarker(rule: CtnSyntaxDraftInline) {
   return rule.kind === "paired"
     ? `${rule.open || "{"}${rule.close || "}"}`
     : rule.marker || "*";

@@ -2,7 +2,9 @@ import { Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { SyntaxViewModel } from "../../../../application/syntax/syntaxViewModel";
 import type {
-  UiSyntaxProfileDraftInlineRule,
+  CtnSyntaxDraftInline,
+} from "../../../../core/ctn/syntax/draft";
+import type {
   UiSyntaxTone,
 } from "../../../../application/workspace/projection/viewSyntax";
 import {
@@ -11,19 +13,21 @@ import {
 } from "../../../../application/workspace/projection/viewSyntaxFields";
 import { Button } from "../../../ui/shared/primitives";
 import { TonePicker } from "./TonePicker";
-import { SyntaxRolePicker } from "./SyntaxRolePicker";
+import { SyntaxKindPicker } from "./SyntaxKindPicker";
 
 function SyntaxToneCells({
+  backgroundOptions,
   customToneLabel,
   label,
-  options,
+  textColorOptions,
   textColor,
   tone,
   onChange,
 }: {
+  backgroundOptions: SyntaxViewModel["backgroundToneOptions"];
   customToneLabel: string;
   label: string;
-  options: SyntaxViewModel["toneOptions"];
+  textColorOptions: SyntaxViewModel["toneOptions"];
   textColor: UiSyntaxTone;
   tone: UiSyntaxTone;
   onChange: (patch: { textColor?: UiSyntaxTone; tone?: UiSyntaxTone }) => void;
@@ -33,7 +37,7 @@ function SyntaxToneCells({
       <TonePicker
         ariaLabel={`${label}背景色`}
         customToneLabel={customToneLabel}
-        options={options}
+        options={backgroundOptions}
         showLabel={false}
         value={tone}
         onChange={(nextTone) => onChange({ tone: nextTone })}
@@ -41,7 +45,7 @@ function SyntaxToneCells({
       <TonePicker
         ariaLabel={`${label}文字色`}
         customToneLabel={customToneLabel}
-        options={options}
+        options={textColorOptions}
         showLabel={false}
         value={textColor}
         onChange={(nextColor) => onChange({ textColor: nextColor })}
@@ -74,14 +78,18 @@ export function SyntaxSettingsGroup({
   );
 }
 
-export function SyntaxRuleHeader() {
+export function SyntaxRuleHeader({
+  inline = false,
+}: {
+  inline?: boolean;
+}) {
   return (
     <div className="syntax-rule-row syntax-rule-header">
       <span>名称</span>
-      <span>标记</span>
+      <span>{inline ? "符号" : "标记"}</span>
       <span>类型</span>
-      <span>背景</span>
-      <span>文字</span>
+      <span>{inline ? "颜色" : "背景"}</span>
+      <span>{inline ? null : "颜色"}</span>
       <span />
     </div>
   );
@@ -98,30 +106,32 @@ export function TitleAndRootRows({
 }) {
   return (
     <>
-      {syntax.selectedTarget.kind === "workspace-file" ? (
+      {syntax.selectedTarget.kind === "workspace-file" &&
+          syntax.draft.title ? (
         <div
           className="syntax-rule-row"
-          data-syntax-field-id={syntaxFieldIds.titleRule}
+          data-syntax-field-id={syntaxFieldIds.title}
           tabIndex={-1}
         >
           <span className="syntax-readonly">首行标题</span>
           <span className="syntax-readonly">首行</span>
           <span className="syntax-readonly">标题</span>
           <SyntaxToneCells
+            backgroundOptions={syntax.backgroundToneOptions}
             customToneLabel={syntax.customToneLabel}
             label="首行标题"
-            options={syntax.toneOptions}
-            textColor={syntax.draft.titleRule.textColor}
-            tone={syntax.draft.titleRule.tone}
-            onChange={syntax.actions.updateTitleRule}
+            textColorOptions={syntax.toneOptions}
+            textColor={syntax.draft.title.textColor}
+            tone={syntax.draft.title.tone}
+            onChange={syntax.actions.updateTitle}
           />
           <SyntaxRuleSpacer />
         </div>
       ) : null}
-      {syntax.draft.topLevelUnmarkedRule && syntax.rootRuleLabel ? (
+      {syntax.draft.root && syntax.rootRuleLabel ? (
         <div
           className="syntax-rule-row"
-          data-syntax-field-id={syntaxFieldIds.topLevelUnmarkedRule}
+          data-syntax-field-id={syntaxFieldIds.root}
           tabIndex={-1}
         >
           <span className="syntax-readonly">{syntax.rootRuleLabel}</span>
@@ -130,12 +140,13 @@ export function TitleAndRootRows({
             {syntax.selectedTarget.kind === "journal" ? "正文" : "概念"}
           </span>
           <SyntaxToneCells
+            backgroundOptions={syntax.backgroundToneOptions}
             customToneLabel={syntax.customToneLabel}
             label={syntax.rootRuleLabel}
-            options={syntax.rootToneOptions}
-            textColor={syntax.draft.topLevelUnmarkedRule.textColor}
-            tone={syntax.draft.topLevelUnmarkedRule.tone}
-            onChange={syntax.actions.updateTopLevelUnmarkedRule}
+            textColorOptions={syntax.rootTextColorOptions}
+            textColor={syntax.draft.root.textColor}
+            tone={syntax.draft.root.tone}
+            onChange={syntax.actions.updateRoot}
           />
           <SyntaxRuleSpacer />
         </div>
@@ -144,104 +155,136 @@ export function TitleAndRootRows({
   );
 }
 
-export function MarkerRuleRows({
+export function BlockRuleRows({
   syntax,
 }: {
   syntax: SyntaxViewModel;
 }) {
   return (
     <>
-      {syntax.draft.markerRules.map((rule) => (
-        <div
-          className="syntax-rule-row"
-          data-syntax-field-id={createSyntaxRuleFieldId("marker", rule.id)}
-          key={rule.id}
-          tabIndex={-1}
-        >
-          <input
-            aria-label="名称"
-            className="ui-input"
-            data-syntax-field-id={createSyntaxRuleFieldId(
-              "marker",
-              rule.id,
-              "label",
-            )}
-            maxLength={syntax.constraints.label.maxLength}
-            value={rule.label}
-            onChange={(event) =>
-              syntax.actions.updateMarkerRule(rule.id, {
-                label: event.target.value,
-              })
-            }
-          />
-          <input
-            aria-label="标记"
-            className="ui-input"
-            data-syntax-field-id={createSyntaxRuleFieldId(
-              "marker",
-              rule.id,
-              "marker",
-            )}
-            maxLength={syntax.constraints.token.maxLength}
-            value={rule.marker}
-            onChange={(event) =>
-              syntax.actions.updateMarkerRule(rule.id, {
-                marker: event.target.value,
-              })
-            }
-          />
-          <SyntaxRolePicker
-            ariaLabel="角色"
-            disabled={syntax.protectedMarkerRuleIds.includes(rule.id)}
-            fieldId={createSyntaxRuleFieldId("marker", rule.id, "role")}
-            options={syntax.roleOptions}
-            value={rule.role}
-            onChange={(role) =>
-              syntax.actions.updateMarkerRule(rule.id, {
-                role,
-              })
-            }
-          />
-          <TonePicker
-            ariaLabel={`${rule.label}背景色`}
-            customToneLabel={syntax.customToneLabel}
-            fieldId={createSyntaxRuleFieldId("marker", rule.id, "tone")}
-            options={
-              syntax.policy.scope === "todo" && rule.type === "todo-item"
-                ? syntax.optionalToneOptions
-                : syntax.toneOptions
-            }
-            showLabel={false}
-            value={rule.tone}
-            onChange={(tone) =>
-              syntax.actions.updateMarkerRule(rule.id, { tone })
-            }
-          />
-          <TonePicker
-            ariaLabel={`${rule.label}文字色`}
-            customToneLabel={syntax.customToneLabel}
-            fieldId={createSyntaxRuleFieldId("marker", rule.id, "textColor")}
-            options={syntax.toneOptions}
-            showLabel={false}
-            value={rule.textColor}
-            onChange={(textColor) =>
-              syntax.actions.updateMarkerRule(rule.id, { textColor })
-            }
-          />
-          <Button
-            aria-label="删除块规则"
-            disabled={syntax.protectedMarkerRuleIds.includes(rule.id)}
-            onClick={() => syntax.actions.removeMarkerRule(rule.id)}
-            type="button"
-            variant="icon"
+      {syntax.draft.blocks.map((rule) => {
+        const isProtected = syntax.protectedBlockRuleIds.includes(rule.id);
+        const isTodoItem = syntax.owner === "todo" &&
+          rule.semanticId === "todo-item";
+
+        return (
+          <div
+            className="syntax-rule-row"
+            data-syntax-field-id={createSyntaxRuleFieldId("block", rule.id)}
+            key={rule.id}
+            tabIndex={-1}
           >
-            <Trash2 aria-hidden="true" size={13} />
-          </Button>
-        </div>
-      ))}
+            {isTodoItem
+              ? (
+                <span className="syntax-readonly">
+                  {rule.label}
+                </span>
+              )
+              : (
+                <input
+                  aria-label="名称"
+                  className="ui-input"
+                  data-syntax-field-id={createSyntaxRuleFieldId(
+                    "block",
+                    rule.id,
+                    "label",
+                  )}
+                  maxLength={syntax.constraints.label.maxLength}
+                  value={rule.label}
+                  onChange={(event) =>
+                    syntax.actions.updateBlock(rule.id, {
+                      label: event.target.value,
+                    })
+                  }
+                />
+              )}
+            {isTodoItem
+              ? (
+                <span className="syntax-readonly">
+                  {rule.marker}
+                </span>
+              )
+              : (
+                <input
+                  aria-label="标记"
+                  className="ui-input"
+                  data-syntax-field-id={createSyntaxRuleFieldId(
+                    "block",
+                    rule.id,
+                    "marker",
+                  )}
+                  maxLength={syntax.constraints.token.maxCodePoints * 2}
+                  value={rule.marker}
+                  onChange={(event) =>
+                    syntax.actions.updateBlock(rule.id, {
+                      marker: event.target.value,
+                    })
+                  }
+                />
+              )}
+            {isTodoItem
+              ? <span className="syntax-readonly">普通块</span>
+              : (
+                <SyntaxKindPicker
+                  ariaLabel="角色"
+                  fieldId={createSyntaxRuleFieldId(
+                    "block",
+                    rule.id,
+                    "kind",
+                  )}
+                  options={syntax.kindOptions}
+                  value={rule.kind}
+                  onChange={(kind) =>
+                    syntax.actions.updateBlock(rule.id, {
+                      kind,
+                    })
+                  }
+                />
+              )}
+            <TonePicker
+              ariaLabel={`${rule.label}背景色`}
+              customToneLabel={syntax.customToneLabel}
+              fieldId={createSyntaxRuleFieldId(
+                "block",
+                rule.id,
+                "tone",
+              )}
+              options={syntax.backgroundToneOptions}
+              showLabel={false}
+              value={rule.tone}
+              onChange={(tone) =>
+                syntax.actions.updateBlock(rule.id, { tone })
+              }
+            />
+            <TonePicker
+              ariaLabel={`${rule.label}${isTodoItem ? "颜色" : "文字色"}`}
+              customToneLabel={syntax.customToneLabel}
+              fieldId={createSyntaxRuleFieldId("block", rule.id, "textColor")}
+              options={syntax.toneOptions}
+              showLabel={false}
+              value={rule.textColor}
+              onChange={(textColor) =>
+                syntax.actions.updateBlock(rule.id, { textColor })
+              }
+            />
+            {isProtected
+              ? <SyntaxRuleSpacer />
+              : (
+                <Button
+                  aria-label="删除块规则"
+                  onClick={() => syntax.actions.removeBlock(rule.id)}
+                  type="button"
+                  variant="icon"
+                >
+                  <Trash2 aria-hidden="true" size={13} />
+                </Button>
+              )}
+          </div>
+        );
+      })}
       <div className="syntax-rule-actions">
         <Button
-          onClick={syntax.actions.addMarkerRule}
+          onClick={syntax.actions.addBlock}
           type="button"
           variant="secondary"
         >
@@ -259,7 +302,7 @@ function InlineRuleRow({
   syntax,
 }: {
   protectedRuleIds: string[];
-  rule: UiSyntaxProfileDraftInlineRule;
+  rule: CtnSyntaxDraftInline;
   syntax: SyntaxViewModel;
 }) {
   const isProtected = protectedRuleIds.includes(rule.id);
@@ -284,94 +327,101 @@ function InlineRuleRow({
         maxLength={syntax.constraints.label.maxLength}
         value={rule.label}
         onChange={(event) =>
-          syntax.actions.updateInlineRule(rule.id, { label: event.target.value })
+          syntax.actions.updateInline(rule.id, { label: event.target.value })
         }
       />
       {rule.kind === "paired" ? (
         <div className="syntax-pair-fields">
-          <input
-            aria-label="开始"
-            className="ui-input"
-            disabled={triggerProtected}
-            data-syntax-field-id={createSyntaxRuleFieldId(
-              "inline",
-              rule.id,
-              "open",
+          {triggerProtected
+            ? (
+              <>
+                <span className="syntax-readonly">{rule.open}</span>
+                <span className="syntax-readonly">{rule.close}</span>
+              </>
+            )
+            : (
+              <>
+                <input
+                  aria-label="开始"
+                  className="ui-input"
+                  data-syntax-field-id={createSyntaxRuleFieldId(
+                    "inline",
+                    rule.id,
+                    "open",
+                  )}
+                  maxLength={syntax.constraints.token.maxCodePoints * 2}
+                  value={rule.open}
+                  onChange={(event) =>
+                    syntax.actions.updateInline(rule.id, {
+                      open: event.target.value,
+                    })
+                  }
+                />
+                <input
+                  aria-label="结束"
+                  className="ui-input"
+                  data-syntax-field-id={createSyntaxRuleFieldId(
+                    "inline",
+                    rule.id,
+                    "close",
+                  )}
+                  maxLength={syntax.constraints.token.maxCodePoints * 2}
+                  value={rule.close}
+                  onChange={(event) =>
+                    syntax.actions.updateInline(rule.id, {
+                      close: event.target.value,
+                    })
+                  }
+                />
+              </>
             )}
-            maxLength={syntax.constraints.token.maxLength}
-            value={rule.open}
-            onChange={(event) =>
-              syntax.actions.updateInlineRule(rule.id, { open: event.target.value })
-            }
-          />
-          <input
-            aria-label="结束"
-            className="ui-input"
-            disabled={triggerProtected}
-            data-syntax-field-id={createSyntaxRuleFieldId(
-              "inline",
-              rule.id,
-              "close",
-            )}
-            maxLength={syntax.constraints.token.maxLength}
-            value={rule.close}
-            onChange={(event) =>
-              syntax.actions.updateInlineRule(rule.id, { close: event.target.value })
-            }
-          />
         </div>
-      ) : (
-        <input
-          aria-label="符号"
-          className="ui-input"
-          disabled={triggerProtected}
-          data-syntax-field-id={createSyntaxRuleFieldId(
-            "inline",
-            rule.id,
-            "marker",
-          )}
-          maxLength={syntax.constraints.token.maxLength}
-          value={rule.marker}
-          onChange={(event) =>
-            syntax.actions.updateInlineRule(rule.id, {
-              marker: event.target.value,
-            })
-          }
-        />
-      )}
+      ) : triggerProtected
+        ? <span className="syntax-readonly">{rule.marker}</span>
+        : (
+          <input
+            aria-label="符号"
+            className="ui-input"
+            data-syntax-field-id={createSyntaxRuleFieldId(
+              "inline",
+              rule.id,
+              "marker",
+            )}
+            maxLength={syntax.constraints.token.maxCodePoints * 2}
+            value={rule.marker}
+            onChange={(event) =>
+              syntax.actions.updateInline(rule.id, {
+                marker: event.target.value,
+              })
+            }
+          />
+        )}
       <span className="syntax-readonly">
         {rule.kind === "paired" ? "成对" : "单个"}
       </span>
       <TonePicker
-        ariaLabel={`${rule.label}背景色`}
+        ariaLabel={`${rule.label}颜色`}
         customToneLabel={syntax.customToneLabel}
         fieldId={createSyntaxRuleFieldId("inline", rule.id, "tone")}
         options={syntax.toneOptions}
         showLabel={false}
         value={rule.tone}
-        onChange={(tone) => syntax.actions.updateInlineRule(rule.id, { tone })}
+        onChange={(tone) => syntax.actions.updateInline(rule.id, { tone })}
       />
-      <TonePicker
-        ariaLabel={`${rule.label}文字色`}
-        customToneLabel={syntax.customToneLabel}
-        fieldId={createSyntaxRuleFieldId("inline", rule.id, "textColor")}
-        options={syntax.toneOptions}
-        showLabel={false}
-        value={rule.textColor}
-        onChange={(textColor) =>
-          syntax.actions.updateInlineRule(rule.id, { textColor })
-        }
-      />
-      <Button
-        aria-label="删除行内规则"
-        disabled={isProtected}
-        onClick={() => syntax.actions.removeInlineRule(rule.id)}
-        title={isProtected ? "受保护规则" : "删除"}
-        type="button"
-        variant="icon"
-      >
-        <Trash2 aria-hidden="true" size={13} />
-      </Button>
+      <SyntaxRuleSpacer />
+      {isProtected
+        ? <SyntaxRuleSpacer />
+        : (
+          <Button
+            aria-label="删除行内规则"
+            onClick={() => syntax.actions.removeInline(rule.id)}
+            title="删除"
+            type="button"
+            variant="icon"
+          >
+            <Trash2 aria-hidden="true" size={13} />
+          </Button>
+        )}
     </div>
   );
 }
@@ -383,7 +433,7 @@ export function InlineRuleRows({
 }) {
   return (
     <>
-      {syntax.draft.inlineRules.map((rule) => (
+      {syntax.draft.inline.map((rule) => (
         <InlineRuleRow
           key={rule.id}
           protectedRuleIds={syntax.protectedInlineRuleIds}
@@ -393,7 +443,7 @@ export function InlineRuleRows({
       ))}
       <div className="syntax-rule-actions">
         <Button
-          onClick={() => syntax.actions.addInlineRule("paired")}
+          onClick={() => syntax.actions.addInline("paired")}
           type="button"
           variant="secondary"
         >
@@ -401,7 +451,7 @@ export function InlineRuleRows({
           成对符号
         </Button>
         <Button
-          onClick={() => syntax.actions.addInlineRule("single")}
+          onClick={() => syntax.actions.addInline("single")}
           type="button"
           variant="secondary"
         >

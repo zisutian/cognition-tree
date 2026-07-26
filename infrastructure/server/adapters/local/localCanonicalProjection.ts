@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
+import {
+  analyzeCtnSource,
+  type CtnCanonicalSourceAnalysis,
+} from "../../../../core/ctn/analysis/sourceAnalysis.ts";
 import { createCtnBlockIdAllocator } from "../../../../core/ctn/metadata/blockIdAllocator.ts";
 import { formatCtnBlockMetadataLine } from "../../../../core/ctn/metadata/blockMetadata.ts";
-import { createCtnEditableSourceFromDocument } from "../../../../core/ctn/metadata/editableSource.ts";
 import { createMyersTextEdits } from "../../../../core/ctn/metadata/myersTextEdits.ts";
 import { reconcileCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/reconcileSourceMetadata.ts";
-import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata.ts";
 import {
-  parseCtnCanonicalDocument,
+  initializeCtnSourceBlockMetadataAnalysis,
+} from "../../../../core/ctn/metadata/sourceMetadata.ts";
+import {
   readCtnCanonicalTitleHeader,
 } from "../../../../core/ctn/parser/parseCtnDocument.ts";
-import { parseSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
-import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types.ts";
+import { compileCtnSyntaxSource } from "../../../../core/ctn/syntax/compiler.ts";
+import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/contractValue.ts";
 import type {
@@ -50,18 +54,42 @@ import {
   validateLocalNoteTitle,
 } from "./localWorkingTreePath.ts";
 
-function resolveSyntaxProfile(
+function resolveSyntax(
   syntaxSource: string | null,
-): CtnSyntaxProfile | null {
+): CtnCompiledSyntax | null {
   if (syntaxSource === null) return null;
-  const result = parseSyntaxProfileToml(syntaxSource);
+  const result = compileCtnSyntaxSource(syntaxSource, "workspace");
 
-  if (!result.profile) {
+  if (!result.syntax) {
     throw new RepositoryCorruptError(
-      "Local workspace syntax profile is invalid",
+      "Local workspace syntax is invalid",
     );
   }
-  return result.profile;
+  return result.syntax;
+}
+
+function createLocalNoteMetadataFromAnalysis(
+  noteId: string,
+  analysis: CtnCanonicalSourceAnalysis,
+): LocalNoteMetadata {
+  const { document, editableProjection: editable } = analysis;
+
+  return {
+    blocks: document.blocks.map((block) => ({
+      createdAt: block.metadata.createdAt,
+      editableLineNumber:
+        editable.editableLineNumberByCanonicalLineNumber.get(
+          block.metadataLineNumber,
+        ) ?? 1,
+      fingerprint: block.contentFingerprint,
+      id: block.id,
+      indentText: block.indentText,
+      updatedAt: block.metadata.updatedAt,
+    })),
+    editableSource: editable.source,
+    noteId,
+    schemaVersion: 1,
+  };
 }
 
 export function projectCanonicalNoteSource(
@@ -70,9 +98,9 @@ export function projectCanonicalNoteSource(
   syntaxSource: string | null,
 ): LocalNoteMetadata {
   try {
-    const syntaxProfile = resolveSyntaxProfile(syntaxSource);
+    const syntax = resolveSyntax(syntaxSource);
 
-    if (syntaxProfile === null) {
+    if (syntax === null) {
       const header = readCtnCanonicalTitleHeader(canonicalSource);
       const editableSource = canonicalSource.split("\n").slice(1).join("\n");
 
@@ -87,28 +115,13 @@ export function projectCanonicalNoteSource(
         schemaVersion: 1,
       };
     }
-    const document = parseCtnCanonicalDocument(canonicalSource, syntaxProfile);
-    const editable = createCtnEditableSourceFromDocument(
-      canonicalSource,
-      document,
-    );
+    const analysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: canonicalSource,
+      syntax,
+    });
 
-    return {
-      blocks: document.blocks.map((block) => ({
-        createdAt: block.metadata.createdAt,
-        editableLineNumber:
-          editable.editableLineNumberByCanonicalLineNumber.get(
-            block.metadataLineNumber,
-          ) ?? 1,
-        fingerprint: block.contentFingerprint,
-        id: block.id,
-        indentText: block.indentText,
-        updatedAt: block.metadata.updatedAt,
-      })),
-      editableSource: editable.source,
-      noteId,
-      schemaVersion: 1,
-    };
+    return createLocalNoteMetadataFromAnalysis(noteId, analysis);
   } catch (error) {
     if (error instanceof RepositoryCorruptError) throw error;
     throw new RepositoryCorruptError(
@@ -189,13 +202,14 @@ export function reconcileEditableNoteSource({
     return previous;
   }
   try {
-    const syntaxProfile = resolveSyntaxProfile(syntaxSource);
+    const syntax = resolveSyntax(syntaxSource);
     let canonicalSource: string;
+    let canonicalAnalysis: CtnCanonicalSourceAnalysis | null = null;
     const previousCanonicalSource = previous
       ? createCanonicalSourceFromLocalNoteMetadata(previous)
       : null;
 
-    if (syntaxProfile === null) {
+    if (syntax === null) {
       const allocator = createCtnBlockIdAllocator(createId, reservedIds);
       const metadata = previous
         ? readCtnCanonicalTitleHeader(previousCanonicalSource ?? "").metadata
@@ -211,19 +225,38 @@ export function reconcileEditableNoteSource({
         updatedAt: timestamp,
       })}\n${editableSource}`;
     } else if (previous) {
-      canonicalSource = reconcileCtnSourceBlockMetadata(
-        previousCanonicalSource ?? "",
+      const previousAnalysis = analyzeCtnSource({
+        mode: { kind: "canonical-document" },
+        source: previousCanonicalSource ?? "",
+        syntax,
+      });
+      const candidateAnalysis = analyzeCtnSource({
+        mode: { kind: "editable-document" },
+        source: editableSource,
+        syntax,
+      });
+
+      const reconciled = reconcileCtnSourceBlockMetadata(
+        previousAnalysis,
+        candidateAnalysis,
         {
           edits: createMyersTextEdits(previous.editableSource, editableSource),
           source: editableSource,
         },
-        syntaxProfile,
-        { createId, reservedIds, timestamp },
+        {
+          createId,
+          reservedIds,
+          timestamp,
+          touchTitle: true,
+        },
       );
+
+      canonicalSource = reconciled.source;
+      canonicalAnalysis = reconciled.analysis;
     } else {
-      canonicalSource = initializeCtnSourceBlockMetadata(
+      const initialized = initializeCtnSourceBlockMetadataAnalysis(
         editableSource,
-        syntaxProfile,
+        syntax,
         {
           createId,
           createdAt: timestamp,
@@ -231,12 +264,17 @@ export function reconcileEditableNoteSource({
           updatedAt: timestamp,
         },
       );
+
+      canonicalSource = initialized.source;
+      canonicalAnalysis = initialized.analysis;
     }
-    const projected = projectCanonicalNoteSource(
-      noteId,
-      canonicalSource,
-      syntaxSource,
-    );
+    const projected = canonicalAnalysis
+      ? createLocalNoteMetadataFromAnalysis(noteId, canonicalAnalysis)
+      : projectCanonicalNoteSource(
+          noteId,
+          canonicalSource,
+          syntaxSource,
+        );
 
     projected.blocks.forEach((block) => reservedIds.add(block.id));
     return projected;

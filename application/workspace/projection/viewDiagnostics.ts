@@ -1,11 +1,10 @@
 import {
-  createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
 } from "../../../core/ctn/metadata/editableSource";
 import type {
-  SyntaxProfileDraft,
-  SyntaxProfileDraftBuildResult,
-} from "../../../core/ctn/syntax/profileDraft";
+  CtnSyntaxDraft,
+  CtnSyntaxDraftBuildResult,
+} from "../../../core/ctn/syntax/draft";
 import type {
   NoteReferenceGraph,
   ParsedWorkspaceNote,
@@ -74,10 +73,7 @@ export type UiWorkbenchDiagnostics = {
 };
 
 function createEditableLineProjector(parsedNote: ParsedWorkspaceNote) {
-  const editableSource = createCtnEditableSourceFromDocument(
-    parsedNote.source,
-    parsedNote.document,
-  );
+  const editableSource = parsedNote.analysis.editableProjection;
 
   return (lineNumber: number) =>
     getCtnEditableLineNumber(editableSource, lineNumber);
@@ -89,7 +85,7 @@ export function createUiDocumentDiagnostics(
   const note = parsedNote.note;
   const projectLineNumber = createEditableLineProjector(parsedNote);
 
-  return parsedNote.document.diagnostics.map((diagnostic) => {
+  return parsedNote.analysis.document.diagnostics.map((diagnostic) => {
     const lineNumber = projectLineNumber(diagnostic.lineNumber);
 
     return {
@@ -195,8 +191,8 @@ export function createUiWorkspacePortableNameDiagnostics(
 }
 
 export function createUiSyntaxDiagnostics(
-  draft: SyntaxProfileDraft,
-  draftResult: SyntaxProfileDraftBuildResult,
+  draft: CtnSyntaxDraft,
+  draftResult: CtnSyntaxDraftBuildResult,
   syntaxFileId: string,
   catalogNameConflictMessage = "",
 ): UiWorkbenchDiagnostic[] {
@@ -230,14 +226,14 @@ export function createUiSyntaxDiagnostics(
 
   const syntaxName = draft.name.trim() || "未命名语法";
   const conflictDiagnostic: UiWorkbenchDiagnostic = {
-    code: "duplicate-syntax-profile-name",
-    id: `syntax:${syntaxFileId}:duplicate-syntax-profile-name:$.name`,
+    code: "duplicate-syntax-name",
+    id: `syntax:${syntaxFileId}:duplicate-syntax-name:$.name`,
     locationLabel: `${syntaxName} · 语法名称`,
     message: catalogNameConflictMessage,
     severity: "error",
     source: "syntax",
     target: {
-      fieldId: "syntax-profile-name",
+      fieldId: "syntax-name",
       kind: "syntax-field",
       path: "$.name",
       syntaxFileId,
@@ -248,8 +244,8 @@ export function createUiSyntaxDiagnostics(
 }
 
 export function createUiSystemSyntaxDiagnostics(
-  draft: SyntaxProfileDraft,
-  draftResult: SyntaxProfileDraftBuildResult,
+  draft: CtnSyntaxDraft,
+  draftResult: CtnSyntaxDraftBuildResult,
   owner: "journal" | "todo",
 ): UiWorkbenchDiagnostic[] {
   const ownerLabel = owner === "journal" ? "日记" : "代办";

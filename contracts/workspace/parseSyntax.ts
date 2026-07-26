@@ -22,7 +22,7 @@ export function isRepositorySyntaxFileId(value: string) {
   return repositorySyntaxFileIdPattern.test(value);
 }
 
-export function normalizeRepositorySyntaxProfileName(value: string) {
+export function normalizeRepositorySyntaxName(value: string) {
   return value.trim().normalize("NFKC").toLocaleLowerCase("en-US");
 }
 

@@ -1,9 +1,10 @@
 import { parseWorkspaceRepositoryContent } from "../../contracts/workspace/parseRepository";
 import type { WorkspaceRepositoryContent } from "../../application/repository/workspaceRepository";
 import { resolveWorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax";
-import { validateWorkspaceBlockMetadata } from "../../core/workspace/context/workspaceBlockMetadata";
+import { validateWorkspaceTitleBlockMetadata } from "../../core/workspace/context/workspaceBlockMetadata";
+import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex";
-import { normalizeWorkspaceSyntaxProfileName } from "../../application/repository/workspaceRepository";
+import { normalizeWorkspaceSyntaxName } from "../../application/repository/workspaceRepository";
 
 /**
  * Application-owned semantic validation composed at the storage runtime edge.
@@ -27,11 +28,11 @@ export function validateWorkspaceRepositoryContent(
     if (!workspaceSyntax) {
       throw new Error("Repository syntax file source cannot be empty");
     }
-    const name = normalizeWorkspaceSyntaxProfileName(
-      workspaceSyntax.profile.name,
+    const name = normalizeWorkspaceSyntaxName(
+      workspaceSyntax.syntax.name,
     );
     if (syntaxNames.has(name)) {
-      throw new Error(`Duplicate repository syntax profile name: ${name}`);
+      throw new Error(`Duplicate repository syntax name: ${name}`);
     }
     syntaxNames.add(name);
   }
@@ -43,10 +44,14 @@ export function validateWorkspaceRepositoryContent(
   const workspaceSyntax = activeSyntaxFile
     ? syntaxById.get(activeSyntaxFile.id) ?? null
     : null;
+  const workspace = createWorkspaceStructureIndex(parsedContent.workspace);
 
-  validateWorkspaceBlockMetadata(
-    parsedContent.workspace,
-    workspaceSyntax?.profile ?? null,
-  );
-  createWorkspaceStructureIndex(parsedContent.workspace);
+  if (workspaceSyntax) {
+    createWorkspaceParseIndex({
+      syntax: workspaceSyntax.syntax,
+      workspace,
+    });
+  } else {
+    validateWorkspaceTitleBlockMetadata(parsedContent.workspace);
+  }
 }

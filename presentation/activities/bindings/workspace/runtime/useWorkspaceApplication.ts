@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { CtnSyntaxProfile } from "../../../../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../../../../core/ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceNote } from "../../../../../core/workspace/model/workspaceData";
 import { parseWorkspaceSyntax } from "../../../../../core/workspace/context/workspaceSyntax";
@@ -9,7 +9,6 @@ import type { ActiveWorkspaceSession } from "../../../../../application/workspac
 import { useWorkspaceSelection } from "../selection/useWorkspaceSelection";
 import { useWorkspaceNavigation } from "../navigation/useWorkspaceNavigation";
 import { useSyntaxRuntime } from "./useSyntaxRuntime";
-import { useWorkspaceParseIndexCache } from "./useWorkspaceParseIndex";
 import { useWorkbenchDiagnostics } from "../diagnostics/useWorkbenchDiagnostics";
 import type { WorkspaceAnalysis } from "../../../../../application/workspace/analysis/workspaceAnalysis";
 import { useWorkspaceAnalysis } from "../analysis/useWorkspaceAnalysis";
@@ -22,7 +21,7 @@ export type WorkspaceShell = {
 export type WorkspaceRuntime = {
   analysis: WorkspaceAnalysis;
   commands: SessionCommands;
-  defaultSyntaxProfile: CtnSyntaxProfile;
+  defaultSyntax: CtnCompiledSyntax;
   effectiveNotes: WorkspaceNote[];
   effectiveWorkspace: WorkspaceStructureIndex | null;
   workspace: WorkspaceStructureIndex;
@@ -47,18 +46,18 @@ export function useWorkspaceApplication(
   const syntaxFiles = useMemo(
     () => syntaxCatalog.files.map((file) => ({
       ...file,
-      name: parseWorkspaceSyntax(file.source).profile.name,
+      name: parseWorkspaceSyntax(file.source).syntax.name,
     })),
     [syntaxCatalog.files],
   );
   const syntax = useSyntaxRuntime({
     activeFileId: syntaxCatalog.activeFileId,
     activateSyntaxFile,
-    activeSyntaxProfile: workspaceSyntax?.profile ?? null,
+    activeSyntax: workspaceSyntax?.syntax ?? null,
     createSyntaxFile,
     deleteSyntaxFile,
     files: syntaxFiles,
-    fallbackSyntaxProfile: defaultWorkspaceSyntax.profile,
+    fallbackSyntax: defaultWorkspaceSyntax.syntax,
     updateSyntaxFileSource,
     workspace: context?.workspace ?? null,
   });
@@ -67,11 +66,9 @@ export function useWorkspaceApplication(
     () => effectiveWorkspace ? listWorkspaceNotes(effectiveWorkspace) : [],
     [effectiveWorkspace],
   );
-  const parseIndexCache = useWorkspaceParseIndexCache();
   const analysis = useWorkspaceAnalysis({
-    context: syntax.effectiveContext,
     enabled: syntax.isConfigured,
-    indexCache: parseIndexCache,
+    index: syntax.isConfigured ? session.analysisIndex : null,
   });
   const navigation = useWorkspaceNavigation({ selection, workspace });
   const portableNameDiagnostics = useMemo(
@@ -96,7 +93,7 @@ export function useWorkspaceApplication(
   const runtime: WorkspaceRuntime = {
     analysis,
     commands,
-    defaultSyntaxProfile: defaultWorkspaceSyntax.profile,
+    defaultSyntax: defaultWorkspaceSyntax.syntax,
     effectiveNotes,
     effectiveWorkspace,
     workspace,

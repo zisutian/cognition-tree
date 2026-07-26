@@ -16,7 +16,6 @@ export type DisplayText = {
         id: string;
         kind: "inline";
         text: string;
-        textColor: string;
         tone: string;
       }
   >;
@@ -32,9 +31,9 @@ export function BlockText({ text }: { text: DisplayText }) {
       {text.segments.map((segment) =>
         segment.kind === "inline" ? (
           <span
-            className={`block-text-inline ${getToneClassName(segment.tone)} ${getTextColorClassName(segment.textColor)}`}
+            className={`block-text-inline ${getToneClassName(segment.tone)}`}
             key={segment.id}
-            style={createToneStyle(segment.tone, segment.textColor)}
+            style={createToneStyle(segment.tone, "default")}
           >
             {segment.text}
           </span>

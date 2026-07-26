@@ -29,7 +29,7 @@ export function useStructureOperationActivity({
   const {
     analysis,
     commands,
-    defaultSyntaxProfile,
+    defaultSyntax,
     effectiveNotes,
     effectiveWorkspace,
   } = runtime;
@@ -189,8 +189,8 @@ export function useStructureOperationActivity({
     deleteFolder: selection.deleteFolder,
     deleteNote: selection.deleteNote,
     indentUnitCount:
-      index?.syntaxProfile.tabDisplayWidth ??
-      defaultSyntaxProfile.tabDisplayWidth,
+      index?.syntax.tabDisplayWidth ??
+      defaultSyntax.tabDisplayWidth,
     moveTreeNode: selection.moveTreeNode,
     onMoveStructureBlockBetweenNotes: moveBlockBetweenNotes,
     onMoveStructureBlockWithinNote: moveBlockWithinNote,

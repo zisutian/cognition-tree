@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { createJournalParseIndex } from "../../../../../core/journal/indexes/journalParseIndex";
 import {
   findJournalEntry,
   formatJournalEntryDate,
@@ -93,14 +92,13 @@ export function useJournalApplication({
   const [expandedCalendarKeys, setExpandedCalendarKeys] =
     useState<Set<string>>(() => new Set());
   const nextFocusRequestIdRef = useRef(1);
-  const previousIndexRef = useRef<JournalParseIndex | null>(null);
   const [workspaceReferences, setWorkspaceReferences] =
     useState<JournalWorkspaceReferenceResolutionState>({ status: "idle" });
   const sessionContent = session.state.status === "ready"
     ? session.state.content
     : null;
   const parsedResult = useMemo(() => {
-    if (!sessionContent) {
+    if (!sessionContent || session.state.status !== "ready") {
       return { parsed: null, errorMessage: "" };
     }
     try {
@@ -110,23 +108,17 @@ export function useJournalApplication({
         errorMessage: "",
         parsed: {
           content,
-          index: createJournalParseIndex(content, previousIndexRef.current),
+          index: session.state.projection,
         } satisfies ParsedJournalState,
       };
     } catch (error) {
       return { errorMessage: getErrorMessage(error), parsed: null };
     }
-  }, [sessionContent]);
+  }, [session.state, sessionContent]);
   const parsed = parsedResult.parsed;
   const activeEntryId = parsed
     ? resolveJournalSelection(parsed.content, requestedEntryId)
     : null;
-
-  useEffect(() => {
-    if (parsed) {
-      previousIndexRef.current = parsed.index;
-    }
-  }, [parsed]);
 
   useEffect(() => {
     const references = parsed?.index.referenceGraph.workspaceReferences ?? [];

@@ -15,14 +15,14 @@ const readyEmptyDiagnostics = {
 export function createSyntaxActivityDiagnostics({
   activeWorkspaceFileId,
   journalDiagnostics,
-  profileDiagnostics,
+  syntaxDiagnostics,
   selectedTarget,
   todoDiagnostics,
   workspaceDiagnostics,
 }: {
   activeWorkspaceFileId: string | null;
   journalDiagnostics: JournalDiagnostics | null;
-  profileDiagnostics: UiWorkbenchDiagnostic[];
+  syntaxDiagnostics: UiWorkbenchDiagnostic[];
   selectedTarget: SyntaxTarget;
   todoDiagnostics: TodoDiagnostics | null;
   workspaceDiagnostics: UiWorkbenchDiagnostics | null;
@@ -42,7 +42,7 @@ export function createSyntaxActivityDiagnostics({
 
   return {
     diagnostics: [
-      ...profileDiagnostics,
+      ...syntaxDiagnostics,
       ...ownerDiagnostics.diagnostics,
     ],
     status: ownerDiagnostics.status,

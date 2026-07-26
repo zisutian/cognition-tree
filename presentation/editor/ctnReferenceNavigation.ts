@@ -4,7 +4,9 @@ import {
   ctnLocalReferenceType,
 } from "../../core/ctn/parser/inlineReferences";
 import type { CtnEditableDocument } from "../../core/ctn/parser/types";
-import type { CtnEditorParsePlugin } from "./ctnDecorations";
+import type {
+  CtnEditorAnalysisField,
+} from "./ctnEditorAnalysis";
 
 export type CtnEditorReferenceTarget = {
   lineNumber: number;
@@ -22,8 +24,8 @@ export function findCtnReferenceAtPosition(
   );
   const span = block?.inlineSpans.find(
     (candidate) =>
-      (candidate.type === ctnGlobalReferenceType ||
-        candidate.type === ctnLocalReferenceType) &&
+      (candidate.rule.semanticId === ctnGlobalReferenceType ||
+        candidate.rule.semanticId === ctnLocalReferenceType) &&
       column >= candidate.startColumn &&
       column < candidate.endColumn,
   );
@@ -32,33 +34,33 @@ export function findCtnReferenceAtPosition(
     ? {
         lineNumber: span.lineNumber,
         text: span.text,
-        type: span.type,
+        type: span.rule.semanticId,
       }
     : null;
 }
 
 export function createCtnReferenceNavigationExtension(
-  parsePlugin: CtnEditorParsePlugin,
+  analysisField: CtnEditorAnalysisField,
   onOpenReferenceRef: {
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
   },
 ) {
   return EditorView.domEventHandlers({
-    click(event, view) {
-      if (!(event.ctrlKey || event.metaKey)) {
+    mousedown(event, view) {
+      if (event.button !== 0 || !(event.ctrlKey || event.metaKey)) {
         return false;
       }
 
       const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
-      const parsed = view.plugin(parsePlugin);
+      const analysis = view.state.field(analysisField).analysis;
 
-      if (position === null || !parsed || !onOpenReferenceRef.current) {
+      if (position === null || !analysis || !onOpenReferenceRef.current) {
         return false;
       }
 
       const line = view.state.doc.lineAt(position);
       const target = findCtnReferenceAtPosition(
-        parsed.document,
+        analysis.document,
         line.number,
         position - line.from + 1,
       );

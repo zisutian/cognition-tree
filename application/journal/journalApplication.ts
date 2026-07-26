@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../core/ctn/analysis/sourceAnalysis";
 import {
   createJournalEntry,
   deleteJournalEntry,
@@ -9,7 +12,6 @@ import {
 } from "../../core/journal/commands/journalCommands";
 import {
   getJournalCreationTimezoneOffsetMinutes,
-  findJournalEntry,
   validateJournalContent,
   type JournalContent,
   type JournalContentValue,
@@ -20,6 +22,13 @@ import {
   resolveJournalSelectionAfterDelete,
 } from "../../core/journal/queries/journalQueries";
 import type { JournalSessionState } from "./journalSessionController";
+import {
+  createJournalParseIndex,
+  type JournalParseIndex,
+} from "../../core/journal/indexes/journalParseIndex";
+import type {
+  PreparedVersionedContent,
+} from "../persistence/versionedSessionController";
 import type {
   JournalFocusRequest,
   JournalViewModel,
@@ -33,6 +42,17 @@ export type JournalApplicationServices = {
 
 export type JournalRepositorySession = {
   mutate: (update: (current: JournalContent) => JournalContent) => void;
+  mutatePrepared: (
+    update: (
+      current: PreparedVersionedContent<
+        JournalContent,
+        JournalParseIndex
+      >,
+    ) => PreparedVersionedContent<
+      JournalContent,
+      JournalParseIndex
+    >,
+  ) => void;
   reload: () => Promise<void>;
   state: JournalSessionState;
 };
@@ -78,15 +98,6 @@ export function requireJournalContent(
   return validateJournalContent(content);
 }
 
-function requireJournalMutationContent(
-  content: JournalContentValue,
-): JournalContent {
-  // Ready Journal views already validate the session snapshot. Commands perform
-  // their own domain validation, so mutation callbacks only narrow the union
-  // here instead of parsing the entire journal an additional time per edit.
-  return content as JournalContent;
-}
-
 function readNow(services: JournalApplicationServices) {
   const now = services.now();
 
@@ -100,6 +111,35 @@ function monotonicTimestamp(requested: string, current: string) {
   return Date.parse(requested) < Date.parse(current) ? current : requested;
 }
 
+type JournalPreparedMutation = {
+  analysisOverrides?: ReadonlyMap<
+    JournalEntryId,
+    CtnCanonicalSourceAnalysis
+  >;
+  content: JournalContent;
+};
+
+function updateJournalSession(
+  session: Pick<JournalRepositorySession, "mutatePrepared">,
+  update: (
+    content: JournalContent,
+    index: JournalParseIndex,
+  ) => JournalPreparedMutation,
+) {
+  session.mutatePrepared(({ content, projection }) => {
+    const result = update(content, projection);
+
+    return {
+      content: result.content,
+      projection: createJournalParseIndex(
+        result.content,
+        projection,
+        result.analysisOverrides,
+      ),
+    };
+  });
+}
+
 export function createJournalMutationActions({
   onCreated,
   onDeleted,
@@ -109,18 +149,22 @@ export function createJournalMutationActions({
   onCreated: (entryId: JournalEntryId) => void;
   onDeleted: (result: JournalDeleteMutationResult) => void;
   services: JournalApplicationServices;
-  session: Pick<JournalRepositorySession, "mutate">;
+  session: Pick<JournalRepositorySession, "mutatePrepared">;
 }): JournalMutationActions {
+  const timestamp = (index: JournalParseIndex, requested: string) =>
+    monotonicTimestamp(requested, index.latestTimestamp ?? requested);
+
   return {
     createEntry() {
       const now = readNow(services);
-      const createdAt = now.toISOString();
       const entryId = services.createEntryId();
       let createdEntryId: JournalEntryId | null = null;
 
-      session.mutate((current) => {
+      updateJournalSession(session, (content, index) => {
+        const createdAt = timestamp(index, now.toISOString());
         const result = createJournalEntry(
-          requireJournalMutationContent(current),
+          content,
+          index,
           {
             createBlockId: services.createBlockId,
             createdAt,
@@ -131,7 +175,10 @@ export function createJournalMutationActions({
         );
 
         createdEntryId = result.entryId;
-        return result.content;
+        return {
+          analysisOverrides: new Map([[entryId, result.analysis]]),
+          content: result.content,
+        };
       });
       if (!createdEntryId) {
         throw new Error("The journal session did not apply the creation.");
@@ -142,8 +189,7 @@ export function createJournalMutationActions({
     deleteEntry(entryId) {
       const outcome: { value?: JournalDeleteMutationResult } = {};
 
-      session.mutate((current) => {
-        const content = requireJournalMutationContent(current);
+      updateJournalSession(session, (content) => {
         const nextSelection = resolveJournalSelectionAfterDelete(
           content,
           entryId,
@@ -154,7 +200,7 @@ export function createJournalMutationActions({
           deletedEntryId: entryId,
           nextSelection,
         };
-        return deleteJournalEntry(content, entryId);
+        return { content: deleteJournalEntry(content, entryId) };
       });
       const result = outcome.value;
 
@@ -167,31 +213,35 @@ export function createJournalMutationActions({
     updateEntryBody(entryId, change) {
       const requestedUpdatedAt = readNow(services).toISOString();
 
-      session.mutate((current) => {
-        const content = requireJournalMutationContent(current);
-        const entry = findJournalEntry(content, entryId);
-
-        if (!entry) {
-          throw new Error(`Journal entry does not exist: ${entryId}`);
-        }
-        return updateJournalEntryBody(content, {
+      updateJournalSession(session, (content, index) => {
+        const result = updateJournalEntryBody(content, index, {
           change,
           createBlockId: services.createBlockId,
           entryId,
-          updatedAt: monotonicTimestamp(
-            requestedUpdatedAt,
-            entry.updatedAt,
-          ),
+          updatedAt: timestamp(index, requestedUpdatedAt),
         });
+
+        return {
+          analysisOverrides: new Map([[entryId, result.analysis]]),
+          content: result.content,
+        };
       });
     },
     updateSyntaxSource(source) {
-      session.mutate((current) =>
-        updateJournalSyntaxSource(
-          requireJournalMutationContent(current),
+      const requestedUpdatedAt = readNow(services).toISOString();
+
+      updateJournalSession(session, (content, index) => {
+        const result = updateJournalSyntaxSource(content, index, {
+          createBlockId: services.createBlockId,
           source,
-        )
-      );
+          updatedAt: timestamp(index, requestedUpdatedAt),
+        });
+
+        return {
+          analysisOverrides: result.analysisOverrides,
+          content: result.content,
+        };
+      });
     },
   };
 }

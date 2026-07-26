@@ -5,10 +5,14 @@ import { createSyntaxActivitySlots } from "../../../../presentation/activities/v
 import { SyntaxDetailPanel } from "../../../../presentation/activities/views/syntax/SyntaxDetailPanel";
 import { SyntaxMainPanel } from "../../../../presentation/activities/views/syntax/SyntaxMainPanel";
 import { createView } from "../../viewFactory";
-import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
-import { defaultJournalCtnSyntaxProfileV3 } from "../../../../core/journal/syntax/journalSyntax";
-import { defaultTodoCtnSyntaxProfileV4 } from "../../../../core/todo/syntax/todoSyntax";
+import { createCtnSyntaxDraft } from "../../../../core/ctn/syntax/draft";
+import { defaultJournalSyntax } from "../../../../core/journal/syntax/defaultJournalSyntax";
+import { defaultTodoSyntax } from "../../../../core/todo/syntax/defaultTodoSyntax";
 import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
+
+function occurrenceCount(source: string, value: string) {
+  return source.split(value).length - 1;
+}
 
 describe("syntax panels", () => {
   it("lists syntax files with the active and invalid state", () => {
@@ -89,13 +93,20 @@ describe("syntax panels", () => {
     expect(markup).toContain("行内规则");
     expect(markup).toContain("syntax-tone-picker");
     expect(markup).toContain("syntax-tone-button is-compact");
-    expect(markup).toContain("syntax-role-picker");
-    expect(markup).toContain("syntax-role-button");
+    expect(markup).toContain("syntax-kind-picker");
+    expect(markup).toContain("syntax-kind-button");
     expect(markup).toContain("新增块规则");
+    expect(markup).toContain(
+      'aria-label="全局概念引用颜色: 蓝色"',
+    );
+    expect(markup).not.toContain("全局概念引用背景色");
+    expect(markup).not.toContain("全局概念引用文字色");
+    expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(5);
+    expect(occurrenceCount(markup, 'aria-label="删除行内规则"')).toBe(3);
     expect(markup).not.toContain('aria-label="语法名称"');
     expect(markup).not.toContain('data-syntax-field-id="syntax-profile-name"');
     expect(markup).toContain('data-syntax-field-id="syntax-tab-display-width"');
-    expect(markup).toContain('data-syntax-field-id="syntax-marker-rule-group"');
+    expect(markup).toContain('data-syntax-field-id="syntax-block-rule-group"');
     expect(markup).toContain('data-syntax-field-id="syntax-inline-rule-group"');
     expect(markup).not.toContain("ui-status");
     expect(markup).not.toContain("<select");
@@ -153,16 +164,17 @@ describe("syntax panels", () => {
 
   it("keeps the Journal name and reference trigger visibly protected", () => {
     const base = createView().syntax;
-    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV3);
-    const referenceId = draft.inlineRules.find(
-      ({ type }) => type === "global-reference",
+    const draft = createCtnSyntaxDraft(defaultJournalSyntax);
+    const referenceId = draft.inline.find(
+      ({ semanticId }) => semanticId === "global-reference",
     )!.id;
     const markup = renderToStaticMarkup(
       <SyntaxMainPanel
         view={{
           ...base,
-          ...createUiSyntaxView({ draft, policy: { scope: "journal" } }),
+          ...createUiSyntaxView({ draft, owner: "journal" }),
           nameEditable: false,
+          protectedInlineRuleIds: [referenceId],
           protectedInlineTriggerRuleIds: [referenceId],
           rootRuleLabel: "顶格正文",
           selectedTarget: { kind: "journal" },
@@ -175,35 +187,54 @@ describe("syntax panels", () => {
     expect(markup).not.toContain("顶格概念");
     expect(markup).not.toContain("首行标题");
     expect(markup).not.toContain('aria-label="语法名称"');
-    expect(markup).toMatch(/aria-label="开始"[^>]*disabled=""/);
-    expect(markup).toMatch(/aria-label="结束"[^>]*disabled=""/);
+    expect(occurrenceCount(markup, 'aria-label="开始"')).toBe(1);
+    expect(occurrenceCount(markup, 'aria-label="结束"')).toBe(1);
+    expect(markup).toContain('<span class="syntax-readonly">[[</span>');
+    expect(markup).toContain('<span class="syntax-readonly">]]</span>');
+    expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(4);
+    expect(occurrenceCount(markup, 'aria-label="删除行内规则"')).toBe(2);
   });
 
-  it("renders the Todo item without a whole-line background", () => {
+  it("renders the protected Todo item with fixed structure and editable colors", () => {
     const base = createView().syntax;
-    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV4);
-    const todoItemId = draft.markerRules.find(
-      ({ type }) => type === "todo-item",
+    const draft = createCtnSyntaxDraft(defaultTodoSyntax);
+    const todoItemId = draft.blocks.find(
+      ({ semanticId }) => semanticId === "todo-item",
+    )!.id;
+    const referenceId = draft.inline.find(
+      ({ semanticId }) => semanticId === "global-reference",
     )!.id;
     const markup = renderToStaticMarkup(
       <SyntaxMainPanel
         view={{
           ...base,
-          ...createUiSyntaxView({ draft, policy: { scope: "todo" } }),
+          ...createUiSyntaxView({ draft, owner: "todo" }),
           nameEditable: false,
-          policy: { scope: "todo" },
-          protectedMarkerRuleIds: [todoItemId],
+          protectedBlockRuleIds: [todoItemId],
+          protectedInlineRuleIds: [referenceId],
           rootRuleLabel: null,
           selectedTarget: { kind: "todo" },
         }}
       />,
     );
 
-    expect(markup).toContain("代办背景色: 默认");
+    expect(markup).toContain("代办背景色: 编辑器背景");
+    expect(markup).toContain("代办颜色: 青色");
+    expect(markup).not.toContain("代办文字色");
     expect(markup).toContain("<h2>代办</h2>");
+    expect(markup).toContain('<span class="syntax-readonly">代办</span>');
+    expect(markup).toContain('<span class="syntax-readonly">[]</span>');
+    expect(markup).not.toContain('value="代办"');
+    expect(markup).not.toContain('value="[]"');
     expect(markup).not.toContain("首行标题");
     expect(markup).not.toContain('aria-label="语法名称"');
-    expect(markup).toMatch(/aria-label="角色: [^"]+"[^>]*disabled=""/);
+    expect(markup).not.toContain('aria-label="角色: 普通块"');
+    expect(markup).toContain('<span class="syntax-readonly">普通块</span>');
+    expect(markup).not.toContain('aria-label="标记"');
+    expect(markup).not.toMatch(/aria-label="开始"[^>]*disabled=""/);
+    expect(markup).not.toMatch(/aria-label="结束"[^>]*disabled=""/);
+    expect(markup).not.toContain('aria-label="删除块规则"');
+    expect(markup).not.toContain('aria-label="删除行内规则"');
   });
 
   it("keeps catalog name conflicts in the invalid draft recovery state", () => {

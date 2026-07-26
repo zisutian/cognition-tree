@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../../core/ctn/parser/parseCtnDocument";
+import { readCanonicalTestDocument } from "../../../ctn/analysis/analysisTestHelpers";
 import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import { readWorkspaceNoteHeader } from "../../../../core/workspace/model/workspaceData";
 import { createInitialRepositoryContent } from "../../../../application/workspace/session/initialRepository";
@@ -18,7 +18,7 @@ describe("initial repository", () => {
     });
     const syntax = parseWorkspaceSyntax(content.syntax.files[0]!.source);
     const note = content.workspace.notes[0];
-    const document = parseCtnCanonicalDocument(note.source, syntax.profile);
+    const document = readCanonicalTestDocument(note.source, syntax.syntax);
 
     expect(content).toMatchObject({
       schemaVersion: 4,

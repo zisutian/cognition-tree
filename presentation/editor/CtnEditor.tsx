@@ -1,32 +1,31 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import {
-  createCtnContentAttributesExtension,
   createCtnEditorExtensions,
-  createCtnParsingExtensions,
-  createCtnTabSizeExtension,
-  ctnContentAttributesCompartment,
-  ctnParsingCompartment,
-  ctnTabSizeCompartment,
+  createCtnEditorRuntimeExtensions,
+  ctnEditorRuntimeCompartment,
   getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
 import type { CtnEditorContentMode } from "./ctnEditorContentMode";
 import { createEditorValueSyncTransaction } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
-import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
+import {
+  createCtnEditorCheckableBlocksKey,
+  type CtnEditorCheckableBlock,
+} from "./ctnEditorCheckableBlocks";
 import "./CtnEditor.css";
 
-export type CtnEditorSyntaxProfile = CtnSyntaxProfile;
+export type CtnEditorSyntax = CtnCompiledSyntax;
 export type { CtnEditorContentMode } from "./ctnEditorContentMode";
 
 type CtnEditorProps = {
   checkableBlocks?: readonly CtnEditorCheckableBlock[];
   contentMode: CtnEditorContentMode;
   focusTarget: CtnEditorFocusTarget | null;
-  syntaxProfile: CtnEditorSyntaxProfile;
+  syntax: CtnEditorSyntax;
   value: string;
   valueSyncVersion?: number;
   onActiveLineChange: (lineNumber: number) => void;
@@ -47,7 +46,7 @@ export function CtnEditor({
   checkableBlocks = [],
   contentMode,
   focusTarget,
-  syntaxProfile,
+  syntax,
   value,
   valueSyncVersion = 0,
   onActiveLineChange,
@@ -62,10 +61,7 @@ export function CtnEditor({
   const onActiveLineChangeRef = useRef(onActiveLineChange);
   const onChangeRef = useRef(onChange);
   const onOpenReferenceRef = useRef(onOpenReference);
-  const checkableBlocksRef = useRef(checkableBlocks);
   const onToggleCheckableBlockRef = useRef(onToggleCheckableBlock);
-  const syntaxProfileRef = useRef(syntaxProfile);
-  const tabDisplayWidthRef = useRef(syntaxProfile.tabDisplayWidth);
   const consumedFocusRequestIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -81,33 +77,8 @@ export function CtnEditor({
   }, [onOpenReference]);
 
   useEffect(() => {
-    checkableBlocksRef.current = checkableBlocks;
-  }, [checkableBlocks]);
-
-  useEffect(() => {
     onToggleCheckableBlockRef.current = onToggleCheckableBlock;
   }, [onToggleCheckableBlock]);
-
-  useEffect(() => {
-    syntaxProfileRef.current = syntaxProfile;
-    const view = editorViewRef.current;
-
-    if (!view) {
-      return;
-    }
-
-    if (tabDisplayWidthRef.current !== syntaxProfile.tabDisplayWidth) {
-      view.dispatch({
-        effects: ctnTabSizeCompartment.reconfigure(
-          createCtnTabSizeExtension(syntaxProfile.tabDisplayWidth),
-        ),
-      });
-      tabDisplayWidthRef.current = syntaxProfile.tabDisplayWidth;
-      return;
-    }
-
-    view.dispatch({});
-  }, [syntaxProfile]);
 
   useEffect(() => {
     if (!editorHostRef.current || editorViewRef.current) {
@@ -120,11 +91,11 @@ export function CtnEditor({
         doc: initialValueRef.current,
         extensions: createCtnEditorExtensions(
           onChangeRef,
-          syntaxProfileRef,
+          syntax,
           onOpenReferenceRef,
           onActiveLineChangeRef,
           contentMode,
-          checkableBlocksRef,
+          checkableBlocks,
           onToggleCheckableBlockRef,
         ),
       }),
@@ -142,11 +113,9 @@ export function CtnEditor({
 
   const contentModeKind = contentMode.kind;
   const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
-  const checkableBlocksKey = checkableBlocks
-    .map(({ blockId, checked, lineNumber, recurrenceLabel }) =>
-      `${lineNumber}:${blockId}:${checked ? "1" : "0"}:${recurrenceLabel ?? ""}`
-    )
-    .join("|");
+  const checkableBlocksKey = createCtnEditorCheckableBlocksKey(
+    checkableBlocks,
+  );
 
   useEffect(() => {
     const view = editorViewRef.current;
@@ -175,22 +144,21 @@ export function CtnEditor({
     }
 
     view.dispatch({
-      effects: ctnParsingCompartment.reconfigure(
-        createCtnParsingExtensions(
-          syntaxProfileRef,
-          onOpenReferenceRef,
+      effects: ctnEditorRuntimeCompartment.reconfigure(
+        createCtnEditorRuntimeExtensions({
+          checkableBlocks: [...checkableBlocks],
           contentMode,
-          checkableBlocksRef,
-          onToggleCheckableBlockRef,
-        ),
+          syntax,
+        }),
       ),
     });
-    view.dispatch({
-      effects: ctnContentAttributesCompartment.reconfigure(
-        createCtnContentAttributesExtension(contentMode),
-      ),
-    });
-  }, [bodyTitle, checkableBlocksKey, contentModeKind]);
+  }, [
+    bodyTitle,
+    checkableBlocksKey,
+    contentModeKind,
+    syntax.analysisKey,
+    syntax.presentationKey,
+  ]);
 
   useEffect(() => {
     const view = editorViewRef.current;

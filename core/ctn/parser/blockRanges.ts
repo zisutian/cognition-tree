@@ -5,8 +5,10 @@ import type { CtnMultilineRange } from "./types.ts";
 type CtnBlockRange = {
   level: number;
   lexicalEndLineNumber: number;
+  rule: {
+    semanticId: string;
+  };
   subtreeEndLineNumber: number;
-  type: string;
 };
 
 export function isClosingMultilineFence(
@@ -54,7 +56,7 @@ export function assignBlockSubtreeEndLineNumbers<TBlock extends CtnBlockRange>(
   const openBlocks: TBlock[] = [];
 
   for (const block of blocks) {
-    if (block.type === "title") {
+    if (block.rule.semanticId === "title") {
       continue;
     }
 

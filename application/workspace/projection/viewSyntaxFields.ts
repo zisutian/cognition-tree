@@ -1,18 +1,20 @@
-import type { SyntaxProfileDraft } from "../../../core/ctn/syntax/profileDraft";
+import type {
+  CtnSyntaxDraft,
+} from "../../../core/ctn/syntax/draft";
 
 export type UiSyntaxFieldId = string;
 
 export const syntaxFieldIds = {
+  blockRuleGroup: "syntax-block-rule-group",
   inlineRuleGroup: "syntax-inline-rule-group",
-  markerRuleGroup: "syntax-marker-rule-group",
-  profileName: "syntax-profile-name",
-  root: "syntax-root",
+  name: "syntax-name",
+  root: "syntax-root-rule",
   tabDisplayWidth: "syntax-tab-display-width",
-  titleRule: "syntax-title-rule",
-  topLevelUnmarkedRule: "syntax-top-level-unmarked-rule",
+  title: "syntax-title-rule",
+  viewRoot: "syntax-view-root",
 } as const satisfies Record<string, UiSyntaxFieldId>;
 
-type SyntaxRuleKind = "inline" | "marker";
+type SyntaxRuleKind = "block" | "inline";
 
 export function createSyntaxRuleFieldId(
   kind: SyntaxRuleKind,
@@ -29,116 +31,119 @@ export type UiSyntaxDiagnosticLocation = {
 
 const fieldLabels: Record<string, string> = {
   close: "结束符号",
+  kind: "类型",
   label: "名称",
   marker: "符号",
   open: "开始符号",
-  role: "类型",
+  semanticId: "语义 ID",
   textColor: "文字色",
   tone: "背景色",
-  type: "语义 ID",
 };
 
-function createRuleLocation({
+function ruleLocation({
   field,
   index,
   kind,
   ruleId,
   ruleLabel,
+  fixedTodoItem = false,
 }: {
   field: string | undefined;
   index: number;
   kind: SyntaxRuleKind;
   ruleId: string | undefined;
   ruleLabel: string | undefined;
+  fixedTodoItem?: boolean;
 }): UiSyntaxDiagnosticLocation {
-  const groupLabel = kind === "marker" ? "块规则" : "行内规则";
+  const groupLabel = kind === "block" ? "块规则" : "行内规则";
   const itemLabel = ruleLabel?.trim() || `${groupLabel} ${index + 1}`;
-  const targetField = field === "type" ? "row" : field ?? "row";
+  const isFixedTodoField = fixedTodoItem &&
+    (field === "kind" || field === "label" || field === "marker");
+  const targetField = field === "semanticId" || isFixedTodoField
+    ? "row"
+    : kind === "inline" && field === "textColor"
+      ? "tone"
+      : field ?? "row";
+  const isUnifiedColor = (
+    kind === "inline" &&
+    (field === "tone" || field === "textColor")
+  ) || (fixedTodoItem && field === "textColor");
+  const fieldLabel = isUnifiedColor
+    ? "颜色"
+    : field
+      ? fieldLabels[field] ?? field
+      : "";
 
   return {
     fieldId: ruleId
       ? createSyntaxRuleFieldId(kind, ruleId, targetField)
-      : kind === "marker"
-        ? syntaxFieldIds.markerRuleGroup
+      : kind === "block"
+        ? syntaxFieldIds.blockRuleGroup
         : syntaxFieldIds.inlineRuleGroup,
-    label: field ? `${itemLabel} · ${fieldLabels[field] ?? field}` : itemLabel,
+    label: field ? `${itemLabel} · ${fieldLabel}` : itemLabel,
   };
 }
 
 export function resolveUiSyntaxDiagnosticLocation(
-  draft: SyntaxProfileDraft,
+  draft: CtnSyntaxDraft,
   path: string,
 ): UiSyntaxDiagnosticLocation {
-  const normalizedPath = path.replace(/^\$\./, "");
+  const normalized = path.replace(/^\$\./, "");
 
-  if (normalizedPath === "name") {
-    return { fieldId: syntaxFieldIds.profileName, label: "语法名称" };
+  if (normalized === "name") {
+    return { fieldId: syntaxFieldIds.name, label: "语法名称" };
   }
-
-  if (normalizedPath === "tabDisplayWidth") {
+  if (normalized === "tabDisplayWidth") {
     return { fieldId: syntaxFieldIds.tabDisplayWidth, label: "缩进宽度" };
   }
-
-  if (normalizedPath === "markers") {
-    return { fieldId: syntaxFieldIds.markerRuleGroup, label: "块规则" };
+  if (normalized === "blocks" || normalized === "blocks.todo-item") {
+    return { fieldId: syntaxFieldIds.blockRuleGroup, label: "块规则" };
   }
-
-  if (normalizedPath === "inlineRules.global-reference") {
-    const protectedRule = draft.inlineRules.find(
-      (rule) => rule.type === "global-reference",
+  if (normalized === "inline.global-reference") {
+    const rule = draft.inline.find(
+      ({ semanticId }) => semanticId === "global-reference",
     );
 
     return {
-      fieldId: protectedRule
-        ? createSyntaxRuleFieldId("inline", protectedRule.id)
+      fieldId: rule
+        ? createSyntaxRuleFieldId("inline", rule.id)
         : syntaxFieldIds.inlineRuleGroup,
       label: "全局概念引用规则",
     };
   }
+  const displayMatch = /^(title|root)(?:\.(.+))?$/.exec(normalized);
 
-  const fixedRuleMatch = /^(title|concept|body)(?:\.(.+))?$/.exec(normalizedPath);
-
-  if (fixedRuleMatch) {
-    const [, kind, field] = fixedRuleMatch;
-    const label = kind === "title"
-      ? "首行标题"
-      : kind === "concept"
-        ? "顶格概念"
-        : "顶格正文";
+  if (displayMatch) {
+    const [, kind, field] = displayMatch;
+    const label = kind === "title" ? "首行标题" : "顶格规则";
 
     return {
-      fieldId:
-        kind === "title"
-          ? syntaxFieldIds.titleRule
-          : syntaxFieldIds.topLevelUnmarkedRule,
+      fieldId: kind === "title" ? syntaxFieldIds.title : syntaxFieldIds.root,
       label: field ? `${label} · ${fieldLabels[field] ?? field}` : label,
     };
   }
+  const blockMatch = /^blocks\[(\d+)\](?:\.(.+))?$/.exec(normalized);
 
-  const markerMatch = /^markers\[(\d+)\](?:\.(.+))?$/.exec(normalizedPath);
+  if (blockMatch) {
+    const index = Number(blockMatch[1]);
+    const rule = draft.blocks[index];
 
-  if (markerMatch) {
-    const index = Number(markerMatch[1]);
-    const rule = draft.markerRules[index];
-
-    return createRuleLocation({
-      field: markerMatch[2],
+    return ruleLocation({
+      field: blockMatch[2],
       index,
-      kind: "marker",
+      kind: "block",
       ruleId: rule?.id,
       ruleLabel: rule?.label,
+      fixedTodoItem: rule?.semanticId === "todo-item",
     });
   }
-
-  const inlineMatch = /^inlineRules\[(\d+)\](?:\.(.+))?$/.exec(
-    normalizedPath,
-  );
+  const inlineMatch = /^inline\[(\d+)\](?:\.(.+))?$/.exec(normalized);
 
   if (inlineMatch) {
     const index = Number(inlineMatch[1]);
-    const rule = draft.inlineRules[index];
+    const rule = draft.inline[index];
 
-    return createRuleLocation({
+    return ruleLocation({
       field: inlineMatch[2],
       index,
       kind: "inline",
@@ -146,9 +151,5 @@ export function resolveUiSyntaxDiagnosticLocation(
       ruleLabel: rule?.label,
     });
   }
-
-  return {
-    fieldId: syntaxFieldIds.root,
-    label: path,
-  };
+  return { fieldId: syntaxFieldIds.viewRoot, label: path };
 }

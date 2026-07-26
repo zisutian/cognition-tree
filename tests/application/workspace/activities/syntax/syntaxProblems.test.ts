@@ -78,7 +78,7 @@ describe("syntax activity diagnostics", () => {
     expect(createSyntaxActivityDiagnostics({
       activeWorkspaceFileId: "syntax-a",
       journalDiagnostics,
-      profileDiagnostics: [profileDiagnostic],
+      syntaxDiagnostics: [profileDiagnostic],
       selectedTarget: { fileId: "syntax-b", kind: "workspace-file" },
       todoDiagnostics,
       workspaceDiagnostics,
@@ -87,7 +87,7 @@ describe("syntax activity diagnostics", () => {
     expect(createSyntaxActivityDiagnostics({
       activeWorkspaceFileId: "syntax-b",
       journalDiagnostics,
-      profileDiagnostics: [profileDiagnostic],
+      syntaxDiagnostics: [profileDiagnostic],
       selectedTarget: { fileId: "syntax-b", kind: "workspace-file" },
       todoDiagnostics,
       workspaceDiagnostics,
@@ -101,7 +101,7 @@ describe("syntax activity diagnostics", () => {
     expect(createSyntaxActivityDiagnostics({
       activeWorkspaceFileId: "syntax-a",
       journalDiagnostics,
-      profileDiagnostics: [],
+      syntaxDiagnostics: [],
       selectedTarget: { kind: "journal" },
       todoDiagnostics,
       workspaceDiagnostics,
@@ -109,7 +109,7 @@ describe("syntax activity diagnostics", () => {
     expect(createSyntaxActivityDiagnostics({
       activeWorkspaceFileId: "syntax-a",
       journalDiagnostics,
-      profileDiagnostics: [],
+      syntaxDiagnostics: [],
       selectedTarget: { kind: "todo" },
       todoDiagnostics,
       workspaceDiagnostics,

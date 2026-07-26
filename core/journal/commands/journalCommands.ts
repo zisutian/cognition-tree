@@ -1,29 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata.ts";
+import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
 import {
-  initializeCtnSourceBlockMetadata,
-  replaceCtnSourceTitle,
+  recanonicalizeCtnSourceBlockMetadata,
+  reconcileCtnSourceBlockMetadata,
+} from "../../ctn/metadata/reconcileSourceMetadata.ts";
+import {
+  initializeCtnSourceBlockMetadataAnalysis,
 } from "../../ctn/metadata/sourceMetadata.ts";
 import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
 } from "../../ctn/metadata/textEdits.ts";
-import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.ts";
+import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
 import {
-  collectJournalBlockIds,
-  createJournalEntryBodyProjection,
-  findJournalEntry,
+  analyzeCtnSource,
+  type CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis.ts";
+import type {
+  JournalParseIndex,
+} from "../indexes/journalParseIndex.ts";
+import {
   formatJournalEntryDate,
   formatJournalEntryTitle,
   journalMaximumDailySequence,
   isJournalEntryId,
-  listJournalEntries,
-  validateJournalContent,
   type JournalContent,
   type JournalEntryId,
 } from "../model/journalContent.ts";
-import { requireJournalSyntaxProfile } from "../syntax/journalSyntax.ts";
 
 export type CreateJournalEntryInput = {
   createBlockId: () => string;
@@ -39,6 +43,24 @@ export type UpdateJournalEntryBodyInput = {
   updatedAt: string;
 };
 
+export type UpdateJournalSyntaxSourceInput = {
+  createBlockId: () => string;
+  source: string;
+  updatedAt: string;
+};
+
+function canonicalTimestamp(value: string, label: string) {
+  const milliseconds = Date.parse(value);
+
+  if (
+    !Number.isFinite(milliseconds) ||
+    new Date(milliseconds).toISOString() !== value
+  ) {
+    throw new Error(`${label} must be a canonical ISO timestamp.`);
+  }
+  return milliseconds;
+}
+
 function findEntryPosition(content: JournalContent, entryId: JournalEntryId) {
   const dayIndex = content.days.findIndex((day) =>
     day.entries.some((entry) => entry.id === entryId)
@@ -53,34 +75,15 @@ function findEntryPosition(content: JournalContent, entryId: JournalEntryId) {
   return { dayIndex, entryIndex };
 }
 
-function getEditableBodySource(content: JournalContent, entryId: JournalEntryId) {
-  const entry = findJournalEntry(content, entryId);
-
-  if (!entry) {
-    throw new Error(`Journal entry does not exist: ${entryId}`);
-  }
-  const projection = createJournalEntryBodyProjection(
-    entry,
-    requireJournalSyntaxProfile(content.syntaxSource),
-  );
-
-  return {
-    body: projection.source,
-    editable: projection.editableSource,
-    entry,
-    parsed: projection,
-  };
-}
-
 export function createJournalEntry(
   content: JournalContent,
+  index: JournalParseIndex,
   input: CreateJournalEntryInput,
 ) {
-  validateJournalContent(content);
   if (!isJournalEntryId(input.entryId)) {
     throw new Error(`Invalid journal entry id: ${input.entryId}`);
   }
-  if (listJournalEntries(content).some(({ id }) => id === input.entryId)) {
+  if (index.entryById.has(input.entryId)) {
     throw new Error(`Journal entry already exists: ${input.entryId}`);
   }
 
@@ -102,17 +105,17 @@ export function createJournalEntry(
     input.timezoneOffsetMinutes,
     sequence,
   );
-  const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
-  const source = initializeCtnSourceBlockMetadata(
+  const initialized = initializeCtnSourceBlockMetadataAnalysis(
     `${title}\n`,
-    syntaxProfile,
+    index.syntax,
     {
       createdAt: input.createdAt,
       createId: input.createBlockId,
-      reservedIds: collectJournalBlockIds(content, syntaxProfile),
+      reservedIds: index.blockIds,
       updatedAt: input.createdAt,
     },
   );
+  const source = initialized.source;
   const next: JournalContent = {
     ...content,
     days: (existingDay
@@ -147,22 +150,47 @@ export function createJournalEntry(
     ).sort((left, right) => left.date.localeCompare(right.date)),
   };
 
-  validateJournalContent(next);
-  return { content: next, entryId: input.entryId };
+  return {
+    analysis: initialized.analysis,
+    content: next,
+    entryId: input.entryId,
+  };
 }
 
 export function updateJournalEntryBody(
   content: JournalContent,
+  index: JournalParseIndex,
   input: UpdateJournalEntryBodyInput,
 ) {
-  validateJournalContent(content);
   const { dayIndex, entryIndex } = findEntryPosition(content, input.entryId);
-  const current = getEditableBodySource(content, input.entryId);
-  const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
+  const parsed = index.getParsedEntry(input.entryId);
+
+  if (!parsed || parsed.entry.source !==
+      content.days[dayIndex].entries[entryIndex]?.source) {
+    throw new Error(`Journal entry analysis is stale: ${input.entryId}`);
+  }
+  const editable = parsed.analysis.editableProjection.source;
+  const prefix = `${parsed.title}\n`;
+  const body = editable === parsed.title
+    ? ""
+    : editable.startsWith(prefix)
+      ? editable.slice(prefix.length)
+      : (() => {
+          throw new Error(
+            `Journal entry ${input.entryId} has an invalid editable title.`,
+          );
+        })();
+  const current = {
+    body,
+    editable,
+    entry: parsed.entry,
+    parsed,
+  };
+  const syntax = index.syntax;
 
   assertCtnEditableSourceChange(current.body, input.change);
   if (current.body === input.change.source) {
-    return content;
+    return { analysis: parsed.analysis, content };
   }
   if (Date.parse(input.updatedAt) < Date.parse(current.entry.updatedAt)) {
     throw new Error("Journal entry updatedAt cannot move backwards.");
@@ -182,61 +210,115 @@ export function updateJournalEntryBody(
         to: edit.to + titleSeparatorOffset,
       }));
   const reconciled = reconcileCtnSourceBlockMetadata(
-    current.entry.source,
+    current.parsed.analysis,
+    analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: nextEditableSource,
+      syntax,
+    }),
     {
       edits,
       source: nextEditableSource,
     },
-    syntaxProfile,
     {
       createId: input.createBlockId,
-      reservedIds: collectJournalBlockIds(content, syntaxProfile),
+      reservedIds: index.blockIds,
       timestamp: input.updatedAt,
+      touchTitle: false,
     },
-  );
-  const previousTitleMetadata = readCtnCanonicalTitleHeader(
-    current.entry.source,
-  ).metadata;
-  const sourceWithImmutableTitle = replaceCtnSourceTitle(
-    reconciled,
-    current.parsed.title,
-    previousTitleMetadata.updatedAt,
   );
   const entries = [...content.days[dayIndex].entries];
 
   entries[entryIndex] = {
     ...current.entry,
-    source: sourceWithImmutableTitle,
+    source: reconciled.source,
     updatedAt: input.updatedAt,
   };
   const days = [...content.days];
 
   days[dayIndex] = { ...days[dayIndex], entries };
-  const next = { ...content, days };
-
-  validateJournalContent(next);
-  return next;
+  return {
+    analysis: reconciled.analysis,
+    content: { ...content, days },
+  };
 }
 
 export function updateJournalSyntaxSource(
   content: JournalContent,
-  syntaxSource: string,
+  index: JournalParseIndex,
+  input: UpdateJournalSyntaxSourceInput,
 ) {
-  validateJournalContent(content);
-  if (content.syntaxSource === syntaxSource) {
-    return content;
+  if (content.syntaxSource === input.source) {
+    return {
+      analysisOverrides:
+        new Map<JournalEntryId, CtnCanonicalSourceAnalysis>(),
+      content,
+    };
   }
-  const next = { ...content, syntaxSource };
+  canonicalTimestamp(input.updatedAt, "Journal syntax updatedAt");
+  const syntax = requireCtnSyntax(input.source, "journal");
 
-  validateJournalContent(next);
-  return next;
+  if (syntax.blockGrammarKey === index.syntax.blockGrammarKey) {
+    return {
+      analysisOverrides:
+        new Map<JournalEntryId, CtnCanonicalSourceAnalysis>(),
+      content: { ...content, syntaxSource: input.source },
+    };
+  }
+  const allocator = createCtnBlockIdAllocator(
+    input.createBlockId,
+    index.blockIds,
+  );
+  const analysisOverrides =
+    new Map<JournalEntryId, CtnCanonicalSourceAnalysis>();
+  const days = content.days.map((day) => ({
+    ...day,
+    entries: day.entries.map((entry) => {
+      const previous = index.getParsedEntry(entry.id);
+
+      if (!previous || previous.entry.source !== entry.source) {
+        throw new Error(`Journal entry analysis is stale: ${entry.id}`);
+      }
+      const candidate = analyzeCtnSource({
+        mode: { kind: "editable-document" },
+        source: previous.analysis.editableProjection.source,
+        syntax,
+      });
+      const reconciled = recanonicalizeCtnSourceBlockMetadata(
+        previous.analysis,
+        candidate,
+        {
+          allocateId: allocator.allocate,
+          timestamp: input.updatedAt,
+          touchTitle: false,
+        },
+      );
+
+      analysisOverrides.set(entry.id, reconciled.analysis);
+      return reconciled.source === entry.source
+        ? entry
+        : {
+            ...entry,
+            source: reconciled.source,
+            updatedAt: input.updatedAt,
+          };
+    }),
+  }));
+
+  return {
+    analysisOverrides,
+    content: {
+      ...content,
+      days,
+      syntaxSource: input.source,
+    },
+  };
 }
 
 export function deleteJournalEntry(
   content: JournalContent,
   entryId: JournalEntryId,
 ) {
-  validateJournalContent(content);
   const { dayIndex, entryIndex } = findEntryPosition(content, entryId);
   const entries = [...content.days[dayIndex].entries];
 
@@ -244,8 +326,5 @@ export function deleteJournalEntry(
   const days = [...content.days];
 
   days[dayIndex] = { ...days[dayIndex], entries };
-  const next = { ...content, days };
-
-  validateJournalContent(next);
-  return next;
+  return { ...content, days };
 }

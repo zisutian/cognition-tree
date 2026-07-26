@@ -20,6 +20,9 @@ import {
   type JournalDeleteMutationResult,
 } from "../../../application/journal/journalApplication";
 import type { JournalContentDto } from "../../../contracts/journal/types";
+import {
+  createJournalParseIndex,
+} from "../../../core/journal/indexes/journalParseIndex";
 import { describe, expect, it } from "vitest";
 
 function entryId(index: number): JournalEntryId {
@@ -68,6 +71,7 @@ function createServices({
 
 function createFunctionalSession(initial: JournalContent) {
   let content: JournalContent = initial;
+  let projection = createJournalParseIndex(content);
   const visibleEntryCounts: number[] = [];
 
   return {
@@ -79,8 +83,26 @@ function createFunctionalSession(initial: JournalContent) {
         update: (current: JournalContentDto) => JournalContentDto,
       ) {
         content = requireJournalContent(update(content));
+        projection = createJournalParseIndex(content, projection);
+        visibleEntryCounts.push(listJournalEntries(content).length);
+      },
+      mutatePrepared(
+        update: (
+          current: {
+            content: JournalContent;
+            projection: typeof projection;
+          },
+        ) => {
+          content: JournalContent;
+          projection: typeof projection;
+        },
+      ) {
+        const prepared = update({ content, projection });
+
+        content = requireJournalContent(prepared.content);
+        projection = prepared.projection;
         visibleEntryCounts.push(listJournalEntries(
-          requireJournalContent(content),
+          content,
         ).length);
       },
     },

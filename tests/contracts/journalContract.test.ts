@@ -5,7 +5,7 @@ import {
   UnsupportedWireVersionError,
   WireContractError,
 } from "../../contracts/common/contractValue.ts";
-import { defaultJournalSyntaxSourceV3 as contractSyntax } from "../../contracts/journal/defaultContent.ts";
+import { defaultJournalSyntaxSource as contractSyntax } from "../../contracts/journal/defaultContent.ts";
 import {
   createEmptyJournalContent,
   isJournalEntryId,
@@ -15,7 +15,7 @@ import {
 } from "../../contracts/journal/parseJournal.ts";
 import { serializeJournalRevisionContent } from "../../contracts/journal/revision.ts";
 import type { JournalContentDto } from "../../contracts/journal/types.ts";
-import { defaultJournalSyntaxSourceV3 as domainSyntax } from "../../core/journal/syntax/journalSyntax.ts";
+import { defaultJournalSyntaxSource as domainSyntax } from "../../core/journal/syntax/defaultJournalSyntax.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const entryId = "journal-entry-00000000-0000-4000-8000-000000000001";

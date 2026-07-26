@@ -31,8 +31,7 @@ import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/r
 import { createUiOutlineNodes } from "../../application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";
-import { createCtnEditableSource } from "../../core/ctn/metadata/editableSource.ts";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile.ts";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax.ts";
 import { createIndexedDbRepositoryClientCache } from "../../infrastructure/browser/browserRepositoryClientCache.ts";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/http/httpWorkspaceRepository.ts";
 import { WorkspaceRepositoryLocalConflictError } from "../../application/repository/workspaceRepository.ts";
@@ -40,7 +39,6 @@ import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context
 import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
 import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";
 import { createWorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
-import { collectWorkspaceBlockIds } from "../../core/workspace/context/workspaceBlockMetadata.ts";
 import type {
   NoteRecord,
   NoteTreeNode,
@@ -348,9 +346,9 @@ const directoryTree = await measure(
   }),
 );
 const parseIndex = await measure(
-  "workspace.parseIndex.create",
+  "workspace.analysis.coldStart",
   () => createWorkspaceParseIndex({
-    syntaxProfile: defaultCtnSyntaxProfile,
+    syntax: defaultCtnSyntax,
     workspace: structureIndex,
   }),
 );
@@ -390,15 +388,14 @@ assert.deepEqual(
 );
 const outline = await measure(
   "ui.structureProjection",
-  () => createUiOutlineNodes(firstParsedNote?.document.roots ?? []),
+  () => createUiOutlineNodes(firstParsedNote?.analysis.document.roots ?? []),
 );
-const editedWorkspace = await measure(
-  "workspace.editorInput.reconcileMetadata",
+const editedNoteResult = await measure(
+  "workspace.analysis.hotEdit",
   () => {
-    const previousEditableSource = createCtnEditableSource(
-      workspace.notes[0].source,
-      defaultCtnSyntaxProfile,
-    ).source;
+    const previousEditableSource = parseIndex.getParsedNote(
+      workspace.notes[0].id,
+    )!.analysis.editableProjection.source;
     const needle = "- Block 99";
     const from = previousEditableSource.indexOf(needle);
     const insertedText = "- Block 99 edited";
@@ -406,20 +403,71 @@ const editedWorkspace = await measure(
     return updateWorkspaceNoteSource(
       structureIndex,
       workspace.notes[0].id,
+      parseIndex.getParsedNote(workspace.notes[0].id)!.analysis,
       {
         edits: [{ from, insertedText, to: from + needle.length }],
         source: previousEditableSource.slice(0, from) + insertedText +
           previousEditableSource.slice(from + needle.length),
       },
       "2026-01-01T00:00:01.000Z",
-      defaultCtnSyntaxProfile,
       () => {
         throw new Error("The capacity edit must not allocate a block id.");
       },
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
+      parseIndex.blockIds,
     );
   },
 );
+const editedWorkspace = editedNoteResult.workspaceData;
+const editedStructureIndex = createWorkspaceStructureIndex(editedWorkspace);
+const hotParseIndex = await measure(
+  "workspace.analysis.hotIndexCommit",
+  () =>
+    createWorkspaceParseIndex(
+      {
+        analysisOverrides: new Map([
+          [workspace.notes[0].id, editedNoteResult.analysis],
+        ]),
+        syntax: defaultCtnSyntax,
+        workspace: editedStructureIndex,
+      },
+      parseIndex,
+    ),
+);
+
+assert.equal(
+  hotParseIndex.getParsedNote(workspace.notes[0].id)?.analysis,
+  editedNoteResult.analysis,
+  "Hot edit did not install its prepared analysis.",
+);
+assert.equal(
+  hotParseIndex.analysisStats.runCount,
+  0,
+  "Hot index commit analyzed source despite receiving the prepared analysis.",
+);
+assert.deepEqual(
+  hotParseIndex.analysisStats.analyzedNoteIds,
+  [],
+  "Hot index commit touched an unexpected note analysis.",
+);
+assert.deepEqual(
+  hotParseIndex.analysisStats.updatedBlockIdOwnerIds,
+  [workspace.notes[0].id],
+  "Hot index commit did not limit block-id updates to the edited note.",
+);
+for (let index = 1; index < workspace.notes.length; index += 1) {
+  const noteId = workspace.notes[index].id;
+
+  assert.equal(
+    hotParseIndex.getParsedNote(noteId)?.analysis,
+    parseIndex.getParsedNote(noteId)?.analysis,
+    `Hot edit reanalyzed unchanged note ${noteId}.`,
+  );
+  assert.equal(
+    hotParseIndex.blockIdRegistry.blockIdsByOwner.get(noteId),
+    parseIndex.blockIdRegistry.blockIdsByOwner.get(noteId),
+    `Hot edit rebuilt unchanged block ids for ${noteId}.`,
+  );
+}
 const content: WorkspaceRepositoryContentDto = {
   schemaVersion: 4,
   syntax: {
@@ -664,7 +712,7 @@ try {
 
   if (
     workspace.notes.length !== noteCount ||
-    firstParsedNote?.document.blocks.length !== blocksPerNote ||
+    firstParsedNote?.analysis.document.blocks.length !== blocksPerNote ||
     referenceGraph.nodes.length !== noteCount ||
     referenceGraph.edges.length !== noteCount ||
     repeatedReferenceGraph.nodes.length !== noteCount ||
@@ -694,6 +742,9 @@ try {
     timings,
     verification: {
       graphRepeatRevision: repeatedReferenceGraph.revision,
+      hotIndexAnalysisRuns: hotParseIndex.analysisStats.runCount,
+      hotIndexChangedRegistryOwners:
+        hotParseIndex.analysisStats.updatedBlockIdOwnerIds.length,
       httpCommittedRevision: httpCommitResult.revision,
       indexedDbChangedNoteIds,
       indexedDbLocalRevision: indexedDbSnapshot.localRevision,

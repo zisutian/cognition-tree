@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  validateJournalContent,
   type JournalContent,
-  type JournalContentValue,
 } from "../../core/journal/model/journalContent";
 import type {
   BuiltInLocalDraftRevision,
@@ -15,10 +13,14 @@ import {
   type VersionedSessionState,
 } from "../persistence/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+import {
+  createJournalParseIndex,
+  type JournalParseIndex,
+} from "../../core/journal/indexes/journalParseIndex";
 
 export type JournalSessionState = VersionedSessionState<
   JournalContent,
-  JournalContent,
+  JournalParseIndex,
   JournalRevision,
   BuiltInLocalDraftRevision,
   JournalRepository["location"]
@@ -32,11 +34,17 @@ export function createJournalSessionController(
   repository: JournalRepository | null,
   scheduler: Pick<ApplicationScheduler, "schedule">,
 ) {
+  let previousIndex: JournalParseIndex | null = null;
+
   return createVersionedSessionController({
     label: "Journal",
-    parseContent: (value) =>
-      validateJournalContent(value as JournalContentValue),
-    prepareContent: (content) => content,
+    parseContent: (value) => value as JournalContent,
+    prepareContent(content) {
+      const index = createJournalParseIndex(content, previousIndex);
+
+      previousIndex = index;
+      return index;
+    },
     repository,
     scheduler,
   });

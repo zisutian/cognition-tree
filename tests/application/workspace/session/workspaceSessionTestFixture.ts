@@ -10,9 +10,9 @@ import type {
   WorkspaceRepositorySnapshot,
 } from "../../../../application/repository/workspaceRepository";
 import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/textEdits";
-import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
+import { analyzeCtnSource } from "../../../../core/ctn/analysis/sourceAnalysis";
 import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
 
 export const initialTimestamp = "2026-07-15T00:00:00.000Z";
 export const initialSyntaxFileId =
@@ -30,7 +30,7 @@ export function createWorkspace(source = "标题\n内容"): WorkspaceData {
   let id = 0;
   const noteSource = initializeCtnSourceBlockMetadata(
     source,
-    defaultCtnSyntaxProfile,
+    defaultCtnSyntax,
     {
       createdAt: initialTimestamp,
       createId: () =>
@@ -86,10 +86,11 @@ export function replaceEditableSource(
   canonicalSource: string,
   source: string,
 ): CtnEditableSourceChange {
-  const previousSource = createCtnEditableSource(
-    canonicalSource,
-    defaultCtnSyntaxProfile,
-  ).source;
+  const previousSource = analyzeCtnSource({
+    mode: { kind: "canonical-document" },
+    source: canonicalSource,
+    syntax: defaultCtnSyntax,
+  }).editableProjection.source;
 
   return {
     edits: [{ from: 0, insertedText: source, to: previousSource.length }],

@@ -1,22 +1,20 @@
 import { Check, ChevronDown } from "lucide-react";
 import type { SyntaxViewModel } from "../../../../application/syntax/syntaxViewModel";
-import type { UiSyntaxRole } from "../../../../application/workspace/projection/viewSyntax";
+import type { CtnBlockKind } from "../../../../core/ctn/syntax/types";
 import { Popover } from "../../../ui/shared/Popover";
 
-export function SyntaxRolePicker({
+export function SyntaxKindPicker({
   ariaLabel,
-  disabled = false,
   fieldId,
   options,
   value,
   onChange,
 }: {
   ariaLabel: string;
-  disabled?: boolean;
   fieldId?: string;
-  options: SyntaxViewModel["roleOptions"];
-  value: UiSyntaxRole;
-  onChange: (role: UiSyntaxRole) => void;
+  options: SyntaxViewModel["kindOptions"];
+  value: CtnBlockKind;
+  onChange: (kind: CtnBlockKind) => void;
 }) {
   const selectedOption =
     options.find((option) => option.value === value) ?? {
@@ -28,8 +26,8 @@ export function SyntaxRolePicker({
     <Popover
       align="center"
       ariaLabel={ariaLabel}
-      className="syntax-role-picker"
-      panelClassName="syntax-dropdown-menu syntax-role-menu"
+      className="syntax-kind-picker"
+      panelClassName="syntax-dropdown-menu syntax-kind-menu"
       panelRole="listbox"
       renderTrigger={({ isOpen, panelId, toggle, triggerRef }) => (
         <button
@@ -37,9 +35,8 @@ export function SyntaxRolePicker({
           aria-expanded={isOpen}
           aria-haspopup="listbox"
           aria-label={`${ariaLabel}: ${selectedOption.label}`}
-          className="syntax-role-button"
+          className="syntax-kind-button"
           data-syntax-field-id={fieldId}
-          disabled={disabled}
           onClick={toggle}
           ref={triggerRef}
           type="button"
@@ -50,7 +47,7 @@ export function SyntaxRolePicker({
       )}
     >
       {({ close }) => (
-        <div className="syntax-role-list">
+        <div className="syntax-kind-list">
           {options.map((option) => {
             const isSelected = option.value === value;
 
@@ -59,8 +56,8 @@ export function SyntaxRolePicker({
                 aria-selected={isSelected}
                 className={
                   isSelected
-                    ? "syntax-role-option is-selected"
-                    : "syntax-role-option"
+                    ? "syntax-kind-option is-selected"
+                    : "syntax-kind-option"
                 }
                 key={option.value}
                 onClick={() => {

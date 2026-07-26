@@ -64,7 +64,7 @@ export function TodoEditorPanel({
         contentMode={view.editor.contentMode}
         focusTarget={view.editor.focusTarget}
         key={view.activeCollection.id}
-        syntaxProfile={view.editor.syntaxProfile}
+        syntax={view.editor.syntax}
         value={view.editor.documentText}
         onActiveLineChange={view.editor.onActiveLineChange}
         onChange={(change) =>

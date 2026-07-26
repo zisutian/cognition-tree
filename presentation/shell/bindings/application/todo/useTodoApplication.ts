@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 import {
-  createTodoParseIndex,
   type TodoParseIndex,
 } from "../../../../../core/todo/indexes/todoParseIndex";
 import type {
@@ -64,12 +63,13 @@ export function useTodoApplication({
     useState<TodoActiveBodyPosition | null>(null);
   const [today, setToday] = useState(() => services.localCalendar.today());
   const nextFocusRequestIdRef = useRef(1);
-  const previousIndexRef = useRef<TodoParseIndex | null>(null);
   const sessionContent = session.state.status === "ready"
     ? session.state.content
     : null;
   const parsedResult = useMemo(() => {
-    if (!sessionContent) return { parsed: null, errorMessage: "" };
+    if (!sessionContent || session.state.status !== "ready") {
+      return { parsed: null, errorMessage: "" };
+    }
     try {
       const content = requireTodoContent(sessionContent);
 
@@ -77,21 +77,17 @@ export function useTodoApplication({
         errorMessage: "",
         parsed: {
           content,
-          index: createTodoParseIndex(content, previousIndexRef.current),
+          index: session.state.projection,
         } satisfies ParsedTodoState,
       };
     } catch (error) {
       return { parsed: null, errorMessage: getErrorMessage(error) };
     }
-  }, [sessionContent]);
+  }, [session.state, sessionContent]);
   const parsed = parsedResult.parsed;
   const activeCollectionId = parsed
     ? resolveTodoCollectionSelection(parsed.content, requestedCollectionId)
     : null;
-
-  useEffect(() => {
-    if (parsed) previousIndexRef.current = parsed.index;
-  }, [parsed]);
 
   useEffect(() => {
     const updateToday = () => setToday(services.localCalendar.today());

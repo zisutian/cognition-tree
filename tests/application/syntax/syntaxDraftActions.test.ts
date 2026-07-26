@@ -1,67 +1,78 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSyntaxProfileDraft } from "../../../core/ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
-import { defaultJournalCtnSyntaxProfileV3 } from "../../../core/journal/syntax/journalSyntax";
+import { createCtnSyntaxDraft } from "../../../core/ctn/syntax/draft";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
+import { defaultJournalSyntax } from "../../../core/journal/syntax/defaultJournalSyntax";
 import { createSyntaxDraftActions } from "../../../application/syntax/syntaxDraftActions";
-import { defaultTodoCtnSyntaxProfileV4 } from "../../../core/todo/syntax/todoSyntax";
+import { defaultTodoSyntax } from "../../../core/todo/syntax/defaultTodoSyntax";
 
 describe("syntax draft actions", () => {
   it("keeps ordinary custom semantic ids editable", () => {
-    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    const draft = createCtnSyntaxDraft(defaultCtnSyntax);
     const update = vi.fn();
     const actions = createSyntaxDraftActions({
+      owner: "workspace",
       syntaxDraft: draft,
       updateSyntaxDraft: update,
     });
-    const rule = draft.markerRules[0];
+    const rule = draft.blocks[0];
 
-    actions.actions.updateMarkerRule(rule.id, { type: "renamed-definition" });
+    actions.actions.updateBlock(rule.id, {
+      semanticId: "renamed-definition",
+    });
 
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      markerRules: expect.arrayContaining([
-        expect.objectContaining({ id: rule.id, type: "renamed-definition" }),
+      blocks: expect.arrayContaining([
+        expect.objectContaining({
+          id: rule.id,
+          semanticId: "renamed-definition",
+        }),
       ]),
     }));
   });
 
-  it("locks only the Todo item semantic id and role", () => {
-    const draft = createSyntaxProfileDraft(defaultTodoCtnSyntaxProfileV4);
-    const rule = draft.markerRules.find(({ type }) => type === "todo-item")!;
+  it("locks the Todo item identity and structure while keeping its colors editable", () => {
+    const draft = createCtnSyntaxDraft(defaultTodoSyntax);
+    const rule = draft.blocks.find(
+      ({ semanticId }) => semanticId === "todo-item"
+    )!;
     const update = vi.fn();
     const actions = createSyntaxDraftActions({
-      protectedMarkerRuleIds: [rule.id],
+      owner: "todo",
       syntaxDraft: draft,
       updateSyntaxDraft: update,
     });
 
-    actions.actions.updateMarkerRule(rule.id, {
+    actions.actions.updateBlock(rule.id, {
+      kind: "multiline",
       label: "任务",
       marker: "[ ]",
-      role: "multiline",
-      type: "custom-item",
+      semanticId: "custom-item",
+      textColor: "red",
+      tone: "violet",
     });
 
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      markerRules: [expect.objectContaining({
-        label: "任务",
-        marker: "[ ]",
-        role: "normal",
-        type: "todo-item",
+      blocks: [expect.objectContaining({
+        label: "代办",
+        marker: "[]",
+        kind: "line",
+        semanticId: "todo-item",
+        textColor: "red",
+        tone: "violet",
       })],
     }));
-    actions.actions.removeMarkerRule(rule.id);
+    actions.actions.removeBlock(rule.id);
     expect(update).toHaveBeenCalledTimes(1);
   });
 
   it("locks the Journal name and reference trigger while keeping presentation editable", () => {
-    const draft = createSyntaxProfileDraft(defaultJournalCtnSyntaxProfileV3);
-    const rule = draft.inlineRules.find(
-      ({ type }) => type === "global-reference",
+    const draft = createCtnSyntaxDraft(defaultJournalSyntax);
+    const rule = draft.inline.find(
+      ({ semanticId }) => semanticId === "global-reference",
     )!;
     const update = vi.fn();
     const actions = createSyntaxDraftActions({
-      nameEditable: false,
-      protectedInlineTriggerRuleIds: [rule.id],
+      owner: "journal",
       syntaxDraft: draft,
       updateSyntaxDraft: update,
     });
@@ -69,21 +80,21 @@ describe("syntax draft actions", () => {
     actions.actions.updateName("可变名称");
     expect(update).not.toHaveBeenCalled();
 
-    actions.actions.updateInlineRule(rule.id, {
+    actions.actions.updateInline(rule.id, {
       close: ">>",
       label: "笔记引用",
       open: "<<",
       tone: "pink",
-      type: "custom-reference",
+      semanticId: "custom-reference",
     });
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      inlineRules: expect.arrayContaining([
+      inline: expect.arrayContaining([
         expect.objectContaining({
           close: "]]",
           label: "笔记引用",
           open: "[[",
           tone: "pink",
-          type: "global-reference",
+          semanticId: "global-reference",
         }),
       ]),
     }));

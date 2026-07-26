@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile.ts";
-import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml.ts";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax.ts";
+import { formatCtnSyntaxV2 } from "../../../../core/ctn/syntax/formatter.ts";
 import {
   WorkspaceFileStore,
 } from "../../../../infrastructure/server/adapters/local/workspaceFileStore.ts";
@@ -24,13 +24,16 @@ function createContent(name: string): WorkspaceRepositoryContentDto {
       activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
       files: [{
         id: "syntax-00000000-0000-4000-8000-000000000001",
-        source: formatSyntaxProfileToml(defaultCtnSyntaxProfile),
+        source: formatCtnSyntaxV2(
+          defaultCtnSyntax.definition,
+          "workspace",
+        ),
       }, {
         id: "syntax-00000000-0000-4000-8000-000000000002",
-        source: formatSyntaxProfileToml({
-          ...defaultCtnSyntaxProfile,
+        source: formatCtnSyntaxV2({
+          ...defaultCtnSyntax.definition,
           name: "Local Secondary",
-        }),
+        }, "workspace"),
       }],
     },
     workspace: {

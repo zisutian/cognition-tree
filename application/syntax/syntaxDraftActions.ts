@@ -1,107 +1,107 @@
 import {
-  createNextInlineRuleDraft,
-  createNextMarkerRuleDraft,
-  isProtectedInlineRuleDraft,
-  type SyntaxProfileDraft,
-  type SyntaxProfileDraftInlineRule,
-  type SyntaxProfileDraftMarkerRule,
-  type SyntaxProfileDraftTitleRule,
-  type SyntaxProfileDraftTopLevelUnmarkedRule,
-} from "../../core/ctn/syntax/profileDraft";
-import { normalizeSyntaxTabDisplayWidthInput } from "../../core/ctn/syntax/profileSchema";
-import type {
-  UiSyntaxProfileDraftInlineRule,
-  UiSyntaxProfileDraftMarkerRule,
-  UiSyntaxProfileDraftTitleRule,
-  UiSyntaxProfileDraftTopLevelUnmarkedRule,
-} from "../workspace/projection/viewSyntax";
+  createNextCtnSyntaxBlockDraft,
+  createNextCtnSyntaxInlineDraft,
+  isProtectedCtnSyntaxInlineDraft,
+  type CtnSyntaxDraft,
+  type CtnSyntaxDraftBlock,
+  type CtnSyntaxDraftDisplayRule,
+  type CtnSyntaxDraftInline,
+} from "../../core/ctn/syntax/draft";
+import {
+  normalizeCtnSyntaxTabDisplayWidthInput,
+  ctnSyntaxSchema,
+} from "../../core/ctn/syntax/schema";
+import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
 
 export function createSyntaxDraftActions({
-  nameEditable = true,
-  protectedInlineTriggerRuleIds = [],
-  protectedMarkerRuleIds = [],
+  owner,
   syntaxDraft,
   updateSyntaxDraft,
 }: {
-  nameEditable?: boolean;
-  protectedInlineTriggerRuleIds?: string[];
-  protectedMarkerRuleIds?: string[];
-  syntaxDraft: SyntaxProfileDraft;
-  updateSyntaxDraft: (draft: SyntaxProfileDraft) => void;
+  owner: CtnSyntaxOwner;
+  syntaxDraft: CtnSyntaxDraft;
+  updateSyntaxDraft: (draft: CtnSyntaxDraft) => void;
 }) {
-  const updateSyntaxName = (name: string) => {
-    if (!nameEditable) {
-      return;
-    }
+  const policy = ctnSyntaxSchema.owners[owner];
+  const todoItemPolicy = policy.todoItem;
+  const nameEditable = policy.fixedName === null;
+  const protectedBlockRuleIds = todoItemPolicy
+    ? syntaxDraft.blocks
+      .filter(
+        ({ semanticId }) =>
+          semanticId === todoItemPolicy.semanticId,
+      )
+      .map(({ id }) => id)
+    : [];
+  const protectedInlineTriggerRuleIds = policy.globalReferenceTrigger
+    ? syntaxDraft.inline
+      .filter(
+        ({ semanticId }) =>
+          semanticId === ctnSyntaxSchema.requiredSemanticIds.globalReference,
+      )
+      .map(({ id }) => id)
+    : [];
+  const updateName = (name: string) => {
+    if (!nameEditable) return;
+    updateSyntaxDraft({ ...syntaxDraft, name });
+  };
+  const updateTabDisplayWidth = (value: string) => {
     updateSyntaxDraft({
       ...syntaxDraft,
-      name,
+      tabDisplayWidth: normalizeCtnSyntaxTabDisplayWidthInput(value),
     });
   };
-  const updateSyntaxTabDisplayWidth = (value: string) => {
-    updateSyntaxDraft({
-      ...syntaxDraft,
-      tabDisplayWidth: normalizeSyntaxTabDisplayWidthInput(value),
-    });
-  };
-  const updateSyntaxMarkerRule = (
+  const updateBlock = (
     ruleId: string,
-    patch: Partial<UiSyntaxProfileDraftMarkerRule>,
+    patch: Partial<CtnSyntaxDraftBlock>,
   ) => {
-    const protectedRole = protectedMarkerRuleIds.includes(ruleId);
+    const protectedRule = protectedBlockRuleIds.includes(ruleId);
 
     updateSyntaxDraft({
       ...syntaxDraft,
-      markerRules: syntaxDraft.markerRules.map((rule) =>
-        rule.id === ruleId
+      blocks: syntaxDraft.blocks.map((rule) => {
+        if (rule.id !== ruleId) return rule;
+        const updated = { ...rule, ...patch };
+
+        return protectedRule && todoItemPolicy
           ? {
-              ...rule,
-              ...(patch as Partial<SyntaxProfileDraftMarkerRule>),
-              role: protectedRole ? rule.role : patch.role ?? rule.role,
-              type: protectedRole ? rule.type : patch.type ?? rule.type,
+              ...updated,
+              kind: todoItemPolicy.kind,
+              label: todoItemPolicy.label,
+              marker: todoItemPolicy.marker,
+              semanticId: todoItemPolicy.semanticId,
             }
-          : rule,
-      ),
+          : updated;
+      }),
     });
   };
-  const updateSyntaxTopLevelUnmarkedRule = (
-    patch: Partial<UiSyntaxProfileDraftTopLevelUnmarkedRule>,
-  ) => {
-    if (!syntaxDraft.topLevelUnmarkedRule) {
-      return;
-    }
+  const updateRoot = (patch: Partial<CtnSyntaxDraftDisplayRule>) => {
+    if (!syntaxDraft.root) return;
     updateSyntaxDraft({
       ...syntaxDraft,
-      topLevelUnmarkedRule: {
-        ...syntaxDraft.topLevelUnmarkedRule,
-        ...(patch as Partial<SyntaxProfileDraftTopLevelUnmarkedRule>),
-      },
+      root: { ...syntaxDraft.root, ...patch },
     });
   };
-  const updateSyntaxTitleRule = (
-    patch: Partial<UiSyntaxProfileDraftTitleRule>,
-  ) => {
+  const updateTitle = (patch: Partial<CtnSyntaxDraftDisplayRule>) => {
+    if (!syntaxDraft.title) return;
     updateSyntaxDraft({
       ...syntaxDraft,
-      titleRule: {
-        ...syntaxDraft.titleRule,
-        ...(patch as Partial<SyntaxProfileDraftTitleRule>),
-      },
+      title: { ...syntaxDraft.title, ...patch },
     });
   };
-  const updateSyntaxInlineRule = (
+  const updateInline = (
     ruleId: string,
-    patch: Partial<UiSyntaxProfileDraftInlineRule>,
+    patch: Partial<CtnSyntaxDraftInline>,
   ) => {
     const protectedTrigger = protectedInlineTriggerRuleIds.includes(ruleId);
 
     updateSyntaxDraft({
       ...syntaxDraft,
-      inlineRules: syntaxDraft.inlineRules.map((rule) =>
+      inline: syntaxDraft.inline.map((rule) =>
         rule.id === ruleId
           ? {
               ...rule,
-              ...(patch as Partial<SyntaxProfileDraftInlineRule>),
+              ...patch,
               ...(protectedTrigger
                 ? {
                     close: rule.close,
@@ -110,71 +110,70 @@ export function createSyntaxDraftActions({
                     open: rule.open,
                   }
                 : {}),
-              type: protectedTrigger || isProtectedInlineRuleDraft(rule)
-                ? rule.type
-                : patch.type ?? rule.type,
+              semanticId:
+                protectedTrigger || isProtectedCtnSyntaxInlineDraft(rule)
+                  ? rule.semanticId
+                  : patch.semanticId ?? rule.semanticId,
             }
-          : rule,
+          : rule
       ),
     });
   };
-  const addSyntaxMarkerRule = () => {
+  const addBlock = () => {
     updateSyntaxDraft({
       ...syntaxDraft,
-      markerRules: [
-        ...syntaxDraft.markerRules,
-        createNextMarkerRuleDraft(syntaxDraft.markerRules),
+      blocks: [
+        ...syntaxDraft.blocks,
+        createNextCtnSyntaxBlockDraft(syntaxDraft.blocks),
       ],
     });
   };
-  const removeSyntaxMarkerRule = (ruleId: string) => {
-    if (protectedMarkerRuleIds.includes(ruleId)) {
-      return;
-    }
+  const removeBlock = (ruleId: string) => {
+    if (protectedBlockRuleIds.includes(ruleId)) return;
     updateSyntaxDraft({
       ...syntaxDraft,
-      markerRules: syntaxDraft.markerRules.filter((rule) => rule.id !== ruleId),
+      blocks: syntaxDraft.blocks.filter((rule) => rule.id !== ruleId),
     });
   };
-  const addSyntaxInlineRule = (kind: "paired" | "single") => {
+  const addInline = (kind: "paired" | "single") => {
     updateSyntaxDraft({
       ...syntaxDraft,
-      inlineRules: [
-        ...syntaxDraft.inlineRules,
-        createNextInlineRuleDraft(syntaxDraft.inlineRules, kind),
+      inline: [
+        ...syntaxDraft.inline,
+        createNextCtnSyntaxInlineDraft(syntaxDraft.inline, kind),
       ],
     });
   };
-  const removeSyntaxInlineRule = (ruleId: string) => {
-    const rule = syntaxDraft.inlineRules.find(({ id }) => id === ruleId);
+  const removeInline = (ruleId: string) => {
+    const rule = syntaxDraft.inline.find(({ id }) => id === ruleId);
 
-    if (rule && isProtectedInlineRuleDraft(rule)) {
-      return;
-    }
+    if (rule && isProtectedCtnSyntaxInlineDraft(rule)) return;
     updateSyntaxDraft({
       ...syntaxDraft,
-      inlineRules: syntaxDraft.inlineRules.filter((rule) => rule.id !== ruleId),
+      inline: syntaxDraft.inline.filter((candidate) =>
+        candidate.id !== ruleId
+      ),
     });
   };
 
   return {
     actions: {
-      addInlineRule: addSyntaxInlineRule,
-      addMarkerRule: addSyntaxMarkerRule,
-      removeInlineRule: removeSyntaxInlineRule,
-      removeMarkerRule: removeSyntaxMarkerRule,
-      updateInlineRule: updateSyntaxInlineRule,
-      updateMarkerRule: updateSyntaxMarkerRule,
-      updateName: updateSyntaxName,
-      updateTabDisplayWidth: updateSyntaxTabDisplayWidth,
-      updateTitleRule: updateSyntaxTitleRule,
-      updateTopLevelUnmarkedRule: updateSyntaxTopLevelUnmarkedRule,
+      addBlock,
+      addInline,
+      removeBlock,
+      removeInline,
+      updateBlock,
+      updateInline,
+      updateName,
+      updateRoot,
+      updateTabDisplayWidth,
+      updateTitle,
     },
     nameEditable,
-    protectedInlineRuleIds: syntaxDraft.inlineRules
-      .filter(isProtectedInlineRuleDraft)
+    protectedBlockRuleIds,
+    protectedInlineRuleIds: syntaxDraft.inline
+      .filter(isProtectedCtnSyntaxInlineDraft)
       .map((rule) => rule.id),
     protectedInlineTriggerRuleIds,
-    protectedMarkerRuleIds,
   };
 }

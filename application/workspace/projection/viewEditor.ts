@@ -1,5 +1,5 @@
 import type { CtnCanonicalDocument } from "../../../core/ctn/parser/types";
-import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 
 export type UiEditorFocusTarget = {
   lineNumber: number;
@@ -15,19 +15,19 @@ export type UiEditorView = {
     rootCount: number;
     totalBlocks: number;
   };
-  syntaxProfile: CtnSyntaxProfile;
+  syntax: CtnCompiledSyntax;
 };
 
 export function createUiEditorView({
   document,
   documentText,
   focusTarget,
-  syntaxProfile,
+  syntax,
 }: {
   document: CtnCanonicalDocument | null;
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
-  syntaxProfile: CtnSyntaxProfile;
+  syntax: CtnCompiledSyntax;
 }): UiEditorView {
   return {
     documentText,
@@ -38,6 +38,6 @@ export function createUiEditorView({
       rootCount: document?.roots.length ?? 0,
       totalBlocks: document?.blocks.length ?? 0,
     },
-    syntaxProfile,
+    syntax,
   };
 }

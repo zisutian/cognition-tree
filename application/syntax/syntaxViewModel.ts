@@ -1,4 +1,4 @@
-import type { CtnSyntaxProfileValidationPolicy } from "../../core/ctn/syntax/profileSchema";
+import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
 import type { UiSyntaxView } from "../workspace/projection/viewSyntax";
 import type { UiWorkbenchDiagnostic } from "../workspace/projection/viewDiagnostics";
 import type { createSyntaxDraftActions } from "./syntaxDraftActions";
@@ -38,10 +38,9 @@ export type SyntaxViewModel = UiSyntaxView &
     isSelectedAvailable: boolean;
     nameConflictMessage: string;
     onConsumeFocusTarget: (requestId: number) => void;
-    policy: CtnSyntaxProfileValidationPolicy;
-    profileDiagnostics: UiWorkbenchDiagnostic[];
+    owner: CtnSyntaxOwner;
+    syntaxDiagnostics: UiWorkbenchDiagnostic[];
     revertInvalidChanges: () => void;
-    rootRuleLabel: string | null;
     selectedTarget: SyntaxTarget;
     selectTarget: (target: SyntaxTarget) => Promise<void>;
     systemConfigurations: SyntaxSystemConfigurationView[];

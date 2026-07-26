@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
+import {
+  readCanonicalTestDocument,
+} from "../../ctn/analysis/analysisTestHelpers";
 import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
+import { analyzeCtnSource } from "../../../core/ctn/analysis/sourceAnalysis";
 import {
   createWorkspaceFolder,
   createWorkspaceNote,
@@ -13,7 +16,8 @@ import {
   updateWorkspaceRawNoteSource,
   updateWorkspaceNoteSource,
 } from "../../../core/workspace/commands/workspaceCommands";
-import { collectWorkspaceBlockIds } from "../../../core/workspace/context/workspaceBlockMetadata";
+import { collectWorkspaceTitleBlockIds } from "../../../core/workspace/context/workspaceBlockMetadata";
+import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { createNoteTreeFolderNode } from "../../../core/workspace/model/noteTree/create";
 import {
@@ -32,6 +36,19 @@ import {
   createWorkspaceTestBlockId,
   readEditableTestSource,
 } from "../workspaceTestFixture";
+
+function collectReservedBlockIds(
+  workspace: WorkspaceData,
+  syntax: typeof defaultCtnSyntax | null,
+) {
+  if (!syntax) {
+    return collectWorkspaceTitleBlockIds(workspace);
+  }
+  return createWorkspaceParseIndex({
+    syntax,
+    workspace: createWorkspaceStructureIndex(workspace),
+  }).blockIds;
+}
 
 const timestamp = "2026-07-16T00:00:00.000Z";
 const nextTimestamp = "2026-07-16T01:00:00.000Z";
@@ -55,6 +72,20 @@ function createWorkspaceWithNotes(): WorkspaceData {
       null,
     ),
   };
+}
+
+function analyzeWorkspaceNote(
+  workspace: WorkspaceData,
+  noteId: string,
+) {
+  const note = workspace.notes.find(({ id }) => id === noteId);
+
+  if (!note) throw new Error(`Missing workspace test note: ${noteId}`);
+  return analyzeCtnSource({
+    mode: { kind: "canonical-document" },
+    source: note.source,
+    syntax: defaultCtnSyntax,
+  });
 }
 
 function indexWorkspace(workspace: WorkspaceData) {
@@ -93,7 +124,7 @@ describe("workspace commands", () => {
       noteId: "note-new",
       parentFolderId: "folder-target",
       reservedBlockIds: new Set(),
-      syntaxProfile: defaultCtnSyntaxProfile,
+      syntax: defaultCtnSyntax,
       timestamp,
     });
 
@@ -168,6 +199,7 @@ describe("workspace commands", () => {
     const updated = updateWorkspaceNoteSource(
       indexWorkspace(workspace),
       base.id,
+      analyzeWorkspaceNote(workspace, base.id),
       {
         edits: [
           {
@@ -179,13 +211,12 @@ describe("workspace commands", () => {
         source: previousEditable + insertedText,
       },
       nextTimestamp,
-      defaultCtnSyntaxProfile,
       () => createWorkspaceTestBlockId(500),
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
-    );
-    const parsed = parseCtnCanonicalDocument(
+      collectReservedBlockIds(workspace, defaultCtnSyntax),
+    ).workspaceData;
+    const parsed = readCanonicalTestDocument(
       updated.notes[0].source,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
 
     expect(readEditableTestSource(updated.notes[0].source)).toBe(
@@ -207,15 +238,15 @@ describe("workspace commands", () => {
     const updated = updateWorkspaceNoteSource(
       indexWorkspace(workspace),
       note.id,
+      analyzeWorkspaceNote(workspace, note.id),
       sourceChange(note, "新标题\n\t: 定义"),
       nextTimestamp,
-      defaultCtnSyntaxProfile,
       (() => {
         let id = 800;
         return () => createWorkspaceTestBlockId(++id);
       })(),
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
-    );
+      collectReservedBlockIds(workspace, defaultCtnSyntax),
+    ).workspaceData;
 
     expect(readEditableTestSource(updated.notes[0].source)).toBe(
       "新标题\n\t: 定义",
@@ -283,16 +314,16 @@ describe("workspace commands", () => {
     const updated = updateWorkspaceNoteSource(
       indexWorkspace(workspace),
       note.id,
+      analyzeWorkspaceNote(workspace, note.id),
       sourceChange(note, "\tIndented title\n概念"),
       nextTimestamp,
-      defaultCtnSyntaxProfile,
       () => createWorkspaceTestBlockId(900),
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
-    );
+      collectReservedBlockIds(workspace, defaultCtnSyntax),
+    ).workspaceData;
     const header = readWorkspaceNoteHeader(updated.notes[0]);
-    const parsed = parseCtnCanonicalDocument(
+    const parsed = readCanonicalTestDocument(
       updated.notes[0].source,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
 
     expect(updated.notes[0].source).toMatch(/^@ctn-block /);
@@ -307,11 +338,11 @@ describe("workspace commands", () => {
     expect(() => updateWorkspaceNoteSource(
       indexWorkspace(workspace),
       note.id,
+      analyzeWorkspaceNote(workspace, note.id),
       sourceChange(note, "bad:title\n概念"),
       nextTimestamp,
-      defaultCtnSyntaxProfile,
       () => createWorkspaceTestBlockId(900),
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
+      collectReservedBlockIds(workspace, defaultCtnSyntax),
     )).toThrow("Workspace note title contains unsupported characters");
 
     const invalidRawSource = replaceCtnSourceTitle(
@@ -374,12 +405,12 @@ describe("workspace commands", () => {
     const configured = updateWorkspaceNoteSource(
       indexWorkspace(workspace),
       invalidNote.id,
+      analyzeWorkspaceNote(workspace, invalidNote.id),
       sourceChange(invalidNote, "旧:标题\n概念已修改"),
       nextTimestamp,
-      defaultCtnSyntaxProfile,
       () => createWorkspaceTestBlockId(900),
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile),
-    );
+      collectReservedBlockIds(workspace, defaultCtnSyntax),
+    ).workspaceData;
     const rawSource = `${invalidNote.source}\nraw body`;
     const raw = updateWorkspaceRawNoteSource(
       indexWorkspace(workspace),
@@ -439,8 +470,8 @@ describe("workspace commands", () => {
         createBlockId: () => createWorkspaceTestBlockId(900),
         noteId: "note-new",
         parentFolderId: "missing-folder",
-        reservedBlockIds: collectWorkspaceBlockIds(workspace, null),
-        syntaxProfile: null,
+        reservedBlockIds: collectReservedBlockIds(workspace, null),
+        syntax: null,
         timestamp,
       }),
     ).toThrow("Workspace folder does not exist");

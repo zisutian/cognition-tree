@@ -10,10 +10,10 @@ import {
 } from "@playwright/test";
 import type { TodoContentDto } from "../contracts/todo/types";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../core/ctn/parser/parseCtnDocument";
-import { requireTodoSyntaxProfile } from "../core/todo/syntax/todoSyntax";
+import { analyzeCtnSource } from "../core/ctn/analysis/sourceAnalysis";
+import { requireCtnSyntax } from "../core/ctn/syntax/compiler";
 import {
   e2eApiBaseUrl,
   seedWorkbenchRepository,
@@ -273,8 +273,12 @@ test.describe.serial("Todo activity flows", () => {
     await waitForTodoContent(api, (content) => {
       const [plan, today] = content.collections;
       if (!plan || !today) return false;
-      const profile = requireTodoSyntaxProfile(content.syntaxSource);
-      const blocks = parseCtnCanonicalDocument(today.source, profile).blocks;
+      const syntax = requireCtnSyntax(content.syntaxSource, "todo");
+      const blocks = analyzeCtnSource({
+        mode: { kind: "canonical-document" },
+        source: today.source,
+        syntax,
+      }).document.blocks;
       const first = blocks.find(({ text }) => text === "第一项");
       const second = blocks.find(({ text }) => text === "第二项已修改");
       const recurrence = today.recurrences.find(

@@ -80,6 +80,11 @@ export type VersionedSessionController<
     Location
   >;
   mutate(update: (current: Content) => Content): void;
+  mutatePrepared(
+    update: (
+      current: PreparedVersionedContent<Content, Projection>,
+    ) => PreparedVersionedContent<Content, Projection>,
+  ): void;
   mutateAndFlush(update: (current: Content) => Content): Promise<void>;
   prepareForRemoval(): Promise<PreparedVersionedSessionRemoval>;
   reload(): Promise<void>;
@@ -348,20 +353,44 @@ export function createVersionedSessionController<
       }
     }
   };
-  const mutate = (update: (current: Content) => Content) => {
-    const session = requireActive();
-    const content = parseContent(update(session.content));
-    const projection = prepareContent(content);
-
-    session.content = content;
-    session.projection = projection;
+  const commitMutation = (
+    session: Session & {
+      queue: VersionedRepositorySaveQueue<Content, LocalRevision>;
+    },
+    prepared: PreparedVersionedContent<Content, Projection>,
+  ) => {
+    session.content = prepared.content;
+    session.projection = prepared.projection;
     session.snapshot = {
       ...session.snapshot,
-      content,
+      content: prepared.content,
       pendingChanges: true,
     };
     publishReady(session);
-    session.queue.enqueue(content);
+    session.queue.enqueue(prepared.content);
+  };
+  const mutatePrepared = (
+    update: (
+      current: PreparedVersionedContent<Content, Projection>,
+    ) => PreparedVersionedContent<Content, Projection>,
+  ) => {
+    const session = requireActive();
+    const prepared = update({
+      content: session.content,
+      projection: session.projection,
+    });
+
+    commitMutation(session, prepared);
+  };
+  const mutate = (update: (current: Content) => Content) => {
+    mutatePrepared(({ content }) => {
+      const nextContent = update(content);
+
+      return {
+        content: nextContent,
+        projection: prepareContent(nextContent),
+      };
+    });
   };
 
   return {
@@ -401,6 +430,7 @@ export function createVersionedSessionController<
       return state;
     },
     mutate,
+    mutatePrepared,
     async mutateAndFlush(update) {
       mutate(update);
       await requireActive().queue.flushLocal();

@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type {
+  CtnSourceText,
+} from "../analysis/sourceText.ts";
+import {
+  createCtnSourceText,
+} from "../analysis/sourceText.ts";
 import {
   isCtnBlockMetadataDirectiveText,
   parseCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
 } from "../metadata/blockMetadata.ts";
-import type { CtnSyntaxProfile } from "../syntax/types.ts";
+import type {
+  CtnCompiledSyntax,
+} from "../syntax/types.ts";
 import {
   assignBlockSubtreeEndLineNumbers,
   findMultilineRange,
@@ -13,17 +21,31 @@ import {
 import { createDiagnostic } from "./diagnostics.ts";
 import { analyzeIndent } from "./indent.ts";
 import { parseInlineSpans } from "./inlineSpans.ts";
-import { parseMarker, sortMarkerRules } from "./lineMarkers.ts";
+import { parseMarker } from "./lineMarkers.ts";
 import type {
   CtnCanonicalBlock,
   CtnCanonicalDocument,
   CtnDiagnostic,
   CtnEditableBlock,
   CtnEditableDocument,
+  CtnFallbackBlockRule,
   CtnMultilineRange,
+  CtnResolvedBlockRule,
 } from "./types.ts";
 
-type CtnSourceBlock<TIdentity extends object> = {
+type EditableIdentity = {
+  kind: "editable";
+};
+
+type CanonicalIdentity = {
+  createdAt: string;
+  id: string;
+  kind: "canonical";
+  metadataLineNumber: number;
+  updatedAt: string;
+};
+
+type SourceBlock<TIdentity> = {
   contentIndex: number;
   identity: TIdentity;
   indentText: string;
@@ -33,19 +55,27 @@ type CtnSourceBlock<TIdentity extends object> = {
   sourceStartLineNumber: number;
 };
 
-type ReadCtnSourceBlock<TIdentity extends object> = (
-  lines: string[],
-  index: number,
-) => CtnSourceBlock<TIdentity>;
-
-type CanonicalBlockIdentity = {
-  id: string;
-  metadata: {
-    createdAt: string;
-    updatedAt: string;
-  };
-  metadataLineNumber: number;
+type ParsedBlockSeed = {
+  contentFingerprint: string;
+  diagnostics: CtnDiagnostic[];
+  indentText: string;
+  inlineSpans: CtnEditableBlock["inlineSpans"];
+  level: number;
+  lexicalEndLineNumber: number;
+  lineNumber: number;
+  marker: string | null;
+  multilineRange: CtnMultilineRange | null;
+  rawText: string;
+  rule: Readonly<CtnResolvedBlockRule>;
+  subtreeEndLineNumber: number;
+  text: string;
+  textStartColumn: number;
 };
+
+export type CtnDocumentParseMode =
+  | { kind: "body"; title: string }
+  | { kind: "canonical-document" }
+  | { kind: "editable-document" };
 
 export class CtnDocumentMetadataError extends Error {
   lineNumber: number;
@@ -57,17 +87,21 @@ export class CtnDocumentMetadataError extends Error {
   }
 }
 
+function leadingIndentText(line: string) {
+  return line.match(/^[\t ]*/)?.[0] ?? "";
+}
+
 function readEditableSourceBlock(
-  lines: string[],
+  sourceText: CtnSourceText,
   index: number,
-): CtnSourceBlock<Record<never, never>> {
-  const line = lines[index] ?? "";
+): SourceBlock<EditableIdentity> {
+  const line = sourceText.values[index] ?? "";
   const lineNumber = index + 1;
 
   return {
     contentIndex: index,
-    identity: {},
-    indentText: line.match(/^\s*/)?.[0] ?? "",
+    identity: { kind: "editable" },
+    indentText: leadingIndentText(line),
     line,
     lineNumber,
     nextIndex: index + 1,
@@ -89,22 +123,20 @@ function readCanonicalMetadata(
       error instanceof Error ? error.message : "invalid directive",
     );
   }
-
   if (!metadata) {
     throw new CtnDocumentMetadataError(
       lineNumber,
       "expected @ctn-block directive",
     );
   }
-
   return metadata;
 }
 
 export function readCtnCanonicalTitleHeader(source: string) {
-  const lines = source.split("\n");
-  const metadata = readCanonicalMetadata(lines[0] ?? "", 1);
+  const sourceText = createCtnSourceText(source);
+  const metadata = readCanonicalMetadata(sourceText.values[0] ?? "", 1);
 
-  if (lines.length < 2) {
+  if (sourceText.values.length < 2) {
     throw new CtnDocumentMetadataError(
       1,
       "metadata directive has no block source line",
@@ -116,24 +148,23 @@ export function readCtnCanonicalTitleHeader(source: string) {
       "title metadata cannot be indented",
     );
   }
-
   return {
     metadata,
-    title: lines[1],
+    title: sourceText.values[1] ?? "",
   };
 }
 
 function readCanonicalSourceBlock(
-  lines: string[],
+  sourceText: CtnSourceText,
   index: number,
-): CtnSourceBlock<CanonicalBlockIdentity> {
+): SourceBlock<CanonicalIdentity> {
   const metadataLineNumber = index + 1;
   const metadata = readCanonicalMetadata(
-    lines[index] ?? "",
+    sourceText.values[index] ?? "",
     metadataLineNumber,
   );
   const contentIndex = index + 1;
-  const line = lines[contentIndex];
+  const line = sourceText.values[contentIndex];
 
   if (line === undefined) {
     throw new CtnDocumentMetadataError(
@@ -141,8 +172,7 @@ function readCanonicalSourceBlock(
       "metadata directive has no block source line",
     );
   }
-
-  const indentText = line.match(/^\s*/)?.[0] ?? "";
+  const indentText = leadingIndentText(line);
 
   if (metadataLineNumber === 1 && metadata.indentText !== "") {
     throw new CtnDocumentMetadataError(
@@ -156,16 +186,14 @@ function readCanonicalSourceBlock(
       "metadata indentation does not match its block source line",
     );
   }
-
   return {
     contentIndex,
     identity: {
+      createdAt: metadata.createdAt,
       id: metadata.id,
-      metadata: {
-        createdAt: metadata.createdAt,
-        updatedAt: metadata.updatedAt,
-      },
+      kind: "canonical",
       metadataLineNumber,
+      updatedAt: metadata.updatedAt,
     },
     indentText,
     line,
@@ -175,7 +203,7 @@ function readCanonicalSourceBlock(
   };
 }
 
-function createReservedDirectiveDiagnostic(
+function reservedDirectiveDiagnostic(
   lineNumber: number,
   indentText: string,
 ) {
@@ -188,30 +216,45 @@ function createReservedDirectiveDiagnostic(
   );
 }
 
-function createTitleBlock<TBlock extends CtnEditableBlock>({
-  markerRules,
-  sourceBlock,
-  syntaxProfile,
-}: {
-  markerRules: ReturnType<typeof sortMarkerRules>;
-  sourceBlock: CtnSourceBlock<object>;
-  syntaxProfile: CtnSyntaxProfile;
-}): TBlock {
-  const { identity, indentText, line, lineNumber } = sourceBlock;
+function fallbackRule(
+  label: string,
+  marker: string | null,
+): Readonly<CtnFallbackBlockRule> {
+  return Object.freeze({
+    kind: "line",
+    label,
+    marker,
+    semanticId: "text",
+    textColor: "default",
+    tone: "default",
+  });
+}
+
+const unknownSyntaxRule = fallbackRule("未知语法", null);
+const reservedRule = fallbackRule("保留指令", null);
+const unmarkedRule = fallbackRule("无符号正文", null);
+
+function titleSeed(
+  sourceBlock: SourceBlock<EditableIdentity | CanonicalIdentity>,
+  syntax: CtnCompiledSyntax,
+): ParsedBlockSeed {
+  const { indentText, line, lineNumber } = sourceBlock;
   const trimmed = line.trim();
   const indent = analyzeIndent(indentText, lineNumber);
   const parsedMarker = trimmed
-    ? parseMarker(trimmed, lineNumber, indentText.length, markerRules)
+    ? parseMarker(
+        trimmed,
+        lineNumber,
+        indentText.length,
+        syntax.blockMatcher,
+      )
     : null;
   const diagnostics: CtnDiagnostic[] = [...indent.diagnostics];
   const isReservedDirective = isCtnBlockMetadataDirectiveText(trimmed);
 
   if (isReservedDirective) {
-    diagnostics.push(
-      createReservedDirectiveDiagnostic(lineNumber, indentText),
-    );
+    diagnostics.push(reservedDirectiveDiagnostic(lineNumber, indentText));
   }
-
   if (!trimmed) {
     diagnostics.push(
       createDiagnostic(
@@ -243,319 +286,388 @@ function createTitleBlock<TBlock extends CtnEditableBlock>({
       ),
     );
   }
-
   const textStartColumn = indentText.length + 1;
 
   return {
-    ...identity,
-    children: [],
     contentFingerprint: line,
     diagnostics,
     indentText,
-    inlineSpans:
-      trimmed && !isReservedDirective
-        ? parseInlineSpans(
-            trimmed,
-            lineNumber,
-            textStartColumn,
-            syntaxProfile.inlineRules,
-          )
-        : [],
-    label: syntaxProfile.titleRule.label,
+    inlineSpans: trimmed && !isReservedDirective
+      ? parseInlineSpans(
+          trimmed,
+          lineNumber,
+          textStartColumn,
+          syntax.inlineMatcher,
+        )
+      : [],
     level: 0,
     lexicalEndLineNumber: lineNumber,
     lineNumber,
     marker: null,
     multilineRange: null,
     rawText: line,
-    role: "normal",
+    rule: syntax.title,
     subtreeEndLineNumber: lineNumber,
     text: trimmed,
-    textColor: syntaxProfile.titleRule.textColor,
     textStartColumn,
-    tone: syntaxProfile.titleRule.tone,
-    type: syntaxProfile.titleRule.type,
-  } as unknown as TBlock;
+  };
 }
 
-function getMultilineLexicalEndLineNumber(
-  multilineRange: CtnMultilineRange,
-) {
-  return multilineRange.closingFenceLineNumber ?? multilineRange.contentEndLineNumber;
+function multilineLexicalEnd(range: CtnMultilineRange) {
+  return range.closingFenceLineNumber ?? range.contentEndLineNumber;
 }
 
-function parseDocument<TBlock extends CtnEditableBlock>(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-  readSourceBlock: ReadCtnSourceBlock<object>,
-): {
-  blocks: TBlock[];
-  diagnostics: CtnDiagnostic[];
-  roots: TBlock[];
-} {
-  const lines = source.split("\n");
-  const roots: TBlock[] = [];
-  const blocks: TBlock[] = [];
+function regularSeed(
+  sourceText: CtnSourceText,
+  sourceBlock: SourceBlock<EditableIdentity | CanonicalIdentity>,
+  syntax: CtnCompiledSyntax,
+): ParsedBlockSeed {
+  const {
+    contentIndex,
+    indentText,
+    line,
+    lineNumber,
+    sourceStartLineNumber,
+  } = sourceBlock;
+  const trimmed = line.slice(indentText.length).trim();
+
+  if (!trimmed) {
+    throw new CtnDocumentMetadataError(
+      sourceStartLineNumber,
+      "metadata directive must precede a non-empty block source line",
+    );
+  }
+  const indent = analyzeIndent(indentText, lineNumber);
+  const isReservedDirective = isCtnBlockMetadataDirectiveText(trimmed);
+  const parsedMarker = isReservedDirective
+    ? {
+        diagnostics: [reservedDirectiveDiagnostic(lineNumber, indentText)],
+        marker: null,
+        rule: null,
+        text: trimmed,
+        textStartColumn: indentText.length + 1,
+      }
+    : parseMarker(
+        trimmed,
+        lineNumber,
+        indentText.length,
+        syntax.blockMatcher,
+      );
+  const isUnmarked = parsedMarker.marker === null;
+  const rootRule =
+    !isReservedDirective && indentText.length === 0 && isUnmarked
+      ? syntax.root
+      : null;
+  const isUnknown =
+    !isReservedDirective &&
+    isUnmarked &&
+    (indentText.length > 0 || rootRule === null);
+  const diagnostics = [
+    ...indent.diagnostics,
+    ...parsedMarker.diagnostics,
+  ];
+
+  if (isUnknown) {
+    diagnostics.push(
+      createDiagnostic(
+        "unknown-syntax",
+        "warning",
+        lineNumber,
+        indentText.length + 1,
+        indentText.length > 0
+          ? "缩进行必须使用已配置的行首符号。"
+          : "当前语法要求正文行使用已配置的行首符号。",
+      ),
+    );
+  }
+  const resolvedRule: Readonly<CtnResolvedBlockRule> = isReservedDirective
+    ? reservedRule
+    : isUnknown
+      ? unknownSyntaxRule
+      : rootRule ?? parsedMarker.rule ?? unmarkedRule;
+  const multilineRange =
+    resolvedRule.kind === "multiline" && parsedMarker.marker !== null
+      ? findMultilineRange(
+          sourceText.values,
+          contentIndex,
+          indentText,
+          parsedMarker.marker,
+        )
+      : null;
+  const lexicalEndLineNumber = multilineRange
+    ? multilineLexicalEnd(multilineRange)
+    : lineNumber;
+
+  if (multilineRange?.status === "unterminated") {
+    diagnostics.push(
+      createDiagnostic(
+        "unterminated-multiline-block",
+        "error",
+        lineNumber,
+        indentText.length + 1,
+        `多行块缺少同缩进的 ${parsedMarker.marker} 结束行。`,
+      ),
+    );
+  }
+  return {
+    contentFingerprint: sourceText.values
+      .slice(contentIndex, lexicalEndLineNumber)
+      .join("\n"),
+    diagnostics,
+    indentText,
+    inlineSpans:
+      resolvedRule.kind === "multiline" ||
+        isUnknown ||
+        isReservedDirective
+        ? []
+        : parseInlineSpans(
+            parsedMarker.text,
+            lineNumber,
+            parsedMarker.textStartColumn,
+            syntax.inlineMatcher,
+          ),
+    level: indent.level,
+    lexicalEndLineNumber,
+    lineNumber,
+    marker: parsedMarker.marker,
+    multilineRange,
+    rawText: line,
+    rule: resolvedRule,
+    subtreeEndLineNumber: lexicalEndLineNumber,
+    text: parsedMarker.text,
+    textStartColumn: parsedMarker.textStartColumn,
+  };
+}
+
+function editableBlock(seed: ParsedBlockSeed): CtnEditableBlock {
+  return {
+    ...seed,
+    children: [],
+  };
+}
+
+function canonicalBlock(
+  seed: ParsedBlockSeed,
+  identity: CanonicalIdentity,
+): CtnCanonicalBlock {
+  return {
+    ...seed,
+    children: [],
+    id: identity.id,
+    metadata: {
+      createdAt: identity.createdAt,
+      updatedAt: identity.updatedAt,
+    },
+    metadataLineNumber: identity.metadataLineNumber,
+  };
+}
+
+function parseEditable(
+  sourceText: CtnSourceText,
+  syntax: CtnCompiledSyntax,
+  mode: "body" | "editable-document",
+): CtnEditableDocument {
+  const roots: CtnEditableBlock[] = [];
+  const blocks: CtnEditableBlock[] = [];
   const diagnostics: CtnDiagnostic[] = [];
-  const stack: Array<{ level: number; node: TBlock }> = [];
-  const markerRules = sortMarkerRules(syntaxProfile.markerRules);
-  const sourceStartLineNumberByBlock = new Map<TBlock, number>();
-  const titleSourceBlock = readSourceBlock(lines, 0);
-  const titleBlock = createTitleBlock<TBlock>({
-    markerRules,
-    sourceBlock: titleSourceBlock,
-    syntaxProfile,
-  });
+  const stack: Array<{ level: number; node: CtnEditableBlock }> = [];
+  const sourceStartLineNumberByBlock = new Map<CtnEditableBlock, number>();
+  let index = 0;
 
-  roots.push(titleBlock);
-  blocks.push(titleBlock);
-  diagnostics.push(...titleBlock.diagnostics);
-  sourceStartLineNumberByBlock.set(
-    titleBlock,
-    titleSourceBlock.sourceStartLineNumber,
-  );
-  let index = titleSourceBlock.nextIndex;
+  if (mode === "editable-document") {
+    const sourceBlock = readEditableSourceBlock(sourceText, 0);
+    const node = editableBlock(titleSeed(sourceBlock, syntax));
 
-  while (index < lines.length) {
-    if (!(lines[index] ?? "").trim()) {
+    roots.push(node);
+    blocks.push(node);
+    diagnostics.push(...node.diagnostics);
+    sourceStartLineNumberByBlock.set(node, sourceBlock.sourceStartLineNumber);
+    index = sourceBlock.nextIndex;
+  }
+  while (index < sourceText.values.length) {
+    if (!(sourceText.values[index] ?? "").trim()) {
       index += 1;
       continue;
     }
-
-    const sourceBlock = readSourceBlock(lines, index);
-    const {
-      contentIndex,
-      identity,
-      indentText,
-      line,
-      lineNumber,
-      sourceStartLineNumber,
-    } = sourceBlock;
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      throw new CtnDocumentMetadataError(
-        sourceStartLineNumber,
-        "metadata directive must precede a non-empty block source line",
-      );
-    }
-
-    const indent = analyzeIndent(indentText, lineNumber);
-    const isReservedDirective = isCtnBlockMetadataDirectiveText(trimmed);
-    const parsedMarker = isReservedDirective
-      ? {
-          diagnostics: [
-            createReservedDirectiveDiagnostic(lineNumber, indentText),
-          ],
-          label: "保留指令",
-          marker: null,
-          role: "normal" as const,
-          text: trimmed,
-          textColor: "default" as const,
-          textStartColumn: indentText.length + 1,
-          tone: "default" as const,
-          type: "text",
-        }
-      : parseMarker(
-          trimmed,
-          lineNumber,
-          indentText.length,
-          markerRules,
-        );
-    const isUnmarkedLine = parsedMarker.marker === null;
-    const appliedTopLevelUnmarkedRule =
-      !isReservedDirective && indentText.length === 0 && isUnmarkedLine
-        ? syntaxProfile.topLevelUnmarkedRule
-        : null;
-    const isUnknownUnmarkedSyntax =
-      !isReservedDirective &&
-      isUnmarkedLine &&
-      (indentText.length > 0 || appliedTopLevelUnmarkedRule === null);
-    const nodeDiagnostics = [
-      ...indent.diagnostics,
-      ...parsedMarker.diagnostics,
-    ];
-
-    if (isUnknownUnmarkedSyntax) {
-      nodeDiagnostics.push(
-        createDiagnostic(
-          "unknown-syntax",
-          "warning",
-          lineNumber,
-          indentText.length + 1,
-          indentText.length > 0
-            ? "缩进行必须使用已配置的行首符号。"
-            : "当前语法要求正文行使用已配置的行首符号。",
-        ),
-      );
-    }
-
-    const multilineRange =
-      parsedMarker.role === "multiline" && parsedMarker.marker !== null
-        ? findMultilineRange(
-            lines,
-            contentIndex,
-            indentText,
-            parsedMarker.marker,
-          )
-        : null;
-    const lexicalEndLineNumber = multilineRange
-      ? getMultilineLexicalEndLineNumber(multilineRange)
-      : lineNumber;
-
-    if (multilineRange?.status === "unterminated") {
-      nodeDiagnostics.push(
-        createDiagnostic(
-          "unterminated-multiline-block",
-          "error",
-          lineNumber,
-          indentText.length + 1,
-          `多行块缺少同缩进的 ${parsedMarker.marker} 结束行。`,
-        ),
-      );
-    }
-
-    const node = {
-      ...identity,
-      children: [],
-      contentFingerprint: lines
-        .slice(contentIndex, lexicalEndLineNumber)
-        .join("\n"),
-      diagnostics: nodeDiagnostics,
-      indentText,
-      inlineSpans:
-        parsedMarker.role === "multiline" ||
-        isUnknownUnmarkedSyntax ||
-        isReservedDirective
-          ? []
-          : parseInlineSpans(
-              parsedMarker.text,
-              lineNumber,
-              parsedMarker.textStartColumn,
-              syntaxProfile.inlineRules,
-            ),
-      label: isReservedDirective
-        ? parsedMarker.label
-        : isUnknownUnmarkedSyntax
-          ? "未知语法"
-          : appliedTopLevelUnmarkedRule !== null
-            ? appliedTopLevelUnmarkedRule.label
-            : parsedMarker.label,
-      level: indent.level,
-      lexicalEndLineNumber,
-      lineNumber,
-      marker: parsedMarker.marker,
-      multilineRange,
-      rawText: line,
-      role: parsedMarker.role,
-      subtreeEndLineNumber: lexicalEndLineNumber,
-      text: parsedMarker.text,
-      textColor: appliedTopLevelUnmarkedRule !== null
-        ? appliedTopLevelUnmarkedRule.textColor
-        : parsedMarker.textColor,
-      textStartColumn: parsedMarker.textStartColumn,
-      tone: appliedTopLevelUnmarkedRule !== null
-        ? appliedTopLevelUnmarkedRule.tone
-        : parsedMarker.tone,
-      type: isReservedDirective
-        ? "text"
-        : isUnknownUnmarkedSyntax
-          ? "text"
-          : appliedTopLevelUnmarkedRule !== null
-            ? appliedTopLevelUnmarkedRule.type
-            : parsedMarker.type,
-    } as unknown as TBlock;
+    const sourceBlock = readEditableSourceBlock(sourceText, index);
+    const node = editableBlock(regularSeed(sourceText, sourceBlock, syntax));
 
     while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
       stack.pop();
     }
+    const parent = stack.at(-1)?.node;
 
-    const parent = stack[stack.length - 1]?.node;
     if (!parent && node.level > 0) {
       node.diagnostics.push(
         createDiagnostic(
           "indent-level-jump",
           "warning",
-          lineNumber,
+          node.lineNumber,
           1,
           "当前行存在缩进，但前面没有可作为父级的块。",
         ),
       );
     }
-
     if (parent && node.level > parent.level + 1) {
       node.diagnostics.push(
         createDiagnostic(
           "indent-level-jump",
           "warning",
-          lineNumber,
+          node.lineNumber,
           1,
           "缩进层级跳跃，可能缺少中间父级块。",
         ),
       );
     }
-
-    if (parent) {
-      (parent.children as TBlock[]).push(node);
-    } else {
-      roots.push(node);
-    }
-
+    if (parent) parent.children.push(node);
+    else roots.push(node);
     blocks.push(node);
     diagnostics.push(...node.diagnostics);
-    sourceStartLineNumberByBlock.set(node, sourceStartLineNumber);
+    sourceStartLineNumberByBlock.set(node, sourceBlock.sourceStartLineNumber);
     stack.push({ level: node.level, node });
-
-    index = multilineRange
-      ? multilineRange.closingFenceLineNumber ?? lines.length
+    index = node.multilineRange
+      ? node.multilineRange.closingFenceLineNumber ?? sourceText.values.length
       : sourceBlock.nextIndex;
   }
-
   assignBlockSubtreeEndLineNumbers(
     blocks,
-    lines.length,
+    sourceText.values.length,
     (block) => sourceStartLineNumberByBlock.get(block) ?? block.lineNumber,
   );
-
-  return { roots, blocks, diagnostics };
+  return { blocks, diagnostics, roots };
 }
 
-function assertUniqueCanonicalBlockIds(document: CtnCanonicalDocument) {
-  const blockIds = new Set<string>();
+function assertValidBodyTitle(
+  title: string,
+  syntax: CtnCompiledSyntax,
+) {
+  if (!title.trim() || title.includes("\n") || title.includes("\r")) {
+    throw new Error("CTN body title must be one non-empty line");
+  }
+  const virtualTitle = titleSeed(
+    readEditableSourceBlock(createCtnSourceText(title), 0),
+    syntax,
+  );
 
-  for (const block of document.blocks) {
-    if (blockIds.has(block.id)) {
+  if (virtualTitle.diagnostics.length > 0) {
+    throw new Error("CTN body title must be a valid CTN title line");
+  }
+}
+
+function parseCanonical(
+  sourceText: CtnSourceText,
+  syntax: CtnCompiledSyntax,
+): CtnCanonicalDocument {
+  const roots: CtnCanonicalBlock[] = [];
+  const blocks: CtnCanonicalBlock[] = [];
+  const diagnostics: CtnDiagnostic[] = [];
+  const stack: Array<{ level: number; node: CtnCanonicalBlock }> = [];
+  const sourceStartLineNumberByBlock = new Map<CtnCanonicalBlock, number>();
+  const titleSourceBlock = readCanonicalSourceBlock(sourceText, 0);
+  const titleNode = canonicalBlock(
+    titleSeed(titleSourceBlock, syntax),
+    titleSourceBlock.identity,
+  );
+
+  roots.push(titleNode);
+  blocks.push(titleNode);
+  diagnostics.push(...titleNode.diagnostics);
+  sourceStartLineNumberByBlock.set(
+    titleNode,
+    titleSourceBlock.sourceStartLineNumber,
+  );
+  let index = titleSourceBlock.nextIndex;
+
+  while (index < sourceText.values.length) {
+    if (!(sourceText.values[index] ?? "").trim()) {
+      index += 1;
+      continue;
+    }
+    const sourceBlock = readCanonicalSourceBlock(sourceText, index);
+    const node = canonicalBlock(
+      regularSeed(sourceText, sourceBlock, syntax),
+      sourceBlock.identity,
+    );
+
+    while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
+      stack.pop();
+    }
+    const parent = stack.at(-1)?.node;
+
+    if (!parent && node.level > 0) {
+      node.diagnostics.push(
+        createDiagnostic(
+          "indent-level-jump",
+          "warning",
+          node.lineNumber,
+          1,
+          "当前行存在缩进，但前面没有可作为父级的块。",
+        ),
+      );
+    }
+    if (parent && node.level > parent.level + 1) {
+      node.diagnostics.push(
+        createDiagnostic(
+          "indent-level-jump",
+          "warning",
+          node.lineNumber,
+          1,
+          "缩进层级跳跃，可能缺少中间父级块。",
+        ),
+      );
+    }
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+    blocks.push(node);
+    diagnostics.push(...node.diagnostics);
+    sourceStartLineNumberByBlock.set(node, sourceBlock.sourceStartLineNumber);
+    stack.push({ level: node.level, node });
+    index = node.multilineRange
+      ? node.multilineRange.closingFenceLineNumber ?? sourceText.values.length
+      : sourceBlock.nextIndex;
+  }
+  assignBlockSubtreeEndLineNumbers(
+    blocks,
+    sourceText.values.length,
+    (block) => sourceStartLineNumberByBlock.get(block) ?? block.lineNumber,
+  );
+  const ids = new Set<string>();
+
+  for (const block of blocks) {
+    if (ids.has(block.id)) {
       throw new CtnDocumentMetadataError(
         block.metadataLineNumber,
         `duplicate block id ${block.id}`,
       );
     }
-
-    blockIds.add(block.id);
+    ids.add(block.id);
   }
+  return { blocks, diagnostics, roots };
 }
 
-export function parseCtnEditableDocument(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-): CtnEditableDocument {
-  return parseDocument<CtnEditableBlock>(
-    source,
-    syntaxProfile,
-    readEditableSourceBlock,
-  );
-}
-
-export function parseCtnCanonicalDocument(
-  source: string,
-  syntaxProfile: CtnSyntaxProfile,
-): CtnCanonicalDocument {
-  const document = parseDocument<CtnCanonicalBlock>(
-    source,
-    syntaxProfile,
-    readCanonicalSourceBlock,
-  );
-
-  assertUniqueCanonicalBlockIds(document);
-  return document;
+export function parseCtnSourceText(
+  sourceText: CtnSourceText,
+  syntax: CtnCompiledSyntax,
+  mode: { kind: "canonical-document" },
+): CtnCanonicalDocument;
+export function parseCtnSourceText(
+  sourceText: CtnSourceText,
+  syntax: CtnCompiledSyntax,
+  mode:
+    | { kind: "body"; title: string }
+    | { kind: "editable-document" },
+): CtnEditableDocument;
+export function parseCtnSourceText(
+  sourceText: CtnSourceText,
+  syntax: CtnCompiledSyntax,
+  mode: CtnDocumentParseMode,
+): CtnCanonicalDocument | CtnEditableDocument {
+  if (mode.kind === "canonical-document") {
+    return parseCanonical(sourceText, syntax);
+  }
+  if (mode.kind === "body") {
+    assertValidBodyTitle(mode.title, syntax);
+    return parseEditable(sourceText, syntax, "body");
+  }
+  return parseEditable(sourceText, syntax, "editable-document");
 }

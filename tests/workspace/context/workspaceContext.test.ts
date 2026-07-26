@@ -1,19 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 import { createInitialWorkspaceData } from "../../../core/workspace/model/workspaceData";
-import { attachWorkspaceSyntaxProfile } from "../../../core/workspace/context/workspaceContext";
+import { attachWorkspaceSyntax } from "../../../core/workspace/context/workspaceContext";
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 
 describe("workspace context syntax profile", () => {
   it("creates a context with a valid workspace syntax profile", () => {
     expect(
-      attachWorkspaceSyntaxProfile(
+      attachWorkspaceSyntax(
         createWorkspaceStructureIndex(createInitialWorkspaceData()),
-        defaultCtnSyntaxProfile,
+        defaultCtnSyntax,
       ),
     ).toMatchObject({
-      syntaxProfile: { name: "默认 CTN 语法" },
+      syntax: { name: "默认 CTN 语法" },
       workspace: {
         folderEntryById: new Map(),
         noteEntryById: new Map(),
@@ -21,19 +20,14 @@ describe("workspace context syntax profile", () => {
     });
   });
 
-  it("rejects a profile outside the syntax schema at the context boundary", () => {
-    const invalidProfile = {
-      ...defaultCtnSyntaxProfile,
-      tabDisplayWidth: 17,
-    } satisfies CtnSyntaxProfile;
-
-    expect(() =>
-      attachWorkspaceSyntaxProfile(
+  it("attaches the already compiled syntax without a second validation pass", () => {
+    expect(
+      attachWorkspaceSyntax(
         createWorkspaceStructureIndex(createInitialWorkspaceData()),
-        invalidProfile,
-      ),
-    ).toThrow(
-      "Invalid workspace syntax profile",
+        defaultCtnSyntax,
+      ).syntax,
+    ).toBe(
+      defaultCtnSyntax,
     );
   });
 });

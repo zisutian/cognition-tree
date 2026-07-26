@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../../core/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
 import {
-  createSyntaxProfileDraft,
-} from "../../../../core/ctn/syntax/profileDraft";
+  analyzeCanonicalTestSource,
+  readCanonicalTestDocument,
+} from "../../../ctn/analysis/analysisTestHelpers";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
+import {
+  createCtnSyntaxDraft,
+} from "../../../../core/ctn/syntax/draft";
 import type { CtnCanonicalBlock } from "../../../../core/ctn/parser/types";
 import {
   appendFolderToWorkspaceTree,
@@ -29,7 +32,6 @@ import {
 } from "../../../../application/workspace/projection/viewTree";
 import { createUiEditorView } from "../../../../application/workspace/projection/viewEditor";
 import {
-  createCtnEditableSource,
   getCtnEditableLineNumber,
 } from "../../../../core/ctn/metadata/editableSource";
 import {
@@ -46,9 +48,9 @@ import {
 const timestamp = "2026-07-04T00:00:00.000Z";
 
 function parseFirstRoot(source: string) {
-  const document = parseCtnCanonicalDocument(
+  const document = readCanonicalTestDocument(
     addTestCtnBlockMetadata(source),
-    defaultCtnSyntaxProfile,
+    defaultCtnSyntax,
   );
 
   return document.roots[1];
@@ -61,7 +63,7 @@ function createWorkspace() {
   );
   const targetNote = createNoteRecord(
     "note-target",
-    addTestCtnBlockMetadata("目标笔记", defaultCtnSyntaxProfile, 100),
+    addTestCtnBlockMetadata("目标笔记", defaultCtnSyntax, 100),
   );
   const workspace = createInitialWorkspaceData();
   const treeWithSourceNote = appendNoteToWorkspaceTree(
@@ -102,7 +104,6 @@ function createBlock(
     id,
     indentText: "",
     inlineSpans: [],
-    label: "组分",
     level: 0,
     lexicalEndLineNumber: lineNumber,
     lineNumber,
@@ -114,13 +115,17 @@ function createBlock(
     metadataLineNumber: lineNumber,
     multilineRange: null,
     rawText: `- Block ${id}`,
-    role: "normal",
+    rule: {
+      kind: "line",
+      label: "组分",
+      marker: "-",
+      semanticId: "item",
+      textColor: "green",
+      tone: "green",
+    },
     subtreeEndLineNumber,
     text: `Block ${id}`,
-    textColor: "green",
     textStartColumn: 3,
-    tone: "green",
-    type: "item",
   };
 }
 
@@ -130,7 +135,7 @@ describe("workspace view projection", () => {
       document: null,
       documentText: "缩进?内容",
       focusTarget: null,
-      syntaxProfile: defaultCtnSyntaxProfile,
+      syntax: defaultCtnSyntax,
     });
 
     expect(view).toMatchObject({
@@ -144,21 +149,21 @@ describe("workspace view projection", () => {
     const source = addTestCtnBlockMetadata(
       "Title\nRoot\n\t? Unknown",
     );
-    const document = parseCtnCanonicalDocument(
+    const document = readCanonicalTestDocument(
       source,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
-    const editableSource = createCtnEditableSource(
+    const editableSource = analyzeCanonicalTestSource(
       source,
-      defaultCtnSyntaxProfile,
-    );
+      defaultCtnSyntax,
+    ).editableProjection;
     const projectLineNumber = (lineNumber: number) =>
       getCtnEditableLineNumber(editableSource, lineNumber);
     const view = createUiEditorView({
       document,
       documentText: editableSource.source,
       focusTarget: null,
-      syntaxProfile: defaultCtnSyntaxProfile,
+      syntax: defaultCtnSyntax,
     });
     const outline = createUiOutlineNodes(
       document.roots,
@@ -188,7 +193,6 @@ describe("workspace view projection", () => {
         id: "4-4-global-reference",
         kind: "inline",
         text: "全局概念",
-        textColor: "cyan",
         tone: "blue",
       },
       { id: `${rootId}-text-11`, kind: "text", text: " 和 " },
@@ -196,7 +200,6 @@ describe("workspace view projection", () => {
         id: "4-15-inline-code",
         kind: "inline",
         text: "code",
-        textColor: "green",
         tone: "green",
       },
     ]);
@@ -213,7 +216,6 @@ describe("workspace view projection", () => {
         id: "4-3-parallel-separator",
         kind: "inline",
         text: "\\",
-        textColor: "amber",
         tone: "amber",
       },
       { id: `${rootId}-text-3`, kind: "text", text: " 乙" },
@@ -272,7 +274,6 @@ describe("workspace view projection", () => {
         contentStartLineNumber: 5,
         status: "closed" as const,
       },
-      role: "multiline" as const,
       subtreeEndLineNumber: 7,
     };
     const outline = createUiOutlineNodes([root, multiline]);
@@ -286,7 +287,7 @@ describe("workspace view projection", () => {
   });
 
   it("maps syntax draft state into UI display data", () => {
-    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    const draft = createCtnSyntaxDraft(defaultCtnSyntax);
     const view = createUiSyntaxView({
       draft,
     });
@@ -294,21 +295,20 @@ describe("workspace view projection", () => {
     expect(view.draft.tabDisplayWidth).toBe("4");
     expect(view.constraints).toEqual({
       label: { maxLength: 32 },
-      profileName: { maxLength: 64 },
+      name: { maxLength: 64 },
       tabDisplayWidth: { max: 16, min: 1 },
-      token: { maxLength: 12 },
+      token: { maxCodePoints: 12 },
     });
-    expect(view.stats.lineRuleCount).toBe(
-      defaultCtnSyntaxProfile.markerRules.length + 2,
+    expect(view.stats.blockRuleCount).toBe(
+      defaultCtnSyntax.blocks.length,
     );
-    expect(view.draft.titleRule).toMatchObject({
+    expect(view.draft.title).toMatchObject({
       label: "标题",
-      type: "title",
     });
-    expect(view.draft.markerRules.map((rule) => rule.type)).not.toContain(
+    expect(view.draft.blocks.map((rule) => rule.semanticId)).not.toContain(
       "title",
     );
-    expect(view.draft.inlineRules[0]).toMatchObject({
+    expect(view.draft.inline[0]).toMatchObject({
       close: "]]",
       kind: "paired",
       label: "全局概念引用",
@@ -322,6 +322,10 @@ describe("workspace view projection", () => {
         { label: "灰色", value: "gray" },
       ]),
     );
+    expect(view.backgroundToneOptions[0]).toEqual({
+      label: "编辑器背景",
+      value: "default",
+    });
     expect(view.focusTarget).toBeNull();
   });
 });

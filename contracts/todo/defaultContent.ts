@@ -1,28 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export const defaultTodoSyntaxSourceV4 = `name = "代办"
+export const defaultTodoSyntaxSource = `formatVersion = 2
+name = "代办"
 tabDisplayWidth = 4
 
-[title]
-type = "title"
-label = "事项集合"
-tone = "blue"
-textColor = "cyan"
-
-[[markers]]
+[[blocks]]
 marker = "[]"
-type = "todo-item"
+semanticId = "todo-item"
 label = "代办"
-role = "normal"
+kind = "line"
 tone = "default"
 textColor = "cyan"
 
-[[inlineRules]]
+[[inline]]
 kind = "paired"
 open = "[["
 close = "]]"
-type = "global-reference"
+semanticId = "global-reference"
 label = "引用"
 tone = "blue"
-textColor = "cyan"
+textColor = "blue"
 `;

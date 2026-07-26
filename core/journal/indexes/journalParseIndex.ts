@@ -5,33 +5,42 @@ import {
   ctnGlobalReferenceType,
   normalizeCtnReferenceText,
 } from "../../ctn/parser/inlineReferences.ts";
-import { parseCtnCanonicalDocument } from "../../ctn/parser/parseCtnDocument.ts";
-import type { CtnCanonicalDocument } from "../../ctn/parser/types.ts";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
+import {
+  analyzeCtnSource,
+  reprojectCtnAnalysisPresentation,
+  type CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis.ts";
+import {
+  createCtnBlockIdRegistry,
+  updateCtnBlockIdRegistry,
+  type CtnBlockIdRegistry,
+  type CtnBlockIdRegistryChange,
+} from "../../ctn/analysis/blockIdRegistry.ts";
+import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import {
   createPortableNameKey,
   getPortableNameIssue,
 } from "../../naming/portableName.ts";
 import {
-  formatJournalEntryTitle,
   listJournalEntries,
+  validateJournalContentAnalysis,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
 } from "../model/journalContent.ts";
-import { requireJournalSyntaxProfile } from "../syntax/journalSyntax.ts";
 
 export type ParsedJournalIndexEntry = {
-  document: CtnCanonicalDocument;
+  analysis: CtnCanonicalSourceAnalysis;
   entry: JournalEntry;
   source: string;
   title: string;
 };
 
 export type JournalParseCacheEntry = {
-  document: CtnCanonicalDocument;
+  analysis: CtnCanonicalSourceAnalysis;
+  analysisKey: string;
   source: string;
-  syntaxSource: string;
 };
 
 export type JournalWorkspaceReference = {
@@ -87,12 +96,20 @@ export type JournalReferenceGraph = {
 };
 
 export type JournalParseIndex = {
+  analysisStats: {
+    analyzedEntryIds: readonly JournalEntryId[];
+    runCount: number;
+    updatedBlockIdOwnerIds: readonly JournalEntryId[];
+  };
+  blockIdRegistry: CtnBlockIdRegistry<JournalEntryId>;
+  blockIds: ReadonlySet<string>;
   entries: readonly ParsedJournalIndexEntry[];
   entryById: ReadonlyMap<JournalEntryId, ParsedJournalIndexEntry>;
   getParsedEntry(entryId: JournalEntryId): ParsedJournalIndexEntry | null;
+  latestTimestamp: string | null;
   parseCache: ReadonlyMap<JournalEntryId, JournalParseCacheEntry>;
   referenceGraph: JournalReferenceGraph;
-  syntaxProfile: CtnSyntaxProfile;
+  syntax: CtnCompiledSyntax;
   titleIndex: ReadonlyMap<string, readonly ParsedJournalIndexEntry[]>;
 };
 
@@ -120,7 +137,7 @@ function createReferenceGraph(
 
   for (const parsed of entries) {
     for (const reference of collectCtnInlineReferences(
-      parsed.document,
+      parsed.analysis.document,
       ctnGlobalReferenceType,
     )) {
       const targetText = normalizeCtnReferenceText(reference.text);
@@ -248,29 +265,69 @@ function createReferenceGraph(
 export function createJournalParseIndex(
   content: JournalContent,
   previousIndex?: JournalParseIndex | null,
+  analysisOverrides?: ReadonlyMap<
+    JournalEntryId,
+    CtnCanonicalSourceAnalysis
+  >,
 ): JournalParseIndex {
-  const syntaxProfile = requireJournalSyntaxProfile(content.syntaxSource);
+  const syntax = requireCtnSyntax(content.syntaxSource, "journal");
   const parseCache = new Map<JournalEntryId, JournalParseCacheEntry>();
-  const entries = listJournalEntries(content).map((entry): ParsedJournalIndexEntry => {
-    const cached = previousIndex?.parseCache.get(entry.id);
-    const document = cached?.source === entry.source &&
-        cached.syntaxSource === content.syntaxSource
-      ? cached.document
-      : parseCtnCanonicalDocument(entry.source, syntaxProfile);
-    const title = formatJournalEntryTitle(
-      entry.createdAt,
-      entry.timezoneOffsetMinutes,
-      entry.sequence,
-    );
+  const analyzedEntryIds: JournalEntryId[] = [];
+  const analysisByEntryId = new Map(
+    listJournalEntries(content).map(
+      (entry): [JournalEntryId, CtnCanonicalSourceAnalysis] => {
+        const cached = previousIndex?.parseCache.get(entry.id);
+        const override = analysisOverrides?.get(entry.id);
+        let analysis: CtnCanonicalSourceAnalysis;
 
-    parseCache.set(entry.id, {
-      document,
-      source: entry.source,
-      syntaxSource: content.syntaxSource,
-    });
-    return { document, entry, source: entry.source, title };
+        if (
+          override?.sourceText.source === entry.source &&
+          override.syntax.analysisKey === syntax.analysisKey
+        ) {
+          analysis = override.syntax.presentationKey === syntax.presentationKey
+            ? override
+            : reprojectCtnAnalysisPresentation(override, syntax);
+        } else if (
+          cached?.source === entry.source &&
+          cached.analysisKey === syntax.analysisKey
+        ) {
+          analysis = cached.analysis.syntax.presentationKey ===
+              syntax.presentationKey
+            ? cached.analysis
+            : reprojectCtnAnalysisPresentation(cached.analysis, syntax);
+        } else {
+          analyzedEntryIds.push(entry.id);
+          analysis = analyzeCtnSource({
+            mode: { kind: "canonical-document" },
+            source: entry.source,
+            syntax,
+          });
+        }
+
+        return [entry.id, analysis];
+      },
+    ),
+  );
+  const validated = validateJournalContentAnalysis(content, {
+    analysisByEntryId,
+    syntax,
   });
+  const entries: readonly ParsedJournalIndexEntry[] = validated.entries.map(
+    (parsed) => ({
+      ...parsed,
+      source: parsed.entry.source,
+    }),
+  );
+
+  for (const { analysis, entry } of entries) {
+    parseCache.set(entry.id, {
+      analysis,
+      analysisKey: syntax.analysisKey,
+      source: entry.source,
+    });
+  }
   const entryById = new Map(entries.map((entry) => [entry.entry.id, entry]));
+
   const mutableTitleIndex = new Map<string, ParsedJournalIndexEntry[]>();
 
   for (const entry of entries) {
@@ -288,16 +345,87 @@ export function createJournalParseIndex(
     readonly ParsedJournalIndexEntry[]
   > = mutableTitleIndex;
   const referenceGraph = createReferenceGraph(entries, titleIndex);
+  const canUpdateBlockIdRegistry =
+    previousIndex?.syntax.blockGrammarKey === syntax.blockGrammarKey;
+  const updatedBlockIdOwnerIds: JournalEntryId[] = [];
+  let blockIdRegistry: CtnBlockIdRegistry<JournalEntryId>;
+
+  if (previousIndex && canUpdateBlockIdRegistry) {
+    const currentEntryIds = new Set(entries.map(({ entry }) => entry.id));
+    const changes: CtnBlockIdRegistryChange<JournalEntryId>[] = [];
+
+    for (
+      const ownerId of previousIndex.blockIdRegistry.blockIdsByOwner.keys()
+    ) {
+      if (!currentEntryIds.has(ownerId)) {
+        changes.push({ entry: null, ownerId });
+        updatedBlockIdOwnerIds.push(ownerId);
+      }
+    }
+    for (const parsed of entries) {
+      const previousCacheEntry = previousIndex.parseCache.get(parsed.entry.id);
+
+      if (
+        !previousCacheEntry ||
+        previousCacheEntry.source !== parsed.entry.source
+      ) {
+        changes.push({
+          entry: {
+            analysis: parsed.analysis,
+            ownerId: parsed.entry.id,
+          },
+          ownerId: parsed.entry.id,
+        });
+        updatedBlockIdOwnerIds.push(parsed.entry.id);
+      }
+    }
+    blockIdRegistry = updateCtnBlockIdRegistry(
+      previousIndex.blockIdRegistry,
+      changes,
+    );
+  } else {
+    updatedBlockIdOwnerIds.push(...entries.map(({ entry }) => entry.id));
+    blockIdRegistry = createCtnBlockIdRegistry(
+      entries.map(({ analysis, entry }) => ({
+        analysis,
+        ownerId: entry.id,
+      })),
+    );
+  }
+  let latestTimestamp: string | null = null;
+  const includeTimestamp = (timestamp: string) => {
+    if (
+      latestTimestamp === null ||
+      Date.parse(timestamp) > Date.parse(latestTimestamp)
+    ) {
+      latestTimestamp = timestamp;
+    }
+  };
+
+  for (const { analysis, entry } of entries) {
+    includeTimestamp(entry.updatedAt);
+    analysis.document.blocks.forEach((block) =>
+      includeTimestamp(block.metadata.updatedAt)
+    );
+  }
 
   return {
+    analysisStats: {
+      analyzedEntryIds,
+      runCount: analyzedEntryIds.length,
+      updatedBlockIdOwnerIds,
+    },
+    blockIdRegistry,
+    blockIds: blockIdRegistry.blockIds,
     entries,
     entryById,
     getParsedEntry(entryId) {
       return entryById.get(entryId) ?? null;
     },
+    latestTimestamp,
     parseCache,
     referenceGraph,
-    syntaxProfile,
+    syntax,
     titleIndex,
   };
 }

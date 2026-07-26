@@ -307,8 +307,8 @@ describe("notes panels", () => {
               rootCount: 1,
               totalBlocks: 2,
             },
-            syntaxProfile: {
-              ...baseView.notes.editor.syntaxProfile,
+            syntax: {
+              ...baseView.notes.editor.syntax,
               tabDisplayWidth: 6,
             },
           },

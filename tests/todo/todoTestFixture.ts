@@ -10,9 +10,11 @@ import {
   type TodoContent,
 } from "../../core/todo/model/todoContent";
 import {
-  defaultTodoCtnSyntaxProfileV4,
-  defaultTodoSyntaxSourceV4,
-} from "../../core/todo/syntax/todoSyntax";
+  defaultTodoSyntaxSource,
+} from "../../core/todo/syntax/defaultTodoSyntax";
+import {
+  createTodoParseIndex,
+} from "../../core/todo/indexes/todoParseIndex";
 
 export function todoCollectionId(index: number): TodoCollectionId {
   return `todo-collection-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
@@ -32,7 +34,7 @@ export function createEmptyTodoContent(): TodoContent {
   return {
     collections: [],
     schemaVersion: 4,
-    syntaxSource: defaultTodoSyntaxSourceV4,
+    syntaxSource: defaultTodoSyntaxSource,
   };
 }
 
@@ -48,12 +50,16 @@ export function appendTodoTestCollection(
     name?: string;
   },
 ) {
-  return createTodoCollection(content, {
-    collectionId: todoCollectionId(collectionIndex),
-    createBlockId: () => todoBlockId(10_000 + collectionIndex),
-    createdAt,
-    name,
-  }).content;
+  return createTodoCollection(
+    content,
+    createTodoParseIndex(content),
+    {
+      collectionId: todoCollectionId(collectionIndex),
+      createBlockId: () => todoBlockId(10_000 + collectionIndex),
+      createdAt,
+      name,
+    },
+  ).content;
 }
 
 export function appendTodoTestItem(
@@ -77,13 +83,15 @@ export function appendTodoTestItem(
 
   if (!collection) throw new Error(`Missing test Todo collection ${collectionId}`);
   const projection = createTodoCollectionBodyProjection(
-    collection,
-    defaultTodoCtnSyntaxProfileV4,
+    createTodoParseIndex(content).getParsedCollection(collectionId)!,
   );
   const insertedText = `${projection.source ? "\n" : ""}${"\t".repeat(level)}[] ${text}`;
   const source = `${projection.source}${insertedText}`;
 
-  return updateTodoCollectionBody(content, {
+  return updateTodoCollectionBody(
+    content,
+    createTodoParseIndex(content),
+    {
     change: {
       edits: [{
         from: projection.source.length,
@@ -95,5 +103,6 @@ export function appendTodoTestItem(
     collectionId,
     createBlockId: () => todoBlockId(itemIndex),
     updatedAt: createdAt,
-  });
+    },
+  ).content;
 }

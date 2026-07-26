@@ -21,11 +21,11 @@ export function collectCtnInlineReferences(
 ): CtnInlineReference[] {
   return document.blocks.flatMap((block) =>
     block.inlineSpans
-      .filter((span) => span.type === type)
+      .filter((span) => span.rule.semanticId === type)
       .map((span) => ({
         lineNumber: span.lineNumber,
         text: span.text,
-        type: span.type,
+        type: span.rule.semanticId,
       })),
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
+import { readCanonicalTestDocument } from "../analysis/analysisTestHelpers";
 import {
   moveCtnBlockWithinText as moveCtnBlockWithinTextImplementation,
   moveCtnBlockText as moveCtnBlockTextImplementation,
@@ -7,7 +7,8 @@ import {
   type MoveCtnBlockWithinTextInput,
 } from "../../../core/ctn/parser/blockTextEdit";
 import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
+import { analyzeCtnSource } from "../../../core/ctn/analysis/sourceAnalysis";
 import {
   addTestCtnBlockMetadata,
   stripTestCtnBlockMetadata,
@@ -16,29 +17,52 @@ import {
 const movedTimestamp = "2026-07-15T02:00:00.000Z";
 
 function moveCtnBlockText(
-  input: Omit<MoveCtnBlockTextInput, "syntaxProfile" | "updatedAt"> &
-    Partial<Pick<MoveCtnBlockTextInput, "updatedAt">>,
+  input: Omit<
+    MoveCtnBlockTextInput,
+    "sourceAnalysis" | "targetAnalysis" | "updatedAt"
+  > & {
+    sourceText: string;
+    targetText: string;
+    updatedAt?: string;
+  },
 ) {
   return moveCtnBlockTextImplementation({
-    ...input,
-    syntaxProfile: defaultCtnSyntaxProfile,
+    sourceAnalysis: analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: input.sourceText,
+      syntax: defaultCtnSyntax,
+    }),
+    sourceBlock: input.sourceBlock,
+    targetAnalysis: analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: input.targetText,
+      syntax: defaultCtnSyntax,
+    }),
+    targetPosition: input.targetPosition,
     updatedAt: input.updatedAt ?? movedTimestamp,
   });
 }
 
 function moveCtnBlockWithinText(
-  input: Omit<MoveCtnBlockWithinTextInput, "syntaxProfile" | "updatedAt"> &
-    Partial<Pick<MoveCtnBlockWithinTextInput, "updatedAt">>,
+  input: Omit<MoveCtnBlockWithinTextInput, "analysis" | "updatedAt"> & {
+    sourceText: string;
+    updatedAt?: string;
+  },
 ) {
   return moveCtnBlockWithinTextImplementation({
-    ...input,
-    syntaxProfile: defaultCtnSyntaxProfile,
+    analysis: analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: input.sourceText,
+      syntax: defaultCtnSyntax,
+    }),
+    sourceBlock: input.sourceBlock,
+    targetPosition: input.targetPosition,
     updatedAt: input.updatedAt ?? movedTimestamp,
   });
 }
 
 function parseBlocks(source: string): CtnCanonicalBlock[] {
-  return parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile).blocks;
+  return readCanonicalTestDocument(source, defaultCtnSyntax).blocks;
 }
 
 function findBlock(source: string, lineNumber: number) {
@@ -56,12 +80,14 @@ function findBlock(source: string, lineNumber: number) {
 
 function stripMoveResult<Result extends Record<string, unknown>>(result: Result) {
   return Object.fromEntries(
-    Object.entries(result).map(([key, value]) => [
-      key,
-      key.startsWith("next") && typeof value === "string"
-        ? stripTestCtnBlockMetadata(value)
-        : value,
-    ]),
+    Object.entries(result)
+      .filter(([key]) => !key.toLowerCase().includes("analysis"))
+      .map(([key, value]) => [
+        key,
+        key.startsWith("next") && typeof value === "string"
+          ? stripTestCtnBlockMetadata(value)
+          : value,
+      ]),
   );
 }
 
@@ -72,7 +98,7 @@ describe("ctn block text edit", () => {
     );
     const targetText = addTestCtnBlockMetadata(
       "Target Title\nTarget\n\t> Understanding",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       100,
     );
     const sourceBlocks = parseBlocks(sourceText);
@@ -94,9 +120,9 @@ describe("ctn block text edit", () => {
       status: "moved",
     });
 
-    const movedRoot = parseCtnCanonicalDocument(
+    const movedRoot = readCanonicalTestDocument(
       result.nextTargetText,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     ).blocks.find((block) => block.id === sourceBlocks[2].id);
 
     expect(movedRoot).toMatchObject({
@@ -124,7 +150,7 @@ describe("ctn block text edit", () => {
     );
     const targetText = addTestCtnBlockMetadata(
       "Target Title\nTarget\n\t> Understanding",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       100,
     );
     const sourceBlocks = parseBlocks(sourceText);
@@ -153,7 +179,7 @@ describe("ctn block text edit", () => {
     );
     const targetText = addTestCtnBlockMetadata(
       "Target Title\nTarget\n\t> Understanding",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       100,
     );
     const sourceBlocks = parseBlocks(sourceText);
@@ -183,7 +209,7 @@ describe("ctn block text edit", () => {
     const sourceBlocks = parseBlocks(sourceText);
     const targetText = addTestCtnBlockMetadata(
       "Target Title",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       100,
     );
 
@@ -212,7 +238,7 @@ describe("ctn block text edit", () => {
         targetPosition: { kind: "end" },
         targetText: `${addTestCtnBlockMetadata(
           "Target Title",
-          defaultCtnSyntaxProfile,
+          defaultCtnSyntax,
           100,
         )}\n`,
       }),
@@ -230,7 +256,7 @@ describe("ctn block text edit", () => {
     const sourceBlocks = parseBlocks(sourceText);
     const targetText = addTestCtnBlockMetadata(
       "Target Title",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       100,
     );
 
@@ -255,7 +281,7 @@ describe("ctn block text edit", () => {
     const sourceBlocks = parseBlocks(sourceText);
     const targetText = addTestCtnBlockMetadata(
       "Target Title",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       100,
     );
 

@@ -6,9 +6,11 @@ import {
   parseCtnBlockMetadataLine,
 } from "../../core/ctn/metadata/blockMetadata";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../core/ctn/parser/parseCtnDocument";
+import {
+  readCanonicalTestDocument,
+} from "../ctn/analysis/analysisTestHelpers";
 import {
   createJournalEntry,
   updateJournalEntryBody,
@@ -24,7 +26,10 @@ import {
   formatJournalEntryTitle,
   listJournalEntries,
 } from "../../core/journal/model/journalContent";
-import { requireJournalSyntaxProfile } from "../../core/journal/syntax/journalSyntax";
+import { requireCtnSyntax } from "../../core/ctn/syntax/compiler";
+import {
+  createJournalParseIndex,
+} from "../../core/journal/indexes/journalParseIndex";
 
 export function journalEntryId(index: number): JournalEntryId {
   return `journal-entry-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
@@ -93,12 +98,16 @@ export function appendJournalTestEntry(
 ) {
   let nextBlockId = blockIdStart;
 
-  return createJournalEntry(content, {
-    createBlockId: () => journalBlockId(nextBlockId++),
-    createdAt,
-    entryId: journalEntryId(entryIndex),
-    timezoneOffsetMinutes,
-  }).content;
+  return createJournalEntry(
+    content,
+    createJournalParseIndex(content),
+    {
+      createBlockId: () => journalBlockId(nextBlockId++),
+      createdAt,
+      entryId: journalEntryId(entryIndex),
+      timezoneOffsetMinutes,
+    },
+  ).content;
 }
 
 export function updateJournalTestBody(
@@ -119,7 +128,10 @@ export function updateJournalTestBody(
 ) {
   let nextBlockId = createBlockIdStart;
 
-  return updateJournalEntryBody(content, {
+  return updateJournalEntryBody(
+    content,
+    createJournalParseIndex(content),
+    {
     change: {
       edits: createMyersTextEdits(previousBody, body),
       source: body,
@@ -127,7 +139,8 @@ export function updateJournalTestBody(
     createBlockId: () => journalBlockId(nextBlockId++),
     entryId: journalEntryId(entryIndex),
     updatedAt,
-  });
+    },
+  ).content;
 }
 
 export function tamperJournalTestEntryCreation(
@@ -223,9 +236,9 @@ export function tamperJournalTestBodyBlockTime(
     entryId,
   );
   const entry = content.days[dayIndex].entries[positionEntryIndex];
-  const document = parseCtnCanonicalDocument(
+  const document = readCanonicalTestDocument(
     entry.source,
-    requireJournalSyntaxProfile(content.syntaxSource),
+    requireCtnSyntax(content.syntaxSource, "journal"),
   );
   const block = document.blocks[blockIndex];
 

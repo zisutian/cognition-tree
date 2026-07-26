@@ -8,8 +8,8 @@ type TestBlock = {
   level: number;
   lexicalEndLineNumber: number;
   lineNumber: number;
+  rule: { semanticId: string };
   subtreeEndLineNumber: number;
-  type: string;
 };
 
 function createBlock(
@@ -21,8 +21,8 @@ function createBlock(
     level,
     lexicalEndLineNumber: lineNumber,
     lineNumber,
+    rule: { semanticId: type },
     subtreeEndLineNumber: lineNumber,
-    type,
   };
 }
 

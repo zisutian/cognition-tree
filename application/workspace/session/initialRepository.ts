@@ -38,7 +38,7 @@ export function createInitialRepositoryContent({
       noteId: createNoteId(),
       parentFolderId: null,
       reservedBlockIds: new Set(),
-      syntaxProfile: syntax.profile,
+      syntax: syntax.syntax,
       timestamp,
     },
   );

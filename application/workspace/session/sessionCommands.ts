@@ -23,11 +23,15 @@ import type {
   NoteId,
   WorkspaceData,
 } from "../../../core/workspace/model/workspaceData";
-import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
-import { createCtnEditableSource } from "../../../core/ctn/metadata/editableSource";
 import { readCtnCanonicalTitleHeader } from "../../../core/ctn/parser/parseCtnDocument";
-import { collectWorkspaceBlockIds } from "../../../core/workspace/context/workspaceBlockMetadata";
+import type {
+  WorkspaceParseIndex,
+} from "../../../core/workspace/indexes/workspaceParseIndex";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../../core/ctn/analysis/sourceAnalysis";
 
 type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
 type CreateWorkspaceFolderCommand = Parameters<
@@ -103,18 +107,39 @@ export type SessionCommandDependencies = {
 export function createSessionCommands({
   commitDataSnapshot,
   dependencies,
-  getSyntaxProfile,
+  getSyntax,
+  getAnalysisIndex,
   getWorkspace,
 }: {
-  commitDataSnapshot: (workspaceData: WorkspaceData) => void;
+  commitDataSnapshot: (
+    workspaceData: WorkspaceData,
+    analysisOverrides?: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>,
+  ) => void;
   dependencies: SessionCommandDependencies;
-  getSyntaxProfile: () => CtnSyntaxProfile | null;
+  getSyntax: () => CtnCompiledSyntax | null;
+  getAnalysisIndex: () => WorkspaceParseIndex | null;
   getWorkspace: () => WorkspaceStructureIndex;
 }): SessionCommands {
   const collectReservedBlockIds = (
-    workspace: WorkspaceStructureIndex,
-    syntaxProfile: CtnSyntaxProfile | null,
-  ) => collectWorkspaceBlockIds(workspace.data, syntaxProfile);
+    syntax: CtnCompiledSyntax | null,
+  ) => {
+    if (!syntax) {
+      return new Set(
+        [...getWorkspace().noteEntryById.values()].map(
+          ({ note }) =>
+            readCtnCanonicalTitleHeader(note.source).metadata.id,
+        ),
+      );
+    }
+    const index = getAnalysisIndex();
+
+    if (!index || index.syntax.analysisKey !== syntax.analysisKey) {
+      throw new Error(
+        "Workspace analysis index is unavailable for the active syntax.",
+      );
+    }
+    return index.blockIds;
+  };
 
   return {
     createFolder(parentFolderId, title) {
@@ -133,15 +158,15 @@ export function createSessionCommands({
     createNote(parentFolderId) {
       const noteId = dependencies.createNoteId();
       const workspace = getWorkspace();
-      const syntaxProfile = getSyntaxProfile();
+      const syntax = getSyntax();
 
       commitDataSnapshot(
         createWorkspaceNoteAction(workspace, {
           createBlockId: dependencies.createBlockId,
           noteId,
           parentFolderId,
-          reservedBlockIds: collectReservedBlockIds(workspace, syntaxProfile),
-          syntaxProfile,
+          reservedBlockIds: collectReservedBlockIds(syntax),
+          syntax,
           timestamp: dependencies.now(),
         }),
       );
@@ -170,7 +195,7 @@ export function createSessionCommands({
         };
       }
 
-      commitDataSnapshot(result.workspaceData);
+      commitDataSnapshot(result.workspaceData, result.analysisOverrides);
 
       return {
         status: "moved",
@@ -192,7 +217,7 @@ export function createSessionCommands({
         };
       }
 
-      commitDataSnapshot(result.workspaceData);
+      commitDataSnapshot(result.workspaceData, result.analysisOverrides);
 
       return {
         noteId: result.noteId,
@@ -221,9 +246,9 @@ export function createSessionCommands({
     },
     updateNoteSource(noteId, change) {
       const workspace = getWorkspace();
-      const syntaxProfile = getSyntaxProfile();
+      const syntax = getSyntax();
 
-      if (!syntaxProfile) {
+      if (!syntax) {
         const nextWorkspace = updateWorkspaceRawNoteSourceAction(
           workspace,
           noteId,
@@ -247,16 +272,24 @@ export function createSessionCommands({
         };
       }
 
-      const nextWorkspace = updateWorkspaceNoteSourceAction(
+      const index = getAnalysisIndex();
+      const previousAnalysis = index?.getParsedNote(noteId)?.analysis;
+
+      if (!index || !previousAnalysis) {
+        throw new Error(
+          `Workspace note analysis does not exist: ${noteId}`,
+        );
+      }
+      const result = updateWorkspaceNoteSourceAction(
         workspace,
         noteId,
+        previousAnalysis,
         change,
         dependencies.now(),
-        syntaxProfile,
         dependencies.createBlockId,
-        collectReservedBlockIds(workspace, syntaxProfile),
+        index.blockIds,
       );
-      const canonicalSource = nextWorkspace.notes.find(
+      const canonicalSource = result.workspaceData.notes.find(
         ({ id }) => id === noteId,
       )?.source;
 
@@ -264,11 +297,12 @@ export function createSessionCommands({
         throw new Error(`Workspace note does not exist: ${noteId}`);
       }
 
-      commitDataSnapshot(nextWorkspace);
-      const authoritativeSource = createCtnEditableSource(
-        canonicalSource,
-        syntaxProfile,
-      ).source;
+      commitDataSnapshot(
+        result.workspaceData,
+        new Map([[noteId, result.analysis]]),
+      );
+      const authoritativeSource =
+        result.analysis.editableProjection.source;
 
       return {
         authoritativeSource,

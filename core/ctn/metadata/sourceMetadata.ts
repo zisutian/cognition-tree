@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  parseCtnCanonicalDocument,
-  parseCtnEditableDocument,
+  analyzeCtnSource,
+  canonicalizeCtnEditableAnalysis,
+} from "../analysis/sourceAnalysis.ts";
+import {
   readCtnCanonicalTitleHeader,
 } from "../parser/parseCtnDocument.ts";
 import type { CtnEditableDocument } from "../parser/types.ts";
-import type { CtnSyntaxProfile } from "../syntax/types.ts";
+import type { CtnCompiledSyntax } from "../syntax/types.ts";
 import {
   formatCtnBlockMetadataLine,
 } from "./blockMetadata.ts";
@@ -42,9 +44,9 @@ function insertCtnBlockMetadataLines(
   return lines.join("\n");
 }
 
-export function initializeCtnSourceBlockMetadata(
+export function initializeCtnSourceBlockMetadataAnalysis(
   source: string,
-  syntaxProfile: CtnSyntaxProfile,
+  syntax: CtnCompiledSyntax,
   {
     createId,
     createdAt,
@@ -52,30 +54,63 @@ export function initializeCtnSourceBlockMetadata(
     updatedAt,
   }: InitializeCtnSourceBlockMetadataOptions,
 ) {
-  const document = parseCtnEditableDocument(source, syntaxProfile);
+  const analysis = analyzeCtnSource({
+    mode: { kind: "editable-document" },
+    source,
+    syntax,
+  });
+  const document = analysis.document;
   const idAllocator = createCtnBlockIdAllocator(createId, reservedIds);
-  const metadataLines = document.blocks.map((block, index) =>
-    formatCtnBlockMetadataLine({
+  const metadataByBlock = new Map(document.blocks.map((block, index) => [
+    block,
+    {
       createdAt,
       id: idAllocator.allocate(),
       indentText: index === 0 ? "" : block.indentText,
       updatedAt,
-    }),
+    },
+  ]));
+  const metadataLines = document.blocks.map((block) =>
+    formatCtnBlockMetadataLine(metadataByBlock.get(block)!)
+  );
+  const canonicalSource = insertCtnBlockMetadataLines(
+    source,
+    document,
+    metadataLines,
   );
 
-  return insertCtnBlockMetadataLines(source, document, metadataLines);
+  return {
+    analysis: canonicalizeCtnEditableAnalysis({
+      analysis,
+      canonicalSource,
+      metadataByBlock,
+    }),
+    source: canonicalSource,
+  };
+}
+
+export function initializeCtnSourceBlockMetadata(
+  source: string,
+  syntax: CtnCompiledSyntax,
+  options: InitializeCtnSourceBlockMetadataOptions,
+) {
+  return initializeCtnSourceBlockMetadataAnalysis(
+    source,
+    syntax,
+    options,
+  ).source;
 }
 
 /**
  * Converts a syntax-free note from its title-header plus opaque-body shape to
  * a fully canonical CTN source after the workspace has accepted its first
- * syntax profile. The title metadata is already canonical and remains the
+ * syntax. The title metadata is already canonical and remains the
  * stable note identity; only blocks discovered in the opaque body receive new
  * identities.
  */
-export function initializeCtnRawSourceBlockMetadata(
+export function initializeCtnRawSourceBlockMetadataAnalysis(
   rawSource: string,
-  syntaxProfile: CtnSyntaxProfile,
+  syntax: CtnCompiledSyntax,
   {
     allocateId,
     timestamp,
@@ -83,21 +118,28 @@ export function initializeCtnRawSourceBlockMetadata(
 ) {
   const { metadata: titleMetadata } = readCtnCanonicalTitleHeader(rawSource);
   const editableSource = rawSource.split("\n").slice(1).join("\n");
-  const document = parseCtnEditableDocument(editableSource, syntaxProfile);
-  const metadataLines = document.blocks.map((block, index) =>
-    formatCtnBlockMetadataLine(
-      index === 0
-        ? {
+  const analysis = analyzeCtnSource({
+    mode: { kind: "editable-document" },
+    source: editableSource,
+    syntax,
+  });
+  const document = analysis.document;
+  const metadataByBlock = new Map(document.blocks.map((block, index) => [
+    block,
+    index === 0
+      ? {
             ...titleMetadata,
             updatedAt: timestamp,
-          }
-        : {
+        }
+      : {
             createdAt: timestamp,
             id: allocateId(),
             indentText: block.indentText,
             updatedAt: timestamp,
-          },
-    ),
+        },
+  ]));
+  const metadataLines = document.blocks.map((block) =>
+    formatCtnBlockMetadataLine(metadataByBlock.get(block)!)
   );
 
   const canonicalSource = insertCtnBlockMetadataLines(
@@ -106,8 +148,26 @@ export function initializeCtnRawSourceBlockMetadata(
     metadataLines,
   );
 
-  parseCtnCanonicalDocument(canonicalSource, syntaxProfile);
-  return canonicalSource;
+  return {
+    analysis: canonicalizeCtnEditableAnalysis({
+      analysis,
+      canonicalSource,
+      metadataByBlock,
+    }),
+    source: canonicalSource,
+  };
+}
+
+export function initializeCtnRawSourceBlockMetadata(
+  rawSource: string,
+  syntax: CtnCompiledSyntax,
+  options: InitializeCtnRawSourceBlockMetadataOptions,
+) {
+  return initializeCtnRawSourceBlockMetadataAnalysis(
+    rawSource,
+    syntax,
+    options,
+  ).source;
 }
 
 export function replaceCtnSourceTitle(

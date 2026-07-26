@@ -10,7 +10,9 @@ import {
   type RepositoryTreeNodeDto,
 } from "../../contracts/workspace/types";
 import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/adapters/local/localRepositoryCatalog";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
+import { requireCtnSyntax } from "../../core/ctn/syntax/compiler";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
 import {
   formatCtnBlockMetadataLine,
@@ -131,15 +133,65 @@ export async function editExternalLocalNote(
 type SeedNote = RepositoryNoteDto;
 type SeedTreeNode = RepositoryTreeNodeDto;
 
-export function createSeedSource(source: string, idOffset: number) {
+export function createSeedSource(
+  source: string,
+  idOffset: number,
+  syntax: CtnCompiledSyntax = defaultCtnSyntax,
+) {
   let id = idOffset;
 
-  return initializeCtnSourceBlockMetadata(source, defaultCtnSyntaxProfile, {
+  return initializeCtnSourceBlockMetadata(source, syntax, {
     createdAt: e2eTimestamp,
     createId: () =>
       `00000000-0000-4000-8000-${String(++id).padStart(12, "0")}`,
     reservedIds: new Set(),
     updatedAt: e2eTimestamp,
+  });
+}
+
+export async function seedEditorGeometryRepository(
+  api: APIRequestContext,
+  id: string,
+  syntaxSource: string,
+) {
+  const syntax = requireCtnSyntax(syntaxSource, "workspace");
+  const source = [
+    "Geometry",
+    "- calibration-0",
+    "\t- calibration-1",
+    "\t\t- calibration-2",
+    "~~~ preferred-top",
+    "\tpreferred-content",
+    "~~~",
+    "- legacy-parent",
+    "\t~~~ legacy-level-1",
+    "\tlegacy-content",
+    "\t~~~",
+    "- none-parent",
+    "\t~~~ no-prefix-level-1",
+    "no-prefix-content",
+    "\t~~~",
+    "- empty-parent",
+    "\t~~~ empty-level-1",
+    "",
+    "\t~~~",
+    "- deep-parent",
+    "\t- deep-child",
+    "\t\t~~~ preferred-level-2",
+    "\t\t\tdeep-content",
+    "\t\t~~~",
+  ].join("\n");
+
+  await createRepository({
+    api,
+    id,
+    notes: [{
+      id: "note-geometry",
+      source: createSeedSource(source, 5_000, syntax),
+    }],
+    syntaxSource,
+    tree: [{ kind: "note", noteId: "note-geometry" }],
+    workspaceName: "编辑器几何回归仓库",
   });
 }
 
@@ -176,6 +228,7 @@ async function createRepository({
   id,
   notes,
   syntaxConfigured = true,
+  syntaxSource = createDefaultWorkspaceSyntaxSource(),
   tree,
   workspaceName,
 }: {
@@ -183,6 +236,7 @@ async function createRepository({
   id: string;
   notes: SeedNote[];
   syntaxConfigured?: boolean;
+  syntaxSource?: string;
   tree: SeedTreeNode[];
   workspaceName: string;
 }) {
@@ -194,7 +248,7 @@ async function createRepository({
             activeFileId: e2eDefaultSyntaxFileId,
             files: [{
               id: e2eDefaultSyntaxFileId,
-              source: createDefaultWorkspaceSyntaxSource(),
+              source: syntaxSource,
             }],
           }
         : { activeFileId: null, files: [] },
@@ -239,6 +293,11 @@ async function createRepository({
 export async function seedWorkbenchRepository(
   api: APIRequestContext,
   id: string,
+  {
+    syntaxSource,
+  }: {
+    syntaxSource?: string;
+  } = {},
 ) {
   await createRepository({
     api,
@@ -280,6 +339,7 @@ export async function seedWorkbenchRepository(
       },
       { kind: "note", noteId: "note-gamma" },
     ],
+    syntaxSource,
     workspaceName: "浏览器回归仓库",
   });
 }

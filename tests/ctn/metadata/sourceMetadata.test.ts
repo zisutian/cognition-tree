@@ -3,12 +3,14 @@ import {
   initializeCtnRawSourceBlockMetadata,
   initializeCtnSourceBlockMetadata,
 } from "../../../core/ctn/metadata/sourceMetadata";
-import { createCtnEditableSource } from "../../../core/ctn/metadata/editableSource";
 import {
   CtnDocumentMetadataError,
-  parseCtnCanonicalDocument,
 } from "../../../core/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import {
+  analyzeCanonicalTestSource,
+  readCanonicalTestDocument,
+} from "../analysis/analysisTestHelpers";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 import {
   addTestCtnBlockMetadata,
   createTestBlockId,
@@ -20,7 +22,7 @@ describe("CTN source block metadata", () => {
     const source = addTestCtnBlockMetadata(
       "Title\nRoot\n\t: Child\n\t\t- Leaf",
     );
-    const document = parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile);
+    const document = readCanonicalTestDocument(source, defaultCtnSyntax);
 
     expect(source.split("\n")).toEqual([
       expect.stringMatching(/^@ctn-block id=/),
@@ -79,7 +81,7 @@ describe("CTN source block metadata", () => {
 
   it("rejects missing, misindented, and duplicate metadata", () => {
     expect(() =>
-      parseCtnCanonicalDocument("Title\nRoot", defaultCtnSyntaxProfile),
+      readCanonicalTestDocument("Title\nRoot", defaultCtnSyntax),
     ).toThrow(CtnDocumentMetadataError);
 
     const source = addTestCtnBlockMetadata("Title\nRoot\n\t: Child");
@@ -92,9 +94,9 @@ describe("CTN source block metadata", () => {
       `id=${createTestBlockId(2)}`,
     );
 
-    expect(() => parseCtnCanonicalDocument(misindented, defaultCtnSyntaxProfile))
+    expect(() => readCanonicalTestDocument(misindented, defaultCtnSyntax))
       .toThrow("metadata indentation does not match");
-    expect(() => parseCtnCanonicalDocument(duplicate, defaultCtnSyntaxProfile))
+    expect(() => readCanonicalTestDocument(duplicate, defaultCtnSyntax))
       .toThrow(`duplicate block id ${createTestBlockId(2)}`);
   });
 
@@ -102,7 +104,7 @@ describe("CTN source block metadata", () => {
     let nextId = 1;
     const source = initializeCtnSourceBlockMetadata(
       "Title",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       {
         createdAt: testBlockTimestamp,
         createId: () => createTestBlockId(nextId++),
@@ -111,11 +113,11 @@ describe("CTN source block metadata", () => {
       },
     );
 
-    expect(parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile).blocks[0].id)
+    expect(readCanonicalTestDocument(source, defaultCtnSyntax).blocks[0].id)
       .toBe(createTestBlockId(2));
     expect(() => initializeCtnSourceBlockMetadata(
       "Title",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       {
         createdAt: testBlockTimestamp,
         createId: () => createTestBlockId(3),
@@ -132,21 +134,21 @@ describe("CTN source block metadata", () => {
     let nextId = 100;
     const canonicalSource = initializeCtnRawSourceBlockMetadata(
       rawSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       {
         allocateId: () => createTestBlockId(++nextId),
         timestamp: conversionTimestamp,
       },
     );
-    const document = parseCtnCanonicalDocument(
+    const document = readCanonicalTestDocument(
       canonicalSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
 
-    expect(createCtnEditableSource(
+    expect(analyzeCanonicalTestSource(
       canonicalSource,
-      defaultCtnSyntaxProfile,
-    ).source).toBe(`Title\nRoot\n${rawDirective}`);
+      defaultCtnSyntax,
+    ).editableProjection.source).toBe(`Title\nRoot\n${rawDirective}`);
     expect(document.blocks.map((block) => block.id)).toEqual([
       createTestBlockId(1),
       createTestBlockId(101),

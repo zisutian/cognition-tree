@@ -12,16 +12,22 @@ import {
   type WorkspaceSessionControllerState,
 } from "../../../../application/workspace/session/workspaceSessionController";
 import { versionedRepositorySaveDelayMs } from "../../../../application/persistence/versionedRepositorySaveQueue";
-import { createCtnEditableSource } from "../../../../core/ctn/metadata/editableSource";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../../../core/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
-import { formatSyntaxProfileToml } from "../../../../core/ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../core/ctn/syntax/types";
-import { createCanonicalNoteSource } from "../../../../core/workspace/model/workspaceData";
-import { WorkspaceBlockMetadataError } from "../../../../core/workspace/context/workspaceBlockMetadata";
+import {
+  analyzeCanonicalTestSource,
+  readCanonicalTestDocument,
+} from "../../../ctn/analysis/analysisTestHelpers";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
+import { formatCtnSyntaxV2 } from "../../../../core/ctn/syntax/formatter";
+import {
+  compileCtnSyntaxDefinition,
+} from "../../../../core/ctn/syntax/compiler";
+import {
+  createCanonicalNoteSource,
+  WorkspaceNoteHeaderError,
+} from "../../../../core/workspace/model/workspaceData";
 import {
   createSnapshot,
   createContent,
@@ -32,12 +38,27 @@ import {
 } from "./workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../../support/testApplicationScheduler";
 
-const questionMultilineSyntaxProfile: CtnSyntaxProfile = {
-  ...defaultCtnSyntaxProfile,
-  markerRules: defaultCtnSyntaxProfile.markerRules.map((rule) =>
-    rule.marker === "?" ? { ...rule, role: "multiline" } : rule
-  ),
-};
+function projectEditableSource(
+  source: string,
+  syntax = defaultCtnSyntax,
+) {
+  return analyzeCanonicalTestSource(source, syntax).editableProjection.source;
+}
+
+const questionMultilineDefinition = structuredClone(
+  defaultCtnSyntax.definition,
+) as import("../../../../core/ctn/syntax/types").CtnSyntaxDefinition;
+questionMultilineDefinition.blocks = questionMultilineDefinition.blocks.map(
+  (rule) => rule.marker === "?" ? { ...rule, kind: "multiline" } : rule,
+);
+const questionMultilineResult = compileCtnSyntaxDefinition(
+  questionMultilineDefinition,
+  "workspace",
+);
+if (!questionMultilineResult.syntax) {
+  throw new Error("Invalid question multiline test syntax.");
+}
+const questionMultilineSyntax = questionMultilineResult.syntax;
 
 function createDeferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -510,13 +531,13 @@ describe("workspace session controller", () => {
     }
 
     expect(configuredState.workspaceSyntax).not.toBeNull();
-    expect(configuredState.context?.syntaxProfile).toEqual(
-      defaultCtnSyntaxProfile,
+    expect(configuredState.context?.syntax).toEqual(
+      defaultCtnSyntax,
     );
     const canonicalNotes = [...configuredState.workspace.noteEntryById.values()]
-      .map(({ note }) => parseCtnCanonicalDocument(
+      .map(({ note }) => readCanonicalTestDocument(
         note.source,
-        defaultCtnSyntaxProfile,
+        defaultCtnSyntax,
       ));
     const allIds = canonicalNotes.flatMap((document) =>
       document.blocks.map(({ id }) => id)
@@ -536,10 +557,7 @@ describe("workspace session controller", () => {
       throw new Error("raw note disappeared during syntax initialization");
     }
 
-    const editable = createCtnEditableSource(
-      note.source,
-      defaultCtnSyntaxProfile,
-    ).source;
+    const editable = projectEditableSource(note.source);
     controller.commands.updateNoteSource(note.id, {
       edits: [{
         from: editable.length,
@@ -555,13 +573,12 @@ describe("workspace session controller", () => {
       ({ id }) => id === "note-1",
     );
 
-    expect(createCtnEditableSource(
+    expect(projectEditableSource(
       stagedNote?.source ?? "",
-      defaultCtnSyntaxProfile,
-    ).source).toBe(`Raw A\nRoot\n${rawDirective}\nNew block`);
-    expect(parseCtnCanonicalDocument(
+    )).toBe(`Raw A\nRoot\n${rawDirective}\nNew block`);
+    expect(readCanonicalTestDocument(
       stagedNote?.source ?? "",
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     ).blocks).toHaveLength(4);
     controller.dispose();
   });
@@ -620,7 +637,7 @@ describe("workspace session controller", () => {
 
     const localSource = harness.getLocalContent().workspace.notes[0]?.source ?? "";
     expect(
-      createCtnEditableSource(localSource, defaultCtnSyntaxProfile).source,
+      projectEditableSource(localSource),
     ).toBe("标题\n冲突后的最终内容");
     expect(harness.synchronize).toHaveBeenCalledTimes(1);
     expect(controller.getState()).toMatchObject({
@@ -701,10 +718,9 @@ describe("workspace session controller", () => {
       status: "ready",
     });
     expect(
-      createCtnEditableSource(
+      projectEditableSource(
         harness.getLocalContent().workspace.notes[0]!.source,
-        defaultCtnSyntaxProfile,
-      ).source,
+      ),
     ).toBe("标题\n必须保留的本地内容");
 
     harness.setLoad(async () => {
@@ -802,7 +818,7 @@ describe("workspace session controller", () => {
     }));
 
     await expect(controller.discardPendingChangesAndReload()).rejects.toThrow(
-      WorkspaceBlockMetadataError,
+      WorkspaceNoteHeaderError,
     );
     expect(controller.getState()).toMatchObject({
       persistence: { status: "pending-sync" },
@@ -973,7 +989,7 @@ describe("workspace session controller", () => {
     expect(updated.status).toBe("ready");
     expect(
       updated.status === "ready"
-        ? updated.context?.syntaxProfile.markerRules.find(
+        ? updated.context?.syntax.blocks.find(
           ({ marker }) => marker === ":",
         )?.label
         : null,
@@ -1012,7 +1028,7 @@ describe("workspace session controller", () => {
     }
     expect(created.syntaxCatalog.files).toHaveLength(2);
     expect(created.syntaxCatalog.activeFileId).toBe(originalFileId);
-    expect(created.workspaceSyntax?.profile.name).toBe("默认 CTN 语法");
+    expect(created.workspaceSyntax?.syntax.name).toBe("默认 CTN 语法");
     expect(copyFileId).not.toBe(originalFileId);
     expect(created.syntaxCatalog.files.find(({ id }) => id === copyFileId)?.source)
       .toContain('name = "默认 CTN 语法 副本"');
@@ -1023,7 +1039,7 @@ describe("workspace session controller", () => {
     )!.source;
 
     expect(() => controller.updateSyntaxFileSource(copyFileId, originalSource))
-      .toThrow(/duplicate workspace syntax profile name/i);
+      .toThrow(/duplicate workspace syntax name/i);
     expect(harness.stagedContents).toHaveLength(stagedBeforeDuplicate);
 
     await controller.activateSyntaxFile(copyFileId);
@@ -1135,7 +1151,7 @@ describe("workspace session controller", () => {
     }
     const syntaxSave = controller.updateSyntaxFileSource(
       ready.syntaxCatalog.activeFileId,
-      formatSyntaxProfileToml(questionMultilineSyntaxProfile),
+      formatCtnSyntaxV2(questionMultilineSyntax.definition, "workspace"),
     );
     const configuredState = controller.getState();
 
@@ -1149,16 +1165,16 @@ describe("workspace session controller", () => {
       throw new Error("syntax conversion removed the active note");
     }
 
-    const converted = parseCtnCanonicalDocument(
+    const converted = readCanonicalTestDocument(
       note.source,
-      questionMultilineSyntaxProfile,
+      questionMultilineSyntax,
     );
 
     expect(converted.blocks.map(({ id }) => id)).toHaveLength(3);
-    expect(createCtnEditableSource(
+    expect(projectEditableSource(
       note.source,
-      questionMultilineSyntaxProfile,
-    ).source).toBe(editableSource);
+      questionMultilineSyntax,
+    )).toBe(editableSource);
 
     const appendedSource = `${editableSource}\nAfter`;
     controller.commands.updateNoteSource(note.id, {
@@ -1174,13 +1190,13 @@ describe("workspace session controller", () => {
     await controller.flushPendingChanges();
     const stagedNote = harness.getLocalContent().workspace.notes[0];
 
-    expect(createCtnEditableSource(
+    expect(projectEditableSource(
       stagedNote?.source ?? "",
-      questionMultilineSyntaxProfile,
-    ).source).toBe(appendedSource);
-    expect(parseCtnCanonicalDocument(
+      questionMultilineSyntax,
+    )).toBe(appendedSource);
+    expect(readCanonicalTestDocument(
       stagedNote?.source ?? "",
-      questionMultilineSyntaxProfile,
+      questionMultilineSyntax,
     ).blocks).toHaveLength(4);
     controller.dispose();
   });

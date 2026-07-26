@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  parseCtnCanonicalDocument,
-  parseCtnEditableDocument,
-} from "../parser/parseCtnDocument.ts";
+  canonicalizeCtnEditableAnalysis,
+  type CtnCanonicalSourceAnalysis,
+  type CtnEditableSourceAnalysis,
+} from "../analysis/sourceAnalysis.ts";
 import type {
   CtnCanonicalBlock,
   CtnCanonicalDocument,
   CtnEditableBlock,
   CtnEditableDocument,
 } from "../parser/types.ts";
-import type { CtnSyntaxProfile } from "../syntax/types.ts";
 import {
   formatCtnBlockMetadataLine,
   type CtnBlockMetadataRecord,
 } from "./blockMetadata.ts";
 import { createCtnBlockIdAllocator } from "./blockIdAllocator.ts";
-import { createCtnEditableSourceFromDocument } from "./editableSource.ts";
 import {
   assertCtnEditableSourceChange,
   mapCtnTextOffset,
@@ -28,11 +27,18 @@ export type ReconcileCtnSourceBlockMetadataOptions = {
   createId: () => string;
   reservedIds: ReadonlySet<string>;
   timestamp: string;
+  touchTitle: boolean;
 };
 
 export type RecanonicalizeCtnSourceBlockMetadataOptions = {
   allocateId: () => string;
   timestamp: string;
+  touchTitle: boolean;
+};
+
+export type CtnSourceMetadataReconciliation = {
+  analysis: CtnCanonicalSourceAnalysis;
+  source: string;
 };
 
 type BlockOffsetRange = {
@@ -382,7 +388,7 @@ function createMetadataByCandidateBlock({
     }
 
     const previousBlock = previousBlockById.get(id);
-    const changed = block.type === "title"
+    const changed = block.rule.semanticId === "title"
       ? touchTitle
       : hasCandidateBlockChanged({
           block,
@@ -395,7 +401,7 @@ function createMetadataByCandidateBlock({
     metadataByBlock.set(block, {
       createdAt: previousBlock?.metadata.createdAt ?? timestamp,
       id,
-      indentText: block.type === "title" ? "" : block.indentText,
+      indentText: block.rule.semanticId === "title" ? "" : block.indentText,
       updatedAt: changed
         ? timestamp
         : previousBlock?.metadata.updatedAt ?? timestamp,
@@ -431,38 +437,40 @@ function insertCanonicalMetadataLines(
 }
 
 export function reconcileCtnSourceBlockMetadata(
-  previousSource: string,
+  previousAnalysis: CtnCanonicalSourceAnalysis,
+  candidateAnalysis: CtnEditableSourceAnalysis,
   change: CtnEditableSourceChange,
-  syntaxProfile: CtnSyntaxProfile,
   {
     createId,
     reservedIds,
     timestamp,
+    touchTitle,
   }: ReconcileCtnSourceBlockMetadataOptions,
 ) {
-  const previousDocument = parseCtnCanonicalDocument(
-    previousSource,
-    syntaxProfile,
-  );
-  const previousEditableSource = createCtnEditableSourceFromDocument(
-    previousSource,
-    previousDocument,
-  ).source;
+  const previousDocument = previousAnalysis.document;
+  const previousEditableSource = previousAnalysis.editableProjection.source;
 
   assertCtnEditableSourceChange(previousEditableSource, change);
-
-  if (previousEditableSource === change.source) {
-    return previousSource;
+  if (
+    candidateAnalysis.mode.kind !== "editable-document" ||
+    candidateAnalysis.sourceText.source !== change.source ||
+    candidateAnalysis.syntax.analysisKey !== previousAnalysis.syntax.analysisKey
+  ) {
+    throw new Error(
+      "CTN metadata reconciliation requires the matching editable analysis.",
+    );
   }
 
-  const previousEditableDocument = parseCtnEditableDocument(
-    previousEditableSource,
-    syntaxProfile,
-  );
-  const candidateDocument = parseCtnEditableDocument(
-    change.source,
-    syntaxProfile,
-  );
+  if (previousEditableSource === change.source) {
+    return {
+      analysis: previousAnalysis,
+      source: previousAnalysis.sourceText.source,
+    };
+  }
+
+  const previousEditableDocument =
+    previousAnalysis.editableProjection.document;
+  const candidateDocument = candidateAnalysis.document;
   const assignedIds = assignExistingBlockIds({
     candidateDocument,
     change,
@@ -481,47 +489,52 @@ export function reconcileCtnSourceBlockMetadata(
     candidateDocument,
   });
 
+  const metadataByBlock = createMetadataByCandidateBlock({
+    assignedIds,
+    candidateDocument,
+    previousDocument,
+    timestamp,
+    touchTitle,
+  });
   const canonicalSource = insertCanonicalMetadataLines(
     change.source,
     candidateDocument,
-    createMetadataByCandidateBlock({
-      assignedIds,
-      candidateDocument,
-      previousDocument,
-      timestamp,
-      touchTitle: true,
-    }),
+    metadataByBlock,
   );
 
-  parseCtnCanonicalDocument(canonicalSource, syntaxProfile);
-  return canonicalSource;
+  return {
+    analysis: canonicalizeCtnEditableAnalysis({
+      analysis: candidateAnalysis,
+      canonicalSource,
+      metadataByBlock,
+    }),
+    source: canonicalSource,
+  };
 }
 
 export function recanonicalizeCtnSourceBlockMetadata(
-  previousSource: string,
-  previousSyntaxProfile: CtnSyntaxProfile,
-  nextSyntaxProfile: CtnSyntaxProfile,
+  previousAnalysis: CtnCanonicalSourceAnalysis,
+  candidateAnalysis: CtnEditableSourceAnalysis,
   {
     allocateId,
     timestamp,
+    touchTitle,
   }: RecanonicalizeCtnSourceBlockMetadataOptions,
 ) {
-  const previousDocument = parseCtnCanonicalDocument(
-    previousSource,
-    previousSyntaxProfile,
-  );
-  const editableSource = createCtnEditableSourceFromDocument(
-    previousSource,
-    previousDocument,
-  ).source;
-  const previousEditableDocument = parseCtnEditableDocument(
-    editableSource,
-    previousSyntaxProfile,
-  );
-  const candidateDocument = parseCtnEditableDocument(
-    editableSource,
-    nextSyntaxProfile,
-  );
+  const previousDocument = previousAnalysis.document;
+  const editableSource = previousAnalysis.editableProjection.source;
+  const previousEditableDocument =
+    previousAnalysis.editableProjection.document;
+  const candidateDocument = candidateAnalysis.document;
+
+  if (
+    candidateAnalysis.mode.kind !== "editable-document" ||
+    candidateAnalysis.sourceText.source !== editableSource
+  ) {
+    throw new Error(
+      "CTN metadata recanonicalization requires the matching editable analysis.",
+    );
+  }
   const change = { edits: [], source: editableSource };
   const assignedIds = assignExistingBlockIds({
     candidateDocument,
@@ -537,22 +550,29 @@ export function recanonicalizeCtnSourceBlockMetadata(
     candidateDocument,
   });
 
-  const canonicalSource = insertCanonicalMetadataLines(
-    editableSource,
+  const metadataByBlock = createMetadataByCandidateBlock({
+    assignedIds,
     candidateDocument,
-    createMetadataByCandidateBlock({
+    previousDocument,
+    timestamp,
+    touchTitle: touchTitle && hasCanonicalStructureChanged({
       assignedIds,
       candidateDocument,
       previousDocument,
-      timestamp,
-      touchTitle: hasCanonicalStructureChanged({
-        assignedIds,
-        candidateDocument,
-        previousDocument,
-      }),
     }),
+  });
+  const canonicalSource = insertCanonicalMetadataLines(
+    editableSource,
+    candidateDocument,
+    metadataByBlock,
   );
 
-  parseCtnCanonicalDocument(canonicalSource, nextSyntaxProfile);
-  return canonicalSource;
+  return {
+    analysis: canonicalizeCtnEditableAnalysis({
+      analysis: candidateAnalysis,
+      canonicalSource,
+      metadataByBlock,
+    }),
+    source: canonicalSource,
+  };
 }

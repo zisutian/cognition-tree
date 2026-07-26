@@ -51,12 +51,12 @@ export function resolveWorkspaceReferenceNavigation({
 
   const parsedNote = index.getParsedNote(activeNoteId);
 
-  return parsedNote?.document.blocks
+  return parsedNote?.analysis.document.blocks
     .filter(
       (block) => normalizeCtnReferenceText(block.text) === normalizedTarget,
     )
     .map((block) => ({
-      description: `L${block.lineNumber} · ${block.label}`,
+      description: `L${block.lineNumber} · ${block.rule.label}`,
       id: `block:${activeNoteId}:${block.id}`,
       label: block.text,
       lineNumber: block.lineNumber,

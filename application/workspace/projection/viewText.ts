@@ -12,7 +12,6 @@ export type UiTextSegment =
       id: string;
       kind: "inline";
       text: string;
-      textColor: UiSyntaxTone;
       tone: UiSyntaxTone;
     };
 
@@ -76,8 +75,7 @@ export function createUiTextSegments(node: CtnCanonicalBlock): UiTextSegment[] {
         id: span.id,
         kind: "inline",
         text: displayText,
-        textColor: span.textColor,
-        tone: span.tone,
+        tone: span.rule.tone,
       });
     }
 
@@ -107,6 +105,6 @@ export function createUiTextDisplay(node: CtnCanonicalBlock): UiTextDisplay {
   return {
     displayText: getUiTextDisplayText(segments),
     segments,
-    textColor: node.textColor,
+    textColor: node.rule.textColor,
   };
 }

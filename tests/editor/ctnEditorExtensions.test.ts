@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import {
+  createCtnEditorRuntimeExtensions,
   createCtnIndentUnit,
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
+  ctnEditorRuntimeCompartment,
   getCtnEditorActiveLineNumber,
 } from "../../presentation/editor/ctnEditorExtensions";
-import { defaultCtnSyntaxProfile } from "../../core/ctn/syntax/defaultSyntaxProfile";
+import {
+  createCtnEditorAnalysisField,
+} from "../../presentation/editor/ctnEditorAnalysis";
+import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import ctnEditorExtensionsSource from "../../presentation/editor/ctnEditorExtensions.ts?raw";
 
 describe("ctn editor extensions", () => {
@@ -33,30 +38,46 @@ describe("ctn editor extensions", () => {
     expect(ctnEditorExtensionsSource).not.toContain("EditorView.lineWrapping");
   });
 
-  it("omits parsing in raw mode and mounts multiline cards in parsed modes", () => {
-    const syntaxProfileRef = { current: defaultCtnSyntaxProfile };
+  it("keeps one analysis field mounted and disables analysis in raw mode", () => {
+    const analysisField = createCtnEditorAnalysisField();
     const onOpenReferenceRef = { current: undefined };
+    const rawState = EditorState.create({
+      doc: "```ts\n\tvalue\n```",
+      extensions: [
+        ctnEditorRuntimeCompartment.of(
+          createCtnEditorRuntimeExtensions({
+            checkableBlocks: [],
+            contentMode: { kind: "raw" },
+            syntax: defaultCtnSyntax,
+          }),
+        ),
+        analysisField,
+      ],
+    });
+    const parsedState = EditorState.create({
+      doc: "Title\n```ts\n\tvalue\n```",
+      extensions: [
+        createCtnEditorRuntimeExtensions({
+          checkableBlocks: [],
+          contentMode: { kind: "document" },
+          syntax: defaultCtnSyntax,
+        }),
+        analysisField,
+      ],
+    });
 
+    expect(rawState.field(analysisField).analysis).toBeNull();
+    expect(
+      parsedState.field(analysisField).analysis?.document.blocks[1],
+    ).toMatchObject({
+      lexicalEndLineNumber: 4,
+      rule: { kind: "multiline" },
+    });
     expect(
       createCtnParsingExtensions(
-        syntaxProfileRef,
+        analysisField,
         onOpenReferenceRef,
-        { kind: "raw" },
       ),
-    ).toEqual([]);
-    expect(
-      createCtnParsingExtensions(
-        syntaxProfileRef,
-        onOpenReferenceRef,
-        { kind: "document" },
-      ),
-    ).toHaveLength(8);
-    expect(
-      createCtnParsingExtensions(
-        syntaxProfileRef,
-        onOpenReferenceRef,
-        { kind: "body", title: "2026-07-18 14:35:00" },
-      ),
-    ).toHaveLength(8);
+    ).not.toEqual([]);
   });
 });

@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { CtnCanonicalDocument } from "../../ctn/parser/types.ts";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
 import {
-  createCtnEditableSourceFromDocument,
+  analyzeCtnSource,
+  type CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis.ts";
+import { compileCtnSyntaxSource } from "../../ctn/syntax/compiler.ts";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+import {
   getCtnEditableLineNumber,
 } from "../../ctn/metadata/editableSource.ts";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../ctn/parser/parseCtnDocument.ts";
 import {
-  defaultJournalSyntaxSourceV3,
-  parseJournalSyntaxSource,
-} from "../syntax/journalSyntax.ts";
+  defaultJournalSyntaxSource,
+} from "../syntax/defaultJournalSyntax.ts";
 
 export const journalRepositorySchemaVersion = 3 as const;
 export const journalMaximumDailySequence = 9_999;
@@ -53,9 +54,15 @@ export type JournalContentValue = Omit<JournalContent, "days"> & {
 };
 
 export type ParsedJournalEntry = {
-  document: CtnCanonicalDocument;
+  analysis: CtnCanonicalSourceAnalysis;
   entry: JournalEntry;
   title: string;
+};
+
+export type ValidatedJournalContentAnalysis = {
+  content: JournalContent;
+  entries: readonly ParsedJournalEntry[];
+  syntax: CtnCompiledSyntax;
 };
 
 const entryIdPattern =
@@ -168,9 +175,10 @@ export function formatJournalEntryTitle(
   ).padStart(4, "0")}`;
 }
 
-export function parseJournalEntry(
+export function validateJournalEntryAnalysis(
   entry: JournalEntryValue,
-  syntaxProfile: CtnSyntaxProfile,
+  syntax: CtnCompiledSyntax,
+  analysis: CtnCanonicalSourceAnalysis,
 ): ParsedJournalEntry {
   if (!isJournalEntryId(entry.id)) {
     throw new JournalContentValidationError(
@@ -191,12 +199,18 @@ export function parseJournalEntry(
     entry.timezoneOffsetMinutes,
     entry.sequence,
   );
-  let document: CtnCanonicalDocument;
   let header: ReturnType<typeof readCtnCanonicalTitleHeader>;
 
   try {
     header = readCtnCanonicalTitleHeader(entry.source);
-    document = parseCtnCanonicalDocument(entry.source, syntaxProfile);
+    if (
+      (
+        analysis.sourceText.source !== entry.source ||
+        analysis.syntax.analysisKey !== syntax.analysisKey
+      )
+    ) {
+      throw new Error("Prepared Journal analysis does not match its entry.");
+    }
   } catch (error) {
     throw new JournalContentValidationError(
       `Journal entry ${entry.id} has invalid canonical CTN source: ${
@@ -224,7 +238,7 @@ export function parseJournalEntry(
   const entryCreatedAt = Date.parse(entry.createdAt);
   const entryUpdatedAt = Date.parse(entry.updatedAt);
 
-  for (const block of document.blocks) {
+  for (const block of analysis.document.blocks) {
     const blockCreatedAt = Date.parse(block.metadata.createdAt);
     const blockUpdatedAt = Date.parse(block.metadata.updatedAt);
 
@@ -245,18 +259,13 @@ export function parseJournalEntry(
     }
   }
 
-  return { document, entry: entry as JournalEntry, title: expectedTitle };
+  return { analysis, entry: entry as JournalEntry, title: expectedTitle };
 }
 
 export function createJournalEntryBodyProjection(
-  entry: JournalEntryValue,
-  syntaxProfile: CtnSyntaxProfile,
+  parsed: ParsedJournalEntry,
 ) {
-  const parsed = parseJournalEntry(entry, syntaxProfile);
-  const editable = createCtnEditableSourceFromDocument(
-    parsed.entry.source,
-    parsed.document,
-  );
+  const editable = parsed.analysis.editableProjection;
   const prefix = `${parsed.title}\n`;
   let source: string;
 
@@ -265,13 +274,13 @@ export function createJournalEntryBodyProjection(
   } else if (editable.source.startsWith(prefix)) {
     source = editable.source.slice(prefix.length);
   } else {
-    throw new JournalContentValidationError(
-      `Journal entry ${entry.id} has an invalid editable title.`,
-    );
+      throw new JournalContentValidationError(
+        `Journal entry ${parsed.entry.id} has an invalid editable title.`,
+      );
   }
 
   return {
-    document: parsed.document,
+    analysis: parsed.analysis,
     editableSource: editable.source,
     source,
     title: parsed.title,
@@ -284,49 +293,37 @@ export function createJournalEntryBodyProjection(
   };
 }
 
-export function collectJournalBlockIds(
-  content: JournalContentValue,
-  syntaxProfile: CtnSyntaxProfile,
-) {
-  const ownerByBlockId = new Map<string, JournalEntryId>();
-
-  for (const entry of listJournalEntries(content)) {
-    const parsed = parseJournalEntry(entry, syntaxProfile);
-
-    for (const block of parsed.document.blocks) {
-      const existingOwner = ownerByBlockId.get(block.id);
-
-      if (existingOwner) {
-        throw new JournalContentValidationError(
-          `Duplicate CTN block id ${block.id} in journal entries ${existingOwner} and ${entry.id}.`,
-        );
-      }
-      ownerByBlockId.set(block.id, parsed.entry.id);
-    }
-  }
-
-  return new Set(ownerByBlockId.keys());
-}
-
 export function createEmptyJournalContent(): JournalContent {
   return {
     days: [],
     schemaVersion: journalRepositorySchemaVersion,
-    syntaxSource: defaultJournalSyntaxSourceV3,
+    syntaxSource: defaultJournalSyntaxSource,
   };
 }
 
-export function validateJournalContent(
+export function validateJournalContentAnalysis(
   content: JournalContentValue,
-): JournalContent {
+  {
+    analysisByEntryId = new Map(),
+    syntax: preparedSyntax,
+  }: {
+    analysisByEntryId?: ReadonlyMap<
+      JournalEntryId,
+      CtnCanonicalSourceAnalysis
+    >;
+    syntax?: CtnCompiledSyntax;
+  } = {},
+): ValidatedJournalContentAnalysis {
   if (content.schemaVersion !== journalRepositorySchemaVersion) {
     throw new JournalContentValidationError(
       `Journal schema version must be ${journalRepositorySchemaVersion}.`,
     );
   }
-  const syntaxResult = parseJournalSyntaxSource(content.syntaxSource);
+  const syntaxResult = preparedSyntax
+    ? { diagnostics: [], syntax: preparedSyntax }
+    : compileCtnSyntaxSource(content.syntaxSource, "journal");
 
-  if (!syntaxResult.profile) {
+  if (!syntaxResult.syntax || syntaxResult.syntax.owner !== "journal") {
     throw new JournalContentValidationError(
       `Journal syntax is invalid: ${syntaxResult.diagnostics[0]?.message ?? "unknown syntax error"}`,
     );
@@ -336,6 +333,8 @@ export function validateJournalContent(
   let previousDate: string | null = null;
   const entryIds = new Set<JournalEntryId>();
   const issuedTitles = new Set<string>();
+  const ownerByBlockId = new Map<string, JournalEntryId>();
+  const entries: ParsedJournalEntry[] = [];
 
   for (const day of content.days) {
     assertJournalDate(day.date, "Journal day date");
@@ -401,10 +400,55 @@ export function validateJournalContent(
       }
       previousSequence = entry.sequence;
       issuedTitles.add(title);
+
+      let analysis = analysisByEntryId.get(entry.id as JournalEntryId);
+
+      if (!analysis) {
+        try {
+          analysis = analyzeCtnSource({
+            mode: { kind: "canonical-document" },
+            source: entry.source,
+            syntax: syntaxResult.syntax,
+          });
+        } catch (error) {
+          throw new JournalContentValidationError(
+            `Journal entry ${entry.id} has invalid canonical CTN source: ${
+              error instanceof Error ? error.message : "unknown CTN error"
+            }`,
+          );
+        }
+      }
+      const parsed = validateJournalEntryAnalysis(
+        entry,
+        syntaxResult.syntax,
+        analysis,
+      );
+
+      for (const block of parsed.analysis.document.blocks) {
+        const existingOwner = ownerByBlockId.get(block.id);
+
+        if (existingOwner) {
+          throw new JournalContentValidationError(
+            `Duplicate CTN block id ${block.id} in journal entries ${existingOwner} and ${entry.id}.`,
+          );
+        }
+        ownerByBlockId.set(block.id, parsed.entry.id);
+      }
+      entries.push(parsed);
     }
   }
-  collectJournalBlockIds(content, syntaxResult.profile);
-  return content as JournalContent;
+  return {
+    content: content as JournalContent,
+    entries,
+    syntax: syntaxResult.syntax,
+  };
+}
+
+export function validateJournalContent(
+  content: JournalContentValue,
+  options: Parameters<typeof validateJournalContentAnalysis>[1] = {},
+): JournalContent {
+  return validateJournalContentAnalysis(content, options).content;
 }
 
 function assertJournalTitleHeaderUnchanged(
@@ -432,12 +476,12 @@ export function validateJournalContentTransition(
   previousValue: JournalContentValue,
   nextValue: JournalContentValue,
 ): JournalContent {
-  const previous = validateJournalContent(previousValue);
-  const next = validateJournalContent(nextValue);
-  const previousProfile = parseJournalSyntaxSource(previous.syntaxSource).profile!;
-  const nextProfile = parseJournalSyntaxSource(next.syntaxSource).profile!;
+  const previousResult = validateJournalContentAnalysis(previousValue);
+  const nextResult = validateJournalContentAnalysis(nextValue);
+  const previous = previousResult.content;
+  const next = nextResult.content;
   const nextById = new Map(
-    listJournalEntries(next).map((entry) => [entry.id, entry]),
+    nextResult.entries.map((parsed) => [parsed.entry.id, parsed]),
   );
   const nextDayByDate = new Map(next.days.map((day) => [day.date, day]));
 
@@ -451,10 +495,12 @@ export function validateJournalContentTransition(
     }
   }
 
-  for (const previousEntry of listJournalEntries(previous)) {
-    const nextEntry = nextById.get(previousEntry.id);
+  for (const previousParsed of previousResult.entries) {
+    const previousEntry = previousParsed.entry;
+    const nextParsed = nextById.get(previousEntry.id);
 
-    if (!nextEntry) continue;
+    if (!nextParsed) continue;
+    const nextEntry = nextParsed.entry;
     if (previousEntry.createdAt !== nextEntry.createdAt) {
       throw new JournalContentValidationError(
         `Journal entry ${previousEntry.id} createdAt is immutable.`,
@@ -479,18 +525,13 @@ export function validateJournalContentTransition(
       );
     }
     assertJournalTitleHeaderUnchanged(previousEntry, nextEntry);
-    const previousDocument = parseJournalEntry(
-      previousEntry,
-      previousProfile,
-    ).document;
     const nextBlocksById = new Map(
-      parseJournalEntry(nextEntry, nextProfile).document.blocks.map((block) => [
-        block.id,
-        block,
-      ]),
+      nextParsed.analysis.document.blocks.map(
+        (block) => [block.id, block],
+      ),
     );
 
-    for (const previousBlock of previousDocument.blocks) {
+    for (const previousBlock of previousParsed.analysis.document.blocks) {
       const nextBlock = nextBlocksById.get(previousBlock.id);
 
       if (!nextBlock) continue;

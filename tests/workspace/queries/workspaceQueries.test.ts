@@ -9,7 +9,7 @@ import {
   type NoteRecord,
   type WorkspaceData,
 } from "../../../core/workspace/model/workspaceData";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import {
@@ -54,7 +54,7 @@ function indexWorkspace(workspace: WorkspaceData) {
 
 function createParseIndex(notes: NoteRecord[]) {
   return createWorkspaceParseIndex({
-    syntaxProfile: defaultCtnSyntaxProfile,
+    syntax: defaultCtnSyntax,
     workspace: indexWorkspace(createWorkspaceDataWithNotes(notes)),
   });
 }
@@ -93,8 +93,8 @@ describe("workspace queries", () => {
     const index = createParseIndex([note]);
 
     expect(
-      getParsedWorkspaceNote(index, note.id)?.document.blocks.map(
-        (block) => block.label,
+      getParsedWorkspaceNote(index, note.id)?.analysis.document.blocks.map(
+        (block) => block.rule.label,
       ),
     ).toEqual(["标题", "顶格概念", "定义"]);
     expect(getParsedWorkspaceNote(index, null)).toBeNull();

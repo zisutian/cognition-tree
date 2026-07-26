@@ -4,14 +4,15 @@ import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
 } from "../metadata/blockMetadata.ts";
-import type { CtnSyntaxProfile } from "../syntax/types.ts";
-import { isClosingMultilineFence } from "./blockRanges.ts";
-import { parseMarker, sortMarkerRules } from "./lineMarkers.ts";
-import { parseCtnCanonicalDocument } from "./parseCtnDocument.ts";
+import {
+  analyzeCtnCanonicalMutation,
+} from "../analysis/canonicalMutation.ts";
 import type {
-  CtnCanonicalBlock,
-  CtnCanonicalDocument,
-} from "./types.ts";
+  CtnCanonicalSourceAnalysis,
+} from "../analysis/sourceAnalysis.ts";
+import type { CtnSourceText } from "../analysis/sourceText.ts";
+import { isClosingMultilineFence } from "./blockRanges.ts";
+import { parseMarker } from "./lineMarkers.ts";
 
 type BlockLineRange = {
   endLineNumber: number;
@@ -45,40 +46,37 @@ export type CtnBlockTextTargetPosition =
 
 export type MoveCtnBlockTextInput = {
   sourceBlock: CtnBlockTextRange;
-  sourceText: string;
-  syntaxProfile: CtnSyntaxProfile;
+  sourceAnalysis: CtnCanonicalSourceAnalysis;
   targetPosition: CtnBlockTextTargetPosition;
-  targetText: string;
+  targetAnalysis: CtnCanonicalSourceAnalysis;
   updatedAt: string;
 };
 
 export type MoveCtnBlockTextResult = {
+  nextSourceAnalysis: CtnCanonicalSourceAnalysis;
   nextSourceText: string;
+  nextTargetAnalysis: CtnCanonicalSourceAnalysis;
   nextTargetText: string;
   status: "moved";
 };
 
 export type MoveCtnBlockWithinTextInput = {
   sourceBlock: CtnBlockTextRange;
-  sourceText: string;
-  syntaxProfile: CtnSyntaxProfile;
+  analysis: CtnCanonicalSourceAnalysis;
   targetPosition: CtnBlockTextTargetPosition;
   updatedAt: string;
 };
 
 export type MoveCtnBlockWithinTextResult = {
+  analysis: CtnCanonicalSourceAnalysis;
   nextText: string;
   status: "moved";
 };
 
 const indentUnit = "\t";
 
-function splitDocumentLines(source: string) {
-  return source.length === 0 ? [] : source.split("\n");
-}
-
-function assertValidRange(source: string, range: BlockLineRange) {
-  const lineCount = splitDocumentLines(source).length;
+function assertValidRange(lines: readonly string[], range: BlockLineRange) {
+  const lineCount = lines.length;
 
   if (
     range.startLineNumber < 1 ||
@@ -98,41 +96,44 @@ function getBlockLineRange(block: CtnBlockTextRange): BlockLineRange {
   };
 }
 
-function extractBlockText(source: string, range: BlockLineRange) {
-  assertValidRange(source, range);
+function extractBlockLines(
+  lines: readonly string[],
+  range: BlockLineRange,
+) {
+  assertValidRange(lines, range);
 
-  return splitDocumentLines(source)
-    .slice(range.startLineNumber - 1, range.endLineNumber)
-    .join("\n");
+  return lines.slice(range.startLineNumber - 1, range.endLineNumber);
 }
 
-function removeBlockText(source: string, range: BlockLineRange) {
-  assertValidRange(source, range);
+function removeBlockLines(
+  sourceLines: readonly string[],
+  range: BlockLineRange,
+) {
+  assertValidRange(sourceLines, range);
 
-  const lines = splitDocumentLines(source);
+  const lines = [...sourceLines];
   lines.splice(
     range.startLineNumber - 1,
     range.endLineNumber - range.startLineNumber + 1,
   );
 
-  return lines.join("\n");
+  return lines;
 }
 
-function insertBlockTextBeforeLine(
-  source: string,
-  blockText: string,
+function insertBlockLinesBeforeLine(
+  sourceLines: readonly string[],
+  blockLines: readonly string[],
   lineNumber: number,
 ) {
-  const lines = splitDocumentLines(source);
-  const blockLines = splitDocumentLines(blockText);
+  const lines = [...sourceLines];
   const insertionIndex = Math.max(0, Math.min(lineNumber - 1, lines.length));
 
   if (blockLines.length === 0) {
-    return source;
+    return lines;
   }
 
   lines.splice(insertionIndex, 0, ...blockLines);
-  return lines.join("\n");
+  return lines;
 }
 
 function rewriteStructuralIndent(
@@ -158,13 +159,12 @@ function rewriteMultilineBodyIndent(
 }
 
 function rewriteBlockIndent(
-  blockText: string,
+  blockLines: readonly string[],
   fromIndent: string,
   toLevel: number,
-  syntaxProfile: CtnSyntaxProfile,
+  analysis: CtnCanonicalSourceAnalysis,
 ) {
   const toIndent = indentUnit.repeat(Math.max(0, toLevel));
-  const markerRules = sortMarkerRules(syntaxProfile.markerRules);
   let expectsSourceLine = false;
   let multiline:
     | {
@@ -174,7 +174,7 @@ function rewriteBlockIndent(
       }
     | null = null;
 
-  return splitDocumentLines(blockText)
+  return blockLines
     .map((line) => {
       if (multiline) {
         if (isClosingMultilineFence(line, multiline.fromIndent, multiline.marker)) {
@@ -207,10 +207,10 @@ function rewriteBlockIndent(
           rewrittenLine.trim(),
           1,
           rewrittenIndent.length,
-          markerRules,
+          analysis.syntax.blockMatcher,
         );
 
-        if (marker.role === "multiline" && marker.marker !== null) {
+        if (marker.rule?.kind === "multiline" && marker.marker !== null) {
           multiline = {
             fromIndent: line.match(/^\s*/)?.[0] ?? "",
             marker: marker.marker,
@@ -240,126 +240,18 @@ function rewriteBlockIndent(
           toIndent,
         ),
       });
-    })
-    .join("\n");
-}
-
-type CanonicalBlockPlacement = {
-  childIds: string[];
-  parentId: string | null;
-  siblingIndex: number;
-};
-
-function createCanonicalBlockPlacements(document: CtnCanonicalDocument) {
-  const placements = new Map<string, CanonicalBlockPlacement>();
-  const pending: Array<{
-    block: CtnCanonicalBlock;
-    parentId: string | null;
-    siblingIndex: number;
-  }> = document.roots
-    .map((block, siblingIndex) => ({
-      block,
-      parentId: null,
-      siblingIndex,
-    }))
-    .reverse();
-
-  while (pending.length > 0) {
-    const entry = pending.pop();
-
-    if (!entry) {
-      continue;
-    }
-
-    placements.set(entry.block.id, {
-      childIds: entry.block.children.map((child) => child.id),
-      parentId: entry.parentId,
-      siblingIndex: entry.siblingIndex,
     });
-
-    for (let index = entry.block.children.length - 1; index >= 0; index -= 1) {
-      pending.push({
-        block: entry.block.children[index],
-        parentId: entry.block.id,
-        siblingIndex: index,
-      });
-    }
-  }
-
-  return placements;
 }
 
-function equalIds(left: readonly string[], right: readonly string[]) {
-  return left.length === right.length &&
-    left.every((id, index) => id === right[index]);
-}
-
-function touchChangedCanonicalBlocks(
-  previousSource: string,
-  nextSource: string,
-  syntaxProfile: CtnSyntaxProfile,
-  updatedAt: string,
+function getDocumentAppendLineNumber(
+  sourceText: Pick<CtnSourceText, "lines" | "source">,
 ) {
-  const previousDocument = parseCtnCanonicalDocument(
-    previousSource,
-    syntaxProfile,
-  );
-  const nextDocument = parseCtnCanonicalDocument(nextSource, syntaxProfile);
-  const previousBlockById = new Map(
-    previousDocument.blocks.map((block) => [block.id, block]),
-  );
-  const previousPlacements = createCanonicalBlockPlacements(previousDocument);
-  const nextPlacements = createCanonicalBlockPlacements(nextDocument);
-  const changedIds = new Set<string>();
-
-  for (const block of nextDocument.blocks) {
-    const previousBlock = previousBlockById.get(block.id);
-    const previousPlacement = previousPlacements.get(block.id);
-    const nextPlacement = nextPlacements.get(block.id);
-
-    if (
-      !previousBlock ||
-      block.type === "title" ||
-      previousBlock.contentFingerprint !== block.contentFingerprint ||
-      previousBlock.indentText !== block.indentText ||
-      previousPlacement?.parentId !== nextPlacement?.parentId ||
-      previousPlacement?.siblingIndex !== nextPlacement?.siblingIndex ||
-      !equalIds(
-        previousPlacement?.childIds ?? [],
-        nextPlacement?.childIds ?? [],
-      )
-    ) {
-      changedIds.add(block.id);
-    }
-  }
-
-  const lines = nextSource.split("\n");
-
-  for (const block of nextDocument.blocks) {
-    if (!changedIds.has(block.id)) {
-      continue;
-    }
-
-    lines[block.metadataLineNumber - 1] = formatCtnBlockMetadataLine({
-      id: block.id,
-      indentText: block.indentText,
-      ...block.metadata,
-      updatedAt,
-    });
-  }
-
-  const touchedSource = lines.join("\n");
-  parseCtnCanonicalDocument(touchedSource, syntaxProfile);
-  return touchedSource;
-}
-
-function getDocumentAppendLineNumber(source: string) {
-  if (source.length === 0) {
+  if (sourceText.source.length === 0) {
     return 1;
   }
 
-  const lineCount = splitDocumentLines(source).length;
-  return source.endsWith("\n") ? lineCount : lineCount + 1;
+  const lineCount = sourceText.lines.length;
+  return sourceText.source.endsWith("\n") ? lineCount : lineCount + 1;
 }
 
 function getTargetLevel(targetPosition: CtnBlockTextTargetPosition) {
@@ -375,7 +267,7 @@ function getTargetLevel(targetPosition: CtnBlockTextTargetPosition) {
 }
 
 function getTargetInsertionLineNumber(
-  targetText: string,
+  targetAnalysis: CtnCanonicalSourceAnalysis,
   targetPosition: CtnBlockTextTargetPosition,
 ) {
   switch (targetPosition.kind) {
@@ -385,7 +277,7 @@ function getTargetInsertionLineNumber(
     case "sibling-above":
       return targetPosition.block.metadataLineNumber;
     case "end":
-      return getDocumentAppendLineNumber(targetText);
+      return getDocumentAppendLineNumber(targetAnalysis.sourceText);
   }
 }
 
@@ -428,35 +320,50 @@ export function moveCtnBlockText(
   input: MoveCtnBlockTextInput,
 ): MoveCtnBlockTextResult {
   const sourceRange = getBlockLineRange(input.sourceBlock);
-  const extractedText = extractBlockText(input.sourceText, sourceRange);
-  const rewrittenText = rewriteBlockIndent(
-    extractedText,
+  const extractedLines = extractBlockLines(
+    input.sourceAnalysis.sourceText.values,
+    sourceRange,
+  );
+  const rewrittenLines = rewriteBlockIndent(
+    extractedLines,
     input.sourceBlock.indentText,
     getTargetLevel(input.targetPosition),
-    input.syntaxProfile,
+    input.sourceAnalysis,
   );
-  const movedSourceText = removeBlockText(input.sourceText, sourceRange);
-  const movedTargetText = insertBlockTextBeforeLine(
-    input.targetText,
-    rewrittenText,
-    getTargetInsertionLineNumber(input.targetText, input.targetPosition),
-  );
-  const nextSourceText = touchChangedCanonicalBlocks(
-    input.sourceText,
+  const movedSourceText = removeBlockLines(
+    input.sourceAnalysis.sourceText.values,
+    sourceRange,
+  ).join("\n");
+  const movedTargetText = insertBlockLinesBeforeLine(
+    input.targetAnalysis.sourceText.values,
+    rewrittenLines,
+    getTargetInsertionLineNumber(
+      input.targetAnalysis,
+      input.targetPosition,
+    ),
+  ).join("\n");
+  const nextSourceAnalysis = analyzeCtnCanonicalMutation(
+    input.sourceAnalysis,
     movedSourceText,
-    input.syntaxProfile,
-    input.updatedAt,
+    {
+      touchTitle: true,
+      updatedAt: input.updatedAt,
+    },
   );
-  const nextTargetText = touchChangedCanonicalBlocks(
-    input.targetText,
+  const nextTargetAnalysis = analyzeCtnCanonicalMutation(
+    input.targetAnalysis,
     movedTargetText,
-    input.syntaxProfile,
-    input.updatedAt,
+    {
+      touchTitle: true,
+      updatedAt: input.updatedAt,
+    },
   );
 
   return {
-    nextSourceText,
-    nextTargetText,
+    nextSourceAnalysis,
+    nextSourceText: nextSourceAnalysis.sourceText.source,
+    nextTargetAnalysis,
+    nextTargetText: nextTargetAnalysis.sourceText.source,
     status: "moved",
   };
 }
@@ -467,32 +374,41 @@ export function moveCtnBlockWithinText(
   const sourceRange = getBlockLineRange(input.sourceBlock);
   assertTargetOutsideSourceRange(sourceRange, input.targetPosition);
 
-  const extractedText = extractBlockText(input.sourceText, sourceRange);
-  const rewrittenText = rewriteBlockIndent(
-    extractedText,
-    input.sourceBlock.indentText,
-    getTargetLevel(input.targetPosition),
-    input.syntaxProfile,
-  );
-  const insertionLineNumber = adjustInsertionLineNumberAfterRemoval(
-    getTargetInsertionLineNumber(input.sourceText, input.targetPosition),
+  const extractedLines = extractBlockLines(
+    input.analysis.sourceText.values,
     sourceRange,
   );
-  const textWithoutSourceBlock = removeBlockText(input.sourceText, sourceRange);
-  const movedText = insertBlockTextBeforeLine(
-    textWithoutSourceBlock,
-    rewrittenText,
-    insertionLineNumber,
+  const rewrittenLines = rewriteBlockIndent(
+    extractedLines,
+    input.sourceBlock.indentText,
+    getTargetLevel(input.targetPosition),
+    input.analysis,
   );
-  const nextText = touchChangedCanonicalBlocks(
-    input.sourceText,
+  const insertionLineNumber = adjustInsertionLineNumberAfterRemoval(
+    getTargetInsertionLineNumber(input.analysis, input.targetPosition),
+    sourceRange,
+  );
+  const textWithoutSourceBlock = removeBlockLines(
+    input.analysis.sourceText.values,
+    sourceRange,
+  );
+  const movedText = insertBlockLinesBeforeLine(
+    textWithoutSourceBlock,
+    rewrittenLines,
+    insertionLineNumber,
+  ).join("\n");
+  const analysis = analyzeCtnCanonicalMutation(
+    input.analysis,
     movedText,
-    input.syntaxProfile,
-    input.updatedAt,
+    {
+      touchTitle: true,
+      updatedAt: input.updatedAt,
+    },
   );
 
   return {
-    nextText,
+    analysis,
+    nextText: analysis.sourceText.source,
     status: "moved",
   };
 }

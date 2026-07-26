@@ -11,7 +11,7 @@ import {
   readWireString,
   UnsupportedWireVersionError,
 } from "../common/contractValue.ts";
-import { defaultTodoSyntaxSourceV4 } from "./defaultContent.ts";
+import { defaultTodoSyntaxSource } from "./defaultContent.ts";
 import type {
   TodoCollectionDto,
   TodoCommitDto,
@@ -428,6 +428,6 @@ export function createEmptyTodoContent(): TodoContentDto {
   return {
     collections: [],
     schemaVersion: 4,
-    syntaxSource: defaultTodoSyntaxSourceV4,
+    syntaxSource: defaultTodoSyntaxSource,
   };
 }

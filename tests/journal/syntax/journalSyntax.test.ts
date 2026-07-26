@@ -1,27 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseCtnEditableDocument } from "../../../core/ctn/parser/parseCtnDocument";
 import {
-  defaultJournalCtnSyntaxProfileV3,
-  defaultJournalSyntaxSourceV3,
-  parseJournalSyntaxSource,
-} from "../../../core/journal/syntax/journalSyntax";
+  readEditableTestDocument,
+} from "../../ctn/analysis/analysisTestHelpers";
+import {
+  defaultJournalSyntax,
+  defaultJournalSyntaxSource,
+} from "../../../core/journal/syntax/defaultJournalSyntax";
+import {
+  compileCtnSyntaxSource,
+} from "../../../core/ctn/syntax/compiler";
 import { describe, expect, it } from "vitest";
 
 describe("journal CTN syntax", () => {
   it("uses a neutral body rule and the protected reference vocabulary", () => {
-    expect(defaultJournalCtnSyntaxProfileV3.name).toBe("日记");
-    expect(defaultJournalCtnSyntaxProfileV3.topLevelUnmarkedRule).toEqual(
+    expect(defaultJournalSyntax.name).toBe("日记");
+    expect(defaultJournalSyntax.root).toEqual(
       expect.objectContaining({
         label: "正文",
+        semanticId: "body",
         textColor: "default",
         tone: "default",
-        type: "body",
       }),
     );
     expect(
-      defaultJournalCtnSyntaxProfileV3.inlineRules.find(
-        ({ type }) => type === "global-reference",
+      defaultJournalSyntax.inline.find(
+        ({ semanticId }) => semanticId === "global-reference",
       ),
     ).toEqual(expect.objectContaining({
       close: "]]",
@@ -31,12 +35,12 @@ describe("journal CTN syntax", () => {
   });
 
   it("parses editable source and rejects changes to protected semantics", () => {
-    const document = parseCtnEditableDocument(
+    const document = readEditableTestDocument(
       "2026-07-18-0001\n普通正文\n- [[2026-07-17-0001]]",
-      defaultJournalCtnSyntaxProfileV3,
+      defaultJournalSyntax,
     );
 
-    expect(document.blocks.map(({ type }) => type)).toEqual([
+    expect(document.blocks.map(({ rule }) => rule.semanticId)).toEqual([
       "title",
       "body",
       "component",
@@ -44,14 +48,18 @@ describe("journal CTN syntax", () => {
     expect(document.blocks[2]?.inlineSpans).toEqual([
       expect.objectContaining({
         text: "2026-07-17-0001",
-        type: "global-reference",
+        rule: expect.objectContaining({
+          semanticId: "global-reference",
+        }),
       }),
     ]);
-    expect(parseJournalSyntaxSource(
-      defaultJournalSyntaxSourceV3.replace('open = "[["', 'open = "{{"'),
-    ).profile).toBeNull();
-    expect(parseJournalSyntaxSource(
-      defaultJournalSyntaxSourceV3.replace('name = "日记"', 'name = "别名"'),
-    ).profile).toBeNull();
+    expect(compileCtnSyntaxSource(
+      defaultJournalSyntaxSource.replace('open = "[["', 'open = "{{"'),
+      "journal",
+    ).syntax).toBeNull();
+    expect(compileCtnSyntaxSource(
+      defaultJournalSyntaxSource.replace('name = "日记"', 'name = "别名"'),
+      "journal",
+    ).syntax).toBeNull();
   });
 });

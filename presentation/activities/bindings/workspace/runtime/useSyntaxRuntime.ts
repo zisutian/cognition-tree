@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  buildSyntaxProfileDraft,
-  createSyntaxProfileDraft,
-  type SyntaxProfileDraft,
-} from "../../../../../core/ctn/syntax/profileDraft";
-import { formatSyntaxProfileToml } from "../../../../../core/ctn/syntax/profileToml";
-import type { CtnSyntaxProfile } from "../../../../../core/ctn/syntax/types";
+  createCtnSyntaxDraft,
+} from "../../../../../core/ctn/syntax/draft";
+import type { CtnCompiledSyntax } from "../../../../../core/ctn/syntax/types";
 import {
-  attachWorkspaceSyntaxProfile,
+  attachWorkspaceSyntax,
 } from "../../../../../core/workspace/context/workspaceContext";
 import { parseWorkspaceSyntax } from "../../../../../core/workspace/context/workspaceSyntax";
 import type { WorkspaceStructureIndex } from "../../../../../core/workspace/indexes/workspaceStructureIndex";
-import { normalizeWorkspaceSyntaxProfileName } from "../../../../../application/repository/workspaceRepository";
+import { normalizeWorkspaceSyntaxName } from "../../../../../application/repository/workspaceRepository";
+import {
+  createCtnSyntaxDraftSource,
+  useCtnSyntaxDraftRuntime,
+} from "../../syntax/syntaxDraftPersistence";
 
 type WorkspaceSyntaxRuntimeFile = {
   id: string;
@@ -22,10 +23,10 @@ type WorkspaceSyntaxRuntimeFile = {
 type UseSyntaxRuntimeOptions = {
   activeFileId: string | null;
   activateSyntaxFile: (fileId: string) => Promise<void>;
-  activeSyntaxProfile: CtnSyntaxProfile | null;
+  activeSyntax: CtnCompiledSyntax | null;
   createSyntaxFile: (templateFileId: string | null) => Promise<string>;
   deleteSyntaxFile: (fileId: string) => Promise<void>;
-  fallbackSyntaxProfile: CtnSyntaxProfile;
+  fallbackSyntax: CtnCompiledSyntax;
   files: WorkspaceSyntaxRuntimeFile[];
   updateSyntaxFileSource: (fileId: string, source: string) => Promise<void>;
   workspace: WorkspaceStructureIndex | null;
@@ -44,125 +45,16 @@ export function findSyntaxCatalogNameConflict({
     return "";
   }
 
-  const candidateKey = normalizeWorkspaceSyntaxProfileName(candidateName);
+  const candidateKey = normalizeWorkspaceSyntaxName(candidateName);
   const conflict = files.find(
     ({ id, name }) =>
       id !== selectedFileId &&
-      normalizeWorkspaceSyntaxProfileName(name) === candidateKey,
+      normalizeWorkspaceSyntaxName(name) === candidateKey,
   );
 
   return conflict
     ? `语法名称“${candidateName.trim()}”与“${conflict.name}”重名。`
     : "";
-}
-
-export function resolveSyntaxDraftAfterPersistence({
-  currentDraft,
-  previousPersistedSource,
-  syntaxProfile,
-  syntaxSource,
-}: {
-  currentDraft: SyntaxProfileDraft;
-  previousPersistedSource: string;
-  syntaxProfile: CtnSyntaxProfile;
-  syntaxSource: string;
-}) {
-  const currentDraftResult = buildSyntaxProfileDraft(currentDraft);
-  const currentDraftSource = currentDraftResult.profile
-    ? formatSyntaxProfileToml(currentDraftResult.profile)
-    : null;
-
-  if (currentDraftSource === syntaxSource) {
-    return currentDraft;
-  }
-
-  return !previousPersistedSource || currentDraftSource === previousPersistedSource
-    ? createSyntaxProfileDraft(syntaxProfile)
-    : currentDraft;
-}
-
-export function isCurrentSyntaxPersistenceCompletion({
-  active,
-  completedFileId,
-  completedSource,
-  completedVersion,
-  currentFileId,
-  currentSource,
-  currentVersion,
-}: {
-  active: boolean;
-  completedFileId?: string | null;
-  completedSource: string;
-  completedVersion: number;
-  currentFileId?: string | null;
-  currentSource: string | null;
-  currentVersion: number;
-}) {
-  return active &&
-    completedFileId === currentFileId &&
-    completedVersion === currentVersion &&
-    completedSource === currentSource;
-}
-
-export function startSyntaxDraftPersistence({
-  draft,
-  lastPersistedSource,
-  persist,
-}: {
-  draft: SyntaxProfileDraft;
-  lastPersistedSource: string;
-  persist: (source: string) => Promise<void>;
-}) {
-  const result = buildSyntaxProfileDraft(draft);
-  const source = result.profile
-    ? formatSyntaxProfileToml(result.profile)
-    : null;
-
-  if (!source || source === lastPersistedSource) {
-    return { completion: null, source };
-  }
-
-  try {
-    return { completion: Promise.resolve(persist(source)), source };
-  } catch (error) {
-    return { completion: Promise.reject(error), source };
-  }
-}
-
-export function startSyntaxFileDraftPersistence({
-  draft,
-  files,
-  lastPersistedSource,
-  persist,
-  selectedFileId,
-}: {
-  draft: SyntaxProfileDraft;
-  files: Array<{ id: string; name: string }>;
-  lastPersistedSource: string;
-  persist: (source: string) => Promise<void>;
-  selectedFileId: string | null;
-}) {
-  const result = buildSyntaxProfileDraft(draft);
-  const catalogNameConflictMessage = result.profile
-    ? findSyntaxCatalogNameConflict({
-        candidateName: result.profile.name,
-        files,
-        selectedFileId,
-      })
-    : "";
-
-  if (selectedFileId === null || catalogNameConflictMessage) {
-    return {
-      catalogNameConflictMessage,
-      completion: null,
-      source: null,
-    };
-  }
-
-  return {
-    catalogNameConflictMessage,
-    ...startSyntaxDraftPersistence({ draft, lastPersistedSource, persist }),
-  };
 }
 
 export function startSyntaxCatalogMutation<T>({
@@ -200,10 +92,10 @@ function selectExistingFileId(
 export function useSyntaxRuntime({
   activeFileId,
   activateSyntaxFile,
-  activeSyntaxProfile,
+  activeSyntax,
   createSyntaxFile,
   deleteSyntaxFile,
-  fallbackSyntaxProfile,
+  fallbackSyntax,
   files,
   updateSyntaxFileSource,
   workspace,
@@ -215,41 +107,58 @@ export function useSyntaxRuntime({
   const selectedSyntax = selectedFile
     ? parseWorkspaceSyntax(selectedFile.source)
     : null;
-  const [syntaxDraft, setSyntaxDraft] = useState(() =>
-    createSyntaxProfileDraft(selectedSyntax?.profile ?? fallbackSyntaxProfile)
-  );
-  const draftEditVersionRef = useRef(0);
-  const lastPersistedSyntaxSourceRef = useRef(selectedFile?.source ?? "");
-  const latestDraftSourceRef = useRef<string | null>(selectedFile?.source ?? null);
   const selectedFileIdRef = useRef(selectedFileId);
   const filesRef = useRef(files);
-  const lastSelectedFileIdRef = useRef(selectedFileId);
   const updateSyntaxFileSourceRef = useRef(updateSyntaxFileSource);
-  const persistenceActiveRef = useRef(false);
-  const syntaxDraftResult = useMemo(
-    () => buildSyntaxProfileDraft(syntaxDraft),
-    [syntaxDraft],
+  selectedFileIdRef.current = selectedFileId;
+  filesRef.current = files;
+  updateSyntaxFileSourceRef.current = updateSyntaxFileSource;
+  const fallbackDraft = useMemo(
+    () => createCtnSyntaxDraft(fallbackSyntax),
+    [fallbackSyntax],
   );
+  const fallbackBuild = useMemo(
+    () => createCtnSyntaxDraftSource(fallbackDraft, "workspace"),
+    [fallbackDraft],
+  );
+  const draftRuntime = useCtnSyntaxDraftRuntime({
+    canPersist: (build) =>
+      Boolean(
+        build.result.syntax &&
+          !findSyntaxCatalogNameConflict({
+            candidateName: build.result.syntax.name,
+            files: filesRef.current,
+            selectedFileId: selectedFileIdRef.current,
+          }),
+      ),
+    owner: "workspace",
+    persist: (source) => {
+      const fileId = selectedFileIdRef.current;
+
+      return fileId
+        ? updateSyntaxFileSourceRef.current(fileId, source)
+        : Promise.resolve();
+    },
+    source: selectedFile && selectedSyntax
+      ? {
+          source: selectedFile.source,
+          syntax: selectedSyntax.syntax,
+        }
+      : null,
+    targetKey: selectedFileId,
+  });
+  const syntaxDraft = draftRuntime.draft ?? fallbackDraft;
+  const syntaxDraftResult = draftRuntime.draftResult ?? fallbackBuild.result;
   const catalogNameConflictMessage = useMemo(
-    () => syntaxDraftResult.profile
+    () => syntaxDraftResult.syntax
       ? findSyntaxCatalogNameConflict({
-          candidateName: syntaxDraftResult.profile.name,
+          candidateName: syntaxDraftResult.syntax.name,
           files,
           selectedFileId,
         })
       : "",
-    [files, selectedFileId, syntaxDraftResult.profile],
+    [files, selectedFileId, syntaxDraftResult.syntax],
   );
-  const syntaxDraftSource = useMemo(
-    () => syntaxDraftResult.profile
-      ? formatSyntaxProfileToml(syntaxDraftResult.profile)
-      : null,
-    [syntaxDraftResult.profile],
-  );
-  latestDraftSourceRef.current = syntaxDraftSource;
-  selectedFileIdRef.current = selectedFileId;
-  filesRef.current = files;
-  updateSyntaxFileSourceRef.current = updateSyntaxFileSource;
 
   useEffect(() => {
     const resolved = selectExistingFileId(selectedFileId, activeFileId, files);
@@ -259,79 +168,7 @@ export function useSyntaxRuntime({
     }
   }, [activeFileId, files, selectedFileId]);
 
-  useEffect(() => {
-    if (!selectedFile || !selectedSyntax) {
-      return;
-    }
-    const previousPersistedSource = lastPersistedSyntaxSourceRef.current;
-
-    if (lastSelectedFileIdRef.current !== selectedFile.id) {
-      draftEditVersionRef.current += 1;
-      lastSelectedFileIdRef.current = selectedFile.id;
-      latestDraftSourceRef.current = selectedFile.source;
-      lastPersistedSyntaxSourceRef.current = selectedFile.source;
-      setSyntaxDraft(createSyntaxProfileDraft(selectedSyntax.profile));
-      return;
-    }
-
-    lastPersistedSyntaxSourceRef.current = selectedFile.source;
-    setSyntaxDraft((currentDraft) =>
-      resolveSyntaxDraftAfterPersistence({
-        currentDraft,
-        previousPersistedSource,
-        syntaxProfile: selectedSyntax.profile,
-        syntaxSource: selectedFile.source,
-      })
-    );
-  }, [selectedFile?.id, selectedFile?.source, selectedSyntax?.profile]);
-
-  useEffect(() => {
-    persistenceActiveRef.current = true;
-    return () => {
-      persistenceActiveRef.current = false;
-    };
-  }, []);
-
-  const updateSyntaxDraft = useCallback((nextDraft: SyntaxProfileDraft) => {
-    draftEditVersionRef.current += 1;
-    const version = draftEditVersionRef.current;
-    const completedFileId = selectedFileIdRef.current;
-    const persistence = startSyntaxFileDraftPersistence({
-      draft: nextDraft,
-      files: filesRef.current,
-      lastPersistedSource: lastPersistedSyntaxSourceRef.current,
-      persist: (source) => {
-        if (!completedFileId) {
-          return Promise.resolve();
-        }
-        return updateSyntaxFileSourceRef.current(completedFileId, source);
-      },
-      selectedFileId: completedFileId,
-    });
-
-    latestDraftSourceRef.current = persistence.source;
-    setSyntaxDraft(nextDraft);
-
-    if (persistence.completion && persistence.source) {
-      const source = persistence.source;
-
-      void persistence.completion.then(() => {
-        if (isCurrentSyntaxPersistenceCompletion({
-          active: persistenceActiveRef.current,
-          completedFileId,
-          completedSource: source,
-          completedVersion: version,
-          currentFileId: selectedFileIdRef.current,
-          currentSource: latestDraftSourceRef.current,
-          currentVersion: draftEditVersionRef.current,
-        })) {
-          lastPersistedSyntaxSourceRef.current = source;
-        }
-      }).catch(() => undefined);
-    }
-  }, []);
-
-  const draftIsValid = syntaxDraftResult.profile !== null &&
+  const draftIsValid = syntaxDraftResult.syntax !== null &&
     !catalogNameConflictMessage;
   const requireValidDraft = useCallback(
     <T,>(mutation: () => Promise<T>) =>
@@ -376,26 +213,11 @@ export function useSyntaxRuntime({
     (fileId: string) => requireValidDraft(() => activateSyntaxFile(fileId)),
     [activateSyntaxFile, requireValidDraft],
   );
-  const revertDraft = useCallback(() => {
-    const currentFile = filesRef.current.find(
-      ({ id }) => id === selectedFileIdRef.current,
-    );
-
-    if (!currentFile) {
-      return;
-    }
-    draftEditVersionRef.current += 1;
-    lastPersistedSyntaxSourceRef.current = currentFile.source;
-    latestDraftSourceRef.current = currentFile.source;
-    setSyntaxDraft(createSyntaxProfileDraft(
-      parseWorkspaceSyntax(currentFile.source).profile,
-    ));
-  }, []);
   const effectiveContext = useMemo(
-    () => workspace && activeSyntaxProfile
-      ? attachWorkspaceSyntaxProfile(workspace, activeSyntaxProfile)
+    () => workspace && activeSyntax
+      ? attachWorkspaceSyntax(workspace, activeSyntax)
       : null,
-    [activeSyntaxProfile, workspace],
+    [activeSyntax, workspace],
   );
 
   return {
@@ -408,12 +230,12 @@ export function useSyntaxRuntime({
     files,
     hasDraftErrors: !draftIsValid,
     isConfigured: activeFileId !== null,
-    revertSyntaxDraft: revertDraft,
+    revertSyntaxDraft: draftRuntime.revertDraft,
     selectedFileId,
     selectSyntaxFile: selectFile,
     syntaxDraft,
     syntaxDraftResult,
-    updateSyntaxDraft,
+    updateSyntaxDraft: draftRuntime.updateDraft,
   };
 }
 

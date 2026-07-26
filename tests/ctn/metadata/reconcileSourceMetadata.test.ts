@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createCtnEditableSource } from "../../../core/ctn/metadata/editableSource";
+import { analyzeCtnSource } from "../../../core/ctn/analysis/sourceAnalysis";
 import {
   recanonicalizeCtnSourceBlockMetadata,
   reconcileCtnSourceBlockMetadata,
 } from "../../../core/ctn/metadata/reconcileSourceMetadata";
 import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
-import { parseCtnCanonicalDocument } from "../../../core/ctn/parser/parseCtnDocument";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
-import type { CtnSyntaxProfile } from "../../../core/ctn/syntax/types";
+import { readCanonicalTestDocument } from "../analysis/analysisTestHelpers";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
+import type {
+  CtnCompiledSyntax,
+  CtnSyntaxDefinition,
+} from "../../../core/ctn/syntax/types";
+import {
+  compileCtnSyntaxDefinition,
+} from "../../../core/ctn/syntax/compiler";
 import {
   addTestCtnBlockMetadata,
   createTestBlockId,
@@ -16,12 +22,23 @@ import {
 } from "./sourceMetadataFixture";
 
 const changedTimestamp = "2026-07-15T01:00:00.000Z";
-const questionMultilineSyntaxProfile: CtnSyntaxProfile = {
-  ...defaultCtnSyntaxProfile,
-  markerRules: defaultCtnSyntaxProfile.markerRules.map((rule) =>
-    rule.marker === "?" ? { ...rule, role: "multiline" } : rule
-  ),
-};
+function compileTestSyntax(
+  update: (definition: CtnSyntaxDefinition) => void,
+): CtnCompiledSyntax {
+  const definition = structuredClone(
+    defaultCtnSyntax.definition,
+  ) as CtnSyntaxDefinition;
+  update(definition);
+  const result = compileCtnSyntaxDefinition(definition, "workspace");
+  if (!result.syntax) throw new Error("Invalid metadata test syntax.");
+  return result.syntax;
+}
+
+const questionMultilineSyntax = compileTestSyntax((definition) => {
+  definition.blocks = definition.blocks.map((rule) =>
+    rule.marker === "?" ? { ...rule, kind: "multiline" } : rule
+  );
+});
 
 function createIdFactory(offset = 100) {
   let value = offset;
@@ -70,25 +87,34 @@ function reconcile(
   nextEditableSource: string,
   change?: CtnEditableSourceChange,
 ) {
-  const previousEditableSource = createCtnEditableSource(
-    previousSource,
-    defaultCtnSyntaxProfile,
-  ).source;
+  const previousAnalysis = analyzeCtnSource({
+    mode: { kind: "canonical-document" },
+    source: previousSource,
+    syntax: defaultCtnSyntax,
+  });
+  const previousEditableSource =
+    previousAnalysis.editableProjection.source;
+  const candidateAnalysis = analyzeCtnSource({
+    mode: { kind: "editable-document" },
+    source: nextEditableSource,
+    syntax: defaultCtnSyntax,
+  });
 
   return reconcileCtnSourceBlockMetadata(
-    previousSource,
+    previousAnalysis,
+    candidateAnalysis,
     change ?? createReplacementChange(previousEditableSource, nextEditableSource),
-    defaultCtnSyntaxProfile,
     {
       createId: createIdFactory(),
       reservedIds: new Set(),
       timestamp: changedTimestamp,
+      touchTitle: true,
     },
-  );
+  ).source;
 }
 
 function parse(source: string) {
-  return parseCtnCanonicalDocument(source, defaultCtnSyntaxProfile);
+  return readCanonicalTestDocument(source, defaultCtnSyntax);
 }
 
 describe("reconcileCtnSourceBlockMetadata", () => {
@@ -220,26 +246,37 @@ describe("reconcileCtnSourceBlockMetadata", () => {
     const editableSource = "Title\nRoot\n\t? Open\n\tBody\n\t?";
     const previousSource = addTestCtnBlockMetadata(
       editableSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
+    const previousAnalysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: previousSource,
+      syntax: defaultCtnSyntax,
+    });
+    const candidateAnalysis = analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: previousAnalysis.editableProjection.source,
+      syntax: questionMultilineSyntax,
+    });
     const canonicalSource = recanonicalizeCtnSourceBlockMetadata(
-      previousSource,
-      defaultCtnSyntaxProfile,
-      questionMultilineSyntaxProfile,
+      previousAnalysis,
+      candidateAnalysis,
       {
         allocateId: createIdFactory(),
         timestamp: changedTimestamp,
+        touchTitle: true,
       },
-    );
-    const document = parseCtnCanonicalDocument(
+    ).source;
+    const document = readCanonicalTestDocument(
       canonicalSource,
-      questionMultilineSyntaxProfile,
+      questionMultilineSyntax,
     );
 
-    expect(createCtnEditableSource(
-      canonicalSource,
-      questionMultilineSyntaxProfile,
-    ).source).toBe(editableSource);
+    expect(analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: canonicalSource,
+      syntax: questionMultilineSyntax,
+    }).editableProjection.source).toBe(editableSource);
     expect(document.blocks.map(({ id }) => id)).toEqual([
       createTestBlockId(1),
       createTestBlockId(2),
@@ -256,26 +293,37 @@ describe("reconcileCtnSourceBlockMetadata", () => {
     const editableSource = "Title\nRoot\n\t? Open\n\tBody\n\t?";
     const previousSource = addTestCtnBlockMetadata(
       editableSource,
-      questionMultilineSyntaxProfile,
+      questionMultilineSyntax,
     );
+    const previousAnalysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: previousSource,
+      syntax: questionMultilineSyntax,
+    });
+    const candidateAnalysis = analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: previousAnalysis.editableProjection.source,
+      syntax: defaultCtnSyntax,
+    });
     const canonicalSource = recanonicalizeCtnSourceBlockMetadata(
-      previousSource,
-      questionMultilineSyntaxProfile,
-      defaultCtnSyntaxProfile,
+      previousAnalysis,
+      candidateAnalysis,
       {
         allocateId: createIdFactory(),
         timestamp: changedTimestamp,
+        touchTitle: true,
       },
-    );
-    const document = parseCtnCanonicalDocument(
+    ).source;
+    const document = readCanonicalTestDocument(
       canonicalSource,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
     );
 
-    expect(createCtnEditableSource(
-      canonicalSource,
-      defaultCtnSyntaxProfile,
-    ).source).toBe(editableSource);
+    expect(analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: canonicalSource,
+      syntax: defaultCtnSyntax,
+    }).editableProjection.source).toBe(editableSource);
     expect(document.blocks.map(({ id }) => id)).toEqual([
       createTestBlockId(1),
       createTestBlockId(2),
@@ -298,18 +346,31 @@ describe("reconcileCtnSourceBlockMetadata", () => {
   it("does not touch note metadata for a presentation-only profile change", () => {
     const previousSource = addTestCtnBlockMetadata("Title\nRoot\n\t: Child");
     let allocations = 0;
+    const nextSyntax = compileTestSyntax((definition) => {
+        definition.name = "Renamed syntax";
+      });
+    const previousAnalysis = analyzeCtnSource({
+      mode: { kind: "canonical-document" },
+      source: previousSource,
+      syntax: defaultCtnSyntax,
+    });
+    const candidateAnalysis = analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: previousAnalysis.editableProjection.source,
+      syntax: nextSyntax,
+    });
     const canonicalSource = recanonicalizeCtnSourceBlockMetadata(
-      previousSource,
-      defaultCtnSyntaxProfile,
-      { ...defaultCtnSyntaxProfile, name: "Renamed syntax" },
+      previousAnalysis,
+      candidateAnalysis,
       {
         allocateId() {
           allocations += 1;
           return createTestBlockId(100 + allocations);
         },
         timestamp: changedTimestamp,
+        touchTitle: true,
       },
-    );
+    ).source;
 
     expect(canonicalSource).toBe(previousSource);
     expect(allocations).toBe(0);

@@ -1,19 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile.ts";
-import { formatSyntaxProfileToml } from "../../../core/ctn/syntax/profileToml.ts";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax.ts";
+import { formatCtnSyntaxV2 } from "../../../core/ctn/syntax/formatter.ts";
 import { WorkspaceRepositoryContractError } from "../../../contracts/workspace/contractValue.ts";
 import { validateWorkspaceRepositorySyntax } from "../../../infrastructure/server/repository/workspaceRepositoryContentValidation.ts";
 
 const firstId = "syntax-00000000-0000-4000-8000-000000000001";
 const secondId = "syntax-00000000-0000-4000-8000-000000000002";
-const validSource = formatSyntaxProfileToml(defaultCtnSyntaxProfile);
+const validSource = formatCtnSyntaxV2(
+  defaultCtnSyntax.definition,
+  "workspace",
+);
 
 describe("server workspace repository content validation", () => {
   it("validates every file and returns only the active source", () => {
-    const activeSource = formatSyntaxProfileToml({
-      ...defaultCtnSyntaxProfile,
+    const activeSource = formatCtnSyntaxV2({
+      ...defaultCtnSyntax.definition,
       name: "Secondary",
-    });
+    }, "workspace");
 
     expect(validateWorkspaceRepositorySyntax({
       activeFileId: secondId,
@@ -31,11 +34,11 @@ describe("server workspace repository content validation", () => {
     })).toThrow(WorkspaceRepositoryContractError);
   });
 
-  it("rejects profile names that collide after normalization", () => {
-    const normalizedDuplicate = formatSyntaxProfileToml({
-      ...defaultCtnSyntaxProfile,
-      name: `  ${defaultCtnSyntaxProfile.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
-    });
+  it("rejects syntax names that collide after normalization", () => {
+    const normalizedDuplicate = formatCtnSyntaxV2({
+      ...defaultCtnSyntax.definition,
+      name: `  ${defaultCtnSyntax.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
+    }, "workspace");
 
     expect(() => validateWorkspaceRepositorySyntax({
       activeFileId: firstId,
@@ -43,6 +46,6 @@ describe("server workspace repository content validation", () => {
         { id: firstId, source: validSource },
         { id: secondId, source: normalizedDuplicate },
       ],
-    })).toThrow("duplicate syntax profile name");
+    })).toThrow("duplicate syntax name");
   });
 });

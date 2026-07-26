@@ -2,7 +2,6 @@
 
 import { describe, expect, it } from "vitest";
 import { createTodoCollectionBodyProjection } from "../../../core/todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import type {
   TodoCollectionId,
   TodoContent,
@@ -21,6 +20,9 @@ import {
   todoBlockId,
   todoCollectionId,
 } from "../../todo/todoTestFixture";
+import {
+  createTodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex";
 
 function createServices({
   blockIds,
@@ -65,6 +67,7 @@ function createServices({
 
 function createFunctionalSession(initial: TodoContent) {
   let content = initial;
+  let projection = createTodoParseIndex(content);
   const visibleStates: string[] = [];
 
   return {
@@ -76,6 +79,24 @@ function createFunctionalSession(initial: TodoContent) {
         update: (current: TodoContentDto) => TodoContentDto,
       ) {
         content = requireTodoContent(update(content));
+        projection = createTodoParseIndex(content, projection);
+        visibleStates.push(JSON.stringify(content));
+      },
+      mutatePrepared(
+        update: (
+          current: {
+            content: TodoContent;
+            projection: typeof projection;
+          },
+        ) => {
+          content: TodoContent;
+          projection: typeof projection;
+        },
+      ) {
+        const prepared = update({ content, projection });
+
+        content = requireTodoContent(prepared.content);
+        projection = prepared.projection;
         visibleStates.push(JSON.stringify(content));
       },
     },
@@ -89,10 +110,8 @@ function appendTask(
   collectionId: TodoCollectionId,
   text: string,
 ) {
-  const collection = content.collections.find(({ id }) => id === collectionId)!;
   const projection = createTodoCollectionBodyProjection(
-    collection,
-    requireTodoSyntaxProfile(content.syntaxSource),
+    createTodoParseIndex(content).getParsedCollection(collectionId)!,
   );
   const insertedText = `${projection.source ? "\n" : ""}[] ${text}`;
 

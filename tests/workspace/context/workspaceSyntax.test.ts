@@ -6,14 +6,14 @@ import {
 } from "../../../core/workspace/context/workspaceSyntax";
 
 describe("workspace syntax", () => {
-  it("creates the default syntax source and profile together", () => {
+  it("creates the default v2 syntax source and compiled syntax together", () => {
     const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
 
+    expect(defaultWorkspaceSyntax.source).toContain("formatVersion = 2");
     expect(defaultWorkspaceSyntax.source).toContain("[title]");
-    expect(defaultWorkspaceSyntax.source).toContain('type = "title"');
-    expect(defaultWorkspaceSyntax.source).toContain("笔记标题");
+    expect(defaultWorkspaceSyntax.source).not.toContain("type =");
     expect(defaultWorkspaceSyntax).toMatchObject({
-      profile: { name: "默认 CTN 语法" },
+      syntax: { name: "默认 CTN 语法" },
     });
   });
 
@@ -22,7 +22,7 @@ describe("workspace syntax", () => {
 
     expect(resolveWorkspaceSyntax(null)).toBeNull();
     expect(resolveWorkspaceSyntax(defaultWorkspaceSyntax.source)).toMatchObject({
-      profile: { name: "默认 CTN 语法" },
+      syntax: { name: "默认 CTN 语法" },
       source: defaultWorkspaceSyntax.source,
     });
   });

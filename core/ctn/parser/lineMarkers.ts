@@ -5,29 +5,16 @@ import type {
   CtnDiagnostic,
 } from "./types.ts";
 import type {
-  CtnBlockType,
-  CtnMarkerRule,
-  CtnRuleRole,
-  CtnSyntaxTone,
+  CtnBlockRule,
 } from "../syntax/types.ts";
 
 export type ParsedLineMarker = {
   diagnostics: CtnDiagnostic[];
-  label: string;
   marker: string | null;
-  role: CtnRuleRole;
+  rule: Readonly<CtnBlockRule> | null;
   text: string;
-  textColor: CtnSyntaxTone;
   textStartColumn: number;
-  tone: CtnSyntaxTone;
-  type: CtnBlockType;
 };
-
-export function sortMarkerRules(markerRules: CtnMarkerRule[]): CtnMarkerRule[] {
-  return [...markerRules].sort(
-    (left, right) => right.marker.length - left.marker.length,
-  );
-}
 
 function readUnknownLineStartMarker(trimmed: string) {
   return trimmed.match(/^[^\p{L}\p{N}\s_]+/u)?.[0] ?? null;
@@ -41,9 +28,11 @@ export function parseMarker(
   trimmed: string,
   lineNumber: number,
   indentWidth: number,
-  markerRules: CtnMarkerRule[],
+  blockMatcher: readonly CtnBlockRule[],
 ): ParsedLineMarker {
-  const matchedRule = markerRules.find((rule) => trimmed.startsWith(rule.marker));
+  const matchedRule = blockMatcher.find((rule) =>
+    trimmed.startsWith(rule.marker)
+  );
 
   if (matchedRule) {
     const textAfterMarker = trimmed.slice(matchedRule.marker.length);
@@ -51,15 +40,11 @@ export function parseMarker(
 
     return {
       diagnostics: [],
-      label: matchedRule.label,
       marker: matchedRule.marker,
-      role: matchedRule.role,
+      rule: matchedRule,
       text: textAfterMarker.trim(),
-      textColor: matchedRule.textColor,
       textStartColumn:
         indentWidth + matchedRule.marker.length + textLeadingWhitespace + 1,
-      tone: matchedRule.tone,
-      type: matchedRule.type,
     };
   }
 
@@ -81,14 +66,10 @@ export function parseMarker(
             `未知行首符号 ${marker}。`,
           ),
         ],
-        label: "未知符号",
         marker,
-        role: "normal",
+        rule: null,
         text: textAfterMarker.trim(),
-        textColor: "default",
         textStartColumn: indentWidth + marker.length + textLeadingWhitespace + 1,
-        tone: "default",
-        type: "text",
       };
     }
   }
@@ -112,27 +93,19 @@ export function parseMarker(
           `未知行首符号 ${unknownLineStartMarker}。`,
         ),
       ],
-      label: "未知符号",
       marker: unknownLineStartMarker,
-      role: "normal",
+      rule: null,
       text: textAfterMarker.trim(),
-      textColor: "default",
       textStartColumn:
         indentWidth + unknownLineStartMarker.length + textLeadingWhitespace + 1,
-      tone: "default",
-      type: "text",
     };
   }
 
   return {
     diagnostics: [],
-    label: "无符号正文",
     marker: null,
-    role: "normal",
+    rule: null,
     text: trimmed,
-    textColor: "default",
     textStartColumn: indentWidth + 1,
-    tone: "default",
-    type: "text",
   };
 }

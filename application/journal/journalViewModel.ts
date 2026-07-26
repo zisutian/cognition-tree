@@ -4,7 +4,7 @@ import type { CtnBlockMetadata } from "../../core/ctn/metadata/blockMetadata";
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import type { CtnCanonicalBlock } from "../../core/ctn/parser/types";
 import type {
-  CtnSyntaxProfile,
+  CtnCompiledSyntax,
   CtnSyntaxTone,
 } from "../../core/ctn/syntax/types";
 import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex";
@@ -53,7 +53,6 @@ export type JournalTextSegment =
       id: string;
       kind: "inline";
       text: string;
-      textColor: CtnSyntaxTone;
       tone: CtnSyntaxTone;
     };
 
@@ -124,7 +123,7 @@ export type JournalViewModel = {
       rootCount: number;
       totalBlocks: number;
     };
-    syntaxProfile: CtnSyntaxProfile;
+    syntax: CtnCompiledSyntax;
     updateBody: (change: CtnEditableSourceChange) => void;
   };
   calendar: {
@@ -155,7 +154,7 @@ export type JournalViewModel = {
   persistence: JournalPersistenceState;
   selectEntry: (entryId: JournalEntryId) => void;
   syntax: {
-    profile: CtnSyntaxProfile;
+    syntax: CtnCompiledSyntax;
     source: string;
     updateSource: (source: string) => void;
   };
@@ -233,8 +232,7 @@ function createJournalTextDisplay(block: CtnCanonicalBlock) {
         id: span.id,
         kind: "inline",
         text: displayText,
-        textColor: span.textColor,
-        tone: span.tone,
+        tone: span.rule.tone,
       });
     }
     cursor = spanEnd;
@@ -257,7 +255,7 @@ function createJournalTextDisplay(block: CtnCanonicalBlock) {
   return {
     displayText: segments.map(({ text }) => text).join(""),
     segments,
-    textColor: block.textColor,
+    textColor: block.rule.textColor,
   } satisfies JournalTextDisplay;
 }
 
@@ -275,7 +273,7 @@ function createJournalOutlineNodes(
   const pending: PendingOutlineProjection[] = [];
 
   for (let index = roots.length - 1; index >= 0; index -= 1) {
-    if (roots[index].type !== titleType) {
+    if (roots[index].rule.semanticId !== titleType) {
       pending.push({ block: roots[index], visited: false });
     }
   }
@@ -319,7 +317,7 @@ function createJournalOutlineNodes(
       endLineNumber,
       hasDiagnostics: current.block.diagnostics.length > 0,
       id: current.block.id,
-      label: current.block.label,
+      label: current.block.rule.label,
       lineLabel: lineNumber === endLineNumber
         ? `L${lineNumber}`
         : `L${lineNumber}-${endLineNumber}`,
@@ -389,25 +387,25 @@ export function createJournalViewModel({
     ? index.getParsedEntry(activeEntryId)
     : null;
   const activeProjection = activeParsed
-    ? createJournalEntryBodyProjection(activeParsed.entry, index.syntaxProfile)
+    ? createJournalEntryBodyProjection(activeParsed)
     : null;
   const projectLineNumber = (lineNumber: number) =>
     activeProjection?.projectCanonicalLineNumber(lineNumber) ?? lineNumber;
   const outlineNodes = activeParsed
     ? createJournalOutlineNodes(
-        activeParsed.document.roots,
+        activeParsed.analysis.document.roots,
         projectLineNumber,
-        index.syntaxProfile.titleRule.type,
+        index.syntax.title.semanticId,
       )
     : [];
   const activeLineNumber = activeBodyPosition?.entryId === activeEntryId
     ? activeBodyPosition.lineNumber
     : null;
-  const bodyBlocks = activeParsed?.document.blocks.filter(
-    ({ type }) => type !== index.syntaxProfile.titleRule.type,
+  const bodyBlocks = activeParsed?.analysis.document.blocks.filter(
+    (block) => block.rule.semanticId !== index.syntax.title.semanticId,
   ) ?? [];
-  const bodyRoots = activeParsed?.document.roots.filter(
-    ({ type }) => type !== index.syntaxProfile.titleRule.type,
+  const bodyRoots = activeParsed?.analysis.document.roots.filter(
+    (block) => block.rule.semanticId !== index.syntax.title.semanticId,
   ) ?? [];
 
   return {
@@ -442,7 +440,7 @@ export function createJournalViewModel({
         rootCount: bodyRoots.length,
         totalBlocks: bodyBlocks.length,
       },
-      syntaxProfile: index.syntaxProfile,
+      syntax: index.syntax,
       updateBody(change) {
         if (activeEntryId) {
           updateEntryBody(activeEntryId, change);
@@ -521,7 +519,7 @@ export function createJournalViewModel({
     persistence,
     selectEntry,
     syntax: {
-      profile: index.syntaxProfile,
+      syntax: index.syntax,
       source: content.syntaxSource,
       updateSource: updateSyntaxSource,
     },

@@ -270,5 +270,18 @@
 }
 
 .has-diagnostics {
-  box-shadow: inset calc(var(--ui-border-width) * 2) 0 0 var(--color-error);
+  position: relative;
+}
+
+.has-diagnostics::after {
+  position: absolute;
+  top: var(--ui-border-width);
+  bottom: var(--ui-border-width);
+  left: 0;
+  z-index: 2;
+  width: calc(var(--ui-border-width) * 3);
+  border-radius: 0 var(--ui-radius) var(--ui-radius) 0;
+  background: var(--color-error);
+  content: "";
+  pointer-events: none;
 }

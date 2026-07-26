@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSyntaxProfileDraft,
-  createSyntaxProfileDraft,
-} from "../../../../core/ctn/syntax/profileDraft";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
+  buildCtnSyntaxDraft,
+  createCtnSyntaxDraft,
+} from "../../../../core/ctn/syntax/draft";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
 import {
   createUiDocumentDiagnostics,
   createUiReferenceDiagnostics,
@@ -29,13 +29,13 @@ function createIndex(sources: Array<{ id: string; source: string; title: string 
   const notes = sources.map(({ id, source }, index) =>
     createNoteRecord(id, addTestCtnBlockMetadata(
       source,
-      defaultCtnSyntaxProfile,
+      defaultCtnSyntax,
       index * 100,
     ))
   );
 
   return createWorkspaceParseIndex({
-    syntaxProfile: defaultCtnSyntaxProfile,
+    syntax: defaultCtnSyntax,
     workspace: createWorkspaceStructureIndex({
       ...createInitialWorkspaceData(),
       notes,
@@ -48,7 +48,7 @@ describe("workbench diagnostic projection", () => {
   it("projects persisted non-portable note and folder names without rewriting them", () => {
     const note = createNoteRecord(
       "note-old",
-      addTestCtnBlockMetadata("旧:标题\n正文", defaultCtnSyntaxProfile),
+      addTestCtnBlockMetadata("旧:标题\n正文", defaultCtnSyntax),
     );
     const folder = {
       ...createNoteTreeFolderNode("folder-old", "  旧文件夹  "),
@@ -141,29 +141,29 @@ describe("workbench diagnostic projection", () => {
   });
 
   it("maps schema array paths to stable draft rule field ids", () => {
-    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
-    const markerRule = draft.markerRules[0];
+    const draft = createCtnSyntaxDraft(defaultCtnSyntax);
+    const markerRule = draft.blocks[0];
     const invalidDraft = {
       ...draft,
-      markerRules: draft.markerRules.map((rule, index) =>
+      blocks: draft.blocks.map((rule, index) =>
         index === 0 ? { ...rule, label: "" } : rule,
       ),
     };
     const diagnostics = createUiSyntaxDiagnostics(
       invalidDraft,
-      buildSyntaxProfileDraft(invalidDraft),
+      buildCtnSyntaxDraft(invalidDraft, "workspace"),
       "syntax-main",
     );
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
-        code: "required",
+        code: "missing-field",
         severity: "error",
         source: "syntax",
         target: {
-          fieldId: createSyntaxRuleFieldId("marker", markerRule.id, "label"),
+          fieldId: createSyntaxRuleFieldId("block", markerRule.id, "label"),
           kind: "syntax-field",
-          path: "markers[0].label",
+          path: "blocks[0].label",
           syntaxFileId: "syntax-main",
         },
       }),
@@ -171,21 +171,21 @@ describe("workbench diagnostic projection", () => {
   });
 
   it("maps syntax catalog name conflicts to the active profile name", () => {
-    const draft = createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    const draft = createCtnSyntaxDraft(defaultCtnSyntax);
     const message = "语法名称已被其他文件使用。";
     const diagnostics = createUiSyntaxDiagnostics(
       draft,
-      buildSyntaxProfileDraft(draft),
+      buildCtnSyntaxDraft(draft, "workspace"),
       "syntax-main",
       message,
     );
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
-        code: "duplicate-syntax-profile-name",
+        code: "duplicate-syntax-name",
         message,
         target: {
-          fieldId: "syntax-profile-name",
+          fieldId: "syntax-name",
           kind: "syntax-field",
           path: "$.name",
           syntaxFileId: "syntax-main",

@@ -4,24 +4,25 @@ import { describe, expect, it } from "vitest";
 import { replaceCtnSourceTitle } from "../../../core/ctn/metadata/sourceMetadata";
 import {
   deleteTodoCollection,
-  moveTodoBlock,
+  moveTodoBlock as moveTodoBlockImplementation,
   moveTodoCollection,
-  renameTodoCollection,
-  setTodoBlockCompletion,
-  setTodoBlockRecurrence,
+  renameTodoCollection as renameTodoCollectionImplementation,
+  setTodoBlockCompletion as setTodoBlockCompletionImplementation,
+  setTodoBlockRecurrence as setTodoBlockRecurrenceImplementation,
   stopTodoBlockRecurrence,
   TodoOccurrenceConflictError,
-  toggleTodoBlock,
+  toggleTodoBlock as toggleTodoBlockImplementation,
   updateTodoCollectionBody,
-  updateTodoSyntaxSource,
 } from "../../../core/todo/commands/todoCommands";
 import {
   createTodoCollectionBodyProjection,
-  parseTodoCollection,
   validateTodoContent,
 } from "../../../core/todo/model/todoContent";
 import { projectTodoRecurrence } from "../../../core/todo/recurrence/todoRecurrence";
-import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
+import {
+  createTodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex";
+import type { TodoContent } from "../../../core/todo/model/todoContent";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,
@@ -30,6 +31,65 @@ import {
   todoCollectionId,
   todoTimestamp,
 } from "../todoTestFixture";
+
+function firstParsedCollection(content: TodoContent) {
+  return createTodoParseIndex(content).collections[0]!;
+}
+
+function renameTodoCollection(
+  content: TodoContent,
+  input: Parameters<typeof renameTodoCollectionImplementation>[2],
+) {
+  return renameTodoCollectionImplementation(
+    content,
+    createTodoParseIndex(content),
+    input,
+  );
+}
+
+function toggleTodoBlock(
+  content: TodoContent,
+  input: Parameters<typeof toggleTodoBlockImplementation>[2],
+) {
+  return toggleTodoBlockImplementation(
+    content,
+    createTodoParseIndex(content),
+    input,
+  );
+}
+
+function setTodoBlockCompletion(
+  content: TodoContent,
+  input: Parameters<typeof setTodoBlockCompletionImplementation>[2],
+) {
+  return setTodoBlockCompletionImplementation(
+    content,
+    createTodoParseIndex(content),
+    input,
+  );
+}
+
+function setTodoBlockRecurrence(
+  content: TodoContent,
+  input: Parameters<typeof setTodoBlockRecurrenceImplementation>[2],
+) {
+  return setTodoBlockRecurrenceImplementation(
+    content,
+    createTodoParseIndex(content),
+    input,
+  );
+}
+
+function moveTodoBlock(
+  content: TodoContent,
+  input: Parameters<typeof moveTodoBlockImplementation>[2],
+) {
+  return moveTodoBlockImplementation(
+    content,
+    createTodoParseIndex(content),
+    input,
+  ).content;
+}
 
 function collectionWithTasks() {
   let content = appendTodoTestCollection(createEmptyTodoContent(), {
@@ -71,12 +131,10 @@ describe("Todo CTN commands", () => {
       name: "个人集合",
       updatedAt: todoTimestamp(2),
     });
-    const profile = requireTodoSyntaxProfile(renamed.syntaxSource);
-
-    expect(parseTodoCollection(content.collections[0]!, profile).name).toBe(
+    expect(firstParsedCollection(content).name).toBe(
       "工作 集合",
     );
-    expect(parseTodoCollection(renamed.collections[0]!, profile).name).toBe(
+    expect(firstParsedCollection(renamed).name).toBe(
       "个人集合",
     );
     expect(renamed.collections[0]!.source).not.toBe(source);
@@ -110,14 +168,13 @@ describe("Todo CTN commands", () => {
 
   it("uses indentation as task hierarchy and preserves block ids while editing", () => {
     const content = collectionWithTasks();
-    const profile = requireTodoSyntaxProfile(content.syntaxSource);
-    const before = parseTodoCollection(content.collections[0]!, profile);
-    const projection = createTodoCollectionBodyProjection(
-      content.collections[0]!,
-      profile,
-    );
+    const before = firstParsedCollection(content);
+    const projection = createTodoCollectionBodyProjection(before);
     const source = projection.source.replace("父任务", "父任务已修改");
-    const edited = updateTodoCollectionBody(content, {
+    const edited = updateTodoCollectionBody(
+      content,
+      createTodoParseIndex(content),
+      {
       change: {
         edits: [{
           from: projection.source.indexOf("父任务"),
@@ -129,18 +186,23 @@ describe("Todo CTN commands", () => {
       collectionId: todoCollectionId(1),
       createBlockId: () => todoBlockId(99),
       updatedAt: todoTimestamp(4),
-    });
-    const after = parseTodoCollection(edited.collections[0]!, profile);
+      },
+    ).content;
+    const after = firstParsedCollection(edited);
 
-    expect(before.document.blocks.slice(1).map(({ id }) => id)).toEqual([
+    expect(before.analysis.document.blocks.slice(1).map(({ id }) => id)).toEqual([
       todoBlockId(1),
       todoBlockId(2),
     ]);
-    expect(after.document.blocks.slice(1).map(({ id }) => id)).toEqual([
+    expect(after.analysis.document.blocks.slice(1).map(({ id }) => id)).toEqual([
       todoBlockId(1),
       todoBlockId(2),
     ]);
-    expect(after.document.blocks.find(({ id }) => id === todoBlockId(2))?.level)
+    expect(
+      after.analysis.document.blocks.find(
+        ({ id }) => id === todoBlockId(2),
+      )?.level,
+    )
       .toBe(1);
   });
 
@@ -181,29 +243,42 @@ describe("Todo CTN commands", () => {
       completedAt: todoTimestamp(4),
       today: "2026-07-18",
     });
-    const changedMarkerSource = content.syntaxSource.replace(
-      'marker = "[]"',
-      'marker = "[ ]"',
+    const initialProjection = createTodoCollectionBodyProjection(
+      firstParsedCollection(content),
     );
-    const changedSyntax = updateTodoSyntaxSource(content, changedMarkerSource);
+    const changedSource = updateTodoCollectionBody(
+      content,
+      createTodoParseIndex(content),
+      {
+        change: {
+          edits: [{ from: 0, insertedText: "?", to: 2 }],
+          source: initialProjection.source.replace("[]", "?"),
+        },
+        collectionId: todoCollectionId(1),
+        createBlockId: () => todoBlockId(99),
+        updatedAt: todoTimestamp(5),
+      },
+    ).content;
 
-    expect(changedSyntax.collections[0]!.completions).toEqual([]);
-    expect(validateTodoContent(changedSyntax)).toBe(changedSyntax);
+    expect(changedSource.collections[0]!.completions).toEqual([]);
+    expect(validateTodoContent(changedSource)).toBe(changedSource);
 
-    const profile = requireTodoSyntaxProfile(changedSyntax.syntaxSource);
     const projection = createTodoCollectionBodyProjection(
-      changedSyntax.collections[0]!,
-      profile,
+      firstParsedCollection(changedSource),
     );
-    const deleted = updateTodoCollectionBody(changedSyntax, {
+    const deleted = updateTodoCollectionBody(
+      changedSource,
+      createTodoParseIndex(changedSource),
+      {
       change: {
         edits: [{ from: 0, insertedText: "", to: projection.source.length }],
         source: "",
       },
       collectionId: todoCollectionId(1),
       createBlockId: () => todoBlockId(99),
-      updatedAt: todoTimestamp(5),
-    });
+      updatedAt: todoTimestamp(6),
+      },
+    ).content;
 
     expect(deleted.collections[0]!.completions).toEqual([]);
   });
@@ -221,12 +296,13 @@ describe("Todo CTN commands", () => {
       target: { kind: "above", targetBlockId: todoBlockId(1) },
       updatedAt: todoTimestamp(5),
     });
-    const parsed = parseTodoCollection(
-      moved.collections[0]!,
-      requireTodoSyntaxProfile(moved.syntaxSource),
-    );
+    const parsed = firstParsedCollection(moved);
 
-    expect(parsed.document.blocks.slice(1).map(({ id, level }) => ({ id, level })))
+    expect(
+      parsed.analysis.document.blocks
+        .slice(1)
+        .map(({ id, level }) => ({ id, level })),
+    )
       .toEqual([
         { id: todoBlockId(2), level: 0 },
         { id: todoBlockId(1), level: 0 },
@@ -418,10 +494,12 @@ describe("Todo CTN commands", () => {
       today: "2026-07-18",
     });
     const projection = createTodoCollectionBodyProjection(
-      recurring.collections[0]!,
-      requireTodoSyntaxProfile(recurring.syntaxSource),
+      firstParsedCollection(recurring),
     );
-    const deleted = updateTodoCollectionBody(recurring, {
+    const deleted = updateTodoCollectionBody(
+      recurring,
+      createTodoParseIndex(recurring),
+      {
       change: {
         edits: [{
           from: 0,
@@ -433,7 +511,8 @@ describe("Todo CTN commands", () => {
       collectionId: todoCollectionId(1),
       createBlockId: () => todoBlockId(99),
       updatedAt: todoTimestamp(5),
-    });
+      },
+    ).content;
 
     expect(deleted.collections[0]!.recurrences).toEqual([]);
   });

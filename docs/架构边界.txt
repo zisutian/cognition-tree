@@ -172,4 +172,6 @@ Presentation shell 统一合并 diagnostics、可恢复运行故障和操作错�
 
 编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，不能由页面位置或 CSS 推断。
 
-闭合的 multiline 块由编辑器投影为受保护代码卡片：围栏、结构前缀和结束分隔只参与 canonical source，不进入普通文本选择；正文仍是唯一直接编辑区域。卡片头选择后原地修改标识或确认删除。正文中的 Tab/Shift+Tab 只改变正文缩进；卡片头上的结构缩进由 core/ctn 的 multiline edit 计算一次修改完整围栏范围。未闭合块保持源码编辑与诊断，不能伪装成完整卡片。CodeMirror extension 只负责映射事务、selection 与 widget 生命周期。
+core/ctn parser 是 multiline opener、closer 与 lexical 范围的唯一 owner。领域结构事务移动块时必须消费该范围并保留完整源码；Presentation 不重建 multiline 布局，也不实现整块输入 planner。
+
+kind = "multiline" 的块在编辑器中保持普通源码。CodeMirror 不投影卡片，不隐藏或保护围栏和正文前缀，不增加 atomic range、视觉缩进补偿、鼠标 adapter 或专用键盘命令。Presentation 只把命中规则的 tone 和 textColor 作为普通 decoration 覆盖 opener、正文和 closer；规则 label 不插入编辑文本。闭合和未闭合块使用同一可编辑路径，未闭合诊断仍来自 analysis。

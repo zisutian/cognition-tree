@@ -81,6 +81,9 @@ test.describe("syntax and visualization activity flows", () => {
     const titleTonePicker = page.getByRole("button", {
       name: /^首行标题背景色:/,
     });
+    const referenceColorPicker = page.getByRole("button", {
+      name: /^全局概念引用颜色:/,
+    });
 
     await expect.poll(() =>
       page.getByText("块规则", { exact: true }).evaluate(
@@ -96,15 +99,78 @@ test.describe("syntax and visualization activity flows", () => {
 
     await renameInput.fill("浏览器回归语法");
     await renameInput.press("Enter");
+    const titlePreview = page.locator(".syntax-render-line").filter({
+      hasText: "首行标题示例",
+    });
+    const initialTitleBackground = await titlePreview.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+
     await titleTonePicker.click();
     await expect(page.getByRole("dialog", { name: "首行标题背景色" })).toBeVisible();
+    await expect(page.getByRole("button", {
+      name: "编辑器背景",
+      exact: true,
+    })).toBeVisible();
     await page.getByRole("button", { name: "灰色", exact: true }).click();
     await expect(titleTonePicker).toHaveAttribute(
       "aria-label",
       "首行标题背景色: 灰色",
     );
+    await expect.poll(() =>
+      titlePreview.evaluate((element) =>
+        getComputedStyle(element).backgroundColor
+      )
+    ).not.toBe(initialTitleBackground);
+    await expect(page.getByRole("button", {
+      name: /^全局概念引用背景色:/,
+    })).toHaveCount(0);
+    await expect(page.getByRole("button", {
+      name: /^全局概念引用文字色:/,
+    })).toHaveCount(0);
+    await referenceColorPicker.click();
+    await expect(page.getByRole("dialog", {
+      name: "全局概念引用颜色",
+    })).toBeVisible();
+    await page.getByRole("button", { name: "红色", exact: true }).click();
+    await expect(referenceColorPicker).toHaveAttribute(
+      "aria-label",
+      "全局概念引用颜色: 红色",
+    );
 
     await getActivityButton(page, "笔记").click();
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.locator(".source-editor .cm-line.ctn-line-title"))
+      .toHaveClass(/ctn-tone-gray/);
+    const reference = page.locator(".source-editor .ctn-inline").filter({
+      hasText: "[[Beta]]",
+    });
+
+    await expect(reference).toHaveClass(/ctn-tone-red/);
+    await expect(reference).not.toHaveClass(/ctn-text-color-/);
+    await expect(reference.locator(".ctn-inline-symbol")).toHaveCount(2);
+    await expect(reference.locator(".ctn-inline-symbol").first())
+      .toHaveText("[[");
+    await expect(reference.locator(".ctn-inline-symbol").last())
+      .toHaveText("]]");
+    const referenceColors = await reference.evaluate((element) => {
+      const symbol = element.querySelector(".ctn-inline-symbol");
+      const parent = element.parentElement;
+
+      if (!symbol || !parent) {
+        throw new Error("Inline reference decoration is incomplete.");
+      }
+      return {
+        inheritedText: getComputedStyle(parent).color,
+        symbol: getComputedStyle(symbol).color,
+        text: getComputedStyle(element).color,
+        underline: getComputedStyle(element).textDecorationColor,
+      };
+    });
+
+    expect(referenceColors.text).toBe(referenceColors.inheritedText);
+    expect(referenceColors.symbol).toBe(referenceColors.underline);
+
     await getActivityButton(page, "语法").click();
     await expect(page.getByRole("heading", {
       name: "浏览器回归语法",
@@ -125,6 +191,10 @@ test.describe("syntax and visualization activity flows", () => {
     await expect(
       page.locator(".syntax-workspace-group-header > .ui-tree-meta"),
     ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "删除块规则" }))
+      .toHaveCount(5);
+    await expect(page.getByRole("button", { name: "删除行内规则" }))
+      .toHaveCount(3);
 
     await page.locator('[data-syntax-owner="journal"]').click();
     await expect(page.getByRole("heading", { name: "日记", exact: true }))
@@ -134,14 +204,54 @@ test.describe("syntax and visualization activity flows", () => {
     await expect(page.getByText("顶格正文", { exact: true })).toBeVisible();
     await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
     await expect(page.getByText("首行标题示例", { exact: true })).toHaveCount(0);
+    const journalReferenceRow = page.locator(
+      '[data-syntax-field-id="syntax-inline-inline-1-row"]',
+    );
+
+    await expect(journalReferenceRow.getByRole("textbox", { name: "开始" }))
+      .toHaveCount(0);
+    await expect(journalReferenceRow.getByRole("textbox", { name: "结束" }))
+      .toHaveCount(0);
+    await expect(journalReferenceRow.getByText("[[", { exact: true }))
+      .toBeVisible();
+    await expect(journalReferenceRow.getByText("]]", { exact: true }))
+      .toBeVisible();
+    await expect(page.getByRole("button", { name: "删除块规则" }))
+      .toHaveCount(4);
+    await expect(page.getByRole("button", { name: "删除行内规则" }))
+      .toHaveCount(2);
 
     await page.locator('[data-syntax-owner="todo"]').click();
     await expect(page.getByRole("heading", { name: "代办", exact: true }))
       .toBeVisible();
     await expect(page.getByRole("button", { name: /^重命名语法 / }))
       .toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^角色:/ }).first())
-      .toBeDisabled();
+    const todoItemRow = page.locator(
+      '[data-syntax-field-id="syntax-block-block-1-row"]',
+    );
+
+    await expect(todoItemRow.getByRole("textbox", { name: "名称" }))
+      .toHaveCount(0);
+    await expect(todoItemRow.getByRole("textbox", { name: "标记" }))
+      .toHaveCount(0);
+    await expect(todoItemRow.getByRole("button", { name: /^角色:/ }))
+      .toHaveCount(0);
+    await expect(todoItemRow.getByText("代办", { exact: true })).toBeVisible();
+    await expect(todoItemRow.getByText("[]", { exact: true })).toBeVisible();
+    await expect(todoItemRow.getByText("普通块", { exact: true }))
+      .toBeVisible();
+    await expect(todoItemRow.getByRole("button", { name: /^代办颜色:/ }))
+      .toBeEnabled();
+    await expect(todoItemRow.getByRole("button", { name: /^代办背景色:/ }))
+      .toBeEnabled();
+    await expect(todoItemRow.getByRole("button", { name: /^代办文字色:/ }))
+      .toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "开始" })).toBeEnabled();
+    await expect(page.getByRole("textbox", { name: "结束" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "删除块规则" }))
+      .toHaveCount(0);
+    await expect(page.getByRole("button", { name: "删除行内规则" }))
+      .toHaveCount(0);
     await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
     await expect(page.getByText("首行标题示例", { exact: true })).toHaveCount(0);
 

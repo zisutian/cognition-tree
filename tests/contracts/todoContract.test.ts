@@ -5,7 +5,7 @@ import {
   UnsupportedWireVersionError,
   WireContractError,
 } from "../../contracts/common/contractValue.ts";
-import { defaultTodoSyntaxSourceV4 as contractSyntax } from "../../contracts/todo/defaultContent.ts";
+import { defaultTodoSyntaxSource as contractSyntax } from "../../contracts/todo/defaultContent.ts";
 import {
   createEmptyTodoContent,
   isTodoBlockId,
@@ -16,7 +16,7 @@ import {
 } from "../../contracts/todo/parseTodo.ts";
 import { serializeTodoRevisionContent } from "../../contracts/todo/revision.ts";
 import type { TodoContentDto } from "../../contracts/todo/types.ts";
-import { defaultTodoSyntaxSourceV4 as domainSyntax } from "../../core/todo/syntax/todoSyntax.ts";
+import { defaultTodoSyntaxSource as domainSyntax } from "../../core/todo/syntax/defaultTodoSyntax.ts";
 
 const revision = `sha256:${"b".repeat(64)}` as const;
 const collectionId = "todo-collection-00000000-0000-4000-8000-000000000001";

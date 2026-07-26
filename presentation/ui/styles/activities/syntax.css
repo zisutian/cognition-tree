@@ -154,6 +154,13 @@
   min-width: 0;
 }
 
+.syntax-pair-fields > .syntax-readonly {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ui-control-height);
+}
+
 .syntax-rule-spacer {
   min-width: 0;
   min-height: var(--ui-control-height);
@@ -170,7 +177,7 @@
 }
 
 .syntax-tone-picker,
-.syntax-role-picker {
+.syntax-kind-picker {
   position: relative;
   min-width: 0;
   min-height: var(--ui-control-height);
@@ -178,8 +185,8 @@
 
 .syntax-tone-button,
 .syntax-tone-custom-button,
-.syntax-role-button,
-.syntax-role-option {
+.syntax-kind-button,
+.syntax-kind-option {
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -192,7 +199,7 @@
   cursor: pointer;
 }
 
-.syntax-role-button {
+.syntax-kind-button {
   justify-content: center;
   gap: calc(var(--ui-gap-tight) / 2);
   width: 100%;
@@ -201,7 +208,7 @@
   background: var(--color-input);
 }
 
-.syntax-role-button span {
+.syntax-kind-button span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -232,16 +239,16 @@
 }
 
 .syntax-tone-button:hover,
-.syntax-role-button:hover,
-.syntax-role-option:hover,
+.syntax-kind-button:hover,
+.syntax-kind-option:hover,
 .syntax-tone-custom-button:hover,
 .syntax-tone-tile:hover {
   background: var(--color-hover);
 }
 
 .syntax-tone-button:focus-visible,
-.syntax-role-button:focus-visible,
-.syntax-role-option:focus-visible,
+.syntax-kind-button:focus-visible,
+.syntax-kind-option:focus-visible,
 .syntax-tone-custom-button:focus-visible,
 .syntax-tone-tile:focus-visible,
 .syntax-tone-picker input[type="color"]:focus-visible {
@@ -266,16 +273,16 @@
   width: calc(var(--ui-control-height) * 7);
 }
 
-.syntax-role-menu {
+.syntax-kind-menu {
   width: calc(var(--ui-control-height) * 4.5);
 }
 
-.syntax-role-list {
+.syntax-kind-list {
   display: grid;
   gap: calc(var(--ui-gap-tight) / 2);
 }
 
-.syntax-role-option {
+.syntax-kind-option {
   position: relative;
   justify-content: center;
   min-height: var(--ui-control-height);
@@ -284,19 +291,19 @@
   text-align: center;
 }
 
-.syntax-role-option.is-selected {
+.syntax-kind-option.is-selected {
   color: var(--color-fg-strong);
   background: var(--color-selected);
 }
 
-.syntax-role-option span {
+.syntax-kind-option span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.syntax-role-option svg {
+.syntax-kind-option svg {
   position: absolute;
   right: var(--ui-gap-tight);
 }
@@ -377,6 +384,10 @@
   background: var(--ctn-tone-neutral);
 }
 
+.syntax-tone-default span {
+  background: var(--color-editor);
+}
+
 .syntax-tone-green span {
   background: var(--ctn-tone-green);
 }
@@ -442,12 +453,20 @@
   line-height: var(--ui-body-line-height);
 }
 
+.syntax-render-line.is-inline {
+  background: transparent;
+}
+
 .syntax-render-marker {
   color: var(--color-link);
   font-size: var(--ui-code-font-size);
   font-weight: var(--ui-micro-strong-weight);
   line-height: var(--ui-code-line-height);
   white-space: nowrap;
+}
+
+.syntax-render-line.is-inline .syntax-render-marker {
+  color: var(--ctn-tone-current, var(--color-fg-muted));
 }
 
 .syntax-render-text {

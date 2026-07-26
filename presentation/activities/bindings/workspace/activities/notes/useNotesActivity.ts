@@ -19,7 +19,6 @@ import {
   resolveWorkspaceReferenceNavigation,
 } from "../../../../../../core/workspace/queries/workspaceReferenceNavigation";
 import {
-  createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
   type CtnEditableSource,
 } from "../../../../../../core/ctn/metadata/editableSource";
@@ -40,7 +39,7 @@ export function useNotesActivity({
   const {
     analysis,
     commands,
-    defaultSyntaxProfile,
+    defaultSyntax,
     effectiveWorkspace,
     workspace,
   } = runtime;
@@ -67,10 +66,7 @@ export function useNotesActivity({
   );
   const editableSource = useMemo(
     () => parsedNote
-      ? createCtnEditableSourceFromDocument(
-          parsedNote.source,
-          parsedNote.document,
-        )
+      ? parsedNote.analysis.editableProjection
       : null,
     [parsedNote],
   );
@@ -97,10 +93,7 @@ export function useNotesActivity({
         return lineNumber;
       }
 
-      targetEditableSource = createCtnEditableSourceFromDocument(
-        targetNote.source,
-        targetNote.document,
-      );
+      targetEditableSource = targetNote.analysis.editableProjection;
       editableSourceByNoteId.set(noteId, targetEditableSource);
     }
 
@@ -119,14 +112,14 @@ export function useNotesActivity({
       : null;
   const editor = useMemo(
     () => createUiEditorView({
-      document: parsedNote?.document ?? null,
+      document: parsedNote?.analysis.document ?? null,
       documentText: editableSource?.source ?? activeNote?.source ?? "",
       focusTarget,
-      syntaxProfile: parsedNote?.profile ?? defaultSyntaxProfile,
+      syntax: parsedNote?.syntax ?? defaultSyntax,
     }),
     [
       activeNote,
-      defaultSyntaxProfile,
+      defaultSyntax,
       editableSource,
       focusTarget,
       parsedNote,
@@ -134,7 +127,7 @@ export function useNotesActivity({
   );
   const outlineNodes = useMemo(
     () => createUiOutlineNodes(
-      parsedNote?.document.roots ?? [],
+      parsedNote?.analysis.document.roots ?? [],
       projectLineNumber,
     ),
     [editableSource, parsedNote],

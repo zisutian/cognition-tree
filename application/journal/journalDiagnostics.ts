@@ -62,10 +62,7 @@ function createBodyLineProjector(
   if (!parsed) {
     return (lineNumber: number) => Math.max(1, Math.floor(lineNumber));
   }
-  const projection = createJournalEntryBodyProjection(
-    parsed.entry,
-    index.syntaxProfile,
-  );
+  const projection = createJournalEntryBodyProjection(parsed);
 
   return (lineNumber: number) =>
     projection.projectCanonicalLineNumber(lineNumber);
@@ -80,7 +77,7 @@ export function createJournalDocumentDiagnostics(
       parsed.entry.id,
     );
 
-    return parsed.document.diagnostics.map((diagnostic) => {
+    return parsed.analysis.document.diagnostics.map((diagnostic) => {
       const lineNumber = projectLineNumber(diagnostic.lineNumber);
 
       return {

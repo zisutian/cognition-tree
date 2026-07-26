@@ -1,20 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  createCtnEditableSourceFromDocument,
   getCtnEditableLineNumber,
 } from "../../ctn/metadata/editableSource.ts";
+import {
+  analyzeCtnSource,
+  type CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis.ts";
 import { isCtnBlockId } from "../../ctn/metadata/blockMetadata.ts";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../ctn/parser/parseCtnDocument.ts";
 import type {
   CtnCanonicalBlock,
-  CtnCanonicalDocument,
 } from "../../ctn/parser/types.ts";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types.ts";
-import { getPortableNameIssue } from "../../naming/portableName.ts";
+import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import {
   compareTodoLocalDates,
   isTodoLocalDate,
@@ -27,7 +28,6 @@ import {
   type TodoRecurrenceStage,
   type TodoRecurrenceStageId,
 } from "../recurrence/todoRecurrence.ts";
-import { requireTodoSyntaxProfile } from "../syntax/todoSyntax.ts";
 
 export const todoRepositorySchemaVersion = 4 as const;
 export const todoItemSemanticType = "todo-item";
@@ -58,9 +58,15 @@ export type TodoContentValue = Omit<TodoContent, "collections"> & {
 };
 
 export type ParsedTodoCollection = {
+  analysis: CtnCanonicalSourceAnalysis;
   collection: TodoCollection;
-  document: CtnCanonicalDocument;
   name: string;
+};
+
+export type ValidatedTodoContentAnalysis = {
+  collections: readonly ParsedTodoCollection[];
+  content: TodoContent;
+  syntax: CtnCompiledSyntax;
 };
 
 export type {
@@ -110,7 +116,7 @@ function validateTodoRecurrence(
   }
   const block = blockById.get(recurrence.blockId);
 
-  if (!block || block.type !== todoItemSemanticType) {
+  if (!block || block.rule.semanticId !== todoItemSemanticType) {
     throw new TodoContentValidationError(
       `Todo recurrence ${recurrence.blockId} does not identify a todo item.`,
     );
@@ -214,9 +220,10 @@ function validateTodoRecurrence(
   }
 }
 
-export function parseTodoCollection(
+export function validateTodoCollectionAnalysis(
   value: TodoCollectionValue,
-  syntaxProfile: CtnSyntaxProfile,
+  syntax: CtnCompiledSyntax,
+  analysis: CtnCanonicalSourceAnalysis,
 ): ParsedTodoCollection {
   if (!isTodoCollectionId(value.id)) {
     throw new TodoContentValidationError(
@@ -224,14 +231,18 @@ export function parseTodoCollection(
     );
   }
 
-  let document: CtnCanonicalDocument;
   let name: string;
 
   try {
     const header = readCtnCanonicalTitleHeader(value.source);
 
     name = header.title;
-    document = parseCtnCanonicalDocument(value.source, syntaxProfile);
+    if (
+      analysis.sourceText.source !== value.source ||
+      analysis.syntax.analysisKey !== syntax.analysisKey
+    ) {
+      throw new Error("Prepared Todo analysis does not match its collection.");
+    }
   } catch (error) {
     throw new TodoContentValidationError(
       `Todo collection ${value.id} has invalid canonical CTN source: ${
@@ -240,7 +251,9 @@ export function parseTodoCollection(
     );
   }
 
-  const blockById = new Map(document.blocks.map((block) => [block.id, block]));
+  const blockById = new Map(
+    analysis.document.blocks.map((block) => [block.id, block]),
+  );
   const completionIds = new Set<string>();
 
   for (const completion of value.completions) {
@@ -257,7 +270,7 @@ export function parseTodoCollection(
     completionIds.add(completion.blockId);
     const block = blockById.get(completion.blockId);
 
-    if (!block || block.type !== todoItemSemanticType) {
+    if (!block || block.rule.semanticId !== todoItemSemanticType) {
       throw new TodoContentValidationError(
         `Todo completion ${completion.blockId} does not identify a todo item.`,
       );
@@ -287,23 +300,39 @@ export function parseTodoCollection(
   }
 
   return {
+    analysis,
     collection: value as TodoCollection,
-    document,
     name,
   };
 }
 
-export function validateTodoContent(content: TodoContentValue): TodoContent {
+export function validateTodoContentAnalysis(
+  content: TodoContentValue,
+  {
+    analysisByCollectionId = new Map(),
+    syntax: preparedSyntax,
+  }: {
+    analysisByCollectionId?: ReadonlyMap<
+      TodoCollectionId,
+      CtnCanonicalSourceAnalysis
+    >;
+    syntax?: CtnCompiledSyntax;
+  } = {},
+): ValidatedTodoContentAnalysis {
   if (content.schemaVersion !== todoRepositorySchemaVersion) {
     throw new TodoContentValidationError(
       `Todo schema version must be ${todoRepositorySchemaVersion}.`,
     );
   }
 
-  let syntaxProfile: CtnSyntaxProfile;
+  let syntax: CtnCompiledSyntax;
 
   try {
-    syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
+    syntax = preparedSyntax ??
+      requireCtnSyntax(content.syntaxSource, "todo");
+    if (syntax.owner !== "todo") {
+      throw new Error("Prepared syntax is not owned by Todo.");
+    }
   } catch (error) {
     throw new TodoContentValidationError(
       `Todo syntax is invalid: ${
@@ -314,9 +343,33 @@ export function validateTodoContent(content: TodoContentValue): TodoContent {
 
   const collectionIds = new Set<TodoCollectionId>();
   const blockOwners = new Map<string, TodoCollectionId>();
+  const collections: ParsedTodoCollection[] = [];
 
   for (const collection of content.collections) {
-    const parsed = parseTodoCollection(collection, syntaxProfile);
+    let analysis = analysisByCollectionId.get(
+      collection.id as TodoCollectionId,
+    );
+
+    if (!analysis) {
+      try {
+        analysis = analyzeCtnSource({
+          mode: { kind: "canonical-document" },
+          source: collection.source,
+          syntax,
+        });
+      } catch (error) {
+        throw new TodoContentValidationError(
+          `Todo collection ${collection.id} has invalid canonical CTN source: ${
+            error instanceof Error ? error.message : "unknown CTN error"
+          }`,
+        );
+      }
+    }
+    const parsed = validateTodoCollectionAnalysis(
+      collection,
+      syntax,
+      analysis,
+    );
 
     if (collectionIds.has(parsed.collection.id)) {
       throw new TodoContentValidationError(
@@ -325,7 +378,7 @@ export function validateTodoContent(content: TodoContentValue): TodoContent {
     }
     collectionIds.add(parsed.collection.id);
 
-    for (const block of parsed.document.blocks) {
+    for (const block of parsed.analysis.document.blocks) {
       const owner = blockOwners.get(block.id);
 
       if (owner) {
@@ -335,9 +388,21 @@ export function validateTodoContent(content: TodoContentValue): TodoContent {
       }
       blockOwners.set(block.id, parsed.collection.id);
     }
+    collections.push(parsed);
   }
 
-  return content as TodoContent;
+  return {
+    collections,
+    content: content as TodoContent,
+    syntax,
+  };
+}
+
+export function validateTodoContent(
+  content: TodoContentValue,
+  options: Parameters<typeof validateTodoContentAnalysis>[1] = {},
+): TodoContent {
+  return validateTodoContentAnalysis(content, options).content;
 }
 
 type LocatedBlock = {
@@ -345,14 +410,17 @@ type LocatedBlock = {
   collectionId: TodoCollectionId;
 };
 
-function collectLocatedBlocks(content: TodoContent, profile: CtnSyntaxProfile) {
+function collectLocatedBlocks(
+  collections: readonly ParsedTodoCollection[],
+) {
   const blocks = new Map<string, LocatedBlock>();
 
-  for (const collection of content.collections) {
-    const parsed = parseTodoCollection(collection, profile);
-
-    for (const block of parsed.document.blocks) {
-      blocks.set(block.id, { block, collectionId: collection.id });
+  for (const parsed of collections) {
+    for (const block of parsed.analysis.document.blocks) {
+      blocks.set(block.id, {
+        block,
+        collectionId: parsed.collection.id,
+      });
     }
   }
   return blocks;
@@ -362,15 +430,15 @@ export function validateTodoContentTransition(
   previousValue: TodoContentValue,
   nextValue: TodoContentValue,
 ): TodoContent {
-  const previous = validateTodoContent(previousValue);
-  const next = validateTodoContent(nextValue);
-  const previousProfile = requireTodoSyntaxProfile(previous.syntaxSource);
-  const nextProfile = requireTodoSyntaxProfile(next.syntaxSource);
+  const previousResult = validateTodoContentAnalysis(previousValue);
+  const nextResult = validateTodoContentAnalysis(nextValue);
+  const previous = previousResult.content;
+  const next = nextResult.content;
   const previousCollections = new Map(
     previous.collections.map((collection) => [collection.id, collection]),
   );
-  const previousBlocks = collectLocatedBlocks(previous, previousProfile);
-  const nextBlocks = collectLocatedBlocks(next, nextProfile);
+  const previousBlocks = collectLocatedBlocks(previousResult.collections);
+  const nextBlocks = collectLocatedBlocks(nextResult.collections);
 
   for (const nextCollection of next.collections) {
     const previousCollection = previousCollections.get(nextCollection.id);
@@ -422,14 +490,9 @@ export function validateTodoContentTransition(
 }
 
 export function createTodoCollectionBodyProjection(
-  collection: TodoCollectionValue,
-  syntaxProfile: CtnSyntaxProfile,
+  parsed: ParsedTodoCollection,
 ) {
-  const parsed = parseTodoCollection(collection, syntaxProfile);
-  const editable = createCtnEditableSourceFromDocument(
-    parsed.collection.source,
-    parsed.document,
-  );
+  const editable = parsed.analysis.editableProjection;
   const prefix = `${parsed.name}\n`;
   const source = editable.source === parsed.name
     ? ""
@@ -437,12 +500,12 @@ export function createTodoCollectionBodyProjection(
       ? editable.source.slice(prefix.length)
       : (() => {
           throw new TodoContentValidationError(
-            `Todo collection ${collection.id} has an invalid editable title.`,
+            `Todo collection ${parsed.collection.id} has an invalid editable title.`,
           );
         })();
 
   return {
-    document: parsed.document,
+    analysis: parsed.analysis,
     editableSource: editable.source,
     name: parsed.name,
     source,
@@ -453,26 +516,4 @@ export function createTodoCollectionBodyProjection(
       );
     },
   };
-}
-
-export function collectTodoBlockIds(
-  content: TodoContentValue,
-  syntaxProfile: CtnSyntaxProfile,
-) {
-  const ids = new Set<string>();
-
-  for (const collection of content.collections) {
-    for (const block of parseTodoCollection(collection, syntaxProfile).document
-      .blocks) {
-      ids.add(block.id);
-    }
-  }
-  return ids;
-}
-
-export function getTodoCollectionNameIssue(
-  collection: TodoCollectionValue,
-  syntaxProfile: CtnSyntaxProfile,
-) {
-  return getPortableNameIssue(parseTodoCollection(collection, syntaxProfile).name);
 }

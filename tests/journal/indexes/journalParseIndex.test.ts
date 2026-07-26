@@ -98,9 +98,22 @@ describe("journal parse index", () => {
     );
     const second = createJournalParseIndex(nextContent, first);
 
-    expect(second.getParsedEntry(journalEntryId(2))?.document).toBe(
-      first.getParsedEntry(journalEntryId(2))?.document,
+    expect(first.analysisStats).toEqual({
+      analyzedEntryIds: [journalEntryId(1), journalEntryId(2)],
+      runCount: 2,
+      updatedBlockIdOwnerIds: [journalEntryId(1), journalEntryId(2)],
+    });
+    expect(second.analysisStats).toEqual({
+      analyzedEntryIds: [],
+      runCount: 0,
+      updatedBlockIdOwnerIds: [journalEntryId(1)],
+    });
+    expect(second.getParsedEntry(journalEntryId(2))?.analysis.document).toBe(
+      first.getParsedEntry(journalEntryId(2))?.analysis.document,
     );
+    expect(
+      second.blockIdRegistry.blockIdsByOwner.get(journalEntryId(2)),
+    ).toBe(first.blockIdRegistry.blockIdsByOwner.get(journalEntryId(2)));
     expect(second.getParsedEntry(journalEntryId(1))).toBeNull();
     expect(second.parseCache.has(journalEntryId(1))).toBe(false);
   });

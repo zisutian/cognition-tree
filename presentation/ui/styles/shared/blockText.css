@@ -1,6 +1,6 @@
 .ctn-tone-default {
   --ctn-tone-current: var(--color-fg-muted);
-  --ctn-tone-background: transparent;
+  --ctn-tone-background: var(--color-editor);
 }
 
 .ctn-tone-green {

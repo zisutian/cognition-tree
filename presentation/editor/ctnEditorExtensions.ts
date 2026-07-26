@@ -11,7 +11,7 @@ import {
   indentOnInput,
   indentUnit,
 } from "@codemirror/language";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -23,25 +23,30 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
-import { createCtnParseDecorationPlugin } from "./ctnDecorations";
+import { createCtnDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
 import {
   createCtnReferenceNavigationExtension,
   type CtnEditorReferenceTarget,
 } from "./ctnReferenceNavigation";
-import {
-  createCtnMultilineEditingExtensions,
-} from "./ctnMultilineEditing";
 import { createEditorCompositionChange } from "./editorCompositionChange";
 import { ctnExternalValueSync } from "./editorValueSync";
 import type { CtnEditorContentMode } from "./ctnEditorContentMode";
 import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
+import {
+  createCtnEditorAnalysisField,
+  type CtnEditorAnalysisField,
+} from "./ctnEditorAnalysis";
+import {
+  createCtnEditorRuntimeConfig,
+  ctnEditorRuntimeCompartment,
+  ctnEditorRuntimeConfigFacet,
+  type CtnEditorRuntimeOptions,
+} from "./ctnEditorRuntime";
 
-export const ctnTabSizeCompartment = new Compartment();
-export const ctnParsingCompartment = new Compartment();
-export const ctnContentAttributesCompartment = new Compartment();
+export { ctnEditorRuntimeCompartment } from "./ctnEditorRuntime";
 
 export function createCtnIndentUnit() {
   return "\t";
@@ -59,13 +64,27 @@ export function getCtnEditorActiveLineNumber(state: EditorState) {
   return state.doc.lineAt(state.selection.main.head).number;
 }
 
+export function createCtnEditorRuntimeExtensions(
+  options: CtnEditorRuntimeOptions,
+): Extension[] {
+  const configuration = createCtnEditorRuntimeConfig(options);
+
+  return [
+    ctnEditorRuntimeConfigFacet.of(configuration),
+    createCtnTabSizeExtension(
+      configuration.syntax.tabDisplayWidth,
+    ),
+    createCtnContentAttributesExtension(
+      configuration.contentMode,
+    ),
+  ];
+}
+
 export function createCtnEditorExtensions(
   onChangeRef: {
     current: (change: CtnEditableSourceChange) => void;
   },
-  syntaxProfileRef: {
-    current: CtnSyntaxProfile;
-  },
+  syntax: CtnCompiledSyntax,
   onOpenReferenceRef: {
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
   },
@@ -73,9 +92,7 @@ export function createCtnEditorExtensions(
     current: (lineNumber: number) => void;
   },
   contentMode: CtnEditorContentMode,
-  checkableBlocksRef?: {
-    current: readonly CtnEditorCheckableBlock[];
-  },
+  checkableBlocks: readonly CtnEditorCheckableBlock[] = [],
   onToggleCheckableBlockRef?: {
     current: ((blockId: string) => void) | undefined;
   },
@@ -83,6 +100,7 @@ export function createCtnEditorExtensions(
   const compositionChange = createEditorCompositionChange({
     onChange: (value) => onChangeRef.current(value),
   });
+  const analysisField = createCtnEditorAnalysisField();
 
   return [
     lineNumbers(),
@@ -98,21 +116,19 @@ export function createCtnEditorExtensions(
     rectangularSelection(),
     highlightActiveLine(),
     createCtnIndentUnitExtension(),
-    ctnTabSizeCompartment.of(
-      createCtnTabSizeExtension(syntaxProfileRef.current.tabDisplayWidth),
+    ctnEditorRuntimeCompartment.of(
+      createCtnEditorRuntimeExtensions({
+        checkableBlocks: [...checkableBlocks],
+        contentMode,
+        syntax,
+      }),
     ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
-    ctnParsingCompartment.of(
-      createCtnParsingExtensions(
-        syntaxProfileRef,
-        onOpenReferenceRef,
-        contentMode,
-        checkableBlocksRef,
-        onToggleCheckableBlockRef,
-      ),
-    ),
-    ctnContentAttributesCompartment.of(
-      createCtnContentAttributesExtension(contentMode),
+    analysisField,
+    ...createCtnParsingExtensions(
+      analysisField,
+      onOpenReferenceRef,
+      onToggleCheckableBlockRef,
     ),
     EditorView.domEventHandlers({
       compositionend(_event, view) {
@@ -144,40 +160,25 @@ export function createCtnEditorExtensions(
 }
 
 export function createCtnParsingExtensions(
-  syntaxProfileRef: { current: CtnSyntaxProfile },
+  analysisField: CtnEditorAnalysisField,
   onOpenReferenceRef: {
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
-  },
-  contentMode: CtnEditorContentMode,
-  checkableBlocksRef?: {
-    current: readonly CtnEditorCheckableBlock[];
   },
   onToggleCheckableBlockRef?: {
     current: ((blockId: string) => void) | undefined;
   },
 ): Extension[] {
-  if (contentMode.kind === "raw") {
-    return [];
-  }
-
-  const parseDecorationPlugin = createCtnParseDecorationPlugin(
-    syntaxProfileRef,
-    contentMode,
-    checkableBlocksRef,
+  const decorationPlugin = createCtnDecorationPlugin(
+    analysisField,
     onToggleCheckableBlockRef,
   );
 
   return [
-    parseDecorationPlugin,
-    createCtnDiagnosticTooltip(parseDecorationPlugin),
+    decorationPlugin,
+    createCtnDiagnosticTooltip(analysisField),
     createCtnReferenceNavigationExtension(
-      parseDecorationPlugin,
+      analysisField,
       onOpenReferenceRef,
-    ),
-    ...createCtnMultilineEditingExtensions(
-      parseDecorationPlugin,
-      syntaxProfileRef,
-      contentMode,
     ),
   ];
 }

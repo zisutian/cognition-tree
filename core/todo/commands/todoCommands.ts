@@ -1,38 +1,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata.ts";
 import {
-  initializeCtnSourceBlockMetadata,
+  recanonicalizeCtnSourceBlockMetadata,
+  reconcileCtnSourceBlockMetadata,
+} from "../../ctn/metadata/reconcileSourceMetadata.ts";
+import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
+import {
+  initializeCtnSourceBlockMetadataAnalysis,
   replaceCtnSourceTitle,
 } from "../../ctn/metadata/sourceMetadata.ts";
 import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
 } from "../../ctn/metadata/textEdits.ts";
+import { analyzeCtnSource } from "../../ctn/analysis/sourceAnalysis.ts";
 import {
   moveCtnBlockWithinText,
   type CtnBlockTextTargetPosition,
 } from "../../ctn/parser/blockTextEdit.ts";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../ctn/parser/parseCtnDocument.ts";
 import type { CtnCanonicalBlock } from "../../ctn/parser/types.ts";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../ctn/analysis/sourceAnalysis.ts";
+import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
 import {
   createPortableNameKey,
   parsePortableName,
 } from "../../naming/portableName.ts";
 import {
-  collectTodoBlockIds,
-  createTodoCollectionBodyProjection,
   isTodoCollectionId,
-  parseTodoCollection,
   todoItemSemanticType,
-  validateTodoContent,
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
 } from "../model/todoContent.ts";
+import type {
+  TodoParseIndex,
+} from "../indexes/todoParseIndex.ts";
 import {
   addTodoLocalDays,
   isTodoRecurrenceStageId,
@@ -44,9 +51,6 @@ import {
   type TodoRecurrenceRule,
   type TodoRecurrenceStageId,
 } from "../recurrence/todoRecurrence.ts";
-import {
-  requireTodoSyntaxProfile,
-} from "../syntax/todoSyntax.ts";
 
 export type CreateTodoCollectionInput = {
   collectionId: TodoCollectionId;
@@ -113,6 +117,12 @@ export type MoveTodoBlockInput = {
   updatedAt: string;
 };
 
+export type UpdateTodoSyntaxSourceInput = {
+  createBlockId: () => string;
+  source: string;
+  updatedAt: string;
+};
+
 function canonicalTimestamp(value: string, label: string) {
   const milliseconds = Date.parse(value);
 
@@ -145,10 +155,7 @@ function replaceCollection(
   const collections = [...content.collections];
 
   collections[collectionIndex] = collection;
-  const next = { ...content, collections };
-
-  validateTodoContent(next);
-  return next;
+  return { ...content, collections };
 }
 
 function assertTargetIndex(toIndex: number, length: number, label: string) {
@@ -167,12 +174,13 @@ function moveAt<T>(values: readonly T[], fromIndex: number, toIndex: number) {
 
 function cleanTodoSidecars(
   collection: TodoCollection,
-  syntaxProfile: ReturnType<typeof requireTodoSyntaxProfile>,
+  analysis: CtnCanonicalSourceAnalysis,
 ) {
-  const document = parseCtnCanonicalDocument(collection.source, syntaxProfile);
   const itemIds = new Set(
-    document.blocks
-      .filter(({ type }) => type === todoItemSemanticType)
+    analysis.document.blocks
+      .filter(
+        (block) => block.rule.semanticId === todoItemSemanticType,
+      )
       .map(({ id }) => id),
   );
 
@@ -188,15 +196,14 @@ function cleanTodoSidecars(
 }
 
 function assertCollectionNameAvailable(
-  content: TodoContent,
+  index: TodoParseIndex,
   name: string,
   exceptCollectionId?: TodoCollectionId,
 ) {
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
   const key = createPortableNameKey(name);
-  const conflict = content.collections.find((collection) =>
+  const conflict = index.collections.find(({ collection, name }) =>
     collection.id !== exceptCollectionId &&
-    createPortableNameKey(parseTodoCollection(collection, syntaxProfile).name) ===
+    createPortableNameKey(name) ===
       key
   );
 
@@ -207,9 +214,9 @@ function assertCollectionNameAvailable(
 
 export function createTodoCollection(
   content: TodoContent,
+  index: TodoParseIndex,
   input: CreateTodoCollectionInput,
 ) {
-  validateTodoContent(content);
   if (!isTodoCollectionId(input.collectionId)) {
     throw new Error(`Invalid todo collection id: ${input.collectionId}`);
   }
@@ -218,14 +225,18 @@ export function createTodoCollection(
   }
   canonicalTimestamp(input.createdAt, "Todo collection createdAt");
   const name = parsePortableName(input.name, "Todo collection name");
-  assertCollectionNameAvailable(content, name);
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
-  const source = initializeCtnSourceBlockMetadata(name, syntaxProfile, {
+  assertCollectionNameAvailable(index, name);
+  const initialized = initializeCtnSourceBlockMetadataAnalysis(
+    name,
+    index.syntax,
+    {
     createId: input.createBlockId,
     createdAt: input.createdAt,
-    reservedIds: collectTodoBlockIds(content, syntaxProfile),
+    reservedIds: index.blockIds,
     updatedAt: input.createdAt,
-  });
+    },
+  );
+  const source = initialized.source;
   const next: TodoContent = {
     ...content,
     collections: [
@@ -234,22 +245,25 @@ export function createTodoCollection(
     ],
   };
 
-  validateTodoContent(next);
-  return { collectionId: input.collectionId, content: next };
+  return {
+    analysis: initialized.analysis,
+    collectionId: input.collectionId,
+    content: next,
+  };
 }
 
 export function renameTodoCollection(
   content: TodoContent,
+  index: TodoParseIndex,
   input: RenameTodoCollectionInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
   const name = parsePortableName(input.name, "Todo collection name");
   const current = readCtnCanonicalTitleHeader(collection.source);
 
   if (current.title === name) return content;
-  assertCollectionNameAvailable(content, name, input.collectionId);
+  assertCollectionNameAvailable(index, name, input.collectionId);
   canonicalTimestamp(input.updatedAt, "Todo collection updatedAt");
   if (Date.parse(input.updatedAt) < Date.parse(current.metadata.updatedAt)) {
     throw new Error("Todo collection updatedAt cannot move backwards.");
@@ -265,47 +279,64 @@ export function deleteTodoCollection(
   content: TodoContent,
   collectionId: TodoCollectionId,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, collectionId);
   const collections = [...content.collections];
 
   collections.splice(collectionIndex, 1);
-  const next = { ...content, collections };
-
-  validateTodoContent(next);
-  return next;
+  return { ...content, collections };
 }
 
 export function moveTodoCollection(
   content: TodoContent,
   input: MoveTodoCollectionInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
 
   assertTargetIndex(input.toIndex, content.collections.length, "Todo collection");
   if (collectionIndex === input.toIndex) return content;
-  const next = {
+  return {
     ...content,
     collections: moveAt(content.collections, collectionIndex, input.toIndex),
   };
-
-  validateTodoContent(next);
-  return next;
 }
 
 export function updateTodoCollectionBody(
   content: TodoContent,
+  index: TodoParseIndex,
   input: UpdateTodoCollectionBodyInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
-  const current = createTodoCollectionBodyProjection(collection, syntaxProfile);
+  const parsed = index.getParsedCollection(input.collectionId);
+
+  if (!parsed || parsed.collection.source !== collection.source) {
+    throw new Error(
+      `Todo collection analysis is stale: ${input.collectionId}`,
+    );
+  }
+  const syntax = index.syntax;
+  const editableSource = parsed.analysis.editableProjection.source;
+  const prefix = `${parsed.name}\n`;
+  const bodySource = editableSource === parsed.name
+    ? ""
+    : editableSource.startsWith(prefix)
+      ? editableSource.slice(prefix.length)
+      : (() => {
+          throw new Error(
+            `Todo collection ${input.collectionId} has an invalid editable title.`,
+          );
+        })();
+  const current = {
+    analysis: parsed.analysis,
+    editableSource,
+    name: parsed.name,
+    source: bodySource,
+  };
 
   assertCtnEditableSourceChange(current.source, input.change);
-  if (current.source === input.change.source) return content;
+  if (current.source === input.change.source) {
+    return { analysis: current.analysis, content };
+  }
   canonicalTimestamp(input.updatedAt, "Todo collection updatedAt");
   const titleMetadata = readCtnCanonicalTitleHeader(collection.source).metadata;
 
@@ -326,33 +357,43 @@ export function updateTodoCollectionBody(
         from: edit.from + titleSeparatorOffset,
         to: edit.to + titleSeparatorOffset,
       }));
-  const source = reconcileCtnSourceBlockMetadata(
-    collection.source,
+  const reconciled = reconcileCtnSourceBlockMetadata(
+    current.analysis,
+    analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: nextEditableSource,
+      syntax,
+    }),
     { edits, source: nextEditableSource },
-    syntaxProfile,
     {
       createId: input.createBlockId,
-      reservedIds: collectTodoBlockIds(content, syntaxProfile),
+      reservedIds: index.blockIds,
       timestamp: input.updatedAt,
+      touchTitle: false,
     },
   );
   const withSource = cleanTodoSidecars(
-    { ...collection, source },
-    syntaxProfile,
+    { ...collection, source: reconciled.source },
+    reconciled.analysis,
   );
 
-  return replaceCollection(content, collectionIndex, withSource);
+  return {
+    analysis: reconciled.analysis,
+    content: replaceCollection(content, collectionIndex, withSource),
+  };
 }
 
 function requireTodoItemBlock(
-  collection: TodoCollection,
-  syntaxProfile: ReturnType<typeof requireTodoSyntaxProfile>,
+  index: TodoParseIndex,
+  collectionId: TodoCollectionId,
   blockId: string,
 ) {
-  const parsed = parseTodoCollection(collection, syntaxProfile);
-  const block = parsed.document.blocks.find(({ id }) => id === blockId);
+  const parsed = index.getParsedCollection(collectionId);
+  const block = parsed?.analysis.document.blocks.find(
+    ({ id }) => id === blockId,
+  );
 
-  if (!block || block.type !== todoItemSemanticType) {
+  if (!block || block.rule.semanticId !== todoItemSemanticType) {
     throw new Error(`Todo item block does not exist: ${blockId}`);
   }
   return block;
@@ -360,9 +401,9 @@ function requireTodoItemBlock(
 
 export function toggleTodoBlock(
   content: TodoContent,
+  index: TodoParseIndex,
   input: ToggleTodoBlockInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
   const recurrence = collection.recurrences.find(
@@ -375,7 +416,7 @@ export function toggleTodoBlock(
     ? recurrenceProjection.completed
     : collection.completions.some(({ blockId }) => blockId === input.blockId);
 
-  return setTodoBlockCompletion(content, {
+  return setTodoBlockCompletion(content, index, {
     ...input,
     completed: !completed,
     occurrenceDate: recurrenceProjection?.active
@@ -396,13 +437,16 @@ export class TodoOccurrenceConflictError extends Error {
 
 export function setTodoBlockCompletion(
   content: TodoContent,
+  index: TodoParseIndex,
   input: SetTodoBlockCompletionInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
-  const block = requireTodoItemBlock(collection, syntaxProfile, input.blockId);
+  const block = requireTodoItemBlock(
+    index,
+    input.collectionId,
+    input.blockId,
+  );
   const today = requireTodoLocalDate(input.today);
   const recurrenceIndex = collection.recurrences.findIndex(
     ({ blockId }) => blockId === input.blockId,
@@ -508,14 +552,12 @@ function rulesEqual(left: TodoRecurrenceRule, right: TodoRecurrenceRule) {
 
 export function setTodoBlockRecurrence(
   content: TodoContent,
+  index: TodoParseIndex,
   input: SetTodoBlockRecurrenceInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
-
-  requireTodoItemBlock(collection, syntaxProfile, input.blockId);
+  requireTodoItemBlock(index, input.collectionId, input.blockId);
   const today = requireTodoLocalDate(input.today);
   validateTodoRecurrenceRule(input.rule);
   const recurrenceIndex = collection.recurrences.findIndex(
@@ -634,7 +676,6 @@ export function stopTodoBlockRecurrence(
   content: TodoContent,
   input: StopTodoBlockRecurrenceInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
   const recurrenceIndex = collection.recurrences.findIndex(
@@ -688,7 +729,7 @@ function resolveMoveTarget(
   if (input.target.kind === "end") return input.target;
   const target = blocks.get(input.target.targetBlockId);
 
-  if (!target || target.type === "title") {
+  if (!target || target.rule.semanticId === "title") {
     throw new Error(`Todo target block does not exist: ${input.target.targetBlockId}`);
   }
   return {
@@ -703,49 +744,111 @@ function resolveMoveTarget(
 
 export function moveTodoBlock(
   content: TodoContent,
+  index: TodoParseIndex,
   input: MoveTodoBlockInput,
 ) {
-  validateTodoContent(content);
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
-  const syntaxProfile = requireTodoSyntaxProfile(content.syntaxSource);
-  const parsed = parseTodoCollection(collection, syntaxProfile);
-  const blocks = new Map(parsed.document.blocks.map((block) => [block.id, block]));
+  const syntax = index.syntax;
+  const parsed = index.getParsedCollection(input.collectionId);
+
+  if (!parsed || parsed.collection.source !== collection.source) {
+    throw new Error(
+      `Todo collection analysis is stale: ${input.collectionId}`,
+    );
+  }
+  const blocks = new Map(
+    parsed.analysis.document.blocks.map((block) => [block.id, block]),
+  );
   const sourceBlock = blocks.get(input.blockId);
 
-  if (!sourceBlock || sourceBlock.type === syntaxProfile.titleRule.type) {
+  if (
+    !sourceBlock ||
+    sourceBlock.rule.semanticId === syntax.title.semanticId
+  ) {
     throw new Error(`Todo source block does not exist: ${input.blockId}`);
   }
   canonicalTimestamp(input.updatedAt, "Todo block updatedAt");
   const result = moveCtnBlockWithinText({
+    analysis: parsed.analysis,
     sourceBlock: blockRange(sourceBlock),
-    sourceText: collection.source,
-    syntaxProfile,
     targetPosition: resolveMoveTarget(input, blocks),
     updatedAt: input.updatedAt,
   });
 
-  return replaceCollection(content, collectionIndex, {
-    ...collection,
-    source: result.nextText,
-  });
+  return {
+    analysis: result.analysis,
+    content: replaceCollection(content, collectionIndex, {
+      ...collection,
+      source: result.nextText,
+    }),
+  };
 }
 
 export function updateTodoSyntaxSource(
   content: TodoContent,
-  syntaxSource: string,
+  index: TodoParseIndex,
+  input: UpdateTodoSyntaxSourceInput,
 ) {
-  validateTodoContent(content);
-  if (content.syntaxSource === syntaxSource) return content;
-  const syntaxProfile = requireTodoSyntaxProfile(syntaxSource);
-  const next = {
-    ...content,
-    syntaxSource,
-    collections: content.collections.map((collection) =>
-      cleanTodoSidecars(collection, syntaxProfile)
-    ),
-  };
+  if (content.syntaxSource === input.source) {
+    return {
+      analysisOverrides:
+        new Map<TodoCollectionId, CtnCanonicalSourceAnalysis>(),
+      content,
+    };
+  }
+  canonicalTimestamp(input.updatedAt, "Todo syntax updatedAt");
+  const syntax = requireCtnSyntax(input.source, "todo");
 
-  validateTodoContent(next);
-  return next;
+  if (syntax.blockGrammarKey === index.syntax.blockGrammarKey) {
+    return {
+      analysisOverrides:
+        new Map<TodoCollectionId, CtnCanonicalSourceAnalysis>(),
+      content: { ...content, syntaxSource: input.source },
+    };
+  }
+  const allocator = createCtnBlockIdAllocator(
+    input.createBlockId,
+    index.blockIds,
+  );
+  const analysisOverrides =
+    new Map<TodoCollectionId, CtnCanonicalSourceAnalysis>();
+  const collections = content.collections.map((collection) => {
+    const previous = index.getParsedCollection(collection.id);
+
+    if (!previous || previous.collection.source !== collection.source) {
+      throw new Error(
+        `Todo collection analysis is stale: ${collection.id}`,
+      );
+    }
+    const candidate = analyzeCtnSource({
+      mode: { kind: "editable-document" },
+      source: previous.analysis.editableProjection.source,
+      syntax,
+    });
+    const reconciled = recanonicalizeCtnSourceBlockMetadata(
+      previous.analysis,
+      candidate,
+      {
+        allocateId: allocator.allocate,
+        timestamp: input.updatedAt,
+        touchTitle: false,
+      },
+    );
+
+    analysisOverrides.set(collection.id, reconciled.analysis);
+    return cleanTodoSidecars(
+      { ...collection, source: reconciled.source },
+      reconciled.analysis,
+    );
+  });
+
+  return {
+    analysisOverrides,
+    content: {
+      ...content,
+      collections,
+      syntaxSource: input.source,
+    },
+  };
 }

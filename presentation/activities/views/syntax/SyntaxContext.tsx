@@ -259,8 +259,8 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                       "aria-invalid": renamingFile.errorMessage
                         ? true
                         : undefined,
-                      "data-syntax-field-id": syntaxFieldIds.profileName,
-                      maxLength: view.constraints.profileName.maxLength,
+                      "data-syntax-field-id": syntaxFieldIds.name,
+                      maxLength: view.constraints.name.maxLength,
                       title: renamingFile.errorMessage,
                     },
                     onCancel: () => {

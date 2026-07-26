@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export type CtnBlockType = string;
+export type CtnSyntaxOwner = "workspace" | "journal" | "todo";
 
-export type CtnRuleRole = "normal" | "multiline";
+export type CtnBlockSemanticId = string;
+
+export type CtnBlockKind = "line" | "multiline";
 
 export type CtnPresetSyntaxTone =
   | "green"
@@ -23,42 +25,42 @@ export type CtnSyntaxTone =
   | CtnPresetSyntaxTone
   | CtnCustomSyntaxTone;
 
-export type CtnInlineSpanType = string;
+export type CtnInlineSemanticId = string;
 
-export type CtnMarkerRule = {
+export type CtnSyntaxRuleStyle = {
+  label: string;
+  textColor: CtnSyntaxTone;
+  tone: CtnSyntaxTone;
+};
+
+export type CtnSyntaxDisplayRule = CtnSyntaxRuleStyle;
+
+export type CtnBlockRule = CtnSyntaxRuleStyle & {
+  kind: CtnBlockKind;
   marker: string;
-  type: CtnBlockType;
-  label: string;
-  role: CtnRuleRole;
-  textColor: CtnSyntaxTone;
-  tone: CtnSyntaxTone;
+  semanticId: CtnBlockSemanticId;
 };
 
-export type CtnTopLevelUnmarkedRule = {
-  type: CtnBlockType;
-  label: string;
-  textColor: CtnSyntaxTone;
-  tone: CtnSyntaxTone;
+export type CtnResolvedRootRule = CtnSyntaxRuleStyle & {
+  kind: "line";
+  marker: null;
+  semanticId: "body" | "concept";
 };
 
-export type CtnTitleRule = {
-  type: CtnBlockType;
-  label: string;
-  textColor: CtnSyntaxTone;
-  tone: CtnSyntaxTone;
+export type CtnResolvedTitleRule = CtnSyntaxRuleStyle & {
+  kind: "line";
+  marker: null;
+  semanticId: "title";
 };
 
-export type CtnInlineRuleBase = {
-  type: CtnInlineSpanType;
-  label: string;
-  textColor: CtnSyntaxTone;
-  tone: CtnSyntaxTone;
+export type CtnInlineRuleBase = CtnSyntaxRuleStyle & {
+  semanticId: CtnInlineSemanticId;
 };
 
 export type CtnPairedInlineRule = CtnInlineRuleBase & {
+  close: string;
   kind: "paired";
   open: string;
-  close: string;
 };
 
 export type CtnSingleInlineRule = CtnInlineRuleBase & {
@@ -68,11 +70,40 @@ export type CtnSingleInlineRule = CtnInlineRuleBase & {
 
 export type CtnInlineRule = CtnPairedInlineRule | CtnSingleInlineRule;
 
-export type CtnSyntaxProfile = {
-  topLevelUnmarkedRule: CtnTopLevelUnmarkedRule | null;
-  titleRule: CtnTitleRule;
+/**
+ * The exact source-backed CTN syntax v2 model.
+ *
+ * Fixed semantic identities are deliberately absent from title/root. They are
+ * injected by the owner policy when the definition is compiled.
+ */
+export type CtnSyntaxDefinition = {
+  blocks: CtnBlockRule[];
+  formatVersion: 2;
+  inline: CtnInlineRule[];
   name: string;
+  root: CtnSyntaxDisplayRule | null;
   tabDisplayWidth: number;
-  markerRules: CtnMarkerRule[];
-  inlineRules: CtnInlineRule[];
+  title: CtnSyntaxDisplayRule | null;
+};
+
+/**
+ * Immutable runtime form shared by the parser, editor and domain indexes.
+ * Matchers are preordered once so consumers never sort syntax rules.
+ */
+export type CtnCompiledSyntax = {
+  analysisKey: string;
+  blockGrammarKey: string;
+  blockMatcher: readonly CtnBlockRule[];
+  blocks: readonly CtnBlockRule[];
+  definition: Readonly<CtnSyntaxDefinition>;
+  formatVersion: 2;
+  inline: readonly CtnInlineRule[];
+  inlineGrammarKey: string;
+  inlineMatcher: readonly CtnInlineRule[];
+  name: string;
+  owner: CtnSyntaxOwner;
+  presentationKey: string;
+  root: Readonly<CtnResolvedRootRule> | null;
+  tabDisplayWidth: number;
+  title: Readonly<CtnResolvedTitleRule>;
 };

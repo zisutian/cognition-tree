@@ -13,7 +13,6 @@ import {
   createTodoCollectionBodyProjection,
   type TodoContent,
 } from "../../../core/todo/model/todoContent";
-import { requireTodoSyntaxProfile } from "../../../core/todo/syntax/todoSyntax";
 import type { TodoLocalDate } from "../../../core/todo/recurrence/todoRecurrence";
 import { createTodoViewModel } from "../../../application/todo/todoViewModel";
 import type { TodoMutationActions } from "../../../application/todo/todoApplication";
@@ -45,7 +44,7 @@ function createContent() {
     level: 1,
     text: "子任务",
   });
-  content = toggleTodoBlock(content, {
+  content = toggleTodoBlock(content, createTodoParseIndex(content), {
     blockId: todoBlockId(1),
     collectionId: todoCollectionId(1),
     completedAt: todoTimestamp(4),
@@ -168,14 +167,19 @@ describe("Todo CTN view model", () => {
   });
 
   it("reprojects recurring completion and statistics from the local date", () => {
-    const recurring = setTodoBlockRecurrence(createContent(), {
+    const content = createContent();
+    const recurring = setTodoBlockRecurrence(
+      content,
+      createTodoParseIndex(content),
+      {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       rule: { interval: 1, kind: "daily" },
       stageId:
         "todo-recurrence-stage-00000000-0000-4000-8000-000000000001",
       today: "2026-07-18",
-    });
+      },
+    );
     const firstDay = createView(
       recurring,
       todoCollectionId(1),
@@ -219,14 +223,19 @@ describe("Todo CTN view model", () => {
   });
 
   it("removes recurrence presentation immediately after stopping the schedule", () => {
-    const recurring = setTodoBlockRecurrence(createContent(), {
+    const content = createContent();
+    const recurring = setTodoBlockRecurrence(
+      content,
+      createTodoParseIndex(content),
+      {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
       rule: { interval: 1, kind: "daily" },
       stageId:
         "todo-recurrence-stage-00000000-0000-4000-8000-000000000001",
       today: "2026-07-18",
-    });
+      },
+    );
     const stopped = stopTodoBlockRecurrence(recurring, {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
@@ -266,10 +275,12 @@ describe("Todo CTN view model", () => {
     });
     const collection = content.collections[0]!;
     const projection = createTodoCollectionBodyProjection(
-      collection,
-      requireTodoSyntaxProfile(content.syntaxSource),
+      createTodoParseIndex(content).getParsedCollection(collection.id)!,
     );
-    const malformed = updateTodoCollectionBody(content, {
+    const malformed = updateTodoCollectionBody(
+      content,
+      createTodoParseIndex(content),
+      {
       change: {
         edits: [{
           from: 0,
@@ -281,7 +292,8 @@ describe("Todo CTN view model", () => {
       collectionId: todoCollectionId(1),
       createBlockId: () => todoBlockId(99),
       updatedAt: todoTimestamp(3),
-    });
+      },
+    ).content;
     const { view } = createView(malformed);
 
     expect(view.diagnostics.diagnostics).toEqual([

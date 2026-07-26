@@ -1,16 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 import {
-  collectWorkspaceBlockIds,
-  validateWorkspaceBlockMetadata,
+  collectWorkspaceTitleBlockIds,
+  validateWorkspaceTitleBlockMetadata,
   WorkspaceBlockMetadataError,
 } from "../../../core/workspace/context/workspaceBlockMetadata";
+import { createWorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
+import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { createInitialWorkspaceData } from "../../../core/workspace/model/workspaceData";
 import {
   createCanonicalTestNote,
   createCanonicalTestSource,
   createWorkspaceTestBlockId,
 } from "../workspaceTestFixture";
+
+function createParseIndex(
+  workspace: ReturnType<typeof createInitialWorkspaceData>,
+) {
+  return createWorkspaceParseIndex({
+    syntax: defaultCtnSyntax,
+    workspace: createWorkspaceStructureIndex({
+      ...workspace,
+      tree: workspace.notes.map((note) => ({
+        kind: "note" as const,
+        noteId: note.id,
+      })),
+    }),
+  });
+}
 
 describe("workspace block metadata", () => {
   it("collects globally reserved block ids from canonical note sources", () => {
@@ -23,7 +40,7 @@ describe("workspace block metadata", () => {
     };
 
     expect(
-      [...collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile)],
+      [...createParseIndex(workspace).blockIds],
     ).toEqual([
       createWorkspaceTestBlockId(1),
       createWorkspaceTestBlockId(2),
@@ -41,14 +58,7 @@ describe("workspace block metadata", () => {
       ],
     };
 
-    expect(() =>
-      collectWorkspaceBlockIds(workspace, defaultCtnSyntaxProfile)
-    ).toThrow(
-      WorkspaceBlockMetadataError,
-    );
-    expect(() =>
-      validateWorkspaceBlockMetadata(workspace, defaultCtnSyntaxProfile),
-    ).toThrow(WorkspaceBlockMetadataError);
+    expect(() => createParseIndex(workspace)).toThrow(/Duplicate CTN block id/);
   });
 
   it("treats a syntax-free body as opaque even when it contains an exact reserved directive", () => {
@@ -60,7 +70,7 @@ describe("workspace block metadata", () => {
       notes: [first, { ...second, source: `${second.source}\n${bodyDirective}` }],
     };
 
-    expect([...collectWorkspaceBlockIds(workspace, null)]).toEqual([
+    expect([...collectWorkspaceTitleBlockIds(workspace)]).toEqual([
       createWorkspaceTestBlockId(1),
       createWorkspaceTestBlockId(101),
     ]);
@@ -73,7 +83,10 @@ describe("workspace block metadata", () => {
     };
 
     expect(() =>
-      validateWorkspaceBlockMetadata(workspace, defaultCtnSyntaxProfile),
+      validateWorkspaceTitleBlockMetadata(workspace),
     ).toThrow("expected @ctn-block directive");
+    expect(() =>
+      validateWorkspaceTitleBlockMetadata(workspace)
+    ).toThrow(WorkspaceBlockMetadataError);
   });
 });

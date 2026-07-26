@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { defaultCtnSyntaxProfile } from "../../../../core/ctn/syntax/defaultSyntaxProfile";
-import { createSyntaxProfileDraft } from "../../../../core/ctn/syntax/profileDraft";
-import { syntaxProfileSchema } from "../../../../core/ctn/syntax/profileSchema";
+import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
+import { createCtnSyntaxDraft } from "../../../../core/ctn/syntax/draft";
 import {
   createUiSystemSyntaxDiagnostics,
   createUiSyntaxDiagnostics,
@@ -16,9 +15,13 @@ import {
   type SyntaxViewModel,
 } from "../../../../application/syntax/syntaxViewModel";
 import {
-  useSystemSyntaxRuntime,
-  type SystemSyntaxSource,
-} from "./useSystemSyntaxRuntime";
+  useCtnSyntaxDraftRuntime,
+  type CtnSyntaxDraftRuntimeSource,
+} from "./syntaxDraftPersistence";
+
+type SystemSyntaxSource = CtnSyntaxDraftRuntimeSource & {
+  updateSource: (source: string) => void | Promise<void>;
+};
 
 export function projectSyntaxFocusTargetForSelectedFile(
   focusTarget: SyntaxViewModel["focusTarget"],
@@ -54,22 +57,29 @@ function initialTarget(
 
 export function useSyntaxActivity({
   focusTarget,
-  journalSyntax,
+  defaultJournalSyntax,
   onConsumeFocusTarget,
-  todoSyntax,
+  defaultTodoSyntax,
   workspace,
 }: {
   focusTarget: SyntaxViewModel["focusTarget"];
-  journalSyntax: SystemSyntaxSource | null;
+  defaultJournalSyntax: SystemSyntaxSource | null;
   onConsumeFocusTarget: SyntaxViewModel["onConsumeFocusTarget"];
-  todoSyntax: SystemSyntaxSource | null;
+  defaultTodoSyntax: SystemSyntaxSource | null;
   workspace: SyntaxRuntime | null;
 }): SyntaxViewModel {
-  const journal = useSystemSyntaxRuntime({
+  const journal = useCtnSyntaxDraftRuntime({
     owner: "journal",
-    syntax: journalSyntax,
+    persist: (source) => defaultJournalSyntax?.updateSource(source),
+    source: defaultJournalSyntax,
+    targetKey: defaultJournalSyntax ? "journal" : null,
   });
-  const todo = useSystemSyntaxRuntime({ owner: "todo", syntax: todoSyntax });
+  const todo = useCtnSyntaxDraftRuntime({
+    owner: "todo",
+    persist: (source) => defaultTodoSyntax?.updateSource(source),
+    source: defaultTodoSyntax,
+    targetKey: defaultTodoSyntax ? "todo" : null,
+  });
   const [selectedTarget, setSelectedTarget] = useState<SyntaxTarget>(() =>
     initialTarget(workspace, journal.available, todo.available)
   );
@@ -84,41 +94,25 @@ export function useSyntaxActivity({
     : null;
   const draft = selectedSystem?.draft ?? selectedWorkspace?.syntaxDraft ??
     journal.draft ?? todo.draft ?? workspace?.syntaxDraft ??
-    createSyntaxProfileDraft(defaultCtnSyntaxProfile);
+    createCtnSyntaxDraft(defaultCtnSyntax);
 
   const hasDraftErrors = selectedSystem?.hasDraftErrors ??
     selectedWorkspace?.hasDraftErrors ?? false;
   const isSelectedAvailable = selectedSystem?.available ??
     Boolean(selectedWorkspace && selectedTarget.kind === "workspace-file" &&
       selectedWorkspace.files.some(({ id }) => id === selectedTarget.fileId));
-  const policy = selectedSystem?.policy ?? { scope: "workspace" as const };
+  const owner = selectedSystem?.owner ?? "workspace";
   const updateDraft = selectedSystem?.updateDraft ??
     selectedWorkspace?.updateSyntaxDraft ?? (() => undefined);
-  const protectedMarkerRuleIds = selectedTarget.kind === "todo"
-    ? draft.markerRules
-      .filter(({ type }) => type === syntaxProfileSchema.requiredTypes.todoItem)
-      .map(({ id }) => id)
-    : [];
-  const protectedInlineTriggerRuleIds = selectedTarget.kind === "journal"
-    ? draft.inlineRules
-      .filter(({ type }) =>
-        type === syntaxProfileSchema.requiredTypes.globalReference
-      )
-      .map(({ id }) => id)
-    : [];
   const draftActions = useMemo(
     () => createSyntaxDraftActions({
-      nameEditable: selectedTarget.kind === "workspace-file",
-      protectedInlineTriggerRuleIds,
-      protectedMarkerRuleIds,
+      owner,
       syntaxDraft: draft,
       updateSyntaxDraft: updateDraft,
     }),
     [
       draft,
-      protectedInlineTriggerRuleIds.join("\0"),
-      protectedMarkerRuleIds.join("\0"),
-      selectedTarget.kind,
+      owner,
       updateDraft,
     ],
   );
@@ -135,9 +129,9 @@ export function useSyntaxActivity({
     () => createUiSyntaxView({
       draft,
       focusTarget: focusTargetForSelectedFile,
-      policy,
+      owner,
     }),
-    [draft, focusTargetForSelectedFile, policy],
+    [draft, focusTargetForSelectedFile, owner],
   );
 
   const assertCanLeave = useCallback(() => {
@@ -280,7 +274,7 @@ export function useSyntaxActivity({
   ];
   const selectedDraftResult = selectedSystem?.draftResult ??
     selectedWorkspace?.syntaxDraftResult ?? null;
-  const profileDiagnostics = useMemo(() => selectedDraftResult
+  const syntaxDiagnostics = useMemo(() => selectedDraftResult
     ? selectedTarget.kind === "workspace-file"
       ? createUiSyntaxDiagnostics(
           draft,
@@ -315,14 +309,9 @@ export function useSyntaxActivity({
       ? workspace?.catalogNameConflictMessage ?? ""
       : "",
     onConsumeFocusTarget,
-    policy,
-    profileDiagnostics,
+    owner,
+    syntaxDiagnostics,
     revertInvalidChanges,
-    rootRuleLabel: selectedTarget.kind === "workspace-file"
-      ? "顶格概念"
-      : selectedTarget.kind === "journal"
-        ? "顶格正文"
-        : null,
     selectedTarget,
     selectTarget,
     systemConfigurations,

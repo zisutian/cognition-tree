@@ -1,8 +1,6 @@
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../ctn/parser/parseCtnDocument";
-import type { CtnSyntaxProfile } from "../../ctn/syntax/types";
 import type { WorkspaceData } from "../model/workspaceData";
 
 export class WorkspaceBlockMetadataError extends Error {
@@ -12,28 +10,20 @@ export class WorkspaceBlockMetadataError extends Error {
   }
 }
 
-export function validateWorkspaceBlockMetadata(
+export function validateWorkspaceTitleBlockMetadata(
   workspaceData: WorkspaceData,
-  syntaxProfile: CtnSyntaxProfile | null,
 ) {
-  collectWorkspaceBlockIds(workspaceData, syntaxProfile);
+  collectWorkspaceTitleBlockIds(workspaceData);
 }
 
-export function collectWorkspaceBlockIds(
-  workspaceData: WorkspaceData,
-  syntaxProfile: CtnSyntaxProfile | null,
-) {
+export function collectWorkspaceTitleBlockIds(workspaceData: WorkspaceData) {
   const ownerByBlockId = new Map<string, string>();
 
   for (const note of workspaceData.notes) {
-    let ids: string[];
+    let id: string;
 
     try {
-      ids = syntaxProfile
-        ? parseCtnCanonicalDocument(note.source, syntaxProfile).blocks.map(
-            (block) => block.id,
-          )
-        : [readCtnCanonicalTitleHeader(note.source).metadata.id];
+      id = readCtnCanonicalTitleHeader(note.source).metadata.id;
     } catch (error) {
       throw new WorkspaceBlockMetadataError(
         `Invalid canonical CTN source in note ${note.id}: ${
@@ -42,17 +32,15 @@ export function collectWorkspaceBlockIds(
       );
     }
 
-    for (const id of ids) {
-      const existingOwner = ownerByBlockId.get(id);
+    const existingOwner = ownerByBlockId.get(id);
 
-      if (existingOwner !== undefined) {
-        throw new WorkspaceBlockMetadataError(
-          `Duplicate CTN block id ${id} in notes ${existingOwner} and ${note.id}.`,
-        );
-      }
-
-      ownerByBlockId.set(id, note.id);
+    if (existingOwner !== undefined) {
+      throw new WorkspaceBlockMetadataError(
+        `Duplicate CTN block id ${id} in notes ${existingOwner} and ${note.id}.`,
+      );
     }
+
+    ownerByBlockId.set(id, note.id);
   }
 
   return new Set(ownerByBlockId.keys());

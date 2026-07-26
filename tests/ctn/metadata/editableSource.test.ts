@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  createCtnEditableSource,
   getCtnEditableLineNumber,
 } from "../../../core/ctn/metadata/editableSource";
-import { defaultCtnSyntaxProfile } from "../../../core/ctn/syntax/defaultSyntaxProfile";
+import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
+import { analyzeCanonicalTestSource } from "../analysis/analysisTestHelpers";
 import { addTestCtnBlockMetadata } from "./sourceMetadataFixture";
 
 describe("CTN editable source", () => {
@@ -17,10 +17,10 @@ describe("CTN editable source", () => {
       "Sibling",
     ].join("\n");
     const canonicalSource = addTestCtnBlockMetadata(rawSource);
-    const editableSource = createCtnEditableSource(
+    const editableSource = analyzeCanonicalTestSource(
       canonicalSource,
-      defaultCtnSyntaxProfile,
-    );
+      defaultCtnSyntax,
+    ).editableProjection;
 
     expect(editableSource.source).toBe(rawSource);
     expect(getCtnEditableLineNumber(editableSource, 2)).toBe(1);
@@ -35,10 +35,10 @@ describe("CTN editable source", () => {
     const canonicalSource = addTestCtnBlockMetadata(
       "Title\nRoot\n\t: Child",
     );
-    const editableSource = createCtnEditableSource(
+    const editableSource = analyzeCanonicalTestSource(
       canonicalSource,
-      defaultCtnSyntaxProfile,
-    );
+      defaultCtnSyntax,
+    ).editableProjection;
 
     expect([...editableSource.metadataByLineNumber.keys()]).toEqual([1, 2, 3]);
   });

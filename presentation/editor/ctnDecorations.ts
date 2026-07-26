@@ -7,23 +7,30 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import type {
+  EditorState,
+} from "@codemirror/state";
+import type {
   CtnEditableBlock,
   CtnEditableDocument,
   CtnInlineSpan,
 } from "../../core/ctn/parser/types";
-import { createCtnSyntaxParseProfileKey } from "../../core/ctn/syntax/profileKey";
 import {
   getCtnEditorTextColorClassName,
   getCtnEditorTextColorStyle,
   getCtnEditorToneClassName,
   getCtnEditorToneStyle,
 } from "./ctnTonePresentation";
-import type { CtnSyntaxProfile } from "../../core/ctn/syntax/types";
 import {
-  parseCtnEditorContent,
-  type CtnEditorParsedContentMode,
-} from "./ctnEditorContentMode";
-import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
+  type CtnEditorAnalysisState,
+  type CtnEditorAnalysisField,
+} from "./ctnEditorAnalysis";
+import {
+  createCtnEditorCheckableBlocksKey,
+  type CtnEditorCheckableBlock,
+} from "./ctnEditorCheckableBlocks";
+import {
+  ctnEditorRuntimeConfigFacet,
+} from "./ctnEditorRuntime";
 
 export class CtnCheckboxWidget extends WidgetType {
   constructor(
@@ -103,11 +110,11 @@ export class CtnRecurrenceMarkerWidget extends WidgetType {
 }
 
 function isConceptBlock(block: CtnEditableBlock) {
-  return block.type === "concept";
+  return block.rule.semanticId === "concept";
 }
 
 function getBlockTextClass(block: CtnEditableBlock) {
-  const textColorClass = getCtnEditorTextColorClassName(block.textColor);
+  const textColorClass = getCtnEditorTextColorClassName(block.rule.textColor);
 
   if (isConceptBlock(block)) {
     return `ctn-block-text ctn-block-text-concept ${textColorClass}`;
@@ -132,17 +139,17 @@ export function shouldDecorateMarker(block: CtnEditableBlock) {
 }
 
 export function getMarkerDecorationClass(block: CtnEditableBlock) {
-  return `ctn-marker ${getCtnEditorTextColorClassName(block.textColor)}`;
+  return `ctn-marker ${getCtnEditorTextColorClassName(block.rule.textColor)}`;
 }
 
 export function getBlockLineDecorationClass(
   block: CtnEditableBlock,
   lineNumber = block.lineNumber,
 ) {
-  const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.tone)];
+  const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.rule.tone)];
   const isBlockStartLine = lineNumber === block.lineNumber;
 
-  if (isBlockStartLine && block.type === "title") {
+  if (isBlockStartLine && block.rule.semanticId === "title") {
     lineClasses.push("ctn-line-title");
   }
 
@@ -158,56 +165,60 @@ export function getBlockLineDecorationClass(
 }
 
 export function getBlockLineDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorToneStyle(block.tone);
+  return getCtnEditorToneStyle(block.rule.tone);
 }
 
 export function getInlineDecorationClass(span: CtnInlineSpan) {
-  return `ctn-inline ${getCtnEditorToneClassName(span.tone)} ${getCtnEditorTextColorClassName(span.textColor)}`;
+  return `ctn-inline ${getCtnEditorToneClassName(span.rule.tone)}`;
+}
+
+export function getInlineSymbolDecorationClass(span: CtnInlineSpan) {
+  return `ctn-inline-symbol ${getCtnEditorToneClassName(span.rule.tone)}`;
 }
 
 export function getMarkerDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorTextColorStyle(block.textColor);
-}
-
-export function getMultilineMarkDecorationClass(
-  block: CtnEditableBlock,
-  lineNumber: number,
-) {
-  const classes = [
-    "ctn-multiline-block-mark",
-    getCtnEditorTextColorClassName(block.textColor),
-  ];
-
-  if (lineNumber === block.lineNumber) {
-    classes.push("ctn-multiline-block-start");
-  }
-
-  if (lineNumber === block.multilineRange?.closingFenceLineNumber) {
-    classes.push("ctn-multiline-block-end");
-  }
-
-  return classes.join(" ");
-}
-
-export function getMultilineMarkDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorTextColorStyle(block.textColor);
+  return getCtnEditorTextColorStyle(block.rule.textColor);
 }
 
 export function getInlineDecorationStyle(span: CtnInlineSpan) {
-  return [
-    getCtnEditorToneStyle(span.tone),
-    getCtnEditorTextColorStyle(span.textColor),
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return getCtnEditorToneStyle(span.rule.tone) ?? "";
+}
+
+export function getInlineSymbolOffsets(
+  span: CtnInlineSpan,
+  sourceText: string,
+) {
+  if (span.rule.kind === "paired") {
+    if (
+      !sourceText.startsWith(span.rule.open) ||
+      !sourceText.endsWith(span.rule.close)
+    ) {
+      return [];
+    }
+    return [
+      { from: 0, to: span.rule.open.length },
+      {
+        from: sourceText.length - span.rule.close.length,
+        to: sourceText.length,
+      },
+    ];
+  }
+  const markerFrom = sourceText.indexOf(span.rule.marker);
+
+  return markerFrom < 0
+    ? []
+    : [{
+        from: markerFrom,
+        to: markerFrom + span.rule.marker.length,
+      }];
 }
 
 function getBlockTextDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorTextColorStyle(block.textColor);
+  return getCtnEditorTextColorStyle(block.rule.textColor);
 }
 
 function buildCtnDecorations(
-  view: EditorView,
+  state: EditorState,
   parsedDocument: CtnEditableDocument,
   checkableBlocks: readonly CtnEditorCheckableBlock[] = [],
   onToggleCheckableBlockRef: {
@@ -221,50 +232,41 @@ function buildCtnDecorations(
 
   for (const block of parsedDocument.blocks) {
     if (
-      block.role === "multiline" &&
+      block.rule.kind === "multiline" &&
       block.lexicalEndLineNumber > block.lineNumber
     ) {
       for (
-        let lineNumber = block.lineNumber;
-        lineNumber <= block.lexicalEndLineNumber;
+        let lineNumber = block.lineNumber + 1;
+        lineNumber <= Math.min(block.lexicalEndLineNumber, state.doc.lines);
         lineNumber += 1
       ) {
-        const multilineLine = view.state.doc.line(lineNumber);
-        const multilineTextStart = getLineTextStart(multilineLine.text);
-        const multilineMarkStart = multilineLine.from + multilineTextStart;
-        const multilineMarkEnd =
-          multilineTextStart < multilineLine.text.length
-            ? multilineLine.to
-            : multilineLine.from + multilineLine.text.length;
-        const multilineLineStyle = getCtnEditorToneStyle(block.tone);
+        const sourceLine = state.doc.line(lineNumber);
+        const textStart = getLineTextStart(sourceLine.text);
+        const lineStyle = getBlockLineDecorationStyle(block);
+        const textStyle = getBlockTextDecorationStyle(block);
 
-        if (lineNumber !== block.lineNumber) {
-          decorations.push(
-            Decoration.line({
-              attributes: {
-                class: getBlockLineDecorationClass(block, lineNumber),
-                ...(multilineLineStyle ? { style: multilineLineStyle } : {}),
-              },
-            }).range(multilineLine.from),
-          );
-        }
-
-        if (multilineMarkStart < multilineMarkEnd) {
-          const multilineMarkStyle = getMultilineMarkDecorationStyle(block);
-
+        decorations.push(
+          Decoration.line({
+            attributes: {
+              class: getBlockLineDecorationClass(block, lineNumber),
+              ...(lineStyle ? { style: lineStyle } : {}),
+            },
+          }).range(sourceLine.from),
+        );
+        if (textStart < sourceLine.text.length) {
           decorations.push(
             Decoration.mark({
               attributes: {
-                class: getMultilineMarkDecorationClass(block, lineNumber),
-                ...(multilineMarkStyle ? { style: multilineMarkStyle } : {}),
+                class: getBlockTextClass(block),
+                ...(textStyle ? { style: textStyle } : {}),
               },
-            }).range(multilineMarkStart, multilineMarkEnd),
+            }).range(sourceLine.from + textStart, sourceLine.to),
           );
         }
       }
     }
 
-    const line = view.state.doc.line(block.lineNumber);
+    const line = state.doc.line(block.lineNumber);
     const lineStyle = getBlockLineDecorationStyle(block);
 
     const diagnosticTitle = block.diagnostics
@@ -306,7 +308,7 @@ function buildCtnDecorations(
         const markerStart = line.text.indexOf(marker);
 
         if (markerStart >= 0) {
-          const checkable = block.type === "todo-item"
+          const checkable = block.rule.semanticId === "todo-item"
             ? checkableByLineNumber.get(block.lineNumber)
             : undefined;
 
@@ -357,6 +359,23 @@ function buildCtnDecorations(
             },
           }).range(spanStart, spanEnd),
         );
+        const sourceText = state.doc.sliceString(spanStart, spanEnd);
+
+        for (const symbol of getInlineSymbolOffsets(span, sourceText)) {
+          decorations.push(
+            Decoration.mark({
+              attributes: {
+                class: getInlineSymbolDecorationClass(span),
+                ...(getInlineDecorationStyle(span)
+                  ? { style: getInlineDecorationStyle(span) }
+                  : {}),
+              },
+            }).range(
+              spanStart + symbol.from,
+              spanStart + symbol.to,
+            ),
+          );
+        }
       }
     }
   }
@@ -364,93 +383,69 @@ function buildCtnDecorations(
   return Decoration.set(decorations, true);
 }
 
-export type CtnEditorParsePluginValue = {
+export type CtnEditorDecorationPluginValue = {
+  analysis: CtnEditorAnalysisState;
   checkableBlocksKey: string;
   decorations: DecorationSet;
-  document: CtnEditableDocument;
-  profileKey: string;
 };
 
-export type CtnEditorParsePlugin = ViewPlugin<CtnEditorParsePluginValue>;
+export type CtnEditorDecorationPlugin =
+  ViewPlugin<CtnEditorDecorationPluginValue>;
 
-function parseEditorDocument(
-  view: EditorView,
-  syntaxProfile: CtnSyntaxProfile,
-  contentMode: CtnEditorParsedContentMode,
-) {
-  return parseCtnEditorContent(
-    view.state.doc.toString(),
-    syntaxProfile,
-    contentMode,
-  );
-}
-
-export function createCtnParseDecorationPlugin(
-  syntaxProfileRef: { current: CtnSyntaxProfile },
-  contentMode: CtnEditorParsedContentMode,
-  checkableBlocksRef: {
-    current: readonly CtnEditorCheckableBlock[];
-  } = { current: [] },
+export function createCtnDecorationPlugin(
+  analysisField: CtnEditorAnalysisField,
   onToggleCheckableBlockRef: {
     current: ((blockId: string) => void) | undefined;
   } = { current: undefined },
-): CtnEditorParsePlugin {
-  const createCheckableBlocksKey = () => checkableBlocksRef.current
-    .map(({ blockId, checked, lineNumber, recurrenceLabel }) =>
-      `${lineNumber}:${blockId}:${checked ? "1" : "0"}:${recurrenceLabel ?? ""}`
-    )
-    .join("|");
+): CtnEditorDecorationPlugin {
+  const getCheckableBlocks = (state: EditorState) =>
+    state.facet(ctnEditorRuntimeConfigFacet).checkableBlocks;
 
   return ViewPlugin.fromClass(
-    class implements CtnEditorParsePluginValue {
+    class implements CtnEditorDecorationPluginValue {
+      analysis: CtnEditorAnalysisState;
       checkableBlocksKey: string;
       decorations: DecorationSet;
-      document: CtnEditableDocument;
-      profileKey: string;
 
       constructor(view: EditorView) {
-        this.checkableBlocksKey = createCheckableBlocksKey();
-        this.profileKey = createCtnSyntaxParseProfileKey(
-          syntaxProfileRef.current,
+        const checkableBlocks = getCheckableBlocks(view.state);
+        const analysis = view.state.field(analysisField);
+
+        this.analysis = analysis;
+        this.checkableBlocksKey = createCtnEditorCheckableBlocksKey(
+          checkableBlocks,
         );
-        this.document = parseEditorDocument(
-          view,
-          syntaxProfileRef.current,
-          contentMode,
-        );
-        this.decorations = buildCtnDecorations(
-          view,
-          this.document,
-          checkableBlocksRef.current,
-          onToggleCheckableBlockRef,
-        );
+        this.decorations = analysis.analysis
+          ? buildCtnDecorations(
+              view.state,
+              analysis.analysis.document,
+              checkableBlocks,
+              onToggleCheckableBlockRef,
+            )
+          : Decoration.none;
       }
 
       update(update: ViewUpdate) {
-        const nextProfileKey = createCtnSyntaxParseProfileKey(
-          syntaxProfileRef.current,
+        const nextAnalysis = update.state.field(analysisField);
+        const checkableBlocks = getCheckableBlocks(update.state);
+        const nextCheckableBlocksKey = createCtnEditorCheckableBlocksKey(
+          checkableBlocks,
         );
-        const nextCheckableBlocksKey = createCheckableBlocksKey();
 
         if (
-          update.docChanged ||
-          nextProfileKey !== this.profileKey ||
+          nextAnalysis !== this.analysis ||
           nextCheckableBlocksKey !== this.checkableBlocksKey
         ) {
-          this.profileKey = nextProfileKey;
+          this.analysis = nextAnalysis;
           this.checkableBlocksKey = nextCheckableBlocksKey;
-
-          this.document = parseEditorDocument(
-            update.view,
-            syntaxProfileRef.current,
-            contentMode,
-          );
-          this.decorations = buildCtnDecorations(
-            update.view,
-            this.document,
-            checkableBlocksRef.current,
-            onToggleCheckableBlockRef,
-          );
+          this.decorations = nextAnalysis.analysis
+            ? buildCtnDecorations(
+                update.state,
+                nextAnalysis.analysis.document,
+                checkableBlocks,
+                onToggleCheckableBlockRef,
+              )
+            : Decoration.none;
         }
       }
     },
@@ -462,7 +457,7 @@ export function createCtnParseDecorationPlugin(
 
 export function getCtnEditorParsedDocument(
   view: EditorView,
-  parsePlugin: CtnEditorParsePlugin,
+  analysisField: CtnEditorAnalysisField,
 ) {
-  return view.plugin(parsePlugin)?.document ?? null;
+  return view.state.field(analysisField).analysis?.document ?? null;
 }

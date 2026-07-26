@@ -2,9 +2,11 @@
 
 import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits";
 import {
-  parseCtnCanonicalDocument,
   readCtnCanonicalTitleHeader,
 } from "../../../core/ctn/parser/parseCtnDocument";
+import {
+  readCanonicalTestDocument,
+} from "../../ctn/analysis/analysisTestHelpers";
 import {
   createJournalEntry,
   deleteJournalEntry,
@@ -12,7 +14,10 @@ import {
   updateJournalSyntaxSource,
 } from "../../../core/journal/commands/journalCommands";
 import { validateJournalContent } from "../../../core/journal/model/journalContent";
-import { requireJournalSyntaxProfile } from "../../../core/journal/syntax/journalSyntax";
+import { requireCtnSyntax } from "../../../core/ctn/syntax/compiler";
+import {
+  createJournalParseIndex,
+} from "../../../core/journal/indexes/journalParseIndex";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,
@@ -29,12 +34,16 @@ describe("journal commands", () => {
       createdAt: "2026-07-18T00:00:01.100Z",
       entryIndex: 1,
     });
-    const second = createJournalEntry(first, {
-      createBlockId: () => journalBlockId(2),
-      createdAt: "2026-07-18T00:00:01.900Z",
-      entryId: journalEntryId(2),
-      timezoneOffsetMinutes: 480,
-    }).content;
+    const second = createJournalEntry(
+      first,
+      createJournalParseIndex(first),
+      {
+        createBlockId: () => journalBlockId(2),
+        createdAt: "2026-07-18T00:00:01.900Z",
+        entryId: journalEntryId(2),
+        timezoneOffsetMinutes: 480,
+      },
+    ).content;
 
     expect(journalEntries(second)).toHaveLength(2);
     expect(journalEntries(second).map(({ source }) =>
@@ -65,9 +74,9 @@ describe("journal commands", () => {
     });
     const entry = journalEntries(updated)[0];
     const afterHeader = readCtnCanonicalTitleHeader(entry.source);
-    const document = parseCtnCanonicalDocument(
+    const document = readCanonicalTestDocument(
       entry.source,
-      requireJournalSyntaxProfile(updated.syntaxSource),
+      requireCtnSyntax(updated.syntaxSource, "journal"),
     );
 
     expect(afterHeader).toEqual(beforeHeader);
@@ -95,12 +104,15 @@ describe("journal commands", () => {
       entryIndex: 1,
       updatedAt: "2026-07-18T00:10:00.000Z",
     });
-    const before = parseCtnCanonicalDocument(
+    const before = readCanonicalTestDocument(
       journalEntries(first)[0].source,
-      requireJournalSyntaxProfile(first.syntaxSource),
+      requireCtnSyntax(first.syntaxSource, "journal"),
     );
     const secondBody = "- alpha changed\n- beta";
-    const second = updateJournalEntryBody(first, {
+    const second = updateJournalEntryBody(
+      first,
+      createJournalParseIndex(first),
+      {
       change: {
         edits: createMyersTextEdits(firstBody, secondBody),
         source: secondBody,
@@ -108,10 +120,11 @@ describe("journal commands", () => {
       createBlockId: () => journalBlockId(999),
       entryId: journalEntryId(1),
       updatedAt: "2026-07-18T00:20:00.000Z",
-    });
-    const after = parseCtnCanonicalDocument(
+      },
+    ).content;
+    const after = readCanonicalTestDocument(
       journalEntries(second)[0].source,
-      requireJournalSyntaxProfile(second.syntaxSource),
+      requireCtnSyntax(second.syntaxSource, "journal"),
     );
 
     expect(after.blocks[2]?.id).toBe(before.blocks[2]?.id);
@@ -135,11 +148,14 @@ describe("journal commands", () => {
       entryIndex: 1,
       updatedAt: "2026-07-18T00:10:00.000Z",
     });
-    const before = parseCtnCanonicalDocument(
+    const before = readCanonicalTestDocument(
       journalEntries(first)[0].source,
-      requireJournalSyntaxProfile(first.syntaxSource),
+      requireCtnSyntax(first.syntaxSource, "journal"),
     );
-    const second = updateJournalEntryBody(first, {
+    const second = updateJournalEntryBody(
+      first,
+      createJournalParseIndex(first),
+      {
       change: {
         edits: [{
           from: 0,
@@ -151,10 +167,11 @@ describe("journal commands", () => {
       createBlockId: () => journalBlockId(999),
       entryId: journalEntryId(1),
       updatedAt: "2026-07-18T00:20:00.000Z",
-    });
-    const after = parseCtnCanonicalDocument(
+      },
+    ).content;
+    const after = readCanonicalTestDocument(
       journalEntries(second)[0].source,
-      requireJournalSyntaxProfile(second.syntaxSource),
+      requireCtnSyntax(second.syntaxSource, "journal"),
     );
 
     expect(after.blocks[1]?.id).toBe(before.blocks[2]?.id);
@@ -169,12 +186,16 @@ describe("journal commands", () => {
       entryIndex: 1,
     });
 
-    expect(updateJournalEntryBody(content, {
+    expect(updateJournalEntryBody(
+      content,
+      createJournalParseIndex(content),
+      {
       change: { edits: [], source: "" },
       createBlockId: () => journalBlockId(2),
       entryId: journalEntryId(1),
       updatedAt: "2026-07-18T00:10:00.000Z",
-    })).toBe(content);
+      },
+    ).content).toBe(content);
   });
 
   it("deletes only the requested entry and rejects missing entries", () => {
@@ -208,40 +229,63 @@ describe("journal commands", () => {
       entries: [],
       lastIssuedSequence: 1,
     }]);
-    const recreated = createJournalEntry(deleted, {
-      createBlockId: () => journalBlockId(2),
-      createdAt: "2026-07-18T00:00:02.000Z",
-      entryId: journalEntryId(2),
-      timezoneOffsetMinutes: 480,
-    }).content;
+    const recreated = createJournalEntry(
+      deleted,
+      createJournalParseIndex(deleted),
+      {
+        createBlockId: () => journalBlockId(2),
+        createdAt: "2026-07-18T00:00:02.000Z",
+        entryId: journalEntryId(2),
+        timezoneOffsetMinutes: 480,
+      },
+    ).content;
 
     expect(readCtnCanonicalTitleHeader(journalEntries(recreated)[0].source).title)
       .toBe("2026-07-18-0002");
-    expect(() => createJournalEntry({
+    const atLimit = {
       ...recreated,
       days: recreated.days.map((day) => ({
         ...day,
         lastIssuedSequence: 9_999,
       })),
-    }, {
-      createBlockId: () => journalBlockId(3),
-      createdAt: "2026-07-18T00:00:03.000Z",
-      entryId: journalEntryId(3),
-      timezoneOffsetMinutes: 480,
-    })).toThrow(/daily limit/);
+    };
+
+    expect(() => createJournalEntry(
+      atLimit,
+      createJournalParseIndex(atLimit),
+      {
+        createBlockId: () => journalBlockId(3),
+        createdAt: "2026-07-18T00:00:03.000Z",
+        entryId: journalEntryId(3),
+        timezoneOffsetMinutes: 480,
+      },
+    )).toThrow(/daily limit/);
   });
 
   it("persists valid Journal syntax edits and rejects protected rule changes", () => {
     const content = createEmptyJournalContent();
     const updated = updateJournalSyntaxSource(
       content,
-      content.syntaxSource.replace('label = "正文"', 'label = "日记正文"'),
-    );
+      createJournalParseIndex(content),
+      {
+        createBlockId: () => journalBlockId(1),
+        source: content.syntaxSource.replace(
+          'label = "正文"',
+          'label = "日记正文"',
+        ),
+        updatedAt: "2026-07-18T00:00:00.000Z",
+      },
+    ).content;
 
     expect(updated.syntaxSource).toContain('label = "日记正文"');
     expect(() => updateJournalSyntaxSource(
       updated,
-      updated.syntaxSource.replace('open = "[["', 'open = "{{"'),
+      createJournalParseIndex(updated),
+      {
+        createBlockId: () => journalBlockId(1),
+        source: updated.syntaxSource.replace('open = "[["', 'open = "{{"'),
+        updatedAt: "2026-07-18T00:00:00.000Z",
+      },
     )).toThrow(/\[\[\.\.\.\]/);
   });
 });

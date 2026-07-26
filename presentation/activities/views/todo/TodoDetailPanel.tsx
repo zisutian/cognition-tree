@@ -69,7 +69,7 @@ function TodoStructureNodes({
               )}
               style={getStructureTreeRowStyle({
                 depth,
-                indentUnitCount: view.editor.syntaxProfile.tabDisplayWidth,
+                indentUnitCount: view.editor.syntax.tabDisplayWidth,
               })}
             >
               <span className="ui-structure-prefix">

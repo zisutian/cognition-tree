@@ -47,6 +47,9 @@ import {
   setTodoBlockRecurrence,
 } from "../../../core/todo/commands/todoCommands";
 import {
+  createTodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex";
+import {
   appendTodoTestCollection,
   appendTodoTestItem,
   createEmptyTodoContent,
@@ -349,7 +352,7 @@ describe("workspace API v4", () => {
         level: 1,
         text: "普通子事项",
       });
-      todo = setTodoBlockRecurrence(todo, {
+      todo = setTodoBlockRecurrence(todo, createTodoParseIndex(todo), {
         blockId: todoBlockId(1),
         collectionId: todoCollectionId(1),
         rule: { interval: 1, kind: "daily" },

@@ -1,74 +1,68 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-export const defaultJournalSyntaxSourceV3 = `name = "日记"
+export const defaultJournalSyntaxSource = `formatVersion = 2
+name = "日记"
 tabDisplayWidth = 4
 
-[title]
-type = "title"
-label = "标题"
-tone = "blue"
-textColor = "cyan"
-
-[body]
-type = "body"
+[root]
 label = "正文"
 tone = "default"
 textColor = "default"
 
-[[markers]]
+[[blocks]]
 marker = ":"
-type = "definition"
+semanticId = "definition"
 label = "定义"
-role = "normal"
+kind = "line"
 tone = "green"
 textColor = "teal"
 
-[[markers]]
+[[blocks]]
 marker = "?"
-type = "question"
+semanticId = "question"
 label = "疑问"
-role = "normal"
+kind = "line"
 tone = "amber"
 textColor = "amber"
 
-[[markers]]
+[[blocks]]
 marker = ">"
-type = "personal-understanding"
+semanticId = "personal-understanding"
 label = "理解"
-role = "normal"
+kind = "line"
 tone = "violet"
 textColor = "violet"
 
-[[markers]]
+[[blocks]]
 marker = "-"
-type = "component"
+semanticId = "component"
 label = "组分"
-role = "normal"
+kind = "line"
 tone = "blue"
 textColor = "blue"
 
-[[inlineRules]]
+[[inline]]
 kind = "paired"
 open = "[["
 close = "]]"
-type = "global-reference"
+semanticId = "global-reference"
 label = "引用"
 tone = "blue"
-textColor = "cyan"
+textColor = "blue"
 
-[[inlineRules]]
+[[inline]]
 kind = "paired"
 open = "<"
 close = ">"
-type = "local-reference"
+semanticId = "local-reference"
 label = "条目内块引用"
 tone = "teal"
 textColor = "teal"
 
-[[inlineRules]]
+[[inline]]
 kind = "single"
 marker = "\\\\"
-type = "parallel-separator"
+semanticId = "parallel-separator"
 label = "并列分隔"
 tone = "amber"
 textColor = "amber"

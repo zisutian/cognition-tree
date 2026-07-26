@@ -46,6 +46,145 @@ describe("semantic source ownership", () => {
     ]).toEqual([]);
   });
 
+  it("keeps multiline syntax semantic without a dedicated editor runtime", () => {
+    const sourcePaths = [
+      ...Object.keys(coreModules),
+      ...Object.keys(presentationModules),
+    ].map(sourcePathToRelative);
+    const retiredPaths = new Set([
+      "core/ctn/editing/multilineBlockEditPlanner.ts",
+      "core/ctn/editing/multilineBlockLayout.ts",
+      "presentation/editor/ctnMultilineCardExtension.ts",
+      "presentation/editor/ctnMultilineCardWidgets.ts",
+      "presentation/editor/ctnMultilineEditing.ts",
+    ]);
+    const production = [
+      ...Object.values(coreModules),
+      ...Object.values(presentationModules),
+    ].join("\n");
+
+    expect(sourcePaths.filter((sourcePath) => retiredPaths.has(sourcePath)))
+      .toEqual([]);
+    for (
+      const retiredRuntimeName of [
+        "CtnMultilineSourceLayout",
+        "createCtnMultilineSourceLayout",
+        "planCtnMultilineEdit",
+        "protectedRanges",
+        "ctn-multiline-card",
+      ]
+    ) {
+      expect(production).not.toContain(retiredRuntimeName);
+    }
+  });
+
+  it("uses one editor analysis owner for parsing", () => {
+    const editorParseConsumers = Object.entries(presentationModules)
+      .filter(
+        ([filePath, source]) =>
+          !filePath.endsWith(
+            "presentation/editor/ctnEditorContentMode.ts",
+          ) &&
+          /\banalyzeCtnSource\s*\(/.test(source),
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+    const presentationLayoutBuilders = Object.entries(
+      presentationModules,
+    )
+      .filter(([, source]) =>
+        /\bcreateCtnMultilineSourceLayout\s*\(/.test(source)
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+    const forcedEditorRedraws = Object.entries(presentationModules)
+      .filter(([, source]) =>
+        /\bview\.setState\(view\.state\)/.test(source)
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(editorParseConsumers).toEqual([
+      "presentation/editor/ctnEditorAnalysis.ts",
+    ]);
+    expect(presentationLayoutBuilders).toEqual([]);
+    expect(forcedEditorRedraws).toEqual([]);
+  });
+
+  it("keeps CTN token parsing behind the single source-analysis owner", () => {
+    const parserConsumers = Object.entries(coreModules)
+      .filter(
+        ([filePath, source]) =>
+          !filePath.endsWith("core/ctn/parser/parseCtnDocument.ts") &&
+          /\bparseCtnSourceText\s*\(/.test(source),
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+    const presentationParsing = Object.entries(presentationModules)
+      .filter(
+        ([filePath, source]) =>
+          !filePath.endsWith(
+            "presentation/editor/ctnEditorAnalysis.ts",
+          ) &&
+          /\banalyzeCtnSource\s*\(/.test(source),
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(parserConsumers).toEqual([
+      "core/ctn/analysis/sourceAnalysis.ts",
+    ]);
+    expect(presentationParsing).toEqual([]);
+  });
+
+  it("contains no CTN syntax v1 runtime API or compatibility switches", () => {
+    const production = Object.values({
+      ...applicationModules,
+      ...contractModules,
+      ...coreModules,
+      ...infrastructureModules,
+      ...presentationModules,
+    }).join("\n");
+    const retiredNames = [
+      "CtnSyntaxProfile",
+      "defaultSyntaxProfile",
+      "collectJournalBlockIds",
+      "collectTodoBlockIds",
+      "collectWorkspaceBlockIds",
+      "createCtnEditableSource",
+      "getTodoCollectionNameIssue",
+      "parseJournalEntry",
+      "parseTodoCollection",
+      "parseCtnBody",
+      "profileDraft",
+      "profileSchema",
+      "profileToml",
+      "useSystemSyntaxRuntime",
+      "validateWorkspaceBlockMetadata",
+    ];
+
+    for (const retiredName of retiredNames) {
+      expect(production).not.toContain(retiredName);
+    }
+    expect(production).not.toMatch(/\bformatVersion\s*[:=]\s*1\b/);
+    expect(production).not.toMatch(
+      /\b(?:allowLegacy|compatibilityMode|migrateSyntax)\b/,
+    );
+  });
+
+  it("uses one owner-aware syntax draft persistence runtime", () => {
+    const runtimeOwners = Object.entries(presentationModules)
+      .filter(([, source]) =>
+        /\bexport function useCtnSyntaxDraftRuntime\s*\(/.test(source)
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+    const parallelRuntimeNames = Object.entries(presentationModules)
+      .filter(([, source]) =>
+        /\bfunction use(?:System|Workspace)SyntaxDraftRuntime\s*\(/.test(source)
+      )
+      .map(([filePath]) => sourcePathToRelative(filePath));
+
+    expect(runtimeOwners).toEqual([
+      "presentation/activities/bindings/syntax/syntaxDraftPersistence.ts",
+    ]);
+    expect(parallelRuntimeNames).toEqual([]);
+  });
+
   it("keeps full-workspace parse scans owned by application analysis", () => {
     const owners = Object.entries(sourceModules)
       .filter(([, source]) => /\bindex\.createScan\s*\(/.test(source))
@@ -53,20 +192,6 @@ describe("semantic source ownership", () => {
 
     expect(owners).toEqual([
       "application/workspace/analysis/workspaceAnalysisCollection.ts",
-    ]);
-  });
-
-  it("keeps the parse-index hook private to the workspace analysis owner", () => {
-    const consumers = Object.entries(sourceModules)
-      .filter(
-        ([filePath, source]) =>
-          !filePath.endsWith("presentation/activities/bindings/workspace/runtime/useWorkspaceParseIndex.ts") &&
-          /\buseWorkspaceParseIndex\s*\(/.test(source),
-      )
-      .map(([filePath]) => sourcePathToRelative(filePath));
-
-    expect(consumers).toEqual([
-      "presentation/activities/bindings/workspace/analysis/useWorkspaceAnalysis.ts",
     ]);
   });
 

@@ -28,7 +28,7 @@ const identityLineNumber: UiBlockLineNumberProjector = (lineNumber) =>
   lineNumber;
 
 function isBodyBlock(block: CtnCanonicalBlock) {
-  return block.type !== "title";
+  return block.rule.semanticId !== "title";
 }
 
 export function getUiBlockLineLabel(
@@ -118,7 +118,7 @@ function projectUiBlockNodes(nodes: CtnCanonicalBlock[]): UiBlockNode[] {
       children,
       hasDiagnostics: block.diagnostics.length > 0,
       id: block.id,
-      label: block.label,
+      label: block.rule.label,
       lineLabel: getUiBlockLineLabel(block),
       lineNumber: block.lineNumber,
       textDisplay: createUiTextDisplay(block),
@@ -141,7 +141,7 @@ function projectUiOutlineNodes(
         endLineNumber,
         hasDiagnostics: block.diagnostics.length > 0,
         id: block.id,
-        label: block.label,
+        label: block.rule.label,
         lineLabel: getUiBlockLineLabel({
           lineNumber,
           subtreeEndLineNumber: endLineNumber,

@@ -84,20 +84,26 @@ export function createStructureOperationProjection({
     noteTree: workspace
       ? createUiNoteTree({ notes, tree: getWorkspaceTree(workspace) })
       : [],
-    sourceBlocks: createUiBlockNodes(sourceParsed?.document.blocks ?? []),
+    sourceBlocks: createUiBlockNodes(
+      sourceParsed?.analysis.document.blocks ?? [],
+    ),
     sourceNote: createNoteSummary(sourceNote),
     sourceNoteId,
-    sourceRoots: createUiBlockNodes(sourceParsed?.document.roots ?? []),
+    sourceRoots: createUiBlockNodes(
+      sourceParsed?.analysis.document.roots ?? [],
+    ),
     structureBlocks: createUiBlockNodes(
-      structureParsed?.document.blocks ?? [],
+      structureParsed?.analysis.document.blocks ?? [],
     ),
     structureNote: createNoteSummary(structureNote),
     structureNoteId,
     structureRoots: createUiBlockNodes(
-      structureParsed?.document.roots ?? [],
+      structureParsed?.analysis.document.roots ?? [],
     ),
     targetNote: createNoteSummary(targetNote),
     targetNoteId,
-    targetRoots: createUiBlockNodes(targetParsed?.document.roots ?? []),
+    targetRoots: createUiBlockNodes(
+      targetParsed?.analysis.document.roots ?? [],
+    ),
   };
 }

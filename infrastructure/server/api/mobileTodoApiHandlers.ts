@@ -21,20 +21,22 @@ import {
   TodoOccurrenceConflictError,
 } from "../../../core/todo/commands/todoCommands.ts";
 import {
+  createTodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex.ts";
+import {
   isTodoCollectionId,
-  parseTodoCollection,
   todoItemSemanticType,
-  validateTodoContent,
   type TodoCollection,
   type TodoContent,
 } from "../../../core/todo/model/todoContent.ts";
+import type {
+  ParsedTodoIndexCollection,
+  TodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex.ts";
 import {
   projectTodoRecurrence,
   type TodoLocalDate,
 } from "../../../core/todo/recurrence/todoRecurrence.ts";
-import {
-  requireTodoSyntaxProfile,
-} from "../../../core/todo/syntax/todoSyntax.ts";
 import {
   VersionedContentRevisionConflictError,
 } from "../repository/versionedContentStore.ts";
@@ -88,7 +90,7 @@ function projectTodoTasks(
   const visit = (block: CtnCanonicalBlock): MobileTodoTaskDto[] => {
     const children = block.children.flatMap(visit);
 
-    if (block.type !== todoItemSemanticType) return children;
+    if (block.rule.semanticId !== todoItemSemanticType) return children;
     const projection = recurrenceById.get(block.id);
     const completedAt = projection?.active
       ? projection.completedAt
@@ -99,7 +101,7 @@ function projectTodoTasks(
       completed: completedAt !== null,
       completedAt,
       id: block.id,
-      label: block.label,
+      label: block.rule.label,
       level: block.level,
       lineNumber: block.lineNumber,
       recurrence: recurrenceProjection(
@@ -129,20 +131,18 @@ function flattenMobileTasks(tasks: MobileTodoTaskDto[]) {
 }
 
 function projectTodoCollection(
-  content: TodoContent,
-  collection: TodoCollection,
+  index: TodoParseIndex,
+  parsed: ParsedTodoIndexCollection,
   today: TodoLocalDate,
 ) {
-  const profile = requireTodoSyntaxProfile(content.syntaxSource);
-  const parsed = parseTodoCollection(collection, profile);
-  const roots = parsed.document.roots.filter(
-    ({ type }) => type !== profile.titleRule.type,
+  const roots = parsed.analysis.document.roots.filter(
+    (block) => block.rule.semanticId !== index.syntax.title.semanticId,
   );
-  const tasks = projectTodoTasks(collection, roots, today);
+  const tasks = projectTodoTasks(parsed.collection, roots, today);
   const flat = flattenMobileTasks(tasks);
   const summary: MobileTodoCollectionSummaryDto = {
     completedTaskCount: flat.filter(({ completed }) => completed).length,
-    id: collection.id,
+    id: parsed.collection.id,
     name: parsed.name,
     taskCount: flat.length,
   };
@@ -154,11 +154,10 @@ async function loadTodo(catalog: BuiltInApiCatalog) {
   const snapshot = await catalog.getStore("todo").then((store) =>
     store.loadSnapshot()
   );
-  const content = validateTodoContent(
-    parseTodoContent(snapshot.content),
-  );
+  const content = parseTodoContent(snapshot.content);
+  const index = createTodoParseIndex(content);
 
-  return { content, revision: snapshot.revision };
+  return { content, index, revision: snapshot.revision };
 }
 
 function requireTodoCollection(
@@ -203,16 +202,16 @@ export async function handleMobileTodoApiRoute({
     | MobileTodoCompletionResultDto;
   statusCode: number;
 }> {
-  const { content, revision } = await loadTodo(catalog);
+  const { content, index, revision } = await loadTodo(catalog);
   const today = runtime.today();
 
   if (route.kind === "mobile-todo-collections") {
     return {
       body: {
-        collections: content.collections.map((collection) =>
+        collections: index.collections.map((parsed) =>
           projectTodoCollection(
-            content,
-            collection,
+            index,
+            parsed,
             today,
           ).summary
         ),
@@ -227,8 +226,8 @@ export async function handleMobileTodoApiRoute({
     route.collectionId,
   );
   const projected = projectTodoCollection(
-    content,
-    collection,
+    index,
+    index.getParsedCollection(collection.id)!,
     today,
   );
 
@@ -267,14 +266,18 @@ export async function handleMobileTodoApiRoute({
   let next: TodoContent;
 
   try {
-    next = setTodoBlockCompletion(content, {
+    next = setTodoBlockCompletion(
+      content,
+      index,
+      {
       blockId: route.blockId,
       collectionId: collection.id,
       completed: request.completed,
       completedAt: runtime.now().toISOString(),
       occurrenceDate: request.occurrenceDate,
       today,
-    });
+      },
+    );
   } catch (error) {
     if (error instanceof TodoOccurrenceConflictError) {
       throw new MobileApiRequestError(
@@ -315,9 +318,10 @@ export async function handleMobileTodoApiRoute({
     next,
     collection.id,
   );
+  const updatedIndex = createTodoParseIndex(next, index);
   const updated = projectTodoCollection(
-    next,
-    updatedCollection,
+    updatedIndex,
+    updatedIndex.getParsedCollection(updatedCollection.id)!,
     today,
   );
   const task = flattenMobileTasks(updated.tasks).find(

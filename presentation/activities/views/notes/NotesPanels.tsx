@@ -328,7 +328,7 @@ export function NoteEditorPanel({
           ? { kind: "raw" }
           : { kind: "document" }}
         focusTarget={view.editor.focusTarget}
-        syntaxProfile={view.editor.syntaxProfile}
+        syntax={view.editor.syntax}
         value={editorSyncSource?.noteId === activeNote.id
           ? editorSyncSource.source
           : view.editor.documentText}
@@ -410,7 +410,7 @@ export function NoteDetailPanel({
         />
         {view.outline.nodes.length > 0 ? (
           <StructureTree
-            indentUnitCount={view.editor.syntaxProfile.tabDisplayWidth}
+            indentUnitCount={view.editor.syntax.tabDisplayWidth}
             nodes={view.outline.nodes}
             selectedLineNumbers={selectedLineNumbers}
             onSelectLine={view.outline.onSelectLine}

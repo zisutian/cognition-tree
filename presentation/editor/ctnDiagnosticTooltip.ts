@@ -1,13 +1,20 @@
 import { hoverTooltip } from "@codemirror/view";
 import {
   getCtnEditorParsedDocument,
-  type CtnEditorParsePlugin,
 } from "./ctnDecorations";
+import type {
+  CtnEditorAnalysisField,
+} from "./ctnEditorAnalysis";
 
-export function createCtnDiagnosticTooltip(parsePlugin: CtnEditorParsePlugin) {
+export function createCtnDiagnosticTooltip(
+  analysisField: CtnEditorAnalysisField,
+) {
   return hoverTooltip((view, pos) => {
     const line = view.state.doc.lineAt(pos);
-    const parsedDocument = getCtnEditorParsedDocument(view, parsePlugin);
+    const parsedDocument = getCtnEditorParsedDocument(
+      view,
+      analysisField,
+    );
 
     if (!parsedDocument) {
       return null;
