@@ -65,13 +65,17 @@ import {
   type LocalWorkingTreeProjection,
 } from "./localWorkingTreeLayout.ts";
 import {
-  captureLocalManagedWorkingTreeState,
   commitLocalWorkingTreeTransaction,
+} from "./workingTreeTransaction.ts";
+import {
+  recoverLocalWorkingTreeTransactions,
+} from "./workingTreeTransactionRecovery.ts";
+import {
+  captureLocalManagedWorkingTreeState,
   equalLocalManagedWorkingTreeState,
   localWorkingTreeMatchesTarget,
-  recoverLocalWorkingTreeTransactions,
   targetDirectoriesFromFilesAndIndex,
-} from "./workingTreeTransaction.ts";
+} from "./workingTreeTransactionState.ts";
 
 type WorkspaceFileStoreOptions = {
   createBlockId: () => string;

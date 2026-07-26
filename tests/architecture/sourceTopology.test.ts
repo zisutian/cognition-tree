@@ -170,6 +170,15 @@ describe("semantic source ownership", () => {
     expect(ownersOf("parseLocalTransactionManifest")).toEqual([
       "infrastructure/server/adapters/local/workingTreeTransactionManifest.ts",
     ]);
+    expect(ownersOf("captureLocalManagedWorkingTreeState")).toEqual([
+      "infrastructure/server/adapters/local/workingTreeTransactionState.ts",
+    ]);
+    expect(ownersOf("applyLocalWorkingTreeTransaction")).toEqual([
+      "infrastructure/server/adapters/local/workingTreeTransactionExecutor.ts",
+    ]);
+    expect(ownersOf("recoverLocalWorkingTreeTransactions")).toEqual([
+      "infrastructure/server/adapters/local/workingTreeTransactionRecovery.ts",
+    ]);
     expect(ownersOf("parseWebDavConnectionConfig")).toEqual([
       "infrastructure/server/adapters/webdav/webDavConnectionConfig.ts",
     ]);
