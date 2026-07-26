@@ -217,6 +217,18 @@ describe("semantic source ownership", () => {
     expect(ownersOf("handleWorkspaceRepositoryApiRoute")).toEqual([
       "infrastructure/server/api/workspaceRepositoryApiHandlers.ts",
     ]);
+    expect(ownersOf("isMobileApiRoute")).toEqual([
+      "infrastructure/server/api/mobileApiCommon.ts",
+    ]);
+    expect(ownersOf("handleMobileApiRoute")).toEqual([
+      "infrastructure/server/api/mobileApiHandlers.ts",
+    ]);
+    expect(ownersOf("handleMobileJournalApiRoute")).toEqual([
+      "infrastructure/server/api/mobileJournalApiHandlers.ts",
+    ]);
+    expect(ownersOf("handleMobileTodoApiRoute")).toEqual([
+      "infrastructure/server/api/mobileTodoApiHandlers.ts",
+    ]);
 
     const server = infrastructureModules[
       "../../infrastructure/server/api/workspaceApiServer.ts"

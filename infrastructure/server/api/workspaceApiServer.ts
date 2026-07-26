@@ -37,11 +37,13 @@ import {
 import { handleWorkspaceRepositoryApiRoute } from "./workspaceRepositoryApiHandlers.ts";
 import {
   handleMobileApiRoute,
+} from "./mobileApiHandlers.ts";
+import {
   isMobileApiRoute,
   MobileApiRequestError,
   serverMobileApiRuntime,
   type MobileApiRuntime,
-} from "./mobileApiHandlers.ts";
+} from "./mobileApiCommon.ts";
 
 export type WorkspaceApiRequestHandler = (
   request: IncomingMessage,
