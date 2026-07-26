@@ -151,7 +151,7 @@ describe("semantic source ownership", () => {
       infrastructureModules,
     )
       .filter(([, source]) => new RegExp(
-        `function\\s+${functionName}\\s*\\(`,
+        `(?:function|class)\\s+${functionName}\\s*(?:\\(|\\{)`,
       ).test(source))
       .map(([filePath]) => sourcePathToRelative(filePath));
 
@@ -181,6 +181,12 @@ describe("semantic source ownership", () => {
     ]);
     expect(ownersOf("parseWebDavConnectionConfig")).toEqual([
       "infrastructure/server/adapters/webdav/webDavConnectionConfig.ts",
+    ]);
+    expect(ownersOf("WebDavRegistryLease")).toEqual([
+      "infrastructure/server/adapters/webdav/webDavRegistryLease.ts",
+    ]);
+    expect(ownersOf("WebDavDeletionCoordinator")).toEqual([
+      "infrastructure/server/adapters/webdav/webDavDeletionCoordinator.ts",
     ]);
     expect(ownersOf("loadWebDavConnectionConfigs")).toEqual([
       "infrastructure/server/adapters/webdav/webDavConnectionPersistence.ts",
