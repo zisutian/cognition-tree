@@ -307,6 +307,46 @@ describe("Workbench controller", () => {
     controller.consumeWorkspaceNoteDestination(requestId);
     expect(controller.getSnapshot().navigation.status).toBe("idle");
     controller.dispose();
+
+    const failedHarness = createHarness();
+
+    failedHarness.controller.start();
+    const failedInitial = await waitForSnapshot(
+      failedHarness.controller,
+      ({ workspace }) => workspace.status === "ready",
+    );
+
+    if (failedInitial.workspace.status !== "ready") {
+      throw new Error("failed-switch workspace is not ready");
+    }
+    failedInitial.workspace.controller.flushPendingChanges = vi.fn(
+      async () => {
+        throw new Error("local stage failed");
+      },
+    );
+    failedHarness.controller.requestWorkspaceNoteDestination({
+      description: "仓库B",
+      id: "workspace-note:repository-b:note-1",
+      kind: "workspace-note",
+      label: "仓库B:B",
+      lineNumber: 1,
+      noteId: "note-1",
+      repositoryId: "repository-b",
+    });
+
+    await waitForSnapshot(
+      failedHarness.controller,
+      ({ navigation }) => navigation.status === "failed",
+    );
+    expect(
+      failedHarness.controller.getSnapshot().catalog.activeDescriptor?.id,
+    ).toBe("repository-a");
+    expect(failedHarness.events).not.toContain("select:repository-b");
+    expect(failedHarness.controller.getSnapshot().navigation).toMatchObject({
+      errorMessage: "local stage failed",
+      status: "failed",
+    });
+    failedHarness.controller.dispose();
   });
 
   it("resumes a prepared active session when deletion fails", async () => {

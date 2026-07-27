@@ -3,10 +3,10 @@ import { createMemoryRepositoryClientCache } from "../../../../infrastructure/pe
 import { createHttpWorkspaceRepositoryCatalog } from "../../../../infrastructure/http/httpWorkspaceRepositoryCatalog";
 import { createHttpRepositoryCacheIdentity } from "../../../../infrastructure/http/httpRepositoryTransport";
 import {
-  createRepositoryContent,
+  createWorkspaceRepositoryContent,
   revisionA,
   revisionC,
-} from "../../repositoryV3Fixtures";
+} from "../../../support/workspaceRepositoryFixtures";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -57,7 +57,7 @@ describe("HTTP workspace repository catalog", () => {
     });
   });
 
-  it("creates v3 content with an explicit stable catalog label", async () => {
+  it("creates v4 content with an explicit stable catalog label", async () => {
     const calls: Array<{ body?: BodyInit | null; method: string; url: string }> = [];
     const fetchMock: typeof fetch = async (input, init) => {
       calls.push({
@@ -74,7 +74,7 @@ describe("HTTP workspace repository catalog", () => {
     });
     const input = {
       adapter: "local" as const,
-      content: createRepositoryContent("Workspace name"),
+      content: createWorkspaceRepositoryContent("Workspace name"),
       label: "Stable label",
     };
 
@@ -136,7 +136,7 @@ describe("HTTP workspace repository catalog", () => {
     });
     const input = {
       adapter: "local" as const,
-      content: createRepositoryContent(),
+      content: createWorkspaceRepositoryContent(),
       label: "Primary",
       repositoryPath: "/must/not/cross/the/wire",
     };
@@ -154,7 +154,7 @@ describe("HTTP workspace repository catalog", () => {
       fetch: async (input) => {
         requestedUrls.push(String(input));
         return jsonResponse({
-          content: createRepositoryContent("Remote"),
+          content: createWorkspaceRepositoryContent("Remote"),
           revision: revisionA,
         });
       },
@@ -182,7 +182,7 @@ describe("HTTP workspace repository catalog", () => {
         fetch: async () => {
           loadCount += 1;
           return jsonResponse({
-            content: createRepositoryContent(`Remote ${loadCount}`),
+            content: createWorkspaceRepositoryContent(`Remote ${loadCount}`),
             revision: loadCount === 1 ? revisionA : revisionC,
           });
         },
@@ -305,7 +305,7 @@ describe("HTTP workspace repository catalog", () => {
         type: "basic" as const,
         username: "writer",
       },
-      initialContent: createRepositoryContent(),
+      initialContent: createWorkspaceRepositoryContent(),
       label: "Remote",
       url: "https://dav.example.test/notes",
     };
@@ -368,7 +368,7 @@ describe("HTTP workspace repository catalog", () => {
       identity: repositoryIdentity,
       localRevision: `draft:${crypto.randomUUID()}`,
       snapshot: {
-        content: createRepositoryContent(),
+        content: createWorkspaceRepositoryContent(),
         revision: revisionA,
       },
     });

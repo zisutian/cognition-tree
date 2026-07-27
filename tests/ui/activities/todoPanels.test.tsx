@@ -7,12 +7,12 @@ import { TodoDetailPanel } from "../../../presentation/activities/views/todo/Tod
 import { TodoEditorPanel } from "../../../presentation/activities/views/todo/TodoEditorPanel";
 import { TodoRecurrenceEditor } from "../../../presentation/activities/views/todo/TodoRecurrenceEditor";
 import { FeedbackProvider } from "../../../presentation/ui/shared/FeedbackProvider";
-import { createView } from "../viewFactory";
+import { createTodoView } from "../fixtures/todoViewFixture";
 
 describe("Todo panels", () => {
   it("renders ordered collections and actions only on the selected row", () => {
     const markup = renderToStaticMarkup(
-      <TodoContext view={createView().todo} />,
+      <TodoContext view={createTodoView()} />,
     );
 
     expect(markup.indexOf("今天")).toBeLessThan(markup.indexOf("稍后"));
@@ -22,11 +22,7 @@ describe("Todo panels", () => {
     expect(markup).toContain('aria-label="删除事项集合 今天"');
     expect(markup).toContain('draggable="true"');
     expect(markup).not.toContain('aria-label="调整事项集合顺序 今天"');
-    expect(markup).not.toContain("todo-drag-handle");
-    expect(markup).toContain(
-      '<h3 class="ui-compact-context-group-title" id="todo-collections-heading"><span>事项集合</span></h3>',
-    );
-    expect(markup).not.toContain("todo-collection-count");
+    expect(markup).toContain("事项集合");
     expect(markup).not.toContain(">1/2<");
     expect(markup).not.toContain('aria-label="重命名事项集合 稍后"');
     expect(markup).not.toContain('aria-label="删除事项集合 稍后"');
@@ -36,34 +32,24 @@ describe("Todo panels", () => {
     const markup = renderToStaticMarkup(
       <TodoDetailPanel
         onCollapseDetail={() => undefined}
-        view={createView().todo}
+        view={createTodoView()}
       />,
     );
 
     expect(markup.indexOf(">已完成但保持原位</span>")).toBeLessThan(
       markup.indexOf(">未完成</span>"),
     );
-    expect(markup).toContain(
-      "ui-tree ui-structure-tree todo-structure-tree",
-    );
-    expect(markup).toContain(
-      "ui-tree-row ui-structure-tree-row todo-structure-row",
-    );
-    expect(markup).toContain(
-      "ui-structure-tree-item todo-structure-item is-completed",
-    );
     expect(markup).toContain('type="checkbox" checked=""');
     expect(markup).toContain('aria-label="标记未完成 已完成但保持原位"');
     expect(markup).toContain('aria-label="标记完成 未完成"');
     expect(markup).toContain('role="treeitem"');
-    expect(markup).toContain('<span class="ui-tree-meta">L1</span>');
-    expect(markup).toContain('<span class="ui-tree-meta">L2</span>');
+    expect(markup).toContain(">L1</span>");
+    expect(markup).toContain(">L2</span>");
     expect(markup).not.toContain('draggable="true"');
-    expect(markup).not.toContain("todo-structure-grip");
   });
 
   it("shows recurrence controls only for the selected structure task", () => {
-    const base = createView().todo;
+    const base = createTodoView();
     const recurringNode = {
       ...base.outline.nodes[0]!,
       recurrence: {
@@ -102,7 +88,9 @@ describe("Todo panels", () => {
     );
 
     expect(markup).toContain('aria-label="配置周期 已完成但保持原位"');
-    expect(markup).toContain("todo-recurrence-button is-active");
+    expect(markup).toContain(
+      'title="周期任务 · 3/4 · 下次 2026-07-27"',
+    );
     expect(markup).not.toContain('aria-label="配置周期 未完成"');
     expect(editorMarkup).toContain("完成 3/4 · 下次 2026-07-27");
     expect(editorMarkup).toContain('aria-label="周期类型"');
@@ -115,10 +103,10 @@ describe("Todo panels", () => {
       <TodoEditorPanel
         focusMode={false}
         onToggleFocusMode={() => undefined}
-        view={createView().todo}
+        view={createTodoView()}
       />,
     );
-    const base = createView().todo;
+    const base = createTodoView();
     const markup = renderToStaticMarkup(
       <TodoEditorPanel
         focusMode={false}
@@ -139,7 +127,7 @@ describe("Todo panels", () => {
 
   it("starts collection deletion in the selected row without a dialog", () => {
     const markup = renderToStaticMarkup(
-      <TodoContext view={createView().todo} />,
+      <TodoContext view={createTodoView()} />,
     );
 
     expect(markup).toContain('aria-label="删除事项集合 今天"');

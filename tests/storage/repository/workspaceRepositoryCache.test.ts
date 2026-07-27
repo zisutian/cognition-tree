@@ -2,28 +2,28 @@ import { describe, expect, it } from "vitest";
 import { WorkspaceRepositoryLocalConflictError } from "../../../application/repository/workspaceRepository";
 import { createMemoryWorkspaceRepositoryCache } from "../../../infrastructure/persistence/workspaceRepositoryCache";
 import {
-  createRepositoryContent,
+  createWorkspaceRepositoryContent,
   draftA,
   draftB,
   draftC,
   revisionA,
   revisionB,
-} from "../repositoryV3Fixtures";
+} from "../../support/workspaceRepositoryFixtures";
 
 describe("workspace repository local cache", () => {
-  it("stores only v3 content with separate draft and remote revisions", async () => {
+  it("stores only v4 content with separate draft and remote revisions", async () => {
     const cache = createMemoryWorkspaceRepositoryCache();
     const created = await cache.create({
       identity: "repository",
       localRevision: draftA,
       snapshot: {
-        content: createRepositoryContent("Initial"),
+        content: createWorkspaceRepositoryContent("Initial"),
         revision: revisionA,
       },
     });
 
     expect(created).toEqual({
-      content: createRepositoryContent("Initial"),
+      content: createWorkspaceRepositoryContent("Initial"),
       localRevision: draftA,
       pendingBaseRevision: null,
       remoteRevision: revisionA,
@@ -38,20 +38,20 @@ describe("workspace repository local cache", () => {
       identity: "repository",
       localRevision: draftA,
       snapshot: {
-        content: createRepositoryContent("Initial"),
+        content: createWorkspaceRepositoryContent("Initial"),
         revision: revisionA,
       },
     });
 
     await cache.stage({
-      content: createRepositoryContent("Winner"),
+      content: createWorkspaceRepositoryContent("Winner"),
       expectedLocalRevision: draftA,
       identity: "repository",
       localRevision: draftB,
     });
     await expect(
       cache.stage({
-        content: createRepositoryContent("Stale tab"),
+        content: createWorkspaceRepositoryContent("Stale tab"),
         expectedLocalRevision: draftA,
         identity: "repository",
         localRevision: draftA,
@@ -76,18 +76,18 @@ describe("workspace repository local cache", () => {
       identity: "repository",
       localRevision: draftA,
       snapshot: {
-        content: createRepositoryContent("Initial"),
+        content: createWorkspaceRepositoryContent("Initial"),
         revision: revisionA,
       },
     });
     await cache.stage({
-      content: createRepositoryContent("Being synchronized"),
+      content: createWorkspaceRepositoryContent("Being synchronized"),
       expectedLocalRevision: draftA,
       identity: "repository",
       localRevision: draftB,
     });
     await cache.stage({
-      content: createRepositoryContent("Newest"),
+      content: createWorkspaceRepositoryContent("Newest"),
       expectedLocalRevision: draftB,
       identity: "repository",
       localRevision: draftC,
@@ -109,7 +109,7 @@ describe("workspace repository local cache", () => {
 
   it("isolates stored values from caller mutation", async () => {
     const cache = createMemoryWorkspaceRepositoryCache();
-    const content = createRepositoryContent("Immutable");
+    const content = createWorkspaceRepositoryContent("Immutable");
 
     const created = await cache.create({
       identity: "repository",
@@ -126,7 +126,7 @@ describe("workspace repository local cache", () => {
 
   it("rejects invalid exact content at the cache write boundary", async () => {
     const cache = createMemoryWorkspaceRepositoryCache();
-    const invalidInitial = createRepositoryContent("Invalid");
+    const invalidInitial = createWorkspaceRepositoryContent("Invalid");
 
     Object.assign(invalidInitial.workspace.notes[0]!, {
       title: "derived field must not persist",
@@ -142,11 +142,11 @@ describe("workspace repository local cache", () => {
       identity: "repository",
       localRevision: draftA,
       snapshot: {
-        content: createRepositoryContent("Valid"),
+        content: createWorkspaceRepositoryContent("Valid"),
         revision: revisionA,
       },
     });
-    const invalidStage = createRepositoryContent("Invalid stage");
+    const invalidStage = createWorkspaceRepositoryContent("Invalid stage");
 
     invalidStage.workspace.notes = [{ id: "../escape", source: "unsafe" }];
     invalidStage.workspace.tree = [{ kind: "note", noteId: "../escape" }];

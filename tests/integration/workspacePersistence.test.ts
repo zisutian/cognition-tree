@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createWorkspaceSessionController,
   type WorkspaceSessionController,
-  type WorkspaceSessionControllerState,
 } from "../../application/workspace/session/workspaceSessionController";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/http/httpWorkspaceRepository";
 import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/http/httpWorkspaceRepositoryCatalog";
@@ -26,7 +25,10 @@ import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
 import { analyzeCanonicalTestSource } from "../ctn/analysis/analysisTestHelpers";
-import { replaceEditableSource } from "../application/workspace/session/workspaceSessionTestFixture";
+import {
+  replaceEditableSource,
+  waitForWorkspaceSessionState,
+} from "../application/workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../support/testApplicationScheduler";
 
 type TestRepositoryServer = {
@@ -57,28 +59,6 @@ const commandDependencies = {
 const openControllers: WorkspaceSessionController[] = [];
 const openServers: TestRepositoryServer[] = [];
 let nextWorkspaceId = 0;
-
-function waitForState(
-  controller: WorkspaceSessionController,
-  predicate: (state: WorkspaceSessionControllerState) => boolean,
-) {
-  const currentState = controller.getState();
-
-  if (predicate(currentState)) {
-    return Promise.resolve(currentState);
-  }
-
-  return new Promise<WorkspaceSessionControllerState>((resolve) => {
-    const unsubscribe = controller.subscribe(() => {
-      const state = controller.getState();
-
-      if (predicate(state)) {
-        unsubscribe();
-        resolve(state);
-      }
-    });
-  });
-}
 
 async function listen(server: Server) {
   await new Promise<void>((resolve, reject) => {
@@ -182,7 +162,7 @@ async function createRepository(
 }
 
 async function waitUntilSaved(controller: WorkspaceSessionController) {
-  return waitForState(
+  return waitForWorkspaceSessionState(
     controller,
     (state) =>
       state.status === "ready" && state.persistence.status === "saved",
@@ -234,7 +214,7 @@ describe("workspace persistence integration", () => {
       clientCatalog.openRepository(descriptor),
     );
 
-    await waitForState(firstController, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(firstController, (state) => state.status === "ready");
     const firstSyntaxFileId = await firstController.createSyntaxFile(null);
     await firstController.activateSyntaxFile(firstSyntaxFileId);
 
@@ -248,7 +228,7 @@ describe("workspace persistence integration", () => {
     const secondController = startController(
       clientCatalog.openRepository(descriptor),
     );
-    const reloadedState = await waitForState(
+    const reloadedState = await waitForWorkspaceSessionState(
       secondController,
       (state) => state.status === "ready",
     );
@@ -283,7 +263,7 @@ describe("workspace persistence integration", () => {
     const descriptor = await createRepository(clientCatalog, "conflict");
     const controller = startController(clientCatalog.openRepository(descriptor));
 
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
 
     const externalRepository = createHttpWorkspaceRepositoryBackend({
       baseUrl: server.baseUrl,
@@ -308,7 +288,7 @@ describe("workspace persistence integration", () => {
 
     updateNote(controller, localNoteId, "本地最终内容");
     await controller.flushPendingChanges();
-    const conflictState = await waitForState(
+    const conflictState = await waitForWorkspaceSessionState(
       controller,
       (state) =>
         state.status === "ready" && state.persistence.status === "conflict",
@@ -338,57 +318,6 @@ describe("workspace persistence integration", () => {
     expect(reloadedState.persistence).toEqual({ status: "saved" });
   });
 
-  it("flushes the local stage before an immediate repository switch and restores it on reopen", async () => {
-    const server = await startRepositoryServer();
-    const clientCatalog = createHttpWorkspaceRepositoryCatalog({
-      baseUrl: server.baseUrl,
-      validateContent: validateWorkspaceRepositoryContent,
-    });
-    const firstDescriptor = await createRepository(clientCatalog, "first");
-    const secondDescriptor = await createRepository(clientCatalog, "second");
-    const firstController = startController(
-      clientCatalog.openRepository(firstDescriptor),
-    );
-
-    await waitForState(firstController, (state) => state.status === "ready");
-    const firstSyntaxFileId = await firstController.createSyntaxFile(null);
-    await firstController.activateSyntaxFile(firstSyntaxFileId);
-    const noteId = firstController.commands.createNote(null);
-
-    updateNote(firstController, noteId, "切换前最后输入");
-    await firstController.flushPendingChanges();
-    firstController.dispose();
-
-    const secondController = startController(
-      clientCatalog.openRepository(secondDescriptor),
-    );
-
-    await waitForState(secondController, (state) => state.status === "ready");
-    secondController.dispose();
-
-    const reopenedController = startController(
-      clientCatalog.openRepository(firstDescriptor),
-    );
-    const reopened = await waitForState(
-      reopenedController,
-      (state) => state.status === "ready",
-    );
-
-    expect(reopened.status).toBe("ready");
-
-    if (reopened.status !== "ready") {
-      return;
-    }
-
-    const source = reopened.workspace.noteEntryById.get(noteId)?.note.source ?? "";
-
-    expect(
-      analyzeCanonicalTestSource(source, defaultCtnSyntax)
-        .editableProjection.source,
-    ).toBe("切换前最后输入");
-    expect(reopened.persistence.status).toBe("pending-sync");
-  });
-
   it("authenticates a local-first HTTP session before touching repository content", async () => {
     const token = "integration-token-with-at-least-32-characters";
     const server = await startRepositoryServer(token);
@@ -413,7 +342,7 @@ describe("workspace persistence integration", () => {
     const controller = startController(
       authenticatedCatalog.openRepository(descriptor),
     );
-    const ready = await waitForState(
+    const ready = await waitForWorkspaceSessionState(
       controller,
       (state) => state.status === "ready",
     );

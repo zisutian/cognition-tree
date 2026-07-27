@@ -9,6 +9,10 @@ import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
 } from "../../../../application/repository/workspaceRepository";
+import type {
+  WorkspaceSessionController,
+  WorkspaceSessionControllerState,
+} from "../../../../application/workspace/session/workspaceSessionController";
 import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/textEdits";
 import { analyzeCtnSource } from "../../../../core/ctn/analysis/sourceAnalysis";
 import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata";
@@ -96,4 +100,25 @@ export function replaceEditableSource(
     edits: [{ from: 0, insertedText: source, to: previousSource.length }],
     source,
   };
+}
+
+export function waitForWorkspaceSessionState(
+  controller: WorkspaceSessionController,
+  predicate: (state: WorkspaceSessionControllerState) => boolean,
+) {
+  const current = controller.getState();
+
+  if (predicate(current)) {
+    return Promise.resolve(current);
+  }
+  return new Promise<WorkspaceSessionControllerState>((resolve) => {
+    const unsubscribe = controller.subscribe(() => {
+      const state = controller.getState();
+
+      if (predicate(state)) {
+        unsubscribe();
+        resolve(state);
+      }
+    });
+  });
 }

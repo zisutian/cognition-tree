@@ -4,7 +4,9 @@ import type { BrowserRepositoryClientCache } from "../../../../infrastructure/br
 import { createBrowserWorkspaceRepositoryCatalog } from "../../../../infrastructure/browser/browserWorkspaceRepository";
 import { createMemoryRepositoryClientCache } from "../../../../infrastructure/persistence/repositoryClientCache";
 import { WorkspaceRepositoryLocalConflictError } from "../../../../application/repository/workspaceRepository";
-import { createRepositoryContent } from "../../repositoryV3Fixtures";
+import {
+  createWorkspaceRepositoryContent,
+} from "../../../support/workspaceRepositoryFixtures";
 
 const uuidA = "00000000-0000-4000-8000-000000000001";
 const uuidB = "00000000-0000-4000-8000-000000000002";
@@ -74,7 +76,7 @@ describe("browser workspace repository catalog", () => {
     const cache = createMemoryBrowserCache();
     const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
     const catalog = createCatalog(cache);
-    const content = createRepositoryContent("Browser workspace");
+    const content = createWorkspaceRepositoryContent("Browser workspace");
     const descriptor = await catalog.createRepository({
       adapter: "browser",
       content,
@@ -110,7 +112,7 @@ describe("browser workspace repository catalog", () => {
     const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent("Initial"),
+      content: createWorkspaceRepositoryContent("Initial"),
       label: "Shared",
     });
     const firstTab = catalog.openRepository(descriptor);
@@ -119,13 +121,13 @@ describe("browser workspace repository catalog", () => {
     const secondSnapshot = await secondTab.loadSnapshot();
 
     await firstTab.stageSnapshot({
-      content: createRepositoryContent("First tab wins"),
+      content: createWorkspaceRepositoryContent("First tab wins"),
       expectedLocalRevision: firstSnapshot.localRevision,
     });
 
     await expect(
       secondTab.stageSnapshot({
-        content: createRepositoryContent("Second tab is stale"),
+        content: createWorkspaceRepositoryContent("Second tab is stale"),
         expectedLocalRevision: secondSnapshot.localRevision,
       }),
     ).rejects.toBeInstanceOf(WorkspaceRepositoryLocalConflictError);
@@ -134,17 +136,20 @@ describe("browser workspace repository catalog", () => {
     });
   });
 
-  it("persists only the latest v3 content and computes a sha256 saved revision", async () => {
+  it("persists only the latest v4 content and computes a sha256 saved revision", async () => {
     const cache = createMemoryBrowserCache();
     const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent("Initial"),
+      content: createWorkspaceRepositoryContent("Initial"),
       label: "Primary",
     });
     const repository = catalog.openRepository(descriptor);
     const initial = await repository.loadSnapshot();
-    const content = createRepositoryContent("Updated", "Changed note source");
+    const content = createWorkspaceRepositoryContent(
+      "Updated",
+      "Changed note source",
+    );
     const staged = await repository.stageSnapshot({
       content,
       expectedLocalRevision: initial.localRevision,
@@ -181,7 +186,7 @@ describe("browser workspace repository catalog", () => {
     const catalog = createCatalog(cache, [uuidA, uuidB]);
     const descriptor = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent("A"),
+      content: createWorkspaceRepositoryContent("A"),
       label: "A",
     });
 
@@ -225,7 +230,7 @@ describe("browser workspace repository catalog", () => {
 
     await expect(catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent(),
+      content: createWorkspaceRepositoryContent(),
       label: "Never created",
     })).rejects.toThrow("Unable to allocate");
     expect(createRepositoryUuid).toHaveBeenCalledTimes(100);
@@ -241,7 +246,7 @@ describe("browser workspace repository catalog", () => {
     await expect(
       catalog.createRepository({
         adapter: "browser",
-        content: createRepositoryContent(),
+        content: createWorkspaceRepositoryContent(),
         label: "Primary",
       }),
     ).rejects.toThrow("quota exceeded");
@@ -256,7 +261,7 @@ describe("browser workspace repository catalog", () => {
     const cache = createMemoryBrowserCache();
     const atomicCreate = vi.spyOn(cache, "createRepositoryAtomically");
     const catalog = createCatalog(cache);
-    const content = createRepositoryContent();
+    const content = createWorkspaceRepositoryContent();
 
     Object.assign(content.workspace.notes[0]!, {
       title: "derived field must not persist",
@@ -279,12 +284,12 @@ describe("browser workspace repository catalog", () => {
     const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent("Initial"),
+      content: createWorkspaceRepositoryContent("Initial"),
       label: "Primary",
     });
     const repository = catalog.openRepository(descriptor);
     const before = await repository.loadSnapshot();
-    const unsafeContent = createRepositoryContent("Unsafe");
+    const unsafeContent = createWorkspaceRepositoryContent("Unsafe");
 
     unsafeContent.workspace.notes = [{ id: "../escape", source: "unsafe" }];
     unsafeContent.workspace.tree = [{ kind: "note", noteId: "../escape" }];
@@ -300,12 +305,12 @@ describe("browser workspace repository catalog", () => {
     const catalog = createCatalog(cache, [uuidA, uuidB]);
     const first = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent("Content stays independent"),
+      content: createWorkspaceRepositoryContent("Content stays independent"),
       label: "Primary",
     });
     const second = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent("Second"),
+      content: createWorkspaceRepositoryContent("Second"),
       label: "Second",
     });
     const before = await catalog.openRepository(first).loadSnapshot();
@@ -338,7 +343,7 @@ describe("browser workspace repository catalog", () => {
     const catalog = createCatalog(cache);
     const descriptor = await catalog.createRepository({
       adapter: "browser",
-      content: createRepositoryContent(),
+      content: createWorkspaceRepositoryContent(),
       label: "Primary",
     });
 

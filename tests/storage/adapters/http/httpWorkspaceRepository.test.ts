@@ -13,12 +13,12 @@ import {
   WorkspaceRepositoryUnavailableError,
 } from "../../../../application/repository/workspaceRepository";
 import {
-  createDeepRepositoryContent,
-  createRepositoryContent,
-  inspectDeepRepositoryContent,
+  createDeepWorkspaceRepositoryContent,
+  createWorkspaceRepositoryContent,
+  inspectDeepWorkspaceRepositoryContent,
   revisionA,
   revisionB,
-} from "../../repositoryV3Fixtures";
+} from "../../../support/workspaceRepositoryFixtures";
 
 type FetchCall = {
   body?: BodyInit | null;
@@ -50,7 +50,7 @@ afterEach(() => {
 
 describe("HTTP workspace repository backend", () => {
   it("round-trips a 10,000-level tree through response and request wire encoding", async () => {
-    const content = createDeepRepositoryContent(10_000);
+    const content = createDeepWorkspaceRepositoryContent(10_000);
     let receivedCommit: ReturnType<typeof parseWorkspaceRepositoryCommit> | null = null;
     const backend = createHttpWorkspaceRepositoryBackend({
       fetch: async (_input, init) => {
@@ -74,7 +74,7 @@ describe("HTTP workspace repository backend", () => {
     const loaded = await backend.loadRemoteSnapshot();
 
     expect(loaded.revision).toBe(revisionA);
-    expect(inspectDeepRepositoryContent(loaded.content)).toEqual({
+    expect(inspectDeepWorkspaceRepositoryContent(loaded.content)).toEqual({
       deepestFolder: {
         folderId: "folder-10000",
         title: 'Level 10000 · "深层"',
@@ -88,7 +88,8 @@ describe("HTTP workspace repository backend", () => {
       content: loaded.content,
     })).resolves.toEqual({ revision: revisionB });
     expect(receivedCommit).not.toBeNull();
-    expect(inspectDeepRepositoryContent(receivedCommit!.content)).toEqual({
+    expect(inspectDeepWorkspaceRepositoryContent(receivedCommit!.content))
+      .toEqual({
       deepestFolder: {
         folderId: "folder-10000",
         title: 'Level 10000 · "深层"',
@@ -102,7 +103,7 @@ describe("HTTP workspace repository backend", () => {
 
   it("loads an explicit v4 content snapshot", async () => {
     const snapshot = {
-      content: createRepositoryContent("Remote"),
+      content: createWorkspaceRepositoryContent("Remote"),
       revision: revisionA,
     };
     const calls: FetchCall[] = [];
@@ -133,7 +134,7 @@ describe("HTTP workspace repository backend", () => {
   it("commits baseRevision and content as one request", async () => {
     const commit = {
       baseRevision: revisionA,
-      content: createRepositoryContent("Committed"),
+      content: createWorkspaceRepositoryContent("Committed"),
     };
     const calls: FetchCall[] = [];
     const fetchMock: typeof fetch = async (input, init) => {
@@ -170,7 +171,7 @@ describe("HTTP workspace repository backend", () => {
       fetch: fetchMock,
       repositoryId: "primary",
     });
-    const exactContent = createRepositoryContent();
+    const exactContent = createWorkspaceRepositoryContent();
 
     Object.assign(exactContent.workspace.notes[0]!, {
       title: "derived field must not cross the wire",
@@ -180,7 +181,7 @@ describe("HTTP workspace repository backend", () => {
       content: exactContent,
     })).rejects.toThrow("unsupported field");
 
-    const unsafeContent = createRepositoryContent();
+    const unsafeContent = createWorkspaceRepositoryContent();
 
     unsafeContent.workspace.notes = [{ id: "../escape", source: "unsafe" }];
     unsafeContent.workspace.tree = [{ kind: "note", noteId: "../escape" }];
@@ -206,7 +207,7 @@ describe("HTTP workspace repository backend", () => {
     await expect(
       backend.commitRemoteSnapshot({
         baseRevision: revisionA,
-        content: createRepositoryContent(),
+        content: createWorkspaceRepositoryContent(),
       }),
     ).rejects.toEqual(
       expect.objectContaining<Partial<WorkspaceRepositoryBackendConflictError>>({

@@ -20,9 +20,9 @@ import {
   webDavLockPath,
 } from "../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
 import {
-  createDeepRepositoryContent,
-  inspectDeepRepositoryContent,
-} from "../../../storage/repositoryV3Fixtures";
+  createDeepWorkspaceRepositoryContent,
+  inspectDeepWorkspaceRepositoryContent,
+} from "../../../support/workspaceRepositoryFixtures";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport";
 
 const primarySyntaxId = "syntax-00000000-0000-4000-8000-000000000001";
@@ -82,7 +82,10 @@ describe("WebDAV generation store v4", () => {
     const transport = new InMemoryWebDavTransport();
     const store = createStore(transport);
     const base = await store.loadSnapshot();
-    const content = createDeepRepositoryContent(10_000, "Deep WebDAV");
+    const content = createDeepWorkspaceRepositoryContent(
+      10_000,
+      "Deep WebDAV",
+    );
     const committed = await store.commitSnapshot({
       baseRevision: base.revision,
       content,
@@ -92,7 +95,7 @@ describe("WebDAV generation store v4", () => {
     expect(loaded.revision).toBe(committed.revision);
     expect(loaded.content.workspace.name).toBe("Deep WebDAV");
     expect(loaded.content.workspace.notes).toEqual(content.workspace.notes);
-    expect(inspectDeepRepositoryContent(loaded.content)).toEqual({
+    expect(inspectDeepWorkspaceRepositoryContent(loaded.content)).toEqual({
       deepestFolder: {
         folderId: "folder-10000",
         title: 'Level 10000 · "深层"',

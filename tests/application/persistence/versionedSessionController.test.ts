@@ -1,272 +1,446 @@
 import { describe, expect, it } from "vitest";
-import { createJournalSessionController } from "../../../application/journal/journalSessionController";
-import type {
-  BuiltInLocalDraftRevision,
-  JournalRepository,
-} from "../../../application/repository/builtInRepository";
-import type {
-  JournalRevisionDto,
-} from "../../../contracts/journal/types";
-import type { JournalContent } from "../../../core/journal/model/journalContent";
 import {
-  appendJournalTestEntry,
-  createEmptyJournalContent,
-  journalEntries,
-} from "../../journal/journalTestFixture";
+  createVersionedSessionController,
+  VersionedSessionUnavailableError,
+  type VersionedSessionController,
+} from "../../../application/persistence/versionedSessionController";
+import type {
+  VersionedRepository,
+  VersionedRepositorySnapshot,
+} from "../../../application/persistence/versionedRepository";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
 
+type TestContent = {
+  values: number[];
+};
+
+type TestProjection = {
+  count: number;
+};
+
+type TestRemoteRevision = `remote:${number}`;
+type TestLocalRevision = `local:${number}`;
+type TestLocation = {
+  type: "memory";
+};
+
+type TestSnapshot = VersionedRepositorySnapshot<
+  TestContent,
+  TestRemoteRevision,
+  TestLocalRevision
+>;
+
+type TestController = VersionedSessionController<
+  TestContent,
+  TestProjection,
+  TestRemoteRevision,
+  TestLocalRevision,
+  TestLocation
+>;
+
 function deferred<Value>() {
+  let reject!: (reason?: unknown) => void;
   let resolve!: (value: Value | PromiseLike<Value>) => void;
-  const promise = new Promise<Value>((promiseResolve) => {
+  const promise = new Promise<Value>((promiseResolve, promiseReject) => {
+    reject = promiseReject;
     resolve = promiseResolve;
   });
 
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
-const remoteRevision = (character: string) =>
-  `sha256:${character.repeat(64)}` as JournalRevisionDto;
-const localRevision = (suffix: string) =>
-  `draft:00000000-0000-4000-8000-${suffix.padStart(12, "0")}` as BuiltInLocalDraftRevision;
-
-function emptyJournal(): JournalContent {
-  return createEmptyJournalContent();
+function remoteRevision(index: number): TestRemoteRevision {
+  return `remote:${index}`;
 }
 
-function appendJournalEntry(
-  current: JournalContent,
-  index: number,
-): JournalContent {
-  return appendJournalTestEntry(current, {
-    blockIdStart: index * 10,
-    createdAt: `2026-07-17T16:00:0${index}.000Z`,
-    entryIndex: index,
+function localRevision(index: number): TestLocalRevision {
+  return `local:${index}`;
+}
+
+function createSnapshot(
+  overrides: Partial<TestSnapshot> = {},
+): TestSnapshot {
+  return {
+    conflictRevision: null,
+    content: { values: [] },
+    localRevision: localRevision(0),
+    pendingChanges: false,
+    remoteRevision: remoteRevision(0),
+    ...overrides,
+  };
+}
+
+type RepositoryHarness = {
+  expectedLocalRevisions: TestLocalRevision[];
+  getLoadCount(): number;
+  getSnapshot(): TestSnapshot;
+  repository: VersionedRepository<
+    TestContent,
+    TestRemoteRevision,
+    TestLocalRevision,
+    TestLocation
+  >;
+  setBeforeStage(
+    hook: (
+      content: TestContent,
+      stageNumber: number,
+    ) => void | Promise<void>,
+  ): void;
+  setBeforeSynchronize(hook: () => void | Promise<void>): void;
+  setDiscard(
+    discard: () => TestSnapshot | Promise<TestSnapshot>,
+  ): void;
+  setLoad(load: () => TestSnapshot | Promise<TestSnapshot>): void;
+  stagedContents: TestContent[];
+};
+
+function createRepositoryHarness(
+  initialSnapshot = createSnapshot(),
+): RepositoryHarness {
+  let beforeStage: (
+    content: TestContent,
+    stageNumber: number,
+  ) => void | Promise<void> = () => undefined;
+  let beforeSynchronize: () => void | Promise<void> = () => undefined;
+  let discard: () => TestSnapshot | Promise<TestSnapshot> =
+    async () => structuredClone(snapshot);
+  let load: () => TestSnapshot | Promise<TestSnapshot> =
+    async () => structuredClone(snapshot);
+  let loadCount = 0;
+  let snapshot = structuredClone(initialSnapshot);
+  let stageCount = 0;
+  const expectedLocalRevisions: TestLocalRevision[] = [];
+  const stagedContents: TestContent[] = [];
+  const repository: RepositoryHarness["repository"] = {
+    async discardPendingSnapshotAndReload() {
+      return await discard();
+    },
+    label: "test repository",
+    async loadSnapshot() {
+      loadCount += 1;
+      return await load();
+    },
+    location: { type: "memory" },
+    async stageSnapshot({ content, expectedLocalRevision }) {
+      const stageNumber = stageCount + 1;
+
+      await beforeStage(content, stageNumber);
+      if (expectedLocalRevision !== snapshot.localRevision) {
+        throw new Error("unexpected local revision");
+      }
+      stageCount = stageNumber;
+      expectedLocalRevisions.push(expectedLocalRevision);
+      stagedContents.push(structuredClone(content));
+      snapshot = {
+        ...snapshot,
+        content: structuredClone(content),
+        localRevision: localRevision(stageNumber),
+        pendingChanges: true,
+      };
+      return { localRevision: snapshot.localRevision };
+    },
+    subscribeReconnect: () => () => undefined,
+    async synchronizePendingSnapshot() {
+      await beforeSynchronize();
+      snapshot = {
+        ...snapshot,
+        conflictRevision: null,
+        pendingChanges: false,
+        remoteRevision: remoteRevision(1),
+      };
+      return {
+        localRevision: snapshot.localRevision,
+        pendingChanges: false,
+        remoteRevision: snapshot.remoteRevision,
+        status: "synced",
+      };
+    },
+  };
+
+  return {
+    expectedLocalRevisions,
+    getLoadCount: () => loadCount,
+    getSnapshot: () => structuredClone(snapshot),
+    repository,
+    setBeforeStage(hook) {
+      beforeStage = hook;
+    },
+    setBeforeSynchronize(hook) {
+      beforeSynchronize = hook;
+    },
+    setDiscard(nextDiscard) {
+      discard = nextDiscard;
+    },
+    setLoad(nextLoad) {
+      load = nextLoad;
+    },
+    stagedContents,
+  };
+}
+
+function createController(
+  harness: RepositoryHarness,
+): TestController {
+  return createVersionedSessionController({
+    label: "test",
+    parseContent(value) {
+      return structuredClone(value as TestContent);
+    },
+    prepareContent(content) {
+      if (content.values.includes(-1)) {
+        throw new Error("invalid projection");
+      }
+      return { count: content.values.length };
+    },
+    repository: harness.repository,
+    scheduler: testApplicationScheduler,
   });
 }
 
-async function settleLoad() {
-  await Promise.resolve();
-  await Promise.resolve();
+function waitForReady(controller: TestController) {
+  const current = controller.getState();
+
+  if (current.status === "ready") {
+    return Promise.resolve(current);
+  }
+  return new Promise<Extract<
+    ReturnType<TestController["getState"]>,
+    { status: "ready" }
+  >>((resolve) => {
+    const unsubscribe = controller.subscribe(() => {
+      const state = controller.getState();
+
+      if (state.status === "ready") {
+        unsubscribe();
+        resolve(state);
+      }
+    });
+  });
+}
+
+async function startController(harness: RepositoryHarness) {
+  const controller = createController(harness);
+
+  controller.start();
+  await waitForReady(controller);
+  return controller;
+}
+
+function append(value: number) {
+  return (content: TestContent): TestContent => ({
+    values: [...content.values, value],
+  });
 }
 
 describe("versioned session controller", () => {
-  it("keeps functional mutations optimistic while deferred stages serialize", async () => {
-    const firstStage = deferred<{ localRevision: BuiltInLocalDraftRevision }>();
-    const staged: JournalContent[] = [];
-    let stageCount = 0;
-    const repository: JournalRepository = {
-      discardPendingSnapshotAndReload: async () => ({
-        conflictRevision: null,
-        content: emptyJournal(),
-        localRevision: localRevision("9"),
-        pendingChanges: false,
-        remoteRevision: remoteRevision("a"),
-      }),
-      label: "日记",
-      loadSnapshot: async () => ({
-        conflictRevision: null,
-        content: emptyJournal(),
-        localRevision: localRevision("0"),
-        pendingChanges: false,
-        remoteRevision: remoteRevision("a"),
-      }),
-      location: {
-        databaseName: "cognition-tree.journal",
-        type: "browser",
-      },
-      async stageSnapshot({ content }) {
-        stageCount += 1;
-        staged.push(structuredClone(content));
-        return stageCount === 1
-          ? firstStage.promise
-          : { localRevision: localRevision(String(stageCount)) };
-      },
-      subscribeReconnect: () => () => undefined,
-      async synchronizePendingSnapshot() {
-        return {
-          localRevision: localRevision(String(stageCount)),
-          pendingChanges: false,
-          remoteRevision: remoteRevision("b"),
-          status: "synced",
-        };
-      },
-    };
-    const controller = createJournalSessionController(
-      repository,
-      testApplicationScheduler,
-    );
-    const visibleLengths: number[] = [];
+  it("keeps mutations optimistic while deferred local stages serialize", async () => {
+    const firstStage = deferred<void>();
+    const harness = createRepositoryHarness();
+
+    harness.setBeforeStage(async (_content, stageNumber) => {
+      if (stageNumber === 1) {
+        await firstStage.promise;
+      }
+    });
+    const controller = await startController(harness);
+    const visibleCounts: number[] = [];
 
     controller.subscribe(() => {
       const state = controller.getState();
+
       if (state.status === "ready") {
-        visibleLengths.push(journalEntries(state.content).length);
+        visibleCounts.push(state.projection.count);
       }
     });
-    controller.start();
-    await settleLoad();
+    controller.mutate(append(1));
+    controller.mutate(append(2));
 
-    controller.mutate((current) => appendJournalEntry(current, 1));
-    controller.mutate((current) => appendJournalEntry(current, 2));
-
-    const optimistic = controller.getState();
-    expect(optimistic.status).toBe("ready");
-    expect(optimistic.status === "ready"
-      ? journalEntries(optimistic.content).map(({ sequence }) => sequence)
-      : []).toEqual([1, 2]);
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1, 2] },
+      projection: { count: 2 },
+      status: "ready",
+    });
 
     const flush = controller.flushPendingChanges();
-    firstStage.resolve({ localRevision: localRevision("1") });
+
+    firstStage.resolve();
     await flush;
 
-    expect(staged.map((content) => journalEntries(content).length)).toEqual([1, 2]);
-    const firstOptimisticIndex = visibleLengths.indexOf(2);
-    expect(firstOptimisticIndex).toBeGreaterThanOrEqual(0);
-    expect(visibleLengths.slice(firstOptimisticIndex)).not.toContain(1);
+    expect(harness.stagedContents).toEqual([
+      { values: [1] },
+      { values: [1, 2] },
+    ]);
+    const optimisticIndex = visibleCounts.indexOf(2);
+
+    expect(optimisticIndex).toBeGreaterThanOrEqual(0);
+    expect(visibleCounts.slice(optimisticIndex)).not.toContain(1);
     controller.dispose();
   });
 
   it("flushes desired content before a ready-session reload", async () => {
-    const stage = deferred<{ localRevision: BuiltInLocalDraftRevision }>();
-    let stored = emptyJournal();
-    let loadCount = 0;
-    const repository: JournalRepository = {
-      discardPendingSnapshotAndReload: async () => {
-        throw new Error("not used");
-      },
-      label: "日记",
-      async loadSnapshot() {
-        loadCount += 1;
-        return {
-          conflictRevision: null,
-          content: structuredClone(stored),
-          localRevision: localRevision(String(loadCount - 1)),
-          pendingChanges: loadCount > 1,
-          remoteRevision: remoteRevision("a"),
-        };
-      },
-      location: {
-        databaseName: "cognition-tree.journal",
-        type: "browser",
-      },
-      async stageSnapshot({ content }) {
-        await stage.promise;
-        stored = structuredClone(content);
-        return { localRevision: localRevision("1") };
-      },
-      subscribeReconnect: () => () => undefined,
-      async synchronizePendingSnapshot() {
-        return {
-          localRevision: localRevision("1"),
-          pendingChanges: false,
-          remoteRevision: remoteRevision("b"),
-          status: "synced",
-        };
-      },
-    };
-    const controller = createJournalSessionController(
-      repository,
-      testApplicationScheduler,
-    );
+    const stage = deferred<void>();
+    const harness = createRepositoryHarness();
 
-    controller.start();
-    await settleLoad();
-    controller.mutate((current) => appendJournalEntry(current, 1));
+    harness.setBeforeStage(() => stage.promise);
+    const controller = await startController(harness);
+
+    controller.mutate(append(1));
     const reload = controller.reload();
 
     await Promise.resolve();
-    expect(loadCount).toBe(1);
-    stage.resolve({ localRevision: localRevision("1") });
+    expect(harness.getLoadCount()).toBe(1);
+    stage.resolve();
     await reload;
 
-    expect(loadCount).toBe(2);
-    const state = controller.getState();
-    expect(state.status === "ready"
-      ? journalEntries(state.content).length
-      : -1).toBe(1);
+    expect(harness.getLoadCount()).toBe(2);
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1] },
+      projection: { count: 1 },
+      status: "ready",
+    });
     controller.dispose();
   });
 
-  it("drains an active remote sync before reload installs a new queue", async () => {
-    const releaseSync = deferred<void>();
+  it("coordinates reload with active synchronization and edits staged during reads", async () => {
+    const syncHarness = createRepositoryHarness();
     const syncStarted = deferred<void>();
-    let storedContent = emptyJournal();
-    let storedLocalRevision = localRevision("0");
-    let pendingChanges = false;
-    let loadCount = 0;
-    let stageCount = 0;
-    const expectedRevisions: BuiltInLocalDraftRevision[] = [];
-    const repository: JournalRepository = {
-      discardPendingSnapshotAndReload: async () => {
-        throw new Error("not used");
-      },
-      label: "日记",
-      async loadSnapshot() {
-        loadCount += 1;
-        return {
-          conflictRevision: null,
-          content: structuredClone(storedContent),
-          localRevision: storedLocalRevision,
-          pendingChanges,
-          remoteRevision: remoteRevision("a"),
-        };
-      },
-      location: {
-        databaseName: "cognition-tree.journal",
-        type: "browser",
-      },
-      async stageSnapshot({ content, expectedLocalRevision }) {
-        expectedRevisions.push(expectedLocalRevision);
-        stageCount += 1;
-        storedContent = structuredClone(content);
-        storedLocalRevision = localRevision(String(stageCount));
-        pendingChanges = true;
-        return { localRevision: storedLocalRevision };
-      },
-      subscribeReconnect: () => () => undefined,
-      async synchronizePendingSnapshot() {
-        syncStarted.resolve();
-        await releaseSync.promise;
-        return {
-          localRevision: storedLocalRevision,
-          pendingChanges,
-          remoteRevision: remoteRevision("b"),
-          status: "synced",
-        };
-      },
-    };
-    const controller = createJournalSessionController(
-      repository,
-      testApplicationScheduler,
-    );
-    const append = (index: number) => (current: JournalContent) => {
-      return appendJournalEntry(current, index);
-    };
+    const releaseSync = deferred<void>();
 
-    controller.start();
-    await settleLoad();
-    controller.mutate(append(1));
-    await controller.flushPendingChanges();
-    controller.requestSync();
+    syncHarness.setBeforeSynchronize(async () => {
+      syncStarted.resolve();
+      await releaseSync.promise;
+    });
+    const syncController = await startController(syncHarness);
+
+    syncController.mutate(append(1));
+    await syncController.flushPendingChanges();
+    syncController.requestSync();
     await syncStarted.promise;
-    controller.mutate(append(2));
-    await controller.flushPendingChanges();
+    syncController.mutate(append(2));
+    await syncController.flushPendingChanges();
 
-    const reload = controller.reload();
+    const synchronizedReload = syncController.reload();
 
     await Promise.resolve();
-    expect(loadCount).toBe(1);
+    expect(syncHarness.getLoadCount()).toBe(1);
     releaseSync.resolve();
-    await reload;
-    expect(loadCount).toBe(2);
+    await synchronizedReload;
+    expect(syncHarness.getLoadCount()).toBe(2);
 
-    controller.mutate(append(3));
-    await controller.flushPendingChanges();
-    expect(expectedRevisions).toEqual([
-      localRevision("0"),
-      localRevision("1"),
-      localRevision("2"),
+    syncController.mutate(append(3));
+    await syncController.flushPendingChanges();
+    expect(syncHarness.expectedLocalRevisions).toEqual([
+      localRevision(0),
+      localRevision(1),
+      localRevision(2),
     ]);
+    syncController.dispose();
+
+    const readHarness = createRepositoryHarness();
+    const readStarted = deferred<void>();
+    const releaseRead = deferred<void>();
+    const staleSnapshot = readHarness.getSnapshot();
+    let reloadReadCount = 0;
+    const readController = await startController(readHarness);
+
+    readHarness.setLoad(async () => {
+      reloadReadCount += 1;
+      if (reloadReadCount === 1) {
+        readStarted.resolve();
+        await releaseRead.promise;
+        return staleSnapshot;
+      }
+      return readHarness.getSnapshot();
+    });
+    const concurrentReload = readController.reload();
+
+    await readStarted.promise;
+    readController.mutate(append(4));
+    await readController.flushPendingChanges();
+    releaseRead.resolve();
+    await concurrentReload;
+
+    expect(reloadReadCount).toBe(2);
+    expect(readController.getState()).toMatchObject({
+      content: { values: [4] },
+      status: "ready",
+    });
+    readController.dispose();
+  });
+
+  it("restores the ready writable session after transition failures", async () => {
+    const harness = createRepositoryHarness();
+    const controller = await startController(harness);
+
+    harness.setBeforeStage(() => {
+      throw new Error("local stage failed");
+    });
+    controller.mutate(append(1));
+    await expect(controller.discardPendingChangesAndReload())
+      .rejects.toThrow("local stage failed");
+    expect(controller.canMutate()).toBe(true);
+
+    harness.setBeforeStage(() => undefined);
+    await controller.flushPendingChanges();
+    harness.setDiscard(() => {
+      throw new Error("discard read failed");
+    });
+    await expect(controller.discardPendingChangesAndReload())
+      .rejects.toThrow("discard read failed");
+    expect(controller.canMutate()).toBe(true);
+
+    harness.setDiscard(() => createSnapshot({
+      content: { values: [-1] },
+      localRevision: localRevision(9),
+    }));
+    await expect(controller.discardPendingChangesAndReload())
+      .rejects.toThrow("invalid projection");
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1] },
+      status: "ready",
+    });
+
+    harness.setLoad(() => {
+      throw new Error("reload read failed");
+    });
+    await expect(controller.reload()).rejects.toThrow("reload read failed");
+    controller.mutate(append(2));
+    await controller.flushPendingChanges();
+    expect(controller.getState()).toMatchObject({
+      content: { values: [1, 2] },
+      status: "ready",
+    });
     controller.dispose();
+  });
+
+  it("quiesces repository removal and resumes after success or preparation failure", async () => {
+    const harness = createRepositoryHarness();
+    const controller = await startController(harness);
+    const prepared = await controller.prepareForRemoval();
+
+    expect(controller.canMutate()).toBe(false);
+    expect(() => controller.mutate(append(1))).toThrow(
+      VersionedSessionUnavailableError,
+    );
+    prepared.resume();
+    expect(controller.canMutate()).toBe(true);
+    controller.mutate(append(1));
+    await controller.flushPendingChanges();
+    controller.dispose();
+
+    const failedHarness = createRepositoryHarness();
+    const failedController = await startController(failedHarness);
+
+    failedHarness.setBeforeStage(() => {
+      throw new Error("removal stage failed");
+    });
+    failedController.mutate(append(2));
+    await expect(failedController.prepareForRemoval())
+      .rejects.toThrow("removal stage failed");
+    expect(failedController.canMutate()).toBe(true);
+
+    failedHarness.setBeforeStage(() => undefined);
+    await failedController.flushPendingChanges();
+    failedController.dispose();
   });
 });

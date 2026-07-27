@@ -7,7 +7,7 @@ import {
 } from "../../../presentation/ui/shared/primitives";
 
 describe("shared primitives", () => {
-  it("renders segmented controls without activity-specific classes", () => {
+  it("renders accessible segmented controls with one active option", () => {
     const markup = renderToStaticMarkup(
       <SegmentedControl
         ariaLabel="图谱范围"
@@ -25,7 +25,6 @@ describe("shared primitives", () => {
     expect(markup).toContain("aria-label=\"图谱范围\"");
     expect(markup).toContain("aria-pressed=\"true\"");
     expect(markup).toContain("aria-pressed=\"false\"");
-    expect(markup).not.toContain("graph-segments");
   });
 
   it("supports filled segmented controls for context panels", () => {

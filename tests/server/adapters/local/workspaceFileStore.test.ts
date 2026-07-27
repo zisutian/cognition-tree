@@ -156,7 +156,7 @@ async function createFileRepository(
 }
 
 async function withTempDir<Result>(run: (rootDir: string) => Promise<Result>) {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v3-local-"));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-local-"));
 
   try {
     return await run(rootDir);
@@ -906,7 +906,7 @@ describe("WorkspaceFileStore Local working tree", () => {
   });
 });
 
-describe("LocalRepositoryCatalog v3", () => {
+describe("LocalRepositoryCatalog v4", () => {
   it("ignores the reserved built-in data directory", async () => {
     await withTempDir(async (rootDir) => {
       await mkdir(path.join(rootDir, ".built-ins", "journal"), {
@@ -1242,7 +1242,9 @@ describe("LocalRepositoryCatalog v3", () => {
 
   it("rejects symlink and path-escape deletion without touching outside data", async () => {
     await withTempDir(async (rootDir) => {
-      const outsideDir = await mkdtemp(path.join(os.tmpdir(), "ctn-v3-local-outside-"));
+      const outsideDir = await mkdtemp(
+        path.join(os.tmpdir(), "ctn-local-outside-"),
+      );
       const catalog = new LocalRepositoryCatalog(rootDir);
 
       try {

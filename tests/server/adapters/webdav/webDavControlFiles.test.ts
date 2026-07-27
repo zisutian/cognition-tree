@@ -13,7 +13,7 @@ import {
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 
-describe("WebDAV v3 control files", () => {
+describe("WebDAV v4 control files", () => {
   it("round-trips the exact current pointer schema", () => {
     const pointer = createWebDavPointer(
       "generation-1",

@@ -36,8 +36,8 @@ import {
   type WorkspaceRepositoryCatalog,
 } from "../../../infrastructure/server/repository/repositoryCatalog.ts";
 import {
-  createDeepRepositoryContent,
-} from "../../storage/repositoryV3Fixtures";
+  createDeepWorkspaceRepositoryContent,
+} from "../../support/workspaceRepositoryFixtures";
 import {
   appendJournalTestEntry,
   createEmptyJournalContent,
@@ -602,7 +602,10 @@ describe("workspace API v4", () => {
 
   it("rejects a 10,000-level Local tree before publishing a partial repository", async () => {
     await withHandler(async (handler) => {
-      const content = createDeepRepositoryContent(10_000, "Deep initial");
+      const content = createDeepWorkspaceRepositoryContent(
+        10_000,
+        "Deep initial",
+      );
       const created = await dispatch<RepositoryApiErrorDto>(handler, {
         body: serializeJsonIteratively({
           adapter: "local",

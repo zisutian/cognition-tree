@@ -6,7 +6,7 @@ import {
   JournalEditorPanel,
   submitJournalEntryCreation,
 } from "../../../presentation/activities/views/journal/JournalPanels";
-import { createView } from "../viewFactory";
+import { createJournalView } from "../fixtures/journalViewFixture";
 import { runFeedbackAction } from "../../../presentation/ui/shared/FeedbackProvider";
 
 const olderJanuaryEntry = {
@@ -45,7 +45,7 @@ describe("Journal panels", () => {
   });
 
   it("renders the expanded calendar tree and entries in view-model order", () => {
-    const base = createView().journal;
+    const base = createJournalView();
     const activeEntry = base.calendar.years[0].months[0].entries[0];
     const view = {
       ...base,
@@ -85,8 +85,6 @@ describe("Journal panels", () => {
     expect(markup.indexOf(activeEntry.title)).toBeLessThan(
       markup.indexOf(olderJanuaryEntry.title),
     );
-    expect(markup).toContain("journal-calendar-toggle");
-    expect(markup).toContain("ui-compact-context-row-frame");
     expect(markup).toContain('aria-current="page"');
     expect(markup).not.toContain("2 日");
     expect(markup).not.toContain("31 日");
@@ -94,7 +92,7 @@ describe("Journal panels", () => {
   });
 
   it("shows the derived title as fixed text and edits only Journal body mode", () => {
-    const view = createView().journal;
+    const view = createJournalView();
     const contextMarkup = renderToStaticMarkup(<JournalContext view={view} />);
     const editorMarkup = renderToStaticMarkup(
       <JournalEditorPanel
@@ -112,7 +110,7 @@ describe("Journal panels", () => {
   });
 
   it("offers deletion only on the selected row without a dialog", () => {
-    const view = createView().journal;
+    const view = createJournalView();
     const activeEntry = view.calendar.years[0].months[0].entries[0];
     const markup = renderToStaticMarkup(<JournalContext view={view} />);
 
@@ -122,7 +120,7 @@ describe("Journal panels", () => {
   });
 
   it("shows the selected body block timestamps with the entry structure", () => {
-    const base = createView().journal;
+    const base = createJournalView();
     const view = {
       ...base,
       outline: {

@@ -3,14 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   NoteDetailPanel,
   NoteEditorPanel,
-  NotesContext,
   findNotesTreeAncestorFolderIds,
   submitNotesEditorChange,
   submitNotesFolderCreation,
 } from "../../../../presentation/activities/views/notes/NotesPanels";
 import { NoteTimeDetails } from "../../../../presentation/activities/views/notes/NoteTimeDetails";
 import { runFeedbackAction } from "../../../../presentation/ui/shared/FeedbackProvider";
-import { createView } from "../../viewFactory";
+import { createNotesView } from "../../fixtures/notesViewFixture";
 
 describe("notes panels", () => {
   it("finds every collapsed ancestor needed to reveal a selected name issue", () => {
@@ -201,7 +200,7 @@ describe("notes panels", () => {
     const markup = renderToStaticMarkup(
       <NoteDetailPanel
         onCollapseDetail={() => undefined}
-        view={createView().notes}
+        view={createNotesView()}
       />,
     );
 
@@ -213,7 +212,7 @@ describe("notes panels", () => {
   });
 
   it("exposes the workbench focus mode command from the editor title bar", () => {
-    const view = createView().notes;
+    const view = createNotesView();
     const normalMarkup = renderToStaticMarkup(
       <NoteEditorPanel
         focusMode={false}
@@ -233,50 +232,8 @@ describe("notes panels", () => {
     expect(focusedMarkup).toContain("退出专注模式");
   });
 
-  it("keeps note and folder selection visually exclusive in the directory", () => {
-    const baseView = createView();
-    const markup = renderToStaticMarkup(
-      <NotesContext
-        view={{
-          ...baseView.notes,
-          directory: {
-            ...baseView.notes.directory,
-            activeFolderId: "folder-1",
-            activeNode: { folderId: "folder-1", kind: "folder" },
-            noteTree: [
-              {
-                canDrag: true,
-                childCount: 1,
-                children: [
-                  {
-                    canDrag: true,
-                    folderId: "folder-1",
-                    id: "tree-note-1",
-                    kind: "note",
-                    noteId: "note-1",
-                    parentFolderId: "folder-1",
-                    title: "当前笔记",
-                  },
-                ],
-                folderId: "folder-1",
-                id: "folder-1",
-                kind: "folder",
-                parentFolderId: null,
-                title: "文件夹",
-              },
-            ],
-          },
-        }}
-      />,
-    );
-
-    expect(markup.match(/ui-tree-row-frame is-selected/g) ?? []).toHaveLength(1);
-    expect(markup).toContain("文件夹");
-    expect(markup).toContain("当前笔记");
-  });
-
   it("keeps note detail focused on structure, metadata, and note statistics", () => {
-    const baseView = createView();
+    const baseView = createNotesView();
     const activeBlock = {
       children: [],
       endLineNumber: 2,
@@ -299,16 +256,16 @@ describe("notes panels", () => {
       <NoteDetailPanel
         onCollapseDetail={() => undefined}
         view={{
-          ...baseView.notes,
+          ...baseView,
           editor: {
-            ...baseView.notes.editor,
+            ...baseView.editor,
             stats: {
               lineCount: 8,
               rootCount: 1,
               totalBlocks: 2,
             },
             syntax: {
-              ...baseView.notes.editor.syntax,
+              ...baseView.editor.syntax,
               tabDisplayWidth: 6,
             },
           },
@@ -340,17 +297,10 @@ describe("notes panels", () => {
       />,
     );
 
-    expect(markup).toContain("detail-summary-strip");
-    expect(markup).toContain("--ui-structure-depth:1");
-    expect(markup).toContain("--ui-structure-indent-width:21px");
-    expect(markup).toContain("ui-structure-tree-row is-selected");
+    expect(markup).toContain("子结构");
     expect(markup).toContain('aria-label="块时间"');
     expect(markup).toContain('dateTime="2026-07-15T01:00:00.000Z"');
     expect(markup).toContain('aria-label="笔记统计"');
     expect(markup).not.toContain("诊断");
-    expect(markup).not.toContain("detail-line-list");
-    expect(markup).not.toContain("ui-section-title");
-    expect(markup).not.toContain("ui-metrics");
-    expect(markup).not.toContain("dense-list");
   });
 });

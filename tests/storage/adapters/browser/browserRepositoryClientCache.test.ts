@@ -18,7 +18,7 @@ import {
   draftC,
   revisionA,
   revisionB,
-} from "../../repositoryV3Fixtures";
+} from "../../../support/workspaceRepositoryFixtures";
 
 const databaseName = "cognition-tree.repository-cache";
 const catalogStoreName = "repository-catalogs-v4";

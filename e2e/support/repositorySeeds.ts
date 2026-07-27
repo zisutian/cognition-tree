@@ -11,7 +11,6 @@ import {
 } from "../../contracts/workspace/types";
 import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/adapters/local/localRepositoryCatalog";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
-import { requireCtnSyntax } from "../../core/ctn/syntax/compiler";
 import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import { initializeCtnSourceBlockMetadata } from "../../core/ctn/metadata/sourceMetadata";
 import {
@@ -149,52 +148,6 @@ export function createSeedSource(
   });
 }
 
-export async function seedEditorGeometryRepository(
-  api: APIRequestContext,
-  id: string,
-  syntaxSource: string,
-) {
-  const syntax = requireCtnSyntax(syntaxSource, "workspace");
-  const source = [
-    "Geometry",
-    "- calibration-0",
-    "\t- calibration-1",
-    "\t\t- calibration-2",
-    "~~~ preferred-top",
-    "\tpreferred-content",
-    "~~~",
-    "- legacy-parent",
-    "\t~~~ legacy-level-1",
-    "\tlegacy-content",
-    "\t~~~",
-    "- none-parent",
-    "\t~~~ no-prefix-level-1",
-    "no-prefix-content",
-    "\t~~~",
-    "- empty-parent",
-    "\t~~~ empty-level-1",
-    "",
-    "\t~~~",
-    "- deep-parent",
-    "\t- deep-child",
-    "\t\t~~~ preferred-level-2",
-    "\t\t\tdeep-content",
-    "\t\t~~~",
-  ].join("\n");
-
-  await createRepository({
-    api,
-    id,
-    notes: [{
-      id: "note-geometry",
-      source: createSeedSource(source, 5_000, syntax),
-    }],
-    syntaxSource,
-    tree: [{ kind: "note", noteId: "note-geometry" }],
-    workspaceName: "编辑器几何回归仓库",
-  });
-}
-
 function createSeedSourceWithBlockTimestamps(
   source: string,
   idOffset: number,
@@ -322,7 +275,7 @@ export async function seedWorkbenchRepository(
       {
         id: "note-gamma",
         source: createSeedSource(
-          "Gamma\n\t```ts\n\t\tconst value = 1;\n\t```\n\t> 孤立笔记\n\t: <Missing>",
+          "Gamma\n\t```ts\n\t\tconst value = 1;\n\t```\n\t> 孤立笔记\n\t\t- 缩进校准\n\t: <Missing>",
           200,
         ),
       },

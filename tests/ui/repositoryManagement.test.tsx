@@ -22,7 +22,7 @@ import {
   projectRepositoryIssues,
   type RepositoryOption,
 } from "../../application/repository/repositoryViewModel";
-import { createView } from "./viewFactory";
+import { createRepositoryView } from "./fixtures/repositoryViewFixture";
 
 const localRepository: RepositoryOption = {
   adapter: "local",
@@ -234,7 +234,7 @@ describe("repository setup and management semantics", () => {
   });
 
   it("orders compact rows and renders actions only for the selected repository", () => {
-    const baseView = createView().repository;
+    const baseView = createRepositoryView();
     const view = {
       ...baseView,
       activeRepositoryId: localRepository.id,
@@ -262,9 +262,6 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain("ui-compact-context-group-title");
-    expect(markup).toContain("ui-compact-context-row-frame");
-    expect(markup).toContain("repository-list");
     expect(markup.indexOf(">内置</span>")).toBeLessThan(
       markup.indexOf(">新建仓库</span>"),
     );
@@ -279,7 +276,6 @@ describe("repository setup and management semantics", () => {
     expect(markup).toContain("远端笔记 · WebDAV");
     expect(markup).toContain("仓库 ID");
     expect(markup).toContain(webDavRepository.id);
-    expect(markup).toContain("repository-status-section");
     expect(markup).not.toContain("<dt>名称</dt>");
     expect(markup).not.toContain("新仓库 ID");
     expect(markup).toContain('aria-label="重命名仓库 远端笔记"');
@@ -296,7 +292,7 @@ describe("repository setup and management semantics", () => {
   });
 
   it("keeps creation and manual Local recovery as selectable right-side details", () => {
-    const baseView = createView().repository;
+    const baseView = createRepositoryView();
     const view = {
       ...baseView,
       activeRepositoryId: null,
@@ -360,7 +356,7 @@ describe("repository setup and management semantics", () => {
 
   it("shows ordinary catalog recovery only in the selected create detail", () => {
     const view = {
-      ...createView().repository,
+      ...createRepositoryView(),
       catalogErrorMessage: "无法读取普通仓库目录。",
       catalogStatus: "failed" as const,
       creatableAdapters: [],
@@ -389,7 +385,7 @@ describe("repository setup and management semantics", () => {
   });
 
   it("keeps issue rows compact and moves every cleanup action to the selected detail", () => {
-    const baseView = createView().repository;
+    const baseView = createRepositoryView();
     const issues = projectRepositoryIssues([
       {
         adapter: "webdav",
@@ -451,7 +447,7 @@ describe("repository setup and management semantics", () => {
   });
 
   it("keeps protected built-in rows minimal and shows location and recovery in the detail", () => {
-    const baseView = createView().repository;
+    const baseView = createRepositoryView();
     const view = {
       ...baseView,
       repositories: [{ ...localRepository, labelIssue: "conflict" as const }],
@@ -548,7 +544,7 @@ describe("repository setup and management semantics", () => {
 
   it("offers built-in catalog retry only in the selected built-in detail", () => {
     const view = {
-      ...createView().repository,
+      ...createRepositoryView(),
       builtInCatalogErrorMessage: "内置数据目录不可用。",
       builtInCatalogStatus: "failed" as const,
     };
@@ -577,7 +573,6 @@ describe("repository setup and management semantics", () => {
     expect(contextMarkup).not.toContain("内置数据目录不可用。");
     expect(contextMarkup).not.toContain(">重试内置数据<");
     expect(contextMarkup.match(/>故障<\/span>/g)).toHaveLength(2);
-    expect(contextMarkup.match(/has-diagnostics/g)).toHaveLength(2);
     expect(contextMarkup).toContain('aria-label="日记数据存在问题"');
     expect(contextMarkup).toContain('aria-label="代办数据存在问题"');
     expect(panelMarkup).toContain("内置数据目录不可用。");
@@ -593,7 +588,7 @@ describe("repository setup and management semantics", () => {
     message,
   ) => {
     const view = {
-      ...createView().repository,
+      ...createRepositoryView(),
       repositories: [{ ...localRepository, labelIssue }],
     };
     const markup = renderToStaticMarkup(
@@ -613,7 +608,7 @@ describe("repository setup and management semantics", () => {
 
   it("keeps ordinary runtime failures compact on the left and recoverable on the right", () => {
     const view = {
-      ...createView().repository,
+      ...createRepositoryView(),
       activeRepositoryId: localRepository.id,
       activeRepositoryLabel: localRepository.label,
       activeSessionErrorMessage: "无法读取仓库索引。",

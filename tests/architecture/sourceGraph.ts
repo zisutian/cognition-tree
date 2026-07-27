@@ -1,17 +1,23 @@
 import ts from "typescript";
 
 export type SourceModules = Record<string, string>;
+export type SourceRoot =
+  | "core"
+  | "contracts"
+  | "application"
+  | "infrastructure"
+  | "presentation";
 
 export type SourceImport = {
   filePath: string;
   importPath: string;
   targetPath: string;
-  targetRoot: string;
+  targetRoot: SourceRoot;
 };
 
 export type InternalModuleImport = Omit<SourceImport, "targetRoot">;
 
-export const applicationModules = import.meta.glob("../../application/**/*.{ts,tsx}", {
+export const coreModules = import.meta.glob("../../core/**/*.ts", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -23,11 +29,10 @@ export const contractModules = import.meta.glob("../../contracts/**/*.ts", {
   query: "?raw",
 }) as SourceModules;
 
-export const coreModules = import.meta.glob("../../core/**/*.ts", {
-  eager: true,
-  import: "default",
-  query: "?raw",
-}) as SourceModules;
+export const applicationModules = import.meta.glob(
+  "../../application/**/*.{ts,tsx}",
+  { eager: true, import: "default", query: "?raw" },
+) as SourceModules;
 
 export const infrastructureModules = import.meta.glob(
   "../../infrastructure/**/*.ts",
@@ -39,68 +44,36 @@ export const presentationModules = import.meta.glob(
   { eager: true, import: "default", query: "?raw" },
 ) as SourceModules;
 
-export const sourceModules = {
-  ...applicationModules,
-  ...infrastructureModules,
-  ...presentationModules,
+export const sourceModulesByRoot: Readonly<
+  Record<SourceRoot, SourceModules>
+> = {
+  core: coreModules,
+  contracts: contractModules,
+  application: applicationModules,
+  infrastructure: infrastructureModules,
+  presentation: presentationModules,
 };
 
-export const serverModules = Object.fromEntries(
-  Object.entries(infrastructureModules).filter(([filePath]) =>
-    filePath.startsWith("../../infrastructure/server/"),
-  ),
+export const sourceModules: SourceModules = Object.assign(
+  {},
+  ...Object.values(sourceModulesByRoot),
 );
-
-export const workspaceModules = {
-  ...applicationModules,
-  ...contractModules,
-  ...coreModules,
-  ...infrastructureModules,
-  ...presentationModules,
-};
-
-function selectCoreModules(domain: string) {
-  const prefix = `../../core/${domain}/`;
-
-  return Object.fromEntries(
-    Object.entries(coreModules).filter(([filePath]) =>
-      filePath.startsWith(prefix),
-    ),
-  );
-}
-
-export const ctnModules = selectCoreModules("ctn");
-export const journalModules = selectCoreModules("journal");
-export const portableNameModules = selectCoreModules("naming");
-export const todoModules = selectCoreModules("todo");
-export const workspaceDomainModules = selectCoreModules("workspace");
 
 export function modulePathToRelative(filePath: string, prefix: string) {
   return filePath.startsWith(prefix) ? filePath.slice(prefix.length) : filePath;
-}
-
-export function ctnPathToRelative(filePath: string) {
-  return modulePathToRelative(filePath, "../../core/ctn/");
-}
-
-export function journalPathToRelative(filePath: string) {
-  return modulePathToRelative(filePath, "../../core/journal/");
-}
-
-export function portableNamePathToRelative(filePath: string) {
-  return modulePathToRelative(filePath, "../../core/naming/");
-}
-
-export function todoPathToRelative(filePath: string) {
-  return modulePathToRelative(filePath, "../../core/todo/");
 }
 
 export function sourcePathToRelative(filePath: string) {
   return modulePathToRelative(filePath, "../../");
 }
 
-export function getSourceRoot(filePath: string) {
-  return sourcePathToRelative(filePath).split("/")[0] ?? "";
+export function getSourceRoot(filePath: string): SourceRoot {
+  const root = sourcePathToRelative(filePath).split("/")[0];
+
+  if (!(root && root in sourceModulesByRoot)) {
+    throw new Error(`Unknown source root for ${filePath}`);
+  }
+  return root as SourceRoot;
 }
 
 export function listSourceFiles(directory: string) {
@@ -109,6 +82,16 @@ export function listSourceFiles(directory: string) {
   return Object.keys(sourceModules)
     .filter((filePath) => filePath.startsWith(prefix))
     .sort();
+}
+
+export function selectSourceModules(directory: string) {
+  const selected = new Set(listSourceFiles(directory));
+
+  return Object.fromEntries(
+    Object.entries(sourceModules).filter(([filePath]) =>
+      selected.has(filePath)
+    ),
+  );
 }
 
 function getScriptKind(filePath: string) {
@@ -198,13 +181,13 @@ export function readInternalModuleImports(
 }
 
 export function readSourceImports(filePath: string): SourceImport[] {
-  return readInternalModuleImports(workspaceModules, filePath).map((entry) => ({
+  return readInternalModuleImports(sourceModules, filePath).map((entry) => ({
     ...entry,
     targetRoot: getSourceRoot(entry.targetPath),
   }));
 }
 
-export function listInternalSourceImports() {
+export function listSourceImports() {
   return Object.keys(sourceModules).flatMap(readSourceImports);
 }
 
@@ -262,6 +245,6 @@ export function listSourceDependencyCycles() {
   );
 
   return findDependencyCycles(graph).map((cycle) =>
-    cycle.map(sourcePathToRelative),
+    cycle.map(sourcePathToRelative)
   );
 }

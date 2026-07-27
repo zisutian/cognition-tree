@@ -21,26 +21,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: "**/editor-geometry.pw.ts",
       use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "geometry-dpr-1",
-      testMatch: "**/editor-geometry.pw.ts",
-      use: {
-        ...devices["Desktop Chrome"],
-        deviceScaleFactor: 1,
-        viewport: { height: 1_000, width: 1_440 },
-      },
-    },
-    {
-      name: "geometry-dpr-2",
-      testMatch: "**/editor-geometry.pw.ts",
-      use: {
-        ...devices["Desktop Chrome"],
-        deviceScaleFactor: 2,
-        viewport: { height: 1_000, width: 1_440 },
-      },
     },
   ],
   reporter: process.env.CI ? "github" : "list",

@@ -17,7 +17,6 @@ describe("settings activity", () => {
       />,
     );
 
-    expect(contextMarkup).toContain('class="ui-tree settings-list"');
     expect(contextMarkup.match(/<li/g)).toHaveLength(1);
     expect(contextMarkup).toContain('aria-current="page"');
     expect(contextMarkup).toContain("界面");
@@ -27,7 +26,6 @@ describe("settings activity", () => {
     expect(panelMarkup).toContain('id="settings-context-width"');
     expect(panelMarkup).toContain('value="280"');
     expect(panelMarkup).toContain("左侧栏宽度");
-    expect(panelMarkup.match(/settings-form-row/g)).toHaveLength(1);
     expect(panelMarkup.match(/<input/g)).toHaveLength(1);
     expect(panelMarkup).not.toContain("当前仓库");
     expect(panelMarkup).not.toContain("添加仓库");

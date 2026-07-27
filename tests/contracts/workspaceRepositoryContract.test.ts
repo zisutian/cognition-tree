@@ -15,41 +15,42 @@ import {
   parseWorkspaceRepositoryContent,
   parseWorkspaceRepositorySnapshot,
 } from "../../contracts/workspace/parseRepository";
-import type { WorkspaceRepositoryContentDto } from "../../contracts/workspace/types";
+import { parseRepositoryRevision } from "../../contracts/workspace/revision";
+import {
+  createWorkspaceRepositoryContent,
+  revisionA,
+} from "../support/workspaceRepositoryFixtures";
 
-const revision = `sha256:${"a".repeat(64)}` as const;
-
-function createContent(): WorkspaceRepositoryContentDto {
-  return {
-    schemaVersion: 4,
-    syntax: { activeFileId: null, files: [] },
-    workspace: {
-      id: "workspace",
-      name: "Notes",
-      notes: [{ id: "note-a", source: "@ctn-block malformed\n" }],
-      tree: [
-        {
-          children: [{ kind: "note", noteId: "note-a" }],
-          folderId: "folder-a",
-          kind: "folder",
-          title: "Folder",
-        },
-      ],
-    },
-  };
+function repositoryContentReaders(content: unknown) {
+  return [
+    () => parseWorkspaceRepositoryContent(content),
+    () => parseWorkspaceRepositorySnapshot({
+      content,
+      revision: revisionA,
+    }),
+    () => parseWorkspaceRepositoryCommit({
+      baseRevision: revisionA,
+      content,
+    }),
+  ];
 }
 
 describe("workspace repository v4 contract", () => {
   it("parses the only supported v4 wire shapes", () => {
-    const content = createContent();
+    const content = createWorkspaceRepositoryContent();
 
     expect(parseWorkspaceRepositoryContent(content)).toEqual(content);
-    expect(parseWorkspaceRepositorySnapshot({ content, revision })).toEqual({ content, revision });
-    expect(parseWorkspaceRepositoryCommit({ baseRevision: revision, content })).toEqual({
-      baseRevision: revision,
+    expect(parseWorkspaceRepositorySnapshot({ content, revision: revisionA }))
+      .toEqual({ content, revision: revisionA });
+    expect(parseWorkspaceRepositoryCommit({
+      baseRevision: revisionA,
+      content,
+    })).toEqual({
+      baseRevision: revisionA,
       content,
     });
-    expect(parseWorkspaceRepositoryCommitResult({ revision })).toEqual({ revision });
+    expect(parseWorkspaceRepositoryCommitResult({ revision: revisionA }))
+      .toEqual({ revision: revisionA });
     expect(parseCreateRepository({ adapter: "local", content, label: "Primary" })).toEqual({
       adapter: "local",
       content,
@@ -74,22 +75,40 @@ describe("workspace repository v4 contract", () => {
     expect(createPortableNameKey("  ＲＥＭＯＴＥ  ")).toBe("remote");
   });
 
-  it("rejects v3 and derived persistence fields without compatibility", () => {
-    const content = createContent();
-
-    expect(() => parseWorkspaceRepositoryContent({
+  it("rejects v2, v3, and derived persistence fields without compatibility", () => {
+    const content = createWorkspaceRepositoryContent();
+    const v3Content = {
       schemaVersion: 3,
       syntaxSource: null,
       workspace: content.workspace,
-    })).toThrow(UnsupportedRepositoryVersionError);
+    };
 
+    for (const read of repositoryContentReaders(v3Content)) {
+      expect(read).toThrow(UnsupportedRepositoryVersionError);
+    }
+
+    expect(() => parseWorkspaceRepositorySnapshot({
+      revision: revisionA,
+      syntaxSourceFile: null,
+      workspace: { id: "legacy" },
+    })).toThrow(UnsupportedRepositoryVersionError);
+    expect(() => parseWorkspaceRepositoryCommit({
+      baseRevision: revisionA,
+      syntaxSourceFile: null,
+      workspace: { id: "legacy" },
+    })).toThrow(UnsupportedRepositoryVersionError);
     expect(() => parseWorkspaceRepositoryContent({
       syntaxSourceFile: null,
       workspace: content.workspace,
     })).toThrow(UnsupportedRepositoryVersionError);
     expect(() => parseWorkspaceRepositorySnapshot({
       repositoryPath: "/secret/path",
-      revision,
+      revision: revisionA,
+      syntaxSourceFile: null,
+      workspace: content.workspace,
+    })).toThrow(UnsupportedRepositoryVersionError);
+    expect(() => parseWorkspaceRepositoryCommit({
+      baseRevision: revisionA,
       syntaxSourceFile: null,
       workspace: content.workspace,
     })).toThrow(UnsupportedRepositoryVersionError);
@@ -109,7 +128,7 @@ describe("workspace repository v4 contract", () => {
   });
 
   it("allows inactive syntax files while requiring a canonical active id", () => {
-    const content = createContent();
+    const content = createWorkspaceRepositoryContent();
     const syntaxId = "syntax-00000000-0000-4000-8000-000000000001";
     const syntaxFile = { id: syntaxId, source: "any wire source" };
 
@@ -146,9 +165,44 @@ describe("workspace repository v4 contract", () => {
   });
 
   it("requires exact tree identity, placement, and sha256 revisions", () => {
-    const content = createContent();
+    const content = createWorkspaceRepositoryContent();
+    const duplicatePlacement = {
+      ...content,
+      workspace: {
+        ...content.workspace,
+        tree: [
+          { kind: "note", noteId: "note-a" },
+          { kind: "note", noteId: "note-a" },
+        ],
+      },
+    };
+    const unknownPlacement = {
+      ...content,
+      workspace: {
+        ...content.workspace,
+        tree: [{ kind: "note", noteId: "missing" }],
+      },
+    };
+    const unsafeNoteIdentity = {
+      ...content,
+      workspace: {
+        ...content.workspace,
+        notes: [{ id: "../escape", source: "unsafe" }],
+        tree: [{ kind: "note", noteId: "../escape" }],
+      },
+    };
 
-    expect(() => parseWorkspaceRepositorySnapshot({ content, revision: "old-revision" }))
+    expect(parseRepositoryRevision(revisionA)).toBe(revisionA);
+    expect(() => parseWorkspaceRepositorySnapshot({
+      content,
+      revision: "old-revision",
+    }))
+      .toThrow("expected sha256 revision");
+    expect(() => parseRepositoryRevision("draft:local"))
+      .toThrow("expected sha256 revision");
+    expect(() => parseRepositoryRevision(`sha256:${"A".repeat(64)}`))
+      .toThrow("expected sha256 revision");
+    expect(() => parseRepositoryRevision("revision-1"))
       .toThrow("expected sha256 revision");
     expect(() => parseWorkspaceRepositoryContent({
       ...content,
@@ -161,6 +215,35 @@ describe("workspace repository v4 contract", () => {
       ...content,
       workspace: { ...content.workspace, tree: [] },
     })).toThrow("missing note placement");
+    expect(() => parseWorkspaceRepositoryContent(duplicatePlacement))
+      .toThrow("duplicate note placement");
+    for (const read of repositoryContentReaders(unknownPlacement)) {
+      expect(read).toThrow("unknown note");
+    }
+    for (const read of repositoryContentReaders(unsafeNoteIdentity)) {
+      expect(read).toThrow("invalid repository note id");
+    }
+
+    const unrestrictedStructuralIds = {
+      ...content,
+      workspace: {
+        ...content.workspace,
+        id: "工作区/事实-id",
+        tree: [{
+          children: [{ kind: "note", noteId: "note-a" }],
+          folderId: "folder/结构-id",
+          kind: "folder",
+          title: "Folder",
+        }],
+      },
+    };
+
+    expect(
+      parseWorkspaceRepositoryContent(unrestrictedStructuralIds).workspace,
+    ).toMatchObject({
+      id: "工作区/事实-id",
+      tree: [{ folderId: "folder/结构-id" }],
+    });
   });
 
   it("parses healthy catalog entries, isolated issues, and structured errors", () => {
@@ -196,12 +279,12 @@ describe("workspace repository v4 contract", () => {
     });
     expect(parseRepositoryApiError({
       code: "revision_conflict",
-      currentRevision: revision,
+      currentRevision: revisionA,
       message: "changed",
       requestId: "request-1",
     })).toEqual({
       code: "revision_conflict",
-      currentRevision: revision,
+      currentRevision: revisionA,
       message: "changed",
       requestId: "request-1",
     });
@@ -273,7 +356,7 @@ describe("workspace repository v4 contract", () => {
   });
 
   it("rejects manual ids, invalid create variants, and invalid deletion results", () => {
-    const content = createContent();
+    const content = createWorkspaceRepositoryContent();
 
     expect(() => parseCreateRepository({
       adapter: "local",

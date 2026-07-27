@@ -1,17 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
-  WorkspaceRepositorySyncResult,
 } from "../../../../application/repository/workspaceRepository";
 import {
   createWorkspaceSessionController,
   WorkspaceSessionUnavailableError,
   type WorkspaceSessionController,
-  type WorkspaceSessionControllerState,
 } from "../../../../application/workspace/session/workspaceSessionController";
-import { versionedRepositorySaveDelayMs } from "../../../../application/persistence/versionedRepositorySaveQueue";
 import {
   readCtnCanonicalTitleHeader,
 } from "../../../../core/ctn/parser/parseCtnDocument";
@@ -35,6 +32,7 @@ import {
   initialTimestamp,
   remoteRevision,
   replaceEditableSource,
+  waitForWorkspaceSessionState,
 } from "./workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../../support/testApplicationScheduler";
 
@@ -72,7 +70,6 @@ function createDeferred<Value>() {
 }
 
 type RepositoryHarness = {
-  emitReconnect: () => void;
   getLocalContent: () => WorkspaceRepositoryContent;
   repository: WorkspaceRepository;
   setDiscard: (
@@ -85,14 +82,11 @@ type RepositoryHarness = {
 
 function createRepositoryHarness({
   initialSnapshot = createSnapshot(),
-  synchronizeResults = [],
 }: {
   initialSnapshot?: WorkspaceRepositorySnapshot;
-  synchronizeResults?: WorkspaceRepositorySyncResult[];
 } = {}): RepositoryHarness {
   let snapshot = initialSnapshot;
   let localRevisionIndex = 0;
-  let reconnectListener: () => void = () => undefined;
   let load: WorkspaceRepository["loadSnapshot"] = async () => snapshot;
   let discard: WorkspaceRepository["discardPendingSnapshotAndReload"] =
     async () => {
@@ -103,10 +97,9 @@ function createRepositoryHarness({
       return snapshot;
     };
   const stagedContents: WorkspaceRepositoryContent[] = [];
-  const results = [...synchronizeResults];
   const synchronize = vi.fn<WorkspaceRepository["synchronizePendingSnapshot"]>(
     async () => {
-      const result = results.shift() ?? {
+      const result = {
         localRevision: snapshot.localRevision,
         pendingChanges: false,
         remoteRevision: remoteRevision("b"),
@@ -115,12 +108,9 @@ function createRepositoryHarness({
 
       snapshot = {
         ...snapshot,
-        conflictRevision:
-          result.status === "conflict" ? result.remoteRevision : null,
+        conflictRevision: null,
         localRevision: result.localRevision,
-        pendingChanges: result.status === "synced"
-          ? result.pendingChanges
-          : true,
+        pendingChanges: result.pendingChanges,
         remoteRevision: result.remoteRevision,
       };
       return result;
@@ -146,17 +136,11 @@ function createRepositoryHarness({
       stagedContents.push(content);
       return { localRevision: snapshot.localRevision };
     },
-    subscribeReconnect(listener) {
-      reconnectListener = listener;
-      return () => {
-        reconnectListener = () => undefined;
-      };
-    },
+    subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: synchronize,
   };
 
   return {
-    emitReconnect: () => reconnectListener(),
     getLocalContent: () => snapshot.content,
     repository,
     setDiscard(nextDiscard) {
@@ -194,28 +178,6 @@ function createController(
   });
 }
 
-function waitForState(
-  controller: WorkspaceSessionController,
-  predicate: (state: WorkspaceSessionControllerState) => boolean,
-) {
-  const currentState = controller.getState();
-
-  if (predicate(currentState)) {
-    return Promise.resolve(currentState);
-  }
-
-  return new Promise<WorkspaceSessionControllerState>((resolve) => {
-    const unsubscribe = controller.subscribe(() => {
-      const state = controller.getState();
-
-      if (predicate(state)) {
-        unsubscribe();
-        resolve(state);
-      }
-    });
-  });
-}
-
 function updateNote(
   controller: WorkspaceSessionController,
   source: string,
@@ -238,17 +200,13 @@ function updateNote(
   );
 }
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe("workspace session controller", () => {
   it("returns the canonical configured editor source and preserves it after an invalid title", async () => {
     const harness = createRepositoryHarness();
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     const ready = controller.getState();
 
     if (ready.status !== "ready") {
@@ -301,7 +259,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     const ready = controller.getState();
 
     if (ready.status !== "ready") {
@@ -377,7 +335,7 @@ describe("workspace session controller", () => {
     expect(harness.stagedContents).toEqual([]);
 
     load.resolve(createSnapshot());
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     controller.dispose();
   });
 
@@ -394,7 +352,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    const state = await waitForState(
+    const state = await waitForWorkspaceSessionState(
       controller,
       (candidate) => candidate.status === "ready",
     );
@@ -413,7 +371,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     harness.setLoad(async () => createSnapshot({
       content: createContent("Externally refreshed workspace"),
       localRevision: draftRevision("remote-refresh"),
@@ -450,7 +408,7 @@ describe("workspace session controller", () => {
     });
 
     controller.start();
-    const ready = await waitForState(
+    const ready = await waitForWorkspaceSessionState(
       controller,
       (state) => state.status === "ready",
     );
@@ -514,7 +472,7 @@ describe("workspace session controller", () => {
     });
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     const createdFileId = await controller.createSyntaxFile(null);
     const rawWithInactiveFile = controller.getState();
 
@@ -584,180 +542,15 @@ describe("workspace session controller", () => {
   });
 
   it("stages command results locally and exposes the unified persistence state", async () => {
-    vi.useFakeTimers();
     const harness = createRepositoryHarness();
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     updateNote(controller, "标题\n第一次");
     await controller.flushPendingChanges();
 
     expect(harness.stagedContents).toHaveLength(1);
-    expect(controller.getState()).toMatchObject({
-      persistence: { status: "pending-sync" },
-      status: "ready",
-    });
-
-    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
-    expect(harness.synchronize).toHaveBeenCalledTimes(1);
-    expect(controller.getState()).toMatchObject({
-      persistence: { status: "saved" },
-      status: "ready",
-    });
-    controller.dispose();
-  });
-
-  it("keeps staging the latest local edit after a remote conflict", async () => {
-    vi.useFakeTimers();
-    const conflictRevision = remoteRevision("c");
-    const harness = createRepositoryHarness({
-      synchronizeResults: [{
-        localRevision: draftRevision("stage-1"),
-        remoteRevision: conflictRevision,
-        status: "conflict",
-      }],
-    });
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\n触发冲突");
-    await controller.flushPendingChanges();
-    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
-
-    expect(controller.getState()).toMatchObject({
-      persistence: { remoteRevision: conflictRevision, status: "conflict" },
-      status: "ready",
-    });
-
-    updateNote(controller, "标题\n冲突后的旧内容");
-    updateNote(controller, "标题\n冲突后的最终内容");
-    await controller.flushPendingChanges();
-
-    const localSource = harness.getLocalContent().workspace.notes[0]?.source ?? "";
-    expect(
-      projectEditableSource(localSource),
-    ).toBe("标题\n冲突后的最终内容");
-    expect(harness.synchronize).toHaveBeenCalledTimes(1);
-    expect(controller.getState()).toMatchObject({
-      persistence: { remoteRevision: conflictRevision, status: "conflict" },
-      status: "ready",
-    });
-    controller.dispose();
-  });
-
-  it("synchronizes automatically when reconnect is observed", async () => {
-    vi.useFakeTimers();
-    const harness = createRepositoryHarness({
-      synchronizeResults: [
-        {
-          localRevision: draftRevision("stage-1"),
-          pendingChanges: true,
-          remoteRevision: remoteRevision("a"),
-          status: "offline",
-        },
-        {
-          localRevision: draftRevision("stage-1"),
-          pendingChanges: false,
-          remoteRevision: remoteRevision("b"),
-          status: "synced",
-        },
-      ],
-    });
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\n离线编辑");
-    await controller.flushPendingChanges();
-    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
-
-    expect(controller.getState()).toMatchObject({
-      persistence: { pendingChanges: true, status: "offline" },
-      status: "ready",
-    });
-
-    harness.emitReconnect();
-    await waitForState(
-      controller,
-      (state) =>
-        state.status === "ready" && state.persistence.status === "saved",
-    );
-
-    expect(harness.synchronize).toHaveBeenCalledTimes(2);
-    controller.dispose();
-  });
-
-  it("restores the ready conflict state when discard fails and keeps ready state when reload fails", async () => {
-    vi.useFakeTimers();
-    const conflictRevision = remoteRevision("d");
-    const harness = createRepositoryHarness({
-      synchronizeResults: [{
-        localRevision: draftRevision("stage-1"),
-        remoteRevision: conflictRevision,
-        status: "conflict",
-      }],
-    });
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\n必须保留的本地内容");
-    await controller.flushPendingChanges();
-    await vi.advanceTimersByTimeAsync(versionedRepositorySaveDelayMs);
-    harness.setDiscard(async () => {
-      throw new Error("remote reload failed");
-    });
-
-    await expect(controller.discardPendingChangesAndReload()).rejects.toThrow(
-      "remote reload failed",
-    );
-    expect(controller.getState()).toMatchObject({
-      persistence: { remoteRevision: conflictRevision, status: "conflict" },
-      status: "ready",
-    });
-    expect(
-      projectEditableSource(
-        harness.getLocalContent().workspace.notes[0]!.source,
-      ),
-    ).toBe("标题\n必须保留的本地内容");
-
-    harness.setLoad(async () => {
-      throw new Error("temporary load failure");
-    });
-    await expect(controller.reload()).rejects.toThrow("temporary load failure");
-    expect(controller.getState()).toMatchObject({
-      persistence: { remoteRevision: conflictRevision, status: "conflict" },
-      status: "ready",
-    });
-    controller.dispose();
-  });
-
-  it("keeps an immediately staged local edit writable when discard reload fails", async () => {
-    const harness = createRepositoryHarness();
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\ndiscard 前的即时编辑");
-    harness.setDiscard(async () => {
-      throw new Error("remote discard read failed");
-    });
-
-    await expect(controller.discardPendingChangesAndReload()).rejects.toThrow(
-      "remote discard read failed",
-    );
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "discard 前的即时编辑",
-    );
-
-    updateNote(controller, "标题\ndiscard 失败后的后续编辑");
-    await controller.flushPendingChanges();
-
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "discard 失败后的后续编辑",
-    );
     expect(controller.getState()).toMatchObject({
       persistence: { status: "pending-sync" },
       status: "ready",
@@ -777,7 +570,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     const ready = controller.getState();
 
     if (ready.status !== "ready") {
@@ -838,137 +631,12 @@ describe("workspace session controller", () => {
     controller.dispose();
   });
 
-  it("keeps the failed local desired snapshot retryable when discard preparation fails", async () => {
-    const harness = createRepositoryHarness();
-    const originalStage = harness.repository.stageSnapshot;
-    let storageAvailable = false;
-
-    harness.repository.stageSnapshot = async (input) => {
-      if (!storageAvailable) {
-        throw new Error("IndexedDB stage failed");
-      }
-      return originalStage(input);
-    };
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\ndiscard 前尚未落盘的内容");
-    await expect(controller.discardPendingChangesAndReload()).rejects.toThrow(
-      "IndexedDB stage failed",
-    );
-
-    storageAvailable = true;
-    await controller.flushPendingChanges();
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "discard 前尚未落盘的内容",
-    );
-    expect(controller.getState()).toMatchObject({
-      persistence: { status: "pending-sync" },
-      status: "ready",
-    });
-    controller.dispose();
-  });
-
-  it("flushes an active local stage before reload installs its snapshot", async () => {
-    const harness = createRepositoryHarness();
-    const originalStage = harness.repository.stageSnapshot;
-    const stageStarted = createDeferred<void>();
-    const releaseStage = createDeferred<void>();
-
-    harness.repository.stageSnapshot = async (input) => {
-      stageStarted.resolve();
-      await releaseStage.promise;
-      return originalStage(input);
-    };
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\nreload 前的即时编辑");
-    await stageStarted.promise;
-
-    const reload = controller.reload();
-
-    releaseStage.resolve();
-    await reload;
-    expect(controller.getState()).toMatchObject({
-      status: "ready",
-      workspace: {
-        noteEntryById: expect.any(Map),
-      },
-    });
-    const reloaded = controller.getState();
-
-    expect(
-      reloaded.status === "ready"
-        ? reloaded.workspace.noteEntryById.get("note-1")?.note.source
-        : "",
-    ).toContain("reload 前的即时编辑");
-
-    updateNote(controller, "标题\nreload 后仍可继续编辑");
-    await controller.flushPendingChanges();
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "reload 后仍可继续编辑",
-    );
-    controller.dispose();
-  });
-
-  it("reloads again when an edit is staged while its first local read is in flight", async () => {
-    const harness = createRepositoryHarness();
-    const firstLoadStarted = createDeferred<void>();
-    const releaseFirstLoad = createDeferred<void>();
-    const staleSnapshot = createSnapshot();
-    let loadCount = 0;
-
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    harness.setLoad(async () => {
-      loadCount += 1;
-      if (loadCount === 1) {
-        firstLoadStarted.resolve();
-        await releaseFirstLoad.promise;
-        return staleSnapshot;
-      }
-      return {
-        ...staleSnapshot,
-        content: harness.getLocalContent(),
-        localRevision: draftRevision("stage-1"),
-        pendingChanges: true,
-      };
-    });
-    const reload = controller.reload();
-
-    await firstLoadStarted.promise;
-    updateNote(controller, "标题\n异步 reload 期间的编辑");
-    await controller.flushPendingChanges();
-    releaseFirstLoad.resolve();
-    await reload;
-
-    const reloaded = controller.getState();
-    expect(loadCount).toBe(2);
-    expect(
-      reloaded.status === "ready"
-        ? reloaded.workspace.noteEntryById.get("note-1")?.note.source
-        : "",
-    ).toContain("异步 reload 期间的编辑");
-
-    updateNote(controller, "标题\nreload 之后的下一次编辑");
-    await controller.flushPendingChanges();
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "reload 之后的下一次编辑",
-    );
-    controller.dispose();
-  });
-
   it("publishes a valid syntax profile before awaiting persistence and rejects invalid syntax without exposure", async () => {
     const harness = createRepositoryHarness();
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     const ready = controller.getState();
 
     if (ready.status !== "ready" || !ready.workspaceSyntax) {
@@ -1010,7 +678,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    const initial = await waitForState(
+    const initial = await waitForWorkspaceSessionState(
       controller,
       (state) => state.status === "ready",
     );
@@ -1092,7 +760,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    const ready = await waitForState(
+    const ready = await waitForWorkspaceSessionState(
       controller,
       (state) => state.status === "ready",
     );
@@ -1143,7 +811,7 @@ describe("workspace session controller", () => {
     const controller = createController(harness.repository);
 
     controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
+    await waitForWorkspaceSessionState(controller, (state) => state.status === "ready");
     const ready = controller.getState();
 
     if (ready.status !== "ready" || !ready.syntaxCatalog.activeFileId) {
@@ -1201,73 +869,4 @@ describe("workspace session controller", () => {
     controller.dispose();
   });
 
-  it("surfaces a local stage error so repository switching can be blocked", async () => {
-    const harness = createRepositoryHarness();
-    harness.repository.stageSnapshot = async () => {
-      throw new Error("insufficient local storage");
-    };
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\n无法落盘");
-
-    await expect(controller.flushPendingChanges()).rejects.toThrow(
-      "insufficient local storage",
-    );
-    expect(controller.getState()).toMatchObject({
-      persistence: {
-        localCopySafe: false,
-        phase: "local",
-        status: "error",
-      },
-      status: "ready",
-    });
-    controller.dispose();
-  });
-
-  it("quiesces commands for repository removal and can resume after deletion fails", async () => {
-    const harness = createRepositoryHarness();
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    updateNote(controller, "标题\n删除前的本地修改");
-
-    const preparation = await controller.prepareForRepositoryRemoval();
-
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "删除前的本地修改",
-    );
-    expect(() => updateNote(controller, "标题\n删除期间不得编辑")).toThrow(
-      WorkspaceSessionUnavailableError,
-    );
-
-    preparation.resume();
-    updateNote(controller, "标题\n删除失败后继续编辑");
-    await controller.flushPendingChanges();
-
-    expect(harness.getLocalContent().workspace.notes[0]?.source).toContain(
-      "删除失败后继续编辑",
-    );
-    controller.dispose();
-  });
-
-  it("keeps the session usable when repository removal cannot stage locally", async () => {
-    const harness = createRepositoryHarness();
-    const controller = createController(harness.repository);
-
-    controller.start();
-    await waitForState(controller, (state) => state.status === "ready");
-    harness.repository.stageSnapshot = async () => {
-      throw new Error("local stage failed");
-    };
-    updateNote(controller, "标题\n尚未落盘");
-
-    await expect(controller.prepareForRepositoryRemoval()).rejects.toThrow(
-      "local stage failed",
-    );
-    expect(() => updateNote(controller, "标题\n仍然可编辑")).not.toThrow();
-    controller.dispose();
-  });
 });

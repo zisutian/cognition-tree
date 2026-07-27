@@ -19,7 +19,7 @@ export const draftB =
 export const draftC =
   "draft:00000000-0000-4000-8000-00000000000c" as LocalDraftRevisionDto;
 
-export function createRepositoryContent(
+export function createWorkspaceRepositoryContent(
   name = "Workspace",
   noteSource = "@ctn-block title title\nTitle",
 ): WorkspaceRepositoryContentDto {
@@ -35,7 +35,7 @@ export function createRepositoryContent(
   };
 }
 
-export function createDeepRepositoryContent(
+export function createDeepWorkspaceRepositoryContent(
   depth: number,
   name = "Deep Workspace",
 ): WorkspaceRepositoryContentDto {
@@ -65,7 +65,7 @@ export function createDeepRepositoryContent(
   };
 }
 
-export function inspectDeepRepositoryContent(
+export function inspectDeepWorkspaceRepositoryContent(
   content: WorkspaceRepositoryContentDto,
 ) {
   let current = content.workspace.tree[0];

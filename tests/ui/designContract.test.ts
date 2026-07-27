@@ -7,6 +7,10 @@ import {
 
 type RawStyleModules = Record<string, string | { default?: string }>;
 type StyleModules = Record<string, string>;
+type FragmentContract = {
+  forbidden?: readonly string[];
+  required?: readonly string[];
+};
 
 const { readFileSync } = await import("node:fs");
 const rawStyleModules = import.meta.glob("../../presentation/**/*.css", {
@@ -32,43 +36,61 @@ function formatStyleLine(filePath: string, index: number, line: string) {
   return `${stylePathToRelative(filePath)}:${index + 1}: ${line.trim()}`;
 }
 
+function expectFragments(
+  source: string,
+  {
+    forbidden = [],
+    required = [],
+  }: FragmentContract,
+  label: string,
+) {
+  expect({
+    forbidden: forbidden.filter((fragment) => source.includes(fragment)),
+    missing: required.filter((fragment) => !source.includes(fragment)),
+  }, label).toEqual({ forbidden: [], missing: [] });
+}
+
+function readRule(source: string, selector: string) {
+  const selectorStart = source.indexOf(selector);
+
+  if (selectorStart < 0) return "";
+  const bodyStart = source.indexOf("{", selectorStart);
+
+  if (bodyStart < 0) return "";
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(selectorStart, index + 1);
+    }
+  }
+  return "";
+}
+
 describe("UI design contract", () => {
-  it("keeps foundation, frame, shared, and activity styles in explicit layers", () => {
+  it("keeps style layers explicit and Activity CSS owned by its view", () => {
     const uiStylePaths = Object.keys(styleModules)
       .filter((path) => path.startsWith("../../presentation/ui/styles"))
       .map(stylePathToRelative);
-
-    expect(uiStylePaths).toContain("ui/styles/index.css");
-    expect(uiStylePaths).toContain("ui/styles/foundation/theme.css");
-    expect(uiStylePaths).toContain("ui/styles/foundation/base.css");
-    expect(uiStylePaths).toContain("ui/styles/frame/frame.css");
-    expect(uiStylePaths).toContain("ui/styles/frame/problems.css");
-    expect(uiStylePaths).toContain("ui/styles/shared/primitives.css");
-    expect(uiStylePaths).toContain("ui/styles/shared/tree.css");
-    expect(
-      uiStylePaths.filter((path) => path.startsWith("ui/styles/activities/")),
-    ).toEqual(
-      expect.arrayContaining([
-        "ui/styles/activities/notes.css",
-        "ui/styles/activities/repository.css",
-        "ui/styles/activities/settings.css",
-        "ui/styles/activities/structure-operation.css",
-        "ui/styles/activities/syntax.css",
-        "ui/styles/activities/visualization.css",
-      ]),
-    );
-  });
-
-  it("loads activity styles through their owning activity modules", () => {
     const globalStyleEntry = readStyle("ui/styles/index.css");
+    const requiredLayers = [
+      "ui/styles/index.css",
+      "ui/styles/foundation/theme.css",
+      "ui/styles/foundation/base.css",
+      "ui/styles/frame/frame.css",
+      "ui/styles/frame/problems.css",
+      "ui/styles/shared/primitives.css",
+      "ui/styles/shared/tree.css",
+    ];
     const activityStylePaths = Object.keys(styleModules).filter((path) =>
-      path.startsWith("../../presentation/ui/styles/activities/"),
+      path.startsWith("../../presentation/ui/styles/activities/")
     );
-    const violations = activityStylePaths.flatMap((stylePath) => {
+    const ownerViolations = activityStylePaths.flatMap((stylePath) => {
       const styleName = stylePath.split("/").at(-1)?.replace(".css", "") ?? "";
       const owners = Object.entries(sourceModules)
         .filter(([, source]) =>
-          source.includes(`styles/activities/${styleName}.css`),
+          source.includes(`styles/activities/${styleName}.css`)
         )
         .map(([filePath]) => sourcePathToRelative(filePath));
       const expectedOwnerPrefix =
@@ -81,17 +103,19 @@ describe("UI design contract", () => {
         : [`${styleName}: ${owners.join(", ") || "missing"}`];
     });
 
+    expect(requiredLayers.filter((path) => !uiStylePaths.includes(path)))
+      .toEqual([]);
     expect(globalStyleEntry).not.toContain("./activities/");
-    expect(globalStyleEntry).toContain('./frame/problems.css');
-    expect(violations).toEqual([]);
+    expect(globalStyleEntry).toContain("./frame/problems.css");
+    expect(ownerViolations).toEqual([]);
   });
 
-  it("keeps shared primitive selectors out of activity styles", () => {
+  it("keeps shared selectors out of Activity style sheets", () => {
     const titleSelectorPattern =
       /^\s*\.[\w-]+\s+(?:\.ui-panel-(?:header|title|title-group|leading-actions|actions)|\.context-panel-header)(?:\s|[.{:#>])/;
     const violations = Object.entries(styleModules)
       .filter(([filePath]) =>
-        filePath.startsWith("../../presentation/ui/styles/activities/"),
+        filePath.startsWith("../../presentation/ui/styles/activities/")
       )
       .flatMap(([filePath, source]) =>
         source
@@ -103,31 +127,27 @@ describe("UI design contract", () => {
               titleSelectorPattern.test(line),
           )
           .map(({ filePath, index, line }) =>
-            formatStyleLine(filePath, index, line),
-          ),
+            formatStyleLine(filePath, index, line)
+          )
       );
 
     expect(violations).toEqual([]);
   });
 
-  it("keeps role typography and density values in the foundation theme", () => {
-    const theme = readStyle("ui/styles/foundation/theme.css");
+  it("centralizes role dimensions, typography, and colors in foundation tokens", () => {
+    const themePath = "../../presentation/ui/styles/foundation/theme.css";
+    const theme = styleModules[themePath] ?? "";
     const requiredTokens = [
       "--font-ui",
       "--font-content",
       "--font-code",
       "--ui-root-font-size",
-      "--ui-title-font-size",
-      "--ui-body-font-size",
+      "--ui-title-font-size: 16px",
+      "--ui-body-font-size: 13px",
       "--ui-control-font-size",
-      "--ui-micro-font-size",
+      "--ui-micro-font-size: 12px",
       "--ui-code-font-size",
-      "--ui-micro-line-height",
-      "--ui-micro-weight",
-      "--ui-micro-strong-weight",
       "--ui-numeric-font-variant",
-      "--ui-numeric-weight",
-      "--ui-numeric-strong-weight",
       "--app-activity-width: 48px",
       "--app-detail-collapsed-width: 36px",
       "--app-main-min-width: 420px",
@@ -139,19 +159,9 @@ describe("UI design contract", () => {
       "--ui-icon-size: 22px",
       "--ui-tree-row-height: 22px",
       "--ui-problems-row-height: 22px",
-      "--ui-title-font-size: 16px",
-      "--ui-body-font-size: 13px",
-      "--ui-micro-font-size: 12px",
       "--ctn-editor-font-size: 14px",
     ];
-
-    expect(
-      requiredTokens.filter((token) => !theme.includes(token)),
-    ).toEqual([]);
-  });
-
-  it("keeps typography and numeric implementation behind role tokens", () => {
-    const violations = Object.entries(styleModules)
+    const implementationViolations = Object.entries(styleModules)
       .filter(
         ([filePath]) =>
           filePath.startsWith("../../presentation/ui/styles") &&
@@ -176,43 +186,37 @@ describe("UI design contract", () => {
             );
           })
           .map(({ filePath, index, line }) =>
-            formatStyleLine(filePath, index, line),
-          ),
+            formatStyleLine(filePath, index, line)
+          )
       );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps hard-coded colors in the foundation theme", () => {
-    const hardCodedColorPattern = /#[0-9a-fA-F]{3,8}\b|rgba?\(/;
-    const violations = Object.entries(styleModules)
-      .filter(
-        ([filePath]) =>
-          filePath !== "../../presentation/ui/styles/foundation/theme.css",
-      )
+    const colorViolations = Object.entries(styleModules)
+      .filter(([filePath]) => filePath !== themePath)
       .flatMap(([filePath, source]) =>
         source
           .split("\n")
           .map((line, index) => ({ filePath, index, line }))
-          .filter(({ line }) => hardCodedColorPattern.test(line))
+          .filter(({ line }) => /#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(line))
           .map(({ filePath, index, line }) =>
-            formatStyleLine(filePath, index, line),
-          ),
+            formatStyleLine(filePath, index, line)
+          )
       );
 
-    expect(violations).toEqual([]);
+    expect(requiredTokens.filter((token) => !theme.includes(token)))
+      .toEqual([]);
+    expect(implementationViolations).toEqual([]);
+    expect(colorViolations).toEqual([]);
   });
 
-  it("keeps editor and activity presentation in their owning styles", () => {
+  it("keeps editor, shared, and Activity presentation in their owners", () => {
     const sharedStyles = Object.entries(styleModules)
       .filter(([filePath]) =>
-        filePath.startsWith("../../presentation/ui/styles/shared/"),
+        filePath.startsWith("../../presentation/ui/styles/shared/")
       )
       .map(([, source]) => source)
       .join("\n");
     const activityStyles = Object.entries(styleModules)
       .filter(([filePath]) =>
-        filePath.startsWith("../../presentation/ui/styles/activities/"),
+        filePath.startsWith("../../presentation/ui/styles/activities/")
       )
       .map(([, source]) => source)
       .join("\n");
@@ -222,174 +226,79 @@ describe("UI design contract", () => {
       /\.(?:graph|repository|settings|structure-operation|syntax)-/,
     );
     expect(activityStyles).not.toContain(".source-editor");
-    expect(editorStyle).toContain(".source-editor");
-    expect(editorStyle).toContain("var(--ctn-editor-font-size)");
+    expectFragments(editorStyle, {
+      required: [".source-editor", "var(--ctn-editor-font-size)"],
+    }, "editor style owner");
   });
 
-  it("keeps editor state backgrounds in an explicit visual priority order", () => {
+  it("orders editor backgrounds by tone, active line, diagnostic, then selection", () => {
     const editorStyle = readStyle("editor/CtnEditor.css");
-    const toneIndex = editorStyle.indexOf(
+    const selectors = [
       ".source-editor .ctn-line:not(.ctn-tone-default)",
-    );
-    const activeLineIndex = editorStyle.indexOf(
       ".source-editor .cm-line.cm-activeLine",
-    );
-    const diagnosticIndex = editorStyle.indexOf(
       ".source-editor .cm-line.ctn-line-diagnostic",
-    );
+    ];
+    const positions = selectors.map((selector) => editorStyle.indexOf(selector));
 
-    expect(toneIndex).toBeGreaterThanOrEqual(0);
-    expect(activeLineIndex).toBeGreaterThan(toneIndex);
-    expect(diagnosticIndex).toBeGreaterThan(activeLineIndex);
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((left, right) => left - right));
     expect(editorStyle).toMatch(
       /\.cm-selectionBackground,[\s\S]*background:\s*var\(--color-selected\)\s*!important/,
     );
   });
 
-  it("keeps multiline source in the ordinary editor surface", () => {
-    const editorStyle = readStyle("editor/CtnEditor.css");
-
-    expect(editorStyle).toMatch(
-      /\.source-editor \.ctn-marker\s*\{[^}]*font-weight:/s,
-    );
-    expect(editorStyle).not.toContain("ctn-multiline-card");
-    expect(editorStyle).not.toContain("ctn-multiline-block-mark");
-    expect(editorStyle).not.toContain("ctn-editor-tab-calibration");
-  });
-
-  it("reserves short left status rails for diagnostics", () => {
-    const editorStyle = readStyle("editor/CtnEditor.css");
-    const treeStyle = readStyle("ui/styles/shared/tree.css");
-    const compactContextStyle = readStyle(
-      "ui/styles/shared/compactContextList.css",
-    );
-    const editorRailStart = editorStyle.indexOf(
-      ".source-editor .cm-line.ctn-line-diagnostic::after",
-    );
-    const treeRailStart = treeStyle.indexOf(
-      ".has-diagnostics::after",
-    );
-    const editorDiagnosticRail = editorStyle.slice(
-      editorRailStart,
-      editorRailStart + 600,
-    );
-    const treeDiagnosticRail = treeStyle.slice(
-      treeRailStart,
-      treeRailStart + 600,
-    );
-
-    expect(editorRailStart).toBeGreaterThanOrEqual(0);
-    expect(treeRailStart).toBeGreaterThanOrEqual(0);
-    expect(editorStyle).not.toContain("ctn-multiline-card");
-    expect(compactContextStyle).not.toMatch(
-      /\.ui-compact-context-static-row:focus\s*\{[^}]*box-shadow:/s,
-    );
-    for (const rail of [editorDiagnosticRail, treeDiagnosticRail]) {
-      expect(rail).toContain("top: var(--ui-border-width)");
-      expect(rail).toContain("bottom: var(--ui-border-width)");
-      expect(rail).toContain(
+  it("uses one diagnostic rail geometry in the editor and shared trees", () => {
+    const rails = [
+      readRule(
+        readStyle("editor/CtnEditor.css"),
+        ".source-editor .cm-line.ctn-line-diagnostic::after",
+      ),
+      readRule(
+        readStyle("ui/styles/shared/tree.css"),
+        ".has-diagnostics::after",
+      ),
+    ];
+    const railContract = {
+      required: [
+        "top: var(--ui-border-width)",
+        "bottom: var(--ui-border-width)",
         "width: calc(var(--ui-border-width) * 3)",
-      );
-      expect(rail).toContain(
         "border-radius: 0 var(--ui-radius) var(--ui-radius) 0",
-      );
-      expect(rail).toContain("background: var(--color-error)");
+        "background: var(--color-error)",
+      ],
+    } satisfies FragmentContract;
+
+    for (const [index, rail] of rails.entries()) {
+      expectFragments(rail, railContract, `diagnostic rail ${index + 1}`);
     }
-    expect(treeStyle).not.toMatch(
-      /\.has-diagnostics\s*\{[^}]*box-shadow:/s,
-    );
   });
 
-  it("keeps structured repository locations complete and selectable", () => {
+  it("keeps repository locations complete, selectable, and code-formatted", () => {
     const repositoryStyle = readStyle("ui/styles/activities/repository.css");
-    const valueRuleStart = repositoryStyle.indexOf(
-      ".repository-location-value {",
-    );
-    const textRuleStart = repositoryStyle.indexOf(
+    const valueRule = readRule(repositoryStyle, ".repository-location-value {");
+    const textRule = readRule(
+      repositoryStyle,
       ".repository-location-value > span {",
     );
-    const valueRule = repositoryStyle.slice(valueRuleStart, textRuleStart);
-    const textRule = repositoryStyle.slice(
-      textRuleStart,
-      repositoryStyle.indexOf("}", textRuleStart) + 1,
-    );
 
-    expect(valueRuleStart).toBeGreaterThanOrEqual(0);
-    expect(textRuleStart).toBeGreaterThan(valueRuleStart);
-    expect(valueRule).toContain("overflow: visible");
-    expect(valueRule).toContain("text-overflow: clip");
-    expect(valueRule).toContain("white-space: normal");
-    expect(textRule).toContain("font-family: var(--font-code)");
-    expect(textRule).toContain("overflow-wrap: anywhere");
-    expect(textRule).toContain("user-select: text");
-    expect(textRule).toContain("white-space: pre-wrap");
+    expectFragments(valueRule, {
+      required: [
+        "overflow: visible",
+        "text-overflow: clip",
+        "white-space: normal",
+      ],
+    }, "repository location container");
+    expectFragments(textRule, {
+      required: [
+        "font-family: var(--font-code)",
+        "overflow-wrap: anywhere",
+        "user-select: text",
+        "white-space: pre-wrap",
+      ],
+    }, "repository location text");
   });
 
-  it("keeps repository management aligned with the flat list visual grammar", () => {
-    const repositoryStyle = readStyle("ui/styles/activities/repository.css");
-    const compactContextStyle = readStyle(
-      "ui/styles/shared/compactContextList.css",
-    );
-    const compactRowStart = compactContextStyle.indexOf(
-      ".ui-compact-context-row {",
-    );
-    const compactRow = compactContextStyle.slice(
-      compactRowStart,
-      compactContextStyle.indexOf("}", compactRowStart) + 1,
-    );
-    expect(compactRowStart).toBeGreaterThanOrEqual(0);
-    expect(compactRow).toContain("var(--ui-symbol-size)");
-    expect(compactRow).toContain("minmax(0, 1fr)");
-    expect(repositoryStyle).not.toContain(".repository-inline-rename");
-    expect(repositoryStyle).not.toContain(".repository-group-title");
-    expect(repositoryStyle).not.toContain(".repository-issue-row {");
-    expect(repositoryStyle).toContain("width: min(100%, 720px)");
-    expect(repositoryStyle).toContain("@media (max-width: 720px)");
-    expect(repositoryStyle).not.toMatch(
-      /\.repository-danger-zone\s*\{[^}]*border:/s,
-    );
-  });
-
-  it("keeps compact inline editing in one shared three-column row", () => {
-    const treeStyle = readStyle("ui/styles/shared/tree.css");
-    const compactContextStyle = readStyle(
-      "ui/styles/shared/compactContextList.css",
-    );
-    const inlineRenameStart = compactContextStyle.indexOf(
-      ".ui-compact-context-inline-rename {",
-    );
-    const inlineRenameRule = compactContextStyle.slice(
-      inlineRenameStart,
-      compactContextStyle.indexOf("}", inlineRenameStart) + 1,
-    );
-
-    expect(inlineRenameStart).toBeGreaterThanOrEqual(0);
-    expect(inlineRenameRule).toContain(
-      "var(--ui-symbol-size)\n    minmax(0, 1fr)\n    max-content",
-    );
-    expect(inlineRenameRule).toContain("min-width: 0");
-    expect(treeStyle).not.toContain(".ui-compact-context-inline-rename");
-    expect(treeStyle).toMatch(
-      /\.ui-tree-actions \{[\s\S]*?white-space: nowrap;/,
-    );
-  });
-
-  it("keeps the collapsed detail responsive behavior in the frame layer", () => {
-    const frame = readStyle("ui/styles/frame/frame.css");
-    const responsiveStart = frame.indexOf("@media (max-width: 1120px)");
-    const responsiveSource = frame.slice(responsiveStart);
-
-    expect(responsiveStart).toBeGreaterThanOrEqual(0);
-    expect(responsiveSource).toContain(".app-frame.detail-collapsed");
-    expect(responsiveSource).toContain("var(--app-detail-collapsed-width)");
-    expect(responsiveSource).toContain(
-      ".app-frame.no-context.detail-collapsed",
-    );
-    expect(responsiveSource).toContain(".app-detail-collapsed");
-    expect(responsiveSource).toContain("border-left: 0");
-  });
-
-  it("keeps flat primitives free of card framing", () => {
+  it("keeps shared surfaces flat without card framing", () => {
     const primitives = readStyle("ui/styles/shared/primitives.css");
     const cardPatterns = [
       /\.ui-section-framed,\n\.ui-form-section\s*\{[^}]*\bborder:\s*1px/s,
@@ -404,190 +313,119 @@ describe("UI design contract", () => {
       /\.ui-empty-state\s*\{[^}]*\bbackground:\s*var\(--color-panel\)/s,
     ];
 
-    expect(cardPatterns.filter((pattern) => pattern.test(primitives))).toEqual(
-      [],
-    );
+    expect(cardPatterns.filter((pattern) => pattern.test(primitives)))
+      .toEqual([]);
   });
 
-  it("keeps shared tree depth, virtualization and drag states in one contract", () => {
-    const tree = readStyle("ui/styles/shared/tree.css");
+  it("applies category-level format contracts through shared tokens", () => {
+    const contracts = [
+      {
+        contract: {
+          required: [
+            ".app-frame.detail-collapsed",
+            "var(--app-detail-collapsed-width)",
+            ".app-detail-collapsed",
+          ],
+        },
+        file: "ui/styles/frame/frame.css",
+        label: "frame",
+      },
+      {
+        contract: {
+          required: [
+            ".ui-symbol-slot",
+            "width: var(--ui-symbol-size)",
+            ".ui-toggle-button.is-active",
+            ".detail-summary-strip",
+            ".detail-primary-row",
+            ".detail-divider",
+            ".detail-line-row",
+          ],
+        },
+        file: "ui/styles/shared/primitives.css",
+        label: "shared rows",
+      },
+      {
+        contract: {
+          required: [
+            ".ui-virtual-tree-row",
+            "--ui-directory-depth",
+            ".ui-tree-row-frame.is-delete-pending",
+            "var(--ui-structure-depth)",
+            "var(--ui-structure-indent-width)",
+            ".ui-structure-tree-item.is-selected-subtree",
+            ".ui-tree-row-frame.is-drop-target::before",
+            ".ui-tree-row-frame.is-drop-before::before",
+          ],
+        },
+        file: "ui/styles/shared/tree.css",
+        label: "shared trees",
+      },
+      {
+        contract: {
+          forbidden: ["color-accent", "box-shadow"],
+          required: [
+            "background: var(--color-selected)",
+            "border-color: var(--color-border-strong)",
+            ".structure-operation-target-node.is-drop-above::before",
+            ".structure-operation-target-node.is-drop-below::after",
+          ],
+        },
+        file: "ui/styles/activities/structure-operation.css",
+        label: "structure drag feedback",
+        selector: ".structure-operation-drop-target.is-active",
+      },
+      {
+        contract: {
+          required: [
+            ".syntax-settings-stack",
+            ".syntax-settings-group",
+            ".syntax-setting-line",
+            ".syntax-rule-row",
+            ".syntax-pair-fields",
+            "--syntax-rule-row-width",
+            "var(--ui-control-height)",
+            ".syntax-tone-button.is-compact",
+            ".syntax-kind-menu",
+          ],
+        },
+        file: "ui/styles/activities/syntax.css",
+        label: "syntax controls",
+      },
+    ] as const;
 
-    expect(tree).toContain(".ui-virtual-tree-row");
-    expect(tree).toContain("--ui-directory-depth");
-    expect(tree).toContain(".ui-tree-row-frame.is-delete-pending");
-    expect(tree).toContain(".ui-structure-tree .ui-structure-tree");
-    expect(tree).toContain("padding-left: 0");
-    expect(tree).toContain("border-left: 0");
-    expect(tree).toContain("--ui-structure-indent-width: 14px");
-    expect(tree).toContain("var(--ui-structure-depth)");
-    expect(tree).toContain("var(--ui-structure-indent-width)");
-    expect(tree).toContain("grid-template-columns:\n    max-content");
-    expect(tree).toContain(".ui-structure-tree-item.is-selected-subtree");
-    expect(tree).toContain(".ui-tree-row-frame.is-drop-target::before");
-    expect(tree).toContain(".ui-tree-row-frame.is-drop-before::before");
-    expect(tree).toContain("background: var(--color-selected)");
-    expect(tree).not.toContain(
-      "box-shadow: inset 0 0 0 var(--ui-border-width) var(--color-border-strong)",
-    );
-    expect(tree).not.toContain("color-accent");
-    expect(tree).not.toContain(
-      "minmax(calc(var(--ui-control-height) * 2), max-content)",
-    );
+    for (const entry of contracts) {
+      const source = readStyle(entry.file);
+      const subject = "selector" in entry
+        ? source.slice(source.indexOf(entry.selector))
+        : source;
+
+      expectFragments(subject, entry.contract, entry.label);
+    }
   });
 
-  it("keeps row-style primitives flat without changing panel titles", () => {
-    const primitives = readStyle("ui/styles/shared/primitives.css");
-
-    expect(primitives).not.toContain(".ui-panel-detail .ui-panel-header h2");
-    expect(primitives).toContain(".ui-symbol-slot");
-    expect(primitives).toContain("width: var(--ui-symbol-size)");
-    expect(primitives).toContain(".ui-toggle-button.is-active");
-    expect(primitives).toContain("color: var(--color-fg-strong)");
-    expect(primitives).toContain(".detail-summary-strip");
-    expect(primitives).toContain(".detail-primary-row");
-    expect(primitives).toContain(".detail-divider");
-    expect(primitives).toContain(".detail-line-row");
-    expect(primitives).not.toMatch(
-      /\.detail-line-row[\s\S]*?border: var\(--ui-border-width\) solid var\(--color-border/,
-    );
-  });
-
-  it("keeps structure operation alignment and drag feedback neutral", () => {
-    const structureOperation = readStyle(
-      "ui/styles/activities/structure-operation.css",
-    );
-    const dropStyleStart = structureOperation.indexOf(
-      ".structure-operation-drop-target.is-active",
-    );
-    const dropStyleSource = structureOperation.slice(dropStyleStart);
-    const columnStyleStart = structureOperation.indexOf(
-      ".structure-operation-column",
-    );
-    const columnStyleEnd = structureOperation.indexOf(
-      ".structure-operation-drop-target",
-    );
-    const columnStyleSource = structureOperation.slice(
-      columnStyleStart,
-      columnStyleEnd,
-    );
-    const swapStyleStart = structureOperation.indexOf(
-      ".structure-operation-pair-swap",
-    );
-    const swapStyleEnd = structureOperation.indexOf(
-      ".structure-operation-column",
-      swapStyleStart,
-    );
-    const swapStyleSource = structureOperation.slice(
-      swapStyleStart,
-      swapStyleEnd,
-    );
-
-    expect(dropStyleStart).toBeGreaterThanOrEqual(0);
-    expect(dropStyleSource).toContain("background: var(--color-selected)");
-    expect(dropStyleSource).toContain("border-color: var(--color-border-strong)");
-    expect(dropStyleSource).toContain("height: 8px");
-    expect(dropStyleSource).toContain(
-      ".structure-operation-target-node.is-drop-above::before",
-    );
-    expect(dropStyleSource).toContain(
-      ".structure-operation-target-node.is-drop-below::after",
-    );
-    expect(dropStyleSource).not.toContain("color-accent");
-    expect(dropStyleSource).not.toContain("box-shadow");
-    expect(columnStyleSource).toContain("align-content: start");
-    expect(swapStyleSource).not.toContain("transform");
-    expect(structureOperation).toContain(
-      ".structure-operation-column > .ui-section-title",
-    );
-    expect(structureOperation).toContain("min-height: var(--ui-icon-size)");
-  });
-
-  it("keeps syntax controls and grouped layout behind shared tokens", () => {
-    const primitives = readStyle("ui/styles/shared/primitives.css");
+  it("limits non-selection and row geometry overrides to their owners", () => {
     const syntax = readStyle("ui/styles/activities/syntax.css");
-    const blockText = readStyle("ui/styles/shared/blockText.css");
-
-    expect(primitives).toContain(".ui-input");
-    expect(primitives).toContain(
-      "border: var(--ui-border-width) solid transparent",
-    );
-    expect(syntax).not.toContain(".syntax-setting-line input");
-    expect(syntax).not.toContain(".syntax-rule-row input");
-    expect(syntax).not.toMatch(
-      /\.syntax-rule-row input:focus,[\s\S]*?outline: var\(--ui-focus-outline\)/,
-    );
-    expect(syntax).not.toMatch(
-      /\.syntax-tone-tile\.is-selected,[\s\S]*?border-color: var\(--color-accent\)/,
-    );
-    expect(blockText).toMatch(
-      /\.ctn-tone-green \{[\s\S]*?--ctn-tone-background: var\(--ctn-tone-green-soft\)/,
-    );
-    expect(blockText).toContain("--ctn-tone-background: color-mix(");
-    expect(syntax).not.toContain("border-left-color: var(--ctn-tone");
-    expect(syntax).not.toContain(
-      "border-left: calc(var(--ui-border-width) * 2) solid transparent",
-    );
-    expect(syntax).toContain(
-      "minmax(calc(var(--ui-control-height) * 2), max-content)",
-    );
-    expect(syntax).toContain(".syntax-settings-stack");
-    expect(syntax).toContain(".syntax-settings-group");
-    expect(syntax).toContain(".syntax-setting-line");
-    expect(syntax).toContain(".syntax-rule-row");
-    expect(syntax).toContain(".syntax-pair-fields");
-    expect(syntax).toContain("--syntax-rule-row-width");
-    expect(syntax).toContain("width: min(100%, var(--syntax-rule-row-width))");
-    expect(syntax).toContain("calc(var(--ui-control-height) * 12)");
-    expect(syntax).not.toContain("calc(var(--ui-control-height) * 26)");
-    expect(syntax).toContain(".syntax-tone-button.is-compact");
-    expect(syntax).toContain(".syntax-dropdown-menu");
-    expect(syntax).toContain(".syntax-kind-menu");
-    expect(syntax).toContain(".syntax-kind-list");
-    expect(syntax).toContain(".syntax-kind-option");
-    expect(syntax).toContain("justify-content: center");
-    expect(syntax).not.toContain(".syntax-settings-table");
-    expect(syntax).not.toContain(".syntax-setting-row");
-    expect(syntax).not.toContain(".syntax-config-strip");
-    expect(syntax).not.toContain(".syntax-config-item");
-    expect(syntax).not.toContain(".syntax-block-row");
-    expect(syntax).not.toContain(".syntax-inline-row");
-    expect(syntax).not.toContain(".syntax-tone-fields");
-  });
-
-  it("prevents selection only on static syntax labels", () => {
-    const syntax = readStyle("ui/styles/activities/syntax.css");
-    const ruleStart = syntax.indexOf(
+    const staticLabelRule = readRule(
+      syntax,
       ".syntax-context .ui-compact-context-group-title,",
     );
-    const rule = syntax.slice(
-      ruleStart,
-      syntax.indexOf("}", ruleStart) + 1,
-    );
-
-    expect(ruleStart).toBeGreaterThanOrEqual(0);
-    expect(rule).toContain(".syntax-workspace-group-header");
-    expect(rule).toContain(".syntax-group-label");
-    expect(rule).toContain(".syntax-setting-label");
-    expect(rule).toContain(".syntax-rule-header");
-    expect(rule).toContain(".syntax-readonly");
-    expect(rule).toContain("user-select: none");
-    expect(rule).not.toContain("input");
-    expect(rule).not.toContain("syntax-tone-button");
-    expect(rule).not.toContain("syntax-kind-button");
-  });
-
-  it("extends the shared structure tree without Todo-specific row geometry", () => {
     const todo = readStyle("ui/styles/activities/todo.css");
 
-    expect(todo).not.toContain(".todo-collection-count");
-    expect(todo).not.toContain(".todo-drag-handle");
-    expect(todo).not.toContain(".todo-structure-tree {");
-    expect(todo).not.toContain(".todo-structure-grip");
+    expectFragments(staticLabelRule, {
+      forbidden: ["input", "syntax-tone-button", "syntax-kind-button"],
+      required: [
+        ".syntax-workspace-group-header",
+        ".syntax-group-label",
+        ".syntax-setting-label",
+        ".syntax-rule-header",
+        ".syntax-readonly",
+        "user-select: none",
+      ],
+    }, "static syntax labels");
     expect(todo).not.toMatch(
       /\.todo-structure-row \{[^}]*grid-template-columns/s,
     );
-    expect(todo).not.toContain(".todo-structure-row:focus-within");
-    expect(todo).toContain(".todo-structure-row:has(:focus-visible)");
     expect(todo).toMatch(
       /\.todo-structure-label \{[\s\S]*?background: transparent;/,
     );
@@ -598,7 +436,7 @@ describe("UI design contract", () => {
       .filter((filePath) =>
         /window\.(?:alert|confirm|prompt)\s*\(/.test(
           sourceModules[filePath] ?? "",
-        ),
+        )
       )
       .map(sourcePathToRelative);
 

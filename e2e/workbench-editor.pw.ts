@@ -5,8 +5,11 @@ import {
   request as createRequest,
   test,
   type APIRequestContext,
+  type Locator,
 } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace/types";
+import { analyzeCtnSource } from "../core/ctn/analysis/sourceAnalysis";
+import { requireCtnSyntax } from "../core/ctn/syntax/compiler";
 import { defaultCtnSyntax } from "../core/ctn/syntax/defaultSyntax";
 import { formatCtnSyntaxV2 } from "../core/ctn/syntax/formatter";
 import {
@@ -34,6 +37,98 @@ const editorSyntaxSource = formatCtnSyntaxV2({
   ),
   tabDisplayWidth: 8,
 }, "workspace");
+const editorSyntax = requireCtnSyntax(editorSyntaxSource, "workspace");
+
+type MultilineSourceGeometry = {
+  bodyX: number;
+  closerX: number;
+  devicePixelRatio: number;
+  nestedMarkerX: number;
+  openerX: number;
+  peerMarkerX: number;
+};
+
+async function measureMultilineSourceGeometry(
+  editor: Locator,
+): Promise<MultilineSourceGeometry> {
+  return await editor.evaluate(async (element) => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+    const devicePixelRatio = window.devicePixelRatio;
+    const snap = (value: number) =>
+      Math.round(value * devicePixelRatio) / devicePixelRatio;
+    const lines = [...element.querySelectorAll<HTMLElement>(".cm-line")];
+    const requireLine = (
+      description: string,
+      predicate: (text: string) => boolean,
+    ) => {
+      const line = lines.find((candidate) =>
+        predicate(candidate.textContent ?? "")
+      );
+
+      if (!line) throw new Error(`Missing ${description} editor line`);
+      return line;
+    };
+    const firstSourceCharacterX = (line: HTMLElement) => {
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+
+      while (node) {
+        const text = node.nodeValue ?? "";
+        const characterIndex = text.search(/\S/);
+
+        if (characterIndex >= 0) {
+          const range = document.createRange();
+
+          range.setStart(node, characterIndex);
+          range.setEnd(node, characterIndex + 1);
+          const rectangle = range.getClientRects()[0];
+
+          if (!rectangle) throw new Error("Missing source character rectangle");
+          return snap(rectangle.left);
+        }
+        node = walker.nextNode();
+      }
+      throw new Error("Missing source character");
+    };
+
+    return {
+      bodyX: firstSourceCharacterX(requireLine(
+        "multiline body",
+        (text) => text.includes("const value = 1;"),
+      )),
+      closerX: firstSourceCharacterX(requireLine(
+        "multiline closer",
+        (text) => text.trim() === "```",
+      )),
+      devicePixelRatio,
+      nestedMarkerX: firstSourceCharacterX(requireLine(
+        "nested calibration",
+        (text) => text.includes("缩进校准"),
+      )),
+      openerX: firstSourceCharacterX(requireLine(
+        "multiline opener",
+        (text) => text.includes("```tsx"),
+      )),
+      peerMarkerX: firstSourceCharacterX(requireLine(
+        "peer calibration",
+        (text) => text.includes("孤立笔记"),
+      )),
+    };
+  });
+}
+
+function expectGeometryEqual(
+  geometry: MultilineSourceGeometry,
+  actual: number,
+  expected: number,
+  message: string,
+) {
+  const tolerance = 1 / geometry.devicePixelRatio + 1e-6;
+
+  expect(Math.abs(actual - expected), message).toBeLessThanOrEqual(tolerance);
+}
 
 test.describe.serial("editor workbench flows", () => {
   let api: APIRequestContext;
@@ -140,18 +235,21 @@ test.describe.serial("editor workbench flows", () => {
       const snapshot =
         (await response.json()) as WorkspaceRepositorySnapshotDto;
 
-      return snapshot.content.workspace.notes.find(
+      const source = snapshot.content.workspace.notes.find(
         ({ id }) => id === "note-gamma",
       )?.source ?? "";
+
+      return analyzeCtnSource({
+        mode: { kind: "canonical-document" },
+        source,
+        syntax: editorSyntax,
+      }).editableProjection.source;
     };
 
     await expect(opener).toBeVisible();
     await expect(codeLine).toBeVisible();
     await expect(closer).toBeVisible();
     await expect(editor.locator(".cm-content")).toHaveCSS("tab-size", "8");
-    await expect(editor.locator('[class*="ctn-multiline-card"]'))
-      .toHaveCount(0);
-    await expect(editor).not.toContainText(multilineRuleLabel);
     await expect(opener).toHaveClass(/ctn-tone-violet/);
     await expect(codeLine).toHaveClass(/ctn-tone-violet/);
     await expect(closer).toHaveClass(/ctn-tone-violet/);
@@ -175,20 +273,77 @@ test.describe.serial("editor workbench flows", () => {
       "\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
     );
 
+    const sourceBeforeIndent = await readSource();
+    const initialGeometry = await measureMultilineSourceGeometry(editor);
+    const tabStep =
+      initialGeometry.nestedMarkerX - initialGeometry.peerMarkerX;
+
+    expect(tabStep).toBeGreaterThan(0);
+    expectGeometryEqual(
+      initialGeometry,
+      initialGeometry.openerX,
+      initialGeometry.peerMarkerX,
+      "multiline opener must align with a same-level ordinary marker",
+    );
+    expectGeometryEqual(
+      initialGeometry,
+      initialGeometry.closerX,
+      initialGeometry.peerMarkerX,
+      "multiline closer must align with a same-level ordinary marker",
+    );
+    expectGeometryEqual(
+      initialGeometry,
+      initialGeometry.bodyX,
+      initialGeometry.nestedMarkerX,
+      "multiline body must retain its literal next-level indentation",
+    );
+
     await opener.click();
     await page.keyboard.press("Home");
     await page.keyboard.press("Tab");
     await expect.poll(readSource).toContain(
       "\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
     );
-    await page.keyboard.press("Shift+Tab");
-    await expect.poll(readSource).toContain(
-      "\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
+    const indentedGeometry = await measureMultilineSourceGeometry(editor);
+
+    expectGeometryEqual(
+      indentedGeometry,
+      indentedGeometry.openerX - initialGeometry.openerX,
+      tabStep,
+      "Tab must move only the active source line by one measured Tab step",
     );
+    expectGeometryEqual(
+      indentedGeometry,
+      indentedGeometry.bodyX,
+      initialGeometry.bodyX,
+      "Tab on the opener must not move the multiline body",
+    );
+    expectGeometryEqual(
+      indentedGeometry,
+      indentedGeometry.closerX,
+      initialGeometry.closerX,
+      "Tab on the opener must not move the multiline closer",
+    );
+
+    await page.keyboard.press("Shift+Tab");
+    await expect.poll(readSource).toBe(sourceBeforeIndent);
+    const restoredGeometry = await measureMultilineSourceGeometry(editor);
+
+    for (const coordinate of ["openerX", "bodyX", "closerX"] as const) {
+      expectGeometryEqual(
+        restoredGeometry,
+        restoredGeometry[coordinate],
+        initialGeometry[coordinate],
+        `${coordinate} must return without geometry drift`,
+      );
+    }
+
     await page.keyboard.press("Control+Z");
     await expect.poll(readSource).toContain(
       "\t\t```tsx\n\t\tconst value = 1; // edited\n\t``` ",
     );
+    await page.keyboard.press("Control+Z");
+    await expect.poll(readSource).toBe(sourceBeforeIndent);
   });
 
   test("synchronizes the editor block with outline selection and timestamps", async ({
