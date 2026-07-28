@@ -66,7 +66,7 @@ describe("syntax panels", () => {
       has: [
         'type="number"', 'max="16"', "缩进宽度",
         "块规则", "行内规则", "新增块规则",
-        'aria-label="全局概念引用颜色: 蓝色"',
+        'aria-label="全局概念引用颜色: 灰色"',
       ],
       lacks: [
         "全局概念引用背景色", "全局概念引用文字色",
@@ -174,17 +174,21 @@ describe("syntax panels", () => {
     expectMarkupSemantics(markup, {
       has: [
         "代办背景色: 编辑器背景", "代办颜色: 青色", "<h2>代办</h2>",
-        ">代办</span>", ">[]</span>", ">普通块</span>",
+        ">代办</span>", ">[]</span>", ">普通块</span>", 'value="注解"',
+        'aria-label="角色: 普通块"', 'aria-label="标记"',
+        'aria-label="删除块规则"',
       ],
       lacks: [
         "代办文字色", 'value="代办"', 'value="[]"', "首行标题",
-        'aria-label="语法名称"', 'aria-label="角色: 普通块"',
-        'aria-label="标记"',
+        'aria-label="语法名称"',
         /aria-label="开始"[^>]*disabled=""/,
         /aria-label="结束"[^>]*disabled=""/,
-        'aria-label="删除块规则"', 'aria-label="删除行内规则"',
+        'aria-label="删除行内规则"',
       ],
     });
+    expect(occurrenceCount(markup, 'aria-label="角色: 普通块"')).toBe(1);
+    expect(occurrenceCount(markup, 'aria-label="标记"')).toBe(1);
+    expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(1);
   });
 
   it("keeps catalog name conflicts in the invalid draft recovery state", () => {

@@ -16,7 +16,7 @@ export const defaultJournalSyntaxDefinition = {
       marker: ":",
       semanticId: "definition",
       textColor: "teal",
-      tone: "green",
+      tone: "default",
     },
     {
       kind: "line",
@@ -24,7 +24,7 @@ export const defaultJournalSyntaxDefinition = {
       marker: "?",
       semanticId: "question",
       textColor: "amber",
-      tone: "amber",
+      tone: "default",
     },
     {
       kind: "line",
@@ -32,7 +32,7 @@ export const defaultJournalSyntaxDefinition = {
       marker: ">",
       semanticId: "personal-understanding",
       textColor: "violet",
-      tone: "violet",
+      tone: "default",
     },
     {
       kind: "line",
@@ -40,7 +40,7 @@ export const defaultJournalSyntaxDefinition = {
       marker: "-",
       semanticId: "component",
       textColor: "blue",
-      tone: "blue",
+      tone: "default",
     },
   ],
   formatVersion: 2,
@@ -51,8 +51,8 @@ export const defaultJournalSyntaxDefinition = {
       label: "引用",
       open: "[[",
       semanticId: "global-reference",
-      textColor: "blue",
-      tone: "blue",
+      textColor: "gray",
+      tone: "gray",
     },
     {
       close: ">",
@@ -60,8 +60,8 @@ export const defaultJournalSyntaxDefinition = {
       label: "条目内块引用",
       open: "<",
       semanticId: "local-reference",
-      textColor: "teal",
-      tone: "teal",
+      textColor: "gray",
+      tone: "gray",
     },
     {
       kind: "single",
@@ -78,7 +78,7 @@ export const defaultJournalSyntaxDefinition = {
     textColor: "default",
     tone: "default",
   },
-  tabDisplayWidth: 4,
+  tabDisplayWidth: 8,
   title: null,
 } satisfies CtnSyntaxDefinition;
 

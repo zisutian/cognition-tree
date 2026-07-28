@@ -158,8 +158,8 @@ describe("CTN syntax v2 compiler", () => {
     const source = defaultCtnSyntaxSource
       .replace('name = "默认 CTN 语法"', 'name = "默认 CTN 语法"\nlegacy = true')
       .replace(
-        'label = "代码块"',
-        'label = "代码块"\nlegacyBlock = "no"',
+        'label = "代码"',
+        'label = "代码"\nlegacyBlock = "no"',
       );
     const diagnostics = diagnosticCoordinates(source, "workspace");
 

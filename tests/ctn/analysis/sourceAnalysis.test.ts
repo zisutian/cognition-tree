@@ -105,7 +105,7 @@ Root
       children: [],
       rule: {
         kind: "multiline",
-        label: "代码块",
+        label: "代码",
         semanticId: "multiline-block",
       },
       text: "ts",

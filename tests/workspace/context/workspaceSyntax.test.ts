@@ -13,7 +13,39 @@ describe("workspace syntax", () => {
     expect(defaultWorkspaceSyntax.source).toContain("[title]");
     expect(defaultWorkspaceSyntax.source).not.toContain("type =");
     expect(defaultWorkspaceSyntax).toMatchObject({
-      syntax: { name: "默认 CTN 语法" },
+      syntax: {
+        blocks: expect.arrayContaining([
+          expect.objectContaining({
+            label: "代码",
+            semanticId: "multiline-block",
+            tone: "default",
+          }),
+          expect.objectContaining({
+            semanticId: "question",
+            textColor: "red",
+          }),
+          expect.objectContaining({
+            semanticId: "personal-understanding",
+            textColor: "amber",
+          }),
+        ]),
+        inline: expect.arrayContaining([
+          expect.objectContaining({
+            semanticId: "global-reference",
+            textColor: "gray",
+            tone: "gray",
+          }),
+          expect.objectContaining({
+            semanticId: "local-reference",
+            textColor: "gray",
+            tone: "gray",
+          }),
+        ]),
+        name: "默认 CTN 语法",
+        root: { tone: "default" },
+        tabDisplayWidth: 8,
+        title: { tone: "default" },
+      },
     });
   });
 

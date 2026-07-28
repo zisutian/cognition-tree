@@ -18,6 +18,14 @@ export const defaultTodoSyntaxDefinition = {
       textColor: "cyan",
       tone: "default",
     },
+    {
+      kind: "line",
+      label: "注解",
+      marker: ">",
+      semanticId: "marker-rule-2",
+      textColor: "green",
+      tone: "default",
+    },
   ],
   formatVersion: 2,
   inline: [

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readCanonicalTestDocument } from "../../../ctn/analysis/analysisTestHelpers";
+import { defaultCtnSyntaxSource } from "../../../../core/ctn/syntax/defaultSyntax";
 import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import { readWorkspaceNoteHeader } from "../../../../core/workspace/model/workspaceData";
 import { createInitialRepositoryContent } from "../../../../application/workspace/session/initialRepository";
@@ -24,6 +25,10 @@ describe("initial repository", () => {
       schemaVersion: 4,
       syntax: {
         activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
+        files: [{
+          id: "syntax-00000000-0000-4000-8000-000000000001",
+          source: defaultCtnSyntaxSource,
+        }],
       },
       workspace: {
         id: "workspace-independent",

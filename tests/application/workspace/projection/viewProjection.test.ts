@@ -193,7 +193,7 @@ describe("workspace view projection", () => {
         id: "4-4-global-reference",
         kind: "inline",
         text: "全局概念",
-        tone: "blue",
+        tone: "gray",
       },
       { id: `${rootId}-text-11`, kind: "text", text: " 和 " },
       {
@@ -216,7 +216,7 @@ describe("workspace view projection", () => {
         id: "4-3-parallel-separator",
         kind: "inline",
         text: "\\",
-        tone: "amber",
+        tone: "green",
       },
       { id: `${rootId}-text-3`, kind: "text", text: " 乙" },
     ]);
@@ -292,7 +292,7 @@ describe("workspace view projection", () => {
       draft,
     });
 
-    expect(view.draft.tabDisplayWidth).toBe("4");
+    expect(view.draft.tabDisplayWidth).toBe("8");
     expect(view.constraints).toEqual({
       label: { maxLength: 32 },
       name: { maxLength: 64 },

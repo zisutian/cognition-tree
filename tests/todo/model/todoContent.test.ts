@@ -66,12 +66,18 @@ describe("Todo v4 content", () => {
     });
     expect(isTodoCollectionId(todoCollectionId(1))).toBe(true);
     expect(isTodoCollectionId(todoCollectionId(1).toUpperCase())).toBe(false);
-    expect(requireCtnSyntax(content.syntaxSource, "todo").blocks[0])
-      .toMatchObject({
+    expect(requireCtnSyntax(content.syntaxSource, "todo").blocks)
+      .toMatchObject([{
         marker: "[]",
         semanticId: "todo-item",
         tone: "default",
-      });
+      }, {
+        label: "注解",
+        marker: ">",
+        semanticId: "marker-rule-2",
+        textColor: "green",
+        tone: "default",
+      }]);
   });
 
   it("rejects another version, invalid syntax, and duplicate ids", () => {

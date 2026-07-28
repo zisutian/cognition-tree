@@ -249,7 +249,7 @@ test.describe("syntax and visualization activity flows", () => {
     await expect(page.getByRole("textbox", { name: "开始" })).toBeEnabled();
     await expect(page.getByRole("textbox", { name: "结束" })).toBeEnabled();
     await expect(page.getByRole("button", { name: "删除块规则" }))
-      .toHaveCount(0);
+      .toHaveCount(1);
     await expect(page.getByRole("button", { name: "删除行内规则" }))
       .toHaveCount(0);
     await expect(page.getByText("首行标题", { exact: true })).toHaveCount(0);
@@ -300,7 +300,7 @@ test.describe("syntax and visualization activity flows", () => {
     await getActivityButton(page, "笔记").click();
     await expect(page.getByLabel("语法配置")).toBeVisible();
     await page.getByRole("button", { name: "撤销无效更改" }).click();
-    await expect(indentWidth).toHaveValue("4");
+    await expect(indentWidth).toHaveValue("8");
     await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("Alpha").click();
 
@@ -334,7 +334,7 @@ test.describe("syntax and visualization activity flows", () => {
     });
 
     await getActivityButton(page, "语法").click();
-    await expect(indentWidth).toHaveValue("4");
+    await expect(indentWidth).toHaveValue("8");
   });
 
   test("switches graph selection without shrinking the canvas", async ({

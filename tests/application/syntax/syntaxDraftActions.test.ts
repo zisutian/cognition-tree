@@ -52,14 +52,21 @@ describe("syntax draft actions", () => {
     });
 
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      blocks: [expect.objectContaining({
-        label: "代办",
-        marker: "[]",
-        kind: "line",
-        semanticId: "todo-item",
-        textColor: "red",
-        tone: "violet",
-      })],
+      blocks: expect.arrayContaining([
+        expect.objectContaining({
+          label: "代办",
+          marker: "[]",
+          kind: "line",
+          semanticId: "todo-item",
+          textColor: "red",
+          tone: "violet",
+        }),
+        expect.objectContaining({
+          label: "注解",
+          marker: ">",
+          semanticId: "marker-rule-2",
+        }),
+      ]),
     }));
     actions.actions.removeBlock(rule.id);
     expect(update).toHaveBeenCalledTimes(1);

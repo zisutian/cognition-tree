@@ -15,6 +15,9 @@ import { describe, expect, it } from "vitest";
 describe("journal CTN syntax", () => {
   it("uses a neutral body rule and the protected reference vocabulary", () => {
     expect(defaultJournalSyntax.name).toBe("日记");
+    expect(defaultJournalSyntax.tabDisplayWidth).toBe(8);
+    expect(defaultJournalSyntax.blocks.every(({ tone }) => tone === "default"))
+      .toBe(true);
     expect(defaultJournalSyntax.root).toEqual(
       expect.objectContaining({
         label: "正文",
@@ -31,6 +34,8 @@ describe("journal CTN syntax", () => {
       close: "]]",
       kind: "paired",
       open: "[[",
+      textColor: "gray",
+      tone: "gray",
     }));
   });
 
