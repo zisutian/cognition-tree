@@ -2,41 +2,150 @@ import { describe, expect, it } from "vitest";
 import {
   applicationModules,
   getSourceRoot,
-  infrastructureModules,
   listSourceDependencyCycles,
   listSourceImports,
-  presentationModules,
-  readInternalModuleImports,
   readModuleImports,
   readSourceImports,
-  sourceModules,
-  sourceModulesByRoot,
+  sourceImportCorpus,
+  type SourceImport,
   type SourceRoot,
 } from "./sourceGraph";
+import {
+  auditTextPolicies,
+  type TextPolicy,
+} from "../support/textPolicy";
 
-function formatImport(filePath: string, importPath: string) {
-  return `${filePath} imports ${importPath}`;
+const allowedLayerImports: Readonly<Record<SourceRoot, readonly SourceRoot[]>> = {
+  application: ["application", "core"],
+  contracts: ["contracts", "core"],
+  core: ["core"],
+  infrastructure: ["infrastructure", "application", "contracts", "core"],
+  presentation: ["presentation", "infrastructure", "application", "core"],
+};
+
+const allowedServerImports: Readonly<Record<string, readonly string[]>> = {
+  "adapters/local": ["adapters/local", "persistence", "repository"],
+  "adapters/webdav": ["adapters/webdav", "persistence", "repository"],
+  api: ["api", "repository"],
+  catalog: ["catalog", "repository"],
+  persistence: ["persistence"],
+  repository: ["persistence", "repository"],
+};
+
+type ImportPolicy = {
+  allows: (edge: SourceImport) => boolean;
+  applies?: (edge: SourceImport) => boolean;
+  name: string;
+};
+
+function peerDomain(filePath: string) {
+  return filePath.match(
+    /^(?:\.\.\/\.\.\/)?(?:core|application)\/(workspace|journal|todo)\//,
+  )?.[1] ?? null;
 }
 
-const allowedLayerImports: Readonly<
-  Record<SourceRoot, ReadonlySet<SourceRoot>>
-> = {
-  core: new Set(["core"]),
-  contracts: new Set(["contracts", "core"]),
-  application: new Set(["application", "core"]),
-  infrastructure: new Set([
-    "infrastructure",
-    "application",
-    "contracts",
-    "core",
-  ]),
-  presentation: new Set([
-    "presentation",
-    "infrastructure",
-    "application",
-    "core",
-  ]),
-};
+function infrastructureArea(filePath: string) {
+  return filePath.match(
+    /^(?:\.\.\/\.\.\/)?infrastructure\/([^/]+)\//,
+  )?.[1] ?? null;
+}
+
+function serverArea(filePath: string) {
+  const prefix = "../../infrastructure/server/";
+
+  if (!filePath.startsWith(prefix)) return null;
+  const segments = filePath.slice(prefix.length).split("/");
+  return segments[0] === "adapters"
+    ? `adapters/${segments[1]}`
+    : segments[0];
+}
+
+function isRefinedInfrastructureEdge(edge: SourceImport) {
+  const sourceArea = infrastructureArea(edge.filePath);
+  return (
+    ((sourceArea === "browser" || sourceArea === "http") &&
+      infrastructureArea(edge.targetPath) !== null) ||
+    (edge.filePath !== "../../infrastructure/server/index.ts" &&
+      serverArea(edge.filePath) !== null &&
+      serverArea(edge.targetPath) !== null)
+  );
+}
+
+function allowsInfrastructureEdge(edge: SourceImport) {
+  const sourceArea = infrastructureArea(edge.filePath);
+  const targetArea = infrastructureArea(edge.targetPath);
+
+  if (sourceArea === "browser" || sourceArea === "http") {
+    return targetArea === sourceArea || targetArea === "persistence";
+  }
+  const allowed = allowedServerImports[serverArea(edge.filePath) ?? ""];
+  return allowed?.includes(serverArea(edge.targetPath) ?? "") ?? false;
+}
+
+function auditImportPolicies(
+  imports: readonly SourceImport[],
+  policies: readonly ImportPolicy[],
+) {
+  return policies.flatMap((policy) =>
+    imports
+      .filter((edge) => policy.applies?.(edge) ?? true)
+      .filter((edge) => !policy.allows(edge))
+      .map(({ filePath, importPath }) =>
+        `${policy.name}: ${filePath} imports ${importPath}`
+      )
+  );
+}
+
+const importPolicies: readonly ImportPolicy[] = [
+  {
+    allows: ({ filePath, targetRoot }) =>
+      allowedLayerImports[getSourceRoot(filePath)].includes(targetRoot),
+    name: "five-layer direction",
+  },
+  {
+    allows: ({ filePath, targetPath }) =>
+      peerDomain(filePath) === peerDomain(targetPath),
+    applies: ({ filePath, targetPath }) =>
+      peerDomain(filePath) !== null && peerDomain(targetPath) !== null,
+    name: "peer domain isolation",
+  },
+  {
+    allows: allowsInfrastructureEdge,
+    applies: isRefinedInfrastructureEdge,
+    name: "infrastructure sublayer direction",
+  },
+  {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      filePath.startsWith("../../presentation/activities/") &&
+      targetPath.startsWith("../../presentation/shell/"),
+    name: "Activity independence from shell composition",
+  },
+];
+
+const sourcePolicies: readonly TextPolicy[] = [
+  {
+    allowedPath: /^presentation\//,
+    corpus: sourceImportCorpus,
+    matches: { min: 1 },
+    name: "React runtime ownership",
+    pattern: /^react(?:-dom)?(?:\/|$)/m,
+  },
+  {
+    allowedPath: /^infrastructure\//,
+    corpus: sourceImportCorpus,
+    matches: { min: 1 },
+    name: "Node runtime ownership",
+    pattern: /^node:/m,
+  },
+  {
+    corpus: applicationModules,
+    matches: 0,
+    name: "platform globals in application",
+    pattern:
+      /\bglobalThis\s*\.|(?:^|[^\w.])(?:setTimeout|clearTimeout|setInterval|clearInterval)\s*\(/m,
+  },
+];
 
 describe("dependency boundaries", () => {
   it("derives static, re-exported, and dynamic edges from the TypeScript AST", () => {
@@ -67,161 +176,11 @@ describe("dependency boundaries", () => {
     });
   });
 
-  it("enforces the declared five-layer dependency direction", () => {
-    const violations = listSourceImports().flatMap(
-      ({ filePath, importPath, targetRoot }) => {
-        const sourceRoot = getSourceRoot(filePath);
-
-        return allowedLayerImports[sourceRoot].has(targetRoot)
-          ? []
-          : [
-              `${formatImport(filePath, importPath)} ` +
-                `(${sourceRoot} -> ${targetRoot})`,
-            ];
-      },
-    );
-
-    expect(violations).toEqual([]);
-  });
-
-  it("keeps framework and platform runtimes in their owning layers", () => {
-    const runtimeViolations = Object.entries(sourceModulesByRoot).flatMap(
-      ([root, modules]) =>
-        Object.keys(modules).flatMap((filePath) =>
-          readModuleImports(modules, filePath)
-            .filter((importPath) =>
-              (/^react(?:-dom)?(?:\/|$)/.test(importPath) &&
-                root !== "presentation") ||
-              (/^node:/.test(importPath) && root !== "infrastructure")
-            )
-            .map((importPath) => formatImport(filePath, importPath))
-        ),
-    );
-    const platformGlobalViolations = Object.entries(applicationModules).flatMap(
-      ([filePath, source]) =>
-        /\bglobalThis\s*\./.test(source) ||
-        /(?:^|[^\w.])(?:setTimeout|clearTimeout|setInterval|clearInterval)\s*\(/m
-          .test(source)
-          ? [filePath]
-          : [],
-    );
-
-    expect(runtimeViolations).toEqual([]);
-    expect(platformGlobalViolations).toEqual([]);
-  });
-
-  it("keeps peer core and application domains isolated", () => {
-    const corePeers = ["workspace", "journal", "todo"];
-    const applicationPeers = ["workspace", "journal", "todo"];
-    const coreViolations = corePeers.flatMap((sourcePeer) =>
-      Object.keys(sourceModulesByRoot.core)
-        .filter((filePath) =>
-          filePath.startsWith(`../../core/${sourcePeer}/`)
-        )
-        .flatMap((filePath) =>
-          readSourceImports(filePath)
-            .filter(({ targetPath }) =>
-              corePeers.some((targetPeer) =>
-                targetPeer !== sourcePeer &&
-                targetPath.startsWith(`../../core/${targetPeer}/`)
-              )
-            )
-            .map(({ importPath }) => formatImport(filePath, importPath))
-        )
-    );
-    const applicationViolations = applicationPeers.flatMap((sourcePeer) =>
-      Object.keys(applicationModules)
-        .filter((filePath) =>
-          filePath.startsWith(`../../application/${sourcePeer}/`)
-        )
-        .flatMap((filePath) =>
-          readSourceImports(filePath)
-            .filter(({ targetPath }) =>
-              applicationPeers.some((targetPeer) =>
-                targetPeer !== sourcePeer &&
-                (targetPath.startsWith(`../../application/${targetPeer}/`) ||
-                  targetPath.startsWith(`../../core/${targetPeer}/`))
-              )
-            )
-            .map(({ importPath }) => formatImport(filePath, importPath))
-        )
-    );
-
-    expect([...coreViolations, ...applicationViolations]).toEqual([]);
-  });
-
-  it("keeps infrastructure adapter and server sublayers directional", () => {
-    const infrastructureArea = (filePath: string) =>
-      filePath.replace("../../infrastructure/", "").split("/")[0] ?? "";
-    const adapterViolations = Object.keys(infrastructureModules).flatMap(
-      (filePath) => {
-        const sourceArea = infrastructureArea(filePath);
-
-        if (sourceArea !== "browser" && sourceArea !== "http") return [];
-        return readInternalModuleImports(
-          sourceModules,
-          filePath,
-          "../../infrastructure/",
-        )
-          .filter(({ targetPath }) => {
-            const targetArea = infrastructureArea(targetPath);
-            return targetArea !== sourceArea && targetArea !== "persistence";
-          })
-          .map(({ importPath }) => formatImport(filePath, importPath));
-      },
-    );
-    const serverPrefix = "../../infrastructure/server/";
-    const serverArea = (filePath: string) => {
-      const segments = filePath.slice(serverPrefix.length).split("/");
-      return segments[0] === "adapters"
-        ? `adapters/${segments[1]}`
-        : segments[0];
-    };
-    const allowedServerImports = new Map<string, ReadonlySet<string>>([
-      ["api", new Set(["api", "repository"])],
-      ["catalog", new Set(["catalog", "repository"])],
-      ["persistence", new Set(["persistence"])],
-      ["repository", new Set(["persistence", "repository"])],
-      [
-        "adapters/local",
-        new Set(["adapters/local", "persistence", "repository"]),
-      ],
-      [
-        "adapters/webdav",
-        new Set(["adapters/webdav", "persistence", "repository"]),
-      ],
-    ]);
-    const serverModules = Object.fromEntries(
-      Object.entries(infrastructureModules).filter(([filePath]) =>
-        filePath.startsWith(serverPrefix)
-      ),
-    );
-    const serverViolations = Object.keys(serverModules).flatMap((filePath) => {
-      if (filePath === `${serverPrefix}index.ts`) return [];
-      const allowed = allowedServerImports.get(serverArea(filePath));
-
-      return readInternalModuleImports(serverModules, filePath, serverPrefix)
-        .filter(({ targetPath }) => !allowed?.has(serverArea(targetPath)))
-        .map(({ importPath }) => formatImport(filePath, importPath));
-    });
-
-    expect([...adapterViolations, ...serverViolations]).toEqual([]);
-  });
-
-  it("keeps activity bindings independent from shell composition", () => {
-    const violations = Object.keys(presentationModules)
-      .filter((filePath) =>
-        filePath.startsWith("../../presentation/activities/")
-      )
-      .flatMap((filePath) =>
-        readSourceImports(filePath)
-          .filter(({ targetPath }) =>
-            targetPath.startsWith("../../presentation/shell/")
-          )
-          .map(({ importPath }) => formatImport(filePath, importPath))
-      );
-
-    expect(violations).toEqual([]);
+  it("enforces the declared import and runtime policies", () => {
+    expect([
+      ...auditImportPolicies(listSourceImports(), importPolicies),
+      ...auditTextPolicies(sourcePolicies),
+    ]).toEqual([]);
   });
 
   it("keeps the production dependency graph acyclic", () => {

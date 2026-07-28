@@ -23,6 +23,7 @@ import {
   type RepositoryOption,
 } from "../../application/repository/repositoryViewModel";
 import { createRepositoryView } from "./fixtures/repositoryViewFixture";
+import { expectMarkupSemantics } from "./markupSemantics";
 
 const localRepository: RepositoryOption = {
   adapter: "local",
@@ -77,10 +78,10 @@ describe("repository creation form", () => {
       />,
     );
 
-    expect(markup).toContain("存储：本地");
-    expect(markup).toContain("名称");
-    expect(markup).not.toContain('aria-label="仓库存储类型"');
-    expect(markup).not.toContain("仓库 ID");
+    expectMarkupSemantics(markup, {
+      has: ["存储：本地", "名称"],
+      lacks: ['aria-label="仓库存储类型"', "仓库 ID"],
+    });
     expect(markup.match(/<input/g) ?? []).toHaveLength(1);
     expect(createRepositoryRequest("local", {
       ...createRepositoryCreateFormDraft(),
@@ -129,14 +130,15 @@ describe("repository creation form", () => {
       />,
     );
 
-    expect(markup).toContain("地址");
-    expect(markup).toContain('type="url"');
-    expect(markup).toContain('autoComplete="url"');
-    expect(markup).toContain('<option value="none" selected="">无认证</option>');
-    expect(markup).toContain('<option value="basic">Basic</option>');
-    expect(markup).toContain('type="submit"');
-    expect(markup).toContain("添加连接");
-    expect(markup).not.toContain("仓库 ID");
+    expectMarkupSemantics(markup, {
+      has: [
+        "地址", 'type="url"', 'autoComplete="url"',
+        '<option value="none" selected="">无认证</option>',
+        '<option value="basic">Basic</option>',
+        'type="submit"', "添加连接",
+      ],
+      lacks: ["仓库 ID"],
+    });
   });
 });
 
@@ -166,13 +168,14 @@ describe("repository inline deletion confirmation", () => {
     expect(canDeleteManagedRepositoryData(webDavRepository, "远端笔记")).toBe(true);
     expect(canDeleteManagedRepositoryData(webDavRepository, " 远端笔记")).toBe(false);
     expect(canDeleteManagedRepositoryData(webDavRepository, "远端笔记 ")).toBe(false);
-    expect(markup).toContain('role="group"');
-    expect(markup).not.toContain('role="alertdialog"');
-    expect(markup).toContain("仅移除连接");
-    expect(markup).toContain("删除远端数据");
-    expect(markup).toContain("删除远端数据前请输入仓库名称");
-    expect(markup).toContain("仍有内容等待同步。");
-    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>删除远端数据<\/button>/);
+    expectMarkupSemantics(markup, {
+      has: [
+        'role="group"', "仅移除连接", "删除远端数据",
+        "删除远端数据前请输入仓库名称", "仍有内容等待同步。", 'value=""',
+        /<button[^>]*disabled=""[^>]*>删除远端数据<\/button>/,
+      ],
+      lacks: ['role="alertdialog"'],
+    });
   });
 
   it("uses only managed-data deletion for Local repositories", () => {
@@ -194,26 +197,13 @@ describe("repository inline deletion confirmation", () => {
     ]);
     expect(canDeleteManagedRepositoryData(localRepository, "本地笔记")).toBe(true);
     expect(canDeleteManagedRepositoryData(localRepository, "本地笔记 ")).toBe(false);
-    expect(markup).toContain("永久删除");
-    expect(markup).not.toContain("仅移除连接");
-    expect(markup).not.toContain("删除远端数据前请输入仓库名称");
-    expect(markup).toContain("永久删除前请输入仓库名称");
-    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>永久删除<\/button>/);
-  });
-
-  it("starts every inline confirmation with an empty exact-name field", () => {
-    const renderConfirmation = (repository: RepositoryOption) =>
-      renderToStaticMarkup(
-        <RepositoryDeleteConfirmation
-          repository={repository}
-          warning=""
-          onCancel={() => undefined}
-          onDelete={async () => true}
-        />,
-      );
-
-    expect(renderConfirmation(webDavRepository)).toContain('value=""');
-    expect(renderConfirmation(localRepository)).toContain('value=""');
+    expectMarkupSemantics(markup, {
+      has: [
+        "永久删除", "永久删除前请输入仓库名称", 'value=""',
+        /<button[^>]*disabled=""[^>]*>永久删除<\/button>/,
+      ],
+      lacks: ["仅移除连接", "删除远端数据前请输入仓库名称"],
+    });
   });
 });
 
@@ -262,33 +252,24 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(markup.indexOf(">内置</span>")).toBeLessThan(
-      markup.indexOf(">新建仓库</span>"),
-    );
-    expect(markup.indexOf(">新建仓库</span>")).toBeLessThan(
-      markup.indexOf(">本地</span>"),
-    );
-    expect(markup.indexOf(">本地</span>")).toBeLessThan(
-      markup.indexOf(">WebDAV</span>"),
-    );
-    expect(markup).toContain('aria-current="page"');
-    expect(markup).toContain("本地笔记 · 本地");
-    expect(markup).toContain("远端笔记 · WebDAV");
-    expect(markup).toContain("仓库 ID");
-    expect(markup).toContain(webDavRepository.id);
-    expect(markup).not.toContain("<dt>名称</dt>");
-    expect(markup).not.toContain("新仓库 ID");
-    expect(markup).toContain('aria-label="重命名仓库 远端笔记"');
-    expect(markup).toContain('aria-label="打开仓库 远端笔记"');
-    expect(markup).not.toContain('aria-label="重命名仓库 本地笔记"');
-    expect(markup).toContain('aria-label="当前仓库"');
-    expect(markup).not.toContain(">当前</span>");
-    expect(markup).toContain("未打开");
-    expect(markup).toContain("WebDAV 地址");
-    expect(markup).toContain('aria-label="复制WebDAV 地址"');
-    expect(markup).not.toContain(">打开此仓库<");
-    expect(markup).toContain("危险区");
-    expect(markup).toContain("删除仓库");
+    expectMarkupSemantics(markup, {
+      has: [
+        'aria-current="page"', "本地笔记 · 本地", "远端笔记 · WebDAV",
+        "仓库 ID", webDavRepository.id,
+        'aria-label="重命名仓库 远端笔记"',
+        'aria-label="打开仓库 远端笔记"',
+        'aria-label="当前仓库"', "未打开", "WebDAV 地址",
+        'aria-label="复制WebDAV 地址"', "危险区", "删除仓库",
+      ],
+      lacks: [
+        "<dt>名称</dt>", "新仓库 ID",
+        'aria-label="重命名仓库 本地笔记"',
+        ">当前</span>", ">打开此仓库<",
+      ],
+      ordered: [
+        ">内置数据</span>", ">新建仓库</span>", ">本地</span>", ">WebDAV</span>",
+      ],
+    });
   });
 
   it("keeps creation and manual Local recovery as selectable right-side details", () => {
@@ -336,22 +317,26 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).toContain(">新建仓库</span>");
-    expect(contextMarkup).toContain('data-repository-catalog="true"');
-    expect(contextMarkup).toContain('data-repository-issue-id="default"');
-    expect(contextMarkup).not.toContain("手工删除");
-    expect(contextMarkup).not.toContain("主机路径");
-    expect(issueMarkup).toContain("仓库格式不受支持，需要手工删除该目录。");
-    expect(issueMarkup).toContain("请在文件系统中手工删除上述目录。");
-    expect(issueMarkup).toContain("/home/zisu/notes/default");
-    expect(issueMarkup).toContain('aria-label="复制主机路径"');
-    expect(issueMarkup).toContain(">重新检查<");
-    expect(issueMarkup).not.toContain("/data/repositories/default");
-    expect(issueMarkup).not.toContain(">清理<");
-    expect(issueMarkup).not.toContain("危险区");
-    expect(createMarkup).toContain("新建普通仓库");
-    expect(createMarkup).toContain('aria-label="仓库存储类型"');
-    expect(createMarkup).toContain('type="submit"');
+    expectMarkupSemantics(contextMarkup, {
+      has: [
+        ">新建仓库</span>", 'data-repository-catalog="true"',
+        'data-repository-issue-id="default"',
+      ],
+      lacks: ["手工删除", "主机路径"],
+    });
+    expectMarkupSemantics(issueMarkup, {
+      has: [
+        "仓库格式不受支持，需要手工删除该目录。",
+        "请在文件系统中手工删除上述目录。",
+        "/home/zisu/notes/default", 'aria-label="复制主机路径"', ">重新检查<",
+      ],
+      lacks: ["/data/repositories/default", ">清理<", "危险区"],
+    });
+    expectMarkupSemantics(createMarkup, {
+      has: [
+        "新建普通仓库", 'aria-label="仓库存储类型"', 'type="submit"',
+      ],
+    });
   });
 
   it("shows ordinary catalog recovery only in the selected create detail", () => {
@@ -378,10 +363,13 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).toContain('data-repository-catalog="true"');
-    expect(contextMarkup).not.toContain("无法读取普通仓库目录。");
-    expect(detailMarkup).toContain("无法读取普通仓库目录。");
-    expect(detailMarkup).toContain(">重试普通仓库<");
+    expectMarkupSemantics(contextMarkup, {
+      has: ['data-repository-catalog="true"'],
+      lacks: ["无法读取普通仓库目录。"],
+    });
+    expectMarkupSemantics(detailMarkup, {
+      has: ["无法读取普通仓库目录。", ">重试普通仓库<"],
+    });
   });
 
   it("keeps issue rows compact and moves every cleanup action to the selected detail", () => {
@@ -432,18 +420,18 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).toContain('data-repository-issue-id="webdav-broken"');
-    expect(contextMarkup).toContain('data-repository-issue-id="webdav-deleting"');
-    expect(contextMarkup).toContain('data-repository-issue-id="local-broken"');
-    expect(contextMarkup).not.toContain(">移除连接<");
-    expect(contextMarkup).not.toContain(">重试清理<");
-    expect(contextMarkup).not.toContain(">停止跟踪<");
-    expect(contextMarkup).not.toContain(">清理<");
-    expect(panelMarkup).toContain("webdav-deleting");
-    expect(panelMarkup).toContain(">重试清理<");
-    expect(panelMarkup).toContain(">停止跟踪<");
-    expect(panelMarkup).not.toContain("webdav-broken");
-    expect(panelMarkup).not.toContain("local-broken");
+    expectMarkupSemantics(contextMarkup, {
+      has: [
+        'data-repository-issue-id="webdav-broken"',
+        'data-repository-issue-id="webdav-deleting"',
+        'data-repository-issue-id="local-broken"',
+      ],
+      lacks: [">移除连接<", ">重试清理<", ">停止跟踪<", ">清理<"],
+    });
+    expectMarkupSemantics(panelMarkup, {
+      has: ["webdav-deleting", ">重试清理<", ">停止跟踪<"],
+      lacks: ["webdav-broken", "local-broken"],
+    });
   });
 
   it("keeps protected built-in rows minimal and shows location and recovery in the detail", () => {
@@ -525,21 +513,26 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).toContain(">内置数据</span>");
-    expect(contextMarkup).toContain('data-built-in-id="journal"');
-    expect(contextMarkup).toContain('data-built-in-id="todo"');
-    expect(contextMarkup).toContain("同步冲突");
-    expect(contextMarkup).not.toContain("/state/built-ins/journal/content.json");
-    expect(contextMarkup).not.toContain("cognition-tree.todo");
-    expect(contextMarkup).not.toContain("放弃本地修改并重新加载");
-    expect(journalMarkup).toContain("受保护内置数据");
-    expect(journalMarkup).toContain("/state/built-ins/journal/content.json");
-    expect(journalMarkup).toContain("放弃本地修改并重新加载");
-    expect(todoMarkup).toContain("代办数据损坏。");
-    expect(todoMarkup).toContain("cognition-tree.todo");
-    expect(todoMarkup).toContain(">重试<");
-    expect(journalMarkup).not.toContain("删除仓库");
-    expect(journalMarkup).not.toContain("重命名仓库");
+    expectMarkupSemantics(contextMarkup, {
+      has: [
+        ">内置数据</span>", 'data-built-in-id="journal"',
+        'data-built-in-id="todo"', "同步冲突",
+      ],
+      lacks: [
+        "/state/built-ins/journal/content.json",
+        "cognition-tree.todo", "放弃本地修改并重新加载",
+      ],
+    });
+    expectMarkupSemantics(journalMarkup, {
+      has: [
+        "受保护内置数据", "/state/built-ins/journal/content.json",
+        "放弃本地修改并重新加载",
+      ],
+      lacks: ["删除仓库", "重命名仓库"],
+    });
+    expectMarkupSemantics(todoMarkup, {
+      has: ["代办数据损坏。", "cognition-tree.todo", ">重试<"],
+    });
   });
 
   it("offers built-in catalog retry only in the selected built-in detail", () => {
@@ -569,14 +562,16 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).not.toContain('role="alert"');
-    expect(contextMarkup).not.toContain("内置数据目录不可用。");
-    expect(contextMarkup).not.toContain(">重试内置数据<");
+    expectMarkupSemantics(contextMarkup, {
+      has: [
+        'aria-label="日记数据存在问题"', 'aria-label="代办数据存在问题"',
+      ],
+      lacks: ['role="alert"', "内置数据目录不可用。", ">重试内置数据<"],
+    });
     expect(contextMarkup.match(/>故障<\/span>/g)).toHaveLength(2);
-    expect(contextMarkup).toContain('aria-label="日记数据存在问题"');
-    expect(contextMarkup).toContain('aria-label="代办数据存在问题"');
-    expect(panelMarkup).toContain("内置数据目录不可用。");
-    expect(panelMarkup).toContain(">重试内置数据<");
+    expectMarkupSemantics(panelMarkup, {
+      has: ["内置数据目录不可用。", ">重试内置数据<"],
+    });
   });
 
   it.each([
@@ -655,12 +650,17 @@ describe("repository setup and management semantics", () => {
       </FeedbackProvider>,
     );
 
-    expect(contextMarkup).toContain('aria-label="仓库运行状态存在问题"');
-    expect(contextMarkup).not.toContain("无法读取仓库索引。");
-    expect(activeMarkup).toContain("无法读取仓库索引。");
-    expect(activeMarkup).toContain(">重试挂载<");
-    expect(activeMarkup).not.toContain(">重新扫描文件<");
-    expect(inactiveMarkup).not.toContain("无法读取仓库索引。");
-    expect(inactiveMarkup).toContain(">重新检查仓库<");
+    expectMarkupSemantics(contextMarkup, {
+      has: ['aria-label="仓库运行状态存在问题"'],
+      lacks: ["无法读取仓库索引。"],
+    });
+    expectMarkupSemantics(activeMarkup, {
+      has: ["无法读取仓库索引。", ">重试挂载<"],
+      lacks: [">重新扫描文件<"],
+    });
+    expectMarkupSemantics(inactiveMarkup, {
+      has: [">重新检查仓库<"],
+      lacks: ["无法读取仓库索引。"],
+    });
   });
 });

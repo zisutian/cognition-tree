@@ -8,6 +8,7 @@ import {
 } from "../../../presentation/activities/views/journal/JournalPanels";
 import { createJournalView } from "../fixtures/journalViewFixture";
 import { runFeedbackAction } from "../../../presentation/ui/shared/FeedbackProvider";
+import { expectMarkupSemantics } from "../markupSemantics";
 
 const olderJanuaryEntry = {
   createdAt: "2026-01-02T02:04:05.000Z",
@@ -79,16 +80,16 @@ describe("Journal panels", () => {
     };
     const markup = renderToStaticMarkup(<JournalContext view={view} />);
 
-    expect(markup.indexOf("2026 年")).toBeLessThan(
-      markup.indexOf("2025 年"),
-    );
-    expect(markup.indexOf(activeEntry.title)).toBeLessThan(
-      markup.indexOf(olderJanuaryEntry.title),
-    );
-    expect(markup).toContain('aria-current="page"');
-    expect(markup).not.toContain("2 日");
-    expect(markup).not.toContain("31 日");
-    expect(markup).toContain(`aria-label="删除日记 ${activeEntry.title}"`);
+    expectMarkupSemantics(markup, {
+      has: [
+        'aria-current="page"', `aria-label="删除日记 ${activeEntry.title}"`,
+        ">删<",
+      ],
+      lacks: ["2 日", "31 日", 'role="alertdialog"'],
+      ordered: [
+        "2026 年", activeEntry.title, olderJanuaryEntry.title, "2025 年",
+      ],
+    });
   });
 
   it("shows the derived title as fixed text and edits only Journal body mode", () => {
@@ -102,21 +103,13 @@ describe("Journal panels", () => {
       />,
     );
 
-    expect(contextMarkup).not.toContain("重命名");
-    expect(contextMarkup).not.toContain("<input");
-    expect(editorMarkup).toContain(view.activeEntry?.title);
-    expect(editorMarkup).toContain('data-editor-mode="body"');
-    expect(editorMarkup).not.toContain('aria-label="重命名日记"');
-  });
-
-  it("offers deletion only on the selected row without a dialog", () => {
-    const view = createJournalView();
-    const activeEntry = view.calendar.years[0].months[0].entries[0];
-    const markup = renderToStaticMarkup(<JournalContext view={view} />);
-
-    expect(markup).toContain(`aria-label="删除日记 ${activeEntry.title}"`);
-    expect(markup).toContain(">删<");
-    expect(markup).not.toContain('role="alertdialog"');
+    expectMarkupSemantics(contextMarkup, {
+      lacks: ["重命名", "<input"],
+    });
+    expectMarkupSemantics(editorMarkup, {
+      has: [view.activeEntry!.title, 'data-editor-mode="body"'],
+      lacks: ['aria-label="重命名日记"'],
+    });
   });
 
   it("shows the selected body block timestamps with the entry structure", () => {
@@ -154,9 +147,12 @@ describe("Journal panels", () => {
       />,
     );
 
-    expect(markup).toContain("当前块创建");
-    expect(markup).toContain("当前块更新");
-    expect(markup).toContain('dateTime="2026-01-02T03:04:06.000Z"');
-    expect(markup).toContain('dateTime="2026-01-02T03:05:06.000Z"');
+    expectMarkupSemantics(markup, {
+      has: [
+        "当前块创建", "当前块更新",
+        'dateTime="2026-01-02T03:04:06.000Z"',
+        'dateTime="2026-01-02T03:05:06.000Z"',
+      ],
+    });
   });
 });

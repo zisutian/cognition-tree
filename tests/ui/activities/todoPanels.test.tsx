@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 import { TodoContext } from "../../../presentation/activities/views/todo/TodoContext";
 import { TodoDetailPanel } from "../../../presentation/activities/views/todo/TodoDetailPanel";
 import { TodoEditorPanel } from "../../../presentation/activities/views/todo/TodoEditorPanel";
 import { TodoRecurrenceEditor } from "../../../presentation/activities/views/todo/TodoRecurrenceEditor";
 import { FeedbackProvider } from "../../../presentation/ui/shared/FeedbackProvider";
 import { createTodoView } from "../fixtures/todoViewFixture";
+import { expectMarkupSemantics } from "../markupSemantics";
 
 describe("Todo panels", () => {
   it("renders ordered collections and actions only on the selected row", () => {
@@ -15,17 +16,19 @@ describe("Todo panels", () => {
       <TodoContext view={createTodoView()} />,
     );
 
-    expect(markup.indexOf("今天")).toBeLessThan(markup.indexOf("稍后"));
-    expect(markup).toContain('aria-current="page"');
-    expect(markup).toContain('aria-label="新建事项集合"');
-    expect(markup).toContain('aria-label="重命名事项集合 今天"');
-    expect(markup).toContain('aria-label="删除事项集合 今天"');
-    expect(markup).toContain('draggable="true"');
-    expect(markup).not.toContain('aria-label="调整事项集合顺序 今天"');
-    expect(markup).toContain("事项集合");
-    expect(markup).not.toContain(">1/2<");
-    expect(markup).not.toContain('aria-label="重命名事项集合 稍后"');
-    expect(markup).not.toContain('aria-label="删除事项集合 稍后"');
+    expectMarkupSemantics(markup, {
+      has: [
+        'aria-current="page"', 'aria-label="新建事项集合"',
+        'aria-label="重命名事项集合 今天"',
+        'aria-label="删除事项集合 今天"', ">删<", 'draggable="true"', "事项集合",
+      ],
+      lacks: [
+        'aria-label="调整事项集合顺序 今天"', ">1/2<",
+        'aria-label="重命名事项集合 稍后"',
+        'aria-label="删除事项集合 稍后"', 'role="alertdialog"',
+      ],
+      ordered: ["今天", "稍后"],
+    });
   });
 
   it("renders source-backed tasks in the detail tree with independent checkboxes", () => {
@@ -36,16 +39,16 @@ describe("Todo panels", () => {
       />,
     );
 
-    expect(markup.indexOf(">已完成但保持原位</span>")).toBeLessThan(
-      markup.indexOf(">未完成</span>"),
-    );
-    expect(markup).toContain('type="checkbox" checked=""');
-    expect(markup).toContain('aria-label="标记未完成 已完成但保持原位"');
-    expect(markup).toContain('aria-label="标记完成 未完成"');
-    expect(markup).toContain('role="treeitem"');
-    expect(markup).toContain(">L1</span>");
-    expect(markup).toContain(">L2</span>");
-    expect(markup).not.toContain('draggable="true"');
+    expectMarkupSemantics(markup, {
+      has: [
+        'type="checkbox" checked=""',
+        'aria-label="标记未完成 已完成但保持原位"',
+        'aria-label="标记完成 未完成"', 'role="treeitem"',
+        ">L1</span>", ">L2</span>",
+      ],
+      lacks: ['draggable="true"'],
+      ordered: [">已完成但保持原位</span>", ">未完成</span>"],
+    });
   });
 
   it("shows recurrence controls only for the selected structure task", () => {
@@ -87,15 +90,19 @@ describe("Todo panels", () => {
       </FeedbackProvider>,
     );
 
-    expect(markup).toContain('aria-label="配置周期 已完成但保持原位"');
-    expect(markup).toContain(
-      'title="周期任务 · 3/4 · 下次 2026-07-27"',
-    );
-    expect(markup).not.toContain('aria-label="配置周期 未完成"');
-    expect(editorMarkup).toContain("完成 3/4 · 下次 2026-07-27");
-    expect(editorMarkup).toContain('aria-label="周期类型"');
-    expect(editorMarkup).toContain(">确定</button>");
-    expect(editorMarkup).toContain(">取消</button>");
+    expectMarkupSemantics(markup, {
+      has: [
+        'aria-label="配置周期 已完成但保持原位"',
+        'title="周期任务 · 3/4 · 下次 2026-07-27"',
+      ],
+      lacks: ['aria-label="配置周期 未完成"'],
+    });
+    expectMarkupSemantics(editorMarkup, {
+      has: [
+        "完成 3/4 · 下次 2026-07-27", 'aria-label="周期类型"',
+        ">确定</button>", ">取消</button>",
+      ],
+    });
   });
 
   it("mounts the CTN body editor and shows an empty collection entry point", () => {
@@ -119,19 +126,12 @@ describe("Todo panels", () => {
       />,
     );
 
-    expect(editorMarkup).toContain('aria-label="代办编辑"');
-    expect(editorMarkup).toContain('data-editor-mode="body"');
-    expect(markup).toContain("还没有事项集合");
-    expect(markup).toContain("新建事项集合");
+    expectMarkupSemantics(editorMarkup, {
+      has: ['aria-label="代办编辑"', 'data-editor-mode="body"'],
+    });
+    expectMarkupSemantics(markup, {
+      has: ["还没有事项集合", "新建事项集合"],
+    });
   });
 
-  it("starts collection deletion in the selected row without a dialog", () => {
-    const markup = renderToStaticMarkup(
-      <TodoContext view={createTodoView()} />,
-    );
-
-    expect(markup).toContain('aria-label="删除事项集合 今天"');
-    expect(markup).toContain(">删<");
-    expect(markup).not.toContain('role="alertdialog"');
-  });
 });

@@ -20,6 +20,9 @@ import type {
   ActivitySlots,
 } from "../../../presentation/ui/activityTypes";
 import {
+  appContextDefaultWidth,
+} from "../../../presentation/ui/workbench/frameResize";
+import {
   createActivityViews,
   type TestActivityViews,
 } from "../fixtures/activityViewsFixture";
@@ -27,7 +30,7 @@ import { createNotesView } from "../fixtures/notesViewFixture";
 import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
 
 const controls = {
-  contextWidth: 280,
+  contextWidth: appContextDefaultWidth,
   focusMode: false,
   onCollapseDetail: () => undefined,
   onConfigureSyntax: () => undefined,

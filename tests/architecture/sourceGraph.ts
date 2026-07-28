@@ -139,6 +139,13 @@ export function readModuleImports(
   return imports;
 }
 
+export const sourceImportCorpus: SourceModules = Object.fromEntries(
+  Object.keys(sourceModules).map((filePath) => [
+    filePath,
+    readModuleImports(sourceModules, filePath).join("\n"),
+  ]),
+);
+
 function normalizePath(segments: string[]) {
   return segments.reduce<string[]>((normalized, segment) => {
     if (!segment || segment === ".") return normalized;

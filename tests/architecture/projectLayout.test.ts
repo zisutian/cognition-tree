@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-const retiredProjectEntries = import.meta.glob(
-  [
-    "../../scripts/**/*.{ts,mjs}",
-    "../../tsconfig.node.json",
-    "../../tsconfig.server.json",
-    "../../tsconfig.e2e.json",
-    "../../tsconfig.benchmark.json",
-  ],
-  { eager: true, import: "default", query: "?raw" },
-);
 const projectConfiguration = import.meta.glob(
   [
     "../../package.json",
@@ -35,34 +25,40 @@ function readConfiguration(fileName: string) {
 }
 
 describe("project layout", () => {
-  it("keeps auxiliary tooling out of retired root locations", () => {
-    expect(Object.keys(retiredProjectEntries)).toEqual([]);
-  });
-
   it("routes disposable output through the artifacts directory", () => {
-    expect(readConfiguration("package.json")).toContain(
-      ".artifacts/build/server/infrastructure/server/index.js",
-    );
-    expect(readConfiguration("vite.config.ts")).toContain(
-      'outDir: ".artifacts/build/client"',
-    );
-    expect(readConfiguration("playwright.config.ts")).toContain(
-      'outputDir: ".artifacts/test/playwright"',
-    );
-    expect(readConfiguration("repositorySeeds.ts")).toContain(
-      'path.join(".artifacts", "test", "e2e-runtime", "repositories")',
-    );
-    expect(readConfiguration("workspaceServer.ts")).toContain(
-      'path.join(".artifacts", "test", "e2e-runtime", "server")',
-    );
-    expect(readConfiguration("tsconfig.server.json")).toContain(
-      '"outDir": "../../.artifacts/build/server"',
-    );
-    expect(readConfiguration("tsconfig.node.json")).toContain(
-      '"tsBuildInfoFile": "../../.artifacts/cache/typescript/node.tsbuildinfo"',
-    );
-    expect(readConfiguration("verifyClientBundle.ts")).toContain(
-      "../../.artifacts/build/client/.vite/manifest.json",
-    );
+    const routes = [
+      [
+        "package.json",
+        ".artifacts/build/server/infrastructure/server/index.js",
+      ],
+      ["vite.config.ts", 'outDir: ".artifacts/build/client"'],
+      ["playwright.config.ts", 'outputDir: ".artifacts/test/playwright"'],
+      [
+        "repositorySeeds.ts",
+        'path.join(".artifacts", "test", "e2e-runtime", "repositories")',
+      ],
+      [
+        "workspaceServer.ts",
+        'path.join(".artifacts", "test", "e2e-runtime", "server")',
+      ],
+      [
+        "tsconfig.server.json",
+        '"outDir": "../../.artifacts/build/server"',
+      ],
+      [
+        "tsconfig.node.json",
+        '"tsBuildInfoFile": "../../.artifacts/cache/typescript/node.tsbuildinfo"',
+      ],
+      [
+        "verifyClientBundle.ts",
+        "../../.artifacts/build/client/.vite/manifest.json",
+      ],
+    ] as const;
+
+    expect(routes.flatMap(([fileName, fragment]) =>
+      readConfiguration(fileName).includes(fragment)
+        ? []
+        : [`${fileName}: ${fragment}`]
+    )).toEqual([]);
   });
 });

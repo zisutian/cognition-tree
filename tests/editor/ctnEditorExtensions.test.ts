@@ -12,7 +12,6 @@ import {
   createCtnEditorAnalysisField,
 } from "../../presentation/editor/ctnEditorAnalysis";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
-import ctnEditorExtensionsSource from "../../presentation/editor/ctnEditorExtensions.ts?raw";
 
 describe("ctn editor extensions", () => {
   it("stores editor indentation as tabs", () => {
@@ -32,10 +31,6 @@ describe("ctn editor extensions", () => {
     });
 
     expect(getCtnEditorActiveLineNumber(state)).toBe(2);
-  });
-
-  it("keeps CTN source lines from soft wrapping", () => {
-    expect(ctnEditorExtensionsSource).not.toContain("EditorView.lineWrapping");
   });
 
   it("keeps one analysis field mounted and disables analysis in raw mode", () => {

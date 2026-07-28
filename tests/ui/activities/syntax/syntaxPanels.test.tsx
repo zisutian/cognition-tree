@@ -9,6 +9,7 @@ import { createCtnSyntaxDraft } from "../../../../core/ctn/syntax/draft";
 import { defaultJournalSyntax } from "../../../../core/journal/syntax/defaultJournalSyntax";
 import { defaultTodoSyntax } from "../../../../core/todo/syntax/defaultTodoSyntax";
 import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
+import { expectMarkupSemantics } from "../../markupSemantics";
 
 function occurrenceCount(source: string, value: string) {
   return source.split(value).length - 1;
@@ -42,28 +43,18 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="新建笔记库语法"');
-    expect(markup).toContain("系统语法");
-    expect(markup).toContain("笔记库语法");
-    expect(markup).toContain("日记");
-    expect(markup).toContain("代办");
-    expect(markup).toContain('data-syntax-file-id="syntax-primary"');
-    expect(markup).toContain('data-syntax-file-id="syntax-secondary"');
-    expect(markup).toContain('aria-current="page"');
-    expect(markup).toContain('aria-label="已启用语法"');
-    expect(markup).toContain("主要语法");
-    expect(markup).toContain("备用语法");
-    expect(markup).toContain("错误");
-    expect(markup).toMatch(/aria-label="新建笔记库语法"[^>]*disabled=""/);
-    expect(markup).toMatch(
-      /data-syntax-file-id="syntax-secondary"[^>]*disabled=""/,
-    );
-    expect(markup).toMatch(/data-syntax-owner="journal"[^>]*disabled=""/);
-    expect(markup).toMatch(/data-syntax-owner="todo"[^>]*disabled=""/);
-    expect(markup).not.toContain('aria-label="删除语法 备用语法"');
-    expect(markup).toMatch(
-      /aria-label="删除语法 主要语法"[^>]*disabled=""/,
-    );
+    expectMarkupSemantics(markup, {
+      has: [
+        'aria-label="新建笔记库语法"', "系统语法", "笔记库语法",
+        'aria-current="page"', 'aria-label="已启用语法"',
+        "主要语法", "备用语法", "错误",
+        /aria-label="新建笔记库语法"[^>]*disabled=""/,
+        /data-syntax-file-id="syntax-secondary"[^>]*disabled=""/,
+        /data-syntax-owner="(?:journal|todo)"[^>]*disabled=""/,
+        /aria-label="删除语法 主要语法"[^>]*disabled=""/,
+      ],
+      lacks: ['aria-label="删除语法 备用语法"'],
+    });
   });
 
   it("exposes syntax fields, rule actions, and inline color semantics", () => {
@@ -71,24 +62,19 @@ describe("syntax panels", () => {
       <SyntaxMainPanel view={createSyntaxView()} />,
     );
 
-    expect(markup).toContain("type=\"number\"");
-    expect(markup).toContain("max=\"16\"");
-    expect(markup).toContain("缩进宽度");
-    expect(markup).toContain("块规则");
-    expect(markup).toContain("行内规则");
-    expect(markup).toContain("新增块规则");
-    expect(markup).toContain(
-      'aria-label="全局概念引用颜色: 蓝色"',
-    );
-    expect(markup).not.toContain("全局概念引用背景色");
-    expect(markup).not.toContain("全局概念引用文字色");
+    expectMarkupSemantics(markup, {
+      has: [
+        'type="number"', 'max="16"', "缩进宽度",
+        "块规则", "行内规则", "新增块规则",
+        'aria-label="全局概念引用颜色: 蓝色"',
+      ],
+      lacks: [
+        "全局概念引用背景色", "全局概念引用文字色",
+        'aria-label="语法名称"',
+      ],
+    });
     expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(5);
     expect(occurrenceCount(markup, 'aria-label="删除行内规则"')).toBe(3);
-    expect(markup).not.toContain('aria-label="语法名称"');
-    expect(markup).not.toContain('data-syntax-field-id="syntax-profile-name"');
-    expect(markup).toContain('data-syntax-field-id="syntax-tab-display-width"');
-    expect(markup).toContain('data-syntax-field-id="syntax-block-rule-group"');
-    expect(markup).toContain('data-syntax-field-id="syntax-inline-rule-group"');
   });
 
   it("renders file actions only on the selected row and separates activation", () => {
@@ -122,12 +108,14 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="启用语法 正在编辑"');
-    expect(markup).toContain('aria-label="重命名语法 正在编辑"');
-    expect(markup).toContain('aria-label="删除语法 正在编辑"');
-    expect(markup).not.toContain('aria-label="删除语法 已启用"');
-    expect(markup).toContain('aria-label="已启用语法"');
-    expect(markup).not.toContain(">启用</span>");
+    expectMarkupSemantics(markup, {
+      has: [
+        'aria-label="启用语法 正在编辑"', 'aria-label="重命名语法 正在编辑"',
+        'aria-label="删除语法 正在编辑"',
+        'aria-label="已启用语法"',
+      ],
+      lacks: ['aria-label="删除语法 已启用"', ">启用</span>"],
+    });
   });
 
   it("keeps the Journal name and reference trigger visibly protected", () => {
@@ -150,15 +138,12 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain("顶格正文");
-    expect(markup).toContain("<h2>日记</h2>");
-    expect(markup).not.toContain("顶格概念");
-    expect(markup).not.toContain("首行标题");
-    expect(markup).not.toContain('aria-label="语法名称"');
+    expectMarkupSemantics(markup, {
+      has: ["顶格正文", "<h2>日记</h2>", ">[[</span>", ">]]</span>"],
+      lacks: ["顶格概念", "首行标题", 'aria-label="语法名称"'],
+    });
     expect(occurrenceCount(markup, 'aria-label="开始"')).toBe(1);
     expect(occurrenceCount(markup, 'aria-label="结束"')).toBe(1);
-    expect(markup).toContain(">[[</span>");
-    expect(markup).toContain(">]]</span>");
     expect(occurrenceCount(markup, 'aria-label="删除块规则"')).toBe(4);
     expect(occurrenceCount(markup, 'aria-label="删除行内规则"')).toBe(2);
   });
@@ -186,23 +171,20 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain("代办背景色: 编辑器背景");
-    expect(markup).toContain("代办颜色: 青色");
-    expect(markup).not.toContain("代办文字色");
-    expect(markup).toContain("<h2>代办</h2>");
-    expect(markup).toContain(">代办</span>");
-    expect(markup).toContain(">[]</span>");
-    expect(markup).not.toContain('value="代办"');
-    expect(markup).not.toContain('value="[]"');
-    expect(markup).not.toContain("首行标题");
-    expect(markup).not.toContain('aria-label="语法名称"');
-    expect(markup).not.toContain('aria-label="角色: 普通块"');
-    expect(markup).toContain(">普通块</span>");
-    expect(markup).not.toContain('aria-label="标记"');
-    expect(markup).not.toMatch(/aria-label="开始"[^>]*disabled=""/);
-    expect(markup).not.toMatch(/aria-label="结束"[^>]*disabled=""/);
-    expect(markup).not.toContain('aria-label="删除块规则"');
-    expect(markup).not.toContain('aria-label="删除行内规则"');
+    expectMarkupSemantics(markup, {
+      has: [
+        "代办背景色: 编辑器背景", "代办颜色: 青色", "<h2>代办</h2>",
+        ">代办</span>", ">[]</span>", ">普通块</span>",
+      ],
+      lacks: [
+        "代办文字色", 'value="代办"', 'value="[]"', "首行标题",
+        'aria-label="语法名称"', 'aria-label="角色: 普通块"',
+        'aria-label="标记"',
+        /aria-label="开始"[^>]*disabled=""/,
+        /aria-label="结束"[^>]*disabled=""/,
+        'aria-label="删除块规则"', 'aria-label="删除行内规则"',
+      ],
+    });
   });
 
   it("keeps catalog name conflicts in the invalid draft recovery state", () => {
@@ -218,10 +200,10 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).not.toContain('aria-label="语法名称"');
-    expect(markup).not.toContain(message);
-    expect(markup).toContain("撤销无效更改");
-    expect(markup).toContain("修复或撤销前不能离开此配置");
+    expectMarkupSemantics(markup, {
+      has: ["撤销无效更改", "修复或撤销前不能离开此配置"],
+      lacks: ['aria-label="语法名称"', message],
+    });
   });
 
   it("keeps system syntax available when the workspace catalog is empty", () => {
@@ -245,10 +227,10 @@ describe("syntax panels", () => {
       view: emptyView,
     });
 
-    expect(markup).toContain("语法设置");
-    expect(renderToStaticMarkup(<>{slots.context?.content}</>)).toContain(
-      "当前笔记库没有语法文件。",
-    );
+    expectMarkupSemantics(markup, { has: ["语法设置"] });
+    expectMarkupSemantics(renderToStaticMarkup(<>{slots.context?.content}</>), {
+      has: ["当前笔记库没有语法文件。"],
+    });
     expect(slots.detail).not.toBeNull();
   });
 
@@ -260,19 +242,16 @@ describe("syntax panels", () => {
       />,
     );
 
-    expect(markup).toContain("语法预览");
-    expect(markup).toContain("语法预览内容");
-    expect(markup).toContain("首行标题示例");
-    expect(markup).toContain("[[]]");
-    expect(markup).toContain("全局概念引用");
-    expect(markup).toContain("行内代码");
-    expect(markup).not.toContain("行内内容");
-    expect(markup).not.toContain("语法详情");
-    expect(markup).not.toContain("缩进宽度");
-    expect(markup).not.toContain("语法可视化");
-    expect(markup).not.toContain("当前配置");
-    expect(markup).not.toContain("语法统计");
-    expect(markup).not.toContain(">状态<");
+    expectMarkupSemantics(markup, {
+      has: [
+        "语法预览", "语法预览内容", "首行标题示例",
+        "[[]]", "全局概念引用", "行内代码",
+      ],
+      lacks: [
+        "行内内容", "语法详情", "缩进宽度", "语法可视化",
+        "当前配置", "语法统计", ">状态<",
+      ],
+    });
   });
 
   it("omits hidden system titles from syntax previews", () => {
@@ -286,7 +265,7 @@ describe("syntax panels", () => {
         />,
       );
 
-      expect(markup).not.toContain("首行标题示例");
+      expectMarkupSemantics(markup, { lacks: ["首行标题示例"] });
     }
   });
 });

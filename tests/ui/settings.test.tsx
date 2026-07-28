@@ -7,6 +7,7 @@ import {
 import {
   appContextDefaultWidth,
 } from "../../presentation/ui/workbench/frameResize";
+import { expectMarkupSemantics } from "./markupSemantics";
 
 describe("settings activity", () => {
   it("shows the single Interface context item and only the context width setting", () => {
@@ -21,17 +22,17 @@ describe("settings activity", () => {
     );
 
     expect(contextMarkup.match(/<li/g)).toHaveLength(1);
-    expect(contextMarkup).toContain('aria-current="page"');
-    expect(contextMarkup).toContain("界面");
-    expect(contextMarkup).not.toContain("<button");
-    expect(panelMarkup).toContain('aria-label="设置"');
-    expect(panelMarkup).toContain("界面");
-    expect(panelMarkup).toContain('id="settings-context-width"');
-    expect(panelMarkup).toContain(`value="${appContextDefaultWidth}"`);
-    expect(panelMarkup).toContain("左侧栏宽度");
+    expectMarkupSemantics(contextMarkup, {
+      has: ['aria-current="page"', "界面"],
+      lacks: ["<button"],
+    });
+    expectMarkupSemantics(panelMarkup, {
+      has: [
+        'aria-label="设置"', "界面", 'id="settings-context-width"',
+        `value="${appContextDefaultWidth}"`, "左侧栏宽度",
+      ],
+      lacks: ["当前仓库", "添加仓库", "危险区"],
+    });
     expect(panelMarkup.match(/<input/g)).toHaveLength(1);
-    expect(panelMarkup).not.toContain("当前仓库");
-    expect(panelMarkup).not.toContain("添加仓库");
-    expect(panelMarkup).not.toContain("危险区");
   });
 });

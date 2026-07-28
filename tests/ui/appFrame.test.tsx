@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, it } from "vitest";
 import { AppFrame } from "../../presentation/ui/AppFrame";
 import {
   appContextDefaultWidth,
@@ -8,6 +8,7 @@ import {
   appProblemsMaxHeight,
   appProblemsMinHeight,
 } from "../../presentation/ui/workbench/frameResize";
+import { expectMarkupSemantics } from "./markupSemantics";
 
 describe("AppFrame", () => {
   function renderFrame({
@@ -52,65 +53,65 @@ describe("AppFrame", () => {
     );
   }
 
-  it("does not render an empty context panel for context-free pages", () => {
-    const markup = renderFrame({ context: false });
-
-    expect(markup).toContain('aria-label="工作区功能"');
-    expect(markup).not.toContain('<aside aria-label="笔记"');
-    expect(markup).not.toContain("调整上下文区宽度");
-  });
-
-  it("renders context and detail resize affordances when slots exist", () => {
-    const markup = renderFrame({ detail: true });
-
-    expect(markup).toContain("调整上下文区宽度");
-    expect(markup).toContain("调整右侧详情宽度");
-    expect(markup).toContain(
-      `aria-valuenow="${appContextDefaultWidth}"`,
-    );
-    expect(markup).toContain(
-      `aria-valuenow="${appDetailDefaultWidth}"`,
-    );
-  });
-
-  it("keeps a collapsed detail opener in its header", () => {
-    const markup = renderFrame({ detail: true, detailCollapsed: true });
-
-    expect(markup).toContain("展开右侧详情");
-    expect(markup).not.toContain("detail</aside>");
-  });
-
-  it("keeps only the activity bar and main slot in focus mode", () => {
-    const markup = renderFrame({ detail: true, focusMode: true });
-
-    expect(markup).toContain('aria-label="工作区功能"');
-    expect(markup).toContain("main");
-    expect(markup).not.toContain(">context<");
-    expect(markup).not.toContain(">detail<");
-    expect(markup).not.toContain(">problems<");
-  });
-
-  it("keeps the global problems panel collapsed without a resize handle", () => {
-    const markup = renderFrame();
-
-    expect(markup).toContain('<aside aria-label="问题"');
-    expect(markup).toContain("problems");
-    expect(markup).not.toContain("调整问题面板高度");
-  });
-
-  it("renders an accessible height separator only while problems are expanded", () => {
-    const markup = renderFrame({ problemsExpanded: true });
-
-    expect(markup).toContain("调整问题面板高度");
-    expect(markup).toContain(`aria-valuemin="${appProblemsMinHeight}"`);
-    expect(markup).toContain(`aria-valuemax="${appProblemsMaxHeight}"`);
-    expect(markup).toContain(`aria-valuenow="${appProblemsDefaultHeight}"`);
-  });
-
-  it("does not reserve a bottom region when no global panel is supplied", () => {
-    const markup = renderFrame({ problems: false });
-
-    expect(markup).not.toContain('<aside aria-label="问题"');
-    expect(markup).not.toContain(">problems<");
+  it.each([
+    [
+      "omits an empty context panel",
+      { context: false },
+      {
+        has: ['aria-label="工作区功能"'],
+        lacks: ['<aside aria-label="笔记"', "调整上下文区宽度"],
+      },
+    ],
+    [
+      "exposes context and detail resizing",
+      { detail: true },
+      {
+        has: [
+          "调整上下文区宽度", "调整右侧详情宽度",
+          `aria-valuenow="${appContextDefaultWidth}"`,
+          `aria-valuenow="${appDetailDefaultWidth}"`,
+        ],
+      },
+    ],
+    [
+      "keeps the collapsed detail opener",
+      { detail: true, detailCollapsed: true },
+      { has: ["展开右侧详情"], lacks: ["detail</aside>"] },
+    ],
+    [
+      "keeps only activity and main content in focus mode",
+      { detail: true, focusMode: true },
+      {
+        has: ['aria-label="工作区功能"', "main"],
+        lacks: [">context<", ">detail<", ">problems<"],
+      },
+    ],
+    [
+      "keeps collapsed Problems without a resize handle",
+      {},
+      {
+        has: ['<aside aria-label="问题"', "problems"],
+        lacks: ["调整问题面板高度"],
+      },
+    ],
+    [
+      "exposes Problems resizing only while expanded",
+      { problemsExpanded: true },
+      {
+        has: [
+          "调整问题面板高度",
+          `aria-valuemin="${appProblemsMinHeight}"`,
+          `aria-valuemax="${appProblemsMaxHeight}"`,
+          `aria-valuenow="${appProblemsDefaultHeight}"`,
+        ],
+      },
+    ],
+    [
+      "omits an unavailable Problems region",
+      { problems: false },
+      { lacks: ['<aside aria-label="问题"', ">problems<"] },
+    ],
+  ] as const)("%s", (_name, options, semantics) => {
+    expectMarkupSemantics(renderFrame(options), semantics);
   });
 });
