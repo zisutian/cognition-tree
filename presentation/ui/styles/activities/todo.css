@@ -62,6 +62,14 @@
   color: var(--color-accent);
 }
 
+.todo-recurrence-progress {
+  color: var(--color-accent);
+  font-family: var(--font-code);
+  font-variant-numeric: var(--ui-numeric-font-variant);
+  white-space: nowrap;
+  user-select: none;
+}
+
 .todo-structure-meta {
   display: inline-flex;
   align-items: center;

@@ -198,12 +198,23 @@ describe("Todo CTN view model", () => {
         completedCount: 1,
         currentOccurrenceDate: "2026-07-18",
         nextOccurrenceDate: "2026-07-19",
+        progress: {
+          ariaLabel: expect.stringContaining(
+            "已完成 1/1（完成次数/截至今天应完成次数）",
+          ),
+          text: "↻ 1/1",
+        },
         totalCount: 1,
       },
     });
     expect(firstDay.editor.checkableBlocks[0]).toMatchObject({
       checked: true,
-      recurrenceLabel: expect.stringContaining("已完成 1/1"),
+      recurrenceProgress: {
+        ariaLabel: expect.stringContaining(
+          "已完成 1/1（完成次数/截至今天应完成次数）",
+        ),
+        text: "↻ 1/1",
+      },
     });
     expect(nextDay.outline.nodes[0]).toMatchObject({
       completed: false,
@@ -212,13 +223,21 @@ describe("Todo CTN view model", () => {
         completedCount: 1,
         currentOccurrenceDate: "2026-07-19",
         nextOccurrenceDate: "2026-07-20",
+        progress: {
+          text: "↻ 1/2",
+        },
         totalCount: 2,
       },
     });
     expect(nextDay.collections[0]?.completedItemCount).toBe(0);
     expect(nextDay.editor.checkableBlocks[0]).toMatchObject({
       checked: false,
-      recurrenceLabel: expect.stringContaining("已完成 1/2"),
+      recurrenceProgress: {
+        ariaLabel: expect.stringContaining(
+          "已完成 1/2（完成次数/截至今天应完成次数）",
+        ),
+        text: "↻ 1/2",
+      },
     });
   });
 
@@ -252,6 +271,7 @@ describe("Todo CTN view model", () => {
       recurrence: {
         active: false,
         completedCount: 1,
+        progress: null,
         totalCount: 1,
       },
     });
@@ -259,7 +279,7 @@ describe("Todo CTN view model", () => {
       checked: true,
     });
     expect(view.editor.checkableBlocks[0]).not.toHaveProperty(
-      "recurrenceLabel",
+      "recurrenceProgress",
     );
   });
 

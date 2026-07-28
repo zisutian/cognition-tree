@@ -60,6 +60,11 @@ describe("Todo panels", () => {
         completedCount: 3,
         currentOccurrenceDate: "2026-07-26" as const,
         nextOccurrenceDate: "2026-07-27" as const,
+        progress: {
+          ariaLabel:
+            "周期任务，已完成 3/4（完成次数/截至今天应完成次数），下次 2026-07-27",
+          text: "↻ 3/4",
+        },
         rule: { interval: 1, kind: "daily" as const },
         totalCount: 4,
       },
@@ -89,11 +94,30 @@ describe("Todo panels", () => {
         />
       </FeedbackProvider>,
     );
+    const stoppedEditorMarkup = renderToStaticMarkup(
+      <FeedbackProvider activeActivityId="todo">
+        <TodoRecurrenceEditor
+          node={{
+            ...recurringNode,
+            recurrence: {
+              ...recurringNode.recurrence,
+              active: false,
+              currentOccurrenceDate: null,
+              nextOccurrenceDate: null,
+              progress: null,
+            },
+          }}
+          onCancel={() => undefined}
+          onConfirm={() => undefined}
+        />
+      </FeedbackProvider>,
+    );
 
     expectMarkupSemantics(markup, {
       has: [
         'aria-label="配置周期 已完成但保持原位"',
-        'title="周期任务 · 3/4 · 下次 2026-07-27"',
+        "↻ 3/4",
+        "周期任务，已完成 3/4（完成次数/截至今天应完成次数），下次 2026-07-27",
       ],
       lacks: ['aria-label="配置周期 未完成"'],
     });
@@ -102,6 +126,10 @@ describe("Todo panels", () => {
         "完成 3/4 · 下次 2026-07-27", 'aria-label="周期类型"',
         ">确定</button>", ">取消</button>",
       ],
+    });
+    expectMarkupSemantics(stoppedEditorMarkup, {
+      has: ["历史完成 3/4 · 周期已停止"],
+      lacks: ["↻ 3/4", ">停止<"],
     });
   });
 

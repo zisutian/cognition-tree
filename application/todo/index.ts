@@ -22,5 +22,6 @@ export {
   type TodoBlockView,
   type TodoCollectionListItem,
   type TodoFocusRequest,
+  type TodoRecurrenceProgress,
   type TodoViewModel,
 } from "./todoViewModel";

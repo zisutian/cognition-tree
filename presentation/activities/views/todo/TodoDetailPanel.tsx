@@ -90,35 +90,39 @@ function TodoStructureNodes({
               >
                 <span className="block-text">{node.text}</span>
               </button>
-              {selected ? (
-                <span className="ui-tree-meta todo-structure-meta">
-                  <span>L{node.lineNumber}</span>
+              <span className="ui-tree-meta todo-structure-meta">
+                {node.recurrence?.progress ? (
+                  <span
+                    aria-label={node.recurrence.progress.ariaLabel}
+                    className="todo-recurrence-progress"
+                    role="img"
+                    title={node.recurrence.progress.ariaLabel}
+                  >
+                    {node.recurrence.progress.text}
+                  </span>
+                ) : null}
+                <span>L{node.lineNumber}</span>
+                {selected ? (
                   <Button
                     aria-label={`配置周期 ${node.text}`}
                     className={cx(
                       "todo-recurrence-button",
-                      node.recurrence?.active && "is-active",
+                      node.recurrence?.progress && "is-active",
                     )}
                     onClick={() =>
                       setRecurrenceEditorBlockId(
                         editingRecurrence ? null : node.id,
                       )}
-                    title={node.recurrence?.active
-                      ? `周期任务 · ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
-                          node.recurrence.nextOccurrenceDate
-                            ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
-                            : ""
-                        }`
+                    title={node.recurrence?.progress
+                      ? node.recurrence.progress.ariaLabel
                       : "配置周期"}
                     type="button"
                     variant="icon"
                   >
                     <Repeat2 aria-hidden="true" size={12} />
                   </Button>
-                </span>
-              ) : (
-                <span className="ui-tree-meta">L{node.lineNumber}</span>
-              )}
+                ) : null}
+              </span>
             </div>
             {editingRecurrence ? (
               <TodoRecurrenceEditor

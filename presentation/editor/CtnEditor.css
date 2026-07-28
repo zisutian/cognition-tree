@@ -130,9 +130,12 @@
   display: inline-block;
   margin-right: calc(var(--ui-gap-tight) / 2);
   color: var(--color-accent);
+  font-family: var(--font-code);
   font-size: var(--ui-micro-font-size);
+  font-variant-numeric: var(--ui-numeric-font-variant);
   line-height: 1;
   vertical-align: 0.04em;
+  white-space: nowrap;
   user-select: none;
 }
 

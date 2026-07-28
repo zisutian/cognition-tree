@@ -111,10 +111,13 @@ export function TodoRecurrenceEditor({
     >
       {node.recurrence ? (
         <p className="todo-recurrence-summary">
-          完成 {node.recurrence.completedCount}/{node.recurrence.totalCount}
-          {node.recurrence.nextOccurrenceDate
-            ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
-            : " · 暂无下次"}
+          {node.recurrence.active
+            ? `完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount}${
+                node.recurrence.nextOccurrenceDate
+                  ? ` · 下次 ${node.recurrence.nextOccurrenceDate}`
+                  : " · 暂无下次"
+              }`
+            : `历史完成 ${node.recurrence.completedCount}/${node.recurrence.totalCount} · 周期已停止`}
         </p>
       ) : null}
       <SegmentedControl

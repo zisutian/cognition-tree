@@ -45,6 +45,11 @@ export type TodoCollectionListItem = {
   updatedAt: string;
 };
 
+export type TodoRecurrenceProgress = {
+  ariaLabel: string;
+  text: string;
+};
+
 export type TodoBlockView = {
   children: TodoBlockView[];
   completed: boolean;
@@ -61,6 +66,7 @@ export type TodoBlockView = {
     completedCount: number;
     currentOccurrenceDate: TodoLocalDate | null;
     nextOccurrenceDate: TodoLocalDate | null;
+    progress: TodoRecurrenceProgress | null;
     rule: TodoRecurrenceRule;
     totalCount: number;
   } | null;
@@ -84,7 +90,7 @@ export type TodoViewModel = TodoMutationActions & {
       checked: boolean;
       label: string;
       lineNumber: number;
-      recurrenceLabel?: string;
+      recurrenceProgress?: TodoRecurrenceProgress;
     }>;
     contentMode: { kind: "body"; title: string };
     documentText: string;
@@ -137,6 +143,29 @@ type TodoProjectedRecurrence = NonNullable<TodoBlockView["recurrence"]> & {
   occurrenceActive: boolean;
 };
 
+function createTodoRecurrenceProgress({
+  active,
+  completedCount,
+  nextOccurrenceDate,
+  totalCount,
+}: {
+  active: boolean;
+  completedCount: number;
+  nextOccurrenceDate: TodoLocalDate | null;
+  totalCount: number;
+}): TodoRecurrenceProgress | null {
+  if (!active) return null;
+  const text = `↻ ${completedCount}/${totalCount}`;
+
+  return {
+    ariaLabel:
+      `周期任务，已完成 ${completedCount}/${totalCount}（完成次数/截至今天应完成次数）${
+        nextOccurrenceDate ? `，下次 ${nextOccurrenceDate}` : ""
+      }`,
+    text,
+  };
+}
+
 function createTodoBlockNodes({
   blocks,
   completionById,
@@ -176,6 +205,7 @@ function createTodoBlockNodes({
             completedCount: recurrence.completedCount,
             currentOccurrenceDate: recurrence.currentOccurrenceDate,
             nextOccurrenceDate: recurrence.nextOccurrenceDate,
+            progress: recurrence.progress,
             rule: recurrence.rule,
             totalCount: recurrence.totalCount,
           }
@@ -237,13 +267,20 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
       const projection = projectTodoRecurrence(recurrence, today);
       const rule = projection.currentStage?.rule ??
         recurrence.stages.at(-1)!.rule;
+      const active = isTodoRecurrenceEnabled(recurrence);
 
       return [
         recurrence.blockId,
         {
           ...projection,
-          active: isTodoRecurrenceEnabled(recurrence),
+          active,
           occurrenceActive: projection.active,
+          progress: createTodoRecurrenceProgress({
+            active,
+            completedCount: projection.completedCount,
+            nextOccurrenceDate: projection.nextOccurrenceDate,
+            totalCount: projection.totalCount,
+          }),
           rule,
         },
       ] as const;
@@ -327,15 +364,8 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
               : completionById.has(block.id),
             label: block.text,
             lineNumber: projectLineNumber(block.lineNumber),
-            ...(recurrence?.active
-              ? {
-                  recurrenceLabel:
-                    `周期任务，已完成 ${recurrence.completedCount}/${recurrence.totalCount}${
-                      recurrence.nextOccurrenceDate
-                        ? `，下次 ${recurrence.nextOccurrenceDate}`
-                        : ""
-                    }`,
-                }
+            ...(recurrence?.progress
+              ? { recurrenceProgress: recurrence.progress }
               : {}),
           };
         }) ?? [],

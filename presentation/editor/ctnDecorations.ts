@@ -85,22 +85,27 @@ export class CtnCheckboxWidget extends WidgetType {
 }
 
 export class CtnRecurrenceMarkerWidget extends WidgetType {
-  constructor(readonly label: string) {
+  constructor(
+    readonly progress: NonNullable<
+      CtnEditorCheckableBlock["recurrenceProgress"]
+    >,
+  ) {
     super();
   }
 
   eq(other: CtnRecurrenceMarkerWidget) {
-    return this.label === other.label;
+    return this.progress.text === other.progress.text &&
+      this.progress.ariaLabel === other.progress.ariaLabel;
   }
 
   toDOM() {
     const marker = document.createElement("span");
 
     marker.className = "ctn-todo-recurrence-marker";
-    marker.setAttribute("aria-label", this.label);
+    marker.setAttribute("aria-label", this.progress.ariaLabel);
     marker.setAttribute("role", "img");
-    marker.title = this.label;
-    marker.textContent = "↻";
+    marker.title = this.progress.ariaLabel;
+    marker.textContent = this.progress.text;
     return marker;
   }
 
@@ -330,12 +335,12 @@ function buildCtnDecorations(
                     : {}),
                 },
               }).range(markerFrom, markerTo));
-          if (checkable?.recurrenceLabel) {
+          if (checkable?.recurrenceProgress) {
             decorations.push(
               Decoration.widget({
                 side: 1,
                 widget: new CtnRecurrenceMarkerWidget(
-                  checkable.recurrenceLabel,
+                  checkable.recurrenceProgress,
                 ),
               }).range(markerTo),
             );

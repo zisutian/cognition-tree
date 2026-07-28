@@ -213,8 +213,20 @@ test.describe.serial("Todo activity flows", () => {
     await recurrenceForm.getByRole("button", { name: "确定" }).click();
     await expect(recurrenceForm).toHaveCount(0);
     await expect(panel.getByRole("img", {
-      name: /周期任务，已完成 1\/1/,
+      name: /周期任务，已完成 1\/1（完成次数\/截至今天应完成次数）/,
     })).toBeVisible();
+    await expect(panel.getByText("↻ 1/1", { exact: true })).toBeVisible();
+    await expect(detail.getByText("↻ 1/1", { exact: true })).toBeVisible();
+    await panel.getByRole("checkbox", {
+      name: "标记未完成 第一项",
+    }).uncheck();
+    await expect(panel.getByText("↻ 0/1", { exact: true })).toBeVisible();
+    await expect(detail.getByText("↻ 0/1", { exact: true })).toBeVisible();
+    await panel.getByRole("checkbox", {
+      name: "标记完成 第一项",
+    }).check();
+    await expect(panel.getByText("↻ 1/1", { exact: true })).toBeVisible();
+    await expect(detail.getByText("↻ 1/1", { exact: true })).toBeVisible();
 
     await waitForTodoContent(api, (content) => {
       const [plan, today] = content.collections;
@@ -248,9 +260,16 @@ test.describe.serial("Todo activity flows", () => {
     await recurrenceForm.getByRole("button", { name: "确定" }).click();
     await expect(recurrenceForm).toHaveCount(0);
     await expect(panel.getByRole("img", { name: /周期任务/ })).toHaveCount(0);
+    await expect(detail.getByRole("img", { name: /周期任务/ })).toHaveCount(0);
     await expect(detail.getByRole("button", {
       name: "配置周期 第一项",
     })).toHaveAttribute("title", "配置周期");
+    await detail.getByRole("button", { name: "配置周期 第一项" }).click();
+    await expect(recurrenceForm).toContainText(
+      "历史完成 1/1 · 周期已停止",
+    );
+    await recurrenceForm.getByRole("button", { name: "取消" }).click();
+    await expect(recurrenceForm).toHaveCount(0);
     await waitForTodoContent(api, (content) => {
       const collection = content.collections.find((candidate) =>
         readCtnCanonicalTitleHeader(candidate.source).title === "今天"

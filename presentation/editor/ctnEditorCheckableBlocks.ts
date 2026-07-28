@@ -5,7 +5,10 @@ export type CtnEditorCheckableBlock = {
   checked: boolean;
   label: string;
   lineNumber: number;
-  recurrenceLabel?: string;
+  recurrenceProgress?: {
+    ariaLabel: string;
+    text: string;
+  };
 };
 
 export function createCtnEditorCheckableBlocksKey(
@@ -13,12 +16,13 @@ export function createCtnEditorCheckableBlocksKey(
 ) {
   return JSON.stringify(
     blocks.map(
-      ({ blockId, checked, label, lineNumber, recurrenceLabel }) => [
+      ({ blockId, checked, label, lineNumber, recurrenceProgress }) => [
         lineNumber,
         blockId,
         checked,
         label,
-        recurrenceLabel ?? null,
+        recurrenceProgress?.text ?? null,
+        recurrenceProgress?.ariaLabel ?? null,
       ],
     ),
   );
