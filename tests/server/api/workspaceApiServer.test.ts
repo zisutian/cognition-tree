@@ -42,9 +42,12 @@ import {
   appendJournalTestEntry,
   createEmptyJournalContent,
   tamperJournalTestEntryCreation,
+  updateJournalTestBody,
 } from "../../journal/journalTestFixture";
 import {
   setTodoBlockRecurrence,
+  stopTodoBlockRecurrence,
+  toggleTodoBlock,
 } from "../../../core/todo/commands/todoCommands";
 import {
   createTodoParseIndex,
@@ -318,6 +321,11 @@ describe("workspace API v4", () => {
         createdAt: "2026-07-18T01:00:00.000Z",
         entryIndex: 2,
       });
+      journal = updateJournalTestBody(journal, {
+        body: "手机正文",
+        entryIndex: 2,
+        updatedAt: "2026-07-18T02:00:00.000Z",
+      });
       await dispatch(handler, {
         body: JSON.stringify({
           baseRevision: journalSnapshot.body.revision,
@@ -390,6 +398,91 @@ describe("workspace API v4", () => {
         headers: { "cache-control": "no-store" },
         statusCode: 200,
       });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: "/api/mobile/v2/status",
+      })).resolves.toMatchObject({
+        body: {
+          contractVersion: 2,
+          domains: {
+            journal: { status: "ready" },
+            todo: { status: "ready" },
+          },
+        },
+        statusCode: 200,
+      });
+
+      const journalV2Page = await dispatch<{
+        entries: Array<{ id: string; month: string; title: string }>;
+        nextCursor: string | null;
+        revision: `sha256:${string}`;
+      }>(handler, {
+        method: "GET",
+        url: "/api/mobile/v2/journal/entries?limit=1",
+      });
+
+      expect(journalV2Page).toMatchObject({
+        body: {
+          contractVersion: 2,
+          entries: [{
+            month: "2026-07",
+            title: "2026-07-18-0001",
+          }],
+          nextCursor: expect.any(String),
+        },
+        statusCode: 200,
+      });
+      const journalV2Cursor = journalV2Page.body?.nextCursor;
+      const journalV2EntryId = journalV2Page.body?.entries[0]?.id;
+
+      if (!journalV2Cursor || !journalV2EntryId) {
+        throw new Error("Expected a mobile v2 Journal page");
+      }
+      expect(journalV2Cursor).not.toBe(journalV2EntryId);
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: `/api/mobile/v2/journal/entries?limit=1&cursor=${
+          encodeURIComponent(journalV2Cursor)
+        }`,
+      })).resolves.toMatchObject({
+        body: {
+          contractVersion: 2,
+          entries: [{ month: "2026-06" }],
+          nextCursor: null,
+        },
+        statusCode: 200,
+      });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: "/api/mobile/v2/journal/entries?cursor=not-a-valid-cursor",
+      })).resolves.toMatchObject({
+        body: {
+          code: "invalid_request",
+          contractVersion: 2,
+        },
+        statusCode: 400,
+      });
+      const journalV2Detail = await dispatch<{
+        blocks: Array<Record<string, unknown>>;
+        contractVersion: number;
+      }>(handler, {
+        method: "GET",
+        url: `/api/mobile/v2/journal/entries/${encodeURIComponent(journalV2EntryId)}`,
+      });
+
+      expect(journalV2Detail).toMatchObject({
+        body: {
+          blocks: [{ text: "手机正文" }],
+          contractVersion: 2,
+        },
+        statusCode: 200,
+      });
+      expect(Object.keys(journalV2Detail.body?.blocks[0] ?? {}).sort()).toEqual([
+        "children",
+        "id",
+        "label",
+        "text",
+      ]);
 
       const journalPage = await dispatch<{
         entries: Array<{ id: string; month: string; title: string }>;
@@ -426,6 +519,17 @@ describe("workspace API v4", () => {
       expect(secondPage.body).toMatchObject({
         entries: [{ month: "2026-06" }],
         nextCursor: null,
+      });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: "/api/mobile/v1/journal/entries?cursor=journal-entry-missing",
+      })).resolves.toMatchObject({
+        body: {
+          code: "revision_conflict",
+          contractVersion: 1,
+          currentRevision: journalPage.body.revision,
+        },
+        statusCode: 409,
       });
       const entryId = journalPage.body.entries[0]?.id;
 
@@ -501,6 +605,48 @@ describe("workspace API v4", () => {
       expect(JSON.stringify(todoDetail.body)).not.toContain("syntaxSource");
       expect(JSON.stringify(todoDetail.body)).not.toContain('"source"');
       expect(JSON.stringify(todoDetail.body)).not.toContain("schemaVersion");
+      const todoV2Detail = await dispatch<{
+        collection: {
+          completedTaskCount: number;
+          id: string;
+          name: string;
+          taskCount: number;
+        };
+        revision: `sha256:${string}`;
+        tasks: Array<{
+          children: Array<Record<string, unknown>>;
+          completed: boolean;
+          id: string;
+          recurrence: Record<string, unknown> | null;
+          text: string;
+        }>;
+      }>(handler, {
+        method: "GET",
+        url:
+          `/api/mobile/v2/todo/collections/${encodeURIComponent(todoCollectionId(1))}`,
+      });
+
+      expect(todoV2Detail).toMatchObject({
+        body: {
+          collection: {
+            completedTaskCount: 0,
+            taskCount: 2,
+          },
+          tasks: [{
+            children: [{ id: todoBlockId(2) }],
+            completed: false,
+            id: todoBlockId(1),
+          }],
+        },
+        statusCode: 200,
+      });
+      expect(Object.keys(todoV2Detail.body?.tasks[0] ?? {}).sort()).toEqual([
+        "children",
+        "completed",
+        "id",
+        "recurrence",
+        "text",
+      ]);
       if (!todoDetail.body) throw new Error("Expected mobile Todo detail");
       const completionUrl =
         `/api/mobile/v1/todo/collections/${encodeURIComponent(todoCollectionId(1))}` +
@@ -559,6 +705,347 @@ describe("workspace API v4", () => {
         },
         statusCode: 409,
       });
+      const completedV2 = await dispatch<{
+        collection: { completedTaskCount: number; taskCount: number };
+        contractVersion: number;
+        revision: `sha256:${string}`;
+        task: { completed: boolean };
+      }>(handler, {
+        body: JSON.stringify({
+          completed: false,
+          expectedRevision: completed.body.revision,
+          occurrenceDate: "2026-07-26",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url:
+          `/api/mobile/v2/todo/collections/${encodeURIComponent(todoCollectionId(1))}` +
+          `/tasks/${encodeURIComponent(todoBlockId(1))}/completion`,
+      });
+
+      expect(completedV2).toMatchObject({
+        body: {
+          collection: {
+            completedTaskCount: 0,
+            taskCount: 2,
+          },
+          contractVersion: 2,
+          task: { completed: false },
+        },
+        statusCode: 200,
+      });
+      if (!completedV2.body) {
+        throw new Error("Expected mobile v2 completion result");
+      }
+      await expect(dispatch(handler, {
+        body: JSON.stringify({
+          completed: true,
+          expectedRevision: completedV2.body.revision,
+          occurrenceDate: "2026-07-25",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url:
+          `/api/mobile/v2/todo/collections/${encodeURIComponent(todoCollectionId(1))}` +
+          `/tasks/${encodeURIComponent(todoBlockId(1))}/completion`,
+      })).resolves.toMatchObject({
+        body: {
+          code: "stale_occurrence",
+          contractVersion: 2,
+          currentOccurrenceDate: "2026-07-26",
+          currentRevision: completedV2.body.revision,
+        },
+        statusCode: 409,
+      });
+      await expect(dispatch(handler, {
+        body: JSON.stringify({
+          completed: true,
+          expectedRevision: completed.body.revision,
+          occurrenceDate: "2026-07-26",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url:
+          `/api/mobile/v2/todo/collections/${encodeURIComponent(todoCollectionId(1))}` +
+          `/tasks/${encodeURIComponent(todoBlockId(1))}/completion`,
+      })).resolves.toMatchObject({
+        body: {
+          code: "revision_conflict",
+          contractVersion: 2,
+          currentRevision: completedV2.body.revision,
+        },
+        statusCode: 409,
+      });
+      const currentTodoSnapshot = await dispatch<{
+        revision: `sha256:${string}`;
+      }>(handler, {
+        method: "GET",
+        url: "/api/todo/snapshot",
+      });
+
+      if (!currentTodoSnapshot.body) {
+        throw new Error("Current Todo snapshot is missing");
+      }
+      let stoppedTodo = appendTodoTestCollection(createEmptyTodoContent(), {
+        collectionIndex: 2,
+        createdAt: todoTimestamp(1),
+        name: "手机清单",
+      });
+      stoppedTodo = appendTodoTestItem(stoppedTodo, {
+        collectionIndex: 2,
+        createdAt: todoTimestamp(2),
+        itemIndex: 3,
+        text: "已停止周期事项",
+      });
+      stoppedTodo = setTodoBlockRecurrence(
+        stoppedTodo,
+        createTodoParseIndex(stoppedTodo),
+        {
+          blockId: todoBlockId(3),
+          collectionId: todoCollectionId(2),
+          rule: { interval: 1, kind: "daily" },
+          stageId:
+            "todo-recurrence-stage-00000000-0000-4000-8000-000000000002",
+          today: "2026-07-24",
+        },
+      );
+      stoppedTodo = toggleTodoBlock(
+        stoppedTodo,
+        createTodoParseIndex(stoppedTodo),
+        {
+          blockId: todoBlockId(3),
+          collectionId: todoCollectionId(2),
+          completedAt: "2026-07-24T12:00:00.000Z",
+          today: "2026-07-24",
+        },
+      );
+      stoppedTodo = stopTodoBlockRecurrence(stoppedTodo, {
+        blockId: todoBlockId(3),
+        collectionId: todoCollectionId(2),
+        today: "2026-07-25",
+      });
+      stoppedTodo = toggleTodoBlock(
+        stoppedTodo,
+        createTodoParseIndex(stoppedTodo),
+        {
+          blockId: todoBlockId(3),
+          collectionId: todoCollectionId(2),
+          completedAt: "2026-07-26T11:00:00.000Z",
+          today: "2026-07-26",
+        },
+      );
+      const stoppedTodoCommit = await dispatch<{
+        revision: `sha256:${string}`;
+      }>(handler, {
+        body: JSON.stringify({
+          baseRevision: currentTodoSnapshot.body.revision,
+          content: stoppedTodo,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: "/api/todo/snapshot",
+      });
+
+      if (
+        stoppedTodoCommit.statusCode !== 200 ||
+        !stoppedTodoCommit.body?.revision
+      ) {
+        throw new Error(
+          `Stopped Todo commit failed: ${JSON.stringify(stoppedTodoCommit)}`,
+        );
+      }
+      const stoppedTodoUrl =
+        `/api/mobile/v2/todo/collections/${encodeURIComponent(todoCollectionId(2))}`;
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: stoppedTodoUrl,
+      })).resolves.toMatchObject({
+        body: {
+          collection: {
+            completedTaskCount: 1,
+            taskCount: 1,
+          },
+          contractVersion: 2,
+          tasks: [{
+            completed: true,
+            id: todoBlockId(3),
+            recurrence: {
+              active: false,
+              completedCount: 1,
+              currentOccurrenceDate: null,
+              nextOccurrenceDate: null,
+              totalCount: 2,
+            },
+          }],
+        },
+        statusCode: 200,
+      });
+      const stoppedCompletionUrl =
+        `${stoppedTodoUrl}/tasks/${encodeURIComponent(todoBlockId(3))}/completion`;
+
+      await expect(dispatch(handler, {
+        body: JSON.stringify({
+          completed: false,
+          expectedRevision: stoppedTodoCommit.body.revision,
+          occurrenceDate: "2026-07-25",
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: stoppedCompletionUrl,
+      })).resolves.toMatchObject({
+        body: {
+          code: "stale_occurrence",
+          contractVersion: 2,
+          currentOccurrenceDate: null,
+          currentRevision: stoppedTodoCommit.body.revision,
+        },
+        statusCode: 409,
+      });
+      await expect(dispatch(handler, {
+        body: JSON.stringify({
+          completed: false,
+          expectedRevision: stoppedTodoCommit.body.revision,
+          occurrenceDate: null,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: stoppedCompletionUrl,
+      })).resolves.toMatchObject({
+        body: {
+          collection: {
+            completedTaskCount: 0,
+            taskCount: 1,
+          },
+          contractVersion: 2,
+          task: {
+            completed: false,
+            recurrence: {
+              active: false,
+              completedCount: 1,
+              totalCount: 2,
+            },
+          },
+        },
+        statusCode: 200,
+      });
+      const currentJournalSnapshot = await dispatch<{
+        revision: `sha256:${string}`;
+      }>(handler, {
+        method: "GET",
+        url: "/api/journal/snapshot",
+      });
+
+      if (!currentJournalSnapshot.body) {
+        throw new Error("Current Journal snapshot is missing");
+      }
+      const changedJournal = appendJournalTestEntry(journal, {
+        createdAt: "2026-07-19T01:00:00.000Z",
+        entryIndex: 3,
+      });
+      const changedJournalCommit = await dispatch<{
+        revision: `sha256:${string}`;
+      }>(handler, {
+        body: JSON.stringify({
+          baseRevision: currentJournalSnapshot.body.revision,
+          content: changedJournal,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: "/api/journal/snapshot",
+      });
+
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: `/api/mobile/v2/journal/entries?limit=1&cursor=${
+          encodeURIComponent(journalV2Cursor)
+        }`,
+      })).resolves.toMatchObject({
+        body: {
+          code: "revision_conflict",
+          contractVersion: 2,
+          currentRevision: changedJournalCommit.body?.revision,
+        },
+        statusCode: 409,
+      });
+    });
+  });
+
+  it("accepts 128 mobile v2 levels and rejects level 129", async () => {
+    await withHandler(async (handler) => {
+      const todoSnapshot = await dispatch<{
+        revision: `sha256:${string}`;
+      }>(handler, {
+        method: "GET",
+        url: "/api/todo/snapshot",
+      });
+
+      if (!todoSnapshot.body) throw new Error("Todo snapshot is missing");
+      let todo = appendTodoTestCollection(createEmptyTodoContent(), {
+        collectionIndex: 1,
+        name: "深层清单",
+      });
+
+      for (let level = 0; level < 128; level += 1) {
+        todo = appendTodoTestItem(todo, {
+          collectionIndex: 1,
+          createdAt: "2026-07-18T02:00:00.000Z",
+          itemIndex: level + 1,
+          level,
+        });
+      }
+      const boundaryCommit = await dispatch<{
+        revision: `sha256:${string}`;
+      }>(handler, {
+        body: JSON.stringify({
+          baseRevision: todoSnapshot.body.revision,
+          content: todo,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: "/api/todo/snapshot",
+      });
+      const detailUrl =
+        `/api/mobile/v2/todo/collections/${encodeURIComponent(todoCollectionId(1))}`;
+
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: detailUrl,
+      })).resolves.toMatchObject({
+        body: {
+          contractVersion: 2,
+          collection: { taskCount: 128 },
+        },
+        statusCode: 200,
+      });
+      if (!boundaryCommit.body) {
+        throw new Error("Todo boundary commit is missing");
+      }
+      todo = appendTodoTestItem(todo, {
+        collectionIndex: 1,
+        createdAt: "2026-07-18T02:00:00.000Z",
+        itemIndex: 129,
+        level: 128,
+      });
+      await dispatch(handler, {
+        body: JSON.stringify({
+          baseRevision: boundaryCommit.body.revision,
+          content: todo,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "PUT",
+        url: "/api/todo/snapshot",
+      });
+
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: detailUrl,
+      })).resolves.toMatchObject({
+        body: {
+          code: "projection_too_large",
+          contractVersion: 2,
+        },
+        statusCode: 422,
+      });
     });
   });
 
@@ -581,6 +1068,16 @@ describe("workspace API v4", () => {
       expect(listed).toMatchObject({
         body: { issues: [{ id: "journal", status: "fault" }] },
         statusCode: 200,
+      });
+      await expect(dispatch(handler, {
+        method: "GET",
+        url: "/api/mobile/v2/journal/entries",
+      })).resolves.toMatchObject({
+        body: {
+          code: "domain_unavailable",
+          contractVersion: 2,
+        },
+        statusCode: 503,
       });
       expect(await readFile(journalPath, "utf8")).toBe(corruptSource);
       await expect(dispatch(handler, {

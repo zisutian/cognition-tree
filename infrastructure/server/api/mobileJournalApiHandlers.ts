@@ -120,9 +120,10 @@ export async function handleMobileJournalApiRoute({
       : entries.findIndex(({ id }) => id === cursor);
 
     if (cursor !== null && cursorIndex < 0) {
-      throw new WorkspaceApiRequestError(
-        "invalid_request",
+      throw new MobileApiRequestError(
+        "revision_conflict",
         "Journal page cursor is stale",
+        { currentRevision: revision, statusCode: 409 },
       );
     }
     const page = entries.slice(

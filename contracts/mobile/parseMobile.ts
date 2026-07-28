@@ -8,9 +8,11 @@ import {
 } from "../common/contractValue.ts";
 import type {
   MobileTodoCompletionRequestDto,
+  MobileV2TodoCompletionRequestDto,
 } from "./types.ts";
 
-const contract = "Cognition mobile v1";
+const v1Contract = "Cognition mobile v1";
+const v2Contract = "Cognition mobile v2";
 const completionFields = [
   "completed",
   "expectedRevision",
@@ -18,7 +20,7 @@ const completionFields = [
 ] as const;
 const localDatePattern = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
 
-function parseLocalDate(value: unknown, path: string) {
+function parseLocalDate(value: unknown, path: string, contract: string) {
   if (typeof value !== "string") {
     failWireContract(contract, path, "expected local date string");
   }
@@ -46,8 +48,9 @@ function parseLocalDate(value: unknown, path: string) {
   return value as MobileTodoCompletionRequestDto["occurrenceDate"];
 }
 
-export function parseMobileTodoCompletionRequest(
+function parseCompletionRequest(
   value: unknown,
+  contract: string,
 ): MobileTodoCompletionRequestDto {
   const request = readWireObject(contract, value, "$");
 
@@ -63,6 +66,18 @@ export function parseMobileTodoCompletionRequest(
     ),
     occurrenceDate: request.occurrenceDate === null
       ? null
-      : parseLocalDate(request.occurrenceDate, "$.occurrenceDate"),
+      : parseLocalDate(request.occurrenceDate, "$.occurrenceDate", contract),
   };
+}
+
+export function parseMobileTodoCompletionRequest(
+  value: unknown,
+): MobileTodoCompletionRequestDto {
+  return parseCompletionRequest(value, v1Contract);
+}
+
+export function parseMobileV2TodoCompletionRequest(
+  value: unknown,
+): MobileV2TodoCompletionRequestDto {
+  return parseCompletionRequest(value, v2Contract);
 }

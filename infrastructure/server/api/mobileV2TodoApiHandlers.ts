@@ -1,26 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { parseMobileV2TodoCompletionRequest } from "../../../contracts/mobile/parseMobile.ts";
 import {
-  parseMobileTodoCompletionRequest,
-} from "../../../contracts/mobile/parseMobile.ts";
-import {
-  cognitionMobileContractVersion,
-  type MobileTodoCollectionDto,
-  type MobileTodoCollectionsDto,
+  cognitionMobileV2ContractVersion,
   type MobileTodoCollectionSummaryDto,
-  type MobileTodoCompletionResultDto,
-  type MobileTodoTaskDto,
+  type MobileV2TodoCollectionDto,
+  type MobileV2TodoCollectionsDto,
+  type MobileV2TodoCompletionResultDto,
+  type MobileV2TodoTaskDto,
 } from "../../../contracts/mobile/types.ts";
 import { parseTodoContent } from "../../../contracts/todo/parseTodo.ts";
-import type {
-  CtnCanonicalBlock,
-} from "../../../core/ctn/parser/types.ts";
+import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types.ts";
 import {
   setTodoBlockCompletion,
   TodoOccurrenceConflictError,
 } from "../../../core/todo/commands/todoCommands.ts";
 import {
   createTodoParseIndex,
+  type ParsedTodoIndexCollection,
+  type TodoParseIndex,
 } from "../../../core/todo/indexes/todoParseIndex.ts";
 import {
   isTodoCollectionId,
@@ -29,58 +27,77 @@ import {
   type TodoContent,
 } from "../../../core/todo/model/todoContent.ts";
 import type {
-  ParsedTodoIndexCollection,
-  TodoParseIndex,
-} from "../../../core/todo/indexes/todoParseIndex.ts";
-import type {
   TodoLocalDate,
 } from "../../../core/todo/recurrence/todoRecurrence.ts";
-import {
-  VersionedContentRevisionConflictError,
-} from "../repository/versionedContentStore.ts";
+import { VersionedContentRevisionConflictError } from "../repository/versionedContentStore.ts";
 import type { BuiltInApiCatalog } from "./builtInApiHandlers.ts";
+import type { MobileApiRuntime } from "./mobileApiCommon.ts";
 import {
-  MobileApiRequestError,
-  type MobileApiRuntime,
-  type MobileTodoApiRoute,
-} from "./mobileApiCommon.ts";
+  maximumMobileV2TreeDepth,
+  MobileV2ApiRequestError,
+  type MobileV2TodoApiRoute,
+} from "./mobileV2ApiCommon.ts";
 import {
   createMobileTodoTaskStateProjector,
 } from "./mobileTodoProjection.ts";
 
 function projectTodoTasks(
   collection: TodoCollection,
-  roots: CtnCanonicalBlock[],
+  roots: readonly CtnCanonicalBlock[],
   today: TodoLocalDate,
-): MobileTodoTaskDto[] {
+): MobileV2TodoTaskDto[] {
   const projectTaskState = createMobileTodoTaskStateProjector(
     collection,
     today,
   );
-  const visit = (block: CtnCanonicalBlock): MobileTodoTaskDto[] => {
-    const children = block.children.flatMap(visit);
+  const projected: MobileV2TodoTaskDto[] = [];
+  const pending = [...roots]
+    .reverse()
+    .map((block) => ({ block, depth: 1, target: projected }));
 
-    if (block.rule.semanticId !== todoItemSemanticType) return children;
-    const state = projectTaskState(block.id);
+  while (pending.length > 0) {
+    const current = pending.pop();
 
-    return [{
-      children,
-      completed: state.completedAt !== null,
-      completedAt: state.completedAt,
-      id: block.id,
-      label: block.rule.label,
-      level: block.level,
-      lineNumber: block.lineNumber,
-      recurrence: state.recurrence,
-      text: block.text,
-    }];
-  };
+    if (!current) continue;
+    if (current.depth > maximumMobileV2TreeDepth) {
+      throw new MobileV2ApiRequestError(
+        "projection_too_large",
+        `Todo tree exceeds the mobile depth limit of ${maximumMobileV2TreeDepth}`,
+        { statusCode: 422 },
+      );
+    }
+    const state = projectTaskState(current.block.id);
+    let childTarget = current.target;
 
-  return roots.flatMap(visit);
+    if (current.block.rule.semanticId === todoItemSemanticType) {
+      const task: MobileV2TodoTaskDto = {
+        children: [],
+        completed: state.completedAt !== null,
+        id: current.block.id,
+        recurrence: state.recurrence,
+        text: current.block.text,
+      };
+
+      current.target.push(task);
+      childTarget = task.children;
+    }
+    for (let index = current.block.children.length - 1; index >= 0; index -= 1) {
+      const child = current.block.children[index];
+
+      if (child) {
+        pending.push({
+          block: child,
+          depth: current.depth + 1,
+          target: childTarget,
+        });
+      }
+    }
+  }
+  return projected;
 }
 
-function flattenMobileTasks(tasks: MobileTodoTaskDto[]) {
-  const result: MobileTodoTaskDto[] = [];
+function flattenMobileTasks(tasks: readonly MobileV2TodoTaskDto[]) {
+  const result: MobileV2TodoTaskDto[] = [];
   const pending = [...tasks].reverse();
 
   while (pending.length > 0) {
@@ -128,7 +145,7 @@ function requireTodoCollection(
   collectionId: string,
 ) {
   if (!isTodoCollectionId(collectionId)) {
-    throw new MobileApiRequestError(
+    throw new MobileV2ApiRequestError(
       "not_found",
       "Todo collection does not exist",
       { statusCode: 404 },
@@ -139,7 +156,7 @@ function requireTodoCollection(
   );
 
   if (!collection) {
-    throw new MobileApiRequestError(
+    throw new MobileV2ApiRequestError(
       "not_found",
       "Todo collection does not exist",
       { statusCode: 404 },
@@ -148,7 +165,7 @@ function requireTodoCollection(
   return collection;
 }
 
-export async function handleMobileTodoApiRoute({
+export async function handleMobileV2TodoApiRoute({
   catalog,
   readJsonBody,
   route,
@@ -156,19 +173,19 @@ export async function handleMobileTodoApiRoute({
 }: {
   catalog: BuiltInApiCatalog;
   readJsonBody(): Promise<unknown>;
-  route: MobileTodoApiRoute;
+  route: MobileV2TodoApiRoute;
   runtime: MobileApiRuntime;
 }): Promise<{
   body:
-    | MobileTodoCollectionsDto
-    | MobileTodoCollectionDto
-    | MobileTodoCompletionResultDto;
+    | MobileV2TodoCollectionsDto
+    | MobileV2TodoCollectionDto
+    | MobileV2TodoCompletionResultDto;
   statusCode: number;
 }> {
   const { content, index, revision } = await loadTodo(catalog);
   const today = runtime.today();
 
-  if (route.kind === "mobile-todo-collections") {
+  if (route.kind === "mobile-v2-todo-collections") {
     return {
       body: {
         collections: index.collections.map((parsed) =>
@@ -178,7 +195,7 @@ export async function handleMobileTodoApiRoute({
             today,
           ).summary
         ),
-        contractVersion: cognitionMobileContractVersion,
+        contractVersion: cognitionMobileV2ContractVersion,
         revision,
       },
       statusCode: 200,
@@ -194,23 +211,23 @@ export async function handleMobileTodoApiRoute({
     today,
   );
 
-  if (route.kind === "mobile-todo-collection") {
+  if (route.kind === "mobile-v2-todo-collection") {
     return {
       body: {
         collection: projected.summary,
-        contractVersion: cognitionMobileContractVersion,
+        contractVersion: cognitionMobileV2ContractVersion,
         revision,
         tasks: projected.tasks,
       },
       statusCode: 200,
     };
   }
-  const request = parseMobileTodoCompletionRequest(
+  const request = parseMobileV2TodoCompletionRequest(
     await readJsonBody(),
   );
 
   if (request.expectedRevision !== revision) {
-    throw new MobileApiRequestError(
+    throw new MobileV2ApiRequestError(
       "revision_conflict",
       "Todo content changed outside the mobile request",
       { currentRevision: revision, statusCode: 409 },
@@ -220,7 +237,7 @@ export async function handleMobileTodoApiRoute({
     !flattenMobileTasks(projected.tasks)
       .some(({ id }) => id === route.blockId)
   ) {
-    throw new MobileApiRequestError(
+    throw new MobileV2ApiRequestError(
       "not_found",
       "Todo task does not exist",
       { statusCode: 404 },
@@ -233,17 +250,17 @@ export async function handleMobileTodoApiRoute({
       content,
       index,
       {
-      blockId: route.blockId,
-      collectionId: collection.id,
-      completed: request.completed,
-      completedAt: runtime.now().toISOString(),
-      occurrenceDate: request.occurrenceDate,
-      today,
+        blockId: route.blockId,
+        collectionId: collection.id,
+        completed: request.completed,
+        completedAt: runtime.now().toISOString(),
+        occurrenceDate: request.occurrenceDate,
+        today,
       },
     );
   } catch (error) {
     if (error instanceof TodoOccurrenceConflictError) {
-      throw new MobileApiRequestError(
+      throw new MobileV2ApiRequestError(
         "stale_occurrence",
         "Todo recurrence occurrence is no longer current",
         {
@@ -266,7 +283,7 @@ export async function handleMobileTodoApiRoute({
     );
   } catch (error) {
     if (error instanceof VersionedContentRevisionConflictError) {
-      throw new MobileApiRequestError(
+      throw new MobileV2ApiRequestError(
         "revision_conflict",
         "Todo content changed outside the mobile request",
         {
@@ -296,7 +313,8 @@ export async function handleMobileTodoApiRoute({
   }
   return {
     body: {
-      contractVersion: cognitionMobileContractVersion,
+      collection: updated.summary,
+      contractVersion: cognitionMobileV2ContractVersion,
       revision: committed.revision,
       task,
     },

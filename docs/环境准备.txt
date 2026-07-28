@@ -85,16 +85,20 @@ link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址�
 
 手机窄接口：
 
-    GET /api/mobile/v1/status
-    GET /api/mobile/v1/journal/entries?limit=50&cursor=<entry-id>
-    GET /api/mobile/v1/journal/entries/<id>
-    GET /api/mobile/v1/todo/collections
-    GET /api/mobile/v1/todo/collections/<id>
-    PUT /api/mobile/v1/todo/collections/<id>/tasks/<block-id>/completion
+    GET /api/mobile/v2/status
+    GET /api/mobile/v2/journal/entries?limit=50&cursor=<opaque-base64url>
+    GET /api/mobile/v2/journal/entries/<id>
+    GET /api/mobile/v2/todo/collections
+    GET /api/mobile/v2/todo/collections/<id>
+    PUT /api/mobile/v2/todo/collections/<id>/tasks/<block-id>/completion
 
 手机接口使用与其余 HTTP API 相同的 Host、Origin 和 bearer 安全策略，所有响应为 no-store。建议受控 Gateway 与 cognition-tree 都监听 loopback，并让 Gateway 从环境变量注入同一个至少 32 字符的 CTN_API_TOKEN。不要通过 Tailscale 直接发布 cognition-tree。
 
-该接口不返回 syntaxSource、canonical source 或完整 snapshot。代办写入只接受 expectedRevision、completed 与 occurrenceDate；它是“设置状态”而非 toggle，冲突返回 409，不自动重放。
+v2 不返回 syntaxSource、canonical source 或完整 snapshot。日记游标是不透明的 base64url 值，并绑定当前 revision 与最后一条 entry ID；revision 改变时返回 409，调用方必须从第一页重载。日记与代办树最多投影 128 层。代办写入只接受 expectedRevision、completed 与 occurrenceDate；它是“设置状态”而非 toggle，冲突返回 409，不自动重放，成功结果包含更新后的 collection summary。
+
+手机客户端必须按 recurrence.active 判断当前是否为周期任务，不能以 recurrence 是否非 null 代替。recurrence 非 null 且 active 为 false 时仅保留历史 completedCount/totalCount，界面按普通任务显示并用 occurrenceDate null 勾选；active 为 true 时仅在 currentOccurrenceDate 存在时提交该日期，否则应刷新任务投影而不是猜测日期。
+
+`/api/mobile/v1` 六个操作暂留一个兼容发布窗口；新 Gateway 应只使用 v2。v1 分页游标在 revision 变化后同样返回现有的 409 revision_conflict。
 
 base revision 过期返回 409，不覆盖已发布内容。/api/built-ins 只返回 Journal/Todo 的位置、保护状态和独立故障，不返回内容。
 

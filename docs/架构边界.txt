@@ -106,14 +106,18 @@ Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB
 
 手机业务投影：
 
-    GET /api/mobile/v1/status
-    GET /api/mobile/v1/journal/entries
-    GET /api/mobile/v1/journal/entries/<id>
-    GET /api/mobile/v1/todo/collections
-    GET /api/mobile/v1/todo/collections/<id>
-    PUT /api/mobile/v1/todo/collections/<id>/tasks/<block-id>/completion
+    GET /api/mobile/v2/status
+    GET /api/mobile/v2/journal/entries
+    GET /api/mobile/v2/journal/entries/<id>
+    GET /api/mobile/v2/todo/collections
+    GET /api/mobile/v2/todo/collections/<id>
+    PUT /api/mobile/v2/todo/collections/<id>/tasks/<block-id>/completion
 
-mobile v1 只返回分页日记摘要、单篇 CTN block 投影、事项集合摘要、任务树、周期规则与统计。Todo 写入必须携带 expectedRevision、目标 completed 和 occurrenceDate；过期 revision 或 occurrence 明确返回 409。接口不接受任意 source、syntax 或完整 content，不提供通用代理能力。
+mobile v2 只返回分页日记摘要、单篇精简 CTN block 投影、事项集合摘要、精简任务树、周期规则与统计。revision 必须是 sha256: 加 64 位小写十六进制；日记 opaque cursor 绑定 revision 与最后一条 entry ID。树投影使用迭代遍历并限制为 128 层，超限返回 422 projection_too_large。Todo 写入必须携带 expectedRevision、目标 completed 和 occurrenceDate；过期 revision 或 occurrence 明确返回 409，成功响应同时返回更新后的 collection summary。接口不接受任意 source、syntax 或完整 content，不提供通用代理能力。
+
+Todo 移动投影中，recurrence 非 null 只表示存在周期历史，只有 recurrence.active 才表示当前周期 occurrence；completedCount/totalCount 表示历史完成次数/截至本地今天应发生次数。inactive recurrence 保留统计但按普通任务投影完成状态，写入必须使用 occurrenceDate null；active recurrence 只有在 currentOccurrenceDate 非 null 时才允许客户端提交该精确日期。
+
+所有已认证 v2 路由只返回限定代码的统一错误 envelope。mobile v1 六个固定操作暂留一个兼容发布窗口，随后独立移除；v1 失效分页游标使用现有 409 revision_conflict。
 
 /api/built-ins 只返回 descriptor、位置、保护状态和故障。服务端与 Browser 存储边界都不提供 Journal/Todo create、delete、rename 或切换为普通仓库。
 

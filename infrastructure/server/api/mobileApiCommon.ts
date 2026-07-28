@@ -21,7 +21,13 @@ export type MobileApiRoute = Extract<
       | "mobile-journal-entry"
       | "mobile-todo-collections"
       | "mobile-todo-collection"
-      | "mobile-todo-completion";
+      | "mobile-todo-completion"
+      | "mobile-v2-status"
+      | "mobile-v2-journal-entries"
+      | "mobile-v2-journal-entry"
+      | "mobile-v2-todo-collections"
+      | "mobile-v2-todo-collection"
+      | "mobile-v2-todo-completion";
   }
 >;
 

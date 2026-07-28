@@ -48,6 +48,25 @@ export type WorkspaceApiRoute =
       collectionId: string;
       kind: "mobile-todo-completion";
       methods: readonly string[];
+    }
+  | { kind: "mobile-v2-status"; methods: readonly string[] }
+  | { kind: "mobile-v2-journal-entries"; methods: readonly string[] }
+  | {
+      entryId: string;
+      kind: "mobile-v2-journal-entry";
+      methods: readonly string[];
+    }
+  | { kind: "mobile-v2-todo-collections"; methods: readonly string[] }
+  | {
+      collectionId: string;
+      kind: "mobile-v2-todo-collection";
+      methods: readonly string[];
+    }
+  | {
+      blockId: string;
+      collectionId: string;
+      kind: "mobile-v2-todo-completion";
+      methods: readonly string[];
     };
 
 function decodeRepositoryId(value: string) {
@@ -83,6 +102,47 @@ export function resolveWorkspaceApiRoute(
   }
   if (pathname === "/api/built-ins") {
     return { kind: "built-ins", methods: ["GET"] };
+  }
+  if (pathname === "/api/mobile/v2/status") {
+    return { kind: "mobile-v2-status", methods: ["GET"] };
+  }
+  if (pathname === "/api/mobile/v2/journal/entries") {
+    return { kind: "mobile-v2-journal-entries", methods: ["GET"] };
+  }
+  const mobileV2JournalEntryMatch =
+    /^\/api\/mobile\/v2\/journal\/entries\/([^/]+)$/.exec(pathname);
+
+  if (mobileV2JournalEntryMatch) {
+    return {
+      entryId: decodeMobileId(mobileV2JournalEntryMatch[1] ?? ""),
+      kind: "mobile-v2-journal-entry",
+      methods: ["GET"],
+    };
+  }
+  if (pathname === "/api/mobile/v2/todo/collections") {
+    return { kind: "mobile-v2-todo-collections", methods: ["GET"] };
+  }
+  const mobileV2TodoCompletionMatch =
+    /^\/api\/mobile\/v2\/todo\/collections\/([^/]+)\/tasks\/([^/]+)\/completion$/
+      .exec(pathname);
+
+  if (mobileV2TodoCompletionMatch) {
+    return {
+      blockId: decodeMobileId(mobileV2TodoCompletionMatch[2] ?? ""),
+      collectionId: decodeMobileId(mobileV2TodoCompletionMatch[1] ?? ""),
+      kind: "mobile-v2-todo-completion",
+      methods: ["PUT"],
+    };
+  }
+  const mobileV2TodoCollectionMatch =
+    /^\/api\/mobile\/v2\/todo\/collections\/([^/]+)$/.exec(pathname);
+
+  if (mobileV2TodoCollectionMatch) {
+    return {
+      collectionId: decodeMobileId(mobileV2TodoCollectionMatch[1] ?? ""),
+      kind: "mobile-v2-todo-collection",
+      methods: ["GET"],
+    };
   }
   if (pathname === "/api/mobile/v1/status") {
     return { kind: "mobile-status", methods: ["GET"] };

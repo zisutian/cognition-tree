@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { parseMobileTodoCompletionRequest } from
+import {
+  parseMobileTodoCompletionRequest,
+  parseMobileV2TodoCompletionRequest,
+} from
   "../../contracts/mobile/parseMobile";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
@@ -25,6 +28,15 @@ describe("Cognition mobile v1 contract", () => {
       completed: false,
       expectedRevision: revision,
       occurrenceDate: null,
+    });
+    expect(parseMobileV2TodoCompletionRequest({
+      completed: true,
+      expectedRevision: revision,
+      occurrenceDate: "2026-07-26",
+    })).toEqual({
+      completed: true,
+      expectedRevision: revision,
+      occurrenceDate: "2026-07-26",
     });
   });
 

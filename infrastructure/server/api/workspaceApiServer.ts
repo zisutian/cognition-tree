@@ -44,6 +44,10 @@ import {
   serverMobileApiRuntime,
   type MobileApiRuntime,
 } from "./mobileApiCommon.ts";
+import {
+  mapMobileV2ApiError,
+  MobileV2ApiRequestError,
+} from "./mobileV2ApiCommon.ts";
 
 export type WorkspaceApiRequestHandler = (
   request: IncomingMessage,
@@ -79,6 +83,7 @@ export function createWorkspaceApiRequestHandler({
     const requestId = randomUUID();
     const sensitiveLogValues: string[] = [];
     let responseHeaders = createWorkspaceApiResponseHeaders(null, requestId);
+    let requestPathname: string | undefined;
 
     try {
       const { allowedOrigin } = authorizeWorkspaceApiRequest(request, security);
@@ -88,6 +93,7 @@ export function createWorkspaceApiRequestHandler({
         requestId,
       );
       const url = new URL(request.url ?? "/", "http://localhost");
+      requestPathname = url.pathname;
       const route = resolveWorkspaceApiRoute(url.pathname);
 
       if (!route) {
@@ -119,6 +125,7 @@ export function createWorkspaceApiRequestHandler({
       if (
         route.kind !== "repository" &&
         route.kind !== "mobile-journal-entries" &&
+        route.kind !== "mobile-v2-journal-entries" &&
         url.search !== ""
       ) {
         throw new WorkspaceApiRequestError(
@@ -169,6 +176,23 @@ export function createWorkspaceApiRequestHandler({
           response,
           error.statusCode,
           error.toDto(requestId),
+          responseHeaders,
+        );
+        return;
+      }
+      if (
+        error instanceof MobileV2ApiRequestError ||
+        (
+          !(error instanceof WorkspaceApiSecurityError) &&
+          requestPathname?.startsWith("/api/mobile/v2/")
+        )
+      ) {
+        const mapped = mapMobileV2ApiError(error);
+
+        sendWorkspaceApiJson(
+          response,
+          mapped.statusCode,
+          mapped.toDto(requestId),
           responseHeaders,
         );
         return;
