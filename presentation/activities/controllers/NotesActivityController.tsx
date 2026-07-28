@@ -6,9 +6,11 @@ import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivi
 
 function ActiveNotesActivity({
   application,
+  repositoryName,
   renderActivity,
 }: {
   application: WorkspaceApplication;
+  repositoryName: string;
   renderActivity: ActivityControllerProps["renderActivity"];
 }) {
   const view = useNotesActivity({
@@ -22,6 +24,7 @@ function ActiveNotesActivity({
       focusMode: controls.focusMode,
       onCollapseDetail: controls.onCollapseDetail,
       onToggleFocusMode: controls.onToggleFocusMode,
+      repositoryName,
       view,
     }),
   );
@@ -47,6 +50,10 @@ export function NotesActivityController({
   return (
     <ActiveNotesActivity
       application={application.workspace.application}
+      repositoryName={application.repository.activeDescriptor?.label ??
+        (application.repository.session.status === "absent"
+          ? "笔记"
+          : application.repository.session.storageLabel)}
       renderActivity={renderActivity}
     />
   );

@@ -52,6 +52,7 @@ function createSlots(
         focusMode: controls.focusMode,
         onCollapseDetail: controls.onCollapseDetail,
         onToggleFocusMode: controls.onToggleFocusMode,
+        repositoryName: view.repository.activeRepositoryLabel,
         view: view.notes,
       });
     case "journal":
@@ -107,7 +108,7 @@ function createSlots(
 describe("activity slots", () => {
   it("maps every Activity to its context and detail shape", () => {
     const expected = [
-      ["notes", "笔记", true],
+      ["notes", "Primary", true],
       ["journal", "日记", true],
       ["todo", "代办", true],
       ["structure-operation", "结构操作", false],

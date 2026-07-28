@@ -11,17 +11,19 @@ export function createNotesActivitySlots({
   focusMode,
   onCollapseDetail,
   onToggleFocusMode,
+  repositoryName,
   view,
 }: {
   focusMode: boolean;
   onCollapseDetail: () => void;
   onToggleFocusMode: () => void;
+  repositoryName: string;
   view: NotesViewModel;
 }): ActivitySlots {
   return {
     context: {
       content: <NotesContext view={view} />,
-      title: "笔记",
+      title: repositoryName,
     },
     detail: view.activeNote ? (
       <NoteDetailPanel onCollapseDetail={onCollapseDetail} view={view} />

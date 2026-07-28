@@ -152,7 +152,13 @@ test.describe.serial("editor workbench flows", () => {
     await openWorkbench(page, repositoryId);
 
     const editorPanel = page.getByLabel("笔记编辑");
+    const notesContext = page.locator(".app-context");
 
+    await expect(notesContext).toHaveAccessibleName("浏览器回归仓库");
+    await expect(notesContext.getByRole("heading", {
+      level: 1,
+      name: "浏览器回归仓库",
+    })).toBeVisible();
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(page.locator(".app-context")).toHaveCount(0);
     await expect(page.locator(".app-detail")).toHaveCount(0);
