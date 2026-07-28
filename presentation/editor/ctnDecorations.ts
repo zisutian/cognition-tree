@@ -15,11 +15,11 @@ import type {
   CtnInlineSpan,
 } from "../../core/ctn/parser/types";
 import {
-  getCtnEditorTextColorClassName,
-  getCtnEditorTextColorStyle,
-  getCtnEditorToneClassName,
-  getCtnEditorToneStyle,
-} from "./ctnTonePresentation";
+  getTextColorClassName,
+  getTextColorStyleDeclaration,
+  getToneClassName,
+  getToneStyleDeclaration,
+} from "../ui/shared/tonePresentation";
 import {
   type CtnEditorAnalysisState,
   type CtnEditorAnalysisField,
@@ -114,7 +114,7 @@ function isConceptBlock(block: CtnEditableBlock) {
 }
 
 function getBlockTextClass(block: CtnEditableBlock) {
-  const textColorClass = getCtnEditorTextColorClassName(block.rule.textColor);
+  const textColorClass = getTextColorClassName(block.rule.textColor);
 
   if (isConceptBlock(block)) {
     return `ctn-block-text ctn-block-text-concept ${textColorClass}`;
@@ -139,14 +139,14 @@ export function shouldDecorateMarker(block: CtnEditableBlock) {
 }
 
 export function getMarkerDecorationClass(block: CtnEditableBlock) {
-  return `ctn-marker ${getCtnEditorTextColorClassName(block.rule.textColor)}`;
+  return `ctn-marker ${getTextColorClassName(block.rule.textColor)}`;
 }
 
 export function getBlockLineDecorationClass(
   block: CtnEditableBlock,
   lineNumber = block.lineNumber,
 ) {
-  const lineClasses = ["ctn-line", getCtnEditorToneClassName(block.rule.tone)];
+  const lineClasses = ["ctn-line", getToneClassName(block.rule.tone)];
   const isBlockStartLine = lineNumber === block.lineNumber;
 
   if (isBlockStartLine && block.rule.semanticId === "title") {
@@ -158,30 +158,30 @@ export function getBlockLineDecorationClass(
   }
 
   if (isBlockStartLine && block.diagnostics.length > 0) {
-    lineClasses.push("ctn-line-diagnostic");
+    lineClasses.push("ctn-line-diagnostic", "has-diagnostics");
   }
 
   return lineClasses.join(" ");
 }
 
 export function getBlockLineDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorToneStyle(block.rule.tone);
+  return getToneStyleDeclaration(block.rule.tone);
 }
 
 export function getInlineDecorationClass(span: CtnInlineSpan) {
-  return `ctn-inline ${getCtnEditorToneClassName(span.rule.tone)}`;
+  return `ctn-inline ${getToneClassName(span.rule.tone)}`;
 }
 
 export function getInlineSymbolDecorationClass(span: CtnInlineSpan) {
-  return `ctn-inline-symbol ${getCtnEditorToneClassName(span.rule.tone)}`;
+  return `ctn-inline-symbol ${getToneClassName(span.rule.tone)}`;
 }
 
 export function getMarkerDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorTextColorStyle(block.rule.textColor);
+  return getTextColorStyleDeclaration(block.rule.textColor);
 }
 
 export function getInlineDecorationStyle(span: CtnInlineSpan) {
-  return getCtnEditorToneStyle(span.rule.tone) ?? "";
+  return getToneStyleDeclaration(span.rule.tone) ?? "";
 }
 
 export function getInlineSymbolOffsets(
@@ -214,7 +214,7 @@ export function getInlineSymbolOffsets(
 }
 
 function getBlockTextDecorationStyle(block: CtnEditableBlock) {
-  return getCtnEditorTextColorStyle(block.rule.textColor);
+  return getTextColorStyleDeclaration(block.rule.textColor);
 }
 
 function buildCtnDecorations(

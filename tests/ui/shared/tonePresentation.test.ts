@@ -1,15 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
+  configurableSyntaxTones,
+} from "../../../core/ctn/syntax/tones";
+import {
   createToneStyle,
   getTextColorClassName,
+  getTextColorStyleDeclaration,
   getToneClassName,
+  getToneStyleDeclaration,
   isCustomTone,
 } from "../../../presentation/ui/shared/tonePresentation";
 
 describe("tone presentation", () => {
-  it("maps semantic tones to UI classes", () => {
-    expect(getToneClassName("green")).toBe("ctn-tone-green");
-    expect(getTextColorClassName("cyan")).toBe("ctn-text-color-cyan");
+  it("maps the complete preset vocabulary through one class convention", () => {
+    const tones = ["default", ...configurableSyntaxTones] as const;
+
+    expect(tones.map((tone) => ({
+      text: getTextColorClassName(tone),
+      tone,
+      background: getToneClassName(tone),
+    }))).toEqual(tones.map((tone) => ({
+      text: `ctn-text-color-${tone}`,
+      tone,
+      background: `ctn-tone-${tone}`,
+    })));
   });
 
   it("keeps custom color values in UI-owned CSS variables", () => {
@@ -20,5 +34,11 @@ describe("tone presentation", () => {
       "--ctn-text-color": "#abcdef",
       "--ctn-tone-color": "#397c72",
     });
+    expect(getToneStyleDeclaration("#397c72")).toBe(
+      "--ctn-tone-color: #397c72;",
+    );
+    expect(getTextColorStyleDeclaration("#abcdef")).toBe(
+      "--ctn-text-color: #abcdef;",
+    );
   });
 });

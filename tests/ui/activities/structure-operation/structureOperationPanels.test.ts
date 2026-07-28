@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type {
+  UiBlockNode,
+} from "../../../../application/workspace/projection/viewBlocks";
 import {
   getStructureOperationDirectoryNoteStatus,
 } from "../../../../presentation/activities/views/structure-operation/StructureOperationContext";
@@ -80,7 +83,7 @@ describe("structure operation panels", () => {
   });
 
   it("classifies structure block drop targets from the dragged subtree", () => {
-    const sourceBlock = {
+    const sourceBlock: UiBlockNode = {
       children: [
         {
           children: [],
@@ -135,7 +138,7 @@ describe("structure operation panels", () => {
   });
 
   it("finds nested structure blocks by line number", () => {
-    const roots = [
+    const roots: UiBlockNode[] = [
       {
         children: [
           {
@@ -170,7 +173,7 @@ describe("structure operation panels", () => {
   });
 
   it("builds non-pointer move targets without offering the source subtree", () => {
-    const roots = [
+    const roots: UiBlockNode[] = [
       {
         children: [
           {

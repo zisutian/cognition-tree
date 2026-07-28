@@ -65,7 +65,7 @@
   gap: var(--ui-gap-tight);
   width: 100%;
   min-width: 0;
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   padding: 0 var(--ui-gap-tight);
 }
 

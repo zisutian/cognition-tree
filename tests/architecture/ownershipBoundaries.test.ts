@@ -98,4 +98,18 @@ describe("source ownership boundaries", () => {
 
     expect(violations).toEqual([]);
   });
+
+  it("keeps CTN tone class and custom-property projection in one UI owner", () => {
+    const toneClassOwners = findOwners(
+      presentationModules,
+      /`ctn-tone-\$\{tone\}`/,
+    );
+    const tonePropertyOwners = findOwners(
+      presentationModules,
+      /`--ctn-tone-color: \$\{tone\};`/,
+    );
+
+    expectUniqueOwner(toneClassOwners, /^presentation\/ui\/shared\//);
+    expectUniqueOwner(tonePropertyOwners, /^presentation\/ui\/shared\//);
+  });
 });

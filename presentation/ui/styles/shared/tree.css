@@ -34,7 +34,7 @@
 
 .ui-directory-tree-surface {
   flex: 1;
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   border-radius: var(--ui-radius);
 }
 
@@ -67,7 +67,7 @@
 
 .ui-tree-row,
 .ui-tree-actions button {
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   border-radius: var(--ui-radius);
 }
 

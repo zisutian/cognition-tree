@@ -14,7 +14,7 @@
 .syntax-workspace-group-header {
   display: flex;
   align-items: center;
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
@@ -78,7 +78,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   color: var(--color-fg-muted);
   font-size: var(--ui-micro-font-size);
   font-weight: var(--ui-micro-strong-weight);
@@ -137,7 +137,7 @@
 }
 
 .syntax-rule-header {
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   font-size: var(--ui-micro-font-size);
   line-height: var(--ui-micro-line-height);
 }
@@ -444,7 +444,7 @@
     minmax(0, 1fr);
   align-items: center;
   gap: var(--ui-gap-tight);
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   padding: 0 0 0 var(--ui-gap-tight);
   border-radius: 0;
   color: var(--color-fg);

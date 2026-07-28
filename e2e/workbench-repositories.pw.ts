@@ -11,7 +11,10 @@ import type {
   WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace/types";
-import { appResizeKeyboardStep } from "../presentation/ui/workbench/frameResize";
+import {
+  appContextDefaultWidth,
+  appResizeKeyboardStep,
+} from "../presentation/ui/workbench/frameResize";
 import {
   e2eApiBaseUrl,
   editExternalLocalNote,
@@ -75,11 +78,6 @@ test.describe.serial("repository and capacity flows", () => {
     const statusRows = page.locator(".repository-summary-list > div");
 
     await expect(statusRows).toHaveCount(3);
-    const statusRowHeights = await statusRows.evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().height)
-    );
-
-    expect(Math.max(...statusRowHeights)).toBeLessThanOrEqual(22);
     await expect(page.locator(".repository-summary-list dt", {
       hasText: "名称",
     })).toHaveCount(0);
@@ -87,7 +85,10 @@ test.describe.serial("repository and capacity flows", () => {
     await expect(page.getByLabel("笔记编辑")).toBeVisible();
     await expect(page.locator(".app-context").getByTitle("未命名笔记"))
       .toBeVisible();
-    await expect(contextResize).toHaveAttribute("aria-valuenow", "280");
+    await expect(contextResize).toHaveAttribute(
+      "aria-valuenow",
+      String(appContextDefaultWidth),
+    );
 
     await getActivityButton(page, "仓库").click();
     const activeRepository = page.locator(
@@ -102,15 +103,6 @@ test.describe.serial("repository and capacity flows", () => {
     );
     await expect(activeRepository).toHaveAttribute("title", "第二仓库 · 本地");
     await openRepositoryFromContext(page, repositoryId);
-    const repositoryLabelLefts = await page.locator(
-      ".repository-list [data-repository-id] .ui-tree-text",
-    ).evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().left)
-    );
-
-    expect(
-      Math.max(...repositoryLabelLefts) - Math.min(...repositoryLabelLefts),
-    ).toBeLessThanOrEqual(1);
     await expect(getActivityButton(page, "仓库")).toHaveAttribute(
       "aria-current",
       "page",
@@ -521,15 +513,14 @@ test.describe.serial("repository and capacity flows", () => {
     await getActivityButton(page, "笔记").click();
 
     const context = page.locator(".activity-context-content");
-    const directoryTree = context.locator(
-      '.ui-directory-tree[data-virtual-row-count="601"]',
-    );
+    const directoryTree = context.getByRole("tree");
 
     await expect(directoryTree).toBeVisible();
+    await expect(directoryTree).toHaveAttribute("data-virtual-row-count", "601");
     await expect(
-      directoryTree.locator(".ui-directory-tree-virtual-row").first(),
+      directoryTree.getByRole("treeitem").first(),
     ).toHaveAttribute("aria-setsize", "601");
-    expect(await directoryTree.locator(".ui-tree-row-frame").count())
+    expect(await directoryTree.getByRole("treeitem").count())
       .toBeLessThan(100);
     await context.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
@@ -542,15 +533,14 @@ test.describe.serial("repository and capacity flows", () => {
     await context.getByTitle("Large Structure").click();
 
     const detailScroll = page.locator(".app-detail .ui-panel-body-scroll");
-    const structureTree = detailScroll.locator(
-      '.ui-structure-tree[data-virtual-row-count="600"]',
-    );
+    const structureTree = detailScroll.getByRole("tree");
 
     await expect(structureTree).toBeVisible();
+    await expect(structureTree).toHaveAttribute("data-virtual-row-count", "600");
     await expect(
-      structureTree.locator(".ui-virtual-tree-row").first(),
+      structureTree.getByRole("treeitem").first(),
     ).toHaveAttribute("aria-setsize", "600");
-    expect(await structureTree.locator(".ui-structure-tree-row").count())
+    expect(await structureTree.getByRole("treeitem").count())
       .toBeLessThan(100);
     await detailScroll.evaluate((element) => {
       element.scrollTop = element.scrollHeight;

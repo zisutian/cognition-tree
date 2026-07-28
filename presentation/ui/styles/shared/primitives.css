@@ -158,13 +158,13 @@
 }
 
 .ui-input-tree {
-  height: calc(var(--ui-tree-row-height) - calc(var(--ui-border-width) * 2));
-  min-height: calc(var(--ui-tree-row-height) - calc(var(--ui-border-width) * 2));
+  height: calc(var(--ui-row-height) - calc(var(--ui-border-width) * 2));
+  min-height: calc(var(--ui-row-height) - calc(var(--ui-border-width) * 2));
   padding: 0 var(--ui-gap-tight);
   color: var(--color-fg-strong);
   font-size: var(--ui-body-font-size);
   line-height: calc(
-    var(--ui-tree-row-height) - var(--ui-border-width) * 2
+    var(--ui-row-height) - var(--ui-border-width) * 2
   );
 }
 
@@ -436,7 +436,7 @@
   gap: var(--ui-gap-tight);
   width: 100%;
   min-width: 0;
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   padding: 0 var(--ui-gap-tight);
   border: 0;
   border-radius: var(--ui-radius);

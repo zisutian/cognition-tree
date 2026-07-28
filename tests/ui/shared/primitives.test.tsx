@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   SegmentedControl,
-  SymbolSlot,
   ToggleButton,
 } from "../../../presentation/ui/shared/primitives";
 
@@ -20,8 +19,7 @@ describe("shared primitives", () => {
       />,
     );
 
-    expect(markup).toContain("ui-segmented-control");
-    expect(markup).toContain("ui-segmented-control-option is-active");
+    expect(markup).toContain('role="group"');
     expect(markup).toContain("aria-label=\"图谱范围\"");
     expect(markup).toContain("aria-pressed=\"true\"");
     expect(markup).toContain("aria-pressed=\"false\"");
@@ -41,7 +39,6 @@ describe("shared primitives", () => {
       />,
     );
 
-    expect(markup).toContain("ui-segmented-control-fill");
     expect(markup).toContain("--ui-segment-count:2");
     expect(markup).toContain("aria-pressed=\"true\"");
   });
@@ -51,20 +48,7 @@ describe("shared primitives", () => {
       <ToggleButton pressed>隐藏孤立点</ToggleButton>,
     );
 
-    expect(markup).toContain("ui-toggle-button is-active");
     expect(markup).toContain("aria-pressed=\"true\"");
     expect(markup).toContain("隐藏孤立点");
-  });
-
-  it("renders shared symbol slots for tree and detail markers", () => {
-    const markup = renderToStaticMarkup(
-      <SymbolSlot className="detail-line-marker" tone="link">
-        T
-      </SymbolSlot>,
-    );
-
-    expect(markup).toContain("ui-symbol-slot");
-    expect(markup).toContain("ui-symbol-slot-link");
-    expect(markup).toContain("detail-line-marker");
   });
 });

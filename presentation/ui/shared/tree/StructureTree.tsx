@@ -10,6 +10,7 @@ import {
   type DisplayText,
 } from "../blockText";
 import { cx } from "../primitives";
+import { shouldVirtualizeUiRows } from "../virtualListMetrics";
 import { getStructureTreeRowStyle } from "./structureIndent";
 import {
   flattenStructureTreeRows,
@@ -19,7 +20,6 @@ import type {
   StructureTreeProps,
 } from "./types";
 import {
-  shouldVirtualizeTreeRows,
   useVirtualTreeRows,
 } from "./virtualTree";
 
@@ -78,7 +78,10 @@ function StructureTreeRow({
 
   return (
     <li
+      aria-expanded={node.children.length > 0 ? true : undefined}
+      aria-level={depth + 1}
       aria-posinset={itemPosition}
+      aria-selected={isSelected}
       aria-setsize={itemSetSize}
       className={cx(
         "ui-structure-tree-item",
@@ -86,6 +89,7 @@ function StructureTreeRow({
         isSelectedRoot && "is-selected-root",
         itemClassName,
       )}
+      role="treeitem"
       style={itemStyle}
     >
       <button
@@ -123,7 +127,10 @@ function StructureTreeContent({
   onSelectLine,
 }: StructureTreeProps & { depth: number }) {
   return (
-    <ul className={cx("ui-tree ui-structure-tree", className)}>
+    <ul
+      className={cx("ui-tree ui-structure-tree", className)}
+      role={depth === 0 ? "tree" : "group"}
+    >
       {nodes.map((node) => (
         <StructureTreeRow
           depth={depth}
@@ -191,6 +198,7 @@ function VirtualStructureTree({
       )}
       data-virtual-row-count={rows.length}
       ref={hostRef}
+      role="tree"
       style={{ height: `${totalSize}px` }}
     >
       {virtualRows.map((virtualRow) => {
@@ -222,7 +230,7 @@ export function StructureTree(props: StructureTreeProps) {
     [props.nodes],
   );
 
-  if (shouldVirtualizeTreeRows(rows.length)) {
+  if (shouldVirtualizeUiRows(rows.length)) {
     return <VirtualStructureTree {...props} rows={rows} />;
   }
 

@@ -3,11 +3,13 @@ import {
   appContextDefaultWidth,
   appContextMaxWidth,
   appContextMinWidth,
+  appDetailDefaultWidth,
   appDetailMaxWidth,
   appDetailMinWidth,
   appProblemsDefaultHeight,
   appProblemsMaxHeight,
   appProblemsMinHeight,
+  appResizeKeyboardStep,
   clampAppContextWidth,
   clampAppDetailWidth,
   clampAppProblemsHeight,
@@ -38,13 +40,56 @@ describe("frame resize", () => {
   });
 
   it("maps keyboard resize directions", () => {
-    expect(getAppContextKeyboardResizeWidth(280, "ArrowLeft")).toBe(264);
-    expect(getAppContextKeyboardResizeWidth(280, "ArrowRight")).toBe(296);
-    expect(getAppDetailKeyboardResizeWidth(320, "ArrowLeft")).toBe(336);
-    expect(getAppDetailKeyboardResizeWidth(320, "ArrowRight")).toBe(304);
-    expect(getAppDetailKeyboardResizeWidth(320, "Enter")).toBeNull();
-    expect(getAppProblemsKeyboardResizeHeight(200, "ArrowUp")).toBe(216);
-    expect(getAppProblemsKeyboardResizeHeight(200, "ArrowDown")).toBe(184);
-    expect(getAppProblemsKeyboardResizeHeight(200, "ArrowLeft")).toBeNull();
+    const cases = [
+      [
+        getAppContextKeyboardResizeWidth,
+        appContextDefaultWidth,
+        "ArrowLeft",
+        appContextDefaultWidth - appResizeKeyboardStep,
+      ],
+      [
+        getAppContextKeyboardResizeWidth,
+        appContextDefaultWidth,
+        "ArrowRight",
+        appContextDefaultWidth + appResizeKeyboardStep,
+      ],
+      [
+        getAppDetailKeyboardResizeWidth,
+        appDetailDefaultWidth,
+        "ArrowLeft",
+        appDetailDefaultWidth + appResizeKeyboardStep,
+      ],
+      [
+        getAppDetailKeyboardResizeWidth,
+        appDetailDefaultWidth,
+        "ArrowRight",
+        appDetailDefaultWidth - appResizeKeyboardStep,
+      ],
+      [
+        getAppProblemsKeyboardResizeHeight,
+        appProblemsDefaultHeight,
+        "ArrowUp",
+        appProblemsDefaultHeight + appResizeKeyboardStep,
+      ],
+      [
+        getAppProblemsKeyboardResizeHeight,
+        appProblemsDefaultHeight,
+        "ArrowDown",
+        appProblemsDefaultHeight - appResizeKeyboardStep,
+      ],
+    ] as const;
+
+    for (const [resize, value, key, expected] of cases) {
+      expect(resize(value, key)).toBe(expected);
+    }
+    expect(
+      getAppDetailKeyboardResizeWidth(appDetailDefaultWidth, "Enter"),
+    ).toBeNull();
+    expect(
+      getAppProblemsKeyboardResizeHeight(
+        appProblemsDefaultHeight,
+        "ArrowLeft",
+      ),
+    ).toBeNull();
   });
 });

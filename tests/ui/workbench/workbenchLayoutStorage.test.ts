@@ -4,6 +4,9 @@ import {
   loadRepositoryProblemsLayout,
   saveRepositoryProblemsLayout,
 } from "../../../presentation/ui/workbench/workbenchLayoutStorage";
+import {
+  appProblemsMaxHeight,
+} from "../../../presentation/ui/workbench/frameResize";
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();
@@ -60,6 +63,8 @@ describe("workbench layout storage", () => {
     );
 
     saveRepositoryProblemsLayout("clamped", { expanded: true, height: 999 });
-    expect(loadRepositoryProblemsLayout("clamped").height).toBe(360);
+    expect(loadRepositoryProblemsLayout("clamped").height).toBe(
+      appProblemsMaxHeight,
+    );
   });
 });

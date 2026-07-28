@@ -8,9 +8,11 @@ import type {
 import type { JournalDiagnostic } from "../../../application/journal";
 import {
   ProblemsPanel,
-  problemsVirtualizationThreshold,
-  shouldVirtualizeProblems,
 } from "../../../presentation/ui/problems/ProblemsPanel";
+import {
+  shouldVirtualizeUiRows,
+  uiVirtualizationThreshold,
+} from "../../../presentation/ui/shared/virtualListMetrics";
 
 const diagnostic: UiWorkbenchDiagnostic = {
   code: "unknown-syntax",
@@ -102,7 +104,6 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain('aria-label="问题列表"');
-    expect(markup).toContain("problems-row-message");
     expect(markup).toContain("笔记 · 示例 · L2:C2");
     expect(markup).not.toContain("问题来源");
   });
@@ -168,17 +169,14 @@ describe("ProblemsPanel", () => {
     expect(markup).toContain(
       "日记引用 · 2026-01-02 11:04:05 · L2",
     );
-    expect(markup).not.toContain(
-      '<span class="problems-row-meta">引用 · 2026-01-02 11:04:05 · L2',
-    );
   });
 
-  it("uses the existing virtual collection only above 500 rows", () => {
-    expect(shouldVirtualizeProblems(problemsVirtualizationThreshold)).toBe(false);
-    expect(shouldVirtualizeProblems(problemsVirtualizationThreshold + 1)).toBe(true);
+  it("uses the shared virtual collection boundary", () => {
+    expect(shouldVirtualizeUiRows(uiVirtualizationThreshold)).toBe(false);
+    expect(shouldVirtualizeUiRows(uiVirtualizationThreshold + 1)).toBe(true);
 
     const problems = Array.from(
-      { length: problemsVirtualizationThreshold + 1 },
+      { length: uiVirtualizationThreshold + 1 },
       (_, index) => ({
         ...diagnostic,
         id: `${diagnostic.id}-${index}`,
@@ -199,7 +197,7 @@ describe("ProblemsPanel", () => {
     );
 
     expect(markup).toContain(
-      `data-virtual-row-count="${problemsVirtualizationThreshold + 1}"`,
+      `data-virtual-row-count="${uiVirtualizationThreshold + 1}"`,
     );
   });
 

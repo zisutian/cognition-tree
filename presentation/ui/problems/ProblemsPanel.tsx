@@ -11,9 +11,11 @@ import type {
   UiWorkbenchProblems,
 } from "../../../application/problems/workbenchProblems";
 import { SymbolSlot, cx } from "../shared/primitives";
-
-export const problemsRowHeightPx = 22;
-export const problemsVirtualizationThreshold = 500;
+import {
+  shouldVirtualizeUiRows,
+  uiVirtualOverscan,
+  uiVirtualRowHeightPx,
+} from "../shared/virtualListMetrics";
 
 const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
   document: "笔记",
@@ -49,10 +51,6 @@ function getProblemSourceLabel(problem: UiWorkbenchProblem) {
         : "日记";
   }
   return sourceLabels[problem.source];
-}
-
-export function shouldVirtualizeProblems(diagnosticCount: number) {
-  return diagnosticCount > problemsVirtualizationThreshold;
 }
 
 function ProblemRow({
@@ -118,13 +116,13 @@ function ProblemsList({
   onDismiss: (problem: UiWorkbenchProblem) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const virtual = shouldVirtualizeProblems(problems.length);
+  const virtual = shouldVirtualizeUiRows(problems.length);
   const virtualizer = useVirtualizer({
     count: virtual ? problems.length : 0,
-    estimateSize: () => problemsRowHeightPx,
+    estimateSize: () => uiVirtualRowHeightPx,
     getItemKey: (index) => problems[index]?.id ?? index,
     getScrollElement: () => scrollRef.current,
-    overscan: 12,
+    overscan: uiVirtualOverscan,
   });
 
   if (!virtual) {

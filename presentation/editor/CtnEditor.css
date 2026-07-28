@@ -174,20 +174,7 @@
 }
 
 .source-editor .cm-line.ctn-line-diagnostic {
-  position: relative;
   background: var(--color-error-soft);
-}
-
-.source-editor .cm-line.ctn-line-diagnostic::after {
-  position: absolute;
-  top: var(--ui-border-width);
-  bottom: var(--ui-border-width);
-  left: 0;
-  width: calc(var(--ui-border-width) * 3);
-  border-radius: 0 var(--ui-radius) var(--ui-radius) 0;
-  background: var(--color-error);
-  content: "";
-  pointer-events: none;
 }
 
 .source-editor .ctn-inline {

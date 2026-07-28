@@ -19,6 +19,10 @@ import {
   e2eTimestamp,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
+import {
+  readComputedStyleValue,
+  readCtnTonePresentation,
+} from "./support/uiPresentation";
 import { openWorkbench } from "./support/workbenchPage";
 
 const repositoryId = "workbench-editor";
@@ -147,11 +151,9 @@ test.describe.serial("editor workbench flows", () => {
   test("supports focus mode and reference navigation", async ({ page }) => {
     await openWorkbench(page, repositoryId);
 
-    const frame = page.locator(".app-frame");
     const editorPanel = page.getByLabel("笔记编辑");
 
     await page.getByRole("button", { name: "进入专注模式" }).click();
-    await expect(frame).toHaveClass(/is-focus-mode/);
     await expect(page.locator(".app-context")).toHaveCount(0);
     await expect(page.locator(".app-detail")).toHaveCount(0);
     await expect(
@@ -163,9 +165,9 @@ test.describe.serial("editor workbench flows", () => {
 
     await page.keyboard.press("Control+K");
     await page.keyboard.press("z");
-    await expect(frame).toHaveClass(/is-focus-mode/);
+    await expect(page.locator(".app-context")).toHaveCount(0);
     await page.keyboard.press("Escape");
-    await expect(frame).not.toHaveClass(/is-focus-mode/);
+    await expect(page.locator(".app-context")).toBeVisible();
 
     await page.locator(".app-context").getByTitle("Alpha").click();
     const titleLine = editorPanel.locator(".ctn-line-title").filter({
@@ -173,7 +175,6 @@ test.describe.serial("editor workbench flows", () => {
     });
 
     await expect(titleLine).toBeVisible();
-    await expect(titleLine).toHaveCSS("font-weight", "700");
     await page
       .locator(".source-editor .ctn-inline")
       .filter({ hasText: "[[Beta]]" })
@@ -249,16 +250,30 @@ test.describe.serial("editor workbench flows", () => {
     await expect(opener).toBeVisible();
     await expect(codeLine).toBeVisible();
     await expect(closer).toBeVisible();
-    await expect(editor.locator(".cm-content")).toHaveCSS("tab-size", "8");
-    await expect(opener).toHaveClass(/ctn-tone-violet/);
-    await expect(codeLine).toHaveClass(/ctn-tone-violet/);
-    await expect(closer).toHaveClass(/ctn-tone-violet/);
-    await expect(opener.locator(".ctn-marker"))
-      .toHaveClass(/ctn-text-color-red/);
-    await expect(codeLine.locator(".ctn-block-text"))
-      .toHaveClass(/ctn-text-color-red/);
-    await expect(closer.locator(".ctn-block-text"))
-      .toHaveClass(/ctn-text-color-red/);
+    await lines.first().click();
+    await expect.poll(() =>
+      readComputedStyleValue(editor.locator(".cm-content"), "tabSize")
+    ).toBe("8");
+    const multilineToneBackgrounds = await Promise.all([
+      opener,
+      codeLine,
+      closer,
+    ].map((line) =>
+      readCtnTonePresentation(line, "background")
+    ));
+    const multilineTextColors = await Promise.all([
+      opener.locator(".ctn-marker"),
+      codeLine.locator(".ctn-block-text"),
+      closer.locator(".ctn-block-text"),
+    ].map((content) =>
+      readComputedStyleValue(content, "color")
+    ));
+    const defaultEditorText = await readComputedStyleValue(editor, "color");
+
+    expect(new Set(multilineToneBackgrounds).size).toBe(1);
+    expect(multilineToneBackgrounds[0]).not.toBe("");
+    expect(new Set(multilineTextColors).size).toBe(1);
+    expect(multilineTextColors[0]).not.toBe(defaultEditorText);
 
     await opener.click();
     await page.keyboard.press("End");
@@ -368,16 +383,16 @@ test.describe.serial("editor workbench flows", () => {
     });
 
     await referenceLine.click();
-    await expect(detail.locator(".ui-structure-tree-row.is-selected"))
-      .toHaveAttribute("title", /Beta/);
+    await expect(detail.getByRole("treeitem", { selected: true }))
+      .toContainText("Beta");
     await expect(createdTime).toHaveAttribute(
       "datetime",
       e2eAlphaFirstBlockTimestamp,
     );
 
     await itemLine.click();
-    await expect(detail.locator(".ui-structure-tree-row.is-selected"))
-      .toHaveAttribute("title", /Alpha 子项/);
+    await expect(detail.getByRole("treeitem", { selected: true }))
+      .toContainText("Alpha 子项");
     await expect(createdTime).toHaveAttribute(
       "datetime",
       e2eAlphaSecondBlockTimestamp,
@@ -396,7 +411,7 @@ test.describe.serial("editor workbench flows", () => {
     await expect.poll(async () => noteUpdatedTime.getAttribute("datetime"))
       .not.toBe(e2eTimestamp);
 
-    await detail.locator(".ui-structure-tree-row").first().click();
+    await detail.getByRole("treeitem").first().getByRole("button").click();
     await expect(editor.locator(".cm-activeLine")).toContainText("[[Beta]]");
     await expect(createdTime).toHaveAttribute(
       "datetime",
@@ -415,7 +430,8 @@ test.describe.serial("editor workbench flows", () => {
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
     await expect(page.locator(".source-editor")).not.toContainText("@ctn-block");
-    await page.locator(".app-detail .ui-structure-tree-row").first().click();
+    await page.locator(".app-detail").getByRole("treeitem").first()
+      .getByRole("button").click();
     await expect(page.getByLabel("块时间")).toBeVisible();
     const beforeResponse = await api.get(
       `/api/repositories/${repositoryId}/snapshot`,

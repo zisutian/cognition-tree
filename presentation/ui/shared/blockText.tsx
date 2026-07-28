@@ -1,3 +1,6 @@
+import type {
+  CtnSyntaxTone,
+} from "../../../core/ctn/syntax/types";
 import {
   createToneStyle,
   getTextColorClassName,
@@ -16,10 +19,10 @@ export type DisplayText = {
         id: string;
         kind: "inline";
         text: string;
-        tone: string;
+        tone: CtnSyntaxTone;
       }
   >;
-  textColor: string;
+  textColor: CtnSyntaxTone;
 };
 
 export function BlockText({ text }: { text: DisplayText }) {

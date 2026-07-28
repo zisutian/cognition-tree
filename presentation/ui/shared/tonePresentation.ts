@@ -1,31 +1,39 @@
 import type { CSSProperties } from "react";
-
-type ToneValue = string;
+import {
+  isCustomSyntaxTone,
+} from "../../../core/ctn/syntax/tones";
+import type {
+  CtnSyntaxTone,
+} from "../../../core/ctn/syntax/types";
 
 type ToneStyle = CSSProperties & {
   "--ctn-text-color"?: string;
   "--ctn-tone-color"?: string;
 };
 
-const customTonePattern = /^#[0-9a-fA-F]{6}$/;
+export const isCustomTone = isCustomSyntaxTone;
 
-export function isCustomTone(tone: ToneValue) {
-  return customTonePattern.test(tone);
-}
-
-export function getToneClassName(tone: ToneValue) {
+export function getToneClassName(tone: CtnSyntaxTone) {
   return isCustomTone(tone) ? "ctn-tone-custom" : `ctn-tone-${tone}`;
 }
 
-export function getTextColorClassName(tone: ToneValue) {
+export function getTextColorClassName(tone: CtnSyntaxTone) {
   return isCustomTone(tone)
     ? "ctn-text-color-custom"
     : `ctn-text-color-${tone}`;
 }
 
+export function getToneStyleDeclaration(tone: CtnSyntaxTone) {
+  return isCustomTone(tone) ? `--ctn-tone-color: ${tone};` : undefined;
+}
+
+export function getTextColorStyleDeclaration(tone: CtnSyntaxTone) {
+  return isCustomTone(tone) ? `--ctn-text-color: ${tone};` : undefined;
+}
+
 export function createToneStyle(
-  tone: ToneValue,
-  textColor: ToneValue,
+  tone: CtnSyntaxTone,
+  textColor: CtnSyntaxTone,
 ): ToneStyle | undefined {
   const style: ToneStyle = {};
 

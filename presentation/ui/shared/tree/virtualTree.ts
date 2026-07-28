@@ -10,15 +10,12 @@ import {
   useState,
   type RefObject,
 } from "react";
+import {
+  uiVirtualOverscan,
+  uiVirtualRowHeightPx,
+} from "../virtualListMetrics";
 
-export const treeRowHeightPx = 22;
-export const treeVirtualizationThreshold = 500;
-const treeVirtualOverscan = 12;
 const emptyPinnedIndexes: ReadonlySet<number> = new Set();
-
-export function shouldVirtualizeTreeRows(rowCount: number) {
-  return rowCount > treeVirtualizationThreshold;
-}
 
 function findVerticalScrollElement(element: HTMLElement) {
   let ancestor = element.parentElement;
@@ -112,10 +109,10 @@ export function useVirtualTreeRows({
 
   const virtualizer = useVirtualizer({
     count,
-    estimateSize: () => treeRowHeightPx,
+    estimateSize: () => uiVirtualRowHeightPx,
     getItemKey,
     getScrollElement: () => scrollElement,
-    overscan: treeVirtualOverscan,
+    overscan: uiVirtualOverscan,
     rangeExtractor,
     scrollMargin,
   });

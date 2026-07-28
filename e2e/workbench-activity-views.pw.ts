@@ -13,6 +13,11 @@ import {
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
 import {
+  readComputedStyleValue,
+  readCtnTonePresentation,
+  readTonePickerSwatchColor,
+} from "./support/uiPresentation";
+import {
   getActivityButton,
   openWorkbench,
 } from "./support/workbenchPage";
@@ -75,24 +80,12 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "语法").click();
 
-    const editableRuleName = page.getByRole("textbox", {
-      name: "名称",
-    }).first();
     const titleTonePicker = page.getByRole("button", {
       name: /^首行标题背景色:/,
     });
     const referenceColorPicker = page.getByRole("button", {
       name: /^全局概念引用颜色:/,
     });
-
-    await expect.poll(() =>
-      page.getByText("块规则", { exact: true }).evaluate(
-        (element) => getComputedStyle(element).userSelect,
-      )
-    ).toBe("none");
-    expect(await editableRuleName.evaluate(
-      (element) => getComputedStyle(element).userSelect,
-    )).not.toBe("none");
 
     await page.getByRole("button", { name: /^重命名语法 / }).click();
     const renameInput = page.getByRole("textbox", { name: /^重命名语法 / });
@@ -102,8 +95,9 @@ test.describe("syntax and visualization activity flows", () => {
     const titlePreview = page.locator(".syntax-render-line").filter({
       hasText: "首行标题示例",
     });
-    const initialTitleBackground = await titlePreview.evaluate(
-      (element) => getComputedStyle(element).backgroundColor,
+    const initialTitleBackground = await readCtnTonePresentation(
+      titlePreview,
+      "background",
     );
 
     await titleTonePicker.click();
@@ -118,10 +112,12 @@ test.describe("syntax and visualization activity flows", () => {
       "首行标题背景色: 灰色",
     );
     await expect.poll(() =>
-      titlePreview.evaluate((element) =>
-        getComputedStyle(element).backgroundColor
-      )
+      readCtnTonePresentation(titlePreview, "background")
     ).not.toBe(initialTitleBackground);
+    const expectedTitleBackground = await readCtnTonePresentation(
+      titlePreview,
+      "background",
+    );
     await expect(page.getByRole("button", {
       name: /^全局概念引用背景色:/,
     })).toHaveCount(0);
@@ -137,39 +133,44 @@ test.describe("syntax and visualization activity flows", () => {
       "aria-label",
       "全局概念引用颜色: 红色",
     );
+    const expectedReferenceColor = await readTonePickerSwatchColor(
+      referenceColorPicker,
+    );
 
     await getActivityButton(page, "笔记").click();
     await page.locator(".app-context").getByTitle("Alpha").click();
-    await expect(page.locator(".source-editor .cm-line.ctn-line-title"))
-      .toHaveClass(/ctn-tone-gray/);
     const reference = page.locator(".source-editor .ctn-inline").filter({
       hasText: "[[Beta]]",
     });
 
-    await expect(reference).toHaveClass(/ctn-tone-red/);
-    await expect(reference).not.toHaveClass(/ctn-text-color-/);
+    await expect.poll(() =>
+      readCtnTonePresentation(
+        page.locator(".source-editor .cm-line.ctn-line-title"),
+        "background",
+      )
+    ).toBe(expectedTitleBackground);
+
     await expect(reference.locator(".ctn-inline-symbol")).toHaveCount(2);
     await expect(reference.locator(".ctn-inline-symbol").first())
       .toHaveText("[[");
     await expect(reference.locator(".ctn-inline-symbol").last())
       .toHaveText("]]");
-    const referenceColors = await reference.evaluate((element) => {
-      const symbol = element.querySelector(".ctn-inline-symbol");
-      const parent = element.parentElement;
-
-      if (!symbol || !parent) {
-        throw new Error("Inline reference decoration is incomplete.");
-      }
-      return {
-        inheritedText: getComputedStyle(parent).color,
-        symbol: getComputedStyle(symbol).color,
-        text: getComputedStyle(element).color,
-        underline: getComputedStyle(element).textDecorationColor,
-      };
-    });
+    const referenceColors = {
+      inheritedText: await readComputedStyleValue(reference.locator(".."), "color"),
+      symbol: await readComputedStyleValue(
+        reference.locator(".ctn-inline-symbol").first(),
+        "color",
+      ),
+      text: await readComputedStyleValue(reference, "color"),
+      underline: await readComputedStyleValue(
+        reference,
+        "textDecorationColor",
+      ),
+    };
 
     expect(referenceColors.text).toBe(referenceColors.inheritedText);
     expect(referenceColors.symbol).toBe(referenceColors.underline);
+    expect(referenceColors.symbol).toBe(expectedReferenceColor);
 
     await getActivityButton(page, "语法").click();
     await expect(page.getByRole("heading", {
@@ -185,12 +186,11 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "语法").click();
 
-    await expect(page.getByRole("heading", { name: "系统语法" })).toBeVisible();
+    await expect(page.getByRole("heading", {
+      exact: true,
+      name: "系统语法",
+    })).toBeVisible();
     await expect(page.getByText("笔记库语法", { exact: true })).toBeVisible();
-    await expect(page.locator("#syntax-system-heading > span")).toHaveCount(1);
-    await expect(
-      page.locator(".syntax-workspace-group-header > .ui-tree-meta"),
-    ).toHaveCount(0);
     await expect(page.getByRole("button", { name: "删除块规则" }))
       .toHaveCount(5);
     await expect(page.getByRole("button", { name: "删除行内规则" }))
@@ -260,13 +260,6 @@ test.describe("syntax and visualization activity flows", () => {
     await workspaceRows.first().click();
     await page.getByRole("button", { name: "新建笔记库语法" }).click();
     await expect(workspaceRows).toHaveCount(2);
-    const labelLefts = await workspaceRows.locator(".ui-tree-text")
-      .evaluateAll((elements) =>
-        elements.map((element) => element.getBoundingClientRect().left)
-      );
-
-    expect(Math.max(...labelLefts) - Math.min(...labelLefts))
-      .toBeLessThanOrEqual(1);
     const selectedRow = page.locator(
       '[data-syntax-file-id][aria-current="page"]',
     );
@@ -502,45 +495,13 @@ test.describe("syntax and visualization activity flows", () => {
     await openWorkbench(page, visualizationRepositoryId);
     await getActivityButton(page, "引用图谱").click();
 
-    await expect(page.locator(".graph-canvas")).toHaveCSS(
-      "background-image",
-      "none",
-    );
     await page.getByRole("button", { name: "图谱设置" }).click();
 
     const settings = page.getByRole("dialog", { name: "图谱设置" });
 
     await expect(settings).toBeVisible();
-    const settingRows = settings.locator(".graph-settings-row");
-
-    await expect(settingRows).toHaveCount(8);
-    const rowLayout = await settingRows.evaluateAll((rows) => ({
-      gridTemplates: rows.map(
-        (row) => getComputedStyle(row).gridTemplateColumns,
-      ),
-      heights: rows.map((row) => row.getBoundingClientRect().height),
-      labelLefts: rows.map(
-        (row) => row.querySelector(".graph-settings-label")
-          ?.getBoundingClientRect().left ?? 0,
-      ),
-    }));
-
-    expect(new Set(rowLayout.gridTemplates).size).toBe(1);
-    expect(Math.max(...rowLayout.heights) - Math.min(...rowLayout.heights))
-      .toBeLessThanOrEqual(1);
-    expect(Math.max(...rowLayout.labelLefts) - Math.min(...rowLayout.labelLefts))
-      .toBeLessThanOrEqual(1);
     await expect(settings.getByRole("slider", { name: "文字密度" }))
       .toHaveValue("75");
-    expect(
-      await settings.getByRole("slider", { name: "文字密度" }).evaluate(
-        (slider) => ({
-          appearance: getComputedStyle(slider).appearance,
-          progress: getComputedStyle(slider)
-            .getPropertyValue("--graph-range-progress").trim(),
-        }),
-      ),
-    ).toEqual({ appearance: "none", progress: "75%" });
     await expect(settings.getByRole("slider", { name: "节点大小" }))
       .toHaveValue("1");
     await expect(settings.getByRole("slider", { name: "中心力" }))

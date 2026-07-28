@@ -3,7 +3,6 @@
 import type {
   ButtonHTMLAttributes,
   ReactElement,
-  ReactNode,
 } from "react";
 import { Children } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -18,7 +17,7 @@ import {
 } from "../../../presentation/ui/shared/CompactContextList";
 
 describe("compact context lists", () => {
-  it("shares group, selected-row, icon, metadata, and action structure", () => {
+  it("exposes group, selection, status, metadata, and actions semantically", () => {
     const markup = renderToStaticMarkup(
       <CompactContextGroup
         count={2}
@@ -49,16 +48,12 @@ describe("compact context lists", () => {
 
     expect(markup).toContain('aria-labelledby="context-group-primary"');
     expect(markup).toContain('aria-label="主要项目"');
-    expect(markup).toContain("ui-compact-context-group-title");
-    expect(markup).toContain("ui-compact-context-list");
-    expect(markup).toContain("ui-compact-context-row-frame is-selected");
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain('data-item-id="item-1"');
     expect(markup).toContain("当前项目");
     expect(markup).toContain('aria-label="当前项目"');
-    expect(markup).toContain("ui-tree-status");
-    expect(markup).toContain("ui-compact-context-trailing");
-    expect(markup).toContain("ui-tree-actions");
+    expect(markup).toContain("启用");
+    expect(markup).toContain('aria-label="删除当前项目"');
   });
 
   it("owns inline rename markup while leaving value and validation controlled", () => {
@@ -79,29 +74,16 @@ describe("compact context lists", () => {
       label: "当前集合",
       onSelect: () => undefined,
     });
-    const form = Children.toArray(row.props.children)[0] as ReactElement<{
-      children: ReactNode;
-      className: string;
-    }>;
-    const formChildren = Children.toArray(form.props.children);
-    const actionGroup = formChildren[2] as ReactElement<{
-      className: string;
-    }>;
     const markup = renderToStaticMarkup(
       <CompactContextList>{row}</CompactContextList>,
     );
 
-    expect(form.props.className).toBe("ui-compact-context-inline-rename");
-    expect(formChildren).toHaveLength(3);
-    expect((formChildren[1] as ReactElement).type).toBe("input");
-    expect(actionGroup.props.className).toBe("ui-tree-actions");
-    expect(markup).toContain("ui-compact-context-row-frame is-editing");
-    expect(markup).toContain("ui-compact-context-inline-rename");
     expect(markup).toContain('aria-label="重命名集合 当前集合"');
+    expect(markup).toContain('value="当前集合"');
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain('aria-describedby="rename-error"');
-    expect(markup).toContain("确定");
-    expect(markup).toContain("取消");
+    expect(markup).toContain('aria-label="重命名集合 当前集合，确定"');
+    expect(markup).toContain('aria-label="重命名集合 当前集合，取消"');
     expect(markup).not.toContain("不应显示");
   });
 

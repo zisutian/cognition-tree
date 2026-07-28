@@ -104,11 +104,13 @@ test.describe("directory and structure operation flows", () => {
 
     await folder.click();
     await expect(alpha).toBeHidden();
-    await expect(folder.locator(".."))
-      .toHaveClass(/is-selected/);
+    await expect(noteContext.getByRole("button", {
+      name: "重命名文件夹 资料",
+    })).toBeVisible();
     await folder.press("Escape");
-    await expect(folder.locator(".."))
-      .not.toHaveClass(/is-selected/);
+    await expect(noteContext.getByRole("button", {
+      name: "重命名文件夹 资料",
+    })).toHaveCount(0);
     await folder.click();
     await expect(alpha).toBeVisible();
     await alpha.click();
@@ -116,8 +118,9 @@ test.describe("directory and structure operation flows", () => {
     const rootUnnamedNote = noteContext.getByTitle("未命名笔记").locator("..");
 
     await expect(rootUnnamedNote).toBeVisible();
-    await expect(rootUnnamedNote.locator("xpath=../../.."))
-      .toHaveClass(/ui-directory-tree-surface/);
+    await expect(
+      folder.locator("xpath=ancestor::li[1]").getByTitle("未命名笔记"),
+    ).toHaveCount(0);
     const deleteNoteButton = rootUnnamedNote.getByRole("button", {
       name: "删除笔记 未命名笔记",
     });
@@ -151,8 +154,9 @@ test.describe("directory and structure operation flows", () => {
     const sourceStructure = structureColumns.first();
     const targetStructure = structureColumns.nth(1);
     const sourceStructureRow = sourceStructure
-      .locator(".ui-structure-tree-row")
-      .first();
+      .getByRole("treeitem")
+      .first()
+      .getByRole("button");
     const movedStructureTitle = await sourceStructureRow.getAttribute("title");
 
     expect(movedStructureTitle).not.toBeNull();
@@ -188,8 +192,12 @@ test.describe("directory and structure operation flows", () => {
     await expect(
       page.getByRole("button", { name: "笔记结构", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await expect(structureOperationContext.getByTitle("Beta").locator(".."))
-      .toHaveClass(/is-selected/);
+    await expect(
+      page.getByRole("region", { name: "结构操作" }).getByText(
+        "笔记结构 · Beta",
+        { exact: true },
+      ),
+    ).toBeVisible();
   });
 
   test("moves structure blocks through pointer drag targets", async ({

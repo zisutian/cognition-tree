@@ -6,6 +6,9 @@ import {
   loadRepositoryContextWidth,
   saveRepositoryContextWidth,
 } from "../../../../presentation/ui/workbench/workbenchLayoutStorage";
+import {
+  appContextMinWidth,
+} from "../../../../presentation/ui/workbench/frameResize";
 
 function createMemoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -42,10 +45,10 @@ describe("repository browser state", () => {
   });
 
   it("keeps context widths isolated and clamped by repository id", () => {
-    saveRepositoryContextWidth("first", 100);
+    saveRepositoryContextWidth("first", appContextMinWidth - 100);
     saveRepositoryContextWidth("second", 360);
 
-    expect(loadRepositoryContextWidth("first")).toBe(220);
+    expect(loadRepositoryContextWidth("first")).toBe(appContextMinWidth);
     expect(loadRepositoryContextWidth("second")).toBe(360);
     expect(loadRepositoryContextWidth("third")).toBeNull();
   });

@@ -6,6 +6,8 @@ import {
   createTreeMoveOptions,
   createTreeNodeDragPayload,
   createTreeRowDropDestination,
+  defaultStructureTreeIndentUnitCount,
+  defaultStructureTreeIndentWidthPx,
   flattenStructureTreeRows,
   flattenVisibleDirectoryTreeRows,
   getStructureTreeIndentWidthPx,
@@ -15,12 +17,14 @@ import {
   NoteTree,
   readTreeNodeDragPayload,
   StructureTree,
-  shouldVirtualizeTreeRows,
-  treeRowHeightPx,
-  treeVirtualizationThreshold,
   treeNodeDragDataType,
   type StructureTreeNode,
 } from "../../../presentation/ui/shared/tree";
+import {
+  shouldVirtualizeUiRows,
+  uiVirtualRowHeightPx,
+  uiVirtualizationThreshold,
+} from "../../../presentation/ui/shared/virtualListMetrics";
 
 describe("shared trees", () => {
   it("flattens directory and structure trees with their own depth rules", () => {
@@ -45,7 +49,7 @@ describe("shared trees", () => {
         title: "文件夹",
       },
     ];
-    const structureNodes = [
+    const structureNodes: StructureTreeNode[] = [
       {
         children: [
           {
@@ -130,47 +134,9 @@ describe("shared trees", () => {
     expect(rows.at(-1)).toMatchObject({ depth: 10_000, node: { id: "leaf" } });
   });
 
-  it("virtualizes only after the fixed 500-row capacity boundary", () => {
-    expect(treeRowHeightPx).toBe(22);
-    expect(treeVirtualizationThreshold).toBe(500);
-    expect(shouldVirtualizeTreeRows(500)).toBe(false);
-    expect(shouldVirtualizeTreeRows(501)).toBe(true);
-  });
-
-  it("renders note and folder rows with shared tree classes", () => {
-    const markup = renderToStaticMarkup(
-      <NoteTree
-        activeNode={{ kind: "note", noteId: "note-1" }}
-        nodes={[
-          {
-            canDrag: true,
-            childCount: 1,
-            children: [
-              {
-                canDrag: true,
-                folderId: "folder-1",
-                id: "tree-note-1",
-                kind: "note",
-                noteId: "note-1",
-                parentFolderId: "folder-1",
-                title: "当前笔记",
-              },
-            ],
-            folderId: "folder-1",
-            id: "folder-1",
-            kind: "folder",
-            parentFolderId: null,
-            title: "文件夹",
-          },
-        ]}
-      />,
-    );
-
-    expect(markup).toContain("ui-tree");
-    expect(markup).toContain("ui-directory-tree");
-    expect(markup).toContain("ui-tree-row");
-    expect(markup).toContain("ui-directory-tree-row");
-    expect(markup).toContain("当前笔记");
+  it("uses the shared UI virtualization boundary", () => {
+    expect(shouldVirtualizeUiRows(uiVirtualizationThreshold)).toBe(false);
+    expect(shouldVirtualizeUiRows(uiVirtualizationThreshold + 1)).toBe(true);
   });
 
   it("hides folder children when folder collapse state is controlled", () => {
@@ -206,7 +172,7 @@ describe("shared trees", () => {
     expect(markup).not.toContain("折叠中的笔记");
   });
 
-  it("uses a toggle spacer for empty directory folders", () => {
+  it("does not expose expansion state for empty directory folders", () => {
     const markup = renderToStaticMarkup(
       <NoteTree
         activeNode={{ kind: "note", noteId: "note-1" }}
@@ -224,8 +190,7 @@ describe("shared trees", () => {
       />,
     );
 
-    expect(markup).toContain("ui-tree-toggle-spacer");
-    expect(markup).not.toContain("lucide-chevron-right");
+    expect(markup).toContain("空文件夹");
     expect(markup).not.toContain("aria-expanded=");
   });
 
@@ -249,9 +214,8 @@ describe("shared trees", () => {
       />,
     );
 
-    expect(markup).toContain("ui-tree-actions");
-    expect(markup).toContain(">改<");
-    expect(markup).toContain(">删<");
+    expect(markup).toContain('aria-label="重命名笔记 当前笔记"');
+    expect(markup).toContain('aria-label="删除笔记 当前笔记"');
     expect(markup).not.toContain(">确认<");
     expect(markup).not.toContain('role="alertdialog"');
   });
@@ -284,7 +248,10 @@ describe("shared trees", () => {
       />,
     );
 
-    expect(markup.match(/ui-tree-row-frame is-selected/g) ?? []).toHaveLength(1);
+    expect(markup.match(/aria-current="page"/g) ?? []).toHaveLength(1);
+    expect(markup).toContain('role="tree"');
+    expect(markup.match(/role="treeitem"/g) ?? []).toHaveLength(2);
+    expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(1);
   });
 
   it("serializes note tree drag payloads and move requests", () => {
@@ -315,13 +282,13 @@ describe("shared trees", () => {
       ),
     ).toBeNull();
     const noteDestination = createTreeRowDropDestination({
-      offsetY: 18,
-      rowHeight: 22,
+      offsetY: uiVirtualRowHeightPx * 0.8,
+      rowHeight: uiVirtualRowHeightPx,
       target,
     });
     const folderDestination = createTreeRowDropDestination({
-      offsetY: 11,
-      rowHeight: 22,
+      offsetY: uiVirtualRowHeightPx / 2,
+      rowHeight: uiVirtualRowHeightPx,
       target: folderTarget,
     });
 
@@ -531,14 +498,13 @@ describe("shared trees", () => {
     ]);
   });
 
-  it("renders structure trees with variable text markers and line metadata", () => {
+  it("renders structure hierarchy, text markers, and line metadata", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
         getRowProps={(node, state) => ({
-          className: state.depth === 1 ? "nested-row" : undefined,
+          "data-depth": String(state.depth),
           "data-line": String(node.lineNumber),
         })}
-        indentUnitCount={6}
         nodes={[
           {
             children: [
@@ -571,26 +537,23 @@ describe("shared trees", () => {
       />,
     );
 
-    expect(markup).toContain("ui-structure-tree");
-    expect(markup).toContain("ui-structure-tree-item");
-    expect(markup).toContain("ui-structure-tree-row");
-    expect(markup).toContain("--ui-structure-depth:0");
-    expect(markup).toContain("--ui-structure-depth:1");
+    expect(markup).toContain('role="tree"');
+    expect(markup.match(/role="treeitem"/g) ?? []).toHaveLength(2);
+    expect(markup).toContain('aria-level="1"');
+    expect(markup).toContain('aria-level="2"');
+    expect(markup).toContain('data-depth="1"');
     expect(markup).toContain("data-line=\"2\"");
-    expect(markup).toContain("nested-row");
-    expect(markup).toContain("--ui-structure-indent-width:21px");
-    expect(markup).toContain("ui-structure-prefix");
-    expect(markup).toContain("ui-structure-marker");
     expect(markup).toContain("组分");
     expect(markup).toContain("顶格概念");
-    expect(markup).not.toContain("ui-symbol-slot");
-    expect(markup).toContain("has-diagnostics");
     expect(markup).toContain("L1");
   });
 
-  it("renders selected structure subtrees as whole tree items", () => {
+  it("exposes selected structure subtrees and their root semantically", () => {
     const markup = renderToStaticMarkup(
       <StructureTree
+        getRowProps={(_node, state) => ({
+          "data-selection-root": String(state.isSelectedRoot),
+        })}
         selectedLineNumbers={new Set([1, 2])}
         nodes={[
           {
@@ -625,27 +588,33 @@ describe("shared trees", () => {
       />,
     );
 
-    expect(markup).toContain(
-      "ui-structure-tree-item is-selected-subtree is-selected-root",
-    );
-    expect(markup).toContain("ui-structure-tree-item is-selected-subtree");
-    expect(markup).toContain("ui-tree-row ui-structure-tree-row is-selected");
-    expect(markup).not.toContain(
-      "ui-tree-row ui-structure-tree-row is-selected is-selected-subtree",
-    );
-    expect(markup).not.toContain(
-      "ui-tree-row ui-structure-tree-row is-selected is-selected-root",
-    );
+    expect(markup.match(/aria-selected="true"/g) ?? []).toHaveLength(2);
+    expect(markup.match(/data-selection-root="true"/g) ?? []).toHaveLength(1);
   });
 
   it("normalizes structure tree indentation width for css rendering", () => {
-    expect(normalizeStructureTreeIndentUnitCount(8)).toBe(8);
+    const doubleIndent = defaultStructureTreeIndentUnitCount * 2;
+
+    expect(normalizeStructureTreeIndentUnitCount(doubleIndent)).toBe(
+      doubleIndent,
+    );
     expect(normalizeStructureTreeIndentUnitCount(2.9)).toBe(2);
-    expect(normalizeStructureTreeIndentUnitCount(0)).toBe(4);
-    expect(normalizeStructureTreeIndentUnitCount(Number.NaN)).toBe(4);
-    expect(getStructureTreeIndentWidthPx()).toBe(14);
-    expect(getStructureTreeIndentWidthPx(8)).toBe(28);
-    expect(getStructureTreeIndentWidthPx(2.9)).toBe(7);
+    expect(normalizeStructureTreeIndentUnitCount(0)).toBe(
+      defaultStructureTreeIndentUnitCount,
+    );
+    expect(normalizeStructureTreeIndentUnitCount(Number.NaN)).toBe(
+      defaultStructureTreeIndentUnitCount,
+    );
+    expect(getStructureTreeIndentWidthPx()).toBe(
+      defaultStructureTreeIndentWidthPx,
+    );
+    expect(getStructureTreeIndentWidthPx(doubleIndent)).toBe(
+      defaultStructureTreeIndentWidthPx * 2,
+    );
+    expect(getStructureTreeIndentWidthPx(2.9)).toBe(
+      defaultStructureTreeIndentWidthPx *
+        (2 / defaultStructureTreeIndentUnitCount),
+    );
   });
 
 });

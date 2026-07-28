@@ -5,6 +5,7 @@ import {
 } from "../ContextMenu";
 import { useFeedback } from "../FeedbackProvider";
 import { cx } from "../primitives";
+import { shouldVirtualizeUiRows } from "../virtualListMetrics";
 import {
   DirectoryTreeContent,
   VirtualDirectoryTreeContent,
@@ -25,7 +26,6 @@ import type {
   TreeDragState,
   TreeNode,
 } from "./types";
-import { shouldVirtualizeTreeRows } from "./virtualTree";
 
 const rootDestination = { kind: "root" } as const;
 
@@ -55,7 +55,7 @@ export function NoteTree(props: NoteTreeProps) {
     ),
     [props.collapsedFolderIds, props.nodes],
   );
-  const isVirtualized = shouldVirtualizeTreeRows(rows.length);
+  const isVirtualized = shouldVirtualizeUiRows(rows.length);
   const renderContext: DirectoryTreeRenderContext = {
     dragState,
     editingNode,

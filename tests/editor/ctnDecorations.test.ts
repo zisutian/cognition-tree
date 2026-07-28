@@ -16,6 +16,12 @@ import {
   getMarkerDecorationClass,
   shouldDecorateMarker,
 } from "../../presentation/editor/ctnDecorations";
+import {
+  getTextColorClassName,
+  getTextColorStyleDeclaration,
+  getToneClassName,
+  getToneStyleDeclaration,
+} from "../../presentation/ui/shared/tonePresentation";
 
 type BlockOverrides = Omit<Partial<CtnEditableBlock>, "rule"> & {
   kind?: CtnResolvedBlockRule["kind"];
@@ -201,7 +207,7 @@ describe("ctn editor decorations", () => {
           semanticId: "custom-risk",
         }),
       ),
-    ).toBe("ctn-marker ctn-text-color-blue");
+    ).toBe(`ctn-marker ${getTextColorClassName("blue")}`);
   });
 
   it("uses tone classes for block line backgrounds", () => {
@@ -214,41 +220,48 @@ describe("ctn editor decorations", () => {
           semanticId: "multiline-block",
         }),
       ),
-    ).toBe("ctn-line ctn-tone-gray");
+    ).toBe(`ctn-line ${getToneClassName("gray")}`);
+    const diagnosticBlock = createBlock({
+      diagnostics: [
+        {
+          code: "unknown-marker",
+          column: 1,
+          id: "diagnostic-1",
+          lineNumber: 1,
+          message: "未知行首符号 :。",
+          severity: "warning",
+        },
+      ],
+      lexicalEndLineNumber: 3,
+      multilineRange: {
+        closingFenceLineNumber: 3,
+        contentEndLineNumber: 2,
+        contentStartLineNumber: 2,
+        status: "closed",
+      },
+      kind: "multiline",
+      tone: "gray",
+      semanticId: "multiline-block",
+    });
+
     expect(
       getBlockLineDecorationClass(
-        createBlock({
-          diagnostics: [
-            {
-              code: "unknown-marker",
-              column: 1,
-              id: "diagnostic-1",
-              lineNumber: 1,
-              message: "未知行首符号 :。",
-              severity: "warning",
-            },
-          ],
-          lexicalEndLineNumber: 3,
-          multilineRange: {
-            closingFenceLineNumber: 3,
-            contentEndLineNumber: 2,
-            contentStartLineNumber: 2,
-            status: "closed",
-          },
-          kind: "multiline",
-          tone: "gray",
-          semanticId: "multiline-block",
-        }),
+        diagnosticBlock,
         2,
       ),
-    ).toBe("ctn-line ctn-tone-gray");
+    ).toBe(`ctn-line ${getToneClassName("gray")}`);
+    expect(getBlockLineDecorationClass(diagnosticBlock).split(" "))
+      .toEqual(expect.arrayContaining([
+        "ctn-line-diagnostic",
+        "has-diagnostics",
+      ]));
     expect(
       getBlockLineDecorationStyle(
         createBlock({
           tone: "#4455aa",
         }),
       ),
-    ).toBe("--ctn-tone-color: #4455aa;");
+    ).toBe(getToneStyleDeclaration("#4455aa"));
   });
 
   it("applies concept emphasis by semantic type rather than line shape", () => {
@@ -261,7 +274,7 @@ describe("ctn editor decorations", () => {
           tone: "blue",
         }),
       ),
-    ).toBe("ctn-line ctn-tone-blue");
+    ).toBe(`ctn-line ${getToneClassName("blue")}`);
     expect(
       getBlockLineDecorationClass(
         createBlock({
@@ -271,7 +284,7 @@ describe("ctn editor decorations", () => {
           tone: "blue",
         }),
       ),
-    ).toBe("ctn-line ctn-tone-blue ctn-line-concept");
+    ).toBe(`ctn-line ${getToneClassName("blue")} ctn-line-concept`);
   });
 
   it("marks the semantic title line for strong editor typography", () => {
@@ -283,7 +296,7 @@ describe("ctn editor decorations", () => {
           tone: "default",
         }),
       ),
-    ).toBe("ctn-line ctn-tone-default ctn-line-title");
+    ).toBe(`ctn-line ${getToneClassName("default")} ctn-line-title`);
   });
 
   it("uses one inline tone for the underline and syntax symbols", () => {
@@ -305,10 +318,10 @@ describe("ctn editor decorations", () => {
     };
 
     expect(getInlineDecorationClass(single)).toBe(
-      "ctn-inline ctn-tone-violet",
+      `ctn-inline ${getToneClassName("violet")}`,
     );
     expect(getInlineSymbolDecorationClass(single)).toBe(
-      "ctn-inline-symbol ctn-tone-violet",
+      `ctn-inline-symbol ${getToneClassName("violet")}`,
     );
     expect(getInlineSymbolOffsets(single, "left|right")).toEqual([
       { from: 4, to: 5 },
@@ -327,20 +340,24 @@ describe("ctn editor decorations", () => {
       semanticId: "custom-risk",
     });
 
-    expect(getMarkerDecorationClass(block)).toBe("ctn-marker ctn-text-color-custom");
-    expect(getMarkerDecorationStyle(block)).toBe("--ctn-text-color: #cc8844;");
+    expect(getMarkerDecorationClass(block)).toBe(
+      `ctn-marker ${getTextColorClassName("#cc8844")}`,
+    );
+    expect(getMarkerDecorationStyle(block)).toBe(
+      getTextColorStyleDeclaration("#cc8844"),
+    );
     expect(
       getInlineDecorationClass(createInline({
         textColor: "#cc8844",
         tone: "#4455aa",
       })),
-    ).toBe("ctn-inline ctn-tone-custom");
+    ).toBe(`ctn-inline ${getToneClassName("#4455aa")}`);
     expect(
       getInlineDecorationStyle(createInline({
         textColor: "#cc8844",
         tone: "#4455aa",
       })),
-    ).toBe("--ctn-tone-color: #4455aa;");
+    ).toBe(getToneStyleDeclaration("#4455aa"));
   });
 
 });

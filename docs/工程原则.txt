@@ -49,7 +49,7 @@
 
 单元和组件测试按生产职责组织，验证稳定输入输出与公开语义。测试辅助函数留在对应测试域，不从生产模块导出仅供测试的内部判断。
 
-架构测试约束依赖方向、唯一所有者和禁止边界，不锁定偶然文件清单。样式规则集中在 design contract；shared primitive 只在自身测试中验证 class、状态类和布局变量，Activity 组件测试只验证可访问语义、状态与交互，不重复具体 DOM 排列或 CSS selector。
+架构测试约束依赖方向、唯一所有者和禁止边界，不锁定偶然文件清单。样式声明、共享密度和颜色映射集中在 design contract 及对应 presentation adapter；组件测试验证可访问语义、状态与交互，只有输出本身就是 class 或 CSS 变量的 adapter 才直接验证映射。Activity 与流程 E2E 不断言 class、selector 或 CSS 属性名；确属浏览器事实的颜色和几何只比较计算结果与相对关系。
 
 E2E 按独立功能域造数。共享仓库 fixture、页面入口和 Canvas 读取放入 e2e/support；测试文件不依赖彼此执行顺序，只有确实共享并修改同一数据的场景组串行。
 

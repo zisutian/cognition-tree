@@ -16,6 +16,9 @@ import {
   openRepositoryFromContext,
   openWorkbench,
 } from "./support/workbenchPage";
+import {
+  appResizeKeyboardStep,
+} from "../presentation/ui/workbench/frameResize";
 
 const repositoryId = "problems-base";
 const diagnosticsRepositoryId = "problems";
@@ -41,7 +44,6 @@ test.describe.serial("workbench diagnostics", () => {
     await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await getActivityButton(page, "笔记").click();
 
-    const frame = page.locator(".app-frame");
     const problems = page.locator(".problems-panel");
     const problemsHeader = problems.locator(".problems-panel-header");
 
@@ -96,26 +98,36 @@ test.describe.serial("workbench diagnostics", () => {
 
     await getActivityButton(page, "笔记").click();
     await page.getByRole("button", { name: "进入专注模式" }).click();
-    await expect(frame).toHaveClass(/is-focus-mode/);
+    await expect(page.locator(".app-context")).toHaveCount(0);
     await expect(page.locator(".app-problems")).toHaveCount(0);
     await page.keyboard.press("Control+Shift+M");
-    await expect(frame).not.toHaveClass(/is-focus-mode/);
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
 
     const problemsResize = page.getByRole("separator", {
       name: "调整问题面板高度",
     });
+    const initialProblemsHeight = Number(
+      await problemsResize.getAttribute("aria-valuenow"),
+    );
+    const resizedProblemsHeight =
+      initialProblemsHeight + appResizeKeyboardStep;
 
     await problemsResize.focus();
     await problemsResize.press("ArrowUp");
-    await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
+    await expect(problemsResize).toHaveAttribute(
+      "aria-valuenow",
+      String(resizedProblemsHeight),
+    );
 
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, repositoryId);
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
-    await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
+    await expect(problemsResize).toHaveAttribute(
+      "aria-valuenow",
+      String(resizedProblemsHeight),
+    );
 
     await getActivityButton(page, "设置").click();
     const settingsContext = page.locator(".settings-context");
@@ -139,7 +151,10 @@ test.describe.serial("workbench diagnostics", () => {
     await expect(page.locator(".app-problems")).toHaveCount(0);
     await getActivityButton(page, "笔记").click();
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "true");
-    await expect(problemsResize).toHaveAttribute("aria-valuenow", "216");
+    await expect(problemsResize).toHaveAttribute(
+      "aria-valuenow",
+      String(resizedProblemsHeight),
+    );
 
     await page.setViewportSize({ width: 760, height: 640 });
     const mainContentBox = await page.locator(".app-main-content").boundingBox();

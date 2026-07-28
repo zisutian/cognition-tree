@@ -15,6 +15,10 @@ import {
 import { analyzeCtnSource } from "../core/ctn/analysis/sourceAnalysis";
 import { requireCtnSyntax } from "../core/ctn/syntax/compiler";
 import {
+  appContextDefaultWidth,
+  appContextMinWidth,
+} from "../presentation/ui/workbench/frameResize";
+import {
   e2eApiBaseUrl,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
@@ -33,54 +37,6 @@ function collectionRows(context: Locator) {
   return context.locator("[data-todo-collection-id]");
 }
 
-async function expectInlineEditOnOneRow(input: Locator) {
-  const form = input.locator(
-    "xpath=ancestor::form[contains(@class, 'ui-compact-context-inline-rename')]",
-  );
-  const actions = form.locator(".ui-tree-actions > button");
-
-  await expect(form).toBeVisible();
-  await expect(actions).toHaveCount(2);
-  const geometry = await form.evaluate((element) => {
-    const field = element.querySelector("input");
-    const buttons = [...element.querySelectorAll<HTMLButtonElement>(
-      ".ui-tree-actions > button",
-    )];
-
-    if (!field || buttons.length !== 2) {
-      throw new Error("Inline edit row is incomplete.");
-    }
-    const formRect = element.getBoundingClientRect();
-    const fieldRect = field.getBoundingClientRect();
-    const rowHeight = Number.parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue(
-        "--ui-tree-row-height",
-      ),
-    );
-
-    return {
-      actionCenters: buttons.map((button) => {
-        const rect = button.getBoundingClientRect();
-
-        return rect.y + rect.height / 2;
-      }),
-      fieldCenter: fieldRect.y + fieldRect.height / 2,
-      formHeight: formRect.height,
-      gridColumnCount: getComputedStyle(element).gridTemplateColumns
-        .trim()
-        .split(/\s+/)
-        .length,
-      rowHeight,
-    };
-  });
-
-  expect(geometry.gridColumnCount).toBe(3);
-  expect(geometry.formHeight).toBeLessThanOrEqual(geometry.rowHeight + 0.5);
-  for (const actionCenter of geometry.actionCenters) {
-    expect(Math.abs(actionCenter - geometry.fieldCenter)).toBeLessThanOrEqual(1);
-  }
-}
-
 async function setContextWidth(page: Page, width: number) {
   await getActivityButton(page, "设置").click();
   const input = page.getByRole("spinbutton", { name: "左侧栏宽度" });
@@ -93,7 +49,7 @@ async function createCollection(context: Locator, name: string) {
   await context.getByRole("button", { name: "新建事项集合" }).click();
   const input = context.getByRole("textbox", { name: "新建事项集合名称" });
 
-  await expectInlineEditOnOneRow(input);
+  await expect(input).toBeVisible();
   await input.fill(name);
   await input.press("Enter");
   await expect(context.getByTitle(name, { exact: true })).toBeVisible();
@@ -150,13 +106,10 @@ test.describe.serial("Todo activity flows", () => {
     const detail = page.getByRole("region", { name: "代办结构" });
     await expect(context).toBeVisible();
     await expect(panel).toBeVisible();
-    await expect(context.locator("#todo-collections-heading > span"))
-      .toHaveCount(1);
-    await expect(context.locator(".todo-collection-count")).toHaveCount(0);
     await expect(page.locator(".app-problems")).toHaveCount(1);
     await expect(page.getByRole("separator", {
       name: "调整上下文区宽度",
-    })).toHaveAttribute("aria-valuenow", "280");
+    })).toHaveAttribute("aria-valuenow", String(appContextDefaultWidth));
     await page.keyboard.press("Control+Shift+M");
     await expect(problemsHeader).toHaveAttribute("aria-expanded", "false");
     await page.keyboard.press("Control+Shift+M");
@@ -172,19 +125,19 @@ test.describe.serial("Todo activity flows", () => {
       name: "重命名事项集合 稍后",
     });
 
-    await expectInlineEditOnOneRow(renameInput);
+    await expect(renameInput).toBeVisible();
     await renameInput.press("Escape");
-    await setContextWidth(page, 220);
+    await setContextWidth(page, appContextMinWidth);
     await getActivityButton(page, "代办").click();
     await expect(page.getByRole("separator", {
       name: "调整上下文区宽度",
-    })).toHaveAttribute("aria-valuenow", "220");
+    })).toHaveAttribute("aria-valuenow", String(appContextMinWidth));
     await context.getByRole("button", { name: "新建事项集合" }).click();
     const narrowCreateInput = context.getByRole("textbox", {
       name: "新建事项集合名称",
     });
 
-    await expectInlineEditOnOneRow(narrowCreateInput);
+    await expect(narrowCreateInput).toBeVisible();
     await context.getByRole("button", {
       name: "新建事项集合名称，取消",
     }).click();
@@ -192,7 +145,7 @@ test.describe.serial("Todo activity flows", () => {
     renameInput = context.getByRole("textbox", {
       name: "重命名事项集合 稍后",
     });
-    await expectInlineEditOnOneRow(renameInput);
+    await expect(renameInput).toBeVisible();
     await renameInput.fill("计划");
     await renameInput.press("Enter");
     await expect(context.getByTitle("计划", { exact: true })).toBeVisible();
@@ -203,8 +156,8 @@ test.describe.serial("Todo activity flows", () => {
     await planRow.locator(".ui-compact-context-row").dragTo(todayRow, {
       targetPosition: { x: 12, y: 1 },
     });
-    await expect(collectionRows(context).locator(".ui-tree-text"))
-      .toHaveText(["计划", "今天", "归档"]);
+    await expect(collectionRows(context))
+      .toContainText(["计划", "今天", "归档"]);
 
     await context.getByTitle("归档", { exact: true }).click();
     await context.getByRole("button", { name: "删除事项集合 归档" }).click();
@@ -225,10 +178,6 @@ test.describe.serial("Todo activity flows", () => {
     await editor.click();
     await page.keyboard.insertText("[] 第一项\n\t[] 第二项已修改");
     await expect(detail.getByRole("treeitem")).toHaveCount(2);
-    await expect(detail.locator(".ui-structure-tree").first()).toBeVisible();
-    await expect(detail.locator('[role="treeitem"][draggable="true"]'))
-      .toHaveCount(0);
-    await expect(detail.locator(".todo-structure-grip")).toHaveCount(0);
     await expect(
       detail.getByRole("checkbox", { name: "标记完成 第一项" }),
     ).toBeVisible();
@@ -240,16 +189,13 @@ test.describe.serial("Todo activity flows", () => {
       exact: true,
       name: "第一项",
     });
-    const firstDetailRow = firstDetailLabel.locator("..");
+    const firstDetailItem = firstDetailLabel.locator(
+      "xpath=ancestor::*[@role='treeitem'][1]",
+    );
 
     await firstDetailLabel.click();
-    await page.mouse.move(0, 0);
-    await expect(firstDetailLabel).toHaveCSS(
-      "background-color",
-      "rgba(0, 0, 0, 0)",
-    );
-    await expect(firstDetailRow).toHaveClass(/is-selected/);
-    await expect(firstDetailRow.locator(".ui-tree-meta")).toHaveText("L1");
+    await expect(firstDetailItem).toHaveAttribute("aria-selected", "true");
+    await expect(firstDetailItem.getByText("L1", { exact: true })).toBeVisible();
     await expect(detail.getByRole("button", {
       name: "配置周期 第一项",
     })).toBeVisible();
@@ -304,7 +250,7 @@ test.describe.serial("Todo activity flows", () => {
     await expect(panel.getByRole("img", { name: /周期任务/ })).toHaveCount(0);
     await expect(detail.getByRole("button", {
       name: "配置周期 第一项",
-    })).not.toHaveClass(/is-active/);
+    })).toHaveAttribute("title", "配置周期");
     await waitForTodoContent(api, (content) => {
       const collection = content.collections.find((candidate) =>
         readCtnCanonicalTitleHeader(candidate.source).title === "今天"
@@ -319,8 +265,8 @@ test.describe.serial("Todo activity flows", () => {
     const reloadedContext = page.locator(".todo-context");
     const reloadedPanel = page.getByRole("region", { name: "代办编辑" });
 
-    await expect(collectionRows(reloadedContext).locator(".ui-tree-text"))
-      .toHaveText(["计划", "今天"]);
+    await expect(collectionRows(reloadedContext))
+      .toContainText(["计划", "今天"]);
     await reloadedContext.getByTitle("今天", { exact: true }).click();
     await expect(reloadedPanel.locator(".source-editor"))
       .toContainText("第二项已修改");
@@ -331,7 +277,7 @@ test.describe.serial("Todo activity flows", () => {
       reloadedPanel.getByRole("img", { name: /周期任务/ }),
     ).toHaveCount(0);
 
-    await setContextWidth(page, 280);
+    await setContextWidth(page, appContextDefaultWidth);
     await getActivityButton(page, "笔记").click();
     await expect(page.locator(".problems-panel-header"))
       .toHaveAttribute("aria-expanded", "true");

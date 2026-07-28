@@ -85,7 +85,7 @@
   grid-template-columns: 72px minmax(0, 1fr);
   align-items: center;
   column-gap: var(--ui-gap);
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   padding: 0 var(--ui-gap-tight);
   border-radius: var(--ui-radius);
 }

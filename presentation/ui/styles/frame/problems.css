@@ -89,7 +89,7 @@
 
 .problems-list-item {
   min-width: 0;
-  height: var(--ui-problems-row-height);
+  height: var(--ui-row-height);
 }
 
 .problems-row-frame {
@@ -98,7 +98,7 @@
   align-items: center;
   width: 100%;
   min-width: 0;
-  height: var(--ui-problems-row-height);
+  height: var(--ui-row-height);
 }
 
 .problems-list-virtual .problems-list-item {
@@ -115,7 +115,7 @@
   gap: var(--ui-gap-tight);
   width: 100%;
   min-width: 0;
-  height: var(--ui-problems-row-height);
+  height: var(--ui-row-height);
   padding: 0 var(--ui-gap);
   overflow: hidden;
   color: var(--color-fg);
@@ -134,7 +134,7 @@
 }
 
 .problems-row-dismiss {
-  height: var(--ui-problems-row-height);
+  height: var(--ui-row-height);
   padding: 0 var(--ui-gap);
   color: var(--color-fg-muted);
   background: transparent;

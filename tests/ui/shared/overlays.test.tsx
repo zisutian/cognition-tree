@@ -62,7 +62,6 @@ describe("shared overlays", () => {
     expect(getErrorMessage(new Error("保存失败"))).toBe("保存失败");
     expect(getErrorMessage("连接失败")).toBe("连接失败");
     expect(markup).toContain("工作台");
-    expect(markup).not.toContain("ui-notification-region");
   });
 
   it("reports both synchronous throws and asynchronous rejections", async () => {

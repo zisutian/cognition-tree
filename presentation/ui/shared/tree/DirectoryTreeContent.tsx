@@ -18,26 +18,40 @@ type VirtualDirectoryTreeItemStyle = CSSProperties & {
 export function DirectoryTreeContent({
   className,
   context,
+  depth = 0,
   nodes,
 }: {
   className?: string;
   context: DirectoryTreeRenderContext;
+  depth?: number;
   nodes: TreeNode[];
 }) {
   const { collapsedFolderIds } = context.props;
 
   return (
-    <ul className={cx("ui-tree ui-directory-tree", className)}>
+    <ul
+      className={cx("ui-tree ui-directory-tree", className)}
+      role={depth === 0 ? "tree" : "group"}
+    >
       {nodes.map((node) => {
         const isCollapsed = node.kind === "folder" &&
           collapsedFolderIds?.has(node.folderId) === true;
 
         return (
-          <DirectoryTreeRow context={context} key={node.id} node={node}>
+          <DirectoryTreeRow
+            context={context}
+            itemLevel={depth + 1}
+            key={node.id}
+            node={node}
+          >
             {node.kind === "folder" &&
             node.children.length > 0 &&
             !isCollapsed ? (
-              <DirectoryTreeContent context={context} nodes={node.children} />
+              <DirectoryTreeContent
+                context={context}
+                depth={depth + 1}
+                nodes={node.children}
+              />
             ) : null}
           </DirectoryTreeRow>
         );
@@ -98,6 +112,7 @@ export function VirtualDirectoryTreeContent({
       )}
       data-virtual-row-count={rows.length}
       ref={hostRef}
+      role="tree"
       style={{ height: `${totalSize}px` }}
     >
       {virtualRows.map((virtualRow) => {
@@ -117,6 +132,7 @@ export function VirtualDirectoryTreeContent({
           <DirectoryTreeRow
             context={context}
             itemClassName="ui-virtual-tree-row ui-directory-tree-virtual-row"
+            itemLevel={row.depth + 1}
             itemPosition={virtualRow.index + 1}
             itemSetSize={rows.length}
             itemStyle={itemStyle}

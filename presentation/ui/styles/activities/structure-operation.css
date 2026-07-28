@@ -53,7 +53,7 @@
 .structure-operation-drop-target {
   display: flex;
   align-items: center;
-  min-height: var(--ui-tree-row-height);
+  min-height: var(--ui-row-height);
   margin: var(--ui-border-width) 0;
   padding: 0 var(--ui-gap);
   border: var(--ui-border-width) dashed var(--color-border-strong);

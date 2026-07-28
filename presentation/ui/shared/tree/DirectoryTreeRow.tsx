@@ -33,6 +33,7 @@ type DirectoryTreeRowProps = {
   children?: ReactNode;
   context: DirectoryTreeRenderContext;
   itemClassName?: string;
+  itemLevel?: number;
   itemPosition?: number;
   itemSetSize?: number;
   itemStyle?: CSSProperties;
@@ -56,6 +57,7 @@ export function DirectoryTreeRow({
   children,
   context,
   itemClassName,
+  itemLevel,
   itemPosition,
   itemSetSize,
   itemStyle,
@@ -170,9 +172,13 @@ export function DirectoryTreeRow({
 
   return (
     <li
+      aria-expanded={isFolder && hasChildren ? !isCollapsed : undefined}
+      aria-level={itemLevel}
       aria-posinset={itemPosition}
+      aria-selected={isActive}
       aria-setsize={itemSetSize}
       className={itemClassName}
+      role="treeitem"
       style={itemStyle}
     >
       <div
@@ -316,6 +322,7 @@ export function DirectoryTreeRow({
           </div>
         ) : (
           <button
+            aria-current={isActive ? "page" : undefined}
             aria-expanded={isFolder && hasChildren ? !isCollapsed : undefined}
             className="ui-tree-row ui-directory-tree-row"
             draggable={draggable}

@@ -1,6 +1,5 @@
 import type { CtnCanonicalBlock } from "../../../core/ctn/parser/types";
-
-export type UiSyntaxTone = string;
+import type { CtnSyntaxTone } from "../../../core/ctn/syntax/types";
 
 export type UiTextSegment =
   | {
@@ -12,13 +11,13 @@ export type UiTextSegment =
       id: string;
       kind: "inline";
       text: string;
-      tone: UiSyntaxTone;
+      tone: CtnSyntaxTone;
     };
 
 export type UiTextDisplay = {
   displayText: string;
   segments: UiTextSegment[];
-  textColor: UiSyntaxTone;
+  textColor: CtnSyntaxTone;
 };
 
 function getNodeTextStartIndex(node: CtnCanonicalBlock) {

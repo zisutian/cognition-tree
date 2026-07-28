@@ -4,6 +4,9 @@ import {
   SettingsContext,
   SettingsPanel,
 } from "../../presentation/activities/views/settings/SettingsPanel";
+import {
+  appContextDefaultWidth,
+} from "../../presentation/ui/workbench/frameResize";
 
 describe("settings activity", () => {
   it("shows the single Interface context item and only the context width setting", () => {
@@ -11,7 +14,7 @@ describe("settings activity", () => {
     const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
         workbench={{
-          contextWidth: 280,
+          contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
         }}
       />,
@@ -24,7 +27,7 @@ describe("settings activity", () => {
     expect(panelMarkup).toContain('aria-label="设置"');
     expect(panelMarkup).toContain("界面");
     expect(panelMarkup).toContain('id="settings-context-width"');
-    expect(panelMarkup).toContain('value="280"');
+    expect(panelMarkup).toContain(`value="${appContextDefaultWidth}"`);
     expect(panelMarkup).toContain("左侧栏宽度");
     expect(panelMarkup.match(/<input/g)).toHaveLength(1);
     expect(panelMarkup).not.toContain("当前仓库");
