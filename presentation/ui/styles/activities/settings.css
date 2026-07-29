@@ -36,7 +36,7 @@
 
 .settings-api-content {
   display: grid;
-  gap: var(--ui-section-gap);
+  gap: calc(var(--ui-gap) * 2);
   padding: var(--ui-gap);
 }
 
@@ -45,75 +45,160 @@
   gap: var(--ui-gap);
 }
 
-.settings-api-field {
+.settings-api-section + .settings-api-section {
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.settings-api-form {
   display: grid;
-  grid-template-columns: 96px minmax(180px, 360px);
-  align-items: center;
+  gap: var(--ui-gap);
+  max-width: 720px;
+}
+
+.settings-api-form-row {
+  display: grid;
+  grid-template-columns: 112px minmax(180px, 400px);
+  align-items: start;
   gap: var(--ui-gap);
 }
 
-.settings-api-permissions,
-.settings-api-repositories {
-  display: grid;
-  gap: var(--ui-gap-tight);
-  margin: 0;
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-border);
+.settings-api-form-row > span {
+  min-height: var(--ui-control-height);
+  padding-top: calc(
+    (var(--ui-control-height) - var(--ui-control-font-size)) / 2
+  );
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
 }
 
-.settings-api-permissions > div {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) repeat(3, minmax(76px, auto));
-  gap: var(--ui-gap);
+.settings-api-form-row > .ui-input {
+  width: 100%;
 }
 
-.settings-api-permissions label,
-.settings-api-repositories label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ui-gap-tight);
+.settings-api-form-action {
+  margin-left: calc(112px + var(--ui-gap));
 }
 
-.settings-api-list {
-  display: grid;
-  gap: var(--ui-gap);
-  margin: 0;
+.settings-api-permission-table {
+  width: 100%;
+  border: 0;
+  border-spacing: 0 var(--ui-gap-tight);
+}
+
+.settings-api-permission-table th,
+.settings-api-permission-table td {
   padding: 0;
+  text-align: left;
+}
+
+.settings-api-permission-table th {
+  width: 112px;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+  font-weight: var(--ui-control-weight);
+}
+
+.settings-api-permission-table select {
+  width: 100%;
+}
+
+.settings-api-repository-select {
+  min-height: calc(var(--ui-control-height) * 2);
+}
+
+.settings-api-token-list {
+  display: grid;
+  gap: calc(var(--ui-gap) * 1.5);
+  margin: 0;
+  padding: 0 var(--ui-gap-tight);
   list-style: none;
 }
 
-.settings-api-list > li {
+.settings-api-token-list > li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--ui-gap-tight) var(--ui-gap);
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-border);
 }
 
-.settings-api-list > li > div {
+.settings-api-token-name {
   display: flex;
   flex-wrap: wrap;
   gap: var(--ui-gap);
+  min-width: 0;
 }
 
-.settings-api-list p {
-  grid-column: 1;
-  margin: 0;
+.settings-api-token-name code,
+.settings-api-token-list p {
   color: var(--color-fg-muted);
 }
 
-.settings-api-list .ui-button {
+.settings-api-token-list p {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--ui-control-font-size);
+}
+
+.settings-api-token-list .ui-button {
   grid-column: 2;
   grid-row: 1 / span 3;
 }
 
+.settings-api-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.settings-api-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: var(--ui-control-font-size);
+}
+
+.settings-api-table th,
+.settings-api-table td {
+  padding: var(--ui-gap-tight) var(--ui-gap);
+  border-bottom: var(--ui-border-width) solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.settings-api-table th {
+  color: var(--color-fg-muted);
+  font-weight: var(--ui-micro-strong-weight);
+  white-space: nowrap;
+}
+
+.settings-api-table td:first-child {
+  min-width: 120px;
+}
+
+.settings-api-table td > strong,
+.settings-api-table td > code,
+.settings-api-table td > span {
+  display: block;
+}
+
+.settings-api-table code {
+  overflow-wrap: anywhere;
+  color: var(--color-fg-muted);
+}
+
+.settings-api-table .ui-button {
+  white-space: nowrap;
+}
+
 .settings-api-secret {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 160px minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--ui-gap);
-  padding: var(--ui-gap);
-  border: var(--ui-border-width) solid var(--color-warning);
+  margin: 0;
+  padding: var(--ui-gap-tight) 0;
+  border-top: var(--ui-border-width) solid var(--color-warning);
+  border-bottom: var(--ui-border-width) solid var(--color-warning);
 }
 
 .settings-api-secret code {
@@ -123,6 +208,10 @@
 
 .settings-api-error {
   color: var(--color-danger);
+}
+
+.settings-api-operation {
+  padding: 0 var(--ui-gap-tight);
 }
 
 .settings-muted {
@@ -138,12 +227,12 @@
     grid-column: 1 / -1;
   }
 
-  .settings-api-field,
+  .settings-api-form-row,
   .settings-api-secret {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .settings-api-permissions > div {
-    grid-template-columns: minmax(0, 1fr);
+  .settings-api-form-action {
+    margin-left: 0;
   }
 }

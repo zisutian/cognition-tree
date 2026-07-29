@@ -74,14 +74,22 @@ describe("settings activity", () => {
     });
     expectMarkupSemantics(availableMarkup, {
       has: [
-        "创建自动化令牌",
-        "领域权限",
-        "Workspace 仓库范围",
         "创建令牌",
+        "领域权限",
+        "Workspace 权限",
+        "日记权限",
+        "代办权限",
+        "仓库范围",
         "现有令牌",
         "最近自动化操作",
       ],
-      lacks: ["令牌仅显示这一次"],
+      lacks: [
+        "令牌仅显示这一次",
+        "为自动化工具创建独立令牌",
+        'type="checkbox"',
+        'type="radio"',
+      ],
     });
+    expect(availableMarkup.match(/<select/g)).toHaveLength(4);
   });
 });

@@ -347,6 +347,17 @@ test.describe("activity view flows", () => {
 
     await expect(panel).toBeVisible();
     await panel.getByRole("textbox", { name: "名称" }).fill("E2E AI");
+    await panel.getByRole("combobox", { name: "Workspace 权限" })
+      .selectOption("delete");
+    await panel.getByRole("combobox", { name: "日记权限" })
+      .selectOption("none");
+    await panel.getByRole("combobox", { name: "代办权限" })
+      .selectOption("write");
+    await panel.getByRole("combobox", { name: "仓库范围" })
+      .selectOption("selected");
+    await panel.getByRole("listbox", {
+      name: "允许访问的 Workspace 仓库",
+    }).selectOption(syntaxRepositoryId);
     await panel.getByRole("button", { name: "创建令牌" }).click();
     const oneTimeSecret = panel.locator(".settings-api-secret");
 
@@ -362,6 +373,10 @@ test.describe("activity view flows", () => {
 
     await expect(tokenRow).toBeVisible();
     await expect(tokenRow).not.toContainText(secret);
+    await expect(tokenRow).toContainText("Workspace 读写删除");
+    await expect(tokenRow).toContainText("代办 读写");
+    await expect(tokenRow).not.toContainText("日记 ");
+    await expect(tokenRow).toContainText("浏览器回归仓库");
     await page.reload();
     await expect(page.getByRole("navigation", { name: "工作区功能" }))
       .toBeVisible();
