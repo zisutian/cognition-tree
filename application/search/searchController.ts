@@ -36,6 +36,11 @@ export type SearchController = {
   updateScrollTop(scrollTop: number): void;
 };
 
+export type SearchControllerActions = Pick<
+  SearchController,
+  "loadMore" | "search" | "updateDraft" | "updateScrollTop"
+>;
+
 function copyDraft(draft: SearchDraft): SearchDraft {
   return {
     ...draft,

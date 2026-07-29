@@ -48,6 +48,7 @@ describe("workspace note navigation controller", () => {
       state: { status: "loading" },
     };
     const controller = createWorkspaceNoteNavigationController({
+      flushWorkspace: vi.fn(async () => undefined),
       getCatalog: () => catalog,
       getWorkspace: () => ({ status: "absent" }),
       onChange: vi.fn(),
@@ -80,17 +81,12 @@ describe("workspace note navigation controller", () => {
     let catalog = readyCatalog(null);
     let workspace:
       | { status: "loading" }
-      | { controller: { flushPendingChanges(): Promise<void> }; status: "ready" }
-      = {
-        controller: {
-          async flushPendingChanges() {
-            events.push("flush");
-          },
-        },
-        status: "ready",
-      };
+      | { status: "ready" } = { status: "ready" };
     const events: string[] = [];
     const controller = createWorkspaceNoteNavigationController({
+      async flushWorkspace() {
+        events.push("flush");
+      },
       getCatalog: () => catalog,
       getWorkspace: () => workspace,
       onChange: vi.fn(),
@@ -105,10 +101,7 @@ describe("workspace note navigation controller", () => {
     await vi.waitFor(() => expect(events).toEqual(["flush", "select"]));
     expect(controller.getState().status).toBe("pending");
 
-    workspace = {
-      controller: { flushPendingChanges: vi.fn(async () => undefined) },
-      status: "ready",
-    };
+    workspace = { status: "ready" };
     controller.notifyInputsChanged();
     await vi.waitFor(() =>
       expect(controller.getState().status).toBe("ready")
@@ -119,18 +112,16 @@ describe("workspace note navigation controller", () => {
     let catalog = readyCatalog(null);
     let workspace:
       | { status: "loading" }
-      | { controller: { flushPendingChanges(): Promise<void> }; status: "ready" }
+      | { status: "ready" }
       = { status: "loading" };
     const controller = createWorkspaceNoteNavigationController({
+      flushWorkspace: vi.fn(async () => undefined),
       getCatalog: () => catalog,
       getWorkspace: () => workspace,
       onChange: vi.fn(),
       async selectRepository() {
         catalog = readyCatalog(descriptor.id);
-        workspace = {
-          controller: { flushPendingChanges: vi.fn(async () => undefined) },
-          status: "ready",
-        };
+        workspace = { status: "ready" };
       },
     });
 

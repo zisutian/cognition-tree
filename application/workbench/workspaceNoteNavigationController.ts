@@ -8,10 +8,7 @@ import type { RepositoryCatalogControllerSnapshot } from "../repository/reposito
 type NavigationWorkspaceSession =
   | { status: "absent" | "loading" }
   | { errorMessage: string; status: "failed" }
-  | {
-      controller: { flushPendingChanges(): Promise<void> };
-      status: "ready";
-    };
+  | { status: "ready" };
 
 export type WorkbenchNavigationState =
   | { status: "idle" }
@@ -41,11 +38,13 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 export function createWorkspaceNoteNavigationController({
+  flushWorkspace,
   getCatalog,
   getWorkspace,
   onChange,
   selectRepository,
 }: {
+  flushWorkspace(): Promise<void>;
   getCatalog(): RepositoryCatalogControllerSnapshot;
   getWorkspace(): NavigationWorkspaceSession;
   onChange(): void;
@@ -92,7 +91,7 @@ export function createWorkspaceNoteNavigationController({
         const workspace = getWorkspace();
 
         if (workspace.status === "ready") {
-          await workspace.controller.flushPendingChanges();
+          await flushWorkspace();
         }
         await selectRepository(request.destination.repositoryId);
       } else {

@@ -20,6 +20,20 @@ export function getActivityButton(page: Page, name: string) {
     .getByRole("button", { name, exact: true });
 }
 
+export async function selectNotesMode(
+  page: Page,
+  name: "图谱" | "编辑" | "结构",
+) {
+  let tab = page.getByRole("tab", { name, exact: true });
+
+  if (!await tab.isVisible()) {
+    await getActivityButton(page, "笔记").click();
+    tab = page.getByRole("tab", { name, exact: true });
+  }
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+}
+
 export function getRepositoryButton(
   page: Page,
   repositoryId: string,

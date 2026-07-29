@@ -1,5 +1,5 @@
 import type {
-  SearchController,
+  SearchControllerActions,
   SearchControllerState,
 } from "../../../../application/search/searchController";
 import type { SearchResult } from "../../../../application/search/searchQuery";
@@ -17,7 +17,7 @@ export function createSearchActivitySlots({
   state,
 }: {
   catalogStatus: "failed" | "loading" | "ready";
-  controller: SearchController;
+  controller: SearchControllerActions;
   onOpenResult(result: SearchResult): void;
   repositories: SearchRepositoryOption[];
   state: SearchControllerState;

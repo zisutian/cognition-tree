@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import type {
-  SearchController,
+  SearchControllerActions,
   SearchControllerState,
 } from "../../../../application/search/searchController";
 import type {
@@ -85,7 +85,7 @@ export function SearchPanel({
   repositories,
   state,
 }: {
-  controller: SearchController;
+  controller: SearchControllerActions;
   onOpenResult(result: SearchResult): void;
   repositories: SearchRepositoryOption[];
   state: SearchControllerState;
@@ -101,7 +101,7 @@ export function SearchPanel({
 
   useLayoutEffect(() => {
     if (bodyRef.current) {
-      bodyRef.current.scrollTop = controller.getState().scrollTop;
+      bodyRef.current.scrollTop = state.scrollTop;
     }
   }, [controller, state.scrollTop, state.submitted]);
 

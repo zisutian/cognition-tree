@@ -50,3 +50,60 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.notes-workspace-main {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+}
+
+.notes-mode-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--ui-gap-tight);
+  min-height: var(--ui-control-height);
+  padding: var(--ui-gap-tight) var(--ui-gap);
+  border-bottom: var(--ui-border-width) solid var(--color-border);
+  background: var(--color-bg-panel);
+}
+
+.notes-mode-tabs > button {
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap);
+  border: 0;
+  border-bottom: calc(var(--ui-border-width) * 2) solid transparent;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  font: inherit;
+}
+
+.notes-mode-tabs > button.is-active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-fg);
+}
+
+.notes-mode-tabs > button:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: calc(var(--ui-border-width) * 2);
+}
+
+.notes-mode-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.notes-mode-panel[hidden] {
+  display: none;
+}
+
+.notes-mode-panel > .ui-panel {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}

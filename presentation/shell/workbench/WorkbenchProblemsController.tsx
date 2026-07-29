@@ -35,7 +35,7 @@ import type { ActivityId } from "../../ui/activityTypes";
 import {
   getActivityLabel,
   isActivityId,
-} from "../../ui/activityCatalog";
+} from "../../activities/activityCatalog";
 import { ProblemsPanel } from "../../ui/problems/ProblemsPanel";
 import { useWorkbenchFeedback } from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchProblemsShortcut } from "../../ui/problems/useProblemsShortcut";

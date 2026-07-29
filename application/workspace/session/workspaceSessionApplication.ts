@@ -7,18 +7,31 @@ import type {
   WorkspaceSessionReadyState,
 } from "./workspaceSessionController";
 
+type WorkspaceSessionOperations = Pick<
+  WorkspaceSessionController,
+  | "activateSyntaxFile"
+  | "commands"
+  | "createSyntaxFile"
+  | "deleteSyntaxFile"
+  | "discardPendingChangesAndReload"
+  | "flushPendingChanges"
+  | "prepareForRepositoryRemoval"
+  | "reload"
+  | "updateSyntaxFileSource"
+>;
+
 export type ActiveWorkspaceSession = WorkspaceSessionReadyState & {
-  activateSyntaxFile: WorkspaceSessionController["activateSyntaxFile"];
+  activateSyntaxFile: WorkspaceSessionOperations["activateSyntaxFile"];
   commands: SessionCommands;
-  createSyntaxFile: WorkspaceSessionController["createSyntaxFile"];
-  deleteSyntaxFile: WorkspaceSessionController["deleteSyntaxFile"];
+  createSyntaxFile: WorkspaceSessionOperations["createSyntaxFile"];
+  deleteSyntaxFile: WorkspaceSessionOperations["deleteSyntaxFile"];
   discardPendingChangesAndReload:
-    WorkspaceSessionController["discardPendingChangesAndReload"];
-  flushPendingChanges: WorkspaceSessionController["flushPendingChanges"];
+    WorkspaceSessionOperations["discardPendingChangesAndReload"];
+  flushPendingChanges: WorkspaceSessionOperations["flushPendingChanges"];
   prepareForRepositoryRemoval:
-    WorkspaceSessionController["prepareForRepositoryRemoval"];
-  reload: WorkspaceSessionController["reload"];
-  updateSyntaxFileSource: WorkspaceSessionController["updateSyntaxFileSource"];
+    WorkspaceSessionOperations["prepareForRepositoryRemoval"];
+  reload: WorkspaceSessionOperations["reload"];
+  updateSyntaxFileSource: WorkspaceSessionOperations["updateSyntaxFileSource"];
 };
 
 export type WorkspaceSessionApplication =
@@ -35,7 +48,7 @@ export type WorkspaceSessionApplication =
     };
 
 export function projectWorkspaceSessionApplication(
-  controller: WorkspaceSessionController,
+  controller: WorkspaceSessionOperations,
   state: WorkspaceSessionControllerState,
 ): WorkspaceSessionApplication {
   if (state.status === "loading") return state;

@@ -1,8 +1,10 @@
 import type { ActivityId } from "./activityTypes";
 import {
-  primaryActivityItems,
-  utilityActivityItems,
-} from "./activityCatalog";
+  listActivityDescriptors,
+} from "../activities/activityCatalog";
+
+const primaryActivities = listActivityDescriptors("primary");
+const managementActivities = listActivityDescriptors("management");
 
 export function ActivityBar({
   activeActivityId,
@@ -14,7 +16,7 @@ export function ActivityBar({
   return (
     <nav className="activity-bar" aria-label="工作区功能">
       <div className="activity-group">
-        {primaryActivityItems.map((item) => {
+        {primaryActivities.map((item) => {
           const Icon = item.icon;
 
           return (
@@ -33,7 +35,7 @@ export function ActivityBar({
         })}
       </div>
       <div className="activity-group activity-group-bottom">
-        {utilityActivityItems.map((item) => {
+        {managementActivities.map((item) => {
           const Icon = item.icon;
 
           return (

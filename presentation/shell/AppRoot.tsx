@@ -54,7 +54,7 @@ export function AppRoot() {
 
   if (snapshot.workspace.status === "ready") {
     const session = projectWorkspaceSessionApplication(
-      snapshot.workspace.controller,
+      controller.workspace,
       snapshot.workspace,
     );
 

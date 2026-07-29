@@ -23,11 +23,8 @@ import {
 
 const workspaceFeedbackActivities = [
   "notes",
-  "structure-operation",
-  "visualization",
   "syntax",
   "search",
-  "data",
 ] as const;
 
 export function useWorkbenchApplicationBindings({
@@ -45,17 +42,17 @@ export function useWorkbenchApplicationBindings({
   );
   const reportedNavigationFailureRef = useRef<number | null>(null);
   const journalSession = useMemo(() => ({
-    mutate: snapshot.builtIns.journal.controller.mutate,
-    mutatePrepared: snapshot.builtIns.journal.controller.mutatePrepared,
-    reload: snapshot.builtIns.journal.controller.reload,
+    mutate: controller.journal.mutate,
+    mutatePrepared: controller.journal.mutatePrepared,
+    reload: controller.journal.reload,
     state: snapshot.builtIns.journal.state,
-  }), [snapshot.builtIns.journal]);
+  }), [controller, snapshot.builtIns.journal.state]);
   const todoSession = useMemo(() => ({
-    mutate: snapshot.builtIns.todo.controller.mutate,
-    mutatePrepared: snapshot.builtIns.todo.controller.mutatePrepared,
-    reload: snapshot.builtIns.todo.controller.reload,
+    mutate: controller.todo.mutate,
+    mutatePrepared: controller.todo.mutatePrepared,
+    reload: controller.todo.reload,
     state: snapshot.builtIns.todo.state,
-  }), [snapshot.builtIns.todo]);
+  }), [controller, snapshot.builtIns.todo.state]);
   const journalServices = useMemo(
     createBrowserJournalApplicationServices,
     [],
@@ -72,7 +69,7 @@ export function useWorkbenchApplicationBindings({
   const journal = useJournalApplication({
     openWorkspaceNote,
     referenceResolutionGeneration: snapshot.referenceResolutionGeneration,
-    referenceResolver: snapshot.journalReferenceResolver,
+    referenceResolver: controller.journalReferenceResolver,
     services: journalServices,
     session: journalSession,
   });
@@ -155,9 +152,9 @@ export function useWorkbenchApplicationBindings({
   }, [feedbackController, snapshot.catalog.activeDescriptor?.id]);
 
   return {
-    apiAccess: snapshot.apiAccessAdministration
+    apiAccess: controller.apiAccessAdministration
       ? {
-          administration: snapshot.apiAccessAdministration,
+          administration: controller.apiAccessAdministration,
           repositories: snapshot.catalog.state.status === "ready"
             ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
                 id,
@@ -177,8 +174,9 @@ export function useWorkbenchApplicationBindings({
       navigation,
     ),
     search: {
-      ...snapshot.search,
+      controller: controller.search,
       openResult: openSearchResult,
+      state: snapshot.search,
     },
     todo,
   };

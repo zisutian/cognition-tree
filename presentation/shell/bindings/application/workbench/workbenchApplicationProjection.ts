@@ -16,6 +16,7 @@ import type {
 import type { WorkbenchApplication } from "../../../../activities/workbenchApplication";
 
 function projectRepositorySession(
+  controller: WorkbenchController,
   workspace: WorkbenchWorkspaceSession,
 ): RepositorySessionState {
   if (workspace.status === "absent") return workspace;
@@ -25,61 +26,61 @@ function projectRepositorySession(
   if (workspace.status === "failed") {
     return {
       errorMessage: workspace.errorMessage,
-      retry: workspace.controller.reload,
+      retry: controller.workspace.reload,
       status: "failed",
       storageLabel: workspace.storageLabel,
     };
   }
   return {
     discardPendingChangesAndReload:
-      workspace.controller.discardPendingChangesAndReload,
+      controller.workspace.discardPendingChangesAndReload,
     keepLocalConflictAndSynchronize:
-      workspace.controller.keepLocalConflictAndSynchronize,
-    loadConflictUnitIds: workspace.controller.loadConflictUnitIds,
-    recoverLocalConflictCopy: workspace.controller.recoverLocalConflictCopy,
+      controller.workspace.keepLocalConflictAndSynchronize,
+    loadConflictUnitIds: controller.workspace.loadConflictUnitIds,
+    recoverLocalConflictCopy: controller.workspace.recoverLocalConflictCopy,
     persistence: workspace.persistence,
-    reload: workspace.controller.reload,
+    reload: controller.workspace.reload,
     status: "ready",
     storageLabel: workspace.storageLabel,
     useRemoteConflictAndSynchronize:
-      workspace.controller.useRemoteConflictAndSynchronize,
+      controller.workspace.useRemoteConflictAndSynchronize,
   };
 }
 
 function projectBuiltInSessions(
+  controller: WorkbenchController,
   snapshot: WorkbenchControllerSnapshot,
 ): Record<"journal" | "todo", BuiltInSessionSummary> {
   return {
     journal: projectBuiltInSessionSummary({
       discardPendingChangesAndReload:
-        snapshot.builtIns.journal.controller.discardPendingChangesAndReload,
+        controller.journal.discardPendingChangesAndReload,
       keepLocalConflictAndSynchronize:
-        snapshot.builtIns.journal.controller.keepLocalConflictAndSynchronize,
+        controller.journal.keepLocalConflictAndSynchronize,
       loadConflictUnitIds:
-        snapshot.builtIns.journal.controller.loadConflictUnitIds,
+        controller.journal.loadConflictUnitIds,
       recoverLocalConflictCopy:
-        snapshot.builtIns.journal.controller.recoverLocalConflictCopy,
-      reload: snapshot.builtIns.journal.controller.reload,
-      requestSync: snapshot.builtIns.journal.controller.requestSync,
+        controller.journal.recoverLocalConflictCopy,
+      reload: controller.journal.reload,
+      requestSync: controller.journal.requestSync,
       state: snapshot.builtIns.journal.state,
       useRemoteConflictAndSynchronize:
-        snapshot.builtIns.journal.controller
-          .useRemoteConflictAndSynchronize,
+        controller.journal.useRemoteConflictAndSynchronize,
     }),
     todo: projectBuiltInSessionSummary({
       discardPendingChangesAndReload:
-        snapshot.builtIns.todo.controller.discardPendingChangesAndReload,
+        controller.todo.discardPendingChangesAndReload,
       keepLocalConflictAndSynchronize:
-        snapshot.builtIns.todo.controller.keepLocalConflictAndSynchronize,
+        controller.todo.keepLocalConflictAndSynchronize,
       loadConflictUnitIds:
-        snapshot.builtIns.todo.controller.loadConflictUnitIds,
+        controller.todo.loadConflictUnitIds,
       recoverLocalConflictCopy:
-        snapshot.builtIns.todo.controller.recoverLocalConflictCopy,
-      reload: snapshot.builtIns.todo.controller.reload,
-      requestSync: snapshot.builtIns.todo.controller.requestSync,
+        controller.todo.recoverLocalConflictCopy,
+      reload: controller.todo.reload,
+      requestSync: controller.todo.requestSync,
       state: snapshot.builtIns.todo.state,
       useRemoteConflictAndSynchronize:
-        snapshot.builtIns.todo.controller.useRemoteConflictAndSynchronize,
+        controller.todo.useRemoteConflictAndSynchronize,
     }),
   };
 }
@@ -90,8 +91,12 @@ export function createRepositoryProjection(
   navigation: RepositoryNavigation,
 ): RepositoryApplication {
   return createRepositoryApplication({
-    builtInSessions: projectBuiltInSessions(snapshot),
-    builtIns: snapshot.builtIns.catalog,
+    builtInSessions: projectBuiltInSessions(controller, snapshot),
+    builtIns: {
+      ...snapshot.builtIns.catalog,
+      reload: controller.reloadBuiltIns,
+      retry: controller.retryBuiltIn,
+    },
     catalog: {
       activeDescriptor: snapshot.catalog.activeDescriptor,
       catalogLabel: snapshot.catalog.catalogLabel,
@@ -103,7 +108,7 @@ export function createRepositoryProjection(
       state: snapshot.catalog.state,
     },
     navigation,
-    session: projectRepositorySession(snapshot.workspace),
+    session: projectRepositorySession(controller, snapshot.workspace),
   });
 }
 
@@ -120,7 +125,7 @@ export function projectUnavailableWorkspace(
   if (snapshot.workspace.status === "failed") {
     return {
       errorMessage: snapshot.workspace.errorMessage,
-      retry: snapshot.workspace.controller.reload,
+      retry: controller.workspace.reload,
       status: "failed",
       storageLabel: snapshot.workspace.storageLabel,
     };

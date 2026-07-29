@@ -10,12 +10,12 @@ type BuiltInSessionController = {
 };
 
 export type WorkbenchBuiltInSession<Controller extends BuiltInSessionController> = {
-  controller: Controller;
   state: ReturnType<Controller["getState"]>;
 };
 
 export type BuiltInSessionSlot<Controller extends BuiltInSessionController> = {
   dispose(): void;
+  getController(): Controller;
   getSnapshot(): WorkbenchBuiltInSession<Controller>;
   reconcile(descriptor: BuiltInDescriptor | null): void;
   start(): void;
@@ -55,7 +55,8 @@ export function createBuiltInSessionSlot<
       unsubscribe();
       controller.dispose();
     },
-    getSnapshot: () => ({ controller, state }),
+    getController: () => controller,
+    getSnapshot: () => ({ state }),
     reconcile(descriptor) {
       if (disposed) return;
       const nextConnectionKey = builtInConnectionKey(descriptor);

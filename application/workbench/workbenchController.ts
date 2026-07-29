@@ -15,7 +15,7 @@ import {
 } from "../journal/journalSessionController";
 import {
   createBuiltInCatalogController,
-  type BuiltInCatalogApplication,
+  type BuiltInCatalogState,
   type BuiltInCatalogController,
 } from "../repository/builtInCatalogController";
 import type {
@@ -43,6 +43,7 @@ import type {
 import {
   createSearchController,
   type SearchController,
+  type SearchControllerActions,
   type SearchControllerState,
 } from "../search/searchController";
 import type { SearchResourceVersion } from "../search/searchQuery";
@@ -51,6 +52,9 @@ import {
   type TodoSessionController,
 } from "../todo/todoSessionController";
 import type { SessionCommandDependencies } from "../workspace/session/sessionCommands";
+import type {
+  WorkspaceSessionController,
+} from "../workspace/session/workspaceSessionController";
 import {
   createBuiltInSessionSlot,
   type WorkbenchBuiltInSession,
@@ -73,25 +77,68 @@ export type { WorkbenchNavigationState } from "./workspaceNoteNavigationControll
 export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
 export type { WorkbenchBuiltInSession } from "./builtInSessionSlot";
 
+export type WorkbenchRepositoryCatalogSnapshot = Omit<
+  RepositoryCatalogControllerSnapshot,
+  "repository"
+>;
+
 export type WorkbenchControllerSnapshot = {
-  apiAccessAdministration: ApiAccessAdministration | null;
   builtIns: {
-    catalog: BuiltInCatalogApplication;
+    catalog: {
+      catalogLabel: string;
+      state: BuiltInCatalogState;
+    };
     journal: WorkbenchBuiltInSession<JournalSessionController>;
     todo: WorkbenchBuiltInSession<TodoSessionController>;
   };
-  catalog: RepositoryCatalogControllerSnapshot;
-  journalReferenceResolver: JournalWorkspaceReferenceResolver;
+  catalog: WorkbenchRepositoryCatalogSnapshot;
   navigation: WorkbenchNavigationState;
   referenceResolutionGeneration: number;
-  search: {
-    controller: SearchController;
-    state: SearchControllerState;
-  };
+  search: SearchControllerState;
   workspace: WorkbenchWorkspaceSession;
 };
 
+export type WorkbenchWorkspaceFacade = Pick<
+  WorkspaceSessionController,
+  | "activateSyntaxFile"
+  | "commands"
+  | "createSyntaxFile"
+  | "deleteSyntaxFile"
+  | "discardPendingChangesAndReload"
+  | "flushPendingChanges"
+  | "keepLocalConflictAndSynchronize"
+  | "loadConflictUnitIds"
+  | "prepareForRepositoryRemoval"
+  | "recoverLocalConflictCopy"
+  | "reload"
+  | "updateSyntaxFileSource"
+  | "useRemoteConflictAndSynchronize"
+>;
+
+export type WorkbenchBuiltInFacade<
+  Controller extends JournalSessionController | TodoSessionController,
+> = Pick<
+  Controller,
+  | "discardPendingChangesAndReload"
+  | "keepLocalConflictAndSynchronize"
+  | "loadConflictUnitIds"
+  | "mutate"
+  | "mutatePrepared"
+  | "recoverLocalConflictCopy"
+  | "reload"
+  | "requestSync"
+  | "useRemoteConflictAndSynchronize"
+>;
+
+export type WorkbenchSearchFacade = SearchControllerActions;
+
 export type WorkbenchController = {
+  apiAccessAdministration: ApiAccessAdministration | null;
+  journal: WorkbenchBuiltInFacade<JournalSessionController>;
+  journalReferenceResolver: JournalWorkspaceReferenceResolver;
+  search: WorkbenchSearchFacade;
+  todo: WorkbenchBuiltInFacade<TodoSessionController>;
+  workspace: WorkbenchWorkspaceFacade;
   consumeWorkspaceNoteDestination(requestId: number): void;
   createRepository(input: CreateRepositoryRequest): Promise<void>;
   deleteRepository(input: DeleteRepositoryRequest): Promise<void>;
@@ -99,6 +146,7 @@ export type WorkbenchController = {
   discardTodoPendingChangesAndReload(): Promise<void>;
   dispose(): void;
   getSnapshot(): WorkbenchControllerSnapshot;
+  reloadBuiltIns(): Promise<void>;
   refreshRepositories(): Promise<void>;
   reloadJournal(): Promise<void>;
   reloadTodo(): Promise<void>;
@@ -176,30 +224,29 @@ export function createWorkbenchController({
   let workspaceReloading = false;
   let searchController: SearchController;
 
-  const projectBuiltInCatalog = (): BuiltInCatalogApplication => ({
+  const projectBuiltInCatalog = () => ({
     catalogLabel: builtInCatalogController.catalogLabel,
-    reload: builtInCatalogController.reload,
-    retry: builtInCatalogController.retry,
     state: builtInCatalogController.getState(),
   });
+  const projectRepositoryCatalog = (): WorkbenchRepositoryCatalogSnapshot => {
+    const { repository: _repository, ...projected } =
+      repositoryCatalogController.getSnapshot();
+
+    return projected;
+  };
   const publish = (referencesChanged = false) => {
     if (disposed) return;
     if (referencesChanged) referenceResolutionGeneration += 1;
     snapshot = {
-      apiAccessAdministration: apiAccessAdministration ?? null,
       builtIns: {
         catalog: projectBuiltInCatalog(),
         journal: journalSlot.getSnapshot(),
         todo: todoSlot.getSnapshot(),
       },
-      catalog: repositoryCatalogController.getSnapshot(),
-      journalReferenceResolver,
+      catalog: projectRepositoryCatalog(),
       navigation: navigationController.getState(),
       referenceResolutionGeneration,
-      search: {
-        controller: searchController,
-        state: searchController.getState(),
-      },
+      search: searchController.getState(),
       workspace: workspaceSlot.getSnapshot(),
     };
     listeners.forEach((listener) => listener());
@@ -243,6 +290,7 @@ export function createWorkbenchController({
     onChange: () => publish(),
   });
   const navigationController = createWorkspaceNoteNavigationController({
+    flushWorkspace: () => workspaceFacade.flushPendingChanges(),
     getCatalog: repositoryCatalogController.getSnapshot,
     getWorkspace: workspaceSlot.getSnapshot,
     onChange: () => publish(),
@@ -317,7 +365,7 @@ export function createWorkbenchController({
     ) {
       workspaceAttemptedSequences.set(activeRepositoryId, sequence);
       workspaceReloading = true;
-      void workspace.controller.reload()
+      void workspaceFacade.reload()
         .catch(() => undefined)
         .finally(() => {
           workspaceReloading = false;
@@ -335,7 +383,7 @@ export function createWorkbenchController({
     ) {
       journalAttemptedSequence = sequence;
       journalReloading = true;
-      void journal.controller.reload()
+      void journalFacade.reload()
         .catch(() => undefined)
         .finally(() => {
           journalReloading = false;
@@ -353,7 +401,7 @@ export function createWorkbenchController({
     ) {
       todoAttemptedSequence = sequence;
       todoReloading = true;
-      void todo.controller.reload()
+      void todoFacade.reload()
         .catch(() => undefined)
         .finally(() => {
           todoReloading = false;
@@ -419,26 +467,104 @@ export function createWorkbenchController({
     }
     reconcileExternalChanges();
   }) ?? (() => undefined);
+  const requireWorkspaceController = () => {
+    const controller = workspaceSlot.getController();
+
+    if (!controller) {
+      throw new Error("Workspace session is unavailable.");
+    }
+    return controller;
+  };
+  const workspaceFacade: WorkbenchWorkspaceFacade = {
+    activateSyntaxFile: (...args) =>
+      requireWorkspaceController().activateSyntaxFile(...args),
+    get commands() {
+      return requireWorkspaceController().commands;
+    },
+    createSyntaxFile: (...args) =>
+      requireWorkspaceController().createSyntaxFile(...args),
+    deleteSyntaxFile: (...args) =>
+      requireWorkspaceController().deleteSyntaxFile(...args),
+    discardPendingChangesAndReload: (...args) =>
+      requireWorkspaceController().discardPendingChangesAndReload(...args),
+    flushPendingChanges: (...args) =>
+      requireWorkspaceController().flushPendingChanges(...args),
+    keepLocalConflictAndSynchronize: (...args) =>
+      requireWorkspaceController().keepLocalConflictAndSynchronize(...args),
+    loadConflictUnitIds: (...args) =>
+      requireWorkspaceController().loadConflictUnitIds(...args),
+    prepareForRepositoryRemoval: (...args) =>
+      requireWorkspaceController().prepareForRepositoryRemoval(...args),
+    recoverLocalConflictCopy: (...args) =>
+      requireWorkspaceController().recoverLocalConflictCopy(...args),
+    reload: (...args) => requireWorkspaceController().reload(...args),
+    updateSyntaxFileSource: (...args) =>
+      requireWorkspaceController().updateSyntaxFileSource(...args),
+    useRemoteConflictAndSynchronize: (...args) =>
+      requireWorkspaceController().useRemoteConflictAndSynchronize(...args),
+  };
+  const journalFacade: WorkbenchBuiltInFacade<JournalSessionController> = {
+    discardPendingChangesAndReload: (...args) =>
+      journalSlot.getController().discardPendingChangesAndReload(...args),
+    keepLocalConflictAndSynchronize: (...args) =>
+      journalSlot.getController().keepLocalConflictAndSynchronize(...args),
+    loadConflictUnitIds: (...args) =>
+      journalSlot.getController().loadConflictUnitIds(...args),
+    mutate: (...args) => journalSlot.getController().mutate(...args),
+    mutatePrepared: (...args) =>
+      journalSlot.getController().mutatePrepared(...args),
+    recoverLocalConflictCopy: (...args) =>
+      journalSlot.getController().recoverLocalConflictCopy(...args),
+    reload: (...args) => journalSlot.getController().reload(...args),
+    requestSync: (...args) =>
+      journalSlot.getController().requestSync(...args),
+    useRemoteConflictAndSynchronize: (...args) =>
+      journalSlot.getController().useRemoteConflictAndSynchronize(...args),
+  };
+  const todoFacade: WorkbenchBuiltInFacade<TodoSessionController> = {
+    discardPendingChangesAndReload: (...args) =>
+      todoSlot.getController().discardPendingChangesAndReload(...args),
+    keepLocalConflictAndSynchronize: (...args) =>
+      todoSlot.getController().keepLocalConflictAndSynchronize(...args),
+    loadConflictUnitIds: (...args) =>
+      todoSlot.getController().loadConflictUnitIds(...args),
+    mutate: (...args) => todoSlot.getController().mutate(...args),
+    mutatePrepared: (...args) =>
+      todoSlot.getController().mutatePrepared(...args),
+    recoverLocalConflictCopy: (...args) =>
+      todoSlot.getController().recoverLocalConflictCopy(...args),
+    reload: (...args) => todoSlot.getController().reload(...args),
+    requestSync: (...args) => todoSlot.getController().requestSync(...args),
+    useRemoteConflictAndSynchronize: (...args) =>
+      todoSlot.getController().useRemoteConflictAndSynchronize(...args),
+  };
+  const searchFacade: WorkbenchSearchFacade = {
+    loadMore: searchController.loadMore,
+    search: searchController.search,
+    updateDraft: searchController.updateDraft,
+    updateScrollTop: searchController.updateScrollTop,
+  };
 
   snapshot = {
-    apiAccessAdministration: apiAccessAdministration ?? null,
     builtIns: {
       catalog: projectBuiltInCatalog(),
       journal: journalSlot.getSnapshot(),
       todo: todoSlot.getSnapshot(),
     },
-    catalog: repositoryCatalogController.getSnapshot(),
-    journalReferenceResolver,
+    catalog: projectRepositoryCatalog(),
     navigation: navigationController.getState(),
     referenceResolutionGeneration,
-    search: {
-      controller: searchController,
-      state: searchController.getState(),
-    },
+    search: searchController.getState(),
     workspace: workspaceSlot.getSnapshot(),
   };
 
   return {
+    apiAccessAdministration: apiAccessAdministration ?? null,
+    journal: journalFacade,
+    journalReferenceResolver,
+    search: searchFacade,
+    todo: todoFacade,
+    workspace: workspaceFacade,
     consumeWorkspaceNoteDestination: navigationController.consume,
     async createRepository(input) {
       await workspaceSlot.flushReady();
@@ -455,7 +581,7 @@ export function createWorkbenchController({
         await repositoryCatalogController.deleteRepository(input);
         return;
       }
-      const prepared = await workspace.controller.prepareForRepositoryRemoval();
+      const prepared = await workspaceFacade.prepareForRepositoryRemoval();
 
       try {
         await repositoryCatalogController.deleteRepository(input);
@@ -465,9 +591,9 @@ export function createWorkbenchController({
       }
     },
     discardJournalPendingChangesAndReload: () =>
-      journalSlot.getSnapshot().controller.discardPendingChangesAndReload(),
+      journalFacade.discardPendingChangesAndReload(),
     discardTodoPendingChangesAndReload: () =>
-      todoSlot.getSnapshot().controller.discardPendingChangesAndReload(),
+      todoFacade.discardPendingChangesAndReload(),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -485,16 +611,16 @@ export function createWorkbenchController({
       listeners.clear();
     },
     getSnapshot: () => snapshot,
+    reloadBuiltIns: builtInCatalogController.reload,
     async refreshRepositories() {
       await workspaceSlot.flushReady();
       await repositoryCatalogController.reload();
     },
-    reloadJournal: () => journalSlot.getSnapshot().controller.reload(),
-    reloadTodo: () => todoSlot.getSnapshot().controller.reload(),
+    reloadJournal: journalFacade.reload,
+    reloadTodo: todoFacade.reload,
     renameRepository: repositoryCatalogController.renameRepository,
-    requestJournalSync: () =>
-      journalSlot.getSnapshot().controller.requestSync(),
-    requestTodoSync: () => todoSlot.getSnapshot().controller.requestSync(),
+    requestJournalSync: journalFacade.requestSync,
+    requestTodoSync: todoFacade.requestSync,
     requestWorkspaceNoteDestination: navigationController.request,
     retryBuiltIn: builtInCatalogController.retry,
     retryWorkspaceNoteDestination: navigationController.retry,

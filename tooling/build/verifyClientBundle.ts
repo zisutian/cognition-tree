@@ -23,16 +23,19 @@ if (!clientEntry) {
   throw new Error("Client bundle manifest has no entry chunk.");
 }
 
+const activityCatalog = readFileSync(
+  new URL("../../presentation/activities/activityCatalog.ts", import.meta.url),
+  "utf8",
+);
 const controllerSources = [
-  "NotesActivityController.tsx",
-  "JournalActivityController.tsx",
-  "TodoActivityController.tsx",
-  "SettingsActivityController.tsx",
-  "StructureOperationActivityController.tsx",
-  "SyntaxActivityController.tsx",
-  "VisualizationActivityController.tsx",
-  "RepositoryActivityController.tsx",
-];
+  ...activityCatalog.matchAll(
+    /import\("\.\/controllers\/([A-Za-z]+ActivityController)"\)/g,
+  ),
+].map((match) => `${match[1]}.tsx`);
+
+if (controllerSources.length === 0) {
+  throw new Error("Activity descriptor catalog declares no lazy controllers.");
+}
 
 const controllerEntries = controllerSources.map((sourceName) => {
   const entry = manifestEntries.find(([sourcePath]) =>

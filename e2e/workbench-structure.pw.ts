@@ -17,6 +17,7 @@ import {
   getActivityButton,
   openRepositoryFromContext,
   openWorkbench,
+  selectNotesMode,
 } from "./support/workbenchPage";
 
 const repositoryId = "workbench-structure";
@@ -148,7 +149,7 @@ test.describe("directory and structure operation flows", () => {
       String(initialContextWidth + appResizeKeyboardStep),
     );
 
-    await getActivityButton(page, "结构操作").click();
+    await selectNotesMode(page, "结构");
     const structureOperationContext = page.locator(".app-context");
     const structureColumns = page.locator(".structure-operation-column");
     const sourceStructure = structureColumns.first();
@@ -182,13 +183,13 @@ test.describe("directory and structure operation flows", () => {
       page.getByRole("button", { name: "笔记结构", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
-    await getActivityButton(page, "笔记").click();
+    await selectNotesMode(page, "编辑");
     await expect(contextResize).toHaveAttribute(
       "aria-valuenow",
       String(initialContextWidth + appResizeKeyboardStep),
     );
 
-    await getActivityButton(page, "结构操作").click();
+    await selectNotesMode(page, "结构");
     await expect(
       page.getByRole("button", { name: "笔记结构", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -206,7 +207,7 @@ test.describe("directory and structure operation flows", () => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, interactionRepositoryId);
-    await getActivityButton(page, "结构操作").click();
+    await selectNotesMode(page, "结构");
 
     const columns = page.locator(".structure-operation-column");
     const sourceColumn = columns.first();

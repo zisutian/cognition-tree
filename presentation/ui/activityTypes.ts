@@ -1,23 +1,13 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 
 export type ActivityId =
   | "notes"
   | "journal"
   | "todo"
-  | "structure-operation"
-  | "visualization"
   | "syntax"
   | "search"
-  | "data"
   | "repository"
   | "settings";
-
-export type ActivityItem = {
-  icon: LucideIcon;
-  id: ActivityId;
-  label: string;
-};
 
 export type ActivityContextSlot = {
   content: ReactNode;

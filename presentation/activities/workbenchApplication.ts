@@ -4,9 +4,11 @@ import type { TodoApplication } from "../../application/todo/todoApplicationStat
 import type { WorkspaceApplication } from "./bindings/workspace/runtime/useWorkspaceApplication";
 import type { ApiAccessApplication } from "../../application/apiAccess/apiAccessAdministration";
 import type {
-  SearchController,
   SearchControllerState,
 } from "../../application/search/searchController";
+import type {
+  WorkbenchSearchFacade,
+} from "../../application/workbench/workbenchController";
 import type { SearchResult } from "../../application/search/searchQuery";
 import type {
   ContentOpenOutcome,
@@ -28,7 +30,7 @@ export type WorkbenchApplication = {
   journal: JournalApplication;
   repository: RepositoryApplication;
   search: {
-    controller: SearchController;
+    controller: WorkbenchSearchFacade;
     openResult(result: SearchResult): ContentOpenOutcome;
     state: SearchControllerState;
   };

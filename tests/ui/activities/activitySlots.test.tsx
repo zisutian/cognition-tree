@@ -1,9 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { activityControllers } from "../../../presentation/activities/controllers/activityRegistry";
+import {
+  activityDescriptors,
+  listActivityDescriptors,
+} from "../../../presentation/activities/activityCatalog";
 import { createJournalActivitySlots } from "../../../presentation/activities/views/journal/JournalActivitySlots";
-import { createNotesActivitySlots } from "../../../presentation/activities/views/notes/NotesActivitySlots";
-import { createPlaceholderActivitySlots } from "../../../presentation/activities/views/PlaceholderActivitySlots";
+import {
+  createNotesActivitySlots,
+  createNotesWorkspaceActivitySlots,
+  type NotesMode,
+} from "../../../presentation/activities/views/notes/NotesActivitySlots";
 import { createRepositoryActivitySlots } from "../../../presentation/activities/views/repository/RepositoryActivitySlots";
 import { createSearchActivitySlots } from "../../../presentation/activities/views/search/SearchActivitySlots";
 import { createSettingsActivitySlots } from "../../../presentation/activities/views/settings/SettingsActivitySlots";
@@ -11,11 +17,6 @@ import { createStructureOperationActivitySlots } from "../../../presentation/act
 import { createSyntaxActivitySlots } from "../../../presentation/activities/views/syntax/SyntaxActivitySlots";
 import { createTodoActivitySlots } from "../../../presentation/activities/views/todo/TodoActivitySlots";
 import { createVisualizationActivitySlots } from "../../../presentation/activities/views/visualization/VisualizationActivitySlots";
-import {
-  activityItems,
-  primaryActivityItems,
-  utilityActivityItems,
-} from "../../../presentation/ui/activityCatalog";
 import type {
   ActivityId,
   ActivitySlots,
@@ -55,15 +56,30 @@ function renderSlot(slot: React.ReactNode) {
 function createSlots(
   activityId: ActivityId,
   view: TestActivityViews = createActivityViews(),
+  notesMode: NotesMode = "edit",
 ): ActivitySlots {
   switch (activityId) {
     case "notes":
-      return createNotesActivitySlots({
-        focusMode: controls.focusMode,
-        onCollapseDetail: controls.onCollapseDetail,
-        onToggleFocusMode: controls.onToggleFocusMode,
-        repositoryName: view.repository.activeRepositoryLabel,
-        view: view.notes,
+      return createNotesWorkspaceActivitySlots({
+        edit: createNotesActivitySlots({
+          focusMode: controls.focusMode,
+          onCollapseDetail: controls.onCollapseDetail,
+          onToggleFocusMode: controls.onToggleFocusMode,
+          repositoryName: view.repository.activeRepositoryLabel,
+          view: view.notes,
+        }),
+        graph: createVisualizationActivitySlots({
+          ...controls,
+          shell: view.shell,
+          view: view.visualization,
+        }),
+        mode: notesMode,
+        onModeChange: () => undefined,
+        structure: createStructureOperationActivitySlots({
+          onConfigureSyntax: controls.onConfigureSyntax,
+          shell: view.shell,
+          view: view.structureOperation,
+        }),
       });
     case "journal":
       return createJournalActivitySlots({
@@ -79,22 +95,10 @@ function createSlots(
         onToggleFocusMode: controls.onToggleFocusMode,
         view: view.todo,
       });
-    case "structure-operation":
-      return createStructureOperationActivitySlots({
-        onConfigureSyntax: controls.onConfigureSyntax,
-        shell: view.shell,
-        view: view.structureOperation,
-      });
     case "syntax":
       return createSyntaxActivitySlots({
         onCollapseDetail: controls.onCollapseDetail,
         view: view.syntax,
-      });
-    case "visualization":
-      return createVisualizationActivitySlots({
-        ...controls,
-        shell: view.shell,
-        view: view.visualization,
       });
     case "repository":
       return createRepositoryActivitySlots({
@@ -117,8 +121,6 @@ function createSlots(
         repositories: [],
         state: searchController.getState(),
       });
-    case "data":
-      return createPlaceholderActivitySlots(activityId);
   }
 }
 
@@ -128,11 +130,8 @@ describe("activity slots", () => {
       ["notes", "Primary", true],
       ["journal", "日记", true],
       ["todo", "代办", true],
-      ["structure-operation", "结构操作", false],
-      ["visualization", null, true],
       ["syntax", "语法", true],
       ["search", "搜索", false],
-      ["data", null, false],
       ["repository", "仓库", false],
       ["settings", "设置", false],
     ] as const satisfies ReadonlyArray<
@@ -151,47 +150,47 @@ describe("activity slots", () => {
   });
 
   it("keeps catalog and lazy-controller order aligned", () => {
-    expect(primaryActivityItems.map(({ id, label }) => [id, label])).toEqual([
+    expect(
+      listActivityDescriptors("primary").map(({ id, label }) => [id, label]),
+    ).toEqual([
       ["notes", "笔记"],
       ["journal", "日记"],
       ["todo", "代办"],
-      ["structure-operation", "结构操作"],
-      ["visualization", "引用图谱"],
       ["syntax", "语法"],
       ["search", "搜索"],
     ]);
-    expect(utilityActivityItems.map(({ id, label }) => [id, label])).toEqual([
-      ["data", "数据"],
+    expect(
+      listActivityDescriptors("management").map(({ id, label }) => [id, label]),
+    ).toEqual([
       ["repository", "仓库"],
       ["settings", "设置"],
     ]);
-    expect(activityItems.map(({ id }) => id)).toEqual([
+    expect(activityDescriptors.map(({ id }) => id)).toEqual([
       "notes",
       "journal",
       "todo",
-      "structure-operation",
-      "visualization",
       "syntax",
       "search",
-      "data",
       "repository",
       "settings",
     ]);
-    expect(activityControllers.map(({ activityId }) => activityId)).toEqual([
-      "notes",
-      "journal",
-      "todo",
-      "structure-operation",
-      "visualization",
-      "syntax",
-      "search",
-      "repository",
-      "settings",
+    expect(activityDescriptors.map(({ id, group, availability }) => [
+      id,
+      group,
+      availability,
+    ])).toEqual([
+      ["notes", "primary", "workspace"],
+      ["journal", "primary", "always"],
+      ["todo", "primary", "always"],
+      ["syntax", "primary", "always"],
+      ["search", "primary", "always"],
+      ["repository", "management", "always"],
+      ["settings", "management", "always"],
     ]);
   });
 
   it("renders every slot and gates parsed Activities without syntax", () => {
-    for (const { id } of activityItems) {
+    for (const { id } of activityDescriptors) {
       const slots = createSlots(id);
 
       expect(renderSlot(slots.main).length).toBeGreaterThan(0);
@@ -215,10 +214,14 @@ describe("activity slots", () => {
 
     expect(renderSlot(createSlots("notes", rawViews).main))
       .toContain('data-editor-mode="raw"');
-    expect(renderSlot(createSlots("visualization", rawViews).main))
+    expect(renderSlot(createSlots("notes", rawViews, "graph").main))
       .toContain("引用图谱不可用");
-    expect(renderSlot(createSlots("structure-operation", rawViews).main))
+    expect(renderSlot(createSlots("notes", rawViews, "structure").main))
       .toContain("结构操作不可用");
+    const notesMarkup = renderSlot(createSlots("notes", rawViews).main);
+
+    expect(notesMarkup).toContain('role="tablist"');
+    expect(notesMarkup).toContain('aria-selected="true"');
 
     const submitted = {
       domains: ["workspace", "journal", "todo"] as const,

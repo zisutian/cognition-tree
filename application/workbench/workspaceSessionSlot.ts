@@ -11,8 +11,7 @@ import {
 
 export type WorkbenchWorkspaceSession =
   | { status: "absent" }
-  | ({ controller: WorkspaceSessionController } &
-      WorkspaceSessionControllerState);
+  | WorkspaceSessionControllerState;
 
 export type WorkspaceSessionSlot = {
   dispose(): void;
@@ -61,9 +60,7 @@ export function createWorkspaceSessionSlot({
     },
     getController: () => controller,
     getSnapshot: () =>
-      controller && state
-        ? { controller, ...state }
-        : { status: "absent" },
+      controller && state ? state : { status: "absent" },
     reconcile(nextRepository) {
       if (
         disposed ||

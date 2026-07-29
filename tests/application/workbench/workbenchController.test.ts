@@ -315,7 +315,7 @@ describe("Workbench controller", () => {
       controller,
       ({ workspace }) => workspace.status === "ready",
     );
-    const search = controller.getSnapshot().search.controller;
+    const search = controller.search;
     const activeWorkspace = controller.getSnapshot().workspace;
 
     expect(activeWorkspace.status).toBe("ready");
@@ -324,7 +324,7 @@ describe("Workbench controller", () => {
     }
     const activeSource = activeWorkspace.workspace.data.notes[0]!.source;
 
-    activeWorkspace.controller.commands.updateNoteSource(
+    controller.workspace.commands.updateNoteSource(
       "note-1",
       replaceEditableSource(activeSource, "尚未同步的本地检索内容"),
     );
@@ -339,7 +339,7 @@ describe("Workbench controller", () => {
       repositoryIds: ["repository-a"],
     });
     await search.search();
-    expect(controller.getSnapshot().search.state.results).toEqual(
+    expect(controller.getSnapshot().search.results).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           repositoryId: "repository-a",
@@ -360,7 +360,7 @@ describe("Workbench controller", () => {
     });
     await search.search();
 
-    const searchState = controller.getSnapshot().search.state;
+    const searchState = controller.getSnapshot().search;
 
     expect(searchState).toMatchObject({
       errorMessage: null,
@@ -380,7 +380,7 @@ describe("Workbench controller", () => {
 
     repositoryBContentReadable = false;
     await search.search();
-    expect(controller.getSnapshot().search.state.faults).toEqual([]);
+    expect(controller.getSnapshot().search.faults).toEqual([]);
     expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
       2,
     );
@@ -391,7 +391,7 @@ describe("Workbench controller", () => {
       controller,
       ({ workspace }) => workspace.status === "ready",
     );
-    expect(controller.getSnapshot().search.state.submitted?.query).toBe("B");
+    expect(controller.getSnapshot().search.submitted?.query).toBe("B");
     controller.dispose();
   });
 
@@ -409,9 +409,9 @@ describe("Workbench controller", () => {
     const reloadJournal = vi.fn(async () => undefined);
     const reloadTodo = vi.fn(async () => undefined);
 
-    snapshot.workspace.controller.reload = reloadWorkspace;
-    snapshot.builtIns.journal.controller.reload = reloadJournal;
-    snapshot.builtIns.todo.controller.reload = reloadTodo;
+    harness.controller.workspace.reload = reloadWorkspace;
+    harness.controller.journal.reload = reloadJournal;
+    harness.controller.todo.reload = reloadTodo;
     const notification: DomainChangeNotification = {
       changedDomains: {
         journal: true,
@@ -488,9 +488,9 @@ describe("Workbench controller", () => {
       ({ workspace }) => workspace.status === "ready",
     );
     if (initial.workspace.status !== "ready") throw new Error("not ready");
-    const originalFlush = initial.workspace.controller.flushPendingChanges;
+    const originalFlush = controller.workspace.flushPendingChanges;
 
-    initial.workspace.controller.flushPendingChanges = async () => {
+    controller.workspace.flushPendingChanges = async () => {
       events.push("flush");
       await originalFlush();
     };
@@ -536,7 +536,7 @@ describe("Workbench controller", () => {
     if (failedInitial.workspace.status !== "ready") {
       throw new Error("failed-switch workspace is not ready");
     }
-    failedInitial.workspace.controller.flushPendingChanges = vi.fn(
+    failedHarness.controller.workspace.flushPendingChanges = vi.fn(
       async () => {
         throw new Error("local stage failed");
       },
@@ -574,7 +574,7 @@ describe("Workbench controller", () => {
     if (snapshot.workspace.status !== "ready") throw new Error("not ready");
     const resume = vi.fn();
 
-    snapshot.workspace.controller.prepareForRepositoryRemoval = vi.fn(
+    controller.workspace.prepareForRepositoryRemoval = vi.fn(
       async () => ({ resume }),
     );
     vi.mocked(workspaceCatalog.deleteRepository).mockRejectedValueOnce(

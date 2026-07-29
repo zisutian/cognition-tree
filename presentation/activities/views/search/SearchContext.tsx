@@ -1,6 +1,6 @@
 import {
   searchDraftsEqual,
-  type SearchController,
+  type SearchControllerActions,
   type SearchControllerState,
 } from "../../../../application/search/searchController";
 import {
@@ -40,7 +40,7 @@ export function SearchContext({
   state,
 }: {
   catalogStatus: "failed" | "loading" | "ready";
-  controller: SearchController;
+  controller: SearchControllerActions;
   repositories: SearchRepositoryOption[];
   state: SearchControllerState;
 }) {

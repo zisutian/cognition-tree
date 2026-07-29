@@ -25,6 +25,7 @@ import {
 import {
   getActivityButton,
   openWorkbench,
+  selectNotesMode,
 } from "./support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
@@ -485,7 +486,7 @@ test.describe("activity view flows", () => {
     page,
   }) => {
     await openWorkbench(page, visualizationRepositoryId);
-    await getActivityButton(page, "引用图谱").click();
+    await selectNotesMode(page, "图谱");
 
     const canvas = page.getByRole("application", {
       name: "笔记引用力导向图",
@@ -538,8 +539,8 @@ test.describe("activity view flows", () => {
     expect(await activeTitle.textContent()).not.toBe(secondTitle);
 
     for (let index = 0; index < 3; index += 1) {
-      await getActivityButton(page, "笔记").click();
-      await getActivityButton(page, "引用图谱").click();
+      await selectNotesMode(page, "编辑");
+      await selectNotesMode(page, "图谱");
       await expect(canvas).toBeVisible();
     }
 
@@ -554,7 +555,7 @@ test.describe("activity view flows", () => {
     page,
   }) => {
     await openWorkbench(page, visualizationRepositoryId);
-    await getActivityButton(page, "引用图谱").click();
+    await selectNotesMode(page, "图谱");
 
     const canvas = page.getByRole("application", {
       name: "笔记引用力导向图",
@@ -583,7 +584,7 @@ test.describe("activity view flows", () => {
     page,
   }) => {
     await openWorkbench(page, visualizationRepositoryId);
-    await getActivityButton(page, "引用图谱").click();
+    await selectNotesMode(page, "图谱");
 
     const canvas = page.getByRole("application", {
       name: "笔记引用力导向图",
@@ -637,7 +638,7 @@ test.describe("activity view flows", () => {
     page,
   }) => {
     await openWorkbench(page, visualizationRepositoryId);
-    await getActivityButton(page, "引用图谱").click();
+    await selectNotesMode(page, "图谱");
 
     await page.getByRole("button", { name: "图谱设置" }).click();
 
@@ -667,8 +668,8 @@ test.describe("activity view flows", () => {
     await page.keyboard.press("Escape");
     await expect(settings).toHaveCount(0);
 
-    await getActivityButton(page, "笔记").click();
-    await getActivityButton(page, "引用图谱").click();
+    await selectNotesMode(page, "编辑");
+    await selectNotesMode(page, "图谱");
     await page.getByRole("button", { name: "图谱设置" }).click();
 
     const restoredSettings = page.getByRole("dialog", { name: "图谱设置" });
