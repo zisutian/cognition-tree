@@ -124,6 +124,7 @@ function createBrowserWorkspaceRepository(
     const revision = await createWorkspaceRepositoryRevision(state.content);
 
     return cache.snapshots.completeSync({
+      committedContent: state.content,
       committedRemoteRevision: revision,
       expectedLocalRevision: state.localRevision,
       identity,
@@ -151,6 +152,7 @@ function createBrowserWorkspaceRepository(
       });
       const revision = await createWorkspaceRepositoryRevision(outbound);
       const saved = await cache.snapshots.completeSync({
+        committedContent: outbound,
         committedRemoteRevision: revision,
         expectedLocalRevision: staged.localRevision,
         identity,

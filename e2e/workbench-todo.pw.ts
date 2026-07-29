@@ -306,7 +306,7 @@ test.describe.serial("Todo activity flows", () => {
     page,
   }) => {
     await resetTodoRepository(api);
-    await page.route("**/api/repositories", async (route) => {
+    await page.route("**/api/v1/admin/repositories", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
           body: JSON.stringify({

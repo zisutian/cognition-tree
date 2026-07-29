@@ -8,6 +8,7 @@ import {
   readCtnCanonicalTitleHeader,
 } from "../parser/parseCtnDocument.ts";
 import type { CtnEditableDocument } from "../parser/types.ts";
+import type { CtnCanonicalBlock } from "../parser/types.ts";
 import type { CtnCompiledSyntax } from "../syntax/types.ts";
 import {
   formatCtnBlockMetadataLine,
@@ -193,4 +194,28 @@ export function touchCtnSourceTitleMetadata(
   const { title } = readCtnCanonicalTitleHeader(source);
 
   return replaceCtnSourceTitle(source, title, updatedAt);
+}
+
+export function touchCtnSourceBlockMetadata(
+  source: string,
+  block: CtnCanonicalBlock,
+  updatedAt: string,
+) {
+  if (Date.parse(updatedAt) < Date.parse(block.metadata.updatedAt)) {
+    throw new Error(`CTN block ${block.id} updatedAt cannot move backwards.`);
+  }
+  if (updatedAt === block.metadata.updatedAt) return source;
+  const lines = source.split("\n");
+  const lineIndex = block.metadataLineNumber - 1;
+
+  if (lineIndex < 0 || lineIndex >= lines.length) {
+    throw new Error(`CTN block ${block.id} metadata line is outside the source.`);
+  }
+  lines[lineIndex] = formatCtnBlockMetadataLine({
+    ...block.metadata,
+    id: block.id,
+    indentText: block.indentText,
+    updatedAt,
+  });
+  return lines.join("\n");
 }

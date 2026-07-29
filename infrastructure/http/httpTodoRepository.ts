@@ -27,7 +27,7 @@ export function createHttpTodoRepositoryBackend({
       parseSnapshot: parseTodoSnapshot,
       serializeCommit: serializeJsonIteratively,
     },
-    endpoint: "/api/todo/snapshot",
+    endpoint: "/api/v1/sync/todo",
     fetch: fetchFn,
     token,
     validateContent: validateTodoRepositoryContent,

@@ -1,5 +1,5 @@
-import type { FolderId, NoteId } from "../workspaceData";
-import type { NoteTreeFolderNode, NoteTreeNoteNode } from "./types";
+import type { FolderId, NoteId } from "../workspaceData.ts";
+import type { NoteTreeFolderNode, NoteTreeNoteNode } from "./types.ts";
 
 export function createNoteTreeNoteNode(noteId: NoteId): NoteTreeNoteNode {
   return {

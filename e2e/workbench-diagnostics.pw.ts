@@ -133,12 +133,18 @@ test.describe.serial("workbench diagnostics", () => {
     const settingsContext = page.locator(".settings-context");
     const settingsPanel = page.locator(".settings-panel");
 
-    const settingsRow = settingsContext.locator(".settings-row");
+    const interfaceSection = settingsContext.getByRole("button", {
+      name: "界面",
+      exact: true,
+    });
+    const apiSection = settingsContext.getByRole("button", {
+      name: "API 访问",
+      exact: true,
+    });
 
-    await expect(settingsRow).toHaveCount(1);
-    await expect(settingsRow).toHaveText("界面");
-    await expect(settingsRow).toHaveAttribute("aria-current", "page");
-    await expect(settingsContext.getByRole("button")).toHaveCount(0);
+    await expect(settingsContext.getByRole("button")).toHaveCount(2);
+    await expect(interfaceSection).toHaveAttribute("aria-current", "page");
+    await expect(apiSection).not.toHaveAttribute("aria-current", "page");
     await expect(settingsPanel.getByRole("heading", { name: "界面" }))
       .toBeVisible();
     await expect(
@@ -176,7 +182,7 @@ test.describe.serial("workbench diagnostics", () => {
     await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await getActivityButton(page, "语法").click();
     await page.route(
-      `**/api/repositories/${diagnosticsRepositoryId}/snapshot`,
+      `**/api/v1/sync/workspaces/${diagnosticsRepositoryId}`,
       async (route) => {
         if (route.request().method() === "PUT") {
           await route.fulfill({

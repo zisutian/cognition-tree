@@ -93,7 +93,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
-          "/api/repositories",
+          "/api/v1/admin/repositories",
           {
             body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },
@@ -124,7 +124,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
-          `/api/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
+          `/api/v1/admin/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
           { method: "DELETE" },
           token,
         ),
@@ -149,7 +149,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           await requestRepositoryJson(
             fetchFn,
             baseUrl,
-            "/api/repositories",
+            "/api/v1/admin/repositories",
             undefined,
             token,
           ),
@@ -236,7 +236,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
-          `/api/repositories/${encodeURIComponent(id)}`,
+          `/api/v1/admin/repositories/${encodeURIComponent(id)}`,
           {
             body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },

@@ -579,6 +579,7 @@ describe("IndexedDB repository client cache", () => {
     });
 
     await cache.snapshots.completeSync({
+      committedContent: next,
       committedRemoteRevision: revisionB,
       expectedLocalRevision: draftB,
       identity: repositoryIdentity,

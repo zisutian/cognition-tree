@@ -4,6 +4,9 @@ import type {
   JournalWorkspaceNoteDestination,
   JournalWorkspaceReferenceResolver,
 } from "../journal/journalExternalReferences";
+import type {
+  ApiAccessAdministration,
+} from "../apiAccess/apiAccessAdministration";
 import {
   createJournalSessionController,
   type JournalSessionController,
@@ -31,6 +34,10 @@ import type { ActiveRepositorySelection } from "../repository/activeRepositorySe
 import type { WorkspaceRepositoryCatalog } from "../repository/workspaceRepositoryCatalog";
 import type { WorkspaceRepositoryContent } from "../repository/workspaceRepository";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
+import type {
+  DomainChangeEventSource,
+  DomainRevisionCheckpoint,
+} from "../sync/domainChangeEvents";
 import {
   createTodoSessionController,
   type TodoSessionController,
@@ -58,6 +65,7 @@ export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
 export type { WorkbenchBuiltInSession } from "./builtInSessionSlot";
 
 export type WorkbenchControllerSnapshot = {
+  apiAccessAdministration: ApiAccessAdministration | null;
   builtIns: {
     catalog: BuiltInCatalogApplication;
     journal: WorkbenchBuiltInSession<JournalSessionController>;
@@ -96,9 +104,12 @@ export type WorkbenchController = {
 
 type WorkbenchControllerOptions = {
   activeRepositorySelection: ActiveRepositorySelection;
+  apiAccessAdministration?: ApiAccessAdministration;
   builtInCatalog: BuiltInCatalog;
+  changeEvents?: DomainChangeEventSource;
   createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
   scheduler: ApplicationScheduler;
+  timezoneOffsetMinutes?: () => number;
   workspaceCatalog: WorkspaceRepositoryCatalog;
   workspaceCommandDependencies: SessionCommandDependencies;
 };
@@ -114,9 +125,12 @@ function findBuiltInDescriptor(
 
 export function createWorkbenchController({
   activeRepositorySelection,
+  apiAccessAdministration,
   builtInCatalog,
+  changeEvents,
   createInitialWorkspaceContent,
   scheduler,
+  timezoneOffsetMinutes = () => 0,
   workspaceCatalog,
   workspaceCommandDependencies,
 }: WorkbenchControllerOptions): WorkbenchController {
@@ -134,6 +148,16 @@ export function createWorkbenchController({
   let referenceResolutionGeneration = 0;
   let started = false;
   let snapshot: WorkbenchControllerSnapshot;
+  let latestCheckpoint: DomainRevisionCheckpoint | null = null;
+  let workspaceCatalogChangeSequence = -1;
+  let catalogAttemptedSequence = -1;
+  let catalogReloading = false;
+  const workspaceAttemptedSequences = new Map<string, number>();
+  let journalAttemptedSequence = -1;
+  let journalReloading = false;
+  let todoAttemptedSequence = -1;
+  let todoReloading = false;
+  let workspaceReloading = false;
 
   const projectBuiltInCatalog = (): BuiltInCatalogApplication => ({
     catalogLabel: builtInCatalogController.catalogLabel,
@@ -145,6 +169,7 @@ export function createWorkbenchController({
     if (disposed) return;
     if (referencesChanged) referenceResolutionGeneration += 1;
     snapshot = {
+      apiAccessAdministration: apiAccessAdministration ?? null,
       builtIns: {
         catalog: projectBuiltInCatalog(),
         journal: journalSlot.getSnapshot(),
@@ -157,6 +182,7 @@ export function createWorkbenchController({
       workspace: workspaceSlot.getSnapshot(),
     };
     listeners.forEach((listener) => listener());
+    reconcileExternalChanges();
   };
   const workspaceSlot = createWorkspaceSessionSlot({
     commandDependencies: workspaceCommandDependencies,
@@ -171,6 +197,13 @@ export function createWorkbenchController({
       createJournalSessionController(
         descriptor ? builtInCatalog.openJournal(descriptor) : null,
         scheduler,
+        {
+          createBlockId: workspaceCommandDependencies.createBlockId,
+          createJournalEntryId: () =>
+            `journal-entry-${workspaceCommandDependencies.createBlockId()}`,
+          now: workspaceCommandDependencies.now,
+          timezoneOffsetMinutes,
+        },
       ),
     onChange: () => publish(),
   });
@@ -179,6 +212,12 @@ export function createWorkbenchController({
       createTodoSessionController(
         descriptor ? builtInCatalog.openTodo(descriptor) : null,
         scheduler,
+        {
+          createBlockId: workspaceCommandDependencies.createBlockId,
+          createTodoCollectionId: () =>
+            `todo-collection-${workspaceCommandDependencies.createBlockId()}`,
+          now: workspaceCommandDependencies.now,
+        },
       ),
     onChange: () => publish(),
   });
@@ -188,6 +227,97 @@ export function createWorkbenchController({
     onChange: () => publish(),
     selectRepository: repositoryCatalogController.selectRepository,
   });
+  const reconcileExternalChanges = () => {
+    if (disposed || !started || !latestCheckpoint) return;
+    const sequence = latestCheckpoint.sequence;
+    const catalog = repositoryCatalogController.getSnapshot();
+    const knownRepositoryIds = catalog.state.status === "ready"
+      ? catalog.state.repositories.map(({ id }) => id).sort()
+      : [];
+    const checkpointRepositoryIds =
+      Object.keys(latestCheckpoint.workspaces).sort();
+    const catalogMismatch =
+      knownRepositoryIds.length !== checkpointRepositoryIds.length ||
+      knownRepositoryIds.some(
+        (repositoryId, index) =>
+          repositoryId !== checkpointRepositoryIds[index],
+      );
+
+    if (
+      catalog.state.status === "ready" &&
+      !catalogReloading &&
+      catalogAttemptedSequence < sequence &&
+      (catalogMismatch ||
+        catalogAttemptedSequence < workspaceCatalogChangeSequence)
+    ) {
+      catalogAttemptedSequence = sequence;
+      catalogReloading = true;
+      void repositoryCatalogController.reload()
+        .catch(() => undefined)
+        .finally(() => {
+          catalogReloading = false;
+          reconcileExternalChanges();
+        });
+    }
+    const activeRepositoryId =
+      catalog.activeDescriptor?.id;
+    const workspace = workspaceSlot.getSnapshot();
+
+    if (
+      activeRepositoryId &&
+      workspace.status === "ready" &&
+      latestCheckpoint.workspaces[activeRepositoryId] &&
+      workspace.remoteRevision !==
+        latestCheckpoint.workspaces[activeRepositoryId] &&
+      !workspaceReloading &&
+      (workspaceAttemptedSequences.get(activeRepositoryId) ?? -1) < sequence
+    ) {
+      workspaceAttemptedSequences.set(activeRepositoryId, sequence);
+      workspaceReloading = true;
+      void workspace.controller.reload()
+        .catch(() => undefined)
+        .finally(() => {
+          workspaceReloading = false;
+          reconcileExternalChanges();
+        });
+    }
+    const journal = journalSlot.getSnapshot();
+
+    if (
+      journal.state.status === "ready" &&
+      latestCheckpoint.journal &&
+      journal.state.snapshot.remoteRevision !== latestCheckpoint.journal &&
+      !journalReloading &&
+      journalAttemptedSequence < sequence
+    ) {
+      journalAttemptedSequence = sequence;
+      journalReloading = true;
+      void journal.controller.reload()
+        .catch(() => undefined)
+        .finally(() => {
+          journalReloading = false;
+          reconcileExternalChanges();
+        });
+    }
+    const todo = todoSlot.getSnapshot();
+
+    if (
+      todo.state.status === "ready" &&
+      latestCheckpoint.todo &&
+      todo.state.snapshot.remoteRevision !== latestCheckpoint.todo &&
+      !todoReloading &&
+      todoAttemptedSequence < sequence
+    ) {
+      todoAttemptedSequence = sequence;
+      todoReloading = true;
+      void todo.controller.reload()
+        .catch(() => undefined)
+        .finally(() => {
+          todoReloading = false;
+          reconcileExternalChanges();
+        });
+    }
+  };
   const currentWorkspaceReferenceSnapshot = ():
     JournalWorkspaceReferenceSnapshot | null => {
     const catalog = repositoryCatalogController.getSnapshot();
@@ -224,8 +354,22 @@ export function createWorkbenchController({
     reconcileBuiltInSessions();
     publish();
   });
+  const unsubscribeChangeEvents = changeEvents?.subscribe((event) => {
+    if (
+      latestCheckpoint &&
+      event.sequence < latestCheckpoint.sequence
+    ) {
+      return;
+    }
+    latestCheckpoint = event.checkpoint;
+    if (event.changedDomains.workspaceCatalog) {
+      workspaceCatalogChangeSequence = event.sequence;
+    }
+    reconcileExternalChanges();
+  }) ?? (() => undefined);
 
   snapshot = {
+    apiAccessAdministration: apiAccessAdministration ?? null,
     builtIns: {
       catalog: projectBuiltInCatalog(),
       journal: journalSlot.getSnapshot(),
@@ -275,6 +419,8 @@ export function createWorkbenchController({
       builtInCatalogController.stop();
       unsubscribeCatalog();
       unsubscribeBuiltIns();
+      unsubscribeChangeEvents();
+      changeEvents?.dispose();
       navigationController.dispose();
       workspaceSlot.dispose();
       journalSlot.dispose();
@@ -310,6 +456,8 @@ export function createWorkbenchController({
       workspaceSlot.start();
       journalSlot.start();
       todoSlot.start();
+      changeEvents?.start();
+      reconcileExternalChanges();
     },
     subscribe(listener) {
       listeners.add(listener);

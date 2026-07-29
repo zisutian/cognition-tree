@@ -105,6 +105,21 @@ export function useWorkbenchApplicationBindings({
   }, [feedbackController, snapshot.catalog.activeDescriptor?.id]);
 
   return {
+    apiAccess: snapshot.apiAccessAdministration
+      ? {
+          administration: snapshot.apiAccessAdministration,
+          repositories: snapshot.catalog.state.status === "ready"
+            ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
+                id,
+                label,
+              }))
+            : [],
+          status: "available" as const,
+        }
+      : {
+          reason: "浏览器本地存储不会暴露远程 API。请使用服务器存储模式。",
+          status: "unavailable" as const,
+        },
     journal,
     repository: createRepositoryProjection(
       controller,

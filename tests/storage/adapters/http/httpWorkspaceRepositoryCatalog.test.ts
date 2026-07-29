@@ -83,7 +83,7 @@ describe("HTTP workspace repository catalog", () => {
       {
         body: JSON.stringify(input),
         method: "POST",
-        url: "http://api.test/base/api/repositories",
+        url: "http://api.test/base/api/v1/admin/repositories",
       },
     ]);
   });
@@ -124,7 +124,7 @@ describe("HTTP workspace repository catalog", () => {
     expect(calls[1]).toEqual({
       body: JSON.stringify({ label: "Renamed" }),
       method: "PATCH",
-      url: "http://api.test/base/api/repositories/primary",
+      url: "http://api.test/base/api/v1/admin/repositories/primary",
     });
   });
 
@@ -170,7 +170,7 @@ describe("HTTP workspace repository catalog", () => {
     expect(repository.label).toBe("Stable label");
     expect(repository.location).toEqual(descriptor.location);
     expect(requestedUrls).toEqual([
-      "http://api.test/api/repositories/primary/snapshot",
+      "http://api.test/api/v1/sync/workspaces/primary",
     ]);
   });
 
@@ -338,7 +338,7 @@ describe("HTTP workspace repository catalog", () => {
     })).resolves.toEqual({ status: "deleted" });
     expect(calls).toEqual([{
       method: "DELETE",
-      url: "http://api.test/base/api/repositories/primary?mode=delete-managed-data",
+      url: "http://api.test/base/api/v1/admin/repositories/primary?mode=delete-managed-data",
     }]);
     expect(atomicDelete).toHaveBeenCalledWith(expect.objectContaining({
       repositoryId: "primary",

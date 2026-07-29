@@ -20,7 +20,6 @@ export function createRepositoryView(
     deleteRepository: async () => undefined,
     deletionBlocked: false,
     deletionWarning: "",
-    discardPendingChangesAndReload: async () => undefined,
     hasSaveConflict: false,
     issues: [],
     refreshRepositories: async () => undefined,

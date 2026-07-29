@@ -9,7 +9,7 @@ import {
   renameTodoCollection as renameTodoCollectionImplementation,
   setTodoBlockCompletion as setTodoBlockCompletionImplementation,
   setTodoBlockRecurrence as setTodoBlockRecurrenceImplementation,
-  stopTodoBlockRecurrence,
+  stopTodoBlockRecurrence as stopTodoBlockRecurrenceImplementation,
   TodoOccurrenceConflictError,
   toggleTodoBlock as toggleTodoBlockImplementation,
   updateTodoCollectionBody,
@@ -71,12 +71,43 @@ function setTodoBlockCompletion(
 
 function setTodoBlockRecurrence(
   content: TodoContent,
-  input: Parameters<typeof setTodoBlockRecurrenceImplementation>[2],
+  input: Omit<
+    Parameters<typeof setTodoBlockRecurrenceImplementation>[2],
+    "updatedAt"
+  > & { updatedAt?: string },
 ) {
+  const block = createTodoParseIndex(content)
+    .getParsedCollection(input.collectionId)!
+    .analysis.document.blocks.find(({ id }) => id === input.blockId)!;
   return setTodoBlockRecurrenceImplementation(
     content,
     createTodoParseIndex(content),
-    input,
+    {
+      ...input,
+      updatedAt: input.updatedAt ??
+        new Date(Date.parse(block.metadata.updatedAt) + 1).toISOString(),
+    },
+  );
+}
+
+function stopTodoBlockRecurrence(
+  content: TodoContent,
+  input: Omit<
+    Parameters<typeof stopTodoBlockRecurrenceImplementation>[2],
+    "updatedAt"
+  > & { updatedAt?: string },
+) {
+  const block = createTodoParseIndex(content)
+    .getParsedCollection(input.collectionId)!
+    .analysis.document.blocks.find(({ id }) => id === input.blockId)!;
+  return stopTodoBlockRecurrenceImplementation(
+    content,
+    createTodoParseIndex(content),
+    {
+      ...input,
+      updatedAt: input.updatedAt ??
+        new Date(Date.parse(block.metadata.updatedAt) + 1).toISOString(),
+    },
   );
 }
 
@@ -206,9 +237,11 @@ describe("Todo CTN commands", () => {
       .toBe(1);
   });
 
-  it("keeps completion in a sidecar and toggles parent and child independently", () => {
+  it("keeps completion in a sidecar, touches block time, and toggles independently", () => {
     const content = collectionWithTasks();
-    const source = content.collections[0]!.source;
+    const editableSource = createTodoCollectionBodyProjection(
+      firstParsedCollection(content),
+    ).source;
     const parentDone = toggleTodoBlock(content, {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),
@@ -228,7 +261,19 @@ describe("Todo CTN commands", () => {
       today: "2026-07-18",
     });
 
-    expect(parentDone.collections[0]!.source).toBe(source);
+    expect(createTodoCollectionBodyProjection(
+      firstParsedCollection(parentDone),
+    ).source).toBe(editableSource);
+    expect(
+      firstParsedCollection(parentDone).analysis.document.blocks.find(
+        ({ id }) => id === todoBlockId(1),
+      )?.metadata.updatedAt,
+    ).toBe(todoTimestamp(4));
+    expect(
+      firstParsedCollection(parentDone).analysis.document.blocks.find(
+        ({ id }) => id === todoBlockId(2),
+      )?.metadata.updatedAt,
+    ).toBe(todoTimestamp(3));
     expect(bothDone.collections[0]!.completions.map(({ blockId }) => blockId))
       .toEqual([todoBlockId(1), todoBlockId(2)]);
     expect(childOnly.collections[0]!.completions).toEqual([
@@ -469,6 +514,26 @@ describe("Todo CTN commands", () => {
     expect(stopped.collections[0]!.recurrences[0]!.stages).toEqual([
       expect.objectContaining({ endsBefore: "2026-07-21" }),
     ]);
+    expect(
+      projectTodoRecurrence(
+        stopped.collections[0]!.recurrences[0]!,
+        "2026-07-20",
+      ),
+    ).toMatchObject({
+      active: false,
+      currentOccurrenceDate: null,
+      nextOccurrenceDate: null,
+    });
+    expect(() =>
+      setTodoBlockCompletion(stopped, {
+        blockId: todoBlockId(1),
+        collectionId: todoCollectionId(1),
+        completed: true,
+        completedAt: todoTimestamp(9),
+        occurrenceDate: null,
+        today: "2026-07-20",
+      })
+    ).not.toThrow();
     const reenabled = setTodoBlockRecurrence(stopped, {
       blockId: todoBlockId(1),
       collectionId: todoCollectionId(1),

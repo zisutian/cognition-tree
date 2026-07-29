@@ -8,6 +8,7 @@ import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.t
 import {
   initializeCtnSourceBlockMetadataAnalysis,
   replaceCtnSourceTitle,
+  touchCtnSourceBlockMetadata,
 } from "../../ctn/metadata/sourceMetadata.ts";
 import {
   assertCtnEditableSourceChange,
@@ -95,12 +96,14 @@ export type SetTodoBlockRecurrenceInput = {
   rule: TodoRecurrenceRule;
   stageId: TodoRecurrenceStageId;
   today: TodoLocalDate;
+  updatedAt: string;
 };
 
 export type StopTodoBlockRecurrenceInput = {
   blockId: string;
   collectionId: TodoCollectionId;
   today: TodoLocalDate;
+  updatedAt: string;
 };
 
 export type TodoBlockMoveTarget =
@@ -399,6 +402,24 @@ function requireTodoItemBlock(
   return block;
 }
 
+function replaceTodoCollectionWithTouchedBlock(
+  content: TodoContent,
+  collectionIndex: number,
+  collection: TodoCollection,
+  block: CtnCanonicalBlock,
+  updatedAt: string,
+) {
+  canonicalTimestamp(updatedAt, "Todo block updatedAt");
+  return replaceCollection(content, collectionIndex, {
+    ...collection,
+    source: touchCtnSourceBlockMetadata(
+      collection.source,
+      block,
+      updatedAt,
+    ),
+  });
+}
+
 export function toggleTodoBlock(
   content: TodoContent,
   index: TodoParseIndex,
@@ -495,10 +516,13 @@ export function setTodoBlockCompletion(
     const recurrences = [...collection.recurrences];
 
     recurrences[recurrenceIndex] = { ...recurrence, completions };
-    return replaceCollection(content, collectionIndex, {
-      ...collection,
-      recurrences,
-    });
+    return replaceTodoCollectionWithTouchedBlock(
+      content,
+      collectionIndex,
+      { ...collection, recurrences },
+      block,
+      input.completedAt,
+    );
   }
   if (input.occurrenceDate !== null) {
     throw new TodoOccurrenceConflictError(null);
@@ -524,10 +548,13 @@ export function setTodoBlockCompletion(
     return content;
   }
 
-  return replaceCollection(content, collectionIndex, {
-    ...collection,
-    completions,
-  });
+  return replaceTodoCollectionWithTouchedBlock(
+    content,
+    collectionIndex,
+    { ...collection, completions },
+    block,
+    input.completedAt,
+  );
 }
 
 function assertNewRecurrenceStageId(
@@ -557,7 +584,11 @@ export function setTodoBlockRecurrence(
 ) {
   const collectionIndex = findCollectionIndex(content, input.collectionId);
   const collection = content.collections[collectionIndex];
-  requireTodoItemBlock(index, input.collectionId, input.blockId);
+  const block = requireTodoItemBlock(
+    index,
+    input.collectionId,
+    input.blockId,
+  );
   const today = requireTodoLocalDate(input.today);
   validateTodoRecurrenceRule(input.rule);
   const recurrenceIndex = collection.recurrences.findIndex(
@@ -663,17 +694,26 @@ export function setTodoBlockRecurrence(
 
   if (recurrenceIndex >= 0) recurrences[recurrenceIndex] = nextRecurrence;
   else recurrences.push(nextRecurrence);
-  return replaceCollection(content, collectionIndex, {
-    ...collection,
-    completions: ordinaryCompletion
-      ? collection.completions.filter(({ blockId }) => blockId !== input.blockId)
-      : collection.completions,
-    recurrences,
-  });
+  return replaceTodoCollectionWithTouchedBlock(
+    content,
+    collectionIndex,
+    {
+      ...collection,
+      completions: ordinaryCompletion
+        ? collection.completions.filter(({ blockId }) =>
+            blockId !== input.blockId
+          )
+        : collection.completions,
+      recurrences,
+    },
+    block,
+    input.updatedAt,
+  );
 }
 
 export function stopTodoBlockRecurrence(
   content: TodoContent,
+  index: TodoParseIndex,
   input: StopTodoBlockRecurrenceInput,
 ) {
   const collectionIndex = findCollectionIndex(content, input.collectionId);
@@ -683,6 +723,11 @@ export function stopTodoBlockRecurrence(
   );
 
   if (recurrenceIndex < 0) return content;
+  const block = requireTodoItemBlock(
+    index,
+    input.collectionId,
+    input.blockId,
+  );
   const today = requireTodoLocalDate(input.today);
   const recurrence = collection.recurrences[recurrenceIndex];
   const projection = projectTodoRecurrence(recurrence, today);
@@ -706,10 +751,23 @@ export function stopTodoBlockRecurrence(
     ),
     stages: retainedStages,
   };
-  return replaceCollection(content, collectionIndex, {
-    ...collection,
-    recurrences,
-  });
+  const completions = collection.completions.filter(
+    ({ blockId }) => blockId !== input.blockId,
+  );
+
+  if (projection.completedAt) {
+    completions.push({
+      blockId: input.blockId,
+      completedAt: projection.completedAt,
+    });
+  }
+  return replaceTodoCollectionWithTouchedBlock(
+    content,
+    collectionIndex,
+    { ...collection, completions, recurrences },
+    block,
+    input.updatedAt,
+  );
 }
 
 function blockRange(block: CtnCanonicalBlock) {

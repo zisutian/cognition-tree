@@ -147,10 +147,3 @@ export type RepositoryDeletionModeDto =
 export type RepositoryDeletionResultDto = {
   status: "deleted" | "deleting";
 };
-
-export type RepositoryApiErrorDto = {
-  code: RepositoryApiErrorCodeDto;
-  currentRevision?: RepositoryRevisionDto;
-  message: string;
-  requestId: string;
-};

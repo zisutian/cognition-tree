@@ -113,12 +113,12 @@ describe("HTTP built-in data repositories", () => {
       });
       if (init?.method === "PUT") {
         return jsonResponse({
-          revision: url.includes("/journal/")
+          revision: url.endsWith("/journal")
             ? journalRevisionB
             : todoRevisionB,
         });
       }
-      return url.includes("/journal/")
+      return url.endsWith("/journal")
         ? jsonResponse({ content: journalContent, revision: journalRevisionA })
         : jsonResponse({ content: todoContent, revision: todoRevisionA });
     };
@@ -148,10 +148,10 @@ describe("HTTP built-in data repositories", () => {
       content: todoContent,
     })).resolves.toEqual({ revision: todoRevisionB });
     expect(calls.map(({ method, url }) => ({ method, url }))).toEqual([
-      { method: "GET", url: "https://api.test/root/api/journal/snapshot" },
-      { method: "PUT", url: "https://api.test/root/api/journal/snapshot" },
-      { method: "GET", url: "https://api.test/root/api/todo/snapshot" },
-      { method: "PUT", url: "https://api.test/root/api/todo/snapshot" },
+      { method: "GET", url: "https://api.test/root/api/v1/sync/journal" },
+      { method: "PUT", url: "https://api.test/root/api/v1/sync/journal" },
+      { method: "GET", url: "https://api.test/root/api/v1/sync/todo" },
+      { method: "PUT", url: "https://api.test/root/api/v1/sync/todo" },
     ]);
     expect(JSON.parse(String(calls[1]?.body))).toEqual({
       baseRevision: journalRevisionA,
@@ -178,7 +178,7 @@ describe("HTTP built-in data repositories", () => {
           url,
         });
         if (url.endsWith("/retry")) return jsonResponse({ status: "ready" });
-        if (url.endsWith("/snapshot")) {
+        if (url.endsWith("/sync/journal")) {
           return jsonResponse({ content: journalContent, revision: journalRevisionA });
         }
         return jsonResponse(serverCatalog());
@@ -197,9 +197,9 @@ describe("HTTP built-in data repositories", () => {
     expect(calls.at(-1)).toEqual({
       body: undefined,
       method: "POST",
-      url: "https://api.test/root/api/journal/retry",
+      url: "https://api.test/root/api/v1/admin/built-ins/journal/retry",
     });
-    expect(calls[0]?.url).toBe("https://api.test/root/api/built-ins");
+    expect(calls[0]?.url).toBe("https://api.test/root/api/v1/admin/built-ins");
   });
 
   it("rejects invalid Journal and Todo transitions before issuing PUT", async () => {
@@ -273,7 +273,7 @@ describe("HTTP built-in data repositories", () => {
     const online = createHttpBuiltInCatalog({
       baseUrl: "https://cached.test/api",
       ...caches,
-      fetch: async (input) => String(input).endsWith("/snapshot")
+      fetch: async (input) => String(input).endsWith("/sync/journal")
         ? jsonResponse({ content: journalContent, revision: journalRevisionA })
         : jsonResponse(serverCatalog("/cached")),
       token: "same-token",

@@ -1,13 +1,13 @@
-import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData";
-import type { NoteTreeFolderNode } from "./types";
-import { createNoteTreeNoteNode } from "./create";
+import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData.ts";
+import type { NoteTreeFolderNode } from "./types.ts";
+import { createNoteTreeNoteNode } from "./create.ts";
 import {
   findNoteTreeNodePath,
   insertNoteTreeNodeAtPath,
   removeNoteTreeNodeAtPath,
   readNoteTreeNodeAtPath,
   replaceNoteTreeNodeAtPath,
-} from "./pathEditor";
+} from "./pathEditor.ts";
 
 function findFolderPath(tree: readonly NoteTreeNode[], folderId: FolderId) {
   return findNoteTreeNodePath(

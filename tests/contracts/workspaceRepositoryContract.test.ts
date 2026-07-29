@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../contracts/workspace/contractValue";
-import { parseRepositoryApiError } from "../../contracts/workspace/parseApiError";
+import { parseApiV1Error } from "../../contracts/api/parseError";
 import {
   parseCreateRepository,
   parseRepositoryCatalog,
@@ -277,14 +277,14 @@ describe("workspace repository v4 contract", () => {
     expect(parseRepositoryDeletionResult({ status: "deleting" })).toEqual({
       status: "deleting",
     });
-    expect(parseRepositoryApiError({
-      code: "revision_conflict",
-      currentRevision: revisionA,
+    expect(parseApiV1Error({
+      code: "resource_conflict",
+      details: { currentRevision: revisionA },
       message: "changed",
       requestId: "request-1",
     })).toEqual({
-      code: "revision_conflict",
-      currentRevision: revisionA,
+      code: "resource_conflict",
+      details: { currentRevision: revisionA },
       message: "changed",
       requestId: "request-1",
     });

@@ -31,6 +31,9 @@ import {
   remoteRevision,
 } from "../workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
+import type {
+  DomainChangeNotification,
+} from "../../../application/sync/domainChangeEvents";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -153,8 +156,10 @@ function waitForSnapshot(
 
 function createHarness({
   repositoryBLoad,
+  withChangeEvents = false,
 }: {
   repositoryBLoad?: () => Promise<WorkspaceRepositorySnapshot>;
+  withChangeEvents?: boolean;
 } = {}) {
   let activeRepositoryId: string | null = "repository-a";
   const events: string[] = [];
@@ -210,6 +215,11 @@ function createHarness({
     openTodo: () => todoRepository,
     retry: vi.fn(async () => ({ status: "ready" as const })),
   };
+  const changeListeners = new Set<
+    (event: DomainChangeNotification) => void
+  >();
+  const disposeChangeEvents = vi.fn();
+  const startChangeEvents = vi.fn();
   const controller = createWorkbenchController({
     activeRepositorySelection: {
       clear: () => {
@@ -222,6 +232,16 @@ function createHarness({
       },
     },
     builtInCatalog,
+    changeEvents: withChangeEvents
+      ? {
+          dispose: disposeChangeEvents,
+          start: startChangeEvents,
+          subscribe(listener) {
+            changeListeners.add(listener);
+            return () => changeListeners.delete(listener);
+          },
+        }
+      : undefined,
     createInitialWorkspaceContent: () => createContent(),
     scheduler: testApplicationScheduler,
     workspaceCatalog,
@@ -235,7 +255,16 @@ function createHarness({
     },
   });
 
-  return { controller, events, workspaceCatalog };
+  return {
+    controller,
+    disposeChangeEvents,
+    emitChange(event: DomainChangeNotification) {
+      changeListeners.forEach((listener) => listener(event));
+    },
+    events,
+    startChangeEvents,
+    workspaceCatalog,
+  };
 }
 
 describe("Workbench controller", () => {
@@ -254,6 +283,70 @@ describe("Workbench controller", () => {
     expect(snapshot.builtIns.journal.state.status).toBe("ready");
     expect(snapshot.builtIns.todo.state.status).toBe("ready");
     controller.dispose();
+  });
+
+  it("uses SSE checkpoints to reload only stale mounted domain sessions", async () => {
+    const harness = createHarness({ withChangeEvents: true });
+
+    harness.controller.start();
+    const snapshot = await waitForSnapshot(harness.controller, (current) =>
+      current.workspace.status === "ready" &&
+      current.builtIns.journal.state.status === "ready" &&
+      current.builtIns.todo.state.status === "ready"
+    );
+    if (snapshot.workspace.status !== "ready") throw new Error("not ready");
+    const reloadWorkspace = vi.fn(async () => undefined);
+    const reloadJournal = vi.fn(async () => undefined);
+    const reloadTodo = vi.fn(async () => undefined);
+
+    snapshot.workspace.controller.reload = reloadWorkspace;
+    snapshot.builtIns.journal.controller.reload = reloadJournal;
+    snapshot.builtIns.todo.controller.reload = reloadTodo;
+    const notification: DomainChangeNotification = {
+      changedDomains: {
+        journal: true,
+        todo: true,
+        workspaceCatalog: false,
+        workspaceRepositoryIds: ["repository-a"],
+      },
+      checkpoint: {
+        journal: builtInRevision("c"),
+        sequence: 1,
+        todo: builtInRevision("c"),
+        workspaces: {
+          "repository-a": remoteRevision("b"),
+          "repository-b": remoteRevision("c"),
+        },
+      },
+      sequence: 1,
+    };
+
+    harness.emitChange(notification);
+    await vi.waitFor(() => {
+      expect(reloadWorkspace).toHaveBeenCalledOnce();
+      expect(reloadJournal).toHaveBeenCalledOnce();
+      expect(reloadTodo).toHaveBeenCalledOnce();
+    });
+    harness.emitChange(notification);
+    await Promise.resolve();
+    expect(reloadWorkspace).toHaveBeenCalledOnce();
+    expect(harness.startChangeEvents).toHaveBeenCalledOnce();
+
+    harness.emitChange({
+      ...notification,
+      changedDomains: {
+        ...notification.changedDomains,
+        workspaceCatalog: true,
+      },
+      checkpoint: { ...notification.checkpoint, sequence: 2 },
+      sequence: 2,
+    });
+    await vi.waitFor(() => {
+      expect(harness.workspaceCatalog.listRepositories).toHaveBeenCalledTimes(2);
+    });
+
+    harness.controller.dispose();
+    expect(harness.disposeChangeEvents).toHaveBeenCalledOnce();
   });
 
   it("flushes before switching and waits for the target session before focus", async () => {

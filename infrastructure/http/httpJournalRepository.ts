@@ -27,7 +27,7 @@ export function createHttpJournalRepositoryBackend({
       parseSnapshot: parseJournalSnapshot,
       serializeCommit: serializeJsonIteratively,
     },
-    endpoint: "/api/journal/snapshot",
+    endpoint: "/api/v1/sync/journal",
     fetch: fetchFn,
     token,
     validateContent: validateJournalRepositoryContent,

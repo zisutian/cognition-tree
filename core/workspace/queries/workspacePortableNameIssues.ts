@@ -3,8 +3,8 @@
 import {
   getPortableNameIssue,
   type PortableNameIssue,
-} from "../../naming/portableName";
-import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
+} from "../../naming/portableName.ts";
+import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex.ts";
 
 export type WorkspacePortableNameIssue = {
   id: string;

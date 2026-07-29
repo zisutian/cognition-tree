@@ -17,6 +17,9 @@ import type {
   WorkspaceRepositoryLocalState,
 } from "../persistence/workspaceRepositoryCache";
 import { WorkspaceRepositoryLocalConflictError } from "../../application/repository/workspaceRepository";
+import type {
+  VersionedRepositoryConflictRecord,
+} from "../../application/persistence/versionedRepository";
 import {
   parseAvailableWorkspaceRepositoryLabel,
   projectWorkspaceRepositoryLabelIssues,
@@ -51,6 +54,11 @@ export type BrowserRepositoryClientCache = RepositoryClientCache & {
 };
 
 type IndexedRepositoryState = {
+  baseContent?: WorkspaceRepositoryContentDto | null;
+  conflict?: VersionedRepositoryConflictRecord<
+    WorkspaceRepositoryContentDto,
+    RepositoryRevisionDto
+  > | null;
   identity: string;
   localRevision: LocalDraftRevisionDto;
   noteIds: string[];
@@ -128,7 +136,42 @@ function parseIndexedState(value: unknown): IndexedRepositoryState {
     throw new Error("Invalid IndexedDB repository state");
   }
 
-  return state as IndexedRepositoryState;
+  const baseContent = state.baseContent === undefined
+    ? undefined
+    : state.baseContent === null
+      ? null
+      : parseWorkspaceRepositoryContent(state.baseContent);
+  const conflict = state.conflict === undefined || state.conflict === null
+    ? state.conflict
+    : (() => {
+        const candidate = state.conflict as Partial<
+          VersionedRepositoryConflictRecord<
+            WorkspaceRepositoryContentDto,
+            RepositoryRevisionDto
+          >
+        >;
+
+        if (
+          !Array.isArray(candidate.unitIds) ||
+          !candidate.unitIds.every((unitId) => typeof unitId === "string") ||
+          typeof candidate.remoteRevision !== "string"
+        ) {
+          throw new Error("Invalid IndexedDB repository conflict record");
+        }
+        return {
+          base: parseWorkspaceRepositoryContent(candidate.base),
+          local: parseWorkspaceRepositoryContent(candidate.local),
+          remote: parseWorkspaceRepositoryContent(candidate.remote),
+          remoteRevision: parseRepositoryRevision(candidate.remoteRevision),
+          unitIds: [...new Set(candidate.unitIds)].sort(),
+        };
+      })();
+
+  return {
+    ...(state as IndexedRepositoryState),
+    ...(baseContent === undefined ? {} : { baseContent }),
+    ...(conflict === undefined ? {} : { conflict }),
+  };
 }
 
 function toIndexedState(
@@ -136,8 +179,10 @@ function toIndexedState(
   state: Omit<WorkspaceRepositoryLocalState, "content"> & {
     content: WorkspaceRepositoryContentDto;
   },
+  syncContext?: Pick<IndexedRepositoryState, "baseContent" | "conflict">,
 ): IndexedRepositoryState {
   return {
+    ...(syncContext ?? {}),
     identity,
     localRevision: state.localRevision,
     noteIds: state.content.workspace.notes.map((note) => note.id),
@@ -233,6 +278,7 @@ function createIndexedDbRepositoryCache(
 ): WorkspaceRepositoryCache {
   return {
     async completeSync({
+      committedContent,
       committedRemoteRevision,
       expectedLocalRevision,
       identity,
@@ -258,6 +304,8 @@ function createIndexedDbRepositoryCache(
         state.localRevision === expectedLocalRevision
           ? null
           : parsedRemoteRevision;
+      state.baseContent = parseWorkspaceRepositoryContent(committedContent);
+      state.conflict = null;
       transaction.objectStore(stateStoreName).put(state);
       const notes = await readNotes(transaction, identity);
 
@@ -286,6 +334,8 @@ function createIndexedDbRepositoryCache(
         remoteRevision: parsedSnapshot.revision,
       };
       const indexedState = toIndexedState(identity, state);
+      indexedState.baseContent = parsedSnapshot.content;
+      indexedState.conflict = null;
 
       transaction.objectStore(stateStoreName).add(indexedState);
       putChangedNotes(
@@ -316,7 +366,38 @@ function createIndexedDbRepositoryCache(
       await completion;
       return toLocalState(state, notes);
     },
-    async recordConflict({ currentRemoteRevision, identity }) {
+    async loadSyncContext(identity) {
+      const db = await database;
+      const transaction = db.transaction(
+        [stateStoreName, noteStoreName],
+        "readonly",
+      );
+      const completion = transactionComplete(transaction);
+      const state = await readState(transaction, identity);
+
+      if (!state) {
+        await completion;
+        return null;
+      }
+      const notes = await readNotes(transaction, identity);
+      const content = toLocalState(state, notes).content;
+
+      await completion;
+      return {
+        baseContent: state.baseContent === undefined
+          ? state.pendingBaseRevision ? null : content
+          : state.baseContent,
+        conflict: state.conflict ?? null,
+      };
+    },
+    async recordConflict({
+      baseContent,
+      currentRemoteRevision,
+      identity,
+      localContent,
+      remoteContent,
+      unitIds,
+    }) {
       const parsedRemoteRevision = parseRepositoryRevision(currentRemoteRevision);
       const db = await database;
       const transaction = db.transaction(
@@ -331,6 +412,35 @@ function createIndexedDbRepositoryCache(
         throw new Error(`Local repository state does not exist: ${identity}`);
       }
 
+      state.remoteRevision = parsedRemoteRevision;
+      state.baseContent = parseWorkspaceRepositoryContent(baseContent);
+      state.conflict = {
+        base: parseWorkspaceRepositoryContent(baseContent),
+        local: parseWorkspaceRepositoryContent(localContent),
+        remote: parseWorkspaceRepositoryContent(remoteContent),
+        remoteRevision: parsedRemoteRevision,
+        unitIds: [...new Set(unitIds)].sort(),
+      };
+      transaction.objectStore(stateStoreName).put(state);
+      const notes = await readNotes(transaction, identity);
+
+      await completion;
+      return toLocalState(state, notes);
+    },
+    async recordConflictRevision({ currentRemoteRevision, identity }) {
+      const parsedRemoteRevision = parseRepositoryRevision(currentRemoteRevision);
+      const db = await database;
+      const transaction = db.transaction(
+        [stateStoreName, noteStoreName],
+        "readwrite",
+      );
+      const completion = transactionComplete(transaction);
+      const state = await readState(transaction, identity);
+
+      if (!state) {
+        await abortTransaction(transaction, completion);
+        throw new Error(`Local repository state does not exist: ${identity}`);
+      }
       state.remoteRevision = parsedRemoteRevision;
       transaction.objectStore(stateStoreName).put(state);
       const notes = await readNotes(transaction, identity);
@@ -355,6 +465,54 @@ function createIndexedDbRepositoryCache(
       );
       keys.forEach((key) => transaction.objectStore(noteStoreName).delete(key));
       await completion;
+    },
+    async rebaseFromRemote({
+      content,
+      expectedLocalRevision,
+      identity,
+      localRevision,
+      pendingChanges,
+      snapshot,
+    }) {
+      const parsedSnapshot = parseWorkspaceRepositorySnapshot(snapshot);
+      const parsedContent = parseWorkspaceRepositoryContent(content);
+      const db = await database;
+      const transaction = db.transaction(
+        [stateStoreName, noteStoreName],
+        "readwrite",
+      );
+      const completion = transactionComplete(transaction);
+      const current = await readState(transaction, identity);
+
+      if (!current) {
+        await abortTransaction(transaction, completion);
+        throw new Error(`Local repository state does not exist: ${identity}`);
+      }
+      if (current.localRevision !== expectedLocalRevision) {
+        await abortTransaction(transaction, completion);
+        throw new WorkspaceRepositoryLocalConflictError(current.localRevision);
+      }
+      const previousNotes = await readNotes(transaction, identity);
+      const state: WorkspaceRepositoryLocalState = {
+        content: parsedContent,
+        localRevision,
+        pendingBaseRevision: pendingChanges ? parsedSnapshot.revision : null,
+        remoteRevision: parsedSnapshot.revision,
+      };
+
+      transaction.objectStore(stateStoreName).put(toIndexedState(
+        identity,
+        state,
+        { baseContent: parsedSnapshot.content, conflict: null },
+      ));
+      putChangedNotes(
+        transaction.objectStore(noteStoreName),
+        identity,
+        previousNotes,
+        parsedContent,
+      );
+      await completion;
+      return structuredClone(state);
     },
     async replaceFromRemote({
       expectedLocalRevision,
@@ -388,7 +546,11 @@ function createIndexedDbRepositoryCache(
         remoteRevision: parsedSnapshot.revision,
       };
 
-      transaction.objectStore(stateStoreName).put(toIndexedState(identity, state));
+      transaction.objectStore(stateStoreName).put(toIndexedState(
+        identity,
+        state,
+        { baseContent: parsedSnapshot.content, conflict: null },
+      ));
       putChangedNotes(
         transaction.objectStore(noteStoreName),
         identity,
@@ -435,7 +597,19 @@ function createIndexedDbRepositoryCache(
         remoteRevision: state.remoteRevision,
       };
 
-      transaction.objectStore(stateStoreName).put(toIndexedState(identity, next));
+      transaction.objectStore(stateStoreName).put(toIndexedState(
+        identity,
+        next,
+        {
+          baseContent: state.baseContent === undefined
+            ? state.pendingBaseRevision ? null : toLocalState(
+                state,
+                previousNotes,
+              ).content
+            : state.baseContent,
+          conflict: state.conflict ?? null,
+        },
+      ));
       putChangedNotes(
         transaction.objectStore(noteStoreName),
         identity,
@@ -561,7 +735,11 @@ export function createIndexedDbRepositoryClientCache(
       );
       transaction
         .objectStore(stateStoreName)
-        .add(toIndexedState(repositoryIdentity, state));
+        .add(toIndexedState(
+          repositoryIdentity,
+          state,
+          { baseContent: parsedContent, conflict: null },
+        ));
       putChangedNotes(
         transaction.objectStore(noteStoreName),
         repositoryIdentity,

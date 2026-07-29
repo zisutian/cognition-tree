@@ -12,6 +12,10 @@ import type {
 } from "../../contracts/built-ins/types";
 import { createLocalFirstVersionedRepository } from "../persistence/resilientVersionedRepository";
 import {
+  mergeJournalContent,
+  mergeTodoContent,
+} from "../../application/sync/domainThreeWayMerge";
+import {
   type BuiltInCatalog,
   type BuiltInLocation,
   type JournalRepository,
@@ -110,6 +114,7 @@ export function createBrowserBuiltInCatalog({
         createLocalRevision,
         label: parsed.label,
         location: parsed.location,
+        mergeContent: mergeJournalContent,
         repositoryIdentity: "browser-built-in:journal",
         validateContent: validateJournalRepositoryContent,
         validateTransition: validateJournalRepositoryTransition,
@@ -127,6 +132,7 @@ export function createBrowserBuiltInCatalog({
         createLocalRevision,
         label: parsed.label,
         location: parsed.location,
+        mergeContent: mergeTodoContent,
         repositoryIdentity: "browser-built-in:todo",
         validateContent: validateTodoRepositoryContent,
         validateTransition: validateTodoRepositoryTransition,

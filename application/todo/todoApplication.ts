@@ -267,15 +267,17 @@ export function createTodoMutationActions({
           rule,
           stageId: services.createRecurrenceStageId(),
           today: services.localCalendar.today(),
+          updatedAt: timestamp(index),
         }),
       }));
     },
     stopBlockRecurrence(collectionId, blockId) {
-      updateTodoSession(session, (content) => ({
-        content: stopTodoBlockRecurrence(content, {
+      updateTodoSession(session, (content, index) => ({
+        content: stopTodoBlockRecurrence(content, index, {
           blockId,
           collectionId,
           today: services.localCalendar.today(),
+          updatedAt: timestamp(index),
         }),
       }));
     },

@@ -457,6 +457,12 @@ describe("repository setup and management semantics", () => {
         status: "fault" as const,
       }],
       builtIns: [{
+        conflictResolution: {
+          keepLocal: async () => undefined,
+          loadUnitIds: async () => ["journal:entry:entry-1"],
+          recoverLocalCopy: async () => undefined,
+          useRemote: async () => undefined,
+        },
         errorMessage: "日记仓库存在同步冲突。",
         hasProblem: true,
         id: "journal" as const,
@@ -471,10 +477,7 @@ describe("repository setup and management semantics", () => {
           value: "/state/built-ins/journal/content.json",
         }],
         protected: true as const,
-        recoveryAction: {
-          label: "放弃本地修改并重新加载",
-          run: async () => undefined,
-        },
+        recoveryAction: null,
         reload: async () => undefined,
         sessionStatus: "ready" as const,
         statusLabel: "同步冲突",
@@ -526,9 +529,10 @@ describe("repository setup and management semantics", () => {
     expectMarkupSemantics(journalMarkup, {
       has: [
         "受保护内置数据", "/state/built-ins/journal/content.json",
-        "放弃本地修改并重新加载",
+        "以当前远端版本保留本地", "采用远端",
+        "采用远端并另存本地正文",
       ],
-      lacks: ["删除仓库", "重命名仓库"],
+      lacks: ["删除仓库", "重命名仓库", "放弃本地修改并重新加载"],
     });
     expectMarkupSemantics(todoMarkup, {
       has: ["代办数据损坏。", "cognition-tree.todo", ">重试<"],

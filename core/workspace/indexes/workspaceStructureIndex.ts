@@ -6,9 +6,9 @@ import type {
   WorkspaceNote,
   WorkspaceNoteHeader,
   WorkspaceData,
-} from "../model/workspaceData";
-import { readWorkspaceNoteHeader } from "../model/workspaceData";
-import type { NoteTreeFolderNode } from "../model/noteTree/types";
+} from "../model/workspaceData.ts";
+import { readWorkspaceNoteHeader } from "../model/workspaceData.ts";
+import type { NoteTreeFolderNode } from "../model/noteTree/types.ts";
 
 export type WorkspaceTreePath = {
   readonly index: number;

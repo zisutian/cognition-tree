@@ -1,11 +1,11 @@
 import {
   compileCtnSyntaxSource,
-} from "../../ctn/syntax/compiler";
+} from "../../ctn/syntax/compiler.ts";
 import {
   defaultCtnSyntax,
   defaultCtnSyntaxSource,
-} from "../../ctn/syntax/defaultSyntax";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
+} from "../../ctn/syntax/defaultSyntax.ts";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 
 export type WorkspaceSyntax = {
   source: string;

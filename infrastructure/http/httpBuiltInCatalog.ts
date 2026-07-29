@@ -36,6 +36,10 @@ import {
   type HttpRepositoryTransportOptions,
 } from "./httpRepositoryTransport";
 import { createHttpTodoRepositoryBackend } from "./httpTodoRepository";
+import {
+  mergeJournalContent,
+  mergeTodoContent,
+} from "../../application/sync/domainThreeWayMerge";
 
 type JournalCache = VersionedRepositoryCache<
   JournalContentDto,
@@ -106,7 +110,7 @@ export function createHttpBuiltInCatalog({
           await requestRepositoryJson(
             fetchFn,
             baseUrl,
-            "/api/built-ins",
+            "/api/v1/admin/built-ins",
             undefined,
             token,
           ),
@@ -137,6 +141,7 @@ export function createHttpBuiltInCatalog({
         createLocalRevision,
         label: descriptor.label,
         location: descriptor.location,
+        mergeContent: mergeJournalContent,
         refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
@@ -164,6 +169,7 @@ export function createHttpBuiltInCatalog({
         createLocalRevision,
         label: descriptor.label,
         location: descriptor.location,
+        mergeContent: mergeTodoContent,
         refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
@@ -183,7 +189,7 @@ export function createHttpBuiltInCatalog({
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
-          `/api/${id}/retry`,
+          `/api/v1/admin/built-ins/${id}/retry`,
           { method: "POST" },
           token,
         ),

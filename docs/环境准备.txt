@@ -69,38 +69,64 @@ link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址�
 
 4. API 与数据目录
 
-普通仓库：
+唯一 HTTP 契约是 /api/v1。入口由同一 registry 生成路由、严格 body
+解析、权限声明和 OpenAPI 3.1：
 
-    GET、POST /api/repositories
-    PATCH、DELETE /api/repositories/<id>
-    GET、PUT /api/repositories/<id>/snapshot
+    GET  /api/v1/health
+    GET  /api/v1/capabilities
+    GET  /api/v1/openapi.json
+    GET  /api/v1/events
+    POST /api/v1/search
 
-内置数据：
+    GET  /api/v1/workspaces
+    GET  /api/v1/workspaces/<repository-id>/tree
+    GET  /api/v1/workspaces/<repository-id>/notes/<note-id>
+    POST /api/v1/workspaces/<repository-id>/commands
 
-    GET /api/built-ins
-    GET、PUT /api/journal/snapshot
-    POST /api/journal/retry
-    GET、PUT /api/todo/snapshot
-    POST /api/todo/retry
+    GET  /api/v1/journal/entries
+    GET  /api/v1/journal/entries/<entry-id>
+    POST /api/v1/journal/commands
+    GET  /api/v1/todo/collections
+    GET  /api/v1/todo/collections/<collection-id>
+    POST /api/v1/todo/commands
 
-手机窄接口：
+官方客户端独占完整同步：
 
-    GET /api/mobile/v2/status
-    GET /api/mobile/v2/journal/entries?limit=50&cursor=<opaque-base64url>
-    GET /api/mobile/v2/journal/entries/<id>
-    GET /api/mobile/v2/todo/collections
-    GET /api/mobile/v2/todo/collections/<id>
-    PUT /api/mobile/v2/todo/collections/<id>/tasks/<block-id>/completion
+    GET、PUT /api/v1/sync/workspaces/<repository-id>
+    GET、PUT /api/v1/sync/journal
+    GET、PUT /api/v1/sync/todo
 
-手机接口使用与其余 HTTP API 相同的 Host、Origin 和 bearer 安全策略，所有响应为 no-store。建议受控 Gateway 与 cognition-tree 都监听 loopback，并让 Gateway 从环境变量注入同一个至少 32 字符的 CTN_API_TOKEN。不要通过 Tailscale 直接发布 cognition-tree。
+管理接口位于 /api/v1/admin/repositories、/api/v1/admin/tokens 和
+/api/v1/admin/audit。旧 repository、snapshot、built-in 和 Mobile
+路径全部返回 404，不存在别名或兼容开关。
 
-v2 不返回 syntaxSource、canonical source 或完整 snapshot。日记游标是不透明的 base64url 值，并绑定当前 revision 与最后一条 entry ID；revision 改变时返回 409，调用方必须从第一页重载。日记与代办树最多投影 128 层。代办写入只接受 expectedRevision、completed 与 occurrenceDate；它是“设置状态”而非 toggle，冲突返回 409，不自动重放，成功结果包含更新后的 collection summary。
+自动化应使用设置页创建的高熵令牌，并调用资源查询和领域命令。令牌只能获得
+Workspace、Journal、Todo 的 read、write、delete scope；repository allowlist
+仅约束 Workspace。自动化令牌不能取得 sync、syntax:write、
+repository:admin 或 token:manage。delete 不包含在 write 中，删除命令还必须
+携带目标资源版本和 confirm: true。
 
-手机客户端必须按 recurrence.active 判断当前是否为周期任务，不能以 recurrence 是否非 null 代替。recurrence 非 null 且 active 为 false 时仅保留历史 completedCount/totalCount，界面按普通任务显示并用 occurrenceDate null 勾选；active 为 true 时仅在 currentOccurrenceDate 存在时提交该日期，否则应刷新任务投影而不是猜测日期。
+每个命令携带 UUID commandId、preview/commit mode 和目标 SHA-256
+资源版本。preview 不写入也不审计；commit 在一个 versioned store 内原子提交。
+相同 principal、commandId 和请求体在 30 天内返回原回执；相同 commandId 的
+不同请求返回 409 idempotency_conflict。同资源版本变化返回
+409 resource_conflict，不覆盖内容。
 
-`/api/mobile/v1` 六个操作暂留一个兼容发布窗口；新 Gateway 应只使用 v2。v1 分页游标在 revision 变化后同样返回现有的 409 revision_conflict。
+Todo 远程客户端真值表：
 
-base revision 过期返回 409，不覆盖已发布内容。/api/built-ins 只返回 Journal/Todo 的位置、保护状态和独立故障，不返回内容。
+    recurrence == null
+        从未配置周期；按普通 completed 状态显示和写入 occurrenceDate null。
+    recurrence != null 且 recurrence.active == false
+        保留 completedCount/totalCount 历史，但按普通任务显示和写入
+        occurrenceDate null。
+    recurrence.active == true 且 currentOccurrenceDate != null
+        显示活动周期和历史进度；完成当前 occurrence 时提交该精确日期。
+    recurrence.active == true 且 currentOccurrenceDate == null
+        不猜测日期；刷新投影后再提交。
+
+GET /api/v1/events 使用 SSE。连接时先发送 revision checkpoint，随后只发送
+不含正文的 change set；客户端断线重连后以新 checkpoint 补齐遗漏。SSE 只是
+失效通知，资源查询和同步 snapshot 始终是真相。
 
 Local 普通仓库：
 
@@ -129,6 +155,13 @@ Browser 内置数据分别使用 cognition-tree.journal 与 cognition-tree.todo 
 WebDAV 连接配置保存在：
 
     <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
+
+API 状态保存在：
+
+    <CTN_SERVER_STATE_DIR>/api-v1-state.json
+
+其中只有令牌 SHA-256 哈希、前缀、scope、allowlist、幂等回执和不含正文的
+审计；创建响应中的 secret 不落盘。
 
 内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
 0600。密码不进入 API 响应、日志、普通仓库内容或 IndexedDB。

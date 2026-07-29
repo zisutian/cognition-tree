@@ -64,6 +64,7 @@ export function AppRoot() {
     return (
       <ReadyWorkspaceWorkbench
         activeActivityId={activeActivityId}
+        apiAccess={applications.apiAccess}
         controller={controller}
         feedbackController={feedbackController}
         journal={applications.journal}

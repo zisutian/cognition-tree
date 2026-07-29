@@ -259,6 +259,22 @@
   margin-top: var(--ui-gap);
 }
 
+.repository-conflict-units {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--ui-gap-tight) var(--ui-gap);
+  margin: var(--ui-gap) 0;
+}
+
+.repository-conflict-units dt {
+  color: var(--color-fg-muted);
+}
+
+.repository-conflict-units dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 720px) {
   .repository-summary-list > div,
   .repository-location-row,

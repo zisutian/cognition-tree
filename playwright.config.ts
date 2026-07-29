@@ -46,7 +46,7 @@ export default defineConfig({
       },
       reuseExistingServer: false,
       timeout: 30_000,
-      url: `${apiBaseUrl}/api/health`,
+      url: `${apiBaseUrl}/api/v1/health`,
     },
     {
       command: `pnpm dev --host ${webHost} --port ${webPort} --strictPort`,

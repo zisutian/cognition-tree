@@ -2,7 +2,9 @@
 
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type {
+  VersionedContentConflictPreference,
   VersionedRepository,
+  VersionedRepositoryConflictRecord,
   VersionedRepositorySnapshot,
 } from "./versionedRepository";
 import {
@@ -79,6 +81,15 @@ export type VersionedSessionController<
     LocalRevision,
     Location
   >;
+  loadConflictUnitIds(): Promise<string[]>;
+  keepLocalConflictAndSynchronize(): Promise<void>;
+  resolveConflictAndSynchronize(
+    preference: VersionedContentConflictPreference,
+    transform?: (
+      content: Content,
+      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
+    ) => Content,
+  ): Promise<void>;
   mutate(update: (current: Content) => Content): void;
   mutatePrepared(
     update: (
@@ -91,6 +102,7 @@ export type VersionedSessionController<
   requestSync(): void;
   start(): void;
   subscribe(listener: () => void): () => void;
+  useRemoteConflictAndSynchronize(): Promise<void>;
 };
 
 type ActiveVersionedSession<
@@ -429,6 +441,34 @@ export function createVersionedSessionController<
     getState() {
       return state;
     },
+    async loadConflictUnitIds() {
+      return (await repository?.loadConflict?.())?.unitIds ?? [];
+    },
+    async keepLocalConflictAndSynchronize() {
+      if (!repository?.resolveConflictAndSynchronize) {
+        throw new VersionedSessionUnavailableError(label);
+      }
+      const result = await repository.resolveConflictAndSynchronize("local");
+
+      if (result.status === "conflict") {
+        throw new Error("Remote content changed again while resolving conflict.");
+      }
+      await loadInitial();
+    },
+    async resolveConflictAndSynchronize(preference, transform) {
+      if (!repository?.resolveConflictAndSynchronize) {
+        throw new VersionedSessionUnavailableError(label);
+      }
+      const result = await repository.resolveConflictAndSynchronize(
+        preference,
+        transform,
+      );
+
+      if (result.status === "conflict") {
+        throw new Error("Remote content changed again while resolving conflict.");
+      }
+      await loadInitial();
+    },
     mutate,
     mutatePrepared,
     async mutateAndFlush(update) {
@@ -530,6 +570,17 @@ export function createVersionedSessionController<
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    async useRemoteConflictAndSynchronize() {
+      if (!repository?.resolveConflictAndSynchronize) {
+        throw new VersionedSessionUnavailableError(label);
+      }
+      const result = await repository.resolveConflictAndSynchronize("remote");
+
+      if (result.status === "conflict") {
+        throw new Error("Remote content changed again while resolving conflict.");
+      }
+      await loadInitial();
     },
   };
 }

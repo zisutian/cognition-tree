@@ -1,4 +1,5 @@
-import { parseRepositoryApiError } from "../../contracts/workspace/parseApiError";
+import { parseApiV1Error } from "../../contracts/api/parseError";
+import { parseRepositoryRevision } from "../../contracts/workspace/revision";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryRemoteError,
@@ -47,7 +48,7 @@ async function assertSuccessfulResponse(response: Response) {
   let apiError;
 
   try {
-    apiError = parseRepositoryApiError(
+    apiError = parseApiV1Error(
       await readResponseJson(response, retryableStatus),
     );
   } catch (error) {
@@ -61,17 +62,41 @@ async function assertSuccessfulResponse(response: Response) {
     );
   }
 
-  if (apiError.code === "revision_conflict" && apiError.currentRevision) {
-    throw new WorkspaceRepositoryBackendConflictError(apiError.currentRevision);
+  if (
+    apiError.code === "resource_conflict" &&
+    typeof apiError.details?.currentRevision === "string"
+  ) {
+    throw new WorkspaceRepositoryBackendConflictError(
+      parseRepositoryRevision(apiError.details.currentRevision),
+    );
   }
 
   const retryable =
     retryableStatus ||
     apiError.code === "repository_busy" ||
     apiError.code === "adapter_unavailable";
+  const code = apiError.code === "not_found"
+    ? "repository_not_found"
+    : apiError.code === "domain_validation_failed" ||
+        apiError.code === "idempotency_conflict" ||
+        apiError.code === "occurrence_conflict"
+      ? "invalid_request"
+      : apiError.code === "forbidden"
+        ? "unauthorized"
+        : apiError.code === "resource_conflict"
+          ? "revision_conflict"
+          : apiError.code === "adapter_unavailable" ||
+              apiError.code === "insufficient_storage" ||
+              apiError.code === "internal_error" ||
+              apiError.code === "invalid_request" ||
+              apiError.code === "repository_busy" ||
+              apiError.code === "repository_corrupt" ||
+              apiError.code === "unauthorized"
+            ? apiError.code
+            : "internal_error";
 
   throw new WorkspaceRepositoryRemoteError(apiError.message, {
-    code: apiError.code,
+    code,
     retryable,
   });
 }

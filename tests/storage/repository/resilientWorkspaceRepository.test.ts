@@ -451,6 +451,91 @@ describe("local-first workspace repository", () => {
     });
   });
 
+  it("rebases different resources and persists both sides of a same-resource conflict", async () => {
+    const remote = createRemoteBackend();
+    const { repository } = createRepository(remote);
+    const initial = await repository.loadSnapshot();
+    const localNote = createWorkspaceRepositoryContent(
+      "Remote",
+      "@ctn-block title title\nLocal note",
+    );
+
+    await repository.stageSnapshot({
+      content: localNote,
+      expectedLocalRevision: initial.localRevision,
+    });
+    remote.setRemote(
+      createWorkspaceRepositoryContent(
+        "Remote renamed",
+        "@ctn-block title title\nTitle",
+      ),
+      revisionC,
+    );
+    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+      pendingChanges: false,
+      status: "synced",
+    });
+    expect(remote.commits.at(-1)?.content).toMatchObject({
+      workspace: {
+        name: "Remote renamed",
+        notes: [{ source: "@ctn-block title title\nLocal note" }],
+      },
+    });
+
+    const rebased = await repository.loadSnapshot();
+    await repository.stageSnapshot({
+      content: createWorkspaceRepositoryContent(
+        "Remote renamed",
+        "@ctn-block title title\nSecond local note",
+      ),
+      expectedLocalRevision: rebased.localRevision,
+    });
+    remote.setRemote(
+      createWorkspaceRepositoryContent(
+        "Second remote name",
+        "@ctn-block title title\nSecond remote note",
+      ),
+      revisionC,
+    );
+    await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
+      remoteRevision: revisionC,
+      status: "conflict",
+    });
+    const conflicted = await repository.loadSnapshot();
+
+    await repository.stageSnapshot({
+      content: createWorkspaceRepositoryContent(
+        "Remote renamed",
+        "@ctn-block title title\nLatest local note",
+      ),
+      expectedLocalRevision: conflicted.localRevision,
+    });
+    await expect(repository.loadConflict?.()).resolves.toMatchObject({
+      local: {
+        workspace: {
+          notes: [{ source: "@ctn-block title title\nLatest local note" }],
+        },
+      },
+      remote: {
+        workspace: {
+          name: "Second remote name",
+          notes: [{ source: "@ctn-block title title\nSecond remote note" }],
+        },
+      },
+      unitIds: ["workspace:note:note-a"],
+    });
+    await expect(
+      repository.keepLocalConflictAndSynchronize?.(),
+    ).resolves.toMatchObject({
+      pendingChanges: false,
+      status: "synced",
+    });
+    expect(remote.commits.at(-1)?.content.workspace).toMatchObject({
+      name: "Second remote name",
+      notes: [{ source: "@ctn-block title title\nLatest local note" }],
+    });
+  });
+
   it("loads remote content before atomically discarding pending state", async () => {
     const remote = createRemoteBackend();
     const { repository } = createRepository(remote);

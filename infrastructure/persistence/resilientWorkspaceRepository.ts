@@ -10,6 +10,9 @@ import {
   type WorkspaceRepositoryContentValidator,
   WorkspaceRepositoryRemoteError,
 } from "../../application/repository/workspaceRepository";
+import {
+  mergeWorkspaceContent,
+} from "../../application/sync/domainThreeWayMerge";
 
 type LocalFirstWorkspaceRepositoryOptions = {
   backend: WorkspaceRepositoryBackend;
@@ -34,6 +37,7 @@ export function createLocalFirstWorkspaceRepository({
       { code: "repository_busy", retryable: true },
     ),
     createLocalRevision: () => createLocalDraftRevision(createDraftId),
+    mergeContent: mergeWorkspaceContent,
   });
 }
 

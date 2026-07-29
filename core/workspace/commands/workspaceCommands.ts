@@ -4,29 +4,29 @@ import {
   removeFolderFromWorkspaceTree,
   removeNoteFromWorkspaceTree,
   renameFolderInWorkspaceTree,
-} from "../model/noteTree/mutations";
-import { createNoteTreeFolderNode } from "../model/noteTree/create";
-import { moveNoteTreeNode } from "../model/noteTree/move";
-import type { NoteTreeMoveRequest } from "../model/noteTree/types";
-import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
+} from "../model/noteTree/mutations.ts";
+import { createNoteTreeFolderNode } from "../model/noteTree/create.ts";
+import { moveNoteTreeNode } from "../model/noteTree/move.ts";
+import type { NoteTreeMoveRequest } from "../model/noteTree/types.ts";
+import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex.ts";
 import {
   initializeCtnSourceBlockMetadata,
   replaceCtnSourceTitle,
   touchCtnSourceTitleMetadata,
-} from "../../ctn/metadata/sourceMetadata";
-import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata";
+} from "../../ctn/metadata/sourceMetadata.ts";
+import { reconcileCtnSourceBlockMetadata } from "../../ctn/metadata/reconcileSourceMetadata.ts";
 import {
   assertCtnEditableSourceChange,
   type CtnEditableSourceChange,
-} from "../../ctn/metadata/textEdits";
-import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator";
-import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
+} from "../../ctn/metadata/textEdits.ts";
+import { createCtnBlockIdAllocator } from "../../ctn/metadata/blockIdAllocator.ts";
+import { readCtnCanonicalTitleHeader } from "../../ctn/parser/parseCtnDocument.ts";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import {
   analyzeCtnSource,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis";
-import { parsePortableName } from "../../naming/portableName";
+} from "../../ctn/analysis/sourceAnalysis.ts";
+import { parsePortableName } from "../../naming/portableName.ts";
 import {
   createNoteRecord,
   createCanonicalNoteSource,
@@ -35,7 +35,7 @@ import {
   type FolderId,
   type NoteId,
   type WorkspaceData,
-} from "../model/workspaceData";
+} from "../model/workspaceData.ts";
 
 function hasWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
   return workspace.noteEntryById.has(noteId);

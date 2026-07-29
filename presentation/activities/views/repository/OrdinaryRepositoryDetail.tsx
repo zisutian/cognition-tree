@@ -1,4 +1,4 @@
-import { RefreshCw, Undo2 } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import type { DeleteRepositoryRequest } from "../../../../application/repository/repositoryCatalog";
 import {
   projectRepositoryLabelIssueMessage,
@@ -11,6 +11,7 @@ import {
   RepositoryLocations,
   RepositoryMetadata,
 } from "./RepositoryDetailShared";
+import { RepositoryConflictResolution } from "./RepositoryConflictResolution";
 
 export function OrdinaryRepositoryDetail({
   busy,
@@ -65,24 +66,28 @@ export function OrdinaryRepositoryDetail({
         rows={repository.locationRows}
         onCopy={onCopy}
       />
+      {active && view.activeConflictResolution
+        ? (
+            <RepositoryConflictResolution
+              busy={busy}
+              resolution={view.activeConflictResolution}
+              onRunAction={onRunAction}
+            />
+          )
+        : null}
       <Section className="repository-section" title="操作">
         <div className="repository-operation-strip">
-          {active && (view.activeSessionRecoveryAction || view.hasSaveConflict)
+          {active && view.activeSessionRecoveryAction && !view.hasSaveConflict
             ? (
               <Button
                 disabled={busy}
-                onClick={() => onRunAction(
-                  view.activeSessionRecoveryAction?.run ??
-                    view.discardPendingChangesAndReload,
-                )}
+                onClick={() =>
+                  onRunAction(view.activeSessionRecoveryAction!.run)}
                 type="button"
                 variant="secondary"
               >
-                {view.hasSaveConflict
-                  ? <Undo2 aria-hidden="true" size={13} />
-                  : <RefreshCw aria-hidden="true" size={13} />}
-                {view.activeSessionRecoveryAction?.label ??
-                  "放弃本地修改并重新加载"}
+                <RefreshCw aria-hidden="true" size={13} />
+                {view.activeSessionRecoveryAction.label}
               </Button>
             )
             : null}

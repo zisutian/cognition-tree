@@ -2,6 +2,7 @@ import type { JournalApplication } from "../../application/journal/journalApplic
 import type { RepositoryApplication } from "../../application/repository/repositoryApplication";
 import type { TodoApplication } from "../../application/todo/todoApplicationState";
 import type { WorkspaceApplication } from "./bindings/workspace/runtime/useWorkspaceApplication";
+import type { ApiAccessApplication } from "../../application/apiAccess/apiAccessAdministration";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }
@@ -15,6 +16,7 @@ export type WorkbenchWorkspaceState =
   | { application: WorkspaceApplication; status: "ready" };
 
 export type WorkbenchApplication = {
+  apiAccess: ApiAccessApplication;
   journal: JournalApplication;
   repository: RepositoryApplication;
   todo: TodoApplication;

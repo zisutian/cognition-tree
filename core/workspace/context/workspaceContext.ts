@@ -1,7 +1,7 @@
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import type {
   WorkspaceStructureIndex,
-} from "../indexes/workspaceStructureIndex";
+} from "../indexes/workspaceStructureIndex.ts";
 
 export type WorkspaceContext = {
   syntax: CtnCompiledSyntax;

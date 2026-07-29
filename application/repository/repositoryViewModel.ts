@@ -55,6 +55,7 @@ export type RepositoryOption = WorkspaceRepositoryDescriptor & {
 };
 
 export type BuiltInOption = BuiltInDescriptor & {
+  conflictResolution?: RepositoryConflictResolutionView | null;
   errorMessage: string;
   hasProblem: boolean;
   locationRows: RepositoryLocationRow[];
@@ -65,6 +66,13 @@ export type BuiltInOption = BuiltInDescriptor & {
   } | null;
   sessionStatus: "failed" | "loading" | "ready" | "unavailable";
   statusLabel: string;
+};
+
+export type RepositoryConflictResolutionView = {
+  keepLocal: () => Promise<void>;
+  loadUnitIds: () => Promise<string[]>;
+  recoverLocalCopy: () => Promise<void>;
+  useRemote: () => Promise<void>;
 };
 
 export type BuiltInIssueView = BuiltInIssue & {
@@ -345,6 +353,7 @@ function projectDeletionState(persistence: WorkspacePersistenceState) {
 }
 
 export type RepositoryViewModel = {
+  activeConflictResolution?: RepositoryConflictResolutionView | null;
   activeRepositoryId: string | null;
   activeRepositoryLabel: string;
   activeSessionErrorMessage: string;
@@ -359,7 +368,6 @@ export type RepositoryViewModel = {
   deleteRepository: (input: DeleteRepositoryRequest) => Promise<void>;
   deletionBlocked: boolean;
   deletionWarning: string;
-  discardPendingChangesAndReload: () => Promise<void>;
   hasSaveConflict: boolean;
   issues: RepositoryIssueView[];
   operation: RepositoryCatalogOperation;
@@ -409,18 +417,13 @@ export function createRepositoryViewModel(
   const activeSessionErrorMessage = source.session.status === "failed"
     ? source.session.errorMessage
     : persistence?.status === "conflict"
-      ? "普通仓库存在同步冲突，请放弃本地修改并重新加载。"
+      ? "普通仓库存在同步冲突，本地与远端版本均已保留，请选择处理方式。"
       : persistence?.status === "error"
         ? persistence.message
         : "";
   const activeSessionRecoveryAction = source.session.status === "failed"
     ? { label: "重试挂载", run: source.session.retry }
-    : source.session.status === "ready" && persistence?.status === "conflict"
-      ? {
-          label: "放弃本地修改并重新加载",
-          run: source.session.discardPendingChangesAndReload,
-        }
-      : source.session.status === "ready" && persistence?.status === "error"
+    : source.session.status === "ready" && persistence?.status === "error"
         ? { label: "重新加载", run: source.session.reload }
         : null;
   const builtIns = (builtInCatalog?.repositories ?? []).map(
@@ -429,13 +432,25 @@ export function createRepositoryViewModel(
       const sessionStatus = session.status;
       const readySession = session.status === "ready" ? session : null;
       const persistence = readySession?.persistence ?? null;
+      const conflictResolution = persistence?.status === "conflict" &&
+          readySession?.keepLocalConflictAndSynchronize &&
+          readySession.loadConflictUnitIds &&
+          readySession.recoverLocalConflictCopy &&
+          readySession.useRemoteConflictAndSynchronize
+        ? {
+            keepLocal: readySession.keepLocalConflictAndSynchronize,
+            loadUnitIds: readySession.loadConflictUnitIds,
+            recoverLocalCopy: readySession.recoverLocalConflictCopy,
+            useRemote: readySession.useRemoteConflictAndSynchronize,
+          }
+        : null;
       const hasProblem = sessionStatus === "failed" ||
         persistence?.status === "conflict" ||
         persistence?.status === "error";
       const errorMessage = sessionStatus === "failed"
         ? session.errorMessage
         : persistence?.status === "conflict"
-          ? "内置数据存在同步冲突，请放弃本地修改并重新加载。"
+          ? "内置数据存在同步冲突，本地与远端版本均已保留，请选择处理方式。"
           : persistence?.status === "error"
             ? persistence.message
             : "";
@@ -466,12 +481,7 @@ export function createRepositoryViewModel(
                           : "不可用";
       const recoveryAction = sessionStatus === "failed"
         ? { label: "重试挂载", run: session.reload }
-        : persistence?.status === "conflict"
-          ? {
-              label: "放弃本地修改并重新加载",
-              run: readySession!.discardPendingChangesAndReload,
-            }
-          : persistence?.status === "error"
+        : persistence?.status === "error"
             ? persistence.phase === "sync"
               ? {
                   label: "重试同步",
@@ -482,6 +492,7 @@ export function createRepositoryViewModel(
 
       return {
         ...repository,
+        conflictResolution,
         errorMessage,
         hasProblem,
         locationRows: projectBuiltInLocation(repository.location),
@@ -508,6 +519,20 @@ export function createRepositoryViewModel(
   );
 
   return {
+    activeConflictResolution:
+      source.session.status === "ready" &&
+          persistence?.status === "conflict" &&
+          source.session.keepLocalConflictAndSynchronize &&
+          source.session.loadConflictUnitIds &&
+          source.session.recoverLocalConflictCopy &&
+          source.session.useRemoteConflictAndSynchronize
+        ? {
+            keepLocal: source.session.keepLocalConflictAndSynchronize,
+            loadUnitIds: source.session.loadConflictUnitIds,
+            recoverLocalCopy: source.session.recoverLocalConflictCopy,
+            useRemote: source.session.useRemoteConflictAndSynchronize,
+          }
+        : null,
     activeRepositoryId,
     activeRepositoryLabel: active?.label ?? "尚未选择普通仓库",
     activeSessionErrorMessage,
@@ -523,9 +548,6 @@ export function createRepositoryViewModel(
     deleteRepository: source.deleteRepository,
     deletionBlocked: deletion.blocked,
     deletionWarning: deletion.warning,
-    discardPendingChangesAndReload: source.session.status === "ready"
-      ? source.session.discardPendingChangesAndReload
-      : async () => {},
     hasSaveConflict: persistence?.status === "conflict",
     issues: projectRepositoryIssues(catalog?.issues ?? []),
     operation: catalog?.operation ?? "idle",

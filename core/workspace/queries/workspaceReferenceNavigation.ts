@@ -2,9 +2,9 @@ import {
   ctnGlobalReferenceType,
   ctnLocalReferenceType,
   normalizeCtnReferenceText,
-} from "../../ctn/parser/inlineReferences";
-import type { WorkspaceParseIndex } from "../indexes/workspaceParseIndex";
-import type { NoteId } from "../model/workspaceData";
+} from "../../ctn/parser/inlineReferences.ts";
+import type { WorkspaceParseIndex } from "../indexes/workspaceParseIndex.ts";
+import type { NoteId } from "../model/workspaceData.ts";
 
 export type WorkspaceReferenceNavigationTarget = {
   text: string;

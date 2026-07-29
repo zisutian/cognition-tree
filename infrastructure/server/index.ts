@@ -2,11 +2,11 @@
 
 import path from "node:path";
 import {
-  createWorkspaceApiServer,
-} from "./api/workspaceApiServer.ts";
+  createApiV1Server,
+} from "./api/apiV1Server.ts";
 import {
-  createWorkspaceApiSecurityPolicy,
-} from "./api/workspaceApiSecurity.ts";
+  createApiV1SecurityPolicy,
+} from "./api/apiV1Security.ts";
 import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
@@ -33,7 +33,7 @@ if (repositoryHostRoot !== null && !path.isAbsolute(repositoryHostRoot)) {
 const serverStateDirectory =
   process.env.CTN_SERVER_STATE_DIR ??
   path.join(process.cwd(), ".cognition-tree", "server");
-const security = createWorkspaceApiSecurityPolicy({
+const security = createApiV1SecurityPolicy({
   bearerToken: process.env.CTN_API_TOKEN,
   host,
   publicUrl: process.env.CTN_PUBLIC_URL,
@@ -57,7 +57,12 @@ const builtInCatalog = new BuiltInCatalog(repositoryRoot);
 await catalog.initialize();
 await builtInCatalog.initialize();
 
-const server = createWorkspaceApiServer({ builtInCatalog, catalog, security });
+const server = createApiV1Server({
+  builtInCatalog,
+  catalog,
+  security,
+  stateDirectory: serverStateDirectory,
+});
 
 let shuttingDown = false;
 const shutdown = async () => {

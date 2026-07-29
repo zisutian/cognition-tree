@@ -4,11 +4,11 @@ import { rm } from "node:fs/promises";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import {
-  createWorkspaceApiRequestHandler,
-} from "../../infrastructure/server/api/workspaceApiServer.ts";
+  createApiV1RequestHandler,
+} from "../../infrastructure/server/api/apiV1Server.ts";
 import {
-  createWorkspaceApiSecurityPolicy,
-} from "../../infrastructure/server/api/workspaceApiSecurity.ts";
+  createApiV1SecurityPolicy,
+} from "../../infrastructure/server/api/apiV1Security.ts";
 import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
@@ -27,7 +27,7 @@ const serverStateDir = path.resolve(
 );
 const repositoryHostRoot = process.env.CTN_E2E_REPOSITORY_HOST_ROOT ?? null;
 const security = {
-  ...createWorkspaceApiSecurityPolicy({ host }),
+  ...createApiV1SecurityPolicy({ host }),
   allowedOrigins: [
     process.env.CTN_E2E_WEB_ORIGIN ?? "http://127.0.0.1:4174",
   ],
@@ -50,10 +50,11 @@ const builtInCatalog = new BuiltInCatalog(repositoryDir);
 await catalog.initialize();
 await builtInCatalog.initialize();
 
-const workspaceApiHandler = createWorkspaceApiRequestHandler({
+const apiV1Handler = createApiV1RequestHandler({
   catalog,
   security,
   builtInCatalog,
+  stateDirectory: serverStateDir,
 });
 
 async function readSeedRequest(request: IncomingMessage) {
@@ -104,7 +105,7 @@ const server = http.createServer((request, response) => {
     return;
   }
 
-  void workspaceApiHandler(request, response);
+  void apiV1Handler(request, response);
 });
 
 server.headersTimeout = 10_000;

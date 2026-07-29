@@ -72,6 +72,8 @@ describe("workspace repository local cache", () => {
 
   it("does not clear a newer pending stage when an older sync completes", async () => {
     const cache = createMemoryWorkspaceRepositoryCache();
+    const committedContent =
+      createWorkspaceRepositoryContent("Being synchronized");
     await cache.create({
       identity: "repository",
       localRevision: draftA,
@@ -81,7 +83,7 @@ describe("workspace repository local cache", () => {
       },
     });
     await cache.stage({
-      content: createWorkspaceRepositoryContent("Being synchronized"),
+      content: committedContent,
       expectedLocalRevision: draftA,
       identity: "repository",
       localRevision: draftB,
@@ -94,6 +96,7 @@ describe("workspace repository local cache", () => {
     });
 
     const completed = await cache.completeSync({
+      committedContent,
       committedRemoteRevision: revisionB,
       expectedLocalRevision: draftB,
       identity: "repository",

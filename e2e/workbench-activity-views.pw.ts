@@ -62,7 +62,7 @@ async function waitForStableGraphSpan(
   return readGraphSpan(canvas);
 }
 
-test.describe("syntax and visualization activity flows", () => {
+test.describe("activity view flows", () => {
   let api: APIRequestContext;
 
   test.beforeAll(async () => {
@@ -278,7 +278,7 @@ test.describe("syntax and visualization activity flows", () => {
     page,
   }) => {
     const beforeResponse = await api.get(
-      `/api/repositories/${invalidSyntaxRepositoryId}/snapshot`,
+      `/api/v1/sync/workspaces/${invalidSyntaxRepositoryId}`,
     );
     const beforeSnapshot = (await beforeResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -315,7 +315,7 @@ test.describe("syntax and visualization activity flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/repositories/${invalidSyntaxRepositoryId}/snapshot`,
+        `/api/v1/sync/workspaces/${invalidSyntaxRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const source = snapshot.content.workspace.notes.find(
@@ -335,6 +335,41 @@ test.describe("syntax and visualization activity flows", () => {
 
     await getActivityButton(page, "语法").click();
     await expect(indentWidth).toHaveValue("8");
+  });
+
+  test("shows a new API token only once and retains only its prefix", async ({
+    page,
+  }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "API 访问", exact: true }).click();
+    const panel = page.getByRole("region", { name: "API 访问" });
+
+    await expect(panel).toBeVisible();
+    await panel.getByRole("textbox", { name: "名称" }).fill("E2E AI");
+    await panel.getByRole("button", { name: "创建令牌" }).click();
+    const oneTimeSecret = panel.locator(".settings-api-secret");
+
+    await expect(oneTimeSecret).toContainText("令牌仅显示这一次");
+    const secret = (await oneTimeSecret.locator("code").textContent()) ?? "";
+
+    expect(secret).toMatch(/^ctn_[A-Za-z0-9_-]+$/);
+    await oneTimeSecret.getByRole("button", { name: "我已保存" }).click();
+    await expect(oneTimeSecret).toHaveCount(0);
+    const tokenRow = panel.getByRole("list", { name: "自动化令牌" })
+      .getByRole("listitem")
+      .filter({ hasText: "E2E AI" });
+
+    await expect(tokenRow).toBeVisible();
+    await expect(tokenRow).not.toContainText(secret);
+    await page.reload();
+    await expect(page.getByRole("navigation", { name: "工作区功能" }))
+      .toBeVisible();
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "API 访问", exact: true }).click();
+    await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "自动化令牌" }))
+      .toContainText("E2E AI");
   });
 
   test("switches graph selection without shrinking the canvas", async ({

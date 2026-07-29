@@ -61,7 +61,8 @@ export function projectWorkspaceRepositoryRuntimeIssues(
       adapter: descriptor.adapter,
       code: "repository_conflict",
       kind: "repository",
-      message: "普通仓库存在同步冲突，请放弃本地修改并重新加载。",
+      message:
+        "普通仓库存在同步冲突，本地与远端版本均已保留，请选择处理方式。",
       repositoryId: descriptor.id,
       repositoryLabel: descriptor.label,
     });

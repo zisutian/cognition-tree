@@ -33,10 +33,16 @@ function projectRepositorySession(
   return {
     discardPendingChangesAndReload:
       workspace.controller.discardPendingChangesAndReload,
+    keepLocalConflictAndSynchronize:
+      workspace.controller.keepLocalConflictAndSynchronize,
+    loadConflictUnitIds: workspace.controller.loadConflictUnitIds,
+    recoverLocalConflictCopy: workspace.controller.recoverLocalConflictCopy,
     persistence: workspace.persistence,
     reload: workspace.controller.reload,
     status: "ready",
     storageLabel: workspace.storageLabel,
+    useRemoteConflictAndSynchronize:
+      workspace.controller.useRemoteConflictAndSynchronize,
   };
 }
 
@@ -47,16 +53,33 @@ function projectBuiltInSessions(
     journal: projectBuiltInSessionSummary({
       discardPendingChangesAndReload:
         snapshot.builtIns.journal.controller.discardPendingChangesAndReload,
+      keepLocalConflictAndSynchronize:
+        snapshot.builtIns.journal.controller.keepLocalConflictAndSynchronize,
+      loadConflictUnitIds:
+        snapshot.builtIns.journal.controller.loadConflictUnitIds,
+      recoverLocalConflictCopy:
+        snapshot.builtIns.journal.controller.recoverLocalConflictCopy,
       reload: snapshot.builtIns.journal.controller.reload,
       requestSync: snapshot.builtIns.journal.controller.requestSync,
       state: snapshot.builtIns.journal.state,
+      useRemoteConflictAndSynchronize:
+        snapshot.builtIns.journal.controller
+          .useRemoteConflictAndSynchronize,
     }),
     todo: projectBuiltInSessionSummary({
       discardPendingChangesAndReload:
         snapshot.builtIns.todo.controller.discardPendingChangesAndReload,
+      keepLocalConflictAndSynchronize:
+        snapshot.builtIns.todo.controller.keepLocalConflictAndSynchronize,
+      loadConflictUnitIds:
+        snapshot.builtIns.todo.controller.loadConflictUnitIds,
+      recoverLocalConflictCopy:
+        snapshot.builtIns.todo.controller.recoverLocalConflictCopy,
       reload: snapshot.builtIns.todo.controller.reload,
       requestSync: snapshot.builtIns.todo.controller.requestSync,
       state: snapshot.builtIns.todo.state,
+      useRemoteConflictAndSynchronize:
+        snapshot.builtIns.todo.controller.useRemoteConflictAndSynchronize,
     }),
   };
 }

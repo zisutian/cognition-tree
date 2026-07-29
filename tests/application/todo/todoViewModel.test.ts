@@ -178,6 +178,7 @@ describe("Todo CTN view model", () => {
       stageId:
         "todo-recurrence-stage-00000000-0000-4000-8000-000000000001",
       today: "2026-07-18",
+      updatedAt: todoTimestamp(20),
       },
     );
     const firstDay = createView(
@@ -253,19 +254,31 @@ describe("Todo CTN view model", () => {
       stageId:
         "todo-recurrence-stage-00000000-0000-4000-8000-000000000001",
       today: "2026-07-18",
+      updatedAt: todoTimestamp(20),
       },
     );
-    const stopped = stopTodoBlockRecurrence(recurring, {
-      blockId: todoBlockId(1),
-      collectionId: todoCollectionId(1),
-      today: "2026-07-18",
-    });
+    const stopped = stopTodoBlockRecurrence(
+      recurring,
+      createTodoParseIndex(recurring),
+      {
+        blockId: todoBlockId(1),
+        collectionId: todoCollectionId(1),
+        today: "2026-07-18",
+        updatedAt: todoTimestamp(21),
+      },
+    );
     const view = createView(
       stopped,
       todoCollectionId(1),
       "2026-07-18",
     ).view;
 
+    expect(stopped.collections[0]?.completions).toEqual([
+      expect.objectContaining({
+        blockId: todoBlockId(1),
+        completedAt: todoTimestamp(4),
+      }),
+    ]);
     expect(view.outline.nodes[0]).toMatchObject({
       completed: true,
       recurrence: {

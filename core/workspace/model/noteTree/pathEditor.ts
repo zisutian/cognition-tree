@@ -1,4 +1,4 @@
-import type { NoteTreeNode } from "../workspaceData";
+import type { NoteTreeNode } from "../workspaceData.ts";
 
 type PendingNode = {
   node: NoteTreeNode;

@@ -39,9 +39,9 @@ function apiError(
   code: string,
   message: string,
   requestId = "request-1",
-  extra: Record<string, unknown> = {},
+  details?: Record<string, unknown>,
 ) {
-  return { code, message, requestId, ...extra };
+  return { code, ...(details ? { details } : {}), message, requestId };
 }
 
 afterEach(() => {
@@ -127,7 +127,7 @@ describe("HTTP workspace repository backend", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       method: "GET",
-      url: "http://api.test/base/api/repositories/primary/snapshot",
+      url: "http://api.test/base/api/v1/sync/workspaces/primary",
     });
   });
 
@@ -196,7 +196,7 @@ describe("HTTP workspace repository backend", () => {
     const backend = createHttpWorkspaceRepositoryBackend({
       fetch: async () =>
         jsonResponse(
-          apiError("revision_conflict", "content changed", "request-2", {
+          apiError("resource_conflict", "content changed", "request-2", {
             currentRevision: revisionB,
           }),
           409,

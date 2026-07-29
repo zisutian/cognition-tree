@@ -9,6 +9,7 @@ import {
   VersionedRepositoryLocalConflictError,
   type VersionedRepositoryBackend,
   type VersionedRepositoryCodec,
+  type VersionedRepositoryConflictRecord,
   type VersionedRepositoryContentValidator,
   type VersionedRepositoryTransitionValidator,
 } from "../../application/persistence/versionedRepository";
@@ -29,6 +30,8 @@ const epochKey = "storage-epoch";
 const remoteKey = "snapshot";
 
 type IndexedLocalState = {
+  baseContent?: unknown;
+  conflict?: unknown;
   content: unknown;
   identity: string;
   localRevision: unknown;
@@ -260,8 +263,10 @@ export function createBrowserVersionedContentStorage<
           ? remoteRevision
           : local.pendingBaseRevision;
 
-      return {
-        content: prepared.content,
+    return {
+      baseContent: preparedRemote.content,
+      conflict: null,
+      content: prepared.content,
         identity: local.identity,
         localRevision: local.localRevision,
         pendingBaseRevision,
@@ -350,18 +355,73 @@ export function createBrowserVersionedContentStorage<
       throw new WireContractError(databaseName, "$.local", "invalid local identity");
     }
     const content = codec.parseContent(state.content);
+    const pendingBaseRevision = state.pendingBaseRevision === null
+      ? null
+      : codec.parseRevision(state.pendingBaseRevision);
+    const remoteRevision = state.remoteRevision === null
+      ? null
+      : codec.parseRevision(state.remoteRevision);
+    const baseContent = state.baseContent === undefined
+      ? pendingBaseRevision ? null : content
+      : state.baseContent === null
+        ? null
+        : codec.parseContent(state.baseContent);
+    const conflict = state.conflict === undefined || state.conflict === null
+      ? null
+      : (() => {
+          if (
+            typeof state.conflict !== "object" ||
+            Array.isArray(state.conflict)
+          ) {
+            throw new WireContractError(
+              databaseName,
+              "$.local.conflict",
+              "expected conflict record",
+            );
+          }
+          const candidate = state.conflict as Partial<
+            VersionedRepositoryConflictRecord<Content, Revision>
+          >;
+
+          if (
+            !Array.isArray(candidate.unitIds) ||
+            !candidate.unitIds.every((unitId) => typeof unitId === "string")
+          ) {
+            throw new WireContractError(
+              databaseName,
+              "$.local.conflict.unitIds",
+              "expected conflict unit ids",
+            );
+          }
+          return {
+            base: codec.parseContent(candidate.base),
+            local: codec.parseContent(candidate.local),
+            remote: codec.parseContent(candidate.remote),
+            remoteRevision: codec.parseRevision(candidate.remoteRevision),
+            unitIds: [...new Set(candidate.unitIds)].sort(),
+          };
+        })();
 
     validateContent(content);
     return {
+      baseContent,
+      conflict,
       content,
       localRevision: state.localRevision,
-      pendingBaseRevision: state.pendingBaseRevision === null
-        ? null
-        : codec.parseRevision(state.pendingBaseRevision),
-      remoteRevision: state.remoteRevision === null
-        ? null
-        : codec.parseRevision(state.remoteRevision),
+      pendingBaseRevision,
+      remoteRevision,
     };
+  };
+  const publicLocalState = (
+    state: ReturnType<typeof parseLocalState>,
+  ) => {
+    const {
+      baseContent: _baseContent,
+      conflict: _conflict,
+      ...result
+    } = state;
+
+    return result;
   };
 
   const readLocal = async (transaction: IDBTransaction, identity: string) => {
@@ -400,6 +460,7 @@ export function createBrowserVersionedContentStorage<
     `draft:${string}`
   > = {
     async completeSync({
+      committedContent,
       committedRemoteRevision,
       expectedLocalRevision,
       identity,
@@ -420,12 +481,14 @@ export function createBrowserVersionedContentStorage<
         pendingBaseRevision:
           current.localRevision === expectedLocalRevision ? null : revision,
         remoteRevision: revision,
+        baseContent: codec.parseContent(committedContent),
+        conflict: null,
       };
 
       transaction.objectStore(localStoreName).put(next);
       await completion;
       const { identity: _, ...result } = next;
-      return structuredClone(result);
+      return structuredClone(publicLocalState(result));
     },
     async create({ identity, localRevision, snapshot }) {
       const database = await initialize;
@@ -441,6 +504,8 @@ export function createBrowserVersionedContentStorage<
         throw new Error(`Local content state already exists: ${identity}`);
       }
       const state = {
+        baseContent: parsed.content,
+        conflict: null,
         content: parsed.content,
         identity,
         localRevision,
@@ -451,7 +516,7 @@ export function createBrowserVersionedContentStorage<
       transaction.objectStore(localStoreName).add(state);
       await completion;
       const { identity: _, ...result } = state;
-      return structuredClone(result);
+      return structuredClone(publicLocalState(result));
     },
     async load(identity) {
       const database = await initialize;
@@ -460,9 +525,60 @@ export function createBrowserVersionedContentStorage<
       const state = await readLocal(transaction, identity);
 
       await completion;
-      return state ? structuredClone(state) : null;
+      return state ? structuredClone(publicLocalState(state)) : null;
     },
-    async recordConflict({ currentRemoteRevision, identity }) {
+    async loadSyncContext(identity) {
+      const database = await initialize;
+      const transaction = database.transaction(localStoreName, "readonly");
+      const completion = transactionComplete(transaction);
+      const state = await readLocal(transaction, identity);
+
+      await completion;
+      return state
+        ? structuredClone({
+            baseContent: state.baseContent,
+            conflict: state.conflict,
+          })
+        : null;
+    },
+    async recordConflict({
+      baseContent,
+      currentRemoteRevision,
+      identity,
+      localContent,
+      remoteContent,
+      unitIds,
+    }) {
+      const database = await initialize;
+      const revision = codec.parseRevision(currentRemoteRevision);
+      const transaction = database.transaction(localStoreName, "readwrite");
+      const completion = transactionComplete(transaction);
+      const current = await readLocal(transaction, identity);
+
+      if (!current) {
+        await abortTransaction(transaction, completion);
+        throw new Error(`Local content state does not exist: ${identity}`);
+      }
+      const next = {
+        ...current,
+        baseContent: codec.parseContent(baseContent),
+        conflict: {
+          base: codec.parseContent(baseContent),
+          local: codec.parseContent(localContent),
+          remote: codec.parseContent(remoteContent),
+          remoteRevision: revision,
+          unitIds: [...new Set(unitIds)].sort(),
+        },
+        identity,
+        remoteRevision: revision,
+      };
+
+      transaction.objectStore(localStoreName).put(next);
+      await completion;
+      const { identity: _, ...result } = next;
+      return structuredClone(publicLocalState(result));
+    },
+    async recordConflictRevision({ currentRemoteRevision, identity }) {
       const database = await initialize;
       const revision = codec.parseRevision(currentRemoteRevision);
       const transaction = database.transaction(localStoreName, "readwrite");
@@ -478,7 +594,7 @@ export function createBrowserVersionedContentStorage<
       transaction.objectStore(localStoreName).put(next);
       await completion;
       const { identity: _, ...result } = next;
-      return structuredClone(result);
+      return structuredClone(publicLocalState(result));
     },
     async remove(identity) {
       const database = await initialize;
@@ -487,6 +603,47 @@ export function createBrowserVersionedContentStorage<
 
       transaction.objectStore(localStoreName).delete(identity);
       await completion;
+    },
+    async rebaseFromRemote({
+      content,
+      expectedLocalRevision,
+      identity,
+      localRevision,
+      pendingChanges,
+      snapshot,
+    }) {
+      const database = await initialize;
+      const parsedSnapshot = codec.parseSnapshot(snapshot);
+      const parsedContent = codec.parseContent(content);
+
+      validateContent(parsedSnapshot.content);
+      validateContent(parsedContent);
+      const transaction = database.transaction(localStoreName, "readwrite");
+      const completion = transactionComplete(transaction);
+      const current = await readLocal(transaction, identity);
+
+      if (!current) {
+        await abortTransaction(transaction, completion);
+        throw new Error(`Local content state does not exist: ${identity}`);
+      }
+      if (current.localRevision !== expectedLocalRevision) {
+        await abortTransaction(transaction, completion);
+        throw new VersionedRepositoryLocalConflictError(current.localRevision);
+      }
+      const state = {
+        baseContent: parsedSnapshot.content,
+        conflict: null,
+        content: parsedContent,
+        identity,
+        localRevision,
+        pendingBaseRevision: pendingChanges ? parsedSnapshot.revision : null,
+        remoteRevision: parsedSnapshot.revision,
+      };
+
+      transaction.objectStore(localStoreName).put(state);
+      await completion;
+      const { identity: _, ...result } = state;
+      return structuredClone(publicLocalState(result));
     },
     async replaceFromRemote({
       expectedLocalRevision,
@@ -511,6 +668,8 @@ export function createBrowserVersionedContentStorage<
         throw new VersionedRepositoryLocalConflictError(current.localRevision);
       }
       const state = {
+        baseContent: parsed.content,
+        conflict: null,
         content: parsed.content,
         identity,
         localRevision,
@@ -521,7 +680,7 @@ export function createBrowserVersionedContentStorage<
       transaction.objectStore(localStoreName).put(state);
       await completion;
       const { identity: _, ...result } = state;
-      return structuredClone(result);
+      return structuredClone(publicLocalState(result));
     },
     async stage({ content, expectedLocalRevision, identity, localRevision }) {
       const database = await initialize;
@@ -562,7 +721,7 @@ export function createBrowserVersionedContentStorage<
       transaction.objectStore(localStoreName).put(next);
       await completion;
       const { identity: _, ...result } = next;
-      return structuredClone(result);
+      return structuredClone(publicLocalState(result));
     },
   };
 

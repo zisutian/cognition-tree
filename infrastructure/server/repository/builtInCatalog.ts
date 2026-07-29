@@ -149,7 +149,10 @@ export class BuiltInCatalog {
     });
   }
 
-  getStore(idValue: unknown): Promise<VersionedContentStore<unknown>> {
+  getStore(idValue: "journal"): Promise<VersionedContentStore<JournalContentDto>>;
+  getStore(idValue: "todo"): Promise<VersionedContentStore<TodoContentDto>>;
+  getStore(idValue: BuiltInIdDto): Promise<VersionedContentStore<unknown>>;
+  getStore(idValue: BuiltInIdDto): Promise<VersionedContentStore<unknown>> {
     return this.#getStore(parseBuiltInId(idValue));
   }
 

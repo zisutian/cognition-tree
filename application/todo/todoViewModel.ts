@@ -12,7 +12,6 @@ import {
   type TodoContent,
 } from "../../core/todo/model/todoContent";
 import {
-  isTodoRecurrenceEnabled,
   projectTodoRecurrence,
   type TodoLocalDate,
   type TodoRecurrenceRule,
@@ -267,16 +266,14 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
       const projection = projectTodoRecurrence(recurrence, today);
       const rule = projection.currentStage?.rule ??
         recurrence.stages.at(-1)!.rule;
-      const active = isTodoRecurrenceEnabled(recurrence);
 
       return [
         recurrence.blockId,
         {
           ...projection,
-          active,
           occurrenceActive: projection.active,
           progress: createTodoRecurrenceProgress({
-            active,
+            active: projection.active,
             completedCount: projection.completedCount,
             nextOccurrenceDate: projection.nextOccurrenceDate,
             totalCount: projection.totalCount,

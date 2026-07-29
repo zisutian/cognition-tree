@@ -1,7 +1,7 @@
 import {
   readCtnCanonicalTitleHeader,
-} from "../../ctn/parser/parseCtnDocument";
-import type { WorkspaceData } from "../model/workspaceData";
+} from "../../ctn/parser/parseCtnDocument.ts";
+import type { WorkspaceData } from "../model/workspaceData.ts";
 
 export class WorkspaceBlockMetadataError extends Error {
   constructor(message: string) {

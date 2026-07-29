@@ -30,7 +30,9 @@ presentation/
 
 contracts/
 
-    前后端中立的 wire 类型和运行时解析，按 common、workspace、journal、todo、built-ins、mobile 分开。
+    前后端中立的 wire 类型和运行时解析。contracts/api registry 是 HTTP
+    路径、方法、body schema、operationId 与 scope 的唯一 owner；领域
+    contract 仍按 common、workspace、journal、todo、built-ins 分开。
 
 tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
 但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
@@ -96,30 +98,32 @@ versioned store、session 和 API，也不获得普通仓库的创建、删除�
 
 Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两者分别维护 remote、draft/cache、epoch、lock 和原子临时文件；一个领域的清理或故障不得影响另一个。当前版本中的损坏内容与未知未来版本保留原样，不自动覆盖。
 
-普通仓库 API 位于 /api/repositories 与 /api/repositories/<id>/snapshot。内置数据 API：
+唯一 HTTP 契约为 /api/v1。资源查询和 command 是自动化边界；完整
+Workspace/Journal/Todo snapshot 只存在于带 sync scope 的官方客户端路径。
+自动化 principal 永远不能获得 sync、syntax:write、repository:admin 或
+token:manage，因而不能绕过领域命令修改 canonical metadata、语法、仓库连接
+或仓库管理状态。旧 repository、snapshot、built-in 和 Mobile route 不存在。
 
-    GET /api/built-ins
-    GET、PUT /api/journal/snapshot
-    POST /api/journal/retry
-    GET、PUT /api/todo/snapshot
-    POST /api/todo/retry
+所有命令使用严格 discriminated union、UUID commandId、preview/commit mode
+和目标资源版本。领域执行器是内容修改的唯一 owner；HTTP handler、SSE、
+search、audit 和 presentation 不重建变化。命令执行器或官方同步前后比较只
+生成一次 DomainChangeSet，供响应、事件、缓存失效和审计共享。
 
-手机业务投影：
+资源版本是内容 SHA-256；canonical block metadata 是 block createdAt/updatedAt
+的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
+block updatedAt，但并发判断不使用时间戳。
 
-    GET /api/mobile/v2/status
-    GET /api/mobile/v2/journal/entries
-    GET /api/mobile/v2/journal/entries/<id>
-    GET /api/mobile/v2/todo/collections
-    GET /api/mobile/v2/todo/collections/<id>
-    PUT /api/mobile/v2/todo/collections/<id>/tasks/<block-id>/completion
+官方客户端 local-first 缓存持久保存 clean base 和 conflict
+base/local/remote。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
+为单元，Todo 以 collection body、collection order、单任务 completion 和
+recurrence 为单元执行三方合并。不同单元自动 rebase；同一单元双改、删改竞争
+进入冲突。语法变化是 barrier，不能跨 grammar 自动合并。SSE 只发送 checkpoint
+与无正文 change set，重连 checkpoint 修复漏事件。
 
-mobile v2 只返回分页日记摘要、单篇精简 CTN block 投影、事项集合摘要、精简任务树、周期规则与统计。revision 必须是 sha256: 加 64 位小写十六进制；日记 opaque cursor 绑定 revision 与最后一条 entry ID。树投影使用迭代遍历并限制为 128 层，超限返回 422 projection_too_large。Todo 写入必须携带 expectedRevision、目标 completed 和 occurrenceDate；过期 revision 或 occurrence 明确返回 409，成功响应同时返回更新后的 collection summary。接口不接受任意 source、syntax 或完整 content，不提供通用代理能力。
-
-Todo 移动投影中，recurrence 非 null 只表示存在周期历史，只有 recurrence.active 才表示当前周期 occurrence；completedCount/totalCount 表示历史完成次数/截至本地今天应发生次数。inactive recurrence 保留统计但按普通任务投影完成状态，写入必须使用 occurrenceDate null；active recurrence 只有在 currentOccurrenceDate 非 null 时才允许客户端提交该精确日期。
-
-所有已认证 v2 路由只返回限定代码的统一错误 envelope。mobile v1 六个固定操作暂留一个兼容发布窗口，随后独立移除；v1 失效分页游标使用现有 409 revision_conflict。
-
-/api/built-ins 只返回 descriptor、位置、保护状态和故障。服务端与 Browser 存储边界都不提供 Journal/Todo create、delete、rename 或切换为普通仓库。
+Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
+周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
+普通任务处理并使用 occurrenceDate null；active 只能提交服务端给出的
+currentOccurrenceDate。
 
 
 6. Application 协调
@@ -146,9 +150,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
     WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。
-    API server 分为 route、HTTP transport、错误映射、Workspace handler、Built-in handler 和 Mobile handler；Mobile 公共错误/运行时、Journal 只读投影与 Todo CAS 写入各有唯一 owner。主 server 只负责认证、请求生命周期和分派。
+    API server 分为 registry 驱动的 request lifecycle、统一错误、领域资源投影、三个 command executor、search、SSE、令牌/幂等/审计状态和官方 sync。主 server 只负责认证、请求限制和分派；只有 contracts/api registry 定义 HTTP wire，只有领域执行器修改内容。
 
-这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或现有 HTTP endpoint。
+这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或仓库内容
+schema。
 
 
 8. Presentation 与 Problems

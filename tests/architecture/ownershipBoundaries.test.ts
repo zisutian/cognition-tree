@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   applicationModules,
+  contractModules,
   infrastructureModules,
   presentationModules,
   sourceImportCorpus,
   sourceModules,
 } from "./sourceGraph";
+import {
+  apiV1RouteDefinitions,
+  getApiV1RouteOperation,
+} from "../../contracts/api/registry";
+import {
+  apiV1AutomationScopes,
+} from "../../contracts/api/types";
 import {
   auditTextPolicies,
   type TextCorpus,
@@ -21,6 +29,18 @@ type UniqueOwner = readonly [
 ];
 
 const uniqueOwners: readonly UniqueOwner[] = [
+  [
+    "CTN API route declarations",
+    contractModules,
+    /\bpath:\s*"\/api\/v1\//,
+    /^contracts\/api\/registry\.ts$/,
+  ],
+  [
+    "CTN API request body dispatch",
+    contractModules,
+    /\bswitch\s*\(route\.requestBodyByMethod\?\.\[method\]\)/,
+    /^contracts\/api\/parseRequest\.ts$/,
+  ],
   [
     "CTN token parsing",
     sourceModules,
@@ -82,6 +102,14 @@ const policies: readonly TextPolicy[] = [
     scope,
   })),
   {
+    allowedPath:
+      /^infrastructure\/server\/api\/apiV1(?:CommandCommon|Sync)\.ts$/,
+    corpus: infrastructureModules,
+    matches: 2,
+    name: "CTN API persistence writes",
+    pattern: /\.commitSnapshot\s*\(/,
+  },
+  {
     allowedPath: /^core\/ctn\/(?:metadata|parser)\//,
     corpus: sourceModules,
     matches: { min: 1 },
@@ -101,5 +129,38 @@ const policies: readonly TextPolicy[] = [
 describe("source ownership boundaries", () => {
   it("enforces the declared unique-owner and forbidden-boundary policies", () => {
     expect(auditTextPolicies(policies)).toEqual([]);
+  });
+
+  it("keeps automation outside official sync and administration routes", () => {
+    const privilegedScopes = new Set([
+      "repository:admin",
+      "sync",
+      "syntax:write",
+      "token:manage",
+    ]);
+    const operations = apiV1RouteDefinitions.flatMap((route) =>
+      route.methods.map((method) => ({
+        method,
+        operation: getApiV1RouteOperation(route, method),
+        path: route.path,
+      }))
+    );
+
+    expect(
+      apiV1AutomationScopes.filter((scope) => privilegedScopes.has(scope)),
+    ).toEqual([]);
+    for (const { method, operation, path } of operations) {
+      if (
+        path.startsWith("/api/v1/sync/") ||
+        path.startsWith("/api/v1/admin/")
+      ) {
+        expect(
+          operation.scopes.some((scope) => privilegedScopes.has(scope)),
+          `${method} ${path}`,
+        ).toBe(true);
+      }
+    }
+    expect(new Set(operations.map(({ operation }) => operation.operationId)).size)
+      .toBe(operations.length);
   });
 });

@@ -18,7 +18,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
 - 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
 - 本地优先缓存、离线编辑、CAS 同步与显式冲突处理。
 - Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
-- 提供 `/api/mobile/v2` 窄接口，供受控 Gateway 只读投影日记并以 CAS 设置代办完成状态，不暴露完整 snapshot；`v1` 暂留一个兼容发布窗口。
+- 提供 `/api/v1` 的资源查询、严格领域命令、搜索、SSE 失效通知和官方客户端同步；自动化令牌不能读取整仓同步内容，也不能修改语法或仓库管理状态。
 - 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
 
 没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
@@ -88,7 +88,7 @@ contract、session 和 API：
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
-Workspace。`CTN_SERVER_STATE_DIR` 只保留 WebDAV 连接等服务状态。
+Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、API 令牌哈希、30 天幂等回执和脱敏审计；令牌明文只在创建时显示一次。
 
 Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。当前内容 contract 为 Workspace v4、Journal v3 与 Todo v4。Todo v3 只由隔离迁移器一次性补入空周期 sidecar；正常挂载路径只读取 v4。
 
@@ -98,7 +98,7 @@ Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo`
     application/      用例、端口、通用 versioned session、Workbench 协调和问题投影
     infrastructure/   versioned persistence、Browser/HTTP adapter 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
-    contracts/        Workspace、Journal、Todo、built-ins 与 mobile wire contract
+    contracts/        API registry、Workspace、Journal、Todo 与 built-ins wire contract
     tooling/          构建、Git、基准脚本与专用 TypeScript 配置
     docs/             产品、架构、工程、环境与界面约定
     tests/            单元、UI、contract 与架构测试

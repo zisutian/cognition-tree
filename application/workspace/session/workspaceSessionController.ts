@@ -35,6 +35,9 @@ import {
   createWorkspaceSyntaxCatalogMutationService,
   type WorkspaceSyntaxCatalogMutation,
 } from "./workspaceSyntaxCatalogMutationService";
+import {
+  recoverWorkspaceLocalConflictCopies,
+} from "../../sync/domainConflictRecovery";
 
 export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
   RepositoryRevision
@@ -46,6 +49,7 @@ export type WorkspaceSessionReadyState = {
   defaultWorkspaceSyntax: WorkspaceSyntax;
   location: WorkspaceRepository["location"];
   persistence: WorkspacePersistenceState;
+  remoteRevision: RepositoryRevision | null;
   status: "ready";
   storageLabel: string;
   syntaxCatalog: WorkspaceSyntaxCatalog;
@@ -71,11 +75,15 @@ export type WorkspaceSessionController = {
   dispose: () => void;
   flushPendingChanges: () => Promise<void>;
   getState: () => WorkspaceSessionControllerState;
+  keepLocalConflictAndSynchronize: () => Promise<void>;
+  loadConflictUnitIds: () => Promise<string[]>;
+  recoverLocalConflictCopy: () => Promise<void>;
   reload: () => Promise<void>;
   prepareForRepositoryRemoval: () => Promise<{ resume: () => void }>;
   start: () => void;
   subscribe: (listener: () => void) => () => void;
   updateSyntaxFileSource: (fileId: string, source: string) => Promise<void>;
+  useRemoteConflictAndSynchronize: () => Promise<void>;
 };
 
 export class WorkspaceSessionUnavailableError extends Error {
@@ -151,6 +159,7 @@ export function createWorkspaceSessionController({
           defaultWorkspaceSyntax,
           location: state.location,
           persistence: state.persistence,
+          remoteRevision: state.snapshot.remoteRevision,
           status: "ready",
           storageLabel: state.storageLabel,
           syntaxCatalog: state.content.syntax,
@@ -167,7 +176,7 @@ export function createWorkspaceSessionController({
       case "unavailable":
         throw new WorkspaceSessionUnavailableError();
     }
-    return cachedState;
+    return cachedState!;
   };
   const commands = createSessionCommands({
     commitDataSnapshot(workspace, analysisOverrides) {
@@ -244,6 +253,19 @@ export function createWorkspaceSessionController({
     dispose: base.dispose,
     flushPendingChanges: base.flushPendingChanges,
     getState: projectState,
+    keepLocalConflictAndSynchronize: base.keepLocalConflictAndSynchronize,
+    loadConflictUnitIds: base.loadConflictUnitIds,
+    recoverLocalConflictCopy() {
+      return base.resolveConflictAndSynchronize(
+        "remote",
+        (content, conflict) =>
+          recoverWorkspaceLocalConflictCopies(content, conflict, {
+            createBlockId: commandDependencies.createBlockId,
+            createWorkspaceNoteId: commandDependencies.createNoteId,
+            now: commandDependencies.now,
+          }),
+      );
+    },
     prepareForRepositoryRemoval: base.prepareForRemoval,
     reload: base.reload,
     start: base.start,
@@ -259,5 +281,7 @@ export function createWorkspaceSessionController({
         ),
       );
     },
+    useRemoteConflictAndSynchronize:
+      base.useRemoteConflictAndSynchronize,
   };
 }

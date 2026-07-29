@@ -25,10 +25,14 @@ export type RepositorySessionState =
     }
   | {
       discardPendingChangesAndReload: () => Promise<void>;
+      keepLocalConflictAndSynchronize?: () => Promise<void>;
+      loadConflictUnitIds?: () => Promise<string[]>;
+      recoverLocalConflictCopy?: () => Promise<void>;
       persistence: WorkspacePersistenceState;
       reload: () => Promise<void>;
       status: "ready";
       storageLabel: string;
+      useRemoteConflictAndSynchronize?: () => Promise<void>;
     };
 
 export type RepositoryApplication = {
@@ -54,18 +58,26 @@ export type BuiltInSessionSummary =
   | { errorMessage: string; reload: () => Promise<void>; status: "failed" }
   | {
       discardPendingChangesAndReload: () => Promise<void>;
+      keepLocalConflictAndSynchronize?: () => Promise<void>;
+      loadConflictUnitIds?: () => Promise<string[]>;
+      recoverLocalConflictCopy?: () => Promise<void>;
       persistence: VersionedRepositoryPersistenceState<ContentRevision>;
       reload: () => Promise<void>;
       requestSync: () => void;
       status: "ready";
+      useRemoteConflictAndSynchronize?: () => Promise<void>;
     };
 
 type BuiltInSessionProjection = {
   discardPendingChangesAndReload(): Promise<void>;
+  keepLocalConflictAndSynchronize(): Promise<void>;
+  loadConflictUnitIds(): Promise<string[]>;
+  recoverLocalConflictCopy(): Promise<void>;
   reload(): Promise<void>;
   requestSync(): void;
   state: import("../journal/journalSessionController").JournalSessionState |
     import("../todo/todoSessionController").TodoSessionState;
+  useRemoteConflictAndSynchronize(): Promise<void>;
 };
 
 export function projectBuiltInSessionSummary(
@@ -86,10 +98,16 @@ export function projectBuiltInSessionSummary(
       return {
         discardPendingChangesAndReload:
           session.discardPendingChangesAndReload,
+        keepLocalConflictAndSynchronize:
+          session.keepLocalConflictAndSynchronize,
+        loadConflictUnitIds: session.loadConflictUnitIds,
+        recoverLocalConflictCopy: session.recoverLocalConflictCopy,
         persistence: session.state.persistence,
         reload: session.reload,
         requestSync: session.requestSync,
         status: "ready",
+        useRemoteConflictAndSynchronize:
+          session.useRemoteConflictAndSynchronize,
       };
   }
 }

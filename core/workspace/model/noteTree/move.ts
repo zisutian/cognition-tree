@@ -1,19 +1,19 @@
-import type { NoteTreeNode } from "../workspaceData";
+import type { NoteTreeNode } from "../workspaceData.ts";
 import type {
   NoteTreeMoveDestination,
   NoteTreeMoveRequest,
   NoteTreeNodeReference,
-} from "./types";
+} from "./types.ts";
 import {
   findNoteTreeNodePath,
   insertNoteTreeNodeAtPath,
   readNoteTreeNodeAtPath,
   removeNoteTreeNodeAtPath,
-} from "./pathEditor";
+} from "./pathEditor.ts";
 import {
   getNoteTreeNodeReferenceId,
   isMatchingNoteTreeNode,
-} from "./query";
+} from "./query.ts";
 
 function findReferencePath(
   tree: readonly NoteTreeNode[],

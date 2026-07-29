@@ -15,6 +15,7 @@ import {
   RepositoryMetadata,
 } from "./RepositoryDetailShared";
 import { builtInLabel } from "./repositoryViewHelpers";
+import { RepositoryConflictResolution } from "./RepositoryConflictResolution";
 
 export function BuiltInRepositoryDetail({
   busy,
@@ -110,21 +111,34 @@ export function BuiltInRepositoryDetail({
         rows={repository.locationRows}
         onCopy={onCopy}
       />
-      <Section className="repository-section" title="操作">
-        <div className="repository-operation-strip">
-          <Button
-            disabled={busy}
-            onClick={() => onRunAction(
-              repository.recoveryAction?.run ?? repository.reload,
-            )}
-            type="button"
-            variant="secondary"
-          >
-            <RefreshCw aria-hidden="true" size={13} />
-            {repository.recoveryAction?.label ?? "重新加载"}
-          </Button>
-        </div>
-      </Section>
+      {repository.conflictResolution
+        ? (
+            <RepositoryConflictResolution
+              busy={busy}
+              resolution={repository.conflictResolution}
+              onRunAction={onRunAction}
+            />
+          )
+        : null}
+      {repository.conflictResolution
+        ? null
+        : (
+            <Section className="repository-section" title="操作">
+              <div className="repository-operation-strip">
+                <Button
+                  disabled={busy}
+                  onClick={() => onRunAction(
+                    repository.recoveryAction?.run ?? repository.reload,
+                  )}
+                  type="button"
+                  variant="secondary"
+                >
+                  <RefreshCw aria-hidden="true" size={13} />
+                  {repository.recoveryAction?.label ?? "重新加载"}
+                </Button>
+              </div>
+            </Section>
+          )}
     </>
   );
 }

@@ -33,6 +33,30 @@ export type VersionedRepositorySnapshot<
   remoteRevision: Revision | null;
 };
 
+export type VersionedContentMergeResult<Content> =
+  | { content: Content; status: "merged" }
+  | { status: "conflict"; unitIds: string[] };
+
+export type VersionedContentConflictPreference = "local" | "remote";
+
+export type VersionedContentMergePolicy<Content> = (
+  base: Content,
+  local: Content,
+  remote: Content,
+  conflictPreference?: VersionedContentConflictPreference,
+) => VersionedContentMergeResult<Content>;
+
+export type VersionedRepositoryConflictRecord<
+  Content,
+  Revision extends string,
+> = {
+  base: Content;
+  local: Content;
+  remote: Content;
+  remoteRevision: Revision;
+  unitIds: string[];
+};
+
 type VersionedRepositorySyncResultBase<
   Revision extends string,
   LocalRevision extends string,
@@ -76,6 +100,19 @@ export type VersionedRepository<
   loadSnapshot(): Promise<
     VersionedRepositorySnapshot<Content, Revision, LocalRevision>
   >;
+  loadConflict?(): Promise<
+    VersionedRepositoryConflictRecord<Content, Revision> | null
+  >;
+  keepLocalConflictAndSynchronize?(): Promise<
+    VersionedRepositorySyncResult<Revision, LocalRevision>
+  >;
+  resolveConflictAndSynchronize?(
+    preference: VersionedContentConflictPreference,
+    transform?: (
+      content: Content,
+      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
+    ) => Content,
+  ): Promise<VersionedRepositorySyncResult<Revision, LocalRevision>>;
   stageSnapshot(input: {
     content: Content;
     expectedLocalRevision: LocalRevision;

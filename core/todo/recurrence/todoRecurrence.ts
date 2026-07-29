@@ -507,7 +507,8 @@ export function projectTodoRecurrence(
   today: TodoLocalDate,
 ): TodoRecurrenceProjection {
   requireTodoLocalDate(today);
-  const stage = currentStage(recurrence, today);
+  const active = isTodoRecurrenceEnabled(recurrence);
+  const stage = active ? currentStage(recurrence, today) : null;
   const currentOccurrenceDate = stage
     ? latestOccurrenceOnOrBefore(stage, today)
     : null;
@@ -519,7 +520,7 @@ export function projectTodoRecurrence(
     : null;
 
   return {
-    active: stage !== null,
+    active,
     completed: completion !== null,
     completedAt: completion?.completedAt ?? null,
     completedCount: recurrence.completions.length,

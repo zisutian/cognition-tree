@@ -10,6 +10,8 @@ import {
   createBrowserInitialWorkspaceContent,
 } from "./browser/browserApplicationServices";
 import { createBuiltInRuntime } from "./builtInRuntime";
+import { createHttpApiV1EventSource } from "./http/httpApiV1Events";
+import { createHttpApiV1Administration } from "./http/httpApiV1Admin";
 import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime";
 
 export function createWorkbenchRuntime(): WorkbenchController {
@@ -18,9 +20,22 @@ export function createWorkbenchRuntime(): WorkbenchController {
 
   return createWorkbenchController({
     activeRepositorySelection: workspace.activeRepositorySelection,
+    apiAccessAdministration: import.meta.env.VITE_CTN_STORAGE_MODE === "browser"
+      ? undefined
+      : createHttpApiV1Administration({
+          baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
+          token: import.meta.env.VITE_CTN_API_TOKEN,
+        }),
     builtInCatalog: builtIns.catalog,
+    changeEvents: import.meta.env.VITE_CTN_STORAGE_MODE === "browser"
+      ? undefined
+      : createHttpApiV1EventSource({
+          baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
+          token: import.meta.env.VITE_CTN_API_TOKEN,
+        }),
     createInitialWorkspaceContent: createBrowserInitialWorkspaceContent,
     scheduler: browserApplicationScheduler,
+    timezoneOffsetMinutes: () => -new Date().getTimezoneOffset(),
     workspaceCatalog: workspace.catalog,
     workspaceCommandDependencies: browserWorkspaceSessionCommandDependencies,
   });

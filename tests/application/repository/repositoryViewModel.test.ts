@@ -55,10 +55,16 @@ function createSource(
     renameRepository: vi.fn(async () => undefined),
     session: {
       discardPendingChangesAndReload: vi.fn(async () => undefined),
+      keepLocalConflictAndSynchronize: vi.fn(async () => undefined),
+      loadConflictUnitIds: vi.fn(async () => [
+        "workspace:note:note-alpha",
+      ]),
       persistence,
+      recoverLocalConflictCopy: vi.fn(async () => undefined),
       reload: vi.fn(async () => undefined),
       status: "ready",
       storageLabel: "本地仓库",
+      useRemoteConflictAndSynchronize: vi.fn(async () => undefined),
     },
     selectRepository: vi.fn(async () => undefined),
     builtIns: {
@@ -95,10 +101,14 @@ function createSource(
       sessions: {
         journal: {
           discardPendingChangesAndReload: vi.fn(async () => undefined),
+          keepLocalConflictAndSynchronize: vi.fn(async () => undefined),
+          loadConflictUnitIds: vi.fn(async () => ["journal:entry:entry-1"]),
           persistence: { status: "saved" },
+          recoverLocalConflictCopy: vi.fn(async () => undefined),
           reload: reloadBuiltIn,
           requestSync: vi.fn(),
           status: "ready",
+          useRemoteConflictAndSynchronize: vi.fn(async () => undefined),
         },
         todo: { status: "loading" },
       },
@@ -296,10 +306,14 @@ describe("repository view model", () => {
       activeRepositoryId: "primary",
       activeRepositoryLabel: "Primary",
       activeSessionErrorMessage:
-        "普通仓库存在同步冲突，请放弃本地修改并重新加载。",
-      activeSessionRecoveryAction: {
-        label: "放弃本地修改并重新加载",
+        "普通仓库存在同步冲突，本地与远端版本均已保留，请选择处理方式。",
+      activeConflictResolution: {
+        keepLocal: expect.any(Function),
+        loadUnitIds: expect.any(Function),
+        recoverLocalCopy: expect.any(Function),
+        useRemote: expect.any(Function),
       },
+      activeSessionRecoveryAction: null,
       catalogErrorMessage: "",
       catalogStatus: "ready",
       creatableAdapters: [
@@ -509,14 +523,18 @@ describe("repository view model", () => {
     );
 
     expect(projectedJournal).toMatchObject({
-      hasProblem: true,
-      statusLabel: "同步冲突",
-      recoveryAction: {
-        label: "放弃本地修改并重新加载",
+      conflictResolution: {
+        keepLocal: expect.any(Function),
+        loadUnitIds: expect.any(Function),
+        recoverLocalCopy: expect.any(Function),
+        useRemote: expect.any(Function),
       },
+      hasProblem: true,
+      recoveryAction: null,
+      statusLabel: "同步冲突",
     });
-    await projectedJournal?.recoveryAction?.run();
-    expect(journal.discardPendingChangesAndReload).toHaveBeenCalledOnce();
+    await projectedJournal?.conflictResolution?.keepLocal();
+    expect(journal.keepLocalConflictAndSynchronize).toHaveBeenCalledOnce();
 
     journal.persistence = {
       localCopySafe: true,

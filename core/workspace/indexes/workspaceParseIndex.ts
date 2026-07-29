@@ -2,21 +2,21 @@ import {
   analyzeCtnSource,
   reprojectCtnAnalysisPresentation,
   type CtnCanonicalSourceAnalysis,
-} from "../../ctn/analysis/sourceAnalysis";
+} from "../../ctn/analysis/sourceAnalysis.ts";
 import {
   createCtnBlockIdRegistry,
   updateCtnBlockIdRegistry,
   type CtnBlockIdRegistry,
   type CtnBlockIdRegistryChange,
-} from "../../ctn/analysis/blockIdRegistry";
+} from "../../ctn/analysis/blockIdRegistry.ts";
 import {
   collectCtnInlineReferences,
   ctnGlobalReferenceType,
   normalizeCtnReferenceText,
-} from "../../ctn/parser/inlineReferences";
-import type { CtnCompiledSyntax } from "../../ctn/syntax/types";
-import type { NoteId, WorkspaceNote } from "../model/workspaceData";
-import type { WorkspaceStructureIndex } from "./workspaceStructureIndex";
+} from "../../ctn/parser/inlineReferences.ts";
+import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
+import type { NoteId, WorkspaceNote } from "../model/workspaceData.ts";
+import type { WorkspaceStructureIndex } from "./workspaceStructureIndex.ts";
 
 type WorkspaceParseIndexSource = {
   analysisOverrides?: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;

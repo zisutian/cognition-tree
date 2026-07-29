@@ -1,13 +1,13 @@
-import type { FolderId, NoteTreeNode } from "../workspaceData";
+import type { FolderId, NoteTreeNode } from "../workspaceData.ts";
 import type {
   NoteTreeFolderNode,
   NoteTreeNodeLocation,
   NoteTreeNodeReference,
-} from "./types";
+} from "./types.ts";
 import {
   findNoteTreeNodePath,
   readNoteTreeNodeAtPath,
-} from "./pathEditor";
+} from "./pathEditor.ts";
 
 export function getNoteTreeNodeReferenceId(
   reference: NoteTreeNodeReference,

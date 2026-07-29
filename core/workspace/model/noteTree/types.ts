@@ -1,4 +1,4 @@
-import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData";
+import type { FolderId, NoteId, NoteTreeNode } from "../workspaceData.ts";
 
 export type NoteTreeFolderNode = Extract<NoteTreeNode, { kind: "folder" }>;
 export type NoteTreeNoteNode = Extract<NoteTreeNode, { kind: "note" }>;

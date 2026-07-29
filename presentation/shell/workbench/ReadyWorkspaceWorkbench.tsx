@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { JournalApplication } from "../../../application/journal";
 import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 import type { TodoApplication } from "../../../application/todo";
+import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
@@ -14,6 +15,7 @@ import { WorkspaceWorkbench } from "./WorkspaceWorkbench";
 
 export function ReadyWorkspaceWorkbench({
   activeActivityId,
+  apiAccess,
   controller,
   feedbackController,
   journal,
@@ -24,6 +26,7 @@ export function ReadyWorkspaceWorkbench({
   todo,
 }: {
   activeActivityId: ActivityId;
+  apiAccess: ApiAccessApplication;
   controller: WorkbenchController;
   feedbackController: WorkbenchFeedbackController<ActivityId>;
   journal: JournalApplication;
@@ -53,6 +56,7 @@ export function ReadyWorkspaceWorkbench({
       activeActivityId={activeActivityId}
       feedbackController={feedbackController}
       application={{
+        apiAccess,
         journal,
         repository,
         todo,

@@ -70,7 +70,8 @@ export function projectBuiltInRuntimeIssues({
         id: descriptor.id,
         kind: "data",
         location: descriptor.location,
-        message: "内置数据存在同步冲突，请放弃本地修改并重新加载。",
+        message:
+          "内置数据存在同步冲突，本地与远端版本均已保留，请选择处理方式。",
         status: "fault",
       });
     } else if (state.persistence.status === "error") {

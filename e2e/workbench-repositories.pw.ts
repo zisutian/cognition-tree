@@ -7,8 +7,11 @@ import {
   type APIRequestContext,
 } from "@playwright/test";
 import type {
+  ApiV1CtnDocumentDto,
+  ApiV1WorkspaceCommandDto,
+} from "../contracts/api/types";
+import type {
   RepositoryCatalogDto,
-  WorkspaceRepositoryCommitDto,
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace/types";
 import {
@@ -226,7 +229,7 @@ test.describe.serial("repository and capacity flows", () => {
     const rescanResponse = page.waitForResponse((response) =>
       response.request().method() === "GET" &&
       response.url().endsWith(
-        `/api/repositories/${externalRepositoryId}/snapshot`,
+        `/api/v1/sync/workspaces/${externalRepositoryId}`,
       )
     );
 
@@ -244,7 +247,7 @@ test.describe.serial("repository and capacity flows", () => {
   test("updates structured Local paths when switching repositories", async ({
     page,
   }) => {
-    const catalogResponse = await api.get("/api/repositories");
+    const catalogResponse = await api.get("/api/v1/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const externalRepository = catalog.repositories.find(
       ({ id }) => id === externalRepositoryId,
@@ -323,7 +326,7 @@ test.describe.serial("repository and capacity flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/repositories/${rawRepositoryId}/snapshot`,
+        `/api/v1/sync/workspaces/${rawRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
 
@@ -377,7 +380,12 @@ test.describe.serial("repository and capacity flows", () => {
   }) => {
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
-    await page.route("**/api/**", (route) => route.abort("internetdisconnected"));
+    const apiRoute = `${e2eApiBaseUrl}/api/**`;
+
+    await page.route(
+      apiRoute,
+      (route) => route.abort("internetdisconnected"),
+    );
 
     const editor = page.locator(".source-editor .cm-content");
 
@@ -404,7 +412,7 @@ test.describe.serial("repository and capacity flows", () => {
       ),
     ).toBeVisible();
 
-    await page.unroute("**/api/**");
+    await page.unroute(apiRoute);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
     await expect(
       page.locator(".repository-summary-list").getByText(
@@ -414,7 +422,7 @@ test.describe.serial("repository and capacity flows", () => {
     ).toBeHidden();
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/repositories/${repositoryId}/snapshot`,
+        `/api/v1/sync/workspaces/${repositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
 
@@ -426,27 +434,26 @@ test.describe.serial("repository and capacity flows", () => {
   test("continues staging the latest local edit after a remote conflict", async ({
     page,
   }) => {
+    await page.route(`${e2eApiBaseUrl}/api/v1/events`, (route) =>
+      route.abort());
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
 
-    const snapshotResponse = await api.get(
-      `/api/repositories/${repositoryId}/snapshot`,
+    const noteResponse = await api.get(
+      `/api/v1/workspaces/${repositoryId}/notes/note-alpha`,
     );
-    const snapshot = (await snapshotResponse.json()) as
-      WorkspaceRepositorySnapshotDto;
-    const remoteCommit = {
-      baseRevision: snapshot.revision,
-      content: {
-        ...snapshot.content,
-        workspace: {
-          ...snapshot.content.workspace,
-          name: `${snapshot.content.workspace.name} · remote-conflict`,
-        },
-      },
-    } satisfies WorkspaceRepositoryCommitDto;
-    const commitResponse = await api.put(
-      `/api/repositories/${repositoryId}/snapshot`,
-      { data: remoteCommit },
+    const note = (await noteResponse.json()) as ApiV1CtnDocumentDto;
+    const remoteCommand = {
+      commandId: "00000000-0000-4000-8000-000000009001",
+      editableText: `${note.editableText}\n\t: remote-conflict`,
+      expectedVersion: note.version,
+      kind: "replace-note-source",
+      mode: "commit",
+      noteId: "note-alpha",
+    } satisfies ApiV1WorkspaceCommandDto;
+    const commitResponse = await api.post(
+      `/api/v1/workspaces/${repositoryId}/commands`,
+      { data: remoteCommand },
     );
 
     expect(commitResponse.ok()).toBe(true);
@@ -492,9 +499,18 @@ test.describe.serial("repository and capacity flows", () => {
         { exact: true },
       ),
     ).toBeVisible();
+    const conflictSection = page.locator(".repository-section").filter({
+      has: page.getByText("同步冲突", { exact: true }),
+    });
+
+    await expect(conflictSection).toBeVisible();
+    await expect(
+      conflictSection.getByText("workspace:note:note-alpha", { exact: true }),
+    )
+      .toBeVisible();
 
     const remoteResponse = await api.get(
-      `/api/repositories/${repositoryId}/snapshot`,
+      `/api/v1/sync/workspaces/${repositoryId}`,
     );
     const remoteSnapshot = (await remoteResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -504,6 +520,34 @@ test.describe.serial("repository and capacity flows", () => {
 
     expect(remoteSource).not.toContain("conflict-local-first");
     expect(remoteSource).not.toContain("conflict-local-latest");
+    expect(remoteSource).toContain("remote-conflict");
+
+    await conflictSection.getByRole("button", {
+      name: "采用远端并另存本地正文",
+    }).click();
+    await expect(conflictSection).toBeHidden();
+    await getActivityButton(page, "笔记").click();
+    await page.locator(".app-context").getByTitle("本地恢复副本").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText(
+      "conflict-local-first conflict-local-latest",
+    );
+    await page.locator(".app-context").getByTitle("Alpha").click();
+    await expect(page.getByLabel("笔记编辑")).toContainText("remote-conflict");
+    await expect(page.getByLabel("笔记编辑"))
+      .not.toContainText("conflict-local-first");
+    await expect.poll(async () => {
+      const response = await api.get(
+        `/api/v1/sync/workspaces/${repositoryId}`,
+      );
+      const current = (await response.json()) as WorkspaceRepositorySnapshotDto;
+      const recovery = current.content.workspace.notes.find(({ source }) =>
+        source.includes("本地恢复副本")
+      );
+
+      return recovery?.source.includes(
+        "conflict-local-first conflict-local-latest",
+      ) ?? false;
+    }).toBe(true);
   });
 
   test("virtualizes large directory and structure trees", async ({ page }) => {
@@ -630,7 +674,7 @@ test.describe.serial("repository and capacity flows", () => {
   test("keeps the full workbench after deleting the final ordinary repository", async ({
     page,
   }) => {
-    const catalogResponse = await api.get("/api/repositories");
+    const catalogResponse = await api.get("/api/v1/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const remainingRepository = catalog.repositories.find(
       ({ id }) => id === largeRepositoryId,
@@ -643,7 +687,7 @@ test.describe.serial("repository and capacity flows", () => {
         continue;
       }
       const deleteResponse = await api.delete(
-        `/api/repositories/${encodeURIComponent(repository.id)}?mode=delete-managed-data`,
+        `/api/v1/admin/repositories/${encodeURIComponent(repository.id)}?mode=delete-managed-data`,
       );
 
       expect(deleteResponse.ok()).toBe(true);

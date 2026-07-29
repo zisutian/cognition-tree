@@ -20,7 +20,8 @@ export function createHttpWorkspaceRepositoryBackend({
   repositoryId,
   token,
 }: HttpWorkspaceRepositoryOptions): WorkspaceRepositoryBackend {
-  const endpoint = `/api/repositories/${encodeURIComponent(repositoryId)}/snapshot`;
+  const endpoint =
+    `/api/v1/sync/workspaces/${encodeURIComponent(repositoryId)}`;
 
   return {
     async commitRemoteSnapshot(commit) {

@@ -1,14 +1,14 @@
 import {
   type ParsedWorkspaceNote,
   type WorkspaceParseIndex,
-} from "../indexes/workspaceParseIndex";
-import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex";
+} from "../indexes/workspaceParseIndex.ts";
+import type { WorkspaceStructureIndex } from "../indexes/workspaceStructureIndex.ts";
 import {
   type FolderId,
   type NoteId,
   type NoteTreeNode,
   type WorkspaceNote,
-} from "../model/workspaceData";
+} from "../model/workspaceData.ts";
 
 export function listWorkspaceNotes(
   workspace: WorkspaceStructureIndex,
