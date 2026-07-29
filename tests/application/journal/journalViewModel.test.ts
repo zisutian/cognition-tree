@@ -31,6 +31,7 @@ function createViewContent() {
 describe("journal view model", () => {
   it("projects grouped entries, body-only editor state and structure details", () => {
     const content = createViewContent();
+    const index = createJournalParseIndex(content);
     const openEntryLine = vi.fn();
     const updateEntryBody = vi.fn();
     const view = createJournalViewModel({
@@ -49,7 +50,7 @@ describe("journal view model", () => {
         lineNumber: 2,
         requestId: 4,
       },
-      index: createJournalParseIndex(content),
+      index,
       openEntryLine,
       persistence: { status: "saved" },
       selectEntry: vi.fn(),
@@ -102,6 +103,20 @@ describe("journal view model", () => {
 
     view.outline.onSelectLine(1);
     expect(openEntryLine).toHaveBeenCalledWith(journalEntryId(2), 1);
+    const childBlockId = index.getParsedEntry(journalEntryId(2))
+      ?.analysis.document.blocks.find(({ text }) => text.includes("子项"))?.id;
+
+    expect(childBlockId).toBeDefined();
+    expect(view.navigation.openEntryBlock(
+      journalEntryId(2),
+      childBlockId!,
+    )).toBe(true);
+    expect(openEntryLine).toHaveBeenLastCalledWith(journalEntryId(2), 2);
+    expect(view.navigation.openEntryBlock(
+      journalEntryId(2),
+      "00000000-0000-4000-8000-999999999999",
+    )).toBe(false);
+    expect(openEntryLine).toHaveBeenLastCalledWith(journalEntryId(2), 1);
 
     const change = {
       edits: [{ from: 0, insertedText: "更新", to: 2 }],

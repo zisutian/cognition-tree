@@ -6,6 +6,10 @@ import type { UiSyntaxFocusTarget } from "../../../../../application/workspace/p
 import type { UiSyntaxFieldId } from "../../../../../application/workspace/projection/viewSyntaxFields";
 import type { UiNoteId } from "../../../../../application/workspace/projection/viewTree";
 import type { WorkspaceSelection } from "../selection/useWorkspaceSelection";
+import type { WorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
+import {
+  findSearchBlockLineNumber,
+} from "../../../../../application/search/searchDocuments";
 
 export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {
   noteId: UiNoteId;
@@ -18,9 +22,11 @@ export type WorkspacePortableNameTarget =
   | { entity: "note"; noteId: UiNoteId };
 
 export function useWorkspaceNavigation({
+  analysisIndex,
   selection,
   workspace,
 }: {
+  analysisIndex: WorkspaceParseIndex | null;
   selection: WorkspaceSelection;
   workspace: WorkspaceStructureIndex;
 }) {
@@ -56,6 +62,26 @@ export function useWorkspaceNavigation({
       }
     },
     [openNoteLine, selection.activeNoteId],
+  );
+  const openNoteBlock = useCallback(
+    (noteId: UiNoteId, blockId: string | null) => {
+      if (!blockId) {
+        openNoteLine(noteId, 1);
+        return true;
+      }
+      const parsed = analysisIndex?.getParsedNote(noteId);
+      const lineNumber = parsed
+        ? findSearchBlockLineNumber(
+            parsed.analysis,
+            blockId,
+            "document",
+          )
+        : null;
+
+      openNoteLine(noteId, lineNumber ?? 1);
+      return lineNumber !== null;
+    },
+    [analysisIndex, openNoteLine],
   );
   const openPortableName = useCallback(
     (target: WorkspacePortableNameTarget) => {
@@ -96,6 +122,7 @@ export function useWorkspaceNavigation({
     consumeSyntaxFocusRequest,
     focusActiveNoteLine,
     noteFocusRequest,
+    openNoteBlock,
     openNoteLine,
     openPortableName,
     openSyntaxField,

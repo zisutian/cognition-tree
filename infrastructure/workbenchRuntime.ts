@@ -13,6 +13,10 @@ import { createBuiltInRuntime } from "./builtInRuntime";
 import { createHttpApiV1EventSource } from "./http/httpApiV1Events";
 import { createHttpApiV1Administration } from "./http/httpApiV1Admin";
 import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime";
+import { serializeJsonIteratively } from "../contracts/common/json";
+import {
+  createVersionedContentRevision,
+} from "./persistence/versionedContentRevision";
 
 export function createWorkbenchRuntime(): WorkbenchController {
   const workspace = createWorkspaceRepositoryRuntime();
@@ -34,6 +38,10 @@ export function createWorkbenchRuntime(): WorkbenchController {
           token: import.meta.env.VITE_CTN_API_TOKEN,
         }),
     createInitialWorkspaceContent: createBrowserInitialWorkspaceContent,
+    createSearchVersion: async (value) =>
+      createVersionedContentRevision(
+        serializeJsonIteratively(value, { sortObjectKeys: true }),
+      ),
     scheduler: browserApplicationScheduler,
     timezoneOffsetMinutes: () => -new Date().getTimezoneOffset(),
     workspaceCatalog: workspace.catalog,

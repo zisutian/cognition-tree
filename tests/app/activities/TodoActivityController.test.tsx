@@ -23,6 +23,7 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
     apiAccess: { reason: "test", status: "unavailable" },
     journal: { status: "loading" },
     repository: {} as WorkbenchApplication["repository"],
+    search: {} as WorkbenchApplication["search"],
     todo: {
       reload: async () => undefined,
       status: "ready",

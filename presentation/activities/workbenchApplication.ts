@@ -3,6 +3,11 @@ import type { RepositoryApplication } from "../../application/repository/reposit
 import type { TodoApplication } from "../../application/todo/todoApplicationState";
 import type { WorkspaceApplication } from "./bindings/workspace/runtime/useWorkspaceApplication";
 import type { ApiAccessApplication } from "../../application/apiAccess/apiAccessAdministration";
+import type {
+  SearchController,
+  SearchControllerState,
+} from "../../application/search/searchController";
+import type { SearchResult } from "../../application/search/searchQuery";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }
@@ -19,6 +24,11 @@ export type WorkbenchApplication = {
   apiAccess: ApiAccessApplication;
   journal: JournalApplication;
   repository: RepositoryApplication;
+  search: {
+    controller: SearchController;
+    openWorkspaceResult(result: SearchResult): void;
+    state: SearchControllerState;
+  };
   todo: TodoApplication;
   workspace: WorkbenchWorkspaceState;
 };

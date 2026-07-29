@@ -71,6 +71,7 @@ export function AppRoot() {
         key={snapshot.catalog.activeDescriptor?.id}
         onActiveActivityChange={setActiveActivityId}
         repository={applications.repository}
+        search={applications.search}
         session={session}
         snapshot={snapshot}
         todo={applications.todo}

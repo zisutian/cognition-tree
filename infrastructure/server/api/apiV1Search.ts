@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createHash } from "node:crypto";
+import {
+  createSearchQuery,
+  SearchRequestError,
+  type SearchDocument,
+  type SearchDomain,
+  type SearchFault,
+  type SearchRequest,
+  type SearchSource,
+} from "../../../application/search/searchQuery.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import { parseJournalContent } from "../../../contracts/journal/parseJournal.ts";
 import { parseTodoContent } from "../../../contracts/todo/parseTodo.ts";
 import type {
+  ApiV1CtnDocumentDto,
   ApiV1PrincipalDto,
   ApiV1SearchRequestDto,
   ApiV1SearchResponseDto,
-  ApiV1SearchResultDto,
 } from "../../../contracts/api/types.ts";
 import type {
   WorkspaceRepositoryCatalog,
@@ -19,75 +28,11 @@ import {
   createApiV1JournalIndex,
   createApiV1TodoIndex,
   createApiV1WorkspaceAnalysis,
-  createJournalEntryVersion,
-  createParsedTodoCollectionVersion,
-  createWorkspaceNoteVersion,
   projectApiV1JournalEntry,
   projectApiV1TodoCollection,
   projectApiV1WorkspaceNote,
 } from "./apiV1Resources.ts";
 import type { ApiV1Runtime } from "./apiV1Runtime.ts";
-
-type SearchCorpus = {
-  key: string;
-  results: ApiV1SearchResultDto[];
-};
-
-function normalizeSearchText(value: string) {
-  return value.normalize("NFKC").toLocaleLowerCase("und");
-}
-
-function snippet(source: string, normalizedQuery: string) {
-  const normalizedSource = normalizeSearchText(source);
-  const position = normalizedSource.indexOf(normalizedQuery);
-  const start = Math.max(0, position < 0 ? 0 : position - 48);
-  const end = Math.min(source.length, start + 160);
-
-  return `${start > 0 ? "…" : ""}${source.slice(start, end)}${
-    end < source.length ? "…" : ""
-  }`;
-}
-
-function encodeCursor(key: string, offset: number) {
-  return Buffer.from(JSON.stringify({ key, offset, v: 1 }), "utf8")
-    .toString("base64url");
-}
-
-function decodeCursor(source: string) {
-  try {
-    if (source.length > 1024 || !/^[A-Za-z0-9_-]+$/.test(source)) {
-      throw new Error();
-    }
-    const decoded = Buffer.from(source, "base64url");
-
-    if (decoded.toString("base64url") !== source) throw new Error();
-    const value = JSON.parse(decoded.toString("utf8")) as unknown;
-
-    if (
-      !value ||
-      typeof value !== "object" ||
-      Array.isArray(value)
-    ) {
-      throw new Error();
-    }
-    const record = value as Record<string, unknown>;
-
-    if (
-      record.v !== 1 ||
-      typeof record.key !== "string" ||
-      !Number.isSafeInteger(record.offset) ||
-      (record.offset as number) < 0
-    ) {
-      throw new Error();
-    }
-    return { key: record.key, offset: record.offset as number };
-  } catch {
-    throw new ApiV1RequestError(
-      "invalid_request",
-      "Search cursor is invalid",
-    );
-  }
-}
 
 function hasScope(
   principal: ApiV1PrincipalDto,
@@ -110,18 +55,70 @@ function requestedDomains(
   });
 }
 
-function includeUpdatedAt(
-  updatedAt: string,
-  request: ApiV1SearchRequestDto,
-) {
-  return !request.updatedAfter || updatedAt >= request.updatedAfter;
+function mapDocument(
+  document: ApiV1CtnDocumentDto,
+  domain: SearchDomain,
+  repositoryId?: string,
+): SearchDocument {
+  return {
+    blocks: document.blocks.map(({ blockId, body, text, updatedAt }) => ({
+      blockId,
+      body,
+      text,
+      updatedAt,
+    })),
+    domain,
+    editableText: document.editableText,
+    ...(repositoryId ? { repositoryId } : {}),
+    resourceId: document.resourceId,
+    title: document.title,
+    updatedAt: document.updatedAt,
+    version: document.version,
+  };
+}
+
+function sourceFault(
+  domain: SearchDomain,
+  repositoryId?: string,
+): SearchSource["createFault"] {
+  return (error) => {
+    const invalid = error instanceof Error &&
+      /(?:contract|corrupt|invalid|syntax|validation)/i.test(
+        `${error.name} ${error.message}`,
+      );
+
+    return {
+      code: invalid ? "source_invalid" : "source_unavailable",
+      domain,
+      message: invalid
+        ? "Search source contains invalid data"
+        : "Search source is unavailable",
+      ...(repositoryId ? { repositoryId } : {}),
+    };
+  };
+}
+
+function mapWorkspaceIssue(
+  issue: Awaited<
+    ReturnType<WorkspaceRepositoryCatalog["listRepositories"]>
+  >["issues"][number],
+): SearchFault {
+  return {
+    code: issue.code === "repository_corrupt" ||
+        issue.code === "unsupported_repository_version"
+      ? "source_invalid"
+      : "source_unavailable",
+    domain: "workspace",
+    message: issue.code === "repository_corrupt" ||
+        issue.code === "unsupported_repository_version"
+      ? "Workspace search source contains invalid data"
+      : "Workspace search source is unavailable",
+    repositoryId: issue.id,
+  };
 }
 
 export class ApiV1SearchService {
-  #cache: SearchCorpus | null = null;
-  readonly #builtInCatalog: ApiV1BuiltInCatalog;
-  readonly #catalog: WorkspaceRepositoryCatalog;
-  readonly #runtime: ApiV1Runtime;
+  readonly #query;
 
   constructor({
     builtInCatalog,
@@ -132,9 +129,125 @@ export class ApiV1SearchService {
     catalog: WorkspaceRepositoryCatalog;
     runtime: ApiV1Runtime;
   }) {
-    this.#builtInCatalog = builtInCatalog;
-    this.#catalog = catalog;
-    this.#runtime = runtime;
+    this.#query = createSearchQuery<ApiV1PrincipalDto>({
+      createCorpusKey: (value) =>
+        createHash("sha256")
+          .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
+          .digest("hex"),
+      sourceProvider: {
+        async listSources(request, principal) {
+          const domains = new Set(request.domains ?? []);
+          const faults: SearchFault[] = [];
+          const sources: SearchSource[] = [];
+
+          if (domains.has("workspace")) {
+            try {
+              const workspaceCatalog = await catalog.listRepositories();
+              const requestedIds = request.repositoryIds
+                ? new Set(request.repositoryIds)
+                : null;
+              const allowedIds = principal.repositoryIds
+                ? new Set(principal.repositoryIds)
+                : null;
+              const allows = (repositoryId: string) =>
+                (!requestedIds || requestedIds.has(repositoryId)) &&
+                (!allowedIds || allowedIds.has(repositoryId));
+
+              faults.push(
+                ...workspaceCatalog.issues
+                  .filter(({ id }) => allows(id))
+                  .map(mapWorkspaceIssue),
+              );
+              for (
+                const repository of workspaceCatalog.repositories.filter(
+                  ({ id }) => allows(id),
+                )
+              ) {
+                sources.push({
+                  createFault: sourceFault("workspace", repository.id),
+                  domain: "workspace",
+                  async load() {
+                    const snapshot = await catalog.getStore(repository.id)
+                      .then((store) => store.loadSnapshot());
+                    const analysis = createApiV1WorkspaceAnalysis(
+                      snapshot.content,
+                    );
+                    const documents = analysis.structure.data.notes.flatMap(
+                      (note) => {
+                        const projected = projectApiV1WorkspaceNote(
+                          analysis,
+                          note.id,
+                        );
+
+                        return projected
+                          ? [mapDocument(
+                              projected,
+                              "workspace",
+                              repository.id,
+                            )]
+                          : [];
+                      },
+                    );
+
+                    return { documents, revision: snapshot.revision };
+                  },
+                  repositoryId: repository.id,
+                });
+              }
+            } catch {
+              faults.push({
+                code: "source_unavailable",
+                domain: "workspace",
+                message: "Workspace search catalog is unavailable",
+              });
+            }
+          }
+          if (domains.has("journal")) {
+            sources.push({
+              createFault: sourceFault("journal"),
+              domain: "journal",
+              async load() {
+                const snapshot = await builtInCatalog.getStore("journal")
+                  .then((store) => store.loadSnapshot());
+                const content = parseJournalContent(snapshot.content);
+                const index = createApiV1JournalIndex(content);
+                const documents = index.entries.map((parsed) =>
+                  mapDocument(
+                    projectApiV1JournalEntry(parsed),
+                    "journal",
+                  )
+                );
+
+                return { documents, revision: snapshot.revision };
+              },
+            });
+          }
+          if (domains.has("todo")) {
+            sources.push({
+              createFault: sourceFault("todo"),
+              domain: "todo",
+              async load() {
+                const snapshot = await builtInCatalog.getStore("todo")
+                  .then((store) => store.loadSnapshot());
+                const content = parseTodoContent(snapshot.content);
+                const index = createApiV1TodoIndex(content);
+                const now = runtime.now();
+                const today = runtime.today(now);
+                const documents = index.collections.map((parsed) =>
+                  mapDocument(
+                    projectApiV1TodoCollection(parsed, today).document,
+                    "todo",
+                  )
+                );
+
+                return { documents, revision: snapshot.revision };
+              },
+            });
+          }
+          return { faults, sources };
+        },
+      },
+    });
   }
 
   async search(
@@ -149,223 +262,21 @@ export class ApiV1SearchService {
         "No requested search domain is readable",
       );
     }
-    const normalizedQuery = normalizeSearchText(request.query.trim());
-
-    if (!normalizedQuery) {
-      throw new ApiV1RequestError(
-        "invalid_request",
-        "Search query must not be empty",
+    try {
+      return await this.#query.search(
+        { ...request, domains } satisfies SearchRequest,
+        principal,
       );
-    }
-    const corpus = await this.#createCorpus(
-      request,
-      principal,
-      domains,
-      normalizedQuery,
-    );
-    const cursor = request.cursor ? decodeCursor(request.cursor) : null;
-
-    if (cursor && cursor.key !== corpus.key) {
-      throw new ApiV1RequestError(
-        "resource_conflict",
-        "Search results changed while paging",
-        { details: { restartRequired: true } },
-      );
-    }
-    const offset = cursor?.offset ?? 0;
-    const limit = request.limit ?? 20;
-    const results = corpus.results.slice(offset, offset + limit);
-    const nextOffset = offset + results.length;
-
-    return {
-      cursor: nextOffset < corpus.results.length
-        ? encodeCursor(corpus.key, nextOffset)
-        : null,
-      results,
-    };
-  }
-
-  async #createCorpus(
-    request: ApiV1SearchRequestDto,
-    principal: ApiV1PrincipalDto,
-    domains: readonly ("journal" | "todo" | "workspace")[],
-    normalizedQuery: string,
-  ): Promise<SearchCorpus> {
-    const results: ApiV1SearchResultDto[] = [];
-    const revisions: Record<string, string> = {};
-
-    if (domains.includes("workspace")) {
-      const catalog = await this.#catalog.listRepositories();
-      const requestedRepositoryIds = request.repositoryIds
-        ? new Set(request.repositoryIds)
-        : null;
-      const allowedRepositoryIds = principal.repositoryIds
-        ? new Set(principal.repositoryIds)
-        : null;
-
-      for (const repository of catalog.repositories) {
-        if (
-          requestedRepositoryIds &&
-          !requestedRepositoryIds.has(repository.id)
-        ) {
-          continue;
-        }
-        if (
-          allowedRepositoryIds &&
-          !allowedRepositoryIds.has(repository.id)
-        ) {
-          continue;
-        }
-        const snapshot = await this.#catalog.getStore(repository.id)
-          .then((store) => store.loadSnapshot());
-
-        revisions[`workspace:${repository.id}`] = snapshot.revision;
-        const analysis = createApiV1WorkspaceAnalysis(snapshot.content);
-
-        for (const note of analysis.structure.data.notes) {
-          const projected = projectApiV1WorkspaceNote(analysis, note.id);
-
-          if (!projected || !includeUpdatedAt(projected.updatedAt, request)) {
-            continue;
-          }
-          const version = createWorkspaceNoteVersion(note.source);
-          const titleOrDocument =
-            `${projected.title}\n${projected.editableText}`;
-
-          if (normalizeSearchText(titleOrDocument).includes(normalizedQuery)) {
-            results.push({
-              blockId: null,
-              domain: "workspace",
-              repositoryId: repository.id,
-              resourceId: note.id,
-              snippet: snippet(titleOrDocument, normalizedQuery),
-              title: projected.title,
-              updatedAt: projected.updatedAt,
-              version,
-            });
-          }
-          for (const block of projected.blocks) {
-            const text = `${block.text}\n${block.body ?? ""}`;
-
-            if (!normalizeSearchText(text).includes(normalizedQuery)) continue;
-            results.push({
-              blockId: block.blockId,
-              domain: "workspace",
-              repositoryId: repository.id,
-              resourceId: note.id,
-              snippet: snippet(text, normalizedQuery),
-              title: projected.title,
-              updatedAt: block.updatedAt,
-              version,
-            });
-          }
-        }
+    } catch (error) {
+      if (!(error instanceof SearchRequestError)) throw error;
+      if (error.code === "cursor_conflict") {
+        throw new ApiV1RequestError(
+          "resource_conflict",
+          error.message,
+          { details: { restartRequired: true } },
+        );
       }
-    }
-    if (domains.includes("journal")) {
-      const snapshot = await this.#builtInCatalog.getStore("journal")
-        .then((store) => store.loadSnapshot());
-      const content = parseJournalContent(snapshot.content);
-      const index = createApiV1JournalIndex(content);
-
-      revisions.journal = snapshot.revision;
-      for (const parsed of index.entries) {
-        const projected = projectApiV1JournalEntry(parsed);
-
-        this.#projectCtnDocumentResults({
-          document: projected,
-          domain: "journal",
-          normalizedQuery,
-          request,
-          results,
-          version: createJournalEntryVersion(parsed.entry.source),
-        });
-      }
-    }
-    if (domains.includes("todo")) {
-      const snapshot = await this.#builtInCatalog.getStore("todo")
-        .then((store) => store.loadSnapshot());
-      const content = parseTodoContent(snapshot.content);
-      const index = createApiV1TodoIndex(content);
-
-      revisions.todo = snapshot.revision;
-      const now = this.#runtime.now();
-      const today = this.#runtime.today(now);
-
-      for (const parsed of index.collections) {
-        const projected = projectApiV1TodoCollection(parsed, today);
-
-        this.#projectCtnDocumentResults({
-          document: projected.document,
-          domain: "todo",
-          normalizedQuery,
-          request,
-          results,
-          version: createParsedTodoCollectionVersion(parsed),
-        });
-      }
-    }
-    const key = createHash("sha256").update(serializeJsonIteratively({
-      domains,
-      query: normalizedQuery,
-      repositoryIds: request.repositoryIds ?? null,
-      revisions,
-      updatedAfter: request.updatedAfter ?? null,
-    }, { sortObjectKeys: true })).digest("hex");
-    const sorted = results.sort((left, right) =>
-      right.updatedAt.localeCompare(left.updatedAt) ||
-      left.domain.localeCompare(right.domain) ||
-      left.resourceId.localeCompare(right.resourceId) ||
-      (left.blockId ?? "").localeCompare(right.blockId ?? "")
-    );
-
-    if (this.#cache?.key === key) return this.#cache;
-    this.#cache = { key, results: sorted };
-    return this.#cache;
-  }
-
-  #projectCtnDocumentResults({
-    document,
-    domain,
-    normalizedQuery,
-    request,
-    results,
-    version,
-  }: {
-    document: ReturnType<typeof projectApiV1JournalEntry>;
-    domain: "journal" | "todo";
-    normalizedQuery: string;
-    request: ApiV1SearchRequestDto;
-    results: ApiV1SearchResultDto[];
-    version: ApiV1SearchResultDto["version"];
-  }) {
-    if (!includeUpdatedAt(document.updatedAt, request)) return;
-    const titleOrDocument = `${document.title}\n${document.editableText}`;
-
-    if (normalizeSearchText(titleOrDocument).includes(normalizedQuery)) {
-      results.push({
-        blockId: null,
-        domain,
-        resourceId: document.resourceId,
-        snippet: snippet(titleOrDocument, normalizedQuery),
-        title: document.title,
-        updatedAt: document.updatedAt,
-        version,
-      });
-    }
-    for (const block of document.blocks) {
-      const text = `${block.text}\n${block.body ?? ""}`;
-
-      if (!normalizeSearchText(text).includes(normalizedQuery)) continue;
-      results.push({
-        blockId: block.blockId,
-        domain,
-        resourceId: document.resourceId,
-        snippet: snippet(text, normalizedQuery),
-        title: document.title,
-        updatedAt: block.updatedAt,
-        version,
-      });
+      throw new ApiV1RequestError("invalid_request", error.message);
     }
   }
 }

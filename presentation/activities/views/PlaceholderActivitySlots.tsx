@@ -3,9 +3,9 @@ import "../../ui/styles/activities/placeholder.css";
 import { PlaceholderPanel } from "./PlaceholderPanel";
 
 export function createPlaceholderActivitySlots(
-  activityId: "data" | "search",
+  _activityId: "data",
 ): ActivitySlots {
-  const label = activityId === "search" ? "搜索" : "数据";
+  const label = "数据";
 
   return {
     context: null,

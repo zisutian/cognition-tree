@@ -70,7 +70,11 @@ export function useWorkspaceApplication(
     enabled: syntax.isConfigured,
     index: syntax.isConfigured ? session.analysisIndex : null,
   });
-  const navigation = useWorkspaceNavigation({ selection, workspace });
+  const navigation = useWorkspaceNavigation({
+    analysisIndex: session.analysisIndex,
+    selection,
+    workspace,
+  });
   const portableNameDiagnostics = useMemo(
     () => createUiWorkspacePortableNameDiagnostics(workspace),
     [workspace],

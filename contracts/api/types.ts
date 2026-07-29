@@ -460,8 +460,16 @@ export type ApiV1SearchResultDto = {
   version: ApiV1ResourceVersionDto;
 };
 
+export type ApiV1SearchFaultDto = {
+  code: "source_invalid" | "source_unavailable";
+  domain: "journal" | "todo" | "workspace";
+  message: string;
+  repositoryId?: string;
+};
+
 export type ApiV1SearchResponseDto = {
   cursor: string | null;
+  faults: ApiV1SearchFaultDto[];
   results: ApiV1SearchResultDto[];
 };
 

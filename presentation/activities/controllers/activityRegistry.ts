@@ -6,7 +6,7 @@ import {
 import type { ActivityId } from "../../ui/activityTypes";
 import type { ActivityControllerProps } from "./activityController";
 
-export type LazyActivityId = Exclude<ActivityId, "data" | "search">;
+export type LazyActivityId = Exclude<ActivityId, "data">;
 
 type LazyActivityController = LazyExoticComponent<
   ComponentType<ActivityControllerProps>
@@ -56,6 +56,13 @@ export const activityControllers: ReadonlyArray<{
     Controller: lazy(async () => ({
       default: (await import("./SyntaxActivityController"))
         .SyntaxActivityController,
+    })),
+  },
+  {
+    activityId: "search",
+    Controller: lazy(async () => ({
+      default: (await import("./SearchActivityController"))
+        .SearchActivityController,
     })),
   },
   {

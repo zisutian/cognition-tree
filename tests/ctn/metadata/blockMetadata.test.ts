@@ -5,6 +5,7 @@ import {
   isCtnBlockId,
   isCtnBlockTimestamp,
   parseCtnBlockMetadataLine,
+  removeCtnBlockMetadataLines,
 } from "../../../core/ctn/metadata/blockMetadata";
 
 const blockId = "00000000-0000-4000-8000-000000000001";
@@ -29,6 +30,9 @@ describe("CTN block metadata", () => {
       indentText: "\t\t",
       updatedAt,
     });
+    expect(removeCtnBlockMetadataLines(`标题\n${line}\n\t: 正文`)).toBe(
+      "标题\n\t: 正文",
+    );
   });
 
   it("distinguishes ordinary source lines from malformed directives", () => {

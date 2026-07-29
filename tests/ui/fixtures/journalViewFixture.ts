@@ -55,6 +55,7 @@ export function createJournalView(
     },
     navigation: {
       focusRequest: null,
+      openEntryBlock: () => true,
       openEntryLine: () => undefined,
     },
     outline: {

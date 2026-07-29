@@ -12,7 +12,6 @@ import {
 } from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchLayout } from "../../ui/workbench/useWorkbenchLayout";
 import { PlaceholderActivityController } from "../../activities/controllers/PlaceholderActivityController";
-import { WorkspaceUnavailableActivityController } from "../../activities/controllers/WorkspaceUnavailableActivityController";
 import {
   isLazyActivityId,
   activityControllers,
@@ -181,14 +180,7 @@ export function WorkspaceWorkbench({
                   </Suspense>
                 ) : null;
               })}
-              {activeActivityId === "search" &&
-                  application.workspace.status !== "ready" ? (
-                <WorkspaceUnavailableActivityController
-                  onOpenRepository={() => onActiveActivityChange("repository")}
-                  renderActivity={renderActivity}
-                  workspace={application.workspace}
-                />
-              ) : activeActivityId === "search" || activeActivityId === "data" ? (
+              {activeActivityId === "data" ? (
                 <PlaceholderActivityController
                   activityId={activeActivityId}
                   renderActivity={renderActivity}

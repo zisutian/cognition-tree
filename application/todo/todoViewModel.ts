@@ -22,6 +22,9 @@ import {
   createTodoDiagnostics,
   type TodoDiagnostics,
 } from "./todoDiagnostics";
+import {
+  findSearchBlockLineNumber,
+} from "../search/searchDocuments";
 
 export type TodoFocusRequest = {
   collectionId: TodoCollectionId;
@@ -101,6 +104,10 @@ export type TodoViewModel = TodoMutationActions & {
   };
   navigation: {
     focusRequest: TodoFocusRequest | null;
+    openCollectionBlock: (
+      collectionId: TodoCollectionId,
+      blockId: string | null,
+    ) => boolean;
     openCollectionLine: (
       collectionId: TodoCollectionId,
       lineNumber: number,
@@ -297,6 +304,22 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
   const activeLine = activeBodyPosition?.collectionId === activeCollectionId
     ? activeBodyPosition.lineNumber
     : null;
+  const openCollectionBlock = (
+    collectionId: TodoCollectionId,
+    blockId: string | null,
+  ) => {
+    if (!blockId) {
+      openCollectionLine(collectionId, 1);
+      return true;
+    }
+    const parsed = index.getParsedCollection(collectionId);
+    const lineNumber = parsed
+      ? findSearchBlockLineNumber(parsed.analysis, blockId, "body")
+      : null;
+
+    openCollectionLine(collectionId, lineNumber ?? 1);
+    return lineNumber !== null;
+  };
 
   return {
     ...actions,
@@ -383,7 +406,11 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
         }
       },
     },
-    navigation: { focusRequest, openCollectionLine },
+    navigation: {
+      focusRequest,
+      openCollectionBlock,
+      openCollectionLine,
+    },
     outline: {
       activeBlock: activeLine === null
         ? null

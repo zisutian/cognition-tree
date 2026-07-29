@@ -50,6 +50,16 @@ import {
   WorkspaceRevisionConflictError,
   type WorkspaceRepositoryStore,
 } from "../../../infrastructure/server/repository/repositoryStore.ts";
+import type {
+  WorkspaceRepositoryCatalog,
+} from "../../../infrastructure/server/repository/repositoryCatalog.ts";
+import type {
+  ApiV1BuiltInCatalog,
+} from "../../../infrastructure/server/api/apiV1Ports.ts";
+import {
+  ApiV1SearchService,
+} from "../../../infrastructure/server/api/apiV1Search.ts";
+import type { ApiV1PrincipalDto } from "../../../contracts/api/types.ts";
 
 type RequestOptions = {
   body?: unknown;
@@ -293,6 +303,13 @@ describe("CTN API v1", () => {
       });
 
       expect(openapi.body).toMatchObject({ openapi: "3.1.0" });
+      expect(
+        (
+          openapi.body!.components as {
+            schemas: { SearchResponse: { required: string[] } };
+          }
+        ).schemas.SearchResponse.required,
+      ).toEqual(expect.arrayContaining(["cursor", "faults", "results"]));
       const paths = openapi.body!.paths as Record<
         string,
         Record<string, {
@@ -540,7 +557,7 @@ describe("CTN API v1", () => {
       });
       const createdCollection = await dispatch<ApiV1CommandResultDto>(handler, {
         body: {
-          body: "[] 远程任务",
+          body: "[] 远程任务\n[] 远程任务二",
           commandId: commandId(11),
           expectedOrderVersion: todo.body!.orderVersion,
           kind: "create-collection",
@@ -658,6 +675,7 @@ describe("CTN API v1", () => {
 
       expect(search.body).toMatchObject({
         cursor: expect.any(String),
+        faults: [],
         results: [{
           domain: "todo",
           resourceId: collectionId,
@@ -921,5 +939,92 @@ describe("CTN API v1", () => {
         statusCode: 401,
       });
     });
+  });
+
+  it("returns sanitized source faults without discarding readable search results", async () => {
+    const goodContent = createContent();
+    const descriptors: RepositoryDescriptorDto[] = [
+      {
+        adapter: "local",
+        id: "good",
+        label: "可读仓库",
+        labelIssue: null,
+        location: {
+          hostPath: null,
+          serverPath: "/repositories/good",
+          type: "local",
+        },
+      },
+      {
+        adapter: "local",
+        id: "broken",
+        label: "损坏仓库",
+        labelIssue: null,
+        location: {
+          hostPath: null,
+          serverPath: "/repositories/broken",
+          type: "local",
+        },
+      },
+    ];
+    const catalog: WorkspaceRepositoryCatalog = {
+      async createRepository() {
+        throw new Error("not used");
+      },
+      async deleteRepository() {
+        return { status: "deleted" };
+      },
+      async getStore(repositoryId: string) {
+        return {
+          async commitSnapshot() {
+            return { revision: revision("f") };
+          },
+          async loadSnapshot() {
+            if (repositoryId === "broken") {
+              throw new Error("/private/repository/content.json is invalid");
+            }
+            return { content: goodContent, revision: revision("a") };
+          },
+        };
+      },
+      async listRepositories() {
+        return {
+          creatableAdapters: ["local" as const],
+          issues: [],
+          repositories: descriptors,
+        };
+      },
+      async renameRepository() {
+        throw new Error("not used");
+      },
+    };
+    const principal: ApiV1PrincipalDto = {
+      id: "owner",
+      kind: "owner",
+      name: "Owner",
+      repositoryIds: null,
+      scopes: ["workspace:read"],
+    };
+    const search = new ApiV1SearchService({
+      builtInCatalog: {} as ApiV1BuiltInCatalog,
+      catalog,
+      runtime: createRuntime(),
+    });
+    const response = await search.search({
+      domains: ["workspace"],
+      query: "未命名笔记",
+    }, principal);
+
+    expect(response.results.length).toBeGreaterThan(0);
+    expect(response.results.every(({ repositoryId }) =>
+      repositoryId === "good"
+    )).toBe(true);
+    expect(response.faults).toEqual([{
+      code: "source_invalid",
+      domain: "workspace",
+      message: "Search source contains invalid data",
+      repositoryId: "broken",
+    }]);
+    expect(JSON.stringify(response)).not.toContain("/private/");
   });
 });

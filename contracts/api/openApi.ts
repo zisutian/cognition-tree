@@ -267,6 +267,15 @@ export function createApiV1OpenApiDocument() {
             },
             description: "Checkpoint followed by body-free change notifications",
           }
+        : route.kind === "search"
+        ? {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SearchResponse" },
+              },
+            },
+            description: "Cross-domain search page",
+          }
         : { description: "Successful response" };
       const successStatuses =
         definition.successStatusesByMethod?.[method] ?? [200];
@@ -387,6 +396,60 @@ export function createApiV1OpenApiDocument() {
             updatedAfter: { format: "date-time", type: "string" },
           },
           ["query"],
+        ),
+        SearchResponse: strictObject({
+          cursor: {
+            oneOf: [{ type: "string" }, { type: "null" }],
+          },
+          faults: {
+            items: { $ref: "#/components/schemas/SearchFault" },
+            type: "array",
+          },
+          results: {
+            items: { $ref: "#/components/schemas/SearchResult" },
+            type: "array",
+          },
+        }),
+        SearchFault: strictObject(
+          {
+            code: {
+              enum: ["source_invalid", "source_unavailable"],
+              type: "string",
+            },
+            domain: {
+              enum: ["workspace", "journal", "todo"],
+              type: "string",
+            },
+            message: { type: "string" },
+            repositoryId: { type: "string" },
+          },
+          ["code", "domain", "message"],
+        ),
+        SearchResult: strictObject(
+          {
+            blockId: {
+              oneOf: [{ type: "string" }, { type: "null" }],
+            },
+            domain: {
+              enum: ["workspace", "journal", "todo"],
+              type: "string",
+            },
+            repositoryId: { type: "string" },
+            resourceId: nonEmptyString,
+            snippet: { type: "string" },
+            title: { type: "string" },
+            updatedAt: { format: "date-time", type: "string" },
+            version: resourceVersion,
+          },
+          [
+            "blockId",
+            "domain",
+            "resourceId",
+            "snippet",
+            "title",
+            "updatedAt",
+            "version",
+          ],
         ),
         TodoCommand: {
           discriminator: { propertyName: "kind" },

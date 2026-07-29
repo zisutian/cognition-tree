@@ -13,6 +13,7 @@ import { useJournalApplication } from "../journal/useJournalApplication";
 import { useRepositoryNavigation } from "../repository/useRepositoryNavigation";
 import { useTodoApplication } from "../todo/useTodoApplication";
 import { createRepositoryProjection } from "./workbenchApplicationProjection";
+import type { SearchResult } from "../../../../../application/search/searchQuery";
 
 const workspaceFeedbackActivities = [
   "notes",
@@ -62,6 +63,22 @@ export function useWorkbenchApplicationBindings({
     },
     [controller],
   );
+  const openWorkspaceSearchResult = useCallback((result: SearchResult) => {
+    if (result.domain !== "workspace" || !result.repositoryId) return;
+    controller.requestWorkspaceNoteDestination({
+      blockId: result.blockId,
+      description: result.snippet,
+      id:
+        `search:${result.repositoryId}:${result.resourceId}:${
+          result.blockId ?? "document"
+        }`,
+      kind: "workspace-note",
+      label: result.title,
+      lineNumber: 1,
+      noteId: result.resourceId,
+      repositoryId: result.repositoryId,
+    });
+  }, [controller]);
   const journal = useJournalApplication({
     openWorkspaceNote,
     referenceResolutionGeneration: snapshot.referenceResolutionGeneration,
@@ -126,6 +143,10 @@ export function useWorkbenchApplicationBindings({
       snapshot,
       navigation,
     ),
+    search: {
+      ...snapshot.search,
+      openWorkspaceResult: openWorkspaceSearchResult,
+    },
     todo,
   };
 }

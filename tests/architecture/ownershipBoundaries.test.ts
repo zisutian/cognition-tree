@@ -61,6 +61,12 @@ const uniqueOwners: readonly UniqueOwner[] = [
     /^application\/workspace\/analysis\//,
   ],
   [
+    "cross-domain search execution",
+    applicationModules,
+    /\bexport function createSearchQuery\s*</,
+    /^application\/search\/searchQuery\.ts$/,
+  ],
+  [
     "TOML compiler dependency",
     sourceImportCorpus,
     /^smol-toml$/m,
@@ -123,6 +129,15 @@ const policies: readonly TextPolicy[] = [
     pattern:
       /\b(?:className|CSSProperties)\b|(?:ctn-tone-|ctn-text-color-|--ctn-)/,
     scope: /^application\/workspace\/projection\//,
+  },
+  {
+    corpus: presentationModules,
+    matches: 0,
+    name: "Search Activity CTN parsing",
+    pattern:
+      /\b(?:analyzeCtnSource|parseCtnSourceText|create(?:Journal|Todo|Workspace)ParseIndex)\s*\(/,
+    scope:
+      /^presentation\/activities\/(?:controllers\/Search|views\/search\/)/,
   },
 ];
 

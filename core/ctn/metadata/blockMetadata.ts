@@ -90,6 +90,12 @@ export function parseCtnBlockMetadataLine(
   return record;
 }
 
+export function removeCtnBlockMetadataLines(source: string) {
+  return source.split("\n")
+    .filter((line) => !isCtnBlockMetadataDirectiveText(line))
+    .join("\n");
+}
+
 export function formatCtnBlockMetadataLine(record: CtnBlockMetadataRecord) {
   assertMetadataRecord(record);
   return `${record.indentText}${ctnBlockMetadataDirective} id=${record.id} created=${record.createdAt} updated=${record.updatedAt}`;

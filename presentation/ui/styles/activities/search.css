@@ -1,0 +1,198 @@
+.search-context {
+  gap: calc(var(--ui-gap) * 2);
+}
+
+.search-field,
+.search-filter-group {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin: 0;
+}
+
+.search-field > span,
+.search-filter-group > legend {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  font-weight: var(--ui-micro-strong-weight);
+}
+
+.search-filter-group {
+  padding: 0;
+  border: 0;
+}
+
+.search-filter-group > label {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-gap-tight);
+  min-height: var(--ui-control-height);
+  padding: 0 var(--ui-gap-tight);
+  border-radius: var(--ui-radius);
+  color: var(--color-fg);
+  font-size: var(--ui-control-font-size);
+}
+
+.search-filter-group > label:hover {
+  background: var(--color-hover);
+}
+
+.search-filter-group input {
+  margin: 0;
+}
+
+.search-filter-group span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-context-status {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.search-context-action {
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.search-panel-body {
+  display: grid;
+  align-content: start;
+  gap: calc(var(--ui-gap) * 2);
+}
+
+.search-result-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.search-faults,
+.search-page-error {
+  margin: 0;
+  color: var(--color-warning);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.search-faults {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  padding: var(--ui-gap);
+  border-left: calc(var(--ui-border-width) * 2) solid var(--color-warning);
+  background: var(--color-accent-subtle);
+}
+
+.search-faults ul {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin: 0;
+  padding-left: calc(var(--ui-gap) * 2);
+}
+
+.search-result-groups,
+.search-result-group > ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-result-groups {
+  display: grid;
+  gap: calc(var(--ui-gap) * 2);
+  width: min(100%, 920px);
+}
+
+.search-result-group {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.search-result-group + .search-result-group {
+  padding-top: calc(var(--ui-gap) * 2);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.search-result-group > header {
+  display: grid;
+  gap: calc(var(--ui-gap-tight) / 2);
+  padding: 0 var(--ui-gap-tight);
+}
+
+.search-result-group h3,
+.search-result-group p {
+  margin: 0;
+}
+
+.search-result-group h3 {
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+}
+
+.search-result-group p {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  line-height: var(--ui-micro-line-height);
+}
+
+.search-result-group > ul {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.search-result-hit {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ui-gap);
+  width: 100%;
+  min-height: var(--ui-row-height);
+  padding: var(--ui-gap-tight);
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--color-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-result-hit:hover,
+.search-result-hit:focus-visible {
+  background: var(--color-hover);
+}
+
+.search-result-hit:focus-visible {
+  outline: var(--ui-focus-outline);
+  outline-offset: 1px;
+}
+
+.search-result-hit-kind {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  white-space: nowrap;
+}
+
+.search-result-hit > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--ui-body-font-size);
+  line-height: var(--ui-body-line-height);
+  text-overflow: ellipsis;
+  white-space: pre-wrap;
+}
+
+.search-load-more {
+  width: min(100%, 920px);
+  padding: var(--ui-gap) var(--ui-gap-tight) 0;
+  border-top: var(--ui-border-width) solid var(--color-border);
+}

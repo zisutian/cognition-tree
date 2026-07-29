@@ -9,11 +9,21 @@ import type {
   TodoContentDto,
   TodoSnapshotDto,
 } from "../../contracts/todo/types";
-import { createJournalEntry } from "../../core/journal/commands/journalCommands";
+import {
+  createJournalEntry,
+  updateJournalEntryBody,
+} from "../../core/journal/commands/journalCommands";
 import {
   createJournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex";
 import { createEmptyJournalContent } from "../../core/journal/model/journalContent";
+import {
+  createTodoCollection,
+  updateTodoCollectionBody,
+} from "../../core/todo/commands/todoCommands";
+import {
+  createTodoParseIndex,
+} from "../../core/todo/indexes/todoParseIndex";
 import { validateTodoContent } from "../../core/todo/model/todoContent";
 import { defaultTodoSyntaxSource } from "../../core/todo/syntax/defaultTodoSyntax";
 
@@ -52,6 +62,69 @@ export function createJournalSeed({
   );
 
   return result.content;
+}
+
+export function createCrossDomainSearchSeeds(query: string): {
+  journal: JournalContentDto;
+  todo: TodoContentDto;
+} {
+  const journalEntryId =
+    "journal-entry-00000000-0000-4000-8000-000000920001";
+  let journal = createEmptyJournalContent();
+
+  journal = createJournalEntry(
+    journal,
+    createJournalParseIndex(journal),
+    {
+      createBlockId: () => "00000000-0000-4000-8000-000000920001",
+      createdAt: "2026-02-01T04:05:06.000Z",
+      entryId: journalEntryId,
+      timezoneOffsetMinutes: 480,
+    },
+  ).content;
+  journal = updateJournalEntryBody(
+    journal,
+    createJournalParseIndex(journal),
+    {
+      change: {
+        edits: [{
+          from: 0,
+          insertedText: `: ${query} · 日记`,
+          to: 0,
+        }],
+        source: `: ${query} · 日记`,
+      },
+      createBlockId: () => "00000000-0000-4000-8000-000000920002",
+      entryId: journalEntryId,
+      updatedAt: "2026-02-02T04:05:06.000Z",
+    },
+  ).content;
+
+  const collectionId =
+    "todo-collection-00000000-0000-4000-8000-000000910001";
+  let todo = createEmptyTodoSeed();
+
+  todo = createTodoCollection(todo, createTodoParseIndex(todo), {
+    collectionId,
+    createBlockId: () => "00000000-0000-4000-8000-000000910001",
+    createdAt: "2026-02-03T04:05:06.000Z",
+    name: "跨领域检索",
+  }).content;
+  todo = updateTodoCollectionBody(todo, createTodoParseIndex(todo), {
+    change: {
+      edits: [{
+        from: 0,
+        insertedText: `[] ${query} · 代办`,
+        to: 0,
+      }],
+      source: `[] ${query} · 代办`,
+    },
+    collectionId,
+    createBlockId: () => "00000000-0000-4000-8000-000000910002",
+    updatedAt: "2026-02-04T04:05:06.000Z",
+  }).content;
+
+  return { journal, todo };
 }
 
 export async function readJournalSnapshot(api: APIRequestContext) {

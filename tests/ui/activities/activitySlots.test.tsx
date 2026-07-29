@@ -5,6 +5,7 @@ import { createJournalActivitySlots } from "../../../presentation/activities/vie
 import { createNotesActivitySlots } from "../../../presentation/activities/views/notes/NotesActivitySlots";
 import { createPlaceholderActivitySlots } from "../../../presentation/activities/views/PlaceholderActivitySlots";
 import { createRepositoryActivitySlots } from "../../../presentation/activities/views/repository/RepositoryActivitySlots";
+import { createSearchActivitySlots } from "../../../presentation/activities/views/search/SearchActivitySlots";
 import { createSettingsActivitySlots } from "../../../presentation/activities/views/settings/SettingsActivitySlots";
 import { createStructureOperationActivitySlots } from "../../../presentation/activities/views/structure-operation/StructureOperationActivitySlots";
 import { createSyntaxActivitySlots } from "../../../presentation/activities/views/syntax/SyntaxActivitySlots";
@@ -28,6 +29,7 @@ import {
 } from "../fixtures/activityViewsFixture";
 import { createNotesView } from "../fixtures/notesViewFixture";
 import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
+import { createSearchController } from "../../../application/search/searchController";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -37,6 +39,14 @@ const controls = {
   onContextWidthChange: () => undefined,
   onToggleFocusMode: () => undefined,
 };
+const searchController = createSearchController({
+  onChange: () => undefined,
+  query: {
+    async search() {
+      return { cursor: null, faults: [], results: [] };
+    },
+  },
+});
 
 function renderSlot(slot: React.ReactNode) {
   return renderToStaticMarkup(<>{slot}</>);
@@ -99,8 +109,15 @@ function createSlots(
           onContextWidthChange: controls.onContextWidthChange,
         },
       });
-    case "data":
     case "search":
+      return createSearchActivitySlots({
+        catalogStatus: "ready",
+        controller: searchController,
+        onOpenResult: () => undefined,
+        repositories: [],
+        state: searchController.getState(),
+      });
+    case "data":
       return createPlaceholderActivitySlots(activityId);
   }
 }
@@ -114,7 +131,7 @@ describe("activity slots", () => {
       ["structure-operation", "结构操作", false],
       ["visualization", null, true],
       ["syntax", "语法", true],
-      ["search", null, false],
+      ["search", "搜索", false],
       ["data", null, false],
       ["repository", "仓库", false],
       ["settings", "设置", false],
@@ -167,6 +184,7 @@ describe("activity slots", () => {
       "structure-operation",
       "visualization",
       "syntax",
+      "search",
       "repository",
       "settings",
     ]);
@@ -201,5 +219,114 @@ describe("activity slots", () => {
       .toContain("引用图谱不可用");
     expect(renderSlot(createSlots("structure-operation", rawViews).main))
       .toContain("结构操作不可用");
+
+    const submitted = {
+      domains: ["workspace", "journal", "todo"] as const,
+      query: "共同词",
+      repositoryIds: null,
+      updatedAfter: null,
+    };
+    const resultBase = {
+      domain: "workspace" as const,
+      repositoryId: "repository-a",
+      resourceId: "note-a",
+      title: "Alpha",
+      updatedAt: "2026-07-29T10:00:00.000Z",
+      version:
+        `sha256:${"a".repeat(64)}` as `sha256:${string}`,
+    };
+    const searchSlots = createSearchActivitySlots({
+      catalogStatus: "ready",
+      controller: searchController,
+      onOpenResult: () => undefined,
+      repositories: [{ id: "repository-a", label: "仓库 A" }],
+      state: {
+        ...searchController.getState(),
+        draft: {
+          ...submitted,
+          domains: [...submitted.domains],
+        },
+        faults: [{
+          code: "source_unavailable",
+          domain: "journal",
+          message: "暂时不可用",
+        }],
+        results: [
+          {
+            ...resultBase,
+            blockId: null,
+            snippet: "整篇共同词",
+          },
+          {
+            ...resultBase,
+            blockId: "block-a",
+            snippet: "块内共同词",
+          },
+        ],
+        status: "ready",
+        submitted: {
+          ...submitted,
+          domains: [...submitted.domains],
+        },
+      },
+    });
+    const searchContext = renderSlot(searchSlots.context?.content);
+    const searchMain = renderSlot(searchSlots.main);
+
+    expect(searchContext).toContain('role="search"');
+    expect(searchContext).toContain('type="datetime-local"');
+    expect(searchContext).toContain("仓库 A");
+    expect(searchMain).toContain("部分来源不可用");
+    expect(searchMain).toContain("块内共同词");
+    expect(searchMain).not.toContain("整篇共同词");
+
+    const renderSearchState = (
+      override: Partial<ReturnType<typeof searchController.getState>>,
+    ) =>
+      renderSlot(createSearchActivitySlots({
+        catalogStatus: "ready",
+        controller: searchController,
+        onOpenResult: () => undefined,
+        repositories: [{ id: "repository-a", label: "仓库 A" }],
+        state: {
+          ...searchController.getState(),
+          status: "ready",
+          submitted: {
+            ...submitted,
+            domains: [...submitted.domains],
+          },
+          ...override,
+        },
+      }).main);
+    const statusScenarios: Array<
+      [Parameters<typeof renderSearchState>[0], string]
+    > = [
+      [{ status: "loading" }, "正在搜索"],
+      [{ results: [] }, "没有结果"],
+      [{
+        errorMessage: "无法执行搜索",
+        results: [],
+      }, "搜索失败"],
+      [{
+        faults: [{
+          code: "source_unavailable",
+          domain: "todo",
+          message: "暂时不可用",
+        }],
+        results: [],
+      }, "搜索来源不可用"],
+      [{
+        errorMessage: "搜索来源已更新，请重新搜索。",
+        results: [{
+          ...resultBase,
+          blockId: "block-a",
+          snippet: "保留旧结果",
+        }],
+      }, "搜索来源已更新，请重新搜索。"],
+    ];
+
+    for (const [state, expectedText] of statusScenarios) {
+      expect(renderSearchState(state)).toContain(expectedText);
+    }
   });
 });

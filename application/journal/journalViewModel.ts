@@ -31,6 +31,9 @@ import {
   type JournalWorkspaceNoteDestination,
   type JournalWorkspaceReferenceResolutionState,
 } from "./journalExternalReferences";
+import {
+  findSearchBlockLineNumber,
+} from "../search/searchDocuments";
 
 export type JournalFocusRequest = {
   entryId: JournalEntryId;
@@ -132,6 +135,10 @@ export type JournalViewModel = {
   };
   navigation: {
     focusRequest: JournalFocusRequest | null;
+    openEntryBlock: (
+      entryId: JournalEntryId,
+      blockId: string | null,
+    ) => boolean;
     openEntryLine: (entryId: JournalEntryId, lineNumber: number) => void;
   };
   referenceNavigation: {
@@ -407,6 +414,22 @@ export function createJournalViewModel({
   const bodyRoots = activeParsed?.analysis.document.roots.filter(
     (block) => block.rule.semanticId !== index.syntax.title.semanticId,
   ) ?? [];
+  const openEntryBlock = (
+    entryId: JournalEntryId,
+    blockId: string | null,
+  ) => {
+    if (!blockId) {
+      openEntryLine(entryId, 1);
+      return true;
+    }
+    const parsed = index.getParsedEntry(entryId);
+    const lineNumber = parsed
+      ? findSearchBlockLineNumber(parsed.analysis, blockId, "body")
+      : null;
+
+    openEntryLine(entryId, lineNumber ?? 1);
+    return lineNumber !== null;
+  };
 
   return {
     activeEntry: activeParsed
@@ -476,6 +499,7 @@ export function createJournalViewModel({
     },
     navigation: {
       focusRequest,
+      openEntryBlock,
       openEntryLine,
     },
     referenceNavigation: {

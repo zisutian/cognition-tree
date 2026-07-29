@@ -151,6 +151,22 @@ describe("Todo CTN view model", () => {
     });
     view.syntax.updateSource("source");
     view.outline.onSelectLine(2);
+    expect(view.navigation.openCollectionBlock(
+      todoCollectionId(1),
+      todoBlockId(2),
+    )).toBe(true);
+    expect(openCollectionLine).toHaveBeenLastCalledWith(
+      todoCollectionId(1),
+      2,
+    );
+    expect(view.navigation.openCollectionBlock(
+      todoCollectionId(1),
+      "00000000-0000-4000-8000-999999999999",
+    )).toBe(false);
+    expect(openCollectionLine).toHaveBeenLastCalledWith(
+      todoCollectionId(1),
+      1,
+    );
 
     expect(selectCollection).toHaveBeenCalledWith(todoCollectionId(2));
     expect(actions.updateCollectionBody).toHaveBeenCalledWith(

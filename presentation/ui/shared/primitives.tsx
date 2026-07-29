@@ -44,27 +44,32 @@ export function PanelHeader({
   );
 }
 
-export function PanelBody({
-  children,
-  className,
-  scroll = false,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & {
+type PanelBodyProps = HTMLAttributes<HTMLDivElement> & {
   scroll?: boolean;
-}) {
-  return (
-    <div
-      className={cx(
-        "ui-panel-body",
-        scroll && "ui-panel-body-scroll ui-scroll-surface",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
+};
+
+export const PanelBody = forwardRef<HTMLDivElement, PanelBodyProps>(
+  function PanelBody({
+    children,
+    className,
+    scroll = false,
+    ...props
+  }, ref) {
+    return (
+      <div
+        className={cx(
+          "ui-panel-body",
+          scroll && "ui-panel-body-scroll ui-scroll-surface",
+          className,
+        )}
+        ref={ref}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  },
+);
 
 export function Section({
   children,

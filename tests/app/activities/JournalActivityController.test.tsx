@@ -25,6 +25,7 @@ function createApplicationWithoutWorkspace(): WorkbenchApplication {
       view: createJournalView(),
     },
     repository: {} as WorkbenchApplication["repository"],
+    search: {} as WorkbenchApplication["search"],
     todo: { status: "loading" },
     workspace: { status: "absent" },
   };

@@ -10,11 +10,12 @@ export type JournalWorkspaceReferenceFaultCode =
   | "repository-unreadable";
 
 export type JournalWorkspaceNoteDestination = {
+  blockId?: string | null;
   description: string;
   id: string;
   kind: "workspace-note";
   label: string;
-  lineNumber: 1;
+  lineNumber: number;
   noteId: string;
   repositoryId: string;
 };

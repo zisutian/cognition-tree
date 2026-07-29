@@ -29,11 +29,15 @@ import {
   createSnapshot,
   draftRevision,
   remoteRevision,
+  replaceEditableSource,
 } from "../workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
 import type {
   DomainChangeNotification,
 } from "../../../application/sync/domainChangeEvents";
+import {
+  createVersionedContentRevision,
+} from "../../../infrastructure/persistence/versionedContentRevision";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -243,6 +247,8 @@ function createHarness({
         }
       : undefined,
     createInitialWorkspaceContent: () => createContent(),
+    createSearchVersion: (value) =>
+      createVersionedContentRevision(JSON.stringify(value)),
     scheduler: testApplicationScheduler,
     workspaceCatalog,
     workspaceCommandDependencies: {
@@ -282,6 +288,110 @@ describe("Workbench controller", () => {
     expect(snapshot.workspace.status).toBe("ready");
     expect(snapshot.builtIns.journal.state.status).toBe("ready");
     expect(snapshot.builtIns.todo.state.status).toBe("ready");
+    controller.dispose();
+  });
+
+  it("searches unopened repositories and retains submitted state across switching", async () => {
+    const repositoryBContent = createContent("仓库B", "B");
+    const baseRepositoryBSnapshot = createSnapshot({
+      content: repositoryBContent,
+    });
+    let repositoryBContentReadable = true;
+    const repositoryBSnapshot: WorkspaceRepositorySnapshot = {
+      ...baseRepositoryBSnapshot,
+      get content() {
+        if (!repositoryBContentReadable) {
+          throw new Error("unchanged repository content was analyzed again");
+        }
+        return repositoryBContent;
+      },
+    };
+    const { controller, events } = createHarness({
+      repositoryBLoad: async () => repositoryBSnapshot,
+    });
+
+    controller.start();
+    await waitForSnapshot(
+      controller,
+      ({ workspace }) => workspace.status === "ready",
+    );
+    const search = controller.getSnapshot().search.controller;
+    const activeWorkspace = controller.getSnapshot().workspace;
+
+    expect(activeWorkspace.status).toBe("ready");
+    if (activeWorkspace.status !== "ready") {
+      throw new Error("Workspace did not become ready");
+    }
+    const activeSource = activeWorkspace.workspace.data.notes[0]!.source;
+
+    activeWorkspace.controller.commands.updateNoteSource(
+      "note-1",
+      replaceEditableSource(activeSource, "尚未同步的本地检索内容"),
+    );
+    const workspaceBeforeSearch = controller.getSnapshot().workspace;
+    const analysisRunsBeforeSearch = workspaceBeforeSearch.status === "ready"
+      ? workspaceBeforeSearch.analysisIndex?.analysisStats.runCount
+      : null;
+
+    search.updateDraft({
+      domains: ["workspace"],
+      query: "尚未同步的本地检索内容",
+      repositoryIds: ["repository-a"],
+    });
+    await search.search();
+    expect(controller.getSnapshot().search.state.results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          repositoryId: "repository-a",
+          resourceId: "note-1",
+        }),
+      ]),
+    );
+    const workspaceAfterSearch = controller.getSnapshot().workspace;
+
+    expect(workspaceAfterSearch.status === "ready"
+      ? workspaceAfterSearch.analysisIndex?.analysisStats.runCount
+      : null).toBe(analysisRunsBeforeSearch);
+
+    search.updateDraft({
+      domains: ["workspace"],
+      query: "B",
+      repositoryIds: null,
+    });
+    await search.search();
+
+    const searchState = controller.getSnapshot().search.state;
+
+    expect(searchState).toMatchObject({
+      errorMessage: null,
+      faults: [],
+      status: "ready",
+      submitted: { query: "B" },
+    });
+    expect(searchState.results.length).toBeGreaterThan(0);
+    expect(searchState.results.every((result) =>
+      result.domain === "workspace" &&
+      result.repositoryId === "repository-b" &&
+      result.resourceId === "note-1"
+    )).toBe(true);
+    expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
+      1,
+    );
+
+    repositoryBContentReadable = false;
+    await search.search();
+    expect(controller.getSnapshot().search.state.faults).toEqual([]);
+    expect(events.filter((event) => event === "open:repository-b")).toHaveLength(
+      2,
+    );
+
+    repositoryBContentReadable = true;
+    await controller.selectRepository("repository-b");
+    await waitForSnapshot(
+      controller,
+      ({ workspace }) => workspace.status === "ready",
+    );
+    expect(controller.getSnapshot().search.state.submitted?.query).toBe("B");
     controller.dispose();
   });
 

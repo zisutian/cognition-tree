@@ -71,6 +71,7 @@ export function createTodoView(
     moveCollection: () => undefined,
     navigation: {
       focusRequest: null,
+      openCollectionBlock: () => true,
       openCollectionLine: () => undefined,
     },
     outline: {

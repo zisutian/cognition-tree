@@ -39,6 +39,12 @@ import type {
   DomainRevisionCheckpoint,
 } from "../sync/domainChangeEvents";
 import {
+  createSearchController,
+  type SearchController,
+  type SearchControllerState,
+} from "../search/searchController";
+import type { SearchResourceVersion } from "../search/searchQuery";
+import {
   createTodoSessionController,
   type TodoSessionController,
 } from "../todo/todoSessionController";
@@ -59,6 +65,7 @@ import {
   createWorkspaceSessionSlot,
   type WorkbenchWorkspaceSession,
 } from "./workspaceSessionSlot";
+import { createWorkbenchSearchQuery } from "./workbenchSearchQuery";
 
 export type { WorkbenchNavigationState } from "./workspaceNoteNavigationController";
 export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
@@ -75,6 +82,10 @@ export type WorkbenchControllerSnapshot = {
   journalReferenceResolver: JournalWorkspaceReferenceResolver;
   navigation: WorkbenchNavigationState;
   referenceResolutionGeneration: number;
+  search: {
+    controller: SearchController;
+    state: SearchControllerState;
+  };
   workspace: WorkbenchWorkspaceSession;
 };
 
@@ -108,6 +119,7 @@ type WorkbenchControllerOptions = {
   builtInCatalog: BuiltInCatalog;
   changeEvents?: DomainChangeEventSource;
   createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
+  createSearchVersion(value: unknown): Promise<SearchResourceVersion>;
   scheduler: ApplicationScheduler;
   timezoneOffsetMinutes?: () => number;
   workspaceCatalog: WorkspaceRepositoryCatalog;
@@ -129,6 +141,7 @@ export function createWorkbenchController({
   builtInCatalog,
   changeEvents,
   createInitialWorkspaceContent,
+  createSearchVersion,
   scheduler,
   timezoneOffsetMinutes = () => 0,
   workspaceCatalog,
@@ -158,6 +171,7 @@ export function createWorkbenchController({
   let todoAttemptedSequence = -1;
   let todoReloading = false;
   let workspaceReloading = false;
+  let searchController: SearchController;
 
   const projectBuiltInCatalog = (): BuiltInCatalogApplication => ({
     catalogLabel: builtInCatalogController.catalogLabel,
@@ -179,6 +193,10 @@ export function createWorkbenchController({
       journalReferenceResolver,
       navigation: navigationController.getState(),
       referenceResolutionGeneration,
+      search: {
+        controller: searchController,
+        state: searchController.getState(),
+      },
       workspace: workspaceSlot.getSnapshot(),
     };
     listeners.forEach((listener) => listener());
@@ -226,6 +244,28 @@ export function createWorkbenchController({
     getWorkspace: workspaceSlot.getSnapshot,
     onChange: () => publish(),
     selectRepository: repositoryCatalogController.selectRepository,
+  });
+  const searchQuery = createWorkbenchSearchQuery({
+    builtInCatalog,
+    createVersion: createSearchVersion,
+    getState() {
+      const workspace = workspaceSlot.getSnapshot();
+
+      return {
+        activeRepositoryId:
+          repositoryCatalogController.getSnapshot().activeDescriptor?.id ??
+            null,
+        journal: journalSlot.getSnapshot().state,
+        todo: todoSlot.getSnapshot().state,
+        workspace: workspace.status === "absent" ? null : workspace,
+      };
+    },
+    workspaceCatalog,
+  });
+
+  searchController = createSearchController({
+    onChange: () => publish(),
+    query: searchQuery,
   });
   const reconcileExternalChanges = () => {
     if (disposed || !started || !latestCheckpoint) return;
@@ -379,6 +419,10 @@ export function createWorkbenchController({
     journalReferenceResolver,
     navigation: navigationController.getState(),
     referenceResolutionGeneration,
+    search: {
+      controller: searchController,
+      state: searchController.getState(),
+    },
     workspace: workspaceSlot.getSnapshot(),
   };
 
@@ -422,6 +466,7 @@ export function createWorkbenchController({
       unsubscribeChangeEvents();
       changeEvents?.dispose();
       navigationController.dispose();
+      searchController.dispose();
       workspaceSlot.dispose();
       journalSlot.dispose();
       todoSlot.dispose();

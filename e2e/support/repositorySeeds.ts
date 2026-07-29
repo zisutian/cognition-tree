@@ -247,9 +247,13 @@ export async function seedWorkbenchRepository(
   api: APIRequestContext,
   id: string,
   {
+    searchBlocks = [],
     syntaxSource,
+    workspaceName = "浏览器回归仓库",
   }: {
+    searchBlocks?: readonly string[];
     syntaxSource?: string;
+    workspaceName?: string;
   } = {},
 ) {
   await createRepository({
@@ -259,7 +263,12 @@ export async function seedWorkbenchRepository(
       {
         id: "note-alpha",
         source: createSeedSourceWithBlockTimestamps(
-          "Alpha\n\t: [[Beta]]\n\t- Alpha 子项",
+          [
+            "Alpha",
+            "\t: [[Beta]]",
+            "\t- Alpha 子项",
+            ...searchBlocks.map((text) => `\t: ${text}`),
+          ].join("\n"),
           0,
           [
             e2eTimestamp,
@@ -293,7 +302,7 @@ export async function seedWorkbenchRepository(
       { kind: "note", noteId: "note-gamma" },
     ],
     syntaxSource,
-    workspaceName: "浏览器回归仓库",
+    workspaceName,
   });
 }
 

@@ -23,6 +23,9 @@ import type {
   CtnCanonicalSourceAnalysis,
 } from "../../../core/ctn/analysis/sourceAnalysis.ts";
 import {
+  removeCtnBlockMetadataLines,
+} from "../../../core/ctn/metadata/blockMetadata.ts";
+import {
   getCtnEditableLineNumber,
 } from "../../../core/ctn/metadata/editableSource.ts";
 import type {
@@ -433,11 +436,13 @@ export function projectApiV1WorkspaceNote(
       version,
     });
   }
+  const editableSource = removeCtnBlockMetadataLines(entry.note.source);
+
   return {
     blocks: [],
     createdAt: entry.header.createdAt,
     diagnostics: [],
-    editableText: entry.note.source.split("\n").slice(1).join("\n"),
+    editableText: editableSource.split("\n").slice(1).join("\n"),
     resourceId: noteId,
     textMode: "document",
     title: entry.header.title,

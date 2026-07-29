@@ -5,7 +5,7 @@ export function PlaceholderActivityController({
   activityId,
   renderActivity,
 }: {
-  activityId: "data" | "search";
+  activityId: "data";
   renderActivity: RenderActivity;
 }) {
   return renderActivity(() => createPlaceholderActivitySlots(activityId));
