@@ -32,17 +32,6 @@ function runServerWithEnvironment(environment: Record<string, string>) {
 }
 
 describe("server startup configuration", () => {
-  it("fails closed when the removed static WebDAV registry variable is present", async () => {
-    const result = await runServerWithEnvironment({
-      CTN_WEBDAV_REPOSITORIES: "[]",
-    });
-
-    expect(result.code).not.toBe(0);
-    expect(result.stderr).toContain(
-      "CTN_WEBDAV_REPOSITORIES is unsupported",
-    );
-  });
-
   it("fails closed when the display-only host repository root is relative", async () => {
     const result = await runServerWithEnvironment({
       CTN_REPOSITORY_HOST_ROOT: "relative/repositories",

@@ -2,7 +2,7 @@ import {
   EmptyState,
   Panel,
 } from "../../ui/shared/primitives";
-import "../../ui/styles/activities/placeholder.css";
+import "../../ui/styles/shared/placeholder.css";
 
 export function PlaceholderPanel({
   description,

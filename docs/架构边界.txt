@@ -79,7 +79,10 @@ Todo v4：
 
 collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题是内部固定集合名，缩进形成任务树，完成状态只来自 sidecar。daily、weekly、monthly 规则只保存本地 YYYY-MM-DD，不保存时区或零点任务；当前状态、下一日期和完成/总数由运行环境本地日期投影。规则修改追加从下一天生效的阶段，停止周期也保留历史。移动与缩进保留 block ID，删除或失去 todo-item 语义的源码块清除孤立 completion 与 recurrence。
 
-Todo v3 reader 只存在于 contracts/todo/migrations。服务端先耐久写入 v4 content 再发布 epoch 4；Browser 在单个 IndexedDB transaction 内迁移 remote、draft/cache 和 epoch。正常 parser 不读取 v3，损坏 v3/v4 与未来版本不自动覆盖。
+Workspace v4、Journal v3 与 Todo v4 是各自唯一可运行格式。只有 epoch 与内容
+同时完全不存在时才初始化空内容；缺一项、非当前 epoch、损坏内容和未来版本
+一律原样保留并 fail closed。运行时不存在版本 reader、迁移、字段别名或自动
+重置；Browser IndexedDB 的非当前数据库版本同样不升级、不清空。
 
 Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 codec、content validator、transition validator、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
 
@@ -102,7 +105,7 @@ Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB
 Workspace/Journal/Todo snapshot 只存在于带 sync scope 的官方客户端路径。
 自动化 principal 永远不能获得 sync、syntax:write、repository:admin 或
 token:manage，因而不能绕过领域命令修改 canonical metadata、语法、仓库连接
-或仓库管理状态。旧 repository、snapshot、built-in 和 Mobile route 不存在。
+或仓库管理状态。HTTP 只暴露 registry 中声明的当前 `/api/v1` operation。
 
 所有命令使用严格 discriminated union、UUID commandId、preview/commit mode
 和目标资源版本。领域执行器是内容修改的唯一 owner；HTTP handler、SSE、
@@ -117,8 +120,15 @@ block updatedAt，但并发判断不使用时间戳。
 base/local/remote。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
 为单元，Todo 以 collection body、collection order、单任务 completion 和
 recurrence 为单元执行三方合并。不同单元自动 rebase；同一单元双改、删改竞争
-进入冲突。语法变化是 barrier，不能跨 grammar 自动合并。SSE 只发送 checkpoint
-与无正文 change set，重连 checkpoint 修复漏事件。
+进入冲突。语法变化是 barrier，不能跨 grammar 自动合并。SSE 只发送带
+`streamId` 的 checkpoint 与无正文 change set；sequence 只在同一 stream
+内部有序，进程重启产生的新 stream 会使客户端重置去重状态。轻量 revision
+tracker 维护 checkpoint，建立连接不会扫描仓库正文。
+
+API 状态由 token、无正文幂等回执和分页 audit 三个 owner 分区持久化。它们
+使用同一单写者队列和原子替换，目录权限为 0700、文件权限为 0600；单个分区
+损坏只使该能力 fail closed，不阻断其它认证和内容领域。token `lastUsedAt`
+最多每分钟落盘一次。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
 周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
@@ -130,12 +140,24 @@ currentOccurrenceDate。
 
 每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的 VersionedSessionController 与保存队列。该控制器负责 ready 内容保持、并发 reload、discard 失败恢复、local-first、CAS、冲突、离线、重试、dispose 和删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 parser、prepareContent 与领域命令。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo。
 
-application/workbench/WorkbenchController 提供 start、dispose、subscribe、getSnapshot 和领域命令，只组合 RepositoryCatalogController、Workspace session slot、Journal/Todo built-in slot、引用解析与跨仓导航状态机，并独占以下跨领域流程：
+application/workbench/WorkbenchController 提供 start、dispose、subscribe、
+getSnapshot 与明确 facade。snapshot 只包含不可变状态，不嵌入可变 controller；
+查询和操作只能经 facade 执行。它组合 RepositoryCatalogController、Workspace
+session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓导航
+状态机，并独占以下跨领域流程：
 
     普通仓库切换与一次性导航。
     Journal 的 [[仓库名:笔记名]] 解析。
     按需读取命名普通仓库的 local-first snapshot，只从 canonical note header 建立标题索引。
     排空当前 Workspace、切换仓库、等待新 session，再进入 Notes 并选择目标笔记。
+    把三领域 ContentDestination 映射到 Activity、资源和稳定 block ID；目标块
+    已消失时只在该边界回退到资源首行并报告结果过期。
+
+application/search/SearchIndex 是三领域资源投影、Unicode 归一化、grapheme
+源码偏移、片段、过滤、排序、fault 与 cursor 的唯一 owner。过滤在命中折叠前
+执行；缓存按来源 revision 和 corpus key 失效，查询 LRU 有界。presentation
+只提交 SearchQuery 和打开 ContentDestination，不解析 CTN、扫描仓库或换算
+行号。
 
 Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
 
@@ -158,9 +180,18 @@ schema。
 
 8. Presentation 与 Problems
 
-AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session 到 view application 的绑定位于 presentation/shell/bindings；Activity catalog 是 ID、标签与懒加载元数据的唯一 owner。
+AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
+到 view application 的绑定位于 presentation/shell/bindings；Activity
+descriptor catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一
+owner。顶层主入口固定为笔记、日记、代办、语法、搜索，管理入口固定为仓库、
+设置。
 
 Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
+
+笔记 Activity 内部拥有 edit、structure、graph 三种原生 tab 模式，并按仓库
+保存所选模式。编辑模式持续挂载，因此模式往返不替换当前笔记或 CodeMirror
+历史；结构操作和引用图谱复用同一 Workspace session、selection 与导航，不再
+拥有顶层 Activity 或重复的 workspace-unavailable 编排。
 
 Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
 

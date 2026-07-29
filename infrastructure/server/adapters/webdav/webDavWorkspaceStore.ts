@@ -15,7 +15,6 @@ import {
 } from "../../repository/repositoryStore.ts";
 import {
   createEmptyRepositoryContent,
-  workspaceFileName,
 } from "../../repository/workspaceRepositoryLayout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
 import {
@@ -212,9 +211,6 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       await this.#generationStore.read(parseWebDavPointer(pointer));
       return;
     }
-    if (await this.#transport.readText(workspaceFileName)) {
-      throw new UnsupportedRepositoryVersionError("$.schemaVersion", 2);
-    }
     if (!this.#allowEmptyTargetInitialization) {
       throw new RepositoryCorruptError("WebDAV current pointer is missing");
     }
@@ -227,9 +223,6 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       if (concurrentlyPublished) {
         await this.#generationStore.read(parseWebDavPointer(concurrentlyPublished));
         return;
-      }
-      if (await this.#transport.readText(workspaceFileName)) {
-        throw new UnsupportedRepositoryVersionError("$.schemaVersion", 2);
       }
       const unmanagedEntries = (await this.#transport.listCollection(""))
         .filter((entry) => entry.path !== webDavLockPath);

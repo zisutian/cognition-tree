@@ -192,7 +192,7 @@ export class LocalRepositoryCatalog {
 
           repositories.push(this.#createDescriptor(repositoryId, metadata.label));
         } catch (error) {
-          const code = await this.#classifyCatalogIssue(repositoryId, error);
+          const code = this.#classifyCatalogIssue(error);
 
           issues.push({
             adapter: "local",
@@ -475,24 +475,14 @@ export class LocalRepositoryCatalog {
     }
   }
 
-  async #classifyCatalogIssue(
-    repositoryId: string,
+  #classifyCatalogIssue(
     error: unknown,
-  ): Promise<RepositoryCatalogIssueDto["code"]> {
+  ): RepositoryCatalogIssueDto["code"] {
     if (error instanceof UnsupportedRepositoryVersionError) {
       return "unsupported_repository_version";
     }
     if (hasFileSystemErrorCode(error, "ENOENT")) {
-      const repositoryPath = this.#resolveRepositoryPath(repositoryId);
-      const legacyCandidates = [
-        path.join(repositoryPath, "repository.json"),
-        path.join(repositoryPath, "workspace.json"),
-        path.join(repositoryPath, "snapshots"),
-      ];
-
-      return (await Promise.all(legacyCandidates.map(pathExists))).some(Boolean)
-        ? "unsupported_repository_version"
-        : "repository_corrupt";
+      return "repository_corrupt";
     }
     if (error instanceof RepositoryCorruptError ||
         error instanceof SyntaxError ||

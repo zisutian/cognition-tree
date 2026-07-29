@@ -2,8 +2,6 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
   type Locator,
 } from "@playwright/test";
@@ -15,10 +13,10 @@ import { formatCtnSyntaxV2 } from "../core/ctn/syntax/formatter";
 import {
   e2eAlphaFirstBlockTimestamp,
   e2eAlphaSecondBlockTimestamp,
-  e2eApiBaseUrl,
   e2eTimestamp,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
+import { test } from "./support/e2eTest";
 import {
   readComputedStyleValue,
   readCtnTonePresentation,
@@ -134,18 +132,14 @@ function expectGeometryEqual(
   expect(Math.abs(actual - expected), message).toBeLessThanOrEqual(tolerance);
 }
 
-test.describe.serial("editor workbench flows", () => {
+test.describe("editor workbench flows", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, repositoryId, {
       syntaxSource: editorSyntaxSource,
     });
-  });
-
-  test.afterAll(async () => {
-    await api.dispose();
   });
 
   test("supports focus mode and reference navigation", async ({ page }) => {

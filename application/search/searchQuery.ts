@@ -80,7 +80,7 @@ export type SearchDocument =
     });
 
 export type SearchSourceBatch = {
-  documents: SearchDocument[];
+  loadDocuments(): Promise<SearchDocument[]>;
   revision: string;
 };
 
@@ -405,20 +405,28 @@ function defaultSourceFault(source: SearchSource, error: unknown): SearchFault {
 export class SearchIndex<Context = void> implements SearchQuery<Context> {
   readonly #createCorpusKey: (value: unknown) => Promise<string> | string;
   readonly #maximumCachedQueries: number;
+  readonly #maximumCachedSources: number;
   readonly #queryCache = new Map<string, SearchResult[]>();
+  readonly #sourceCache = new Map<
+    string,
+    { documents: SearchDocument[]; revision: string }
+  >();
   readonly #sourceProvider: SearchSourceProvider<Context>;
 
   constructor({
     createCorpusKey,
     maximumCachedQueries = 32,
+    maximumCachedSources = 64,
     sourceProvider,
   }: {
     createCorpusKey(value: unknown): Promise<string> | string;
     maximumCachedQueries?: number;
+    maximumCachedSources?: number;
     sourceProvider: SearchSourceProvider<Context>;
   }) {
     this.#createCorpusKey = createCorpusKey;
     this.#maximumCachedQueries = maximumCachedQueries;
+    this.#maximumCachedSources = maximumCachedSources;
     this.#sourceProvider = sourceProvider;
   }
 
@@ -430,9 +438,7 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
     const listed = await this.#sourceProvider.listSources(request, context);
     const faults = [...listed.faults];
     const revisions: Record<string, string> = {};
-    const results: SearchResult[] = [];
-
-    await Promise.all(listed.sources.map(async (source) => {
+    const prepared = (await Promise.all(listed.sources.map(async (source) => {
       const sourceKey = source.domain === "workspace"
         ? `${source.domain}:${source.repositoryId}`
         : source.domain;
@@ -441,21 +447,14 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
         const batch = await source.load();
 
         revisions[sourceKey] = batch.revision;
-        for (const document of batch.documents) {
-          results.push(
-            ...projectSearchDocumentResults(
-              document,
-              request,
-              normalizedQuery,
-            ),
-          );
-        }
+        return { batch, sourceKey };
       } catch (error) {
         faults.push(
           source.createFault?.(error) ?? defaultSourceFault(source, error),
         );
+        return null;
       }
-    }));
+    }))).filter((value) => value !== null);
     const normalizedFaults = normalizeFaults(faults);
     const key = await this.#createCorpusKey({
       domains: request.domains ?? searchDomains,
@@ -479,10 +478,27 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
         "Search results changed while paging",
       );
     }
-    const sorted = this.#readCachedResults(key) ??
-      sortSearchResults(results);
+    let sorted = this.#readCachedResults(key);
 
-    this.#cacheResults(key, sorted);
+    if (!sorted) {
+      const results: SearchResult[] = [];
+
+      await Promise.all(prepared.map(async ({ batch, sourceKey }) => {
+        const documents = await this.#loadSourceDocuments(sourceKey, batch);
+
+        for (const document of documents) {
+          results.push(
+            ...projectSearchDocumentResults(
+              document,
+              request,
+              normalizedQuery,
+            ),
+          );
+        }
+      }));
+      sorted = sortSearchResults(results);
+      this.#cacheResults(key, sorted);
+    }
     const offset = cursor?.offset ?? 0;
     const page = sorted.slice(offset, offset + limit);
     const nextOffset = offset + page.length;
@@ -514,6 +530,33 @@ export class SearchIndex<Context = void> implements SearchQuery<Context> {
     this.#queryCache.delete(key);
     this.#queryCache.set(key, results);
     return results;
+  }
+
+  async #loadSourceDocuments(
+    sourceKey: string,
+    batch: SearchSourceBatch,
+  ) {
+    const cached = this.#sourceCache.get(sourceKey);
+
+    if (cached?.revision === batch.revision) {
+      this.#sourceCache.delete(sourceKey);
+      this.#sourceCache.set(sourceKey, cached);
+      return cached.documents;
+    }
+    const documents = await batch.loadDocuments();
+
+    this.#sourceCache.delete(sourceKey);
+    this.#sourceCache.set(sourceKey, {
+      documents,
+      revision: batch.revision,
+    });
+    while (this.#sourceCache.size > this.#maximumCachedSources) {
+      const oldest = this.#sourceCache.keys().next().value;
+
+      if (oldest === undefined) break;
+      this.#sourceCache.delete(oldest);
+    }
+    return documents;
   }
 }
 

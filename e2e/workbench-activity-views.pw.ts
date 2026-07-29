@@ -2,21 +2,17 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
 } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace/types";
 import { readGraphCanvasNodes } from "./support/graphCanvas";
 import {
-  e2eApiBaseUrl,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
 import {
   createCrossDomainSearchSeeds,
-  resetJournalRepository,
-  resetTodoRepository,
 } from "./support/builtInSeeds";
+import { test } from "./support/e2eTest";
 import {
   readComputedStyleValue,
   readCtnTonePresentation,
@@ -72,8 +68,8 @@ async function waitForStableGraphSpan(
 test.describe("activity view flows", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, syntaxRepositoryId);
     await seedWorkbenchRepository(api, invalidSyntaxRepositoryId, {
       searchBlocks: Array.from(
@@ -84,14 +80,6 @@ test.describe("activity view flows", () => {
       workspaceName: "检索目标仓库",
     });
     await seedWorkbenchRepository(api, visualizationRepositoryId);
-    const builtIns = createCrossDomainSearchSeeds(searchQuery);
-
-    await resetJournalRepository(api, builtIns.journal);
-    await resetTodoRepository(api, builtIns.todo);
-  });
-
-  test.afterAll(async () => {
-    await api.dispose();
   });
 
   test("keeps syntax popovers and draft state stable", async ({ page }) => {
@@ -406,8 +394,10 @@ test.describe("activity view flows", () => {
   });
 
   test("searches, filters, pages and opens results across all domains", async ({
+    e2eState,
     page,
   }) => {
+    await e2eState.setBuiltIns(createCrossDomainSearchSeeds(searchQuery));
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "搜索").click();
 

@@ -2,8 +2,6 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
@@ -11,14 +9,13 @@ import type { JournalEntryDto } from "../contracts/journal/types";
 import { readCtnCanonicalTitleHeader } from "../core/ctn/parser/parseCtnDocument";
 import { formatJournalEntryTitle } from "../core/journal/model/journalContent";
 import {
-  e2eApiBaseUrl,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
 import {
   createJournalSeed,
   readJournalSnapshot,
-  resetJournalRepository,
 } from "./support/builtInSeeds";
+import { test } from "./support/e2eTest";
 import {
   getActivityButton,
   openWorkbench,
@@ -77,24 +74,21 @@ async function waitUntilNextClockSecond(page: Page, timestamp: string) {
   );
 }
 
-test.describe.serial("Journal activity flows", () => {
+test.describe("Journal activity flows", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, repositoryId);
   });
 
-  test.afterAll(async () => {
-    await api.dispose();
-  });
-
   test("creates multiple fixed-title entries, groups newest first, persists structure, and confirms deletion", async ({
+    e2eState,
     page,
   }) => {
     const oldContent = createJournalSeed();
 
-    await resetJournalRepository(api, oldContent);
+    await e2eState.setJournal(oldContent);
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
 
@@ -203,7 +197,6 @@ test.describe.serial("Journal activity flows", () => {
   });
 
   test("opens a Journal problem at its entry and body line", async ({ page }) => {
-    await resetJournalRepository(api);
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
 
@@ -258,7 +251,6 @@ test.describe.serial("Journal activity flows", () => {
   test("keeps Journal usable when the ordinary repository catalog is empty", async ({
     page,
   }) => {
-    await resetJournalRepository(api);
     await page.route("**/api/v1/admin/repositories", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({

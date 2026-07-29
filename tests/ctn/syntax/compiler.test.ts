@@ -156,10 +156,13 @@ describe("CTN syntax v2 compiler", () => {
 
   it("rejects unknown fields even when every required field remains valid", () => {
     const source = defaultCtnSyntaxSource
-      .replace('name = "默认 CTN 语法"', 'name = "默认 CTN 语法"\nlegacy = true')
+      .replace(
+        'name = "默认 CTN 语法"',
+        'name = "默认 CTN 语法"\nunsupported = true',
+      )
       .replace(
         'label = "代码"',
-        'label = "代码"\nlegacyBlock = "no"',
+        'label = "代码"\nunsupportedBlock = "no"',
       );
     const diagnostics = diagnosticCoordinates(source, "workspace");
 
@@ -167,11 +170,11 @@ describe("CTN syntax v2 compiler", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "forbidden-field",
-          path: "$.legacy",
+          path: "$.unsupported",
         }),
         expect.objectContaining({
           code: "forbidden-field",
-          path: "blocks[0].legacyBlock",
+          path: "blocks[0].unsupportedBlock",
         }),
       ]),
     );

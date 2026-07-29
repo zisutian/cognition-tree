@@ -5,7 +5,7 @@
 
 要求：
 
-    Node.js 22.x
+    Node.js >= 22.18.0
     pnpm 11.1.3
     Git 2.x
 
@@ -97,8 +97,8 @@ link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址�
     GET、PUT /api/v1/sync/todo
 
 管理接口位于 /api/v1/admin/repositories、/api/v1/admin/tokens 和
-/api/v1/admin/audit。旧 repository、snapshot、built-in 和 Mobile
-路径全部返回 404，不存在别名或兼容开关。
+/api/v1/admin/audit。服务端只解析 registry 声明的当前 operation，不提供
+别名、版本协商或兼容开关。
 
 自动化应使用设置页创建的高熵令牌，并调用资源查询和领域命令。令牌只能获得
 Workspace、Journal、Todo 的 read、write、delete scope；repository allowlist
@@ -124,9 +124,11 @@ Todo 远程客户端真值表：
     recurrence.active == true 且 currentOccurrenceDate == null
         不猜测日期；刷新投影后再提交。
 
-GET /api/v1/events 使用 SSE。连接时先发送 revision checkpoint，随后只发送
-不含正文的 change set；客户端断线重连后以新 checkpoint 补齐遗漏。SSE 只是
-失效通知，资源查询和同步 snapshot 始终是真相。
+GET /api/v1/events 使用 SSE。连接时先发送带进程级 streamId 的 revision
+checkpoint，随后只发送不含正文的 change set；sequence 只在同一 stream
+内比较。客户端看到新 stream 的 checkpoint 时重置去重状态并重新比较资源。
+SSE 只是失效通知，资源查询和同步 snapshot 始终是真相；checkpoint 由轻量
+revision tracker 提供，不扫描仓库正文。
 
 Local 普通仓库：
 
@@ -156,12 +158,15 @@ WebDAV 连接配置保存在：
 
     <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
 
-API 状态保存在：
+API 状态分区保存在：
 
-    <CTN_SERVER_STATE_DIR>/api-v1-state.json
+    <CTN_SERVER_STATE_DIR>/api-v1/tokens.json
+    <CTN_SERVER_STATE_DIR>/api-v1/receipts.json
+    <CTN_SERVER_STATE_DIR>/api-v1/audit.json
 
-其中只有令牌 SHA-256 哈希、前缀、scope、allowlist、幂等回执和不含正文的
-审计；创建响应中的 secret 不落盘。
+三个文件分别只保存令牌 SHA-256 哈希与授权、无正文幂等回执和分页审计。
+创建响应中的 secret 不落盘；单个分区损坏不会阻断其它分区，token
+lastUsedAt 最多每分钟落盘一次。服务端不读取或转换其它状态格式。
 
 内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
 0600。密码不进入 API 响应、日志、普通仓库内容或 IndexedDB。
@@ -178,7 +183,9 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
 
 添加 WebDAV 时会探测 ETag、条件请求、PROPFIND、MKCOL、PUT、GET 和 DELETE。空目标可以初始化为 v4；已有合法 v4 保持为远端事实；非空 unmanaged、旧版本和 tombstone 目标不会被接管。
 
-普通 Workspace 使用 v4，Journal 使用 v3，Todo 使用 v4。Todo v3 由隔离迁移器原子迁移一次；当前版本的损坏内容和未知未来版本保持原样并投影故障，不自动清空。
+普通 Workspace 使用 v4，Journal 使用 v3，Todo 使用 v4。它们是唯一合法格式；
+只有 epoch 与内容同时不存在时才初始化。部分状态、非当前版本、损坏内容和
+未来版本保持原样并投影故障，不迁移、不覆盖、不自动清空 IndexedDB。
 
 
 6. 验证
@@ -187,6 +194,7 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
     pnpm test
     pnpm test:architecture
     pnpm test:e2e
+    pnpm benchmark:capacity
     pnpm build
     git diff --check
 

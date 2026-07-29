@@ -222,17 +222,22 @@ export class ApiV1SearchService {
                   async load() {
                     const snapshot = await catalog.getStore(repository.id)
                       .then((store) => store.loadSnapshot());
-                    const analysis = createApiV1WorkspaceAnalysis(
-                      snapshot.content,
-                    );
-                    const documents = await projectWorkspaceSearchDocuments({
-                      createVersion: createApiV1ResourceVersion,
-                      index: analysis.parseIndex,
-                      repositoryId: repository.id,
-                      workspace: analysis.structure,
-                    });
 
-                    return { documents, revision: snapshot.revision };
+                    return {
+                      async loadDocuments() {
+                        const analysis = createApiV1WorkspaceAnalysis(
+                          snapshot.content,
+                        );
+
+                        return projectWorkspaceSearchDocuments({
+                          createVersion: createApiV1ResourceVersion,
+                          index: analysis.parseIndex,
+                          repositoryId: repository.id,
+                          workspace: analysis.structure,
+                        });
+                      },
+                      revision: snapshot.revision,
+                    };
                   },
                   repositoryId: repository.id,
                 });
@@ -252,14 +257,18 @@ export class ApiV1SearchService {
               async load() {
                 const snapshot = await builtInCatalog.getStore("journal")
                   .then((store) => store.loadSnapshot());
-                const content = parseJournalContent(snapshot.content);
-                const index = createApiV1JournalIndex(content);
-                const documents = await projectJournalSearchDocuments({
-                  createVersion: createApiV1ResourceVersion,
-                  index,
-                });
 
-                return { documents, revision: snapshot.revision };
+                return {
+                  async loadDocuments() {
+                    const content = parseJournalContent(snapshot.content);
+
+                    return projectJournalSearchDocuments({
+                      createVersion: createApiV1ResourceVersion,
+                      index: createApiV1JournalIndex(content),
+                    });
+                  },
+                  revision: snapshot.revision,
+                };
               },
             });
           }
@@ -270,14 +279,18 @@ export class ApiV1SearchService {
               async load() {
                 const snapshot = await builtInCatalog.getStore("todo")
                   .then((store) => store.loadSnapshot());
-                const content = parseTodoContent(snapshot.content);
-                const index = createApiV1TodoIndex(content);
-                const documents = await projectTodoSearchDocuments({
-                  createVersion: createApiV1ResourceVersion,
-                  index,
-                });
 
-                return { documents, revision: snapshot.revision };
+                return {
+                  async loadDocuments() {
+                    const content = parseTodoContent(snapshot.content);
+
+                    return projectTodoSearchDocuments({
+                      createVersion: createApiV1ResourceVersion,
+                      index: createApiV1TodoIndex(content),
+                    });
+                  },
+                  revision: snapshot.revision,
+                };
               },
             });
           }

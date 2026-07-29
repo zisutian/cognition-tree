@@ -109,26 +109,26 @@ afterEach(() => {
 });
 
 describe("IndexedDB repository client cache", () => {
-  it("drops every v3 object store during the v4 upgrade without reading old content", async () => {
+  it("rejects a noncurrent database without deleting or masking its stores", async () => {
     const indexedDb = new IDBFactory();
-    const legacyDatabase = await openDatabase(indexedDb, 3, (database) => {
+    const noncurrentDatabase = await openDatabase(indexedDb, 3, (database) => {
       database.createObjectStore("repository-catalogs-v3");
       database.createObjectStore("repository-states-v3");
       database.createObjectStore("repository-notes-v3");
-      database.createObjectStore("unrelated-legacy-store");
+      database.createObjectStore("unrelated-user-store");
     });
-    const legacyTransaction = legacyDatabase.transaction(
+    const noncurrentTransaction = noncurrentDatabase.transaction(
       [
         "repository-catalogs-v3",
         "repository-states-v3",
         "repository-notes-v3",
-        "unrelated-legacy-store",
+        "unrelated-user-store",
       ],
       "readwrite",
     );
-    const legacyCompletion = transactionComplete(legacyTransaction);
+    const noncurrentCompletion = transactionComplete(noncurrentTransaction);
 
-    legacyTransaction.objectStore("repository-catalogs-v3").put(
+    noncurrentTransaction.objectStore("repository-catalogs-v3").put(
       {
         creatableAdapters: ["browser"],
         issues: [],
@@ -136,34 +136,67 @@ describe("IndexedDB repository client cache", () => {
           adapter: "browser",
           id: descriptor.id,
           label: descriptor.label,
-          locationLabel: "legacy browser label",
+          locationLabel: "noncurrent browser label",
         }],
         version: 3,
       },
       catalogIdentity,
     );
-    legacyTransaction.objectStore("repository-states-v3").put(
-      { identity: repositoryIdentity, workspace: { id: "legacy" } },
+    noncurrentTransaction.objectStore("repository-states-v3").put(
+      { identity: repositoryIdentity, workspace: { id: "noncurrent" } },
       repositoryIdentity,
     );
-    legacyTransaction.objectStore("repository-notes-v3").put("legacy", "key");
-    legacyTransaction.objectStore("unrelated-legacy-store").put("legacy", "key");
-    await legacyCompletion;
-    legacyDatabase.close();
+    noncurrentTransaction.objectStore("repository-notes-v3").put(
+      "noncurrent",
+      "key",
+    );
+    noncurrentTransaction.objectStore("unrelated-user-store").put(
+      "preserve",
+      "key",
+    );
+    await noncurrentCompletion;
+    noncurrentDatabase.close();
 
     const cache = createIndexedDbRepositoryClientCache(indexedDb);
 
-    await expect(cache.catalogs.load(catalogIdentity)).resolves.toBeNull();
-    await expect(cache.snapshots.load(repositoryIdentity)).resolves.toBeNull();
+    await expect(cache.catalogs.load(catalogIdentity)).rejects.toBeInstanceOf(
+      UnsupportedRepositoryVersionError,
+    );
+    await expect(cache.snapshots.load(repositoryIdentity)).rejects
+      .toBeInstanceOf(UnsupportedRepositoryVersionError);
 
-    const upgradedDatabase = await openDatabase(indexedDb);
+    const retainedDatabase = await openDatabase(indexedDb);
 
-    expect([...upgradedDatabase.objectStoreNames]).toEqual([
-      catalogStoreName,
-      noteStoreName,
-      stateStoreName,
+    expect([...retainedDatabase.objectStoreNames]).toEqual([
+      "repository-catalogs-v3",
+      "repository-notes-v3",
+      "repository-states-v3",
+      "unrelated-user-store",
     ]);
-    upgradedDatabase.close();
+    const read = retainedDatabase.transaction(
+      [
+        "repository-catalogs-v3",
+        "repository-states-v3",
+        "repository-notes-v3",
+        "unrelated-user-store",
+      ],
+      "readonly",
+    );
+    const readCompletion = transactionComplete(read);
+
+    await expect(Promise.all([
+      requestResult(
+        read.objectStore("repository-states-v3").get(repositoryIdentity),
+      ),
+      requestResult(read.objectStore("repository-notes-v3").get("key")),
+      requestResult(read.objectStore("unrelated-user-store").get("key")),
+    ])).resolves.toEqual([
+      { identity: repositoryIdentity, workspace: { id: "noncurrent" } },
+      "noncurrent",
+      "preserve",
+    ]);
+    await readCompletion;
+    retainedDatabase.close();
   });
 
   it("creates descriptor, repository state, and note sources in one transaction", async () => {
@@ -225,7 +258,7 @@ describe("IndexedDB repository client cache", () => {
 
     await expect(cache.snapshots.load("missing")).resolves.toBeNull();
     const database = await openDatabase(indexedDb);
-    const legacyState = {
+    const noncurrentState = {
       identity: repositoryIdentity,
       localRevision: draftA,
       noteIds: [],
@@ -233,12 +266,12 @@ describe("IndexedDB repository client cache", () => {
       remoteRevision: revisionA,
       schemaVersion: 3,
       syntaxSource: null,
-      workspace: { id: "legacy", name: "Legacy", tree: [] },
+      workspace: { id: "noncurrent", name: "Noncurrent", tree: [] },
     };
     const write = database.transaction(stateStoreName, "readwrite");
     const writeCompletion = transactionComplete(write);
 
-    write.objectStore(stateStoreName).put(legacyState);
+    write.objectStore(stateStoreName).put(noncurrentState);
     await writeCompletion;
     await expect(cache.snapshots.load(repositoryIdentity)).rejects.toBeInstanceOf(
       UnsupportedRepositoryVersionError,
@@ -251,7 +284,7 @@ describe("IndexedDB repository client cache", () => {
     );
 
     await readCompletion;
-    expect(retained).toEqual(legacyState);
+    expect(retained).toEqual(noncurrentState);
     database.close();
   });
 

@@ -2,8 +2,6 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
   type Locator,
   type Page,
@@ -19,13 +17,12 @@ import {
   appContextMinWidth,
 } from "../presentation/ui/workbench/frameResize";
 import {
-  e2eApiBaseUrl,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
 import {
   readTodoSnapshot,
-  resetTodoRepository,
 } from "./support/builtInSeeds";
+import { test } from "./support/e2eTest";
 import {
   getActivityButton,
   openWorkbench,
@@ -74,22 +71,17 @@ async function waitForTodoContent(
   return content;
 }
 
-test.describe.serial("Todo activity flows", () => {
+test.describe("Todo activity flows", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, repositoryId);
-  });
-
-  test.afterAll(async () => {
-    await api.dispose();
   });
 
   test("persists ordered CTN collections, hierarchy, completion sidecars, and Problems", async ({
     page,
   }) => {
-    await resetTodoRepository(api);
     await openWorkbench(page, repositoryId);
 
     const problems = page.locator(".problems-panel");
@@ -305,7 +297,6 @@ test.describe.serial("Todo activity flows", () => {
   test("keeps Todo usable when the ordinary repository catalog is empty", async ({
     page,
   }) => {
-    await resetTodoRepository(api);
     await page.route("**/api/v1/admin/repositories", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({

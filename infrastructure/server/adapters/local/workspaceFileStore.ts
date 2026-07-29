@@ -279,11 +279,6 @@ export class WorkspaceFileStore {
       await this.#assertControlLayout();
       await this.#scanAndSynchronize();
     } catch (error) {
-      if (hasFileSystemErrorCode(error, "ENOENT")) {
-        if (await this.#hasLegacyLayout()) {
-          throw new UnsupportedRepositoryVersionError("$.layoutVersion", undefined);
-        }
-      }
       mapPersistedFailure(error);
     }
   }
@@ -463,42 +458,6 @@ export class WorkspaceFileStore {
       throw error;
     });
     return value === null ? null : parseLocalNoteMetadata(value, noteId);
-  }
-
-  async #hasLegacyLayout() {
-    const metadataValue = await readLocalJson(path.join(
-      this.#rootDir,
-      localControlDirectoryName,
-      localRepositoryMetadataFileName,
-    )).catch((error: unknown) => {
-      if (hasFileSystemErrorCode(error, "ENOENT")) return null;
-      throw error;
-    });
-    if (
-      typeof metadataValue === "object" &&
-      metadataValue !== null &&
-      !Array.isArray(metadataValue) &&
-      (metadataValue as Record<string, unknown>).schemaVersion === 3
-    ) {
-      return true;
-    }
-    const legacyCandidates = [
-      path.join(this.#rootDir, "repository.json"),
-      path.join(this.#rootDir, "snapshots"),
-      path.join(this.#rootDir, "workspace.json"),
-      path.join(
-        this.#rootDir,
-        localControlDirectoryName,
-        "workspace.toml",
-      ),
-    ];
-    for (const candidate of legacyCandidates) {
-      if (await lstat(candidate).then(() => true, (error: unknown) => {
-        if (hasFileSystemErrorCode(error, "ENOENT")) return false;
-        throw error;
-      })) return true;
-    }
-    return false;
   }
 
   async #assertControlLayout() {

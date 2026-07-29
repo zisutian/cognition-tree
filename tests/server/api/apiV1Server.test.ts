@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  access,
   lstat,
   mkdtemp,
   readFile,
@@ -303,7 +302,7 @@ const revision = (character: string) =>
   `sha256:${character.repeat(64)}` as `sha256:${string}`;
 
 describe("CTN API v1", () => {
-  it("owns routing, OpenAPI, sync and rejects every retired API surface", async () => {
+  it("derives routing, OpenAPI, and sync from the operation registry", async () => {
     await withHandler(async (handler) => {
       await expect(
         dispatch<{ ok: boolean }>(handler, {
@@ -380,25 +379,6 @@ describe("CTN API v1", () => {
       });
 
       expect(snapshot.body?.revision).toMatch(/^sha256:[0-9a-f]{64}$/);
-      for (const url of [
-        "/api/health",
-        "/api/repositories",
-        `/api/repositories/${repository.id}/snapshot`,
-        "/api/journal/snapshot",
-        "/api/todo/snapshot",
-        "/api/mobile/v1/status",
-        "/api/mobile/v2/status",
-      ]) {
-        const retired = await dispatch<{ code: string }>(handler, {
-          method: "GET",
-          url,
-        });
-
-        expect(retired).toMatchObject({
-          body: { code: "not_found" },
-          statusCode: 404,
-        });
-      }
     });
   });
 
@@ -986,9 +966,6 @@ describe("CTN API v1", () => {
       for (const file of [auditFile, receiptFile, tokenFile]) {
         expect((await lstat(file)).mode & 0o777).toBe(0o600);
       }
-      await expect(
-        access(path.join(stateDirectory, "api-v1-state.json")),
-      ).rejects.toMatchObject({ code: "ENOENT" });
       const receipts = await readFile(receiptFile, "utf8");
 
       expect(receipts).not.toContain("AI 文件夹");

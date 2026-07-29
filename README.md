@@ -90,7 +90,10 @@ contract、session 和 API：
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
 Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、API 令牌哈希、30 天幂等回执和脱敏审计；令牌明文只在创建时显示一次。
 
-Browser 模式使用隔离的 `cognition-tree.journal` 与 `cognition-tree.todo` IndexedDB。当前内容 contract 为 Workspace v4、Journal v3 与 Todo v4。Todo v3 只由隔离迁移器一次性补入空周期 sidecar；正常挂载路径只读取 v4。
+Browser 模式使用隔离的 `cognition-tree.journal` 与
+`cognition-tree.todo` IndexedDB。Workspace v4、Journal v3 与 Todo v4 是
+各自唯一合法格式；部分状态、非当前版本与损坏内容均 fail closed，不迁移、
+不覆盖，也不自动清空浏览器数据。
 
 ## 源码层次
 

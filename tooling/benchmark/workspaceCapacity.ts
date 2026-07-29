@@ -39,6 +39,10 @@ import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context
 import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
 import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";
 import { createWorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
+import {
+  createSearchQuery,
+  type SearchDocument,
+} from "../../application/search/searchQuery.ts";
 import type {
   NoteRecord,
   NoteTreeNode,
@@ -468,6 +472,63 @@ for (let index = 1; index < workspace.notes.length; index += 1) {
     `Hot edit rebuilt unchanged block ids for ${noteId}.`,
   );
 }
+let searchSourceLoads = 0;
+let searchDocumentProjections = 0;
+const searchDocument: SearchDocument = {
+  blocks: [{
+    blockId: createBlockId(1),
+    body: null,
+    text: "Capacity searchable block",
+    updatedAt: timestamp,
+  }],
+  domain: "workspace",
+  editableText: "Capacity searchable block",
+  repositoryId: "capacity-repository",
+  resourceId: workspace.notes[0].id,
+  title: "Capacity Note 0",
+  updatedAt: timestamp,
+  version: `sha256:${"a".repeat(64)}`,
+};
+const capacitySearch = createSearchQuery({
+  createCorpusKey: () => "capacity",
+  sourceProvider: {
+    async listSources() {
+      return {
+        faults: [],
+        sources: [{
+          domain: "workspace" as const,
+          async load() {
+            searchSourceLoads += 1;
+            return {
+              async loadDocuments() {
+                searchDocumentProjections += 1;
+                return [searchDocument];
+              },
+              revision: "capacity-revision",
+            };
+          },
+          repositoryId: "capacity-repository",
+        }],
+      };
+    },
+  },
+});
+const coldSearch = await measure(
+  "search.query.cold",
+  () => capacitySearch.search({ query: "searchable" }, undefined),
+);
+const hotSearch = await measure(
+  "search.query.hot",
+  () => capacitySearch.search({ query: "searchable" }, undefined),
+);
+
+assert.deepEqual(hotSearch, coldSearch);
+assert.equal(searchSourceLoads, 2, "Search did not refresh source revisions.");
+assert.equal(
+  searchDocumentProjections,
+  1,
+  "Hot search repeated the unchanged source projection.",
+);
 const content: WorkspaceRepositoryContentDto = {
   schemaVersion: 4,
   syntax: {
@@ -745,6 +806,8 @@ try {
       hotIndexAnalysisRuns: hotParseIndex.analysisStats.runCount,
       hotIndexChangedRegistryOwners:
         hotParseIndex.analysisStats.updatedBlockIdOwnerIds.length,
+      searchDocumentProjections,
+      searchSourceLoads,
       httpCommittedRevision: httpCommitResult.revision,
       indexedDbChangedNoteIds,
       indexedDbLocalRevision: indexedDbSnapshot.localRevision,

@@ -65,4 +65,4 @@ Multiline 规则仍由 parser 识别 opener、相同缩进和 token 的 closer�
 - `parseCtnSourceText` 只能由 analysis 层调用；
 - presentation 只有 editor analysis owner 可以调用 `analyzeCtnSource`；
 - presentation 不得存在 multiline 卡片、保护范围或专用编辑 planner；
-- 生产源码不得出现已删除的 profile/v1 API、旧字段或强制重绘补丁。
+- 生产源码不得出现运行时格式迁移、字段别名、兼容分支或强制重绘补丁。

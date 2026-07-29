@@ -76,13 +76,16 @@ type IndexedRepositoryNote = {
 };
 
 function openDatabase(indexedDb: IDBFactory) {
-  return openIndexedDatabase(
+  let rejectedVersion: number | null = null;
+  const opened = openIndexedDatabase(
     indexedDb,
     browserRepositoryDatabaseName,
     databaseVersion,
-    (database) => {
-      for (const storeName of [...database.objectStoreNames]) {
-        database.deleteObjectStore(storeName);
+    (database, oldVersion, transaction) => {
+      if (oldVersion !== 0) {
+        rejectedVersion = oldVersion;
+        transaction.abort();
+        return;
       }
 
       database.createObjectStore(catalogStoreName);
@@ -96,6 +99,21 @@ function openDatabase(indexedDb: IDBFactory) {
       });
     },
   );
+
+  return opened.catch((error: unknown) => {
+    const isFutureVersion = typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      error.name === "VersionError";
+
+    if (rejectedVersion !== null || isFutureVersion) {
+      throw new UnsupportedRepositoryVersionError(
+        "$.databaseVersion",
+        rejectedVersion ?? undefined,
+      );
+    }
+    throw error;
+  });
 }
 
 function isLocalRevision(value: unknown): value is LocalDraftRevisionDto {

@@ -40,33 +40,29 @@ function resolveE2ERepositoryPath(repositoryId: string) {
   return path.join(e2eRepositoryRoot, repositoryId);
 }
 
-export async function seedUnsupportedLocalSnapshotRepository(
+export async function seedNoncurrentLocalRepository(
   repositoryId: string,
 ) {
   const repositoryPath = resolveE2ERepositoryPath(repositoryId);
   const revision = `sha256:${"a".repeat(64)}`;
-  const snapshotPath = path.join(repositoryPath, "snapshots", revision);
+  const controlPath = path.join(repositoryPath, ".ctn");
 
   await rm(repositoryPath, { force: true, recursive: true });
-  await mkdir(snapshotPath, { recursive: true });
-  await Promise.all([
-    writeFile(
-      path.join(repositoryPath, "repository.json"),
-      JSON.stringify({
-        currentRevision: revision,
-        label: "Default",
-        schemaVersion: 3,
-      }),
-    ),
-    writeFile(
-      path.join(snapshotPath, "workspace.json"),
-      JSON.stringify({
-        id: "unsupported-workspace",
-        name: "Unsupported workspace",
-        tree: [],
-      }),
-    ),
-  ]);
+  await mkdir(controlPath, { recursive: true });
+  await writeFile(
+    path.join(controlPath, "repository.json"),
+    JSON.stringify({
+      currentRevision: revision,
+      label: "Default",
+      layoutVersion: 1,
+      repositoryId,
+      schemaVersion: 3,
+      workspace: {
+        id: "noncurrent-workspace",
+        name: "Noncurrent workspace",
+      },
+    }),
+  );
 }
 
 export async function removeE2ELocalRepository(repositoryId: string) {

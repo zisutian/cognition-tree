@@ -119,32 +119,36 @@ describe("cross-domain search query", () => {
     ]);
 
     let workspaceRevision = "workspace-1";
+    let documentProjectionCount = 0;
     const sources: SearchSource[] = [
       {
         domain: "workspace",
         async load() {
           return {
-            documents: [
-              document({
-                blockId: "block-workspace",
-                domain: "workspace",
-                repositoryId: "repository-a",
-                resourceId: "note-a",
-                resourceUpdatedAt: "2026-07-29T07:00:00.000Z",
-                text: "ＣＴＮ Needle",
-                updatedAt: "2026-07-29T10:00:00.000Z",
-              }),
-              {
-                blocks: [],
-                domain: "workspace",
-                editableText: "未知源码中的 CTN needle",
-                repositoryId: "repository-a",
-                resourceId: "note-unknown",
-                title: "未知源码",
-                updatedAt: "2026-07-29T08:30:00.000Z",
-                version: version("c"),
-              },
-            ],
+            async loadDocuments() {
+              documentProjectionCount += 1;
+              return [
+                document({
+                  blockId: "block-workspace",
+                  domain: "workspace",
+                  repositoryId: "repository-a",
+                  resourceId: "note-a",
+                  resourceUpdatedAt: "2026-07-29T07:00:00.000Z",
+                  text: "ＣＴＮ Needle",
+                  updatedAt: "2026-07-29T10:00:00.000Z",
+                }),
+                {
+                  blocks: [],
+                  domain: "workspace",
+                  editableText: "未知源码中的 CTN needle",
+                  repositoryId: "repository-a",
+                  resourceId: "note-unknown",
+                  title: "未知源码",
+                  updatedAt: "2026-07-29T08:30:00.000Z",
+                  version: version("c"),
+                },
+              ];
+            },
             revision: workspaceRevision,
           };
         },
@@ -165,15 +169,18 @@ describe("cross-domain search query", () => {
         domain: "todo",
         async load() {
           return {
-            documents: [
-              document({
-                blockId: "block-todo",
-                domain: "todo",
-                resourceId: "todo-a",
-                text: "ctn needle",
-                updatedAt: "2026-07-29T09:00:00.000Z",
-              }),
-            ],
+            async loadDocuments() {
+              documentProjectionCount += 1;
+              return [
+                document({
+                  blockId: "block-todo",
+                  domain: "todo",
+                  resourceId: "todo-a",
+                  text: "ctn needle",
+                  updatedAt: "2026-07-29T09:00:00.000Z",
+                }),
+              ];
+            },
             revision: "todo-1",
           };
         },
@@ -245,6 +252,7 @@ describe("cross-domain search query", () => {
         resourceId: "note-unknown",
       }),
     ]);
+    expect(documentProjectionCount).toBe(2);
     workspaceRevision = "workspace-2";
     await expect(query.search({
       cursor: first.cursor!,

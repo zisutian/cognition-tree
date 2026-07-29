@@ -1,11 +1,9 @@
 import {
   createJournalParseIndex,
-  type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex";
 import { JournalContentValidationError } from "../../core/journal/model/journalContent";
 import {
   createTodoParseIndex,
-  type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";
 import { TodoContentValidationError } from "../../core/todo/model/todoContent";
 import { CtnDocumentMetadataError } from "../../core/ctn/parser/parseCtnDocument";
@@ -35,7 +33,6 @@ import {
   VersionedRepositoryRemoteError,
 } from "../persistence/versionedRepository";
 import {
-  createSearchCorpusRevision,
   projectJournalSearchDocuments,
   projectTodoSearchDocuments,
   projectWorkspaceSearchDocuments,
@@ -44,7 +41,6 @@ import {
 import {
   createSearchQuery,
   searchDomains,
-  type SearchDocument,
   type SearchDomain,
   type SearchFault,
   type SearchQuery,
@@ -60,38 +56,7 @@ type WorkbenchSearchState = {
 };
 
 type CreateVersion = CreateSearchResourceVersion;
-type WorkspaceDocumentCacheEntry = {
-  documents: SearchDocument[];
-  revision: string;
-};
-const maximumCachedWorkspaceSources = 32;
-
-function readWorkspaceDocumentCache(
-  cache: Map<string, WorkspaceDocumentCacheEntry>,
-  repositoryId: string,
-) {
-  const entry = cache.get(repositoryId);
-
-  if (!entry) return null;
-  cache.delete(repositoryId);
-  cache.set(repositoryId, entry);
-  return entry;
-}
-
-function writeWorkspaceDocumentCache(
-  cache: Map<string, WorkspaceDocumentCacheEntry>,
-  repositoryId: string,
-  entry: WorkspaceDocumentCacheEntry,
-) {
-  cache.delete(repositoryId);
-  cache.set(repositoryId, entry);
-  while (cache.size > maximumCachedWorkspaceSources) {
-    const oldest = cache.keys().next().value;
-
-    if (oldest === undefined) break;
-    cache.delete(oldest);
-  }
-}
+type ProjectionRevision = (projection: object) => string;
 
 function createSafeSourceFault(
   domain: SearchDomain,
@@ -138,15 +103,15 @@ function isInvalidWorkbenchSearchSource(error: unknown) {
 }
 
 function workspaceSource({
-  cache,
   createVersion,
   descriptor,
+  getProjectionRevision,
   getState,
   workspaceCatalog,
 }: {
-  cache: Map<string, WorkspaceDocumentCacheEntry>;
   createVersion: CreateVersion;
   descriptor: WorkspaceRepositoryDescriptor;
+  getProjectionRevision: ProjectionRevision;
   getState(): WorkbenchSearchState;
   workspaceCatalog: WorkspaceRepositoryCatalog;
 }): SearchSource {
@@ -164,36 +129,35 @@ function workspaceSource({
         state.activeRepositoryId === descriptor.id &&
         state.workspace?.status === "ready"
       ) {
-        const documents = await projectWorkspaceSearchDocuments({
-          createVersion,
-          index: state.workspace.analysisIndex,
-          repositoryId: descriptor.id,
-          workspace: state.workspace.workspace,
-        });
+        const { analysisIndex, workspace } = state.workspace;
 
         return {
-          documents,
-          revision: createSearchCorpusRevision(documents),
+          loadDocuments: () =>
+            projectWorkspaceSearchDocuments({
+              createVersion,
+              index: analysisIndex,
+              repositoryId: descriptor.id,
+              workspace,
+            }),
+          revision: getProjectionRevision(workspace),
         };
       }
       const snapshot = await workspaceCatalog.openRepository(descriptor)
         .loadSnapshot();
-      const cached = readWorkspaceDocumentCache(cache, descriptor.id);
 
-      if (cached?.revision === snapshot.localRevision) {
-        return cached;
-      }
-      const projection = resolveWorkspaceSessionContent(snapshot.content);
-      const documents = await projectWorkspaceSearchDocuments({
-        createVersion,
-        index: projection.analysisIndex,
-        repositoryId: descriptor.id,
-        workspace: projection.workspace,
-      });
-      const entry = { documents, revision: snapshot.localRevision };
+      return {
+        async loadDocuments() {
+          const projection = resolveWorkspaceSessionContent(snapshot.content);
 
-      writeWorkspaceDocumentCache(cache, descriptor.id, entry);
-      return entry;
+          return projectWorkspaceSearchDocuments({
+            createVersion,
+            index: projection.analysisIndex,
+            repositoryId: descriptor.id,
+            workspace: projection.workspace,
+          });
+        },
+        revision: snapshot.localRevision,
+      };
     },
     repositoryId: descriptor.id,
   };
@@ -203,11 +167,13 @@ function builtInSource({
   builtInCatalog,
   createVersion,
   descriptor,
+  getProjectionRevision,
   getState,
 }: {
   builtInCatalog: BuiltInCatalog;
   createVersion: CreateVersion;
   descriptor: BuiltInDescriptor;
+  getProjectionRevision: ProjectionRevision;
   getState(): WorkbenchSearchState;
 }): SearchSource {
   if (descriptor.id === "journal") {
@@ -216,24 +182,30 @@ function builtInSource({
       domain: "journal",
       async load() {
         const state = getState();
-        let index: JournalParseIndex;
 
         if (state.journal.status === "ready") {
-          index = state.journal.projection;
-        } else {
-          const snapshot = await builtInCatalog.openJournal(descriptor)
-            .loadSnapshot();
+          const index = state.journal.projection;
 
-          index = createJournalParseIndex(snapshot.content);
+          return {
+            loadDocuments: () =>
+              projectJournalSearchDocuments({
+                createVersion,
+                index,
+              }),
+            revision: getProjectionRevision(index),
+          };
         }
-        const documents = await projectJournalSearchDocuments({
-          createVersion,
-          index,
-        });
+        const snapshot = await builtInCatalog.openJournal(descriptor)
+          .loadSnapshot();
 
         return {
-          documents,
-          revision: createSearchCorpusRevision(documents),
+          async loadDocuments() {
+            return projectJournalSearchDocuments({
+              createVersion,
+              index: createJournalParseIndex(snapshot.content),
+            });
+          },
+          revision: snapshot.localRevision,
         };
       },
     };
@@ -243,24 +215,30 @@ function builtInSource({
     domain: "todo",
     async load() {
       const state = getState();
-      let index: TodoParseIndex;
 
       if (state.todo.status === "ready") {
-        index = state.todo.projection;
-      } else {
-        const snapshot = await builtInCatalog.openTodo(descriptor)
-          .loadSnapshot();
+        const index = state.todo.projection;
 
-        index = createTodoParseIndex(snapshot.content);
+        return {
+          loadDocuments: () =>
+            projectTodoSearchDocuments({
+              createVersion,
+              index,
+            }),
+          revision: getProjectionRevision(index),
+        };
       }
-      const documents = await projectTodoSearchDocuments({
-        createVersion,
-        index,
-      });
+      const snapshot = await builtInCatalog.openTodo(descriptor)
+        .loadSnapshot();
 
       return {
-        documents,
-        revision: createSearchCorpusRevision(documents),
+        async loadDocuments() {
+          return projectTodoSearchDocuments({
+            createVersion,
+            index: createTodoParseIndex(snapshot.content),
+          });
+        },
+        revision: snapshot.localRevision,
       };
     },
   };
@@ -316,10 +294,17 @@ export function createWorkbenchSearchQuery({
   getState(): WorkbenchSearchState;
   workspaceCatalog: WorkspaceRepositoryCatalog;
 }): SearchQuery {
-  const workspaceDocumentCache = new Map<
-    string,
-    WorkspaceDocumentCacheEntry
-  >();
+  const projectionRevisions = new WeakMap<object, string>();
+  let nextProjectionRevision = 0;
+  const getProjectionRevision: ProjectionRevision = (projection) => {
+    const existing = projectionRevisions.get(projection);
+
+    if (existing) return existing;
+    const revision = `runtime:${++nextProjectionRevision}`;
+
+    projectionRevisions.set(projection, revision);
+    return revision;
+  };
 
   return createSearchQuery({
     createCorpusKey: async (value) =>
@@ -347,9 +332,9 @@ export function createWorkbenchSearchQuery({
                 .filter(({ id }) => !requestedIds || requestedIds.has(id))
                 .map((descriptor) =>
                   workspaceSource({
-                    cache: workspaceDocumentCache,
                     createVersion,
                     descriptor,
+                    getProjectionRevision,
                     getState,
                     workspaceCatalog,
                   })
@@ -380,6 +365,7 @@ export function createWorkbenchSearchQuery({
                     builtInCatalog,
                     createVersion,
                     descriptor,
+                    getProjectionRevision,
                     getState,
                   })
                 ),

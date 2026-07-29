@@ -75,43 +75,24 @@ describe("workspace repository v4 contract", () => {
     expect(createPortableNameKey("  ＲＥＭＯＴＥ  ")).toBe("remote");
   });
 
-  it("rejects v2, v3, and derived persistence fields without compatibility", () => {
+  it("rejects noncurrent versions and derived persistence fields", () => {
     const content = createWorkspaceRepositoryContent();
-    const v3Content = {
-      schemaVersion: 3,
-      syntaxSource: null,
-      workspace: content.workspace,
-    };
 
-    for (const read of repositoryContentReaders(v3Content)) {
-      expect(read).toThrow(UnsupportedRepositoryVersionError);
+    for (const schemaVersion of [3, 5]) {
+      for (
+        const read of repositoryContentReaders({
+          ...content,
+          schemaVersion,
+        })
+      ) {
+        expect(read).toThrow(UnsupportedRepositoryVersionError);
+      }
     }
-
     expect(() => parseWorkspaceRepositorySnapshot({
-      revision: revisionA,
-      syntaxSourceFile: null,
-      workspace: { id: "legacy" },
-    })).toThrow(UnsupportedRepositoryVersionError);
-    expect(() => parseWorkspaceRepositoryCommit({
-      baseRevision: revisionA,
-      syntaxSourceFile: null,
-      workspace: { id: "legacy" },
-    })).toThrow(UnsupportedRepositoryVersionError);
-    expect(() => parseWorkspaceRepositoryContent({
-      syntaxSourceFile: null,
-      workspace: content.workspace,
-    })).toThrow(UnsupportedRepositoryVersionError);
-    expect(() => parseWorkspaceRepositorySnapshot({
+      content,
       repositoryPath: "/secret/path",
       revision: revisionA,
-      syntaxSourceFile: null,
-      workspace: content.workspace,
-    })).toThrow(UnsupportedRepositoryVersionError);
-    expect(() => parseWorkspaceRepositoryCommit({
-      baseRevision: revisionA,
-      syntaxSourceFile: null,
-      workspace: content.workspace,
-    })).toThrow(UnsupportedRepositoryVersionError);
+    })).toThrow("unsupported field");
     expect(() => parseWorkspaceRepositoryContent({
       ...content,
       workspace: {
@@ -208,7 +189,12 @@ describe("workspace repository v4 contract", () => {
       ...content,
       workspace: {
         ...content.workspace,
-        tree: [{ id: "legacy-folder", kind: "folder", title: "x", children: [] }],
+        tree: [{
+          children: [],
+          id: "unsupported-folder-field",
+          kind: "folder",
+          title: "x",
+        }],
       },
     })).toThrow("unsupported field");
     expect(() => parseWorkspaceRepositoryContent({
@@ -314,7 +300,7 @@ describe("workspace repository v4 contract", () => {
         ...base,
         location: {
           databaseName: "cognition-tree.repository-cache",
-          legacyLabel: "Browser",
+          unsupportedLabel: "Browser",
           type: "browser",
         },
       }],
@@ -350,7 +336,7 @@ describe("workspace repository v4 contract", () => {
       repositories: [{
         adapter: "local",
         ...base,
-        locationLabel: "legacy location",
+        unsupportedLocation: "ignored",
       }],
     })).toThrow("unsupported field");
   });

@@ -13,12 +13,6 @@ import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegi
 import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
 import { BuiltInCatalog } from "./repository/builtInCatalog.ts";
 
-if (process.env.CTN_WEBDAV_REPOSITORIES !== undefined) {
-  throw new Error(
-    "CTN_WEBDAV_REPOSITORIES is unsupported; manage WebDAV connections in Settings",
-  );
-}
-
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3001");
 const repositoryRoot =

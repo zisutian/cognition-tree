@@ -617,37 +617,35 @@ describe("WebDAV generation store v4", () => {
     });
   });
 
-  it("rejects a legacy direct-file target", async () => {
+  it("rejects a noncurrent pointer without changing remote content", async () => {
     const transport = new InMemoryWebDavTransport();
-
-    await transport.writeText("workspace.json", "{}", { ifNoneMatch: "*" });
-    await expect(createStore(transport).loadSnapshot())
-      .rejects.toBeInstanceOf(UnsupportedRepositoryVersionError);
-  });
-
-  it("rejects a v3 current pointer without changing remote content", async () => {
-    const transport = new InMemoryWebDavTransport();
-    const legacyPointer = JSON.stringify({
-      generation: "legacy-generation",
+    const noncurrentPointer = JSON.stringify({
+      generation: "noncurrent-generation",
       publishedAt: "2026-07-16T00:00:00.000Z",
       revision: `sha256:${"a".repeat(64)}`,
       schemaVersion: 3,
     });
 
-    await transport.writeText(webDavCurrentPath, legacyPointer, { ifNoneMatch: "*" });
-    await transport.createCollection(webDavGenerationsPath);
-    await transport.createCollection(`${webDavGenerationsPath}/legacy-generation`);
     await transport.writeText(
-      `${webDavGenerationsPath}/legacy-generation/user-owned.txt`,
+      webDavCurrentPath,
+      noncurrentPointer,
+      { ifNoneMatch: "*" },
+    );
+    await transport.createCollection(webDavGenerationsPath);
+    await transport.createCollection(
+      `${webDavGenerationsPath}/noncurrent-generation`,
+    );
+    await transport.writeText(
+      `${webDavGenerationsPath}/noncurrent-generation/user-owned.txt`,
       "preserve",
       { ifNoneMatch: "*" },
     );
 
     await expect(createStore(transport).loadSnapshot())
       .rejects.toBeInstanceOf(UnsupportedRepositoryVersionError);
-    expect(transport.source(webDavCurrentPath)).toBe(legacyPointer);
+    expect(transport.source(webDavCurrentPath)).toBe(noncurrentPointer);
     expect(transport.source(
-      `${webDavGenerationsPath}/legacy-generation/user-owned.txt`,
+      `${webDavGenerationsPath}/noncurrent-generation/user-owned.txt`,
     )).toBe("preserve");
   });
 

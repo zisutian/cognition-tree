@@ -700,92 +700,20 @@ describe("WorkspaceFileStore Local working tree", () => {
     });
   });
 
-  it("rejects the removed snapshot layout and never creates data during ordinary load", async () => {
+  it("rejects incomplete or unmanaged layouts without changing their data", async () => {
     await withTempDir(async (rootDir) => {
-      await writeFile(path.join(rootDir, "repository.json"), "{}\n");
-      await mkdir(path.join(rootDir, "snapshots"));
-      await expect(createStore(rootDir).loadSnapshot()).rejects.toMatchObject({
-        name: "UnsupportedRepositoryVersionError",
-      });
+      const unmanagedPath = path.join(rootDir, "user-owned.txt");
+
+      await writeFile(unmanagedPath, "preserve\n");
+      await expect(createStore(rootDir).loadSnapshot())
+        .rejects.toBeInstanceOf(RepositoryCorruptError);
+      await expect(readFile(unmanagedPath, "utf8")).resolves.toBe("preserve\n");
+      await expect(readdir(rootDir)).resolves.toEqual(["user-owned.txt"]);
     });
     await withTempDir(async (rootDir) => {
       await expect(createStore(rootDir).loadSnapshot())
         .rejects.toBeInstanceOf(RepositoryCorruptError);
       expect(await readdir(rootDir)).toEqual([]);
-    });
-  });
-
-  it("rejects the v3 Local control layout without changing its files", async () => {
-    await withTempDir(async (rootDir) => {
-      const controlDir = path.join(rootDir, ".ctn");
-      const legacySyntax = 'name = "legacy"\n';
-
-      await mkdir(path.join(controlDir, "note-metadata"), { recursive: true });
-      await mkdir(path.join(controlDir, "transactions"));
-      await writeFile(path.join(controlDir, "workspace.toml"), legacySyntax);
-      await writeFile(path.join(controlDir, "index.json"), "{}\n");
-      await writeFile(path.join(controlDir, "repository.json"), "{}\n");
-
-      await expect(createStore(rootDir).loadSnapshot()).rejects.toMatchObject({
-        name: "UnsupportedRepositoryVersionError",
-      });
-      await expect(readFile(path.join(controlDir, "workspace.toml"), "utf8"))
-        .resolves.toBe(legacySyntax);
-      await expect(readdir(controlDir)).resolves.toEqual([
-        "index.json",
-        "note-metadata",
-        "repository.json",
-        "transactions",
-        "workspace.toml",
-      ]);
-    });
-  });
-
-  it("rejects a syntax-free v3 Local layout and preserves its complete tree", async () => {
-    await withTempDir(async (rootDir) => {
-      const controlDir = path.join(rootDir, ".ctn");
-      const noteSource = "Raw note\nbody\n";
-      const indexSource = '{"entries":[],"layoutVersion":1}\n';
-      const metadataSource = JSON.stringify({
-        currentRevision: `sha256:${"a".repeat(64)}`,
-        label: "Raw v3",
-        layoutVersion: 1,
-        repositoryId: path.basename(rootDir),
-        schemaVersion: 3,
-        workspace: { id: "raw-v3", name: "Raw v3" },
-      });
-      const sidecarSource = '{"legacy":"preserve"}\n';
-
-      await mkdir(path.join(controlDir, "note-metadata"), { recursive: true });
-      await mkdir(path.join(controlDir, "transactions"));
-      await writeFile(path.join(rootDir, "Raw note.ctn"), noteSource);
-      await writeFile(path.join(controlDir, "index.json"), indexSource);
-      await writeFile(path.join(controlDir, "repository.json"), metadataSource);
-      await writeFile(
-        path.join(controlDir, "note-metadata", "note-raw.json"),
-        sidecarSource,
-      );
-
-      await expect(createStore(rootDir).loadSnapshot()).rejects.toMatchObject({
-        name: "UnsupportedRepositoryVersionError",
-      });
-      await expect(readdir(rootDir)).resolves.toEqual([".ctn", "Raw note.ctn"]);
-      await expect(readdir(controlDir)).resolves.toEqual([
-        "index.json",
-        "note-metadata",
-        "repository.json",
-        "transactions",
-      ]);
-      await expect(readFile(path.join(rootDir, "Raw note.ctn"), "utf8"))
-        .resolves.toBe(noteSource);
-      await expect(readFile(path.join(controlDir, "index.json"), "utf8"))
-        .resolves.toBe(indexSource);
-      await expect(readFile(path.join(controlDir, "repository.json"), "utf8"))
-        .resolves.toBe(metadataSource);
-      await expect(readFile(
-        path.join(controlDir, "note-metadata", "note-raw.json"),
-        "utf8",
-      )).resolves.toBe(sidecarSource);
     });
   });
 
@@ -1011,7 +939,7 @@ describe("LocalRepositoryCatalog v4", () => {
     });
   }, 10_000);
 
-  it("isolates corrupt and legacy repositories from healthy catalog entries", async () => {
+  it("isolates corrupt and unmanaged repositories from healthy catalog entries", async () => {
     await withTempDir(async (rootDir) => {
       const catalog = new LocalRepositoryCatalog(rootDir);
 
@@ -1019,14 +947,20 @@ describe("LocalRepositoryCatalog v4", () => {
         await catalog.initialize();
         await catalog.createRepositoryWithId({ content: createContent(), id: "good", label: "Good" });
         await mkdir(path.join(rootDir, "broken"));
-        await mkdir(path.join(rootDir, "legacy"));
-        await writeFile(path.join(rootDir, "legacy", "workspace.json"), "{}\n");
+        await mkdir(path.join(rootDir, "unmanaged"));
+        await writeFile(
+          path.join(rootDir, "unmanaged", "user-owned.txt"),
+          "preserve\n",
+        );
 
         await expect(catalog.listRepositories()).resolves.toEqual({
           creatableAdapters: ["local"],
           issues: [
             expect.objectContaining({ code: "repository_corrupt", id: "broken" }),
-            expect.objectContaining({ code: "unsupported_repository_version", id: "legacy" }),
+            expect.objectContaining({
+              code: "repository_corrupt",
+              id: "unmanaged",
+            }),
           ],
           repositories: [expect.objectContaining({ id: "good", label: "Good" })],
         });
@@ -1114,36 +1048,24 @@ describe("LocalRepositoryCatalog v4", () => {
     });
   });
 
-  it("refuses to delete the removed snapshot layout and preserves its contents", async () => {
+  it("refuses to delete an unmanaged repository directory", async () => {
     await withTempDir(async (rootDir) => {
       const repositoryPath = path.join(rootDir, "default");
-      const revision = `sha256:${"a".repeat(64)}`;
-      const snapshotPath = path.join(repositoryPath, "snapshots", revision);
-      const metadataSource = JSON.stringify({
-        currentRevision: revision,
-        label: "Default",
-        schemaVersion: 3,
-      });
-      const workspaceSource = JSON.stringify({
-        id: "legacy-workspace",
-        name: "Legacy workspace",
-      });
+      const nestedPath = path.join(repositoryPath, "user-data");
+      const source = "preserve\n";
       const catalog = new LocalRepositoryCatalog(rootDir);
 
       try {
-        await mkdir(snapshotPath, { recursive: true });
-        await writeFile(path.join(repositoryPath, "repository.json"), metadataSource);
-        await writeFile(path.join(snapshotPath, "workspace.json"), workspaceSource);
+        await mkdir(nestedPath, { recursive: true });
+        await writeFile(path.join(nestedPath, "archive.bin"), source);
 
         await expect(catalog.deleteRepository("default")).rejects.toMatchObject({
           code: "invalid_request",
         });
 
         expect((await lstat(repositoryPath)).isDirectory()).toBe(true);
-        await expect(readFile(path.join(repositoryPath, "repository.json"), "utf8"))
-          .resolves.toBe(metadataSource);
-        await expect(readFile(path.join(snapshotPath, "workspace.json"), "utf8"))
-          .resolves.toBe(workspaceSource);
+        await expect(readFile(path.join(nestedPath, "archive.bin"), "utf8"))
+          .resolves.toBe(source);
       } finally {
         await catalog.dispose();
       }

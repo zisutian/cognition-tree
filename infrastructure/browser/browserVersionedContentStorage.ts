@@ -39,14 +39,6 @@ type IndexedLocalState = {
   remoteRevision: unknown;
 };
 
-export type BrowserVersionedContentEpochMigration<Content> = {
-  fromEpoch: number;
-  prepareContent(value: unknown): {
-    content: Content;
-    sourceRevisionContent: string;
-  };
-};
-
 function openDatabase(indexedDb: IDBFactory, databaseName: string) {
   return openIndexedDatabase(
     indexedDb,
@@ -99,7 +91,7 @@ export function createBrowserVersionedContentStorage<
   databaseName,
   expectedEpoch,
   indexedDb,
-  migration,
+  isContentValidationError,
   serializeRevisionContent,
   validateContent,
   validateTransition,
@@ -109,7 +101,7 @@ export function createBrowserVersionedContentStorage<
   databaseName: string;
   expectedEpoch: number;
   indexedDb: IDBFactory;
-  migration?: BrowserVersionedContentEpochMigration<Content>;
+  isContentValidationError(error: unknown): boolean;
   serializeRevisionContent(content: Content): string;
   validateContent: VersionedRepositoryContentValidator<Content>;
   validateTransition: VersionedRepositoryTransitionValidator<Content>;
@@ -159,142 +151,26 @@ export function createBrowserVersionedContentStorage<
   };
   const initializationFingerprint = (state: StoredInitializationState) =>
     JSON.stringify(state);
-  const parseMigrationRemote = (value: unknown) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new WireContractError(
-        databaseName,
-        "$.remote",
-        "expected remote snapshot",
-      );
-    }
-    const snapshot = value as { content?: unknown; revision?: unknown };
-    const keys = Object.keys(snapshot).sort();
-
-    if (
-      keys.length !== 2 ||
-      keys[0] !== "content" ||
-      keys[1] !== "revision"
-    ) {
-      throw new WireContractError(
-        databaseName,
-        "$.remote",
-        "unexpected remote snapshot fields",
-      );
-    }
-    return {
-      content: snapshot.content,
-      revision: codec.parseRevision(snapshot.revision),
-    };
-  };
-  const parseMigrationLocal = (value: unknown) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new WireContractError(
-        databaseName,
-        "$.local",
-        "expected local state",
-      );
-    }
-    const state = value as Partial<IndexedLocalState>;
-
-    if (
-      typeof state.identity !== "string" ||
-      !isLocalRevision(state.localRevision)
-    ) {
-      throw new WireContractError(
-        databaseName,
-        "$.local",
-        "invalid local identity",
-      );
-    }
-    return {
-      content: state.content,
-      identity: state.identity,
-      localRevision: state.localRevision,
-      pendingBaseRevision: state.pendingBaseRevision === null
-        ? null
-        : codec.parseRevision(state.pendingBaseRevision),
-      remoteRevision: state.remoteRevision === null
-        ? null
-        : codec.parseRevision(state.remoteRevision),
-    };
-  };
-  const createMigrationPlan = async (state: StoredInitializationState) => {
-    if (!migration) {
-      throw new Error(`Missing ${databaseName} storage migration`);
-    }
-    const remote = parseMigrationRemote(state.remote);
-    const preparedRemote = migration.prepareContent(remote.content);
-
-    validateContent(preparedRemote.content);
-    const sourceRemoteRevision = codec.parseRevision(
-      await createVersionedContentRevision(
-        preparedRemote.sourceRevisionContent,
-      ),
-    );
-
-    if (sourceRemoteRevision !== remote.revision) {
-      throw new WireContractError(
-        databaseName,
-        "$.remote.revision",
-        "revision mismatch",
-      );
-    }
-    const remoteRevision = await createRevision(preparedRemote.content);
-    const locals = state.locals.map((value, index) => {
-      const local = parseMigrationLocal(value);
-      const prepared = migration.prepareContent(local.content);
-
-      validateContent(prepared.content);
-      if (
-        local.pendingBaseRevision === null &&
-        local.remoteRevision !== sourceRemoteRevision &&
-        local.remoteRevision !== remoteRevision
-      ) {
+  const assertInitializableState = (state: StoredInitializationState) => {
+    if (state.epoch !== undefined) {
+      if (!Number.isSafeInteger(state.epoch) || (state.epoch as number) < 1) {
         throw new WireContractError(
-          databaseName,
-          `$.local[${index}].remoteRevision`,
-          "cannot safely map non-pending local cache",
+          `${databaseName} storage`,
+          "$.storageEpoch",
+          "invalid storage epoch",
         );
       }
-      const pendingBaseRevision = local.pendingBaseRevision === null
-        ? null
-        : local.pendingBaseRevision === sourceRemoteRevision ||
-            local.pendingBaseRevision === remoteRevision
-          ? remoteRevision
-          : local.pendingBaseRevision;
-
-    return {
-      baseContent: preparedRemote.content,
-      conflict: null,
-      content: prepared.content,
-        identity: local.identity,
-        localRevision: local.localRevision,
-        pendingBaseRevision,
-        remoteRevision,
-      };
-    });
-
-    return {
-      locals,
-      remote: { content: preparedRemote.content, revision: remoteRevision },
-    };
-  };
-  const validateStoredEpoch = (epoch: unknown) => {
-    if (
-      epoch !== undefined &&
-      (!Number.isSafeInteger(epoch) || (epoch as number) < 1)
-    ) {
-      throw new WireContractError(
-        `${databaseName} storage`,
-        "$.storageEpoch",
-        "invalid storage epoch",
-      );
-    }
-    if (epoch !== undefined && (epoch as number) > expectedEpoch) {
       throw new UnsupportedWireVersionError(
         `${databaseName} storage`,
         "$.storageEpoch",
-        epoch,
+        state.epoch,
+      );
+    }
+    if (state.remote !== undefined || state.locals.length > 0) {
+      throw new WireContractError(
+        `${databaseName} storage`,
+        "$",
+        "partial storage state cannot be initialized",
       );
     }
   };
@@ -304,14 +180,8 @@ export function createBrowserVersionedContentStorage<
 
       await initial.completion;
       if (initial.state.epoch === expectedEpoch) return database;
-      validateStoredEpoch(initial.state.epoch);
-      const shouldMigrate =
-        migration !== undefined &&
-        initial.state.epoch === migration.fromEpoch;
-      const migrationPlan = shouldMigrate
-        ? await createMigrationPlan(initial.state)
-        : null;
-      const fallback = migrationPlan ? null : await emptySnapshot();
+      assertInitializableState(initial.state);
+      const initialSnapshot = await emptySnapshot();
       const current = await readInitializationState(database, "readwrite");
 
       if (current.state.epoch === expectedEpoch) {
@@ -325,18 +195,11 @@ export function createBrowserVersionedContentStorage<
         await abortTransaction(current.transaction, current.completion);
         continue;
       }
+      assertInitializableState(current.state);
       const meta = current.transaction.objectStore(metaStoreName);
       const remote = current.transaction.objectStore(remoteStoreName);
-      const local = current.transaction.objectStore(localStoreName);
 
-      if (migrationPlan) {
-        remote.put(migrationPlan.remote, remoteKey);
-        local.clear();
-        for (const state of migrationPlan.locals) local.put(state);
-      } else {
-        local.clear();
-        remote.put(fallback, remoteKey);
-      }
+      remote.put(initialSnapshot, remoteKey);
       meta.put(expectedEpoch, epochKey);
       await current.completion;
       return database;
@@ -772,7 +635,7 @@ export function createBrowserVersionedContentStorage<
           code: error instanceof UnsupportedWireVersionError
             ? "unsupported_repository_version"
             : error instanceof WireContractError ||
-                (error instanceof Error && error.message.includes("invalid"))
+                isContentValidationError(error)
               ? "repository_corrupt"
               : "adapter_unavailable",
           error,

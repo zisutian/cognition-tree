@@ -2,15 +2,13 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
 } from "@playwright/test";
 import {
-  e2eApiBaseUrl,
   seedDiagnosticsRepository,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
+import { test } from "./support/e2eTest";
 import {
   getActivityButton,
   openRepositoryFromContext,
@@ -23,17 +21,13 @@ import {
 const repositoryId = "problems-base";
 const diagnosticsRepositoryId = "problems";
 
-test.describe.serial("workbench diagnostics", () => {
+test.describe("workbench diagnostics", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, repositoryId);
     await seedDiagnosticsRepository(api, diagnosticsRepositoryId);
-  });
-
-  test.afterAll(async () => {
-    await api.dispose();
   });
 
   test("collects global problems and navigates repeated note and syntax targets", async ({

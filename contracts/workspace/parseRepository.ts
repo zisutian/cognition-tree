@@ -54,10 +54,6 @@ export function parseWorkspaceRepositorySnapshot(
 ): WorkspaceRepositorySnapshotDto {
   const snapshot = readContractObject(value, "$");
 
-  if (!("content" in snapshot) && ("workspace" in snapshot || "syntaxSourceFile" in snapshot)) {
-    throw new UnsupportedRepositoryVersionError("$.content.schemaVersion", undefined);
-  }
-
   assertExactContractFields(snapshot, snapshotFields, "$");
   return {
     content: parseContentAtPath(snapshot.content, "$.content"),
@@ -72,10 +68,6 @@ export function parseWorkspaceRepositoryCommit(
   value: unknown,
 ): WorkspaceRepositoryCommitDto {
   const commit = readContractObject(value, "$");
-
-  if (!("content" in commit) && ("workspace" in commit || "syntaxSourceFile" in commit)) {
-    throw new UnsupportedRepositoryVersionError("$.content.schemaVersion", undefined);
-  }
 
   assertExactContractFields(commit, commitFields, "$");
   const content = parseContentAtPath(commit.content, "$.content");

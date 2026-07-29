@@ -2,17 +2,15 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
 } from "@playwright/test";
 import type { WorkspaceRepositorySnapshotDto } from "../contracts/workspace/types";
 import { appResizeKeyboardStep } from "../presentation/ui/workbench/frameResize";
 import {
-  e2eApiBaseUrl,
   seedInteractionRepository,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
+import { test } from "./support/e2eTest";
 import {
   getActivityButton,
   openRepositoryFromContext,
@@ -26,14 +24,10 @@ const interactionRepositoryId = "workbench-structure-interactions";
 test.describe("directory and structure operation flows", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, repositoryId);
     await seedInteractionRepository(api, interactionRepositoryId);
-  });
-
-  test.afterAll(async () => {
-    await api.dispose();
   });
 
   test("preserves directory and layout behavior across activities", async ({

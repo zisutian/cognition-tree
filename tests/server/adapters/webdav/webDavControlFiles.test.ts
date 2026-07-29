@@ -47,9 +47,9 @@ describe("WebDAV v4 control files", () => {
     })).toThrow(RepositoryCorruptError);
   });
 
-  it("rejects legacy versions and unowned pointer fields", () => {
+  it("rejects noncurrent versions and unowned pointer fields", () => {
     expect(() => parseWebDavPointer({
-      etag: '"legacy"',
+      etag: '"noncurrent"',
       source: JSON.stringify({ schemaVersion: 2 }),
     })).toThrow(UnsupportedRepositoryVersionError);
     expect(() => parseWebDavPointer({

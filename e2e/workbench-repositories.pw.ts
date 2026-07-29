@@ -2,8 +2,6 @@
 
 import {
   expect,
-  request as createRequest,
-  test,
   type APIRequestContext,
 } from "@playwright/test";
 import type {
@@ -23,14 +21,16 @@ import {
   editExternalLocalNote,
   removeE2ELocalRepository,
   seedLargeTreeRepository,
+  seedNoncurrentLocalRepository,
   seedRawRepository,
-  seedUnsupportedLocalSnapshotRepository,
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";
+import { test } from "./support/e2eTest";
 import {
   getActivityButton,
   openRepositoryFromContext,
   openWorkbench,
+  selectNotesMode,
 } from "./support/workbenchPage";
 
 const repositoryId = "repository-flows";
@@ -39,19 +39,12 @@ const largeRepositoryId = "repository-large";
 const externalRepositoryId = "repository-external";
 const unsupportedRepositoryId = "default";
 
-test.describe.serial("repository and capacity flows", () => {
+test.describe("repository and capacity flows", () => {
   let api: APIRequestContext;
 
-  test.beforeAll(async () => {
-    api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  test.beforeEach(async ({ api: testApi }) => {
+    api = testApi;
     await seedWorkbenchRepository(api, repositoryId);
-    await seedWorkbenchRepository(api, externalRepositoryId);
-    await seedRawRepository(api, rawRepositoryId);
-    await seedLargeTreeRepository(api, largeRepositoryId);
-  });
-
-  test.afterAll(async () => {
-    await api.dispose();
   });
 
   test("creates and switches repositories without sharing layout state", async ({
@@ -121,6 +114,7 @@ test.describe.serial("repository and capacity flows", () => {
   test("keeps one ordinary and two system sessions through StrictMode and repository switches", async ({
     page,
   }) => {
+    await seedRawRepository(api, rawRepositoryId);
     await page.addInitScript(() => {
       const onlineListeners = new Set<EventListenerOrEventListenerObject>();
       const originalAddEventListener = EventTarget.prototype.addEventListener;
@@ -213,6 +207,7 @@ test.describe.serial("repository and capacity flows", () => {
   test("rescans an externally edited Local note from the visible working tree", async ({
     page,
   }) => {
+    await seedWorkbenchRepository(api, externalRepositoryId);
     await openWorkbench(page, externalRepositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
     await expect(page.getByLabel("笔记编辑")).not.toContainText(
@@ -247,6 +242,8 @@ test.describe.serial("repository and capacity flows", () => {
   test("updates structured Local paths when switching repositories", async ({
     page,
   }) => {
+    await seedWorkbenchRepository(api, externalRepositoryId);
+    await seedRawRepository(api, rawRepositoryId);
     const catalogResponse = await api.get("/api/v1/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const externalRepository = catalog.repositories.find(
@@ -302,6 +299,7 @@ test.describe.serial("repository and capacity flows", () => {
   });
 
   test("edits repositories without syntax in raw mode", async ({ page }) => {
+    await seedRawRepository(api, rawRepositoryId);
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, rawRepositoryId);
@@ -333,9 +331,9 @@ test.describe.serial("repository and capacity flows", () => {
       return snapshot.content.workspace.notes[0]?.source.endsWith(" raw") ?? false;
     }).toBe(true);
 
-    await getActivityButton(page, "结构操作").click();
+    await selectNotesMode(page, "结构");
     await expect(page.getByText("结构操作不可用", { exact: true })).toBeVisible();
-    await getActivityButton(page, "引用图谱").click();
+    await selectNotesMode(page, "图谱");
     await expect(page.getByText("引用图谱不可用", { exact: true })).toBeVisible();
     await getActivityButton(page, "语法").click();
     await expect(
@@ -346,6 +344,7 @@ test.describe.serial("repository and capacity flows", () => {
   test("finishes the local stage before an immediate repository switch", async ({
     page,
   }) => {
+    await seedRawRepository(api, rawRepositoryId);
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
 
@@ -551,6 +550,7 @@ test.describe.serial("repository and capacity flows", () => {
   });
 
   test("virtualizes large directory and structure trees", async ({ page }) => {
+    await seedLargeTreeRepository(api, largeRepositoryId);
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "仓库").click();
     await openRepositoryFromContext(page, largeRepositoryId);
@@ -592,7 +592,7 @@ test.describe.serial("repository and capacity flows", () => {
     await expect(structureTree.getByTitle("组分: Block 599")).toBeVisible();
   });
 
-  test("shows unsupported Local repositories only in Repository and requires manual removal", async ({
+  test("shows noncurrent Local repositories only in Repository and requires manual removal", async ({
     page,
   }) => {
     let unsupportedDeleteRequests = 0;
@@ -607,7 +607,7 @@ test.describe.serial("repository and capacity flows", () => {
         unsupportedDeleteRequests += 1;
       }
     });
-    await seedUnsupportedLocalSnapshotRepository(unsupportedRepositoryId);
+    await seedNoncurrentLocalRepository(unsupportedRepositoryId);
 
     try {
       await openWorkbench(page, repositoryId);
@@ -674,6 +674,7 @@ test.describe.serial("repository and capacity flows", () => {
   test("keeps the full workbench after deleting the final ordinary repository", async ({
     page,
   }) => {
+    await seedLargeTreeRepository(api, largeRepositoryId);
     const catalogResponse = await api.get("/api/v1/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const remainingRepository = catalog.repositories.find(
@@ -693,7 +694,7 @@ test.describe.serial("repository and capacity flows", () => {
       expect(deleteResponse.ok()).toBe(true);
     }
 
-    await seedUnsupportedLocalSnapshotRepository(unsupportedRepositoryId);
+    await seedNoncurrentLocalRepository(unsupportedRepositoryId);
 
     try {
       await openWorkbench(page, largeRepositoryId);

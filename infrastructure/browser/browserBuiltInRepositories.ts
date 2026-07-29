@@ -5,12 +5,15 @@ import { createEmptyJournalContent } from "../../contracts/journal/parseJournal"
 import { journalStorageEpoch } from "../../contracts/journal/storageEpoch";
 import type { JournalContentDto, JournalRevisionDto } from "../../contracts/journal/types";
 import { createEmptyTodoContent } from "../../contracts/todo/parseTodo";
-import {
-  prepareTodoV4EpochMigration,
-} from "../../contracts/todo/migrations/todoV3ToV4";
 import { serializeTodoRevisionContent } from "../../contracts/todo/revision";
 import { todoStorageEpoch } from "../../contracts/todo/storageEpoch";
 import type { TodoContentDto, TodoRevisionDto } from "../../contracts/todo/types";
+import {
+  JournalContentValidationError,
+} from "../../core/journal/model/journalContent";
+import {
+  TodoContentValidationError,
+} from "../../core/todo/model/todoContent";
 import {
   journalRepositoryCodec,
   validateJournalRepositoryContent,
@@ -40,14 +43,15 @@ export type BrowserTodoStorage = BrowserVersionedContentStorage<
 
 export function createBrowserJournalStorage(
   indexedDb: IDBFactory,
-  expectedEpoch: number = journalStorageEpoch,
 ): BrowserJournalStorage {
   return createBrowserVersionedContentStorage({
     codec: journalRepositoryCodec,
     createEmptyContent: createEmptyJournalContent,
     databaseName: browserJournalDatabaseName,
-    expectedEpoch,
+    expectedEpoch: journalStorageEpoch,
     indexedDb,
+    isContentValidationError: (error) =>
+      error instanceof JournalContentValidationError,
     serializeRevisionContent: serializeJournalRevisionContent,
     validateContent: validateJournalRepositoryContent,
     validateTransition: validateJournalRepositoryTransition,
@@ -56,18 +60,15 @@ export function createBrowserJournalStorage(
 
 export function createBrowserTodoStorage(
   indexedDb: IDBFactory,
-  expectedEpoch: number = todoStorageEpoch,
 ): BrowserTodoStorage {
   return createBrowserVersionedContentStorage({
     codec: todoRepositoryCodec,
     createEmptyContent: createEmptyTodoContent,
     databaseName: browserTodoDatabaseName,
-    expectedEpoch,
+    expectedEpoch: todoStorageEpoch,
     indexedDb,
-    migration: {
-      fromEpoch: 3,
-      prepareContent: prepareTodoV4EpochMigration,
-    },
+    isContentValidationError: (error) =>
+      error instanceof TodoContentValidationError,
     serializeRevisionContent: serializeTodoRevisionContent,
     validateContent: validateTodoRepositoryContent,
     validateTransition: validateTodoRepositoryTransition,

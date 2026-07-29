@@ -47,9 +47,9 @@ describe("workspace repository catalog cache", () => {
         ...state,
         repositories: [{
           adapter: "webdav",
-          id: "legacy",
-          label: "Legacy",
-          locationLabel: "WebDAV · legacy",
+          id: "unsupported",
+          label: "Unsupported",
+          unsupportedLocation: "WebDAV",
         }],
       }),
     ).toThrow("unsupported field");

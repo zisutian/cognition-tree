@@ -5,6 +5,7 @@ import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import {
   createApiV1RequestHandler,
+  type ApiV1RequestHandler,
 } from "../../infrastructure/server/api/apiV1Server.ts";
 import {
   createApiV1SecurityPolicy,
@@ -33,29 +34,46 @@ const security = {
   ],
 };
 
-await Promise.all([
-  rm(repositoryDir, { force: true, recursive: true }),
-  rm(serverStateDir, { force: true, recursive: true }),
-]);
+type E2ERuntime = {
+  apiV1Handler: ApiV1RequestHandler;
+  catalog: CompositeRepositoryCatalog;
+  localCatalog: LocalRepositoryCatalog;
+};
 
-const localCatalog = new LocalRepositoryCatalog(repositoryDir, {
-  hostRoot: repositoryHostRoot,
-});
-const webDavRegistry = new WebDavConnectionRegistry({
-  stateDirectory: serverStateDir,
-});
-const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
-const builtInCatalog = new BuiltInCatalog(repositoryDir);
+async function createE2ERuntime(): Promise<E2ERuntime> {
+  const localCatalog = new LocalRepositoryCatalog(repositoryDir, {
+    hostRoot: repositoryHostRoot,
+  });
+  const webDavRegistry = new WebDavConnectionRegistry({
+    stateDirectory: serverStateDir,
+  });
+  const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
+  const builtInCatalog = new BuiltInCatalog(repositoryDir);
 
-await catalog.initialize();
-await builtInCatalog.initialize();
+  await catalog.initialize();
+  await builtInCatalog.initialize();
+  return {
+    apiV1Handler: createApiV1RequestHandler({
+      builtInCatalog,
+      catalog,
+      security,
+      stateDirectory: serverStateDir,
+    }),
+    catalog,
+    localCatalog,
+  };
+}
 
-const apiV1Handler = createApiV1RequestHandler({
-  catalog,
-  security,
-  builtInCatalog,
-  stateDirectory: serverStateDir,
-});
+async function clearE2EState() {
+  await Promise.all([
+    rm(repositoryDir, { force: true, recursive: true }),
+    rm(serverStateDir, { force: true, recursive: true }),
+  ]);
+}
+
+await clearE2EState();
+let runtime = await createE2ERuntime();
+let resetQueue = Promise.resolve();
 
 async function readSeedRequest(request: IncomingMessage) {
   const chunks: Buffer[] = [];
@@ -73,7 +91,7 @@ async function handleSeedRequest(
   response: ServerResponse,
 ) {
   try {
-    const descriptor = await localCatalog.createRepositoryWithId(
+    const descriptor = await runtime.localCatalog.createRepositoryWithId(
       await readSeedRequest(request),
     );
 
@@ -93,9 +111,42 @@ async function handleSeedRequest(
   }
 }
 
+async function handleResetRequest(response: ServerResponse) {
+  const reset = resetQueue.then(async () => {
+    await runtime.catalog.dispose();
+    await clearE2EState();
+    runtime = await createE2ERuntime();
+  });
+
+  resetQueue = reset.catch(() => undefined);
+  try {
+    await reset;
+    response.writeHead(204, {
+      "Cache-Control": "no-store",
+    });
+    response.end();
+  } catch (error) {
+    response.writeHead(500, {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+    });
+    response.end(JSON.stringify({
+      message: error instanceof Error ? error.message : "Reset failed",
+    }));
+  }
+}
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url ?? "/", "http://localhost");
 
+  if (
+    request.method === "POST" &&
+    url.pathname === "/__e2e/reset" &&
+    url.search === ""
+  ) {
+    void handleResetRequest(response);
+    return;
+  }
   if (
     request.method === "POST" &&
     url.pathname === "/__e2e/local-repositories" &&
@@ -105,7 +156,7 @@ const server = http.createServer((request, response) => {
     return;
   }
 
-  void apiV1Handler(request, response);
+  void runtime.apiV1Handler(request, response);
 });
 
 server.headersTimeout = 10_000;
@@ -119,7 +170,7 @@ server.listen(port, host, () => {
 
 async function closeServer() {
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  await catalog.dispose();
+  await runtime.catalog.dispose();
 }
 
 process.once("SIGINT", () => void closeServer());

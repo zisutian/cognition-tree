@@ -141,18 +141,3 @@ export async function projectTodoSearchDocuments({
     });
   }));
 }
-
-export function createSearchCorpusRevision(
-  documents: readonly SearchDocument[],
-) {
-  return documents
-    .map(({ blocks, domain, repositoryId, resourceId, updatedAt, version }) =>
-      `${domain}:${repositoryId ?? ""}:${resourceId}:${version}:${updatedAt}:${
-        blocks.map(({ blockId, updatedAt: blockUpdatedAt }) =>
-          `${blockId}@${blockUpdatedAt}`
-        ).join(",")
-      }`
-    )
-    .sort()
-    .join("|");
-}
