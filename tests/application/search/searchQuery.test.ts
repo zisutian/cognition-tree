@@ -5,9 +5,11 @@ import {
 } from "../../../application/search/searchController";
 import {
   createSearchQuery,
+  projectSearchDocumentResults,
   SearchRequestError,
   type SearchDocument,
   type SearchDomain,
+  type SearchResult,
   type SearchSource,
 } from "../../../application/search/searchQuery";
 
@@ -31,16 +33,39 @@ function document({
   text: string;
   updatedAt: string;
 }): SearchDocument {
-  return {
+  const common = {
     blocks: [{ blockId, body: null, text, updatedAt }],
-    domain,
     editableText: text,
-    ...(repositoryId ? { repositoryId } : {}),
     resourceId,
     title: `${domain}-${resourceId}`,
     updatedAt: resourceUpdatedAt,
     version: version(domain === "workspace" ? "a" : "b"),
   };
+
+  if (domain === "workspace") {
+    if (!repositoryId) throw new Error("workspace test document needs repositoryId");
+    return { ...common, domain, repositoryId };
+  }
+  return { ...common, domain };
+}
+
+function resultFromDocument(value: SearchDocument): SearchResult {
+  const common = {
+    blockId: value.blocks[0]!.blockId,
+    resourceId: value.resourceId,
+    snippet: value.editableText,
+    title: value.title,
+    updatedAt: value.updatedAt,
+    version: value.version,
+  };
+
+  return value.domain === "workspace"
+    ? {
+        ...common,
+        domain: value.domain,
+        repositoryId: value.repositoryId,
+      }
+    : { ...common, domain: value.domain };
 }
 
 function corpusKey(value: unknown) {
@@ -56,6 +81,43 @@ function corpusKey(value: unknown) {
 
 describe("cross-domain search query", () => {
   it("normalizes, filters and pages successful sources while retaining faults", async () => {
+    const unicodeDocument = document({
+      blockId: "unicode-block",
+      domain: "todo",
+      resourceId: "todo-unicode",
+      text: "前缀 aﬃnity 👩🏽‍💻 后缀",
+      updatedAt: "2026-07-29T10:00:00.000Z",
+    });
+    expect(projectSearchDocumentResults(unicodeDocument, {
+      query: "AFFINITY",
+    })).toEqual([
+      expect.objectContaining({
+        blockId: "unicode-block",
+        snippet: "前缀 aﬃnity 👩🏽‍💻 后缀",
+      }),
+    ]);
+    const filteredBlockDocument: SearchDocument = {
+      ...document({
+        blockId: "old-block",
+        domain: "todo",
+        resourceId: "todo-filter-order",
+        resourceUpdatedAt: "2026-07-29T11:00:00.000Z",
+        text: "needle in old block",
+        updatedAt: "2026-07-29T07:00:00.000Z",
+      }),
+      editableText: "needle in current resource",
+      title: "current resource",
+    };
+    expect(projectSearchDocumentResults(filteredBlockDocument, {
+      query: "needle",
+      updatedAfter: "2026-07-29T08:00:00.000Z",
+    })).toEqual([
+      expect.objectContaining({
+        blockId: null,
+        resourceId: "todo-filter-order",
+      }),
+    ]);
+
     let workspaceRevision = "workspace-1";
     const sources: SearchSource[] = [
       {
@@ -213,15 +275,7 @@ describe("cross-domain search query", () => {
                   text: "第二页",
                   updatedAt: "2026-07-29T09:00:00.000Z",
                 }),
-              ].map(({ editableText: snippet, ...result }) => ({
-                blockId: result.blocks[0]!.blockId,
-                domain: result.domain,
-                resourceId: result.resourceId,
-                snippet,
-                title: result.title,
-                updatedAt: result.updatedAt,
-                version: result.version,
-              })),
+              ].map(resultFromDocument),
             }
           : {
               cursor: "v1-page",
@@ -235,16 +289,7 @@ describe("cross-domain search query", () => {
                   text: "第一页",
                   updatedAt: "2026-07-29T10:00:00.000Z",
                 }),
-              ].map(({ editableText: snippet, ...result }) => ({
-                blockId: result.blocks[0]!.blockId,
-                domain: result.domain,
-                repositoryId: result.repositoryId,
-                resourceId: result.resourceId,
-                snippet,
-                title: result.title,
-                updatedAt: result.updatedAt,
-                version: result.version,
-              })),
+              ].map(resultFromDocument),
             };
       }),
     };

@@ -83,9 +83,10 @@ describe("journal workspace reference resolver", () => {
       .resolves.toEqual([
         expect.objectContaining({
           destination: expect.objectContaining({
-            lineNumber: 1,
-            noteId: "note-1",
+            blockId: null,
+            domain: "workspace",
             repositoryId: descriptor.id,
+            resourceId: "note-1",
           }),
           status: "resolved",
         }),

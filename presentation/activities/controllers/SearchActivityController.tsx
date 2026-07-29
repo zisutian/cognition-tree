@@ -1,5 +1,3 @@
-import type { JournalEntryId } from "../../../core/journal/model/journalContent";
-import type { TodoCollectionId } from "../../../core/todo/model/todoContent";
 import type { SearchResult } from "../../../application/search/searchQuery";
 import { useWorkbenchFeedback } from "../../ui/shared/FeedbackProvider";
 import { createSearchActivitySlots } from "../views/search/SearchActivitySlots";
@@ -21,49 +19,25 @@ export function SearchActivityController({
       }))
     : [];
   const openResult = (result: SearchResult) => {
-    if (result.domain === "workspace") {
-      application.search.openWorkspaceResult(result);
-      return;
-    }
-    if (result.domain === "journal") {
-      if (application.journal.status !== "ready") {
-        workbenchFeedback.controller.reportError(
-          "search",
-          "日记当前不可用，无法打开搜索结果。",
-        );
-        return;
-      }
-      const found = application.journal.view.navigation.openEntryBlock(
-        result.resourceId as JournalEntryId,
-        result.blockId,
-      );
+    const outcome = application.search.openResult(result);
+    const activity = outcome.domain === "workspace"
+      ? "notes"
+      : outcome.domain;
 
-      onActiveActivityChange("journal");
-      if (!found) {
-        workbenchFeedback.controller.reportInfo(
-          "journal",
-          "搜索结果中的块已不存在，已打开日记首行。",
-        );
-      }
-      return;
-    }
-    if (application.todo.status !== "ready") {
+    if (outcome.status === "unavailable") {
       workbenchFeedback.controller.reportError(
         "search",
-        "代办当前不可用，无法打开搜索结果。",
+        `${outcome.domain === "journal" ? "日记" : "代办"}当前不可用，无法打开搜索结果。`,
       );
       return;
     }
-    const found = application.todo.view.navigation.openCollectionBlock(
-      result.resourceId as TodoCollectionId,
-      result.blockId,
-    );
-
-    onActiveActivityChange("todo");
-    if (!found) {
+    if (outcome.domain !== "workspace") {
+      onActiveActivityChange(activity);
+    }
+    if (outcome.status === "stale") {
       workbenchFeedback.controller.reportInfo(
-        "todo",
-        "搜索结果中的块已不存在，已打开代办首行。",
+        activity,
+        "搜索结果中的块已不存在，已打开资源首行。",
       );
     }
   };

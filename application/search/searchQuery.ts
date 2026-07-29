@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 export const searchDomains = ["workspace", "journal", "todo"] as const;
 
 export type SearchDomain = (typeof searchDomains)[number];
@@ -12,10 +14,8 @@ export type SearchRequest = {
   updatedAfter?: string;
 };
 
-export type SearchResult = {
+type SearchResultBase = {
   blockId: string | null;
-  domain: SearchDomain;
-  repositoryId?: string;
   resourceId: string;
   snippet: string;
   title: string;
@@ -23,12 +23,29 @@ export type SearchResult = {
   version: SearchResourceVersion;
 };
 
-export type SearchFault = {
-  code: "source_invalid" | "source_unavailable";
-  domain: SearchDomain;
-  message: string;
-  repositoryId?: string;
-};
+export type SearchResult =
+  | (SearchResultBase & {
+      domain: "workspace";
+      repositoryId: string;
+    })
+  | (SearchResultBase & {
+      domain: "journal" | "todo";
+      repositoryId?: never;
+    });
+
+export type SearchFault =
+  | {
+      code: "source_invalid" | "source_unavailable";
+      domain: "workspace";
+      message: string;
+      repositoryId?: string;
+    }
+  | {
+      code: "source_invalid" | "source_unavailable";
+      domain: "journal" | "todo";
+      message: string;
+      repositoryId?: never;
+    };
 
 export type SearchResponse = {
   cursor: string | null;
@@ -43,28 +60,43 @@ export type SearchDocumentBlock = {
   updatedAt: string;
 };
 
-export type SearchDocument = {
+type SearchDocumentBase = {
   blocks: SearchDocumentBlock[];
-  domain: SearchDomain;
   editableText: string;
-  repositoryId?: string;
   resourceId: string;
   title: string;
   updatedAt: string;
   version: SearchResourceVersion;
 };
 
+export type SearchDocument =
+  | (SearchDocumentBase & {
+      domain: "workspace";
+      repositoryId: string;
+    })
+  | (SearchDocumentBase & {
+      domain: "journal" | "todo";
+      repositoryId?: never;
+    });
+
 export type SearchSourceBatch = {
   documents: SearchDocument[];
   revision: string;
 };
 
-export type SearchSource = {
-  createFault?(error: unknown): SearchFault;
-  domain: SearchDomain;
-  load(): Promise<SearchSourceBatch>;
-  repositoryId?: string;
-};
+export type SearchSource =
+  | {
+      createFault?(error: unknown): SearchFault;
+      domain: "workspace";
+      load(): Promise<SearchSourceBatch>;
+      repositoryId: string;
+    }
+  | {
+      createFault?(error: unknown): SearchFault;
+      domain: "journal" | "todo";
+      load(): Promise<SearchSourceBatch>;
+      repositoryId?: never;
+    };
 
 export type SearchSourceList = {
   faults: SearchFault[];
@@ -95,23 +127,142 @@ export class SearchRequestError extends Error {
   }
 }
 
-function normalizeSearchText(value: string) {
+export class SearchSourceError extends Error {
+  readonly code: SearchFault["code"];
+
+  constructor(code: SearchSourceError["code"], message: string) {
+    super(message);
+    this.name = "SearchSourceError";
+    this.code = code;
+  }
+}
+
+export function normalizeSearchText(value: string) {
   return value.normalize("NFKC").toLocaleLowerCase("und");
 }
 
-function createSearchSnippet(source: string, normalizedQuery: string) {
-  const normalizedSource = normalizeSearchText(source);
-  const position = normalizedSource.indexOf(normalizedQuery);
-  const start = Math.max(0, position < 0 ? 0 : position - 48);
-  const end = Math.min(source.length, start + 160);
+type NormalizedGrapheme = {
+  normalizedEnd: number;
+  normalizedStart: number;
+  sourceEnd: number;
+  sourceStart: number;
+};
 
-  return `${start > 0 ? "…" : ""}${source.slice(start, end)}${
-    end < source.length ? "…" : ""
+type Segment = { index: number; segment: string };
+
+function segmentGraphemes(source: string): Segment[] {
+  const Segmenter = (
+    Intl as typeof Intl & {
+      Segmenter?: new (
+        locale?: string,
+        options?: { granularity: "grapheme" },
+      ) => {
+        segment(value: string): Iterable<Segment>;
+      };
+    }
+  ).Segmenter;
+
+  if (Segmenter) {
+    return [...new Segmenter("und", { granularity: "grapheme" }).segment(
+      source,
+    )];
+  }
+  const result: Segment[] = [];
+  let index = 0;
+
+  for (const segment of source) {
+    result.push({ index, segment });
+    index += segment.length;
+  }
+  return result;
+}
+
+function createNormalizedSourceMap(source: string) {
+  let normalized = "";
+  const graphemes: NormalizedGrapheme[] = [];
+
+  for (const current of segmentGraphemes(source)) {
+    const segment = normalizeSearchText(current.segment);
+    const normalizedStart = normalized.length;
+
+    normalized += segment;
+    graphemes.push({
+      normalizedEnd: normalized.length,
+      normalizedStart,
+      sourceEnd: current.index + current.segment.length,
+      sourceStart: current.index,
+    });
+  }
+  return { graphemes, normalized };
+}
+
+function sourceRangeForNormalizedRange(
+  source: string,
+  graphemes: readonly NormalizedGrapheme[],
+  from: number,
+  to: number,
+) {
+  const first = graphemes.find(({ normalizedEnd }) => normalizedEnd > from);
+  let last: NormalizedGrapheme | undefined;
+
+  for (let index = graphemes.length - 1; index >= 0; index -= 1) {
+    if (graphemes[index]!.normalizedStart < to) {
+      last = graphemes[index];
+      break;
+    }
+  }
+
+  return {
+    from: first?.sourceStart ?? source.length,
+    to: last?.sourceEnd ?? first?.sourceEnd ?? source.length,
+  };
+}
+
+export function createSearchSnippet(source: string, normalizedQuery: string) {
+  const mapped = createNormalizedSourceMap(source);
+  const position = mapped.normalized.indexOf(normalizedQuery);
+  const normalizedStart = Math.max(0, position < 0 ? 0 : position - 48);
+  const normalizedEnd = Math.min(
+    mapped.normalized.length,
+    Math.max(
+      normalizedStart + 160,
+      position < 0 ? 0 : position + normalizedQuery.length,
+    ),
+  );
+  const range = sourceRangeForNormalizedRange(
+    source,
+    mapped.graphemes,
+    normalizedStart,
+    normalizedEnd,
+  );
+
+  return `${range.from > 0 ? "…" : ""}${source.slice(range.from, range.to)}${
+    range.to < source.length ? "…" : ""
   }`;
 }
 
 function includeUpdatedAt(updatedAt: string, request: SearchRequest) {
   return !request.updatedAfter || updatedAt >= request.updatedAfter;
+}
+
+function createResult(
+  document: SearchDocument,
+  value: Omit<SearchResultBase, "resourceId" | "title" | "version">,
+): SearchResult {
+  const common = {
+    ...value,
+    resourceId: document.resourceId,
+    title: document.title,
+    version: document.version,
+  };
+
+  return document.domain === "workspace"
+    ? {
+        ...common,
+        domain: document.domain,
+        repositoryId: document.repositoryId,
+      }
+    : { ...common, domain: document.domain };
 }
 
 export function projectSearchDocumentResults(
@@ -120,53 +271,36 @@ export function projectSearchDocumentResults(
   normalizedQuery = normalizeSearchText(request.query.trim()),
 ): SearchResult[] {
   const blockResults: SearchResult[] = [];
-  let hasMatchingBlock = false;
 
   for (const block of document.blocks) {
-    const text = `${block.text}\n${block.body ?? ""}`;
+    if (!includeUpdatedAt(block.updatedAt, request)) continue;
+    const text = block.body === null
+      ? block.text
+      : `${block.text}\n${block.body}`;
 
     if (!normalizeSearchText(text).includes(normalizedQuery)) continue;
-    hasMatchingBlock = true;
-    if (!includeUpdatedAt(block.updatedAt, request)) continue;
-    blockResults.push({
+    blockResults.push(createResult(document, {
       blockId: block.blockId,
-      domain: document.domain,
-      ...(document.repositoryId
-        ? { repositoryId: document.repositoryId }
-        : {}),
-      resourceId: document.resourceId,
       snippet: createSearchSnippet(text, normalizedQuery),
-      title: document.title,
       updatedAt: block.updatedAt,
-      version: document.version,
-    });
+    }));
   }
-  if (hasMatchingBlock) return blockResults;
+  if (blockResults.length > 0) return blockResults;
   const titleOrDocument = `${document.title}\n${document.editableText}`;
 
   return (
       includeUpdatedAt(document.updatedAt, request) &&
       normalizeSearchText(titleOrDocument).includes(normalizedQuery)
     )
-    ? [{
+    ? [createResult(document, {
         blockId: null,
-        domain: document.domain,
-        ...(document.repositoryId
-          ? { repositoryId: document.repositoryId }
-          : {}),
-        resourceId: document.resourceId,
         snippet: createSearchSnippet(titleOrDocument, normalizedQuery),
-        title: document.title,
         updatedAt: document.updatedAt,
-        version: document.version,
-      }]
+      })]
     : [];
 }
 
-function compareBlockIds(
-  left: string | null,
-  right: string | null,
-) {
+function compareBlockIds(left: string | null, right: string | null) {
   if (left === right) return 0;
   if (left === null) return 1;
   if (right === null) return -1;
@@ -177,7 +311,9 @@ export function sortSearchResults(results: SearchResult[]) {
   return results.sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt) ||
     left.domain.localeCompare(right.domain) ||
-    (left.repositoryId ?? "").localeCompare(right.repositoryId ?? "") ||
+    (left.domain === "workspace" ? left.repositoryId : "").localeCompare(
+      right.domain === "workspace" ? right.repositoryId : "",
+    ) ||
     left.resourceId.localeCompare(right.resourceId) ||
     compareBlockIds(left.blockId, right.blockId)
   );
@@ -221,104 +357,168 @@ function validateRequest(request: SearchRequest) {
   return { limit, normalizedQuery };
 }
 
+function faultKey(fault: SearchFault) {
+  return `${fault.domain}:${
+    fault.domain === "workspace" ? fault.repositoryId ?? "" : ""
+  }:${fault.code}`;
+}
+
 function normalizeFaults(faults: SearchFault[]) {
   const byKey = new Map<string, SearchFault>();
 
   for (const fault of faults) {
-    const key = `${fault.domain}:${fault.repositoryId ?? ""}:${fault.code}`;
+    const key = faultKey(fault);
 
     if (!byKey.has(key)) byKey.set(key, fault);
   }
   return [...byKey.values()].sort((left, right) =>
     left.domain.localeCompare(right.domain) ||
-    (left.repositoryId ?? "").localeCompare(right.repositoryId ?? "") ||
+    (
+      left.domain === "workspace" ? left.repositoryId ?? "" : ""
+    ).localeCompare(
+      right.domain === "workspace" ? right.repositoryId ?? "" : "",
+    ) ||
     left.code.localeCompare(right.code)
   );
 }
 
-export function createSearchQuery<Context = void>({
-  createCorpusKey,
-  sourceProvider,
-}: {
-  createCorpusKey(value: unknown): Promise<string> | string;
-  sourceProvider: SearchSourceProvider<Context>;
-}): SearchQuery<Context> {
-  let cache: { key: string; results: SearchResult[] } | null = null;
+function defaultSourceFault(source: SearchSource, error: unknown): SearchFault {
+  const code = error instanceof SearchSourceError
+    ? error.code
+    : "source_unavailable";
+  const common = {
+    code,
+    message: error instanceof SearchSourceError
+      ? error.message
+      : "Search source is unavailable",
+  };
 
-  return {
-    async search(request, context) {
-      const { limit, normalizedQuery } = validateRequest(request);
-      const listed = await sourceProvider.listSources(request, context);
-      const faults = [...listed.faults];
-      const revisions: Record<string, string> = {};
-      const results: SearchResult[] = [];
+  return source.domain === "workspace"
+    ? {
+        ...common,
+        domain: source.domain,
+        repositoryId: source.repositoryId,
+      }
+    : { ...common, domain: source.domain };
+}
 
-      await Promise.all(listed.sources.map(async (source) => {
-        const sourceKey = `${source.domain}:${source.repositoryId ?? ""}`;
+export class SearchIndex<Context = void> implements SearchQuery<Context> {
+  readonly #createCorpusKey: (value: unknown) => Promise<string> | string;
+  readonly #maximumCachedQueries: number;
+  readonly #queryCache = new Map<string, SearchResult[]>();
+  readonly #sourceProvider: SearchSourceProvider<Context>;
 
-        try {
-          const batch = await source.load();
+  constructor({
+    createCorpusKey,
+    maximumCachedQueries = 32,
+    sourceProvider,
+  }: {
+    createCorpusKey(value: unknown): Promise<string> | string;
+    maximumCachedQueries?: number;
+    sourceProvider: SearchSourceProvider<Context>;
+  }) {
+    this.#createCorpusKey = createCorpusKey;
+    this.#maximumCachedQueries = maximumCachedQueries;
+    this.#sourceProvider = sourceProvider;
+  }
 
-          revisions[sourceKey] = batch.revision;
-          for (const document of batch.documents) {
-            results.push(
-              ...projectSearchDocumentResults(
-                document,
-                request,
-                normalizedQuery,
-              ),
-            );
-          }
-        } catch (error) {
-          faults.push(
-            source.createFault?.(error) ?? {
-              code: "source_unavailable",
-              domain: source.domain,
-              message: "Search source is unavailable",
-              ...(source.repositoryId
-                ? { repositoryId: source.repositoryId }
-                : {}),
-            },
+  async search(
+    request: SearchRequest,
+    context: Context,
+  ): Promise<SearchResponse> {
+    const { limit, normalizedQuery } = validateRequest(request);
+    const listed = await this.#sourceProvider.listSources(request, context);
+    const faults = [...listed.faults];
+    const revisions: Record<string, string> = {};
+    const results: SearchResult[] = [];
+
+    await Promise.all(listed.sources.map(async (source) => {
+      const sourceKey = source.domain === "workspace"
+        ? `${source.domain}:${source.repositoryId}`
+        : source.domain;
+
+      try {
+        const batch = await source.load();
+
+        revisions[sourceKey] = batch.revision;
+        for (const document of batch.documents) {
+          results.push(
+            ...projectSearchDocumentResults(
+              document,
+              request,
+              normalizedQuery,
+            ),
           );
         }
-      }));
-      const normalizedFaults = normalizeFaults(faults);
-      const key = await createCorpusKey({
-        domains: request.domains ?? searchDomains,
-        faults: normalizedFaults.map(({ code, domain, repositoryId }) => ({
-          code,
-          domain,
-          repositoryId: repositoryId ?? null,
-        })),
-        query: normalizedQuery,
-        repositoryIds: request.repositoryIds ?? null,
-        revisions,
-        updatedAfter: request.updatedAfter ?? null,
-      });
-      const cursor = request.cursor ? decodeCursor(request.cursor) : null;
-
-      if (cursor && cursor.key !== key) {
-        throw new SearchRequestError(
-          "cursor_conflict",
-          "Search results changed while paging",
+      } catch (error) {
+        faults.push(
+          source.createFault?.(error) ?? defaultSourceFault(source, error),
         );
       }
-      const sorted = cache?.key === key
-        ? cache.results
-        : sortSearchResults(results);
-
-      cache = { key, results: sorted };
-      const offset = cursor?.offset ?? 0;
-      const page = sorted.slice(offset, offset + limit);
-      const nextOffset = offset + page.length;
-
-      return {
-        cursor: nextOffset < sorted.length
-          ? encodeCursor(key, nextOffset)
+    }));
+    const normalizedFaults = normalizeFaults(faults);
+    const key = await this.#createCorpusKey({
+      domains: request.domains ?? searchDomains,
+      faults: normalizedFaults.map((fault) => ({
+        code: fault.code,
+        domain: fault.domain,
+        repositoryId: fault.domain === "workspace"
+          ? fault.repositoryId ?? null
           : null,
-        faults: normalizedFaults,
-        results: page,
-      };
-    },
-  };
+      })),
+      query: normalizedQuery,
+      repositoryIds: request.repositoryIds ?? null,
+      revisions,
+      updatedAfter: request.updatedAfter ?? null,
+    });
+    const cursor = request.cursor ? decodeCursor(request.cursor) : null;
+
+    if (cursor && cursor.key !== key) {
+      throw new SearchRequestError(
+        "cursor_conflict",
+        "Search results changed while paging",
+      );
+    }
+    const sorted = this.#readCachedResults(key) ??
+      sortSearchResults(results);
+
+    this.#cacheResults(key, sorted);
+    const offset = cursor?.offset ?? 0;
+    const page = sorted.slice(offset, offset + limit);
+    const nextOffset = offset + page.length;
+
+    return {
+      cursor: nextOffset < sorted.length
+        ? encodeCursor(key, nextOffset)
+        : null,
+      faults: normalizedFaults,
+      results: page,
+    };
+  }
+
+  #cacheResults(key: string, results: SearchResult[]) {
+    this.#queryCache.delete(key);
+    this.#queryCache.set(key, results);
+    while (this.#queryCache.size > this.#maximumCachedQueries) {
+      const oldest = this.#queryCache.keys().next().value;
+
+      if (oldest === undefined) break;
+      this.#queryCache.delete(oldest);
+    }
+  }
+
+  #readCachedResults(key: string) {
+    const results = this.#queryCache.get(key);
+
+    if (!results) return null;
+    this.#queryCache.delete(key);
+    this.#queryCache.set(key, results);
+    return results;
+  }
+}
+
+export function createSearchQuery<Context = void>(
+  options: ConstructorParameters<typeof SearchIndex<Context>>[0],
+): SearchQuery<Context> {
+  return new SearchIndex(options);
 }

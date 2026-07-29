@@ -37,7 +37,7 @@ import {
 } from "../../../../../application/journal/journalViewModel";
 import {
   startJournalWorkspaceReferenceResolution,
-  type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceDestination,
   type JournalWorkspaceReferenceResolver,
   type JournalWorkspaceReferenceResolutionState,
 } from "../../../../../application/journal/journalExternalReferences";
@@ -77,7 +77,9 @@ export function useJournalApplication({
   services,
   session,
 }: {
-  openWorkspaceNote?: (destination: JournalWorkspaceNoteDestination) => void;
+  openWorkspaceNote?: (
+    destination: JournalWorkspaceReferenceDestination,
+  ) => void;
   referenceResolutionGeneration?: number | string;
   referenceResolver?: JournalWorkspaceReferenceResolver | null;
   services: JournalApplicationServices;

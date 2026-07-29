@@ -8,6 +8,9 @@ import type {
   SearchControllerState,
 } from "../../application/search/searchController";
 import type { SearchResult } from "../../application/search/searchQuery";
+import type {
+  ContentOpenOutcome,
+} from "../../application/navigation/contentDestination";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }
@@ -26,7 +29,7 @@ export type WorkbenchApplication = {
   repository: RepositoryApplication;
   search: {
     controller: SearchController;
-    openWorkspaceResult(result: SearchResult): void;
+    openResult(result: SearchResult): ContentOpenOutcome;
     state: SearchControllerState;
   };
   todo: TodoApplication;

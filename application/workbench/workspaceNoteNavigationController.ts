@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalWorkspaceNoteDestination } from "../journal/journalExternalReferences";
+import type {
+  WorkspaceContentDestination,
+} from "../navigation/contentDestination";
 import type { RepositoryCatalogControllerSnapshot } from "../repository/repositoryCatalogController";
 
 type NavigationWorkspaceSession =
@@ -14,12 +16,12 @@ type NavigationWorkspaceSession =
 export type WorkbenchNavigationState =
   | { status: "idle" }
   | {
-      destination: JournalWorkspaceNoteDestination;
+      destination: WorkspaceContentDestination;
       requestId: number;
       status: "pending" | "ready";
     }
   | {
-      destination: JournalWorkspaceNoteDestination;
+      destination: WorkspaceContentDestination;
       errorMessage: string;
       requestId: number;
       status: "failed";
@@ -30,7 +32,7 @@ export type WorkspaceNoteNavigationController = {
   dispose(): void;
   getState(): WorkbenchNavigationState;
   notifyInputsChanged(): void;
-  request(destination: JournalWorkspaceNoteDestination): number;
+  request(destination: WorkspaceContentDestination): number;
   retry(requestId: number): void;
 };
 

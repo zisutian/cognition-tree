@@ -495,13 +495,10 @@ describe("Workbench controller", () => {
       await originalFlush();
     };
     const requestId = controller.requestWorkspaceNoteDestination({
-      description: "仓库B",
-      id: "workspace-note:repository-b:note-1",
-      kind: "workspace-note",
-      label: "仓库B:B",
-      lineNumber: 1,
-      noteId: "note-1",
+      blockId: null,
+      domain: "workspace",
       repositoryId: "repository-b",
+      resourceId: "note-1",
     });
 
     await vi.waitFor(() => {
@@ -545,13 +542,10 @@ describe("Workbench controller", () => {
       },
     );
     failedHarness.controller.requestWorkspaceNoteDestination({
-      description: "仓库B",
-      id: "workspace-note:repository-b:note-1",
-      kind: "workspace-note",
-      label: "仓库B:B",
-      lineNumber: 1,
-      noteId: "note-1",
+      blockId: null,
+      domain: "workspace",
       repositoryId: "repository-b",
+      resourceId: "note-1",
     });
 
     await waitForSnapshot(

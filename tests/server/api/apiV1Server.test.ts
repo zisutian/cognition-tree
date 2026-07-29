@@ -57,6 +57,7 @@ import {
   executeApiV1WorkspaceCommand,
 } from "../../../infrastructure/server/api/apiV1WorkspaceCommands.ts";
 import {
+  RepositoryCorruptError,
   WorkspaceRevisionConflictError,
   type WorkspaceRepositoryStore,
 } from "../../../infrastructure/server/repository/repositoryStore.ts";
@@ -1215,7 +1216,9 @@ describe("CTN API v1", () => {
           },
           async loadSnapshot() {
             if (repositoryId === "broken") {
-              throw new Error("/private/repository/content.json is invalid");
+              throw new RepositoryCorruptError(
+                "/private/repository/content.json is invalid",
+              );
             }
             return { content: goodContent, revision: revision("a") };
           },
@@ -1242,7 +1245,6 @@ describe("CTN API v1", () => {
     const search = new ApiV1SearchService({
       builtInCatalog: {} as ApiV1BuiltInCatalog,
       catalog,
-      runtime: createRuntime(),
     });
     const response = await search.search({
       domains: ["workspace"],

@@ -1,22 +1,17 @@
 import {
-  removeCtnBlockMetadataLines,
-} from "../../core/ctn/metadata/blockMetadata";
-import {
-  createJournalEntryBodyProjection,
-} from "../../core/journal/model/journalContent";
-import {
   createJournalParseIndex,
   type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex";
-import {
-  createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoContent";
+import { JournalContentValidationError } from "../../core/journal/model/journalContent";
 import {
   createTodoParseIndex,
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";
-import type { WorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex";
-import type { WorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex";
+import { TodoContentValidationError } from "../../core/todo/model/todoContent";
+import { CtnDocumentMetadataError } from "../../core/ctn/parser/parseCtnDocument";
+import { CtnBlockMetadataSyntaxError } from "../../core/ctn/metadata/blockMetadata";
+import { WorkspaceBlockMetadataError } from "../../core/workspace/context/workspaceBlockMetadata";
+import { WorkspaceNoteHeaderError } from "../../core/workspace/model/workspaceData";
 import {
   resolveWorkspaceSessionContent,
 } from "../workspace/session/sessionRepositorySnapshot";
@@ -35,7 +30,17 @@ import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
 } from "../repository/workspaceRepositoryCatalog";
-import { createCtnSearchDocument } from "../search/searchDocuments";
+import { WorkspaceRepositoryRemoteError } from "../repository/workspaceRepository";
+import {
+  VersionedRepositoryRemoteError,
+} from "../persistence/versionedRepository";
+import {
+  createSearchCorpusRevision,
+  projectJournalSearchDocuments,
+  projectTodoSearchDocuments,
+  projectWorkspaceSearchDocuments,
+  type CreateSearchResourceVersion,
+} from "../search/searchCorpus";
 import {
   createSearchQuery,
   searchDomains,
@@ -44,7 +49,6 @@ import {
   type SearchFault,
   type SearchQuery,
   type SearchRequest,
-  type SearchResourceVersion,
   type SearchSource,
 } from "../search/searchQuery";
 
@@ -55,126 +59,38 @@ type WorkbenchSearchState = {
   workspace: WorkspaceSessionControllerState | null;
 };
 
-type CreateVersion = (value: unknown) => Promise<SearchResourceVersion>;
+type CreateVersion = CreateSearchResourceVersion;
 type WorkspaceDocumentCacheEntry = {
   documents: SearchDocument[];
   revision: string;
 };
+const maximumCachedWorkspaceSources = 32;
 
-function latestTodoTimestamp(
-  parsed: TodoParseIndex["collections"][number],
+function readWorkspaceDocumentCache(
+  cache: Map<string, WorkspaceDocumentCacheEntry>,
+  repositoryId: string,
 ) {
-  const first = parsed.analysis.document.blocks[0];
+  const entry = cache.get(repositoryId);
 
-  if (!first) return "1970-01-01T00:00:00.000Z";
-  return parsed.analysis.document.blocks.reduce(
-    (latest, block) =>
-      Date.parse(block.metadata.updatedAt) > Date.parse(latest)
-        ? block.metadata.updatedAt
-        : latest,
-    first.metadata.updatedAt,
-  );
+  if (!entry) return null;
+  cache.delete(repositoryId);
+  cache.set(repositoryId, entry);
+  return entry;
 }
 
-async function createWorkspaceDocuments({
-  createVersion,
-  index,
-  repositoryId,
-  workspace,
-}: {
-  createVersion: CreateVersion;
-  index: WorkspaceParseIndex | null;
-  repositoryId: string;
-  workspace: WorkspaceStructureIndex;
-}): Promise<SearchDocument[]> {
-  return Promise.all([...workspace.noteEntryById.values()].map(
-    async (entry) => {
-      const version = await createVersion({ source: entry.note.source });
-      const parsed = index?.getParsedNote(entry.note.id);
-
-      if (!parsed) {
-        const editableSource = removeCtnBlockMetadataLines(entry.note.source);
-
-        return {
-          blocks: [],
-          domain: "workspace" as const,
-          editableText: editableSource.split("\n").slice(1).join("\n"),
-          repositoryId,
-          resourceId: entry.note.id,
-          title: entry.header.title,
-          updatedAt: entry.header.updatedAt,
-          version,
-        };
-      }
-      return createCtnSearchDocument({
-        analysis: parsed.analysis,
-        domain: "workspace",
-        editableText: parsed.analysis.editableProjection.source,
-        repositoryId,
-        resourceId: entry.note.id,
-        textMode: "document",
-        title: entry.header.title,
-        updatedAt: entry.header.updatedAt,
-        version,
-      });
-    },
-  ));
-}
-
-async function createJournalDocuments(
-  createVersion: CreateVersion,
-  index: JournalParseIndex,
+function writeWorkspaceDocumentCache(
+  cache: Map<string, WorkspaceDocumentCacheEntry>,
+  repositoryId: string,
+  entry: WorkspaceDocumentCacheEntry,
 ) {
-  return Promise.all(index.entries.map(async (parsed) => {
-    const body = createJournalEntryBodyProjection(parsed);
+  cache.delete(repositoryId);
+  cache.set(repositoryId, entry);
+  while (cache.size > maximumCachedWorkspaceSources) {
+    const oldest = cache.keys().next().value;
 
-    return createCtnSearchDocument({
-      analysis: parsed.analysis,
-      domain: "journal",
-      editableText: body.source,
-      resourceId: parsed.entry.id,
-      textMode: "body",
-      title: parsed.title,
-      updatedAt: parsed.entry.updatedAt,
-      version: await createVersion({ source: parsed.entry.source }),
-    });
-  }));
-}
-
-async function createTodoDocuments(
-  createVersion: CreateVersion,
-  index: TodoParseIndex,
-) {
-  return Promise.all(index.collections.map(async (parsed) => {
-    const body = createTodoCollectionBodyProjection(parsed);
-
-    return createCtnSearchDocument({
-      analysis: parsed.analysis,
-      domain: "todo",
-      editableText: body.source,
-      resourceId: parsed.collection.id,
-      textMode: "body",
-      title: parsed.name,
-      updatedAt: latestTodoTimestamp(parsed),
-      version: await createVersion({
-        body: body.source,
-        name: parsed.name,
-      }),
-    });
-  }));
-}
-
-function sourceRevision(documents: readonly SearchDocument[]) {
-  return documents
-    .map(({ blocks, domain, repositoryId, resourceId, updatedAt, version }) =>
-      `${domain}:${repositoryId ?? ""}:${resourceId}:${version}:${updatedAt}:${
-        blocks.map(({ blockId, updatedAt: blockUpdatedAt }) =>
-          `${blockId}@${blockUpdatedAt}`
-        ).join(",")
-      }`
-    )
-    .sort()
-    .join("|");
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
 }
 
 function createSafeSourceFault(
@@ -183,20 +99,42 @@ function createSafeSourceFault(
   repositoryId?: string,
 ): NonNullable<SearchSource["createFault"]> {
   return (error) => {
-    const invalid = error instanceof Error &&
-      /(?:contract|corrupt|invalid|syntax|validation)/i.test(
-        `${error.name} ${error.message}`,
-      );
+    const invalid = isInvalidWorkbenchSearchSource(error);
 
-    return {
+    const common: Pick<SearchFault, "code" | "message"> = {
       code: invalid ? "source_invalid" : "source_unavailable",
-      domain,
       message: invalid
         ? `${label}搜索来源包含无效数据。`
         : `${label}搜索来源当前不可读取。`,
-      ...(repositoryId ? { repositoryId } : {}),
     };
+
+    return domain === "workspace"
+      ? { ...common, domain, ...(repositoryId ? { repositoryId } : {}) }
+      : { ...common, domain };
   };
+}
+
+function hasInvalidRepositoryCode(
+  error: WorkspaceRepositoryRemoteError | VersionedRepositoryRemoteError,
+) {
+  return error.code === "repository_corrupt" ||
+    error.code === "unsupported_repository_version" ||
+    error.code === "invalid_request";
+}
+
+function isInvalidWorkbenchSearchSource(error: unknown) {
+  if (
+    error instanceof WorkspaceRepositoryRemoteError ||
+    error instanceof VersionedRepositoryRemoteError
+  ) {
+    return hasInvalidRepositoryCode(error);
+  }
+  return error instanceof JournalContentValidationError ||
+    error instanceof TodoContentValidationError ||
+    error instanceof CtnDocumentMetadataError ||
+    error instanceof CtnBlockMetadataSyntaxError ||
+    error instanceof WorkspaceBlockMetadataError ||
+    error instanceof WorkspaceNoteHeaderError;
 }
 
 function workspaceSource({
@@ -226,24 +164,27 @@ function workspaceSource({
         state.activeRepositoryId === descriptor.id &&
         state.workspace?.status === "ready"
       ) {
-        const documents = await createWorkspaceDocuments({
+        const documents = await projectWorkspaceSearchDocuments({
           createVersion,
           index: state.workspace.analysisIndex,
           repositoryId: descriptor.id,
           workspace: state.workspace.workspace,
         });
 
-        return { documents, revision: sourceRevision(documents) };
+        return {
+          documents,
+          revision: createSearchCorpusRevision(documents),
+        };
       }
       const snapshot = await workspaceCatalog.openRepository(descriptor)
         .loadSnapshot();
-      const cached = cache.get(descriptor.id);
+      const cached = readWorkspaceDocumentCache(cache, descriptor.id);
 
       if (cached?.revision === snapshot.localRevision) {
         return cached;
       }
       const projection = resolveWorkspaceSessionContent(snapshot.content);
-      const documents = await createWorkspaceDocuments({
+      const documents = await projectWorkspaceSearchDocuments({
         createVersion,
         index: projection.analysisIndex,
         repositoryId: descriptor.id,
@@ -251,7 +192,7 @@ function workspaceSource({
       });
       const entry = { documents, revision: snapshot.localRevision };
 
-      cache.set(descriptor.id, entry);
+      writeWorkspaceDocumentCache(cache, descriptor.id, entry);
       return entry;
     },
     repositoryId: descriptor.id,
@@ -285,9 +226,15 @@ function builtInSource({
 
           index = createJournalParseIndex(snapshot.content);
         }
-        const documents = await createJournalDocuments(createVersion, index);
+        const documents = await projectJournalSearchDocuments({
+          createVersion,
+          index,
+        });
 
-        return { documents, revision: sourceRevision(documents) };
+        return {
+          documents,
+          revision: createSearchCorpusRevision(documents),
+        };
       },
     };
   }
@@ -306,9 +253,15 @@ function builtInSource({
 
         index = createTodoParseIndex(snapshot.content);
       }
-      const documents = await createTodoDocuments(createVersion, index);
+      const documents = await projectTodoSearchDocuments({
+        createVersion,
+        index,
+      });
 
-      return { documents, revision: sourceRevision(documents) };
+      return {
+        documents,
+        revision: createSearchCorpusRevision(documents),
+      };
     },
   };
 }

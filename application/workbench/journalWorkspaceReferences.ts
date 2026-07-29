@@ -166,13 +166,13 @@ export function createJournalWorkspaceReferenceResolver(
         }
         return {
           destination: {
+            blockId: null,
             description: `普通仓库“${reference.repositoryName}”`,
+            domain: "workspace",
             id: `workspace-note:${match.id}:${notes[0].id}`,
-            kind: "workspace-note",
             label: `${reference.repositoryName}:${reference.noteName}`,
-            lineNumber: 1,
-            noteId: notes[0].id,
             repositoryId: match.id,
+            resourceId: notes[0].id,
           },
           reference,
           status: "resolved",

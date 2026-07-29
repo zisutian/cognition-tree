@@ -28,12 +28,12 @@ import {
 } from "./journalDiagnostics";
 import {
   findJournalWorkspaceReferenceResolution,
-  type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceDestination,
   type JournalWorkspaceReferenceResolutionState,
 } from "./journalExternalReferences";
 import {
-  findSearchBlockLineNumber,
-} from "../search/searchDocuments";
+  findCtnEditableBlockLineNumber,
+} from "../../core/ctn/analysis/editableProjection";
 
 export type JournalFocusRequest = {
   entryId: JournalEntryId;
@@ -145,12 +145,12 @@ export type JournalViewModel = {
     navigate: (
       destination:
         | JournalReferenceNavigationDestination
-        | JournalWorkspaceNoteDestination,
+        | JournalWorkspaceReferenceDestination,
     ) => void;
     resolve: (
       target: JournalReferenceNavigationTarget,
     ) => Array<
-      JournalReferenceNavigationDestination | JournalWorkspaceNoteDestination
+      JournalReferenceNavigationDestination | JournalWorkspaceReferenceDestination
     >;
   };
   outline: {
@@ -179,7 +179,9 @@ type JournalViewModelInput = {
   deleteEntry: (entryId: JournalEntryId) => void;
   consumeFocusRequest: (requestId: number) => void;
   openEntryLine: (entryId: JournalEntryId, lineNumber: number) => void;
-  openWorkspaceNote?: (destination: JournalWorkspaceNoteDestination) => void;
+  openWorkspaceNote?: (
+    destination: JournalWorkspaceReferenceDestination,
+  ) => void;
   selectEntry: (entryId: JournalEntryId) => void;
   updateActiveBodyLine: (lineNumber: number) => void;
   updateEntryBody: (
@@ -424,7 +426,7 @@ export function createJournalViewModel({
     }
     const parsed = index.getParsedEntry(entryId);
     const lineNumber = parsed
-      ? findSearchBlockLineNumber(parsed.analysis, blockId, "body")
+      ? findCtnEditableBlockLineNumber(parsed.analysis, blockId, "body")
       : null;
 
     openEntryLine(entryId, lineNumber ?? 1);

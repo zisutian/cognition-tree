@@ -8,8 +8,8 @@ import type { UiNoteId } from "../../../../../application/workspace/projection/v
 import type { WorkspaceSelection } from "../selection/useWorkspaceSelection";
 import type { WorkspaceParseIndex } from "../../../../../core/workspace/indexes/workspaceParseIndex";
 import {
-  findSearchBlockLineNumber,
-} from "../../../../../application/search/searchDocuments";
+  findCtnEditableBlockLineNumber,
+} from "../../../../../core/ctn/analysis/editableProjection";
 
 export type WorkspaceNoteFocusRequest = UiEditorFocusTarget & {
   noteId: UiNoteId;
@@ -71,7 +71,7 @@ export function useWorkspaceNavigation({
       }
       const parsed = analysisIndex?.getParsedNote(noteId);
       const lineNumber = parsed
-        ? findSearchBlockLineNumber(
+        ? findCtnEditableBlockLineNumber(
             parsed.analysis,
             blockId,
             "document",

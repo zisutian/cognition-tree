@@ -14,6 +14,12 @@ import { useRepositoryNavigation } from "../repository/useRepositoryNavigation";
 import { useTodoApplication } from "../todo/useTodoApplication";
 import { createRepositoryProjection } from "./workbenchApplicationProjection";
 import type { SearchResult } from "../../../../../application/search/searchQuery";
+import {
+  isJournalEntryId,
+} from "../../../../../core/journal/model/journalContent";
+import {
+  isTodoCollectionId,
+} from "../../../../../core/todo/model/todoContent";
 
 const workspaceFeedbackActivities = [
   "notes",
@@ -63,22 +69,6 @@ export function useWorkbenchApplicationBindings({
     },
     [controller],
   );
-  const openWorkspaceSearchResult = useCallback((result: SearchResult) => {
-    if (result.domain !== "workspace" || !result.repositoryId) return;
-    controller.requestWorkspaceNoteDestination({
-      blockId: result.blockId,
-      description: result.snippet,
-      id:
-        `search:${result.repositoryId}:${result.resourceId}:${
-          result.blockId ?? "document"
-        }`,
-      kind: "workspace-note",
-      label: result.title,
-      lineNumber: 1,
-      noteId: result.resourceId,
-      repositoryId: result.repositoryId,
-    });
-  }, [controller]);
   const journal = useJournalApplication({
     openWorkspaceNote,
     referenceResolutionGeneration: snapshot.referenceResolutionGeneration,
@@ -90,6 +80,49 @@ export function useWorkbenchApplicationBindings({
     services: todoServices,
     session: todoSession,
   });
+  const openSearchResult = useCallback((result: SearchResult) => {
+    if (result.domain === "workspace") {
+      controller.requestWorkspaceNoteDestination({
+        blockId: result.blockId,
+        domain: result.domain,
+        repositoryId: result.repositoryId,
+        resourceId: result.resourceId,
+      });
+      return { domain: result.domain, status: "opened" as const };
+    }
+    if (result.domain === "journal") {
+      if (
+        journal.status !== "ready" ||
+        !isJournalEntryId(result.resourceId)
+      ) {
+        return { domain: result.domain, status: "unavailable" as const };
+      }
+      const found = journal.view.navigation.openEntryBlock(
+        result.resourceId,
+        result.blockId,
+      );
+
+      return {
+        domain: result.domain,
+        status: found ? "opened" as const : "stale" as const,
+      };
+    }
+    if (
+      todo.status !== "ready" ||
+      !isTodoCollectionId(result.resourceId)
+    ) {
+      return { domain: result.domain, status: "unavailable" as const };
+    }
+    const found = todo.view.navigation.openCollectionBlock(
+      result.resourceId,
+      result.blockId,
+    );
+
+    return {
+      domain: result.domain,
+      status: found ? "opened" as const : "stale" as const,
+    };
+  }, [controller, journal, todo]);
 
   useEffect(() => {
     if (
@@ -145,7 +178,7 @@ export function useWorkbenchApplicationBindings({
     ),
     search: {
       ...snapshot.search,
-      openWorkspaceResult: openWorkspaceSearchResult,
+      openResult: openSearchResult,
     },
     todo,
   };

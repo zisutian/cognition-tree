@@ -2,9 +2,13 @@
 
 import { createHash } from "node:crypto";
 import {
+  projectJournalSearchDocuments,
+  projectTodoSearchDocuments,
+  projectWorkspaceSearchDocuments,
+} from "../../../application/search/searchCorpus.ts";
+import {
   createSearchQuery,
   SearchRequestError,
-  type SearchDocument,
   type SearchDomain,
   type SearchFault,
   type SearchRequest,
@@ -12,10 +16,18 @@ import {
   type SearchResponse,
 } from "../../../application/search/searchQuery.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import {
+  WireContractError,
+} from "../../../contracts/common/contractValue.ts";
 import { parseJournalContent } from "../../../contracts/journal/parseJournal.ts";
 import { parseTodoContent } from "../../../contracts/todo/parseTodo.ts";
+import { CtnBlockMetadataSyntaxError } from "../../../core/ctn/metadata/blockMetadata.ts";
+import { CtnDocumentMetadataError } from "../../../core/ctn/parser/parseCtnDocument.ts";
+import { JournalContentValidationError } from "../../../core/journal/model/journalContent.ts";
+import { TodoContentValidationError } from "../../../core/todo/model/todoContent.ts";
+import { WorkspaceBlockMetadataError } from "../../../core/workspace/context/workspaceBlockMetadata.ts";
+import { WorkspaceNoteHeaderError } from "../../../core/workspace/model/workspaceData.ts";
 import type {
-  ApiV1CtnDocumentDto,
   ApiV1PrincipalDto,
   ApiV1SearchRequestDto,
   ApiV1SearchResponseDto,
@@ -23,17 +35,20 @@ import type {
 import type {
   WorkspaceRepositoryCatalog,
 } from "../repository/repositoryCatalog.ts";
+import {
+  RepositoryAdapterError,
+} from "../repository/repositoryStore.ts";
+import {
+  WorkspacePayloadValidationError,
+} from "../repository/workspaceRepositoryLayout.ts";
 import type { ApiV1BuiltInCatalog } from "./apiV1Ports.ts";
 import { ApiV1RequestError } from "./apiV1Errors.ts";
 import {
+  createApiV1ResourceVersion,
   createApiV1JournalIndex,
   createApiV1TodoIndex,
   createApiV1WorkspaceAnalysis,
-  projectApiV1JournalEntry,
-  projectApiV1TodoCollection,
-  projectApiV1WorkspaceNote,
 } from "./apiV1Resources.ts";
-import type { ApiV1Runtime } from "./apiV1Runtime.ts";
 
 function hasScope(
   principal: ApiV1PrincipalDto,
@@ -56,47 +71,40 @@ function requestedDomains(
   });
 }
 
-function mapDocument(
-  document: ApiV1CtnDocumentDto,
-  domain: SearchDomain,
-  repositoryId?: string,
-): SearchDocument {
-  return {
-    blocks: document.blocks.map(({ blockId, body, text, updatedAt }) => ({
-      blockId,
-      body,
-      text,
-      updatedAt,
-    })),
-    domain,
-    editableText: document.editableText,
-    ...(repositoryId ? { repositoryId } : {}),
-    resourceId: document.resourceId,
-    title: document.title,
-    updatedAt: document.updatedAt,
-    version: document.version,
-  };
-}
-
 function sourceFault(
   domain: SearchDomain,
   repositoryId?: string,
 ): SearchSource["createFault"] {
   return (error) => {
-    const invalid = error instanceof Error &&
-      /(?:contract|corrupt|invalid|syntax|validation)/i.test(
-        `${error.name} ${error.message}`,
-      );
+    const invalid = isInvalidServerSearchSource(error);
 
-    return {
+    const common: Pick<SearchFault, "code" | "message"> = {
       code: invalid ? "source_invalid" : "source_unavailable",
-      domain,
       message: invalid
         ? "Search source contains invalid data"
         : "Search source is unavailable",
-      ...(repositoryId ? { repositoryId } : {}),
     };
+
+    return domain === "workspace"
+      ? { ...common, domain, ...(repositoryId ? { repositoryId } : {}) }
+      : { ...common, domain };
   };
+}
+
+function isInvalidServerSearchSource(error: unknown) {
+  if (error instanceof RepositoryAdapterError) {
+    return error.code === "repository_corrupt" ||
+      error.code === "unsupported_repository_version" ||
+      error.code === "invalid_request";
+  }
+  return error instanceof WireContractError ||
+    error instanceof WorkspacePayloadValidationError ||
+    error instanceof JournalContentValidationError ||
+    error instanceof TodoContentValidationError ||
+    error instanceof CtnDocumentMetadataError ||
+    error instanceof CtnBlockMetadataSyntaxError ||
+    error instanceof WorkspaceBlockMetadataError ||
+    error instanceof WorkspaceNoteHeaderError;
 }
 
 function mapWorkspaceIssue(
@@ -170,11 +178,9 @@ export class ApiV1SearchService {
   constructor({
     builtInCatalog,
     catalog,
-    runtime,
   }: {
     builtInCatalog: ApiV1BuiltInCatalog;
     catalog: WorkspaceRepositoryCatalog;
-    runtime: ApiV1Runtime;
   }) {
     this.#query = createSearchQuery<ApiV1PrincipalDto>({
       createCorpusKey: (value) =>
@@ -219,22 +225,12 @@ export class ApiV1SearchService {
                     const analysis = createApiV1WorkspaceAnalysis(
                       snapshot.content,
                     );
-                    const documents = analysis.structure.data.notes.flatMap(
-                      (note) => {
-                        const projected = projectApiV1WorkspaceNote(
-                          analysis,
-                          note.id,
-                        );
-
-                        return projected
-                          ? [mapDocument(
-                              projected,
-                              "workspace",
-                              repository.id,
-                            )]
-                          : [];
-                      },
-                    );
+                    const documents = await projectWorkspaceSearchDocuments({
+                      createVersion: createApiV1ResourceVersion,
+                      index: analysis.parseIndex,
+                      repositoryId: repository.id,
+                      workspace: analysis.structure,
+                    });
 
                     return { documents, revision: snapshot.revision };
                   },
@@ -258,12 +254,10 @@ export class ApiV1SearchService {
                   .then((store) => store.loadSnapshot());
                 const content = parseJournalContent(snapshot.content);
                 const index = createApiV1JournalIndex(content);
-                const documents = index.entries.map((parsed) =>
-                  mapDocument(
-                    projectApiV1JournalEntry(parsed),
-                    "journal",
-                  )
-                );
+                const documents = await projectJournalSearchDocuments({
+                  createVersion: createApiV1ResourceVersion,
+                  index,
+                });
 
                 return { documents, revision: snapshot.revision };
               },
@@ -278,14 +272,10 @@ export class ApiV1SearchService {
                   .then((store) => store.loadSnapshot());
                 const content = parseTodoContent(snapshot.content);
                 const index = createApiV1TodoIndex(content);
-                const now = runtime.now();
-                const today = runtime.today(now);
-                const documents = index.collections.map((parsed) =>
-                  mapDocument(
-                    projectApiV1TodoCollection(parsed, today).document,
-                    "todo",
-                  )
-                );
+                const documents = await projectTodoSearchDocuments({
+                  createVersion: createApiV1ResourceVersion,
+                  index,
+                });
 
                 return { documents, revision: snapshot.revision };
               },

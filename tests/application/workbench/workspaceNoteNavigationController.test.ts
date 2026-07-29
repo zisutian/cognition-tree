@@ -7,13 +7,10 @@ import {
 } from "../../../application/workbench/workspaceNoteNavigationController";
 
 const destination = {
-  description: "仓库B",
-  id: "workspace-note:repository-b:note-1",
-  kind: "workspace-note" as const,
-  label: "仓库B:B",
-  lineNumber: 1 as const,
-  noteId: "note-1",
+  blockId: null,
+  domain: "workspace" as const,
   repositoryId: "repository-b",
+  resourceId: "note-1",
 };
 
 const descriptor = {

@@ -46,19 +46,10 @@ export function ReadyWorkspaceWorkbench({
 
   useEffect(() => {
     if (!focusRequest) return;
-    let found = true;
-
-    if (focusRequest.destination.blockId === undefined) {
-      workspace.navigation.openNoteLine(
-        focusRequest.destination.noteId,
-        focusRequest.destination.lineNumber,
-      );
-    } else {
-      found = workspace.navigation.openNoteBlock(
-        focusRequest.destination.noteId,
-        focusRequest.destination.blockId,
-      );
-    }
+    const found = workspace.navigation.openNoteBlock(
+      focusRequest.destination.resourceId,
+      focusRequest.destination.blockId,
+    );
 
     if (!found) {
       feedbackController.reportInfo(

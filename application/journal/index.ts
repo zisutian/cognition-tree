@@ -37,7 +37,7 @@ export {
 export {
   findJournalWorkspaceReferenceResolution,
   startJournalWorkspaceReferenceResolution,
-  type JournalWorkspaceNoteDestination,
+  type JournalWorkspaceReferenceDestination,
   type JournalWorkspaceReferenceFaultCode,
   type JournalWorkspaceReferenceResolution,
   type JournalWorkspaceReferenceResolutionState,

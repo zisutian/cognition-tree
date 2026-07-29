@@ -23,8 +23,8 @@ import {
   type TodoDiagnostics,
 } from "./todoDiagnostics";
 import {
-  findSearchBlockLineNumber,
-} from "../search/searchDocuments";
+  findCtnEditableBlockLineNumber,
+} from "../../core/ctn/analysis/editableProjection";
 
 export type TodoFocusRequest = {
   collectionId: TodoCollectionId;
@@ -314,7 +314,7 @@ export function createTodoViewModel(input: TodoViewModelInput): TodoViewModel {
     }
     const parsed = index.getParsedCollection(collectionId);
     const lineNumber = parsed
-      ? findSearchBlockLineNumber(parsed.analysis, blockId, "body")
+      ? findCtnEditableBlockLineNumber(parsed.analysis, blockId, "body")
       : null;
 
     openCollectionLine(collectionId, lineNumber ?? 1);

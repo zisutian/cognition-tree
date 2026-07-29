@@ -99,7 +99,6 @@ export function createApiV1RequestHandler({
   const search = createApiV1SearchService({
     builtInCatalog,
     catalog,
-    runtime,
   });
 
   return async (request, response) => {

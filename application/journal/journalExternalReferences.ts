@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { JournalWorkspaceReference } from "../../core/journal/indexes/journalParseIndex";
+import type {
+  ContentDestinationOption,
+} from "../navigation/contentDestination";
 
 export type JournalWorkspaceReferenceFaultCode =
   | "note-ambiguous"
@@ -9,20 +12,12 @@ export type JournalWorkspaceReferenceFaultCode =
   | "repository-not-found"
   | "repository-unreadable";
 
-export type JournalWorkspaceNoteDestination = {
-  blockId?: string | null;
-  description: string;
-  id: string;
-  kind: "workspace-note";
-  label: string;
-  lineNumber: number;
-  noteId: string;
-  repositoryId: string;
-};
+export type JournalWorkspaceReferenceDestination =
+  ContentDestinationOption & { domain: "workspace" };
 
 export type JournalWorkspaceReferenceResolution =
   | {
-      destination: JournalWorkspaceNoteDestination;
+      destination: JournalWorkspaceReferenceDestination;
       reference: JournalWorkspaceReference;
       status: "resolved";
     }

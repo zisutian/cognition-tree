@@ -23,8 +23,10 @@ import type {
   CtnCanonicalSourceAnalysis,
 } from "../../../core/ctn/analysis/sourceAnalysis.ts";
 import {
-  removeCtnBlockMetadataLines,
-} from "../../../core/ctn/metadata/blockMetadata.ts";
+  projectCtnCanonicalBlockBody,
+  projectCtnEditableText,
+  projectRawCanonicalCtnBody,
+} from "../../../core/ctn/analysis/editableProjection.ts";
 import {
   getCtnEditableLineNumber,
 } from "../../../core/ctn/metadata/editableSource.ts";
@@ -199,27 +201,6 @@ function createParentBlockIdIndex(
   return result;
 }
 
-function projectBlockBody(
-  analysis: CtnCanonicalSourceAnalysis,
-  block: CtnCanonicalBlock,
-) {
-  const range = block.multilineRange;
-
-  if (!range) return null;
-  const editable = analysis.editableProjection;
-  const start = getCtnEditableLineNumber(
-    editable,
-    range.contentStartLineNumber,
-  );
-  const end = getCtnEditableLineNumber(editable, range.contentEndLineNumber);
-
-  if (end < start) return "";
-  return editable.sourceText.lines
-    .slice(start - 1, end)
-    .map(({ text }) => text)
-    .join("\n");
-}
-
 function projectApiV1Blocks({
   analysis,
   lineOffset,
@@ -250,7 +231,7 @@ function projectApiV1Blocks({
 
     return {
       blockId: block.id,
-      body: projectBlockBody(analysis, block),
+      body: projectCtnCanonicalBlockBody(analysis, block),
       createdAt: block.metadata.createdAt,
       endLineNumber: Math.max(1, endLineNumber - lineOffset),
       kind: block.rule.kind,
@@ -291,12 +272,10 @@ export function projectApiV1CtnDocument({
   updatedAt: string;
   version: ApiV1ResourceVersionDto;
 }): ApiV1CtnDocumentDto {
-  const offset = textMode === "body" ? title.length + 1 : 0;
-  const lineOffset = textMode === "body" ? 1 : 0;
-  const source = editableText ??
-    (textMode === "body"
-      ? analysis.editableProjection.source.slice(offset)
-      : analysis.editableProjection.source);
+  const projection = projectCtnEditableText(analysis, textMode);
+  const offset = projection.sourceOffset;
+  const lineOffset = projection.lineOffset;
+  const source = editableText ?? projection.source;
 
   return {
     blocks: projectApiV1Blocks({ analysis, lineOffset, offset }),
@@ -436,13 +415,11 @@ export function projectApiV1WorkspaceNote(
       version,
     });
   }
-  const editableSource = removeCtnBlockMetadataLines(entry.note.source);
-
   return {
     blocks: [],
     createdAt: entry.header.createdAt,
     diagnostics: [],
-    editableText: editableSource.split("\n").slice(1).join("\n"),
+    editableText: projectRawCanonicalCtnBody(entry.note.source),
     resourceId: noteId,
     textMode: "document",
     title: entry.header.title,

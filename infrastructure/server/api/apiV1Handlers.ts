@@ -934,13 +934,11 @@ export async function handleApiV1Route(
 export function createApiV1SearchService({
   builtInCatalog,
   catalog,
-  runtime,
 }: {
   builtInCatalog?: ApiV1BuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
-  runtime: ApiV1Runtime;
 }) {
   return builtInCatalog
-    ? new ApiV1SearchService({ builtInCatalog, catalog, runtime })
+    ? new ApiV1SearchService({ builtInCatalog, catalog })
     : null;
 }

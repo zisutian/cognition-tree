@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  JournalWorkspaceNoteDestination,
   JournalWorkspaceReferenceResolver,
 } from "../journal/journalExternalReferences";
+import type {
+  WorkspaceContentDestination,
+} from "../navigation/contentDestination";
 import type {
   ApiAccessAdministration,
 } from "../apiAccess/apiAccessAdministration";
@@ -104,7 +106,7 @@ export type WorkbenchController = {
   requestJournalSync(): void;
   requestTodoSync(): void;
   requestWorkspaceNoteDestination(
-    destination: JournalWorkspaceNoteDestination,
+    destination: WorkspaceContentDestination,
   ): number;
   retryBuiltIn(id: BuiltInId): Promise<void>;
   retryWorkspaceNoteDestination(requestId: number): void;
