@@ -36,6 +36,10 @@ import {
   type NoteId,
   type WorkspaceData,
 } from "../model/workspaceData.ts";
+import {
+  DomainNotFoundError,
+  DomainValidationError,
+} from "../../errors/domainErrors.ts";
 
 function hasWorkspaceNote(workspace: WorkspaceStructureIndex, noteId: NoteId) {
   return workspace.noteEntryById.has(noteId);
@@ -46,7 +50,10 @@ function assertWorkspaceNoteExists(
   noteId: NoteId,
 ) {
   if (!hasWorkspaceNote(workspace, noteId)) {
-    throw new Error(`Workspace note does not exist: ${noteId}`);
+    throw new DomainNotFoundError(
+      noteId,
+      `Workspace note does not exist: ${noteId}`,
+    );
   }
 }
 
@@ -55,7 +62,10 @@ function assertWorkspaceFolderExists(
   folderId: FolderId,
 ) {
   if (!workspace.folderEntryById.has(folderId)) {
-    throw new Error(`Workspace folder does not exist: ${folderId}`);
+    throw new DomainNotFoundError(
+      folderId,
+      `Workspace folder does not exist: ${folderId}`,
+    );
   }
 }
 
@@ -64,7 +74,9 @@ function assertWorkspaceNoteIdAvailable(
   noteId: NoteId,
 ) {
   if (hasWorkspaceNote(workspace, noteId)) {
-    throw new Error(`Workspace note already exists: ${noteId}`);
+    throw new DomainValidationError(
+      `Workspace note already exists: ${noteId}`,
+    );
   }
 }
 
@@ -73,7 +85,9 @@ function assertWorkspaceFolderIdAvailable(
   folderId: FolderId,
 ) {
   if (workspace.folderEntryById.has(folderId)) {
-    throw new Error(`Workspace folder already exists: ${folderId}`);
+    throw new DomainValidationError(
+      `Workspace folder already exists: ${folderId}`,
+    );
   }
 }
 
@@ -209,7 +223,10 @@ export function renameWorkspaceNote(
   const noteIndex = workspace.noteEntryById.get(noteId)?.noteIndex;
 
   if (noteIndex === undefined) {
-    throw new Error(`Workspace note does not exist: ${noteId}`);
+    throw new DomainNotFoundError(
+      noteId,
+      `Workspace note does not exist: ${noteId}`,
+    );
   }
 
   const note = workspace.data.notes[noteIndex];
@@ -242,7 +259,10 @@ export function deleteWorkspaceFolder(
   const folder = workspace.folderEntryById.get(folderId)?.node;
 
   if (!folder) {
-    throw new Error(`Workspace folder does not exist: ${folderId}`);
+    throw new DomainNotFoundError(
+      folderId,
+      `Workspace folder does not exist: ${folderId}`,
+    );
   }
 
   const removedNoteIds = new Set<NoteId>();
@@ -300,7 +320,10 @@ export function updateWorkspaceNoteSource(
   const entry = workspace.noteEntryById.get(noteId);
 
   if (!entry) {
-    throw new Error(`Workspace note does not exist: ${noteId}`);
+    throw new DomainNotFoundError(
+      noteId,
+      `Workspace note does not exist: ${noteId}`,
+    );
   }
 
   const noteIndex = entry.noteIndex;
@@ -363,7 +386,10 @@ export function updateWorkspaceRawNoteSource(
   const entry = workspace.noteEntryById.get(noteId);
 
   if (!entry) {
-    throw new Error(`Workspace note does not exist: ${noteId}`);
+    throw new DomainNotFoundError(
+      noteId,
+      `Workspace note does not exist: ${noteId}`,
+    );
   }
 
   const noteIndex = entry.noteIndex;

@@ -5,9 +5,6 @@ import type {
   CtnCanonicalSourceAnalysis,
 } from "../../core/ctn/analysis/sourceAnalysis";
 import {
-  createJournalEntry,
-  deleteJournalEntry,
-  updateJournalEntryBody,
   updateJournalSyntaxSource,
 } from "../../core/journal/commands/journalCommands";
 import {
@@ -33,6 +30,10 @@ import type {
   JournalFocusRequest,
   JournalViewModel,
 } from "./journalViewModel";
+import {
+  prepareJournalMutation,
+  type PreparedJournalMutation,
+} from "./journalDomainCommands";
 
 export type JournalApplicationServices = {
   createBlockId: () => string;
@@ -111,31 +112,31 @@ function monotonicTimestamp(requested: string, current: string) {
   return Date.parse(requested) < Date.parse(current) ? current : requested;
 }
 
-type JournalPreparedMutation = {
-  analysisOverrides?: ReadonlyMap<
-    JournalEntryId,
-    CtnCanonicalSourceAnalysis
-  >;
-  content: JournalContent;
-};
-
 function updateJournalSession(
   session: Pick<JournalRepositorySession, "mutatePrepared">,
   update: (
     content: JournalContent,
     index: JournalParseIndex,
-  ) => JournalPreparedMutation,
+  ) => PreparedJournalMutation | {
+    analysisOverrides?: ReadonlyMap<
+      JournalEntryId,
+      CtnCanonicalSourceAnalysis
+    >;
+    content: JournalContent;
+  },
 ) {
   session.mutatePrepared(({ content, projection }) => {
     const result = update(content, projection);
 
     return {
       content: result.content,
-      projection: createJournalParseIndex(
-        result.content,
-        projection,
-        result.analysisOverrides,
-      ),
+      projection: "index" in result
+        ? result.index
+        : createJournalParseIndex(
+            result.content,
+            projection,
+            result.analysisOverrides,
+          ),
     };
   });
 }
@@ -162,23 +163,24 @@ export function createJournalMutationActions({
 
       updateJournalSession(session, (content, index) => {
         const createdAt = timestamp(index, now.toISOString());
-        const result = createJournalEntry(
-          content,
-          index,
-          {
-            createBlockId: services.createBlockId,
+        const result = prepareJournalMutation({
+          command: {
+            body: "",
             createdAt,
             entryId,
+            kind: "create-entry",
             timezoneOffsetMinutes:
               getJournalCreationTimezoneOffsetMinutes(now),
           },
-        );
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        });
 
-        createdEntryId = result.entryId;
-        return {
-          analysisOverrides: new Map([[entryId, result.analysis]]),
-          content: result.content,
-        };
+        createdEntryId = result.outcome.kind === "journal-entry-created"
+          ? result.outcome.entryId as JournalEntryId
+          : null;
+        return result;
       });
       if (!createdEntryId) {
         throw new Error("The journal session did not apply the creation.");
@@ -189,7 +191,7 @@ export function createJournalMutationActions({
     deleteEntry(entryId) {
       const outcome: { value?: JournalDeleteMutationResult } = {};
 
-      updateJournalSession(session, (content) => {
+      updateJournalSession(session, (content, index) => {
         const nextSelection = resolveJournalSelectionAfterDelete(
           content,
           entryId,
@@ -200,7 +202,17 @@ export function createJournalMutationActions({
           deletedEntryId: entryId,
           nextSelection,
         };
-        return { content: deleteJournalEntry(content, entryId) };
+        return prepareJournalMutation({
+          command: {
+            entryId,
+            kind: "delete-entry",
+            timestamp: index.latestTimestamp ??
+              "1970-01-01T00:00:00.000Z",
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        });
       });
       const result = outcome.value;
 
@@ -214,17 +226,17 @@ export function createJournalMutationActions({
       const requestedUpdatedAt = readNow(services).toISOString();
 
       updateJournalSession(session, (content, index) => {
-        const result = updateJournalEntryBody(content, index, {
-          change,
+        return prepareJournalMutation({
+          command: {
+            change,
+            entryId,
+            kind: "replace-entry-body",
+            updatedAt: timestamp(index, requestedUpdatedAt),
+          },
+          content,
           createBlockId: services.createBlockId,
-          entryId,
-          updatedAt: timestamp(index, requestedUpdatedAt),
+          index,
         });
-
-        return {
-          analysisOverrides: new Map([[entryId, result.analysis]]),
-          content: result.content,
-        };
       });
     },
     updateSyntaxSource(source) {

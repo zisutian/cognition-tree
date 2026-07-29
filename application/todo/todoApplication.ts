@@ -5,16 +5,6 @@ import type {
   CtnCanonicalSourceAnalysis,
 } from "../../core/ctn/analysis/sourceAnalysis";
 import {
-  createTodoCollection,
-  deleteTodoCollection,
-  moveTodoBlock,
-  moveTodoCollection,
-  renameTodoCollection,
-  setTodoBlockCompletion,
-  setTodoBlockRecurrence,
-  stopTodoBlockRecurrence,
-  toggleTodoBlock,
-  updateTodoCollectionBody,
   updateTodoSyntaxSource,
   type TodoBlockMoveTarget,
 } from "../../core/todo/commands/todoCommands";
@@ -42,6 +32,9 @@ import {
 import type {
   PreparedVersionedContent,
 } from "../persistence/versionedSessionController";
+import {
+  prepareTodoMutation,
+} from "./todoDomainCommands";
 
 export type TodoApplicationServices = {
   createBlockId: () => string;
@@ -125,6 +118,7 @@ type TodoPreparedMutation = {
     CtnCanonicalSourceAnalysis
   >;
   content: TodoContent;
+  index?: TodoParseIndex;
 };
 
 function updateTodoSession(
@@ -139,11 +133,12 @@ function updateTodoSession(
 
     return {
       content: result.content,
-      projection: createTodoParseIndex(
-        result.content,
-        projection,
-        result.analysisOverrides,
-      ),
+      projection: result.index ??
+        createTodoParseIndex(
+          result.content,
+          projection,
+          result.analysisOverrides,
+        ),
     };
   });
 }
@@ -168,20 +163,21 @@ export function createTodoMutationActions({
       let createdCollectionId: TodoCollectionId | null = null;
 
       updateTodoSession(session, (content, index) => {
-        const result = createTodoCollection(content, index, {
-          collectionId,
+        const result = prepareTodoMutation({
+          command: {
+            body: "",
+            collectionId,
+            createdAt: timestamp(index),
+            kind: "create-collection",
+            name,
+          },
+          content,
           createBlockId: services.createBlockId,
-          createdAt: timestamp(index),
-          name,
+          index,
         });
 
-        createdCollectionId = result.collectionId;
-        return {
-          analysisOverrides: new Map([
-            [collectionId, result.analysis],
-          ]),
-          content: result.content,
-        };
+        createdCollectionId = collectionId;
+        return result;
       });
       if (!createdCollectionId) {
         throw new Error("The todo session did not apply the collection creation.");
@@ -192,7 +188,7 @@ export function createTodoMutationActions({
     deleteCollection(collectionId) {
       const outcome: { value?: TodoDeleteCollectionMutationResult } = {};
 
-      updateTodoSession(session, (content) => {
+      updateTodoSession(session, (content, index) => {
         const nextSelection = resolveTodoCollectionSelectionAfterDelete(
           content,
           collectionId,
@@ -203,7 +199,16 @@ export function createTodoMutationActions({
           deletedCollectionId: collectionId,
           nextSelection,
         };
-        return { content: deleteTodoCollection(content, collectionId) };
+        return prepareTodoMutation({
+          command: {
+            collectionId,
+            kind: "delete-collection",
+            timestamp: index.latestTimestamp ?? "1970-01-01T00:00:00.000Z",
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        });
       });
       const result = outcome.value;
 
@@ -215,32 +220,49 @@ export function createTodoMutationActions({
     },
     moveBlock(collectionId, blockId, target) {
       updateTodoSession(session, (content, index) => {
-        const result = moveTodoBlock(content, index, {
-          blockId,
-          collectionId,
-          target,
-          updatedAt: timestamp(index),
+        return prepareTodoMutation({
+          command: {
+            blockId,
+            collectionId,
+            kind: "move-block",
+            target,
+            updatedAt: timestamp(index),
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
         });
-
-        return {
-          analysisOverrides: new Map([[collectionId, result.analysis]]),
-          content: result.content,
-        };
       });
     },
     moveCollection(collectionId, toIndex) {
-      updateTodoSession(session, (content) => ({
-        content: moveTodoCollection(content, { collectionId, toIndex }),
-      }));
+      updateTodoSession(session, (content, index) =>
+        prepareTodoMutation({
+          command: {
+            collectionId,
+            kind: "move-collection",
+            timestamp: index.latestTimestamp ?? "1970-01-01T00:00:00.000Z",
+            toIndex,
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        })
+      );
     },
     renameCollection(collectionId, name) {
-      updateTodoSession(session, (content, index) => ({
-        content: renameTodoCollection(content, index, {
-          collectionId,
-          name,
-          updatedAt: timestamp(index),
-        }),
-      }));
+      updateTodoSession(session, (content, index) =>
+        prepareTodoMutation({
+          command: {
+            collectionId,
+            kind: "rename-collection",
+            name,
+            updatedAt: timestamp(index),
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        })
+      );
     },
     setBlockCompletion(
       collectionId,
@@ -248,64 +270,86 @@ export function createTodoMutationActions({
       completed,
       occurrenceDate,
     ) {
-      updateTodoSession(session, (content, index) => ({
-        content: setTodoBlockCompletion(content, index, {
-          blockId,
-          collectionId,
-          completed,
-          completedAt: timestamp(index),
-          occurrenceDate,
-          today: services.localCalendar.today(),
-        }),
-      }));
+      updateTodoSession(session, (content, index) =>
+        prepareTodoMutation({
+          command: {
+            blockId,
+            collectionId,
+            completed,
+            completedAt: timestamp(index),
+            kind: "set-completion",
+            occurrenceDate,
+            today: services.localCalendar.today(),
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        })
+      );
     },
     setBlockRecurrence(collectionId, blockId, rule) {
-      updateTodoSession(session, (content, index) => ({
-        content: setTodoBlockRecurrence(content, index, {
-          blockId,
-          collectionId,
-          rule,
-          stageId: services.createRecurrenceStageId(),
-          today: services.localCalendar.today(),
-          updatedAt: timestamp(index),
-        }),
-      }));
+      updateTodoSession(session, (content, index) =>
+        prepareTodoMutation({
+          command: {
+            blockId,
+            collectionId,
+            kind: "set-recurrence",
+            rule,
+            stageId: services.createRecurrenceStageId(),
+            today: services.localCalendar.today(),
+            updatedAt: timestamp(index),
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        })
+      );
     },
     stopBlockRecurrence(collectionId, blockId) {
-      updateTodoSession(session, (content, index) => ({
-        content: stopTodoBlockRecurrence(content, index, {
-          blockId,
-          collectionId,
-          today: services.localCalendar.today(),
-          updatedAt: timestamp(index),
-        }),
-      }));
+      updateTodoSession(session, (content, index) =>
+        prepareTodoMutation({
+          command: {
+            blockId,
+            collectionId,
+            kind: "stop-recurrence",
+            today: services.localCalendar.today(),
+            updatedAt: timestamp(index),
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        })
+      );
     },
     toggleBlock(collectionId, blockId) {
-      updateTodoSession(session, (content, index) => ({
-        content: toggleTodoBlock(content, index, {
-          blockId,
-          collectionId,
-          completedAt: timestamp(index),
-          today: services.localCalendar.today(),
-        }),
-      }));
+      updateTodoSession(session, (content, index) =>
+        prepareTodoMutation({
+          command: {
+            blockId,
+            collectionId,
+            completedAt: timestamp(index),
+            kind: "toggle-completion",
+            today: services.localCalendar.today(),
+          },
+          content,
+          createBlockId: services.createBlockId,
+          index,
+        })
+      );
     },
     updateCollectionBody(collectionId, change) {
       updateTodoSession(session, (content, index) => {
-        const result = updateTodoCollectionBody(content, index, {
-          change,
-          collectionId,
+        return prepareTodoMutation({
+          command: {
+            change,
+            collectionId,
+            kind: "replace-collection-body",
+            updatedAt: timestamp(index),
+          },
+          content,
           createBlockId: services.createBlockId,
-          updatedAt: timestamp(index),
+          index,
         });
-
-        return {
-          analysisOverrides: new Map([
-            [collectionId, result.analysis],
-          ]),
-          content: result.content,
-        };
       });
     },
     updateSyntaxSource(source) {

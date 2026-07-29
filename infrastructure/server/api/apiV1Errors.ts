@@ -17,6 +17,16 @@ import {
   TodoOccurrenceConflictError,
 } from "../../../core/todo/commands/todoCommands.ts";
 import {
+  DomainNotFoundError,
+  DomainValidationError,
+} from "../../../core/errors/domainErrors.ts";
+import {
+  PortableNameValidationError,
+} from "../../../core/naming/portableName.ts";
+import {
+  DomainResourceConflictError,
+} from "../../../application/commands/domainCommand.ts";
+import {
   JournalContentValidationError,
 } from "../../../core/journal/model/journalContent.ts";
 import {
@@ -100,28 +110,33 @@ export function apiV1NotFound(message = "Resource does not exist"): never {
   throw new ApiV1RequestError("not_found", message);
 }
 
-export function assertApiV1ResourceVersion(
-  expected: string,
-  current: string,
-  resourceId: string,
-) {
-  if (expected !== current) {
-    throw new ApiV1RequestError(
+export function mapApiV1Error(error: unknown): ApiV1RequestError {
+  if (error instanceof ApiV1RequestError) return error;
+  if (error instanceof DomainNotFoundError) {
+    return new ApiV1RequestError("not_found", error.message);
+  }
+  if (
+    error instanceof DomainValidationError ||
+    error instanceof PortableNameValidationError
+  ) {
+    return new ApiV1RequestError("domain_validation_failed", error.message);
+  }
+  if (error instanceof DomainResourceConflictError) {
+    return new ApiV1RequestError(
       "resource_conflict",
       "Resource changed after it was read",
       {
         details: {
-          conflictId: createConflictId(resourceId, current),
-          currentVersion: current,
-          resourceId,
+          conflictId: createConflictId(
+            error.resourceId,
+            error.currentVersion,
+          ),
+          currentVersion: error.currentVersion,
+          resourceId: error.resourceId,
         },
       },
     );
   }
-}
-
-export function mapApiV1Error(error: unknown): ApiV1RequestError {
-  if (error instanceof ApiV1RequestError) return error;
   if (error instanceof ApiV1IdempotencyConflictError) {
     return new ApiV1RequestError("idempotency_conflict", error.message);
   }

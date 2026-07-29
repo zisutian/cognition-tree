@@ -28,6 +28,10 @@ import {
   type JournalContent,
   type JournalEntryId,
 } from "../model/journalContent.ts";
+import {
+  DomainNotFoundError,
+  DomainValidationError,
+} from "../../errors/domainErrors.ts";
 
 export type CreateJournalEntryInput = {
   createBlockId: () => string;
@@ -56,7 +60,9 @@ function canonicalTimestamp(value: string, label: string) {
     !Number.isFinite(milliseconds) ||
     new Date(milliseconds).toISOString() !== value
   ) {
-    throw new Error(`${label} must be a canonical ISO timestamp.`);
+    throw new DomainValidationError(
+      `${label} must be a canonical ISO timestamp.`,
+    );
   }
   return milliseconds;
 }
@@ -67,7 +73,10 @@ function findEntryPosition(content: JournalContent, entryId: JournalEntryId) {
   );
 
   if (dayIndex < 0) {
-    throw new Error(`Journal entry does not exist: ${entryId}`);
+    throw new DomainNotFoundError(
+      entryId,
+      `Journal entry does not exist: ${entryId}`,
+    );
   }
   const entryIndex = content.days[dayIndex].entries.findIndex(
     (entry) => entry.id === entryId,
@@ -81,10 +90,14 @@ export function createJournalEntry(
   input: CreateJournalEntryInput,
 ) {
   if (!isJournalEntryId(input.entryId)) {
-    throw new Error(`Invalid journal entry id: ${input.entryId}`);
+    throw new DomainValidationError(
+      `Invalid journal entry id: ${input.entryId}`,
+    );
   }
   if (index.entryById.has(input.entryId)) {
-    throw new Error(`Journal entry already exists: ${input.entryId}`);
+    throw new DomainValidationError(
+      `Journal entry already exists: ${input.entryId}`,
+    );
   }
 
   const date = formatJournalEntryDate(
@@ -95,7 +108,7 @@ export function createJournalEntry(
   const lastIssuedSequence = existingDay?.lastIssuedSequence ?? 0;
 
   if (lastIssuedSequence >= journalMaximumDailySequence) {
-    throw new Error(
+    throw new DomainValidationError(
       `Journal date ${date} has reached the daily limit of ${journalMaximumDailySequence} entries.`,
     );
   }
@@ -193,7 +206,9 @@ export function updateJournalEntryBody(
     return { analysis: parsed.analysis, content };
   }
   if (Date.parse(input.updatedAt) < Date.parse(current.entry.updatedAt)) {
-    throw new Error("Journal entry updatedAt cannot move backwards.");
+    throw new DomainValidationError(
+      "Journal entry updatedAt cannot move backwards.",
+    );
   }
 
   const nextEditableSource = `${current.parsed.title}\n${input.change.source}`;

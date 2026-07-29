@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { DomainValidationError } from "../../errors/domainErrors.ts";
+
 export type TodoLocalDate = `${number}-${number}-${number}`;
 export type TodoIsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -102,7 +104,9 @@ function formatEpochDay(epochDay: number): TodoLocalDate {
 
 function requirePositiveInterval(interval: number) {
   if (!Number.isSafeInteger(interval) || interval < 1) {
-    throw new Error("Todo recurrence interval must be a positive integer.");
+    throw new DomainValidationError(
+      "Todo recurrence interval must be a positive integer.",
+    );
   }
 }
 
@@ -115,7 +119,9 @@ export function requireTodoLocalDate(
   label = "Todo local date",
 ): TodoLocalDate {
   if (!isTodoLocalDate(value)) {
-    throw new Error(`${label} must use YYYY-MM-DD Gregorian format.`);
+    throw new DomainValidationError(
+      `${label} must use YYYY-MM-DD Gregorian format.`,
+    );
   }
   return value;
 }
@@ -142,18 +148,24 @@ export function addTodoLocalDays(
   days: number,
 ): TodoLocalDate {
   if (!Number.isSafeInteger(days)) {
-    throw new Error("Todo local date offset must be an integer.");
+    throw new DomainValidationError(
+      "Todo local date offset must be an integer.",
+    );
   }
   const parsed = readLocalDate(date);
 
-  if (!parsed) throw new Error(`Invalid Todo local date: ${date}`);
+  if (!parsed) {
+    throw new DomainValidationError(`Invalid Todo local date: ${date}`);
+  }
   return formatEpochDay(parsed.epochDay + days);
 }
 
 export function getTodoIsoWeekday(date: TodoLocalDate): TodoIsoWeekday {
   const parsed = readLocalDate(date);
 
-  if (!parsed) throw new Error(`Invalid Todo local date: ${date}`);
+  if (!parsed) {
+    throw new DomainValidationError(`Invalid Todo local date: ${date}`);
+  }
   const weekday = new Date(
     parsed.epochDay * millisecondsPerDay,
   ).getUTCDay();
@@ -172,12 +184,16 @@ export function validateTodoRecurrenceRule(
       rule.dayOfMonth < 1 ||
       rule.dayOfMonth > 31
     ) {
-      throw new Error("Todo monthly recurrence day must be between 1 and 31.");
+      throw new DomainValidationError(
+        "Todo monthly recurrence day must be between 1 and 31.",
+      );
     }
     return rule;
   }
   if (rule.weekdays.length === 0) {
-    throw new Error("Todo weekly recurrence requires at least one weekday.");
+    throw new DomainValidationError(
+      "Todo weekly recurrence requires at least one weekday.",
+    );
   }
   let previous = 0;
 
@@ -188,7 +204,7 @@ export function validateTodoRecurrenceRule(
       weekday > 7 ||
       weekday <= previous
     ) {
-      throw new Error(
+      throw new DomainValidationError(
         "Todo weekly recurrence weekdays must be unique and ascending.",
       );
     }
@@ -228,7 +244,9 @@ function dateInMonth(
   );
 
   if (nextMonthEpoch === null) {
-    throw new Error("Todo recurrence month is outside the supported range.");
+    throw new DomainValidationError(
+      "Todo recurrence month is outside the supported range.",
+    );
   }
   const lastDay = new Date(
     (nextMonthEpoch - 1) * millisecondsPerDay,
@@ -236,7 +254,9 @@ function dateInMonth(
   const epochDay = toEpochDayParts(year, month, Math.min(dayOfMonth, lastDay));
 
   if (epochDay === null) {
-    throw new Error("Todo recurrence month is outside the supported range.");
+    throw new DomainValidationError(
+      "Todo recurrence month is outside the supported range.",
+    );
   }
   return formatEpochDay(epochDay);
 }

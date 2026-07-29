@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type {
-  ApiV1CommandOutcomeDto,
-  ApiV1JournalCommandDto,
-  ApiV1ResourceChangeDto,
-} from "../../../contracts/api/types.ts";
-import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits.ts";
 import {
-  createJournalEntry,
-  deleteJournalEntry,
-  updateJournalEntryBody,
-} from "../../../core/journal/commands/journalCommands.ts";
+  createJournalBodyReplacement,
+  prepareJournalMutation,
+  projectJournalMutation,
+  type JournalDomainCommand,
+  type JournalDomainVersions,
+} from "../../../application/journal/journalDomainCommands.ts";
+import {
+  createDomainTransition,
+} from "../../../application/commands/domainCommand.ts";
+import type {
+  ApiV1JournalCommandDto,
+} from "../../../contracts/api/types.ts";
 import {
   createJournalParseIndex,
+  type JournalParseIndex,
 } from "../../../core/journal/indexes/journalParseIndex.ts";
 import {
   createJournalEntryBodyProjection,
   isJournalEntryId,
-  listJournalEntries,
   type JournalContent,
   type JournalEntryId,
 } from "../../../core/journal/model/journalContent.ts";
-import {
-  createDomainChangeSet,
-} from "../../../core/sync/domainChangeSet.ts";
 import type {
   VersionedContentStore,
 } from "../repository/versionedContentStore.ts";
@@ -32,13 +31,7 @@ import {
 } from "../repository/journalContentStore.ts";
 import {
   executeApiV1VersionedCommand,
-  projectApiV1TextEdits,
 } from "./apiV1CommandCommon.ts";
-import {
-  ApiV1RequestError,
-  apiV1NotFound,
-  assertApiV1ResourceVersion,
-} from "./apiV1Errors.ts";
 import {
   createJournalEntriesVersion,
   createJournalEntryVersion,
@@ -48,115 +41,52 @@ import {
   type ApiV1Runtime,
 } from "./apiV1Runtime.ts";
 
-function asDomainValidation<Result>(operation: () => Result): Result {
-  try {
-    return operation();
-  } catch (error) {
-    if (error instanceof ApiV1RequestError) throw error;
-    throw new ApiV1RequestError(
-      "domain_validation_failed",
-      error instanceof Error ? error.message : "Journal command is invalid",
-    );
-  }
-}
+const journalVersions: JournalDomainVersions = {
+  entries: createJournalEntriesVersion,
+  entry: createJournalEntryVersion,
+};
 
-function journalBody(content: JournalContent, entryId: string) {
-  if (!isJournalEntryId(entryId)) return "";
-  const parsed = createJournalParseIndex(content).getParsedEntry(entryId);
-
-  return parsed ? createJournalEntryBodyProjection(parsed).source : "";
-}
-
-function applyJournalCommand(
-  content: JournalContent,
+function toJournalDomainCommand(
   command: ApiV1JournalCommandDto,
   runtime: ApiV1Runtime,
-) {
+  index: JournalParseIndex,
+): JournalDomainCommand {
   const { date, timestamp } = readApiV1RuntimeNow(runtime);
-  const index = createJournalParseIndex(content);
-  let next = content;
-  let result: ApiV1CommandOutcomeDto = { kind: "ok" };
 
-  switch (command.kind) {
-    case "create-entry": {
-      assertApiV1ResourceVersion(
-        command.expectedEntriesVersion,
-        createJournalEntriesVersion(content),
-        "entries",
-      );
-      const entryId = `journal-entry-${runtime.createId()}` as const;
-      const created = createJournalEntry(content, index, {
-        createBlockId: runtime.createId,
-        createdAt: timestamp,
-        entryId,
-        timezoneOffsetMinutes: runtime.timezoneOffsetMinutes(date),
-      });
+  if (command.kind === "create-entry") {
+    const entryId = `journal-entry-${runtime.createId()}` as JournalEntryId;
 
-      next = created.content;
-      if (command.body !== "") {
-        const createdIndex = createJournalParseIndex(
-          next,
-          index,
-          new Map([[entryId, created.analysis]]),
-        );
-        const updated = updateJournalEntryBody(next, createdIndex, {
-          change: {
-            edits: createMyersTextEdits("", command.body),
-            source: command.body,
-          },
-          createBlockId: runtime.createId,
-          entryId,
-          updatedAt: timestamp,
-        });
-
-        next = updated.content;
-      }
-      result = { entryId, kind: "journal-entry-created" };
-      break;
-    }
-    case "delete-entry": {
-      if (!isJournalEntryId(command.entryId)) {
-        apiV1NotFound("Journal entry does not exist");
-      }
-      const parsed = index.getParsedEntry(command.entryId);
-
-      if (!parsed) apiV1NotFound("Journal entry does not exist");
-      assertApiV1ResourceVersion(
-        command.expectedVersion,
-        createJournalEntryVersion(parsed.entry.source),
-        command.entryId,
-      );
-      next = deleteJournalEntry(content, parsed.entry.id);
-      break;
-    }
-    case "replace-entry-body": {
-      if (!isJournalEntryId(command.entryId)) {
-        apiV1NotFound("Journal entry does not exist");
-      }
-      const parsed = index.getParsedEntry(command.entryId);
-
-      if (!parsed) apiV1NotFound("Journal entry does not exist");
-      assertApiV1ResourceVersion(
-        command.expectedVersion,
-        createJournalEntryVersion(parsed.entry.source),
-        command.entryId,
-      );
-      const previousBody = createJournalEntryBodyProjection(parsed).source;
-      const updated = updateJournalEntryBody(content, index, {
-        change: {
-          edits: createMyersTextEdits(previousBody, command.body),
-          source: command.body,
-        },
-        createBlockId: runtime.createId,
-        entryId: parsed.entry.id,
-        updatedAt: timestamp,
-      });
-
-      next = updated.content;
-      break;
-    }
+    return {
+      body: command.body,
+      createdAt: timestamp,
+      entryId,
+      expectedEntriesVersion: command.expectedEntriesVersion,
+      kind: command.kind,
+      timezoneOffsetMinutes: runtime.timezoneOffsetMinutes(date),
+    };
   }
-  return { next, result, timestamp };
+  if (command.kind === "delete-entry") {
+    return {
+      entryId: command.entryId,
+      expectedVersion: command.expectedVersion,
+      kind: command.kind,
+      timestamp,
+    };
+  }
+  const parsed = isJournalEntryId(command.entryId)
+    ? index.getParsedEntry(command.entryId)
+    : null;
+  const previousBody = parsed
+    ? createJournalEntryBodyProjection(parsed).source
+    : "";
+
+  return {
+    change: createJournalBodyReplacement(previousBody, command.body),
+    entryId: command.entryId,
+    expectedVersion: command.expectedVersion,
+    kind: command.kind,
+    updatedAt: timestamp,
+  };
 }
 
 export function projectApiV1JournalChanges(
@@ -164,99 +94,12 @@ export function projectApiV1JournalChanges(
   after: JournalContent,
   timestamp: string,
 ) {
-  const beforeIndex = createJournalParseIndex(before);
-  const afterIndex = createJournalParseIndex(after, beforeIndex);
-  const beforeEntries = new Map(
-    listJournalEntries(before).map((entry) => [entry.id, entry]),
-  );
-  const afterEntries = new Map(
-    listJournalEntries(after).map((entry) => [entry.id, entry]),
-  );
-  const changedIds = new Set<JournalEntryId>();
-  const resources: ApiV1ResourceChangeDto[] = [];
-
-  for (const [id] of beforeEntries) {
-    if (!afterEntries.has(id)) {
-      changedIds.add(id);
-      resources.push({
-        domain: "journal",
-        kind: "deleted",
-        resourceId: id,
-      });
-    }
-  }
-  for (const [id, entry] of afterEntries) {
-    const previous = beforeEntries.get(id);
-    const version = createJournalEntryVersion(entry.source);
-
-    if (!previous) {
-      changedIds.add(id);
-      resources.push({
-        domain: "journal",
-        kind: "created",
-        resourceId: id,
-        version,
-      });
-    } else if (previous.source !== entry.source) {
-      changedIds.add(id);
-      resources.push({
-        domain: "journal",
-        kind: "updated",
-        resourceId: id,
-        version,
-      });
-    }
-  }
-  const beforeEntriesVersion = createJournalEntriesVersion(before);
-  const afterEntriesVersion = createJournalEntriesVersion(after);
-
-  if (beforeEntriesVersion !== afterEntriesVersion) {
-    resources.push({
-      domain: "journal",
-      kind: "updated",
-      resourceId: "entries",
-      version: afterEntriesVersion,
-    });
-  }
-  const blocks = [...changedIds].flatMap((entryId) =>
-    createDomainChangeSet({
-      next: afterIndex.getParsedEntry(entryId)
-        ? {
-            document: afterIndex.getParsedEntry(entryId)!.analysis.document,
-            domain: "journal",
-            resourceId: entryId,
-            version: createJournalEntryVersion(
-              afterIndex.getParsedEntry(entryId)!.entry.source,
-            ),
-          }
-        : null,
-      occurredAt: timestamp,
-      previous: beforeIndex.getParsedEntry(entryId)
-        ? {
-            document: beforeIndex.getParsedEntry(entryId)!.analysis.document,
-            domain: "journal",
-            resourceId: entryId,
-            version: createJournalEntryVersion(
-              beforeIndex.getParsedEntry(entryId)!.entry.source,
-            ),
-          }
-        : null,
-    }).blocks
-  );
-  const diff = [...changedIds].flatMap((entryId) =>
-    projectApiV1TextEdits(
-      entryId,
-      createMyersTextEdits(
-        journalBody(before, entryId),
-        journalBody(after, entryId),
-      ),
-    )
-  );
-
-  return {
-    changes: { blocks, occurredAt: timestamp, resources },
-    diff,
-  };
+  return projectJournalMutation({
+    after,
+    before,
+    timestamp,
+    versions: journalVersions,
+  });
 }
 
 export async function executeApiV1JournalCommand({
@@ -282,20 +125,34 @@ export async function executeApiV1JournalCommand({
         },
         now: () => new Date(now.date),
       };
-      const applied = asDomainValidation(() =>
-        applyJournalCommand(content, command, replayRuntime)
-      );
-      const projection = projectApiV1JournalChanges(
+      const index = createJournalParseIndex(content);
+      const mutation = prepareJournalMutation({
+        command: toJournalDomainCommand(
+          command,
+          replayRuntime,
+          index,
+        ),
         content,
-        applied.next,
-        applied.timestamp,
-      );
+        createBlockId: replayRuntime.createId,
+        index,
+        versions: journalVersions,
+      });
+      const projection = projectJournalMutation({
+        after: mutation.content,
+        afterIndex: mutation.index,
+        before: content,
+        beforeIndex: index,
+        timestamp: mutation.timestamp,
+        versions: journalVersions,
+      });
+      const transition = createDomainTransition(mutation, projection);
 
       return {
-        ...projection,
-        content: applied.next,
-        result: applied.result,
-        revision: createJournalRevision(applied.next),
+        changes: transition.changes,
+        content: transition.content,
+        diff: transition.diff,
+        result: transition.result,
+        revision: createJournalRevision(transition.content),
       };
     },
     mode: command.mode,

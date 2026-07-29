@@ -1,48 +1,37 @@
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import {
-  createWorkspaceFolder as createWorkspaceFolderAction,
-  createWorkspaceNote as createWorkspaceNoteAction,
-  deleteWorkspaceFolder as deleteWorkspaceFolderAction,
-  deleteWorkspaceNote as deleteWorkspaceNoteAction,
-  moveWorkspaceTreeNode as moveWorkspaceTreeNodeAction,
-  renameWorkspaceFolder as renameWorkspaceFolderAction,
-  renameWorkspaceNote as renameWorkspaceNoteAction,
-  updateWorkspaceRawNoteSource as updateWorkspaceRawNoteSourceAction,
-  updateWorkspaceNoteSource as updateWorkspaceNoteSourceAction,
-} from "../../../core/workspace/commands/workspaceCommands";
-import {
-  moveWorkspaceStructureBlockBetweenNotes as moveWorkspaceStructureBlockBetweenNotesAction,
-  moveWorkspaceStructureBlockWithinNote as moveWorkspaceStructureBlockWithinNoteAction,
-  type MoveWorkspaceStructureBlockBetweenNotesFailureReason,
-  type MoveWorkspaceStructureBlockWithinNoteFailureReason,
-  type WorkspaceStructureBlockMoveBetweenNotesRequest,
-  type WorkspaceStructureBlockMoveWithinNoteRequest,
+import type {
+  MoveWorkspaceStructureBlockBetweenNotesFailureReason,
+  MoveWorkspaceStructureBlockWithinNoteFailureReason,
+  WorkspaceStructureBlockMoveBetweenNotesRequest,
+  WorkspaceStructureBlockMoveWithinNoteRequest,
+  WorkspaceStructureBlockTargetPositionRequest,
 } from "../../../core/workspace/commands/structureBlockCommands";
 import type {
   FolderId,
   NoteId,
   WorkspaceData,
 } from "../../../core/workspace/model/workspaceData";
+import {
+  defaultNoteTitle,
+} from "../../../core/workspace/model/workspaceData";
 import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../../core/ctn/metadata/textEdits";
-import { readCtnCanonicalTitleHeader } from "../../../core/ctn/parser/parseCtnDocument";
 import type {
   WorkspaceParseIndex,
 } from "../../../core/workspace/indexes/workspaceParseIndex";
 import type {
   CtnCanonicalSourceAnalysis,
 } from "../../../core/ctn/analysis/sourceAnalysis";
+import type {
+  NoteTreeMoveRequest,
+} from "../../../core/workspace/model/noteTree/types";
+import {
+  prepareWorkspaceMutation,
+  type WorkspaceBlockTarget,
+  type WorkspaceDomainCommand,
+} from "../commands/workspaceDomainCommands";
 
-type CreateWorkspaceNoteCommand = Parameters<typeof createWorkspaceNoteAction>[1];
-type CreateWorkspaceFolderCommand = Parameters<
-  typeof createWorkspaceFolderAction
->[1];
-type WorkspaceStructureBlockMoveIndex = Parameters<
-  typeof moveWorkspaceStructureBlockBetweenNotesAction
->[1];
-type MoveWorkspaceTreeNodeCommand = Parameters<
-  typeof moveWorkspaceTreeNodeAction
->[1];
+type WorkspaceStructureBlockMoveIndex = WorkspaceParseIndex;
 type MoveWorkspaceStructureBlockBetweenNotesCommandResult =
   | {
       status: "moved";
@@ -71,11 +60,11 @@ export type WorkspaceNoteSourceUpdateResult = {
 
 export type SessionCommands = {
   createFolder: (
-    parentFolderId: CreateWorkspaceFolderCommand["parentFolderId"],
-    title: CreateWorkspaceFolderCommand["title"],
+    parentFolderId: FolderId | null,
+    title: string,
   ) => FolderId;
   createNote: (
-    parentFolderId: CreateWorkspaceNoteCommand["parentFolderId"],
+    parentFolderId: FolderId | null,
   ) => NoteId;
   deleteFolder: (folderId: FolderId) => void;
   deleteNote: (noteId: NoteId) => void;
@@ -87,7 +76,7 @@ export type SessionCommands = {
     index: WorkspaceStructureBlockMoveIndex,
     request: WorkspaceStructureBlockMoveWithinNoteRequest,
   ) => MoveWorkspaceStructureBlockWithinNoteCommandResult;
-  moveTreeNode: (request: MoveWorkspaceTreeNodeCommand) => void;
+  moveTreeNode: (request: NoteTreeMoveRequest) => void;
   renameFolder: (folderId: FolderId, title: string) => void;
   renameNote: (noteId: NoteId, title: string) => void;
   updateNoteSource: (
@@ -120,176 +109,195 @@ export function createSessionCommands({
   getAnalysisIndex: () => WorkspaceParseIndex | null;
   getWorkspace: () => WorkspaceStructureIndex;
 }): SessionCommands {
-  const collectReservedBlockIds = (
-    syntax: CtnCompiledSyntax | null,
-  ) => {
-    if (!syntax) {
-      return new Set(
-        [...getWorkspace().noteEntryById.values()].map(
-          ({ note }) =>
-            readCtnCanonicalTitleHeader(note.source).metadata.id,
-        ),
-      );
-    }
-    const index = getAnalysisIndex();
+  const execute = (command: WorkspaceDomainCommand) => {
+    const structure = getWorkspace();
+    const mutation = prepareWorkspaceMutation({
+      command,
+      context: {
+        index: getAnalysisIndex(),
+        structure,
+        syntax: getSyntax(),
+      },
+      createBlockId: dependencies.createBlockId,
+    });
 
-    if (!index || index.syntax.analysisKey !== syntax.analysisKey) {
-      throw new Error(
-        "Workspace analysis index is unavailable for the active syntax.",
-      );
-    }
-    return index.blockIds;
+    commitDataSnapshot(mutation.content, mutation.analysisOverrides);
+    return mutation;
+  };
+  const resolveBlockTarget = (
+    index: WorkspaceParseIndex,
+    noteId: NoteId,
+    request: WorkspaceStructureBlockTargetPositionRequest,
+  ): WorkspaceBlockTarget | null => {
+    if (request.kind === "end") return request;
+    const target = index.getParsedNote(noteId)?.analysis.document.blocks.find(
+      ({ lineNumber }) => lineNumber === request.lineNumber,
+    );
+
+    if (!target) return null;
+    return {
+      kind: request.kind === "inside-block"
+        ? "inside"
+        : request.kind === "sibling-above"
+          ? "above"
+          : "below",
+      targetBlockId: target.id,
+    };
   };
 
   return {
     createFolder(parentFolderId, title) {
       const folderId = dependencies.createFolderId();
-      const workspace = getWorkspace();
-
-      commitDataSnapshot(
-        createWorkspaceFolderAction(workspace, {
-          folderId,
-          parentFolderId,
-          title,
-        }),
-      );
+      execute({
+        folderId,
+        kind: "create-folder",
+        parentFolderId,
+        timestamp: dependencies.now(),
+        title,
+      });
       return folderId;
     },
     createNote(parentFolderId) {
       const noteId = dependencies.createNoteId();
-      const workspace = getWorkspace();
-      const syntax = getSyntax();
-
-      commitDataSnapshot(
-        createWorkspaceNoteAction(workspace, {
-          createBlockId: dependencies.createBlockId,
-          noteId,
-          parentFolderId,
-          reservedBlockIds: collectReservedBlockIds(syntax),
-          syntax,
-          timestamp: dependencies.now(),
-        }),
-      );
+      execute({
+        body: "",
+        kind: "create-note",
+        noteId,
+        parentFolderId,
+        timestamp: dependencies.now(),
+        title: defaultNoteTitle,
+      });
       return noteId;
     },
     deleteFolder(folderId) {
-      commitDataSnapshot(
-        deleteWorkspaceFolderAction(getWorkspace(), folderId),
-      );
+      execute({
+        folderId,
+        kind: "delete-folder",
+        timestamp: dependencies.now(),
+      });
     },
     deleteNote(noteId) {
-      commitDataSnapshot(deleteWorkspaceNoteAction(getWorkspace(), noteId));
+      execute({
+        kind: "delete-note",
+        noteId,
+        timestamp: dependencies.now(),
+      });
     },
     moveStructureBlockBetweenNotes(index, request) {
-      const result = moveWorkspaceStructureBlockBetweenNotesAction(
-        getWorkspace(),
+      if (request.sourceNoteId === request.targetNoteId) {
+        return { reason: "same-note-unsupported", status: "failed" };
+      }
+      const source = index.getParsedNote(request.sourceNoteId);
+      const targetNote = index.getParsedNote(request.targetNoteId);
+
+      if (!source || !targetNote) {
+        return { reason: "parsed-note-missing", status: "failed" };
+      }
+      const sourceBlock = source.analysis.document.blocks.find(
+        ({ lineNumber }) => lineNumber === request.sourceBlockLineNumber,
+      );
+      if (!sourceBlock) {
+        return { reason: "source-block-missing", status: "failed" };
+      }
+      const target = resolveBlockTarget(
         index,
-        request,
-        dependencies.now(),
+        request.targetNoteId,
+        request.targetPosition,
       );
 
-      if (result.status !== "moved") {
-        return {
-          reason: result.reason,
-          status: "failed",
-        };
+      if (!target) {
+        return { reason: "target-position-missing", status: "failed" };
       }
-
-      commitDataSnapshot(result.workspaceData, result.analysisOverrides);
+      execute({
+        kind: "move-block",
+        sourceBlockId: sourceBlock.id,
+        sourceNoteId: request.sourceNoteId,
+        target,
+        targetNoteId: request.targetNoteId,
+        timestamp: dependencies.now(),
+      });
 
       return {
         status: "moved",
-        targetNoteId: result.targetNoteId,
+        targetNoteId: request.targetNoteId,
       };
     },
     moveStructureBlockWithinNote(index, request) {
-      const result = moveWorkspaceStructureBlockWithinNoteAction(
-        getWorkspace(),
-        index,
-        request,
-        dependencies.now(),
-      );
+      const parsed = index.getParsedNote(request.noteId);
 
-      if (result.status !== "moved") {
-        return {
-          reason: result.reason,
-          status: "failed",
-        };
+      if (!parsed) {
+        return { reason: "parsed-note-missing", status: "failed" };
       }
-
-      commitDataSnapshot(result.workspaceData, result.analysisOverrides);
+      const sourceBlock = parsed.analysis.document.blocks.find(
+        ({ lineNumber }) => lineNumber === request.sourceBlockLineNumber,
+      );
+      if (!sourceBlock) {
+        return { reason: "source-block-missing", status: "failed" };
+      }
+      const target = resolveBlockTarget(
+        index,
+        request.noteId,
+        request.targetPosition,
+      );
+      if (!target) {
+        return { reason: "target-position-missing", status: "failed" };
+      }
+      if (
+        target.kind !== "end" &&
+        parsed.analysis.document.blocks.some((block) =>
+          block.id === target.targetBlockId &&
+          block.lineNumber >= sourceBlock.lineNumber &&
+          block.lineNumber <= sourceBlock.subtreeEndLineNumber
+        )
+      ) {
+        return { reason: "target-inside-source", status: "failed" };
+      }
+      execute({
+        kind: "move-block",
+        sourceBlockId: sourceBlock.id,
+        sourceNoteId: request.noteId,
+        target,
+        targetNoteId: request.noteId,
+        timestamp: dependencies.now(),
+      });
 
       return {
-        noteId: result.noteId,
+        noteId: request.noteId,
         status: "moved",
       };
     },
     moveTreeNode(request) {
-      commitDataSnapshot(
-        moveWorkspaceTreeNodeAction(getWorkspace(), request),
-      );
+      execute({
+        kind: "move-tree-node",
+        request,
+        timestamp: dependencies.now(),
+      });
     },
     renameFolder(folderId, title) {
-      commitDataSnapshot(
-        renameWorkspaceFolderAction(getWorkspace(), folderId, title),
-      );
+      execute({
+        folderId,
+        kind: "rename-folder",
+        timestamp: dependencies.now(),
+        title,
+      });
     },
     renameNote(noteId, title) {
-      commitDataSnapshot(
-        renameWorkspaceNoteAction(
-          getWorkspace(),
-          noteId,
-          title,
-          dependencies.now(),
-        ),
-      );
+      execute({
+        kind: "rename-note",
+        noteId,
+        timestamp: dependencies.now(),
+        title,
+      });
     },
     updateNoteSource(noteId, change) {
-      const workspace = getWorkspace();
-      const syntax = getSyntax();
-
-      if (!syntax) {
-        const nextWorkspace = updateWorkspaceRawNoteSourceAction(
-          workspace,
-          noteId,
-          change,
-          dependencies.now(),
-        );
-        const authoritativeSource = nextWorkspace.notes.find(
-          ({ id }) => id === noteId,
-        )?.source;
-
-        if (authoritativeSource === undefined) {
-          throw new Error(`Workspace note does not exist: ${noteId}`);
-        }
-
-        commitDataSnapshot(nextWorkspace);
-        return {
-          authoritativeSource,
-          titleNormalized:
-            readCtnCanonicalTitleHeader(authoritativeSource).title !==
-              readCtnCanonicalTitleHeader(change.source).title,
-        };
-      }
-
-      const index = getAnalysisIndex();
-      const previousAnalysis = index?.getParsedNote(noteId)?.analysis;
-
-      if (!index || !previousAnalysis) {
-        throw new Error(
-          `Workspace note analysis does not exist: ${noteId}`,
-        );
-      }
-      const result = updateWorkspaceNoteSourceAction(
-        workspace,
-        noteId,
-        previousAnalysis,
+      const hasSyntax = getSyntax() !== null;
+      const result = execute({
         change,
-        dependencies.now(),
-        dependencies.createBlockId,
-        index.blockIds,
-      );
-      const canonicalSource = result.workspaceData.notes.find(
+        kind: "replace-note-source",
+        noteId,
+        timestamp: dependencies.now(),
+      });
+      const canonicalSource = result.content.notes.find(
         ({ id }) => id === noteId,
       )?.source;
 
@@ -297,12 +305,10 @@ export function createSessionCommands({
         throw new Error(`Workspace note does not exist: ${noteId}`);
       }
 
-      commitDataSnapshot(
-        result.workspaceData,
-        new Map([[noteId, result.analysis]]),
-      );
-      const authoritativeSource =
-        result.analysis.editableProjection.source;
+      const authoritativeSource = hasSyntax
+        ? result.analysisOverrides?.get(noteId)?.editableProjection.source ??
+          change.source
+        : canonicalSource;
 
       return {
         authoritativeSource,

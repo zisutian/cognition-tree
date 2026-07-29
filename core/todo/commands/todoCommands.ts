@@ -52,6 +52,10 @@ import {
   type TodoRecurrenceRule,
   type TodoRecurrenceStageId,
 } from "../recurrence/todoRecurrence.ts";
+import {
+  DomainNotFoundError,
+  DomainValidationError,
+} from "../../errors/domainErrors.ts";
 
 export type CreateTodoCollectionInput = {
   collectionId: TodoCollectionId;
@@ -133,7 +137,9 @@ function canonicalTimestamp(value: string, label: string) {
     !Number.isFinite(milliseconds) ||
     new Date(milliseconds).toISOString() !== value
   ) {
-    throw new Error(`${label} must be a canonical ISO timestamp.`);
+    throw new DomainValidationError(
+      `${label} must be a canonical ISO timestamp.`,
+    );
   }
   return milliseconds;
 }
@@ -145,7 +151,10 @@ function findCollectionIndex(
   const index = content.collections.findIndex(({ id }) => id === collectionId);
 
   if (index < 0) {
-    throw new Error(`Todo collection does not exist: ${collectionId}`);
+    throw new DomainNotFoundError(
+      collectionId,
+      `Todo collection does not exist: ${collectionId}`,
+    );
   }
   return index;
 }
@@ -163,7 +172,9 @@ function replaceCollection(
 
 function assertTargetIndex(toIndex: number, length: number, label: string) {
   if (!Number.isSafeInteger(toIndex) || toIndex < 0 || toIndex >= length) {
-    throw new Error(`${label} target index is out of bounds: ${toIndex}`);
+    throw new DomainValidationError(
+      `${label} target index is out of bounds: ${toIndex}`,
+    );
   }
 }
 
@@ -211,7 +222,9 @@ function assertCollectionNameAvailable(
   );
 
   if (conflict) {
-    throw new Error(`Todo collection name already exists: ${name}`);
+    throw new DomainValidationError(
+      `Todo collection name already exists: ${name}`,
+    );
   }
 }
 
@@ -221,10 +234,14 @@ export function createTodoCollection(
   input: CreateTodoCollectionInput,
 ) {
   if (!isTodoCollectionId(input.collectionId)) {
-    throw new Error(`Invalid todo collection id: ${input.collectionId}`);
+    throw new DomainValidationError(
+      `Invalid todo collection id: ${input.collectionId}`,
+    );
   }
   if (content.collections.some(({ id }) => id === input.collectionId)) {
-    throw new Error(`Todo collection already exists: ${input.collectionId}`);
+    throw new DomainValidationError(
+      `Todo collection already exists: ${input.collectionId}`,
+    );
   }
   canonicalTimestamp(input.createdAt, "Todo collection createdAt");
   const name = parsePortableName(input.name, "Todo collection name");
@@ -269,7 +286,9 @@ export function renameTodoCollection(
   assertCollectionNameAvailable(index, name, input.collectionId);
   canonicalTimestamp(input.updatedAt, "Todo collection updatedAt");
   if (Date.parse(input.updatedAt) < Date.parse(current.metadata.updatedAt)) {
-    throw new Error("Todo collection updatedAt cannot move backwards.");
+    throw new DomainValidationError(
+      "Todo collection updatedAt cannot move backwards.",
+    );
   }
 
   return replaceCollection(content, collectionIndex, {
@@ -344,7 +363,9 @@ export function updateTodoCollectionBody(
   const titleMetadata = readCtnCanonicalTitleHeader(collection.source).metadata;
 
   if (Date.parse(input.updatedAt) < Date.parse(titleMetadata.updatedAt)) {
-    throw new Error("Todo collection updatedAt cannot move backwards.");
+    throw new DomainValidationError(
+      "Todo collection updatedAt cannot move backwards.",
+    );
   }
 
   const nextEditableSource = `${current.name}\n${input.change.source}`;
@@ -397,7 +418,10 @@ function requireTodoItemBlock(
   );
 
   if (!block || block.rule.semanticId !== todoItemSemanticType) {
-    throw new Error(`Todo item block does not exist: ${blockId}`);
+    throw new DomainNotFoundError(
+      blockId,
+      `Todo item block does not exist: ${blockId}`,
+    );
   }
   return block;
 }
@@ -503,7 +527,9 @@ export function setTodoBlockCompletion(
       );
 
       if (completedAt < Date.parse(block.metadata.createdAt)) {
-        throw new Error("Todo completion cannot predate its block.");
+        throw new DomainValidationError(
+          "Todo completion cannot predate its block.",
+        );
       }
       completions.push({
         completedAt: input.completedAt,
@@ -541,7 +567,9 @@ export function setTodoBlockCompletion(
     );
 
     if (completedAt < Date.parse(block.metadata.createdAt)) {
-      throw new Error("Todo completion cannot predate its block.");
+      throw new DomainValidationError(
+        "Todo completion cannot predate its block.",
+      );
     }
     completions.push({ blockId: input.blockId, completedAt: input.completedAt });
   } else {
@@ -562,14 +590,18 @@ function assertNewRecurrenceStageId(
   stageId: TodoRecurrenceStageId,
 ) {
   if (!isTodoRecurrenceStageId(stageId)) {
-    throw new Error(`Invalid Todo recurrence stage id: ${stageId}`);
+    throw new DomainValidationError(
+      `Invalid Todo recurrence stage id: ${stageId}`,
+    );
   }
   if (
     collection.recurrences.some(({ stages }) =>
       stages.some(({ id }) => id === stageId)
     )
   ) {
-    throw new Error(`Todo recurrence stage already exists: ${stageId}`);
+    throw new DomainValidationError(
+      `Todo recurrence stage already exists: ${stageId}`,
+    );
   }
 }
 
@@ -788,7 +820,10 @@ function resolveMoveTarget(
   const target = blocks.get(input.target.targetBlockId);
 
   if (!target || target.rule.semanticId === "title") {
-    throw new Error(`Todo target block does not exist: ${input.target.targetBlockId}`);
+    throw new DomainNotFoundError(
+      input.target.targetBlockId,
+      `Todo target block does not exist: ${input.target.targetBlockId}`,
+    );
   }
   return {
     block: blockRange(target),
@@ -824,7 +859,10 @@ export function moveTodoBlock(
     !sourceBlock ||
     sourceBlock.rule.semanticId === syntax.title.semanticId
   ) {
-    throw new Error(`Todo source block does not exist: ${input.blockId}`);
+    throw new DomainNotFoundError(
+      input.blockId,
+      `Todo source block does not exist: ${input.blockId}`,
+    );
   }
   canonicalTimestamp(input.updatedAt, "Todo block updatedAt");
   const result = moveCtnBlockWithinText({
