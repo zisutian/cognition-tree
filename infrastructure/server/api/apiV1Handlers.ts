@@ -61,6 +61,10 @@ import {
 } from "./apiV1WorkspaceCommands.ts";
 import { ApiV1EventHub } from "./apiV1Events.ts";
 import {
+  ApiV1RevisionTracker,
+  type ApiV1TrackedDomain,
+} from "./apiV1RevisionTracker.ts";
+import {
   createApiV1JournalIndex,
   createApiV1TodoIndex,
   createApiV1WorkspaceAnalysis,
@@ -245,39 +249,17 @@ function auditEntry({
   };
 }
 
-async function createCheckpoint({
-  builtInCatalog,
-  catalog,
+function createCheckpoint({
   eventHub,
+  revisionTracker,
 }: {
-  builtInCatalog?: ApiV1BuiltInCatalog;
-  catalog: WorkspaceRepositoryCatalog;
   eventHub: ApiV1EventHub;
-}): Promise<ApiV1RevisionCheckpointDto> {
-  const repositories = await catalog.listRepositories();
-  const workspaces: Record<string, `sha256:${string}`> = {};
-
-  await Promise.all(repositories.repositories.map(async ({ id }) => {
-    const snapshot = await catalog.getStore(id).then((store) =>
-      store.loadSnapshot()
-    );
-
-    workspaces[id] = snapshot.revision;
-  }));
-  const [journal, todo] = builtInCatalog
-    ? await Promise.all([
-        builtInCatalog.getStore("journal").then((store) => store.loadSnapshot()),
-        builtInCatalog.getStore("todo").then((store) => store.loadSnapshot()),
-      ])
-    : [null, null];
-
-  return {
-    journal: journal?.revision ?? null,
+  revisionTracker: ApiV1RevisionTracker;
+}): ApiV1RevisionCheckpointDto {
+  return revisionTracker.checkpoint({
     sequence: eventHub.sequence,
     streamId: eventHub.streamId,
-    todo: todo?.revision ?? null,
-    workspaces,
-  };
+  });
 }
 
 type ApiV1HandlerContext = {
@@ -291,20 +273,81 @@ type ApiV1HandlerContext = {
   requestId: string;
   response: ServerResponse;
   responseHeaders: OutgoingHttpHeaders;
+  revisionTracker: ApiV1RevisionTracker;
   route: ResolvedApiV1Route;
   runtime: ApiV1Runtime;
   search: ApiV1SearchService | null;
   stateStore: ApiV1StateStore;
 };
 
+function publishTrackedChanges(
+  context: Pick<
+    ApiV1HandlerContext,
+    "eventHub" | "revisionTracker"
+  >,
+  changes: ApiV1DomainChangeSetDto,
+) {
+  context.eventHub.publish(
+    createCheckpoint(context),
+    changes,
+  );
+}
+
+function observeWorkspaceRevision(
+  context: ApiV1HandlerContext,
+  repositoryId: string,
+  revision: `sha256:${string}`,
+) {
+  if (
+    context.revisionTracker.observeWorkspace(repositoryId, revision) !==
+      "changed"
+  ) {
+    return;
+  }
+  publishTrackedChanges(context, {
+    blocks: [],
+    occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+    resources: [{
+      domain: "workspace",
+      kind: "updated",
+      repositoryId,
+      resourceId: repositoryId,
+      version: revision,
+    }],
+  });
+}
+
+function observeBuiltInRevision(
+  context: ApiV1HandlerContext,
+  domain: ApiV1TrackedDomain,
+  revision: `sha256:${string}`,
+) {
+  if (
+    context.revisionTracker.observeDomain(domain, revision) !== "changed"
+  ) {
+    return;
+  }
+  publishTrackedChanges(context, {
+    blocks: [],
+    occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+    resources: [{
+      domain,
+      kind: "updated",
+      resourceId: domain,
+      version: revision,
+    }],
+  });
+}
+
 async function executeCommand({
   command,
   execute,
   eventHub,
+  onCommitted,
   principal,
   requestId,
   stateStore,
-  createCurrentCheckpoint,
+  revisionTracker,
   runtime,
 }: {
   command: {
@@ -312,12 +355,13 @@ async function executeCommand({
     kind: string;
     mode: "commit" | "preview";
   } & ApiV1DomainCommandDto;
-  createCurrentCheckpoint(): Promise<ApiV1RevisionCheckpointDto>;
   eventHub: ApiV1EventHub;
   execute(): Promise<ApiV1CommandResultDto>;
+  onCommitted(revision: `sha256:${string}`): void;
   principal: ApiV1PrincipalDto;
   requestId: string;
   runtime: ApiV1Runtime;
+  revisionTracker: ApiV1RevisionTracker;
   stateStore: ApiV1StateStore;
 }) {
   assertDeleteScope(principal, command);
@@ -360,9 +404,11 @@ async function executeCommand({
   );
 
   if (!replayed) {
-    await createCurrentCheckpoint()
-      .then((checkpoint) => eventHub.publish(checkpoint, result.changes))
-      .catch(() => undefined);
+    onCommitted(result.revision);
+    eventHub.publish(
+      createCheckpoint({ eventHub, revisionTracker }),
+      result.changes,
+    );
   }
   return result;
 }
@@ -372,12 +418,29 @@ async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
 
   if (route.kind === "workspaces") {
     const repositories = await catalog.listRepositories();
+    const visibleRepositories = repositories.repositories.filter(
+      ({ adapter }) => adapter !== "browser",
+    );
+    const removed = context.revisionTracker.reconcileWorkspaceIds(
+      new Set(visibleRepositories.map(({ id }) => id)),
+    );
 
+    if (removed.length > 0) {
+      publishTrackedChanges(context, {
+        blocks: [],
+        occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+        resources: removed.map((repositoryId) => ({
+          domain: "workspace",
+          kind: "deleted",
+          repositoryId,
+          resourceId: repositoryId,
+        })),
+      });
+    }
     return {
       body: {
-        workspaces: repositories.repositories
-          .filter(({ adapter, id }) =>
-            adapter !== "browser" &&
+        workspaces: visibleRepositories
+          .filter(({ id }) =>
             (principal.repositoryIds === null ||
               principal.repositoryIds.includes(id))
           )
@@ -392,6 +455,7 @@ async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
   assertRepositoryAllowed(principal, repositoryId);
   const snapshot = await catalog.getStore(repositoryId)
     .then((store) => store.loadSnapshot());
+  observeWorkspaceRevision(context, repositoryId, snapshot.revision);
   const analysis = createApiV1WorkspaceAnalysis(snapshot.content);
 
   if (route.kind === "workspace-tree") {
@@ -417,6 +481,7 @@ async function handleJournalQuery(context: ApiV1HandlerContext) {
   const snapshot = await catalog.getStore("journal").then((store) =>
     store.loadSnapshot()
   );
+  observeBuiltInRevision(context, "journal", snapshot.revision);
   const content = parseJournalContent(snapshot.content);
   const index = createApiV1JournalIndex(content);
 
@@ -440,6 +505,7 @@ async function handleTodoQuery(context: ApiV1HandlerContext) {
   const snapshot = await catalog.getStore("todo").then((store) =>
     store.loadSnapshot()
   );
+  observeBuiltInRevision(context, "todo", snapshot.revision);
   const content = parseTodoContent(snapshot.content);
   const index = createApiV1TodoIndex(content);
 
@@ -467,12 +533,6 @@ async function handleTodoQuery(context: ApiV1HandlerContext) {
 }
 
 async function handleCommand(context: ApiV1HandlerContext) {
-  const createCurrentCheckpoint = () =>
-    createCheckpoint({
-      builtInCatalog: context.builtInCatalog,
-      catalog: context.catalog,
-      eventHub: context.eventHub,
-    });
   const input = await context.readJsonBody();
 
   if (context.route.kind === "workspace-command") {
@@ -484,7 +544,6 @@ async function handleCommand(context: ApiV1HandlerContext) {
     const store = await context.catalog.getStore(repositoryId);
     const result = await executeCommand({
       command,
-      createCurrentCheckpoint,
       eventHub: context.eventHub,
       execute: () =>
         executeApiV1WorkspaceCommand({
@@ -494,7 +553,10 @@ async function handleCommand(context: ApiV1HandlerContext) {
           store,
         }),
       principal: context.principal,
+      onCommitted: (revision) =>
+        context.revisionTracker.observeWorkspace(repositoryId, revision),
       requestId: context.requestId,
+      revisionTracker: context.revisionTracker,
       runtime: context.runtime,
       stateStore: context.stateStore,
     });
@@ -508,7 +570,6 @@ async function handleCommand(context: ApiV1HandlerContext) {
     const store = await catalog.getStore("journal");
     const result = await executeCommand({
       command,
-      createCurrentCheckpoint,
       eventHub: context.eventHub,
       execute: () =>
         executeApiV1JournalCommand({
@@ -517,7 +578,10 @@ async function handleCommand(context: ApiV1HandlerContext) {
           store,
         }),
       principal: context.principal,
+      onCommitted: (revision) =>
+        context.revisionTracker.observeDomain("journal", revision),
       requestId: context.requestId,
+      revisionTracker: context.revisionTracker,
       runtime: context.runtime,
       stateStore: context.stateStore,
     });
@@ -528,7 +592,6 @@ async function handleCommand(context: ApiV1HandlerContext) {
   const store = await catalog.getStore("todo");
   const result = await executeCommand({
     command,
-    createCurrentCheckpoint,
     eventHub: context.eventHub,
     execute: () =>
       executeApiV1TodoCommand({
@@ -537,7 +600,10 @@ async function handleCommand(context: ApiV1HandlerContext) {
         store,
       }),
     principal: context.principal,
+    onCommitted: (revision) =>
+      context.revisionTracker.observeDomain("todo", revision),
     requestId: context.requestId,
+    revisionTracker: context.revisionTracker,
     runtime: context.runtime,
     stateStore: context.stateStore,
   });
@@ -549,13 +615,7 @@ async function publishApiV1Changes(
   context: ApiV1HandlerContext,
   changes: ApiV1DomainChangeSetDto,
 ) {
-  await createCheckpoint({
-    builtInCatalog: context.builtInCatalog,
-    catalog: context.catalog,
-    eventHub: context.eventHub,
-  })
-    .then((checkpoint) => context.eventHub.publish(checkpoint, changes))
-    .catch(() => undefined);
+  publishTrackedChanges(context, changes);
 }
 
 async function handleWorkspaceSync(
@@ -566,6 +626,8 @@ async function handleWorkspaceSync(
   const store = await context.catalog.getStore(repositoryId);
   return synchronizeApiV1Workspace({
     method: context.method,
+    observeRevision: (revision) =>
+      context.revisionTracker.observeWorkspace(repositoryId, revision),
     publish: (changes) => publishApiV1Changes(context, changes),
     readJsonBody: context.readJsonBody,
     repositoryId,
@@ -580,6 +642,8 @@ async function handleJournalSync(context: ApiV1HandlerContext) {
 
   return synchronizeApiV1Journal({
     method: context.method,
+    observeRevision: (revision) =>
+      context.revisionTracker.observeDomain("journal", revision),
     publish: (changes) => publishApiV1Changes(context, changes),
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
@@ -593,6 +657,8 @@ async function handleTodoSync(context: ApiV1HandlerContext) {
 
   return synchronizeApiV1Todo({
     method: context.method,
+    observeRevision: (revision) =>
+      context.revisionTracker.observeDomain("todo", revision),
     publish: (changes) => publishApiV1Changes(context, changes),
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
@@ -626,6 +692,7 @@ async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
       .then((store) => store.loadSnapshot())
       .then((snapshot) => snapshot.revision);
 
+    context.revisionTracker.observeWorkspace(descriptor.id, revision);
     await publishApiV1Changes(context, {
       blocks: [],
       occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
@@ -650,6 +717,7 @@ async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
       .then((store) => store.loadSnapshot())
       .then((snapshot) => snapshot.revision);
 
+    context.revisionTracker.observeWorkspace(repositoryId, revision);
     await publishApiV1Changes(context, {
       blocks: [],
       occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
@@ -671,6 +739,7 @@ async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
     parseRepositoryDeletionMode(query.mode),
   );
 
+  context.revisionTracker.removeWorkspace(repositoryId);
   await publishApiV1Changes(context, {
     blocks: [],
     occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
@@ -771,12 +840,11 @@ export async function handleApiV1Route(
     return { body: createApiV1OpenApiDocument(), statusCode: 200 };
   }
   if (route.kind === "events") {
-    const builtIns = requireBuiltInCatalog(context.builtInCatalog);
+    requireBuiltInCatalog(context.builtInCatalog);
     context.eventHub.connect({
-      checkpoint: await createCheckpoint({
-        builtInCatalog: builtIns,
-        catalog: context.catalog,
+      checkpoint: createCheckpoint({
         eventHub: context.eventHub,
+        revisionTracker: context.revisionTracker,
       }),
       headers: context.responseHeaders,
       principal: context.principal,

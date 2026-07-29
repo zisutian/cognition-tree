@@ -52,6 +52,9 @@ import {
 import {
   ApiV1StateStore,
 } from "../repository/apiV1StateStore.ts";
+import {
+  ApiV1RevisionTracker,
+} from "./apiV1RevisionTracker.ts";
 
 export type ApiV1RequestHandler = (
   request: IncomingMessage,
@@ -64,6 +67,7 @@ type ApiV1ServerOptions = {
   eventHub?: ApiV1EventHub;
   logger?: Pick<Console, "error">;
   runtime?: ApiV1Runtime;
+  revisionTracker?: ApiV1RevisionTracker;
   security: ApiV1SecurityPolicy;
   stateDirectory?: string;
   stateStore?: ApiV1StateStore;
@@ -83,6 +87,7 @@ export function createApiV1RequestHandler({
   eventHub = new ApiV1EventHub(),
   logger = console,
   runtime = systemApiV1Runtime,
+  revisionTracker = new ApiV1RevisionTracker(),
   security,
   stateDirectory = path.join(
     process.cwd(),
@@ -163,6 +168,7 @@ export function createApiV1RequestHandler({
         requestId,
         response,
         responseHeaders,
+        revisionTracker,
         route,
         runtime,
         search,

@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { mkdtemp, rm } from "node:fs/promises";
+import {
+  access,
+  lstat,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import type {
   IncomingHttpHeaders,
   IncomingMessage,
@@ -16,6 +25,7 @@ import type {
   ApiV1CommandResultDto,
   ApiV1CreatedTokenDto,
   ApiV1CtnDocumentDto,
+  ApiV1DomainChangeSetDto,
   ApiV1JournalEntriesDto,
   ApiV1SearchResponseDto,
   ApiV1TodoCollectionDto,
@@ -59,6 +69,12 @@ import type {
 import {
   ApiV1SearchService,
 } from "../../../infrastructure/server/api/apiV1Search.ts";
+import {
+  ApiV1RevisionTracker,
+} from "../../../infrastructure/server/api/apiV1RevisionTracker.ts";
+import {
+  synchronizeApiV1Workspace,
+} from "../../../infrastructure/server/api/apiV1Sync.ts";
 import type { ApiV1PrincipalDto } from "../../../contracts/api/types.ts";
 
 type RequestOptions = {
@@ -776,7 +792,7 @@ describe("CTN API v1", () => {
   });
 
   it("issues scoped automation tokens, audits commits and streams checkpoints", async () => {
-    await withHandler(async (_handler, _rootDir, authenticated) => {
+    await withHandler(async (_handler, rootDir, authenticated) => {
       const ownerToken = "owner-token-with-at-least-32-characters";
       const handler = authenticated(ownerToken);
       const repository = await dispatch<RepositoryDescriptorDto>(handler, {
@@ -954,6 +970,35 @@ describe("CTN API v1", () => {
         checkpoint.streamId === streamId &&
         streamId === streamed[0]!.streamId
       )).toBe(true);
+      const stateDirectory = path.join(rootDir, "server-state");
+      const apiStateDirectory = path.join(stateDirectory, "api-v1");
+      const tokenFile = path.join(apiStateDirectory, "tokens.json");
+      const receiptFile = path.join(apiStateDirectory, "receipts.json");
+      const auditFile = path.join(apiStateDirectory, "audit.json");
+
+      expect((await lstat(apiStateDirectory)).mode & 0o777).toBe(0o700);
+      expect((await readdir(apiStateDirectory)).sort()).toEqual([
+        "audit.json",
+        "receipts.json",
+        "tokens.json",
+      ]);
+      for (const file of [auditFile, receiptFile, tokenFile]) {
+        expect((await lstat(file)).mode & 0o777).toBe(0o600);
+      }
+      await expect(
+        access(path.join(stateDirectory, "api-v1-state.json")),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      const receipts = await readFile(receiptFile, "utf8");
+
+      expect(receipts).not.toContain("AI 文件夹");
+      expect(receipts).not.toContain('"diff"');
+      await utimes(tokenFile, new Date(0), new Date(0));
+      await dispatch(handler, {
+        method: "GET",
+        token: secret,
+        url: "/api/v1/capabilities",
+      });
+      expect((await lstat(tokenFile)).mtimeMs).toBe(0);
       const revoked = await dispatch<{ revoked: boolean }>(handler, {
         method: "DELETE",
         token: ownerToken,
@@ -975,7 +1020,159 @@ describe("CTN API v1", () => {
         body: { code: "unauthorized" },
         statusCode: 401,
       });
+      const recoveryToken = await dispatch<ApiV1CreatedTokenDto>(handler, {
+        body: {
+          name: "隔离验证",
+          repositoryIds: null,
+          scopes: ["workspace:read"],
+        },
+        method: "POST",
+        token: ownerToken,
+        url: "/api/v1/admin/tokens",
+      });
+
+      await writeFile(auditFile, "{invalid", "utf8");
+      const reopened = authenticated(ownerToken);
+      const isolatedTokens = await dispatch<{ tokens: ApiV1CreatedTokenDto[] }>(
+        reopened,
+        {
+          method: "GET",
+          token: ownerToken,
+          url: "/api/v1/admin/tokens",
+        },
+      );
+      const isolatedAuthentication = await dispatch(reopened, {
+        method: "GET",
+        token: recoveryToken.body!.secret,
+        url: "/api/v1/capabilities",
+      });
+      const corruptAudit = await dispatch<{ code: string }>(reopened, {
+        method: "GET",
+        token: ownerToken,
+        url: "/api/v1/admin/audit",
+      });
+
+      expect(isolatedTokens.statusCode).toBe(200);
+      expect(isolatedAuthentication.statusCode).toBe(200);
+      expect(corruptAudit).toMatchObject({
+        body: { code: "internal_error" },
+        statusCode: 500,
+      });
     });
+  });
+
+  it("keeps SSE checkpoints lightweight and derives sync changes from the CAS payload", async () => {
+    const trackedRevision = revision("a");
+    const tracker = new ApiV1RevisionTracker();
+    let catalogReads = 0;
+    let storeReads = 0;
+    const unavailableCatalog = {
+      async createRepository() {
+        throw new Error("not used");
+      },
+      async deleteRepository() {
+        throw new Error("not used");
+      },
+      async getStore() {
+        storeReads += 1;
+        throw new Error("checkpoint must not load a store");
+      },
+      async listRepositories() {
+        catalogReads += 1;
+        throw new Error("checkpoint must not scan the catalog");
+      },
+      async renameRepository() {
+        throw new Error("not used");
+      },
+    } satisfies WorkspaceRepositoryCatalog;
+    const unavailableBuiltIns = {
+      async getStore() {
+        storeReads += 1;
+        throw new Error("checkpoint must not load built-in content");
+      },
+      async listBuiltIns() {
+        throw new Error("not used");
+      },
+      async retry() {
+        throw new Error("not used");
+      },
+    } as ApiV1BuiltInCatalog;
+
+    tracker.observeWorkspace("workspace-a", trackedRevision);
+    tracker.observeDomain("journal", revision("b"));
+    const handler = createApiV1RequestHandler({
+      builtInCatalog: unavailableBuiltIns,
+      catalog: unavailableCatalog,
+      revisionTracker: tracker,
+      runtime: createRuntime(),
+      security: createApiV1SecurityPolicy({
+        bearerToken: "owner-token-with-at-least-32-characters",
+        host: "127.0.0.1",
+      }),
+    });
+    const events = await dispatchRaw(handler, {
+      method: "GET",
+      token: "owner-token-with-at-least-32-characters",
+      url: "/api/v1/events",
+    });
+
+    expect(catalogReads).toBe(0);
+    expect(storeReads).toBe(0);
+    expect(events.body).toContain(`"workspace-a":"${trackedRevision}"`);
+    expect(events.body).toContain(`"journal":"${revision("b")}"`);
+
+    const before = createContent();
+    const after: WorkspaceRepositoryContentDto = {
+      ...before,
+      workspace: {
+        ...before.workspace,
+        notes: before.workspace.notes.map((note, index) =>
+          index === 0
+            ? {
+                ...note,
+                source: note.source.replace("未命名笔记", "同步标题"),
+              }
+            : note
+        ),
+      },
+    };
+    let snapshotLoads = 0;
+    const published: ApiV1DomainChangeSetDto[] = [];
+    const syncResult = await synchronizeApiV1Workspace({
+      method: "PUT",
+      observeRevision: () => {},
+      publish(changes) {
+        published.push(changes);
+        return Promise.resolve();
+      },
+      readJsonBody: () =>
+        Promise.resolve({
+          baseRevision: trackedRevision,
+          content: after,
+        }),
+      repositoryId: "workspace-a",
+      runtime: createRuntime(),
+      store: {
+        async commitSnapshot() {
+          return { revision: revision("c") };
+        },
+        async loadSnapshot() {
+          snapshotLoads += 1;
+          return { content: before, revision: trackedRevision };
+        },
+      },
+    });
+
+    expect(syncResult).toMatchObject({
+      body: { revision: revision("c") },
+      statusCode: 200,
+    });
+    expect(snapshotLoads).toBe(1);
+    expect(published).toHaveLength(1);
+    expect(published[0]!.resources).toContainEqual(expect.objectContaining({
+      domain: "workspace",
+      resourceId: before.workspace.notes[0]!.id,
+    }));
   });
 
   it("returns sanitized source faults without discarding readable search results", async () => {

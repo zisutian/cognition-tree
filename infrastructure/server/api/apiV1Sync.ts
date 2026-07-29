@@ -43,6 +43,7 @@ type ApiV1SyncResult = {
 
 type ApiV1SyncContext = {
   method: string;
+  observeRevision(revision: `sha256:${string}`): void;
   publish(changes: ApiV1DomainChangeSetDto): Promise<void>;
   readJsonBody(): Promise<unknown>;
   runtime: ApiV1Runtime;
@@ -55,20 +56,23 @@ export async function synchronizeApiV1Workspace(
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
-    return { body: await context.store.loadSnapshot(), statusCode: 200 };
+    const snapshot = await context.store.loadSnapshot();
+
+    context.observeRevision(snapshot.revision);
+    return { body: snapshot, statusCode: 200 };
   }
   const before = await context.store.loadSnapshot();
   const commit =
     await context.readJsonBody() as WorkspaceRepositoryCommitDto;
   const result = await context.store.commitSnapshot(commit);
-  const after = await context.store.loadSnapshot();
   const changes = projectApiV1WorkspaceChanges(
     context.repositoryId,
     before.content,
-    after.content,
+    commit.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
   ).changes;
 
+  context.observeRevision(result.revision);
   await context.publish(changes);
   return { body: result, statusCode: 200 };
 }
@@ -79,18 +83,21 @@ export async function synchronizeApiV1Journal(
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
-    return { body: await context.store.loadSnapshot(), statusCode: 200 };
+    const snapshot = await context.store.loadSnapshot();
+
+    context.observeRevision(snapshot.revision);
+    return { body: snapshot, statusCode: 200 };
   }
   const before = await context.store.loadSnapshot();
   const commit = await context.readJsonBody() as JournalCommitDto;
   const result = await context.store.commitSnapshot(commit);
-  const after = await context.store.loadSnapshot();
   const changes = projectApiV1JournalChanges(
     parseJournalContent(before.content),
-    parseJournalContent(after.content),
+    parseJournalContent(commit.content),
     readApiV1RuntimeNow(context.runtime).timestamp,
   ).changes;
 
+  context.observeRevision(result.revision);
   await context.publish(changes);
   return { body: result, statusCode: 200 };
 }
@@ -101,18 +108,21 @@ export async function synchronizeApiV1Todo(
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
-    return { body: await context.store.loadSnapshot(), statusCode: 200 };
+    const snapshot = await context.store.loadSnapshot();
+
+    context.observeRevision(snapshot.revision);
+    return { body: snapshot, statusCode: 200 };
   }
   const before = await context.store.loadSnapshot();
   const commit = await context.readJsonBody() as TodoCommitDto;
   const result = await context.store.commitSnapshot(commit);
-  const after = await context.store.loadSnapshot();
   const changes = projectApiV1TodoChanges(
     parseTodoContent(before.content),
-    parseTodoContent(after.content),
+    parseTodoContent(commit.content),
     readApiV1RuntimeNow(context.runtime).timestamp,
   ).changes;
 
+  context.observeRevision(result.revision);
   await context.publish(changes);
   return { body: result, statusCode: 200 };
 }
