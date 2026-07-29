@@ -162,6 +162,7 @@ export function createWorkbenchController({
   let started = false;
   let snapshot: WorkbenchControllerSnapshot;
   let latestCheckpoint: DomainRevisionCheckpoint | null = null;
+  let activeChangeStreamId: string | null = null;
   let workspaceCatalogChangeSequence = -1;
   let catalogAttemptedSequence = -1;
   let catalogReloading = false;
@@ -395,6 +396,15 @@ export function createWorkbenchController({
     publish();
   });
   const unsubscribeChangeEvents = changeEvents?.subscribe((event) => {
+    if (activeChangeStreamId !== event.streamId) {
+      activeChangeStreamId = event.streamId;
+      latestCheckpoint = null;
+      workspaceCatalogChangeSequence = -1;
+      catalogAttemptedSequence = -1;
+      workspaceAttemptedSequences.clear();
+      journalAttemptedSequence = -1;
+      todoAttemptedSequence = -1;
+    }
     if (
       latestCheckpoint &&
       event.sequence < latestCheckpoint.sequence

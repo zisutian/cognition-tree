@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  ApiV1CommandOutcomeDto,
   ApiV1JournalCommandDto,
   ApiV1ResourceChangeDto,
 } from "../../../contracts/api/types.ts";
@@ -74,7 +75,7 @@ function applyJournalCommand(
   const { date, timestamp } = readApiV1RuntimeNow(runtime);
   const index = createJournalParseIndex(content);
   let next = content;
-  let result: Record<string, unknown> = {};
+  let result: ApiV1CommandOutcomeDto = { kind: "ok" };
 
   switch (command.kind) {
     case "create-entry": {
@@ -110,7 +111,7 @@ function applyJournalCommand(
 
         next = updated.content;
       }
-      result = { entryId };
+      result = { entryId, kind: "journal-entry-created" };
       break;
     }
     case "delete-entry": {

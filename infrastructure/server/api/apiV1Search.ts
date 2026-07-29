@@ -9,6 +9,7 @@ import {
   type SearchFault,
   type SearchRequest,
   type SearchSource,
+  type SearchResponse,
 } from "../../../application/search/searchQuery.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import { parseJournalContent } from "../../../contracts/journal/parseJournal.ts";
@@ -114,6 +115,52 @@ function mapWorkspaceIssue(
       ? "Workspace search source contains invalid data"
       : "Workspace search source is unavailable",
     repositoryId: issue.id,
+  };
+}
+
+function projectApiV1SearchResponse(
+  response: SearchResponse,
+): ApiV1SearchResponseDto {
+  return {
+    cursor: response.cursor,
+    faults: response.faults.map((fault) =>
+      fault.domain === "workspace"
+        ? {
+            code: fault.code,
+            domain: fault.domain,
+            message: fault.message,
+            ...(fault.repositoryId
+              ? { repositoryId: fault.repositoryId }
+              : {}),
+          }
+        : {
+            code: fault.code,
+            domain: fault.domain,
+            message: fault.message,
+          }
+    ),
+    results: response.results.map((result) => {
+      const common = {
+        blockId: result.blockId,
+        resourceId: result.resourceId,
+        snippet: result.snippet,
+        title: result.title,
+        updatedAt: result.updatedAt,
+        version: result.version,
+      };
+
+      if (result.domain === "workspace") {
+        if (!result.repositoryId) {
+          throw new Error("Workspace search result is missing repositoryId.");
+        }
+        return {
+          ...common,
+          domain: result.domain,
+          repositoryId: result.repositoryId,
+        };
+      }
+      return { ...common, domain: result.domain };
+    }),
   };
 }
 
@@ -263,9 +310,11 @@ export class ApiV1SearchService {
       );
     }
     try {
-      return await this.#query.search(
-        { ...request, domains } satisfies SearchRequest,
-        principal,
+      return projectApiV1SearchResponse(
+        await this.#query.search(
+          { ...request, domains } satisfies SearchRequest,
+          principal,
+        ),
       );
     } catch (error) {
       if (!(error instanceof SearchRequestError)) throw error;

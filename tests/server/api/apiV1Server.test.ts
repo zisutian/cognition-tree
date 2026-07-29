@@ -303,13 +303,6 @@ describe("CTN API v1", () => {
       });
 
       expect(openapi.body).toMatchObject({ openapi: "3.1.0" });
-      expect(
-        (
-          openapi.body!.components as {
-            schemas: { SearchResponse: { required: string[] } };
-          }
-        ).schemas.SearchResponse.required,
-      ).toEqual(expect.arrayContaining(["cursor", "faults", "results"]));
       const paths = openapi.body!.paths as Record<
         string,
         Record<string, {
@@ -319,6 +312,19 @@ describe("CTN API v1", () => {
       >;
       const operations = Object.entries(paths).flatMap(([route, methods]) =>
         Object.values(methods).map((operation) => ({ operation, route }))
+      );
+      const searchResponse = (
+        paths["/api/v1/search"]!.post as unknown as {
+          responses: Record<string, {
+            content: Record<string, {
+              schema: { required: string[] };
+            }>;
+          }>;
+        }
+      ).responses["200"]!.content["application/json"]!.schema;
+
+      expect(searchResponse.required).toEqual(
+        expect.arrayContaining(["cursor", "faults", "results"]),
       );
 
       expect(
@@ -408,6 +414,9 @@ describe("CTN API v1", () => {
       expect(preview.body).toMatchObject({
         status: "previewed",
       });
+      if (preview.body?.status !== "previewed") {
+        throw new Error("expected command preview");
+      }
       expect(preview.body!.diff).not.toEqual([]);
       const unchanged = await dispatch<ApiV1CtnDocumentDto>(handler, {
         method: "GET",
@@ -429,6 +438,7 @@ describe("CTN API v1", () => {
       ]);
 
       expect(committed.body).toMatchObject({ status: "committed" });
+      expect(committed.body).not.toHaveProperty("diff");
       expect(repeated.body).toEqual(committed.body);
       const reusedCommandId = await dispatch<{ code: string }>(handler, {
         body: {
@@ -539,7 +549,12 @@ describe("CTN API v1", () => {
         method: "POST",
         url: "/api/v1/journal/commands",
       });
-      const entryId = createdEntry.body!.result.entryId as string;
+      if (
+        createdEntry.body?.result.kind !== "journal-entry-created"
+      ) {
+        throw new Error("expected created journal entry");
+      }
+      const entryId = createdEntry.body.result.entryId;
       const entry = await dispatch<ApiV1CtnDocumentDto>(handler, {
         method: "GET",
         url: `/api/v1/journal/entries/${entryId}`,
@@ -567,8 +582,13 @@ describe("CTN API v1", () => {
         method: "POST",
         url: "/api/v1/todo/commands",
       });
-      const collectionId =
-        createdCollection.body!.result.collectionId as string;
+      if (
+        createdCollection.body?.result.kind !==
+          "todo-collection-created"
+      ) {
+        throw new Error("expected created Todo collection");
+      }
+      const collectionId = createdCollection.body.result.collectionId;
       const collection = await dispatch<ApiV1TodoCollectionDto>(handler, {
         method: "GET",
         url: `/api/v1/todo/collections/${collectionId}`,
@@ -878,7 +898,9 @@ describe("CTN API v1", () => {
           commandId: commandId(21),
           confirm: true,
           expectedTreeVersion: updatedTree.body!.version,
-          folderId: createdFolder.body!.result.folderId,
+          folderId: createdFolder.body?.result.kind === "folder-created"
+            ? createdFolder.body.result.folderId
+            : "",
           kind: "delete-folder",
           mode: "commit",
         },
@@ -917,6 +939,21 @@ describe("CTN API v1", () => {
       expect(events.body).toContain("event: change");
       expect(events.body).toContain('"changes"');
       expect(events.body).not.toContain("editableText");
+      const streamed = events.body
+        .split("\n")
+        .filter((line) => line.startsWith("data: "))
+        .map((line) =>
+          JSON.parse(line.slice("data: ".length)) as {
+            checkpoint: { streamId: string };
+            streamId: string;
+          }
+        );
+
+      expect(streamed).toHaveLength(2);
+      expect(streamed.every(({ checkpoint, streamId }) =>
+        checkpoint.streamId === streamId &&
+        streamId === streamed[0]!.streamId
+      )).toBe(true);
       const revoked = await dispatch<{ revoked: boolean }>(handler, {
         method: "DELETE",
         token: ownerToken,
@@ -1016,8 +1053,9 @@ describe("CTN API v1", () => {
     }, principal);
 
     expect(response.results.length).toBeGreaterThan(0);
-    expect(response.results.every(({ repositoryId }) =>
-      repositoryId === "good"
+    expect(response.results.every((result) =>
+      result.domain === "workspace" &&
+      result.repositoryId === "good"
     )).toBe(true);
     expect(response.faults).toEqual([{
       code: "source_invalid",

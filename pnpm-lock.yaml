@@ -20,6 +20,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.0
         version: 6.43.0
+      '@sinclair/typebox':
+        specifier: 0.34.52
+        version: 0.34.52
       '@tanstack/react-virtual':
         specifier: ^3.14.6
         version: 3.14.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -678,6 +681,9 @@ packages:
     resolution: {integrity: sha512-QVTUovf40zgTqlFVrKA1uXMVvU2QWEFWfAH8Wdc48IxLvrJMQVMBRjuQyUpzZCDkakImib9eVazbWlC6ksWtJw==}
     cpu: [x64]
     os: [win32]
+
+  '@sinclair/typebox@0.34.52':
+    resolution: {integrity: sha512-XiMQh7qqVlxZzcVD+kkGMNGMzcTrDMLWI7S4x7z1MkCkbDPrekpZXEUK0eZqZFMuHQg2a2DZOcDIh9o5v3Gonw==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -1547,6 +1553,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.60.4':
     optional: true
+
+  '@sinclair/typebox@0.34.52': {}
 
   '@standard-schema/spec@1.1.0': {}
 

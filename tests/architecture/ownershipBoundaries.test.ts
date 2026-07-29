@@ -38,8 +38,8 @@ const uniqueOwners: readonly UniqueOwner[] = [
   [
     "CTN API request body dispatch",
     contractModules,
-    /\bswitch\s*\(route\.requestBodyByMethod\?\.\[method\]\)/,
-    /^contracts\/api\/parseRequest\.ts$/,
+    /\bexport function parseApiV1OperationRequest\s*\(/,
+    /^contracts\/api\/registry\.ts$/,
   ],
   [
     "CTN token parsing",

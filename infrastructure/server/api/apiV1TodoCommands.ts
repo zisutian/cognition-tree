@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  ApiV1CommandOutcomeDto,
   ApiV1ResourceChangeDto,
   ApiV1TodoCommandDto,
 } from "../../../contracts/api/types.ts";
@@ -122,7 +123,7 @@ function applyTodoCommand(
   const { timestamp, today } = readApiV1RuntimeNow(runtime);
   const index = createTodoParseIndex(content);
   let next = content;
-  let result: Record<string, unknown> = {};
+  let result: ApiV1CommandOutcomeDto = { kind: "ok" };
 
   switch (command.kind) {
     case "create-collection": {
@@ -158,7 +159,7 @@ function applyTodoCommand(
 
         next = updated.content;
       }
-      result = { collectionId };
+      result = { collectionId, kind: "todo-collection-created" };
       break;
     }
     case "delete-collection": {

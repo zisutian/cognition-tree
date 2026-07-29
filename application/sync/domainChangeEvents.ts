@@ -3,6 +3,7 @@
 export type DomainRevisionCheckpoint = {
   journal: string | null;
   sequence: number;
+  streamId: string;
   todo: string | null;
   workspaces: Readonly<Record<string, string>>;
 };
@@ -16,6 +17,7 @@ export type DomainChangeNotification = {
     workspaceRepositoryIds: readonly string[];
   }>;
   sequence: number;
+  streamId: string;
 };
 
 export type DomainChangeEventSource = {

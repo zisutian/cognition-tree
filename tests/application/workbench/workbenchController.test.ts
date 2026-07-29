@@ -422,6 +422,7 @@ describe("Workbench controller", () => {
       checkpoint: {
         journal: builtInRevision("c"),
         sequence: 1,
+        streamId: "stream-a",
         todo: builtInRevision("c"),
         workspaces: {
           "repository-a": remoteRevision("b"),
@@ -429,6 +430,7 @@ describe("Workbench controller", () => {
         },
       },
       sequence: 1,
+      streamId: "stream-a",
     };
 
     harness.emitChange(notification);
@@ -453,6 +455,21 @@ describe("Workbench controller", () => {
     });
     await vi.waitFor(() => {
       expect(harness.workspaceCatalog.listRepositories).toHaveBeenCalledTimes(2);
+    });
+    harness.emitChange({
+      ...notification,
+      checkpoint: {
+        ...notification.checkpoint,
+        sequence: 0,
+        streamId: "stream-b",
+      },
+      sequence: 0,
+      streamId: "stream-b",
+    });
+    await vi.waitFor(() => {
+      expect(reloadWorkspace).toHaveBeenCalledTimes(2);
+      expect(reloadJournal).toHaveBeenCalledTimes(2);
+      expect(reloadTodo).toHaveBeenCalledTimes(2);
     });
 
     harness.controller.dispose();

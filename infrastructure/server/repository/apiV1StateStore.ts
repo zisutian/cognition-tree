@@ -12,7 +12,7 @@ import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import type {
   ApiV1AuditEntryDto,
   ApiV1AuditPageDto,
-  ApiV1CommandResultDto,
+  ApiV1CommittedCommandResultDto,
   ApiV1CreateTokenRequestDto,
   ApiV1CreatedTokenDto,
   ApiV1PrincipalDto,
@@ -23,12 +23,16 @@ import {
   parseApiV1TokenList,
 } from "../../../contracts/api/parse.ts";
 import {
+  ApiV1CommittedCommandResultSchema,
+} from "../../../contracts/api/schemas.ts";
+import { parseApiV1Schema } from "../../../contracts/api/parse.ts";
+import {
   isSecureDirectory,
   isSecureRegularFile,
   replaceFileDurably,
 } from "../persistence/fileSystemPersistence.ts";
 
-const stateSchemaVersion = 1;
+const stateSchemaVersion = 2;
 const receiptRetentionMilliseconds = 30 * 24 * 60 * 60 * 1_000;
 const stateFileName = "api-v1-state.json";
 
@@ -48,7 +52,7 @@ type StoredReceipt = {
   expiresAt: string;
   principalId: string;
   requestDigest: string;
-  result: ApiV1CommandResultDto;
+  result: ApiV1CommittedCommandResultDto;
 };
 
 type StoredState = {
@@ -152,44 +156,16 @@ function parseStoredReceipt(value: unknown, index: number): StoredReceipt {
   ) {
     throw new Error(`${pathLabel} digest or expiry is invalid.`);
   }
-  const result = requireRecord(record.result, `${pathLabel}.result`);
-
-  assertExactFields(
-    result,
-    ["changes", "diff", "result", "revision", "status"],
-    `${pathLabel}.result`,
+  const result = parseApiV1Schema(
+    ApiV1CommittedCommandResultSchema,
+    record.result,
   );
-  if (
-    (result.status !== "committed" && result.status !== "previewed") ||
-    typeof result.revision !== "string" ||
-    !result.revision.startsWith("sha256:") ||
-    !Array.isArray(result.diff) ||
-    !result.result ||
-    typeof result.result !== "object" ||
-    Array.isArray(result.result)
-  ) {
-    throw new Error(`${pathLabel}.result is invalid.`);
-  }
-  const changes = requireRecord(result.changes, `${pathLabel}.result.changes`);
-
-  assertExactFields(
-    changes,
-    ["blocks", "occurredAt", "resources"],
-    `${pathLabel}.result.changes`,
-  );
-  if (
-    !Array.isArray(changes.blocks) ||
-    !Array.isArray(changes.resources) ||
-    typeof changes.occurredAt !== "string"
-  ) {
-    throw new Error(`${pathLabel}.result.changes is invalid.`);
-  }
   return {
     commandId: record.commandId as string,
     expiresAt: record.expiresAt as string,
     principalId: record.principalId as string,
     requestDigest: record.requestDigest as string,
-    result: result as StoredReceipt["result"],
+    result,
   };
 }
 
@@ -230,7 +206,7 @@ export class ApiV1StateStore {
   readonly #inFlightCommands = new Map<string, {
     promise: Promise<{
       replayed: boolean;
-      result: ApiV1CommandResultDto;
+      result: ApiV1CommittedCommandResultDto;
     }>;
     requestDigest: string;
   }>();
@@ -323,7 +299,7 @@ export class ApiV1StateStore {
     principalId: string,
     commandId: string,
     request: unknown,
-  ): Promise<ApiV1CommandResultDto | null> {
+  ): Promise<ApiV1CommittedCommandResultDto | null> {
     return this.#enqueue(async () => {
       const changed = this.#purgeExpiredReceipts();
       const receipt = this.#state.receipts.find(
@@ -345,7 +321,7 @@ export class ApiV1StateStore {
     principalId: string,
     commandId: string,
     request: unknown,
-    result: ApiV1CommandResultDto,
+    result: ApiV1CommittedCommandResultDto,
     auditEntry?: ApiV1AuditEntryDto,
   ) {
     return this.#enqueue(async () => {
@@ -381,13 +357,13 @@ export class ApiV1StateStore {
     principalId: string,
     commandId: string,
     request: unknown,
-    execute: () => Promise<ApiV1CommandResultDto>,
+    execute: () => Promise<ApiV1CommittedCommandResultDto>,
     createAuditEntry?: (
-      result: ApiV1CommandResultDto,
+      result: ApiV1CommittedCommandResultDto,
     ) => ApiV1AuditEntryDto,
   ): Promise<{
     replayed: boolean;
-    result: ApiV1CommandResultDto;
+    result: ApiV1CommittedCommandResultDto;
   }> {
     const key = `${principalId}\u0000${commandId}`;
     const requestDigest = commandRequestDigest(request);

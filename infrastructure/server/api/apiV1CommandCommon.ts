@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  ApiV1CommandOutcomeDto,
   ApiV1CommandResultDto,
   ApiV1DomainChangeSetDto,
   ApiV1TextDiffHunkDto,
@@ -23,7 +24,7 @@ export type ApiV1PreparedCommand<Content> = {
   changes: ApiV1DomainChangeSetDto;
   content: Content;
   diff: ApiV1TextDiffHunkDto[];
-  result: Record<string, unknown>;
+  result: ApiV1CommandOutcomeDto;
   revision: ContentRevisionDto;
 };
 
@@ -76,7 +77,6 @@ export async function executeApiV1VersionedCommand<Content>({
 
       return {
         changes: prepared.changes,
-        diff: prepared.diff,
         result: prepared.result,
         revision: committed.revision,
         status: "committed",

@@ -4,6 +4,7 @@ import type {
   OutgoingHttpHeaders,
   ServerResponse,
 } from "node:http";
+import { randomUUID } from "node:crypto";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import type {
   ApiV1ChangeEventDto,
@@ -42,6 +43,7 @@ export function filterApiV1Checkpoint(
   return {
     journal: canRead(principal, "journal") ? checkpoint.journal : null,
     sequence: checkpoint.sequence,
+    streamId: checkpoint.streamId,
     todo: canRead(principal, "todo") ? checkpoint.todo : null,
     workspaces: canRead(principal, "workspace")
       ? Object.fromEntries(
@@ -89,6 +91,11 @@ function writeSseEvent(
 export class ApiV1EventHub {
   readonly #connections = new Set<EventConnection>();
   #sequence = 0;
+  readonly #streamId: string;
+
+  constructor(streamId = randomUUID()) {
+    this.#streamId = streamId;
+  }
 
   connect({
     checkpoint,
@@ -113,8 +120,10 @@ export class ApiV1EventHub {
       checkpoint: {
         ...filterApiV1Checkpoint(checkpoint, principal),
         sequence: this.#sequence,
+        streamId: this.#streamId,
       },
       sequence: this.#sequence,
+      streamId: this.#streamId,
       type: "checkpoint",
     };
 
@@ -133,8 +142,10 @@ export class ApiV1EventHub {
       checkpoint: {
         ...checkpoint,
         sequence: this.#sequence,
+        streamId: this.#streamId,
       },
       sequence: this.#sequence,
+      streamId: this.#streamId,
       type: "change",
     };
 
@@ -162,5 +173,9 @@ export class ApiV1EventHub {
 
   get sequence() {
     return this.#sequence;
+  }
+
+  get streamId() {
+    return this.#streamId;
   }
 }

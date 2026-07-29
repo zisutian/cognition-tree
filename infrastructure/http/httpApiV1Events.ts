@@ -35,6 +35,7 @@ function projectNotification(
       ],
     },
     sequence: input.sequence,
+    streamId: input.streamId,
   };
 }
 

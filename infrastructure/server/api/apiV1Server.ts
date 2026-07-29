@@ -9,9 +9,12 @@ import type {
 import path from "node:path";
 import {
   apiV1AllowedMethods,
+  assertApiV1OperationResponse,
+  getApiV1RouteOperation,
+  parseApiV1OperationRequest,
+  parseApiV1OperationQuery,
   resolveApiV1Route,
 } from "../../../contracts/api/registry.ts";
-import { parseApiV1RouteRequestBody } from "../../../contracts/api/parseRequest.ts";
 import type {
   WorkspaceRepositoryCatalog,
 } from "../repository/repositoryCatalog.ts";
@@ -121,29 +124,28 @@ export function createApiV1RequestHandler({
       }
       const method = request.method;
 
-      if (!method || !route.methods.includes(method)) {
+      if (
+        !method ||
+        !route.methods.includes(
+          method as (typeof route.methods)[number],
+        )
+      ) {
         throw new ApiV1RequestError(
           "invalid_request",
           "Method not allowed",
           { statusCode: 405 },
         );
       }
-      if (method === "GET" || method === "DELETE") {
-        assertApiV1RequestHasNoBody(request);
-      }
-      if (route.kind === "admin-built-in-retry") {
-        assertApiV1RequestHasNoBody(request);
-      }
-      const allowsQuery =
-        (route.kind === "admin-repository" && method === "DELETE") ||
-        route.kind === "admin-audit";
+      const operation = getApiV1RouteOperation(route, method);
 
-      if (!allowsQuery && url.search !== "") {
-        throw new ApiV1RequestError(
-          "invalid_request",
-          "Query parameters are not allowed for this route",
-        );
+      if (!operation.body) {
+        assertApiV1RequestHasNoBody(request);
       }
+      const query = parseApiV1OperationQuery(
+        route,
+        method,
+        url.searchParams,
+      );
       let parsedBody: Promise<unknown> | null = null;
       const result = await handleApiV1Route({
         builtInCatalog,
@@ -151,9 +153,10 @@ export function createApiV1RequestHandler({
         eventHub,
         method,
         principal: authorized.principal,
+        query,
         readJsonBody: () => {
           parsedBody ??= readApiV1JsonBody(request).then((input) =>
-            parseApiV1RouteRequestBody(route, method, input)
+            parseApiV1OperationRequest(route, method, input)
           );
           return parsedBody;
         },
@@ -164,10 +167,15 @@ export function createApiV1RequestHandler({
         runtime,
         search,
         stateStore,
-        url,
       });
 
       if (result) {
+        assertApiV1OperationResponse(
+          route,
+          method,
+          result.statusCode,
+          result.body,
+        );
         sendApiV1Json(
           response,
           result.statusCode,

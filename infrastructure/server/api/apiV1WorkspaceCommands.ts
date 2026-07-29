@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  ApiV1CommandOutcomeDto,
   ApiV1ResourceChangeDto,
   ApiV1WorkspaceCommandDto,
   ApiV1WorkspaceTreeNodeDto,
@@ -235,7 +236,7 @@ function applyWorkspaceCommand(
   const beforeAnalysis = createApiV1WorkspaceAnalysis(content);
   const treeVersion = createWorkspaceTreeVersion(content);
   let next = content;
-  let result: Record<string, unknown> = {};
+  let result: ApiV1CommandOutcomeDto = { kind: "ok" };
 
   switch (command.kind) {
     case "create-folder": {
@@ -254,7 +255,7 @@ function applyWorkspaceCommand(
           title: command.title,
         }),
       };
-      result = { folderId };
+      result = { folderId, kind: "folder-created" };
       break;
     }
     case "create-note": {
@@ -290,7 +291,7 @@ function applyWorkspaceCommand(
         timestamp,
         runtime.createId,
       );
-      result = { noteId };
+      result = { kind: "note-created", noteId };
       break;
     }
     case "delete-folder": {

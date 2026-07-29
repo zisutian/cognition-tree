@@ -1,466 +1,111 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { TSchema } from "@sinclair/typebox";
 import {
-  apiV1RouteDefinitions,
-  getApiV1RouteOperation,
-  type ApiV1RequestBodyKind,
-  type ApiV1RouteDefinition,
+  ApiV1ErrorResponseSchema,
+  apiV1Operations,
 } from "./registry.ts";
-import { apiV1AutomationScopes } from "./types.ts";
 
-type Schema = Record<string, unknown>;
-
-const resourceVersion: Schema = {
-  pattern: "^sha256:[0-9a-f]{64}$",
-  type: "string",
-};
-const uuid: Schema = {
-  format: "uuid",
-  type: "string",
-};
-const nonEmptyString: Schema = {
-  minLength: 1,
-  type: "string",
-};
-const nullableString: Schema = {
-  oneOf: [{ type: "string" }, { type: "null" }],
-};
-
-function strictObject(
-  properties: Record<string, Schema>,
-  required = Object.keys(properties),
-): Schema {
-  return {
-    additionalProperties: false,
-    properties,
-    required,
-    type: "object",
-  };
+function jsonSchema(schema: TSchema): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(schema)) as Record<string, unknown>;
 }
-
-function commandSchema(
-  kind: string,
-  properties: Record<string, Schema>,
-): Schema {
-  return strictObject({
-    commandId: uuid,
-    kind: { const: kind },
-    mode: { enum: ["preview", "commit"], type: "string" },
-    ...properties,
-  });
-}
-
-const blockTargetProperties = {
-  targetBlockId: nullableString,
-  targetKind: {
-    enum: ["above", "below", "end", "inside"],
-    type: "string",
-  },
-};
-
-const workspaceCommandVariants = [
-  commandSchema("create-folder", {
-    expectedTreeVersion: resourceVersion,
-    parentFolderId: nullableString,
-    title: nonEmptyString,
-  }),
-  commandSchema("create-note", {
-    body: { type: "string" },
-    expectedTreeVersion: resourceVersion,
-    parentFolderId: nullableString,
-    title: nonEmptyString,
-  }),
-  commandSchema("delete-folder", {
-    confirm: { const: true },
-    expectedTreeVersion: resourceVersion,
-    folderId: nonEmptyString,
-  }),
-  commandSchema("delete-note", {
-    confirm: { const: true },
-    expectedVersion: resourceVersion,
-    noteId: nonEmptyString,
-  }),
-  commandSchema("move-block", {
-    expectedSourceVersion: resourceVersion,
-    expectedTargetVersion: resourceVersion,
-    sourceBlockId: uuid,
-    sourceNoteId: nonEmptyString,
-    ...blockTargetProperties,
-    targetNoteId: nonEmptyString,
-  }),
-  commandSchema("move-tree-node", {
-    expectedTreeVersion: resourceVersion,
-    nodeId: nonEmptyString,
-    nodeKind: { enum: ["folder", "note"], type: "string" },
-    parentFolderId: nullableString,
-    toIndex: { minimum: 0, type: "integer" },
-  }),
-  commandSchema("rename-folder", {
-    expectedVersion: resourceVersion,
-    folderId: nonEmptyString,
-    title: nonEmptyString,
-  }),
-  commandSchema("rename-note", {
-    expectedVersion: resourceVersion,
-    noteId: nonEmptyString,
-    title: nonEmptyString,
-  }),
-  commandSchema("replace-note-source", {
-    editableText: { type: "string" },
-    expectedVersion: resourceVersion,
-    noteId: nonEmptyString,
-  }),
-];
-
-const journalCommandVariants = [
-  commandSchema("create-entry", {
-    body: { type: "string" },
-    expectedEntriesVersion: resourceVersion,
-  }),
-  commandSchema("delete-entry", {
-    confirm: { const: true },
-    entryId: nonEmptyString,
-    expectedVersion: resourceVersion,
-  }),
-  commandSchema("replace-entry-body", {
-    body: { type: "string" },
-    entryId: nonEmptyString,
-    expectedVersion: resourceVersion,
-  }),
-];
-
-const recurrenceRule: Schema = {
-  discriminator: { propertyName: "kind" },
-  oneOf: [
-    strictObject({
-      interval: { minimum: 1, type: "integer" },
-      kind: { const: "daily" },
-    }),
-    strictObject({
-      interval: { minimum: 1, type: "integer" },
-      kind: { const: "weekly" },
-      weekdays: {
-        items: { maximum: 7, minimum: 1, type: "integer" },
-        minItems: 1,
-        type: "array",
-        uniqueItems: true,
-      },
-    }),
-    strictObject({
-      dayOfMonth: { maximum: 31, minimum: 1, type: "integer" },
-      interval: { minimum: 1, type: "integer" },
-      kind: { const: "monthly" },
-    }),
-  ],
-};
-
-const todoCommandVariants = [
-  commandSchema("create-collection", {
-    body: { type: "string" },
-    expectedOrderVersion: resourceVersion,
-    name: nonEmptyString,
-  }),
-  commandSchema("delete-collection", {
-    collectionId: nonEmptyString,
-    confirm: { const: true },
-    expectedStateVersion: resourceVersion,
-    expectedVersion: resourceVersion,
-  }),
-  commandSchema("set-completion", {
-    blockId: uuid,
-    collectionId: nonEmptyString,
-    completed: { type: "boolean" },
-    expectedStateVersion: resourceVersion,
-    occurrenceDate: {
-      oneOf: [
-        { pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", type: "string" },
-        { type: "null" },
-      ],
-    },
-  }),
-  commandSchema("set-recurrence", {
-    blockId: uuid,
-    collectionId: nonEmptyString,
-    expectedStateVersion: resourceVersion,
-    rule: recurrenceRule,
-  }),
-  commandSchema("stop-recurrence", {
-    blockId: uuid,
-    collectionId: nonEmptyString,
-    expectedStateVersion: resourceVersion,
-  }),
-  commandSchema("move-block", {
-    collectionId: nonEmptyString,
-    expectedVersion: resourceVersion,
-    sourceBlockId: uuid,
-    ...blockTargetProperties,
-  }),
-  commandSchema("move-collection", {
-    collectionId: nonEmptyString,
-    expectedOrderVersion: resourceVersion,
-    toIndex: { minimum: 0, type: "integer" },
-  }),
-  commandSchema("rename-collection", {
-    collectionId: nonEmptyString,
-    expectedVersion: resourceVersion,
-    name: nonEmptyString,
-  }),
-  commandSchema("replace-collection-body", {
-    body: { type: "string" },
-    collectionId: nonEmptyString,
-    expectedVersion: resourceVersion,
-  }),
-];
-
-const versionedCommit = strictObject({
-  baseRevision: resourceVersion,
-  content: { type: "object" },
-});
-
-const requestSchemaNameByKind: Record<ApiV1RequestBodyKind, string> = {
-  "create-repository": "CreateRepositoryRequest",
-  "create-token": "CreateTokenRequest",
-  "journal-command": "JournalCommand",
-  "journal-sync": "VersionedSyncCommit",
-  "rename-repository": "RenameRepositoryRequest",
-  search: "SearchRequest",
-  "todo-command": "TodoCommand",
-  "todo-sync": "VersionedSyncCommit",
-  "workspace-command": "WorkspaceCommand",
-  "workspace-sync": "VersionedSyncCommit",
-};
-
-const errorResponse = {
-  content: {
-    "application/json": {
-      schema: { $ref: "#/components/schemas/Error" },
-    },
-  },
-  description: "CTN API error envelope",
-};
 
 function pathParameters(path: string) {
   return [...path.matchAll(/\{([^}]+)\}/g)].map((match) => ({
     in: "path",
     name: match[1],
     required: true,
-    schema: nonEmptyString,
+    schema: { minLength: 1, type: "string" },
   }));
 }
+
+function queryParameters(schema: TSchema | undefined) {
+  if (!schema || schema.type !== "object") return [];
+  const required = new Set(
+    Array.isArray(schema.required) ? schema.required as string[] : [],
+  );
+  const properties = schema.properties as
+    | Record<string, TSchema>
+    | undefined;
+
+  return Object.entries(properties ?? {}).map(([name, property]) => ({
+    in: "query",
+    name,
+    required: required.has(name),
+    schema: jsonSchema(property),
+  }));
+}
+
+const errorResponse = {
+  content: {
+    "application/json": {
+      schema: jsonSchema(ApiV1ErrorResponseSchema),
+    },
+  },
+  description: "CTN API error envelope",
+};
 
 export function createApiV1OpenApiDocument() {
   const paths: Record<string, Record<string, unknown>> = {};
 
-  for (const route of apiV1RouteDefinitions) {
-    const definition: ApiV1RouteDefinition = route;
-    const operations = paths[route.path] ?? {};
+  for (const operation of apiV1Operations) {
+    const path = paths[operation.path] ?? {};
+    const mediaType = operation.responseMediaType ?? "application/json";
+    const responses = Object.fromEntries([
+      ...Object.entries(operation.responses).map(([status, schema]) => [
+        status,
+        {
+          content: {
+            [mediaType]: { schema: jsonSchema(schema) },
+          },
+          description: mediaType === "text/event-stream"
+            ? "Checkpoint followed by change notifications"
+            : "Successful response",
+        },
+      ]),
+      ...[
+        400,
+        401,
+        403,
+        404,
+        409,
+        422,
+        423,
+        500,
+        503,
+        507,
+      ].map((status) => [String(status), errorResponse]),
+    ]);
 
-    for (const method of route.methods) {
-      const operation = getApiV1RouteOperation(route, method);
-      const bodyKind = definition.requestBodyByMethod?.[method];
-      const response = route.kind === "events"
+    path[operation.method.toLowerCase()] = {
+      ...(operation.body
         ? {
-            content: {
-              "text/event-stream": {
-                schema: { type: "string" },
-              },
-            },
-            description: "Checkpoint followed by body-free change notifications",
-          }
-        : route.kind === "search"
-        ? {
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/SearchResponse" },
-              },
-            },
-            description: "Cross-domain search page",
-          }
-        : { description: "Successful response" };
-      const successStatuses =
-        definition.successStatusesByMethod?.[method] ?? [200];
-      const responses = Object.fromEntries([
-        ...successStatuses.map((status) => [String(status), response]),
-        ["400", errorResponse],
-        ["401", errorResponse],
-        ["403", errorResponse],
-        ["404", errorResponse],
-        ["409", errorResponse],
-        ["423", errorResponse],
-        ["422", errorResponse],
-        ["500", errorResponse],
-        ["503", errorResponse],
-        ["507", errorResponse],
-      ]);
-
-      operations[method.toLowerCase()] = {
-        ...(bodyKind
-          ? {
-              requestBody: {
-                content: {
-                  "application/json": {
-                    schema: {
-                      $ref:
-                        `#/components/schemas/${requestSchemaNameByKind[bodyKind]}`,
-                    },
-                  },
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: jsonSchema(operation.body.schema),
                 },
-                required: true,
               },
-            }
-          : {}),
-        operationId: operation.operationId,
-        parameters: pathParameters(route.path),
-        responses,
-        security: [{ bearerAuth: [] }],
-        tags: [route.kind.split("-")[0]],
-        "x-ctn-any-scopes": operation.anyScopes,
-        "x-ctn-required-scopes": operation.scopes,
-      };
-    }
-    paths[route.path] = operations;
+              required: true,
+            },
+          }
+        : {}),
+      operationId: operation.operationId,
+      parameters: [
+        ...pathParameters(operation.path),
+        ...queryParameters(operation.query),
+      ],
+      responses,
+      security: [{ bearerAuth: [] }],
+      tags: [operation.kind.split("-")[0]],
+      "x-ctn-any-scopes": operation.anyScopes,
+      "x-ctn-required-scopes": operation.scopes,
+    };
+    paths[operation.path] = path;
   }
 
   return {
     components: {
-      schemas: {
-        CreateRepositoryRequest: {
-          discriminator: { propertyName: "adapter" },
-          oneOf: [
-            strictObject({
-              adapter: { const: "local" },
-              content: { type: "object" },
-              label: nonEmptyString,
-            }),
-            strictObject({
-              adapter: { const: "webdav" },
-              authentication: { type: "object" },
-              initialContent: { type: "object" },
-              label: nonEmptyString,
-              url: { format: "uri", type: "string" },
-            }),
-          ],
-        },
-        CreateTokenRequest: strictObject({
-          name: nonEmptyString,
-          repositoryIds: {
-            oneOf: [
-              { items: nonEmptyString, type: "array", uniqueItems: true },
-              { type: "null" },
-            ],
-          },
-          scopes: {
-            items: {
-              enum: apiV1AutomationScopes,
-              type: "string",
-            },
-            minItems: 1,
-            type: "array",
-            uniqueItems: true,
-          },
-        }),
-        Error: strictObject(
-          {
-            code: { type: "string" },
-            details: { type: "object" },
-            message: { type: "string" },
-            requestId: { type: "string" },
-          },
-          ["code", "message", "requestId"],
-        ),
-        JournalCommand: {
-          discriminator: { propertyName: "kind" },
-          oneOf: journalCommandVariants,
-        },
-        RenameRepositoryRequest: strictObject({
-          label: nonEmptyString,
-        }),
-        SearchRequest: strictObject(
-          {
-            cursor: { type: "string" },
-            domains: {
-              items: {
-                enum: ["workspace", "journal", "todo"],
-                type: "string",
-              },
-              type: "array",
-              uniqueItems: true,
-            },
-            limit: { maximum: 100, minimum: 1, type: "integer" },
-            query: { type: "string" },
-            repositoryIds: {
-              items: nonEmptyString,
-              type: "array",
-              uniqueItems: true,
-            },
-            updatedAfter: { format: "date-time", type: "string" },
-          },
-          ["query"],
-        ),
-        SearchResponse: strictObject({
-          cursor: {
-            oneOf: [{ type: "string" }, { type: "null" }],
-          },
-          faults: {
-            items: { $ref: "#/components/schemas/SearchFault" },
-            type: "array",
-          },
-          results: {
-            items: { $ref: "#/components/schemas/SearchResult" },
-            type: "array",
-          },
-        }),
-        SearchFault: strictObject(
-          {
-            code: {
-              enum: ["source_invalid", "source_unavailable"],
-              type: "string",
-            },
-            domain: {
-              enum: ["workspace", "journal", "todo"],
-              type: "string",
-            },
-            message: { type: "string" },
-            repositoryId: { type: "string" },
-          },
-          ["code", "domain", "message"],
-        ),
-        SearchResult: strictObject(
-          {
-            blockId: {
-              oneOf: [{ type: "string" }, { type: "null" }],
-            },
-            domain: {
-              enum: ["workspace", "journal", "todo"],
-              type: "string",
-            },
-            repositoryId: { type: "string" },
-            resourceId: nonEmptyString,
-            snippet: { type: "string" },
-            title: { type: "string" },
-            updatedAt: { format: "date-time", type: "string" },
-            version: resourceVersion,
-          },
-          [
-            "blockId",
-            "domain",
-            "resourceId",
-            "snippet",
-            "title",
-            "updatedAt",
-            "version",
-          ],
-        ),
-        TodoCommand: {
-          discriminator: { propertyName: "kind" },
-          oneOf: todoCommandVariants,
-        },
-        VersionedSyncCommit: versionedCommit,
-        WorkspaceCommand: {
-          discriminator: { propertyName: "kind" },
-          oneOf: workspaceCommandVariants,
-        },
-      },
       securitySchemes: {
         bearerAuth: {
           bearerFormat: "CTN token",

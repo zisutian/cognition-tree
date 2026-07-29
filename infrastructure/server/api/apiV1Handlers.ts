@@ -274,6 +274,7 @@ async function createCheckpoint({
   return {
     journal: journal?.revision ?? null,
     sequence: eventHub.sequence,
+    streamId: eventHub.streamId,
     todo: todo?.revision ?? null,
     workspaces,
   };
@@ -285,6 +286,7 @@ type ApiV1HandlerContext = {
   eventHub: ApiV1EventHub;
   method: string;
   principal: ApiV1PrincipalDto;
+  query: unknown;
   readJsonBody(): Promise<unknown>;
   requestId: string;
   response: ServerResponse;
@@ -293,7 +295,6 @@ type ApiV1HandlerContext = {
   runtime: ApiV1Runtime;
   search: ApiV1SearchService | null;
   stateStore: ApiV1StateStore;
-  url: URL;
 };
 
 async function executeCommand({
@@ -327,7 +328,12 @@ async function executeCommand({
     command,
     async () => {
       try {
-        return await execute();
+        const committed = await execute();
+
+        if (committed.status !== "committed") {
+          throw new Error("Commit command returned a preview response.");
+        }
+        return committed;
       } catch (error) {
         if (principal.kind === "automation") {
           await stateStore.appendAudit(auditEntry({
@@ -607,7 +613,7 @@ function handleSync(context: ApiV1HandlerContext) {
 }
 
 async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
-  const { catalog, method, route, url } = context;
+  const { catalog, method, route } = context;
 
   if (route.kind === "admin-repositories") {
     if (method === "GET") {
@@ -657,20 +663,12 @@ async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
     });
     return { body: descriptor, statusCode: 200 };
   }
-  const modes = url.searchParams.getAll("mode");
-
-  if (
-    [...url.searchParams.keys()].some((key) => key !== "mode") ||
-    modes.length !== 1
-  ) {
-    throw new ApiV1RequestError(
-      "invalid_request",
-      "Repository deletion requires exactly one mode",
-    );
-  }
+  const query = context.query as {
+    mode: "delete-managed-data" | "remove-connection";
+  };
   const result = await catalog.deleteRepository(
     repositoryId,
-    parseRepositoryDeletionMode(modes[0]),
+    parseRepositoryDeletionMode(query.mode),
   );
 
   await publishApiV1Changes(context, {
@@ -745,36 +743,13 @@ async function handleTokenAdmin(context: ApiV1HandlerContext) {
   return { body: { revoked: true }, statusCode: 200 };
 }
 
-function parseAuditQuery(url: URL) {
-  for (const key of url.searchParams.keys()) {
-    if (
-      (key !== "cursor" && key !== "limit") ||
-      url.searchParams.getAll(key).length !== 1
-    ) {
-      throw new ApiV1RequestError(
-        "invalid_request",
-        "Audit pagination query is invalid",
-      );
-    }
-  }
-  const cursorSource = url.searchParams.get("cursor") ?? "0";
-  const limitSource = url.searchParams.get("limit") ?? "50";
-  const cursor = Number(cursorSource);
-  const limit = Number(limitSource);
+function parseAuditQuery(query: unknown) {
+  const source = query as { cursor?: number; limit?: number };
 
-  if (
-    !Number.isSafeInteger(cursor) ||
-    cursor < 0 ||
-    !Number.isSafeInteger(limit) ||
-    limit < 1 ||
-    limit > 100
-  ) {
-    throw new ApiV1RequestError(
-      "invalid_request",
-      "Audit pagination values are invalid",
-    );
-  }
-  return { cursor, limit };
+  return {
+    cursor: source.cursor ?? 0,
+    limit: source.limit ?? 50,
+  };
 }
 
 export async function handleApiV1Route(
@@ -881,7 +856,7 @@ export async function handleApiV1Route(
   }
   if (route.kind === "admin-audit") {
     return {
-      body: await context.stateStore.listAudit(parseAuditQuery(context.url)),
+      body: await context.stateStore.listAudit(parseAuditQuery(context.query)),
       statusCode: 200,
     };
   }
