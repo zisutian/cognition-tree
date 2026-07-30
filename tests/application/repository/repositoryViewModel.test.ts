@@ -174,14 +174,6 @@ describe("repository view model", () => {
       label: "WebDAV 地址",
       value: "https://dav.example.test/notes/",
     }]);
-    expect(projectRepositoryLocation({
-      databaseName: "cognition-tree-v3",
-      type: "browser",
-    })).toEqual([{
-      copyValue: "cognition-tree-v3",
-      label: "浏览器数据库",
-      value: "cognition-tree-v3",
-    }]);
     expect(projectRepositoryLocation(null)).toEqual([]);
   });
 
@@ -560,7 +552,7 @@ describe("repository view model", () => {
   it("cannot let offline state overwrite a local persistence error", () => {
     const localError: WorkspacePersistenceState = {
       localCopySafe: false,
-      message: "IndexedDB is full",
+      message: "Client cache is full",
       phase: "local",
       status: "error",
     };

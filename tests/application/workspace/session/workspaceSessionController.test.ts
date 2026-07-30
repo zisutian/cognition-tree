@@ -120,7 +120,11 @@ function createRepositoryHarness({
     discardPendingSnapshotAndReload: () => discard(),
     label: "test repository",
     loadSnapshot: () => load(),
-    location: { databaseName: "test", type: "browser" },
+    location: {
+      hostPath: null,
+      serverPath: "/repositories/test",
+      type: "local",
+    },
     async stageSnapshot({ content, expectedLocalRevision }) {
       if (expectedLocalRevision !== snapshot.localRevision) {
         throw new Error("local revision mismatch");
@@ -358,7 +362,11 @@ describe("workspace session controller", () => {
     );
 
     expect(state).toMatchObject({
-      location: { databaseName: "test", type: "browser" },
+      location: {
+        hostPath: null,
+        serverPath: "/repositories/test",
+        type: "local",
+      },
       persistence: { remoteRevision: conflictRevision, status: "conflict" },
       status: "ready",
     });

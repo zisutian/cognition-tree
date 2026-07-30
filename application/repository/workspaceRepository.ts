@@ -35,8 +35,7 @@ export type RepositoryLocation =
       serverPath: string;
       type: "local";
     }
-  | { type: "webdav"; url: string }
-  | { databaseName: string; type: "browser" };
+  | { type: "webdav"; url: string };
 export type RepositoryApiErrorCode =
   | "invalid_request"
   | "repository_not_found"

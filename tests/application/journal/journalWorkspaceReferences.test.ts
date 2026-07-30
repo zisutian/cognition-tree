@@ -21,11 +21,15 @@ import {
 } from "../workspace/session/workspaceSessionTestFixture";
 
 const descriptor = {
-  adapter: "browser",
+  adapter: "local",
   id: "repository-notes",
   label: "知识库",
   labelIssue: null,
-  location: { databaseName: "notes", type: "browser" },
+  location: {
+    hostPath: null,
+    serverPath: "/repositories/notes",
+    type: "local",
+  },
 } as const satisfies WorkspaceRepositoryDescriptor;
 
 function reference(

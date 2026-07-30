@@ -9,11 +9,24 @@ import {
 } from "../../presentation/ui/workbench/frameResize";
 import { expectMarkupSemantics } from "./markupSemantics";
 
+const apiAccess = {
+  administration: {
+    createToken: async () => {
+      throw new Error("not called during server rendering");
+    },
+    listAudit: async () => ({ cursor: null, entries: [] }),
+    listTokens: async () => [],
+    revokeToken: async () => undefined,
+  },
+  repositories: [{ id: "primary", label: "主仓库" }],
+};
+
 describe("settings activity", () => {
   it("separates interface preferences from scoped server API access", () => {
     const contextMarkup = renderToStaticMarkup(<SettingsContext />);
     const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
+        apiAccess={apiAccess}
         workbench={{
           contextWidth: appContextDefaultWidth,
           onContextWidthChange: () => undefined,
@@ -21,33 +34,9 @@ describe("settings activity", () => {
       />,
     );
 
-    const unavailableMarkup = renderToStaticMarkup(
+    const apiMarkup = renderToStaticMarkup(
       <SettingsPanel
-        apiAccess={{
-          reason: "仅服务器模式可用",
-          status: "unavailable",
-        }}
-        section="api-access"
-        workbench={{
-          contextWidth: appContextDefaultWidth,
-          onContextWidthChange: () => undefined,
-        }}
-      />,
-    );
-    const availableMarkup = renderToStaticMarkup(
-      <SettingsPanel
-        apiAccess={{
-          administration: {
-            createToken: async () => {
-              throw new Error("not called during server rendering");
-            },
-            listAudit: async () => ({ cursor: null, entries: [] }),
-            listTokens: async () => [],
-            revokeToken: async () => undefined,
-          },
-          repositories: [{ id: "primary", label: "主仓库" }],
-          status: "available",
-        }}
+        apiAccess={apiAccess}
         section="api-access"
         workbench={{
           contextWidth: appContextDefaultWidth,
@@ -68,11 +57,7 @@ describe("settings activity", () => {
       lacks: ["当前仓库", "添加仓库", "危险区"],
     });
     expect(panelMarkup.match(/<input/g)).toHaveLength(1);
-    expectMarkupSemantics(unavailableMarkup, {
-      has: ["当前存储模式不提供 API", "仅服务器模式可用"],
-      lacks: ["创建令牌"],
-    });
-    expectMarkupSemantics(availableMarkup, {
+    expectMarkupSemantics(apiMarkup, {
       has: [
         "创建令牌",
         "领域权限",
@@ -90,6 +75,6 @@ describe("settings activity", () => {
         'type="radio"',
       ],
     });
-    expect(availableMarkup.match(/<select/g)).toHaveLength(4);
+    expect(apiMarkup.match(/<select/g)).toHaveLength(4);
   });
 });

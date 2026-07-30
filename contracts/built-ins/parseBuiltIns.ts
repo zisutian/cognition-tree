@@ -22,7 +22,6 @@ const issueFields = ["code", "id", "location", "message", "status"] as const;
 const catalogFields = ["issues", "repositories"] as const;
 const retryFields = ["status"] as const;
 const serverLocationFields = ["serverPath", "type"] as const;
-const browserLocationFields = ["databaseName", "type"] as const;
 const ids = ["journal", "todo"] as const satisfies readonly BuiltInIdDto[];
 const issueCodes = new Set<BuiltInIssueDto["code"]>([
   "adapter_unavailable",
@@ -54,13 +53,6 @@ function parseLocation(value: unknown, path: string): BuiltInLocationDto {
     return {
       type,
       serverPath: readRequiredWireString(contract, location, "serverPath", path),
-    };
-  }
-  if (type === "browser") {
-    assertExactWireFields(contract, location, browserLocationFields, path);
-    return {
-      type,
-      databaseName: readRequiredWireString(contract, location, "databaseName", path),
     };
   }
   failWireContract(contract, `${path}.type`, `unsupported location type ${type}`);

@@ -288,10 +288,6 @@ test.describe("Todo activity flows", () => {
       reloadedPanel.getByRole("img", { name: /周期任务/ }),
     ).toHaveCount(0);
 
-    await setContextWidth(page, appContextDefaultWidth);
-    await getActivityButton(page, "笔记").click();
-    await expect(page.locator(".problems-panel-header"))
-      .toHaveAttribute("aria-expanded", "true");
   });
 
   test("keeps Todo usable when the ordinary repository catalog is empty", async ({

@@ -16,7 +16,11 @@ function createRepository(
     discardPendingSnapshotAndReload: async () => snapshot,
     label: "test repository",
     loadSnapshot: async () => snapshot,
-    location: { databaseName: "test", type: "browser" },
+    location: {
+      hostPath: null,
+      serverPath: "/repositories/test",
+      type: "local",
+    },
     stageSnapshot: async () => ({ localRevision: snapshot.localRevision }),
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: async () => ({

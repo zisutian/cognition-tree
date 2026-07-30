@@ -60,17 +60,12 @@ export function SettingsContext({
   );
 }
 
-const unavailableApiAccess: ApiAccessApplication = {
-  reason: "浏览器本地存储不会暴露远程 API。请使用服务器存储模式。",
-  status: "unavailable",
-};
-
 export function SettingsPanel({
-  apiAccess = unavailableApiAccess,
+  apiAccess,
   section = "interface",
   workbench,
 }: {
-  apiAccess?: ApiAccessApplication;
+  apiAccess: ApiAccessApplication;
   section?: SettingsSection;
   workbench: SettingsWorkbenchPreferences;
 }) {

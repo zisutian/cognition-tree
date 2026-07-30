@@ -9,7 +9,7 @@ import {
 export const repositoryRequestTimeoutMs = 30_000;
 
 export type HttpRepositoryTransportOptions = {
-  baseUrl?: string;
+  baseUrl: string;
   fetch?: typeof fetch;
   token?: string;
 };

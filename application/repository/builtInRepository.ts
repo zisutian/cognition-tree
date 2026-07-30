@@ -10,9 +10,7 @@ import type {
 
 export type ContentRevision = `sha256:${string}`;
 export type BuiltInId = "journal" | "todo";
-export type BuiltInLocation =
-  | { serverPath: string; type: "server" }
-  | { databaseName: string; type: "browser" };
+export type BuiltInLocation = { serverPath: string; type: "server" };
 export type BuiltInDescriptor = {
   id: BuiltInId;
   label: "日记" | "代办";

@@ -78,7 +78,7 @@ function isRefinedInfrastructureEdge(edge: SourceImport) {
   const sourceArea = infrastructureArea(edge.filePath);
 
   return (
-    ((sourceArea === "browser" || sourceArea === "http") &&
+    ((sourceArea === "client" || sourceArea === "http") &&
       infrastructureArea(edge.targetPath) !== null) ||
     (edge.filePath !== "../../infrastructure/server/index.ts" &&
       serverArea(edge.filePath) !== null &&
@@ -90,7 +90,7 @@ function allowsInfrastructureEdge(edge: SourceImport) {
   const sourceArea = infrastructureArea(edge.filePath);
   const targetArea = infrastructureArea(edge.targetPath);
 
-  if (sourceArea === "browser" || sourceArea === "http") {
+  if (sourceArea === "client" || sourceArea === "http") {
     return targetArea === sourceArea || targetArea === "persistence";
   }
   const allowed = serverAreaImports[serverArea(edge.filePath) ?? ""];
@@ -122,6 +122,13 @@ export const dependencyImportPolicies: readonly ImportPolicy[] = [
       filePath.startsWith("../../presentation/activities/") &&
       targetPath.startsWith("../../presentation/shell/"),
     name: "Activity independence from shell composition",
+  },
+  {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      !filePath.startsWith("../../infrastructure/server/") &&
+      targetPath.startsWith("../../infrastructure/server/"),
+    name: "client independence from server storage",
   },
 ];
 
@@ -222,12 +229,6 @@ const uniqueOwners: readonly UniqueOwner[] = [
     /^core\/ctn\/syntax\//,
   ],
   [
-    "IndexedDB persistence primitives",
-    infrastructureModules,
-    /function (?:requestResult|transactionComplete)\s*</,
-    /^infrastructure\/browser\//,
-  ],
-  [
     "filesystem persistence primitives",
     infrastructureModules,
     /function (?:fsyncDirectory|writeFileDurably)\s*\(/,
@@ -295,14 +296,6 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     pattern: /\b(?:migrate|migration)(?:[A-Z_]|[a-z]+\b)/i,
     scope: /^(?:application|contracts|core|infrastructure|presentation)\//,
   },
-  {
-    allowedPath:
-      /^infrastructure\/browser\/explicitBrowserStorageReset\.ts$/,
-    corpus: infrastructureModules,
-    matches: { max: 1 },
-    name: "implicit IndexedDB deletion",
-    pattern: /\b(?:deleteDatabase|deleteObjectStore)\s*\(/,
-  },
 ];
 
 function forbid(
@@ -319,7 +312,7 @@ const sharedStyleScope = /^presentation\/ui\/styles\/shared\//;
 const nonFoundationUiStyleScope = (filePath: string) =>
   filePath.startsWith("presentation/ui/styles/") &&
   !filePath.startsWith("presentation/ui/styles/foundation/");
-const nonBrowserUiTestScope = (filePath: string) =>
+const nonE2eUiTestScope = (filePath: string) =>
   !filePath.startsWith("e2e/") &&
   !filePath.endsWith("designContract.test.ts");
 const workflowTestScope = (filePath: string) =>
@@ -432,7 +425,7 @@ export function createUiTextPolicies({
         /\bgetComputedStyle\s*\(/,
       ],
     ] as const).map(([name, pattern]) =>
-      forbid(name, uiTestModules, pattern, nonBrowserUiTestScope)
+      forbid(name, uiTestModules, pattern, nonE2eUiTestScope)
     ),
     forbid(
       "native browser dialogs",

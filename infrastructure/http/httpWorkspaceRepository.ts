@@ -15,7 +15,7 @@ type HttpWorkspaceRepositoryOptions = HttpRepositoryTransportOptions & {
 };
 
 export function createHttpWorkspaceRepositoryBackend({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   repositoryId,
   token,

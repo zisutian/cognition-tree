@@ -3,10 +3,6 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import {
-  IDBFactory,
-  IDBObjectStore as FakeIDBObjectStore,
-} from "fake-indexeddb";
 import { parseWorkspaceRepositoryCommit } from "../../contracts/workspace/parseRepository.ts";
 import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision.ts";
 import {
@@ -32,8 +28,8 @@ import { createUiOutlineNodes } from "../../application/workspace/projection/vie
 import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax.ts";
-import { createIndexedDbRepositoryClientCache } from "../../infrastructure/browser/browserRepositoryClientCache.ts";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/http/httpWorkspaceRepository.ts";
+import { createMemoryRepositoryClientCache } from "../../infrastructure/persistence/repositoryClientCache.ts";
 import { WorkspaceRepositoryLocalConflictError } from "../../application/repository/workspaceRepository.ts";
 import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax.ts";
 import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
@@ -53,7 +49,7 @@ const noteCount = 1_000;
 const blocksPerNote = 100;
 const notesPerFolder = 10;
 const timestamp = "2026-01-01T00:00:00.000Z";
-const indexedDbRepositoryIdentity = "benchmark:capacity";
+const memoryRepositoryIdentity = "benchmark:capacity";
 const benchmarkSyntaxFileId =
   "syntax-00000000-0000-4000-8000-000000000001";
 const firstDraftRevision =
@@ -556,88 +552,55 @@ const revision = await measure(
 );
 const editedRevision = createWorkspaceRepositoryRevision(editedContent);
 
-const indexedDb = new IDBFactory();
-const indexedDbCache = createIndexedDbRepositoryClientCache(indexedDb);
+const memoryCache = createMemoryRepositoryClientCache();
+let memoryStageAttempts = 0;
 
-await measure("repository.indexedDb.seed", () =>
-  indexedDbCache.createRepositoryAtomically({
-    catalogIdentity: "benchmark",
-    content,
-    descriptor: {
-      adapter: "browser",
-      id: "capacity",
-      label: "Capacity Benchmark",
-      location: {
-        databaseName: "cognition-tree.repository-cache",
-        type: "browser",
-      },
-      labelIssue: null,
-    },
+await measure("repository.memory.seed", () =>
+  memoryCache.snapshots.create({
+    identity: memoryRepositoryIdentity,
     localRevision: firstDraftRevision,
-    remoteRevision: revision,
-    repositoryIdentity: indexedDbRepositoryIdentity,
+    snapshot: { content, revision },
   }),
 );
-const indexedDbWrittenNoteIds: string[] = [];
-const originalIndexedDbPut = FakeIDBObjectStore.prototype.put;
-
-FakeIDBObjectStore.prototype.put = function (
-  this: IDBObjectStore,
-  value: unknown,
-  key?: IDBValidKey,
-) {
-  if (this.name === "repository-notes-v4") {
-    const note = value as { id?: unknown };
-
-    if (typeof note.id === "string") {
-      indexedDbWrittenNoteIds.push(note.id);
-    }
-  }
-  return key === undefined
-    ? originalIndexedDbPut.call(this, value)
-    : originalIndexedDbPut.call(this, value, key);
-} as typeof originalIndexedDbPut;
-try {
-  await measure("repository.indexedDb.singleNoteStage", () =>
-    indexedDbCache.snapshots.stage({
-      content: editedContent,
-      expectedLocalRevision: firstDraftRevision,
-      identity: indexedDbRepositoryIdentity,
-      localRevision: secondDraftRevision,
-    }),
-  );
-} finally {
-  FakeIDBObjectStore.prototype.put = originalIndexedDbPut;
-}
-await measure("repository.indexedDb.staleCas", () =>
-  assert.rejects(
-    indexedDbCache.snapshots.stage({
+await measure("repository.memory.singleResourceStage", async () => {
+  memoryStageAttempts += 1;
+  await memoryCache.snapshots.stage({
+    content: editedContent,
+    expectedLocalRevision: firstDraftRevision,
+    identity: memoryRepositoryIdentity,
+    localRevision: secondDraftRevision,
+  });
+});
+await measure("repository.memory.staleCas", () => {
+  memoryStageAttempts += 1;
+  return assert.rejects(
+    memoryCache.snapshots.stage({
       content,
       expectedLocalRevision: firstDraftRevision,
-      identity: indexedDbRepositoryIdentity,
+      identity: memoryRepositoryIdentity,
       localRevision: staleDraftRevision,
     }),
     WorkspaceRepositoryLocalConflictError,
-  ),
+  );
+});
+const memorySnapshot = await measure(
+  "repository.memory.load",
+  () => memoryCache.snapshots.load(memoryRepositoryIdentity),
 );
-const indexedDbSnapshot = await measure(
-  "repository.indexedDb.load",
-  () => indexedDbCache.snapshots.load(indexedDbRepositoryIdentity),
-);
-const indexedDbChangedNoteIds = indexedDbSnapshot
-  ? collectChangedNoteIds(content, indexedDbSnapshot.content)
+const memoryChangedNoteIds = memorySnapshot
+  ? collectChangedNoteIds(content, memorySnapshot.content)
   : [];
 
-assert(indexedDbSnapshot, "IndexedDB benchmark snapshot is missing.");
-assert.equal(indexedDbSnapshot.localRevision, secondDraftRevision);
-assert.equal(indexedDbSnapshot.pendingBaseRevision, revision);
-assert.equal(indexedDbSnapshot.remoteRevision, revision);
-assert.deepEqual(indexedDbChangedNoteIds, [workspace.notes[0].id]);
-assert.deepEqual(indexedDbWrittenNoteIds, [workspace.notes[0].id]);
+assert(memorySnapshot, "Memory benchmark snapshot is missing.");
+assert.equal(memorySnapshot.localRevision, secondDraftRevision);
+assert.equal(memorySnapshot.pendingBaseRevision, revision);
+assert.equal(memorySnapshot.remoteRevision, revision);
+assert.equal(memoryStageAttempts, 2);
+assert.deepEqual(memoryChangedNoteIds, [workspace.notes[0].id]);
 assertRepositoryContentEqual(
-  indexedDbSnapshot.content,
+  memorySnapshot.content,
   editedContent,
-  "IndexedDB load",
+  "Memory cache load",
 );
 
 let httpSnapshot: {
@@ -809,9 +772,9 @@ try {
       searchDocumentProjections,
       searchSourceLoads,
       httpCommittedRevision: httpCommitResult.revision,
-      indexedDbChangedNoteIds,
-      indexedDbLocalRevision: indexedDbSnapshot.localRevision,
-      indexedDbWrittenNoteIds,
+      memoryChangedNoteIds,
+      memoryLocalRevision: memorySnapshot.localRevision,
+      memoryStageAttempts,
       webDavMaxConcurrentWrites:
         webDavTransport.maxConcurrentGenerationWrites,
     },

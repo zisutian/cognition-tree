@@ -10,7 +10,7 @@ import type {
 
 export type CreateRepositoryRequest =
   | {
-      adapter: "browser" | "local";
+      adapter: "local";
       name: string;
     }
   | {
@@ -64,9 +64,6 @@ function repositoryLocationsEqual(
         left.serverPath === right.serverPath;
     case "webdav":
       return right.type === "webdav" && left.url === right.url;
-    case "browser":
-      return right.type === "browser" &&
-        left.databaseName === right.databaseName;
   }
 }
 

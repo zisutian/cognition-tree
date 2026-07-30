@@ -50,18 +50,26 @@ function deferred<Value>() {
 
 const workspaceDescriptors: WorkspaceRepositoryDescriptor[] = [
   {
-    adapter: "browser",
+    adapter: "local",
     id: "repository-a",
     label: "仓库A",
     labelIssue: null,
-    location: { databaseName: "a", type: "browser" },
+    location: {
+      hostPath: null,
+      serverPath: "/repositories/a",
+      type: "local",
+    },
   },
   {
-    adapter: "browser",
+    adapter: "local",
     id: "repository-b",
     label: "仓库B",
     labelIssue: null,
-    location: { databaseName: "b", type: "browser" },
+    location: {
+      hostPath: null,
+      serverPath: "/repositories/b",
+      type: "local",
+    },
   },
 ];
 
@@ -69,13 +77,13 @@ const builtInDescriptors: BuiltInDescriptor[] = [
   {
     id: "journal",
     label: "日记",
-    location: { databaseName: "journal", type: "browser" },
+    location: { serverPath: "/data/journal", type: "server" },
     protected: true,
   },
   {
     id: "todo",
     label: "代办",
-    location: { databaseName: "todo", type: "browser" },
+    location: { serverPath: "/data/todo", type: "server" },
     protected: true,
   },
 ];
@@ -189,7 +197,7 @@ function createHarness({
     deleteRepository: vi.fn(async () => ({ status: "deleted" as const })),
     label: "Repositories",
     listRepositories: vi.fn(async () => ({
-      creatableAdapters: ["browser" as const],
+      creatableAdapters: ["local" as const],
       issues: [],
       repositories: workspaceDescriptors,
     })),
@@ -235,6 +243,9 @@ function createHarness({
         activeRepositoryId = repositoryId;
       },
     },
+    apiAccessAdministration: {} as Parameters<
+      typeof createWorkbenchController
+    >[0]["apiAccessAdministration"],
     builtInCatalog,
     changeEvents: withChangeEvents
       ? {

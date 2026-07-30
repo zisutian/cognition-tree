@@ -9,15 +9,12 @@ import {
 import type { ApiAccessApplication } from "../../../../application/apiAccess/apiAccessAdministration";
 
 export function createSettingsActivitySlots({
-  apiAccess = {
-    reason: "浏览器本地存储不会暴露远程 API。请使用服务器存储模式。",
-    status: "unavailable",
-  },
+  apiAccess,
   onSectionChange = () => undefined,
   section = "interface",
   workbench,
 }: {
-  apiAccess?: ApiAccessApplication;
+  apiAccess: ApiAccessApplication;
   onSectionChange?(section: SettingsSection): void;
   section?: SettingsSection;
   workbench: SettingsWorkbenchPreferences;

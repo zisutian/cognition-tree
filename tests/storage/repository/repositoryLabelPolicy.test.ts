@@ -12,13 +12,14 @@ function descriptor(
   label: string,
 ): RepositoryDescriptorDto {
   return {
-    adapter: "browser",
+    adapter: "local",
     id,
     label,
     labelIssue: null,
     location: {
-      databaseName: "test",
-      type: "browser",
+      hostPath: null,
+      serverPath: `/repositories/${id}`,
+      type: "local",
     },
   };
 }
@@ -47,7 +48,7 @@ describe("repository label policy", () => {
       descriptor("unsafe", "bad/name"),
     ];
     const projected = projectWorkspaceRepositoryLabelIssues({
-      creatableAdapters: ["browser"],
+      creatableAdapters: ["local"],
       issues: [],
       repositories,
     });

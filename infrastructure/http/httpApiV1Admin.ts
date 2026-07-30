@@ -27,7 +27,7 @@ function projectToken(
 }
 
 export function createHttpApiV1Administration({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
 }: HttpRepositoryTransportOptions): ApiAccessAdministration {

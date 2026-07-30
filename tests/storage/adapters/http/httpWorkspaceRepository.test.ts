@@ -53,6 +53,7 @@ describe("HTTP workspace repository backend", () => {
     const content = createDeepWorkspaceRepositoryContent(10_000);
     let receivedCommit: ReturnType<typeof parseWorkspaceRepositoryCommit> | null = null;
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: async (_input, init) => {
         if ((init?.method ?? "GET") === "GET") {
           return new Response(serializeJsonIteratively({
@@ -168,6 +169,7 @@ describe("HTTP workspace repository backend", () => {
   it("rejects invalid outbound exact content and unsafe note paths before fetch", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: fetchMock,
       repositoryId: "primary",
     });
@@ -194,6 +196,7 @@ describe("HTTP workspace repository backend", () => {
 
   it("maps only structured revision conflicts to the backend conflict type", async () => {
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: async () =>
         jsonResponse(
           apiError("resource_conflict", "content changed", "request-2", {
@@ -224,10 +227,12 @@ describe("HTTP workspace repository backend", () => {
       jsonResponse(apiError("repository_corrupt", "repository is corrupt"), 500),
     );
     const transient = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: transientFetch,
       repositoryId: "primary",
     });
     const terminal = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: terminalFetch,
       repositoryId: "primary",
     });
@@ -250,6 +255,7 @@ describe("HTTP workspace repository backend", () => {
 
   it("keeps retryable HTTP status semantics when a gateway returns invalid JSON", async () => {
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: async () => new Response("bad gateway", { status: 503 }),
       repositoryId: "primary",
     });
@@ -263,6 +269,7 @@ describe("HTTP workspace repository backend", () => {
 
   it("rejects v3 snapshots instead of reading compatibility content", async () => {
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: async () =>
         jsonResponse({
           content: {
@@ -284,6 +291,7 @@ describe("HTTP workspace repository backend", () => {
     vi.useFakeTimers();
     let observedSignal: AbortSignal | undefined;
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: async (_input, init) => {
         observedSignal = init?.signal ?? undefined;
         return new Promise<Response>((_resolve, reject) => {
@@ -309,6 +317,7 @@ describe("HTTP workspace repository backend", () => {
     vi.useFakeTimers();
     let observedSignal: AbortSignal | undefined;
     const backend = createHttpWorkspaceRepositoryBackend({
+      baseUrl: "http://api.test",
       fetch: async (_input, init) => {
         observedSignal = init?.signal ?? undefined;
         return {

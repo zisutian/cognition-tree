@@ -5,10 +5,13 @@ import {
   type WorkbenchController,
 } from "../application/workbench/workbenchController";
 import {
-  browserApplicationScheduler,
-  browserWorkspaceSessionCommandDependencies,
-  createBrowserInitialWorkspaceContent,
-} from "./browser/browserApplicationServices";
+  clientApplicationScheduler,
+  clientWorkspaceSessionCommandDependencies,
+  createClientInitialWorkspaceContent,
+} from "./client/clientApplicationServices";
+import type {
+  ClientApiConfiguration,
+} from "./client/clientApiConfiguration";
 import { createBuiltInRuntime } from "./builtInRuntime";
 import { createHttpApiV1EventSource } from "./http/httpApiV1Events";
 import { createHttpApiV1Administration } from "./http/httpApiV1Admin";
@@ -18,33 +21,31 @@ import {
   createVersionedContentRevision,
 } from "./persistence/versionedContentRevision";
 
-export function createWorkbenchRuntime(): WorkbenchController {
-  const workspace = createWorkspaceRepositoryRuntime();
-  const builtIns = createBuiltInRuntime();
+export function createWorkbenchRuntime(
+  api: ClientApiConfiguration,
+): WorkbenchController {
+  const workspace = createWorkspaceRepositoryRuntime(api);
+  const builtIns = createBuiltInRuntime(api);
 
   return createWorkbenchController({
     activeRepositorySelection: workspace.activeRepositorySelection,
-    apiAccessAdministration: import.meta.env.VITE_CTN_STORAGE_MODE === "browser"
-      ? undefined
-      : createHttpApiV1Administration({
-          baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
-          token: import.meta.env.VITE_CTN_API_TOKEN,
-        }),
+    apiAccessAdministration: createHttpApiV1Administration({
+      baseUrl: api.baseUrl,
+      token: api.token,
+    }),
     builtInCatalog: builtIns.catalog,
-    changeEvents: import.meta.env.VITE_CTN_STORAGE_MODE === "browser"
-      ? undefined
-      : createHttpApiV1EventSource({
-          baseUrl: import.meta.env.VITE_CTN_API_BASE_URL,
-          token: import.meta.env.VITE_CTN_API_TOKEN,
-        }),
-    createInitialWorkspaceContent: createBrowserInitialWorkspaceContent,
+    changeEvents: createHttpApiV1EventSource({
+      baseUrl: api.baseUrl,
+      token: api.token,
+    }),
+    createInitialWorkspaceContent: createClientInitialWorkspaceContent,
     createSearchVersion: async (value) =>
       createVersionedContentRevision(
         serializeJsonIteratively(value, { sortObjectKeys: true }),
       ),
-    scheduler: browserApplicationScheduler,
+    scheduler: clientApplicationScheduler,
     timezoneOffsetMinutes: () => -new Date().getTimezoneOffset(),
     workspaceCatalog: workspace.catalog,
-    workspaceCommandDependencies: browserWorkspaceSessionCommandDependencies,
+    workspaceCommandDependencies: clientWorkspaceSessionCommandDependencies,
   });
 }

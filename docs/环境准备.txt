@@ -38,13 +38,22 @@
     CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
     CTN_API_TOKEN                非 loopback 部署的 bearer token
 
-前端环境变量：
+前端启动配置：
 
-    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001
-    VITE_CTN_API_TOKEN=
-    VITE_CTN_STORAGE_MODE=browser
+    public/cognition-tree.config.json
 
-HTTP 模式连接 Node 后端；browser 模式使用独立 IndexedDB catalog，适合无后端的界面验证。每个浏览器独立保存当前普通 repository id。
+    {
+      "formatVersion": 1,
+      "apiBaseUrl": "http://127.0.0.1:3001",
+      "apiToken": "可选 owner token"
+    }
+
+页面启动时以 no-store 读取该文件。生产构建中的对应位置是
+.artifacts/build/client/cognition-tree.config.json，可在启动静态站点前替换或
+挂载；配置不会写入 JavaScript bundle。apiBaseUrl 只接受根路径上的绝对
+HTTP(S) origin，不允许凭据、query 或 fragment。缺失或无效配置会阻止客户端
+启动。前端始终连接 Node 后端，不存在本地存储模式或后端不可用时的空仓库
+fallback。localStorage 只保存当前普通 repository id。
 
 
 3. 安全边界
@@ -56,7 +65,9 @@ HTTP 模式连接 Node 后端；browser 模式使用独立 IndexedDB catalog，�
     至少 32 字符的 CTN_API_TOKEN
     HTTPS CTN_PUBLIC_URL
 
-服务端从公开 URL 推导允许的 Host、Origin 与 CORS。VITE_CTN_API_TOKEN 会进入前端构建并由浏览器发送，因此只适用于单用户受控客户端。
+服务端从公开 URL 推导允许的 Host、Origin 与 CORS。启动配置中的 apiToken
+会由浏览器读取并发送，因此只适用于单用户受控客户端；静态站点必须与客户端
+采用相同的访问边界。
 
 WebDAV Basic 认证只允许 HTTPS。URL 不允许 userinfo、query 或 fragment；请求不跟随重定向，不读取代理环境变量，并在每次访问前重新解析目标地址。默认只允许 global-unicast。
 
@@ -152,7 +163,9 @@ HTTP 内容根目录：
 
 .built-ins 是保留基础设施目录，Local catalog 不会将它解释为普通仓库。
 
-Browser 内置数据分别使用 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两个领域的 content、epoch、draft/cache 和同步队列相互隔离。
+前端只在页面生命周期内为 Workspace、Journal 与 Todo 保留内存 cache、待同步
+队列和冲突。刷新或关闭页面不会恢复未同步内容。旧版本的 IndexedDB 数据不
+读取、不转换也不自动清理，需要时由用户在浏览器开发工具中手动删除。
 
 WebDAV 连接配置保存在：
 
@@ -169,12 +182,12 @@ API 状态分区保存在：
 lastUsedAt 最多每分钟落盘一次。服务端不读取或转换其它状态格式。
 
 内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
-0600。密码不进入 API 响应、日志、普通仓库内容或 IndexedDB。
+0600。密码不进入 API 响应、日志、普通仓库内容或前端 cache。
 
 
 5. Repository 行为
 
-Local 与 Browser 只支持删除托管数据。WebDAV 支持：
+Local 只支持删除托管数据。WebDAV 支持：
 
     remove-connection       删除本地连接，保留远端内容
     delete-managed-data     发布 deletion tombstone，再清理托管 generations
@@ -185,7 +198,7 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
 
 普通 Workspace 使用 v4，Journal 使用 v3，Todo 使用 v4。它们是唯一合法格式；
 只有 epoch 与内容同时不存在时才初始化。部分状态、非当前版本、损坏内容和
-未来版本保持原样并投影故障，不迁移、不覆盖、不自动清空 IndexedDB。
+未来版本保持原样并投影故障，不迁移、不覆盖。
 
 
 6. 验证
@@ -204,8 +217,9 @@ WebDAV 以不可变 generation、60 秒 writer lease 和 ETag CAS 提交。远�
     pnpm server:start
 
 pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、服务端到
-.artifacts/build/server。pnpm clean 清除全部可重建的 .artifacts，不会触碰
-.cognition-tree 中的本地仓库与服务状态。
+.artifacts/build/server。客户端目录中的 cognition-tree.config.json 是启动时
+配置，可以在部署启动前替换而无需重建 JavaScript。pnpm clean 清除全部可重建
+的 .artifacts，不会触碰 .cognition-tree 中的本地仓库与服务状态。
 
 真实 WebDAV 验收：
 

@@ -50,11 +50,11 @@ function readSseData(frame: string) {
 }
 
 export function createHttpApiV1EventSource({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
 }: {
-  baseUrl?: string;
+  baseUrl: string;
   fetch?: typeof fetch;
   token?: string;
 }): DomainChangeEventSource {

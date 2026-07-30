@@ -296,19 +296,6 @@ describe("workspace repository v4 contract", () => {
       creatableAdapters: [],
       issues: [],
       repositories: [{
-        adapter: "browser",
-        ...base,
-        location: {
-          databaseName: "cognition-tree.repository-cache",
-          unsupportedLabel: "Browser",
-          type: "browser",
-        },
-      }],
-    })).toThrow("unsupported field");
-    expect(() => parseRepositoryCatalog({
-      creatableAdapters: [],
-      issues: [],
-      repositories: [{
         adapter: "local",
         ...base,
         location: {
@@ -357,11 +344,6 @@ describe("workspace repository v4 contract", () => {
       label: "Remote",
       url: "https://dav.example.test/notes",
     })).toThrow("unsupported field");
-    expect(() => parseCreateRepository({
-      adapter: "browser",
-      content,
-      label: "Browser",
-    })).toThrow("unsupported create adapter");
     expect(() => parseRepositoryDeletionMode("delete-everything"))
       .toThrow("unsupported repository deletion mode");
     expect(() => parseRepositoryDeletionResult({ status: "finished" }))

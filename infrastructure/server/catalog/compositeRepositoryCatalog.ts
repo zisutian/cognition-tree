@@ -176,12 +176,6 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
         await this.#localCatalog.deleteRepository(repositoryId);
         return { status: "deleted" };
       }
-      if (entry.adapter !== "webdav") {
-        throw new RepositoryCatalogError(
-          "invalid_request",
-          "Browser repositories are not managed by the HTTP server",
-        );
-      }
       if (mode === "remove-connection") {
         await this.#webDavRegistry.removeConnection(repositoryId);
         return { status: "deleted" };
@@ -233,14 +227,7 @@ export class CompositeRepositoryCatalog implements WorkspaceRepositoryCatalog {
       const label = await this.#assertAvailableLabel(request.label, repositoryId);
       const renamed = repository.adapter === "local"
         ? await this.#localCatalog.renameRepository(repositoryId, label)
-        : repository.adapter === "webdav"
-          ? await this.#webDavRegistry.renameConnection(repositoryId, label)
-          : (() => {
-              throw new RepositoryCatalogError(
-                "invalid_request",
-                "Browser repositories are not managed by the HTTP server",
-              );
-            })();
+        : await this.#webDavRegistry.renameConnection(repositoryId, label);
       return { ...renamed, labelIssue: null };
     });
   }

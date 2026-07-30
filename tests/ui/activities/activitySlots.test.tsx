@@ -113,6 +113,12 @@ function createSlots(
       });
     case "settings":
       return createSettingsActivitySlots({
+        apiAccess: {
+          administration: {} as Parameters<
+            typeof createSettingsActivitySlots
+          >[0]["apiAccess"]["administration"],
+          repositories: [],
+        },
         workbench: {
           contextWidth: controls.contextWidth,
           onContextWidthChange: controls.onContextWidthChange,

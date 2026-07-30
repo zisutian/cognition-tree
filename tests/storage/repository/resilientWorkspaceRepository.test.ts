@@ -244,7 +244,7 @@ describe("local-first workspace repository", () => {
   it("preserves the local storage failure when initialization did not race", async () => {
     const remote = createRemoteBackend();
     const cache = createMemoryWorkspaceRepositoryCache();
-    const storageFailure = new Error("IndexedDB quota exceeded");
+    const storageFailure = new Error("Client cache capacity exceeded");
     vi.spyOn(cache, "create").mockRejectedValue(storageFailure);
     const { repository } = createRepository(remote, cache);
 

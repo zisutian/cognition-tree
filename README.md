@@ -1,6 +1,6 @@
 # 认知树
 
-认知树是本地优先的可配置语法结构化笔记应用。它用 `.ctn` 原文、缩进、语法规则和引用关系组织知识，并提供独立的日记与代办领域。
+认知树是 Server-backed 的可配置语法结构化笔记应用。它用 `.ctn` 原文、缩进、语法规则和引用关系组织知识，并提供独立的日记与代办领域。
 
 ## 内容领域
 
@@ -12,11 +12,11 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
 
 ## 主要能力
 
-- Local、WebDAV 与 Browser 普通仓库的创建、切换、重命名和安全删除。
+- Local 与 WebDAV 普通仓库的创建、切换、重命名和安全删除。
 - Local 所见即所得目录：文件夹对应目录，笔记对应以标题命名的 `.ctn` 文件。
 - CTN 编辑、块结构、跨笔记结构移动、引用导航和图谱。
 - 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
-- 本地优先缓存、离线编辑、CAS 同步与显式冲突处理。
+- 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
 - Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
 - 提供 `/api/v1` 的资源查询、严格领域命令、搜索、SSE 失效通知和官方客户端同步；自动化令牌不能读取整仓同步内容，也不能修改语法或仓库管理状态。
 - 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
@@ -61,11 +61,18 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
     CTN_PUBLIC_URL=
     CTN_API_TOKEN=
 
-前端：
+前端在页面启动时读取 `public/cognition-tree.config.json`；生产部署对应
+`.artifacts/build/client/cognition-tree.config.json`：
 
-    VITE_CTN_API_BASE_URL=http://127.0.0.1:3001
-    VITE_CTN_API_TOKEN=
-    VITE_CTN_STORAGE_MODE=browser
+    {
+      "formatVersion": 1,
+      "apiBaseUrl": "http://127.0.0.1:3001",
+      "apiToken": "可选 owner token"
+    }
+
+`apiBaseUrl` 只接受无凭据、query、fragment 或子路径的绝对 HTTP(S) origin。
+配置不会进入 JavaScript bundle，同一构建产物可在启动静态站点前替换或挂载
+该文件；缺失或无效时客户端不会启动。
 
 非 loopback 部署必须同时设置至少 32 字符的 `CTN_API_TOKEN` 和 HTTPS `CTN_PUBLIC_URL`。产品面向单用户个人服务，不提供用户、角色或共享权限模型。
 
@@ -81,7 +88,7 @@ Local 仓库的可见目录是权威工作树：
 
 可见 `.ctn` 文件只保存编辑器正文；稳定 ID、时间和事务事实位于根部保留目录 `.ctn/`。Local 在加载、提交和手动“重新扫描文件”时读取真实目录，不运行文件 watcher。非 `.ctn` 文件不会进入笔记树，也不会被仓库操作改写或删除。
 
-HTTP 模式下，普通仓库与内置数据共用一个内容根目录，但保持独立
+Server 模式下，普通仓库与内置数据共用一个内容根目录，但保持独立
 contract、session 和 API：
 
     <CTN_REPOSITORY_ROOT>/.built-ins/journal/
@@ -90,16 +97,16 @@ contract、session 和 API：
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
 Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、API 令牌哈希、30 天幂等回执和脱敏审计；令牌明文只在创建时显示一次。
 
-Browser 模式使用隔离的 `cognition-tree.journal` 与
-`cognition-tree.todo` IndexedDB。Workspace v4、Journal v3 与 Todo v4 是
-各自唯一合法格式；部分状态、非当前版本与损坏内容均 fail closed，不迁移、
-不覆盖，也不自动清空浏览器数据。
+前端不持久化 Workspace、Journal、Todo、草稿、同步队列或冲突。它只在内存中
+保留当前页面会话的乐观状态，并用 `localStorage` 保存当前普通仓库 ID；刷新或
+关闭页面会丢失尚未同步的内存内容。旧版本留下的 IndexedDB 数据不会被读取、
+迁移或清理，需要时由用户在浏览器中手动删除。
 
 ## 源码层次
 
     core/             CTN、命名以及互不依赖的 Workspace、Journal、Todo 纯领域
     application/      用例、端口、通用 versioned session、Workbench 协调和问题投影
-    infrastructure/   versioned persistence、Browser/HTTP adapter 与 Node server
+    infrastructure/   client memory/HTTP adapter、versioned persistence 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
     contracts/        API registry、Workspace、Journal、Todo 与 built-ins wire contract
     tooling/          构建、Git、基准脚本与专用 TypeScript 配置
@@ -107,10 +114,11 @@ Browser 模式使用隔离的 `cognition-tree.journal` 与
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
 
-`application/persistence/VersionedSessionController` 统一三个领域的 local-first、CAS、冲突、重载、丢弃和删除前冻结语义；各领域 controller 只保留自己的校验、投影和命令。`application/workbench/WorkbenchController` 组合普通仓库 catalog、Workspace slot、两个内置 slot 与跨仓导航，不直接实现各 session 生命周期。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。浏览器/HTTP/文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
+`application/persistence/VersionedSessionController` 统一三个领域的页面内乐观状态、CAS、冲突、重载、丢弃和删除前冻结语义；各领域 controller 只保留自己的校验、投影和命令。`application/workbench/WorkbenchController` 组合普通仓库 catalog、Workspace slot、两个内置 slot 与跨仓导航，不直接实现各 session 生命周期。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。client HTTP 与 Server 文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
 
 构建、测试和工具缓存统一写入可删除的 `.artifacts/`：客户端和服务端位于
-`build/client` 与 `build/server`，Playwright 与 E2E 运行数据位于 `test/`。
+`build/client` 与 `build/server`，客户端启动配置作为独立 JSON 文件复制到
+`build/client`，Playwright 与 E2E 运行数据位于 `test/`。
 `pnpm clean` 只清除 `.artifacts/`。`.cognition-tree/` 保存本地仓库和服务状态，
 不属于生成产物；`node_modules/` 继续由 pnpm 管理。
 

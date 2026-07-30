@@ -53,7 +53,11 @@ function createQueueHarness({
     discardPendingSnapshotAndReload: async () => createSnapshot(),
     label: "test repository",
     loadSnapshot: async () => createSnapshot(),
-    location: { databaseName: "test", type: "browser" },
+    location: {
+      hostPath: null,
+      serverPath: "/repositories/test",
+      type: "local",
+    },
     async stageSnapshot(input) {
       if (stage) {
         return stage(input);
@@ -209,7 +213,7 @@ describe("workspace session save queue", () => {
 
       if (shouldFail) {
         shouldFail = false;
-        throw new Error("IndexedDB transaction failed");
+        throw new Error("Client cache transaction failed");
       }
 
       return { localRevision: draftRevision("stage-retried") };
@@ -218,14 +222,14 @@ describe("workspace session save queue", () => {
 
     harness.queue.enqueue(createContent("latest"));
     await expect(harness.queue.flushLocal()).rejects.toThrow(
-      "IndexedDB transaction failed",
+      "Client cache transaction failed",
     );
     await Promise.resolve();
 
     expect(stagedNames).toEqual(["latest"]);
     expect(harness.persistence.at(-1)).toEqual({
       localCopySafe: false,
-      message: "IndexedDB transaction failed",
+      message: "Client cache transaction failed",
       phase: "local",
       status: "error",
     });
@@ -237,7 +241,7 @@ describe("workspace session save queue", () => {
     expect(synchronize).not.toHaveBeenCalled();
     expect(harness.persistence.at(-1)).toEqual({
       localCopySafe: false,
-      message: "IndexedDB transaction failed",
+      message: "Client cache transaction failed",
       phase: "local",
       status: "error",
     });
@@ -349,7 +353,7 @@ describe("workspace session save queue", () => {
   it("surfaces a thrown synchronization-state failure without an unhandled rejection or automatic retry", async () => {
     vi.useFakeTimers();
     const synchronize = vi.fn(async () => {
-      throw new Error("IndexedDB synchronization state disappeared");
+      throw new Error("Client cache synchronization state disappeared");
     });
     const harness = createQueueHarness({ synchronize });
 
@@ -360,7 +364,7 @@ describe("workspace session save queue", () => {
     expect(synchronize).toHaveBeenCalledTimes(1);
     expect(harness.persistence.at(-1)).toEqual({
       localCopySafe: false,
-      message: "IndexedDB synchronization state disappeared",
+      message: "Client cache synchronization state disappeared",
       phase: "local",
       status: "error",
     });
@@ -370,7 +374,7 @@ describe("workspace session save queue", () => {
     harness.queue.dispose();
   });
 
-  it("does not retry a terminal remote error merely because the browser reports online", async () => {
+  it("does not retry a terminal remote error merely because the client reports online", async () => {
     vi.useFakeTimers();
     const synchronize = vi
       .fn<WorkspaceRepository["synchronizePendingSnapshot"]>()

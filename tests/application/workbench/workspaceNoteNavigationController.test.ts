@@ -14,11 +14,15 @@ const destination = {
 };
 
 const descriptor = {
-  adapter: "browser" as const,
+  adapter: "local" as const,
   id: "repository-b",
   label: "仓库B",
   labelIssue: null,
-  location: { databaseName: "b", type: "browser" as const },
+  location: {
+    hostPath: null,
+    serverPath: "/repositories/b",
+    type: "local" as const,
+  },
 };
 
 function readyCatalog(
@@ -30,7 +34,7 @@ function readyCatalog(
     repository: null,
     state: {
       activeRepositoryId,
-      creatableAdapters: ["browser"],
+      creatableAdapters: ["local"],
       issues: [],
       operation: "idle",
       repositories: [descriptor],

@@ -418,11 +418,8 @@ async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
 
   if (route.kind === "workspaces") {
     const repositories = await catalog.listRepositories();
-    const visibleRepositories = repositories.repositories.filter(
-      ({ adapter }) => adapter !== "browser",
-    );
     const removed = context.revisionTracker.reconcileWorkspaceIds(
-      new Set(visibleRepositories.map(({ id }) => id)),
+      new Set(repositories.repositories.map(({ id }) => id)),
     );
 
     if (removed.length > 0) {
@@ -439,7 +436,7 @@ async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
     }
     return {
       body: {
-        workspaces: visibleRepositories
+        workspaces: repositories.repositories
           .filter(({ id }) =>
             (principal.repositoryIds === null ||
               principal.repositoryIds.includes(id))

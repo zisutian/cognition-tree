@@ -13,7 +13,7 @@ import {
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
 } from "../../../application/todo/todoApplication";
-import { createBrowserTodoApplicationServices } from "../../../infrastructure/browser/browserApplicationServices";
+import { createClientTodoApplicationServices } from "../../../infrastructure/client/clientApplicationServices";
 import type { TodoContentDto } from "../../../contracts/todo/types";
 import {
   createEmptyTodoContent,
@@ -222,14 +222,14 @@ describe("Todo application mutations", () => {
     );
   });
 
-  it("rejects non-Todo content and provides prefixed browser ids", () => {
+  it("rejects non-Todo content and provides prefixed client ids", () => {
     expect(() => requireTodoContent({
       days: [],
       schemaVersion: 3,
       syntaxSource: "",
     } as unknown as TodoContentDto)).toThrow();
 
-    const services = createBrowserTodoApplicationServices();
+    const services = createClientTodoApplicationServices();
 
     expect(services.createCollectionId()).toMatch(/^todo-collection-[0-9a-f-]{36}$/);
     expect(services.createBlockId()).toMatch(/^[0-9a-f-]{36}$/);

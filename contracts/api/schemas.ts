@@ -1029,15 +1029,10 @@ const repositoryLocationSchema = Type.Union([
     type: Type.Literal("webdav"),
     url: Type.String({ format: "uri" }),
   }),
-  strictObject({
-    databaseName: ApiV1IdentifierSchema,
-    type: Type.Literal("browser"),
-  }),
 ]);
 const repositoryDescriptorSchema = schemaAs<RepositoryDescriptorDto>(
   strictObject({
     adapter: Type.Union([
-      Type.Literal("browser"),
       Type.Literal("local"),
       Type.Literal("webdav"),
     ]),
@@ -1054,13 +1049,11 @@ const repositoryDescriptorSchema = schemaAs<RepositoryDescriptorDto>(
 export const ApiV1RepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
   strictObject({
     creatableAdapters: Type.Array(Type.Union([
-      Type.Literal("browser"),
       Type.Literal("local"),
       Type.Literal("webdav"),
     ])),
     issues: Type.Array(strictObject({
       adapter: Type.Union([
-        Type.Literal("browser"),
         Type.Literal("local"),
         Type.Literal("webdav"),
       ]),
@@ -1111,16 +1104,10 @@ export const ApiV1RepositoryDeletionResultSchema = schemaAs<
   status: Type.Union([Type.Literal("deleted"), Type.Literal("deleting")]),
 }));
 
-const builtInLocationSchema = Type.Union([
-  strictObject({
-    serverPath: Type.String(),
-    type: Type.Literal("server"),
-  }),
-  strictObject({
-    databaseName: ApiV1IdentifierSchema,
-    type: Type.Literal("browser"),
-  }),
-]);
+const builtInLocationSchema = strictObject({
+  serverPath: Type.String(),
+  type: Type.Literal("server"),
+});
 export const ApiV1BuiltInCatalogSchema = schemaAs<BuiltInCatalogDto>(
   strictObject({
     issues: Type.Array(strictObject({

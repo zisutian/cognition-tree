@@ -30,7 +30,7 @@ function createTestController(id: string) {
 const journalDescriptor: BuiltInDescriptor = {
   id: "journal",
   label: "日记",
-  location: { databaseName: "journal", type: "browser" },
+  location: { serverPath: "/data/journal", type: "server" },
   protected: true,
 };
 

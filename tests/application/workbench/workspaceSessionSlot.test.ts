@@ -18,7 +18,11 @@ function createRepository(label: string): WorkspaceRepository {
     discardPendingSnapshotAndReload: async () => snapshot,
     label,
     loadSnapshot: async () => snapshot,
-    location: { databaseName: label, type: "browser" },
+    location: {
+      hostPath: null,
+      serverPath: `/repositories/${label}`,
+      type: "local",
+    },
     stageSnapshot: async () => ({ localRevision: draftRevision("next") }),
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: async () => ({

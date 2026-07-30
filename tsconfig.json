@@ -27,6 +27,5 @@
     "infrastructure",
     "presentation",
     "tests"
-  ],
-  "references": [{ "path": "./tooling/config/tsconfig.node.json" }]
+  ]
 }

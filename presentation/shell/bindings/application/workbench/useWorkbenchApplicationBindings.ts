@@ -5,9 +5,9 @@ import type {
 } from "../../../../../application/workbench/workbenchController";
 import type { WorkbenchFeedbackController } from "../../../../../application/workbench/workbenchFeedbackController";
 import {
-  createBrowserJournalApplicationServices,
-  createBrowserTodoApplicationServices,
-} from "../../../../../infrastructure/browser/browserApplicationServices";
+  createClientJournalApplicationServices,
+  createClientTodoApplicationServices,
+} from "../../../../../infrastructure/client/clientApplicationServices";
 import type { ActivityId } from "../../../../ui/activityTypes";
 import { useJournalApplication } from "../journal/useJournalApplication";
 import { useRepositoryNavigation } from "../repository/useRepositoryNavigation";
@@ -54,10 +54,10 @@ export function useWorkbenchApplicationBindings({
     state: snapshot.builtIns.todo.state,
   }), [controller, snapshot.builtIns.todo.state]);
   const journalServices = useMemo(
-    createBrowserJournalApplicationServices,
+    createClientJournalApplicationServices,
     [],
   );
-  const todoServices = useMemo(createBrowserTodoApplicationServices, []);
+  const todoServices = useMemo(createClientTodoApplicationServices, []);
   const openWorkspaceNote = useCallback(
     (destination: Parameters<
       WorkbenchController["requestWorkspaceNoteDestination"]
@@ -152,21 +152,15 @@ export function useWorkbenchApplicationBindings({
   }, [feedbackController, snapshot.catalog.activeDescriptor?.id]);
 
   return {
-    apiAccess: controller.apiAccessAdministration
-      ? {
-          administration: controller.apiAccessAdministration,
-          repositories: snapshot.catalog.state.status === "ready"
-            ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
-                id,
-                label,
-              }))
-            : [],
-          status: "available" as const,
-        }
-      : {
-          reason: "浏览器本地存储不会暴露远程 API。请使用服务器存储模式。",
-          status: "unavailable" as const,
-        },
+    apiAccess: {
+      administration: controller.apiAccessAdministration,
+      repositories: snapshot.catalog.state.status === "ready"
+        ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
+            id,
+            label,
+          }))
+        : [],
+    },
     journal,
     repository: createRepositoryProjection(
       controller,

@@ -133,7 +133,7 @@ export type WorkbenchBuiltInFacade<
 export type WorkbenchSearchFacade = SearchControllerActions;
 
 export type WorkbenchController = {
-  apiAccessAdministration: ApiAccessAdministration | null;
+  apiAccessAdministration: ApiAccessAdministration;
   journal: WorkbenchBuiltInFacade<JournalSessionController>;
   journalReferenceResolver: JournalWorkspaceReferenceResolver;
   search: WorkbenchSearchFacade;
@@ -165,7 +165,7 @@ export type WorkbenchController = {
 
 type WorkbenchControllerOptions = {
   activeRepositorySelection: ActiveRepositorySelection;
-  apiAccessAdministration?: ApiAccessAdministration;
+  apiAccessAdministration: ApiAccessAdministration;
   builtInCatalog: BuiltInCatalog;
   changeEvents?: DomainChangeEventSource;
   createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
@@ -559,7 +559,7 @@ export function createWorkbenchController({
   };
 
   return {
-    apiAccessAdministration: apiAccessAdministration ?? null,
+    apiAccessAdministration,
     journal: journalFacade,
     journalReferenceResolver,
     search: searchFacade,

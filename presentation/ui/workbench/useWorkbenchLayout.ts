@@ -9,11 +9,11 @@ import {
   type WorkbenchPanelResizeController,
 } from "./useWorkbenchPanelResize";
 import {
-  loadRepositoryContextWidth,
-  loadRepositoryProblemsLayout,
-  saveRepositoryContextWidth,
-  saveRepositoryProblemsLayout,
-} from "./workbenchLayoutStorage";
+  readRepositoryContextWidth,
+  readRepositoryProblemsLayout,
+  writeRepositoryContextWidth,
+  writeRepositoryProblemsLayout,
+} from "./workbenchLayoutSession";
 
 export type WorkbenchLayout = WorkbenchPanelResizeController & {
   contextCollapsed: boolean;
@@ -34,18 +34,18 @@ export function useWorkbenchLayout(repositoryId: string) {
   const [contextCollapsed, setContextCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [contextWidth, setContextWidth] = useState<number | null>(() =>
-    loadRepositoryContextWidth(repositoryId),
+    readRepositoryContextWidth(repositoryId),
   );
   const [detailWidth, setDetailWidth] = useState<number | null>(null);
   const [problemsLayout, setProblemsLayout] = useState(() =>
-    loadRepositoryProblemsLayout(repositoryId),
+    readRepositoryProblemsLayout(repositoryId),
   );
   const [focusMode, setFocusMode] = useState(false);
 
   if (layoutRepositoryId !== repositoryId) {
     setLayoutRepositoryId(repositoryId);
-    setContextWidth(loadRepositoryContextWidth(repositoryId));
-    setProblemsLayout(loadRepositoryProblemsLayout(repositoryId));
+    setContextWidth(readRepositoryContextWidth(repositoryId));
+    setProblemsLayout(readRepositoryProblemsLayout(repositoryId));
   }
   const contextResizeValue = contextWidth ?? appContextDefaultWidth;
   const detailResizeValue = detailWidth ?? appDetailDefaultWidth;
@@ -53,12 +53,12 @@ export function useWorkbenchLayout(repositoryId: string) {
 
   useEffect(() => {
     if (contextWidth !== null) {
-      saveRepositoryContextWidth(layoutRepositoryId, contextWidth);
+      writeRepositoryContextWidth(layoutRepositoryId, contextWidth);
     }
   }, [contextWidth, layoutRepositoryId]);
 
   useEffect(() => {
-    saveRepositoryProblemsLayout(layoutRepositoryId, problemsLayout);
+    writeRepositoryProblemsLayout(layoutRepositoryId, problemsLayout);
   }, [layoutRepositoryId, problemsLayout]);
 
   const panelResize = useWorkbenchPanelResize({

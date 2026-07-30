@@ -33,7 +33,7 @@ function catalogData(
   repositories: WorkspaceRepositoryDescriptor[] = [descriptor],
 ): WorkspaceRepositoryCatalogData {
   return {
-    creatableAdapters: ["local", "browser", "webdav"],
+    creatableAdapters: ["local", "webdav"],
     issues: [],
     repositories,
   };

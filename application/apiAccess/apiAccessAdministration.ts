@@ -57,13 +57,7 @@ export type ApiAccessAdministration = {
   revokeToken(tokenId: string): Promise<void>;
 };
 
-export type ApiAccessApplication =
-  | {
-      reason: string;
-      status: "unavailable";
-    }
-  | {
-      administration: ApiAccessAdministration;
-      repositories: Array<{ id: string; label: string }>;
-      status: "available";
-    };
+export type ApiAccessApplication = {
+  administration: ApiAccessAdministration;
+  repositories: Array<{ id: string; label: string }>;
+};

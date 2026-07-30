@@ -445,13 +445,13 @@ describe("repository setup and management semantics", () => {
         id: "todo" as const,
         label: "代办" as const,
         location: {
-          databaseName: "cognition-tree.todo",
-          type: "browser" as const,
+          serverPath: "/state/built-ins/todo/content.json",
+          type: "server" as const,
         },
         locationRows: [{
-          copyValue: "cognition-tree.todo",
-          label: "浏览器数据库",
-          value: "cognition-tree.todo",
+          copyValue: "/state/built-ins/todo/content.json",
+          label: "服务端路径",
+          value: "/state/built-ins/todo/content.json",
         }],
         message: "代办数据损坏。",
         status: "fault" as const,
@@ -523,7 +523,7 @@ describe("repository setup and management semantics", () => {
       ],
       lacks: [
         "/state/built-ins/journal/content.json",
-        "cognition-tree.todo", "放弃本地修改并重新加载",
+        "/state/built-ins/todo/content.json", "放弃本地修改并重新加载",
       ],
     });
     expectMarkupSemantics(journalMarkup, {
@@ -535,7 +535,11 @@ describe("repository setup and management semantics", () => {
       lacks: ["删除仓库", "重命名仓库", "放弃本地修改并重新加载"],
     });
     expectMarkupSemantics(todoMarkup, {
-      has: ["代办数据损坏。", "cognition-tree.todo", ">重试<"],
+      has: [
+        "代办数据损坏。",
+        "/state/built-ins/todo/content.json",
+        ">重试<",
+      ],
     });
   });
 

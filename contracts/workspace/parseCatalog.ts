@@ -40,7 +40,6 @@ const issueFields = [
 ] as const;
 const localLocationFields = ["hostPath", "serverPath", "type"] as const;
 const webDavLocationFields = ["type", "url"] as const;
-const browserLocationFields = ["databaseName", "type"] as const;
 const catalogFields = ["creatableAdapters", "issues", "repositories"] as const;
 const createLocalRepositoryFields = ["adapter", "content", "label"] as const;
 const createWebDavRepositoryFields = [
@@ -55,7 +54,6 @@ const authenticationBasicFields = ["password", "type", "username"] as const;
 const deletionResultFields = ["status"] as const;
 const renameRepositoryFields = ["label"] as const;
 const adapterKinds = new Set<RepositoryAdapterKindDto>([
-  "browser",
   "local",
   "webdav",
 ]);
@@ -169,14 +167,6 @@ function parseRepositoryLocation(
       url: source,
     };
   }
-  if (type === "browser") {
-    assertExactContractFields(location, browserLocationFields, path);
-    return {
-      databaseName: readRequiredContractString(location, "databaseName", path),
-      type,
-    };
-  }
-
   failContract(`${path}.type`, `unsupported location type ${type}`);
 }
 

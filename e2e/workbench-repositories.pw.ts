@@ -374,62 +374,6 @@ test.describe("repository and capacity flows", () => {
     );
   });
 
-  test("keeps pending edits across reload and automatically syncs on recovery", async ({
-    page,
-  }) => {
-    await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
-    const apiRoute = `${e2eApiBaseUrl}/api/**`;
-
-    await page.route(
-      apiRoute,
-      (route) => route.abort("internetdisconnected"),
-    );
-
-    const editor = page.locator(".source-editor .cm-content");
-
-    await editor.click();
-    await page.keyboard.press("Control+End");
-    await page.keyboard.type(" offline-pending");
-    await getActivityButton(page, "仓库").click();
-    await expect(
-      page.locator(".repository-summary-list").getByText(
-        "离线，等待同步",
-        { exact: true },
-      ),
-    ).toBeVisible();
-
-    await page.reload();
-    await openWorkbench(page, repositoryId);
-    await page.locator(".app-context").getByTitle("Alpha").click();
-    await expect(page.getByLabel("笔记编辑")).toContainText("offline-pending");
-    await getActivityButton(page, "仓库").click();
-    await expect(
-      page.locator(".repository-summary-list").getByText(
-        "离线，等待同步",
-        { exact: true },
-      ),
-    ).toBeVisible();
-
-    await page.unroute(apiRoute);
-    await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect(
-      page.locator(".repository-summary-list").getByText(
-        "离线，等待同步",
-        { exact: true },
-      ),
-    ).toBeHidden();
-    await expect.poll(async () => {
-      const response = await api.get(
-        `/api/v1/sync/workspaces/${repositoryId}`,
-      );
-      const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
-
-      return snapshot.content.workspace.notes.find(({ id }) => id === "note-alpha")
-        ?.source.includes("offline-pending") ?? false;
-    }).toBe(true);
-  });
-
   test("continues staging the latest local edit after a remote conflict", async ({
     page,
   }) => {
@@ -482,22 +426,6 @@ test.describe("repository and capacity flows", () => {
       ),
     ).toBeVisible();
 
-    await page.reload();
-    await expect(getActivityButton(page, "笔记")).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await page.locator(".app-context").getByTitle("Alpha").click();
-    await expect(page.getByLabel("笔记编辑")).toContainText(
-      "conflict-local-first conflict-local-latest",
-    );
-    await getActivityButton(page, "仓库").click();
-    await expect(
-      page.locator(".repository-summary-list").getByText(
-        "仓库内容已更改",
-        { exact: true },
-      ),
-    ).toBeVisible();
     const conflictSection = page.locator(".repository-section").filter({
       has: page.getByText("同步冲突", { exact: true }),
     });

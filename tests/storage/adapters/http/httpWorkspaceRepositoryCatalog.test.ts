@@ -131,6 +131,7 @@ describe("HTTP workspace repository catalog", () => {
   it("does not send an invalid exact create DTO", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
       fetch: fetchMock,
       validateContent,
     });
@@ -172,6 +173,43 @@ describe("HTTP workspace repository catalog", () => {
     expect(requestedUrls).toEqual([
       "http://api.test/api/v1/sync/workspaces/primary",
     ]);
+  });
+
+  it("keeps pending edits only for the lifetime of one client cache", async () => {
+    const fetchRemote: typeof fetch = async () =>
+      jsonResponse({
+        content: createWorkspaceRepositoryContent("Remote"),
+        revision: revisionA,
+      });
+    const firstCatalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
+      cache: createMemoryRepositoryClientCache(),
+      fetch: fetchRemote,
+      validateContent,
+    });
+    const firstRepository = firstCatalog.openRepository(descriptor);
+    const initial = await firstRepository.loadSnapshot();
+
+    await firstRepository.stageSnapshot({
+      content: createWorkspaceRepositoryContent("Unsynchronized"),
+      expectedLocalRevision: initial.localRevision,
+    });
+    await expect(firstRepository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Unsynchronized" } },
+      pendingChanges: true,
+    });
+
+    const recreatedRepository = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
+      cache: createMemoryRepositoryClientCache(),
+      fetch: fetchRemote,
+      validateContent,
+    }).openRepository(descriptor);
+
+    await expect(recreatedRepository.loadSnapshot()).resolves.toMatchObject({
+      content: { workspace: { name: "Remote" } },
+      pendingChanges: false,
+    });
   });
 
   it("refreshes Local working trees on load without making WebDAV cache-first reads remote-first", async () => {
@@ -253,6 +291,7 @@ describe("HTTP workspace repository catalog", () => {
     const cache = createMemoryRepositoryClientCache();
     let corrupt = false;
     const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
       cache,
       fetch: async () =>
         corrupt
@@ -292,6 +331,7 @@ describe("HTTP workspace repository catalog", () => {
     };
     let body = "";
     const catalog = createHttpWorkspaceRepositoryCatalog({
+      baseUrl: "http://api.test",
       fetch: async (_input, init) => {
         body = String(init?.body);
         return jsonResponse(webDavDescriptor, 201);

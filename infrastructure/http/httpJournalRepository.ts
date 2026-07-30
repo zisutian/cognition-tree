@@ -15,7 +15,7 @@ import type { HttpRepositoryTransportOptions } from "./httpRepositoryTransport";
 import { createHttpVersionedContentRepositoryBackend } from "./httpVersionedContentRepository";
 
 export function createHttpJournalRepositoryBackend({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
 }: HttpRepositoryTransportOptions): JournalRepositoryBackend {

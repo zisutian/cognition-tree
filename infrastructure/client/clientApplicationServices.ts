@@ -9,12 +9,12 @@ import type { SessionCommandDependencies } from "../../application/workspace/ses
 
 function createUuid() {
   if (!globalThis.crypto?.randomUUID) {
-    throw new Error("The browser cannot generate identifiers.");
+    throw new Error("The client runtime cannot generate identifiers.");
   }
   return globalThis.crypto.randomUUID();
 }
 
-function browserLocalDate(date = new Date()) {
+function clientLocalDate(date = new Date()) {
   const year = String(date.getFullYear()).padStart(4, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -23,11 +23,11 @@ function browserLocalDate(date = new Date()) {
     ReturnType<ApplicationLocalCalendar["today"]>;
 }
 
-export const browserApplicationLocalCalendar: ApplicationLocalCalendar = {
+export const clientApplicationLocalCalendar: ApplicationLocalCalendar = {
   subscribe(listener) {
     let disposed = false;
     let cancelTimer: (() => void) | null = null;
-    let current = browserLocalDate();
+    let current = clientLocalDate();
     const schedule = () => {
       cancelTimer?.();
       const now = new Date();
@@ -38,7 +38,7 @@ export const browserApplicationLocalCalendar: ApplicationLocalCalendar = {
       ).getTime();
       const timer = globalThis.setTimeout(() => {
         if (disposed) return;
-        const next = browserLocalDate();
+        const next = clientLocalDate();
 
         if (next !== current) {
           current = next;
@@ -56,10 +56,10 @@ export const browserApplicationLocalCalendar: ApplicationLocalCalendar = {
       cancelTimer?.();
     };
   },
-  today: browserLocalDate,
+  today: clientLocalDate,
 };
 
-export const browserApplicationScheduler: ApplicationScheduler = {
+export const clientApplicationScheduler: ApplicationScheduler = {
   now: () => globalThis.performance?.now() ?? Date.now(),
   schedule(callback, delayMs) {
     const timer = globalThis.setTimeout(callback, delayMs);
@@ -68,7 +68,7 @@ export const browserApplicationScheduler: ApplicationScheduler = {
   },
 };
 
-export const browserWorkspaceSessionCommandDependencies:
+export const clientWorkspaceSessionCommandDependencies:
   SessionCommandDependencies = {
     createBlockId: createUuid,
     createFolderId: () => `folder-${createUuid()}`,
@@ -77,7 +77,7 @@ export const browserWorkspaceSessionCommandDependencies:
     now: () => new Date().toISOString(),
   };
 
-export function createBrowserInitialWorkspaceContent(name: string) {
+export function createClientInitialWorkspaceContent(name: string) {
   const timestamp = new Date().toISOString();
 
   return createInitialRepositoryContent({
@@ -90,7 +90,7 @@ export function createBrowserInitialWorkspaceContent(name: string) {
   });
 }
 
-export function createBrowserJournalApplicationServices(): JournalApplicationServices {
+export function createClientJournalApplicationServices(): JournalApplicationServices {
   return {
     createBlockId: createUuid,
     createEntryId: () => `journal-entry-${createUuid()}`,
@@ -98,12 +98,12 @@ export function createBrowserJournalApplicationServices(): JournalApplicationSer
   };
 }
 
-export function createBrowserTodoApplicationServices(): TodoApplicationServices {
+export function createClientTodoApplicationServices(): TodoApplicationServices {
   return {
     createBlockId: createUuid,
     createCollectionId: () => `todo-collection-${createUuid()}`,
     createRecurrenceStageId: () => `todo-recurrence-stage-${createUuid()}`,
-    localCalendar: browserApplicationLocalCalendar,
+    localCalendar: clientApplicationLocalCalendar,
     now: () => new Date(),
   };
 }

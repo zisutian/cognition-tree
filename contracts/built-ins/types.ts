@@ -2,9 +2,7 @@
 
 export type BuiltInIdDto = "journal" | "todo";
 
-export type BuiltInLocationDto =
-  | { serverPath: string; type: "server" }
-  | { databaseName: string; type: "browser" };
+export type BuiltInLocationDto = { serverPath: string; type: "server" };
 
 export type BuiltInDescriptorDto = {
   id: BuiltInIdDto;

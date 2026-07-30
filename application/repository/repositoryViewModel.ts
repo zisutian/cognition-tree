@@ -223,12 +223,6 @@ export function projectRepositoryLocation(
         label: "WebDAV 地址",
         value: location.url,
       }];
-    case "browser":
-      return [{
-        copyValue: location.databaseName,
-        label: "浏览器数据库",
-        value: location.databaseName,
-      }];
   }
 }
 
@@ -238,17 +232,11 @@ export function projectBuiltInLocation(
   if (!location) {
     return [];
   }
-  return location.type === "server"
-    ? [{
-        copyValue: location.serverPath,
-        label: "服务端路径",
-        value: location.serverPath,
-      }]
-    : [{
-        copyValue: location.databaseName,
-        label: "浏览器数据库",
-        value: location.databaseName,
-      }];
+  return [{
+    copyValue: location.serverPath,
+    label: "服务端路径",
+    value: location.serverPath,
+  }];
 }
 
 function builtInLabel(id: BuiltInId) {

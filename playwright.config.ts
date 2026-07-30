@@ -50,9 +50,6 @@ export default defineConfig({
     },
     {
       command: `pnpm dev --host ${webHost} --port ${webPort} --strictPort`,
-      env: {
-        VITE_CTN_API_BASE_URL: apiBaseUrl,
-      },
       reuseExistingServer: false,
       timeout: 30_000,
       url: webBaseUrl,

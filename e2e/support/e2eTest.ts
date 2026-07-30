@@ -11,6 +11,9 @@ import {
   resetJournalRepository,
   resetTodoRepository,
 } from "./builtInSeeds";
+import {
+  clientStartupConfigurationPath,
+} from "../../infrastructure/client/clientApiConfiguration";
 import { e2eApiBaseUrl } from "./repositorySeeds";
 
 type E2EState = {
@@ -28,6 +31,18 @@ type E2EFixtures = {
 };
 
 export const test = base.extend<E2EFixtures>({
+  page: async ({ page }, use) => {
+    await page.route(`**${clientStartupConfigurationPath}`, async (route) => {
+      await route.fulfill({
+        body: JSON.stringify({
+          apiBaseUrl: e2eApiBaseUrl,
+          formatVersion: 1,
+        }),
+        contentType: "application/json",
+      });
+    });
+    await use(page);
+  },
   api: async ({}, use) => {
     const api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
 

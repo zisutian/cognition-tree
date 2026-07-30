@@ -25,7 +25,7 @@ export function createHttpVersionedContentRepositoryBackend<
   Content,
   Revision extends string,
 >({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   codec,
   endpoint,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),

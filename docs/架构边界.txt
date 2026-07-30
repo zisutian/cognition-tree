@@ -22,7 +22,11 @@ application/
 
 infrastructure/
 
-    local-first cache 的 Browser/HTTP 适配、IndexedDB、HTTP、Node server、Local 和 WebDAV adapter。CAS 与保存队列策略属于 application/persistence，平台层只实现端口。
+    client 侧内存 cache、HTTP/SSE 适配、Node server、Local 和 WebDAV
+    adapter。CAS 与保存队列策略属于 application/persistence，平台层只实现
+    端口；client 不直接导入 Server 存储 adapter。浏览器启动时只从独立的
+    cognition-tree.config.json 取得 API origin 与可选 token，构建产物不嵌入
+    部署地址。
 
 presentation/
 
@@ -49,7 +53,7 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 补充约束：
 
     presentation/activities 不依赖 presentation/shell。
-    infrastructure/browser 与 infrastructure/http 互不依赖。
+    infrastructure/client 与 infrastructure/http 只依赖自己的子层或共享 persistence。
     Local 与 WebDAV adapter 互不依赖。
     生产依赖图无环；相对 import 必须能由 NodeNext 处理。
 
@@ -58,7 +62,7 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 
 Workspace v4：
 
-    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS；Browser 使用 IndexedDB。
+    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS。
 
 Journal v3：
 
@@ -82,7 +86,7 @@ collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题�
 Workspace v4、Journal v3 与 Todo v4 是各自唯一可运行格式。只有 epoch 与内容
 同时完全不存在时才初始化空内容；缺一项、非当前 epoch、损坏内容和未来版本
 一律原样保留并 fail closed。运行时不存在版本 reader、迁移、字段别名或自动
-重置；Browser IndexedDB 的非当前数据库版本同样不升级、不清空。
+重置。
 
 Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 codec、content validator、transition validator、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
 
@@ -99,7 +103,10 @@ HTTP 内置数据：
 versioned store、session 和 API，也不获得普通仓库的创建、删除、重命名、
 切换或 WebDAV 能力。
 
-Browser 使用隔离的 cognition-tree.journal 与 cognition-tree.todo IndexedDB。两者分别维护 remote、draft/cache、epoch、lock 和原子临时文件；一个领域的清理或故障不得影响另一个。当前版本中的损坏内容与未知未来版本保留原样，不自动覆盖。
+前端始终通过 HTTP/SSE 访问 Server。Workspace、Journal 与 Todo 各自拥有页面
+生命周期内的内存 cache、draft 和冲突；runtime 重建后从 Server 重新加载，不
+恢复未同步状态。localStorage 只保存当前普通仓库 ID。旧 IndexedDB 不属于
+运行时输入，不读取、不迁移也不清理。
 
 唯一 HTTP 契约为 /api/v1。资源查询和 command 是自动化边界；完整
 Workspace/Journal/Todo snapshot 只存在于带 sync scope 的官方客户端路径。
@@ -116,11 +123,12 @@ search、audit 和 presentation 不重建变化。命令执行器或官方同步
 的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
 block updatedAt，但并发判断不使用时间戳。
 
-官方客户端 local-first 缓存持久保存 clean base 和 conflict
+官方客户端在内存中保存当前页面会话的 clean base 和 conflict
 base/local/remote。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
 为单元，Todo 以 collection body、collection order、单任务 completion 和
 recurrence 为单元执行三方合并。不同单元自动 rebase；同一单元双改、删改竞争
-进入冲突。语法变化是 barrier，不能跨 grammar 自动合并。SSE 只发送带
+进入冲突。刷新不会恢复尚未同步的 base 或 conflict。语法变化是 barrier，
+不能跨 grammar 自动合并。SSE 只发送带
 `streamId` 的 checkpoint 与无正文 change set；sequence 只在同一 stream
 内部有序，进程重启产生的新 stream 会使客户端重置去重状态。轻量 revision
 tracker 维护 checkpoint，建立连接不会扫描仓库正文。
@@ -138,7 +146,12 @@ currentOccurrenceDate。
 
 6. Application 协调
 
-每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的 VersionedSessionController 与保存队列。该控制器负责 ready 内容保持、并发 reload、discard 失败恢复、local-first、CAS、冲突、离线、重试、dispose 和删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 parser、prepareContent 与领域命令。普通仓库切换只排空并替换 Workspace session，不停止或重建 Journal/Todo。
+每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的
+VersionedSessionController 与保存队列。该控制器负责页面内 ready 内容保持、
+并发 reload、discard 失败恢复、乐观 draft、CAS、冲突、断线重试、dispose 和
+删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 parser、
+prepareContent 与领域命令。普通仓库切换只排空并替换 Workspace session，不
+停止或重建 Journal/Todo。
 
 application/workbench/WorkbenchController 提供 start、dispose、subscribe、
 getSnapshot 与明确 facade。snapshot 只包含不可变状态，不嵌入可变 controller；
@@ -148,7 +161,7 @@ session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓�
 
     普通仓库切换与一次性导航。
     Journal 的 [[仓库名:笔记名]] 解析。
-    按需读取命名普通仓库的 local-first snapshot，只从 canonical note header 建立标题索引。
+    按需读取命名普通仓库的 session snapshot，只从 canonical note header 建立标题索引。
     排空当前 Workspace、切换仓库、等待新 session，再进入 Notes 并选择目标笔记。
     把三领域 ContentDestination 映射到 Activity、资源和稳定 block ID；目标块
     已消失时只在该边界回退到资源首行并报告结果过期。
@@ -168,7 +181,9 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
 7. Infrastructure 内部边界
 
-    browser/indexedDbPrimitives 统一 request、transaction、upgrade 与 abort 原语；Workspace catalog/cache 与 Journal/Todo 数据库保持各自 owner。
+    client 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；HTTP adapter
+    使用独立的内存 catalog/content cache，源码中不存在 IndexedDB 或存储模式
+    分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
     WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。

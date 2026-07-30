@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { ActiveRepositorySelection } from "../../application/repository/activeRepositorySelection";
 
 const activeRepositoryStorageKey = "cognition-tree.active-repository";
@@ -6,7 +8,7 @@ function getStorage() {
   return globalThis.localStorage ?? null;
 }
 
-export function createBrowserActiveRepositorySelection(): ActiveRepositorySelection {
+export function createClientActiveRepositorySelection(): ActiveRepositorySelection {
   return {
     clear() {
       try {

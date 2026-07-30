@@ -5,7 +5,7 @@ import type {
   WorkspaceRepositoryContent,
 } from "./workspaceRepository";
 
-export type RepositoryAdapterKind = "browser" | "local" | "webdav";
+export type RepositoryAdapterKind = "local" | "webdav";
 export type RepositoryAuthentication =
   | { type: "none" }
   | { password: string; type: "basic"; username: string };
@@ -52,11 +52,6 @@ export type CreateWorkspaceRepositoryInput =
       initialContent: WorkspaceRepositoryContent;
       label: string;
       url: string;
-    }
-  | {
-      adapter: "browser";
-      content: WorkspaceRepositoryContent;
-      label: string;
     };
 
 export type DeleteWorkspaceRepositoryInput = {

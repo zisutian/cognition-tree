@@ -3,7 +3,7 @@
 
 1. 定位
 
-认知树是本地优先的可配置语法结构化笔记系统。`.ctn` 原文、缩进层级、语法规则和引用关系是核心；Markdown、HTML、PDF 与纯文本属于导出方向。
+认知树是 Server-backed 的可配置语法结构化笔记系统。`.ctn` 原文、缩进层级、语法规则和引用关系是核心；Markdown、HTML、PDF 与纯文本属于导出方向。
 
 产品面向单个使用者及其受控设备，不引入用户、角色、共享权限或多人协作状态。
 
@@ -12,7 +12,7 @@
 
 Workspace：
 
-    零个或多个普通笔记库。每个仓库独立保存笔记、目录、多份语法和工作台偏好。Local、WebDAV 与 Browser adapter 之间不自动复制或合并内容。
+    零个或多个普通笔记库。每个仓库独立保存笔记、目录、多份语法和工作台偏好。Local 与 WebDAV adapter 之间不自动复制或合并内容。
 
 Journal：
 
@@ -88,7 +88,7 @@ owner policy 判定为不可删除的规则不显示删除入口。其固定字�
 
 Repository Activity 只负责普通仓库 catalog、内置数据 descriptor、位置、故障和运维：
 
-    左侧依次显示“内置数据”的日记与代办、“新建仓库”，以及 Local、WebDAV、Browser 分组。
+    左侧依次显示“内置数据”的日记与代办、“新建仓库”，以及 Local、WebDAV 分组。
     普通仓库行只显示名称和极简状态；当前仓库由前导图标表达，选中后才显示切换与重命名入口。
     右侧显示 adapter、只读 ID、位置、复制、重扫、重试、冲突恢复和危险操作。
     日记与代办右侧只显示存储位置、故障、重试和受保护说明。
@@ -97,7 +97,10 @@ Local 可见目录与 .ctn 文件是权威工作树；根部 .ctn/ 保存身份�
 
 普通 Workspace 只接受 v4，Journal 只接受 v3，Todo 只接受 v4。Journal/Todo 使用彼此隔离的 storage、epoch、draft/cache 和同步队列；一个领域的故障或重置不能影响另一个。旧版、未来版本、部分状态和损坏内容一律关闭写入并显示可重试故障，不执行运行时迁移、自动清空或空内容回退。
 
-本地优先保存先以 local revision CAS 写入 draft，再异步同步远端。offline、conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pending 内容。
+页面内保存先以 local revision CAS 写入内存 draft，再异步同步 Server。offline、
+conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pending 内容。
+刷新或关闭页面不会恢复尚未同步的 draft、队列或冲突，Server 不可用时必须
+显示失败与重试，不创建本地空仓库。
 
 
 7. Activities 与 Problems

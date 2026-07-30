@@ -6,7 +6,7 @@ import {
   type WorkspaceAnalysis,
 } from "../../../../../application/workspace/analysis/workspaceAnalysis";
 import { startWorkspaceAnalysisCollection } from "../../../../../application/workspace/analysis/workspaceAnalysisCollection";
-import { browserApplicationScheduler } from "../../../../../infrastructure/browser/browserApplicationServices";
+import { clientApplicationScheduler } from "../../../../../infrastructure/client/clientApplicationServices";
 
 function createIdleWorkspaceAnalysis(): WorkspaceAnalysis {
   return {
@@ -71,7 +71,7 @@ export function useWorkspaceAnalysis({
           current.token === token ? { analysis, token } : current,
         );
       },
-      scheduler: browserApplicationScheduler,
+      scheduler: clientApplicationScheduler,
     });
   }, [activeIndex, initialAnalysis, token]);
 

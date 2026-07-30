@@ -60,7 +60,7 @@ export type WorkspaceRepositoryCommitResultDto = {
   revision: RepositoryRevisionDto;
 };
 
-export type RepositoryAdapterKindDto = "browser" | "local" | "webdav";
+export type RepositoryAdapterKindDto = "local" | "webdav";
 
 export type RepositoryLocationDto =
   | {
@@ -71,10 +71,6 @@ export type RepositoryLocationDto =
   | {
       type: "webdav";
       url: string;
-    }
-  | {
-      databaseName: string;
-      type: "browser";
     };
 
 export type RepositoryAuthenticationDto =

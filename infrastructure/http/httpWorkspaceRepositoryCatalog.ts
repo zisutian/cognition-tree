@@ -38,7 +38,7 @@ function isOfflineError(error: unknown) {
   );
 }
 
-function subscribeBrowserReconnect(listener: () => void) {
+function subscribeClientReconnect(listener: () => void) {
   if (typeof globalThis.addEventListener !== "function") {
     return () => undefined;
   }
@@ -48,7 +48,7 @@ function subscribeBrowserReconnect(listener: () => void) {
 }
 
 export function createHttpWorkspaceRepositoryCatalog({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   cache = createMemoryRepositoryClientCache(),
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
@@ -200,12 +200,6 @@ export function createHttpWorkspaceRepositoryCatalog({
       }
     },
     openRepository(descriptor) {
-      if (descriptor.adapter === "browser") {
-        throw new Error(
-          `HTTP catalog cannot open browser repository: ${descriptor.id}`,
-        );
-      }
-
       return createLocalFirstWorkspaceRepository({
         backend: createHttpWorkspaceRepositoryBackend({
           baseUrl,
@@ -223,7 +217,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           repositoryId: descriptor.id,
           token,
         }),
-        subscribeReconnect: subscribeBrowserReconnect,
+        subscribeReconnect: subscribeClientReconnect,
         validateContent,
       });
     },

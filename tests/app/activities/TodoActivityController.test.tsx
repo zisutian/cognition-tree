@@ -20,7 +20,10 @@ const controls = {
 
 function createApplicationWithoutWorkspace(): WorkbenchApplication {
   return {
-    apiAccess: { reason: "test", status: "unavailable" },
+    apiAccess: {
+      administration: {} as WorkbenchApplication["apiAccess"]["administration"],
+      repositories: [],
+    },
     journal: { status: "loading" },
     repository: {} as WorkbenchApplication["repository"],
     search: {} as WorkbenchApplication["search"],

@@ -72,14 +72,14 @@ function isOfflineError(error: unknown) {
     (error instanceof VersionedRepositoryRemoteError && error.retryable);
 }
 
-function subscribeBrowserReconnect(listener: () => void) {
+function subscribeClientReconnect(listener: () => void) {
   if (typeof globalThis.addEventListener !== "function") return () => undefined;
   globalThis.addEventListener("online", listener);
   return () => globalThis.removeEventListener("online", listener);
 }
 
 export function createHttpBuiltInCatalog({
-  baseUrl = "http://127.0.0.1:3001",
+  baseUrl,
   catalogCache,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   journalCache,
@@ -128,7 +128,7 @@ export function createHttpBuiltInCatalog({
     },
     openJournal(value) {
       const descriptor = parseBuiltInDescriptor(value);
-      if (descriptor.id !== "journal" || descriptor.location.type !== "server") {
+      if (descriptor.id !== "journal") {
         throw new Error("HTTP Journal descriptor is invalid");
       }
       journalRepository ??= createLocalFirstVersionedRepository({
@@ -148,7 +148,7 @@ export function createHttpBuiltInCatalog({
           repositoryId: "built-in:journal",
           token,
         }),
-        subscribeReconnect: subscribeBrowserReconnect,
+        subscribeReconnect: subscribeClientReconnect,
         validateContent: validateJournalRepositoryContent,
         validateTransition: validateJournalRepositoryTransition,
       });
@@ -156,7 +156,7 @@ export function createHttpBuiltInCatalog({
     },
     openTodo(value) {
       const descriptor = parseBuiltInDescriptor(value);
-      if (descriptor.id !== "todo" || descriptor.location.type !== "server") {
+      if (descriptor.id !== "todo") {
         throw new Error("HTTP Todo descriptor is invalid");
       }
       todoRepository ??= createLocalFirstVersionedRepository({
@@ -176,7 +176,7 @@ export function createHttpBuiltInCatalog({
           repositoryId: "built-in:todo",
           token,
         }),
-        subscribeReconnect: subscribeBrowserReconnect,
+        subscribeReconnect: subscribeClientReconnect,
         validateContent: validateTodoRepositoryContent,
         validateTransition: validateTodoRepositoryTransition,
       });

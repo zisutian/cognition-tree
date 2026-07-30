@@ -20,7 +20,7 @@ export const repositoryPasswordInputAttributes = {
 function selectInitialAdapter(adapters: RepositoryAdapterOption[]) {
   return adapters.some(({ value }) => value === "local")
     ? "local"
-    : adapters[0]?.value ?? "browser";
+    : adapters[0]?.value ?? "webdav";
 }
 
 export function createRepositoryCreateFormDraft(

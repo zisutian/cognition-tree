@@ -11,13 +11,13 @@ const repositories = [
   {
     id: "journal" as const,
     label: "日记" as const,
-    location: { databaseName: "journal-db", type: "browser" as const },
+    location: { serverPath: "/data/journal", type: "server" as const },
     protected: true as const,
   },
   {
     id: "todo" as const,
     label: "代办" as const,
-    location: { databaseName: "todo-db", type: "browser" as const },
+    location: { serverPath: "/data/todo", type: "server" as const },
     protected: true as const,
   },
 ];
@@ -58,7 +58,7 @@ describe("built-in data runtime issue projection", () => {
         code: "session_load_failed",
         id: "todo",
         kind: "data",
-        location: { databaseName: "todo-db", type: "browser" },
+        location: { serverPath: "/data/todo", type: "server" },
         message: "todo session failed",
         status: "fault",
       },

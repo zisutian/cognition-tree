@@ -12,7 +12,6 @@ import type {
 } from "../../../../application/apiAccess/apiAccessAdministration";
 import {
   Button,
-  EmptyState,
   Panel,
   PanelBody,
   PanelHeader,
@@ -149,17 +148,14 @@ export function ApiAccessSettingsPanel({
 }) {
   const [audit, setAudit] = useState<AutomationApiAuditEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(apiAccess.status === "available");
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [permissions, setPermissions] = useState(initialPermissions);
   const [repositoryIds, setRepositoryIds] = useState<string[] | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [tokens, setTokens] = useState<AutomationApiToken[]>([]);
-  const administration = apiAccess.status === "available"
-    ? apiAccess.administration
-    : null;
+  const administration = apiAccess.administration;
   const load = useCallback(async () => {
-    if (!administration) return;
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -187,19 +183,6 @@ export function ApiAccessSettingsPanel({
     () => permissionsToScopes(permissions),
     [permissions],
   );
-  if (apiAccess.status === "unavailable") {
-    return (
-      <Panel aria-label="API 访问" className="settings-panel">
-        <PanelHeader title="API 访问" />
-        <PanelBody scroll>
-          <EmptyState
-            description={apiAccess.reason}
-            title="当前存储模式不提供 API"
-          />
-        </PanelBody>
-      </Panel>
-    );
-  }
   const updatePermission = (
     domain: AutomationDomain,
     level: PermissionLevel,
@@ -210,7 +193,7 @@ export function ApiAccessSettingsPanel({
     }));
   };
   const createToken = async () => {
-    if (!administration || name.trim().length === 0 || scopes.length === 0) {
+    if (name.trim().length === 0 || scopes.length === 0) {
       return;
     }
     setLoading(true);

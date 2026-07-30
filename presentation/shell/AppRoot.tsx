@@ -7,7 +7,10 @@ import {
 } from "react";
 import { createWorkbenchFeedbackController } from "../../application/workbench/workbenchFeedbackController";
 import { projectWorkspaceSessionApplication } from "../../application/workspace/session/workspaceSessionApplication";
-import { browserApplicationScheduler } from "../../infrastructure/browser/browserApplicationServices";
+import type {
+  ClientApiConfiguration,
+} from "../../infrastructure/client/clientApiConfiguration";
+import { clientApplicationScheduler } from "../../infrastructure/client/clientApplicationServices";
 import { createWorkbenchRuntime } from "../../infrastructure/workbenchRuntime";
 import type { ActivityId } from "../ui/activityTypes";
 import { useWorkbenchApplicationBindings } from "./bindings/application/workbench/useWorkbenchApplicationBindings";
@@ -15,11 +18,15 @@ import { projectUnavailableWorkspace } from "./bindings/application/workbench/wo
 import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 
-export function AppRoot() {
-  const controller = useMemo(createWorkbenchRuntime, []);
+export function AppRoot({
+  api,
+}: {
+  api: ClientApiConfiguration;
+}) {
+  const controller = useMemo(() => createWorkbenchRuntime(api), [api]);
   const feedbackController = useMemo(
     () => createWorkbenchFeedbackController<ActivityId>({
-      scheduler: browserApplicationScheduler,
+      scheduler: clientApplicationScheduler,
     }),
     [],
   );

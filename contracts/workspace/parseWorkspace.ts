@@ -21,7 +21,7 @@ const noteNodeFields = ["kind", "noteId"] as const;
 
 /**
  * A repository note id is also used as an adapter-owned metadata key. Keep
- * this rule in the wire contract so Browser, HTTP, Local, and WebDAV reject
+ * this rule in the wire contract so HTTP, Local, and WebDAV reject
  * the same content before any adapter-specific write begins.
  */
 export function isRepositoryNoteId(value: string) {

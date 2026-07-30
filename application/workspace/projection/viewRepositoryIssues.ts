@@ -4,7 +4,6 @@ import type {
 } from "../../repository/workspaceRepositoryCatalog";
 
 export const repositoryAdapterLabels: Record<RepositoryAdapterKind, string> = {
-  browser: "浏览器",
   local: "本地",
   webdav: "WebDAV",
 };

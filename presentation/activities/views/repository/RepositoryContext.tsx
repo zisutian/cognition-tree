@@ -3,7 +3,6 @@ import {
   CalendarDays,
   Check,
   Cloud,
-  Database,
   HardDrive,
   ListChecks,
   Plus,
@@ -41,9 +40,7 @@ function RepositoryAdapterIcon({
 }) {
   const Icon = adapter === "local"
     ? HardDrive
-    : adapter === "webdav"
-      ? Cloud
-      : Database;
+    : Cloud;
 
   return <Icon aria-hidden="true" size={13} />;
 }
@@ -74,7 +71,7 @@ export function RepositoryContext({
   const [renameValue, setRenameValue] = useState("");
   const currentSelection = selection ?? createDefaultRepositorySelection(view);
   const busy = view.operation !== "idle";
-  const adapterGroups = (["local", "webdav", "browser"] as const).filter(
+  const adapterGroups = (["local", "webdav"] as const).filter(
     (adapter) =>
       view.repositories.some((repository) => repository.adapter === adapter) ||
       view.issues.some((issue) => issue.adapter === adapter),
