@@ -1,33 +1,26 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { VisualizationViewModel } from "../../../../application/workspace/activities/visualization/visualizationViewModel";
 import {
   EmptyState,
   Panel,
   PanelBody,
-  PanelHeader,
 } from "../../../ui/shared/primitives";
 import { ReferenceGraphCanvas } from "./ReferenceGraphCanvas";
 import { getEmptyGraphMessage } from "./graphEmptyState";
 import {
   createVisibleReferenceGraph,
 } from "./referenceGraphView";
-import {
-  createDefaultReferenceGraphSettings,
-  getReferenceGraphSessionSettings,
-  setReferenceGraphSessionSettings,
-  type ReferenceGraphSettings,
-} from "./referenceGraphSettings";
-import { VisualizationToolbar } from "./VisualizationToolbar";
+import type {
+  ReferenceGraphSession,
+} from "./useReferenceGraphSession";
 
 export function VisualizationPanel({
+  session,
   view,
 }: {
+  session: ReferenceGraphSession;
   view: VisualizationViewModel;
 }) {
-  const [resetSignal, setResetSignal] = useState(0);
-  const [graphSettings, setGraphSettings] = useState(
-    getReferenceGraphSessionSettings,
-  );
   const visualization = view;
   const { hideIsolated, localDepth, mode, query } = visualization.filter;
   const visibleGraph = useMemo(
@@ -60,38 +53,17 @@ export function VisualizationPanel({
     mode,
     query,
   });
-  const updateGraphSettings = (settings: ReferenceGraphSettings) => {
-    setReferenceGraphSessionSettings(settings);
-    setGraphSettings(settings);
-  };
 
   return (
     <Panel className="visualization-panel" aria-label="引用图谱">
-      <PanelHeader title="引用图谱" />
       <PanelBody className="graph-body">
-        <VisualizationToolbar
-          hideIsolated={hideIsolated}
-          localDepth={localDepth}
-          mode={mode}
-          query={query}
-          settings={graphSettings}
-          onHideIsolatedChange={visualization.setHideIsolated}
-          onLocalDepthChange={visualization.setLocalDepth}
-          onModeChange={visualization.setMode}
-          onQueryChange={visualization.setQuery}
-          onReset={() => setResetSignal((current) => current + 1)}
-          onResetSettings={() =>
-            updateGraphSettings(createDefaultReferenceGraphSettings())
-          }
-          onSettingsChange={updateGraphSettings}
-        />
         <div className="graph-canvas">
           {visibleGraph.nodes.length > 0 ? (
             <ReferenceGraphCanvas
-              displaySettings={graphSettings.display}
-              forceSettings={graphSettings.forces}
+              displaySettings={session.settings.display}
+              forceSettings={session.settings.forces}
               graph={visibleGraph}
-              resetSignal={resetSignal}
+              resetSignal={session.resetSignal}
               selectedNoteId={visualization.activeNoteId}
               topologyRevision={topologyRevision}
               onSelectNote={visualization.onSelectNote}

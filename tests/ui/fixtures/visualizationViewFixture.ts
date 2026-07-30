@@ -1,6 +1,12 @@
 import type {
   VisualizationViewModel,
 } from "../../../application/workspace/activities/visualization/visualizationViewModel";
+import {
+  createDefaultReferenceGraphSettings,
+} from "../../../presentation/activities/views/visualization/referenceGraphSettings";
+import type {
+  ReferenceGraphSession,
+} from "../../../presentation/activities/views/visualization/useReferenceGraphSession";
 
 export function createVisualizationView(
   overrides: Partial<VisualizationViewModel> = {},
@@ -31,6 +37,19 @@ export function createVisualizationView(
     setLocalDepth: () => undefined,
     setMode: () => undefined,
     setQuery: () => undefined,
+    ...overrides,
+  };
+}
+
+export function createReferenceGraphSession(
+  overrides: Partial<ReferenceGraphSession> = {},
+): ReferenceGraphSession {
+  return {
+    resetSettings: () => undefined,
+    resetSignal: 0,
+    resetView: () => undefined,
+    settings: createDefaultReferenceGraphSettings(),
+    updateSettings: () => undefined,
     ...overrides,
   };
 }

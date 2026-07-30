@@ -60,35 +60,26 @@
   flex-direction: column;
 }
 
-.notes-mode-tabs {
+.notes-workspace-context {
   display: flex;
+  flex-direction: column;
+  gap: var(--ui-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+.notes-mode-switch {
   flex: 0 0 auto;
-  gap: var(--ui-gap-tight);
-  min-height: var(--ui-control-height);
-  padding: var(--ui-gap-tight) var(--ui-gap);
-  border-bottom: var(--ui-border-width) solid var(--color-border);
-  background: var(--color-bg-panel);
 }
 
-.notes-mode-tabs > button {
-  min-height: var(--ui-control-height);
-  padding: 0 var(--ui-gap);
-  border: 0;
-  border-bottom: calc(var(--ui-border-width) * 2) solid transparent;
-  background: transparent;
-  color: var(--color-fg-muted);
-  cursor: pointer;
-  font: inherit;
+.notes-mode-context {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.notes-mode-tabs > button.is-active {
-  border-bottom-color: var(--color-accent);
-  color: var(--color-fg);
-}
-
-.notes-mode-tabs > button:focus-visible {
-  outline: var(--ui-focus-outline);
-  outline-offset: calc(var(--ui-border-width) * 2);
+.notes-mode-context > .activity-context-content {
+  height: 100%;
 }
 
 .notes-mode-panel {

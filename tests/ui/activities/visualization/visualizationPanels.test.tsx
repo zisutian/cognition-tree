@@ -1,9 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { VisualizationContext } from "../../../../presentation/activities/views/visualization/VisualizationContext";
 import { VisualizationDetailPanel } from "../../../../presentation/activities/views/visualization/VisualizationDetailPanel";
 import { VisualizationPanel } from "../../../../presentation/activities/views/visualization/VisualizationPanel";
 import { ReferenceGraphCanvas } from "../../../../presentation/activities/views/visualization/ReferenceGraphCanvas";
 import {
+  createReferenceGraphSession,
   createVisualizationView,
 } from "../../fixtures/visualizationViewFixture";
 import { defaultReferenceGraphSettings } from "../../../../presentation/activities/views/visualization/referenceGraphSettings";
@@ -40,18 +42,25 @@ describe("visualization panels", () => {
   });
 
   it("exposes graph filters, search, reset, and settings controls", () => {
-    const markup = renderToStaticMarkup(
-      <VisualizationPanel view={createVisualizationView()} />,
+    const session = createReferenceGraphSession();
+    const view = createVisualizationView();
+    const contextMarkup = renderToStaticMarkup(
+      <VisualizationContext session={session} view={view} />,
+    );
+    const panelMarkup = renderToStaticMarkup(
+      <VisualizationPanel session={session} view={view} />,
     );
 
-    expect(markup).toContain("引用图谱");
-    expect(markup).toContain("aria-label=\"搜索笔记标题\"");
-    expect(markup).toContain("placeholder=\"笔记标题\"");
-    expect(markup).toContain("aria-pressed=\"false\"");
-    expect(markup).toContain("隐藏孤立点");
-    expect(markup).toContain("aria-label=\"重置图谱视图\"");
-    expect(markup).toContain("aria-label=\"图谱设置\"");
-    expect(markup).not.toContain(">搜索<");
+    expect(contextMarkup).toContain("aria-label=\"图谱控制\"");
+    expect(contextMarkup).toContain("aria-label=\"搜索笔记标题\"");
+    expect(contextMarkup).toContain("placeholder=\"笔记标题\"");
+    expect(contextMarkup).toContain("aria-pressed=\"false\"");
+    expect(contextMarkup).toContain("隐藏孤立点");
+    expect(contextMarkup).toContain("aria-label=\"重置图谱视图\"");
+    expect(contextMarkup).toContain("aria-label=\"图谱设置\"");
+    expect(panelMarkup).toContain("aria-label=\"引用图谱\"");
+    expect(panelMarkup).not.toContain("aria-label=\"图谱控制\"");
+    expect(panelMarkup).not.toContain("aria-label=\"搜索笔记标题\"");
   });
 
   it("renders graph statistics and reference groups", () => {

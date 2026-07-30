@@ -119,9 +119,10 @@ export function VisualizationGraphSettings({
           ref={triggerRef}
           title="图谱设置"
           type="button"
-          variant="icon"
+          variant="secondary"
         >
           <Settings2 aria-hidden="true" size={14} />
+          图谱设置
         </Button>
       )}
     >

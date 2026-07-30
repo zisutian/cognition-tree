@@ -21,7 +21,10 @@ import {
   readComputedStyleValue,
   readCtnTonePresentation,
 } from "./support/uiPresentation";
-import { openWorkbench } from "./support/workbenchPage";
+import {
+  getActivityButton,
+  openWorkbench,
+} from "./support/workbenchPage";
 
 const repositoryId = "workbench-editor";
 const multilineRuleLabel = "原文块";
@@ -153,6 +156,17 @@ test.describe("editor workbench flows", () => {
       level: 1,
       name: "浏览器回归仓库",
     })).toBeVisible();
+    const modeSwitch = notesContext.getByRole("group", { name: "笔记视图" });
+
+    await expect(modeSwitch).toBeVisible();
+    await expect(modeSwitch.getByRole("button", { name: "编辑" }))
+      .toHaveAttribute("aria-pressed", "true");
+    await getActivityButton(page, "笔记").click();
+    await expect(page.locator(".app-context")).toHaveCount(0);
+    await getActivityButton(page, "笔记").click();
+    await expect(modeSwitch).toBeVisible();
+    await expect(modeSwitch.getByRole("button", { name: "编辑" }))
+      .toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name: "进入专注模式" }).click();
     await expect(page.locator(".app-context")).toHaveCount(0);
     await expect(page.locator(".app-detail")).toHaveCount(0);

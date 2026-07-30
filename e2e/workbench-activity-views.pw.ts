@@ -478,10 +478,25 @@ test.describe("activity view flows", () => {
     await openWorkbench(page, visualizationRepositoryId);
     await selectNotesMode(page, "图谱");
 
+    const context = page.locator(".app-context");
+    const main = page.locator(".app-main-content");
     const canvas = page.getByRole("application", {
       name: "笔记引用力导向图",
     });
 
+    await expect(context).toHaveAccessibleName("浏览器回归仓库");
+    await expect(context.getByRole("group", { name: "笔记视图" }))
+      .toBeVisible();
+    await expect(context.locator('[aria-label="图谱控制"]')).toBeVisible();
+    await expect(
+      context.getByRole("textbox", { name: "搜索笔记标题" }),
+    ).toBeVisible();
+    await expect(
+      main.getByRole("textbox", { name: "搜索笔记标题" }),
+    ).toHaveCount(0);
+    await expect(
+      main.getByRole("heading", { name: "引用图谱", exact: true }),
+    ).toHaveCount(0);
     await expect(canvas).toBeVisible();
     const initialBox = await canvas.boundingBox();
 

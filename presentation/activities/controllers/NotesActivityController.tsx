@@ -11,6 +11,10 @@ import { createStructureOperationActivitySlots } from "../views/structure-operat
 import { useVisualizationActivity } from "../bindings/workspace/activities/visualization/useVisualizationActivity";
 import { useVisualizationFilter } from "../bindings/workspace/activities/visualization/useVisualizationFilter";
 import { createVisualizationActivitySlots } from "../views/visualization/VisualizationActivitySlots";
+import {
+  useReferenceGraphSession,
+  type ReferenceGraphSession,
+} from "../views/visualization/useReferenceGraphSession";
 import type { WorkspaceApplication } from "../bindings/workspace/runtime/useWorkspaceApplication";
 import type { ActivityControllerProps } from "./activityController";
 import { renderWorkspaceUnavailableActivity } from "./WorkspaceUnavailableActivityController";
@@ -21,12 +25,14 @@ function ActiveNotesActivity({
   onModeChange,
   repositoryName,
   renderActivity,
+  visualizationSession,
 }: {
   application: WorkspaceApplication;
   mode: NotesMode;
   onModeChange(mode: NotesMode): void;
   repositoryName: string;
   renderActivity: ActivityControllerProps["renderActivity"];
+  visualizationSession: ReferenceGraphSession;
 }) {
   const view = useNotesActivity({
     navigation: application.navigation,
@@ -49,7 +55,6 @@ function ActiveNotesActivity({
     runtime: application.runtime,
     selection: application.selection,
   });
-
   return renderActivity((controls) =>
     createNotesWorkspaceActivitySlots({
       edit: createNotesActivitySlots({
@@ -62,11 +67,13 @@ function ActiveNotesActivity({
       graph: createVisualizationActivitySlots({
         onCollapseDetail: controls.onCollapseDetail,
         onConfigureSyntax: controls.onConfigureSyntax,
+        session: visualizationSession,
         shell: application.shell,
         view: visualization,
       }),
       mode,
       onModeChange,
+      repositoryName,
       structure: createStructureOperationActivitySlots({
         onConfigureSyntax: controls.onConfigureSyntax,
         shell: application.shell,
@@ -87,6 +94,7 @@ export function NotesActivityController({
   const [modeByRepository, setModeByRepository] = useState<
     Record<string, NotesMode>
   >({});
+  const visualizationSession = useReferenceGraphSession();
   const mode = modeByRepository[repositoryId] ?? "edit";
   const setMode = (nextMode: NotesMode) => {
     setModeByRepository((current) =>
@@ -117,6 +125,7 @@ export function NotesActivityController({
           ? "笔记"
           : application.repository.session.storageLabel)}
       renderActivity={renderActivity}
+      visualizationSession={visualizationSession}
     />
   );
 }

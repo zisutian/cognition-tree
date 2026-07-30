@@ -1,6 +1,7 @@
 import type { NotesViewModel } from "../../../../application/workspace/activities/notes/notesViewModel";
 import "../../../ui/styles/activities/notes.css";
 import type { ActivitySlots } from "../../../ui/activityTypes";
+import { SegmentedControl } from "../../../ui/shared/primitives";
 import {
   NoteDetailPanel,
   NoteEditorPanel,
@@ -20,12 +21,14 @@ export function createNotesWorkspaceActivitySlots({
   graph,
   mode,
   onModeChange,
+  repositoryName,
   structure,
 }: {
   edit: ActivitySlots;
   graph: ActivitySlots;
   mode: NotesMode;
   onModeChange(mode: NotesMode): void;
+  repositoryName: string;
   structure: ActivitySlots;
 }): ActivitySlots {
   const current = mode === "edit"
@@ -35,47 +38,42 @@ export function createNotesWorkspaceActivitySlots({
       : graph;
 
   return {
-    context: current.context,
+    context: {
+      content: (
+        <div className="notes-workspace-context">
+          <SegmentedControl
+            ariaLabel="笔记视图"
+            className="notes-mode-switch"
+            fill
+            options={notesModes.map(({ id, label }) => ({
+              label,
+              value: id,
+            }))}
+            value={mode}
+            onChange={onModeChange}
+          />
+          <div className="notes-mode-context">
+            {current.context?.content ?? null}
+          </div>
+        </div>
+      ),
+      title: repositoryName,
+    },
     detail: current.detail,
     main: (
       <div className="notes-workspace-main">
-        <div
-          aria-label="笔记视图"
-          className="notes-mode-tabs"
-          role="tablist"
-        >
-          {notesModes.map(({ id, label }) => (
-            <button
-              aria-controls={`notes-mode-panel-${id}`}
-              aria-selected={mode === id}
-              className={mode === id ? "is-active" : undefined}
-              id={`notes-mode-tab-${id}`}
-              key={id}
-              onClick={() => onModeChange(id)}
-              role="tab"
-              tabIndex={mode === id ? 0 : -1}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
         <section
-          aria-labelledby="notes-mode-tab-edit"
+          aria-label="编辑视图"
           className="notes-mode-panel"
           hidden={mode !== "edit"}
-          id="notes-mode-panel-edit"
-          role="tabpanel"
         >
           {edit.main}
         </section>
         {mode === "structure"
           ? (
             <section
-              aria-labelledby="notes-mode-tab-structure"
+              aria-label="结构视图"
               className="notes-mode-panel"
-              id="notes-mode-panel-structure"
-              role="tabpanel"
             >
               {structure.main}
             </section>
@@ -84,10 +82,8 @@ export function createNotesWorkspaceActivitySlots({
         {mode === "graph"
           ? (
             <section
-              aria-labelledby="notes-mode-tab-graph"
+              aria-label="图谱视图"
               className="notes-mode-panel"
-              id="notes-mode-panel-graph"
-              role="tabpanel"
             >
               {graph.main}
             </section>

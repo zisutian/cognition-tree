@@ -32,23 +32,11 @@ export const defaultReferenceGraphSettings: Readonly<ReferenceGraphSettings> = {
   },
 };
 
-let sessionSettings = createDefaultReferenceGraphSettings();
-
 export function createDefaultReferenceGraphSettings(): ReferenceGraphSettings {
   return {
     display: { ...defaultReferenceGraphSettings.display },
     forces: { ...defaultReferenceGraphSettings.forces },
   };
-}
-
-export function getReferenceGraphSessionSettings() {
-  return sessionSettings;
-}
-
-export function setReferenceGraphSessionSettings(
-  settings: ReferenceGraphSettings,
-) {
-  sessionSettings = settings;
 }
 
 export function getReferenceGraphForceSettingsKey(

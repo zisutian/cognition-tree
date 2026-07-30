@@ -29,6 +29,9 @@ import {
   type TestActivityViews,
 } from "../fixtures/activityViewsFixture";
 import { createNotesView } from "../fixtures/notesViewFixture";
+import {
+  createReferenceGraphSession,
+} from "../fixtures/visualizationViewFixture";
 import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
 import { createSearchController } from "../../../application/search/searchController";
 
@@ -70,11 +73,13 @@ function createSlots(
         }),
         graph: createVisualizationActivitySlots({
           ...controls,
+          session: createReferenceGraphSession(),
           shell: view.shell,
           view: view.visualization,
         }),
         mode: notesMode,
         onModeChange: () => undefined,
+        repositoryName: view.repository.activeRepositoryLabel,
         structure: createStructureOperationActivitySlots({
           onConfigureSyntax: controls.onConfigureSyntax,
           shell: view.shell,
@@ -214,14 +219,42 @@ describe("activity slots", () => {
 
     expect(renderSlot(createSlots("notes", rawViews).main))
       .toContain('data-editor-mode="raw"');
-    expect(renderSlot(createSlots("notes", rawViews, "graph").main))
+    const rawGraphSlots = createSlots("notes", rawViews, "graph");
+
+    expect(renderSlot(rawGraphSlots.main))
       .toContain("引用图谱不可用");
+    expect(rawGraphSlots.context?.title).toBe("Primary");
+    expect(renderSlot(rawGraphSlots.context?.content)).toContain(
+      'role="group"',
+    );
+    expect(renderSlot(rawGraphSlots.context?.content)).not.toContain(
+      'aria-label="图谱控制"',
+    );
     expect(renderSlot(createSlots("notes", rawViews, "structure").main))
       .toContain("结构操作不可用");
-    const notesMarkup = renderSlot(createSlots("notes", rawViews).main);
+    const noteModeSlots = (["edit", "structure", "graph"] as const).map(
+      (mode) => createSlots("notes", undefined, mode),
+    );
+    const notesContextMarkup = renderSlot(
+      noteModeSlots[0]?.context?.content,
+    );
 
-    expect(notesMarkup).toContain('role="tablist"');
-    expect(notesMarkup).toContain('aria-selected="true"');
+    expect(noteModeSlots.map(({ context }) => context?.title)).toEqual([
+      "Primary",
+      "Primary",
+      "Primary",
+    ]);
+    expect(notesContextMarkup).toContain('aria-label="笔记视图"');
+    expect(notesContextMarkup).toContain('aria-pressed="true"');
+    expect(renderSlot(noteModeSlots[0]?.main)).not.toContain(
+      'aria-label="笔记视图"',
+    );
+    expect(renderSlot(noteModeSlots[1]?.context?.content))
+      .toContain("结构操作模式");
+    expect(renderSlot(noteModeSlots[2]?.context?.content))
+      .toContain('aria-label="图谱控制"');
+    expect(renderSlot(noteModeSlots[2]?.main))
+      .not.toContain('aria-label="图谱控制"');
 
     const submitted = {
       domains: ["workspace", "journal", "todo"] as const,
