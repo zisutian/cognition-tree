@@ -577,7 +577,7 @@ describe("local-first workspace repository", () => {
       ),
       conflicted.localRevision,
     );
-    await expect(repository.loadConflict?.()).resolves.toMatchObject({
+    await expect(repository.loadConflict()).resolves.toMatchObject({
       local: {
         workspace: {
           notes: [{ source: latestLocalNoteSource }],
@@ -592,7 +592,7 @@ describe("local-first workspace repository", () => {
       unitIds: ["workspace:note:note-a"],
     });
     await expect(
-      repository.keepLocalConflictAndSynchronize?.(),
+      repository.keepLocalConflictAndSynchronize(),
     ).resolves.toMatchObject({
       pendingChanges: false,
       status: "synced",

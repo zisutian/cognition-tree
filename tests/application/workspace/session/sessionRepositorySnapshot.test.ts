@@ -14,12 +14,19 @@ function createRepository(
 ): WorkspaceRepository {
   return {
     discardPendingSnapshotAndReload: async () => snapshot,
+    keepLocalConflictAndSynchronize: async () => {
+      throw new Error("Unexpected conflict resolution in snapshot test.");
+    },
     label: "test repository",
+    loadConflict: async () => null,
     loadSnapshot: async () => snapshot,
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
       type: "local",
+    },
+    resolveConflictAndSynchronize: async () => {
+      throw new Error("Unexpected conflict resolution in snapshot test.");
     },
     stageSnapshot: async () => ({ localRevision: snapshot.localRevision }),
     subscribeReconnect: () => () => undefined,

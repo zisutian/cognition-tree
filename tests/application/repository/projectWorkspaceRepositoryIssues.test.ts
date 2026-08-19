@@ -88,13 +88,17 @@ describe("ordinary repository runtime issue projection", () => {
   it("projects conflict and persistence errors without inventing document diagnostics", () => {
     expect(projectWorkspaceRepositoryRuntimeIssues(source({
       discardPendingChangesAndReload: async () => undefined,
+      keepLocalConflictAndSynchronize: async () => undefined,
+      loadConflictUnitIds: async () => [],
       persistence: {
         remoteRevision: "sha256:remote",
         status: "conflict",
       },
+      recoverLocalConflictCopy: async () => undefined,
       reload: async () => undefined,
       status: "ready",
       storageLabel: "本地仓库",
+      useRemoteConflictAndSynchronize: async () => undefined,
     }))).toEqual([
       expect.objectContaining({
         code: "repository_conflict",
@@ -105,15 +109,19 @@ describe("ordinary repository runtime issue projection", () => {
 
     expect(projectWorkspaceRepositoryRuntimeIssues(source({
       discardPendingChangesAndReload: async () => undefined,
+      keepLocalConflictAndSynchronize: async () => undefined,
+      loadConflictUnitIds: async () => [],
       persistence: {
         localCopySafe: false,
         message: "无法保存本地副本。",
         phase: "local",
         status: "error",
       },
+      recoverLocalConflictCopy: async () => undefined,
       reload: async () => undefined,
       status: "ready",
       storageLabel: "本地仓库",
+      useRemoteConflictAndSynchronize: async () => undefined,
     }))).toEqual([
       expect.objectContaining({
         code: "repository_persistence_error",

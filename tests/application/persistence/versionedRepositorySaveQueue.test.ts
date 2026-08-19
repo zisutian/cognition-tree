@@ -61,12 +61,19 @@ function createQueueHarness({
   let reconnectListener: () => void = () => undefined;
   const repository: WorkspaceRepository = {
     discardPendingSnapshotAndReload: async () => createSnapshot(),
+    async keepLocalConflictAndSynchronize() {
+      throw new Error("Unexpected conflict resolution in save queue test.");
+    },
     label: "test repository",
+    loadConflict: async () => null,
     loadSnapshot: async () => createSnapshot(),
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
       type: "local",
+    },
+    async resolveConflictAndSynchronize() {
+      throw new Error("Unexpected conflict resolution in save queue test.");
     },
     async stageSnapshot(input) {
       if (stage) {

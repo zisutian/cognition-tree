@@ -118,12 +118,19 @@ function createRepositoryHarness(
     async discardPendingSnapshotAndReload() {
       return await discard();
     },
+    async keepLocalConflictAndSynchronize() {
+      throw new Error("Unexpected conflict resolution in session test.");
+    },
     label: "test repository",
+    loadConflict: async () => null,
     async loadSnapshot() {
       loadCount += 1;
       return await load();
     },
     location: { type: "memory" },
+    async resolveConflictAndSynchronize() {
+      throw new Error("Unexpected conflict resolution in session test.");
+    },
     async stageSnapshot({ content, expectedLocalRevision, projection }) {
       const stageNumber = stageCount + 1;
 

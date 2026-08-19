@@ -118,12 +118,19 @@ function createRepositoryHarness({
   );
   const repository: WorkspaceRepository = {
     discardPendingSnapshotAndReload: () => discard(),
+    async keepLocalConflictAndSynchronize() {
+      throw new Error("Unexpected conflict resolution in workspace session test.");
+    },
     label: "test repository",
+    loadConflict: async () => null,
     loadSnapshot: () => load(),
     location: {
       hostPath: null,
       serverPath: "/repositories/test",
       type: "local",
+    },
+    async resolveConflictAndSynchronize() {
+      throw new Error("Unexpected conflict resolution in workspace session test.");
     },
     async stageSnapshot({ content, expectedLocalRevision, projection }) {
       if (expectedLocalRevision !== snapshot.localRevision) {

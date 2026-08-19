@@ -119,13 +119,13 @@ export type VersionedRepository<
   loadSnapshot(): Promise<
     VersionedRepositorySnapshot<Content, Revision, LocalRevision, Projection>
   >;
-  loadConflict?(): Promise<
+  loadConflict(): Promise<
     VersionedRepositoryConflictRecord<Content, Revision> | null
   >;
-  keepLocalConflictAndSynchronize?(): Promise<
+  keepLocalConflictAndSynchronize(): Promise<
     VersionedRepositorySyncResult<Revision, LocalRevision>
   >;
-  resolveConflictAndSynchronize?(
+  resolveConflictAndSynchronize(
     preference: VersionedContentConflictPreference,
     transform?: (
       prepared: PreparedVersionedContent<Content, Projection>,

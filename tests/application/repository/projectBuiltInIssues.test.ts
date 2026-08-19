@@ -72,25 +72,33 @@ describe("built-in data runtime issue projection", () => {
       sessions: {
         journal: {
           discardPendingChangesAndReload: async () => {},
+          keepLocalConflictAndSynchronize: async () => {},
+          loadConflictUnitIds: async () => [],
           persistence: {
             remoteRevision: `sha256:${"a".repeat(64)}`,
             status: "conflict",
           },
+          recoverLocalConflictCopy: async () => {},
           reload: async () => {},
           requestSync: () => {},
           status: "ready",
+          useRemoteConflictAndSynchronize: async () => {},
         },
         todo: {
           discardPendingChangesAndReload: async () => {},
+          keepLocalConflictAndSynchronize: async () => {},
+          loadConflictUnitIds: async () => [],
           persistence: {
             localCopySafe: true,
             message: "todo synchronization failed",
             phase: "sync",
             status: "error",
           },
+          recoverLocalConflictCopy: async () => {},
           reload: async () => {},
           requestSync: () => {},
           status: "ready",
+          useRemoteConflictAndSynchronize: async () => {},
         },
       },
     })).toEqual([

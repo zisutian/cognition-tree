@@ -25,14 +25,14 @@ export type RepositorySessionState =
     }
   | {
       discardPendingChangesAndReload: () => Promise<void>;
-      keepLocalConflictAndSynchronize?: () => Promise<void>;
-      loadConflictUnitIds?: () => Promise<string[]>;
-      recoverLocalConflictCopy?: () => Promise<void>;
+      keepLocalConflictAndSynchronize: () => Promise<void>;
+      loadConflictUnitIds: () => Promise<string[]>;
+      recoverLocalConflictCopy: () => Promise<void>;
       persistence: WorkspacePersistenceState;
       reload: () => Promise<void>;
       status: "ready";
       storageLabel: string;
-      useRemoteConflictAndSynchronize?: () => Promise<void>;
+      useRemoteConflictAndSynchronize: () => Promise<void>;
     };
 
 export type RepositoryApplication = {
@@ -58,14 +58,14 @@ export type BuiltInSessionSummary =
   | { errorMessage: string; reload: () => Promise<void>; status: "failed" }
   | {
       discardPendingChangesAndReload: () => Promise<void>;
-      keepLocalConflictAndSynchronize?: () => Promise<void>;
-      loadConflictUnitIds?: () => Promise<string[]>;
-      recoverLocalConflictCopy?: () => Promise<void>;
+      keepLocalConflictAndSynchronize: () => Promise<void>;
+      loadConflictUnitIds: () => Promise<string[]>;
+      recoverLocalConflictCopy: () => Promise<void>;
       persistence: VersionedRepositoryPersistenceState<ContentRevision>;
       reload: () => Promise<void>;
       requestSync: () => void;
       status: "ready";
-      useRemoteConflictAndSynchronize?: () => Promise<void>;
+      useRemoteConflictAndSynchronize: () => Promise<void>;
     };
 
 type BuiltInSessionProjection = {

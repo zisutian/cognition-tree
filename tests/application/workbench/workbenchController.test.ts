@@ -109,7 +109,11 @@ function createBuiltInRepository<Content, Projection>(
       projection,
       remoteRevision: builtInRevision("b"),
     }),
+    keepLocalConflictAndSynchronize: async () => {
+      throw new Error("Unexpected built-in conflict resolution in workbench test.");
+    },
     label,
+    loadConflict: async () => null,
     loadSnapshot: async () => ({
       conflictRevision: null,
       content,
@@ -119,6 +123,9 @@ function createBuiltInRepository<Content, Projection>(
       remoteRevision: builtInRevision("a"),
     }),
     location,
+    resolveConflictAndSynchronize: async () => {
+      throw new Error("Unexpected built-in conflict resolution in workbench test.");
+    },
     stageSnapshot: async () => ({ localRevision: builtInDraft("1") }),
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: async () => ({
@@ -136,9 +143,16 @@ function createWorkspaceRepository(
 ): WorkspaceRepository {
   return {
     discardPendingSnapshotAndReload: loadSnapshot,
+    keepLocalConflictAndSynchronize: async () => {
+      throw new Error("Unexpected workspace conflict resolution in workbench test.");
+    },
     label: descriptor.label,
+    loadConflict: async () => null,
     loadSnapshot,
     location: descriptor.location,
+    resolveConflictAndSynchronize: async () => {
+      throw new Error("Unexpected workspace conflict resolution in workbench test.");
+    },
     stageSnapshot: async () => ({ localRevision: draftRevision("next") }),
     subscribeReconnect: () => () => undefined,
     synchronizePendingSnapshot: async () => ({

@@ -421,10 +421,7 @@ export function createRepositoryViewModel(
       const readySession = session.status === "ready" ? session : null;
       const persistence = readySession?.persistence ?? null;
       const conflictResolution = persistence?.status === "conflict" &&
-          readySession?.keepLocalConflictAndSynchronize &&
-          readySession.loadConflictUnitIds &&
-          readySession.recoverLocalConflictCopy &&
-          readySession.useRemoteConflictAndSynchronize
+          readySession
         ? {
             keepLocal: readySession.keepLocalConflictAndSynchronize,
             loadUnitIds: readySession.loadConflictUnitIds,
@@ -509,11 +506,7 @@ export function createRepositoryViewModel(
   return {
     activeConflictResolution:
       source.session.status === "ready" &&
-          persistence?.status === "conflict" &&
-          source.session.keepLocalConflictAndSynchronize &&
-          source.session.loadConflictUnitIds &&
-          source.session.recoverLocalConflictCopy &&
-          source.session.useRemoteConflictAndSynchronize
+          persistence?.status === "conflict"
         ? {
             keepLocal: source.session.keepLocalConflictAndSynchronize,
             loadUnitIds: source.session.loadConflictUnitIds,

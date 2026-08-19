@@ -440,13 +440,16 @@ export function createVersionedSessionController<
       return state;
     },
     async loadConflictUnitIds() {
-      return (await repository?.loadConflict?.())?.unitIds ?? [];
-    },
-    async keepLocalConflictAndSynchronize() {
-      if (!repository?.resolveConflictAndSynchronize) {
+      if (!repository) {
         throw new VersionedSessionUnavailableError(label);
       }
-      const result = await repository.resolveConflictAndSynchronize("local");
+      return (await repository.loadConflict())?.unitIds ?? [];
+    },
+    async keepLocalConflictAndSynchronize() {
+      if (!repository) {
+        throw new VersionedSessionUnavailableError(label);
+      }
+      const result = await repository.keepLocalConflictAndSynchronize();
 
       if (result.status === "conflict") {
         throw new Error("Remote content changed again while resolving conflict.");
@@ -454,7 +457,7 @@ export function createVersionedSessionController<
       await loadInitial();
     },
     async resolveConflictAndSynchronize(preference, transform) {
-      if (!repository?.resolveConflictAndSynchronize) {
+      if (!repository) {
         throw new VersionedSessionUnavailableError(label);
       }
       const result = await repository.resolveConflictAndSynchronize(
@@ -565,7 +568,7 @@ export function createVersionedSessionController<
       return () => listeners.delete(listener);
     },
     async useRemoteConflictAndSynchronize() {
-      if (!repository?.resolveConflictAndSynchronize) {
+      if (!repository) {
         throw new VersionedSessionUnavailableError(label);
       }
       const result = await repository.resolveConflictAndSynchronize("remote");
