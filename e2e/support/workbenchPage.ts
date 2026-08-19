@@ -52,8 +52,21 @@ export async function openRepositoryFromContext(
   const row = getRepositoryButton(page, repositoryId);
 
   await row.click();
-  await row.locator("..").getByRole("button", {
+  const currentMarker = row.getByLabel("当前仓库");
+  const openButton = row.locator("..").getByRole("button", {
     name: /^打开仓库 /,
-  }).click();
-  await expect(row.getByLabel("当前仓库")).toBeVisible();
+  });
+
+  await expect(currentMarker.or(openButton)).toBeVisible();
+  if (!await currentMarker.isVisible()) {
+    await openButton.click();
+  }
+  await expect(currentMarker).toBeVisible();
+  // Catalog selection precedes the keyed workspace-session mount. Wait for
+  // that mount so a following context action is not sent to a transient tree.
+  await expect(
+    page.locator(".repository-status-section dd").nth(1),
+  ).toHaveText(
+    /^(?!(?:正在载入|挂载失败|未挂载)$).+$/,
+  );
 }
