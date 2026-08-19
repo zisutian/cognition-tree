@@ -14,6 +14,7 @@ import type {
 } from "./ctnEditorContentMode";
 import {
   ctnEditorRuntimeConfigFacet,
+  requireCtnEditorRuntimeConfig,
   type CtnEditorRuntimeConfig,
 } from "./ctnEditorRuntime";
 
@@ -34,11 +35,11 @@ function sourceMode(contentMode: CtnEditorParsedContentMode) {
 
 function analyzeCtnEditorState(
   state: EditorState,
-  configuration: CtnEditorRuntimeConfig = state.facet(
-    ctnEditorRuntimeConfigFacet,
+  configuration: CtnEditorRuntimeConfig = requireCtnEditorRuntimeConfig(
+    state.facet(ctnEditorRuntimeConfigFacet),
   ),
 ): CtnEditorAnalysisState {
-  const analysis = configuration.contentMode.kind === "raw"
+  const analysis = configuration.syntax === null
     ? null
     : analyzeCtnSource({
         mode: sourceMode(configuration.contentMode),
@@ -58,8 +59,8 @@ export function createCtnEditorAnalysisField():
   return StateField.define<CtnEditorAnalysisState>({
     create: analyzeCtnEditorState,
     update(value, transaction) {
-      const configuration = transaction.state.facet(
-        ctnEditorRuntimeConfigFacet,
+      const configuration = requireCtnEditorRuntimeConfig(
+        transaction.state.facet(ctnEditorRuntimeConfigFacet),
       );
 
       if (
@@ -68,7 +69,10 @@ export function createCtnEditorAnalysisField():
       ) {
         return analyzeCtnEditorState(transaction.state, configuration);
       }
-      if (configuration.presentationKey !== value.presentationKey) {
+      if (
+        configuration.syntax !== null &&
+        configuration.presentationKey !== value.presentationKey
+      ) {
         return {
           analysis: value.analysis
             ? reprojectCtnAnalysisPresentation(

@@ -16,16 +16,16 @@ export function SyntaxActivityController({
   const workspace = application.workspace.status === "ready"
     ? application.workspace.application
     : null;
-  const defaultJournalSyntax = application.journal.status === "ready"
+  const journalSyntax = application.journal.status === "ready"
     ? application.journal.view.syntax
     : null;
-  const defaultTodoSyntax = application.todo.status === "ready"
+  const todoSyntax = application.todo.status === "ready"
     ? application.todo.view.syntax
     : null;
   const view = useSyntaxActivity({
     focusTarget:
       systemSyntaxFocusRequest ?? workspace?.navigation.syntaxFocusRequest ?? null,
-    defaultJournalSyntax,
+    journalSyntax,
     onConsumeFocusTarget: (requestId) => {
       if (systemSyntaxFocusRequest?.requestId === requestId) {
         onConsumeSystemSyntaxFocusRequest(requestId);
@@ -33,7 +33,7 @@ export function SyntaxActivityController({
         workspace?.navigation.consumeSyntaxFocusRequest(requestId);
       }
     },
-    defaultTodoSyntax,
+    todoSyntax,
     workspace: workspace?.syntax ?? null,
   });
 

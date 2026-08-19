@@ -11,6 +11,9 @@ import {
 import {
   createCtnEditorAnalysisField,
 } from "../../../presentation/editor/ctnEditorAnalysis";
+import {
+  rawCtnEditorTabDisplayWidth,
+} from "../../../presentation/editor/ctnEditorRuntime";
 import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
 
 describe("ctn editor extensions", () => {
@@ -43,7 +46,8 @@ describe("ctn editor extensions", () => {
           createCtnEditorRuntimeExtensions({
             checkableBlocks: [],
             contentMode: { kind: "raw" },
-            syntax: defaultCtnSyntax,
+            syntax: null,
+            tabDisplayWidth: rawCtnEditorTabDisplayWidth,
           }),
         ),
         analysisField,

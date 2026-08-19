@@ -2,6 +2,7 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { NotesViewModel } from "../../../../application/workspace/notes/edit/notesViewModel";
 import { CtnEditor } from "../../../editor/CtnEditor";
+import { rawCtnEditorTabDisplayWidth } from "../../../editor/ctnEditorRuntime";
 import {
   Button,
   EmptyState,
@@ -87,6 +88,16 @@ export function NoteEditorPanel({
       </Panel>
     );
   }
+  const editorRuntime = view.editor.mode === "raw"
+    ? {
+        contentMode: { kind: "raw" as const },
+        syntax: null,
+        tabDisplayWidth: rawCtnEditorTabDisplayWidth,
+      }
+    : {
+        contentMode: { kind: "document" as const },
+        syntax: view.editor.syntax,
+      };
 
   return (
     <Panel className="note-editor-panel" aria-label="笔记编辑">
@@ -109,12 +120,9 @@ export function NoteEditorPanel({
         }
       />
       <CtnEditor
+        {...editorRuntime}
         key={activeNote.id}
-        contentMode={view.editor.mode === "raw"
-          ? { kind: "raw" }
-          : { kind: "document" }}
         focusTarget={view.editor.focusTarget}
-        syntax={view.editor.syntax}
         value={editorSyncSource?.noteId === activeNote.id
           ? editorSyncSource.source
           : view.editor.documentText}

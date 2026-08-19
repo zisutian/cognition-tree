@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  createDefaultWorkspaceSyntax,
+  createInitialWorkspaceSyntax,
   parseWorkspaceSyntax,
 } from "../../../../core/workspace/context/workspaceSyntax";
 import { createWorkspaceSyntaxCatalogMutationService } from "../../../../application/workspace/session/workspaceSyntaxCatalogMutationService";
@@ -24,7 +24,7 @@ function createService() {
     createBlockId: () =>
       `00000000-0000-4000-8000-${String(++blockIdIndex).padStart(12, "0")}`,
     createSyntaxFileId: () => syntaxFileIds[fileIdIndex++]!,
-    defaultWorkspaceSyntax: createDefaultWorkspaceSyntax(),
+    newFileTemplate: createInitialWorkspaceSyntax(),
     now: () => "2026-07-23T00:00:00.000Z",
   });
 }
@@ -34,6 +34,23 @@ function analysisIndex(content: ReturnType<typeof createContent>) {
 }
 
 describe("Workspace syntax catalog mutation service", () => {
+  it("uses the explicit new-file template when the catalog is empty", () => {
+    const service = createService();
+    const content = {
+      ...createContent(),
+      syntax: { activeFileId: null, files: [] },
+    };
+    const created = service.createFile(content, null, null);
+
+    expect(created.content.syntax).toEqual({
+      activeFileId: null,
+      files: [{
+        id: syntaxFileIds[0],
+        source: createInitialWorkspaceSyntax().source,
+      }],
+    });
+  });
+
   it("creates uniquely named inactive copies without mutating its input", () => {
     const service = createService();
     const content = createContent();

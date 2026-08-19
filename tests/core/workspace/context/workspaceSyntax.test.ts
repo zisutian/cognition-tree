@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
-  createDefaultWorkspaceSyntax,
+  createInitialWorkspaceSyntax,
   parseWorkspaceSyntax,
   resolveWorkspaceSyntax,
 } from "../../../../core/workspace/context/workspaceSyntax";
 
 describe("workspace syntax", () => {
-  it("creates the default v2 syntax source and compiled syntax together", () => {
-    const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
+  it("creates the initial v2 syntax source and compiled syntax together", () => {
+    const initialWorkspaceSyntax = createInitialWorkspaceSyntax();
 
-    expect(defaultWorkspaceSyntax.source).toContain("formatVersion = 2");
-    expect(defaultWorkspaceSyntax.source).toContain("[title]");
-    expect(defaultWorkspaceSyntax.source).not.toContain("type =");
-    expect(defaultWorkspaceSyntax).toMatchObject({
+    expect(initialWorkspaceSyntax.source).toContain("formatVersion = 2");
+    expect(initialWorkspaceSyntax.source).toContain("[title]");
+    expect(initialWorkspaceSyntax.source).not.toContain("type =");
+    expect(initialWorkspaceSyntax).toMatchObject({
       syntax: {
         blocks: expect.arrayContaining([
           expect.objectContaining({
@@ -50,12 +50,12 @@ describe("workspace syntax", () => {
   });
 
   it("resolves configured source without repository file metadata", () => {
-    const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
+    const initialWorkspaceSyntax = createInitialWorkspaceSyntax();
 
     expect(resolveWorkspaceSyntax(null)).toBeNull();
-    expect(resolveWorkspaceSyntax(defaultWorkspaceSyntax.source)).toMatchObject({
+    expect(resolveWorkspaceSyntax(initialWorkspaceSyntax.source)).toMatchObject({
       syntax: { name: "默认 CTN 语法" },
-      source: defaultWorkspaceSyntax.source,
+      source: initialWorkspaceSyntax.source,
     });
   });
 

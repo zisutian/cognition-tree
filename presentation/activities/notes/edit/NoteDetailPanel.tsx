@@ -61,7 +61,7 @@ export function NoteDetailPanel({
           blockMetadata={selectedBlock?.metadata ?? null}
           noteMetadata={view.activeNote}
         />
-        {view.outline.nodes.length > 0 ? (
+        {view.editor.mode === "ctn" && view.outline.nodes.length > 0 ? (
           <StructureTree
             indentUnitCount={view.editor.syntax.tabDisplayWidth}
             nodes={view.outline.nodes}

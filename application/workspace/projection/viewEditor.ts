@@ -6,17 +6,20 @@ export type UiEditorFocusTarget = {
   requestId: number;
 };
 
-export type UiEditorView = {
+type UiEditorViewBase = {
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
-  mode: "ctn" | "raw";
   stats: {
     lineCount: number;
     rootCount: number;
     totalBlocks: number;
   };
-  syntax: CtnCompiledSyntax;
 };
+
+export type UiEditorView = UiEditorViewBase & (
+  | { mode: "ctn"; syntax: CtnCompiledSyntax }
+  | { mode: "raw"; syntax: null }
+);
 
 export function createUiEditorView({
   document,
@@ -27,17 +30,23 @@ export function createUiEditorView({
   document: CtnCanonicalDocument | null;
   documentText: string;
   focusTarget: UiEditorFocusTarget | null;
-  syntax: CtnCompiledSyntax;
+  syntax: CtnCompiledSyntax | null;
 }): UiEditorView {
-  return {
+  const view = {
     documentText,
     focusTarget,
-    mode: document ? "ctn" : "raw",
     stats: {
       lineCount: documentText.split("\n").length,
       rootCount: document?.roots.length ?? 0,
       totalBlocks: document?.blocks.length ?? 0,
     },
-    syntax,
   };
+
+  if (document) {
+    if (!syntax) {
+      throw new Error("Parsed editor content requires prepared syntax.");
+    }
+    return { ...view, mode: "ctn", syntax };
+  }
+  return { ...view, mode: "raw", syntax: null };
 }

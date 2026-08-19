@@ -23,7 +23,6 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits";
 import { createCtnDecorationPlugin } from "./ctnDecorations";
 import { createCtnDiagnosticTooltip } from "./ctnDiagnosticTooltip";
@@ -34,7 +33,6 @@ import {
 import { createEditorCompositionChange } from "./editorCompositionChange";
 import { ctnExternalValueSync } from "./editorValueSync";
 import type { CtnEditorContentMode } from "./ctnEditorContentMode";
-import type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
 import {
   createCtnEditorAnalysisField,
   type CtnEditorAnalysisField,
@@ -72,7 +70,7 @@ export function createCtnEditorRuntimeExtensions(
   return [
     ctnEditorRuntimeConfigFacet.of(configuration),
     createCtnTabSizeExtension(
-      configuration.syntax.tabDisplayWidth,
+      configuration.tabDisplayWidth,
     ),
     createCtnContentAttributesExtension(
       configuration.contentMode,
@@ -84,15 +82,13 @@ export function createCtnEditorExtensions(
   onChangeRef: {
     current: (change: CtnEditableSourceChange) => void;
   },
-  syntax: CtnCompiledSyntax,
+  runtimeOptions: CtnEditorRuntimeOptions,
   onOpenReferenceRef: {
     current: ((target: CtnEditorReferenceTarget) => void) | undefined;
   },
   onActiveLineChangeRef: {
     current: (lineNumber: number) => void;
   },
-  contentMode: CtnEditorContentMode,
-  checkableBlocks: readonly CtnEditorCheckableBlock[] = [],
   onToggleCheckableBlockRef?: {
     current: ((blockId: string) => void) | undefined;
   },
@@ -118,9 +114,8 @@ export function createCtnEditorExtensions(
     createCtnIndentUnitExtension(),
     ctnEditorRuntimeCompartment.of(
       createCtnEditorRuntimeExtensions({
-        checkableBlocks: [...checkableBlocks],
-        contentMode,
-        syntax,
+        ...runtimeOptions,
+        checkableBlocks: [...runtimeOptions.checkableBlocks],
       }),
     ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),

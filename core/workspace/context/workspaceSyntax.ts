@@ -12,13 +12,13 @@ export type WorkspaceSyntax = {
   syntax: CtnCompiledSyntax;
 };
 
-export function createDefaultWorkspaceSyntaxSource() {
+export function createInitialWorkspaceSyntaxSource() {
   return defaultCtnSyntaxSource;
 }
 
-export function createDefaultWorkspaceSyntax(): WorkspaceSyntax {
+export function createInitialWorkspaceSyntax(): WorkspaceSyntax {
   return {
-    source: createDefaultWorkspaceSyntaxSource(),
+    source: createInitialWorkspaceSyntaxSource(),
     syntax: defaultCtnSyntax,
   };
 }

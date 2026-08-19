@@ -1,5 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
-import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
+import type {
+  AvailableSyntaxViewModel,
+} from "../../../application/syntax/syntaxViewModel";
 import type {
   UiSyntaxTone,
 } from "../../../application/workspace/projection/viewSyntax";
@@ -21,10 +23,10 @@ function SyntaxToneCells({
   tone,
   onChange,
 }: {
-  backgroundOptions: SyntaxViewModel["backgroundToneOptions"];
+  backgroundOptions: AvailableSyntaxViewModel["backgroundToneOptions"];
   customToneLabel: string;
   label: string;
-  textColorOptions: SyntaxViewModel["toneOptions"];
+  textColorOptions: AvailableSyntaxViewModel["toneOptions"];
   textColor: UiSyntaxTone;
   tone: UiSyntaxTone;
   onChange: (patch: { textColor?: UiSyntaxTone; tone?: UiSyntaxTone }) => void;
@@ -54,7 +56,7 @@ function SyntaxToneCells({
 export function TitleAndRootRows({
   syntax,
 }: {
-  syntax: SyntaxViewModel;
+  syntax: AvailableSyntaxViewModel;
 }) {
   return (
     <>
@@ -110,7 +112,7 @@ export function TitleAndRootRows({
 export function BlockRuleRows({
   syntax,
 }: {
-  syntax: SyntaxViewModel;
+  syntax: AvailableSyntaxViewModel;
 }) {
   return (
     <>

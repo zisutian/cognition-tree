@@ -5,12 +5,12 @@ import {
   createWorkspaceSyntaxCatalogReadModel,
 } from "../../../../application/workspace/projection/workspaceSyntaxCatalogReadModel";
 import {
-  createDefaultWorkspaceSyntax,
+  createInitialWorkspaceSyntax,
 } from "../../../../core/workspace/context/workspaceSyntax";
 
 describe("Workspace syntax catalog read model", () => {
   it("exposes the prepared syntax without compiling canonical source again", () => {
-    const prepared = createDefaultWorkspaceSyntax();
+    const prepared = createInitialWorkspaceSyntax();
     const readModel = createWorkspaceSyntaxCatalogReadModel(
       {
         activeFileId: "syntax-a",
@@ -32,7 +32,7 @@ describe("Workspace syntax catalog read model", () => {
   });
 
   it("rejects a catalog that is not backed by its prepared projection", () => {
-    const prepared = createDefaultWorkspaceSyntax();
+    const prepared = createInitialWorkspaceSyntax();
 
     expect(() => createWorkspaceSyntaxCatalogReadModel(
       {

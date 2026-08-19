@@ -66,7 +66,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     if (
       !renamingFile ||
       renameSubmittedFileId !== renamingFile.id ||
-      view.draft.name !== renamingFile.value
+      view.draft?.name !== renamingFile.value
     ) {
       return;
     }
@@ -82,7 +82,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
   }, [
     renameSubmittedFileId,
     renamingFile,
-    view.draft.name,
+    view.draft?.name,
     view.hasDraftErrors,
     view.nameConflictMessage,
   ]);
@@ -93,7 +93,9 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
     setRenamingFile({ id: file.id, value: file.name });
   };
   const submitRename = () => {
-    if (!renamingFile) return;
+    const actions = view.actions;
+
+    if (!renamingFile || !actions) return;
     if (!renamingFile.value.trim()) {
       setRenamingFile({
         ...renamingFile,
@@ -109,7 +111,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
       return;
     }
     const updated = feedback.runAction(() => {
-      view.actions.updateName(renamingFile.value);
+      actions.updateName(renamingFile.value);
       return true;
     });
 
@@ -212,7 +214,7 @@ export function SyntaxContext({ view }: { view: SyntaxViewModel }) {
                           : []),
                         {
                           ariaLabel: `重命名语法 ${file.name}`,
-                          disabled: busy,
+                          disabled: busy || !view.actions,
                           label: "改",
                           onSelect: () => beginRename(file),
                         },

@@ -1,4 +1,7 @@
-import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
+import {
+  isAvailableSyntaxViewModel,
+  type SyntaxViewModel,
+} from "../../../application/syntax/syntaxViewModel";
 import "./syntax.css";
 import type { ActivitySlots } from "../../ui/activityTypes";
 import { SyntaxContext } from "./SyntaxContext";
@@ -17,7 +20,7 @@ export function createSyntaxActivitySlots({
       content: <SyntaxContext view={view} />,
       title: "语法",
     },
-    detail: view.isConfigured ? (
+    detail: view.isConfigured && isAvailableSyntaxViewModel(view) ? (
       <SyntaxDetailPanel onCollapseDetail={onCollapseDetail} view={view} />
     ) : null,
     main: <SyntaxMainPanel view={view} />,

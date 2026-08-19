@@ -55,7 +55,7 @@ export type UiSyntaxView = {
   backgroundToneOptions: UiSyntaxToneOption[];
   constraints: UiSyntaxConstraints;
   customToneLabel: string;
-  draft: CtnSyntaxDraft;
+  draft: CtnSyntaxDraft | null;
   focusTarget: UiSyntaxFocusTarget | null;
   kindOptions: UiSyntaxKindOption[];
   owner: CtnSyntaxOwner;
@@ -124,15 +124,15 @@ const syntaxConstraints: UiSyntaxConstraints = {
   },
 };
 
-export function createUiSyntaxView({
+export function createUiSyntaxView<Draft extends CtnSyntaxDraft | null>({
   draft,
   focusTarget = null,
   owner = "workspace",
 }: {
-  draft: CtnSyntaxDraft;
+  draft: Draft;
   focusTarget?: UiSyntaxFocusTarget | null;
   owner?: CtnSyntaxOwner;
-}): UiSyntaxView {
+}): Omit<UiSyntaxView, "draft"> & { draft: Draft } {
   const rootSemanticId = ctnSyntaxSchema.owners[owner].root.semanticId;
 
   return {
@@ -152,8 +152,8 @@ export function createUiSyntaxView({
       ? defaultTextColorOptions
       : syntaxToneOptions,
     stats: {
-      blockRuleCount: draft.blocks.length,
-      inlineRuleCount: draft.inline.length,
+      blockRuleCount: draft?.blocks.length ?? 0,
+      inlineRuleCount: draft?.inline.length ?? 0,
     },
     toneOptions: syntaxToneOptions,
   };

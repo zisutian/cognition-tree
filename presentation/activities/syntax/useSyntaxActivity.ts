@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";
-import { createCtnSyntaxDraft } from "../../../core/ctn/syntax/draft";
 import {
   createUiSystemSyntaxDiagnostics,
   createUiSyntaxDiagnostics,
@@ -57,28 +55,28 @@ function initialTarget(
 
 export function useSyntaxActivity({
   focusTarget,
-  defaultJournalSyntax,
+  journalSyntax,
   onConsumeFocusTarget,
-  defaultTodoSyntax,
+  todoSyntax,
   workspace,
 }: {
   focusTarget: SyntaxViewModel["focusTarget"];
-  defaultJournalSyntax: SystemSyntaxSource | null;
+  journalSyntax: SystemSyntaxSource | null;
   onConsumeFocusTarget: SyntaxViewModel["onConsumeFocusTarget"];
-  defaultTodoSyntax: SystemSyntaxSource | null;
+  todoSyntax: SystemSyntaxSource | null;
   workspace: SyntaxRuntime | null;
 }): SyntaxViewModel {
   const journal = useCtnSyntaxDraftRuntime({
     owner: "journal",
-    persist: (source) => defaultJournalSyntax?.updateSource(source),
-    source: defaultJournalSyntax,
-    targetKey: defaultJournalSyntax ? "journal" : null,
+    persist: (source) => journalSyntax?.updateSource(source),
+    source: journalSyntax,
+    targetKey: journalSyntax ? "journal" : null,
   });
   const todo = useCtnSyntaxDraftRuntime({
     owner: "todo",
-    persist: (source) => defaultTodoSyntax?.updateSource(source),
-    source: defaultTodoSyntax,
-    targetKey: defaultTodoSyntax ? "todo" : null,
+    persist: (source) => todoSyntax?.updateSource(source),
+    source: todoSyntax,
+    targetKey: todoSyntax ? "todo" : null,
   });
   const [selectedTarget, setSelectedTarget] = useState<SyntaxTarget>(() =>
     initialTarget(workspace, journal.available, todo.available)
@@ -92,24 +90,28 @@ export function useSyntaxActivity({
   const selectedWorkspace = selectedTarget.kind === "workspace-file"
     ? workspace
     : null;
-  const draft = selectedSystem?.draft ?? selectedWorkspace?.syntaxDraft ??
-    journal.draft ?? todo.draft ?? workspace?.syntaxDraft ??
-    createCtnSyntaxDraft(defaultCtnSyntax);
+  const draft = selectedSystem?.draft ?? selectedWorkspace?.syntaxDraft ?? null;
 
   const hasDraftErrors = selectedSystem?.hasDraftErrors ??
     selectedWorkspace?.hasDraftErrors ?? false;
-  const isSelectedAvailable = selectedSystem?.available ??
-    Boolean(selectedWorkspace && selectedTarget.kind === "workspace-file" &&
-      selectedWorkspace.files.some(({ id }) => id === selectedTarget.fileId));
-  const owner = selectedSystem?.owner ?? "workspace";
+  const isSelectedAvailable = Boolean(draft) && (
+    selectedSystem?.available ??
+      Boolean(selectedWorkspace && selectedTarget.kind === "workspace-file" &&
+        selectedWorkspace.files.some(({ id }) => id === selectedTarget.fileId))
+  );
+  const owner = selectedTarget.kind === "workspace-file"
+    ? "workspace"
+    : selectedTarget.kind;
   const updateDraft = selectedSystem?.updateDraft ??
-    selectedWorkspace?.updateSyntaxDraft ?? (() => undefined);
+    selectedWorkspace?.updateSyntaxDraft ?? null;
   const draftActions = useMemo(
-    () => createSyntaxDraftActions({
-      owner,
-      syntaxDraft: draft,
-      updateSyntaxDraft: updateDraft,
-    }),
+    () => draft && updateDraft
+      ? createSyntaxDraftActions({
+          owner,
+          syntaxDraft: draft,
+          updateSyntaxDraft: updateDraft,
+        })
+      : null,
     [
       draft,
       owner,
@@ -274,7 +276,7 @@ export function useSyntaxActivity({
   ];
   const selectedDraftResult = selectedSystem?.draftResult ??
     selectedWorkspace?.syntaxDraftResult ?? null;
-  const syntaxDiagnostics = useMemo(() => selectedDraftResult
+  const syntaxDiagnostics = useMemo(() => selectedDraftResult && draft
     ? selectedTarget.kind === "workspace-file"
       ? createUiSyntaxDiagnostics(
           draft,
@@ -296,7 +298,7 @@ export function useSyntaxActivity({
 
   return {
     ...view,
-    ...draftActions,
+    actions: draftActions?.actions ?? null,
     activeFileId: workspace?.activeFileId ?? null,
     activateFile,
     createFile,
@@ -308,8 +310,13 @@ export function useSyntaxActivity({
     nameConflictMessage: selectedTarget.kind === "workspace-file"
       ? workspace?.catalogNameConflictMessage ?? ""
       : "",
+    nameEditable: draftActions?.nameEditable ?? false,
     onConsumeFocusTarget,
     owner,
+    protectedBlockRuleIds: draftActions?.protectedBlockRuleIds ?? [],
+    protectedInlineRuleIds: draftActions?.protectedInlineRuleIds ?? [],
+    protectedInlineTriggerRuleIds:
+      draftActions?.protectedInlineTriggerRuleIds ?? [],
     syntaxDiagnostics,
     revertInvalidChanges,
     selectedTarget,

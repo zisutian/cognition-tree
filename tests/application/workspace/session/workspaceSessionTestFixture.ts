@@ -1,4 +1,4 @@
-import { createDefaultWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
+import { createInitialWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import {
   createInitialWorkspaceData,
   type WorkspaceData,
@@ -56,7 +56,7 @@ export function createContent(
   name = "测试工作区",
   source = "标题\n内容",
 ): WorkspaceRepositoryContent {
-  const syntax = createDefaultWorkspaceSyntax();
+  const syntax = createInitialWorkspaceSyntax();
 
   return {
     schemaVersion: 4,

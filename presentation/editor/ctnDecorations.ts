@@ -30,6 +30,7 @@ import {
 } from "./ctnEditorCheckableBlocks";
 import {
   ctnEditorRuntimeConfigFacet,
+  requireCtnEditorRuntimeConfig,
 } from "./ctnEditorRuntime";
 
 export class CtnCheckboxWidget extends WidgetType {
@@ -404,7 +405,9 @@ export function createCtnDecorationPlugin(
   } = { current: undefined },
 ): CtnEditorDecorationPlugin {
   const getCheckableBlocks = (state: EditorState) =>
-    state.facet(ctnEditorRuntimeConfigFacet).checkableBlocks;
+    requireCtnEditorRuntimeConfig(
+      state.facet(ctnEditorRuntimeConfigFacet),
+    ).checkableBlocks;
 
   return ViewPlugin.fromClass(
     class implements CtnEditorDecorationPluginValue {

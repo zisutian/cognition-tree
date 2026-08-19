@@ -389,6 +389,14 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
   {
     corpus: sourceModules,
     matches: 0,
+    name: "hidden application or presentation syntax defaults",
+    pattern:
+      /\b(?:fallbackSyntax|defaultWorkspaceSyntax|defaultJournalSyntax|defaultTodoSyntax)\b/,
+    scope: /^(?:application|presentation)\//,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
     name: "legacy HTTP API namespace",
     pattern: /["'`]\/api\/v1(?:\/|["'`])/,
   },

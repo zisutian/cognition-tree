@@ -18,6 +18,9 @@ import {
   createCtnEditorRuntimeExtensions,
   ctnEditorRuntimeCompartment,
 } from "../../../presentation/editor/ctnEditorExtensions";
+import {
+  rawCtnEditorTabDisplayWidth,
+} from "../../../presentation/editor/ctnEditorRuntime";
 
 describe("CTN editor analysis state", () => {
   function syntaxWith(
@@ -30,6 +33,12 @@ describe("CTN editor analysis state", () => {
     if (!result.syntax) throw new Error("Invalid editor test syntax.");
     return result.syntax;
   }
+
+  it("requires an explicit runtime configuration", () => {
+    expect(() => EditorState.create({
+      extensions: [createCtnEditorAnalysisField()],
+    })).toThrow("CTN editor runtime configuration is required");
+  });
 
   it("reuses parsed facts for Tab width and checkable projection changes", () => {
     const analysisField = createCtnEditorAnalysisField();
@@ -174,7 +183,8 @@ describe("CTN editor analysis state", () => {
         createCtnEditorRuntimeExtensions({
           checkableBlocks: [],
           contentMode: { kind: "raw" },
-          syntax: defaultCtnSyntax,
+          syntax: null,
+          tabDisplayWidth: rawCtnEditorTabDisplayWidth,
         }),
         analysisField,
       ],

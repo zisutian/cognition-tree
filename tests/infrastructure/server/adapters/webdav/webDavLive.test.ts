@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryContentDto } from "../../../../../contracts/workspace/types.ts";
 import { initializeCtnSourceBlockMetadata } from "../../../../../core/ctn/metadata/sourceMetadata.ts";
 import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax.ts";
-import { createDefaultWorkspaceSyntaxSource } from "../../../../../core/workspace/context/workspaceSyntax.ts";
+import { createInitialWorkspaceSyntaxSource } from "../../../../../core/workspace/context/workspaceSyntax.ts";
 import {
   RepositoryAdapterError,
 } from "../../../../../infrastructure/server/repository/store.ts";
@@ -59,7 +59,7 @@ function createContent(name: string, noteCount = 3): WorkspaceRepositoryContentD
       activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
       files: [{
         id: "syntax-00000000-0000-4000-8000-000000000001",
-        source: createDefaultWorkspaceSyntaxSource(),
+        source: createInitialWorkspaceSyntaxSource(),
       }],
     },
     workspace: {

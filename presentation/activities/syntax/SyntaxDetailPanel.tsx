@@ -1,5 +1,7 @@
 import { ChevronRight } from "lucide-react";
-import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
+import type {
+  AvailableSyntaxViewModel,
+} from "../../../application/syntax/syntaxViewModel";
 import type { UiSyntaxTone } from "../../../application/workspace/projection/viewSyntax";
 import {
   Button,
@@ -61,7 +63,7 @@ export function SyntaxDetailPanel({
   view,
 }: {
   onCollapseDetail: () => void;
-  view: SyntaxViewModel;
+  view: AvailableSyntaxViewModel;
 }) {
   return (
     <Panel aria-label="语法预览" tone="detail">

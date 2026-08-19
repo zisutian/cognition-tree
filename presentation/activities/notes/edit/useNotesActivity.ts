@@ -39,7 +39,6 @@ export function useNotesActivity({
   const {
     analysis,
     commands,
-    defaultSyntax,
     effectiveWorkspace,
     workspace,
   } = runtime;
@@ -115,11 +114,10 @@ export function useNotesActivity({
       document: parsedNote?.analysis.document ?? null,
       documentText: editableSource?.source ?? activeNote?.source ?? "",
       focusTarget,
-      syntax: parsedNote?.syntax ?? defaultSyntax,
+      syntax: parsedNote?.syntax ?? null,
     }),
     [
       activeNote,
-      defaultSyntax,
       editableSource,
       focusTarget,
       parsedNote,

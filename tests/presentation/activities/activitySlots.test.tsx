@@ -218,6 +218,7 @@ describe("activity slots", () => {
         editor: {
           ...createNotesView().editor,
           mode: "raw",
+          syntax: null,
         },
       }),
       shell: createWorkspaceShell({ hasConfiguredSyntax: false }),

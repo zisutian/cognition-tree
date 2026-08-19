@@ -131,12 +131,12 @@ function createSyntaxCopySource(
 export function createWorkspaceSyntaxCatalogMutationService({
   createBlockId,
   createSyntaxFileId,
-  defaultWorkspaceSyntax,
+  newFileTemplate,
   now,
 }: {
   createBlockId(): string;
   createSyntaxFileId(): string;
-  defaultWorkspaceSyntax: WorkspaceSyntax;
+  newFileTemplate: WorkspaceSyntax;
   now(): string;
 }): WorkspaceSyntaxCatalogMutationService {
   const applyCatalog = (
@@ -212,7 +212,7 @@ export function createWorkspaceSyntaxCatalogMutationService({
         : current.workspaceSyntax;
       const source = templateSyntax
         ? createSyntaxCopySource(content.syntax, templateSyntax)
-        : defaultWorkspaceSyntax.source;
+        : newFileTemplate.source;
       const mutation = applyCatalog(content, index, {
         activeFileId: content.syntax.activeFileId,
         files: [...content.syntax.files, { id: fileId, source }],

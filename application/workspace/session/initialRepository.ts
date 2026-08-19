@@ -1,7 +1,7 @@
 import { createWorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { createInitialWorkspaceData } from "../../../core/workspace/model/workspaceData";
 import { createWorkspaceNote } from "../../../core/workspace/commands/workspaceCommands";
-import { createDefaultWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
+import { createInitialWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
 
 export function createInitialRepositoryContent({
   createBlockId,
@@ -24,7 +24,7 @@ export function createInitialRepositoryContent({
     throw new Error("Repository name is required.");
   }
 
-  const syntax = createDefaultWorkspaceSyntax();
+  const syntax = createInitialWorkspaceSyntax();
   const syntaxFileId = createSyntaxFileId();
   const emptyWorkspace = {
     ...createInitialWorkspaceData(),

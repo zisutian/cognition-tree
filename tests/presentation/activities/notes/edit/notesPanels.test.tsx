@@ -12,6 +12,7 @@ import {
 import { NoteTimeDetails } from "../../../../../presentation/activities/notes/edit/NoteTimeDetails";
 import { runFeedbackAction } from "../../../../../presentation/ui/shared/FeedbackProvider";
 import { createNotesView } from "../../../fixtures/notesViewFixture";
+import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax";
 
 describe("notes panels", () => {
   it("finds every collapsed ancestor needed to reveal a selected name issue", () => {
@@ -261,13 +262,14 @@ describe("notes panels", () => {
           ...baseView,
           editor: {
             ...baseView.editor,
+            mode: "ctn",
             stats: {
               lineCount: 8,
               rootCount: 1,
               totalBlocks: 2,
             },
             syntax: {
-              ...baseView.editor.syntax,
+              ...defaultCtnSyntax,
               tabDisplayWidth: 6,
             },
           },

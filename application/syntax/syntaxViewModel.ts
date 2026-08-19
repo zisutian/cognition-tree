@@ -1,3 +1,4 @@
+import type { CtnSyntaxDraft } from "../../core/ctn/syntax/draft";
 import type { CtnSyntaxOwner } from "../../core/ctn/syntax/types";
 import type { UiSyntaxView } from "../workspace/projection/viewSyntax";
 import type { UiWorkbenchDiagnostic } from "../workspace/projection/viewDiagnostics";
@@ -26,8 +27,11 @@ export type SyntaxFileView = {
   name: string;
 };
 
+type SyntaxDraftActionProjection = ReturnType<typeof createSyntaxDraftActions>;
+
 export type SyntaxViewModel = UiSyntaxView &
-  ReturnType<typeof createSyntaxDraftActions> & {
+  Omit<SyntaxDraftActionProjection, "actions"> & {
+    actions: SyntaxDraftActionProjection["actions"] | null;
     activeFileId: string | null;
     activateFile: (fileId: string) => Promise<void>;
     createFile: () => Promise<string>;
@@ -46,6 +50,19 @@ export type SyntaxViewModel = UiSyntaxView &
     systemConfigurations: SyntaxSystemConfigurationView[];
     workspaceAvailable: boolean;
   };
+
+export type AvailableSyntaxViewModel = SyntaxViewModel & {
+  actions: SyntaxDraftActionProjection["actions"];
+  draft: CtnSyntaxDraft;
+  isSelectedAvailable: true;
+};
+
+export function isAvailableSyntaxViewModel(
+  view: SyntaxViewModel,
+): view is AvailableSyntaxViewModel {
+  return view.isSelectedAvailable && view.draft !== null &&
+    view.actions !== null;
+}
 
 export function isSameSyntaxTarget(
   left: SyntaxTarget,

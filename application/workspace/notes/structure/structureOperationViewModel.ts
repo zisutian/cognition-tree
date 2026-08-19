@@ -6,7 +6,7 @@ import type { StructureOperationPairSelectionPhase } from "./directorySelection"
 export type StructureOperationActivityViewModel =
   UiStructureOperationView &
   WorkspaceDirectoryMutations & {
-    indentUnitCount: number;
+    indentUnitCount?: number;
     onMoveStructureBlockBetweenNotes: (
       sourceBlockLineNumberValue: string,
       targetPositionValue: string,

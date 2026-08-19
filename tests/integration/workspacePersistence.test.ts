@@ -24,6 +24,7 @@ import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/loc
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
+import { createInitialWorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax";
 import { analyzeCanonicalTestSource } from "../core/ctn/analysis/analysisTestHelpers";
 import {
   replaceEditableSource,
@@ -249,7 +250,7 @@ describe("workspace persistence integration", () => {
       ).editableProjection.source,
     ).toBe("集成测试笔记\n\t: 已写入磁盘");
     expect(reloadedState.workspaceSyntax?.source).toBe(
-      reloadedState.defaultWorkspaceSyntax.source,
+      createInitialWorkspaceSyntax().source,
     );
     expect(reloadedState.location).toEqual(descriptor.location);
   });

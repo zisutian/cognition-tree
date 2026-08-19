@@ -1,5 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
-import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
+import type {
+  AvailableSyntaxViewModel,
+} from "../../../application/syntax/syntaxViewModel";
 import type {
   CtnSyntaxDraftInline,
 } from "../../../core/ctn/syntax/draft";
@@ -17,7 +19,7 @@ function InlineRuleRow({
 }: {
   protectedRuleIds: string[];
   rule: CtnSyntaxDraftInline;
-  syntax: SyntaxViewModel;
+  syntax: AvailableSyntaxViewModel;
 }) {
   const isProtected = protectedRuleIds.includes(rule.id);
   const triggerProtected = syntax.protectedInlineTriggerRuleIds.includes(
@@ -143,7 +145,7 @@ function InlineRuleRow({
 export function InlineRuleRows({
   syntax,
 }: {
-  syntax: SyntaxViewModel;
+  syntax: AvailableSyntaxViewModel;
 }) {
   return (
     <>

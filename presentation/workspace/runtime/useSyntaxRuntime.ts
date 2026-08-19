@@ -1,7 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  createCtnSyntaxDraft,
-} from "../../../core/ctn/syntax/draft";
 import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import {
   attachWorkspaceSyntax,
@@ -9,7 +6,6 @@ import {
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { normalizeWorkspaceSyntaxName } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import {
-  createCtnSyntaxDraftSource,
   useCtnSyntaxDraftRuntime,
 } from "../../activities/syntax/syntaxDraftPersistence";
 
@@ -26,7 +22,6 @@ type UseSyntaxRuntimeOptions = {
   activeSyntax: CtnCompiledSyntax | null;
   createSyntaxFile: (templateFileId: string | null) => Promise<string>;
   deleteSyntaxFile: (fileId: string) => Promise<void>;
-  fallbackSyntax: CtnCompiledSyntax;
   files: WorkspaceSyntaxRuntimeFile[];
   updateSyntaxFileSource: (fileId: string, source: string) => Promise<void>;
   workspace: WorkspaceStructureIndex | null;
@@ -95,7 +90,6 @@ export function useSyntaxRuntime({
   activeSyntax,
   createSyntaxFile,
   deleteSyntaxFile,
-  fallbackSyntax,
   files,
   updateSyntaxFileSource,
   workspace,
@@ -110,14 +104,6 @@ export function useSyntaxRuntime({
   selectedFileIdRef.current = selectedFileId;
   filesRef.current = files;
   updateSyntaxFileSourceRef.current = updateSyntaxFileSource;
-  const fallbackDraft = useMemo(
-    () => createCtnSyntaxDraft(fallbackSyntax),
-    [fallbackSyntax],
-  );
-  const fallbackBuild = useMemo(
-    () => createCtnSyntaxDraftSource(fallbackDraft, "workspace"),
-    [fallbackDraft],
-  );
   const draftRuntime = useCtnSyntaxDraftRuntime({
     canPersist: (build) =>
       Boolean(
@@ -144,17 +130,17 @@ export function useSyntaxRuntime({
       : null,
     targetKey: selectedFileId,
   });
-  const syntaxDraft = draftRuntime.draft ?? fallbackDraft;
-  const syntaxDraftResult = draftRuntime.draftResult ?? fallbackBuild.result;
+  const syntaxDraft = draftRuntime.draft;
+  const syntaxDraftResult = draftRuntime.draftResult;
   const catalogNameConflictMessage = useMemo(
-    () => syntaxDraftResult.syntax
+    () => syntaxDraftResult?.syntax
       ? findSyntaxCatalogNameConflict({
           candidateName: syntaxDraftResult.syntax.name,
           files,
           selectedFileId,
         })
       : "",
-    [files, selectedFileId, syntaxDraftResult.syntax],
+    [files, selectedFileId, syntaxDraftResult?.syntax],
   );
 
   useEffect(() => {
@@ -165,8 +151,9 @@ export function useSyntaxRuntime({
     }
   }, [activeFileId, files, selectedFileId]);
 
-  const draftIsValid = syntaxDraftResult.syntax !== null &&
-    !catalogNameConflictMessage;
+  const draftIsValid = selectedFile === null || Boolean(
+    syntaxDraftResult?.syntax && !catalogNameConflictMessage,
+  );
   const requireValidDraft = useCallback(
     <T,>(mutation: () => Promise<T>) =>
       startSyntaxCatalogMutation({
@@ -225,7 +212,7 @@ export function useSyntaxRuntime({
     effectiveContext,
     enableSyntaxFile: enableFile,
     files,
-    hasDraftErrors: !draftIsValid,
+    hasDraftErrors: selectedFile !== null && !draftIsValid,
     isConfigured: activeFileId !== null,
     revertSyntaxDraft: draftRuntime.revertDraft,
     selectedFileId,

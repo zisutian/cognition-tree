@@ -10,6 +10,9 @@ import { defaultJournalSyntax } from "../../../../core/journal/syntax/defaultJou
 import { defaultTodoSyntax } from "../../../../core/todo/syntax/defaultTodoSyntax";
 import { createUiSyntaxView } from "../../../../application/workspace/projection/viewSyntax";
 import { expectMarkupSemantics } from "../../markupSemantics";
+import type {
+  SyntaxViewModel,
+} from "../../../../application/syntax/syntaxViewModel";
 
 function occurrenceCount(source: string, value: string) {
   return source.split(value).length - 1;
@@ -236,6 +239,32 @@ describe("syntax panels", () => {
       has: ["当前笔记库没有语法文件。"],
     });
     expect(slots.detail).not.toBeNull();
+  });
+
+  it("renders an unavailable target without manufacturing a syntax draft", () => {
+    const base = createSyntaxView();
+    const unavailableView: SyntaxViewModel = {
+      ...base,
+      actions: null,
+      draft: null,
+      isConfigured: false,
+      isSelectedAvailable: false,
+      nameEditable: false,
+      selectedTarget: { kind: "journal" },
+    };
+    const slots = createSyntaxActivitySlots({
+      onCollapseDetail: () => undefined,
+      view: unavailableView,
+    });
+    const markup = renderToStaticMarkup(
+      <SyntaxMainPanel view={unavailableView} />,
+    );
+
+    expectMarkupSemantics(markup, {
+      has: ["语法配置暂不可用"],
+      lacks: ["语法设置", "未命名语法"],
+    });
+    expect(slots.detail).toBeNull();
   });
 
   it("keeps the detail panel focused on syntax preview content", () => {

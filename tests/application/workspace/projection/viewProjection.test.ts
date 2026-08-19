@@ -135,13 +135,14 @@ describe("workspace view projection", () => {
       document: null,
       documentText: "缩进?内容",
       focusTarget: null,
-      syntax: defaultCtnSyntax,
+      syntax: null,
     });
 
     expect(view).toMatchObject({
       documentText: "缩进?内容",
       mode: "raw",
       stats: { lineCount: 1, rootCount: 0, totalBlocks: 0 },
+      syntax: null,
     });
   });
 

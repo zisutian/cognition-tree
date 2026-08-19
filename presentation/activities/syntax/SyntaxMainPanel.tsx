@@ -1,4 +1,7 @@
-import type { SyntaxViewModel } from "../../../application/syntax/syntaxViewModel";
+import {
+  isAvailableSyntaxViewModel,
+  type SyntaxViewModel,
+} from "../../../application/syntax/syntaxViewModel";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { syntaxFieldIds } from "../../../application/workspace/projection/viewSyntaxFields";
@@ -55,7 +58,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
     syntax.onConsumeFocusTarget(syntax.focusTarget.requestId);
   }, [syntax.focusTarget?.requestId, syntax.onConsumeFocusTarget]);
 
-  if (!syntax.isSelectedAvailable) {
+  if (!isAvailableSyntaxViewModel(syntax)) {
     return (
       <Panel className="syntax-panel" aria-label="语法配置">
         <EmptyState

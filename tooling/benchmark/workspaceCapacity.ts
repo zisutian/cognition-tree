@@ -41,7 +41,7 @@ import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax.ts";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository.ts";
 import { createMemoryRepositoryClientCache } from "../../infrastructure/client/repository/repositoryClientCache.ts";
 import { WorkspaceRepositoryLocalConflictError } from "../../application/workspace/persistence/workspaceRepository.ts";
-import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax.ts";
+import { createInitialWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax.ts";
 import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
 import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";
 import { createWorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
@@ -558,7 +558,7 @@ const content: WorkspaceRepositoryContentDto = {
     activeFileId: benchmarkSyntaxFileId,
     files: [{
       id: benchmarkSyntaxFileId,
-      source: createDefaultWorkspaceSyntaxSource(),
+      source: createInitialWorkspaceSyntaxSource(),
     }],
   },
   workspace,

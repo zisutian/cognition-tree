@@ -14,7 +14,7 @@ import type {
   VersionedRepositoryPersistenceState,
 } from "../../persistence/versionedRepositorySaveQueue";
 import {
-  createDefaultWorkspaceSyntax,
+  createInitialWorkspaceSyntax,
   type WorkspaceSyntax,
 } from "../../../core/workspace/context/workspaceSyntax";
 import type { WorkspaceContext } from "../../../core/workspace/context/workspaceContext";
@@ -49,7 +49,6 @@ export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
 export type WorkspaceSessionReadyState = {
   analysisIndex: WorkspaceParseIndex | null;
   context: WorkspaceContext | null;
-  defaultWorkspaceSyntax: WorkspaceSyntax;
   location: WorkspaceRepository["location"];
   persistence: WorkspacePersistenceState;
   remoteRevision: RepositoryRevision | null;
@@ -113,11 +112,11 @@ export function createWorkspaceSessionController({
     WorkspaceRepository["location"]
   >;
 
-  const defaultWorkspaceSyntax = createDefaultWorkspaceSyntax();
+  const newSyntaxFileTemplate = createInitialWorkspaceSyntax();
   const syntaxMutations = createWorkspaceSyntaxCatalogMutationService({
     createBlockId: commandDependencies.createBlockId,
     createSyntaxFileId: commandDependencies.createSyntaxFileId,
-    defaultWorkspaceSyntax,
+    newFileTemplate: newSyntaxFileTemplate,
     now: commandDependencies.now,
   });
   const base = createVersionedSessionController({
@@ -148,7 +147,6 @@ export function createWorkspaceSessionController({
         cachedState = {
           analysisIndex: state.projection.analysisIndex,
           context: state.projection.context,
-          defaultWorkspaceSyntax,
           location: state.location,
           persistence: state.persistence,
           remoteRevision: state.snapshot.remoteRevision,

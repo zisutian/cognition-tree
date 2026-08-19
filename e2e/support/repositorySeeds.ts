@@ -17,7 +17,7 @@ import {
   formatCtnBlockMetadataLine,
   parseCtnBlockMetadataLine,
 } from "../../core/ctn/metadata/blockMetadata";
-import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax";
+import { createInitialWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax";
 
 export const e2eTimestamp = "2026-01-01T00:00:00.000Z";
 export const e2eAlphaFirstBlockTimestamp = "2026-01-02T00:00:00.000Z";
@@ -182,7 +182,7 @@ async function createRepository({
   id,
   notes,
   syntaxConfigured = true,
-  syntaxSource = createDefaultWorkspaceSyntaxSource(),
+  syntaxSource = createInitialWorkspaceSyntaxSource(),
   tree,
   workspaceName,
 }: {

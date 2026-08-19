@@ -54,11 +54,11 @@ export function useWorkbenchDiagnostics({
   isSyntaxConfigured: boolean;
   portableNameDiagnostics: UiWorkbenchDiagnostic[];
   syntaxCatalogNameConflictMessage: string;
-  syntaxDraft: CtnSyntaxDraft;
-  syntaxDraftResult: CtnSyntaxDraftBuildResult;
+  syntaxDraft: CtnSyntaxDraft | null;
+  syntaxDraftResult: CtnSyntaxDraftBuildResult | null;
 }) {
   const syntaxDiagnostics = useMemo(
-    () => activeSyntaxFileId
+    () => activeSyntaxFileId && syntaxDraft && syntaxDraftResult
       ? createUiSyntaxDiagnostics(
           syntaxDraft,
           syntaxDraftResult,

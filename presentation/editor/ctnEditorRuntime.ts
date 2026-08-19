@@ -7,33 +7,53 @@ import {
 import type {
   CtnCompiledSyntax,
 } from "../../core/ctn/syntax/types";
-import {
-  defaultCtnSyntax,
-} from "../../core/ctn/syntax/defaultSyntax";
 import type {
   CtnEditorCheckableBlock,
 } from "./ctnEditorCheckableBlocks";
 import type {
-  CtnEditorContentMode,
+  CtnEditorParsedContentMode,
 } from "./ctnEditorContentMode";
 
-export type CtnEditorRuntimeOptions = {
+type CtnEditorRuntimeBaseOptions = {
   checkableBlocks: readonly CtnEditorCheckableBlock[];
-  contentMode: CtnEditorContentMode;
-  syntax: CtnCompiledSyntax;
 };
 
-export type CtnEditorRuntimeConfig =
-  CtnEditorRuntimeOptions & {
-    analysisKey: string;
-    presentationKey: string;
-  };
+export type CtnEditorRuntimeOptions = CtnEditorRuntimeBaseOptions & (
+  | {
+      contentMode: { kind: "raw" };
+      syntax: null;
+      tabDisplayWidth: number;
+    }
+  | {
+      contentMode: CtnEditorParsedContentMode;
+      syntax: CtnCompiledSyntax;
+    }
+);
+
+export type CtnEditorRuntimeConfig = CtnEditorRuntimeBaseOptions & {
+  analysisKey: string;
+  presentationKey: string;
+  tabDisplayWidth: number;
+} & (
+  | { contentMode: { kind: "raw" }; syntax: null }
+  | { contentMode: CtnEditorParsedContentMode; syntax: CtnCompiledSyntax }
+);
+
+export const rawCtnEditorTabDisplayWidth = 8;
 
 export const ctnEditorRuntimeCompartment = new Compartment();
 
 export function createCtnEditorRuntimeConfig(
   options: CtnEditorRuntimeOptions,
 ): CtnEditorRuntimeConfig {
+  if (options.syntax === null) {
+    return {
+      ...options,
+      analysisKey: "raw",
+      presentationKey: "raw",
+    };
+  }
+
   return {
     ...options,
     analysisKey: JSON.stringify({
@@ -41,21 +61,24 @@ export function createCtnEditorRuntimeConfig(
       syntax: options.syntax.analysisKey,
     }),
     presentationKey: options.syntax.presentationKey,
+    tabDisplayWidth: options.syntax.tabDisplayWidth,
   };
 }
 
-const defaultCtnEditorRuntimeConfig = createCtnEditorRuntimeConfig({
-  checkableBlocks: [],
-  contentMode: { kind: "raw" },
-  syntax: defaultCtnSyntax,
-});
-
 export const ctnEditorRuntimeConfigFacet = Facet.define<
   CtnEditorRuntimeConfig,
-  CtnEditorRuntimeConfig
+  CtnEditorRuntimeConfig | null
 >({
   combine(configurations) {
-    return configurations.at(-1) ??
-      defaultCtnEditorRuntimeConfig;
+    return configurations.at(-1) ?? null;
   },
 });
+
+export function requireCtnEditorRuntimeConfig(
+  configuration: CtnEditorRuntimeConfig | null,
+) {
+  if (!configuration) {
+    throw new Error("CTN editor runtime configuration is required.");
+  }
+  return configuration;
+}

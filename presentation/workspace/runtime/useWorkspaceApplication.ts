@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceNote } from "../../../core/workspace/model/workspaceData";
 import { listWorkspaceNotes } from "../../../core/workspace/queries/workspaceQueries";
@@ -20,7 +19,6 @@ export type WorkspaceShell = {
 export type WorkspaceRuntime = {
   analysis: WorkspaceAnalysis;
   commands: SessionCommands;
-  defaultSyntax: CtnCompiledSyntax;
   effectiveNotes: WorkspaceNote[];
   effectiveWorkspace: WorkspaceStructureIndex | null;
   workspace: WorkspaceStructureIndex;
@@ -34,7 +32,6 @@ export function useWorkspaceApplication(
     commands,
     createSyntaxFile,
     deleteSyntaxFile,
-    defaultWorkspaceSyntax,
     syntaxCatalog,
     updateSyntaxFileSource,
     workspace,
@@ -49,7 +46,6 @@ export function useWorkspaceApplication(
     createSyntaxFile,
     deleteSyntaxFile,
     files: syntaxCatalog.files,
-    fallbackSyntax: defaultWorkspaceSyntax.syntax,
     updateSyntaxFileSource,
     workspace: context?.workspace ?? null,
   });
@@ -89,7 +85,6 @@ export function useWorkspaceApplication(
   const runtime: WorkspaceRuntime = {
     analysis,
     commands,
-    defaultSyntax: defaultWorkspaceSyntax.syntax,
     effectiveNotes,
     effectiveWorkspace,
     workspace,

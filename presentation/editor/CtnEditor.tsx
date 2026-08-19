@@ -9,7 +9,8 @@ import {
   ctnEditorRuntimeCompartment,
   getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
-import type { CtnEditorContentMode } from "./ctnEditorContentMode";
+import type { CtnEditorParsedContentMode } from "./ctnEditorContentMode";
+import type { CtnEditorRuntimeOptions } from "./ctnEditorRuntime";
 import { createEditorValueSyncTransaction } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
 import {
@@ -21,11 +22,9 @@ import "./CtnEditor.css";
 export type CtnEditorSyntax = CtnCompiledSyntax;
 export type { CtnEditorContentMode } from "./ctnEditorContentMode";
 
-type CtnEditorProps = {
+type CtnEditorBaseProps = {
   checkableBlocks?: readonly CtnEditorCheckableBlock[];
-  contentMode: CtnEditorContentMode;
   focusTarget: CtnEditorFocusTarget | null;
-  syntax: CtnEditorSyntax;
   value: string;
   valueSyncVersion?: number;
   onActiveLineChange: (lineNumber: number) => void;
@@ -35,6 +34,18 @@ type CtnEditorProps = {
   onToggleCheckableBlock?: (blockId: string) => void;
 };
 
+type CtnEditorProps = CtnEditorBaseProps & (
+  | {
+      contentMode: { kind: "raw" };
+      syntax: null;
+      tabDisplayWidth: number;
+    }
+  | {
+      contentMode: CtnEditorParsedContentMode;
+      syntax: CtnEditorSyntax;
+    }
+);
+
 export type { CtnEditorCheckableBlock } from "./ctnEditorCheckableBlocks";
 
 export type CtnEditorFocusTarget = {
@@ -42,19 +53,38 @@ export type CtnEditorFocusTarget = {
   requestId: number;
 };
 
-export function CtnEditor({
-  checkableBlocks = [],
-  contentMode,
-  focusTarget,
-  syntax,
-  value,
-  valueSyncVersion = 0,
-  onActiveLineChange,
-  onChange,
-  onConsumeFocusTarget,
-  onOpenReference,
-  onToggleCheckableBlock,
-}: CtnEditorProps) {
+function createRuntimeOptions(
+  props: CtnEditorProps,
+  checkableBlocks: readonly CtnEditorCheckableBlock[],
+): CtnEditorRuntimeOptions {
+  return props.syntax === null
+    ? {
+        checkableBlocks,
+        contentMode: props.contentMode,
+        syntax: null,
+        tabDisplayWidth: props.tabDisplayWidth,
+      }
+    : {
+        checkableBlocks,
+        contentMode: props.contentMode,
+        syntax: props.syntax,
+      };
+}
+
+export function CtnEditor(props: CtnEditorProps) {
+  const {
+    checkableBlocks = [],
+    contentMode,
+    focusTarget,
+    syntax,
+    value,
+    valueSyncVersion = 0,
+    onActiveLineChange,
+    onChange,
+    onConsumeFocusTarget,
+    onOpenReference,
+    onToggleCheckableBlock,
+  } = props;
   const editorHostRef = useRef<HTMLDivElement | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
   const initialValueRef = useRef(value);
@@ -91,11 +121,9 @@ export function CtnEditor({
         doc: initialValueRef.current,
         extensions: createCtnEditorExtensions(
           onChangeRef,
-          syntax,
+          createRuntimeOptions(props, checkableBlocks),
           onOpenReferenceRef,
           onActiveLineChangeRef,
-          contentMode,
-          checkableBlocks,
           onToggleCheckableBlockRef,
         ),
       }),
@@ -113,6 +141,7 @@ export function CtnEditor({
 
   const contentModeKind = contentMode.kind;
   const bodyTitle = contentMode.kind === "body" ? contentMode.title : null;
+  const rawTabDisplayWidth = syntax === null ? props.tabDisplayWidth : null;
   const checkableBlocksKey = createCtnEditorCheckableBlocksKey(
     checkableBlocks,
   );
@@ -146,9 +175,8 @@ export function CtnEditor({
     view.dispatch({
       effects: ctnEditorRuntimeCompartment.reconfigure(
         createCtnEditorRuntimeExtensions({
+          ...createRuntimeOptions(props, checkableBlocks),
           checkableBlocks: [...checkableBlocks],
-          contentMode,
-          syntax,
         }),
       ),
     });
@@ -156,8 +184,9 @@ export function CtnEditor({
     bodyTitle,
     checkableBlocksKey,
     contentModeKind,
-    syntax.analysisKey,
-    syntax.presentationKey,
+    syntax?.analysisKey,
+    syntax?.presentationKey,
+    rawTabDisplayWidth,
   ]);
 
   useEffect(() => {
