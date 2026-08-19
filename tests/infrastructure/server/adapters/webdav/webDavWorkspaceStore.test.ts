@@ -87,8 +87,11 @@ function createStore(
   options: Partial<ConstructorParameters<typeof WebDavWorkspaceStore>[0]> = {},
 ) {
   return new WebDavWorkspaceStore({
-    allowEmptyTargetInitialization: true,
     createId: idSequence("id"),
+    initialization: {
+      content: createContent("Initial WebDAV"),
+      mode: "initialize-empty",
+    },
     transport,
     ...options,
   });
@@ -149,11 +152,13 @@ describe("WebDAV generation store v4", () => {
     expect(transport.has(webDavLockPath)).toBe(false);
   });
 
-  it("uses the stable registration identity as the empty target workspace default", async () => {
+  it("uses the explicitly prepared content when initializing an empty target", async () => {
     const transport = new InMemoryWebDavTransport();
+    const content = createContent("远端笔记");
+
+    content.workspace.id = "remote-notes";
     const store = createStore(transport, {
-      initialWorkspaceId: "remote-notes",
-      initialWorkspaceName: "远端笔记",
+      initialization: { content, mode: "initialize-empty" },
     });
 
     await expect(store.loadSnapshot()).resolves.toMatchObject({
@@ -189,7 +194,10 @@ describe("WebDAV generation store v4", () => {
     const published = await firstLoad;
 
     transport.beforeWrite = null;
-    await expect(second.loadSnapshot()).resolves.toEqual(published);
+    await expect(second.loadSnapshot()).resolves.toMatchObject({
+      content: published.content,
+      revision: published.revision,
+    });
   });
 
   it("rejects stale revisions without mutating the published pointer", async () => {

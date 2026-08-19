@@ -21,9 +21,6 @@ import {
   type WorkspaceRepositoryCommitReceipt,
   type WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
-import {
-  createEmptyRepositoryContent,
-} from "../../repository/workspace/layout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import {
   createWebDavPointer,
@@ -70,11 +67,13 @@ export type WebDavCommitPhase =
   (typeof webDavCommitPhases)[keyof typeof webDavCommitPhases];
 
 export type WebDavWorkspaceStoreOptions = {
-  allowEmptyTargetInitialization: boolean;
   createId?: () => string;
-  initialContent?: WorkspaceRepositoryContentDto;
-  initialWorkspaceId?: string;
-  initialWorkspaceName?: string;
+  initialization:
+    | Readonly<{
+        content: WorkspaceRepositoryContentDto;
+        mode: "initialize-empty";
+      }>
+    | Readonly<{ mode: "open-existing" }>;
   lockLeaseMs?: number;
   lockRenewMs?: number;
   now?: () => number;
@@ -103,13 +102,10 @@ function prepareWorkspaceWriteContent(
 
 export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   #acceptingOperations = true;
-  readonly #allowEmptyTargetInitialization: boolean;
   #closeForDeletionPromise: Promise<void> | null = null;
   readonly #createId: () => string;
   readonly #generationStore: WebDavGenerationStore;
-  readonly #initialContent: WorkspaceRepositoryContentDto | null;
-  readonly #initialWorkspaceId: string;
-  readonly #initialWorkspaceName: string;
+  readonly #initialization: WebDavWorkspaceStoreOptions["initialization"];
   #initializePromise: Promise<void> | null = null;
   #lastPreparedSnapshot: PreparedWorkspaceRepositorySnapshot | null = null;
   readonly #leaseCoordinator: WebDavWriterLeaseCoordinator;
@@ -119,22 +115,16 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   readonly #transport: WebDavTransport;
 
   constructor({
-    allowEmptyTargetInitialization,
     createId = randomUUID,
-    initialContent,
-    initialWorkspaceId = "webdav-workspace",
-    initialWorkspaceName = "远端笔记库",
+    initialization,
     lockLeaseMs = defaultWebDavLockLeaseMs,
     lockRenewMs = defaultWebDavLockRenewMs,
     now = Date.now,
     onCommitPhase = async () => {},
     transport,
   }: WebDavWorkspaceStoreOptions) {
-    this.#allowEmptyTargetInitialization = allowEmptyTargetInitialization;
     this.#createId = createId;
-    this.#initialContent = initialContent ?? null;
-    this.#initialWorkspaceId = initialWorkspaceId;
-    this.#initialWorkspaceName = initialWorkspaceName;
+    this.#initialization = initialization;
     this.#now = now;
     this.#onCommitPhase = onCommitPhase;
     this.#transport = transport;
@@ -251,7 +241,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       this.#prepareSnapshot(content, parsed.revision);
       return;
     }
-    if (!this.#allowEmptyTargetInitialization) {
+    if (this.#initialization.mode === "open-existing") {
       throw new RepositoryCorruptError("WebDAV current pointer is missing");
     }
 
@@ -276,10 +266,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
         );
       }
       await this.#transport.createCollection(webDavGenerationsPath);
-      const content = this.#initialContent ?? createEmptyRepositoryContent(
-        this.#initialWorkspaceId,
-        this.#initialWorkspaceName,
-      );
+      const content = this.#initialization.content;
       const revision = createWorkspaceRepositoryRevision(content);
       const preparation = prepareWorkspaceWriteContent(content);
       const generation = this.#createId();

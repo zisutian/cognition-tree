@@ -94,10 +94,11 @@ function createStore(
   options: Partial<ConstructorParameters<typeof WebDavWorkspaceStore>[0]> = {},
 ) {
   return new WebDavWorkspaceStore({
-    allowEmptyTargetInitialization: true,
     createId: idSequence(prefix),
-    initialWorkspaceId: "live-webdav-workspace",
-    initialWorkspaceName: "Live WebDAV",
+    initialization: {
+      content: createContent("Live WebDAV"),
+      mode: "initialize-empty",
+    },
     transport: createLiveTransport(service, 2_000),
     ...options,
   });

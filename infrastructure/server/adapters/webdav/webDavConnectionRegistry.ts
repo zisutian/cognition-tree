@@ -232,9 +232,11 @@ export class WebDavConnectionRegistry {
 
       await probeWebDavCapabilities(transport);
       const store = new WebDavWorkspaceStore({
-        allowEmptyTargetInitialization: true,
         createId: this.#createId,
-        initialContent: input.initialContent,
+        initialization: {
+          content: input.initialContent,
+          mode: "initialize-empty",
+        },
         transport,
       });
 
@@ -369,8 +371,8 @@ export class WebDavConnectionRegistry {
       return existing;
     }
     const store = new WebDavWorkspaceStore({
-      allowEmptyTargetInitialization: false,
       createId: this.#createId,
+      initialization: { mode: "open-existing" },
       transport: this.#transportFactory(config),
     });
 

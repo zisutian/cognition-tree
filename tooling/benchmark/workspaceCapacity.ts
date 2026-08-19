@@ -27,6 +27,7 @@ import {
 } from "../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import { WebDavWorkspaceStore } from "../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
 import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/repository/workspace/revision.ts";
+import { createEmptyRepositoryContent } from "../../infrastructure/server/repository/workspace/layout.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparationObserver,
@@ -718,10 +719,14 @@ assertRepositoryContentEqual(httpSnapshot.content, editedContent, "HTTP commit")
 const webDavTransport = new BenchmarkWebDavTransport();
 let nextWebDavId = 0;
 const webDavStore = new WebDavWorkspaceStore({
-  allowEmptyTargetInitialization: true,
   createId: () => `capacity-generation-${++nextWebDavId}`,
-  initialWorkspaceId: "capacity-webdav",
-  initialWorkspaceName: "Capacity WebDAV",
+  initialization: {
+    content: createEmptyRepositoryContent(
+      "capacity-webdav",
+      "Capacity WebDAV",
+    ),
+    mode: "initialize-empty",
+  },
   transport: webDavTransport,
 });
 const emptyWebDavSnapshot = await webDavStore.loadSnapshot();
