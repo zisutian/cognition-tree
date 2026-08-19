@@ -23,8 +23,11 @@ import type {
   WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
 import {
-  projectApiV1JournalChanges,
-} from "../commands/journal.ts";
+  projectJournalContentChanges,
+} from "../../../../application/journal/journalCommandExecutor.ts";
+import type {
+  JournalDomainVersions,
+} from "../../../../application/journal/journalDomainCommands.ts";
 import {
   readApiV1RuntimeNow,
   type ApiV1Runtime,
@@ -87,6 +90,7 @@ export async function synchronizeApiV1Workspace(
 export async function synchronizeApiV1Journal(
   context: ApiV1SyncContext & {
     store: VersionedContentStore<JournalContentDto, JournalParseIndex>;
+    versionPolicy: JournalDomainVersions;
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
@@ -100,12 +104,13 @@ export async function synchronizeApiV1Journal(
   }
   const commit = await context.readJsonBody() as JournalCommitDto;
   const result = await context.store.commitSnapshot(commit);
-  const changes = projectApiV1JournalChanges(
+  const changes = projectJournalContentChanges(
     result.before.content,
     result.after.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
     result.before.projection,
     result.after.projection,
+    context.versionPolicy,
   ).changes;
 
   context.observeRevision(result.revision);

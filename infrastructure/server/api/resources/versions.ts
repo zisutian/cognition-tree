@@ -15,6 +15,9 @@ import {
 import type {
   WorkspaceResourceVersionPolicy,
 } from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
+import type {
+  JournalDomainVersions,
+} from "../../../../application/journal/journalDomainCommands.ts";
 
 export function createApiV1ResourceVersion(
   value: unknown,
@@ -54,6 +57,12 @@ export function createJournalEntriesVersion(content: JournalContent) {
     })),
   );
 }
+
+export const journalResourceVersions = {
+  entries: createJournalEntriesVersion,
+  entry: createJournalEntryVersion,
+} satisfies JournalDomainVersions;
+
 export function createParsedTodoCollectionVersion(
   parsed: ParsedTodoIndexCollection,
 ) {

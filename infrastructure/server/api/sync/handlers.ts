@@ -4,6 +4,9 @@ import type { ApiV1DomainChangeSetDto } from "../../../../contracts/api/types.ts
 import type {
   WorkspaceResourceVersionPolicy,
 } from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
+import type {
+  JournalDomainVersions,
+} from "../../../../application/journal/journalDomainCommands.ts";
 import { apiV1NotFound } from "../http/errors.ts";
 import {
   assertRepositoryAllowed,
@@ -44,7 +47,10 @@ async function handleWorkspaceSync(
   });
 }
 
-async function handleJournalSync(context: ApiV1HandlerContext) {
+async function handleJournalSync(
+  context: ApiV1HandlerContext,
+  versionPolicy: JournalDomainVersions,
+) {
   const store = await requireBuiltInCatalog(context.builtInCatalog)
     .getStore("journal");
 
@@ -56,6 +62,7 @@ async function handleJournalSync(context: ApiV1HandlerContext) {
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
     store,
+    versionPolicy,
   });
 }
 
@@ -76,15 +83,22 @@ async function handleTodoSync(context: ApiV1HandlerContext) {
 
 export function handleApiV1Sync(
   context: ApiV1HandlerContext,
-  workspaceVersionPolicy: WorkspaceResourceVersionPolicy,
+  versionPolicies: {
+    journal: JournalDomainVersions;
+    workspace: WorkspaceResourceVersionPolicy;
+  },
 ) {
   if (context.route.kind === "sync-workspace") {
     const repositoryId = context.route.repositoryId;
 
     if (!repositoryId) apiV1NotFound();
-    return handleWorkspaceSync(context, repositoryId, workspaceVersionPolicy);
+    return handleWorkspaceSync(
+      context,
+      repositoryId,
+      versionPolicies.workspace,
+    );
   }
   return context.route.kind === "sync-journal"
-    ? handleJournalSync(context)
+    ? handleJournalSync(context, versionPolicies.journal)
     : handleTodoSync(context);
 }
