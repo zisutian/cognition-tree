@@ -374,6 +374,19 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     scope: /^presentation\/activities\/search\//,
   },
   {
+    corpus: presentationModules,
+    matches: 0,
+    name: "canonical content preparation in presentation",
+    pattern:
+      /\b(?:parseWorkspaceSyntax|create(?:Journal|Todo|Workspace)ParseIndex|validate(?:Journal|Todo)Content(?:Analysis|Transition|AnalysisTransition)?)\s*\(/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "plain and prepared mutation dual APIs",
+    pattern: /\b(?:mutatePrepared|mutatePlain|mutateContent)\b/,
+  },
+  {
     corpus: sourceModules,
     matches: 0,
     name: "legacy HTTP API namespace",
