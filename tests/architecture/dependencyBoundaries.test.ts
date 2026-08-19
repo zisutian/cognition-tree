@@ -125,6 +125,13 @@ describe("dependency boundaries", () => {
           "../../application/workspace/persistence/workspaceRepository.ts",
         targetRoot: "application",
       },
+      {
+        filePath: "../../infrastructure/server/api/commands/todo.ts",
+        importPath: "../../../../core/todo/commands/todoCompletionRecurrenceCommands",
+        targetPath:
+          "../../core/todo/commands/todoCompletionRecurrenceCommands.ts",
+        targetRoot: "core",
+      },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
@@ -132,6 +139,7 @@ describe("dependency boundaries", () => {
       "repository independence from domain content: ../../application/repository/view.ts imports ../workspace/session",
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
       "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
+      "server API independence from core commands: ../../infrastructure/server/api/commands/todo.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
     ]);
   });
 

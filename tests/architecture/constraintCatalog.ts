@@ -102,6 +102,10 @@ function isGenericClientHttpModule(filePath: string) {
   ].includes(filePath);
 }
 
+function isCoreCommandModule(filePath: string) {
+  return /^\.\.\/\.\.\/core\/.+\/commands\//.test(filePath);
+}
+
 function isApplicationArea(filePath: string, area: string) {
   return filePath.startsWith(`../../application/${area}/`);
 }
@@ -184,6 +188,13 @@ export const dependencyImportPolicies: readonly ImportPolicy[] = [
       isGenericClientHttpModule(filePath) &&
       isConcreteDomainModule(targetPath),
     name: "generic client HTTP independence from domains",
+  },
+  {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      filePath.startsWith("../../infrastructure/server/api/") &&
+      isCoreCommandModule(targetPath),
+    name: "server API independence from core commands",
   },
   {
     allows: allowsInfrastructureEdge,

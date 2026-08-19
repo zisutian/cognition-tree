@@ -25,6 +25,9 @@ import {
   type TodoRecurrenceStageId,
 } from "../recurrence/todoRecurrenceSchedule.ts";
 import {
+  TodoOccurrenceConflictError,
+} from "../recurrence/todoOccurrenceConflict.ts";
+import {
   findTodoCollectionIndex,
   readTodoCommandTimestamp,
   replaceTodoCollectionWithTouchedBlock,
@@ -86,16 +89,6 @@ export function toggleTodoBlock(
       ? recurrenceProjection.currentOccurrenceDate
       : null,
   });
-}
-
-export class TodoOccurrenceConflictError extends Error {
-  readonly currentOccurrenceDate: TodoLocalDate | null;
-
-  constructor(currentOccurrenceDate: TodoLocalDate | null) {
-    super("Todo recurrence occurrence is no longer current.");
-    this.name = "TodoOccurrenceConflictError";
-    this.currentOccurrenceDate = currentOccurrenceDate;
-  }
 }
 
 export function setTodoBlockCompletion(

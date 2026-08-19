@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   TodoOccurrenceConflictError,
-} from "../../../../core/todo/commands/todoCompletionRecurrenceCommands";
+} from "../../../../core/todo/recurrence/todoOccurrenceConflict";
 import {
   createTodoCollectionBodyProjection,
 } from "../../../../core/todo/model/todoCollectionProjection";
