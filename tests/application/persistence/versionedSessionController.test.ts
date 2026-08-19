@@ -27,7 +27,8 @@ type TestLocation = {
 type TestSnapshot = VersionedRepositorySnapshot<
   TestContent,
   TestRemoteRevision,
-  TestLocalRevision
+  TestLocalRevision,
+  TestProjection
 >;
 
 type TestController = VersionedSessionController<
@@ -65,6 +66,7 @@ function createSnapshot(
     content: { values: [] },
     localRevision: localRevision(0),
     pendingChanges: false,
+    projection: { count: 0 },
     remoteRevision: remoteRevision(0),
     ...overrides,
   };
@@ -78,7 +80,8 @@ type RepositoryHarness = {
     TestContent,
     TestRemoteRevision,
     TestLocalRevision,
-    TestLocation
+    TestLocation,
+    TestProjection
   >;
   setBeforeStage(
     hook: (
@@ -121,7 +124,7 @@ function createRepositoryHarness(
       return await load();
     },
     location: { type: "memory" },
-    async stageSnapshot({ content, expectedLocalRevision }) {
+    async stageSnapshot({ content, expectedLocalRevision, projection }) {
       const stageNumber = stageCount + 1;
 
       await beforeStage(content, stageNumber);
@@ -136,6 +139,7 @@ function createRepositoryHarness(
         content: structuredClone(content),
         localRevision: localRevision(stageNumber),
         pendingChanges: true,
+        projection: structuredClone(projection),
       };
       return { localRevision: snapshot.localRevision };
     },
@@ -183,9 +187,6 @@ function createController(
 ): TestController {
   return createVersionedSessionController({
     label: "test",
-    parseContent(value) {
-      return structuredClone(value as TestContent);
-    },
     prepareContent(content) {
       if (content.values.includes(-1)) {
         throw new Error("invalid projection");
@@ -388,17 +389,6 @@ describe("versioned session controller", () => {
     await expect(controller.discardPendingChangesAndReload())
       .rejects.toThrow("discard read failed");
     expect(controller.canMutate()).toBe(true);
-
-    harness.setDiscard(() => createSnapshot({
-      content: { values: [-1] },
-      localRevision: localRevision(9),
-    }));
-    await expect(controller.discardPendingChangesAndReload())
-      .rejects.toThrow("invalid projection");
-    expect(controller.getState()).toMatchObject({
-      content: { values: [1] },
-      status: "ready",
-    });
 
     harness.setLoad(() => {
       throw new Error("reload read failed");

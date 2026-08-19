@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseJournalContent } from "../../../../contracts/journal/parseJournal.ts";
-import { parseTodoContent } from "../../../../contracts/todo/parseTodo.ts";
 import { isJournalEntryId } from "../../../../core/journal/model/journalContent.ts";
 import { isTodoCollectionId } from "../../../../core/todo/model/todoContent.ts";
 import { apiV1NotFound } from "./errors.ts";
@@ -14,17 +12,15 @@ import {
   type ApiV1HandlerContext,
 } from "./handlerContext.ts";
 import {
-  createApiV1JournalIndex,
   projectApiV1JournalEntries,
   projectApiV1JournalEntry,
 } from "../resources/journal.ts";
 import {
-  createApiV1TodoIndex,
   projectApiV1TodoCollection,
   projectApiV1TodoCollections,
 } from "../resources/todo.ts";
 import {
-  createApiV1WorkspaceAnalysis,
+  projectApiV1WorkspaceAnalysis,
   projectApiV1WorkspaceNote,
   projectApiV1WorkspaceTree,
 } from "../resources/workspace.ts";
@@ -70,7 +66,7 @@ export async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
   const snapshot = await catalog.getStore(repositoryId)
     .then((store) => store.loadSnapshot());
   observeWorkspaceRevision(context, repositoryId, snapshot.revision);
-  const analysis = createApiV1WorkspaceAnalysis(snapshot.content);
+  const analysis = projectApiV1WorkspaceAnalysis(snapshot.projection);
 
   if (route.kind === "workspace-tree") {
     return {
@@ -96,8 +92,8 @@ export async function handleJournalQuery(context: ApiV1HandlerContext) {
     store.loadSnapshot()
   );
   observeBuiltInRevision(context, "journal", snapshot.revision);
-  const content = parseJournalContent(snapshot.content);
-  const index = createApiV1JournalIndex(content);
+  const content = snapshot.content;
+  const index = snapshot.projection;
 
   if (context.route.kind === "journal-entries") {
     return {
@@ -120,8 +116,8 @@ export async function handleTodoQuery(context: ApiV1HandlerContext) {
     store.loadSnapshot()
   );
   observeBuiltInRevision(context, "todo", snapshot.revision);
-  const content = parseTodoContent(snapshot.content);
-  const index = createApiV1TodoIndex(content);
+  const content = snapshot.content;
+  const index = snapshot.projection;
 
   if (context.route.kind === "todo-collections") {
     return {

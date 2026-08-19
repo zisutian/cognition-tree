@@ -3,13 +3,21 @@
 import { parseJournalContent, parseJournalSnapshot } from "../../../contracts/journal/parseJournal";
 import { parseContentRevision } from "../../../contracts/common/contractValue";
 import {
+  validateJournalContentAnalysisTransition,
   JournalContentValidationError,
   validateJournalContent,
   validateJournalContentTransition,
   type JournalContent,
 } from "../../../core/journal/model/journalContent";
+import {
+  createJournalParseIndex,
+  type JournalParseIndex,
+} from "../../../core/journal/indexes/journalParseIndex";
 import type { JournalRevision } from "../../../application/repository/builtInRepository";
-import type { VersionedRepositoryCodec } from "../../../application/persistence/versionedRepository";
+import type {
+  VersionedContentPreparationPolicy,
+  VersionedRepositoryCodec,
+} from "../../../application/persistence/versionedRepository";
 
 export const journalRepositoryCodec: VersionedRepositoryCodec<
   JournalContent,
@@ -51,3 +59,32 @@ export function validateJournalRepositoryTransition(
     throw error;
   }
 }
+
+export const journalRepositoryPreparation: VersionedContentPreparationPolicy<
+  JournalContent,
+  JournalParseIndex
+> = {
+  prepare(content, previous) {
+    try {
+      return createJournalParseIndex(content, previous);
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new Error(`Journal content is invalid: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+  validateTransition(previous, next) {
+    try {
+      validateJournalContentAnalysisTransition(
+        previous.projection.validation,
+        next.projection.validation,
+      );
+    } catch (error) {
+      if (error instanceof JournalContentValidationError) {
+        throw new Error(`Journal transition is invalid: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+};

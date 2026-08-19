@@ -13,10 +13,7 @@ import {
 import type {
   ApiV1JournalCommandDto,
 } from "../../../../contracts/api/types.ts";
-import {
-  createJournalParseIndex,
-  type JournalParseIndex,
-} from "../../../../core/journal/indexes/journalParseIndex.ts";
+import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
 import {
   createJournalEntryBodyProjection,
   isJournalEntryId,
@@ -93,10 +90,14 @@ export function projectApiV1JournalChanges(
   before: JournalContent,
   after: JournalContent,
   timestamp: string,
+  beforeIndex?: JournalParseIndex,
+  afterIndex?: JournalParseIndex,
 ) {
   return projectJournalMutation({
     after,
+    afterIndex,
     before,
+    beforeIndex,
     timestamp,
     versions: journalVersions,
   });
@@ -109,13 +110,13 @@ export async function executeApiV1JournalCommand({
 }: {
   command: ApiV1JournalCommandDto;
   runtime: ApiV1Runtime;
-  store: VersionedContentStore<JournalContent>;
+  store: VersionedContentStore<JournalContent, JournalParseIndex>;
 }) {
   const now = readApiV1RuntimeNow(runtime);
   const allocatedIds: string[] = [];
 
   return executeApiV1VersionedCommand({
-    apply(content) {
+    apply({ content, projection: index }) {
       let nextId = 0;
       const replayRuntime: ApiV1Runtime = {
         ...runtime,
@@ -125,7 +126,6 @@ export async function executeApiV1JournalCommand({
         },
         now: () => new Date(now.date),
       };
-      const index = createJournalParseIndex(content);
       const mutation = prepareJournalMutation({
         command: toJournalDomainCommand(
           command,
@@ -151,6 +151,7 @@ export async function executeApiV1JournalCommand({
         changes: transition.changes,
         content: transition.content,
         diff: transition.diff,
+        projection: mutation.index,
         result: transition.result,
         revision: createJournalRevision(transition.content),
       };

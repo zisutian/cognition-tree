@@ -1,8 +1,3 @@
-import {
-  parseWorkspaceRepositoryContent,
-  parseWorkspaceRepositorySnapshot,
-} from "../../../contracts/workspace/parseRepository";
-import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
 import type {
   LocalDraftRevision,
   RepositoryRevision,
@@ -29,11 +24,6 @@ export type WorkspaceRepositoryCache = VersionedRepositoryCache<
 
 export function createMemoryWorkspaceRepositoryCache(): WorkspaceRepositoryCache {
   return createMemoryVersionedRepositoryCache({
-    codec: {
-      parseContent: parseWorkspaceRepositoryContent,
-      parseRevision: parseRepositoryRevision,
-      parseSnapshot: parseWorkspaceRepositorySnapshot,
-    },
     createLocalConflictError: (revision) =>
       new WorkspaceRepositoryLocalConflictError(revision),
   });

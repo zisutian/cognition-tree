@@ -8,6 +8,7 @@ import {
 } from "../../../../core/todo/indexes/todoParseIndex";
 import {
   isTodoCollectionId,
+  validateTodoContentAnalysisTransition,
   validateTodoContent,
   validateTodoContentTransition,
 } from "../../../../core/todo/model/todoContent";
@@ -37,6 +38,18 @@ function createValidContent() {
 }
 
 describe("Todo v4 content", () => {
+  function captureTransition(operation: () => unknown) {
+    try {
+      return { status: "accepted" as const, value: operation() };
+    } catch (error) {
+      return {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : "unknown",
+        status: "rejected" as const,
+      };
+    }
+  }
+
   it("accepts the exact CTN collection and completion sidecar shape", () => {
     const initial = createValidContent();
     const content = toggleTodoBlock(
@@ -201,5 +214,39 @@ describe("Todo v4 content", () => {
     expect(validateTodoContentTransition(previous, next)).toBe(next);
     expect(() => validateTodoContentTransition(previous, titleChanged))
       .toThrow(/title block id is immutable/);
+  });
+
+  it("keeps raw and prepared transition validation equivalent", () => {
+    const previous = createValidContent();
+    const next = appendTodoTestItem(previous, {
+      collectionIndex: 1,
+      createdAt: todoTimestamp(3),
+      itemIndex: 2,
+    });
+    const titleChanged = {
+      ...next,
+      collections: [{
+        ...next.collections[0]!,
+        source: next.collections[0]!.source.replace(
+          todoBlockId(10_001),
+          todoBlockId(99),
+        ),
+      }],
+    };
+    const previousIndex = createTodoParseIndex(previous);
+
+    for (const candidate of [next, titleChanged]) {
+      const raw = captureTransition(() =>
+        validateTodoContentTransition(previous, candidate)
+      );
+      const prepared = captureTransition(() =>
+        validateTodoContentAnalysisTransition(
+          previousIndex.validation,
+          createTodoParseIndex(candidate, previousIndex).validation,
+        )
+      );
+
+      expect(prepared).toEqual(raw);
+    }
   });
 });

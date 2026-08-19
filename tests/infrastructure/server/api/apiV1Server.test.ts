@@ -76,6 +76,10 @@ import {
   synchronizeApiV1Workspace,
 } from "../../../../infrastructure/server/api/sync/service.ts";
 import type { ApiV1PrincipalDto } from "../../../../contracts/api/types.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparation,
+} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 
 type RequestOptions = {
   body?: unknown;
@@ -301,6 +305,17 @@ const commandId = (index: number) => uuid(9_000 + index);
 const revision = (character: string) =>
   `sha256:${character.repeat(64)}` as `sha256:${string}`;
 
+function preparedWorkspaceSnapshot(
+  content: WorkspaceRepositoryContentDto,
+  contentRevision: `sha256:${string}`,
+) {
+  return {
+    content,
+    projection: prepareWorkspaceRepositoryContent(content),
+    revision: contentRevision,
+  };
+}
+
 describe("CTN API v1", () => {
   it("derives routing, OpenAPI, and sync from the operation registry", async () => {
     await withHandler(async (handler) => {
@@ -478,9 +493,12 @@ describe("CTN API v1", () => {
       createApiV1WorkspaceAnalysis(content),
       note.id,
     )!;
-    const store: WorkspaceRepositoryStore = {
-      async commitSnapshot(value) {
-        const commit = value as WorkspaceRepositoryCommitDto;
+    const executeCommit = async (
+      value: WorkspaceRepositoryCommitDto,
+      projection: WorkspaceRepositoryPreparation,
+    ) => {
+        const commit = value;
+        const before = preparedWorkspaceSnapshot(content, currentRevision);
 
         commitAttempts += 1;
         if (commitAttempts === 1) {
@@ -497,13 +515,23 @@ describe("CTN API v1", () => {
         expect(commit.baseRevision).toBe(currentRevision);
         content = structuredClone(commit.content);
         currentRevision = revision("c");
-        return { revision: currentRevision };
+        const after = { content, projection, revision: currentRevision };
+
+        return { after, before, revision: currentRevision };
+      };
+    const store: WorkspaceRepositoryStore = {
+      commitPreparedSnapshot: executeCommit,
+      async commitSnapshot(value) {
+        return executeCommit(
+          value,
+          prepareWorkspaceRepositoryContent(value.content),
+        );
       },
       async loadSnapshot() {
-        return {
-          content: structuredClone(content),
-          revision: currentRevision,
-        };
+        return preparedWorkspaceSnapshot(
+          structuredClone(content),
+          currentRevision,
+        );
       },
     };
     const result = await executeApiV1WorkspaceCommand({
@@ -1132,11 +1160,27 @@ describe("CTN API v1", () => {
       runtime: createRuntime(),
       store: {
         async commitSnapshot() {
-          return { revision: revision("c") };
+          const beforeSnapshot = preparedWorkspaceSnapshot(
+            before,
+            trackedRevision,
+          );
+          const afterSnapshot = preparedWorkspaceSnapshot(
+            after,
+            revision("c"),
+          );
+
+          return {
+            after: afterSnapshot,
+            before: beforeSnapshot,
+            revision: revision("c"),
+          };
+        },
+        async commitPreparedSnapshot() {
+          throw new Error("sync uses the decoded raw commit boundary");
         },
         async loadSnapshot() {
           snapshotLoads += 1;
-          return { content: before, revision: trackedRevision };
+          return preparedWorkspaceSnapshot(before, trackedRevision);
         },
       },
     });
@@ -1145,7 +1189,7 @@ describe("CTN API v1", () => {
       body: { revision: revision("c") },
       statusCode: 200,
     });
-    expect(snapshotLoads).toBe(1);
+    expect(snapshotLoads).toBe(0);
     expect(published).toHaveLength(1);
     expect(published[0]!.resources).toContainEqual(expect.objectContaining({
       domain: "workspace",
@@ -1189,7 +1233,10 @@ describe("CTN API v1", () => {
       async getStore(repositoryId: string) {
         return {
           async commitSnapshot() {
-            return { revision: revision("f") };
+            throw new Error("not used");
+          },
+          async commitPreparedSnapshot() {
+            throw new Error("not used");
           },
           async loadSnapshot() {
             if (repositoryId === "broken") {
@@ -1197,7 +1244,7 @@ describe("CTN API v1", () => {
                 "/private/repository/content.json is invalid",
               );
             }
-            return { content: goodContent, revision: revision("a") };
+            return preparedWorkspaceSnapshot(goodContent, revision("a"));
           },
         };
       },

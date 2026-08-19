@@ -11,6 +11,7 @@ import { LocalRepositoryCatalog } from "../../../../infrastructure/server/adapte
 import { CompositeRepositoryCatalog } from "../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { RepositoryCatalogError } from "../../../../infrastructure/server/repository/catalog.ts";
 import type { WorkspaceRepositoryStore } from "../../../../infrastructure/server/repository/store.ts";
+import { prepareWorkspaceRepositoryContent } from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const firstUuid = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
@@ -31,12 +32,21 @@ function createContent(name: string): WorkspaceRepositoryContentDto {
 type RegistryPort = ConstructorParameters<typeof CompositeRepositoryCatalog>[1];
 
 function createStore(content: WorkspaceRepositoryContentDto): WorkspaceRepositoryStore {
+  const snapshot = {
+    content,
+    projection: prepareWorkspaceRepositoryContent(content),
+    revision,
+  };
+
   return {
     async commitSnapshot() {
-      return { revision };
+      return { after: snapshot, before: snapshot, revision };
+    },
+    async commitPreparedSnapshot() {
+      return { after: snapshot, before: snapshot, revision };
     },
     async loadSnapshot() {
-      return { content, revision };
+      return snapshot;
     },
   };
 }
@@ -193,7 +203,7 @@ describe("composite repository catalog", () => {
       });
       await expect(
         catalog.getStore("repository-remote").then((store) => store.loadSnapshot()),
-      ).resolves.toEqual({ content: createContent("Remote"), revision });
+      ).resolves.toMatchObject({ content: createContent("Remote"), revision });
     }, {
       createId: () => firstUuid,
       repositories: [{

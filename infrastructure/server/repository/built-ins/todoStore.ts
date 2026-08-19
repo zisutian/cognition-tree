@@ -7,23 +7,28 @@ import {
 } from "../../../../contracts/common/contractValue.ts";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import {
-  parseTodoCommit,
   parseTodoContent,
 } from "../../../../contracts/todo/parseTodo.ts";
 import { serializeTodoRevisionContent } from "../../../../contracts/todo/revision.ts";
 import type { TodoContentDto, TodoRevisionDto } from "../../../../contracts/todo/types.ts";
 import {
   TodoContentValidationError,
-  validateTodoContent,
-  validateTodoContentTransition,
+  validateTodoContentAnalysisTransition,
 } from "../../../../core/todo/model/todoContent.ts";
+import {
+  createTodoParseIndex,
+  type TodoParseIndex,
+} from "../../../../core/todo/indexes/todoParseIndex.ts";
 import { RepositoryCorruptError } from "../store.ts";
 import {
   FileSystemVersionedContentStore,
   type VersionedContentStore,
 } from "../versioned/contentStore.ts";
 
-export type TodoContentStore = VersionedContentStore<TodoContentDto>;
+export type TodoContentStore = VersionedContentStore<
+  TodoContentDto,
+  TodoParseIndex
+>;
 
 export function createTodoRevision(content: TodoContentDto): TodoRevisionDto {
   return `sha256:${createHash("sha256")
@@ -31,14 +36,30 @@ export function createTodoRevision(content: TodoContentDto): TodoRevisionDto {
     .digest("hex")}`;
 }
 
-function validateWriteBoundary(operation: () => void) {
+function validateWriteBoundary<Result>(operation: () => Result): Result {
   try {
-    operation();
+    return operation();
   } catch (error) {
     if (error instanceof TodoContentValidationError) {
       throw new WireContractError("Todo v4", "$.content", error.message);
     }
     throw error;
+  }
+}
+
+function prepareTodoContent(
+  content: TodoContentDto,
+  previous?: TodoParseIndex | null,
+) {
+  try {
+    return createTodoParseIndex(content, previous);
+  } catch (error) {
+    if (error instanceof TodoContentValidationError) throw error;
+    throw new TodoContentValidationError(
+      `Todo CTN preparation failed: ${
+        error instanceof Error ? error.message : "unknown CTN error"
+      }`,
+    );
   }
 }
 
@@ -57,16 +78,16 @@ export function createFileSystemTodoContentStore(
       }
       return error;
     },
-    parseCommit: parseTodoCommit,
     parseContent: parseTodoContent,
+    prepareContent: prepareTodoContent,
     serializeContent(content) {
       return `${serializeJsonIteratively(content, { indent: 2 })}\n`;
     },
-    validateContent(content) {
-      validateTodoContent(content);
-    },
     validateTransition(previous, next) {
-      validateTodoContentTransition(previous, next);
+      validateTodoContentAnalysisTransition(
+        previous.projection.validation,
+        next.projection.validation,
+      );
     },
     validateWriteBoundary,
   });

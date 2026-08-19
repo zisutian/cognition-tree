@@ -6,12 +6,16 @@ import {
 import {
   createMyersTextEdits,
 } from "../../core/ctn/metadata/myersTextEdits.ts";
+import type {
+  CtnCanonicalSourceAnalysis,
+} from "../../core/ctn/analysis/sourceAnalysis.ts";
 import {
   createJournalEntry,
   updateJournalEntryBody,
 } from "../../core/journal/commands/journalCommands.ts";
 import {
   createJournalParseIndex,
+  type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex.ts";
 import {
   createJournalEntryBodyProjection,
@@ -27,15 +31,13 @@ import {
 } from "../../core/todo/commands/todoCommands.ts";
 import {
   createTodoParseIndex,
+  type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex.ts";
 import {
   createTodoCollectionBodyProjection,
   type TodoCollectionId,
   type TodoContent,
 } from "../../core/todo/model/todoContent.ts";
-import {
-  createWorkspaceStructureIndex,
-} from "../../core/workspace/indexes/workspaceStructureIndex.ts";
 import {
   appendNoteToWorkspaceTree,
 } from "../../core/workspace/model/noteTree/mutations.ts";
@@ -51,8 +53,13 @@ import {
   resolveWorkspaceSessionContent,
 } from "../workspace/session/sessionRepositorySnapshot.ts";
 import type {
+  PreparedVersionedContent,
   VersionedRepositoryConflictRecord,
 } from "../persistence/versionedRepository.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparation,
+} from "../repository/workspaceRepositoryPreparation.ts";
 
 type RecoverableConflict<Content> = Pick<
   VersionedRepositoryConflictRecord<Content, string>,
@@ -94,13 +101,27 @@ function workspaceConflictNoteIds(unitIds: readonly string[]) {
   );
 }
 
-export function recoverWorkspaceLocalConflictCopies(
-  selected: WorkspaceRepositoryContent,
+export function recoverWorkspaceLocalConflictCopiesPrepared(
+  selected: PreparedVersionedContent<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >,
   conflict: RecoverableConflict<WorkspaceRepositoryContent>,
   dependencies: WorkspaceConflictRecoveryDependencies,
+  localPrepared?: PreparedVersionedContent<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >,
 ) {
-  const local = resolveWorkspaceSessionContent(conflict.local);
-  let next = selected;
+  const local = localPrepared?.projection ??
+    resolveWorkspaceSessionContent(conflict.local);
+  let next = selected.content;
+  const analysisOverrides = new Map<NoteId, CtnCanonicalSourceAnalysis>();
+  const noteIds = new Set(selected.projection.workspace.noteEntryById.keys());
+  const reservedBlockIds = new Set(
+    selected.projection.analysisIndex?.blockIds ?? [],
+  );
+  const syntax = selected.projection.workspaceSyntax?.syntax;
   let recovered = 0;
 
   for (const sourceNoteId of workspaceConflictNoteIds(conflict.unitIds)) {
@@ -108,13 +129,14 @@ export function recoverWorkspaceLocalConflictCopies(
     const localEntry = local.workspace.noteEntryById.get(sourceNoteId);
 
     if (!localEntry) continue;
-    const current = resolveWorkspaceSessionContent(next);
-    const syntax = current.workspaceSyntax?.syntax;
-
-    const sourceEntry = current.workspace.noteEntryById.get(sourceNoteId) ??
+    const sourceEntry = selected.projection.workspace.noteEntryById.get(
+      sourceNoteId,
+    ) ??
       localEntry;
     const parentFolderId = sourceEntry?.parentFolderId &&
-        current.workspace.folderEntryById.has(sourceEntry.parentFolderId)
+        selected.projection.workspace.folderEntryById.has(
+          sourceEntry.parentFolderId,
+        )
       ? sourceEntry.parentFolderId
       : null;
     const editable = parsed?.analysis.editableProjection.source ??
@@ -125,28 +147,39 @@ export function recoverWorkspaceLocalConflictCopies(
       ? `本地恢复副本\n${body}`
       : "本地恢复副本";
     const timestamp = dependencies.now();
-    const source = syntax && current.analysisIndex
+    const initialized = syntax && selected.projection.analysisIndex
       ? initializeCtnSourceBlockMetadataAnalysis(
           recoverySource,
           syntax,
           {
             createId: dependencies.createBlockId,
             createdAt: timestamp,
-            reservedIds: current.analysisIndex.blockIds,
+            reservedIds: reservedBlockIds,
             updatedAt: timestamp,
           },
-        ).source
-      : `${
-        createCanonicalNoteSource({
-          blockId: dependencies.createBlockId(),
+        )
+      : null;
+    const fallbackBlockId = initialized ? null : dependencies.createBlockId();
+    const source = initialized?.source ?? `${
+      createCanonicalNoteSource({
+          blockId: fallbackBlockId!,
           timestamp,
           title: "本地恢复副本",
         })
       }${body ? `\n${body}` : ""}`;
     const noteId = dependencies.createWorkspaceNoteId();
 
-    if (current.workspace.noteEntryById.has(noteId)) {
+    if (noteIds.has(noteId)) {
       throw new Error(`恢复笔记 ID 已存在：${noteId}`);
+    }
+    noteIds.add(noteId);
+    if (initialized) {
+      analysisOverrides.set(noteId, initialized.analysis);
+      initialized.analysis.document.blocks.forEach(({ id }) =>
+        reservedBlockIds.add(id)
+      );
+    } else {
+      reservedBlockIds.add(fallbackBlockId!);
     }
     next = {
       ...next,
@@ -166,8 +199,28 @@ export function recoverWorkspaceLocalConflictCopies(
     recovered += 1;
   }
   requireRecoveryCount(recovered);
-  createWorkspaceStructureIndex(next.workspace);
-  return next;
+  return {
+    content: next,
+    projection: prepareWorkspaceRepositoryContent(next, {
+      analysisOverrides,
+      previous: selected.projection,
+    }),
+  };
+}
+
+export function recoverWorkspaceLocalConflictCopies(
+  selected: WorkspaceRepositoryContent,
+  conflict: RecoverableConflict<WorkspaceRepositoryContent>,
+  dependencies: WorkspaceConflictRecoveryDependencies,
+) {
+  return recoverWorkspaceLocalConflictCopiesPrepared(
+    {
+      content: selected,
+      projection: prepareWorkspaceRepositoryContent(selected),
+    },
+    conflict,
+    dependencies,
+  ).content;
 }
 
 function journalConflictEntryIds(unitIds: readonly string[]) {
@@ -178,13 +231,16 @@ function journalConflictEntryIds(unitIds: readonly string[]) {
   );
 }
 
-export function recoverJournalLocalConflictCopies(
-  selected: JournalContent,
+export function recoverJournalLocalConflictCopiesPrepared(
+  selected: PreparedVersionedContent<JournalContent, JournalParseIndex>,
   conflict: RecoverableConflict<JournalContent>,
   dependencies: JournalConflictRecoveryDependencies,
+  localPrepared?: PreparedVersionedContent<JournalContent, JournalParseIndex>,
 ) {
-  const localIndex = createJournalParseIndex(conflict.local);
-  let next = selected;
+  const localIndex = localPrepared?.projection ??
+    createJournalParseIndex(conflict.local);
+  let next = selected.content;
+  let currentIndex = selected.projection;
   let recovered = 0;
 
   for (const sourceEntryId of journalConflictEntryIds(conflict.unitIds)) {
@@ -193,7 +249,6 @@ export function recoverJournalLocalConflictCopies(
     if (!localEntry) continue;
     const body = createJournalEntryBodyProjection(localEntry).source;
     const timestamp = dependencies.now();
-    const currentIndex = createJournalParseIndex(next);
     const entryId = dependencies.createJournalEntryId();
     const created = createJournalEntry(next, currentIndex, {
       createBlockId: dependencies.createBlockId,
@@ -207,7 +262,7 @@ export function recoverJournalLocalConflictCopies(
       new Map([[entryId, created.analysis]]),
     );
 
-    next = updateJournalEntryBody(created.content, createdIndex, {
+    const updated = updateJournalEntryBody(created.content, createdIndex, {
       change: {
         edits: createMyersTextEdits("", body),
         source: body,
@@ -215,11 +270,33 @@ export function recoverJournalLocalConflictCopies(
       createBlockId: dependencies.createBlockId,
       entryId,
       updatedAt: timestamp,
-    }).content;
+    });
+
+    next = updated.content;
+    currentIndex = createJournalParseIndex(
+      next,
+      createdIndex,
+      new Map([[entryId, updated.analysis]]),
+    );
     recovered += 1;
   }
   requireRecoveryCount(recovered);
-  return next;
+  return { content: next, projection: currentIndex };
+}
+
+export function recoverJournalLocalConflictCopies(
+  selected: JournalContent,
+  conflict: RecoverableConflict<JournalContent>,
+  dependencies: JournalConflictRecoveryDependencies,
+) {
+  return recoverJournalLocalConflictCopiesPrepared(
+    {
+      content: selected,
+      projection: createJournalParseIndex(selected),
+    },
+    conflict,
+    dependencies,
+  ).content;
 }
 
 function todoConflictCollectionIds(unitIds: readonly string[]) {
@@ -233,9 +310,9 @@ function todoConflictCollectionIds(unitIds: readonly string[]) {
   });
 }
 
-function createRecoveryCollectionName(content: TodoContent) {
+function createRecoveryCollectionName(index: TodoParseIndex) {
   const names = new Set(
-    createTodoParseIndex(content).collections.map(({ name }) =>
+    index.collections.map(({ name }) =>
       createPortableNameKey(name)
     ),
   );
@@ -253,8 +330,26 @@ export function recoverTodoLocalConflictCopies(
   conflict: RecoverableConflict<TodoContent>,
   dependencies: TodoConflictRecoveryDependencies,
 ) {
-  const localIndex = createTodoParseIndex(conflict.local);
-  let next = selected;
+  return recoverTodoLocalConflictCopiesPrepared(
+    {
+      content: selected,
+      projection: createTodoParseIndex(selected),
+    },
+    conflict,
+    dependencies,
+  ).content;
+}
+
+export function recoverTodoLocalConflictCopiesPrepared(
+  selected: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+  conflict: RecoverableConflict<TodoContent>,
+  dependencies: TodoConflictRecoveryDependencies,
+  localPrepared?: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+) {
+  const localIndex = localPrepared?.projection ??
+    createTodoParseIndex(conflict.local);
+  let next = selected.content;
+  let currentIndex = selected.projection;
   let recovered = 0;
 
   for (
@@ -265,13 +360,12 @@ export function recoverTodoLocalConflictCopies(
     if (!localCollection) continue;
     const body = createTodoCollectionBodyProjection(localCollection).source;
     const timestamp = dependencies.now();
-    const currentIndex = createTodoParseIndex(next);
     const collectionId = dependencies.createTodoCollectionId();
     const created = createTodoCollection(next, currentIndex, {
       collectionId,
       createBlockId: dependencies.createBlockId,
       createdAt: timestamp,
-      name: createRecoveryCollectionName(next),
+      name: createRecoveryCollectionName(currentIndex),
     });
     const createdIndex = createTodoParseIndex(
       created.content,
@@ -279,7 +373,7 @@ export function recoverTodoLocalConflictCopies(
       new Map([[collectionId, created.analysis]]),
     );
 
-    next = updateTodoCollectionBody(created.content, createdIndex, {
+    const updated = updateTodoCollectionBody(created.content, createdIndex, {
       change: {
         edits: createMyersTextEdits("", body),
         source: body,
@@ -287,9 +381,15 @@ export function recoverTodoLocalConflictCopies(
       collectionId,
       createBlockId: dependencies.createBlockId,
       updatedAt: timestamp,
-    }).content;
+    });
+    next = updated.content;
+    currentIndex = createTodoParseIndex(
+      next,
+      createdIndex,
+      new Map([[collectionId, updated.analysis]]),
+    );
     recovered += 1;
   }
   requireRecoveryCount(recovered);
-  return next;
+  return { content: next, projection: currentIndex };
 }

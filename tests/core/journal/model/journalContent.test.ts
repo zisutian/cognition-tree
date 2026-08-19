@@ -6,9 +6,11 @@ import { readCtnCanonicalTitleHeader } from "../../../../core/ctn/parser/parseCt
 import {
   formatJournalEntryTitle,
   getJournalCreationTimezoneOffsetMinutes,
+  validateJournalContentAnalysisTransition,
   validateJournalContent,
   validateJournalContentTransition,
 } from "../../../../core/journal/model/journalContent";
+import { createJournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex";
 import { describe, expect, it } from "vitest";
 import {
   appendJournalTestEntry,
@@ -21,6 +23,18 @@ import {
 } from "../journalTestFixture";
 
 describe("journal content", () => {
+  function captureTransition(operation: () => unknown) {
+    try {
+      return { status: "accepted" as const, value: operation() };
+    } catch (error) {
+      return {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : "unknown",
+        status: "rejected" as const,
+      };
+    }
+  }
+
   it("formats immutable titles with the creation-time ISO offset direction", () => {
     expect(
       formatJournalEntryTitle("2026-07-18T00:00:01.250Z", 480, 1),
@@ -193,6 +207,46 @@ describe("journal content", () => {
     expect(() => validateJournalContent(updatedTooLate)).toThrow(
       /updated after the entry/,
     );
+  });
+
+  it("keeps raw and prepared transition validation equivalent", () => {
+    const previous = appendJournalTestEntry(createEmptyJournalContent(), {
+      createdAt: "2026-07-18T00:00:01.000Z",
+      entryIndex: 1,
+    });
+    const edited = updateJournalTestBody(previous, {
+      body: "正文",
+      entryIndex: 1,
+      updatedAt: "2026-07-18T00:05:00.000Z",
+    });
+    const candidates = [
+      edited,
+      createEmptyJournalContent(),
+      tamperJournalTestEntryCreation(previous, {
+        createdAt: "2026-08-19T10:11:12.000Z",
+        entryIndex: 1,
+        timezoneOffsetMinutes: -300,
+      }),
+      tamperJournalTestBodyBlockTime(edited, {
+        createdAt: "2026-07-18T00:04:00.000Z",
+        entryIndex: 1,
+      }),
+    ];
+    const previousIndex = createJournalParseIndex(previous);
+
+    for (const next of candidates) {
+      const raw = captureTransition(() =>
+        validateJournalContentTransition(previous, next)
+      );
+      const prepared = captureTransition(() =>
+        validateJournalContentAnalysisTransition(
+          previousIndex.validation,
+          createJournalParseIndex(next, previousIndex).validation,
+        )
+      );
+
+      expect(prepared).toEqual(raw);
+    }
   });
 
   it("keeps surviving block creation time immutable and update time monotonic", () => {

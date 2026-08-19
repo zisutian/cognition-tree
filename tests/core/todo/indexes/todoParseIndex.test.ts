@@ -52,6 +52,7 @@ describe("todo parse index", () => {
       runCount: 1,
       updatedBlockIdOwnerIds: [todoCollectionId(1)],
     });
+    expect(second.syntax).toBe(first.syntax);
     expect(
       second.getParsedCollection(todoCollectionId(2))?.analysis,
     ).toBe(first.getParsedCollection(todoCollectionId(2))?.analysis);

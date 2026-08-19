@@ -11,22 +11,26 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../../../contracts/workspace/contractValue.ts";
 import {
-  parseWorkspaceRepositoryCommit,
   parseWorkspaceRepositoryContent,
 } from "../../../../contracts/workspace/parseRepository.ts";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import type {
   WorkspaceRepositoryCommitDto,
-  WorkspaceRepositoryCommitResultDto,
   WorkspaceRepositoryContentDto,
-  WorkspaceRepositorySnapshotDto,
 } from "../../../../contracts/workspace/types.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparation,
+} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 import { repositorySyntaxIndexFileName } from "../../../../contracts/workspace/types.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
+  type PreparedWorkspaceRepositorySnapshot,
+  type WorkspaceRepositoryCommitReceipt,
+  type WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
@@ -84,6 +88,20 @@ type WorkspaceFileStoreOptions = {
   now: () => string;
   onWorkspaceCommitPhase?: (phase: WorkspaceCommitPhase) => Promise<void> | void;
 };
+
+function prepareWorkspaceWriteContent(
+  content: WorkspaceRepositoryContentDto,
+  previous?: WorkspaceRepositoryPreparation | null,
+) {
+  try {
+    return prepareWorkspaceRepositoryContent(content, { previous });
+  } catch (error) {
+    throw new WorkspaceRepositoryContractError(
+      "$.content",
+      error instanceof Error ? error.message : "invalid workspace content",
+    );
+  }
+}
 
 function mapPersistedFailure(error: unknown): never {
   if (
@@ -170,10 +188,12 @@ export async function createWorkspaceFileRepository({
 }) {
   const rootDir = path.resolve(inputRootDir);
   const content = parseWorkspaceRepositoryContent(inputContent);
+  const preparation = prepareWorkspaceWriteContent(content);
   const parsedLabel = parsePortableName(label, "Repository label");
   const projection = createLocalProjectionFromContent({
     content,
     label: parsedLabel,
+    preparation,
     repositoryId,
     rootDir,
   });
@@ -187,13 +207,14 @@ export async function createWorkspaceFileRepository({
   return projection.revision;
 }
 
-export class WorkspaceFileStore {
+export class WorkspaceFileStore implements WorkspaceRepositoryStore {
   #acceptingOperations = true;
   #closeForDeletionPromise: Promise<void> | null = null;
   #createBlockId: () => string;
   #createFolderId: () => string;
   #createNoteId: () => string;
   #initializePromise: Promise<void> | null = null;
+  #lastPreparedSnapshot: PreparedWorkspaceRepositorySnapshot | null = null;
   #now: () => string;
   #onWorkspaceCommitPhase: NonNullable<WorkspaceFileStoreOptions["onWorkspaceCommitPhase"]>;
   #operationQueue: Promise<void> = Promise.resolve();
@@ -229,15 +250,26 @@ export class WorkspaceFileStore {
     }
   }
 
-  async loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
+  async loadSnapshot(): Promise<PreparedWorkspaceRepositorySnapshot> {
     this.#assertAcceptingOperations();
     return this.#enqueueOperation(() => this.#loadSnapshot());
   }
 
-  async commitSnapshot(value: unknown): Promise<WorkspaceRepositoryCommitResultDto> {
+  async commitSnapshot(
+    commit: WorkspaceRepositoryCommitDto,
+  ): Promise<WorkspaceRepositoryCommitReceipt> {
     this.#assertAcceptingOperations();
-    const commit = parseWorkspaceRepositoryCommit(value);
-    return this.#enqueueOperation(() => this.#commitSnapshot(commit));
+    return this.#enqueueOperation(() => this.#commitSnapshot(commit, null));
+  }
+
+  async commitPreparedSnapshot(
+    commit: WorkspaceRepositoryCommitDto,
+    preparation: WorkspaceRepositoryPreparation,
+  ): Promise<WorkspaceRepositoryCommitReceipt> {
+    this.#assertAcceptingOperations();
+    return this.#enqueueOperation(() =>
+      this.#commitSnapshot(commit, preparation)
+    );
   }
 
   async renameLabel(label: string) {
@@ -277,17 +309,16 @@ export class WorkspaceFileStore {
       await recoverLocalWorkingTreeTransactions(this.#rootDir);
       await removeDurableWriteTemporaryFiles(this.#rootDir);
       await this.#assertControlLayout();
-      await this.#scanAndSynchronize();
+      this.#prepareSnapshot(await this.#scanAndSynchronize());
     } catch (error) {
       mapPersistedFailure(error);
     }
   }
 
-  async #loadSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
+  async #loadSnapshot(): Promise<PreparedWorkspaceRepositorySnapshot> {
     await this.initialize();
     try {
-      const projection = await this.#scanAndSynchronize();
-      return { content: projection.content, revision: projection.revision };
+      return this.#prepareSnapshot(await this.#scanAndSynchronize());
     } catch (error) {
       mapPersistedFailure(error);
     }
@@ -295,7 +326,8 @@ export class WorkspaceFileStore {
 
   async #commitSnapshot(
     commit: WorkspaceRepositoryCommitDto,
-  ): Promise<WorkspaceRepositoryCommitResultDto> {
+    prepared: WorkspaceRepositoryPreparation | null,
+  ): Promise<WorkspaceRepositoryCommitReceipt> {
     await this.initialize();
     let current: LocalWorkingTreeProjection;
     try {
@@ -306,11 +338,17 @@ export class WorkspaceFileStore {
     if (current.revision !== commit.baseRevision) {
       throw new WorkspaceRevisionConflictError(current.revision);
     }
+    const before = this.#prepareSnapshot(current);
+    const preparation = prepared ?? prepareWorkspaceWriteContent(
+      commit.content,
+      before.projection,
+    );
     let target: LocalWorkingTreeProjection;
     try {
       target = createLocalProjectionFromContent({
         content: commit.content,
         label: current.metadata.label,
+        preparation,
         previousIndex: current.index,
         repositoryId: current.metadata.repositoryId,
         rootDir: this.#rootDir,
@@ -325,7 +363,11 @@ export class WorkspaceFileStore {
       throw error;
     }
     if (target.revision === current.revision) {
-      return { revision: target.revision };
+      return {
+        after: before,
+        before,
+        revision: target.revision,
+      };
     }
     const targetDirectories = targetDirectoriesFromFilesAndIndex(
       target.files,
@@ -350,7 +392,38 @@ export class WorkspaceFileStore {
       targetFiles: target.files,
       targetRevision: target.revision,
     });
-    return { revision: target.revision };
+    const after = {
+      content: commit.content,
+      projection: preparation,
+      revision: target.revision,
+    };
+
+    this.#lastPreparedSnapshot = after;
+    return { after, before, revision: target.revision };
+  }
+
+  #prepareSnapshot(
+    projection: LocalWorkingTreeProjection,
+  ): PreparedWorkspaceRepositorySnapshot {
+    if (this.#lastPreparedSnapshot?.revision === projection.revision) {
+      return this.#lastPreparedSnapshot;
+    }
+    try {
+      const snapshot = {
+        content: projection.content,
+        projection: prepareWorkspaceRepositoryContent(projection.content, {
+          analysisOverrides: projection.analysisOverrides,
+          previous: this.#lastPreparedSnapshot?.projection,
+          syntaxOverrides: projection.syntaxOverrides,
+        }),
+        revision: projection.revision,
+      };
+
+      this.#lastPreparedSnapshot = snapshot;
+      return snapshot;
+    } catch {
+      throw new RepositoryCorruptError("Local repository content is invalid");
+    }
   }
 
   async #scanAndSynchronize() {
@@ -367,6 +440,7 @@ export class WorkspaceFileStore {
       createNoteId: this.#createNoteId,
       index,
       metadata,
+      previousPreparation: this.#lastPreparedSnapshot?.projection,
       readNoteMetadata: (noteId) => this.#readNoteMetadata(noteId),
       rootDir: this.#rootDir,
       syntax,

@@ -7,10 +7,6 @@ import {
   parseTodoSnapshot,
 } from "../../../contracts/todo/parseTodo";
 import type { TodoRepositoryBackend } from "../../../application/repository/builtInRepository";
-import {
-  validateTodoRepositoryContent,
-  validateTodoRepositoryTransition,
-} from "../repository/todoRepositoryCodec";
 import type { HttpRepositoryTransportOptions } from "./repositoryTransport";
 import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
 
@@ -30,7 +26,5 @@ export function createHttpTodoRepositoryBackend({
     endpoint: "/api/v1/sync/todo",
     fetch: fetchFn,
     token,
-    validateContent: validateTodoRepositoryContent,
-    validateTransition: validateTodoRepositoryTransition,
   });
 }

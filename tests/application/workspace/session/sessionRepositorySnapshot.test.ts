@@ -80,9 +80,9 @@ describe("loadWorkspaceSessionSnapshot", () => {
     ).resolves.toMatchObject({ content: snapshot.content });
   });
 
-  it("rejects only a malformed canonical metadata structure", async () => {
+  it("rejects malformed canonical metadata at repository preparation", () => {
     const content = createContent();
-    const snapshot = createSnapshot({
+    expect(() => createSnapshot({
       content: {
         ...content,
         workspace: {
@@ -90,16 +90,12 @@ describe("loadWorkspaceSessionSnapshot", () => {
           notes: [{ id: "note-1", source: "Raw title" }],
         },
       },
-    });
-
-    await expect(
-      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
-    ).rejects.toThrow("expected @ctn-block directive");
+    })).toThrow("expected @ctn-block directive");
   });
 
-  it("still rejects a damaged title header when syntax is not configured", async () => {
+  it("still rejects a damaged title header when syntax is not configured", () => {
     const content = createContent();
-    const snapshot = createSnapshot({
+    expect(() => createSnapshot({
       content: {
         ...content,
         syntax: { activeFileId: null, files: [] },
@@ -108,10 +104,6 @@ describe("loadWorkspaceSessionSnapshot", () => {
           notes: [{ id: "note-1", source: "Raw title\nopaque body" }],
         },
       },
-    });
-
-    await expect(
-      loadWorkspaceSessionSnapshot(createRepository(snapshot)),
-    ).rejects.toThrow("expected @ctn-block directive");
+    })).toThrow("expected @ctn-block directive");
   });
 });

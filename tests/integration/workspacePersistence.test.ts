@@ -10,7 +10,7 @@ import {
 } from "../../application/workspace/session/workspaceSessionController";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository";
 import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/client/http/workspaceRepositoryCatalog";
-import { validateWorkspaceRepositoryContent } from "../../infrastructure/client/repository/workspaceRepositoryContentValidation";
+import { workspaceRepositoryPreparation } from "../../infrastructure/client/repository/workspaceRepositoryContentValidation";
 import type {
   WorkspaceRepository,
 } from "../../application/repository/workspaceRepository";
@@ -207,7 +207,7 @@ describe("workspace persistence integration", () => {
     const server = await startRepositoryServer();
     const clientCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
-      validateContent: validateWorkspaceRepositoryContent,
+      preparation: workspaceRepositoryPreparation,
     });
     const descriptor = await createRepository(clientCatalog, "integration");
     const firstController = startController(
@@ -258,7 +258,7 @@ describe("workspace persistence integration", () => {
     const server = await startRepositoryServer();
     const clientCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
-      validateContent: validateWorkspaceRepositoryContent,
+      preparation: workspaceRepositoryPreparation,
     });
     const descriptor = await createRepository(clientCatalog, "conflict");
     const controller = startController(clientCatalog.openRepository(descriptor));
@@ -323,7 +323,7 @@ describe("workspace persistence integration", () => {
     const server = await startRepositoryServer(token);
     const unauthorizedCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
-      validateContent: validateWorkspaceRepositoryContent,
+      preparation: workspaceRepositoryPreparation,
     });
 
     await expect(
@@ -333,7 +333,7 @@ describe("workspace persistence integration", () => {
     const authenticatedCatalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: server.baseUrl,
       token,
-      validateContent: validateWorkspaceRepositoryContent,
+      preparation: workspaceRepositoryPreparation,
     });
     const descriptor: WorkspaceRepositoryDescriptor = await createRepository(
       authenticatedCatalog,

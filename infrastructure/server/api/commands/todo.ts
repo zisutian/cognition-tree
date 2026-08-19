@@ -20,10 +20,7 @@ import {
 import type {
   TodoBlockMoveTarget,
 } from "../../../../core/todo/commands/todoCommands.ts";
-import {
-  createTodoParseIndex,
-  type TodoParseIndex,
-} from "../../../../core/todo/indexes/todoParseIndex.ts";
+import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import {
   createTodoCollectionBodyProjection,
   isTodoCollectionId,
@@ -166,10 +163,14 @@ export function projectApiV1TodoChanges(
   before: TodoContent,
   after: TodoContent,
   timestamp: string,
+  beforeIndex?: TodoParseIndex,
+  afterIndex?: TodoParseIndex,
 ) {
   return projectTodoMutation({
     after,
+    afterIndex,
     before,
+    beforeIndex,
     timestamp,
     versions: todoVersions,
   });
@@ -182,15 +183,14 @@ export async function executeApiV1TodoCommand({
 }: {
   command: ApiV1TodoCommandDto;
   runtime: ApiV1Runtime;
-  store: VersionedContentStore<TodoContent>;
+  store: VersionedContentStore<TodoContent, TodoParseIndex>;
 }) {
   const now = readApiV1RuntimeNow(runtime);
   const allocatedIds: string[] = [];
 
   return executeApiV1VersionedCommand({
-    apply(content) {
+    apply({ content, projection: index }) {
       let nextId = 0;
-      const index = createTodoParseIndex(content);
       const createId = () => {
         allocatedIds[nextId] ??= runtime.createId();
         return allocatedIds[nextId++]!;
@@ -223,6 +223,7 @@ export async function executeApiV1TodoCommand({
         changes: transition.changes,
         content: transition.content,
         diff: transition.diff,
+        projection: mutation.index,
         result: transition.result,
         revision: createTodoRevision(transition.content),
       };

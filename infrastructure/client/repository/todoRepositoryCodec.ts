@@ -3,13 +3,21 @@
 import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { parseTodoContent, parseTodoSnapshot } from "../../../contracts/todo/parseTodo";
 import {
+  validateTodoContentAnalysisTransition,
   TodoContentValidationError,
   validateTodoContent,
   validateTodoContentTransition,
   type TodoContent,
 } from "../../../core/todo/model/todoContent";
+import {
+  createTodoParseIndex,
+  type TodoParseIndex,
+} from "../../../core/todo/indexes/todoParseIndex";
 import type { TodoRevision } from "../../../application/repository/builtInRepository";
-import type { VersionedRepositoryCodec } from "../../../application/persistence/versionedRepository";
+import type {
+  VersionedContentPreparationPolicy,
+  VersionedRepositoryCodec,
+} from "../../../application/persistence/versionedRepository";
 
 export const todoRepositoryCodec: VersionedRepositoryCodec<
   TodoContent,
@@ -51,3 +59,32 @@ export function validateTodoRepositoryTransition(
     throw error;
   }
 }
+
+export const todoRepositoryPreparation: VersionedContentPreparationPolicy<
+  TodoContent,
+  TodoParseIndex
+> = {
+  prepare(content, previous) {
+    try {
+      return createTodoParseIndex(content, previous);
+    } catch (error) {
+      if (error instanceof TodoContentValidationError) {
+        throw new Error(`Todo content is invalid: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+  validateTransition(previous, next) {
+    try {
+      validateTodoContentAnalysisTransition(
+        previous.projection.validation,
+        next.projection.validation,
+      );
+    } catch (error) {
+      if (error instanceof TodoContentValidationError) {
+        throw new Error(`Todo transition is invalid: ${error.message}`);
+      }
+      throw error;
+    }
+  },
+};

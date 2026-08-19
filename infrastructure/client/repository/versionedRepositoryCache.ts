@@ -4,7 +4,6 @@ import {
   VersionedRepositoryLocalConflictError,
   type VersionedRepositoryConflictRecord,
   type VersionedRemoteSnapshot,
-  type VersionedRepositoryCodec,
 } from "../../../application/persistence/versionedRepository";
 
 export type VersionedRepositoryLocalState<
@@ -90,13 +89,11 @@ export function createMemoryVersionedRepositoryCache<
   Revision extends string,
   LocalRevision extends string,
 >({
-  codec,
   createLocalConflictError = (revision) =>
     new VersionedRepositoryLocalConflictError(revision),
 }: {
-  codec: VersionedRepositoryCodec<Content, Revision>;
   createLocalConflictError?: (revision: LocalRevision) => Error;
-}): VersionedRepositoryCache<Content, Revision, LocalRevision> {
+} = {}): VersionedRepositoryCache<Content, Revision, LocalRevision> {
   type State = VersionedRepositoryLocalState<Content, Revision, LocalRevision>;
   type SyncContext = {
     baseContent: Content | null;
@@ -120,38 +117,35 @@ export function createMemoryVersionedRepositoryCache<
       expectedLocalRevision,
       identity,
     }) {
-      const parsedRemoteRevision = codec.parseRevision(committedRemoteRevision);
       const current = requireState(identity);
       const unchanged = current.localRevision === expectedLocalRevision;
       const next = {
         ...current,
-        pendingBaseRevision: unchanged ? null : parsedRemoteRevision,
-        remoteRevision: parsedRemoteRevision,
+        pendingBaseRevision: unchanged ? null : committedRemoteRevision,
+        remoteRevision: committedRemoteRevision,
       };
 
       states.set(identity, next);
       syncContexts.set(identity, {
-        baseContent: codec.parseContent(committedContent),
+        baseContent: structuredClone(committedContent),
         conflict: null,
       });
       return cloneState(next);
     },
     async create({ identity, localRevision, snapshot }) {
-      const parsedSnapshot = codec.parseSnapshot(snapshot);
-
       if (states.has(identity)) {
         throw new Error(`Local repository state already exists: ${identity}`);
       }
       const state: State = {
-        content: parsedSnapshot.content,
+        content: structuredClone(snapshot.content),
         localRevision,
         pendingBaseRevision: null,
-        remoteRevision: parsedSnapshot.revision,
+        remoteRevision: snapshot.revision,
       };
 
-      states.set(identity, cloneState(state));
+      states.set(identity, state);
       syncContexts.set(identity, {
-        baseContent: parsedSnapshot.content,
+        baseContent: structuredClone(snapshot.content),
         conflict: null,
       });
       return cloneState(state);
@@ -175,7 +169,7 @@ export function createMemoryVersionedRepositoryCache<
       unitIds,
     }) {
       const current = requireState(identity);
-      const remoteRevision = codec.parseRevision(currentRemoteRevision);
+      const remoteRevision = currentRemoteRevision;
       const next = {
         ...current,
         remoteRevision,
@@ -183,11 +177,11 @@ export function createMemoryVersionedRepositoryCache<
 
       states.set(identity, next);
       syncContexts.set(identity, {
-        baseContent: codec.parseContent(baseContent),
+        baseContent: structuredClone(baseContent),
         conflict: {
-          base: codec.parseContent(baseContent),
-          local: codec.parseContent(localContent),
-          remote: codec.parseContent(remoteContent),
+          base: structuredClone(baseContent),
+          local: structuredClone(localContent),
+          remote: structuredClone(remoteContent),
           remoteRevision,
           unitIds: [...new Set(unitIds)].sort(),
         },
@@ -198,7 +192,7 @@ export function createMemoryVersionedRepositoryCache<
       const current = requireState(identity);
       const next = {
         ...current,
-        remoteRevision: codec.parseRevision(currentRemoteRevision),
+        remoteRevision: currentRemoteRevision,
       };
 
       states.set(identity, next);
@@ -216,23 +210,21 @@ export function createMemoryVersionedRepositoryCache<
       pendingChanges,
       snapshot,
     }) {
-      const parsedSnapshot = codec.parseSnapshot(snapshot);
-      const parsedContent = codec.parseContent(content);
       const current = requireState(identity);
 
       if (current.localRevision !== expectedLocalRevision) {
         throw createLocalConflictError(current.localRevision);
       }
       const state: State = {
-        content: parsedContent,
+        content: structuredClone(content),
         localRevision,
-        pendingBaseRevision: pendingChanges ? parsedSnapshot.revision : null,
-        remoteRevision: parsedSnapshot.revision,
+        pendingBaseRevision: pendingChanges ? snapshot.revision : null,
+        remoteRevision: snapshot.revision,
       };
 
-      states.set(identity, cloneState(state));
+      states.set(identity, state);
       syncContexts.set(identity, {
-        baseContent: parsedSnapshot.content,
+        baseContent: structuredClone(snapshot.content),
         conflict: null,
       });
       return cloneState(state);
@@ -243,28 +235,26 @@ export function createMemoryVersionedRepositoryCache<
       localRevision,
       snapshot,
     }) {
-      const parsedSnapshot = codec.parseSnapshot(snapshot);
       const current = requireState(identity);
 
       if (current.localRevision !== expectedLocalRevision) {
         throw createLocalConflictError(current.localRevision);
       }
       const state: State = {
-        content: parsedSnapshot.content,
+        content: structuredClone(snapshot.content),
         localRevision,
         pendingBaseRevision: null,
-        remoteRevision: parsedSnapshot.revision,
+        remoteRevision: snapshot.revision,
       };
 
-      states.set(identity, cloneState(state));
+      states.set(identity, state);
       syncContexts.set(identity, {
-        baseContent: parsedSnapshot.content,
+        baseContent: structuredClone(snapshot.content),
         conflict: null,
       });
       return cloneState(state);
     },
     async stage({ content, expectedLocalRevision, identity, localRevision }) {
-      const parsedContent = codec.parseContent(content);
       const current = requireState(identity);
 
       if (current.localRevision !== expectedLocalRevision) {
@@ -275,13 +265,13 @@ export function createMemoryVersionedRepositoryCache<
       }
       const next = {
         ...current,
-        content: parsedContent,
+        content: structuredClone(content),
         localRevision,
         pendingBaseRevision:
           current.pendingBaseRevision ?? current.remoteRevision,
       };
 
-      states.set(identity, cloneState(next));
+      states.set(identity, next);
       return cloneState(next);
     },
   };

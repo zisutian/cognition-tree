@@ -106,7 +106,15 @@ describe("journal workspace reference resolver", () => {
     duplicateContent.workspace.notes.push({
       ...duplicateContent.workspace.notes[0],
       id: "note-2",
+      source: duplicateContent.workspace.notes[0]!.source.replace(
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000101",
+      ).replace(
+        "00000000-0000-4000-8000-000000000002",
+        "00000000-0000-4000-8000-000000000102",
+      ),
     });
+    duplicateContent.workspace.tree.push({ kind: "note", noteId: "note-2" });
     const cases: Array<{
       descriptor?: WorkspaceRepositoryDescriptor;
       expectedCode: string;

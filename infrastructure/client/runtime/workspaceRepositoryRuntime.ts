@@ -4,7 +4,7 @@ import { createHttpWorkspaceRepositoryCatalog } from "../http/workspaceRepositor
 import type { ActiveRepositorySelection } from "../../../application/repository/activeRepositorySelection";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
 import { createMemoryRepositoryClientCache } from "../repository/repositoryClientCache";
-import { validateWorkspaceRepositoryContent } from "../repository/workspaceRepositoryContentValidation";
+import { workspaceRepositoryPreparation } from "../repository/workspaceRepositoryContentValidation";
 
 export type WorkspaceRepositoryRuntime = {
   activeRepositorySelection: ActiveRepositorySelection;
@@ -20,7 +20,7 @@ export function createWorkspaceRepositoryRuntime(
       baseUrl: api.baseUrl,
       cache: createMemoryRepositoryClientCache(),
       token: api.token,
-      validateContent: validateWorkspaceRepositoryContent,
+      preparation: workspaceRepositoryPreparation,
     }),
   };
 }

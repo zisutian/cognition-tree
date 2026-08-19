@@ -92,10 +92,44 @@ Workspace v4、Journal v3 与 Todo v4 是各自唯一可运行格式。只有 ep
 一律原样保留并 fail closed。运行时不存在版本 reader、迁移、字段别名或自动
 重置。
 
-Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 codec、content validator、transition validator、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
+Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 wire codec、preparation/transition policy、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
 
 
-## 5. 存储与 API
+## 5. 数据可信与 preparation 边界
+
+同一份内容依次经过四类边界，边界职责不得重叠：
+
+    unknown ingress：contracts/api registry 是 HTTP request body 的唯一
+    unknown → DTO 入口；HTTP client codec、磁盘 reader 和 WebDAV generation
+    reader 分别负责各自来源的 wire decode。内存 cache 接收 typed value，只做
+    structuredClone 隔离；未来若改为持久化 cache，必须在反序列化入口重新 decode。
+
+    typed handoff：decode 后只传递领域 Content。HTTP backend、cache、save queue
+    和 store 写端口不得再次把 typed content 当 unknown 解析；外部 DTO、磁盘格式、
+    schemaVersion 与 REST response 均不包含 projection。
+
+    semantic preparation：VersionedContentPreparationPolicy 把 Content 准备为
+    { content, projection }。Journal/Todo projection 是带
+    Validated…ContentAnalysis 的 parse index；Workspace projection 统一包含 syntax
+    编译结果、structure、parse index 与 context。client local-first repository 和
+    server store 是各自信任边界内唯一的 preparation owner，客户端与服务端仍独立
+    校验。projection 只按 localRevision 或 SHA revision 缓存，不序列化、不跨进程；
+    revision/CAS 不匹配后不能复用旧 projection。
+
+    transition authority：客户端 local-first repository 负责页面内 optimistic
+    transition；服务端 store 在 CAS 锁或 WebDAV lease 内，以真正读到的 before 和
+    待提交的 after prepared snapshot 执行 authoritative transition。commit receipt
+    携带实际 before/after，事件投影直接消费 receipt，不能在提交前另读一次 snapshot。
+
+领域命令通过 mutatePrepared 产生的增量 index 必须原样进入保存队列和
+commitPreparedSnapshot。query、search、resource projection 与 change projection
+消费 store/session 已准备的 projection，不得重新建立全量索引。merge、冲突恢复和
+working-tree reconciliation 生成新内容时只 preparation 一次，并用 analysis override
+传递已经完成的单 note/entry/collection 分析。WebDAV 在上传 generation 和发布 pointer
+前完成完整 Workspace preparation；上传后的 validate 只检查读取完整性与 revision。
+
+
+## 6. 存储与 API
 
 HTTP 内置数据：
 
@@ -148,13 +182,13 @@ Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active �
 currentOccurrenceDate。
 
 
-## 6. Application 协调
+## 7. Application 协调
 
 每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的
 VersionedSessionController 与保存队列。该控制器负责页面内 ready 内容保持、
 并发 reload、discard 失败恢复、乐观 draft、CAS、冲突、断线重试、dispose 和
-删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 parser、
-prepareContent 与领域命令。普通仓库切换只排空并替换 Workspace session，不
+删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 preparation policy 与
+领域命令。普通仓库切换只排空并替换 Workspace session，不
 停止或重建 Journal/Todo。
 
 application/workbench/WorkbenchController 提供 start、dispose、subscribe、
@@ -183,7 +217,7 @@ application/repository/RepositoryCatalogController 独占 catalog 加载、活�
 Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
 
 
-## 7. Infrastructure 内部边界
+## 8. Infrastructure 内部边界
 
     client/platform 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；
     client/repository 拥有内存 catalog/content cache、revision 与 resilient
@@ -203,7 +237,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 schema。
 
 
-## 8. Presentation 与 Problems
+## 9. Presentation 与 Problems
 
 AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
 到 view application 的组合位于 presentation/shell/application；Activity

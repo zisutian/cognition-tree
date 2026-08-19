@@ -108,6 +108,7 @@ describe("journal parse index", () => {
       runCount: 0,
       updatedBlockIdOwnerIds: [journalEntryId(1)],
     });
+    expect(second.syntax).toBe(first.syntax);
     expect(second.getParsedEntry(journalEntryId(2))?.analysis.document).toBe(
       first.getParsedEntry(journalEntryId(2))?.analysis.document,
     );

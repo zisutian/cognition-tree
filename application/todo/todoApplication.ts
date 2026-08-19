@@ -31,7 +31,7 @@ import {
 } from "../../core/todo/indexes/todoParseIndex";
 import type {
   PreparedVersionedContent,
-} from "../persistence/versionedSessionController";
+} from "../persistence/versionedRepository";
 import {
   prepareTodoMutation,
 } from "./todoDomainCommands";

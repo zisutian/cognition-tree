@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
+  PreparedVersionedContent,
   VersionedRepository,
   VersionedRepositorySnapshot,
 } from "./versionedRepository";
@@ -20,8 +21,8 @@ export type VersionedRepositoryPersistenceState<Revision extends string> =
       status: "error";
     };
 
-type DesiredContent<Content> = {
-  content: Content;
+type DesiredContent<Content, Projection> = {
+  prepared: PreparedVersionedContent<Content, Projection>;
   version: number;
 };
 
@@ -33,6 +34,7 @@ type LocalWaiter = {
 
 export type VersionedRepositorySaveQueueOptions<
   Content,
+  Projection,
   Revision extends string,
   LocalRevision extends string,
   Location,
@@ -41,20 +43,34 @@ export type VersionedRepositorySaveQueueOptions<
   initialSnapshot: VersionedRepositorySnapshot<
     Content,
     Revision,
-    LocalRevision
+    LocalRevision,
+    Projection
   >;
-  onLocalStaged: (content: Content, localRevision: LocalRevision) => void;
+  onLocalStaged: (
+    prepared: PreparedVersionedContent<Content, Projection>,
+    localRevision: LocalRevision,
+  ) => void;
   onPersistenceChange: (
     state: VersionedRepositoryPersistenceState<Revision>,
   ) => void;
   onRemoteRevision: (revision: Revision | null) => void;
-  repository: VersionedRepository<Content, Revision, LocalRevision, Location>;
+  repository: VersionedRepository<
+    Content,
+    Revision,
+    LocalRevision,
+    Location,
+    Projection
+  >;
   scheduler: Pick<ApplicationScheduler, "schedule">;
 };
 
-export type VersionedRepositorySaveQueue<Content, LocalRevision extends string> = {
+export type VersionedRepositorySaveQueue<
+  Content,
+  Projection,
+  LocalRevision extends string,
+> = {
   dispose: () => void;
-  enqueue: (content: Content) => void;
+  enqueue: (prepared: PreparedVersionedContent<Content, Projection>) => void;
   flushLocal: () => Promise<void>;
   hasActiveSync: () => boolean;
   getLocalRevision: () => LocalRevision;
@@ -74,6 +90,7 @@ export const versionedRepositoryRetryDelaysMs = [
 
 export function createVersionedRepositorySaveQueue<
   Content,
+  Projection,
   Revision extends string,
   LocalRevision extends string,
   Location,
@@ -87,17 +104,18 @@ export function createVersionedRepositorySaveQueue<
   scheduler,
 }: VersionedRepositorySaveQueueOptions<
   Content,
+  Projection,
   Revision,
   LocalRevision,
   Location
->): VersionedRepositorySaveQueue<Content, LocalRevision> {
+>): VersionedRepositorySaveQueue<Content, Projection, LocalRevision> {
   let activeStage: Promise<void> | null = null;
   let activeSync: Promise<void> | null = null;
   let conflictRevision: Revision | null =
     initialPersistenceState?.status === "conflict"
       ? initialPersistenceState.remoteRevision
       : null;
-  let desired: DesiredContent<Content> | null = null;
+  let desired: DesiredContent<Content, Projection> | null = null;
   let disposed = false;
   let localRevision = initialSnapshot.localRevision;
   let localStageBlocked = false;
@@ -183,14 +201,15 @@ export function createVersionedRepositorySaveQueue<
 
       try {
         const result = await repository.stageSnapshot({
-          content: target.content,
+          content: target.prepared.content,
           expectedLocalRevision: localRevision,
+          projection: target.prepared.projection,
         });
 
         localRevision = result.localRevision;
         localStageBlocked = false;
         stagedVersion = Math.max(stagedVersion, target.version);
-        onLocalStaged(target.content, result.localRevision);
+        onLocalStaged(target.prepared, result.localRevision);
         settleLocalWaiters(target.version, (waiter) => waiter.resolve());
 
         if (desired?.version === target.version) {
@@ -386,9 +405,9 @@ export function createVersionedRepositorySaveQueue<
         void startStage();
       }
     },
-    enqueue(content) {
+    enqueue(prepared) {
       version += 1;
-      desired = { content, version };
+      desired = { prepared, version };
       localStageBlocked = false;
       syncTerminalBlocked = false;
       scheduleDebouncedSync();

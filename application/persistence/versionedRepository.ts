@@ -10,6 +10,19 @@ export type VersionedRemoteCommit<Content, Revision extends string> = {
   content: Content;
 };
 
+export type PreparedVersionedContent<Content, Projection> = Readonly<{
+  content: Content;
+  projection: Projection;
+}>;
+
+export type VersionedContentPreparationPolicy<Content, Projection> = {
+  prepare(content: Content, previous?: Projection | null): Projection;
+  validateTransition?(
+    previous: PreparedVersionedContent<Content, Projection>,
+    next: PreparedVersionedContent<Content, Projection>,
+  ): void;
+};
+
 export type VersionedCommitResult<Revision extends string> = {
   revision: Revision;
 };
@@ -25,9 +38,9 @@ export type VersionedRepositorySnapshot<
   Content,
   Revision extends string,
   LocalRevision extends string,
-> = {
+  Projection = unknown,
+> = PreparedVersionedContent<Content, Projection> & {
   conflictRevision: Revision | null;
-  content: Content;
   localRevision: LocalRevision;
   pendingChanges: boolean;
   remoteRevision: Revision | null;
@@ -46,6 +59,17 @@ export type VersionedContentMergePolicy<Content> = (
   conflictPreference?: VersionedContentConflictPreference,
 ) => VersionedContentMergeResult<Content>;
 
+export type PreparedVersionedContentMergePolicy<Content, Projection> = (
+  base: PreparedVersionedContent<Content, Projection>,
+  local: PreparedVersionedContent<Content, Projection>,
+  remote: PreparedVersionedContent<Content, Projection>,
+  conflictPreference?: VersionedContentConflictPreference,
+) => PreparedVersionedContentMergeResult<Content, Projection>;
+
+export type PreparedVersionedContentMergeResult<Content, Projection> =
+  | (PreparedVersionedContent<Content, Projection> & { status: "merged" })
+  | { status: "conflict"; unitIds: string[] };
+
 export type VersionedRepositoryConflictRecord<
   Content,
   Revision extends string,
@@ -56,6 +80,11 @@ export type VersionedRepositoryConflictRecord<
   remoteRevision: Revision;
   unitIds: string[];
 };
+
+export type PreparedVersionedConflictSources<Content, Projection> = Readonly<{
+  local: PreparedVersionedContent<Content, Projection>;
+  remote: PreparedVersionedContent<Content, Projection>;
+}>;
 
 type VersionedRepositorySyncResultBase<
   Revision extends string,
@@ -91,14 +120,15 @@ export type VersionedRepository<
   Revision extends string,
   LocalRevision extends string,
   Location,
+  Projection = unknown,
 > = {
   label: string;
   location: Location;
   discardPendingSnapshotAndReload(): Promise<
-    VersionedRepositorySnapshot<Content, Revision, LocalRevision>
+    VersionedRepositorySnapshot<Content, Revision, LocalRevision, Projection>
   >;
   loadSnapshot(): Promise<
-    VersionedRepositorySnapshot<Content, Revision, LocalRevision>
+    VersionedRepositorySnapshot<Content, Revision, LocalRevision, Projection>
   >;
   loadConflict?(): Promise<
     VersionedRepositoryConflictRecord<Content, Revision> | null
@@ -113,9 +143,18 @@ export type VersionedRepository<
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
     ) => Content,
   ): Promise<VersionedRepositorySyncResult<Revision, LocalRevision>>;
+  resolvePreparedConflictAndSynchronize?(
+    preference: VersionedContentConflictPreference,
+    transform: (
+      prepared: PreparedVersionedContent<Content, Projection>,
+      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
+      sources?: PreparedVersionedConflictSources<Content, Projection>,
+    ) => PreparedVersionedContent<Content, Projection>,
+  ): Promise<VersionedRepositorySyncResult<Revision, LocalRevision>>;
   stageSnapshot(input: {
     content: Content;
     expectedLocalRevision: LocalRevision;
+    projection: Projection;
   }): Promise<{ localRevision: LocalRevision }>;
   subscribeReconnect(listener: () => void): () => void;
   synchronizePendingSnapshot(): Promise<

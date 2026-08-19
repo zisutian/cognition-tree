@@ -17,10 +17,20 @@ import {
   remoteRevision,
 } from "../workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
+import { prepareWorkspaceRepositoryContent } from "../../../application/repository/workspaceRepositoryPreparation";
 
 type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
   import("../../../application/repository/workspaceRepository").RepositoryRevision
 >;
+
+function prepareContent(name: string) {
+  const content = createContent(name);
+
+  return {
+    content,
+    projection: prepareWorkspaceRepositoryContent(content),
+  };
+}
 
 function createDeferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -89,9 +99,9 @@ function createQueueHarness({
   const queue = createWorkspaceSessionSaveQueue({
     initialPersistenceState,
     initialSnapshot,
-    onLocalStaged(content, revision) {
+    onLocalStaged(prepared, revision) {
       if (stage) {
-        localContents.push(content);
+        localContents.push(prepared.content);
         localRevisionIndex = Number(revision.slice("draft:stage-".length)) ||
           localRevisionIndex + 1;
       }
@@ -131,7 +141,7 @@ describe("workspace session save queue", () => {
     }));
     const harness = createQueueHarness({ synchronize });
 
-    harness.queue.enqueue(createContent("立即本地保存"));
+    harness.queue.enqueue(prepareContent("立即本地保存"));
     await harness.queue.flushLocal();
 
     expect(harness.localContents.map(({ workspace }) => workspace.name)).toEqual([
@@ -157,7 +167,7 @@ describe("workspace session save queue", () => {
       stage: () => stageResult.promise,
     });
 
-    harness.queue.enqueue(createContent("completion watermark"));
+    harness.queue.enqueue(prepareContent("completion watermark"));
     const firstFlush = harness.queue.flushLocal();
 
     stageResult.resolve({ localRevision: draftRevision("stage-1") });
@@ -185,9 +195,9 @@ describe("workspace session save queue", () => {
     };
     const harness = createQueueHarness({ stage });
 
-    harness.queue.enqueue(createContent("first"));
-    harness.queue.enqueue(createContent("superseded"));
-    harness.queue.enqueue(createContent("latest"));
+    harness.queue.enqueue(prepareContent("first"));
+    harness.queue.enqueue(prepareContent("superseded"));
+    harness.queue.enqueue(prepareContent("latest"));
     const flush = harness.queue.flushLocal();
 
     firstStage.resolve({ localRevision: draftRevision("stage-1") });
@@ -220,7 +230,7 @@ describe("workspace session save queue", () => {
     };
     const harness = createQueueHarness({ stage, synchronize });
 
-    harness.queue.enqueue(createContent("latest"));
+    harness.queue.enqueue(prepareContent("latest"));
     await expect(harness.queue.flushLocal()).rejects.toThrow(
       "Client cache transaction failed",
     );
@@ -262,7 +272,7 @@ describe("workspace session save queue", () => {
     }));
     const harness = createQueueHarness({ synchronize });
 
-    harness.queue.enqueue(createContent("before conflict"));
+    harness.queue.enqueue(prepareContent("before conflict"));
     await harness.queue.flushLocal();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
 
@@ -271,8 +281,8 @@ describe("workspace session save queue", () => {
       status: "conflict",
     });
 
-    harness.queue.enqueue(createContent("superseded after conflict"));
-    harness.queue.enqueue(createContent("latest after conflict"));
+    harness.queue.enqueue(prepareContent("superseded after conflict"));
+    harness.queue.enqueue(prepareContent("latest after conflict"));
     await harness.queue.flushLocal();
 
     expect(harness.localContents.at(-1)?.workspace.name).toBe(
@@ -305,7 +315,7 @@ describe("workspace session save queue", () => {
     const synchronize = vi.fn(async () => results.shift()!);
     const harness = createQueueHarness({ synchronize });
 
-    harness.queue.enqueue(createContent("offline edit"));
+    harness.queue.enqueue(prepareContent("offline edit"));
     await harness.queue.flushLocal();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
 
@@ -357,7 +367,7 @@ describe("workspace session save queue", () => {
     });
     const harness = createQueueHarness({ synchronize });
 
-    harness.queue.enqueue(createContent("durable local edit"));
+    harness.queue.enqueue(prepareContent("durable local edit"));
     await harness.queue.flushLocal();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
 
@@ -392,7 +402,7 @@ describe("workspace session save queue", () => {
       });
     const harness = createQueueHarness({ synchronize });
 
-    harness.queue.enqueue(createContent("terminal failure"));
+    harness.queue.enqueue(prepareContent("terminal failure"));
     await harness.queue.flushLocal();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
     expect(harness.persistence.at(-1)).toMatchObject({
@@ -405,7 +415,7 @@ describe("workspace session save queue", () => {
     await Promise.resolve();
     expect(synchronize).toHaveBeenCalledTimes(1);
 
-    harness.queue.enqueue(createContent("explicit new edit"));
+    harness.queue.enqueue(prepareContent("explicit new edit"));
     await harness.queue.flushLocal();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
     expect(synchronize).toHaveBeenCalledTimes(2);
@@ -427,12 +437,12 @@ describe("workspace session save queue", () => {
       });
     const harness = createQueueHarness({ synchronize });
 
-    harness.queue.enqueue(createContent("old"));
+    harness.queue.enqueue(prepareContent("old"));
     await harness.queue.flushLocal();
     await vi.advanceTimersByTimeAsync(workspaceSessionSaveDelayMs);
     expect(synchronize).toHaveBeenCalledTimes(1);
 
-    harness.queue.enqueue(createContent("latest"));
+    harness.queue.enqueue(prepareContent("latest"));
     await harness.queue.flushLocal();
     firstSync.resolve({
       localRevision: draftRevision("stage-1"),
@@ -469,8 +479,8 @@ describe("workspace session save queue", () => {
     }));
     const harness = createQueueHarness({ stage, synchronize });
 
-    harness.queue.enqueue(createContent("active"));
-    harness.queue.enqueue(createContent("latest"));
+    harness.queue.enqueue(prepareContent("active"));
+    harness.queue.enqueue(prepareContent("latest"));
     harness.queue.dispose();
     firstStage.resolve({ localRevision: draftRevision("stage-1") });
     await vi.waitFor(() => expect(stagedNames).toEqual(["active", "latest"]));

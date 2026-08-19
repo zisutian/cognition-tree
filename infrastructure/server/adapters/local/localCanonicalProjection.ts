@@ -32,6 +32,7 @@ import {
   RepositoryCorruptError,
 } from "../../repository/store.ts";
 import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import {
   localControlDirectoryName,
@@ -68,7 +69,7 @@ function resolveSyntax(
   return result.syntax;
 }
 
-function createLocalNoteMetadataFromAnalysis(
+export function createLocalNoteMetadataFromAnalysis(
   noteId: string,
   analysis: CtnCanonicalSourceAnalysis,
 ): LocalNoteMetadata {
@@ -92,27 +93,38 @@ function createLocalNoteMetadataFromAnalysis(
   };
 }
 
-export function projectCanonicalNoteSource(
+export type LocalCanonicalNoteProjection = {
+  analysis: CtnCanonicalSourceAnalysis | null;
+  metadata: LocalNoteMetadata;
+};
+
+export function projectCanonicalNoteSourceAnalysis(
   noteId: string,
   canonicalSource: string,
   syntaxSource: string | null,
-): LocalNoteMetadata {
+  preparedSyntax?: CtnCompiledSyntax | null,
+): LocalCanonicalNoteProjection {
   try {
-    const syntax = resolveSyntax(syntaxSource);
+    const syntax = preparedSyntax === undefined
+      ? resolveSyntax(syntaxSource)
+      : preparedSyntax;
 
     if (syntax === null) {
       const header = readCtnCanonicalTitleHeader(canonicalSource);
       const editableSource = canonicalSource.split("\n").slice(1).join("\n");
 
       return {
-        blocks: [{
-          ...header.metadata,
-          editableLineNumber: 1,
-          fingerprint: editableSource.split("\n", 1)[0] ?? "",
-        }],
-        editableSource,
-        noteId,
-        schemaVersion: 1,
+        analysis: null,
+        metadata: {
+          blocks: [{
+            ...header.metadata,
+            editableLineNumber: 1,
+            fingerprint: editableSource.split("\n", 1)[0] ?? "",
+          }],
+          editableSource,
+          noteId,
+          schemaVersion: 1,
+        },
       };
     }
     const analysis = analyzeCtnSource({
@@ -121,13 +133,30 @@ export function projectCanonicalNoteSource(
       syntax,
     });
 
-    return createLocalNoteMetadataFromAnalysis(noteId, analysis);
+    return {
+      analysis,
+      metadata: createLocalNoteMetadataFromAnalysis(noteId, analysis),
+    };
   } catch (error) {
     if (error instanceof RepositoryCorruptError) throw error;
     throw new RepositoryCorruptError(
       `Canonical metadata is invalid for note ${noteId}`,
     );
   }
+}
+
+export function projectCanonicalNoteSource(
+  noteId: string,
+  canonicalSource: string,
+  syntaxSource: string | null,
+  preparedSyntax?: CtnCompiledSyntax | null,
+): LocalNoteMetadata {
+  return projectCanonicalNoteSourceAnalysis(
+    noteId,
+    canonicalSource,
+    syntaxSource,
+    preparedSyntax,
+  ).metadata;
 }
 
 export function createCanonicalSourceFromLocalNoteMetadata(
@@ -167,31 +196,36 @@ export function equalLocalNoteMetadataProjection(
     });
 }
 
-export function reconcileEditableNoteSource({
+export function reconcileEditableNoteSourceAnalysis({
   createId,
   editableSource,
   noteId,
   previous,
+  verifiedPrevious = null,
   reservedIds,
   syntaxSource,
   timestamp,
+  syntax: preparedSyntax,
 }: {
   createId: () => string;
   editableSource: string;
   noteId: string;
   previous: LocalNoteMetadata | null;
+  verifiedPrevious?: LocalCanonicalNoteProjection | null;
   reservedIds: Set<string>;
   syntaxSource: string | null;
   timestamp: string;
-}): LocalNoteMetadata {
+  syntax?: CtnCompiledSyntax | null;
+}): LocalCanonicalNoteProjection {
   if (previous) {
-    const verifiedPrevious = projectCanonicalNoteSource(
+    verifiedPrevious ??= projectCanonicalNoteSourceAnalysis(
       noteId,
       createCanonicalSourceFromLocalNoteMetadata(previous),
       syntaxSource,
+      preparedSyntax,
     );
 
-    if (!equalLocalNoteMetadataProjection(verifiedPrevious, previous)) {
+    if (!equalLocalNoteMetadataProjection(verifiedPrevious.metadata, previous)) {
       throw new RepositoryCorruptError(
         `Note sidecar projection is invalid for ${noteId}`,
       );
@@ -199,10 +233,15 @@ export function reconcileEditableNoteSource({
   }
   if (previous?.editableSource === editableSource) {
     previous.blocks.forEach((block) => reservedIds.add(block.id));
-    return previous;
+    return {
+      analysis: verifiedPrevious?.analysis ?? null,
+      metadata: previous,
+    };
   }
   try {
-    const syntax = resolveSyntax(syntaxSource);
+    const syntax = preparedSyntax === undefined
+      ? resolveSyntax(syntaxSource)
+      : preparedSyntax;
     let canonicalSource: string;
     let canonicalAnalysis: CtnCanonicalSourceAnalysis | null = null;
     const previousCanonicalSource = previous
@@ -225,11 +264,11 @@ export function reconcileEditableNoteSource({
         updatedAt: timestamp,
       })}\n${editableSource}`;
     } else if (previous) {
-      const previousAnalysis = analyzeCtnSource({
-        mode: { kind: "canonical-document" },
-        source: previousCanonicalSource ?? "",
-        syntax,
-      });
+      const previousAnalysis = verifiedPrevious?.analysis ?? analyzeCtnSource({
+          mode: { kind: "canonical-document" },
+          source: previousCanonicalSource ?? "",
+          syntax,
+        });
       const candidateAnalysis = analyzeCtnSource({
         mode: { kind: "editable-document" },
         source: editableSource,
@@ -277,7 +316,7 @@ export function reconcileEditableNoteSource({
         );
 
     projected.blocks.forEach((block) => reservedIds.add(block.id));
-    return projected;
+    return { analysis: canonicalAnalysis, metadata: projected };
   } catch (error) {
     if (
       error instanceof RepositoryAdapterError ||
@@ -287,6 +326,12 @@ export function reconcileEditableNoteSource({
     }
     throw new RepositoryCorruptError(`Could not reconcile Local note ${noteId}`);
   }
+}
+
+export function reconcileEditableNoteSource(
+  input: Parameters<typeof reconcileEditableNoteSourceAnalysis>[0],
+): LocalNoteMetadata {
+  return reconcileEditableNoteSourceAnalysis(input).metadata;
 }
 
 function titleFromEditableSource(source: string) {
@@ -324,18 +369,21 @@ function jsonSource(value: unknown) {
 export function createLocalProjectionFromContent({
   content,
   label,
+  preparation,
   previousIndex = null,
   repositoryId,
   rootDir,
 }: {
   content: WorkspaceRepositoryContentDto;
   label: string;
+  preparation?: WorkspaceRepositoryPreparation;
   previousIndex?: LocalRepositoryIndex | null;
   repositoryId: string;
   rootDir: string;
 }): LocalWorkingTreeProjection {
-  const { activeSource: syntaxSource } =
-    validateWorkspaceRepositorySyntax(content.syntax);
+  const syntaxSource = preparation
+    ? preparation.workspaceSyntax?.source ?? null
+    : validateWorkspaceRepositorySyntax(content.syntax).activeSource;
   const noteById = new Map(
     content.workspace.notes.map((note) => [note.id, note]),
   );
@@ -430,11 +478,10 @@ export function createLocalProjectionFromContent({
         "missing Local note",
       );
     }
-    const sidecar = projectCanonicalNoteSource(
-      note.id,
-      note.source,
-      syntaxSource,
-    );
+    const preparedNote = preparation?.analysisIndex?.getParsedNote(note.id);
+    const sidecar = preparedNote
+      ? createLocalNoteMetadataFromAnalysis(note.id, preparedNote.analysis)
+      : projectCanonicalNoteSource(note.id, note.source, syntaxSource);
     const title = validateLocalNoteTitle(
       titleFromEditableSource(sidecar.editableSource),
       "$.workspace.notes.title",
@@ -523,5 +570,20 @@ export function createLocalProjectionFromContent({
       rootDir,
     );
   }
-  return { content, files, index, metadata, revision };
+  return {
+    analysisOverrides: new Map(
+      content.workspace.notes.flatMap((note) => {
+        const analysis = preparation?.analysisIndex
+          ?.getParsedNote(note.id)?.analysis;
+
+        return analysis ? [[note.id, analysis] as const] : [];
+      }),
+    ),
+    content,
+    files,
+    index,
+    metadata,
+    revision,
+    syntaxOverrides: preparation?.syntaxById ?? new Map(),
+  };
 }

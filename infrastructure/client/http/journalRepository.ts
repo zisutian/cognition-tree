@@ -7,10 +7,6 @@ import {
 } from "../../../contracts/journal/parseJournal";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import type { JournalRepositoryBackend } from "../../../application/repository/builtInRepository";
-import {
-  validateJournalRepositoryContent,
-  validateJournalRepositoryTransition,
-} from "../repository/journalRepositoryCodec";
 import type { HttpRepositoryTransportOptions } from "./repositoryTransport";
 import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
 
@@ -30,7 +26,5 @@ export function createHttpJournalRepositoryBackend({
     endpoint: "/api/v1/sync/journal",
     fetch: fetchFn,
     token,
-    validateContent: validateJournalRepositoryContent,
-    validateTransition: validateJournalRepositoryTransition,
   });
 }

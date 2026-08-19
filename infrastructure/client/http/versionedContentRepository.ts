@@ -30,25 +30,15 @@ export function createHttpVersionedContentRepositoryBackend<
   endpoint,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-  validateContent,
-  validateTransition,
 }: HttpRepositoryTransportOptions & {
   codec: HttpVersionedContentCodec<Content, Revision>;
   endpoint: string;
-  validateContent(content: Content): void;
-  validateTransition(previous: Content, next: Content): void;
 }): VersionedRepositoryBackend<Content, Revision> {
-  let knownSnapshot: VersionedRemoteSnapshot<Content, Revision> | null = null;
-
   return {
     async commitRemoteSnapshot(commit) {
       const outbound = codec.parseCommit(commit);
 
-      validateContent(outbound.content);
-      if (knownSnapshot?.revision === outbound.baseRevision) {
-        validateTransition(knownSnapshot.content, outbound.content);
-      }
-      const result = codec.parseCommitResult(
+      return codec.parseCommitResult(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
@@ -61,15 +51,9 @@ export function createHttpVersionedContentRepositoryBackend<
           token,
         ),
       );
-
-      knownSnapshot = {
-        content: structuredClone(outbound.content),
-        revision: result.revision,
-      };
-      return result;
     },
     async loadRemoteSnapshot() {
-      const snapshot = codec.parseSnapshot(
+      return codec.parseSnapshot(
         await requestRepositoryJson(
           fetchFn,
           baseUrl,
@@ -78,10 +62,6 @@ export function createHttpVersionedContentRepositoryBackend<
           token,
         ),
       );
-
-      validateContent(snapshot.content);
-      knownSnapshot = structuredClone(snapshot);
-      return snapshot;
     },
   };
 }

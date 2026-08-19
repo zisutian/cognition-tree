@@ -1,18 +1,9 @@
-import {
-  createJournalParseIndex,
-} from "../../core/journal/indexes/journalParseIndex";
 import { JournalContentValidationError } from "../../core/journal/model/journalContent";
-import {
-  createTodoParseIndex,
-} from "../../core/todo/indexes/todoParseIndex";
 import { TodoContentValidationError } from "../../core/todo/model/todoContent";
 import { CtnDocumentMetadataError } from "../../core/ctn/parser/parseCtnDocument";
 import { CtnBlockMetadataSyntaxError } from "../../core/ctn/metadata/blockMetadata";
 import { WorkspaceBlockMetadataError } from "../../core/workspace/context/workspaceBlockMetadata";
 import { WorkspaceNoteHeaderError } from "../../core/workspace/model/workspaceData";
-import {
-  resolveWorkspaceSessionContent,
-} from "../workspace/session/sessionRepositorySnapshot";
 import type {
   WorkspaceSessionControllerState,
 } from "../workspace/session/workspaceSessionController";
@@ -149,13 +140,11 @@ function workspaceSource({
 
       return {
         async loadDocuments() {
-          const projection = resolveWorkspaceSessionContent(snapshot.content);
-
           return projectWorkspaceSearchDocuments({
             createVersion,
-            index: projection.analysisIndex,
+            index: snapshot.projection.analysisIndex,
             repositoryId: descriptor.id,
-            workspace: projection.workspace,
+            workspace: snapshot.projection.workspace,
           });
         },
         revision: snapshot.localRevision,
@@ -204,7 +193,7 @@ function builtInSource({
           async loadDocuments() {
             return projectJournalSearchDocuments({
               createVersion,
-              index: createJournalParseIndex(snapshot.content),
+              index: snapshot.projection,
             });
           },
           revision: snapshot.localRevision,
@@ -237,7 +226,7 @@ function builtInSource({
         async loadDocuments() {
           return projectTodoSearchDocuments({
             createVersion,
-            index: createTodoParseIndex(snapshot.content),
+            index: snapshot.projection,
           });
         },
         revision: snapshot.localRevision,

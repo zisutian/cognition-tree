@@ -18,7 +18,7 @@ import {
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";
 import {
-  recoverTodoLocalConflictCopies,
+  recoverTodoLocalConflictCopiesPrepared,
   type TodoConflictRecoveryDependencies,
 } from "../sync/domainConflictRecovery";
 
@@ -39,17 +39,10 @@ export function createTodoSessionController(
   scheduler: Pick<ApplicationScheduler, "schedule">,
   recoveryDependencies?: TodoConflictRecoveryDependencies,
 ) {
-  let previousIndex: TodoParseIndex | null = null;
-
   const base = createVersionedSessionController({
     label: "Todo",
-    parseContent: (value) => value as TodoContent,
-    prepareContent(content) {
-      const index = createTodoParseIndex(content, previousIndex);
-
-      previousIndex = index;
-      return index;
-    },
+    prepareContent: (content, previous) =>
+      createTodoParseIndex(content, previous),
     repository,
     scheduler,
   });
@@ -60,13 +53,14 @@ export function createTodoSessionController(
       if (!recoveryDependencies) {
         throw new Error("Todo conflict recovery is unavailable.");
       }
-      return base.resolveConflictAndSynchronize(
+      return base.resolvePreparedConflictAndSynchronize(
         "remote",
-        (content, conflict) =>
-          recoverTodoLocalConflictCopies(
-            content,
+        (prepared, conflict, sources) =>
+          recoverTodoLocalConflictCopiesPrepared(
+            prepared,
             conflict,
             recoveryDependencies,
+            sources?.local,
           ),
       );
     },

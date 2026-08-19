@@ -2,6 +2,8 @@
 
 import type { RepositoryRevisionDto } from "../../../../contracts/workspace/types.ts";
 import { workspaceRepositorySchemaVersion } from "../../../../contracts/workspace/types.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../../core/ctn/analysis/sourceAnalysis.ts";
+import type { WorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax.ts";
 
 export const localControlDirectoryName = ".ctn";
 export const localIndexFileName = "index.json";
@@ -68,9 +70,11 @@ export type LocalNoteMetadata = {
 export type LocalManagedFileSet = Map<string, string>;
 
 export type LocalWorkingTreeProjection = {
+  analysisOverrides: ReadonlyMap<string, CtnCanonicalSourceAnalysis>;
   content: import("../../../../contracts/workspace/types.ts").WorkspaceRepositoryContentDto;
   files: LocalManagedFileSet;
   index: LocalRepositoryIndex;
   metadata: LocalRepositoryMetadata;
   revision: RepositoryRevisionDto;
+  syntaxOverrides: ReadonlyMap<string, WorkspaceSyntax>;
 };

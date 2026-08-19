@@ -25,6 +25,7 @@ import {
 import {
   listJournalEntries,
   validateJournalContentAnalysis,
+  type ValidatedJournalContentAnalysis,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
@@ -110,7 +111,9 @@ export type JournalParseIndex = {
   parseCache: ReadonlyMap<JournalEntryId, JournalParseCacheEntry>;
   referenceGraph: JournalReferenceGraph;
   syntax: CtnCompiledSyntax;
+  syntaxSource: string;
   titleIndex: ReadonlyMap<string, readonly ParsedJournalIndexEntry[]>;
+  validation: ValidatedJournalContentAnalysis;
 };
 
 function incrementCounter(
@@ -270,7 +273,9 @@ export function createJournalParseIndex(
     CtnCanonicalSourceAnalysis
   >,
 ): JournalParseIndex {
-  const syntax = requireCtnSyntax(content.syntaxSource, "journal");
+  const syntax = previousIndex?.syntaxSource === content.syntaxSource
+    ? previousIndex.syntax
+    : requireCtnSyntax(content.syntaxSource, "journal");
   const parseCache = new Map<JournalEntryId, JournalParseCacheEntry>();
   const analyzedEntryIds: JournalEntryId[] = [];
   const analysisByEntryId = new Map(
@@ -426,6 +431,8 @@ export function createJournalParseIndex(
     parseCache,
     referenceGraph,
     syntax,
+    syntaxSource: content.syntaxSource,
     titleIndex,
+    validation: validated,
   };
 }

@@ -6,9 +6,8 @@ import path from "node:path";
 import { lock } from "proper-lockfile";
 import type {
   VersionedContentCommitDto,
-  VersionedContentCommitResultDto,
-  VersionedContentSnapshotDto,
 } from "../../../../contracts/common/versionedContent.ts";
+import type { PreparedVersionedContent } from "../../../../application/persistence/versionedRepository.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   isSecureRegularFile,
@@ -19,20 +18,39 @@ import {
   RepositoryCorruptError,
 } from "../store.ts";
 
-export type VersionedContentStore<Content> = {
-  commitSnapshot(value: unknown): Promise<VersionedContentCommitResultDto>;
-  loadSnapshot(): Promise<VersionedContentSnapshotDto<Content>>;
+export type PreparedVersionedContentSnapshot<Content, Projection = unknown> =
+  PreparedVersionedContent<Content, Projection> & {
+    revision: `sha256:${string}`;
+  };
+
+export type VersionedContentCommitReceipt<Content, Projection = unknown> = {
+  after: PreparedVersionedContentSnapshot<Content, Projection>;
+  before: PreparedVersionedContentSnapshot<Content, Projection>;
+  revision: `sha256:${string}`;
 };
 
-export type VersionedContentStoreDefinition<Content> = {
+export type VersionedContentStore<Content, Projection = unknown> = {
+  commitPreparedSnapshot(
+    commit: VersionedContentCommitDto<Content>,
+    projection: Projection,
+  ): Promise<VersionedContentCommitReceipt<Content, Projection>>;
+  commitSnapshot(
+    commit: VersionedContentCommitDto<Content>,
+  ): Promise<VersionedContentCommitReceipt<Content, Projection>>;
+  loadSnapshot(): Promise<PreparedVersionedContentSnapshot<Content, Projection>>;
+};
+
+export type VersionedContentStoreDefinition<Content, Projection> = {
   createRevision(content: Content): `sha256:${string}`;
   normalizeReadError(error: unknown): unknown;
-  parseCommit(value: unknown): VersionedContentCommitDto<Content>;
   parseContent(value: unknown): Content;
+  prepareContent(content: Content, previous?: Projection | null): Projection;
   serializeContent(content: Content): string;
-  validateContent(content: Content): void;
-  validateTransition(previous: Content, next: Content): void;
-  validateWriteBoundary(operation: () => void): void;
+  validateTransition(
+    previous: PreparedVersionedContent<Content, Projection>,
+    next: PreparedVersionedContent<Content, Projection>,
+  ): void;
+  validateWriteBoundary<Result>(operation: () => Result): Result;
 };
 
 export class VersionedContentRevisionConflictError extends Error {
@@ -45,15 +63,19 @@ export class VersionedContentRevisionConflictError extends Error {
   }
 }
 
-export class FileSystemVersionedContentStore<Content>
-  implements VersionedContentStore<Content> {
-  readonly #definition: VersionedContentStoreDefinition<Content>;
+export class FileSystemVersionedContentStore<Content, Projection>
+  implements VersionedContentStore<Content, Projection> {
+  readonly #definition: VersionedContentStoreDefinition<Content, Projection>;
   readonly #filePath: string;
+  #lastPreparedSnapshot: PreparedVersionedContentSnapshot<
+    Content,
+    Projection
+  > | null = null;
   #operationQueue: Promise<void> = Promise.resolve();
 
   constructor(
     filePath: string,
-    definition: VersionedContentStoreDefinition<Content>,
+    definition: VersionedContentStoreDefinition<Content, Projection>,
   ) {
     this.#filePath = path.resolve(filePath);
     this.#definition = definition;
@@ -63,12 +85,34 @@ export class FileSystemVersionedContentStore<Content>
     return this.#enqueueOperation(() => this.#readSnapshot());
   }
 
-  commitSnapshot(value: unknown) {
-    const commit = this.#definition.parseCommit(value);
+  commitSnapshot(commit: VersionedContentCommitDto<Content>) {
+    return this.#commitSnapshot(commit, (current) => ({
+      content: commit.content,
+      projection: this.#definition.validateWriteBoundary(() =>
+        this.#definition.prepareContent(
+          commit.content,
+          current.projection,
+        )
+      ),
+    }));
+  }
 
-    this.#definition.validateWriteBoundary(() =>
-      this.#definition.validateContent(commit.content)
-    );
+  commitPreparedSnapshot(
+    commit: VersionedContentCommitDto<Content>,
+    projection: Projection,
+  ) {
+    return this.#commitSnapshot(commit, () => ({
+      content: commit.content,
+      projection,
+    }));
+  }
+
+  #commitSnapshot(
+    commit: VersionedContentCommitDto<Content>,
+    prepare: (
+      current: PreparedVersionedContentSnapshot<Content, Projection>,
+    ) => PreparedVersionedContent<Content, Projection>,
+  ) {
     return this.#enqueueOperation(async () => {
       let release: (() => Promise<void>) | null = null;
       try {
@@ -92,20 +136,29 @@ export class FileSystemVersionedContentStore<Content>
         if (current.revision !== commit.baseRevision) {
           throw new VersionedContentRevisionConflictError(current.revision);
         }
+        const prepared = prepare(current);
+
         this.#definition.validateWriteBoundary(() =>
-          this.#definition.validateTransition(current.content, commit.content)
+          this.#definition.validateTransition(current, prepared)
         );
         const revision = this.#definition.createRevision(commit.content);
-        if (revision === current.revision) return { revision };
+        if (revision === current.revision) {
+          return { after: current, before: current, revision };
+        }
         await this.#writeContent(commit.content);
-        return { revision };
+        const after = { ...prepared, revision };
+
+        this.#lastPreparedSnapshot = after;
+        return { after, before: current, revision };
       } finally {
         await release();
       }
     });
   }
 
-  async #readSnapshot(): Promise<VersionedContentSnapshotDto<Content>> {
+  async #readSnapshot(): Promise<
+    PreparedVersionedContentSnapshot<Content, Projection>
+  > {
     let handle;
     try {
       handle = await open(
@@ -128,14 +181,29 @@ export class FileSystemVersionedContentStore<Content>
       let content: Content;
       try {
         content = this.#definition.parseContent(value);
-        this.#definition.validateContent(content);
       } catch (error) {
         throw this.#definition.normalizeReadError(error);
       }
-      return {
-        content,
-        revision: this.#definition.createRevision(content),
-      };
+      const revision = this.#definition.createRevision(content);
+
+      if (this.#lastPreparedSnapshot?.revision === revision) {
+        return this.#lastPreparedSnapshot;
+      }
+      try {
+        const snapshot = {
+          content,
+          projection: this.#definition.prepareContent(
+            content,
+            this.#lastPreparedSnapshot?.projection,
+          ),
+          revision,
+        };
+
+        this.#lastPreparedSnapshot = snapshot;
+        return snapshot;
+      } catch (error) {
+        throw this.#definition.normalizeReadError(error);
+      }
     } catch (error) {
       if (hasFileSystemErrorCode(error, "ENOENT")) {
         throw new RepositoryCorruptError("Versioned content file is missing");

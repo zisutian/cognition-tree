@@ -3,13 +3,36 @@
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryRevisionDto,
-  WorkspaceRepositoryCommitResultDto,
-  WorkspaceRepositorySnapshotDto,
+  WorkspaceRepositoryCommitDto,
+  WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace/types.ts";
+import type {
+  PreparedVersionedContent,
+} from "../../../application/persistence/versionedRepository.ts";
+import type {
+  WorkspaceRepositoryPreparation,
+} from "../../../application/repository/workspaceRepositoryPreparation.ts";
+
+export type PreparedWorkspaceRepositorySnapshot = PreparedVersionedContent<
+  WorkspaceRepositoryContentDto,
+  WorkspaceRepositoryPreparation
+> & { revision: RepositoryRevisionDto };
+
+export type WorkspaceRepositoryCommitReceipt = {
+  after: PreparedWorkspaceRepositorySnapshot;
+  before: PreparedWorkspaceRepositorySnapshot;
+  revision: RepositoryRevisionDto;
+};
 
 export type WorkspaceRepositoryStore = {
-  commitSnapshot: (value: unknown) => Promise<WorkspaceRepositoryCommitResultDto>;
-  loadSnapshot: () => Promise<WorkspaceRepositorySnapshotDto>;
+  commitPreparedSnapshot(
+    commit: WorkspaceRepositoryCommitDto,
+    projection: WorkspaceRepositoryPreparation,
+  ): Promise<WorkspaceRepositoryCommitReceipt>;
+  commitSnapshot(
+    commit: WorkspaceRepositoryCommitDto,
+  ): Promise<WorkspaceRepositoryCommitReceipt>;
+  loadSnapshot(): Promise<PreparedWorkspaceRepositorySnapshot>;
 };
 
 const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {

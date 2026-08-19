@@ -5,6 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryContentDto } from "../../../../../contracts/workspace/types.ts";
+import { initializeCtnSourceBlockMetadata } from "../../../../../core/ctn/metadata/sourceMetadata.ts";
+import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax.ts";
+import { createDefaultWorkspaceSyntaxSource } from "../../../../../core/workspace/context/workspaceSyntax.ts";
 import {
   RepositoryAdapterError,
 } from "../../../../../infrastructure/server/repository/store.ts";
@@ -27,10 +30,26 @@ import { FileBackedWebDavServer } from "./fileBackedWebDavServer.ts";
 const runLiveWebDav = process.env.CTN_RUN_LIVE_WEBDAV === "1";
 
 function createContent(name: string, noteCount = 3): WorkspaceRepositoryContentDto {
-  const notes = Array.from({ length: noteCount }, (_, index) => ({
-    id: `note-${index}`,
-    source: `${name} ${index}\n\t- persisted over WebDAV\n`,
-  }));
+  const notes = Array.from({ length: noteCount }, (_, index) => {
+    let blockIndex = 0;
+
+    return {
+      id: `note-${index}`,
+      source: initializeCtnSourceBlockMetadata(
+        `${name} ${index}\n\t- persisted over WebDAV`,
+        defaultCtnSyntax,
+        {
+          createdAt: "2026-07-16T00:00:00.000Z",
+          createId: () =>
+            `00000000-0000-4000-8000-${String(
+              index * 100 + ++blockIndex,
+            ).padStart(12, "0")}`,
+          reservedIds: new Set(),
+          updatedAt: "2026-07-16T00:00:00.000Z",
+        },
+      ),
+    };
+  });
 
   return {
     schemaVersion: 4,
@@ -38,7 +57,7 @@ function createContent(name: string, noteCount = 3): WorkspaceRepositoryContentD
       activeFileId: "syntax-00000000-0000-4000-8000-000000000001",
       files: [{
         id: "syntax-00000000-0000-4000-8000-000000000001",
-        source: 'name = "live-webdav"\n',
+        source: createDefaultWorkspaceSyntaxSource(),
       }],
     },
     workspace: {
@@ -117,7 +136,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
 
     const reopened = createStore(service, "reopened");
 
-    await expect(reopened.loadSnapshot()).resolves.toEqual({
+    await expect(reopened.loadSnapshot()).resolves.toMatchObject({
       content,
       revision: committed.revision,
     });
@@ -157,7 +176,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     }
     const committed = await firstCommit;
 
-    await expect(second.loadSnapshot()).resolves.toEqual({
+    await expect(second.loadSnapshot()).resolves.toMatchObject({
       content: firstContent,
       revision: committed.revision,
     });
@@ -197,7 +216,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     } finally {
       paused.release();
     }
-    await expect(loaded).resolves.toEqual({
+    await expect(loaded).resolves.toMatchObject({
       content: afterContent,
       revision: afterRevision,
     });
@@ -219,7 +238,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     } satisfies Partial<RepositoryAdapterError>);
 
     await service.start(port);
-    await expect(reader.loadSnapshot()).resolves.toEqual({
+    await expect(reader.loadSnapshot()).resolves.toMatchObject({
       content,
       revision: committed.revision,
     });
@@ -357,7 +376,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     }
     const committed = await commit;
 
-    await expect(contender.loadSnapshot()).resolves.toEqual({
+    await expect(contender.loadSnapshot()).resolves.toMatchObject({
       content,
       revision: committed.revision,
     });

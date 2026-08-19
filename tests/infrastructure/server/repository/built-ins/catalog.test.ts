@@ -59,6 +59,30 @@ function createBuiltInCatalog(repositoryRoot: string) {
 }
 
 describe("filesystem built-in data catalog", () => {
+  it("keeps a command-prepared Todo index through commit and revision caching", async () => {
+    await withStateDirectory(async (stateDirectory) => {
+      const catalog = createBuiltInCatalog(stateDirectory);
+
+      await catalog.initialize();
+      const store = await catalog.getStore("todo");
+      const before = await store.loadSnapshot();
+      const content = appendTodoTestCollection(before.content, {
+        collectionIndex: 1,
+        createdAt: todoTimestamp(1),
+        name: "Prepared",
+      });
+      const projection = createTodoParseIndex(content, before.projection);
+      const receipt = await store.commitPreparedSnapshot(
+        { baseRevision: before.revision, content },
+        projection,
+      );
+
+      expect(receipt.before).toBe(before);
+      expect(receipt.after.projection).toBe(projection);
+      expect((await store.loadSnapshot()).projection).toBe(projection);
+    });
+  });
+
   it("provisions protected Journal and Todo data in isolated private directories", async () => {
     await withStateDirectory(async (stateDirectory) => {
       const catalog = createBuiltInCatalog(stateDirectory);
@@ -143,6 +167,15 @@ describe("filesystem built-in data catalog", () => {
         content: todoContent,
       });
 
+      expect(committed.before).toMatchObject({
+        content: todoBase.content,
+        revision: todoBase.revision,
+      });
+      expect(committed.after).toMatchObject({
+        content: todoContent,
+        revision: committed.revision,
+      });
+
       const reopened = createBuiltInCatalog(stateDirectory);
 
       await reopened.initialize();
@@ -155,7 +188,7 @@ describe("filesystem built-in data catalog", () => {
         reopened,
         "todo",
       )).loadSnapshot()).resolves
-        .toEqual({ content: todoContent, revision: committed.revision });
+        .toMatchObject({ content: todoContent, revision: committed.revision });
 
       const contentPath = path.join(
         stateDirectory,

@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { parseWorkspaceRepositoryCommit } from "../../contracts/workspace/parseRepository.ts";
+import {
+  parseWorkspaceRepositoryCommit,
+  parseWorkspaceRepositoryContent,
+} from "../../contracts/workspace/parseRepository.ts";
 import { serializeWorkspaceRepositoryRevisionContent } from "../../contracts/workspace/revision.ts";
 import {
   type LocalDraftRevisionDto,
@@ -24,6 +27,10 @@ import {
 } from "../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import { WebDavWorkspaceStore } from "../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
 import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/repository/workspace/revision.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparationObserver,
+} from "../../application/repository/workspaceRepositoryPreparation.ts";
 import { createUiOutlineNodes } from "../../application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";
@@ -65,6 +72,23 @@ type Timing = {
 };
 
 const timings: Timing[] = [];
+const validationCounts = {
+  ctnAnalyses: 0,
+  semanticPreparations: 0,
+  syntaxCompiles: 0,
+  wireDecodes: 0,
+};
+const preparationObserver: WorkspaceRepositoryPreparationObserver = {
+  onCtnAnalysis(noteIds) {
+    validationCounts.ctnAnalyses += noteIds.length;
+  },
+  onSemanticPreparation() {
+    validationCounts.semanticPreparations += 1;
+  },
+  onSyntaxCompile() {
+    validationCounts.syntaxCompiles += 1;
+  },
+};
 
 async function measure<Result>(
   name: string,
@@ -546,6 +570,37 @@ const serialized = await measure(
 );
 
 await measure("repository.snapshot.deserialize", () => JSON.parse(serialized));
+const decodedContent = await measure(
+  "repository.validation.wireDecode",
+  () => {
+    validationCounts.wireDecodes += 1;
+    return parseWorkspaceRepositoryContent(JSON.parse(serialized));
+  },
+);
+const coldPreparation = await measure(
+  "repository.validation.semanticPreparation.cold",
+  () =>
+    prepareWorkspaceRepositoryContent(decodedContent, {
+      observer: preparationObserver,
+    }),
+);
+const hotPreparation = await measure(
+  "repository.validation.semanticPreparation.hot",
+  () =>
+    prepareWorkspaceRepositoryContent(editedContent, {
+      analysisOverrides: new Map([
+        [workspace.notes[0].id, editedNoteResult.analysis],
+      ]),
+      observer: preparationObserver,
+      previous: coldPreparation,
+    }),
+);
+
+assert.equal(validationCounts.wireDecodes, 1);
+assert.equal(validationCounts.syntaxCompiles, 1);
+assert.equal(validationCounts.semanticPreparations, 2);
+assert.equal(validationCounts.ctnAnalyses, noteCount);
+assert.equal(hotPreparation.analysisIndex?.analysisStats.runCount, 0);
 const revision = await measure(
   "repository.snapshot.checksum",
   () => createWorkspaceRepositoryRevision(content),
@@ -778,6 +833,7 @@ try {
       webDavMaxConcurrentWrites:
         webDavTransport.maxConcurrentGenerationWrites,
     },
+    validationCounts,
   }, null, 2)}\n`);
 } finally {
   await rm(repositoryDirectory, { force: true, recursive: true });

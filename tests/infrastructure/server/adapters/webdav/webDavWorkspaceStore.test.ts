@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultCtnSyntax } from "../../../../../core/ctn/syntax/defaultSyntax.ts";
 import { formatCtnSyntaxV2 } from "../../../../../core/ctn/syntax/formatter.ts";
+import { initializeCtnSourceBlockMetadata } from "../../../../../core/ctn/metadata/sourceMetadata.ts";
 import {
   UnsupportedRepositoryVersionError,
   WorkspaceRepositoryContractError,
@@ -37,10 +38,26 @@ const secondarySyntaxSource = formatCtnSyntaxV2({
 }, "workspace");
 
 function createContent(name: string, noteCount = 1): WorkspaceRepositoryContentDto {
-  const notes = Array.from({ length: noteCount }, (_, index) => ({
-    id: `note-${index}`,
-    source: `${name} ${index}\n\t- 内容`,
-  }));
+  const notes = Array.from({ length: noteCount }, (_, index) => {
+    let blockIndex = 0;
+
+    return {
+      id: `note-${index}`,
+      source: initializeCtnSourceBlockMetadata(
+        `${name} ${index}\n\t- 内容`,
+        defaultCtnSyntax,
+        {
+          createdAt: "2026-07-16T00:00:00.000Z",
+          createId: () =>
+            `00000000-0000-4000-8000-${String(
+              index * 100 + ++blockIndex,
+            ).padStart(12, "0")}`,
+          reservedIds: new Set(),
+          updatedAt: "2026-07-16T00:00:00.000Z",
+        },
+      ),
+    };
+  });
 
   return {
     schemaVersion: 4,
@@ -113,7 +130,10 @@ describe("WebDAV generation store v4", () => {
     const content = createContent("远端仓库");
     const result = await store.commitSnapshot({ baseRevision: empty.revision, content });
 
-    await expect(store.loadSnapshot()).resolves.toEqual({ content, revision: result.revision });
+    await expect(store.loadSnapshot()).resolves.toMatchObject({
+      content,
+      revision: result.revision,
+    });
     const pointer = JSON.parse(transport.source(webDavCurrentPath) ?? "null");
 
     expect(pointer).toMatchObject({ revision: result.revision, schemaVersion: 4 });
@@ -315,7 +335,7 @@ describe("WebDAV generation store v4", () => {
 
     const loaded = await reader.loadSnapshot();
 
-    expect(loaded).toEqual({
+    expect(loaded).toMatchObject({
       content: nextContent,
       revision: publishedRevision,
     });
@@ -462,7 +482,29 @@ describe("WebDAV generation store v4", () => {
     await expect(store.commitSnapshot({
       baseRevision: base.revision,
       content: duplicateName,
-    })).rejects.toThrow("duplicate syntax name");
+    })).rejects.toThrow("Duplicate workspace syntax name");
+  });
+
+  it("does not publish a pointer for semantically invalid Workspace CTN", async () => {
+    const transport = new InMemoryWebDavTransport();
+    const store = createStore(transport);
+    const base = await store.loadSnapshot();
+    const pointerBefore = transport.source(webDavCurrentPath);
+    const invalid = createContent("invalid CTN");
+
+    invalid.workspace.notes[0] = {
+      ...invalid.workspace.notes[0]!,
+      source: invalid.workspace.notes[0]!.source.replace(
+        /@ctn-block id=[^\s]+/,
+        "@ctn-block id=invalid",
+      ),
+    };
+
+    await expect(store.commitSnapshot({
+      baseRevision: base.revision,
+      content: invalid,
+    })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
+    expect(transport.source(webDavCurrentPath)).toBe(pointerBefore);
   });
 
   it("classifies an invalid inactive persisted syntax file as corruption", async () => {
@@ -611,7 +653,7 @@ describe("WebDAV generation store v4", () => {
     });
 
     transport.beforeList = null;
-    await expect(store.loadSnapshot()).resolves.toEqual({
+    await expect(store.loadSnapshot()).resolves.toMatchObject({
       content,
       revision: committed.revision,
     });

@@ -452,32 +452,30 @@ export function validateJournalContent(
 }
 
 function assertJournalTitleHeaderUnchanged(
-  previous: JournalEntry,
-  next: JournalEntry,
+  previous: ParsedJournalEntry,
+  next: ParsedJournalEntry,
 ) {
-  const previousHeader = readCtnCanonicalTitleHeader(previous.source);
-  const nextHeader = readCtnCanonicalTitleHeader(next.source);
+  const previousTitle = previous.analysis.document.blocks[0]!;
+  const nextTitle = next.analysis.document.blocks[0]!;
 
   if (
-    previousHeader.title !== nextHeader.title ||
-    previousHeader.metadata.id !== nextHeader.metadata.id ||
-    previousHeader.metadata.createdAt !== nextHeader.metadata.createdAt ||
-    previousHeader.metadata.updatedAt !== nextHeader.metadata.updatedAt ||
-    previousHeader.metadata.indentText !== nextHeader.metadata.indentText
+    previous.title !== next.title ||
+    previousTitle.id !== nextTitle.id ||
+    previousTitle.metadata.createdAt !== nextTitle.metadata.createdAt ||
+    previousTitle.metadata.updatedAt !== nextTitle.metadata.updatedAt ||
+    previousTitle.indentText !== nextTitle.indentText
   ) {
     throw new JournalContentValidationError(
-      `Journal entry ${previous.id} title header metadata is immutable.`,
+      `Journal entry ${previous.entry.id} title header metadata is immutable.`,
     );
   }
 }
 
 /** Validate invariants whose immutability spans repository generations. */
-export function validateJournalContentTransition(
-  previousValue: JournalContentValue,
-  nextValue: JournalContentValue,
+export function validateJournalContentAnalysisTransition(
+  previousResult: ValidatedJournalContentAnalysis,
+  nextResult: ValidatedJournalContentAnalysis,
 ): JournalContent {
-  const previousResult = validateJournalContentAnalysis(previousValue);
-  const nextResult = validateJournalContentAnalysis(nextValue);
   const previous = previousResult.content;
   const next = nextResult.content;
   const nextById = new Map(
@@ -524,7 +522,7 @@ export function validateJournalContentTransition(
         `Journal entry ${previousEntry.id} updatedAt cannot move backwards.`,
       );
     }
-    assertJournalTitleHeaderUnchanged(previousEntry, nextEntry);
+    assertJournalTitleHeaderUnchanged(previousParsed, nextParsed);
     const nextBlocksById = new Map(
       nextParsed.analysis.document.blocks.map(
         (block) => [block.id, block],
@@ -553,4 +551,15 @@ export function validateJournalContentTransition(
     }
   }
   return next;
+}
+
+/** Validate invariants whose immutability spans repository generations. */
+export function validateJournalContentTransition(
+  previousValue: JournalContentValue,
+  nextValue: JournalContentValue,
+): JournalContent {
+  return validateJournalContentAnalysisTransition(
+    validateJournalContentAnalysis(previousValue),
+    validateJournalContentAnalysis(nextValue),
+  );
 }

@@ -16,8 +16,6 @@ import {
 } from "../../../../infrastructure/client/http/builtInCatalog";
 import { createHttpJournalRepositoryBackend } from "../../../../infrastructure/client/http/journalRepository";
 import { createHttpTodoRepositoryBackend } from "../../../../infrastructure/client/http/todoRepository";
-import { journalRepositoryCodec } from "../../../../infrastructure/client/repository/journalRepositoryCodec";
-import { todoRepositoryCodec } from "../../../../infrastructure/client/repository/todoRepositoryCodec";
 import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure/client/repository/versionedRepositoryCache";
 import {
   appendJournalTestEntry,
@@ -77,16 +75,12 @@ function createCaches() {
       JournalContentDto,
       JournalRevisionDto,
       `draft:${string}`
-    >({
-      codec: journalRepositoryCodec,
-    }),
+    >(),
     todoCache: createMemoryVersionedRepositoryCache<
       TodoContentDto,
       TodoRevisionDto,
       `draft:${string}`
-    >({
-      codec: todoRepositoryCodec,
-    }),
+    >(),
   };
 }
 
@@ -202,7 +196,7 @@ describe("HTTP built-in data repositories", () => {
     expect(calls[0]?.url).toBe("https://api.test/root/api/v1/admin/built-ins");
   });
 
-  it("rejects invalid Journal and Todo transitions before issuing PUT", async () => {
+  it("leaves Journal and Todo transition authority outside the HTTP backend", async () => {
     const journalContent = appendJournalTestEntry(createEmptyJournalContent(), {
       createdAt: "2026-07-18T00:00:01.000Z",
       entryIndex: 1,
@@ -225,8 +219,8 @@ describe("HTTP built-in data repositories", () => {
         entryIndex: 1,
         timezoneOffsetMinutes: 480,
       }),
-    })).rejects.toThrow(/createdAt is immutable/);
-    expect(journalFetch).toHaveBeenCalledTimes(1);
+    })).resolves.toEqual({ revision: journalRevisionB });
+    expect(journalFetch).toHaveBeenCalledTimes(2);
 
     const todoContent = appendTodoTestItem(
       appendTodoTestCollection(createEmptyTodoContent(), {
@@ -263,8 +257,8 @@ describe("HTTP built-in data repositories", () => {
     await expect(todo.commitRemoteSnapshot({
       baseRevision: todoRevisionA,
       content: invalidTodo,
-    })).rejects.toThrow(/createdAt is immutable/);
-    expect(todoFetch).toHaveBeenCalledTimes(1);
+    })).resolves.toEqual({ revision: todoRevisionB });
+    expect(todoFetch).toHaveBeenCalledTimes(2);
   });
 
   it("restores catalog and domain snapshots from an isolated local-first cache", async () => {

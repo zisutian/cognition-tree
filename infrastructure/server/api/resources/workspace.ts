@@ -7,17 +7,14 @@ import type {
 } from "../../../../contracts/api/types.ts";
 import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparation,
+} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 import { projectRawCanonicalCtnBody } from "../../../../core/ctn/analysis/editableProjection.ts";
 import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
-import { resolveWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax.ts";
-import {
-  createWorkspaceParseIndex,
-  type WorkspaceParseIndex,
-} from "../../../../core/workspace/indexes/workspaceParseIndex.ts";
-import {
-  createWorkspaceStructureIndex,
-  type WorkspaceStructureIndex,
-} from "../../../../core/workspace/indexes/workspaceStructureIndex.ts";
+import type { WorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex.ts";
+import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex.ts";
 import { projectApiV1CtnDocument } from "./ctn.ts";
 import {
   createWorkspaceFolderVersion,
@@ -34,18 +31,18 @@ export type ApiV1WorkspaceAnalysis = {
 export function createApiV1WorkspaceAnalysis(
   content: WorkspaceRepositoryContentDto,
 ): ApiV1WorkspaceAnalysis {
-  const structure = createWorkspaceStructureIndex(content.workspace);
-  const activeSource = content.syntax.files.find(
-    ({ id }) => id === content.syntax.activeFileId,
-  )?.source ?? null;
-  const syntax = resolveWorkspaceSyntax(activeSource)?.syntax ?? null;
+  return projectApiV1WorkspaceAnalysis(
+    prepareWorkspaceRepositoryContent(content),
+  );
+}
 
+export function projectApiV1WorkspaceAnalysis(
+  preparation: WorkspaceRepositoryPreparation,
+): ApiV1WorkspaceAnalysis {
   return {
-    parseIndex: syntax
-      ? createWorkspaceParseIndex({ syntax, workspace: structure })
-      : null,
-    structure,
-    syntax,
+    parseIndex: preparation.analysisIndex,
+    structure: preparation.workspace,
+    syntax: preparation.workspaceSyntax?.syntax ?? null,
   };
 }
 export function projectApiV1WorkspaceTree(

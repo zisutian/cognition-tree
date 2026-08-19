@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   mergeJournalContent,
+  mergePreparedJournalContent,
+  mergePreparedTodoContent,
+  mergePreparedWorkspaceContent,
   mergeTodoContent,
   mergeWorkspaceContent,
 } from "../../../application/sync/domainThreeWayMerge";
+import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
+import { createTodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
+import { prepareWorkspaceRepositoryContent } from "../../../application/repository/workspaceRepositoryPreparation";
 import {
   recoverJournalLocalConflictCopies,
   recoverTodoLocalConflictCopies,
@@ -29,8 +35,47 @@ import {
 import {
   createWorkspaceRepositoryContent,
 } from "../../support/workspaceRepositoryFixtures";
+import {
+  createContent as createPreparedWorkspaceContent,
+} from "../workspace/session/workspaceSessionTestFixture";
 
 describe("domain three-way merge policy", () => {
+  it("builds a merged Workspace projection from prepared source analyses", () => {
+    const base = createPreparedWorkspaceContent();
+    const local = structuredClone(base);
+    const remote = structuredClone(base);
+
+    local.workspace.notes[0]!.source = local.workspace.notes[0]!.source.replace(
+      "\n标题",
+      "\n本地标题",
+    );
+    remote.workspace.name = "远端名称";
+    const baseProjection = prepareWorkspaceRepositoryContent(base);
+    const merged = mergePreparedWorkspaceContent(
+      { content: base, projection: baseProjection },
+      {
+        content: local,
+        projection: prepareWorkspaceRepositoryContent(local, {
+          previous: baseProjection,
+        }),
+      },
+      {
+        content: remote,
+        projection: prepareWorkspaceRepositoryContent(remote, {
+          previous: baseProjection,
+        }),
+      },
+    );
+
+    expect(merged).toMatchObject({
+      content: { workspace: { name: "远端名称" } },
+      status: "merged",
+    });
+    if (merged.status === "merged") {
+      expect(merged.projection.analysisIndex?.analysisStats.runCount).toBe(0);
+    }
+  });
+
   it("merges independent resources and treats grammar changes as a barrier", () => {
     const workspaceBase = createWorkspaceRepositoryContent();
     const workspaceLocal = structuredClone(workspaceBase);
@@ -78,6 +123,7 @@ describe("domain three-way merge policy", () => {
     });
     const journalRemote = updateJournalTestBody(journalBase, {
       body: "remote entry",
+      createBlockIdStart: 200,
       entryIndex: 2,
       updatedAt: "2026-07-18T03:00:00.000Z",
     });
@@ -94,6 +140,23 @@ describe("domain three-way merge policy", () => {
           journalEntries(journalLocal)[0]!.source,
           journalEntries(journalRemote)[1]!.source,
         ]);
+    }
+    const journalBaseIndex = createJournalParseIndex(journalBase);
+    const preparedJournalMerged = mergePreparedJournalContent(
+      { content: journalBase, projection: journalBaseIndex },
+      {
+        content: journalLocal,
+        projection: createJournalParseIndex(journalLocal, journalBaseIndex),
+      },
+      {
+        content: journalRemote,
+        projection: createJournalParseIndex(journalRemote, journalBaseIndex),
+      },
+    );
+
+    expect(preparedJournalMerged).toMatchObject(journalMerged);
+    if (preparedJournalMerged.status === "merged") {
+      expect(preparedJournalMerged.projection.analysisStats.runCount).toBe(0);
     }
     const journalConflict = mergeJournalContent(
       journalBase,
@@ -169,6 +232,23 @@ describe("domain three-way merge policy", () => {
 
       expect(collection.completions).toEqual(local.collections[0]!.completions);
       expect(collection.recurrences).toEqual(remote.collections[0]!.recurrences);
+    }
+    const baseIndex = createTodoParseIndex(base);
+    const preparedMerged = mergePreparedTodoContent(
+      { content: base, projection: baseIndex },
+      {
+        content: local,
+        projection: createTodoParseIndex(local, baseIndex),
+      },
+      {
+        content: remote,
+        projection: createTodoParseIndex(remote, baseIndex),
+      },
+    );
+
+    expect(preparedMerged).toMatchObject(merged);
+    if (preparedMerged.status === "merged") {
+      expect(preparedMerged.projection.analysisStats.runCount).toBe(0);
     }
     const otherCompletion = structuredClone(base);
 

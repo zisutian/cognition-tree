@@ -19,9 +19,15 @@ export const draftB =
 export const draftC =
   "draft:00000000-0000-4000-8000-00000000000c" as LocalDraftRevisionDto;
 
+const fixtureTimestamp = "2026-07-16T00:00:00.000Z";
+
+function canonicalFixtureSource(title: string, body = "") {
+  return `@ctn-block id=00000000-0000-4000-8000-000000000001 created=${fixtureTimestamp} updated=${fixtureTimestamp}\n${title}${body}`;
+}
+
 export function createWorkspaceRepositoryContent(
   name = "Workspace",
-  noteSource = "@ctn-block title title\nTitle",
+  noteSource = canonicalFixtureSource("Title"),
 ): WorkspaceRepositoryContentDto {
   return {
     schemaVersion: 4,
@@ -59,7 +65,13 @@ export function createDeepWorkspaceRepositoryContent(
     workspace: {
       id: "deep-workspace",
       name,
-      notes: [{ id: "deep-note", source: "Deep source\n包含 \\\"quoted\\\" text" }],
+      notes: [{
+        id: "deep-note",
+        source: canonicalFixtureSource(
+          "Deep source",
+          "\n包含 \\\"quoted\\\" text",
+        ),
+      }],
       tree: [node],
     },
   };

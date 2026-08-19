@@ -21,8 +21,6 @@ import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   WireContractError,
 } from "../../../contracts/common/contractValue.ts";
-import { parseJournalContent } from "../../../contracts/journal/parseJournal.ts";
-import { parseTodoContent } from "../../../contracts/todo/parseTodo.ts";
 import { CtnBlockMetadataSyntaxError } from "../../../core/ctn/metadata/blockMetadata.ts";
 import { CtnDocumentMetadataError } from "../../../core/ctn/parser/parseCtnDocument.ts";
 import { JournalContentValidationError } from "../../../core/journal/model/journalContent.ts";
@@ -48,15 +46,6 @@ import { ApiV1RequestError } from "./http/errors.ts";
 import {
   createApiV1ResourceVersion,
 } from "./resources/versions.ts";
-import {
-  createApiV1JournalIndex,
-} from "./resources/journal.ts";
-import {
-  createApiV1TodoIndex,
-} from "./resources/todo.ts";
-import {
-  createApiV1WorkspaceAnalysis,
-} from "./resources/workspace.ts";
 
 function hasScope(
   principal: ApiV1PrincipalDto,
@@ -233,15 +222,11 @@ export class ApiV1SearchService {
 
                     return {
                       async loadDocuments() {
-                        const analysis = createApiV1WorkspaceAnalysis(
-                          snapshot.content,
-                        );
-
                         return projectWorkspaceSearchDocuments({
                           createVersion: createApiV1ResourceVersion,
-                          index: analysis.parseIndex,
+                          index: snapshot.projection.analysisIndex,
                           repositoryId: repository.id,
-                          workspace: analysis.structure,
+                          workspace: snapshot.projection.workspace,
                         });
                       },
                       revision: snapshot.revision,
@@ -268,11 +253,9 @@ export class ApiV1SearchService {
 
                 return {
                   async loadDocuments() {
-                    const content = parseJournalContent(snapshot.content);
-
                     return projectJournalSearchDocuments({
                       createVersion: createApiV1ResourceVersion,
-                      index: createApiV1JournalIndex(content),
+                      index: snapshot.projection,
                     });
                   },
                   revision: snapshot.revision,
@@ -290,11 +273,9 @@ export class ApiV1SearchService {
 
                 return {
                   async loadDocuments() {
-                    const content = parseTodoContent(snapshot.content);
-
                     return projectTodoSearchDocuments({
                       createVersion: createApiV1ResourceVersion,
-                      index: createApiV1TodoIndex(content),
+                      index: snapshot.projection,
                     });
                   },
                   revision: snapshot.revision,

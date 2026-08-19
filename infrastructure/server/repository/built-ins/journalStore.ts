@@ -7,7 +7,6 @@ import {
 } from "../../../../contracts/common/contractValue.ts";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import {
-  parseJournalCommit,
   parseJournalContent,
 } from "../../../../contracts/journal/parseJournal.ts";
 import { serializeJournalRevisionContent } from "../../../../contracts/journal/revision.ts";
@@ -17,16 +16,22 @@ import type {
 } from "../../../../contracts/journal/types.ts";
 import {
   JournalContentValidationError,
-  validateJournalContent,
-  validateJournalContentTransition,
+  validateJournalContentAnalysisTransition,
 } from "../../../../core/journal/model/journalContent.ts";
+import {
+  createJournalParseIndex,
+  type JournalParseIndex,
+} from "../../../../core/journal/indexes/journalParseIndex.ts";
 import { RepositoryCorruptError } from "../store.ts";
 import {
   FileSystemVersionedContentStore,
   type VersionedContentStore,
 } from "../versioned/contentStore.ts";
 
-export type JournalContentStore = VersionedContentStore<JournalContentDto>;
+export type JournalContentStore = VersionedContentStore<
+  JournalContentDto,
+  JournalParseIndex
+>;
 
 export function createJournalRevision(
   content: JournalContentDto,
@@ -36,14 +41,30 @@ export function createJournalRevision(
     .digest("hex")}`;
 }
 
-function validateWriteBoundary(operation: () => void) {
+function validateWriteBoundary<Result>(operation: () => Result): Result {
   try {
-    operation();
+    return operation();
   } catch (error) {
     if (error instanceof JournalContentValidationError) {
       throw new WireContractError("Journal v3", "$.content", error.message);
     }
     throw error;
+  }
+}
+
+function prepareJournalContent(
+  content: JournalContentDto,
+  previous?: JournalParseIndex | null,
+) {
+  try {
+    return createJournalParseIndex(content, previous);
+  } catch (error) {
+    if (error instanceof JournalContentValidationError) throw error;
+    throw new JournalContentValidationError(
+      `Journal CTN preparation failed: ${
+        error instanceof Error ? error.message : "unknown CTN error"
+      }`,
+    );
   }
 }
 
@@ -62,16 +83,16 @@ export function createFileSystemJournalContentStore(
       }
       return error;
     },
-    parseCommit: parseJournalCommit,
     parseContent: parseJournalContent,
+    prepareContent: prepareJournalContent,
     serializeContent(content) {
       return `${serializeJsonIteratively(content, { indent: 2 })}\n`;
     },
-    validateContent(content) {
-      validateJournalContent(content);
-    },
     validateTransition(previous, next) {
-      validateJournalContentTransition(previous, next);
+      validateJournalContentAnalysisTransition(
+        previous.projection.validation,
+        next.projection.validation,
+      );
     },
     validateWriteBoundary,
   });

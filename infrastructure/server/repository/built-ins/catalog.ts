@@ -25,9 +25,11 @@ import type {
 import { createEmptyJournalContent } from "../../../../contracts/journal/parseJournal.ts";
 import { journalStorageEpoch } from "../../../../contracts/journal/storageEpoch.ts";
 import type { JournalContentDto } from "../../../../contracts/journal/types.ts";
+import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
 import { createEmptyTodoContent } from "../../../../contracts/todo/parseTodo.ts";
 import { todoStorageEpoch } from "../../../../contracts/todo/storageEpoch.ts";
 import type { TodoContentDto } from "../../../../contracts/todo/types.ts";
+import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   isSecureDirectory,
@@ -50,34 +52,40 @@ const builtInsDirectoryName = ".built-ins";
 const contentFileName = "content.json";
 const epochFileName = "storage.epoch";
 
-type BuiltInDefinition<Content> = {
+type BuiltInDefinition<Content, Projection> = {
   createEmptyContent(): Content;
-  createStore(filePath: string): VersionedContentStore<Content>;
+  createStore(filePath: string): VersionedContentStore<Content, Projection>;
   epoch: number;
   id: BuiltInIdDto;
 };
 
 type AnyBuiltInDefinition =
-  | BuiltInDefinition<JournalContentDto>
-  | BuiltInDefinition<TodoContentDto>;
+  | BuiltInDefinition<JournalContentDto, JournalParseIndex>
+  | BuiltInDefinition<TodoContentDto, TodoParseIndex>;
 
 type BuiltInState =
-  | { descriptor: BuiltInDescriptorDto; store: VersionedContentStore<unknown> }
+  | {
+      descriptor: BuiltInDescriptorDto;
+      store: VersionedContentStore<unknown, unknown>;
+    }
   | { issue: BuiltInIssueDto };
 
 export type BuiltInCatalogOptions = {
-  journalDefinition?: BuiltInDefinition<JournalContentDto>;
-  todoDefinition?: BuiltInDefinition<TodoContentDto>;
+  journalDefinition?: BuiltInDefinition<JournalContentDto, JournalParseIndex>;
+  todoDefinition?: BuiltInDefinition<TodoContentDto, TodoParseIndex>;
 };
 
-const defaultJournalDefinition: BuiltInDefinition<JournalContentDto> = {
+const defaultJournalDefinition: BuiltInDefinition<
+  JournalContentDto,
+  JournalParseIndex
+> = {
   createEmptyContent: createEmptyJournalContent,
   createStore: createFileSystemJournalContentStore,
   epoch: journalStorageEpoch,
   id: "journal",
 };
 
-const defaultTodoDefinition: BuiltInDefinition<TodoContentDto> = {
+const defaultTodoDefinition: BuiltInDefinition<TodoContentDto, TodoParseIndex> = {
   createEmptyContent: createEmptyTodoContent,
   createStore: createFileSystemTodoContentStore,
   epoch: todoStorageEpoch,
@@ -132,10 +140,18 @@ export class BuiltInCatalog {
     });
   }
 
-  getStore(idValue: "journal"): Promise<VersionedContentStore<JournalContentDto>>;
-  getStore(idValue: "todo"): Promise<VersionedContentStore<TodoContentDto>>;
-  getStore(idValue: BuiltInIdDto): Promise<VersionedContentStore<unknown>>;
-  getStore(idValue: BuiltInIdDto): Promise<VersionedContentStore<unknown>> {
+  getStore(idValue: "journal"): Promise<
+    VersionedContentStore<JournalContentDto, JournalParseIndex>
+  >;
+  getStore(idValue: "todo"): Promise<
+    VersionedContentStore<TodoContentDto, TodoParseIndex>
+  >;
+  getStore(idValue: BuiltInIdDto): Promise<
+    VersionedContentStore<unknown, unknown>
+  >;
+  getStore(idValue: BuiltInIdDto): Promise<
+    VersionedContentStore<unknown, unknown>
+  > {
     return this.#getStore(parseBuiltInId(idValue));
   }
 
@@ -151,7 +167,9 @@ export class BuiltInCatalog {
     });
   }
 
-  #getStore(id: BuiltInIdDto): Promise<VersionedContentStore<unknown>> {
+  #getStore(
+    id: BuiltInIdDto,
+  ): Promise<VersionedContentStore<unknown, unknown>> {
     return this.#enqueue(async () => {
       await this.#ensureInitialized();
       const definition = this.#requireDefinition(id);
@@ -231,7 +249,7 @@ export class BuiltInCatalog {
         );
       }
       const store = definition.createStore(canonicalContentPath) as
-        VersionedContentStore<unknown>;
+        VersionedContentStore<unknown, unknown>;
 
       await store.loadSnapshot();
       this.#stateById.set(definition.id, {

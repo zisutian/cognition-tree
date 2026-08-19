@@ -27,16 +27,16 @@ import {
   type SessionCommands,
 } from "./sessionCommands";
 import {
-  resolveWorkspaceSessionContent,
   type WorkspaceSessionProjection,
 } from "./sessionRepositorySnapshot";
+import { prepareWorkspaceRepositoryContent } from "../../repository/workspaceRepositoryPreparation";
 import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
 import {
   createWorkspaceSyntaxCatalogMutationService,
   type WorkspaceSyntaxCatalogMutation,
 } from "./workspaceSyntaxCatalogMutationService";
 import {
-  recoverWorkspaceLocalConflictCopies,
+  recoverWorkspaceLocalConflictCopiesPrepared,
 } from "../../sync/domainConflictRecovery";
 
 export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
@@ -117,19 +117,10 @@ export function createWorkspaceSessionController({
     defaultWorkspaceSyntax,
     now: commandDependencies.now,
   });
-  let previousAnalysisIndex: WorkspaceParseIndex | null = null;
   const base = createVersionedSessionController({
     label: "Workspace",
-    parseContent: (value) => value as WorkspaceRepositoryContent,
-    prepareContent(content) {
-      const projection = resolveWorkspaceSessionContent(
-        content,
-        previousAnalysisIndex,
-      );
-
-      previousAnalysisIndex = projection.analysisIndex;
-      return projection;
-    },
+    prepareContent: (content, previous) =>
+      prepareWorkspaceRepositoryContent(content, { previous }),
     repository,
     scheduler,
   });
@@ -182,13 +173,10 @@ export function createWorkspaceSessionController({
     commitDataSnapshot(workspace, analysisOverrides) {
       base.mutatePrepared(({ content, projection }) => {
         const nextContent = { ...content, workspace };
-        const nextProjection = resolveWorkspaceSessionContent(
-          nextContent,
-          projection.analysisIndex,
+        const nextProjection = prepareWorkspaceRepositoryContent(nextContent, {
           analysisOverrides,
-        );
-
-        previousAnalysisIndex = nextProjection.analysisIndex;
+          previous: projection,
+        });
         return { content: nextContent, projection: nextProjection };
       });
     },
@@ -202,13 +190,13 @@ export function createWorkspaceSessionController({
     mutation: WorkspaceSyntaxCatalogMutation,
   ) => {
     base.mutatePrepared(({ projection }) => {
-      const nextProjection = resolveWorkspaceSessionContent(
+      const nextProjection = prepareWorkspaceRepositoryContent(
         mutation.content,
-        projection.analysisIndex,
-        mutation.analysisOverrides,
+        {
+          analysisOverrides: mutation.analysisOverrides,
+          previous: projection,
+        },
       );
-
-      previousAnalysisIndex = nextProjection.analysisIndex;
       return {
         content: mutation.content,
         projection: nextProjection,
@@ -256,14 +244,14 @@ export function createWorkspaceSessionController({
     keepLocalConflictAndSynchronize: base.keepLocalConflictAndSynchronize,
     loadConflictUnitIds: base.loadConflictUnitIds,
     recoverLocalConflictCopy() {
-      return base.resolveConflictAndSynchronize(
+      return base.resolvePreparedConflictAndSynchronize(
         "remote",
-        (content, conflict) =>
-          recoverWorkspaceLocalConflictCopies(content, conflict, {
+        (prepared, conflict, sources) =>
+          recoverWorkspaceLocalConflictCopiesPrepared(prepared, conflict, {
             createBlockId: commandDependencies.createBlockId,
             createWorkspaceNoteId: commandDependencies.createNoteId,
             now: commandDependencies.now,
-          }),
+          }, sources?.local),
       );
     },
     prepareForRepositoryRemoval: base.prepareForRemoval,

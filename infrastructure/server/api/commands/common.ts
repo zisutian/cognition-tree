@@ -11,6 +11,7 @@ import type {
 } from "../../../../contracts/common/versionedContent.ts";
 import type {
   VersionedContentStore,
+  PreparedVersionedContentSnapshot,
 } from "../../repository/versioned/contentStore.ts";
 import {
   VersionedContentRevisionConflictError,
@@ -20,21 +21,21 @@ import {
 } from "../../repository/store.ts";
 import type { CtnTextEdit } from "../../../../core/ctn/metadata/textEdits.ts";
 
-export type ApiV1PreparedCommand<Content> = {
+export type ApiV1PreparedCommand<Content, Projection> = {
   changes: ApiV1DomainChangeSetDto;
   content: Content;
   diff: ApiV1TextDiffHunkDto[];
+  projection: Projection;
   result: ApiV1CommandOutcomeDto;
   revision: ContentRevisionDto;
 };
 
-export type ApiV1CommandExecutionOptions<Content> = {
+export type ApiV1CommandExecutionOptions<Content, Projection> = {
   apply(
-    content: Content,
-    revision: ContentRevisionDto,
-  ): ApiV1PreparedCommand<Content>;
+    snapshot: PreparedVersionedContentSnapshot<Content, Projection>,
+  ): ApiV1PreparedCommand<Content, Projection>;
   mode: "commit" | "preview";
-  store: VersionedContentStore<Content>;
+  store: VersionedContentStore<Content, Projection>;
 };
 
 export function projectApiV1TextEdits(
@@ -49,16 +50,16 @@ export function projectApiV1TextEdits(
   }));
 }
 
-export async function executeApiV1VersionedCommand<Content>({
+export async function executeApiV1VersionedCommand<Content, Projection>({
   apply,
   mode,
   store,
-}: ApiV1CommandExecutionOptions<Content>): Promise<ApiV1CommandResultDto> {
+}: ApiV1CommandExecutionOptions<Content, Projection>): Promise<ApiV1CommandResultDto> {
   const maximumAttempts = mode === "commit" ? 3 : 1;
 
   for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
     const snapshot = await store.loadSnapshot();
-    const prepared = apply(snapshot.content, snapshot.revision);
+    const prepared = apply(snapshot);
 
     if (mode === "preview") {
       return {
@@ -70,10 +71,13 @@ export async function executeApiV1VersionedCommand<Content>({
       };
     }
     try {
-      const committed = await store.commitSnapshot({
-        baseRevision: snapshot.revision,
-        content: prepared.content,
-      });
+      const committed = await store.commitPreparedSnapshot(
+        {
+          baseRevision: snapshot.revision,
+          content: prepared.content,
+        },
+        prepared.projection,
+      );
 
       return {
         changes: prepared.changes,

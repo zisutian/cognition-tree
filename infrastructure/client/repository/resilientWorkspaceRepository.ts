@@ -7,11 +7,12 @@ import {
   type LocalDraftRevision,
   type WorkspaceRepository,
   type WorkspaceRepositoryBackend,
-  type WorkspaceRepositoryContentValidator,
+  type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
 } from "../../../application/repository/workspaceRepository";
 import {
   mergeWorkspaceContent,
+  mergePreparedWorkspaceContent,
 } from "../../../application/sync/domainThreeWayMerge";
 
 type LocalFirstWorkspaceRepositoryOptions = {
@@ -23,7 +24,7 @@ type LocalFirstWorkspaceRepositoryOptions = {
   refreshRemoteOnLoad?: boolean;
   repositoryIdentity: string | Promise<string>;
   subscribeReconnect?: (listener: () => void) => () => void;
-  validateContent: WorkspaceRepositoryContentValidator;
+  preparation: WorkspaceRepositoryPreparationPolicy;
 };
 
 export function createLocalFirstWorkspaceRepository({
@@ -38,6 +39,7 @@ export function createLocalFirstWorkspaceRepository({
     ),
     createLocalRevision: () => createLocalDraftRevision(createDraftId),
     mergeContent: mergeWorkspaceContent,
+    mergePreparedContent: mergePreparedWorkspaceContent,
   });
 }
 

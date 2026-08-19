@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomUUID } from "node:crypto";
-import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue.ts";
-import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace/parseRepository.ts";
+import {
+  UnsupportedRepositoryVersionError,
+  WorkspaceRepositoryContractError,
+} from "../../../../contracts/workspace/contractValue.ts";
 import type {
+  WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryContentDto,
-  WorkspaceRepositorySnapshotDto,
 } from "../../../../contracts/workspace/types.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparation,
+} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
+  type PreparedWorkspaceRepositorySnapshot,
+  type WorkspaceRepositoryCommitReceipt,
   type WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
 import {
@@ -79,6 +87,20 @@ export type WebDavManagedDataDeletionResult = {
   status: "deleted" | "deleting";
 };
 
+function prepareWorkspaceWriteContent(
+  content: WorkspaceRepositoryContentDto,
+  previous?: WorkspaceRepositoryPreparation | null,
+) {
+  try {
+    return prepareWorkspaceRepositoryContent(content, { previous });
+  } catch (error) {
+    throw new WorkspaceRepositoryContractError(
+      "$.content",
+      error instanceof Error ? error.message : "invalid workspace content",
+    );
+  }
+}
+
 export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   #acceptingOperations = true;
   readonly #allowEmptyTargetInitialization: boolean;
@@ -89,6 +111,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   readonly #initialWorkspaceId: string;
   readonly #initialWorkspaceName: string;
   #initializePromise: Promise<void> | null = null;
+  #lastPreparedSnapshot: PreparedWorkspaceRepositorySnapshot | null = null;
   readonly #leaseCoordinator: WebDavWriterLeaseCoordinator;
   readonly #now: () => number;
   readonly #onCommitPhase: NonNullable<WebDavWorkspaceStoreOptions["onCommitPhase"]>;
@@ -153,14 +176,28 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     });
   }
 
-  async commitSnapshot(value: unknown) {
+  async commitSnapshot(commit: WorkspaceRepositoryCommitDto) {
     this.#assertAcceptingOperations();
-    const commit = parseWorkspaceRepositoryCommit(value);
+    return this.#enqueueOperation(async () => {
+      await this.initialize();
+      try {
+        return await this.#commitSnapshot(commit, null);
+      } catch (error) {
+        throw this.#mapFailure(error);
+      }
+    });
+  }
+
+  async commitPreparedSnapshot(
+    commit: WorkspaceRepositoryCommitDto,
+    preparation: WorkspaceRepositoryPreparation,
+  ): Promise<WorkspaceRepositoryCommitReceipt> {
+    this.#assertAcceptingOperations();
 
     return this.#enqueueOperation(async () => {
       await this.initialize();
       try {
-        return await this.#commitSnapshot(commit);
+        return await this.#commitSnapshot(commit, preparation);
       } catch (error) {
         throw this.#mapFailure(error);
       }
@@ -208,7 +245,10 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     const pointer = await this.#transport.readText(webDavCurrentPath);
 
     if (pointer) {
-      await this.#generationStore.read(parseWebDavPointer(pointer));
+      const parsed = parseWebDavPointer(pointer);
+      const content = await this.#generationStore.read(parsed);
+
+      this.#prepareSnapshot(content, parsed.revision);
       return;
     }
     if (!this.#allowEmptyTargetInitialization) {
@@ -221,7 +261,10 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       const concurrentlyPublished = await this.#transport.readText(webDavCurrentPath);
 
       if (concurrentlyPublished) {
-        await this.#generationStore.read(parseWebDavPointer(concurrentlyPublished));
+        const parsed = parseWebDavPointer(concurrentlyPublished);
+        const content = await this.#generationStore.read(parsed);
+
+        this.#prepareSnapshot(content, parsed.revision);
         return;
       }
       const unmanagedEntries = (await this.#transport.listCollection(""))
@@ -238,6 +281,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
         this.#initialWorkspaceName,
       );
       const revision = createWorkspaceRepositoryRevision(content);
+      const preparation = prepareWorkspaceWriteContent(content);
       const generation = this.#createId();
 
       await this.#generationStore.upload(generation, content, lease);
@@ -254,6 +298,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       if (!etag) {
         throw new WebDavCapabilityError("WebDAV current pointer PUT returned no ETag");
       }
+      this.#lastPreparedSnapshot = { content, projection: preparation, revision };
     } finally {
       await this.#leaseCoordinator.release(lease);
     }
@@ -394,8 +439,9 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   }
 
   async #commitSnapshot(
-    commit: ReturnType<typeof parseWorkspaceRepositoryCommit>,
-  ) {
+    commit: WorkspaceRepositoryCommitDto,
+    prepared: WorkspaceRepositoryPreparation | null,
+  ): Promise<WorkspaceRepositoryCommitReceipt> {
     const lease = await this.#leaseCoordinator.acquire();
     let generation: string | null = null;
     let pointerPublished = false;
@@ -404,15 +450,20 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       await this.#onCommitPhase(webDavCommitPhases.leaseAcquired);
       const pointerResource = await requireWebDavPointerResource(this.#transport);
       const pointer = parseWebDavPointer(pointerResource);
-      await this.#generationStore.read(pointer);
+      const currentContent = await this.#generationStore.read(pointer);
 
       if (pointer.revision !== commit.baseRevision) {
         throw new WorkspaceRevisionConflictError(pointer.revision);
       }
+      const before = this.#prepareSnapshot(currentContent, pointer.revision);
+      const preparation = prepared ?? prepareWorkspaceWriteContent(
+        commit.content,
+        before.projection,
+      );
       const revision = createWorkspaceRepositoryRevision(commit.content);
 
       if (revision === pointer.revision) {
-        return { revision };
+        return { after: before, before, revision };
       }
 
       generation = this.#createId();
@@ -460,7 +511,14 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
           .then(() => this.#onCommitPhase(webDavCommitPhases.cleaned))
           .catch(() => undefined);
       }
-      return { revision };
+      const after = {
+        content: commit.content,
+        projection: preparation,
+        revision,
+      };
+
+      this.#lastPreparedSnapshot = after;
+      return { after, before, revision };
     } catch (error) {
       const mustStopImmediately =
         error instanceof WebDavRepositoryBusyError ||
@@ -477,7 +535,7 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     }
   }
 
-  async #loadConsistentSnapshot(): Promise<WorkspaceRepositorySnapshotDto> {
+  async #loadConsistentSnapshot(): Promise<PreparedWorkspaceRepositorySnapshot> {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const firstResource = await requireWebDavPointerResource(this.#transport);
       const first = parseWebDavPointer(firstResource);
@@ -488,17 +546,41 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
         requireWebDavEtag(firstResource, "current pointer") ===
         requireWebDavEtag(secondResource, "current pointer")
       ) {
-        return { content, revision: first.revision };
+        return this.#prepareSnapshot(content, first.revision);
       }
     }
 
     throw new WebDavRepositoryBusyError();
   }
 
+  #prepareSnapshot(
+    content: WorkspaceRepositoryContentDto,
+    revision: `sha256:${string}`,
+  ): PreparedWorkspaceRepositorySnapshot {
+    if (this.#lastPreparedSnapshot?.revision === revision) {
+      return this.#lastPreparedSnapshot;
+    }
+    try {
+      const snapshot = {
+        content,
+        projection: prepareWorkspaceRepositoryContent(content, {
+          previous: this.#lastPreparedSnapshot?.projection,
+        }),
+        revision,
+      };
+
+      this.#lastPreparedSnapshot = snapshot;
+      return snapshot;
+    } catch {
+      throw new RepositoryCorruptError("WebDAV repository content is invalid");
+    }
+  }
+
   #mapFailure(error: unknown) {
     if (
       error instanceof RepositoryAdapterError ||
       error instanceof WorkspaceRevisionConflictError ||
+      error instanceof WorkspaceRepositoryContractError ||
       error instanceof UnsupportedRepositoryVersionError
     ) {
       return error;

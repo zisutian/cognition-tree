@@ -25,7 +25,7 @@ import {
 } from "../../core/journal/indexes/journalParseIndex";
 import type {
   PreparedVersionedContent,
-} from "../persistence/versionedSessionController";
+} from "../persistence/versionedRepository";
 import type {
   JournalFocusRequest,
   JournalViewModel,

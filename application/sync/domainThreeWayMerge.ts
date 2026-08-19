@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalContent } from "../../core/journal/model/journalContent.ts";
+import type {
+  JournalContent,
+  JournalEntryId,
+} from "../../core/journal/model/journalContent.ts";
+import {
+  createJournalParseIndex,
+  type JournalParseIndex,
+} from "../../core/journal/indexes/journalParseIndex.ts";
 import type {
   TodoCollection,
+  TodoCollectionId,
   TodoContent,
 } from "../../core/todo/model/todoContent.ts";
 import {
@@ -10,14 +18,24 @@ import {
 } from "../../core/todo/model/todoContent.ts";
 import {
   createTodoParseIndex,
+  type ParsedTodoIndexCollection,
+  type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex.ts";
 import {
   touchCtnSourceBlockMetadata,
 } from "../../core/ctn/metadata/sourceMetadata.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../core/ctn/analysis/sourceAnalysis.ts";
+import type { WorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax.ts";
+import type { NoteId } from "../../core/workspace/model/workspaceData.ts";
 import type {
   WorkspaceRepositoryContent,
 } from "../repository/workspaceRepository.ts";
+import {
+  prepareWorkspaceRepositoryContent,
+  type WorkspaceRepositoryPreparation,
+} from "../repository/workspaceRepositoryPreparation.ts";
 import type {
+  PreparedVersionedContent,
   VersionedContentConflictPreference,
   VersionedContentMergePolicy,
   VersionedContentMergeResult,
@@ -27,6 +45,93 @@ const missing = Symbol("missing");
 
 function equal(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function reusePreparedContent<Content, Projection>(
+  content: Content,
+  candidates: readonly PreparedVersionedContent<Content, Projection>[],
+) {
+  return candidates.find((candidate) => equal(candidate.content, content)) ??
+    null;
+}
+
+function collectJournalAnalysisOverrides(
+  content: JournalContent,
+  candidates: readonly PreparedVersionedContent<
+    JournalContent,
+    JournalParseIndex
+  >[],
+) {
+  const overrides = new Map<JournalEntryId, CtnCanonicalSourceAnalysis>();
+
+  for (const day of content.days) {
+    for (const entry of day.entries) {
+      for (const candidate of candidates) {
+        const parsed = candidate.projection.getParsedEntry(entry.id);
+
+        if (parsed?.source === entry.source) {
+          overrides.set(entry.id, parsed.analysis);
+          break;
+        }
+      }
+    }
+  }
+  return overrides;
+}
+
+function collectTodoAnalysisOverrides(
+  content: TodoContent,
+  candidates: readonly PreparedVersionedContent<
+    TodoContent,
+    TodoParseIndex
+  >[],
+) {
+  const overrides = new Map<TodoCollectionId, CtnCanonicalSourceAnalysis>();
+
+  for (const collection of content.collections) {
+    for (const candidate of candidates) {
+      const parsed = candidate.projection.getParsedCollection(collection.id);
+
+      if (parsed?.collection.source === collection.source) {
+        overrides.set(collection.id, parsed.analysis);
+        break;
+      }
+    }
+  }
+  return overrides;
+}
+
+function collectWorkspacePreparationOverrides(
+  content: WorkspaceRepositoryContent,
+  candidates: readonly PreparedVersionedContent<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >[],
+) {
+  const analysisOverrides = new Map<NoteId, CtnCanonicalSourceAnalysis>();
+  const syntaxOverrides = new Map<string, WorkspaceSyntax>();
+
+  for (const note of content.workspace.notes) {
+    for (const candidate of candidates) {
+      const parsed = candidate.projection.analysisIndex?.getParsedNote(note.id);
+
+      if (parsed?.source === note.source) {
+        analysisOverrides.set(note.id, parsed.analysis);
+        break;
+      }
+    }
+  }
+  for (const file of content.syntax.files) {
+    for (const candidate of candidates) {
+      const syntax = candidate.projection.syntaxById.get(file.id);
+
+      if (syntax?.source === file.source) {
+        syntaxOverrides.set(file.id, syntax);
+        break;
+      }
+    }
+  }
+  return { analysisOverrides, syntaxOverrides };
 }
 
 function mergeValue<Value>(
@@ -199,6 +304,48 @@ export const mergeWorkspaceContent:
     }, conflicts, conflictPreference);
   };
 
+export function mergePreparedWorkspaceContent(
+  base: PreparedVersionedContent<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >,
+  local: PreparedVersionedContent<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >,
+  remote: PreparedVersionedContent<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >,
+  conflictPreference?: VersionedContentConflictPreference,
+) {
+  const merged = mergeWorkspaceContent(
+    base.content,
+    local.content,
+    remote.content,
+    conflictPreference,
+  );
+
+  if (merged.status === "conflict") return merged;
+  const candidates = [local, remote, base];
+  const reused = reusePreparedContent(merged.content, candidates);
+
+  if (reused) return { ...reused, status: "merged" as const };
+  const overrides = collectWorkspacePreparationOverrides(
+    merged.content,
+    candidates,
+  );
+
+  return {
+    content: merged.content,
+    projection: prepareWorkspaceRepositoryContent(merged.content, {
+      ...overrides,
+      previous: local.projection,
+    }),
+    status: "merged" as const,
+  };
+}
+
 function journalEntries(content: JournalContent) {
   return new Map(
     content.days.flatMap((day) =>
@@ -298,9 +445,37 @@ export const mergeJournalContent:
     }, conflicts, conflictPreference);
   };
 
-function todoLogicalCollections(content: TodoContent) {
-  const index = createTodoParseIndex(content);
+export function mergePreparedJournalContent(
+  base: PreparedVersionedContent<JournalContent, JournalParseIndex>,
+  local: PreparedVersionedContent<JournalContent, JournalParseIndex>,
+  remote: PreparedVersionedContent<JournalContent, JournalParseIndex>,
+  conflictPreference?: VersionedContentConflictPreference,
+) {
+  const merged = mergeJournalContent(
+    base.content,
+    local.content,
+    remote.content,
+    conflictPreference,
+  );
 
+  if (merged.status === "conflict") return merged;
+  const candidates = [local, remote, base];
+  const reused = reusePreparedContent(merged.content, candidates);
+
+  return reused
+    ? { ...reused, status: "merged" as const }
+    : {
+        content: merged.content,
+        projection: createJournalParseIndex(
+          merged.content,
+          local.projection,
+          collectJournalAnalysisOverrides(merged.content, candidates),
+        ),
+        status: "merged" as const,
+      };
+}
+
+function todoLogicalCollections(index: TodoParseIndex) {
   return new Map(index.collections.map((parsed) => [
     parsed.collection.id,
     {
@@ -337,29 +512,14 @@ function todoRecurrencesByBlock(collection: TodoCollection | undefined) {
 
 function touchLatestTodoBlockTimes(
   source: string,
-  syntaxSource: string,
-  candidates: readonly (TodoCollection | undefined)[],
+  sourceOwner: ParsedTodoIndexCollection,
+  candidates: readonly (ParsedTodoIndexCollection | null)[],
 ) {
-  const content = {
-    collections: [{ ...candidates.find(Boolean)!, source }],
-    schemaVersion: 4 as const,
-    syntaxSource,
-  };
-  const parsed = createTodoParseIndex(content).collections[0];
-
-  if (!parsed) return source;
   const latestById = new Map<string, string>();
 
   for (const candidate of candidates) {
     if (!candidate) continue;
-    const candidateParsed = createTodoParseIndex({
-      collections: [candidate],
-      schemaVersion: 4,
-      syntaxSource,
-    }).collections[0];
-
-    if (!candidateParsed) continue;
-    for (const block of candidateParsed.analysis.document.blocks) {
+    for (const block of candidate.analysis.document.blocks) {
       const previous = latestById.get(block.id);
 
       if (!previous || block.metadata.updatedAt > previous) {
@@ -369,7 +529,7 @@ function touchLatestTodoBlockTimes(
   }
   let next = source;
 
-  for (const block of parsed.analysis.document.blocks) {
+  for (const block of sourceOwner.analysis.document.blocks) {
     const updatedAt = latestById.get(block.id);
 
     if (updatedAt && updatedAt > block.metadata.updatedAt) {
@@ -379,13 +539,17 @@ function touchLatestTodoBlockTimes(
   return next;
 }
 
-export const mergeTodoContent:
-  VersionedContentMergePolicy<TodoContent> = (
-    base,
-    local,
-    remote,
-    conflictPreference,
-  ) => {
+function mergeTodoContentWithIndexes(
+  base: TodoContent,
+  local: TodoContent,
+  remote: TodoContent,
+  conflictPreference?: VersionedContentConflictPreference,
+  preparedIndexes?: {
+    base: TodoParseIndex;
+    local: TodoParseIndex;
+    remote: TodoParseIndex;
+  },
+): VersionedContentMergeResult<TodoContent> {
     const conflicts: string[] = [];
     if (crossesSyntaxBarrier({
       baseContent: base.collections,
@@ -417,9 +581,14 @@ export const mergeTodoContent:
     const baseCollections = todoCollectionById(base);
     const localCollections = todoCollectionById(local);
     const remoteCollections = todoCollectionById(remote);
-    const baseLogical = todoLogicalCollections(base);
-    const localLogical = todoLogicalCollections(local);
-    const remoteLogical = todoLogicalCollections(remote);
+    const baseIndex = preparedIndexes?.base ?? createTodoParseIndex(base);
+    const localIndex = preparedIndexes?.local ??
+      createTodoParseIndex(local, baseIndex);
+    const remoteIndex = preparedIndexes?.remote ??
+      createTodoParseIndex(remote, baseIndex);
+    const baseLogical = todoLogicalCollections(baseIndex);
+    const localLogical = todoLogicalCollections(localIndex);
+    const remoteLogical = todoLogicalCollections(remoteIndex);
     const mergedCollections = new Map<string, TodoCollection>();
 
     for (
@@ -489,6 +658,14 @@ export const mergeTodoContent:
       )
         ? localCollection
         : remoteCollection;
+      const sourceOwnerParsed = sourceOwner === localCollection
+        ? localIndex.getParsedCollection(typedCollectionId)
+        : remoteIndex.getParsedCollection(typedCollectionId);
+
+      if (!sourceOwnerParsed) {
+        conflicts.push(unitId);
+        continue;
+      }
       const completions = mergeMapValues(
         `todo:completion:${collectionId}`,
         todoCompletionsByBlock(baseCollection),
@@ -507,8 +684,12 @@ export const mergeTodoContent:
       conflicts.push(...completions.conflicts, ...recurrences.conflicts);
       const source = touchLatestTodoBlockTimes(
         sourceOwner.source,
-        syntax.value,
-        [baseCollection, localCollection, remoteCollection],
+        sourceOwnerParsed,
+        [
+          baseIndex.getParsedCollection(typedCollectionId),
+          localIndex.getParsedCollection(typedCollectionId),
+          remoteIndex.getParsedCollection(typedCollectionId),
+        ],
       );
 
       mergedCollections.set(collectionId, {
@@ -543,4 +724,51 @@ export const mergeTodoContent:
       schemaVersion: 4,
       syntaxSource: syntax.value,
     }, conflicts, conflictPreference);
-  };
+}
+
+export const mergeTodoContent: VersionedContentMergePolicy<TodoContent> = (
+  base,
+  local,
+  remote,
+  conflictPreference,
+) => mergeTodoContentWithIndexes(
+  base,
+  local,
+  remote,
+  conflictPreference,
+);
+
+export function mergePreparedTodoContent(
+  base: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+  local: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+  remote: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+  conflictPreference?: VersionedContentConflictPreference,
+) {
+  const merged = mergeTodoContentWithIndexes(
+    base.content,
+    local.content,
+    remote.content,
+    conflictPreference,
+    {
+      base: base.projection,
+      local: local.projection,
+      remote: remote.projection,
+    },
+  );
+
+  if (merged.status === "conflict") return merged;
+  const candidates = [local, remote, base];
+  const reused = reusePreparedContent(merged.content, candidates);
+
+  return reused
+    ? { ...reused, status: "merged" as const }
+    : {
+        content: merged.content,
+        projection: createTodoParseIndex(
+          merged.content,
+          local.projection,
+          collectTodoAnalysisOverrides(merged.content, candidates),
+        ),
+        status: "merged" as const,
+      };
+}

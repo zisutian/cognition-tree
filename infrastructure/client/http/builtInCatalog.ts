@@ -15,12 +15,10 @@ import {
   type TodoRepository,
 } from "../../../application/repository/builtInRepository";
 import {
-  validateJournalRepositoryContent,
-  validateJournalRepositoryTransition,
+  journalRepositoryPreparation,
 } from "../repository/journalRepositoryCodec";
 import {
-  validateTodoRepositoryContent,
-  validateTodoRepositoryTransition,
+  todoRepositoryPreparation,
 } from "../repository/todoRepositoryCodec";
 import {
   createVersionedLocalDraftRevision,
@@ -38,6 +36,8 @@ import {
 import { createHttpTodoRepositoryBackend } from "./todoRepository";
 import {
   mergeJournalContent,
+  mergePreparedJournalContent,
+  mergePreparedTodoContent,
   mergeTodoContent,
 } from "../../../application/sync/domainThreeWayMerge";
 
@@ -142,6 +142,7 @@ export function createHttpBuiltInCatalog({
         label: descriptor.label,
         location: descriptor.location,
         mergeContent: mergeJournalContent,
+        mergePreparedContent: mergePreparedJournalContent,
         refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
@@ -149,8 +150,7 @@ export function createHttpBuiltInCatalog({
           token,
         }),
         subscribeReconnect: subscribeClientReconnect,
-        validateContent: validateJournalRepositoryContent,
-        validateTransition: validateJournalRepositoryTransition,
+        preparation: journalRepositoryPreparation,
       });
       return journalRepository;
     },
@@ -170,6 +170,7 @@ export function createHttpBuiltInCatalog({
         label: descriptor.label,
         location: descriptor.location,
         mergeContent: mergeTodoContent,
+        mergePreparedContent: mergePreparedTodoContent,
         refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
@@ -177,8 +178,7 @@ export function createHttpBuiltInCatalog({
           token,
         }),
         subscribeReconnect: subscribeClientReconnect,
-        validateContent: validateTodoRepositoryContent,
-        validateTransition: validateTodoRepositoryTransition,
+        preparation: todoRepositoryPreparation,
       });
       return todoRepository;
     },

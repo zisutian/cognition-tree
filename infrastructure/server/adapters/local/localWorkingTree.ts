@@ -19,11 +19,15 @@ import {
 } from "../../repository/store.ts";
 import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../../core/ctn/analysis/sourceAnalysis.ts";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 import {
   createCanonicalSourceFromLocalNoteMetadata,
+  createLocalNoteMetadataFromAnalysis,
   equalLocalNoteMetadataProjection,
-  projectCanonicalNoteSource,
-  reconcileEditableNoteSource,
+  projectCanonicalNoteSourceAnalysis,
+  reconcileEditableNoteSourceAnalysis,
+  type LocalCanonicalNoteProjection,
 } from "./localCanonicalProjection.ts";
 import {
   localControlDirectoryName,
@@ -93,6 +97,7 @@ export async function createLocalProjectionFromWorkingTree({
   rootDir,
   syntax,
   timestamp,
+  previousPreparation = null,
 }: {
   createBlockId: () => string;
   createFolderId: () => string;
@@ -103,9 +108,13 @@ export async function createLocalProjectionFromWorkingTree({
   rootDir: string;
   syntax: RepositorySyntaxCatalogDto;
   timestamp: string;
+  previousPreparation?: WorkspaceRepositoryPreparation | null;
 }): Promise<LocalWorkingTreeProjection> {
-  const { activeSource: syntaxSource } =
-    validateWorkspaceRepositorySyntax(syntax);
+  const {
+    activeSource: syntaxSource,
+    activeSyntax,
+    syntaxById,
+  } = validateWorkspaceRepositorySyntax(syntax, previousPreparation);
   const physical = await scanPhysicalWorkingTree(rootDir);
   const { byPreviousIdentity, unmatched } = matchLocalPhysicalIdentities(
     previousIndex,
@@ -125,6 +134,10 @@ export async function createLocalProjectionFromWorkingTree({
     left.path.localeCompare(right.path, "en-US")
   );
   const sidecarByNoteId = new Map<string, LocalNoteMetadata>();
+  const verifiedPreviousByNoteId = new Map<
+    string,
+    LocalCanonicalNoteProjection
+  >();
   const reservedBlockIds = new Set<string>();
 
   for (const entry of previousIndex.entries) {
@@ -136,19 +149,34 @@ export async function createLocalProjectionFromWorkingTree({
         `Tracked Local note ${entry.noteId} is missing its metadata sidecar`,
       );
     }
-    const verified = projectCanonicalNoteSource(
+    const canonicalSource = createCanonicalSourceFromLocalNoteMetadata(sidecar);
+    const cached = previousPreparation?.analysisIndex?.getParsedNote(
       entry.noteId,
-      createCanonicalSourceFromLocalNoteMetadata(sidecar),
-      syntaxSource,
     );
+    const verified = cached?.source === canonicalSource &&
+        cached.analysis.syntax.analysisKey === activeSyntax?.syntax.analysisKey
+      ? {
+          analysis: cached.analysis,
+          metadata: createLocalNoteMetadataFromAnalysis(
+            entry.noteId,
+            cached.analysis,
+          ),
+        }
+      : projectCanonicalNoteSourceAnalysis(
+          entry.noteId,
+          canonicalSource,
+          syntaxSource,
+          activeSyntax?.syntax ?? null,
+        );
 
-    if (!equalLocalNoteMetadataProjection(verified, sidecar)) {
+    if (!equalLocalNoteMetadataProjection(verified.metadata, sidecar)) {
       throw new RepositoryCorruptError(
         `Tracked Local note ${entry.noteId} has invalid metadata anchors`,
       );
     }
     sidecar.blocks.forEach((block) => reservedBlockIds.add(block.id));
     sidecarByNoteId.set(entry.noteId, sidecar);
+    verifiedPreviousByNoteId.set(entry.noteId, verified);
   }
   const previousFolderIdByPath = new Map(
     previousIndex.entries
@@ -185,6 +213,7 @@ export async function createLocalProjectionFromWorkingTree({
     return previousParentId === currentParentId;
   };
   const resolvedEntries: Array<{
+    analysis?: CtnCanonicalSourceAnalysis;
     canonicalSource?: string;
     entry: LocalIndexEntry;
     physical: LocalPhysicalEntry;
@@ -259,7 +288,7 @@ export async function createLocalProjectionFromWorkingTree({
       "Local note title",
     );
     assertLocalProjectedPath(effectivePath, "Local note path", rootDir);
-    const sidecar = reconcileEditableNoteSource({
+    const reconciled = reconcileEditableNoteSourceAnalysis({
       createId: createBlockId,
       editableSource,
       noteId,
@@ -267,9 +296,13 @@ export async function createLocalProjectionFromWorkingTree({
       reservedIds: reservedBlockIds,
       syntaxSource,
       timestamp,
+      syntax: activeSyntax?.syntax ?? null,
+      verifiedPrevious: verifiedPreviousByNoteId.get(noteId),
     });
+    const sidecar = reconciled.metadata;
 
     resolvedEntries.push({
+      analysis: reconciled.analysis ?? undefined,
       canonicalSource: createCanonicalSourceFromLocalNoteMetadata(sidecar),
       entry: {
         device: current.device,
@@ -434,7 +467,21 @@ export async function createLocalProjectionFromWorkingTree({
     `${localControlDirectoryName}/${localRepositoryMetadataFileName}`,
     jsonSource(nextMetadata),
   );
-  return { content, files, index, metadata: nextMetadata, revision };
+  return {
+    analysisOverrides: new Map(
+      resolvedEntries.flatMap((entry) =>
+        entry.entry.kind === "note" && entry.analysis
+          ? [[entry.entry.noteId, entry.analysis] as const]
+          : []
+      ),
+    ),
+    content,
+    files,
+    index,
+    metadata: nextMetadata,
+    revision,
+    syntaxOverrides: syntaxById,
+  };
 }
 
 export async function readLocalJson(filePath: string): Promise<unknown> {

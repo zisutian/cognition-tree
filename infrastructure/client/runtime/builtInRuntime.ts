@@ -6,8 +6,6 @@ import {
   createMemoryBuiltInCatalogCache,
 } from "../http/builtInCatalog";
 import type { BuiltInRuntime } from "../../../application/repository/builtInRepository";
-import { journalRepositoryCodec } from "../repository/journalRepositoryCodec";
-import { todoRepositoryCodec } from "../repository/todoRepositoryCodec";
 import { createMemoryVersionedRepositoryCache } from "../repository/versionedRepositoryCache";
 
 export function createBuiltInRuntime(
@@ -17,12 +15,8 @@ export function createBuiltInRuntime(
     catalog: createHttpBuiltInCatalog({
       baseUrl: api.baseUrl,
       catalogCache: createMemoryBuiltInCatalogCache(),
-      journalCache: createMemoryVersionedRepositoryCache({
-        codec: journalRepositoryCodec,
-      }),
-      todoCache: createMemoryVersionedRepositoryCache({
-        codec: todoRepositoryCodec,
-      }),
+      journalCache: createMemoryVersionedRepositoryCache(),
+      todoCache: createMemoryVersionedRepositoryCache(),
       token: api.token,
     }),
   };

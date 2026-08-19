@@ -125,7 +125,7 @@ function createRepositoryHarness({
       serverPath: "/repositories/test",
       type: "local",
     },
-    async stageSnapshot({ content, expectedLocalRevision }) {
+    async stageSnapshot({ content, expectedLocalRevision, projection }) {
       if (expectedLocalRevision !== snapshot.localRevision) {
         throw new Error("local revision mismatch");
       }
@@ -136,6 +136,7 @@ function createRepositoryHarness({
         content,
         localRevision: draftRevision(`stage-${localRevisionIndex}`),
         pendingChanges: true,
+        projection,
       };
       stagedContents.push(content);
       return { localRevision: snapshot.localRevision };

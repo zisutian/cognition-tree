@@ -18,7 +18,7 @@ import {
   type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex";
 import {
-  recoverJournalLocalConflictCopies,
+  recoverJournalLocalConflictCopiesPrepared,
   type JournalConflictRecoveryDependencies,
 } from "../sync/domainConflictRecovery";
 
@@ -39,17 +39,10 @@ export function createJournalSessionController(
   scheduler: Pick<ApplicationScheduler, "schedule">,
   recoveryDependencies?: JournalConflictRecoveryDependencies,
 ) {
-  let previousIndex: JournalParseIndex | null = null;
-
   const base = createVersionedSessionController({
     label: "Journal",
-    parseContent: (value) => value as JournalContent,
-    prepareContent(content) {
-      const index = createJournalParseIndex(content, previousIndex);
-
-      previousIndex = index;
-      return index;
-    },
+    prepareContent: (content, previous) =>
+      createJournalParseIndex(content, previous),
     repository,
     scheduler,
   });
@@ -60,13 +53,14 @@ export function createJournalSessionController(
       if (!recoveryDependencies) {
         throw new Error("Journal conflict recovery is unavailable.");
       }
-      return base.resolveConflictAndSynchronize(
+      return base.resolvePreparedConflictAndSynchronize(
         "remote",
-        (content, conflict) =>
-          recoverJournalLocalConflictCopies(
-            content,
+        (prepared, conflict, sources) =>
+          recoverJournalLocalConflictCopiesPrepared(
+            prepared,
             conflict,
             recoveryDependencies,
+            sources?.local,
           ),
       );
     },

@@ -20,7 +20,6 @@ import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspace/layout.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
-import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
 import {
   webDavGenerationsPath,
   type WebDavPointer,
@@ -126,7 +125,6 @@ export class WebDavGenerationStore {
         syntax,
         workspace,
       };
-      validateWorkspaceRepositorySyntax(content.syntax);
       const revision = createWorkspaceRepositoryRevision(content);
 
       if (expectedRevision && revision !== expectedRevision) {
@@ -156,8 +154,6 @@ export class WebDavGenerationStore {
     lease: ActiveWebDavLease,
   ) {
     const generationPath = `${webDavGenerationsPath}/${generation}`;
-
-    validateWorkspaceRepositorySyntax(content.syntax);
 
     this.#leaseCoordinator.assertLocallyActive(lease);
     await this.#transport.createCollection(webDavGenerationsPath);

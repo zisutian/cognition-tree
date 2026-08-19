@@ -2,8 +2,12 @@ import {
   isWorkspaceSyntaxFileId,
   normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
-} from "../../core/workspace/model/workspaceSyntaxCatalog";
-import type { WorkspaceData } from "../../core/workspace/model/workspaceData";
+} from "../../core/workspace/model/workspaceSyntaxCatalog.ts";
+import type { WorkspaceData } from "../../core/workspace/model/workspaceData.ts";
+import type { WorkspaceContext } from "../../core/workspace/context/workspaceContext.ts";
+import type { WorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax.ts";
+import type { WorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";
+import type { WorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
 import {
   createVersionedLocalDraftRevision,
   VersionedRepositoryBackendConflictError,
@@ -16,17 +20,30 @@ import {
   type VersionedRepository,
   type VersionedRepositoryBackend,
   type VersionedRepositoryContentValidator,
+  type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "../persistence/versionedRepository";
+} from "../persistence/versionedRepository.ts";
 
 export type WorkspaceRepositoryContent = {
   schemaVersion: 4;
   syntax: WorkspaceSyntaxCatalog;
   workspace: WorkspaceData;
 };
+export type WorkspaceRepositoryPreparation = {
+  analysisIndex: WorkspaceParseIndex | null;
+  context: WorkspaceContext | null;
+  syntaxById: ReadonlyMap<string, WorkspaceSyntax>;
+  workspace: WorkspaceStructureIndex;
+  workspaceSyntax: WorkspaceSyntax | null;
+};
 export type WorkspaceRepositoryContentValidator =
   VersionedRepositoryContentValidator<WorkspaceRepositoryContent>;
+export type WorkspaceRepositoryPreparationPolicy =
+  VersionedContentPreparationPolicy<
+    WorkspaceRepositoryContent,
+    WorkspaceRepositoryPreparation
+  >;
 export type LocalDraftRevision = `draft:${string}`;
 export type RepositoryRevision = `sha256:${string}`;
 export type RepositoryLocation =
@@ -66,7 +83,8 @@ export type WorkspaceRepositoryBackend = VersionedRepositoryBackend<
 export type WorkspaceRepositorySnapshot = VersionedRepositorySnapshot<
   WorkspaceRepositoryContent,
   RepositoryRevision,
-  LocalDraftRevision
+  LocalDraftRevision,
+  WorkspaceRepositoryPreparation
 >;
 export type WorkspaceRepositorySyncResult = VersionedRepositorySyncResult<
   RepositoryRevision,
@@ -76,7 +94,8 @@ export type WorkspaceRepository = VersionedRepository<
   WorkspaceRepositoryContent,
   RepositoryRevision,
   LocalDraftRevision,
-  RepositoryLocation
+  RepositoryLocation,
+  WorkspaceRepositoryPreparation
 >;
 
 export class WorkspaceRepositoryBackendConflictError

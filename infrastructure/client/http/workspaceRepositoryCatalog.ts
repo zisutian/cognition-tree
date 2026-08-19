@@ -21,14 +21,14 @@ import {
 } from "../repository/repositoryClientCache";
 import { createLocalFirstWorkspaceRepository } from "../repository/resilientWorkspaceRepository";
 import {
-  type WorkspaceRepositoryContentValidator,
+  type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
 } from "../../../application/repository/workspaceRepository";
 
 type HttpWorkspaceRepositoryCatalogOptions = HttpRepositoryTransportOptions & {
   cache?: RepositoryClientCache;
-  validateContent: WorkspaceRepositoryContentValidator;
+  preparation: WorkspaceRepositoryPreparationPolicy;
 };
 
 function isOfflineError(error: unknown) {
@@ -52,7 +52,7 @@ export function createHttpWorkspaceRepositoryCatalog({
   cache = createMemoryRepositoryClientCache(),
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-  validateContent,
+  preparation,
 }: HttpWorkspaceRepositoryCatalogOptions): WorkspaceRepositoryCatalog {
   const catalogIdentity = createHttpRepositoryCacheIdentity({
     baseUrl,
@@ -84,7 +84,7 @@ export function createHttpWorkspaceRepositoryCatalog({
     async createRepository(input) {
       const outbound = parseCreateRepository(input);
 
-      validateContent(
+      preparation.prepare(
         outbound.adapter === "local"
           ? outbound.content
           : outbound.initialContent,
@@ -218,7 +218,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           token,
         }),
         subscribeReconnect: subscribeClientReconnect,
-        validateContent,
+        preparation,
       });
     },
     async renameRepository({ id, label }) {

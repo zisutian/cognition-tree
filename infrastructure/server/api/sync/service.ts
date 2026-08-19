@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseJournalContent } from "../../../../contracts/journal/parseJournal.ts";
 import type {
   JournalCommitDto,
   JournalContentDto,
 } from "../../../../contracts/journal/types.ts";
-import { parseTodoContent } from "../../../../contracts/todo/parseTodo.ts";
 import type {
   TodoCommitDto,
   TodoContentDto,
@@ -19,6 +17,8 @@ import type {
 import type {
   VersionedContentStore,
 } from "../../repository/versioned/contentStore.ts";
+import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
+import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import type {
   WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
@@ -59,70 +59,82 @@ export async function synchronizeApiV1Workspace(
     const snapshot = await context.store.loadSnapshot();
 
     context.observeRevision(snapshot.revision);
-    return { body: snapshot, statusCode: 200 };
+    return {
+      body: { content: snapshot.content, revision: snapshot.revision },
+      statusCode: 200,
+    };
   }
-  const before = await context.store.loadSnapshot();
   const commit =
     await context.readJsonBody() as WorkspaceRepositoryCommitDto;
   const result = await context.store.commitSnapshot(commit);
   const changes = projectApiV1WorkspaceChanges(
     context.repositoryId,
-    before.content,
-    commit.content,
+    result.before.content,
+    result.after.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
+    result.before.projection,
+    result.after.projection,
   ).changes;
 
   context.observeRevision(result.revision);
   await context.publish(changes);
-  return { body: result, statusCode: 200 };
+  return { body: { revision: result.revision }, statusCode: 200 };
 }
 
 export async function synchronizeApiV1Journal(
   context: ApiV1SyncContext & {
-    store: VersionedContentStore<JournalContentDto>;
+    store: VersionedContentStore<JournalContentDto, JournalParseIndex>;
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
     const snapshot = await context.store.loadSnapshot();
 
     context.observeRevision(snapshot.revision);
-    return { body: snapshot, statusCode: 200 };
+    return {
+      body: { content: snapshot.content, revision: snapshot.revision },
+      statusCode: 200,
+    };
   }
-  const before = await context.store.loadSnapshot();
   const commit = await context.readJsonBody() as JournalCommitDto;
   const result = await context.store.commitSnapshot(commit);
   const changes = projectApiV1JournalChanges(
-    parseJournalContent(before.content),
-    parseJournalContent(commit.content),
+    result.before.content,
+    result.after.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
+    result.before.projection,
+    result.after.projection,
   ).changes;
 
   context.observeRevision(result.revision);
   await context.publish(changes);
-  return { body: result, statusCode: 200 };
+  return { body: { revision: result.revision }, statusCode: 200 };
 }
 
 export async function synchronizeApiV1Todo(
   context: ApiV1SyncContext & {
-    store: VersionedContentStore<TodoContentDto>;
+    store: VersionedContentStore<TodoContentDto, TodoParseIndex>;
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
     const snapshot = await context.store.loadSnapshot();
 
     context.observeRevision(snapshot.revision);
-    return { body: snapshot, statusCode: 200 };
+    return {
+      body: { content: snapshot.content, revision: snapshot.revision },
+      statusCode: 200,
+    };
   }
-  const before = await context.store.loadSnapshot();
   const commit = await context.readJsonBody() as TodoCommitDto;
   const result = await context.store.commitSnapshot(commit);
   const changes = projectApiV1TodoChanges(
-    parseTodoContent(before.content),
-    parseTodoContent(commit.content),
+    result.before.content,
+    result.after.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
+    result.before.projection,
+    result.after.projection,
   ).changes;
 
   context.observeRevision(result.revision);
   await context.publish(changes);
-  return { body: result, statusCode: 200 };
+  return { body: { revision: result.revision }, statusCode: 200 };
 }

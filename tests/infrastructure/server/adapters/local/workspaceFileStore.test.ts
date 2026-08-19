@@ -220,7 +220,7 @@ describe("WorkspaceFileStore Local working tree", () => {
       const store = createStore(rootDir);
       const snapshot = await store.loadSnapshot();
 
-      expect(snapshot).toEqual({ content: initial, revision: snapshot.revision });
+      expect(snapshot).toMatchObject({ content: initial, revision: snapshot.revision });
       expect(await readFile(path.join(rootDir, "资料", "本地笔记库.ctn"), "utf8"))
         .toBe("本地笔记库\n\t: 内容");
       expect(await readdir(rootDir)).toEqual([".ctn", "资料"]);
@@ -262,7 +262,10 @@ describe("WorkspaceFileStore Local working tree", () => {
         baseRevision: snapshot.revision,
         content: next,
       });
-      expect(await store.loadSnapshot()).toEqual({ content: next, revision: committed.revision });
+      expect(await store.loadSnapshot()).toMatchObject({
+        content: next,
+        revision: committed.revision,
+      });
       await expect(lstat(path.join(rootDir, "资料", "本地笔记库.ctn")))
         .rejects.toMatchObject({ code: "ENOENT" });
       expect(await readFile(path.join(rootDir, "资料", "renamed workspace.ctn"), "utf8"))
@@ -286,7 +289,7 @@ describe("WorkspaceFileStore Local working tree", () => {
         "utf8",
       ));
 
-      expect(loaded).toEqual({ content: next, revision: committed.revision });
+      expect(loaded).toMatchObject({ content: next, revision: committed.revision });
       expect(metadata).toMatchObject({
         currentRevision: committed.revision,
         label: "After label",
@@ -689,7 +692,7 @@ describe("WorkspaceFileStore Local working tree", () => {
       await expect(store.commitSnapshot({
         baseRevision: base.revision,
         content: duplicateName,
-      })).rejects.toThrow("duplicate syntax name");
+      })).rejects.toThrow("Duplicate workspace syntax name");
 
       await writeFile(
         path.join(rootDir, ".ctn", "syntax", `${secondarySyntaxFileId}.toml`),
@@ -771,7 +774,10 @@ describe("WorkspaceFileStore Local working tree", () => {
       const base = await store.loadSnapshot();
       const content = createContent("new");
       const committed = await store.commitSnapshot({ baseRevision: base.revision, content });
-      await expect(store.loadSnapshot()).resolves.toEqual({ content, revision: committed.revision });
+      await expect(store.loadSnapshot()).resolves.toMatchObject({
+        content,
+        revision: committed.revision,
+      });
     });
   });
 

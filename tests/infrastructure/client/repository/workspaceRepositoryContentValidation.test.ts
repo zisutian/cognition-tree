@@ -82,7 +82,7 @@ describe("validateWorkspaceRepositoryContent", () => {
           },
         ],
       },
-    })).toThrow("Duplicate repository syntax name");
+    })).toThrow("Duplicate workspace syntax name");
   });
 
   it("rejects invalid repository tree facts", () => {

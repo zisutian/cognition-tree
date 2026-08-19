@@ -127,41 +127,31 @@ describe("workspace repository local cache", () => {
     });
   });
 
-  it("rejects invalid exact content at the cache write boundary", async () => {
+  it("clones already-typed content without repeating wire or domain parsing", async () => {
     const cache = createMemoryWorkspaceRepositoryCache();
-    const invalidInitial = createWorkspaceRepositoryContent("Invalid");
+    const typedContent = createWorkspaceRepositoryContent("Typed handoff");
 
-    Object.assign(invalidInitial.workspace.notes[0]!, {
-      title: "derived field must not persist",
+    Object.assign(typedContent.workspace.notes[0]!, {
+      internalMarker: "cache must not reinterpret typed content",
     });
-    await expect(cache.create({
-      identity: "repository",
-      localRevision: draftA,
-      snapshot: { content: invalidInitial, revision: revisionA },
-    })).rejects.toThrow("unsupported field");
-    await expect(cache.load("repository")).resolves.toBeNull();
-
     await cache.create({
       identity: "repository",
       localRevision: draftA,
-      snapshot: {
-        content: createWorkspaceRepositoryContent("Valid"),
-        revision: revisionA,
-      },
+      snapshot: { content: typedContent, revision: revisionA },
     });
-    const invalidStage = createWorkspaceRepositoryContent("Invalid stage");
+    const staged = createWorkspaceRepositoryContent("Typed stage");
 
-    invalidStage.workspace.notes = [{ id: "../escape", source: "unsafe" }];
-    invalidStage.workspace.tree = [{ kind: "note", noteId: "../escape" }];
-    await expect(cache.stage({
-      content: invalidStage,
+    await cache.stage({
+      content: staged,
       expectedLocalRevision: draftA,
       identity: "repository",
       localRevision: draftB,
-    })).rejects.toThrow("invalid repository note id");
+    });
+    typedContent.workspace.name = "mutated after handoff";
+    staged.workspace.name = "mutated after stage";
     await expect(cache.load("repository")).resolves.toMatchObject({
-      content: { workspace: { name: "Valid" } },
-      localRevision: draftA,
+      content: { workspace: { name: "Typed stage" } },
+      localRevision: draftB,
     });
   });
 });

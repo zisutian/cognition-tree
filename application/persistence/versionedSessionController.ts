@@ -3,6 +3,8 @@
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type {
   VersionedContentConflictPreference,
+  PreparedVersionedConflictSources,
+  PreparedVersionedContent,
   VersionedRepository,
   VersionedRepositoryConflictRecord,
   VersionedRepositorySnapshot,
@@ -12,11 +14,6 @@ import {
   type VersionedRepositoryPersistenceState,
   type VersionedRepositorySaveQueue,
 } from "./versionedRepositorySaveQueue";
-
-export type PreparedVersionedContent<Content, Projection> = {
-  content: Content;
-  projection: Projection;
-};
 
 export type VersionedSessionReadyState<
   Content,
@@ -29,7 +26,12 @@ export type VersionedSessionReadyState<
   location: Location;
   persistence: VersionedRepositoryPersistenceState<Revision>;
   projection: Projection;
-  snapshot: VersionedRepositorySnapshot<Content, Revision, LocalRevision>;
+  snapshot: VersionedRepositorySnapshot<
+    Content,
+    Revision,
+    LocalRevision,
+    Projection
+  >;
   status: "ready";
   storageLabel: string;
 };
@@ -90,6 +92,14 @@ export type VersionedSessionController<
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
     ) => Content,
   ): Promise<void>;
+  resolvePreparedConflictAndSynchronize(
+    preference: VersionedContentConflictPreference,
+    transform: (
+      prepared: PreparedVersionedContent<Content, Projection>,
+      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
+      sources?: PreparedVersionedConflictSources<Content, Projection>,
+    ) => PreparedVersionedContent<Content, Projection>,
+  ): Promise<void>;
   mutate(update: (current: Content) => Content): void;
   mutatePrepared(
     update: (
@@ -115,8 +125,13 @@ type ActiveVersionedSession<
   generation: number;
   persistence: VersionedRepositoryPersistenceState<Revision>;
   projection: Projection;
-  queue: VersionedRepositorySaveQueue<Content, LocalRevision> | null;
-  snapshot: VersionedRepositorySnapshot<Content, Revision, LocalRevision>;
+  queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision> | null;
+  snapshot: VersionedRepositorySnapshot<
+    Content,
+    Revision,
+    LocalRevision,
+    Projection
+  >;
 };
 
 function initialPersistenceState<Revision extends string>(
@@ -144,19 +159,18 @@ export function createVersionedSessionController<
   Location,
 >({
   label,
-  parseContent,
   prepareContent,
   repository,
   scheduler,
 }: {
   label: string;
-  parseContent(value: unknown): Content;
-  prepareContent(content: Content): Projection;
+  prepareContent(content: Content, previous?: Projection | null): Projection;
   repository: VersionedRepository<
     Content,
     Revision,
     LocalRevision,
-    Location
+    Location,
+    Projection
   > | null;
   scheduler: Pick<ApplicationScheduler, "schedule">;
 }): VersionedSessionController<
@@ -182,7 +196,8 @@ export function createVersionedSessionController<
   type Snapshot = VersionedRepositorySnapshot<
     Content,
     Revision,
-    LocalRevision
+    LocalRevision,
+    Projection
   >;
 
   const listeners = new Set<() => void>();
@@ -213,7 +228,7 @@ export function createVersionedSessionController<
       throw new VersionedSessionUnavailableError(label);
     }
     return active as Session & {
-      queue: VersionedRepositorySaveQueue<Content, LocalRevision>;
+      queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>;
     };
   };
   const publishReady = (session: Session) => {
@@ -230,7 +245,11 @@ export function createVersionedSessionController<
       location: repository.location,
       persistence: session.persistence,
       projection: session.projection,
-      snapshot: { ...session.snapshot, content: session.content },
+      snapshot: {
+        ...session.snapshot,
+        content: session.content,
+        projection: session.projection,
+      },
       status: "ready",
       storageLabel: repository.label,
     });
@@ -248,13 +267,14 @@ export function createVersionedSessionController<
     const queue = createVersionedRepositorySaveQueue({
       initialPersistenceState: persistence,
       initialSnapshot: session.snapshot,
-      onLocalStaged(_content, localRevision) {
+      onLocalStaged(_prepared, localRevision) {
         if (active !== session || generation !== expectedGeneration) return;
         session.snapshot = {
           ...session.snapshot,
           content: session.content,
           localRevision,
           pendingChanges: true,
+          projection: session.projection,
         };
         publishReady(session);
       },
@@ -297,12 +317,10 @@ export function createVersionedSessionController<
     session.queue = queue;
   };
   const prepareSnapshot = (snapshot: Snapshot) => {
-    const content = parseContent(snapshot.content);
-
     return {
-      content,
-      projection: prepareContent(content),
-      snapshot: { ...snapshot, content },
+      content: snapshot.content,
+      projection: snapshot.projection,
+      snapshot,
     };
   };
   const installSnapshot = (
@@ -367,7 +385,7 @@ export function createVersionedSessionController<
   };
   const commitMutation = (
     session: Session & {
-      queue: VersionedRepositorySaveQueue<Content, LocalRevision>;
+      queue: VersionedRepositorySaveQueue<Content, Projection, LocalRevision>;
     },
     prepared: PreparedVersionedContent<Content, Projection>,
   ) => {
@@ -377,9 +395,10 @@ export function createVersionedSessionController<
       ...session.snapshot,
       content: prepared.content,
       pendingChanges: true,
+      projection: prepared.projection,
     };
     publishReady(session);
-    session.queue.enqueue(prepared.content);
+    session.queue.enqueue(prepared);
   };
   const mutatePrepared = (
     update: (
@@ -395,12 +414,12 @@ export function createVersionedSessionController<
     commitMutation(session, prepared);
   };
   const mutate = (update: (current: Content) => Content) => {
-    mutatePrepared(({ content }) => {
+    mutatePrepared(({ content, projection }) => {
       const nextContent = update(content);
 
       return {
         content: nextContent,
-        projection: prepareContent(nextContent),
+        projection: prepareContent(nextContent, projection),
       };
     });
   };
@@ -463,6 +482,38 @@ export function createVersionedSessionController<
         preference,
         transform,
       );
+
+      if (result.status === "conflict") {
+        throw new Error("Remote content changed again while resolving conflict.");
+      }
+      await loadInitial();
+    },
+    async resolvePreparedConflictAndSynchronize(preference, transform) {
+      if (!repository) {
+        throw new VersionedSessionUnavailableError(label);
+      }
+      const result = repository.resolvePreparedConflictAndSynchronize
+        ? await repository.resolvePreparedConflictAndSynchronize(
+            preference,
+            transform,
+          )
+        : repository.resolveConflictAndSynchronize
+          ? await repository.resolveConflictAndSynchronize(
+              preference,
+              (content, conflict) =>
+                transform(
+                  {
+                    content,
+                    projection: prepareContent(content),
+                  },
+                  conflict,
+                ).content,
+            )
+          : null;
+
+      if (!result) {
+        throw new VersionedSessionUnavailableError(label);
+      }
 
       if (result.status === "conflict") {
         throw new Error("Remote content changed again while resolving conflict.");

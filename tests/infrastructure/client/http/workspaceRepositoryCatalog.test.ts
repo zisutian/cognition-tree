@@ -7,6 +7,7 @@ import {
   revisionA,
   revisionC,
 } from "../../../support/workspaceRepositoryFixtures";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -41,13 +42,17 @@ const remoteCatalog = {
 };
 
 describe("HTTP workspace repository catalog", () => {
-  const validateContent = () => undefined;
+  const preparation = {
+    prepare() {
+      return {} as WorkspaceRepositoryPreparation;
+    },
+  };
 
   it("lists healthy repositories separately from per-repository issues", async () => {
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test/base",
       fetch: async () => jsonResponse(remoteCatalog),
-      validateContent,
+      preparation,
     });
 
     await expect(catalog.listRepositories()).resolves.toEqual({
@@ -70,7 +75,7 @@ describe("HTTP workspace repository catalog", () => {
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test/base",
       fetch: fetchMock,
-      validateContent,
+      preparation,
     });
     const input = {
       adapter: "local" as const,
@@ -105,7 +110,7 @@ describe("HTTP workspace repository catalog", () => {
           ? jsonResponse(renamed)
           : jsonResponse(remoteCatalog);
       },
-      validateContent,
+      preparation,
     });
 
     await catalog.listRepositories();
@@ -133,7 +138,7 @@ describe("HTTP workspace repository catalog", () => {
     const catalog = createHttpWorkspaceRepositoryCatalog({
       baseUrl: "http://api.test",
       fetch: fetchMock,
-      validateContent,
+      preparation,
     });
     const input = {
       adapter: "local" as const,
@@ -159,7 +164,7 @@ describe("HTTP workspace repository catalog", () => {
           revision: revisionA,
         });
       },
-      validateContent,
+      preparation,
     });
     const repository = catalog.openRepository(descriptor);
 
@@ -185,14 +190,17 @@ describe("HTTP workspace repository catalog", () => {
       baseUrl: "http://api.test",
       cache: createMemoryRepositoryClientCache(),
       fetch: fetchRemote,
-      validateContent,
+      preparation,
     });
     const firstRepository = firstCatalog.openRepository(descriptor);
     const initial = await firstRepository.loadSnapshot();
 
+    const pendingContent = createWorkspaceRepositoryContent("Unsynchronized");
+
     await firstRepository.stageSnapshot({
-      content: createWorkspaceRepositoryContent("Unsynchronized"),
+      content: pendingContent,
       expectedLocalRevision: initial.localRevision,
+      projection: preparation.prepare(),
     });
     await expect(firstRepository.loadSnapshot()).resolves.toMatchObject({
       content: { workspace: { name: "Unsynchronized" } },
@@ -203,7 +211,7 @@ describe("HTTP workspace repository catalog", () => {
       baseUrl: "http://api.test",
       cache: createMemoryRepositoryClientCache(),
       fetch: fetchRemote,
-      validateContent,
+      preparation,
     }).openRepository(descriptor);
 
     await expect(recreatedRepository.loadSnapshot()).resolves.toMatchObject({
@@ -224,7 +232,7 @@ describe("HTTP workspace repository catalog", () => {
             revision: loadCount === 1 ? revisionA : revisionC,
           });
         },
-        validateContent,
+      preparation,
       });
       const repository = catalog.openRepository(adapter === "local"
         ? descriptor
@@ -271,7 +279,7 @@ describe("HTTP workspace repository catalog", () => {
         cache,
         fetch: fetchMock,
         token: "token-a",
-        validateContent,
+      preparation,
       });
 
     await expect(createCatalog().listRepositories()).resolves.toEqual({
@@ -308,7 +316,7 @@ describe("HTTP workspace repository catalog", () => {
               issues: [],
               repositories: [descriptor],
             }),
-      validateContent,
+      preparation,
     });
 
     await catalog.listRepositories();
@@ -336,7 +344,7 @@ describe("HTTP workspace repository catalog", () => {
         body = String(init?.body);
         return jsonResponse(webDavDescriptor, 201);
       },
-      validateContent,
+      preparation,
     });
     const input = {
       adapter: "webdav" as const,
@@ -369,7 +377,7 @@ describe("HTTP workspace repository catalog", () => {
         return jsonResponse({ status: "deleted" });
       },
       token: "token-a",
-      validateContent,
+      preparation,
     });
 
     await expect(catalog.deleteRepository({
@@ -396,7 +404,7 @@ describe("HTTP workspace repository catalog", () => {
         issues: [],
         repositories: present ? [descriptor] : [],
       }),
-      validateContent,
+      preparation,
     });
 
     await catalog.listRepositories();

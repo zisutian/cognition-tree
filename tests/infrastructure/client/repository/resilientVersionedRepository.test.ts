@@ -20,29 +20,52 @@ function parseContent(value: unknown): Content {
   return structuredClone(value as Content);
 }
 
-function parseRevision(value: unknown): Revision {
-  if (typeof value !== "string" || !/^revision:\d+$/.test(value)) {
-    throw new Error("invalid generic revision");
-  }
-  return value as Revision;
-}
-
-const codec = {
-  parseContent,
-  parseRevision,
-  parseSnapshot(value: unknown) {
-    if (!value || typeof value !== "object") {
-      throw new Error("invalid generic snapshot");
-    }
-    const snapshot = value as { content?: unknown; revision?: unknown };
-    return {
-      content: parseContent(snapshot.content),
-      revision: parseRevision(snapshot.revision),
-    };
-  },
-};
-
 describe("local-first versioned repository", () => {
+  it("prepares a cold snapshot once and stages an existing projection without re-preparing", async () => {
+    const prepare = vi.fn(parseContent);
+    let localIndex = 0;
+    const repository = createLocalFirstVersionedRepository({
+      backend: {
+        commitRemoteSnapshot: async () => ({
+          revision: "revision:2" as const,
+        }),
+        loadRemoteSnapshot: async () => ({
+          content: { records: [] },
+          revision: "revision:1" as const,
+        }),
+      },
+      cache: createMemoryVersionedRepositoryCache<
+        Content,
+        Revision,
+        LocalRevision
+      >(),
+      createLocalRevision: () => `local:${localIndex += 1}`,
+      label: "generic",
+      location: { kind: "memory" },
+      repositoryIdentity: "generic:preparation-count",
+      preparation: { prepare },
+    });
+    const initial = await repository.loadSnapshot();
+
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect((await repository.loadSnapshot()).projection).toBe(
+      initial.projection,
+    );
+    expect(prepare).toHaveBeenCalledTimes(1);
+
+    const content = { records: [{ done: false, text: "prepared" }] };
+    const projection = parseContent(content);
+
+    await repository.stageSnapshot({
+      content,
+      expectedLocalRevision: initial.localRevision,
+      projection,
+    });
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect((await repository.loadSnapshot()).projection).toBe(projection);
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
   it("persists an injected content model without WorkspaceData semantics", async () => {
     const commit = vi.fn(async () => ({ revision: "revision:2" as const }));
     let localIndex = 0;
@@ -58,12 +81,12 @@ describe("local-first versioned repository", () => {
         Content,
         Revision,
         LocalRevision
-      >({ codec }),
+      >(),
       createLocalRevision: () => `local:${localIndex += 1}`,
       label: "generic",
       location: { kind: "memory" },
       repositoryIdentity: "generic:one",
-      validateContent: parseContent,
+      preparation: { prepare: parseContent },
     });
     const initial = await repository.loadSnapshot();
     const content = { records: [{ done: false, text: "independent" }] };
@@ -71,6 +94,7 @@ describe("local-first versioned repository", () => {
     await repository.stageSnapshot({
       content,
       expectedLocalRevision: initial.localRevision,
+      projection: parseContent(content),
     });
     await expect(repository.synchronizePendingSnapshot()).resolves.toMatchObject({
       pendingChanges: false,
@@ -88,7 +112,7 @@ describe("local-first versioned repository", () => {
       Content,
       Revision,
       LocalRevision
-    >({ codec });
+    >();
     let offline = false;
     let localIndex = 0;
     const repository = createLocalFirstVersionedRepository({
@@ -114,13 +138,16 @@ describe("local-first versioned repository", () => {
       location: { kind: "memory" },
       refreshRemoteOnLoad: true,
       repositoryIdentity: "generic:two",
-      validateContent: parseContent,
+      preparation: { prepare: parseContent },
     });
     const initial = await repository.loadSnapshot();
 
+    const content = { records: [{ done: true, text: "cached" }] };
+
     await repository.stageSnapshot({
-      content: { records: [{ done: true, text: "cached" }] },
+      content,
       expectedLocalRevision: initial.localRevision,
+      projection: parseContent(content),
     });
     offline = true;
     await expect(repository.loadSnapshot()).resolves.toMatchObject({

@@ -426,28 +426,26 @@ function collectLocatedBlocks(
   return blocks;
 }
 
-export function validateTodoContentTransition(
-  previousValue: TodoContentValue,
-  nextValue: TodoContentValue,
+export function validateTodoContentAnalysisTransition(
+  previousResult: ValidatedTodoContentAnalysis,
+  nextResult: ValidatedTodoContentAnalysis,
 ): TodoContent {
-  const previousResult = validateTodoContentAnalysis(previousValue);
-  const nextResult = validateTodoContentAnalysis(nextValue);
-  const previous = previousResult.content;
   const next = nextResult.content;
   const previousCollections = new Map(
-    previous.collections.map((collection) => [collection.id, collection]),
+    previousResult.collections.map((parsed) => [parsed.collection.id, parsed]),
   );
   const previousBlocks = collectLocatedBlocks(previousResult.collections);
   const nextBlocks = collectLocatedBlocks(nextResult.collections);
 
-  for (const nextCollection of next.collections) {
-    const previousCollection = previousCollections.get(nextCollection.id);
+  for (const nextParsed of nextResult.collections) {
+    const nextCollection = nextParsed.collection;
+    const previousParsed = previousCollections.get(nextCollection.id);
 
-    if (!previousCollection) continue;
-    const previousTitle = readCtnCanonicalTitleHeader(previousCollection.source);
-    const nextTitle = readCtnCanonicalTitleHeader(nextCollection.source);
+    if (!previousParsed) continue;
+    const previousTitle = previousParsed.analysis.document.blocks[0]!;
+    const nextTitle = nextParsed.analysis.document.blocks[0]!;
 
-    if (previousTitle.metadata.id !== nextTitle.metadata.id) {
+    if (previousTitle.id !== nextTitle.id) {
       throw new TodoContentValidationError(
         `Todo collection ${nextCollection.id} title block id is immutable.`,
       );
@@ -487,6 +485,16 @@ export function validateTodoContentTransition(
   }
 
   return next;
+}
+
+export function validateTodoContentTransition(
+  previousValue: TodoContentValue,
+  nextValue: TodoContentValue,
+): TodoContent {
+  return validateTodoContentAnalysisTransition(
+    validateTodoContentAnalysis(previousValue),
+    validateTodoContentAnalysis(nextValue),
+  );
 }
 
 export function createTodoCollectionBodyProjection(

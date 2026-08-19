@@ -30,6 +30,9 @@ import type {
 import type {
   WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
+import type {
+  WorkspaceRepositoryPreparation,
+} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
 import {
   createWorkspaceRepositoryRevision,
 } from "../../repository/workspace/revision.ts";
@@ -221,12 +224,29 @@ export function projectApiV1WorkspaceChanges(
   before: WorkspaceRepositoryContentDto,
   after: WorkspaceRepositoryContentDto,
   timestamp: string,
+  beforePreparation?: WorkspaceRepositoryPreparation,
+  afterPreparation?: WorkspaceRepositoryPreparation,
 ) {
-  const syntax = createApiV1WorkspaceAnalysis(before).syntax;
+  const syntax = beforePreparation?.workspaceSyntax?.syntax ??
+    createApiV1WorkspaceAnalysis(before).syntax;
 
   return projectWorkspaceMutation({
     after: after.workspace,
+    afterContext: afterPreparation
+      ? {
+          index: afterPreparation.analysisIndex,
+          structure: afterPreparation.workspace,
+          syntax: afterPreparation.workspaceSyntax?.syntax ?? null,
+        }
+      : undefined,
     before: before.workspace,
+    beforeContext: beforePreparation
+      ? {
+          index: beforePreparation.analysisIndex,
+          structure: beforePreparation.workspace,
+          syntax: beforePreparation.workspaceSyntax?.syntax ?? null,
+        }
+      : undefined,
     repositoryId,
     syntax,
     timestamp,
@@ -249,17 +269,16 @@ export async function executeApiV1WorkspaceCommand({
   const allocatedIds: string[] = [];
 
   return executeApiV1VersionedCommand({
-    apply(content) {
+    apply({ content, projection: analysis }) {
       let nextId = 0;
       const createId = () => {
         allocatedIds[nextId] ??= runtime.createId();
         return allocatedIds[nextId++]!;
       };
-      const analysis = createApiV1WorkspaceAnalysis(content);
       const context: WorkspaceDomainContext = {
-        index: analysis.parseIndex,
-        structure: analysis.structure,
-        syntax: analysis.syntax,
+        index: analysis.analysisIndex,
+        structure: analysis.workspace,
+        syntax: analysis.workspaceSyntax?.syntax ?? null,
       };
       const versions = createVersions(content);
       const mutation = prepareWorkspaceMutation({
@@ -285,11 +304,24 @@ export async function executeApiV1WorkspaceCommand({
         versions,
       });
       const transition = createDomainTransition(mutation, projection);
+      const nextPreparation: WorkspaceRepositoryPreparation = {
+        analysisIndex: mutation.context.index,
+        context: mutation.context.syntax
+          ? {
+              syntax: mutation.context.syntax,
+              workspace: mutation.context.structure,
+            }
+          : null,
+        syntaxById: analysis.syntaxById,
+        workspace: mutation.context.structure,
+        workspaceSyntax: analysis.workspaceSyntax,
+      };
 
       return {
         changes: transition.changes,
         content: next,
         diff: transition.diff,
+        projection: nextPreparation,
         result: transition.result,
         revision: createWorkspaceRepositoryRevision(next),
       };

@@ -17,6 +17,7 @@ import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/text
 import { analyzeCtnSource } from "../../../../core/ctn/analysis/sourceAnalysis";
 import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
+import { prepareWorkspaceRepositoryContent } from "../../../../application/repository/workspaceRepositoryPreparation";
 
 export const initialTimestamp = "2026-07-15T00:00:00.000Z";
 export const initialSyntaxFileId =
@@ -75,6 +76,7 @@ export function createSnapshot({
   content = createContent(),
   localRevision = draftRevision("initial"),
   pendingChanges = false,
+  projection = prepareWorkspaceRepositoryContent(content),
   remoteRevision: revision = remoteRevision("a"),
 }: Partial<WorkspaceRepositorySnapshot> = {}): WorkspaceRepositorySnapshot {
   return {
@@ -82,6 +84,7 @@ export function createSnapshot({
     content,
     localRevision,
     pendingChanges,
+    projection,
     remoteRevision: revision,
   };
 }

@@ -37,13 +37,18 @@ import {
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport.ts";
 
 function createContent(name: string): WorkspaceRepositoryContentDto {
+  const timestamp = "2026-07-16T00:00:00.000Z";
+
   return {
     schemaVersion: 4,
     syntax: { activeFileId: null, files: [] },
     workspace: {
       id: `workspace-${name.toLowerCase().split(" ").join("-")}`,
       name,
-      notes: [{ id: "note-main", source: `${name}\n\t- content` }],
+      notes: [{
+        id: "note-main",
+        source: `@ctn-block id=00000000-0000-4000-8000-000000000001 created=${timestamp} updated=${timestamp}\n${name}\n\t- content`,
+      }],
       tree: [{ kind: "note", noteId: "note-main" }],
     },
   };

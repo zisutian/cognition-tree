@@ -2,6 +2,8 @@
 
 import type { JournalContent } from "../../core/journal/model/journalContent";
 import type { TodoContent } from "../../core/todo/model/todoContent";
+import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex";
+import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex";
 import type {
   VersionedRepository,
   VersionedRepositoryBackend,
@@ -48,25 +50,29 @@ export type TodoRepositoryBackend = VersionedRepositoryBackend<
 export type JournalRepositorySnapshot = VersionedRepositorySnapshot<
   JournalContent,
   JournalRevision,
-  BuiltInLocalDraftRevision
+  BuiltInLocalDraftRevision,
+  JournalParseIndex
 >;
 export type TodoRepositorySnapshot = VersionedRepositorySnapshot<
   TodoContent,
   TodoRevision,
-  BuiltInLocalDraftRevision
+  BuiltInLocalDraftRevision,
+  TodoParseIndex
 >;
 
 export type JournalRepository = VersionedRepository<
   JournalContent,
   JournalRevision,
   BuiltInLocalDraftRevision,
-  BuiltInLocation
+  BuiltInLocation,
+  JournalParseIndex
 >;
 export type TodoRepository = VersionedRepository<
   TodoContent,
   TodoRevision,
   BuiltInLocalDraftRevision,
-  BuiltInLocation
+  BuiltInLocation,
+  TodoParseIndex
 >;
 
 export type BuiltInCatalog = {

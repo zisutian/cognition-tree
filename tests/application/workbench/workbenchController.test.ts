@@ -25,6 +25,8 @@ import type {
 } from "../../../application/repository/workspaceRepositoryCatalog";
 import { createEmptyJournalContent } from "../../core/journal/journalTestFixture";
 import { createEmptyTodoContent } from "../../core/todo/todoTestFixture";
+import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
+import { createTodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
 import {
   createContent,
   createSnapshot,
@@ -92,10 +94,11 @@ const builtInDraft = (suffix: string) =>
   `draft:00000000-0000-4000-8000-${suffix.padStart(12, "0")}` as
     BuiltInLocalDraftRevision;
 
-function createBuiltInRepository<Content>(
+function createBuiltInRepository<Content, Projection>(
   label: string,
   content: Content,
   location: BuiltInDescriptor["location"],
+  projection: Projection,
 ) {
   return {
     discardPendingSnapshotAndReload: async () => ({
@@ -103,6 +106,7 @@ function createBuiltInRepository<Content>(
       content,
       localRevision: builtInDraft("9"),
       pendingChanges: false,
+      projection,
       remoteRevision: builtInRevision("b"),
     }),
     label,
@@ -111,6 +115,7 @@ function createBuiltInRepository<Content>(
       content,
       localRevision: builtInDraft("0"),
       pendingChanges: false,
+      projection,
       remoteRevision: builtInRevision("a"),
     }),
     location,
@@ -209,11 +214,13 @@ function createHarness({
     "日记",
     createEmptyJournalContent(),
     builtInDescriptors[0].location,
+    createJournalParseIndex(createEmptyJournalContent()),
   ) as JournalRepository;
   const todoRepository = createBuiltInRepository(
     "代办",
     createEmptyTodoContent(),
     builtInDescriptors[1].location,
+    createTodoParseIndex(createEmptyTodoContent()),
   ) as TodoRepository;
   const builtInCatalog: BuiltInCatalog = {
     label: "Built-ins",

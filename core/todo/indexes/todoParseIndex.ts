@@ -17,6 +17,7 @@ import { requireCtnSyntax } from "../../ctn/syntax/compiler.ts";
 import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import {
   validateTodoContentAnalysis,
+  type ValidatedTodoContentAnalysis,
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
@@ -51,6 +52,8 @@ export type TodoParseIndex = {
   parseCache: ReadonlyMap<TodoCollectionId, TodoParseCacheEntry>;
   latestTimestamp: string | null;
   syntax: CtnCompiledSyntax;
+  syntaxSource: string;
+  validation: ValidatedTodoContentAnalysis;
 };
 
 export function createTodoParseIndex(
@@ -61,7 +64,9 @@ export function createTodoParseIndex(
     CtnCanonicalSourceAnalysis
   >,
 ): TodoParseIndex {
-  const syntax = requireCtnSyntax(content.syntaxSource, "todo");
+  const syntax = previousIndex?.syntaxSource === content.syntaxSource
+    ? previousIndex.syntax
+    : requireCtnSyntax(content.syntaxSource, "todo");
   const parseCache = new Map<TodoCollectionId, TodoParseCacheEntry>();
   const analyzedCollectionIds: TodoCollectionId[] = [];
   const analysisByCollectionId = new Map(
@@ -211,5 +216,7 @@ export function createTodoParseIndex(
     latestTimestamp,
     parseCache,
     syntax,
+    syntaxSource: content.syntaxSource,
+    validation: validated,
   };
 }

@@ -12,7 +12,7 @@ const validSource = formatCtnSyntaxV2(
 );
 
 describe("server workspace repository content validation", () => {
-  it("validates every file and returns only the active source", () => {
+  it("validates every file and returns the prepared syntax catalog", () => {
     const activeSource = formatCtnSyntaxV2({
       ...defaultCtnSyntax.definition,
       name: "Secondary",
@@ -24,7 +24,7 @@ describe("server workspace repository content validation", () => {
         { id: firstId, source: validSource },
         { id: secondId, source: activeSource },
       ],
-    })).toEqual({ activeSource });
+    })).toMatchObject({ activeSource });
     expect(() => validateWorkspaceRepositorySyntax({
       activeFileId: secondId,
       files: [
@@ -46,6 +46,6 @@ describe("server workspace repository content validation", () => {
         { id: firstId, source: validSource },
         { id: secondId, source: normalizedDuplicate },
       ],
-    })).toThrow("duplicate syntax name");
+    })).toThrow("Duplicate workspace syntax name");
   });
 });
