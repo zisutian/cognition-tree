@@ -121,12 +121,13 @@ Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation �
     待提交的 after prepared snapshot 执行 authoritative transition。commit receipt
     携带实际 before/after，事件投影直接消费 receipt，不能在提交前另读一次 snapshot。
 
-领域命令通过 mutatePrepared 产生的增量 index 必须原样进入保存队列和
-commitPreparedSnapshot。query、search、resource projection 与 change projection
-消费 store/session 已准备的 projection，不得重新建立全量索引。merge、冲突恢复和
-working-tree reconciliation 生成新内容时只 preparation 一次，并用 analysis override
-传递已经完成的单 note/entry/collection 分析。WebDAV 在上传 generation 和发布 pointer
-前完成完整 Workspace preparation；上传后的 validate 只检查读取完整性与 revision。
+领域命令通过 VersionedSessionController 唯一的 mutate 接口返回
+`{ content, projection }`；增量 index 必须原样进入保存队列和 stageSnapshot。
+query、search、resource projection 与 change projection 消费 store/session 已准备的
+projection，不得重新建立全量索引。merge、冲突恢复和 working-tree reconciliation
+生成新内容时只 preparation 一次，并用 analysis override 传递已经完成的单
+note/entry/collection 分析。WebDAV 在上传 generation 和发布 pointer 前完成完整
+Workspace preparation；上传后的 validate 只检查读取完整性与 revision。
 
 
 ## 6. 存储与 API
@@ -278,7 +279,12 @@ application/workbench 的 WorkbenchFeedbackController 提供 subscribe、getSnap
 
 Presentation shell 统一合并 diagnostics、可恢复运行故障和操作错误。状态故障随 session 恢复自动消失；操作错误只在关闭、普通仓库作用域失效或刷新时消失。短暂反馈覆盖五秒后恢复领域非稳定持久化状态，稳定状态不产生文字；反馈和错误不得使用通知浮层或标题区重复投影。
 
-编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，不能由页面位置或 CSS 推断。
+编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。canonical
+页面只消费 application 已准备的 syntax、document 与 parse index；只有未保存 draft
+可以在 presentation/editor 内独立分析。普通仓库没有已准备 syntax 时，编辑器使用
+显式 raw 配置、Syntax Activity 使用 unavailable 状态，不构造默认领域 syntax。
+普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，
+不能由页面位置或 CSS 推断。
 
 core/ctn parser 是 multiline opener、closer 与 lexical 范围的唯一 owner。领域结构事务移动块时必须消费该范围并保留完整源码；Presentation 不重建 multiline 布局，也不实现整块输入 planner。
 

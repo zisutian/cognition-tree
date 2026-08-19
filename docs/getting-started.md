@@ -127,6 +127,27 @@ command kind 精确声明全部目标 SHA-256 资源版本。preview envelope �
 不同请求返回 409 idempotency_conflict。同资源版本变化返回
 409 resource_conflict，不覆盖内容。
 
+例如，OpenAPI 中 `executeJournalCommand` 的 preview 请求不含 commandId：
+
+    POST /api/v2/journal/commands
+    Authorization: Bearer <token>
+    Content-Type: application/json
+
+    {
+      "mode": "preview",
+      "command": {
+        "kind": "create-entry",
+        "body": "今天完成了严格分层审计。"
+      },
+      "preconditions": {
+        "expectedEntriesVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+
+commit 使用同一个 command 与 preconditions，把 mode 改为 `commit` 并增加 UUID
+commandId；不能把 commandId 放进 preview，也不能省略对应 command kind 的版本
+前置条件。实际 revision 应取自当前资源查询，不使用示例中的零值。
+
 Todo 远程客户端真值表：
 
     recurrence == null

@@ -37,6 +37,11 @@
 
 每份状态必须有唯一权威来源；解析、索引、图谱、结构树和 UI 投影通过明确入口派生。副作用、CAS、重试和错误暴露必须位于可识别的边界。
 
+Versioned session 对外只提供一个 mutation 入口，mutation 必须同时返回 content 与
+projection。ready state、冲突操作和 adapter policy 使用必填结构或 discriminated
+union；缺失输入在组合根暴露，不用默认 syntax、默认时区、裸布尔值或 forwarding
+入口制造可运行假象。
+
 
 ## 5. 修改方式
 
