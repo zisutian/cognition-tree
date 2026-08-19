@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   createDefaultRepositorySelection,
-  type RepositoryOption,
   type RepositorySelection,
-  type RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/repositorySelection";
+import type { RepositoryOption } from
+  "../../../application/repository/ordinaryRepositoryViewModel";
+import type { RepositoryViewModel } from
+  "../../../application/repository/repositoryViewModel";
 import { RepositoryCreateForm } from "../../ui/RepositoryCreateForm";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 import {

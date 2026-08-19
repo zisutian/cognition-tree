@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import {
-  createDefaultRepositorySelection,
   createRepositoryViewModel,
+} from "../../../application/repository/repositoryViewModel";
+import {
+  createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
   repositorySelectionExists,
   type RepositorySelection,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/repositorySelection";
 import { createRepositoryActivitySlots } from "./RepositoryActivitySlots";
 import type { ActivityControllerProps } from "../activityController";
 

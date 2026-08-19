@@ -1,15 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createDefaultRepositorySelection,
   createRepositoryViewModel,
+} from "../../../application/repository/repositoryViewModel";
+import {
+  createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
+  repositorySelectionExists,
+} from "../../../application/repository/repositorySelection";
+import {
+  projectOrdinaryRepositoryViewModel,
   projectRepositoryIssueActions,
   projectRepositoryIssues,
   projectRepositoryLabelIssueMessage,
   projectRepositoryLocation,
-  repositorySelectionExists,
-  requiresManualLocalDeletion,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/ordinaryRepositoryViewModel";
+import { projectBuiltInRepositoryViewModel } from
+  "../../../application/repository/builtInRepositoryViewModel";
+import { requiresManualLocalDeletion } from
+  "../../../application/repository/repositoryIssueProjection";
 import type {
   RepositoryApplication,
   RepositoryPersistenceState,
@@ -283,7 +291,8 @@ describe("repository view model", () => {
   ] satisfies Array<[RepositoryPersistenceState, string]>) (
     "maps $0 to its single persistence label",
     (persistence, label) => {
-      expect(createRepositoryViewModel(createSource(persistence))).toMatchObject({
+      expect(projectOrdinaryRepositoryViewModel(createSource(persistence)))
+        .toMatchObject({
         persistenceStatusLabel: label,
       });
     },
@@ -390,7 +399,7 @@ describe("repository view model", () => {
       status: "failed",
       storageLabel: "本地仓库",
     };
-    const view = createRepositoryViewModel(source);
+    const view = projectOrdinaryRepositoryViewModel(source);
 
     expect(view).toMatchObject({
       activeSessionErrorMessage: "无法读取仓库索引。",
@@ -411,7 +420,7 @@ describe("repository view model", () => {
     };
     source.session = { status: "absent" };
 
-    expect(createRepositoryViewModel(source)).toMatchObject({
+    expect(projectOrdinaryRepositoryViewModel(source)).toMatchObject({
       activeRepositoryId: null,
       activeSessionErrorMessage: "",
       activeSessionRecoveryAction: null,
@@ -429,7 +438,7 @@ describe("repository view model", () => {
       phase: "local",
       status: "error",
     });
-    const view = createRepositoryViewModel(source);
+    const view = projectOrdinaryRepositoryViewModel(source);
 
     expect(view).toMatchObject({
       activeSessionErrorMessage: "浏览器存储空间不足。",
@@ -511,7 +520,7 @@ describe("repository view model", () => {
       remoteRevision: "sha256:remote-journal",
       status: "conflict",
     };
-    let view = createRepositoryViewModel(source);
+    let view = projectBuiltInRepositoryViewModel(source.builtIns);
     let projectedJournal = view.builtIns.find(
       ({ id }) => id === "journal",
     );
@@ -536,7 +545,7 @@ describe("repository view model", () => {
       phase: "sync",
       status: "error",
     };
-    view = createRepositoryViewModel(source);
+    view = projectBuiltInRepositoryViewModel(source.builtIns);
     projectedJournal = view.builtIns.find(
       ({ id }) => id === "journal",
     );
@@ -559,7 +568,8 @@ describe("repository view model", () => {
       status: "error",
     };
 
-    expect(createRepositoryViewModel(createSource(localError))).toMatchObject({
+    expect(projectOrdinaryRepositoryViewModel(createSource(localError)))
+      .toMatchObject({
       deletionBlocked: true,
       deletionWarning: "本地副本尚未安全保存，当前不能删除仓库。",
       hasSaveConflict: false,

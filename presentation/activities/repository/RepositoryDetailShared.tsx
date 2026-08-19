@@ -1,5 +1,6 @@
 import { Copy } from "lucide-react";
-import type { RepositoryOption } from "../../../application/repository/repositoryViewModel";
+import type { RepositoryLocationRow } from
+  "../../../application/repository/repositoryViewTypes";
 import { Button, Section } from "../../ui/shared/primitives";
 
 export function RepositoryMetadata({
@@ -31,7 +32,7 @@ export function RepositoryLocations({
   onCopy,
 }: {
   busy: boolean;
-  rows: RepositoryOption["locationRows"];
+  rows: RepositoryLocationRow[];
   onCopy: (label: string, value: string) => void;
 }) {
   if (rows.length === 0) return null;

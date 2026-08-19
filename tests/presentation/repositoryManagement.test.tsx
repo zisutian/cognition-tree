@@ -21,7 +21,7 @@ import { FeedbackProvider } from "../../presentation/ui/shared/FeedbackProvider"
 import {
   projectRepositoryIssues,
   type RepositoryOption,
-} from "../../application/repository/repositoryViewModel";
+} from "../../application/repository/ordinaryRepositoryViewModel";
 import { createRepositoryView } from "./fixtures/repositoryViewFixture";
 import { expectMarkupSemantics } from "./markupSemantics";
 

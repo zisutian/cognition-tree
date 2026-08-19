@@ -12,11 +12,14 @@ import type { RepositoryFocusRequest } from "../../../application/repository/rep
 import {
   createDefaultRepositorySelection,
   projectRepositoryFocusSelection,
-  type BuiltInId,
-  type RepositoryOption,
   type RepositorySelection,
-  type RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/repositorySelection";
+import type { BuiltInId } from
+  "../../../application/repository/builtInCatalog";
+import type { RepositoryOption } from
+  "../../../application/repository/ordinaryRepositoryViewModel";
+import type { RepositoryViewModel } from
+  "../../../application/repository/repositoryViewModel";
 import {
   CompactContextActionButtons,
   CompactContextGroup,

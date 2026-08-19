@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
   RepositoryConflictResolutionView,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/repositoryViewTypes";
 import { Button, Section } from "../../ui/shared/primitives";
 
 export function RepositoryConflictResolution({

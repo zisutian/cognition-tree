@@ -3,8 +3,9 @@ import type { DeleteRepositoryRequest } from "../../../application/repository/re
 import {
   projectRepositoryLabelIssueMessage,
   type RepositoryOption,
-  type RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/ordinaryRepositoryViewModel";
+import type { RepositoryViewModel } from
+  "../../../application/repository/repositoryViewModel";
 import { Button, Section } from "../../ui/shared/primitives";
 import { RepositoryDangerZone } from "./RepositoryDangerZone";
 import {

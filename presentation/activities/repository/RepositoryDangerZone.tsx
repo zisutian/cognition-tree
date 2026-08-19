@@ -2,8 +2,9 @@ import { Trash2 } from "lucide-react";
 import type { DeleteRepositoryRequest } from "../../../application/repository/repositoryCatalog";
 import type {
   RepositoryOption,
-  RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/ordinaryRepositoryViewModel";
+import type { RepositoryViewModel } from
+  "../../../application/repository/repositoryViewModel";
 import { Button, Section, cx } from "../../ui/shared/primitives";
 import { RepositoryDeleteConfirmation } from "./RepositoryDeleteConfirmation";
 

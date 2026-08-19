@@ -1,7 +1,7 @@
-import type {
-  RepositorySelection,
-  RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+import type { RepositoryViewModel } from
+  "../../../application/repository/repositoryViewModel";
+import type { RepositorySelection } from
+  "../../../application/repository/repositorySelection";
 import type { RepositoryFocusRequest } from "../../../application/repository/repositoryNavigation";
 import "./repository.css";
 import type { ActivitySlots } from "../../ui/activityTypes";

@@ -1,11 +1,13 @@
 import { RefreshCw } from "lucide-react";
 import {
   projectRepositoryIssueActions,
-  requiresManualLocalDeletion,
   type RepositoryIssueActionView,
   type RepositoryIssueView,
-  type RepositoryViewModel,
-} from "../../../application/repository/repositoryViewModel";
+} from "../../../application/repository/ordinaryRepositoryViewModel";
+import { requiresManualLocalDeletion } from
+  "../../../application/repository/repositoryIssueProjection";
+import type { RepositoryViewModel } from
+  "../../../application/repository/repositoryViewModel";
 import { Button, Section } from "../../ui/shared/primitives";
 import {
   RepositoryLocations,

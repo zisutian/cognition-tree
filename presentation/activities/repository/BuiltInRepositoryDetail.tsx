@@ -1,8 +1,12 @@
 import { RefreshCw } from "lucide-react";
 import type {
   BuiltInId,
+} from "../../../application/repository/builtInCatalog";
+import type {
   BuiltInIssueView,
   BuiltInOption,
+} from "../../../application/repository/builtInRepositoryViewModel";
+import type {
   RepositoryViewModel,
 } from "../../../application/repository/repositoryViewModel";
 import {
