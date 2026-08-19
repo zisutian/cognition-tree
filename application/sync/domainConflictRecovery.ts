@@ -53,22 +53,15 @@ import {
 import type {
   WorkspaceRepositoryContent,
 } from "../repository/workspaceRepository.ts";
-import {
-  resolveWorkspaceSessionContent,
-} from "../workspace/session/sessionRepositorySnapshot.ts";
 import type {
   PreparedVersionedContent,
-  VersionedRepositoryConflictRecord,
 } from "../persistence/versionedRepository.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
 } from "../repository/workspaceRepositoryPreparation.ts";
 
-type RecoverableConflict<Content> = Pick<
-  VersionedRepositoryConflictRecord<Content, string>,
-  "local" | "unitIds"
->;
+type RecoverableConflict = Readonly<{ unitIds: readonly string[] }>;
 
 type SharedConflictRecoveryDependencies = {
   createBlockId(): string;
@@ -105,20 +98,19 @@ function workspaceConflictNoteIds(unitIds: readonly string[]) {
   );
 }
 
-export function recoverWorkspaceLocalConflictCopiesPrepared(
+export function recoverWorkspaceLocalConflictCopies(
   selected: PreparedVersionedContent<
     WorkspaceRepositoryContent,
     WorkspaceRepositoryPreparation
   >,
-  conflict: RecoverableConflict<WorkspaceRepositoryContent>,
+  conflict: RecoverableConflict,
   dependencies: WorkspaceConflictRecoveryDependencies,
-  localPrepared?: PreparedVersionedContent<
+  localPrepared: PreparedVersionedContent<
     WorkspaceRepositoryContent,
     WorkspaceRepositoryPreparation
   >,
 ) {
-  const local = localPrepared?.projection ??
-    resolveWorkspaceSessionContent(conflict.local);
+  const local = localPrepared.projection;
   let next = selected.content;
   const analysisOverrides = new Map<NoteId, CtnCanonicalSourceAnalysis>();
   const noteIds = new Set(selected.projection.workspace.noteEntryById.keys());
@@ -212,21 +204,6 @@ export function recoverWorkspaceLocalConflictCopiesPrepared(
   };
 }
 
-export function recoverWorkspaceLocalConflictCopies(
-  selected: WorkspaceRepositoryContent,
-  conflict: RecoverableConflict<WorkspaceRepositoryContent>,
-  dependencies: WorkspaceConflictRecoveryDependencies,
-) {
-  return recoverWorkspaceLocalConflictCopiesPrepared(
-    {
-      content: selected,
-      projection: prepareWorkspaceRepositoryContent(selected),
-    },
-    conflict,
-    dependencies,
-  ).content;
-}
-
 function journalConflictEntryIds(unitIds: readonly string[]) {
   return unitIds.flatMap((unitId) =>
     unitId.startsWith("journal:entry:")
@@ -235,14 +212,13 @@ function journalConflictEntryIds(unitIds: readonly string[]) {
   );
 }
 
-export function recoverJournalLocalConflictCopiesPrepared(
+export function recoverJournalLocalConflictCopies(
   selected: PreparedVersionedContent<JournalContent, JournalParseIndex>,
-  conflict: RecoverableConflict<JournalContent>,
+  conflict: RecoverableConflict,
   dependencies: JournalConflictRecoveryDependencies,
-  localPrepared?: PreparedVersionedContent<JournalContent, JournalParseIndex>,
+  localPrepared: PreparedVersionedContent<JournalContent, JournalParseIndex>,
 ) {
-  const localIndex = localPrepared?.projection ??
-    createJournalParseIndex(conflict.local);
+  const localIndex = localPrepared.projection;
   let next = selected.content;
   let currentIndex = selected.projection;
   let recovered = 0;
@@ -288,21 +264,6 @@ export function recoverJournalLocalConflictCopiesPrepared(
   return { content: next, projection: currentIndex };
 }
 
-export function recoverJournalLocalConflictCopies(
-  selected: JournalContent,
-  conflict: RecoverableConflict<JournalContent>,
-  dependencies: JournalConflictRecoveryDependencies,
-) {
-  return recoverJournalLocalConflictCopiesPrepared(
-    {
-      content: selected,
-      projection: createJournalParseIndex(selected),
-    },
-    conflict,
-    dependencies,
-  ).content;
-}
-
 function todoConflictCollectionIds(unitIds: readonly string[]) {
   const prefix = "todo:collection:";
 
@@ -330,28 +291,12 @@ function createRecoveryCollectionName(index: TodoParseIndex) {
 }
 
 export function recoverTodoLocalConflictCopies(
-  selected: TodoContent,
-  conflict: RecoverableConflict<TodoContent>,
-  dependencies: TodoConflictRecoveryDependencies,
-) {
-  return recoverTodoLocalConflictCopiesPrepared(
-    {
-      content: selected,
-      projection: createTodoParseIndex(selected),
-    },
-    conflict,
-    dependencies,
-  ).content;
-}
-
-export function recoverTodoLocalConflictCopiesPrepared(
   selected: PreparedVersionedContent<TodoContent, TodoParseIndex>,
-  conflict: RecoverableConflict<TodoContent>,
+  conflict: RecoverableConflict,
   dependencies: TodoConflictRecoveryDependencies,
-  localPrepared?: PreparedVersionedContent<TodoContent, TodoParseIndex>,
+  localPrepared: PreparedVersionedContent<TodoContent, TodoParseIndex>,
 ) {
-  const localIndex = localPrepared?.projection ??
-    createTodoParseIndex(conflict.local);
+  const localIndex = localPrepared.projection;
   let next = selected.content;
   let currentIndex = selected.projection;
   let recovered = 0;

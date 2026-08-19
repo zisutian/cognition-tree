@@ -38,10 +38,13 @@ import type {
   PreparedVersionedContent,
   VersionedContentConflictPreference,
   VersionedContentMergePolicy,
-  VersionedContentMergeResult,
 } from "../persistence/versionedRepository.ts";
 
 const missing = Symbol("missing");
+
+type ContentMergeResult<Content> =
+  | { content: Content; status: "merged" }
+  | { status: "conflict"; unitIds: string[] };
 
 function equal(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -195,7 +198,7 @@ function mergeResult<Content>(
   content: Content,
   conflicts: readonly string[],
   conflictPreference?: VersionedContentConflictPreference,
-): VersionedContentMergeResult<Content> {
+): ContentMergeResult<Content> {
   const unitIds = [...new Set(conflicts)].sort();
 
   return unitIds.length > 0 && !conflictPreference
@@ -228,83 +231,85 @@ function crossesSyntaxBarrier({
   );
 }
 
-export const mergeWorkspaceContent:
-  VersionedContentMergePolicy<WorkspaceRepositoryContent> = (
-    base,
-    local,
-    remote,
+function mergeWorkspaceContentValues(
+  base: WorkspaceRepositoryContent,
+  local: WorkspaceRepositoryContent,
+  remote: WorkspaceRepositoryContent,
+  conflictPreference?: VersionedContentConflictPreference,
+): ContentMergeResult<WorkspaceRepositoryContent> {
+  const conflicts: string[] = [];
+  if (crossesSyntaxBarrier({
+    baseContent: base.workspace,
+    baseSyntax: base.syntax,
+    localContent: local.workspace,
+    localSyntax: local.syntax,
+    remoteContent: remote.workspace,
+    remoteSyntax: remote.syntax,
+  })) {
+    return conflictPreference
+      ? {
+          content: conflictPreference === "local" ? local : remote,
+          status: "merged",
+        }
+      : { status: "conflict", unitIds: ["syntax"] };
+  }
+  const syntax = mergeValue(
+    "syntax",
+    base.syntax,
+    local.syntax,
+    remote.syntax,
     conflictPreference,
-  ) => {
-    const conflicts: string[] = [];
-    if (crossesSyntaxBarrier({
-      baseContent: base.workspace,
-      baseSyntax: base.syntax,
-      localContent: local.workspace,
-      localSyntax: local.syntax,
-      remoteContent: remote.workspace,
-      remoteSyntax: remote.syntax,
-    })) {
-      return conflictPreference
-        ? {
-            content: conflictPreference === "local" ? local : remote,
-            status: "merged",
-          }
-        : { status: "conflict", unitIds: ["syntax"] };
-    }
-    const syntax = mergeValue(
-      "syntax",
-      base.syntax,
-      local.syntax,
-      remote.syntax,
-      conflictPreference,
-    );
+  );
 
-    if (syntax.conflict) conflicts.push(syntax.conflict);
-    const name = mergeValue(
-      "workspace:name",
-      base.workspace.name,
-      local.workspace.name,
-      remote.workspace.name,
-      conflictPreference,
-    );
-    const tree = mergeValue(
-      "workspace:tree",
-      base.workspace.tree,
-      local.workspace.tree,
-      remote.workspace.tree,
-      conflictPreference,
-    );
+  if (syntax.conflict) conflicts.push(syntax.conflict);
+  const name = mergeValue(
+    "workspace:name",
+    base.workspace.name,
+    local.workspace.name,
+    remote.workspace.name,
+    conflictPreference,
+  );
+  const tree = mergeValue(
+    "workspace:tree",
+    base.workspace.tree,
+    local.workspace.tree,
+    remote.workspace.tree,
+    conflictPreference,
+  );
 
-    if (name.conflict) conflicts.push(name.conflict);
-    if (tree.conflict) conflicts.push(tree.conflict);
-    if (
-      base.workspace.id !== local.workspace.id ||
-      base.workspace.id !== remote.workspace.id
-    ) {
-      conflicts.push("workspace:identity");
-    }
-    const notes = mergeMapValues(
-      "workspace:note",
-      new Map(base.workspace.notes.map((note) => [note.id, note])),
-      new Map(local.workspace.notes.map((note) => [note.id, note])),
-      new Map(remote.workspace.notes.map((note) => [note.id, note])),
-      conflictPreference,
-    );
+  if (name.conflict) conflicts.push(name.conflict);
+  if (tree.conflict) conflicts.push(tree.conflict);
+  if (
+    base.workspace.id !== local.workspace.id ||
+    base.workspace.id !== remote.workspace.id
+  ) {
+    conflicts.push("workspace:identity");
+  }
+  const notes = mergeMapValues(
+    "workspace:note",
+    new Map(base.workspace.notes.map((note) => [note.id, note])),
+    new Map(local.workspace.notes.map((note) => [note.id, note])),
+    new Map(remote.workspace.notes.map((note) => [note.id, note])),
+    conflictPreference,
+  );
 
-    conflicts.push(...notes.conflicts);
-    return mergeResult({
-      schemaVersion: 4,
-      syntax: syntax.value,
-      workspace: {
-        id: base.workspace.id,
-        name: name.value,
-        notes: [...notes.values.values()],
-        tree: tree.value,
-      },
-    }, conflicts, conflictPreference);
-  };
+  conflicts.push(...notes.conflicts);
+  return mergeResult({
+    schemaVersion: 4,
+    syntax: syntax.value,
+    workspace: {
+      id: base.workspace.id,
+      name: name.value,
+      notes: [...notes.values.values()],
+      tree: tree.value,
+    },
+  }, conflicts, conflictPreference);
+}
 
-export function mergePreparedWorkspaceContent(
+export const mergeWorkspaceContent: VersionedContentMergePolicy<
+  WorkspaceRepositoryContent,
+  WorkspaceRepositoryPreparation
+> = (
   base: PreparedVersionedContent<
     WorkspaceRepositoryContent,
     WorkspaceRepositoryPreparation
@@ -318,8 +323,8 @@ export function mergePreparedWorkspaceContent(
     WorkspaceRepositoryPreparation
   >,
   conflictPreference?: VersionedContentConflictPreference,
-) {
-  const merged = mergeWorkspaceContent(
+) => {
+  const merged = mergeWorkspaceContentValues(
     base.content,
     local.content,
     remote.content,
@@ -344,7 +349,7 @@ export function mergePreparedWorkspaceContent(
     }),
     status: "merged" as const,
   };
-}
+};
 
 function journalEntries(content: JournalContent) {
   return new Map(
@@ -357,101 +362,103 @@ function journalEntries(content: JournalContent) {
   );
 }
 
-export const mergeJournalContent:
-  VersionedContentMergePolicy<JournalContent> = (
-    base,
-    local,
-    remote,
+function mergeJournalContentValues(
+  base: JournalContent,
+  local: JournalContent,
+  remote: JournalContent,
+  conflictPreference?: VersionedContentConflictPreference,
+): ContentMergeResult<JournalContent> {
+  const conflicts: string[] = [];
+  if (crossesSyntaxBarrier({
+    baseContent: base.days,
+    baseSyntax: base.syntaxSource,
+    localContent: local.days,
+    localSyntax: local.syntaxSource,
+    remoteContent: remote.days,
+    remoteSyntax: remote.syntaxSource,
+  })) {
+    return conflictPreference
+      ? {
+          content: conflictPreference === "local" ? local : remote,
+          status: "merged",
+        }
+      : { status: "conflict", unitIds: ["syntax"] };
+  }
+  const syntax = mergeValue(
+    "syntax",
+    base.syntaxSource,
+    local.syntaxSource,
+    remote.syntaxSource,
     conflictPreference,
-  ) => {
-    const conflicts: string[] = [];
-    if (crossesSyntaxBarrier({
-      baseContent: base.days,
-      baseSyntax: base.syntaxSource,
-      localContent: local.days,
-      localSyntax: local.syntaxSource,
-      remoteContent: remote.days,
-      remoteSyntax: remote.syntaxSource,
-    })) {
-      return conflictPreference
-        ? {
-            content: conflictPreference === "local" ? local : remote,
-            status: "merged",
-          }
-        : { status: "conflict", unitIds: ["syntax"] };
-    }
-    const syntax = mergeValue(
-      "syntax",
-      base.syntaxSource,
-      local.syntaxSource,
-      remote.syntaxSource,
-      conflictPreference,
-    );
+  );
 
-    if (syntax.conflict) conflicts.push(syntax.conflict);
-    const entries = mergeMapValues(
-      "journal:entry",
-      journalEntries(base),
-      journalEntries(local),
-      journalEntries(remote),
-      conflictPreference,
-    );
+  if (syntax.conflict) conflicts.push(syntax.conflict);
+  const entries = mergeMapValues(
+    "journal:entry",
+    journalEntries(base),
+    journalEntries(local),
+    journalEntries(remote),
+    conflictPreference,
+  );
 
-    conflicts.push(...entries.conflicts);
-    const dayByDate = new Map<
-      string,
-      JournalContent["days"][number]
-    >();
+  conflicts.push(...entries.conflicts);
+  const dayByDate = new Map<
+    string,
+    JournalContent["days"][number]
+  >();
 
-    for (const day of [...base.days, ...local.days, ...remote.days]) {
-      const previous = dayByDate.get(day.date);
+  for (const day of [...base.days, ...local.days, ...remote.days]) {
+    const previous = dayByDate.get(day.date);
 
-      dayByDate.set(day.date, {
-        date: day.date,
-        entries: [],
-        lastIssuedSequence: Math.max(
-          previous?.lastIssuedSequence ?? 0,
-          day.lastIssuedSequence,
-        ),
-      });
-    }
-
-    for (const { date, entry } of entries.values.values()) {
-      const day = dayByDate.get(date);
-
-      if (!day) {
-        conflicts.push(`journal:day:${date}`);
-        continue;
-      }
-      if (day.entries.some(({ sequence }) => sequence === entry.sequence)) {
-        conflicts.push(`journal:day:${date}:sequence:${entry.sequence}`);
-        continue;
-      }
-      day.entries.push(entry);
-      day.lastIssuedSequence = Math.max(
+    dayByDate.set(day.date, {
+      date: day.date,
+      entries: [],
+      lastIssuedSequence: Math.max(
+        previous?.lastIssuedSequence ?? 0,
         day.lastIssuedSequence,
-        entry.sequence,
-      );
-    }
-    for (const day of dayByDate.values()) {
-      day.entries.sort((left, right) => left.sequence - right.sequence);
-    }
-    return mergeResult({
-      days: [...dayByDate.values()].sort((left, right) =>
-        left.date.localeCompare(right.date)
       ),
-      schemaVersion: 3,
-      syntaxSource: syntax.value,
-    }, conflicts, conflictPreference);
-  };
+    });
+  }
 
-export function mergePreparedJournalContent(
+  for (const { date, entry } of entries.values.values()) {
+    const day = dayByDate.get(date);
+
+    if (!day) {
+      conflicts.push(`journal:day:${date}`);
+      continue;
+    }
+    if (day.entries.some(({ sequence }) => sequence === entry.sequence)) {
+      conflicts.push(`journal:day:${date}:sequence:${entry.sequence}`);
+      continue;
+    }
+    day.entries.push(entry);
+    day.lastIssuedSequence = Math.max(
+      day.lastIssuedSequence,
+      entry.sequence,
+    );
+  }
+  for (const day of dayByDate.values()) {
+    day.entries.sort((left, right) => left.sequence - right.sequence);
+  }
+  return mergeResult({
+    days: [...dayByDate.values()].sort((left, right) =>
+      left.date.localeCompare(right.date)
+    ),
+    schemaVersion: 3,
+    syntaxSource: syntax.value,
+  }, conflicts, conflictPreference);
+}
+
+export const mergeJournalContent: VersionedContentMergePolicy<
+  JournalContent,
+  JournalParseIndex
+> = (
   base: PreparedVersionedContent<JournalContent, JournalParseIndex>,
   local: PreparedVersionedContent<JournalContent, JournalParseIndex>,
   remote: PreparedVersionedContent<JournalContent, JournalParseIndex>,
   conflictPreference?: VersionedContentConflictPreference,
-) {
-  const merged = mergeJournalContent(
+) => {
+  const merged = mergeJournalContentValues(
     base.content,
     local.content,
     remote.content,
@@ -473,7 +480,7 @@ export function mergePreparedJournalContent(
         ),
         status: "merged" as const,
       };
-}
+};
 
 function todoLogicalCollections(index: TodoParseIndex) {
   return new Map(index.collections.map((parsed) => [
@@ -543,207 +550,193 @@ function mergeTodoContentWithIndexes(
   base: TodoContent,
   local: TodoContent,
   remote: TodoContent,
-  conflictPreference?: VersionedContentConflictPreference,
-  preparedIndexes?: {
+  conflictPreference: VersionedContentConflictPreference | undefined,
+  indexes: {
     base: TodoParseIndex;
     local: TodoParseIndex;
     remote: TodoParseIndex;
   },
-): VersionedContentMergeResult<TodoContent> {
-    const conflicts: string[] = [];
-    if (crossesSyntaxBarrier({
-      baseContent: base.collections,
-      baseSyntax: base.syntaxSource,
-      localContent: local.collections,
-      localSyntax: local.syntaxSource,
-      remoteContent: remote.collections,
-      remoteSyntax: remote.syntaxSource,
-    })) {
-      return conflictPreference
-        ? {
-            content: conflictPreference === "local" ? local : remote,
-            status: "merged",
-          }
-        : { status: "conflict", unitIds: ["syntax"] };
-    }
-    const syntax = mergeValue(
-      "syntax",
-      base.syntaxSource,
-      local.syntaxSource,
-      remote.syntaxSource,
-      conflictPreference,
-    );
+): ContentMergeResult<TodoContent> {
+  const conflicts: string[] = [];
+  if (crossesSyntaxBarrier({
+    baseContent: base.collections,
+    baseSyntax: base.syntaxSource,
+    localContent: local.collections,
+    localSyntax: local.syntaxSource,
+    remoteContent: remote.collections,
+    remoteSyntax: remote.syntaxSource,
+  })) {
+    return conflictPreference
+      ? {
+          content: conflictPreference === "local" ? local : remote,
+          status: "merged",
+        }
+      : { status: "conflict", unitIds: ["syntax"] };
+  }
+  const syntax = mergeValue(
+    "syntax",
+    base.syntaxSource,
+    local.syntaxSource,
+    remote.syntaxSource,
+    conflictPreference,
+  );
 
-    if (syntax.conflict) conflicts.push(syntax.conflict);
-    if (syntax.conflict && !conflictPreference) {
-      return { status: "conflict", unitIds: ["syntax"] };
-    }
-    const baseCollections = todoCollectionById(base);
-    const localCollections = todoCollectionById(local);
-    const remoteCollections = todoCollectionById(remote);
-    const baseIndex = preparedIndexes?.base ?? createTodoParseIndex(base);
-    const localIndex = preparedIndexes?.local ??
-      createTodoParseIndex(local, baseIndex);
-    const remoteIndex = preparedIndexes?.remote ??
-      createTodoParseIndex(remote, baseIndex);
-    const baseLogical = todoLogicalCollections(baseIndex);
-    const localLogical = todoLogicalCollections(localIndex);
-    const remoteLogical = todoLogicalCollections(remoteIndex);
-    const mergedCollections = new Map<string, TodoCollection>();
+  if (syntax.conflict) conflicts.push(syntax.conflict);
+  if (syntax.conflict && !conflictPreference) {
+    return { status: "conflict", unitIds: ["syntax"] };
+  }
+  const baseCollections = todoCollectionById(base);
+  const localCollections = todoCollectionById(local);
+  const remoteCollections = todoCollectionById(remote);
+  const baseLogical = todoLogicalCollections(indexes.base);
+  const localLogical = todoLogicalCollections(indexes.local);
+  const remoteLogical = todoLogicalCollections(indexes.remote);
+  const mergedCollections = new Map<string, TodoCollection>();
 
-    for (
-      const collectionId of orderedKeys(
-        localCollections,
-        remoteCollections,
-        baseCollections,
-      )
-    ) {
-      const typedCollectionId = collectionId as TodoCollection["id"];
-      const baseCollection = baseCollections.get(typedCollectionId);
-      const localCollection = localCollections.get(typedCollectionId);
-      const remoteCollection = remoteCollections.get(typedCollectionId);
-      const unitId = `todo:collection:${collectionId}`;
+  for (
+    const collectionId of orderedKeys(
+      localCollections,
+      remoteCollections,
+      baseCollections,
+    )
+  ) {
+    const typedCollectionId = collectionId as TodoCollection["id"];
+    const baseCollection = baseCollections.get(typedCollectionId);
+    const localCollection = localCollections.get(typedCollectionId);
+    const remoteCollection = remoteCollections.get(typedCollectionId);
+    const unitId = `todo:collection:${collectionId}`;
 
-      if (!baseCollection) {
-        if (localCollection && remoteCollection) {
-          if (equal(localCollection, remoteCollection)) {
-            mergedCollections.set(collectionId, localCollection);
-          } else {
-            conflicts.push(unitId);
-            mergedCollections.set(
-              collectionId,
-              conflictPreference === "remote"
-                ? remoteCollection
-                : localCollection,
-            );
-          }
+    if (!baseCollection) {
+      if (localCollection && remoteCollection) {
+        if (equal(localCollection, remoteCollection)) {
+          mergedCollections.set(collectionId, localCollection);
         } else {
-          const created = localCollection ?? remoteCollection;
-
-          if (created) mergedCollections.set(collectionId, created);
-        }
-        continue;
-      }
-      if (!localCollection && !remoteCollection) continue;
-      if (!localCollection) {
-        if (!equal(remoteCollection, baseCollection)) {
           conflicts.push(unitId);
-          if (conflictPreference === "remote" && remoteCollection) {
-            mergedCollections.set(collectionId, remoteCollection);
-          }
+          mergedCollections.set(
+            collectionId,
+            conflictPreference === "remote"
+              ? remoteCollection
+              : localCollection,
+          );
         }
-        continue;
+      } else {
+        const created = localCollection ?? remoteCollection;
+
+        if (created) mergedCollections.set(collectionId, created);
       }
-      if (!remoteCollection) {
-        if (!equal(localCollection, baseCollection)) {
-          conflicts.push(unitId);
-          if (conflictPreference !== "remote") {
-            mergedCollections.set(collectionId, localCollection);
-          }
-        }
-        continue;
-      }
-      const logical = mergeValue(
-        `todo:collection:${collectionId}:body`,
-        baseLogical.get(typedCollectionId),
-        localLogical.get(typedCollectionId),
-        remoteLogical.get(typedCollectionId),
-        conflictPreference,
-      );
-
-      if (logical.conflict) conflicts.push(logical.conflict);
-      const sourceOwner = equal(
-        logical.value,
-        localLogical.get(typedCollectionId),
-      )
-        ? localCollection
-        : remoteCollection;
-      const sourceOwnerParsed = sourceOwner === localCollection
-        ? localIndex.getParsedCollection(typedCollectionId)
-        : remoteIndex.getParsedCollection(typedCollectionId);
-
-      if (!sourceOwnerParsed) {
-        conflicts.push(unitId);
-        continue;
-      }
-      const completions = mergeMapValues(
-        `todo:completion:${collectionId}`,
-        todoCompletionsByBlock(baseCollection),
-        todoCompletionsByBlock(localCollection),
-        todoCompletionsByBlock(remoteCollection),
-        conflictPreference,
-      );
-      const recurrences = mergeMapValues(
-        `todo:recurrence:${collectionId}`,
-        todoRecurrencesByBlock(baseCollection),
-        todoRecurrencesByBlock(localCollection),
-        todoRecurrencesByBlock(remoteCollection),
-        conflictPreference,
-      );
-
-      conflicts.push(...completions.conflicts, ...recurrences.conflicts);
-      const source = touchLatestTodoBlockTimes(
-        sourceOwner.source,
-        sourceOwnerParsed,
-        [
-          baseIndex.getParsedCollection(typedCollectionId),
-          localIndex.getParsedCollection(typedCollectionId),
-          remoteIndex.getParsedCollection(typedCollectionId),
-        ],
-      );
-
-      mergedCollections.set(collectionId, {
-        completions: [...completions.values.values()],
-        id: sourceOwner.id,
-        recurrences: [...recurrences.values.values()],
-        source,
-      });
+      continue;
     }
-    const order = mergeValue(
-      "todo:collection-order",
-      base.collections.map(({ id }) => id),
-      local.collections.map(({ id }) => id),
-      remote.collections.map(({ id }) => id),
+    if (!localCollection && !remoteCollection) continue;
+    if (!localCollection) {
+      if (!equal(remoteCollection, baseCollection)) {
+        conflicts.push(unitId);
+        if (conflictPreference === "remote" && remoteCollection) {
+          mergedCollections.set(collectionId, remoteCollection);
+        }
+      }
+      continue;
+    }
+    if (!remoteCollection) {
+      if (!equal(localCollection, baseCollection)) {
+        conflicts.push(unitId);
+        if (conflictPreference !== "remote") {
+          mergedCollections.set(collectionId, localCollection);
+        }
+      }
+      continue;
+    }
+    const logical = mergeValue(
+      `todo:collection:${collectionId}:body`,
+      baseLogical.get(typedCollectionId),
+      localLogical.get(typedCollectionId),
+      remoteLogical.get(typedCollectionId),
       conflictPreference,
     );
 
-    if (order.conflict) conflicts.push(order.conflict);
-    const ordered = [
-      ...order.value.flatMap((id) => {
-        const collection = mergedCollections.get(id);
+    if (logical.conflict) conflicts.push(logical.conflict);
+    const sourceOwner = equal(
+      logical.value,
+      localLogical.get(typedCollectionId),
+    )
+      ? localCollection
+      : remoteCollection;
+    const sourceOwnerParsed = sourceOwner === localCollection
+      ? indexes.local.getParsedCollection(typedCollectionId)
+      : indexes.remote.getParsedCollection(typedCollectionId);
 
-        return collection ? [collection] : [];
-      }),
-      ...[...mergedCollections.values()].filter((collection) =>
-        !order.value.includes(collection.id)
-      ),
-    ];
+    if (!sourceOwnerParsed) {
+      conflicts.push(unitId);
+      continue;
+    }
+    const completions = mergeMapValues(
+      `todo:completion:${collectionId}`,
+      todoCompletionsByBlock(baseCollection),
+      todoCompletionsByBlock(localCollection),
+      todoCompletionsByBlock(remoteCollection),
+      conflictPreference,
+    );
+    const recurrences = mergeMapValues(
+      `todo:recurrence:${collectionId}`,
+      todoRecurrencesByBlock(baseCollection),
+      todoRecurrencesByBlock(localCollection),
+      todoRecurrencesByBlock(remoteCollection),
+      conflictPreference,
+    );
 
-    return mergeResult({
-      collections: ordered,
-      schemaVersion: 4,
-      syntaxSource: syntax.value,
-    }, conflicts, conflictPreference);
+    conflicts.push(...completions.conflicts, ...recurrences.conflicts);
+    const source = touchLatestTodoBlockTimes(
+      sourceOwner.source,
+      sourceOwnerParsed,
+      [
+        indexes.base.getParsedCollection(typedCollectionId),
+        indexes.local.getParsedCollection(typedCollectionId),
+        indexes.remote.getParsedCollection(typedCollectionId),
+      ],
+    );
+
+    mergedCollections.set(collectionId, {
+      completions: [...completions.values.values()],
+      id: sourceOwner.id,
+      recurrences: [...recurrences.values.values()],
+      source,
+    });
+  }
+  const order = mergeValue(
+    "todo:collection-order",
+    base.collections.map(({ id }) => id),
+    local.collections.map(({ id }) => id),
+    remote.collections.map(({ id }) => id),
+    conflictPreference,
+  );
+
+  if (order.conflict) conflicts.push(order.conflict);
+  const ordered = [
+    ...order.value.flatMap((id) => {
+      const collection = mergedCollections.get(id);
+
+      return collection ? [collection] : [];
+    }),
+    ...[...mergedCollections.values()].filter((collection) =>
+      !order.value.includes(collection.id)
+    ),
+  ];
+
+  return mergeResult({
+    collections: ordered,
+    schemaVersion: 4,
+    syntaxSource: syntax.value,
+  }, conflicts, conflictPreference);
 }
 
-export const mergeTodoContent: VersionedContentMergePolicy<TodoContent> = (
-  base,
-  local,
-  remote,
-  conflictPreference,
-) => mergeTodoContentWithIndexes(
-  base,
-  local,
-  remote,
-  conflictPreference,
-);
-
-export function mergePreparedTodoContent(
+export const mergeTodoContent: VersionedContentMergePolicy<
+  TodoContent,
+  TodoParseIndex
+> = (
   base: PreparedVersionedContent<TodoContent, TodoParseIndex>,
   local: PreparedVersionedContent<TodoContent, TodoParseIndex>,
   remote: PreparedVersionedContent<TodoContent, TodoParseIndex>,
   conflictPreference?: VersionedContentConflictPreference,
-) {
+) => {
   const merged = mergeTodoContentWithIndexes(
     base.content,
     local.content,
@@ -771,4 +764,4 @@ export function mergePreparedTodoContent(
         ),
         status: "merged" as const,
       };
-}
+};

@@ -36,8 +36,6 @@ import {
 import { createHttpTodoRepositoryBackend } from "./todoRepository";
 import {
   mergeJournalContent,
-  mergePreparedJournalContent,
-  mergePreparedTodoContent,
   mergeTodoContent,
 } from "../../../application/sync/domainThreeWayMerge";
 
@@ -142,7 +140,6 @@ export function createHttpBuiltInCatalog({
         label: descriptor.label,
         location: descriptor.location,
         mergeContent: mergeJournalContent,
-        mergePreparedContent: mergePreparedJournalContent,
         refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
@@ -170,7 +167,6 @@ export function createHttpBuiltInCatalog({
         label: descriptor.label,
         location: descriptor.location,
         mergeContent: mergeTodoContent,
-        mergePreparedContent: mergePreparedTodoContent,
         refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,

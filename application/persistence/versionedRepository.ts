@@ -46,27 +46,16 @@ export type VersionedRepositorySnapshot<
   remoteRevision: Revision | null;
 };
 
-export type VersionedContentMergeResult<Content> =
-  | { content: Content; status: "merged" }
-  | { status: "conflict"; unitIds: string[] };
-
 export type VersionedContentConflictPreference = "local" | "remote";
 
-export type VersionedContentMergePolicy<Content> = (
-  base: Content,
-  local: Content,
-  remote: Content,
-  conflictPreference?: VersionedContentConflictPreference,
-) => VersionedContentMergeResult<Content>;
-
-export type PreparedVersionedContentMergePolicy<Content, Projection> = (
+export type VersionedContentMergePolicy<Content, Projection> = (
   base: PreparedVersionedContent<Content, Projection>,
   local: PreparedVersionedContent<Content, Projection>,
   remote: PreparedVersionedContent<Content, Projection>,
   conflictPreference?: VersionedContentConflictPreference,
-) => PreparedVersionedContentMergeResult<Content, Projection>;
+) => VersionedContentMergeResult<Content, Projection>;
 
-export type PreparedVersionedContentMergeResult<Content, Projection> =
+export type VersionedContentMergeResult<Content, Projection> =
   | (PreparedVersionedContent<Content, Projection> & { status: "merged" })
   | { status: "conflict"; unitIds: string[] };
 
@@ -139,16 +128,9 @@ export type VersionedRepository<
   resolveConflictAndSynchronize?(
     preference: VersionedContentConflictPreference,
     transform?: (
-      content: Content,
-      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
-    ) => Content,
-  ): Promise<VersionedRepositorySyncResult<Revision, LocalRevision>>;
-  resolvePreparedConflictAndSynchronize?(
-    preference: VersionedContentConflictPreference,
-    transform: (
       prepared: PreparedVersionedContent<Content, Projection>,
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
-      sources?: PreparedVersionedConflictSources<Content, Projection>,
+      sources: PreparedVersionedConflictSources<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
   ): Promise<VersionedRepositorySyncResult<Revision, LocalRevision>>;
   stageSnapshot(input: {

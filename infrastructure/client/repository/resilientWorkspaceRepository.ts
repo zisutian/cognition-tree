@@ -12,7 +12,6 @@ import {
 } from "../../../application/repository/workspaceRepository";
 import {
   mergeWorkspaceContent,
-  mergePreparedWorkspaceContent,
 } from "../../../application/sync/domainThreeWayMerge";
 
 type LocalFirstWorkspaceRepositoryOptions = {
@@ -39,7 +38,6 @@ export function createLocalFirstWorkspaceRepository({
     ),
     createLocalRevision: () => createLocalDraftRevision(createDraftId),
     mergeContent: mergeWorkspaceContent,
-    mergePreparedContent: mergePreparedWorkspaceContent,
   });
 }
 

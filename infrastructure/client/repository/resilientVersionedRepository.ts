@@ -7,11 +7,8 @@ import {
   VersionedRepositoryUnavailableError,
   type VersionedRepository,
   type VersionedRepositoryBackend,
-  type VersionedRepositoryConflictRecord,
-  type PreparedVersionedConflictSources,
   type VersionedContentConflictPreference,
   type VersionedContentMergePolicy,
-  type PreparedVersionedContentMergePolicy,
   type PreparedVersionedContent,
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
@@ -32,8 +29,7 @@ type LocalFirstVersionedRepositoryOptions<
   createLocalRevision: () => LocalRevision;
   label: string;
   location: Location;
-  mergeContent?: VersionedContentMergePolicy<Content>;
-  mergePreparedContent?: PreparedVersionedContentMergePolicy<
+  mergeContent?: VersionedContentMergePolicy<
     Content,
     Projection
   >;
@@ -77,7 +73,6 @@ export function createLocalFirstVersionedRepository<
   label,
   location,
   mergeContent,
-  mergePreparedContent,
   refreshRemoteOnLoad = false,
   repositoryIdentity,
   subscribeReconnect = () => () => undefined,
@@ -202,13 +197,11 @@ export function createLocalFirstVersionedRepository<
   ) => {
     const syncContext = await cache.loadSyncContext(identity);
     const baseContent = syncContext?.baseContent;
-    const basePrepared = baseContent && mergePreparedContent
+    const basePrepared = baseContent && mergeContent
       ? prepareMergeBase(baseContent, current, currentPrepared)
       : null;
-    const merged = basePrepared && mergePreparedContent
-      ? mergePreparedContent(basePrepared, currentPrepared, remotePrepared)
-      : baseContent && mergeContent
-      ? mergeContent(baseContent, current.content, remote.content)
+    const merged = basePrepared && mergeContent
+      ? mergeContent(basePrepared, currentPrepared, remotePrepared)
       : {
           status: "conflict" as const,
           unitIds: ["repository"],
@@ -230,12 +223,7 @@ export function createLocalFirstVersionedRepository<
       };
       return toSnapshot(state, currentPrepared);
     }
-    const mergedPrepared = "projection" in merged
-      ? merged
-      : prepare(
-          merged.content,
-          currentPrepared.projection,
-        );
+    const mergedPrepared = merged;
 
     preparation.validateTransition?.(remotePrepared, mergedPrepared);
     const state = await cache.rebaseFromRemote({
@@ -565,11 +553,6 @@ export function createLocalFirstVersionedRepository<
         >["resolveConflictAndSynchronize"]
       >
     >[1],
-    preparedTransform?: (
-      prepared: Prepared,
-      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
-      sources: PreparedVersionedConflictSources<Content, Projection>,
-    ) => Prepared,
   ) => {
     const identity = await resolveIdentity();
 
@@ -589,27 +572,18 @@ export function createLocalFirstVersionedRepository<
       conflict.remoteRevision,
       currentPrepared.projection,
     );
-    const basePrepared = mergePreparedContent
+    const basePrepared = mergeContent
       ? prepareMergeBase(conflict.base, current, currentPrepared)
       : null;
-    const merged = basePrepared && mergePreparedContent
-      ? mergePreparedContent(
+    const merged = basePrepared && mergeContent
+      ? mergeContent(
           basePrepared,
           currentPrepared,
           remotePrepared,
           preference,
         )
-      : mergeContent
-      ? mergeContent(
-          conflict.base,
-          current.content,
-          conflict.remote,
-          preference,
-        )
       : {
-          content: preference === "local"
-            ? current.content
-            : conflict.remote,
+          ...(preference === "local" ? currentPrepared : remotePrepared),
           status: "merged" as const,
         };
 
@@ -617,27 +591,13 @@ export function createLocalFirstVersionedRepository<
       throw new Error("Repository conflict could not be resolved.");
     }
     const liveConflict = { ...conflict, local: current.content };
-    const mergedPrepared = "projection" in merged
-      ? merged
-      : contentEqual(merged.content, conflict.remote)
-        ? remotePrepared
-        : contentEqual(merged.content, current.content)
-          ? currentPrepared
-          : prepare(
-              merged.content,
-              currentPrepared.projection,
-            );
-    const contentPrepared = preparedTransform
-      ? preparedTransform(mergedPrepared, liveConflict, {
+    const mergedPrepared = merged;
+    const contentPrepared = transform
+      ? transform(mergedPrepared, liveConflict, {
           local: currentPrepared,
           remote: remotePrepared,
         })
-      : transform
-        ? prepare(
-            transform(merged.content, liveConflict),
-            mergedPrepared.projection,
-          )
-        : mergedPrepared;
+      : mergedPrepared;
     const content = contentPrepared.content;
 
     preparation.validateTransition?.(remotePrepared, contentPrepared);
@@ -708,8 +668,6 @@ export function createLocalFirstVersionedRepository<
       resolveConflictAndSynchronize("local"),
     resolveConflictAndSynchronize: (preference, transform) =>
       resolveConflictAndSynchronize(preference, transform),
-    resolvePreparedConflictAndSynchronize: (preference, transform) =>
-      resolveConflictAndSynchronize(preference, undefined, transform),
     async stageSnapshot({ content, expectedLocalRevision, projection }) {
       await ensureInitialized();
       const identity = await resolveIdentity();

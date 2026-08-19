@@ -36,7 +36,7 @@ import {
   type WorkspaceSyntaxCatalogMutation,
 } from "./workspaceSyntaxCatalogMutationService";
 import {
-  recoverWorkspaceLocalConflictCopiesPrepared,
+  recoverWorkspaceLocalConflictCopies,
 } from "../../sync/domainConflictRecovery";
 
 export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
@@ -244,14 +244,14 @@ export function createWorkspaceSessionController({
     keepLocalConflictAndSynchronize: base.keepLocalConflictAndSynchronize,
     loadConflictUnitIds: base.loadConflictUnitIds,
     recoverLocalConflictCopy() {
-      return base.resolvePreparedConflictAndSynchronize(
+      return base.resolveConflictAndSynchronize(
         "remote",
         (prepared, conflict, sources) =>
-          recoverWorkspaceLocalConflictCopiesPrepared(prepared, conflict, {
+          recoverWorkspaceLocalConflictCopies(prepared, conflict, {
             createBlockId: commandDependencies.createBlockId,
             createWorkspaceNoteId: commandDependencies.createNoteId,
             now: commandDependencies.now,
-          }, sources?.local),
+          }, sources.local),
       );
     },
     prepareForRepositoryRemoval: base.prepareForRemoval,

@@ -18,7 +18,7 @@ import {
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";
 import {
-  recoverTodoLocalConflictCopiesPrepared,
+  recoverTodoLocalConflictCopies,
   type TodoConflictRecoveryDependencies,
 } from "../sync/domainConflictRecovery";
 
@@ -53,14 +53,14 @@ export function createTodoSessionController(
       if (!recoveryDependencies) {
         throw new Error("Todo conflict recovery is unavailable.");
       }
-      return base.resolvePreparedConflictAndSynchronize(
+      return base.resolveConflictAndSynchronize(
         "remote",
         (prepared, conflict, sources) =>
-          recoverTodoLocalConflictCopiesPrepared(
+          recoverTodoLocalConflictCopies(
             prepared,
             conflict,
             recoveryDependencies,
-            sources?.local,
+            sources.local,
           ),
       );
     },

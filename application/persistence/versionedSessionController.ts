@@ -88,16 +88,9 @@ export type VersionedSessionController<
   resolveConflictAndSynchronize(
     preference: VersionedContentConflictPreference,
     transform?: (
-      content: Content,
-      conflict: VersionedRepositoryConflictRecord<Content, Revision>,
-    ) => Content,
-  ): Promise<void>;
-  resolvePreparedConflictAndSynchronize(
-    preference: VersionedContentConflictPreference,
-    transform: (
       prepared: PreparedVersionedContent<Content, Projection>,
       conflict: VersionedRepositoryConflictRecord<Content, Revision>,
-      sources?: PreparedVersionedConflictSources<Content, Projection>,
+      sources: PreparedVersionedConflictSources<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
   ): Promise<void>;
   mutate(update: (current: Content) => Content): void;
@@ -482,38 +475,6 @@ export function createVersionedSessionController<
         preference,
         transform,
       );
-
-      if (result.status === "conflict") {
-        throw new Error("Remote content changed again while resolving conflict.");
-      }
-      await loadInitial();
-    },
-    async resolvePreparedConflictAndSynchronize(preference, transform) {
-      if (!repository) {
-        throw new VersionedSessionUnavailableError(label);
-      }
-      const result = repository.resolvePreparedConflictAndSynchronize
-        ? await repository.resolvePreparedConflictAndSynchronize(
-            preference,
-            transform,
-          )
-        : repository.resolveConflictAndSynchronize
-          ? await repository.resolveConflictAndSynchronize(
-              preference,
-              (content, conflict) =>
-                transform(
-                  {
-                    content,
-                    projection: prepareContent(content),
-                  },
-                  conflict,
-                ).content,
-            )
-          : null;
-
-      if (!result) {
-        throw new VersionedSessionUnavailableError(label);
-      }
 
       if (result.status === "conflict") {
         throw new Error("Remote content changed again while resolving conflict.");

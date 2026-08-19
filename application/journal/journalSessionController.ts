@@ -18,7 +18,7 @@ import {
   type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex";
 import {
-  recoverJournalLocalConflictCopiesPrepared,
+  recoverJournalLocalConflictCopies,
   type JournalConflictRecoveryDependencies,
 } from "../sync/domainConflictRecovery";
 
@@ -53,14 +53,14 @@ export function createJournalSessionController(
       if (!recoveryDependencies) {
         throw new Error("Journal conflict recovery is unavailable.");
       }
-      return base.resolvePreparedConflictAndSynchronize(
+      return base.resolveConflictAndSynchronize(
         "remote",
         (prepared, conflict, sources) =>
-          recoverJournalLocalConflictCopiesPrepared(
+          recoverJournalLocalConflictCopies(
             prepared,
             conflict,
             recoveryDependencies,
-            sources?.local,
+            sources.local,
           ),
       );
     },
