@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   SettingsContext,
   SettingsPanel,
-} from "../../presentation/activities/settings/SettingsPanel";
+} from "../../../../presentation/activities/settings/SettingsPanel";
 import {
   appContextDefaultWidth,
-} from "../../presentation/ui/workbench/frameResize";
-import { expectMarkupSemantics } from "./markupSemantics";
+} from "../../../../presentation/ui/workbench/frameResize";
+import { expectMarkupSemantics } from "../../markupSemantics";
 
 const apiAccess = {
   administration: {

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "vitest";
-import { WorkspaceUnavailablePanel } from "../../presentation/activities/unavailable/WorkspaceUnavailablePanel";
-import { expectMarkupSemantics } from "./markupSemantics";
+import { WorkspaceUnavailablePanel } from "../../../../presentation/activities/unavailable/WorkspaceUnavailablePanel";
+import { expectMarkupSemantics } from "../../markupSemantics";
 
 describe("workspace unavailable activity", () => {
   it.each([

@@ -5,10 +5,10 @@ import {
   JournalDetailPanel,
   JournalEditorPanel,
   submitJournalEntryCreation,
-} from "../../../presentation/activities/journal/JournalPanels";
-import { createJournalView } from "../fixtures/journalViewFixture";
-import { runFeedbackAction } from "../../../presentation/ui/shared/FeedbackProvider";
-import { expectMarkupSemantics } from "../markupSemantics";
+} from "../../../../presentation/activities/journal/JournalPanels";
+import { createJournalView } from "../../fixtures/journalViewFixture";
+import { runFeedbackAction } from "../../../../presentation/ui/shared/FeedbackProvider";
+import { expectMarkupSemantics } from "../../markupSemantics";
 
 const olderJanuaryEntry = {
   createdAt: "2026-01-02T02:04:05.000Z",

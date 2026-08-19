@@ -6,24 +6,24 @@ import {
   createRepositoryRequest,
   RepositoryCreateForm,
   repositoryPasswordInputAttributes,
-} from "../../presentation/ui/RepositoryCreateForm";
+} from "../../../../presentation/ui/RepositoryCreateForm";
 import {
   canDeleteManagedRepositoryData,
   getRepositoryDeletionChoices,
   RepositoryDeleteConfirmation,
-} from "../../presentation/activities/repository/RepositoryDeleteConfirmation";
+} from "../../../../presentation/activities/repository/RepositoryDeleteConfirmation";
 import {
   RepositoryContext,
-} from "../../presentation/activities/repository/RepositoryContext";
-import { RepositoryPanel } from "../../presentation/activities/repository/RepositoryPanel";
-import { copyRepositoryLocation } from "../../presentation/activities/repository/repositoryViewHelpers";
-import { FeedbackProvider } from "../../presentation/ui/shared/FeedbackProvider";
+} from "../../../../presentation/activities/repository/RepositoryContext";
+import { RepositoryPanel } from "../../../../presentation/activities/repository/RepositoryPanel";
+import { copyRepositoryLocation } from "../../../../presentation/activities/repository/repositoryViewHelpers";
+import { FeedbackProvider } from "../../../../presentation/ui/shared/FeedbackProvider";
 import {
   projectRepositoryIssues,
   type RepositoryOption,
-} from "../../application/repository/ordinaryRepositoryViewModel";
-import { createRepositoryView } from "./fixtures/repositoryViewFixture";
-import { expectMarkupSemantics } from "./markupSemantics";
+} from "../../../../application/repository/ordinaryRepositoryViewModel";
+import { createRepositoryView } from "../../fixtures/repositoryViewFixture";
+import { expectMarkupSemantics } from "../../markupSemantics";
 
 const localRepository: RepositoryOption = {
   adapter: "local",

@@ -2,13 +2,13 @@
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "vitest";
-import { TodoContext } from "../../../presentation/activities/todo/TodoContext";
-import { TodoDetailPanel } from "../../../presentation/activities/todo/TodoDetailPanel";
-import { TodoEditorPanel } from "../../../presentation/activities/todo/TodoEditorPanel";
-import { TodoRecurrenceEditor } from "../../../presentation/activities/todo/TodoRecurrenceEditor";
-import { FeedbackProvider } from "../../../presentation/ui/shared/FeedbackProvider";
-import { createTodoView } from "../fixtures/todoViewFixture";
-import { expectMarkupSemantics } from "../markupSemantics";
+import { TodoContext } from "../../../../presentation/activities/todo/TodoContext";
+import { TodoDetailPanel } from "../../../../presentation/activities/todo/TodoDetailPanel";
+import { TodoEditorPanel } from "../../../../presentation/activities/todo/TodoEditorPanel";
+import { TodoRecurrenceEditor } from "../../../../presentation/activities/todo/TodoRecurrenceEditor";
+import { FeedbackProvider } from "../../../../presentation/ui/shared/FeedbackProvider";
+import { createTodoView } from "../../fixtures/todoViewFixture";
+import { expectMarkupSemantics } from "../../markupSemantics";
 
 describe("Todo panels", () => {
   it("renders ordered collections and actions only on the selected row", () => {
