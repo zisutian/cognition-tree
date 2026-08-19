@@ -6,7 +6,15 @@ import type {
   DomainChangeSet,
   DomainResourceChange,
 } from "../../../core/sync/domainChangeSet.ts";
-import type { DomainCommandOutcome } from "../../../core/sync/domainTransition.ts";
+import type {
+  JournalCommandOutcome,
+} from "../../../core/journal/commands/journalCommandOutcome.ts";
+import type {
+  TodoCommandOutcome,
+} from "../../../core/todo/commands/todoCommandOutcome.ts";
+import type {
+  WorkspaceCommandOutcome,
+} from "../../../core/workspace/commands/workspaceCommandOutcome.ts";
 import {
   ApiV1CanonicalTimestampSchema,
   ApiV1IdentifierSchema,
@@ -71,7 +79,12 @@ export type ApiV1DomainChangeSetDto = Static<
   typeof ApiV1DomainChangeSetSchema
 >;
 
-export const ApiV1CommandOutcomeSchema = schemaAs<DomainCommandOutcome>(
+type ApiV1CommandOutcome =
+  | JournalCommandOutcome
+  | TodoCommandOutcome
+  | WorkspaceCommandOutcome;
+
+export const ApiV1CommandOutcomeSchema = schemaAs<ApiV1CommandOutcome>(
   Type.Union([
     strictObject({ kind: Type.Literal("ok") }),
     strictObject({

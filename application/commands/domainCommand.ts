@@ -3,20 +3,18 @@
 import type { CtnTextEdit } from "../../core/ctn/metadata/textEdits.ts";
 import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
 import type {
-  DomainCommandOutcome,
   DomainTextEdit,
   DomainTransition,
 } from "../../core/sync/domainTransition.ts";
 
 export type {
-  DomainCommandOutcome,
   DomainTextEdit,
   DomainTransition,
 } from "../../core/sync/domainTransition.ts";
 
-export type DomainMutation<Content> = {
+export type DomainMutation<Content, Outcome> = {
   content: Content;
-  outcome: DomainCommandOutcome;
+  outcome: Outcome;
   timestamp: string;
 };
 
@@ -25,10 +23,10 @@ export type DomainMutationProjection = {
   diff: DomainTextEdit[];
 };
 
-export function createDomainTransition<Content>(
-  mutation: DomainMutation<Content>,
+export function createDomainTransition<Content, Outcome>(
+  mutation: DomainMutation<Content, Outcome>,
   projection: DomainMutationProjection,
-): DomainTransition<Content> {
+): DomainTransition<Content, Outcome> {
   return {
     changes: projection.changes,
     content: mutation.content,

@@ -15,6 +15,9 @@ import {
   deleteJournalEntry,
   updateJournalEntryBody,
 } from "../../core/journal/commands/journalCommands.ts";
+import type {
+  JournalCommandOutcome,
+} from "../../core/journal/commands/journalCommandOutcome.ts";
 import {
   createJournalParseIndex,
   type JournalParseIndex,
@@ -33,7 +36,6 @@ import {
 import {
   assertDomainResourceVersion,
   projectDomainTextEdits,
-  type DomainCommandOutcome,
   type DomainMutationProjection,
 } from "../commands/domainCommand.ts";
 
@@ -72,7 +74,7 @@ export type PreparedJournalMutation = {
   >;
   content: JournalContent;
   index: JournalParseIndex;
-  outcome: DomainCommandOutcome;
+  outcome: JournalCommandOutcome;
   timestamp: string;
 };
 

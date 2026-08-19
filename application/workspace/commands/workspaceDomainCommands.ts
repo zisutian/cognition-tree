@@ -51,9 +51,11 @@ import type {
 import type {
   NoteTreeMoveRequest,
 } from "../../../core/workspace/model/noteTree/types.ts";
+import type {
+  WorkspaceCommandOutcome,
+} from "../../../core/workspace/commands/workspaceCommandOutcome.ts";
 import {
   assertDomainResourceVersion,
-  type DomainCommandOutcome,
 } from "../../commands/domainCommand.ts";
 
 type ResourceVersion = `sha256:${string}`;
@@ -148,7 +150,7 @@ export type PreparedWorkspaceMutation = {
   analysisOverrides?: ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>;
   content: WorkspaceData;
   context: WorkspaceDomainContext;
-  outcome: DomainCommandOutcome;
+  outcome: WorkspaceCommandOutcome;
   timestamp: string;
 };
 
@@ -358,7 +360,7 @@ export function prepareWorkspaceMutation({
   let analysisOverrides:
     | ReadonlyMap<NoteId, CtnCanonicalSourceAnalysis>
     | undefined;
-  let outcome: DomainCommandOutcome = { kind: "ok" };
+  let outcome: WorkspaceCommandOutcome = { kind: "ok" };
 
   switch (command.kind) {
     case "create-folder":

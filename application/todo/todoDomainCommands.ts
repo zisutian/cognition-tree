@@ -23,6 +23,9 @@ import {
   updateTodoCollectionBody,
   type TodoBlockMoveTarget,
 } from "../../core/todo/commands/todoCommands.ts";
+import type {
+  TodoCommandOutcome,
+} from "../../core/todo/commands/todoCommandOutcome.ts";
 import {
   createTodoParseIndex,
   type ParsedTodoIndexCollection,
@@ -41,7 +44,6 @@ import type {
 } from "../../core/todo/recurrence/todoRecurrence.ts";
 import {
   assertDomainResourceVersion,
-  type DomainCommandOutcome,
 } from "../commands/domainCommand.ts";
 
 type ResourceVersion = `sha256:${string}`;
@@ -135,7 +137,7 @@ export type PreparedTodoMutation = {
   >;
   content: TodoContent;
   index: TodoParseIndex;
-  outcome: DomainCommandOutcome;
+  outcome: TodoCommandOutcome;
   timestamp: string;
 };
 
@@ -215,7 +217,7 @@ export function prepareTodoMutation({
   let analysisOverrides:
     | ReadonlyMap<TodoCollectionId, CtnCanonicalSourceAnalysis>
     | undefined;
-  let outcome: DomainCommandOutcome = { kind: "ok" };
+  let outcome: TodoCommandOutcome = { kind: "ok" };
   let timestamp: string;
 
   switch (command.kind) {

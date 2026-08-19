@@ -3,21 +3,14 @@
 import type { CtnTextEdit } from "../ctn/metadata/textEdits.ts";
 import type { DomainChangeSet } from "./domainChangeSet.ts";
 
-export type DomainCommandOutcome =
-  | { kind: "ok" }
-  | { folderId: string; kind: "folder-created" }
-  | { kind: "note-created"; noteId: string }
-  | { entryId: string; kind: "journal-entry-created" }
-  | { collectionId: string; kind: "todo-collection-created" };
-
 export type DomainTextEdit = CtnTextEdit & {
   resourceId: string;
 };
 
-export type DomainTransition<Content> = {
+export type DomainTransition<Content, Outcome> = {
   changes: DomainChangeSet;
   content: Content;
   diff: DomainTextEdit[];
-  result: DomainCommandOutcome;
+  result: Outcome;
   warnings: readonly string[];
 };
