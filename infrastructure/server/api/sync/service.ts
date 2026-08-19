@@ -23,13 +23,18 @@ import type {
   WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
 import {
+  executeSnapshotSync,
+} from "../../../../application/sync/snapshotSync.ts";
+import {
+  createSnapshotSyncStoreAdapter,
+} from "../../repository/snapshotSyncStoreAdapter.ts";
+import {
   projectJournalContentChanges,
 } from "../../../../application/journal/journalCommandExecutor.ts";
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
 import {
-  readApiV1RuntimeNow,
   type ApiV1Runtime,
 } from "../http/runtime.ts";
 import {
@@ -63,30 +68,36 @@ export async function synchronizeApiV1Workspace(
     versionPolicy: WorkspaceResourceVersionPolicy;
   },
 ): Promise<ApiV1SyncResult> {
-  if (context.method === "GET") {
-    const snapshot = await context.store.loadSnapshot();
+  const request = context.method === "GET"
+    ? { mode: "load" as const }
+    : {
+        ...await context.readJsonBody() as WorkspaceRepositoryCommitDto,
+        mode: "commit" as const,
+      };
+  const result = await executeSnapshotSync({
+    projectChanges: ({ after, before, timestamp }) =>
+      projectWorkspaceContentChanges(
+        context.repositoryId,
+        before.content,
+        after.content,
+        timestamp,
+        before.projection,
+        after.projection,
+        context.versionPolicy,
+      ).changes,
+    request,
+    runtime: context.runtime,
+    store: createSnapshotSyncStoreAdapter(context.store),
+  });
 
-    context.observeRevision(snapshot.revision);
+  context.observeRevision(result.revision);
+  if (result.status === "loaded") {
     return {
-      body: { content: snapshot.content, revision: snapshot.revision },
+      body: { content: result.content, revision: result.revision },
       statusCode: 200,
     };
   }
-  const commit =
-    await context.readJsonBody() as WorkspaceRepositoryCommitDto;
-  const result = await context.store.commitSnapshot(commit);
-  const changes = projectWorkspaceContentChanges(
-    context.repositoryId,
-    result.before.content,
-    result.after.content,
-    readApiV1RuntimeNow(context.runtime).timestamp,
-    result.before.projection,
-    result.after.projection,
-    context.versionPolicy,
-  ).changes;
-
-  context.observeRevision(result.revision);
-  await context.publish(changes);
+  await context.publish(result.changes);
   return { body: { revision: result.revision }, statusCode: 200 };
 }
 
@@ -96,28 +107,35 @@ export async function synchronizeApiV1Journal(
     versionPolicy: JournalDomainVersions;
   },
 ): Promise<ApiV1SyncResult> {
-  if (context.method === "GET") {
-    const snapshot = await context.store.loadSnapshot();
+  const request = context.method === "GET"
+    ? { mode: "load" as const }
+    : {
+        ...await context.readJsonBody() as JournalCommitDto,
+        mode: "commit" as const,
+      };
+  const result = await executeSnapshotSync({
+    projectChanges: ({ after, before, timestamp }) =>
+      projectJournalContentChanges(
+        before.content,
+        after.content,
+        timestamp,
+        before.projection,
+        after.projection,
+        context.versionPolicy,
+      ).changes,
+    request,
+    runtime: context.runtime,
+    store: createSnapshotSyncStoreAdapter(context.store),
+  });
 
-    context.observeRevision(snapshot.revision);
+  context.observeRevision(result.revision);
+  if (result.status === "loaded") {
     return {
-      body: { content: snapshot.content, revision: snapshot.revision },
+      body: { content: result.content, revision: result.revision },
       statusCode: 200,
     };
   }
-  const commit = await context.readJsonBody() as JournalCommitDto;
-  const result = await context.store.commitSnapshot(commit);
-  const changes = projectJournalContentChanges(
-    result.before.content,
-    result.after.content,
-    readApiV1RuntimeNow(context.runtime).timestamp,
-    result.before.projection,
-    result.after.projection,
-    context.versionPolicy,
-  ).changes;
-
-  context.observeRevision(result.revision);
-  await context.publish(changes);
+  await context.publish(result.changes);
   return { body: { revision: result.revision }, statusCode: 200 };
 }
 
@@ -127,27 +145,34 @@ export async function synchronizeApiV1Todo(
     versionPolicy: TodoDomainVersions;
   },
 ): Promise<ApiV1SyncResult> {
-  if (context.method === "GET") {
-    const snapshot = await context.store.loadSnapshot();
+  const request = context.method === "GET"
+    ? { mode: "load" as const }
+    : {
+        ...await context.readJsonBody() as TodoCommitDto,
+        mode: "commit" as const,
+      };
+  const result = await executeSnapshotSync({
+    projectChanges: ({ after, before, timestamp }) =>
+      projectTodoContentChanges(
+        before.content,
+        after.content,
+        timestamp,
+        before.projection,
+        after.projection,
+        context.versionPolicy,
+      ).changes,
+    request,
+    runtime: context.runtime,
+    store: createSnapshotSyncStoreAdapter(context.store),
+  });
 
-    context.observeRevision(snapshot.revision);
+  context.observeRevision(result.revision);
+  if (result.status === "loaded") {
     return {
-      body: { content: snapshot.content, revision: snapshot.revision },
+      body: { content: result.content, revision: result.revision },
       statusCode: 200,
     };
   }
-  const commit = await context.readJsonBody() as TodoCommitDto;
-  const result = await context.store.commitSnapshot(commit);
-  const changes = projectTodoContentChanges(
-    result.before.content,
-    result.after.content,
-    readApiV1RuntimeNow(context.runtime).timestamp,
-    result.before.projection,
-    result.after.projection,
-    context.versionPolicy,
-  ).changes;
-
-  context.observeRevision(result.revision);
-  await context.publish(changes);
+  await context.publish(result.changes);
   return { body: { revision: result.revision }, statusCode: 200 };
 }

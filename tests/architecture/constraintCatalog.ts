@@ -333,10 +333,10 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
   })),
   {
     allowedPath:
-      /^infrastructure\/server\/api\/(?:commands\/common|sync\/service)\.ts$/,
+      /^infrastructure\/server\/repository\/snapshotSyncStoreAdapter\.ts$/,
     corpus: infrastructureModules,
-    matches: { min: 1 },
-    name: "CTN API persistence writes",
+    matches: 1,
+    name: "official snapshot persistence write adapter",
     pattern: /\.commitSnapshot\s*\(/,
   },
   {
