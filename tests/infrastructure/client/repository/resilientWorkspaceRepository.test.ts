@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLocalFirstWorkspaceRepository } from "../../../../infrastructure/client/repository/resilientWorkspaceRepository";
+import type { VersionedRepositoryLoadPolicy } from "../../../../infrastructure/client/repository/resilientVersionedRepository";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryLocalConflictError,
@@ -121,7 +122,7 @@ function createRepository(
   cache = createMemoryWorkspaceRepositoryCache(),
   validateContent: (content: WorkspaceRepositoryContentDto) => void =
     () => undefined,
-  refreshRemoteOnLoad = false,
+  loadPolicy: VersionedRepositoryLoadPolicy = { mode: "cache-first" },
 ) {
   let draftSequence = 0;
 
@@ -133,8 +134,8 @@ function createRepository(
       createDraftId: () =>
         `00000000-0000-4000-8000-${String(++draftSequence).padStart(12, "0")}`,
       label: "Remote catalog label",
+      loadPolicy,
       location: { type: "webdav", url: "https://dav.test/primary/" },
-      refreshRemoteOnLoad,
       repositoryIdentity: "https://api.test#primary#token-digest",
       preparation: createTestPreparation(validateContent),
     }),
@@ -167,7 +168,7 @@ describe("local-first workspace repository", () => {
       remote,
       undefined,
       () => undefined,
-      true,
+      { mode: "refresh-remote" },
     );
     const initial = await repository.loadSnapshot();
 
@@ -192,7 +193,7 @@ describe("local-first workspace repository", () => {
       remote,
       undefined,
       () => undefined,
-      true,
+      { mode: "refresh-remote" },
     );
     const initial = await repository.loadSnapshot();
     const staged = await stageWorkspace(
@@ -223,7 +224,7 @@ describe("local-first workspace repository", () => {
       remote,
       undefined,
       () => undefined,
-      true,
+      { mode: "refresh-remote" },
     );
     const initial = await repository.loadSnapshot();
 
@@ -252,7 +253,7 @@ describe("local-first workspace repository", () => {
       remote,
       undefined,
       () => undefined,
-      true,
+      { mode: "refresh-remote" },
     );
     const initial = await repository.loadSnapshot();
 
@@ -266,7 +267,7 @@ describe("local-first workspace repository", () => {
       remote,
       undefined,
       () => undefined,
-      true,
+      { mode: "refresh-remote" },
     );
     await repository.loadSnapshot();
     const busy = new WorkspaceRepositoryRemoteError("working tree changed", {
@@ -391,6 +392,7 @@ describe("local-first workspace repository", () => {
       createDraftId: () =>
         `00000000-0000-4000-8000-${String(++sequence).padStart(12, "0")}`,
       label: "Remote",
+      loadPolicy: { mode: "cache-first" },
       location: { type: "webdav", url: "https://dav.test/primary/" },
       repositoryIdentity: "primary",
       preparation: createTestPreparation(() => undefined),
@@ -718,6 +720,7 @@ describe("local-first workspace repository", () => {
       cache: createMemoryWorkspaceRepositoryCache(),
       createDraftId: () => "00000000-0000-4000-8000-000000000001",
       label: "Remote",
+      loadPolicy: { mode: "cache-first" },
       location: { type: "webdav", url: "https://dav.test/primary/" },
       repositoryIdentity: "primary",
       subscribeReconnect(listener) {

@@ -138,9 +138,9 @@ export function createHttpBuiltInCatalog({
         cache: journalCache,
         createLocalRevision,
         label: descriptor.label,
+        loadPolicy: { mode: "refresh-remote" },
         location: descriptor.location,
         mergeContent: mergeJournalContent,
-        refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
           repositoryId: "built-in:journal",
@@ -165,9 +165,9 @@ export function createHttpBuiltInCatalog({
         cache: todoCache,
         createLocalRevision,
         label: descriptor.label,
+        loadPolicy: { mode: "refresh-remote" },
         location: descriptor.location,
         mergeContent: mergeTodoContent,
-        refreshRemoteOnLoad: true,
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
           repositoryId: "built-in:todo",

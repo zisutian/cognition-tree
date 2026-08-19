@@ -210,8 +210,12 @@ export function createHttpWorkspaceRepositoryCatalog({
         cache: cache.snapshots,
         createDraftId: () => globalThis.crypto.randomUUID(),
         label: descriptor.label,
+        loadPolicy: {
+          mode: descriptor.adapter === "local"
+            ? "refresh-remote"
+            : "cache-first",
+        },
         location: descriptor.location,
-        refreshRemoteOnLoad: descriptor.adapter === "local",
         repositoryIdentity: createHttpRepositoryCacheIdentity({
           baseUrl,
           repositoryId: descriptor.id,

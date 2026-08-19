@@ -16,6 +16,10 @@ import {
 } from "../../../application/persistence/versionedRepository";
 import type { VersionedRepositoryCache } from "./versionedRepositoryCache";
 
+export type VersionedRepositoryLoadPolicy =
+  | Readonly<{ mode: "cache-first" }>
+  | Readonly<{ mode: "refresh-remote" }>;
+
 type LocalFirstVersionedRepositoryOptions<
   Content,
   Revision extends string,
@@ -28,12 +32,12 @@ type LocalFirstVersionedRepositoryOptions<
   createBusyError?: () => Error;
   createLocalRevision: () => LocalRevision;
   label: string;
+  loadPolicy: VersionedRepositoryLoadPolicy;
   location: Location;
   mergeContent?: VersionedContentMergePolicy<
     Content,
     Projection
   >;
-  refreshRemoteOnLoad?: boolean;
   repositoryIdentity: string | Promise<string>;
   subscribeReconnect?: (listener: () => void) => () => void;
   preparation: VersionedContentPreparationPolicy<Content, Projection>;
@@ -71,9 +75,9 @@ export function createLocalFirstVersionedRepository<
   ),
   createLocalRevision,
   label,
+  loadPolicy,
   location,
   mergeContent,
-  refreshRemoteOnLoad = false,
   repositoryIdentity,
   subscribeReconnect = () => () => undefined,
   preparation,
@@ -312,7 +316,7 @@ export function createLocalFirstVersionedRepository<
 
     if (local) {
       const localPrepared = prepareState(local);
-      if (!refreshRemoteOnLoad) {
+      if (loadPolicy.mode === "cache-first") {
         return toSnapshot(local, localPrepared);
       }
       let remote;

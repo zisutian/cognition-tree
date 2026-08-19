@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createLocalFirstVersionedRepository } from "./resilientVersionedRepository";
+import {
+  createLocalFirstVersionedRepository,
+  type VersionedRepositoryLoadPolicy,
+} from "./resilientVersionedRepository";
 import type { WorkspaceRepositoryCache } from "./workspaceRepositoryCache";
 import {
   createLocalDraftRevision,
@@ -19,8 +22,8 @@ type LocalFirstWorkspaceRepositoryOptions = {
   cache: WorkspaceRepositoryCache;
   createDraftId: () => string;
   label: string;
+  loadPolicy: VersionedRepositoryLoadPolicy;
   location: WorkspaceRepository["location"];
-  refreshRemoteOnLoad?: boolean;
   repositoryIdentity: string | Promise<string>;
   subscribeReconnect?: (listener: () => void) => () => void;
   preparation: WorkspaceRepositoryPreparationPolicy;
