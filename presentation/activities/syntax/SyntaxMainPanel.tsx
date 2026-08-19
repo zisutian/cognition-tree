@@ -10,12 +10,14 @@ import {
   PanelHeader,
 } from "../../ui/shared/primitives";
 import {
-  InlineRuleRows,
   BlockRuleRows,
+  TitleAndRootRows,
+} from "./SyntaxBlockRuleRows";
+import { InlineRuleRows } from "./SyntaxInlineRuleRows";
+import {
   SyntaxRuleHeader,
   SyntaxSettingsGroup,
-  TitleAndRootRows,
-} from "./SyntaxRuleRows";
+} from "./SyntaxRuleLayout";
 
 export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
   const syntax = view;
@@ -112,7 +114,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             fieldId={syntaxFieldIds.blockRuleGroup}
             title="块规则"
           >
-            <SyntaxRuleHeader />
+            <SyntaxRuleHeader kind="block" />
             <TitleAndRootRows syntax={syntax} />
             <BlockRuleRows syntax={syntax} />
           </SyntaxSettingsGroup>
@@ -120,7 +122,7 @@ export function SyntaxMainPanel({ view }: { view: SyntaxViewModel }) {
             fieldId={syntaxFieldIds.inlineRuleGroup}
             title="行内规则"
           >
-            <SyntaxRuleHeader inline />
+            <SyntaxRuleHeader kind="inline" />
             <InlineRuleRows syntax={syntax} />
           </SyntaxSettingsGroup>
         </div>
