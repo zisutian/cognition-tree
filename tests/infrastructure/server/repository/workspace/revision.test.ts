@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { describe, expect, it } from "vitest";
-import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types";
-import { createWorkspaceRepositoryRevision } from "../../../../infrastructure/client/repository/workspaceRepositoryRevision";
+import type { WorkspaceRepositoryContentDto } from "../../../../../contracts/workspace/types.ts";
+import { createWorkspaceRepositoryRevision } from "../../../../../infrastructure/server/repository/workspace/revision.ts";
 
 function createContent(): WorkspaceRepositoryContentDto {
   return {
@@ -34,13 +36,13 @@ function createContent(): WorkspaceRepositoryContentDto {
 }
 
 describe("createWorkspaceRepositoryRevision", () => {
-  it("produces a strict lowercase sha256 remote revision", async () => {
-    await expect(createWorkspaceRepositoryRevision(createContent())).resolves.toMatch(
+  it("produces a strict lowercase sha256 repository revision", () => {
+    expect(createWorkspaceRepositoryRevision(createContent())).toMatch(
       /^sha256:[0-9a-f]{64}$/,
     );
   });
 
-  it("sorts notes by id for canonical encoding", async () => {
+  it("sorts notes by id for canonical encoding", () => {
     const first = createContent();
     const reorderedNotes: WorkspaceRepositoryContentDto = {
       ...first,
@@ -50,12 +52,12 @@ describe("createWorkspaceRepositoryRevision", () => {
       },
     };
 
-    await expect(createWorkspaceRepositoryRevision(first)).resolves.toBe(
-      await createWorkspaceRepositoryRevision(reorderedNotes),
+    expect(createWorkspaceRepositoryRevision(first)).toBe(
+      createWorkspaceRepositoryRevision(reorderedNotes),
     );
   });
 
-  it("preserves user tree order in canonical encoding", async () => {
+  it("preserves user tree order in canonical encoding", () => {
     const first = createContent();
     const reorderedTree: WorkspaceRepositoryContentDto = {
       ...first,
@@ -65,24 +67,24 @@ describe("createWorkspaceRepositoryRevision", () => {
       },
     };
 
-    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
-      await createWorkspaceRepositoryRevision(reorderedTree),
+    expect(createWorkspaceRepositoryRevision(first)).not.toBe(
+      createWorkspaceRepositoryRevision(reorderedTree),
     );
   });
 
-  it("preserves syntax file order in canonical encoding", async () => {
+  it("preserves syntax file order in canonical encoding", () => {
     const first = createContent();
     const reorderedSyntax: WorkspaceRepositoryContentDto = {
       ...first,
       syntax: { ...first.syntax, files: [...first.syntax.files].reverse() },
     };
 
-    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
-      await createWorkspaceRepositoryRevision(reorderedSyntax),
+    expect(createWorkspaceRepositoryRevision(first)).not.toBe(
+      createWorkspaceRepositoryRevision(reorderedSyntax),
     );
   });
 
-  it("includes the active syntax file and every syntax source", async () => {
+  it("includes the active syntax file and every syntax source", () => {
     const first = createContent();
     const switched: WorkspaceRepositoryContentDto = {
       ...first,
@@ -101,11 +103,11 @@ describe("createWorkspaceRepositoryRevision", () => {
       },
     };
 
-    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
-      await createWorkspaceRepositoryRevision(switched),
+    expect(createWorkspaceRepositoryRevision(first)).not.toBe(
+      createWorkspaceRepositoryRevision(switched),
     );
-    await expect(createWorkspaceRepositoryRevision(first)).resolves.not.toBe(
-      await createWorkspaceRepositoryRevision(edited),
+    expect(createWorkspaceRepositoryRevision(first)).not.toBe(
+      createWorkspaceRepositoryRevision(edited),
     );
   });
 });
