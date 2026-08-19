@@ -98,6 +98,35 @@ describe("dependency boundaries", () => {
     ]).toEqual([]);
   });
 
+  it("rejects repository, generic persistence, and peer-domain coupling", () => {
+    const violations = auditImportPolicies([
+      {
+        filePath: "../../application/repository/view.ts",
+        importPath: "../workspace/session",
+        targetPath: "../../application/workspace/session.ts",
+        targetRoot: "application",
+      },
+      {
+        filePath: "../../application/persistence/merge.ts",
+        importPath: "../../core/todo/model",
+        targetPath: "../../core/todo/model.ts",
+        targetRoot: "core",
+      },
+      {
+        filePath: "../../application/workspace/service.ts",
+        importPath: "../journal/service",
+        targetPath: "../../application/journal/service.ts",
+        targetRoot: "application",
+      },
+    ], dependencyImportPolicies);
+
+    expect(violations).toEqual([
+      "peer domain isolation: ../../application/workspace/service.ts imports ../journal/service",
+      "repository independence from domain content: ../../application/repository/view.ts imports ../workspace/session",
+      "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
+    ]);
+  });
+
   it("keeps the production dependency graph acyclic", () => {
     expect(listSourceDependencyCycles()).toEqual([]);
   });

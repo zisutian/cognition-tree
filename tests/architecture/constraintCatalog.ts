@@ -84,6 +84,15 @@ function peerDomain(filePath: string) {
   )?.[1] ?? null;
 }
 
+function isConcreteDomainPath(filePath: string) {
+  return /^\.\.\/\.\.\/(?:application|core)\/(?:workspace|journal|todo)\//
+    .test(filePath);
+}
+
+function isApplicationArea(filePath: string, area: string) {
+  return filePath.startsWith(`../../application/${area}/`);
+}
+
 function serverArea(filePath: string) {
   const prefix = "../../infrastructure/server/";
 
@@ -140,6 +149,21 @@ export const dependencyImportPolicies: readonly ImportPolicy[] = [
     applies: ({ filePath, targetPath }) =>
       peerDomain(filePath) !== null && peerDomain(targetPath) !== null,
     name: "peer domain isolation",
+  },
+  {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      isApplicationArea(filePath, "repository") &&
+      isConcreteDomainPath(targetPath),
+    name: "repository independence from domain content",
+  },
+  {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      (isApplicationArea(filePath, "persistence") ||
+        isApplicationArea(filePath, "sync")) &&
+      isConcreteDomainPath(targetPath),
+    name: "generic persistence and sync independence from domains",
   },
   {
     allows: allowsInfrastructureEdge,
