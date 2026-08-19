@@ -19,7 +19,7 @@ import {
 import {
   recoverJournalLocalConflictCopies,
   type JournalConflictRecoveryDependencies,
-} from "../sync/domainConflictRecovery";
+} from "./persistence/journalConflictRecovery";
 
 export type JournalSessionState = VersionedSessionState<
   JournalContent,

@@ -37,7 +37,7 @@ import {
 } from "./workspaceSyntaxCatalogMutationService";
 import {
   recoverWorkspaceLocalConflictCopies,
-} from "../../sync/domainConflictRecovery";
+} from "../persistence/workspaceConflictRecovery";
 
 export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
   RepositoryRevision

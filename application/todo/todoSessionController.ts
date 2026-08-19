@@ -19,7 +19,7 @@ import {
 import {
   recoverTodoLocalConflictCopies,
   type TodoConflictRecoveryDependencies,
-} from "../sync/domainConflictRecovery";
+} from "./persistence/todoConflictRecovery";
 
 export type TodoSessionState = VersionedSessionState<
   TodoContent,

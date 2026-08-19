@@ -17,7 +17,7 @@ import type {
   JournalRevisionDto,
 } from "../../../contracts/journal/types";
 import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
-import { mergeJournalContent } from "../../../application/sync/domainThreeWayMerge";
+import { mergeJournalContent } from "../../../application/journal/persistence/journalThreeWayMerge";
 import { journalRepositoryPreparation } from "../repository/journalRepositoryCodec";
 import { createLocalFirstVersionedRepository } from "../repository/resilientVersionedRepository";
 import type { VersionedRepositoryCache } from "../repository/versionedRepositoryCache";

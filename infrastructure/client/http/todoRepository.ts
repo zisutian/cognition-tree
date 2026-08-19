@@ -17,7 +17,7 @@ import type {
   TodoRevisionDto,
 } from "../../../contracts/todo/types";
 import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
-import { mergeTodoContent } from "../../../application/sync/domainThreeWayMerge";
+import { mergeTodoContent } from "../../../application/todo/persistence/todoThreeWayMerge";
 import { createLocalFirstVersionedRepository } from "../repository/resilientVersionedRepository";
 import { todoRepositoryPreparation } from "../repository/todoRepositoryCodec";
 import type { VersionedRepositoryCache } from "../repository/versionedRepositoryCache";

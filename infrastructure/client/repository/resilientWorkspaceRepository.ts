@@ -15,7 +15,7 @@ import {
 } from "../../../application/workspace/persistence/workspaceRepository";
 import {
   mergeWorkspaceContent,
-} from "../../../application/sync/domainThreeWayMerge";
+} from "../../../application/workspace/persistence/workspaceThreeWayMerge";
 
 type LocalFirstWorkspaceRepositoryOptions = {
   backend: WorkspaceRepositoryBackend;
