@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createVersionedSessionController,
   VersionedSessionUnavailableError,
@@ -373,6 +373,36 @@ describe("versioned session controller", () => {
       status: "ready",
     });
     readController.dispose();
+  });
+
+  it("keeps flush available after a reload reaches its local durability point", async () => {
+    const harness = createRepositoryHarness();
+    const syncStarted = deferred<void>();
+    const releaseSync = deferred<void>();
+    const reloadSnapshot = deferred<TestSnapshot>();
+
+    harness.setBeforeSynchronize(async () => {
+      syncStarted.resolve();
+      await releaseSync.promise;
+    });
+    const controller = await startController(harness);
+
+    controller.mutate(append(1));
+    await controller.flushPendingChanges();
+    controller.requestSync();
+    await syncStarted.promise;
+    harness.setLoad(() => reloadSnapshot.promise);
+    const reload = controller.reload();
+
+    releaseSync.resolve();
+    await vi.waitFor(() => expect(harness.getLoadCount()).toBe(2));
+    expect(controller.canMutate()).toBe(false);
+    await expect(controller.flushPendingChanges()).resolves.toBeUndefined();
+
+    reloadSnapshot.resolve(harness.getSnapshot());
+    await reload;
+    expect(controller.canMutate()).toBe(true);
+    controller.dispose();
   });
 
   it("restores the ready writable session after transition failures", async () => {

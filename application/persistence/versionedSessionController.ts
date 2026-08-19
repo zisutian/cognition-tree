@@ -434,7 +434,13 @@ export function createVersionedSessionController<
       listeners.clear();
     },
     flushPendingChanges() {
-      return requireActive().queue.flushLocal();
+      if (!active || state.status !== "ready") {
+        throw new VersionedSessionUnavailableError(label);
+      }
+      // A reload/removal transition may already have quiesced mutation and
+      // detached a queue after reaching its local durability point. Flushing
+      // remains safe in either case and must not reuse the mutation guard.
+      return active.queue?.flushLocal() ?? Promise.resolve();
     },
     getState() {
       return state;
