@@ -14,13 +14,17 @@ import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import {
   compareTodoLocalDates,
   isTodoLocalDate,
+} from "../recurrence/todoLocalDate.ts";
+import {
   isTodoRecurrenceStageId,
   isTodoRecurrenceStageOccurrence,
-  validateTodoRecurrenceRule,
   type TodoRecurrence,
   type TodoRecurrenceStage,
   type TodoRecurrenceStageId,
-} from "../recurrence/todoRecurrence.ts";
+} from "../recurrence/todoRecurrenceSchedule.ts";
+import {
+  validateTodoRecurrenceRule,
+} from "../recurrence/todoRecurrenceRule.ts";
 import {
   todoItemSemanticType,
   todoRepositorySchemaVersion,

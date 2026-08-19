@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { TodoRecurrence } from "../recurrence/todoRecurrence.ts";
+import type { TodoRecurrence } from "../recurrence/todoRecurrenceSchedule.ts";
 
 export const todoRepositorySchemaVersion = 4 as const;
 export const todoItemSemanticType = "todo-item";

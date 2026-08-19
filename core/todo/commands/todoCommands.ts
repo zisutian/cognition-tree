@@ -43,15 +43,21 @@ import type {
 } from "../indexes/todoParseIndex.ts";
 import {
   addTodoLocalDays,
-  isTodoRecurrenceStageId,
-  projectTodoRecurrence,
   requireTodoLocalDate,
-  validateTodoRecurrenceRule,
   type TodoLocalDate,
+} from "../recurrence/todoLocalDate.ts";
+import {
+  isTodoRecurrenceStageId,
   type TodoRecurrence,
-  type TodoRecurrenceRule,
   type TodoRecurrenceStageId,
-} from "../recurrence/todoRecurrence.ts";
+} from "../recurrence/todoRecurrenceSchedule.ts";
+import {
+  validateTodoRecurrenceRule,
+  type TodoRecurrenceRule,
+} from "../recurrence/todoRecurrenceRule.ts";
+import {
+  projectTodoRecurrence,
+} from "../recurrence/todoRecurrenceProjection.ts";
 import {
   DomainNotFoundError,
   DomainValidationError,

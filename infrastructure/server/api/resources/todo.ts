@@ -20,8 +20,10 @@ import {
 } from "../../../../core/todo/model/todoCollectionProjection.ts";
 import {
   projectTodoRecurrence,
-  type TodoLocalDate,
-} from "../../../../core/todo/recurrence/todoRecurrence.ts";
+} from "../../../../core/todo/recurrence/todoRecurrenceProjection.ts";
+import type {
+  TodoLocalDate,
+} from "../../../../core/todo/recurrence/todoLocalDate.ts";
 import { projectApiV1CtnDocument } from "./ctn.ts";
 import {
   createParsedTodoCollectionVersion,

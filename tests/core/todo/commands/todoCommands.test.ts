@@ -20,7 +20,7 @@ import {
 import {
   validateTodoContent,
 } from "../../../../core/todo/model/todoValidation";
-import { projectTodoRecurrence } from "../../../../core/todo/recurrence/todoRecurrence";
+import { projectTodoRecurrence } from "../../../../core/todo/recurrence/todoRecurrenceProjection";
 import {
   createTodoParseIndex,
 } from "../../../../core/todo/indexes/todoParseIndex";

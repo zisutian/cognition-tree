@@ -1,31 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { DomainValidationError } from "../../errors/domainErrors.ts";
-
-export type TodoLocalDate = `${number}-${number}-${number}`;
-export type TodoIsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-export type TodoDailyRecurrenceRule = {
-  interval: number;
-  kind: "daily";
-};
-
-export type TodoWeeklyRecurrenceRule = {
-  interval: number;
-  kind: "weekly";
-  weekdays: TodoIsoWeekday[];
-};
-
-export type TodoMonthlyRecurrenceRule = {
-  dayOfMonth: number;
-  interval: number;
-  kind: "monthly";
-};
-
-export type TodoRecurrenceRule =
-  | TodoDailyRecurrenceRule
-  | TodoWeeklyRecurrenceRule
-  | TodoMonthlyRecurrenceRule;
+import {
+  addTodoLocalDays,
+  compareTodoLocalDates,
+  formatTodoLocalDateEpochDay,
+  getTodoGregorianDayOfMonth,
+  getTodoGregorianEpochDay,
+  getTodoIsoWeekday,
+  parseTodoLocalDate,
+  type TodoLocalDate,
+} from "./todoLocalDate.ts";
+import {
+  validateTodoRecurrenceRule,
+  type TodoDailyRecurrenceRule,
+  type TodoMonthlyRecurrenceRule,
+  type TodoRecurrenceRule,
+  type TodoWeeklyRecurrenceRule,
+} from "./todoRecurrenceRule.ts";
 
 export type TodoRecurrenceStageId = `todo-recurrence-stage-${string}`;
 
@@ -48,83 +40,8 @@ export type TodoRecurrence = {
   stages: TodoRecurrenceStage[];
 };
 
-export type TodoRecurrenceProjection = {
-  active: boolean;
-  completed: boolean;
-  completedAt: string | null;
-  completedCount: number;
-  currentOccurrenceDate: TodoLocalDate | null;
-  currentStage: TodoRecurrenceStage | null;
-  nextOccurrenceDate: TodoLocalDate | null;
-  totalCount: number;
-};
-
-const localDatePattern = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
 const stageIdPattern =
   /^todo-recurrence-stage-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const millisecondsPerDay = 86_400_000;
-
-function toEpochDayParts(year: number, month: number, day: number) {
-  const date = new Date(0);
-
-  date.setUTCHours(0, 0, 0, 0);
-  date.setUTCFullYear(year, month - 1, day);
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return null;
-  }
-  return Math.floor(date.getTime() / millisecondsPerDay);
-}
-
-function readLocalDate(value: string) {
-  const match = localDatePattern.exec(value);
-
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-
-  if (year < 1 || year > 9999) return null;
-  const epochDay = toEpochDayParts(year, month, day);
-
-  return epochDay === null ? null : { day, epochDay, month, year };
-}
-
-function formatEpochDay(epochDay: number): TodoLocalDate {
-  const date = new Date(epochDay * millisecondsPerDay);
-  const year = String(date.getUTCFullYear()).padStart(4, "0");
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}` as TodoLocalDate;
-}
-
-function requirePositiveInterval(interval: number) {
-  if (!Number.isSafeInteger(interval) || interval < 1) {
-    throw new DomainValidationError(
-      "Todo recurrence interval must be a positive integer.",
-    );
-  }
-}
-
-export function isTodoLocalDate(value: string): value is TodoLocalDate {
-  return readLocalDate(value) !== null;
-}
-
-export function requireTodoLocalDate(
-  value: string,
-  label = "Todo local date",
-): TodoLocalDate {
-  if (!isTodoLocalDate(value)) {
-    throw new DomainValidationError(
-      `${label} must use YYYY-MM-DD Gregorian format.`,
-    );
-  }
-  return value;
-}
 
 export function isTodoRecurrenceStageId(
   value: string,
@@ -134,83 +51,6 @@ export function isTodoRecurrenceStageId(
 
 export function isTodoRecurrenceEnabled(recurrence: TodoRecurrence) {
   return recurrence.stages.at(-1)?.endsBefore === null;
-}
-
-export function compareTodoLocalDates(
-  left: TodoLocalDate,
-  right: TodoLocalDate,
-) {
-  return left.localeCompare(right);
-}
-
-export function addTodoLocalDays(
-  date: TodoLocalDate,
-  days: number,
-): TodoLocalDate {
-  if (!Number.isSafeInteger(days)) {
-    throw new DomainValidationError(
-      "Todo local date offset must be an integer.",
-    );
-  }
-  const parsed = readLocalDate(date);
-
-  if (!parsed) {
-    throw new DomainValidationError(`Invalid Todo local date: ${date}`);
-  }
-  return formatEpochDay(parsed.epochDay + days);
-}
-
-export function getTodoIsoWeekday(date: TodoLocalDate): TodoIsoWeekday {
-  const parsed = readLocalDate(date);
-
-  if (!parsed) {
-    throw new DomainValidationError(`Invalid Todo local date: ${date}`);
-  }
-  const weekday = new Date(
-    parsed.epochDay * millisecondsPerDay,
-  ).getUTCDay();
-
-  return (weekday === 0 ? 7 : weekday) as TodoIsoWeekday;
-}
-
-export function validateTodoRecurrenceRule(
-  rule: TodoRecurrenceRule,
-): TodoRecurrenceRule {
-  requirePositiveInterval(rule.interval);
-  if (rule.kind === "daily") return rule;
-  if (rule.kind === "monthly") {
-    if (
-      !Number.isSafeInteger(rule.dayOfMonth) ||
-      rule.dayOfMonth < 1 ||
-      rule.dayOfMonth > 31
-    ) {
-      throw new DomainValidationError(
-        "Todo monthly recurrence day must be between 1 and 31.",
-      );
-    }
-    return rule;
-  }
-  if (rule.weekdays.length === 0) {
-    throw new DomainValidationError(
-      "Todo weekly recurrence requires at least one weekday.",
-    );
-  }
-  let previous = 0;
-
-  for (const weekday of rule.weekdays) {
-    if (
-      !Number.isSafeInteger(weekday) ||
-      weekday < 1 ||
-      weekday > 7 ||
-      weekday <= previous
-    ) {
-      throw new DomainValidationError(
-        "Todo weekly recurrence weekdays must be unique and ascending.",
-      );
-    }
-    previous = weekday;
-  }
-  return rule;
 }
 
 function stageLastDate(
@@ -237,7 +77,7 @@ function dateInMonth(
 ): TodoLocalDate {
   const year = Math.floor(index / 12);
   const month = index % 12 + 1;
-  const nextMonthEpoch = toEpochDayParts(
+  const nextMonthEpoch = getTodoGregorianEpochDay(
     month === 12 ? year + 1 : year,
     month === 12 ? 1 : month + 1,
     1,
@@ -248,25 +88,27 @@ function dateInMonth(
       "Todo recurrence month is outside the supported range.",
     );
   }
-  const lastDay = new Date(
-    (nextMonthEpoch - 1) * millisecondsPerDay,
-  ).getUTCDate();
-  const epochDay = toEpochDayParts(year, month, Math.min(dayOfMonth, lastDay));
+  const lastDay = getTodoGregorianDayOfMonth(nextMonthEpoch - 1);
+  const epochDay = getTodoGregorianEpochDay(
+    year,
+    month,
+    Math.min(dayOfMonth, lastDay),
+  );
 
   if (epochDay === null) {
     throw new DomainValidationError(
       "Todo recurrence month is outside the supported range.",
     );
   }
-  return formatEpochDay(epochDay);
+  return formatTodoLocalDateEpochDay(epochDay);
 }
 
 function dailyCount(
   stage: TodoRecurrenceStage,
   lastDate: TodoLocalDate,
 ) {
-  const start = readLocalDate(stage.startsOn)!;
-  const end = readLocalDate(lastDate)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const end = parseTodoLocalDate(lastDate)!;
   const rule = stage.rule as TodoDailyRecurrenceRule;
 
   return Math.floor((end.epochDay - start.epochDay) / rule.interval) + 1;
@@ -276,8 +118,8 @@ function weeklyCount(
   stage: TodoRecurrenceStage,
   lastDate: TodoLocalDate,
 ) {
-  const start = readLocalDate(stage.startsOn)!;
-  const end = readLocalDate(lastDate)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const end = parseTodoLocalDate(lastDate)!;
   const rule = stage.rule as TodoWeeklyRecurrenceRule;
   const startWeekday = getTodoIsoWeekday(stage.startsOn);
   const anchorMonday = start.epochDay - (startWeekday - 1);
@@ -299,8 +141,8 @@ function monthlyCount(
   stage: TodoRecurrenceStage,
   lastDate: TodoLocalDate,
 ) {
-  const start = readLocalDate(stage.startsOn)!;
-  const end = readLocalDate(lastDate)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const end = parseTodoLocalDate(lastDate)!;
   const rule = stage.rule as TodoMonthlyRecurrenceRule;
   const startMonth = monthIndex(start.year, start.month);
   const endMonth = monthIndex(end.year, end.month);
@@ -345,14 +187,16 @@ function nextDailyOccurrence(
   stage: TodoRecurrenceStage,
   afterDate: TodoLocalDate,
 ) {
-  const start = readLocalDate(stage.startsOn)!;
-  const after = readLocalDate(afterDate)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const after = parseTodoLocalDate(afterDate)!;
   const rule = stage.rule as TodoDailyRecurrenceRule;
   const offset = after.epochDay < start.epochDay
     ? 0
     : Math.floor((after.epochDay - start.epochDay) / rule.interval) + 1;
 
-  return formatEpochDay(start.epochDay + offset * rule.interval);
+  return formatTodoLocalDateEpochDay(
+    start.epochDay + offset * rule.interval,
+  );
 }
 
 function nextWeeklyOccurrence(
@@ -362,8 +206,8 @@ function nextWeeklyOccurrence(
   if (compareTodoLocalDates(afterDate, stage.startsOn) < 0) {
     return stage.startsOn;
   }
-  const start = readLocalDate(stage.startsOn)!;
-  const after = readLocalDate(afterDate)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const after = parseTodoLocalDate(afterDate)!;
   const rule = stage.rule as TodoWeeklyRecurrenceRule;
   const anchorMonday =
     start.epochDay - (getTodoIsoWeekday(stage.startsOn) - 1);
@@ -381,7 +225,7 @@ function nextWeeklyOccurrence(
       nextEpochDay = Math.min(nextEpochDay, candidate);
     }
   }
-  return formatEpochDay(nextEpochDay);
+  return formatTodoLocalDateEpochDay(nextEpochDay);
 }
 
 function nextMonthlyOccurrence(
@@ -391,8 +235,8 @@ function nextMonthlyOccurrence(
   if (compareTodoLocalDates(afterDate, stage.startsOn) < 0) {
     return stage.startsOn;
   }
-  const start = readLocalDate(stage.startsOn)!;
-  const after = readLocalDate(afterDate)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const after = parseTodoLocalDate(afterDate)!;
   const rule = stage.rule as TodoMonthlyRecurrenceRule;
   const startMonth = monthIndex(start.year, start.month);
   const afterMonth = monthIndex(after.year, after.month);
@@ -452,33 +296,24 @@ export function isTodoRecurrenceStageOccurrence(
   ) === date;
 }
 
-function currentStage(
-  recurrence: TodoRecurrence,
-  today: TodoLocalDate,
-) {
-  return [...recurrence.stages].reverse().find((stage) =>
-    compareTodoLocalDates(stage.startsOn, today) <= 0 &&
-    (!stage.endsBefore ||
-      compareTodoLocalDates(today, stage.endsBefore) < 0)
-  ) ?? null;
-}
-
-function latestOccurrenceOnOrBefore(
+export function getLatestTodoRecurrenceStageOccurrence(
   stage: TodoRecurrenceStage,
-  date: TodoLocalDate,
+  throughDate: TodoLocalDate,
 ) {
-  if (compareTodoLocalDates(date, stage.startsOn) < 0) return null;
-  const end = stageLastDate(stage, date);
+  if (compareTodoLocalDates(throughDate, stage.startsOn) < 0) return null;
+  const end = stageLastDate(stage, throughDate);
 
   if (!end) return null;
-  const start = readLocalDate(stage.startsOn)!;
-  const through = readLocalDate(end)!;
+  const start = parseTodoLocalDate(stage.startsOn)!;
+  const through = parseTodoLocalDate(end)!;
   if (stage.rule.kind === "daily") {
     const offset = Math.floor(
       (through.epochDay - start.epochDay) / stage.rule.interval,
     );
 
-    return formatEpochDay(start.epochDay + offset * stage.rule.interval);
+    return formatTodoLocalDateEpochDay(
+      start.epochDay + offset * stage.rule.interval,
+    );
   }
   if (stage.rule.kind === "weekly") {
     const anchorMonday =
@@ -497,7 +332,7 @@ function latestOccurrenceOnOrBefore(
         latestEpochDay = Math.max(latestEpochDay, candidate);
       }
     }
-    return formatEpochDay(latestEpochDay);
+    return formatTodoLocalDateEpochDay(latestEpochDay);
   }
   const startMonth = monthIndex(start.year, start.month);
   const throughMonth = monthIndex(through.year, through.month);
@@ -520,39 +355,4 @@ function latestOccurrenceOnOrBefore(
     step -= 1;
   }
   return stage.startsOn;
-}
-
-export function projectTodoRecurrence(
-  recurrence: TodoRecurrence,
-  today: TodoLocalDate,
-): TodoRecurrenceProjection {
-  requireTodoLocalDate(today);
-  const active = isTodoRecurrenceEnabled(recurrence);
-  const stage = active ? currentStage(recurrence, today) : null;
-  const currentOccurrenceDate = stage
-    ? latestOccurrenceOnOrBefore(stage, today)
-    : null;
-  const completion = currentOccurrenceDate && stage
-    ? recurrence.completions.find((candidate) =>
-        candidate.stageId === stage.id &&
-        candidate.occurrenceDate === currentOccurrenceDate
-      ) ?? null
-    : null;
-
-  return {
-    active,
-    completed: completion !== null,
-    completedAt: completion?.completedAt ?? null,
-    completedCount: recurrence.completions.length,
-    currentOccurrenceDate,
-    currentStage: stage,
-    nextOccurrenceDate: stage
-      ? getNextTodoRecurrenceStageOccurrence(stage, today)
-      : null,
-    totalCount: recurrence.stages.reduce(
-      (count, candidate) =>
-        count + countTodoRecurrenceStageOccurrences(candidate, today),
-      0,
-    ),
-  };
 }

@@ -16,9 +16,13 @@ import {
 import { validateTodoContent } from "../../core/todo/model/todoValidation";
 import type {
   TodoLocalDate,
+} from "../../core/todo/recurrence/todoLocalDate";
+import type {
   TodoRecurrenceRule,
+} from "../../core/todo/recurrence/todoRecurrenceRule";
+import type {
   TodoRecurrenceStageId,
-} from "../../core/todo/recurrence/todoRecurrence";
+} from "../../core/todo/recurrence/todoRecurrenceSchedule";
 import {
   resolveTodoCollectionSelection,
   resolveTodoCollectionSelectionAfterDelete,

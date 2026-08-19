@@ -15,9 +15,13 @@ import {
 } from "../../core/todo/model/todoCollectionProjection";
 import {
   projectTodoRecurrence,
-  type TodoLocalDate,
-  type TodoRecurrenceRule,
-} from "../../core/todo/recurrence/todoRecurrence";
+} from "../../core/todo/recurrence/todoRecurrenceProjection";
+import type {
+  TodoLocalDate,
+} from "../../core/todo/recurrence/todoLocalDate";
+import type {
+  TodoRecurrenceRule,
+} from "../../core/todo/recurrence/todoRecurrenceRule";
 import type { TodoPersistenceState } from "./todoSessionController";
 import type { TodoMutationActions } from "./todoApplication";
 import {

@@ -41,9 +41,13 @@ import {
 } from "../../core/todo/model/todoIdentity.ts";
 import type {
   TodoLocalDate,
+} from "../../core/todo/recurrence/todoLocalDate.ts";
+import type {
   TodoRecurrenceRule,
+} from "../../core/todo/recurrence/todoRecurrenceRule.ts";
+import type {
   TodoRecurrenceStageId,
-} from "../../core/todo/recurrence/todoRecurrence.ts";
+} from "../../core/todo/recurrence/todoRecurrenceSchedule.ts";
 import {
   assertDomainResourceVersion,
 } from "../commands/domainCommand.ts";

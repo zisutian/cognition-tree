@@ -13,7 +13,7 @@ import {
   createTodoCollectionBodyProjection,
 } from "../../../core/todo/model/todoCollectionProjection";
 import type { TodoContent } from "../../../core/todo/model/todoContent";
-import type { TodoLocalDate } from "../../../core/todo/recurrence/todoRecurrence";
+import type { TodoLocalDate } from "../../../core/todo/recurrence/todoLocalDate";
 import { createTodoViewModel } from "../../../application/todo/todoViewModel";
 import type { TodoMutationActions } from "../../../application/todo/todoApplication";
 import {

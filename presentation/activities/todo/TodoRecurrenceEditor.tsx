@@ -6,8 +6,10 @@ import type {
 } from "../../../application/todo";
 import type {
   TodoIsoWeekday,
+} from "../../../core/todo/recurrence/todoLocalDate";
+import type {
   TodoRecurrenceRule,
-} from "../../../core/todo/recurrence/todoRecurrence";
+} from "../../../core/todo/recurrence/todoRecurrenceRule";
 import {
   Button,
   SegmentedControl,
