@@ -4,9 +4,11 @@ import { serializeJsonIteratively } from "../../../../contracts/common/json";
 import { parseWorkspaceRepositoryCommit } from "../../../../contracts/workspace/parseRepository";
 import { createHttpWorkspaceRepositoryBackend } from "../../../../infrastructure/client/http/workspaceRepository";
 import {
+  apiRequestTimeoutMs,
+} from "../../../../infrastructure/client/http/apiTransport";
+import {
   createHttpRepositoryCacheIdentity,
-  repositoryRequestTimeoutMs,
-} from "../../../../infrastructure/client/http/repositoryTransport";
+} from "../../../../infrastructure/client/http/httpRepositoryIdentity";
 import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryRemoteError,
@@ -307,7 +309,7 @@ describe("HTTP workspace repository backend", () => {
       WorkspaceRepositoryUnavailableError,
     );
 
-    await vi.advanceTimersByTimeAsync(repositoryRequestTimeoutMs);
+    await vi.advanceTimersByTimeAsync(apiRequestTimeoutMs);
 
     await rejection;
     expect(observedSignal?.aborted).toBe(true);
@@ -337,7 +339,7 @@ describe("HTTP workspace repository backend", () => {
       WorkspaceRepositoryUnavailableError,
     );
 
-    await vi.advanceTimersByTimeAsync(repositoryRequestTimeoutMs);
+    await vi.advanceTimersByTimeAsync(apiRequestTimeoutMs);
 
     await rejection;
     expect(observedSignal?.aborted).toBe(true);

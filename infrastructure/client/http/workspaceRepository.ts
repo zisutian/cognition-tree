@@ -3,14 +3,14 @@ import {
   parseWorkspaceRepositoryCommitResult,
   parseWorkspaceRepositorySnapshot,
 } from "../../../contracts/workspace/parseRepository";
+import { parseRepositoryRevision } from "../../../contracts/workspace/revision";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import type { WorkspaceRepositoryBackend } from "../../../application/workspace/persistence/workspaceRepository";
-import {
-  requestRepositoryJson,
-  type HttpRepositoryTransportOptions,
-} from "./repositoryTransport";
+import type { HttpApiTransportOptions } from "./apiTransport";
+import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
+import { withWorkspaceApiAdapterErrors } from "./workspaceApiAdapter";
 
-type HttpWorkspaceRepositoryOptions = HttpRepositoryTransportOptions & {
+type HttpWorkspaceRepositoryOptions = HttpApiTransportOptions & {
   repositoryId: string;
 };
 
@@ -22,35 +22,26 @@ export function createHttpWorkspaceRepositoryBackend({
 }: HttpWorkspaceRepositoryOptions): WorkspaceRepositoryBackend {
   const endpoint =
     `/api/v1/sync/workspaces/${encodeURIComponent(repositoryId)}`;
+  const backend = createHttpVersionedContentRepositoryBackend({
+    baseUrl,
+    codec: {
+      parseCommit: parseWorkspaceRepositoryCommit,
+      parseCommitResult: parseWorkspaceRepositoryCommitResult,
+      parseRevision: parseRepositoryRevision,
+      parseSnapshot: parseWorkspaceRepositorySnapshot,
+      serializeCommit: serializeJsonIteratively,
+    },
+    endpoint,
+    fetch: fetchFn,
+    token,
+  });
 
   return {
-    async commitRemoteSnapshot(commit) {
-      const outbound = parseWorkspaceRepositoryCommit(commit);
-
-      return parseWorkspaceRepositoryCommitResult(
-        await requestRepositoryJson(
-          fetchFn,
-          baseUrl,
-          endpoint,
-          {
-            body: serializeJsonIteratively(outbound),
-            headers: { "Content-Type": "application/json" },
-            method: "PUT",
-          },
-          token,
-        ),
-      );
-    },
-    async loadRemoteSnapshot() {
-      return parseWorkspaceRepositorySnapshot(
-        await requestRepositoryJson(
-          fetchFn,
-          baseUrl,
-          endpoint,
-          undefined,
-          token,
-        ),
-      );
-    },
+    commitRemoteSnapshot: (commit) =>
+      withWorkspaceApiAdapterErrors(() =>
+        backend.commitRemoteSnapshot(commit)
+      ),
+    loadRemoteSnapshot: () =>
+      withWorkspaceApiAdapterErrors(() => backend.loadRemoteSnapshot()),
   };
 }

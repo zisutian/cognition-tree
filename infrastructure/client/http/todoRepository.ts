@@ -16,16 +16,17 @@ import type {
   TodoContentDto,
   TodoRevisionDto,
 } from "../../../contracts/todo/types";
+import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
 import { mergeTodoContent } from "../../../application/todo/persistence/todoThreeWayMerge";
 import { createLocalFirstVersionedRepository } from "../repository/resilientVersionedRepository";
 import { todoRepositoryPreparation } from "../repository/todoRepositoryCodec";
 import type { VersionedRepositoryCache } from "../repository/versionedRepositoryCache";
 import {
-  createHttpRepositoryCacheIdentity,
   subscribeClientReconnect,
-  type HttpRepositoryTransportOptions,
-} from "./repositoryTransport";
+  type HttpApiTransportOptions,
+} from "./apiTransport";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
 import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
 
 type TodoRepositoryCache = VersionedRepositoryCache<
@@ -38,12 +39,13 @@ export function createHttpTodoRepositoryBackend({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-}: HttpRepositoryTransportOptions): TodoRepositoryBackend {
+}: HttpApiTransportOptions): TodoRepositoryBackend {
   return createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {
       parseCommit: parseTodoCommit,
       parseCommitResult: parseTodoCommitResult,
+      parseRevision: parseContentRevision,
       parseSnapshot: parseTodoSnapshot,
       serializeCommit: serializeJsonIteratively,
     },
@@ -58,7 +60,7 @@ export function createHttpTodoRepositoryProvider({
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   repositoryCache,
   token,
-}: HttpRepositoryTransportOptions & {
+}: HttpApiTransportOptions & {
   repositoryCache: TodoRepositoryCache;
 }): TodoRepositoryProvider {
   let repository: TodoRepository | null = null;

@@ -21,6 +21,10 @@ import {
 import {
   createHttpTodoRepositoryBackend,
 } from "../../../../infrastructure/client/http/todoRepository";
+import {
+  VersionedRepositoryBackendConflictError,
+  VersionedRepositoryRemoteError,
+} from "../../../../application/persistence/versionedRepository";
 import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure/client/repository/versionedRepositoryCache";
 import {
   appendJournalTestEntry,
@@ -160,6 +164,41 @@ describe("HTTP built-in catalog and data repositories", () => {
       baseRevision: todoRevisionA,
       content: todoContent,
     });
+  });
+
+  it("maps versioned HTTP conflicts and failures without Workspace errors", async () => {
+    const conflict = createHttpJournalRepositoryBackend({
+      baseUrl: "https://api.test",
+      fetch: async () => jsonResponse({
+        code: "resource_conflict",
+        details: { currentRevision: journalRevisionB },
+        message: "journal changed",
+        requestId: "request-conflict",
+      }, 409),
+    });
+    const unavailable = createHttpJournalRepositoryBackend({
+      baseUrl: "https://api.test",
+      fetch: async () => jsonResponse({
+        code: "adapter_unavailable",
+        message: "journal unavailable",
+        requestId: "request-unavailable",
+      }, 503),
+    });
+
+    await expect(conflict.commitRemoteSnapshot({
+      baseRevision: journalRevisionA,
+      content: createEmptyJournalContent(),
+    })).rejects.toEqual(
+      expect.objectContaining<Partial<VersionedRepositoryBackendConflictError>>({
+        currentRevision: journalRevisionB,
+      }),
+    );
+    await expect(unavailable.loadRemoteSnapshot()).rejects.toEqual(
+      expect.objectContaining<Partial<VersionedRepositoryRemoteError>>({
+        code: "adapter_unavailable",
+        retryable: true,
+      }),
+    );
   });
 
   it("loads content-free descriptors and retries the selected domain", async () => {

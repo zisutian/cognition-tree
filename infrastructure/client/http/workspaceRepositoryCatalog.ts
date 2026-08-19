@@ -10,11 +10,11 @@ import {
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import { createHttpWorkspaceRepositoryBackend } from "./workspaceRepository";
 import {
-  createHttpRepositoryCacheIdentity,
-  requestRepositoryJson,
   subscribeClientReconnect,
-  type HttpRepositoryTransportOptions,
-} from "./repositoryTransport";
+  type HttpApiTransportOptions,
+} from "./apiTransport";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
+import { requestWorkspaceApiJson } from "./workspaceApiAdapter";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
 import type {
   WorkspaceRepositoryProvider,
@@ -31,7 +31,7 @@ import {
   WorkspaceRepositoryUnavailableError,
 } from "../../../application/workspace/persistence/workspaceRepository";
 
-type HttpWorkspaceRepositoryCatalogOptions = HttpRepositoryTransportOptions & {
+type HttpWorkspaceRepositoryCatalogOptions = HttpApiTransportOptions & {
   cache?: RepositoryClientCache;
   preparation: WorkspaceRepositoryPreparationPolicy;
 };
@@ -87,7 +87,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           : outbound.initialContent,
       );
       const descriptor = parseRepositoryDescriptor(
-        await requestRepositoryJson(
+        await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
           "/api/v1/admin/repositories",
@@ -118,7 +118,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       }
       const deletionMode = parseRepositoryDeletionMode(mode);
       const result = parseRepositoryDeletionResult(
-        await requestRepositoryJson(
+        await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
           `/api/v1/admin/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
@@ -143,7 +143,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       try {
         const previous = await loadCatalogBestEffort();
         const catalog = parseRepositoryCatalog(
-          await requestRepositoryJson(
+          await requestWorkspaceApiJson(
             fetchFn,
             baseUrl,
             "/api/v1/admin/repositories",
@@ -228,7 +228,7 @@ export function createHttpWorkspaceRepositoryCatalog({
       }
       const outbound = parseRenameRepository({ label });
       const descriptor = parseRepositoryDescriptor(
-        await requestRepositoryJson(
+        await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
           `/api/v1/admin/repositories/${encodeURIComponent(id)}`,

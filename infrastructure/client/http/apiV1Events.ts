@@ -5,7 +5,7 @@ import type {
   DomainChangeNotification,
 } from "../../../application/sync/domainChangeEvents";
 import { parseApiV1Event } from "../../../contracts/api/parse";
-import { resolveRepositoryApiUrl } from "./repositoryTransport";
+import { resolveApiUrl } from "./apiTransport";
 
 const initialReconnectDelayMs = 1_000;
 const maximumReconnectDelayMs = 30_000;
@@ -83,7 +83,7 @@ export function createHttpApiV1EventSource({
 
       if (token) headers.set("Authorization", `Bearer ${token}`);
       const response = await fetchFn(
-        resolveRepositoryApiUrl(baseUrl, "/api/v1/events"),
+        resolveApiUrl(baseUrl, "/api/v1/events"),
         {
           cache: "no-store",
           headers,

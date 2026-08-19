@@ -13,9 +13,9 @@ import {
   parseApiV1TokenList,
 } from "../../../contracts/api/parse";
 import {
-  requestRepositoryJson,
-  type HttpRepositoryTransportOptions,
-} from "./repositoryTransport";
+  requestApiJson,
+  type HttpApiTransportOptions,
+} from "./apiTransport";
 
 function projectToken(
   token: ReturnType<typeof parseApiV1TokenList>[number],
@@ -30,11 +30,11 @@ export function createHttpApiV1Administration({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-}: HttpRepositoryTransportOptions): ApiAccessAdministration {
+}: HttpApiTransportOptions): ApiAccessAdministration {
   return {
     async createToken(request: CreateAutomationApiTokenRequest) {
       const created = parseApiV1CreatedToken(
-        await requestRepositoryJson(
+        await requestApiJson(
           fetchFn,
           baseUrl,
           "/api/v1/admin/tokens",
@@ -54,7 +54,7 @@ export function createHttpApiV1Administration({
 
       if (cursor) query.set("cursor", cursor);
       return parseApiV1AuditPage(
-        await requestRepositoryJson(
+        await requestApiJson(
           fetchFn,
           baseUrl,
           `/api/v1/admin/audit?${query}`,
@@ -65,7 +65,7 @@ export function createHttpApiV1Administration({
     },
     async listTokens() {
       return parseApiV1TokenList(
-        await requestRepositoryJson(
+        await requestApiJson(
           fetchFn,
           baseUrl,
           "/api/v1/admin/tokens",
@@ -75,7 +75,7 @@ export function createHttpApiV1Administration({
       ).map(projectToken);
     },
     async revokeToken(tokenId) {
-      await requestRepositoryJson(
+      await requestApiJson(
         fetchFn,
         baseUrl,
         `/api/v1/admin/tokens/${encodeURIComponent(tokenId)}`,

@@ -16,16 +16,17 @@ import type {
   JournalContentDto,
   JournalRevisionDto,
 } from "../../../contracts/journal/types";
+import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { createVersionedLocalDraftRevision } from "../../../application/persistence/versionedRepository";
 import { mergeJournalContent } from "../../../application/journal/persistence/journalThreeWayMerge";
 import { journalRepositoryPreparation } from "../repository/journalRepositoryCodec";
 import { createLocalFirstVersionedRepository } from "../repository/resilientVersionedRepository";
 import type { VersionedRepositoryCache } from "../repository/versionedRepositoryCache";
 import {
-  createHttpRepositoryCacheIdentity,
   subscribeClientReconnect,
-  type HttpRepositoryTransportOptions,
-} from "./repositoryTransport";
+  type HttpApiTransportOptions,
+} from "./apiTransport";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
 import { createHttpVersionedContentRepositoryBackend } from "./versionedContentRepository";
 
 type JournalRepositoryCache = VersionedRepositoryCache<
@@ -38,12 +39,13 @@ export function createHttpJournalRepositoryBackend({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-}: HttpRepositoryTransportOptions): JournalRepositoryBackend {
+}: HttpApiTransportOptions): JournalRepositoryBackend {
   return createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {
       parseCommit: parseJournalCommit,
       parseCommitResult: parseJournalCommitResult,
+      parseRevision: parseContentRevision,
       parseSnapshot: parseJournalSnapshot,
       serializeCommit: serializeJsonIteratively,
     },
@@ -58,7 +60,7 @@ export function createHttpJournalRepositoryProvider({
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   repositoryCache,
   token,
-}: HttpRepositoryTransportOptions & {
+}: HttpApiTransportOptions & {
   repositoryCache: JournalRepositoryCache;
 }): JournalRepositoryProvider {
   let repository: JournalRepository | null = null;

@@ -8,16 +8,14 @@ import {
 import {
   type BuiltInCatalog,
 } from "../../../application/repository/builtInCatalog";
-import {
-  VersionedRepositoryRemoteError,
-  VersionedRepositoryUnavailableError,
-} from "../../../application/persistence/versionedRepository";
 import type { BuiltInCatalogCache } from "../repository/builtInCatalogCache";
 import {
-  createHttpRepositoryCacheIdentity,
-  requestRepositoryJson,
-  type HttpRepositoryTransportOptions,
-} from "./repositoryTransport";
+  HttpApiResponseError,
+  HttpApiUnavailableError,
+  requestApiJson,
+  type HttpApiTransportOptions,
+} from "./apiTransport";
+import { createHttpRepositoryCacheIdentity } from "./httpRepositoryIdentity";
 
 export function createMemoryBuiltInCatalogCache(): BuiltInCatalogCache {
   const values = new Map<string, ReturnType<typeof parseBuiltInCatalog>>();
@@ -35,8 +33,8 @@ export function createMemoryBuiltInCatalogCache(): BuiltInCatalogCache {
 }
 
 function isOfflineError(error: unknown) {
-  return error instanceof VersionedRepositoryUnavailableError ||
-    (error instanceof VersionedRepositoryRemoteError && error.retryable);
+  return error instanceof HttpApiUnavailableError ||
+    (error instanceof HttpApiResponseError && error.retryable);
 }
 
 export function createHttpBuiltInCatalog({
@@ -44,7 +42,7 @@ export function createHttpBuiltInCatalog({
   catalogCache,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
-}: HttpRepositoryTransportOptions & {
+}: HttpApiTransportOptions & {
   catalogCache: BuiltInCatalogCache;
 }): BuiltInCatalog {
   const catalogIdentity = createHttpRepositoryCacheIdentity({
@@ -57,7 +55,7 @@ export function createHttpBuiltInCatalog({
     async listBuiltIns() {
       try {
         const catalog = parseBuiltInCatalog(
-          await requestRepositoryJson(
+          await requestApiJson(
             fetchFn,
             baseUrl,
             "/api/v1/admin/built-ins",
@@ -80,7 +78,7 @@ export function createHttpBuiltInCatalog({
       const id = parseBuiltInId(value);
 
       return parseBuiltInRetryResult(
-        await requestRepositoryJson(
+        await requestApiJson(
           fetchFn,
           baseUrl,
           `/api/v1/admin/built-ins/${id}/retry`,
