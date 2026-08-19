@@ -2,11 +2,9 @@ import type { NotesViewModel } from "../../../../application/workspace/notes/edi
 import "./notes.css";
 import type { ActivitySlots } from "../../../ui/activityTypes";
 import { SegmentedControl } from "../../../ui/shared/primitives";
-import {
-  NoteDetailPanel,
-  NoteEditorPanel,
-  NotesContext,
-} from "./NotesPanels";
+import { NoteDetailPanel } from "./NoteDetailPanel";
+import { NoteEditorPanel } from "./NoteEditorPanel";
+import { NotesContext } from "./NotesContext";
 
 export type NotesMode = "edit" | "graph" | "structure";
 

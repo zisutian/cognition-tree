@@ -1,12 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
-  NoteDetailPanel,
-  NoteEditorPanel,
   findNotesTreeAncestorFolderIds,
-  submitNotesEditorChange,
   submitNotesFolderCreation,
-} from "../../../../../presentation/activities/notes/edit/NotesPanels";
+} from "../../../../../presentation/activities/notes/edit/NotesContext";
+import { NoteDetailPanel } from "../../../../../presentation/activities/notes/edit/NoteDetailPanel";
+import {
+  NoteEditorPanel,
+  submitNotesEditorChange,
+} from "../../../../../presentation/activities/notes/edit/NoteEditorPanel";
 import { NoteTimeDetails } from "../../../../../presentation/activities/notes/edit/NoteTimeDetails";
 import { runFeedbackAction } from "../../../../../presentation/ui/shared/FeedbackProvider";
 import { createNotesView } from "../../../fixtures/notesViewFixture";
