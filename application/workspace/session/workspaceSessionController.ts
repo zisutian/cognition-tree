@@ -119,8 +119,6 @@ export function createWorkspaceSessionController({
   });
   const base = createVersionedSessionController({
     label: "Workspace",
-    prepareContent: (content, previous) =>
-      prepareWorkspaceRepositoryContent(content, { previous }),
     repository,
     scheduler,
   });
@@ -171,7 +169,7 @@ export function createWorkspaceSessionController({
   };
   const commands = createSessionCommands({
     commitDataSnapshot(workspace, analysisOverrides) {
-      base.mutatePrepared(({ content, projection }) => {
+      base.mutate(({ content, projection }) => {
         const nextContent = { ...content, workspace };
         const nextProjection = prepareWorkspaceRepositoryContent(nextContent, {
           analysisOverrides,
@@ -189,7 +187,7 @@ export function createWorkspaceSessionController({
   const commitSyntaxMutation = (
     mutation: WorkspaceSyntaxCatalogMutation,
   ) => {
-    base.mutatePrepared(({ projection }) => {
+    base.mutate(({ projection }) => {
       const nextProjection = prepareWorkspaceRepositoryContent(
         mutation.content,
         {

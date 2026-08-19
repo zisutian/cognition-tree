@@ -46,8 +46,7 @@ export type JournalApplicationServices = {
 };
 
 export type JournalRepositorySession = {
-  mutate: (update: (current: JournalContent) => JournalContent) => void;
-  mutatePrepared: (
+  mutate: (
     update: (
       current: PreparedVersionedContent<
         JournalContent,
@@ -117,7 +116,7 @@ function monotonicTimestamp(requested: string, current: string) {
 }
 
 function updateJournalSession(
-  session: Pick<JournalRepositorySession, "mutatePrepared">,
+  session: Pick<JournalRepositorySession, "mutate">,
   update: (
     content: JournalContent,
     index: JournalParseIndex,
@@ -129,7 +128,7 @@ function updateJournalSession(
     content: JournalContent;
   },
 ) {
-  session.mutatePrepared(({ content, projection }) => {
+  session.mutate(({ content, projection }) => {
     const result = update(content, projection);
 
     return {
@@ -154,7 +153,7 @@ export function createJournalMutationActions({
   onCreated: (entryId: JournalEntryId) => void;
   onDeleted: (result: JournalDeleteMutationResult) => void;
   services: JournalApplicationServices;
-  session: Pick<JournalRepositorySession, "mutatePrepared">;
+  session: Pick<JournalRepositorySession, "mutate">;
 }): JournalMutationActions {
   const timestamp = (index: JournalParseIndex, requested: string) =>
     monotonicTimestamp(requested, index.latestTimestamp ?? requested);

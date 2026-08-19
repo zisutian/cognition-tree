@@ -79,13 +79,6 @@ function createFunctionalSession(initial: JournalContent) {
     },
     session: {
       mutate(
-        update: (current: JournalContent) => JournalContent,
-      ) {
-        content = requireJournalContent(update(content));
-        projection = createJournalParseIndex(content, projection);
-        visibleEntryCounts.push(listJournalEntries(content).length);
-      },
-      mutatePrepared(
         update: (
           current: {
             content: JournalContent;

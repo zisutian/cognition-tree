@@ -93,13 +93,11 @@ export type VersionedSessionController<
       sources: PreparedVersionedConflictSources<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
   ): Promise<void>;
-  mutate(update: (current: Content) => Content): void;
-  mutatePrepared(
+  mutate(
     update: (
       current: PreparedVersionedContent<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
   ): void;
-  mutateAndFlush(update: (current: Content) => Content): Promise<void>;
   prepareForRemoval(): Promise<PreparedVersionedSessionRemoval>;
   reload(): Promise<void>;
   requestSync(): void;
@@ -152,12 +150,10 @@ export function createVersionedSessionController<
   Location,
 >({
   label,
-  prepareContent,
   repository,
   scheduler,
 }: {
   label: string;
-  prepareContent(content: Content, previous?: Projection | null): Projection;
   repository: VersionedRepository<
     Content,
     Revision,
@@ -393,7 +389,7 @@ export function createVersionedSessionController<
     publishReady(session);
     session.queue.enqueue(prepared);
   };
-  const mutatePrepared = (
+  const mutate = (
     update: (
       current: PreparedVersionedContent<Content, Projection>,
     ) => PreparedVersionedContent<Content, Projection>,
@@ -405,16 +401,6 @@ export function createVersionedSessionController<
     });
 
     commitMutation(session, prepared);
-  };
-  const mutate = (update: (current: Content) => Content) => {
-    mutatePrepared(({ content, projection }) => {
-      const nextContent = update(content);
-
-      return {
-        content: nextContent,
-        projection: prepareContent(nextContent, projection),
-      };
-    });
   };
 
   return {
@@ -482,11 +468,6 @@ export function createVersionedSessionController<
       await loadInitial();
     },
     mutate,
-    mutatePrepared,
-    async mutateAndFlush(update) {
-      mutate(update);
-      await requireActive().queue.flushLocal();
-    },
     async prepareForRemoval() {
       const session: Session = requireActive();
       const queue = session.queue!;

@@ -123,7 +123,6 @@ export type WorkbenchBuiltInFacade<
   | "keepLocalConflictAndSynchronize"
   | "loadConflictUnitIds"
   | "mutate"
-  | "mutatePrepared"
   | "recoverLocalConflictCopy"
   | "reload"
   | "requestSync"
@@ -511,8 +510,6 @@ export function createWorkbenchController({
     loadConflictUnitIds: (...args) =>
       journalSlot.getController().loadConflictUnitIds(...args),
     mutate: (...args) => journalSlot.getController().mutate(...args),
-    mutatePrepared: (...args) =>
-      journalSlot.getController().mutatePrepared(...args),
     recoverLocalConflictCopy: (...args) =>
       journalSlot.getController().recoverLocalConflictCopy(...args),
     reload: (...args) => journalSlot.getController().reload(...args),
@@ -529,8 +526,6 @@ export function createWorkbenchController({
     loadConflictUnitIds: (...args) =>
       todoSlot.getController().loadConflictUnitIds(...args),
     mutate: (...args) => todoSlot.getController().mutate(...args),
-    mutatePrepared: (...args) =>
-      todoSlot.getController().mutatePrepared(...args),
     recoverLocalConflictCopy: (...args) =>
       todoSlot.getController().recoverLocalConflictCopy(...args),
     reload: (...args) => todoSlot.getController().reload(...args),

@@ -51,8 +51,7 @@ export type TodoApplicationServices = {
 };
 
 export type TodoRepositorySession = {
-  mutate: (update: (current: TodoContent) => TodoContent) => void;
-  mutatePrepared: (
+  mutate: (
     update: (
       current: PreparedVersionedContent<TodoContent, TodoParseIndex>,
     ) => PreparedVersionedContent<TodoContent, TodoParseIndex>,
@@ -128,13 +127,13 @@ type TodoPreparedMutation = {
 };
 
 function updateTodoSession(
-  session: Pick<TodoRepositorySession, "mutatePrepared">,
+  session: Pick<TodoRepositorySession, "mutate">,
   update: (
     content: TodoContent,
     index: TodoParseIndex,
   ) => TodoPreparedMutation,
 ) {
-  session.mutatePrepared(({ content, projection }) => {
+  session.mutate(({ content, projection }) => {
     const result = update(content, projection);
 
     return {
@@ -158,7 +157,7 @@ export function createTodoMutationActions({
   onCollectionCreated: (collectionId: TodoCollectionId) => void;
   onCollectionDeleted: (result: TodoDeleteCollectionMutationResult) => void;
   services: TodoApplicationServices;
-  session: Pick<TodoRepositorySession, "mutatePrepared">;
+  session: Pick<TodoRepositorySession, "mutate">;
 }): TodoMutationActions {
   const timestamp = (index: TodoParseIndex) =>
     monotonicTimestamp(readNow(services), index.latestTimestamp);

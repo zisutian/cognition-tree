@@ -14,7 +14,6 @@ import {
 } from "../persistence/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import {
-  createTodoParseIndex,
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";
 import {
@@ -41,8 +40,6 @@ export function createTodoSessionController(
 ) {
   const base = createVersionedSessionController({
     label: "Todo",
-    prepareContent: (content, previous) =>
-      createTodoParseIndex(content, previous),
     repository,
     scheduler,
   });

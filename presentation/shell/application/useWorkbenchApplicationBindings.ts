@@ -43,13 +43,11 @@ export function useWorkbenchApplicationBindings({
   const reportedNavigationFailureRef = useRef<number | null>(null);
   const journalSession = useMemo(() => ({
     mutate: controller.journal.mutate,
-    mutatePrepared: controller.journal.mutatePrepared,
     reload: controller.journal.reload,
     state: snapshot.builtIns.journal.state,
   }), [controller, snapshot.builtIns.journal.state]);
   const todoSession = useMemo(() => ({
     mutate: controller.todo.mutate,
-    mutatePrepared: controller.todo.mutatePrepared,
     reload: controller.todo.reload,
     state: snapshot.builtIns.todo.state,
   }), [controller, snapshot.builtIns.todo.state]);

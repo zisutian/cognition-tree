@@ -187,12 +187,6 @@ function createController(
 ): TestController {
   return createVersionedSessionController({
     label: "test",
-    prepareContent(content) {
-      if (content.values.includes(-1)) {
-        throw new Error("invalid projection");
-      }
-      return { count: content.values.length };
-    },
     repository: harness.repository,
     scheduler: testApplicationScheduler,
   });
@@ -228,9 +222,14 @@ async function startController(harness: RepositoryHarness) {
 }
 
 function append(value: number) {
-  return (content: TestContent): TestContent => ({
-    values: [...content.values, value],
-  });
+  return ({ content }: { content: TestContent; projection: TestProjection }) => {
+    const nextContent = { values: [...content.values, value] };
+
+    return {
+      content: nextContent,
+      projection: { count: nextContent.values.length },
+    };
+  };
 }
 
 describe("versioned session controller", () => {

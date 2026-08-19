@@ -74,13 +74,6 @@ function createFunctionalSession(initial: TodoContent) {
     },
     session: {
       mutate(
-        update: (current: TodoContent) => TodoContent,
-      ) {
-        content = requireTodoContent(update(content));
-        projection = createTodoParseIndex(content, projection);
-        visibleStates.push(JSON.stringify(content));
-      },
-      mutatePrepared(
         update: (
           current: {
             content: TodoContent;

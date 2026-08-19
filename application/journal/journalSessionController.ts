@@ -14,7 +14,6 @@ import {
 } from "../persistence/versionedSessionController";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import {
-  createJournalParseIndex,
   type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex";
 import {
@@ -41,8 +40,6 @@ export function createJournalSessionController(
 ) {
   const base = createVersionedSessionController({
     label: "Journal",
-    prepareContent: (content, previous) =>
-      createJournalParseIndex(content, previous),
     repository,
     scheduler,
   });
