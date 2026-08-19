@@ -18,6 +18,9 @@ import type {
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
+import type {
+  TodoDomainVersions,
+} from "../../../../application/todo/todoDomainCommands.ts";
 
 export function createApiV1ResourceVersion(
   value: unknown,
@@ -102,6 +105,13 @@ export function createTodoOrderVersion(content: TodoContent) {
     content.collections.map(({ id }) => id),
   );
 }
+
+export const todoResourceVersions = {
+  collection: createParsedTodoCollectionVersion,
+  collectionState: createTodoCollectionStateVersion,
+  itemState: createTodoItemStateVersion,
+  order: createTodoOrderVersion,
+} satisfies TodoDomainVersions;
 
 export const workspaceResourceVersions = {
   folder: createWorkspaceFolderVersion,

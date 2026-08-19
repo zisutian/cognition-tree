@@ -21,6 +21,7 @@ import { handleApiV1Command } from "../commands/handler.ts";
 import { handleApiV1Sync } from "../sync/handlers.ts";
 import {
   journalResourceVersions,
+  todoResourceVersions,
   workspaceResourceVersions,
 } from "../resources/versions.ts";
 import {
@@ -108,6 +109,7 @@ export async function handleApiV1Route(
   ) {
     return handleApiV1Sync(context, {
       journal: journalResourceVersions,
+      todo: todoResourceVersions,
       workspace: workspaceResourceVersions,
     });
   }

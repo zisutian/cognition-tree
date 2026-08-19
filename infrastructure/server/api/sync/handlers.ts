@@ -7,6 +7,9 @@ import type {
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
+import type {
+  TodoDomainVersions,
+} from "../../../../application/todo/todoDomainCommands.ts";
 import { apiV1NotFound } from "../http/errors.ts";
 import {
   assertRepositoryAllowed,
@@ -66,7 +69,10 @@ async function handleJournalSync(
   });
 }
 
-async function handleTodoSync(context: ApiV1HandlerContext) {
+async function handleTodoSync(
+  context: ApiV1HandlerContext,
+  versionPolicy: TodoDomainVersions,
+) {
   const store = await requireBuiltInCatalog(context.builtInCatalog)
     .getStore("todo");
 
@@ -78,6 +84,7 @@ async function handleTodoSync(context: ApiV1HandlerContext) {
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
     store,
+    versionPolicy,
   });
 }
 
@@ -85,6 +92,7 @@ export function handleApiV1Sync(
   context: ApiV1HandlerContext,
   versionPolicies: {
     journal: JournalDomainVersions;
+    todo: TodoDomainVersions;
     workspace: WorkspaceResourceVersionPolicy;
   },
 ) {
@@ -100,5 +108,5 @@ export function handleApiV1Sync(
   }
   return context.route.kind === "sync-journal"
     ? handleJournalSync(context, versionPolicies.journal)
-    : handleTodoSync(context);
+    : handleTodoSync(context, versionPolicies.todo);
 }

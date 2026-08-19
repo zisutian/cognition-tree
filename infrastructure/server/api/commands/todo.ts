@@ -1,245 +1,153 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import {
+  executeTodoCommand,
+  type TodoCommandExecutionRequest,
+} from "../../../../application/todo/todoCommandExecutor.ts";
 import type {
   ApiV1TodoCommandDto,
 } from "../../../../contracts/api/types.ts";
 import {
-  createTodoBodyReplacement,
-  prepareTodoMutation,
-  type TodoDomainCommand,
-  type TodoDomainVersions,
-} from "../../../../application/todo/todoDomainCommands.ts";
-import { projectTodoMutation } from "../../../../application/todo/todoDomainProjection.ts";
-import {
-  createDomainTransition,
-} from "../../../../application/commands/domainCommand.ts";
-import {
-  executePreparedCommand,
-} from "../../../../application/commands/preparedCommandExecutor.ts";
-import {
-  DomainNotFoundError,
-  DomainValidationError,
-} from "../../../../core/errors/domainErrors.ts";
-import type {
-  TodoBlockMoveTarget,
-} from "../../../../core/todo/commands/todoBlockCommands.ts";
-import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
-import {
-  type TodoCollectionId,
-  type TodoContent,
-} from "../../../../core/todo/model/todoContent.ts";
-import {
-  createTodoCollectionBodyProjection,
-} from "../../../../core/todo/model/todoCollectionProjection.ts";
-import {
-  isTodoCollectionId,
-} from "../../../../core/todo/model/todoIdentity.ts";
-import {
   VersionedContentRevisionConflictError,
-  type VersionedContentStore,
 } from "../../repository/versioned/contentStore.ts";
 import {
   createTodoRevision,
+  type TodoContentStore,
 } from "../../repository/built-ins/todoStore.ts";
 import {
   createPreparedCommandStoreAdapter,
 } from "../../repository/preparedCommandStoreAdapter.ts";
-import {
-  createParsedTodoCollectionVersion,
-  createTodoCollectionStateVersion,
-  createTodoItemStateVersion,
-  createTodoOrderVersion,
-} from "../resources/versions.ts";
-import {
-  readApiV1RuntimeNow,
-  type ApiV1Runtime,
-} from "../http/runtime.ts";
+import { todoResourceVersions } from "../resources/versions.ts";
+import type { ApiV1Runtime } from "../http/runtime.ts";
 
-const todoVersions: TodoDomainVersions = {
-  collection: createParsedTodoCollectionVersion,
-  collectionState: createTodoCollectionStateVersion,
-  itemState: createTodoItemStateVersion,
-  order: createTodoOrderVersion,
-};
-
-function todoBlockTarget(
-  command: Extract<ApiV1TodoCommandDto, { kind: "move-block" }>,
-): TodoBlockMoveTarget {
-  if (command.targetKind === "end") {
-    if (command.targetBlockId !== null) {
-      throw new DomainValidationError(
-        "End block target must not include targetBlockId",
-      );
-    }
-    return { kind: "end" };
-  }
-  if (command.targetBlockId === null) {
-    throw new DomainNotFoundError(
-      "target-block",
-      "Target Todo block does not exist",
-    );
-  }
-  return {
-    kind: command.targetKind,
-    targetBlockId: command.targetBlockId,
-  };
-}
-
-function mapTodoCommand({
-  command,
-  createId,
-  index,
-  timestamp,
-  today,
-}: {
-  command: ApiV1TodoCommandDto;
-  createId: () => string;
-  index: TodoParseIndex;
-  timestamp: string;
-  today: ReturnType<typeof readApiV1RuntimeNow>["today"];
-}): TodoDomainCommand {
+function toTodoCommandRequest(
+  command: ApiV1TodoCommandDto,
+): TodoCommandExecutionRequest {
   switch (command.kind) {
     case "create-collection":
       return {
-        body: command.body,
-        collectionId: `todo-collection-${createId()}` as TodoCollectionId,
-        createdAt: timestamp,
-        expectedOrderVersion: command.expectedOrderVersion,
-        kind: "create-collection",
-        name: command.name,
+        command: {
+          body: command.body,
+          kind: command.kind,
+          name: command.name,
+        },
+        mode: command.mode,
+        preconditions: {
+          expectedOrderVersion: command.expectedOrderVersion,
+        },
       };
     case "delete-collection":
-      return { ...command, timestamp };
-    case "move-block":
       return {
-        blockId: command.sourceBlockId,
-        collectionId: command.collectionId,
-        expectedVersion: command.expectedVersion,
-        kind: command.kind,
-        target: todoBlockTarget(command),
-        updatedAt: timestamp,
+        command: { collectionId: command.collectionId, kind: command.kind },
+        mode: command.mode,
+        preconditions: {
+          expectedStateVersion: command.expectedStateVersion,
+          expectedVersion: command.expectedVersion,
+        },
       };
-    case "move-collection":
-      return { ...command, timestamp };
-    case "rename-collection":
-      return { ...command, updatedAt: timestamp };
-    case "replace-collection-body": {
-      if (!isTodoCollectionId(command.collectionId)) {
-        throw new DomainNotFoundError(
-          command.collectionId,
-          "Todo collection does not exist",
-        );
-      }
-      const parsed = index.getParsedCollection(command.collectionId);
-
-      if (!parsed) {
-        throw new DomainNotFoundError(
-          command.collectionId,
-          "Todo collection does not exist",
-        );
-      }
-      return {
-        change: createTodoBodyReplacement(
-          createTodoCollectionBodyProjection(parsed).source,
-          command.body,
-        ),
-        collectionId: command.collectionId,
-        expectedVersion: command.expectedVersion,
-        kind: command.kind,
-        updatedAt: timestamp,
-      };
-    }
     case "set-completion":
       return {
-        ...command,
-        completedAt: timestamp,
-        today,
+        command: {
+          blockId: command.blockId,
+          collectionId: command.collectionId,
+          completed: command.completed,
+          kind: command.kind,
+          occurrenceDate: command.occurrenceDate,
+        },
+        mode: command.mode,
+        preconditions: {
+          expectedStateVersion: command.expectedStateVersion,
+        },
       };
     case "set-recurrence":
       return {
-        ...command,
-        stageId: `todo-recurrence-stage-${createId()}`,
-        today,
-        updatedAt: timestamp,
+        command: {
+          blockId: command.blockId,
+          collectionId: command.collectionId,
+          kind: command.kind,
+          rule: command.rule,
+        },
+        mode: command.mode,
+        preconditions: {
+          expectedStateVersion: command.expectedStateVersion,
+        },
       };
     case "stop-recurrence":
-      return { ...command, today, updatedAt: timestamp };
+      return {
+        command: {
+          blockId: command.blockId,
+          collectionId: command.collectionId,
+          kind: command.kind,
+        },
+        mode: command.mode,
+        preconditions: {
+          expectedStateVersion: command.expectedStateVersion,
+        },
+      };
+    case "move-block":
+      return {
+        command: {
+          collectionId: command.collectionId,
+          kind: command.kind,
+          sourceBlockId: command.sourceBlockId,
+          targetBlockId: command.targetBlockId,
+          targetKind: command.targetKind,
+        },
+        mode: command.mode,
+        preconditions: { expectedVersion: command.expectedVersion },
+      };
+    case "move-collection":
+      return {
+        command: {
+          collectionId: command.collectionId,
+          kind: command.kind,
+          toIndex: command.toIndex,
+        },
+        mode: command.mode,
+        preconditions: {
+          expectedOrderVersion: command.expectedOrderVersion,
+        },
+      };
+    case "rename-collection":
+      return {
+        command: {
+          collectionId: command.collectionId,
+          kind: command.kind,
+          name: command.name,
+        },
+        mode: command.mode,
+        preconditions: { expectedVersion: command.expectedVersion },
+      };
+    case "replace-collection-body":
+      return {
+        command: {
+          body: command.body,
+          collectionId: command.collectionId,
+          kind: command.kind,
+        },
+        mode: command.mode,
+        preconditions: { expectedVersion: command.expectedVersion },
+      };
   }
 }
 
-export function projectApiV1TodoChanges(
-  before: TodoContent,
-  after: TodoContent,
-  timestamp: string,
-  beforeIndex: TodoParseIndex,
-  afterIndex: TodoParseIndex,
-) {
-  return projectTodoMutation({
-    after,
-    afterIndex,
-    before,
-    beforeIndex,
-    timestamp,
-    versions: todoVersions,
-  });
-}
-
-export async function executeApiV1TodoCommand({
+export function executeApiV1TodoCommand({
   command,
   runtime,
   store,
 }: {
   command: ApiV1TodoCommandDto;
   runtime: ApiV1Runtime;
-  store: VersionedContentStore<TodoContent, TodoParseIndex>;
+  store: TodoContentStore;
 }) {
-  const now = readApiV1RuntimeNow(runtime);
-  const allocatedIds: string[] = [];
-
-  return executePreparedCommand({
-    prepare({ content, projection: index }) {
-      let nextId = 0;
-      const createId = () => {
-        allocatedIds[nextId] ??= runtime.createId();
-        return allocatedIds[nextId++]!;
-      };
-      const domainCommand = mapTodoCommand({
-        command,
-        createId,
-        index,
-        timestamp: now.timestamp,
-        today: now.today,
-      });
-      const mutation = prepareTodoMutation({
-        command: domainCommand,
-        content,
-        createBlockId: createId,
-        index,
-        versions: todoVersions,
-      });
-      const projection = projectTodoMutation({
-        after: mutation.content,
-        afterIndex: mutation.index,
-        before: content,
-        beforeIndex: index,
-        timestamp: mutation.timestamp,
-        versions: todoVersions,
-      });
-      const transition = createDomainTransition(mutation, projection);
-
-      return {
-        changes: transition.changes,
-        content: transition.content,
-        diff: transition.diff,
-        projection: mutation.index,
-        result: transition.result,
-        revision: createTodoRevision(transition.content),
-      };
-    },
-    mode: command.mode,
+  return executeTodoCommand({
+    createRevision: createTodoRevision,
+    request: toTodoCommandRequest(command),
+    runtime,
     store: createPreparedCommandStoreAdapter(
       store,
       (error) => error instanceof VersionedContentRevisionConflictError,
     ),
+    versionPolicy: todoResourceVersions,
   });
 }

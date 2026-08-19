@@ -33,8 +33,11 @@ import {
   type ApiV1Runtime,
 } from "../http/runtime.ts";
 import {
-  projectApiV1TodoChanges,
-} from "../commands/todo.ts";
+  projectTodoContentChanges,
+} from "../../../../application/todo/todoCommandExecutor.ts";
+import type {
+  TodoDomainVersions,
+} from "../../../../application/todo/todoDomainCommands.ts";
 import {
   projectWorkspaceContentChanges,
   type WorkspaceResourceVersionPolicy,
@@ -121,6 +124,7 @@ export async function synchronizeApiV1Journal(
 export async function synchronizeApiV1Todo(
   context: ApiV1SyncContext & {
     store: VersionedContentStore<TodoContentDto, TodoParseIndex>;
+    versionPolicy: TodoDomainVersions;
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
@@ -134,12 +138,13 @@ export async function synchronizeApiV1Todo(
   }
   const commit = await context.readJsonBody() as TodoCommitDto;
   const result = await context.store.commitSnapshot(commit);
-  const changes = projectApiV1TodoChanges(
+  const changes = projectTodoContentChanges(
     result.before.content,
     result.after.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
     result.before.projection,
     result.after.projection,
+    context.versionPolicy,
   ).changes;
 
   context.observeRevision(result.revision);
