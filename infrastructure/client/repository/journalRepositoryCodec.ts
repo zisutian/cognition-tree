@@ -17,7 +17,7 @@ import {
   createJournalParseIndex,
   type JournalParseIndex,
 } from "../../../core/journal/indexes/journalParseIndex";
-import type { JournalRevision } from "../../../application/repository/builtInRepository";
+import type { JournalRevision } from "../../../application/journal/persistence/journalRepository";
 import type {
   VersionedContentPreparationPolicy,
   VersionedRepositoryCodec,

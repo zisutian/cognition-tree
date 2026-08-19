@@ -4,10 +4,10 @@ import {
   type TodoContent,
 } from "../../core/todo/model/todoContent";
 import type {
-  BuiltInLocalDraftRevision,
+  TodoLocalDraftRevision,
   TodoRevision,
   TodoRepository,
-} from "../repository/builtInRepository";
+} from "./persistence/todoRepository";
 import {
   createVersionedSessionController,
   type VersionedSessionState,
@@ -25,7 +25,7 @@ export type TodoSessionState = VersionedSessionState<
   TodoContent,
   TodoParseIndex,
   TodoRevision,
-  BuiltInLocalDraftRevision,
+  TodoLocalDraftRevision,
   TodoRepository["location"]
 >;
 export type TodoPersistenceState = Extract<

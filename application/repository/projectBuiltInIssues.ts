@@ -3,7 +3,7 @@
 import type {
   BuiltInDescriptor,
   BuiltInIssue,
-} from "./builtInRepository";
+} from "./builtInCatalog";
 import type { BuiltInSessionSummary } from "./repositoryApplication";
 
 export type BuiltInRuntimeIssue =

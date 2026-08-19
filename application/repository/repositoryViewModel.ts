@@ -8,8 +8,8 @@ import type {
   BuiltInId,
   BuiltInIssue,
   BuiltInLocation,
-} from "./builtInRepository";
-export type { BuiltInId } from "./builtInRepository";
+} from "./builtInCatalog";
+export type { BuiltInId } from "./builtInCatalog";
 import type { RepositoryApplication } from "./repositoryApplication";
 import type {
   CreateRepositoryRequest,

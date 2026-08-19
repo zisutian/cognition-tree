@@ -14,7 +14,9 @@ import type { TodoSessionState } from "../todo/todoSessionController";
 import type {
   BuiltInCatalog,
   BuiltInDescriptor,
-} from "../repository/builtInRepository";
+} from "../repository/builtInCatalog";
+import type { JournalRepositoryProvider } from "../journal/persistence/journalRepository";
+import type { TodoRepositoryProvider } from "../todo/persistence/todoRepository";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
@@ -155,17 +157,19 @@ function workspaceSource({
 }
 
 function builtInSource({
-  builtInCatalog,
   createVersion,
   descriptor,
   getProjectionRevision,
   getState,
+  journalRepositories,
+  todoRepositories,
 }: {
-  builtInCatalog: BuiltInCatalog;
   createVersion: CreateVersion;
   descriptor: BuiltInDescriptor;
   getProjectionRevision: ProjectionRevision;
   getState(): WorkbenchSearchState;
+  journalRepositories: JournalRepositoryProvider;
+  todoRepositories: TodoRepositoryProvider;
 }): SearchSource {
   if (descriptor.id === "journal") {
     return {
@@ -186,7 +190,7 @@ function builtInSource({
             revision: getProjectionRevision(index),
           };
         }
-        const snapshot = await builtInCatalog.openJournal(descriptor)
+        const snapshot = await journalRepositories.openJournal(descriptor)
           .loadSnapshot();
 
         return {
@@ -219,7 +223,7 @@ function builtInSource({
           revision: getProjectionRevision(index),
         };
       }
-      const snapshot = await builtInCatalog.openTodo(descriptor)
+      const snapshot = await todoRepositories.openTodo(descriptor)
         .loadSnapshot();
 
       return {
@@ -278,11 +282,15 @@ export function createWorkbenchSearchQuery({
   builtInCatalog,
   createVersion,
   getState,
+  journalRepositories,
+  todoRepositories,
   workspaceCatalog,
 }: {
   builtInCatalog: BuiltInCatalog;
   createVersion: CreateVersion;
   getState(): WorkbenchSearchState;
+  journalRepositories: JournalRepositoryProvider;
+  todoRepositories: TodoRepositoryProvider;
   workspaceCatalog: WorkspaceRepositoryCatalog;
 }): SearchQuery {
   const projectionRevisions = new WeakMap<object, string>();
@@ -353,11 +361,12 @@ export function createWorkbenchSearchQuery({
                 .filter(({ id }) => domains.has(id))
                 .map((descriptor) =>
                   builtInSource({
-                    builtInCatalog,
                     createVersion,
                     descriptor,
                     getProjectionRevision,
                     getState,
+                    journalRepositories,
+                    todoRepositories,
                   })
                 ),
             );

@@ -14,8 +14,13 @@ import {
   createHttpBuiltInCatalog,
   createMemoryBuiltInCatalogCache,
 } from "../../../../infrastructure/client/http/builtInCatalog";
-import { createHttpJournalRepositoryBackend } from "../../../../infrastructure/client/http/journalRepository";
-import { createHttpTodoRepositoryBackend } from "../../../../infrastructure/client/http/todoRepository";
+import {
+  createHttpJournalRepositoryBackend,
+  createHttpJournalRepositoryProvider,
+} from "../../../../infrastructure/client/http/journalRepository";
+import {
+  createHttpTodoRepositoryBackend,
+} from "../../../../infrastructure/client/http/todoRepository";
 import { createMemoryVersionedRepositoryCache } from "../../../../infrastructure/client/repository/versionedRepositoryCache";
 import {
   appendJournalTestEntry,
@@ -88,7 +93,7 @@ const offlineFetch: typeof fetch = async () => {
   throw new TypeError("offline");
 };
 
-describe("HTTP built-in data repositories", () => {
+describe("HTTP built-in catalog and data repositories", () => {
   it("uses independent Journal and Todo snapshot contracts", async () => {
     const calls: Array<{
       body: BodyInit | null | undefined;
@@ -160,10 +165,10 @@ describe("HTTP built-in data repositories", () => {
   it("loads content-free descriptors and retries the selected domain", async () => {
     const calls: Array<{ body: BodyInit | null | undefined; method: string; url: string }> = [];
     const journalContent = createEmptyJournalContent();
-    const catalog = createHttpBuiltInCatalog({
+    const caches = createCaches();
+    const transport = {
       baseUrl: "https://api.test/root",
-      ...createCaches(),
-      fetch: async (input, init) => {
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
 
         calls.push({
@@ -177,12 +182,20 @@ describe("HTTP built-in data repositories", () => {
         }
         return jsonResponse(serverCatalog());
       },
+    };
+    const catalog = createHttpBuiltInCatalog({
+      ...transport,
+      catalogCache: caches.catalogCache,
+    });
+    const journalRepositories = createHttpJournalRepositoryProvider({
+      ...transport,
+      repositoryCache: caches.journalCache,
     });
     const projection = await catalog.listBuiltIns();
     const descriptor = projection.repositories[0]!;
-    const repository = catalog.openJournal(descriptor);
+    const repository = journalRepositories.openJournal(descriptor);
 
-    expect(catalog.openJournal(descriptor)).toBe(repository);
+    expect(journalRepositories.openJournal(descriptor)).toBe(repository);
     await expect(repository.loadSnapshot()).resolves.toMatchObject({
       content: journalContent,
       remoteRevision: journalRevisionA,
@@ -264,35 +277,49 @@ describe("HTTP built-in data repositories", () => {
   it("restores catalog and domain snapshots from an isolated local-first cache", async () => {
     const caches = createCaches();
     const journalContent = createEmptyJournalContent();
-    const online = createHttpBuiltInCatalog({
+    const transport = {
       baseUrl: "https://cached.test/api",
-      ...caches,
-      fetch: async (input) => String(input).endsWith("/sync/journal")
+      fetch: async (input: RequestInfo | URL) =>
+        String(input).endsWith("/sync/journal")
         ? jsonResponse({ content: journalContent, revision: journalRevisionA })
         : jsonResponse(serverCatalog("/cached")),
       token: "same-token",
+    };
+    const online = createHttpBuiltInCatalog({
+      ...transport,
+      catalogCache: caches.catalogCache,
+    });
+    const onlineJournals = createHttpJournalRepositoryProvider({
+      ...transport,
+      repositoryCache: caches.journalCache,
     });
     const projection = await online.listBuiltIns();
 
-    await online.openJournal(projection.repositories[0]!).loadSnapshot();
+    await onlineJournals.openJournal(projection.repositories[0]!).loadSnapshot();
     const offline = createHttpBuiltInCatalog({
       baseUrl: "https://cached.test/api",
-      ...caches,
+      catalogCache: caches.catalogCache,
       fetch: offlineFetch,
+      token: "same-token",
+    });
+    const offlineJournals = createHttpJournalRepositoryProvider({
+      baseUrl: "https://cached.test/api",
+      fetch: offlineFetch,
+      repositoryCache: caches.journalCache,
       token: "same-token",
     });
     const cachedProjection = await offline.listBuiltIns();
 
     expect(cachedProjection).toEqual(projection);
     await expect(
-      offline.openJournal(cachedProjection.repositories[0]!).loadSnapshot(),
+      offlineJournals.openJournal(cachedProjection.repositories[0]!).loadSnapshot(),
     ).resolves.toMatchObject({
       content: journalContent,
       remoteRevision: journalRevisionA,
     });
     await expect(createHttpBuiltInCatalog({
       baseUrl: "https://cached.test/api",
-      ...caches,
+      catalogCache: caches.catalogCache,
       fetch: offlineFetch,
       token: "different-token",
     }).listBuiltIns()).rejects.toThrow("failed or timed out");

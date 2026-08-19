@@ -10,11 +10,17 @@ import {
 import type {
   BuiltInCatalog,
   BuiltInDescriptor,
-  BuiltInLocalDraftRevision,
-  ContentRevision,
+} from "../../../application/repository/builtInCatalog";
+import type {
+  JournalLocalDraftRevision,
+  JournalRepositoryProvider,
+  JournalRevision,
   JournalRepository,
+} from "../../../application/journal/persistence/journalRepository";
+import type {
+  TodoRepositoryProvider,
   TodoRepository,
-} from "../../../application/repository/builtInRepository";
+} from "../../../application/todo/persistence/todoRepository";
 import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,
@@ -89,10 +95,10 @@ const builtInDescriptors: BuiltInDescriptor[] = [
 ];
 
 const builtInRevision = (character: string) =>
-  `sha256:${character.repeat(64)}` as ContentRevision;
+  `sha256:${character.repeat(64)}` as JournalRevision;
 const builtInDraft = (suffix: string) =>
   `draft:00000000-0000-4000-8000-${suffix.padStart(12, "0")}` as
-    BuiltInLocalDraftRevision;
+    JournalLocalDraftRevision;
 
 function createBuiltInRepository<Content, Projection>(
   label: string,
@@ -242,9 +248,13 @@ function createHarness({
       issues: [],
       repositories: builtInDescriptors,
     })),
-    openJournal: () => journalRepository,
-    openTodo: () => todoRepository,
     retry: vi.fn(async () => ({ status: "ready" as const })),
+  };
+  const journalRepositories: JournalRepositoryProvider = {
+    openJournal: () => journalRepository,
+  };
+  const todoRepositories: TodoRepositoryProvider = {
+    openTodo: () => todoRepository,
   };
   const changeListeners = new Set<
     (event: DomainChangeNotification) => void
@@ -279,8 +289,10 @@ function createHarness({
     createInitialWorkspaceContent: () => createContent(),
     createSearchVersion: async (value) =>
       `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}` as const,
+    journalRepositories,
     scheduler: testApplicationScheduler,
     timezoneOffsetMinutes: () => 0,
+    todoRepositories,
     workspaceCatalog,
     workspaceCommandDependencies: {
       createBlockId: () => "00000000-0000-4000-8000-000000000001",

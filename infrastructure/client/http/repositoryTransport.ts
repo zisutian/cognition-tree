@@ -8,6 +8,15 @@ import {
 
 export const repositoryRequestTimeoutMs = 30_000;
 
+export function subscribeClientReconnect(listener: () => void) {
+  if (typeof globalThis.addEventListener !== "function") {
+    return () => undefined;
+  }
+
+  globalThis.addEventListener("online", listener);
+  return () => globalThis.removeEventListener("online", listener);
+}
+
 export type HttpRepositoryTransportOptions = {
   baseUrl: string;
   fetch?: typeof fetch;

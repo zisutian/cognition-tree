@@ -34,6 +34,7 @@ export function createWorkbenchRuntime(
       token: api.token,
     }),
     builtInCatalog: builtIns.catalog,
+    journalRepositories: builtIns.journalRepositories,
     changeEvents: createHttpApiV1EventSource({
       baseUrl: api.baseUrl,
       token: api.token,
@@ -45,6 +46,7 @@ export function createWorkbenchRuntime(
       ),
     scheduler: clientApplicationScheduler,
     timezoneOffsetMinutes: () => -new Date().getTimezoneOffset(),
+    todoRepositories: builtIns.todoRepositories,
     workspaceCatalog: workspace.catalog,
     workspaceCommandDependencies: clientWorkspaceSessionCommandDependencies,
   });

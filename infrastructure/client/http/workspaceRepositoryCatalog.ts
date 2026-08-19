@@ -12,6 +12,7 @@ import { createHttpWorkspaceRepositoryBackend } from "./workspaceRepository";
 import {
   createHttpRepositoryCacheIdentity,
   requestRepositoryJson,
+  subscribeClientReconnect,
   type HttpRepositoryTransportOptions,
 } from "./repositoryTransport";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
@@ -36,15 +37,6 @@ function isOfflineError(error: unknown) {
     error instanceof WorkspaceRepositoryUnavailableError ||
     (error instanceof WorkspaceRepositoryRemoteError && error.retryable)
   );
-}
-
-function subscribeClientReconnect(listener: () => void) {
-  if (typeof globalThis.addEventListener !== "function") {
-    return () => undefined;
-  }
-
-  globalThis.addEventListener("online", listener);
-  return () => globalThis.removeEventListener("online", listener);
 }
 
 export function createHttpWorkspaceRepositoryCatalog({

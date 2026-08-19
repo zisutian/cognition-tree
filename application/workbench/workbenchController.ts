@@ -22,7 +22,9 @@ import type {
   BuiltInCatalog,
   BuiltInDescriptor,
   BuiltInId,
-} from "../repository/builtInRepository";
+} from "../repository/builtInCatalog";
+import type { JournalRepositoryProvider } from "../journal/persistence/journalRepository";
+import type { TodoRepositoryProvider } from "../todo/persistence/todoRepository";
 import {
   createRepositoryCatalogController,
   type RepositoryCatalogControllerSnapshot,
@@ -169,8 +171,10 @@ type WorkbenchControllerOptions = {
   changeEvents?: DomainChangeEventSource;
   createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
   createSearchVersion(value: unknown): Promise<SearchResourceVersion>;
+  journalRepositories: JournalRepositoryProvider;
   scheduler: ApplicationScheduler;
   timezoneOffsetMinutes: () => number;
+  todoRepositories: TodoRepositoryProvider;
   workspaceCatalog: WorkspaceRepositoryCatalog;
   workspaceCommandDependencies: SessionCommandDependencies;
 };
@@ -191,8 +195,10 @@ export function createWorkbenchController({
   changeEvents,
   createInitialWorkspaceContent,
   createSearchVersion,
+  journalRepositories,
   scheduler,
   timezoneOffsetMinutes,
+  todoRepositories,
   workspaceCatalog,
   workspaceCommandDependencies,
 }: WorkbenchControllerOptions): WorkbenchController {
@@ -262,7 +268,7 @@ export function createWorkbenchController({
   const journalSlot = createBuiltInSessionSlot({
     createController: (descriptor: BuiltInDescriptor | null) =>
       createJournalSessionController(
-        descriptor ? builtInCatalog.openJournal(descriptor) : null,
+        descriptor ? journalRepositories.openJournal(descriptor) : null,
         scheduler,
         {
           createBlockId: workspaceCommandDependencies.createBlockId,
@@ -277,7 +283,7 @@ export function createWorkbenchController({
   const todoSlot = createBuiltInSessionSlot({
     createController: (descriptor: BuiltInDescriptor | null) =>
       createTodoSessionController(
-        descriptor ? builtInCatalog.openTodo(descriptor) : null,
+        descriptor ? todoRepositories.openTodo(descriptor) : null,
         scheduler,
         {
           createBlockId: workspaceCommandDependencies.createBlockId,
@@ -310,6 +316,8 @@ export function createWorkbenchController({
         workspace: workspace.status === "absent" ? null : workspace,
       };
     },
+    journalRepositories,
+    todoRepositories,
     workspaceCatalog,
   });
 

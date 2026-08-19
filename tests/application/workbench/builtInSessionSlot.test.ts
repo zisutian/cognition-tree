@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import type { BuiltInDescriptor } from "../../../application/repository/builtInRepository";
+import type { BuiltInDescriptor } from "../../../application/repository/builtInCatalog";
 import { createBuiltInSessionSlot } from "../../../application/workbench/builtInSessionSlot";
 
 type TestController = ReturnType<typeof createTestController>;

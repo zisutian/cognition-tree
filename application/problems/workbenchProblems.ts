@@ -16,7 +16,7 @@ import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,
 } from "../workspace/projection/viewRepositoryIssues";
-import type { BuiltInId } from "../repository/builtInRepository";
+import type { BuiltInId } from "../repository/builtInCatalog";
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,

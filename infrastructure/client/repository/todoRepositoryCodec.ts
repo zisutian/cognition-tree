@@ -13,7 +13,7 @@ import {
   createTodoParseIndex,
   type TodoParseIndex,
 } from "../../../core/todo/indexes/todoParseIndex";
-import type { TodoRevision } from "../../../application/repository/builtInRepository";
+import type { TodoRevision } from "../../../application/todo/persistence/todoRepository";
 import type {
   VersionedContentPreparationPolicy,
   VersionedRepositoryCodec,

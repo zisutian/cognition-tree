@@ -4,10 +4,10 @@ import {
   type JournalContent,
 } from "../../core/journal/model/journalContent";
 import type {
-  BuiltInLocalDraftRevision,
+  JournalLocalDraftRevision,
   JournalRevision,
   JournalRepository,
-} from "../repository/builtInRepository";
+} from "./persistence/journalRepository";
 import {
   createVersionedSessionController,
   type VersionedSessionState,
@@ -25,7 +25,7 @@ export type JournalSessionState = VersionedSessionState<
   JournalContent,
   JournalParseIndex,
   JournalRevision,
-  BuiltInLocalDraftRevision,
+  JournalLocalDraftRevision,
   JournalRepository["location"]
 >;
 export type JournalPersistenceState = Extract<

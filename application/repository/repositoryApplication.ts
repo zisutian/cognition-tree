@@ -1,7 +1,6 @@
 import type {
   BuiltInId,
-  ContentRevision,
-} from "./builtInRepository";
+} from "./builtInCatalog";
 import type { WorkspaceRepositoryDescriptor } from "./workspaceRepositoryCatalog";
 import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionController";
 import type {
@@ -61,7 +60,7 @@ export type BuiltInSessionSummary =
       keepLocalConflictAndSynchronize: () => Promise<void>;
       loadConflictUnitIds: () => Promise<string[]>;
       recoverLocalConflictCopy: () => Promise<void>;
-      persistence: VersionedRepositoryPersistenceState<ContentRevision>;
+      persistence: VersionedRepositoryPersistenceState<`sha256:${string}`>;
       reload: () => Promise<void>;
       requestSync: () => void;
       status: "ready";
