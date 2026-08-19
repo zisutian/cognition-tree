@@ -167,8 +167,17 @@ export function createRepositoryProjection(
     },
     navigation,
     session: projectWorkspaceRepositorySessionSummary({
-      ...controller.workspace,
+      discardPendingChangesAndReload:
+        controller.workspace.discardPendingChangesAndReload,
+      keepLocalConflictAndSynchronize:
+        controller.workspace.keepLocalConflictAndSynchronize,
+      loadConflictUnitIds: controller.workspace.loadConflictUnitIds,
+      recoverLocalConflictCopy:
+        controller.workspace.recoverLocalConflictCopy,
+      reload: controller.workspace.reload,
       state: snapshot.workspace,
+      useRemoteConflictAndSynchronize:
+        controller.workspace.useRemoteConflictAndSynchronize,
     }),
   });
 }
