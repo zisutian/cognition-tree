@@ -2,7 +2,6 @@
 
 import { formatCtnSyntaxV2 } from "../../../core/ctn/syntax/formatter";
 import {
-  createDefaultWorkspaceSyntax,
   parseWorkspaceSyntax,
   type WorkspaceSyntax,
 } from "../../../core/workspace/context/workspaceSyntax";
@@ -132,12 +131,12 @@ function createSyntaxCopySource(
 export function createWorkspaceSyntaxCatalogMutationService({
   createBlockId,
   createSyntaxFileId,
-  defaultWorkspaceSyntax = createDefaultWorkspaceSyntax(),
+  defaultWorkspaceSyntax,
   now,
 }: {
   createBlockId(): string;
   createSyntaxFileId(): string;
-  defaultWorkspaceSyntax?: WorkspaceSyntax;
+  defaultWorkspaceSyntax: WorkspaceSyntax;
   now(): string;
 }): WorkspaceSyntaxCatalogMutationService {
   const applyCatalog = (

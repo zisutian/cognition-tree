@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
+import {
+  createDefaultWorkspaceSyntax,
+  parseWorkspaceSyntax,
+} from "../../../../core/workspace/context/workspaceSyntax";
 import { createWorkspaceSyntaxCatalogMutationService } from "../../../../application/workspace/session/workspaceSyntaxCatalogMutationService";
 import { createContent } from "./workspaceSessionTestFixture";
 import {
@@ -21,6 +24,7 @@ function createService() {
     createBlockId: () =>
       `00000000-0000-4000-8000-${String(++blockIdIndex).padStart(12, "0")}`,
     createSyntaxFileId: () => syntaxFileIds[fileIdIndex++]!,
+    defaultWorkspaceSyntax: createDefaultWorkspaceSyntax(),
     now: () => "2026-07-23T00:00:00.000Z",
   });
 }
