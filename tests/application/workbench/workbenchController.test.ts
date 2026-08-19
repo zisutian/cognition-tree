@@ -280,6 +280,7 @@ function createHarness({
     createSearchVersion: async (value) =>
       `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}` as const,
     scheduler: testApplicationScheduler,
+    timezoneOffsetMinutes: () => 0,
     workspaceCatalog,
     workspaceCommandDependencies: {
       createBlockId: () => "00000000-0000-4000-8000-000000000001",

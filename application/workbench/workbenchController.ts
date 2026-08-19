@@ -170,7 +170,7 @@ type WorkbenchControllerOptions = {
   createInitialWorkspaceContent(label: string): WorkspaceRepositoryContent;
   createSearchVersion(value: unknown): Promise<SearchResourceVersion>;
   scheduler: ApplicationScheduler;
-  timezoneOffsetMinutes?: () => number;
+  timezoneOffsetMinutes: () => number;
   workspaceCatalog: WorkspaceRepositoryCatalog;
   workspaceCommandDependencies: SessionCommandDependencies;
 };
@@ -192,7 +192,7 @@ export function createWorkbenchController({
   createInitialWorkspaceContent,
   createSearchVersion,
   scheduler,
-  timezoneOffsetMinutes = () => 0,
+  timezoneOffsetMinutes,
   workspaceCatalog,
   workspaceCommandDependencies,
 }: WorkbenchControllerOptions): WorkbenchController {
