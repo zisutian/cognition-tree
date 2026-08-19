@@ -13,7 +13,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { JournalContentDto } from "../../../../../contracts/journal/types.ts";
 import type { TodoContentDto } from "../../../../../contracts/todo/types.ts";
-import { renameTodoCollection } from "../../../../../core/todo/commands/todoCommands.ts";
+import { renameTodoCollection } from "../../../../../core/todo/commands/todoCollectionCommands.ts";
 import {
   createTodoParseIndex,
 } from "../../../../../core/todo/indexes/todoParseIndex.ts";

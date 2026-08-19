@@ -6,8 +6,10 @@ import type {
 } from "../../core/ctn/analysis/sourceAnalysis";
 import {
   updateTodoSyntaxSource,
-  type TodoBlockMoveTarget,
-} from "../../core/todo/commands/todoCommands";
+} from "../../core/todo/commands/todoSyntaxCommands";
+import type {
+  TodoBlockMoveTarget,
+} from "../../core/todo/commands/todoBlockCommands";
 import {
   type TodoCollectionId,
   type TodoContent,

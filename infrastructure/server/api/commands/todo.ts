@@ -19,7 +19,7 @@ import {
 } from "../../../../core/errors/domainErrors.ts";
 import type {
   TodoBlockMoveTarget,
-} from "../../../../core/todo/commands/todoCommands.ts";
+} from "../../../../core/todo/commands/todoBlockCommands.ts";
 import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import {
   type TodoCollectionId,

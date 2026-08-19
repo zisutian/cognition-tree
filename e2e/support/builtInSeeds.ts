@@ -20,7 +20,7 @@ import { createEmptyJournalContent } from "../../core/journal/model/journalConte
 import {
   createTodoCollection,
   updateTodoCollectionBody,
-} from "../../core/todo/commands/todoCommands";
+} from "../../core/todo/commands/todoCollectionCommands";
 import {
   createTodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";

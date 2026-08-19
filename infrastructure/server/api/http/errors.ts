@@ -15,7 +15,7 @@ import type {
 } from "../../../../contracts/api/types.ts";
 import {
   TodoOccurrenceConflictError,
-} from "../../../../core/todo/commands/todoCommands.ts";
+} from "../../../../core/todo/commands/todoCompletionRecurrenceCommands.ts";
 import {
   DomainNotFoundError,
   DomainValidationError,

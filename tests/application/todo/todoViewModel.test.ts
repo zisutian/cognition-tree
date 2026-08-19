@@ -6,8 +6,10 @@ import {
   setTodoBlockRecurrence,
   stopTodoBlockRecurrence,
   toggleTodoBlock,
+} from "../../../core/todo/commands/todoCompletionRecurrenceCommands";
+import {
   updateTodoCollectionBody,
-} from "../../../core/todo/commands/todoCommands";
+} from "../../../core/todo/commands/todoCollectionCommands";
 import { createTodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
 import {
   createTodoCollectionBodyProjection,

@@ -13,16 +13,20 @@ import { DomainNotFoundError } from "../../core/errors/domainErrors.ts";
 import {
   createTodoCollection,
   deleteTodoCollection,
-  moveTodoBlock,
   moveTodoCollection,
   renameTodoCollection,
+  updateTodoCollectionBody,
+} from "../../core/todo/commands/todoCollectionCommands.ts";
+import {
+  moveTodoBlock,
+  type TodoBlockMoveTarget,
+} from "../../core/todo/commands/todoBlockCommands.ts";
+import {
   setTodoBlockCompletion,
   setTodoBlockRecurrence,
   stopTodoBlockRecurrence,
   toggleTodoBlock,
-  updateTodoCollectionBody,
-  type TodoBlockMoveTarget,
-} from "../../core/todo/commands/todoCommands.ts";
+} from "../../core/todo/commands/todoCompletionRecurrenceCommands.ts";
 import type {
   TodoCommandOutcome,
 } from "../../core/todo/commands/todoCommandOutcome.ts";

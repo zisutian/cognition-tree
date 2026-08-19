@@ -3,7 +3,7 @@
 import {
   createTodoCollection,
   updateTodoCollectionBody,
-} from "../../../core/todo/commands/todoCommands";
+} from "../../../core/todo/commands/todoCollectionCommands";
 import {
   type TodoCollectionId,
   type TodoContent,

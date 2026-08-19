@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { replaceCtnSourceTitle } from "../../../../core/ctn/metadata/sourceMetadata";
-import { toggleTodoBlock } from "../../../../core/todo/commands/todoCommands";
+import { toggleTodoBlock } from "../../../../core/todo/commands/todoCompletionRecurrenceCommands";
 import {
   createTodoParseIndex,
 } from "../../../../core/todo/indexes/todoParseIndex";

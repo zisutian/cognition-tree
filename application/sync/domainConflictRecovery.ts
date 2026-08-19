@@ -30,7 +30,7 @@ import {
 import {
   createTodoCollection,
   updateTodoCollectionBody,
-} from "../../core/todo/commands/todoCommands.ts";
+} from "../../core/todo/commands/todoCollectionCommands.ts";
 import {
   createTodoParseIndex,
   type TodoParseIndex,
