@@ -75,6 +75,9 @@ import {
 import {
   synchronizeApiV1Workspace,
 } from "../../../../infrastructure/server/api/sync/service.ts";
+import {
+  workspaceResourceVersions,
+} from "../../../../infrastructure/server/api/resources/versions.ts";
 import type { ApiV1PrincipalDto } from "../../../../contracts/api/types.ts";
 import {
   prepareWorkspaceRepositoryContent,
@@ -1183,6 +1186,7 @@ describe("CTN API v1", () => {
           return preparedWorkspaceSnapshot(before, trackedRevision);
         },
       },
+      versionPolicy: workspaceResourceVersions,
     });
 
     expect(syncResult).toMatchObject({

@@ -19,6 +19,7 @@ import {
 } from "./queryHandlers.ts";
 import { handleApiV1Command } from "../commands/handler.ts";
 import { handleApiV1Sync } from "../sync/handlers.ts";
+import { workspaceResourceVersions } from "../resources/versions.ts";
 import {
   handleRepositoryAdmin,
   handleTokenAdmin,
@@ -102,7 +103,7 @@ export async function handleApiV1Route(
     route.kind === "sync-journal" ||
     route.kind === "sync-todo"
   ) {
-    return handleApiV1Sync(context);
+    return handleApiV1Sync(context, workspaceResourceVersions);
   }
   if (
     route.kind === "admin-repositories" ||

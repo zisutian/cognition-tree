@@ -12,6 +12,9 @@ import {
 import {
   createTodoCollectionBodyProjection,
 } from "../../../../core/todo/model/todoCollectionProjection.ts";
+import type {
+  WorkspaceResourceVersionPolicy,
+} from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
 
 export function createApiV1ResourceVersion(
   value: unknown,
@@ -90,3 +93,11 @@ export function createTodoOrderVersion(content: TodoContent) {
     content.collections.map(({ id }) => id),
   );
 }
+
+export const workspaceResourceVersions = {
+  folder: createWorkspaceFolderVersion,
+  note: createWorkspaceNoteVersion,
+  tree(content, workspace) {
+    return createWorkspaceTreeVersion({ ...content, workspace });
+  },
+} satisfies WorkspaceResourceVersionPolicy;

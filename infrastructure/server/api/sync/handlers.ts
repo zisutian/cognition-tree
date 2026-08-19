@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { ApiV1DomainChangeSetDto } from "../../../../contracts/api/types.ts";
+import type {
+  WorkspaceResourceVersionPolicy,
+} from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
 import { apiV1NotFound } from "../http/errors.ts";
 import {
   assertRepositoryAllowed,
@@ -24,6 +27,7 @@ async function publishApiV1Changes(
 async function handleWorkspaceSync(
   context: ApiV1HandlerContext,
   repositoryId: string,
+  versionPolicy: WorkspaceResourceVersionPolicy,
 ) {
   assertRepositoryAllowed(context.principal, repositoryId);
   const store = await context.catalog.getStore(repositoryId);
@@ -36,6 +40,7 @@ async function handleWorkspaceSync(
     repositoryId,
     runtime: context.runtime,
     store,
+    versionPolicy,
   });
 }
 
@@ -69,12 +74,15 @@ async function handleTodoSync(context: ApiV1HandlerContext) {
   });
 }
 
-export function handleApiV1Sync(context: ApiV1HandlerContext) {
+export function handleApiV1Sync(
+  context: ApiV1HandlerContext,
+  workspaceVersionPolicy: WorkspaceResourceVersionPolicy,
+) {
   if (context.route.kind === "sync-workspace") {
     const repositoryId = context.route.repositoryId;
 
     if (!repositoryId) apiV1NotFound();
-    return handleWorkspaceSync(context, repositoryId);
+    return handleWorkspaceSync(context, repositoryId, workspaceVersionPolicy);
   }
   return context.route.kind === "sync-journal"
     ? handleJournalSync(context)

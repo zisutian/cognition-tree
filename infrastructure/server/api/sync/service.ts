@@ -33,8 +33,9 @@ import {
   projectApiV1TodoChanges,
 } from "../commands/todo.ts";
 import {
-  projectApiV1WorkspaceChanges,
-} from "../commands/workspace.ts";
+  projectWorkspaceContentChanges,
+  type WorkspaceResourceVersionPolicy,
+} from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
 
 type ApiV1SyncResult = {
   body: unknown;
@@ -53,6 +54,7 @@ export async function synchronizeApiV1Workspace(
   context: ApiV1SyncContext & {
     repositoryId: string;
     store: WorkspaceRepositoryStore;
+    versionPolicy: WorkspaceResourceVersionPolicy;
   },
 ): Promise<ApiV1SyncResult> {
   if (context.method === "GET") {
@@ -67,13 +69,14 @@ export async function synchronizeApiV1Workspace(
   const commit =
     await context.readJsonBody() as WorkspaceRepositoryCommitDto;
   const result = await context.store.commitSnapshot(commit);
-  const changes = projectApiV1WorkspaceChanges(
+  const changes = projectWorkspaceContentChanges(
     context.repositoryId,
     result.before.content,
     result.after.content,
     readApiV1RuntimeNow(context.runtime).timestamp,
     result.before.projection,
     result.after.projection,
+    context.versionPolicy,
   ).changes;
 
   context.observeRevision(result.revision);
