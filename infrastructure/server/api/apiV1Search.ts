@@ -8,13 +8,15 @@ import {
 } from "../../../application/search/searchCorpus.ts";
 import {
   createSearchQuery,
+} from "../../../application/search/searchIndex.ts";
+import {
   SearchRequestError,
   type SearchDomain,
   type SearchFault,
   type SearchRequest,
   type SearchSource,
   type SearchResponse,
-} from "../../../application/search/searchQuery.ts";
+} from "../../../application/search/searchTypes.ts";
 import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
 import {
   WireContractError,
@@ -45,10 +47,16 @@ import type { ApiV1BuiltInCatalog } from "./apiV1Ports.ts";
 import { ApiV1RequestError } from "./apiV1Errors.ts";
 import {
   createApiV1ResourceVersion,
+} from "./apiV1ResourceVersions.ts";
+import {
   createApiV1JournalIndex,
+} from "./apiV1JournalResources.ts";
+import {
   createApiV1TodoIndex,
+} from "./apiV1TodoResources.ts";
+import {
   createApiV1WorkspaceAnalysis,
-} from "./apiV1Resources.ts";
+} from "./apiV1WorkspaceResources.ts";
 
 function hasScope(
   principal: ApiV1PrincipalDto,

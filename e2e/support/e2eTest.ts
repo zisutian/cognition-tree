@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
   request as createRequest,
   test as base,
@@ -13,8 +16,13 @@ import {
 } from "./builtInSeeds";
 import {
   clientStartupConfigurationPath,
-} from "../../infrastructure/client/clientApiConfiguration";
-import { e2eApiBaseUrl } from "./repositorySeeds";
+} from "../../infrastructure/client/runtime/apiConfiguration";
+import {
+  startE2EWorkspaceServer,
+  type E2EWorkspaceServer,
+} from "./workspaceServer";
+
+const webOrigin = "http://127.0.0.1:4174";
 
 type E2EState = {
   setBuiltIns(input: {
@@ -27,15 +35,43 @@ type E2EState = {
 
 type E2EFixtures = {
   api: APIRequestContext;
+  apiBaseUrl: string;
   e2eState: E2EState;
+  repositoryRoot: string;
 };
 
-export const test = base.extend<E2EFixtures>({
-  page: async ({ page }, use) => {
+type E2EWorkerFixtures = {
+  e2eServer: E2EWorkspaceServer;
+};
+
+export const test = base.extend<E2EFixtures, E2EWorkerFixtures>({
+  e2eServer: [async ({}, use) => {
+    const rootDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "cognition-tree-e2e-"),
+    );
+    const server = await startE2EWorkspaceServer({
+      allowedOrigin: webOrigin,
+      rootDirectory,
+    });
+
+    try {
+      await use(server);
+    } finally {
+      await server.close();
+      await rm(rootDirectory, { force: true, recursive: true });
+    }
+  }, { scope: "worker" }],
+  apiBaseUrl: async ({ e2eServer }, use) => {
+    await use(e2eServer.baseUrl);
+  },
+  repositoryRoot: async ({ e2eServer }, use) => {
+    await use(e2eServer.repositoryDirectory);
+  },
+  page: async ({ e2eServer, page }, use) => {
     await page.route(`**${clientStartupConfigurationPath}`, async (route) => {
       await route.fulfill({
         body: JSON.stringify({
-          apiBaseUrl: e2eApiBaseUrl,
+          apiBaseUrl: e2eServer.baseUrl,
           formatVersion: 1,
         }),
         contentType: "application/json",
@@ -43,22 +79,16 @@ export const test = base.extend<E2EFixtures>({
     });
     await use(page);
   },
-  api: async ({}, use) => {
-    const api = await createRequest.newContext({ baseURL: e2eApiBaseUrl });
+  api: async ({ e2eServer }, use) => {
+    const api = await createRequest.newContext({
+      baseURL: e2eServer.baseUrl,
+    });
 
     await use(api);
     await api.dispose();
   },
-  e2eState: [async ({ api }, use) => {
-    const response = await api.post("/__e2e/reset");
-
-    if (!response.ok()) {
-      throw new Error(
-        `Failed to reset E2E state: ${response.status()} ${
-          await response.text()
-        }`,
-      );
-    }
+  e2eState: [async ({ api, e2eServer }, use) => {
+    await e2eServer.reset();
     await use({
       async setBuiltIns({ journal, todo }) {
         await Promise.all([

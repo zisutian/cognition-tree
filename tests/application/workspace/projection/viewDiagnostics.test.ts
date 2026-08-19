@@ -23,7 +23,7 @@ import {
   createNoteRecord,
 } from "../../../../core/workspace/model/workspaceData";
 import { createNoteTreeFolderNode } from "../../../../core/workspace/model/noteTree/create";
-import { addTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
+import { addTestCtnBlockMetadata } from "../../../core/ctn/metadata/sourceMetadataFixture";
 
 function createIndex(sources: Array<{ id: string; source: string; title: string }>) {
   const notes = sources.map(({ id, source }, index) =>

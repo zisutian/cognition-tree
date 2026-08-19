@@ -35,7 +35,7 @@ import {
 import {
   createJournalEntriesVersion,
   createJournalEntryVersion,
-} from "./apiV1Resources.ts";
+} from "./apiV1ResourceVersions.ts";
 import {
   readApiV1RuntimeNow,
   type ApiV1Runtime,

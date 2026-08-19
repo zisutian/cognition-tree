@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readCanonicalTestDocument } from "../../../ctn/analysis/analysisTestHelpers";
+import { readCanonicalTestDocument } from "../../../core/ctn/analysis/analysisTestHelpers";
 import { defaultCtnSyntaxSource } from "../../../../core/ctn/syntax/defaultSyntax";
 import { parseWorkspaceSyntax } from "../../../../core/workspace/context/workspaceSyntax";
 import { readWorkspaceNoteHeader } from "../../../../core/workspace/model/workspaceData";

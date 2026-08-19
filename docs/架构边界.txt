@@ -53,7 +53,9 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 补充约束：
 
     presentation/activities 不依赖 presentation/shell。
-    infrastructure/client 与 infrastructure/http 只依赖自己的子层或共享 persistence。
+    infrastructure/client 内部依赖方向固定为：platform 只依赖 platform；repository
+    只依赖 repository；http 可依赖 http 与 repository；runtime 作为组合根可依赖
+    runtime、http、platform 与 repository。
     Local 与 WebDAV adapter 互不依赖。
     生产依赖图无环；相对 import 必须能由 NodeNext 处理。
 
@@ -181,9 +183,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
 7. Infrastructure 内部边界
 
-    client 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；HTTP adapter
-    使用独立的内存 catalog/content cache，源码中不存在 IndexedDB 或存储模式
-    分支。
+    client/platform 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；
+    client/repository 拥有内存 catalog/content cache、revision 与 resilient
+    repository；client/http 只实现 /api/v1 transport；client/runtime 只负责把
+    这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
     WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。
@@ -200,6 +203,11 @@ AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。�
 descriptor catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一
 owner。顶层主入口固定为笔记、日记、代办、语法、搜索，管理入口固定为仓库、
 设置。
+
+每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
+presentation/activities/<activity>/。跨 Activity 的组合只存在于 shell，共享
+交互原语只存在于 presentation/ui。笔记的 edit、structure、graph 作为 Notes
+内部子切片，不再以顶层 views/controllers/bindings 技术目录分散同一功能。
 
 Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
 

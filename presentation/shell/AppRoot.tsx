@@ -9,9 +9,9 @@ import { createWorkbenchFeedbackController } from "../../application/workbench/w
 import { projectWorkspaceSessionApplication } from "../../application/workspace/session/workspaceSessionApplication";
 import type {
   ClientApiConfiguration,
-} from "../../infrastructure/client/clientApiConfiguration";
-import { clientApplicationScheduler } from "../../infrastructure/client/clientApplicationServices";
-import { createWorkbenchRuntime } from "../../infrastructure/workbenchRuntime";
+} from "../../infrastructure/client/runtime/apiConfiguration";
+import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
+import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
 import type { ActivityId } from "../ui/activityTypes";
 import { useWorkbenchApplicationBindings } from "./bindings/application/workbench/useWorkbenchApplicationBindings";
 import { projectUnavailableWorkspace } from "./bindings/application/workbench/workbenchApplicationProjection";

@@ -5,8 +5,6 @@ const projectConfiguration = import.meta.glob(
     "../../package.json",
     "../../vite.config.ts",
     "../../playwright.config.ts",
-    "../../e2e/support/repositorySeeds.ts",
-    "../../e2e/support/workspaceServer.ts",
     "../../tooling/build/*.{ts,mjs}",
     "../../tooling/config/*.json",
   ],
@@ -33,14 +31,6 @@ describe("project layout", () => {
       ],
       ["vite.config.ts", 'outDir: ".artifacts/build/client"'],
       ["playwright.config.ts", 'outputDir: ".artifacts/test/playwright"'],
-      [
-        "repositorySeeds.ts",
-        'path.join(".artifacts", "test", "e2e-runtime", "repositories")',
-      ],
-      [
-        "workspaceServer.ts",
-        'path.join(".artifacts", "test", "e2e-runtime", "server")',
-      ],
       [
         "tsconfig.server.json",
         '"outDir": "../../.artifacts/build/server"',

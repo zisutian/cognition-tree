@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import {
   clientStartupConfigurationPath,
   loadClientApiConfiguration,
-} from "../../infrastructure/client/clientApiConfiguration";
+} from "../../infrastructure/client/runtime/apiConfiguration";
 import { AppRoot } from "./AppRoot";
 
 const root = ReactDOM.createRoot(

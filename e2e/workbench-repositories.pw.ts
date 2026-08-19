@@ -17,7 +17,6 @@ import {
   appResizeKeyboardStep,
 } from "../presentation/ui/workbench/frameResize";
 import {
-  e2eApiBaseUrl,
   editExternalLocalNote,
   removeE2ELocalRepository,
   seedLargeTreeRepository,
@@ -206,6 +205,7 @@ test.describe("repository and capacity flows", () => {
 
   test("rescans an externally edited Local note from the visible working tree", async ({
     page,
+    repositoryRoot,
   }) => {
     await seedWorkbenchRepository(api, externalRepositoryId);
     await openWorkbench(page, externalRepositoryId);
@@ -215,6 +215,7 @@ test.describe("repository and capacity flows", () => {
     );
 
     await editExternalLocalNote(
+      repositoryRoot,
       externalRepositoryId,
       "Alpha",
       (source) => `${source}\n\t- 外部文件修改已载入`,
@@ -375,9 +376,10 @@ test.describe("repository and capacity flows", () => {
   });
 
   test("continues staging the latest local edit after a remote conflict", async ({
+    apiBaseUrl,
     page,
   }) => {
-    await page.route(`${e2eApiBaseUrl}/api/v1/events`, (route) =>
+    await page.route(`${apiBaseUrl}/api/v1/events`, (route) =>
       route.abort());
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
@@ -522,6 +524,7 @@ test.describe("repository and capacity flows", () => {
 
   test("shows noncurrent Local repositories only in Repository and requires manual removal", async ({
     page,
+    repositoryRoot,
   }) => {
     let unsupportedDeleteRequests = 0;
 
@@ -535,7 +538,7 @@ test.describe("repository and capacity flows", () => {
         unsupportedDeleteRequests += 1;
       }
     });
-    await seedNoncurrentLocalRepository(unsupportedRepositoryId);
+    await seedNoncurrentLocalRepository(repositoryRoot, unsupportedRepositoryId);
 
     try {
       await openWorkbench(page, repositoryId);
@@ -589,18 +592,19 @@ test.describe("repository and capacity flows", () => {
       await expect(issueRow).toBeVisible();
       await expect(issueRow).not.toBeFocused();
 
-      await removeE2ELocalRepository(unsupportedRepositoryId);
+      await removeE2ELocalRepository(repositoryRoot, unsupportedRepositoryId);
       await repositoryPanel.getByRole("button", { name: "重新检查" }).click();
       await expect(issueRow).toHaveCount(0);
       await expect(repositoryProblem).toHaveCount(0);
       expect(unsupportedDeleteRequests).toBe(0);
     } finally {
-      await removeE2ELocalRepository(unsupportedRepositoryId);
+      await removeE2ELocalRepository(repositoryRoot, unsupportedRepositoryId);
     }
   });
 
   test("keeps the full workbench after deleting the final ordinary repository", async ({
     page,
+    repositoryRoot,
   }) => {
     await seedLargeTreeRepository(api, largeRepositoryId);
     const catalogResponse = await api.get("/api/v1/admin/repositories");
@@ -622,7 +626,7 @@ test.describe("repository and capacity flows", () => {
       expect(deleteResponse.ok()).toBe(true);
     }
 
-    await seedNoncurrentLocalRepository(unsupportedRepositoryId);
+    await seedNoncurrentLocalRepository(repositoryRoot, unsupportedRepositoryId);
 
     try {
       await openWorkbench(page, largeRepositoryId);
@@ -664,11 +668,11 @@ test.describe("repository and capacity flows", () => {
       ).toBeVisible();
       await getActivityButton(page, "仓库").click();
 
-      await removeE2ELocalRepository(unsupportedRepositoryId);
+      await removeE2ELocalRepository(repositoryRoot, unsupportedRepositoryId);
       await repositoryPanel.getByRole("button", { name: "重新检查" }).click();
       await expect(issueRow).toHaveCount(0);
     } finally {
-      await removeE2ELocalRepository(unsupportedRepositoryId);
+      await removeE2ELocalRepository(repositoryRoot, unsupportedRepositoryId);
     }
   });
 });

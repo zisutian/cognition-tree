@@ -7,13 +7,13 @@ import type { WorkbenchFeedbackController } from "../../../../../application/wor
 import {
   createClientJournalApplicationServices,
   createClientTodoApplicationServices,
-} from "../../../../../infrastructure/client/clientApplicationServices";
+} from "../../../../../infrastructure/client/platform/applicationServices";
 import type { ActivityId } from "../../../../ui/activityTypes";
 import { useJournalApplication } from "../journal/useJournalApplication";
 import { useRepositoryNavigation } from "../repository/useRepositoryNavigation";
 import { useTodoApplication } from "../todo/useTodoApplication";
 import { createRepositoryProjection } from "./workbenchApplicationProjection";
-import type { SearchResult } from "../../../../../application/search/searchQuery";
+import type { SearchResult } from "../../../../../application/search/searchTypes";
 import {
   isJournalEntryId,
 } from "../../../../../core/journal/model/journalContent";

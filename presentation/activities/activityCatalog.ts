@@ -16,7 +16,7 @@ import {
   type LazyExoticComponent,
 } from "react";
 import type { ActivityId } from "../ui/activityTypes";
-import type { ActivityControllerProps } from "./controllers/activityController";
+import type { ActivityControllerProps } from "./activityController";
 
 export type ActivityDescriptor = {
   availability: "always" | "workspace";
@@ -31,7 +31,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "workspace",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/NotesActivityController"))
+      default: (await import("./notes/NotesActivityController"))
         .NotesActivityController,
     })),
     group: "primary",
@@ -42,7 +42,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/JournalActivityController"))
+      default: (await import("./journal/JournalActivityController"))
         .JournalActivityController,
     })),
     group: "primary",
@@ -53,7 +53,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/TodoActivityController"))
+      default: (await import("./todo/TodoActivityController"))
         .TodoActivityController,
     })),
     group: "primary",
@@ -64,7 +64,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/SyntaxActivityController"))
+      default: (await import("./syntax/SyntaxActivityController"))
         .SyntaxActivityController,
     })),
     group: "primary",
@@ -75,7 +75,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/SearchActivityController"))
+      default: (await import("./search/SearchActivityController"))
         .SearchActivityController,
     })),
     group: "primary",
@@ -86,7 +86,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/RepositoryActivityController"))
+      default: (await import("./repository/RepositoryActivityController"))
         .RepositoryActivityController,
     })),
     group: "management",
@@ -97,7 +97,7 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
-      default: (await import("./controllers/SettingsActivityController"))
+      default: (await import("./settings/SettingsActivityController"))
         .SettingsActivityController,
     })),
     group: "management",

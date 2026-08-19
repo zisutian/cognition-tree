@@ -17,7 +17,7 @@ import {
   createEmptyJournalContent,
   journalEntries,
   updateJournalTestBody,
-} from "../../journal/journalTestFixture";
+} from "../../core/journal/journalTestFixture";
 import {
   appendTodoTestCollection,
   appendTodoTestItem,
@@ -25,7 +25,7 @@ import {
   todoBlockId,
   todoCollectionId,
   todoTimestamp,
-} from "../../todo/todoTestFixture";
+} from "../../core/todo/todoTestFixture";
 import {
   createWorkspaceRepositoryContent,
 } from "../../support/workspaceRepositoryFixtures";

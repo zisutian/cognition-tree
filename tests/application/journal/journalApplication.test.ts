@@ -19,7 +19,6 @@ import {
   type JournalApplicationServices,
   type JournalDeleteMutationResult,
 } from "../../../application/journal/journalApplication";
-import type { JournalContentDto } from "../../../contracts/journal/types";
 import {
   createJournalParseIndex,
 } from "../../../core/journal/indexes/journalParseIndex";
@@ -80,7 +79,7 @@ function createFunctionalSession(initial: JournalContent) {
     },
     session: {
       mutate(
-        update: (current: JournalContentDto) => JournalContentDto,
+        update: (current: JournalContent) => JournalContent,
       ) {
         content = requireJournalContent(update(content));
         projection = createJournalParseIndex(content, projection);
@@ -274,6 +273,6 @@ describe("journal application mutations", () => {
       collections: [],
       schemaVersion: 3,
       syntaxSource: "",
-    } as unknown as JournalContentDto)).toThrow();
+    } as unknown as JournalContent)).toThrow();
   });
 });

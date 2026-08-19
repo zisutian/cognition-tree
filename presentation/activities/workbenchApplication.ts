@@ -1,7 +1,7 @@
 import type { JournalApplication } from "../../application/journal/journalApplication";
 import type { RepositoryApplication } from "../../application/repository/repositoryApplication";
 import type { TodoApplication } from "../../application/todo/todoApplicationState";
-import type { WorkspaceApplication } from "./bindings/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "../workspace/runtime/useWorkspaceApplication";
 import type { ApiAccessApplication } from "../../application/apiAccess/apiAccessAdministration";
 import type {
   SearchControllerState,
@@ -9,7 +9,7 @@ import type {
 import type {
   WorkbenchSearchFacade,
 } from "../../application/workbench/workbenchController";
-import type { SearchResult } from "../../application/search/searchQuery";
+import type { SearchResult } from "../../application/search/searchTypes";
 import type {
   ContentOpenOutcome,
 } from "../../application/navigation/contentDestination";

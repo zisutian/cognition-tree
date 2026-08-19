@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeCanonicalTestSource,
   readCanonicalTestDocument,
-} from "../../../ctn/analysis/analysisTestHelpers";
+} from "../../../core/ctn/analysis/analysisTestHelpers";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
 import {
   createCtnSyntaxDraft,
@@ -43,7 +43,7 @@ import {
   addTestCtnBlockMetadata,
   createTestBlockId,
   testBlockTimestamp,
-} from "../../../ctn/metadata/sourceMetadataFixture";
+} from "../../../core/ctn/metadata/sourceMetadataFixture";
 
 const timestamp = "2026-07-04T00:00:00.000Z";
 

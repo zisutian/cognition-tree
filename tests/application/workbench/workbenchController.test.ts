@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import {
   createWorkbenchController,
@@ -22,8 +23,8 @@ import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
 } from "../../../application/repository/workspaceRepositoryCatalog";
-import { createEmptyJournalContent } from "../../journal/journalTestFixture";
-import { createEmptyTodoContent } from "../../todo/todoTestFixture";
+import { createEmptyJournalContent } from "../../core/journal/journalTestFixture";
+import { createEmptyTodoContent } from "../../core/todo/todoTestFixture";
 import {
   createContent,
   createSnapshot,
@@ -35,9 +36,6 @@ import { testApplicationScheduler } from "../../support/testApplicationScheduler
 import type {
   DomainChangeNotification,
 } from "../../../application/sync/domainChangeEvents";
-import {
-  createVersionedContentRevision,
-} from "../../../infrastructure/persistence/versionedContentRevision";
 
 function deferred<Value>() {
   let resolve!: (value: Value | PromiseLike<Value>) => void;
@@ -258,8 +256,8 @@ function createHarness({
         }
       : undefined,
     createInitialWorkspaceContent: () => createContent(),
-    createSearchVersion: (value) =>
-      createVersionedContentRevision(JSON.stringify(value)),
+    createSearchVersion: async (value) =>
+      `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}` as const,
     scheduler: testApplicationScheduler,
     workspaceCatalog,
     workspaceCommandDependencies: {

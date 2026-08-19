@@ -51,15 +51,16 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   repository: ["persistence", "repository"],
 };
 
+const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
+  http: ["http", "repository"],
+  platform: ["platform"],
+  repository: ["repository"],
+  runtime: ["http", "platform", "repository", "runtime"],
+};
+
 function peerDomain(filePath: string) {
   return filePath.match(
     /^(?:\.\.\/\.\.\/)?(?:core|application)\/(workspace|journal|todo)\//,
-  )?.[1] ?? null;
-}
-
-function infrastructureArea(filePath: string) {
-  return filePath.match(
-    /^(?:\.\.\/\.\.\/)?infrastructure\/([^/]+)\//,
   )?.[1] ?? null;
 }
 
@@ -74,12 +75,18 @@ function serverArea(filePath: string) {
     : segments[0];
 }
 
-function isRefinedInfrastructureEdge(edge: SourceImport) {
-  const sourceArea = infrastructureArea(edge.filePath);
+function clientArea(filePath: string) {
+  const prefix = "../../infrastructure/client/";
 
+  return filePath.startsWith(prefix)
+    ? filePath.slice(prefix.length).split("/")[0] ?? null
+    : null;
+}
+
+function isRefinedInfrastructureEdge(edge: SourceImport) {
   return (
-    ((sourceArea === "client" || sourceArea === "http") &&
-      infrastructureArea(edge.targetPath) !== null) ||
+    (clientArea(edge.filePath) !== null &&
+      clientArea(edge.targetPath) !== null) ||
     (edge.filePath !== "../../infrastructure/server/index.ts" &&
       serverArea(edge.filePath) !== null &&
       serverArea(edge.targetPath) !== null)
@@ -87,11 +94,12 @@ function isRefinedInfrastructureEdge(edge: SourceImport) {
 }
 
 function allowsInfrastructureEdge(edge: SourceImport) {
-  const sourceArea = infrastructureArea(edge.filePath);
-  const targetArea = infrastructureArea(edge.targetPath);
+  const sourceClientArea = clientArea(edge.filePath);
 
-  if (sourceArea === "client" || sourceArea === "http") {
-    return targetArea === sourceArea || targetArea === "persistence";
+  if (sourceClientArea !== null) {
+    return clientAreaImports[sourceClientArea]?.includes(
+      clientArea(edge.targetPath) ?? "",
+    ) ?? false;
   }
   const allowed = serverAreaImports[serverArea(edge.filePath) ?? ""];
 
@@ -214,7 +222,7 @@ const uniqueOwners: readonly UniqueOwner[] = [
     "cross-domain search execution",
     applicationModules,
     /\bexport function createSearchQuery\s*</,
-    /^application\/search\/searchQuery\.ts$/,
+    /^application\/search\/searchIndex\.ts$/,
   ],
   [
     "Activity descriptor catalog",
@@ -286,8 +294,7 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     name: "Search Activity CTN parsing",
     pattern:
       /\b(?:analyzeCtnSource|parseCtnSourceText|create(?:Journal|Todo|Workspace)ParseIndex)\s*\(/,
-    scope:
-      /^presentation\/activities\/(?:controllers\/Search|views\/search\/)/,
+    scope: /^presentation\/activities\/search\//,
   },
   {
     corpus: sourceModules,
@@ -307,10 +314,10 @@ function forbid(
   return { corpus, matches: 0, name, pattern, scope };
 }
 
-const activityStyleScope = /^presentation\/ui\/styles\/activities\//;
+const activityStyleScope = /^presentation\/activities\/.*\.css$/;
 const sharedStyleScope = /^presentation\/ui\/styles\/shared\//;
 const nonFoundationUiStyleScope = (filePath: string) =>
-  filePath.startsWith("presentation/ui/styles/") &&
+  filePath.endsWith(".css") &&
   !filePath.startsWith("presentation/ui/styles/foundation/");
 const nonE2eUiTestScope = (filePath: string) =>
   !filePath.startsWith("e2e/") &&
@@ -351,7 +358,7 @@ export function createUiTextPolicies({
   uiTestModules: TextCorpus;
 }): readonly TextPolicy[] {
   const activityStylePaths = Object.keys(styleModules).filter((path) =>
-    path.startsWith("../../presentation/ui/styles/activities/")
+    path.startsWith("../../presentation/activities/")
   );
 
   return [
@@ -434,17 +441,23 @@ export function createUiTextPolicies({
       /^presentation\//,
     ),
     ...activityStylePaths.map((stylePath): TextPolicy => {
-      const styleName = stylePath.split("/").at(-1)!.replace(".css", "");
+      const relativeStylePath = stylePath.replace("../../", "");
+      const directory = relativeStylePath.slice(
+        0,
+        relativeStylePath.lastIndexOf("/"),
+      );
+      const fileName = relativeStylePath.slice(
+        relativeStylePath.lastIndexOf("/") + 1,
+      );
 
       return {
-        allowedPath: (filePath) =>
-          filePath.startsWith(
-            `presentation/activities/views/${styleName}/`,
-          ),
+        allowedPath: (filePath) => filePath.startsWith(`${directory}/`),
         corpus: sourceModules,
         matches: 1,
-        name: `${styleName} Activity style owner`,
-        pattern: new RegExp(`styles/activities/${styleName}\\.css`),
+        name: `${relativeStylePath} co-located Activity style owner`,
+        pattern: new RegExp(
+          `["']\\./${fileName.split(".").join("\\.")}["']`,
+        ),
       };
     }),
   ];

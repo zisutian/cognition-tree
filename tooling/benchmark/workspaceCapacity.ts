@@ -28,8 +28,8 @@ import { createUiOutlineNodes } from "../../application/workspace/projection/vie
 import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax.ts";
-import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/http/httpWorkspaceRepository.ts";
-import { createMemoryRepositoryClientCache } from "../../infrastructure/persistence/repositoryClientCache.ts";
+import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository.ts";
+import { createMemoryRepositoryClientCache } from "../../infrastructure/client/repository/repositoryClientCache.ts";
 import { WorkspaceRepositoryLocalConflictError } from "../../application/repository/workspaceRepository.ts";
 import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax.ts";
 import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
@@ -37,8 +37,8 @@ import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspac
 import { createWorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
 import {
   createSearchQuery,
-  type SearchDocument,
-} from "../../application/search/searchQuery.ts";
+} from "../../application/search/searchIndex.ts";
+import type { SearchDocument } from "../../application/search/searchTypes.ts";
 import type {
   NoteRecord,
   NoteTreeNode,

@@ -133,7 +133,7 @@
   font-family: var(--font-code);
   font-size: var(--ui-micro-font-size);
   font-variant-numeric: var(--ui-numeric-font-variant);
-  line-height: 1;
+  line-height: var(--ui-inline-symbol-line-height);
   vertical-align: 0.04em;
   white-space: nowrap;
   user-select: none;

@@ -3,11 +3,11 @@
 import {
   createWorkspaceSourceReplacement,
   prepareWorkspaceMutation,
-  projectWorkspaceMutation,
   type WorkspaceDomainCommand,
   type WorkspaceDomainContext,
   type WorkspaceDomainVersions,
 } from "../../../application/workspace/commands/workspaceDomainCommands.ts";
+import { projectWorkspaceMutation } from "../../../application/workspace/commands/workspaceDomainProjection.ts";
 import {
   createDomainTransition,
 } from "../../../application/commands/domainCommand.ts";
@@ -38,10 +38,12 @@ import {
 } from "./apiV1CommandCommon.ts";
 import {
   createApiV1WorkspaceAnalysis,
+} from "./apiV1WorkspaceResources.ts";
+import {
   createWorkspaceFolderVersion,
   createWorkspaceNoteVersion,
   createWorkspaceTreeVersion,
-} from "./apiV1Resources.ts";
+} from "./apiV1ResourceVersions.ts";
 import {
   readApiV1RuntimeNow,
   type ApiV1Runtime,

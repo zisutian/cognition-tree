@@ -8,9 +8,9 @@ import {
   createWorkspaceSessionController,
   type WorkspaceSessionController,
 } from "../../application/workspace/session/workspaceSessionController";
-import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/http/httpWorkspaceRepository";
-import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/http/httpWorkspaceRepositoryCatalog";
-import { validateWorkspaceRepositoryContent } from "../../infrastructure/persistence/workspaceRepositoryContentValidation";
+import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository";
+import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/client/http/workspaceRepositoryCatalog";
+import { validateWorkspaceRepositoryContent } from "../../infrastructure/client/repository/workspaceRepositoryContentValidation";
 import type {
   WorkspaceRepository,
 } from "../../application/repository/workspaceRepository";
@@ -24,7 +24,7 @@ import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/loc
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax";
-import { analyzeCanonicalTestSource } from "../ctn/analysis/analysisTestHelpers";
+import { analyzeCanonicalTestSource } from "../core/ctn/analysis/analysisTestHelpers";
 import {
   replaceEditableSource,
   waitForWorkspaceSessionState,

@@ -23,7 +23,7 @@ import {
   todoBlockId,
   todoCollectionId,
   todoTimestamp,
-} from "../../todo/todoTestFixture";
+} from "../../core/todo/todoTestFixture";
 
 function createContent() {
   let content = appendTodoTestCollection(createEmptyTodoContent(), {

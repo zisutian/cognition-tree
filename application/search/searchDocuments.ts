@@ -8,7 +8,7 @@ import type {
   SearchDocument,
   SearchDocumentBlock,
   SearchResourceVersion,
-} from "./searchQuery.ts";
+} from "./searchTypes.ts";
 
 function projectBlocks({
   analysis,

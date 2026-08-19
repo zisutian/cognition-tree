@@ -10,7 +10,7 @@ import type {
 import type { WorkbenchFeedbackController } from "../../../application/workbench/workbenchFeedbackController";
 import type { ActiveWorkspaceSession } from "../../../application/workspace/session/workspaceSessionApplication";
 import type { WorkbenchApplication } from "../../activities/workbenchApplication";
-import { useWorkspaceApplication } from "../../activities/bindings/workspace/runtime/useWorkspaceApplication";
+import { useWorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
 import type { ActivityId } from "../../ui/activityTypes";
 import { WorkspaceWorkbench } from "./WorkspaceWorkbench";
 

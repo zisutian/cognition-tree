@@ -46,7 +46,7 @@ import {
   type SearchControllerActions,
   type SearchControllerState,
 } from "../search/searchController";
-import type { SearchResourceVersion } from "../search/searchQuery";
+import type { SearchResourceVersion } from "../search/searchTypes";
 import {
   createTodoSessionController,
   type TodoSessionController,

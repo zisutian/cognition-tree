@@ -7,14 +7,14 @@ import {
   getActivityLabel,
 } from "../../activities/activityCatalog";
 import AppView from "../../ui/AppView";
-import { PlaceholderPanel } from "../../activities/views/PlaceholderPanel";
+import { PlaceholderPanel } from "./PlaceholderPanel";
 import type { ActivityId } from "../../ui/activityTypes";
 import {
   FeedbackProvider,
   type WorkbenchActivityFeedbackController,
 } from "../../ui/shared/FeedbackProvider";
 import { useWorkbenchLayout } from "../../ui/workbench/useWorkbenchLayout";
-import type { RenderActivity } from "../../activities/controllers/activityController";
+import type { RenderActivity } from "../../activities/activityController";
 import { WorkbenchProblemsController } from "./WorkbenchProblemsController";
 import { canChangeActivityWithSyntaxDraft } from "./syntaxNavigationGuard";
 

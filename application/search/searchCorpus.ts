@@ -26,7 +26,7 @@ import { createCtnSearchDocument } from "./searchDocuments.ts";
 import type {
   SearchDocument,
   SearchResourceVersion,
-} from "./searchQuery.ts";
+} from "./searchTypes.ts";
 
 export type CreateSearchResourceVersion = (
   value: unknown,

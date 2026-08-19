@@ -6,10 +6,10 @@ import type {
 import {
   createTodoBodyReplacement,
   prepareTodoMutation,
-  projectTodoMutation,
   type TodoDomainCommand,
   type TodoDomainVersions,
 } from "../../../application/todo/todoDomainCommands.ts";
+import { projectTodoMutation } from "../../../application/todo/todoDomainProjection.ts";
 import {
   createDomainTransition,
 } from "../../../application/commands/domainCommand.ts";
@@ -44,7 +44,7 @@ import {
   createTodoCollectionStateVersion,
   createTodoItemStateVersion,
   createTodoOrderVersion,
-} from "./apiV1Resources.ts";
+} from "./apiV1ResourceVersions.ts";
 import {
   readApiV1RuntimeNow,
   type ApiV1Runtime,

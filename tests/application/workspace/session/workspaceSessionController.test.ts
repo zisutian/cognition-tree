@@ -15,7 +15,7 @@ import {
 import {
   analyzeCanonicalTestSource,
   readCanonicalTestDocument,
-} from "../../../ctn/analysis/analysisTestHelpers";
+} from "../../../core/ctn/analysis/analysisTestHelpers";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
 import { formatCtnSyntaxV2 } from "../../../../core/ctn/syntax/formatter";
 import {

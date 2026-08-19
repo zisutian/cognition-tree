@@ -13,13 +13,11 @@ import {
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
 } from "../../../application/todo/todoApplication";
-import { createClientTodoApplicationServices } from "../../../infrastructure/client/clientApplicationServices";
-import type { TodoContentDto } from "../../../contracts/todo/types";
 import {
   createEmptyTodoContent,
   todoBlockId,
   todoCollectionId,
-} from "../../todo/todoTestFixture";
+} from "../../core/todo/todoTestFixture";
 import {
   createTodoParseIndex,
 } from "../../../core/todo/indexes/todoParseIndex";
@@ -76,7 +74,7 @@ function createFunctionalSession(initial: TodoContent) {
     },
     session: {
       mutate(
-        update: (current: TodoContentDto) => TodoContentDto,
+        update: (current: TodoContent) => TodoContent,
       ) {
         content = requireTodoContent(update(content));
         projection = createTodoParseIndex(content, projection);
@@ -222,21 +220,11 @@ describe("Todo application mutations", () => {
     );
   });
 
-  it("rejects non-Todo content and provides prefixed client ids", () => {
+  it("rejects non-Todo content", () => {
     expect(() => requireTodoContent({
       days: [],
       schemaVersion: 3,
       syntaxSource: "",
-    } as unknown as TodoContentDto)).toThrow();
-
-    const services = createClientTodoApplicationServices();
-
-    expect(services.createCollectionId()).toMatch(/^todo-collection-[0-9a-f-]{36}$/);
-    expect(services.createBlockId()).toMatch(/^[0-9a-f-]{36}$/);
-    expect(services.createRecurrenceStageId()).toMatch(
-      /^todo-recurrence-stage-[0-9a-f-]{36}$/,
-    );
-    expect(services.localCalendar.today()).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/);
-    expect(services.now()).toBeInstanceOf(Date);
+    } as unknown as TodoContent)).toThrow();
   });
 });

@@ -18,7 +18,7 @@ import {
   projectWorkspaceRepositoryRuntimeIssues,
   type WorkspaceRepositoryRuntimeIssue,
 } from "../../../application/repository/projectWorkspaceRepositoryIssues";
-import type { WorkspaceApplication } from "../../activities/bindings/workspace/runtime/useWorkspaceApplication";
+import type { WorkspaceApplication } from "../../workspace/runtime/useWorkspaceApplication";
 import type { UiWorkbenchDiagnostics } from "../../../application/workspace/projection/viewDiagnostics";
 import {
   createUiWorkbenchProblems,

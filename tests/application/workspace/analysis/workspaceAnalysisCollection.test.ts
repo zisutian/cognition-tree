@@ -8,7 +8,7 @@ import {
   createInitialWorkspaceData,
   createNoteRecord,
 } from "../../../../core/workspace/model/workspaceData";
-import { addTestCtnBlockMetadata } from "../../../ctn/metadata/sourceMetadataFixture";
+import { addTestCtnBlockMetadata } from "../../../core/ctn/metadata/sourceMetadataFixture";
 
 function createIndex(sources: Array<{ id: string; source: string }>) {
   const notes = sources.map(({ id, source }, index) =>

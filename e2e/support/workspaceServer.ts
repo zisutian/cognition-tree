@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { rm } from "node:fs/promises";
-import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import http, {
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import {
   createApiV1RequestHandler,
@@ -10,29 +14,15 @@ import {
 import {
   createApiV1SecurityPolicy,
 } from "../../infrastructure/server/api/apiV1Security.ts";
-import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
+import {
+  LocalRepositoryCatalog,
+  type CreateLocalRepositoryWithId,
+} from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../infrastructure/server/repository/builtInCatalog.ts";
-import type { CreateLocalRepositoryWithId } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 
-const host = process.env.CTN_API_HOST ?? "127.0.0.1";
-const port = Number(process.env.CTN_API_PORT ?? "3317");
-const repositoryDir = path.resolve(
-  process.env.CTN_E2E_REPOSITORY_DIR ??
-    path.join(".artifacts", "test", "e2e-runtime", "repositories"),
-);
-const serverStateDir = path.resolve(
-  process.env.CTN_E2E_SERVER_STATE_DIR ??
-    path.join(".artifacts", "test", "e2e-runtime", "server"),
-);
-const repositoryHostRoot = process.env.CTN_E2E_REPOSITORY_HOST_ROOT ?? null;
-const security = {
-  ...createApiV1SecurityPolicy({ host }),
-  allowedOrigins: [
-    process.env.CTN_E2E_WEB_ORIGIN ?? "http://127.0.0.1:4174",
-  ],
-};
+const host = "127.0.0.1";
 
 type E2ERuntime = {
   apiV1Handler: ApiV1RequestHandler;
@@ -40,138 +30,174 @@ type E2ERuntime = {
   localCatalog: LocalRepositoryCatalog;
 };
 
-async function createE2ERuntime(): Promise<E2ERuntime> {
-  const localCatalog = new LocalRepositoryCatalog(repositoryDir, {
-    hostRoot: repositoryHostRoot,
-  });
-  const webDavRegistry = new WebDavConnectionRegistry({
-    stateDirectory: serverStateDir,
-  });
-  const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
-  const builtInCatalog = new BuiltInCatalog(repositoryDir);
+export type E2EWorkspaceServer = {
+  baseUrl: string;
+  close(): Promise<void>;
+  repositoryDirectory: string;
+  reset(): Promise<void>;
+};
 
-  await catalog.initialize();
-  await builtInCatalog.initialize();
-  return {
-    apiV1Handler: createApiV1RequestHandler({
-      builtInCatalog,
+export async function startE2EWorkspaceServer({
+  allowedOrigin,
+  repositoryHostRoot = "/host/e2e-repositories",
+  rootDirectory,
+}: {
+  allowedOrigin: string;
+  repositoryHostRoot?: string | null;
+  rootDirectory: string;
+}): Promise<E2EWorkspaceServer> {
+  const repositoryDirectory = path.join(rootDirectory, "repositories");
+  const serverStateDirectory = path.join(rootDirectory, "server");
+  const security = {
+    ...createApiV1SecurityPolicy({ host }),
+    allowedOrigins: [allowedOrigin],
+  };
+
+  async function createRuntime(): Promise<E2ERuntime> {
+    const localCatalog = new LocalRepositoryCatalog(repositoryDirectory, {
+      hostRoot: repositoryHostRoot,
+    });
+    const webDavRegistry = new WebDavConnectionRegistry({
+      stateDirectory: serverStateDirectory,
+    });
+    const catalog = new CompositeRepositoryCatalog(localCatalog, webDavRegistry);
+    const builtInCatalog = new BuiltInCatalog(repositoryDirectory);
+
+    await catalog.initialize();
+    await builtInCatalog.initialize();
+    return {
+      apiV1Handler: createApiV1RequestHandler({
+        builtInCatalog,
+        catalog,
+        security,
+        stateDirectory: serverStateDirectory,
+      }),
       catalog,
-      security,
-      stateDirectory: serverStateDir,
-    }),
-    catalog,
-    localCatalog,
+      localCatalog,
+    };
+  }
+
+  async function clearState() {
+    await Promise.all([
+      rm(repositoryDirectory, { force: true, recursive: true }),
+      rm(serverStateDirectory, { force: true, recursive: true }),
+    ]);
+  }
+
+  await clearState();
+  let runtime = await createRuntime();
+  let resetQueue = Promise.resolve();
+
+  async function resetRuntime() {
+    const reset = resetQueue.then(async () => {
+      await runtime.catalog.dispose();
+      await clearState();
+      runtime = await createRuntime();
+    });
+
+    resetQueue = reset.catch(() => undefined);
+    await reset;
+  }
+
+  async function readSeedRequest(request: IncomingMessage) {
+    const chunks: Buffer[] = [];
+
+    for await (const chunk of request) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+
+    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as
+      CreateLocalRepositoryWithId;
+  }
+
+  async function handleSeedRequest(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ) {
+    try {
+      const descriptor = await runtime.localCatalog.createRepositoryWithId(
+        await readSeedRequest(request),
+      );
+
+      response.writeHead(201, {
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+      });
+      response.end(JSON.stringify(descriptor));
+    } catch (error) {
+      response.writeHead(400, {
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+      });
+      response.end(JSON.stringify({
+        message: error instanceof Error ? error.message : "Seed failed",
+      }));
+    }
+  }
+
+  async function handleResetRequest(response: ServerResponse) {
+    try {
+      await resetRuntime();
+      response.writeHead(204, { "Cache-Control": "no-store" });
+      response.end();
+    } catch (error) {
+      response.writeHead(500, {
+        "Cache-Control": "no-store",
+        "Content-Type": "application/json; charset=utf-8",
+      });
+      response.end(JSON.stringify({
+        message: error instanceof Error ? error.message : "Reset failed",
+      }));
+    }
+  }
+
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://localhost");
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/__e2e/reset" &&
+      url.search === ""
+    ) {
+      void handleResetRequest(response);
+      return;
+    }
+    if (
+      request.method === "POST" &&
+      url.pathname === "/__e2e/local-repositories" &&
+      url.search === ""
+    ) {
+      void handleSeedRequest(request, response);
+      return;
+    }
+
+    void runtime.apiV1Handler(request, response);
+  });
+
+  server.headersTimeout = 10_000;
+  server.keepAliveTimeout = 5_000;
+  server.maxHeadersCount = 100;
+  server.requestTimeout = 30_000;
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, host, () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address() as AddressInfo;
+
+  return {
+    baseUrl: `http://${host}:${address.port}`,
+    repositoryDirectory,
+    reset: resetRuntime,
+    async close() {
+      await resetQueue;
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+      });
+      await runtime.catalog.dispose();
+    },
   };
 }
-
-async function clearE2EState() {
-  await Promise.all([
-    rm(repositoryDir, { force: true, recursive: true }),
-    rm(serverStateDir, { force: true, recursive: true }),
-  ]);
-}
-
-await clearE2EState();
-let runtime = await createE2ERuntime();
-let resetQueue = Promise.resolve();
-
-async function readSeedRequest(request: IncomingMessage) {
-  const chunks: Buffer[] = [];
-
-  for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-
-  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as
-    CreateLocalRepositoryWithId;
-}
-
-async function handleSeedRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-) {
-  try {
-    const descriptor = await runtime.localCatalog.createRepositoryWithId(
-      await readSeedRequest(request),
-    );
-
-    response.writeHead(201, {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-    });
-    response.end(JSON.stringify(descriptor));
-  } catch (error) {
-    response.writeHead(400, {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-    });
-    response.end(JSON.stringify({
-      message: error instanceof Error ? error.message : "Seed failed",
-    }));
-  }
-}
-
-async function handleResetRequest(response: ServerResponse) {
-  const reset = resetQueue.then(async () => {
-    await runtime.catalog.dispose();
-    await clearE2EState();
-    runtime = await createE2ERuntime();
-  });
-
-  resetQueue = reset.catch(() => undefined);
-  try {
-    await reset;
-    response.writeHead(204, {
-      "Cache-Control": "no-store",
-    });
-    response.end();
-  } catch (error) {
-    response.writeHead(500, {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-    });
-    response.end(JSON.stringify({
-      message: error instanceof Error ? error.message : "Reset failed",
-    }));
-  }
-}
-
-const server = http.createServer((request, response) => {
-  const url = new URL(request.url ?? "/", "http://localhost");
-
-  if (
-    request.method === "POST" &&
-    url.pathname === "/__e2e/reset" &&
-    url.search === ""
-  ) {
-    void handleResetRequest(response);
-    return;
-  }
-  if (
-    request.method === "POST" &&
-    url.pathname === "/__e2e/local-repositories" &&
-    url.search === ""
-  ) {
-    void handleSeedRequest(request, response);
-    return;
-  }
-
-  void runtime.apiV1Handler(request, response);
-});
-
-server.headersTimeout = 10_000;
-server.keepAliveTimeout = 5_000;
-server.maxHeadersCount = 100;
-server.requestTimeout = 30_000;
-
-server.listen(port, host, () => {
-  console.log(`Cognition Tree E2E API listening on http://${host}:${port}`);
-});
-
-async function closeServer() {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  await runtime.catalog.dispose();
-}
-
-process.once("SIGINT", () => void closeServer());
-process.once("SIGTERM", () => void closeServer());

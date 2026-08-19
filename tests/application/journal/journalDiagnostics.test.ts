@@ -12,7 +12,7 @@ import {
   createEmptyJournalContent,
   journalEntryId,
   updateJournalTestBody,
-} from "../../journal/journalTestFixture";
+} from "../../core/journal/journalTestFixture";
 
 function createDiagnosticContent() {
   let content = appendJournalTestEntry(createEmptyJournalContent(), {

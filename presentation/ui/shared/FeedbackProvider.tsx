@@ -14,7 +14,7 @@ import {
   type WorkbenchFeedbackController,
 } from "../../../application/workbench/workbenchFeedbackController";
 import type { ActivityId } from "../activityTypes";
-import { clientApplicationScheduler } from "../../../infrastructure/client/clientApplicationServices";
+import { clientApplicationScheduler } from "../../../infrastructure/client/platform/applicationServices";
 
 type FeedbackActions = {
   notify: (message: string) => void;

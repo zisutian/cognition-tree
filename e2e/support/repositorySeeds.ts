@@ -19,31 +19,32 @@ import {
 } from "../../core/ctn/metadata/blockMetadata";
 import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax";
 
-export const e2eApiBaseUrl = "http://127.0.0.1:3317";
 export const e2eTimestamp = "2026-01-01T00:00:00.000Z";
 export const e2eAlphaFirstBlockTimestamp = "2026-01-02T00:00:00.000Z";
 export const e2eAlphaSecondBlockTimestamp = "2026-01-03T00:00:00.000Z";
 
-const e2eRepositoryRoot = path.resolve(
-  process.env.CTN_E2E_REPOSITORY_DIR ??
-    path.join(".artifacts", "test", "e2e-runtime", "repositories"),
-);
-
 const e2eDefaultSyntaxFileId =
   "syntax-00000000-0000-4000-8000-000000000001";
 
-function resolveE2ERepositoryPath(repositoryId: string) {
+function resolveE2ERepositoryPath(
+  repositoryRoot: string,
+  repositoryId: string,
+) {
   if (!isRepositoryId(repositoryId)) {
     throw new Error(`Invalid E2E repository id: ${repositoryId}`);
   }
 
-  return path.join(e2eRepositoryRoot, repositoryId);
+  return path.join(repositoryRoot, repositoryId);
 }
 
 export async function seedNoncurrentLocalRepository(
+  repositoryRoot: string,
   repositoryId: string,
 ) {
-  const repositoryPath = resolveE2ERepositoryPath(repositoryId);
+  const repositoryPath = resolveE2ERepositoryPath(
+    repositoryRoot,
+    repositoryId,
+  );
   const revision = `sha256:${"a".repeat(64)}`;
   const controlPath = path.join(repositoryPath, ".ctn");
 
@@ -65,8 +66,11 @@ export async function seedNoncurrentLocalRepository(
   );
 }
 
-export async function removeE2ELocalRepository(repositoryId: string) {
-  await rm(resolveE2ERepositoryPath(repositoryId), {
+export async function removeE2ELocalRepository(
+  repositoryRoot: string,
+  repositoryId: string,
+) {
+  await rm(resolveE2ERepositoryPath(repositoryRoot, repositoryId), {
     force: true,
     recursive: true,
   });
@@ -86,12 +90,13 @@ function assertExternalNoteTarget(repositoryId: string, noteTitle: string) {
 }
 
 export async function editExternalLocalNote(
+  repositoryRoot: string,
   repositoryId: string,
   noteTitle: string,
   edit: (source: string) => string,
 ) {
   assertExternalNoteTarget(repositoryId, noteTitle);
-  const repositoryPath = path.join(e2eRepositoryRoot, repositoryId);
+  const repositoryPath = path.join(repositoryRoot, repositoryId);
   const candidates: string[] = [];
   const pending = [repositoryPath];
 

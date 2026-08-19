@@ -29,21 +29,21 @@ const activityCatalog = readFileSync(
 );
 const controllerSources = [
   ...activityCatalog.matchAll(
-    /import\("\.\/controllers\/([A-Za-z]+ActivityController)"\)/g,
+    /import\("(\.\/[a-z-]+\/[A-Za-z]+ActivityController)"\)/g,
   ),
-].map((match) => `${match[1]}.tsx`);
+].map((match) => `presentation/activities/${match[1].slice(2)}.tsx`);
 
 if (controllerSources.length === 0) {
   throw new Error("Activity descriptor catalog declares no lazy controllers.");
 }
 
-const controllerEntries = controllerSources.map((sourceName) => {
-  const entry = manifestEntries.find(([sourcePath]) =>
-    sourcePath === `presentation/activities/controllers/${sourceName}`,
+const controllerEntries = controllerSources.map((sourcePath) => {
+  const entry = manifestEntries.find(([manifestPath]) =>
+    manifestPath === sourcePath
   );
 
   if (!entry || !entry[1].isDynamicEntry) {
-    throw new Error(`${sourceName} is not a dynamic client entry.`);
+    throw new Error(`${sourcePath} is not a dynamic client entry.`);
   }
 
   return entry;

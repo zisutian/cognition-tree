@@ -8,7 +8,7 @@ import {
   createEmptyJournalContent,
   journalEntryId,
   updateJournalTestBody,
-} from "../../journal/journalTestFixture";
+} from "../../core/journal/journalTestFixture";
 
 function createViewContent() {
   let content = appendJournalTestEntry(createEmptyJournalContent(), {

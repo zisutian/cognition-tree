@@ -40,13 +40,15 @@ import {
 } from "../search/searchCorpus";
 import {
   createSearchQuery,
+} from "../search/searchIndex";
+import {
   searchDomains,
   type SearchDomain,
   type SearchFault,
   type SearchQuery,
   type SearchRequest,
   type SearchSource,
-} from "../search/searchQuery";
+} from "../search/searchTypes";
 
 type WorkbenchSearchState = {
   activeRepositoryId: string | null;
