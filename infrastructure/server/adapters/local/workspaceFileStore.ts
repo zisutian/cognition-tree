@@ -45,7 +45,7 @@ import {
 import type {
   WorkspaceCommitPhase,
 } from "./workingTreeTransaction.ts";
-import { createLocalProjectionFromContent } from "./localCanonicalProjection.ts";
+import { createLocalProjectionFromContent } from "./localRepositoryProjection.ts";
 import {
   createLocalProjectionFromWorkingTree,
   readLocalControlText,

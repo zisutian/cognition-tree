@@ -28,7 +28,7 @@ import {
   projectCanonicalNoteSourceAnalysis,
   reconcileEditableNoteSourceAnalysis,
   type LocalCanonicalNoteProjection,
-} from "./localCanonicalProjection.ts";
+} from "./localNoteProjection.ts";
 import {
   localControlDirectoryName,
   localIndexFileName,
