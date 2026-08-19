@@ -23,8 +23,6 @@ import {
 } from "./receiptStore.ts";
 import { ApiTokenStore } from "./tokenStore.ts";
 
-export { ApiIdempotencyConflictError } from "./receiptStore.ts";
-
 // This is a persisted layout name, not an HTTP namespace. Renaming it would
 // silently strand existing token, audit, and idempotency receipt state.
 const persistedApiStateDirectoryName = "api-v1";

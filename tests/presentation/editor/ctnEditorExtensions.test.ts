@@ -5,13 +5,13 @@ import {
   createCtnIndentUnit,
   createCtnParsingExtensions,
   createCtnTabSizeExtension,
-  ctnEditorRuntimeCompartment,
   getCtnEditorActiveLineNumber,
 } from "../../../presentation/editor/ctnEditorExtensions";
 import {
   createCtnEditorAnalysisField,
 } from "../../../presentation/editor/ctnEditorAnalysis";
 import {
+  ctnEditorRuntimeCompartment,
   rawCtnEditorTabDisplayWidth,
 } from "../../../presentation/editor/ctnEditorRuntime";
 import { defaultCtnSyntax } from "../../../core/ctn/syntax/defaultSyntax";

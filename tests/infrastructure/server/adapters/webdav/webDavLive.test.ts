@@ -20,13 +20,17 @@ import {
 import { WebDavConnectionRegistry } from "../../../../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import { parseWebDavPrivateTargets } from "../../../../../infrastructure/server/adapters/webdav/webDavTargetPolicy.ts";
 import {
-  WebDavRepositoryBusyError,
   WebDavWorkspaceStore,
   webDavCommitPhases,
+} from "../../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
+import {
   webDavCurrentPath,
   webDavGenerationsPath,
   webDavLockPath,
-} from "../../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
+} from "../../../../../infrastructure/server/adapters/webdav/webDavControlFiles.ts";
+import {
+  WebDavRepositoryBusyError,
+} from "../../../../../infrastructure/server/adapters/webdav/webDavWriterLease.ts";
 import { FileBackedWebDavServer } from "./fileBackedWebDavServer.ts";
 
 const runLiveWebDav = process.env.CTN_RUN_LIVE_WEBDAV === "1";

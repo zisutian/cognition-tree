@@ -13,13 +13,17 @@ import {
 } from "../../../../../infrastructure/server/repository/store.ts";
 import { WebDavRequestError } from "../../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import {
-  WebDavRepositoryBusyError,
   WebDavWorkspaceStore,
   webDavCommitPhases,
+} from "../../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
+import {
   webDavCurrentPath,
   webDavGenerationsPath,
   webDavLockPath,
-} from "../../../../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
+} from "../../../../../infrastructure/server/adapters/webdav/webDavControlFiles.ts";
+import {
+  WebDavRepositoryBusyError,
+} from "../../../../../infrastructure/server/adapters/webdav/webDavWriterLease.ts";
 import {
   createDeepWorkspaceRepositoryContent,
   inspectDeepWorkspaceRepositoryContent,

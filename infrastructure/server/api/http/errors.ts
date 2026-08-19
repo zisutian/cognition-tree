@@ -44,7 +44,7 @@ import {
 } from "../../repository/versioned/contentStore.ts";
 import {
   ApiIdempotencyConflictError,
-} from "../state/store.ts";
+} from "../state/receiptStore.ts";
 import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspace/layout.ts";

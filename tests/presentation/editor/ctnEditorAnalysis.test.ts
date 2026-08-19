@@ -16,9 +16,9 @@ import {
 } from "../../../presentation/editor/ctnEditorAnalysis";
 import {
   createCtnEditorRuntimeExtensions,
-  ctnEditorRuntimeCompartment,
 } from "../../../presentation/editor/ctnEditorExtensions";
 import {
+  ctnEditorRuntimeCompartment,
   rawCtnEditorTabDisplayWidth,
 } from "../../../presentation/editor/ctnEditorRuntime";
 

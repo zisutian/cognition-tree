@@ -44,8 +44,6 @@ import {
   type CtnEditorRuntimeOptions,
 } from "./ctnEditorRuntime";
 
-export { ctnEditorRuntimeCompartment } from "./ctnEditorRuntime";
-
 export function createCtnIndentUnit() {
   return "\t";
 }

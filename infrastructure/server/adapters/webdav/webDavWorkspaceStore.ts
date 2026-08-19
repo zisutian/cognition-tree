@@ -48,13 +48,6 @@ import {
   type WebDavTransport,
 } from "./webDavTransport.ts";
 
-export {
-  webDavCurrentPath,
-  webDavGenerationsPath,
-  webDavLockPath,
-} from "./webDavControlFiles.ts";
-export { WebDavRepositoryBusyError } from "./webDavWriterLease.ts";
-
 export const webDavCommitPhases = {
   leaseAcquired: "lease-acquired",
   generationUploaded: "generation-uploaded",

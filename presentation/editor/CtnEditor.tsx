@@ -6,11 +6,13 @@ import type { CtnEditableSourceChange } from "../../core/ctn/metadata/textEdits"
 import {
   createCtnEditorExtensions,
   createCtnEditorRuntimeExtensions,
-  ctnEditorRuntimeCompartment,
   getCtnEditorActiveLineNumber,
 } from "./ctnEditorExtensions";
 import type { CtnEditorParsedContentMode } from "./ctnEditorContentMode";
-import type { CtnEditorRuntimeOptions } from "./ctnEditorRuntime";
+import {
+  ctnEditorRuntimeCompartment,
+  type CtnEditorRuntimeOptions,
+} from "./ctnEditorRuntime";
 import { createEditorValueSyncTransaction } from "./editorValueSync";
 import type { CtnEditorReferenceTarget } from "./ctnReferenceNavigation";
 import {
