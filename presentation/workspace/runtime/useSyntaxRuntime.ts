@@ -6,7 +6,6 @@ import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import {
   attachWorkspaceSyntax,
 } from "../../../core/workspace/context/workspaceContext";
-import { parseWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import { normalizeWorkspaceSyntaxName } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import {
@@ -18,6 +17,7 @@ type WorkspaceSyntaxRuntimeFile = {
   id: string;
   name: string;
   source: string;
+  syntax: CtnCompiledSyntax;
 };
 
 type UseSyntaxRuntimeOptions = {
@@ -104,9 +104,6 @@ export function useSyntaxRuntime({
     selectExistingFileId(activeFileId, activeFileId, files)
   );
   const selectedFile = files.find(({ id }) => id === selectedFileId) ?? null;
-  const selectedSyntax = selectedFile
-    ? parseWorkspaceSyntax(selectedFile.source)
-    : null;
   const selectedFileIdRef = useRef(selectedFileId);
   const filesRef = useRef(files);
   const updateSyntaxFileSourceRef = useRef(updateSyntaxFileSource);
@@ -139,10 +136,10 @@ export function useSyntaxRuntime({
         ? updateSyntaxFileSourceRef.current(fileId, source)
         : Promise.resolve();
     },
-    source: selectedFile && selectedSyntax
+    source: selectedFile
       ? {
           source: selectedFile.source,
-          syntax: selectedSyntax.syntax,
+          syntax: selectedFile.syntax,
         }
       : null,
     targetKey: selectedFileId,

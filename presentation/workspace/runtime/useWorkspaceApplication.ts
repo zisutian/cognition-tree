@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceNote } from "../../../core/workspace/model/workspaceData";
-import { parseWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
 import { listWorkspaceNotes } from "../../../core/workspace/queries/workspaceQueries";
 import type { SessionCommands } from "../../../application/workspace/session/sessionCommands";
 import type { ActiveWorkspaceSession } from "../../../application/workspace/session/workspaceSessionApplication";
@@ -43,20 +42,13 @@ export function useWorkspaceApplication(
     context,
   } = session;
   const selection = useWorkspaceSelection({ commands, workspace });
-  const syntaxFiles = useMemo(
-    () => syntaxCatalog.files.map((file) => ({
-      ...file,
-      name: parseWorkspaceSyntax(file.source).syntax.name,
-    })),
-    [syntaxCatalog.files],
-  );
   const syntax = useSyntaxRuntime({
     activeFileId: syntaxCatalog.activeFileId,
     activateSyntaxFile,
     activeSyntax: workspaceSyntax?.syntax ?? null,
     createSyntaxFile,
     deleteSyntaxFile,
-    files: syntaxFiles,
+    files: syntaxCatalog.files,
     fallbackSyntax: defaultWorkspaceSyntax.syntax,
     updateSyntaxFileSource,
     workspace: context?.workspace ?? null,

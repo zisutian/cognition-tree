@@ -20,7 +20,6 @@ import {
 import type { WorkspaceContext } from "../../../core/workspace/context/workspaceContext";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
 import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
-import type { WorkspaceSyntaxCatalog } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import {
   createSessionCommands,
   type SessionCommandDependencies,
@@ -38,6 +37,10 @@ import {
 import {
   recoverWorkspaceLocalConflictCopies,
 } from "../persistence/workspaceConflictRecovery";
+import {
+  createWorkspaceSyntaxCatalogReadModel,
+  type WorkspaceSyntaxCatalogReadModel,
+} from "../projection/workspaceSyntaxCatalogReadModel";
 
 export type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
   RepositoryRevision
@@ -52,7 +55,7 @@ export type WorkspaceSessionReadyState = {
   remoteRevision: RepositoryRevision | null;
   status: "ready";
   storageLabel: string;
-  syntaxCatalog: WorkspaceSyntaxCatalog;
+  syntaxCatalog: WorkspaceSyntaxCatalogReadModel;
   workspace: WorkspaceStructureIndex;
   workspaceSyntax: WorkspaceSyntax | null;
 };
@@ -151,7 +154,10 @@ export function createWorkspaceSessionController({
           remoteRevision: state.snapshot.remoteRevision,
           status: "ready",
           storageLabel: state.storageLabel,
-          syntaxCatalog: state.content.syntax,
+          syntaxCatalog: createWorkspaceSyntaxCatalogReadModel(
+            state.content.syntax,
+            state.projection.syntaxById,
+          ),
           workspace: state.projection.workspace,
           workspaceSyntax: state.projection.workspaceSyntax,
         };
