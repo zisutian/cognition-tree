@@ -6,12 +6,16 @@ import {
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex.ts";
 import {
-  createTodoCollectionBodyProjection,
-  isTodoCollectionId,
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
 } from "../../core/todo/model/todoContent.ts";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../core/todo/model/todoCollectionProjection.ts";
+import {
+  isTodoCollectionId,
+} from "../../core/todo/model/todoIdentity.ts";
 import {
   createDomainChangeSet,
   type DomainResourceChange,

@@ -6,10 +6,12 @@ import {
 } from "../../core/naming/portableName";
 import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex";
 import {
-  createTodoCollectionBodyProjection,
   todoItemSemanticType,
   type TodoCollectionId,
 } from "../../core/todo/model/todoContent";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../core/todo/model/todoCollectionProjection";
 
 export type TodoDiagnostic = {
   code: string;

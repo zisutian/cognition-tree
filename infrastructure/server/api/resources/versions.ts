@@ -7,9 +7,11 @@ import type { WorkspaceRepositoryContentDto } from "../../../../contracts/worksp
 import type { JournalContent } from "../../../../core/journal/model/journalContent.ts";
 import type { ParsedTodoIndexCollection } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import {
-  createTodoCollectionBodyProjection,
   type TodoContent,
 } from "../../../../core/todo/model/todoContent.ts";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../../../core/todo/model/todoCollectionProjection.ts";
 
 export function createApiV1ResourceVersion(
   value: unknown,

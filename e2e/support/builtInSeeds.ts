@@ -24,7 +24,7 @@ import {
 import {
   createTodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex";
-import { validateTodoContent } from "../../core/todo/model/todoContent";
+import { validateTodoContent } from "../../core/todo/model/todoValidation";
 import { defaultTodoSyntaxSource } from "../../core/todo/syntax/defaultTodoSyntax";
 
 const journalSnapshotEndpoint = "/api/v1/sync/journal";

@@ -9,11 +9,11 @@ import {
   type TodoBlockMoveTarget,
 } from "../../core/todo/commands/todoCommands";
 import {
-  validateTodoContent,
   type TodoCollectionId,
   type TodoContent,
   type TodoContentValue,
 } from "../../core/todo/model/todoContent";
+import { validateTodoContent } from "../../core/todo/model/todoValidation";
 import type {
   TodoLocalDate,
   TodoRecurrenceRule,

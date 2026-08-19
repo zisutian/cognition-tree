@@ -7,11 +7,10 @@ import {
   createTodoParseIndex,
 } from "../../../../core/todo/indexes/todoParseIndex";
 import {
-  isTodoCollectionId,
   validateTodoContentAnalysisTransition,
   validateTodoContent,
   validateTodoContentTransition,
-} from "../../../../core/todo/model/todoContent";
+} from "../../../../core/todo/model/todoValidation";
 import { requireCtnSyntax } from "../../../../core/ctn/syntax/compiler";
 import { getPortableNameIssue } from "../../../../core/naming/portableName";
 import {
@@ -77,8 +76,6 @@ describe("Todo v4 content", () => {
       schemaVersion: 4,
       syntaxSource: expect.stringContaining('semanticId = "todo-item"'),
     });
-    expect(isTodoCollectionId(todoCollectionId(1))).toBe(true);
-    expect(isTodoCollectionId(todoCollectionId(1).toUpperCase())).toBe(false);
     expect(requireCtnSyntax(content.syntaxSource, "todo").blocks)
       .toMatchObject([{
         marker: "[]",

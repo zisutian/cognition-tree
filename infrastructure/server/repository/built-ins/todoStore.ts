@@ -12,9 +12,11 @@ import {
 import { serializeTodoRevisionContent } from "../../../../contracts/todo/revision.ts";
 import type { TodoContentDto, TodoRevisionDto } from "../../../../contracts/todo/types.ts";
 import {
-  TodoContentValidationError,
   validateTodoContentAnalysisTransition,
-} from "../../../../core/todo/model/todoContent.ts";
+} from "../../../../core/todo/model/todoValidation.ts";
+import {
+  TodoContentValidationError,
+} from "../../../../core/todo/model/todoErrors.ts";
 import {
   createTodoParseIndex,
   type TodoParseIndex,

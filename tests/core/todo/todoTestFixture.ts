@@ -5,10 +5,12 @@ import {
   updateTodoCollectionBody,
 } from "../../../core/todo/commands/todoCommands";
 import {
-  createTodoCollectionBodyProjection,
   type TodoCollectionId,
   type TodoContent,
 } from "../../../core/todo/model/todoContent";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../../core/todo/model/todoCollectionProjection";
 import {
   defaultTodoSyntaxSource,
 } from "../../../core/todo/syntax/defaultTodoSyntax";

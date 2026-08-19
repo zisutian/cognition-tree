@@ -4,11 +4,11 @@ import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { parseTodoContent, parseTodoSnapshot } from "../../../contracts/todo/parseTodo";
 import {
   validateTodoContentAnalysisTransition,
-  TodoContentValidationError,
   validateTodoContent,
   validateTodoContentTransition,
-  type TodoContent,
-} from "../../../core/todo/model/todoContent";
+} from "../../../core/todo/model/todoValidation";
+import { TodoContentValidationError } from "../../../core/todo/model/todoErrors";
+import type { TodoContent } from "../../../core/todo/model/todoContent";
 import {
   createTodoParseIndex,
   type TodoParseIndex,

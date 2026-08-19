@@ -18,9 +18,11 @@ import type { CtnCompiledSyntax } from "../../ctn/syntax/types.ts";
 import {
   validateTodoContentAnalysis,
   type ValidatedTodoContentAnalysis,
-  type TodoCollection,
-  type TodoCollectionId,
-  type TodoContent,
+} from "../model/todoValidation.ts";
+import type {
+  TodoCollection,
+  TodoCollectionId,
+  TodoContent,
 } from "../model/todoContent.ts";
 
 export type ParsedTodoIndexCollection = {

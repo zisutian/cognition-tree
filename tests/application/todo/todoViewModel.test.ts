@@ -11,8 +11,8 @@ import {
 import { createTodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
 import {
   createTodoCollectionBodyProjection,
-  type TodoContent,
-} from "../../../core/todo/model/todoContent";
+} from "../../../core/todo/model/todoCollectionProjection";
+import type { TodoContent } from "../../../core/todo/model/todoContent";
 import type { TodoLocalDate } from "../../../core/todo/recurrence/todoRecurrence";
 import { createTodoViewModel } from "../../../application/todo/todoViewModel";
 import type { TodoMutationActions } from "../../../application/todo/todoApplication";

@@ -16,8 +16,10 @@ import {
 } from "../../../../core/todo/commands/todoCommands";
 import {
   createTodoCollectionBodyProjection,
+} from "../../../../core/todo/model/todoCollectionProjection";
+import {
   validateTodoContent,
-} from "../../../../core/todo/model/todoContent";
+} from "../../../../core/todo/model/todoValidation";
 import { projectTodoRecurrence } from "../../../../core/todo/recurrence/todoRecurrence";
 import {
   createTodoParseIndex,

@@ -12,10 +12,12 @@ import {
   type TodoParseIndex,
 } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import {
-  createTodoCollectionBodyProjection,
   todoItemSemanticType,
   type TodoContent,
 } from "../../../../core/todo/model/todoContent.ts";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../../../core/todo/model/todoCollectionProjection.ts";
 import {
   projectTodoRecurrence,
   type TodoLocalDate,

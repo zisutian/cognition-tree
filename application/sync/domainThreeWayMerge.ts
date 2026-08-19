@@ -15,7 +15,7 @@ import type {
 } from "../../core/todo/model/todoContent.ts";
 import {
   createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoContent.ts";
+} from "../../core/todo/model/todoCollectionProjection.ts";
 import {
   createTodoParseIndex,
   type ParsedTodoIndexCollection,

@@ -32,12 +32,12 @@ import {
   parsePortableName,
 } from "../../naming/portableName.ts";
 import {
-  isTodoCollectionId,
   todoItemSemanticType,
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
 } from "../model/todoContent.ts";
+import { isTodoCollectionId } from "../model/todoIdentity.ts";
 import type {
   TodoParseIndex,
 } from "../indexes/todoParseIndex.ts";

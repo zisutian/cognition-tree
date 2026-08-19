@@ -32,11 +32,13 @@ import {
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex.ts";
 import {
-  isTodoCollectionId,
   type TodoCollection,
   type TodoCollectionId,
   type TodoContent,
 } from "../../core/todo/model/todoContent.ts";
+import {
+  isTodoCollectionId,
+} from "../../core/todo/model/todoIdentity.ts";
 import type {
   TodoLocalDate,
   TodoRecurrenceRule,

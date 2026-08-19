@@ -1,5 +1,5 @@
 import { JournalContentValidationError } from "../../core/journal/model/journalErrors";
-import { TodoContentValidationError } from "../../core/todo/model/todoContent";
+import { TodoContentValidationError } from "../../core/todo/model/todoErrors";
 import { CtnDocumentMetadataError } from "../../core/ctn/parser/parseCtnDocument";
 import { CtnBlockMetadataSyntaxError } from "../../core/ctn/metadata/blockMetadata";
 import { WorkspaceBlockMetadataError } from "../../core/workspace/context/workspaceBlockMetadata";

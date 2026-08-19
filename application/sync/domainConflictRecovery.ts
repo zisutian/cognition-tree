@@ -36,10 +36,12 @@ import {
   type TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex.ts";
 import {
-  createTodoCollectionBodyProjection,
   type TodoCollectionId,
   type TodoContent,
 } from "../../core/todo/model/todoContent.ts";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../core/todo/model/todoCollectionProjection.ts";
 import {
   appendNoteToWorkspaceTree,
 } from "../../core/workspace/model/noteTree/mutations.ts";

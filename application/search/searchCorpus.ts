@@ -12,7 +12,7 @@ import type {
 } from "../../core/journal/indexes/journalParseIndex.ts";
 import {
   createTodoCollectionBodyProjection,
-} from "../../core/todo/model/todoContent.ts";
+} from "../../core/todo/model/todoCollectionProjection.ts";
 import type {
   TodoParseIndex,
 } from "../../core/todo/indexes/todoParseIndex.ts";

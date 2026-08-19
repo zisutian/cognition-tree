@@ -31,7 +31,7 @@ import {
 } from "../../../../core/journal/model/journalErrors.ts";
 import {
   TodoContentValidationError,
-} from "../../../../core/todo/model/todoContent.ts";
+} from "../../../../core/todo/model/todoErrors.ts";
 import {
   RepositoryCatalogError,
 } from "../../repository/catalog.ts";

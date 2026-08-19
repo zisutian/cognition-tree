@@ -6,11 +6,13 @@ import type { CtnCanonicalBlock } from "../../core/ctn/parser/types";
 import type { CtnCompiledSyntax } from "../../core/ctn/syntax/types";
 import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex";
 import {
-  createTodoCollectionBodyProjection,
   todoItemSemanticType,
   type TodoCollectionId,
   type TodoContent,
 } from "../../core/todo/model/todoContent";
+import {
+  createTodoCollectionBodyProjection,
+} from "../../core/todo/model/todoCollectionProjection";
 import {
   projectTodoRecurrence,
   type TodoLocalDate,

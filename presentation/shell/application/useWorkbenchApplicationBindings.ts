@@ -19,7 +19,7 @@ import {
 } from "../../../core/journal/model/journalIdentity";
 import {
   isTodoCollectionId,
-} from "../../../core/todo/model/todoContent";
+} from "../../../core/todo/model/todoIdentity";
 
 const workspaceFeedbackActivities = [
   "notes",

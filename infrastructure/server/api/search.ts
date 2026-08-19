@@ -24,7 +24,7 @@ import {
 import { CtnBlockMetadataSyntaxError } from "../../../core/ctn/metadata/blockMetadata.ts";
 import { CtnDocumentMetadataError } from "../../../core/ctn/parser/parseCtnDocument.ts";
 import { JournalContentValidationError } from "../../../core/journal/model/journalErrors.ts";
-import { TodoContentValidationError } from "../../../core/todo/model/todoContent.ts";
+import { TodoContentValidationError } from "../../../core/todo/model/todoErrors.ts";
 import { WorkspaceBlockMetadataError } from "../../../core/workspace/context/workspaceBlockMetadata.ts";
 import { WorkspaceNoteHeaderError } from "../../../core/workspace/model/workspaceData.ts";
 import type {
