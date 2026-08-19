@@ -250,6 +250,7 @@ describe("workspace session controller", () => {
     if (!normalizedNote) {
       throw new Error("normalized note is missing");
     }
+    expect(normalizedState.analysisIndex?.analysisStats.runCount).toBe(0);
     expect(() => controller.commands.updateNoteSource(
       note.id,
       replaceEditableSource(normalizedNote.source, "bad:title\n正文"),

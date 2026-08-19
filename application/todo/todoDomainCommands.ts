@@ -213,16 +213,15 @@ export function prepareTodoMutation({
   command,
   content,
   createBlockId,
-  index: preparedIndex,
+  index,
   versions,
 }: {
   command: TodoDomainCommand;
   content: TodoContent;
   createBlockId: () => string;
-  index?: TodoParseIndex;
+  index: TodoParseIndex;
   versions?: TodoDomainVersions;
 }): PreparedTodoMutation {
-  const index = preparedIndex ?? createTodoParseIndex(content);
   let next: TodoContent;
   let analysisOverrides:
     | ReadonlyMap<TodoCollectionId, CtnCanonicalSourceAnalysis>

@@ -94,8 +94,8 @@ export function projectApiV1JournalChanges(
   before: JournalContent,
   after: JournalContent,
   timestamp: string,
-  beforeIndex?: JournalParseIndex,
-  afterIndex?: JournalParseIndex,
+  beforeIndex: JournalParseIndex,
+  afterIndex: JournalParseIndex,
 ) {
   return projectJournalMutation({
     after,

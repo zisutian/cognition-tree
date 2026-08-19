@@ -108,17 +108,15 @@ export function prepareJournalMutation({
   command,
   content,
   createBlockId,
-  index: preparedIndex,
+  index,
   versions,
 }: {
   command: JournalDomainCommand;
   content: JournalContent;
   createBlockId: () => string;
-  index?: JournalParseIndex;
+  index: JournalParseIndex;
   versions?: JournalDomainVersions;
 }): PreparedJournalMutation {
-  const index = preparedIndex ?? createJournalParseIndex(content);
-
   if (command.kind === "create-entry") {
     if (versions) {
       assertDomainResourceVersion(
@@ -218,22 +216,19 @@ function journalBody(
 
 export function projectJournalMutation({
   after,
+  afterIndex,
   before,
+  beforeIndex,
   timestamp,
   versions,
-  afterIndex: preparedAfterIndex,
-  beforeIndex: preparedBeforeIndex,
 }: {
   after: JournalContent;
-  afterIndex?: JournalParseIndex;
+  afterIndex: JournalParseIndex;
   before: JournalContent;
-  beforeIndex?: JournalParseIndex;
+  beforeIndex: JournalParseIndex;
   timestamp: string;
   versions: JournalDomainVersions;
 }): DomainMutationProjection {
-  const beforeIndex = preparedBeforeIndex ?? createJournalParseIndex(before);
-  const afterIndex = preparedAfterIndex ??
-    createJournalParseIndex(after, beforeIndex);
   const beforeEntries = new Map(
     listJournalEntries(before).map((entry) => [entry.id, entry]),
   );

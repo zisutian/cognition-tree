@@ -77,6 +77,9 @@ function createFunctionalSession(initial: JournalContent) {
     get content() {
       return requireJournalContent(content);
     },
+    get projection() {
+      return projection;
+    },
     session: {
       mutate(
         update: (
@@ -148,6 +151,7 @@ describe("journal application mutations", () => {
     ]);
     expect(listJournalEntries(harness.content)[0]?.source).toContain("第一条正文");
     expect(listJournalEntries(harness.content)[1]?.source).toContain("第二条正文");
+    expect(harness.projection.analysisStats.runCount).toBe(0);
   });
 
   it("selects a created entry and chooses next then previous around deletion", () => {

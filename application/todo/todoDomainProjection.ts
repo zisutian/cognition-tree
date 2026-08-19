@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { createMyersTextEdits } from "../../core/ctn/metadata/myersTextEdits.ts";
-import {
-  createTodoParseIndex,
-  type TodoParseIndex,
-} from "../../core/todo/indexes/todoParseIndex.ts";
+import type { TodoParseIndex } from "../../core/todo/indexes/todoParseIndex.ts";
 import {
   type TodoCollection,
   type TodoCollectionId,
@@ -52,22 +49,19 @@ function itemStateVersions(
 
 export function projectTodoMutation({
   after,
+  afterIndex,
   before,
+  beforeIndex,
   timestamp,
   versions,
-  afterIndex: preparedAfterIndex,
-  beforeIndex: preparedBeforeIndex,
 }: {
   after: TodoContent;
-  afterIndex?: TodoParseIndex;
+  afterIndex: TodoParseIndex;
   before: TodoContent;
-  beforeIndex?: TodoParseIndex;
+  beforeIndex: TodoParseIndex;
   timestamp: string;
   versions: TodoDomainVersions;
 }): DomainMutationProjection {
-  const beforeIndex = preparedBeforeIndex ?? createTodoParseIndex(before);
-  const afterIndex = preparedAfterIndex ??
-    createTodoParseIndex(after, beforeIndex);
   const beforeCollections = new Map(
     before.collections.map((collection, order) => [
       collection.id,

@@ -2,7 +2,6 @@
 
 import { removeCtnBlockMetadataLines } from "../../../core/ctn/metadata/blockMetadata.ts";
 import { createMyersTextEdits } from "../../../core/ctn/metadata/myersTextEdits.ts";
-import type { CtnCompiledSyntax } from "../../../core/ctn/syntax/types.ts";
 import type { WorkspaceData } from "../../../core/workspace/model/workspaceData.ts";
 import {
   createDomainChangeSet,
@@ -13,7 +12,6 @@ import {
   type DomainMutationProjection,
 } from "../../commands/domainCommand.ts";
 import {
-  createWorkspaceDomainContext,
   type WorkspaceDomainContext,
   type WorkspaceDomainVersions,
 } from "./workspaceDomainCommands.ts";
@@ -85,31 +83,21 @@ function workspaceEditableText(
 
 export function projectWorkspaceMutation({
   after,
+  afterContext,
   before,
+  beforeContext,
   repositoryId,
-  syntax,
   timestamp,
   versions,
-  afterContext: preparedAfterContext,
-  beforeContext: preparedBeforeContext,
 }: {
   after: WorkspaceData;
-  afterContext?: WorkspaceDomainContext;
+  afterContext: WorkspaceDomainContext;
   before: WorkspaceData;
-  beforeContext?: WorkspaceDomainContext;
+  beforeContext: WorkspaceDomainContext;
   repositoryId: string;
-  syntax: CtnCompiledSyntax | null;
   timestamp: string;
   versions: WorkspaceDomainVersions;
 }): DomainMutationProjection {
-  const beforeContext = preparedBeforeContext ??
-    createWorkspaceDomainContext({ syntax, workspace: before });
-  const afterContext = preparedAfterContext ??
-    createWorkspaceDomainContext({
-      previousIndex: beforeContext.index,
-      syntax,
-      workspace: after,
-    });
   const beforeNodes = indexTree(beforeContext, versions);
   const afterNodes = indexTree(afterContext, versions);
   const resources: DomainResourceChange[] = [];

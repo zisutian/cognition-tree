@@ -72,6 +72,9 @@ function createFunctionalSession(initial: TodoContent) {
     get content() {
       return content;
     },
+    get projection() {
+      return projection;
+    },
     session: {
       mutate(
         update: (
@@ -152,6 +155,7 @@ describe("Todo application mutations", () => {
     expect(harness.content.collections[1]!.completions).toEqual([
       { blockId: todoBlockId(1), completedAt: "2026-07-18T04:00:00.000Z" },
     ]);
+    expect(harness.projection.analysisStats.runCount).toBe(0);
   });
 
   it("selects created collections and the adjacent collection after deletion", () => {

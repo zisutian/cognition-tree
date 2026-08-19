@@ -40,9 +40,6 @@ import {
   executeApiV1VersionedCommand,
 } from "./common.ts";
 import {
-  createApiV1WorkspaceAnalysis,
-} from "../resources/workspace.ts";
-import {
   createWorkspaceFolderVersion,
   createWorkspaceNoteVersion,
   createWorkspaceTreeVersion,
@@ -224,31 +221,25 @@ export function projectApiV1WorkspaceChanges(
   before: WorkspaceRepositoryContentDto,
   after: WorkspaceRepositoryContentDto,
   timestamp: string,
-  beforePreparation?: WorkspaceRepositoryPreparation,
-  afterPreparation?: WorkspaceRepositoryPreparation,
+  beforePreparation: WorkspaceRepositoryPreparation,
+  afterPreparation: WorkspaceRepositoryPreparation,
 ) {
-  const syntax = beforePreparation?.workspaceSyntax?.syntax ??
-    createApiV1WorkspaceAnalysis(before).syntax;
+  const syntax = beforePreparation.workspaceSyntax?.syntax ?? null;
 
   return projectWorkspaceMutation({
     after: after.workspace,
-    afterContext: afterPreparation
-      ? {
-          index: afterPreparation.analysisIndex,
-          structure: afterPreparation.workspace,
-          syntax: afterPreparation.workspaceSyntax?.syntax ?? null,
-        }
-      : undefined,
+    afterContext: {
+      index: afterPreparation.analysisIndex,
+      structure: afterPreparation.workspace,
+      syntax: afterPreparation.workspaceSyntax?.syntax ?? null,
+    },
     before: before.workspace,
-    beforeContext: beforePreparation
-      ? {
-          index: beforePreparation.analysisIndex,
-          structure: beforePreparation.workspace,
-          syntax: beforePreparation.workspaceSyntax?.syntax ?? null,
-        }
-      : undefined,
+    beforeContext: {
+      index: beforePreparation.analysisIndex,
+      structure: beforePreparation.workspace,
+      syntax,
+    },
     repositoryId,
-    syntax,
     timestamp,
     versions: createVersions(before),
   });
@@ -299,7 +290,6 @@ export async function executeApiV1WorkspaceCommand({
         before: content.workspace,
         beforeContext: context,
         repositoryId,
-        syntax: context.syntax,
         timestamp: mutation.timestamp,
         versions,
       });

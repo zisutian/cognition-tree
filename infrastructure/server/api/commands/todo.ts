@@ -167,8 +167,8 @@ export function projectApiV1TodoChanges(
   before: TodoContent,
   after: TodoContent,
   timestamp: string,
-  beforeIndex?: TodoParseIndex,
-  afterIndex?: TodoParseIndex,
+  beforeIndex: TodoParseIndex,
+  afterIndex: TodoParseIndex,
 ) {
   return projectTodoMutation({
     after,
