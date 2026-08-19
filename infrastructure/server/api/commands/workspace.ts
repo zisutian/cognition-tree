@@ -11,6 +11,9 @@ import { projectWorkspaceMutation } from "../../../../application/workspace/comm
 import {
   createDomainTransition,
 } from "../../../../application/commands/domainCommand.ts";
+import {
+  executePreparedCommand,
+} from "../../../../application/commands/preparedCommandExecutor.ts";
 import type {
   ApiV1WorkspaceCommandDto,
 } from "../../../../contracts/api/types.ts";
@@ -27,8 +30,9 @@ import type {
 import type {
   NoteTreeNodeReference,
 } from "../../../../core/workspace/model/noteTree/types.ts";
-import type {
-  WorkspaceRepositoryStore,
+import {
+  WorkspaceRevisionConflictError,
+  type WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
 import type {
   WorkspaceRepositoryPreparation,
@@ -37,8 +41,8 @@ import {
   createWorkspaceRepositoryRevision,
 } from "../../repository/workspace/revision.ts";
 import {
-  executeApiV1VersionedCommand,
-} from "./common.ts";
+  createPreparedCommandStoreAdapter,
+} from "../../repository/preparedCommandStoreAdapter.ts";
 import {
   createWorkspaceFolderVersion,
   createWorkspaceNoteVersion,
@@ -259,8 +263,8 @@ export async function executeApiV1WorkspaceCommand({
   const now = readApiV1RuntimeNow(runtime);
   const allocatedIds: string[] = [];
 
-  return executeApiV1VersionedCommand({
-    apply({ content, projection: analysis }) {
+  return executePreparedCommand({
+    prepare({ content, projection: analysis }) {
       let nextId = 0;
       const createId = () => {
         allocatedIds[nextId] ??= runtime.createId();
@@ -317,6 +321,9 @@ export async function executeApiV1WorkspaceCommand({
       };
     },
     mode: command.mode,
-    store,
+    store: createPreparedCommandStoreAdapter(
+      store,
+      (error) => error instanceof WorkspaceRevisionConflictError,
+    ),
   });
 }

@@ -10,6 +10,9 @@ import {
 import {
   createDomainTransition,
 } from "../../../../application/commands/domainCommand.ts";
+import {
+  executePreparedCommand,
+} from "../../../../application/commands/preparedCommandExecutor.ts";
 import type {
   ApiV1JournalCommandDto,
 } from "../../../../contracts/api/types.ts";
@@ -24,15 +27,16 @@ import {
 import {
   isJournalEntryId,
 } from "../../../../core/journal/model/journalIdentity.ts";
-import type {
-  VersionedContentStore,
+import {
+  VersionedContentRevisionConflictError,
+  type VersionedContentStore,
 } from "../../repository/versioned/contentStore.ts";
 import {
   createJournalRevision,
 } from "../../repository/built-ins/journalStore.ts";
 import {
-  executeApiV1VersionedCommand,
-} from "./common.ts";
+  createPreparedCommandStoreAdapter,
+} from "../../repository/preparedCommandStoreAdapter.ts";
 import {
   createJournalEntriesVersion,
   createJournalEntryVersion,
@@ -119,8 +123,8 @@ export async function executeApiV1JournalCommand({
   const now = readApiV1RuntimeNow(runtime);
   const allocatedIds: string[] = [];
 
-  return executeApiV1VersionedCommand({
-    apply({ content, projection: index }) {
+  return executePreparedCommand({
+    prepare({ content, projection: index }) {
       let nextId = 0;
       const replayRuntime: ApiV1Runtime = {
         ...runtime,
@@ -161,6 +165,9 @@ export async function executeApiV1JournalCommand({
       };
     },
     mode: command.mode,
-    store,
+    store: createPreparedCommandStoreAdapter(
+      store,
+      (error) => error instanceof VersionedContentRevisionConflictError,
+    ),
   });
 }

@@ -14,6 +14,9 @@ import {
   createDomainTransition,
 } from "../../../../application/commands/domainCommand.ts";
 import {
+  executePreparedCommand,
+} from "../../../../application/commands/preparedCommandExecutor.ts";
+import {
   DomainNotFoundError,
   DomainValidationError,
 } from "../../../../core/errors/domainErrors.ts";
@@ -31,15 +34,16 @@ import {
 import {
   isTodoCollectionId,
 } from "../../../../core/todo/model/todoIdentity.ts";
-import type {
-  VersionedContentStore,
+import {
+  VersionedContentRevisionConflictError,
+  type VersionedContentStore,
 } from "../../repository/versioned/contentStore.ts";
 import {
   createTodoRevision,
 } from "../../repository/built-ins/todoStore.ts";
 import {
-  executeApiV1VersionedCommand,
-} from "./common.ts";
+  createPreparedCommandStoreAdapter,
+} from "../../repository/preparedCommandStoreAdapter.ts";
 import {
   createParsedTodoCollectionVersion,
   createTodoCollectionStateVersion,
@@ -192,8 +196,8 @@ export async function executeApiV1TodoCommand({
   const now = readApiV1RuntimeNow(runtime);
   const allocatedIds: string[] = [];
 
-  return executeApiV1VersionedCommand({
-    apply({ content, projection: index }) {
+  return executePreparedCommand({
+    prepare({ content, projection: index }) {
       let nextId = 0;
       const createId = () => {
         allocatedIds[nextId] ??= runtime.createId();
@@ -233,6 +237,9 @@ export async function executeApiV1TodoCommand({
       };
     },
     mode: command.mode,
-    store,
+    store: createPreparedCommandStoreAdapter(
+      store,
+      (error) => error instanceof VersionedContentRevisionConflictError,
+    ),
   });
 }
