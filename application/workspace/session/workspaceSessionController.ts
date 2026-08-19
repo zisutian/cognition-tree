@@ -5,7 +5,7 @@ import type {
   RepositoryRevision,
   WorkspaceRepository,
   WorkspaceRepositoryContent,
-} from "../../repository/workspaceRepository";
+} from "../persistence/workspaceRepository";
 import {
   createVersionedSessionController,
   type VersionedSessionState,
@@ -29,7 +29,7 @@ import {
 import {
   type WorkspaceSessionProjection,
 } from "./sessionRepositorySnapshot";
-import { prepareWorkspaceRepositoryContent } from "../../repository/workspaceRepositoryPreparation";
+import { prepareWorkspaceRepositoryContent } from "../persistence/workspaceRepositoryPreparation";
 import type { ApplicationScheduler } from "../../runtime/applicationScheduler";
 import {
   createWorkspaceSyntaxCatalogMutationService,

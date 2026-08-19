@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { WorkspaceRepository } from "../repository/workspaceRepository";
+import type { WorkspaceRepository } from "../workspace/persistence/workspaceRepository";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type { SessionCommandDependencies } from "../workspace/session/sessionCommands";
 import {

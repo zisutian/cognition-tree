@@ -12,7 +12,7 @@ import {
   type WorkspaceRepositoryBackend,
   type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
-} from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
 import {
   mergeWorkspaceContent,
 } from "../../../application/sync/domainThreeWayMerge";

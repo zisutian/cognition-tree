@@ -79,7 +79,7 @@ import type { ApiV1PrincipalDto } from "../../../../contracts/api/types.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 
 type RequestOptions = {
   body?: unknown;

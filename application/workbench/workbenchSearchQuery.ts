@@ -19,7 +19,7 @@ import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
 } from "../repository/workspaceRepositoryCatalog";
-import { WorkspaceRepositoryRemoteError } from "../repository/workspaceRepository";
+import { WorkspaceRepositoryRemoteError } from "../workspace/persistence/workspaceRepository";
 import {
   VersionedRepositoryRemoteError,
 } from "../persistence/versionedRepository";

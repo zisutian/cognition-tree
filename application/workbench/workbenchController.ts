@@ -34,7 +34,7 @@ import type {
 } from "../repository/repositoryCatalog";
 import type { ActiveRepositorySelection } from "../repository/activeRepositorySelection";
 import type { WorkspaceRepositoryCatalog } from "../repository/workspaceRepositoryCatalog";
-import type { WorkspaceRepositoryContent } from "../repository/workspaceRepository";
+import type { WorkspaceRepositoryContent } from "../workspace/persistence/workspaceRepository";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type {
   DomainChangeEventSource,

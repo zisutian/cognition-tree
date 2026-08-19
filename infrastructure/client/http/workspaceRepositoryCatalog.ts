@@ -24,7 +24,7 @@ import {
   type WorkspaceRepositoryPreparationPolicy,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-} from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
 
 type HttpWorkspaceRepositoryCatalogOptions = HttpRepositoryTransportOptions & {
   cache?: RepositoryClientCache;

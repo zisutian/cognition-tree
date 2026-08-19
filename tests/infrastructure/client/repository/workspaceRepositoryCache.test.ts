@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkspaceRepositoryLocalConflictError } from "../../../../application/repository/workspaceRepository";
+import { WorkspaceRepositoryLocalConflictError } from "../../../../application/workspace/persistence/workspaceRepository";
 import { createMemoryWorkspaceRepositoryCache } from "../../../../infrastructure/client/repository/workspaceRepositoryCache";
 import {
   createWorkspaceRepositoryContent,

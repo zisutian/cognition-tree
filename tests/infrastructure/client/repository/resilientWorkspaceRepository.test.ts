@@ -9,8 +9,8 @@ import {
   type RemoteWorkspaceCommit,
   type WorkspaceRepository,
   type WorkspaceRepositoryBackend,
-} from "../../../../application/repository/workspaceRepository";
-import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation";
+} from "../../../../application/workspace/persistence/workspaceRepository";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types";
 import { createMemoryWorkspaceRepositoryCache } from "../../../../infrastructure/client/repository/workspaceRepositoryCache";
 import {

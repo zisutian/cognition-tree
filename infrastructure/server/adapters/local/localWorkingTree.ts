@@ -20,7 +20,7 @@ import {
 import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import type { CtnCanonicalSourceAnalysis } from "../../../../core/ctn/analysis/sourceAnalysis.ts";
-import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import {
   createCanonicalSourceFromLocalNoteMetadata,
   createLocalNoteMetadataFromAnalysis,

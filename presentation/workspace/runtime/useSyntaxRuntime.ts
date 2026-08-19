@@ -8,7 +8,7 @@ import {
 } from "../../../core/workspace/context/workspaceContext";
 import { parseWorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex";
-import { normalizeWorkspaceSyntaxName } from "../../../application/repository/workspaceRepository";
+import { normalizeWorkspaceSyntaxName } from "../../../core/workspace/model/workspaceSyntaxCatalog";
 import {
   createCtnSyntaxDraftSource,
   useCtnSyntaxDraftRuntime,

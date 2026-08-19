@@ -2,26 +2,26 @@
 
 import {
   attachWorkspaceSyntax,
-} from "../../core/workspace/context/workspaceContext.ts";
+} from "../../../core/workspace/context/workspaceContext.ts";
 import {
   parseWorkspaceSyntax,
   type WorkspaceSyntax,
-} from "../../core/workspace/context/workspaceSyntax.ts";
-import { validateWorkspaceTitleBlockMetadata } from "../../core/workspace/context/workspaceBlockMetadata.ts";
+} from "../../../core/workspace/context/workspaceSyntax.ts";
+import { validateWorkspaceTitleBlockMetadata } from "../../../core/workspace/context/workspaceBlockMetadata.ts";
 import {
   createWorkspaceParseIndex,
   type WorkspaceParseIndex,
-} from "../../core/workspace/indexes/workspaceParseIndex.ts";
+} from "../../../core/workspace/indexes/workspaceParseIndex.ts";
 import {
   createWorkspaceStructureIndex,
-} from "../../core/workspace/indexes/workspaceStructureIndex.ts";
-import type { CtnCanonicalSourceAnalysis } from "../../core/ctn/analysis/sourceAnalysis.ts";
-import type { NoteId } from "../../core/workspace/model/workspaceData.ts";
+} from "../../../core/workspace/indexes/workspaceStructureIndex.ts";
+import type { CtnCanonicalSourceAnalysis } from "../../../core/ctn/analysis/sourceAnalysis.ts";
+import type { NoteId } from "../../../core/workspace/model/workspaceData.ts";
 import {
   isWorkspaceSyntaxFileId,
   normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
-} from "../../core/workspace/model/workspaceSyntaxCatalog.ts";
+} from "../../../core/workspace/model/workspaceSyntaxCatalog.ts";
 import type {
   WorkspaceRepositoryContent,
   WorkspaceRepositoryPreparation,

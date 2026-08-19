@@ -3,7 +3,7 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
-} from "../../../../application/repository/workspaceRepository";
+} from "../../../../application/workspace/persistence/workspaceRepository";
 import {
   createWorkspaceSessionController,
   WorkspaceSessionUnavailableError,

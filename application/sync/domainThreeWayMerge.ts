@@ -29,11 +29,11 @@ import type { WorkspaceSyntax } from "../../core/workspace/context/workspaceSynt
 import type { NoteId } from "../../core/workspace/model/workspaceData.ts";
 import type {
   WorkspaceRepositoryContent,
-} from "../repository/workspaceRepository.ts";
+} from "../workspace/persistence/workspaceRepository.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../repository/workspaceRepositoryPreparation.ts";
+} from "../workspace/persistence/workspaceRepositoryPreparation.ts";
 import type {
   PreparedVersionedContent,
   VersionedContentConflictPreference,

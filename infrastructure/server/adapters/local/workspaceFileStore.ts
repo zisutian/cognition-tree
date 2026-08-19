@@ -21,7 +21,7 @@ import type {
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { repositorySyntaxIndexFileName } from "../../../../contracts/workspace/types.ts";
 import { parsePortableName } from "../../../../core/naming/portableName.ts";
 import {

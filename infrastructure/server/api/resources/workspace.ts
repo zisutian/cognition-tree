@@ -10,7 +10,7 @@ import type { WorkspaceRepositoryContentDto } from "../../../../contracts/worksp
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { projectRawCanonicalCtnBody } from "../../../../core/ctn/analysis/editableProjection.ts";
 import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
 import type { WorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex.ts";

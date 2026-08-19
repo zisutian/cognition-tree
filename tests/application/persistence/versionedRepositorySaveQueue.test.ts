@@ -3,7 +3,7 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySyncResult,
-} from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
 import {
   createVersionedRepositorySaveQueue as createWorkspaceSessionSaveQueue,
   versionedRepositoryRetryDelaysMs as workspaceSessionRetryDelaysMs,
@@ -17,10 +17,10 @@ import {
   remoteRevision,
 } from "../workspace/session/workspaceSessionTestFixture";
 import { testApplicationScheduler } from "../../support/testApplicationScheduler";
-import { prepareWorkspaceRepositoryContent } from "../../../application/repository/workspaceRepositoryPreparation";
+import { prepareWorkspaceRepositoryContent } from "../../../application/workspace/persistence/workspaceRepositoryPreparation";
 
 type WorkspacePersistenceState = VersionedRepositoryPersistenceState<
-  import("../../../application/repository/workspaceRepository").RepositoryRevision
+  import("../../../application/workspace/persistence/workspaceRepository").RepositoryRevision
 >;
 
 function prepareContent(name: string) {

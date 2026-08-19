@@ -11,7 +11,7 @@ import type {
 } from "../../../application/persistence/versionedRepository.ts";
 import type {
   WorkspaceRepositoryPreparation,
-} from "../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 
 export type PreparedWorkspaceRepositorySnapshot = PreparedVersionedContent<
   WorkspaceRepositoryContentDto,

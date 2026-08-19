@@ -11,7 +11,7 @@ import {
   normalizeWorkspaceSyntaxName,
   type WorkspaceSyntaxCatalog,
 } from "../../../core/workspace/model/workspaceSyntaxCatalog";
-import type { WorkspaceRepositoryContent } from "../../repository/workspaceRepository";
+import type { WorkspaceRepositoryContent } from "../persistence/workspaceRepository";
 import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex";
 import type {
   CtnCanonicalSourceAnalysis,

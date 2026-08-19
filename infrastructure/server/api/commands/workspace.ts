@@ -32,7 +32,7 @@ import type {
 } from "../../repository/store.ts";
 import type {
   WorkspaceRepositoryPreparation,
-} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import {
   createWorkspaceRepositoryRevision,
 } from "../../repository/workspace/revision.ts";

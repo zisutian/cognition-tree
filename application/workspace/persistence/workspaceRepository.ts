@@ -1,13 +1,9 @@
-import {
-  isWorkspaceSyntaxFileId,
-  normalizeWorkspaceSyntaxName,
-  type WorkspaceSyntaxCatalog,
-} from "../../core/workspace/model/workspaceSyntaxCatalog.ts";
-import type { WorkspaceData } from "../../core/workspace/model/workspaceData.ts";
-import type { WorkspaceContext } from "../../core/workspace/context/workspaceContext.ts";
-import type { WorkspaceSyntax } from "../../core/workspace/context/workspaceSyntax.ts";
-import type { WorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";
-import type { WorkspaceStructureIndex } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
+import type { WorkspaceSyntaxCatalog } from "../../../core/workspace/model/workspaceSyntaxCatalog.ts";
+import type { WorkspaceData } from "../../../core/workspace/model/workspaceData.ts";
+import type { WorkspaceContext } from "../../../core/workspace/context/workspaceContext.ts";
+import type { WorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax.ts";
+import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex.ts";
+import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex.ts";
 import {
   createVersionedLocalDraftRevision,
   VersionedRepositoryBackendConflictError,
@@ -23,7 +19,7 @@ import {
   type VersionedContentPreparationPolicy,
   type VersionedRepositorySnapshot,
   type VersionedRepositorySyncResult,
-} from "../persistence/versionedRepository.ts";
+} from "../../persistence/versionedRepository.ts";
 
 export type WorkspaceRepositoryContent = {
   schemaVersion: 4;
@@ -64,8 +60,6 @@ export type RepositoryApiErrorCode =
   | "insufficient_storage"
   | "unauthorized"
   | "internal_error";
-
-export { isWorkspaceSyntaxFileId, normalizeWorkspaceSyntaxName };
 
 export type RemoteWorkspaceSnapshot = VersionedRemoteSnapshot<
   WorkspaceRepositoryContent,

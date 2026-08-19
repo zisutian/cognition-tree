@@ -12,7 +12,7 @@ import type {
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,

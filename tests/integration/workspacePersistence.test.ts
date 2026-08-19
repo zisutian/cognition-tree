@@ -13,7 +13,7 @@ import { createHttpWorkspaceRepositoryCatalog } from "../../infrastructure/clien
 import { workspaceRepositoryPreparation } from "../../infrastructure/client/repository/workspaceRepositoryContentValidation";
 import type {
   WorkspaceRepository,
-} from "../../application/repository/workspaceRepository";
+} from "../../application/workspace/persistence/workspaceRepository";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,

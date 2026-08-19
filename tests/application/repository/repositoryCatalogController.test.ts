@@ -15,7 +15,7 @@ import type {
 import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
-} from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
 
 const descriptor: WorkspaceRepositoryDescriptor = {
   adapter: "local",

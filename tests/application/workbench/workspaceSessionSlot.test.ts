@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it, vi } from "vitest";
-import type { WorkspaceRepository } from "../../../application/repository/workspaceRepository";
+import type { WorkspaceRepository } from "../../../application/workspace/persistence/workspaceRepository";
 import { createWorkspaceSessionSlot } from "../../../application/workbench/workspaceSessionSlot";
 import {
   createContent,

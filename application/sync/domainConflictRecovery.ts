@@ -52,14 +52,14 @@ import {
 } from "../../core/workspace/model/workspaceData.ts";
 import type {
   WorkspaceRepositoryContent,
-} from "../repository/workspaceRepository.ts";
+} from "../workspace/persistence/workspaceRepository.ts";
 import type {
   PreparedVersionedContent,
 } from "../persistence/versionedRepository.ts";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../repository/workspaceRepositoryPreparation.ts";
+} from "../workspace/persistence/workspaceRepositoryPreparation.ts";
 
 type RecoverableConflict = Readonly<{ unitIds: readonly string[] }>;
 

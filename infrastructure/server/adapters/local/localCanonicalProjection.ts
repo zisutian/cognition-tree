@@ -32,7 +32,7 @@ import {
   RepositoryCorruptError,
 } from "../../repository/store.ts";
 import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
-import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import {
   localControlDirectoryName,

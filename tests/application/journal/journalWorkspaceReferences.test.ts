@@ -13,7 +13,7 @@ import type { JournalWorkspaceReference } from "../../../core/journal/indexes/jo
 import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,
-} from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
 import type { WorkspaceRepositoryDescriptor } from "../../../application/repository/workspaceRepositoryCatalog";
 import {
   createContent,

@@ -11,7 +11,7 @@ import { LocalRepositoryCatalog } from "../../../../infrastructure/server/adapte
 import { CompositeRepositoryCatalog } from "../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { RepositoryCatalogError } from "../../../../infrastructure/server/repository/catalog.ts";
 import type { WorkspaceRepositoryStore } from "../../../../infrastructure/server/repository/store.ts";
-import { prepareWorkspaceRepositoryContent } from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+import { prepareWorkspaceRepositoryContent } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const firstUuid = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";

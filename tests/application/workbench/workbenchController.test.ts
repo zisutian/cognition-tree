@@ -18,7 +18,7 @@ import type {
 import type {
   WorkspaceRepository,
   WorkspaceRepositorySnapshot,
-} from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
 import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,

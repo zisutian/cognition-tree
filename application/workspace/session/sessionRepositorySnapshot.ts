@@ -2,7 +2,7 @@ import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
-} from "../../repository/workspaceRepository";
+} from "../persistence/workspaceRepository";
 import type { WorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax";
 import type { NoteId } from "../../../core/workspace/model/workspaceData";
 import {
@@ -12,7 +12,7 @@ import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/worksp
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../repository/workspaceRepositoryPreparation";
+} from "../persistence/workspaceRepositoryPreparation";
 
 export type WorkspaceSessionSnapshot = WorkspaceRepositorySnapshot & {
   workspaceSyntax: WorkspaceSyntax | null;

@@ -5,7 +5,7 @@ import type { RepositorySyntaxCatalogDto } from "../../../../contracts/workspace
 import {
   prepareWorkspaceSyntaxCatalog,
   type WorkspaceSyntaxCatalogPreparation,
-} from "../../../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 
 /**
  * Server-side semantic validation for untrusted HTTP and persisted adapter

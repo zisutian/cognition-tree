@@ -4,7 +4,7 @@ import {
   parseWorkspaceRepositorySnapshot,
 } from "../../../contracts/workspace/parseRepository";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
-import type { WorkspaceRepositoryBackend } from "../../../application/repository/workspaceRepository";
+import type { WorkspaceRepositoryBackend } from "../../../application/workspace/persistence/workspaceRepository";
 import {
   requestRepositoryJson,
   type HttpRepositoryTransportOptions,

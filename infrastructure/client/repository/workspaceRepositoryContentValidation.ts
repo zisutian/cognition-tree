@@ -1,9 +1,9 @@
 import { parseWorkspaceRepositoryContent } from "../../../contracts/workspace/parseRepository";
-import type { WorkspaceRepositoryContent } from "../../../application/repository/workspaceRepository";
+import type { WorkspaceRepositoryContent } from "../../../application/workspace/persistence/workspaceRepository";
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparation,
-} from "../../../application/repository/workspaceRepositoryPreparation";
+} from "../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import type { VersionedContentPreparationPolicy } from "../../../application/persistence/versionedRepository";
 
 /**

@@ -3,10 +3,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   prepareWorkspaceRepositoryContent,
-} from "../../../application/repository/workspaceRepositoryPreparation";
+} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import {
   createContent,
-} from "../workspace/session/workspaceSessionTestFixture";
+} from "../session/workspaceSessionTestFixture";
 
 describe("Workspace repository preparation", () => {
   it("reuses compiled syntax and CTN analyses from the previous preparation", () => {

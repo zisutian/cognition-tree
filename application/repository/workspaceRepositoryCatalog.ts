@@ -3,7 +3,7 @@ import type {
   RepositoryLocation,
   WorkspaceRepository,
   WorkspaceRepositoryContent,
-} from "./workspaceRepository";
+} from "../workspace/persistence/workspaceRepository";
 
 export type RepositoryAdapterKind = "local" | "webdav";
 export type RepositoryAuthentication =

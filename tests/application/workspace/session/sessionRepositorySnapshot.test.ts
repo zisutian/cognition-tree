@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceRepository } from "../../../../application/repository/workspaceRepository";
+import type { WorkspaceRepository } from "../../../../application/workspace/persistence/workspaceRepository";
 import { createInitialWorkspaceData } from "../../../../core/workspace/model/workspaceData";
 import { loadWorkspaceSessionSnapshot } from "../../../../application/workspace/session/sessionRepositorySnapshot";
 import {

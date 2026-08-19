@@ -8,7 +8,7 @@ import type {
   RepositoryRevision,
   WorkspaceRepositoryContent,
   WorkspaceRepositorySnapshot,
-} from "../../../../application/repository/workspaceRepository";
+} from "../../../../application/workspace/persistence/workspaceRepository";
 import type {
   WorkspaceSessionController,
   WorkspaceSessionControllerState,
@@ -17,7 +17,7 @@ import type { CtnEditableSourceChange } from "../../../../core/ctn/metadata/text
 import { analyzeCtnSource } from "../../../../core/ctn/analysis/sourceAnalysis";
 import { initializeCtnSourceBlockMetadata } from "../../../../core/ctn/metadata/sourceMetadata";
 import { defaultCtnSyntax } from "../../../../core/ctn/syntax/defaultSyntax";
-import { prepareWorkspaceRepositoryContent } from "../../../../application/repository/workspaceRepositoryPreparation";
+import { prepareWorkspaceRepositoryContent } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 
 export const initialTimestamp = "2026-07-15T00:00:00.000Z";
 export const initialSyntaxFileId =

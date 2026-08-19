@@ -1,6 +1,6 @@
 import { serializeWorkspaceRepositoryRevisionContent } from "../../../contracts/workspace/revision";
 import type { RepositoryRevisionDto } from "../../../contracts/workspace/types";
-import type { WorkspaceRepositoryContent } from "../../../application/repository/workspaceRepository";
+import type { WorkspaceRepositoryContent } from "../../../application/workspace/persistence/workspaceRepository";
 
 export async function createWorkspaceRepositoryRevision(
   content: WorkspaceRepositoryContent,

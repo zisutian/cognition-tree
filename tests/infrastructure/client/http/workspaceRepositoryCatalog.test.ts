@@ -7,7 +7,7 @@ import {
   revisionA,
   revisionC,
 } from "../../../support/workspaceRepositoryFixtures";
-import type { WorkspaceRepositoryPreparation } from "../../../../application/repository/workspaceRepositoryPreparation";
+import type { WorkspaceRepositoryPreparation } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

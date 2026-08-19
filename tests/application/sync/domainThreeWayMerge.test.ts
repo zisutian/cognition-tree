@@ -7,7 +7,7 @@ import {
 import { createJournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import { createTodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
 import { defaultCtnSyntaxSource } from "../../../core/ctn/syntax/defaultSyntax";
-import { prepareWorkspaceRepositoryContent } from "../../../application/repository/workspaceRepositoryPreparation";
+import { prepareWorkspaceRepositoryContent } from "../../../application/workspace/persistence/workspaceRepositoryPreparation";
 import {
   recoverJournalLocalConflictCopies,
   recoverTodoLocalConflictCopies,

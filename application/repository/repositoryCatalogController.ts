@@ -16,7 +16,7 @@ import {
 import type {
   WorkspaceRepository,
   WorkspaceRepositoryContent,
-} from "./workspaceRepository";
+} from "../workspace/persistence/workspaceRepository";
 import type {
   RepositoryDeletionResult,
   WorkspaceRepositoryCatalog,

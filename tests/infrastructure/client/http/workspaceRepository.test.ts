@@ -11,7 +11,7 @@ import {
   WorkspaceRepositoryBackendConflictError,
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
-} from "../../../../application/repository/workspaceRepository";
+} from "../../../../application/workspace/persistence/workspaceRepository";
 import {
   createDeepWorkspaceRepositoryContent,
   createWorkspaceRepositoryContent,

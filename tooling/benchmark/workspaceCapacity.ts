@@ -31,14 +31,14 @@ import { createEmptyRepositoryContent } from "../../infrastructure/server/reposi
 import {
   prepareWorkspaceRepositoryContent,
   type WorkspaceRepositoryPreparationObserver,
-} from "../../application/repository/workspaceRepositoryPreparation.ts";
+} from "../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import { createUiOutlineNodes } from "../../application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";
 import { defaultCtnSyntax } from "../../core/ctn/syntax/defaultSyntax.ts";
 import { createHttpWorkspaceRepositoryBackend } from "../../infrastructure/client/http/workspaceRepository.ts";
 import { createMemoryRepositoryClientCache } from "../../infrastructure/client/repository/repositoryClientCache.ts";
-import { WorkspaceRepositoryLocalConflictError } from "../../application/repository/workspaceRepository.ts";
+import { WorkspaceRepositoryLocalConflictError } from "../../application/workspace/persistence/workspaceRepository.ts";
 import { createDefaultWorkspaceSyntaxSource } from "../../core/workspace/context/workspaceSyntax.ts";
 import { updateWorkspaceNoteSource } from "../../core/workspace/commands/workspaceCommands.ts";
 import { createWorkspaceParseIndex } from "../../core/workspace/indexes/workspaceParseIndex.ts";

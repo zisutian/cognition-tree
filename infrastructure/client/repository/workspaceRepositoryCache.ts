@@ -2,8 +2,8 @@ import type {
   LocalDraftRevision,
   RepositoryRevision,
   WorkspaceRepositoryContent,
-} from "../../../application/repository/workspaceRepository";
-import { WorkspaceRepositoryLocalConflictError } from "../../../application/repository/workspaceRepository";
+} from "../../../application/workspace/persistence/workspaceRepository";
+import { WorkspaceRepositoryLocalConflictError } from "../../../application/workspace/persistence/workspaceRepository";
 import {
   createMemoryVersionedRepositoryCache,
   type VersionedRepositoryCache,
