@@ -22,10 +22,12 @@ import type {
 } from "../../../core/journal/model/journalContent";
 import {
   createEmptyJournalContent as createDomainEmptyJournalContent,
-  formatJournalEntryDate,
-  formatJournalEntryTitle,
   listJournalEntries,
 } from "../../../core/journal/model/journalContent";
+import {
+  formatJournalEntryDate,
+  formatJournalEntryTitle,
+} from "../../../core/journal/model/journalIdentity";
 import { requireCtnSyntax } from "../../../core/ctn/syntax/compiler";
 import {
   createJournalParseIndex,

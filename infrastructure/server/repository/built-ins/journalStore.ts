@@ -16,8 +16,10 @@ import type {
 } from "../../../../contracts/journal/types.ts";
 import {
   JournalContentValidationError,
+} from "../../../../core/journal/model/journalErrors.ts";
+import {
   validateJournalContentAnalysisTransition,
-} from "../../../../core/journal/model/journalContent.ts";
+} from "../../../../core/journal/model/journalValidation.ts";
 import {
   createJournalParseIndex,
   type JournalParseIndex,

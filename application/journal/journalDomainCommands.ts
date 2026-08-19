@@ -23,12 +23,16 @@ import {
   type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex.ts";
 import {
-  createJournalEntryBodyProjection,
-  isJournalEntryId,
   listJournalEntries,
   type JournalContent,
   type JournalEntryId,
 } from "../../core/journal/model/journalContent.ts";
+import {
+  createJournalEntryBodyProjection,
+} from "../../core/journal/model/journalEntryProjection.ts";
+import {
+  isJournalEntryId,
+} from "../../core/journal/model/journalIdentity.ts";
 import {
   createDomainChangeSet,
   type DomainResourceChange,

@@ -15,11 +15,15 @@ import type {
 } from "../../../../contracts/api/types.ts";
 import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
 import {
-  createJournalEntryBodyProjection,
-  isJournalEntryId,
   type JournalContent,
   type JournalEntryId,
 } from "../../../../core/journal/model/journalContent.ts";
+import {
+  createJournalEntryBodyProjection,
+} from "../../../../core/journal/model/journalEntryProjection.ts";
+import {
+  isJournalEntryId,
+} from "../../../../core/journal/model/journalIdentity.ts";
 import type {
   VersionedContentStore,
 } from "../../repository/versioned/contentStore.ts";

@@ -28,7 +28,7 @@ import {
 } from "../../../../application/commands/domainCommand.ts";
 import {
   JournalContentValidationError,
-} from "../../../../core/journal/model/journalContent.ts";
+} from "../../../../core/journal/model/journalErrors.ts";
 import {
   TodoContentValidationError,
 } from "../../../../core/todo/model/todoContent.ts";

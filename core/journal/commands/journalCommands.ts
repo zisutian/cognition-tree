@@ -21,13 +21,15 @@ import type {
   JournalParseIndex,
 } from "../indexes/journalParseIndex.ts";
 import {
+  type JournalContent,
+  type JournalEntryId,
+} from "../model/journalContent.ts";
+import {
   formatJournalEntryDate,
   formatJournalEntryTitle,
   journalMaximumDailySequence,
   isJournalEntryId,
-  type JournalContent,
-  type JournalEntryId,
-} from "../model/journalContent.ts";
+} from "../model/journalIdentity.ts";
 import {
   DomainNotFoundError,
   DomainValidationError,

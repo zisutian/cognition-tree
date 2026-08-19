@@ -16,7 +16,7 @@ import { createRepositoryProjection } from "./workbenchApplicationProjection";
 import type { SearchResult } from "../../../application/search/searchTypes";
 import {
   isJournalEntryId,
-} from "../../../core/journal/model/journalContent";
+} from "../../../core/journal/model/journalIdentity";
 import {
   isTodoCollectionId,
 } from "../../../core/todo/model/todoContent";

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex";
+import type {
+  JournalEntryId,
+} from "../../core/journal/model/journalContent";
 import {
   createJournalEntryBodyProjection,
-  type JournalEntryId,
-} from "../../core/journal/model/journalContent";
+} from "../../core/journal/model/journalEntryProjection";
 import type { JournalWorkspaceReferenceResolutionState } from "./journalExternalReferences";
 
 export type JournalDiagnosticSeverity = "error" | "warning";

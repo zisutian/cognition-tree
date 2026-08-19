@@ -8,12 +8,16 @@ import {
   updateJournalSyntaxSource,
 } from "../../core/journal/commands/journalCommands";
 import {
-  getJournalCreationTimezoneOffsetMinutes,
-  validateJournalContent,
   type JournalContent,
   type JournalContentValue,
   type JournalEntryId,
 } from "../../core/journal/model/journalContent";
+import {
+  getJournalCreationTimezoneOffsetMinutes,
+} from "../../core/journal/model/journalIdentity";
+import {
+  validateJournalContent,
+} from "../../core/journal/model/journalValidation";
 import {
   resolveJournalSelection,
   resolveJournalSelectionAfterDelete,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { isJournalEntryId } from "../../../../core/journal/model/journalContent.ts";
+import { isJournalEntryId } from "../../../../core/journal/model/journalIdentity.ts";
 import { isTodoCollectionId } from "../../../../core/todo/model/todoContent.ts";
 import { apiV1NotFound } from "./errors.ts";
 import {

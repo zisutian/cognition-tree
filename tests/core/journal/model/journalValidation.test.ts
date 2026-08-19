@@ -4,12 +4,10 @@ import { replaceCtnSourceTitle } from "../../../../core/ctn/metadata/sourceMetad
 import { deleteJournalEntry } from "../../../../core/journal/commands/journalCommands";
 import { readCtnCanonicalTitleHeader } from "../../../../core/ctn/parser/parseCtnDocument";
 import {
-  formatJournalEntryTitle,
-  getJournalCreationTimezoneOffsetMinutes,
   validateJournalContentAnalysisTransition,
   validateJournalContent,
   validateJournalContentTransition,
-} from "../../../../core/journal/model/journalContent";
+} from "../../../../core/journal/model/journalValidation";
 import { createJournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex";
 import { describe, expect, it } from "vitest";
 import {
@@ -22,7 +20,7 @@ import {
   updateJournalTestBody,
 } from "../journalTestFixture";
 
-describe("journal content", () => {
+describe("journal validation", () => {
   function captureTransition(operation: () => unknown) {
     try {
       return { status: "accepted" as const, value: operation() };
@@ -34,22 +32,6 @@ describe("journal content", () => {
       };
     }
   }
-
-  it("formats immutable titles with the creation-time ISO offset direction", () => {
-    expect(
-      formatJournalEntryTitle("2026-07-18T00:00:01.250Z", 480, 1),
-    ).toBe("2026-07-18-0001");
-    expect(
-      formatJournalEntryTitle("2026-03-01T02:30:00.000Z", -300, 12),
-    ).toBe("2026-02-28-0012");
-
-    const date = new Date("2026-07-18T00:00:00.000Z");
-    const original = date.getTimezoneOffset;
-
-    date.getTimezoneOffset = () => -480;
-    expect(getJournalCreationTimezoneOffsetMinutes(date)).toBe(480);
-    date.getTimezoneOffset = original;
-  });
 
   it("accepts canonical entries and rejects a changed title", () => {
     const content = appendJournalTestEntry(createEmptyJournalContent(), {

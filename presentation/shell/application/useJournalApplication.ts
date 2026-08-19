@@ -9,11 +9,13 @@ import {
 } from "react";
 import {
   findJournalEntry,
-  formatJournalEntryDate,
   listJournalEntries,
   type JournalContent,
   type JournalEntryId,
 } from "../../../core/journal/model/journalContent";
+import {
+  formatJournalEntryDate,
+} from "../../../core/journal/model/journalIdentity";
 import type {
   JournalParseIndex,
 } from "../../../core/journal/indexes/journalParseIndex";

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  formatJournalEntryTitle,
   listJournalEntries,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
 } from "../model/journalContent.ts";
+import {
+  formatJournalEntryTitle,
+} from "../model/journalIdentity.ts";
 
 export type JournalMonthGroup = {
   entries: JournalEntry[];

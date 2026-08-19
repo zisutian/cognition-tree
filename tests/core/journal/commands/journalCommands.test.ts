@@ -13,7 +13,7 @@ import {
   updateJournalEntryBody,
   updateJournalSyntaxSource,
 } from "../../../../core/journal/commands/journalCommands";
-import { validateJournalContent } from "../../../../core/journal/model/journalContent";
+import { validateJournalContent } from "../../../../core/journal/model/journalValidation";
 import { requireCtnSyntax } from "../../../../core/ctn/syntax/compiler";
 import {
   createJournalParseIndex,

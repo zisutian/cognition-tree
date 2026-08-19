@@ -12,10 +12,12 @@ import {
   type ParsedJournalIndexEntry,
 } from "../../../../core/journal/indexes/journalParseIndex.ts";
 import {
-  createJournalEntryBodyProjection,
   listJournalEntries,
   type JournalContent,
 } from "../../../../core/journal/model/journalContent.ts";
+import {
+  createJournalEntryBodyProjection,
+} from "../../../../core/journal/model/journalEntryProjection.ts";
 import { projectApiV1CtnDocument } from "./ctn.ts";
 import {
   createJournalEntriesVersion,

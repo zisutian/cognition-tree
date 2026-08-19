@@ -24,12 +24,14 @@ import {
 } from "../../naming/portableName.ts";
 import {
   listJournalEntries,
-  validateJournalContentAnalysis,
-  type ValidatedJournalContentAnalysis,
   type JournalContent,
   type JournalEntry,
   type JournalEntryId,
 } from "../model/journalContent.ts";
+import {
+  validateJournalContentAnalysis,
+  type ValidatedJournalContentAnalysis,
+} from "../model/journalValidation.ts";
 
 export type ParsedJournalIndexEntry = {
   analysis: CtnCanonicalSourceAnalysis;

@@ -7,7 +7,7 @@ import {
 } from "@playwright/test";
 import type { JournalEntryDto } from "../contracts/journal/types";
 import { readCtnCanonicalTitleHeader } from "../core/ctn/parser/parseCtnDocument";
-import { formatJournalEntryTitle } from "../core/journal/model/journalContent";
+import { formatJournalEntryTitle } from "../core/journal/model/journalIdentity";
 import {
   seedWorkbenchRepository,
 } from "./support/repositorySeeds";

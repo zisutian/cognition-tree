@@ -18,10 +18,12 @@ import {
   type JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex.ts";
 import {
-  createJournalEntryBodyProjection,
   type JournalContent,
   type JournalEntryId,
 } from "../../core/journal/model/journalContent.ts";
+import {
+  createJournalEntryBodyProjection,
+} from "../../core/journal/model/journalEntryProjection.ts";
 import {
   createPortableNameKey,
 } from "../../core/naming/portableName.ts";

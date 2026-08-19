@@ -3,12 +3,16 @@
 import { parseJournalContent, parseJournalSnapshot } from "../../../contracts/journal/parseJournal";
 import { parseContentRevision } from "../../../contracts/common/contractValue";
 import {
-  validateJournalContentAnalysisTransition,
-  JournalContentValidationError,
-  validateJournalContent,
-  validateJournalContentTransition,
   type JournalContent,
 } from "../../../core/journal/model/journalContent";
+import {
+  JournalContentValidationError,
+} from "../../../core/journal/model/journalErrors";
+import {
+  validateJournalContent,
+  validateJournalContentAnalysisTransition,
+  validateJournalContentTransition,
+} from "../../../core/journal/model/journalValidation";
 import {
   createJournalParseIndex,
   type JournalParseIndex,

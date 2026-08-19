@@ -7,9 +7,11 @@ import {
 } from "../../ctn/parser/inlineReferences.ts";
 import type { JournalParseIndex } from "../indexes/journalParseIndex.ts";
 import {
-  createJournalEntryBodyProjection,
   type JournalEntryId,
 } from "../model/journalContent.ts";
+import {
+  createJournalEntryBodyProjection,
+} from "../model/journalEntryProjection.ts";
 
 export type JournalReferenceNavigationTarget = {
   text: string;

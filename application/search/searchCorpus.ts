@@ -6,7 +6,7 @@ import {
 } from "../../core/ctn/analysis/editableProjection.ts";
 import {
   createJournalEntryBodyProjection,
-} from "../../core/journal/model/journalContent.ts";
+} from "../../core/journal/model/journalEntryProjection.ts";
 import type {
   JournalParseIndex,
 } from "../../core/journal/indexes/journalParseIndex.ts";

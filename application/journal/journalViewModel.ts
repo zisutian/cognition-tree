@@ -8,11 +8,13 @@ import type {
   CtnSyntaxTone,
 } from "../../core/ctn/syntax/types";
 import type { JournalParseIndex } from "../../core/journal/indexes/journalParseIndex";
+import type {
+  JournalContent,
+  JournalEntryId,
+} from "../../core/journal/model/journalContent";
 import {
   createJournalEntryBodyProjection,
-  type JournalContent,
-  type JournalEntryId,
-} from "../../core/journal/model/journalContent";
+} from "../../core/journal/model/journalEntryProjection";
 import {
   createJournalCalendar,
 } from "../../core/journal/queries/journalQueries";

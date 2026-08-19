@@ -1,4 +1,4 @@
-import { JournalContentValidationError } from "../../core/journal/model/journalContent";
+import { JournalContentValidationError } from "../../core/journal/model/journalErrors";
 import { TodoContentValidationError } from "../../core/todo/model/todoContent";
 import { CtnDocumentMetadataError } from "../../core/ctn/parser/parseCtnDocument";
 import { CtnBlockMetadataSyntaxError } from "../../core/ctn/metadata/blockMetadata";
