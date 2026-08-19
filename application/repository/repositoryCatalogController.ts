@@ -4,7 +4,6 @@ import { parsePortableName } from "../../core/naming/portableName";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type { ActiveRepositorySelection } from "./activeRepositorySelection";
 import {
-  createRepositoryConnectionKey,
   reuseUnchangedRepositoryDescriptors,
   selectRepositoryAfterDeletion,
   type CreateRepositoryRequest,
@@ -13,10 +12,6 @@ import {
   type RepositoryCatalogOperation,
   type RepositoryCatalogState,
 } from "./repositoryCatalog";
-import type {
-  WorkspaceRepository,
-  WorkspaceRepositoryContent,
-} from "../workspace/persistence/workspaceRepository";
 import type {
   RepositoryDeletionResult,
   WorkspaceRepositoryCatalog,
@@ -29,7 +24,6 @@ export const repositoryDeletionPollDelayMs = 1_000;
 export type RepositoryCatalogControllerSnapshot = {
   activeDescriptor: WorkspaceRepositoryDescriptor | null;
   catalogLabel: string;
-  repository: WorkspaceRepository | null;
   state: RepositoryCatalogState;
 };
 
@@ -52,24 +46,24 @@ function getErrorMessage(error: unknown) {
 export function createRepositoryCatalogController({
   activeRepositorySelection,
   catalog,
-  createInitialContent,
+  provisionRepository,
   scheduler,
 }: {
   activeRepositorySelection: ActiveRepositorySelection;
   catalog: WorkspaceRepositoryCatalog;
-  createInitialContent(label: string): WorkspaceRepositoryContent;
+  provisionRepository(
+    input: CreateRepositoryRequest,
+    label: string,
+  ): Promise<WorkspaceRepositoryDescriptor>;
   scheduler: Pick<ApplicationScheduler, "schedule">;
 }): RepositoryCatalogController {
   const listeners = new Set<() => void>();
-  let activeConnectionKey = "";
-  let activeRepository: WorkspaceRepository | null = null;
   let cancelDeletionPoll: (() => void) | null = null;
   let operation: RepositoryCatalogOperation = "idle";
   let started = false;
   let snapshot: RepositoryCatalogControllerSnapshot = {
     activeDescriptor: null,
     catalogLabel: catalog.label,
-    repository: null,
     state: { status: "loading" },
   };
 
@@ -80,18 +74,9 @@ export function createRepositoryCatalogController({
       ? state.repositories.find(({ id }) => id === state.activeRepositoryId) ??
         null
       : null;
-    const connectionKey = createRepositoryConnectionKey(activeDescriptor);
-
-    if (connectionKey !== activeConnectionKey) {
-      activeConnectionKey = connectionKey;
-      activeRepository = activeDescriptor
-        ? catalog.openRepository(activeDescriptor)
-        : null;
-    }
     return {
       activeDescriptor,
       catalogLabel: catalog.label,
-      repository: activeRepository,
       state,
     };
   };
@@ -195,18 +180,7 @@ export function createRepositoryCatalogController({
           throw new Error(`Repository adapter is unavailable: ${input.adapter}`);
         }
         const label = parsePortableName(input.name, "Repository label");
-        const content = createInitialContent(label);
-        const descriptor = await catalog.createRepository(
-          input.adapter === "webdav"
-            ? {
-                adapter: "webdav",
-                authentication: input.authentication,
-                initialContent: content,
-                label,
-                url: input.url.trim(),
-              }
-            : { adapter: input.adapter, content, label },
-        );
+        const descriptor = await provisionRepository(input, label);
         const latest = snapshot.state;
         const ready = latest.status === "ready" ? latest : current;
         const repositories = [

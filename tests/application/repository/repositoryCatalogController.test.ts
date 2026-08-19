@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createRepositoryConnectionKey,
   reuseUnchangedRepositoryDescriptors,
 } from "../../../application/repository/repositoryCatalog";
 import {
@@ -12,10 +11,6 @@ import type {
   WorkspaceRepositoryCatalogData,
   WorkspaceRepositoryDescriptor,
 } from "../../../application/repository/workspaceRepositoryCatalog";
-import type {
-  WorkspaceRepository,
-  WorkspaceRepositoryContent,
-} from "../../../application/workspace/persistence/workspaceRepository";
 
 const descriptor: WorkspaceRepositoryDescriptor = {
   adapter: "local",
@@ -41,15 +36,13 @@ function catalogData(
 
 function createHarness(initial = catalogData()) {
   let activeId: string | null = descriptor.id;
-  const repository = { label: "Primary" } as WorkspaceRepository;
   const catalog: WorkspaceRepositoryCatalog = {
-    createRepository: vi.fn(),
     deleteRepository: vi.fn(),
     label: "Repositories",
     listRepositories: vi.fn(async () => initial),
-    openRepository: vi.fn(() => repository),
     renameRepository: vi.fn(),
   };
+  const provisionRepository = vi.fn();
   const scheduled: Array<{
     callback: () => void;
     cancelled: boolean;
@@ -66,9 +59,7 @@ function createHarness(initial = catalogData()) {
       },
     },
     catalog,
-    createInitialContent: (label) => ({
-      label,
-    } as unknown as WorkspaceRepositoryContent),
+    provisionRepository,
     scheduler: {
       schedule(callback, delayMs) {
         const task = { callback, cancelled: false, delayMs };
@@ -85,7 +76,7 @@ function createHarness(initial = catalogData()) {
     activeId: () => activeId,
     catalog,
     controller,
-    repository,
+    provisionRepository,
     scheduled,
   };
 }
@@ -111,35 +102,33 @@ describe("repository catalog descriptor identity", () => {
     expect(published).toBe(changed);
   });
 
-  it("keeps label and conflict projection out of the active connection key", () => {
-    expect(createRepositoryConnectionKey({
-      ...descriptor,
-      label: "Renamed",
-      labelIssue: "conflict",
-    })).toBe(createRepositoryConnectionKey(descriptor));
-    expect(createRepositoryConnectionKey({
-      ...descriptor,
-      id: "another",
-    })).not.toBe(createRepositoryConnectionKey(descriptor));
-    expect(createRepositoryConnectionKey({
-      ...descriptor,
-      location: {
-        hostPath: "/host/primary",
-        serverPath: "/data/moved",
-        type: "local",
-      },
-    })).not.toBe(createRepositoryConnectionKey(descriptor));
-  });
 });
 
 describe("repository catalog controller", () => {
-  it("loads the active repository and retains its session across rename", async () => {
+  it("delegates validated creation without owning Workspace content", async () => {
+    const harness = createHarness();
+    const created = { ...descriptor, id: "created", label: "Created" };
+
+    harness.provisionRepository.mockResolvedValueOnce(created);
+    await harness.controller.reload();
+    await expect(harness.controller.createRepository({
+      adapter: "local",
+      name: "  Created  ",
+    })).resolves.toBe(created);
+
+    expect(harness.provisionRepository).toHaveBeenCalledWith(
+      { adapter: "local", name: "  Created  " },
+      "Created",
+    );
+    expect(harness.controller.getSnapshot().activeDescriptor).toBe(created);
+  });
+
+  it("loads the active descriptor and retains selection across rename", async () => {
     const harness = createHarness();
 
     await harness.controller.reload();
     expect(harness.controller.getSnapshot()).toMatchObject({
       activeDescriptor: descriptor,
-      repository: harness.repository,
       state: { activeRepositoryId: "primary", status: "ready" },
     });
 
@@ -154,10 +143,9 @@ describe("repository catalog controller", () => {
     expect(harness.controller.getSnapshot().activeDescriptor?.label).toBe(
       "Renamed",
     );
-    expect(harness.catalog.openRepository).toHaveBeenCalledTimes(1);
   });
 
-  it("persists selection and opens a replacement repository", async () => {
+  it("persists selection and publishes the replacement descriptor", async () => {
     const secondary = { ...descriptor, id: "secondary", label: "Secondary" };
     const harness = createHarness(catalogData([descriptor, secondary]));
 
@@ -166,7 +154,6 @@ describe("repository catalog controller", () => {
 
     expect(harness.activeId()).toBe("secondary");
     expect(harness.controller.getSnapshot().activeDescriptor).toBe(secondary);
-    expect(harness.catalog.openRepository).toHaveBeenCalledTimes(2);
   });
 
   it("polls deleting issues only while started", async () => {

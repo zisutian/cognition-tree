@@ -22,6 +22,7 @@ import type {
   WorkspaceRepositoryDescriptor,
 } from "../repository/workspaceRepositoryCatalog";
 import { WorkspaceRepositoryRemoteError } from "../workspace/persistence/workspaceRepository";
+import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
 import {
   VersionedRepositoryRemoteError,
 } from "../persistence/versionedRepository";
@@ -102,13 +103,13 @@ function workspaceSource({
   descriptor,
   getProjectionRevision,
   getState,
-  workspaceCatalog,
+  workspaceRepositories,
 }: {
   createVersion: CreateVersion;
   descriptor: WorkspaceRepositoryDescriptor;
   getProjectionRevision: ProjectionRevision;
   getState(): WorkbenchSearchState;
-  workspaceCatalog: WorkspaceRepositoryCatalog;
+  workspaceRepositories: WorkspaceRepositoryProvider;
 }): SearchSource {
   return {
     createFault: createSafeSourceFault(
@@ -137,7 +138,7 @@ function workspaceSource({
           revision: getProjectionRevision(workspace),
         };
       }
-      const snapshot = await workspaceCatalog.openRepository(descriptor)
+      const snapshot = await workspaceRepositories.openRepository(descriptor)
         .loadSnapshot();
 
       return {
@@ -285,6 +286,7 @@ export function createWorkbenchSearchQuery({
   journalRepositories,
   todoRepositories,
   workspaceCatalog,
+  workspaceRepositories,
 }: {
   builtInCatalog: BuiltInCatalog;
   createVersion: CreateVersion;
@@ -292,6 +294,7 @@ export function createWorkbenchSearchQuery({
   journalRepositories: JournalRepositoryProvider;
   todoRepositories: TodoRepositoryProvider;
   workspaceCatalog: WorkspaceRepositoryCatalog;
+  workspaceRepositories: WorkspaceRepositoryProvider;
 }): SearchQuery {
   const projectionRevisions = new WeakMap<object, string>();
   let nextProjectionRevision = 0;
@@ -335,7 +338,7 @@ export function createWorkbenchSearchQuery({
                     descriptor,
                     getProjectionRevision,
                     getState,
-                    workspaceCatalog,
+                    workspaceRepositories,
                   })
                 ),
             );

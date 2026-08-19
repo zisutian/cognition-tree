@@ -14,8 +14,8 @@ import { workspaceRepositoryPreparation } from "../../infrastructure/client/repo
 import type {
   WorkspaceRepository,
 } from "../../application/workspace/persistence/workspaceRepository";
+import type { WorkspaceRepositoryProvisioner } from "../../application/workspace/persistence/workspaceRepositoryProvider";
 import type {
-  WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
 } from "../../application/repository/workspaceRepositoryCatalog";
 import { createApiV1Server } from "../../infrastructure/server/api/http/server.ts";
@@ -141,7 +141,7 @@ function startController(repository: WorkspaceRepository) {
 }
 
 async function createRepository(
-  catalog: WorkspaceRepositoryCatalog,
+  catalog: WorkspaceRepositoryProvisioner,
   label: string,
 ) {
   const workspace = createInitialWorkspaceData();

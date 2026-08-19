@@ -13,6 +13,7 @@ import type {
   WorkspaceRepositoryCatalog,
   WorkspaceRepositoryDescriptor,
 } from "../repository/workspaceRepositoryCatalog";
+import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
 import type {
   JournalWorkspaceReferenceFaultCode,
   JournalWorkspaceReferenceResolution,
@@ -60,10 +61,8 @@ function matchRepository(
 }
 
 export function createJournalWorkspaceReferenceResolver(
-  catalog: Pick<
-    WorkspaceRepositoryCatalog,
-    "listRepositories" | "openRepository"
-  >,
+  catalog: Pick<WorkspaceRepositoryCatalog, "listRepositories">,
+  repositoryProvider: WorkspaceRepositoryProvider,
   {
     workspaceSnapshot = null,
   }: {
@@ -114,7 +113,7 @@ export function createJournalWorkspaceReferenceResolver(
         try {
           workspaceByRepositoryId.set(
             descriptor.id,
-            (await catalog.openRepository(descriptor).loadSnapshot())
+            (await repositoryProvider.openRepository(descriptor).loadSnapshot())
               .content.workspace,
           );
         } catch (error) {

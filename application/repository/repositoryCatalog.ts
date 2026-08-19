@@ -67,18 +67,6 @@ function repositoryLocationsEqual(
   }
 }
 
-export function createRepositoryConnectionKey(
-  descriptor: WorkspaceRepositoryDescriptor | null,
-) {
-  return descriptor
-    ? JSON.stringify({
-        adapter: descriptor.adapter,
-        id: descriptor.id,
-        location: descriptor.location,
-      })
-    : "";
-}
-
 export function reuseUnchangedRepositoryDescriptors(
   previous: WorkspaceRepositoryDescriptor[],
   next: WorkspaceRepositoryDescriptor[],

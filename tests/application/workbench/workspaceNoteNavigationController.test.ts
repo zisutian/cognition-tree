@@ -31,7 +31,6 @@ function readyCatalog(
   return {
     activeDescriptor: activeRepositoryId === descriptor.id ? descriptor : null,
     catalogLabel: "Repositories",
-    repository: null,
     state: {
       activeRepositoryId,
       creatableAdapters: ["local"],
@@ -48,7 +47,6 @@ describe("workspace note navigation controller", () => {
     let catalog: RepositoryCatalogControllerSnapshot = {
       activeDescriptor: null,
       catalogLabel: "Repositories",
-      repository: null,
       state: { status: "loading" },
     };
     const controller = createWorkspaceNoteNavigationController({

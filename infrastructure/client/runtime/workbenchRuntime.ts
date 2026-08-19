@@ -49,5 +49,6 @@ export function createWorkbenchRuntime(
     todoRepositories: builtIns.todoRepositories,
     workspaceCatalog: workspace.catalog,
     workspaceCommandDependencies: clientWorkspaceSessionCommandDependencies,
+    workspaceRepositories: workspace.repositories,
   });
 }

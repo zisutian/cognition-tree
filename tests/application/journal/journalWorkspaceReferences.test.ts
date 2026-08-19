@@ -70,6 +70,14 @@ function repository(
   } as WorkspaceRepository;
 }
 
+function createResolver(
+  source: Parameters<typeof createJournalWorkspaceReferenceResolver>[0] &
+    Parameters<typeof createJournalWorkspaceReferenceResolver>[1],
+  options?: Parameters<typeof createJournalWorkspaceReferenceResolver>[2],
+) {
+  return createJournalWorkspaceReferenceResolver(source, source, options);
+}
+
 describe("journal workspace reference resolver", () => {
   it("opens each referenced repository once and indexes canonical note titles", async () => {
     const snapshot = createSnapshot({
@@ -77,7 +85,7 @@ describe("journal workspace reference resolver", () => {
     });
     const opened = repository(snapshot);
     const openRepository = vi.fn(() => opened);
-    const resolver = createJournalWorkspaceReferenceResolver({
+    const resolver = createResolver({
       listRepositories: vi.fn(async () => ({
         creatableAdapters: [],
         issues: [],
@@ -152,7 +160,7 @@ describe("journal workspace reference resolver", () => {
     ];
 
     for (const current of cases) {
-      const resolver = createJournalWorkspaceReferenceResolver({
+      const resolver = createResolver({
         listRepositories: async () => ({
           creatableAdapters: [],
           issues: [],
@@ -176,7 +184,7 @@ describe("journal workspace reference resolver", () => {
     const opened = repository(createSnapshot({
       content: createContent("知识库", "目标笔记\n正文"),
     }));
-    const resolver = createJournalWorkspaceReferenceResolver({
+    const resolver = createResolver({
       listRepositories: async () => ({
         creatableAdapters: [],
         issues: [],
@@ -229,7 +237,7 @@ describe("journal workspace reference resolver", () => {
         workspace.notes = [];
         workspace.tree = [];
       }
-      return createJournalWorkspaceReferenceResolver(catalog, {
+      return createResolver(catalog, {
         workspaceSnapshot: {
           repositoryId: descriptor.id,
           workspace,
@@ -253,7 +261,7 @@ describe("journal workspace reference resolver", () => {
   });
 
   it("returns to loading while a generation re-resolution is pending", async () => {
-    const initialResolutions = await createJournalWorkspaceReferenceResolver({
+    const initialResolutions = await createResolver({
       listRepositories: async () => ({
         creatableAdapters: [],
         issues: [],

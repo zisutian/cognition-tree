@@ -37,6 +37,10 @@ import type {
 import type { ActiveRepositorySelection } from "../repository/activeRepositorySelection";
 import type { WorkspaceRepositoryCatalog } from "../repository/workspaceRepositoryCatalog";
 import type { WorkspaceRepositoryContent } from "../workspace/persistence/workspaceRepository";
+import type {
+  WorkspaceRepositoryProvider,
+  WorkspaceRepositoryProvisioner,
+} from "../workspace/persistence/workspaceRepositoryProvider";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type {
   DomainChangeEventSource,
@@ -79,10 +83,8 @@ export type { WorkbenchNavigationState } from "./workspaceNoteNavigationControll
 export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
 export type { WorkbenchBuiltInSession } from "./builtInSessionSlot";
 
-export type WorkbenchRepositoryCatalogSnapshot = Omit<
-  RepositoryCatalogControllerSnapshot,
-  "repository"
->;
+export type WorkbenchRepositoryCatalogSnapshot =
+  RepositoryCatalogControllerSnapshot;
 
 export type WorkbenchControllerSnapshot = {
   builtIns: {
@@ -177,6 +179,8 @@ type WorkbenchControllerOptions = {
   todoRepositories: TodoRepositoryProvider;
   workspaceCatalog: WorkspaceRepositoryCatalog;
   workspaceCommandDependencies: SessionCommandDependencies;
+  workspaceRepositories: WorkspaceRepositoryProvider &
+    WorkspaceRepositoryProvisioner;
 };
 
 function findBuiltInDescriptor(
@@ -201,11 +205,26 @@ export function createWorkbenchController({
   todoRepositories,
   workspaceCatalog,
   workspaceCommandDependencies,
+  workspaceRepositories,
 }: WorkbenchControllerOptions): WorkbenchController {
   const repositoryCatalogController = createRepositoryCatalogController({
     activeRepositorySelection,
     catalog: workspaceCatalog,
-    createInitialContent: createInitialWorkspaceContent,
+    provisionRepository(input, label) {
+      const content = createInitialWorkspaceContent(label);
+
+      return workspaceRepositories.createRepository(
+        input.adapter === "webdav"
+          ? {
+              adapter: "webdav",
+              authentication: input.authentication,
+              initialContent: content,
+              label,
+              url: input.url.trim(),
+            }
+          : { adapter: "local", content, label },
+      );
+    },
     scheduler,
   });
   const builtInCatalogController = createBuiltInCatalogController(
@@ -233,12 +252,8 @@ export function createWorkbenchController({
     catalogLabel: builtInCatalogController.catalogLabel,
     state: builtInCatalogController.getState(),
   });
-  const projectRepositoryCatalog = (): WorkbenchRepositoryCatalogSnapshot => {
-    const { repository: _repository, ...projected } =
-      repositoryCatalogController.getSnapshot();
-
-    return projected;
-  };
+  const projectRepositoryCatalog = (): WorkbenchRepositoryCatalogSnapshot =>
+    repositoryCatalogController.getSnapshot();
   const publish = (referencesChanged = false) => {
     if (disposed) return;
     if (referencesChanged) referenceResolutionGeneration += 1;
@@ -263,6 +278,7 @@ export function createWorkbenchController({
       publish(true);
       navigationController.notifyInputsChanged();
     },
+    repositories: workspaceRepositories,
     scheduler,
   });
   const journalSlot = createBuiltInSessionSlot({
@@ -319,6 +335,7 @@ export function createWorkbenchController({
     journalRepositories,
     todoRepositories,
     workspaceCatalog,
+    workspaceRepositories,
   });
 
   searchController = createSearchController({
@@ -430,9 +447,13 @@ export function createWorkbenchController({
   };
   const journalReferenceResolver: JournalWorkspaceReferenceResolver = {
     resolve(references) {
-      return createJournalWorkspaceReferenceResolver(workspaceCatalog, {
-        workspaceSnapshot: currentWorkspaceReferenceSnapshot(),
-      }).resolve(references);
+      return createJournalWorkspaceReferenceResolver(
+        workspaceCatalog,
+        workspaceRepositories,
+        {
+          workspaceSnapshot: currentWorkspaceReferenceSnapshot(),
+        },
+      ).resolve(references);
     },
   };
   const reconcileBuiltInSessions = () => {
@@ -443,7 +464,7 @@ export function createWorkbenchController({
   };
   const unsubscribeCatalog = repositoryCatalogController.subscribe(() => {
     workspaceSlot.reconcile(
-      repositoryCatalogController.getSnapshot().repository,
+      repositoryCatalogController.getSnapshot().activeDescriptor,
     );
     publish(true);
     navigationController.notifyInputsChanged();
@@ -637,7 +658,7 @@ export function createWorkbenchController({
       repositoryCatalogController.start();
       builtInCatalogController.start();
       workspaceSlot.reconcile(
-        repositoryCatalogController.getSnapshot().repository,
+        repositoryCatalogController.getSnapshot().activeDescriptor,
       );
       workspaceSlot.start();
       journalSlot.start();

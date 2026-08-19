@@ -4,6 +4,10 @@ import type { WorkspaceContext } from "../../../core/workspace/context/workspace
 import type { WorkspaceSyntax } from "../../../core/workspace/context/workspaceSyntax.ts";
 import type { WorkspaceParseIndex } from "../../../core/workspace/indexes/workspaceParseIndex.ts";
 import type { WorkspaceStructureIndex } from "../../../core/workspace/indexes/workspaceStructureIndex.ts";
+import type {
+  RepositoryApiErrorCode,
+  RepositoryLocation,
+} from "../../repository/workspaceRepositoryCatalog.ts";
 import {
   createVersionedLocalDraftRevision,
   VersionedRepositoryBackendConflictError,
@@ -42,25 +46,6 @@ export type WorkspaceRepositoryPreparationPolicy =
   >;
 export type LocalDraftRevision = `draft:${string}`;
 export type RepositoryRevision = `sha256:${string}`;
-export type RepositoryLocation =
-  | {
-      hostPath: string | null;
-      serverPath: string;
-      type: "local";
-    }
-  | { type: "webdav"; url: string };
-export type RepositoryApiErrorCode =
-  | "invalid_request"
-  | "repository_not_found"
-  | "unsupported_repository_version"
-  | "revision_conflict"
-  | "repository_busy"
-  | "repository_corrupt"
-  | "adapter_unavailable"
-  | "insufficient_storage"
-  | "unauthorized"
-  | "internal_error";
-
 export type RemoteWorkspaceSnapshot = VersionedRemoteSnapshot<
   WorkspaceRepositoryContent,
   RepositoryRevision

@@ -1,11 +1,22 @@
-import type {
-  RepositoryApiErrorCode,
-  RepositoryLocation,
-  WorkspaceRepository,
-  WorkspaceRepositoryContent,
-} from "../workspace/persistence/workspaceRepository";
-
 export type RepositoryAdapterKind = "local" | "webdav";
+export type RepositoryLocation =
+  | {
+      hostPath: string | null;
+      serverPath: string;
+      type: "local";
+    }
+  | { type: "webdav"; url: string };
+export type RepositoryApiErrorCode =
+  | "invalid_request"
+  | "repository_not_found"
+  | "unsupported_repository_version"
+  | "revision_conflict"
+  | "repository_busy"
+  | "repository_corrupt"
+  | "adapter_unavailable"
+  | "insufficient_storage"
+  | "unauthorized"
+  | "internal_error";
 export type RepositoryAuthentication =
   | { type: "none" }
   | { password: string; type: "basic"; username: string };
@@ -40,37 +51,17 @@ export type WorkspaceRepositoryCatalogData = {
   repositories: WorkspaceRepositoryDescriptor[];
 };
 
-export type CreateWorkspaceRepositoryInput =
-  | {
-      adapter: "local";
-      content: WorkspaceRepositoryContent;
-      label: string;
-    }
-  | {
-      adapter: "webdav";
-      authentication: RepositoryAuthentication;
-      initialContent: WorkspaceRepositoryContent;
-      label: string;
-      url: string;
-    };
-
 export type DeleteWorkspaceRepositoryInput = {
   id: string;
   mode: RepositoryDeletionMode;
 };
 
 export type WorkspaceRepositoryCatalog = {
-  createRepository(
-    input: CreateWorkspaceRepositoryInput,
-  ): Promise<WorkspaceRepositoryDescriptor>;
   deleteRepository(
     input: DeleteWorkspaceRepositoryInput,
   ): Promise<RepositoryDeletionResult>;
   label: string;
   listRepositories(): Promise<WorkspaceRepositoryCatalogData>;
-  openRepository(
-    descriptor: WorkspaceRepositoryDescriptor,
-  ): WorkspaceRepository;
   renameRepository(input: {
     id: string;
     label: string;

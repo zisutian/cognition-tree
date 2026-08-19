@@ -216,7 +216,6 @@ function createHarness({
     ],
   ]);
   const workspaceCatalog: WorkspaceRepositoryCatalog = {
-    createRepository: vi.fn(),
     deleteRepository: vi.fn(async () => ({ status: "deleted" as const })),
     label: "Repositories",
     listRepositories: vi.fn(async () => ({
@@ -224,11 +223,14 @@ function createHarness({
       issues: [],
       repositories: workspaceDescriptors,
     })),
-    openRepository(descriptor) {
+    renameRepository: vi.fn(),
+  };
+  const workspaceRepositories = {
+    createRepository: vi.fn(),
+    openRepository(descriptor: WorkspaceRepositoryDescriptor) {
       events.push(`open:${descriptor.id}`);
       return repositories.get(descriptor.id)!;
     },
-    renameRepository: vi.fn(),
   };
   const journalRepository = createBuiltInRepository(
     "日记",
@@ -302,6 +304,7 @@ function createHarness({
         "syntax-00000000-0000-4000-8000-000000000002",
       now: () => "2026-07-23T00:00:00.000Z",
     },
+    workspaceRepositories,
   });
 
   return {

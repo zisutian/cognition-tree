@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { WorkspaceRepository } from "../workspace/persistence/workspaceRepository";
+import type { WorkspaceRepositoryProvider } from "../workspace/persistence/workspaceRepositoryProvider";
+import type { WorkspaceRepositoryDescriptor } from "../repository/workspaceRepositoryCatalog";
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type { SessionCommandDependencies } from "../workspace/session/sessionCommands";
 import {
@@ -18,20 +20,23 @@ export type WorkspaceSessionSlot = {
   flushReady(): Promise<void>;
   getController(): WorkspaceSessionController | null;
   getSnapshot(): WorkbenchWorkspaceSession;
-  reconcile(repository: WorkspaceRepository | null): void;
+  reconcile(descriptor: WorkspaceRepositoryDescriptor | null): void;
   start(): void;
 };
 
 export function createWorkspaceSessionSlot({
   commandDependencies,
   onChange,
+  repositories,
   scheduler,
 }: {
   commandDependencies: SessionCommandDependencies;
   onChange(): void;
+  repositories: WorkspaceRepositoryProvider;
   scheduler: Pick<ApplicationScheduler, "schedule">;
 }): WorkspaceSessionSlot {
   let controller: WorkspaceSessionController | null = null;
+  let connectionKey = "";
   let disposed = false;
   let repository: WorkspaceRepository | null = null;
   let started = false;
@@ -51,6 +56,7 @@ export function createWorkspaceSessionSlot({
       if (disposed) return;
       disposed = true;
       disposeController();
+      connectionKey = "";
       repository = null;
     },
     async flushReady() {
@@ -61,16 +67,25 @@ export function createWorkspaceSessionSlot({
     getController: () => controller,
     getSnapshot: () =>
       controller && state ? state : { status: "absent" },
-    reconcile(nextRepository) {
+    reconcile(descriptor) {
+      const nextConnectionKey = descriptor
+        ? JSON.stringify({
+            adapter: descriptor.adapter,
+            id: descriptor.id,
+            location: descriptor.location,
+          })
+        : "";
+
       if (
         disposed ||
-        (nextRepository === repository &&
-          (controller !== null || nextRepository === null))
+        (nextConnectionKey === connectionKey &&
+          (controller !== null || descriptor === null))
       ) {
         return;
       }
       disposeController();
-      repository = nextRepository;
+      connectionKey = nextConnectionKey;
+      repository = descriptor ? repositories.openRepository(descriptor) : null;
       if (!repository) return;
 
       const nextController = createWorkspaceSessionController({

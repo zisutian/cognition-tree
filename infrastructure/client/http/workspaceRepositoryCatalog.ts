@@ -16,6 +16,10 @@ import {
   type HttpRepositoryTransportOptions,
 } from "./repositoryTransport";
 import type { WorkspaceRepositoryCatalog } from "../../../application/repository/workspaceRepositoryCatalog";
+import type {
+  WorkspaceRepositoryProvider,
+  WorkspaceRepositoryProvisioner,
+} from "../../../application/workspace/persistence/workspaceRepositoryProvider";
 import {
   createMemoryRepositoryClientCache,
   type RepositoryClientCache,
@@ -45,7 +49,8 @@ export function createHttpWorkspaceRepositoryCatalog({
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
   preparation,
-}: HttpWorkspaceRepositoryCatalogOptions): WorkspaceRepositoryCatalog {
+}: HttpWorkspaceRepositoryCatalogOptions): WorkspaceRepositoryCatalog &
+  WorkspaceRepositoryProvider & WorkspaceRepositoryProvisioner {
   const catalogIdentity = createHttpRepositoryCacheIdentity({
     baseUrl,
     repositoryId: "__catalog__",
