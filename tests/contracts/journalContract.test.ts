@@ -75,6 +75,15 @@ describe("Journal v3 wire contract", () => {
     );
   });
 
+  it("keeps the canonical Journal v3 bytes stable", () => {
+    expect(serializeJournalRevisionContent({
+      ...journalContent(),
+      syntaxSource: "syntax",
+    })).toBe(
+      '{"days":[{"date":"2026-07-18","entries":[{"createdAt":"2026-07-17T16:00:00.000Z","id":"journal-entry-00000000-0000-4000-8000-000000000001","sequence":1,"source":"canonical journal source","timezoneOffsetMinutes":480,"updatedAt":"2026-07-17T16:01:00.000Z"}],"lastIssuedSequence":3}],"schemaVersion":3,"syntaxSource":"syntax"}',
+    );
+  });
+
   it("rejects old/future versions, purpose fields, duplicate ids, and invalid counters", () => {
     expect(() => parseJournalContent({
       ...journalContent(),

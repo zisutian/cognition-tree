@@ -87,6 +87,15 @@ describe("Todo v4 wire contract", () => {
     );
   });
 
+  it("keeps the canonical Todo v4 bytes stable", () => {
+    expect(serializeTodoRevisionContent({
+      ...todoContent(),
+      syntaxSource: "syntax",
+    })).toBe(
+      '{"collections":[{"completions":[{"blockId":"00000000-0000-4000-8000-000000000001","completedAt":"2026-07-18T02:00:00.000Z"}],"id":"todo-collection-00000000-0000-4000-8000-000000000001","recurrences":[{"blockId":"00000000-0000-4000-8000-000000000001","completions":[{"completedAt":"2026-07-18T03:00:00.000Z","occurrenceDate":"2026-07-18","stageId":"todo-recurrence-stage-00000000-0000-4000-8000-000000000001"}],"stages":[{"endsBefore":null,"id":"todo-recurrence-stage-00000000-0000-4000-8000-000000000001","rule":{"interval":2,"kind":"weekly","weekdays":[1,5]},"startsOn":"2026-07-18"}]}],"source":"canonical todo source"}],"schemaVersion":4,"syntaxSource":"syntax"}',
+    );
+  });
+
   it("rejects old/future versions, extra fields, and duplicate identifiers", () => {
     expect(() => parseTodoContent({
       ...todoContent(),
