@@ -23,9 +23,11 @@ import { RepositoryCorruptError } from "../../repository/store.ts";
 import { fsyncDirectory } from "../../persistence/fileSystemPersistence.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
-  createWorkspaceFileRepository,
   WorkspaceFileStore,
 } from "./workspaceFileStore.ts";
+import {
+  provisionWorkspaceFileRepository,
+} from "./workspaceFileRepositoryProvisioning.ts";
 import { readLocalJson } from "./localWorkingTree.ts";
 import { parseLocalRepositoryMetadata } from "./localWorkingTreeCodec.ts";
 import { assertLocalRepositoryContainsOnlyManagedData } from "./localManagedDataGuard.ts";
@@ -230,7 +232,7 @@ export class LocalRepositoryCatalog {
       const stagingPath = path.join(this.#rootDir, `.create-${request.id}-${randomUUID()}`);
 
       try {
-        await createWorkspaceFileRepository({
+        await provisionWorkspaceFileRepository({
           content: request.content,
           label,
           repositoryId: request.id,

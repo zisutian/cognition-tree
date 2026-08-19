@@ -36,9 +36,11 @@ import {
   type WorkspaceCommitPhase,
 } from "../../../../../infrastructure/server/adapters/local/workingTreeTransaction.ts";
 import {
-  createWorkspaceFileRepository,
   WorkspaceFileStore,
 } from "../../../../../infrastructure/server/adapters/local/workspaceFileStore.ts";
+import {
+  provisionWorkspaceFileRepository,
+} from "../../../../../infrastructure/server/adapters/local/workspaceFileRepositoryProvisioning.ts";
 import {
   RepositoryCorruptError,
 } from "../../../../../infrastructure/server/repository/store.ts";
@@ -147,7 +149,7 @@ async function createFileRepository(
   content = createContent(),
   label = "Test",
 ) {
-  return createWorkspaceFileRepository({
+  return provisionWorkspaceFileRepository({
     content,
     label,
     repositoryId: path.basename(rootDir),

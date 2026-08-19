@@ -15,9 +15,11 @@ import {
   type WorkspaceRepositoryContentDto,
 } from "../../contracts/workspace/types.ts";
 import {
-  createWorkspaceFileRepository,
   WorkspaceFileStore,
 } from "../../infrastructure/server/adapters/local/workspaceFileStore.ts";
+import {
+  provisionWorkspaceFileRepository,
+} from "../../infrastructure/server/adapters/local/workspaceFileRepositoryProvisioning.ts";
 import {
   WebDavRequestError,
   type WebDavCollectionCreationResult,
@@ -760,7 +762,7 @@ const repositoryDirectory = await mkdtemp(
 );
 
 try {
-  await createWorkspaceFileRepository({
+  await provisionWorkspaceFileRepository({
     content: {
       schemaVersion: 4,
       syntax: { activeFileId: null, files: [] },
