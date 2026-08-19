@@ -223,7 +223,7 @@ test.describe("directory and structure operation flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v1/sync/workspaces/${interactionRepositoryId}`,
+        `/api/v2/sync/workspaces/${interactionRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const targetSource = snapshot.content.workspace.notes.find(
@@ -260,7 +260,7 @@ test.describe("directory and structure operation flows", () => {
     });
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v1/sync/workspaces/${interactionRepositoryId}`,
+        `/api/v2/sync/workspaces/${interactionRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const targetSource = snapshot.content.workspace.notes.find(

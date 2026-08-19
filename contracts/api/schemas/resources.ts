@@ -3,159 +3,159 @@
 import { Type, type Static } from "@sinclair/typebox";
 import type { TodoRecurrenceRuleDto } from "../../todo/types.ts";
 import {
-  ApiV1CanonicalTimestampSchema,
-  ApiV1IdentifierSchema,
-  ApiV1LocalDateSchema,
-  ApiV1NonNegativeIntegerSchema,
-  ApiV1ResourceVersionSchema,
+  ApiCanonicalTimestampSchema,
+  ApiIdentifierSchema,
+  ApiLocalDateSchema,
+  ApiNonNegativeIntegerSchema,
+  ApiResourceVersionSchema,
   nullable,
   schemaAs,
   strictObject,
 } from "./foundation.ts";
 
-export const ApiV1CtnDiagnosticSchema = strictObject({
+export const ApiCtnDiagnosticSchema = strictObject({
   code: Type.String(),
   column: Type.Integer({ minimum: 1 }),
   lineNumber: Type.Integer({ minimum: 1 }),
   message: Type.String(),
   severity: Type.Union([Type.Literal("error"), Type.Literal("warning")]),
 });
-export type ApiV1CtnDiagnosticDto = Static<
-  typeof ApiV1CtnDiagnosticSchema
+export type ApiCtnDiagnosticDto = Static<
+  typeof ApiCtnDiagnosticSchema
 >;
 
-export const ApiV1CtnBlockSchema = strictObject({
-  blockId: ApiV1IdentifierSchema,
+export const ApiCtnBlockSchema = strictObject({
+  blockId: ApiIdentifierSchema,
   body: nullable(Type.String()),
-  createdAt: ApiV1CanonicalTimestampSchema,
+  createdAt: ApiCanonicalTimestampSchema,
   endLineNumber: Type.Integer({ minimum: 1 }),
   kind: Type.Union([Type.Literal("line"), Type.Literal("multiline")]),
   label: Type.String(),
-  level: ApiV1NonNegativeIntegerSchema,
+  level: ApiNonNegativeIntegerSchema,
   lineNumber: Type.Integer({ minimum: 1 }),
-  order: ApiV1NonNegativeIntegerSchema,
-  parentBlockId: nullable(ApiV1IdentifierSchema),
-  semanticId: ApiV1IdentifierSchema,
+  order: ApiNonNegativeIntegerSchema,
+  parentBlockId: nullable(ApiIdentifierSchema),
+  semanticId: ApiIdentifierSchema,
   sourceRange: strictObject({
-    from: ApiV1NonNegativeIntegerSchema,
-    to: ApiV1NonNegativeIntegerSchema,
+    from: ApiNonNegativeIntegerSchema,
+    to: ApiNonNegativeIntegerSchema,
   }),
   text: Type.String(),
-  updatedAt: ApiV1CanonicalTimestampSchema,
+  updatedAt: ApiCanonicalTimestampSchema,
 });
-export type ApiV1CtnBlockDto = Static<typeof ApiV1CtnBlockSchema>;
+export type ApiCtnBlockDto = Static<typeof ApiCtnBlockSchema>;
 
-export const ApiV1SyntaxBlockRuleSchema = strictObject({
+export const ApiSyntaxBlockRuleSchema = strictObject({
   kind: Type.Union([Type.Literal("line"), Type.Literal("multiline")]),
   label: Type.String(),
   marker: Type.String(),
-  semanticId: ApiV1IdentifierSchema,
+  semanticId: ApiIdentifierSchema,
 });
-export type ApiV1SyntaxBlockRuleDto = Static<
-  typeof ApiV1SyntaxBlockRuleSchema
+export type ApiSyntaxBlockRuleDto = Static<
+  typeof ApiSyntaxBlockRuleSchema
 >;
 
-export const ApiV1SyntaxGuideSchema = strictObject({
-  blocks: Type.Array(ApiV1SyntaxBlockRuleSchema),
+export const ApiSyntaxGuideSchema = strictObject({
+  blocks: Type.Array(ApiSyntaxBlockRuleSchema),
   inline: Type.Array(strictObject({
     close: nullable(Type.String()),
     kind: Type.Union([Type.Literal("paired"), Type.Literal("single")]),
     label: Type.String(),
     open: Type.String(),
-    semanticId: ApiV1IdentifierSchema,
+    semanticId: ApiIdentifierSchema,
   })),
   name: Type.String(),
   root: nullable(strictObject({
     label: Type.String(),
-    semanticId: ApiV1IdentifierSchema,
+    semanticId: ApiIdentifierSchema,
   })),
 });
-export type ApiV1SyntaxGuideDto = Static<typeof ApiV1SyntaxGuideSchema>;
+export type ApiSyntaxGuideDto = Static<typeof ApiSyntaxGuideSchema>;
 
-export const ApiV1CtnDocumentSchema = strictObject({
-  blocks: Type.Array(ApiV1CtnBlockSchema),
-  createdAt: ApiV1CanonicalTimestampSchema,
-  diagnostics: Type.Array(ApiV1CtnDiagnosticSchema),
+export const ApiCtnDocumentSchema = strictObject({
+  blocks: Type.Array(ApiCtnBlockSchema),
+  createdAt: ApiCanonicalTimestampSchema,
+  diagnostics: Type.Array(ApiCtnDiagnosticSchema),
   editableText: Type.String(),
-  resourceId: ApiV1IdentifierSchema,
+  resourceId: ApiIdentifierSchema,
   textMode: Type.Union([Type.Literal("body"), Type.Literal("document")]),
   title: Type.String(),
-  updatedAt: ApiV1CanonicalTimestampSchema,
-  version: ApiV1ResourceVersionSchema,
-  writingGuide: nullable(ApiV1SyntaxGuideSchema),
+  updatedAt: ApiCanonicalTimestampSchema,
+  version: ApiResourceVersionSchema,
+  writingGuide: nullable(ApiSyntaxGuideSchema),
 });
-export type ApiV1CtnDocumentDto = Static<typeof ApiV1CtnDocumentSchema>;
+export type ApiCtnDocumentDto = Static<typeof ApiCtnDocumentSchema>;
 
-export const ApiV1WorkspaceSummarySchema = strictObject({
+export const ApiWorkspaceSummarySchema = strictObject({
   adapter: Type.Union([Type.Literal("local"), Type.Literal("webdav")]),
-  id: ApiV1IdentifierSchema,
+  id: ApiIdentifierSchema,
   label: Type.String(),
 });
-export type ApiV1WorkspaceSummaryDto = Static<
-  typeof ApiV1WorkspaceSummarySchema
+export type ApiWorkspaceSummaryDto = Static<
+  typeof ApiWorkspaceSummarySchema
 >;
 
-export const ApiV1WorkspaceListSchema = strictObject({
-  workspaces: Type.Array(ApiV1WorkspaceSummarySchema),
+export const ApiWorkspaceListSchema = strictObject({
+  workspaces: Type.Array(ApiWorkspaceSummarySchema),
 });
-export type ApiV1WorkspaceListDto = Static<
-  typeof ApiV1WorkspaceListSchema
+export type ApiWorkspaceListDto = Static<
+  typeof ApiWorkspaceListSchema
 >;
 
-export const ApiV1WorkspaceTreeNodeSchema = Type.Union([
+export const ApiWorkspaceTreeNodeSchema = Type.Union([
   strictObject({
-    folderId: ApiV1IdentifierSchema,
+    folderId: ApiIdentifierSchema,
     kind: Type.Literal("folder"),
-    order: ApiV1NonNegativeIntegerSchema,
-    parentFolderId: nullable(ApiV1IdentifierSchema),
+    order: ApiNonNegativeIntegerSchema,
+    parentFolderId: nullable(ApiIdentifierSchema),
     title: Type.String(),
-    version: ApiV1ResourceVersionSchema,
+    version: ApiResourceVersionSchema,
   }),
   strictObject({
     kind: Type.Literal("note"),
-    noteId: ApiV1IdentifierSchema,
-    order: ApiV1NonNegativeIntegerSchema,
-    parentFolderId: nullable(ApiV1IdentifierSchema),
+    noteId: ApiIdentifierSchema,
+    order: ApiNonNegativeIntegerSchema,
+    parentFolderId: nullable(ApiIdentifierSchema),
     title: Type.String(),
-    updatedAt: ApiV1CanonicalTimestampSchema,
-    version: ApiV1ResourceVersionSchema,
+    updatedAt: ApiCanonicalTimestampSchema,
+    version: ApiResourceVersionSchema,
   }),
 ]);
-export type ApiV1WorkspaceTreeNodeDto = Static<
-  typeof ApiV1WorkspaceTreeNodeSchema
+export type ApiWorkspaceTreeNodeDto = Static<
+  typeof ApiWorkspaceTreeNodeSchema
 >;
 
-export const ApiV1WorkspaceTreeSchema = strictObject({
-  nodes: Type.Array(ApiV1WorkspaceTreeNodeSchema),
-  repositoryId: ApiV1IdentifierSchema,
-  revision: ApiV1ResourceVersionSchema,
-  version: ApiV1ResourceVersionSchema,
+export const ApiWorkspaceTreeSchema = strictObject({
+  nodes: Type.Array(ApiWorkspaceTreeNodeSchema),
+  repositoryId: ApiIdentifierSchema,
+  revision: ApiResourceVersionSchema,
+  version: ApiResourceVersionSchema,
 });
-export type ApiV1WorkspaceTreeDto = Static<
-  typeof ApiV1WorkspaceTreeSchema
+export type ApiWorkspaceTreeDto = Static<
+  typeof ApiWorkspaceTreeSchema
 >;
 
-export const ApiV1JournalEntrySummarySchema = strictObject({
-  createdAt: ApiV1CanonicalTimestampSchema,
-  id: ApiV1IdentifierSchema,
+export const ApiJournalEntrySummarySchema = strictObject({
+  createdAt: ApiCanonicalTimestampSchema,
+  id: ApiIdentifierSchema,
   title: Type.String(),
-  updatedAt: ApiV1CanonicalTimestampSchema,
-  version: ApiV1ResourceVersionSchema,
+  updatedAt: ApiCanonicalTimestampSchema,
+  version: ApiResourceVersionSchema,
 });
-export type ApiV1JournalEntrySummaryDto = Static<
-  typeof ApiV1JournalEntrySummarySchema
+export type ApiJournalEntrySummaryDto = Static<
+  typeof ApiJournalEntrySummarySchema
 >;
 
-export const ApiV1JournalEntriesSchema = strictObject({
-  entries: Type.Array(ApiV1JournalEntrySummarySchema),
-  entriesVersion: ApiV1ResourceVersionSchema,
-  revision: ApiV1ResourceVersionSchema,
+export const ApiJournalEntriesSchema = strictObject({
+  entries: Type.Array(ApiJournalEntrySummarySchema),
+  entriesVersion: ApiResourceVersionSchema,
+  revision: ApiResourceVersionSchema,
 });
-export type ApiV1JournalEntriesDto = Static<
-  typeof ApiV1JournalEntriesSchema
+export type ApiJournalEntriesDto = Static<
+  typeof ApiJournalEntriesSchema
 >;
 
-export const ApiV1RecurrenceRuleSchema = schemaAs<TodoRecurrenceRuleDto>(
+export const ApiRecurrenceRuleSchema = schemaAs<TodoRecurrenceRuleDto>(
   Type.Union([
     strictObject({
       interval: Type.Integer({ minimum: 1 }),
@@ -177,53 +177,53 @@ export const ApiV1RecurrenceRuleSchema = schemaAs<TodoRecurrenceRuleDto>(
   ]),
 );
 
-export const ApiV1TodoRecurrenceProjectionSchema = strictObject({
+export const ApiTodoRecurrenceProjectionSchema = strictObject({
   active: Type.Boolean(),
-  completedCount: ApiV1NonNegativeIntegerSchema,
-  currentOccurrenceDate: nullable(ApiV1LocalDateSchema),
-  nextOccurrenceDate: nullable(ApiV1LocalDateSchema),
-  rule: ApiV1RecurrenceRuleSchema,
-  totalCount: ApiV1NonNegativeIntegerSchema,
+  completedCount: ApiNonNegativeIntegerSchema,
+  currentOccurrenceDate: nullable(ApiLocalDateSchema),
+  nextOccurrenceDate: nullable(ApiLocalDateSchema),
+  rule: ApiRecurrenceRuleSchema,
+  totalCount: ApiNonNegativeIntegerSchema,
 });
-export type ApiV1TodoRecurrenceProjectionDto = Static<
-  typeof ApiV1TodoRecurrenceProjectionSchema
+export type ApiTodoRecurrenceProjectionDto = Static<
+  typeof ApiTodoRecurrenceProjectionSchema
 >;
 
-export const ApiV1TodoItemStateSchema = strictObject({
-  blockId: ApiV1IdentifierSchema,
+export const ApiTodoItemStateSchema = strictObject({
+  blockId: ApiIdentifierSchema,
   completed: Type.Boolean(),
-  completedAt: nullable(ApiV1CanonicalTimestampSchema),
-  recurrence: nullable(ApiV1TodoRecurrenceProjectionSchema),
-  stateVersion: ApiV1ResourceVersionSchema,
+  completedAt: nullable(ApiCanonicalTimestampSchema),
+  recurrence: nullable(ApiTodoRecurrenceProjectionSchema),
+  stateVersion: ApiResourceVersionSchema,
 });
-export type ApiV1TodoItemStateDto = Static<
-  typeof ApiV1TodoItemStateSchema
+export type ApiTodoItemStateDto = Static<
+  typeof ApiTodoItemStateSchema
 >;
 
-export const ApiV1TodoCollectionSummarySchema = strictObject({
-  id: ApiV1IdentifierSchema,
+export const ApiTodoCollectionSummarySchema = strictObject({
+  id: ApiIdentifierSchema,
   name: Type.String(),
-  stateVersion: ApiV1ResourceVersionSchema,
-  version: ApiV1ResourceVersionSchema,
+  stateVersion: ApiResourceVersionSchema,
+  version: ApiResourceVersionSchema,
 });
-export type ApiV1TodoCollectionSummaryDto = Static<
-  typeof ApiV1TodoCollectionSummarySchema
+export type ApiTodoCollectionSummaryDto = Static<
+  typeof ApiTodoCollectionSummarySchema
 >;
 
-export const ApiV1TodoCollectionsSchema = strictObject({
-  collections: Type.Array(ApiV1TodoCollectionSummarySchema),
-  orderVersion: ApiV1ResourceVersionSchema,
-  revision: ApiV1ResourceVersionSchema,
+export const ApiTodoCollectionsSchema = strictObject({
+  collections: Type.Array(ApiTodoCollectionSummarySchema),
+  orderVersion: ApiResourceVersionSchema,
+  revision: ApiResourceVersionSchema,
 });
-export type ApiV1TodoCollectionsDto = Static<
-  typeof ApiV1TodoCollectionsSchema
+export type ApiTodoCollectionsDto = Static<
+  typeof ApiTodoCollectionsSchema
 >;
 
-export const ApiV1TodoCollectionSchema = strictObject({
-  document: ApiV1CtnDocumentSchema,
-  items: Type.Array(ApiV1TodoItemStateSchema),
-  stateVersion: ApiV1ResourceVersionSchema,
+export const ApiTodoCollectionSchema = strictObject({
+  document: ApiCtnDocumentSchema,
+  items: Type.Array(ApiTodoItemStateSchema),
+  stateVersion: ApiResourceVersionSchema,
 });
-export type ApiV1TodoCollectionDto = Static<
-  typeof ApiV1TodoCollectionSchema
+export type ApiTodoCollectionDto = Static<
+  typeof ApiTodoCollectionSchema
 >;

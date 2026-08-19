@@ -5,29 +5,29 @@ import type {
   ServerResponse,
 } from "node:http";
 import type {
-  ApiV1DomainChangeSetDto,
-  ApiV1PrincipalDto,
-  ApiV1RevisionCheckpointDto,
-  ApiV1Scope,
+  ApiDomainChangeSetDto,
+  ApiPrincipalDto,
+  ApiRevisionCheckpointDto,
+  ApiScope,
 } from "../../../../contracts/api/types.ts";
 import {
-  getApiV1RouteOperation,
-  type ResolvedApiV1Route,
+  type ApiOperationDefinition,
+  type ResolvedApiRoute,
 } from "../../../../contracts/api/registry.ts";
 import type { WorkspaceRepositoryCatalog } from "../../repository/catalog.ts";
-import type { ApiV1BuiltInCatalog } from "./ports.ts";
-import { ApiV1RequestError } from "./errors.ts";
-import { ApiV1EventHub } from "../sync/events.ts";
+import type { ApiBuiltInCatalog } from "./ports.ts";
+import { ApiRequestError } from "./errors.ts";
+import { ApiEventHub } from "../sync/events.ts";
 import {
-  ApiV1RevisionTracker,
-  type ApiV1TrackedDomain,
+  ApiRevisionTracker,
+  type ApiTrackedDomain,
 } from "../sync/revisionTracker.ts";
 import {
-  readApiV1RuntimeNow,
-  type ApiV1Runtime,
+  readApiRuntimeNow,
+  type ApiRuntime,
 } from "./runtime.ts";
-import type { ApiV1SearchService } from "../search.ts";
-import type { ApiV1StateStore } from "../state/store.ts";
+import type { ApiSearchService } from "../search.ts";
+import type { ApiStateStore } from "../state/store.ts";
 
 export type HandlerResult = {
   body: unknown;
@@ -36,10 +36,10 @@ export type HandlerResult = {
 
 
 export function requireBuiltInCatalog(
-  catalog: ApiV1BuiltInCatalog | undefined,
-): ApiV1BuiltInCatalog {
+  catalog: ApiBuiltInCatalog | undefined,
+): ApiBuiltInCatalog {
   if (!catalog) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "adapter_unavailable",
       "Built-in data catalog is unavailable",
     );
@@ -47,22 +47,19 @@ export function requireBuiltInCatalog(
   return catalog;
 }
 
-export function assertScope(principal: ApiV1PrincipalDto, scope: ApiV1Scope) {
+export function assertScope(principal: ApiPrincipalDto, scope: ApiScope) {
   if (!principal.scopes.includes(scope)) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "forbidden",
       `Required API scope is missing: ${scope}`,
     );
   }
 }
 
-export function assertRouteScopes(
-  principal: ApiV1PrincipalDto,
-  route: ResolvedApiV1Route,
-  method: string,
+export function assertOperationScopes(
+  principal: ApiPrincipalDto,
+  operation: ApiOperationDefinition,
 ) {
-  const operation = getApiV1RouteOperation(route, method);
-
   for (const scope of operation.scopes) {
     assertScope(principal, scope);
   }
@@ -70,7 +67,7 @@ export function assertRouteScopes(
     operation.anyScopes.length > 0 &&
     !operation.anyScopes.some((scope) => principal.scopes.includes(scope))
   ) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "forbidden",
       `One readable API scope is required: ${operation.anyScopes.join(", ")}`,
     );
@@ -78,14 +75,14 @@ export function assertRouteScopes(
 }
 
 export function assertRepositoryAllowed(
-  principal: ApiV1PrincipalDto,
+  principal: ApiPrincipalDto,
   repositoryId: string,
 ) {
   if (
     principal.repositoryIds !== null &&
     !principal.repositoryIds.includes(repositoryId)
   ) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "forbidden",
       "Token is not allowed to access this repository",
     );
@@ -96,39 +93,39 @@ export function createCheckpoint({
   eventHub,
   revisionTracker,
 }: {
-  eventHub: ApiV1EventHub;
-  revisionTracker: ApiV1RevisionTracker;
-}): ApiV1RevisionCheckpointDto {
+  eventHub: ApiEventHub;
+  revisionTracker: ApiRevisionTracker;
+}): ApiRevisionCheckpointDto {
   return revisionTracker.checkpoint({
     sequence: eventHub.sequence,
     streamId: eventHub.streamId,
   });
 }
 
-export type ApiV1HandlerContext = {
-  builtInCatalog?: ApiV1BuiltInCatalog;
+export type ApiHandlerContext = {
+  builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
-  eventHub: ApiV1EventHub;
-  method: string;
-  principal: ApiV1PrincipalDto;
+  eventHub: ApiEventHub;
+  operation: ApiOperationDefinition;
+  principal: ApiPrincipalDto;
   query: unknown;
   readJsonBody(): Promise<unknown>;
   requestId: string;
   response: ServerResponse;
   responseHeaders: OutgoingHttpHeaders;
-  revisionTracker: ApiV1RevisionTracker;
-  route: ResolvedApiV1Route;
-  runtime: ApiV1Runtime;
-  search: ApiV1SearchService | null;
-  stateStore: ApiV1StateStore;
+  revisionTracker: ApiRevisionTracker;
+  route: ResolvedApiRoute;
+  runtime: ApiRuntime;
+  search: ApiSearchService | null;
+  stateStore: ApiStateStore;
 };
 
 export function publishTrackedChanges(
   context: Pick<
-    ApiV1HandlerContext,
+    ApiHandlerContext,
     "eventHub" | "revisionTracker"
   >,
-  changes: ApiV1DomainChangeSetDto,
+  changes: ApiDomainChangeSetDto,
 ) {
   context.eventHub.publish(
     createCheckpoint(context),
@@ -137,7 +134,7 @@ export function publishTrackedChanges(
 }
 
 export function observeWorkspaceRevision(
-  context: ApiV1HandlerContext,
+  context: ApiHandlerContext,
   repositoryId: string,
   revision: `sha256:${string}`,
 ) {
@@ -149,7 +146,7 @@ export function observeWorkspaceRevision(
   }
   publishTrackedChanges(context, {
     blocks: [],
-    occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+    occurredAt: readApiRuntimeNow(context.runtime).timestamp,
     resources: [{
       domain: "workspace",
       kind: "updated",
@@ -161,8 +158,8 @@ export function observeWorkspaceRevision(
 }
 
 export function observeBuiltInRevision(
-  context: ApiV1HandlerContext,
-  domain: ApiV1TrackedDomain,
+  context: ApiHandlerContext,
+  domain: ApiTrackedDomain,
   revision: `sha256:${string}`,
 ) {
   if (
@@ -172,7 +169,7 @@ export function observeBuiltInRevision(
   }
   publishTrackedChanges(context, {
     blocks: [],
-    occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+    occurredAt: readApiRuntimeNow(context.runtime).timestamp,
     resources: [{
       domain,
       kind: "updated",

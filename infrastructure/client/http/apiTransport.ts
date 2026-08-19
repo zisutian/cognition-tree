@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { parseApiV1Error } from "../../../contracts/api/parseError";
-import type { ApiV1ErrorCodeDto } from "../../../contracts/api/types";
+import { parseApiError } from "../../../contracts/api/parseError";
+import type { ApiErrorCodeDto } from "../../../contracts/api/types";
 
 export const apiRequestTimeoutMs = 30_000;
 
@@ -12,7 +12,7 @@ export type HttpApiTransportOptions = {
 };
 
 export class HttpApiResponseError extends Error {
-  apiCode: ApiV1ErrorCodeDto | null;
+  apiCode: ApiErrorCodeDto | null;
   details: Record<string, unknown> | null;
   retryable: boolean;
   statusCode: number;
@@ -25,7 +25,7 @@ export class HttpApiResponseError extends Error {
       retryable = false,
       statusCode,
     }: {
-      apiCode?: ApiV1ErrorCodeDto | null;
+      apiCode?: ApiErrorCodeDto | null;
       details?: Record<string, unknown> | null;
       retryable?: boolean;
       statusCode: number;
@@ -87,7 +87,7 @@ async function assertSuccessfulResponse(response: Response) {
   let apiError;
 
   try {
-    apiError = parseApiV1Error(
+    apiError = parseApiError(
       await readResponseJson(response, retryableStatus),
     );
   } catch (error) {

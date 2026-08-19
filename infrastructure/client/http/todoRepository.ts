@@ -49,7 +49,7 @@ export function createHttpTodoRepositoryBackend({
       parseSnapshot: parseTodoSnapshot,
       serializeCommit: serializeJsonIteratively,
     },
-    endpoint: "/api/v1/sync/todo",
+    endpoint: "/api/v2/sync/todo",
     fetch: fetchFn,
     token,
   });

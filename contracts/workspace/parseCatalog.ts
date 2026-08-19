@@ -8,7 +8,6 @@ import {
   readRequiredContractString,
 } from "./contractValue.ts";
 import { parseWorkspaceRepositoryContent } from "./parseRepository.ts";
-import { parsePortableName } from "../../core/naming/portableName.ts";
 import type {
   CreateRepositoryDto,
   RepositoryAuthenticationDto,
@@ -229,22 +228,16 @@ export function parseRepositoryDescriptor(
   };
 }
 
-function readPortableRepositoryLabel(
+function readRepositoryLabel(
   value: Record<string, unknown>,
   path: string,
 ) {
-  const label = readRequiredContractString(value, "label", path);
-
-  try {
-    return parsePortableName(label, "Repository label");
-  } catch {
-    failContract(`${path}.label`, "expected a portable repository label");
-  }
+  return readRequiredContractString(value, "label", path);
 }
 
 export function parseRenameRepository(value: unknown): RenameRepositoryDto {
   const request = readContractObject(value, "$"),
-    label = readPortableRepositoryLabel(request, "$");
+    label = readRepositoryLabel(request, "$");
   assertExactContractFields(request, renameRepositoryFields, "$");
   return { label };
 }
@@ -343,7 +336,7 @@ export function parseCreateRepository(value: unknown): CreateRepositoryDto {
     return {
       adapter,
       content: parseWorkspaceRepositoryContent(request.content),
-      label: readPortableRepositoryLabel(request, "$"),
+      label: readRepositoryLabel(request, "$"),
     };
   }
   if (adapter === "webdav") {
@@ -352,7 +345,7 @@ export function parseCreateRepository(value: unknown): CreateRepositoryDto {
       adapter,
       authentication: parseRepositoryAuthentication(request.authentication),
       initialContent: parseWorkspaceRepositoryContent(request.initialContent),
-      label: readPortableRepositoryLabel(request, "$"),
+      label: readRepositoryLabel(request, "$"),
       url: readRequiredContractString(request, "url", "$"),
     };
   }

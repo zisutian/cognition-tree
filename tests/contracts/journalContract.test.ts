@@ -5,9 +5,7 @@ import {
   UnsupportedWireVersionError,
   WireContractError,
 } from "../../contracts/common/contractValue.ts";
-import { defaultJournalSyntaxSource as contractSyntax } from "../../contracts/journal/defaultContent.ts";
 import {
-  createEmptyJournalContent,
   isJournalEntryId,
   parseJournalCommit,
   parseJournalContent,
@@ -15,7 +13,7 @@ import {
 } from "../../contracts/journal/parseJournal.ts";
 import { serializeJournalRevisionContent } from "../../contracts/journal/revision.ts";
 import type { JournalContentDto } from "../../contracts/journal/types.ts";
-import { defaultJournalSyntaxSource as domainSyntax } from "../../core/journal/syntax/defaultJournalSyntax.ts";
+import { defaultJournalSyntaxSource } from "../../core/journal/syntax/defaultJournalSyntax.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const entryId = "journal-entry-00000000-0000-4000-8000-000000000001";
@@ -35,7 +33,7 @@ function journalContent(): JournalContentDto {
       lastIssuedSequence: 3,
     }],
     schemaVersion: 3 as const,
-    syntaxSource: contractSyntax,
+    syntaxSource: defaultJournalSyntaxSource,
   };
 }
 
@@ -52,12 +50,6 @@ describe("Journal v3 wire contract", () => {
       baseRevision: revision,
       content,
     });
-    expect(createEmptyJournalContent()).toEqual({
-      days: [],
-      schemaVersion: 3,
-      syntaxSource: contractSyntax,
-    });
-    expect(contractSyntax).toBe(domainSyntax);
   });
 
   it("keeps stable ids, day order, entry order, and counters exact", () => {

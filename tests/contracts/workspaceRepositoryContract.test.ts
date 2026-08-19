@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../contracts/workspace/contractValue";
-import { parseApiV1Error } from "../../contracts/api/parseError";
+import { parseApiError } from "../../contracts/api/parseError";
 import {
   parseCreateRepository,
   parseRepositoryCatalog,
@@ -70,7 +70,7 @@ describe("workspace repository v4 contract", () => {
       url: "https://dav.example.test/notes",
     });
     expect(parseRenameRepository({ label: "  Renamed  " })).toEqual({
-      label: "Renamed",
+      label: "  Renamed  ",
     });
     expect(createPortableNameKey("  ＲＥＭＯＴＥ  ")).toBe("remote");
   });
@@ -263,7 +263,7 @@ describe("workspace repository v4 contract", () => {
     expect(parseRepositoryDeletionResult({ status: "deleting" })).toEqual({
       status: "deleting",
     });
-    expect(parseApiV1Error({
+    expect(parseApiError({
       code: "resource_conflict",
       details: { currentRevision: revisionA },
       message: "changed",
@@ -348,10 +348,10 @@ describe("workspace repository v4 contract", () => {
       .toThrow("unsupported repository deletion mode");
     expect(() => parseRepositoryDeletionResult({ status: "finished" }))
       .toThrow("unsupported repository deletion status");
-    expect(() => parseRenameRepository({ label: "   " }))
-      .toThrow("expected a portable repository label");
-    expect(() => parseRenameRepository({ label: "bad:name" }))
-      .toThrow("expected a portable repository label");
+    expect(parseRenameRepository({ label: "   " })).toEqual({ label: "   " });
+    expect(parseRenameRepository({ label: "bad:name" })).toEqual({
+      label: "bad:name",
+    });
     expect(() => parseRenameRepository({ label: "Primary", extra: true }))
       .toThrow("unsupported field");
   });

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1CtnDocumentDto,
-  ApiV1WorkspaceTreeDto,
-  ApiV1WorkspaceTreeNodeDto,
+  ApiCtnDocumentDto,
+  ApiWorkspaceTreeDto,
+  ApiWorkspaceTreeNodeDto,
 } from "../../../../contracts/api/types.ts";
 import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
@@ -15,42 +15,42 @@ import { projectRawCanonicalCtnBody } from "../../../../core/ctn/analysis/editab
 import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
 import type { WorkspaceParseIndex } from "../../../../core/workspace/indexes/workspaceParseIndex.ts";
 import type { WorkspaceStructureIndex } from "../../../../core/workspace/indexes/workspaceStructureIndex.ts";
-import { projectApiV1CtnDocument } from "./ctn.ts";
+import { projectApiCtnDocument } from "./ctn.ts";
 import {
   createWorkspaceFolderVersion,
   createWorkspaceNoteVersion,
   createWorkspaceTreeVersion,
 } from "./versions.ts";
 
-export type ApiV1WorkspaceAnalysis = {
+export type ApiWorkspaceAnalysis = {
   parseIndex: WorkspaceParseIndex | null;
   structure: WorkspaceStructureIndex;
   syntax: CtnCompiledSyntax | null;
 };
 
-export function createApiV1WorkspaceAnalysis(
+export function createApiWorkspaceAnalysis(
   content: WorkspaceRepositoryContentDto,
-): ApiV1WorkspaceAnalysis {
-  return projectApiV1WorkspaceAnalysis(
+): ApiWorkspaceAnalysis {
+  return projectApiWorkspaceAnalysis(
     prepareWorkspaceRepositoryContent(content),
   );
 }
 
-export function projectApiV1WorkspaceAnalysis(
+export function projectApiWorkspaceAnalysis(
   preparation: WorkspaceRepositoryPreparation,
-): ApiV1WorkspaceAnalysis {
+): ApiWorkspaceAnalysis {
   return {
     parseIndex: preparation.analysisIndex,
     structure: preparation.workspace,
     syntax: preparation.workspaceSyntax?.syntax ?? null,
   };
 }
-export function projectApiV1WorkspaceTree(
+export function projectApiWorkspaceTree(
   repositoryId: string,
   revision: ContentRevisionDto,
-  analysis: ApiV1WorkspaceAnalysis,
-): ApiV1WorkspaceTreeDto {
-  const nodes: ApiV1WorkspaceTreeNodeDto[] = [];
+  analysis: ApiWorkspaceAnalysis,
+): ApiWorkspaceTreeDto {
+  const nodes: ApiWorkspaceTreeNodeDto[] = [];
   const pending = [...analysis.structure.data.tree]
     .reverse()
     .map((node, reverseIndex) => ({
@@ -116,10 +116,10 @@ export function projectApiV1WorkspaceTree(
   };
 }
 
-export function projectApiV1WorkspaceNote(
-  analysis: ApiV1WorkspaceAnalysis,
+export function projectApiWorkspaceNote(
+  analysis: ApiWorkspaceAnalysis,
   noteId: string,
-): ApiV1CtnDocumentDto | null {
+): ApiCtnDocumentDto | null {
   const entry = analysis.structure.noteEntryById.get(noteId);
 
   if (!entry) return null;
@@ -127,7 +127,7 @@ export function projectApiV1WorkspaceNote(
   const parsed = analysis.parseIndex?.getParsedNote(noteId);
 
   if (parsed) {
-    return projectApiV1CtnDocument({
+    return projectApiCtnDocument({
       analysis: parsed.analysis,
       createdAt: entry.header.createdAt,
       resourceId: noteId,

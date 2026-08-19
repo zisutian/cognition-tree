@@ -19,7 +19,7 @@ function redactLogText(source: string) {
     .replace(unquotedRepositoryPath, "[repository-path]");
 }
 
-export function createSafeApiV1LogError(error: unknown) {
+export function createSafeApiLogError(error: unknown) {
   if (!(error instanceof Error)) {
     return new Error(redactLogText(String(error)));
   }

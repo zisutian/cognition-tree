@@ -4,14 +4,14 @@ import type {
   DomainChangeEventSource,
   DomainChangeNotification,
 } from "../../../application/sync/domainChangeEvents";
-import { parseApiV1Event } from "../../../contracts/api/parse";
+import { parseApiEvent } from "../../../contracts/api/parse";
 import { resolveApiUrl } from "./apiTransport";
 
 const initialReconnectDelayMs = 1_000;
 const maximumReconnectDelayMs = 30_000;
 
 function projectNotification(
-  input: ReturnType<typeof parseApiV1Event>,
+  input: ReturnType<typeof parseApiEvent>,
 ): DomainChangeNotification {
   const resources = input.type === "change" ? input.changes.resources : [];
 
@@ -49,7 +49,7 @@ function readSseData(frame: string) {
   return data.length > 0 ? data : null;
 }
 
-export function createHttpApiV1EventSource({
+export function createHttpApiEventSource({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
@@ -83,7 +83,7 @@ export function createHttpApiV1EventSource({
 
       if (token) headers.set("Authorization", `Bearer ${token}`);
       const response = await fetchFn(
-        resolveApiUrl(baseUrl, "/api/v1/events"),
+        resolveApiUrl(baseUrl, "/api/v2/events"),
         {
           cache: "no-store",
           headers,
@@ -112,7 +112,7 @@ export function createHttpApiV1EventSource({
           const data = readSseData(frame);
 
           if (data) {
-            publish(projectNotification(parseApiV1Event(JSON.parse(data))));
+            publish(projectNotification(parseApiEvent(JSON.parse(data))));
           }
           boundary = buffer.indexOf("\n\n");
         }

@@ -36,7 +36,7 @@ export const sourceLayerImports: Readonly<
   Record<SourceRoot, readonly SourceRoot[]>
 > = {
   application: ["application", "core"],
-  contracts: ["contracts", "core"],
+  contracts: ["contracts"],
   core: ["core"],
   infrastructure: ["infrastructure", "application", "contracts", "core"],
   presentation: ["presentation", "infrastructure", "application", "core"],
@@ -267,13 +267,13 @@ const uniqueOwners: readonly UniqueOwner[] = [
   [
     "CTN API operation declarations",
     contractModules,
-    /\bpath:\s*"\/api\/v1\//,
+    /\bpath:\s*"\/api\/v2\//,
     /^contracts\/api\/registry\.ts$/,
   ],
   [
     "CTN API request dispatch",
     contractModules,
-    /\bexport function parseApiV1OperationRequest\s*\(/,
+    /\bexport function parseApiOperationRequest\s*\(/,
     /^contracts\/api\/registry\.ts$/,
   ],
   [
@@ -372,6 +372,25 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     pattern:
       /\b(?:analyzeCtnSource|parseCtnSourceText|create(?:Journal|Todo|Workspace)ParseIndex)\s*\(/,
     scope: /^presentation\/activities\/search\//,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "legacy HTTP API namespace",
+    pattern: /["'`]\/api\/v1(?:\/|["'`])/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "versioned internal API identifiers",
+    pattern: /\b(?:ApiV1|apiV1)\b/,
+  },
+  {
+    corpus: infrastructureModules,
+    matches: 0,
+    name: "duplicate API route-kind dispatch",
+    pattern: /\b(?:route\.kind|context\.method)\b/,
+    scope: /^infrastructure\/server\/api\//,
   },
   {
     corpus: sourceModules,

@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import {
-  parseRenameRepository,
-} from "../../../contracts/workspace/parseCatalog";
 import type {
   RepositoryCatalogDto,
   RepositoryDescriptorDto,
@@ -10,6 +7,7 @@ import type {
 import {
   createPortableNameKey,
   getPortableNameIssue,
+  parsePortableName,
 } from "../../../core/naming/portableName";
 
 const reservedLabelKeys = new Set([
@@ -22,7 +20,13 @@ export function parseAvailableWorkspaceRepositoryLabel(
   repositories: readonly RepositoryDescriptorDto[],
   excludedRepositoryId: string | null = null,
 ) {
-  const parsed = parseRenameRepository({ label }).label;
+  let parsed: string;
+
+  try {
+    parsed = parsePortableName(label, "Repository label");
+  } catch {
+    throw new Error("Expected a portable repository label");
+  }
   const key = createPortableNameKey(parsed);
 
   if (reservedLabelKeys.has(key)) {

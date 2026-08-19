@@ -1,48 +1,49 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1AuditEntryDto,
-  ApiV1CommandResultDto,
-  ApiV1JournalCommandDto,
-  ApiV1PrincipalDto,
-  ApiV1TodoCommandDto,
-  ApiV1WorkspaceCommandDto,
+  ApiAuditEntryDto,
+  ApiCommandResultDto,
+  ApiJournalCommandRequestDto,
+  ApiPrincipalDto,
+  ApiTodoCommandRequestDto,
+  ApiWorkspaceCommandRequestDto,
 } from "../../../../contracts/api/types.ts";
-import { apiV1NotFound } from "../http/errors.ts";
-import { executeApiV1JournalCommand } from "./journal.ts";
-import { executeApiV1TodoCommand } from "./todo.ts";
-import { executeApiV1WorkspaceCommand } from "./workspace.ts";
-import { ApiV1EventHub } from "../sync/events.ts";
-import { ApiV1RevisionTracker } from "../sync/revisionTracker.ts";
+import { apiNotFound } from "../http/errors.ts";
+import { executeApiJournalCommand } from "./journal.ts";
+import { executeApiTodoCommand } from "./todo.ts";
+import { executeApiWorkspaceCommand } from "./workspace.ts";
+import { ApiEventHub } from "../sync/events.ts";
+import { ApiRevisionTracker } from "../sync/revisionTracker.ts";
 import {
   assertRepositoryAllowed,
   assertScope,
   createCheckpoint,
   requireBuiltInCatalog,
-  type ApiV1HandlerContext,
+  type ApiHandlerContext,
 } from "../http/handlerContext.ts";
 import {
-  readApiV1RuntimeNow,
-  type ApiV1Runtime,
+  readApiRuntimeNow,
+  type ApiRuntime,
 } from "../http/runtime.ts";
-import { ApiV1StateStore } from "../state/store.ts";
+import { ApiStateStore } from "../state/store.ts";
 
-type ApiV1DomainCommandDto =
-  | ApiV1JournalCommandDto
-  | ApiV1TodoCommandDto
-  | ApiV1WorkspaceCommandDto;
+type ApiDomainCommandRequestDto =
+  | ApiJournalCommandRequestDto
+  | ApiTodoCommandRequestDto
+  | ApiWorkspaceCommandRequestDto;
+type ApiDomainCommandDto = ApiDomainCommandRequestDto["command"];
+type ApiCommittedDomainCommandRequestDto = Extract<
+  ApiDomainCommandRequestDto,
+  { mode: "commit" }
+>;
 
 function assertDeleteScope(
-  principal: ApiV1PrincipalDto,
-  command: ApiV1DomainCommandDto,
+  principal: ApiPrincipalDto,
+  command: ApiDomainCommandDto,
 ) {
-  if (
-    command.kind === "delete-entry"
-  ) {
+  if (command.kind === "delete-entry") {
     assertScope(principal, "journal:delete");
-  } else if (
-    command.kind === "delete-collection"
-  ) {
+  } else if (command.kind === "delete-collection") {
     assertScope(principal, "todo:delete");
   } else if (
     command.kind === "delete-folder" ||
@@ -52,23 +53,20 @@ function assertDeleteScope(
   }
 }
 
-function commandRecord(command: ApiV1DomainCommandDto) {
+function commandRecord(command: ApiDomainCommandDto) {
   return command as unknown as Record<string, unknown>;
 }
 
-function expectedVersions(command: ApiV1DomainCommandDto) {
+function expectedVersions(request: ApiDomainCommandRequestDto) {
   return Object.fromEntries(
-    Object.entries(commandRecord(command))
-      .filter(([key, value]) =>
-        key.startsWith("expected") &&
-        typeof value === "string" &&
-        value.startsWith("sha256:")
-      )
-      .map(([key, value]) => [key, value]),
-  ) as ApiV1AuditEntryDto["beforeVersions"];
+    Object.entries(request.preconditions)
+      .filter(([, value]) =>
+        typeof value === "string" && value.startsWith("sha256:")
+      ),
+  ) as ApiAuditEntryDto["beforeVersions"];
 }
 
-function resultingVersions(result: ApiV1CommandResultDto) {
+function resultingVersions(result: ApiCommandResultDto) {
   return Object.fromEntries(
     result.changes.resources.flatMap(({ resourceId, version }) =>
       version ? [[resourceId, version]] : []
@@ -76,7 +74,7 @@ function resultingVersions(result: ApiV1CommandResultDto) {
   );
 }
 
-function commandResourceIds(command: ApiV1DomainCommandDto) {
+function commandResourceIds(command: ApiDomainCommandDto) {
   const record = commandRecord(command);
 
   return [
@@ -93,27 +91,29 @@ function commandResourceIds(command: ApiV1DomainCommandDto) {
 }
 
 function auditEntry({
-  command,
   principal,
+  request,
   requestId,
   result,
   timestamp,
 }: {
-  command: ApiV1DomainCommandDto;
-  principal: ApiV1PrincipalDto;
+  principal: ApiPrincipalDto;
+  request: ApiCommittedDomainCommandRequestDto;
   requestId: string;
-  result: ApiV1CommandResultDto | null;
+  result: ApiCommandResultDto | null;
   timestamp: string;
-}): ApiV1AuditEntryDto {
+}): ApiAuditEntryDto {
+  const { command } = request;
+
   return {
     afterVersions: result ? resultingVersions(result) : {},
-    beforeVersions: expectedVersions(command),
+    beforeVersions: expectedVersions(request),
     blockIds: result
       ? [...new Set(result.changes.blocks.map(({ blockId }) => blockId))]
       : "blockId" in command && typeof command.blockId === "string"
         ? [command.blockId]
         : [],
-    commandId: command.commandId,
+    commandId: request.commandId,
     commandKind: command.kind,
     occurredAt: timestamp,
     principalId: principal.id,
@@ -126,36 +126,32 @@ function auditEntry({
 }
 
 async function executeCommand({
-  command,
-  execute,
   eventHub,
+  execute,
   onCommitted,
   principal,
+  request,
   requestId,
   stateStore,
   revisionTracker,
   runtime,
 }: {
-  command: {
-    commandId: string;
-    kind: string;
-    mode: "commit" | "preview";
-  } & ApiV1DomainCommandDto;
-  eventHub: ApiV1EventHub;
-  execute(): Promise<ApiV1CommandResultDto>;
+  eventHub: ApiEventHub;
+  execute(): Promise<ApiCommandResultDto>;
   onCommitted(revision: `sha256:${string}`): void;
-  principal: ApiV1PrincipalDto;
+  principal: ApiPrincipalDto;
+  request: ApiDomainCommandRequestDto;
   requestId: string;
-  runtime: ApiV1Runtime;
-  revisionTracker: ApiV1RevisionTracker;
-  stateStore: ApiV1StateStore;
+  runtime: ApiRuntime;
+  revisionTracker: ApiRevisionTracker;
+  stateStore: ApiStateStore;
 }) {
-  assertDeleteScope(principal, command);
-  if (command.mode === "preview") return execute();
+  assertDeleteScope(principal, request.command);
+  if (request.mode === "preview") return execute();
   const { replayed, result } = await stateStore.runIdempotentCommand(
     principal.id,
-    command.commandId,
-    command,
+    request.commandId,
+    request,
     async () => {
       try {
         const committed = await execute();
@@ -167,11 +163,11 @@ async function executeCommand({
       } catch (error) {
         if (principal.kind === "automation") {
           await stateStore.appendAudit(auditEntry({
-            command,
             principal,
+            request,
             requestId,
             result: null,
-            timestamp: readApiV1RuntimeNow(runtime).timestamp,
+            timestamp: readApiRuntimeNow(runtime).timestamp,
           }));
         }
         throw error;
@@ -180,8 +176,8 @@ async function executeCommand({
     principal.kind === "automation"
       ? (committed) =>
         auditEntry({
-          command,
           principal,
+          request,
           requestId,
           result: committed,
           timestamp: committed.changes.occurredAt,
@@ -199,29 +195,29 @@ async function executeCommand({
   return result;
 }
 
-export async function handleApiV1Command(context: ApiV1HandlerContext) {
+export async function handleApiCommand(context: ApiHandlerContext) {
   const input = await context.readJsonBody();
 
-  if (context.route.kind === "workspace-command") {
+  if (context.operation.operationId === "executeWorkspaceCommand") {
     const repositoryId = context.route.repositoryId;
 
-    if (!repositoryId) apiV1NotFound();
+    if (!repositoryId) apiNotFound();
     assertRepositoryAllowed(context.principal, repositoryId);
-    const command = input as ApiV1WorkspaceCommandDto;
+    const request = input as ApiWorkspaceCommandRequestDto;
     const store = await context.catalog.getStore(repositoryId);
     const result = await executeCommand({
-      command,
       eventHub: context.eventHub,
       execute: () =>
-        executeApiV1WorkspaceCommand({
-          command,
+        executeApiWorkspaceCommand({
           repositoryId,
+          request,
           runtime: context.runtime,
           store,
         }),
       principal: context.principal,
       onCommitted: (revision) =>
         context.revisionTracker.observeWorkspace(repositoryId, revision),
+      request,
       requestId: context.requestId,
       revisionTracker: context.revisionTracker,
       runtime: context.runtime,
@@ -232,21 +228,21 @@ export async function handleApiV1Command(context: ApiV1HandlerContext) {
   }
   const catalog = requireBuiltInCatalog(context.builtInCatalog);
 
-  if (context.route.kind === "journal-command") {
-    const command = input as ApiV1JournalCommandDto;
+  if (context.operation.operationId === "executeJournalCommand") {
+    const request = input as ApiJournalCommandRequestDto;
     const store = await catalog.getStore("journal");
     const result = await executeCommand({
-      command,
       eventHub: context.eventHub,
       execute: () =>
-        executeApiV1JournalCommand({
-          command,
+        executeApiJournalCommand({
+          request,
           runtime: context.runtime,
           store,
         }),
       principal: context.principal,
       onCommitted: (revision) =>
         context.revisionTracker.observeDomain("journal", revision),
+      request,
       requestId: context.requestId,
       revisionTracker: context.revisionTracker,
       runtime: context.runtime,
@@ -255,20 +251,20 @@ export async function handleApiV1Command(context: ApiV1HandlerContext) {
 
     return { body: result, statusCode: 200 };
   }
-  const command = input as ApiV1TodoCommandDto;
+  const request = input as ApiTodoCommandRequestDto;
   const store = await catalog.getStore("todo");
   const result = await executeCommand({
-    command,
     eventHub: context.eventHub,
     execute: () =>
-      executeApiV1TodoCommand({
-        command,
+      executeApiTodoCommand({
+        request,
         runtime: context.runtime,
         store,
       }),
     principal: context.principal,
     onCommitted: (revision) =>
       context.revisionTracker.observeDomain("todo", revision),
+    request,
     requestId: context.requestId,
     revisionTracker: context.revisionTracker,
     runtime: context.runtime,

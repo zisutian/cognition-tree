@@ -22,11 +22,11 @@ import type {
   BuiltInIssueDto,
   BuiltInRetryResultDto,
 } from "../../../../contracts/built-ins/types.ts";
-import { createEmptyJournalContent } from "../../../../contracts/journal/parseJournal.ts";
 import { journalStorageEpoch } from "../../../../contracts/journal/storageEpoch.ts";
 import type { JournalContentDto } from "../../../../contracts/journal/types.ts";
 import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
-import { createEmptyTodoContent } from "../../../../contracts/todo/parseTodo.ts";
+import { createEmptyJournalContent } from "../../../../core/journal/model/journalContent.ts";
+import { createEmptyTodoContent } from "../../../../core/todo/model/todoContent.ts";
 import { todoStorageEpoch } from "../../../../contracts/todo/storageEpoch.ts";
 import type { TodoContentDto } from "../../../../contracts/todo/types.ts";
 import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";

@@ -11,7 +11,6 @@ import {
   readWireString,
   UnsupportedWireVersionError,
 } from "../common/contractValue.ts";
-import { defaultJournalSyntaxSource } from "./defaultContent.ts";
 import type {
   JournalCommitDto,
   JournalCommitResultDto,
@@ -178,12 +177,4 @@ export function parseJournalCommitResult(value: unknown): JournalCommitResultDto
 
   assertExactWireFields(contract, result, resultFields, "$");
   return { revision: parseContentRevision(result.revision, "$.revision") };
-}
-
-export function createEmptyJournalContent(): JournalContentDto {
-  return {
-    schemaVersion: 3,
-    syntaxSource: defaultJournalSyntaxSource,
-    days: [],
-  };
 }

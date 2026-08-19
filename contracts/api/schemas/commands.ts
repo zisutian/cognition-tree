@@ -1,24 +1,38 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Type, type Static } from "@sinclair/typebox";
+import { Type, type Static, type TSchema } from "@sinclair/typebox";
 import {
-  ApiV1IdentifierSchema,
-  ApiV1LocalDateSchema,
-  ApiV1NonNegativeIntegerSchema,
-  ApiV1ResourceVersionSchema,
-  ApiV1UuidSchema,
+  ApiIdentifierSchema,
+  ApiLocalDateSchema,
+  ApiNonNegativeIntegerSchema,
+  ApiResourceVersionSchema,
+  ApiUuidSchema,
   nullable,
   strictObject,
 } from "./foundation.ts";
-import { ApiV1RecurrenceRuleSchema } from "./resources.ts";
+import { ApiRecurrenceRuleSchema } from "./resources.ts";
 
-const commandBase = {
-  commandId: ApiV1UuidSchema,
-  mode: Type.Union([Type.Literal("preview"), Type.Literal("commit")]),
-};
+function commandRequest<
+  Command extends TSchema,
+  Preconditions extends TSchema,
+>(command: Command, preconditions: Preconditions) {
+  return Type.Union([
+    strictObject({
+      command,
+      mode: Type.Literal("preview"),
+      preconditions,
+    }),
+    strictObject({
+      command,
+      commandId: ApiUuidSchema,
+      mode: Type.Literal("commit"),
+      preconditions,
+    }),
+  ]);
+}
 
 const blockTarget = {
-  targetBlockId: nullable(ApiV1IdentifierSchema),
+  targetBlockId: nullable(ApiIdentifierSchema),
   targetKind: Type.Union([
     Type.Literal("above"),
     Type.Literal("below"),
@@ -27,175 +41,198 @@ const blockTarget = {
   ]),
 };
 
-export const ApiV1WorkspaceCommandSchema = Type.Union([
-  strictObject({
-    ...commandBase,
-    expectedTreeVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("create-folder"),
-    parentFolderId: nullable(ApiV1IdentifierSchema),
-    title: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    body: Type.String(),
-    expectedTreeVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("create-note"),
-    parentFolderId: nullable(ApiV1IdentifierSchema),
-    title: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    confirm: Type.Literal(true),
-    expectedTreeVersion: ApiV1ResourceVersionSchema,
-    folderId: ApiV1IdentifierSchema,
-    kind: Type.Literal("delete-folder"),
-  }),
-  strictObject({
-    ...commandBase,
-    confirm: Type.Literal(true),
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("delete-note"),
-    noteId: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    expectedSourceVersion: ApiV1ResourceVersionSchema,
-    expectedTargetVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("move-block"),
-    sourceBlockId: ApiV1UuidSchema,
-    sourceNoteId: ApiV1IdentifierSchema,
-    ...blockTarget,
-    targetNoteId: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    expectedTreeVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("move-tree-node"),
-    nodeId: ApiV1IdentifierSchema,
-    nodeKind: Type.Union([Type.Literal("folder"), Type.Literal("note")]),
-    parentFolderId: nullable(ApiV1IdentifierSchema),
-    toIndex: ApiV1NonNegativeIntegerSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    folderId: ApiV1IdentifierSchema,
-    kind: Type.Literal("rename-folder"),
-    title: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("rename-note"),
-    noteId: ApiV1IdentifierSchema,
-    title: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    editableText: Type.String(),
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("replace-note-source"),
-    noteId: ApiV1IdentifierSchema,
-  }),
+export const ApiWorkspaceCommandRequestSchema = Type.Union([
+  commandRequest(
+    strictObject({
+      kind: Type.Literal("create-folder"),
+      parentFolderId: nullable(ApiIdentifierSchema),
+      title: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedTreeVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      body: Type.String(),
+      kind: Type.Literal("create-note"),
+      parentFolderId: nullable(ApiIdentifierSchema),
+      title: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedTreeVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      folderId: ApiIdentifierSchema,
+      kind: Type.Literal("delete-folder"),
+    }),
+    strictObject({ expectedTreeVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      kind: Type.Literal("delete-note"),
+      noteId: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      kind: Type.Literal("move-block"),
+      sourceBlockId: ApiUuidSchema,
+      sourceNoteId: ApiIdentifierSchema,
+      ...blockTarget,
+      targetNoteId: ApiIdentifierSchema,
+    }),
+    strictObject({
+      expectedSourceVersion: ApiResourceVersionSchema,
+      expectedTargetVersion: ApiResourceVersionSchema,
+    }),
+  ),
+  commandRequest(
+    strictObject({
+      kind: Type.Literal("move-tree-node"),
+      nodeId: ApiIdentifierSchema,
+      nodeKind: Type.Union([Type.Literal("folder"), Type.Literal("note")]),
+      parentFolderId: nullable(ApiIdentifierSchema),
+      toIndex: ApiNonNegativeIntegerSchema,
+    }),
+    strictObject({ expectedTreeVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      folderId: ApiIdentifierSchema,
+      kind: Type.Literal("rename-folder"),
+      title: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      kind: Type.Literal("rename-note"),
+      noteId: ApiIdentifierSchema,
+      title: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      editableText: Type.String(),
+      kind: Type.Literal("replace-note-source"),
+      noteId: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
 ]);
-export type ApiV1WorkspaceCommandDto = Static<
-  typeof ApiV1WorkspaceCommandSchema
+export type ApiWorkspaceCommandRequestDto = Static<
+  typeof ApiWorkspaceCommandRequestSchema
 >;
 
-export const ApiV1JournalCommandSchema = Type.Union([
-  strictObject({
-    ...commandBase,
-    body: Type.String(),
-    expectedEntriesVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("create-entry"),
-  }),
-  strictObject({
-    ...commandBase,
-    confirm: Type.Literal(true),
-    entryId: ApiV1IdentifierSchema,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("delete-entry"),
-  }),
-  strictObject({
-    ...commandBase,
-    body: Type.String(),
-    entryId: ApiV1IdentifierSchema,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("replace-entry-body"),
-  }),
+export const ApiJournalCommandRequestSchema = Type.Union([
+  commandRequest(
+    strictObject({
+      body: Type.String(),
+      kind: Type.Literal("create-entry"),
+    }),
+    strictObject({ expectedEntriesVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      entryId: ApiIdentifierSchema,
+      kind: Type.Literal("delete-entry"),
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      body: Type.String(),
+      entryId: ApiIdentifierSchema,
+      kind: Type.Literal("replace-entry-body"),
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
 ]);
-export type ApiV1JournalCommandDto = Static<
-  typeof ApiV1JournalCommandSchema
+export type ApiJournalCommandRequestDto = Static<
+  typeof ApiJournalCommandRequestSchema
 >;
 
-export const ApiV1TodoCommandSchema = Type.Union([
-  strictObject({
-    ...commandBase,
-    body: Type.String(),
-    expectedOrderVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("create-collection"),
-    name: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    collectionId: ApiV1IdentifierSchema,
-    confirm: Type.Literal(true),
-    expectedStateVersion: ApiV1ResourceVersionSchema,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("delete-collection"),
-  }),
-  strictObject({
-    ...commandBase,
-    blockId: ApiV1UuidSchema,
-    collectionId: ApiV1IdentifierSchema,
-    completed: Type.Boolean(),
-    expectedStateVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("set-completion"),
-    occurrenceDate: nullable(ApiV1LocalDateSchema),
-  }),
-  strictObject({
-    ...commandBase,
-    blockId: ApiV1UuidSchema,
-    collectionId: ApiV1IdentifierSchema,
-    expectedStateVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("set-recurrence"),
-    rule: ApiV1RecurrenceRuleSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    blockId: ApiV1UuidSchema,
-    collectionId: ApiV1IdentifierSchema,
-    expectedStateVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("stop-recurrence"),
-  }),
-  strictObject({
-    ...commandBase,
-    collectionId: ApiV1IdentifierSchema,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("move-block"),
-    sourceBlockId: ApiV1UuidSchema,
-    ...blockTarget,
-  }),
-  strictObject({
-    ...commandBase,
-    collectionId: ApiV1IdentifierSchema,
-    expectedOrderVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("move-collection"),
-    toIndex: ApiV1NonNegativeIntegerSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    collectionId: ApiV1IdentifierSchema,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("rename-collection"),
-    name: ApiV1IdentifierSchema,
-  }),
-  strictObject({
-    ...commandBase,
-    body: Type.String(),
-    collectionId: ApiV1IdentifierSchema,
-    expectedVersion: ApiV1ResourceVersionSchema,
-    kind: Type.Literal("replace-collection-body"),
-  }),
+export const ApiTodoCommandRequestSchema = Type.Union([
+  commandRequest(
+    strictObject({
+      body: Type.String(),
+      kind: Type.Literal("create-collection"),
+      name: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedOrderVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("delete-collection"),
+    }),
+    strictObject({
+      expectedStateVersion: ApiResourceVersionSchema,
+      expectedVersion: ApiResourceVersionSchema,
+    }),
+  ),
+  commandRequest(
+    strictObject({
+      blockId: ApiUuidSchema,
+      collectionId: ApiIdentifierSchema,
+      completed: Type.Boolean(),
+      kind: Type.Literal("set-completion"),
+      occurrenceDate: nullable(ApiLocalDateSchema),
+    }),
+    strictObject({ expectedStateVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      blockId: ApiUuidSchema,
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("set-recurrence"),
+      rule: ApiRecurrenceRuleSchema,
+    }),
+    strictObject({ expectedStateVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      blockId: ApiUuidSchema,
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("stop-recurrence"),
+    }),
+    strictObject({ expectedStateVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("move-block"),
+      sourceBlockId: ApiUuidSchema,
+      ...blockTarget,
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("move-collection"),
+      toIndex: ApiNonNegativeIntegerSchema,
+    }),
+    strictObject({ expectedOrderVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("rename-collection"),
+      name: ApiIdentifierSchema,
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
+  commandRequest(
+    strictObject({
+      body: Type.String(),
+      collectionId: ApiIdentifierSchema,
+      kind: Type.Literal("replace-collection-body"),
+    }),
+    strictObject({ expectedVersion: ApiResourceVersionSchema }),
+  ),
 ]);
-export type ApiV1TodoCommandDto = Static<typeof ApiV1TodoCommandSchema>;
+export type ApiTodoCommandRequestDto = Static<
+  typeof ApiTodoCommandRequestSchema
+>;

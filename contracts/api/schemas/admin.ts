@@ -2,80 +2,80 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import {
-  ApiV1CanonicalTimestampSchema,
-  ApiV1IdentifierSchema,
-  ApiV1ResourceVersionSchema,
-  apiV1AutomationScopeSchema,
-  apiV1ScopeSchema,
+  ApiCanonicalTimestampSchema,
+  ApiIdentifierSchema,
+  ApiResourceVersionSchema,
+  apiAutomationScopeSchema,
+  apiScopeSchema,
   nullable,
   strictObject,
 } from "./foundation.ts";
 
-export const ApiV1TokenSchema = strictObject({
-  createdAt: ApiV1CanonicalTimestampSchema,
-  id: ApiV1IdentifierSchema,
-  lastUsedAt: nullable(ApiV1CanonicalTimestampSchema),
-  name: ApiV1IdentifierSchema,
-  prefix: ApiV1IdentifierSchema,
-  repositoryIds: nullable(Type.Array(ApiV1IdentifierSchema, {
+export const ApiTokenSchema = strictObject({
+  createdAt: ApiCanonicalTimestampSchema,
+  id: ApiIdentifierSchema,
+  lastUsedAt: nullable(ApiCanonicalTimestampSchema),
+  name: ApiIdentifierSchema,
+  prefix: ApiIdentifierSchema,
+  repositoryIds: nullable(Type.Array(ApiIdentifierSchema, {
     uniqueItems: true,
   })),
-  scopes: Type.Array(apiV1ScopeSchema, { uniqueItems: true }),
+  scopes: Type.Array(apiScopeSchema, { uniqueItems: true }),
 });
-export type ApiV1TokenDto = Static<typeof ApiV1TokenSchema>;
+export type ApiTokenDto = Static<typeof ApiTokenSchema>;
 
-export const ApiV1CreateTokenRequestSchema = strictObject({
+export const ApiCreateTokenRequestSchema = strictObject({
   name: Type.String({ maxLength: 80, minLength: 1 }),
-  repositoryIds: nullable(Type.Array(ApiV1IdentifierSchema, {
+  repositoryIds: nullable(Type.Array(ApiIdentifierSchema, {
     uniqueItems: true,
   })),
-  scopes: Type.Array(apiV1AutomationScopeSchema, {
+  scopes: Type.Array(apiAutomationScopeSchema, {
     minItems: 1,
     uniqueItems: true,
   }),
 });
-export type ApiV1CreateTokenRequestDto = Static<
-  typeof ApiV1CreateTokenRequestSchema
+export type ApiCreateTokenRequestDto = Static<
+  typeof ApiCreateTokenRequestSchema
 >;
 
-export const ApiV1CreatedTokenSchema = strictObject({
-  secret: ApiV1IdentifierSchema,
-  token: ApiV1TokenSchema,
+export const ApiCreatedTokenSchema = strictObject({
+  secret: ApiIdentifierSchema,
+  token: ApiTokenSchema,
 });
-export type ApiV1CreatedTokenDto = Static<
-  typeof ApiV1CreatedTokenSchema
+export type ApiCreatedTokenDto = Static<
+  typeof ApiCreatedTokenSchema
 >;
 
 const revisionRecordSchema = Type.Record(
   Type.String(),
-  ApiV1ResourceVersionSchema,
+  ApiResourceVersionSchema,
 );
 
-export const ApiV1AuditEntrySchema = strictObject({
+export const ApiAuditEntrySchema = strictObject({
   afterVersions: revisionRecordSchema,
   beforeVersions: revisionRecordSchema,
-  blockIds: Type.Array(ApiV1IdentifierSchema),
-  commandId: ApiV1IdentifierSchema,
-  commandKind: ApiV1IdentifierSchema,
-  occurredAt: ApiV1CanonicalTimestampSchema,
-  principalId: ApiV1IdentifierSchema,
-  requestId: ApiV1IdentifierSchema,
-  resourceIds: Type.Array(ApiV1IdentifierSchema),
+  blockIds: Type.Array(ApiIdentifierSchema),
+  commandId: ApiIdentifierSchema,
+  commandKind: ApiIdentifierSchema,
+  occurredAt: ApiCanonicalTimestampSchema,
+  principalId: ApiIdentifierSchema,
+  requestId: ApiIdentifierSchema,
+  resourceIds: Type.Array(ApiIdentifierSchema),
   result: Type.Union([Type.Literal("committed"), Type.Literal("failed")]),
 });
-export type ApiV1AuditEntryDto = Static<typeof ApiV1AuditEntrySchema>;
+export type ApiAuditEntryDto = Static<typeof ApiAuditEntrySchema>;
 
-export const ApiV1AuditPageSchema = strictObject({
+export const ApiAuditPageSchema = strictObject({
   cursor: nullable(Type.String()),
-  entries: Type.Array(ApiV1AuditEntrySchema),
+  entries: Type.Array(ApiAuditEntrySchema),
 });
-export type ApiV1AuditPageDto = Static<typeof ApiV1AuditPageSchema>;
+export type ApiAuditPageDto = Static<typeof ApiAuditPageSchema>;
 
-export const ApiV1TokenListSchema = strictObject({
-  tokens: Type.Array(ApiV1TokenSchema),
+export const ApiTokenListSchema = strictObject({
+  tokens: Type.Array(ApiTokenSchema),
 });
 
-export const ApiV1HealthSchema = strictObject({ ok: Type.Literal(true) });
-export const ApiV1RevokedSchema = strictObject({
+export const ApiHealthSchema = strictObject({ ok: Type.Literal(true) });
+export const ApiRevokedSchema = strictObject({
   revoked: Type.Literal(true),
 });

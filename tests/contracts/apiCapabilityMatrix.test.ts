@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { describe, expect, it } from "vitest";
-import { apiV1Operations } from "../../contracts/api/registry.ts";
+import { apiOperations } from "../../contracts/api/registry.ts";
 
 const expectedCapabilities = [
   ["GET", "getHealth"],
@@ -40,9 +40,9 @@ const expectedCapabilities = [
 describe("HTTP API capability matrix", () => {
   it("keeps every supported operation under one authoritative catalog", () => {
     expect(
-      apiV1Operations.map(({ method, operationId }) => [method, operationId]),
+      apiOperations.map(({ method, operationId }) => [method, operationId]),
     ).toEqual(expectedCapabilities);
-    expect(new Set(apiV1Operations.map(({ operationId }) => operationId)).size)
+    expect(new Set(apiOperations.map(({ operationId }) => operationId)).size)
       .toBe(expectedCapabilities.length);
   });
 });

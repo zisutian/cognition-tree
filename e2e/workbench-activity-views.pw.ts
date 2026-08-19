@@ -284,7 +284,7 @@ test.describe("activity view flows", () => {
     page,
   }) => {
     const beforeResponse = await api.get(
-      `/api/v1/sync/workspaces/${invalidSyntaxRepositoryId}`,
+      `/api/v2/sync/workspaces/${invalidSyntaxRepositoryId}`,
     );
     const beforeSnapshot = (await beforeResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -321,7 +321,7 @@ test.describe("activity view flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v1/sync/workspaces/${invalidSyntaxRepositoryId}`,
+        `/api/v2/sync/workspaces/${invalidSyntaxRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const source = snapshot.content.workspace.notes.find(

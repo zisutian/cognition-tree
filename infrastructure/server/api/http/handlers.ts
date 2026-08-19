@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { createApiV1OpenApiDocument } from "../../../../contracts/api/openApi.ts";
-import type { ApiV1SearchRequestDto } from "../../../../contracts/api/types.ts";
+import { createApiOpenApiDocument } from "../../../../contracts/api/openApi.ts";
+import type { ApiSearchRequestDto } from "../../../../contracts/api/types.ts";
 import type { WorkspaceRepositoryCatalog } from "../../repository/catalog.ts";
-import type { ApiV1BuiltInCatalog } from "./ports.ts";
-import { ApiV1RequestError } from "./errors.ts";
+import type { ApiBuiltInCatalog } from "./ports.ts";
+import { ApiRequestError } from "./errors.ts";
 import {
-  assertRouteScopes,
+  assertOperationScopes,
   createCheckpoint,
   requireBuiltInCatalog,
-  type ApiV1HandlerContext,
+  type ApiHandlerContext,
   type HandlerResult,
 } from "./handlerContext.ts";
 import {
@@ -17,8 +17,8 @@ import {
   handleTodoQuery,
   handleWorkspaceQuery,
 } from "./queryHandlers.ts";
-import { handleApiV1Command } from "../commands/handler.ts";
-import { handleApiV1Sync } from "../sync/handlers.ts";
+import { handleApiCommand } from "../commands/handler.ts";
+import { handleApiSync } from "../sync/handlers.ts";
 import {
   journalResourceVersions,
   todoResourceVersions,
@@ -29,27 +29,27 @@ import {
   handleTokenAdmin,
   parseAuditQuery,
 } from "./adminHandlers.ts";
-import { ApiV1SearchService } from "../search.ts";
+import { ApiSearchService } from "../search.ts";
 
-export async function handleApiV1Route(
-  context: ApiV1HandlerContext,
+export async function handleApiRoute(
+  context: ApiHandlerContext,
 ): Promise<HandlerResult | null> {
-  assertRouteScopes(context.principal, context.route, context.method);
-  const { route } = context;
+  assertOperationScopes(context.principal, context.operation);
+  const { operation, route } = context;
 
-  if (route.kind === "health") {
+  if (operation.operationId === "getHealth") {
     return { body: { ok: true }, statusCode: 200 };
   }
-  if (route.kind === "capabilities") {
+  if (operation.operationId === "getCapabilities") {
     return {
-      body: { apiVersion: 1, principal: context.principal },
+      body: { apiVersion: 2, principal: context.principal },
       statusCode: 200,
     };
   }
-  if (route.kind === "openapi") {
-    return { body: createApiV1OpenApiDocument(), statusCode: 200 };
+  if (operation.operationId === "getOpenApi") {
+    return { body: createApiOpenApiDocument(), statusCode: 200 };
   }
-  if (route.kind === "events") {
+  if (operation.operationId === "streamEvents") {
     requireBuiltInCatalog(context.builtInCatalog);
     context.eventHub.connect({
       checkpoint: createCheckpoint({
@@ -62,70 +62,76 @@ export async function handleApiV1Route(
     });
     return null;
   }
-  if (route.kind === "search") {
+  if (operation.operationId === "searchContent") {
     const search = context.search;
 
     if (!search) {
-      throw new ApiV1RequestError(
+      throw new ApiRequestError(
         "adapter_unavailable",
         "Search is unavailable",
       );
     }
     return {
       body: await search.search(
-        await context.readJsonBody() as ApiV1SearchRequestDto,
+        await context.readJsonBody() as ApiSearchRequestDto,
         context.principal,
       ),
       statusCode: 200,
     };
   }
-  if (
-    route.kind === "workspaces" ||
-    route.kind === "workspace-tree" ||
-    route.kind === "workspace-note"
-  ) {
+  if ([
+    "listWorkspaces",
+    "getWorkspaceTree",
+    "getWorkspaceNote",
+  ].includes(operation.operationId)) {
     return handleWorkspaceQuery(context);
   }
-  if (route.kind === "journal-entries" || route.kind === "journal-entry") {
+  if (["listJournalEntries", "getJournalEntry"].includes(
+    operation.operationId,
+  )) {
     return handleJournalQuery(context);
   }
-  if (
-    route.kind === "todo-collections" ||
-    route.kind === "todo-collection"
-  ) {
+  if (["listTodoCollections", "getTodoCollection"].includes(
+    operation.operationId,
+  )) {
     return handleTodoQuery(context);
   }
-  if (
-    route.kind === "workspace-command" ||
-    route.kind === "journal-command" ||
-    route.kind === "todo-command"
-  ) {
-    return handleApiV1Command(context);
+  if ([
+    "executeWorkspaceCommand",
+    "executeJournalCommand",
+    "executeTodoCommand",
+  ].includes(operation.operationId)) {
+    return handleApiCommand(context);
   }
-  if (
-    route.kind === "sync-workspace" ||
-    route.kind === "sync-journal" ||
-    route.kind === "sync-todo"
-  ) {
-    return handleApiV1Sync(context, {
+  if ([
+    "getWorkspaceSyncSnapshot",
+    "putWorkspaceSyncSnapshot",
+    "getJournalSyncSnapshot",
+    "putJournalSyncSnapshot",
+    "getTodoSyncSnapshot",
+    "putTodoSyncSnapshot",
+  ].includes(operation.operationId)) {
+    return handleApiSync(context, {
       journal: journalResourceVersions,
       todo: todoResourceVersions,
       workspace: workspaceResourceVersions,
     });
   }
-  if (
-    route.kind === "admin-repositories" ||
-    route.kind === "admin-repository"
-  ) {
+  if ([
+    "listAdminRepositories",
+    "createAdminRepository",
+    "renameAdminRepository",
+    "deleteAdminRepository",
+  ].includes(operation.operationId)) {
     return handleRepositoryAdmin(context);
   }
-  if (route.kind === "admin-built-ins") {
+  if (operation.operationId === "listBuiltIns") {
     return {
       body: await requireBuiltInCatalog(context.builtInCatalog).listBuiltIns(),
       statusCode: 200,
     };
   }
-  if (route.kind === "admin-built-in-retry") {
+  if (operation.operationId === "retryBuiltIn") {
     return {
       body: await requireBuiltInCatalog(context.builtInCatalog).retry(
         route.builtInId,
@@ -133,26 +139,28 @@ export async function handleApiV1Route(
       statusCode: 200,
     };
   }
-  if (route.kind === "admin-tokens" || route.kind === "admin-token") {
+  if (["listApiTokens", "createApiToken", "revokeToken"].includes(
+    operation.operationId,
+  )) {
     return handleTokenAdmin(context);
   }
-  if (route.kind === "admin-audit") {
+  if (operation.operationId === "listAuditEntries") {
     return {
       body: await context.stateStore.listAudit(parseAuditQuery(context.query)),
       statusCode: 200,
     };
   }
-  throw new ApiV1RequestError("not_found", "Not found");
+  throw new ApiRequestError("not_found", "Not found");
 }
 
-export function createApiV1SearchService({
+export function createApiSearchService({
   builtInCatalog,
   catalog,
 }: {
-  builtInCatalog?: ApiV1BuiltInCatalog;
+  builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
 }) {
   return builtInCatalog
-    ? new ApiV1SearchService({ builtInCatalog, catalog })
+    ? new ApiSearchService({ builtInCatalog, catalog })
     : null;
 }

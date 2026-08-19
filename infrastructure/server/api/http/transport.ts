@@ -6,8 +6,8 @@ import type {
   ServerResponse,
 } from "node:http";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import { apiV1AllowedMethods } from "../../../../contracts/api/registry.ts";
-import { ApiV1RequestError } from "./errors.ts";
+import { apiAllowedMethods } from "../../../../contracts/api/registry.ts";
+import { ApiRequestError } from "./errors.ts";
 
 const maximumBodyBytes = 20 * 1024 * 1024;
 
@@ -17,13 +17,13 @@ function getRequestHeader(request: IncomingMessage, name: string) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function createApiV1ResponseHeaders(
+export function createApiResponseHeaders(
   origin: string | null,
   requestId: string,
 ): OutgoingHttpHeaders {
   return {
     "Access-Control-Allow-Headers": "authorization, content-type",
-    "Access-Control-Allow-Methods": apiV1AllowedMethods,
+    "Access-Control-Allow-Methods": apiAllowedMethods,
     ...(origin ? { "Access-Control-Allow-Origin": origin } : {}),
     "Cache-Control": "no-store",
     Vary: "Origin",
@@ -31,7 +31,7 @@ export function createApiV1ResponseHeaders(
   };
 }
 
-export function sendApiV1Json(
+export function sendApiJson(
   response: ServerResponse,
   statusCode: number,
   body: unknown,
@@ -44,7 +44,7 @@ export function sendApiV1Json(
   response.end(serializeJsonIteratively(body));
 }
 
-export function sendApiV1NoContent(
+export function sendApiNoContent(
   response: ServerResponse,
   headers: OutgoingHttpHeaders,
 ) {
@@ -52,26 +52,26 @@ export function sendApiV1NoContent(
   response.end();
 }
 
-export function assertApiV1RequestHasNoBody(request: IncomingMessage) {
+export function assertApiRequestHasNoBody(request: IncomingMessage) {
   const contentLength = getRequestHeader(request, "content-length");
   const transferEncoding = getRequestHeader(request, "transfer-encoding");
 
   if ((contentLength && contentLength !== "0") || transferEncoding) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "invalid_request",
       "Request body is not allowed for this method",
     );
   }
 }
 
-export async function readApiV1JsonBody(
+export async function readApiJsonBody(
   request: IncomingMessage,
 ): Promise<unknown> {
   const contentType = getRequestHeader(request, "content-type")
     ?.split(";", 1)[0]?.trim().toLowerCase();
 
   if (contentType !== "application/json") {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "invalid_request",
       "Content-Type must be application/json",
       { statusCode: 415 },
@@ -80,13 +80,13 @@ export async function readApiV1JsonBody(
   const contentLength = getRequestHeader(request, "content-length");
 
   if (contentLength && !/^\d+$/.test(contentLength)) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "invalid_request",
       "Content-Length is invalid",
     );
   }
   if (contentLength && Number(contentLength) > maximumBodyBytes) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "invalid_request",
       "Request body is too large",
       { statusCode: 413 },
@@ -100,7 +100,7 @@ export async function readApiV1JsonBody(
 
     size += buffer.length;
     if (size > maximumBodyBytes) {
-      throw new ApiV1RequestError(
+      throw new ApiRequestError(
         "invalid_request",
         "Request body is too large",
         { statusCode: 413 },
@@ -111,7 +111,7 @@ export async function readApiV1JsonBody(
   const source = Buffer.concat(chunks).toString("utf8").trim();
 
   if (!source) {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "invalid_request",
       "Request body is empty",
     );
@@ -119,7 +119,7 @@ export async function readApiV1JsonBody(
   try {
     return JSON.parse(source) as unknown;
   } catch {
-    throw new ApiV1RequestError(
+    throw new ApiRequestError(
       "invalid_request",
       "Request body is invalid JSON",
     );

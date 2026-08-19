@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import {
-  apiV1AutomationScopes,
-  type ApiV1CreateTokenRequestDto,
-  type ApiV1Scope,
+  apiAutomationScopes,
+  type ApiCreateTokenRequestDto,
+  type ApiScope,
 } from "../../../../contracts/api/types.ts";
 import { parseRepositoryDeletionMode } from "../../../../contracts/workspace/parseCatalog.ts";
 import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
 } from "../../../../contracts/workspace/types.ts";
-import { ApiV1RequestError, apiV1NotFound } from "./errors.ts";
+import { ApiRequestError, apiNotFound } from "./errors.ts";
 import {
   publishTrackedChanges,
-  type ApiV1HandlerContext,
+  type ApiHandlerContext,
 } from "./handlerContext.ts";
-import { readApiV1RuntimeNow } from "./runtime.ts";
+import { readApiRuntimeNow } from "./runtime.ts";
 
-const automationTokenScopes = new Set<ApiV1Scope>(apiV1AutomationScopes);
+const automationTokenScopes = new Set<ApiScope>(apiAutomationScopes);
 
-export async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
-  const { catalog, method, route } = context;
+export async function handleRepositoryAdmin(context: ApiHandlerContext) {
+  const { catalog, operation, route } = context;
 
-  if (route.kind === "admin-repositories") {
-    if (method === "GET") {
-      return { body: await catalog.listRepositories(), statusCode: 200 };
-    }
+  if (operation.operationId === "listAdminRepositories") {
+    return { body: await catalog.listRepositories(), statusCode: 200 };
+  }
+  if (operation.operationId === "createAdminRepository") {
     const descriptor = await catalog.createRepository(
       await context.readJsonBody() as CreateRepositoryDto,
     );
@@ -36,7 +36,7 @@ export async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
     context.revisionTracker.observeWorkspace(descriptor.id, revision);
     await publishTrackedChanges(context, {
       blocks: [],
-      occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+      occurredAt: readApiRuntimeNow(context.runtime).timestamp,
       resources: [{
         domain: "workspace",
         kind: "created",
@@ -49,7 +49,7 @@ export async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
   }
   const repositoryId = route.repositoryId ?? "";
 
-  if (method === "PATCH") {
+  if (operation.operationId === "renameAdminRepository") {
     const descriptor = await catalog.renameRepository(
       repositoryId,
       await context.readJsonBody() as RenameRepositoryDto,
@@ -61,7 +61,7 @@ export async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
     context.revisionTracker.observeWorkspace(repositoryId, revision);
     await publishTrackedChanges(context, {
       blocks: [],
-      occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+      occurredAt: readApiRuntimeNow(context.runtime).timestamp,
       resources: [{
         domain: "workspace",
         kind: "updated",
@@ -83,7 +83,7 @@ export async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
   context.revisionTracker.removeWorkspace(repositoryId);
   await publishTrackedChanges(context, {
     blocks: [],
-    occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+    occurredAt: readApiRuntimeNow(context.runtime).timestamp,
     resources: [{
       domain: "workspace",
       kind: "deleted",
@@ -96,21 +96,21 @@ export async function handleRepositoryAdmin(context: ApiV1HandlerContext) {
     statusCode: result.status === "deleting" ? 202 : 200,
   };
 }
-export async function handleTokenAdmin(context: ApiV1HandlerContext) {
-  const { method, route, stateStore } = context;
+export async function handleTokenAdmin(context: ApiHandlerContext) {
+  const { operation, route, stateStore } = context;
 
-  if (route.kind === "admin-tokens") {
-    if (method === "GET") {
-      return { body: { tokens: await stateStore.listTokens() }, statusCode: 200 };
-    }
+  if (operation.operationId === "listApiTokens") {
+    return { body: { tokens: await stateStore.listTokens() }, statusCode: 200 };
+  }
+  if (operation.operationId === "createApiToken") {
     const request =
-      await context.readJsonBody() as ApiV1CreateTokenRequestDto;
+      await context.readJsonBody() as ApiCreateTokenRequestDto;
 
     if (
       request.scopes.length === 0 ||
       request.scopes.some((scope) => !automationTokenScopes.has(scope))
     ) {
-      throw new ApiV1RequestError(
+      throw new ApiRequestError(
         "domain_validation_failed",
         "Automation tokens may only use domain read, write, and delete scopes",
       );
@@ -120,7 +120,7 @@ export async function handleTokenAdmin(context: ApiV1HandlerContext) {
         request.scopes.includes(`${domain}:delete`) &&
         !request.scopes.includes(`${domain}:write`)
       ) {
-        throw new ApiV1RequestError(
+        throw new ApiRequestError(
           "domain_validation_failed",
           `${domain}:delete requires ${domain}:write`,
         );
@@ -132,7 +132,7 @@ export async function handleTokenAdmin(context: ApiV1HandlerContext) {
 
       for (const id of request.repositoryIds) {
         if (!knownIds.has(id)) {
-          throw new ApiV1RequestError(
+          throw new ApiRequestError(
             "domain_validation_failed",
             `Repository allowlist contains an unknown repository: ${id}`,
           );
@@ -147,7 +147,7 @@ export async function handleTokenAdmin(context: ApiV1HandlerContext) {
   const tokenId = route.tokenId ?? "";
   const removed = await stateStore.revokeToken(tokenId);
 
-  if (!removed) apiV1NotFound("API token does not exist");
+  if (!removed) apiNotFound("API token does not exist");
   context.eventHub.revokePrincipal(tokenId);
   return { body: { revoked: true }, statusCode: 200 };
 }

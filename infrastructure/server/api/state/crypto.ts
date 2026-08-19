@@ -3,17 +3,17 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 
-export function createApiV1StateDigest(source: string) {
+export function createApiStateDigest(source: string) {
   return createHash("sha256").update(source, "utf8").digest("hex");
 }
 
-export function createApiV1CommandRequestDigest(value: unknown) {
-  return createApiV1StateDigest(
+export function createApiCommandRequestDigest(value: unknown) {
+  return createApiStateDigest(
     serializeJsonIteratively(value, { sortObjectKeys: true }),
   );
 }
 
-export function apiV1StateDigestsEqual(left: string, right: string) {
+export function apiStateDigestsEqual(left: string, right: string) {
   const leftBuffer = Buffer.from(left, "hex");
   const rightBuffer = Buffer.from(right, "hex");
 

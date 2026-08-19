@@ -1,29 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1AuditEntryDto,
-  ApiV1AuditPageDto,
+  ApiAuditEntryDto,
+  ApiAuditPageDto,
 } from "../../../../contracts/api/types.ts";
 import {
-  parseApiV1AuditPage,
+  parseApiAuditPage,
 } from "../../../../contracts/api/parse.ts";
 import {
-  ApiV1StatePartition,
-  assertApiV1StateFields,
-  requireApiV1StateRecord,
+  ApiStatePartition,
+  assertApiStateFields,
+  requireApiStateRecord,
 } from "./partition.ts";
 
 const auditStateFormatVersion = 1;
 
 type AuditState = {
-  entries: ApiV1AuditEntryDto[];
+  entries: ApiAuditEntryDto[];
   formatVersion: typeof auditStateFormatVersion;
 };
 
 function parseAuditState(value: unknown): AuditState {
-  const record = requireApiV1StateRecord(value, "audit state");
+  const record = requireApiStateRecord(value, "audit state");
 
-  assertApiV1StateFields(
+  assertApiStateFields(
     record,
     ["entries", "formatVersion"],
     "audit state",
@@ -35,7 +35,7 @@ function parseAuditState(value: unknown): AuditState {
     throw new Error("audit state has an invalid format.");
   }
   return {
-    entries: parseApiV1AuditPage({
+    entries: parseApiAuditPage({
       cursor: null,
       entries: record.entries,
     }).entries,
@@ -43,17 +43,17 @@ function parseAuditState(value: unknown): AuditState {
   };
 }
 
-function committedCommandKey(entry: ApiV1AuditEntryDto) {
+function committedCommandKey(entry: ApiAuditEntryDto) {
   return entry.result === "committed"
     ? `${entry.principalId}\u0000${entry.commandId}\u0000committed`
     : null;
 }
 
-export class ApiV1AuditStore {
-  readonly #partition: ApiV1StatePartition<AuditState>;
+export class ApiAuditStore {
+  readonly #partition: ApiStatePartition<AuditState>;
 
   constructor(directory: string) {
-    this.#partition = new ApiV1StatePartition({
+    this.#partition = new ApiStatePartition({
       createInitial: () => ({
         entries: [],
         formatVersion: auditStateFormatVersion,
@@ -65,7 +65,7 @@ export class ApiV1AuditStore {
     });
   }
 
-  append(entry: ApiV1AuditEntryDto, deduplicateCommit = false): Promise<void> {
+  append(entry: ApiAuditEntryDto, deduplicateCommit = false): Promise<void> {
     return this.#partition.mutate((state) => {
       const key = deduplicateCommit ? committedCommandKey(entry) : null;
 
@@ -86,7 +86,7 @@ export class ApiV1AuditStore {
   }: {
     cursor: number;
     limit: number;
-  }): Promise<ApiV1AuditPageDto> {
+  }): Promise<ApiAuditPageDto> {
     return this.#partition.read((state) => {
       const entries = state.entries
         .slice()

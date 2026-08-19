@@ -10,8 +10,8 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../../../contracts/workspace/contractValue.ts";
 import type {
-  ApiV1ErrorCodeDto,
-  ApiV1ErrorDto,
+  ApiErrorCodeDto,
+  ApiErrorDto,
 } from "../../../../contracts/api/types.ts";
 import {
   TodoOccurrenceConflictError,
@@ -43,13 +43,13 @@ import {
   VersionedContentRevisionConflictError,
 } from "../../repository/versioned/contentStore.ts";
 import {
-  ApiV1IdempotencyConflictError,
+  ApiIdempotencyConflictError,
 } from "../state/store.ts";
 import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspace/layout.ts";
 
-const statusByCode: Record<ApiV1ErrorCodeDto, number> = {
+const statusByCode: Record<ApiErrorCodeDto, number> = {
   adapter_unavailable: 503,
   domain_validation_failed: 422,
   forbidden: 403,
@@ -73,13 +73,13 @@ function createConflictId(kind: string, currentVersion: string) {
   return `conflict-${digest}`;
 }
 
-export class ApiV1RequestError extends Error {
-  readonly code: ApiV1ErrorCodeDto;
+export class ApiRequestError extends Error {
+  readonly code: ApiErrorCodeDto;
   readonly details?: Record<string, unknown>;
   readonly statusCode: number;
 
   constructor(
-    code: ApiV1ErrorCodeDto,
+    code: ApiErrorCodeDto,
     message: string,
     {
       details,
@@ -90,13 +90,13 @@ export class ApiV1RequestError extends Error {
     } = {},
   ) {
     super(message);
-    this.name = "ApiV1RequestError";
+    this.name = "ApiRequestError";
     this.code = code;
     this.details = details;
     this.statusCode = statusCode;
   }
 
-  toDto(requestId: string): ApiV1ErrorDto {
+  toDto(requestId: string): ApiErrorDto {
     return {
       code: this.code,
       ...(this.details ? { details: this.details } : {}),
@@ -106,23 +106,23 @@ export class ApiV1RequestError extends Error {
   }
 }
 
-export function apiV1NotFound(message = "Resource does not exist"): never {
-  throw new ApiV1RequestError("not_found", message);
+export function apiNotFound(message = "Resource does not exist"): never {
+  throw new ApiRequestError("not_found", message);
 }
 
-export function mapApiV1Error(error: unknown): ApiV1RequestError {
-  if (error instanceof ApiV1RequestError) return error;
+export function mapApiError(error: unknown): ApiRequestError {
+  if (error instanceof ApiRequestError) return error;
   if (error instanceof DomainNotFoundError) {
-    return new ApiV1RequestError("not_found", error.message);
+    return new ApiRequestError("not_found", error.message);
   }
   if (
     error instanceof DomainValidationError ||
     error instanceof PortableNameValidationError
   ) {
-    return new ApiV1RequestError("domain_validation_failed", error.message);
+    return new ApiRequestError("domain_validation_failed", error.message);
   }
   if (error instanceof DomainResourceConflictError) {
-    return new ApiV1RequestError(
+    return new ApiRequestError(
       "resource_conflict",
       "Resource changed after it was read",
       {
@@ -137,11 +137,11 @@ export function mapApiV1Error(error: unknown): ApiV1RequestError {
       },
     );
   }
-  if (error instanceof ApiV1IdempotencyConflictError) {
-    return new ApiV1RequestError("idempotency_conflict", error.message);
+  if (error instanceof ApiIdempotencyConflictError) {
+    return new ApiRequestError("idempotency_conflict", error.message);
   }
   if (error instanceof TodoOccurrenceConflictError) {
-    return new ApiV1RequestError(
+    return new ApiRequestError(
       "occurrence_conflict",
       "Todo recurrence occurrence is no longer current",
       {
@@ -155,7 +155,7 @@ export function mapApiV1Error(error: unknown): ApiV1RequestError {
     error instanceof VersionedContentRevisionConflictError ||
     error instanceof WorkspaceRevisionConflictError
   ) {
-    return new ApiV1RequestError(
+    return new ApiRequestError(
       "resource_conflict",
       "Content changed while committing the command",
       {
@@ -168,7 +168,7 @@ export function mapApiV1Error(error: unknown): ApiV1RequestError {
   }
   if (error instanceof RepositoryCatalogError) {
     if (error.code === "repository_not_found") {
-      return new ApiV1RequestError("not_found", error.message);
+      return new ApiRequestError("not_found", error.message);
     }
     if (
       error.code === "adapter_unavailable" ||
@@ -176,9 +176,9 @@ export function mapApiV1Error(error: unknown): ApiV1RequestError {
       error.code === "repository_corrupt" ||
       error.code === "insufficient_storage"
     ) {
-      return new ApiV1RequestError(error.code, error.message);
+      return new ApiRequestError(error.code, error.message);
     }
-    return new ApiV1RequestError("invalid_request", error.message);
+    return new ApiRequestError("invalid_request", error.message);
   }
   if (error instanceof RepositoryAdapterError) {
     const code = error.code === "repository_not_found"
@@ -189,26 +189,26 @@ export function mapApiV1Error(error: unknown): ApiV1RequestError {
           ? "resource_conflict"
           : error.code;
 
-    return new ApiV1RequestError(code, error.message);
+    return new ApiRequestError(code, error.message);
   }
   if (
     error instanceof WorkspaceRepositoryContractError ||
     error instanceof WireContractError ||
     error instanceof WorkspacePayloadValidationError
   ) {
-    return new ApiV1RequestError("invalid_request", error.message);
+    return new ApiRequestError("invalid_request", error.message);
   }
   if (
     error instanceof JournalContentValidationError ||
     error instanceof TodoContentValidationError
   ) {
-    return new ApiV1RequestError("domain_validation_failed", error.message);
+    return new ApiRequestError("domain_validation_failed", error.message);
   }
   if (
     error instanceof UnsupportedRepositoryVersionError ||
     error instanceof UnsupportedWireVersionError
   ) {
-    return new ApiV1RequestError(
+    return new ApiRequestError(
       "domain_validation_failed",
       "Stored content version is not supported",
     );
@@ -218,10 +218,10 @@ export function mapApiV1Error(error: unknown): ApiV1RequestError {
     "code" in error &&
     (error.code === "ENOSPC" || error.code === "EDQUOT")
   ) {
-    return new ApiV1RequestError(
+    return new ApiRequestError(
       "insufficient_storage",
       "Repository storage is full",
     );
   }
-  return new ApiV1RequestError("internal_error", "Internal server error");
+  return new ApiRequestError("internal_error", "Internal server error");
 }

@@ -30,6 +30,7 @@ import {
   WorkspaceRepositoryRemoteError,
   WorkspaceRepositoryUnavailableError,
 } from "../../../application/workspace/persistence/workspaceRepository";
+import { parsePortableName } from "../../../core/naming/portableName.ts";
 
 type HttpWorkspaceRepositoryCatalogOptions = HttpApiTransportOptions & {
   cache?: RepositoryClientCache;
@@ -79,7 +80,11 @@ export function createHttpWorkspaceRepositoryCatalog({
 
   return {
     async createRepository(input) {
-      const outbound = parseCreateRepository(input);
+      const decoded = parseCreateRepository(input);
+      const outbound = {
+        ...decoded,
+        label: parsePortableName(decoded.label, "Repository label"),
+      };
 
       preparation.prepare(
         outbound.adapter === "local"
@@ -90,7 +95,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
-          "/api/v1/admin/repositories",
+          "/api/v2/admin/repositories",
           {
             body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },
@@ -121,7 +126,7 @@ export function createHttpWorkspaceRepositoryCatalog({
         await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
-          `/api/v1/admin/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
+          `/api/v2/admin/repositories/${encodeURIComponent(id)}?mode=${encodeURIComponent(deletionMode)}`,
           { method: "DELETE" },
           token,
         ),
@@ -146,7 +151,7 @@ export function createHttpWorkspaceRepositoryCatalog({
           await requestWorkspaceApiJson(
             fetchFn,
             baseUrl,
-            "/api/v1/admin/repositories",
+            "/api/v2/admin/repositories",
             undefined,
             token,
           ),
@@ -226,12 +231,15 @@ export function createHttpWorkspaceRepositoryCatalog({
       if (!isRepositoryId(id)) {
         throw new Error(`Invalid repository id: ${id}`);
       }
-      const outbound = parseRenameRepository({ label });
+      const decoded = parseRenameRepository({ label });
+      const outbound = {
+        label: parsePortableName(decoded.label, "Repository label"),
+      };
       const descriptor = parseRepositoryDescriptor(
         await requestWorkspaceApiJson(
           fetchFn,
           baseUrl,
-          `/api/v1/admin/repositories/${encodeURIComponent(id)}`,
+          `/api/v2/admin/repositories/${encodeURIComponent(id)}`,
           {
             body: serializeJsonIteratively(outbound),
             headers: { "Content-Type": "application/json" },

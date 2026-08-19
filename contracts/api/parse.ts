@@ -4,33 +4,33 @@ import { Value } from "@sinclair/typebox/value";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { failWireContract } from "../common/contractValue.ts";
 import {
-  ApiV1AuditPageSchema,
-  ApiV1CreateTokenRequestSchema,
-  ApiV1CreatedTokenSchema,
-  ApiV1TokenListSchema,
-  type ApiV1AuditPageDto,
-  type ApiV1CreateTokenRequestDto,
-  type ApiV1CreatedTokenDto,
-  type ApiV1TokenDto,
+  ApiAuditPageSchema,
+  ApiCreateTokenRequestSchema,
+  ApiCreatedTokenSchema,
+  ApiTokenListSchema,
+  type ApiAuditPageDto,
+  type ApiCreateTokenRequestDto,
+  type ApiCreatedTokenDto,
+  type ApiTokenDto,
 } from "./schemas/admin.ts";
 import {
-  ApiV1JournalCommandSchema,
-  ApiV1TodoCommandSchema,
-  ApiV1WorkspaceCommandSchema,
-  type ApiV1JournalCommandDto,
-  type ApiV1TodoCommandDto,
-  type ApiV1WorkspaceCommandDto,
+  ApiJournalCommandRequestSchema,
+  ApiTodoCommandRequestSchema,
+  ApiWorkspaceCommandRequestSchema,
+  type ApiJournalCommandRequestDto,
+  type ApiTodoCommandRequestDto,
+  type ApiWorkspaceCommandRequestDto,
 } from "./schemas/commands.ts";
 import {
-  ApiV1EventSchema,
-  type ApiV1EventDto,
+  ApiEventSchema,
+  type ApiEventDto,
 } from "./schemas/events.ts";
 import {
-  ApiV1SearchRequestSchema,
-  type ApiV1SearchRequestDto,
+  ApiSearchRequestSchema,
+  type ApiSearchRequestDto,
 } from "./schemas/search.ts";
 
-const contract = "CTN API v1";
+const contract = "CTN API v2";
 
 function jsonPointerPath(pointer: string) {
   if (pointer === "") return "$";
@@ -50,7 +50,7 @@ function errorMessage(message: string) {
   return message.charAt(0).toLowerCase() + message.slice(1);
 }
 
-export function parseApiV1Schema<T extends TSchema>(
+export function parseApiSchema<T extends TSchema>(
   schema: T,
   input: unknown,
 ): Static<T> {
@@ -66,7 +66,9 @@ export function parseApiV1Schema<T extends TSchema>(
   return input as Static<T>;
 }
 
-function assertWeeklyWeekdaysAscending(command: ApiV1TodoCommandDto) {
+function assertWeeklyWeekdaysAscending(request: ApiTodoCommandRequestDto) {
+  const { command } = request;
+
   if (command.kind !== "set-recurrence" || command.rule.kind !== "weekly") {
     return;
   }
@@ -74,38 +76,38 @@ function assertWeeklyWeekdaysAscending(command: ApiV1TodoCommandDto) {
     if (command.rule.weekdays[index - 1]! >= command.rule.weekdays[index]!) {
       failWireContract(
         contract,
-        `$.rule.weekdays[${index}]`,
+        `$.command.rule.weekdays[${index}]`,
         "expected unique ascending ISO weekday",
       );
     }
   }
 }
 
-export function parseApiV1WorkspaceCommand(
+export function parseApiWorkspaceCommandRequest(
   input: unknown,
-): ApiV1WorkspaceCommandDto {
-  return parseApiV1Schema(ApiV1WorkspaceCommandSchema, input);
+): ApiWorkspaceCommandRequestDto {
+  return parseApiSchema(ApiWorkspaceCommandRequestSchema, input);
 }
 
-export function parseApiV1JournalCommand(
+export function parseApiJournalCommandRequest(
   input: unknown,
-): ApiV1JournalCommandDto {
-  return parseApiV1Schema(ApiV1JournalCommandSchema, input);
+): ApiJournalCommandRequestDto {
+  return parseApiSchema(ApiJournalCommandRequestSchema, input);
 }
 
-export function parseApiV1TodoCommand(
+export function parseApiTodoCommandRequest(
   input: unknown,
-): ApiV1TodoCommandDto {
-  const command = parseApiV1Schema(ApiV1TodoCommandSchema, input);
+): ApiTodoCommandRequestDto {
+  const request = parseApiSchema(ApiTodoCommandRequestSchema, input);
 
-  assertWeeklyWeekdaysAscending(command);
-  return command;
+  assertWeeklyWeekdaysAscending(request);
+  return request;
 }
 
-export function parseApiV1CreateTokenRequest(
+export function parseApiCreateTokenRequest(
   input: unknown,
-): ApiV1CreateTokenRequestDto {
-  const request = parseApiV1Schema(ApiV1CreateTokenRequestSchema, input);
+): ApiCreateTokenRequestDto {
+  const request = parseApiSchema(ApiCreateTokenRequestSchema, input);
 
   if (request.name.trim() !== request.name) {
     failWireContract(contract, "$.name", "expected a trimmed name");
@@ -119,14 +121,14 @@ export function parseApiV1CreateTokenRequest(
   };
 }
 
-export function parseApiV1SearchRequest(
+export function parseApiSearchRequest(
   input: unknown,
-): ApiV1SearchRequestDto {
-  return parseApiV1Schema(ApiV1SearchRequestSchema, input);
+): ApiSearchRequestDto {
+  return parseApiSchema(ApiSearchRequestSchema, input);
 }
 
-export function parseApiV1Event(input: unknown): ApiV1EventDto {
-  const event = parseApiV1Schema(ApiV1EventSchema, input);
+export function parseApiEvent(input: unknown): ApiEventDto {
+  const event = parseApiSchema(ApiEventSchema, input);
 
   if (event.checkpoint.sequence !== event.sequence) {
     failWireContract(
@@ -147,16 +149,16 @@ export function parseApiV1Event(input: unknown): ApiV1EventDto {
   return event;
 }
 
-export function parseApiV1TokenList(input: unknown): ApiV1TokenDto[] {
-  return parseApiV1Schema(ApiV1TokenListSchema, input).tokens;
+export function parseApiTokenList(input: unknown): ApiTokenDto[] {
+  return parseApiSchema(ApiTokenListSchema, input).tokens;
 }
 
-export function parseApiV1CreatedToken(
+export function parseApiCreatedToken(
   input: unknown,
-): ApiV1CreatedTokenDto {
-  return parseApiV1Schema(ApiV1CreatedTokenSchema, input);
+): ApiCreatedTokenDto {
+  return parseApiSchema(ApiCreatedTokenSchema, input);
 }
 
-export function parseApiV1AuditPage(input: unknown): ApiV1AuditPageDto {
-  return parseApiV1Schema(ApiV1AuditPageSchema, input);
+export function parseApiAuditPage(input: unknown): ApiAuditPageDto {
+  return parseApiSchema(ApiAuditPageSchema, input);
 }

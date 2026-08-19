@@ -251,7 +251,7 @@ test.describe("Journal activity flows", () => {
   test("keeps Journal usable when the ordinary repository catalog is empty", async ({
     page,
   }) => {
-    await page.route("**/api/v1/admin/repositories", async (route) => {
+    await page.route("**/api/v2/admin/repositories", async (route) => {
       if (route.request().method() === "GET") {
         await route.fulfill({
           body: JSON.stringify({

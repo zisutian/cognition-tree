@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { TodoRecurrence } from "../recurrence/todoRecurrenceSchedule.ts";
+import { defaultTodoSyntaxSource } from "../syntax/defaultTodoSyntax.ts";
 
 export const todoRepositorySchemaVersion = 4 as const;
 export const todoItemSemanticType = "todo-item";
@@ -29,3 +30,11 @@ export type TodoCollectionValue = Omit<TodoCollection, "id"> & { id: string };
 export type TodoContentValue = Omit<TodoContent, "collections"> & {
   collections: TodoCollectionValue[];
 };
+
+export function createEmptyTodoContent(): TodoContent {
+  return {
+    collections: [],
+    schemaVersion: todoRepositorySchemaVersion,
+    syntaxSource: defaultTodoSyntaxSource,
+  };
+}

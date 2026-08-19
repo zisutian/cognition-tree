@@ -18,8 +18,8 @@ import type { WorkspaceRepositoryProvisioner } from "../../application/workspace
 import type {
   WorkspaceRepositoryDescriptor,
 } from "../../application/repository/workspaceRepositoryCatalog";
-import { createApiV1Server } from "../../infrastructure/server/api/http/server.ts";
-import { createApiV1SecurityPolicy } from "../../infrastructure/server/api/http/security.ts";
+import { createApiServer } from "../../infrastructure/server/api/http/server.ts";
+import { createApiSecurityPolicy } from "../../infrastructure/server/api/http/security.ts";
 import { LocalRepositoryCatalog } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { createInitialWorkspaceData } from "../../core/workspace/model/workspaceData";
@@ -101,9 +101,9 @@ async function startRepositoryServer(
 
   await catalog.initialize();
 
-  const server = createApiV1Server({
+  const server = createApiServer({
     catalog,
-    security: createApiV1SecurityPolicy({
+    security: createApiSecurityPolicy({
       bearerToken: token,
       host: "127.0.0.1",
     }),

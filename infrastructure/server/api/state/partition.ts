@@ -9,12 +9,12 @@ import {
   replaceFileDurably,
 } from "../../persistence/fileSystemPersistence.ts";
 
-export class ApiV1StatePartitionError extends Error {
+export class ApiStatePartitionError extends Error {
   readonly partition: string;
 
   constructor(partition: string, message: string) {
     super(`CTN API ${partition} state is unavailable: ${message}`);
-    this.name = "ApiV1StatePartitionError";
+    this.name = "ApiStatePartitionError";
     this.partition = partition;
   }
 }
@@ -25,7 +25,7 @@ function isMissing(error: unknown) {
     error.code === "ENOENT";
 }
 
-export async function ensureApiV1StateDirectory(directory: string) {
+export async function ensureApiStateDirectory(directory: string) {
   let stats;
 
   try {
@@ -47,12 +47,12 @@ export async function ensureApiV1StateDirectory(directory: string) {
   }
 }
 
-export type ApiV1PartitionMutation<Result> = {
+export type ApiPartitionMutation<Result> = {
   changed: boolean;
   result: Result;
 };
 
-export function requireApiV1StateRecord(
+export function requireApiStateRecord(
   value: unknown,
   pathLabel: string,
 ): Record<string, unknown> {
@@ -62,7 +62,7 @@ export function requireApiV1StateRecord(
   return value as Record<string, unknown>;
 }
 
-export function assertApiV1StateFields(
+export function assertApiStateFields(
   value: Record<string, unknown>,
   fields: readonly string[],
   pathLabel: string,
@@ -78,7 +78,7 @@ export function assertApiV1StateFields(
   }
 }
 
-export class ApiV1StatePartition<Value> {
+export class ApiStatePartition<Value> {
   readonly #createInitial: () => Value;
   readonly #directory: string;
   readonly #file: string;
@@ -118,13 +118,13 @@ export class ApiV1StatePartition<Value> {
   mutate<Result>(
     operation: (
       value: Value,
-    ) => ApiV1PartitionMutation<Result> | Promise<ApiV1PartitionMutation<Result>>,
+    ) => ApiPartitionMutation<Result> | Promise<ApiPartitionMutation<Result>>,
   ): Promise<Result> {
     return this.#enqueue(async () => operation(this.#requireValue()));
   }
 
   async #initialize() {
-    await ensureApiV1StateDirectory(this.#directory);
+    await ensureApiStateDirectory(this.#directory);
     let source: string;
 
     try {
@@ -136,7 +136,7 @@ export class ApiV1StatePartition<Value> {
       source = await readFile(this.#file, "utf8");
     } catch (error) {
       if (!isMissing(error)) {
-        throw new ApiV1StatePartitionError(
+        throw new ApiStatePartitionError(
           this.#name,
           error instanceof Error ? error.message : "read failed",
         );
@@ -148,7 +148,7 @@ export class ApiV1StatePartition<Value> {
     try {
       this.#value = this.#parse(JSON.parse(source) as unknown);
     } catch (error) {
-      throw new ApiV1StatePartitionError(
+      throw new ApiStatePartitionError(
         this.#name,
         error instanceof Error ? error.message : "invalid JSON",
       );
@@ -156,7 +156,7 @@ export class ApiV1StatePartition<Value> {
   }
 
   async #enqueue<Result>(
-    operation: () => Promise<ApiV1PartitionMutation<Result>>,
+    operation: () => Promise<ApiPartitionMutation<Result>>,
   ): Promise<Result> {
     const pending = this.#operationQueue.then(async () => {
       this.#initializePromise ??= this.#initialize();

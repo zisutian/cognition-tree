@@ -146,16 +146,19 @@ versioned store、session 和 API，也不获得普通仓库的创建、删除�
 恢复未同步状态。localStorage 只保存当前普通仓库 ID。旧 IndexedDB 不属于
 运行时输入，不读取、不迁移也不清理。
 
-唯一 HTTP 契约为 /api/v1。资源查询和 command 是自动化边界；完整
+唯一 HTTP 契约为 /api/v2。资源查询和 command 是自动化边界；完整
 Workspace/Journal/Todo snapshot 只存在于带 sync scope 的官方客户端路径。
 自动化 principal 永远不能获得 sync、syntax:write、repository:admin 或
 token:manage，因而不能绕过领域命令修改 canonical metadata、语法、仓库连接
-或仓库管理状态。HTTP 只暴露 registry 中声明的当前 `/api/v1` operation。
+或仓库管理状态。HTTP 只暴露 registry 中声明的当前 `/api/v2` operation。
 
-所有命令使用严格 discriminated union、UUID commandId、preview/commit mode
-和目标资源版本。领域执行器是内容修改的唯一 owner；HTTP handler、SSE、
-search、audit 和 presentation 不重建变化。命令执行器或官方同步前后比较只
-生成一次 DomainChangeSet，供响应、事件、缓存失效和审计共享。
+所有命令使用严格 envelope discriminated union。`command` 只拥有业务意图，
+`preconditions` 按 command kind 拥有全部目标资源版本；preview 不接受
+commandId，commit 必须携带 UUID commandId。delete command 不含交互确认字段，
+删除语义、delete scope 和 UI 确认分别属于 core、HTTP 授权和 presentation。
+领域执行器是内容修改的唯一 owner；HTTP handler、SSE、search、audit 和
+presentation 不重建变化。命令执行器或官方同步前后比较只生成一次
+DomainChangeSet，供响应、事件、缓存失效和审计共享。
 
 资源版本是内容 SHA-256；canonical block metadata 是 block createdAt/updatedAt
 的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
@@ -174,7 +177,8 @@ tracker 维护 checkpoint，建立连接不会扫描仓库正文。
 API 状态由 token、无正文幂等回执和分页 audit 三个 owner 分区持久化。它们
 使用同一单写者队列和原子替换，目录权限为 0700、文件权限为 0600；单个分区
 损坏只使该能力 fail closed，不阻断其它认证和内容领域。token `lastUsedAt`
-最多每分钟落盘一次。
+最多每分钟落盘一次。磁盘目录名 `api-v1` 是保留的数据布局，不随 HTTP v2
+改名或迁移；v2 继续使用既有 token、audit 和 receipt 文件。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
 周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
@@ -221,7 +225,7 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
     client/platform 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；
     client/repository 拥有内存 catalog/content cache、revision 与 resilient
-    repository；client/http 只实现 /api/v1 transport；client/runtime 只负责把
+    repository；client/http 只实现 /api/v2 transport；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。

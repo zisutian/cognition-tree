@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApiV1DomainChangeSetDto } from "../../../../contracts/api/types.ts";
+import type { ApiDomainChangeSetDto } from "../../../../contracts/api/types.ts";
 import type {
   WorkspaceResourceVersionPolicy,
 } from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
@@ -10,38 +10,39 @@ import type {
 import type {
   TodoDomainVersions,
 } from "../../../../application/todo/todoDomainCommands.ts";
-import { apiV1NotFound } from "../http/errors.ts";
+import { apiNotFound } from "../http/errors.ts";
 import {
   assertRepositoryAllowed,
   publishTrackedChanges,
   requireBuiltInCatalog,
-  type ApiV1HandlerContext,
+  type ApiHandlerContext,
 } from "../http/handlerContext.ts";
 import {
-  synchronizeApiV1Journal,
-  synchronizeApiV1Todo,
-  synchronizeApiV1Workspace,
+  synchronizeApiJournal,
+  synchronizeApiTodo,
+  synchronizeApiWorkspace,
 } from "./service.ts";
 
-async function publishApiV1Changes(
-  context: ApiV1HandlerContext,
-  changes: ApiV1DomainChangeSetDto,
+async function publishApiChanges(
+  context: ApiHandlerContext,
+  changes: ApiDomainChangeSetDto,
 ) {
   publishTrackedChanges(context, changes);
 }
 
 async function handleWorkspaceSync(
-  context: ApiV1HandlerContext,
+  context: ApiHandlerContext,
   repositoryId: string,
+  mode: "commit" | "load",
   versionPolicy: WorkspaceResourceVersionPolicy,
 ) {
   assertRepositoryAllowed(context.principal, repositoryId);
   const store = await context.catalog.getStore(repositoryId);
-  return synchronizeApiV1Workspace({
-    method: context.method,
+  return synchronizeApiWorkspace({
+    mode,
     observeRevision: (revision) =>
       context.revisionTracker.observeWorkspace(repositoryId, revision),
-    publish: (changes) => publishApiV1Changes(context, changes),
+    publish: (changes) => publishApiChanges(context, changes),
     readJsonBody: context.readJsonBody,
     repositoryId,
     runtime: context.runtime,
@@ -51,17 +52,18 @@ async function handleWorkspaceSync(
 }
 
 async function handleJournalSync(
-  context: ApiV1HandlerContext,
+  context: ApiHandlerContext,
+  mode: "commit" | "load",
   versionPolicy: JournalDomainVersions,
 ) {
   const store = await requireBuiltInCatalog(context.builtInCatalog)
     .getStore("journal");
 
-  return synchronizeApiV1Journal({
-    method: context.method,
+  return synchronizeApiJournal({
+    mode,
     observeRevision: (revision) =>
       context.revisionTracker.observeDomain("journal", revision),
-    publish: (changes) => publishApiV1Changes(context, changes),
+    publish: (changes) => publishApiChanges(context, changes),
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
     store,
@@ -70,17 +72,18 @@ async function handleJournalSync(
 }
 
 async function handleTodoSync(
-  context: ApiV1HandlerContext,
+  context: ApiHandlerContext,
+  mode: "commit" | "load",
   versionPolicy: TodoDomainVersions,
 ) {
   const store = await requireBuiltInCatalog(context.builtInCatalog)
     .getStore("todo");
 
-  return synchronizeApiV1Todo({
-    method: context.method,
+  return synchronizeApiTodo({
+    mode,
     observeRevision: (revision) =>
       context.revisionTracker.observeDomain("todo", revision),
-    publish: (changes) => publishApiV1Changes(context, changes),
+    publish: (changes) => publishApiChanges(context, changes),
     readJsonBody: context.readJsonBody,
     runtime: context.runtime,
     store,
@@ -88,25 +91,33 @@ async function handleTodoSync(
   });
 }
 
-export function handleApiV1Sync(
-  context: ApiV1HandlerContext,
+export function handleApiSync(
+  context: ApiHandlerContext,
   versionPolicies: {
     journal: JournalDomainVersions;
     todo: TodoDomainVersions;
     workspace: WorkspaceResourceVersionPolicy;
   },
 ) {
-  if (context.route.kind === "sync-workspace") {
+  const operationId = context.operation.operationId;
+  const mode = operationId.startsWith("get") ? "load" : "commit";
+
+  if (
+    operationId === "getWorkspaceSyncSnapshot" ||
+    operationId === "putWorkspaceSyncSnapshot"
+  ) {
     const repositoryId = context.route.repositoryId;
 
-    if (!repositoryId) apiV1NotFound();
+    if (!repositoryId) apiNotFound();
     return handleWorkspaceSync(
       context,
       repositoryId,
+      mode,
       versionPolicies.workspace,
     );
   }
-  return context.route.kind === "sync-journal"
-    ? handleJournalSync(context, versionPolicies.journal)
-    : handleTodoSync(context, versionPolicies.todo);
+  return operationId === "getJournalSyncSnapshot" ||
+      operationId === "putJournalSyncSnapshot"
+    ? handleJournalSync(context, mode, versionPolicies.journal)
+    : handleTodoSync(context, mode, versionPolicies.todo);
 }

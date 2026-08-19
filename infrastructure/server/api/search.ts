@@ -28,9 +28,9 @@ import { TodoContentValidationError } from "../../../core/todo/model/todoErrors.
 import { WorkspaceBlockMetadataError } from "../../../core/workspace/context/workspaceBlockMetadata.ts";
 import { WorkspaceNoteHeaderError } from "../../../core/workspace/model/workspaceData.ts";
 import type {
-  ApiV1PrincipalDto,
-  ApiV1SearchRequestDto,
-  ApiV1SearchResponseDto,
+  ApiPrincipalDto,
+  ApiSearchRequestDto,
+  ApiSearchResponseDto,
 } from "../../../contracts/api/types.ts";
 import type {
   WorkspaceRepositoryCatalog,
@@ -41,22 +41,22 @@ import {
 import {
   WorkspacePayloadValidationError,
 } from "../repository/workspace/layout.ts";
-import type { ApiV1BuiltInCatalog } from "./http/ports.ts";
-import { ApiV1RequestError } from "./http/errors.ts";
+import type { ApiBuiltInCatalog } from "./http/ports.ts";
+import { ApiRequestError } from "./http/errors.ts";
 import {
-  createApiV1ResourceVersion,
+  createApiResourceVersion,
 } from "./resources/versions.ts";
 
 function hasScope(
-  principal: ApiV1PrincipalDto,
-  scope: ApiV1PrincipalDto["scopes"][number],
+  principal: ApiPrincipalDto,
+  scope: ApiPrincipalDto["scopes"][number],
 ) {
   return principal.scopes.includes(scope);
 }
 
 function requestedDomains(
-  request: ApiV1SearchRequestDto,
-  principal: ApiV1PrincipalDto,
+  request: ApiSearchRequestDto,
+  principal: ApiPrincipalDto,
 ) {
   const requested = request.domains ??
     ["workspace", "journal", "todo"] as const;
@@ -123,9 +123,9 @@ function mapWorkspaceIssue(
   };
 }
 
-function projectApiV1SearchResponse(
+function projectApiSearchResponse(
   response: SearchResponse,
-): ApiV1SearchResponseDto {
+): ApiSearchResponseDto {
   return {
     cursor: response.cursor,
     faults: response.faults.map((fault) =>
@@ -169,17 +169,17 @@ function projectApiV1SearchResponse(
   };
 }
 
-export class ApiV1SearchService {
+export class ApiSearchService {
   readonly #query;
 
   constructor({
     builtInCatalog,
     catalog,
   }: {
-    builtInCatalog: ApiV1BuiltInCatalog;
+    builtInCatalog: ApiBuiltInCatalog;
     catalog: WorkspaceRepositoryCatalog;
   }) {
-    this.#query = createSearchQuery<ApiV1PrincipalDto>({
+    this.#query = createSearchQuery<ApiPrincipalDto>({
       createCorpusKey: (value) =>
         createHash("sha256")
           .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
@@ -223,7 +223,7 @@ export class ApiV1SearchService {
                     return {
                       async loadDocuments() {
                         return projectWorkspaceSearchDocuments({
-                          createVersion: createApiV1ResourceVersion,
+                          createVersion: createApiResourceVersion,
                           index: snapshot.projection.analysisIndex,
                           repositoryId: repository.id,
                           workspace: snapshot.projection.workspace,
@@ -254,7 +254,7 @@ export class ApiV1SearchService {
                 return {
                   async loadDocuments() {
                     return projectJournalSearchDocuments({
-                      createVersion: createApiV1ResourceVersion,
+                      createVersion: createApiResourceVersion,
                       index: snapshot.projection,
                     });
                   },
@@ -274,7 +274,7 @@ export class ApiV1SearchService {
                 return {
                   async loadDocuments() {
                     return projectTodoSearchDocuments({
-                      createVersion: createApiV1ResourceVersion,
+                      createVersion: createApiResourceVersion,
                       index: snapshot.projection,
                     });
                   },
@@ -290,19 +290,19 @@ export class ApiV1SearchService {
   }
 
   async search(
-    request: ApiV1SearchRequestDto,
-    principal: ApiV1PrincipalDto,
-  ): Promise<ApiV1SearchResponseDto> {
+    request: ApiSearchRequestDto,
+    principal: ApiPrincipalDto,
+  ): Promise<ApiSearchResponseDto> {
     const domains = requestedDomains(request, principal);
 
     if (domains.length === 0) {
-      throw new ApiV1RequestError(
+      throw new ApiRequestError(
         "forbidden",
         "No requested search domain is readable",
       );
     }
     try {
-      return projectApiV1SearchResponse(
+      return projectApiSearchResponse(
         await this.#query.search(
           { ...request, domains } satisfies SearchRequest,
           principal,
@@ -311,13 +311,13 @@ export class ApiV1SearchService {
     } catch (error) {
       if (!(error instanceof SearchRequestError)) throw error;
       if (error.code === "cursor_conflict") {
-        throw new ApiV1RequestError(
+        throw new ApiRequestError(
           "resource_conflict",
           error.message,
           { details: { restartRequired: true } },
         );
       }
-      throw new ApiV1RequestError("invalid_request", error.message);
+      throw new ApiRequestError("invalid_request", error.message);
     }
   }
 }

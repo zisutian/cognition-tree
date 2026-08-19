@@ -2,10 +2,10 @@
 
 import path from "node:path";
 import {
-  createApiV1Server,
+  createApiServer,
 } from "./api/http/server.ts";
 import {
-  createApiV1SecurityPolicy,
+  createApiSecurityPolicy,
 } from "./api/http/security.ts";
 import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
@@ -27,7 +27,7 @@ if (repositoryHostRoot !== null && !path.isAbsolute(repositoryHostRoot)) {
 const serverStateDirectory =
   process.env.CTN_SERVER_STATE_DIR ??
   path.join(process.cwd(), ".cognition-tree", "server");
-const security = createApiV1SecurityPolicy({
+const security = createApiSecurityPolicy({
   bearerToken: process.env.CTN_API_TOKEN,
   host,
   publicUrl: process.env.CTN_PUBLIC_URL,
@@ -51,7 +51,7 @@ const builtInCatalog = new BuiltInCatalog(repositoryRoot);
 await catalog.initialize();
 await builtInCatalog.initialize();
 
-const server = createApiV1Server({
+const server = createApiServer({
   builtInCatalog,
   catalog,
   security,

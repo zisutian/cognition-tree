@@ -2,42 +2,42 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import {
-  ApiV1CanonicalTimestampSchema,
-  ApiV1IdentifierSchema,
-  ApiV1ResourceVersionSchema,
-  apiV1DomainSchema,
+  ApiCanonicalTimestampSchema,
+  ApiIdentifierSchema,
+  ApiResourceVersionSchema,
+  apiDomainSchema,
   nullable,
   strictObject,
 } from "./foundation.ts";
 
-export const ApiV1SearchRequestSchema = strictObject({
+export const ApiSearchRequestSchema = strictObject({
   cursor: Type.Optional(Type.String()),
-  domains: Type.Optional(Type.Array(apiV1DomainSchema, { uniqueItems: true })),
+  domains: Type.Optional(Type.Array(apiDomainSchema, { uniqueItems: true })),
   limit: Type.Optional(Type.Integer({ maximum: 100, minimum: 1 })),
   query: Type.String(),
-  repositoryIds: Type.Optional(Type.Array(ApiV1IdentifierSchema, {
+  repositoryIds: Type.Optional(Type.Array(ApiIdentifierSchema, {
     uniqueItems: true,
   })),
-  updatedAfter: Type.Optional(ApiV1CanonicalTimestampSchema),
+  updatedAfter: Type.Optional(ApiCanonicalTimestampSchema),
 });
-export type ApiV1SearchRequestDto = Static<
-  typeof ApiV1SearchRequestSchema
+export type ApiSearchRequestDto = Static<
+  typeof ApiSearchRequestSchema
 >;
 
 const searchResultCommon = {
-  blockId: nullable(ApiV1IdentifierSchema),
-  resourceId: ApiV1IdentifierSchema,
+  blockId: nullable(ApiIdentifierSchema),
+  resourceId: ApiIdentifierSchema,
   snippet: Type.String(),
   title: Type.String(),
-  updatedAt: ApiV1CanonicalTimestampSchema,
-  version: ApiV1ResourceVersionSchema,
+  updatedAt: ApiCanonicalTimestampSchema,
+  version: ApiResourceVersionSchema,
 };
 
-export const ApiV1SearchResultSchema = Type.Union([
+export const ApiSearchResultSchema = Type.Union([
   strictObject({
     ...searchResultCommon,
     domain: Type.Literal("workspace"),
-    repositoryId: ApiV1IdentifierSchema,
+    repositoryId: ApiIdentifierSchema,
   }),
   strictObject({
     ...searchResultCommon,
@@ -48,11 +48,11 @@ export const ApiV1SearchResultSchema = Type.Union([
     domain: Type.Literal("todo"),
   }),
 ]);
-export type ApiV1SearchResultDto = Static<
-  typeof ApiV1SearchResultSchema
+export type ApiSearchResultDto = Static<
+  typeof ApiSearchResultSchema
 >;
 
-export const ApiV1SearchFaultSchema = Type.Union([
+export const ApiSearchFaultSchema = Type.Union([
   strictObject({
     code: Type.Union([
       Type.Literal("source_invalid"),
@@ -60,7 +60,7 @@ export const ApiV1SearchFaultSchema = Type.Union([
     ]),
     domain: Type.Literal("workspace"),
     message: Type.String(),
-    repositoryId: Type.Optional(ApiV1IdentifierSchema),
+    repositoryId: Type.Optional(ApiIdentifierSchema),
   }),
   strictObject({
     code: Type.Union([
@@ -71,13 +71,13 @@ export const ApiV1SearchFaultSchema = Type.Union([
     message: Type.String(),
   }),
 ]);
-export type ApiV1SearchFaultDto = Static<typeof ApiV1SearchFaultSchema>;
+export type ApiSearchFaultDto = Static<typeof ApiSearchFaultSchema>;
 
-export const ApiV1SearchResponseSchema = strictObject({
+export const ApiSearchResponseSchema = strictObject({
   cursor: nullable(Type.String()),
-  faults: Type.Array(ApiV1SearchFaultSchema),
-  results: Type.Array(ApiV1SearchResultSchema),
+  faults: Type.Array(ApiSearchFaultSchema),
+  results: Type.Array(ApiSearchResultSchema),
 });
-export type ApiV1SearchResponseDto = Static<
-  typeof ApiV1SearchResponseSchema
+export type ApiSearchResponseDto = Static<
+  typeof ApiSearchResponseSchema
 >;

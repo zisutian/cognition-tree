@@ -79,20 +79,20 @@ if (!FormatRegistry.Has("uri")) {
   });
 }
 
-export const ApiV1CanonicalTimestampSchema = Type.String({
+export const ApiCanonicalTimestampSchema = Type.String({
   format: "ctn-canonical-timestamp",
 });
-export const ApiV1LocalDateSchema = schemaAs<TodoLocalDateDto>(Type.String({
+export const ApiLocalDateSchema = schemaAs<TodoLocalDateDto>(Type.String({
   format: "ctn-local-date",
 }));
-export const ApiV1UuidSchema = Type.String({ format: "uuid" });
-export const ApiV1ResourceVersionSchema = schemaAs<ContentRevisionDto>(
+export const ApiUuidSchema = Type.String({ format: "uuid" });
+export const ApiResourceVersionSchema = schemaAs<ContentRevisionDto>(
   Type.String({ pattern: "^sha256:[0-9a-f]{64}$" }),
 );
-export const ApiV1IdentifierSchema = Type.String({ minLength: 1 });
-export const ApiV1NonNegativeIntegerSchema = Type.Integer({ minimum: 0 });
+export const ApiIdentifierSchema = Type.String({ minLength: 1 });
+export const ApiNonNegativeIntegerSchema = Type.Integer({ minimum: 0 });
 
-export const apiV1Scopes = [
+export const apiScopes = [
   "journal:delete",
   "journal:read",
   "journal:write",
@@ -108,9 +108,9 @@ export const apiV1Scopes = [
   "workspace:write",
 ] as const;
 
-export type ApiV1Scope = typeof apiV1Scopes[number];
+export type ApiScope = typeof apiScopes[number];
 
-export const apiV1AutomationScopes = [
+export const apiAutomationScopes = [
   "journal:delete",
   "journal:read",
   "journal:write",
@@ -120,40 +120,40 @@ export const apiV1AutomationScopes = [
   "workspace:delete",
   "workspace:read",
   "workspace:write",
-] as const satisfies readonly ApiV1Scope[];
+] as const satisfies readonly ApiScope[];
 
-export const apiV1ScopeSchema = Type.Union(
-  apiV1Scopes.map((scope) => Type.Literal(scope)),
+export const apiScopeSchema = Type.Union(
+  apiScopes.map((scope) => Type.Literal(scope)),
 );
-export const apiV1AutomationScopeSchema = Type.Union(
-  apiV1AutomationScopes.map((scope) => Type.Literal(scope)),
+export const apiAutomationScopeSchema = Type.Union(
+  apiAutomationScopes.map((scope) => Type.Literal(scope)),
 );
-export const apiV1DomainSchema = Type.Union([
+export const apiDomainSchema = Type.Union([
   Type.Literal("journal"),
   Type.Literal("todo"),
   Type.Literal("workspace"),
 ]);
 
-export const ApiV1PrincipalSchema = strictObject({
-  id: ApiV1IdentifierSchema,
+export const ApiPrincipalSchema = strictObject({
+  id: ApiIdentifierSchema,
   kind: Type.Union([
     Type.Literal("automation"),
     Type.Literal("local-owner"),
     Type.Literal("owner"),
   ]),
-  name: ApiV1IdentifierSchema,
-  repositoryIds: nullable(Type.Array(ApiV1IdentifierSchema, {
+  name: ApiIdentifierSchema,
+  repositoryIds: nullable(Type.Array(ApiIdentifierSchema, {
     uniqueItems: true,
   })),
-  scopes: Type.Array(apiV1ScopeSchema, { uniqueItems: true }),
+  scopes: Type.Array(apiScopeSchema, { uniqueItems: true }),
 });
-export type ApiV1PrincipalDto = Static<typeof ApiV1PrincipalSchema>;
+export type ApiPrincipalDto = Static<typeof ApiPrincipalSchema>;
 
-export const ApiV1CapabilitiesSchema = strictObject({
-  apiVersion: Type.Literal(1),
-  principal: ApiV1PrincipalSchema,
+export const ApiCapabilitiesSchema = strictObject({
+  apiVersion: Type.Literal(2),
+  principal: ApiPrincipalSchema,
 });
-export type ApiV1CapabilitiesDto = Static<typeof ApiV1CapabilitiesSchema>;
+export type ApiCapabilitiesDto = Static<typeof ApiCapabilitiesSchema>;
 
 const errorCodeSchema = Type.Union([
   Type.Literal("adapter_unavailable"),
@@ -170,15 +170,15 @@ const errorCodeSchema = Type.Union([
   Type.Literal("resource_conflict"),
   Type.Literal("unauthorized"),
 ]);
-export type ApiV1ErrorCodeDto = Static<typeof errorCodeSchema>;
+export type ApiErrorCodeDto = Static<typeof errorCodeSchema>;
 
-export const ApiV1ErrorSchema = strictObject({
+export const ApiErrorSchema = strictObject({
   code: errorCodeSchema,
   details: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   message: Type.String(),
-  requestId: ApiV1IdentifierSchema,
+  requestId: ApiIdentifierSchema,
 });
-export type ApiV1ErrorDto = Static<typeof ApiV1ErrorSchema>;
+export type ApiErrorDto = Static<typeof ApiErrorSchema>;
 
-export type ApiV1ResourceVersionDto = ContentRevisionDto;
-export type ApiV1CommandModeDto = "commit" | "preview";
+export type ApiResourceVersionDto = ContentRevisionDto;
+export type ApiCommandModeDto = "commit" | "preview";

@@ -8,9 +8,9 @@ import type {
 } from "../../../application/apiAccess/apiAccessAdministration";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import {
-  parseApiV1AuditPage,
-  parseApiV1CreatedToken,
-  parseApiV1TokenList,
+  parseApiAuditPage,
+  parseApiCreatedToken,
+  parseApiTokenList,
 } from "../../../contracts/api/parse";
 import {
   requestApiJson,
@@ -18,7 +18,7 @@ import {
 } from "./apiTransport";
 
 function projectToken(
-  token: ReturnType<typeof parseApiV1TokenList>[number],
+  token: ReturnType<typeof parseApiTokenList>[number],
 ): AutomationApiToken {
   return {
     ...token,
@@ -26,18 +26,18 @@ function projectToken(
   };
 }
 
-export function createHttpApiV1Administration({
+export function createHttpApiAdministration({
   baseUrl,
   fetch: fetchFn = globalThis.fetch.bind(globalThis),
   token,
 }: HttpApiTransportOptions): ApiAccessAdministration {
   return {
     async createToken(request: CreateAutomationApiTokenRequest) {
-      const created = parseApiV1CreatedToken(
+      const created = parseApiCreatedToken(
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v1/admin/tokens",
+          "/api/v2/admin/tokens",
           {
             body: serializeJsonIteratively(request),
             headers: { "Content-Type": "application/json" },
@@ -53,22 +53,22 @@ export function createHttpApiV1Administration({
       const query = new URLSearchParams({ limit: "50" });
 
       if (cursor) query.set("cursor", cursor);
-      return parseApiV1AuditPage(
+      return parseApiAuditPage(
         await requestApiJson(
           fetchFn,
           baseUrl,
-          `/api/v1/admin/audit?${query}`,
+          `/api/v2/admin/audit?${query}`,
           undefined,
           token,
         ),
       );
     },
     async listTokens() {
-      return parseApiV1TokenList(
+      return parseApiTokenList(
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v1/admin/tokens",
+          "/api/v2/admin/tokens",
           undefined,
           token,
         ),
@@ -78,7 +78,7 @@ export function createHttpApiV1Administration({
       await requestApiJson(
         fetchFn,
         baseUrl,
-        `/api/v1/admin/tokens/${encodeURIComponent(tokenId)}`,
+        `/api/v2/admin/tokens/${encodeURIComponent(tokenId)}`,
         { method: "DELETE" },
         token,
       );

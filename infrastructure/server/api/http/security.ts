@@ -4,12 +4,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import { isIP } from "node:net";
 import {
-  apiV1Scopes,
-  type ApiV1PrincipalDto,
+  apiScopes,
+  type ApiPrincipalDto,
 } from "../../../../contracts/api/types.ts";
-import type { ApiV1StateStore } from "../state/store.ts";
+import type { ApiStateStore } from "../state/store.ts";
 
-export const defaultApiV1AllowedOrigins = [
+export const defaultApiAllowedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:5173",
 ] as const;
@@ -20,14 +20,14 @@ type HostPattern = {
   source: string;
 };
 
-export type ApiV1SecurityPolicy = {
+export type ApiSecurityPolicy = {
   allowedHosts: readonly string[];
   allowedOrigins: readonly string[];
   bearerTokenDigest: Buffer | null;
   requiresBearerToken: boolean;
 };
 
-export class ApiV1SecurityError extends Error {
+export class ApiSecurityError extends Error {
   allowedOrigin: string | null;
   statusCode: number;
 
@@ -37,7 +37,7 @@ export class ApiV1SecurityError extends Error {
     allowedOrigin: string | null = null,
   ) {
     super(message);
-    this.name = "ApiV1SecurityError";
+    this.name = "ApiSecurityError";
     this.allowedOrigin = allowedOrigin;
     this.statusCode = statusCode;
   }
@@ -147,7 +147,7 @@ function parseBearerToken(value: string | undefined) {
   return match?.[1] ?? null;
 }
 
-function readApiV1BearerToken(request: IncomingMessage) {
+function readApiBearerToken(request: IncomingMessage) {
   return parseBearerToken(readHeader(request, "authorization"));
 }
 
@@ -156,7 +156,7 @@ function assertAllowedHost(
   allowedHosts: readonly string[],
 ) {
   if (!requestHost) {
-    throw new ApiV1SecurityError(400, "Host header is required");
+    throw new ApiSecurityError(400, "Host header is required");
   }
 
   let requestPattern: HostPattern;
@@ -164,7 +164,7 @@ function assertAllowedHost(
   try {
     requestPattern = parseHostPattern(requestHost);
   } catch {
-    throw new ApiV1SecurityError(400, "Host header is invalid");
+    throw new ApiSecurityError(400, "Host header is invalid");
   }
 
   const allowed = allowedHosts.some((allowedHost) => {
@@ -175,11 +175,11 @@ function assertAllowedHost(
   });
 
   if (!allowed) {
-    throw new ApiV1SecurityError(403, "Host is not allowed");
+    throw new ApiSecurityError(403, "Host is not allowed");
   }
 }
 
-export function createApiV1SecurityPolicy({
+export function createApiSecurityPolicy({
   bearerToken,
   host,
   publicUrl,
@@ -187,7 +187,7 @@ export function createApiV1SecurityPolicy({
   bearerToken?: string;
   host: string;
   publicUrl?: string;
-}): ApiV1SecurityPolicy {
+}): ApiSecurityPolicy {
   const loopback = isLoopbackHost(host);
   const requiresBearerToken = !loopback || Boolean(bearerToken);
 
@@ -221,7 +221,7 @@ export function createApiV1SecurityPolicy({
     : ["127.0.0.1", "localhost", "[::1]"];
   const resolvedOrigins = publicOrigin
     ? [publicOrigin]
-    : [...defaultApiV1AllowedOrigins];
+    : [...defaultApiAllowedOrigins];
 
   return {
     allowedHosts: [
@@ -235,13 +235,13 @@ export function createApiV1SecurityPolicy({
   };
 }
 
-export async function authorizeApiV1Request(
+export async function authorizeApiRequest(
   request: IncomingMessage,
-  policy: ApiV1SecurityPolicy,
-  stateStore: Pick<ApiV1StateStore, "authenticate">,
+  policy: ApiSecurityPolicy,
+  stateStore: Pick<ApiStateStore, "authenticate">,
 ): Promise<{
   allowedOrigin: string | null;
-  principal: ApiV1PrincipalDto;
+  principal: ApiPrincipalDto;
 }> {
   assertAllowedHost(readHeader(request, "host"), policy.allowedHosts);
 
@@ -252,10 +252,10 @@ export async function authorizeApiV1Request(
     try {
       allowedOrigin = normalizeAllowedOrigin(requestOrigin);
     } catch {
-      throw new ApiV1SecurityError(403, "Origin is not allowed");
+      throw new ApiSecurityError(403, "Origin is not allowed");
     }
     if (!policy.allowedOrigins.includes(allowedOrigin)) {
-      throw new ApiV1SecurityError(403, "Origin is not allowed");
+      throw new ApiSecurityError(403, "Origin is not allowed");
     }
   }
   if (!policy.requiresBearerToken || request.method === "OPTIONS") {
@@ -266,11 +266,11 @@ export async function authorizeApiV1Request(
         kind: "local-owner",
         name: "本机官方客户端",
         repositoryIds: null,
-        scopes: [...apiV1Scopes],
+        scopes: [...apiScopes],
       },
     };
   }
-  const token = readApiV1BearerToken(request);
+  const token = readApiBearerToken(request);
   const presentedDigest = token ? digestToken(token) : null;
 
   if (
@@ -285,14 +285,14 @@ export async function authorizeApiV1Request(
         kind: "owner",
         name: "Owner",
         repositoryIds: null,
-        scopes: [...apiV1Scopes],
+        scopes: [...apiScopes],
       },
     };
   }
   const principal = token ? await stateStore.authenticate(token) : null;
 
   if (!principal) {
-    throw new ApiV1SecurityError(
+    throw new ApiSecurityError(
       401,
       "Bearer token is invalid",
       allowedOrigin,

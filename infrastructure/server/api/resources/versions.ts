@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
-import type { ApiV1ResourceVersionDto } from "../../../../contracts/api/types.ts";
+import type { ApiResourceVersionDto } from "../../../../contracts/api/types.ts";
 import type { WorkspaceRepositoryContentDto } from "../../../../contracts/workspace/types.ts";
 import type { JournalContent } from "../../../../core/journal/model/journalContent.ts";
 import type { ParsedTodoIndexCollection } from "../../../../core/todo/indexes/todoParseIndex.ts";
@@ -22,9 +22,9 @@ import type {
   TodoDomainVersions,
 } from "../../../../application/todo/todoDomainCommands.ts";
 
-export function createApiV1ResourceVersion(
+export function createApiResourceVersion(
   value: unknown,
-): ApiV1ResourceVersionDto {
+): ApiResourceVersionDto {
   return `sha256:${createHash("sha256")
     .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
     .digest("hex")}`;
@@ -33,26 +33,26 @@ export function createApiV1ResourceVersion(
 export function createWorkspaceTreeVersion(
   content: WorkspaceRepositoryContentDto,
 ) {
-  return createApiV1ResourceVersion({
+  return createApiResourceVersion({
     tree: content.workspace.tree,
     workspaceId: content.workspace.id,
   });
 }
 
 export function createWorkspaceNoteVersion(source: string) {
-  return createApiV1ResourceVersion({ source });
+  return createApiResourceVersion({ source });
 }
 
 export function createWorkspaceFolderVersion(folderId: string, title: string) {
-  return createApiV1ResourceVersion({ folderId, title });
+  return createApiResourceVersion({ folderId, title });
 }
 
 export function createJournalEntryVersion(source: string) {
-  return createApiV1ResourceVersion({ source });
+  return createApiResourceVersion({ source });
 }
 
 export function createJournalEntriesVersion(content: JournalContent) {
-  return createApiV1ResourceVersion(
+  return createApiResourceVersion(
     content.days.map(({ date, entries, lastIssuedSequence }) => ({
       date,
       entryIds: entries.map(({ id }) => id),
@@ -71,7 +71,7 @@ export function createParsedTodoCollectionVersion(
 ) {
   const projection = createTodoCollectionBodyProjection(parsed);
 
-  return createApiV1ResourceVersion({
+  return createApiResourceVersion({
     body: projection.source,
     name: parsed.name,
   });
@@ -80,7 +80,7 @@ export function createParsedTodoCollectionVersion(
 export function createTodoCollectionStateVersion(
   collection: TodoContent["collections"][number],
 ) {
-  return createApiV1ResourceVersion({
+  return createApiResourceVersion({
     completions: collection.completions,
     recurrences: collection.recurrences,
   });
@@ -90,7 +90,7 @@ export function createTodoItemStateVersion(
   collection: TodoContent["collections"][number],
   blockId: string,
 ) {
-  return createApiV1ResourceVersion({
+  return createApiResourceVersion({
     completion: collection.completions.find(
       (completion) => completion.blockId === blockId,
     ) ?? null,
@@ -101,7 +101,7 @@ export function createTodoItemStateVersion(
 }
 
 export function createTodoOrderVersion(content: TodoContent) {
-  return createApiV1ResourceVersion(
+  return createApiResourceVersion(
     content.collections.map(({ id }) => id),
   );
 }

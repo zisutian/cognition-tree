@@ -2,9 +2,9 @@ import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import {
-  authorizeApiV1Request,
-  createApiV1SecurityPolicy,
-  ApiV1SecurityError,
+  authorizeApiRequest,
+  createApiSecurityPolicy,
+  ApiSecurityError,
 } from "../../../../infrastructure/server/api/http/security.ts";
 
 const noAutomationTokens = {
@@ -21,16 +21,16 @@ function createRequest({
   return Object.assign(Readable.from([]), {
     headers,
     method,
-    url: "/api/v1/health",
+    url: "/api/v2/health",
   }) as IncomingMessage;
 }
 
-describe("CTN API v1 security", () => {
+describe("CTN API v2 security", () => {
   it("allows loopback authorities without a token", async () => {
-    const policy = createApiV1SecurityPolicy({ host: "127.0.0.1" });
+    const policy = createApiSecurityPolicy({ host: "127.0.0.1" });
 
     expect(policy.requiresBearerToken).toBe(false);
-    await expect(authorizeApiV1Request(
+    await expect(authorizeApiRequest(
       createRequest({ headers: { host: "localhost:3317" } }),
       policy,
       noAutomationTokens,
@@ -38,7 +38,7 @@ describe("CTN API v1 security", () => {
       allowedOrigin: null,
       principal: { kind: "local-owner" },
     });
-    await expect(authorizeApiV1Request(
+    await expect(authorizeApiRequest(
       createRequest({ headers: { host: "example.test" } }),
       policy,
       noAutomationTokens,
@@ -46,14 +46,14 @@ describe("CTN API v1 security", () => {
   });
 
   it("requires token and HTTPS CTN_PUBLIC_URL for every exposed bind", () => {
-    expect(() => createApiV1SecurityPolicy({ host: "0.0.0.0" }))
+    expect(() => createApiSecurityPolicy({ host: "0.0.0.0" }))
       .toThrow("CTN_API_TOKEN and CTN_PUBLIC_URL");
-    expect(() => createApiV1SecurityPolicy({
+    expect(() => createApiSecurityPolicy({
       bearerToken: "x".repeat(32),
       host: "0.0.0.0",
       publicUrl: "http://api.example.test",
     })).toThrow("must be an HTTPS origin");
-    expect(() => createApiV1SecurityPolicy({
+    expect(() => createApiSecurityPolicy({
       bearerToken: "short",
       host: "0.0.0.0",
       publicUrl: "https://api.example.test",
@@ -62,7 +62,7 @@ describe("CTN API v1 security", () => {
 
   it("derives Host, Origin, and owner principal from CTN_PUBLIC_URL", async () => {
     const token = "a-secure-api-token-with-at-least-32-characters";
-    const policy = createApiV1SecurityPolicy({
+    const policy = createApiSecurityPolicy({
       bearerToken: token,
       host: "0.0.0.0",
       publicUrl: "https://api.example.test:8443",
@@ -73,7 +73,7 @@ describe("CTN API v1 security", () => {
       origin: "https://api.example.test:8443",
     };
 
-    await expect(authorizeApiV1Request(
+    await expect(authorizeApiRequest(
       createRequest({ headers }),
       policy,
       noAutomationTokens,
@@ -81,12 +81,12 @@ describe("CTN API v1 security", () => {
       allowedOrigin: "https://api.example.test:8443",
       principal: { kind: "owner" },
     });
-    await expect(authorizeApiV1Request(
+    await expect(authorizeApiRequest(
       createRequest({ headers: { ...headers, authorization: "Bearer bad" } }),
       policy,
       noAutomationTokens,
-    )).rejects.toThrow(ApiV1SecurityError);
-    await expect(authorizeApiV1Request(
+    )).rejects.toThrow(ApiSecurityError);
+    await expect(authorizeApiRequest(
       createRequest({ headers: { ...headers, host: "attacker.test" } }),
       policy,
       noAutomationTokens,
@@ -95,13 +95,13 @@ describe("CTN API v1 security", () => {
   });
 
   it("allows authenticated preflight without sending the bearer token", async () => {
-    const policy = createApiV1SecurityPolicy({
+    const policy = createApiSecurityPolicy({
       bearerToken: "x".repeat(32),
       host: "0.0.0.0",
       publicUrl: "https://api.example.test",
     });
 
-    await expect(authorizeApiV1Request(createRequest({
+    await expect(authorizeApiRequest(createRequest({
       headers: { host: "api.example.test", origin: "https://api.example.test" },
       method: "OPTIONS",
     }), policy, noAutomationTokens)).resolves.toMatchObject({

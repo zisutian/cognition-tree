@@ -5,7 +5,7 @@ import {
   type WorkspaceCommandExecutionRequest,
 } from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
 import type {
-  ApiV1WorkspaceCommandDto,
+  ApiWorkspaceCommandRequestDto,
 } from "../../../../contracts/api/types.ts";
 import {
   WorkspaceRevisionConflictError,
@@ -18,129 +18,33 @@ import {
   createPreparedCommandStoreAdapter,
 } from "../../repository/preparedCommandStoreAdapter.ts";
 import { workspaceResourceVersions } from "../resources/versions.ts";
-import type { ApiV1Runtime } from "../http/runtime.ts";
+import type { ApiRuntime } from "../http/runtime.ts";
 
 function toWorkspaceCommandRequest(
-  command: ApiV1WorkspaceCommandDto,
+  request: ApiWorkspaceCommandRequestDto,
 ): WorkspaceCommandExecutionRequest {
-  switch (command.kind) {
-    case "create-folder":
-      return {
-        command: {
-          kind: command.kind,
-          parentFolderId: command.parentFolderId,
-          title: command.title,
-        },
-        mode: command.mode,
-        preconditions: {
-          expectedTreeVersion: command.expectedTreeVersion,
-        },
-      };
-    case "create-note":
-      return {
-        command: {
-          body: command.body,
-          kind: command.kind,
-          parentFolderId: command.parentFolderId,
-          title: command.title,
-        },
-        mode: command.mode,
-        preconditions: {
-          expectedTreeVersion: command.expectedTreeVersion,
-        },
-      };
-    case "delete-folder":
-      return {
-        command: { folderId: command.folderId, kind: command.kind },
-        mode: command.mode,
-        preconditions: {
-          expectedTreeVersion: command.expectedTreeVersion,
-        },
-      };
-    case "delete-note":
-      return {
-        command: { kind: command.kind, noteId: command.noteId },
-        mode: command.mode,
-        preconditions: { expectedVersion: command.expectedVersion },
-      };
-    case "move-block":
-      return {
-        command: {
-          kind: command.kind,
-          sourceBlockId: command.sourceBlockId,
-          sourceNoteId: command.sourceNoteId,
-          targetBlockId: command.targetBlockId,
-          targetKind: command.targetKind,
-          targetNoteId: command.targetNoteId,
-        },
-        mode: command.mode,
-        preconditions: {
-          expectedSourceVersion: command.expectedSourceVersion,
-          expectedTargetVersion: command.expectedTargetVersion,
-        },
-      };
-    case "move-tree-node":
-      return {
-        command: {
-          kind: command.kind,
-          nodeId: command.nodeId,
-          nodeKind: command.nodeKind,
-          parentFolderId: command.parentFolderId,
-          toIndex: command.toIndex,
-        },
-        mode: command.mode,
-        preconditions: {
-          expectedTreeVersion: command.expectedTreeVersion,
-        },
-      };
-    case "rename-folder":
-      return {
-        command: {
-          folderId: command.folderId,
-          kind: command.kind,
-          title: command.title,
-        },
-        mode: command.mode,
-        preconditions: { expectedVersion: command.expectedVersion },
-      };
-    case "rename-note":
-      return {
-        command: {
-          kind: command.kind,
-          noteId: command.noteId,
-          title: command.title,
-        },
-        mode: command.mode,
-        preconditions: { expectedVersion: command.expectedVersion },
-      };
-    case "replace-note-source":
-      return {
-        command: {
-          editableText: command.editableText,
-          kind: command.kind,
-          noteId: command.noteId,
-        },
-        mode: command.mode,
-        preconditions: { expectedVersion: command.expectedVersion },
-      };
-  }
+  return {
+    command: request.command,
+    mode: request.mode,
+    preconditions: request.preconditions,
+  } as WorkspaceCommandExecutionRequest;
 }
 
-export function executeApiV1WorkspaceCommand({
-  command,
+export function executeApiWorkspaceCommand({
+  request,
   repositoryId,
   runtime,
   store,
 }: {
-  command: ApiV1WorkspaceCommandDto;
+  request: ApiWorkspaceCommandRequestDto;
   repositoryId: string;
-  runtime: ApiV1Runtime;
+  runtime: ApiRuntime;
   store: WorkspaceRepositoryStore;
 }) {
   return executeWorkspaceCommand({
     createRevision: createWorkspaceRepositoryRevision,
     repositoryId,
-    request: toWorkspaceCommandRequest(command),
+    request: toWorkspaceCommandRequest(request),
     runtime,
     store: createPreparedCommandStoreAdapter(
       store,

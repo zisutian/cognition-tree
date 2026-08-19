@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1TodoCollectionDto,
-  ApiV1TodoCollectionsDto,
-  ApiV1TodoItemStateDto,
+  ApiTodoCollectionDto,
+  ApiTodoCollectionsDto,
+  ApiTodoItemStateDto,
 } from "../../../../contracts/api/types.ts";
 import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
 import {
@@ -24,7 +24,7 @@ import {
 import type {
   TodoLocalDate,
 } from "../../../../core/todo/recurrence/todoLocalDate.ts";
-import { projectApiV1CtnDocument } from "./ctn.ts";
+import { projectApiCtnDocument } from "./ctn.ts";
 import {
   createParsedTodoCollectionVersion,
   createTodoCollectionStateVersion,
@@ -32,14 +32,14 @@ import {
   createTodoOrderVersion,
 } from "./versions.ts";
 
-export function createApiV1TodoIndex(content: TodoContent) {
+export function createApiTodoIndex(content: TodoContent) {
   return createTodoParseIndex(content);
 }
 
 function projectTodoItemStates(
   parsed: ParsedTodoIndexCollection,
   today: TodoLocalDate,
-): ApiV1TodoItemStateDto[] {
+): ApiTodoItemStateDto[] {
   const ordinaryCompletionById = new Map(
     parsed.collection.completions.map(({ blockId, completedAt }) => [
       blockId,
@@ -89,11 +89,11 @@ function projectTodoItemStates(
     });
 }
 
-export function projectApiV1TodoCollections(
+export function projectApiTodoCollections(
   content: TodoContent,
   index: TodoParseIndex,
   revision: ContentRevisionDto,
-): ApiV1TodoCollectionsDto {
+): ApiTodoCollectionsDto {
   return {
     collections: index.collections.map(({ collection, name }) => ({
       id: collection.id,
@@ -107,14 +107,14 @@ export function projectApiV1TodoCollections(
     revision,
   };
 }
-export function projectApiV1TodoCollection(
+export function projectApiTodoCollection(
   parsed: ParsedTodoIndexCollection,
   today: TodoLocalDate,
-): ApiV1TodoCollectionDto {
+): ApiTodoCollectionDto {
   const body = createTodoCollectionBodyProjection(parsed);
 
   return {
-    document: projectApiV1CtnDocument({
+    document: projectApiCtnDocument({
       analysis: parsed.analysis,
       createdAt: parsed.analysis.document.blocks[0]!.metadata.createdAt,
       editableText: body.source,

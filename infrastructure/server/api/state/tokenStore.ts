@@ -2,28 +2,28 @@
 
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
-  ApiV1CreateTokenRequestDto,
-  ApiV1CreatedTokenDto,
-  ApiV1PrincipalDto,
-  ApiV1TokenDto,
+  ApiCreateTokenRequestDto,
+  ApiCreatedTokenDto,
+  ApiPrincipalDto,
+  ApiTokenDto,
 } from "../../../../contracts/api/types.ts";
 import {
-  parseApiV1TokenList,
+  parseApiTokenList,
 } from "../../../../contracts/api/parse.ts";
 import {
-  apiV1StateDigestsEqual,
-  createApiV1StateDigest,
+  apiStateDigestsEqual,
+  createApiStateDigest,
 } from "./crypto.ts";
 import {
-  ApiV1StatePartition,
-  assertApiV1StateFields,
-  requireApiV1StateRecord,
+  ApiStatePartition,
+  assertApiStateFields,
+  requireApiStateRecord,
 } from "./partition.ts";
 
 const tokenStateFormatVersion = 1;
 const lastUsedPersistenceIntervalMilliseconds = 60_000;
 
-type StoredToken = ApiV1TokenDto & {
+type StoredToken = ApiTokenDto & {
   digest: string;
 };
 
@@ -34,9 +34,9 @@ type TokenState = {
 
 function parseStoredToken(value: unknown, index: number): StoredToken {
   const pathLabel = `tokens[${index}]`;
-  const record = requireApiV1StateRecord(value, pathLabel);
+  const record = requireApiStateRecord(value, pathLabel);
 
-  assertApiV1StateFields(record, [
+  assertApiStateFields(record, [
     "createdAt",
     "digest",
     "id",
@@ -53,15 +53,15 @@ function parseStoredToken(value: unknown, index: number): StoredToken {
     throw new Error(`${pathLabel}.digest is invalid.`);
   }
   const { digest, ...wire } = record;
-  const token = parseApiV1TokenList({ tokens: [wire] })[0]!;
+  const token = parseApiTokenList({ tokens: [wire] })[0]!;
 
   return { ...token, digest };
 }
 
 function parseTokenState(value: unknown): TokenState {
-  const record = requireApiV1StateRecord(value, "token state");
+  const record = requireApiStateRecord(value, "token state");
 
-  assertApiV1StateFields(
+  assertApiStateFields(
     record,
     ["formatVersion", "tokens"],
     "token state",
@@ -78,18 +78,18 @@ function parseTokenState(value: unknown): TokenState {
   };
 }
 
-function tokenDto({ digest: _digest, ...token }: StoredToken): ApiV1TokenDto {
+function tokenDto({ digest: _digest, ...token }: StoredToken): ApiTokenDto {
   return token;
 }
 
-export class ApiV1TokenStore {
+export class ApiTokenStore {
   readonly #lastPersistedUsage = new Map<string, number>();
   readonly #now: () => Date;
-  readonly #partition: ApiV1StatePartition<TokenState>;
+  readonly #partition: ApiStatePartition<TokenState>;
 
   constructor(directory: string, now: () => Date) {
     this.#now = now;
-    this.#partition = new ApiV1StatePartition({
+    this.#partition = new ApiStatePartition({
       createInitial: () => ({
         formatVersion: tokenStateFormatVersion,
         tokens: [],
@@ -101,11 +101,11 @@ export class ApiV1TokenStore {
     });
   }
 
-  authenticate(secret: string): Promise<ApiV1PrincipalDto | null> {
+  authenticate(secret: string): Promise<ApiPrincipalDto | null> {
     return this.#partition.mutate((state) => {
-      const secretDigest = createApiV1StateDigest(secret);
+      const secretDigest = createApiStateDigest(secret);
       const token = state.tokens.find((candidate) =>
-        apiV1StateDigestsEqual(candidate.digest, secretDigest)
+        apiStateDigestsEqual(candidate.digest, secretDigest)
       );
 
       if (!token) return { changed: false, result: null };
@@ -132,14 +132,14 @@ export class ApiV1TokenStore {
   }
 
   createToken(
-    request: ApiV1CreateTokenRequestDto,
-  ): Promise<ApiV1CreatedTokenDto> {
+    request: ApiCreateTokenRequestDto,
+  ): Promise<ApiCreatedTokenDto> {
     return this.#partition.mutate((state) => {
       const id = `api-token-${randomUUID()}`;
       const secret = `ctn_${randomBytes(32).toString("base64url")}`;
       const token: StoredToken = {
         createdAt: this.#timestamp(),
-        digest: createApiV1StateDigest(secret),
+        digest: createApiStateDigest(secret),
         id,
         lastUsedAt: null,
         name: request.name,
@@ -156,7 +156,7 @@ export class ApiV1TokenStore {
     });
   }
 
-  listTokens(): Promise<ApiV1TokenDto[]> {
+  listTokens(): Promise<ApiTokenDto[]> {
     return this.#partition.read((state) =>
       state.tokens
         .map(tokenDto)

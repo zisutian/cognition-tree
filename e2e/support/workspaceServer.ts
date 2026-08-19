@@ -8,11 +8,11 @@ import http, {
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import {
-  createApiV1RequestHandler,
-  type ApiV1RequestHandler,
+  createApiRequestHandler,
+  type ApiRequestHandler,
 } from "../../infrastructure/server/api/http/server.ts";
 import {
-  createApiV1SecurityPolicy,
+  createApiSecurityPolicy,
 } from "../../infrastructure/server/api/http/security.ts";
 import {
   LocalRepositoryCatalog,
@@ -25,7 +25,7 @@ import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins
 const host = "127.0.0.1";
 
 type E2ERuntime = {
-  apiV1Handler: ApiV1RequestHandler;
+  apiHandler: ApiRequestHandler;
   catalog: CompositeRepositoryCatalog;
   localCatalog: LocalRepositoryCatalog;
 };
@@ -49,7 +49,7 @@ export async function startE2EWorkspaceServer({
   const repositoryDirectory = path.join(rootDirectory, "repositories");
   const serverStateDirectory = path.join(rootDirectory, "server");
   const security = {
-    ...createApiV1SecurityPolicy({ host }),
+    ...createApiSecurityPolicy({ host }),
     allowedOrigins: [allowedOrigin],
   };
 
@@ -66,7 +66,7 @@ export async function startE2EWorkspaceServer({
     await catalog.initialize();
     await builtInCatalog.initialize();
     return {
-      apiV1Handler: createApiV1RequestHandler({
+      apiHandler: createApiRequestHandler({
         builtInCatalog,
         catalog,
         security,
@@ -171,7 +171,7 @@ export async function startE2EWorkspaceServer({
       return;
     }
 
-    void runtime.apiV1Handler(request, response);
+    void runtime.apiHandler(request, response);
   });
 
   server.headersTimeout = 10_000;

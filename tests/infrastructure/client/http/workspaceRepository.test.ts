@@ -130,7 +130,7 @@ describe("HTTP workspace repository backend", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       method: "GET",
-      url: "http://api.test/base/api/v1/sync/workspaces/primary",
+      url: "http://api.test/base/api/v2/sync/workspaces/primary",
     });
   });
 

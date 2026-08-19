@@ -5,7 +5,7 @@ import {
   type JournalCommandExecutionRequest,
 } from "../../../../application/journal/journalCommandExecutor.ts";
 import type {
-  ApiV1JournalCommandDto,
+  ApiJournalCommandRequestDto,
 } from "../../../../contracts/api/types.ts";
 import {
   VersionedContentRevisionConflictError,
@@ -18,51 +18,30 @@ import {
   createPreparedCommandStoreAdapter,
 } from "../../repository/preparedCommandStoreAdapter.ts";
 import { journalResourceVersions } from "../resources/versions.ts";
-import type { ApiV1Runtime } from "../http/runtime.ts";
+import type { ApiRuntime } from "../http/runtime.ts";
 
 function toJournalCommandRequest(
-  command: ApiV1JournalCommandDto,
+  request: ApiJournalCommandRequestDto,
 ): JournalCommandExecutionRequest {
-  switch (command.kind) {
-    case "create-entry":
-      return {
-        command: { body: command.body, kind: command.kind },
-        mode: command.mode,
-        preconditions: {
-          expectedEntriesVersion: command.expectedEntriesVersion,
-        },
-      };
-    case "delete-entry":
-      return {
-        command: { entryId: command.entryId, kind: command.kind },
-        mode: command.mode,
-        preconditions: { expectedVersion: command.expectedVersion },
-      };
-    case "replace-entry-body":
-      return {
-        command: {
-          body: command.body,
-          entryId: command.entryId,
-          kind: command.kind,
-        },
-        mode: command.mode,
-        preconditions: { expectedVersion: command.expectedVersion },
-      };
-  }
+  return {
+    command: request.command,
+    mode: request.mode,
+    preconditions: request.preconditions,
+  } as JournalCommandExecutionRequest;
 }
 
-export function executeApiV1JournalCommand({
-  command,
+export function executeApiJournalCommand({
+  request,
   runtime,
   store,
 }: {
-  command: ApiV1JournalCommandDto;
-  runtime: ApiV1Runtime;
+  request: ApiJournalCommandRequestDto;
+  runtime: ApiRuntime;
   store: JournalContentStore;
 }) {
   return executeJournalCommand({
     createRevision: createJournalRevision,
-    request: toJournalCommandRequest(command),
+    request: toJournalCommandRequest(request),
     runtime,
     store: createPreparedCommandStoreAdapter(
       store,

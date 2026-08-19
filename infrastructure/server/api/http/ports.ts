@@ -13,7 +13,7 @@ import type {
   VersionedContentStore,
 } from "../../repository/versioned/contentStore.ts";
 
-export type ApiV1BuiltInCatalog = {
+export type ApiBuiltInCatalog = {
   getStore(id: "journal"): Promise<
     VersionedContentStore<JournalContentDto, JournalParseIndex>
   >;

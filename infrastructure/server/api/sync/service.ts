@@ -9,7 +9,7 @@ import type {
   TodoContentDto,
 } from "../../../../contracts/todo/types.ts";
 import type {
-  ApiV1DomainChangeSetDto,
+  ApiDomainChangeSetDto,
 } from "../../../../contracts/api/types.ts";
 import type {
   WorkspaceRepositoryCommitDto,
@@ -35,7 +35,7 @@ import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
 import {
-  type ApiV1Runtime,
+  type ApiRuntime,
 } from "../http/runtime.ts";
 import {
   projectTodoContentChanges,
@@ -48,27 +48,27 @@ import {
   type WorkspaceResourceVersionPolicy,
 } from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
 
-type ApiV1SyncResult = {
+type ApiSyncResult = {
   body: unknown;
   statusCode: number;
 };
 
-type ApiV1SyncContext = {
-  method: string;
+type ApiSyncContext = {
+  mode: "commit" | "load";
   observeRevision(revision: `sha256:${string}`): void;
-  publish(changes: ApiV1DomainChangeSetDto): Promise<void>;
+  publish(changes: ApiDomainChangeSetDto): Promise<void>;
   readJsonBody(): Promise<unknown>;
-  runtime: ApiV1Runtime;
+  runtime: ApiRuntime;
 };
 
-export async function synchronizeApiV1Workspace(
-  context: ApiV1SyncContext & {
+export async function synchronizeApiWorkspace(
+  context: ApiSyncContext & {
     repositoryId: string;
     store: WorkspaceRepositoryStore;
     versionPolicy: WorkspaceResourceVersionPolicy;
   },
-): Promise<ApiV1SyncResult> {
-  const request = context.method === "GET"
+): Promise<ApiSyncResult> {
+  const request = context.mode === "load"
     ? { mode: "load" as const }
     : {
         ...await context.readJsonBody() as WorkspaceRepositoryCommitDto,
@@ -101,13 +101,13 @@ export async function synchronizeApiV1Workspace(
   return { body: { revision: result.revision }, statusCode: 200 };
 }
 
-export async function synchronizeApiV1Journal(
-  context: ApiV1SyncContext & {
+export async function synchronizeApiJournal(
+  context: ApiSyncContext & {
     store: VersionedContentStore<JournalContentDto, JournalParseIndex>;
     versionPolicy: JournalDomainVersions;
   },
-): Promise<ApiV1SyncResult> {
-  const request = context.method === "GET"
+): Promise<ApiSyncResult> {
+  const request = context.mode === "load"
     ? { mode: "load" as const }
     : {
         ...await context.readJsonBody() as JournalCommitDto,
@@ -139,13 +139,13 @@ export async function synchronizeApiV1Journal(
   return { body: { revision: result.revision }, statusCode: 200 };
 }
 
-export async function synchronizeApiV1Todo(
-  context: ApiV1SyncContext & {
+export async function synchronizeApiTodo(
+  context: ApiSyncContext & {
     store: VersionedContentStore<TodoContentDto, TodoParseIndex>;
     versionPolicy: TodoDomainVersions;
   },
-): Promise<ApiV1SyncResult> {
-  const request = context.method === "GET"
+): Promise<ApiSyncResult> {
+  const request = context.mode === "load"
     ? { mode: "load" as const }
     : {
         ...await context.readJsonBody() as TodoCommitDto,

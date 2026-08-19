@@ -27,8 +27,8 @@ import {
 import { validateTodoContent } from "../../core/todo/model/todoValidation";
 import { defaultTodoSyntaxSource } from "../../core/todo/syntax/defaultTodoSyntax";
 
-const journalSnapshotEndpoint = "/api/v1/sync/journal";
-const todoSnapshotEndpoint = "/api/v1/sync/todo";
+const journalSnapshotEndpoint = "/api/v2/sync/journal";
+const todoSnapshotEndpoint = "/api/v2/sync/todo";
 
 export function createEmptyJournalSeed(): JournalContentDto {
   return createEmptyJournalContent();

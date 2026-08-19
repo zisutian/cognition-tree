@@ -8,122 +8,122 @@ import type {
 } from "node:http";
 import path from "node:path";
 import {
-  apiV1AllowedMethods,
-  assertApiV1OperationResponse,
-  getApiV1RouteOperation,
-  parseApiV1OperationRequest,
-  parseApiV1OperationQuery,
-  resolveApiV1Route,
+  apiAllowedMethods,
+  assertApiOperationResponse,
+  getApiRouteOperation,
+  parseApiOperationRequest,
+  parseApiOperationQuery,
+  resolveApiRoute,
 } from "../../../../contracts/api/registry.ts";
 import type {
   WorkspaceRepositoryCatalog,
 } from "../../repository/catalog.ts";
 import type {
-  ApiV1BuiltInCatalog,
+  ApiBuiltInCatalog,
 } from "./ports.ts";
 import {
-  ApiV1RequestError,
-  mapApiV1Error,
+  ApiRequestError,
+  mapApiError,
 } from "./errors.ts";
 import {
-  createApiV1SearchService,
-  handleApiV1Route,
+  createApiSearchService,
+  handleApiRoute,
 } from "./handlers.ts";
 import {
-  authorizeApiV1Request,
-  ApiV1SecurityError,
-  type ApiV1SecurityPolicy,
+  authorizeApiRequest,
+  ApiSecurityError,
+  type ApiSecurityPolicy,
 } from "./security.ts";
 import {
-  assertApiV1RequestHasNoBody,
-  createApiV1ResponseHeaders,
-  readApiV1JsonBody,
-  sendApiV1Json,
-  sendApiV1NoContent,
+  assertApiRequestHasNoBody,
+  createApiResponseHeaders,
+  readApiJsonBody,
+  sendApiJson,
+  sendApiNoContent,
 } from "./transport.ts";
-import { createSafeApiV1LogError } from "./log.ts";
+import { createSafeApiLogError } from "./log.ts";
 import {
-  ApiV1EventHub,
+  ApiEventHub,
 } from "../sync/events.ts";
 import {
-  systemApiV1Runtime,
-  type ApiV1Runtime,
+  systemApiRuntime,
+  type ApiRuntime,
 } from "./runtime.ts";
 import {
-  ApiV1StateStore,
+  ApiStateStore,
 } from "../state/store.ts";
 import {
-  ApiV1RevisionTracker,
+  ApiRevisionTracker,
 } from "../sync/revisionTracker.ts";
 
-export type ApiV1RequestHandler = (
+export type ApiRequestHandler = (
   request: IncomingMessage,
   response: ServerResponse,
 ) => Promise<void>;
 
-type ApiV1ServerOptions = {
-  builtInCatalog?: ApiV1BuiltInCatalog;
+type ApiServerOptions = {
+  builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
-  eventHub?: ApiV1EventHub;
+  eventHub?: ApiEventHub;
   logger?: Pick<Console, "error">;
-  runtime?: ApiV1Runtime;
-  revisionTracker?: ApiV1RevisionTracker;
-  security: ApiV1SecurityPolicy;
+  runtime?: ApiRuntime;
+  revisionTracker?: ApiRevisionTracker;
+  security: ApiSecurityPolicy;
   stateDirectory?: string;
-  stateStore?: ApiV1StateStore;
+  stateStore?: ApiStateStore;
 };
 
-function mapSecurityError(error: ApiV1SecurityError) {
-  return new ApiV1RequestError(
+function mapSecurityError(error: ApiSecurityError) {
+  return new ApiRequestError(
     error.statusCode === 401 ? "unauthorized" : "forbidden",
     error.message,
     { statusCode: error.statusCode },
   );
 }
 
-export function createApiV1RequestHandler({
+export function createApiRequestHandler({
   builtInCatalog,
   catalog,
-  eventHub = new ApiV1EventHub(),
+  eventHub = new ApiEventHub(),
   logger = console,
-  runtime = systemApiV1Runtime,
-  revisionTracker = new ApiV1RevisionTracker(),
+  runtime = systemApiRuntime,
+  revisionTracker = new ApiRevisionTracker(),
   security,
   stateDirectory = path.join(
     process.cwd(),
     ".cognition-tree",
     "server",
   ),
-  stateStore = new ApiV1StateStore(stateDirectory),
-}: ApiV1ServerOptions): ApiV1RequestHandler {
-  const search = createApiV1SearchService({
+  stateStore = new ApiStateStore(stateDirectory),
+}: ApiServerOptions): ApiRequestHandler {
+  const search = createApiSearchService({
     builtInCatalog,
     catalog,
   });
 
   return async (request, response) => {
     const requestId = randomUUID();
-    let responseHeaders = createApiV1ResponseHeaders(null, requestId);
+    let responseHeaders = createApiResponseHeaders(null, requestId);
 
     try {
-      const authorized = await authorizeApiV1Request(
+      const authorized = await authorizeApiRequest(
         request,
         security,
         stateStore,
       );
 
-      responseHeaders = createApiV1ResponseHeaders(
+      responseHeaders = createApiResponseHeaders(
         authorized.allowedOrigin,
         requestId,
       );
       const url = new URL(request.url ?? "/", "http://localhost");
-      const route = resolveApiV1Route(url.pathname);
+      const route = resolveApiRoute(url.pathname);
 
       if (!route) {
-        throw new ApiV1RequestError("not_found", "Not found");
+        throw new ApiRequestError("not_found", "Not found");
       }
       if (request.method === "OPTIONS") {
-        sendApiV1NoContent(response, responseHeaders);
+        sendApiNoContent(response, responseHeaders);
         return;
       }
       const method = request.method;
@@ -134,33 +134,32 @@ export function createApiV1RequestHandler({
           method as (typeof route.methods)[number],
         )
       ) {
-        throw new ApiV1RequestError(
+        throw new ApiRequestError(
           "invalid_request",
           "Method not allowed",
           { statusCode: 405 },
         );
       }
-      const operation = getApiV1RouteOperation(route, method);
+      const operation = getApiRouteOperation(route, method);
 
       if (!operation.body) {
-        assertApiV1RequestHasNoBody(request);
+        assertApiRequestHasNoBody(request);
       }
-      const query = parseApiV1OperationQuery(
-        route,
-        method,
+      const query = parseApiOperationQuery(
+        operation,
         url.searchParams,
       );
       let parsedBody: Promise<unknown> | null = null;
-      const result = await handleApiV1Route({
+      const result = await handleApiRoute({
         builtInCatalog,
         catalog,
         eventHub,
-        method,
+        operation,
         principal: authorized.principal,
         query,
         readJsonBody: () => {
-          parsedBody ??= readApiV1JsonBody(request).then((input) =>
-            parseApiV1OperationRequest(route, method, input)
+          parsedBody ??= readApiJsonBody(request).then((input) =>
+            parseApiOperationRequest(operation, input)
           );
           return parsedBody;
         },
@@ -175,13 +174,12 @@ export function createApiV1RequestHandler({
       });
 
       if (result) {
-        assertApiV1OperationResponse(
-          route,
-          method,
+        assertApiOperationResponse(
+          operation,
           result.statusCode,
           result.body,
         );
-        sendApiV1Json(
+        sendApiJson(
           response,
           result.statusCode,
           result.body,
@@ -193,20 +191,20 @@ export function createApiV1RequestHandler({
         response.destroy();
         return;
       }
-      if (error instanceof ApiV1SecurityError && error.allowedOrigin) {
-        responseHeaders = createApiV1ResponseHeaders(
+      if (error instanceof ApiSecurityError && error.allowedOrigin) {
+        responseHeaders = createApiResponseHeaders(
           error.allowedOrigin,
           requestId,
         );
       }
-      const mapped = error instanceof ApiV1SecurityError
+      const mapped = error instanceof ApiSecurityError
         ? mapSecurityError(error)
-        : mapApiV1Error(error);
+        : mapApiError(error);
 
       if (mapped.statusCode >= 500) {
         logger.error(
-          `[${requestId}] CTN API v1 request failed`,
-          createSafeApiV1LogError(error),
+          `[${requestId}] CTN API v2 request failed`,
+          createSafeApiLogError(error),
         );
       }
       if (mapped.code === "unauthorized") {
@@ -218,10 +216,10 @@ export function createApiV1RequestHandler({
       if (mapped.statusCode === 405) {
         responseHeaders = {
           ...responseHeaders,
-          Allow: apiV1AllowedMethods,
+          Allow: apiAllowedMethods,
         };
       }
-      sendApiV1Json(
+      sendApiJson(
         response,
         mapped.statusCode,
         mapped.toDto(requestId),
@@ -231,8 +229,8 @@ export function createApiV1RequestHandler({
   };
 }
 
-export function createApiV1Server(options: ApiV1ServerOptions) {
-  const server = http.createServer(createApiV1RequestHandler(options));
+export function createApiServer(options: ApiServerOptions) {
+  const server = http.createServer(createApiRequestHandler(options));
 
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 5_000;

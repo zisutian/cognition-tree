@@ -6,12 +6,12 @@ import {
   readWireObject,
 } from "../common/contractValue.ts";
 import type {
-  ApiV1ErrorCodeDto,
-  ApiV1ErrorDto,
+  ApiErrorCodeDto,
+  ApiErrorDto,
 } from "./types.ts";
 
-const contract = "CTN API v1";
-const codes = new Set<ApiV1ErrorCodeDto>([
+const contract = "CTN API v2";
+const codes = new Set<ApiErrorCodeDto>([
   "adapter_unavailable",
   "domain_validation_failed",
   "forbidden",
@@ -27,7 +27,7 @@ const codes = new Set<ApiV1ErrorCodeDto>([
   "unauthorized",
 ]);
 
-export function parseApiV1Error(value: unknown): ApiV1ErrorDto {
+export function parseApiError(value: unknown): ApiErrorDto {
   const error = readWireObject(contract, value, "$");
   const allowed = new Set(["code", "details", "message", "requestId"]);
 
@@ -46,7 +46,7 @@ export function parseApiV1Error(value: unknown): ApiV1ErrorDto {
     error,
     "code",
     "$",
-  ) as ApiV1ErrorCodeDto;
+  ) as ApiErrorCodeDto;
 
   if (!codes.has(code)) {
     failWireContract(contract, "$.code", "unsupported error code");

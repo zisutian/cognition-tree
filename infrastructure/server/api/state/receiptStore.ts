@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1CommittedCommandResultDto,
+  ApiCommittedCommandResultDto,
 } from "../../../../contracts/api/types.ts";
 import {
-  parseApiV1Schema,
+  parseApiSchema,
 } from "../../../../contracts/api/parse.ts";
 import {
-  ApiV1CommittedCommandResultSchema,
+  ApiCommittedCommandResultSchema,
 } from "../../../../contracts/api/schemas/transitions.ts";
 import {
-  createApiV1CommandRequestDigest,
+  createApiCommandRequestDigest,
 } from "./crypto.ts";
 import {
-  ApiV1StatePartition,
-  assertApiV1StateFields,
-  requireApiV1StateRecord,
+  ApiStatePartition,
+  assertApiStateFields,
+  requireApiStateRecord,
 } from "./partition.ts";
 
 const receiptStateFormatVersion = 1;
 const receiptRetentionMilliseconds = 30 * 24 * 60 * 60 * 1_000;
 
-export class ApiV1IdempotencyConflictError extends Error {
+export class ApiIdempotencyConflictError extends Error {
   constructor() {
     super("commandId was already used with a different request");
-    this.name = "ApiV1IdempotencyConflictError";
+    this.name = "ApiIdempotencyConflictError";
   }
 }
 
@@ -33,7 +33,7 @@ type StoredReceipt = {
   expiresAt: string;
   principalId: string;
   requestDigest: string;
-  result: ApiV1CommittedCommandResultDto;
+  result: ApiCommittedCommandResultDto;
 };
 
 type ReceiptState = {
@@ -43,9 +43,9 @@ type ReceiptState = {
 
 function parseStoredReceipt(value: unknown, index: number): StoredReceipt {
   const pathLabel = `receipts[${index}]`;
-  const record = requireApiV1StateRecord(value, pathLabel);
+  const record = requireApiStateRecord(value, pathLabel);
 
-  assertApiV1StateFields(record, [
+  assertApiStateFields(record, [
     "commandId",
     "expiresAt",
     "principalId",
@@ -69,17 +69,17 @@ function parseStoredReceipt(value: unknown, index: number): StoredReceipt {
     expiresAt: record.expiresAt as string,
     principalId: record.principalId as string,
     requestDigest: record.requestDigest as string,
-    result: parseApiV1Schema(
-      ApiV1CommittedCommandResultSchema,
+    result: parseApiSchema(
+      ApiCommittedCommandResultSchema,
       record.result,
     ),
   };
 }
 
 function parseReceiptState(value: unknown): ReceiptState {
-  const record = requireApiV1StateRecord(value, "receipt state");
+  const record = requireApiStateRecord(value, "receipt state");
 
-  assertApiV1StateFields(
+  assertApiStateFields(
     record,
     ["formatVersion", "receipts"],
     "receipt state",
@@ -96,13 +96,13 @@ function parseReceiptState(value: unknown): ReceiptState {
   };
 }
 
-export class ApiV1ReceiptStore {
+export class ApiReceiptStore {
   readonly #now: () => Date;
-  readonly #partition: ApiV1StatePartition<ReceiptState>;
+  readonly #partition: ApiStatePartition<ReceiptState>;
 
   constructor(directory: string, now: () => Date) {
     this.#now = now;
-    this.#partition = new ApiV1StatePartition({
+    this.#partition = new ApiStatePartition({
       createInitial: () => ({
         formatVersion: receiptStateFormatVersion,
         receipts: [],
@@ -118,7 +118,7 @@ export class ApiV1ReceiptStore {
     principalId: string,
     commandId: string,
     request: unknown,
-  ): Promise<ApiV1CommittedCommandResultDto | null> {
+  ): Promise<ApiCommittedCommandResultDto | null> {
     return this.#partition.mutate((state) => {
       const changed = this.#purge(state);
       const receipt = state.receipts.find(
@@ -129,9 +129,9 @@ export class ApiV1ReceiptStore {
 
       if (
         receipt &&
-        receipt.requestDigest !== createApiV1CommandRequestDigest(request)
+        receipt.requestDigest !== createApiCommandRequestDigest(request)
       ) {
-        throw new ApiV1IdempotencyConflictError();
+        throw new ApiIdempotencyConflictError();
       }
       return { changed, result: receipt?.result ?? null };
     });
@@ -141,7 +141,7 @@ export class ApiV1ReceiptStore {
     principalId: string,
     commandId: string,
     request: unknown,
-    result: ApiV1CommittedCommandResultDto,
+    result: ApiCommittedCommandResultDto,
   ): Promise<void> {
     return this.#partition.mutate((state) => {
       const purged = this.#purge(state);
@@ -150,11 +150,11 @@ export class ApiV1ReceiptStore {
           candidate.principalId === principalId &&
           candidate.commandId === commandId,
       );
-      const requestDigest = createApiV1CommandRequestDigest(request);
+      const requestDigest = createApiCommandRequestDigest(request);
 
       if (existing) {
         if (existing.requestDigest !== requestDigest) {
-          throw new ApiV1IdempotencyConflictError();
+          throw new ApiIdempotencyConflictError();
         }
         return { changed: purged, result: undefined };
       }

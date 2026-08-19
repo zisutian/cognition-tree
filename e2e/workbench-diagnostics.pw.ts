@@ -176,7 +176,7 @@ test.describe("workbench diagnostics", () => {
     await openRepositoryFromContext(page, diagnosticsRepositoryId);
     await getActivityButton(page, "语法").click();
     await page.route(
-      `**/api/v1/sync/workspaces/${diagnosticsRepositoryId}`,
+      `**/api/v2/sync/workspaces/${diagnosticsRepositoryId}`,
       async (route) => {
         if (route.request().method() === "PUT") {
           await route.fulfill({

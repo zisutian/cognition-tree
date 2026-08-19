@@ -13,8 +13,8 @@ import type {
   ClientApiConfiguration,
 } from "./apiConfiguration";
 import { createBuiltInRuntime } from "./builtInRuntime";
-import { createHttpApiV1EventSource } from "../http/apiV1Events";
-import { createHttpApiV1Administration } from "../http/apiV1Admin";
+import { createHttpApiEventSource } from "../http/apiEvents";
+import { createHttpApiAdministration } from "../http/apiAdmin";
 import { createWorkspaceRepositoryRuntime } from "./workspaceRepositoryRuntime";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import {
@@ -29,13 +29,13 @@ export function createWorkbenchRuntime(
 
   return createWorkbenchController({
     activeRepositorySelection: workspace.activeRepositorySelection,
-    apiAccessAdministration: createHttpApiV1Administration({
+    apiAccessAdministration: createHttpApiAdministration({
       baseUrl: api.baseUrl,
       token: api.token,
     }),
     builtInCatalog: builtIns.catalog,
     journalRepositories: builtIns.journalRepositories,
-    changeEvents: createHttpApiV1EventSource({
+    changeEvents: createHttpApiEventSource({
       baseUrl: api.baseUrl,
       token: api.token,
     }),

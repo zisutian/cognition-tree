@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import type { TodoLocalDate } from "../../../../core/todo/recurrence/todoLocalDate.ts";
 
-export type ApiV1Runtime = {
+export type ApiRuntime = {
   createId(): string;
   now(): Date;
   timezoneOffsetMinutes(date: Date): number;
@@ -18,14 +18,14 @@ function localDate(date: Date): TodoLocalDate {
   return `${year}-${month}-${day}` as TodoLocalDate;
 }
 
-export const systemApiV1Runtime: ApiV1Runtime = {
+export const systemApiRuntime: ApiRuntime = {
   createId: randomUUID,
   now: () => new Date(),
   timezoneOffsetMinutes: (date) => -date.getTimezoneOffset(),
   today: localDate,
 };
 
-export function readApiV1RuntimeNow(runtime: ApiV1Runtime) {
+export function readApiRuntimeNow(runtime: ApiRuntime) {
   const date = runtime.now();
 
   if (!(date instanceof Date) || !Number.isFinite(date.getTime())) {

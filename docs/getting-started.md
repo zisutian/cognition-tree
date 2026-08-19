@@ -80,45 +80,49 @@ link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址�
 
 ## 4. API 与数据目录
 
-唯一 HTTP 契约是 /api/v1。入口由同一 registry 生成路由、严格 body
+唯一 HTTP 契约是 /api/v2。入口由同一 registry 生成路由、严格 body
 解析、权限声明和 OpenAPI 3.1：
 
-    GET  /api/v1/health
-    GET  /api/v1/capabilities
-    GET  /api/v1/openapi.json
-    GET  /api/v1/events
-    POST /api/v1/search
+    GET  /api/v2/health
+    GET  /api/v2/capabilities
+    GET  /api/v2/openapi.json
+    GET  /api/v2/events
+    POST /api/v2/search
 
-    GET  /api/v1/workspaces
-    GET  /api/v1/workspaces/<repository-id>/tree
-    GET  /api/v1/workspaces/<repository-id>/notes/<note-id>
-    POST /api/v1/workspaces/<repository-id>/commands
+    GET  /api/v2/workspaces
+    GET  /api/v2/workspaces/<repository-id>/tree
+    GET  /api/v2/workspaces/<repository-id>/notes/<note-id>
+    POST /api/v2/workspaces/<repository-id>/commands
 
-    GET  /api/v1/journal/entries
-    GET  /api/v1/journal/entries/<entry-id>
-    POST /api/v1/journal/commands
-    GET  /api/v1/todo/collections
-    GET  /api/v1/todo/collections/<collection-id>
-    POST /api/v1/todo/commands
+    GET  /api/v2/journal/entries
+    GET  /api/v2/journal/entries/<entry-id>
+    POST /api/v2/journal/commands
+    GET  /api/v2/todo/collections
+    GET  /api/v2/todo/collections/<collection-id>
+    POST /api/v2/todo/commands
 
 官方客户端独占完整同步：
 
-    GET、PUT /api/v1/sync/workspaces/<repository-id>
-    GET、PUT /api/v1/sync/journal
-    GET、PUT /api/v1/sync/todo
+    GET、PUT /api/v2/sync/workspaces/<repository-id>
+    GET、PUT /api/v2/sync/journal
+    GET、PUT /api/v2/sync/todo
 
-管理接口位于 /api/v1/admin/repositories、/api/v1/admin/tokens 和
-/api/v1/admin/audit。服务端只解析 registry 声明的当前 operation，不提供
+管理接口位于 /api/v2/admin/repositories、/api/v2/admin/tokens 和
+/api/v2/admin/audit。服务端只解析 registry 声明的当前 operation，不提供
 别名、版本协商或兼容开关。
 
 自动化应使用设置页创建的高熵令牌，并调用资源查询和领域命令。令牌只能获得
 Workspace、Journal、Todo 的 read、write、delete scope；repository allowlist
 仅约束 Workspace。自动化令牌不能取得 sync、syntax:write、
 repository:admin 或 token:manage。delete 不包含在 write 中，删除命令还必须
-携带目标资源版本和 confirm: true。
+携带目标资源版本；命令中的显式 delete kind 表达业务语义，delete scope
+负责授权，UI 确认只属于交互层。wire command 不接受 `confirm`。
 
-每个命令携带 UUID commandId、preview/commit mode 和目标 SHA-256
-资源版本。preview 不写入也不审计；commit 在一个 versioned store 内原子提交。
+每个命令使用严格 envelope：`command` 只表达业务意图，`preconditions` 按
+command kind 精确声明全部目标 SHA-256 资源版本。preview envelope 只包含
+`mode: "preview"`、`command` 和 `preconditions`，不接受 commandId、不写入、
+不审计也不产生幂等回执；commit envelope 额外必须包含 UUID commandId，并在
+一个 versioned store 内原子提交。旧的扁平命令请求不解析。
 相同 principal、commandId 和请求体在 30 天内返回原回执；相同 commandId 的
 不同请求返回 409 idempotency_conflict。同资源版本变化返回
 409 resource_conflict，不覆盖内容。
@@ -135,7 +139,7 @@ Todo 远程客户端真值表：
     recurrence.active == true 且 currentOccurrenceDate == null
         不猜测日期；刷新投影后再提交。
 
-GET /api/v1/events 使用 SSE。连接时先发送带进程级 streamId 的 revision
+GET /api/v2/events 使用 SSE。连接时先发送带进程级 streamId 的 revision
 checkpoint，随后只发送不含正文的 change set；sequence 只在同一 stream
 内比较。客户端看到新 stream 的 checkpoint 时重置去重状态并重新比较资源。
 SSE 只是失效通知，资源查询和同步 snapshot 始终是真相；checkpoint 由轻量
@@ -176,6 +180,11 @@ API 状态分区保存在：
     <CTN_SERVER_STATE_DIR>/api-v1/tokens.json
     <CTN_SERVER_STATE_DIR>/api-v1/receipts.json
     <CTN_SERVER_STATE_DIR>/api-v1/audit.json
+
+`api-v1` 在这里仅是已经发布的磁盘目录名，不是 HTTP namespace。v2 继续原位
+读取这些文件，避免迁移或遗失既有 token、audit 和 receipt；旧请求产生的
+commandId 被 v2 envelope 复用时，因为请求摘要不同而返回
+`409 idempotency_conflict`。
 
 三个文件分别只保存令牌 SHA-256 哈希与授权、无正文幂等回执和分页审计。
 创建响应中的 secret 不落盘；单个分区损坏不会阻断其它分区，token

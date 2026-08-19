@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1RevisionCheckpointDto,
-  ApiV1ResourceVersionDto,
+  ApiRevisionCheckpointDto,
+  ApiResourceVersionDto,
 } from "../../../../contracts/api/types.ts";
 
-export type ApiV1TrackedDomain = "journal" | "todo";
-export type ApiV1RevisionObservation =
+export type ApiTrackedDomain = "journal" | "todo";
+export type ApiRevisionObservation =
   | "changed"
   | "first-seen"
   | "unchanged";
 
-export class ApiV1RevisionTracker {
-  #journal: ApiV1ResourceVersionDto | null = null;
-  #todo: ApiV1ResourceVersionDto | null = null;
-  readonly #workspaces = new Map<string, ApiV1ResourceVersionDto>();
+export class ApiRevisionTracker {
+  #journal: ApiResourceVersionDto | null = null;
+  #todo: ApiResourceVersionDto | null = null;
+  readonly #workspaces = new Map<string, ApiResourceVersionDto>();
 
   checkpoint({
     sequence,
@@ -22,7 +22,7 @@ export class ApiV1RevisionTracker {
   }: {
     sequence: number;
     streamId: string;
-  }): ApiV1RevisionCheckpointDto {
+  }): ApiRevisionCheckpointDto {
     return {
       journal: this.#journal,
       sequence,
@@ -37,9 +37,9 @@ export class ApiV1RevisionTracker {
   }
 
   observeDomain(
-    domain: ApiV1TrackedDomain,
-    revision: ApiV1ResourceVersionDto,
-  ): ApiV1RevisionObservation {
+    domain: ApiTrackedDomain,
+    revision: ApiResourceVersionDto,
+  ): ApiRevisionObservation {
     const previous = domain === "journal" ? this.#journal : this.#todo;
 
     if (domain === "journal") this.#journal = revision;
@@ -53,8 +53,8 @@ export class ApiV1RevisionTracker {
 
   observeWorkspace(
     repositoryId: string,
-    revision: ApiV1ResourceVersionDto,
-  ): ApiV1RevisionObservation {
+    revision: ApiResourceVersionDto,
+  ): ApiRevisionObservation {
     const previous = this.#workspaces.get(repositoryId);
 
     this.#workspaces.set(repositoryId, revision);

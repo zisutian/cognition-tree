@@ -2,8 +2,8 @@
 
 import type { TSchema } from "@sinclair/typebox";
 import {
-  ApiV1ErrorResponseSchema,
-  apiV1Operations,
+  ApiErrorResponseSchema,
+  apiOperations,
 } from "./registry.ts";
 
 function jsonSchema(schema: TSchema): Record<string, unknown> {
@@ -36,19 +36,23 @@ function queryParameters(schema: TSchema | undefined) {
   }));
 }
 
+function operationTag(path: string) {
+  return path.split("/")[3]?.replace(/\.json$/, "") ?? "api";
+}
+
 const errorResponse = {
   content: {
     "application/json": {
-      schema: jsonSchema(ApiV1ErrorResponseSchema),
+      schema: jsonSchema(ApiErrorResponseSchema),
     },
   },
   description: "CTN API error envelope",
 };
 
-export function createApiV1OpenApiDocument() {
+export function createApiOpenApiDocument() {
   const paths: Record<string, Record<string, unknown>> = {};
 
-  for (const operation of apiV1Operations) {
+  for (const operation of apiOperations) {
     const path = paths[operation.path] ?? {};
     const mediaType = operation.responseMediaType ?? "application/json";
     const responses = Object.fromEntries([
@@ -97,7 +101,7 @@ export function createApiV1OpenApiDocument() {
       ],
       responses,
       security: [{ bearerAuth: [] }],
-      tags: [operation.kind.split("-")[0]],
+      tags: [operationTag(operation.path)],
       "x-ctn-any-scopes": operation.anyScopes,
       "x-ctn-required-scopes": operation.scopes,
     };
@@ -118,7 +122,7 @@ export function createApiV1OpenApiDocument() {
       description:
         "Scoped resource queries and domain commands for automation; full snapshots are reserved for official-client synchronization.",
       title: "Cognition Tree API",
-      version: "1.0.0",
+      version: "2.0.0",
     },
     openapi: "3.1.0",
     paths,

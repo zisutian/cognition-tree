@@ -1,137 +1,109 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { Type, type Static } from "@sinclair/typebox";
-import type {
-  DomainBlockChange,
-  DomainChangeSet,
-  DomainResourceChange,
-} from "../../../core/sync/domainChangeSet.ts";
-import type {
-  JournalCommandOutcome,
-} from "../../../core/journal/commands/journalCommandOutcome.ts";
-import type {
-  TodoCommandOutcome,
-} from "../../../core/todo/commands/todoCommandOutcome.ts";
-import type {
-  WorkspaceCommandOutcome,
-} from "../../../core/workspace/commands/workspaceCommandOutcome.ts";
 import {
-  ApiV1CanonicalTimestampSchema,
-  ApiV1IdentifierSchema,
-  ApiV1NonNegativeIntegerSchema,
-  ApiV1ResourceVersionSchema,
-  apiV1DomainSchema,
-  schemaAs,
+  ApiCanonicalTimestampSchema,
+  ApiIdentifierSchema,
+  ApiNonNegativeIntegerSchema,
+  ApiResourceVersionSchema,
+  apiDomainSchema,
   strictObject,
 } from "./foundation.ts";
 
-export const ApiV1TextDiffHunkSchema = strictObject({
-  from: ApiV1NonNegativeIntegerSchema,
+export const ApiTextDiffHunkSchema = strictObject({
+  from: ApiNonNegativeIntegerSchema,
   insertedText: Type.String(),
-  resourceId: ApiV1IdentifierSchema,
-  to: ApiV1NonNegativeIntegerSchema,
+  resourceId: ApiIdentifierSchema,
+  to: ApiNonNegativeIntegerSchema,
 });
-export type ApiV1TextDiffHunkDto = Static<typeof ApiV1TextDiffHunkSchema>;
+export type ApiTextDiffHunkDto = Static<typeof ApiTextDiffHunkSchema>;
 
-export const ApiV1ResourceChangeSchema = schemaAs<DomainResourceChange>(
-  strictObject({
-    domain: apiV1DomainSchema,
-    kind: Type.Union([
-      Type.Literal("created"),
-      Type.Literal("deleted"),
-      Type.Literal("moved"),
-      Type.Literal("updated"),
-    ]),
-    repositoryId: Type.Optional(ApiV1IdentifierSchema),
-    resourceId: ApiV1IdentifierSchema,
-    version: Type.Optional(ApiV1ResourceVersionSchema),
-  }),
-);
-export type ApiV1ResourceChangeDto = Static<
-  typeof ApiV1ResourceChangeSchema
->;
-
-export const ApiV1BlockChangeSchema = schemaAs<DomainBlockChange>(
-  strictObject({
-    blockId: ApiV1IdentifierSchema,
-    createdAt: Type.Optional(ApiV1CanonicalTimestampSchema),
-    kind: Type.Union([
-      Type.Literal("created"),
-      Type.Literal("deleted"),
-      Type.Literal("moved"),
-      Type.Literal("state-updated"),
-      Type.Literal("updated"),
-    ]),
-    resourceId: ApiV1IdentifierSchema,
-    updatedAt: ApiV1CanonicalTimestampSchema,
-  }),
-);
-export type ApiV1BlockChangeDto = Static<typeof ApiV1BlockChangeSchema>;
-
-export const ApiV1DomainChangeSetSchema = schemaAs<DomainChangeSet>(
-  strictObject({
-    blocks: Type.Array(ApiV1BlockChangeSchema),
-    occurredAt: ApiV1CanonicalTimestampSchema,
-    resources: Type.Array(ApiV1ResourceChangeSchema),
-  }),
-);
-export type ApiV1DomainChangeSetDto = Static<
-  typeof ApiV1DomainChangeSetSchema
->;
-
-type ApiV1CommandOutcome =
-  | JournalCommandOutcome
-  | TodoCommandOutcome
-  | WorkspaceCommandOutcome;
-
-export const ApiV1CommandOutcomeSchema = schemaAs<ApiV1CommandOutcome>(
-  Type.Union([
-    strictObject({ kind: Type.Literal("ok") }),
-    strictObject({
-      folderId: ApiV1IdentifierSchema,
-      kind: Type.Literal("folder-created"),
-    }),
-    strictObject({
-      kind: Type.Literal("note-created"),
-      noteId: ApiV1IdentifierSchema,
-    }),
-    strictObject({
-      entryId: ApiV1IdentifierSchema,
-      kind: Type.Literal("journal-entry-created"),
-    }),
-    strictObject({
-      collectionId: ApiV1IdentifierSchema,
-      kind: Type.Literal("todo-collection-created"),
-    }),
+export const ApiResourceChangeSchema = strictObject({
+  domain: apiDomainSchema,
+  kind: Type.Union([
+    Type.Literal("created"),
+    Type.Literal("deleted"),
+    Type.Literal("moved"),
+    Type.Literal("updated"),
   ]),
-);
-export type ApiV1CommandOutcomeDto = Static<
-  typeof ApiV1CommandOutcomeSchema
+  repositoryId: Type.Optional(ApiIdentifierSchema),
+  resourceId: ApiIdentifierSchema,
+  version: Type.Optional(ApiResourceVersionSchema),
+});
+export type ApiResourceChangeDto = Static<
+  typeof ApiResourceChangeSchema
 >;
 
-export const ApiV1PreviewCommandResultSchema = strictObject({
-  changes: ApiV1DomainChangeSetSchema,
-  diff: Type.Array(ApiV1TextDiffHunkSchema),
-  result: ApiV1CommandOutcomeSchema,
-  revision: ApiV1ResourceVersionSchema,
+export const ApiBlockChangeSchema = strictObject({
+  blockId: ApiIdentifierSchema,
+  createdAt: Type.Optional(ApiCanonicalTimestampSchema),
+  kind: Type.Union([
+    Type.Literal("created"),
+    Type.Literal("deleted"),
+    Type.Literal("moved"),
+    Type.Literal("state-updated"),
+    Type.Literal("updated"),
+  ]),
+  resourceId: ApiIdentifierSchema,
+  updatedAt: ApiCanonicalTimestampSchema,
+});
+export type ApiBlockChangeDto = Static<typeof ApiBlockChangeSchema>;
+
+export const ApiDomainChangeSetSchema = strictObject({
+  blocks: Type.Array(ApiBlockChangeSchema),
+  occurredAt: ApiCanonicalTimestampSchema,
+  resources: Type.Array(ApiResourceChangeSchema),
+});
+export type ApiDomainChangeSetDto = Static<
+  typeof ApiDomainChangeSetSchema
+>;
+
+export const ApiCommandOutcomeSchema = Type.Union([
+  strictObject({ kind: Type.Literal("ok") }),
+  strictObject({
+    folderId: ApiIdentifierSchema,
+    kind: Type.Literal("folder-created"),
+  }),
+  strictObject({
+    kind: Type.Literal("note-created"),
+    noteId: ApiIdentifierSchema,
+  }),
+  strictObject({
+    entryId: ApiIdentifierSchema,
+    kind: Type.Literal("journal-entry-created"),
+  }),
+  strictObject({
+    collectionId: ApiIdentifierSchema,
+    kind: Type.Literal("todo-collection-created"),
+  }),
+]);
+export type ApiCommandOutcomeDto = Static<
+  typeof ApiCommandOutcomeSchema
+>;
+
+export const ApiPreviewCommandResultSchema = strictObject({
+  changes: ApiDomainChangeSetSchema,
+  diff: Type.Array(ApiTextDiffHunkSchema),
+  result: ApiCommandOutcomeSchema,
+  revision: ApiResourceVersionSchema,
   status: Type.Literal("previewed"),
 });
-export type ApiV1PreviewCommandResultDto = Static<
-  typeof ApiV1PreviewCommandResultSchema
+export type ApiPreviewCommandResultDto = Static<
+  typeof ApiPreviewCommandResultSchema
 >;
 
-export const ApiV1CommittedCommandResultSchema = strictObject({
-  changes: ApiV1DomainChangeSetSchema,
-  result: ApiV1CommandOutcomeSchema,
-  revision: ApiV1ResourceVersionSchema,
+export const ApiCommittedCommandResultSchema = strictObject({
+  changes: ApiDomainChangeSetSchema,
+  result: ApiCommandOutcomeSchema,
+  revision: ApiResourceVersionSchema,
   status: Type.Literal("committed"),
 });
-export type ApiV1CommittedCommandResultDto = Static<
-  typeof ApiV1CommittedCommandResultSchema
+export type ApiCommittedCommandResultDto = Static<
+  typeof ApiCommittedCommandResultSchema
 >;
 
-export const ApiV1CommandResultSchema = Type.Union([
-  ApiV1PreviewCommandResultSchema,
-  ApiV1CommittedCommandResultSchema,
+export const ApiCommandResultSchema = Type.Union([
+  ApiPreviewCommandResultSchema,
+  ApiCommittedCommandResultSchema,
 ]);
-export type ApiV1CommandResultDto = Static<typeof ApiV1CommandResultSchema>;
+export type ApiCommandResultDto = Static<typeof ApiCommandResultSchema>;

@@ -2,34 +2,34 @@
 
 import { isJournalEntryId } from "../../../../core/journal/model/journalIdentity.ts";
 import { isTodoCollectionId } from "../../../../core/todo/model/todoIdentity.ts";
-import { apiV1NotFound } from "./errors.ts";
+import { apiNotFound } from "./errors.ts";
 import {
   assertRepositoryAllowed,
   observeBuiltInRevision,
   observeWorkspaceRevision,
   publishTrackedChanges,
   requireBuiltInCatalog,
-  type ApiV1HandlerContext,
+  type ApiHandlerContext,
 } from "./handlerContext.ts";
 import {
-  projectApiV1JournalEntries,
-  projectApiV1JournalEntry,
+  projectApiJournalEntries,
+  projectApiJournalEntry,
 } from "../resources/journal.ts";
 import {
-  projectApiV1TodoCollection,
-  projectApiV1TodoCollections,
+  projectApiTodoCollection,
+  projectApiTodoCollections,
 } from "../resources/todo.ts";
 import {
-  projectApiV1WorkspaceAnalysis,
-  projectApiV1WorkspaceNote,
-  projectApiV1WorkspaceTree,
+  projectApiWorkspaceAnalysis,
+  projectApiWorkspaceNote,
+  projectApiWorkspaceTree,
 } from "../resources/workspace.ts";
-import { readApiV1RuntimeNow } from "./runtime.ts";
+import { readApiRuntimeNow } from "./runtime.ts";
 
-export async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
-  const { catalog, principal, route } = context;
+export async function handleWorkspaceQuery(context: ApiHandlerContext) {
+  const { catalog, operation, principal, route } = context;
 
-  if (route.kind === "workspaces") {
+  if (operation.operationId === "listWorkspaces") {
     const repositories = await catalog.listRepositories();
     const removed = context.revisionTracker.reconcileWorkspaceIds(
       new Set(repositories.repositories.map(({ id }) => id)),
@@ -38,7 +38,7 @@ export async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
     if (removed.length > 0) {
       publishTrackedChanges(context, {
         blocks: [],
-        occurredAt: readApiV1RuntimeNow(context.runtime).timestamp,
+        occurredAt: readApiRuntimeNow(context.runtime).timestamp,
         resources: removed.map((repositoryId) => ({
           domain: "workspace",
           kind: "deleted",
@@ -61,16 +61,16 @@ export async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
   }
   const repositoryId = route.repositoryId;
 
-  if (!repositoryId) apiV1NotFound();
+  if (!repositoryId) apiNotFound();
   assertRepositoryAllowed(principal, repositoryId);
   const snapshot = await catalog.getStore(repositoryId)
     .then((store) => store.loadSnapshot());
   observeWorkspaceRevision(context, repositoryId, snapshot.revision);
-  const analysis = projectApiV1WorkspaceAnalysis(snapshot.projection);
+  const analysis = projectApiWorkspaceAnalysis(snapshot.projection);
 
-  if (route.kind === "workspace-tree") {
+  if (operation.operationId === "getWorkspaceTree") {
     return {
-      body: projectApiV1WorkspaceTree(
+      body: projectApiWorkspaceTree(
         repositoryId,
         snapshot.revision,
         analysis,
@@ -79,14 +79,14 @@ export async function handleWorkspaceQuery(context: ApiV1HandlerContext) {
     };
   }
   const note = route.noteId
-    ? projectApiV1WorkspaceNote(analysis, route.noteId)
+    ? projectApiWorkspaceNote(analysis, route.noteId)
     : null;
 
-  if (!note) apiV1NotFound("Workspace note does not exist");
+  if (!note) apiNotFound("Workspace note does not exist");
   return { body: note, statusCode: 200 };
 }
 
-export async function handleJournalQuery(context: ApiV1HandlerContext) {
+export async function handleJournalQuery(context: ApiHandlerContext) {
   const catalog = requireBuiltInCatalog(context.builtInCatalog);
   const snapshot = await catalog.getStore("journal").then((store) =>
     store.loadSnapshot()
@@ -95,9 +95,9 @@ export async function handleJournalQuery(context: ApiV1HandlerContext) {
   const content = snapshot.content;
   const index = snapshot.projection;
 
-  if (context.route.kind === "journal-entries") {
+  if (context.operation.operationId === "listJournalEntries") {
     return {
-      body: projectApiV1JournalEntries(content, index, snapshot.revision),
+      body: projectApiJournalEntries(content, index, snapshot.revision),
       statusCode: 200,
     };
   }
@@ -106,11 +106,11 @@ export async function handleJournalQuery(context: ApiV1HandlerContext) {
     ? index.getParsedEntry(context.route.entryId)
     : null;
 
-  if (!entry) apiV1NotFound("Journal entry does not exist");
-  return { body: projectApiV1JournalEntry(entry), statusCode: 200 };
+  if (!entry) apiNotFound("Journal entry does not exist");
+  return { body: projectApiJournalEntry(entry), statusCode: 200 };
 }
 
-export async function handleTodoQuery(context: ApiV1HandlerContext) {
+export async function handleTodoQuery(context: ApiHandlerContext) {
   const catalog = requireBuiltInCatalog(context.builtInCatalog);
   const snapshot = await catalog.getStore("todo").then((store) =>
     store.loadSnapshot()
@@ -119,9 +119,9 @@ export async function handleTodoQuery(context: ApiV1HandlerContext) {
   const content = snapshot.content;
   const index = snapshot.projection;
 
-  if (context.route.kind === "todo-collections") {
+  if (context.operation.operationId === "listTodoCollections") {
     return {
-      body: projectApiV1TodoCollections(content, index, snapshot.revision),
+      body: projectApiTodoCollections(content, index, snapshot.revision),
       statusCode: 200,
     };
   }
@@ -130,11 +130,11 @@ export async function handleTodoQuery(context: ApiV1HandlerContext) {
     ? index.getParsedCollection(context.route.collectionId)
     : null;
 
-  if (!collection) apiV1NotFound("Todo collection does not exist");
-  const { date } = readApiV1RuntimeNow(context.runtime);
+  if (!collection) apiNotFound("Todo collection does not exist");
+  const { date } = readApiRuntimeNow(context.runtime);
 
   return {
-    body: projectApiV1TodoCollection(
+    body: projectApiTodoCollection(
       collection,
       context.runtime.today(date),
     ),

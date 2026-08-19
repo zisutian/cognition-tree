@@ -2,46 +2,46 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import {
-  ApiV1NonNegativeIntegerSchema,
-  ApiV1ResourceVersionSchema,
-  ApiV1UuidSchema,
+  ApiNonNegativeIntegerSchema,
+  ApiResourceVersionSchema,
+  ApiUuidSchema,
   nullable,
   strictObject,
 } from "./foundation.ts";
-import { ApiV1DomainChangeSetSchema } from "./transitions.ts";
+import { ApiDomainChangeSetSchema } from "./transitions.ts";
 
-export const ApiV1RevisionCheckpointSchema = strictObject({
-  journal: nullable(ApiV1ResourceVersionSchema),
-  sequence: ApiV1NonNegativeIntegerSchema,
-  streamId: ApiV1UuidSchema,
-  todo: nullable(ApiV1ResourceVersionSchema),
-  workspaces: Type.Record(Type.String(), ApiV1ResourceVersionSchema),
+export const ApiRevisionCheckpointSchema = strictObject({
+  journal: nullable(ApiResourceVersionSchema),
+  sequence: ApiNonNegativeIntegerSchema,
+  streamId: ApiUuidSchema,
+  todo: nullable(ApiResourceVersionSchema),
+  workspaces: Type.Record(Type.String(), ApiResourceVersionSchema),
 });
-export type ApiV1RevisionCheckpointDto = Static<
-  typeof ApiV1RevisionCheckpointSchema
+export type ApiRevisionCheckpointDto = Static<
+  typeof ApiRevisionCheckpointSchema
 >;
 
-export const ApiV1ChangeEventSchema = strictObject({
-  changes: ApiV1DomainChangeSetSchema,
-  checkpoint: ApiV1RevisionCheckpointSchema,
-  sequence: ApiV1NonNegativeIntegerSchema,
-  streamId: ApiV1UuidSchema,
+export const ApiChangeEventSchema = strictObject({
+  changes: ApiDomainChangeSetSchema,
+  checkpoint: ApiRevisionCheckpointSchema,
+  sequence: ApiNonNegativeIntegerSchema,
+  streamId: ApiUuidSchema,
   type: Type.Literal("change"),
 });
-export type ApiV1ChangeEventDto = Static<typeof ApiV1ChangeEventSchema>;
+export type ApiChangeEventDto = Static<typeof ApiChangeEventSchema>;
 
-export const ApiV1CheckpointEventSchema = strictObject({
-  checkpoint: ApiV1RevisionCheckpointSchema,
-  sequence: ApiV1NonNegativeIntegerSchema,
-  streamId: ApiV1UuidSchema,
+export const ApiCheckpointEventSchema = strictObject({
+  checkpoint: ApiRevisionCheckpointSchema,
+  sequence: ApiNonNegativeIntegerSchema,
+  streamId: ApiUuidSchema,
   type: Type.Literal("checkpoint"),
 });
-export type ApiV1CheckpointEventDto = Static<
-  typeof ApiV1CheckpointEventSchema
+export type ApiCheckpointEventDto = Static<
+  typeof ApiCheckpointEventSchema
 >;
 
-export const ApiV1EventSchema = Type.Union([
-  ApiV1CheckpointEventSchema,
-  ApiV1ChangeEventSchema,
+export const ApiEventSchema = Type.Union([
+  ApiCheckpointEventSchema,
+  ApiChangeEventSchema,
 ]);
-export type ApiV1EventDto = Static<typeof ApiV1EventSchema>;
+export type ApiEventDto = Static<typeof ApiEventSchema>;

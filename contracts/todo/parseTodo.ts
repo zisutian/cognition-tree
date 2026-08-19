@@ -11,7 +11,6 @@ import {
   readWireString,
   UnsupportedWireVersionError,
 } from "../common/contractValue.ts";
-import { defaultTodoSyntaxSource } from "./defaultContent.ts";
 import type {
   TodoCollectionDto,
   TodoCommitDto,
@@ -422,12 +421,4 @@ export function parseTodoCommitResult(value: unknown): TodoCommitResultDto {
 
   assertExactWireFields(contract, result, resultFields, "$");
   return { revision: parseContentRevision(result.revision, "$.revision") };
-}
-
-export function createEmptyTodoContent(): TodoContentDto {
-  return {
-    collections: [],
-    schemaVersion: 4,
-    syntaxSource: defaultTodoSyntaxSource,
-  };
 }

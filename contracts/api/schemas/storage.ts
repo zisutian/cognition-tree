@@ -23,28 +23,28 @@ import type {
   WorkspaceRepositorySnapshotDto,
 } from "../../workspace/types.ts";
 import {
-  ApiV1CanonicalTimestampSchema,
-  ApiV1IdentifierSchema,
-  ApiV1LocalDateSchema,
-  ApiV1ResourceVersionSchema,
-  ApiV1UuidSchema,
+  ApiCanonicalTimestampSchema,
+  ApiIdentifierSchema,
+  ApiLocalDateSchema,
+  ApiResourceVersionSchema,
+  ApiUuidSchema,
   nullable,
   schemaAs,
   strictObject,
 } from "./foundation.ts";
-import { ApiV1RecurrenceRuleSchema } from "./resources.ts";
+import { ApiRecurrenceRuleSchema } from "./resources.ts";
 
 const workspaceTreeNodeSchema = Type.Recursive((Self) =>
   Type.Union([
     strictObject({
       children: Type.Array(Self),
-      folderId: ApiV1IdentifierSchema,
+      folderId: ApiIdentifierSchema,
       kind: Type.Literal("folder"),
       title: Type.String(),
     }),
     strictObject({
       kind: Type.Literal("note"),
-      noteId: ApiV1IdentifierSchema,
+      noteId: ApiIdentifierSchema,
     }),
   ])
 );
@@ -52,17 +52,17 @@ const workspaceTreeNodeSchema = Type.Recursive((Self) =>
 const workspaceContentSchema = strictObject({
   schemaVersion: Type.Literal(4),
   syntax: strictObject({
-    activeFileId: nullable(ApiV1IdentifierSchema),
+    activeFileId: nullable(ApiIdentifierSchema),
     files: Type.Array(strictObject({
-      id: ApiV1IdentifierSchema,
+      id: ApiIdentifierSchema,
       source: Type.String(),
     })),
   }),
   workspace: strictObject({
-    id: ApiV1IdentifierSchema,
+    id: ApiIdentifierSchema,
     name: Type.String(),
     notes: Type.Array(strictObject({
-      id: ApiV1IdentifierSchema,
+      id: ApiIdentifierSchema,
       source: Type.String(),
     })),
     tree: Type.Array(workspaceTreeNodeSchema),
@@ -71,14 +71,14 @@ const workspaceContentSchema = strictObject({
 
 const journalContentSchema = strictObject({
   days: Type.Array(strictObject({
-    date: ApiV1LocalDateSchema,
+    date: ApiLocalDateSchema,
     entries: Type.Array(strictObject({
-      createdAt: ApiV1CanonicalTimestampSchema,
+      createdAt: ApiCanonicalTimestampSchema,
       id: Type.String({ pattern: "^journal-entry-" }),
       sequence: Type.Integer({ maximum: 9999, minimum: 1 }),
       source: Type.String(),
       timezoneOffsetMinutes: Type.Integer({ maximum: 840, minimum: -840 }),
-      updatedAt: ApiV1CanonicalTimestampSchema,
+      updatedAt: ApiCanonicalTimestampSchema,
     })),
     lastIssuedSequence: Type.Integer({ maximum: 9999, minimum: 0 }),
   })),
@@ -89,22 +89,22 @@ const journalContentSchema = strictObject({
 const todoContentSchema = strictObject({
   collections: Type.Array(strictObject({
     completions: Type.Array(strictObject({
-      blockId: ApiV1UuidSchema,
-      completedAt: ApiV1CanonicalTimestampSchema,
+      blockId: ApiUuidSchema,
+      completedAt: ApiCanonicalTimestampSchema,
     })),
     id: Type.String({ pattern: "^todo-collection-" }),
     recurrences: Type.Array(strictObject({
-      blockId: ApiV1UuidSchema,
+      blockId: ApiUuidSchema,
       completions: Type.Array(strictObject({
-        completedAt: ApiV1CanonicalTimestampSchema,
-        occurrenceDate: ApiV1LocalDateSchema,
+        completedAt: ApiCanonicalTimestampSchema,
+        occurrenceDate: ApiLocalDateSchema,
         stageId: Type.String({ pattern: "^todo-recurrence-stage-" }),
       })),
       stages: Type.Array(strictObject({
-        endsBefore: nullable(ApiV1LocalDateSchema),
+        endsBefore: nullable(ApiLocalDateSchema),
         id: Type.String({ pattern: "^todo-recurrence-stage-" }),
-        rule: ApiV1RecurrenceRuleSchema,
-        startsOn: ApiV1LocalDateSchema,
+        rule: ApiRecurrenceRuleSchema,
+        startsOn: ApiLocalDateSchema,
       })),
     })),
     source: Type.String(),
@@ -113,44 +113,44 @@ const todoContentSchema = strictObject({
   syntaxSource: Type.String(),
 });
 
-export const ApiV1WorkspaceCommitSchema = schemaAs<
+export const ApiWorkspaceCommitSchema = schemaAs<
   WorkspaceRepositoryCommitDto
 >(strictObject({
-  baseRevision: ApiV1ResourceVersionSchema,
+  baseRevision: ApiResourceVersionSchema,
   content: workspaceContentSchema,
 }));
-export const ApiV1WorkspaceSnapshotSchema = schemaAs<
+export const ApiWorkspaceSnapshotSchema = schemaAs<
   WorkspaceRepositorySnapshotDto
 >(strictObject({
   content: workspaceContentSchema,
-  revision: ApiV1ResourceVersionSchema,
+  revision: ApiResourceVersionSchema,
 }));
-export const ApiV1JournalCommitSchema = schemaAs<JournalCommitDto>(
+export const ApiJournalCommitSchema = schemaAs<JournalCommitDto>(
   strictObject({
-    baseRevision: ApiV1ResourceVersionSchema,
+    baseRevision: ApiResourceVersionSchema,
     content: journalContentSchema,
   }),
 );
-export const ApiV1JournalSnapshotSchema = schemaAs<JournalSnapshotDto>(
+export const ApiJournalSnapshotSchema = schemaAs<JournalSnapshotDto>(
   strictObject({
     content: journalContentSchema,
-    revision: ApiV1ResourceVersionSchema,
+    revision: ApiResourceVersionSchema,
   }),
 );
-export const ApiV1TodoCommitSchema = schemaAs<TodoCommitDto>(
+export const ApiTodoCommitSchema = schemaAs<TodoCommitDto>(
   strictObject({
-    baseRevision: ApiV1ResourceVersionSchema,
+    baseRevision: ApiResourceVersionSchema,
     content: todoContentSchema,
   }),
 );
-export const ApiV1TodoSnapshotSchema = schemaAs<TodoSnapshotDto>(
+export const ApiTodoSnapshotSchema = schemaAs<TodoSnapshotDto>(
   strictObject({
     content: todoContentSchema,
-    revision: ApiV1ResourceVersionSchema,
+    revision: ApiResourceVersionSchema,
   }),
 );
-export const ApiV1CommitResultSchema = strictObject({
-  revision: ApiV1ResourceVersionSchema,
+export const ApiCommitResultSchema = strictObject({
+  revision: ApiResourceVersionSchema,
 });
 
 const repositoryLocationSchema = Type.Union([
@@ -170,7 +170,7 @@ const repositoryDescriptorSchema = schemaAs<RepositoryDescriptorDto>(
       Type.Literal("local"),
       Type.Literal("webdav"),
     ]),
-    id: ApiV1IdentifierSchema,
+    id: ApiIdentifierSchema,
     label: Type.String(),
     labelIssue: nullable(Type.Union([
       Type.Literal("conflict"),
@@ -181,7 +181,7 @@ const repositoryDescriptorSchema = schemaAs<RepositoryDescriptorDto>(
   }),
 );
 
-export const ApiV1RepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
+export const ApiRepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
   strictObject({
     creatableAdapters: Type.Array(Type.Union([
       Type.Literal("local"),
@@ -198,7 +198,7 @@ export const ApiV1RepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
         Type.Literal("repository_corrupt"),
         Type.Literal("unsupported_repository_version"),
       ]),
-      id: ApiV1IdentifierSchema,
+      id: ApiIdentifierSchema,
       location: nullable(repositoryLocationSchema),
       message: Type.String(),
       status: Type.Union([Type.Literal("deleting"), Type.Literal("fault")]),
@@ -206,13 +206,13 @@ export const ApiV1RepositoryCatalogSchema = schemaAs<RepositoryCatalogDto>(
     repositories: Type.Array(repositoryDescriptorSchema),
   }),
 );
-export const ApiV1RepositoryDescriptorSchema = repositoryDescriptorSchema;
-export const ApiV1CreateRepositorySchema = schemaAs<CreateRepositoryDto>(
+export const ApiRepositoryDescriptorSchema = repositoryDescriptorSchema;
+export const ApiCreateRepositorySchema = schemaAs<CreateRepositoryDto>(
   Type.Union([
     strictObject({
       adapter: Type.Literal("local"),
       content: workspaceContentSchema,
-      label: ApiV1IdentifierSchema,
+      label: ApiIdentifierSchema,
     }),
     strictObject({
       adapter: Type.Literal("webdav"),
@@ -225,15 +225,15 @@ export const ApiV1CreateRepositorySchema = schemaAs<CreateRepositoryDto>(
         }),
       ]),
       initialContent: workspaceContentSchema,
-      label: ApiV1IdentifierSchema,
+      label: ApiIdentifierSchema,
       url: Type.String({ format: "uri" }),
     }),
   ]),
 );
-export const ApiV1RenameRepositorySchema = schemaAs<RenameRepositoryDto>(
-  strictObject({ label: ApiV1IdentifierSchema }),
+export const ApiRenameRepositorySchema = schemaAs<RenameRepositoryDto>(
+  strictObject({ label: ApiIdentifierSchema }),
 );
-export const ApiV1RepositoryDeletionResultSchema = schemaAs<
+export const ApiRepositoryDeletionResultSchema = schemaAs<
   RepositoryDeletionResultDto
 >(strictObject({
   status: Type.Union([Type.Literal("deleted"), Type.Literal("deleting")]),
@@ -243,7 +243,7 @@ const builtInLocationSchema = strictObject({
   serverPath: Type.String(),
   type: Type.Literal("server"),
 });
-export const ApiV1BuiltInCatalogSchema = schemaAs<BuiltInCatalogDto>(
+export const ApiBuiltInCatalogSchema = schemaAs<BuiltInCatalogDto>(
   strictObject({
     issues: Type.Array(strictObject({
       code: Type.Union([
@@ -264,7 +264,7 @@ export const ApiV1BuiltInCatalogSchema = schemaAs<BuiltInCatalogDto>(
     })),
   }),
 );
-export const ApiV1BuiltInRetryResultSchema = schemaAs<
+export const ApiBuiltInRetryResultSchema = schemaAs<
   BuiltInRetryResultDto
 >(strictObject({
   status: Type.Union([Type.Literal("fault"), Type.Literal("ready")]),

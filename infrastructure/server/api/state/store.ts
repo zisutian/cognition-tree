@@ -2,71 +2,78 @@
 
 import path from "node:path";
 import type {
-  ApiV1AuditEntryDto,
-  ApiV1AuditPageDto,
-  ApiV1CommittedCommandResultDto,
-  ApiV1CreateTokenRequestDto,
-  ApiV1CreatedTokenDto,
-  ApiV1PrincipalDto,
-  ApiV1TokenDto,
+  ApiAuditEntryDto,
+  ApiAuditPageDto,
+  ApiCommittedCommandResultDto,
+  ApiCreateTokenRequestDto,
+  ApiCreatedTokenDto,
+  ApiPrincipalDto,
+  ApiTokenDto,
 } from "../../../../contracts/api/types.ts";
-import { ApiV1AuditStore } from "./auditStore.ts";
+import { ApiAuditStore } from "./auditStore.ts";
 import {
-  createApiV1CommandRequestDigest,
+  createApiCommandRequestDigest,
 } from "./crypto.ts";
 import {
-  ensureApiV1StateDirectory,
+  ensureApiStateDirectory,
 } from "./partition.ts";
 import {
-  ApiV1IdempotencyConflictError,
-  ApiV1ReceiptStore,
+  ApiIdempotencyConflictError,
+  ApiReceiptStore,
 } from "./receiptStore.ts";
-import { ApiV1TokenStore } from "./tokenStore.ts";
+import { ApiTokenStore } from "./tokenStore.ts";
 
-export { ApiV1IdempotencyConflictError } from "./receiptStore.ts";
+export { ApiIdempotencyConflictError } from "./receiptStore.ts";
 
-export class ApiV1StateStore {
-  readonly #audit: ApiV1AuditStore;
+// This is a persisted layout name, not an HTTP namespace. Renaming it would
+// silently strand existing token, audit, and idempotency receipt state.
+const persistedApiStateDirectoryName = "api-v1";
+
+export class ApiStateStore {
+  readonly #audit: ApiAuditStore;
   readonly #directory: string;
   readonly #inFlightCommands = new Map<string, {
     promise: Promise<{
       replayed: boolean;
-      result: ApiV1CommittedCommandResultDto;
+      result: ApiCommittedCommandResultDto;
     }>;
     requestDigest: string;
   }>();
   #initializePromise: Promise<void> | null = null;
-  readonly #receipts: ApiV1ReceiptStore;
-  readonly #tokens: ApiV1TokenStore;
+  readonly #receipts: ApiReceiptStore;
+  readonly #tokens: ApiTokenStore;
 
   constructor(
     stateDirectory: string,
     { now = () => new Date() }: { now?: () => Date } = {},
   ) {
-    this.#directory = path.join(path.resolve(stateDirectory), "api-v1");
-    this.#audit = new ApiV1AuditStore(this.#directory);
-    this.#receipts = new ApiV1ReceiptStore(this.#directory, now);
-    this.#tokens = new ApiV1TokenStore(this.#directory, now);
+    this.#directory = path.join(
+      path.resolve(stateDirectory),
+      persistedApiStateDirectoryName,
+    );
+    this.#audit = new ApiAuditStore(this.#directory);
+    this.#receipts = new ApiReceiptStore(this.#directory, now);
+    this.#tokens = new ApiTokenStore(this.#directory, now);
   }
 
   initialize() {
-    this.#initializePromise ??= ensureApiV1StateDirectory(this.#directory);
+    this.#initializePromise ??= ensureApiStateDirectory(this.#directory);
     return this.#initializePromise;
   }
 
-  async authenticate(secret: string): Promise<ApiV1PrincipalDto | null> {
+  async authenticate(secret: string): Promise<ApiPrincipalDto | null> {
     await this.initialize();
     return this.#tokens.authenticate(secret);
   }
 
   async createToken(
-    request: ApiV1CreateTokenRequestDto,
-  ): Promise<ApiV1CreatedTokenDto> {
+    request: ApiCreateTokenRequestDto,
+  ): Promise<ApiCreatedTokenDto> {
     await this.initialize();
     return this.#tokens.createToken(request);
   }
 
-  async listTokens(): Promise<ApiV1TokenDto[]> {
+  async listTokens(): Promise<ApiTokenDto[]> {
     await this.initialize();
     return this.#tokens.listTokens();
   }
@@ -80,7 +87,7 @@ export class ApiV1StateStore {
     principalId: string,
     commandId: string,
     request: unknown,
-  ): Promise<ApiV1CommittedCommandResultDto | null> {
+  ): Promise<ApiCommittedCommandResultDto | null> {
     await this.initialize();
     return this.#receipts.read(principalId, commandId, request);
   }
@@ -89,8 +96,8 @@ export class ApiV1StateStore {
     principalId: string,
     commandId: string,
     request: unknown,
-    result: ApiV1CommittedCommandResultDto,
-    auditEntry?: ApiV1AuditEntryDto,
+    result: ApiCommittedCommandResultDto,
+    auditEntry?: ApiAuditEntryDto,
   ) {
     await this.initialize();
     await this.#receipts.save(principalId, commandId, request, result);
@@ -101,21 +108,21 @@ export class ApiV1StateStore {
     principalId: string,
     commandId: string,
     request: unknown,
-    execute: () => Promise<ApiV1CommittedCommandResultDto>,
+    execute: () => Promise<ApiCommittedCommandResultDto>,
     createAuditEntry?: (
-      result: ApiV1CommittedCommandResultDto,
-    ) => ApiV1AuditEntryDto,
+      result: ApiCommittedCommandResultDto,
+    ) => ApiAuditEntryDto,
   ): Promise<{
     replayed: boolean;
-    result: ApiV1CommittedCommandResultDto;
+    result: ApiCommittedCommandResultDto;
   }> {
     const key = `${principalId}\u0000${commandId}`;
-    const requestDigest = createApiV1CommandRequestDigest(request);
+    const requestDigest = createApiCommandRequestDigest(request);
     const inFlight = this.#inFlightCommands.get(key);
 
     if (inFlight) {
       if (inFlight.requestDigest !== requestDigest) {
-        return Promise.reject(new ApiV1IdempotencyConflictError());
+        return Promise.reject(new ApiIdempotencyConflictError());
       }
       return inFlight.promise.then(({ result }) => ({
         replayed: true,
@@ -149,7 +156,7 @@ export class ApiV1StateStore {
     return promise;
   }
 
-  async appendAudit(entry: ApiV1AuditEntryDto) {
+  async appendAudit(entry: ApiAuditEntryDto) {
     await this.initialize();
     return this.#audit.append(entry);
   }
@@ -157,7 +164,7 @@ export class ApiV1StateStore {
   async listAudit(input: {
     cursor: number;
     limit: number;
-  }): Promise<ApiV1AuditPageDto> {
+  }): Promise<ApiAuditPageDto> {
     await this.initialize();
     return this.#audit.list(input);
   }

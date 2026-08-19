@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1CtnBlockDto,
-  ApiV1CtnDocumentDto,
-  ApiV1ResourceVersionDto,
-  ApiV1SyntaxGuideDto,
+  ApiCtnBlockDto,
+  ApiCtnDocumentDto,
+  ApiResourceVersionDto,
+  ApiSyntaxGuideDto,
 } from "../../../../contracts/api/types.ts";
 import type { CtnCanonicalSourceAnalysis } from "../../../../core/ctn/analysis/sourceAnalysis.ts";
 import {
@@ -15,9 +15,9 @@ import { getCtnEditableLineNumber } from "../../../../core/ctn/metadata/editable
 import type { CtnCanonicalBlock } from "../../../../core/ctn/parser/types.ts";
 import type { CtnCompiledSyntax } from "../../../../core/ctn/syntax/types.ts";
 
-export function projectApiV1SyntaxGuide(
+export function projectApiSyntaxGuide(
   syntax: CtnCompiledSyntax,
-): ApiV1SyntaxGuideDto {
+): ApiSyntaxGuideDto {
   return {
     blocks: syntax.blocks.map(({ kind, label, marker, semanticId }) => ({
       kind,
@@ -64,7 +64,7 @@ function createParentBlockIdIndex(
   return result;
 }
 
-function projectApiV1Blocks({
+function projectApiBlocks({
   analysis,
   lineOffset,
   offset,
@@ -72,7 +72,7 @@ function projectApiV1Blocks({
   analysis: CtnCanonicalSourceAnalysis;
   lineOffset: number;
   offset: number;
-}): ApiV1CtnBlockDto[] {
+}): ApiCtnBlockDto[] {
   const editable = analysis.editableProjection;
   const parentByBlock = createParentBlockIdIndex(analysis);
   const included = analysis.document.blocks.filter(
@@ -116,7 +116,7 @@ function projectApiV1Blocks({
   });
 }
 
-export function projectApiV1CtnDocument({
+export function projectApiCtnDocument({
   analysis,
   createdAt,
   editableText,
@@ -133,15 +133,15 @@ export function projectApiV1CtnDocument({
   textMode: "body" | "document";
   title: string;
   updatedAt: string;
-  version: ApiV1ResourceVersionDto;
-}): ApiV1CtnDocumentDto {
+  version: ApiResourceVersionDto;
+}): ApiCtnDocumentDto {
   const projection = projectCtnEditableText(analysis, textMode);
   const offset = projection.sourceOffset;
   const lineOffset = projection.lineOffset;
   const source = editableText ?? projection.source;
 
   return {
-    blocks: projectApiV1Blocks({ analysis, lineOffset, offset }),
+    blocks: projectApiBlocks({ analysis, lineOffset, offset }),
     createdAt,
     diagnostics: analysis.editableProjection.document.diagnostics
       .filter(({ lineNumber }) => lineNumber > lineOffset)
@@ -158,6 +158,6 @@ export function projectApiV1CtnDocument({
     title,
     updatedAt,
     version,
-    writingGuide: projectApiV1SyntaxGuide(analysis.syntax),
+    writingGuide: projectApiSyntaxGuide(analysis.syntax),
   };
 }

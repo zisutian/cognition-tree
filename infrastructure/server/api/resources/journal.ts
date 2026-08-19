@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  ApiV1CtnDocumentDto,
-  ApiV1JournalEntriesDto,
-  ApiV1JournalEntrySummaryDto,
+  ApiCtnDocumentDto,
+  ApiJournalEntriesDto,
+  ApiJournalEntrySummaryDto,
 } from "../../../../contracts/api/types.ts";
 import type { ContentRevisionDto } from "../../../../contracts/common/versionedContent.ts";
 import {
@@ -18,19 +18,19 @@ import {
 import {
   createJournalEntryBodyProjection,
 } from "../../../../core/journal/model/journalEntryProjection.ts";
-import { projectApiV1CtnDocument } from "./ctn.ts";
+import { projectApiCtnDocument } from "./ctn.ts";
 import {
   createJournalEntriesVersion,
   createJournalEntryVersion,
 } from "./versions.ts";
 
-export function createApiV1JournalIndex(content: JournalContent) {
+export function createApiJournalIndex(content: JournalContent) {
   return createJournalParseIndex(content);
 }
 
-export function projectApiV1JournalSummary(
+export function projectApiJournalSummary(
   parsed: ParsedJournalIndexEntry,
-): ApiV1JournalEntrySummaryDto {
+): ApiJournalEntrySummaryDto {
   return {
     createdAt: parsed.entry.createdAt,
     id: parsed.entry.id,
@@ -40,29 +40,29 @@ export function projectApiV1JournalSummary(
   };
 }
 
-export function projectApiV1JournalEntries(
+export function projectApiJournalEntries(
   content: JournalContent,
   index: JournalParseIndex,
   revision: ContentRevisionDto,
-): ApiV1JournalEntriesDto {
+): ApiJournalEntriesDto {
   const parsedById = index.entryById;
 
   return {
     entries: listJournalEntries(content)
       .slice()
       .reverse()
-      .map((entry) => projectApiV1JournalSummary(parsedById.get(entry.id)!)),
+      .map((entry) => projectApiJournalSummary(parsedById.get(entry.id)!)),
     entriesVersion: createJournalEntriesVersion(content),
     revision,
   };
 }
 
-export function projectApiV1JournalEntry(
+export function projectApiJournalEntry(
   parsed: ParsedJournalIndexEntry,
-): ApiV1CtnDocumentDto {
+): ApiCtnDocumentDto {
   const body = createJournalEntryBodyProjection(parsed);
 
-  return projectApiV1CtnDocument({
+  return projectApiCtnDocument({
     analysis: parsed.analysis,
     createdAt: parsed.entry.createdAt,
     editableText: body.source,

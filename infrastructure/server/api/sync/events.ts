@@ -7,20 +7,20 @@ import type {
 import { randomUUID } from "node:crypto";
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import type {
-  ApiV1ChangeEventDto,
-  ApiV1CheckpointEventDto,
-  ApiV1DomainChangeSetDto,
-  ApiV1PrincipalDto,
-  ApiV1RevisionCheckpointDto,
+  ApiChangeEventDto,
+  ApiCheckpointEventDto,
+  ApiDomainChangeSetDto,
+  ApiPrincipalDto,
+  ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/types.ts";
 
 type EventConnection = {
-  principal: ApiV1PrincipalDto;
+  principal: ApiPrincipalDto;
   response: ServerResponse;
 };
 
 function canRead(
-  principal: ApiV1PrincipalDto,
+  principal: ApiPrincipalDto,
   domain: "journal" | "todo" | "workspace",
 ) {
   return principal.scopes.includes("sync") ||
@@ -28,7 +28,7 @@ function canRead(
 }
 
 function repositoryAllowed(
-  principal: ApiV1PrincipalDto,
+  principal: ApiPrincipalDto,
   repositoryId: string | undefined,
 ) {
   return repositoryId === undefined ||
@@ -36,10 +36,10 @@ function repositoryAllowed(
     principal.repositoryIds.includes(repositoryId);
 }
 
-export function filterApiV1Checkpoint(
-  checkpoint: ApiV1RevisionCheckpointDto,
-  principal: ApiV1PrincipalDto,
-): ApiV1RevisionCheckpointDto {
+export function filterApiCheckpoint(
+  checkpoint: ApiRevisionCheckpointDto,
+  principal: ApiPrincipalDto,
+): ApiRevisionCheckpointDto {
   return {
     journal: canRead(principal, "journal") ? checkpoint.journal : null,
     sequence: checkpoint.sequence,
@@ -55,10 +55,10 @@ export function filterApiV1Checkpoint(
   };
 }
 
-export function filterApiV1ChangeSet(
-  changes: ApiV1DomainChangeSetDto,
-  principal: ApiV1PrincipalDto,
-): ApiV1DomainChangeSetDto {
+export function filterApiChangeSet(
+  changes: ApiDomainChangeSetDto,
+  principal: ApiPrincipalDto,
+): ApiDomainChangeSetDto {
   const resources = changes.resources.filter(({ domain, repositoryId }) =>
     canRead(principal, domain) &&
     repositoryAllowed(principal, repositoryId)
@@ -88,7 +88,7 @@ function writeSseEvent(
   );
 }
 
-export class ApiV1EventHub {
+export class ApiEventHub {
   readonly #connections = new Set<EventConnection>();
   #sequence = 0;
   readonly #streamId: string;
@@ -103,9 +103,9 @@ export class ApiV1EventHub {
     principal,
     response,
   }: {
-    checkpoint: ApiV1RevisionCheckpointDto;
+    checkpoint: ApiRevisionCheckpointDto;
     headers: OutgoingHttpHeaders;
-    principal: ApiV1PrincipalDto;
+    principal: ApiPrincipalDto;
     response: ServerResponse;
   }) {
     const connection = { principal, response };
@@ -116,9 +116,9 @@ export class ApiV1EventHub {
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     });
-    const event: ApiV1CheckpointEventDto = {
+    const event: ApiCheckpointEventDto = {
       checkpoint: {
-        ...filterApiV1Checkpoint(checkpoint, principal),
+        ...filterApiCheckpoint(checkpoint, principal),
         sequence: this.#sequence,
         streamId: this.#streamId,
       },
@@ -133,11 +133,11 @@ export class ApiV1EventHub {
   }
 
   publish(
-    checkpoint: ApiV1RevisionCheckpointDto,
-    changes: ApiV1DomainChangeSetDto,
+    checkpoint: ApiRevisionCheckpointDto,
+    changes: ApiDomainChangeSetDto,
   ) {
     this.#sequence += 1;
-    const event: ApiV1ChangeEventDto = {
+    const event: ApiChangeEventDto = {
       changes,
       checkpoint: {
         ...checkpoint,
@@ -150,10 +150,10 @@ export class ApiV1EventHub {
     };
 
     for (const connection of this.#connections) {
-      const filteredEvent: ApiV1ChangeEventDto = {
+      const filteredEvent: ApiChangeEventDto = {
         ...event,
-        changes: filterApiV1ChangeSet(changes, connection.principal),
-        checkpoint: filterApiV1Checkpoint(
+        changes: filterApiChangeSet(changes, connection.principal),
+        checkpoint: filterApiCheckpoint(
           event.checkpoint,
           connection.principal,
         ),

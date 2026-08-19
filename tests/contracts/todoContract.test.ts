@@ -5,9 +5,7 @@ import {
   UnsupportedWireVersionError,
   WireContractError,
 } from "../../contracts/common/contractValue.ts";
-import { defaultTodoSyntaxSource as contractSyntax } from "../../contracts/todo/defaultContent.ts";
 import {
-  createEmptyTodoContent,
   isTodoBlockId,
   isTodoCollectionId,
   parseTodoCommit,
@@ -16,7 +14,7 @@ import {
 } from "../../contracts/todo/parseTodo.ts";
 import { serializeTodoRevisionContent } from "../../contracts/todo/revision.ts";
 import type { TodoContentDto } from "../../contracts/todo/types.ts";
-import { defaultTodoSyntaxSource as domainSyntax } from "../../core/todo/syntax/defaultTodoSyntax.ts";
+import { defaultTodoSyntaxSource } from "../../core/todo/syntax/defaultTodoSyntax.ts";
 
 const revision = `sha256:${"b".repeat(64)}` as const;
 const collectionId = "todo-collection-00000000-0000-4000-8000-000000000001";
@@ -53,7 +51,7 @@ function todoContent(): TodoContentDto {
       source: "canonical todo source",
     }],
     schemaVersion: 4,
-    syntaxSource: contractSyntax,
+    syntaxSource: defaultTodoSyntaxSource,
   };
 }
 
@@ -70,12 +68,6 @@ describe("Todo v4 wire contract", () => {
       baseRevision: revision,
       content,
     });
-    expect(createEmptyTodoContent()).toEqual({
-      collections: [],
-      schemaVersion: 4,
-      syntaxSource: contractSyntax,
-    });
-    expect(contractSyntax).toBe(domainSyntax);
   });
 
   it("preserves sidecar order in canonical revisions", () => {
