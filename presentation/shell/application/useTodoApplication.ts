@@ -17,7 +17,6 @@ import type {
 import { resolveTodoCollectionSelection } from "../../../core/todo/queries/todoQueries";
 import {
   createTodoMutationActions,
-  requireTodoContent,
   resolveRequestedTodoSelectionAfterDelete,
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
@@ -32,16 +31,10 @@ import {
 
 export type { TodoApplication } from "../../../application/todo/todoApplicationState";
 
-type ParsedTodoState = {
+type PreparedTodoState = {
   content: TodoContent;
   index: TodoParseIndex;
 };
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "The todo content could not be loaded.";
-}
 
 function normalizeLineNumber(lineNumber: number) {
   return Number.isFinite(lineNumber)
@@ -63,30 +56,15 @@ export function useTodoApplication({
     useState<TodoActiveBodyPosition | null>(null);
   const [today, setToday] = useState(() => services.localCalendar.today());
   const nextFocusRequestIdRef = useRef(1);
-  const sessionContent = session.state.status === "ready"
-    ? session.state.content
-    : null;
-  const parsedResult = useMemo(() => {
-    if (!sessionContent || session.state.status !== "ready") {
-      return { parsed: null, errorMessage: "" };
-    }
-    try {
-      const content = requireTodoContent(sessionContent);
-
-      return {
-        errorMessage: "",
-        parsed: {
-          content,
-          index: session.state.projection,
-        } satisfies ParsedTodoState,
-      };
-    } catch (error) {
-      return { parsed: null, errorMessage: getErrorMessage(error) };
-    }
-  }, [session.state, sessionContent]);
-  const parsed = parsedResult.parsed;
-  const activeCollectionId = parsed
-    ? resolveTodoCollectionSelection(parsed.content, requestedCollectionId)
+  const readyState = session.state.status === "ready" ? session.state : null;
+  const prepared = useMemo(() => readyState
+    ? {
+        content: readyState.content,
+        index: readyState.projection,
+      } satisfies PreparedTodoState
+    : null, [readyState]);
+  const activeCollectionId = prepared
+    ? resolveTodoCollectionSelection(prepared.content, requestedCollectionId)
     : null;
 
   useEffect(() => {
@@ -97,21 +75,21 @@ export function useTodoApplication({
   }, [services.localCalendar]);
 
   useEffect(() => {
-    if (parsed && requestedCollectionId !== activeCollectionId) {
+    if (prepared && requestedCollectionId !== activeCollectionId) {
       setRequestedCollectionId(activeCollectionId);
     }
-  }, [activeCollectionId, parsed, requestedCollectionId]);
+  }, [activeCollectionId, prepared, requestedCollectionId]);
 
   useEffect(() => {
     if (
       focusRequest &&
-      (!parsed || !parsed.content.collections.some(
+      (!prepared || !prepared.content.collections.some(
         ({ id }) => id === focusRequest.collectionId,
       ))
     ) {
       setFocusRequest(null);
     }
-  }, [focusRequest, parsed]);
+  }, [focusRequest, prepared]);
 
   const issueFocusRequest = useCallback((
     collectionId: TodoCollectionId,
@@ -157,21 +135,21 @@ export function useTodoApplication({
     [onCollectionCreated, onCollectionDeleted, services, session],
   );
   const selectCollection = useCallback((collectionId: TodoCollectionId) => {
-    if (!parsed?.content.collections.some(({ id }) => id === collectionId)) {
+    if (!prepared?.content.collections.some(({ id }) => id === collectionId)) {
       return;
     }
     setRequestedCollectionId(collectionId);
     setFocusRequest(null);
     setActiveBodyPosition(null);
-  }, [parsed]);
+  }, [prepared]);
   const openCollectionLine = useCallback((
     collectionId: TodoCollectionId,
     lineNumber: number,
   ) => {
-    if (parsed?.content.collections.some(({ id }) => id === collectionId)) {
+    if (prepared?.content.collections.some(({ id }) => id === collectionId)) {
       issueFocusRequest(collectionId, lineNumber);
     }
-  }, [issueFocusRequest, parsed]);
+  }, [issueFocusRequest, prepared]);
   const consumeFocusRequest = useCallback((requestId: number) => {
     setFocusRequest((current) =>
       current?.requestId === requestId ? null : current
@@ -191,16 +169,15 @@ export function useTodoApplication({
         : { collectionId: activeCollectionId, lineNumber: normalized }
     );
   }, [activeCollectionId]);
-  const readyState = session.state.status === "ready" ? session.state : null;
   const view = useMemo(() =>
-    parsed && readyState
+    prepared && readyState
       ? createTodoViewModel({
           activeBodyPosition,
           activeCollectionId,
           consumeFocusRequest,
-          content: parsed.content,
+          content: prepared.content,
           focusRequest,
-          index: parsed.index,
+          index: prepared.index,
           ...mutations,
           openCollectionLine,
           persistence: readyState.persistence,
@@ -216,7 +193,7 @@ export function useTodoApplication({
       focusRequest,
       mutations,
       openCollectionLine,
-      parsed,
+      prepared,
       readyState,
       selectCollection,
       today,
@@ -236,13 +213,9 @@ export function useTodoApplication({
         status: "failed",
       };
     case "ready":
-      return view
-        ? { reload: session.reload, status: "ready", view }
-        : {
-            errorMessage:
-              parsedResult.errorMessage || "The todo content is unavailable.",
-            reload: session.reload,
-            status: "failed",
-          };
+      if (!view) {
+        throw new Error("Prepared Todo ready state has no view.");
+      }
+      return { reload: session.reload, status: "ready", view };
   }
 }

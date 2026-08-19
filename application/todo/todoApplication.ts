@@ -13,9 +13,7 @@ import type {
 import {
   type TodoCollectionId,
   type TodoContent,
-  type TodoContentValue,
 } from "../../core/todo/model/todoContent";
-import { validateTodoContent } from "../../core/todo/model/todoValidation";
 import type {
   TodoLocalDate,
 } from "../../core/todo/recurrence/todoLocalDate";
@@ -95,12 +93,6 @@ export type TodoMutationActions = {
   ): void;
   updateSyntaxSource(source: string): void;
 };
-
-export function requireTodoContent(
-  content: TodoContentValue,
-): TodoContent {
-  return validateTodoContent(content);
-}
 
 function readNow(services: TodoApplicationServices) {
   const now = services.now();

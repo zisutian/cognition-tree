@@ -14,7 +14,6 @@ import {
   createJournalFocusRequest,
   createJournalMutationActions,
   normalizeJournalBodyLineNumber,
-  requireJournalContent,
   resolveRequestedJournalSelectionAfterDelete,
   type JournalApplicationServices,
   type JournalDeleteMutationResult,
@@ -22,6 +21,8 @@ import {
 import {
   createJournalParseIndex,
 } from "../../../core/journal/indexes/journalParseIndex";
+import { validateJournalContent } from
+  "../../../core/journal/model/journalValidation";
 import { describe, expect, it } from "vitest";
 
 function entryId(index: number): JournalEntryId {
@@ -75,7 +76,7 @@ function createFunctionalSession(initial: JournalContent) {
 
   return {
     get content() {
-      return requireJournalContent(content);
+      return validateJournalContent(content);
     },
     get projection() {
       return projection;
@@ -94,7 +95,7 @@ function createFunctionalSession(initial: JournalContent) {
       ) {
         const prepared = update({ content, projection });
 
-        content = requireJournalContent(prepared.content);
+        content = validateJournalContent(prepared.content);
         projection = prepared.projection;
         visibleEntryCounts.push(listJournalEntries(
           content,
@@ -263,13 +264,5 @@ describe("journal application mutations", () => {
     expect(listJournalEntries(harness.content)[0]?.updatedAt).toBe(
       "2026-07-18T00:10:00.000Z",
     );
-  });
-
-  it("rejects a non-journal value at the application boundary", () => {
-    expect(() => requireJournalContent({
-      collections: [],
-      schemaVersion: 3,
-      syntaxSource: "",
-    } as unknown as JournalContent)).toThrow();
   });
 });

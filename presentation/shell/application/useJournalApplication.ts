@@ -25,7 +25,6 @@ import {
   createJournalFocusRequest,
   createJournalMutationActions,
   normalizeJournalBodyLineNumber,
-  requireJournalContent,
   resolveRequestedJournalSelectionAfterDelete,
   type JournalApplication,
   type JournalApplicationServices,
@@ -44,7 +43,7 @@ import {
   type JournalWorkspaceReferenceResolutionState,
 } from "../../../application/journal/journalExternalReferences";
 
-type ParsedJournalState = {
+type PreparedJournalState = {
   content: JournalContent;
   index: JournalParseIndex;
 };
@@ -64,12 +63,6 @@ function journalCalendarPathKeys(
     `year:${date.slice(0, 4)}`,
     `month:${date.slice(0, 7)}`,
   ];
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "The journal content could not be loaded.";
 }
 
 export function useJournalApplication({
@@ -98,34 +91,19 @@ export function useJournalApplication({
   const nextFocusRequestIdRef = useRef(1);
   const [workspaceReferences, setWorkspaceReferences] =
     useState<JournalWorkspaceReferenceResolutionState>({ status: "idle" });
-  const sessionContent = session.state.status === "ready"
-    ? session.state.content
-    : null;
-  const parsedResult = useMemo(() => {
-    if (!sessionContent || session.state.status !== "ready") {
-      return { parsed: null, errorMessage: "" };
-    }
-    try {
-      const content = requireJournalContent(sessionContent);
-
-      return {
-        errorMessage: "",
-        parsed: {
-          content,
-          index: session.state.projection,
-        } satisfies ParsedJournalState,
-      };
-    } catch (error) {
-      return { errorMessage: getErrorMessage(error), parsed: null };
-    }
-  }, [session.state, sessionContent]);
-  const parsed = parsedResult.parsed;
-  const activeEntryId = parsed
-    ? resolveJournalSelection(parsed.content, requestedEntryId)
+  const readyState = session.state.status === "ready" ? session.state : null;
+  const prepared = useMemo(() => readyState
+    ? {
+        content: readyState.content,
+        index: readyState.projection,
+      } satisfies PreparedJournalState
+    : null, [readyState]);
+  const activeEntryId = prepared
+    ? resolveJournalSelection(prepared.content, requestedEntryId)
     : null;
 
   useEffect(() => {
-    const references = parsed?.index.referenceGraph.workspaceReferences ?? [];
+    const references = prepared?.index.referenceGraph.workspaceReferences ?? [];
 
     return startJournalWorkspaceReferenceResolution({
       publish: setWorkspaceReferences,
@@ -133,38 +111,38 @@ export function useJournalApplication({
       resolver: referenceResolver ?? null,
     });
   }, [
-    parsed?.index.referenceGraph.workspaceReferences,
+    prepared?.index.referenceGraph.workspaceReferences,
     referenceResolutionGeneration,
     referenceResolver,
   ]);
 
   useEffect(() => {
-    if (parsed && requestedEntryId !== activeEntryId) {
+    if (prepared && requestedEntryId !== activeEntryId) {
       setRequestedEntryId(activeEntryId);
     }
-  }, [activeEntryId, parsed, requestedEntryId]);
+  }, [activeEntryId, prepared, requestedEntryId]);
 
   useEffect(() => {
-    if (!parsed || !activeEntryId) return;
-    const pathKeys = journalCalendarPathKeys(parsed.content, activeEntryId);
+    if (!prepared || !activeEntryId) return;
+    const pathKeys = journalCalendarPathKeys(prepared.content, activeEntryId);
 
     setExpandedCalendarKeys((current) => {
       if (pathKeys.every((key) => current.has(key))) return current;
       return new Set([...current, ...pathKeys]);
     });
-  }, [activeEntryId, parsed]);
+  }, [activeEntryId, prepared]);
 
   useEffect(() => {
     if (
       focusRequest &&
-      (!parsed ||
-        !listJournalEntries(parsed.content).some(
+      (!prepared ||
+        !listJournalEntries(prepared.content).some(
           ({ id }) => id === focusRequest.entryId,
         ))
     ) {
       setFocusRequest(null);
     }
-  }, [focusRequest, parsed]);
+  }, [focusRequest, prepared]);
 
   const issueFocusRequest = useCallback((
     entryId: JournalEntryId,
@@ -213,22 +191,22 @@ export function useJournalApplication({
     [onCreated, onDeleted, services, session],
   );
   const selectEntry = useCallback((entryId: JournalEntryId) => {
-    if (!parsed || !listJournalEntries(parsed.content).some(({ id }) => id === entryId)) {
+    if (!prepared || !listJournalEntries(prepared.content).some(({ id }) => id === entryId)) {
       return;
     }
     setRequestedEntryId(entryId);
     setFocusRequest(null);
     setActiveBodyPosition(null);
-  }, [parsed]);
+  }, [prepared]);
   const openEntryLine = useCallback((
     entryId: JournalEntryId,
     lineNumber: number,
   ) => {
-    if (!parsed || !listJournalEntries(parsed.content).some(({ id }) => id === entryId)) {
+    if (!prepared || !listJournalEntries(prepared.content).some(({ id }) => id === entryId)) {
       return;
     }
     issueFocusRequest(entryId, lineNumber);
-  }, [issueFocusRequest, parsed]);
+  }, [issueFocusRequest, prepared]);
   const consumeFocusRequest = useCallback((requestId: number) => {
     setFocusRequest((current) =>
       consumeJournalFocusRequest(current, requestId)
@@ -257,19 +235,18 @@ export function useJournalApplication({
       return next;
     });
   }, []);
-  const readyState = session.state.status === "ready" ? session.state : null;
   const view = useMemo(() =>
-    parsed && readyState
+    prepared && readyState
       ? createJournalViewModel({
           activeBodyPosition,
           activeEntryId,
           consumeFocusRequest,
-          content: parsed.content,
+          content: prepared.content,
           createEntry: mutations.createEntry,
           deleteEntry: mutations.deleteEntry,
           expandedCalendarKeys,
           focusRequest,
-          index: parsed.index,
+          index: prepared.index,
           openEntryLine,
           openWorkspaceNote,
           persistence: readyState.persistence,
@@ -290,7 +267,7 @@ export function useJournalApplication({
       mutations,
       openEntryLine,
       openWorkspaceNote,
-      parsed,
+      prepared,
       readyState,
       selectEntry,
       toggleCalendarKey,
@@ -312,12 +289,7 @@ export function useJournalApplication({
       };
     case "ready":
       if (!view) {
-        return {
-          errorMessage:
-            parsedResult.errorMessage || "The journal content is unavailable.",
-          reload: session.reload,
-          status: "failed",
-        };
+        throw new Error("Prepared Journal ready state has no view.");
       }
       return { reload: session.reload, status: "ready", view };
   }

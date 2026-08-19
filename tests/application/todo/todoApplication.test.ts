@@ -8,7 +8,6 @@ import type {
 } from "../../../core/todo/model/todoContent";
 import {
   createTodoMutationActions,
-  requireTodoContent,
   resolveRequestedTodoSelectionAfterDelete,
   type TodoApplicationServices,
   type TodoDeleteCollectionMutationResult,
@@ -21,6 +20,8 @@ import {
 import {
   createTodoParseIndex,
 } from "../../../core/todo/indexes/todoParseIndex";
+import { validateTodoContent } from
+  "../../../core/todo/model/todoValidation";
 
 function createServices({
   blockIds,
@@ -89,7 +90,7 @@ function createFunctionalSession(initial: TodoContent) {
       ) {
         const prepared = update({ content, projection });
 
-        content = requireTodoContent(prepared.content);
+        content = validateTodoContent(prepared.content);
         projection = prepared.projection;
         visibleStates.push(JSON.stringify(content));
       },
@@ -215,13 +216,5 @@ describe("Todo application mutations", () => {
     expect(harness.content.collections[0]!.completions[0]!.completedAt).toBe(
       "2026-07-18T10:00:00.000Z",
     );
-  });
-
-  it("rejects non-Todo content", () => {
-    expect(() => requireTodoContent({
-      days: [],
-      schemaVersion: 3,
-      syntaxSource: "",
-    } as unknown as TodoContent)).toThrow();
   });
 });

@@ -9,15 +9,11 @@ import {
 } from "../../core/journal/commands/journalCommands";
 import {
   type JournalContent,
-  type JournalContentValue,
   type JournalEntryId,
 } from "../../core/journal/model/journalContent";
 import {
   getJournalCreationTimezoneOffsetMinutes,
 } from "../../core/journal/model/journalIdentity";
-import {
-  validateJournalContent,
-} from "../../core/journal/model/journalValidation";
 import {
   resolveJournalSelection,
   resolveJournalSelectionAfterDelete,
@@ -95,12 +91,6 @@ export type JournalMutationActions = {
   ): void;
   updateSyntaxSource(source: string): void;
 };
-
-export function requireJournalContent(
-  content: JournalContentValue,
-): JournalContent {
-  return validateJournalContent(content);
-}
 
 function readNow(services: JournalApplicationServices) {
   const now = services.now();

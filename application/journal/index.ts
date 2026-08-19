@@ -5,7 +5,6 @@ export {
   createJournalFocusRequest,
   createJournalMutationActions,
   normalizeJournalBodyLineNumber,
-  requireJournalContent,
   resolveRequestedJournalSelectionAfterDelete,
   type JournalApplication,
   type JournalApplicationServices,
