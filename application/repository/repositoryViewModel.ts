@@ -10,24 +10,26 @@ import type {
   BuiltInLocation,
 } from "./builtInCatalog";
 export type { BuiltInId } from "./builtInCatalog";
-import type { RepositoryApplication } from "./repositoryApplication";
+import type {
+  RepositoryApplication,
+  RepositoryPersistenceState,
+} from "./repositoryApplication";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
   RepositoryCatalogOperation,
 } from "./repositoryCatalog";
-import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionController";
 import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,
   requiresManualLocalDeletion,
-} from "../workspace/projection/viewRepositoryIssues";
+} from "./repositoryIssueProjection";
 export {
   repositoryAdapterLabels,
   requiresManualLocalDeletion,
-} from "../workspace/projection/viewRepositoryIssues";
+} from "./repositoryIssueProjection";
 
-const persistenceLabels: Record<WorkspacePersistenceState["status"], string> = {
+const persistenceLabels: Record<RepositoryPersistenceState["status"], string> = {
   conflict: "仓库内容已更改",
   error: "保存失败",
   offline: "离线，等待同步",
@@ -300,7 +302,7 @@ export function projectRepositoryIssues(
   });
 }
 
-function projectDeletionState(persistence: WorkspacePersistenceState) {
+function projectDeletionState(persistence: RepositoryPersistenceState) {
   if (
     persistence.status === "error" &&
     persistence.phase === "local" &&

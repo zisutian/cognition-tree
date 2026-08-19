@@ -2,7 +2,6 @@ import type {
   BuiltInId,
 } from "./builtInCatalog";
 import type { WorkspaceRepositoryDescriptor } from "./workspaceRepositoryCatalog";
-import type { WorkspacePersistenceState } from "../workspace/session/workspaceSessionController";
 import type {
   CreateRepositoryRequest,
   DeleteRepositoryRequest,
@@ -12,6 +11,9 @@ import type {
 import type { RepositoryNavigation } from "./repositoryNavigation";
 import type { VersionedRepositoryPersistenceState } from "../persistence/versionedRepositorySaveQueue";
 import type { BuiltInCatalogApplication } from "./builtInCatalogController";
+
+export type RepositoryPersistenceState =
+  VersionedRepositoryPersistenceState<string>;
 
 export type RepositorySessionState =
   | { status: "absent" }
@@ -27,7 +29,7 @@ export type RepositorySessionState =
       keepLocalConflictAndSynchronize: () => Promise<void>;
       loadConflictUnitIds: () => Promise<string[]>;
       recoverLocalConflictCopy: () => Promise<void>;
-      persistence: WorkspacePersistenceState;
+      persistence: RepositoryPersistenceState;
       reload: () => Promise<void>;
       status: "ready";
       storageLabel: string;
@@ -60,56 +62,12 @@ export type BuiltInSessionSummary =
       keepLocalConflictAndSynchronize: () => Promise<void>;
       loadConflictUnitIds: () => Promise<string[]>;
       recoverLocalConflictCopy: () => Promise<void>;
-      persistence: VersionedRepositoryPersistenceState<`sha256:${string}`>;
+      persistence: RepositoryPersistenceState;
       reload: () => Promise<void>;
       requestSync: () => void;
       status: "ready";
       useRemoteConflictAndSynchronize: () => Promise<void>;
     };
-
-type BuiltInSessionProjection = {
-  discardPendingChangesAndReload(): Promise<void>;
-  keepLocalConflictAndSynchronize(): Promise<void>;
-  loadConflictUnitIds(): Promise<string[]>;
-  recoverLocalConflictCopy(): Promise<void>;
-  reload(): Promise<void>;
-  requestSync(): void;
-  state: import("../journal/journalSessionController").JournalSessionState |
-    import("../todo/todoSessionController").TodoSessionState;
-  useRemoteConflictAndSynchronize(): Promise<void>;
-};
-
-export function projectBuiltInSessionSummary(
-  session: BuiltInSessionProjection,
-): BuiltInSessionSummary {
-  switch (session.state.status) {
-    case "unavailable":
-      return { status: "unavailable" };
-    case "loading":
-      return { status: "loading" };
-    case "failed":
-      return {
-        errorMessage: session.state.errorMessage,
-        reload: session.reload,
-        status: "failed",
-      };
-    case "ready":
-      return {
-        discardPendingChangesAndReload:
-          session.discardPendingChangesAndReload,
-        keepLocalConflictAndSynchronize:
-          session.keepLocalConflictAndSynchronize,
-        loadConflictUnitIds: session.loadConflictUnitIds,
-        recoverLocalConflictCopy: session.recoverLocalConflictCopy,
-        persistence: session.state.persistence,
-        reload: session.reload,
-        requestSync: session.requestSync,
-        status: "ready",
-        useRemoteConflictAndSynchronize:
-          session.useRemoteConflictAndSynchronize,
-      };
-  }
-}
 
 export type RepositoryCatalogProjection = {
   activeDescriptor: WorkspaceRepositoryDescriptor | null;

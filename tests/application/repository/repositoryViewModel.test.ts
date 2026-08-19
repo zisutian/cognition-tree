@@ -10,12 +10,14 @@ import {
   repositorySelectionExists,
   requiresManualLocalDeletion,
 } from "../../../application/repository/repositoryViewModel";
-import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
-import type { WorkspacePersistenceState } from "../../../application/workspace/session/workspaceSessionController";
+import type {
+  RepositoryApplication,
+  RepositoryPersistenceState,
+} from "../../../application/repository/repositoryApplication";
 import { remoteRevision } from "../workspace/session/workspaceSessionTestFixture";
 
 function createSource(
-  persistence: WorkspacePersistenceState = { status: "saved" },
+  persistence: RepositoryPersistenceState = { status: "saved" },
 ): RepositoryApplication {
   const descriptor = {
     adapter: "local" as const,
@@ -278,7 +280,7 @@ describe("repository view model", () => {
       },
       "保存失败",
     ],
-  ] satisfies Array<[WorkspacePersistenceState, string]>) (
+  ] satisfies Array<[RepositoryPersistenceState, string]>) (
     "maps $0 to its single persistence label",
     (persistence, label) => {
       expect(createRepositoryViewModel(createSource(persistence))).toMatchObject({
@@ -550,7 +552,7 @@ describe("repository view model", () => {
   });
 
   it("cannot let offline state overwrite a local persistence error", () => {
-    const localError: WorkspacePersistenceState = {
+    const localError: RepositoryPersistenceState = {
       localCopySafe: false,
       message: "Client cache is full",
       phase: "local",

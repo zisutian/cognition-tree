@@ -15,7 +15,7 @@ import type {
 import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,
-} from "../workspace/projection/viewRepositoryIssues";
+} from "../repository/repositoryIssueProjection";
 import type { BuiltInId } from "../repository/builtInCatalog";
 import type {
   WorkspaceRepositoryCatalogIssue,

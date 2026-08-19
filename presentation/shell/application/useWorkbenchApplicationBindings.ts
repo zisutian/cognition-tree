@@ -12,7 +12,7 @@ import type { ActivityId } from "../../ui/activityTypes";
 import { useJournalApplication } from "./useJournalApplication";
 import { useRepositoryNavigation } from "./useRepositoryNavigation";
 import { useTodoApplication } from "./useTodoApplication";
-import { createRepositoryProjection } from "./workbenchApplicationProjection";
+import { createRepositoryProjection } from "../../../application/workbench/repositoryApplicationProjection";
 import type { SearchResult } from "../../../application/search/searchTypes";
 import {
   isJournalEntryId,
