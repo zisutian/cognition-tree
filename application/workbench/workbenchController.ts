@@ -44,7 +44,6 @@ import type {
 import type { ApplicationScheduler } from "../runtime/applicationScheduler";
 import type {
   DomainChangeEventSource,
-  DomainRevisionCheckpoint,
 } from "../sync/domainChangeEvents";
 import {
   createSearchController,
@@ -78,6 +77,10 @@ import {
   type WorkbenchWorkspaceSession,
 } from "./workspaceSessionSlot";
 import { createWorkbenchSearchQuery } from "./workbenchSearchQuery";
+import {
+  createCheckpointReloadReconciler,
+  type CheckpointReloadReconciler,
+} from "./checkpointReloadReconciler";
 
 export type { WorkbenchNavigationState } from "./workspaceNoteNavigationController";
 export type { WorkbenchWorkspaceSession } from "./workspaceSessionSlot";
@@ -235,17 +238,7 @@ export function createWorkbenchController({
   let referenceResolutionGeneration = 0;
   let started = false;
   let snapshot: WorkbenchControllerSnapshot;
-  let latestCheckpoint: DomainRevisionCheckpoint | null = null;
-  let activeChangeStreamId: string | null = null;
-  let workspaceCatalogChangeSequence = -1;
-  let catalogAttemptedSequence = -1;
-  let catalogReloading = false;
-  const workspaceAttemptedSequences = new Map<string, number>();
-  let journalAttemptedSequence = -1;
-  let journalReloading = false;
-  let todoAttemptedSequence = -1;
-  let todoReloading = false;
-  let workspaceReloading = false;
+  let checkpointReloadReconciler: CheckpointReloadReconciler | null = null;
   let searchController: SearchController;
 
   const projectBuiltInCatalog = () => ({
@@ -270,7 +263,7 @@ export function createWorkbenchController({
       workspace: workspaceSlot.getSnapshot(),
     };
     listeners.forEach((listener) => listener());
-    reconcileExternalChanges();
+    checkpointReloadReconciler?.notifyStateChanged();
   };
   const workspaceSlot = createWorkspaceSessionSlot({
     commandDependencies: workspaceCommandDependencies,
@@ -342,97 +335,6 @@ export function createWorkbenchController({
     onChange: () => publish(),
     query: searchQuery,
   });
-  const reconcileExternalChanges = () => {
-    if (disposed || !started || !latestCheckpoint) return;
-    const sequence = latestCheckpoint.sequence;
-    const catalog = repositoryCatalogController.getSnapshot();
-    const knownRepositoryIds = catalog.state.status === "ready"
-      ? catalog.state.repositories.map(({ id }) => id).sort()
-      : [];
-    const checkpointRepositoryIds =
-      Object.keys(latestCheckpoint.workspaces).sort();
-    const catalogMismatch =
-      knownRepositoryIds.length !== checkpointRepositoryIds.length ||
-      knownRepositoryIds.some(
-        (repositoryId, index) =>
-          repositoryId !== checkpointRepositoryIds[index],
-      );
-
-    if (
-      catalog.state.status === "ready" &&
-      !catalogReloading &&
-      catalogAttemptedSequence < sequence &&
-      (catalogMismatch ||
-        catalogAttemptedSequence < workspaceCatalogChangeSequence)
-    ) {
-      catalogAttemptedSequence = sequence;
-      catalogReloading = true;
-      void repositoryCatalogController.reload()
-        .catch(() => undefined)
-        .finally(() => {
-          catalogReloading = false;
-          reconcileExternalChanges();
-        });
-    }
-    const activeRepositoryId =
-      catalog.activeDescriptor?.id;
-    const workspace = workspaceSlot.getSnapshot();
-
-    if (
-      activeRepositoryId &&
-      workspace.status === "ready" &&
-      latestCheckpoint.workspaces[activeRepositoryId] &&
-      workspace.remoteRevision !==
-        latestCheckpoint.workspaces[activeRepositoryId] &&
-      !workspaceReloading &&
-      (workspaceAttemptedSequences.get(activeRepositoryId) ?? -1) < sequence
-    ) {
-      workspaceAttemptedSequences.set(activeRepositoryId, sequence);
-      workspaceReloading = true;
-      void workspaceFacade.reload()
-        .catch(() => undefined)
-        .finally(() => {
-          workspaceReloading = false;
-          reconcileExternalChanges();
-        });
-    }
-    const journal = journalSlot.getSnapshot();
-
-    if (
-      journal.state.status === "ready" &&
-      latestCheckpoint.journal &&
-      journal.state.snapshot.remoteRevision !== latestCheckpoint.journal &&
-      !journalReloading &&
-      journalAttemptedSequence < sequence
-    ) {
-      journalAttemptedSequence = sequence;
-      journalReloading = true;
-      void journalFacade.reload()
-        .catch(() => undefined)
-        .finally(() => {
-          journalReloading = false;
-          reconcileExternalChanges();
-        });
-    }
-    const todo = todoSlot.getSnapshot();
-
-    if (
-      todo.state.status === "ready" &&
-      latestCheckpoint.todo &&
-      todo.state.snapshot.remoteRevision !== latestCheckpoint.todo &&
-      !todoReloading &&
-      todoAttemptedSequence < sequence
-    ) {
-      todoAttemptedSequence = sequence;
-      todoReloading = true;
-      void todoFacade.reload()
-        .catch(() => undefined)
-        .finally(() => {
-          todoReloading = false;
-          reconcileExternalChanges();
-        });
-    }
-  };
   const currentWorkspaceReferenceSnapshot = ():
     JournalWorkspaceReferenceSnapshot | null => {
     const catalog = repositoryCatalogController.getSnapshot();
@@ -473,28 +375,6 @@ export function createWorkbenchController({
     reconcileBuiltInSessions();
     publish();
   });
-  const unsubscribeChangeEvents = changeEvents?.subscribe((event) => {
-    if (activeChangeStreamId !== event.streamId) {
-      activeChangeStreamId = event.streamId;
-      latestCheckpoint = null;
-      workspaceCatalogChangeSequence = -1;
-      catalogAttemptedSequence = -1;
-      workspaceAttemptedSequences.clear();
-      journalAttemptedSequence = -1;
-      todoAttemptedSequence = -1;
-    }
-    if (
-      latestCheckpoint &&
-      event.sequence < latestCheckpoint.sequence
-    ) {
-      return;
-    }
-    latestCheckpoint = event.checkpoint;
-    if (event.changedDomains.workspaceCatalog) {
-      workspaceCatalogChangeSequence = event.sequence;
-    }
-    reconcileExternalChanges();
-  }) ?? (() => undefined);
   const requireWorkspaceController = () => {
     const controller = workspaceSlot.getController();
 
@@ -569,6 +449,40 @@ export function createWorkbenchController({
     updateScrollTop: searchController.updateScrollTop,
   };
 
+  checkpointReloadReconciler = createCheckpointReloadReconciler({
+    actions: {
+      reloadCatalog: () => repositoryCatalogController.reload(),
+      reloadJournal: () => journalFacade.reload(),
+      reloadTodo: () => todoFacade.reload(),
+      reloadWorkspace: () => workspaceFacade.reload(),
+    },
+    getState() {
+      const catalog = repositoryCatalogController.getSnapshot();
+      const workspace = workspaceSlot.getSnapshot();
+      const journal = journalSlot.getSnapshot();
+      const todo = todoSlot.getSnapshot();
+
+      return {
+        catalog: {
+          activeRepositoryId: catalog.activeDescriptor?.id ?? null,
+          knownRepositoryIds: catalog.state.status === "ready"
+            ? catalog.state.repositories.map(({ id }) => id)
+            : null,
+        },
+        journalRemoteRevision: journal.state.status === "ready"
+          ? journal.state.snapshot.remoteRevision
+          : null,
+        todoRemoteRevision: todo.state.status === "ready"
+          ? todo.state.snapshot.remoteRevision
+          : null,
+        workspaceRemoteRevision: workspace.status === "ready"
+          ? workspace.remoteRevision
+          : null,
+      };
+    },
+    source: changeEvents,
+  });
+
   snapshot = {
     builtIns: {
       catalog: projectBuiltInCatalog(),
@@ -625,8 +539,7 @@ export function createWorkbenchController({
       builtInCatalogController.stop();
       unsubscribeCatalog();
       unsubscribeBuiltIns();
-      unsubscribeChangeEvents();
-      changeEvents?.dispose();
+      checkpointReloadReconciler?.dispose();
       navigationController.dispose();
       searchController.dispose();
       workspaceSlot.dispose();
@@ -663,8 +576,7 @@ export function createWorkbenchController({
       workspaceSlot.start();
       journalSlot.start();
       todoSlot.start();
-      changeEvents?.start();
-      reconcileExternalChanges();
+      checkpointReloadReconciler?.start();
     },
     subscribe(listener) {
       listeners.add(listener);
