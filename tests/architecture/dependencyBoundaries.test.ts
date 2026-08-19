@@ -118,12 +118,20 @@ describe("dependency boundaries", () => {
         targetPath: "../../application/journal/service.ts",
         targetRoot: "application",
       },
+      {
+        filePath: "../../infrastructure/client/http/apiTransport.ts",
+        importPath: "../../../application/workspace/persistence/workspaceRepository",
+        targetPath:
+          "../../application/workspace/persistence/workspaceRepository.ts",
+        targetRoot: "application",
+      },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
       "peer domain isolation: ../../application/workspace/service.ts imports ../journal/service",
       "repository independence from domain content: ../../application/repository/view.ts imports ../workspace/session",
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
+      "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
     ]);
   });
 

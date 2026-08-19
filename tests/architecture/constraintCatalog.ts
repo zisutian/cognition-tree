@@ -89,6 +89,19 @@ function isConcreteDomainPath(filePath: string) {
     .test(filePath);
 }
 
+function isConcreteDomainModule(filePath: string) {
+  return /^\.\.\/\.\.\/(?:application|contracts|core)\/(?:workspace|journal|todo)\//
+    .test(filePath);
+}
+
+function isGenericClientHttpModule(filePath: string) {
+  return [
+    "../../infrastructure/client/http/apiTransport.ts",
+    "../../infrastructure/client/http/httpRepositoryIdentity.ts",
+    "../../infrastructure/client/http/versionedContentRepository.ts",
+  ].includes(filePath);
+}
+
 function isApplicationArea(filePath: string, area: string) {
   return filePath.startsWith(`../../application/${area}/`);
 }
@@ -164,6 +177,13 @@ export const dependencyImportPolicies: readonly ImportPolicy[] = [
         isApplicationArea(filePath, "sync")) &&
       isConcreteDomainPath(targetPath),
     name: "generic persistence and sync independence from domains",
+  },
+  {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      isGenericClientHttpModule(filePath) &&
+      isConcreteDomainModule(targetPath),
+    name: "generic client HTTP independence from domains",
   },
   {
     allows: allowsInfrastructureEdge,
