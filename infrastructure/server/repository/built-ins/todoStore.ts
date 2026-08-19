@@ -12,15 +12,13 @@ import {
 import { serializeTodoRevisionContent } from "../../../../contracts/todo/revision.ts";
 import type { TodoContentDto, TodoRevisionDto } from "../../../../contracts/todo/types.ts";
 import {
-  validateTodoContentAnalysisTransition,
-} from "../../../../core/todo/model/todoValidation.ts";
-import {
   TodoContentValidationError,
 } from "../../../../core/todo/model/todoErrors.ts";
+import type { TodoParseIndex } from "../../../../core/todo/indexes/todoParseIndex.ts";
 import {
-  createTodoParseIndex,
-  type TodoParseIndex,
-} from "../../../../core/todo/indexes/todoParseIndex.ts";
+  prepareTodoRepositoryContent,
+  validateTodoRepositoryPreparedTransition,
+} from "../../../../application/todo/persistence/todoRepositoryPreparation.ts";
 import { RepositoryCorruptError } from "../store.ts";
 import {
   FileSystemVersionedContentStore,
@@ -49,20 +47,13 @@ function validateWriteBoundary<Result>(operation: () => Result): Result {
   }
 }
 
-function prepareTodoContent(
+export function prepareTodoWriteContent(
   content: TodoContentDto,
   previous?: TodoParseIndex | null,
 ) {
-  try {
-    return createTodoParseIndex(content, previous);
-  } catch (error) {
-    if (error instanceof TodoContentValidationError) throw error;
-    throw new TodoContentValidationError(
-      `Todo CTN preparation failed: ${
-        error instanceof Error ? error.message : "unknown CTN error"
-      }`,
-    );
-  }
+  return validateWriteBoundary(() =>
+    prepareTodoRepositoryContent(content, previous)
+  );
 }
 
 export function createFileSystemTodoContentStore(
@@ -81,16 +72,11 @@ export function createFileSystemTodoContentStore(
       return error;
     },
     parseContent: parseTodoContent,
-    prepareContent: prepareTodoContent,
+    prepareContent: prepareTodoRepositoryContent,
     serializeContent(content) {
       return `${serializeJsonIteratively(content, { indent: 2 })}\n`;
     },
-    validateTransition(previous, next) {
-      validateTodoContentAnalysisTransition(
-        previous.projection.validation,
-        next.projection.validation,
-      );
-    },
+    validateTransition: validateTodoRepositoryPreparedTransition,
     validateWriteBoundary,
   });
 }

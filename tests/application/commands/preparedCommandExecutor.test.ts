@@ -49,7 +49,7 @@ describe("prepared command executor", () => {
     > = {
       commit,
       isRevisionConflict: () => false,
-      load: async () => snapshot,
+      loadSnapshot: async () => snapshot,
     };
 
     await expect(executePreparedCommand({
@@ -92,7 +92,7 @@ describe("prepared command executor", () => {
         return { revision: revision("c") };
       },
       isRevisionConflict: (error) => error === conflict,
-      load: async () => snapshot,
+      loadSnapshot: async () => snapshot,
     };
 
     await expect(executePreparedCommand({
@@ -131,7 +131,7 @@ describe("prepared command executor", () => {
     > = {
       commit,
       isRevisionConflict: () => false,
-      load: async () => ({
+      loadSnapshot: async () => ({
         content: { value: 1 },
         projection: { indexedValue: 1 },
         revision: revision("a"),

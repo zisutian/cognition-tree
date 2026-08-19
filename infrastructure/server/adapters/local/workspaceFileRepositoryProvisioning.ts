@@ -18,8 +18,8 @@ import {
   createLocalProjectionFromContent,
 } from "./localRepositoryProjection.ts";
 import {
-  prepareLocalWorkspaceWriteContent,
-} from "./localWorkspaceContentPreparation.ts";
+  prepareWorkspaceWriteContent,
+} from "../../repository/workspace/preparation.ts";
 import {
   localControlDirectoryName,
   localNoteMetadataDirectoryName,
@@ -97,7 +97,7 @@ export async function provisionWorkspaceFileRepository({
 }) {
   const rootDir = path.resolve(inputRootDir);
   const content = parseWorkspaceRepositoryContent(inputContent);
-  const preparation = prepareLocalWorkspaceWriteContent(content);
+  const preparation = prepareWorkspaceWriteContent(content);
   const parsedLabel = parsePortableName(label, "Repository label");
   const projection = createLocalProjectionFromContent({
     content,

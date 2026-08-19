@@ -4,32 +4,16 @@ import {
   readCommandRuntimeNow,
   type CommandRuntime,
 } from "../commands/commandRuntime.ts";
-
-export type PreparedSyncSnapshot<
-  Content,
-  Projection,
-  Revision extends string,
-> = Readonly<{
-  content: Content;
-  projection: Projection;
-  revision: Revision;
-}>;
+import type {
+  PreparedVersionedSnapshot,
+  PreparedVersionedStore,
+} from "../persistence/versionedRepository.ts";
 
 export type SnapshotSyncStore<
   Content,
   Projection,
   Revision extends string,
-> = {
-  commit(request: {
-    baseRevision: Revision;
-    content: Content;
-  }): Promise<{
-    after: PreparedSyncSnapshot<Content, Projection, Revision>;
-    before: PreparedSyncSnapshot<Content, Projection, Revision>;
-    revision: Revision;
-  }>;
-  load(): Promise<PreparedSyncSnapshot<Content, Projection, Revision>>;
-};
+> = PreparedVersionedStore<Content, Projection, Revision>;
 
 export type SnapshotSyncRequest<Content, Revision extends string> =
   | { mode: "load" }
@@ -58,13 +42,18 @@ export async function executeSnapshotSync<
   Revision extends string,
 >({
   projectChanges,
+  prepare,
   request,
   runtime,
   store,
 }: {
+  prepare(
+    content: Content,
+    previous: Projection,
+  ): Projection;
   projectChanges(input: {
-    after: PreparedSyncSnapshot<Content, Projection, Revision>;
-    before: PreparedSyncSnapshot<Content, Projection, Revision>;
+    after: PreparedVersionedSnapshot<Content, Projection, Revision>;
+    before: PreparedVersionedSnapshot<Content, Projection, Revision>;
     timestamp: string;
   }): Changes;
   request: SnapshotSyncRequest<Content, Revision>;
@@ -72,7 +61,7 @@ export async function executeSnapshotSync<
   store: SnapshotSyncStore<Content, Projection, Revision>;
 }): Promise<SnapshotSyncResult<Content, Changes, Revision>> {
   if (request.mode === "load") {
-    const snapshot = await store.load();
+    const snapshot = await store.loadSnapshot();
 
     return {
       content: snapshot.content,
@@ -81,9 +70,12 @@ export async function executeSnapshotSync<
     };
   }
   const { timestamp } = readCommandRuntimeNow(runtime);
+  const before = await store.loadSnapshot();
+  const projection = prepare(request.content, before.projection);
   const receipt = await store.commit({
     baseRevision: request.baseRevision,
     content: request.content,
+    projection,
   });
 
   return {

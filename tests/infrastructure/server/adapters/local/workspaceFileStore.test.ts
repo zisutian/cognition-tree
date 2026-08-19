@@ -44,6 +44,9 @@ import {
 import {
   RepositoryCorruptError,
 } from "../../../../../infrastructure/server/repository/store.ts";
+import {
+  prepareAndCommitWorkspaceContent,
+} from "../workspaceStoreTestSupport.ts";
 
 const initialTimestamp = "2026-07-16T00:00:00.000Z";
 const changedTimestamp = "2026-07-16T01:00:00.000Z";
@@ -260,7 +263,7 @@ describe("WorkspaceFileStore Local working tree", () => {
       expect(sidecarSource).not.toContain("@ctn-block");
 
       const next = createContent("renamed workspace");
-      const committed = await store.commitSnapshot({
+      const committed = await prepareAndCommitWorkspaceContent(store, {
         baseRevision: snapshot.revision,
         content: next,
       });
@@ -282,7 +285,10 @@ describe("WorkspaceFileStore Local working tree", () => {
       const base = await store.loadSnapshot();
       const next = createContent("after");
       const [committed] = await Promise.all([
-        store.commitSnapshot({ baseRevision: base.revision, content: next }),
+        prepareAndCommitWorkspaceContent(store, {
+          baseRevision: base.revision,
+          content: next,
+        }),
         store.renameLabel("After label"),
       ]);
       const loaded = await store.loadSnapshot();
@@ -539,7 +545,10 @@ describe("WorkspaceFileStore Local working tree", () => {
           ],
         },
       };
-      await store.commitSnapshot({ baseRevision: base.revision, content: next });
+      await prepareAndCommitWorkspaceContent(store, {
+        baseRevision: base.revision,
+        content: next,
+      });
       const afterFile = await lstat(unchangedPath);
       const afterSidecar = await lstat(unchangedSidecarPath);
 
@@ -592,7 +601,7 @@ describe("WorkspaceFileStore Local working tree", () => {
           ...base.content,
           workspace: { ...base.content.workspace, notes: [], tree: [] },
         };
-        await expect(store.commitSnapshot({
+        await expect(prepareAndCommitWorkspaceContent(store, {
           baseRevision: base.revision,
           content: empty,
         })).rejects.toMatchObject({ code: "invalid_request" });
@@ -610,7 +619,10 @@ describe("WorkspaceFileStore Local working tree", () => {
       const store = createStore(rootDir);
       const base = await store.loadSnapshot();
       const invalid = createContent("Bad/Title");
-      await expect(store.commitSnapshot({ baseRevision: base.revision, content: invalid }))
+      await expect(prepareAndCommitWorkspaceContent(store, {
+        baseRevision: base.revision,
+        content: invalid,
+      }))
         .rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
 
       for (const invalidTitle of [
@@ -618,7 +630,7 @@ describe("WorkspaceFileStore Local working tree", () => {
         "Cafe\u0301",
         "界".repeat(84),
       ]) {
-        await expect(store.commitSnapshot({
+        await expect(prepareAndCommitWorkspaceContent(store, {
           baseRevision: base.revision,
           content: createContent(invalidTitle),
         })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
@@ -630,7 +642,10 @@ describe("WorkspaceFileStore Local working tree", () => {
         { kind: "note", noteId: "note-test" },
       ];
       collision.workspace.notes[0]!.source = canonicalSource("Same");
-      await expect(store.commitSnapshot({ baseRevision: base.revision, content: collision }))
+      await expect(prepareAndCommitWorkspaceContent(store, {
+        baseRevision: base.revision,
+        content: collision,
+      }))
         .rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
 
       await writeFile(path.join(rootDir, "资料", "keep.txt"), "unmanaged");
@@ -638,7 +653,10 @@ describe("WorkspaceFileStore Local working tree", () => {
         ...createContent(),
         workspace: { ...createContent().workspace, notes: [], tree: [] },
       };
-      await expect(store.commitSnapshot({ baseRevision: base.revision, content: empty }))
+      await expect(prepareAndCommitWorkspaceContent(store, {
+        baseRevision: base.revision,
+        content: empty,
+      }))
         .rejects.toMatchObject({ code: "invalid_request" });
       expect(await readFile(path.join(rootDir, "资料", "keep.txt"), "utf8"))
         .toBe("unmanaged");
@@ -650,11 +668,11 @@ describe("WorkspaceFileStore Local working tree", () => {
       await createFileRepository(rootDir);
       const store = createStore(rootDir);
       const base = await store.loadSnapshot();
-      const committed = await store.commitSnapshot({
+      const committed = await prepareAndCommitWorkspaceContent(store, {
         baseRevision: base.revision,
         content: createContent("new"),
       });
-      await expect(store.commitSnapshot({
+      await expect(prepareAndCommitWorkspaceContent(store, {
         baseRevision: base.revision,
         content: createContent("stale"),
       })).rejects.toMatchObject({ currentRevision: committed.revision });
@@ -678,7 +696,7 @@ describe("WorkspaceFileStore Local working tree", () => {
         id: secondarySyntaxFileId,
         source: 'name = "broken"\n',
       };
-      await expect(store.commitSnapshot({
+      await expect(prepareAndCommitWorkspaceContent(store, {
         baseRevision: base.revision,
         content: invalidInactive,
       })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
@@ -691,7 +709,7 @@ describe("WorkspaceFileStore Local working tree", () => {
           name: `  ${defaultCtnSyntax.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
         }, "workspace"),
       };
-      await expect(store.commitSnapshot({
+      await expect(prepareAndCommitWorkspaceContent(store, {
         baseRevision: base.revision,
         content: duplicateName,
       })).rejects.toThrow("Duplicate workspace syntax name");
@@ -775,7 +793,10 @@ describe("WorkspaceFileStore Local working tree", () => {
       });
       const base = await store.loadSnapshot();
       const content = createContent("new");
-      const committed = await store.commitSnapshot({ baseRevision: base.revision, content });
+      const committed = await prepareAndCommitWorkspaceContent(store, {
+        baseRevision: base.revision,
+        content,
+      });
       await expect(store.loadSnapshot()).resolves.toMatchObject({
         content,
         revision: committed.revision,
@@ -797,7 +818,7 @@ describe("WorkspaceFileStore Local working tree", () => {
       });
       const base = await store.loadSnapshot();
 
-      await expect(store.commitSnapshot({
+      await expect(prepareAndCommitWorkspaceContent(store, {
         baseRevision: base.revision,
         content: createContent("new"),
       })).rejects.toMatchObject({ code: "repository_busy" });
@@ -824,7 +845,7 @@ describe("WorkspaceFileStore Local working tree", () => {
         },
       });
       const base = await store.loadSnapshot();
-      const commit = store.commitSnapshot({
+      const commit = prepareAndCommitWorkspaceContent(store, {
         baseRevision: base.revision,
         content: createContent("new"),
       });
@@ -1105,7 +1126,7 @@ describe("LocalRepositoryCatalog v4", () => {
         });
         const store = await catalog.getStore("primary");
         const base = await store.loadSnapshot();
-        const commit = store.commitSnapshot({
+        const commit = prepareAndCommitWorkspaceContent(store, {
           baseRevision: base.revision,
           content: createContent("new"),
         });

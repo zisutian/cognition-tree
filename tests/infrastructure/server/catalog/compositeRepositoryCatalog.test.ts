@@ -39,10 +39,7 @@ function createStore(content: WorkspaceRepositoryContentDto): WorkspaceRepositor
   };
 
   return {
-    async commitSnapshot() {
-      return { after: snapshot, before: snapshot, revision };
-    },
-    async commitPreparedSnapshot() {
+    async commit() {
       return { after: snapshot, before: snapshot, revision };
     },
     async loadSnapshot() {

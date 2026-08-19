@@ -127,24 +127,22 @@ describe("CTN API v2", () => {
       repositoryId: "workspace-a",
       runtime: createRuntime(),
       store: {
-        async commitSnapshot() {
+        async commit(transaction) {
           const beforeSnapshot = preparedWorkspaceSnapshot(
             before,
             trackedRevision,
           );
-          const afterSnapshot = preparedWorkspaceSnapshot(
-            after,
-            revision("c"),
-          );
+          const afterSnapshot = {
+            content: transaction.content,
+            projection: transaction.projection,
+            revision: revision("c"),
+          };
 
           return {
             after: afterSnapshot,
             before: beforeSnapshot,
             revision: revision("c"),
           };
-        },
-        async commitPreparedSnapshot() {
-          throw new Error("sync uses the decoded raw commit boundary");
         },
         async loadSnapshot() {
           snapshotLoads += 1;
@@ -158,7 +156,7 @@ describe("CTN API v2", () => {
       body: { revision: revision("c") },
       statusCode: 200,
     });
-    expect(snapshotLoads).toBe(0);
+    expect(snapshotLoads).toBe(1);
     expect(published).toHaveLength(1);
     expect(published[0]!.resources).toContainEqual(expect.objectContaining({
       domain: "workspace",
@@ -201,10 +199,7 @@ describe("CTN API v2", () => {
       },
       async getStore(repositoryId: string) {
         return {
-          async commitSnapshot() {
-            throw new Error("not used");
-          },
-          async commitPreparedSnapshot() {
+          async commit() {
             throw new Error("not used");
           },
           async loadSnapshot() {

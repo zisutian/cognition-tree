@@ -5,9 +5,11 @@ import { open } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
 import type {
-  VersionedContentCommitDto,
-} from "../../../../contracts/common/versionedContent.ts";
-import type { PreparedVersionedContent } from "../../../../application/persistence/versionedRepository.ts";
+  PreparedVersionedCommit,
+  PreparedVersionedContent,
+  PreparedVersionedSnapshot,
+  PreparedVersionedStore,
+} from "../../../../application/persistence/versionedRepository.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   isSecureRegularFile,
@@ -18,27 +20,11 @@ import {
   RepositoryCorruptError,
 } from "../store.ts";
 
-export type PreparedVersionedContentSnapshot<Content, Projection = unknown> =
-  PreparedVersionedContent<Content, Projection> & {
-    revision: `sha256:${string}`;
-  };
+type PreparedVersionedContentSnapshot<Content, Projection = unknown> =
+  PreparedVersionedSnapshot<Content, Projection, `sha256:${string}`>;
 
-export type VersionedContentCommitReceipt<Content, Projection = unknown> = {
-  after: PreparedVersionedContentSnapshot<Content, Projection>;
-  before: PreparedVersionedContentSnapshot<Content, Projection>;
-  revision: `sha256:${string}`;
-};
-
-export type VersionedContentStore<Content, Projection = unknown> = {
-  commitPreparedSnapshot(
-    commit: VersionedContentCommitDto<Content>,
-    projection: Projection,
-  ): Promise<VersionedContentCommitReceipt<Content, Projection>>;
-  commitSnapshot(
-    commit: VersionedContentCommitDto<Content>,
-  ): Promise<VersionedContentCommitReceipt<Content, Projection>>;
-  loadSnapshot(): Promise<PreparedVersionedContentSnapshot<Content, Projection>>;
-};
+export type VersionedContentStore<Content, Projection = unknown> =
+  PreparedVersionedStore<Content, Projection, `sha256:${string}`>;
 
 export type VersionedContentStoreDefinition<Content, Projection> = {
   createRevision(content: Content): `sha256:${string}`;
@@ -85,33 +71,12 @@ export class FileSystemVersionedContentStore<Content, Projection>
     return this.#enqueueOperation(() => this.#readSnapshot());
   }
 
-  commitSnapshot(commit: VersionedContentCommitDto<Content>) {
-    return this.#commitSnapshot(commit, (current) => ({
-      content: commit.content,
-      projection: this.#definition.validateWriteBoundary(() =>
-        this.#definition.prepareContent(
-          commit.content,
-          current.projection,
-        )
-      ),
-    }));
-  }
-
-  commitPreparedSnapshot(
-    commit: VersionedContentCommitDto<Content>,
-    projection: Projection,
-  ) {
-    return this.#commitSnapshot(commit, () => ({
-      content: commit.content,
-      projection,
-    }));
-  }
-
-  #commitSnapshot(
-    commit: VersionedContentCommitDto<Content>,
-    prepare: (
-      current: PreparedVersionedContentSnapshot<Content, Projection>,
-    ) => PreparedVersionedContent<Content, Projection>,
+  commit(
+    transaction: PreparedVersionedCommit<
+      Content,
+      Projection,
+      `sha256:${string}`
+    >,
   ) {
     return this.#enqueueOperation(async () => {
       let release: (() => Promise<void>) | null = null;
@@ -133,20 +98,23 @@ export class FileSystemVersionedContentStore<Content, Projection>
       }
       try {
         const current = await this.#readSnapshot();
-        if (current.revision !== commit.baseRevision) {
+        if (current.revision !== transaction.baseRevision) {
           throw new VersionedContentRevisionConflictError(current.revision);
         }
-        const prepared = prepare(current);
 
         this.#definition.validateWriteBoundary(() =>
-          this.#definition.validateTransition(current, prepared)
+          this.#definition.validateTransition(current, transaction)
         );
-        const revision = this.#definition.createRevision(commit.content);
+        const revision = this.#definition.createRevision(transaction.content);
         if (revision === current.revision) {
           return { after: current, before: current, revision };
         }
-        await this.#writeContent(commit.content);
-        const after = { ...prepared, revision };
+        await this.#writeContent(transaction.content);
+        const after = {
+          content: transaction.content,
+          projection: transaction.projection,
+          revision,
+        };
 
         this.#lastPreparedSnapshot = after;
         return { after, before: current, revision };

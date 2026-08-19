@@ -10,14 +10,14 @@ import {
 } from "../../../core/journal/model/journalErrors";
 import {
   validateJournalContent,
-  validateJournalContentAnalysisTransition,
   validateJournalContentTransition,
 } from "../../../core/journal/model/journalValidation";
-import {
-  createJournalParseIndex,
-  type JournalParseIndex,
-} from "../../../core/journal/indexes/journalParseIndex";
+import type { JournalParseIndex } from "../../../core/journal/indexes/journalParseIndex";
 import type { JournalRevision } from "../../../application/journal/persistence/journalRepository";
+import {
+  prepareJournalRepositoryContent,
+  validateJournalRepositoryPreparedTransition,
+} from "../../../application/journal/persistence/journalRepositoryPreparation";
 import type {
   VersionedContentPreparationPolicy,
   VersionedRepositoryCodec,
@@ -70,7 +70,7 @@ export const journalRepositoryPreparation: VersionedContentPreparationPolicy<
 > = {
   prepare(content, previous) {
     try {
-      return createJournalParseIndex(content, previous);
+      return prepareJournalRepositoryContent(content, previous);
     } catch (error) {
       if (error instanceof JournalContentValidationError) {
         throw new Error(`Journal content is invalid: ${error.message}`);
@@ -80,10 +80,7 @@ export const journalRepositoryPreparation: VersionedContentPreparationPolicy<
   },
   validateTransition(previous, next) {
     try {
-      validateJournalContentAnalysisTransition(
-        previous.projection.validation,
-        next.projection.validation,
-      );
+      validateJournalRepositoryPreparedTransition(previous, next);
     } catch (error) {
       if (error instanceof JournalContentValidationError) {
         throw new Error(`Journal transition is invalid: ${error.message}`);

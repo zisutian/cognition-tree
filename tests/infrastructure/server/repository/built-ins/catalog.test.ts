@@ -16,7 +16,15 @@ import type { TodoContentDto } from "../../../../../contracts/todo/types.ts";
 import { renameTodoCollection } from "../../../../../core/todo/commands/todoCollectionCommands.ts";
 import {
   createTodoParseIndex,
+  type TodoParseIndex,
 } from "../../../../../core/todo/indexes/todoParseIndex.ts";
+import type { JournalParseIndex } from "../../../../../core/journal/indexes/journalParseIndex.ts";
+import {
+  prepareJournalRepositoryContent,
+} from "../../../../../application/journal/persistence/journalRepositoryPreparation.ts";
+import {
+  prepareTodoRepositoryContent,
+} from "../../../../../application/todo/persistence/todoRepositoryPreparation.ts";
 import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
 import { createFileSystemTodoContentStore } from "../../../../../infrastructure/server/repository/built-ins/todoStore.ts";
 import {
@@ -47,11 +55,13 @@ async function withStateDirectory(
   }
 }
 
-function openBuiltInStore<Content>(
+function openBuiltInStore<Content, Projection = unknown>(
   catalog: BuiltInCatalog,
   id: "journal" | "todo",
 ) {
-  return catalog.getStore(id) as Promise<VersionedContentStore<Content>>;
+  return catalog.getStore(id) as Promise<
+    VersionedContentStore<Content, Projection>
+  >;
 }
 
 function createBuiltInCatalog(repositoryRoot: string) {
@@ -72,10 +82,11 @@ describe("filesystem built-in data catalog", () => {
         name: "Prepared",
       });
       const projection = createTodoParseIndex(content, before.projection);
-      const receipt = await store.commitPreparedSnapshot(
-        { baseRevision: before.revision, content },
+      const receipt = await store.commit({
+        baseRevision: before.revision,
+        content,
         projection,
-      );
+      });
 
       expect(receipt.before).toBe(before);
       expect(receipt.after.projection).toBe(projection);
@@ -142,7 +153,10 @@ describe("filesystem built-in data catalog", () => {
       const catalog = createBuiltInCatalog(stateDirectory);
 
       await catalog.initialize();
-      const journalStore = await openBuiltInStore<JournalContentDto>(
+      const journalStore = await openBuiltInStore<
+        JournalContentDto,
+        JournalParseIndex
+      >(
         catalog,
         "journal",
       );
@@ -151,20 +165,31 @@ describe("filesystem built-in data catalog", () => {
         createEmptyJournalContent(),
         { createdAt: "2026-07-18T00:00:01.000Z", entryIndex: 1 },
       );
-      await journalStore.commitSnapshot({
+      await journalStore.commit({
         baseRevision: journalBase.revision,
         content: journalContent,
+        projection: prepareJournalRepositoryContent(
+          journalContent,
+          journalBase.projection,
+        ),
       });
-      const todoStore = await openBuiltInStore<TodoContentDto>(catalog, "todo");
+      const todoStore = await openBuiltInStore<TodoContentDto, TodoParseIndex>(
+        catalog,
+        "todo",
+      );
       const todoBase = await todoStore.loadSnapshot();
       const todoContent = appendTodoTestCollection(createEmptyTodoContent(), {
         collectionIndex: 1,
         createdAt: todoTimestamp(1),
         name: "服务端",
       });
-      const committed = await todoStore.commitSnapshot({
+      const committed = await todoStore.commit({
         baseRevision: todoBase.revision,
         content: todoContent,
+        projection: prepareTodoRepositoryContent(
+          todoContent,
+          todoBase.projection,
+        ),
       });
 
       expect(committed.before).toMatchObject({
@@ -209,13 +234,21 @@ describe("filesystem built-in data catalog", () => {
         },
       );
       const outcomes = await Promise.allSettled([
-        first.commitSnapshot({
+        first.commit({
           baseRevision: concurrentBase.revision,
           content: { ...todoContent, collections: [] },
+          projection: prepareTodoRepositoryContent(
+            { ...todoContent, collections: [] },
+            concurrentBase.projection,
+          ),
         }),
-        second.commitSnapshot({
+        second.commit({
           baseRevision: concurrentBase.revision,
           content: renamed,
+          projection: prepareTodoRepositoryContent(
+            renamed,
+            concurrentBase.projection,
+          ),
         }),
       ]);
 
@@ -234,7 +267,10 @@ describe("filesystem built-in data catalog", () => {
       const initial = createBuiltInCatalog(stateDirectory);
 
       await initial.initialize();
-      const journalStore = await openBuiltInStore<JournalContentDto>(
+      const journalStore = await openBuiltInStore<
+        JournalContentDto,
+        JournalParseIndex
+      >(
         initial,
         "journal",
       );
@@ -244,9 +280,13 @@ describe("filesystem built-in data catalog", () => {
         { createdAt: "2026-07-18T00:00:01.000Z", entryIndex: 1 },
       );
 
-      await journalStore.commitSnapshot({
+      await journalStore.commit({
         baseRevision: journalBase.revision,
         content: journalContent,
+        projection: prepareJournalRepositoryContent(
+          journalContent,
+          journalBase.projection,
+        ),
       });
       const todoDirectory = path.join(stateDirectory, ".built-ins", "todo");
       const todoContentPath = path.join(todoDirectory, "content.json");

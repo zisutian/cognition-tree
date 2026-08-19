@@ -6,22 +6,24 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../../../contracts/workspace/contractValue.ts";
 import type {
-  WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace/types.ts";
 import {
   prepareWorkspaceRepositoryContent,
-  type WorkspaceRepositoryPreparation,
 } from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
+  type PreparedWorkspaceRepositoryCommit,
   type PreparedWorkspaceRepositorySnapshot,
   type WorkspaceRepositoryCommitReceipt,
   type WorkspaceRepositoryStore,
 } from "../../repository/store.ts";
 import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
+import {
+  prepareWorkspaceWriteContent,
+} from "../../repository/workspace/preparation.ts";
 import {
   createWebDavPointer,
   createWebDavDeletionTombstone,
@@ -78,20 +80,6 @@ export type WebDavManagedDataDeletionResult = {
   deletionToken: string;
   status: "deleted" | "deleting";
 };
-
-function prepareWorkspaceWriteContent(
-  content: WorkspaceRepositoryContentDto,
-  previous?: WorkspaceRepositoryPreparation | null,
-) {
-  try {
-    return prepareWorkspaceRepositoryContent(content, { previous });
-  } catch (error) {
-    throw new WorkspaceRepositoryContractError(
-      "$.content",
-      error instanceof Error ? error.message : "invalid workspace content",
-    );
-  }
-}
 
 export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
   #acceptingOperations = true;
@@ -159,28 +147,15 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     });
   }
 
-  async commitSnapshot(commit: WorkspaceRepositoryCommitDto) {
-    this.#assertAcceptingOperations();
-    return this.#enqueueOperation(async () => {
-      await this.initialize();
-      try {
-        return await this.#commitSnapshot(commit, null);
-      } catch (error) {
-        throw this.#mapFailure(error);
-      }
-    });
-  }
-
-  async commitPreparedSnapshot(
-    commit: WorkspaceRepositoryCommitDto,
-    preparation: WorkspaceRepositoryPreparation,
+  async commit(
+    transaction: PreparedWorkspaceRepositoryCommit,
   ): Promise<WorkspaceRepositoryCommitReceipt> {
     this.#assertAcceptingOperations();
 
     return this.#enqueueOperation(async () => {
       await this.initialize();
       try {
-        return await this.#commitSnapshot(commit, preparation);
+        return await this.#commit(transaction);
       } catch (error) {
         throw this.#mapFailure(error);
       }
@@ -418,9 +393,8 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
     };
   }
 
-  async #commitSnapshot(
-    commit: WorkspaceRepositoryCommitDto,
-    prepared: WorkspaceRepositoryPreparation | null,
+  async #commit(
+    transaction: PreparedWorkspaceRepositoryCommit,
   ): Promise<WorkspaceRepositoryCommitReceipt> {
     const lease = await this.#leaseCoordinator.acquire();
     let generation: string | null = null;
@@ -432,22 +406,18 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
       const pointer = parseWebDavPointer(pointerResource);
       const currentContent = await this.#generationStore.read(pointer);
 
-      if (pointer.revision !== commit.baseRevision) {
+      if (pointer.revision !== transaction.baseRevision) {
         throw new WorkspaceRevisionConflictError(pointer.revision);
       }
       const before = this.#prepareSnapshot(currentContent, pointer.revision);
-      const preparation = prepared ?? prepareWorkspaceWriteContent(
-        commit.content,
-        before.projection,
-      );
-      const revision = createWorkspaceRepositoryRevision(commit.content);
+      const revision = createWorkspaceRepositoryRevision(transaction.content);
 
       if (revision === pointer.revision) {
         return { after: before, before, revision };
       }
 
       generation = this.#createId();
-      await this.#generationStore.upload(generation, commit.content, lease);
+      await this.#generationStore.upload(generation, transaction.content, lease);
       await this.#onCommitPhase(webDavCommitPhases.generationUploaded);
       await this.#generationStore.validate(generation, revision);
       await this.#onCommitPhase(webDavCommitPhases.generationValidated);
@@ -492,8 +462,8 @@ export class WebDavWorkspaceStore implements WorkspaceRepositoryStore {
           .catch(() => undefined);
       }
       const after = {
-        content: commit.content,
-        projection: preparation,
+        content: transaction.content,
+        projection: transaction.projection,
         revision,
       };
 

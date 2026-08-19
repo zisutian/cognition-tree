@@ -2,10 +2,6 @@
 
 import { describe, expect, it } from "vitest";
 import path from "node:path";
-import {
-  prepareWorkspaceRepositoryContent,
-  type WorkspaceRepositoryPreparation,
-} from "../../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 import type {
   ApiCommandResultDto,
   ApiCtnDocumentDto,
@@ -13,7 +9,6 @@ import type {
 } from "../../../../contracts/api/types.ts";
 import type {
   RepositoryDescriptorDto,
-  WorkspaceRepositoryCommitDto,
 } from "../../../../contracts/workspace/types.ts";
 import { executeApiWorkspaceCommand } from "../../../../infrastructure/server/api/commands/workspace.ts";
 import {
@@ -23,6 +18,7 @@ import {
 import { ApiStateStore } from "../../../../infrastructure/server/api/state/store.ts";
 import {
   WorkspaceRevisionConflictError,
+  type PreparedWorkspaceRepositoryCommit,
   type WorkspaceRepositoryStore,
 } from "../../../../infrastructure/server/repository/store.ts";
 import {
@@ -213,39 +209,32 @@ describe("CTN API v2", () => {
       note.id,
     )!;
     const executeCommit = async (
-      value: WorkspaceRepositoryCommitDto,
-      projection: WorkspaceRepositoryPreparation,
+      commit: PreparedWorkspaceRepositoryCommit,
     ) => {
-        const commit = value;
-        const before = preparedWorkspaceSnapshot(content, currentRevision);
+      const { projection } = commit;
+      const before = preparedWorkspaceSnapshot(content, currentRevision);
 
-        commitAttempts += 1;
-        if (commitAttempts === 1) {
-          content = {
-            ...content,
-            workspace: {
-              ...content.workspace,
-              name: "并发改名",
-            },
-          };
-          currentRevision = revision("b");
-          throw new WorkspaceRevisionConflictError(currentRevision);
-        }
-        expect(commit.baseRevision).toBe(currentRevision);
-        content = structuredClone(commit.content);
-        currentRevision = revision("c");
-        const after = { content, projection, revision: currentRevision };
+      commitAttempts += 1;
+      if (commitAttempts === 1) {
+        content = {
+          ...content,
+          workspace: {
+            ...content.workspace,
+            name: "并发改名",
+          },
+        };
+        currentRevision = revision("b");
+        throw new WorkspaceRevisionConflictError(currentRevision);
+      }
+      expect(commit.baseRevision).toBe(currentRevision);
+      content = structuredClone(commit.content);
+      currentRevision = revision("c");
+      const after = { content, projection, revision: currentRevision };
 
-        return { after, before, revision: currentRevision };
-      };
+      return { after, before, revision: currentRevision };
+    };
     const store: WorkspaceRepositoryStore = {
-      commitPreparedSnapshot: executeCommit,
-      async commitSnapshot(value) {
-        return executeCommit(
-          value,
-          prepareWorkspaceRepositoryContent(value.content),
-        );
-      },
+      commit: executeCommit,
       async loadSnapshot() {
         return preparedWorkspaceSnapshot(
           structuredClone(content),

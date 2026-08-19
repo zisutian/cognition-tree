@@ -343,14 +343,6 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     scope,
   })),
   {
-    allowedPath:
-      /^infrastructure\/server\/repository\/snapshotSyncStoreAdapter\.ts$/,
-    corpus: infrastructureModules,
-    matches: 1,
-    name: "official snapshot persistence write adapter",
-    pattern: /\.commitSnapshot\s*\(/,
-  },
-  {
     allowedPath: /^core\/ctn\/(?:metadata|parser)\//,
     corpus: sourceModules,
     matches: { min: 1 },
@@ -384,7 +376,8 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     corpus: sourceModules,
     matches: 0,
     name: "plain and prepared mutation dual APIs",
-    pattern: /\b(?:mutatePrepared|mutatePlain|mutateContent)\b/,
+    pattern:
+      /\b(?:mutatePrepared|mutatePlain|mutateContent|commitPreparedSnapshot|commitSnapshot)\b/,
   },
   {
     corpus: sourceModules,

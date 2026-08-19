@@ -3,35 +3,21 @@
 import type {
   PreparedCommandStore,
 } from "../../../application/commands/preparedCommandExecutor.ts";
-
-type PreparedContentStore<Content, Projection, Revision extends string> = {
-  commitPreparedSnapshot(
-    commit: { baseRevision: Revision; content: Content },
-    projection: Projection,
-  ): Promise<{ revision: Revision }>;
-  loadSnapshot(): Promise<{
-    content: Content;
-    projection: Projection;
-    revision: Revision;
-  }>;
-};
+import type {
+  PreparedVersionedStore,
+} from "../../../application/persistence/versionedRepository.ts";
 
 export function createPreparedCommandStoreAdapter<
   Content,
   Projection,
   Revision extends string,
 >(
-  store: PreparedContentStore<Content, Projection, Revision>,
+  store: PreparedVersionedStore<Content, Projection, Revision>,
   isRevisionConflict: (error: unknown) => boolean,
 ): PreparedCommandStore<Content, Projection, Revision> {
   return {
-    commit({ baseRevision, content, projection }) {
-      return store.commitPreparedSnapshot(
-        { baseRevision, content },
-        projection,
-      );
-    },
+    commit: (transaction) => store.commit(transaction),
     isRevisionConflict,
-    load: () => store.loadSnapshot(),
+    loadSnapshot: () => store.loadSnapshot(),
   };
 }

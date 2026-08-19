@@ -11,7 +11,7 @@ import type {
   WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace/types.ts";
 
-export function prepareLocalWorkspaceWriteContent(
+export function prepareWorkspaceWriteContent(
   content: WorkspaceRepositoryContentDto,
   previous?: WorkspaceRepositoryPreparation | null,
 ) {

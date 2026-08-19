@@ -2,28 +2,12 @@
 
 import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
 import type { DomainTextEdit } from "../../core/sync/domainTransition.ts";
+import type {
+  PreparedVersionedCommit,
+  PreparedVersionedSnapshot,
+} from "../persistence/versionedRepository.ts";
 
 export type CommandExecutionMode = "commit" | "preview";
-
-export type PreparedCommandSnapshot<
-  Content,
-  Projection,
-  Revision extends string,
-> = Readonly<{
-  content: Content;
-  projection: Projection;
-  revision: Revision;
-}>;
-
-export type PreparedCommandTransaction<
-  Content,
-  Projection,
-  Revision extends string,
-> = Readonly<{
-  baseRevision: Revision;
-  content: Content;
-  projection: Projection;
-}>;
 
 export type PreparedCommandStore<
   Content,
@@ -31,10 +15,12 @@ export type PreparedCommandStore<
   Revision extends string,
 > = {
   commit(
-    transaction: PreparedCommandTransaction<Content, Projection, Revision>,
+    transaction: PreparedVersionedCommit<Content, Projection, Revision>,
   ): Promise<{ revision: Revision }>;
   isRevisionConflict(error: unknown): boolean;
-  load(): Promise<PreparedCommandSnapshot<Content, Projection, Revision>>;
+  loadSnapshot(): Promise<
+    PreparedVersionedSnapshot<Content, Projection, Revision>
+  >;
 };
 
 export type PreparedCommand<
@@ -78,14 +64,14 @@ export async function executePreparedCommand<
 }: {
   mode: CommandExecutionMode;
   prepare(
-    snapshot: PreparedCommandSnapshot<Content, Projection, Revision>,
+    snapshot: PreparedVersionedSnapshot<Content, Projection, Revision>,
   ): PreparedCommand<Content, Projection, Outcome, Revision>;
   store: PreparedCommandStore<Content, Projection, Revision>;
 }): Promise<CommandExecutionResult<Outcome, Revision>> {
   const maximumAttempts = mode === "commit" ? 3 : 1;
 
   for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
-    const snapshot = await store.load();
+    const snapshot = await store.loadSnapshot();
     const prepared = prepare(snapshot);
 
     if (mode === "preview") {

@@ -18,7 +18,7 @@ describe("snapshot sync", () => {
     const projectChanges = vi.fn();
     const store: SnapshotSyncStore<Content, Projection, Revision> = {
       commit: vi.fn(),
-      load: async () => ({
+      loadSnapshot: async () => ({
         content: { value: 1 },
         projection: { indexedValue: 1 },
         revision: revision("a"),
@@ -26,6 +26,7 @@ describe("snapshot sync", () => {
     };
 
     await expect(executeSnapshotSync({
+      prepare: vi.fn(),
       projectChanges,
       request: { mode: "load" },
       runtime: { now: () => new Date("2026-08-19T00:00:00.000Z") },
@@ -54,8 +55,12 @@ describe("snapshot sync", () => {
       before,
       revision: revision("b"),
     }));
+    const prepare = vi.fn(
+      (content: Content): Projection => ({ indexedValue: content.value }),
+    );
 
     await expect(executeSnapshotSync({
+      prepare,
       projectChanges: ({ after, before, timestamp }) => ({
         after: after.projection.indexedValue,
         before: before.projection.indexedValue,
@@ -67,7 +72,7 @@ describe("snapshot sync", () => {
         mode: "commit",
       },
       runtime: { now: () => new Date("2026-08-19T00:00:00.000Z") },
-      store: { commit, load: vi.fn() },
+      store: { commit, loadSnapshot: async () => before },
     })).resolves.toEqual({
       changes: {
         after: 2,
@@ -80,13 +85,22 @@ describe("snapshot sync", () => {
     expect(commit).toHaveBeenCalledWith({
       baseRevision: revision("a"),
       content: { value: 2 },
+      projection: { indexedValue: 2 },
     });
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(prepare).toHaveBeenCalledWith(
+      { value: 2 },
+      before.projection,
+    );
   });
 
   it("rejects an invalid clock before opening the commit transaction", async () => {
     const commit = vi.fn();
+    const loadSnapshot = vi.fn();
+    const prepare = vi.fn();
 
     await expect(executeSnapshotSync({
+      prepare,
       projectChanges: vi.fn(),
       request: {
         baseRevision: revision("a"),
@@ -94,8 +108,10 @@ describe("snapshot sync", () => {
         mode: "commit",
       },
       runtime: { now: () => new Date(Number.NaN) },
-      store: { commit, load: vi.fn() },
+      store: { commit, loadSnapshot },
     })).rejects.toThrow("Command time source returned an invalid date.");
     expect(commit).not.toHaveBeenCalled();
+    expect(loadSnapshot).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
   });
 });

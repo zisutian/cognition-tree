@@ -736,9 +736,10 @@ const emptyWebDavSnapshot = await webDavStore.loadSnapshot();
 webDavTransport.resetConcurrencyMeasurement();
 const webDavCommitResult = await measure(
   "repository.webdav.commit",
-  () => webDavStore.commitSnapshot({
+  () => webDavStore.commit({
     baseRevision: emptyWebDavSnapshot.revision,
     content,
+    projection: coldPreparation,
   }),
 );
 const webDavLoadedSnapshot = await measure(
@@ -786,9 +787,10 @@ try {
   const emptySnapshot = await store.loadSnapshot();
 
   await measure("repository.files.commit", () =>
-    store.commitSnapshot({
+    store.commit({
       baseRevision: emptySnapshot.revision,
       content,
+      projection: coldPreparation,
     }),
   );
   const loadedSnapshot = await measure(

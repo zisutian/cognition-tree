@@ -29,6 +29,9 @@ import {
   inspectDeepWorkspaceRepositoryContent,
 } from "../../../../support/workspaceRepositoryFixtures";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport";
+import {
+  prepareAndCommitWorkspaceContent,
+} from "../workspaceStoreTestSupport.ts";
 
 const primarySyntaxId = "syntax-00000000-0000-4000-8000-000000000001";
 const secondarySyntaxId = "syntax-00000000-0000-4000-8000-000000000002";
@@ -110,7 +113,7 @@ describe("WebDAV generation store v4", () => {
       10_000,
       "Deep WebDAV",
     );
-    const committed = await store.commitSnapshot({
+    const committed = await prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content,
     });
@@ -135,7 +138,10 @@ describe("WebDAV generation store v4", () => {
     const store = createStore(transport);
     const empty = await store.loadSnapshot();
     const content = createContent("远端仓库");
-    const result = await store.commitSnapshot({ baseRevision: empty.revision, content });
+    const result = await prepareAndCommitWorkspaceContent(store, {
+      baseRevision: empty.revision,
+      content,
+    });
 
     await expect(store.loadSnapshot()).resolves.toMatchObject({
       content,
@@ -208,13 +214,13 @@ describe("WebDAV generation store v4", () => {
     const transport = new InMemoryWebDavTransport();
     const store = createStore(transport);
     const empty = await store.loadSnapshot();
-    const first = await store.commitSnapshot({
+    const first = await prepareAndCommitWorkspaceContent(store, {
       baseRevision: empty.revision,
       content: createContent("first"),
     });
     const pointer = transport.source(webDavCurrentPath);
 
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: empty.revision,
       content: createContent("stale"),
     })).rejects.toMatchObject({ currentRevision: first.revision });
@@ -241,12 +247,12 @@ describe("WebDAV generation store v4", () => {
     const second = createStore(transport, { createId: idSequence("second") });
 
     await second.initialize();
-    const firstCommit = first.commitSnapshot({
+    const firstCommit = prepareAndCommitWorkspaceContent(first, {
       baseRevision: base.revision,
       content: createContent("first"),
     });
     await uploadReached;
-    await expect(second.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(second, {
       baseRevision: base.revision,
       content: createContent("second"),
     })).rejects.toBeInstanceOf(WebDavRepositoryBusyError);
@@ -277,13 +283,13 @@ describe("WebDAV generation store v4", () => {
     });
 
     await second.initialize();
-    const commit = first.commitSnapshot({
+    const commit = prepareAndCommitWorkspaceContent(first, {
       baseRevision: base.revision,
       content: createContent("long commit"),
     });
     await uploadReached;
     await new Promise((resolve) => setTimeout(resolve, 50));
-    await expect(second.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(second, {
       baseRevision: base.revision,
       content: createContent("must be fenced"),
     })).rejects.toBeInstanceOf(WebDavRepositoryBusyError);
@@ -308,7 +314,7 @@ describe("WebDAV generation store v4", () => {
     });
     const base = await store.loadSnapshot();
 
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("fenced"),
     })).rejects.toBeInstanceOf(WorkspaceRevisionConflictError);
@@ -319,7 +325,7 @@ describe("WebDAV generation store v4", () => {
     const transport = new InMemoryWebDavTransport();
     const writer = createStore(transport, { createId: idSequence("interleave-writer") });
     const base = await writer.loadSnapshot();
-    const initial = await writer.commitSnapshot({
+    const initial = await prepareAndCommitWorkspaceContent(writer, {
       baseRevision: base.revision,
       content: createContent("before"),
     });
@@ -337,7 +343,7 @@ describe("WebDAV generation store v4", () => {
         return;
       }
       transport.beforeRead = null;
-      const published = await writer.commitSnapshot({
+      const published = await prepareAndCommitWorkspaceContent(writer, {
         baseRevision: initial.revision,
         content: nextContent,
       });
@@ -369,7 +375,7 @@ describe("WebDAV generation store v4", () => {
     const base = await store.loadSnapshot();
     const pointer = transport.source(webDavCurrentPath);
 
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("lost lease"),
     })).rejects.toBeInstanceOf(WebDavRepositoryBusyError);
@@ -419,7 +425,7 @@ describe("WebDAV generation store v4", () => {
       await uploadsReleased;
       activeGenerationWrites -= 1;
     };
-    const commit = store.commitSnapshot({
+    const commit = prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("lost during upload", 24),
     });
@@ -448,7 +454,7 @@ describe("WebDAV generation store v4", () => {
       },
     };
 
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: invalidContent,
     })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
@@ -478,7 +484,7 @@ describe("WebDAV generation store v4", () => {
       id: primarySyntaxId,
       source: 'name = "broken"\n',
     };
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: invalidInactive,
     })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
@@ -491,7 +497,7 @@ describe("WebDAV generation store v4", () => {
         name: `  ${defaultCtnSyntax.name.normalize("NFKC").toLocaleUpperCase("en-US")}  `,
       }, "workspace"),
     };
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: duplicateName,
     })).rejects.toThrow("Duplicate workspace syntax name");
@@ -512,7 +518,7 @@ describe("WebDAV generation store v4", () => {
       ),
     };
 
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: invalid,
     })).rejects.toBeInstanceOf(WorkspaceRepositoryContractError);
@@ -524,7 +530,7 @@ describe("WebDAV generation store v4", () => {
     const store = createStore(transport);
 
     const base = await store.loadSnapshot();
-    await store.commitSnapshot({
+    await prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("persisted invalid syntax"),
     });
@@ -567,7 +573,7 @@ describe("WebDAV generation store v4", () => {
       schemaVersion: 4,
       token: "expired",
     }), { ifNoneMatch: "*" });
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("recovered"),
     })).resolves.toHaveProperty("revision");
@@ -585,7 +591,7 @@ describe("WebDAV generation store v4", () => {
         await new Promise((resolve) => setTimeout(resolve, 1));
       }
     };
-    await store.commitSnapshot({
+    await prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("capacity", 24),
     });
@@ -606,7 +612,7 @@ describe("WebDAV generation store v4", () => {
     transport.setModified(oldGenerationPath, now - 25 * 60 * 60 * 1_000);
     await transport.createCollection(".ctn-generations/recent-orphan");
     transport.setModified(".ctn-generations/recent-orphan", now - 60_000);
-    await store.commitSnapshot({
+    await prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("gc"),
     });
@@ -643,7 +649,7 @@ describe("WebDAV generation store v4", () => {
       }), { ifNoneMatch: "*" });
     };
 
-    await expect(store.commitSnapshot({
+    await expect(prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content: createContent("published before GC"),
     })).resolves.toHaveProperty("revision");
@@ -659,7 +665,7 @@ describe("WebDAV generation store v4", () => {
     transport.beforeList = () => {
       throw new WebDavRequestError("PROPFIND", ".ctn-generations", 503);
     };
-    const committed = await store.commitSnapshot({
+    const committed = await prepareAndCommitWorkspaceContent(store, {
       baseRevision: base.revision,
       content,
     });

@@ -32,6 +32,9 @@ import {
   WebDavRepositoryBusyError,
 } from "../../../../../infrastructure/server/adapters/webdav/webDavWriterLease.ts";
 import { FileBackedWebDavServer } from "./fileBackedWebDavServer.ts";
+import {
+  prepareAndCommitWorkspaceContent,
+} from "../workspaceStoreTestSupport.ts";
 
 const runLiveWebDav = process.env.CTN_RUN_LIVE_WEBDAV === "1";
 
@@ -132,7 +135,10 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     const store = createStore(service, "persistent");
     const base = await store.loadSnapshot();
     const content = createContent("persisted");
-    const committed = await store.commitSnapshot({ baseRevision: base.revision, content });
+    const committed = await prepareAndCommitWorkspaceContent(store, {
+      baseRevision: base.revision,
+      content,
+    });
     const port = new URL(service.url).port;
 
     await service.stop();
@@ -167,14 +173,14 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
 
     await second.initialize();
     const firstContent = createContent("writer-a");
-    const firstCommit = first.commitSnapshot({
+    const firstCommit = prepareAndCommitWorkspaceContent(first, {
       baseRevision: base.revision,
       content: firstContent,
     });
 
     try {
       await uploaded;
-      await expect(second.commitSnapshot({
+      await expect(prepareAndCommitWorkspaceContent(second, {
         baseRevision: base.revision,
         content: createContent("writer-b"),
       })).rejects.toBeInstanceOf(WebDavRepositoryBusyError);
@@ -193,7 +199,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     const writer = createStore(service, "interleave-writer");
     const empty = await writer.loadSnapshot();
     const beforeContent = createContent("before");
-    const before = await writer.commitSnapshot({
+    const before = await prepareAndCommitWorkspaceContent(writer, {
       baseRevision: empty.revision,
       content: beforeContent,
     });
@@ -214,7 +220,7 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     let afterRevision: string | null = null;
 
     try {
-      const after = await writer.commitSnapshot({
+      const after = await prepareAndCommitWorkspaceContent(writer, {
         baseRevision: before.revision,
         content: afterContent,
       });
@@ -233,7 +239,10 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     const writer = createStore(service, "disconnect-writer");
     const base = await writer.loadSnapshot();
     const content = createContent("survives-disconnect");
-    const committed = await writer.commitSnapshot({ baseRevision: base.revision, content });
+    const committed = await prepareAndCommitWorkspaceContent(writer, {
+      baseRevision: base.revision,
+      content,
+    });
     const reader = createStore(service, "disconnect-reader");
 
     await reader.initialize();
@@ -367,14 +376,17 @@ describe.skipIf(!runLiveWebDav)("WebDAV v4 live loopback service", () => {
     service.resetRequestCounts();
     const startedAt = Date.now();
     const content = createContent("long-running");
-    const commit = longWriter.commitSnapshot({ baseRevision: base.revision, content });
+    const commit = prepareAndCommitWorkspaceContent(longWriter, {
+      baseRevision: base.revision,
+      content,
+    });
 
     try {
       await uploaded;
       await new Promise((resolve) => setTimeout(resolve, 61_000));
       expect(Date.now() - startedAt).toBeGreaterThanOrEqual(60_000);
       expect(service.countRequests("PUT", webDavLockPath)).toBeGreaterThanOrEqual(4);
-      await expect(contender.commitSnapshot({
+      await expect(prepareAndCommitWorkspaceContent(contender, {
         baseRevision: base.revision,
         content: createContent("must-remain-fenced"),
       })).rejects.toBeInstanceOf(WebDavRepositoryBusyError);

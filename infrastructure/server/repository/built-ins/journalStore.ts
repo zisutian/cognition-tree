@@ -17,13 +17,11 @@ import type {
 import {
   JournalContentValidationError,
 } from "../../../../core/journal/model/journalErrors.ts";
+import type { JournalParseIndex } from "../../../../core/journal/indexes/journalParseIndex.ts";
 import {
-  validateJournalContentAnalysisTransition,
-} from "../../../../core/journal/model/journalValidation.ts";
-import {
-  createJournalParseIndex,
-  type JournalParseIndex,
-} from "../../../../core/journal/indexes/journalParseIndex.ts";
+  prepareJournalRepositoryContent,
+  validateJournalRepositoryPreparedTransition,
+} from "../../../../application/journal/persistence/journalRepositoryPreparation.ts";
 import { RepositoryCorruptError } from "../store.ts";
 import {
   FileSystemVersionedContentStore,
@@ -54,20 +52,13 @@ function validateWriteBoundary<Result>(operation: () => Result): Result {
   }
 }
 
-function prepareJournalContent(
+export function prepareJournalWriteContent(
   content: JournalContentDto,
   previous?: JournalParseIndex | null,
 ) {
-  try {
-    return createJournalParseIndex(content, previous);
-  } catch (error) {
-    if (error instanceof JournalContentValidationError) throw error;
-    throw new JournalContentValidationError(
-      `Journal CTN preparation failed: ${
-        error instanceof Error ? error.message : "unknown CTN error"
-      }`,
-    );
-  }
+  return validateWriteBoundary(() =>
+    prepareJournalRepositoryContent(content, previous)
+  );
 }
 
 export function createFileSystemJournalContentStore(
@@ -86,16 +77,11 @@ export function createFileSystemJournalContentStore(
       return error;
     },
     parseContent: parseJournalContent,
-    prepareContent: prepareJournalContent,
+    prepareContent: prepareJournalRepositoryContent,
     serializeContent(content) {
       return `${serializeJsonIteratively(content, { indent: 2 })}\n`;
     },
-    validateTransition(previous, next) {
-      validateJournalContentAnalysisTransition(
-        previous.projection.validation,
-        next.projection.validation,
-      );
-    },
+    validateTransition: validateJournalRepositoryPreparedTransition,
     validateWriteBoundary,
   });
 }

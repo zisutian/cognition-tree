@@ -3,37 +3,41 @@
 import type {
   RepositoryApiErrorCodeDto,
   RepositoryRevisionDto,
-  WorkspaceRepositoryCommitDto,
   WorkspaceRepositoryContentDto,
 } from "../../../contracts/workspace/types.ts";
 import type {
-  PreparedVersionedContent,
+  PreparedVersionedCommit,
+  PreparedVersionedCommitReceipt,
+  PreparedVersionedSnapshot,
+  PreparedVersionedStore,
 } from "../../../application/persistence/versionedRepository.ts";
 import type {
   WorkspaceRepositoryPreparation,
 } from "../../../application/workspace/persistence/workspaceRepositoryPreparation.ts";
 
-export type PreparedWorkspaceRepositorySnapshot = PreparedVersionedContent<
+export type PreparedWorkspaceRepositorySnapshot = PreparedVersionedSnapshot<
   WorkspaceRepositoryContentDto,
-  WorkspaceRepositoryPreparation
-> & { revision: RepositoryRevisionDto };
+  WorkspaceRepositoryPreparation,
+  RepositoryRevisionDto
+>;
 
-export type WorkspaceRepositoryCommitReceipt = {
-  after: PreparedWorkspaceRepositorySnapshot;
-  before: PreparedWorkspaceRepositorySnapshot;
-  revision: RepositoryRevisionDto;
-};
+export type PreparedWorkspaceRepositoryCommit = PreparedVersionedCommit<
+  WorkspaceRepositoryContentDto,
+  WorkspaceRepositoryPreparation,
+  RepositoryRevisionDto
+>;
 
-export type WorkspaceRepositoryStore = {
-  commitPreparedSnapshot(
-    commit: WorkspaceRepositoryCommitDto,
-    projection: WorkspaceRepositoryPreparation,
-  ): Promise<WorkspaceRepositoryCommitReceipt>;
-  commitSnapshot(
-    commit: WorkspaceRepositoryCommitDto,
-  ): Promise<WorkspaceRepositoryCommitReceipt>;
-  loadSnapshot(): Promise<PreparedWorkspaceRepositorySnapshot>;
-};
+export type WorkspaceRepositoryCommitReceipt = PreparedVersionedCommitReceipt<
+  WorkspaceRepositoryContentDto,
+  WorkspaceRepositoryPreparation,
+  RepositoryRevisionDto
+>;
+
+export type WorkspaceRepositoryStore = PreparedVersionedStore<
+  WorkspaceRepositoryContentDto,
+  WorkspaceRepositoryPreparation,
+  RepositoryRevisionDto
+>;
 
 const statusByCode: Record<RepositoryApiErrorCodeDto, number> = {
   adapter_unavailable: 503,

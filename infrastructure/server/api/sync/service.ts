@@ -26,8 +26,14 @@ import {
   executeSnapshotSync,
 } from "../../../../application/sync/snapshotSync.ts";
 import {
-  createSnapshotSyncStoreAdapter,
-} from "../../repository/snapshotSyncStoreAdapter.ts";
+  prepareWorkspaceWriteContent,
+} from "../../repository/workspace/preparation.ts";
+import {
+  prepareJournalWriteContent,
+} from "../../repository/built-ins/journalStore.ts";
+import {
+  prepareTodoWriteContent,
+} from "../../repository/built-ins/todoStore.ts";
 import {
   projectJournalContentChanges,
 } from "../../../../application/journal/journalCommandExecutor.ts";
@@ -75,6 +81,8 @@ export async function synchronizeApiWorkspace(
         mode: "commit" as const,
       };
   const result = await executeSnapshotSync({
+    prepare: (content, previous) =>
+      prepareWorkspaceWriteContent(content, previous),
     projectChanges: ({ after, before, timestamp }) =>
       projectWorkspaceContentChanges(
         context.repositoryId,
@@ -87,7 +95,7 @@ export async function synchronizeApiWorkspace(
       ).changes,
     request,
     runtime: context.runtime,
-    store: createSnapshotSyncStoreAdapter(context.store),
+    store: context.store,
   });
 
   context.observeRevision(result.revision);
@@ -114,6 +122,8 @@ export async function synchronizeApiJournal(
         mode: "commit" as const,
       };
   const result = await executeSnapshotSync({
+    prepare: (content, previous) =>
+      prepareJournalWriteContent(content, previous),
     projectChanges: ({ after, before, timestamp }) =>
       projectJournalContentChanges(
         before.content,
@@ -125,7 +135,7 @@ export async function synchronizeApiJournal(
       ).changes,
     request,
     runtime: context.runtime,
-    store: createSnapshotSyncStoreAdapter(context.store),
+    store: context.store,
   });
 
   context.observeRevision(result.revision);
@@ -152,6 +162,8 @@ export async function synchronizeApiTodo(
         mode: "commit" as const,
       };
   const result = await executeSnapshotSync({
+    prepare: (content, previous) =>
+      prepareTodoWriteContent(content, previous),
     projectChanges: ({ after, before, timestamp }) =>
       projectTodoContentChanges(
         before.content,
@@ -163,7 +175,7 @@ export async function synchronizeApiTodo(
       ).changes,
     request,
     runtime: context.runtime,
-    store: createSnapshotSyncStoreAdapter(context.store),
+    store: context.store,
   });
 
   context.observeRevision(result.revision);

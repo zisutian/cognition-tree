@@ -6,6 +6,9 @@ import { formatCtnSyntaxV2 } from "../../../../../core/ctn/syntax/formatter.ts";
 import {
   WorkspaceFileStore,
 } from "../../../../../infrastructure/server/adapters/local/workspaceFileStore.ts";
+import {
+  prepareWorkspaceWriteContent,
+} from "../../../../../infrastructure/server/repository/workspace/preparation.ts";
 import type {
   WorkspaceCommitPhase,
 } from "../../../../../infrastructure/server/adapters/local/workingTreeTransaction.ts";
@@ -70,8 +73,10 @@ const store = new WorkspaceFileStore(rootDir, {
   },
 });
 const base = await store.loadSnapshot();
+const content = createContent("new");
 
-await store.commitSnapshot({
+await store.commit({
   baseRevision: base.revision,
-  content: createContent("new"),
+  content,
+  projection: prepareWorkspaceWriteContent(content, base.projection),
 });

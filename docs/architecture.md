@@ -112,14 +112,18 @@ Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation �
     { content, projection }。Journal/Todo projection 是带
     Validated…ContentAnalysis 的 parse index；Workspace projection 统一包含 syntax
     编译结果、structure、parse index 与 context。client local-first repository 和
-    server store 是各自信任边界内唯一的 preparation owner，客户端与服务端仍独立
-    校验。projection 只按 localRevision 或 SHA revision 缓存，不序列化、不跨进程；
-    revision/CAS 不匹配后不能复用旧 projection。
+    server application use case 是各自信任边界内唯一的 write preparation owner；
+    infrastructure store 只在读取持久化 before snapshot 时准备并按 SHA 缓存
+    projection，写入口必须显式携带 `{ baseRevision, content, projection }`。客户端与
+    服务端仍独立校验。projection 不序列化、不跨进程；revision/CAS 不匹配后不能
+    复用旧 projection。
 
     transition authority：客户端 local-first repository 负责页面内 optimistic
     transition；服务端 store 在 CAS 锁或 WebDAV lease 内，以真正读到的 before 和
     待提交的 after prepared snapshot 执行 authoritative transition。commit receipt
-    携带实际 before/after，事件投影直接消费 receipt，不能在提交前另读一次 snapshot。
+    携带实际 before/after，事件投影直接消费 receipt。use case 可以先读 snapshot
+    以增量准备 after projection，但该预读结果不是 authoritative before；若其后 CAS
+    发生变化，store 必须拒绝事务，调用方重新加载和准备。
 
 领域命令通过 VersionedSessionController 唯一的 mutate 接口返回
 `{ content, projection }`；增量 index 必须原样进入保存队列和 stageSnapshot。

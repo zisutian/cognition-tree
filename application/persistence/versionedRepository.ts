@@ -15,6 +15,45 @@ export type PreparedVersionedContent<Content, Projection> = Readonly<{
   projection: Projection;
 }>;
 
+export type PreparedVersionedSnapshot<
+  Content,
+  Projection,
+  Revision extends string,
+> = PreparedVersionedContent<Content, Projection> & Readonly<{
+  revision: Revision;
+}>;
+
+export type PreparedVersionedCommit<
+  Content,
+  Projection,
+  Revision extends string,
+> = PreparedVersionedContent<Content, Projection> & Readonly<{
+  baseRevision: Revision;
+}>;
+
+export type PreparedVersionedCommitReceipt<
+  Content,
+  Projection,
+  Revision extends string,
+> = Readonly<{
+  after: PreparedVersionedSnapshot<Content, Projection, Revision>;
+  before: PreparedVersionedSnapshot<Content, Projection, Revision>;
+  revision: Revision;
+}>;
+
+export type PreparedVersionedStore<
+  Content,
+  Projection,
+  Revision extends string,
+> = {
+  commit(
+    transaction: PreparedVersionedCommit<Content, Projection, Revision>,
+  ): Promise<PreparedVersionedCommitReceipt<Content, Projection, Revision>>;
+  loadSnapshot(): Promise<
+    PreparedVersionedSnapshot<Content, Projection, Revision>
+  >;
+};
+
 export type VersionedContentPreparationPolicy<Content, Projection> = {
   prepare(content: Content, previous?: Projection | null): Projection;
   validateTransition?(

@@ -3,17 +3,17 @@
 import { parseContentRevision } from "../../../contracts/common/contractValue";
 import { parseTodoContent, parseTodoSnapshot } from "../../../contracts/todo/parseTodo";
 import {
-  validateTodoContentAnalysisTransition,
   validateTodoContent,
   validateTodoContentTransition,
 } from "../../../core/todo/model/todoValidation";
 import { TodoContentValidationError } from "../../../core/todo/model/todoErrors";
 import type { TodoContent } from "../../../core/todo/model/todoContent";
-import {
-  createTodoParseIndex,
-  type TodoParseIndex,
-} from "../../../core/todo/indexes/todoParseIndex";
+import type { TodoParseIndex } from "../../../core/todo/indexes/todoParseIndex";
 import type { TodoRevision } from "../../../application/todo/persistence/todoRepository";
+import {
+  prepareTodoRepositoryContent,
+  validateTodoRepositoryPreparedTransition,
+} from "../../../application/todo/persistence/todoRepositoryPreparation";
 import type {
   VersionedContentPreparationPolicy,
   VersionedRepositoryCodec,
@@ -66,7 +66,7 @@ export const todoRepositoryPreparation: VersionedContentPreparationPolicy<
 > = {
   prepare(content, previous) {
     try {
-      return createTodoParseIndex(content, previous);
+      return prepareTodoRepositoryContent(content, previous);
     } catch (error) {
       if (error instanceof TodoContentValidationError) {
         throw new Error(`Todo content is invalid: ${error.message}`);
@@ -76,10 +76,7 @@ export const todoRepositoryPreparation: VersionedContentPreparationPolicy<
   },
   validateTransition(previous, next) {
     try {
-      validateTodoContentAnalysisTransition(
-        previous.projection.validation,
-        next.projection.validation,
-      );
+      validateTodoRepositoryPreparedTransition(previous, next);
     } catch (error) {
       if (error instanceof TodoContentValidationError) {
         throw new Error(`Todo transition is invalid: ${error.message}`);
