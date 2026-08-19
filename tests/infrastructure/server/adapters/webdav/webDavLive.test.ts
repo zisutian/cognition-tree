@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { WorkspaceRepositoryContentDto } from "../../../../../contracts/workspace/types.ts";
 import {
   RepositoryAdapterError,
-} from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+} from "../../../../../infrastructure/server/repository/store.ts";
 import {
   createWebDavTransport,
   probeWebDavCapabilities,

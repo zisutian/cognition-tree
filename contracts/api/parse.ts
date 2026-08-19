@@ -7,22 +7,28 @@ import {
   ApiV1AuditPageSchema,
   ApiV1CreateTokenRequestSchema,
   ApiV1CreatedTokenSchema,
-  ApiV1EventSchema,
-  ApiV1JournalCommandSchema,
-  ApiV1SearchRequestSchema,
-  ApiV1TodoCommandSchema,
   ApiV1TokenListSchema,
-  ApiV1WorkspaceCommandSchema,
   type ApiV1AuditPageDto,
   type ApiV1CreateTokenRequestDto,
   type ApiV1CreatedTokenDto,
-  type ApiV1EventDto,
-  type ApiV1JournalCommandDto,
-  type ApiV1SearchRequestDto,
-  type ApiV1TodoCommandDto,
   type ApiV1TokenDto,
+} from "./schemas/admin.ts";
+import {
+  ApiV1JournalCommandSchema,
+  ApiV1TodoCommandSchema,
+  ApiV1WorkspaceCommandSchema,
+  type ApiV1JournalCommandDto,
+  type ApiV1TodoCommandDto,
   type ApiV1WorkspaceCommandDto,
-} from "./schemas.ts";
+} from "./schemas/commands.ts";
+import {
+  ApiV1EventSchema,
+  type ApiV1EventDto,
+} from "./schemas/events.ts";
+import {
+  ApiV1SearchRequestSchema,
+  type ApiV1SearchRequestDto,
+} from "./schemas/search.ts";
 
 const contract = "CTN API v1";
 

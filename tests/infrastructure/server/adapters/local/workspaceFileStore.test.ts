@@ -41,7 +41,7 @@ import {
 } from "../../../../../infrastructure/server/adapters/local/workspaceFileStore.ts";
 import {
   RepositoryCorruptError,
-} from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+} from "../../../../../infrastructure/server/repository/store.ts";
 
 const initialTimestamp = "2026-07-16T00:00:00.000Z";
 const changedTimestamp = "2026-07-16T01:00:00.000Z";

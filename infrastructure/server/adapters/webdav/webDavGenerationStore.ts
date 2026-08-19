@@ -7,7 +7,7 @@ import {
   type RepositoryRevisionDto,
   type WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace/types.ts";
-import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../repository/store.ts";
 import {
   createRepositoryNoteFileName,
   createRepositorySyntaxFileName,
@@ -18,9 +18,9 @@ import {
   syntaxDirName,
   workspaceFileName,
   WorkspacePayloadValidationError,
-} from "../../repository/workspaceRepositoryLayout.ts";
-import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
-import { validateWorkspaceRepositorySyntax } from "../../repository/workspaceRepositoryContentValidation.ts";
+} from "../../repository/workspace/layout.ts";
+import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
+import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
 import {
   webDavGenerationsPath,
   type WebDavPointer,

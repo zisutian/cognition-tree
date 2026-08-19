@@ -12,11 +12,11 @@ import {
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
   type WorkspaceRepositoryStore,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import {
   createEmptyRepositoryContent,
-} from "../../repository/workspaceRepositoryLayout.ts";
-import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
+} from "../../repository/workspace/layout.ts";
+import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import {
   createWebDavPointer,
   createWebDavDeletionTombstone,

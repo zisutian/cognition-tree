@@ -23,7 +23,7 @@ import {
   type WebDavWriteConditions,
 } from "../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import { WebDavWorkspaceStore } from "../../infrastructure/server/adapters/webdav/webDavWorkspaceStore.ts";
-import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/repository/workspaceRepositoryRevision.ts";
+import { createWorkspaceRepositoryRevision } from "../../infrastructure/server/repository/workspace/revision.ts";
 import { createUiOutlineNodes } from "../../application/workspace/projection/viewBlocks.ts";
 import { createUiNoteTree } from "../../application/workspace/projection/viewTree.ts";
 import { formatCtnBlockMetadataLine } from "../../core/ctn/metadata/blockMetadata.ts";

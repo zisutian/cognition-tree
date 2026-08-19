@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UnsupportedRepositoryVersionError } from "../../../../../contracts/workspace/contractValue.ts";
-import { RepositoryCorruptError } from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../../../../infrastructure/server/repository/store.ts";
 import {
   createWebDavDeletionTombstone,
   createWebDavLease,

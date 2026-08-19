@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { lock } from "proper-lockfile";
-import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
+import { RepositoryCatalogError } from "../../repository/catalog.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 
 const registryLockFileName = ".ctn-webdav-registry.lock";

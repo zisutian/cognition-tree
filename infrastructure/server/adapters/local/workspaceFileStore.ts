@@ -27,12 +27,12 @@ import {
   RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   createRepositorySyntaxFileName,
   loadSyntaxFromSnapshot,
-} from "../../repository/workspaceRepositoryLayout.ts";
+} from "../../repository/workspace/layout.ts";
 import {
   fsyncDirectory,
   removeDurableWriteTemporaryFiles,

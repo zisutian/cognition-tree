@@ -5,7 +5,7 @@ import {
   authorizeApiV1Request,
   createApiV1SecurityPolicy,
   ApiV1SecurityError,
-} from "../../../../infrastructure/server/api/apiV1Security.ts";
+} from "../../../../infrastructure/server/api/http/security.ts";
 
 const noAutomationTokens = {
   authenticate: async () => null,

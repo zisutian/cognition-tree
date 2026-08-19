@@ -12,7 +12,7 @@ import {
   localManagedContentHash,
   planLocalWorkingTreeTransaction,
 } from "../../../../../infrastructure/server/adapters/local/workingTreeTransactionPlanner.ts";
-import { RepositoryCorruptError } from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../../../../infrastructure/server/repository/store.ts";
 
 const baseRevision = parseRepositoryRevision(`sha256:${"0".repeat(64)}`);
 const targetRevision = parseRepositoryRevision(`sha256:${"1".repeat(64)}`);

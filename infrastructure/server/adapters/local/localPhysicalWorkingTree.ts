@@ -9,7 +9,7 @@ import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import {
   localControlDirectoryName,
   type LocalRepositoryIndex,

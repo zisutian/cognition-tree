@@ -124,8 +124,8 @@ Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、API 令牌哈希、30 
 
 更具体的约束见：
 
-- [产品需求](docs/产品需求.txt)
-- [架构边界](docs/架构边界.txt)
-- [工程原则](docs/工程原则.txt)
-- [环境准备](docs/环境准备.txt)
-- [界面样式约定](docs/界面样式约定.txt)
+- [产品需求](docs/product-requirements.md)
+- [架构边界](docs/architecture.md)
+- [工程原则](docs/engineering-principles.md)
+- [环境准备](docs/getting-started.md)
+- [界面样式约定](docs/ui-guidelines.md)

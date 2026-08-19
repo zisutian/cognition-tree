@@ -10,17 +10,17 @@ import path from "node:path";
 import {
   createApiV1RequestHandler,
   type ApiV1RequestHandler,
-} from "../../infrastructure/server/api/apiV1Server.ts";
+} from "../../infrastructure/server/api/http/server.ts";
 import {
   createApiV1SecurityPolicy,
-} from "../../infrastructure/server/api/apiV1Security.ts";
+} from "../../infrastructure/server/api/http/security.ts";
 import {
   LocalRepositoryCatalog,
   type CreateLocalRepositoryWithId,
 } from "../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
-import { BuiltInCatalog } from "../../infrastructure/server/repository/builtInCatalog.ts";
+import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
 
 const host = "127.0.0.1";
 

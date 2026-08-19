@@ -13,7 +13,7 @@ import {
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import {
   WebDavCapabilityError,
   type WebDavTextResource,

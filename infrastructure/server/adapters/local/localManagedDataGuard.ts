@@ -3,7 +3,7 @@
 import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
-import { RepositoryAdapterError } from "../../repository/repositoryStore.ts";
+import { RepositoryAdapterError } from "../../repository/store.ts";
 import {
   localControlDirectoryName,
   localIndexFileName,

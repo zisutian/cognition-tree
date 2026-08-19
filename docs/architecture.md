@@ -1,0 +1,247 @@
+# 架构边界
+
+
+## 1. 领域
+
+    Workspace：零个或多个普通笔记库。
+    Journal：全局唯一的日记库。
+    Todo：全局唯一的代办库。
+
+三个内容领域互不直接依赖，也不继承统一文档库模型。它们只共享 CTN、可移植名称和值无关的 versioned persistence。Repository 不是内容领域，只管理普通 catalog、内置数据 descriptor、位置、故障和运维。
+
+
+## 2. 源码层次
+
+core/
+
+    纯领域代码。core/ctn 提供解析、metadata reconcile、引用与 syntax；core/naming 提供名称值和唯一键；core/workspace、journal、todo 分别拥有自己的内容、命令、查询与 transition。
+
+application/
+
+    框架无关的用例、端口、session controller、read model、问题投影、Workbench coordinator 和 feedback controller。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；跨领域流程只能由 application/workbench 协调。
+
+infrastructure/
+
+    client 侧内存 cache、HTTP/SSE 适配、Node server、Local 和 WebDAV
+    adapter。CAS 与保存队列策略属于 application/persistence，平台层只实现
+    端口；client 不直接导入 Server 存储 adapter。浏览器启动时只从独立的
+    cognition-tree.config.json 取得 API origin 与可选 token，构建产物不嵌入
+    部署地址。
+
+presentation/
+
+    React bindings、AppRoot、Activity Controller/View、CodeMirror 与共享 UI。React hooks 只存在于这一层。
+
+contracts/
+
+    前后端中立的 wire 类型和运行时解析。contracts/api registry 是 HTTP
+    路径、方法、body schema、operationId 与 scope 的唯一 owner；领域
+    contract 仍按 common、workspace、journal、todo、built-ins 分开。API
+    TypeBox schema 按 foundation、transitions、resources、commands、search、
+    events、admin 和 storage 分区，不存在第二个单体 schema catalog。
+
+tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
+但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
+
+
+## 3. 依赖规则
+
+    core 不依赖任何外层；Workspace、Journal、Todo 互不直接依赖。
+    application 只依赖 core 和自身端口，不依赖 React、contracts、infrastructure 或 presentation。
+    infrastructure 依赖 core、application 端口、contracts 与平台 API。
+    presentation 可消费 core、application 和基础设施组合入口，但不被其它层反向引用。
+    contracts 只复用纯 contract 基础或单一所有者的纯值约束。
+
+补充约束：
+
+    presentation/activities 不依赖 presentation/shell。
+    infrastructure/client 内部依赖方向固定为：platform 只依赖 platform；repository
+    只依赖 repository；http 可依赖 http 与 repository；runtime 作为组合根可依赖
+    runtime、http、platform 与 repository。
+    Local 与 WebDAV adapter 互不依赖。
+    生产依赖图无环；相对 import 必须能由 NodeNext 处理。
+
+
+## 4. 内容 contract
+
+Workspace v4：
+
+    Local 从真实目录、可见 .ctn 正文、隐藏 sidecar 和 .ctn/syntax/ 重建 canonical content；.ctn/repository.json 的 durable atomic replace 是提交点。WebDAV 使用不可变 generation、writer lease 与 ETag CAS。
+
+Journal v3：
+
+    { schemaVersion, syntaxSource, days }
+    day = { date, lastIssuedSequence, entries }
+    entry = { id, createdAt, updatedAt, timezoneOffsetMinutes, sequence, source }
+
+days 按日期升序，entries 按 sequence 升序。删除最后一篇仍保留空 day bucket，保证序号不复用。标题固定为 YYYY-MM-DD-0001；UI 只从 date 派生年、月，并直接显示条目，不显示 day 分组。
+
+Todo v4：
+
+    { schemaVersion, syntaxSource, collections }
+    collection = { id, source, completions, recurrences }
+    completion = { blockId, completedAt }
+    recurrence = { blockId, stages, completions }
+    stage = { id, startsOn, endsBefore, rule }
+    recurrence completion = { stageId, occurrenceDate, completedAt }
+
+collections 数组顺序就是用户顺序。每个集合是一篇 CTN；标题是内部固定集合名，缩进形成任务树，完成状态只来自 sidecar。daily、weekly、monthly 规则只保存本地 YYYY-MM-DD，不保存时区或零点任务；当前状态、下一日期和完成/总数由运行环境本地日期投影。规则修改追加从下一天生效的阶段，停止周期也保留历史。移动与缩进保留 block ID，删除或失去 todo-item 语义的源码块清除孤立 completion 与 recurrence。
+
+Workspace v4、Journal v3 与 Todo v4 是各自唯一可运行格式。只有 epoch 与内容
+同时完全不存在时才初始化空内容；缺一项、非当前 epoch、损坏内容和未来版本
+一律原样保留并 fail closed。运行时不存在版本 reader、迁移、字段别名或自动
+重置。
+
+Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation 不显示标题语法配置。两者分别注入 codec、content validator、transition validator、revision factory 和 empty-content factory；基础设施不得恢复 purpose content union 或内容类型分派。
+
+
+## 5. 存储与 API
+
+HTTP 内置数据：
+
+    <CTN_REPOSITORY_ROOT>/.built-ins/journal/
+    <CTN_REPOSITORY_ROOT>/.built-ins/todo/
+
+物理共用 CTN_REPOSITORY_ROOT 不改变领域边界：.built-ins 是保留的基础设施
+子树，不进入普通 Local catalog；Journal、Todo 仍使用各自的 contract、
+versioned store、session 和 API，也不获得普通仓库的创建、删除、重命名、
+切换或 WebDAV 能力。
+
+前端始终通过 HTTP/SSE 访问 Server。Workspace、Journal 与 Todo 各自拥有页面
+生命周期内的内存 cache、draft 和冲突；runtime 重建后从 Server 重新加载，不
+恢复未同步状态。localStorage 只保存当前普通仓库 ID。旧 IndexedDB 不属于
+运行时输入，不读取、不迁移也不清理。
+
+唯一 HTTP 契约为 /api/v1。资源查询和 command 是自动化边界；完整
+Workspace/Journal/Todo snapshot 只存在于带 sync scope 的官方客户端路径。
+自动化 principal 永远不能获得 sync、syntax:write、repository:admin 或
+token:manage，因而不能绕过领域命令修改 canonical metadata、语法、仓库连接
+或仓库管理状态。HTTP 只暴露 registry 中声明的当前 `/api/v1` operation。
+
+所有命令使用严格 discriminated union、UUID commandId、preview/commit mode
+和目标资源版本。领域执行器是内容修改的唯一 owner；HTTP handler、SSE、
+search、audit 和 presentation 不重建变化。命令执行器或官方同步前后比较只
+生成一次 DomainChangeSet，供响应、事件、缓存失效和审计共享。
+
+资源版本是内容 SHA-256；canonical block metadata 是 block createdAt/updatedAt
+的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
+block updatedAt，但并发判断不使用时间戳。
+
+官方客户端在内存中保存当前页面会话的 clean base 和 conflict
+base/local/remote。Workspace 以语法、树和单篇 note 为单元，Journal 以 entry
+为单元，Todo 以 collection body、collection order、单任务 completion 和
+recurrence 为单元执行三方合并。不同单元自动 rebase；同一单元双改、删改竞争
+进入冲突。刷新不会恢复尚未同步的 base 或 conflict。语法变化是 barrier，
+不能跨 grammar 自动合并。SSE 只发送带
+`streamId` 的 checkpoint 与无正文 change set；sequence 只在同一 stream
+内部有序，进程重启产生的新 stream 会使客户端重置去重状态。轻量 revision
+tracker 维护 checkpoint，建立连接不会扫描仓库正文。
+
+API 状态由 token、无正文幂等回执和分页 audit 三个 owner 分区持久化。它们
+使用同一单写者队列和原子替换，目录权限为 0700、文件权限为 0600；单个分区
+损坏只使该能力 fail closed，不阻断其它认证和内容领域。token `lastUsedAt`
+最多每分钟落盘一次。
+
+Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
+周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
+普通任务处理并使用 occurrenceDate null；active 只能提交服务端给出的
+currentOccurrenceDate。
+
+
+## 6. Application 协调
+
+每个内容领域拥有独立 session 和状态，但统一复用 application/persistence 的
+VersionedSessionController 与保存队列。该控制器负责页面内 ready 内容保持、
+并发 reload、discard 失败恢复、乐观 draft、CAS、冲突、断线重试、dispose 和
+删除前冻结/恢复；Workspace、Journal、Todo wrapper 只注入 parser、
+prepareContent 与领域命令。普通仓库切换只排空并替换 Workspace session，不
+停止或重建 Journal/Todo。
+
+application/workbench/WorkbenchController 提供 start、dispose、subscribe、
+getSnapshot 与明确 facade。snapshot 只包含不可变状态，不嵌入可变 controller；
+查询和操作只能经 facade 执行。它组合 RepositoryCatalogController、Workspace
+session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓导航
+状态机，并独占以下跨领域流程：
+
+    普通仓库切换与一次性导航。
+    Journal 的 [[仓库名:笔记名]] 解析。
+    按需读取命名普通仓库的 session snapshot，只从 canonical note header 建立标题索引。
+    排空当前 Workspace、切换仓库、等待新 session，再进入 Notes 并选择目标笔记。
+    把三领域 ContentDestination 映射到 Activity、资源和稳定 block ID；目标块
+    已消失时只在该边界回退到资源首行并报告结果过期。
+
+application/search/SearchIndex 是三领域资源投影、Unicode 归一化、grapheme
+源码偏移、片段、过滤、排序、fault 与 cursor 的唯一 owner。过滤在命中折叠前
+执行；缓存按来源 revision 和 corpus key 失效，查询 LRU 有界。presentation
+只提交 SearchQuery 和打开 ContentDestination，不解析 CTN、扫描仓库或换算
+行号。
+
+Journal 只理解日记内容、仓内引用和外部引用 token；Todo 只理解 CTN collection、任务结构和 completion。跨仓边不进入普通引用图谱，重命名也不跨独立 CAS 改写 Journal。
+
+application/repository/RepositoryCatalogController 独占 catalog 加载、活动仓库持久化、删除轮询、并发操作保护和 descriptor 复用。Workspace session 只管理生命周期、authoritative state 与保存队列；语法目录的创建、复制命名、启用、删除和 metadata reconcile 由独立 mutation service 计算。
+
+Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 UUID、时间、页面事件和定时器实现由 infrastructure 注入。Problems 的选择与合并留在 application，Activity 切换和 DOM 聚焦只由 presentation 执行。
+
+
+## 7. Infrastructure 内部边界
+
+    client/platform 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；
+    client/repository 拥有内存 catalog/content cache、revision 与 resilient
+    repository；client/http 只实现 /api/v1 transport；client/runtime 只负责把
+    这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
+    server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
+    Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
+    WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。
+    API server 的 api/http 拥有 request lifecycle、认证、限制和分派；
+    api/commands、api/resources、api/sync、api/state 分别拥有领域命令适配、
+    资源投影、事件同步与令牌/幂等/审计状态，search 保持独立查询入口。
+    repository/built-ins、repository/versioned、repository/workspace 分别拥有
+    系统内容、通用版本存储和 Workspace 持久布局。只有 contracts/api registry
+    定义 HTTP wire，只有领域执行器修改内容。
+
+这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或仓库内容
+schema。
+
+
+## 8. Presentation 与 Problems
+
+AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
+到 view application 的组合位于 presentation/shell/application；Activity
+descriptor catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一
+owner。顶层主入口固定为笔记、日记、代办、语法、搜索，管理入口固定为仓库、
+设置。
+
+每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
+presentation/activities/<activity>/。跨 Activity 的组合只存在于 shell，共享
+交互原语只存在于 presentation/ui。笔记的 edit、structure、graph 作为 Notes
+内部子切片，不再以顶层 views/controllers/bindings 技术目录分散同一功能。
+
+Repository context、普通仓库详情、故障详情、内置数据详情和危险区是独立 view；确认状态由顶层 RepositoryPanel 持有。Todo 的集合列表、编辑器与结构详情彼此独立。引用图谱 Canvas 只声明 DOM，模拟、位置缓存、缩放和平移生命周期位于专用 hook/controller。
+
+笔记 Activity 内部拥有 edit、structure、graph 三种原生 tab 模式，并按仓库
+保存所选模式。编辑模式持续挂载，因此模式往返不替换当前笔记或 CodeMirror
+历史；结构操作和引用图谱复用同一 Workspace session、selection 与导航，不再
+拥有顶层 Activity 或重复的 workspace-unavailable 编排。
+
+Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和条目倒序；月内条目按 createdAt、sequence、ID 确定性排序。展开状态只属于页面会话。
+
+Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，以 checkbox 执行任务状态变更，不暴露任务拖动。只有选中的任务行显示周期图标；配置表单原地展开，编辑器只显示不可交互的周期标记。
+
+Problems 所有权：
+
+    普通活动 -> Workspace diagnostics、普通仓库运行故障、来源 Activity 操作错误
+    Repository -> Workspace、普通仓库、内置数据、名称、运行故障、来源 Activity 操作错误
+    Journal -> Journal 文档、语法、仓内与跨仓引用、Journal 运行故障、来源 Activity 操作错误
+    Todo -> Todo 语法与 CTN、Todo 运行故障、来源 Activity 操作错误
+    Syntax -> 当前 owner profile，并附加该 owner 内容诊断、运行故障和来源 Activity 操作错误
+    Settings -> 不挂载
+
+application/workbench 的 WorkbenchFeedbackController 提供 subscribe、getSnapshot、reportInfo、reportError、dismiss，以及作用域清理和生命周期释放，不依赖 React。Presentation binding 在操作开始时捕获 ActivityId；异步完成后仍写回原 Activity。相同 Activity 与消息的错误合并，每个 Activity 最多保留 20 条，页面刷新后清空。
+
+Presentation shell 统一合并 diagnostics、可恢复运行故障和操作错误。状态故障随 session 恢复自动消失；操作错误只在关闭、普通仓库作用域失效或刷新时消失。短暂反馈覆盖五秒后恢复领域非稳定持久化状态，稳定状态不产生文字；反馈和错误不得使用通知浮层或标题区重复投影。
+
+编辑器只接收 editable source、语义角色和展示数据，不解释仓库元数据。普通笔记 concept、Journal body 与 Todo 必须带任务标记的规则由 core policy 决定，不能由页面位置或 CSS 推断。
+
+core/ctn parser 是 multiline opener、closer 与 lexical 范围的唯一 owner。领域结构事务移动块时必须消费该范围并保留完整源码；Presentation 不重建 multiline 布局，也不实现整块输入 planner。
+
+kind = "multiline" 的块在编辑器中保持普通源码。CodeMirror 不投影卡片，不隐藏或保护围栏和正文前缀，不增加 atomic range、视觉缩进补偿、鼠标 adapter 或专用键盘命令。Presentation 只把命中规则的 tone 和 textColor 作为普通 decoration 覆盖 opener、正文和 closer；规则 label 不插入编辑文本。闭合和未闭合块使用同一可编辑路径，未闭合诊断仍来自 analysis。

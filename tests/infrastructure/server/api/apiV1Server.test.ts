@@ -41,40 +41,40 @@ import { LocalRepositoryCatalog } from "../../../../infrastructure/server/adapte
 import {
   createApiV1RequestHandler,
   type ApiV1RequestHandler,
-} from "../../../../infrastructure/server/api/apiV1Server.ts";
+} from "../../../../infrastructure/server/api/http/server.ts";
 import {
   createApiV1SecurityPolicy,
-} from "../../../../infrastructure/server/api/apiV1Security.ts";
+} from "../../../../infrastructure/server/api/http/security.ts";
 import { CompositeRepositoryCatalog } from "../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
-import { BuiltInCatalog } from "../../../../infrastructure/server/repository/builtInCatalog.ts";
-import type { ApiV1Runtime } from "../../../../infrastructure/server/api/apiV1Runtime.ts";
+import { BuiltInCatalog } from "../../../../infrastructure/server/repository/built-ins/catalog.ts";
+import type { ApiV1Runtime } from "../../../../infrastructure/server/api/http/runtime.ts";
 import {
   createApiV1WorkspaceAnalysis,
   projectApiV1WorkspaceNote,
-} from "../../../../infrastructure/server/api/apiV1WorkspaceResources.ts";
+} from "../../../../infrastructure/server/api/resources/workspace.ts";
 import {
   executeApiV1WorkspaceCommand,
-} from "../../../../infrastructure/server/api/apiV1WorkspaceCommands.ts";
+} from "../../../../infrastructure/server/api/commands/workspace.ts";
 import {
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
   type WorkspaceRepositoryStore,
-} from "../../../../infrastructure/server/repository/repositoryStore.ts";
+} from "../../../../infrastructure/server/repository/store.ts";
 import type {
   WorkspaceRepositoryCatalog,
-} from "../../../../infrastructure/server/repository/repositoryCatalog.ts";
+} from "../../../../infrastructure/server/repository/catalog.ts";
 import type {
   ApiV1BuiltInCatalog,
-} from "../../../../infrastructure/server/api/apiV1Ports.ts";
+} from "../../../../infrastructure/server/api/http/ports.ts";
 import {
   ApiV1SearchService,
-} from "../../../../infrastructure/server/api/apiV1Search.ts";
+} from "../../../../infrastructure/server/api/search.ts";
 import {
   ApiV1RevisionTracker,
-} from "../../../../infrastructure/server/api/apiV1RevisionTracker.ts";
+} from "../../../../infrastructure/server/api/sync/revisionTracker.ts";
 import {
   synchronizeApiV1Workspace,
-} from "../../../../infrastructure/server/api/apiV1Sync.ts";
+} from "../../../../infrastructure/server/api/sync/service.ts";
 import type { ApiV1PrincipalDto } from "../../../../contracts/api/types.ts";
 
 type RequestOptions = {

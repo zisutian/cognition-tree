@@ -8,7 +8,7 @@ import {
 import path from "node:path";
 import {
   RepositoryCorruptError,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   fsyncDirectory,

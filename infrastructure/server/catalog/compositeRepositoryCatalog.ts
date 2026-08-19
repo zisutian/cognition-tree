@@ -19,8 +19,8 @@ import type {
 import {
   RepositoryCatalogError,
   type WorkspaceRepositoryCatalog,
-} from "../repository/repositoryCatalog.ts";
-import type { WorkspaceRepositoryStore } from "../repository/repositoryStore.ts";
+} from "../repository/catalog.ts";
+import type { WorkspaceRepositoryStore } from "../repository/store.ts";
 
 type LocalCatalogPort = {
   createRepositoryWithId(input: {

@@ -13,7 +13,7 @@ import {
   RepositoryAdapterError,
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import {
   fsyncDirectory,
   writeFileDurably,

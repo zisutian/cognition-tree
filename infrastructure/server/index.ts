@@ -3,15 +3,15 @@
 import path from "node:path";
 import {
   createApiV1Server,
-} from "./api/apiV1Server.ts";
+} from "./api/http/server.ts";
 import {
   createApiV1SecurityPolicy,
-} from "./api/apiV1Security.ts";
+} from "./api/http/security.ts";
 import { LocalRepositoryCatalog } from "./adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog.ts";
 import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
 import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
-import { BuiltInCatalog } from "./repository/builtInCatalog.ts";
+import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3001");

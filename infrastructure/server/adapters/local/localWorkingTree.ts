@@ -16,9 +16,9 @@ import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
-} from "../../repository/repositoryStore.ts";
-import { validateWorkspaceRepositorySyntax } from "../../repository/workspaceRepositoryContentValidation.ts";
-import { createWorkspaceRepositoryRevision } from "../../repository/workspaceRepositoryRevision.ts";
+} from "../../repository/store.ts";
+import { validateWorkspaceRepositorySyntax } from "../../repository/workspace/contentValidation.ts";
+import { createWorkspaceRepositoryRevision } from "../../repository/workspace/revision.ts";
 import {
   createCanonicalSourceFromLocalNoteMetadata,
   equalLocalNoteMetadataProjection,

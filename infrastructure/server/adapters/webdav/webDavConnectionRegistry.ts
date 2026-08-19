@@ -8,8 +8,8 @@ import type {
   RepositoryDescriptorDto,
   WorkspaceRepositoryContentDto,
 } from "../../../../contracts/workspace/types.ts";
-import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
-import type { WorkspaceRepositoryStore } from "../../repository/repositoryStore.ts";
+import { RepositoryCatalogError } from "../../repository/catalog.ts";
+import type { WorkspaceRepositoryStore } from "../../repository/store.ts";
 import {
   createWebDavTransport,
   probeWebDavCapabilities,

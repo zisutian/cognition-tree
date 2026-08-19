@@ -79,7 +79,7 @@ describe("dependency boundaries", () => {
     ]);
     expect(
       readSourceImports(
-        "../../presentation/shell/bindings/application/workbench/useWorkbenchApplicationBindings.ts",
+        "../../presentation/shell/application/useWorkbenchApplicationBindings.ts",
       ).find(({ targetPath }) =>
         targetPath.endsWith("application/workbench/workbenchController.ts")
       ),

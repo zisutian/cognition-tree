@@ -3,7 +3,7 @@
 import type {
   RepositoryCatalogIssueDto,
 } from "../../../../contracts/workspace/types.ts";
-import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
+import { RepositoryCatalogError } from "../../repository/catalog.ts";
 import type {
   ActiveWebDavConnectionConfig,
   DeletingWebDavConnectionConfig,

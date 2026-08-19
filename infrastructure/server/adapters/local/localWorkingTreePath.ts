@@ -2,7 +2,7 @@
 
 import path from "node:path";
 import { WorkspaceRepositoryContractError } from "../../../../contracts/workspace/contractValue.ts";
-import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../repository/store.ts";
 import { localControlDirectoryName } from "./localWorkingTreeLayout.ts";
 
 const reservedWindowsNamePattern =

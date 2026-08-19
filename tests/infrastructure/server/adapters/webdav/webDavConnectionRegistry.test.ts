@@ -33,7 +33,7 @@ import {
 import {
   RepositoryCorruptError,
   WorkspaceRevisionConflictError,
-} from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+} from "../../../../../infrastructure/server/repository/store.ts";
 import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport.ts";
 
 function createContent(name: string): WorkspaceRepositoryContentDto {

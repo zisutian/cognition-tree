@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { RepositoryAdapterError } from "../../repository/repositoryStore.ts";
+import { RepositoryAdapterError } from "../../repository/store.ts";
 import {
   createWebDavLease,
   parseWebDavLease,

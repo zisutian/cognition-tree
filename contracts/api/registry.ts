@@ -19,42 +19,52 @@ import {
 } from "./parse.ts";
 import {
   ApiV1AuditPageSchema,
-  ApiV1BuiltInCatalogSchema,
-  ApiV1BuiltInRetryResultSchema,
-  ApiV1CapabilitiesSchema,
-  ApiV1CommandResultSchema,
-  ApiV1CommitResultSchema,
-  ApiV1CreateRepositorySchema,
   ApiV1CreateTokenRequestSchema,
   ApiV1CreatedTokenSchema,
-  ApiV1CtnDocumentSchema,
-  ApiV1ErrorSchema,
-  ApiV1EventSchema,
   ApiV1HealthSchema,
+  ApiV1RevokedSchema,
+  ApiV1TokenListSchema,
+} from "./schemas/admin.ts";
+import {
   ApiV1JournalCommandSchema,
-  ApiV1JournalCommitSchema,
+  ApiV1TodoCommandSchema,
+  ApiV1WorkspaceCommandSchema,
+} from "./schemas/commands.ts";
+import { ApiV1EventSchema } from "./schemas/events.ts";
+import {
+  ApiV1CapabilitiesSchema,
+  ApiV1ErrorSchema,
+  type ApiV1Scope,
+} from "./schemas/foundation.ts";
+import {
+  ApiV1CtnDocumentSchema,
   ApiV1JournalEntriesSchema,
+  ApiV1TodoCollectionSchema,
+  ApiV1TodoCollectionsSchema,
+  ApiV1WorkspaceListSchema,
+  ApiV1WorkspaceTreeSchema,
+} from "./schemas/resources.ts";
+import {
+  ApiV1SearchRequestSchema,
+  ApiV1SearchResponseSchema,
+} from "./schemas/search.ts";
+import {
+  ApiV1BuiltInCatalogSchema,
+  ApiV1BuiltInRetryResultSchema,
+  ApiV1CommitResultSchema,
+  ApiV1CreateRepositorySchema,
+  ApiV1JournalCommitSchema,
   ApiV1JournalSnapshotSchema,
   ApiV1RenameRepositorySchema,
   ApiV1RepositoryCatalogSchema,
   ApiV1RepositoryDeletionResultSchema,
   ApiV1RepositoryDescriptorSchema,
-  ApiV1RevokedSchema,
-  ApiV1SearchRequestSchema,
-  ApiV1SearchResponseSchema,
-  ApiV1TodoCollectionSchema,
-  ApiV1TodoCollectionsSchema,
-  ApiV1TodoCommandSchema,
   ApiV1TodoCommitSchema,
   ApiV1TodoSnapshotSchema,
-  ApiV1TokenListSchema,
-  ApiV1WorkspaceCommandSchema,
   ApiV1WorkspaceCommitSchema,
-  ApiV1WorkspaceListSchema,
   ApiV1WorkspaceSnapshotSchema,
-  ApiV1WorkspaceTreeSchema,
-  type ApiV1Scope,
-} from "./schemas.ts";
+} from "./schemas/storage.ts";
+import { ApiV1CommandResultSchema } from "./schemas/transitions.ts";
 
 export type ApiV1RouteKind =
   | "admin-audit"

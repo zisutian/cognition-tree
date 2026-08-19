@@ -10,7 +10,7 @@ import {
   fsyncDirectory,
   replaceFileDurably,
 } from "../../persistence/fileSystemPersistence.ts";
-import { RepositoryCatalogError } from "../../repository/repositoryCatalog.ts";
+import { RepositoryCatalogError } from "../../repository/catalog.ts";
 import {
   parseWebDavConnectionConfig,
   serializeWebDavConnectionConfig,

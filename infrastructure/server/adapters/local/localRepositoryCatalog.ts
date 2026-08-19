@@ -18,8 +18,8 @@ import type {
 } from "../../../../contracts/workspace/types.ts";
 import {
   RepositoryCatalogError,
-} from "../../repository/repositoryCatalog.ts";
-import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
+} from "../../repository/catalog.ts";
+import { RepositoryCorruptError } from "../../repository/store.ts";
 import { fsyncDirectory } from "../../persistence/fileSystemPersistence.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {

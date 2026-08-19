@@ -45,7 +45,27 @@ export const sourceLayerImports: Readonly<
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   "adapters/local": ["adapters/local", "persistence", "repository"],
   "adapters/webdav": ["adapters/webdav", "persistence", "repository"],
-  api: ["api", "repository"],
+  api: ["api", "api/http", "api/resources", "repository"],
+  "api/commands": [
+    "api/commands",
+    "api/http",
+    "api/resources",
+    "api/state",
+    "api/sync",
+    "repository",
+  ],
+  "api/http": [
+    "api",
+    "api/commands",
+    "api/http",
+    "api/resources",
+    "api/state",
+    "api/sync",
+    "repository",
+  ],
+  "api/resources": ["api/resources"],
+  "api/state": ["api/state", "persistence"],
+  "api/sync": ["api/commands", "api/http", "api/sync", "repository"],
   catalog: ["catalog", "repository"],
   persistence: ["persistence"],
   repository: ["persistence", "repository"],
@@ -72,6 +92,8 @@ function serverArea(filePath: string) {
 
   return segments[0] === "adapters"
     ? `adapters/${segments[1]}`
+    : segments[0] === "api" && !segments[1]?.endsWith(".ts")
+      ? `api/${segments[1]}`
     : segments[0];
 }
 
@@ -267,7 +289,7 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
   })),
   {
     allowedPath:
-      /^infrastructure\/server\/api\/apiV1(?:CommandCommon|Sync)\.ts$/,
+      /^infrastructure\/server\/api\/(?:commands\/common|sync\/service)\.ts$/,
     corpus: infrastructureModules,
     matches: { min: 1 },
     name: "CTN API persistence writes",

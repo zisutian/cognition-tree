@@ -7,7 +7,7 @@ import {
 import { UnsupportedRepositoryVersionError } from "../../../../contracts/workspace/contractValue.ts";
 import { parseRepositoryRevision } from "../../../../contracts/workspace/revision.ts";
 import { workspaceRepositorySchemaVersion } from "../../../../contracts/workspace/types.ts";
-import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../repository/store.ts";
 import {
   localLayoutVersion,
   type LocalIndexEntry,

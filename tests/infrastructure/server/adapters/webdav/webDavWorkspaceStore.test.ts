@@ -6,10 +6,10 @@ import {
   WorkspaceRepositoryContractError,
 } from "../../../../../contracts/workspace/contractValue";
 import type { WorkspaceRepositoryContentDto } from "../../../../../contracts/workspace/types";
-import { WorkspaceRevisionConflictError } from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+import { WorkspaceRevisionConflictError } from "../../../../../infrastructure/server/repository/store.ts";
 import {
   RepositoryCorruptError,
-} from "../../../../../infrastructure/server/repository/repositoryStore.ts";
+} from "../../../../../infrastructure/server/repository/store.ts";
 import { WebDavRequestError } from "../../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
 import {
   WebDavRepositoryBusyError,

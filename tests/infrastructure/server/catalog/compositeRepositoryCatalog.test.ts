@@ -9,8 +9,8 @@ import type {
 } from "../../../../contracts/workspace/types";
 import { LocalRepositoryCatalog } from "../../../../infrastructure/server/adapters/local/localRepositoryCatalog.ts";
 import { CompositeRepositoryCatalog } from "../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
-import { RepositoryCatalogError } from "../../../../infrastructure/server/repository/repositoryCatalog.ts";
-import type { WorkspaceRepositoryStore } from "../../../../infrastructure/server/repository/repositoryStore.ts";
+import { RepositoryCatalogError } from "../../../../infrastructure/server/repository/catalog.ts";
+import type { WorkspaceRepositoryStore } from "../../../../infrastructure/server/repository/store.ts";
 
 const revision = `sha256:${"a".repeat(64)}` as const;
 const firstUuid = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";

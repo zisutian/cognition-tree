@@ -10,7 +10,7 @@ import path from "node:path";
 import {
   RepositoryAdapterError,
   RepositoryCorruptError,
-} from "../../repository/repositoryStore.ts";
+} from "../../repository/store.ts";
 import { hasFileSystemErrorCode } from "../../persistence/fileSystemError.ts";
 import {
   localControlDirectoryName,

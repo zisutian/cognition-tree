@@ -3,7 +3,7 @@
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { parseRepositoryRevision } from "../../../../contracts/workspace/revision.ts";
 import type { RepositoryRevisionDto } from "../../../../contracts/workspace/types.ts";
-import { RepositoryCorruptError } from "../../repository/repositoryStore.ts";
+import { RepositoryCorruptError } from "../../repository/store.ts";
 
 export type LocalTransactionFileOperation = {
   backupFile: string | null;

@@ -13,8 +13,8 @@ import type {
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
 import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
 import type { ActivityId } from "../ui/activityTypes";
-import { useWorkbenchApplicationBindings } from "./bindings/application/workbench/useWorkbenchApplicationBindings";
-import { projectUnavailableWorkspace } from "./bindings/application/workbench/workbenchApplicationProjection";
+import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings";
+import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection";
 import { ReadyWorkspaceWorkbench } from "./workbench/ReadyWorkspaceWorkbench";
 import { WorkspaceWorkbench } from "./workbench/WorkspaceWorkbench";
 
