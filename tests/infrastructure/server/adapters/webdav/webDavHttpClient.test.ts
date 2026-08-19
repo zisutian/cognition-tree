@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  createWebDavTransport,
-  probeWebDavCapabilities,
-  WebDavCapabilityError,
-  type WebDavTransport,
-} from "../../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
-import { InMemoryWebDavTransport } from "./inMemoryWebDavTransport";
+  createWebDavHttpClient,
+} from "../../../../../infrastructure/server/adapters/webdav/webDavHttpClient.ts";
 
 describe("WebDAV HTTP transport", () => {
   it("sends credentials and conditional headers over HTTPS", async () => {
     const requests: Array<{ headers: Headers; method: string; url: string }> = [];
-    const transport = createWebDavTransport({
+    const transport = createWebDavHttpClient({
       fetch: async (input, init) => {
         requests.push({
           headers: new Headers(init?.headers),
@@ -37,7 +33,7 @@ describe("WebDAV HTTP transport", () => {
   });
 
   it("requires HTTPS when credentials are configured", () => {
-    expect(() => createWebDavTransport({
+    expect(() => createWebDavHttpClient({
       password: "secret",
       url: "http://dav.example.test/root",
       username: "alice",
@@ -45,20 +41,20 @@ describe("WebDAV HTTP transport", () => {
   });
 
   it("rejects URL credentials, query strings, and fragments", () => {
-    expect(() => createWebDavTransport({
+    expect(() => createWebDavHttpClient({
       url: "https://alice:secret@dav.example.test/root",
     })).toThrow("must not be embedded");
-    expect(() => createWebDavTransport({
+    expect(() => createWebDavHttpClient({
       url: "https://dav.example.test/root?token=secret",
     })).toThrow("query or fragment");
-    expect(() => createWebDavTransport({
+    expect(() => createWebDavHttpClient({
       url: "https://dav.example.test/root#redirect",
     })).toThrow("query or fragment");
   });
 
   it("never follows redirects or forwards authorization to their target", async () => {
     const requests: Array<{ authorization: string | null; redirect: RequestRedirect | undefined }> = [];
-    const transport = createWebDavTransport({
+    const transport = createWebDavHttpClient({
       fetch: async (_input, init) => {
         requests.push({
           authorization: new Headers(init?.headers).get("authorization"),
@@ -84,7 +80,7 @@ describe("WebDAV HTTP transport", () => {
   });
 
   it("bounds response bodies even when Content-Length is absent", async () => {
-    const transport = createWebDavTransport({
+    const transport = createWebDavHttpClient({
       fetch: async () => new Response("123456"),
       maxResponseBytes: 5,
       url: "https://dav.example.test/root",
@@ -96,7 +92,7 @@ describe("WebDAV HTTP transport", () => {
   });
 
   it("aborts every request at its fixed timeout", async () => {
-    const transport = createWebDavTransport({
+    const transport = createWebDavHttpClient({
       fetch: async (_input, init) => new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
       }),
@@ -110,7 +106,7 @@ describe("WebDAV HTTP transport", () => {
   });
 
   it("applies the same deadline while DNS resolution is still pending", async () => {
-    const transport = createWebDavTransport({
+    const transport = createWebDavHttpClient({
       lookup: async () => new Promise(() => {}),
       requestTimeoutMs: 5,
       url: "https://dav.example.test/root",
@@ -122,7 +118,7 @@ describe("WebDAV HTTP transport", () => {
   });
 
   it("keeps the timeout active while consuming a stalled response body", async () => {
-    const transport = createWebDavTransport({
+    const transport = createWebDavHttpClient({
       fetch: async (_input, init) => new Response(new ReadableStream({
         start(controller) {
           init?.signal?.addEventListener("abort", () => {
@@ -139,57 +135,24 @@ describe("WebDAV HTTP transport", () => {
     });
   });
 
-  it("probes conditional ETag, PROPFIND, MKCOL, GET, PUT, and DELETE support", async () => {
-    await expect(probeWebDavCapabilities(new InMemoryWebDavTransport())).resolves.toBeUndefined();
+  it("decodes PROPFIND multistatus responses through the collection codec", async () => {
+    const transport = createWebDavHttpClient({
+      fetch: async () => new Response(
+        `<d:multistatus xmlns:d="DAV:">
+          <d:response>
+            <d:href>/root/notes/one%20file.ctn</d:href>
+            <d:getlastmodified>Tue, 18 Aug 2026 03:00:00 GMT</d:getlastmodified>
+          </d:response>
+        </d:multistatus>`,
+        { status: 207 },
+      ),
+      url: "https://dav.example.test/root",
+    });
 
-    const memory = new InMemoryWebDavTransport();
-    const noEtag: WebDavTransport = {
-      createCollection: memory.createCollection.bind(memory),
-      listCollection: memory.listCollection.bind(memory),
-      readText: memory.readText.bind(memory),
-      remove: memory.remove.bind(memory),
-      async writeText(path, source, conditions) {
-        await memory.writeText(path, source, conditions);
-        return null;
-      },
-    };
-
-    await expect(probeWebDavCapabilities(noEtag)).rejects.toBeInstanceOf(
-      WebDavCapabilityError,
-    );
+    await expect(transport.listCollection("notes")).resolves.toEqual([{
+      lastModified: Date.parse("Tue, 18 Aug 2026 03:00:00 GMT"),
+      path: "notes/one file.ctn",
+    }]);
   });
 
-  it("rejects a server that acknowledges DELETE without removing the resource", async () => {
-    const memory = new InMemoryWebDavTransport();
-    const ignoresDelete: WebDavTransport = {
-      createCollection: memory.createCollection.bind(memory),
-      listCollection: memory.listCollection.bind(memory),
-      readText: memory.readText.bind(memory),
-      async remove() {
-        return true;
-      },
-      writeText: memory.writeText.bind(memory),
-    };
-
-    await expect(probeWebDavCapabilities(ignoresDelete)).rejects.toBeInstanceOf(
-      WebDavCapabilityError,
-    );
-  });
-
-  it("rejects a server that does not actually support MKCOL", async () => {
-    const memory = new InMemoryWebDavTransport();
-    const noMkcol: WebDavTransport = {
-      async createCollection() {
-        return "already-exists";
-      },
-      listCollection: memory.listCollection.bind(memory),
-      readText: memory.readText.bind(memory),
-      remove: memory.remove.bind(memory),
-      writeText: memory.writeText.bind(memory),
-    };
-
-    await expect(probeWebDavCapabilities(noMkcol)).rejects.toBeInstanceOf(
-      WebDavCapabilityError,
-    );
-  });
 });

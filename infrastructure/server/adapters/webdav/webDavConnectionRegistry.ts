@@ -11,10 +11,10 @@ import type {
 import { RepositoryCatalogError } from "../../repository/catalog.ts";
 import type { WorkspaceRepositoryStore } from "../../repository/store.ts";
 import {
-  createWebDavTransport,
-  probeWebDavCapabilities,
   type WebDavTransport,
 } from "./webDavTransport.ts";
+import { createWebDavHttpClient } from "./webDavHttpClient.ts";
+import { probeWebDavCapabilities } from "./webDavCapabilityProbe.ts";
 import type { WebDavPrivateTargetPolicy } from "./webDavTargetPolicy.ts";
 import { parseWebDavPrivateTargets } from "./webDavTargetPolicy.ts";
 import {
@@ -106,7 +106,7 @@ export class WebDavConnectionRegistry {
     this.#onConfigRemovalPhase = onConfigRemovalPhase;
     this.#privateTargetPolicy = privateTargetPolicy;
     this.#transportFactory = transportFactory ?? ((config) =>
-      createWebDavTransport({
+      createWebDavHttpClient({
         ...(config.authentication.type === "basic"
           ? {
               password: config.authentication.password,

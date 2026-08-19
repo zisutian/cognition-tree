@@ -12,9 +12,11 @@ import {
   RepositoryAdapterError,
 } from "../../../../../infrastructure/server/repository/store.ts";
 import {
-  createWebDavTransport,
+  createWebDavHttpClient,
+} from "../../../../../infrastructure/server/adapters/webdav/webDavHttpClient.ts";
+import {
   probeWebDavCapabilities,
-} from "../../../../../infrastructure/server/adapters/webdav/webDavTransport.ts";
+} from "../../../../../infrastructure/server/adapters/webdav/webDavCapabilityProbe.ts";
 import { WebDavConnectionRegistry } from "../../../../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import { parseWebDavPrivateTargets } from "../../../../../infrastructure/server/adapters/webdav/webDavTargetPolicy.ts";
 import {
@@ -81,7 +83,7 @@ function createLiveTransport(
   service: FileBackedWebDavServer,
   requestTimeoutMs = 30_000,
 ) {
-  return createWebDavTransport({
+  return createWebDavHttpClient({
     privateTargetPolicy: livePrivateTargetPolicy,
     requestTimeoutMs,
     url: service.url,

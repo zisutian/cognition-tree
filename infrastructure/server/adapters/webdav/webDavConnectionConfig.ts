@@ -3,7 +3,7 @@
 import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import { isRepositoryId } from "../../../../contracts/workspace/parseCatalog.ts";
 import type { RepositoryAuthenticationDto } from "../../../../contracts/workspace/types.ts";
-import { normalizeWebDavBaseUrl } from "./webDavTransport.ts";
+import { normalizeWebDavBaseUrl } from "./webDavPathCodec.ts";
 
 export const webDavConnectionConfigVersion = 1 as const;
 
