@@ -5,7 +5,7 @@ import {
   projectUiRepositoryProblems,
   projectUiBuiltInProblems,
   projectUiWorkspaceRepositoryRuntimeProblems,
-} from "../../../application/problems/workbenchProblems";
+} from "../../../application/workbench/problems/workbenchProblems";
 import type { WorkspaceRepositoryRuntimeIssue } from "../../../application/repository/projectWorkspaceRepositoryIssues";
 import type { BuiltInRuntimeIssue } from "../../../application/repository/projectBuiltInIssues";
 import {

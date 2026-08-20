@@ -31,7 +31,7 @@ import {
   projectTodoSearchDocuments,
   projectWorkspaceSearchDocuments,
   type CreateSearchResourceVersion,
-} from "../search/searchCorpus";
+} from "./searchCorpus";
 import {
   createSearchQuery,
 } from "../search/searchIndex";

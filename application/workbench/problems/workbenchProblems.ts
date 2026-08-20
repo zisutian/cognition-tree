@@ -1,27 +1,27 @@
 import type {
   JournalDiagnostic,
   JournalDiagnostics,
-} from "../journal/journalDiagnostics";
+} from "../../journal/journalDiagnostics";
 import type {
   TodoDiagnostic,
   TodoDiagnostics,
-} from "../todo/todoDiagnostics";
-import type { BuiltInRuntimeIssue } from "../repository/projectBuiltInIssues";
-import type { WorkspaceRepositoryRuntimeIssue } from "../repository/projectWorkspaceRepositoryIssues";
+} from "../../todo/todoDiagnostics";
+import type { BuiltInRuntimeIssue } from "../../repository/projectBuiltInIssues";
+import type { WorkspaceRepositoryRuntimeIssue } from "../../repository/projectWorkspaceRepositoryIssues";
 import type {
   UiWorkbenchDiagnostic,
   UiWorkbenchDiagnostics,
-} from "../workspace/projection/viewDiagnostics";
+} from "../../workspace/projection/viewDiagnostics";
 import {
   projectRepositoryIssueMessage,
   repositoryAdapterLabels,
-} from "../repository/repositoryIssueProjection";
-import type { BuiltInId } from "../repository/builtInCatalog";
+} from "../../repository/repositoryIssueProjection";
+import type { BuiltInId } from "../../repository/builtInCatalog";
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "../repository/workspaceRepositoryCatalog";
-import type { WorkbenchFeedbackError } from "../workbench/workbenchFeedbackController";
+} from "../../repository/workspaceRepositoryCatalog";
+import type { WorkbenchFeedbackError } from "../workbenchFeedbackController";
 
 export type UiWorkbenchOperationalProblem = {
   code: "operation_failed";

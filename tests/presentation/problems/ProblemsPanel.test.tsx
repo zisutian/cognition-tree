@@ -4,7 +4,7 @@ import type { UiWorkbenchDiagnostic } from "../../../application/workspace/proje
 import type {
   UiWorkbenchOperationalProblem,
   UiWorkbenchRepositoryProblem,
-} from "../../../application/problems/workbenchProblems";
+} from "../../../application/workbench/problems/workbenchProblems";
 import type { JournalDiagnostic } from "../../../application/journal";
 import {
   ProblemsPanel,

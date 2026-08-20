@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { UiWorkbenchProblem } from
-  "../../../../application/problems/workbenchProblems";
+  "../../../../application/workbench/problems/workbenchProblems";
 import {
   openWorkbenchProblem,
   type WorkbenchProblemOpenContext,

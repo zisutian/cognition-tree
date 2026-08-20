@@ -1,0 +1,265 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import {
+  Type,
+  type Static,
+  type TProperties,
+  type TSchema,
+} from "@sinclair/typebox";
+import "../common/formats.ts";
+import {
+  DomainChangeSetSchema,
+  DomainTextDiffHunkSchema,
+} from "../common/domainChanges.ts";
+
+function strictObject<T extends TProperties>(properties: T) {
+  return Type.Object(properties, { additionalProperties: false });
+}
+
+const identifier = Type.String({ minLength: 1 });
+const uuid = Type.String({ format: "uuid" });
+const timestamp = Type.String({ format: "ctn-canonical-timestamp" });
+const revision = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
+const digest = Type.String({ pattern: "^sha256:[0-9a-f]{64}$" });
+const nullable = <Schema extends TSchema>(schema: Schema) =>
+  Type.Union([schema, Type.Null()]);
+
+export const AgentWorkspaceScopeSchema = strictObject({
+  domain: Type.Literal("workspace"),
+  repositoryId: identifier,
+  target: Type.Union([
+    strictObject({ kind: Type.Literal("repository") }),
+    strictObject({ folderId: identifier, kind: Type.Literal("folder") }),
+    strictObject({ kind: Type.Literal("note"), noteId: identifier }),
+  ]),
+});
+export const AgentJournalScopeSchema = strictObject({
+  domain: Type.Literal("journal"),
+  entryIds: nullable(Type.Array(identifier, { minItems: 1, uniqueItems: true })),
+});
+export const AgentTodoScopeSchema = strictObject({
+  collectionIds: nullable(Type.Array(identifier, {
+    minItems: 1,
+    uniqueItems: true,
+  })),
+  domain: Type.Literal("todo"),
+});
+export const AgentScopeSchema = Type.Union([
+  AgentWorkspaceScopeSchema,
+  AgentJournalScopeSchema,
+  AgentTodoScopeSchema,
+]);
+export type AgentScopeDto = Static<typeof AgentScopeSchema>;
+
+export const AgentProfileSummarySchema = strictObject({
+  availability: Type.Union([
+    Type.Literal("available"),
+    Type.Literal("unavailable"),
+  ]),
+  id: identifier,
+  kind: Type.Union([Type.Literal("codex"), Type.Literal("openai-chat")]),
+  label: identifier,
+  unavailableReason: nullable(Type.String()),
+});
+export type AgentProfileSummaryDto = Static<
+  typeof AgentProfileSummarySchema
+>;
+
+export const AgentStatusSchema = strictObject({
+  configurationProblem: nullable(Type.String()),
+  enabled: Type.Boolean(),
+  profiles: Type.Array(AgentProfileSummarySchema),
+});
+export type AgentStatusDto = Static<typeof AgentStatusSchema>;
+
+export const AgentMessageSchema = strictObject({
+  content: Type.String(),
+  createdAt: timestamp,
+  id: uuid,
+  role: Type.Union([Type.Literal("assistant"), Type.Literal("user")]),
+});
+export type AgentMessageDto = Static<typeof AgentMessageSchema>;
+
+export const AgentStoreReferenceSchema = Type.Union([
+  strictObject({ domain: Type.Literal("journal") }),
+  strictObject({ domain: Type.Literal("todo") }),
+  strictObject({
+    domain: Type.Literal("workspace"),
+    repositoryId: identifier,
+  }),
+]);
+export type AgentStoreReferenceDto = Static<
+  typeof AgentStoreReferenceSchema
+>;
+
+export const AgentProposalStatusSchema = Type.Union([
+  Type.Literal("pending"),
+  Type.Literal("awaiting-destructive-confirmation"),
+  Type.Literal("approved"),
+  Type.Literal("rejected"),
+  Type.Literal("committed"),
+  Type.Literal("stale"),
+  Type.Literal("failed"),
+]);
+
+export const AgentProposalSchema = strictObject({
+  baseRevision: revision,
+  changes: DomainChangeSetSchema,
+  destructive: Type.Boolean(),
+  digest,
+  diff: Type.Array(DomainTextDiffHunkSchema),
+  id: uuid,
+  status: AgentProposalStatusSchema,
+  store: AgentStoreReferenceSchema,
+  version: Type.Integer({ minimum: 1 }),
+});
+export type AgentProposalDto = Static<typeof AgentProposalSchema>;
+
+export const AgentSessionStateSchema = Type.Union([
+  Type.Literal("idle"),
+  Type.Literal("queued"),
+  Type.Literal("running"),
+  Type.Literal("awaiting-approval"),
+  Type.Literal("awaiting-destructive-confirmation"),
+  Type.Literal("unavailable"),
+]);
+
+export const AgentSessionSnapshotSchema = strictObject({
+  activeTurnId: nullable(uuid),
+  createdAt: timestamp,
+  id: uuid,
+  lastActiveAt: timestamp,
+  messages: Type.Array(AgentMessageSchema),
+  problem: nullable(Type.String()),
+  profileId: identifier,
+  proposals: Type.Array(AgentProposalSchema),
+  scope: AgentScopeSchema,
+  sequence: Type.Integer({ minimum: 0 }),
+  state: AgentSessionStateSchema,
+});
+export type AgentSessionSnapshotDto = Static<
+  typeof AgentSessionSnapshotSchema
+>;
+
+export const AgentSessionListSchema = strictObject({
+  sessions: Type.Array(AgentSessionSnapshotSchema),
+});
+
+export const AgentCreateSessionRequestSchema = strictObject({
+  profileId: identifier,
+  scope: AgentScopeSchema,
+});
+export type AgentCreateSessionRequestDto = Static<
+  typeof AgentCreateSessionRequestSchema
+>;
+
+export const AgentMessageRequestSchema = strictObject({
+  content: Type.String({ maxLength: 100_000, minLength: 1 }),
+});
+export type AgentMessageRequestDto = Static<typeof AgentMessageRequestSchema>;
+
+export const AgentAcceptedTurnSchema = strictObject({
+  accepted: Type.Literal(true),
+  turnId: uuid,
+});
+export type AgentAcceptedTurnDto = Static<typeof AgentAcceptedTurnSchema>;
+
+export const AgentProposalDecisionRequestSchema = strictObject({
+  decision: Type.Union([Type.Literal("approve"), Type.Literal("reject")]),
+});
+export type AgentProposalDecisionRequestDto = Static<
+  typeof AgentProposalDecisionRequestSchema
+>;
+
+export const AgentDestructiveConfirmationRequestSchema = strictObject({
+  confirmed: Type.Literal(true),
+});
+export type AgentDestructiveConfirmationRequestDto = Static<
+  typeof AgentDestructiveConfirmationRequestSchema
+>;
+
+export const AgentCancelledSchema = strictObject({
+  cancelled: Type.Literal(true),
+});
+export const AgentDeletedSchema = strictObject({ deleted: Type.Literal(true) });
+
+const eventBase = {
+  sequence: Type.Integer({ minimum: 1 }),
+  sessionId: uuid,
+};
+export const AgentEventSchema = Type.Union([
+  strictObject({
+    ...eventBase,
+    messageId: uuid,
+    textDelta: Type.String(),
+    type: Type.Literal("message-delta"),
+  }),
+  strictObject({
+    ...eventBase,
+    proposal: AgentProposalSchema,
+    type: Type.Literal("proposal-updated"),
+  }),
+  strictObject({
+    ...eventBase,
+    snapshot: AgentSessionSnapshotSchema,
+    type: Type.Literal("session-snapshot"),
+  }),
+  strictObject({
+    ...eventBase,
+    code: identifier,
+    message: Type.String(),
+    type: Type.Literal("problem"),
+  }),
+  strictObject({
+    ...eventBase,
+    status: Type.Union([
+      Type.Literal("completed"),
+      Type.Literal("cancelled"),
+      Type.Literal("failed"),
+    ]),
+    turnId: uuid,
+    type: Type.Literal("turn-completed"),
+  }),
+]);
+export type AgentEventDto = Static<typeof AgentEventSchema>;
+
+export const AgentEventQuerySchema = strictObject({
+  afterSequence: Type.Optional(Type.Integer({ minimum: 0 })),
+});
+
+export const AgentOperationAuditEntrySchema = strictObject({
+  afterRevision: nullable(revision),
+  approvingOwnerId: identifier,
+  beforeRevision: revision,
+  changeMetadata: strictObject({
+    blockIds: Type.Array(identifier, { uniqueItems: true }),
+    resourceIds: Type.Array(identifier, { uniqueItems: true }),
+  }),
+  digest,
+  occurredAt: timestamp,
+  profileId: identifier,
+  proposalId: uuid,
+  proposalVersion: Type.Integer({ minimum: 1 }),
+  result: Type.Union([
+    Type.Literal("committed"),
+    Type.Literal("failed"),
+    Type.Literal("stale"),
+  ]),
+  runtimeKind: Type.Union([
+    Type.Literal("codex"),
+    Type.Literal("openai-chat"),
+  ]),
+  sessionId: uuid,
+  store: AgentStoreReferenceSchema,
+});
+export type AgentOperationAuditEntryDto = Static<
+  typeof AgentOperationAuditEntrySchema
+>;
+
+export const AgentOperationAuditPageSchema = strictObject({
+  cursor: nullable(Type.String()),
+  entries: Type.Array(AgentOperationAuditEntrySchema),
+});
+export type AgentOperationAuditPageDto = Static<
+  typeof AgentOperationAuditPageSchema
+>;

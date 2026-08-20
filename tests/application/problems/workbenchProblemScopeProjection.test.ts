@@ -5,11 +5,11 @@ import type { JournalDiagnostic } from
   "../../../application/journal/journalDiagnostics";
 import {
   type UiWorkbenchOperationalProblem,
-} from "../../../application/problems/workbenchProblems";
+} from "../../../application/workbench/problems/workbenchProblems";
 import {
   projectWorkbenchProblems,
   selectWorkbenchProblems,
-} from "../../../application/problems/workbenchProblemsProjection";
+} from "../../../application/workbench/problems/workbenchProblemsProjection";
 import type { BuiltInRuntimeIssue } from
   "../../../application/repository/projectBuiltInIssues";
 import type { WorkspaceRepositoryRuntimeIssue } from

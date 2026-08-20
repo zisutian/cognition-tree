@@ -8,7 +8,7 @@ import type {
 } from "../../../application/todo";
 import type {
   UiWorkbenchProblem,
-} from "../../../application/problems/workbenchProblems";
+} from "../../../application/workbench/problems/workbenchProblems";
 import type {
   RepositoryNavigation,
 } from "../../../application/repository/repositoryNavigation";

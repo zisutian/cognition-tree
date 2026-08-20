@@ -14,7 +14,7 @@ import {
 } from "../../../../core/todo/model/todoCollectionProjection.ts";
 import type {
   WorkspaceResourceVersionPolicy,
-} from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
+} from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";

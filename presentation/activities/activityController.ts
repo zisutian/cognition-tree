@@ -1,5 +1,5 @@
 import type { WorkbenchApplication } from "./workbenchApplication";
-import type { WorkbenchDiagnostics } from "../../application/problems/workbenchProblems";
+import type { WorkbenchDiagnostics } from "../../application/workbench/problems/workbenchProblems";
 import type { UiSyntaxFocusTarget } from "../../application/workspace/projection/viewSyntax";
 import type { CreateActivitySlots } from "../ui/activityTypes";
 import type { ReactNode } from "react";

@@ -5,7 +5,7 @@ import {
   projectJournalSearchDocuments,
   projectTodoSearchDocuments,
   projectWorkspaceSearchDocuments,
-} from "../../../application/search/searchCorpus.ts";
+} from "../../../application/workbench/searchCorpus.ts";
 import {
   createSearchQuery,
 } from "../../../application/search/searchIndex.ts";
@@ -31,6 +31,7 @@ import type {
   ApiPrincipalDto,
   ApiSearchRequestDto,
   ApiSearchResponseDto,
+  AutomationApiScope,
 } from "../../../contracts/api/types.ts";
 import type {
   WorkspaceRepositoryCatalog,
@@ -47,16 +48,21 @@ import {
   createApiResourceVersion,
 } from "./resources/versions.ts";
 
+type AgentSearchPrincipal = {
+  kind: "agent-session";
+};
+type SearchPrincipal = ApiPrincipalDto | AgentSearchPrincipal;
+
 function hasScope(
-  principal: ApiPrincipalDto,
-  scope: ApiPrincipalDto["scopes"][number],
+  principal: SearchPrincipal,
+  scope: AutomationApiScope,
 ) {
-  return principal.scopes.includes(scope);
+  return principal.kind !== "automation" || principal.scopes.includes(scope);
 }
 
 function requestedDomains(
   request: ApiSearchRequestDto,
-  principal: ApiPrincipalDto,
+  principal: SearchPrincipal,
 ) {
   const requested = request.domains ??
     ["workspace", "journal", "todo"] as const;
@@ -179,7 +185,7 @@ export class ApiSearchService {
     builtInCatalog: ApiBuiltInCatalog;
     catalog: WorkspaceRepositoryCatalog;
   }) {
-    this.#query = createSearchQuery<ApiPrincipalDto>({
+    this.#query = createSearchQuery<SearchPrincipal>({
       createCorpusKey: (value) =>
         createHash("sha256")
           .update(serializeJsonIteratively(value, { sortObjectKeys: true }))
@@ -196,7 +202,8 @@ export class ApiSearchService {
               const requestedIds = request.repositoryIds
                 ? new Set(request.repositoryIds)
                 : null;
-              const allowedIds = principal.repositoryIds
+              const allowedIds = principal.kind === "automation" &&
+                  principal.repositoryIds
                 ? new Set(principal.repositoryIds)
                 : null;
               const allows = (repositoryId: string) =>
@@ -292,6 +299,19 @@ export class ApiSearchService {
   async search(
     request: ApiSearchRequestDto,
     principal: ApiPrincipalDto,
+  ): Promise<ApiSearchResponseDto> {
+    return this.#search(request, principal);
+  }
+
+  async searchAgent(
+    request: ApiSearchRequestDto,
+  ): Promise<ApiSearchResponseDto> {
+    return this.#search(request, { kind: "agent-session" });
+  }
+
+  async #search(
+    request: ApiSearchRequestDto,
+    principal: SearchPrincipal,
   ): Promise<ApiSearchResponseDto> {
     const domains = requestedDomains(request, principal);
 

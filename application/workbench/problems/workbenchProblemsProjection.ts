@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { JournalDiagnostics } from "../journal/journalDiagnostics";
+import type { JournalDiagnostics } from "../../journal/journalDiagnostics";
 import {
   projectBuiltInCatalogFailure,
   projectBuiltInRuntimeIssues,
   type BuiltInRuntimeIssue,
-} from "../repository/projectBuiltInIssues";
+} from "../../repository/projectBuiltInIssues";
 import {
   projectWorkspaceRepositoryRuntimeIssues,
   type WorkspaceRepositoryRuntimeIssue,
-} from "../repository/projectWorkspaceRepositoryIssues";
+} from "../../repository/projectWorkspaceRepositoryIssues";
 import type { RepositoryApplication } from
-  "../repository/repositoryApplication";
+  "../../repository/repositoryApplication";
 import type {
   WorkspaceRepositoryCatalogIssue,
   WorkspaceRepositoryDescriptor,
-} from "../repository/workspaceRepositoryCatalog";
-import type { TodoDiagnostics } from "../todo/todoDiagnostics";
+} from "../../repository/workspaceRepositoryCatalog";
+import type { TodoDiagnostics } from "../../todo/todoDiagnostics";
 import type { WorkbenchFeedbackError } from
-  "../workbench/workbenchFeedbackController";
+  "../workbenchFeedbackController";
 import type { UiWorkbenchDiagnostics } from
-  "../workspace/projection/viewDiagnostics";
+  "../../workspace/projection/viewDiagnostics";
 import {
   createUiWorkbenchProblems,
   projectUiOperationalProblems,

@@ -6,6 +6,7 @@ import {
   readSourceImports,
 } from "./sourceGraph";
 import {
+  auditApplicationCoordinationRoots,
   auditImportPolicies,
   dependencyImportPolicies,
   dependencyTextPolicies,
@@ -91,6 +92,7 @@ describe("dependency boundaries", () => {
 
   it("enforces the shared dependency and runtime policy catalog", () => {
     expect([
+      ...auditApplicationCoordinationRoots(listSourceImports()),
       ...auditImportPolicies(listSourceImports(), dependencyImportPolicies),
       ...auditTextPolicies(dependencyTextPolicies),
       ...auditTextPolicies(e2eTextPolicies),
@@ -140,6 +142,39 @@ describe("dependency boundaries", () => {
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
       "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
       "server API independence from core commands: ../../infrastructure/server/api/commands/todo.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
+    ]);
+  });
+
+  it("allows cross-domain application coordination only in explicit roots", () => {
+    const imports = [
+      {
+        filePath: "../../application/implicit/coordinator.ts",
+        importPath: "../workspace/service",
+        targetPath: "../../application/workspace/service.ts",
+        targetRoot: "application" as const,
+      },
+      {
+        filePath: "../../application/implicit/coordinator.ts",
+        importPath: "../journal/service",
+        targetPath: "../../application/journal/service.ts",
+        targetRoot: "application" as const,
+      },
+      {
+        filePath: "../../application/workbench/coordinator.ts",
+        importPath: "../todo/service",
+        targetPath: "../../application/todo/service.ts",
+        targetRoot: "application" as const,
+      },
+      {
+        filePath: "../../application/workbench/coordinator.ts",
+        importPath: "../workspace/service",
+        targetPath: "../../application/workspace/service.ts",
+        targetRoot: "application" as const,
+      },
+    ];
+
+    expect(auditApplicationCoordinationRoots(imports)).toEqual([
+      "cross-domain application coordination: ../../application/implicit/coordinator.ts imports journal, workspace",
     ]);
   });
 

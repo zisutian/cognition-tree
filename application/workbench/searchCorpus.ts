@@ -22,11 +22,11 @@ import type {
 import type {
   WorkspaceStructureIndex,
 } from "../../core/workspace/indexes/workspaceStructureIndex.ts";
-import { createCtnSearchDocument } from "./searchDocuments.ts";
+import { createCtnSearchDocument } from "../search/searchDocuments.ts";
 import type {
   SearchDocument,
   SearchResourceVersion,
-} from "./searchTypes.ts";
+} from "../search/searchTypes.ts";
 
 export type CreateSearchResourceVersion = (
   value: unknown,

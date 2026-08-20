@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useSyntaxActivity } from "./useSyntaxActivity";
-import { createSyntaxActivityDiagnostics } from "../../../application/problems/syntaxActivityDiagnostics";
+import { createSyntaxActivityDiagnostics } from "../../../application/workbench/problems/syntaxActivityDiagnostics";
 import { createSyntaxActivitySlots } from "./SyntaxActivitySlots";
 import type { ActivityControllerProps } from "../activityController";
 

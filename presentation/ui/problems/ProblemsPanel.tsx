@@ -9,7 +9,7 @@ import { useRef, type CSSProperties } from "react";
 import type {
   UiWorkbenchProblem,
   UiWorkbenchProblems,
-} from "../../../application/problems/workbenchProblems";
+} from "../../../application/workbench/problems/workbenchProblems";
 import { SymbolSlot, cx } from "../shared/primitives";
 import {
   shouldVirtualizeUiRows,

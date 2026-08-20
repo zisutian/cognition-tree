@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import type { WorkbenchDiagnostics } from "../../../application/problems/workbenchProblems";
+import type { WorkbenchDiagnostics } from "../../../application/workbench/problems/workbenchProblems";
 import type { UiSyntaxFocusTarget } from "../../../application/workspace/projection/viewSyntax";
 import type { WorkbenchApplication } from "../../activities/workbenchApplication";
 import {

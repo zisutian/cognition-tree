@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { JournalDiagnostic } from "../../../application/journal/journalDiagnostics";
 import type { TodoDiagnostic } from "../../../application/todo/todoDiagnostics";
-import { createSyntaxActivityDiagnostics } from "../../../application/problems/syntaxActivityDiagnostics";
+import { createSyntaxActivityDiagnostics } from "../../../application/workbench/problems/syntaxActivityDiagnostics";
 import type { UiWorkbenchDiagnostic } from "../../../application/workspace/projection/viewDiagnostics";
 
 const profileDiagnostic: UiWorkbenchDiagnostic = {

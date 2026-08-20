@@ -3,11 +3,11 @@ import type { WorkbenchApplication } from "../../activities/workbenchApplication
 import {
   type WorkbenchDiagnostics,
   type UiWorkbenchProblem,
-} from "../../../application/problems/workbenchProblems";
+} from "../../../application/workbench/problems/workbenchProblems";
 import {
   projectWorkbenchProblems,
   type SyntaxProblemOwner,
-} from "../../../application/problems/workbenchProblemsProjection";
+} from "../../../application/workbench/problems/workbenchProblemsProjection";
 import type { ActivityId } from "../../ui/activityTypes";
 import {
   getActivityLabel,

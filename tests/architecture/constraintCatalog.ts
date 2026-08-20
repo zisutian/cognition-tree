@@ -43,8 +43,18 @@ export const sourceLayerImports: Readonly<
 };
 
 const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
+  access: ["access", "state"],
   "adapters/local": ["adapters/local", "persistence", "repository"],
   "adapters/webdav": ["adapters/webdav", "persistence", "repository"],
+  agent: [
+    "agent",
+    "api",
+    "api/http",
+    "api/resources",
+    "api/sync",
+    "repository",
+    "state",
+  ],
   api: ["api", "api/http", "api/resources", "repository"],
   "api/commands": [
     "api/commands",
@@ -55,6 +65,8 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
     "repository",
   ],
   "api/http": [
+    "access",
+    "agent",
     "api",
     "api/commands",
     "api/http",
@@ -65,10 +77,16 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
   ],
   "api/resources": ["api/resources"],
   "api/state": ["api/state", "persistence"],
-  "api/sync": ["api/commands", "api/http", "api/sync", "repository"],
+  "api/sync": [
+    "api/commands",
+    "api/http",
+    "api/sync",
+    "repository",
+  ],
   catalog: ["catalog", "repository"],
   persistence: ["persistence"],
   repository: ["persistence", "repository"],
+  state: ["persistence", "state"],
 };
 
 const clientAreaImports: Readonly<Record<string, readonly string[]>> = {
@@ -229,6 +247,37 @@ export function auditImportPolicies(
         `${policy.name}: ${filePath} imports ${importPath}`
       )
   );
+}
+
+export function auditApplicationCoordinationRoots(
+  imports: readonly SourceImport[],
+) {
+  const domainsByFile = new Map<string, Set<string>>();
+
+  for (const { filePath, targetPath } of imports) {
+    if (!filePath.startsWith("../../application/")) continue;
+    const domain = targetPath.match(
+      /^\.\.\/\.\.\/(?:application|core)\/(workspace|journal|todo)\//,
+    )?.[1];
+
+    if (!domain) continue;
+    const domains = domainsByFile.get(filePath) ?? new Set<string>();
+
+    domains.add(domain);
+    domainsByFile.set(filePath, domains);
+  }
+  return [...domainsByFile]
+    .filter(([filePath, domains]) =>
+      domains.size > 1 &&
+      !filePath.startsWith("../../application/workbench/") &&
+      !filePath.startsWith("../../application/agent/")
+    )
+    .map(([filePath, domains]) =>
+      `cross-domain application coordination: ${filePath} imports ${
+        [...domains].sort().join(", ")
+      }`
+    )
+    .sort();
 }
 
 export const dependencyTextPolicies: readonly TextPolicy[] = [
