@@ -392,9 +392,12 @@ test.describe("repository and capacity flows", () => {
     );
 
     if (!remoteNote) throw new Error("Missing Alpha note");
-    remoteNote.source = `${remoteNote.source}\n${
-      createSeedSource("\t: remote-conflict", 9_000)
-    }`;
+    const remoteBlock = createSeedSource(": remote-conflict", 9_000)
+      .split("\n")
+      .map((line) => `\t${line}`)
+      .join("\n");
+
+    remoteNote.source = `${remoteNote.source}\n${remoteBlock}`;
     const commitResponse = await api.put(
       `/api/v3/sync/workspaces/${repositoryId}`,
       {
