@@ -46,6 +46,9 @@ const handleLine = (line) => {
       params.environments.length === 0 &&
       Array.isArray(params.selectedCapabilityRoots) &&
       params.selectedCapabilityRoots.length === 0 &&
+      Array.isArray(params.runtimeWorkspaceRoots) &&
+      params.runtimeWorkspaceRoots.length === 1 &&
+      params.runtimeWorkspaceRoots[0] === process.cwd() &&
       !("OPENAI_API_KEY" in mcpEnvironment);
 
     if (!safe) {
@@ -57,7 +60,7 @@ const handleLine = (line) => {
       result: {
         activePermissionProfile: { id: "ctn-session" },
         instructionSources: [],
-        runtimeWorkspaceRoots: params.runtimeWorkspaceRoots,
+        runtimeWorkspaceRoots: [],
         sandbox: { networkAccess: false, type: "readOnly" },
         thread: { ephemeral: true, id: "thread-1", path: null },
       },

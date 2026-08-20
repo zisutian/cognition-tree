@@ -486,26 +486,37 @@ export class CodexRuntime implements AgentRuntimePort {
         serviceName: "cognition_tree",
       }), this.#profile.timeoutMilliseconds, "Codex thread/start timed out"));
       const thread = record(result?.thread);
+      const threadId = typeof thread?.id === "string" ? thread.id : null;
       const instructionSources = result?.instructionSources;
       const activePermissionProfile = record(result?.activePermissionProfile);
       const sandbox = record(result?.sandbox);
       const runtimeWorkspaceRoots = result?.runtimeWorkspaceRoots;
-
-      if (
-        typeof thread?.id !== "string" ||
-        thread.ephemeral !== true ||
-        thread.path !== null ||
-        !Array.isArray(instructionSources) ||
-        instructionSources.length > 0 ||
-        activePermissionProfile?.id !== "ctn-session" ||
-        sandbox?.type !== "readOnly" ||
-        sandbox.networkAccess !== false ||
+      const isolationFailures = [
+        threadId === null ? "thread-id" : null,
+        thread?.ephemeral !== true ? "ephemeral" : null,
+        thread?.path !== null ? "persistence-path" : null,
+        !Array.isArray(instructionSources) || instructionSources.length > 0
+          ? "instruction-sources"
+          : null,
+        activePermissionProfile?.id !== "ctn-session"
+          ? "permission-profile"
+          : null,
+        sandbox?.type !== "readOnly" ? "filesystem-sandbox" : null,
+        sandbox?.networkAccess !== false ? "network-sandbox" : null,
+        // With environment access disabled, 0.148.0 reports no runtime roots.
+        // A sole session cwd is equally confined; every other root fails closed.
         !Array.isArray(runtimeWorkspaceRoots) ||
-        runtimeWorkspaceRoots.length !== 1 ||
-        runtimeWorkspaceRoots[0] !== temporary.cwd
-      ) {
+            runtimeWorkspaceRoots.length > 1 ||
+            runtimeWorkspaceRoots.some((root) => root !== temporary.cwd)
+          ? "workspace-roots"
+          : null,
+      ].filter((failure): failure is string => failure !== null);
+
+      if (threadId === null || isolationFailures.length > 0) {
         throw new AgentRuntimeProtocolError(
-          "Codex did not create an isolated ephemeral thread",
+          `Codex did not create an isolated ephemeral thread: ${
+            isolationFailures.join(", ")
+          }`,
         );
       }
       return new CodexRuntimeSession({
@@ -514,7 +525,7 @@ export class CodexRuntime implements AgentRuntimePort {
         cwd: temporary.cwd,
         directory: temporary.directory,
         profile: this.#profile,
-        threadId: thread.id,
+        threadId,
       });
     } catch (error) {
       child.kill("SIGTERM");
