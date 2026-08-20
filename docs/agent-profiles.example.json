@@ -1,0 +1,33 @@
+{
+  "absoluteTtlMilliseconds": 86400000,
+  "formatVersion": 1,
+  "idleTtlMilliseconds": 3600000,
+  "maxAuditEntries": 1000,
+  "profiles": [
+    {
+      "apiKeyEnv": "CTN_CODEX_API_KEY",
+      "id": "codex-owner",
+      "kind": "codex",
+      "label": "Codex",
+      "maxInputCharacters": 100000,
+      "maxOutputCharacters": 50000,
+      "maxResidentSessions": 2,
+      "model": "replace-with-codex-model-id",
+      "reasoningEffort": "high",
+      "timeoutMilliseconds": 120000
+    },
+    {
+      "apiKeyEnv": "CTN_OPENAI_CHAT_API_KEY",
+      "baseUrl": "https://example.invalid/v1",
+      "contextWindowTokens": 128000,
+      "id": "openai-compatible-owner",
+      "kind": "openai-chat",
+      "label": "OpenAI-compatible",
+      "maxOutputTokens": 8192,
+      "maxResidentSessions": 2,
+      "maxToolSteps": 16,
+      "model": "replace-with-chat-model-id",
+      "timeoutMilliseconds": 120000
+    }
+  ]
+}

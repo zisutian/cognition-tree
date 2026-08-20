@@ -10,6 +10,12 @@
 
 ## 2. Activity 布局
 
+Agent：
+
+    左侧只选择服务端 allowlist profile、不可扩大的硬范围和内存会话；不能输入 model、URL、secret 或权限覆盖。Workspace folder/note 细粒度范围只在对应仓库已加载时可选。
+    主区按事件 sequence 增量增长对话，显示 idle、queued、running、等待审批和 unavailable 状态；“取消并停止”会终止 runtime，之后必须新建会话；不显示 raw chain-of-thought。
+    右侧显示 proposal store、base revision、digest、change set 和最终聚合 diff，只提供整批批准/拒绝。destructive proposal 批准后显示独立 checkbox 与确认提交，不把确认混入第一步审批。
+
 笔记：
 
     上下文区显示目录；主区显示完整可编辑笔记；详情区显示统计、笔记时间、结构和当前块时间。
@@ -56,8 +62,8 @@
 其他：
 
     搜索左侧显示查询与领域、仓库、更新时间条件，右侧按资源分组显示结果；只在 Enter 或“搜索”按钮时提交条件。修改草稿条件后保留旧结果和滚动位置，加载更多继续使用上次已提交条件。
-    设置左侧提供“界面”和“API 访问”，主区分别显示工作台宽度或令牌与审计；不挂载详情和 Problems。令牌创建使用普通表单，每个领域只选一个权限级别，明文只显示一次。
-    顶层 Activity 仅保留笔记、日记、代办、语法、搜索、仓库和设置，不渲染 Data 占位入口。
+    设置左侧提供“界面”和“API 访问”，主区分别显示工作台宽度或只读 automation token 与 Agent operation audit；不挂载详情和 Problems。每个领域只能选“不授权/只读”，明文只显示一次。
+    顶层 Activity 仅保留 Agent、笔记、日记、代办、语法、搜索、仓库和设置，不渲染 Data 占位入口。
 
 
 ## 3. Problems
@@ -69,6 +75,7 @@ Problems 位于主工作区底部，但内容按 Activity 投影：
     Journal 显示自身正文、语法、仓内和跨仓引用诊断、日记运行故障及本 Activity 操作错误。
     Todo 显示自身语法与 CTN 诊断、代办运行故障及本 Activity 操作错误。
     Syntax 显示当前 owner 的 profile、对应内容诊断、对应运行故障及本 Activity 操作错误。
+    Agent 显示 profile、runtime、IPC、队列、event stream 和 commit 故障；有 session ID 时点击定位回对应会话。
     Settings 完全不渲染 Problems。
 
 Problems 常态高度为 24px，默认折叠；展开状态和高度按普通仓库保存。左侧固定显示标题和计数，右侧显示最新的五秒短暂反馈，随后恢复 Notes、Journal 或 Todo 的非稳定保存状态；稳定时为空，不显示“已保存”。右侧文本必须省略，不能挤压左侧计数。

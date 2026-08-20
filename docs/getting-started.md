@@ -37,6 +37,7 @@
     CTN_WEBDAV_PRIVATE_TARGETS   可选，允许的私网 origin/CIDR
     CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
     CTN_API_TOKEN                非 loopback 部署的 bearer token
+    CTN_AGENT_PROFILES_FILE      可选，严格 v1 Agent profile JSON 路径
 
 前端启动配置：
 
@@ -54,6 +55,23 @@
 HTTP(S) origin，不允许凭据、query 或 fragment。缺失或无效配置会阻止客户端
 启动。前端始终连接 Node 后端，不存在本地存储模式或后端不可用时的空仓库
 fallback。localStorage 只保存当前普通 repository id。
+
+Agent 配置示例见 `docs/agent-profiles.example.json`。复制后必须替换 model、
+OpenAI-compatible baseUrl，并在服务进程环境中设置各 profile 的 apiKeyEnv；UI
+不能覆盖这些字段。根对象只接受以下精确字段：
+
+    formatVersion              必须为 1
+    idleTtlMilliseconds         必须为 3600000
+    absoluteTtlMilliseconds     必须为 86400000
+    maxAuditEntries             正整数，operation ledger 最大条数
+    profiles                    profile 数组
+
+所有 profile 都必须显式提供 id、label、kind、model、apiKeyEnv、
+maxResidentSessions 和 timeoutMilliseconds。Codex 还需要 reasoningEffort、
+maxInputCharacters、maxOutputCharacters；OpenAI-compatible 还需 baseUrl、
+contextWindowTokens、maxOutputTokens、maxToolSteps。未知或缺失字段不会被忽略。根配置
+缺失/无效时只禁用 Agent；单个 profile 无效、ID 重复或缺少 API key 时只禁用该
+profile，应用不会自动 fallback。
 
 
 ## 3. 安全边界
@@ -80,73 +98,54 @@ link-local、metadata、unspecified、multicast、broadcast 和 reserved 地址�
 
 ## 4. API 与数据目录
 
-唯一 HTTP 契约是 /api/v2。入口由同一 registry 生成路由、严格 body
-解析、权限声明和 OpenAPI 3.1：
+唯一 HTTP 契约是 `/api/v3`。同一个 registry 组合并校验 operationId、method/path、
+严格 body/query schema、访问策略和 OpenAPI 3.1：
 
-    GET  /api/v2/health
-    GET  /api/v2/capabilities
-    GET  /api/v2/openapi.json
-    GET  /api/v2/events
-    POST /api/v2/search
+    GET  /api/v3/health
+    GET  /api/v3/capabilities
+    GET  /api/v3/openapi.json
 
-    GET  /api/v2/workspaces
-    GET  /api/v2/workspaces/<repository-id>/tree
-    GET  /api/v2/workspaces/<repository-id>/notes/<note-id>
-    POST /api/v2/workspaces/<repository-id>/commands
+    GET  /api/v3/content/events
+    POST /api/v3/content/search
+    GET  /api/v3/content/workspaces
+    GET  /api/v3/content/workspaces/<repository-id>/tree
+    GET  /api/v3/content/workspaces/<repository-id>/notes/<note-id>
+    GET  /api/v3/content/journal/entries
+    GET  /api/v3/content/journal/entries/<entry-id>
+    GET  /api/v3/content/todo/collections
+    GET  /api/v3/content/todo/collections/<collection-id>
 
-    GET  /api/v2/journal/entries
-    GET  /api/v2/journal/entries/<entry-id>
-    POST /api/v2/journal/commands
-    GET  /api/v2/todo/collections
-    GET  /api/v2/todo/collections/<collection-id>
-    POST /api/v2/todo/commands
+官方客户端 owner 独占完整 snapshot sync：
 
-官方客户端独占完整同步：
+    GET、PUT /api/v3/sync/workspaces/<repository-id>
+    GET、PUT /api/v3/sync/journal
+    GET、PUT /api/v3/sync/todo
 
-    GET、PUT /api/v2/sync/workspaces/<repository-id>
-    GET、PUT /api/v2/sync/journal
-    GET、PUT /api/v2/sync/todo
+Agent 会话同样只授权 owner：
 
-管理接口位于 /api/v2/admin/repositories、/api/v2/admin/tokens 和
-/api/v2/admin/audit。服务端只解析 registry 声明的当前 operation，不提供
-别名、版本协商或兼容开关。
+    GET       /api/v3/agent/status
+    GET、POST /api/v3/agent/sessions
+    GET、DELETE /api/v3/agent/sessions/<session-id>
+    POST      /api/v3/agent/sessions/<session-id>/messages
+    POST      /api/v3/agent/sessions/<session-id>/cancel
+    GET       /api/v3/agent/sessions/<session-id>/events?afterSequence=<n>
+    POST      /api/v3/agent/sessions/<session-id>/proposals/<proposal-id>/decision
+    POST      /api/v3/agent/sessions/<session-id>/proposals/<proposal-id>/destructive-confirmation
 
-自动化应使用设置页创建的高熵令牌，并调用资源查询和领域命令。令牌只能获得
-Workspace、Journal、Todo 的 read、write、delete scope；repository allowlist
-仅约束 Workspace。自动化令牌不能取得 sync、syntax:write、
-repository:admin 或 token:manage。delete 不包含在 write 中，删除命令还必须
-携带目标资源版本；命令中的显式 delete kind 表达业务语义，delete scope
-负责授权，UI 确认只属于交互层。wire command 不接受 `confirm`。
+管理接口位于 `/api/v3/admin/repositories`、`/api/v3/admin/built-ins`、
+`/api/v3/admin/automation-tokens` 和 `/api/v3/admin/agent-operations`，全部只授权
+owner。服务端不提供路径别名、版本协商、兼容开关或公开 command operation。
 
-每个命令使用严格 envelope：`command` 只表达业务意图，`preconditions` 按
-command kind 精确声明全部目标 SHA-256 资源版本。preview envelope 只包含
-`mode: "preview"`、`command` 和 `preconditions`，不接受 commandId、不写入、
-不审计也不产生幂等回执；commit envelope 额外必须包含 UUID commandId，并在
-一个 versioned store 内原子提交。旧的扁平命令请求不解析。
-相同 principal、commandId 和请求体在 30 天内返回原回执；相同 commandId 的
-不同请求返回 409 idempotency_conflict。同资源版本变化返回
-409 resource_conflict，不覆盖内容。
+认证 principal 是严格 union：loopback 无 token 请求映射为 local-owner；
+`CTN_API_TOKEN` 映射为 owner；设置页创建的 automation token 只能持有
+`workspace:read`、`journal:read`、`todo:read`，其中 Workspace 继续受 repository
+ID allowlist 限制。automation 不能取得 snapshot sync、Agent、仓库、token、
+write 或 delete 能力。Agent 的 session capability 只在服务端私有 IPC 中出现，
+浏览器和公共 token 无法取得。
 
-例如，OpenAPI 中 `executeJournalCommand` 的 preview 请求不含 commandId：
-
-    POST /api/v2/journal/commands
-    Authorization: Bearer <token>
-    Content-Type: application/json
-
-    {
-      "mode": "preview",
-      "command": {
-        "kind": "create-entry",
-        "body": "今天完成了严格分层审计。"
-      },
-      "preconditions": {
-        "expectedEntriesVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
-      }
-    }
-
-commit 使用同一个 command 与 preconditions，把 mode 改为 `commit` 并增加 UUID
-commandId；不能把 commandId 放进 preview，也不能省略对应 command kind 的版本
-前置条件。实际 revision 应取自当前资源查询，不使用示例中的零值。
+外部 automation 不再存在 preview、commit、commandId、resource precondition、
+write 或 delete 请求。内容写入只允许 owner 官方客户端 snapshot sync，以及 owner
+在 Agent Activity 中批准的 immutable proposal exact CAS。
 
 Todo 远程客户端真值表：
 
@@ -160,11 +159,16 @@ Todo 远程客户端真值表：
     recurrence.active == true 且 currentOccurrenceDate == null
         不猜测日期；刷新投影后再提交。
 
-GET /api/v2/events 使用 SSE。连接时先发送带进程级 streamId 的 revision
+GET `/api/v3/content/events` 使用 SSE。连接时先发送带进程级 streamId 的 revision
 checkpoint，随后只发送不含正文的 change set；sequence 只在同一 stream
 内比较。客户端看到新 stream 的 checkpoint 时重置去重状态并重新比较资源。
 SSE 只是失效通知，资源查询和同步 snapshot 始终是真相；checkpoint 由轻量
 revision tracker 提供，不扫描仓库正文。
+
+Agent session SSE 使用另一套会话内单调 sequence。消息请求返回 202，浏览器按
+sequence 增量增长 assistant message；刷新后用当前 session snapshot 和
+`afterSequence` 重连。发现事件缺口或 cursor 不可恢复时重新读取 snapshot，不把
+SSE 历史当作真值。
 
 Local 普通仓库：
 
@@ -196,23 +200,54 @@ WebDAV 连接配置保存在：
 
     <CTN_SERVER_STATE_DIR>/webdav-connections/<repository-id>.json
 
-API 状态分区保存在：
+新服务状态分区保存在：
 
-    <CTN_SERVER_STATE_DIR>/api-v1/tokens.json
-    <CTN_SERVER_STATE_DIR>/api-v1/receipts.json
-    <CTN_SERVER_STATE_DIR>/api-v1/audit.json
+    <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
+    <CTN_SERVER_STATE_DIR>/agent-v1/operations.json
 
-`api-v1` 在这里仅是已经发布的磁盘目录名，不是 HTTP namespace。v2 继续原位
-读取这些文件，避免迁移或遗失既有 token、audit 和 receipt；旧请求产生的
-commandId 被 v2 envelope 复用时，因为请求摘要不同而返回
-`409 idempotency_conflict`。
+automation secret 只在创建响应显示一次，磁盘只保存 SHA-256 哈希、只读 scopes、
+Workspace allowlist 与使用时间。Agent ledger 以 proposal UUID + version + digest
+幂等，只记录 owner、session/profile/runtime、store、before/after revision、变更
+资源/块 ID、结果和时间；不记录提示词、模型回复、正文、完整 diff 或 tool
+output。条目超过 maxAuditEntries 时裁剪最旧记录。
 
-三个文件分别只保存令牌 SHA-256 哈希与授权、无正文幂等回执和分页审计。
-创建响应中的 secret 不落盘；单个分区损坏不会阻断其它分区，token
-lastUsedAt 最多每分钟落盘一次。服务端不读取或转换其它状态格式。
+旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 完全不读取、不迁移、不暴露；没有兼容 decoder。
+文件原样保留供人工备份，新服务不会主动删除。既有 automation token 因而全部
+失效，必须在 v3 Settings 中重新创建只读 token；旧 receipt/audit 不再显示。
 
 内置数据目录与服务状态目录权限为 0700，含凭据或内容的文件权限为
 0600。密码不进入 API 响应、日志、普通仓库内容或前端 cache。
+
+v3 是破坏性切换：所有 `/api/v2` 请求返回 404；旧浏览器构建与新 Server 不兼容，
+必须同时部署。外部 automation 的写入、删除、preview/commit 全部失效且没有外部
+替代写接口。旧 command executor、DTO、operationId 和 schema 的源码导出也已删除，
+依赖它们的内部或外部代码必须直接迁移，不提供 re-export。Workspace、Journal、
+Todo 内容 schema 与持久布局不变，不迁移内容。
+
+### Agent 运行与资源
+
+Codex profile 使用精确锁定的 `@openai/codex@0.148.0` app-server，而不是默认
+持久化 thread SDK 路径。每条 session 对应独立常驻子进程、空临时 cwd 和隔离
+HOME/CODEX_HOME；thread 必须返回 `ephemeral: true`、无 instruction source、只读
+sandbox、network disabled，否则该 profile fail closed。它不读取个人 `.codex`、
+AGENTS、skills、hooks、plugins、sessions 或 MCP。参见
+[Codex app-server](https://developers.openai.com/codex/app-server) 与
+[Codex MCP](https://developers.openai.com/codex/mcp)。
+
+Codex 的 session-private STDIO MCP 只暴露 scope 内 list/read/search、
+stage_workspace_command、stage_journal_command、stage_todo_command 和
+submit_proposal。MCP 不导入 repository/store，只携带短期 capability 连接父服务
+私有 Unix socket 或 Windows named pipe。项目不提供外部 MCP listener。Codex API
+key 只进入 app-server 环境，不进入 shell 或 MCP command 环境。
+
+OpenAI-compatible profile 直接调用 `<baseUrl>/chat/completions` SSE，并复用同一
+tool schema；它受 context、output、tool-step 和 timeout 限制。每个 profile 同时
+只运行一个推理，其余 turn FIFO；每个 session 只允许一个 active turn。达到
+maxResidentSessions 时拒绝新会话，不驱逐有效会话。Agent 对话与压缩摘要只在内存
+中保存；服务重启、1 小时 idle TTL、24 小时 absolute TTL 或 session 删除会丢失。
+`/cancel` 中断当前 turn、撤销 capability、停止 runtime 并将 session 置为
+unavailable，之后必须新建会话；session 删除或到期也会停止 Codex 子进程，并安全
+清理仅由该 session 创建的临时目录。
 
 
 ## 5. Repository 行为
@@ -263,8 +298,12 @@ pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、
 未来容器路径约定：
 
     /data/repositories  -> CTN_REPOSITORY_ROOT（普通仓库与内置数据）
-    /data/server        -> CTN_SERVER_STATE_DIR（WebDAV 连接状态）
+    /data/server        -> CTN_SERVER_STATE_DIR（WebDAV、access-v1、agent-v1）
 
 Local 仓库必须整体挂载，包含根部 .ctn/。当前项目不提供 Dockerfile、镜像或 Compose。
+自行容器化时还必须提供可用的进程 sandbox、可写且受边界约束的临时目录、
+Codex 子进程与私有 IPC，并通过服务端 secret 注入 profile API key。此次 v3/Codex
+依赖改变了进程与镜像内容，升级不能只重启旧容器：必须重新构建镜像并 recreate
+容器，同时部署匹配的客户端构建。
 
 Linux 是主要开发与后端环境。Windows 可通过浏览器访问同一后端检查界面、输入法、路径和数据互通；项目目录建议使用普通英文路径，源码与数据文件使用 LF。

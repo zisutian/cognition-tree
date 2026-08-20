@@ -53,6 +53,26 @@ function profileFile(profiles: unknown[]) {
 }
 
 describe("Agent profile catalog", () => {
+  it("keeps the documented profile example aligned with the strict decoder", async () => {
+    const catalog = await loadAgentProfileCatalog(
+      path.resolve("docs/agent-profiles.example.json"),
+      {
+        CTN_CODEX_API_KEY: "codex-secret",
+        CTN_OPENAI_CHAT_API_KEY: "chat-secret",
+      },
+    );
+
+    expect(catalog.configurationProblem).toBeNull();
+    expect(catalog.maxAuditEntries).toBe(1_000);
+    expect(catalog.profiles.map(({ availability, kind }) => ({
+      availability,
+      kind,
+    }))).toEqual([
+      { availability: "available", kind: "codex" },
+      { availability: "available", kind: "openai-chat" },
+    ]);
+  });
+
   it("isolates an invalid profile without disabling valid profiles", async () => {
     await withProfileFile(profileFile([
       openAiProfile("valid"),

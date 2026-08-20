@@ -18,7 +18,8 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
 - 系统语法（日记、代办）与笔记库多语法配置；普通语法的“打开编辑”和“实际启用”相互独立。
 - 页面生命周期内的乐观编辑、内存待同步队列、CAS 同步与显式冲突处理。
 - Todo 支持按天、周、月的本地日历周期、规则阶段和不丢失的完成统计；规则在结构行内配置。
-- 提供 `/api/v2` 的资源查询、严格领域命令、搜索、SSE 失效通知和官方客户端同步；自动化令牌不能读取整仓同步内容，也不能修改语法或仓库管理状态。
+- 提供唯一 `/api/v3` 契约：自动化只读内容/搜索/SSE，官方客户端 owner-only snapshot sync，以及 owner-only Agent 会话、proposal 审批与审计；不存在公开写 command API。
+- 固定 Agent Activity 支持 allowlist Codex app-server 与 OpenAI-compatible profile。模型只能在会话硬范围内读取和暂存，owner 审查聚合 diff 后才以 exact CAS 写入；删除还需要独立二次确认。
 - 按 Activity 投影 diagnostics、运行故障和操作错误；短暂反馈与非稳定保存状态统一进入底栏，设置页不挂载问题面板。
 
 没有健康普通仓库时仍挂载完整工作台：日记、代办、仓库和设置保持可用，普通内容活动提供创建仓库入口。
@@ -60,6 +61,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
     CTN_WEBDAV_PRIVATE_TARGETS=
     CTN_PUBLIC_URL=
     CTN_API_TOKEN=
+    CTN_AGENT_PROFILES_FILE=
 
 前端在页面启动时读取 `public/cognition-tree.config.json`；生产部署对应
 `.artifacts/build/client/cognition-tree.config.json`：
@@ -95,7 +97,15 @@ contract、session 和 API：
     <CTN_REPOSITORY_ROOT>/.built-ins/todo/
 
 `.built-ins/` 是受保护的基础设施目录，不会被 Local catalog 识别为普通
-Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、API 令牌哈希、30 天幂等回执和脱敏审计；令牌明文只在创建时显示一次。
+Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、只读 automation token
+哈希，以及不含提示词、正文、完整 diff 或 tool output 的 Agent operation
+ledger；令牌明文只在创建时显示一次。
+
+Agent profile 必须通过 `CTN_AGENT_PROFILES_FILE` 显式配置。文件缺失时只禁用
+Agent，不影响内容应用；每个 profile 的 API key 只从其声明的服务端环境变量
+读取。Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
+ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。Agent 对话只在
+服务内存中驻留，重启、TTL 到期或回收会丢失。
 
 前端不持久化 Workspace、Journal、Todo、草稿、同步队列或冲突。它只在内存中
 保留当前页面会话的乐观状态，并用 `localStorage` 保存当前普通仓库 ID；刷新或
@@ -105,16 +115,16 @@ Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、API 令牌哈希、30 
 ## 源码层次
 
     core/             CTN、命名以及互不依赖的 Workspace、Journal、Todo 纯领域
-    application/      用例、端口、通用 versioned session、Workbench 协调和问题投影
+    application/      用例、端口、versioned session，以及 Workbench/Agent 两个协调根
     infrastructure/   client memory/HTTP adapter、versioned persistence 与 Node server
     presentation/     React shell、Activities、CodeMirror 和共享 UI
-    contracts/        API registry、Workspace、Journal、Todo 与 built-ins wire contract
+    contracts/        API registry、Agent、Workspace、Journal、Todo 与 built-ins wire contract
     tooling/          构建、Git、基准脚本与专用 TypeScript 配置
     docs/             产品、架构、工程、环境与界面约定
     tests/            单元、UI、contract 与架构测试
     e2e/              浏览器流程测试
 
-`application/persistence/VersionedSessionController` 统一三个领域的页面内乐观状态、CAS、冲突、重载、丢弃和删除前冻结语义；各领域 controller 只保留自己的校验、投影和命令。`application/workbench/WorkbenchController` 组合普通仓库 catalog、Workspace slot、两个内置 slot 与跨仓导航，不直接实现各 session 生命周期。`AppRoot` 只创建 runtime、订阅 controller 并维护当前 Activity；领域投影位于 presentation bindings。client HTTP 与 Server 文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
+`application/persistence/VersionedSessionController` 统一三个领域的页面内乐观状态、CAS、冲突、重载、丢弃和删除前冻结语义；各领域 controller 只保留自己的校验、投影和命令。`application/workbench/WorkbenchController` 组合普通仓库 catalog、Workspace slot、两个内置 slot 与跨仓导航；`application/agent` 独立拥有硬范围、会话、staging、proposal 与审批状态机，两个协调根互不导入。`AppRoot` 只在 presentation 组合并订阅两套 runtime。client HTTP 与 Server 文件系统实现只存在于 infrastructure，wire 解析只存在于 contracts。
 
 构建、测试和工具缓存统一写入可删除的 `.artifacts/`：客户端和服务端位于
 `build/client` 与 `build/server`，客户端启动配置作为独立 JSON 文件复制到

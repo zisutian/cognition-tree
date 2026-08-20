@@ -18,13 +18,14 @@ core/
 
 application/
 
-    框架无关的用例、端口、session controller、read model、问题投影、Workbench coordinator 和 feedback controller。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController；跨领域流程只能由 application/workbench 协调。
+    框架无关的用例、端口、session controller、read model 和问题投影。application/persistence 持有通用 VersionedRepository、保存队列和 VersionedSessionController。跨领域协调只允许两个显式且互不导入的根：application/workbench 拥有工作台、跨仓导航和搜索组合；application/agent 拥有硬范围、runtime port、staging、proposal、审批状态机与 exact commit 用例。
 
 infrastructure/
 
-    client 侧内存 cache、HTTP/SSE 适配、Node server、Local 和 WebDAV
-    adapter。CAS 与保存队列策略属于 application/persistence，平台层只实现
-    端口；client 不直接导入 Server 存储 adapter。浏览器启动时只从独立的
+    client 侧内存 cache、HTTP/SSE 适配、Node server、Local/WebDAV adapter，
+    以及 Agent profile、模型 adapter、Codex 子进程、私有 IPC、内存会话和
+    operation ledger。CAS 与保存队列策略属于 application，平台层只实现端口；
+    client 不直接导入 Server 存储 adapter。浏览器启动时只从独立的
     cognition-tree.config.json 取得 API origin 与可选 token，构建产物不嵌入
     部署地址。
 
@@ -36,9 +37,10 @@ contracts/
 
     前后端中立的 wire 类型和运行时解析。contracts/api registry 是 HTTP
     路径、方法、body schema、operationId 与 scope 的唯一 owner；领域
-    contract 仍按 common、workspace、journal、todo、built-ins 分开。API
-    TypeBox schema 按 foundation、transitions、resources、commands、search、
-    events、admin 和 storage 分区，不存在第二个单体 schema catalog。
+    contract 仍按 common、agent、workspace、journal、todo、built-ins 分开。
+    contracts/agent 独占 Agent tool、scope、session、proposal、event 与 IPC wire
+    schema，但不承载 mutation；API operation catalog 按 foundation、content、
+    sync、agent、admin 分区，不存在第二个单体 schema catalog。
 
 tooling 不属于运行时源码层，只持有工程脚本和专用配置。tests 与 e2e 验证边界，
 但生产层不得反向依赖它们。可重建产物只写入 .artifacts。
@@ -55,6 +57,7 @@ tooling 不属于运行时源码层，只持有工程脚本和专用配置。tes
 补充约束：
 
     presentation/activities 不依赖 presentation/shell。
+    application/workbench 与 application/agent 互不导入；领域不得依赖 Agent。
     infrastructure/client 内部依赖方向固定为：platform 只依赖 platform；repository
     只依赖 repository；http 可依赖 http 与 repository；runtime 作为组合根可依赖
     runtime、http、platform 与 repository。
@@ -125,6 +128,14 @@ Journal/Todo 的 synthetic title 仍参与 canonical 解析，但 presentation �
     以增量准备 after projection，但该预读结果不是 authoritative before；若其后 CAS
     发生变化，store 必须拒绝事务，调用方重新加载和准备。
 
+Agent preparation 不建立第二套领域 transition。Workspace、Journal、Todo 各自
+公开 `prepareAgentCommand(snapshot, intent)`，只计算 staged after 和 projection，
+不访问 store。第一条 intent 固定一个 versioned store 与 base snapshot，后续 intent
+只消费前一 staged snapshot；最终 change set 和 diff 只比较原始 base 与最终
+staged content。`commitAgentProposalExactly` 只接收已批准 proposal 内冻结的
+`{ baseRevision, content, projection }` 并执行一次 CAS，禁止重新加载、重算、
+自动重试或路径级 rebase。
+
 领域命令通过 VersionedSessionController 唯一的 mutate 接口返回
 `{ content, projection }`；增量 index 必须原样进入保存队列和 stageSnapshot。
 query、search、resource projection 与 change projection 消费 store/session 已准备的
@@ -151,19 +162,28 @@ versioned store、session 和 API，也不获得普通仓库的创建、删除�
 恢复未同步状态。localStorage 只保存当前普通仓库 ID。旧 IndexedDB 不属于
 运行时输入，不读取、不迁移也不清理。
 
-唯一 HTTP 契约为 /api/v2。资源查询和 command 是自动化边界；完整
-Workspace/Journal/Todo snapshot 只存在于带 sync scope 的官方客户端路径。
-自动化 principal 永远不能获得 sync、syntax:write、repository:admin 或
-token:manage，因而不能绕过领域命令修改 canonical metadata、语法、仓库连接
-或仓库管理状态。HTTP 只暴露 registry 中声明的当前 `/api/v2` operation。
+唯一 HTTP 契约为 `/api/v3`。contracts/api 的唯一 registry composition root
+组合并校验 foundation、content、sync、agent、admin operation catalog 的
+operationId、method/path 与访问策略。`/api/v2`、公开 command endpoint、command
+envelope、preview/commit mode、resource precondition、公开 commandId 和兼容
+parser 都不存在。
 
-所有命令使用严格 envelope discriminated union。`command` 只拥有业务意图，
-`preconditions` 按 command kind 拥有全部目标资源版本；preview 不接受
-commandId，commit 必须携带 UUID commandId。delete command 不含交互确认字段，
-删除语义、delete scope 和 UI 确认分别属于 core、HTTP 授权和 presentation。
-领域执行器是内容修改的唯一 owner；HTTP handler、SSE、search、audit 和
-presentation 不重建变化。命令执行器或官方同步前后比较只生成一次
-DomainChangeSet，供响应、事件、缓存失效和审计共享。
+API principal 是严格 union，不共享“全部 scopes”：
+
+    local-owner、owner：按 operation 的 owner policy 授权，不构造 scopes。
+    automation：只能持有 workspace:read、journal:read、todo:read；Workspace
+    继续受 repository ID allowlist 限制。
+    agent-session capability：只存在于服务端私有 IPC，不属于 HTTP principal。
+
+每个 operation 只声明 public、owner 或 owner-or-automation-read(domain)。完整
+Workspace/Journal/Todo snapshot sync、Agent 会话/审批、repository、token 和 audit
+管理只属于 owner。automation 只能调用 `/api/v3/content/*` 的只读资源、搜索与
+无正文 change event，不能取得 sync、write、delete、Agent 或管理能力。
+
+内容写入只有两个入口：owner 官方客户端 sync 与已批准 Agent proposal 的 exact
+CAS。领域 transition、preparation 和 change projection 仍是内容语义的唯一 owner；
+HTTP handler、runtime、MCP、SSE、audit 和 presentation 不重建领域命令或变化。
+官方 sync 和 Agent commit 都只生成一次 DomainChangeSet，供事件和失效刷新消费。
 
 资源版本是内容 SHA-256；canonical block metadata 是 block createdAt/updatedAt
 的唯一来源。Todo 正文、位置、completion 与 recurrence 语义变化都更新目标
@@ -179,11 +199,25 @@ recurrence 为单元执行三方合并。不同单元自动 rebase；同一单�
 内部有序，进程重启产生的新 stream 会使客户端重置去重状态。轻量 revision
 tracker 维护 checkpoint，建立连接不会扫描仓库正文。
 
-API 状态由 token、无正文幂等回执和分页 audit 三个 owner 分区持久化。它们
-使用同一单写者队列和原子替换，目录权限为 0700、文件权限为 0600；单个分区
-损坏只使该能力 fail closed，不阻断其它认证和内容领域。token `lastUsedAt`
-最多每分钟落盘一次。磁盘目录名 `api-v1` 是保留的数据布局，不随 HTTP v2
-改名或迁移；v2 继续使用既有 token、audit 和 receipt 文件。
+`/api/v3/agent/sessions/{sessionId}/events` 是另一条会话专属 SSE：message delta、
+proposal、problem、turn completion 与必要的 snapshot 使用单调 sequence。浏览器
+只增量应用连续事件；发现缺口、越界 cursor 或刷新重连时重新读取
+AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
+
+服务状态有两个独立 epoch owner：
+
+    <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
+    <CTN_SERVER_STATE_DIR>/agent-v1/operations.json
+
+前者只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
+后者用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
+session/profile/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
+operation ledger 不保存提示词、模型回复、正文、完整 diff 或 tool output，超过
+profile 文件必填的 maxAuditEntries 后裁剪最旧记录。
+
+旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
+decoder；文件原样保留供人工备份，新服务不会主动删除。状态目录权限为 0700、
+文件权限为 0600；一个新分区损坏只使该能力 fail closed，不阻断内容领域。
 
 Todo 查询中 recurrence 非 null 只表示存在周期历史，只有 active 才表示当前
 周期。inactive recurrence 保留 completedCount/totalCount，但完成状态与写入按
@@ -213,6 +247,19 @@ session slot、Journal/Todo built-in slot、SearchIndex、引用解析与跨仓�
     把三领域 ContentDestination 映射到 Activity、资源和稳定 block ID；目标块
     已消失时只在该边界回退到资源首行并报告结果过期。
 
+application/agent 独立提供 AgentRuntimePort、AgentSessionController、scope policy、
+staging 与 proposal state machine。它只依赖三个领域公开的 Agent preparation 入口
+和通用 persistence 端口，不依赖 contracts、infrastructure、presentation 或
+application/workbench。浏览器的 AgentClientController 只消费 wire-neutral port；
+发送、批准和 destructive confirmation 前所需的已加载 draft 同步由 AppRoot 在
+presentation composition root 注入，避免任一应用协调根反向调用另一个。
+
+一份 proposal 只允许一个 Workspace repository、Journal store 或 Todo store；跨
+store 意图必须顺序生成多份 proposal。proposal 是带 UUID、version、SHA-256
+digest、base revision、change set、最终 diff 与 destructive 标记的只读值，只能
+整批批准或拒绝。任意 store revision 变化使其 stale；删除批准后必须再经过独立
+destructive confirmation。
+
 application/search/SearchIndex 是三领域资源投影、Unicode 归一化、grapheme
 源码偏移、片段、过滤、排序、fault 与 cursor 的唯一 owner。过滤在命中折叠前
 执行；缓存按来源 revision 和 corpus key 失效，查询 LRU 有界。presentation
@@ -230,20 +277,44 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 
     client/platform 只拥有 UUID、时间、调度和当前仓库 localStorage 偏好；
     client/repository 拥有内存 catalog/content cache、revision 与 resilient
-    repository；client/http 只实现 /api/v2 transport；client/runtime 只负责把
+    repository；client/http 只实现 /api/v3 transport 与两类 SSE；client/runtime 只负责把
     这些实现注入 application 端口。源码中不存在 IndexedDB 或存储模式分支。
     server/persistence 统一 durable replace、目录 fsync、临时文件清理和安全文件检查。
     Local adapter 分为 layout、codec、canonical projection、物理扫描与身份匹配、managed-data guard，以及 WAL state、planner、manifest、executor、recovery 和 commit coordinator。state 只捕获/比较工作树并检查待删目录；executor 只应用与回滚已验证 payload；recovery 只解释启动时 WAL；workingTreeTransaction 只组织 staging、阶段回调和 repository.json 提交点。
     WebDAV adapter 分为连接 config codec、配置持久化、registry facade、registry lease、删除协调器、generation store、transport 和 writer lease。registry lease 独占安全目录与进程锁；删除协调器独占 deleting issue、远端清理、配置提交与退避重试。
-    API server 的 api/http 拥有 request lifecycle、认证、限制和分派；
-    api/commands、api/resources、api/sync、api/state 分别拥有领域命令适配、
-    资源投影、事件同步与令牌/幂等/审计状态，search 保持独立查询入口。
+    API server 的 api/http 拥有 request lifecycle、认证、限制和 registry 分派；
+    api/resources、api/sync 分别拥有只读资源投影与 owner snapshot 同步，search
+    保持独立查询入口。server/access 只拥有 automation token；server/agent 拥有
+    store 组合、runtime adapter、私有 IPC、内存会话和 operation ledger，不重写
+    领域 command。
     repository/built-ins、repository/versioned、repository/workspace 分别拥有
     系统内容、通用版本存储和 Workspace 持久布局。只有 contracts/api registry
-    定义 HTTP wire，只有领域执行器修改内容。
+    定义 HTTP wire，只有 owner sync 与 Agent exact commit 可以写内容。
 
 这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或仓库内容
 schema。
+
+Agent profile 文件是严格 versioned 服务端配置。根配置固定 1 小时 idle TTL、
+24 小时 absolute TTL 和必填 maxAuditEntries；每个 profile 必须显式声明
+maxResidentSessions、model、API-key 环境变量、timeout 与 tool/request limit。
+缺少文件只禁用 Agent；单个 profile 无效或缺少 secret 只禁用该 profile，不回退
+到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
+只有一个 active turn，达到 resident 上限时拒绝新会话而不驱逐有效会话。
+
+Codex adapter 精确锁定 `@openai/codex@0.148.0`，每条会话启动独立常驻
+app-server。它使用空临时 cwd、隔离 HOME/CODEX_HOME、`ephemeral: true`、只读
+filesystem、network disabled、approval never，并验证 instructionSources 为空；不
+读取个人 `.codex`、AGENTS、skills、hooks、plugins、sessions 或 MCP。进程环境是
+allowlist，API key 不进入 shell/MCP environment。缺少 sandbox、binary/version
+不匹配或协议结果不满足这些断言时 profile fail closed。会话结束、过期或取消后
+撤销 capability、停止进程，并只清理服务为该 session 建立的临时目录。
+
+Codex 的会话专属 STDIO MCP 只定义 scope 内 list/read/search、三个
+stage_*_command 和 submit_proposal。MCP 进程不导入 repository/store，只通过
+Unix domain socket 或 Windows named pipe 连接父服务私有 IPC，并携带单会话短期
+capability。OpenAI-compatible adapter 直接消费同一 contracts/agent tool schema，
+使用 `/chat/completions` SSE、串行 tool call、context/output/tool-step limit 与
+timeout，不建立公开 MCP。项目不监听外部 MCP endpoint。
 
 
 ## 9. Presentation 与 Problems
@@ -251,7 +322,7 @@ schema。
 AppRoot 只创建 runtime/controller、订阅快照并维护当前 Activity。领域 session
 到 view application 的组合位于 presentation/shell/application；Activity
 descriptor catalog 是 ID、标签、图标、分组、可用条件与懒加载元数据的唯一
-owner。顶层主入口固定为笔记、日记、代办、语法、搜索，管理入口固定为仓库、
+owner。顶层主入口固定为 Agent、笔记、日记、代办、语法、搜索，管理入口固定为仓库、
 设置。
 
 每个 Activity 采用纵向切片：controller、context、view、局部 hook 和样式位于
@@ -270,6 +341,12 @@ Journal 左侧为不可编辑的“年 → 月 → 条目”树。年、月和�
 
 Todo 使用“集合列表 → CTN 编辑器 → 结构详情”。集合排序复用 presentation 的共享列表拖拽几何和落点样式；详情复用共享结构树的行、缩进、选中、诊断和行号视觉，以 checkbox 执行任务状态变更，不暴露任务拖动。只有选中的任务行显示周期图标；配置表单原地展开，编辑器只显示不可交互的周期标记。
 
+Agent 使用“profile/scope/session → 增量对话 → proposal diff/审批”三栏布局。UI
+只能选择服务端 allowlist profile，不提交 URL、model、凭据或安全覆盖；不显示 raw
+chain-of-thought。发送、批准与 destructive confirmation 前先同步范围对应的已加载
+session，失败即阻止 HTTP 操作。Agent event sequence 缺口通过重读 session snapshot
+恢复；message delta 直接增长现有 DOM，而不是等待 turn 完成后一次替换。
+
 Problems 所有权：
 
     普通活动 -> Workspace diagnostics、普通仓库运行故障、来源 Activity 操作错误
@@ -277,6 +354,7 @@ Problems 所有权：
     Journal -> Journal 文档、语法、仓内与跨仓引用、Journal 运行故障、来源 Activity 操作错误
     Todo -> Todo 语法与 CTN、Todo 运行故障、来源 Activity 操作错误
     Syntax -> 当前 owner profile，并附加该 owner 内容诊断、运行故障和来源 Activity 操作错误
+    Agent -> profile、runtime、IPC、队列、event stream 和 commit 故障，可定位会话
     Settings -> 不挂载
 
 application/workbench 的 WorkbenchFeedbackController 提供 subscribe、getSnapshot、reportInfo、reportError、dismiss，以及作用域清理和生命周期释放，不依赖 React。Presentation binding 在操作开始时捕获 ActivityId；异步完成后仍写回原 Activity。相同 Activity 与消息的错误合并，每个 Activity 最多保留 20 条，页面刷新后清空。

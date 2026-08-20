@@ -109,7 +109,7 @@ conflict 和 sync-error 必须显式显示；远端冲突不能覆盖本地 pend
 
 ## 7. Activities 与 Problems
 
-ActivityBar 主区固定为“笔记、日记、代办、语法、搜索”，底部固定为“仓库、设置”。Activity 的 ID、名称、图标、分组、懒加载入口和可用条件由同一 descriptor catalog 声明。
+ActivityBar 主区固定为“Agent、笔记、日记、代办、语法、搜索”，底部固定为“仓库、设置”。Activity 的 ID、名称、图标、分组、懒加载入口和可用条件由同一 descriptor catalog 声明。Agent 不依赖健康普通仓库，profile 不可用时仍显示原因。
 
 笔记内部提供“编辑、结构、图谱”三个模式。结构模式复用结构操作能力，图谱模式复用引用图谱能力；两者不再拥有独立顶层 Activity。模式按普通仓库保留，往返切换不改变当前笔记或编辑历史。
 
@@ -120,6 +120,7 @@ Problems 按 Activity 投影：
     Journal：正文、系统语法、仓内引用、跨普通仓库引用诊断、日记运行故障和来源 Activity 操作错误。
     Todo：系统语法、CTN、缺少任务标记诊断、代办运行故障和来源 Activity 操作错误。
     Syntax：当前编辑 owner 的 profile 诊断，并附加该 owner 的内容诊断、运行故障和来源 Activity 操作错误。
+    Agent：profile、模型、IPC、事件流、队列和 commit 故障；问题可定位回对应会话。
     Settings：完全不挂载 Problems。
 
 问题行只定位内容、来源 Activity 或仓库详情，不执行破坏性操作；操作错误可独立关闭。保存成功不显示“已保存”，非稳定保存状态和五秒短暂反馈只显示在 24px 底栏右侧，不使用标题文字或通知浮层。
@@ -127,8 +128,39 @@ Problems 按 Activity 投影：
 Notes、Journal、Todo、Syntax 和 Repository 的行操作只在选中项显示，固定使用“开/用、改、删”的顺序。重命名、删除和仓库危险操作都原地确认；切换选择取消未提交状态，不使用确认弹窗。Todo 详情树使用统一选中态、诊断和完成划线表达状态。
 
 
-## 8. 当前边界
+## 8. Agent
+
+Agent Activity 是 owner 控制的内容修改入口。左侧选择服务端 allowlist profile、
+不可扩大的硬范围和驻留会话；中间显示增量对话与取消；右侧显示单 store
+proposal 的 base revision、digest、change set、最终聚合 diff 与整批审批。界面
+不展示 raw chain-of-thought，也不允许提交 model、URL、凭据或安全参数。
+
+会话创建时只能选择一种领域范围：
+
+    Workspace：repository、稳定 folder ID 及其后代，或精确 note ID。
+    Journal：全域或一组精确 entry ID。
+    Todo：全域或一组精确 collection ID。
+
+范围之后不可扩大。folder 后代按稳定 ID 解析；范围根被删除后会话变为
+unavailable。发送、批准和 destructive confirmation 前，客户端必须先把该范围
+对应的已加载 draft 同步到 Server；offline、conflict、校验或同步失败会阻止
+Agent 操作。
+
+模型 tool input 只表达业务 intent。第一次 stage 固定 store 与 base snapshot，
+后续 intent 顺序应用于 staged snapshot；proposal 的 change set 与 diff 只从原始
+base 和最终 staged content 计算一次。proposal 只读、只属于一个 Workspace
+repository、Journal 或 Todo store，只能整批批准或拒绝；包含删除时，批准后还需
+独立二次确认。任意 revision 变化都使 exact CAS stale，不自动 retry、merge 或
+rebase。跨 store 任务必须按顺序生成多份 proposal。
+
+Agent 对话、压缩摘要和会话只驻留服务内存。服务重启、1 小时 idle TTL、24 小时
+absolute TTL 或主动删除都会丢失会话。operation ledger 只记录 owner、session、
+profile/runtime、store、revision、变更资源/块 ID、结果与时间，不记录提示词、
+模型回复、正文、完整 diff 或 tool output。
+
+
+## 9. 当前边界
 
 搜索覆盖所有普通仓库、日记和代办，按领域、仓库和更新时间筛选；结果以稳定资源与块身份导航。单个来源故障不阻断其他来源，分页游标失效时要求使用当前条件重新搜索。
 
-Todo 不包含截止日期、优先级、备注、筛选或跨集合任务移动。Journal 跨仓引用不进入普通仓库引用图谱。远程客户端统一使用 /api/v2 资源查询和领域命令；本项目不再提供专用手机契约，完整同步只授权官方客户端。当前项目不提供 Dockerfile、镜像或 Compose；只保留未来容器路径约定。
+Todo 不包含截止日期、优先级、备注、筛选或跨集合任务移动。Journal 跨仓引用不进入普通仓库引用图谱。唯一 HTTP 契约是 `/api/v3`；外部 automation 只有 Workspace、Journal、Todo 只读能力，没有 command、preview、commit、write 或 delete 接口。完整 snapshot sync、Agent、仓库与 token 管理只授权 owner。本项目不提供外部 MCP、专用手机契约、Dockerfile、镜像或 Compose；只保留未来容器路径约定。
