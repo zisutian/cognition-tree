@@ -17,7 +17,7 @@ test.describe("settings activity flows", () => {
     await seedWorkbenchRepository(api, syntaxRepositoryId);
   });
 
-  test("shows a new API token only once and retains only its prefix", async ({
+  test("creates only read-scoped tokens and retains only the prefix", async ({
     page,
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
@@ -28,11 +28,11 @@ test.describe("settings activity flows", () => {
     await expect(panel).toBeVisible();
     await panel.getByRole("textbox", { name: "名称" }).fill("E2E AI");
     await panel.getByRole("combobox", { name: "Workspace 权限" })
-      .selectOption("delete");
+      .selectOption("read");
     await panel.getByRole("combobox", { name: "日记权限" })
       .selectOption("none");
     await panel.getByRole("combobox", { name: "代办权限" })
-      .selectOption("write");
+      .selectOption("read");
     await panel.getByRole("combobox", { name: "仓库范围" })
       .selectOption("selected");
     await panel.getByRole("listbox", {
@@ -53,8 +53,8 @@ test.describe("settings activity flows", () => {
 
     await expect(tokenRow).toBeVisible();
     await expect(tokenRow).not.toContainText(secret);
-    await expect(tokenRow).toContainText("Workspace 读写删除");
-    await expect(tokenRow).toContainText("代办 读写");
+    await expect(tokenRow).toContainText("Workspace 只读");
+    await expect(tokenRow).toContainText("代办 只读");
     await expect(tokenRow).not.toContainText("日记 ");
     await expect(tokenRow).toContainText("浏览器回归仓库");
     await page.reload();

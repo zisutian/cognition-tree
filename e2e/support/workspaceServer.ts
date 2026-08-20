@@ -21,10 +21,21 @@ import {
 import { WebDavConnectionRegistry } from "../../infrastructure/server/adapters/webdav/webDavConnectionRegistry.ts";
 import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
+import { AgentOperationLedger } from "../../infrastructure/server/agent/operationLedger.ts";
+import { AgentService } from "../../infrastructure/server/agent/service.ts";
+import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
+import { ApiRevisionTracker } from "../../infrastructure/server/api/sync/revisionTracker.ts";
+import { ApiSearchService } from "../../infrastructure/server/api/search.ts";
+import { systemApiRuntime } from "../../infrastructure/server/api/http/runtime.ts";
+import {
+  createE2EAgentRuntime,
+  e2eAgentProfileCatalog,
+} from "./fakeAgentRuntime.ts";
 
 const host = "127.0.0.1";
 
 type E2ERuntime = {
+  agentService: AgentService;
   apiHandler: ApiRequestHandler;
   catalog: CompositeRepositoryCatalog;
   localCatalog: LocalRepositoryCatalog;
@@ -65,10 +76,31 @@ export async function startE2EWorkspaceServer({
 
     await catalog.initialize();
     await builtInCatalog.initialize();
+    const eventHub = new ApiEventHub();
+    const revisionTracker = new ApiRevisionTracker();
+    const operationLedger = new AgentOperationLedger(serverStateDirectory, 100);
+    const agentService = new AgentService({
+      builtInCatalog,
+      catalog,
+      environment: { CTN_E2E_AGENT_KEY: "e2e-only" },
+      eventHub,
+      ledger: operationLedger,
+      profileCatalog: e2eAgentProfileCatalog,
+      revisionTracker,
+      runtime: systemApiRuntime,
+      runtimeFactory: createE2EAgentRuntime,
+      search: new ApiSearchService({ builtInCatalog, catalog }),
+    });
+
     return {
+      agentService,
       apiHandler: createApiRequestHandler({
+        agentService,
         builtInCatalog,
         catalog,
+        eventHub,
+        operationLedger,
+        revisionTracker,
         security,
         stateDirectory: serverStateDirectory,
       }),
@@ -90,6 +122,7 @@ export async function startE2EWorkspaceServer({
 
   async function resetRuntime() {
     const reset = resetQueue.then(async () => {
+      await runtime.agentService.dispose();
       await runtime.catalog.dispose();
       await clearState();
       runtime = await createRuntime();
@@ -197,6 +230,7 @@ export async function startE2EWorkspaceServer({
       await new Promise<void>((resolve, reject) => {
         server.close((error) => error ? reject(error) : resolve());
       });
+      await runtime.agentService.dispose();
       await runtime.catalog.dispose();
     },
   };

@@ -359,6 +359,7 @@ export class AgentService {
 
     response.writeHead(200, {
       ...headers,
+      "Cache-Control": "no-store",
       "Content-Type": "text/event-stream; charset=utf-8",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
