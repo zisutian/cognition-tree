@@ -83,7 +83,7 @@ export function createHttpApiEventSource({
 
       if (token) headers.set("Authorization", `Bearer ${token}`);
       const response = await fetchFn(
-        resolveApiUrl(baseUrl, "/api/v2/events"),
+        resolveApiUrl(baseUrl, "/api/v3/content/events"),
         {
           cache: "no-store",
           headers,

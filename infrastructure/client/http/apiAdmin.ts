@@ -8,10 +8,13 @@ import type {
 } from "../../../application/apiAccess/apiAccessAdministration";
 import { serializeJsonIteratively } from "../../../contracts/common/json";
 import {
-  parseApiAuditPage,
   parseApiCreatedToken,
   parseApiTokenList,
 } from "../../../contracts/api/parse";
+import {
+  AgentOperationAuditPageSchema,
+} from "../../../contracts/agent/schemas";
+import { parseAgentSchema } from "../../../contracts/agent/parse";
 import {
   requestApiJson,
   type HttpApiTransportOptions,
@@ -37,7 +40,7 @@ export function createHttpApiAdministration({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v2/admin/tokens",
+          "/api/v3/admin/automation-tokens",
           {
             body: serializeJsonIteratively(request),
             headers: { "Content-Type": "application/json" },
@@ -49,26 +52,47 @@ export function createHttpApiAdministration({
 
       return { secret: created.secret, token: projectToken(created.token) };
     },
-    async listAudit(cursor = null) {
+    async listAgentOperations(cursor: string | null = null) {
       const query = new URLSearchParams({ limit: "50" });
 
       if (cursor) query.set("cursor", cursor);
-      return parseApiAuditPage(
+      const page = parseAgentSchema(
+        AgentOperationAuditPageSchema,
         await requestApiJson(
           fetchFn,
           baseUrl,
-          `/api/v2/admin/audit?${query}`,
+          `/api/v3/admin/agent-operations?${query}`,
           undefined,
           token,
         ),
       );
+
+      return {
+        cursor: page.cursor,
+        entries: page.entries.map((entry) => ({
+          afterRevision: entry.afterRevision as `sha256:${string}` | null,
+          approvingOwnerId: entry.approvingOwnerId,
+          beforeRevision: entry.beforeRevision as `sha256:${string}`,
+          blockIds: entry.changeMetadata.blockIds,
+          digest: entry.digest as `sha256:${string}`,
+          occurredAt: entry.occurredAt,
+          profileId: entry.profileId,
+          proposalId: entry.proposalId,
+          proposalVersion: entry.proposalVersion,
+          resourceIds: entry.changeMetadata.resourceIds,
+          result: entry.result,
+          runtimeKind: entry.runtimeKind,
+          sessionId: entry.sessionId,
+          store: entry.store,
+        })),
+      };
     },
     async listTokens() {
       return parseApiTokenList(
         await requestApiJson(
           fetchFn,
           baseUrl,
-          "/api/v2/admin/tokens",
+          "/api/v3/admin/automation-tokens",
           undefined,
           token,
         ),
@@ -78,7 +102,7 @@ export function createHttpApiAdministration({
       await requestApiJson(
         fetchFn,
         baseUrl,
-        `/api/v2/admin/tokens/${encodeURIComponent(tokenId)}`,
+        `/api/v3/admin/automation-tokens/${encodeURIComponent(tokenId)}`,
         { method: "DELETE" },
         token,
       );

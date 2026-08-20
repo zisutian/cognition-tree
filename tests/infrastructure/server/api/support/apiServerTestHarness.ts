@@ -29,7 +29,7 @@ import type { ApiRuntime } from "../../../../../infrastructure/server/api/http/r
 import {
   createApiSecurityPolicy,
 } from "../../../../../infrastructure/server/api/http/security.ts";
-import { ApiStateStore } from "../../../../../infrastructure/server/api/state/store.ts";
+import { AutomationTokenStore } from "../../../../../infrastructure/server/access/automationTokenStore.ts";
 import { CompositeRepositoryCatalog } from "../../../../../infrastructure/server/catalog/compositeRepositoryCatalog.ts";
 import { BuiltInCatalog } from "../../../../../infrastructure/server/repository/built-ins/catalog.ts";
 
@@ -172,11 +172,10 @@ export async function withHandler(
     rootDir: string,
     createAuthenticatedHandler: (
       ownerToken: string,
-      stateStore?: ApiStateStore,
     ) => ApiRequestHandler,
   ) => Promise<void>,
 ) {
-  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-v2-"));
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), "ctn-api-v3-"));
   const local = new LocalRepositoryCatalog(rootDir);
   let nextRepositoryId = 1;
   const remote: ConstructorParameters<typeof CompositeRepositoryCatalog>[1] = {
@@ -215,9 +214,14 @@ export async function withHandler(
   const stateDirectory = path.join(rootDir, "server-state");
   const createHandler = (
     ownerToken?: string,
-    stateStore?: ApiStateStore,
-  ) =>
+  ) => {
+    const accessStore = new AutomationTokenStore(stateDirectory, {
+      now: runtime.now,
+    });
+
+    return (
     createApiRequestHandler({
+      accessStore,
       builtInCatalog,
       catalog,
       runtime,
@@ -226,8 +230,9 @@ export async function withHandler(
         host: "127.0.0.1",
       }),
       stateDirectory,
-      ...(stateStore ? { stateStore } : {}),
-    });
+    })
+    );
+  };
 
   await catalog.initialize();
   await builtInCatalog.initialize();
@@ -235,7 +240,7 @@ export async function withHandler(
     await run(
       createHandler(),
       rootDir,
-      (ownerToken, stateStore) => createHandler(ownerToken, stateStore),
+      (ownerToken) => createHandler(ownerToken),
     );
   } finally {
     await catalog.dispose();
@@ -251,14 +256,13 @@ export async function createRepository(handler: ApiRequestHandler) {
       label: "API 仓库",
     },
     method: "POST",
-    url: "/api/v2/admin/repositories",
+    url: "/api/v3/admin/repositories",
   });
 
   expect(response.statusCode).toBe(201);
   return response.body!;
 }
 
-export const commandId = (index: number) => uuid(9_000 + index);
 export const revision = (character: string) =>
   `sha256:${character.repeat(64)}` as `sha256:${string}`;
 

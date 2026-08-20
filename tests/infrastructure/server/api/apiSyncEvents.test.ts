@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import type {
-  ApiDomainChangeSetDto,
+  DomainChangeSetDto,
   ApiPrincipalDto,
 } from "../../../../contracts/api/types.ts";
 import type {
@@ -34,7 +34,7 @@ import {
   revision,
 } from "./support/apiServerTestHarness.ts";
 
-describe("CTN API v2", () => {
+describe("CTN API v3", () => {
   it("keeps SSE checkpoints lightweight and derives sync changes from the CAS payload", async () => {
     const trackedRevision = revision("a");
     const tracker = new ApiRevisionTracker();
@@ -87,7 +87,7 @@ describe("CTN API v2", () => {
     const events = await dispatchRaw(handler, {
       method: "GET",
       token: "owner-token-with-at-least-32-characters",
-      url: "/api/v2/events",
+      url: "/api/v3/content/events",
     });
 
     expect(catalogReads).toBe(0);
@@ -111,7 +111,7 @@ describe("CTN API v2", () => {
       },
     };
     let snapshotLoads = 0;
-    const published: ApiDomainChangeSetDto[] = [];
+    const published: DomainChangeSetDto[] = [];
     const syncResult = await synchronizeApiWorkspace({
       mode: "commit",
       observeRevision: () => {},
@@ -227,8 +227,6 @@ describe("CTN API v2", () => {
       id: "owner",
       kind: "owner",
       name: "Owner",
-      repositoryIds: null,
-      scopes: ["workspace:read"],
     };
     const search = new ApiSearchService({
       builtInCatalog: {} as ApiBuiltInCatalog,

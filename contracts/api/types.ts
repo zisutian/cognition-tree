@@ -6,27 +6,21 @@
  */
 export {
   apiAutomationScopes,
-  apiScopes,
 } from "./schemas/foundation.ts";
 export type {
+  AutomationApiScope,
   ApiCapabilitiesDto,
-  ApiCommandModeDto,
   ApiErrorCodeDto,
   ApiErrorDto,
   ApiPrincipalDto,
   ApiResourceVersionDto,
-  ApiScope,
 } from "./schemas/foundation.ts";
 export type {
-  ApiBlockChangeDto,
-  ApiCommandOutcomeDto,
-  ApiCommandResultDto,
-  ApiCommittedCommandResultDto,
-  ApiDomainChangeSetDto,
-  ApiPreviewCommandResultDto,
-  ApiResourceChangeDto,
-  ApiTextDiffHunkDto,
-} from "./schemas/transitions.ts";
+  DomainBlockChangeDto,
+  DomainChangeSetDto,
+  DomainResourceChangeDto,
+  DomainTextDiffHunkDto,
+} from "../common/domainChanges.ts";
 export type {
   ApiCtnBlockDto,
   ApiCtnDiagnosticDto,
@@ -52,19 +46,12 @@ export type {
   ApiRevisionCheckpointDto,
 } from "./schemas/events.ts";
 export type {
-  ApiJournalCommandRequestDto,
-  ApiTodoCommandRequestDto,
-  ApiWorkspaceCommandRequestDto,
-} from "./schemas/commands.ts";
-export type {
   ApiSearchFaultDto,
   ApiSearchRequestDto,
   ApiSearchResponseDto,
   ApiSearchResultDto,
 } from "./schemas/search.ts";
 export type {
-  ApiAuditEntryDto,
-  ApiAuditPageDto,
   ApiCreateTokenRequestDto,
   ApiCreatedTokenDto,
   ApiTokenDto,

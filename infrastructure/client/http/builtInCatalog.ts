@@ -58,7 +58,7 @@ export function createHttpBuiltInCatalog({
           await requestApiJson(
             fetchFn,
             baseUrl,
-            "/api/v2/admin/built-ins",
+            "/api/v3/admin/built-ins",
             undefined,
             token,
           ),
@@ -81,7 +81,7 @@ export function createHttpBuiltInCatalog({
         await requestApiJson(
           fetchFn,
           baseUrl,
-          `/api/v2/admin/built-ins/${id}/retry`,
+          `/api/v3/admin/built-ins/${id}/retry`,
           { method: "POST" },
           token,
         ),

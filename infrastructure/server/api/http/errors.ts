@@ -42,9 +42,14 @@ import {
 import {
   VersionedContentRevisionConflictError,
 } from "../../repository/versioned/contentStore.ts";
+import { AgentOperationIdempotencyError } from "../../agent/operationLedger.ts";
+import { AgentServiceError } from "../../agent/errors.ts";
 import {
-  ApiIdempotencyConflictError,
-} from "../state/receiptStore.ts";
+  AgentProposalStateError,
+  AgentScopeUnavailableError,
+  AgentScopeViolationError,
+  AgentSessionStateError,
+} from "../../../../application/agent/index.ts";
 import {
   WorkspacePayloadValidationError,
 } from "../../repository/workspace/layout.ts";
@@ -59,9 +64,13 @@ const statusByCode: Record<ApiErrorCodeDto, number> = {
   invalid_request: 400,
   not_found: 404,
   occurrence_conflict: 409,
+  profile_unavailable: 503,
+  proposal_stale: 409,
   repository_busy: 423,
   repository_corrupt: 500,
   resource_conflict: 409,
+  session_capacity_reached: 429,
+  session_unavailable: 409,
   unauthorized: 401,
 };
 
@@ -112,6 +121,21 @@ export function apiNotFound(message = "Resource does not exist"): never {
 
 export function mapApiError(error: unknown): ApiRequestError {
   if (error instanceof ApiRequestError) return error;
+  if (error instanceof AgentServiceError) {
+    return new ApiRequestError(error.code, error.message);
+  }
+  if (error instanceof AgentScopeUnavailableError) {
+    return new ApiRequestError("session_unavailable", error.message);
+  }
+  if (error instanceof AgentScopeViolationError) {
+    return new ApiRequestError("forbidden", error.message);
+  }
+  if (
+    error instanceof AgentProposalStateError ||
+    error instanceof AgentSessionStateError
+  ) {
+    return new ApiRequestError("invalid_request", error.message);
+  }
   if (error instanceof DomainNotFoundError) {
     return new ApiRequestError("not_found", error.message);
   }
@@ -137,7 +161,7 @@ export function mapApiError(error: unknown): ApiRequestError {
       },
     );
   }
-  if (error instanceof ApiIdempotencyConflictError) {
+  if (error instanceof AgentOperationIdempotencyError) {
     return new ApiRequestError("idempotency_conflict", error.message);
   }
   if (error instanceof TodoOccurrenceConflictError) {

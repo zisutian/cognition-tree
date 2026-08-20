@@ -49,7 +49,7 @@ export function createHttpJournalRepositoryBackend({
       parseSnapshot: parseJournalSnapshot,
       serializeCommit: serializeJsonIteratively,
     },
-    endpoint: "/api/v2/sync/journal",
+    endpoint: "/api/v3/sync/journal",
     fetch: fetchFn,
     token,
   });

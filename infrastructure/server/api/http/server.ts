@@ -50,27 +50,29 @@ import {
   type ApiRuntime,
 } from "./runtime.ts";
 import {
-  ApiStateStore,
-} from "../state/store.ts";
-import {
   ApiRevisionTracker,
 } from "../sync/revisionTracker.ts";
+import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
+import type { AgentService } from "../../agent/service.ts";
+import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
 
 export type ApiRequestHandler = (
   request: IncomingMessage,
   response: ServerResponse,
 ) => Promise<void>;
 
-type ApiServerOptions = {
+export type ApiServerOptions = {
+  accessStore?: AutomationTokenStore;
+  agentService?: AgentService | null;
   builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
   eventHub?: ApiEventHub;
   logger?: Pick<Console, "error">;
+  operationLedger?: AgentOperationLedger | null;
   runtime?: ApiRuntime;
   revisionTracker?: ApiRevisionTracker;
   security: ApiSecurityPolicy;
   stateDirectory?: string;
-  stateStore?: ApiStateStore;
 };
 
 function mapSecurityError(error: ApiSecurityError) {
@@ -82,10 +84,13 @@ function mapSecurityError(error: ApiSecurityError) {
 }
 
 export function createApiRequestHandler({
+  accessStore,
+  agentService = null,
   builtInCatalog,
   catalog,
   eventHub = new ApiEventHub(),
   logger = console,
+  operationLedger = null,
   runtime = systemApiRuntime,
   revisionTracker = new ApiRevisionTracker(),
   security,
@@ -94,8 +99,10 @@ export function createApiRequestHandler({
     ".cognition-tree",
     "server",
   ),
-  stateStore = new ApiStateStore(stateDirectory),
 }: ApiServerOptions): ApiRequestHandler {
+  const resolvedAccessStore = accessStore ?? new AutomationTokenStore(
+    stateDirectory,
+  );
   const search = createApiSearchService({
     builtInCatalog,
     catalog,
@@ -109,7 +116,7 @@ export function createApiRequestHandler({
       const authorized = await authorizeApiRequest(
         request,
         security,
-        stateStore,
+        resolvedAccessStore,
       );
 
       responseHeaders = createApiResponseHeaders(
@@ -151,10 +158,13 @@ export function createApiRequestHandler({
       );
       let parsedBody: Promise<unknown> | null = null;
       const result = await handleApiRoute({
+        accessStore: resolvedAccessStore,
+        agentService,
         builtInCatalog,
         catalog,
         eventHub,
         operation,
+        operationLedger,
         principal: authorized.principal,
         query,
         readJsonBody: () => {
@@ -170,7 +180,6 @@ export function createApiRequestHandler({
         route,
         runtime,
         search,
-        stateStore,
       });
 
       if (result) {
@@ -203,7 +212,7 @@ export function createApiRequestHandler({
 
       if (mapped.statusCode >= 500) {
         logger.error(
-          `[${requestId}] CTN API v2 request failed`,
+          `[${requestId}] CTN API v3 request failed`,
           createSafeApiLogError(error),
         );
       }

@@ -1,55 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { randomBytes, randomUUID } from "node:crypto";
+import path from "node:path";
 import type {
   ApiCreateTokenRequestDto,
   ApiCreatedTokenDto,
   ApiPrincipalDto,
   ApiTokenDto,
-} from "../../../../contracts/api/types.ts";
+} from "../../../contracts/api/types.ts";
+import { parseApiTokenList } from "../../../contracts/api/parse.ts";
 import {
-  parseApiTokenList,
-} from "../../../../contracts/api/parse.ts";
+  assertStateFields,
+  requireStateRecord,
+  SecureJsonPartition,
+} from "../state/secureJsonPartition.ts";
 import {
-  apiStateDigestsEqual,
-  createApiStateDigest,
-} from "./crypto.ts";
-import {
-  ApiStatePartition,
-  assertApiStateFields,
-  requireApiStateRecord,
-} from "./partition.ts";
+  createStateDigest,
+  stateDigestsEqual,
+} from "../state/stateDigest.ts";
 
-const tokenStateFormatVersion = 1;
+const formatVersion = 1;
 const lastUsedPersistenceIntervalMilliseconds = 60_000;
 
-type StoredToken = ApiTokenDto & {
-  digest: string;
-};
-
-type TokenState = {
-  formatVersion: typeof tokenStateFormatVersion;
-  tokens: StoredToken[];
-};
+type StoredToken = ApiTokenDto & { digest: string };
+type TokenState = { formatVersion: typeof formatVersion; tokens: StoredToken[] };
 
 function parseStoredToken(value: unknown, index: number): StoredToken {
   const pathLabel = `tokens[${index}]`;
-  const record = requireApiStateRecord(value, pathLabel);
+  const record = requireStateRecord(value, pathLabel);
 
-  assertApiStateFields(record, [
-    "createdAt",
-    "digest",
-    "id",
-    "lastUsedAt",
-    "name",
-    "prefix",
-    "repositoryIds",
-    "scopes",
+  assertStateFields(record, [
+    "createdAt", "digest", "id", "lastUsedAt", "name", "prefix",
+    "repositoryIds", "scopes",
   ], pathLabel);
-  if (
-    typeof record.digest !== "string" ||
-    !/^[0-9a-f]{64}$/.test(record.digest)
-  ) {
+  if (typeof record.digest !== "string" || !/^[0-9a-f]{64}$/.test(record.digest)) {
     throw new Error(`${pathLabel}.digest is invalid.`);
   }
   const { digest, ...wire } = record;
@@ -59,21 +43,14 @@ function parseStoredToken(value: unknown, index: number): StoredToken {
 }
 
 function parseTokenState(value: unknown): TokenState {
-  const record = requireApiStateRecord(value, "token state");
+  const record = requireStateRecord(value, "automation token state");
 
-  assertApiStateFields(
-    record,
-    ["formatVersion", "tokens"],
-    "token state",
-  );
-  if (
-    record.formatVersion !== tokenStateFormatVersion ||
-    !Array.isArray(record.tokens)
-  ) {
-    throw new Error("token state has an invalid format.");
+  assertStateFields(record, ["formatVersion", "tokens"], "automation token state");
+  if (record.formatVersion !== formatVersion || !Array.isArray(record.tokens)) {
+    throw new Error("Automation token state has an invalid format.");
   }
   return {
-    formatVersion: tokenStateFormatVersion,
+    formatVersion,
     tokens: record.tokens.map(parseStoredToken),
   };
 }
@@ -82,30 +59,30 @@ function tokenDto({ digest: _digest, ...token }: StoredToken): ApiTokenDto {
   return token;
 }
 
-export class ApiTokenStore {
+export class AutomationTokenStore {
   readonly #lastPersistedUsage = new Map<string, number>();
   readonly #now: () => Date;
-  readonly #partition: ApiStatePartition<TokenState>;
+  readonly #partition: SecureJsonPartition<TokenState>;
 
-  constructor(directory: string, now: () => Date) {
+  constructor(
+    stateDirectory: string,
+    { now = () => new Date() }: { now?: () => Date } = {},
+  ) {
     this.#now = now;
-    this.#partition = new ApiStatePartition({
-      createInitial: () => ({
-        formatVersion: tokenStateFormatVersion,
-        tokens: [],
-      }),
-      directory,
-      fileName: "tokens.json",
-      name: "token",
+    this.#partition = new SecureJsonPartition({
+      createInitial: () => ({ formatVersion, tokens: [] }),
+      directory: path.join(path.resolve(stateDirectory), "access-v1"),
+      fileName: "automation-tokens.json",
+      name: "automation access",
       parse: parseTokenState,
     });
   }
 
   authenticate(secret: string): Promise<ApiPrincipalDto | null> {
     return this.#partition.mutate((state) => {
-      const secretDigest = createApiStateDigest(secret);
+      const digest = createStateDigest(secret);
       const token = state.tokens.find((candidate) =>
-        apiStateDigestsEqual(candidate.digest, secretDigest)
+        stateDigestsEqual(candidate.digest, digest)
       );
 
       if (!token) return { changed: false, result: null };
@@ -113,13 +90,13 @@ export class ApiTokenStore {
       const persistedAt = this.#lastPersistedUsage.get(token.id) ??
         (token.lastUsedAt ? Date.parse(token.lastUsedAt) : -Infinity);
       const current = Date.parse(timestamp);
-      const shouldPersist = current - persistedAt >=
+      const changed = current - persistedAt >=
         lastUsedPersistenceIntervalMilliseconds;
 
       token.lastUsedAt = timestamp;
-      if (shouldPersist) this.#lastPersistedUsage.set(token.id, current);
+      if (changed) this.#lastPersistedUsage.set(token.id, current);
       return {
-        changed: shouldPersist,
+        changed,
         result: {
           id: token.id,
           kind: "automation" as const,
@@ -131,16 +108,13 @@ export class ApiTokenStore {
     });
   }
 
-  createToken(
-    request: ApiCreateTokenRequestDto,
-  ): Promise<ApiCreatedTokenDto> {
+  createToken(request: ApiCreateTokenRequestDto): Promise<ApiCreatedTokenDto> {
     return this.#partition.mutate((state) => {
-      const id = `api-token-${randomUUID()}`;
       const secret = `ctn_${randomBytes(32).toString("base64url")}`;
       const token: StoredToken = {
         createdAt: this.#timestamp(),
-        digest: createApiStateDigest(secret),
-        id,
+        digest: createStateDigest(secret),
+        id: `automation-token-${randomUUID()}`,
         lastUsedAt: null,
         name: request.name,
         prefix: secret.slice(0, 12),
@@ -149,18 +123,15 @@ export class ApiTokenStore {
       };
 
       state.tokens.push(token);
-      return {
-        changed: true,
-        result: { secret, token: tokenDto(token) },
-      };
+      return { changed: true, result: { secret, token: tokenDto(token) } };
     });
   }
 
   listTokens(): Promise<ApiTokenDto[]> {
     return this.#partition.read((state) =>
-      state.tokens
-        .map(tokenDto)
-        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      state.tokens.map(tokenDto).sort((left, right) =>
+        right.createdAt.localeCompare(left.createdAt)
+      )
     );
   }
 
@@ -179,7 +150,7 @@ export class ApiTokenStore {
     const date = this.#now();
 
     if (!(date instanceof Date) || !Number.isFinite(date.getTime())) {
-      throw new Error("API state time source returned an invalid date.");
+      throw new Error("Automation access time source returned an invalid date.");
     }
     return date.toISOString();
   }

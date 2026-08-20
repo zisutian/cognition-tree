@@ -14,7 +14,7 @@ const apiAccess = {
     createToken: async () => {
       throw new Error("not called during server rendering");
     },
-    listAudit: async () => ({ cursor: null, entries: [] }),
+    listAgentOperations: async () => ({ cursor: null, entries: [] }),
     listTokens: async () => [],
     revokeToken: async () => undefined,
   },
@@ -66,7 +66,7 @@ describe("settings activity", () => {
         "代办权限",
         "仓库范围",
         "现有令牌",
-        "最近自动化操作",
+        "Agent 写入审计",
       ],
       lacks: [
         "令牌仅显示这一次",

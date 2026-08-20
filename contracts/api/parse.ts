@@ -4,23 +4,13 @@ import { Value } from "@sinclair/typebox/value";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { failWireContract } from "../common/contractValue.ts";
 import {
-  ApiAuditPageSchema,
   ApiCreateTokenRequestSchema,
   ApiCreatedTokenSchema,
   ApiTokenListSchema,
-  type ApiAuditPageDto,
   type ApiCreateTokenRequestDto,
   type ApiCreatedTokenDto,
   type ApiTokenDto,
 } from "./schemas/admin.ts";
-import {
-  ApiJournalCommandRequestSchema,
-  ApiTodoCommandRequestSchema,
-  ApiWorkspaceCommandRequestSchema,
-  type ApiJournalCommandRequestDto,
-  type ApiTodoCommandRequestDto,
-  type ApiWorkspaceCommandRequestDto,
-} from "./schemas/commands.ts";
 import {
   ApiEventSchema,
   type ApiEventDto,
@@ -30,7 +20,7 @@ import {
   type ApiSearchRequestDto,
 } from "./schemas/search.ts";
 
-const contract = "CTN API v2";
+const contract = "CTN API v3";
 
 function jsonPointerPath(pointer: string) {
   if (pointer === "") return "$";
@@ -64,44 +54,6 @@ export function parseApiSchema<T extends TSchema>(
     );
   }
   return input as Static<T>;
-}
-
-function assertWeeklyWeekdaysAscending(request: ApiTodoCommandRequestDto) {
-  const { command } = request;
-
-  if (command.kind !== "set-recurrence" || command.rule.kind !== "weekly") {
-    return;
-  }
-  for (let index = 1; index < command.rule.weekdays.length; index += 1) {
-    if (command.rule.weekdays[index - 1]! >= command.rule.weekdays[index]!) {
-      failWireContract(
-        contract,
-        `$.command.rule.weekdays[${index}]`,
-        "expected unique ascending ISO weekday",
-      );
-    }
-  }
-}
-
-export function parseApiWorkspaceCommandRequest(
-  input: unknown,
-): ApiWorkspaceCommandRequestDto {
-  return parseApiSchema(ApiWorkspaceCommandRequestSchema, input);
-}
-
-export function parseApiJournalCommandRequest(
-  input: unknown,
-): ApiJournalCommandRequestDto {
-  return parseApiSchema(ApiJournalCommandRequestSchema, input);
-}
-
-export function parseApiTodoCommandRequest(
-  input: unknown,
-): ApiTodoCommandRequestDto {
-  const request = parseApiSchema(ApiTodoCommandRequestSchema, input);
-
-  assertWeeklyWeekdaysAscending(request);
-  return request;
 }
 
 export function parseApiCreateTokenRequest(
@@ -157,8 +109,4 @@ export function parseApiCreatedToken(
   input: unknown,
 ): ApiCreatedTokenDto {
   return parseApiSchema(ApiCreatedTokenSchema, input);
-}
-
-export function parseApiAuditPage(input: unknown): ApiAuditPageDto {
-  return parseApiSchema(ApiAuditPageSchema, input);
 }

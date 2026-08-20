@@ -1,15 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 export type AutomationApiScope =
-  | "journal:delete"
   | "journal:read"
-  | "journal:write"
-  | "todo:delete"
   | "todo:read"
-  | "todo:write"
-  | "workspace:delete"
-  | "workspace:read"
-  | "workspace:write";
+  | "workspace:read";
 
 export type AutomationApiToken = {
   createdAt: string;
@@ -32,27 +26,36 @@ export type CreatedAutomationApiToken = {
   token: AutomationApiToken;
 };
 
-export type AutomationApiAuditEntry = {
+export type AgentOperationAuditEntry = {
+  afterRevision: `sha256:${string}` | null;
+  approvingOwnerId: string;
+  beforeRevision: `sha256:${string}`;
   blockIds: string[];
-  commandId: string;
-  commandKind: string;
+  digest: `sha256:${string}`;
   occurredAt: string;
-  principalId: string;
-  requestId: string;
+  profileId: string;
+  proposalId: string;
+  proposalVersion: number;
   resourceIds: string[];
-  result: "committed" | "failed";
+  result: "committed" | "failed" | "stale";
+  runtimeKind: "codex" | "openai-chat";
+  sessionId: string;
+  store:
+    | { domain: "journal" }
+    | { domain: "todo" }
+    | { domain: "workspace"; repositoryId: string };
 };
 
-export type AutomationApiAuditPage = {
+export type AgentOperationAuditPage = {
   cursor: string | null;
-  entries: AutomationApiAuditEntry[];
+  entries: AgentOperationAuditEntry[];
 };
 
 export type ApiAccessAdministration = {
   createToken(
     request: CreateAutomationApiTokenRequest,
   ): Promise<CreatedAutomationApiToken>;
-  listAudit(cursor?: string | null): Promise<AutomationApiAuditPage>;
+  listAgentOperations(cursor?: string | null): Promise<AgentOperationAuditPage>;
   listTokens(): Promise<AutomationApiToken[]>;
   revokeToken(tokenId: string): Promise<void>;
 };

@@ -10,7 +10,7 @@ import type {
   ApiErrorDto,
 } from "./types.ts";
 
-const contract = "CTN API v2";
+const contract = "CTN API v3";
 const codes = new Set<ApiErrorCodeDto>([
   "adapter_unavailable",
   "domain_validation_failed",

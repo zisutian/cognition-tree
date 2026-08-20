@@ -5,11 +5,10 @@ import type {
   ServerResponse,
 } from "node:http";
 import type {
-  ApiDomainChangeSetDto,
   ApiPrincipalDto,
   ApiRevisionCheckpointDto,
-  ApiScope,
 } from "../../../../contracts/api/types.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import {
   type ApiOperationDefinition,
   type ResolvedApiRoute,
@@ -27,7 +26,9 @@ import {
   type ApiRuntime,
 } from "./runtime.ts";
 import type { ApiSearchService } from "../search.ts";
-import type { ApiStateStore } from "../state/store.ts";
+import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
+import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
+import type { AgentService } from "../../agent/service.ts";
 
 export type HandlerResult = {
   body: unknown;
@@ -47,30 +48,27 @@ export function requireBuiltInCatalog(
   return catalog;
 }
 
-export function assertScope(principal: ApiPrincipalDto, scope: ApiScope) {
-  if (!principal.scopes.includes(scope)) {
-    throw new ApiRequestError(
-      "forbidden",
-      `Required API scope is missing: ${scope}`,
-    );
-  }
-}
-
-export function assertOperationScopes(
+export function assertOperationAccess(
   principal: ApiPrincipalDto,
   operation: ApiOperationDefinition,
 ) {
-  for (const scope of operation.scopes) {
-    assertScope(principal, scope);
+  if (operation.access.kind === "public" || principal.kind !== "automation") {
+    return;
   }
-  if (
-    operation.anyScopes.length > 0 &&
-    !operation.anyScopes.some((scope) => principal.scopes.includes(scope))
-  ) {
+  if (operation.access.kind === "owner") {
     throw new ApiRequestError(
       "forbidden",
-      `One readable API scope is required: ${operation.anyScopes.join(", ")}`,
+      "This operation is restricted to an owner",
     );
+  }
+  const required = operation.access.domain === "any"
+    ? null
+    : `${operation.access.domain}:read` as const;
+
+  if (
+    required ? !principal.scopes.includes(required) : principal.scopes.length === 0
+  ) {
+    throw new ApiRequestError("forbidden", "A matching read scope is required");
   }
 }
 
@@ -79,6 +77,7 @@ export function assertRepositoryAllowed(
   repositoryId: string,
 ) {
   if (
+    principal.kind === "automation" &&
     principal.repositoryIds !== null &&
     !principal.repositoryIds.includes(repositoryId)
   ) {
@@ -103,10 +102,13 @@ export function createCheckpoint({
 }
 
 export type ApiHandlerContext = {
+  accessStore: AutomationTokenStore;
+  agentService: AgentService | null;
   builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
   eventHub: ApiEventHub;
   operation: ApiOperationDefinition;
+  operationLedger: AgentOperationLedger | null;
   principal: ApiPrincipalDto;
   query: unknown;
   readJsonBody(): Promise<unknown>;
@@ -117,7 +119,6 @@ export type ApiHandlerContext = {
   route: ResolvedApiRoute;
   runtime: ApiRuntime;
   search: ApiSearchService | null;
-  stateStore: ApiStateStore;
 };
 
 export function publishTrackedChanges(
@@ -125,7 +126,7 @@ export function publishTrackedChanges(
     ApiHandlerContext,
     "eventHub" | "revisionTracker"
   >,
-  changes: ApiDomainChangeSetDto,
+  changes: DomainChangeSetDto,
 ) {
   context.eventHub.publish(
     createCheckpoint(context),

@@ -3,11 +3,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import { isIP } from "node:net";
-import {
-  apiScopes,
-  type ApiPrincipalDto,
-} from "../../../../contracts/api/types.ts";
-import type { ApiStateStore } from "../state/store.ts";
+import type { ApiPrincipalDto } from "../../../../contracts/api/types.ts";
+import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 
 export const defaultApiAllowedOrigins = [
   "http://127.0.0.1:5173",
@@ -238,7 +235,7 @@ export function createApiSecurityPolicy({
 export async function authorizeApiRequest(
   request: IncomingMessage,
   policy: ApiSecurityPolicy,
-  stateStore: Pick<ApiStateStore, "authenticate">,
+  accessStore: Pick<AutomationTokenStore, "authenticate">,
 ): Promise<{
   allowedOrigin: string | null;
   principal: ApiPrincipalDto;
@@ -265,8 +262,6 @@ export async function authorizeApiRequest(
         id: "local-owner",
         kind: "local-owner",
         name: "本机官方客户端",
-        repositoryIds: null,
-        scopes: [...apiScopes],
       },
     };
   }
@@ -284,12 +279,10 @@ export async function authorizeApiRequest(
         id: "bootstrap-owner",
         kind: "owner",
         name: "Owner",
-        repositoryIds: null,
-        scopes: [...apiScopes],
       },
     };
   }
-  const principal = token ? await stateStore.authenticate(token) : null;
+  const principal = token ? await accessStore.authenticate(token) : null;
 
   if (!principal) {
     throw new ApiSecurityError(

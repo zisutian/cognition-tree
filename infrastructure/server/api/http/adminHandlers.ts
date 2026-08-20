@@ -2,8 +2,8 @@
 
 import {
   apiAutomationScopes,
+  type AutomationApiScope,
   type ApiCreateTokenRequestDto,
-  type ApiScope,
 } from "../../../../contracts/api/types.ts";
 import { parseRepositoryDeletionMode } from "../../../../contracts/workspace/parseCatalog.ts";
 import type {
@@ -17,7 +17,7 @@ import {
 } from "./handlerContext.ts";
 import { readApiRuntimeNow } from "./runtime.ts";
 
-const automationTokenScopes = new Set<ApiScope>(apiAutomationScopes);
+const automationTokenScopes = new Set<AutomationApiScope>(apiAutomationScopes);
 
 export async function handleRepositoryAdmin(context: ApiHandlerContext) {
   const { catalog, operation, route } = context;
@@ -97,10 +97,10 @@ export async function handleRepositoryAdmin(context: ApiHandlerContext) {
   };
 }
 export async function handleTokenAdmin(context: ApiHandlerContext) {
-  const { operation, route, stateStore } = context;
+  const { accessStore, operation, route } = context;
 
   if (operation.operationId === "listApiTokens") {
-    return { body: { tokens: await stateStore.listTokens() }, statusCode: 200 };
+    return { body: { tokens: await accessStore.listTokens() }, statusCode: 200 };
   }
   if (operation.operationId === "createApiToken") {
     const request =
@@ -112,19 +112,8 @@ export async function handleTokenAdmin(context: ApiHandlerContext) {
     ) {
       throw new ApiRequestError(
         "domain_validation_failed",
-        "Automation tokens may only use domain read, write, and delete scopes",
+        "Automation tokens may only use domain read scopes",
       );
-    }
-    for (const domain of ["workspace", "journal", "todo"] as const) {
-      if (
-        request.scopes.includes(`${domain}:delete`) &&
-        !request.scopes.includes(`${domain}:write`)
-      ) {
-        throw new ApiRequestError(
-          "domain_validation_failed",
-          `${domain}:delete requires ${domain}:write`,
-        );
-      }
     }
     if (request.repositoryIds) {
       const catalog = await context.catalog.listRepositories();
@@ -140,12 +129,12 @@ export async function handleTokenAdmin(context: ApiHandlerContext) {
       }
     }
     return {
-      body: await stateStore.createToken(request),
+      body: await accessStore.createToken(request),
       statusCode: 201,
     };
   }
   const tokenId = route.tokenId ?? "";
-  const removed = await stateStore.revokeToken(tokenId);
+  const removed = await accessStore.revokeToken(tokenId);
 
   if (!removed) apiNotFound("API token does not exist");
   context.eventHub.revokePrincipal(tokenId);

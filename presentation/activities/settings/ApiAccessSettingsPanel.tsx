@@ -6,7 +6,7 @@ import {
 } from "react";
 import type {
   ApiAccessApplication,
-  AutomationApiAuditEntry,
+  AgentOperationAuditEntry,
   AutomationApiScope,
   AutomationApiToken,
 } from "../../../application/apiAccess/apiAccessAdministration";
@@ -18,12 +18,12 @@ import {
   Section,
 } from "../../ui/shared/primitives";
 import {
-  ApiAccessAudit,
+  AgentOperationAudit,
   formatApiAccessTimestamp,
-} from "./ApiAccessAudit";
+} from "./AgentOperationAudit";
 
 type AutomationDomain = "journal" | "todo" | "workspace";
-type PermissionLevel = "delete" | "none" | "read" | "write";
+type PermissionLevel = "none" | "read";
 
 const automationDomains = [
   {
@@ -42,8 +42,6 @@ const automationDomains = [
 const permissionLevels = [
   { label: "不授权", value: "none" },
   { label: "只读", value: "read" },
-  { label: "读取和修改", value: "write" },
-  { label: "读取、修改和删除", value: "delete" },
 ] as const satisfies ReadonlyArray<{
   label: string;
   value: PermissionLevel;
@@ -62,27 +60,13 @@ function permissionsToScopes(
     const level = permissions[domain];
 
     if (level === "none") return [];
-    return [
-      `${domain}:read` as AutomationApiScope,
-      ...(level === "write" || level === "delete"
-        ? [`${domain}:write` as AutomationApiScope]
-        : []),
-      ...(level === "delete"
-        ? [`${domain}:delete` as AutomationApiScope]
-        : []),
-    ];
+    return [`${domain}:read` as AutomationApiScope];
   });
 }
 
 function formatTokenScopes(scopes: readonly AutomationApiScope[]) {
   return automationDomains.flatMap(({ id, label }) => {
-    const level = scopes.includes(`${id}:delete`)
-      ? "读写删除"
-      : scopes.includes(`${id}:write`)
-        ? "读写"
-        : scopes.includes(`${id}:read`)
-          ? "只读"
-          : null;
+    const level = scopes.includes(`${id}:read`) ? "只读" : null;
 
     return level ? [`${label} ${level}`] : [];
   }).join(" · ");
@@ -146,7 +130,7 @@ export function ApiAccessSettingsPanel({
 }: {
   apiAccess: ApiAccessApplication;
 }) {
-  const [audit, setAudit] = useState<AutomationApiAuditEntry[]>([]);
+  const [audit, setAudit] = useState<AgentOperationAuditEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -161,7 +145,7 @@ export function ApiAccessSettingsPanel({
     try {
       const [nextTokens, nextAudit] = await Promise.all([
         administration.listTokens(),
-        administration.listAudit(),
+        administration.listAgentOperations(),
       ]);
 
       setTokens(nextTokens);
@@ -397,8 +381,8 @@ export function ApiAccessSettingsPanel({
                   />
                 )}
           </Section>
-          <Section className="settings-api-section" title="最近自动化操作">
-            <ApiAccessAudit entries={audit} />
+          <Section className="settings-api-section" title="Agent 写入审计">
+            <AgentOperationAudit entries={audit} />
           </Section>
           <Section className="settings-api-section" title="操作">
             <div className="settings-api-operation">

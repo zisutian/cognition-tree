@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ApiDomainChangeSetDto } from "../../../../contracts/api/types.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import type {
   WorkspaceResourceVersionPolicy,
-} from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
+} from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
@@ -25,7 +25,7 @@ import {
 
 async function publishApiChanges(
   context: ApiHandlerContext,
-  changes: ApiDomainChangeSetDto,
+  changes: DomainChangeSetDto,
 ) {
   publishTrackedChanges(context, changes);
 }

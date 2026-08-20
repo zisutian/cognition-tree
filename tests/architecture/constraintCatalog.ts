@@ -56,29 +56,17 @@ const serverAreaImports: Readonly<Record<string, readonly string[]>> = {
     "state",
   ],
   api: ["api", "api/http", "api/resources", "repository"],
-  "api/commands": [
-    "api/commands",
-    "api/http",
-    "api/resources",
-    "api/state",
-    "api/sync",
-    "repository",
-  ],
   "api/http": [
     "access",
     "agent",
     "api",
-    "api/commands",
     "api/http",
     "api/resources",
-    "api/state",
     "api/sync",
     "repository",
   ],
   "api/resources": ["api/resources"],
-  "api/state": ["api/state", "persistence"],
   "api/sync": [
-    "api/commands",
     "api/http",
     "api/sync",
     "repository",
@@ -314,12 +302,6 @@ type UniqueOwner = readonly [
 
 const uniqueOwners: readonly UniqueOwner[] = [
   [
-    "CTN API operation declarations",
-    contractModules,
-    /\bpath:\s*"\/api\/v2\//,
-    /^contracts\/api\/registry\.ts$/,
-  ],
-  [
     "CTN API request dispatch",
     contractModules,
     /\bexport function parseApiOperationRequest\s*\(/,
@@ -392,6 +374,13 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     scope,
   })),
   {
+    allowedPath: /^contracts\/api\/operations\/(?:admin|agent|content|foundation|sync)\.ts$/,
+    corpus: contractModules,
+    matches: { min: 1 },
+    name: "CTN API v3 feature operation declarations",
+    pattern: /\bpath:\s*"\/api\/v3\//,
+  },
+  {
     allowedPath: /^core\/ctn\/(?:metadata|parser)\//,
     corpus: sourceModules,
     matches: { min: 1 },
@@ -440,13 +429,25 @@ export const ownershipTextPolicies: readonly TextPolicy[] = [
     corpus: sourceModules,
     matches: 0,
     name: "legacy HTTP API namespace",
-    pattern: /["'`]\/api\/v1(?:\/|["'`])/,
+    pattern: /["'`]\/api\/(?:v1|v2)(?:\/|["'`])/,
   },
   {
     corpus: sourceModules,
     matches: 0,
     name: "versioned internal API identifiers",
     pattern: /\b(?:ApiV1|apiV1)\b/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "legacy public command authority",
+    pattern: /\b(?:ApiCommandResult|commandId|preparedCommandExecutor)\b/,
+  },
+  {
+    corpus: sourceModules,
+    matches: 0,
+    name: "automation mutation scopes",
+    pattern: /["'`](?:workspace|journal|todo):(?:write|delete)["'`]/,
   },
   {
     corpus: infrastructureModules,

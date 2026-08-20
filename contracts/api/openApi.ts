@@ -100,10 +100,11 @@ export function createApiOpenApiDocument() {
         ...queryParameters(operation.query),
       ],
       responses,
-      security: [{ bearerAuth: [] }],
+      security: operation.access.kind === "public"
+        ? []
+        : [{ bearerAuth: [] }],
       tags: [operationTag(operation.path)],
-      "x-ctn-any-scopes": operation.anyScopes,
-      "x-ctn-required-scopes": operation.scopes,
+      "x-ctn-access": operation.access,
     };
     paths[operation.path] = path;
   }
@@ -120,9 +121,9 @@ export function createApiOpenApiDocument() {
     },
     info: {
       description:
-        "Scoped resource queries and domain commands for automation; full snapshots are reserved for official-client synchronization.",
+        "Read-only automation resources, owner synchronization, and approval-gated in-application Agent operations.",
       title: "Cognition Tree API",
-      version: "2.0.0",
+      version: "3.0.0",
     },
     openapi: "3.1.0",
     paths,

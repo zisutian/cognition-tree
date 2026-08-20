@@ -245,7 +245,7 @@ test.describe("editor workbench flows", () => {
 
     const readSource = async () => {
       const response = await api.get(
-        `/api/v2/sync/workspaces/${repositoryId}`,
+        `/api/v3/sync/workspaces/${repositoryId}`,
       );
       const snapshot =
         (await response.json()) as WorkspaceRepositorySnapshotDto;
@@ -448,7 +448,7 @@ test.describe("editor workbench flows", () => {
       .getByRole("button").click();
     await expect(page.getByLabel("块时间")).toBeVisible();
     const beforeResponse = await api.get(
-      `/api/v2/sync/workspaces/${repositoryId}`,
+      `/api/v3/sync/workspaces/${repositoryId}`,
     );
     const beforeSnapshot = (await beforeResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -480,7 +480,7 @@ test.describe("editor workbench flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v2/sync/workspaces/${repositoryId}`,
+        `/api/v3/sync/workspaces/${repositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const source = snapshot.content.workspace.notes.find(

@@ -5,10 +5,6 @@ import {
   type APIRequestContext,
 } from "@playwright/test";
 import type {
-  ApiCtnDocumentDto,
-  ApiWorkspaceCommandRequestDto,
-} from "../contracts/api/types";
-import type {
   RepositoryCatalogDto,
   WorkspaceRepositorySnapshotDto,
 } from "../contracts/workspace/types";
@@ -18,6 +14,7 @@ import {
 } from "../presentation/ui/workbench/frameResize";
 import {
   editExternalLocalNote,
+  createSeedSource,
   removeE2ELocalRepository,
   seedLargeTreeRepository,
   seedNoncurrentLocalRepository,
@@ -225,7 +222,7 @@ test.describe("repository and capacity flows", () => {
     const rescanResponse = page.waitForResponse((response) =>
       response.request().method() === "GET" &&
       response.url().endsWith(
-        `/api/v2/sync/workspaces/${externalRepositoryId}`,
+        `/api/v3/sync/workspaces/${externalRepositoryId}`,
       )
     );
 
@@ -245,7 +242,7 @@ test.describe("repository and capacity flows", () => {
   }) => {
     await seedWorkbenchRepository(api, externalRepositoryId);
     await seedRawRepository(api, rawRepositoryId);
-    const catalogResponse = await api.get("/api/v2/admin/repositories");
+    const catalogResponse = await api.get("/api/v3/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const externalRepository = catalog.repositories.find(
       ({ id }) => id === externalRepositoryId,
@@ -325,7 +322,7 @@ test.describe("repository and capacity flows", () => {
 
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v2/sync/workspaces/${rawRepositoryId}`,
+        `/api/v3/sync/workspaces/${rawRepositoryId}`,
       );
       const snapshot = (await response.json()) as WorkspaceRepositorySnapshotDto;
 
@@ -379,28 +376,33 @@ test.describe("repository and capacity flows", () => {
     apiBaseUrl,
     page,
   }) => {
-    await page.route(`${apiBaseUrl}/api/v2/events`, (route) =>
+    await page.route(`${apiBaseUrl}/api/v3/content/events`, (route) =>
       route.abort());
     await openWorkbench(page, repositoryId);
     await page.locator(".app-context").getByTitle("Alpha").click();
 
-    const noteResponse = await api.get(
-      `/api/v2/workspaces/${repositoryId}/notes/note-alpha`,
+    const snapshotResponse = await api.get(
+      `/api/v3/sync/workspaces/${repositoryId}`,
     );
-    const note = (await noteResponse.json()) as ApiCtnDocumentDto;
-    const remoteCommand = {
-      commandId: "00000000-0000-4000-8000-000000009001",
-      command: {
-        editableText: `${note.editableText}\n\t: remote-conflict`,
-        kind: "replace-note-source",
-        noteId: "note-alpha",
+    const snapshot = (await snapshotResponse.json()) as
+      WorkspaceRepositorySnapshotDto;
+    const remoteContent = structuredClone(snapshot.content);
+    const remoteNote = remoteContent.workspace.notes.find(
+      ({ id }) => id === "note-alpha",
+    );
+
+    if (!remoteNote) throw new Error("Missing Alpha note");
+    remoteNote.source = `${remoteNote.source}\n${
+      createSeedSource("\t: remote-conflict", 9_000)
+    }`;
+    const commitResponse = await api.put(
+      `/api/v3/sync/workspaces/${repositoryId}`,
+      {
+        data: {
+          baseRevision: snapshot.revision,
+          content: remoteContent,
+        },
       },
-      mode: "commit",
-      preconditions: { expectedVersion: note.version },
-    } satisfies ApiWorkspaceCommandRequestDto;
-    const commitResponse = await api.post(
-      `/api/v2/workspaces/${repositoryId}/commands`,
-      { data: remoteCommand },
     );
 
     expect(commitResponse.ok()).toBe(true);
@@ -441,7 +443,7 @@ test.describe("repository and capacity flows", () => {
       .toBeVisible();
 
     const remoteResponse = await api.get(
-      `/api/v2/sync/workspaces/${repositoryId}`,
+      `/api/v3/sync/workspaces/${repositoryId}`,
     );
     const remoteSnapshot = (await remoteResponse.json()) as
       WorkspaceRepositorySnapshotDto;
@@ -468,7 +470,7 @@ test.describe("repository and capacity flows", () => {
       .not.toContainText("conflict-local-first");
     await expect.poll(async () => {
       const response = await api.get(
-        `/api/v2/sync/workspaces/${repositoryId}`,
+        `/api/v3/sync/workspaces/${repositoryId}`,
       );
       const current = (await response.json()) as WorkspaceRepositorySnapshotDto;
       const recovery = current.content.workspace.notes.find(({ source }) =>
@@ -609,7 +611,7 @@ test.describe("repository and capacity flows", () => {
     repositoryRoot,
   }) => {
     await seedLargeTreeRepository(api, largeRepositoryId);
-    const catalogResponse = await api.get("/api/v2/admin/repositories");
+    const catalogResponse = await api.get("/api/v3/admin/repositories");
     const catalog = (await catalogResponse.json()) as RepositoryCatalogDto;
     const remainingRepository = catalog.repositories.find(
       ({ id }) => id === largeRepositoryId,
@@ -622,7 +624,7 @@ test.describe("repository and capacity flows", () => {
         continue;
       }
       const deleteResponse = await api.delete(
-        `/api/v2/admin/repositories/${encodeURIComponent(repository.id)}?mode=delete-managed-data`,
+        `/api/v3/admin/repositories/${encodeURIComponent(repository.id)}?mode=delete-managed-data`,
       );
 
       expect(deleteResponse.ok()).toBe(true);

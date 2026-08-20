@@ -51,7 +51,8 @@ export async function handleWorkspaceQuery(context: ApiHandlerContext) {
       body: {
         workspaces: repositories.repositories
           .filter(({ id }) =>
-            (principal.repositoryIds === null ||
+            (principal.kind !== "automation" ||
+              principal.repositoryIds === null ||
               principal.repositoryIds.includes(id))
           )
           .map(({ adapter, id, label }) => ({ adapter, id, label })),

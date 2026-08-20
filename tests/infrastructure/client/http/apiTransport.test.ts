@@ -17,8 +17,8 @@ function jsonResponse(body: unknown, status = 200) {
 
 describe("HTTP API transport", () => {
   it("resolves API endpoints without repository-specific path semantics", () => {
-    expect(resolveApiUrl("https://api.test/base", "/api/v2/events"))
-      .toBe("https://api.test/base/api/v2/events");
+    expect(resolveApiUrl("https://api.test/base", "/api/v3/content/events"))
+      .toBe("https://api.test/base/api/v3/content/events");
   });
 
   it("preserves structured API failure facts in a neutral response error", async () => {
@@ -30,7 +30,7 @@ describe("HTTP API transport", () => {
         requestId: "request-1",
       }, 409),
       "https://api.test",
-      "/api/v2/resource",
+      "/api/v3/content/resource",
     );
 
     await expect(request).rejects.toEqual(
@@ -51,7 +51,7 @@ describe("HTTP API transport", () => {
         throw new TypeError("network unavailable");
       },
       "https://api.test",
-      "/api/v2/resource",
+      "/api/v3/content/resource",
     )).rejects.toBeInstanceOf(HttpApiUnavailableError);
   });
 });

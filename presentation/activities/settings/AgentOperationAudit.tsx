@@ -1,46 +1,52 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
-  AutomationApiAuditEntry,
+  AgentOperationAuditEntry,
 } from "../../../application/apiAccess/apiAccessAdministration";
 
 export function formatApiAccessTimestamp(value: string | null) {
   return value ? new Date(value).toLocaleString() : "从未使用";
 }
 
-export function ApiAccessAudit({
+function resultLabel(result: AgentOperationAuditEntry["result"]) {
+  if (result === "committed") return "已提交";
+  if (result === "stale") return "已过期";
+  return "失败";
+}
+
+export function AgentOperationAudit({
   entries,
 }: {
-  entries: AutomationApiAuditEntry[];
+  entries: AgentOperationAuditEntry[];
 }) {
   if (entries.length === 0) {
-    return <p className="settings-muted">尚无自动化提交记录。</p>;
+    return <p className="settings-muted">尚无 Agent 写入记录。</p>;
   }
   return (
     <div className="settings-api-table-wrap">
-      <table className="settings-api-table" aria-label="最近 API 操作">
+      <table className="settings-api-table" aria-label="Agent 写入审计">
         <thead>
           <tr>
             <th>时间</th>
-            <th>令牌</th>
-            <th>命令</th>
+            <th>Owner</th>
+            <th>Runtime</th>
             <th>目标</th>
             <th>结果</th>
           </tr>
         </thead>
         <tbody>
           {entries.map((entry) => (
-            <tr key={`${entry.requestId}:${entry.commandId}`}>
+            <tr key={`${entry.proposalId}:${entry.proposalVersion}`}>
               <td>{formatApiAccessTimestamp(entry.occurredAt)}</td>
-              <td><code>{entry.principalId}</code></td>
-              <td>{entry.commandKind}</td>
+              <td><code>{entry.approvingOwnerId}</code></td>
+              <td>{entry.runtimeKind} · {entry.profileId}</td>
               <td>
                 资源 {entry.resourceIds.join(", ") || "—"}
                 {entry.blockIds.length > 0
                   ? `；块 ${entry.blockIds.join(", ")}`
                   : ""}
               </td>
-              <td>{entry.result === "committed" ? "已提交" : "失败"}</td>
+              <td>{resultLabel(entry.result)}</td>
             </tr>
           ))}
         </tbody>

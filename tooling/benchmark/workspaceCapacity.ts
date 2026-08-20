@@ -668,7 +668,7 @@ let httpSnapshot: {
 const benchmarkHttpFetch: typeof fetch = async (input, init) => {
   assert.equal(
     new URL(String(input)).pathname,
-    "/api/v2/sync/workspaces/capacity",
+    "/api/v3/sync/workspaces/capacity",
   );
   const method = init?.method ?? "GET";
 

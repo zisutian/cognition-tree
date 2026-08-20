@@ -8,9 +8,7 @@ import type {
   TodoCommitDto,
   TodoContentDto,
 } from "../../../../contracts/todo/types.ts";
-import type {
-  ApiDomainChangeSetDto,
-} from "../../../../contracts/api/types.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 import type {
   WorkspaceRepositoryCommitDto,
 } from "../../../../contracts/workspace/types.ts";
@@ -36,7 +34,7 @@ import {
 } from "../../repository/built-ins/todoStore.ts";
 import {
   projectJournalContentChanges,
-} from "../../../../application/journal/journalCommandExecutor.ts";
+} from "../../../../application/journal/journalContentProjection.ts";
 import type {
   JournalDomainVersions,
 } from "../../../../application/journal/journalDomainCommands.ts";
@@ -45,14 +43,14 @@ import {
 } from "../http/runtime.ts";
 import {
   projectTodoContentChanges,
-} from "../../../../application/todo/todoCommandExecutor.ts";
+} from "../../../../application/todo/todoContentProjection.ts";
 import type {
   TodoDomainVersions,
 } from "../../../../application/todo/todoDomainCommands.ts";
 import {
   projectWorkspaceContentChanges,
-  type WorkspaceResourceVersionPolicy,
-} from "../../../../application/workspace/commands/workspaceCommandExecutor.ts";
+} from "../../../../application/workspace/commands/workspaceContentProjection.ts";
+import type { WorkspaceResourceVersionPolicy } from "../../../../application/workspace/commands/workspaceAgentCommandPreparation.ts";
 
 type ApiSyncResult = {
   body: unknown;
@@ -62,7 +60,7 @@ type ApiSyncResult = {
 type ApiSyncContext = {
   mode: "commit" | "load";
   observeRevision(revision: `sha256:${string}`): void;
-  publish(changes: ApiDomainChangeSetDto): Promise<void>;
+  publish(changes: DomainChangeSetDto): Promise<void>;
   readJsonBody(): Promise<unknown>;
   runtime: ApiRuntime;
 };

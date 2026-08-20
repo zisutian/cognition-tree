@@ -6,18 +6,18 @@ import type { WorkspaceRepositoryCatalog } from "../../repository/catalog.ts";
 import type { ApiBuiltInCatalog } from "./ports.ts";
 import { ApiRequestError } from "./errors.ts";
 import {
-  assertOperationScopes,
+  assertOperationAccess,
   createCheckpoint,
   requireBuiltInCatalog,
   type ApiHandlerContext,
   type HandlerResult,
 } from "./handlerContext.ts";
+import { handleAgentOperation } from "./agentHandlers.ts";
 import {
   handleJournalQuery,
   handleTodoQuery,
   handleWorkspaceQuery,
 } from "./queryHandlers.ts";
-import { handleApiCommand } from "../commands/handler.ts";
 import { handleApiSync } from "../sync/handlers.ts";
 import {
   journalResourceVersions,
@@ -34,7 +34,7 @@ import { ApiSearchService } from "../search.ts";
 export async function handleApiRoute(
   context: ApiHandlerContext,
 ): Promise<HandlerResult | null> {
-  assertOperationScopes(context.principal, context.operation);
+  assertOperationAccess(context.principal, context.operation);
   const { operation, route } = context;
 
   if (operation.operationId === "getHealth") {
@@ -42,14 +42,14 @@ export async function handleApiRoute(
   }
   if (operation.operationId === "getCapabilities") {
     return {
-      body: { apiVersion: 2, principal: context.principal },
+      body: { apiVersion: 3, principal: context.principal },
       statusCode: 200,
     };
   }
   if (operation.operationId === "getOpenApi") {
     return { body: createApiOpenApiDocument(), statusCode: 200 };
   }
-  if (operation.operationId === "streamEvents") {
+  if (operation.operationId === "streamContentEvents") {
     requireBuiltInCatalog(context.builtInCatalog);
     context.eventHub.connect({
       checkpoint: createCheckpoint({
@@ -96,12 +96,8 @@ export async function handleApiRoute(
   )) {
     return handleTodoQuery(context);
   }
-  if ([
-    "executeWorkspaceCommand",
-    "executeJournalCommand",
-    "executeTodoCommand",
-  ].includes(operation.operationId)) {
-    return handleApiCommand(context);
+  if (operation.path.startsWith("/api/v3/agent/")) {
+    return handleAgentOperation(context);
   }
   if ([
     "getWorkspaceSyncSnapshot",
@@ -144,9 +140,15 @@ export async function handleApiRoute(
   )) {
     return handleTokenAdmin(context);
   }
-  if (operation.operationId === "listAuditEntries") {
+  if (operation.operationId === "listAgentOperations") {
+    if (!context.operationLedger) {
+      throw new ApiRequestError(
+        "profile_unavailable",
+        "Agent operation audit is unavailable",
+      );
+    }
     return {
-      body: await context.stateStore.listAudit(parseAuditQuery(context.query)),
+      body: await context.operationLedger.list(parseAuditQuery(context.query)),
       statusCode: 200,
     };
   }

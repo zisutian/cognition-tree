@@ -1,368 +1,61 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { Type, type TSchema } from "@sinclair/typebox";
+import type { TSchema } from "@sinclair/typebox";
 import { failWireContract } from "../common/contractValue.ts";
-import { parseJournalCommit } from "../journal/parseJournal.ts";
-import { parseTodoCommit } from "../todo/parseTodo.ts";
-import {
-  parseCreateRepository,
-  parseRenameRepository,
-} from "../workspace/parseCatalog.ts";
-import { parseWorkspaceRepositoryCommit } from "../workspace/parseRepository.ts";
-import {
-  parseApiCreateTokenRequest,
-  parseApiJournalCommandRequest,
-  parseApiSchema,
-  parseApiSearchRequest,
-  parseApiTodoCommandRequest,
-  parseApiWorkspaceCommandRequest,
-} from "./parse.ts";
-import {
-  ApiAuditPageSchema,
-  ApiCreateTokenRequestSchema,
-  ApiCreatedTokenSchema,
-  ApiHealthSchema,
-  ApiRevokedSchema,
-  ApiTokenListSchema,
-} from "./schemas/admin.ts";
-import {
-  ApiJournalCommandRequestSchema,
-  ApiTodoCommandRequestSchema,
-  ApiWorkspaceCommandRequestSchema,
-} from "./schemas/commands.ts";
-import { ApiEventSchema } from "./schemas/events.ts";
-import {
-  ApiCapabilitiesSchema,
-  ApiErrorSchema,
-  type ApiScope,
-} from "./schemas/foundation.ts";
-import {
-  ApiCtnDocumentSchema,
-  ApiJournalEntriesSchema,
-  ApiTodoCollectionSchema,
-  ApiTodoCollectionsSchema,
-  ApiWorkspaceListSchema,
-  ApiWorkspaceTreeSchema,
-} from "./schemas/resources.ts";
-import {
-  ApiSearchRequestSchema,
-  ApiSearchResponseSchema,
-} from "./schemas/search.ts";
-import {
-  ApiBuiltInCatalogSchema,
-  ApiBuiltInRetryResultSchema,
-  ApiCommitResultSchema,
-  ApiCreateRepositorySchema,
-  ApiJournalCommitSchema,
-  ApiJournalSnapshotSchema,
-  ApiRenameRepositorySchema,
-  ApiRepositoryCatalogSchema,
-  ApiRepositoryDeletionResultSchema,
-  ApiRepositoryDescriptorSchema,
-  ApiTodoCommitSchema,
-  ApiTodoSnapshotSchema,
-  ApiWorkspaceCommitSchema,
-  ApiWorkspaceSnapshotSchema,
-} from "./schemas/storage.ts";
-import { ApiCommandResultSchema } from "./schemas/transitions.ts";
+import { parseApiSchema } from "./parse.ts";
+import { ApiErrorSchema } from "./schemas/foundation.ts";
+import { adminApiOperations } from "./operations/admin.ts";
+import { agentApiOperations } from "./operations/agent.ts";
+import { contentApiOperations } from "./operations/content.ts";
+import type { ApiOperationDefinition } from "./operations/definition.ts";
+import { foundationApiOperations } from "./operations/foundation.ts";
+import { syncApiOperations } from "./operations/sync.ts";
 
-type ApiBodyDefinition = {
-  decode(input: unknown): unknown;
-  schema: TSchema;
-};
+export type {
+  ApiAccessPolicy,
+  ApiOperationDefinition,
+  ApiReadableDomain,
+} from "./operations/definition.ts";
 
-export type ApiOperationDefinition = {
-  anyScopes: readonly ApiScope[];
-  body?: ApiBodyDefinition;
-  method: "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
-  operationId: string;
-  path: string;
-  query?: TSchema;
-  responseMediaType?: "application/json" | "text/event-stream";
-  responses: Readonly<Record<number, TSchema>>;
-  scopes: readonly ApiScope[];
-};
+export const apiOperationCatalogs = {
+  foundation: foundationApiOperations,
+  content: contentApiOperations,
+  sync: syncApiOperations,
+  agent: agentApiOperations,
+  admin: adminApiOperations,
+} as const;
 
-const body = (
-  schema: TSchema,
-  decode: (input: unknown) => unknown = (input) =>
-    parseApiSchema(schema, input),
-): ApiBodyDefinition => ({ decode, schema });
+export const apiOperations: readonly ApiOperationDefinition[] =
+  Object.values(apiOperationCatalogs).flat();
 
-const noParameters = Type.Object({}, { additionalProperties: false });
-const openApiDocumentSchema = Type.Record(Type.String(), Type.Unknown());
-const repositoryDeleteQuerySchema = Type.Object({
-  mode: Type.Union([
-    Type.Literal("delete-managed-data"),
-    Type.Literal("remove-connection"),
-  ]),
-}, { additionalProperties: false });
-const auditQuerySchema = Type.Object({
-  cursor: Type.Optional(Type.Integer({ minimum: 0 })),
-  limit: Type.Optional(Type.Integer({ maximum: 100, minimum: 1 })),
-}, { additionalProperties: false });
+function assertUniqueOperations() {
+  const operationIds = new Set<string>();
+  const methodPaths = new Set<string>();
 
-function operation(
-  definition: Omit<ApiOperationDefinition, "anyScopes" | "scopes"> & {
-    anyScopes?: readonly ApiScope[];
-    scopes?: readonly ApiScope[];
-  },
-): ApiOperationDefinition {
-  return {
-    anyScopes: definition.anyScopes ?? [],
-    scopes: definition.scopes ?? [],
-    ...definition,
-  };
+  for (const operation of apiOperations) {
+    if (operationIds.has(operation.operationId)) {
+      throw new Error(`Duplicate API operationId: ${operation.operationId}`);
+    }
+    const methodPath = `${operation.method} ${operation.path}`;
+
+    if (methodPaths.has(methodPath)) {
+      throw new Error(`Duplicate API method/path: ${methodPath}`);
+    }
+    operationIds.add(operation.operationId);
+    methodPaths.add(methodPath);
+  }
 }
 
-export const apiOperations = [
-  operation({
-    method: "GET",
-    operationId: "getHealth",
-    path: "/api/v2/health",
-    responses: { 200: ApiHealthSchema },
-  }),
-  operation({
-    method: "GET",
-    operationId: "getCapabilities",
-    path: "/api/v2/capabilities",
-    responses: { 200: ApiCapabilitiesSchema },
-  }),
-  operation({
-    method: "GET",
-    operationId: "getOpenApi",
-    path: "/api/v2/openapi.json",
-    responses: { 200: openApiDocumentSchema },
-  }),
-  operation({
-    anyScopes: ["journal:read", "sync", "todo:read", "workspace:read"],
-    method: "GET",
-    operationId: "streamEvents",
-    path: "/api/v2/events",
-    responseMediaType: "text/event-stream",
-    responses: { 200: ApiEventSchema },
-  }),
-  operation({
-    anyScopes: ["journal:read", "todo:read", "workspace:read"],
-    body: body(ApiSearchRequestSchema, parseApiSearchRequest),
-    method: "POST",
-    operationId: "searchContent",
-    path: "/api/v2/search",
-    responses: { 200: ApiSearchResponseSchema },
-  }),
-  operation({
-    method: "GET",
-    operationId: "listWorkspaces",
-    path: "/api/v2/workspaces",
-    responses: { 200: ApiWorkspaceListSchema },
-    scopes: ["workspace:read"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getWorkspaceTree",
-    path: "/api/v2/workspaces/{repositoryId}/tree",
-    responses: { 200: ApiWorkspaceTreeSchema },
-    scopes: ["workspace:read"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getWorkspaceNote",
-    path: "/api/v2/workspaces/{repositoryId}/notes/{noteId}",
-    responses: { 200: ApiCtnDocumentSchema },
-    scopes: ["workspace:read"],
-  }),
-  operation({
-    body: body(
-      ApiWorkspaceCommandRequestSchema,
-      parseApiWorkspaceCommandRequest,
-    ),
-    method: "POST",
-    operationId: "executeWorkspaceCommand",
-    path: "/api/v2/workspaces/{repositoryId}/commands",
-    responses: { 200: ApiCommandResultSchema },
-    scopes: ["workspace:write"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "listJournalEntries",
-    path: "/api/v2/journal/entries",
-    responses: { 200: ApiJournalEntriesSchema },
-    scopes: ["journal:read"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getJournalEntry",
-    path: "/api/v2/journal/entries/{entryId}",
-    responses: { 200: ApiCtnDocumentSchema },
-    scopes: ["journal:read"],
-  }),
-  operation({
-    body: body(
-      ApiJournalCommandRequestSchema,
-      parseApiJournalCommandRequest,
-    ),
-    method: "POST",
-    operationId: "executeJournalCommand",
-    path: "/api/v2/journal/commands",
-    responses: { 200: ApiCommandResultSchema },
-    scopes: ["journal:write"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "listTodoCollections",
-    path: "/api/v2/todo/collections",
-    responses: { 200: ApiTodoCollectionsSchema },
-    scopes: ["todo:read"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getTodoCollection",
-    path: "/api/v2/todo/collections/{collectionId}",
-    responses: { 200: ApiTodoCollectionSchema },
-    scopes: ["todo:read"],
-  }),
-  operation({
-    body: body(ApiTodoCommandRequestSchema, parseApiTodoCommandRequest),
-    method: "POST",
-    operationId: "executeTodoCommand",
-    path: "/api/v2/todo/commands",
-    responses: { 200: ApiCommandResultSchema },
-    scopes: ["todo:write"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getWorkspaceSyncSnapshot",
-    path: "/api/v2/sync/workspaces/{repositoryId}",
-    responses: { 200: ApiWorkspaceSnapshotSchema },
-    scopes: ["sync"],
-  }),
-  operation({
-    body: body(ApiWorkspaceCommitSchema, parseWorkspaceRepositoryCommit),
-    method: "PUT",
-    operationId: "putWorkspaceSyncSnapshot",
-    path: "/api/v2/sync/workspaces/{repositoryId}",
-    responses: { 200: ApiCommitResultSchema },
-    scopes: ["sync", "syntax:write"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getJournalSyncSnapshot",
-    path: "/api/v2/sync/journal",
-    responses: { 200: ApiJournalSnapshotSchema },
-    scopes: ["sync"],
-  }),
-  operation({
-    body: body(ApiJournalCommitSchema, parseJournalCommit),
-    method: "PUT",
-    operationId: "putJournalSyncSnapshot",
-    path: "/api/v2/sync/journal",
-    responses: { 200: ApiCommitResultSchema },
-    scopes: ["sync", "syntax:write"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "getTodoSyncSnapshot",
-    path: "/api/v2/sync/todo",
-    responses: { 200: ApiTodoSnapshotSchema },
-    scopes: ["sync"],
-  }),
-  operation({
-    body: body(ApiTodoCommitSchema, parseTodoCommit),
-    method: "PUT",
-    operationId: "putTodoSyncSnapshot",
-    path: "/api/v2/sync/todo",
-    responses: { 200: ApiCommitResultSchema },
-    scopes: ["sync", "syntax:write"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "listAdminRepositories",
-    path: "/api/v2/admin/repositories",
-    responses: { 200: ApiRepositoryCatalogSchema },
-    scopes: ["repository:admin"],
-  }),
-  operation({
-    body: body(ApiCreateRepositorySchema, parseCreateRepository),
-    method: "POST",
-    operationId: "createAdminRepository",
-    path: "/api/v2/admin/repositories",
-    responses: { 201: ApiRepositoryDescriptorSchema },
-    scopes: ["repository:admin"],
-  }),
-  operation({
-    body: body(ApiRenameRepositorySchema, parseRenameRepository),
-    method: "PATCH",
-    operationId: "renameAdminRepository",
-    path: "/api/v2/admin/repositories/{repositoryId}",
-    responses: { 200: ApiRepositoryDescriptorSchema },
-    scopes: ["repository:admin"],
-  }),
-  operation({
-    method: "DELETE",
-    operationId: "deleteAdminRepository",
-    path: "/api/v2/admin/repositories/{repositoryId}",
-    query: repositoryDeleteQuerySchema,
-    responses: {
-      200: ApiRepositoryDeletionResultSchema,
-      202: ApiRepositoryDeletionResultSchema,
-    },
-    scopes: ["repository:admin"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "listBuiltIns",
-    path: "/api/v2/admin/built-ins",
-    responses: { 200: ApiBuiltInCatalogSchema },
-    scopes: ["repository:admin"],
-  }),
-  operation({
-    method: "POST",
-    operationId: "retryBuiltIn",
-    path: "/api/v2/admin/built-ins/{builtInId}/retry",
-    responses: { 200: ApiBuiltInRetryResultSchema },
-    scopes: ["repository:admin"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "listApiTokens",
-    path: "/api/v2/admin/tokens",
-    responses: { 200: ApiTokenListSchema },
-    scopes: ["token:manage"],
-  }),
-  operation({
-    body: body(
-      ApiCreateTokenRequestSchema,
-      parseApiCreateTokenRequest,
-    ),
-    method: "POST",
-    operationId: "createApiToken",
-    path: "/api/v2/admin/tokens",
-    responses: { 201: ApiCreatedTokenSchema },
-    scopes: ["token:manage"],
-  }),
-  operation({
-    method: "DELETE",
-    operationId: "revokeToken",
-    path: "/api/v2/admin/tokens/{tokenId}",
-    responses: { 200: ApiRevokedSchema },
-    scopes: ["token:manage"],
-  }),
-  operation({
-    method: "GET",
-    operationId: "listAuditEntries",
-    path: "/api/v2/admin/audit",
-    query: auditQuerySchema,
-    responses: { 200: ApiAuditPageSchema },
-    scopes: ["token:manage"],
-  }),
-] as const satisfies readonly ApiOperationDefinition[];
+assertUniqueOperations();
 
 type ApiRouteParameters = {
   builtInId?: string;
   collectionId?: string;
   entryId?: string;
   noteId?: string;
+  proposalId?: string;
   repositoryId?: string;
+  sessionId?: string;
   tokenId?: string;
 };
 
@@ -372,9 +65,7 @@ export type ApiRouteDefinition = {
   path: string;
 };
 
-export type ResolvedApiRoute =
-  & ApiRouteDefinition
-  & ApiRouteParameters;
+export type ResolvedApiRoute = ApiRouteDefinition & ApiRouteParameters;
 
 function groupRoutes() {
   const routes = new Map<string, ApiOperationDefinition[]>();
@@ -385,16 +76,14 @@ function groupRoutes() {
     current.push(definition);
     routes.set(definition.path, current);
   }
-  return [...routes.entries()].map(([path, operations]) => {
-    return {
-      methods: operations.map(({ method }) => method),
-      operations: new Map(operations.map((candidate) => [
-        candidate.method,
-        candidate,
-      ])),
-      path,
-    } satisfies ApiRouteDefinition;
-  });
+  return [...routes.entries()].map(([path, operations]) => ({
+    methods: operations.map(({ method }) => method),
+    operations: new Map(operations.map((candidate) => [
+      candidate.method,
+      candidate,
+    ])),
+    path,
+  } satisfies ApiRouteDefinition));
 }
 
 export const apiRouteDefinitions = groupRoutes();
@@ -406,10 +95,7 @@ function compilePath(path: string) {
     return "([^/]+)";
   });
 
-  return {
-    parameterNames,
-    pattern: new RegExp(`^${pattern}$`),
-  };
+  return { parameterNames, pattern: new RegExp(`^${pattern}$`) };
 }
 
 const compiledRoutes = apiRouteDefinitions.map((definition) => ({
@@ -449,10 +135,7 @@ export const apiAllowedMethods = [
   "OPTIONS",
 ].sort().join(", ");
 
-export function getApiRouteOperation(
-  route: ApiRouteDefinition,
-  method: string,
-) {
+export function getApiRouteOperation(route: ApiRouteDefinition, method: string) {
   const operation = route.operations.get(method);
 
   if (!operation) {
@@ -482,7 +165,7 @@ export function parseApiOperationQuery(
   if (!operation.query) {
     if (entries.length > 0) {
       failWireContract(
-        "CTN API v2",
+        "CTN API v3",
         `$.${entries[0]![0]}`,
         "query parameters are not allowed",
       );
@@ -497,14 +180,12 @@ export function parseApiOperationQuery(
   for (const [key, value] of entries) {
     if (key in source) {
       failWireContract(
-        "CTN API v2",
+        "CTN API v3",
         `$.${key}`,
         "duplicate query parameter",
       );
     }
-    source[key] = properties?.[key]?.type === "integer"
-      ? Number(value)
-      : value;
+    source[key] = properties?.[key]?.type === "integer" ? Number(value) : value;
   }
   return parseApiSchema(operation.query, source);
 }
@@ -542,4 +223,3 @@ export class ApiResponseContractError extends Error {
 }
 
 export const ApiErrorResponseSchema = ApiErrorSchema;
-export const ApiNoQuerySchema = noParameters;

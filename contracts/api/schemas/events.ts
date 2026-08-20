@@ -8,7 +8,7 @@ import {
   nullable,
   strictObject,
 } from "./foundation.ts";
-import { ApiDomainChangeSetSchema } from "./transitions.ts";
+import { DomainChangeSetSchema } from "../../common/domainChanges.ts";
 
 export const ApiRevisionCheckpointSchema = strictObject({
   journal: nullable(ApiResourceVersionSchema),
@@ -22,7 +22,7 @@ export type ApiRevisionCheckpointDto = Static<
 >;
 
 export const ApiChangeEventSchema = strictObject({
-  changes: ApiDomainChangeSetSchema,
+  changes: DomainChangeSetSchema,
   checkpoint: ApiRevisionCheckpointSchema,
   sequence: ApiNonNegativeIntegerSchema,
   streamId: ApiUuidSchema,

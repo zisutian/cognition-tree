@@ -19,12 +19,6 @@ describe("source ownership boundaries", () => {
   });
 
   it("keeps automation outside official sync and administration routes", () => {
-    const privilegedScopes = new Set([
-      "repository:admin",
-      "sync",
-      "syntax:write",
-      "token:manage",
-    ]);
     const operations = apiRouteDefinitions.flatMap((route) =>
       route.methods.map((method) => ({
         method,
@@ -33,18 +27,21 @@ describe("source ownership boundaries", () => {
       }))
     );
 
-    expect(
-      apiAutomationScopes.filter((scope) => privilegedScopes.has(scope)),
-    ).toEqual([]);
+    expect(apiAutomationScopes).toEqual([
+      "journal:read",
+      "todo:read",
+      "workspace:read",
+    ]);
     for (const { method, operation, path } of operations) {
       if (
-        path.startsWith("/api/v2/sync/") ||
-        path.startsWith("/api/v2/admin/")
+        path.startsWith("/api/v3/sync/") ||
+        path.startsWith("/api/v3/admin/") ||
+        path.startsWith("/api/v3/agent/")
       ) {
         expect(
-          operation.scopes.some((scope) => privilegedScopes.has(scope)),
+          operation.access,
           `${method} ${path}`,
-        ).toBe(true);
+        ).toEqual({ kind: "owner" });
       }
     }
     expect(new Set(operations.map(({ operation }) => operation.operationId)).size)

@@ -21,11 +21,11 @@ function createRequest({
   return Object.assign(Readable.from([]), {
     headers,
     method,
-    url: "/api/v2/health",
+    url: "/api/v3/health",
   }) as IncomingMessage;
 }
 
-describe("CTN API v2 security", () => {
+describe("CTN API v3 security", () => {
   it("allows loopback authorities without a token", async () => {
     const policy = createApiSecurityPolicy({ host: "127.0.0.1" });
 

@@ -12,6 +12,14 @@ import { CompositeRepositoryCatalog } from "./catalog/compositeRepositoryCatalog
 import { WebDavConnectionRegistry } from "./adapters/webdav/webDavConnectionRegistry.ts";
 import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.ts";
 import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
+import { AutomationTokenStore } from "./access/automationTokenStore.ts";
+import { AgentOperationLedger } from "./agent/operationLedger.ts";
+import { loadAgentProfileCatalog } from "./agent/profiles.ts";
+import { AgentService } from "./agent/service.ts";
+import { ApiEventHub } from "./api/sync/events.ts";
+import { ApiRevisionTracker } from "./api/sync/revisionTracker.ts";
+import { ApiSearchService } from "./api/search.ts";
+import { systemApiRuntime } from "./api/http/runtime.ts";
 
 const host = process.env.CTN_API_HOST ?? "127.0.0.1";
 const port = Number(process.env.CTN_API_PORT ?? "3001");
@@ -51,9 +59,38 @@ const builtInCatalog = new BuiltInCatalog(repositoryRoot);
 await catalog.initialize();
 await builtInCatalog.initialize();
 
-const server = createApiServer({
+const accessStore = new AutomationTokenStore(serverStateDirectory);
+const profileCatalog = await loadAgentProfileCatalog(
+  process.env.CTN_AGENT_PROFILES_FILE,
+);
+const operationLedger = profileCatalog.maxAuditEntries === null
+  ? null
+  : new AgentOperationLedger(
+      serverStateDirectory,
+      profileCatalog.maxAuditEntries,
+    );
+const eventHub = new ApiEventHub();
+const revisionTracker = new ApiRevisionTracker();
+const search = new ApiSearchService({ builtInCatalog, catalog });
+const agentService = new AgentService({
   builtInCatalog,
   catalog,
+  eventHub,
+  ledger: operationLedger,
+  profileCatalog,
+  revisionTracker,
+  runtime: systemApiRuntime,
+  search,
+});
+
+const server = createApiServer({
+  accessStore,
+  agentService,
+  builtInCatalog,
+  catalog,
+  eventHub,
+  operationLedger,
+  revisionTracker,
   security,
   stateDirectory: serverStateDirectory,
 });
@@ -68,6 +105,7 @@ const shutdown = async () => {
     server.close((error) => error ? reject(error) : resolve());
     server.closeIdleConnections();
   });
+  await agentService.dispose();
   await catalog.dispose();
 };
 
@@ -93,5 +131,8 @@ server.listen(port, host, () => {
   console.log(`Allowed origins: ${security.allowedOrigins.join(", ") || "none"}`);
   console.log(
     `Bearer authentication: ${security.requiresBearerToken ? "required" : "disabled"}`,
+  );
+  console.log(
+    `Agent profiles: ${agentService.status().enabled ? "available" : "unavailable"}`,
   );
 });

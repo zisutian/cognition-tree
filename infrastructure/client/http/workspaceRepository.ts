@@ -21,7 +21,7 @@ export function createHttpWorkspaceRepositoryBackend({
   token,
 }: HttpWorkspaceRepositoryOptions): WorkspaceRepositoryBackend {
   const endpoint =
-    `/api/v2/sync/workspaces/${encodeURIComponent(repositoryId)}`;
+    `/api/v3/sync/workspaces/${encodeURIComponent(repositoryId)}`;
   const backend = createHttpVersionedContentRepositoryBackend({
     baseUrl,
     codec: {

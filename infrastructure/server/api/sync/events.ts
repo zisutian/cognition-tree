@@ -9,10 +9,10 @@ import { serializeJsonIteratively } from "../../../../contracts/common/json.ts";
 import type {
   ApiChangeEventDto,
   ApiCheckpointEventDto,
-  ApiDomainChangeSetDto,
   ApiPrincipalDto,
   ApiRevisionCheckpointDto,
 } from "../../../../contracts/api/types.ts";
+import type { DomainChangeSetDto } from "../../../../contracts/common/domainChanges.ts";
 
 type EventConnection = {
   principal: ApiPrincipalDto;
@@ -23,7 +23,7 @@ function canRead(
   principal: ApiPrincipalDto,
   domain: "journal" | "todo" | "workspace",
 ) {
-  return principal.scopes.includes("sync") ||
+  return principal.kind !== "automation" ||
     principal.scopes.includes(`${domain}:read`);
 }
 
@@ -32,6 +32,7 @@ function repositoryAllowed(
   repositoryId: string | undefined,
 ) {
   return repositoryId === undefined ||
+    principal.kind !== "automation" ||
     principal.repositoryIds === null ||
     principal.repositoryIds.includes(repositoryId);
 }
@@ -56,9 +57,9 @@ export function filterApiCheckpoint(
 }
 
 export function filterApiChangeSet(
-  changes: ApiDomainChangeSetDto,
+  changes: DomainChangeSetDto,
   principal: ApiPrincipalDto,
-): ApiDomainChangeSetDto {
+): DomainChangeSetDto {
   const resources = changes.resources.filter(({ domain, repositoryId }) =>
     canRead(principal, domain) &&
     repositoryAllowed(principal, repositoryId)
@@ -134,7 +135,7 @@ export class ApiEventHub {
 
   publish(
     checkpoint: ApiRevisionCheckpointDto,
-    changes: ApiDomainChangeSetDto,
+    changes: DomainChangeSetDto,
   ) {
     this.#sequence += 1;
     const event: ApiChangeEventDto = {
