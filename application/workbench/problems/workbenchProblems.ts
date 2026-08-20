@@ -23,6 +23,26 @@ import type {
 } from "../../repository/workspaceRepositoryCatalog";
 import type { WorkbenchFeedbackError } from "../workbenchFeedbackController";
 
+export type WorkbenchAgentProblemInput = Readonly<{
+  code: string;
+  id: string;
+  message: string;
+  sessionId: string | null;
+}>;
+
+export type UiWorkbenchAgentProblem = {
+  code: string;
+  id: string;
+  locationLabel: string;
+  message: string;
+  severity: "error";
+  source: "agent";
+  target: {
+    kind: "agent-problem";
+    sessionId: string | null;
+  };
+};
+
 export type UiWorkbenchOperationalProblem = {
   code: "operation_failed";
   id: string;
@@ -70,6 +90,7 @@ export type UiWorkbenchRepositoryProblem = {
 };
 
 export type UiWorkbenchProblem =
+  | UiWorkbenchAgentProblem
   | UiWorkbenchDiagnostic
   | JournalDiagnostic
   | TodoDiagnostic
@@ -236,6 +257,22 @@ export function projectUiOperationalProblems<Scope extends string>(
   }));
 }
 
+export function projectUiAgentProblems(
+  problems: readonly WorkbenchAgentProblemInput[],
+): UiWorkbenchAgentProblem[] {
+  return problems.map((problem) => ({
+    code: problem.code,
+    id: problem.id,
+    locationLabel: problem.sessionId
+      ? `会话 ${problem.sessionId.slice(0, 8)}`
+      : "Agent",
+    message: problem.message,
+    severity: "error",
+    source: "agent",
+    target: { kind: "agent-problem", sessionId: problem.sessionId },
+  }));
+}
+
 export function createUiWorkbenchProblems(
   diagnostics: WorkbenchDiagnostics,
   repositoryIssues: WorkspaceRepositoryCatalogIssue[] = [],
@@ -243,6 +280,7 @@ export function createUiWorkbenchProblems(
   builtInIssues: BuiltInRuntimeIssue[] = [],
   repositoryRuntimeIssues: WorkspaceRepositoryRuntimeIssue[] = [],
   operationalProblems: UiWorkbenchOperationalProblem[] = [],
+  agentProblems: UiWorkbenchAgentProblem[] = [],
 ): UiWorkbenchProblems {
   const problems: UiWorkbenchProblem[] = [
     ...diagnostics.diagnostics,
@@ -251,6 +289,7 @@ export function createUiWorkbenchProblems(
     ...projectUiWorkspaceRepositoryRuntimeProblems(repositoryRuntimeIssues),
     ...projectUiBuiltInProblems(builtInIssues),
     ...operationalProblems,
+    ...agentProblems,
   ].sort(compareProblems);
 
   return {

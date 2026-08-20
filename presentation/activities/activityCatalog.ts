@@ -2,6 +2,7 @@
 
 import {
   Archive,
+  Bot,
   Braces,
   CalendarDays,
   FileText,
@@ -28,6 +29,17 @@ export type ActivityDescriptor = {
 };
 
 export const activityDescriptors: readonly ActivityDescriptor[] = [
+  {
+    availability: "always",
+    Controller: lazy(async () => ({
+      default: (await import("./agent/AgentActivityController"))
+        .AgentActivityController,
+    })),
+    group: "primary",
+    icon: Bot,
+    id: "agent",
+    label: "Agent",
+  },
   {
     availability: "workspace",
     Controller: lazy(async () => ({

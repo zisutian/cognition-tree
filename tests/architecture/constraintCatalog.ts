@@ -203,6 +203,15 @@ export const dependencyImportPolicies: readonly ImportPolicy[] = [
     name: "server API independence from core commands",
   },
   {
+    allows: () => false,
+    applies: ({ filePath, targetPath }) =>
+      (isApplicationArea(filePath, "agent") &&
+        isApplicationArea(targetPath, "workbench")) ||
+      (isApplicationArea(filePath, "workbench") &&
+        isApplicationArea(targetPath, "agent")),
+    name: "application coordination root independence",
+  },
+  {
     allows: allowsInfrastructureEdge,
     applies: isRefinedInfrastructureEdge,
     name: "infrastructure sublayer direction",

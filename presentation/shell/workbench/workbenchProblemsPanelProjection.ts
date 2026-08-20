@@ -33,6 +33,13 @@ export function selectWorkbenchPersistenceStatus(
   activeActivityId: ActivityId,
   application: WorkbenchApplication,
 ) {
+  if (activeActivityId === "agent") {
+    const session = application.agent.state.sessions.find(
+      ({ id }) => id === application.agent.state.activeSessionId,
+    );
+
+    return session ? `Agent · ${session.state}` : "";
+  }
   if (activeActivityId === "notes") {
     if (application.repository.session.status === "ready") {
       return projectPersistenceStatus(

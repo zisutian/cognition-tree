@@ -91,9 +91,11 @@ describe("dependency boundaries", () => {
   });
 
   it("enforces the shared dependency and runtime policy catalog", () => {
+    const imports = listSourceImports();
+
     expect([
-      ...auditApplicationCoordinationRoots(listSourceImports()),
-      ...auditImportPolicies(listSourceImports(), dependencyImportPolicies),
+      ...auditApplicationCoordinationRoots(imports),
+      ...auditImportPolicies(imports, dependencyImportPolicies),
       ...auditTextPolicies(dependencyTextPolicies),
       ...auditTextPolicies(e2eTextPolicies),
       ...auditTestLayerImports(),
@@ -134,6 +136,12 @@ describe("dependency boundaries", () => {
           "../../core/todo/commands/todoCompletionRecurrenceCommands.ts",
         targetRoot: "core",
       },
+      {
+        filePath: "../../application/workbench/problems.ts",
+        importPath: "../agent/controller",
+        targetPath: "../../application/agent/controller.ts",
+        targetRoot: "application",
+      },
     ], dependencyImportPolicies);
 
     expect(violations).toEqual([
@@ -142,6 +150,7 @@ describe("dependency boundaries", () => {
       "generic persistence and sync independence from domains: ../../application/persistence/merge.ts imports ../../core/todo/model",
       "generic client HTTP independence from domains: ../../infrastructure/client/http/apiTransport.ts imports ../../../application/workspace/persistence/workspaceRepository",
       "server API independence from core commands: ../../infrastructure/server/api/http/queryHandlers.ts imports ../../../../core/todo/commands/todoCompletionRecurrenceCommands",
+      "application coordination root independence: ../../application/workbench/problems.ts imports ../agent/controller",
     ]);
   });
 

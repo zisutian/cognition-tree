@@ -24,12 +24,15 @@ import type { UiWorkbenchDiagnostics } from
 import {
   createUiWorkbenchProblems,
   projectUiOperationalProblems,
+  projectUiAgentProblems,
   type UiWorkbenchOperationalProblem,
   type UiWorkbenchProblems,
+  type WorkbenchAgentProblemInput,
   type WorkbenchDiagnostics,
 } from "./workbenchProblems";
 
 export type WorkbenchProblemScope =
+  | "agent"
   | "journal"
   | "notes"
   | "repository"
@@ -52,6 +55,7 @@ export function selectWorkbenchProblems({
   syntaxDiagnostics,
   syntaxOwner = "workspace",
   todoDiagnostics,
+  agentProblems = [],
 }: {
   activeScope: WorkbenchProblemScope;
   builtInIssues: BuiltInRuntimeIssue[];
@@ -64,6 +68,7 @@ export function selectWorkbenchProblems({
   syntaxDiagnostics?: WorkbenchDiagnostics;
   syntaxOwner?: SyntaxProblemOwner;
   todoDiagnostics?: TodoDiagnostics;
+  agentProblems?: ReturnType<typeof projectUiAgentProblems>;
 }): UiWorkbenchProblems {
   const emptyDiagnostics = {
     diagnostics: [],
@@ -71,7 +76,9 @@ export function selectWorkbenchProblems({
     status: "ready" as const,
     warningCount: 0,
   };
-  const scopedDiagnostics = activeScope === "journal"
+  const scopedDiagnostics = activeScope === "agent"
+    ? emptyDiagnostics
+    : activeScope === "journal"
     ? journalDiagnostics ?? emptyDiagnostics
     : activeScope === "todo"
       ? todoDiagnostics ?? emptyDiagnostics
@@ -90,7 +97,8 @@ export function selectWorkbenchProblems({
           issue.id === "todo")
         : [];
   const scopedRepositoryRuntimeIssues = activeScope === "repository" ||
-      (!(activeScope === "journal" || activeScope === "todo") &&
+      (!(activeScope === "agent" || activeScope === "journal" ||
+        activeScope === "todo") &&
         (activeScope !== "syntax" || syntaxOwner === "workspace"))
     ? repositoryRuntimeIssues
     : [];
@@ -102,6 +110,7 @@ export function selectWorkbenchProblems({
     scopedBuiltInIssues,
     scopedRepositoryRuntimeIssues,
     operationalProblems,
+    activeScope === "agent" ? agentProblems : [],
   );
 }
 
@@ -115,6 +124,7 @@ export function projectWorkbenchProblems({
   syntaxDiagnostics,
   syntaxOwner = "workspace",
   todoDiagnostics,
+  agentProblems = [],
 }: {
   activeScope: WorkbenchProblemScope;
   diagnostics: UiWorkbenchDiagnostics;
@@ -125,6 +135,7 @@ export function projectWorkbenchProblems({
   syntaxDiagnostics?: WorkbenchDiagnostics;
   syntaxOwner?: SyntaxProblemOwner;
   todoDiagnostics?: TodoDiagnostics;
+  agentProblems?: readonly WorkbenchAgentProblemInput[];
 }): UiWorkbenchProblems {
   const ordinaryCatalog = repository.catalogState.status === "ready"
     ? repository.catalogState
@@ -160,5 +171,6 @@ export function projectWorkbenchProblems({
     syntaxDiagnostics,
     syntaxOwner,
     todoDiagnostics,
+    agentProblems: projectUiAgentProblems(agentProblems),
   });
 }

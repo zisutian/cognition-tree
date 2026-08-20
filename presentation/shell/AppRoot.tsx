@@ -12,6 +12,7 @@ import type {
 } from "../../infrastructure/client/runtime/apiConfiguration";
 import { clientApplicationScheduler } from "../../infrastructure/client/platform/applicationServices";
 import { createWorkbenchRuntime } from "../../infrastructure/client/runtime/workbenchRuntime";
+import { createClientAgentRuntime } from "../../infrastructure/client/runtime/agentRuntime";
 import type { ActivityId } from "../ui/activityTypes";
 import { useWorkbenchApplicationBindings } from "./application/useWorkbenchApplicationBindings";
 import { projectUnavailableWorkspace } from "./application/workbenchApplicationProjection";
@@ -24,6 +25,28 @@ export function AppRoot({
   api: ClientApiConfiguration;
 }) {
   const controller = useMemo(() => createWorkbenchRuntime(api), [api]);
+  const agentController = useMemo(() => createClientAgentRuntime(
+    api,
+    async (scope) => {
+      const current = controller.getSnapshot();
+
+      if (scope.domain === "workspace") {
+        if (current.catalog.activeDescriptor?.id !== scope.repositoryId) return;
+        if (current.workspace.status !== "ready") {
+          throw new Error("Workspace draft is not ready to synchronize.");
+        }
+        await controller.workspace.synchronizePendingChanges();
+        return;
+      }
+      if (scope.domain === "journal") {
+        if (current.builtIns.journal.state.status !== "ready") return;
+        await controller.journal.synchronizePendingChanges();
+        return;
+      }
+      if (current.builtIns.todo.state.status !== "ready") return;
+      await controller.todo.synchronizePendingChanges();
+    },
+  ), [api, controller]);
   const feedbackController = useMemo(
     () => createWorkbenchFeedbackController<ActivityId>({
       scheduler: clientApplicationScheduler,
@@ -35,10 +58,17 @@ export function AppRoot({
     controller.getSnapshot,
     controller.getSnapshot,
   );
+  const agentSnapshot = useSyncExternalStore(
+    agentController.subscribe,
+    agentController.getSnapshot,
+    agentController.getSnapshot,
+  );
   const lifecycleEpochRef = useRef(0);
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
   const applications = useWorkbenchApplicationBindings({
+    agentController,
+    agentState: agentSnapshot,
     controller,
     feedbackController,
     snapshot,
@@ -49,15 +79,17 @@ export function AppRoot({
 
     lifecycleEpochRef.current = lifecycleEpoch;
     controller.start();
+    agentController.start();
     return () => {
       queueMicrotask(() => {
         if (lifecycleEpochRef.current === lifecycleEpoch) {
           controller.dispose();
+          agentController.dispose();
           feedbackController.dispose();
         }
       });
     };
-  }, [controller, feedbackController]);
+  }, [agentController, controller, feedbackController]);
 
   if (snapshot.workspace.status === "ready") {
     const session = projectWorkspaceSessionApplication(
@@ -71,6 +103,7 @@ export function AppRoot({
     return (
       <ReadyWorkspaceWorkbench
         activeActivityId={activeActivityId}
+        agent={applications.agent}
         apiAccess={applications.apiAccess}
         controller={controller}
         feedbackController={feedbackController}

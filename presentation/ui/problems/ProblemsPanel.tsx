@@ -18,6 +18,7 @@ import {
 } from "../shared/virtualListMetrics";
 
 const sourceLabels: Record<UiWorkbenchProblem["source"], string> = {
+  agent: "Agent",
   document: "笔记",
   name: "名称",
   operation: "操作",

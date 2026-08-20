@@ -1,0 +1,282 @@
+.agent-context,
+.agent-context .ui-section,
+.agent-create-form,
+.agent-conversation-body,
+.agent-proposal-body,
+.agent-change-summary,
+.agent-diff,
+.agent-destructive-confirmation {
+  display: grid;
+  gap: var(--ui-gap);
+}
+
+.agent-context {
+  align-content: start;
+}
+
+.agent-context .ui-section + .ui-section {
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.agent-create-form > label,
+.agent-proposal-picker {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.agent-scope-options {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin: 0;
+  padding: var(--ui-gap-tight);
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
+}
+
+.agent-scope-options legend,
+.agent-scope-options p {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+}
+
+.agent-scope-options p {
+  margin: 0;
+}
+
+.agent-scope-options label {
+  display: flex;
+  gap: var(--ui-gap-tight);
+  align-items: center;
+}
+
+.agent-session-list,
+.agent-message-list,
+.agent-change-summary ul,
+.agent-diff ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-session-list {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.agent-session-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border-radius: var(--ui-radius);
+}
+
+.agent-session-list > li.is-active,
+.agent-session-list > li:hover {
+  background: var(--color-hover);
+}
+
+.agent-session-select {
+  display: grid;
+  gap: calc(var(--ui-gap-tight) / 2);
+  min-width: 0;
+  padding: var(--ui-gap-tight);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-session-select span {
+  overflow: hidden;
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-conversation-panel,
+.agent-proposal-panel {
+  min-height: 0;
+}
+
+.agent-state-label {
+  margin-left: var(--ui-gap);
+  color: var(--color-fg-muted);
+  font-weight: normal;
+}
+
+.agent-conversation-body {
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.agent-message-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(var(--ui-gap) * 2);
+}
+
+.agent-message-list {
+  display: grid;
+  gap: calc(var(--ui-gap) * 1.5);
+  width: min(100%, 880px);
+  margin: 0 auto;
+}
+
+.agent-message {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  max-width: min(86%, 720px);
+  padding: var(--ui-gap) calc(var(--ui-gap) * 1.25);
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: calc(var(--ui-radius) * 2);
+}
+
+.agent-message.is-user {
+  justify-self: end;
+  background: var(--color-accent-subtle);
+}
+
+.agent-message > span {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+}
+
+.agent-message p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.agent-composer {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  padding: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.agent-composer textarea {
+  width: 100%;
+  resize: vertical;
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
+  background: var(--color-input);
+  color: var(--color-fg);
+  font: inherit;
+  padding: var(--ui-gap);
+}
+
+.agent-composer > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+}
+
+.agent-proposal-meta {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin: 0;
+}
+
+.agent-proposal-meta > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--ui-gap);
+}
+
+.agent-proposal-meta dt,
+.agent-proposal-meta dd {
+  margin: 0;
+}
+
+.agent-proposal-meta dt {
+  color: var(--color-fg-muted);
+}
+
+.agent-proposal-meta code,
+.agent-diff code {
+  overflow-wrap: anywhere;
+}
+
+.agent-change-summary,
+.agent-diff,
+.agent-destructive-confirmation {
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.agent-change-summary h3,
+.agent-diff h3,
+.agent-change-summary p,
+.agent-destructive-confirmation p {
+  margin: 0;
+}
+
+.agent-change-summary ul,
+.agent-diff ol {
+  display: grid;
+  gap: var(--ui-gap-tight);
+}
+
+.agent-diff li {
+  overflow: hidden;
+  border: var(--ui-border-width) solid var(--color-border);
+  border-radius: var(--ui-radius);
+}
+
+.agent-diff li > header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ui-gap);
+  padding: var(--ui-gap-tight);
+  background: var(--color-hover);
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+}
+
+.agent-diff pre {
+  margin: 0;
+  padding: var(--ui-gap);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.agent-proposal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ui-gap);
+  padding-top: var(--ui-gap);
+  border-top: var(--ui-border-width) solid var(--color-border);
+}
+
+.agent-destructive-confirmation {
+  color: var(--color-error);
+}
+
+.agent-destructive-confirmation label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ui-gap-tight);
+}
+
+.agent-error,
+.agent-muted {
+  margin: 0;
+  font-size: var(--ui-control-font-size);
+}
+
+.agent-error {
+  color: var(--color-error);
+}
+
+.agent-muted {
+  color: var(--color-fg-muted);
+}

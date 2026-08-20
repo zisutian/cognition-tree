@@ -13,6 +13,7 @@ import type { SearchResult } from "../../application/search/searchTypes";
 import type {
   ContentOpenOutcome,
 } from "../../application/navigation/contentDestination";
+import type { AgentApplication } from "../../application/agent";
 
 export type WorkbenchWorkspaceState =
   | { status: "absent" }
@@ -26,6 +27,7 @@ export type WorkbenchWorkspaceState =
   | { application: WorkspaceApplication; status: "ready" };
 
 export type WorkbenchApplication = {
+  agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   journal: JournalApplication;
   repository: RepositoryApplication;

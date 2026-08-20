@@ -18,6 +18,9 @@ import type { ActivityId } from "../../ui/activityTypes";
 import { isActivityId } from "../../activities/activityCatalog";
 
 export type WorkbenchProblemOpenContext = {
+  agentNavigation?: {
+    selectSession(sessionId: string): void;
+  };
   expandPanels: () => void;
   repositoryNavigation: RepositoryNavigation;
   workspaceNavigation: Pick<
@@ -108,6 +111,11 @@ export function openWorkbenchProblem(
   } else if (problem.target.kind === "built-in-catalog") {
     context.repositoryNavigation.focusCatalog();
     context.onActiveActivityChange("repository");
+  } else if (problem.target.kind === "agent-problem") {
+    if (problem.target.sessionId) {
+      context.agentNavigation?.selectSession(problem.target.sessionId);
+    }
+    context.onActiveActivityChange("agent");
   } else if (
     problem.target.kind === "operational-error" &&
     isActivityId(problem.target.sourceScope)

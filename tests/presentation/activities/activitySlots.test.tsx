@@ -34,6 +34,8 @@ import {
 } from "../fixtures/visualizationViewFixture";
 import { createWorkspaceShell } from "../fixtures/workspaceShellFixture";
 import { createSearchController } from "../../../application/search/searchController";
+import { createAgentActivitySlots } from "../../../presentation/activities/agent/AgentActivitySlots";
+import { createAgentApplicationFixture } from "../fixtures/agentApplicationFixture";
 
 const controls = {
   contextWidth: appContextDefaultWidth,
@@ -62,6 +64,11 @@ function createSlots(
   notesMode: NotesMode = "edit",
 ): ActivitySlots {
   switch (activityId) {
+    case "agent":
+      return createAgentActivitySlots({
+        agent: createAgentApplicationFixture(),
+        onCollapseDetail: controls.onCollapseDetail,
+      });
     case "notes":
       return createNotesWorkspaceActivitySlots({
         edit: createNotesActivitySlots({
@@ -138,6 +145,7 @@ function createSlots(
 describe("activity slots", () => {
   it("maps every Activity to its context and detail shape", () => {
     const expected = [
+      ["agent", "Agent", true],
       ["notes", "Primary", true],
       ["journal", "日记", true],
       ["todo", "代办", true],
@@ -164,6 +172,7 @@ describe("activity slots", () => {
     expect(
       listActivityDescriptors("primary").map(({ id, label }) => [id, label]),
     ).toEqual([
+      ["agent", "Agent"],
       ["notes", "笔记"],
       ["journal", "日记"],
       ["todo", "代办"],
@@ -177,6 +186,7 @@ describe("activity slots", () => {
       ["settings", "设置"],
     ]);
     expect(activityDescriptors.map(({ id }) => id)).toEqual([
+      "agent",
       "notes",
       "journal",
       "todo",
@@ -190,6 +200,7 @@ describe("activity slots", () => {
       group,
       availability,
     ])).toEqual([
+      ["agent", "primary", "always"],
       ["notes", "primary", "workspace"],
       ["journal", "primary", "always"],
       ["todo", "primary", "always"],

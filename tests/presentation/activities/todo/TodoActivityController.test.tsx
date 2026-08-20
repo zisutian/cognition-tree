@@ -8,6 +8,7 @@ import {
 } from "../../../../presentation/activities/todo/TodoActivityController";
 import type { WorkbenchApplication } from "../../../../presentation/activities/workbenchApplication";
 import { createTodoView } from "../../fixtures/todoViewFixture";
+import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
 
 const controls = {
   contextWidth: 280,
@@ -20,6 +21,7 @@ const controls = {
 
 function createApplicationWithoutWorkspace(): WorkbenchApplication {
   return {
+    agent: createAgentApplicationFixture(),
     apiAccess: {
       administration: {} as WorkbenchApplication["apiAccess"]["administration"],
       repositories: [],

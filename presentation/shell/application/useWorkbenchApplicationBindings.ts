@@ -20,6 +20,11 @@ import {
 import {
   isTodoCollectionId,
 } from "../../../core/todo/model/todoIdentity";
+import type {
+  AgentClientController,
+  AgentClientState,
+  AgentScopeCatalog,
+} from "../../../application/agent";
 
 const workspaceFeedbackActivities = [
   "notes",
@@ -28,10 +33,14 @@ const workspaceFeedbackActivities = [
 ] as const;
 
 export function useWorkbenchApplicationBindings({
+  agentController,
+  agentState,
   controller,
   feedbackController,
   snapshot,
 }: {
+  agentController: AgentClientController;
+  agentState: AgentClientState;
   controller: WorkbenchController;
   feedbackController: WorkbenchFeedbackController<ActivityId>;
   snapshot: WorkbenchControllerSnapshot;
@@ -75,6 +84,47 @@ export function useWorkbenchApplicationBindings({
     services: todoServices,
     session: todoSession,
   });
+  const agentScopeCatalog: AgentScopeCatalog = useMemo(() => {
+    const catalog = snapshot.catalog.state.status === "ready"
+      ? snapshot.catalog.state.repositories.map(({ id, label }) => ({
+          id,
+          label,
+        }))
+      : [];
+    const activeDescriptor = snapshot.catalog.activeDescriptor;
+    const activeWorkspace = activeDescriptor &&
+        snapshot.workspace.status === "ready"
+      ? {
+          folderOptions: [...snapshot.workspace.workspace.folderEntryById]
+            .map(([id, entry]) => ({ id, label: entry.node.title }))
+            .sort((left, right) => left.label.localeCompare(right.label)),
+          noteOptions: [...snapshot.workspace.workspace.noteEntryById]
+            .map(([id, entry]) => ({
+              id,
+              label: entry.projectedNote.title,
+            }))
+            .sort((left, right) => left.label.localeCompare(right.label)),
+          repositoryId: activeDescriptor.id,
+        }
+      : null;
+    const journalEntryOptions = journal.status === "ready"
+      ? journal.view.calendar.years.flatMap(({ months }) =>
+          months.flatMap(({ entries }) =>
+            entries.map(({ id, title }) => ({ id, label: title }))
+          )
+        )
+      : [];
+    const todoCollectionOptions = todo.status === "ready"
+      ? todo.view.collections.map(({ id, name }) => ({ id, label: name }))
+      : [];
+
+    return {
+      activeWorkspace,
+      journalEntryOptions,
+      repositoryOptions: catalog,
+      todoCollectionOptions,
+    };
+  }, [journal, snapshot.catalog, snapshot.workspace, todo]);
   const openSearchResult = useCallback((result: SearchResult) => {
     if (result.domain === "workspace") {
       controller.requestWorkspaceNoteDestination({
@@ -150,6 +200,11 @@ export function useWorkbenchApplicationBindings({
   }, [feedbackController, snapshot.catalog.activeDescriptor?.id]);
 
   return {
+    agent: {
+      controller: agentController,
+      scopeCatalog: agentScopeCatalog,
+      state: agentState,
+    },
     apiAccess: {
       administration: controller.apiAccessAdministration,
       repositories: snapshot.catalog.state.status === "ready"

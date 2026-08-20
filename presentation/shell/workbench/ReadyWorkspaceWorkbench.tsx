@@ -3,6 +3,7 @@ import type { JournalApplication } from "../../../application/journal";
 import type { RepositoryApplication } from "../../../application/repository/repositoryApplication";
 import type { TodoApplication } from "../../../application/todo";
 import type { ApiAccessApplication } from "../../../application/apiAccess/apiAccessAdministration";
+import type { AgentApplication } from "../../../application/agent";
 import type {
   WorkbenchController,
   WorkbenchControllerSnapshot,
@@ -16,6 +17,7 @@ import { WorkspaceWorkbench } from "./WorkspaceWorkbench";
 
 export function ReadyWorkspaceWorkbench({
   activeActivityId,
+  agent,
   apiAccess,
   controller,
   feedbackController,
@@ -28,6 +30,7 @@ export function ReadyWorkspaceWorkbench({
   todo,
 }: {
   activeActivityId: ActivityId;
+  agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   controller: WorkbenchController;
   feedbackController: WorkbenchFeedbackController<ActivityId>;
@@ -72,6 +75,7 @@ export function ReadyWorkspaceWorkbench({
       activeActivityId={activeActivityId}
       feedbackController={feedbackController}
       application={{
+        agent,
         apiAccess,
         journal,
         repository,

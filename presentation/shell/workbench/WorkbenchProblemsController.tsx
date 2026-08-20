@@ -57,6 +57,7 @@ export function WorkbenchProblemsController({
     : null;
   const problems = projectWorkbenchProblems({
     activeScope: activeActivityId,
+    agentProblems: application.agent.state.problems,
     diagnostics: workspace?.diagnostics ?? {
       diagnostics: [],
       errorCount: 0,
@@ -74,6 +75,7 @@ export function WorkbenchProblemsController({
   });
   const openProblem = (problem: UiWorkbenchProblem) =>
     openWorkbenchProblem(problem, {
+      agentNavigation: application.agent.controller,
       expandPanels: workbench.expandPanels,
       journalNavigation: journal?.navigation ?? null,
       todoNavigation: todo
