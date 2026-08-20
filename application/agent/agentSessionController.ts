@@ -101,6 +101,9 @@ export class AgentSessionController {
     if (this.#activeTurnId !== null) {
       throw new AgentSessionStateError("Session already has an active turn");
     }
+    if (this.#state === "unavailable") {
+      throw new AgentSessionStateError("Session is unavailable");
+    }
     if (
       this.#state === "awaiting-approval" ||
       this.#state === "awaiting-destructive-confirmation"

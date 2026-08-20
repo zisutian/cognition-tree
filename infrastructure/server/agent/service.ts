@@ -323,9 +323,9 @@ export class AgentService {
     const turnId = this.#runtime.createId();
     const queued = this.#profileQueues.has(record.profile.id);
 
+    record.controller.beginTurn(turnId, queued);
     record.controller.addMessage("user", content);
     record.controller.clearProblem();
-    record.controller.beginTurn(turnId, queued);
     record.abortController = new AbortController();
     this.#emitSnapshot(record);
     this.#enqueue(record, () => this.#runConversationTurn(record, turnId));
@@ -340,7 +340,16 @@ export class AgentService {
       throw new AgentServiceError("invalid_request", "Session has no active turn");
     }
     record.abortController.abort(new Error("Owner cancelled Agent turn"));
-    await record.runtimeSession.cancel();
+    record.controller.setUnavailable(
+      "Agent session was cancelled and its runtime was stopped",
+    );
+    this.#emitSnapshot(record);
+    if (record.capability) {
+      this.#ipc.revoke(record.capability);
+      record.capability = null;
+    }
+    await record.runtimeSession.cancel().catch(() => undefined);
+    await record.runtimeSession.dispose();
     return { cancelled: true as const };
   }
 
@@ -590,6 +599,7 @@ export class AgentService {
     let compacted = false;
 
     while (true) {
+      let compactedThisAttempt = false;
       const beforeLength = record.controller.snapshot().messages.find(({ id }) =>
         id === messageId
       )?.content.length ?? 0;
@@ -609,7 +619,9 @@ export class AgentService {
                 textDelta: event.textDelta,
                 type: "message-delta",
               });
-            } else if (event.type === "compaction-required") {
+            } else if (event.type === "compaction-required" && !compacted) {
+              compacted = true;
+              compactedThisAttempt = true;
               this.#compactHistory(record, event.reason, messageId);
               this.#emitSnapshot(record);
             }
@@ -632,7 +644,9 @@ export class AgentService {
         }
         return;
       } catch (error) {
-        if (!(error instanceof AgentContextLimitError) || compacted) throw error;
+        if (!(error instanceof AgentContextLimitError)) throw error;
+        if (compactedThisAttempt) continue;
+        if (compacted) throw error;
         compacted = true;
         this.#compactHistory(
           record,

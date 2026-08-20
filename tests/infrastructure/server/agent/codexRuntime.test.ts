@@ -111,7 +111,6 @@ function profile(): CodexAgentProfile {
     maxInputCharacters: 10_000,
     maxOutputCharacters: 10_000,
     maxResidentSessions: 1,
-    maxToolSteps: 8,
     model: "gpt-5-codex",
     reasoningEffort: "high",
     timeoutMilliseconds: 5_000,

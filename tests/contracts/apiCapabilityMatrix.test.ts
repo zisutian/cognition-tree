@@ -28,7 +28,7 @@ const expectedCapabilities = [
   ["GET", "getAgentSession"],
   ["DELETE", "deleteAgentSession"],
   ["POST", "sendAgentMessage"],
-  ["POST", "cancelAgentTurn"],
+  ["POST", "cancelAgentSession"],
   ["GET", "streamAgentEvents"],
   ["POST", "decideAgentProposal"],
   ["POST", "confirmAgentProposalDestruction"],

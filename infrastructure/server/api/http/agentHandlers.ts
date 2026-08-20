@@ -66,7 +66,7 @@ export async function handleAgentOperation(context: ApiHandlerContext) {
       statusCode: 202,
     };
   }
-  if (operation.operationId === "cancelAgentTurn") {
+  if (operation.operationId === "cancelAgentSession") {
     return { body: await agent.cancel(sessionId), statusCode: 200 };
   }
   if (operation.operationId === "streamAgentEvents") {

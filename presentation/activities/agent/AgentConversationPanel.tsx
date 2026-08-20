@@ -69,11 +69,12 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
           canCancel ? (
             <Button
               onClick={() => void feedback.runAction(agent.controller.cancel)}
+              title="取消推理并停止此会话 runtime"
               type="button"
               variant="secondary"
             >
               <Square aria-hidden="true" size={12} />
-              取消
+              取消并停止
             </Button>
           ) : null
         }

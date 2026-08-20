@@ -142,21 +142,32 @@ export function ApiAccessSettingsPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
-    try {
-      const [nextTokens, nextAudit] = await Promise.all([
-        administration.listTokens(),
-        administration.listAgentOperations(),
-      ]);
+    const [tokenResult, auditResult] = await Promise.allSettled([
+      administration.listTokens(),
+      administration.listAgentOperations(),
+    ]);
+    const failures: string[] = [];
 
-      setTokens(nextTokens);
-      setAudit(nextAudit.entries);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "无法加载 API 访问设置。",
+    if (tokenResult.status === "fulfilled") {
+      setTokens(tokenResult.value);
+    } else {
+      failures.push(
+        tokenResult.reason instanceof Error
+          ? `无法加载自动化令牌：${tokenResult.reason.message}`
+          : "无法加载自动化令牌。",
       );
-    } finally {
-      setLoading(false);
     }
+    if (auditResult.status === "fulfilled") {
+      setAudit(auditResult.value.entries);
+    } else {
+      failures.push(
+        auditResult.reason instanceof Error
+          ? `无法加载 Agent 写入审计：${auditResult.reason.message}`
+          : "无法加载 Agent 写入审计。",
+      );
+    }
+    setErrorMessage(failures.length > 0 ? failures.join(" ") : null);
+    setLoading(false);
   }, [administration]);
 
   useEffect(() => {

@@ -11,7 +11,6 @@ type AgentProfileBase = {
   id: string;
   label: string;
   maxResidentSessions: number;
-  maxToolSteps: number;
   model: string;
   timeoutMilliseconds: number;
 };
@@ -28,6 +27,7 @@ export type OpenAiChatAgentProfile = AgentProfileBase & {
   contextWindowTokens: number;
   kind: "openai-chat";
   maxOutputTokens: number;
+  maxToolSteps: number;
 };
 
 export type AgentProfile = CodexAgentProfile | OpenAiChatAgentProfile;
@@ -108,7 +108,6 @@ function parseBase(record: Record<string, unknown>, label: string) {
     id: stringField(record, "id", label),
     label: stringField(record, "label", label),
     maxResidentSessions: positiveInteger(record, "maxResidentSessions", label),
-    maxToolSteps: positiveInteger(record, "maxToolSteps", label),
     model: stringField(record, "model", label),
     timeoutMilliseconds: positiveInteger(record, "timeoutMilliseconds", label),
   };
@@ -122,7 +121,7 @@ function parseProfile(value: unknown, index: number): AgentProfile {
   if (kind === "codex") {
     exactFields(record, [
       "apiKeyEnv", "id", "kind", "label", "maxInputCharacters",
-      "maxOutputCharacters", "maxResidentSessions", "maxToolSteps", "model",
+      "maxOutputCharacters", "maxResidentSessions", "model",
       "reasoningEffort", "timeoutMilliseconds",
     ], label);
     const effort = record.reasoningEffort;
@@ -166,6 +165,7 @@ function parseProfile(value: unknown, index: number): AgentProfile {
       contextWindowTokens: positiveInteger(record, "contextWindowTokens", label),
       kind,
       maxOutputTokens: positiveInteger(record, "maxOutputTokens", label),
+      maxToolSteps: positiveInteger(record, "maxToolSteps", label),
     };
   }
   throw new Error(`${label}.kind is invalid`);
