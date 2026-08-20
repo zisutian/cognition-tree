@@ -76,6 +76,7 @@ export type WorkspaceSessionController = {
   discardPendingChangesAndReload: () => Promise<void>;
   dispose: () => void;
   flushPendingChanges: () => Promise<void>;
+  synchronizePendingChanges: () => Promise<void>;
   getState: () => WorkspaceSessionControllerState;
   keepLocalConflictAndSynchronize: () => Promise<void>;
   loadConflictUnitIds: () => Promise<string[]>;
@@ -242,6 +243,7 @@ export function createWorkspaceSessionController({
     discardPendingChangesAndReload: base.discardPendingChangesAndReload,
     dispose: base.dispose,
     flushPendingChanges: base.flushPendingChanges,
+    synchronizePendingChanges: base.synchronizePendingChanges,
     getState: projectState,
     keepLocalConflictAndSynchronize: base.keepLocalConflictAndSynchronize,
     loadConflictUnitIds: base.loadConflictUnitIds,

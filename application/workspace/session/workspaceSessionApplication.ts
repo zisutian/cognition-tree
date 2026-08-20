@@ -15,6 +15,7 @@ type WorkspaceSessionOperations = Pick<
   | "deleteSyntaxFile"
   | "discardPendingChangesAndReload"
   | "flushPendingChanges"
+  | "synchronizePendingChanges"
   | "prepareForRepositoryRemoval"
   | "reload"
   | "updateSyntaxFileSource"
@@ -28,6 +29,8 @@ export type ActiveWorkspaceSession = WorkspaceSessionReadyState & {
   discardPendingChangesAndReload:
     WorkspaceSessionOperations["discardPendingChangesAndReload"];
   flushPendingChanges: WorkspaceSessionOperations["flushPendingChanges"];
+  synchronizePendingChanges:
+    WorkspaceSessionOperations["synchronizePendingChanges"];
   prepareForRepositoryRemoval:
     WorkspaceSessionOperations["prepareForRepositoryRemoval"];
   reload: WorkspaceSessionOperations["reload"];
@@ -64,6 +67,7 @@ export function projectWorkspaceSessionApplication(
     discardPendingChangesAndReload:
       controller.discardPendingChangesAndReload,
     flushPendingChanges: controller.flushPendingChanges,
+    synchronizePendingChanges: controller.synchronizePendingChanges,
     prepareForRepositoryRemoval: controller.prepareForRepositoryRemoval,
     reload: controller.reload,
     updateSyntaxFileSource: controller.updateSyntaxFileSource,

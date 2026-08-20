@@ -113,6 +113,7 @@ export type WorkbenchWorkspaceFacade = Pick<
   | "deleteSyntaxFile"
   | "discardPendingChangesAndReload"
   | "flushPendingChanges"
+  | "synchronizePendingChanges"
   | "keepLocalConflictAndSynchronize"
   | "loadConflictUnitIds"
   | "prepareForRepositoryRemoval"
@@ -133,6 +134,7 @@ export type WorkbenchBuiltInFacade<
   | "recoverLocalConflictCopy"
   | "reload"
   | "requestSync"
+  | "synchronizePendingChanges"
   | "useRemoteConflictAndSynchronize"
 >;
 
@@ -397,6 +399,8 @@ export function createWorkbenchController({
       requireWorkspaceController().discardPendingChangesAndReload(...args),
     flushPendingChanges: (...args) =>
       requireWorkspaceController().flushPendingChanges(...args),
+    synchronizePendingChanges: (...args) =>
+      requireWorkspaceController().synchronizePendingChanges(...args),
     keepLocalConflictAndSynchronize: (...args) =>
       requireWorkspaceController().keepLocalConflictAndSynchronize(...args),
     loadConflictUnitIds: (...args) =>
@@ -424,6 +428,8 @@ export function createWorkbenchController({
     reload: (...args) => journalSlot.getController().reload(...args),
     requestSync: (...args) =>
       journalSlot.getController().requestSync(...args),
+    synchronizePendingChanges: (...args) =>
+      journalSlot.getController().synchronizePendingChanges(...args),
     useRemoteConflictAndSynchronize: (...args) =>
       journalSlot.getController().useRemoteConflictAndSynchronize(...args),
   };
@@ -439,6 +445,8 @@ export function createWorkbenchController({
       todoSlot.getController().recoverLocalConflictCopy(...args),
     reload: (...args) => todoSlot.getController().reload(...args),
     requestSync: (...args) => todoSlot.getController().requestSync(...args),
+    synchronizePendingChanges: (...args) =>
+      todoSlot.getController().synchronizePendingChanges(...args),
     useRemoteConflictAndSynchronize: (...args) =>
       todoSlot.getController().useRemoteConflictAndSynchronize(...args),
   };

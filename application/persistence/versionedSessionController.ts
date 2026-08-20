@@ -101,6 +101,7 @@ export type VersionedSessionController<
   prepareForRemoval(): Promise<PreparedVersionedSessionRemoval>;
   reload(): Promise<void>;
   requestSync(): void;
+  synchronizePendingChanges(): Promise<void>;
   start(): void;
   subscribe(listener: () => void): () => void;
   useRemoteConflictAndSynchronize(): Promise<void>;
@@ -559,6 +560,9 @@ export function createVersionedSessionController<
     },
     requestSync() {
       requireActive().queue.requestSync();
+    },
+    synchronizePendingChanges() {
+      return requireActive().queue.synchronizePendingChanges();
     },
     start() {
       if (disposed || started) return;

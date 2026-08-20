@@ -77,7 +77,15 @@ export type VersionedRepositorySaveQueue<
   prepareForDiscard: () => Promise<void>;
   prepareForReload: () => Promise<void>;
   requestSync: () => void;
+  synchronizePendingChanges: () => Promise<void>;
 };
+
+export class VersionedRepositorySynchronizationBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "VersionedRepositorySynchronizationBlockedError";
+  }
+}
 
 export const versionedRepositorySaveDelayMs = 500;
 export const versionedRepositoryRetryDelaysMs = [
@@ -119,12 +127,14 @@ export function createVersionedRepositorySaveQueue<
   let disposed = false;
   let localRevision = initialSnapshot.localRevision;
   let localStageBlocked = false;
+  let localStageMessage: string | null = null;
   let localWaiters: LocalWaiter[] = [];
   let offline = initialPersistenceState?.status === "offline";
   let remoteRetryIndex = 0;
   let cancelRemoteRetry: (() => void) | null = null;
   let syncDue = initialSnapshot.pendingChanges;
   let syncTerminalBlocked = initialPersistenceState?.status === "error";
+  let syncTerminalMessage: string | null = null;
   let cancelSync: (() => void) | null = null;
   let stagedVersion = 0;
   let version = 0;
@@ -208,6 +218,7 @@ export function createVersionedRepositorySaveQueue<
 
         localRevision = result.localRevision;
         localStageBlocked = false;
+        localStageMessage = null;
         stagedVersion = Math.max(stagedVersion, target.version);
         onLocalStaged(target.prepared, result.localRevision);
         settleLocalWaiters(target.version, (waiter) => waiter.resolve());
@@ -228,12 +239,13 @@ export function createVersionedRepositorySaveQueue<
         }
       } catch (error) {
         localStageBlocked = true;
+        localStageMessage = error instanceof Error
+          ? error.message
+          : "Local repository stage failed.";
         settleLocalWaiters(target.version, (waiter) => waiter.reject(error));
         onPersistenceChange({
           localCopySafe: false,
-          message: error instanceof Error
-            ? error.message
-            : "Local repository stage failed.",
+          message: localStageMessage,
           phase: "local",
           status: "error",
         });
@@ -284,11 +296,12 @@ export function createVersionedRepositorySaveQueue<
       result = await repository.synchronizePendingSnapshot();
     } catch (error) {
       syncTerminalBlocked = true;
+      syncTerminalMessage = error instanceof Error
+        ? error.message
+        : "Local repository synchronization state failed.";
       onPersistenceChange({
         localCopySafe: false,
-        message: error instanceof Error
-          ? error.message
-          : "Local repository synchronization state failed.",
+        message: syncTerminalMessage,
         phase: "local",
         status: "error",
       });
@@ -303,6 +316,7 @@ export function createVersionedRepositorySaveQueue<
         offline = false;
         remoteRetryIndex = 0;
         syncTerminalBlocked = false;
+        syncTerminalMessage = null;
         clearRetryTimer();
         if (desired || result.pendingChanges) {
           syncDue = true;
@@ -332,6 +346,7 @@ export function createVersionedRepositorySaveQueue<
       case "sync-error":
         clearRetryTimer();
         syncTerminalBlocked = true;
+        syncTerminalMessage = result.message;
         onPersistenceChange({
           localCopySafe: true,
           message: result.message,
@@ -456,8 +471,52 @@ export function createVersionedRepositorySaveQueue<
     requestSync() {
       if (!disposed && !conflictRevision) {
         syncTerminalBlocked = false;
+        syncTerminalMessage = null;
         syncDue = true;
         void startSync();
+      }
+    },
+    async synchronizePendingChanges() {
+      if (disposed) {
+        throw new VersionedRepositorySynchronizationBlockedError(
+          "Repository session is unavailable.",
+        );
+      }
+      clearSyncTimer();
+      clearRetryTimer();
+      await flushLocal();
+      if (localStageBlocked) {
+        throw new VersionedRepositorySynchronizationBlockedError(
+          localStageMessage ?? "Local changes could not be staged.",
+        );
+      }
+      if (conflictRevision) {
+        throw new VersionedRepositorySynchronizationBlockedError(
+          "Repository conflict must be resolved before using Agent.",
+        );
+      }
+
+      syncTerminalBlocked = false;
+      syncTerminalMessage = null;
+      syncDue = true;
+      while (true) {
+        await startSync();
+        if (conflictRevision) {
+          throw new VersionedRepositorySynchronizationBlockedError(
+            "Repository conflict must be resolved before using Agent.",
+          );
+        }
+        if (offline) {
+          throw new VersionedRepositorySynchronizationBlockedError(
+            "Repository is offline; Agent operation was blocked.",
+          );
+        }
+        if (syncTerminalBlocked) {
+          throw new VersionedRepositorySynchronizationBlockedError(
+            syncTerminalMessage ?? "Repository synchronization failed.",
+          );
+        }
+        if (!desired && !activeStage && !activeSync && !syncDue) return;
       }
     },
   };

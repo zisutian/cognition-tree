@@ -6,6 +6,7 @@ import type {
 } from "../../../application/workspace/persistence/workspaceRepository";
 import {
   createVersionedRepositorySaveQueue as createWorkspaceSessionSaveQueue,
+  VersionedRepositorySynchronizationBlockedError,
   versionedRepositoryRetryDelaysMs as workspaceSessionRetryDelaysMs,
   versionedRepositorySaveDelayMs as workspaceSessionSaveDelayMs,
   type VersionedRepositoryPersistenceState,
@@ -163,6 +164,70 @@ describe("workspace session save queue", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(synchronize).toHaveBeenCalledTimes(1);
     expect(harness.persistence.at(-1)).toEqual({ status: "saved" });
+    harness.queue.dispose();
+  });
+
+  it("forces local staging and remote synchronization before an Agent boundary", async () => {
+    const synchronize = vi.fn(async () => ({
+      localRevision: draftRevision("stage-1"),
+      pendingChanges: false,
+      remoteRevision: remoteRevision("b"),
+      status: "synced" as const,
+    }));
+    const harness = createQueueHarness({ synchronize });
+
+    harness.queue.enqueue(prepareContent("Agent-visible edit"));
+    await harness.queue.synchronizePendingChanges();
+
+    expect(harness.localContents.at(-1)?.workspace.name).toBe(
+      "Agent-visible edit",
+    );
+    expect(synchronize).toHaveBeenCalledTimes(1);
+    expect(harness.persistence.at(-1)).toEqual({ status: "saved" });
+    harness.queue.dispose();
+  });
+
+  it.each([
+    {
+      message: "offline",
+      result: {
+        localRevision: draftRevision("stage-1"),
+        pendingChanges: true,
+        remoteRevision: remoteRevision("a"),
+        status: "offline" as const,
+      },
+    },
+    {
+      message: "conflict",
+      result: {
+        localRevision: draftRevision("stage-1"),
+        remoteRevision: remoteRevision("c"),
+        status: "conflict" as const,
+      },
+    },
+    {
+      message: "unauthorized",
+      result: {
+        localRevision: draftRevision("stage-1"),
+        message: "unauthorized",
+        remoteRevision: remoteRevision("a"),
+        status: "sync-error" as const,
+      },
+    },
+  ])("blocks an Agent boundary on $message synchronization state", async ({
+    message,
+    result,
+  }) => {
+    const harness = createQueueHarness({
+      synchronize: vi.fn(async () => result),
+    });
+
+    harness.queue.enqueue(prepareContent("must not bypass sync"));
+    const synchronization = harness.queue.synchronizePendingChanges();
+
+    await expect(synchronization).rejects
+      .toBeInstanceOf(VersionedRepositorySynchronizationBlockedError);
+    await expect(synchronization).rejects.toThrow(message);
     harness.queue.dispose();
   });
 
