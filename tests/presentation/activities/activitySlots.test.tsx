@@ -149,7 +149,7 @@ function createSlots(
 describe("activity slots", () => {
   it("maps every Activity to its context and detail shape", () => {
     const expected = [
-      ["agent", "Agent", true],
+      ["agent", "智能体", true],
       ["notes", "Primary", true],
       ["journal", "日记", true],
       ["todo", "代办", true],
@@ -176,25 +176,25 @@ describe("activity slots", () => {
     expect(
       listActivityDescriptors("primary").map(({ id, label }) => [id, label]),
     ).toEqual([
-      ["agent", "Agent"],
       ["notes", "笔记"],
       ["journal", "日记"],
       ["todo", "代办"],
       ["syntax", "语法"],
-      ["search", "搜索"],
     ]);
     expect(
       listActivityDescriptors("management").map(({ id, label }) => [id, label]),
     ).toEqual([
+      ["agent", "智能体"],
+      ["search", "搜索"],
       ["repository", "仓库"],
       ["settings", "设置"],
     ]);
     expect(activityDescriptors.map(({ id }) => id)).toEqual([
-      "agent",
       "notes",
       "journal",
       "todo",
       "syntax",
+      "agent",
       "search",
       "repository",
       "settings",
@@ -204,12 +204,12 @@ describe("activity slots", () => {
       group,
       availability,
     ])).toEqual([
-      ["agent", "primary", "always"],
       ["notes", "primary", "workspace"],
       ["journal", "primary", "always"],
       ["todo", "primary", "always"],
       ["syntax", "primary", "always"],
-      ["search", "primary", "always"],
+      ["agent", "management", "always"],
+      ["search", "management", "always"],
       ["repository", "management", "always"],
       ["settings", "management", "always"],
     ]);

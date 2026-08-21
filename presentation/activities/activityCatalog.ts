@@ -30,17 +30,6 @@ export type ActivityDescriptor = {
 
 export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
-    availability: "always",
-    Controller: lazy(async () => ({
-      default: (await import("./agent/AgentActivityController"))
-        .AgentActivityController,
-    })),
-    group: "primary",
-    icon: Bot,
-    id: "agent",
-    label: "Agent",
-  },
-  {
     availability: "workspace",
     Controller: lazy(async () => ({
       default: (await import("./notes/NotesActivityController"))
@@ -87,10 +76,21 @@ export const activityDescriptors: readonly ActivityDescriptor[] = [
   {
     availability: "always",
     Controller: lazy(async () => ({
+      default: (await import("./agent/AgentActivityController"))
+        .AgentActivityController,
+    })),
+    group: "management",
+    icon: Bot,
+    id: "agent",
+    label: "智能体",
+  },
+  {
+    availability: "always",
+    Controller: lazy(async () => ({
       default: (await import("./search/SearchActivityController"))
         .SearchActivityController,
     })),
-    group: "primary",
+    group: "management",
     icon: Search,
     id: "search",
     label: "搜索",

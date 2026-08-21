@@ -31,7 +31,7 @@ export function createAgentActivitySlots({
           onSelectSession={onSelectSession}
         />
       ),
-      title: "Agent",
+      title: "智能体",
     },
     detail: (
       <AgentProposalPanel

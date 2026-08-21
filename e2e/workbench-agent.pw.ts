@@ -34,11 +34,12 @@ test.describe("Agent activity flows", () => {
     await getActivityButton(page, "日记").click();
     await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
     await getActivityButton(page, "设置").click();
-    await page.getByRole("button", { name: "智能体", exact: true }).click();
+    await page.locator(".settings-context")
+      .getByRole("button", { name: "智能体", exact: true }).click();
     await page.getByRole("region", { name: "智能体设置" })
       .getByRole("combobox", { name: "默认 Profile" })
       .selectOption("e2e-agent");
-    await getActivityButton(page, "Agent").click();
+    await getActivityButton(page, "智能体").click();
 
     const context = page.locator(".agent-context");
     await context.getByRole("button", { name: "新建会话" }).click();
@@ -74,7 +75,7 @@ test.describe("Agent activity flows", () => {
     await page.reload();
     await expect(page.getByRole("navigation", { name: "工作区功能" }))
       .toBeVisible();
-    await getActivityButton(page, "Agent").click();
+    await getActivityButton(page, "智能体").click();
     await expect(page.getByRole("region", { name: "Agent Proposal" }))
       .toContainText("等待审批");
     await page.getByRole("button", { name: "整批批准" }).click();
