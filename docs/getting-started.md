@@ -54,7 +54,8 @@
 挂载；配置不会写入 JavaScript bundle。apiBaseUrl 只接受根路径上的绝对
 HTTP(S) origin，不允许凭据、query 或 fragment。缺失或无效配置会阻止客户端
 启动。前端始终连接 Node 后端，不存在本地存储模式或后端不可用时的空仓库
-fallback。localStorage 只保存当前普通 repository id。
+fallback。localStorage 只保存当前普通 repository id，以及用户在设置页显式选择的
+默认 Agent profile id；不保存 profile 配置、base URL 或凭据。
 
 Agent 配置示例见 `docs/agent-profiles.example.json`。复制后必须替换 model、
 OpenAI-compatible baseUrl，并在服务进程环境中设置各 profile 的 apiKeyEnv；UI
@@ -72,6 +73,11 @@ maxInputCharacters、maxOutputCharacters；OpenAI-compatible 还需 baseUrl、
 contextWindowTokens、maxOutputTokens、maxToolSteps。未知或缺失字段不会被忽略。根配置
 缺失/无效时只禁用 Agent；单个 profile 无效、ID 重复或缺少 API key 时只禁用该
 profile，应用不会自动 fallback。
+
+设置页的“智能体”分区只选择服务端 allowlist 中的默认 profile，并显示 model、
+runtime 和服务端认证状态。首次使用必须显式选择；已选 profile 不可用时，新会话会
+被阻止且不会切换到其他 profile。刷新操作只重新读取服务端当前状态，不重新加载
+profile 文件或进程环境；修改配置或密钥后需要重启或 recreate 服务。
 
 
 ## 3. 安全边界

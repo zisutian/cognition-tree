@@ -34,11 +34,13 @@ export const e2eAgentProfileCatalog: AgentProfileCatalog = {
   idleTtlMilliseconds: 60 * 60 * 1_000,
   maxAuditEntries: 100,
   profiles: [{
+    authenticationStatus: "configured",
     availability: "available",
     config: profile,
     id: profile.id,
     kind: profile.kind,
     label: profile.label,
+    model: profile.model,
     unavailableReason: null,
   }],
 };

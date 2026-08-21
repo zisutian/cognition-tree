@@ -74,11 +74,13 @@ function profileCatalog(config: OpenAiChatAgentProfile): AgentProfileCatalog {
     idleTtlMilliseconds: 60 * 60 * 1_000,
     maxAuditEntries: 100,
     profiles: [{
+      authenticationStatus: "configured",
       availability: "available",
       config,
       id: config.id,
       kind: config.kind,
       label: config.label,
+      model: config.model,
       unavailableReason: null,
     }],
   };
@@ -189,6 +191,32 @@ function createTwoEntries(request: AgentRuntimeTurnRequest) {
 }
 
 describe("Agent service proposal lifecycle", () => {
+  it("projects non-secret profile and authentication metadata", async () => {
+    const fixture = await createFixture(async () => ({
+      finalText: "unused",
+      toolCalls: 0,
+    }));
+
+    try {
+      const status = fixture.service.status();
+
+      expect(status.profiles).toEqual([{
+        authenticationStatus: "configured",
+        availability: "available",
+        id: "fake-openai",
+        kind: "openai-chat",
+        label: "Fake OpenAI",
+        model: "fake",
+        unavailableReason: null,
+      }]);
+      expect(JSON.stringify(status)).not.toContain("TEST_AGENT_KEY");
+      expect(JSON.stringify(status)).not.toContain("runtime.invalid");
+      expect(JSON.stringify(status)).not.toContain("server-secret");
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
   it("serializes turns FIFO per profile and rejects resident overflow", async () => {
     const started: string[] = [];
     let releaseFirst!: () => void;

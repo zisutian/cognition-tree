@@ -118,10 +118,12 @@ function sessionMcpEntrypoint() {
 
 function mapProfile(profile: LoadedAgentProfile): AgentProfileSummaryDto {
   return {
+    authenticationStatus: profile.authenticationStatus,
     availability: profile.availability,
     id: profile.id,
     kind: profile.kind,
     label: profile.label,
+    model: profile.model,
     unavailableReason: profile.unavailableReason,
   };
 }

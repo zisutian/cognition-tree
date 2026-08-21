@@ -109,4 +109,27 @@ test.describe("settings activity flows", () => {
 
     expect(revoked.status()).toBe(401);
   });
+
+  test("persists only an explicitly selected Agent profile", async ({ page }) => {
+    await openWorkbench(page, syntaxRepositoryId);
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "智能体", exact: true }).click();
+    let panel = page.getByRole("region", { name: "智能体设置" });
+    let selection = panel.getByRole("combobox", { name: "默认 Profile" });
+
+    await expect(selection).toHaveValue("");
+    await expect(panel).toContainText("deterministic-e2e");
+    await expect(panel).toContainText("认证已配置");
+    await selection.selectOption("e2e-agent");
+    await expect(selection).toHaveValue("e2e-agent");
+
+    await page.reload();
+    await expect(page.getByRole("navigation", { name: "工作区功能" }))
+      .toBeVisible();
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "智能体", exact: true }).click();
+    panel = page.getByRole("region", { name: "智能体设置" });
+    selection = panel.getByRole("combobox", { name: "默认 Profile" });
+    await expect(selection).toHaveValue("e2e-agent");
+  });
 });

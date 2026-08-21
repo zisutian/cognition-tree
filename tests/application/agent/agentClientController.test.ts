@@ -5,6 +5,7 @@ import {
   createAgentClientController,
   type AgentClientEvent,
   type AgentClientPort,
+  type AgentProfileSummary,
   type AgentSessionSnapshot,
 } from "../../../application/agent";
 
@@ -39,6 +40,16 @@ function createSession(sequence = 3): AgentSessionSnapshot {
 
 function createHarness({
   flushScope = vi.fn(async () => undefined),
+  preferredProfileId = null as string | null,
+  profiles = [{
+    authenticationStatus: "configured" as const,
+    availability: "available" as const,
+    id: "codex-safe",
+    kind: "codex" as const,
+    label: "Codex Safe",
+    model: "gpt-5.6-codex",
+    unavailableReason: null,
+  }] as AgentProfileSummary[],
 } = {}) {
   let currentSession = createSession();
   let eventInput: Parameters<AgentClientPort["openEvents"]>[0] | null = null;
@@ -62,13 +73,7 @@ function createHarness({
     getStatus: vi.fn(async () => ({
       configurationProblem: null,
       enabled: true,
-      profiles: [{
-        availability: "available" as const,
-        id: "codex-safe",
-        kind: "codex" as const,
-        label: "Codex Safe",
-        unavailableReason: null,
-      }],
+      profiles,
     })),
     listSessions: vi.fn(async () => [currentSession]),
     openEvents(input) {
@@ -83,9 +88,15 @@ function createHarness({
     calls.push("flush");
     return flushScope(...args);
   });
+  const profilePreference = {
+    clear: vi.fn(),
+    load: vi.fn(() => preferredProfileId),
+    save: vi.fn(),
+  };
   const controller = createAgentClientController({
     flushScope: flush,
     port,
+    profilePreference,
     scheduler: {
       schedule: () => () => undefined,
     },
@@ -100,6 +111,7 @@ function createHarness({
     },
     flush,
     port,
+    profilePreference,
     setSession(session: AgentSessionSnapshot) {
       currentSession = session;
     },
@@ -115,6 +127,61 @@ async function start(harness: ReturnType<typeof createHarness>) {
 }
 
 describe("Agent client controller", () => {
+  it("requires an explicit available profile and never falls back", async () => {
+    const unavailableProfile = {
+      authenticationStatus: "missing" as const,
+      availability: "unavailable" as const,
+      id: "openai-missing",
+      kind: "openai-chat" as const,
+      label: "OpenAI Missing",
+      model: "gpt-test",
+      unavailableReason: "Server credential is missing",
+    };
+    const harness = createHarness({
+      preferredProfileId: unavailableProfile.id,
+      profiles: [
+        unavailableProfile,
+        {
+          authenticationStatus: "configured" as const,
+          availability: "available" as const,
+          id: "codex-safe",
+          kind: "codex" as const,
+          label: "Codex Safe",
+          model: "gpt-5.6-codex",
+          unavailableReason: null,
+        },
+      ],
+    });
+
+    await start(harness);
+    expect(harness.controller.getSnapshot().preferredProfileId)
+      .toBe("openai-missing");
+    await expect(harness.controller.createSession({
+      scope: createSession().scope,
+    })).rejects.toThrow("available Agent profile");
+    expect(harness.port.createSession).not.toHaveBeenCalled();
+    expect(harness.profilePreference.save).not.toHaveBeenCalled();
+
+    harness.controller.setPreferredProfile("codex-safe");
+    await harness.controller.createSession({ scope: createSession().scope });
+    expect(harness.profilePreference.save).toHaveBeenCalledWith("codex-safe");
+    expect(harness.port.createSession).toHaveBeenCalledWith({
+      profileId: "codex-safe",
+      scope: createSession().scope,
+    });
+    harness.controller.dispose();
+  });
+
+  it("clears a saved profile that no longer exists", async () => {
+    const harness = createHarness({ preferredProfileId: "removed-profile" });
+
+    await start(harness);
+    expect(harness.controller.getSnapshot().preferredProfileId).toBeNull();
+    expect(harness.profilePreference.clear).toHaveBeenCalledOnce();
+    expect(harness.profilePreference.save).not.toHaveBeenCalled();
+    harness.controller.dispose();
+  });
+
   it("synchronizes the scoped draft before send and approving actions", async () => {
     const harness = createHarness();
 

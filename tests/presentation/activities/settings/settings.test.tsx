@@ -8,6 +8,7 @@ import {
   appContextDefaultWidth,
 } from "../../../../presentation/ui/workbench/frameResize";
 import { expectMarkupSemantics } from "../../markupSemantics";
+import { createAgentApplicationFixture } from "../../fixtures/agentApplicationFixture";
 
 const apiAccess = {
   administration: {
@@ -20,12 +21,34 @@ const apiAccess = {
   },
   repositories: [{ id: "primary", label: "主仓库" }],
 };
+const baseAgent = createAgentApplicationFixture();
+const agent = {
+  ...baseAgent,
+  state: {
+    ...baseAgent.state,
+    preferredProfileId: null,
+    status: {
+      configurationProblem: null,
+      enabled: true,
+      profiles: [{
+        authenticationStatus: "configured" as const,
+        availability: "available" as const,
+        id: "codex-safe",
+        kind: "codex" as const,
+        label: "Codex Safe",
+        model: "gpt-5.6-codex",
+        unavailableReason: null,
+      }],
+    },
+  },
+};
 
 describe("settings activity", () => {
   it("separates interface preferences from scoped server API access", () => {
     const contextMarkup = renderToStaticMarkup(<SettingsContext />);
     const panelMarkup = renderToStaticMarkup(
       <SettingsPanel
+        agent={agent}
         apiAccess={apiAccess}
         workbench={{
           contextWidth: appContextDefaultWidth,
@@ -36,6 +59,7 @@ describe("settings activity", () => {
 
     const apiMarkup = renderToStaticMarkup(
       <SettingsPanel
+        agent={agent}
         apiAccess={apiAccess}
         section="api-access"
         workbench={{
@@ -44,10 +68,21 @@ describe("settings activity", () => {
         }}
       />,
     );
+    const agentMarkup = renderToStaticMarkup(
+      <SettingsPanel
+        agent={agent}
+        apiAccess={apiAccess}
+        section="agent"
+        workbench={{
+          contextWidth: appContextDefaultWidth,
+          onContextWidthChange: () => undefined,
+        }}
+      />,
+    );
 
-    expect(contextMarkup.match(/<li/g)).toHaveLength(2);
+    expect(contextMarkup.match(/<li/g)).toHaveLength(3);
     expectMarkupSemantics(contextMarkup, {
-      has: ['aria-current="page"', "界面", "API 访问", "<button"],
+      has: ['aria-current="page"', "界面", "智能体", "API 访问", "<button"],
     });
     expectMarkupSemantics(panelMarkup, {
       has: [
@@ -78,5 +113,18 @@ describe("settings activity", () => {
       ],
     });
     expect(apiMarkup.match(/<select/g)).toHaveLength(4);
+    expectMarkupSemantics(agentMarkup, {
+      has: [
+        'aria-label="智能体设置"',
+        "默认 Profile",
+        "Codex Safe",
+        "gpt-5.6-codex",
+        "codex",
+        "认证已配置",
+        "刷新状态",
+        "重启或 recreate 服务",
+      ],
+      lacks: ["API Key", "base URL"],
+    });
   });
 });

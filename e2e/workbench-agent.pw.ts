@@ -33,11 +33,16 @@ test.describe("Agent activity flows", () => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
     await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
+    await getActivityButton(page, "设置").click();
+    await page.getByRole("button", { name: "智能体", exact: true }).click();
+    await page.getByRole("region", { name: "智能体设置" })
+      .getByRole("combobox", { name: "默认 Profile" })
+      .selectOption("e2e-agent");
     await getActivityButton(page, "Agent").click();
 
     const context = page.locator(".agent-context");
 
-    await expect(context.getByLabel("Profile")).toHaveValue("e2e-agent");
+    await expect(context).toContainText("默认 Profile：E2E Agent");
     await context.getByLabel("领域").selectOption("journal");
     await context.getByRole("button", { name: "创建会话" }).click();
 

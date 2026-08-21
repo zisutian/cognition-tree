@@ -95,6 +95,26 @@ describe("Agent profile catalog", () => {
       expect(catalog.profiles[1]?.unavailableReason).toContain(
         "cannot contain credentials",
       );
+      expect(catalog.profiles[1]).toMatchObject({
+        authenticationStatus: "unknown",
+        model: null,
+      });
+    });
+  });
+
+  it("retains non-secret model metadata when server authentication is missing", async () => {
+    await withProfileFile(profileFile([
+      openAiProfile("missing-credential"),
+    ]), async (filePath) => {
+      const catalog = await loadAgentProfileCatalog(filePath, {});
+
+      expect(catalog.profiles[0]).toMatchObject({
+        authenticationStatus: "missing",
+        availability: "unavailable",
+        config: { apiKeyEnv: "TEST_AGENT_KEY", model: "test-model" },
+        model: "test-model",
+        unavailableReason: "Environment variable TEST_AGENT_KEY is not set",
+      });
     });
   });
 

@@ -120,6 +120,7 @@ function createSlots(
       });
     case "settings":
       return createSettingsActivitySlots({
+        agent: createAgentApplicationFixture(),
         apiAccess: {
           administration: {} as Parameters<
             typeof createSettingsActivitySlots

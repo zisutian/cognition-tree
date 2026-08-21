@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { KeyRound, PanelLeft } from "lucide-react";
+import { Bot, KeyRound, PanelLeft } from "lucide-react";
+import type { AgentApplication } from "../../../application/agent";
 import type {
   ApiAccessApplication,
 } from "../../../application/apiAccess/apiAccessAdministration";
 import { cx } from "../../ui/shared/primitives";
 import { ApiAccessSettingsPanel } from "./ApiAccessSettingsPanel";
+import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import {
   InterfaceSettingsPanel,
   type SettingsWorkbenchPreferences,
 } from "./InterfaceSettingsPanel";
 
-export type SettingsSection = "api-access" | "interface";
+export type SettingsSection = "agent" | "api-access" | "interface";
 export type { SettingsWorkbenchPreferences } from "./InterfaceSettingsPanel";
 
 const settingsSections = [
   { icon: PanelLeft, id: "interface", label: "界面" },
+  { icon: Bot, id: "agent", label: "智能体" },
   { icon: KeyRound, id: "api-access", label: "API 访问" },
 ] as const;
 
@@ -61,15 +64,19 @@ export function SettingsContext({
 }
 
 export function SettingsPanel({
+  agent,
   apiAccess,
   section = "interface",
   workbench,
 }: {
+  agent: AgentApplication;
   apiAccess: ApiAccessApplication;
   section?: SettingsSection;
   workbench: SettingsWorkbenchPreferences;
 }) {
-  return section === "api-access"
-    ? <ApiAccessSettingsPanel apiAccess={apiAccess} />
-    : <InterfaceSettingsPanel workbench={workbench} />;
+  if (section === "agent") return <AgentSettingsPanel agent={agent} />;
+  if (section === "api-access") {
+    return <ApiAccessSettingsPanel apiAccess={apiAccess} />;
+  }
+  return <InterfaceSettingsPanel workbench={workbench} />;
 }

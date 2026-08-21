@@ -13,6 +13,7 @@ export function SettingsActivityController({
   return active
     ? renderActivity(({ contextWidth, onContextWidthChange }) =>
         createSettingsActivitySlots({
+          agent: application.agent,
           apiAccess: application.apiAccess,
           onSectionChange: setSection,
           section,

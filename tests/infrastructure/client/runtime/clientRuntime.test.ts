@@ -5,6 +5,9 @@ import {
   createClientActiveRepositorySelection,
 } from "../../../../infrastructure/client/platform/activeRepositorySelection";
 import {
+  createClientAgentProfilePreference,
+} from "../../../../infrastructure/client/platform/agentProfilePreference";
+import {
   parseClientApiBaseUrl,
   parseClientStartupConfiguration,
 } from "../../../../infrastructure/client/runtime/apiConfiguration";
@@ -34,8 +37,9 @@ afterEach(() => {
 });
 
 describe("client runtime", () => {
-  it("stores only the active repository preference in localStorage", () => {
+  it("stores repository and Agent profile preferences under separate keys", () => {
     const selection = createClientActiveRepositorySelection();
+    const profile = createClientAgentProfilePreference();
 
     expect(selection.load()).toBeNull();
     selection.save("second");
@@ -44,8 +48,17 @@ describe("client runtime", () => {
     expect(globalThis.localStorage.key(0)).toBe(
       "cognition-tree.active-repository",
     );
+    expect(profile.load()).toBeNull();
+    profile.save("codex-safe");
+    expect(profile.load()).toBe("codex-safe");
+    expect(globalThis.localStorage.length).toBe(2);
+    expect(globalThis.localStorage.key(1)).toBe(
+      "cognition-tree.agent-profile",
+    );
     selection.clear();
     expect(selection.load()).toBeNull();
+    profile.clear();
+    expect(profile.load()).toBeNull();
   });
 
   it("normalizes the startup configuration API origin and owner token", () => {

@@ -6,6 +6,7 @@ import {
 } from "../../../application/agent";
 import { createHttpAgentClient } from "../http/agentClient";
 import { clientApplicationScheduler } from "../platform/applicationServices";
+import { createClientAgentProfilePreference } from "../platform/agentProfilePreference";
 import type { ClientApiConfiguration } from "./apiConfiguration";
 
 export function createClientAgentRuntime(
@@ -18,6 +19,7 @@ export function createClientAgentRuntime(
       baseUrl: api.baseUrl,
       token: api.token,
     }),
+    profilePreference: createClientAgentProfilePreference(),
     scheduler: clientApplicationScheduler,
   });
 }

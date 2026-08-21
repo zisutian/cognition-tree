@@ -33,11 +33,13 @@ export type OpenAiChatAgentProfile = AgentProfileBase & {
 export type AgentProfile = CodexAgentProfile | OpenAiChatAgentProfile;
 
 export type LoadedAgentProfile = {
+  authenticationStatus: "configured" | "missing" | "unknown";
   availability: "available" | "unavailable";
   config: AgentProfile | null;
   id: string;
   kind: AgentProfile["kind"];
   label: string;
+  model: string | null;
   unavailableReason: string | null;
 };
 
@@ -176,6 +178,7 @@ function unavailableProfile(value: unknown, index: number, reason: string) {
     ? value as Record<string, unknown>
     : {};
   return {
+    authenticationStatus: "unknown" as const,
     availability: "unavailable" as const,
     config: null,
     id: typeof record.id === "string" && record.id ? record.id : `invalid-${index}`,
@@ -183,6 +186,7 @@ function unavailableProfile(value: unknown, index: number, reason: string) {
     label: typeof record.label === "string" && record.label
       ? record.label
       : `Invalid profile ${index + 1}`,
+    model: null,
     unavailableReason: reason,
   };
 }
@@ -241,20 +245,18 @@ export async function loadAgentProfileCatalog(
         const config = parseProfile(value, index);
         const secret = environment[config.apiKeyEnv];
 
-        return secret
-          ? {
-              availability: "available",
-              config,
-              id: config.id,
-              kind: config.kind,
-              label: config.label,
-              unavailableReason: null,
-            }
-          : unavailableProfile(
-              value,
-              index,
-              `Environment variable ${config.apiKeyEnv} is not set`,
-            );
+        return {
+          authenticationStatus: secret ? "configured" : "missing",
+          availability: secret ? "available" : "unavailable",
+          config,
+          id: config.id,
+          kind: config.kind,
+          label: config.label,
+          model: config.model,
+          unavailableReason: secret
+            ? null
+            : `Environment variable ${config.apiKeyEnv} is not set`,
+        };
       } catch (error) {
         return unavailableProfile(
           value,
@@ -271,7 +273,9 @@ export async function loadAgentProfileCatalog(
     for (const profile of profiles) {
       if ((profileCounts.get(profile.id) ?? 0) > 1) {
         profile.availability = "unavailable";
+        profile.authenticationStatus = "unknown";
         profile.config = null;
+        profile.model = null;
         profile.unavailableReason = "Profile id is duplicated";
       }
     }

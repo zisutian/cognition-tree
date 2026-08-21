@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { RefreshCw, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   AgentApplication,
@@ -73,11 +73,7 @@ function ExactScopeOptions({
 export function AgentContextPanel({ agent }: { agent: AgentApplication }) {
   const feedback = useFeedback();
   const { controller, scopeCatalog, state } = agent;
-  const availableProfiles = state.status?.profiles.filter(
-    ({ availability }) => availability === "available",
-  ) ?? [];
   const [domain, setDomain] = useState<ScopeDomain>("workspace");
-  const [profileId, setProfileId] = useState("");
   const [repositoryId, setRepositoryId] = useState("");
   const [workspaceTargetKind, setWorkspaceTargetKind] =
     useState<WorkspaceTargetKind>("repository");
@@ -88,11 +84,6 @@ export function AgentContextPanel({ agent }: { agent: AgentApplication }) {
   const [todoAll, setTodoAll] = useState(true);
   const [todoCollectionIds, setTodoCollectionIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (!availableProfiles.some(({ id }) => id === profileId)) {
-      setProfileId(availableProfiles[0]?.id ?? "");
-    }
-  }, [availableProfiles, profileId]);
   useEffect(() => {
     if (!scopeCatalog.repositoryOptions.some(({ id }) => id === repositoryId)) {
       setRepositoryId(
@@ -150,56 +141,26 @@ export function AgentContextPanel({ agent }: { agent: AgentApplication }) {
     workspaceTargetKind,
   ]);
   const createSession = () => {
-    if (!scope || !profileId) return;
-    void feedback.runAction(() => controller.createSession({ profileId, scope }));
+    if (!scope) return;
+    void feedback.runAction(() => controller.createSession({ scope }));
   };
+  const preferredProfile = state.status?.profiles.find(({ id }) =>
+    id === state.preferredProfileId
+  ) ?? null;
 
   return (
     <div className="activity-context-content agent-context">
-      <div className="context-toolbar">
-        <Button
-          aria-label="刷新 Agent"
-          onClick={() => void feedback.runAction(controller.reload)}
-          title="刷新 Agent"
-          type="button"
-          variant="icon"
-        >
-          <RefreshCw aria-hidden="true" size={14} />
-        </Button>
-      </div>
       {state.loadStatus === "loading" ? (
         <p className="agent-muted">正在读取 Agent 状态…</p>
       ) : null}
       {state.loadStatus === "failed" ? (
         <p className="agent-error" role="alert">{state.errorMessage}</p>
       ) : null}
-      {state.status?.configurationProblem ? (
-        <p className="agent-error" role="alert">
-          {state.status.configurationProblem}
-        </p>
-      ) : null}
       <Section title="新会话">
         <div className="agent-create-form">
-          <label>
-            <span>Profile</span>
-            <select
-              className="ui-input"
-              onChange={(event) => setProfileId(event.currentTarget.value)}
-              value={profileId}
-            >
-              <option value="">选择可用 profile</option>
-              {state.status?.profiles.map((profile) => (
-                <option
-                  disabled={profile.availability !== "available"}
-                  key={profile.id}
-                  value={profile.id}
-                >
-                  {profile.label} · {profile.kind}
-                  {profile.availability === "unavailable" ? "（不可用）" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+          <p className="agent-muted">
+            默认 Profile：{preferredProfile?.label ?? "请先在设置中选择"}
+          </p>
           <label>
             <span>领域</span>
             <select
@@ -342,7 +303,7 @@ export function AgentContextPanel({ agent }: { agent: AgentApplication }) {
           <Button
             disabled={
               !scope ||
-              !profileId ||
+              preferredProfile?.availability !== "available" ||
               state.operationStatus === "working" ||
               state.status?.enabled !== true
             }

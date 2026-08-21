@@ -52,6 +52,11 @@ export const AgentScopeSchema = Type.Union([
 export type AgentScopeDto = Static<typeof AgentScopeSchema>;
 
 export const AgentProfileSummarySchema = strictObject({
+  authenticationStatus: Type.Union([
+    Type.Literal("configured"),
+    Type.Literal("missing"),
+    Type.Literal("unknown"),
+  ]),
   availability: Type.Union([
     Type.Literal("available"),
     Type.Literal("unavailable"),
@@ -59,6 +64,7 @@ export const AgentProfileSummarySchema = strictObject({
   id: identifier,
   kind: Type.Union([Type.Literal("codex"), Type.Literal("openai-chat")]),
   label: identifier,
+  model: nullable(Type.String({ minLength: 1 })),
   unavailableReason: nullable(Type.String()),
 });
 export type AgentProfileSummaryDto = Static<

@@ -12,6 +12,9 @@ import type {
   AgentScope,
   AgentSessionSnapshot,
 } from "./agentTypes.ts";
+import type {
+  AgentProfilePreferencePort,
+} from "./agentProfilePreference.ts";
 
 export type AgentClientProblem = Readonly<{
   code: string;
@@ -25,6 +28,7 @@ export type AgentClientState = Readonly<{
   errorMessage: string | null;
   loadStatus: "idle" | "loading" | "ready" | "failed";
   operationStatus: "idle" | "working";
+  preferredProfileId: string | null;
   problems: readonly AgentClientProblem[];
   sessions: readonly AgentSessionSnapshot[];
   status: AgentStatus | null;
@@ -33,10 +37,7 @@ export type AgentClientState = Readonly<{
 export type AgentClientController = {
   cancel(): Promise<void>;
   confirmDestruction(proposalId: string): Promise<void>;
-  createSession(input: {
-    profileId: string;
-    scope: AgentScope;
-  }): Promise<void>;
+  createSession(input: { scope: AgentScope }): Promise<void>;
   decideProposal(
     proposalId: string,
     decision: "approve" | "reject",
@@ -44,8 +45,10 @@ export type AgentClientController = {
   deleteSession(sessionId: string): Promise<void>;
   dispose(): void;
   getSnapshot(): AgentClientState;
+  refreshStatus(): Promise<void>;
   reload(): Promise<void>;
   selectSession(sessionId: string): void;
+  setPreferredProfile(profileId: string | null): void;
   sendMessage(content: string): Promise<void>;
   start(): void;
   subscribe(listener: () => void): () => void;
@@ -109,10 +112,12 @@ function projectConfigurationProblems(status: AgentStatus): AgentClientProblem[]
 export function createAgentClientController({
   flushScope,
   port,
+  profilePreference,
   scheduler,
 }: {
   flushScope(scope: AgentScope): Promise<void>;
   port: AgentClientPort;
+  profilePreference: AgentProfilePreferencePort;
   scheduler: Pick<ApplicationScheduler, "schedule">;
 }): AgentClientController {
   const listeners = new Set<() => void>();
@@ -129,6 +134,7 @@ export function createAgentClientController({
     errorMessage: null,
     loadStatus: "idle",
     operationStatus: "idle",
+    preferredProfileId: profilePreference.load(),
     problems: [],
     sessions: [],
     status: null,
@@ -141,6 +147,22 @@ export function createAgentClientController({
   };
   const update = (patch: Partial<AgentClientState>) =>
     publish({ ...state, ...patch });
+  const reconcilePreferredProfile = (status: AgentStatus) => {
+    const profileId = state.preferredProfileId;
+
+    if (!profileId || status.profiles.some(({ id }) => id === profileId)) {
+      return profileId;
+    }
+    profilePreference.clear();
+    return null;
+  };
+  const replaceConfigurationProblems = (status: AgentStatus) => [
+    ...state.problems.filter(({ id }) =>
+      !id.startsWith("agent-configuration-problem") &&
+      !id.startsWith("agent-profile-problem:")
+    ),
+    ...projectConfigurationProblems(status),
+  ];
   const recordProblem = (
     code: string,
     message: string,
@@ -328,8 +350,15 @@ export function createAgentClientController({
       await port.confirmDestruction(session.id, proposalId);
       await recoverActiveSession(true);
     }),
-    createSession: (input) => runOperation(async () => {
-      const session = await port.createSession(input);
+    createSession: ({ scope }) => runOperation(async () => {
+      const profile = state.status?.profiles.find(({ id }) =>
+        id === state.preferredProfileId
+      );
+
+      if (!profile || profile.availability !== "available") {
+        throw new Error("Select an available Agent profile in Settings.");
+      }
+      const session = await port.createSession({ profileId: profile.id, scope });
 
       update({ sessions: replaceSession(state.sessions, session) });
       setActiveSession(session.id);
@@ -359,6 +388,22 @@ export function createAgentClientController({
       listeners.clear();
     },
     getSnapshot: () => state,
+    refreshStatus: () => runOperation(async () => {
+      try {
+        const status = await port.getStatus();
+
+        update({
+          errorMessage: null,
+          loadStatus: "ready",
+          preferredProfileId: reconcilePreferredProfile(status),
+          problems: replaceConfigurationProblems(status),
+          status,
+        });
+      } catch (error) {
+        update({ errorMessage: errorMessage(error), loadStatus: "failed" });
+        throw error;
+      }
+    }),
     reload: () => runOperation(async () => {
       update({ errorMessage: null, loadStatus: "loading" });
       try {
@@ -377,13 +422,8 @@ export function createAgentClientController({
           activeSessionId,
           errorMessage: null,
           loadStatus: "ready",
-          problems: [
-            ...state.problems.filter(({ id }) =>
-              !id.startsWith("agent-configuration-problem") &&
-              !id.startsWith("agent-profile-problem:")
-            ),
-            ...projectConfigurationProblems(status),
-          ],
+          preferredProfileId: reconcilePreferredProfile(status),
+          problems: replaceConfigurationProblems(status),
           sessions,
           status,
         });
@@ -404,6 +444,20 @@ export function createAgentClientController({
       }
       setActiveSession(sessionId);
       void recoverActiveSession().catch(() => undefined);
+    },
+    setPreferredProfile(profileId) {
+      if (profileId === null) {
+        profilePreference.clear();
+        update({ preferredProfileId: null });
+        return;
+      }
+      const profile = state.status?.profiles.find(({ id }) => id === profileId);
+
+      if (!profile || profile.availability !== "available") {
+        throw new Error("Select an available Agent profile in Settings.");
+      }
+      profilePreference.save(profile.id);
+      update({ preferredProfileId: profile.id });
     },
     sendMessage: (content) => runOperation(async () => {
       const session = requireActiveSession();
