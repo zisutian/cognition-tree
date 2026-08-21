@@ -135,9 +135,14 @@ test.describe("workbench diagnostics", () => {
       name: "API 访问",
       exact: true,
     });
+    const agentSection = settingsContext.getByRole("button", {
+      name: "智能体",
+      exact: true,
+    });
 
-    await expect(settingsContext.getByRole("button")).toHaveCount(2);
+    await expect(settingsContext.getByRole("button")).toHaveCount(3);
     await expect(interfaceSection).toHaveAttribute("aria-current", "page");
+    await expect(agentSection).not.toHaveAttribute("aria-current", "page");
     await expect(apiSection).not.toHaveAttribute("aria-current", "page");
     await expect(settingsPanel.getByRole("heading", { name: "界面" }))
       .toBeVisible();
