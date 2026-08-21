@@ -55,7 +55,14 @@ test.describe("repository and capacity flows", () => {
     await contextResize.focus();
     await contextResize.press("ArrowRight");
     await getActivityButton(page, "仓库").click();
-    await page.getByRole("button", { name: "新建仓库" }).click();
+    const localRepositoryGroup = page.getByRole("region", { name: "本地" });
+    const createRepositoryButton = localRepositoryGroup.getByRole("button", {
+      name: "新建仓库",
+    });
+
+    await expect(page.getByRole("button", { name: "新建仓库" }))
+      .toHaveCount(1);
+    await createRepositoryButton.click();
     const createForm = page.locator(".repository-create");
 
     await createForm.getByRole("textbox", { name: "名称" }).fill("第二仓库");

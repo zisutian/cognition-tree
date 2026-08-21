@@ -23,7 +23,6 @@ import type { RepositoryViewModel } from
 import {
   CompactContextActionButtons,
   CompactContextGroup,
-  CompactContextList,
   CompactContextRow,
   CompactContextStatusIcon,
 } from "../../ui/shared/CompactContextList";
@@ -76,6 +75,7 @@ export function RepositoryContext({
   const busy = view.operation !== "idle";
   const adapterGroups = (["local", "webdav"] as const).filter(
     (adapter) =>
+      adapter === "local" ||
       view.repositories.some((repository) => repository.adapter === adapter) ||
       view.issues.some((issue) => issue.adapter === adapter),
   );
@@ -210,30 +210,14 @@ export function RepositoryContext({
         })}
       </CompactContextGroup>
 
-      <CompactContextList
-        aria-label="仓库操作"
-        className="repository-list repository-create-list"
-      >
-        <CompactContextRow
-          buttonProps={{ "data-repository-catalog": "true" }}
-          icon={<Plus aria-hidden="true" size={13} />}
-          label="新建仓库"
-          onSelect={() => onSelectionChange({ kind: "create" })}
-          rowClassName="repository-row repository-create-row"
-          selected={currentSelection.kind === "create"}
-          trailing={view.creatableAdapters.length === 0
-            ? <span className="repository-row-status">不可用</span>
-            : undefined}
-        />
-      </CompactContextList>
-
       {adapterGroups.map((adapter) => {
         const repositories = view.repositories.filter(
           (repository) => repository.adapter === adapter,
         );
         const issues = view.issues.filter((issue) => issue.adapter === adapter);
         const adapterLabel = repositories[0]?.adapterLabel ??
-          issues[0]?.adapterLabel ?? adapter;
+          issues[0]?.adapterLabel ??
+          (adapter === "local" ? "本地" : "WebDAV");
 
         return (
           <CompactContextGroup
@@ -366,6 +350,32 @@ export function RepositoryContext({
                 />
               );
             })}
+            {adapter === "local" ? (
+              <li
+                className={cx(
+                  "ui-tree-row-frame ui-compact-context-row-frame",
+                  currentSelection.kind === "create" && "is-selected",
+                )}
+              >
+                <button
+                  aria-current={currentSelection.kind === "create"
+                    ? "page"
+                    : undefined}
+                  aria-label="新建仓库"
+                  className={cx(
+                    "ui-tree-row repository-create-row",
+                    currentSelection.kind === "create" && "is-selected",
+                  )}
+                  data-repository-catalog="true"
+                  disabled={view.creatableAdapters.length === 0}
+                  onClick={() => onSelectionChange({ kind: "create" })}
+                  title="新建仓库"
+                  type="button"
+                >
+                  <Plus aria-hidden="true" size={13} />
+                </button>
+              </li>
+            ) : null}
           </CompactContextGroup>
         );
       })}

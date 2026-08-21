@@ -264,12 +264,16 @@ describe("repository setup and management semantics", () => {
       lacks: [
         "<dt>名称</dt>", "新仓库 ID",
         'aria-label="重命名仓库 本地笔记"',
-        ">当前</span>", ">打开此仓库<",
+        ">当前</span>", ">打开此仓库<", ">新建仓库</span>",
       ],
       ordered: [
-        ">内置数据</span>", ">新建仓库</span>", ">本地</span>", ">WebDAV</span>",
+        ">内置数据</span>", ">本地</span>", "本地笔记 · 本地",
+        'aria-label="新建仓库"', ">WebDAV</span>",
       ],
     });
+    expect(markup.match(/aria-label="新建仓库"/g) ?? []).toHaveLength(1);
+    expect(markup.match(/data-repository-catalog="true"/g) ?? [])
+      .toHaveLength(1);
   });
 
   it("keeps creation and manual Local recovery as selectable right-side details", () => {
@@ -319,10 +323,15 @@ describe("repository setup and management semantics", () => {
 
     expectMarkupSemantics(contextMarkup, {
       has: [
-        ">新建仓库</span>", 'data-repository-catalog="true"',
+        ">本地</span>", 'aria-label="新建仓库"',
+        'data-repository-catalog="true"',
         'data-repository-issue-id="default"',
       ],
-      lacks: ["手工删除", "主机路径"],
+      lacks: [">新建仓库</span>", "手工删除", "主机路径"],
+      ordered: [
+        ">本地</span>", 'data-repository-issue-id="default"',
+        'aria-label="新建仓库"',
+      ],
     });
     expectMarkupSemantics(issueMarkup, {
       has: [
@@ -364,8 +373,11 @@ describe("repository setup and management semantics", () => {
     );
 
     expectMarkupSemantics(contextMarkup, {
-      has: ['data-repository-catalog="true"'],
-      lacks: ["无法读取普通仓库目录。"],
+      has: [
+        ">本地</span>", 'aria-label="新建仓库"',
+        'data-repository-catalog="true"', "disabled=\"\"",
+      ],
+      lacks: [">新建仓库</span>", "无法读取普通仓库目录。"],
     });
     expectMarkupSemantics(detailMarkup, {
       has: ["无法读取普通仓库目录。", ">重试普通仓库<"],

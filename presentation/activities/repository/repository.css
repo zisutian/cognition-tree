@@ -29,9 +29,9 @@
   height: var(--ui-symbol-size);
 }
 
-.repository-create-list {
-  padding-bottom: var(--ui-gap-tight);
-  border-bottom: var(--ui-border-width) solid var(--color-border);
+.repository-create-row:disabled {
+  color: var(--color-fg-disabled);
+  cursor: not-allowed;
 }
 
 .repository-issue-row > svg,
