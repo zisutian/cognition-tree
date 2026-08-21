@@ -145,6 +145,13 @@ test.describe("directory and structure operation flows", () => {
 
     await selectNotesMode(page, "结构");
     const structureOperationContext = page.locator(".app-context");
+
+    await expect(
+      structureOperationContext.getByRole("button", {
+        name: "笔记间迁移",
+        exact: true,
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
     const structureColumns = page.locator(".structure-operation-column");
     const sourceStructure = structureColumns.first();
     const targetStructure = structureColumns.nth(1);
@@ -171,10 +178,10 @@ test.describe("directory and structure operation flows", () => {
       .click();
     await expect(targetStructure.getByTitle(movedStructureTitle ?? "")).toBeVisible();
 
-    await page.getByRole("button", { name: "笔记结构", exact: true }).click();
+    await page.getByRole("button", { name: "笔记内迁移", exact: true }).click();
     await structureOperationContext.getByTitle("Beta").click();
     await expect(
-      page.getByRole("button", { name: "笔记结构", exact: true }),
+      page.getByRole("button", { name: "笔记内迁移", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
 
     await selectNotesMode(page, "编辑");
@@ -185,7 +192,7 @@ test.describe("directory and structure operation flows", () => {
 
     await selectNotesMode(page, "结构");
     await expect(
-      page.getByRole("button", { name: "笔记结构", exact: true }),
+      page.getByRole("button", { name: "笔记内迁移", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
       page.getByRole("region", { name: "结构操作" }).getByText(
@@ -236,7 +243,7 @@ test.describe("directory and structure operation flows", () => {
       return editableLines.includes("\t\t- Source Child");
     }).toBe(true);
 
-    await page.getByRole("button", { name: "笔记结构", exact: true }).click();
+    await page.getByRole("button", { name: "笔记内迁移", exact: true }).click();
     await page.locator(".app-context").getByTitle("Target").click();
 
     const structureColumn = page.locator(".structure-operation-column");

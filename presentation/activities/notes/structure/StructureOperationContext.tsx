@@ -168,8 +168,8 @@ export function StructureOperationContext({
         ariaLabel="结构操作模式"
         fill
         options={[
-          { label: "源笔记 / 目标笔记", value: "betweenNotes" },
-          { label: "笔记结构", value: "withinNote" },
+          { label: "笔记间迁移", value: "betweenNotes" },
+          { label: "笔记内迁移", value: "withinNote" },
         ]}
         value={view.mode}
         onChange={view.onSetMode}
