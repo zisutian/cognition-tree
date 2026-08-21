@@ -43,7 +43,7 @@ export function AgentConversationPanel({ agent }: { agent: AgentApplication }) {
     return (
       <Panel aria-label="Agent 对话" className="agent-conversation-panel">
         <EmptyState
-          description="在左侧选择 allowlist profile 和不可扩大的硬范围。"
+          description="使用左侧的 + 在主界面选择不可扩大的硬范围；默认 profile 在设置中选择。"
           title="创建或选择一个 Agent 会话"
         />
       </Panel>

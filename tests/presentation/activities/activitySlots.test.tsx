@@ -389,8 +389,9 @@ describe("activity slots", () => {
   });
 
   it("keeps Agent sessions in context and new-session scope in main", () => {
+    const agent = createAgentApplicationFixture();
     const slots = createAgentActivitySlots({
-      agent: createAgentApplicationFixture(),
+      agent,
       creatingSession: true,
       onBeginCreateSession: () => undefined,
       onCollapseDetail: controls.onCollapseDetail,
@@ -406,5 +407,20 @@ describe("activity slots", () => {
     expect(mainMarkup).toContain(">领域<");
     expect(mainMarkup).toContain(">硬范围<");
     expect(mainMarkup).toContain("请先在设置中选择");
+
+    const emptyConversationMarkup = renderSlot(createAgentActivitySlots({
+      agent,
+      creatingSession: false,
+      onBeginCreateSession: () => undefined,
+      onCollapseDetail: controls.onCollapseDetail,
+      onSelectSession: () => undefined,
+    }).main);
+
+    expect(emptyConversationMarkup).toContain(
+      "使用左侧的 + 在主界面选择不可扩大的硬范围；默认 profile 在设置中选择。",
+    );
+    expect(emptyConversationMarkup).not.toContain(
+      "在左侧选择 allowlist profile 和不可扩大的硬范围。",
+    );
   });
 });
