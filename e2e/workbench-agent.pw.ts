@@ -41,10 +41,18 @@ test.describe("Agent activity flows", () => {
     await getActivityButton(page, "Agent").click();
 
     const context = page.locator(".agent-context");
+    await context.getByRole("button", { name: "新建会话" }).click();
+    const createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
-    await expect(context).toContainText("默认 Profile：E2E Agent");
-    await context.getByLabel("领域").selectOption("journal");
-    await context.getByRole("button", { name: "创建会话" }).click();
+    await expect(context.getByLabel("领域")).toHaveCount(0);
+    await expect(createPanel).toContainText("默认 Profile：E2E Agent");
+    await createPanel.getByLabel("领域").selectOption("journal");
+    await createPanel.getByRole("button", { name: "创建会话" }).click();
+    const sessionList = context.getByRole("list", { name: "Agent 会话" });
+
+    await expect(sessionList).toContainText("E2E Agent");
+    await expect(sessionList).toContainText("Journal · 全域");
+    await expect(sessionList).toContainText("空闲");
 
     const conversation = page.getByRole("region", { name: "Agent 对话" });
 

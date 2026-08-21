@@ -67,7 +67,10 @@ function createSlots(
     case "agent":
       return createAgentActivitySlots({
         agent: createAgentApplicationFixture(),
+        creatingSession: false,
+        onBeginCreateSession: () => undefined,
         onCollapseDetail: controls.onCollapseDetail,
+        onSelectSession: () => undefined,
       });
     case "notes":
       return createNotesWorkspaceActivitySlots({
@@ -383,5 +386,25 @@ describe("activity slots", () => {
     for (const [state, expectedText] of statusScenarios) {
       expect(renderSearchState(state)).toContain(expectedText);
     }
+  });
+
+  it("keeps Agent sessions in context and new-session scope in main", () => {
+    const slots = createAgentActivitySlots({
+      agent: createAgentApplicationFixture(),
+      creatingSession: true,
+      onBeginCreateSession: () => undefined,
+      onCollapseDetail: controls.onCollapseDetail,
+      onSelectSession: () => undefined,
+    });
+    const contextMarkup = renderSlot(slots.context?.content);
+    const mainMarkup = renderSlot(slots.main);
+
+    expect(contextMarkup).toContain('aria-label="新建会话"');
+    expect(contextMarkup).toContain('aria-label="Agent 会话"');
+    expect(contextMarkup).not.toContain('aria-label="领域"');
+    expect(mainMarkup).toContain('aria-label="新建 Agent 会话"');
+    expect(mainMarkup).toContain(">领域<");
+    expect(mainMarkup).toContain(">硬范围<");
+    expect(mainMarkup).toContain("请先在设置中选择");
   });
 });

@@ -5,18 +5,32 @@ import type { ActivitySlots } from "../../ui/activityTypes";
 import { AgentContextPanel } from "./AgentContextPanel";
 import { AgentConversationPanel } from "./AgentConversationPanel";
 import { AgentProposalPanel } from "./AgentProposalPanel";
+import { AgentSessionCreatePanel } from "./AgentSessionCreatePanel";
 import "./agent.css";
 
 export function createAgentActivitySlots({
   agent,
+  creatingSession,
+  onBeginCreateSession,
   onCollapseDetail,
+  onSelectSession,
 }: {
   agent: AgentApplication;
+  creatingSession: boolean;
+  onBeginCreateSession(): void;
   onCollapseDetail(): void;
+  onSelectSession(): void;
 }): ActivitySlots {
   return {
     context: {
-      content: <AgentContextPanel agent={agent} />,
+      content: (
+        <AgentContextPanel
+          agent={agent}
+          creatingSession={creatingSession}
+          onBeginCreateSession={onBeginCreateSession}
+          onSelectSession={onSelectSession}
+        />
+      ),
       title: "Agent",
     },
     detail: (
@@ -25,6 +39,8 @@ export function createAgentActivitySlots({
         onCollapseDetail={onCollapseDetail}
       />
     ),
-    main: <AgentConversationPanel agent={agent} />,
+    main: creatingSession
+      ? <AgentSessionCreatePanel agent={agent} onCreated={onSelectSession} />
+      : <AgentConversationPanel agent={agent} />,
   };
 }

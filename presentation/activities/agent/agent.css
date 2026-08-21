@@ -1,6 +1,6 @@
 .agent-context,
-.agent-context .ui-section,
 .agent-create-form,
+.agent-session-create-content,
 .agent-conversation-body,
 .agent-proposal-body,
 .agent-change-summary,
@@ -12,11 +12,6 @@
 
 .agent-context {
   align-content: start;
-}
-
-.agent-context .ui-section + .ui-section {
-  padding-top: var(--ui-gap);
-  border-top: var(--ui-border-width) solid var(--color-border);
 }
 
 .agent-create-form > label,
@@ -52,7 +47,6 @@
   align-items: center;
 }
 
-.agent-session-list,
 .agent-message-list,
 .agent-change-summary ul,
 .agent-diff ol {
@@ -61,41 +55,40 @@
   list-style: none;
 }
 
-.agent-session-list {
-  display: grid;
-  gap: var(--ui-gap-tight);
-}
-
-.agent-session-list > li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  border-radius: var(--ui-radius);
-}
-
-.agent-session-list > li.is-active,
-.agent-session-list > li:hover {
-  background: var(--color-hover);
-}
-
-.agent-session-select {
+.agent-session-label {
   display: grid;
   gap: calc(var(--ui-gap-tight) / 2);
   min-width: 0;
-  padding: var(--ui-gap-tight);
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.agent-session-select span {
+.agent-session-label > strong,
+.agent-session-label > span {
   overflow: hidden;
-  color: var(--color-fg-muted);
-  font-size: var(--ui-micro-font-size);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agent-session-label > span,
+.agent-session-state {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-micro-font-size);
+}
+
+.agent-session-state {
+  white-space: nowrap;
+}
+
+.agent-session-create-panel {
+  min-height: 0;
+}
+
+.agent-session-create-content {
+  width: min(100%, 720px);
+  padding: calc(var(--ui-gap) * 2);
+}
+
+.agent-create-form {
+  max-width: 560px;
 }
 
 .agent-conversation-panel,
