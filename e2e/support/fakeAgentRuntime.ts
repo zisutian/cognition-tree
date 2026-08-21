@@ -10,6 +10,8 @@ import type {
 } from "../../infrastructure/server/agent/profiles.ts";
 
 export const e2eAgentProfileId = "e2e-agent";
+export const e2eAgentAlternativeProfileId = "e2e-agent-alternative";
+export const e2eAgentUnavailableProfileId = "e2e-agent-unavailable";
 export const e2eAgentJournalBody = "Agent E2E committed body";
 export const e2eAgentFirstDelta = "正在准备";
 export const e2eAgentSecondDelta = "，proposal 已就绪。";
@@ -27,6 +29,19 @@ const profile: OpenAiChatAgentProfile = {
   model: "deterministic-e2e",
   timeoutMilliseconds: 5_000,
 };
+const alternativeProfile: OpenAiChatAgentProfile = {
+  ...profile,
+  id: e2eAgentAlternativeProfileId,
+  label: "E2E Agent Alternate",
+  model: "deterministic-e2e-alternative",
+};
+const unavailableProfile: OpenAiChatAgentProfile = {
+  ...profile,
+  apiKeyEnv: "CTN_E2E_AGENT_MISSING_KEY",
+  id: e2eAgentUnavailableProfileId,
+  label: "E2E Agent Missing",
+  model: "deterministic-e2e-unavailable",
+};
 
 export const e2eAgentProfileCatalog: AgentProfileCatalog = {
   absoluteTtlMilliseconds: 24 * 60 * 60 * 1_000,
@@ -42,6 +57,25 @@ export const e2eAgentProfileCatalog: AgentProfileCatalog = {
     label: profile.label,
     model: profile.model,
     unavailableReason: null,
+  }, {
+    authenticationStatus: "configured",
+    availability: "available",
+    config: alternativeProfile,
+    id: alternativeProfile.id,
+    kind: alternativeProfile.kind,
+    label: alternativeProfile.label,
+    model: alternativeProfile.model,
+    unavailableReason: null,
+  }, {
+    authenticationStatus: "missing",
+    availability: "unavailable",
+    config: unavailableProfile,
+    id: unavailableProfile.id,
+    kind: unavailableProfile.kind,
+    label: unavailableProfile.label,
+    model: unavailableProfile.model,
+    unavailableReason:
+      "Environment variable CTN_E2E_AGENT_MISSING_KEY is not set",
   }],
 };
 

@@ -6,6 +6,10 @@ import {
 } from "./support/repositorySeeds";
 import { test } from "./support/e2eTest";
 import {
+  e2eAgentProfileId,
+  e2eAgentUnavailableProfileId,
+} from "./support/fakeAgentRuntime";
+import {
   getActivityButton,
   openWorkbench,
 } from "./support/workbenchPage";
@@ -110,7 +114,9 @@ test.describe("settings activity flows", () => {
     expect(revoked.status()).toBe(401);
   });
 
-  test("persists only an explicitly selected Agent profile", async ({ page }) => {
+  test("persists an explicit Agent profile without unavailable fallback", async ({
+    page,
+  }) => {
     await openWorkbench(page, syntaxRepositoryId);
     await getActivityButton(page, "设置").click();
     await page.locator(".settings-context")
@@ -121,8 +127,8 @@ test.describe("settings activity flows", () => {
     await expect(selection).toHaveValue("");
     await expect(panel).toContainText("deterministic-e2e");
     await expect(panel).toContainText("认证已配置");
-    await selection.selectOption("e2e-agent");
-    await expect(selection).toHaveValue("e2e-agent");
+    await selection.selectOption(e2eAgentProfileId);
+    await expect(selection).toHaveValue(e2eAgentProfileId);
 
     await page.reload();
     await expect(page.getByRole("navigation", { name: "工作区功能" }))
@@ -132,6 +138,34 @@ test.describe("settings activity flows", () => {
       .getByRole("button", { name: "智能体", exact: true }).click();
     panel = page.getByRole("region", { name: "智能体设置" });
     selection = panel.getByRole("combobox", { name: "默认 Profile" });
-    await expect(selection).toHaveValue("e2e-agent");
+    await expect(selection).toHaveValue(e2eAgentProfileId);
+    await panel.getByRole("button", { name: "刷新状态" }).click();
+    await expect(selection).toHaveValue(e2eAgentProfileId);
+
+    await page.evaluate((profileId) => {
+      globalThis.localStorage.setItem("cognition-tree.agent-profile", profileId);
+    }, e2eAgentUnavailableProfileId);
+    await page.reload();
+    await expect(page.getByRole("navigation", { name: "工作区功能" }))
+      .toBeVisible();
+    await getActivityButton(page, "设置").click();
+    await page.locator(".settings-context")
+      .getByRole("button", { name: "智能体", exact: true }).click();
+    panel = page.getByRole("region", { name: "智能体设置" });
+    selection = panel.getByRole("combobox", { name: "默认 Profile" });
+    await expect(selection).toHaveValue(e2eAgentUnavailableProfileId);
+    await expect(panel).toContainText("E2E Agent Missing");
+    await expect(panel).toContainText("认证未配置");
+
+    await getActivityButton(page, "智能体").click();
+    await page.locator(".agent-context")
+      .getByRole("button", { name: "新建会话" }).click();
+    const createPanel = page.getByRole("region", {
+      name: "新建 Agent 会话",
+    });
+
+    await expect(createPanel).toContainText("默认 Profile：E2E Agent Missing");
+    await expect(createPanel.getByRole("button", { name: "创建会话" }))
+      .toBeDisabled();
   });
 });

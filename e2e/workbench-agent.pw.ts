@@ -8,8 +8,10 @@ import {
 } from "./support/builtInSeeds";
 import { test } from "./support/e2eTest";
 import {
+  e2eAgentAlternativeProfileId,
   e2eAgentFirstDelta,
   e2eAgentJournalBody,
+  e2eAgentProfileId,
   e2eAgentSecondDelta,
 } from "./support/fakeAgentRuntime";
 import { seedWorkbenchRepository } from "./support/repositorySeeds";
@@ -33,17 +35,25 @@ test.describe("Agent activity flows", () => {
     await openWorkbench(page, repositoryId);
     await getActivityButton(page, "日记").click();
     await expect(page.getByRole("region", { name: "日记编辑" })).toBeVisible();
+    await getActivityButton(page, "智能体").click();
+    const context = page.locator(".agent-context");
+
+    await context.getByRole("button", { name: "新建会话" }).click();
+    let createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
+
+    await expect(createPanel).toContainText("请先在设置中选择");
+    await expect(createPanel.getByRole("button", { name: "创建会话" }))
+      .toBeDisabled();
     await getActivityButton(page, "设置").click();
     await page.locator(".settings-context")
       .getByRole("button", { name: "智能体", exact: true }).click();
     await page.getByRole("region", { name: "智能体设置" })
       .getByRole("combobox", { name: "默认 Profile" })
-      .selectOption("e2e-agent");
+      .selectOption(e2eAgentProfileId);
     await getActivityButton(page, "智能体").click();
 
-    const context = page.locator(".agent-context");
     await context.getByRole("button", { name: "新建会话" }).click();
-    const createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
+    createPanel = page.getByRole("region", { name: "新建 Agent 会话" });
 
     await expect(context.getByLabel("领域")).toHaveCount(0);
     await expect(createPanel).toContainText("默认 Profile：E2E Agent");
@@ -54,6 +64,22 @@ test.describe("Agent activity flows", () => {
     await expect(sessionList).toContainText("E2E Agent");
     await expect(sessionList).toContainText("Journal · 全域");
     await expect(sessionList).toContainText("空闲");
+
+    await getActivityButton(page, "设置").click();
+    await page.locator(".settings-context")
+      .getByRole("button", { name: "智能体", exact: true }).click();
+    await page.getByRole("region", { name: "智能体设置" })
+      .getByRole("combobox", { name: "默认 Profile" })
+      .selectOption(e2eAgentAlternativeProfileId);
+    await getActivityButton(page, "智能体").click();
+    await expect(sessionList).toContainText("E2E Agent");
+    await expect(sessionList).not.toContainText("E2E Agent Alternate");
+    await context.getByRole("button", { name: "新建会话" }).click();
+    await expect(createPanel).toContainText(
+      "默认 Profile：E2E Agent Alternate",
+    );
+    await sessionList.getByRole("button", { name: /E2E Agent.*Journal/ })
+      .click();
 
     const conversation = page.getByRole("region", { name: "Agent 对话" });
 
