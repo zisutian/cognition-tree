@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders, IncomingMessage } from "node:http";
 import { Readable } from "node:stream";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   authorizeApiRequest,
   createApiSecurityPolicy,
@@ -43,6 +43,50 @@ describe("CTN API v3 security", () => {
       policy,
       noAutomationTokens,
     )).rejects.toThrow("Host is not allowed");
+  });
+
+  it("honors explicit automation credentials on loopback", async () => {
+    const policy = createApiSecurityPolicy({ host: "127.0.0.1" });
+    const secret = "ctn_loopback-automation-token";
+    const authenticate = vi.fn(async (presented: string) =>
+      presented === secret
+        ? {
+            id: "automation-token",
+            kind: "automation" as const,
+            name: "只读工具",
+            repositoryIds: ["repository-allowed"],
+            scopes: ["workspace:read" as const],
+          }
+        : null
+    );
+
+    await expect(authorizeApiRequest(createRequest({
+      headers: {
+        authorization: `Bearer ${secret}`,
+        host: "localhost:3317",
+      },
+    }), policy, { authenticate })).resolves.toMatchObject({
+      principal: {
+        id: "automation-token",
+        kind: "automation",
+        repositoryIds: ["repository-allowed"],
+        scopes: ["workspace:read"],
+      },
+    });
+    expect(authenticate).toHaveBeenCalledWith(secret);
+
+    await expect(authorizeApiRequest(createRequest({
+      headers: {
+        authorization: "Bearer invalid",
+        host: "localhost:3317",
+      },
+    }), policy, { authenticate })).rejects.toMatchObject({ statusCode: 401 });
+    await expect(authorizeApiRequest(createRequest({
+      headers: {
+        authorization: "Bearer",
+        host: "localhost:3317",
+      },
+    }), policy, { authenticate })).rejects.toMatchObject({ statusCode: 401 });
   });
 
   it("requires token and HTTPS CTN_PUBLIC_URL for every exposed bind", () => {

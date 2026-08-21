@@ -11,13 +11,18 @@ import {
 } from "./support/workbenchPage";
 
 const syntaxRepositoryId = "workbench-syntax-view";
+const deniedRepositoryId = "workbench-settings-denied";
 
 test.describe("settings activity flows", () => {
   test.beforeEach(async ({ api }) => {
-    await seedWorkbenchRepository(api, syntaxRepositoryId);
+    await Promise.all([
+      seedWorkbenchRepository(api, syntaxRepositoryId),
+      seedWorkbenchRepository(api, deniedRepositoryId),
+    ]);
   });
 
   test("creates only read-scoped tokens and retains only the prefix", async ({
+    api,
     page,
   }) => {
     await openWorkbench(page, syntaxRepositoryId);
@@ -65,5 +70,43 @@ test.describe("settings activity flows", () => {
     await expect(page.getByText(secret, { exact: true })).toHaveCount(0);
     await expect(page.getByRole("list", { name: "自动化令牌" }))
       .toContainText("E2E AI");
+
+    const automationHeaders = {
+      Authorization: `Bearer ${secret}`,
+    };
+    const allowed = await api.get(
+      `/api/v3/content/workspaces/${syntaxRepositoryId}/tree`,
+      { headers: automationHeaders },
+    );
+
+    expect(allowed.status()).toBe(200);
+    for (const path of [
+      `/api/v3/content/workspaces/${deniedRepositoryId}/tree`,
+      "/api/v3/admin/repositories",
+      "/api/v3/agent/status",
+    ]) {
+      const denied = await api.get(path, { headers: automationHeaders });
+
+      expect(denied.status()).toBe(403);
+    }
+
+    const reloadedPanel = page.getByRole("region", { name: "API 访问" });
+
+    await reloadedPanel.getByRole("button", { name: "刷新" }).click();
+    const reloadedTokenRow = reloadedPanel
+      .getByRole("list", { name: "自动化令牌" })
+      .getByRole("listitem")
+      .filter({ hasText: "E2E AI" });
+
+    await expect(reloadedTokenRow).toContainText("最近使用");
+    await reloadedTokenRow.getByRole("button", { name: "撤销" }).click();
+    await expect(reloadedTokenRow).toHaveCount(0);
+
+    const revoked = await api.get(
+      `/api/v3/content/workspaces/${syntaxRepositoryId}/tree`,
+      { headers: automationHeaders },
+    );
+
+    expect(revoked.status()).toBe(401);
   });
 });

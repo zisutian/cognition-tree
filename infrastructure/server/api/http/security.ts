@@ -144,10 +144,6 @@ function parseBearerToken(value: string | undefined) {
   return match?.[1] ?? null;
 }
 
-function readApiBearerToken(request: IncomingMessage) {
-  return parseBearerToken(readHeader(request, "authorization"));
-}
-
 function assertAllowedHost(
   requestHost: string | undefined,
   allowedHosts: readonly string[],
@@ -255,7 +251,7 @@ export async function authorizeApiRequest(
       throw new ApiSecurityError(403, "Origin is not allowed");
     }
   }
-  if (!policy.requiresBearerToken || request.method === "OPTIONS") {
+  if (request.method === "OPTIONS") {
     return {
       allowedOrigin,
       principal: {
@@ -265,11 +261,30 @@ export async function authorizeApiRequest(
       },
     };
   }
-  const token = readApiBearerToken(request);
-  const presentedDigest = token ? digestToken(token) : null;
+  const authorization = readHeader(request, "authorization");
+
+  if (authorization === undefined && !policy.requiresBearerToken) {
+    return {
+      allowedOrigin,
+      principal: {
+        id: "local-owner",
+        kind: "local-owner",
+        name: "本机官方客户端",
+      },
+    };
+  }
+  const token = parseBearerToken(authorization);
+
+  if (!token) {
+    throw new ApiSecurityError(
+      401,
+      "Bearer token is invalid",
+      allowedOrigin,
+    );
+  }
+  const presentedDigest = digestToken(token);
 
   if (
-    presentedDigest &&
     policy.bearerTokenDigest &&
     timingSafeEqual(presentedDigest, policy.bearerTokenDigest)
   ) {
@@ -282,7 +297,7 @@ export async function authorizeApiRequest(
       },
     };
   }
-  const principal = token ? await accessStore.authenticate(token) : null;
+  const principal = await accessStore.authenticate(token);
 
   if (!principal) {
     throw new ApiSecurityError(

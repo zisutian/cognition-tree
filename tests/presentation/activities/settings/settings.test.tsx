@@ -67,6 +67,8 @@ describe("settings activity", () => {
         "仓库范围",
         "现有令牌",
         "Agent 写入审计",
+        "/api/v3/content/*",
+        "sync、agent 或 admin",
       ],
       lacks: [
         "令牌仅显示这一次",

@@ -234,6 +234,10 @@ export function ApiAccessSettingsPanel({
       <PanelHeader title="API 访问" />
       <PanelBody scroll>
         <div className="settings-content-column settings-api-content">
+          <p className="settings-muted">
+            自动化令牌仅用于 <code>/api/v3/content/*</code> 只读接口，
+            不能访问 sync、agent 或 admin。
+          </p>
           {errorMessage
             ? <p className="settings-api-error" role="alert">{errorMessage}</p>
             : null}
