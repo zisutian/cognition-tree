@@ -23,6 +23,8 @@ import {
 import type {
   AgentClientController,
   AgentClientState,
+  AgentConfigurationController,
+  AgentConfigurationState,
   AgentScopeCatalog,
 } from "../../../application/agent";
 
@@ -33,12 +35,16 @@ const workspaceFeedbackActivities = [
 ] as const;
 
 export function useWorkbenchApplicationBindings({
+  agentConfigurationController,
+  agentConfigurationState,
   agentController,
   agentState,
   controller,
   feedbackController,
   snapshot,
 }: {
+  agentConfigurationController: AgentConfigurationController;
+  agentConfigurationState: AgentConfigurationState;
   agentController: AgentClientController;
   agentState: AgentClientState;
   controller: WorkbenchController;
@@ -201,6 +207,8 @@ export function useWorkbenchApplicationBindings({
 
   return {
     agent: {
+      configurationController: agentConfigurationController,
+      configurationState: agentConfigurationState,
       controller: agentController,
       scopeCatalog: agentScopeCatalog,
       state: agentState,

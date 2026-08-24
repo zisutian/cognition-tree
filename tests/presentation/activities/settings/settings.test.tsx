@@ -24,6 +24,40 @@ const apiAccess = {
 const baseAgent = createAgentApplicationFixture();
 const agent = {
   ...baseAgent,
+  configurationState: {
+    ...baseAgent.configurationState,
+    configuration: {
+      profiles: [{
+        availability: "available" as const,
+        conformance: null,
+        digest: `sha256:${"1".repeat(64)}` as const,
+        id: "codex-safe",
+        label: "Codex Safe",
+        maxResidentSessions: 1,
+        model: "gpt-5.6-codex",
+        parameters: {
+          kind: "codex" as const,
+          maxInputCharacters: 100_000,
+          maxOutputCharacters: 50_000,
+          reasoningEffort: "high" as const,
+        },
+        providerId: "codex-provider",
+        timeoutMilliseconds: 120_000,
+        unavailableReason: null,
+        version: 1,
+      }],
+      providers: [{
+        authenticationStatus: "configured" as const,
+        baseUrl: null,
+        digest: `sha256:${"2".repeat(64)}` as const,
+        id: "codex-provider",
+        kind: "codex" as const,
+        label: "Codex",
+        version: 1,
+      }],
+      revision: `sha256:${"3".repeat(64)}` as const,
+    },
+  },
   state: {
     ...baseAgent.state,
     preferredProfileId: null,
@@ -121,10 +155,12 @@ describe("settings activity", () => {
         "gpt-5.6-codex",
         "codex",
         "认证已配置",
+        "发现本地 Ollama",
+        "凭据保存后",
+        "创建 Profile",
         "刷新状态",
-        "重启或 recreate 服务",
       ],
-      lacks: ["API Key", "base URL"],
+      lacks: ["provider-secret"],
     });
   });
 });

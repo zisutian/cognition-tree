@@ -25,7 +25,7 @@ export function AppRoot({
   api: ClientApiConfiguration;
 }) {
   const controller = useMemo(() => createWorkbenchRuntime(api), [api]);
-  const agentController = useMemo(() => createClientAgentRuntime(
+  const agentRuntime = useMemo(() => createClientAgentRuntime(
     api,
     async (scope) => {
       const current = controller.getSnapshot();
@@ -47,6 +47,8 @@ export function AppRoot({
       await controller.todo.synchronizePendingChanges();
     },
   ), [api, controller]);
+  const agentController = agentRuntime.session;
+  const agentConfigurationController = agentRuntime.configuration;
   const feedbackController = useMemo(
     () => createWorkbenchFeedbackController<ActivityId>({
       scheduler: clientApplicationScheduler,
@@ -63,10 +65,17 @@ export function AppRoot({
     agentController.getSnapshot,
     agentController.getSnapshot,
   );
+  const agentConfigurationSnapshot = useSyncExternalStore(
+    agentConfigurationController.subscribe,
+    agentConfigurationController.getSnapshot,
+    agentConfigurationController.getSnapshot,
+  );
   const lifecycleEpochRef = useRef(0);
   const [activeActivityId, setActiveActivityId] =
     useState<ActivityId>("notes");
   const applications = useWorkbenchApplicationBindings({
+    agentConfigurationController,
+    agentConfigurationState: agentConfigurationSnapshot,
     agentController,
     agentState: agentSnapshot,
     controller,
@@ -80,6 +89,7 @@ export function AppRoot({
     lifecycleEpochRef.current = lifecycleEpoch;
     controller.start();
     agentController.start();
+    void agentConfigurationController.load();
     return () => {
       queueMicrotask(() => {
         if (lifecycleEpochRef.current === lifecycleEpoch) {
@@ -89,7 +99,7 @@ export function AppRoot({
         }
       });
     };
-  }, [agentController, controller, feedbackController]);
+  }, [agentConfigurationController, agentController, controller, feedbackController]);
 
   if (snapshot.workspace.status === "ready") {
     const session = projectWorkspaceSessionApplication(

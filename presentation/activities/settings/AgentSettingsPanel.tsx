@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { AgentApplication } from "../../../application/agent";
-import {
-  Button,
-  Panel,
-  PanelBody,
-  PanelHeader,
-  Section,
-} from "../../ui/shared/primitives";
+import { useMemo, useState, type FormEvent } from "react";
+import type {
+  AgentApplication,
+  AgentProfileInput,
+  AgentProviderInput,
+  AgentProviderKind,
+  AgentToolCallMode,
+} from "../../../application/agent";
+import { Button, Panel, PanelBody, PanelHeader, Section } from "../../ui/shared/primitives";
 import { useFeedback } from "../../ui/shared/FeedbackProvider";
 
 const authenticationLabels = {
@@ -17,14 +18,146 @@ const authenticationLabels = {
   unknown: "认证状态未知",
 } as const;
 
-export function AgentSettingsPanel({
-  agent,
-}: {
-  agent: AgentApplication;
-}) {
+type ProviderDraft = {
+  apiKey: string;
+  authenticationType: "bearer" | "none";
+  baseUrl: string;
+  kind: AgentProviderKind;
+  label: string;
+};
+
+type ProfileDraft = {
+  contextWindowTokens: number;
+  label: string;
+  maxInputCharacters: number;
+  maxOutputCharacters: number;
+  maxOutputTokens: number;
+  maxResidentSessions: number;
+  maxToolSteps: number;
+  model: string;
+  providerId: string;
+  reasoningEffort: "high" | "low" | "medium" | "xhigh";
+  timeoutMilliseconds: number;
+  toolCallMode: AgentToolCallMode;
+};
+
+const emptyProvider = (): ProviderDraft => ({
+  apiKey: "",
+  authenticationType: "none",
+  baseUrl: "http://127.0.0.1:11434",
+  kind: "ollama",
+  label: "本地 Ollama",
+});
+
+const emptyProfile = (): ProfileDraft => ({
+  contextWindowTokens: 32_768,
+  label: "",
+  maxInputCharacters: 100_000,
+  maxOutputCharacters: 50_000,
+  maxOutputTokens: 4_096,
+  maxResidentSessions: 1,
+  maxToolSteps: 16,
+  model: "",
+  providerId: "",
+  reasoningEffort: "high",
+  timeoutMilliseconds: 600_000,
+  toolCallMode: "native",
+});
+
+function providerInput(draft: ProviderDraft): AgentProviderInput {
+  return {
+    ...(draft.authenticationType === "bearer" && draft.apiKey
+      ? { apiKey: draft.apiKey }
+      : {}),
+    authenticationType: draft.kind === "codex"
+      ? "bearer"
+      : draft.authenticationType,
+    baseUrl: draft.kind === "codex" ? null : draft.baseUrl,
+    kind: draft.kind,
+    label: draft.label,
+  };
+}
+
+function profileInput(
+  draft: ProfileDraft,
+  providerKind: AgentProviderKind,
+): AgentProfileInput {
+  return {
+    label: draft.label,
+    maxResidentSessions: draft.maxResidentSessions,
+    model: draft.model,
+    parameters: providerKind === "codex"
+      ? {
+          kind: "codex",
+          maxInputCharacters: draft.maxInputCharacters,
+          maxOutputCharacters: draft.maxOutputCharacters,
+          reasoningEffort: draft.reasoningEffort,
+        }
+      : {
+          contextWindowTokens: draft.contextWindowTokens,
+          kind: "chat",
+          maxOutputTokens: draft.maxOutputTokens,
+          maxToolSteps: draft.maxToolSteps,
+          toolCallMode: draft.toolCallMode,
+        },
+    providerId: draft.providerId,
+    timeoutMilliseconds: draft.timeoutMilliseconds,
+  };
+}
+
+export function AgentSettingsPanel({ agent }: { agent: AgentApplication }) {
   const feedback = useFeedback();
-  const { controller, state } = agent;
-  const profiles = state.status?.profiles ?? [];
+  const { configurationController, configurationState, controller, state } =
+    agent;
+  const configuration = configurationState.configuration;
+  const providers = configuration?.providers ?? [];
+  const configuredProfiles = configuration?.profiles ?? [];
+  const statusProfiles = state.status?.profiles ?? [];
+  const [ollamaEndpoint, setOllamaEndpoint] = useState(
+    "http://127.0.0.1:11434",
+  );
+  const [providerDraft, setProviderDraft] = useState(emptyProvider);
+  const [profileDraft, setProfileDraft] = useState(emptyProfile);
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const selectedProvider = providers.find(({ id }) =>
+    id === profileDraft.providerId
+  ) ?? null;
+  const modelOptions = useMemo(() => [...new Set([
+    ...(configurationState.discovery?.models ?? []),
+    ...Object.values(configurationState.probes).flatMap(({ models }) => models),
+  ])].sort(), [configurationState.discovery, configurationState.probes]);
+  const busy = configurationState.operationStatus === "working";
+
+  const submitProvider = (event: FormEvent) => {
+    event.preventDefault();
+    const input = providerInput(providerDraft);
+
+    void feedback.runAction(async () => {
+      if (editingProviderId) {
+        await configurationController.updateProvider(editingProviderId, input);
+      } else {
+        await configurationController.createProvider(input);
+      }
+      setEditingProviderId(null);
+      setProviderDraft(emptyProvider());
+    });
+  };
+  const submitProfile = (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedProvider) return;
+    const input = profileInput(profileDraft, selectedProvider.kind);
+
+    void feedback.runAction(async () => {
+      if (editingProfileId) {
+        await configurationController.updateProfile(editingProfileId, input);
+      } else {
+        await configurationController.createProfile(input);
+      }
+      setEditingProfileId(null);
+      setProfileDraft(emptyProfile());
+    });
+  };
 
   return (
     <Panel aria-label="智能体设置" className="settings-panel">
@@ -32,12 +165,11 @@ export function AgentSettingsPanel({
       <PanelBody scroll>
         <div className="settings-content-column settings-agent-content">
           <p className="settings-muted">
-            Profile、模型参数和凭据由服务端管理。修改配置后需要重启或
-            recreate 服务，再刷新这里的状态。
+            Provider、Profile、模型参数和凭据均在这里管理。凭据保存后只显示认证状态，不能查看原值。
           </p>
-          {state.errorMessage ? (
+          {configurationState.errorMessage || state.errorMessage ? (
             <p className="settings-api-error" role="alert">
-              {state.errorMessage}
+              {configurationState.errorMessage ?? state.errorMessage}
             </p>
           ) : null}
           {state.status?.configurationProblem ? (
@@ -45,6 +177,7 @@ export function AgentSettingsPanel({
               {state.status.configurationProblem}
             </p>
           ) : null}
+
           <Section title="默认 Profile">
             <label className="settings-agent-profile-selection">
               <span>默认 Profile</span>
@@ -52,15 +185,12 @@ export function AgentSettingsPanel({
                 aria-label="默认 Profile"
                 className="ui-input"
                 disabled={state.loadStatus === "loading"}
-                onChange={(event) => {
-                  const profileId = event.currentTarget.value;
-
-                  controller.setPreferredProfile(profileId || null);
-                }}
+                onChange={(event) =>
+                  controller.setPreferredProfile(event.currentTarget.value || null)}
                 value={state.preferredProfileId ?? ""}
               >
                 <option value="">未选择</option>
-                {profiles.map((profile) => (
+                {statusProfiles.map((profile) => (
                   <option
                     disabled={profile.availability !== "available"}
                     key={profile.id}
@@ -72,58 +202,142 @@ export function AgentSettingsPanel({
                 ))}
               </select>
             </label>
-            <p className="settings-muted">
-              只影响以后创建的会话；既有会话不会切换 profile。
-            </p>
+            <p className="settings-muted">只影响以后创建的会话；既有会话固定其创建时配置。</p>
           </Section>
-          <Section title="服务端 Profiles">
-            {profiles.length === 0 ? (
-              <p className="settings-muted">服务端没有可用的 profile 配置。</p>
+
+          <Section title="发现本地 Ollama">
+            <div className="settings-agent-inline-form">
+              <input aria-label="Ollama 地址" className="ui-input" onChange={(event) => setOllamaEndpoint(event.currentTarget.value)} value={ollamaEndpoint} />
+              <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.discoverOllama(ollamaEndpoint))} type="button">发现本地 Ollama</Button>
+            </div>
+            {configurationState.discovery ? (
+              <p className="settings-muted">
+                已发现：{configurationState.discovery.models.join("、") || "没有模型"}。不会自动创建或选择。
+              </p>
+            ) : null}
+          </Section>
+
+          <Section title="Providers">
+            {providers.length === 0 ? (
+              <p className="settings-muted">尚未创建 Provider。</p>
             ) : (
-              <div className="settings-agent-profile-table-wrap">
-                <table
-                  aria-label="服务端 Agent Profiles"
-                  className="settings-agent-profile-table"
-                >
-                  <thead>
-                    <tr>
-                      <th>Profile</th>
-                      <th>模型</th>
-                      <th>Runtime</th>
-                      <th>认证</th>
-                      <th>状态</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {profiles.map((profile) => (
-                      <tr key={profile.id}>
-                        <td><strong>{profile.label}</strong></td>
-                        <td><code>{profile.model ?? "未知"}</code></td>
-                        <td><code>{profile.kind}</code></td>
-                        <td>{authenticationLabels[profile.authenticationStatus]}</td>
-                        <td>
-                          {profile.availability === "available"
-                            ? "可用"
-                            : profile.unavailableReason ?? "不可用"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ul className="settings-agent-card-list">
+                {providers.map((provider) => (
+                  <li key={provider.id}>
+                    <div>
+                      <strong>{provider.label}</strong>
+                      <p>{provider.kind} · {provider.baseUrl ?? "Codex app-server"} · {authenticationLabels[provider.authenticationStatus]}</p>
+                      {configurationState.probes[provider.id] ? <p>探测模型：{configurationState.probes[provider.id]!.models.join("、") || "无"}</p> : null}
+                    </div>
+                    <div className="ui-actions">
+                      <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.probeProvider(provider.id))} type="button">探测</Button>
+                      <Button disabled={busy} onClick={() => {
+                        setEditingProviderId(provider.id);
+                        setProviderDraft({
+                          apiKey: "",
+                          authenticationType: provider.authenticationStatus === "not-required" ? "none" : "bearer",
+                          baseUrl: provider.baseUrl ?? "",
+                          kind: provider.kind,
+                          label: provider.label,
+                        });
+                      }} type="button">编辑</Button>
+                      {provider.authenticationStatus !== "not-required" ? (
+                        <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.updateProvider(provider.id, {
+                          apiKey: null,
+                          authenticationType: "bearer",
+                          baseUrl: provider.baseUrl,
+                          kind: provider.kind,
+                          label: provider.label,
+                        }))} type="button">清除凭据</Button>
+                      ) : null}
+                      <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.deleteProvider(provider.id))} type="button">删除</Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
+            <form className="settings-agent-form" onSubmit={submitProvider}>
+              <label><span>名称</span><input aria-label="Provider 名称" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, label: event.currentTarget.value })} required value={providerDraft.label} /></label>
+              <label><span>类型</span><select aria-label="Provider 类型" className="ui-input" onChange={(event) => {
+                const kind = event.currentTarget.value as AgentProviderKind;
+                setProviderDraft({
+                  ...providerDraft,
+                  authenticationType: kind === "ollama" ? "none" : "bearer",
+                  baseUrl: kind === "ollama" ? "http://127.0.0.1:11434" : kind === "codex" ? "" : providerDraft.baseUrl,
+                  kind,
+                });
+              }} value={providerDraft.kind}><option value="ollama">Ollama</option><option value="openai-chat">OpenAI-compatible</option><option value="codex">Codex</option></select></label>
+              {providerDraft.kind !== "codex" ? <label><span>地址</span><input aria-label="Provider 地址" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, baseUrl: event.currentTarget.value })} required value={providerDraft.baseUrl} /></label> : null}
+              {providerDraft.kind !== "codex" ? <label><span>认证</span><select aria-label="Provider 认证" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, authenticationType: event.currentTarget.value as "bearer" | "none" })} value={providerDraft.authenticationType}><option value="none">无需认证</option><option value="bearer">Bearer</option></select></label> : null}
+              {(providerDraft.kind === "codex" || providerDraft.authenticationType === "bearer") ? <label><span>API Key</span><input aria-label="Provider API Key" autoComplete="new-password" className="ui-input" onChange={(event) => setProviderDraft({ ...providerDraft, apiKey: event.currentTarget.value })} placeholder={editingProviderId ? "留空则保留现有凭据" : "一次性写入"} required={!editingProviderId} type="password" value={providerDraft.apiKey} /></label> : null}
+              <div className="settings-agent-form-actions"><Button disabled={busy} type="submit" variant="primary">{editingProviderId ? "保存 Provider" : "创建 Provider"}</Button>{editingProviderId ? <Button onClick={() => { setEditingProviderId(null); setProviderDraft(emptyProvider()); }} type="button">取消</Button> : null}</div>
+            </form>
           </Section>
+
+          <Section title="Profiles">
+            {configuredProfiles.length === 0 ? <p className="settings-muted">尚未创建 Profile。</p> : (
+              <ul className="settings-agent-card-list">
+                {configuredProfiles.map((profile) => (
+                  <li key={profile.id}>
+                    <div><strong>{profile.label}</strong><p>{profile.model} · v{profile.version} · {profile.availability === "available" ? "可用" : profile.unavailableReason}</p></div>
+                    <div className="ui-actions">
+                      {profile.parameters.kind === "chat" ? <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.checkConformance(profile.id))} type="button">符合性检查</Button> : null}
+                      <Button disabled={busy} onClick={() => {
+                        setEditingProfileId(profile.id);
+                        setProfileDraft({
+                          contextWindowTokens: profile.parameters.kind === "chat" ? profile.parameters.contextWindowTokens : 32_768,
+                          label: profile.label,
+                          maxInputCharacters: profile.parameters.kind === "codex" ? profile.parameters.maxInputCharacters : 100_000,
+                          maxOutputCharacters: profile.parameters.kind === "codex" ? profile.parameters.maxOutputCharacters : 50_000,
+                          maxOutputTokens: profile.parameters.kind === "chat" ? profile.parameters.maxOutputTokens : 4_096,
+                          maxResidentSessions: profile.maxResidentSessions,
+                          maxToolSteps: profile.parameters.kind === "chat" ? profile.parameters.maxToolSteps : 16,
+                          model: profile.model,
+                          providerId: profile.providerId,
+                          reasoningEffort: profile.parameters.kind === "codex" ? profile.parameters.reasoningEffort : "high",
+                          timeoutMilliseconds: profile.timeoutMilliseconds,
+                          toolCallMode: profile.parameters.kind === "chat" ? profile.parameters.toolCallMode : "native",
+                        });
+                      }} type="button">编辑</Button>
+                      <Button disabled={busy} onClick={() => void feedback.runAction(() => configurationController.deleteProfile(profile.id))} type="button">删除</Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form className="settings-agent-form" onSubmit={submitProfile}>
+              <label><span>Provider</span><select aria-label="Profile Provider" className="ui-input" onChange={(event) => setProfileDraft({ ...profileDraft, providerId: event.currentTarget.value })} required value={profileDraft.providerId}><option value="">请选择</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
+              <label><span>名称</span><input aria-label="Profile 名称" className="ui-input" onChange={(event) => setProfileDraft({ ...profileDraft, label: event.currentTarget.value })} required value={profileDraft.label} /></label>
+              <label><span>模型</span><input aria-label="Profile 模型" className="ui-input" list="agent-model-options" onChange={(event) => setProfileDraft({ ...profileDraft, model: event.currentTarget.value })} required value={profileDraft.model} /><datalist id="agent-model-options">{modelOptions.map((model) => <option key={model} value={model} />)}</datalist></label>
+              <label><span>会话上限</span><input aria-label="Profile 会话上限" className="ui-input" min="1" onChange={(event) => setProfileDraft({ ...profileDraft, maxResidentSessions: event.currentTarget.valueAsNumber })} required type="number" value={profileDraft.maxResidentSessions} /></label>
+              <label><span>超时毫秒</span><input aria-label="Profile 超时" className="ui-input" min="1" onChange={(event) => setProfileDraft({ ...profileDraft, timeoutMilliseconds: event.currentTarget.valueAsNumber })} required type="number" value={profileDraft.timeoutMilliseconds} /></label>
+              {selectedProvider?.kind === "codex" ? <CodexProfileFields draft={profileDraft} setDraft={setProfileDraft} /> : selectedProvider ? <ChatProfileFields draft={profileDraft} providerKind={selectedProvider.kind} setDraft={setProfileDraft} /> : null}
+              <div className="settings-agent-form-actions"><Button disabled={busy || !selectedProvider} type="submit" variant="primary">{editingProfileId ? "保存 Profile" : "创建 Profile"}</Button>{editingProfileId ? <Button onClick={() => { setEditingProfileId(null); setProfileDraft(emptyProfile()); }} type="button">取消</Button> : null}</div>
+            </form>
+          </Section>
+
           <Section title="操作">
-            <Button
-              disabled={state.operationStatus === "working"}
-              onClick={() => void feedback.runAction(controller.refreshStatus)}
-              type="button"
-            >
-              刷新状态
-            </Button>
+            <Button disabled={busy || state.operationStatus === "working"} onClick={() => void feedback.runAction(async () => { await configurationController.load(); await controller.refreshStatus(); })} type="button">刷新状态</Button>
           </Section>
         </div>
       </PanelBody>
     </Panel>
   );
+}
+
+function CodexProfileFields({ draft, setDraft }: { draft: ProfileDraft; setDraft(value: ProfileDraft): void }) {
+  return <>
+    <label><span>推理强度</span><select aria-label="Profile 推理强度" className="ui-input" onChange={(event) => setDraft({ ...draft, reasoningEffort: event.currentTarget.value as ProfileDraft["reasoningEffort"] })} value={draft.reasoningEffort}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="xhigh">xhigh</option></select></label>
+    <label><span>输入字符</span><input aria-label="Profile 输入字符" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxInputCharacters: event.currentTarget.valueAsNumber })} type="number" value={draft.maxInputCharacters} /></label>
+    <label><span>输出字符</span><input aria-label="Profile 输出字符" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxOutputCharacters: event.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputCharacters} /></label>
+  </>;
+}
+
+function ChatProfileFields({ draft, providerKind, setDraft }: { draft: ProfileDraft; providerKind: AgentProviderKind; setDraft(value: ProfileDraft): void }) {
+  return <>
+    <label><span>工具模式</span><select aria-label="Profile 工具模式" className="ui-input" onChange={(event) => setDraft({ ...draft, toolCallMode: event.currentTarget.value as AgentToolCallMode })} value={draft.toolCallMode}><option value="native">native</option>{providerKind === "ollama" ? <option value="single-json">single-json</option> : null}</select></label>
+    <label><span>上下文</span><input aria-label="Profile 上下文" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, contextWindowTokens: event.currentTarget.valueAsNumber })} type="number" value={draft.contextWindowTokens} /></label>
+    <label><span>输出 tokens</span><input aria-label="Profile 输出 Tokens" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxOutputTokens: event.currentTarget.valueAsNumber })} type="number" value={draft.maxOutputTokens} /></label>
+    <label><span>工具步数</span><input aria-label="Profile 工具步数" className="ui-input" min="1" onChange={(event) => setDraft({ ...draft, maxToolSteps: event.currentTarget.valueAsNumber })} type="number" value={draft.maxToolSteps} /></label>
+  </>;
 }

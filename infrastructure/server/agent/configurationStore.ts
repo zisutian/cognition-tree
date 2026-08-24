@@ -5,9 +5,11 @@ import path from "node:path";
 import type {
   AgentConfigurationSnapshot,
   AgentProfileConformance,
+  AgentProfileInput,
   AgentProfileParameters,
   AgentProfileView,
   AgentProviderKind,
+  AgentProviderInput,
   AgentProviderView,
   AgentToolCallMode,
 } from "../../../application/agent/agentConfiguration.ts";
@@ -53,23 +55,6 @@ type AgentConfigurationState = {
   profiles: StoredProfile[];
   providers: StoredProvider[];
 };
-
-export type AgentProviderInput = Readonly<{
-  apiKey?: string | null;
-  authenticationType: "bearer" | "none";
-  baseUrl: string | null;
-  kind: AgentProviderKind;
-  label: string;
-}>;
-
-export type AgentProfileInput = Readonly<{
-  label: string;
-  maxResidentSessions: number;
-  model: string;
-  parameters: AgentProfileParameters;
-  providerId: string;
-  timeoutMilliseconds: number;
-}>;
 
 export type ResolvedAgentConfiguration = Readonly<{
   apiKey: string | null;

@@ -274,6 +274,60 @@
   overflow-wrap: anywhere;
 }
 
+.settings-agent-inline-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: var(--ui-gap);
+}
+
+.settings-agent-form {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  max-width: 720px;
+  padding-top: var(--ui-gap);
+}
+
+.settings-agent-form > label {
+  display: grid;
+  grid-template-columns: 112px minmax(180px, 400px);
+  align-items: center;
+  gap: var(--ui-gap);
+}
+
+.settings-agent-form > label > span {
+  color: var(--color-fg-muted);
+  font-size: var(--ui-control-font-size);
+}
+
+.settings-agent-form-actions {
+  display: flex;
+  gap: var(--ui-gap);
+  margin-left: calc(112px + var(--ui-gap));
+}
+
+.settings-agent-card-list {
+  display: grid;
+  gap: var(--ui-gap-tight);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-agent-card-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ui-gap);
+  padding: var(--ui-gap-tight);
+  border-bottom: var(--ui-border-width) solid var(--color-border);
+}
+
+.settings-agent-card-list p {
+  margin: var(--ui-gap-tight) 0 0;
+  color: var(--color-fg-muted);
+  overflow-wrap: anywhere;
+  font-size: var(--ui-control-font-size);
+}
+
 @media (max-width: 720px) {
   .settings-form-row {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -284,12 +338,18 @@
   }
 
   .settings-api-form-row,
+  .settings-agent-form > label,
+  .settings-agent-inline-form,
   .settings-agent-profile-selection,
   .settings-api-secret {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .settings-api-form-action {
+    margin-left: 0;
+  }
+
+  .settings-agent-form-actions {
     margin-left: 0;
   }
 }

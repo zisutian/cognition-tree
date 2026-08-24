@@ -39,7 +39,11 @@ export function AgentOperationAudit({
             <tr key={`${entry.proposalId}:${entry.proposalVersion}`}>
               <td>{formatApiAccessTimestamp(entry.occurredAt)}</td>
               <td><code>{entry.approvingOwnerId}</code></td>
-              <td>{entry.runtimeKind} · {entry.profileId}</td>
+              <td>
+                {entry.runtimeKind} · {entry.profileId} v{entry.profileVersion}
+                <br />
+                <code>{entry.providerId} v{entry.providerVersion}</code>
+              </td>
               <td>
                 资源 {entry.resourceIds.join(", ") || "—"}
                 {entry.blockIds.length > 0

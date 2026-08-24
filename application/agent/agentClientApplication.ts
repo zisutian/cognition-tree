@@ -4,6 +4,10 @@ import type {
   AgentClientController,
   AgentClientState,
 } from "./agentClientController.ts";
+import type {
+  AgentConfigurationController,
+  AgentConfigurationState,
+} from "./agentConfigurationController.ts";
 
 export type AgentScopeOption = Readonly<{
   id: string;
@@ -22,6 +26,8 @@ export type AgentScopeCatalog = Readonly<{
 }>;
 
 export type AgentApplication = Readonly<{
+  configurationController: AgentConfigurationController;
+  configurationState: AgentConfigurationState;
   controller: AgentClientController;
   scopeCatalog: AgentScopeCatalog;
   state: AgentClientState;

@@ -55,10 +55,6 @@ export function AgentContextPanel({
 }) {
   const feedback = useFeedback();
   const { controller, state } = agent;
-  const profileLabelById = new Map(
-    state.status?.profiles.map(({ id, label }) => [id, label]) ?? [],
-  );
-
   return (
     <div className="activity-context-content agent-context">
       <div className="context-toolbar">
@@ -106,8 +102,9 @@ export function AgentContextPanel({
               label={(
                 <span className="agent-session-label">
                   <strong>
-                    {profileLabelById.get(session.profileId) ?? session.profileId}
+                    {session.profileLabel}
                   </strong>
+                  <span>{session.profileModel} · v{session.profileVersion}</span>
                   <span>{sessionScopeLabel(session.scope)}</span>
                 </span>
               )}
@@ -117,7 +114,7 @@ export function AgentContextPanel({
               }}
               rowClassName="agent-session-row"
               selected={selected}
-              title={`${sessionScopeLabel(session.scope)} · ${session.id}`}
+              title={`${session.profileLabel} · ${session.profileModel} · v${session.profileVersion} · ${sessionScopeLabel(session.scope)}`}
               trailing={(
                 <span className="agent-session-state">
                   {sessionStateLabels[session.state]}

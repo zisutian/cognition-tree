@@ -59,3 +59,30 @@ export type AgentConfigurationSnapshot = Readonly<{
   providers: readonly AgentProviderView[];
   revision: `sha256:${string}`;
 }>;
+
+export type AgentProviderInput = Readonly<{
+  apiKey?: string | null;
+  authenticationType: "bearer" | "none";
+  baseUrl: string | null;
+  kind: AgentProviderKind;
+  label: string;
+}>;
+
+export type AgentProfileInput = Readonly<{
+  label: string;
+  maxResidentSessions: number;
+  model: string;
+  parameters: AgentProfileParameters;
+  providerId: string;
+  timeoutMilliseconds: number;
+}>;
+
+export type AgentOllamaDiscovery = Readonly<{
+  endpoint: string;
+  models: readonly string[];
+}>;
+
+export type AgentProviderProbe = Readonly<{
+  models: readonly string[];
+  reachable: boolean;
+}>;

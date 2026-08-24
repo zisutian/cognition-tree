@@ -4,6 +4,35 @@ import type { AgentApplication } from "../../../application/agent";
 
 export function createAgentApplicationFixture(): AgentApplication {
   return {
+    configurationController: {
+      checkConformance: async () => undefined,
+      createProfile: async () => undefined,
+      createProvider: async () => undefined,
+      deleteProfile: async () => undefined,
+      deleteProvider: async () => undefined,
+      discoverOllama: async () => undefined,
+      getSnapshot: () => ({
+        configuration: null,
+        discovery: null,
+        errorMessage: null,
+        loadStatus: "ready",
+        operationStatus: "idle",
+        probes: {},
+      }),
+      load: async () => undefined,
+      probeProvider: async () => undefined,
+      subscribe: () => () => undefined,
+      updateProfile: async () => undefined,
+      updateProvider: async () => undefined,
+    },
+    configurationState: {
+      configuration: null,
+      discovery: null,
+      errorMessage: null,
+      loadStatus: "ready",
+      operationStatus: "idle",
+      probes: {},
+    },
     controller: {
       cancel: async () => undefined,
       confirmDestruction: async () => undefined,
