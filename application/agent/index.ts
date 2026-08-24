@@ -4,6 +4,7 @@ export * from "./agentProposal.ts";
 export * from "./agentClientController.ts";
 export * from "./agentClientApplication.ts";
 export * from "./agentClientPort.ts";
+export * from "./agentConfiguration.ts";
 export * from "./agentInstructionPolicy.ts";
 export * from "./agentProfilePreference.ts";
 export * from "./agentRuntimePort.ts";

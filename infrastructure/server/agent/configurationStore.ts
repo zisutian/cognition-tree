@@ -1,0 +1,741 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import type {
+  AgentConfigurationSnapshot,
+  AgentProfileConformance,
+  AgentProfileParameters,
+  AgentProfileView,
+  AgentProviderKind,
+  AgentProviderView,
+  AgentToolCallMode,
+} from "../../../application/agent/agentConfiguration.ts";
+import { serializeJsonIteratively } from "../../../contracts/common/json.ts";
+import {
+  assertStateFields,
+  requireStateRecord,
+  SecureJsonPartition,
+} from "../state/secureJsonPartition.ts";
+import { createStateDigest } from "../state/stateDigest.ts";
+
+const formatVersion = 1;
+const digestPattern = /^sha256:[0-9a-f]{64}$/;
+
+type StoredAuthentication =
+  | { apiKey: string | null; type: "bearer" }
+  | { type: "none" };
+
+type StoredProvider = {
+  authentication: StoredAuthentication;
+  baseUrl: string | null;
+  id: string;
+  kind: AgentProviderKind;
+  label: string;
+  version: number;
+};
+
+type StoredProfile = {
+  conformance: AgentProfileConformance | null;
+  id: string;
+  label: string;
+  maxResidentSessions: number;
+  model: string;
+  parameters: AgentProfileParameters;
+  providerId: string;
+  timeoutMilliseconds: number;
+  version: number;
+};
+
+type AgentConfigurationState = {
+  formatVersion: typeof formatVersion;
+  profiles: StoredProfile[];
+  providers: StoredProvider[];
+};
+
+export type AgentProviderInput = Readonly<{
+  apiKey?: string | null;
+  authenticationType: "bearer" | "none";
+  baseUrl: string | null;
+  kind: AgentProviderKind;
+  label: string;
+}>;
+
+export type AgentProfileInput = Readonly<{
+  label: string;
+  maxResidentSessions: number;
+  model: string;
+  parameters: AgentProfileParameters;
+  providerId: string;
+  timeoutMilliseconds: number;
+}>;
+
+export type ResolvedAgentConfiguration = Readonly<{
+  apiKey: string | null;
+  profile: AgentProfileView;
+  provider: AgentProviderView;
+}>;
+
+export class AgentConfigurationConflictError extends Error {
+  readonly currentRevision: `sha256:${string}`;
+
+  constructor(currentRevision: `sha256:${string}`) {
+    super("Agent configuration revision changed");
+    this.name = "AgentConfigurationConflictError";
+    this.currentRevision = currentRevision;
+  }
+}
+
+export class AgentConfigurationValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AgentConfigurationValidationError";
+  }
+}
+
+function nonEmptyString(value: unknown, pathLabel: string) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${pathLabel} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function positiveInteger(value: unknown, pathLabel: string) {
+  if (!Number.isSafeInteger(value) || (value as number) < 1) {
+    throw new Error(`${pathLabel} must be a positive integer.`);
+  }
+  return value as number;
+}
+
+function parseDigest(value: unknown, pathLabel: string) {
+  if (typeof value !== "string" || !digestPattern.test(value)) {
+    throw new Error(`${pathLabel} must be a SHA-256 digest.`);
+  }
+  return value as `sha256:${string}`;
+}
+
+function parseBaseUrl(value: unknown, pathLabel: string) {
+  if (typeof value !== "string") {
+    throw new Error(`${pathLabel} must be an absolute HTTP(S) URL.`);
+  }
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${pathLabel} must be an absolute HTTP(S) URL.`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`${pathLabel} must use HTTP or HTTPS.`);
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error(`${pathLabel} cannot contain credentials, query, or fragment.`);
+  }
+  return url.toString().replace(/\/$/, "");
+}
+
+function parseAuthentication(value: unknown, pathLabel: string): StoredAuthentication {
+  const record = requireStateRecord(value, pathLabel);
+
+  if (record.type === "none") {
+    assertStateFields(record, ["type"], pathLabel);
+    return { type: "none" };
+  }
+  if (record.type === "bearer") {
+    assertStateFields(record, ["apiKey", "type"], pathLabel);
+    if (record.apiKey !== null && typeof record.apiKey !== "string") {
+      throw new Error(`${pathLabel}.apiKey must be a string or null.`);
+    }
+    if (typeof record.apiKey === "string" && record.apiKey.length === 0) {
+      throw new Error(`${pathLabel}.apiKey cannot be empty.`);
+    }
+    return { apiKey: record.apiKey as string | null, type: "bearer" };
+  }
+  throw new Error(`${pathLabel}.type is invalid.`);
+}
+
+function parseProvider(value: unknown, index: number): StoredProvider {
+  const pathLabel = `providers[${index}]`;
+  const record = requireStateRecord(value, pathLabel);
+
+  assertStateFields(record, [
+    "authentication", "baseUrl", "id", "kind", "label", "version",
+  ], pathLabel);
+  if (!(["codex", "ollama", "openai-chat"] as const).includes(
+    record.kind as AgentProviderKind,
+  )) {
+    throw new Error(`${pathLabel}.kind is invalid.`);
+  }
+  const kind = record.kind as AgentProviderKind;
+  const authentication = parseAuthentication(
+    record.authentication,
+    `${pathLabel}.authentication`,
+  );
+
+  if (kind === "codex" && authentication.type !== "bearer") {
+    throw new Error(`${pathLabel} Codex authentication must be bearer.`);
+  }
+  const baseUrl = kind === "codex"
+    ? record.baseUrl === null
+      ? null
+      : (() => {
+          throw new Error(`${pathLabel}.baseUrl must be null for Codex.`);
+        })()
+    : parseBaseUrl(record.baseUrl, `${pathLabel}.baseUrl`);
+
+  return {
+    authentication,
+    baseUrl,
+    id: nonEmptyString(record.id, `${pathLabel}.id`),
+    kind,
+    label: nonEmptyString(record.label, `${pathLabel}.label`),
+    version: positiveInteger(record.version, `${pathLabel}.version`),
+  };
+}
+
+function parseParameters(value: unknown, pathLabel: string): AgentProfileParameters {
+  const record = requireStateRecord(value, pathLabel);
+
+  if (record.kind === "codex") {
+    assertStateFields(record, [
+      "kind", "maxInputCharacters", "maxOutputCharacters", "reasoningEffort",
+    ], pathLabel);
+    if (!(["low", "medium", "high", "xhigh"] as const).includes(
+      record.reasoningEffort as "high" | "low" | "medium" | "xhigh",
+    )) {
+      throw new Error(`${pathLabel}.reasoningEffort is invalid.`);
+    }
+    return {
+      kind: "codex",
+      maxInputCharacters: positiveInteger(
+        record.maxInputCharacters,
+        `${pathLabel}.maxInputCharacters`,
+      ),
+      maxOutputCharacters: positiveInteger(
+        record.maxOutputCharacters,
+        `${pathLabel}.maxOutputCharacters`,
+      ),
+      reasoningEffort: record.reasoningEffort as
+        | "high"
+        | "low"
+        | "medium"
+        | "xhigh",
+    };
+  }
+  if (record.kind === "chat") {
+    assertStateFields(record, [
+      "contextWindowTokens", "kind", "maxOutputTokens", "maxToolSteps",
+      "toolCallMode",
+    ], pathLabel);
+    if (record.toolCallMode !== "native" && record.toolCallMode !== "single-json") {
+      throw new Error(`${pathLabel}.toolCallMode is invalid.`);
+    }
+    return {
+      contextWindowTokens: positiveInteger(
+        record.contextWindowTokens,
+        `${pathLabel}.contextWindowTokens`,
+      ),
+      kind: "chat",
+      maxOutputTokens: positiveInteger(
+        record.maxOutputTokens,
+        `${pathLabel}.maxOutputTokens`,
+      ),
+      maxToolSteps: positiveInteger(record.maxToolSteps, `${pathLabel}.maxToolSteps`),
+      toolCallMode: record.toolCallMode,
+    };
+  }
+  throw new Error(`${pathLabel}.kind is invalid.`);
+}
+
+function parseConformance(
+  value: unknown,
+  pathLabel: string,
+): AgentProfileConformance | null {
+  if (value === null) return null;
+  const record = requireStateRecord(value, pathLabel);
+
+  assertStateFields(record, [
+    "checkedAt", "profileDigest", "providerDigest", "toolCallMode",
+  ], pathLabel);
+  if (!Number.isFinite(Date.parse(String(record.checkedAt)))) {
+    throw new Error(`${pathLabel}.checkedAt is invalid.`);
+  }
+  if (record.toolCallMode !== "native" && record.toolCallMode !== "single-json") {
+    throw new Error(`${pathLabel}.toolCallMode is invalid.`);
+  }
+  return {
+    checkedAt: record.checkedAt as string,
+    profileDigest: parseDigest(record.profileDigest, `${pathLabel}.profileDigest`),
+    providerDigest: parseDigest(record.providerDigest, `${pathLabel}.providerDigest`),
+    toolCallMode: record.toolCallMode,
+  };
+}
+
+function parseProfile(value: unknown, index: number): StoredProfile {
+  const pathLabel = `profiles[${index}]`;
+  const record = requireStateRecord(value, pathLabel);
+
+  assertStateFields(record, [
+    "conformance", "id", "label", "maxResidentSessions", "model",
+    "parameters", "providerId", "timeoutMilliseconds", "version",
+  ], pathLabel);
+  return {
+    conformance: parseConformance(record.conformance, `${pathLabel}.conformance`),
+    id: nonEmptyString(record.id, `${pathLabel}.id`),
+    label: nonEmptyString(record.label, `${pathLabel}.label`),
+    maxResidentSessions: positiveInteger(
+      record.maxResidentSessions,
+      `${pathLabel}.maxResidentSessions`,
+    ),
+    model: nonEmptyString(record.model, `${pathLabel}.model`),
+    parameters: parseParameters(record.parameters, `${pathLabel}.parameters`),
+    providerId: nonEmptyString(record.providerId, `${pathLabel}.providerId`),
+    timeoutMilliseconds: positiveInteger(
+      record.timeoutMilliseconds,
+      `${pathLabel}.timeoutMilliseconds`,
+    ),
+    version: positiveInteger(record.version, `${pathLabel}.version`),
+  };
+}
+
+function validateRelationships(state: AgentConfigurationState) {
+  const providerIds = new Set<string>();
+  const profileIds = new Set<string>();
+
+  for (const provider of state.providers) {
+    if (providerIds.has(provider.id)) throw new Error("Provider id is duplicated.");
+    providerIds.add(provider.id);
+  }
+  for (const profile of state.profiles) {
+    if (profileIds.has(profile.id)) throw new Error("Profile id is duplicated.");
+    profileIds.add(profile.id);
+    const provider = state.providers.find(({ id }) => id === profile.providerId);
+
+    if (!provider) throw new Error(`Profile provider does not exist: ${profile.providerId}`);
+    if ((provider.kind === "codex") !== (profile.parameters.kind === "codex")) {
+      throw new Error("Profile parameters do not match provider kind.");
+    }
+    if (
+      provider.kind !== "ollama" && profile.parameters.kind === "chat" &&
+      profile.parameters.toolCallMode === "single-json"
+    ) {
+      throw new Error("single-json is only valid for Ollama profiles.");
+    }
+  }
+}
+
+function parseConfigurationState(value: unknown): AgentConfigurationState {
+  const record = requireStateRecord(value, "Agent configuration state");
+
+  assertStateFields(record, ["formatVersion", "profiles", "providers"], "Agent configuration state");
+  if (
+    record.formatVersion !== formatVersion || !Array.isArray(record.profiles) ||
+    !Array.isArray(record.providers)
+  ) {
+    throw new Error("Agent configuration state has an invalid format.");
+  }
+  const state: AgentConfigurationState = {
+    formatVersion,
+    profiles: record.profiles.map(parseProfile),
+    providers: record.providers.map(parseProvider),
+  };
+
+  validateRelationships(state);
+  return state;
+}
+
+function digest(value: unknown): `sha256:${string}` {
+  return `sha256:${createStateDigest(serializeJsonIteratively(value, {
+    sortObjectKeys: true,
+  }))}`;
+}
+
+function stateRevision(state: AgentConfigurationState) {
+  return digest(state);
+}
+
+function providerDigest(provider: StoredProvider) {
+  return digest(provider);
+}
+
+function profileDigest(profile: StoredProfile) {
+  const { conformance: _conformance, ...configuration } = profile;
+
+  return digest(configuration);
+}
+
+function providerView(provider: StoredProvider): AgentProviderView {
+  return {
+    authenticationStatus: provider.authentication.type === "none"
+      ? "not-required"
+      : provider.authentication.apiKey
+        ? "configured"
+        : "missing",
+    baseUrl: provider.baseUrl,
+    digest: providerDigest(provider),
+    id: provider.id,
+    kind: provider.kind,
+    label: provider.label,
+    version: provider.version,
+  };
+}
+
+function profileView(
+  profile: StoredProfile,
+  provider: StoredProvider,
+): AgentProfileView {
+  const currentProfileDigest = profileDigest(profile);
+  const currentProviderDigest = providerDigest(provider);
+  const authenticationMissing = provider.authentication.type === "bearer" &&
+    !provider.authentication.apiKey;
+  const requiresConformance = provider.kind !== "codex";
+  const conformanceCurrent = profile.conformance !== null &&
+    profile.conformance.profileDigest === currentProfileDigest &&
+    profile.conformance.providerDigest === currentProviderDigest &&
+    profile.parameters.kind === "chat" &&
+    profile.conformance.toolCallMode === profile.parameters.toolCallMode;
+  const unavailableReason = authenticationMissing
+    ? "Provider authentication is missing"
+    : requiresConformance && !conformanceCurrent
+      ? "Tool-call conformance has not been verified"
+      : null;
+
+  return {
+    availability: unavailableReason === null ? "available" : "unavailable",
+    conformance: profile.conformance,
+    digest: currentProfileDigest,
+    id: profile.id,
+    label: profile.label,
+    maxResidentSessions: profile.maxResidentSessions,
+    model: profile.model,
+    parameters: structuredClone(profile.parameters),
+    providerId: profile.providerId,
+    timeoutMilliseconds: profile.timeoutMilliseconds,
+    unavailableReason,
+    version: profile.version,
+  };
+}
+
+function configurationSnapshot(
+  state: AgentConfigurationState,
+): AgentConfigurationSnapshot {
+  return {
+    profiles: state.profiles.map((profile) =>
+      profileView(
+        profile,
+        state.providers.find(({ id }) => id === profile.providerId)!,
+      )
+    ),
+    providers: state.providers.map(providerView),
+    revision: stateRevision(state),
+  };
+}
+
+function assertBaseRevision(
+  state: AgentConfigurationState,
+  baseRevision: string,
+) {
+  const current = stateRevision(state);
+
+  if (baseRevision !== current) throw new AgentConfigurationConflictError(current);
+}
+
+function normalizeProviderInput(
+  input: AgentProviderInput,
+  previous?: StoredProvider,
+): Omit<StoredProvider, "id" | "version"> {
+  const label = nonEmptyString(input.label, "Provider label");
+  const baseUrl = input.kind === "codex"
+    ? input.baseUrl === null
+      ? null
+      : (() => {
+          throw new AgentConfigurationValidationError("Codex baseUrl must be null");
+        })()
+    : parseBaseUrl(input.baseUrl, "Provider baseUrl");
+
+  if (input.kind === "codex" && input.authenticationType !== "bearer") {
+    throw new AgentConfigurationValidationError("Codex authentication must be bearer");
+  }
+  if (input.authenticationType === "none" && input.apiKey !== undefined) {
+    throw new AgentConfigurationValidationError("auth:none cannot include an API key");
+  }
+  const previousKey = previous?.authentication.type === "bearer"
+    ? previous.authentication.apiKey
+    : null;
+  const authentication: StoredAuthentication = input.authenticationType === "none"
+    ? { type: "none" }
+    : {
+        apiKey: input.apiKey === undefined ? previousKey : input.apiKey,
+        type: "bearer",
+      };
+
+  if (authentication.type === "bearer" && authentication.apiKey === "") {
+    throw new AgentConfigurationValidationError("API key cannot be empty");
+  }
+  return { authentication, baseUrl, kind: input.kind, label };
+}
+
+function normalizeProfileInput(
+  input: AgentProfileInput,
+  provider: StoredProvider,
+): Omit<StoredProfile, "conformance" | "id" | "version"> {
+  const parameters = parseParameters(input.parameters, "Profile parameters");
+
+  if ((provider.kind === "codex") !== (parameters.kind === "codex")) {
+    throw new AgentConfigurationValidationError(
+      "Profile parameters do not match provider kind",
+    );
+  }
+  if (
+    provider.kind !== "ollama" && parameters.kind === "chat" &&
+    parameters.toolCallMode === "single-json"
+  ) {
+    throw new AgentConfigurationValidationError(
+      "single-json is only valid for Ollama profiles",
+    );
+  }
+  return {
+    label: nonEmptyString(input.label, "Profile label"),
+    maxResidentSessions: positiveInteger(
+      input.maxResidentSessions,
+      "Profile maxResidentSessions",
+    ),
+    model: nonEmptyString(input.model, "Profile model"),
+    parameters,
+    providerId: provider.id,
+    timeoutMilliseconds: positiveInteger(
+      input.timeoutMilliseconds,
+      "Profile timeoutMilliseconds",
+    ),
+  };
+}
+
+export class AgentConfigurationStore {
+  readonly #createId: () => string;
+  readonly #partition: SecureJsonPartition<AgentConfigurationState>;
+
+  constructor(
+    stateDirectory: string,
+    { createId = randomUUID }: { createId?: () => string } = {},
+  ) {
+    this.#createId = createId;
+    this.#partition = new SecureJsonPartition({
+      createInitial: () => ({ formatVersion, profiles: [], providers: [] }),
+      directory: path.join(path.resolve(stateDirectory), "agent-config-v1"),
+      fileName: "configuration.json",
+      name: "Agent configuration",
+      parse: parseConfigurationState,
+    });
+  }
+
+  readSnapshot() {
+    return this.#partition.read(configurationSnapshot);
+  }
+
+  resolveProfile(profileId: string): Promise<ResolvedAgentConfiguration | null> {
+    return this.#partition.read((state) => {
+      const storedProfile = state.profiles.find(({ id }) => id === profileId);
+
+      if (!storedProfile) return null;
+      const storedProvider = state.providers.find(({ id }) =>
+        id === storedProfile.providerId
+      )!;
+      return {
+        apiKey: storedProvider.authentication.type === "bearer"
+          ? storedProvider.authentication.apiKey
+          : null,
+        profile: profileView(storedProfile, storedProvider),
+        provider: providerView(storedProvider),
+      };
+    });
+  }
+
+  createProvider(baseRevision: string, input: AgentProviderInput) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const provider: StoredProvider = {
+        ...normalizeProviderInput(input),
+        id: `agent-provider-${this.#createId()}`,
+        version: 1,
+      };
+
+      state.providers.push(provider);
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          provider: providerView(provider),
+        },
+      };
+    });
+  }
+
+  updateProvider(
+    baseRevision: string,
+    providerId: string,
+    input: AgentProviderInput,
+  ) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const index = state.providers.findIndex(({ id }) => id === providerId);
+
+      if (index < 0) {
+        throw new AgentConfigurationValidationError("Agent provider does not exist");
+      }
+      const previous = state.providers[index]!;
+      const provider: StoredProvider = {
+        ...normalizeProviderInput(input, previous),
+        id: previous.id,
+        version: previous.version + 1,
+      };
+
+      for (const profile of state.profiles) {
+        if (profile.providerId === providerId) profile.conformance = null;
+      }
+      state.providers[index] = provider;
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          provider: providerView(provider),
+        },
+      };
+    });
+  }
+
+  deleteProvider(baseRevision: string, providerId: string) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      if (state.profiles.some(({ providerId: candidate }) => candidate === providerId)) {
+        throw new AgentConfigurationValidationError(
+          "Delete profiles that reference this provider first",
+        );
+      }
+      const index = state.providers.findIndex(({ id }) => id === providerId);
+
+      if (index < 0) {
+        throw new AgentConfigurationValidationError("Agent provider does not exist");
+      }
+      state.providers.splice(index, 1);
+      return { changed: true, result: configurationSnapshot(state) };
+    });
+  }
+
+  createProfile(baseRevision: string, input: AgentProfileInput) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const provider = state.providers.find(({ id }) => id === input.providerId);
+
+      if (!provider) {
+        throw new AgentConfigurationValidationError("Agent provider does not exist");
+      }
+      const profile: StoredProfile = {
+        ...normalizeProfileInput(input, provider),
+        conformance: null,
+        id: `agent-profile-${this.#createId()}`,
+        version: 1,
+      };
+
+      state.profiles.push(profile);
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          profile: profileView(profile, provider),
+        },
+      };
+    });
+  }
+
+  updateProfile(
+    baseRevision: string,
+    profileId: string,
+    input: AgentProfileInput,
+  ) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const index = state.profiles.findIndex(({ id }) => id === profileId);
+
+      if (index < 0) {
+        throw new AgentConfigurationValidationError("Agent profile does not exist");
+      }
+      const provider = state.providers.find(({ id }) => id === input.providerId);
+
+      if (!provider) {
+        throw new AgentConfigurationValidationError("Agent provider does not exist");
+      }
+      const previous = state.profiles[index]!;
+      const profile: StoredProfile = {
+        ...normalizeProfileInput(input, provider),
+        conformance: null,
+        id: previous.id,
+        version: previous.version + 1,
+      };
+
+      state.profiles[index] = profile;
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          profile: profileView(profile, provider),
+        },
+      };
+    });
+  }
+
+  deleteProfile(baseRevision: string, profileId: string) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const index = state.profiles.findIndex(({ id }) => id === profileId);
+
+      if (index < 0) {
+        throw new AgentConfigurationValidationError("Agent profile does not exist");
+      }
+      state.profiles.splice(index, 1);
+      return { changed: true, result: configurationSnapshot(state) };
+    });
+  }
+
+  setConformance(
+    baseRevision: string,
+    profileId: string,
+    input: { checkedAt: string; toolCallMode: AgentToolCallMode },
+  ) {
+    return this.#partition.mutate((state) => {
+      assertBaseRevision(state, baseRevision);
+      const profile = state.profiles.find(({ id }) => id === profileId);
+
+      if (!profile) {
+        throw new AgentConfigurationValidationError("Agent profile does not exist");
+      }
+      const provider = state.providers.find(({ id }) => id === profile.providerId)!;
+
+      if (profile.parameters.kind !== "chat") {
+        throw new AgentConfigurationValidationError(
+          "Codex profiles do not use chat conformance",
+        );
+      }
+      if (profile.parameters.toolCallMode !== input.toolCallMode) {
+        throw new AgentConfigurationValidationError(
+          "Conformance mode does not match the profile",
+        );
+      }
+      if (!Number.isFinite(Date.parse(input.checkedAt))) {
+        throw new AgentConfigurationValidationError("Conformance timestamp is invalid");
+      }
+      profile.conformance = {
+        checkedAt: input.checkedAt,
+        profileDigest: profileDigest(profile),
+        providerDigest: providerDigest(provider),
+        toolCallMode: input.toolCallMode,
+      };
+      return {
+        changed: true,
+        result: {
+          configuration: configurationSnapshot(state),
+          profile: profileView(profile, provider),
+        },
+      };
+    });
+  }
+}
