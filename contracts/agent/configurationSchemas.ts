@@ -129,3 +129,27 @@ export const AgentConfigurationDeleteRequestSchema = strictObject({
 export type AgentConfigurationDeleteRequestDto = Static<
   typeof AgentConfigurationDeleteRequestSchema
 >;
+
+export const AgentOllamaDiscoveryRequestSchema = strictObject({
+  endpoint: Type.String({ minLength: 1 }),
+});
+export type AgentOllamaDiscoveryRequestDto = Static<
+  typeof AgentOllamaDiscoveryRequestSchema
+>;
+
+export const AgentProviderProbeResultSchema = strictObject({
+  models: Type.Array(ApiIdentifierSchema, { uniqueItems: true }),
+  reachable: Type.Boolean(),
+});
+
+export const AgentOllamaDiscoveryResultSchema = strictObject({
+  endpoint: Type.String({ minLength: 1 }),
+  models: Type.Array(ApiIdentifierSchema, { uniqueItems: true }),
+});
+
+export const AgentConformanceCheckRequestSchema = strictObject({
+  baseRevision: ApiResourceVersionSchema,
+});
+export type AgentConformanceCheckRequestDto = Static<
+  typeof AgentConformanceCheckRequestSchema
+>;

@@ -38,6 +38,7 @@
     CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
     CTN_API_TOKEN                非 loopback 部署的 bearer token
     CTN_AGENT_MAX_AUDIT_ENTRIES 必填，Agent 审计最大条数
+    CTN_AGENT_PRIVATE_TARGETS   可选，显式允许的私网 provider origin
 
 前端启动配置：
 

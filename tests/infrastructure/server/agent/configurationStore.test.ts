@@ -199,4 +199,26 @@ describe("Agent configuration store", () => {
       "Agent configuration state has unsupported or missing fields",
     );
   });
+
+  it.each([
+    [{
+      authenticationType: "none" as const,
+      baseUrl: "http://169.254.169.254",
+      kind: "ollama" as const,
+    }, "auth:none is restricted to loopback or explicitly allowed private providers"],
+    [{
+      apiKey: "secret",
+      authenticationType: "bearer" as const,
+      baseUrl: "http://models.example.invalid/v1",
+      kind: "openai-chat" as const,
+    }, "Remote providers with credentials must use HTTPS"],
+  ])("rejects unsafe provider endpoints", async (input, message) => {
+    const { store } = await createStore();
+    const initial = await store.readSnapshot();
+
+    await expect(store.createProvider(initial.revision, {
+      ...input,
+      label: "Unsafe provider",
+    })).rejects.toThrow(message);
+  });
 });

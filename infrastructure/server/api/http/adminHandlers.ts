@@ -12,6 +12,8 @@ import type {
 } from "../../../../contracts/workspace/types.ts";
 import type {
   AgentConfigurationDeleteRequestDto,
+  AgentConformanceCheckRequestDto,
+  AgentOllamaDiscoveryRequestDto,
   AgentProfileMutationRequestDto,
   AgentProviderMutationRequestDto,
 } from "../../../../contracts/agent/configurationSchemas.ts";
@@ -154,6 +156,32 @@ export async function handleAgentConfigurationAdmin(
 
   if (operation.operationId === "getAgentConfiguration") {
     return { body: await store.readSnapshot(), statusCode: 200 };
+  }
+  if (operation.operationId === "discoverOllamaProvider") {
+    const request = await context.readJsonBody() as AgentOllamaDiscoveryRequestDto;
+
+    return {
+      body: await context.agentProviderOperations.discoverOllama(request.endpoint),
+      statusCode: 200,
+    };
+  }
+  if (operation.operationId === "probeAgentProvider") {
+    return {
+      body: await context.agentProviderOperations.probe(route.providerId ?? ""),
+      statusCode: 200,
+    };
+  }
+  if (operation.operationId === "checkAgentProfileConformance") {
+    const request = await context.readJsonBody() as
+      AgentConformanceCheckRequestDto;
+
+    return {
+      body: await context.agentProviderOperations.checkConformance(
+        request.baseRevision,
+        route.profileId ?? "",
+      ),
+      statusCode: 200,
+    };
   }
   if (operation.operationId === "createAgentProvider") {
     const request = await context.readJsonBody() as

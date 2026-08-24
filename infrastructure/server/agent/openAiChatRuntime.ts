@@ -3,11 +3,17 @@
 import type {
   AgentRuntimePort,
   AgentRuntimeSession,
+  AgentRuntimeTool,
   AgentRuntimeToolCall,
   AgentRuntimeTurnRequest,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
-import type { OpenAiChatAgentProfile } from "./runtimeProfiles.ts";
+import { Value } from "@sinclair/typebox/value";
+import type { TSchema } from "@sinclair/typebox";
+import type {
+  OllamaAgentProfile,
+  OpenAiChatAgentProfile,
+} from "./runtimeProfiles.ts";
 
 export class AgentRuntimeProtocolError extends Error {
   constructor(message: string) {
@@ -41,6 +47,8 @@ type PendingToolCall = {
   callId: string;
   name: string;
 };
+
+type CompatibleChatProfile = OllamaAgentProfile | OpenAiChatAgentProfile;
 
 function endpoint(baseUrl: string) {
   return `${baseUrl.replace(/\/$/, "")}/chat/completions`;
@@ -116,15 +124,60 @@ function appendToolDelta(
   }
 }
 
-class OpenAiChatRuntimeSession implements AgentRuntimeSession {
-  readonly #apiKey: string;
+function classifySingleJsonToolCall(
+  text: string,
+  tools: readonly AgentRuntimeTool[],
+): { arguments: unknown; name: string } | null {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    if (/"(?:name|arguments)"\s*:/.test(text)) {
+      throw new AgentRuntimeProtocolError(
+        "Agent emitted an invalid single-json tool envelope",
+      );
+    }
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const record = parsed as Record<string, unknown>;
+  const fields = Object.keys(record);
+  const resemblesTool = fields.includes("name") || fields.includes("arguments");
+
+  if (!resemblesTool) return null;
+  if (
+    fields.length !== 2 || !fields.includes("name") ||
+    !fields.includes("arguments") || typeof record.name !== "string"
+  ) {
+    throw new AgentRuntimeProtocolError(
+      "Agent emitted an invalid single-json tool envelope",
+    );
+  }
+  const tool = tools.find(({ name }) => name === record.name);
+
+  if (!tool) {
+    throw new AgentRuntimeProtocolError(
+      "Agent requested a tool that was not offered to this session",
+    );
+  }
+  if (!Value.Check(tool.inputSchema as TSchema, record.arguments)) {
+    throw new AgentRuntimeProtocolError(
+      "Agent single-json tool arguments do not match the tool schema",
+    );
+  }
+  return { arguments: record.arguments, name: record.name };
+}
+
+export class OpenAiCompatibleRuntimeSession implements AgentRuntimeSession {
+  readonly #apiKey: string | null;
   #activeController: AbortController | null = null;
   readonly #instructions: string;
-  readonly #profile: OpenAiChatAgentProfile;
+  readonly #profile: CompatibleChatProfile;
 
   constructor(
-    profile: OpenAiChatAgentProfile,
-    apiKey: string,
+    profile: CompatibleChatProfile,
+    apiKey: string | null,
     instructions: string,
   ) {
     this.#profile = profile;
@@ -157,7 +210,12 @@ class OpenAiChatRuntimeSession implements AgentRuntimeSession {
     this.#activeController = controller;
     try {
       const messages: ChatMessage[] = [
-        { content: this.#instructions, role: "system" },
+        {
+          content: this.#profile.toolCallMode === "single-json"
+            ? `${this.#instructions}\n\nWhen calling a tool, output exactly one JSON object with only name and arguments. Do not wrap it in Markdown. After tool results, answer in natural language.`
+            : this.#instructions,
+          role: "system",
+        },
         ...request.messages.map((message) => ({
           content: message.content,
           role: message.role,
@@ -191,7 +249,9 @@ class OpenAiChatRuntimeSession implements AgentRuntimeSession {
             max_tokens: this.#profile.maxOutputTokens,
           }),
           headers: {
-            Authorization: `Bearer ${this.#apiKey}`,
+            ...(this.#apiKey
+              ? { Authorization: `Bearer ${this.#apiKey}` }
+              : {}),
             "Content-Type": "application/json",
           },
           method: "POST",
@@ -234,6 +294,44 @@ class OpenAiChatRuntimeSession implements AgentRuntimeSession {
             messageDeltas.push(delta.content);
           }
           appendToolDelta(pending, delta.tool_calls);
+        }
+        if (this.#profile.toolCallMode === "single-json") {
+          if (pending.size > 0) {
+            throw new AgentRuntimeProtocolError(
+              "Ollama single-json profile emitted native tool calls",
+            );
+          }
+          const singleJson = classifySingleJsonToolCall(
+            messageText,
+            request.tools,
+          );
+
+          if (singleJson) {
+            if (step === this.#profile.maxToolSteps) {
+              throw new AgentRuntimeProtocolError(
+                "Agent tool-step limit was reached",
+              );
+            }
+            const call: AgentRuntimeToolCall = {
+              arguments: singleJson.arguments,
+              callId: `single-json-${toolCalls + 1}`,
+              name: singleJson.name,
+            };
+
+            await request.onEvent({ call, type: "tool-call" });
+            const result = await request.executeTool(call);
+
+            messages.push({ content: messageText, role: "assistant" });
+            messages.push({
+              content: JSON.stringify({
+                tool: call.name,
+                toolResult: result,
+              }),
+              role: "user",
+            });
+            toolCalls += 1;
+            continue;
+          }
         }
         if (pending.size === 0) {
           messages.push({ content: messageText, role: "assistant" });
@@ -312,7 +410,7 @@ export class OpenAiChatRuntime implements AgentRuntimePort {
     scope: AgentScope;
     sessionId: string;
   }) {
-    return new OpenAiChatRuntimeSession(
+    return new OpenAiCompatibleRuntimeSession(
       this.#profile,
       this.#apiKey,
       input.instructions,

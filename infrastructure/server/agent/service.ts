@@ -49,6 +49,7 @@ import {
   AgentContextLimitError,
   OpenAiChatRuntime,
 } from "./openAiChatRuntime.ts";
+import { OllamaRuntime } from "./ollamaRuntime.ts";
 import type {
   AgentConfigurationStore,
   ResolvedAgentConfiguration,
@@ -176,6 +177,7 @@ export class AgentService {
     this.#revisionTracker = revisionTracker;
     this.#runtime = runtime;
     this.#runtimeFactory = runtimeFactory ?? ((profile, apiKey) => {
+      if (profile.kind === "ollama") return new OllamaRuntime(profile);
       if (!apiKey) throw new Error("Agent provider credential is unavailable");
       return profile.kind === "codex"
         ? new CodexRuntime({ apiKey, profile, projectRoot: this.#projectRoot })

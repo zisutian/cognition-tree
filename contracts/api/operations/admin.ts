@@ -5,7 +5,11 @@ import { AgentOperationAuditPageSchema } from "../../agent/schemas.ts";
 import {
   AgentConfigurationDeleteRequestSchema,
   AgentConfigurationSnapshotSchema,
+  AgentConformanceCheckRequestSchema,
+  AgentOllamaDiscoveryRequestSchema,
+  AgentOllamaDiscoveryResultSchema,
   AgentProfileMutationRequestSchema,
+  AgentProviderProbeResultSchema,
   AgentProviderMutationRequestSchema,
 } from "../../agent/configurationSchemas.ts";
 import { parseCreateRepository, parseRenameRepository } from "../../workspace/parseCatalog.ts";
@@ -33,11 +37,14 @@ const auditQuerySchema = Type.Object({
 export const adminApiOperations = [
   { access: ownerAccess(), method: "GET", operationId: "getAgentConfiguration", path: "/api/v3/admin/agent-configuration", responses: { 200: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentProviderMutationRequestSchema), method: "POST", operationId: "createAgentProvider", path: "/api/v3/admin/agent-providers", responses: { 201: AgentConfigurationSnapshotSchema } },
+  { access: ownerAccess(), body: apiBody(AgentOllamaDiscoveryRequestSchema), method: "POST", operationId: "discoverOllamaProvider", path: "/api/v3/admin/agent-providers/discover-ollama", responses: { 200: AgentOllamaDiscoveryResultSchema } },
   { access: ownerAccess(), body: apiBody(AgentProviderMutationRequestSchema), method: "PATCH", operationId: "updateAgentProvider", path: "/api/v3/admin/agent-providers/{providerId}", responses: { 200: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentConfigurationDeleteRequestSchema), method: "DELETE", operationId: "deleteAgentProvider", path: "/api/v3/admin/agent-providers/{providerId}", responses: { 200: AgentConfigurationSnapshotSchema } },
+  { access: ownerAccess(), method: "POST", operationId: "probeAgentProvider", path: "/api/v3/admin/agent-providers/{providerId}/probe", responses: { 200: AgentProviderProbeResultSchema } },
   { access: ownerAccess(), body: apiBody(AgentProfileMutationRequestSchema), method: "POST", operationId: "createAgentProfile", path: "/api/v3/admin/agent-profiles", responses: { 201: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentProfileMutationRequestSchema), method: "PATCH", operationId: "updateAgentProfile", path: "/api/v3/admin/agent-profiles/{profileId}", responses: { 200: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), body: apiBody(AgentConfigurationDeleteRequestSchema), method: "DELETE", operationId: "deleteAgentProfile", path: "/api/v3/admin/agent-profiles/{profileId}", responses: { 200: AgentConfigurationSnapshotSchema } },
+  { access: ownerAccess(), body: apiBody(AgentConformanceCheckRequestSchema), method: "POST", operationId: "checkAgentProfileConformance", path: "/api/v3/admin/agent-profiles/{profileId}/conformance-check", responses: { 200: AgentConfigurationSnapshotSchema } },
   { access: ownerAccess(), method: "GET", operationId: "listAdminRepositories", path: "/api/v3/admin/repositories", responses: { 200: ApiRepositoryCatalogSchema } },
   { access: ownerAccess(), body: apiBody(ApiCreateRepositorySchema, parseCreateRepository), method: "POST", operationId: "createAdminRepository", path: "/api/v3/admin/repositories", responses: { 201: ApiRepositoryDescriptorSchema } },
   { access: ownerAccess(), body: apiBody(ApiRenameRepositorySchema, parseRenameRepository), method: "PATCH", operationId: "renameAdminRepository", path: "/api/v3/admin/repositories/{repositoryId}", responses: { 200: ApiRepositoryDescriptorSchema } },

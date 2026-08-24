@@ -161,6 +161,9 @@ export async function handleApiRoute(
     operation.operationId.startsWith("createAgentProvider") ||
     operation.operationId.startsWith("updateAgentProvider") ||
     operation.operationId.startsWith("deleteAgentProvider")
+    || operation.operationId === "discoverOllamaProvider"
+    || operation.operationId === "probeAgentProvider"
+    || operation.operationId === "checkAgentProfileConformance"
   ) {
     return handleAgentConfigurationAdmin(context);
   }

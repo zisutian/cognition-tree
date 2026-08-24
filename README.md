@@ -62,6 +62,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
     CTN_PUBLIC_URL=
     CTN_API_TOKEN=
     CTN_AGENT_MAX_AUDIT_ENTRIES=1000
+    CTN_AGENT_PRIVATE_TARGETS=
 
 前端在页面启动时读取 `public/cognition-tree.config.json`；生产部署对应
 `.artifacts/build/client/cognition-tree.config.json`：

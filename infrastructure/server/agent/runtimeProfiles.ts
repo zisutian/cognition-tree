@@ -24,16 +24,22 @@ export type OpenAiChatAgentProfile = AgentRuntimeProfileBase &
     toolCallMode: "native";
   };
 
-export type AgentRuntimeProfile = CodexAgentProfile | OpenAiChatAgentProfile;
+export type OllamaAgentProfile = AgentRuntimeProfileBase &
+  Omit<AgentChatProfileParameters, "kind"> & {
+    baseUrl: string;
+    kind: "ollama";
+  };
+
+export type AgentRuntimeProfile =
+  | CodexAgentProfile
+  | OllamaAgentProfile
+  | OpenAiChatAgentProfile;
 
 export function createAgentRuntimeProfile(
   configuration: ResolvedAgentConfiguration,
 ): AgentRuntimeProfile {
   const { profile, provider } = configuration;
 
-  if (provider.kind === "ollama") {
-    throw new Error("Ollama runtime is not available");
-  }
   if (profile.parameters.kind === "codex") {
     if (provider.kind !== "codex") {
       throw new Error("Codex profile does not match its provider");
@@ -48,6 +54,24 @@ export function createAgentRuntimeProfile(
       model: profile.model,
       reasoningEffort: profile.parameters.reasoningEffort,
       timeoutMilliseconds: profile.timeoutMilliseconds,
+    };
+  }
+  if (provider.kind === "ollama") {
+    if (provider.baseUrl === null) {
+      throw new Error("Ollama provider requires a base URL");
+    }
+    return {
+      baseUrl: `${provider.baseUrl.replace(/\/$/, "")}/v1`,
+      contextWindowTokens: profile.parameters.contextWindowTokens,
+      id: profile.id,
+      kind: "ollama",
+      label: profile.label,
+      maxOutputTokens: profile.parameters.maxOutputTokens,
+      maxResidentSessions: profile.maxResidentSessions,
+      maxToolSteps: profile.parameters.maxToolSteps,
+      model: profile.model,
+      timeoutMilliseconds: profile.timeoutMilliseconds,
+      toolCallMode: profile.parameters.toolCallMode,
     };
   }
   if (provider.kind !== "openai-chat" || provider.baseUrl === null) {

@@ -17,6 +17,8 @@ import { AgentOperationLedger } from "./agent/operationLedger.ts";
 import { AgentConfigurationStore } from "./agent/configurationStore.ts";
 import { AgentService } from "./agent/service.ts";
 import { loadAgentServicePolicy } from "./agent/servicePolicy.ts";
+import { parseAgentPrivateTargets } from "./agent/providerTargetPolicy.ts";
+import { AgentProviderOperations } from "./agent/providerOperations.ts";
 import { ApiEventHub } from "./api/sync/events.ts";
 import { ApiRevisionTracker } from "./api/sync/revisionTracker.ts";
 import { ApiSearchService } from "./api/search.ts";
@@ -61,8 +63,12 @@ await catalog.initialize();
 await builtInCatalog.initialize();
 
 const accessStore = new AutomationTokenStore(serverStateDirectory);
+const agentTargetPolicy = parseAgentPrivateTargets(
+  process.env.CTN_AGENT_PRIVATE_TARGETS,
+);
 const agentConfigurationStore = new AgentConfigurationStore(
   serverStateDirectory,
+  { targetPolicy: agentTargetPolicy },
 );
 const agentServicePolicy = loadAgentServicePolicy(
   process.env.CTN_AGENT_MAX_AUDIT_ENTRIES,
@@ -87,10 +93,16 @@ const agentService = new AgentService({
   search,
   servicePolicy: agentServicePolicy,
 });
+const agentProviderOperations = new AgentProviderOperations({
+  configurationStore: agentConfigurationStore,
+  runtime: systemApiRuntime,
+  targetPolicy: agentTargetPolicy,
+});
 
 const server = createApiServer({
   accessStore,
   agentConfigurationStore,
+  agentProviderOperations,
   agentService,
   builtInCatalog,
   catalog,

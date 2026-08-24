@@ -18,6 +18,7 @@ import {
   SecureJsonPartition,
 } from "../state/secureJsonPartition.ts";
 import { createStateDigest } from "../state/stateDigest.ts";
+import { AgentProviderTargetPolicy } from "./providerTargetPolicy.ts";
 
 const formatVersion = 1;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
@@ -73,6 +74,11 @@ export type AgentProfileInput = Readonly<{
 export type ResolvedAgentConfiguration = Readonly<{
   apiKey: string | null;
   profile: AgentProfileView;
+  provider: AgentProviderView;
+}>;
+
+export type ResolvedAgentProvider = Readonly<{
+  apiKey: string | null;
   provider: AgentProviderView;
 }>;
 
@@ -442,6 +448,7 @@ function assertBaseRevision(
 
 function normalizeProviderInput(
   input: AgentProviderInput,
+  targetPolicy: AgentProviderTargetPolicy,
   previous?: StoredProvider,
 ): Omit<StoredProvider, "id" | "version"> {
   const label = nonEmptyString(input.label, "Provider label");
@@ -458,21 +465,7 @@ function normalizeProviderInput(
   }
   if (baseUrl !== null) {
     const url = new URL(baseUrl);
-    const hostname = url.hostname.toLowerCase();
-    const loopback = hostname === "localhost" || hostname === "::1" ||
-      /^127(?:\.[0-9]{1,3}){3}$/.test(hostname);
-
-    if (input.authenticationType === "none" && !loopback) {
-      throw new AgentConfigurationValidationError(
-        "auth:none is restricted to loopback providers",
-      );
-    }
-    if (input.authenticationType === "bearer" && !loopback &&
-        url.protocol !== "https:") {
-      throw new AgentConfigurationValidationError(
-        "Remote providers with credentials must use HTTPS",
-      );
-    }
+    targetPolicy.assertConfiguration(url, input.authenticationType);
   }
   if (input.authenticationType === "none" && input.apiKey !== undefined) {
     throw new AgentConfigurationValidationError("auth:none cannot include an API key");
@@ -531,12 +524,20 @@ function normalizeProfileInput(
 export class AgentConfigurationStore {
   readonly #createId: () => string;
   readonly #partition: SecureJsonPartition<AgentConfigurationState>;
+  readonly #targetPolicy: AgentProviderTargetPolicy;
 
   constructor(
     stateDirectory: string,
-    { createId = randomUUID }: { createId?: () => string } = {},
+    {
+      createId = randomUUID,
+      targetPolicy = new AgentProviderTargetPolicy(),
+    }: {
+      createId?: () => string;
+      targetPolicy?: AgentProviderTargetPolicy;
+    } = {},
   ) {
     this.#createId = createId;
+    this.#targetPolicy = targetPolicy;
     this.#partition = new SecureJsonPartition({
       createInitial: () => ({ formatVersion, profiles: [], providers: [] }),
       directory: path.join(path.resolve(stateDirectory), "agent-config-v1"),
@@ -568,11 +569,25 @@ export class AgentConfigurationStore {
     });
   }
 
+  resolveProvider(providerId: string): Promise<ResolvedAgentProvider | null> {
+    return this.#partition.read((state) => {
+      const storedProvider = state.providers.find(({ id }) => id === providerId);
+
+      if (!storedProvider) return null;
+      return {
+        apiKey: storedProvider.authentication.type === "bearer"
+          ? storedProvider.authentication.apiKey
+          : null,
+        provider: providerView(storedProvider),
+      };
+    });
+  }
+
   createProvider(baseRevision: string, input: AgentProviderInput) {
     return this.#partition.mutate((state) => {
       assertBaseRevision(state, baseRevision);
       const provider: StoredProvider = {
-        ...normalizeProviderInput(input),
+        ...normalizeProviderInput(input, this.#targetPolicy),
         id: `agent-provider-${this.#createId()}`,
         version: 1,
       };
@@ -602,7 +617,7 @@ export class AgentConfigurationStore {
       }
       const previous = state.providers[index]!;
       const provider: StoredProvider = {
-        ...normalizeProviderInput(input, previous),
+        ...normalizeProviderInput(input, this.#targetPolicy, previous),
         id: previous.id,
         version: previous.version + 1,
       };

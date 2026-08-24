@@ -48,6 +48,7 @@ import {
   AgentConfigurationConflictError,
   AgentConfigurationValidationError,
 } from "../../agent/configurationStore.ts";
+import { AgentProviderTargetValidationError } from "../../agent/providerTargetPolicy.ts";
 import {
   AgentProposalStateError,
   AgentScopeUnavailableError,
@@ -132,7 +133,10 @@ export function mapApiError(error: unknown): ApiRequestError {
       { details: { currentRevision: error.currentRevision } },
     );
   }
-  if (error instanceof AgentConfigurationValidationError) {
+  if (
+    error instanceof AgentConfigurationValidationError ||
+    error instanceof AgentProviderTargetValidationError
+  ) {
     return new ApiRequestError("domain_validation_failed", error.message);
   }
   if (error instanceof AgentServiceError) {
