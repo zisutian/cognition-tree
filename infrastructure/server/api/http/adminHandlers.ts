@@ -10,6 +10,11 @@ import type {
   CreateRepositoryDto,
   RenameRepositoryDto,
 } from "../../../../contracts/workspace/types.ts";
+import type {
+  AgentConfigurationDeleteRequestDto,
+  AgentProfileMutationRequestDto,
+  AgentProviderMutationRequestDto,
+} from "../../../../contracts/agent/configurationSchemas.ts";
 import { ApiRequestError, apiNotFound } from "./errors.ts";
 import {
   publishTrackedChanges,
@@ -139,6 +144,96 @@ export async function handleTokenAdmin(context: ApiHandlerContext) {
   if (!removed) apiNotFound("API token does not exist");
   context.eventHub.revokePrincipal(tokenId);
   return { body: { revoked: true }, statusCode: 200 };
+}
+
+export async function handleAgentConfigurationAdmin(
+  context: ApiHandlerContext,
+) {
+  const { agentConfigurationStore: store, agentService, operation, route } =
+    context;
+
+  if (operation.operationId === "getAgentConfiguration") {
+    return { body: await store.readSnapshot(), statusCode: 200 };
+  }
+  if (operation.operationId === "createAgentProvider") {
+    const request = await context.readJsonBody() as
+      AgentProviderMutationRequestDto;
+    const result = await store.createProvider(
+      request.baseRevision,
+      request.provider,
+    );
+
+    return { body: result.configuration, statusCode: 201 };
+  }
+  if (operation.operationId === "createAgentProfile") {
+    const request = await context.readJsonBody() as
+      AgentProfileMutationRequestDto;
+    const result = await store.createProfile(
+      request.baseRevision,
+      request.profile,
+    );
+
+    return { body: result.configuration, statusCode: 201 };
+  }
+  if (operation.operationId === "updateAgentProvider") {
+    const providerId = route.providerId ?? "";
+
+    if (agentService?.hasResidentProviderSession(providerId)) {
+      throw new ApiRequestError(
+        "resource_conflict",
+        "Agent provider is pinned by a resident session",
+      );
+    }
+    const request = await context.readJsonBody() as
+      AgentProviderMutationRequestDto;
+    const result = await store.updateProvider(
+      request.baseRevision,
+      providerId,
+      request.provider,
+    );
+
+    return { body: result.configuration, statusCode: 200 };
+  }
+  if (operation.operationId === "updateAgentProfile") {
+    const request = await context.readJsonBody() as
+      AgentProfileMutationRequestDto;
+    const result = await store.updateProfile(
+      request.baseRevision,
+      route.profileId ?? "",
+      request.profile,
+    );
+
+    return { body: result.configuration, statusCode: 200 };
+  }
+  const request = await context.readJsonBody() as
+    AgentConfigurationDeleteRequestDto;
+
+  if (operation.operationId === "deleteAgentProvider") {
+    const providerId = route.providerId ?? "";
+
+    if (agentService?.hasResidentProviderSession(providerId)) {
+      throw new ApiRequestError(
+        "resource_conflict",
+        "Agent provider is pinned by a resident session",
+      );
+    }
+    return {
+      body: await store.deleteProvider(request.baseRevision, providerId),
+      statusCode: 200,
+    };
+  }
+  const profileId = route.profileId ?? "";
+
+  if (agentService?.hasResidentProfileSession(profileId)) {
+    throw new ApiRequestError(
+      "resource_conflict",
+      "Agent profile is pinned by a resident session",
+    );
+  }
+  return {
+    body: await store.deleteProfile(request.baseRevision, profileId),
+    statusCode: 200,
+  };
 }
 
 export function parseAuditQuery(query: unknown) {

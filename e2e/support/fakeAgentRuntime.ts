@@ -4,80 +4,95 @@ import type {
   AgentRuntimePort,
   AgentRuntimeTurnRequest,
 } from "../../application/agent/agentRuntimePort.ts";
-import type {
-  AgentProfileCatalog,
-  OpenAiChatAgentProfile,
-} from "../../infrastructure/server/agent/profiles.ts";
+import { AgentConfigurationStore } from "../../infrastructure/server/agent/configurationStore.ts";
 
-export const e2eAgentProfileId = "e2e-agent";
-export const e2eAgentAlternativeProfileId = "e2e-agent-alternative";
-export const e2eAgentUnavailableProfileId = "e2e-agent-unavailable";
+export const e2eAgentProfileId = "agent-profile-e2e-agent";
+export const e2eAgentAlternativeProfileId =
+  "agent-profile-e2e-agent-alternative";
+export const e2eAgentUnavailableProfileId =
+  "agent-profile-e2e-agent-unavailable";
 export const e2eAgentJournalBody = "Agent E2E committed body";
 export const e2eAgentFirstDelta = "正在准备";
 export const e2eAgentSecondDelta = "，proposal 已就绪。";
 
-const profile: OpenAiChatAgentProfile = {
-  apiKeyEnv: "CTN_E2E_AGENT_KEY",
-  baseUrl: "https://e2e-runtime.invalid/v1",
-  contextWindowTokens: 8_192,
-  id: e2eAgentProfileId,
-  kind: "openai-chat",
-  label: "E2E Agent",
-  maxOutputTokens: 1_024,
-  maxResidentSessions: 4,
-  maxToolSteps: 8,
-  model: "deterministic-e2e",
-  timeoutMilliseconds: 5_000,
-};
-const alternativeProfile: OpenAiChatAgentProfile = {
-  ...profile,
-  id: e2eAgentAlternativeProfileId,
-  label: "E2E Agent Alternate",
-  model: "deterministic-e2e-alternative",
-};
-const unavailableProfile: OpenAiChatAgentProfile = {
-  ...profile,
-  apiKeyEnv: "CTN_E2E_AGENT_MISSING_KEY",
-  id: e2eAgentUnavailableProfileId,
-  label: "E2E Agent Missing",
-  model: "deterministic-e2e-unavailable",
-};
+export async function createE2EAgentConfigurationStore(stateDirectory: string) {
+  const ids = [
+    "e2e-provider",
+    "e2e-agent",
+    "e2e-agent-alternative",
+    "e2e-missing-provider",
+    "e2e-agent-unavailable",
+  ];
+  const store = new AgentConfigurationStore(stateDirectory, {
+    createId: () => ids.shift()!,
+  });
+  let configuration = await store.readSnapshot();
+  const provider = await store.createProvider(configuration.revision, {
+    apiKey: "e2e-only",
+    authenticationType: "bearer",
+    baseUrl: "https://e2e-runtime.invalid/v1",
+    kind: "openai-chat",
+    label: "E2E provider",
+  });
 
-export const e2eAgentProfileCatalog: AgentProfileCatalog = {
-  absoluteTtlMilliseconds: 24 * 60 * 60 * 1_000,
-  configurationProblem: null,
-  idleTtlMilliseconds: 60 * 60 * 1_000,
-  maxAuditEntries: 100,
-  profiles: [{
-    authenticationStatus: "configured",
-    availability: "available",
-    config: profile,
-    id: profile.id,
-    kind: profile.kind,
-    label: profile.label,
-    model: profile.model,
-    unavailableReason: null,
-  }, {
-    authenticationStatus: "configured",
-    availability: "available",
-    config: alternativeProfile,
-    id: alternativeProfile.id,
-    kind: alternativeProfile.kind,
-    label: alternativeProfile.label,
-    model: alternativeProfile.model,
-    unavailableReason: null,
-  }, {
-    authenticationStatus: "missing",
-    availability: "unavailable",
-    config: unavailableProfile,
-    id: unavailableProfile.id,
-    kind: unavailableProfile.kind,
-    label: unavailableProfile.label,
-    model: unavailableProfile.model,
-    unavailableReason:
-      "Environment variable CTN_E2E_AGENT_MISSING_KEY is not set",
-  }],
-};
+  configuration = provider.configuration;
+  for (const [label, model] of [
+    ["E2E Agent", "deterministic-e2e"],
+    ["E2E Agent Alternate", "deterministic-e2e-alternative"],
+  ] as const) {
+    const created = await store.createProfile(configuration.revision, {
+      label,
+      maxResidentSessions: 4,
+      model,
+      parameters: {
+        contextWindowTokens: 8_192,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        toolCallMode: "native",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 5_000,
+    });
+
+    configuration = (await store.setConformance(
+      created.configuration.revision,
+      created.profile.id,
+      { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
+    )).configuration;
+  }
+  const missingProvider = await store.createProvider(configuration.revision, {
+    apiKey: null,
+    authenticationType: "bearer",
+    baseUrl: "https://e2e-missing.invalid/v1",
+    kind: "openai-chat",
+    label: "E2E missing provider",
+  });
+  const unavailable = await store.createProfile(
+    missingProvider.configuration.revision,
+    {
+      label: "E2E Agent Missing",
+      maxResidentSessions: 4,
+      model: "deterministic-e2e-unavailable",
+      parameters: {
+        contextWindowTokens: 8_192,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        toolCallMode: "native",
+      },
+      providerId: missingProvider.provider.id,
+      timeoutMilliseconds: 5_000,
+    },
+  );
+
+  await store.setConformance(
+    unavailable.configuration.revision,
+    unavailable.profile.id,
+    { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
+  );
+  return store;
+}
 
 function abortError() {
   const error = new Error("E2E Agent turn was cancelled");

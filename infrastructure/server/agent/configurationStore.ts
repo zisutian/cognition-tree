@@ -456,6 +456,24 @@ function normalizeProviderInput(
   if (input.kind === "codex" && input.authenticationType !== "bearer") {
     throw new AgentConfigurationValidationError("Codex authentication must be bearer");
   }
+  if (baseUrl !== null) {
+    const url = new URL(baseUrl);
+    const hostname = url.hostname.toLowerCase();
+    const loopback = hostname === "localhost" || hostname === "::1" ||
+      /^127(?:\.[0-9]{1,3}){3}$/.test(hostname);
+
+    if (input.authenticationType === "none" && !loopback) {
+      throw new AgentConfigurationValidationError(
+        "auth:none is restricted to loopback providers",
+      );
+    }
+    if (input.authenticationType === "bearer" && !loopback &&
+        url.protocol !== "https:") {
+      throw new AgentConfigurationValidationError(
+        "Remote providers with credentials must use HTTPS",
+      );
+    }
+  }
   if (input.authenticationType === "none" && input.apiKey !== undefined) {
     throw new AgentConfigurationValidationError("auth:none cannot include an API key");
   }

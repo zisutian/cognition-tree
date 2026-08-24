@@ -50,11 +50,15 @@ import {
   OpenAiChatRuntime,
 } from "./openAiChatRuntime.ts";
 import type {
-  AgentProfile,
-  AgentProfileCatalog,
-  LoadedAgentProfile,
-} from "./profiles.ts";
+  AgentConfigurationStore,
+  ResolvedAgentConfiguration,
+} from "./configurationStore.ts";
 import type { AgentOperationLedger } from "./operationLedger.ts";
+import {
+  createAgentRuntimeProfile,
+  type AgentRuntimeProfile,
+} from "./runtimeProfiles.ts";
+import type { AgentServicePolicy } from "./servicePolicy.ts";
 import { AgentServiceError } from "./errors.ts";
 import {
   AgentSessionTools,
@@ -80,15 +84,16 @@ type SessionRecord = {
   eventSequence: number;
   events: AgentEventDto[];
   eventStreams: Set<ServerResponse>;
-  profile: AgentProfile;
+  configuration: ResolvedAgentConfiguration;
+  profile: AgentRuntimeProfile;
   runtime: AgentRuntimePort;
   runtimeSession: AgentRuntimeSession;
   staging: AgentStaging | null;
 };
 
 type RuntimeFactory = (
-  profile: AgentProfile,
-  apiKey: string,
+  profile: AgentRuntimeProfile,
+  apiKey: string | null,
 ) => AgentRuntimePort;
 
 const maximumRetainedEvents = 1_000;
@@ -117,31 +122,19 @@ function sessionMcpEntrypoint() {
   return path.join(path.dirname(current), `sessionMcpServer${extension}`);
 }
 
-function mapProfile(profile: LoadedAgentProfile): AgentProfileSummaryDto {
-  return {
-    authenticationStatus: profile.authenticationStatus,
-    availability: profile.availability,
-    id: profile.id,
-    kind: profile.kind,
-    label: profile.label,
-    model: profile.model,
-    unavailableReason: profile.unavailableReason,
-  };
-}
-
 export class AgentService {
   readonly #builtInCatalog: ApiBuiltInCatalog;
   readonly #catalog: WorkspaceRepositoryCatalog;
-  readonly #environment: NodeJS.ProcessEnv;
+  readonly #configurationStore: AgentConfigurationStore;
   readonly #eventHub: ApiEventHub;
   readonly #ipc: AgentPrivateIpcServer;
   readonly #ledger: AgentOperationLedger | null;
-  readonly #profileCatalog: AgentProfileCatalog;
   readonly #profileQueues = new Map<string, Promise<void>>();
   readonly #projectRoot: string;
   readonly #revisionTracker: ApiRevisionTracker;
   readonly #runtime: ApiRuntime;
   readonly #runtimeFactory: RuntimeFactory;
+  readonly #servicePolicy: AgentServicePolicy;
   readonly #sessions = new Map<string, SessionRecord>();
   readonly #sweeper: NodeJS.Timeout;
   readonly #tools: AgentSessionTools;
@@ -149,44 +142,46 @@ export class AgentService {
   constructor({
     builtInCatalog,
     catalog,
-    environment = process.env,
+    configurationStore,
     eventHub,
     ipc = new AgentPrivateIpcServer(),
     ledger,
-    profileCatalog,
     projectRoot = process.cwd(),
     revisionTracker,
     runtime,
     runtimeFactory,
     search,
+    servicePolicy,
   }: {
     builtInCatalog: ApiBuiltInCatalog;
     catalog: WorkspaceRepositoryCatalog;
-    environment?: NodeJS.ProcessEnv;
+    configurationStore: AgentConfigurationStore;
     eventHub: ApiEventHub;
     ipc?: AgentPrivateIpcServer;
     ledger: AgentOperationLedger | null;
-    profileCatalog: AgentProfileCatalog;
     projectRoot?: string;
     revisionTracker: ApiRevisionTracker;
     runtime: ApiRuntime;
     runtimeFactory?: RuntimeFactory;
     search: ApiSearchService;
+    servicePolicy: AgentServicePolicy;
   }) {
     this.#builtInCatalog = builtInCatalog;
     this.#catalog = catalog;
-    this.#environment = environment;
+    this.#configurationStore = configurationStore;
     this.#eventHub = eventHub;
     this.#ipc = ipc;
     this.#ledger = ledger;
-    this.#profileCatalog = profileCatalog;
     this.#projectRoot = path.resolve(projectRoot);
     this.#revisionTracker = revisionTracker;
     this.#runtime = runtime;
-    this.#runtimeFactory = runtimeFactory ?? ((profile, apiKey) =>
-      profile.kind === "codex"
+    this.#runtimeFactory = runtimeFactory ?? ((profile, apiKey) => {
+      if (!apiKey) throw new Error("Agent provider credential is unavailable");
+      return profile.kind === "codex"
         ? new CodexRuntime({ apiKey, profile, projectRoot: this.#projectRoot })
-        : new OpenAiChatRuntime(profile, apiKey));
+        : new OpenAiChatRuntime(profile, apiKey);
+    });
+    this.#servicePolicy = servicePolicy;
     this.#tools = new AgentSessionTools({
       builtInCatalog,
       catalog,
@@ -199,15 +194,45 @@ export class AgentService {
     this.#sweeper.unref();
   }
 
-  status(): AgentStatusDto {
-    return {
-      configurationProblem: this.#profileCatalog.configurationProblem,
-      enabled: this.#ledger !== null &&
-        this.#profileCatalog.profiles.some(({ availability }) =>
-          availability === "available"
-        ),
-      profiles: this.#profileCatalog.profiles.map(mapProfile),
-    };
+  async status(): Promise<AgentStatusDto> {
+    try {
+      const configuration = await this.#configurationStore.readSnapshot();
+      const providers = new Map(configuration.providers.map((provider) => [
+        provider.id,
+        provider,
+      ]));
+      const profiles: AgentProfileSummaryDto[] = configuration.profiles.map(
+        (profile) => {
+          const provider = providers.get(profile.providerId)!;
+
+          return {
+            authenticationStatus: provider.authenticationStatus,
+            availability: profile.availability,
+            id: profile.id,
+            kind: provider.kind,
+            label: profile.label,
+            model: profile.model,
+            unavailableReason: profile.unavailableReason,
+          };
+        },
+      );
+      const configurationProblem = this.#servicePolicy.configurationProblem;
+
+      return {
+        configurationProblem,
+        enabled: this.#ledger !== null && configurationProblem === null &&
+          profiles.some(({ availability }) => availability === "available"),
+        profiles,
+      };
+    } catch (error) {
+      return {
+        configurationProblem: error instanceof Error
+          ? error.message
+          : "Agent configuration is unavailable",
+        enabled: false,
+        profiles: [],
+      };
+    }
   }
 
   listSessions() {
@@ -223,30 +248,44 @@ export class AgentService {
     return this.#snapshot(record);
   }
 
+  hasResidentProfileSession(profileId: string) {
+    this.#removeExpiredSessionsWithoutWaiting();
+    return [...this.#sessions.values()].some(({ configuration }) =>
+      configuration.profile.id === profileId
+    );
+  }
+
+  hasResidentProviderSession(providerId: string) {
+    this.#removeExpiredSessionsWithoutWaiting();
+    return [...this.#sessions.values()].some(({ configuration }) =>
+      configuration.provider.id === providerId
+    );
+  }
+
   async createSession(request: AgentCreateSessionRequestDto) {
     this.#removeExpiredSessionsWithoutWaiting();
     if (!this.#ledger) {
       throw new AgentServiceError(
         "profile_unavailable",
-        this.#profileCatalog.configurationProblem ??
+        this.#servicePolicy.configurationProblem ??
           "Agent operation ledger is unavailable",
       );
     }
-    const loaded = this.#profileCatalog.profiles.find(({ id }) =>
-      id === request.profileId
+    const configuration = await this.#configurationStore.resolveProfile(
+      request.profileId,
     );
 
-    if (!loaded || loaded.availability !== "available" || !loaded.config) {
+    if (!configuration || configuration.profile.availability !== "available") {
       throw new AgentServiceError(
         "profile_unavailable",
-        loaded?.unavailableReason ?? "Agent profile is unavailable",
+        configuration?.profile.unavailableReason ?? "Agent profile is unavailable",
       );
     }
     const resident = [...this.#sessions.values()].filter(({ profile }) =>
-      profile.id === loaded.id
+      profile.id === configuration.profile.id
     ).length;
 
-    if (resident >= loaded.config.maxResidentSessions) {
+    if (resident >= configuration.profile.maxResidentSessions) {
       throw new AgentServiceError(
         "session_capacity_reached",
         "Agent profile has reached maxResidentSessions",
@@ -256,15 +295,7 @@ export class AgentService {
 
     await this.#tools.assertScopeAvailable(scope);
     const sessionId = this.#runtime.createId();
-    const profile = loaded.config;
-    const apiKey = this.#environment[profile.apiKeyEnv];
-
-    if (!apiKey) {
-      throw new AgentServiceError(
-        "profile_unavailable",
-        `Environment variable ${profile.apiKeyEnv} is not set`,
-      );
-    }
+    const profile = createAgentRuntimeProfile(configuration);
     const controller = new AgentSessionController({
       id: sessionId,
       profileId: profile.id,
@@ -274,7 +305,7 @@ export class AgentService {
       },
       scope,
     });
-    const runtimePort = this.#runtimeFactory(profile, apiKey);
+    const runtimePort = this.#runtimeFactory(profile, configuration.apiKey);
     let capability: string | null = null;
 
     try {
@@ -295,6 +326,7 @@ export class AgentService {
       const record: SessionRecord = {
         abortController: null,
         capability,
+        configuration,
         controller,
         eventSequence: 0,
         events: [],
@@ -482,6 +514,10 @@ export class AgentService {
 
     return parseAgentSchema(AgentSessionSnapshotSchema, {
       ...snapshot,
+      profileDigest: record.configuration.profile.digest,
+      profileLabel: record.configuration.profile.label,
+      profileModel: record.configuration.profile.model,
+      profileVersion: record.configuration.profile.version,
       proposals: snapshot.proposals.map((proposal) => ({
         baseRevision: proposal.baseRevision,
         changes: proposal.changes,
@@ -493,6 +529,9 @@ export class AgentService {
         store: proposal.store,
         version: proposal.version,
       })),
+      providerDigest: record.configuration.provider.digest,
+      providerId: record.configuration.provider.id,
+      providerVersion: record.configuration.provider.version,
       sequence,
     });
   }
@@ -515,7 +554,7 @@ export class AgentService {
     const endpoint = await this.#ipc.start();
     await this.#tools.assertScopeAvailable(scope);
     const expiresAt = Date.parse(readApiRuntimeNow(this.#runtime).timestamp) +
-      this.#profileCatalog.absoluteTtlMilliseconds;
+      this.#servicePolicy.absoluteTtlMilliseconds;
     const capability = this.#ipc.register({
       expiresAt,
       handle: (request) => this.#executeTool(this.#requireSession(sessionId), {
@@ -790,12 +829,17 @@ export class AgentService {
       },
       digest: proposal.digest,
       occurredAt: readApiRuntimeNow(this.#runtime).timestamp,
+      profileDigest: record.configuration.profile.digest,
       profileId: record.profile.id,
+      profileVersion: record.configuration.profile.version,
       proposalId: proposal.id,
       proposalVersion: proposal.version,
       result,
       runtimeKind: record.runtime.kind,
       sessionId: record.controller.snapshot().id,
+      providerDigest: record.configuration.provider.digest,
+      providerId: record.configuration.provider.id,
+      providerVersion: record.configuration.provider.version,
       store: proposal.store,
     };
   }
@@ -938,9 +982,9 @@ export class AgentService {
     const now = this.#runtime.now().getTime();
 
     return now - Date.parse(snapshot.lastActiveAt) >=
-        this.#profileCatalog.idleTtlMilliseconds ||
+        this.#servicePolicy.idleTtlMilliseconds ||
       now - Date.parse(snapshot.createdAt) >=
-        this.#profileCatalog.absoluteTtlMilliseconds;
+        this.#servicePolicy.absoluteTtlMilliseconds;
   }
 
   #removeExpiredSessionsWithoutWaiting() {

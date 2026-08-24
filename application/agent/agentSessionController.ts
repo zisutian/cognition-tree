@@ -195,7 +195,16 @@ export class AgentSessionController {
     this.#touch();
   }
 
-  snapshot(): AgentSessionSnapshot {
+  snapshot(): Omit<
+    AgentSessionSnapshot,
+    | "profileDigest"
+    | "profileLabel"
+    | "profileModel"
+    | "profileVersion"
+    | "providerDigest"
+    | "providerId"
+    | "providerVersion"
+  > {
     return {
       activeTurnId: this.#activeTurnId,
       createdAt: this.#createdAt,

@@ -35,10 +35,15 @@ function entry(index: number): AgentOperationAuditEntryDto {
     },
     digest: revision("a"),
     occurredAt: `2026-08-20T00:00:0${index}.000Z`,
+    profileDigest: revision("b"),
     profileId: "profile",
+    profileVersion: 1,
     proposalId: `00000000-0000-4000-8000-${suffix}`,
     proposalVersion: 1,
     result: "committed",
+    providerDigest: revision("c"),
+    providerId: "provider",
+    providerVersion: 1,
     runtimeKind: "openai-chat",
     sessionId: "00000000-0000-4000-8000-000000000999",
     store: { domain: "journal" },
@@ -46,11 +51,11 @@ function entry(index: number): AgentOperationAuditEntryDto {
 }
 
 describe("Agent operation ledger", () => {
-  it("owns idempotency, trims audit entries, and never reads api-v1", async () => {
+  it("owns idempotency, trims audit entries, and never reads agent-v1", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "ctn-agent-ledger-"));
 
     try {
-      const legacyDirectory = path.join(directory, "api-v1");
+      const legacyDirectory = path.join(directory, "agent-v1");
 
       await mkdir(legacyDirectory, { mode: 0o700 });
       await writeFile(
@@ -96,7 +101,7 @@ describe("Agent operation ledger", () => {
         entry(2).proposalId,
       ]);
       const persisted = await readFile(
-        path.join(directory, "agent-v1", "operations.json"),
+        path.join(directory, "agent-v2", "operations.json"),
         "utf8",
       );
 

@@ -14,8 +14,9 @@ import { parseWebDavPrivateTargets } from "./adapters/webdav/webDavTargetPolicy.
 import { BuiltInCatalog } from "./repository/built-ins/catalog.ts";
 import { AutomationTokenStore } from "./access/automationTokenStore.ts";
 import { AgentOperationLedger } from "./agent/operationLedger.ts";
-import { loadAgentProfileCatalog } from "./agent/profiles.ts";
+import { AgentConfigurationStore } from "./agent/configurationStore.ts";
 import { AgentService } from "./agent/service.ts";
+import { loadAgentServicePolicy } from "./agent/servicePolicy.ts";
 import { ApiEventHub } from "./api/sync/events.ts";
 import { ApiRevisionTracker } from "./api/sync/revisionTracker.ts";
 import { ApiSearchService } from "./api/search.ts";
@@ -60,14 +61,17 @@ await catalog.initialize();
 await builtInCatalog.initialize();
 
 const accessStore = new AutomationTokenStore(serverStateDirectory);
-const profileCatalog = await loadAgentProfileCatalog(
-  process.env.CTN_AGENT_PROFILES_FILE,
+const agentConfigurationStore = new AgentConfigurationStore(
+  serverStateDirectory,
 );
-const operationLedger = profileCatalog.maxAuditEntries === null
+const agentServicePolicy = loadAgentServicePolicy(
+  process.env.CTN_AGENT_MAX_AUDIT_ENTRIES,
+);
+const operationLedger = agentServicePolicy.maxAuditEntries === null
   ? null
   : new AgentOperationLedger(
       serverStateDirectory,
-      profileCatalog.maxAuditEntries,
+      agentServicePolicy.maxAuditEntries,
     );
 const eventHub = new ApiEventHub();
 const revisionTracker = new ApiRevisionTracker();
@@ -75,16 +79,18 @@ const search = new ApiSearchService({ builtInCatalog, catalog });
 const agentService = new AgentService({
   builtInCatalog,
   catalog,
+  configurationStore: agentConfigurationStore,
   eventHub,
   ledger: operationLedger,
-  profileCatalog,
   revisionTracker,
   runtime: systemApiRuntime,
   search,
+  servicePolicy: agentServicePolicy,
 });
 
 const server = createApiServer({
   accessStore,
+  agentConfigurationStore,
   agentService,
   builtInCatalog,
   catalog,
@@ -94,6 +100,7 @@ const server = createApiServer({
   security,
   stateDirectory: serverStateDirectory,
 });
+const agentStatus = await agentService.status();
 
 let shuttingDown = false;
 const shutdown = async () => {
@@ -133,6 +140,6 @@ server.listen(port, host, () => {
     `Bearer authentication: ${security.requiresBearerToken ? "required" : "disabled"}`,
   );
   console.log(
-    `Agent profiles: ${agentService.status().enabled ? "available" : "unavailable"}`,
+    `Agent profiles: ${agentStatus.enabled ? "available" : "unavailable"}`,
   );
 });

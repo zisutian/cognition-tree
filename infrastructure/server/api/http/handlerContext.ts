@@ -29,6 +29,7 @@ import type { ApiSearchService } from "../search.ts";
 import type { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
 import type { AgentService } from "../../agent/service.ts";
+import type { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 
 export type HandlerResult = {
   body: unknown;
@@ -103,6 +104,7 @@ export function createCheckpoint({
 
 export type ApiHandlerContext = {
   accessStore: AutomationTokenStore;
+  agentConfigurationStore: AgentConfigurationStore;
   agentService: AgentService | null;
   builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;

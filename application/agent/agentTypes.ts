@@ -3,7 +3,7 @@
 import type { DomainChangeSet } from "../../core/sync/domainChangeSet.ts";
 import type { DomainTextEdit } from "../../core/sync/domainTransition.ts";
 
-export type AgentRuntimeKind = "codex" | "openai-chat";
+export type AgentRuntimeKind = "codex" | "ollama" | "openai-chat";
 
 export type AgentStoreReference =
   | { domain: "journal" }
@@ -81,8 +81,15 @@ export type AgentSessionSnapshot = Readonly<{
   lastActiveAt: string;
   messages: readonly AgentMessage[];
   problem: string | null;
+  profileDigest: `sha256:${string}`;
   profileId: string;
+  profileLabel: string;
+  profileModel: string;
+  profileVersion: number;
   proposals: readonly AgentProposalView[];
+  providerDigest: `sha256:${string}`;
+  providerId: string;
+  providerVersion: number;
   scope: AgentScope;
   sequence: number;
   state: AgentSessionState;

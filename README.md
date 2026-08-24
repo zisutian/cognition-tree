@@ -61,7 +61,7 @@ Journal 与 Todo 不依赖当前普通仓库，也不参与 WebDAV。它们的�
     CTN_WEBDAV_PRIVATE_TARGETS=
     CTN_PUBLIC_URL=
     CTN_API_TOKEN=
-    CTN_AGENT_PROFILES_FILE=
+    CTN_AGENT_MAX_AUDIT_ENTRIES=1000
 
 前端在页面启动时读取 `public/cognition-tree.config.json`；生产部署对应
 `.artifacts/build/client/cognition-tree.config.json`：
@@ -101,9 +101,9 @@ Workspace。`CTN_SERVER_STATE_DIR` 保存 WebDAV 连接、只读 automation toke
 哈希，以及不含提示词、正文、完整 diff 或 tool output 的 Agent operation
 ledger；令牌明文只在创建时显示一次。
 
-Agent profile 必须通过 `CTN_AGENT_PROFILES_FILE` 显式配置。文件缺失时只禁用
-Agent，不影响内容应用；每个 profile 的 API key 只从其声明的服务端环境变量
-读取。Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
+Agent provider、profile、模型参数与凭据由“设置 → 智能体”管理，内部状态保存于
+`<CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json`；该文件不是用户仓库
+文件，也不应手工编辑。Codex 依赖精确锁定为 `@openai/codex@0.148.0`，每个会话使用独立、
 ephemeral、只读且无网络的 app-server 进程和会话专属私有 MCP。Agent 对话只在
 服务内存中驻留，重启、TTL 到期或回收会丢失。
 

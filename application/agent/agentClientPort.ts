@@ -8,7 +8,7 @@ import type {
 } from "./agentTypes.ts";
 
 export type AgentProfileSummary = Readonly<{
-  authenticationStatus: "configured" | "missing" | "unknown";
+  authenticationStatus: "configured" | "missing" | "not-required" | "unknown";
   availability: "available" | "unavailable";
   id: string;
   kind: AgentRuntimeKind;

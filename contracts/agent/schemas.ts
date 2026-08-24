@@ -55,6 +55,7 @@ export const AgentProfileSummarySchema = strictObject({
   authenticationStatus: Type.Union([
     Type.Literal("configured"),
     Type.Literal("missing"),
+    Type.Literal("not-required"),
     Type.Literal("unknown"),
   ]),
   availability: Type.Union([
@@ -62,7 +63,11 @@ export const AgentProfileSummarySchema = strictObject({
     Type.Literal("unavailable"),
   ]),
   id: identifier,
-  kind: Type.Union([Type.Literal("codex"), Type.Literal("openai-chat")]),
+  kind: Type.Union([
+    Type.Literal("codex"),
+    Type.Literal("ollama"),
+    Type.Literal("openai-chat"),
+  ]),
   label: identifier,
   model: nullable(Type.String({ minLength: 1 })),
   unavailableReason: nullable(Type.String()),
@@ -137,8 +142,15 @@ export const AgentSessionSnapshotSchema = strictObject({
   lastActiveAt: timestamp,
   messages: Type.Array(AgentMessageSchema),
   problem: nullable(Type.String()),
+  profileDigest: digest,
   profileId: identifier,
+  profileLabel: identifier,
+  profileModel: identifier,
+  profileVersion: Type.Integer({ minimum: 1 }),
   proposals: Type.Array(AgentProposalSchema),
+  providerDigest: digest,
+  providerId: identifier,
+  providerVersion: Type.Integer({ minimum: 1 }),
   scope: AgentScopeSchema,
   sequence: Type.Integer({ minimum: 0 }),
   state: AgentSessionStateSchema,
@@ -243,7 +255,9 @@ export const AgentOperationAuditEntrySchema = strictObject({
   }),
   digest,
   occurredAt: timestamp,
+  profileDigest: digest,
   profileId: identifier,
+  profileVersion: Type.Integer({ minimum: 1 }),
   proposalId: uuid,
   proposalVersion: Type.Integer({ minimum: 1 }),
   result: Type.Union([
@@ -253,9 +267,13 @@ export const AgentOperationAuditEntrySchema = strictObject({
   ]),
   runtimeKind: Type.Union([
     Type.Literal("codex"),
+    Type.Literal("ollama"),
     Type.Literal("openai-chat"),
   ]),
   sessionId: uuid,
+  providerDigest: digest,
+  providerId: identifier,
+  providerVersion: Type.Integer({ minimum: 1 }),
   store: AgentStoreReferenceSchema,
 });
 export type AgentOperationAuditEntryDto = Static<

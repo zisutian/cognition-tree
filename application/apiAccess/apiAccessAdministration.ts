@@ -33,12 +33,17 @@ export type AgentOperationAuditEntry = {
   blockIds: string[];
   digest: `sha256:${string}`;
   occurredAt: string;
+  profileDigest: `sha256:${string}`;
   profileId: string;
+  profileVersion: number;
   proposalId: string;
   proposalVersion: number;
   resourceIds: string[];
   result: "committed" | "failed" | "stale";
-  runtimeKind: "codex" | "openai-chat";
+  providerDigest: `sha256:${string}`;
+  providerId: string;
+  providerVersion: number;
+  runtimeKind: "codex" | "ollama" | "openai-chat";
   sessionId: string;
   store:
     | { domain: "journal" }

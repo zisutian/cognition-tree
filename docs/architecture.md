@@ -207,13 +207,14 @@ AgentSessionSnapshot。两类 SSE 都不是正文真值来源。
 服务状态有两个独立 epoch owner：
 
     <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
-    <CTN_SERVER_STATE_DIR>/agent-v1/operations.json
+    <CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json
+    <CTN_SERVER_STATE_DIR>/agent-v2/operations.json
 
 前者只保存 automation token 的 SHA-256 哈希、只读授权与 Workspace allowlist；
 后者用 proposal UUID + version + digest 做幂等键，并保存 approving owner、
 session/profile/runtime、store、before/after revision、变更资源/块 ID、结果与时间。
 operation ledger 不保存提示词、模型回复、正文、完整 diff 或 tool output，超过
-profile 文件必填的 maxAuditEntries 后裁剪最旧记录。
+`CTN_AGENT_MAX_AUDIT_ENTRIES` 后裁剪最旧记录。
 
 旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 完全不读取、不迁移、不暴露，也不存在兼容
 decoder；文件原样保留供人工备份，新服务不会主动删除。状态目录权限为 0700、
@@ -294,11 +295,10 @@ Application 只声明 scheduler、时钟、ID 与生命周期端口；浏览器 
 这些模块只拆职责，不改变 Local WAL 提交点、WebDAV 删除状态机或仓库内容
 schema。
 
-Agent profile 文件是严格 versioned 服务端配置。根配置固定 1 小时 idle TTL、
-24 小时 absolute TTL 和必填 maxAuditEntries；每个 profile 必须显式声明
-maxResidentSessions、model、API-key 环境变量、timeout 与 tool/request limit。
-缺少文件只禁用 Agent；单个 profile 无效或缺少 secret 只禁用该 profile，不回退
-到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
+Agent 配置由设置界面写入独立的 versioned 服务端状态；固定 1 小时 idle TTL、
+24 小时 absolute TTL，审计容量由必填环境变量提供。每个 profile 显式声明
+maxResidentSessions、model、timeout 与 tool/request limit；凭据只写入不回读。
+单个 profile 无效或缺少 secret 时只禁用该 profile，不回退到其它 profile。每个 profile 同时只运行一个推理，turn FIFO；每个 session 同时
 只有一个 active turn，达到 resident 上限时拒绝新会话而不驱逐有效会话。
 
 Codex adapter 精确锁定 `@openai/codex@0.148.0`，每条会话启动独立常驻

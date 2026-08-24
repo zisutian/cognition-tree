@@ -55,6 +55,7 @@ import {
 import { AutomationTokenStore } from "../../access/automationTokenStore.ts";
 import type { AgentService } from "../../agent/service.ts";
 import type { AgentOperationLedger } from "../../agent/operationLedger.ts";
+import { AgentConfigurationStore } from "../../agent/configurationStore.ts";
 
 export type ApiRequestHandler = (
   request: IncomingMessage,
@@ -63,6 +64,7 @@ export type ApiRequestHandler = (
 
 export type ApiServerOptions = {
   accessStore?: AutomationTokenStore;
+  agentConfigurationStore?: AgentConfigurationStore;
   agentService?: AgentService | null;
   builtInCatalog?: ApiBuiltInCatalog;
   catalog: WorkspaceRepositoryCatalog;
@@ -85,6 +87,7 @@ function mapSecurityError(error: ApiSecurityError) {
 
 export function createApiRequestHandler({
   accessStore,
+  agentConfigurationStore,
   agentService = null,
   builtInCatalog,
   catalog,
@@ -103,6 +106,8 @@ export function createApiRequestHandler({
   const resolvedAccessStore = accessStore ?? new AutomationTokenStore(
     stateDirectory,
   );
+  const resolvedAgentConfigurationStore = agentConfigurationStore ??
+    new AgentConfigurationStore(stateDirectory);
   const search = createApiSearchService({
     builtInCatalog,
     catalog,
@@ -159,6 +164,7 @@ export function createApiRequestHandler({
       let parsedBody: Promise<unknown> | null = null;
       const result = await handleApiRoute({
         accessStore: resolvedAccessStore,
+        agentConfigurationStore: resolvedAgentConfigurationStore,
         agentService,
         builtInCatalog,
         catalog,

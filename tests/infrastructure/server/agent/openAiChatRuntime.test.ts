@@ -12,7 +12,7 @@ import {
 } from "../../../../infrastructure/server/agent/openAiChatRuntime.ts";
 import type {
   OpenAiChatAgentProfile,
-} from "../../../../infrastructure/server/agent/profiles.ts";
+} from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
 
 async function readJson(request: IncomingMessage) {
   let source = "";
@@ -31,7 +31,6 @@ function writeSse(response: ServerResponse, values: unknown[]) {
 
 function profile(baseUrl: string): OpenAiChatAgentProfile {
   return {
-    apiKeyEnv: "TEST_KEY",
     baseUrl,
     contextWindowTokens: 8_192,
     id: "openai-test",
@@ -42,6 +41,7 @@ function profile(baseUrl: string): OpenAiChatAgentProfile {
     maxToolSteps: 2,
     model: "test-model",
     timeoutMilliseconds: 5_000,
+    toolCallMode: "native",
   };
 }
 

@@ -13,6 +13,7 @@ import { useFeedback } from "../../ui/shared/FeedbackProvider";
 const authenticationLabels = {
   configured: "认证已配置",
   missing: "认证未配置",
+  "not-required": "无需认证",
   unknown: "认证状态未知",
 } as const;
 

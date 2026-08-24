@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+import type {
+  AgentChatProfileParameters,
+  AgentCodexProfileParameters,
+} from "../../../application/agent/agentConfiguration.ts";
+import type { ResolvedAgentConfiguration } from "./configurationStore.ts";
+
+type AgentRuntimeProfileBase = {
+  id: string;
+  label: string;
+  maxResidentSessions: number;
+  model: string;
+  timeoutMilliseconds: number;
+};
+
+export type CodexAgentProfile = AgentRuntimeProfileBase &
+  Omit<AgentCodexProfileParameters, "kind"> & { kind: "codex" };
+
+export type OpenAiChatAgentProfile = AgentRuntimeProfileBase &
+  Omit<AgentChatProfileParameters, "kind" | "toolCallMode"> & {
+    baseUrl: string;
+    kind: "openai-chat";
+    toolCallMode: "native";
+  };
+
+export type AgentRuntimeProfile = CodexAgentProfile | OpenAiChatAgentProfile;
+
+export function createAgentRuntimeProfile(
+  configuration: ResolvedAgentConfiguration,
+): AgentRuntimeProfile {
+  const { profile, provider } = configuration;
+
+  if (provider.kind === "ollama") {
+    throw new Error("Ollama runtime is not available");
+  }
+  if (profile.parameters.kind === "codex") {
+    if (provider.kind !== "codex") {
+      throw new Error("Codex profile does not match its provider");
+    }
+    return {
+      id: profile.id,
+      kind: "codex",
+      label: profile.label,
+      maxInputCharacters: profile.parameters.maxInputCharacters,
+      maxOutputCharacters: profile.parameters.maxOutputCharacters,
+      maxResidentSessions: profile.maxResidentSessions,
+      model: profile.model,
+      reasoningEffort: profile.parameters.reasoningEffort,
+      timeoutMilliseconds: profile.timeoutMilliseconds,
+    };
+  }
+  if (provider.kind !== "openai-chat" || provider.baseUrl === null) {
+    throw new Error("OpenAI-compatible profile does not match its provider");
+  }
+  if (profile.parameters.toolCallMode !== "native") {
+    throw new Error("OpenAI-compatible profiles require native tool calls");
+  }
+  return {
+    baseUrl: provider.baseUrl,
+    contextWindowTokens: profile.parameters.contextWindowTokens,
+    id: profile.id,
+    kind: "openai-chat",
+    label: profile.label,
+    maxOutputTokens: profile.parameters.maxOutputTokens,
+    maxResidentSessions: profile.maxResidentSessions,
+    maxToolSteps: profile.parameters.maxToolSteps,
+    model: profile.model,
+    timeoutMilliseconds: profile.timeoutMilliseconds,
+    toolCallMode: "native",
+  };
+}

@@ -17,10 +17,7 @@ import type {
   WorkspaceRepositoryCatalog,
 } from "../../../../infrastructure/server/repository/catalog.ts";
 import { AgentOperationLedger } from "../../../../infrastructure/server/agent/operationLedger.ts";
-import type {
-  AgentProfileCatalog,
-  OpenAiChatAgentProfile,
-} from "../../../../infrastructure/server/agent/profiles.ts";
+import { AgentConfigurationStore } from "../../../../infrastructure/server/agent/configurationStore.ts";
 import {
   AgentService,
   AgentServiceError,
@@ -31,8 +28,12 @@ import { ApiRevisionTracker } from "../../../../infrastructure/server/api/sync/r
 import { ApiSearchService } from "../../../../infrastructure/server/api/search.ts";
 import { journalResourceVersions } from "../../../../infrastructure/server/api/resources/versions.ts";
 import type { ApiRuntime } from "../../../../infrastructure/server/api/http/runtime.ts";
+import {
+  loadAgentServicePolicy,
+} from "../../../../infrastructure/server/agent/servicePolicy.ts";
 
 const journalScope = { domain: "journal" as const, entryIds: null };
+const profileId = "agent-profile-fake-openai";
 
 function uuid(index: number) {
   return `00000000-0000-4000-8000-${
@@ -48,41 +49,6 @@ function createRuntime(): ApiRuntime {
     now: () => new Date("2026-08-20T08:00:00.000Z"),
     timezoneOffsetMinutes: () => 480,
     today: () => "2026-08-20",
-  };
-}
-
-function profile(): OpenAiChatAgentProfile {
-  return {
-    apiKeyEnv: "TEST_AGENT_KEY",
-    baseUrl: "https://runtime.invalid/v1",
-    contextWindowTokens: 8_192,
-    id: "fake-openai",
-    kind: "openai-chat",
-    label: "Fake OpenAI",
-    maxOutputTokens: 1_024,
-    maxResidentSessions: 2,
-    maxToolSteps: 8,
-    model: "fake",
-    timeoutMilliseconds: 5_000,
-  };
-}
-
-function profileCatalog(config: OpenAiChatAgentProfile): AgentProfileCatalog {
-  return {
-    absoluteTtlMilliseconds: 24 * 60 * 60 * 1_000,
-    configurationProblem: null,
-    idleTtlMilliseconds: 60 * 60 * 1_000,
-    maxAuditEntries: 100,
-    profiles: [{
-      authenticationStatus: "configured",
-      availability: "available",
-      config,
-      id: config.id,
-      kind: config.kind,
-      label: config.label,
-      model: config.model,
-      unavailableReason: null,
-    }],
   };
 }
 
@@ -132,13 +98,53 @@ async function createFixture(behavior: TurnBehavior) {
     },
   };
   const ledger = new AgentOperationLedger(path.join(root, "state"), 100);
+  const ids = ["provider", "fake-openai"];
+  const configurationStore = new AgentConfigurationStore(
+    path.join(root, "state"),
+    { createId: () => ids.shift()! },
+  );
+  let configuration = await configurationStore.readSnapshot();
+  const provider = await configurationStore.createProvider(
+    configuration.revision,
+    {
+      apiKey: "server-secret",
+      authenticationType: "bearer",
+      baseUrl: "https://runtime.invalid/v1",
+      kind: "openai-chat",
+      label: "Fake OpenAI provider",
+    },
+  );
+
+  configuration = provider.configuration;
+  const created = await configurationStore.createProfile(
+    configuration.revision,
+    {
+      label: "Fake OpenAI",
+      maxResidentSessions: 2,
+      model: "fake",
+      parameters: {
+        contextWindowTokens: 8_192,
+        kind: "chat",
+        maxOutputTokens: 1_024,
+        maxToolSteps: 8,
+        toolCallMode: "native",
+      },
+      providerId: provider.provider.id,
+      timeoutMilliseconds: 5_000,
+    },
+  );
+
+  await configurationStore.setConformance(
+    created.configuration.revision,
+    created.profile.id,
+    { checkedAt: "2026-08-20T08:00:00.000Z", toolCallMode: "native" },
+  );
   const service = new AgentService({
     builtInCatalog,
     catalog: unavailableWorkspaceCatalog,
-    environment: { TEST_AGENT_KEY: "server-secret" },
+    configurationStore,
     eventHub: new ApiEventHub(uuid(900)),
     ledger,
-    profileCatalog: profileCatalog(profile()),
     revisionTracker: new ApiRevisionTracker(),
     runtime,
     runtimeFactory: () => runtimePort,
@@ -146,6 +152,7 @@ async function createFixture(behavior: TurnBehavior) {
       builtInCatalog,
       catalog: unavailableWorkspaceCatalog,
     }),
+    servicePolicy: loadAgentServicePolicy("100"),
   });
 
   return {
@@ -198,12 +205,12 @@ describe("Agent service proposal lifecycle", () => {
     }));
 
     try {
-      const status = fixture.service.status();
+      const status = await fixture.service.status();
 
       expect(status.profiles).toEqual([{
         authenticationStatus: "configured",
         availability: "available",
-        id: "fake-openai",
+        id: profileId,
         kind: "openai-chat",
         label: "Fake OpenAI",
         model: "fake",
@@ -235,11 +242,11 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const first = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
       const second = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
 
@@ -248,7 +255,7 @@ describe("Agent service proposal lifecycle", () => {
       await vi.waitFor(() => expect(started).toEqual(["first"]));
       expect(fixture.service.getSession(second.id).state).toBe("queued");
       await expect(fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       })).rejects.toMatchObject({ code: "session_capacity_reached" });
       releaseFirst();
@@ -282,7 +289,7 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
 
@@ -322,7 +329,7 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
 
@@ -368,7 +375,7 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
 
@@ -393,7 +400,7 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
       fixture.service.sendMessage(session.id, "Create two entries");
@@ -439,7 +446,7 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
       const store = await fixture.builtInCatalog.getStore("journal");
@@ -468,7 +475,7 @@ describe("Agent service proposal lifecycle", () => {
 
     try {
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
 
@@ -543,7 +550,7 @@ describe("Agent service proposal lifecycle", () => {
         projection: seeded.projection,
       });
       const session = await fixture.service.createSession({
-        profileId: "fake-openai",
+        profileId,
         scope: journalScope,
       });
 

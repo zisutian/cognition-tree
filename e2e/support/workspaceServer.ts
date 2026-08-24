@@ -23,13 +23,14 @@ import { CompositeRepositoryCatalog } from "../../infrastructure/server/catalog/
 import { BuiltInCatalog } from "../../infrastructure/server/repository/built-ins/catalog.ts";
 import { AgentOperationLedger } from "../../infrastructure/server/agent/operationLedger.ts";
 import { AgentService } from "../../infrastructure/server/agent/service.ts";
+import { loadAgentServicePolicy } from "../../infrastructure/server/agent/servicePolicy.ts";
 import { ApiEventHub } from "../../infrastructure/server/api/sync/events.ts";
 import { ApiRevisionTracker } from "../../infrastructure/server/api/sync/revisionTracker.ts";
 import { ApiSearchService } from "../../infrastructure/server/api/search.ts";
 import { systemApiRuntime } from "../../infrastructure/server/api/http/runtime.ts";
 import {
   createE2EAgentRuntime,
-  e2eAgentProfileCatalog,
+  createE2EAgentConfigurationStore,
 } from "./fakeAgentRuntime.ts";
 
 const host = "127.0.0.1";
@@ -79,22 +80,26 @@ export async function startE2EWorkspaceServer({
     const eventHub = new ApiEventHub();
     const revisionTracker = new ApiRevisionTracker();
     const operationLedger = new AgentOperationLedger(serverStateDirectory, 100);
+    const agentConfigurationStore = await createE2EAgentConfigurationStore(
+      serverStateDirectory,
+    );
     const agentService = new AgentService({
       builtInCatalog,
       catalog,
-      environment: { CTN_E2E_AGENT_KEY: "e2e-only" },
+      configurationStore: agentConfigurationStore,
       eventHub,
       ledger: operationLedger,
-      profileCatalog: e2eAgentProfileCatalog,
       revisionTracker,
       runtime: systemApiRuntime,
       runtimeFactory: createE2EAgentRuntime,
       search: new ApiSearchService({ builtInCatalog, catalog }),
+      servicePolicy: loadAgentServicePolicy("100"),
     });
 
     return {
       agentService,
       apiHandler: createApiRequestHandler({
+        agentConfigurationStore,
         agentService,
         builtInCatalog,
         catalog,

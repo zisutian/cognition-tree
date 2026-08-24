@@ -54,6 +54,8 @@ type ApiRouteParameters = {
   entryId?: string;
   noteId?: string;
   proposalId?: string;
+  profileId?: string;
+  providerId?: string;
   repositoryId?: string;
   sessionId?: string;
   tokenId?: string;

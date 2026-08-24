@@ -29,7 +29,7 @@ export async function handleAgentOperation(context: ApiHandlerContext) {
 
   if (operation.operationId === "getAgentStatus") {
     return {
-      body: context.agentService?.status() ?? {
+      body: await context.agentService?.status() ?? {
         configurationProblem: "Agent is not configured on this server",
         enabled: false,
         profiles: [],

@@ -45,6 +45,10 @@ import {
 import { AgentOperationIdempotencyError } from "../../agent/operationLedger.ts";
 import { AgentServiceError } from "../../agent/errors.ts";
 import {
+  AgentConfigurationConflictError,
+  AgentConfigurationValidationError,
+} from "../../agent/configurationStore.ts";
+import {
   AgentProposalStateError,
   AgentScopeUnavailableError,
   AgentScopeViolationError,
@@ -121,6 +125,16 @@ export function apiNotFound(message = "Resource does not exist"): never {
 
 export function mapApiError(error: unknown): ApiRequestError {
   if (error instanceof ApiRequestError) return error;
+  if (error instanceof AgentConfigurationConflictError) {
+    return new ApiRequestError(
+      "resource_conflict",
+      error.message,
+      { details: { currentRevision: error.currentRevision } },
+    );
+  }
+  if (error instanceof AgentConfigurationValidationError) {
+    return new ApiRequestError("domain_validation_failed", error.message);
+  }
   if (error instanceof AgentServiceError) {
     return new ApiRequestError(error.code, error.message);
   }

@@ -13,7 +13,7 @@ import {
   SecureJsonPartition,
 } from "../state/secureJsonPartition.ts";
 
-const formatVersion = 1;
+const formatVersion = 2;
 type OperationState = {
   entries: AgentOperationAuditEntryDto[];
   formatVersion: typeof formatVersion;
@@ -63,7 +63,7 @@ export class AgentOperationLedger {
     this.#maxAuditEntries = maxAuditEntries;
     this.#partition = new SecureJsonPartition({
       createInitial: () => ({ entries: [], formatVersion }),
-      directory: path.join(path.resolve(stateDirectory), "agent-v1"),
+      directory: path.join(path.resolve(stateDirectory), "agent-v2"),
       fileName: "operations.json",
       name: "Agent operation ledger",
       parse: parseOperationState,

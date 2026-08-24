@@ -19,7 +19,7 @@ import type {
   AgentRuntimeTurnRequest,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
-import type { CodexAgentProfile } from "./profiles.ts";
+import type { CodexAgentProfile } from "./runtimeProfiles.ts";
 import { AgentRuntimeProtocolError } from "./openAiChatRuntime.ts";
 
 const pinnedCodexVersion = "0.148.0";

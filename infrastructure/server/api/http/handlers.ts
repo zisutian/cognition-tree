@@ -25,6 +25,7 @@ import {
   workspaceResourceVersions,
 } from "../resources/versions.ts";
 import {
+  handleAgentConfigurationAdmin,
   handleRepositoryAdmin,
   handleTokenAdmin,
   parseAuditQuery,
@@ -151,6 +152,17 @@ export async function handleApiRoute(
       body: await context.operationLedger.list(parseAuditQuery(context.query)),
       statusCode: 200,
     };
+  }
+  if (
+    operation.operationId === "getAgentConfiguration" ||
+    operation.operationId.startsWith("createAgentProfile") ||
+    operation.operationId.startsWith("updateAgentProfile") ||
+    operation.operationId.startsWith("deleteAgentProfile") ||
+    operation.operationId.startsWith("createAgentProvider") ||
+    operation.operationId.startsWith("updateAgentProvider") ||
+    operation.operationId.startsWith("deleteAgentProvider")
+  ) {
+    return handleAgentConfigurationAdmin(context);
   }
   throw new ApiRequestError("not_found", "Not found");
 }

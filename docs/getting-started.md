@@ -37,7 +37,7 @@
     CTN_WEBDAV_PRIVATE_TARGETS   可选，允许的私网 origin/CIDR
     CTN_PUBLIC_URL               非 loopback 部署的 HTTPS 公开 URL
     CTN_API_TOKEN                非 loopback 部署的 bearer token
-    CTN_AGENT_PROFILES_FILE      可选，严格 v1 Agent profile JSON 路径
+    CTN_AGENT_MAX_AUDIT_ENTRIES 必填，Agent 审计最大条数
 
 前端启动配置：
 
@@ -57,27 +57,10 @@ HTTP(S) origin，不允许凭据、query 或 fragment。缺失或无效配置会
 fallback。localStorage 只保存当前普通 repository id，以及用户在设置页显式选择的
 默认 Agent profile id；不保存 profile 配置、base URL 或凭据。
 
-Agent 配置示例见 `docs/agent-profiles.example.json`。复制后必须替换 model、
-OpenAI-compatible baseUrl，并在服务进程环境中设置各 profile 的 apiKeyEnv；UI
-不能覆盖这些字段。根对象只接受以下精确字段：
-
-    formatVersion              必须为 1
-    idleTtlMilliseconds         必须为 3600000
-    absoluteTtlMilliseconds     必须为 86400000
-    maxAuditEntries             正整数，operation ledger 最大条数
-    profiles                    profile 数组
-
-所有 profile 都必须显式提供 id、label、kind、model、apiKeyEnv、
-maxResidentSessions 和 timeoutMilliseconds。Codex 还需要 reasoningEffort、
-maxInputCharacters、maxOutputCharacters；OpenAI-compatible 还需 baseUrl、
-contextWindowTokens、maxOutputTokens、maxToolSteps。未知或缺失字段不会被忽略。根配置
-缺失/无效时只禁用 Agent；单个 profile 无效、ID 重复或缺少 API key 时只禁用该
-profile，应用不会自动 fallback。
-
-设置页的“智能体”分区只选择服务端 allowlist 中的默认 profile，并显示 model、
-runtime 和服务端认证状态。首次使用必须显式选择；已选 profile 不可用时，新会话会
-被阻止且不会切换到其他 profile。刷新操作只重新读取服务端当前状态，不重新加载
-profile 文件或进程环境；修改配置或密钥后需要重启或 recreate 服务。
+设置页的“智能体”分区管理 provider、profile、模型参数与一次性写入的凭据。
+配置由服务端原子写入 `agent-config-v1/configuration.json`，响应永不回传 secret。
+首次使用必须显式选择默认 profile；已选 profile 不可用时，新会话会被阻止且不会
+切换到其他 profile。
 
 
 ## 3. 安全边界
@@ -209,13 +192,14 @@ WebDAV 连接配置保存在：
 新服务状态分区保存在：
 
     <CTN_SERVER_STATE_DIR>/access-v1/automation-tokens.json
-    <CTN_SERVER_STATE_DIR>/agent-v1/operations.json
+    <CTN_SERVER_STATE_DIR>/agent-config-v1/configuration.json
+    <CTN_SERVER_STATE_DIR>/agent-v2/operations.json
 
 automation secret 只在创建响应显示一次，磁盘只保存 SHA-256 哈希、只读 scopes、
 Workspace allowlist 与使用时间。Agent ledger 以 proposal UUID + version + digest
 幂等，只记录 owner、session/profile/runtime、store、before/after revision、变更
 资源/块 ID、结果和时间；不记录提示词、模型回复、正文、完整 diff 或 tool
-output。条目超过 maxAuditEntries 时裁剪最旧记录。
+output。条目超过 `CTN_AGENT_MAX_AUDIT_ENTRIES` 时裁剪最旧记录。
 
 旧 `<CTN_SERVER_STATE_DIR>/api-v1/` 完全不读取、不迁移、不暴露；没有兼容 decoder。
 文件原样保留供人工备份，新服务不会主动删除。既有 automation token 因而全部
@@ -304,7 +288,7 @@ pnpm build 先清理旧构建，再输出客户端到 .artifacts/build/client、
 未来容器路径约定：
 
     /data/repositories  -> CTN_REPOSITORY_ROOT（普通仓库与内置数据）
-    /data/server        -> CTN_SERVER_STATE_DIR（WebDAV、access-v1、agent-v1）
+    /data/server        -> CTN_SERVER_STATE_DIR（WebDAV、access-v1、agent-config-v1、agent-v2）
 
 Local 仓库必须整体挂载，包含根部 .ctn/。当前项目不提供 Dockerfile、镜像或 Compose。
 自行容器化时还必须提供可用的进程 sandbox、可写且受边界约束的临时目录、

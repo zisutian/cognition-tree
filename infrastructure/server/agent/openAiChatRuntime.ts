@@ -7,7 +7,7 @@ import type {
   AgentRuntimeTurnRequest,
 } from "../../../application/agent/agentRuntimePort.ts";
 import type { AgentScope } from "../../../application/agent/agentTypes.ts";
-import type { OpenAiChatAgentProfile } from "./profiles.ts";
+import type { OpenAiChatAgentProfile } from "./runtimeProfiles.ts";
 
 export class AgentRuntimeProtocolError extends Error {
   constructor(message: string) {

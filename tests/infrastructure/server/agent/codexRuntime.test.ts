@@ -16,7 +16,7 @@ import {
 } from "../../../../infrastructure/server/agent/codexRuntime.ts";
 import type {
   CodexAgentProfile,
-} from "../../../../infrastructure/server/agent/profiles.ts";
+} from "../../../../infrastructure/server/agent/runtimeProfiles.ts";
 
 const fakeAppServer = String.raw`
 const send = (value) => {
@@ -108,7 +108,6 @@ process.stdin.on("data", (chunk) => {
 
 function profile(): CodexAgentProfile {
   return {
-    apiKeyEnv: "TEST_CODEX_KEY",
     id: "codex-test",
     kind: "codex",
     label: "Codex test",
